@@ -32,6 +32,16 @@ const (
 	pinFocusDetail
 )
 
+type pinReloadMsg struct {
+	items       []pin.QueueItem
+	rows        []table.Row
+	modTime     time.Time
+	err         error
+	resetScroll bool
+}
+
+type pinReloadStartMsg struct{}
+
 type pinView struct {
 	files       pin.Files
 	items       []pin.QueueItem
@@ -41,6 +51,8 @@ type pinView struct {
 	err         string
 	mode        pinMode
 	focus       pinFocus
+	loading     bool
+	reloadAgain bool
 	blockForm   *huh.Form
 	blockReason string
 	config      config.Config
@@ -67,10 +79,6 @@ func newPinView(cfg config.Config, locations paths.Locations) (*pinView, error) 
 	view.table = table.New(table.WithColumns(columns), table.WithFocused(true))
 	view.detail = viewport.New(80, 10)
 	view.detail.Style = lipgloss.NewStyle().Padding(0, 1)
-	if err := view.reload(); err != nil {
-		return nil, err
-	}
-	view.syncDetail(true)
 	return view, nil
 }
 
@@ -81,13 +89,40 @@ func (p *pinView) Update(msg tea.Msg, keys keyMap) tea.Cmd {
 			p.blockForm = form
 		}
 		if p.blockForm.State == huh.StateCompleted {
-			p.finishBlock()
+			return p.finishBlock()
 		} else if p.blockForm.State == huh.StateAborted {
 			p.status = "Block cancelled"
 			p.err = ""
 			p.mode = pinModeTable
 		}
 		return cmd
+	}
+
+	if reloadMsg, ok := msg.(pinReloadMsg); ok {
+		p.loading = false
+		if reloadMsg.err != nil {
+			p.err = reloadMsg.err.Error()
+			p.status = ""
+			return nil
+		}
+		p.err = ""
+		p.items = reloadMsg.items
+		p.table.SetRows(reloadMsg.rows)
+		if !reloadMsg.modTime.IsZero() {
+			p.queueMTime = reloadMsg.modTime
+		}
+		p.syncDetail(reloadMsg.resetScroll)
+		if p.reloadAgain {
+			p.reloadAgain = false
+			return p.reloadAsync(false)
+		}
+		return nil
+	}
+	if _, ok := msg.(pinReloadStartMsg); ok {
+		p.loading = true
+		p.status = ""
+		p.err = ""
+		return nil
 	}
 
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
@@ -105,8 +140,7 @@ func (p *pinView) Update(msg tea.Msg, keys keyMap) tea.Cmd {
 			p.runValidate()
 			return nil
 		case key.Matches(keyMsg, keys.MoveChecked):
-			p.runMoveChecked()
-			return nil
+			return p.runMoveChecked()
 		case key.Matches(keyMsg, keys.BlockItem):
 			p.startBlock()
 			return nil
@@ -146,7 +180,10 @@ func (p *pinView) Resize(width int, height int) {
 	statusWidth := 6
 	idWidth := 10
 	titleWidth := width - statusWidth - idWidth - 6
-	if titleWidth < 20 {
+	if titleWidth < 0 {
+		titleWidth = 0
+	}
+	if width >= statusWidth+idWidth+6+20 && titleWidth < 20 {
 		titleWidth = 20
 	}
 	p.table.SetColumns([]table.Column{
@@ -158,29 +195,25 @@ func (p *pinView) Resize(width int, height int) {
 	if available < 0 {
 		available = 0
 	}
-	tableHeight := available * 2 / 5
-	if tableHeight < 5 {
-		tableHeight = 5
-	}
-	detailHeight := available - tableHeight
-	if detailHeight < 5 {
-		detailHeight = 5
-	}
-	if available >= 10 && tableHeight+detailHeight > available {
-		over := tableHeight + detailHeight - available
-		if tableHeight-over >= 5 {
-			tableHeight -= over
-		} else {
-			tableHeight = 5
+	tableHeight := 0
+	detailHeight := 0
+	if available > 0 {
+		tableHeight = available * 2 / 5
+		if tableHeight < 1 {
+			tableHeight = 1
+		}
+		if tableHeight > available {
+			tableHeight = available
 		}
 		detailHeight = available - tableHeight
-		if detailHeight < 5 {
-			detailHeight = 5
+		if detailHeight < 1 && available > 1 {
+			detailHeight = 1
+			tableHeight = available - 1
 		}
 	}
-	p.table.SetHeight(max(5, tableHeight))
+	p.table.SetHeight(tableHeight)
 	p.detail.Width = width
-	p.detail.Height = max(5, detailHeight)
+	p.detail.Height = detailHeight
 	if p.mode == pinModeBlockForm && p.blockForm != nil {
 		formHeight := height - 2
 		if formHeight < 1 {
@@ -196,13 +229,17 @@ func (p *pinView) Resize(width int, height int) {
 }
 
 func (p *pinView) statusLine() string {
+	focusNote := p.focusLabel()
+	if p.loading {
+		return joinStatus("Loading pin...", focusNote)
+	}
 	if p.err != "" {
-		return fmt.Sprintf("Error: %s", p.err)
+		return joinStatus("Error: "+p.err, focusNote)
 	}
 	if p.status != "" {
-		return p.status
+		return joinStatus(p.status, focusNote)
 	}
-	return ""
+	return focusNote
 }
 
 func (p *pinView) tableWithDetail() string {
@@ -244,6 +281,36 @@ func (p *pinView) reload() error {
 	return nil
 }
 
+func (p *pinView) reloadAsync(resetScroll bool) tea.Cmd {
+	if p.loading {
+		p.reloadAgain = true
+		return nil
+	}
+	files := p.files
+	return tea.Batch(
+		func() tea.Msg { return pinReloadStartMsg{} },
+		func() tea.Msg {
+			items, err := pin.ReadQueueItems(files.QueuePath)
+			if err != nil {
+				return pinReloadMsg{err: err, resetScroll: resetScroll}
+			}
+			rows := make([]table.Row, 0, len(items))
+			for _, item := range items {
+				status := "[ ]"
+				if item.Checked {
+					status = "[x]"
+				}
+				rows = append(rows, table.Row{status, item.ID, trimTitle(item.Header)})
+			}
+			var modTime time.Time
+			if mod, err := fileModTime(files.QueuePath); err == nil {
+				modTime = mod
+			}
+			return pinReloadMsg{items: items, rows: rows, modTime: modTime, resetScroll: resetScroll}
+		},
+	)
+}
+
 func (p *pinView) runValidate() {
 	if err := pin.ValidatePin(p.files); err != nil {
 		p.err = err.Error()
@@ -254,12 +321,12 @@ func (p *pinView) runValidate() {
 	p.status = ">> [RALPH] Pin validation OK."
 }
 
-func (p *pinView) runMoveChecked() {
+func (p *pinView) runMoveChecked() tea.Cmd {
 	ids, err := pin.MoveCheckedToDone(p.files.QueuePath, p.files.DonePath, false)
 	if err != nil {
 		p.err = err.Error()
 		p.status = ""
-		return
+		return nil
 	}
 	p.err = ""
 	summary := pin.SummarizeIDs(ids)
@@ -268,7 +335,7 @@ func (p *pinView) runMoveChecked() {
 	} else {
 		p.status = fmt.Sprintf("Moved: %s", summary)
 	}
-	_ = p.reload()
+	return p.reloadAsync(true)
 }
 
 func (p *pinView) startBlock() {
@@ -293,13 +360,13 @@ func (p *pinView) startBlock() {
 	p.Resize(p.width, p.height)
 }
 
-func (p *pinView) finishBlock() {
+func (p *pinView) finishBlock() tea.Cmd {
 	item := p.selectedItem()
 	if item == nil {
 		p.err = "No queue item selected."
 		p.status = ""
 		p.mode = pinModeTable
-		return
+		return nil
 	}
 	reasonLines := make([]string, 0)
 	for _, line := range strings.Split(p.blockReason, "\n") {
@@ -311,25 +378,25 @@ func (p *pinView) finishBlock() {
 		p.err = "At least one reason line is required."
 		p.status = ""
 		p.mode = pinModeTable
-		return
+		return nil
 	}
 	ok, err := pin.BlockItem(p.files.QueuePath, item.ID, reasonLines, pin.Metadata{})
 	if err != nil {
 		p.err = err.Error()
 		p.status = ""
 		p.mode = pinModeTable
-		return
+		return nil
 	}
 	if !ok {
 		p.err = fmt.Sprintf("Item %s not found in Queue.", item.ID)
 		p.status = ""
 		p.mode = pinModeTable
-		return
+		return nil
 	}
 	p.status = fmt.Sprintf("Blocked %s", item.ID)
 	p.err = ""
 	p.mode = pinModeTable
-	_ = p.reload()
+	return p.reloadAsync(true)
 }
 
 func (p *pinView) syncDetail(resetScroll bool) {
@@ -351,26 +418,23 @@ func (p *pinView) SetConfig(cfg config.Config, locations paths.Locations) error 
 	return p.reload()
 }
 
-func (p *pinView) RefreshIfNeeded() {
+func (p *pinView) RefreshIfNeeded() tea.Cmd {
 	if p.mode != pinModeTable {
-		return
+		return nil
 	}
 	modTime, changed, err := fileChanged(p.files.QueuePath, p.queueMTime)
 	if err != nil {
-		return
+		return nil
 	}
 	if changed {
 		p.queueMTime = modTime
-		_ = p.reload()
+		return p.reloadAsync(false)
 	}
+	return nil
 }
 
 func (p *pinView) Focus() {
-	if p.focus == pinFocusTable {
-		p.table.Focus()
-	} else {
-		p.table.Blur()
-	}
+	p.setFocus(p.focus)
 }
 
 func (p *pinView) Blur() {
@@ -384,6 +448,26 @@ func (p *pinView) setFocus(focus pinFocus) {
 	} else {
 		p.table.Blur()
 	}
+}
+
+func (p *pinView) focusLabel() string {
+	if p.mode != pinModeTable {
+		return ""
+	}
+	if p.focus == pinFocusDetail {
+		return "Focus: detail (tab)"
+	}
+	return "Focus: table (tab)"
+}
+
+func joinStatus(primary string, secondary string) string {
+	if primary == "" {
+		return secondary
+	}
+	if secondary == "" {
+		return primary
+	}
+	return primary + " | " + secondary
 }
 
 func trimTitle(header string) string {

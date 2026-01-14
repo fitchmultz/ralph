@@ -31,6 +31,8 @@ type specsView struct {
 	autoEnabled       bool
 	preview           string
 	previewErr        string
+	previewLoading    bool
+	previewDirty      bool
 	status            string
 	err               string
 	previewViewport   viewport.Model
@@ -59,6 +61,15 @@ type specsLogMsg struct {
 
 type specsLogDoneMsg struct{}
 
+type specsPreviewMsg struct {
+	preview   string
+	err       error
+	effective bool
+	auto      bool
+}
+
+type specsPreviewStartMsg struct{}
+
 func newSpecsView(cfg config.Config, locations paths.Locations) (*specsView, error) {
 	vp := viewport.New(80, 20)
 	logViewport := viewport.New(80, 20)
@@ -70,8 +81,8 @@ func newSpecsView(cfg config.Config, locations paths.Locations) (*specsView, err
 		previewViewport: vp,
 		logViewport:     logViewport,
 		previewWidth:    80,
+		previewDirty:    true,
 	}
-	view.refreshPreview()
 	if modTime, err := fileModTime(filepath.Join(cfg.Paths.PinDir, "implementation_queue.md")); err == nil {
 		view.queueMTime = modTime
 	}
@@ -86,8 +97,9 @@ func (s *specsView) Update(msg tea.Msg, keys keyMap) tea.Cmd {
 	case specsBuildResultMsg:
 		s.pendingResult = &msg
 		if s.logCh == nil {
-			s.applyBuildResult(msg)
+			cmd := s.applyBuildResult(msg)
 			s.pendingResult = nil
+			return cmd
 		}
 		return nil
 	case specsLogMsg:
@@ -100,24 +112,45 @@ func (s *specsView) Update(msg tea.Msg, keys keyMap) tea.Cmd {
 		s.logCh = nil
 		s.finalizeRunOutput()
 		if s.pendingResult != nil {
-			s.applyBuildResult(*s.pendingResult)
+			cmd := s.applyBuildResult(*s.pendingResult)
 			s.pendingResult = nil
+			s.running = false
+			return cmd
 		}
 		s.running = false
+		return nil
+	case specsPreviewMsg:
+		s.previewLoading = false
+		if msg.err != nil {
+			s.previewErr = msg.err.Error()
+			s.preview = ""
+			return nil
+		}
+		s.previewErr = ""
+		s.preview = msg.preview
+		s.effectiveInnovate = msg.effective
+		s.autoEnabled = msg.auto
+		s.previewViewport.SetContent(msg.preview)
+		s.previewViewport.GotoTop()
+		return nil
+	case specsPreviewStartMsg:
+		s.previewLoading = true
+		s.previewDirty = false
+		s.previewErr = ""
 		return nil
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, keys.ToggleInteractive) && !s.running:
 			s.interactive = !s.interactive
-			s.refreshPreview()
+			return s.refreshPreviewAsync()
 		case key.Matches(msg, keys.ToggleInnovate) && !s.running:
 			s.innovate = !s.innovate
 			s.innovateExplicit = true
-			s.refreshPreview()
+			return s.refreshPreviewAsync()
 		case key.Matches(msg, keys.ToggleAutofill) && !s.running:
 			s.autofillScout = !s.autofillScout
 			s.autofillExplicit = true
-			s.refreshPreview()
+			return s.refreshPreviewAsync()
 		case key.Matches(msg, keys.RunSpecs):
 			if s.running {
 				return nil
@@ -160,6 +193,9 @@ func (s *specsView) statusLine() string {
 	if s.status != "" {
 		return s.status
 	}
+	if s.previewLoading && !s.running {
+		return "Rendering preview..."
+	}
 	return ""
 }
 
@@ -195,46 +231,47 @@ func (s *specsView) previewView() string {
 	return s.previewViewport.View()
 }
 
-func (s *specsView) refreshPreview() {
-	queuePath := filepath.Join(s.cfg.Paths.PinDir, "implementation_queue.md")
-	effective, err := specs.ResolveInnovate(queuePath, s.innovate, s.innovateExplicit, s.autofillScout)
-	if err != nil {
-		s.previewErr = err.Error()
-		s.preview = ""
-		return
-	}
-	s.effectiveInnovate = effective
-	s.autoEnabled = !s.innovateExplicit && s.autofillScout && !s.innovate && effective
+func (s *specsView) refreshPreviewAsync() tea.Cmd {
+	cfg := s.cfg
+	interactive := s.interactive
+	innovate := s.innovate
+	innovateExplicit := s.innovateExplicit
+	autofillScout := s.autofillScout
+	lastRunOutput := s.lastRunOutput
+	diffStat := s.diffStat
+	previewWidth := s.previewWidth
+	return tea.Batch(
+		func() tea.Msg { return specsPreviewStartMsg{} },
+		func() tea.Msg {
+			queuePath := filepath.Join(cfg.Paths.PinDir, "implementation_queue.md")
+			effective, err := specs.ResolveInnovate(queuePath, innovate, innovateExplicit, autofillScout)
+			if err != nil {
+				return specsPreviewMsg{err: err}
+			}
+			autoEnabled := !innovateExplicit && autofillScout && !innovate && effective
 
-	promptPath := filepath.Join(s.cfg.Paths.PinDir, "specs_builder.md")
-	prompt, err := specs.FillPrompt(promptPath, s.interactive, effective)
-	if err != nil {
-		s.previewErr = err.Error()
-		s.preview = ""
-		return
-	}
-	renderer, err := s.buildRenderer()
-	if err != nil {
-		s.previewErr = err.Error()
-		s.preview = ""
-		return
-	}
-	rendered, err := renderer.Render(prompt)
-	if err != nil {
-		s.previewErr = err.Error()
-		s.preview = ""
-		return
-	}
-	if s.lastRunOutput != "" {
-		rendered = rendered + "\n\nBuild output:\n" + s.lastRunOutput
-	}
-	if s.diffStat != "" {
-		rendered = rendered + "\n\nDiff stat:\n" + s.diffStat
-	}
-	s.previewErr = ""
-	s.preview = rendered
-	s.previewViewport.SetContent(rendered)
-	s.previewViewport.GotoTop()
+			promptPath := filepath.Join(cfg.Paths.PinDir, "specs_builder.md")
+			prompt, err := specs.FillPrompt(promptPath, interactive, effective)
+			if err != nil {
+				return specsPreviewMsg{err: err}
+			}
+			renderer, err := buildRenderer(previewWidth)
+			if err != nil {
+				return specsPreviewMsg{err: err}
+			}
+			rendered, err := renderer.Render(prompt)
+			if err != nil {
+				return specsPreviewMsg{err: err}
+			}
+			if lastRunOutput != "" {
+				rendered = rendered + "\n\nBuild output:\n" + lastRunOutput
+			}
+			if diffStat != "" {
+				rendered = rendered + "\n\nDiff stat:\n" + diffStat
+			}
+			return specsPreviewMsg{preview: rendered, effective: effective, auto: autoEnabled}
+		},
+	)
 }
 
 func (s *specsView) runBuildCmd() tea.Cmd {
@@ -296,16 +333,16 @@ func (s *specsView) Resize(width int, height int) {
 	optionsLines := strings.Count(s.optionsView(), "\n") + 1
 	reserved := 1 + 1 + 1 + optionsLines + 1
 	previewHeight := height - reserved
-	if previewHeight < 5 {
-		previewHeight = 5
+	if previewHeight < 0 {
+		previewHeight = 0
 	}
 	s.previewViewport.Height = previewHeight
 	s.logViewport.Height = previewHeight
-	s.refreshPreview()
+	s.previewDirty = true
 }
 
-func (s *specsView) buildRenderer() (*glamour.TermRenderer, error) {
-	wrapWidth := s.previewWidth
+func buildRenderer(previewWidth int) (*glamour.TermRenderer, error) {
+	wrapWidth := previewWidth
 	if wrapWidth <= 0 {
 		wrapWidth = 80
 	}
@@ -328,23 +365,26 @@ func (s *specsView) SetConfig(cfg config.Config, locations paths.Locations) {
 		s.promptMTime = modTime
 	}
 	if !s.running {
-		s.refreshPreview()
+		s.previewDirty = true
 	}
 }
 
-func (s *specsView) RefreshIfNeeded() {
+func (s *specsView) RefreshIfNeeded() tea.Cmd {
 	if s.running {
-		return
+		return nil
+	}
+	if s.previewDirty {
+		return s.refreshPreviewAsync()
 	}
 	queuePath := filepath.Join(s.cfg.Paths.PinDir, "implementation_queue.md")
 	queueTime, queueChanged, queueErr := fileChanged(queuePath, s.queueMTime)
 	if queueErr != nil {
-		return
+		return nil
 	}
 	promptPath := filepath.Join(s.cfg.Paths.PinDir, "specs_builder.md")
 	promptTime, promptChanged, promptErr := fileChanged(promptPath, s.promptMTime)
 	if promptErr != nil {
-		return
+		return nil
 	}
 	if queueChanged {
 		s.queueMTime = queueTime
@@ -353,8 +393,16 @@ func (s *specsView) RefreshIfNeeded() {
 		s.promptMTime = promptTime
 	}
 	if queueChanged || promptChanged {
-		s.refreshPreview()
+		return s.refreshPreviewAsync()
 	}
+	return nil
+}
+
+func (s *specsView) RefreshPreviewCmd() tea.Cmd {
+	if s.previewDirty {
+		return s.refreshPreviewAsync()
+	}
+	return nil
 }
 
 func (s *specsView) Focus() {}
@@ -395,23 +443,35 @@ func (s *specsView) finalizeRunOutput() {
 	s.lastRunOutput = strings.Join(s.runLogs, "\n")
 }
 
-func (s *specsView) applyBuildResult(msg specsBuildResultMsg) {
+func (s *specsView) applyBuildResult(msg specsBuildResultMsg) tea.Cmd {
 	if msg.err != nil {
 		s.err = msg.err.Error()
 		s.status = ""
-		s.refreshPreview()
-		return
+		s.previewDirty = true
+		return s.RefreshPreviewCmd()
 	}
 	if msg.pinErr != nil {
 		s.err = msg.pinErr.Error()
 		s.status = ""
-		s.refreshPreview()
-		return
+		s.previewDirty = true
+		return s.RefreshPreviewCmd()
 	}
 	s.err = ""
 	s.status = ">> [RALPH] Pin validation OK."
+	if summary := summarizeDiffStat(msg.diffStat); summary != "" {
+		s.status = s.status + " | Diff: " + summary
+	}
 	s.diffStat = msg.diffStat
-	s.refreshPreview()
+	s.previewDirty = true
+	return s.RefreshPreviewCmd()
+}
+
+func summarizeDiffStat(stat string) string {
+	if strings.TrimSpace(stat) == "" {
+		return ""
+	}
+	lines := strings.Split(strings.TrimSpace(stat), "\n")
+	return lines[len(lines)-1]
 }
 
 type logChannelSink struct {

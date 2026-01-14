@@ -17,6 +17,7 @@ func TestRenderContract(t *testing.T) {
 		w int
 		h int
 	}{
+		{w: 48, h: 12},
 		{w: 60, h: 20},
 		{w: 80, h: 24},
 		{w: 100, h: 40},

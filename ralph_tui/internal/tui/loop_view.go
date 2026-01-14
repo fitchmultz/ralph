@@ -154,8 +154,9 @@ func (l *loopView) Update(msg tea.Msg, keys keyMap) tea.Cmd {
 		case key.Matches(msg, keys.StopLoop):
 			l.stop()
 			l.mode = loopIdle
-			l.status = "Stopped"
+			l.status = "Stopping..."
 			l.err = ""
+			l.appendLogLine(">> [RALPH] Stop requested.")
 			return nil
 		case key.Matches(msg, keys.EditLoopConfig) && l.mode == loopIdle:
 			l.beginEdit()
@@ -368,11 +369,11 @@ func (l *loopView) Resize(width int, height int) {
 	l.height = height
 	controlsLines := strings.Count(l.controlsView(), "\n") + 1
 	logHeight := height - (controlsLines + 4)
-	if logHeight < 5 {
-		logHeight = 5
+	if logHeight < 0 {
+		logHeight = 0
 	}
-	l.viewport.Width = max(10, width)
-	l.viewport.Height = max(5, logHeight)
+	l.viewport.Width = max(0, width)
+	l.viewport.Height = max(0, logHeight)
 	l.viewport.Style = lipgloss.NewStyle().Padding(0, 1)
 
 	if l.editForm != nil {

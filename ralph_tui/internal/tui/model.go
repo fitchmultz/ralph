@@ -94,7 +94,18 @@ func newModel(cfg config.Config, locations paths.Locations) model {
 }
 
 func (m model) Init() tea.Cmd {
-	return refreshCmd(m.cfg.UI.RefreshSeconds)
+	cmds := []tea.Cmd{refreshCmd(m.cfg.UI.RefreshSeconds)}
+	if m.pinView != nil {
+		if cmd := m.pinView.reloadAsync(true); cmd != nil {
+			cmds = append(cmds, cmd)
+		}
+	}
+	if m.specsView != nil {
+		if cmd := m.specsView.RefreshPreviewCmd(); cmd != nil {
+			cmds = append(cmds, cmd)
+		}
+	}
+	return tea.Batch(cmds...)
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -106,9 +117,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.relayout()
+		cmds = append(cmds, m.postResizeCmds()...)
 		handled = true
 	case refreshMsg:
-		m.refreshViews()
+		cmds = append(cmds, m.refreshViews()...)
 		cmds = append(cmds, refreshCmd(m.cfg.UI.RefreshSeconds))
 		handled = true
 	case configReloadMsg:
@@ -193,10 +205,10 @@ func (m model) View() string {
 	navFrameW, navFrameH := navStyle.GetFrameSize()
 	contentFrameW, contentFrameH := contentStyle.GetFrameSize()
 
-	navInnerW := max(10, m.layout.navWidth-navFrameW)
-	contentInnerW := max(10, m.layout.contentWidth-contentFrameW)
-	navInnerH := max(6, m.layout.bodyHeight-navFrameH)
-	contentInnerH := max(6, m.layout.bodyHeight-contentFrameH)
+	navInnerW := max(0, m.layout.navWidth-navFrameW)
+	contentInnerW := max(0, m.layout.contentWidth-contentFrameW)
+	navInnerH := max(0, m.layout.bodyHeight-navFrameH)
+	contentInnerH := max(0, m.layout.bodyHeight-contentFrameH)
 
 	navStyle = navStyle.Width(navInnerW).Height(navInnerH)
 	contentStyle = contentStyle.Width(contentInnerW).Height(contentInnerH)
@@ -210,7 +222,10 @@ func (m model) View() string {
 	m.help.Width = m.width
 	footer := strings.TrimRight(m.help.View(m.helpKeyMap()), "\n")
 	footer = clampToSize(footer, m.width, 0)
-	rendered := body + "\n" + strings.Repeat("\n", footerGapBlankLines) + footer
+	rendered := body
+	if lipgloss.Height(footer) > 0 {
+		rendered = body + strings.Repeat("\n", footerGapBlankLines+1) + footer
+	}
 	rendered = clampToSize(rendered, m.width, m.height)
 	return withFinalNewline(rendered)
 }
@@ -352,7 +367,11 @@ func (m *model) relayout() {
 	footer := m.help.View(m.helpKeyMap())
 	footerH := lipgloss.Height(footer)
 
-	bodyH := m.height - footerH - footerGapBlankLines
+	footerGap := 0
+	if footerH > 0 {
+		footerGap = footerGapBlankLines + 1
+	}
+	bodyH := m.height - footerH - footerGap
 	if bodyH < 0 {
 		bodyH = 0
 	}
@@ -363,10 +382,10 @@ func (m *model) relayout() {
 	navFrameW, navFrameH := navStyle.GetFrameSize()
 	contentFrameW, contentFrameH := contentStyle.GetFrameSize()
 
-	navInnerW := max(10, m.layout.navWidth-navFrameW)
-	contentInnerW := max(10, m.layout.contentWidth-contentFrameW)
-	navInnerH := max(6, m.layout.bodyHeight-navFrameH)
-	contentInnerH := max(6, m.layout.bodyHeight-contentFrameH)
+	navInnerW := max(0, m.layout.navWidth-navFrameW)
+	contentInnerW := max(0, m.layout.contentWidth-contentFrameW)
+	navInnerH := max(0, m.layout.bodyHeight-navFrameH)
+	contentInnerH := max(0, m.layout.bodyHeight-contentFrameH)
 
 	m.nav.SetSize(navInnerW, navInnerH)
 	m.resizeViews(contentInnerW, contentInnerH)
@@ -385,6 +404,16 @@ func (m *model) resizeViews(contentInnerW int, contentInnerH int) {
 	if m.loopView != nil {
 		m.loopView.Resize(contentInnerW, contentInnerH)
 	}
+}
+
+func (m *model) postResizeCmds() []tea.Cmd {
+	cmds := make([]tea.Cmd, 0)
+	if m.specsView != nil {
+		if cmd := m.specsView.RefreshPreviewCmd(); cmd != nil {
+			cmds = append(cmds, cmd)
+		}
+	}
+	return cmds
 }
 
 type refreshMsg struct{}
@@ -425,13 +454,19 @@ func (m *model) applyConfig() {
 	}
 }
 
-func (m *model) refreshViews() {
+func (m *model) refreshViews() []tea.Cmd {
+	cmds := make([]tea.Cmd, 0)
 	if m.pinView != nil {
-		m.pinView.RefreshIfNeeded()
+		if cmd := m.pinView.RefreshIfNeeded(); cmd != nil {
+			cmds = append(cmds, cmd)
+		}
 	}
 	if m.specsView != nil {
-		m.specsView.RefreshIfNeeded()
+		if cmd := m.specsView.RefreshIfNeeded(); cmd != nil {
+			cmds = append(cmds, cmd)
+		}
 	}
+	return cmds
 }
 
 func (m *model) updateActiveView(msg tea.Msg) tea.Cmd {

@@ -41,3 +41,4 @@
 ## Agent Notes
 - Default pin/spec templates live in `.ralph/pin/` (TUI) and `ralph_legacy/specs/` (legacy).
 - Update path references in docs/prompts when moving or renaming directories.
+- For TUI resize behavior, avoid min-size clamps that exceed available space; views should shrink to fit to prevent selection/highlight mismatches.
