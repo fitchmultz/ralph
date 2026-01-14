@@ -206,8 +206,8 @@ func (s *specsView) optionsView() string {
 		fmt.Sprintf("Interactive: %s", yesNo(s.interactive)),
 		fmt.Sprintf("Innovate: %s", innovate),
 		fmt.Sprintf("Autofill scout: %s", yesNo(s.autofillScout)),
-		"Keys: i interactive | n innovate | a autofill | r run build",
-		"Scroll: \u2191/\u2193 PgUp/PgDn (Ctrl+F to focus)",
+		"Keys: e settings | i interactive | n innovate | a autofill | r run build",
+		"Scroll: \u2191/\u2193 PgUp/PgDn (Tab to focus)",
 	}
 	return strings.Join(lines, "\n")
 }

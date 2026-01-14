@@ -15,6 +15,13 @@ const (
 	logsTailLines = 200
 )
 
+type logsFormat int
+
+const (
+	logsFormatRaw logsFormat = iota
+	logsFormatFormatted
+)
+
 type logsView struct {
 	viewport   viewport.Model
 	logPath    string
@@ -22,6 +29,7 @@ type logsView struct {
 	debugLines []string
 	loopLines  []string
 	specsLines []string
+	format     logsFormat
 	width      int
 	height     int
 }
@@ -30,6 +38,7 @@ func newLogsView(logPath string) *logsView {
 	return &logsView{
 		viewport: viewport.New(80, 20),
 		logPath:  logPath,
+		format:   logsFormatRaw,
 	}
 }
 
@@ -49,6 +58,19 @@ func (l *logsView) Update(msg tea.Msg) tea.Cmd {
 	updated, cmd := l.viewport.Update(msg)
 	l.viewport = updated
 	return cmd
+}
+
+func (l *logsView) ToggleFormat() {
+	atBottom := l.viewport.AtBottom()
+	if l.format == logsFormatRaw {
+		l.format = logsFormatFormatted
+	} else {
+		l.format = logsFormatRaw
+	}
+	l.viewport.SetContent(l.renderContent())
+	if atBottom {
+		l.viewport.GotoBottom()
+	}
 }
 
 func (l *logsView) View() string {
@@ -97,10 +119,11 @@ func (l *logsView) statusLine() string {
 	if l.logErr != "" {
 		return "Error: " + l.logErr
 	}
+	formatNote := "Format: " + l.formatLabel()
 	if strings.TrimSpace(l.logPath) == "" {
-		return "Log file unavailable."
+		return "Log file unavailable. | " + formatNote
 	}
-	return "Log file: " + l.logPath
+	return "Log file: " + l.logPath + " | " + formatNote
 }
 
 func (l *logsView) renderContent() string {
@@ -115,6 +138,13 @@ func (l *logsView) renderContent() string {
 		linesOrFallback(l.specsLines, "No specs output yet."),
 	}
 	return strings.Join(sections, "\n")
+}
+
+func (l *logsView) formatLabel() string {
+	if l.format == logsFormatFormatted {
+		return "formatted"
+	}
+	return "raw"
 }
 
 func tailFileLines(path string, limit int) ([]string, error) {

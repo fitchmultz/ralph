@@ -71,3 +71,13 @@ func assertRenderFits(t *testing.T, m model, w, h int) {
 		t.Fatalf("output exceeds height %d: %d (bodyH=%d footerH=%d)", h, len(lines), m.layout.bodyHeight, footerH)
 	}
 }
+
+func TestHelpScreenMentionsTabFocus(t *testing.T) {
+	_, locs, cfg := newHermeticModel(t)
+	m := newModel(cfg, locs)
+	m.screen = screenHelp
+	view := m.contentView()
+	if !strings.Contains(view, "Tab") {
+		t.Fatalf("expected help screen to mention Tab focus, got %q", view)
+	}
+}

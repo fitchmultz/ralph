@@ -20,6 +20,9 @@ func TestModelScreenTransition(t *testing.T) {
 	if next.screen != screenConfig {
 		t.Fatalf("expected screenConfig, got %v", next.screen)
 	}
+	if next.navFocused {
+		t.Fatalf("expected content focus after selection")
+	}
 }
 
 func TestConfigReloadBumpsRefreshGeneration(t *testing.T) {

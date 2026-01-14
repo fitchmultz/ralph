@@ -185,6 +185,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.relayout()
 			return m, nil
 		}
+		if key.Matches(msg, m.keys.EditSpecsSettings) && m.screen == screenBuildSpecs {
+			m.switchScreen(screenConfig, true)
+			return m, nil
+		}
+		if key.Matches(msg, m.keys.ToggleLogsFormat) && m.screen == screenLogs && m.logsView != nil {
+			m.logsView.ToggleFormat()
+			return m, nil
+		}
 		if key.Matches(msg, m.keys.Focus) {
 			m.navFocused = !m.navFocused
 			m.applyFocus()
@@ -212,11 +220,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			if key.Matches(msg, m.keys.Select) {
 				if item, ok := m.nav.SelectedItem().(navItem); ok {
-					prev := m.screen
-					m.screen = item.screen
-					m.applyFocus()
-					m.relayout()
-					m.logInfo("screen.change", map[string]any{"from": screenName(prev), "to": screenName(m.screen)})
+					m.switchScreen(item.screen, true)
 				}
 			}
 		} else {
@@ -307,7 +311,7 @@ func (m model) contentView() string {
 		}
 		return m.logsView.View()
 	case screenHelp:
-		return "Help\n\nUse the left menu to navigate and Ctrl+F to switch focus."
+		return "Help\n\nUse the left menu to navigate and Tab to switch focus."
 	default:
 		return ""
 	}
@@ -629,6 +633,8 @@ func (m *model) screenKeyMap() help.KeyMap {
 		return specsKeyMap{keys: m.keys}
 	case screenRunLoop:
 		return loopKeyMap{keys: m.keys}
+	case screenLogs:
+		return logsKeyMap{keys: m.keys}
 	default:
 		return emptyKeyMap{}
 	}
@@ -656,4 +662,35 @@ func (m *model) applyFocus() {
 			m.loopView.Focus()
 		}
 	}
+}
+
+func (m *model) switchScreen(next screen, focusContent bool) {
+	prev := m.screen
+	m.screen = next
+	m.selectNavItem(next)
+	if focusContent {
+		m.navFocused = false
+	}
+	m.applyFocus()
+	m.relayout()
+	if prev != next {
+		m.logInfo("screen.change", map[string]any{"from": screenName(prev), "to": screenName(next)})
+	}
+}
+
+func (m *model) selectNavItem(target screen) {
+	index := navIndexForScreen(target)
+	if index >= 0 {
+		m.nav.Select(index)
+	}
+}
+
+func navIndexForScreen(target screen) int {
+	items := navigationItems()
+	for i, item := range items {
+		if item.screen == target {
+			return i
+		}
+	}
+	return -1
 }

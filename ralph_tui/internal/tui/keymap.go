@@ -11,6 +11,8 @@ type keyMap struct {
 	Focus             key.Binding
 	Help              key.Binding
 	Select            key.Binding
+	EditSpecsSettings key.Binding
+	ToggleLogsFormat  key.Binding
 	SaveGlobal        key.Binding
 	SaveRepo          key.Binding
 	Discard           key.Binding
@@ -35,8 +37,8 @@ func newKeyMap() keyMap {
 			key.WithHelp("q", "quit"),
 		),
 		Focus: key.NewBinding(
-			key.WithKeys("ctrl+f"),
-			key.WithHelp("ctrl+f", "toggle focus"),
+			key.WithKeys("tab"),
+			key.WithHelp("tab", "toggle focus"),
 		),
 		Help: key.NewBinding(
 			key.WithKeys("?"),
@@ -45,6 +47,14 @@ func newKeyMap() keyMap {
 		Select: key.NewBinding(
 			key.WithKeys("enter"),
 			key.WithHelp("enter", "open"),
+		),
+		EditSpecsSettings: key.NewBinding(
+			key.WithKeys("e"),
+			key.WithHelp("e", "specs settings"),
+		),
+		ToggleLogsFormat: key.NewBinding(
+			key.WithKeys("f"),
+			key.WithHelp("f", "toggle logs format"),
 		),
 		SaveGlobal: key.NewBinding(
 			key.WithKeys("ctrl+g"),
@@ -71,8 +81,8 @@ func newKeyMap() keyMap {
 			key.WithHelp("b", "block item"),
 		),
 		TogglePane: key.NewBinding(
-			key.WithKeys("tab"),
-			key.WithHelp("tab", "toggle pane"),
+			key.WithKeys("ctrl+t"),
+			key.WithHelp("ctrl+t", "toggle pane"),
 		),
 		ToggleInteractive: key.NewBinding(
 			key.WithKeys("i"),
@@ -116,7 +126,8 @@ func (k keyMap) ShortHelp() []key.Binding {
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Quit, k.Focus, k.Help, k.Select},
-		{k.SaveGlobal, k.SaveRepo, k.Discard},
+		{k.EditSpecsSettings, k.ToggleLogsFormat, k.SaveGlobal, k.SaveRepo},
+		{k.Discard},
 		{k.ValidatePin, k.MoveChecked, k.BlockItem},
 		{k.ToggleInteractive, k.ToggleInnovate, k.ToggleAutofill, k.RunSpecs},
 		{k.RunLoopOnce, k.RunLoopContinuous, k.StopLoop, k.EditLoopConfig},

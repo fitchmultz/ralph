@@ -446,9 +446,9 @@ func (p *pinView) focusLabel() string {
 		return ""
 	}
 	if p.focus == pinFocusDetail {
-		return "Focus: detail (tab)"
+		return "Focus: detail (ctrl+t)"
 	}
-	return "Focus: table (tab)"
+	return "Focus: table (ctrl+t)"
 }
 
 func joinStatus(primary string, secondary string) string {

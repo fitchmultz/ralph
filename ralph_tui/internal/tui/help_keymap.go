@@ -35,11 +35,11 @@ type specsKeyMap struct {
 }
 
 func (s specsKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{s.keys.ToggleInteractive, s.keys.ToggleInnovate, s.keys.ToggleAutofill, s.keys.RunSpecs}
+	return []key.Binding{s.keys.EditSpecsSettings, s.keys.ToggleInteractive, s.keys.ToggleInnovate, s.keys.RunSpecs}
 }
 
 func (s specsKeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{{s.keys.ToggleInteractive, s.keys.ToggleInnovate, s.keys.ToggleAutofill, s.keys.RunSpecs}}
+	return [][]key.Binding{{s.keys.EditSpecsSettings, s.keys.ToggleInteractive, s.keys.ToggleInnovate, s.keys.ToggleAutofill}, {s.keys.RunSpecs}}
 }
 
 type loopKeyMap struct {
@@ -64,6 +64,18 @@ func (c configKeyMap) ShortHelp() []key.Binding {
 
 func (c configKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{{c.keys.SaveGlobal, c.keys.SaveRepo, c.keys.Discard}}
+}
+
+type logsKeyMap struct {
+	keys keyMap
+}
+
+func (l logsKeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{l.keys.ToggleLogsFormat}
+}
+
+func (l logsKeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{{l.keys.ToggleLogsFormat}}
 }
 
 type emptyKeyMap struct{}
