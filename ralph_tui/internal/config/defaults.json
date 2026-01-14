@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "ui": {
+    "theme": "classic",
+    "refresh_seconds": 5
+  },
+  "logging": {
+    "level": "info"
+  },
+  "paths": {
+    "data_dir": "data",
+    "cache_dir": ".ralph/cache",
+    "pin_dir": ".ralph/pin"
+  },
+  "runner": {
+    "max_workers": 8,
+    "dry_run": false
+  },
+  "specs": {
+    "autofill_scout": true
+  },
+  "loop": {
+    "workers": 12,
+    "poll_seconds": 30,
+    "sleep_seconds": 5,
+    "max_iterations": 0,
+    "max_stalled": 3,
+    "max_repair_attempts": 2,
+    "only_tags": "",
+    "require_main": true
+  },
+  "git": {
+    "auto_commit": true,
+    "auto_push": true,
+    "require_clean": true,
+    "commit_prefix": "IDFQ"
+  }
+}

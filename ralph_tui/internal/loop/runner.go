@@ -1,0 +1,47 @@
+// Package loop provides runner invocation for the Ralph loop.
+// Entrypoint: RunnerInvoker.
+package loop
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+)
+
+// RunnerInvoker invokes Codex or opencode.
+type RunnerInvoker struct {
+	Runner     string
+	RunnerArgs []string
+	Redactor   *Redactor
+	Logger     Logger
+}
+
+// RunPrompt runs the runner using the provided prompt file.
+func (r RunnerInvoker) RunPrompt(promptPath string) error {
+	switch r.Runner {
+	case "codex":
+		args := append([]string{"exec"}, r.RunnerArgs...)
+		args = append(args, "-")
+		cmd := exec.Command("codex", args...)
+		file, err := os.Open(promptPath)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+		cmd.Stdin = file
+		if err := RunCommand(cmd, r.Redactor, r.Logger); err != nil {
+			return fmt.Errorf("codex failed while running loop.")
+		}
+		return nil
+	case "opencode":
+		args := append([]string{"run"}, r.RunnerArgs...)
+		args = append(args, "--file", promptPath, "--", "Follow the attached prompt file verbatim.")
+		cmd := exec.Command("opencode", args...)
+		if err := RunCommand(cmd, r.Redactor, r.Logger); err != nil {
+			return fmt.Errorf("opencode failed while running loop.")
+		}
+		return nil
+	default:
+		return fmt.Errorf("--runner must be codex or opencode (got: %s)", r.Runner)
+	}
+}
