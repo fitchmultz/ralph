@@ -1,6 +1,9 @@
 # Implementation Queue
 
 ## Queue
+- [ ] RQ-0300 [ui]: Fix footer sizing + border correctness across views. (ralph_tui/internal/tui/model.go, ralph_tui/internal/tui/render.go, ralph_tui/internal/tui/logs_view.go, ralph_tui/internal/tui/loop_view.go, ralph_tui/internal/tui/pin_view.go, ralph_tui/internal/tui/specs_view.go)
+  - Evidence: Footer height off-by-one; viewport padding causes overflow; clamp truncates instead of sizing correctly; several Resize() paths skip small sizes.
+  - Plan: Trim footer before measuring; remove viewport padding or account for it; replace clamp truncation with proper sizing; ensure Resize() updates even at small sizes; add border contract test.
 - [ ] RQ-0302 [code]: Keep log file open + add Close() + write startup log. (ralph_tui/internal/tui/logging.go, ralph_tui/internal/tui/model.go)
   - Evidence: Logger opens/closes per entry; log file can be empty until user action; logger Close not called on quit.
   - Plan: Maintain persistent file handle with rotation handling; add Close(); emit tui.start on boot; call Close() on quit; add logging_perf_contract_test.
@@ -25,12 +28,4 @@
 
 ## Blocked
 
-- [ ] RQ-0300 [ui]: Fix footer sizing + border correctness across views. (ralph_tui/internal/tui/model.go, ralph_tui/internal/tui/render.go, ralph_tui/internal/tui/logs_view.go, ralph_tui/internal/tui/loop_view.go, ralph_tui/internal/tui/pin_view.go, ralph_tui/internal/tui/specs_view.go)
-  - Evidence: Footer height off-by-one; viewport padding causes overflow; clamp truncates instead of sizing correctly; several Resize() paths skip small sizes.
-  - Plan: Trim footer before measuring; remove viewport padding or account for it; replace clamp truncation with proper sizing; ensure Resize() updates even at small sizes; add border contract test.
-  - Blocked reason: Supervisor runner failed.
-  - Blocked reason: Unblock: Inspect ralph/wip/RQ-0300/20260114_135241 and requeue once fixed.
-  - WIP branch: ralph/wip/RQ-0300/20260114_135241
-  - Known-good: 3d12c22e422e25e4c6e9799caeae38d314f9b044
-  - Unblock hint: Inspect ralph/wip/RQ-0300/20260114_135241 and requeue once fixed.
 ## Parking Lot
