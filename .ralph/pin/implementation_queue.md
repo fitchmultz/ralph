@@ -1,9 +1,6 @@
 # Implementation Queue
 
 ## Queue
-- [ ] RQ-0305 [code]: Remove busy tick; add log batching with run scoping for loop output. (ralph_tui/internal/tui/loop_view.go, ralph_tui/internal/tui/stream_writer.go)
-  - Evidence: loopView tickCmd wakes every 500ms while running; loop log channel drops lines when buffer is full; no run ID to ignore stale messages if a new run starts.
-  - Plan: Replace tickCmd with log-only updates; introduce a batched log message helper with run IDs; drain log channel into batches to reduce UI churn; ignore stale run batches; add loop_view_log_batch_test.
 - [ ] RQ-0306 [code]: Coalesce preview refreshes and batch specs run output. (ralph_tui/internal/tui/specs_view.go, ralph_tui/internal/tui/stream_writer.go)
   - Evidence: refreshPreviewAsync can be triggered while previewLoading is true; rapid toggles can overlap goroutines; run output updates rebuild the log viewport for every line.
   - Plan: Gate preview refresh if loading and set previewDirty for a follow-up pass; add a single-flight refresh with queued rerender; batch run log writes via streamWriter batching; add specs_view_preview_queue_test.

@@ -12,6 +12,12 @@ type streamWriter struct {
 	buf  strings.Builder
 }
 
+type logBatch struct {
+	RunID int
+	Lines []string
+	Done  bool
+}
+
 func newStreamWriter(sink lineSink) *streamWriter {
 	return &streamWriter{sink: sink}
 }
@@ -49,4 +55,27 @@ func (w *streamWriter) flushLine() {
 		w.sink.PushLine(w.buf.String())
 	}
 	w.buf.Reset()
+}
+
+func drainLogChannel(runID int, logCh <-chan string, maxBatch int) logBatch {
+	if maxBatch <= 0 {
+		maxBatch = 64
+	}
+	line, ok := <-logCh
+	if !ok {
+		return logBatch{RunID: runID, Done: true}
+	}
+	lines := []string{line}
+	for len(lines) < maxBatch {
+		select {
+		case line, ok := <-logCh:
+			if !ok {
+				return logBatch{RunID: runID, Lines: lines, Done: true}
+			}
+			lines = append(lines, line)
+		default:
+			return logBatch{RunID: runID, Lines: lines}
+		}
+	}
+	return logBatch{RunID: runID, Lines: lines}
 }

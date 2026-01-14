@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -30,6 +29,7 @@ type loopView struct {
 	editForm  *huh.Form
 	editData  loopFormData
 	logCh     chan string
+	logRunID  int
 	logger    *tuiLogger
 	width     int
 	height    int
@@ -55,17 +55,13 @@ const (
 	loopEditing
 )
 
-type loopTickMsg struct{}
-
 type loopResultMsg struct {
 	err error
 }
 
-type loopLogMsg struct {
-	line string
+type loopLogBatchMsg struct {
+	batch logBatch
 }
-
-type loopLogDoneMsg struct{}
 
 type loopLogger struct {
 	write func(string)
@@ -138,18 +134,19 @@ func (l *loopView) Update(msg tea.Msg, keys keyMap) tea.Cmd {
 		}
 		l.cancel = nil
 		return nil
-	case loopLogMsg:
-		l.appendLogLine(msg.line)
-		if l.logCh != nil {
-			return listenLoopLogs(l.logCh)
+	case loopLogBatchMsg:
+		if msg.batch.RunID != l.logRunID {
+			return nil
 		}
-		return nil
-	case loopLogDoneMsg:
-		l.logCh = nil
-		return nil
-	case loopTickMsg:
-		if l.mode == loopRunning {
-			return l.tickCmd()
+		if len(msg.batch.Lines) > 0 {
+			l.appendLogLines(msg.batch.Lines)
+		}
+		if msg.batch.Done {
+			l.logCh = nil
+			return nil
+		}
+		if l.logCh != nil {
+			return listenLoopLogs(l.logCh, l.logRunID)
 		}
 		return nil
 	case tea.KeyMsg:
@@ -215,13 +212,6 @@ func (l *loopView) controlsView() string {
 	return strings.Join(lines, "\n")
 }
 
-func (l *loopView) tickCmd() tea.Cmd {
-	return func() tea.Msg {
-		time.Sleep(500 * time.Millisecond)
-		return loopTickMsg{}
-	}
-}
-
 func (l *loopView) start(runOnce bool) tea.Cmd {
 	l.err = ""
 	l.status = "Running"
@@ -232,6 +222,8 @@ func (l *loopView) start(runOnce bool) tea.Cmd {
 
 	logCh := make(chan string, 1024)
 	l.logCh = logCh
+	l.logRunID++
+	runID := l.logRunID
 	if l.logger != nil {
 		l.logger.Info("loop.start", map[string]any{
 			"mode":              loopModeLabel(runOnce),
@@ -287,7 +279,7 @@ func (l *loopView) start(runOnce bool) tea.Cmd {
 		return loopResultMsg{}
 	}
 
-	return tea.Batch(runCmd, listenLoopLogs(logCh), l.tickCmd())
+	return tea.Batch(runCmd, listenLoopLogs(logCh, runID))
 }
 
 func (l *loopView) stop() {
@@ -439,23 +431,26 @@ func (l *loopView) Focus() {}
 func (l *loopView) Blur() {}
 
 func (l *loopView) appendLogLine(line string) {
-	l.logs = append(l.logs, line)
+	l.appendLogLines([]string{line})
+}
+
+func (l *loopView) appendLogLines(lines []string) {
+	if len(lines) == 0 {
+		return
+	}
+	atBottom := l.viewport.AtBottom()
+	l.logs = append(l.logs, lines...)
 	if len(l.logs) > 2000 {
 		l.logs = l.logs[len(l.logs)-2000:]
 	}
-	atBottom := l.viewport.AtBottom()
 	l.viewport.SetContent(strings.Join(l.logs, "\n"))
 	if atBottom {
 		l.viewport.GotoBottom()
 	}
 }
 
-func listenLoopLogs(logCh <-chan string) tea.Cmd {
+func listenLoopLogs(logCh <-chan string, runID int) tea.Cmd {
 	return func() tea.Msg {
-		line, ok := <-logCh
-		if !ok {
-			return loopLogDoneMsg{}
-		}
-		return loopLogMsg{line: line}
+		return loopLogBatchMsg{batch: drainLogChannel(runID, logCh, 64)}
 	}
 }

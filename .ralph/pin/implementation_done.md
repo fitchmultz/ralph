@@ -1,6 +1,9 @@
 # Implementation Done
 
 ## Done
+- [x] RQ-0305 [code]: Remove busy tick; add log batching with run scoping for loop output. (ralph_tui/internal/tui/loop_view.go, ralph_tui/internal/tui/stream_writer.go)
+  - Evidence: loopView tickCmd wakes every 500ms while running; loop log channel drops lines when buffer is full; no run ID to ignore stale messages if a new run starts.
+  - Plan: Replace tickCmd with log-only updates; introduce a batched log message helper with run IDs; drain log channel into batches to reduce UI churn; ignore stale run batches; add loop_view_log_batch_test.
 - [x] RQ-0304 [ui]: Fix pin view layout and reload lifecycle. (ralph_tui/internal/tui/pin_view.go)
   - Evidence: No Pin header; detail viewport padding causes overflow; magic column widths; reloadAgain sticks on error.
   - Plan: Add header line; remove/size padding correctly; compute table widths from styles; clear reloadAgain on error/start; add pin_view_reload_again_test.
