@@ -1,9 +1,6 @@
 # Implementation Queue
 
 ## Queue
-- [ ] RQ-0302 [code]: Keep log file open + add Close() + write startup log. (ralph_tui/internal/tui/logging.go, ralph_tui/internal/tui/model.go)
-  - Evidence: Logger opens/closes per entry; log file can be empty until user action; logger Close not called on quit.
-  - Plan: Maintain persistent file handle with rotation handling; add Close(); emit tui.start on boot; call Close() on quit; add logging_perf_contract_test.
 - [ ] RQ-0303 [code]: Introduce fileStamp change detection and gate refreshes. (ralph_tui/internal/tui/file_watch.go, ralph_tui/internal/tui/logs_view.go, ralph_tui/internal/tui/pin_view.go, ralph_tui/internal/tui/specs_view.go, ralph_tui/internal/tui/model.go)
   - Evidence: fileChanged only uses modtime; Logs refresh runs unconditionally and re-reads entire file.
   - Plan: Replace modtime-only API with fileStamp (modtime+size+exists); use it to skip log tailing if unchanged; reduce refresh churn.

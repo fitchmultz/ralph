@@ -27,6 +27,9 @@ func TestTUILoggerWritesJSONL(t *testing.T) {
 	if err != nil {
 		t.Fatalf("newTUILogger failed: %v", err)
 	}
+	t.Cleanup(func() {
+		_ = logger.Close()
+	})
 	logger.Info("test.event", map[string]any{"note": "hello"})
 
 	data, err := os.ReadFile(logPath)

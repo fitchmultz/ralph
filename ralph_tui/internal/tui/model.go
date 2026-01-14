@@ -19,7 +19,13 @@ import (
 // Start launches the TUI and blocks until it exits.
 func Start(cfg config.Config, locations paths.Locations) error {
 	program := tea.NewProgram(newModel(cfg, locations), tea.WithAltScreen())
-	_, err := program.Run()
+	finalModel, err := program.Run()
+	switch m := finalModel.(type) {
+	case model:
+		m.closeLogger()
+	case *model:
+		m.closeLogger()
+	}
 	return err
 }
 
@@ -113,6 +119,11 @@ func newModel(cfg config.Config, locations paths.Locations) model {
 }
 
 func (m model) Init() tea.Cmd {
+	m.logInfo("tui.start", map[string]any{
+		"refresh_seconds": m.cfg.UI.RefreshSeconds,
+		"log_level":       m.cfg.Logging.Level,
+		"log_file":        m.cfg.Logging.File,
+	})
 	cmds := []tea.Cmd{refreshCmd(m.cfg.UI.RefreshSeconds, m.refreshGen)}
 	if m.pinView != nil {
 		if cmd := m.pinView.reloadAsync(true); cmd != nil {
@@ -178,6 +189,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		keyFields["nav_focused"] = m.navFocused
 		m.logDebug("key.event", keyFields)
 		if key.Matches(msg, m.keys.Quit) {
+			m.logInfo("tui.quit", map[string]any{"screen": screenName(m.screen)})
+			m.closeLogger()
 			return m, tea.Quit
 		}
 		if key.Matches(msg, m.keys.Help) {
@@ -628,6 +641,9 @@ func (m *model) updateActiveView(msg tea.Msg) tea.Cmd {
 }
 
 func (m *model) setLogger(cfg config.Config) {
+	if m.logger != nil {
+		_ = m.logger.Close()
+	}
 	logger, err := newTUILogger(cfg)
 	if err != nil {
 		m.logErr = err
@@ -654,6 +670,13 @@ func (m *model) setLogger(cfg config.Config) {
 	if m.specsView != nil {
 		m.specsView.logger = m.logger
 	}
+}
+
+func (m *model) closeLogger() {
+	if m.logger != nil {
+		_ = m.logger.Close()
+	}
+	m.logger = nil
 }
 
 func (m *model) logDebug(message string, fields map[string]any) {
