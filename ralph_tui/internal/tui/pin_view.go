@@ -41,7 +41,7 @@ type pinView struct {
 }
 
 func newPinView(cfg config.Config, locations paths.Locations) (*pinView, error) {
-	files := pin.ResolveFiles(cfg.Paths.PinDir, locations.RepoRoot)
+	files := pin.ResolveFiles(cfg.Paths.PinDir)
 	view := &pinView{
 		files:     files,
 		mode:      pinModeTable,
@@ -273,7 +273,7 @@ func (p *pinView) finishBlock() {
 func (p *pinView) SetConfig(cfg config.Config, locations paths.Locations) error {
 	p.config = cfg
 	p.locations = locations
-	p.files = pin.ResolveFiles(cfg.Paths.PinDir, locations.RepoRoot)
+	p.files = pin.ResolveFiles(cfg.Paths.PinDir)
 	return p.reload()
 }
 

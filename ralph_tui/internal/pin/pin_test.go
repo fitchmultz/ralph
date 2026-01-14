@@ -11,18 +11,16 @@ import (
 )
 
 type fixturePaths struct {
-	repoRoot string
-	pinDir   string
-	queue    string
-	done     string
-	lookup   string
-	readme   string
-	prompt   string
+	pinDir string
+	queue  string
+	done   string
+	lookup string
+	readme string
 }
 
 func TestValidatePinFixtures(t *testing.T) {
 	fixture := mustLocateFixtures(t)
-	files := ResolveFiles(fixture.pinDir, fixture.repoRoot)
+	files := ResolveFiles(fixture.pinDir)
 
 	if err := ValidatePin(files); err != nil {
 		t.Fatalf("ValidatePin failed: %v", err)
@@ -114,7 +112,7 @@ func TestBlockItemFixtures(t *testing.T) {
 
 	reasons := []string{"blocked for test", "unblock after fix"}
 	metadata := Metadata{
-		WIPBranch:   "ralph/wip/IDFQ-TEST/20260113_000000",
+		WIPBranch:   "ralph/wip/RQ-TEST/20260113_000000",
 		KnownGood:   "deadbeef",
 		UnblockHint: "run make ci",
 	}
@@ -136,7 +134,7 @@ func TestBlockItemFixtures(t *testing.T) {
 	expectedTail := []string{
 		"  - Blocked reason: blocked for test",
 		"  - Blocked reason: unblock after fix",
-		"  - WIP branch: ralph/wip/IDFQ-TEST/20260113_000000",
+		"  - WIP branch: ralph/wip/RQ-TEST/20260113_000000",
 		"  - Known-good: deadbeef",
 		"  - Unblock hint: run make ci",
 	}
@@ -160,20 +158,15 @@ func mustLocateFixtures(t *testing.T) fixturePaths {
 		t.Fatalf("unable to locate pin fixtures from %s", pinDir)
 	}
 
-	repoRoot := filepath.Clean(filepath.Join(baseDir, "..", "..", ".."))
 	done := filepath.Join(pinDir, "implementation_done.md")
 	lookup := filepath.Join(pinDir, "lookup_table.md")
 	readme := filepath.Join(pinDir, "README.md")
-	prompt := filepath.Join(repoRoot, "ralph_legacy", "prompt.md")
-
 	return fixturePaths{
-		repoRoot: repoRoot,
-		pinDir:   pinDir,
-		queue:    queue,
-		done:     done,
-		lookup:   lookup,
-		readme:   readme,
-		prompt:   prompt,
+		pinDir: pinDir,
+		queue:  queue,
+		done:   done,
+		lookup: lookup,
+		readme: readme,
 	}
 }
 

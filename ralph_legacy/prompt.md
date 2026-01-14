@@ -21,7 +21,7 @@ You are an autonomous engineer working in this repo.
 - Prefer central shared helpers when logic repeats.
 - Validate with tests/data checks; CI is necessary but not sufficient.
 
-1. Pick the highest-priority unchecked item in the `## Queue` section of `ralph_legacy/specs/implementation_queue.md` (Queue is the only executable section). Each queue item must start with an ID like `IDFQ-0123:`.
+1. Pick the highest-priority unchecked item in the `## Queue` section of `ralph_legacy/specs/implementation_queue.md` (Queue is the only executable section). Each queue item must start with an ID like `RQ-0123:`.
 2. Execute exactly one queue item per iteration (no batching).
 3. Codex-only planning policy:
    - If the Codex `model_reasoning_effort` is set to `low` or `off`, you MUST use the repo prompt `context_builder` to gather relevant project context and generate a plan for EVERY item (this compensates for reduced reasoning effort).
@@ -34,13 +34,13 @@ You are an autonomous engineer working in this repo.
 8. Mark completion by checking the item in `ralph_legacy/specs/implementation_queue.md` (`- [x]`). Do not move items to Done or Blocked; the runner will reconcile queue state.
    - Add any *new* items directly to the `## Queue` section (not a separate follow-on section).
    - Any new queue item MUST include:
-     - A unique ID (e.g., `IDFQ-0135`)
+     - A unique ID (e.g., `RQ-0135`)
      - One or more routing tags (e.g., `[db]`, `[ui]`, `[code]`, `[ops]`, `[docs]`)
      - A concise title ending with a parenthetical scope list of touched files and/or Make targets
      - Two metadata sub-bullets: `Evidence:` and `Plan:`
    - New queue items MUST follow this format (use this as the template):
 
-     - [ ] IDFQ-0135 [code]: Fix report writer crash when summary keys are missing; standardize summary schema + defaults. (src/report_writer.py, Makefile)
+     - [ ] RQ-0135 [code]: Fix report writer crash when summary keys are missing; standardize summary schema + defaults. (src/report_writer.py, Makefile)
        - Evidence: `KeyError: 'confirmed'` while writing report after `make reports RUN_ID=run_20260112_213001 APPLY=1`.
        - Plan: normalize summary keys to a defined schema, default missing counters to zero, and add a guard test for empty/partial summaries.
 

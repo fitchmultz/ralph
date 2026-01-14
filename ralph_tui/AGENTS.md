@@ -2,8 +2,8 @@
 
 ## Project Structure & Module Organization
 - `cmd/ralph/`: CLI entrypoint (Cobra) for the Ralph CLI/TUI.
-- `internal/`: Application packages (`config`, `loop`, `pin`, `specs`, `tui`, etc.).
-- `ralph_legacy/`: Legacy prompts and scripts (see `ralph_legacy/legacy/`).
+- `internal/`: Application packages (`config`, `loop`, `pin`, `prompts`, `specs`, `tui`, etc.).
+- `ralph_legacy/`: Standalone legacy prompts and scripts (see `ralph_legacy/legacy/`), not required by the TUI.
 - Tests live alongside code as `*_test.go` (no separate test directory).
 - Repo configuration defaults and runtime config live under `.ralph/` (e.g., `.ralph/ralph.json`, `.ralph/pin/`, `.ralph/cache/`).
 
@@ -27,7 +27,7 @@
 - Use `go vet ./...` for baseline static checks alongside tests.
 
 ## Commit & Pull Request Guidelines
-- Commit messages often include queue IDs: `IDFQ-####: <short summary>`.
+- Commit messages often include queue IDs: `RQ-####: <short summary>`.
 - If work is not tied to a queue item, use a short imperative summary.
 - PRs should include a clear summary, the commands run (e.g., `go test ./...`), and any relevant notes about TUI behavior changes.
 

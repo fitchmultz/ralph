@@ -25,17 +25,15 @@ type Files struct {
 	DonePath   string
 	LookupPath string
 	ReadmePath string
-	PromptPath string
 }
 
 // ResolveFiles returns the expected pin file locations for the given repo.
-func ResolveFiles(pinDir string, repoRoot string) Files {
+func ResolveFiles(pinDir string) Files {
 	return Files{
 		QueuePath:  filepath.Join(pinDir, "implementation_queue.md"),
 		DonePath:   filepath.Join(pinDir, "implementation_done.md"),
 		LookupPath: filepath.Join(pinDir, "lookup_table.md"),
 		ReadmePath: filepath.Join(pinDir, "README.md"),
-		PromptPath: filepath.Join(repoRoot, "ralph_legacy", "prompt.md"),
 	}
 }
 
@@ -51,9 +49,6 @@ func ValidatePin(files Files) error {
 		return err
 	}
 	if err := requireFile(files.ReadmePath); err != nil {
-		return err
-	}
-	if err := requireFile(files.PromptPath); err != nil {
 		return err
 	}
 
@@ -73,7 +68,7 @@ func ValidatePin(files Files) error {
 	ids := append(extractIDs(queueLines), extractIDs(doneLines)...)
 	sort.Strings(ids)
 	if len(ids) == 0 {
-		return fmt.Errorf("No task IDs found in queue/done. Expected IDs like IDFQ-0123.")
+		return fmt.Errorf("No task IDs found in queue/done. Expected IDs like RQ-0123.")
 	}
 	dupes := findDuplicates(ids)
 	if len(dupes) > 0 {
@@ -416,7 +411,7 @@ func validateQueueItemFormat(lines []string) error {
 			output = append(output, "Bad queue item format:")
 			output = append(output, header)
 			if !idOk {
-				output = append(output, "  - Missing ID like IDFQ-0123")
+				output = append(output, "  - Missing ID like RQ-0123")
 			}
 			if !tagOk {
 				output = append(output, "  - Missing routing tag like [code]/[db]/[ui]/[ops]/[docs]")

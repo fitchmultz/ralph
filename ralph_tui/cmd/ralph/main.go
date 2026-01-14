@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/mitchfultz/ralph/ralph_tui/internal/config"
@@ -313,7 +312,7 @@ func newSpecsBuildCommand() *cobra.Command {
 				return err
 			}
 
-			files := pin.ResolveFiles(cfg.Paths.PinDir, locs.RepoRoot)
+			files := pin.ResolveFiles(cfg.Paths.PinDir)
 			if err := pin.ValidatePin(files); err != nil {
 				return err
 			}
@@ -445,10 +444,6 @@ func newLoopRunCommand() *cobra.Command {
 
 			runOnce, _ := flags.GetBool("once")
 
-			if promptPath == "" && runnerName == "opencode" {
-				promptPath = filepath.Join(locs.RepoRoot, "ralph", "prompt_opencode.md")
-			}
-
 			if sleepSeconds < 0 || maxIterations < 0 || maxStalled < 0 || maxRepair < 0 {
 				return fmt.Errorf("loop numeric values must be non-negative")
 			}
@@ -516,7 +511,7 @@ func newPinCommand() *cobra.Command {
 		Use:     "pin",
 		Short:   "Pin queue operations",
 		Long:    "Validate and manipulate Ralph pin queue files.",
-		Example: "  ralph pin validate\n  ralph pin move-checked\n  ralph pin block-item --item-id IDFQ-0001 --reason \"needs fixes\"",
+		Example: "  ralph pin validate\n  ralph pin move-checked\n  ralph pin block-item --item-id RQ-0001 --reason \"needs fixes\"",
 	}
 
 	pinCmd.AddCommand(newPinValidateCommand())
@@ -537,11 +532,7 @@ func newPinValidateCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			locs, err := paths.Resolve("")
-			if err != nil {
-				return err
-			}
-			files := pin.ResolveFiles(cfg.Paths.PinDir, locs.RepoRoot)
+			files := pin.ResolveFiles(cfg.Paths.PinDir)
 			if err := pin.ValidatePin(files); err != nil {
 				return err
 			}
@@ -562,15 +553,11 @@ func newPinMoveCheckedCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			locs, err := paths.Resolve("")
-			if err != nil {
-				return err
-			}
 			prepend, err := cmd.Flags().GetBool("prepend")
 			if err != nil {
 				return err
 			}
-			files := pin.ResolveFiles(cfg.Paths.PinDir, locs.RepoRoot)
+			files := pin.ResolveFiles(cfg.Paths.PinDir)
 			ids, err := pin.MoveCheckedToDone(files.QueuePath, files.DonePath, prepend)
 			if err != nil {
 				return err
@@ -592,13 +579,9 @@ func newPinBlockItemCommand() *cobra.Command {
 		Use:     "block-item",
 		Short:   "Move a queue item into Blocked with metadata",
 		Long:    "Move a queue item into Blocked and append metadata about why it was blocked.",
-		Example: "  ralph pin block-item --item-id IDFQ-0001 --reason \"make ci failed\"",
+		Example: "  ralph pin block-item --item-id RQ-0001 --reason \"make ci failed\"",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := loadConfig(cmd)
-			if err != nil {
-				return err
-			}
-			locs, err := paths.Resolve("")
 			if err != nil {
 				return err
 			}
@@ -625,7 +608,7 @@ func newPinBlockItemCommand() *cobra.Command {
 			knownGood, _ := cmd.Flags().GetString("known-good")
 			unblockHint, _ := cmd.Flags().GetString("unblock-hint")
 
-			files := pin.ResolveFiles(cfg.Paths.PinDir, locs.RepoRoot)
+			files := pin.ResolveFiles(cfg.Paths.PinDir)
 			ok, err := pin.BlockItem(files.QueuePath, itemID, reasonLines, pin.Metadata{
 				WIPBranch:   wipBranch,
 				KnownGood:   knownGood,
@@ -640,7 +623,7 @@ func newPinBlockItemCommand() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().String("item-id", "", "Queue item ID (e.g., IDFQ-0123)")
+	cmd.Flags().String("item-id", "", "Queue item ID (e.g., RQ-0123)")
 	cmd.Flags().StringArray("reason", []string{}, "Reason line (repeatable)")
 	cmd.Flags().String("wip-branch", "", "WIP branch name containing quarantined work")
 	cmd.Flags().String("known-good", "", "Known-good Git SHA before the failure")

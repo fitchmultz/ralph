@@ -12,10 +12,10 @@ EXAMPLES
 
   ralph_legacy/legacy/pin_ops.py block-item \
     --queue ralph_legacy/specs/implementation_queue.md \
-    --item-id IDFQ-0123 \
+    --item-id RQ-0123 \
     --reason "make ci failed after 2 supervisor attempts" \
     --reason "Unblock: fix the failing check and requeue" \
-    --wip-branch ralph/wip/IDFQ-0123/20260112_031122 \
+    --wip-branch ralph/wip/RQ-0123/20260112_031122 \
     --known-good 1234abcd
 """
 
@@ -267,15 +267,15 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=cli_examples(
             "ralph_legacy/legacy/pin_ops.py block-item --queue ralph_legacy/specs/implementation_queue.md \\",
-            '  --item-id IDFQ-0123 --reason "make ci failed after 2 attempts" \\',
-            "  --wip-branch ralph/wip/IDFQ-0123/20260112_031122 --known-good 1234abcd",
+            '  --item-id RQ-0123 --reason "make ci failed after 2 attempts" \\',
+            "  --wip-branch ralph/wip/RQ-0123/20260112_031122 --known-good 1234abcd",
         ),
     )
     block_parser.add_argument(
         "--queue", type=Path, required=True, help="Queue markdown file"
     )
     block_parser.add_argument(
-        "--item-id", required=True, help="Queue item ID (e.g., IDFQ-0123)"
+        "--item-id", required=True, help="Queue item ID (e.g., RQ-0123)"
     )
     block_parser.add_argument(
         "--reason",

@@ -40,7 +40,7 @@ func TestRunMigratesPinAndUpdatesConfig(t *testing.T) {
 		t.Fatalf("expected pin_dir .ralph/pin, got %#v", got)
 	}
 
-	files := pin.ResolveFiles(result.NewPinDir, repoRoot)
+	files := pin.ResolveFiles(result.NewPinDir)
 	if err := pin.ValidatePin(files); err != nil {
 		t.Fatalf("pin validation failed: %v", err)
 	}
@@ -74,16 +74,11 @@ func writeMinimalPin(t *testing.T, repoRoot string, pinDir string) {
 	lookup := filepath.Join(pinDir, "lookup_table.md")
 	readme := filepath.Join(pinDir, "README.md")
 
-	writeFile(t, queue, "## Queue\n- [ ] IDFQ-0001 [code]: Test item. (README.md)\n  - Evidence: test\n  - Plan: test\n\n## Blocked\n\n## Parking Lot\n")
+	writeFile(t, queue, "## Queue\n- [ ] RQ-0001 [code]: Test item. (README.md)\n  - Evidence: test\n  - Plan: test\n\n## Blocked\n\n## Parking Lot\n")
 	writeFile(t, done, "## Done\n")
 	writeFile(t, lookup, "")
 	writeFile(t, readme, "Pin docs\n")
 
-	promptDir := filepath.Join(repoRoot, "ralph_legacy")
-	if err := os.MkdirAll(promptDir, 0o700); err != nil {
-		t.Fatalf("mkdir prompt dir: %v", err)
-	}
-	writeFile(t, filepath.Join(promptDir, "prompt.md"), "")
 }
 
 func writeFile(t *testing.T, path string, content string) {

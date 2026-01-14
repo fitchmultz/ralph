@@ -33,6 +33,6 @@
     "auto_commit": true,
     "auto_push": true,
     "require_clean": true,
-    "commit_prefix": "IDFQ"
+    "commit_prefix": "RQ"
   }
 }

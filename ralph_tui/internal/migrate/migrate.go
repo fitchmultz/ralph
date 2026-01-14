@@ -71,7 +71,7 @@ func Run(repoRoot string, repoConfigPath string) (Result, error) {
 		return result, err
 	}
 
-	files := pin.ResolveFiles(result.NewPinDir, cleanRoot)
+	files := pin.ResolveFiles(result.NewPinDir)
 	if err := pin.ValidatePin(files); err != nil {
 		return result, err
 	}

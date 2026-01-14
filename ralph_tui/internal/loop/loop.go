@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/mitchfultz/ralph/ralph_tui/internal/pin"
+	"github.com/mitchfultz/ralph/ralph_tui/internal/prompts"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/specs"
 )
 
@@ -60,21 +61,10 @@ func NewRunner(opts Options) (*Runner, error) {
 	if opts.PinDir == "" {
 		return nil, fmt.Errorf("pin dir required")
 	}
-	if opts.PromptPath == "" {
-		promptName := "prompt.md"
-		if opts.Runner == "opencode" {
-			promptName = "prompt_opencode.md"
-		}
-		opts.PromptPath = filepath.Join(opts.RepoRoot, "ralph_legacy", promptName)
-	}
-	if opts.SupervisorPrompt == "" {
-		opts.SupervisorPrompt = filepath.Join(opts.RepoRoot, "ralph_legacy", "supervisor_prompt.md")
-	}
-
 	r := &Runner{
 		opts:     opts,
 		redactor: NewRedactor(os.Environ()),
-		pinFiles: pin.ResolveFiles(opts.PinDir, opts.RepoRoot),
+		pinFiles: pin.ResolveFiles(opts.PinDir),
 	}
 
 	return r, nil
@@ -276,11 +266,15 @@ func (r *Runner) verifyRunner() error {
 }
 
 func (r *Runner) verifyFiles() error {
-	if _, err := os.Stat(r.opts.PromptPath); err != nil {
-		return fmt.Errorf("Prompt file not found: %s", r.opts.PromptPath)
+	if r.opts.PromptPath != "" {
+		if _, err := os.Stat(r.opts.PromptPath); err != nil {
+			return fmt.Errorf("Prompt file not found: %s", r.opts.PromptPath)
+		}
 	}
-	if _, err := os.Stat(r.opts.SupervisorPrompt); err != nil {
-		return fmt.Errorf("Supervisor prompt file not found: %s", r.opts.SupervisorPrompt)
+	if r.opts.SupervisorPrompt != "" {
+		if _, err := os.Stat(r.opts.SupervisorPrompt); err != nil {
+			return fmt.Errorf("Supervisor prompt file not found: %s", r.opts.SupervisorPrompt)
+		}
 	}
 	if _, err := os.Stat(r.pinFiles.QueuePath); err != nil {
 		return fmt.Errorf("Implementation queue not found: %s", r.pinFiles.QueuePath)
@@ -306,12 +300,12 @@ func (r *Runner) verifyBranch() error {
 }
 
 func (r *Runner) writePromptFile(itemLine string) (string, func(), error) {
-	content, err := os.ReadFile(r.opts.PromptPath)
+	content, err := r.loadWorkerPrompt()
 	if err != nil {
 		return "", func() {}, err
 	}
 	builder := strings.Builder{}
-	builder.Write(content)
+	builder.WriteString(content)
 	builder.WriteString("\n\n")
 	if r.opts.Runner == "codex" && r.effectiveEffort != "" {
 		builder.WriteString(contextBuilderPolicyBlock(r.effectiveEffort, r.contextBuilderMandatory))
@@ -337,6 +331,18 @@ func (r *Runner) writePromptFile(itemLine string) (string, func(), error) {
 	}
 	cleanup := func() { _ = os.Remove(path) }
 	return path, cleanup, nil
+}
+
+func (r *Runner) loadWorkerPrompt() (string, error) {
+	if r.opts.PromptPath != "" {
+		content, err := os.ReadFile(r.opts.PromptPath)
+		if err != nil {
+			return "", err
+		}
+		return string(content), nil
+	}
+
+	return prompts.WorkerPrompt(prompts.Runner(r.opts.Runner))
 }
 
 func (r *Runner) finalizeIteration(itemID string, itemLine string, headBefore string) error {
@@ -559,13 +565,13 @@ func (r *Runner) runSupervisor(stage string, message string) {
 }
 
 func (r *Runner) buildSupervisorContext(stage string, message string) (string, func(), error) {
-	content, err := os.ReadFile(r.opts.SupervisorPrompt)
+	content, err := r.loadSupervisorPrompt()
 	if err != nil {
 		return "", func() {}, err
 	}
 
 	builder := strings.Builder{}
-	builder.Write(content)
+	builder.WriteString(content)
 	builder.WriteString("\n\n")
 	if r.opts.Runner == "codex" && r.effectiveEffort != "" {
 		builder.WriteString(contextBuilderPolicyBlock(r.effectiveEffort, r.contextBuilderMandatory))
@@ -624,6 +630,18 @@ func (r *Runner) buildSupervisorContext(stage string, message string) (string, f
 	}
 	cleanup := func() { _ = os.Remove(path) }
 	return path, cleanup, nil
+}
+
+func (r *Runner) loadSupervisorPrompt() (string, error) {
+	if r.opts.SupervisorPrompt != "" {
+		content, err := os.ReadFile(r.opts.SupervisorPrompt)
+		if err != nil {
+			return "", err
+		}
+		return string(content), nil
+	}
+
+	return prompts.SupervisorPrompt()
 }
 
 func (r *Runner) quarantine(itemID string, headBefore string, reason string) (string, error) {

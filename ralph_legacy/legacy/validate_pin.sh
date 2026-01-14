@@ -24,7 +24,7 @@ Examples:
   ralph_legacy/legacy/validate_pin.sh --help
 
 Required Queue item format (template):
-  - [ ] IDFQ-0135 [code]: Short actionable title. (path/to/file.py, Makefile)
+  - [ ] RQ-0135 [code]: Short actionable title. (path/to/file.py, Makefile)
     - Evidence: Concrete failure evidence (command/output/traceback/etc.).
     - Plan: Concise plan of attack.
 USAGE
@@ -86,7 +86,7 @@ ids="$(
 )"
 
 if [[ -z "$ids" ]]; then
-  die "No task IDs found in queue/done. Expected IDs like IDFQ-0123."
+  die "No task IDs found in queue/done. Expected IDs like RQ-0123."
 fi
 
 dupes="$(printf '%s\n' "$ids" | uniq -d)"
@@ -152,7 +152,7 @@ bad_queue_format="$(
         bad = 1
         print "Bad queue item format:"
         print header
-        if (!id_ok) print "  - Missing ID like IDFQ-0123"
+        if (!id_ok) print "  - Missing ID like RQ-0123"
         if (!tag_ok) print "  - Missing routing tag like [code]/[db]/[ui]/[ops]/[docs]"
         if (!colon_ok) print "  - Missing \":\" after ID/tags"
         if (!scope_ok) print "  - Missing trailing scope list in parentheses, e.g. (path/to/file.py, Makefile)"

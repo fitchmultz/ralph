@@ -28,25 +28,18 @@ func TestRunnerStopsOnEmptyQueue(t *testing.T) {
 	done := filepath.Join(pinDir, "implementation_done.md")
 	lookup := filepath.Join(pinDir, "lookup_table.md")
 	readme := filepath.Join(pinDir, "README.md")
-	prompt := filepath.Join(repoRoot, "ralph_legacy", "prompt.md")
-	supervisor := filepath.Join(repoRoot, "ralph_legacy", "supervisor_prompt.md")
-	if err := os.MkdirAll(filepath.Join(repoRoot, "ralph_legacy"), 0o700); err != nil {
-		t.Fatalf("mkdir ralph_legacy: %v", err)
-	}
 
 	writeFile(t, queue, "## Queue\n\n## Blocked\n\n## Parking Lot\n")
 	writeFile(t, done, "## Done\n")
 	writeFile(t, lookup, "")
 	writeFile(t, readme, "")
-	writeFile(t, prompt, "")
-	writeFile(t, supervisor, "")
 
 	logger := &bufferLogger{}
 	runner, err := NewRunner(Options{
 		RepoRoot:          repoRoot,
 		PinDir:            pinDir,
-		PromptPath:        prompt,
-		SupervisorPrompt:  supervisor,
+		PromptPath:        "",
+		SupervisorPrompt:  "",
 		Runner:            "codex",
 		SleepSeconds:      0,
 		MaxIterations:     0,
