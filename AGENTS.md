@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Structure & Entry Points
-- `ralph_legacy/`: Legacy scripts and prompt templates for the standalone legacy workflow (see `ralph_legacy/legacy/`).
+- `ralph_legacy/`: Legacy scripts and prompt templates for the standalone legacy workflow (see `ralph_legacy/bin/`).
 - `ralph_tui/`: Go-based CLI/TUI (`go run ./cmd/ralph`) with embedded prompt defaults.
 - Default pin/spec templates live in `.ralph/pin/` (TUI) and `ralph_legacy/specs/` (legacy).
 

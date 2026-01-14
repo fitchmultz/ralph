@@ -9,6 +9,6 @@ Entry points (Go CLI):
 
 Pin files live in `.ralph/pin/` for the TUI and `ralph_legacy/specs/` for the legacy scripts.
 Prompts live in `ralph_legacy/prompt.md` and `ralph_legacy/prompt_opencode.md`.
-Legacy shell/python scripts are archived under `ralph_legacy/legacy/`.
+Legacy shell/python scripts are archived under `ralph_legacy/bin/`.
 Legacy spec templates live in `ralph_legacy/specs/`.
 Python dependencies for legacy scripts are managed via `uv` in `ralph_legacy/` (e.g., `uv sync --project ralph_legacy --dev`).
