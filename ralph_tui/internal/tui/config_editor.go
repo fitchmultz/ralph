@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/config"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/paths"
+	"github.com/mitchfultz/ralph/ralph_tui/internal/redaction"
 )
 
 type configEditor struct {
@@ -32,6 +33,7 @@ type configFormData struct {
 	RefreshSeconds    string
 	LogLevel          string
 	LogFile           string
+	LogRedactionMode  string
 	DataDir           string
 	CacheDir          string
 	PinDir            string
@@ -374,6 +376,14 @@ func (e *configEditor) buildForm() *huh.Form {
 			huh.NewInput().Title("UI Theme").Value(&e.data.UITheme).Validate(nonEmptyString("ui.theme")),
 			huh.NewInput().Title("Refresh Seconds").Value(&e.data.RefreshSeconds).Validate(positiveInt("ui.refresh_seconds")),
 			huh.NewInput().Title("Log Level").Value(&e.data.LogLevel).Validate(logLevelValidator()),
+			huh.NewSelect[string]().
+				Title("Log Redaction Mode").
+				Options(
+					huh.NewOption("secrets_only (default)", string(redaction.ModeSecretsOnly)),
+					huh.NewOption("all_env", string(redaction.ModeAllEnv)),
+					huh.NewOption("off", string(redaction.ModeOff)),
+				).
+				Value(&e.data.LogRedactionMode),
 			huh.NewInput().Title("Log File").Value(&e.data.LogFile),
 		),
 		huh.NewGroup(
@@ -460,6 +470,7 @@ func formDataFromConfig(cfg config.Config) configFormData {
 		RefreshSeconds:    strconv.Itoa(cfg.UI.RefreshSeconds),
 		LogLevel:          cfg.Logging.Level,
 		LogFile:           cfg.Logging.File,
+		LogRedactionMode:  string(cfg.Logging.RedactionMode),
 		DataDir:           cfg.Paths.DataDir,
 		CacheDir:          cfg.Paths.CacheDir,
 		PinDir:            cfg.Paths.PinDir,
@@ -525,6 +536,13 @@ func partialFromForm(data configFormData) (config.PartialConfig, error) {
 		return config.PartialConfig{}, fmt.Errorf("logging.level must be one of debug, info, warn, or error")
 	}
 	logFile := strings.TrimSpace(data.LogFile)
+	logRedactionMode := strings.TrimSpace(data.LogRedactionMode)
+	if logRedactionMode == "" {
+		logRedactionMode = string(redaction.ModeSecretsOnly)
+	}
+	if !redaction.ValidMode(logRedactionMode) {
+		return config.PartialConfig{}, fmt.Errorf("logging.redaction_mode must be one of off, secrets_only, or all_env")
+	}
 	specsRunner := strings.TrimSpace(data.SpecsRunner)
 	if specsRunner == "" {
 		return config.PartialConfig{}, fmt.Errorf("specs.runner must be set")
@@ -559,6 +577,7 @@ func partialFromForm(data configFormData) (config.PartialConfig, error) {
 	cacheDir := strings.TrimSpace(data.CacheDir)
 	pinDir := strings.TrimSpace(data.PinDir)
 	commitPrefix := strings.TrimSpace(data.GitCommitPrefix)
+	logMode := redaction.NormalizeMode(logRedactionMode)
 
 	return config.PartialConfig{
 		Version: intPtr(1),
@@ -566,7 +585,11 @@ func partialFromForm(data configFormData) (config.PartialConfig, error) {
 			Theme:          &uiTheme,
 			RefreshSeconds: &refreshSeconds,
 		},
-		Logging: &config.LoggingPartial{Level: &logLevel, File: &logFile},
+		Logging: &config.LoggingPartial{
+			Level:         &logLevel,
+			File:          &logFile,
+			RedactionMode: &logMode,
+		},
 		Paths: &config.PathsPartial{
 			DataDir:  &dataDir,
 			CacheDir: &cacheDir,

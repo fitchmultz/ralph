@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/mitchfultz/ralph/ralph_tui/internal/redaction"
 )
 
 type bufferLogger struct {
@@ -50,6 +52,7 @@ func TestRunnerStopsOnEmptyQueue(t *testing.T) {
 		RequireMain:       false,
 		AutoCommit:        false,
 		AutoPush:          false,
+		RedactionMode:     redaction.ModeSecretsOnly,
 		Logger:            logger,
 	})
 	if err != nil {

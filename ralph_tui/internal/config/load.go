@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/mitchfultz/ralph/ralph_tui/internal/paths"
+	"github.com/mitchfultz/ralph/ralph_tui/internal/redaction"
 )
 
 // LoadOptions controls how configuration is resolved.
@@ -167,6 +168,9 @@ func applyPartial(base Config, partial PartialConfig, basePath string) (Config, 
 				}
 				base.Logging.File = resolved
 			}
+		}
+		if partial.Logging.RedactionMode != nil {
+			base.Logging.RedactionMode = redaction.NormalizeMode(string(*partial.Logging.RedactionMode))
 		}
 	}
 	if partial.Paths != nil {

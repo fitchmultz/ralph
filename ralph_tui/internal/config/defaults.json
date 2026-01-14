@@ -6,7 +6,8 @@
   },
   "logging": {
     "level": "info",
-    "file": ""
+    "file": "",
+    "redaction_mode": "secrets_only"
   },
   "paths": {
     "data_dir": "data",

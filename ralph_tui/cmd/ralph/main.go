@@ -14,6 +14,7 @@ import (
 	"github.com/mitchfultz/ralph/ralph_tui/internal/migrate"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/paths"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/pin"
+	"github.com/mitchfultz/ralph/ralph_tui/internal/redaction"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/specs"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/tui"
 	"github.com/spf13/cobra"
@@ -60,6 +61,7 @@ func newRootCommand() *cobra.Command {
 	cmd.PersistentFlags().Int("refresh-seconds", 0, "UI refresh interval in seconds")
 	cmd.PersistentFlags().String("log-level", "", "Log level (debug, info, warn, error)")
 	cmd.PersistentFlags().String("log-file", "", "Log file path")
+	cmd.PersistentFlags().String("redaction-mode", "", "Log redaction mode (off, secrets_only, all_env)")
 	cmd.PersistentFlags().String("data-dir", "", "Data directory path")
 	cmd.PersistentFlags().String("cache-dir", "", "Cache directory path")
 	cmd.PersistentFlags().String("pin-dir", "", "Pin directory path")
@@ -182,6 +184,15 @@ func buildCLIOverrides(cmd *cobra.Command) (config.PartialConfig, error) {
 		}
 		logging := ensureLoggingPartial(&overrides)
 		logging.File = &value
+	}
+	if flags.Changed("redaction-mode") {
+		value, err := flags.GetString("redaction-mode")
+		if err != nil {
+			return overrides, err
+		}
+		mode := redaction.Mode(value)
+		logging := ensureLoggingPartial(&overrides)
+		logging.RedactionMode = &mode
 	}
 	if flags.Changed("data-dir") {
 		value, err := flags.GetString("data-dir")
@@ -474,6 +485,7 @@ func newLoopRunCommand() *cobra.Command {
 				RequireMain:       cfg.Loop.RequireMain,
 				AutoCommit:        cfg.Git.AutoCommit,
 				AutoPush:          cfg.Git.AutoPush,
+				RedactionMode:     cfg.Logging.RedactionMode,
 				Logger:            logger,
 			})
 			if err != nil {

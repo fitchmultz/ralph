@@ -14,6 +14,7 @@ import (
 
 	"github.com/mitchfultz/ralph/ralph_tui/internal/pin"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/prompts"
+	"github.com/mitchfultz/ralph/ralph_tui/internal/redaction"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/specs"
 )
 
@@ -34,6 +35,7 @@ type Options struct {
 	RequireMain       bool
 	AutoCommit        bool
 	AutoPush          bool
+	RedactionMode     redaction.Mode
 	Logger            Logger
 }
 
@@ -62,8 +64,11 @@ func NewRunner(opts Options) (*Runner, error) {
 		return nil, fmt.Errorf("pin dir required")
 	}
 	r := &Runner{
-		opts:     opts,
-		redactor: NewRedactor(os.Environ()),
+		opts: opts,
+		redactor: NewRedactor(
+			os.Environ(),
+			redaction.CoerceMode(string(opts.RedactionMode)),
+		),
 		pinFiles: pin.ResolveFiles(opts.PinDir),
 	}
 

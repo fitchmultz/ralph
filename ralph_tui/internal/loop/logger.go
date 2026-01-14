@@ -4,6 +4,8 @@ package loop
 
 import (
 	"strings"
+
+	"github.com/mitchfultz/ralph/ralph_tui/internal/redaction"
 )
 
 // Logger receives loop log lines.
@@ -18,7 +20,11 @@ type Redactor struct {
 }
 
 // NewRedactor builds a redactor from environment entries (KEY=VALUE).
-func NewRedactor(env []string) *Redactor {
+func NewRedactor(env []string, mode redaction.Mode) *Redactor {
+	mode = redaction.CoerceMode(string(mode))
+	if mode == redaction.ModeOff {
+		return nil
+	}
 	keys := make([]string, 0, len(env))
 	values := make([]string, 0, len(env))
 	for _, entry := range env {
@@ -31,8 +37,17 @@ func NewRedactor(env []string) *Redactor {
 		if key == "" || value == "" {
 			continue
 		}
+		if redaction.IsPathLikeEnvKey(key) {
+			continue
+		}
+		if mode == redaction.ModeSecretsOnly && !redaction.LooksSensitiveEnvKey(key) {
+			continue
+		}
 		keys = append(keys, key)
 		values = append(values, value)
+	}
+	if len(keys) == 0 {
+		return nil
 	}
 	return &Redactor{keys: keys, values: values}
 }
@@ -54,18 +69,20 @@ func (r *Redactor) Redact(line string) string {
 
 func redactKeyValue(line string, key string) string {
 	needle := key + "="
-	idx := strings.Index(line, needle)
-	if idx == -1 {
-		return line
-	}
-	start := idx + len(needle)
-	end := start
-	for end < len(line) {
-		ch := line[end]
-		if ch == ' ' || ch == '\t' || ch == '\n' {
-			break
+	for {
+		idx := strings.Index(line, needle)
+		if idx == -1 {
+			return line
 		}
-		end++
+		start := idx + len(needle)
+		end := start
+		for end < len(line) {
+			ch := line[end]
+			if ch == ' ' || ch == '\t' || ch == '\n' {
+				break
+			}
+			end++
+		}
+		line = line[:start] + "[REDACTED]" + line[end:]
 	}
-	return line[:start] + "[REDACTED]" + line[end:]
 }

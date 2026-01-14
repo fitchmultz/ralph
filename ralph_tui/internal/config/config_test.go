@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/mitchfultz/ralph/ralph_tui/internal/paths"
+	"github.com/mitchfultz/ralph/ralph_tui/internal/redaction"
 )
 
 func TestLoadPrecedence(t *testing.T) {
@@ -172,6 +173,39 @@ func TestApplyPartialNormalizesRunnerSettings(t *testing.T) {
 	}
 	if len(cfg.Loop.RunnerArgs) != 2 {
 		t.Fatalf("expected loop.runner_args to trim blanks, got %#v", cfg.Loop.RunnerArgs)
+	}
+}
+
+func TestRedactionModeValidation(t *testing.T) {
+	base, err := DefaultConfig()
+	if err != nil {
+		t.Fatalf("default config: %v", err)
+	}
+
+	base.Logging.RedactionMode = redaction.Mode("bad_mode")
+	if err := base.Validate(); err == nil {
+		t.Fatalf("expected validation error for logging.redaction_mode")
+	}
+}
+
+func TestApplyPartialNormalizesRedactionMode(t *testing.T) {
+	base, err := DefaultConfig()
+	if err != nil {
+		t.Fatalf("default config: %v", err)
+	}
+
+	mode := redaction.Mode(" ALL_ENV ")
+	partial := PartialConfig{
+		Logging: &LoggingPartial{
+			RedactionMode: &mode,
+		},
+	}
+	cfg, err := ApplyPartial(base, partial, ".")
+	if err != nil {
+		t.Fatalf("ApplyPartial failed: %v", err)
+	}
+	if cfg.Logging.RedactionMode != redaction.ModeAllEnv {
+		t.Fatalf("expected logging.redaction_mode normalized to %q, got %q", redaction.ModeAllEnv, cfg.Logging.RedactionMode)
 	}
 }
 

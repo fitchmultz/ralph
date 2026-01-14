@@ -286,6 +286,7 @@ func (l *loopView) start(runOnce bool) tea.Cmd {
 			RequireMain:       l.overrides.RequireMain,
 			AutoCommit:        l.overrides.AutoCommit,
 			AutoPush:          l.overrides.AutoPush,
+			RedactionMode:     l.cfg.Logging.RedactionMode,
 			Logger:            logger,
 		})
 		if err != nil {

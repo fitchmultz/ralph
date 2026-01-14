@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+
+	"github.com/mitchfultz/ralph/ralph_tui/internal/redaction"
 )
 
 // Config is the fully-resolved configuration used by the app.
@@ -29,8 +31,9 @@ type UIConfig struct {
 
 // LoggingConfig controls log verbosity.
 type LoggingConfig struct {
-	Level string `json:"level"`
-	File  string `json:"file"`
+	Level         string         `json:"level"`
+	File          string         `json:"file"`
+	RedactionMode redaction.Mode `json:"redaction_mode"`
 }
 
 // PathsConfig declares filesystem locations used by Ralph.
@@ -94,6 +97,9 @@ func (c Config) Validate() error {
 	}
 	if strings.TrimSpace(c.Logging.File) != "" && !filepath.IsAbs(c.Logging.File) {
 		return fmt.Errorf("logging.file must be absolute when set")
+	}
+	if !redaction.ValidMode(string(c.Logging.RedactionMode)) {
+		return fmt.Errorf("logging.redaction_mode must be one of off, secrets_only, or all_env")
 	}
 	if strings.TrimSpace(c.Paths.DataDir) == "" {
 		return fmt.Errorf("paths.data_dir must be set")
@@ -207,8 +213,9 @@ type UIPartial struct {
 
 // LoggingPartial overrides LoggingConfig fields when set.
 type LoggingPartial struct {
-	Level *string `json:"level,omitempty"`
-	File  *string `json:"file,omitempty"`
+	Level         *string         `json:"level,omitempty"`
+	File          *string         `json:"file,omitempty"`
+	RedactionMode *redaction.Mode `json:"redaction_mode,omitempty"`
 }
 
 // PathsPartial overrides PathsConfig fields when set.
