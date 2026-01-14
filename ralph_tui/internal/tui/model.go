@@ -245,7 +245,7 @@ func (m model) View() string {
 	navView := strings.TrimRight(m.nav.View(), "\n")
 	contentView := strings.TrimRight(m.contentView(), "\n")
 
-	navStyle, contentStyle := m.panelStyles()
+	navStyle, contentStyle := m.panelStyles(m.layout.navWidth, m.layout.bodyHeight, m.layout.contentWidth, m.layout.bodyHeight)
 	navFrameW, navFrameH := navStyle.GetFrameSize()
 	contentFrameW, contentFrameH := contentStyle.GetFrameSize()
 
@@ -253,29 +253,62 @@ func (m model) View() string {
 	contentInnerW := max(0, m.layout.contentWidth-contentFrameW)
 	navInnerH := max(0, m.layout.bodyHeight-navFrameH)
 	contentInnerH := max(0, m.layout.bodyHeight-contentFrameH)
+	navBorderW := navStyle.GetBorderLeftSize() + navStyle.GetBorderRightSize()
+	navBorderH := navStyle.GetBorderTopSize() + navStyle.GetBorderBottomSize()
+	contentBorderW := contentStyle.GetBorderLeftSize() + contentStyle.GetBorderRightSize()
+	contentBorderH := contentStyle.GetBorderTopSize() + contentStyle.GetBorderBottomSize()
+	navBoxW := max(0, m.layout.navWidth-navBorderW)
+	navBoxH := max(0, m.layout.bodyHeight-navBorderH)
+	contentBoxW := max(0, m.layout.contentWidth-contentBorderW)
+	contentBoxH := max(0, m.layout.bodyHeight-contentBorderH)
 
-	navStyle = navStyle.Width(navInnerW).Height(navInnerH)
-	contentStyle = contentStyle.Width(contentInnerW).Height(contentInnerH)
+	if navInnerW > 0 && navInnerH > 0 {
+		navView = clampToSize(navView, navInnerW, navInnerH)
+	} else {
+		navView = ""
+	}
+	if contentInnerW > 0 && contentInnerH > 0 {
+		contentView = clampToSize(contentView, contentInnerW, contentInnerH)
+	} else {
+		contentView = ""
+	}
+
+	navStyle = navStyle.Width(navBoxW).Height(navBoxH)
+	contentStyle = contentStyle.Width(contentBoxW).Height(contentBoxH)
 
 	left := navStyle.Render(navView)
 	right := contentStyle.Render(contentView)
 	body := lipgloss.JoinHorizontal(lipgloss.Top, left, right)
 	body = strings.TrimRight(body, "\n")
-	body = clampToSize(body, m.width, m.layout.bodyHeight)
 
-	m.help.Width = m.width
+	m.help.Width = max(0, m.width)
 	footer := strings.TrimRight(m.help.View(m.helpKeyMap()), "\n")
-	footer = clampToSize(footer, m.width, 0)
+	footer = clipToHeight(footer, m.layout.footerHeight)
+	footer = clampToSize(footer, max(0, m.width), 0)
 	rendered := body
-	if lipgloss.Height(footer) > 0 {
-		rendered = body + strings.Repeat("\n", footerGapBlankLines+1) + footer
+	if m.layout.footerHeight > 0 {
+		if m.layout.bodyHeight > 0 && rendered != "" {
+			gap := m.layout.footerGap
+			if gap <= 0 {
+				gap = 1
+			}
+			rendered = rendered + strings.Repeat("\n", gap) + footer
+		} else {
+			rendered = footer
+		}
 	}
-	rendered = clampToSize(rendered, m.width, m.height)
 	return withFinalNewline(rendered)
 }
 
 func max(a, b int) int {
 	if a > b {
+		return a
+	}
+	return b
+}
+
+func min(a, b int) int {
+	if a < b {
 		return a
 	}
 	return b
@@ -321,6 +354,8 @@ type layoutSpec struct {
 	navWidth     int
 	contentWidth int
 	bodyHeight   int
+	footerHeight int
+	footerGap    int
 }
 
 const (
@@ -337,8 +372,8 @@ func computeLayoutWithBody(width int, bodyHeight int) layoutSpec {
 	}
 	if width <= 0 {
 		return layoutSpec{
-			navWidth:     defaultNavWidth,
-			contentWidth: defaultContentWidth,
+			navWidth:     0,
+			contentWidth: 0,
 			bodyHeight:   bodyHeight,
 		}
 	}
@@ -381,51 +416,73 @@ func computeLayoutWithBody(width int, bodyHeight int) layoutSpec {
 	}
 }
 
-func (m model) panelStyles() (lipgloss.Style, lipgloss.Style) {
+func (m model) panelStyles(navOuterW, navOuterH, contentOuterW, contentOuterH int) (lipgloss.Style, lipgloss.Style) {
 	border := lipgloss.RoundedBorder()
-	focused := lipgloss.AdaptiveColor{Light: "63", Dark: "75"}
-	unfocused := lipgloss.AdaptiveColor{Light: "245", Dark: "238"}
+	focusedColor := lipgloss.AdaptiveColor{Light: "63", Dark: "75"}
+	unfocusedColor := lipgloss.AdaptiveColor{Light: "245", Dark: "238"}
 
-	navStyle := lipgloss.NewStyle().
-		Padding(1, 1, 0, 1).
-		Border(border)
-
-	contentStyle := lipgloss.NewStyle().
-		Padding(1, 1, 0, 1).
-		Border(border)
-
-	if m.navFocused {
-		navStyle = navStyle.BorderForeground(focused)
-		contentStyle = contentStyle.BorderForeground(unfocused)
-	} else {
-		navStyle = navStyle.BorderForeground(unfocused)
-		contentStyle = contentStyle.BorderForeground(focused)
+	panelStyleFor := func(outerW, outerH int, isFocused bool) lipgloss.Style {
+		style := lipgloss.NewStyle()
+		if outerW < 2 || outerH < 2 {
+			return style
+		}
+		style = style.Border(border)
+		if isFocused {
+			style = style.BorderForeground(focusedColor)
+		} else {
+			style = style.BorderForeground(unfocusedColor)
+		}
+		paddingTop, paddingRight, paddingBottom, paddingLeft := 1, 1, 0, 1
+		if outerW < 4 {
+			paddingRight = 0
+			paddingLeft = 0
+		}
+		if outerH < 3 {
+			paddingTop = 0
+			paddingBottom = 0
+		}
+		return style.Padding(paddingTop, paddingRight, paddingBottom, paddingLeft)
 	}
+
+	navStyle := panelStyleFor(navOuterW, navOuterH, m.navFocused)
+	contentStyle := panelStyleFor(contentOuterW, contentOuterH, !m.navFocused)
 
 	return navStyle, contentStyle
 }
 
 func (m *model) relayout() {
-	if m.width <= 0 || m.height <= 0 {
-		return
-	}
-
-	m.help.Width = m.width
-	footer := m.help.View(m.helpKeyMap())
-	footerH := lipgloss.Height(footer)
+	height := max(0, m.height)
+	m.help.Width = max(0, m.width)
+	footer := strings.TrimRight(m.help.View(m.helpKeyMap()), "\n")
+	rawFooterH := lipgloss.Height(footer)
 
 	footerGap := 0
-	if footerH > 0 {
+	if rawFooterH > 0 && height > 0 {
 		footerGap = footerGapBlankLines + 1
+		if height < rawFooterH+footerGap {
+			if height >= rawFooterH+1 {
+				footerGap = 1
+			} else {
+				footerGap = 0
+			}
+		}
 	}
-	bodyH := m.height - footerH - footerGap
+	footerHeight := min(rawFooterH, max(0, height-footerGap))
+	bodyH := height - footerHeight - footerGap
 	if bodyH < 0 {
 		bodyH = 0
 	}
+	if bodyH == 0 {
+		footerGap = 0
+		footerHeight = min(rawFooterH, height)
+		bodyH = height - footerHeight
+	}
 
 	m.layout = computeLayoutWithBody(m.width, bodyH)
+	m.layout.footerHeight = footerHeight
+	m.layout.footerGap = footerGap
 
-	navStyle, contentStyle := m.panelStyles()
+	navStyle, contentStyle := m.panelStyles(m.layout.navWidth, m.layout.bodyHeight, m.layout.contentWidth, m.layout.bodyHeight)
 	navFrameW, navFrameH := navStyle.GetFrameSize()
 	contentFrameW, contentFrameH := contentStyle.GetFrameSize()
 

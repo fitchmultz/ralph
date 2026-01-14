@@ -8,7 +8,6 @@ import (
 
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 const (
@@ -87,9 +86,7 @@ func (l *logsView) Resize(width int, height int) {
 	if contentHeight < 0 {
 		contentHeight = 0
 	}
-	l.viewport.Width = max(0, width)
-	l.viewport.Height = max(0, contentHeight)
-	l.viewport.Style = lipgloss.NewStyle().Padding(0, 1)
+	resizeViewportToFit(&l.viewport, max(0, width), max(0, contentHeight), paddedViewportStyle)
 }
 
 func (l *logsView) Refresh(loopLines []string, specsLines []string) {

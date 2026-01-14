@@ -162,9 +162,6 @@ func (p *pinView) View() string {
 }
 
 func (p *pinView) Resize(width int, height int) {
-	if width <= 0 || height <= 0 {
-		return
-	}
 	p.width = width
 	p.height = height
 
@@ -203,19 +200,14 @@ func (p *pinView) Resize(width int, height int) {
 		}
 	}
 	p.table.SetHeight(tableHeight)
-	p.detail.Width = width
-	p.detail.Height = detailHeight
+	resizeViewportToFit(&p.detail, max(0, width), max(0, detailHeight), p.detail.Style)
 	if p.mode == pinModeBlockForm && p.blockForm != nil {
 		formHeight := height - 2
 		if formHeight < 1 {
 			formHeight = 1
 		}
-		if width > 0 {
-			p.blockForm = p.blockForm.WithWidth(width)
-		}
-		if height > 0 {
-			p.blockForm = p.blockForm.WithHeight(formHeight)
-		}
+		p.blockForm = p.blockForm.WithWidth(max(1, width))
+		p.blockForm = p.blockForm.WithHeight(max(1, formHeight))
 	}
 }
 

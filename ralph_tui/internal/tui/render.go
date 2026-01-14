@@ -17,6 +17,10 @@ func withFinalNewline(s string) string {
 
 // clampToSize ensures the rendered output never exceeds the provided width or height.
 func clampToSize(s string, width int, height int) string {
+	s = strings.TrimRight(s, "\n")
+	if s == "" {
+		return ""
+	}
 	lines := strings.Split(s, "\n")
 	if height > 0 && len(lines) > height {
 		lines = lines[:height]
@@ -25,6 +29,19 @@ func clampToSize(s string, width int, height int) string {
 		for i, line := range lines {
 			lines[i] = ansi.Truncate(line, width, "")
 		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+// clipToHeight keeps at most height lines without width truncation.
+func clipToHeight(s string, height int) string {
+	s = strings.TrimRight(s, "\n")
+	if s == "" || height <= 0 {
+		return ""
+	}
+	lines := strings.Split(s, "\n")
+	if len(lines) > height {
+		lines = lines[:height]
 	}
 	return strings.Join(lines, "\n")
 }

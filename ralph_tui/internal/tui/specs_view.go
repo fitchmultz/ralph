@@ -72,6 +72,8 @@ type specsPreviewMsg struct {
 func newSpecsView(cfg config.Config, locations paths.Locations) (*specsView, error) {
 	vp := viewport.New(80, 20)
 	logViewport := viewport.New(80, 20)
+	vp.Style = paddedViewportStyle
+	logViewport.Style = paddedViewportStyle
 	view := &specsView{
 		cfg:             cfg,
 		locations:       locations,
@@ -326,21 +328,15 @@ func yesNo(value bool) string {
 }
 
 func (s *specsView) Resize(width int, height int) {
-	if width <= 0 || height <= 0 {
-		return
-	}
-	s.previewViewport.Width = width
-	s.logViewport.Width = width
-	s.previewWidth = width
-
 	optionsLines := strings.Count(s.optionsView(), "\n") + 1
 	reserved := 1 + 1 + 1 + optionsLines + 1
 	previewHeight := height - reserved
 	if previewHeight < 0 {
 		previewHeight = 0
 	}
-	s.previewViewport.Height = previewHeight
-	s.logViewport.Height = previewHeight
+	resizeViewportToFit(&s.previewViewport, max(0, width), max(0, previewHeight), paddedViewportStyle)
+	resizeViewportToFit(&s.logViewport, max(0, width), max(0, previewHeight), paddedViewportStyle)
+	s.previewWidth = max(1, s.previewViewport.Width)
 	s.previewDirty = true
 }
 

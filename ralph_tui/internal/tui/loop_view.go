@@ -12,7 +12,6 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/config"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/loop"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/paths"
@@ -405,21 +404,15 @@ func (l *loopView) Resize(width int, height int) {
 	if logHeight < 0 {
 		logHeight = 0
 	}
-	l.viewport.Width = max(0, width)
-	l.viewport.Height = max(0, logHeight)
-	l.viewport.Style = lipgloss.NewStyle().Padding(0, 1)
+	resizeViewportToFit(&l.viewport, max(0, width), max(0, logHeight), paddedViewportStyle)
 
 	if l.editForm != nil {
 		formHeight := height - 3
 		if formHeight < 1 {
 			formHeight = 1
 		}
-		if width > 0 {
-			l.editForm = l.editForm.WithWidth(width)
-		}
-		if height > 0 {
-			l.editForm = l.editForm.WithHeight(formHeight)
-		}
+		l.editForm = l.editForm.WithWidth(max(1, width))
+		l.editForm = l.editForm.WithHeight(max(1, formHeight))
 	}
 }
 
