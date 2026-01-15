@@ -1,6 +1,9 @@
 # Implementation Queue
 
 ## Queue
+- [ ] RQ-0440 [ops]: Add "fixup blocked items" workflow (re-attempt quarantined WIP branches safely; prevent cascading dependency failures). (ralph_tui/internal/loop/loop.go, ralph_tui/internal/pin/pin.go, ralph_tui/internal/loop/git.go, ralph_tui/cmd/ralph/main.go, ralph_tui/internal/tui/dashboard_view.go)
+  - Evidence: When the supervisor quarantines and auto-blocks an item, the WIP branch + known-good SHA are recorded, but there is no first-class way to re-run repairs on that WIP and safely promote it back to main; this can leave a run "complete" but everything blocked and can cause follow-up queue items to run on main without prerequisite changes, compounding wasted effort.
+  - Plan: Add a `ralph loop fixup` command (and optional TUI entry point) that scans Blocked items for WIP metadata, runs validation/CI in an isolated worktree, and (only when green) promotes changes back to main via a conservative strategy (e.g., cherry-pick or merge) with an additional CI gate; add a policy engine to limit attempts and only auto-fix mechanical failures while skipping obvious "needs human" blocks; optionally incorporate lightweight dependency metadata (e.g., `Depends-on:`) so the loop can pause or prioritize fixup when downstream items would be invalid without upstream WIP changes; add hermetic tests covering quarantine -> blocked -> fixup -> promote -> unblock/requeue while guaranteeing main stays green.
 - [ ] RQ-0426 [ui]: Make Config editor less confusing: show per-field source (default/global/repo/session/cli), simplify Save actions, and add 'reset layer/field' controls. (ralph_tui/internal/tui/config_editor.go, ralph_tui/internal/config/load.go, ralph_tui/internal/tui/help_keymap.go)
   - Evidence:
     - The config editor supports layers but does not show where each effective value came from (defaults vs global vs repo vs session/CLI), which makes it hard to reason about changes.
@@ -18,6 +21,107 @@
     - Wrap git command failures with stderr/stdout tails and log them through the loop logger (with redaction where applicable).
     - Update loop failure reporting to include actionable details (command + concise output tail).
     - Add tests using a stubbed git backend or hermetic repo fixtures to validate error messages and behavior.
+- [ ] RQ-0428 [code]: Harden loop end-of-turn finalization + cancellation handling (ensure queue->done, commit/push, and no quarantine on user stop). (ralph_tui/internal/loop/loop.go, ralph_tui/internal/loop/exec.go, ralph_tui/internal/loop/git.go)
+  - Evidence:
+    - `handleIterationFailure()` runs supervisor + quarantine even when the underlying error is `context.Canceled`, so a user stop can unexpectedly create WIP branches/auto-block items.
+    - `runMakeCI()` shells out with `exec.Command("make", ...)` and `RunCommandWithFile()` forces `context.Background()` via `ensureCommandContext()`, so `make ci` cannot be canceled and can hang the end-of-turn pipeline.
+    - Git operations (`CommitAll`, `CommitPaths`, `Push`) are not context-aware and can also hang, leaving the queue item checked but not moved/committed/pushed.
+  - Plan:
+    - Thread a real `ctx` (plus sane timeouts) through all external commands (runner, make ci, git commit/push) and log each stage transition.
+    - Treat cancellation as a clean stop: skip supervisor/quarantine, but still attempt best-effort reconciliation (move checked -> done, validate pin, and commit/push if configured and safe).
+    - Add regression tests that cancel at key stages (runner, make ci, push) and assert no quarantine occurs and pin files are left in a consistent state.
+- [ ] RQ-0429 [ops]: Make dirty-repo handling nuanced (don’t nuke uncommitted queue edits; avoid `git clean -fd` surprises; pause/abort with guidance). (ralph_tui/internal/loop/loop.go, ralph_tui/internal/loop/git.go, ralph_tui/internal/tui/loop_view.go, ralph_tui/cmd/ralph/main.go)
+  - Evidence:
+    - Preflight in `loop.Run()` calls `handleIterationFailure(..., "preflight", ...)` whenever `git status --porcelain` is non-empty, and failure handling ultimately calls `quarantine()` which does `git reset --hard` + `git clean -fd` on `main`, wiping local edits without warning.
+    - This can destroy manual edits to `.ralph/pin/implementation_queue.md` (or any uncommitted work) just because the loop was started from a dirty state.
+    - The same "dirty => quarantine" path can be triggered by incidental background changes while the loop is running (e.g., user editing pin files mid-run).
+  - Plan:
+    - Introduce an explicit dirty-policy (abort with message, auto-commit pin-only changes, stash, or quarantine) and default to a non-destructive mode for preflight.
+    - In the TUI, add a pre-run guard that detects dirtiness and offers safe actions (show status/diff, commit pin-only, stash, or cancel start).
+    - Add tests to ensure dirty preflight never hard-resets/cleans unless the user explicitly opted into destructive behavior.
+- [ ] RQ-0430 [ops]: Stop Ralph-generated cache/log/output files from dirtying the repo (gitignore cache dir + update defaults). (.gitignore, .repo_ignore, ralph_tui/internal/config/defaults.json, ralph_tui/internal/tui/logging.go, ralph_tui/internal/tui/output_persistence.go)
+  - Evidence:
+    - Default config sets `paths.cache_dir` to `.ralph/cache`, and the TUI writes `ralph_tui.log`, `loop_output.log`, and `specs_output.log` under that directory.
+    - `.gitignore` does not ignore `.ralph/cache/`, so simply running the TUI can make the repo "dirty" and trip the loop’s strict clean-tree requirement.
+    - `.repo_ignore` currently ignores only `.ralph/cache/loop_output.log`, so other generated artifacts can leak into context_builder runs or confuse diffs.
+  - Plan:
+    - Add `.ralph/cache/` (and/or `*.log`/`*_output.log`) to `.gitignore` and update `.repo_ignore` to exclude all generated cache/log/output files.
+    - Consider moving the default cache dir outside the repo (e.g., under `~/.ralph/cache/<repo>`), with a small migration + docs update.
+    - Add a regression test that starts the TUI/loop output writers and asserts `git status --porcelain` remains clean afterwards (given default ignores).
+- [ ] RQ-0431 [ui]: Fix search/command palette UX (arrow-key navigation, correct focus highlight, and clear target switching between Nav vs Pin). (ralph_tui/internal/tui/model.go, ralph_tui/internal/tui/keymap.go, ralph_tui/internal/tui/help_keymap.go)
+  - Evidence:
+    - When `searchActive` is true, `model.Update()` routes key events to `updateSearch()` but does not call `nav.Update()`, so Up/Down cannot reliably change the selected screen during search.
+    - `beginSearch()` forces `navFocused=false` via `applyFocus()`, which can make the UI borders imply the content pane is focused while the user is interacting with the search + nav area.
+    - There is no on-screen indicator or key to switch search target (nav vs pin) once search is open, which makes it feel "restricted".
+  - Plan:
+    - While search is active, keep the navigation list interactive: route navigation keys to the list and route text keys to the search input; update border focus to match.
+    - Add explicit "Search target: Nav/Pin" indicator + a keybinding to toggle targets without canceling the search.
+    - Add model driver tests covering: typing filters, arrow navigation works, Enter selects the intended item, Esc cleanly restores prior state.
+- [ ] RQ-0432 [code]: Make pin file writes atomic + lock-protected (prevent corruption/lost edits when loop/TUI/user all touch pin files). (ralph_tui/internal/pin/pin.go, ralph_tui/internal/config/save.go, ralph_tui/internal/loop/loop.go)
+  - Evidence:
+    - `pin.writeLines()` uses `os.WriteFile()` directly, which is not atomic and can leave partial/truncated pin files if the process is interrupted mid-write.
+    - Pin operations (`MoveCheckedToDone`, `BlockItem`, `ToggleQueueItemChecked`) read-modify-write without any cross-process locking, so concurrent edits (e.g., user editing queue while the loop is running) can be lost.
+    - The loop runner treats pin corruption as a hard failure and may quarantine/reset the repo, amplifying a simple write race into major data loss.
+  - Plan:
+    - Add an atomic write helper (temp file + fsync + rename) and use it for pin + config writes.
+    - Add a lightweight lock (e.g., `.ralph/pin/.lock` or OS-level file lock) so only one process modifies pin files at a time; return a clear error when the lock is held instead of corrupting files.
+    - Add tests that simulate concurrent pin operations and assert the queue/done files remain valid + no data is lost.
+- [ ] RQ-0433 [code]: Improve file change detection so the UI doesn’t miss fast edits (same-size/same-modtime changes; atomic-save editors) and reduce "stale until refresh" bugs. (ralph_tui/internal/tui/file_watch.go, ralph_tui/internal/tui/file_watch_test.go, ralph_tui/internal/tui/pin_view.go)
+  - Evidence:
+    - `fileStamp` only tracks `ModTime` + `Size`; if content changes without changing either (possible with quick edits or coarse filesystem timestamp resolution), `fileChanged()` will report no change.
+    - Pin/specs/log refresh logic relies on this stamp, so missed change detection can make the TUI appear "laggy" or "broken" until a manual refresh.
+  - Plan:
+    - Extend `fileStamp` with stronger identity (inode/ctime where available, and/or a small content hash for small files) and update `sameFileStamp` accordingly.
+    - Add unit tests that rewrite a file to different content with the same size and forced modtime and assert the new stamp detects a change.
+    - Apply the improved stamp logic to Pin/Specs/Logs refresh paths and keep the performance characteristics reasonable for large files.
+- [ ] RQ-0434 [ui]: Surface repo/git status in the TUI (branch, dirty summary, ahead count, last commit) to make loop behavior transparent and debuggable. (ralph_tui/internal/tui/dashboard_view.go, ralph_tui/internal/tui/logs_view.go, ralph_tui/internal/loop/git.go)
+  - Evidence:
+    - The Dashboard currently shows queue counts + loop/specs state but hides the repo state (branch, dirty files, ahead commits), even though the loop runner enforces `RequireMain` and a clean tree and may auto-push.
+    - `ralph_tui/internal/loop/git.go` already provides `StatusSummary()` and `AheadCount()`, but the TUI doesn’t display them, making "why did it block/quarantine?" hard to answer.
+  - Plan:
+    - Add a "Repo" section to the Dashboard (and/or Logs) with: current branch, short HEAD, `git status -sb` summary, ahead count, and last diffstat.
+    - Show the loop’s last failure stage/message in the UI so "hung at end of turn" is visible.
+    - Add render contract + model driver tests to ensure the repo panel fits narrow terminals and degrades gracefully when git isn’t available.
+- [ ] RQ-0435 [code]: Unify queue tag parsing/filtering across loop + TUI (validate only_tags, avoid substring quirks, and reuse one tag parser). (ralph_tui/internal/loop/queue.go, ralph_tui/internal/tui/pin_view.go, ralph_tui/internal/pin/pin.go)
+  - Evidence:
+    - The loop runner’s `hasTag()` uses a raw substring check for `"[tag]"`, while the Pin view extracts tags via `pinTagPattern`; this duplication can drift and produce inconsistent behavior.
+    - `loop.only_tags` is a free-form string; typos silently result in "no items found" exits, which feels like a broken loop.
+  - Plan:
+    - Introduce a shared tag parsing helper (single regex + supported tag set) and use it in both loop selection and Pin search/tag extraction.
+    - Validate `only_tags` early (config validation and/or loop start) and surface a clear warning/error for unknown tags.
+    - Add tests ensuring tag filtering behavior matches between loop and Pin view and that unknown tags are reported cleanly.
+- [ ] RQ-0436 [docs]: Make worker/supervisor prompts more prescriptive for fragile edge cases (stop/cancel, dirty repo, and end-of-turn checklist). (ralph_tui/internal/prompts/defaults/prompt_codex.md, ralph_tui/internal/prompts/defaults/prompt_opencode.md, ralph_tui/internal/prompts/defaults/supervisor_prompt.md)
+  - Evidence:
+    - The prompts emphasize "run make ci" and "check the queue item", but they don’t explicitly cover what to do when the loop is stopped mid-iteration or when the repo is dirty before starting (both of which currently trigger quarantine behavior in code).
+    - This gap increases the chance that the agent loop ends in a half-finished state (checked item not moved, no commit/push) and requires manual intervention.
+  - Plan:
+    - Add an explicit end-of-turn checklist section (queue checkbox, validate pin, ensure clean git status) and a "stop/cancel semantics" section (exit cleanly; do not trigger quarantine; how to resume).
+    - Update the supervisor prompt to prioritize mechanical repairs (move checked items, commit/push, validate pin) before escalating to quarantine/auto-block.
+    - Keep prompt changes minimal and add a small prompt-focused test (string contains required checklist headings) to prevent regressions.
+- [ ] RQ-0437 [code]: Support richer queue item metadata (notes/links/extra context) without breaking pin validation or loop parsing; optionally move to a structured format. (ralph_tui/internal/pin/pin.go, ralph_tui/internal/loop/queue.go, .ralph/pin/README.md)
+  - Evidence:
+    - `pin.ValidatePin()` enforces a strict queue item header format + requires `Evidence` and `Plan`, but there is no supported place for additional structured notes; users report the system "freaks out" when they add extra detail.
+    - The loop runner and TUI both treat the queue file as opaque markdown blocks, so adding richer metadata today risks parsing/validation surprises.
+  - Plan:
+    - Define and document an explicit "extra metadata" convention (e.g., optional `Notes:` field, or a fenced YAML block) that is ignored by the loop selector but validated as safe by `pin.ValidatePin()`.
+    - Update pin parsing/validation to allow and preserve the metadata, and update the prompts to encourage using the supported format.
+    - Add tests that a queue item containing extra metadata still passes validation and is still selectable/runnable by the loop.
+- [ ] RQ-0438 [ui]: Add a safe "edit queue" + "commit pin changes" workflow in the TUI (reduce manual git mistakes and the need to stop the loop to edit files). (ralph_tui/internal/tui/pin_view.go, ralph_tui/internal/tui/model.go, ralph_tui/internal/loop/git.go, ralph_tui/internal/loop/loop.go)
+  - Evidence:
+    - Today, editing `.ralph/pin/implementation_queue.md` happens outside Ralph; if the user forgets to commit before starting the loop, the loop can treat the repo as dirty and quarantine/reset, losing the edits.
+    - The TUI provides pin operations (toggle, move checked, block) but does not offer a first-class way to open the queue in $EDITOR or to commit pin-only changes safely.
+  - Plan:
+    - Add a Pin-screen action to open the queue file in the user’s editor (respecting `$EDITOR`) and then reload/validate pin on return.
+    - Add an option to auto-commit only pin files (queue/done/lookup/specs_builder) with a safe commit message, and wire this into the loop preflight so pin-only dirtiness is handled gracefully.
+    - Add tests for the new TUI commands and ensure they don’t run while a loop iteration is actively running.
+- [ ] RQ-0439 [code]: Fix reasoning_effort "auto" semantics and policy block accuracy (align what we display vs what we actually pass to codex; make P1 behavior explicit). (ralph_tui/internal/loop/loop.go, ralph_tui/internal/runnerargs/effort.go, ralph_tui/internal/tui/loop_view.go)
+  - Evidence:
+    - `loop.Run()` computes an `effectiveEffort` (including `[P1] => high`) and prints the "CODEX CONTEXT BUILDER POLICY" block based on it, but `runnerargs.ApplyReasoningEffort(..., "auto")` may inject no args—so the policy block can claim an effort that isn’t actually applied.
+    - The Run Loop UI displays "effective" effort using a different path (`runnerargs.ApplyReasoningEffort`), so the UI and the prompt policy can disagree and confuse both users and agents.
+  - Plan:
+    - Use a single source of truth for "effective effort" based on the final runner args (post-merge + post-injection) and reuse it for both UI display and prompt policy output.
+    - Decide on and implement the desired auto behavior for `[P1]` items (either actually inject `high` or show "auto (target: high)" consistently everywhere).
+    - Add regression tests for policy block output and the P1 auto-effort behavior so we never misreport the active reasoning mode again.
 
 ## Blocked
 

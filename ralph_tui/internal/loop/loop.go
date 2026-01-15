@@ -134,7 +134,7 @@ func (r *Runner) Run(ctx context.Context) error {
 			return fmt.Errorf("Queue item is missing an ID prefix (expected something like ABC-0123).")
 		}
 
-		effort := "medium"
+		effort := "high"
 		if strings.Contains(firstItem.Header, "[P1]") {
 			effort = "high"
 		}
