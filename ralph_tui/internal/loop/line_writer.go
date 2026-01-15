@@ -4,33 +4,31 @@ package loop
 
 import (
 	"io"
-	"strings"
 	"sync"
+
+	"github.com/mitchfultz/ralph/ralph_tui/internal/streaming"
 )
 
 type lineWriter struct {
 	redactor *Redactor
 	logger   Logger
 	tee      io.Writer
-	buffer   string
+	splitter *streaming.LineSplitter
 	mu       sync.Mutex
 }
 
 func newLineWriter(redactor *Redactor, logger Logger, tee io.Writer) *lineWriter {
-	return &lineWriter{redactor: redactor, logger: logger, tee: tee}
+	return &lineWriter{redactor: redactor, logger: logger, tee: tee, splitter: streaming.NewLineSplitter(streaming.DefaultMaxBufferedBytes)}
 }
 
 func (w *lineWriter) Write(p []byte) (int, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	chunk := w.buffer + string(p)
-	lines := strings.Split(chunk, "\n")
-	w.buffer = lines[len(lines)-1]
-	lines = lines[:len(lines)-1]
-	for _, line := range lines {
-		w.writeLine(line)
+	if w.splitter == nil {
+		w.splitter = streaming.NewLineSplitter(streaming.DefaultMaxBufferedBytes)
 	}
+	w.splitter.Write(p, w.writeLine)
 	return len(p), nil
 }
 
@@ -50,9 +48,8 @@ func (w *lineWriter) writeLine(line string) {
 func (w *lineWriter) Flush() {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	if w.buffer == "" {
-		return
+	if w.splitter == nil {
+		w.splitter = streaming.NewLineSplitter(streaming.DefaultMaxBufferedBytes)
 	}
-	w.writeLine(w.buffer)
-	w.buffer = ""
+	w.splitter.Flush(w.writeLine)
 }

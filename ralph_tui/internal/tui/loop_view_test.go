@@ -71,6 +71,20 @@ func TestLoopLogBatchAppendsAndCloses(t *testing.T) {
 	}
 }
 
+func TestLoopLogFlushesSmallBatchWhileRunning(t *testing.T) {
+	view := newLoopView(testLoopConfig(), paths.Locations{})
+	view.mode = loopRunning
+	view.logRunID = 1
+
+	_ = view.Update(loopLogBatchMsg{
+		batch: logBatch{RunID: 1, Lines: []string{"line one"}},
+	}, newKeyMap())
+
+	if view.pendingViewportLines != 0 {
+		t.Fatalf("expected pending viewport lines to flush, got %d", view.pendingViewportLines)
+	}
+}
+
 func TestLoopStateUpdatesAndClears(t *testing.T) {
 	view := newLoopView(testLoopConfig(), paths.Locations{})
 	view.stateRunID = 2

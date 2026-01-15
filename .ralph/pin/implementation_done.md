@@ -1,6 +1,24 @@
 # Implementation Done
 
 ## Done
+- [x] RQ-0453 [P1] [ui]: Fix Run Loop TUI streaming output for opencode (codex streams correctly); reduce log flush latency + prevent log backpressure stalls. (ralph_tui/internal/tui/loop_view.go, ralph_tui/internal/tui/stream_writer.go, ralph_tui/internal/tui/loop_view_test.go, ralph_tui/internal/loop/line_writer.go)
+  - Evidence: Observed behavior: with runner=codex the Run Loop logs stream back in real time; with runner=opencode the nav pane collapses but no logs stream back during the run (often only appearing after stop / during cleanup). Current code also suggests why opencode can "look silent": `loopView.appendLogLines` throttles viewport flushes in `loopRunning` (32/256 thresholds), and the loop command writer in `internal/loop/line_writer.go` only emits on `\n` (so any `\r`-style progress updates or long partial lines from opencode won’t render until process exit/flush). Additionally, `sendLineBlocking` can stall the producing goroutine if the log channel buffer fills, which can further distort perceived streaming.
+  - Plan: Make log streaming reliable for BOTH runners, with specific coverage for opencode: (1) treat carriage returns / non-newline progress output as streamable lines (or periodically flush partial buffers), (2) ensure first output renders immediately (lower initial thresholds and/or time-based flush while running), (3) prevent log channel backpressure from blocking the loop runner, and (4) add a regression test that asserts viewport content updates while `loopRunning` with small batches and/or partial-line output.
+
+  - Findings:
+    - `ralph_tui/internal/tui/loop_view.go`: log flushing is throttled only in `loopRunning`, but not in `loopStopping`, enabling "logs appear only on stop" UX when output arrives slowly (common with opencode).
+    - `ralph_tui/internal/loop/line_writer.go`: line splitting is newline-only; runner output that uses carriage returns or partial lines will not surface until `Flush()` at process end/cancel.
+    - `ralph_tui/internal/tui/stream_writer.go`: `sendLineBlocking` can stall the runner under sustained output if the log channel fills.
+    - Similar flush-threshold logic exists in `specs_view.appendRunLogs` (16/128) and may need harmonization.
+
+- [x] RQ-0441 [P1] [ui]: Fix Config screen initial render ("UI Theme" missing) by making config editor render meaningful fields without prior input; resolve failing test. (ralph_tui/internal/tui/config_editor.go, ralph_tui/internal/tui/model_test.go)
+  - Evidence: Failing test `internal/tui → TestConfigScreenRendersFormWithoutInput` expects the Config view to include "UI Theme". Current config editor builds a multi-`huh.NewGroup` form, which likely renders as a multi-step wizard starting on the Layer selector (hiding UI fields), so the field label never appears on first render.
+  - Plan: Decide intended UX (recommended: a single scrollable form showing UI fields immediately), refactor `configEditor.buildForm()`/layout accordingly, and update tests to assert stable rendering at startup (including Tab behavior and a non-empty field set).
+
+  - Findings:
+    - `ralph_tui/internal/tui/config_editor.go`: multi-group `huh.Form` likely renders one group at a time; "UI Theme" is not in the first group.
+    - `configEditor.saveLayer`: repo save path is not guarded against empty `locations.RepoConfigPath`, risking invalid writes in edge/test setups.
+
 - [x] RQ-0439 [code]: Fix reasoning_effort "auto" semantics and policy block accuracy (align what we display vs what we actually pass to codex; make P1 behavior explicit). (ralph_tui/internal/loop/loop.go, ralph_tui/internal/runnerargs/effort.go, ralph_tui/internal/tui/loop_view.go)
   - Evidence:
     - `loop.Run()` computes an `effectiveEffort` (including `[P1] => high`) and prints the "CODEX CONTEXT BUILDER POLICY" block based on it, but `runnerargs.ApplyReasoningEffort(..., "auto")` may inject no args—so the policy block can claim an effort that isn’t actually applied.

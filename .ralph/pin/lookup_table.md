@@ -12,6 +12,7 @@
 | redaction | Redaction modes and env key classification live in `ralph_tui/internal/redaction/`. |
 | queueid | Shared queue item ID parsing lives in `ralph_tui/internal/queueid/`. |
 | runnerargs | Shared runner argument parsing and reasoning-effort helpers live in `ralph_tui/internal/runnerargs/`. |
+| streaming | Shared line-splitting helpers for log streaming live in `ralph_tui/internal/streaming/`. |
 | prompts | Default worker/supervisor prompt templates live in `ralph_tui/internal/prompts/defaults/`. |
 | specs | Specs builder, prompt filling, and runner invocation live in `ralph_tui/internal/specs/` and legacy specs templates in `ralph_legacy/specs/`. |
 | testutil | Shared test helpers for process/runner behavior live in `ralph_tui/internal/testutil/`. |

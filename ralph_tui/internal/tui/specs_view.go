@@ -9,6 +9,7 @@ import (
 	"hash/fnv"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -73,6 +74,7 @@ type specsView struct {
 	lastConfigUserFocus     string
 	pendingLogViewportLines int
 	lastLogViewportVersion  uint64
+	lastLogViewportFlush    time.Time
 }
 
 type specsBuildResultMsg struct {
@@ -707,6 +709,7 @@ func (s *specsView) resetRunLogs() {
 	s.diffStat = ""
 	s.pendingLogViewportLines = 0
 	s.lastLogViewportVersion = 0
+	s.lastLogViewportFlush = time.Time{}
 }
 
 func (s *specsView) appendRunLog(line string) {
@@ -723,7 +726,7 @@ func (s *specsView) appendRunLogs(lines []string) {
 	s.pendingLogViewportLines += len(lines)
 	if s.running {
 		threshold := specsLogFlushThreshold(atBottom)
-		if s.pendingLogViewportLines < threshold {
+		if !shouldFlushLogViewport(s.pendingLogViewportLines, threshold, s.lastLogViewportFlush) {
 			return
 		}
 	}
@@ -746,6 +749,7 @@ func (s *specsView) flushRunLogViewport(wasAtBottom bool) {
 	s.logViewport.SetContent(s.runLogBuf.ContentString())
 	s.lastLogViewportVersion = version
 	s.pendingLogViewportLines = 0
+	s.lastLogViewportFlush = time.Now()
 	if wasAtBottom {
 		s.logViewport.GotoBottom()
 	}

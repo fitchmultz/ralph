@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -46,6 +47,7 @@ type loopView struct {
 	height               int
 	pendingViewportLines int
 	lastViewportVersion  uint64
+	lastViewportFlush    time.Time
 }
 
 type loopOverrides struct {
@@ -476,6 +478,7 @@ func (l *loopView) startRun(runOnce bool) tea.Cmd {
 		l.state = loop.State{Mode: loop.ModeContinuous, Iteration: 0}
 	}
 	l.startPersistingOutput()
+	l.lastViewportFlush = time.Time{}
 	l.Resize(l.width, l.height)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -515,7 +518,7 @@ func (l *loopView) startRun(runOnce bool) tea.Cmd {
 	runCmd := func() tea.Msg {
 		logger := loopLogger{
 			write: func(line string) {
-				sendLineBlocking(logCh, line)
+				sendLineBestEffort(logCh, line)
 			},
 		}
 		stateSink := loopStateSink{
@@ -916,7 +919,7 @@ func (l *loopView) appendLogLines(lines []string) {
 	l.pendingViewportLines += len(lines)
 	if l.mode == loopRunning {
 		threshold := loopLogFlushThreshold(atBottom)
-		if l.pendingViewportLines < threshold {
+		if !shouldFlushLogViewport(l.pendingViewportLines, threshold, l.lastViewportFlush) {
 			return
 		}
 	}
@@ -935,6 +938,7 @@ func (l *loopView) flushLogViewport(wasAtBottom bool) {
 	l.viewport.SetContent(l.logBuf.ContentString())
 	l.lastViewportVersion = version
 	l.pendingViewportLines = 0
+	l.lastViewportFlush = time.Now()
 	if wasAtBottom {
 		l.viewport.GotoBottom()
 	}

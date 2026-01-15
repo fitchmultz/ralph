@@ -1,7 +1,9 @@
 // Package tui provides stream helpers for TUI log capture.
 package tui
 
-import "strings"
+import (
+	"github.com/mitchfultz/ralph/ralph_tui/internal/streaming"
+)
 
 const logChannelBufferSize = 4096
 
@@ -10,8 +12,8 @@ type lineSink interface {
 }
 
 type streamWriter struct {
-	sink lineSink
-	buf  strings.Builder
+	sink     lineSink
+	splitter *streaming.LineSplitter
 }
 
 type logBatch struct {
@@ -21,7 +23,7 @@ type logBatch struct {
 }
 
 func newStreamWriter(sink lineSink) *streamWriter {
-	return &streamWriter{sink: sink}
+	return &streamWriter{sink: sink, splitter: streaming.NewLineSplitter(streaming.DefaultMaxBufferedBytes)}
 }
 
 func newLogChannel() chan string {
@@ -35,21 +37,33 @@ func sendLineBlocking(ch chan<- string, line string) {
 	ch <- line
 }
 
+func sendLineBestEffort(ch chan string, line string) {
+	if ch == nil {
+		return
+	}
+	select {
+	case ch <- line:
+		return
+	default:
+	}
+	select {
+	case <-ch:
+	default:
+	}
+	select {
+	case ch <- line:
+	default:
+	}
+}
+
 func (w *streamWriter) Write(p []byte) (int, error) {
 	if w == nil {
 		return len(p), nil
 	}
-	start := 0
-	for i, b := range p {
-		if b == '\n' {
-			w.buf.Write(p[start:i])
-			w.flushLine()
-			start = i + 1
-		}
+	if w.splitter == nil {
+		w.splitter = streaming.NewLineSplitter(streaming.DefaultMaxBufferedBytes)
 	}
-	if start < len(p) {
-		w.buf.Write(p[start:])
-	}
+	w.splitter.Write(p, w.emitLine)
 	return len(p), nil
 }
 
@@ -57,17 +71,16 @@ func (w *streamWriter) Flush() {
 	if w == nil {
 		return
 	}
-	if w.buf.Len() == 0 {
-		return
+	if w.splitter == nil {
+		w.splitter = streaming.NewLineSplitter(streaming.DefaultMaxBufferedBytes)
 	}
-	w.flushLine()
+	w.splitter.Flush(w.emitLine)
 }
 
-func (w *streamWriter) flushLine() {
+func (w *streamWriter) emitLine(line string) {
 	if w.sink != nil {
-		w.sink.PushLine(w.buf.String())
+		w.sink.PushLine(line)
 	}
-	w.buf.Reset()
 }
 
 func drainLogChannel(runID int, logCh <-chan string, maxBatch int) logBatch {

@@ -299,6 +299,11 @@ func (e *configEditor) saveLayer(layer string) {
 		}
 	} else if layer == layerRepo {
 		path = e.locations.RepoConfigPath
+		if path == "" {
+			e.saveError = "repo config path unavailable"
+			e.saveNote = ""
+			return
+		}
 		options.RelativeRoot = e.locations.RepoRoot
 	} else {
 		e.saveError = "session layer cannot be saved"
@@ -838,28 +843,22 @@ func (e *configEditor) buildForm() *huh.Form {
 	e.registerFieldDesc(fieldGitAutoPush, func(desc string) { gitAutoPush.Description(desc) })
 
 	return huh.NewForm(
-		huh.NewGroup(layerField),
 		huh.NewGroup(
+			layerField,
 			uiTheme,
 			refreshSeconds,
 			logLevel,
 			logRedaction,
 			logFile,
-		),
-		huh.NewGroup(
 			dataDir,
 			cacheDir,
 			pinDir,
-		),
-		huh.NewGroup(
 			specsAutofill,
 			specsScout,
 			specsUserFocus,
 			specsRunner,
 			specsRunnerArgs,
 			specsEffort,
-		),
-		huh.NewGroup(
 			loopSleepSeconds,
 			loopMaxIterations,
 			loopMaxStalled,
@@ -869,8 +868,6 @@ func (e *configEditor) buildForm() *huh.Form {
 			loopRunner,
 			loopRunnerArgs,
 			loopEffort,
-		),
-		huh.NewGroup(
 			gitAutoCommit,
 			gitAutoPush,
 		),
