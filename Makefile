@@ -7,24 +7,23 @@ PY_TESTS := $(shell find $(PY_PROJECT) -name 'test_*.py' -o -name '*_test.py')
 .PHONY: install update lint type-check format clean test generate build ci
 
 install:
-	uv sync --project $(PY_PROJECT) --extra dev
+	uv sync --project $(PY_PROJECT) --all-packages --all-groups --all-extras 
 	cd $(GO_PROJECT) && go mod download
 
 update:
-	uv lock --project $(PY_PROJECT) --upgrade
-	uv sync --project $(PY_PROJECT) --extra dev
+	uv sync --project $(PY_PROJECT) --all-packages --all-groups --all-extras --upgrade
 	cd $(GO_PROJECT) && go get -u ./... && go mod tidy
 
 lint:
-	uv run --project $(PY_PROJECT) --extra dev ruff check --fix
+	uv run --project $(PY_PROJECT) ruff check --fix
 	cd $(GO_PROJECT) && go vet ./...
 
 type-check:
-	uv run --project $(PY_PROJECT) --extra dev ty check
+	uv run --project $(PY_PROJECT) ty check
 	cd $(GO_PROJECT) && go test ./... -run=^$$
 
 format:
-	uv run --project $(PY_PROJECT) --extra dev ruff format
+	uv run --project $(PY_PROJECT) ruff format
 	gofmt -w $(GO_FILES)
 
 clean:
@@ -37,7 +36,7 @@ clean:
 test:
 	cd $(GO_PROJECT) && go test ./...
 ifneq ($(strip $(PY_TESTS)),)
-	uv run --project $(PY_PROJECT) --extra dev pytest
+	uv run --project $(PY_PROJECT) pytest
 else
 	@echo "No Python tests found under $(PY_PROJECT)."
 endif
