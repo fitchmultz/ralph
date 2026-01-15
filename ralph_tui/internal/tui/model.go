@@ -77,6 +77,13 @@ const (
 	searchTargetPin
 )
 
+type focusedPanel int
+
+const (
+	focusedPanelNav focusedPanel = iota
+	focusedPanelContent
+)
+
 func newModel(cfg config.Config, locations paths.Locations, opts StartOptions) model {
 	items := make([]list.Item, 0)
 	for _, item := range navigationItems() {
@@ -261,6 +268,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.closeLogger()
 			return m, tea.Quit
 		}
+		if m.searchActive {
+			cmd := m.updateSearch(msg)
+			return m, cmd
+		}
 		if key.Matches(msg, m.keys.ToggleNav) {
 			m.navCollapsed = !m.navCollapsed
 			if m.loopAutoCollapsed {
@@ -362,10 +373,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		if m.navFocused && !m.navCollapsed {
-			if m.searchActive {
-				cmd := m.updateSearch(msg)
-				return m, cmd
-			}
 			updated, cmd := m.nav.Update(msg)
 			m.nav = updated
 			cmds = append(cmds, cmd)
@@ -376,10 +383,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		} else {
-			if m.searchActive {
-				cmd := m.updateSearch(msg)
-				return m, cmd
-			}
 			cmds = append(cmds, m.updateActiveView(msg))
 		}
 
@@ -701,8 +704,9 @@ func (m model) panelStyles(navOuterW, navOuterH, contentOuterW, contentOuterH in
 		return style.Padding(paddingTop, paddingRight, paddingBottom, paddingLeft)
 	}
 
-	navStyle := panelStyleFor(navOuterW, navOuterH, m.navFocused)
-	contentStyle := panelStyleFor(contentOuterW, contentOuterH, !m.navFocused)
+	navFocused := m.navPanelFocusedEffective()
+	navStyle := panelStyleFor(navOuterW, navOuterH, navFocused)
+	contentStyle := panelStyleFor(contentOuterW, contentOuterH, !navFocused)
 
 	return navStyle, contentStyle
 }
@@ -749,7 +753,8 @@ func (m *model) relayout() {
 	contentInnerH := max(0, m.layout.bodyHeight-contentFrameH)
 
 	m.nav.SetSize(navInnerW, navInnerH)
-	m.searchInput.Width = navInnerW
+	promptWidth := lipgloss.Width(m.searchInput.Prompt)
+	m.searchInput.Width = max(0, navInnerW-promptWidth)
 	m.resizeViews(contentInnerW, contentInnerH)
 }
 
@@ -1003,6 +1008,9 @@ func (m *model) logError(message string, err error) {
 }
 
 func (m *model) helpKeyMap() help.KeyMap {
+	if m.searchActive {
+		return searchKeyMap{keys: m.keys, canToggleTarget: m.canToggleSearchTarget()}
+	}
 	global := globalKeyMap{keys: m.keys}
 	screenKeys := m.screenKeyMap()
 	return mergedKeyMap{global: global, screen: screenKeys}
@@ -1027,29 +1035,52 @@ func (m *model) screenKeyMap() help.KeyMap {
 	}
 }
 
+func (m model) focusedPanelEffective() focusedPanel {
+	if m.navCollapsed {
+		return focusedPanelContent
+	}
+	if m.searchActive {
+		if m.searchTarget == searchTargetNav {
+			return focusedPanelNav
+		}
+		if m.searchTarget == searchTargetPin && m.screen == screenPin {
+			return focusedPanelContent
+		}
+	}
+	if m.navFocused {
+		return focusedPanelNav
+	}
+	return focusedPanelContent
+}
+
+func (m model) navPanelFocusedEffective() bool {
+	return m.focusedPanelEffective() == focusedPanelNav
+}
+
 func (m *model) applyFocus() {
 	if m.navCollapsed {
 		m.navFocused = false
 	}
-	if m.searchActive {
-		m.navFocused = false
-	}
+	navFocused := m.navPanelFocusedEffective()
 	if m.pinView != nil {
-		if m.navFocused || m.screen != screenPin {
+		if navFocused || m.screen != screenPin {
 			m.pinView.Blur()
 		} else {
 			m.pinView.Focus()
+			if m.searchActive && m.searchTarget == searchTargetPin && m.pinView.mode == pinModeTable {
+				m.pinView.setFocus(pinFocusTable)
+			}
 		}
 	}
 	if m.specsView != nil {
-		if m.navFocused || m.screen != screenBuildSpecs {
+		if navFocused || m.screen != screenBuildSpecs {
 			m.specsView.Blur()
 		} else {
 			m.specsView.Focus()
 		}
 	}
 	if m.loopView != nil {
-		if m.navFocused || m.screen != screenRunLoop {
+		if navFocused || m.screen != screenRunLoop {
 			m.loopView.Blur()
 		} else {
 			m.loopView.Focus()
@@ -1088,24 +1119,142 @@ func (m *model) beginSearch() {
 	if m.navCollapsed {
 		m.navCollapsed = false
 	}
-	if m.navFocused && !m.navCollapsed {
-		m.searchTarget = searchTargetNav
-	} else if m.screen == screenPin {
-		m.searchTarget = searchTargetPin
-	} else {
-		m.searchTarget = searchTargetNav
-	}
 	m.searchActive = true
 	m.searchErr = ""
 	m.searchInput.SetValue("")
 	m.searchInput.Focus()
 	m.priorNavSelected = m.nav.Index()
+	m.clearSearchTargetState(searchTargetNav)
+	m.clearSearchTargetState(searchTargetPin)
+	if m.navFocused && !m.navCollapsed {
+		m.searchTarget = searchTargetNav
+	} else if m.canSearchPin() {
+		m.searchTarget = searchTargetPin
+	} else {
+		m.searchTarget = searchTargetNav
+	}
+	m.updateSearchPrompt()
 	m.updateSearchTargetState("")
 	m.applyFocus()
 	m.relayout()
 }
 
+func (m *model) searchTargetLabel() string {
+	switch m.searchTarget {
+	case searchTargetPin:
+		return "Pin"
+	default:
+		return "Nav"
+	}
+}
+
+func (m *model) updateSearchPrompt() {
+	m.searchInput.Prompt = fmt.Sprintf("Search (%s): ", m.searchTargetLabel())
+}
+
+func (m *model) canSearchPin() bool {
+	return m.screen == screenPin && m.pinView != nil && m.pinView.mode == pinModeTable
+}
+
+func (m *model) canToggleSearchTarget() bool {
+	return m.searchActive && m.canSearchPin()
+}
+
+func (m *model) toggleSearchTarget() {
+	if m.searchTarget == searchTargetPin {
+		m.setSearchTarget(searchTargetNav)
+		return
+	}
+	m.setSearchTarget(searchTargetPin)
+}
+
+func (m *model) setSearchTarget(target searchTarget) {
+	if m.searchTarget == target {
+		return
+	}
+	prev := m.searchTarget
+	m.clearSearchTargetState(prev)
+	m.searchTarget = target
+	m.updateSearchPrompt()
+	m.updateSearchTargetState(m.searchInput.Value())
+	m.applyFocus()
+	m.relayout()
+}
+
+func (m *model) clearSearchTargetState(target searchTarget) {
+	switch target {
+	case searchTargetNav:
+		m.nav.SetFilterText("")
+		m.nav.ResetFilter()
+	case searchTargetPin:
+		if m.pinView != nil {
+			m.pinView.CancelSearch()
+		}
+	}
+}
+
+func isSearchSelectionKey(msg tea.KeyMsg) bool {
+	switch msg.Type {
+	case tea.KeyUp, tea.KeyDown, tea.KeyPgUp, tea.KeyPgDown, tea.KeyHome, tea.KeyEnd:
+		return true
+	default:
+		return false
+	}
+}
+
+func (m *model) routeSearchSelectionKey(msg tea.KeyMsg) tea.Cmd {
+	if m.searchTarget == searchTargetPin && m.pinView != nil {
+		return m.routePinSelectionKey(msg)
+	}
+	return m.routeNavSelectionKey(msg)
+}
+
+func (m *model) routeNavSelectionKey(msg tea.KeyMsg) tea.Cmd {
+	switch msg.Type {
+	case tea.KeyHome:
+		m.nav.Select(0)
+		return nil
+	case tea.KeyEnd:
+		items := m.nav.Items()
+		if len(items) > 0 {
+			m.nav.Select(len(items) - 1)
+		}
+		return nil
+	default:
+		updated, cmd := m.nav.Update(msg)
+		m.nav = updated
+		return cmd
+	}
+}
+
+func (m *model) routePinSelectionKey(msg tea.KeyMsg) tea.Cmd {
+	if m.pinView == nil || m.pinView.mode != pinModeTable {
+		return nil
+	}
+	switch msg.Type {
+	case tea.KeyHome:
+		m.pinView.table.SetCursor(0)
+		m.pinView.syncDetail(true)
+		return nil
+	case tea.KeyEnd:
+		if count := len(m.pinView.items); count > 0 {
+			m.pinView.table.SetCursor(count - 1)
+			m.pinView.syncDetail(true)
+		}
+		return nil
+	default:
+		return m.pinView.Update(msg, m.keys)
+	}
+}
+
 func (m *model) updateSearch(msg tea.KeyMsg) tea.Cmd {
+	if (msg.Type == tea.KeyTab || msg.Type == tea.KeyShiftTab) && m.canToggleSearchTarget() {
+		m.toggleSearchTarget()
+		return nil
+	}
+	if isSearchSelectionKey(msg) {
+		return m.routeSearchSelectionKey(msg)
+	}
 	prevValue := m.searchInput.Value()
 	updated, cmd := m.searchInput.Update(msg)
 	m.searchInput = updated
@@ -1114,8 +1263,7 @@ func (m *model) updateSearch(msg tea.KeyMsg) tea.Cmd {
 	}
 
 	if key.Matches(msg, m.keys.Select) || msg.Type == tea.KeyEnter {
-		m.acceptSearch()
-		return nil
+		return m.acceptSearch()
 	}
 	if msg.Type == tea.KeyEsc {
 		m.cancelSearch()
@@ -1131,9 +1279,9 @@ func (m *model) updateSearch(msg tea.KeyMsg) tea.Cmd {
 	return cmd
 }
 
-func (m *model) acceptSearch() {
+func (m *model) acceptSearch() tea.Cmd {
 	if !m.searchActive {
-		return
+		return nil
 	}
 	m.searchActive = false
 	m.searchInput.Blur()
@@ -1145,7 +1293,8 @@ func (m *model) acceptSearch() {
 	if m.searchTarget == searchTargetNav {
 		if item, ok := m.nav.SelectedItem().(navItem); ok {
 			m.nav.ResetFilter()
-			m.switchScreen(item.screen, true)
+			cmds := m.switchScreen(item.screen, true)
+			return tea.Batch(cmds...)
 		}
 	} else if m.searchTarget == searchTargetPin && m.pinView != nil {
 		m.pinView.FinalizeSearch()
@@ -1153,6 +1302,7 @@ func (m *model) acceptSearch() {
 		m.applyFocus()
 		m.relayout()
 	}
+	return nil
 }
 
 func (m *model) cancelSearch() {

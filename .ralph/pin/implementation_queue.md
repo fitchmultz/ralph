@@ -1,15 +1,6 @@
 # Implementation Queue
 
 ## Queue
-- [ ] RQ-0431 [ui]: Fix search/command palette UX (arrow-key navigation, correct focus highlight, and clear target switching between Nav vs Pin). (ralph_tui/internal/tui/model.go, ralph_tui/internal/tui/keymap.go, ralph_tui/internal/tui/help_keymap.go)
-  - Evidence:
-    - When `searchActive` is true, `model.Update()` routes key events to `updateSearch()` but does not call `nav.Update()`, so Up/Down cannot reliably change the selected screen during search.
-    - `beginSearch()` forces `navFocused=false` via `applyFocus()`, which can make the UI borders imply the content pane is focused while the user is interacting with the search + nav area.
-    - There is no on-screen indicator or key to switch search target (nav vs pin) once search is open, which makes it feel "restricted".
-  - Plan:
-    - While search is active, keep the navigation list interactive: route navigation keys to the list and route text keys to the search input; update border focus to match.
-    - Add explicit "Search target: Nav/Pin" indicator + a keybinding to toggle targets without canceling the search.
-    - Add model driver tests covering: typing filters, arrow navigation works, Enter selects the intended item, Esc cleanly restores prior state.
 - [ ] RQ-0432 [code]: Make pin file writes atomic + lock-protected (prevent corruption/lost edits when loop/TUI/user all touch pin files). (ralph_tui/internal/pin/pin.go, ralph_tui/internal/config/save.go, ralph_tui/internal/loop/loop.go)
   - Evidence:
     - `pin.writeLines()` uses `os.WriteFile()` directly, which is not atomic and can leave partial/truncated pin files if the process is interrupted mid-write.
