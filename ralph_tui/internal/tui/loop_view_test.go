@@ -36,7 +36,7 @@ func TestLoopLogBatchIgnoresStaleRun(t *testing.T) {
 		batch: logBatch{RunID: 1, Lines: []string{"stale line"}},
 	}, newKeyMap())
 
-	if len(view.logs) != 0 {
+	if len(view.LogLines()) != 0 {
 		t.Fatalf("expected stale log batch to be ignored")
 	}
 }
@@ -50,11 +50,12 @@ func TestLoopLogBatchAppendsAndCloses(t *testing.T) {
 		batch: logBatch{RunID: 1, Lines: []string{"line one", "line two"}},
 	}, newKeyMap())
 
-	if len(view.logs) != 2 {
-		t.Fatalf("expected 2 log lines, got %d", len(view.logs))
+	logLines := view.LogLines()
+	if len(logLines) != 2 {
+		t.Fatalf("expected 2 log lines, got %d", len(logLines))
 	}
-	if view.logs[0] != "line one" || view.logs[1] != "line two" {
-		t.Fatalf("unexpected log lines: %#v", view.logs)
+	if logLines[0] != "line one" || logLines[1] != "line two" {
+		t.Fatalf("unexpected log lines: %#v", logLines)
 	}
 
 	_ = view.Update(loopLogBatchMsg{

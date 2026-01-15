@@ -19,24 +19,26 @@ import (
 )
 
 type loopView struct {
-	cfg       config.Config
-	locations paths.Locations
-	viewport  viewport.Model
-	overrides loopOverrides
-	mode      loopMode
-	status    string
-	err       string
-	outputErr string
-	logs      []string
-	cancel    context.CancelFunc
-	editForm  *huh.Form
-	editData  loopFormData
-	logCh     chan string
-	logRunID  int
-	logger    *tuiLogger
-	output    *outputFileWriter
-	width     int
-	height    int
+	cfg                  config.Config
+	locations            paths.Locations
+	viewport             viewport.Model
+	overrides            loopOverrides
+	mode                 loopMode
+	status               string
+	err                  string
+	outputErr            string
+	logBuf               logLineBuffer
+	cancel               context.CancelFunc
+	editForm             *huh.Form
+	editData             loopFormData
+	logCh                chan string
+	logRunID             int
+	logger               *tuiLogger
+	output               *outputFileWriter
+	width                int
+	height               int
+	pendingViewportLines int
+	lastViewportVersion  uint64
 }
 
 type loopOverrides struct {
@@ -87,6 +89,7 @@ func newLoopView(cfg config.Config, locations paths.Locations) *loopView {
 		cfg:       cfg,
 		locations: locations,
 		viewport:  vp,
+		logBuf:    newLogLineBuffer(2000, 1500),
 		overrides: loopOverrides{
 			SleepSeconds:        cfg.Loop.SleepSeconds,
 			MaxIterations:       cfg.Loop.MaxIterations,
@@ -155,6 +158,7 @@ func (l *loopView) Update(msg tea.Msg, keys keyMap) tea.Cmd {
 			l.appendLogLines(msg.batch.Lines)
 		}
 		if msg.batch.Done {
+			l.flushLogViewport(l.viewport.AtBottom())
 			l.logCh = nil
 			l.stopPersistingOutput()
 			return nil
@@ -529,14 +533,39 @@ func (l *loopView) appendLogLines(lines []string) {
 	}
 	l.persistLoopLines(lines)
 	atBottom := l.viewport.AtBottom()
-	l.logs = append(l.logs, lines...)
-	if len(l.logs) > 2000 {
-		l.logs = l.logs[len(l.logs)-2000:]
+	l.logBuf.AppendLines(lines)
+	l.pendingViewportLines += len(lines)
+	if l.mode == loopRunning {
+		threshold := loopLogFlushThreshold(atBottom)
+		if l.pendingViewportLines < threshold {
+			return
+		}
 	}
-	l.viewport.SetContent(strings.Join(l.logs, "\n"))
-	if atBottom {
+	l.flushLogViewport(atBottom)
+}
+
+func (l *loopView) LogLines() []string {
+	return l.logBuf.Lines()
+}
+
+func (l *loopView) flushLogViewport(wasAtBottom bool) {
+	version := l.logBuf.Version()
+	if version == l.lastViewportVersion {
+		return
+	}
+	l.viewport.SetContent(l.logBuf.ContentString())
+	l.lastViewportVersion = version
+	l.pendingViewportLines = 0
+	if wasAtBottom {
 		l.viewport.GotoBottom()
 	}
+}
+
+func loopLogFlushThreshold(atBottom bool) int {
+	if atBottom {
+		return 32
+	}
+	return 256
 }
 
 func listenLoopLogs(logCh <-chan string, runID int) tea.Cmd {

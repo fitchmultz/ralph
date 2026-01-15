@@ -58,7 +58,7 @@ type specsView struct {
 	previewRenderers        map[int]previewRenderer
 	running                 bool
 	diffStat                string
-	runLogs                 []string
+	runLogBuf               logLineBuffer
 	lastRunOutput           string
 	buildCancel             context.CancelFunc
 	logCh                   chan string
@@ -71,6 +71,8 @@ type specsView struct {
 	lastConfigAutofillScout bool
 	lastConfigScoutWorkflow bool
 	lastConfigUserFocus     string
+	pendingLogViewportLines int
+	lastLogViewportVersion  uint64
 }
 
 type specsBuildResultMsg struct {
@@ -124,6 +126,7 @@ func newSpecsView(cfg config.Config, locations paths.Locations) (*specsView, err
 		previewDirty:            true,
 		rendererBuilder:         buildRenderer,
 		previewRenderers:        map[int]previewRenderer{},
+		runLogBuf:               newLogLineBuffer(500, 400),
 	}
 	if stamp, err := getFileStamp(filepath.Join(cfg.Paths.PinDir, "implementation_queue.md")); err == nil {
 		view.queueStamp = stamp
@@ -152,6 +155,7 @@ func (s *specsView) Update(msg tea.Msg, keys keyMap) tea.Cmd {
 			s.appendRunLogs(msg.batch.Lines)
 		}
 		if msg.batch.Done {
+			s.flushRunLogViewport(s.logViewport.AtBottom())
 			s.logCh = nil
 			s.stopPersistingOutput()
 			s.finalizeRunOutput()
@@ -705,9 +709,11 @@ func (s *specsView) activeViewport() *viewport.Model {
 }
 
 func (s *specsView) resetRunLogs() {
-	s.runLogs = nil
+	s.runLogBuf.Reset()
 	s.lastRunOutput = ""
 	s.diffStat = ""
+	s.pendingLogViewportLines = 0
+	s.lastLogViewportVersion = 0
 }
 
 func (s *specsView) appendRunLog(line string) {
@@ -719,24 +725,44 @@ func (s *specsView) appendRunLogs(lines []string) {
 		return
 	}
 	s.persistSpecsLines(lines)
-	const maxLines = 500
-	s.runLogs = append(s.runLogs, lines...)
-	if len(s.runLogs) > maxLines {
-		s.runLogs = s.runLogs[len(s.runLogs)-maxLines:]
-	}
 	atBottom := s.logViewport.AtBottom()
-	s.logViewport.SetContent(strings.Join(s.runLogs, "\n"))
-	if atBottom {
+	s.runLogBuf.AppendLines(lines)
+	s.pendingLogViewportLines += len(lines)
+	if s.running {
+		threshold := specsLogFlushThreshold(atBottom)
+		if s.pendingLogViewportLines < threshold {
+			return
+		}
+	}
+	s.flushRunLogViewport(atBottom)
+}
+
+func (s *specsView) finalizeRunOutput() {
+	s.lastRunOutput = s.runLogBuf.ContentString()
+}
+
+func (s *specsView) RunLogLines() []string {
+	return s.runLogBuf.Lines()
+}
+
+func (s *specsView) flushRunLogViewport(wasAtBottom bool) {
+	version := s.runLogBuf.Version()
+	if version == s.lastLogViewportVersion {
+		return
+	}
+	s.logViewport.SetContent(s.runLogBuf.ContentString())
+	s.lastLogViewportVersion = version
+	s.pendingLogViewportLines = 0
+	if wasAtBottom {
 		s.logViewport.GotoBottom()
 	}
 }
 
-func (s *specsView) finalizeRunOutput() {
-	if len(s.runLogs) == 0 {
-		s.lastRunOutput = ""
-		return
+func specsLogFlushThreshold(atBottom bool) int {
+	if atBottom {
+		return 16
 	}
-	s.lastRunOutput = strings.Join(s.runLogs, "\n")
+	return 128
 }
 
 func (s *specsView) applyBuildResult(msg specsBuildResultMsg) tea.Cmd {

@@ -1,6 +1,15 @@
 # Implementation Done
 
 ## Done
+- [x] RQ-0424 [code]: Reduce TUI lag during noisy runs by eliminating O(n) log joins and excessive viewport.SetContent churn. (ralph_tui/internal/tui/loop_view.go, ralph_tui/internal/tui/specs_view.go, ralph_tui/internal/tui/logs_view.go)
+  - Evidence:
+    - `loop_view.appendLogLines()` calls `strings.Join(l.logs, "\n")` on every batch update (logs can reach 2000 lines), which is O(n) per update.
+    - `specs_view.appendRunLogs()` similarly calls `strings.Join(s.runLogs, "\n")` repeatedly (up to 500 lines).
+    - `logs_view.renderContent()` rebuilds a single giant string for Debug/Loop/Specs sections each refresh.
+  - Plan:
+    - Introduce a ring buffer with a cached joined string (or incremental builder) so appends are O(k) for new lines instead of O(n) for the full history.
+    - Ensure viewports only call `SetContent` when content actually changed (keep/extend current signature caching where applicable).
+    - Add a perf-oriented regression test (or at least a benchmark) to keep updates responsive with thousands of lines.
 - [x] RQ-0423 [code]: Fix process-group cancellation reliability (stop/cancel should kill ALL child procs) for loop + specs runners across platforms. (ralph_tui/internal/procgroup/procgroup_unix.go, ralph_tui/internal/loop/exec.go, ralph_tui/internal/specs/specs.go)
   - Evidence:
     - `ralph_tui/internal/procgroup/procgroup_unix.go` only overrides `cmd.Cancel` when `cmd.Cancel != nil`; if it is nil (or doesn’t kill the process group), child processes may survive cancel.

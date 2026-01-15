@@ -155,11 +155,11 @@ func newModel(cfg config.Config, locations paths.Locations, opts StartOptions) m
 	if m.logsView != nil {
 		var loopLines []string
 		if m.loopView != nil {
-			loopLines = m.loopView.logs
+			loopLines = m.loopView.LogLines()
 		}
 		var specsLines []string
 		if m.specsView != nil {
-			specsLines = m.specsView.runLogs
+			specsLines = m.specsView.RunLogLines()
 		}
 		m.logsView.Refresh(loopLines, specsLines)
 	}
@@ -799,11 +799,11 @@ func (m *model) applyConfig() {
 	if m.logsView != nil {
 		var loopLines []string
 		if m.loopView != nil {
-			loopLines = m.loopView.logs
+			loopLines = m.loopView.LogLines()
 		}
 		var specsLines []string
 		if m.specsView != nil {
-			specsLines = m.specsView.runLogs
+			specsLines = m.specsView.RunLogLines()
 		}
 		m.logsView.Refresh(loopLines, specsLines)
 	}
@@ -869,11 +869,11 @@ func (m *model) refreshLogsView() {
 	}
 	var loopLines []string
 	if m.loopView != nil {
-		loopLines = m.loopView.logs
+		loopLines = m.loopView.LogLines()
 	}
 	var specsLines []string
 	if m.specsView != nil {
-		specsLines = m.specsView.runLogs
+		specsLines = m.specsView.RunLogLines()
 	}
 	m.logsView.Refresh(loopLines, specsLines)
 }

@@ -1,15 +1,6 @@
 # Implementation Queue
 
 ## Queue
-- [ ] RQ-0424 [code]: Reduce TUI lag during noisy runs by eliminating O(n) log joins and excessive viewport.SetContent churn. (ralph_tui/internal/tui/loop_view.go, ralph_tui/internal/tui/specs_view.go, ralph_tui/internal/tui/logs_view.go)
-  - Evidence:
-    - `loop_view.appendLogLines()` calls `strings.Join(l.logs, "\n")` on every batch update (logs can reach 2000 lines), which is O(n) per update.
-    - `specs_view.appendRunLogs()` similarly calls `strings.Join(s.runLogs, "\n")` repeatedly (up to 500 lines).
-    - `logs_view.renderContent()` rebuilds a single giant string for Debug/Loop/Specs sections each refresh.
-  - Plan:
-    - Introduce a ring buffer with a cached joined string (or incremental builder) so appends are O(k) for new lines instead of O(n) for the full history.
-    - Ensure viewports only call `SetContent` when content actually changed (keep/extend current signature caching where applicable).
-    - Add a perf-oriented regression test (or at least a benchmark) to keep updates responsive with thousands of lines.
 - [ ] RQ-0425 [ui]: Improve Run Loop screen UX: show active queue item/progress, add jump-to-Pin/logs shortcuts, and reduce wasted space while running. (ralph_tui/internal/tui/loop_view.go, ralph_tui/internal/tui/model.go, ralph_tui/internal/loop/loop.go)
   - Evidence:
     - The Run Loop screen currently shows static override values + a log viewport, but not the active queue item ID/title (even though the loop runner knows `firstItem.ID` and `currentItemBlock`).

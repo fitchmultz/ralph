@@ -28,6 +28,26 @@ const (
 	logsFormatFormatted
 )
 
+type linesSignature struct {
+	n     int
+	first string
+	last  string
+}
+
+type renderCache struct {
+	raw            string
+	rawValid       bool
+	formatted      string
+	formattedValid bool
+}
+
+func (c *renderCache) Reset() {
+	c.raw = ""
+	c.rawValid = false
+	c.formatted = ""
+	c.formattedValid = false
+}
+
 type logsView struct {
 	viewport                viewport.Model
 	logPath                 string
@@ -41,6 +61,12 @@ type logsView struct {
 	height                  int
 	lastRenderedContent     string
 	viewportSetContentCalls int
+	forceRefresh            bool
+	debugCache              renderCache
+	loopCache               renderCache
+	specsCache              renderCache
+	loopSig                 linesSignature
+	specsSig                linesSignature
 }
 
 func newLogsView(logPath string) *logsView {
@@ -59,6 +85,15 @@ func (l *logsView) SetLogPath(path string) {
 	l.logErr = ""
 	l.lastStamp = fileStamp{}
 	l.debugLines = nil
+	l.loopLines = nil
+	l.specsLines = nil
+	l.loopSig = linesSignature{}
+	l.specsSig = linesSignature{}
+	l.debugCache.Reset()
+	l.loopCache.Reset()
+	l.specsCache.Reset()
+	l.lastRenderedContent = ""
+	l.forceRefresh = true
 }
 
 func (l *logsView) SetError(err error) {
@@ -104,12 +139,30 @@ func (l *logsView) Resize(width int, height int) {
 
 func (l *logsView) Refresh(loopLines []string, specsLines []string) {
 	atBottom := l.viewport.AtBottom()
+	contentChanged := l.forceRefresh
+	l.forceRefresh = false
 
-	l.loopLines = tailLines(loopLines, logsTailLines)
-	l.specsLines = tailLines(specsLines, logsTailLines)
+	loopSig := signatureForLines(loopLines)
+	if loopSig != l.loopSig {
+		l.loopSig = loopSig
+		l.loopLines = tailLines(loopLines, logsTailLines)
+		l.loopCache.Reset()
+		contentChanged = true
+	}
+	specsSig := signatureForLines(specsLines)
+	if specsSig != l.specsSig {
+		l.specsSig = specsSig
+		l.specsLines = tailLines(specsLines, logsTailLines)
+		l.specsCache.Reset()
+		contentChanged = true
+	}
 
 	if strings.TrimSpace(l.logPath) == "" {
-		l.debugLines = nil
+		if len(l.debugLines) > 0 {
+			l.debugLines = nil
+			l.debugCache.Reset()
+			contentChanged = true
+		}
 	} else {
 		stamp, changed, err := fileChanged(l.logPath, l.lastStamp)
 		if err != nil {
@@ -122,10 +175,15 @@ func (l *logsView) Refresh(loopLines []string, specsLines []string) {
 				l.logErr = ""
 				l.debugLines = lines
 				l.lastStamp = stamp
+				l.debugCache.Reset()
+				contentChanged = true
 			}
 		}
 	}
 
+	if !contentChanged {
+		return
+	}
 	rendered := l.renderContent()
 	l.setViewportContentIfChanged(rendered, atBottom)
 }
@@ -144,13 +202,13 @@ func (l *logsView) statusLine() string {
 func (l *logsView) renderContent() string {
 	sections := []string{
 		"Debug Log (tail)",
-		l.renderLines(l.debugLines, "No log entries yet."),
+		l.renderLines(l.debugLines, "No log entries yet.", &l.debugCache),
 		"",
 		"Loop Output (tail)",
-		l.renderLines(l.loopLines, "No loop output yet."),
+		l.renderLines(l.loopLines, "No loop output yet.", &l.loopCache),
 		"",
 		"Specs Output (tail)",
-		l.renderLines(l.specsLines, "No specs output yet."),
+		l.renderLines(l.specsLines, "No specs output yet.", &l.specsCache),
 	}
 	return strings.Join(sections, "\n")
 }
@@ -239,28 +297,55 @@ func tailFileLines(path string, limit int) ([]string, error) {
 	return tailLines(strings.Split(content, "\n"), limit), nil
 }
 
+func signatureForLines(lines []string) linesSignature {
+	if len(lines) == 0 {
+		return linesSignature{}
+	}
+	return linesSignature{
+		n:     len(lines),
+		first: lines[0],
+		last:  lines[len(lines)-1],
+	}
+}
+
 func tailLines(lines []string, limit int) []string {
 	if limit <= 0 {
 		return []string{}
 	}
 	if len(lines) <= limit {
-		return append([]string{}, lines...)
+		return lines
 	}
-	return append([]string{}, lines[len(lines)-limit:]...)
+	return lines[len(lines)-limit:]
 }
 
-func (l *logsView) renderLines(lines []string, fallback string) string {
+func (l *logsView) renderLines(lines []string, fallback string, cache *renderCache) string {
 	if len(lines) == 0 {
 		return fallback
 	}
 	if l.format == logsFormatRaw {
-		return strings.Join(lines, "\n")
+		if cache != nil && cache.rawValid {
+			return cache.raw
+		}
+		rendered := strings.Join(lines, "\n")
+		if cache != nil {
+			cache.raw = rendered
+			cache.rawValid = true
+		}
+		return rendered
+	}
+	if cache != nil && cache.formattedValid {
+		return cache.formatted
 	}
 	formatted := formatLogLines(lines)
 	if len(formatted) == 0 {
 		return fallback
 	}
-	return strings.Join(formatted, "\n")
+	rendered := strings.Join(formatted, "\n")
+	if cache != nil {
+		cache.formatted = rendered
+		cache.formattedValid = true
+	}
+	return rendered
 }
 
 func (l *logsView) setViewportContentIfChanged(content string, wasAtBottom bool) {

@@ -69,7 +69,7 @@ func TestScreenEntryRefreshUpdatesLogsView(t *testing.T) {
 	}
 
 	before := m.logsView.viewportSetContentCalls
-	m.loopView.logs = []string{"loop refresh line"}
+	m.loopView.logBuf.AppendLines([]string{"loop refresh line"})
 
 	_ = m.switchScreen(screenLogs, true)
 

@@ -118,7 +118,7 @@ func TestModelDriver_MidRunSwitchesDoNotDropAsyncMessages(t *testing.T) {
 		if driver.m.loopView.logCh != nil {
 			t.Fatalf("expected loop log channel to be cleared")
 		}
-		if !strings.Contains(strings.Join(driver.m.loopView.logs, "\n"), "loop line two") {
+		if !strings.Contains(strings.Join(driver.m.loopView.LogLines(), "\n"), "loop line two") {
 			t.Fatalf("expected loop logs to include log lines")
 		}
 		if driver.m.loopView.status != "Stopped" {
