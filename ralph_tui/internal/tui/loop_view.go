@@ -30,7 +30,9 @@ type loopView struct {
 	err                  string
 	outputErr            string
 	logBuf               logLineBuffer
+	parentCtx            context.Context
 	cancel               context.CancelFunc
+	runDone              chan struct{}
 	editForm             *huh.Form
 	editData             loopFormData
 	guardForm            *huh.Form
@@ -125,6 +127,7 @@ func newLoopView(cfg config.Config, locations paths.Locations) *loopView {
 		locations: locations,
 		viewport:  vp,
 		logBuf:    newLogLineBuffer(2000, 1500),
+		parentCtx: context.Background(),
 		overrides: loopOverrides{
 			SleepSeconds:        cfg.Loop.SleepSeconds,
 			MaxIterations:       cfg.Loop.MaxIterations,
@@ -205,6 +208,7 @@ func (l *loopView) Update(msg tea.Msg, keys keyMap) tea.Cmd {
 		}
 		l.stopPersistingOutput()
 		l.cancel = nil
+		l.runDone = nil
 		l.Resize(l.width, l.height)
 		return loopRunModeCmd(false)
 	case loopStateMsg:
@@ -491,8 +495,14 @@ func (l *loopView) startRun(runOnce bool) tea.Cmd {
 	l.lastViewportFlush = time.Time{}
 	l.Resize(l.width, l.height)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	parentCtx := l.parentCtx
+	if parentCtx == nil {
+		parentCtx = context.Background()
+	}
+	ctx, cancel := context.WithCancel(parentCtx)
 	l.cancel = cancel
+	done := make(chan struct{})
+	l.runDone = done
 
 	logCh := newLogChannel()
 	l.logCh = logCh
@@ -526,6 +536,7 @@ func (l *loopView) startRun(runOnce bool) tea.Cmd {
 	}
 
 	runCmd := func() tea.Msg {
+		defer close(done)
 		logger := loopLogger{
 			write: func(line string) {
 				sendLineBestEffort(logCh, line)

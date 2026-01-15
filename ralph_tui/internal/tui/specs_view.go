@@ -61,7 +61,9 @@ type specsView struct {
 	diffStat                string
 	runLogBuf               logLineBuffer
 	lastRunOutput           string
+	parentCtx               context.Context
 	buildCancel             context.CancelFunc
+	buildDone               chan struct{}
 	logCh                   chan string
 	logRunID                int
 	pendingResult           *specsBuildResultMsg
@@ -112,6 +114,7 @@ func newSpecsView(cfg config.Config, locations paths.Locations) (*specsView, err
 	view := &specsView{
 		cfg:                     cfg,
 		locations:               locations,
+		parentCtx:               context.Background(),
 		runner:                  specs.Runner(cfg.Specs.Runner),
 		runnerArgs:              cfg.Specs.RunnerArgs,
 		reasoningEffort:         cfg.Specs.ReasoningEffort,
@@ -466,8 +469,14 @@ func (s *specsView) runBuildCmd() tea.Cmd {
 	s.pendingResult = nil
 	s.logViewport.SetContent("")
 	s.logViewport.GotoTop()
-	ctx, cancel := context.WithCancel(context.Background())
+	parentCtx := s.parentCtx
+	if parentCtx == nil {
+		parentCtx = context.Background()
+	}
+	ctx, cancel := context.WithCancel(parentCtx)
 	s.buildCancel = cancel
+	done := make(chan struct{})
+	s.buildDone = done
 	if s.logger != nil {
 		applied := runnerargs.ApplyReasoningEffort(string(s.runner), s.runnerArgs, s.reasoningEffort)
 		s.logger.Info("specs.run.start", map[string]any{
@@ -486,6 +495,7 @@ func (s *specsView) runBuildCmd() tea.Cmd {
 	writer := newStreamWriter(sink)
 
 	runCmd := func() tea.Msg {
+		defer close(done)
 		defer cancel()
 		defer close(logCh)
 		result, err := specs.Build(ctx, specs.BuildOptions{
@@ -764,6 +774,7 @@ func specsLogFlushThreshold(atBottom bool) int {
 
 func (s *specsView) applyBuildResult(msg specsBuildResultMsg) tea.Cmd {
 	s.buildCancel = nil
+	s.buildDone = nil
 	if msg.err != nil {
 		if errors.Is(msg.err, context.Canceled) {
 			s.err = ""

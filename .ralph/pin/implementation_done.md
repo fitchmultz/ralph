@@ -1,6 +1,10 @@
 # Implementation Done
 
 ## Done
+- [x] RQ-0463 [code]: Ensure spawned codex/opencode processes are terminated when stopping runs or exiting the TUI (e.g., Ctrl+C). (ralph_tui/internal/tui/model.go, ralph_tui/internal/tui/loop_view.go, ralph_tui/internal/tui/specs_view.go, ralph_tui/internal/loop/runner.go, ralph_tui/internal/loop/exec.go)
+  - Evidence: TUI quit (`ctrl+c`/`q`) in `model.Update` exits via `tea.Quit` without calling `loopView.stop()` or `specsView.cancelBuild()`; both actions are the only paths that cancel runner contexts. Runner processes are started via `RunnerInvoker.RunPrompt` and `RunCommand` with procgroup cancellation, so without cancel the codex/opencode subprocess can linger.
+  - Plan: Add a centralized shutdown path in `model` that calls loop/specs cancel hooks, invoke it on quit and on program exit (safety net in `Start` after `Run`), and add a regression test (e.g., using helper process runner in `loop_helper_process_test.go`) that asserts the runner process group is terminated when quitting.
+
 - [x] RQ-0450 [code]: Eliminate DRY violations in runner invocation (specs vs loop); validate opencode args and ensure streaming behavior is consistent across commands. (ralph_tui/internal/loop/runner.go, ralph_tui/internal/specs/specs.go, ralph_tui/internal/runnerargs/effort.go)
   - Evidence: Codex/opencode command construction is duplicated between `loop.RunnerInvoker.RunPrompt` and `specs.runRunner`, increasing the risk of argument drift and inconsistent behavior (including streaming semantics).
   - Plan: Extract shared runner invocation utilities, align opencode argument conventions in both paths, and add hermetic tests that assert arguments and streaming output behavior.

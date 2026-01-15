@@ -33,9 +33,11 @@ func Start(cfg config.Config, locations paths.Locations, opts StartOptions) erro
 	finalModel, err := program.Run()
 	switch m := finalModel.(type) {
 	case model:
-		m.closeLogger()
+		m.Shutdown("program.exit")
+		m.ShutdownWait(3 * time.Second)
 	case *model:
-		m.closeLogger()
+		m.Shutdown("program.exit")
+		m.ShutdownWait(3 * time.Second)
 	}
 	return err
 }
@@ -67,6 +69,9 @@ type model struct {
 	repoStatusErr       string
 	logger              *tuiLogger
 	logErr              error
+	runCtx              context.Context
+	runCancel           context.CancelFunc
+	shuttingDown        bool
 	cliOverrides        config.PartialConfig
 	sessionOverrides    config.PartialConfig
 	refreshGen          int
@@ -157,6 +162,7 @@ func newModel(cfg config.Config, locations paths.Locations, opts StartOptions) m
 
 	loopView := newLoopView(cfg, locations)
 	logsView := newLogsView("")
+	runCtx, runCancel := context.WithCancel(context.Background())
 
 	m := model{
 		nav:              l,
@@ -173,6 +179,8 @@ func newModel(cfg config.Config, locations paths.Locations, opts StartOptions) m
 		specsView:        specsView,
 		loopView:         loopView,
 		logsView:         logsView,
+		runCtx:           runCtx,
+		runCancel:        runCancel,
 		cliOverrides:     opts.CLIOverrides,
 		sessionOverrides: opts.SessionOverrides,
 		refreshGen:       1,
@@ -180,6 +188,12 @@ func newModel(cfg config.Config, locations paths.Locations, opts StartOptions) m
 		pinFixPrompt:     pinFix,
 		locations:        locations,
 		fixupRunner:      loop.FixupBlockedItems,
+	}
+	if m.loopView != nil {
+		m.loopView.parentCtx = m.runCtx
+	}
+	if m.specsView != nil {
+		m.specsView.parentCtx = m.runCtx
 	}
 	m.setLogger(cfg)
 	if m.logsView != nil {
@@ -278,6 +292,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
+	case tea.InterruptMsg:
+		m.logInfo("tui.interrupt", map[string]any{"screen": screenName(m.screen)})
+		m.Shutdown("interrupt")
+		return m, tea.Quit
 	case tea.WindowSizeMsg:
 		m.logDebug("window.resize", map[string]any{"width": msg.Width, "height": msg.Height})
 		m.width = msg.Width
@@ -375,7 +393,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.logDebug("key.event", keyFields)
 		if key.Matches(msg, m.keys.Quit) {
 			m.logInfo("tui.quit", map[string]any{"screen": screenName(m.screen)})
-			m.closeLogger()
+			m.Shutdown("key.quit")
 			return m, tea.Quit
 		}
 		if m.searchActive {
@@ -1226,6 +1244,53 @@ func (m *model) closeLogger() {
 		_ = m.logger.Close()
 	}
 	m.logger = nil
+}
+
+func (m *model) Shutdown(reason string) {
+	if m == nil || m.shuttingDown {
+		return
+	}
+	m.shuttingDown = true
+
+	if m.runCancel != nil {
+		m.runCancel()
+	}
+	if m.loopView != nil {
+		m.loopView.stop()
+	}
+	if m.specsView != nil {
+		m.specsView.cancelBuild()
+	}
+	if reason != "" {
+		m.logInfo("tui.shutdown", map[string]any{"reason": reason})
+	}
+	m.closeLogger()
+}
+
+func (m *model) ShutdownWait(timeout time.Duration) {
+	if m == nil || timeout <= 0 {
+		return
+	}
+	deadline := time.Now().Add(timeout)
+	waitFor := func(ch <-chan struct{}) {
+		if ch == nil {
+			return
+		}
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			return
+		}
+		select {
+		case <-ch:
+		case <-time.After(remaining):
+		}
+	}
+	if m.loopView != nil {
+		waitFor(m.loopView.runDone)
+	}
+	if m.specsView != nil {
+		waitFor(m.specsView.buildDone)
+	}
 }
 
 func (m *model) logDebug(message string, fields map[string]any) {
