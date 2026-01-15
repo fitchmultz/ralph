@@ -209,6 +209,60 @@ func TestApplyPartialNormalizesRedactionMode(t *testing.T) {
 	}
 }
 
+func TestLoadIgnoresDeprecatedFields(t *testing.T) {
+	tmpDir := t.TempDir()
+	repoDir := filepath.Join(tmpDir, "repo")
+	cwd := filepath.Join(repoDir, "work")
+
+	mustMkdirAll(t, filepath.Join(repoDir, ".ralph"))
+	mustMkdirAll(t, cwd)
+
+	repoConfigPath := filepath.Join(repoDir, ".ralph", "ralph.json")
+	writeJSON(t, repoConfigPath, map[string]any{
+		"runner": map[string]any{
+			"max_workers": 4,
+			"dry_run":     true,
+		},
+		"loop": map[string]any{
+			"workers":       6,
+			"poll_seconds":  10,
+			"sleep_seconds": 2,
+		},
+		"git": map[string]any{
+			"require_clean": true,
+			"commit_prefix": "RQ",
+			"auto_commit":   false,
+			"auto_push":     true,
+		},
+		"ui": map[string]any{
+			"theme": "solar",
+		},
+	})
+
+	cfg, err := LoadFromLocations(LoadOptions{
+		Locations: paths.Locations{
+			CWD:            cwd,
+			RepoRoot:       repoDir,
+			RepoConfigPath: repoConfigPath,
+		},
+	})
+	if err != nil {
+		t.Fatalf("LoadFromLocations failed: %v", err)
+	}
+	if cfg.UI.Theme != "solar" {
+		t.Fatalf("expected ui.theme to apply, got %q", cfg.UI.Theme)
+	}
+	if cfg.Git.AutoCommit {
+		t.Fatalf("expected git.auto_commit to be false")
+	}
+	if !cfg.Git.AutoPush {
+		t.Fatalf("expected git.auto_push to be true")
+	}
+	if cfg.Loop.SleepSeconds != 2 {
+		t.Fatalf("expected loop.sleep_seconds to be 2, got %d", cfg.Loop.SleepSeconds)
+	}
+}
+
 func writeJSON(t *testing.T, path string, payload any) {
 	t.Helper()
 	data, err := json.Marshal(payload)

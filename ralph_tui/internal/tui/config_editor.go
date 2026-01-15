@@ -39,14 +39,10 @@ type configFormData struct {
 	DataDir           string
 	CacheDir          string
 	PinDir            string
-	RunnerMaxWorkers  string
-	RunnerDryRun      bool
 	SpecsAutofill     bool
 	SpecsRunner       string
 	SpecsRunnerArgs   string
 	SpecsEffort       string
-	LoopWorkers       string
-	LoopPollSeconds   string
 	LoopSleepSeconds  string
 	LoopMaxIterations string
 	LoopMaxStalled    string
@@ -58,8 +54,6 @@ type configFormData struct {
 	LoopEffort        string
 	GitAutoCommit     bool
 	GitAutoPush       bool
-	GitRequireClean   bool
-	GitCommitPrefix   string
 }
 
 const (
@@ -424,10 +418,6 @@ func (e *configEditor) buildForm() *huh.Form {
 			huh.NewInput().Title("Pin Dir").Value(&e.data.PinDir).Validate(nonEmptyString("paths.pin_dir")),
 		),
 		huh.NewGroup(
-			huh.NewInput().Title("Runner Max Workers").Value(&e.data.RunnerMaxWorkers).Validate(positiveInt("runner.max_workers")),
-			huh.NewConfirm().Title("Runner Dry Run").Value(&e.data.RunnerDryRun),
-		),
-		huh.NewGroup(
 			huh.NewConfirm().Title("Specs Autofill Scout").Value(&e.data.SpecsAutofill),
 			huh.NewSelect[string]().
 				Title("Specs Runner").
@@ -449,8 +439,6 @@ func (e *configEditor) buildForm() *huh.Form {
 				Value(&e.data.SpecsEffort),
 		),
 		huh.NewGroup(
-			huh.NewInput().Title("Loop Workers").Value(&e.data.LoopWorkers).Validate(positiveInt("loop.workers")),
-			huh.NewInput().Title("Loop Poll Seconds").Value(&e.data.LoopPollSeconds).Validate(positiveInt("loop.poll_seconds")),
 			huh.NewInput().Title("Sleep Seconds").Value(&e.data.LoopSleepSeconds).Validate(nonNegativeInt("loop.sleep_seconds")),
 			huh.NewInput().Title("Max Iterations").Value(&e.data.LoopMaxIterations).Validate(nonNegativeInt("loop.max_iterations")),
 			huh.NewInput().Title("Max Stalled").Value(&e.data.LoopMaxStalled).Validate(nonNegativeInt("loop.max_stalled")),
@@ -479,8 +467,6 @@ func (e *configEditor) buildForm() *huh.Form {
 		huh.NewGroup(
 			huh.NewConfirm().Title("Git Auto Commit").Value(&e.data.GitAutoCommit),
 			huh.NewConfirm().Title("Git Auto Push").Value(&e.data.GitAutoPush),
-			huh.NewConfirm().Title("Git Require Clean").Value(&e.data.GitRequireClean),
-			huh.NewInput().Title("Git Commit Prefix").Value(&e.data.GitCommitPrefix).Validate(nonEmptyString("git.commit_prefix")),
 		),
 		huh.NewGroup(
 			huh.NewSelect[string]().
@@ -506,14 +492,10 @@ func formDataFromConfig(cfg config.Config) configFormData {
 		DataDir:           cfg.Paths.DataDir,
 		CacheDir:          cfg.Paths.CacheDir,
 		PinDir:            cfg.Paths.PinDir,
-		RunnerMaxWorkers:  strconv.Itoa(cfg.Runner.MaxWorkers),
-		RunnerDryRun:      cfg.Runner.DryRun,
 		SpecsAutofill:     cfg.Specs.AutofillScout,
 		SpecsRunner:       cfg.Specs.Runner,
 		SpecsRunnerArgs:   formatArgsLines(cfg.Specs.RunnerArgs),
 		SpecsEffort:       runnerargs.DisplayEffort(cfg.Specs.ReasoningEffort),
-		LoopWorkers:       strconv.Itoa(cfg.Loop.Workers),
-		LoopPollSeconds:   strconv.Itoa(cfg.Loop.PollSeconds),
 		LoopSleepSeconds:  strconv.Itoa(cfg.Loop.SleepSeconds),
 		LoopMaxIterations: strconv.Itoa(cfg.Loop.MaxIterations),
 		LoopMaxStalled:    strconv.Itoa(cfg.Loop.MaxStalled),
@@ -525,25 +507,11 @@ func formDataFromConfig(cfg config.Config) configFormData {
 		LoopEffort:        runnerargs.DisplayEffort(cfg.Loop.ReasoningEffort),
 		GitAutoCommit:     cfg.Git.AutoCommit,
 		GitAutoPush:       cfg.Git.AutoPush,
-		GitRequireClean:   cfg.Git.RequireClean,
-		GitCommitPrefix:   cfg.Git.CommitPrefix,
 	}
 }
 
 func partialFromForm(data configFormData) (config.PartialConfig, error) {
 	refreshSeconds, err := parsePositiveInt("ui.refresh_seconds", data.RefreshSeconds)
-	if err != nil {
-		return config.PartialConfig{}, err
-	}
-	runnerWorkers, err := parsePositiveInt("runner.max_workers", data.RunnerMaxWorkers)
-	if err != nil {
-		return config.PartialConfig{}, err
-	}
-	loopWorkers, err := parsePositiveInt("loop.workers", data.LoopWorkers)
-	if err != nil {
-		return config.PartialConfig{}, err
-	}
-	pollSeconds, err := parsePositiveInt("loop.poll_seconds", data.LoopPollSeconds)
 	if err != nil {
 		return config.PartialConfig{}, err
 	}
@@ -608,7 +576,6 @@ func partialFromForm(data configFormData) (config.PartialConfig, error) {
 	dataDir := strings.TrimSpace(data.DataDir)
 	cacheDir := strings.TrimSpace(data.CacheDir)
 	pinDir := strings.TrimSpace(data.PinDir)
-	commitPrefix := strings.TrimSpace(data.GitCommitPrefix)
 	logMode := redaction.NormalizeMode(logRedactionMode)
 
 	return config.PartialConfig{
@@ -627,10 +594,6 @@ func partialFromForm(data configFormData) (config.PartialConfig, error) {
 			CacheDir: &cacheDir,
 			PinDir:   &pinDir,
 		},
-		Runner: &config.RunnerPartial{
-			MaxWorkers: &runnerWorkers,
-			DryRun:     &data.RunnerDryRun,
-		},
 		Specs: &config.SpecsPartial{
 			AutofillScout:   &data.SpecsAutofill,
 			Runner:          &specsRunner,
@@ -638,8 +601,6 @@ func partialFromForm(data configFormData) (config.PartialConfig, error) {
 			ReasoningEffort: &specsEffort,
 		},
 		Loop: &config.LoopPartial{
-			Workers:           &loopWorkers,
-			PollSeconds:       &pollSeconds,
 			SleepSeconds:      &sleepSeconds,
 			MaxIterations:     &maxIterations,
 			MaxStalled:        &maxStalled,
@@ -651,10 +612,8 @@ func partialFromForm(data configFormData) (config.PartialConfig, error) {
 			ReasoningEffort:   &loopEffort,
 		},
 		Git: &config.GitPartial{
-			AutoCommit:   &data.GitAutoCommit,
-			AutoPush:     &data.GitAutoPush,
-			RequireClean: &data.GitRequireClean,
-			CommitPrefix: &commitPrefix,
+			AutoCommit: &data.GitAutoCommit,
+			AutoPush:   &data.GitAutoPush,
 		},
 	}, nil
 }

@@ -14,10 +14,6 @@
     "cache_dir": ".ralph/cache",
     "pin_dir": ".ralph/pin"
   },
-  "runner": {
-    "max_workers": 8,
-    "dry_run": false
-  },
   "specs": {
     "autofill_scout": true,
     "runner": "codex",
@@ -25,8 +21,6 @@
     "reasoning_effort": "auto"
   },
   "loop": {
-    "workers": 12,
-    "poll_seconds": 30,
     "sleep_seconds": 5,
     "max_iterations": 0,
     "max_stalled": 3,
@@ -39,8 +33,6 @@
   },
   "git": {
     "auto_commit": true,
-    "auto_push": true,
-    "require_clean": true,
-    "commit_prefix": "RQ"
+    "auto_push": true
   }
 }

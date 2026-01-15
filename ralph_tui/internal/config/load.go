@@ -122,8 +122,13 @@ func loadPartialFromFile(path string) (*PartialConfig, error) {
 		return nil, err
 	}
 
+	cleaned, err := stripDeprecatedConfigFields(data)
+	if err != nil {
+		return nil, fmt.Errorf("parse %s: %w", path, err)
+	}
+
 	var partial PartialConfig
-	decoder := json.NewDecoder(strings.NewReader(string(data)))
+	decoder := json.NewDecoder(strings.NewReader(string(cleaned)))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&partial); err != nil {
 		return nil, fmt.Errorf("parse %s: %w", path, err)
@@ -136,7 +141,7 @@ func isEmptyPartial(partial PartialConfig) bool {
 	if partial.Version != nil || partial.UI != nil || partial.Logging != nil || partial.Paths != nil {
 		return false
 	}
-	if partial.Runner != nil || partial.Specs != nil || partial.Loop != nil || partial.Git != nil {
+	if partial.Specs != nil || partial.Loop != nil || partial.Git != nil {
 		return false
 	}
 	return true
@@ -197,14 +202,6 @@ func applyPartial(base Config, partial PartialConfig, basePath string) (Config, 
 			base.Paths.PinDir = resolved
 		}
 	}
-	if partial.Runner != nil {
-		if partial.Runner.MaxWorkers != nil {
-			base.Runner.MaxWorkers = *partial.Runner.MaxWorkers
-		}
-		if partial.Runner.DryRun != nil {
-			base.Runner.DryRun = *partial.Runner.DryRun
-		}
-	}
 	if partial.Specs != nil {
 		if partial.Specs.AutofillScout != nil {
 			base.Specs.AutofillScout = *partial.Specs.AutofillScout
@@ -220,12 +217,6 @@ func applyPartial(base Config, partial PartialConfig, basePath string) (Config, 
 		}
 	}
 	if partial.Loop != nil {
-		if partial.Loop.Workers != nil {
-			base.Loop.Workers = *partial.Loop.Workers
-		}
-		if partial.Loop.PollSeconds != nil {
-			base.Loop.PollSeconds = *partial.Loop.PollSeconds
-		}
 		if partial.Loop.SleepSeconds != nil {
 			base.Loop.SleepSeconds = *partial.Loop.SleepSeconds
 		}
@@ -261,15 +252,40 @@ func applyPartial(base Config, partial PartialConfig, basePath string) (Config, 
 		if partial.Git.AutoPush != nil {
 			base.Git.AutoPush = *partial.Git.AutoPush
 		}
-		if partial.Git.RequireClean != nil {
-			base.Git.RequireClean = *partial.Git.RequireClean
-		}
-		if partial.Git.CommitPrefix != nil {
-			base.Git.CommitPrefix = strings.TrimSpace(*partial.Git.CommitPrefix)
-		}
 	}
 
 	return base, nil
+}
+
+func stripDeprecatedConfigFields(data []byte) ([]byte, error) {
+	var payload map[string]any
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return nil, err
+	}
+
+	delete(payload, "runner")
+
+	if loopValue, ok := payload["loop"].(map[string]any); ok {
+		delete(loopValue, "workers")
+		delete(loopValue, "poll_seconds")
+		if len(loopValue) == 0 {
+			delete(payload, "loop")
+		}
+	}
+
+	if gitValue, ok := payload["git"].(map[string]any); ok {
+		delete(gitValue, "require_clean")
+		delete(gitValue, "commit_prefix")
+		if len(gitValue) == 0 {
+			delete(payload, "git")
+		}
+	}
+
+	cleaned, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	return cleaned, nil
 }
 
 func resolveConfigPaths(cfg Config, basePath string) Config {

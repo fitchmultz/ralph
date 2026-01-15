@@ -17,7 +17,6 @@ type Config struct {
 	UI      UIConfig      `json:"ui"`
 	Logging LoggingConfig `json:"logging"`
 	Paths   PathsConfig   `json:"paths"`
-	Runner  RunnerConfig  `json:"runner"`
 	Specs   SpecsConfig   `json:"specs"`
 	Loop    LoopConfig    `json:"loop"`
 	Git     GitConfig     `json:"git"`
@@ -44,12 +43,6 @@ type PathsConfig struct {
 	PinDir   string `json:"pin_dir"`
 }
 
-// RunnerConfig controls worker behavior for the loop runner.
-type RunnerConfig struct {
-	MaxWorkers int  `json:"max_workers"`
-	DryRun     bool `json:"dry_run"`
-}
-
 // SpecsConfig controls spec-building features.
 type SpecsConfig struct {
 	AutofillScout   bool     `json:"autofill_scout"`
@@ -60,8 +53,6 @@ type SpecsConfig struct {
 
 // LoopConfig controls loop scheduling knobs.
 type LoopConfig struct {
-	Workers           int      `json:"workers"`
-	PollSeconds       int      `json:"poll_seconds"`
 	SleepSeconds      int      `json:"sleep_seconds"`
 	MaxIterations     int      `json:"max_iterations"`
 	MaxStalled        int      `json:"max_stalled"`
@@ -75,10 +66,8 @@ type LoopConfig struct {
 
 // GitConfig controls Git behaviors invoked by Ralph.
 type GitConfig struct {
-	AutoCommit   bool   `json:"auto_commit"`
-	AutoPush     bool   `json:"auto_push"`
-	RequireClean bool   `json:"require_clean"`
-	CommitPrefix string `json:"commit_prefix"`
+	AutoCommit bool `json:"auto_commit"`
+	AutoPush   bool `json:"auto_push"`
 }
 
 // Validate enforces invariants for the effective configuration.
@@ -119,9 +108,6 @@ func (c Config) Validate() error {
 	if !filepath.IsAbs(c.Paths.PinDir) {
 		return fmt.Errorf("paths.pin_dir must be absolute")
 	}
-	if c.Runner.MaxWorkers <= 0 {
-		return fmt.Errorf("runner.max_workers must be > 0")
-	}
 	if strings.TrimSpace(c.Specs.Runner) == "" {
 		return fmt.Errorf("specs.runner must be set")
 	}
@@ -130,12 +116,6 @@ func (c Config) Validate() error {
 	}
 	if !ValidReasoningEffort(c.Specs.ReasoningEffort) {
 		return fmt.Errorf("specs.reasoning_effort must be auto, low, medium, high, or off")
-	}
-	if c.Loop.Workers <= 0 {
-		return fmt.Errorf("loop.workers must be > 0")
-	}
-	if c.Loop.PollSeconds <= 0 {
-		return fmt.Errorf("loop.poll_seconds must be > 0")
 	}
 	if c.Loop.SleepSeconds < 0 {
 		return fmt.Errorf("loop.sleep_seconds must be >= 0")
@@ -157,9 +137,6 @@ func (c Config) Validate() error {
 	}
 	if !ValidReasoningEffort(c.Loop.ReasoningEffort) {
 		return fmt.Errorf("loop.reasoning_effort must be auto, low, medium, high, or off")
-	}
-	if strings.TrimSpace(c.Git.CommitPrefix) == "" {
-		return fmt.Errorf("git.commit_prefix must be set")
 	}
 	return nil
 }
@@ -199,7 +176,6 @@ type PartialConfig struct {
 	UI      *UIPartial      `json:"ui,omitempty"`
 	Logging *LoggingPartial `json:"logging,omitempty"`
 	Paths   *PathsPartial   `json:"paths,omitempty"`
-	Runner  *RunnerPartial  `json:"runner,omitempty"`
 	Specs   *SpecsPartial   `json:"specs,omitempty"`
 	Loop    *LoopPartial    `json:"loop,omitempty"`
 	Git     *GitPartial     `json:"git,omitempty"`
@@ -225,12 +201,6 @@ type PathsPartial struct {
 	PinDir   *string `json:"pin_dir,omitempty"`
 }
 
-// RunnerPartial overrides RunnerConfig fields when set.
-type RunnerPartial struct {
-	MaxWorkers *int  `json:"max_workers,omitempty"`
-	DryRun     *bool `json:"dry_run,omitempty"`
-}
-
 // SpecsPartial overrides SpecsConfig fields when set.
 type SpecsPartial struct {
 	AutofillScout   *bool    `json:"autofill_scout,omitempty"`
@@ -241,8 +211,6 @@ type SpecsPartial struct {
 
 // LoopPartial overrides LoopConfig fields when set.
 type LoopPartial struct {
-	Workers           *int     `json:"workers,omitempty"`
-	PollSeconds       *int     `json:"poll_seconds,omitempty"`
 	SleepSeconds      *int     `json:"sleep_seconds,omitempty"`
 	MaxIterations     *int     `json:"max_iterations,omitempty"`
 	MaxStalled        *int     `json:"max_stalled,omitempty"`
@@ -256,8 +224,6 @@ type LoopPartial struct {
 
 // GitPartial overrides GitConfig fields when set.
 type GitPartial struct {
-	AutoCommit   *bool   `json:"auto_commit,omitempty"`
-	AutoPush     *bool   `json:"auto_push,omitempty"`
-	RequireClean *bool   `json:"require_clean,omitempty"`
-	CommitPrefix *string `json:"commit_prefix,omitempty"`
+	AutoCommit *bool `json:"auto_commit,omitempty"`
+	AutoPush   *bool `json:"auto_push,omitempty"`
 }
