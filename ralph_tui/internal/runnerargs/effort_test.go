@@ -66,6 +66,15 @@ func TestApplyReasoningEffort_NonCodex(t *testing.T) {
 	}
 }
 
+func TestSupportsReasoningEffort(t *testing.T) {
+	if !SupportsReasoningEffort("codex") {
+		t.Fatalf("expected codex to support reasoning effort")
+	}
+	if SupportsReasoningEffort("opencode") {
+		t.Fatalf("expected opencode to not support reasoning effort")
+	}
+}
+
 func TestDetectEffort_LastValueWins(t *testing.T) {
 	args := []string{"-c", "model_reasoning_effort=\"low\"", "model_reasoning_effort=\"high\""}
 	value, ok := DetectEffort(args)

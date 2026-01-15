@@ -40,6 +40,7 @@ You are an autonomous engineer working in this repo.
 1. Pick the highest-priority unchecked item in the `## Queue` section of `.ralph/pin/implementation_queue.md` (Queue is the only executable section). Each queue item must start with an ID like `RQ-0123:`.
 2. Execute exactly one queue item per iteration (no batching).
 3. Use the repo prompt `context_builder` to gather relevant project context and generate a plan for EVERY item. This is mandatory. The tool may take upwards of 30 minutes to respond. You MUST wait until it completes before you may continue.
+   - Reasoning-effort and Force context_builder controls are Codex-only; they do not apply to opencode runs.
 4. Execute the plan it generated.
 5. Before coding: if the task touches a new area not represented in `.ralph/pin/lookup_table.md`, or materially changes workflow/architecture, run `ralph specs build` and re-read the refreshed specs.
 6. Implement the correct, durable solution. Fix root causes. If the correct solution requires refactoring or touching multiple files, do it. Standardize and centralize patterns so the same bug class cannot reappear elsewhere.

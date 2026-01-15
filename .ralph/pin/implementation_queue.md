@@ -1,10 +1,6 @@
 # Implementation Queue
 
 ## Queue
-- [ ] RQ-0444 [ui]: Make Run Loop settings UX runner-aware (opencode vs codex): hide/disable irrelevant reasoning-effort + context_builder controls; clarify behavior in the view. (ralph_tui/internal/tui/loop_view.go, ralph_tui/internal/loop/loop.go, ralph_tui/internal/prompts/defaults/prompt_opencode.md)
-  - Evidence: `loopView.controlsView` shows reasoning effort "effective: n/a" for non-codex runners and allows toggling "Force context_builder" even though the code-only context builder policy block is codex-specific; this is confusing, especially when using opencode.
-  - Plan: Make the Run Loop screen adapt its controls/help text based on the selected runner, and add tests to ensure the view does not present no-op toggles or misleading "mandatory" labels.
-
 - [ ] RQ-0461 [code]: Don't silently drop TUI logs: capture write/rotation errors and surface them in Logs status. (ralph_tui/internal/tui/logging.go, ralph_tui/internal/tui/logs_view.go, ralph_tui/internal/tui/logging_test.go)
   - Evidence: `tuiLogger.Log()` ignores file write errors (`written, _ := l.file.Write(...)`) and still increments `fileSize`, so disk-full/permission failures can silently drop logs and leave users with no diagnostics.
   - Plan: Make logger writes error-aware (capture and expose last error, close/reopen safely, and surface in `logsView.statusLine()`); add tests that simulate write failures and assert the error becomes visible and logging recovers when possible.

@@ -1,6 +1,10 @@
 # Implementation Done
 
 ## Done
+- [x] RQ-0444 [ui]: Make Run Loop settings UX runner-aware (opencode vs codex): hide/disable irrelevant reasoning-effort + context_builder controls; clarify behavior in the view. (ralph_tui/internal/tui/loop_view.go, ralph_tui/internal/loop/loop.go, ralph_tui/internal/prompts/defaults/prompt_opencode.md)
+  - Evidence: `loopView.controlsView` shows reasoning effort "effective: n/a" for non-codex runners and allows toggling "Force context_builder" even though the code-only context builder policy block is codex-specific; this is confusing, especially when using opencode.
+  - Plan: Make the Run Loop screen adapt its controls/help text based on the selected runner, and add tests to ensure the view does not present no-op toggles or misleading "mandatory" labels.
+
 - [x] RQ-0449 [ui]: Close Pin screen feature gaps: provide access to blocked items, add prepend/append choice for Move Checked, and improve status/affordances. (ralph_tui/internal/tui/pin_view.go, ralph_tui/internal/pin/pin.go, ralph_tui/internal/tui/pin_view_test.go)
   - Evidence: Pin view shows `blockedCount` but provides no way to inspect blocked items from the UI; Move Checked always appends to Done (CLI supports `--prepend`), and status messages don't guide the user to next actions.
   - Plan: Add blocked-item browsing and move-checked options (default to prepend for recency), update key hints/help, and add tests covering the new UX paths.

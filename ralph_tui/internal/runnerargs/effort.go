@@ -24,6 +24,11 @@ type EffortResult struct {
 	Source    EffortSource
 }
 
+// SupportsReasoningEffort returns true when the runner supports reasoning effort settings.
+func SupportsReasoningEffort(runner string) bool {
+	return strings.ToLower(strings.TrimSpace(runner)) == "codex"
+}
+
 // ApplyReasoningEffort injects reasoning effort into Codex args when explicitly set.
 func ApplyReasoningEffort(runner string, args []string, effort string) EffortResult {
 	return ApplyReasoningEffortWithAutoTarget(runner, args, effort, "")
@@ -32,7 +37,7 @@ func ApplyReasoningEffort(runner string, args []string, effort string) EffortRes
 // ApplyReasoningEffortWithAutoTarget injects reasoning effort into Codex args.
 // If effort is auto and autoTarget is set, the target is applied explicitly.
 func ApplyReasoningEffortWithAutoTarget(runner string, args []string, effort string, autoTarget string) EffortResult {
-	if strings.ToLower(strings.TrimSpace(runner)) != "codex" {
+	if !SupportsReasoningEffort(runner) {
 		return EffortResult{Args: args, Effective: "", Source: EffortSourceNone}
 	}
 

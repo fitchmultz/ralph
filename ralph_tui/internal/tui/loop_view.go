@@ -262,6 +262,10 @@ func (l *loopView) Update(msg tea.Msg, keys keyMap) tea.Cmd {
 			l.beginEdit()
 			return nil
 		case key.Matches(msg, keys.ToggleForceContextBuilder) && l.mode != loopEditing:
+			if !runnerargs.SupportsReasoningEffort(l.overrides.Runner) {
+				l.status = fmt.Sprintf("Context_builder toggle unavailable for runner: %s", l.overrides.Runner)
+				return nil
+			}
 			l.overrides.ForceContextBuilder = !l.overrides.ForceContextBuilder
 			state := yesNo(l.overrides.ForceContextBuilder)
 			l.status = fmt.Sprintf("Force context_builder: %s", state)
@@ -319,27 +323,43 @@ func (l *loopView) View() string {
 
 func (l *loopView) statusLine() string {
 	if l.err != "" {
-		return fmt.Sprintf("Error: %s | Force context_builder: %s", l.err, yesNo(l.overrides.ForceContextBuilder))
+		if runnerargs.SupportsReasoningEffort(l.overrides.Runner) {
+			return fmt.Sprintf("Error: %s | Force context_builder: %s", l.err, yesNo(l.overrides.ForceContextBuilder))
+		}
+		return fmt.Sprintf("Error: %s", l.err)
 	}
 	if l.outputErr != "" {
-		return l.status + " | Persist error: " + l.outputErr + " | Force context_builder: " + yesNo(l.overrides.ForceContextBuilder)
+		if runnerargs.SupportsReasoningEffort(l.overrides.Runner) {
+			return l.status + " | Persist error: " + l.outputErr + " | Force context_builder: " + yesNo(l.overrides.ForceContextBuilder)
+		}
+		return l.status + " | Persist error: " + l.outputErr
 	}
-	return l.status + " | Force context_builder: " + yesNo(l.overrides.ForceContextBuilder)
+	if runnerargs.SupportsReasoningEffort(l.overrides.Runner) {
+		return l.status + " | Force context_builder: " + yesNo(l.overrides.ForceContextBuilder)
+	}
+	return l.status
 }
 
 func (l *loopView) controlsView() string {
 	if l.mode == loopRunning || l.mode == loopStopping {
 		return l.runControlsView()
 	}
-	autoTarget := l.autoTargetEffort()
-	effortResult := runnerargs.ApplyReasoningEffortWithAutoTarget(
-		l.overrides.Runner,
-		l.overrides.RunnerArgs,
-		l.overrides.ReasoningEffort,
-		autoTarget,
-	)
-	effectiveLabel := runnerargs.DisplayEffortResult(effortResult)
-	mandatory := l.overrides.ForceContextBuilder || effortResult.Effective == "low" || effortResult.Effective == "off"
+	supportsEffort := runnerargs.SupportsReasoningEffort(l.overrides.Runner)
+	autoTarget := ""
+	var effortResult runnerargs.EffortResult
+	mandatory := false
+	effectiveLabel := ""
+	if supportsEffort {
+		autoTarget = l.autoTargetEffort()
+		effortResult = runnerargs.ApplyReasoningEffortWithAutoTarget(
+			l.overrides.Runner,
+			l.overrides.RunnerArgs,
+			l.overrides.ReasoningEffort,
+			autoTarget,
+		)
+		effectiveLabel = runnerargs.DisplayEffortResult(effortResult)
+		mandatory = l.overrides.ForceContextBuilder || effortResult.Effective == "low" || effortResult.Effective == "off"
+	}
 	lines := []string{
 		fmt.Sprintf("Sleep seconds: %d", l.overrides.SleepSeconds),
 		fmt.Sprintf("Max iterations: %d", l.overrides.MaxIterations),
@@ -353,9 +373,18 @@ func (l *loopView) controlsView() string {
 		fmt.Sprintf("Allow untracked: %s | Quarantine clean: %s", yesNo(l.overrides.AllowUntracked), yesNo(l.overrides.QuarantineClean)),
 		fmt.Sprintf("Runner: %s", l.overrides.Runner),
 		fmt.Sprintf("Runner args: %d", len(l.overrides.RunnerArgs)),
-		fmt.Sprintf("Reasoning effort: %s (effective: %s)", runnerargs.DisplayEffort(l.overrides.ReasoningEffort), effectiveLabel),
-		fmt.Sprintf("Force context_builder: %s (mandatory: %s)", yesNo(l.overrides.ForceContextBuilder), yesNo(mandatory)),
-		"Keys: r run once | c continuous | s stop | e edit overrides | p force ctx builder | shift+p pin | shift+l logs",
+	}
+	if supportsEffort {
+		lines = append(lines,
+			fmt.Sprintf("Reasoning effort: %s (effective: %s)", runnerargs.DisplayEffort(l.overrides.ReasoningEffort), effectiveLabel),
+			fmt.Sprintf("Force context_builder: %s (mandatory: %s)", yesNo(l.overrides.ForceContextBuilder), yesNo(mandatory)),
+		)
+		lines = append(lines, "Keys: r run once | c continuous | s stop | e edit overrides | p force ctx builder | shift+p pin | shift+l logs")
+	} else {
+		lines = append(lines,
+			"Reasoning effort: n/a (runner does not support reasoning effort/context_builder)",
+			"Keys: r run once | c continuous | s stop | e edit overrides | shift+p pin | shift+l logs",
+		)
 	}
 	return strings.Join(lines, "\n")
 }
@@ -381,12 +410,25 @@ func (l *loopView) autoTargetEffort() string {
 }
 
 func (l *loopView) runControlsView() string {
-	lines := []string{
-		fmt.Sprintf("Runner: %s (%s)", l.overrides.Runner, runnerargs.DisplayEffort(l.overrides.ReasoningEffort)),
+	supportsEffort := runnerargs.SupportsReasoningEffort(l.overrides.Runner)
+	lines := []string{}
+	if supportsEffort {
+		lines = append(lines, fmt.Sprintf("Runner: %s (%s)", l.overrides.Runner, runnerargs.DisplayEffort(l.overrides.ReasoningEffort)))
+	} else {
+		lines = append(lines, fmt.Sprintf("Runner: %s", l.overrides.Runner))
+	}
+	lines = append(lines,
 		fmt.Sprintf("Sleep: %ds | Max iterations: %s | Max stalled: %d", l.overrides.SleepSeconds, l.iterationLimitLabel(), l.overrides.MaxStalled),
 		fmt.Sprintf("Only tags: %s | Require main: %s | Auto commit/push: %s/%s", l.overrides.OnlyTags, yesNo(l.overrides.RequireMain), yesNo(l.overrides.AutoCommit), yesNo(l.overrides.AutoPush)),
 		fmt.Sprintf("Dirty repo start/during: %s/%s | Allow untracked: %s | Quarantine clean: %s", l.overrides.DirtyRepoStart, l.overrides.DirtyRepoDuring, yesNo(l.overrides.AllowUntracked), yesNo(l.overrides.QuarantineClean)),
-		"Keys: s stop | e edit overrides | p force ctx builder | shift+p pin | shift+l logs",
+	)
+	if !supportsEffort {
+		lines = append(lines, "Reasoning effort/context_builder: n/a (runner does not support these settings)")
+	}
+	if supportsEffort {
+		lines = append(lines, "Keys: s stop | e edit overrides | p force ctx builder | shift+p pin | shift+l logs")
+	} else {
+		lines = append(lines, "Keys: s stop | e edit overrides | shift+p pin | shift+l logs")
 	}
 	return strings.Join(lines, "\n")
 }
@@ -741,6 +783,12 @@ func (l *loopView) beginEdit() {
 }
 
 func (l *loopView) buildEditForm() *huh.Form {
+	reasoningEffortTitle := "Loop Reasoning Effort"
+	forceContextBuilderTitle := "Force context_builder"
+	if !runnerargs.SupportsReasoningEffort(l.editData.Runner) {
+		reasoningEffortTitle = "Loop Reasoning Effort (codex only)"
+		forceContextBuilderTitle = "Force context_builder (codex only)"
+	}
 	return huh.NewForm(
 		huh.NewGroup(
 			huh.NewInput().Title("Sleep Seconds").Value(&l.editData.SleepSeconds).Validate(nonNegativeInt("loop.sleep_seconds")),
@@ -766,7 +814,7 @@ func (l *loopView) buildEditForm() *huh.Form {
 				Value(&l.editData.Runner),
 			huh.NewText().Title("Loop Runner Args (one per line)").Value(&l.editData.RunnerArgs).Lines(3),
 			huh.NewSelect[string]().
-				Title("Loop Reasoning Effort").
+				Title(reasoningEffortTitle).
 				Options(
 					huh.NewOption("auto", "auto"),
 					huh.NewOption("low", "low"),
@@ -775,7 +823,7 @@ func (l *loopView) buildEditForm() *huh.Form {
 					huh.NewOption("off", "off"),
 				).
 				Value(&l.editData.ReasoningEffort),
-			huh.NewConfirm().Title("Force context_builder").Value(&l.editData.ForceContextBuilder),
+			huh.NewConfirm().Title(forceContextBuilderTitle).Value(&l.editData.ForceContextBuilder),
 		),
 	).WithShowHelp(false)
 }
@@ -814,8 +862,13 @@ func (l *loopView) applyEditData() error {
 	if reasoningEffort == "" {
 		reasoningEffort = "auto"
 	}
-	l.overrides.ReasoningEffort = reasoningEffort
-	l.overrides.ForceContextBuilder = l.editData.ForceContextBuilder
+	if runnerargs.SupportsReasoningEffort(l.overrides.Runner) {
+		l.overrides.ReasoningEffort = reasoningEffort
+		l.overrides.ForceContextBuilder = l.editData.ForceContextBuilder
+	} else {
+		l.overrides.ReasoningEffort = "auto"
+		l.overrides.ForceContextBuilder = false
+	}
 	return nil
 }
 

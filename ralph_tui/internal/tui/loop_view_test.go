@@ -169,6 +169,46 @@ func TestLoopRunControlsShowSingleIterationWhenOnce(t *testing.T) {
 	}
 }
 
+func TestLoopControlsHideEffortWhenRunnerUnsupported(t *testing.T) {
+	cfg := testLoopConfig()
+	cfg.Loop.Runner = "opencode"
+	view := newLoopView(cfg, paths.Locations{})
+
+	controls := view.controlsView()
+
+	if strings.Contains(controls, "Force context_builder") {
+		t.Fatalf("expected force context_builder controls to be hidden for opencode, got %q", controls)
+	}
+	if strings.Contains(controls, "mandatory:") {
+		t.Fatalf("expected no mandatory label for opencode, got %q", controls)
+	}
+	if strings.Contains(controls, "p force ctx builder") {
+		t.Fatalf("expected context builder key hint to be hidden for opencode, got %q", controls)
+	}
+	if !strings.Contains(controls, "Reasoning effort: n/a") {
+		t.Fatalf("expected reasoning effort to be marked as n/a for opencode, got %q", controls)
+	}
+}
+
+func TestLoopControlsShowEffortWhenRunnerSupported(t *testing.T) {
+	cfg := testLoopConfig()
+	cfg.Loop.Runner = "codex"
+	cfg.Loop.ReasoningEffort = "auto"
+	view := newLoopView(cfg, paths.Locations{})
+
+	controls := view.controlsView()
+
+	if !strings.Contains(controls, "Reasoning effort: auto") {
+		t.Fatalf("expected reasoning effort controls for codex, got %q", controls)
+	}
+	if !strings.Contains(controls, "Force context_builder") {
+		t.Fatalf("expected context builder controls for codex, got %q", controls)
+	}
+	if !strings.Contains(controls, "p force ctx builder") {
+		t.Fatalf("expected context builder key hint for codex, got %q", controls)
+	}
+}
+
 func TestLoopStartBlocksOnDirtyRepoPolicyError(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skipf("missing git: %v", err)

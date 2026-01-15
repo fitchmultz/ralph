@@ -193,7 +193,11 @@ func (r *Runner) Run(ctx context.Context) error {
 		if effortResult.Source == runnerargs.EffortSourceAuto && effortResult.Effective != "auto" && autoTargetReason != "" {
 			r.effectiveEffortNote = fmt.Sprintf("Auto reasoning effort target applied (%s): %s.", autoTargetReason, effortResult.Effective)
 		}
-		r.contextBuilderMandatory = r.effectiveEffort == "low" || r.effectiveEffort == "off" || r.opts.ForceContextBuilder
+		if runnerargs.SupportsReasoningEffort(r.opts.Runner) {
+			r.contextBuilderMandatory = r.effectiveEffort == "low" || r.effectiveEffort == "off" || r.opts.ForceContextBuilder
+		} else {
+			r.contextBuilderMandatory = false
+		}
 
 		headBefore, err := HeadSHA(ctx, r.opts.RepoRoot)
 		if err != nil {

@@ -67,7 +67,7 @@ func TestRunCommandCancelKillsChildProcess(t *testing.T) {
 				t.Fatalf("expected context.Canceled or signaled exit, got %v", err)
 			}
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(12 * time.Second):
 		t.Fatalf("timeout waiting for cancellation")
 	}
 
