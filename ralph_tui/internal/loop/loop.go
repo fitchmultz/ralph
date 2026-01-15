@@ -546,10 +546,22 @@ func (r *Runner) finalizeIteration(ctx context.Context, itemID string, itemLine 
 		logGitError(r.redactor, r.opts.Logger, "head sha", err)
 		return err
 	}
+	pinPrefix := pinPathPrefix(r.opts.RepoRoot, r.opts.PinDir)
+	pinOnlyHeadAdvance := false
 	if headNow != headBefore {
-		r.lastFailureStage = "mechanical"
-		r.lastFailureMessage = "Commit detected before controller finalize."
-		return errors.New(r.lastFailureMessage)
+		changed, err := DiffNameOnlyRange(ctx, r.opts.RepoRoot, headBefore, headNow)
+		if err != nil {
+			logGitError(r.redactor, r.opts.Logger, "diff --name-only", err)
+			r.lastFailureStage = "git"
+			r.lastFailureMessage = "git diff failed."
+			return err
+		}
+		if !pathsOnlyUnderPrefix(changed, pinPrefix) {
+			r.lastFailureStage = "mechanical"
+			r.lastFailureMessage = "Commit detected before controller finalize."
+			return errors.New(r.lastFailureMessage)
+		}
+		pinOnlyHeadAdvance = true
 	}
 
 	movedIDs, err := pin.MoveCheckedToDone(r.pinFiles.QueuePath, r.pinFiles.DonePath, true)
@@ -590,13 +602,19 @@ func (r *Runner) finalizeIteration(ctx context.Context, itemID string, itemLine 
 	}
 
 	if status.IsClean(r.opts.AllowUntracked) {
+		if pinOnlyHeadAdvance {
+			if err := r.runValidatePin(); err != nil {
+				r.lastFailureStage = "pin-validate"
+				r.lastFailureMessage = "validate_pin failed after pin-only commit."
+				return err
+			}
+			return nil
+		}
 		r.lastFailureStage = "complete"
 		r.lastFailureMessage = "Queue head moved but no changes detected."
 		return errors.New(r.lastFailureMessage)
 	}
 
-	onlySpecs := true
-	pinPrefix := pinPathPrefix(r.opts.RepoRoot, r.opts.PinDir)
 	changed, err := DiffNameOnly(ctx, r.opts.RepoRoot)
 	if err != nil {
 		logGitError(r.redactor, r.opts.Logger, "diff --name-only", err)
@@ -604,14 +622,9 @@ func (r *Runner) finalizeIteration(ctx context.Context, itemID string, itemLine 
 		r.lastFailureMessage = "git diff failed."
 		return err
 	}
-	for _, path := range changed {
-		if !strings.HasPrefix(path, pinPrefix) {
-			onlySpecs = false
-			break
-		}
-	}
+	onlyPinChanges := pathsOnlyUnderPrefix(changed, pinPrefix)
 
-	if !onlySpecs && !opts.SkipVerify {
+	if !onlyPinChanges && !opts.SkipVerify {
 		if err := r.runMakeCI(ctx); err != nil {
 			r.lastFailureStage = "verify"
 			r.lastFailureMessage = "make ci failed."
@@ -1116,4 +1129,13 @@ func pinPathPrefix(repoRoot string, pinDir string) string {
 		rel += "/"
 	}
 	return rel
+}
+
+func pathsOnlyUnderPrefix(paths []string, prefix string) bool {
+	for _, path := range paths {
+		if !strings.HasPrefix(path, prefix) {
+			return false
+		}
+	}
+	return true
 }

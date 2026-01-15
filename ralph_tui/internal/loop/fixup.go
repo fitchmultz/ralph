@@ -176,10 +176,8 @@ func validateWipBranchInWorktree(ctx context.Context, opts FixupOptions, wipBran
 	if err != nil {
 		return err
 	}
-	for _, path := range changed {
-		if !strings.HasPrefix(path, pinPrefix) {
-			return runMakeCIInWorktree(ctx, opts, worktreePath)
-		}
+	if !pathsOnlyUnderPrefix(changed, pinPrefix) {
+		return runMakeCIInWorktree(ctx, opts, worktreePath)
 	}
 
 	return nil

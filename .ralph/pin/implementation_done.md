@@ -1,6 +1,10 @@
 # Implementation Done
 
 ## Done
+- [x] RQ-0454 [code]: Allow pin-only commits under .ralph during loop finalize without auto-blocking. (ralph_tui/internal/loop/loop.go, ralph_tui/internal/loop/git.go, ralph_tui/internal/loop/loop_test.go)
+  - Evidence: The loop auto-blocks when HEAD changes before finalize; this currently treats intentional queue edits under `.ralph/` as failures even though they are expected during a run.
+  - Plan: If HEAD changed, diff the commit range and permit only `.ralph/` (pin) changes; refresh queue state and continue. Add regression tests for pin-only commits vs non-pin changes.
+
 - [x] RQ-0455 [ops]: Repair pin validity (duplicate IDs) and add guardrails for queue ID allocation + CI pin validation. (.ralph/pin/implementation_queue.md, .ralph/pin/implementation_done.md, ralph_tui/internal/pin/pin.go, ralph_tui/internal/queueid/queueid.go, Makefile)
   - Evidence: `.ralph/pin/implementation_done.md` contains a done entry with ID `RQ-0453`, while `.ralph/pin/implementation_queue.md` also contains an active `RQ-0453`. `pin.ValidatePin()` rejects duplicate IDs across queue+done, which can prevent the TUI from starting cleanly (see `ralph_tui/internal/tui/model.go` startup validation path).
   - Plan: (1) Renumber one of the colliding entries (recommended: assign a new ID to the *queue* item to preserve historical Done IDs), (2) add an automated "next ID" helper (CLI `ralph pin next-id` or equivalent) that scans queue+done and prints the next free `RQ-####`, (3) add `make pin-validate` and run it from `make ci`, and (4) add tests ensuring pin validation is enforced in CI to prevent regressions.
