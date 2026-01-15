@@ -1,6 +1,14 @@
 # Implementation Done
 
 ## Done
+- [x] RQ-0416 [ui]: Add global navigation pane collapse/expand (more space during runs) + smarter layout for narrow terminals. (ralph_tui/internal/tui/model.go, ralph_tui/internal/tui/keymap.go, ralph_tui/internal/tui/help_keymap.go, ralph_tui/internal/tui/render_contract_test.go)
+  - Evidence:
+    - `ralph_tui/internal/tui/model.go` always renders nav + content via `lipgloss.JoinHorizontal(...)`; there is no state to hide the nav panel.
+    - `computeLayoutWithBody()` always reserves a `defaultNavWidth` (26) with `minNavWidth` (20), so the nav can consume a large fraction of small terminals and make the content feel "full-screen wasted".
+  - Plan:
+    - Add a global model flag (e.g., `navCollapsed bool`) + a dedicated keybinding to toggle it; when collapsed, allocate 0 width to nav and give full width to content.
+    - Make focus behavior sane: if nav is collapsed, force content focus and prevent nav cursor changes.
+    - Update help keymap + add render contract tests for collapsed/un-collapsed states (including small terminal sizes).
 - [x] RQ-0415 [code]: Remove or implement dead config knobs (runner.max_workers/dry_run, loop.workers/poll_seconds, git.require_clean/commit_prefix) so settings actually do something. (ralph_tui/internal/config/config.go, ralph_tui/internal/config/defaults.json, ralph_tui/internal/tui/config_editor.go, ralph_tui/cmd/ralph/main.go, ralph_tui/internal/loop/loop.go)
   - Evidence: config schema + config editor expose several fields that are not wired into behavior anywhere (runner.max_workers, runner.dry_run, loop.workers, loop.poll_seconds, git.require_clean, git.commit_prefix), so users can change them but nothing changes at runtime.
   - Plan: Audit each knob and either wire it into loop/specs/TUI behavior with clear semantics, or deprecate/remove it with a migration step and updated docs/tests; ensure config validation stays correct and does not enforce unused fields.

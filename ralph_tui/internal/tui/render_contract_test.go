@@ -40,20 +40,23 @@ func TestRenderContract(t *testing.T) {
 
 	for _, size := range sizes {
 		for _, showAll := range []bool{false, true} {
-			for _, navFocused := range []bool{true, false} {
-				for _, screen := range screens {
-					name := fmt.Sprintf("w%dxh%d-help%t-focus%t-%s", size.w, size.h, showAll, navFocused, screenName(screen))
-					t.Run(name, func(t *testing.T) {
-						m := newModel(cfg, locs, StartOptions{})
-						m.screen = screen
-						m.navFocused = navFocused
-						m.help.ShowAll = showAll
-						m.applyFocus()
-						m.width = size.w
-						m.height = size.h
-						m.relayout()
-						assertRenderFits(t, m, size.w, size.h)
-					})
+			for _, navCollapsed := range []bool{false, true} {
+				for _, navFocused := range []bool{true, false} {
+					for _, screen := range screens {
+						name := fmt.Sprintf("w%dxh%d-help%t-collapse%t-focus%t-%s", size.w, size.h, showAll, navCollapsed, navFocused, screenName(screen))
+						t.Run(name, func(t *testing.T) {
+							m := newModel(cfg, locs, StartOptions{})
+							m.screen = screen
+							m.navCollapsed = navCollapsed
+							m.navFocused = navFocused
+							m.help.ShowAll = showAll
+							m.applyFocus()
+							m.width = size.w
+							m.height = size.h
+							m.relayout()
+							assertRenderFits(t, m, size.w, size.h)
+						})
+					}
 				}
 			}
 		}
@@ -100,21 +103,24 @@ func TestBorderContract(t *testing.T) {
 
 	for _, size := range sizes {
 		for _, showAll := range []bool{false, true} {
-			for _, navFocused := range []bool{true, false} {
-				for _, screen := range screens {
-					name := fmt.Sprintf("border-w%dxh%d-help%t-focus%t-%s", size.w, size.h, showAll, navFocused, screenName(screen))
-					t.Run(name, func(t *testing.T) {
-						m := newModel(cfg, locs, StartOptions{})
-						m.screen = screen
-						m.navFocused = navFocused
-						m.help.ShowAll = showAll
-						m.applyFocus()
-						m.width = size.w
-						m.height = size.h
-						m.relayout()
-						out := m.View()
-						assertBodyBordersIntact(t, out, size.w, m.layout.bodyHeight)
-					})
+			for _, navCollapsed := range []bool{false, true} {
+				for _, navFocused := range []bool{true, false} {
+					for _, screen := range screens {
+						name := fmt.Sprintf("border-w%dxh%d-help%t-collapse%t-focus%t-%s", size.w, size.h, showAll, navCollapsed, navFocused, screenName(screen))
+						t.Run(name, func(t *testing.T) {
+							m := newModel(cfg, locs, StartOptions{})
+							m.screen = screen
+							m.navCollapsed = navCollapsed
+							m.navFocused = navFocused
+							m.help.ShowAll = showAll
+							m.applyFocus()
+							m.width = size.w
+							m.height = size.h
+							m.relayout()
+							out := m.View()
+							assertBodyBordersIntact(t, out, size.w, m.layout.bodyHeight)
+						})
+					}
 				}
 			}
 		}

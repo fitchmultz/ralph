@@ -1,14 +1,6 @@
 # Implementation Queue
 
 ## Queue
-- [ ] RQ-0416 [ui]: Add global navigation pane collapse/expand (more space during runs) + smarter layout for narrow terminals. (ralph_tui/internal/tui/model.go, ralph_tui/internal/tui/keymap.go, ralph_tui/internal/tui/help_keymap.go, ralph_tui/internal/tui/render_contract_test.go)
-  - Evidence:
-    - `ralph_tui/internal/tui/model.go` always renders nav + content via `lipgloss.JoinHorizontal(...)`; there is no state to hide the nav panel.
-    - `computeLayoutWithBody()` always reserves a `defaultNavWidth` (26) with `minNavWidth` (20), so the nav can consume a large fraction of small terminals and make the content feel "full-screen wasted".
-  - Plan:
-    - Add a global model flag (e.g., `navCollapsed bool`) + a dedicated keybinding to toggle it; when collapsed, allocate 0 width to nav and give full width to content.
-    - Make focus behavior sane: if nav is collapsed, force content focus and prevent nav cursor changes.
-    - Update help keymap + add render contract tests for collapsed/un-collapsed states (including small terminal sizes).
 - [ ] RQ-0417 [code]: Add a loop-run "Force context_builder" override toggle (independent of reasoning_effort) + show it in prompts, TUI, and CLI. (ralph_tui/internal/loop/loop.go, ralph_tui/internal/tui/loop_view.go, ralph_tui/internal/tui/keymap.go, ralph_tui/cmd/ralph/main.go)
   - Evidence:
     - `ralph_tui/internal/loop/loop.go` sets `contextBuilderMandatory` only when detected `model_reasoning_effort` is `low`/`off`; there is no user override for medium/high effort runs.

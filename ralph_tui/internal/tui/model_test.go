@@ -102,3 +102,31 @@ func TestTabBypassesGlobalFocusWhenFormActive(t *testing.T) {
 		})
 	}
 }
+
+func TestNavCollapseForcesContentFocus(t *testing.T) {
+	_, locs, cfg := newHermeticModel(t)
+	m := newModel(cfg, locs, StartOptions{})
+	m.navFocused = true
+	m.navCollapsed = true
+	m.applyFocus()
+
+	if m.navFocused {
+		t.Fatalf("expected nav focus to clear when collapsed")
+	}
+}
+
+func TestNavCollapseToggle(t *testing.T) {
+	_, locs, cfg := newHermeticModel(t)
+	m := newModel(cfg, locs, StartOptions{})
+	m.navFocused = true
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyCtrlN})
+	next := updated.(model)
+
+	if !next.navCollapsed {
+		t.Fatalf("expected nav to be collapsed after toggle")
+	}
+	if next.navFocused {
+		t.Fatalf("expected content focus after collapsing nav")
+	}
+}

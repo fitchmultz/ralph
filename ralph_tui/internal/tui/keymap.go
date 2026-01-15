@@ -8,6 +8,7 @@ import (
 
 type keyMap struct {
 	Quit              key.Binding
+	ToggleNav         key.Binding
 	Focus             key.Binding
 	Help              key.Binding
 	RefreshNow        key.Binding
@@ -38,6 +39,10 @@ func newKeyMap() keyMap {
 		Quit: key.NewBinding(
 			key.WithKeys("q", "ctrl+c"),
 			key.WithHelp("q", "quit"),
+		),
+		ToggleNav: key.NewBinding(
+			key.WithKeys("ctrl+n"),
+			key.WithHelp("ctrl+n", "toggle nav"),
 		),
 		Focus: key.NewBinding(
 			key.WithKeys("tab", "ctrl+f"),
@@ -135,12 +140,12 @@ func newKeyMap() keyMap {
 }
 
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Quit, k.Focus, k.Help, k.RefreshNow, k.Select}
+	return []key.Binding{k.Quit, k.ToggleNav, k.Focus, k.Help, k.RefreshNow, k.Select}
 }
 
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Quit, k.Focus, k.Help, k.RefreshNow, k.Select},
+		{k.Quit, k.ToggleNav, k.Focus, k.Help, k.RefreshNow, k.Select},
 		{k.EditSpecsSettings, k.ToggleLogsFormat, k.SaveGlobal, k.SaveRepo},
 		{k.Discard},
 		{k.ValidatePin, k.MoveChecked, k.BlockItem},

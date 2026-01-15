@@ -41,6 +41,7 @@ type model struct {
 	help             help.Model
 	keys             keyMap
 	navFocused       bool
+	navCollapsed     bool
 	cfg              config.Config
 	configView       *configEditor
 	pinView          *pinView
@@ -98,6 +99,7 @@ func newModel(cfg config.Config, locations paths.Locations, opts StartOptions) m
 		help:             help.New(),
 		keys:             newKeyMap(),
 		navFocused:       true,
+		navCollapsed:     false,
 		cfg:              cfg,
 		configView:       configView,
 		pinView:          pinView,
@@ -122,7 +124,7 @@ func newModel(cfg config.Config, locations paths.Locations, opts StartOptions) m
 		}
 		m.logsView.Refresh(loopLines, specsLines)
 	}
-	m.layout = computeLayoutWithBody(0, 0)
+	m.layout = computeLayoutWithBody(0, 0, m.navCollapsed)
 	m.resizeViews(0, 0)
 	m.applyFocus()
 	return m
@@ -208,11 +210,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		keyFields := keyEventSummary(msg)
 		keyFields["screen"] = screenName(m.screen)
 		keyFields["nav_focused"] = m.navFocused
+		keyFields["nav_collapsed"] = m.navCollapsed
 		m.logDebug("key.event", keyFields)
 		if key.Matches(msg, m.keys.Quit) {
 			m.logInfo("tui.quit", map[string]any{"screen": screenName(m.screen)})
 			m.closeLogger()
 			return m, tea.Quit
+		}
+		if key.Matches(msg, m.keys.ToggleNav) {
+			m.navCollapsed = !m.navCollapsed
+			if m.navCollapsed {
+				m.navFocused = false
+			}
+			m.applyFocus()
+			m.relayout()
+			return m, nil
 		}
 		if key.Matches(msg, m.keys.Help) {
 			m.help.ShowAll = !m.help.ShowAll
@@ -232,6 +244,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		if key.Matches(msg, m.keys.Focus) {
+			if m.navCollapsed {
+				if m.navFocused {
+					m.navFocused = false
+					m.applyFocus()
+					m.relayout()
+				}
+				return m, nil
+			}
 			if m.shouldBypassFocusToggle(msg) {
 				break
 			}
@@ -257,7 +277,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.reloadConfigCmd()
 			}
 		}
-		if m.navFocused {
+		if m.navFocused && !m.navCollapsed {
 			updated, cmd := m.nav.Update(msg)
 			m.nav = updated
 			cmds = append(cmds, cmd)
@@ -462,7 +482,7 @@ const (
 	footerGapBlankLines = 1
 )
 
-func computeLayoutWithBody(width int, bodyHeight int) layoutSpec {
+func computeLayoutWithBody(width int, bodyHeight int, navCollapsed bool) layoutSpec {
 	if bodyHeight < 0 {
 		bodyHeight = 0
 	}
@@ -473,14 +493,28 @@ func computeLayoutWithBody(width int, bodyHeight int) layoutSpec {
 			bodyHeight:   bodyHeight,
 		}
 	}
+	if navCollapsed {
+		return layoutSpec{
+			navWidth:     0,
+			contentWidth: width,
+			bodyHeight:   bodyHeight,
+		}
+	}
 
 	navWidth := defaultNavWidth
 	maxNav := width / 3
-	if maxNav < minNavWidth {
-		maxNav = minNavWidth
-	}
-	if navWidth > maxNav {
-		navWidth = maxNav
+	if width >= minNavWidth+minContentWidth {
+		if maxNav < minNavWidth {
+			maxNav = minNavWidth
+		}
+		if navWidth > maxNav {
+			navWidth = maxNav
+		}
+	} else {
+		navWidth = min(navWidth, maxNav)
+		if navWidth < 0 {
+			navWidth = 0
+		}
 	}
 
 	contentWidth := width - navWidth
@@ -493,11 +527,19 @@ func computeLayoutWithBody(width int, bodyHeight int) layoutSpec {
 			contentWidth = width - navWidth
 		}
 	} else {
-		if navWidth > width {
-			navWidth = width
+		targetNav := width - minContentWidth
+		if targetNav < 0 {
+			targetNav = 0
 		}
+		if maxNav > 0 && targetNav > maxNav {
+			targetNav = maxNav
+		}
+		navWidth = min(navWidth, targetNav)
 		if navWidth < 0 {
 			navWidth = 0
+		}
+		if navWidth > width {
+			navWidth = width
 		}
 		contentWidth = width - navWidth
 		if contentWidth < 0 {
@@ -574,7 +616,7 @@ func (m *model) relayout() {
 		bodyH = height - footerHeight
 	}
 
-	m.layout = computeLayoutWithBody(m.width, bodyH)
+	m.layout = computeLayoutWithBody(m.width, bodyH, m.navCollapsed)
 	m.layout.footerHeight = footerHeight
 	m.layout.footerGap = footerGap
 
@@ -864,6 +906,9 @@ func (m *model) screenKeyMap() help.KeyMap {
 }
 
 func (m *model) applyFocus() {
+	if m.navCollapsed {
+		m.navFocused = false
+	}
 	if m.pinView != nil {
 		if m.navFocused || m.screen != screenPin {
 			m.pinView.Blur()
