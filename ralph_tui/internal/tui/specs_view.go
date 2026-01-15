@@ -25,6 +25,7 @@ import (
 
 type specsView struct {
 	cfg                     config.Config
+	keys                    keyMap
 	locations               paths.Locations
 	runner                  specs.Runner
 	runnerArgs              []string
@@ -103,7 +104,7 @@ type specsPreviewMsg struct {
 	unchanged  bool
 }
 
-func newSpecsView(cfg config.Config, locations paths.Locations) (*specsView, error) {
+func newSpecsView(cfg config.Config, locations paths.Locations, keys keyMap) (*specsView, error) {
 	vp := viewport.New(80, 20)
 	logViewport := viewport.New(80, 20)
 	vp.Style = paddedViewportStyle
@@ -116,6 +117,7 @@ func newSpecsView(cfg config.Config, locations paths.Locations) (*specsView, err
 	userFocusInput.SetValue(cfg.Specs.UserFocus)
 	view := &specsView{
 		cfg:                     cfg,
+		keys:                    keys,
 		locations:               locations,
 		parentCtx:               context.Background(),
 		runner:                  specs.Runner(cfg.Specs.Runner),
@@ -355,7 +357,7 @@ func (s *specsView) optionsView() string {
 		fmt.Sprintf("Autofill scout: %s", yesNo(s.autofillScout)),
 		fmt.Sprintf("Scout workflow: %s", yesNo(s.scoutWorkflow)),
 		userFocusLine,
-		"Keys: e settings (runner/args/effort) | i interactive | n innovate | a autofill | w scout | u focus | r run build | s stop build",
+		renderKeyHints("Keys", specsKeyHintBindings(s.keys, s.running)),
 		"Scroll: \u2191/\u2193 PgUp/PgDn (Tab to focus)",
 	}
 	if s.editUserFocus {

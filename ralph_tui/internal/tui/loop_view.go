@@ -22,6 +22,7 @@ import (
 
 type loopView struct {
 	cfg                  config.Config
+	keys                 keyMap
 	locations            paths.Locations
 	viewport             viewport.Model
 	overrides            loopOverrides
@@ -120,10 +121,11 @@ func (l loopLogger) WriteLine(line string) {
 	}
 }
 
-func newLoopView(cfg config.Config, locations paths.Locations) *loopView {
+func newLoopView(cfg config.Config, locations paths.Locations, keys keyMap) *loopView {
 	vp := viewport.New(80, 20)
 	return &loopView{
 		cfg:       cfg,
+		keys:      keys,
 		locations: locations,
 		viewport:  vp,
 		logBuf:    newLogLineBuffer(2000, 1500),
@@ -379,13 +381,12 @@ func (l *loopView) controlsView() string {
 			fmt.Sprintf("Reasoning effort: %s (effective: %s)", runnerargs.DisplayEffort(l.overrides.ReasoningEffort), effectiveLabel),
 			fmt.Sprintf("Force context_builder: %s (mandatory: %s)", yesNo(l.overrides.ForceContextBuilder), yesNo(mandatory)),
 		)
-		lines = append(lines, "Keys: r run once | c continuous | s stop | e edit overrides | p force ctx builder | shift+p pin | shift+l logs")
 	} else {
 		lines = append(lines,
 			"Reasoning effort: n/a (runner does not support reasoning effort/context_builder)",
-			"Keys: r run once | c continuous | s stop | e edit overrides | shift+p pin | shift+l logs",
 		)
 	}
+	lines = append(lines, renderKeyHints("Keys", loopKeyHintBindings(l.keys, l.mode, supportsEffort)))
 	return strings.Join(lines, "\n")
 }
 
@@ -425,11 +426,7 @@ func (l *loopView) runControlsView() string {
 	if !supportsEffort {
 		lines = append(lines, "Reasoning effort/context_builder: n/a (runner does not support these settings)")
 	}
-	if supportsEffort {
-		lines = append(lines, "Keys: s stop | e edit overrides | p force ctx builder | shift+p pin | shift+l logs")
-	} else {
-		lines = append(lines, "Keys: s stop | e edit overrides | shift+p pin | shift+l logs")
-	}
+	lines = append(lines, renderKeyHints("Keys", loopKeyHintBindings(l.keys, l.mode, supportsEffort)))
 	return strings.Join(lines, "\n")
 }
 

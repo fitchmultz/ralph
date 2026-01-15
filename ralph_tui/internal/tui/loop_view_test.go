@@ -16,7 +16,7 @@ import (
 )
 
 func TestLoopStopTransitionsToStopping(t *testing.T) {
-	view := newLoopView(testLoopConfig(), paths.Locations{})
+	view := newLoopView(testLoopConfig(), paths.Locations{}, newTestKeyMap())
 	view.mode = loopRunning
 	cancelled := false
 	view.cancel = func() { cancelled = true }
@@ -35,7 +35,7 @@ func TestLoopStopTransitionsToStopping(t *testing.T) {
 }
 
 func TestLoopLogBatchIgnoresStaleRun(t *testing.T) {
-	view := newLoopView(testLoopConfig(), paths.Locations{})
+	view := newLoopView(testLoopConfig(), paths.Locations{}, newTestKeyMap())
 	view.logRunID = 2
 
 	_ = view.Update(loopLogBatchMsg{
@@ -48,7 +48,7 @@ func TestLoopLogBatchIgnoresStaleRun(t *testing.T) {
 }
 
 func TestLoopLogBatchAppendsAndCloses(t *testing.T) {
-	view := newLoopView(testLoopConfig(), paths.Locations{})
+	view := newLoopView(testLoopConfig(), paths.Locations{}, newTestKeyMap())
 	view.logRunID = 1
 	view.logCh = make(chan string)
 
@@ -74,7 +74,7 @@ func TestLoopLogBatchAppendsAndCloses(t *testing.T) {
 }
 
 func TestLoopLogFlushesSmallBatchWhileRunning(t *testing.T) {
-	view := newLoopView(testLoopConfig(), paths.Locations{})
+	view := newLoopView(testLoopConfig(), paths.Locations{}, newTestKeyMap())
 	view.mode = loopRunning
 	view.logRunID = 1
 
@@ -88,7 +88,7 @@ func TestLoopLogFlushesSmallBatchWhileRunning(t *testing.T) {
 }
 
 func TestLoopStateUpdatesAndClears(t *testing.T) {
-	view := newLoopView(testLoopConfig(), paths.Locations{})
+	view := newLoopView(testLoopConfig(), paths.Locations{}, newTestKeyMap())
 	view.stateRunID = 2
 	view.stateCh = make(chan loop.State)
 
@@ -114,7 +114,7 @@ func TestLoopStateUpdatesAndClears(t *testing.T) {
 }
 
 func TestLoopStateLatestOnlyAfterManyUpdates(t *testing.T) {
-	view := newLoopView(testLoopConfig(), paths.Locations{})
+	view := newLoopView(testLoopConfig(), paths.Locations{}, newTestKeyMap())
 	view.stateRunID = 1
 	stateCh := make(chan loop.State, 1)
 	view.stateCh = stateCh
@@ -144,7 +144,7 @@ func TestLoopStateLatestOnlyAfterManyUpdates(t *testing.T) {
 }
 
 func TestLoopStateIgnoresStaleRun(t *testing.T) {
-	view := newLoopView(testLoopConfig(), paths.Locations{})
+	view := newLoopView(testLoopConfig(), paths.Locations{}, newTestKeyMap())
 	view.stateRunID = 3
 
 	_ = view.Update(loopStateMsg{
@@ -158,7 +158,7 @@ func TestLoopStateIgnoresStaleRun(t *testing.T) {
 }
 
 func TestLoopRunControlsShowSingleIterationWhenOnce(t *testing.T) {
-	view := newLoopView(testLoopConfig(), paths.Locations{})
+	view := newLoopView(testLoopConfig(), paths.Locations{}, newTestKeyMap())
 	view.mode = loopRunning
 	view.state = loop.State{Mode: loop.ModeOnce}
 	view.overrides.MaxIterations = 9
@@ -172,7 +172,7 @@ func TestLoopRunControlsShowSingleIterationWhenOnce(t *testing.T) {
 func TestLoopControlsHideEffortWhenRunnerUnsupported(t *testing.T) {
 	cfg := testLoopConfig()
 	cfg.Loop.Runner = "opencode"
-	view := newLoopView(cfg, paths.Locations{})
+	view := newLoopView(cfg, paths.Locations{}, newTestKeyMap())
 
 	controls := view.controlsView()
 
@@ -182,7 +182,7 @@ func TestLoopControlsHideEffortWhenRunnerUnsupported(t *testing.T) {
 	if strings.Contains(controls, "mandatory:") {
 		t.Fatalf("expected no mandatory label for opencode, got %q", controls)
 	}
-	if strings.Contains(controls, "p force ctx builder") {
+	if strings.Contains(controls, "p force context_builder") {
 		t.Fatalf("expected context builder key hint to be hidden for opencode, got %q", controls)
 	}
 	if !strings.Contains(controls, "Reasoning effort: n/a") {
@@ -194,7 +194,7 @@ func TestLoopControlsShowEffortWhenRunnerSupported(t *testing.T) {
 	cfg := testLoopConfig()
 	cfg.Loop.Runner = "codex"
 	cfg.Loop.ReasoningEffort = "auto"
-	view := newLoopView(cfg, paths.Locations{})
+	view := newLoopView(cfg, paths.Locations{}, newTestKeyMap())
 
 	controls := view.controlsView()
 
@@ -204,7 +204,7 @@ func TestLoopControlsShowEffortWhenRunnerSupported(t *testing.T) {
 	if !strings.Contains(controls, "Force context_builder") {
 		t.Fatalf("expected context builder controls for codex, got %q", controls)
 	}
-	if !strings.Contains(controls, "p force ctx builder") {
+	if !strings.Contains(controls, "p force context_builder") {
 		t.Fatalf("expected context builder key hint for codex, got %q", controls)
 	}
 }
@@ -236,7 +236,7 @@ func TestLoopStartBlocksOnDirtyRepoPolicyError(t *testing.T) {
 	cfg := testLoopConfig()
 	cfg.Loop.DirtyRepo.StartPolicy = "error"
 	cfg.Loop.DirtyRepo.AllowUntracked = true
-	view := newLoopView(cfg, paths.Locations{RepoRoot: repoRoot})
+	view := newLoopView(cfg, paths.Locations{RepoRoot: repoRoot}, newTestKeyMap())
 
 	_ = view.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}}, newKeyMap())
 

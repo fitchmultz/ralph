@@ -47,7 +47,9 @@ func (m model) dashboardView() string {
 	}
 
 	lines = append(lines, "")
-	lines = append(lines, "Actions: r loop once | f fixup blocked | b build specs")
+	if actions := dashboardActionLine(m.keys); actions != "" {
+		lines = append(lines, actions)
+	}
 
 	return withFinalNewline(strings.Join(lines, "\n"))
 }

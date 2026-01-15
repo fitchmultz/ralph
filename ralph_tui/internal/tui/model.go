@@ -19,6 +19,7 @@ import (
 	"github.com/mitchfultz/ralph/ralph_tui/internal/loop"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/paths"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/pin"
+	"github.com/mitchfultz/ralph/ralph_tui/internal/runnerargs"
 )
 
 // StartOptions provides override layers that should be preserved during reloads.
@@ -155,12 +156,13 @@ func newModel(cfg config.Config, locations paths.Locations, opts StartOptions) m
 		err = pinErr
 	}
 
-	specsView, specsErr := newSpecsView(cfg, locations)
+	keys := newKeyMap()
+	specsView, specsErr := newSpecsView(cfg, locations, keys)
 	if err == nil {
 		err = specsErr
 	}
 
-	loopView := newLoopView(cfg, locations)
+	loopView := newLoopView(cfg, locations, keys)
 	logsView := newLogsView("")
 	runCtx, runCancel := context.WithCancel(context.Background())
 
@@ -168,7 +170,7 @@ func newModel(cfg config.Config, locations paths.Locations, opts StartOptions) m
 		nav:               l,
 		screen:            screenDashboard,
 		help:              help.New(),
-		keys:              newKeyMap(),
+		keys:              keys,
 		searchInput:       searchInput,
 		priorNavSelected:  l.Index(),
 		navFocused:        true,
@@ -1343,9 +1345,17 @@ func (m *model) screenKeyMap() help.KeyMap {
 	case screenPin:
 		return pinKeyMap{keys: m.keys}
 	case screenBuildSpecs:
-		return specsKeyMap{keys: m.keys}
+		running := false
+		if m.specsView != nil {
+			running = m.specsView.running
+		}
+		return specsKeyMap{keys: m.keys, running: running}
 	case screenRunLoop:
-		return loopKeyMap{keys: m.keys}
+		supportsEffort := false
+		if m.loopView != nil {
+			supportsEffort = runnerargs.SupportsReasoningEffort(m.loopView.overrides.Runner)
+		}
+		return loopKeyMap{keys: m.keys, mode: m.loopMode(), supportsEffort: supportsEffort}
 	case screenLogs:
 		return logsKeyMap{keys: m.keys}
 	default:

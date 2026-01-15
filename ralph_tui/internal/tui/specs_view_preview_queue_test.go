@@ -5,7 +5,7 @@ import "testing"
 
 func TestSpecsPreviewQueueRefreshWhenLoading(t *testing.T) {
 	_, locs, cfg := newHermeticModel(t)
-	view, err := newSpecsView(cfg, locs)
+	view, err := newSpecsView(cfg, locs, newTestKeyMap())
 	if err != nil {
 		t.Fatalf("newSpecsView failed: %v", err)
 	}

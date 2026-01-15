@@ -57,27 +57,30 @@ func (p pinKeyMap) FullHelp() [][]key.Binding {
 }
 
 type specsKeyMap struct {
-	keys keyMap
+	keys    keyMap
+	running bool
 }
 
 func (s specsKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{s.keys.EditSpecsSettings, s.keys.ToggleInteractive, s.keys.ToggleInnovate, s.keys.ToggleScoutWorkflow, s.keys.RunSpecs, s.keys.StopSpecs}
+	return specsKeyHintBindings(s.keys, s.running)
 }
 
 func (s specsKeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{{s.keys.EditSpecsSettings, s.keys.ToggleInteractive, s.keys.ToggleInnovate, s.keys.ToggleAutofill, s.keys.ToggleScoutWorkflow, s.keys.EditUserFocus}, {s.keys.RunSpecs, s.keys.StopSpecs}}
+	return specsKeyHelpGroups(s.keys, s.running)
 }
 
 type loopKeyMap struct {
-	keys keyMap
+	keys           keyMap
+	mode           loopMode
+	supportsEffort bool
 }
 
 func (l loopKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{l.keys.RunLoopOnce, l.keys.RunLoopContinuous, l.keys.StopLoop, l.keys.EditLoopConfig, l.keys.JumpToPin, l.keys.JumpToLogs}
+	return loopKeyHintBindings(l.keys, l.mode, l.supportsEffort)
 }
 
 func (l loopKeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{{l.keys.RunLoopOnce, l.keys.RunLoopContinuous, l.keys.StopLoop, l.keys.EditLoopConfig, l.keys.JumpToPin, l.keys.JumpToLogs}}
+	return [][]key.Binding{l.ShortHelp()}
 }
 
 type dashboardKeyMap struct {

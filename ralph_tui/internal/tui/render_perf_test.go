@@ -35,7 +35,7 @@ func BenchmarkLogsViewRefresh_NoChanges(b *testing.B) {
 func BenchmarkLoopViewAppendLogLines(b *testing.B) {
 	b.ReportAllocs()
 
-	view := newLoopView(testLoopConfig(), paths.Locations{})
+	view := newLoopView(testLoopConfig(), paths.Locations{}, newTestKeyMap())
 	view.mode = loopRunning
 	batch := makeBenchmarkLines("loop", 64)
 
@@ -63,7 +63,7 @@ func BenchmarkSpecsViewAppendRunLogs(b *testing.B) {
 		HomeDir:  repoRoot,
 	}
 
-	view, err := newSpecsView(cfg, locs)
+	view, err := newSpecsView(cfg, locs, newTestKeyMap())
 	if err != nil {
 		b.Fatalf("newSpecsView failed: %v", err)
 	}

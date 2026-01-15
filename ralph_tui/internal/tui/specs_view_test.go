@@ -29,7 +29,7 @@ func setSpecsRunOutput(view *specsView, lines []string) {
 
 func TestSpecsPreviewRefreshSetsLoading(t *testing.T) {
 	_, locs, cfg := newHermeticModel(t)
-	view, err := newSpecsView(cfg, locs)
+	view, err := newSpecsView(cfg, locs, newTestKeyMap())
 	if err != nil {
 		t.Fatalf("newSpecsView failed: %v", err)
 	}
@@ -49,7 +49,7 @@ func TestSpecsPreviewRefreshSetsLoading(t *testing.T) {
 
 func TestSpecsPreviewRendererCachesByWidth(t *testing.T) {
 	_, locs, cfg := newHermeticModel(t)
-	view, err := newSpecsView(cfg, locs)
+	view, err := newSpecsView(cfg, locs, newTestKeyMap())
 	if err != nil {
 		t.Fatalf("newSpecsView failed: %v", err)
 	}
@@ -110,7 +110,7 @@ func TestSpecsPreviewRendererCachesByWidth(t *testing.T) {
 
 func TestSpecsPreviewSkipsRenderWhenInputsUnchanged(t *testing.T) {
 	_, locs, cfg := newHermeticModel(t)
-	view, err := newSpecsView(cfg, locs)
+	view, err := newSpecsView(cfg, locs, newTestKeyMap())
 	if err != nil {
 		t.Fatalf("newSpecsView failed: %v", err)
 	}
@@ -150,7 +150,7 @@ func TestSpecsPreviewSkipsRenderWhenInputsUnchanged(t *testing.T) {
 
 func TestSpecsViewTogglesMarkExplicit(t *testing.T) {
 	_, locs, cfg := newHermeticModel(t)
-	view, err := newSpecsView(cfg, locs)
+	view, err := newSpecsView(cfg, locs, newTestKeyMap())
 	if err != nil {
 		t.Fatalf("newSpecsView failed: %v", err)
 	}
@@ -169,7 +169,7 @@ func TestSpecsViewTogglesMarkExplicit(t *testing.T) {
 
 func TestSpecsViewConfigReloadResetsExplicitAutofill(t *testing.T) {
 	_, locs, cfg := newHermeticModel(t)
-	view, err := newSpecsView(cfg, locs)
+	view, err := newSpecsView(cfg, locs, newTestKeyMap())
 	if err != nil {
 		t.Fatalf("newSpecsView failed: %v", err)
 	}
