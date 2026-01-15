@@ -1,6 +1,15 @@
 # Implementation Done
 
 ## Done
+- [x] RQ-0432 [code]: Make pin file writes atomic + lock-protected (prevent corruption/lost edits when loop/TUI/user all touch pin files). (ralph_tui/internal/pin/pin.go, ralph_tui/internal/config/save.go, ralph_tui/internal/loop/loop.go)
+  - Evidence:
+    - `pin.writeLines()` uses `os.WriteFile()` directly, which is not atomic and can leave partial/truncated pin files if the process is interrupted mid-write.
+    - Pin operations (`MoveCheckedToDone`, `BlockItem`, `ToggleQueueItemChecked`) read-modify-write without any cross-process locking, so concurrent edits (e.g., user editing queue while the loop is running) can be lost.
+    - The loop runner treats pin corruption as a hard failure and may quarantine/reset the repo, amplifying a simple write race into major data loss.
+  - Plan:
+    - Add an atomic write helper (temp file + fsync + rename) and use it for pin + config writes.
+    - Add a lightweight lock (e.g., `.ralph/pin/.lock` or OS-level file lock) so only one process modifies pin files at a time; return a clear error when the lock is held instead of corrupting files.
+    - Add tests that simulate concurrent pin operations and assert the queue/done files remain valid + no data is lost.
 - [x] RQ-0431 [ui]: Fix search/command palette UX (arrow-key navigation, correct focus highlight, and clear target switching between Nav vs Pin). (ralph_tui/internal/tui/model.go, ralph_tui/internal/tui/keymap.go, ralph_tui/internal/tui/help_keymap.go)
   - Evidence:
     - When `searchActive` is true, `model.Update()` routes key events to `updateSearch()` but does not call `nav.Update()`, so Up/Down cannot reliably change the selected screen during search.

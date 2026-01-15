@@ -7,7 +7,10 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
+
+	"github.com/mitchfultz/ralph/ralph_tui/internal/lockfile"
 )
 
 type fixturePaths struct {
@@ -344,6 +347,108 @@ func TestRecordFixupAttempt(t *testing.T) {
 	}
 	if !foundAttempts || !foundLast {
 		t.Fatalf("expected fixup attempt metadata to be appended")
+	}
+}
+
+func TestPinLockPreventsWrite(t *testing.T) {
+	fixture := mustLocateFixtures(t)
+
+	tmpDir := t.TempDir()
+	queuePath := copyFixture(t, fixture.queue, filepath.Join(tmpDir, "implementation_queue.md"))
+	_ = copyFixture(t, fixture.done, filepath.Join(tmpDir, "implementation_done.md"))
+
+	original, err := os.ReadFile(queuePath)
+	if err != nil {
+		t.Fatalf("read queue: %v", err)
+	}
+
+	lock, err := lockfile.Acquire(filepath.Join(filepath.Dir(queuePath), ".lock"), lockfile.AcquireOptions{})
+	if err != nil {
+		t.Fatalf("acquire lock: %v", err)
+	}
+
+	_, _, err = ToggleQueueItemChecked(queuePath, "RQ-0001")
+	if err == nil {
+		lock.Release()
+		t.Fatalf("expected lock error")
+	}
+	if !strings.Contains(err.Error(), "pin files are locked") {
+		lock.Release()
+		t.Fatalf("expected pin lock error, got %v", err)
+	}
+
+	after, err := os.ReadFile(queuePath)
+	if err != nil {
+		lock.Release()
+		t.Fatalf("read queue after: %v", err)
+	}
+	if string(after) != string(original) {
+		lock.Release()
+		t.Fatalf("queue content changed despite lock")
+	}
+
+	lock.Release()
+
+	_, checked, err := ToggleQueueItemChecked(queuePath, "RQ-0001")
+	if err != nil {
+		t.Fatalf("ToggleQueueItemChecked failed after release: %v", err)
+	}
+	if !checked {
+		t.Fatalf("expected item to be checked after release")
+	}
+}
+
+func TestConcurrentPinMoveCheckedToDone(t *testing.T) {
+	fixture := mustLocateFixtures(t)
+
+	tmpDir := t.TempDir()
+	queuePath := copyFixture(t, fixture.queue, filepath.Join(tmpDir, "implementation_queue.md"))
+	donePath := copyFixture(t, fixture.done, filepath.Join(tmpDir, "implementation_done.md"))
+	lookupPath := copyFixture(t, fixture.lookup, filepath.Join(tmpDir, "lookup_table.md"))
+	readmePath := copyFixture(t, fixture.readme, filepath.Join(tmpDir, "README.md"))
+
+	start := make(chan struct{})
+	results := make(chan error, 2)
+	var wg sync.WaitGroup
+
+	for i := 0; i < 2; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			_, err := MoveCheckedToDone(queuePath, donePath, true)
+			results <- err
+		}()
+	}
+
+	close(start)
+	wg.Wait()
+	close(results)
+
+	successes := 0
+	failures := 0
+	for err := range results {
+		if err == nil {
+			successes++
+			continue
+		}
+		if !strings.Contains(err.Error(), "pin files are locked") {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		failures++
+	}
+
+	if successes != 1 || failures != 1 {
+		t.Fatalf("expected 1 success/1 failure, got %d success/%d failure", successes, failures)
+	}
+
+	if err := ValidatePin(Files{
+		QueuePath:  queuePath,
+		DonePath:   donePath,
+		LookupPath: lookupPath,
+		ReadmePath: readmePath,
+	}); err != nil {
+		t.Fatalf("ValidatePin failed after concurrent move: %v", err)
 	}
 }
 

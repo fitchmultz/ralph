@@ -6,6 +6,8 @@
 | config | Config models and save/load logic for the Ralph TUI live in `ralph_tui/internal/config/`. |
 | tui | Ralph TUI layout, keybindings, and view behavior live in `ralph_tui/internal/tui/`. |
 | loop | Supervised loop runner, git helpers, and redaction live in `ralph_tui/internal/loop/`. |
+| lockfile | Directory-based lock helper shared across Ralph (`ralph_tui/internal/lockfile/`). |
+| fileutil | Atomic file write helpers shared across Ralph (`ralph_tui/internal/fileutil/`). |
 | procgroup | Shared process-group cancellation helpers live in `ralph_tui/internal/procgroup/`. |
 | redaction | Redaction modes and env key classification live in `ralph_tui/internal/redaction/`. |
 | queueid | Shared queue item ID parsing lives in `ralph_tui/internal/queueid/`. |

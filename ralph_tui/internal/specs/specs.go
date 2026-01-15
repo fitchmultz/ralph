@@ -11,9 +11,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 
+	"github.com/mitchfultz/ralph/ralph_tui/internal/lockfile"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/procgroup"
 )
 
@@ -295,42 +295,11 @@ func AcquireLock(repoRoot string) (*Lock, error) {
 
 	lockID := lockChecksum(repoRoot)
 	lockDir := filepath.Join(strings.TrimRight(lockBase, string(os.PathSeparator)), fmt.Sprintf("ralph.lock.%s", lockID))
-	lockPid := filepath.Join(lockDir, "owner.pid")
-
-	if err := os.Mkdir(lockDir, 0o700); err == nil {
-		if err := os.WriteFile(lockPid, []byte(strconv.Itoa(os.Getpid())), 0o600); err != nil {
-			return nil, err
-		}
-		return &Lock{dir: lockDir, acquired: true}, nil
-	} else if !os.IsExist(err) {
+	lock, err := lockfile.Acquire(lockDir, lockfile.AcquireOptions{AllowAncestor: true})
+	if err != nil {
 		return nil, err
 	}
-
-	ownerPID, err := os.ReadFile(lockPid)
-	if err != nil {
-		return nil, fmt.Errorf("Ralph lock exists but owner pid file is missing. Remove %s to clear the lock.", lockDir)
-	}
-	pidStr := strings.TrimSpace(string(ownerPID))
-	if pidStr == "" {
-		return nil, fmt.Errorf("Ralph lock exists but owner pid file is missing. Remove %s to clear the lock.", lockDir)
-	}
-
-	pid, err := strconv.Atoi(pidStr)
-	if err == nil && isAncestorPID(pid) {
-		return &Lock{dir: lockDir, acquired: false}, nil
-	}
-
-	if err == nil && !isPIDRunning(pid) {
-		_ = os.RemoveAll(lockDir)
-		if err := os.Mkdir(lockDir, 0o700); err == nil {
-			if err := os.WriteFile(lockPid, []byte(strconv.Itoa(os.Getpid())), 0o600); err != nil {
-				return nil, err
-			}
-			return &Lock{dir: lockDir, acquired: true}, nil
-		}
-	}
-
-	return nil, fmt.Errorf("Another Ralph process is running (lock: %s).", lockDir)
+	return &Lock{dir: lock.Dir(), acquired: lock.Acquired()}, nil
 }
 
 // Lock represents an acquired Ralph lock.
@@ -518,41 +487,6 @@ func uncheckedQueueCount(queuePath string) (int, error) {
 
 func lockChecksum(repoRoot string) string {
 	return fmt.Sprintf("%x", crc32.ChecksumIEEE([]byte(repoRoot)))
-}
-
-func isPIDRunning(pid int) bool {
-	cmd := exec.Command("ps", "-p", strconv.Itoa(pid))
-	cmd.Stdout = nil
-	cmd.Stderr = nil
-	return cmd.Run() == nil
-}
-
-func isAncestorPID(ancestorPID int) bool {
-	currentPID := os.Getpid()
-	for currentPID > 1 {
-		if currentPID == ancestorPID {
-			return true
-		}
-		ppid, err := parentPID(currentPID)
-		if err != nil || ppid == 0 {
-			return false
-		}
-		currentPID = ppid
-	}
-	return false
-}
-
-func parentPID(pid int) (int, error) {
-	cmd := exec.Command("ps", "-o", "ppid=", "-p", strconv.Itoa(pid))
-	output, err := cmd.Output()
-	if err != nil {
-		return 0, err
-	}
-	trimmed := strings.TrimSpace(string(output))
-	if trimmed == "" {
-		return 0, nil
-	}
-	return strconv.Atoi(trimmed)
 }
 
 // GitDiffStat returns git diff --stat output for the repo.

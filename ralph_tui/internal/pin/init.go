@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/mitchfultz/ralph/ralph_tui/internal/fileutil"
 )
 
 // InitOptions configures how pin initialization behaves.
@@ -41,6 +43,12 @@ func InitLayout(pinDir string, cacheDir string, opts InitOptions) (InitResult, e
 	if err := os.MkdirAll(cleanCacheDir, 0o755); err != nil {
 		return InitResult{}, err
 	}
+
+	lock, err := acquirePinLock(cleanPinDir)
+	if err != nil {
+		return InitResult{}, err
+	}
+	defer lock.Release()
 
 	files := ResolveFiles(cleanPinDir)
 	entries := []struct {
@@ -139,7 +147,7 @@ func writeContent(path string, content string) error {
 	if !strings.HasSuffix(payload, "\n") {
 		payload += "\n"
 	}
-	return os.WriteFile(path, []byte(payload), 0o600)
+	return fileutil.WriteFileAtomic(path, []byte(payload), 0o600)
 }
 
 func fileIsMissing(path string) (bool, error) {

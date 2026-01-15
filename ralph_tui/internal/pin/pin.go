@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/mitchfultz/ralph/ralph_tui/internal/fileutil"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/queueid"
 )
 
@@ -201,6 +202,12 @@ func ReadQueueItems(queuePath string) ([]QueueItem, error) {
 
 // MoveCheckedToDone moves checked blocks from Queue to Done.
 func MoveCheckedToDone(queuePath string, donePath string, prepend bool) ([]string, error) {
+	lock, err := acquirePinLock(filepath.Dir(queuePath))
+	if err != nil {
+		return nil, err
+	}
+	defer lock.Release()
+
 	if err := requireFile(queuePath); err != nil {
 		return nil, err
 	}
@@ -289,6 +296,12 @@ type Metadata struct {
 
 // BlockItem moves a queue item into Blocked and appends metadata.
 func BlockItem(queuePath string, itemID string, reasonLines []string, metadata Metadata) (bool, error) {
+	lock, err := acquirePinLock(filepath.Dir(queuePath))
+	if err != nil {
+		return false, err
+	}
+	defer lock.Release()
+
 	if err := requireFile(queuePath); err != nil {
 		return false, err
 	}
@@ -359,6 +372,12 @@ func BlockItem(queuePath string, itemID string, reasonLines []string, metadata M
 
 // RequeueBlockedItem moves a Blocked item back to the Queue section.
 func RequeueBlockedItem(queuePath string, itemID string, opts RequeueOptions) (bool, error) {
+	lock, err := acquirePinLock(filepath.Dir(queuePath))
+	if err != nil {
+		return false, err
+	}
+	defer lock.Release()
+
 	if err := requireFile(queuePath); err != nil {
 		return false, err
 	}
@@ -425,6 +444,12 @@ func RequeueBlockedItem(queuePath string, itemID string, opts RequeueOptions) (b
 
 // RecordFixupAttempt increments the fixup attempt counter for a blocked item.
 func RecordFixupAttempt(queuePath string, itemID string, last string) (bool, int, error) {
+	lock, err := acquirePinLock(filepath.Dir(queuePath))
+	if err != nil {
+		return false, 0, err
+	}
+	defer lock.Release()
+
 	if err := requireFile(queuePath); err != nil {
 		return false, 0, err
 	}
@@ -476,6 +501,12 @@ func RecordFixupAttempt(queuePath string, itemID string, last string) (bool, int
 
 // ToggleQueueItemChecked flips the checked state for a queue item by ID.
 func ToggleQueueItemChecked(queuePath string, itemID string) (bool, bool, error) {
+	lock, err := acquirePinLock(filepath.Dir(queuePath))
+	if err != nil {
+		return false, false, err
+	}
+	defer lock.Release()
+
 	if err := requireFile(queuePath); err != nil {
 		return false, false, err
 	}
@@ -977,7 +1008,7 @@ func readLines(path string) ([]string, error) {
 
 func writeLines(path string, lines []string) error {
 	payload := strings.Join(lines, "\n") + "\n"
-	return os.WriteFile(path, []byte(payload), 0o600)
+	return fileutil.WriteFileAtomic(path, []byte(payload), 0o600)
 }
 
 func requireFile(path string) error {

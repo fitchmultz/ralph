@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/mitchfultz/ralph/ralph_tui/internal/fileutil"
 )
 
 // SaveOptions controls how config is written.
@@ -28,7 +30,7 @@ func SavePartial(path string, partial PartialConfig, opts SaveOptions) error {
 		return err
 	}
 
-	return os.WriteFile(path, payload, 0o600)
+	return fileutil.WriteFileAtomic(path, payload, 0o600)
 }
 
 func preparePartialForSave(partial PartialConfig, relativeRoot string) PartialConfig {
