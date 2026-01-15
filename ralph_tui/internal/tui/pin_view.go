@@ -36,6 +36,7 @@ type pinReloadMsg struct {
 	rows        []table.Row
 	queueStamp  fileStamp
 	err         error
+	stampErr    error
 	resetScroll bool
 }
 
@@ -55,6 +56,7 @@ type pinView struct {
 	blockReason string
 	config      config.Config
 	locations   paths.Locations
+	logger      *tuiLogger
 	width       int
 	height      int
 	queueStamp  fileStamp
@@ -99,6 +101,8 @@ func (p *pinView) Update(msg tea.Msg, keys keyMap) tea.Cmd {
 	}
 
 	if reloadMsg, ok := msg.(pinReloadMsg); ok {
+		prevSelectedID := p.selectedItemID()
+		prevDetailOffset := p.detail.YOffset
 		p.loading = false
 		if reloadMsg.err != nil {
 			p.err = reloadMsg.err.Error()
@@ -109,9 +113,21 @@ func (p *pinView) Update(msg tea.Msg, keys keyMap) tea.Cmd {
 		p.err = ""
 		p.items = reloadMsg.items
 		p.table.SetRows(reloadMsg.rows)
-		p.queueStamp = reloadMsg.queueStamp
+		if reloadMsg.stampErr == nil {
+			p.queueStamp = reloadMsg.queueStamp
+		}
+		p.restoreSelection(prevSelectedID)
+		p.clampCursor()
 		p.setTableColumns(p.width)
-		p.syncDetail(reloadMsg.resetScroll)
+		sameSelection := prevSelectedID != "" && prevSelectedID == p.selectedItemID()
+		if reloadMsg.stampErr != nil {
+			p.setRefreshError("Pin file watch error", reloadMsg.stampErr)
+		}
+		if sameSelection && !reloadMsg.resetScroll {
+			p.syncDetailWithOffset(false, prevDetailOffset)
+		} else {
+			p.syncDetail(reloadMsg.resetScroll || !sameSelection)
+		}
 		if p.reloadAgain {
 			p.reloadAgain = false
 			return p.reloadAsync(false)
@@ -241,6 +257,54 @@ func (p *pinView) selectedItem() *pin.QueueItem {
 	return &p.items[idx]
 }
 
+func (p *pinView) selectedItemID() string {
+	item := p.selectedItem()
+	if item == nil {
+		return ""
+	}
+	return item.ID
+}
+
+func (p *pinView) restoreSelection(selectedID string) {
+	if selectedID == "" {
+		return
+	}
+	for idx, item := range p.items {
+		if item.ID == selectedID {
+			p.table.SetCursor(idx)
+			return
+		}
+	}
+}
+
+func (p *pinView) clampCursor() {
+	count := len(p.items)
+	cursor := p.table.Cursor()
+	if count <= 0 {
+		p.table.SetCursor(0)
+		return
+	}
+	if cursor < 0 {
+		p.table.SetCursor(0)
+		return
+	}
+	if cursor >= count {
+		p.table.SetCursor(count - 1)
+		return
+	}
+}
+
+func (p *pinView) setRefreshError(prefix string, err error) {
+	if err == nil {
+		return
+	}
+	p.err = fmt.Sprintf("%s: %s", prefix, err.Error())
+	p.status = ""
+	if p.logger != nil {
+		p.logger.Error(prefix, map[string]any{"error": err.Error()})
+	}
+}
+
 func (p *pinView) reload() error {
 	items, err := pin.ReadQueueItems(p.files.QueuePath)
 	if err != nil {
@@ -259,6 +323,8 @@ func (p *pinView) reload() error {
 	p.setTableColumns(p.width)
 	if stamp, err := getFileStamp(p.files.QueuePath); err == nil {
 		p.queueStamp = stamp
+	} else {
+		p.setRefreshError("Pin file watch error", err)
 	}
 	p.syncDetail(true)
 	return nil
@@ -288,10 +354,19 @@ func (p *pinView) reloadAsync(resetScroll bool) tea.Cmd {
 			rows = append(rows, table.Row{status, item.ID, trimTitle(item.Header)})
 		}
 		var stamp fileStamp
+		var stampErr error
 		if current, err := getFileStamp(files.QueuePath); err == nil {
 			stamp = current
+		} else {
+			stampErr = err
 		}
-		return pinReloadMsg{items: items, rows: rows, queueStamp: stamp, resetScroll: resetScroll}
+		return pinReloadMsg{
+			items:       items,
+			rows:        rows,
+			queueStamp:  stamp,
+			stampErr:    stampErr,
+			resetScroll: resetScroll,
+		}
 	}
 }
 
@@ -422,6 +497,20 @@ func (p *pinView) syncDetail(resetScroll bool) {
 	}
 }
 
+func (p *pinView) syncDetailWithOffset(resetScroll bool, offset int) {
+	item := p.selectedItem()
+	content := "No item selected."
+	if item != nil {
+		content = strings.Join(item.Lines, "\n")
+	}
+	p.detail.SetContent(content)
+	if resetScroll {
+		p.detail.GotoTop()
+		return
+	}
+	p.detail.SetYOffset(offset)
+}
+
 func (p *pinView) SetConfig(cfg config.Config, locations paths.Locations) error {
 	p.config = cfg
 	p.locations = locations
@@ -435,6 +524,7 @@ func (p *pinView) RefreshIfNeeded() tea.Cmd {
 	}
 	stamp, changed, err := fileChanged(p.files.QueuePath, p.queueStamp)
 	if err != nil {
+		p.setRefreshError("Pin file watch error", err)
 		return nil
 	}
 	if changed {

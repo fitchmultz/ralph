@@ -807,6 +807,9 @@ func (m *model) setLogger(cfg config.Config) {
 	if m.loopView != nil {
 		m.loopView.logger = m.logger
 	}
+	if m.pinView != nil {
+		m.pinView.logger = m.logger
+	}
 	if m.specsView != nil {
 		m.specsView.logger = m.logger
 	}

@@ -1,9 +1,6 @@
 # Implementation Queue
 
 ## Queue
-- [ ] RQ-0412 [code]: Fix Pin view reload stability (preserve selection/scroll, clamp cursor) and surface file-watch errors instead of silently ignoring them. (ralph_tui/internal/tui/pin_view.go, ralph_tui/internal/tui/file_watch.go)
-  - Evidence: after reloadAsync, the table cursor can point past the new row count and selectedItem() returns nil, which resets the detail pane to "No item selected"; reloadAsync also leaves queueStamp empty when getFileStamp errors, causing repeated reload churn; RefreshIfNeeded ignores watcher/stat errors entirely.
-  - Plan: Preserve selection by queue item ID across reloads (re-select matching row), clamp cursor when rows shrink, and keep detail scroll position when the same item remains selected; record watcher errors in p.err/status (and log via tuiLogger) so failures are visible; add unit tests for cursor clamp + selection preservation.
 - [ ] RQ-0413 [code]: Unify reasoning_effort + runner args handling across TUI and loop runner; make "auto" semantics consistent. (ralph_tui/internal/tui/args_helpers.go, ralph_tui/internal/tui/specs_view.go, ralph_tui/internal/tui/loop_view.go, ralph_tui/internal/loop/loop.go)
   - Evidence: there are two separate effort detection/injection implementations (tui/args_helpers.go and loop/loop.go containsEffort/detectEffort); specsView currently maps "auto" to a hard-coded default ("medium") and injects -c even when the user expects no override, while the loop runner injects its own effort based on [P1], creating confusing mismatches.
   - Plan: Centralize effort parsing/injection into a shared helper and define explicit semantics for auto/off; ensure specs/loop both use the same logic and the UI shows the effective effort being applied; add tests for codex args injection precedence and "auto" behavior.

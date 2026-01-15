@@ -1,6 +1,9 @@
 # Implementation Done
 
 ## Done
+- [x] RQ-0412 [code]: Fix Pin view reload stability (preserve selection/scroll, clamp cursor) and surface file-watch errors instead of silently ignoring them. (ralph_tui/internal/tui/pin_view.go, ralph_tui/internal/tui/file_watch.go)
+  - Evidence: after reloadAsync, the table cursor can point past the new row count and selectedItem() returns nil, which resets the detail pane to "No item selected"; reloadAsync also leaves queueStamp empty when getFileStamp errors, causing repeated reload churn; RefreshIfNeeded ignores watcher/stat errors entirely.
+  - Plan: Preserve selection by queue item ID across reloads (re-select matching row), clamp cursor when rows shrink, and keep detail scroll position when the same item remains selected; record watcher errors in p.err/status (and log via tuiLogger) so failures are visible; add unit tests for cursor clamp + selection preservation.
 - [x] RQ-0411 [code]: Stop dropping loop/specs output under load (channel overflow) and make output capture lossless. (ralph_tui/internal/tui/loop_view.go, ralph_tui/internal/tui/specs_view.go, ralph_tui/internal/tui/stream_writer.go, ralph_tui/internal/tui/output_persistence.go)
   - Evidence: loopView/specsView use non-blocking channel sends with a default drop path when buffers fill (loopLogger.write and logChannelSink.PushLine), which silently loses output on noisy runs. Because persistence writes happen from the same batches, the on-disk output files also miss lines.
   - Plan: Replace drop-on-overflow with a lossless strategy (backpressure, larger buffering, or a dedicated writer goroutine that always persists to disk and only batches UI updates); add a stress/regression test that emits thousands of lines and asserts the persisted output contains expected markers.
