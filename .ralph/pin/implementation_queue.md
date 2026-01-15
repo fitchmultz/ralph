@@ -1,13 +1,6 @@
 # Implementation Queue
 
 ## Queue
-- [ ] RQ-0423 [code]: Fix process-group cancellation reliability (stop/cancel should kill ALL child procs) for loop + specs runners across platforms. (ralph_tui/internal/procgroup/procgroup_unix.go, ralph_tui/internal/loop/exec.go, ralph_tui/internal/specs/specs.go)
-  - Evidence:
-    - `ralph_tui/internal/procgroup/procgroup_unix.go` only overrides `cmd.Cancel` when `cmd.Cancel != nil`; if it is nil (or doesn’t kill the process group), child processes may survive cancel.
-    - Both loop and specs rely on context cancellation to stop runner processes; lingering children are a common "hang/lag" failure mode.
-  - Plan:
-    - Update procgroup configuration to always set up process-group cancellation on Unix (define `cmd.Cancel` to kill PGID, with a safe fallback when `cmd.Process` is nil).
-    - Ensure loop/specs use this consistently and add regression tests (similar to existing specs cancel tests) that confirm child processes die on cancel.
 - [ ] RQ-0424 [code]: Reduce TUI lag during noisy runs by eliminating O(n) log joins and excessive viewport.SetContent churn. (ralph_tui/internal/tui/loop_view.go, ralph_tui/internal/tui/specs_view.go, ralph_tui/internal/tui/logs_view.go)
   - Evidence:
     - `loop_view.appendLogLines()` calls `strings.Join(l.logs, "\n")` on every batch update (logs can reach 2000 lines), which is O(n) per update.
@@ -45,4 +38,16 @@
 
 ## Blocked
 
+- [ ] RQ-0423 [code]: Fix process-group cancellation reliability (stop/cancel should kill ALL child procs) for loop + specs runners across platforms. (ralph_tui/internal/procgroup/procgroup_unix.go, ralph_tui/internal/loop/exec.go, ralph_tui/internal/specs/specs.go)
+  - Evidence:
+    - `ralph_tui/internal/procgroup/procgroup_unix.go` only overrides `cmd.Cancel` when `cmd.Cancel != nil`; if it is nil (or doesn’t kill the process group), child processes may survive cancel.
+    - Both loop and specs rely on context cancellation to stop runner processes; lingering children are a common "hang/lag" failure mode.
+  - Plan:
+    - Update procgroup configuration to always set up process-group cancellation on Unix (define `cmd.Cancel` to kill PGID, with a safe fallback when `cmd.Process` is nil).
+    - Ensure loop/specs use this consistently and add regression tests (similar to existing specs cancel tests) that confirm child processes die on cancel.
+  - Blocked reason: Supervisor runner failed.
+  - Blocked reason: Unblock: Inspect ralph/wip/RQ-0423/20260114_211716 and requeue once fixed.
+  - WIP branch: ralph/wip/RQ-0423/20260114_211716
+  - Known-good: 5e4ca360d82443193a002074dbe82ed5331d899a
+  - Unblock hint: Inspect ralph/wip/RQ-0423/20260114_211716 and requeue once fixed.
 ## Parking Lot
