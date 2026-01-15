@@ -51,7 +51,8 @@ func (c *renderCache) Reset() {
 type logsView struct {
 	viewport                viewport.Model
 	logPath                 string
-	logErr                  string
+	loggerErr               string
+	fileErr                 string
 	lastStamp               fileStamp
 	debugLines              []string
 	loopLines               []string
@@ -82,7 +83,7 @@ func (l *logsView) SetLogPath(path string) {
 		return
 	}
 	l.logPath = path
-	l.logErr = ""
+	l.fileErr = ""
 	l.lastStamp = fileStamp{}
 	l.debugLines = nil
 	l.loopLines = nil
@@ -96,12 +97,12 @@ func (l *logsView) SetLogPath(path string) {
 	l.forceRefresh = true
 }
 
-func (l *logsView) SetError(err error) {
+func (l *logsView) SetLoggerError(err error) {
 	if err == nil {
-		l.logErr = ""
+		l.loggerErr = ""
 		return
 	}
-	l.logErr = err.Error()
+	l.loggerErr = err.Error()
 }
 
 func (l *logsView) Update(msg tea.Msg) tea.Cmd {
@@ -163,21 +164,24 @@ func (l *logsView) Refresh(loopLines []string, specsLines []string) {
 			l.debugCache.Reset()
 			contentChanged = true
 		}
+		if l.fileErr != "" {
+			l.fileErr = ""
+		}
 	} else {
 		stamp, changed, err := fileChanged(l.logPath, l.lastStamp)
 		if err != nil {
-			l.logErr = err.Error()
+			l.fileErr = err.Error()
 		} else if !stamp.Exists {
-			if l.logErr != "" {
-				l.logErr = ""
+			if l.fileErr != "" {
+				l.fileErr = ""
 			}
 			l.lastStamp = stamp
-		} else if changed || l.logErr != "" {
+		} else if changed || l.fileErr != "" {
 			lines, err := tailFileLines(l.logPath, logsTailLines)
 			if err != nil {
-				l.logErr = err.Error()
+				l.fileErr = err.Error()
 			} else {
-				l.logErr = ""
+				l.fileErr = ""
 				l.debugLines = lines
 				l.lastStamp = stamp
 				l.debugCache.Reset()
@@ -194,10 +198,17 @@ func (l *logsView) Refresh(loopLines []string, specsLines []string) {
 }
 
 func (l *logsView) statusLine() string {
-	if l.logErr != "" {
-		return "Error: " + l.logErr
-	}
 	formatNote := "Format: " + l.formatLabel()
+	errParts := make([]string, 0, 2)
+	if l.loggerErr != "" {
+		errParts = append(errParts, "Logger: "+l.loggerErr)
+	}
+	if l.fileErr != "" {
+		errParts = append(errParts, "Read: "+l.fileErr)
+	}
+	if len(errParts) > 0 {
+		return "Error: " + strings.Join(errParts, " | ") + " | " + formatNote
+	}
 	if strings.TrimSpace(l.logPath) == "" {
 		return "Log file unavailable. | " + formatNote
 	}

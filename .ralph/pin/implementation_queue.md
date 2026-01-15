@@ -1,10 +1,6 @@
 # Implementation Queue
 
 ## Queue
-- [ ] RQ-0461 [code]: Don't silently drop TUI logs: capture write/rotation errors and surface them in Logs status. (ralph_tui/internal/tui/logging.go, ralph_tui/internal/tui/logs_view.go, ralph_tui/internal/tui/logging_test.go)
-  - Evidence: `tuiLogger.Log()` ignores file write errors (`written, _ := l.file.Write(...)`) and still increments `fileSize`, so disk-full/permission failures can silently drop logs and leave users with no diagnostics.
-  - Plan: Make logger writes error-aware (capture and expose last error, close/reopen safely, and surface in `logsView.statusLine()`); add tests that simulate write failures and assert the error becomes visible and logging recovers when possible.
-
 - [ ] RQ-0460 [ops]: Make lockfile PID checks and specs lock temp dir portable (Windows-friendly). (ralph_tui/internal/lockfile/lockfile.go, ralph_tui/internal/specs/specs.go)
   - Evidence: `ralph_tui/internal/lockfile/lockfile.go` relies on `ps` for PID checks (`isPIDRunning`, `parentPID`), which is not portable to Windows; `specs.AcquireLock` falls back to hard-coded `/tmp` instead of `os.TempDir()`.
   - Plan: Split lockfile PID logic by platform (build-tagged implementations), switch specs lock base to `os.TempDir()` (and keep TMPDIR override), and add/adjust tests so `go test ./...` remains cross-platform.

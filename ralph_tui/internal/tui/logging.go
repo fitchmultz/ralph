@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -32,16 +33,37 @@ type logEntry struct {
 	Fields    map[string]any `json:"fields,omitempty"`
 }
 
+type tuiLoggerOptions struct {
+	MaxBytes int64
+
+	OpenFile func(name string, flag int, perm os.FileMode) (*os.File, error)
+	Write    func(file *os.File, payload []byte) (int, error)
+	Stat     func(name string) (os.FileInfo, error)
+	Rename   func(oldpath, newpath string) error
+	Remove   func(name string) error
+}
+
 type tuiLogger struct {
 	path     string
 	level    logLevel
 	maxBytes int64
 	file     *os.File
 	fileSize int64
+	lastErr  error
 	mu       sync.Mutex
+
+	openFileFn func(name string, flag int, perm os.FileMode) (*os.File, error)
+	writeFn    func(file *os.File, payload []byte) (int, error)
+	statFn     func(name string) (os.FileInfo, error)
+	renameFn   func(oldpath, newpath string) error
+	removeFn   func(name string) error
 }
 
 func newTUILogger(cfg config.Config) (*tuiLogger, error) {
+	return newTUILoggerWithOptions(cfg, tuiLoggerOptions{})
+}
+
+func newTUILoggerWithOptions(cfg config.Config, opts tuiLoggerOptions) (*tuiLogger, error) {
 	path, err := resolveLogPath(cfg)
 	if err != nil {
 		return nil, err
@@ -50,10 +72,43 @@ func newTUILogger(cfg config.Config) (*tuiLogger, error) {
 		return nil, err
 	}
 
+	maxBytes := opts.MaxBytes
+	if maxBytes <= 0 {
+		maxBytes = maxLogSizeBytes
+	}
+
+	openFileFn := opts.OpenFile
+	if openFileFn == nil {
+		openFileFn = os.OpenFile
+	}
+	writeFn := opts.Write
+	if writeFn == nil {
+		writeFn = func(file *os.File, payload []byte) (int, error) {
+			return file.Write(payload)
+		}
+	}
+	statFn := opts.Stat
+	if statFn == nil {
+		statFn = os.Stat
+	}
+	renameFn := opts.Rename
+	if renameFn == nil {
+		renameFn = os.Rename
+	}
+	removeFn := opts.Remove
+	if removeFn == nil {
+		removeFn = os.Remove
+	}
+
 	logger := &tuiLogger{
-		path:     path,
-		level:    parseLogLevel(cfg.Logging.Level),
-		maxBytes: maxLogSizeBytes,
+		path:       path,
+		level:      parseLogLevel(cfg.Logging.Level),
+		maxBytes:   maxBytes,
+		openFileFn: openFileFn,
+		writeFn:    writeFn,
+		statFn:     statFn,
+		renameFn:   renameFn,
+		removeFn:   removeFn,
 	}
 	if err := logger.openFile(); err != nil {
 		return nil, err
@@ -77,6 +132,15 @@ func (l *tuiLogger) Path() string {
 		return ""
 	}
 	return l.path
+}
+
+func (l *tuiLogger) LastError() error {
+	if l == nil {
+		return nil
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.lastErr
 }
 
 func (l *tuiLogger) Debug(message string, fields map[string]any) {
@@ -111,18 +175,37 @@ func (l *tuiLogger) Log(level logLevel, message string, fields map[string]any) {
 	if err != nil {
 		return
 	}
+	payload = append(payload, '\n')
 
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if err := l.ensureFileLocked(); err != nil {
+		l.setLastErrorLocked(fmt.Errorf("log open/rotate: %w", err))
+		_ = l.closeFileLocked()
 		return
 	}
 	if l.file == nil {
+		l.setLastErrorLocked(errors.New("log file unavailable"))
 		return
 	}
-	written, _ := l.file.Write(append(payload, '\n'))
+	written, err := l.writeFn(l.file, payload)
+	if err != nil {
+		l.setLastErrorLocked(fmt.Errorf("log write: %w", err))
+		_ = l.closeFileLocked()
+		return
+	}
+	if written != len(payload) {
+		l.setLastErrorLocked(fmt.Errorf("log write: %w", io.ErrShortWrite))
+		_ = l.closeFileLocked()
+		return
+	}
 	l.fileSize += int64(written)
-	_ = l.rotateIfNeededLocked()
+	if err := l.rotateIfNeededLocked(); err != nil {
+		l.setLastErrorLocked(fmt.Errorf("log rotate: %w", err))
+		_ = l.closeFileLocked()
+		return
+	}
+	l.clearLastErrorLocked()
 }
 
 func (l *tuiLogger) Close() error {
@@ -147,7 +230,7 @@ func (l *tuiLogger) openFileLocked() error {
 	if err := l.rotateIfNeededLocked(); err != nil {
 		return err
 	}
-	file, err := os.OpenFile(l.path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	file, err := l.openFileFn(l.path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return err
 	}
@@ -173,8 +256,10 @@ func (l *tuiLogger) closeFileLocked() error {
 
 func (l *tuiLogger) ensureFileLocked() error {
 	if l.file != nil {
-		if _, err := os.Stat(l.path); errors.Is(err, os.ErrNotExist) {
+		if _, err := l.statFn(l.path); errors.Is(err, os.ErrNotExist) {
 			_ = l.closeFileLocked()
+		} else if err != nil {
+			return err
 		}
 	}
 	if l.file == nil {
@@ -195,7 +280,7 @@ func (l *tuiLogger) rotateIfNeededLocked() error {
 			return nil
 		}
 	} else {
-		info, err := os.Stat(l.path)
+		info, err := l.statFn(l.path)
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				return nil
@@ -211,12 +296,22 @@ func (l *tuiLogger) rotateIfNeededLocked() error {
 		return err
 	}
 	backup := l.path + ".1"
-	_ = os.Remove(backup)
-	if err := os.Rename(l.path, backup); err != nil {
+	if err := l.removeFn(backup); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	if err := l.renameFn(l.path, backup); err != nil {
 		return err
 	}
 	l.fileSize = 0
 	return nil
+}
+
+func (l *tuiLogger) setLastErrorLocked(err error) {
+	l.lastErr = err
+}
+
+func (l *tuiLogger) clearLastErrorLocked() {
+	l.lastErr = nil
 }
 
 func parseLogLevel(level string) logLevel {

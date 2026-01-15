@@ -1162,6 +1162,7 @@ func (m *model) refreshLogsView() {
 	if m.logsView == nil {
 		return
 	}
+	m.syncLoggerErrorToLogsView()
 	var loopLines []string
 	if m.loopView != nil {
 		loopLines = m.loopView.LogLines()
@@ -1171,6 +1172,23 @@ func (m *model) refreshLogsView() {
 		specsLines = m.specsView.RunLogLines()
 	}
 	m.logsView.Refresh(loopLines, specsLines)
+}
+
+func (m *model) currentLoggerError() error {
+	if m.logErr != nil {
+		return m.logErr
+	}
+	if m.logger != nil {
+		return m.logger.LastError()
+	}
+	return nil
+}
+
+func (m *model) syncLoggerErrorToLogsView() {
+	if m.logsView == nil {
+		return
+	}
+	m.logsView.SetLoggerError(m.currentLoggerError())
 }
 
 func (m *model) updateActiveView(msg tea.Msg) tea.Cmd {
@@ -1221,7 +1239,7 @@ func (m *model) setLogger(cfg config.Config) {
 	}
 	if m.logsView != nil {
 		m.logsView.SetLogPath(logPath)
-		m.logsView.SetError(m.logErr)
+		m.logsView.SetLoggerError(m.currentLoggerError())
 		m.refreshLogsView()
 	}
 	if m.loopView != nil {
