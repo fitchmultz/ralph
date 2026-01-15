@@ -1,6 +1,10 @@
 # Implementation Done
 
 ## Done
+- [x] RQ-0465 [docs]: Mark ralph_legacy as frozen and document that all new work targets ralph_tui. (README.md, AGENTS.md, CLAUDE.md, ralph_legacy/README.md, .ralph/pin/lookup_table.md)
+  - Evidence: Current docs still describe ralph_legacy as active; the repo lacks a clear statement that new development belongs in ralph_tui.
+  - Plan: Add a concise note in docs + agent guidance that ralph_legacy is in maintenance-only mode, point new work to ralph_tui paths, and keep the repo structure section aligned with this policy.
+
 - [x] RQ-0448 [code]: Harden Logs view tail reader against concurrent writes/rotations (avoid spurious errors and blank Logs screen). (ralph_tui/internal/tui/logs_view.go, ralph_tui/internal/tui/logs_view_test.go)
   - Evidence: `tailFileLines` does Stat → Seek → `io.ReadFull` across assumed-stable byte ranges; when the log file changes concurrently (append/rotate), this can return errors and surface as "Error:" in Logs.
   - Plan: Make tail reading resilient (ReadAt, tolerate EOF/UnexpectedEOF, retry on size changes), add a regression test that simulates concurrent append/rotation, and ensure the Logs screen degrades gracefully.

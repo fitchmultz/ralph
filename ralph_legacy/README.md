@@ -1,5 +1,8 @@
 # Ralph
 
+This directory is frozen and maintenance-only. All new work and feature development targets
+`ralph_tui/`.
+
 Entry points (Go CLI):
 - `go run ./cmd/ralph` (from `ralph_tui/`)
 - `ralph loop run`

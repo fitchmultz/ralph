@@ -20,3 +20,4 @@
 | prompts | Default worker/supervisor prompt templates live in `ralph_tui/internal/prompts/defaults/`. |
 | specs | Specs builder, prompt filling, and runner invocation live in `ralph_tui/internal/specs/` and legacy specs templates in `ralph_legacy/specs/`. |
 | testutil | Shared test helpers for process/runner behavior live in `ralph_tui/internal/testutil/`. |
+| docs | Repository-level guidance lives in `README.md`, `AGENTS.md`, and `CLAUDE.md`. |

@@ -1,10 +1,6 @@
 # Implementation Queue
 
 ## Queue
-- [ ] RQ-0465 [docs]: Mark ralph_legacy as frozen and document that all new work targets ralph_tui. (README.md, AGENTS.md, CLAUDE.md)
-  - Evidence: Current docs still describe ralph_legacy as active; the repo lacks a clear statement that new development belongs in ralph_tui.
-  - Plan: Add a concise note in docs + agent guidance that ralph_legacy is in maintenance-only mode, point new work to ralph_tui paths, and keep the repo structure section aligned with this policy.
-
 - [ ] RQ-0447 [code]: Improve loop/specs output persistence (buffering + fewer flushes) to avoid laggy UI while keeping lossless capture guarantees. (ralph_tui/internal/tui/output_persistence.go, ralph_tui/internal/tui/loop_view.go, ralph_tui/internal/tui/specs_view.go, ralph_tui/internal/tui/output_capture_test.go)
   - Evidence: `outputFileWriter.AppendLines` flushes on every call; loop/specs write frequently, which can introduce IO stalls and degrade perceived streaming performance.
   - Plan: Add buffered/periodic flushing (or larger buffered batches), ensure Close always flushes, keep lossless test coverage, and add a benchmark/contract test to keep per-line overhead bounded.

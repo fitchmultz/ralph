@@ -1,8 +1,8 @@
 # Contributor Guide
 
 ## Project Structure & Module Organization
-- `ralph_tui/`: Go-based CLI/TUI (`go run ./cmd/ralph`). Source lives in `internal/` with tests alongside as `*_test.go`.
-- `ralph_legacy/`: Legacy shell/Python scripts (`bin/`) and prompt/spec templates (`specs/`).
+- `ralph_tui/`: Active Go-based CLI/TUI (`go run ./cmd/ralph`). All new development targets this path; source lives in `internal/` with tests alongside as `*_test.go`.
+- `ralph_legacy/`: Frozen, maintenance-only legacy shell/Python scripts (`bin/`) and prompt/spec templates (`specs/`). Only critical fixes land here.
 - `.ralph/`: Runtime/config defaults, including pin files at `.ralph/pin/` and cache/config files.
 - `README.md`: High-level orientation and links to component-specific docs.
 
