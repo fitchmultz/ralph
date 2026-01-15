@@ -10,12 +10,6 @@
 - [ ] RQ-0415 [code]: Remove or implement dead config knobs (runner.max_workers/dry_run, loop.workers/poll_seconds, git.require_clean/commit_prefix) so settings actually do something. (ralph_tui/internal/config/config.go, ralph_tui/internal/config/defaults.json, ralph_tui/internal/tui/config_editor.go, ralph_tui/cmd/ralph/main.go, ralph_tui/internal/loop/loop.go)
   - Evidence: config schema + config editor expose several fields that are not wired into behavior anywhere (runner.max_workers, runner.dry_run, loop.workers, loop.poll_seconds, git.require_clean, git.commit_prefix), so users can change them but nothing changes at runtime.
   - Plan: Audit each knob and either wire it into loop/specs/TUI behavior with clear semantics, or deprecate/remove it with a migration step and updated docs/tests; ensure config validation stays correct and does not enforce unused fields.
-- [ ] RQ-0416 [code]: Consolidate specs builder logic so Go TUI/CLI and legacy script do not drift. (ralph_tui/internal/specs/specs.go, ralph_legacy/bin/build_specs.sh)
-  - Evidence: `ralph_tui/internal/specs/specs.go` implements locking, prompt template validation, runner selection, and autofill-scout logic; `ralph_legacy/bin/build_specs.sh` re-implements the same flow in shell, including separate defaults and lock handling, which risks divergence.
-  - Plan: Choose a single canonical implementation (likely `ralph specs build` in Go) and have the legacy script delegate to it or deprecate/remove the script; align defaults (prompt template path, autofill-scout policy, runner checks); update docs/tests to cover the canonical path.
-- [ ] RQ-0417 [docs]: Standardize specs template location and references across legacy + TUI to avoid split-brain prompts. (ralph_tui/internal/specs/specs.go, ralph_legacy/specs/specs_builder.md, .ralph/pin/specs_builder.md)
-  - Evidence: Go specs builder defaults to `.ralph/pin/specs_builder.md`, while `ralph_legacy/bin/build_specs.sh` defaults to `ralph_legacy/specs/specs_builder.md`, creating two separate templates with overlapping instructions.
-  - Plan: Decide on a single template source of truth (pin vs legacy), migrate the other path to a redirect or wrapper, and update any docs or scripts referencing the non-canonical location.
 
 ## Blocked
 
