@@ -44,6 +44,7 @@ type keyMap struct {
 	JumpToPin                 key.Binding
 	JumpToLogs                key.Binding
 	DashboardRunLoopOnce      key.Binding
+	DashboardFixupBlocked     key.Binding
 	DashboardBuildSpecs       key.Binding
 }
 
@@ -196,6 +197,10 @@ func newKeyMap() keyMap {
 		DashboardRunLoopOnce: key.NewBinding(
 			key.WithKeys("r"),
 			key.WithHelp("r", "run loop once"),
+		),
+		DashboardFixupBlocked: key.NewBinding(
+			key.WithKeys("f"),
+			key.WithHelp("f", "fixup blocked"),
 		),
 		DashboardBuildSpecs: key.NewBinding(
 			key.WithKeys("b"),

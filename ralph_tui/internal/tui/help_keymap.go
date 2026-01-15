@@ -76,11 +76,11 @@ type dashboardKeyMap struct {
 }
 
 func (d dashboardKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{d.keys.DashboardRunLoopOnce, d.keys.DashboardBuildSpecs}
+	return []key.Binding{d.keys.DashboardRunLoopOnce, d.keys.DashboardFixupBlocked, d.keys.DashboardBuildSpecs}
 }
 
 func (d dashboardKeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{{d.keys.DashboardRunLoopOnce, d.keys.DashboardBuildSpecs}}
+	return [][]key.Binding{{d.keys.DashboardRunLoopOnce, d.keys.DashboardFixupBlocked, d.keys.DashboardBuildSpecs}}
 }
 
 type configKeyMap struct {

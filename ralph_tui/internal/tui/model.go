@@ -3,6 +3,8 @@
 package tui
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -14,6 +16,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/config"
+	"github.com/mitchfultz/ralph/ralph_tui/internal/loop"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/paths"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/pin"
 )
@@ -56,6 +59,10 @@ type model struct {
 	specsView           *specsView
 	loopView            *loopView
 	logsView            *logsView
+	fixup               fixupState
+	fixupLogCh          chan string
+	fixupLogRunID       int
+	fixupRunner         fixupRunner
 	repoStatus          repoStatusSnapshot
 	repoStatusErr       string
 	logger              *tuiLogger
@@ -161,6 +168,7 @@ func newModel(cfg config.Config, locations paths.Locations, opts StartOptions) m
 		refreshGen:       1,
 		initErr:          err,
 		locations:        locations,
+		fixupRunner:      loop.FixupBlockedItems,
 	}
 	m.setLogger(cfg)
 	if m.logsView != nil {
@@ -236,6 +244,44 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		handled = true
 	case loopRunModeMsg:
 		m.applyLoopRunMode(msg.running)
+		handled = true
+	case fixupLogBatchMsg:
+		if msg.batch.RunID != m.fixupLogRunID {
+			handled = true
+			break
+		}
+		if m.loopView != nil {
+			m.loopView.appendLogLines(msg.batch.Lines)
+		}
+		m.refreshLogsView()
+		if msg.batch.Done {
+			m.fixupLogCh = nil
+		} else if m.fixupLogCh != nil {
+			cmds = append(cmds, listenFixupLogs(m.fixupLogCh, m.fixupLogRunID))
+		}
+		handled = true
+	case fixupResultMsg:
+		if msg.runID != m.fixupLogRunID {
+			handled = true
+			break
+		}
+		m.fixup.running = false
+		m.fixup.finishedAt = msg.finishedAt
+		m.fixup.summary = summaryFromFixupResult(msg.result)
+		m.fixup.hasSummary = true
+		if msg.err != nil {
+			m.fixup.err = msg.err.Error()
+		} else {
+			m.fixup.err = ""
+		}
+		m.logInfo("fixup.stop", map[string]any{
+			"scanned_blocked": m.fixup.summary.scanned,
+			"eligible":        m.fixup.summary.eligible,
+			"requeued":        m.fixup.summary.requeued,
+			"skipped":         m.fixup.summary.skipped,
+			"failed":          m.fixup.summary.failed,
+			"error":           m.fixup.err,
+		})
 		handled = true
 	case configReloadMsg:
 		if msg.err != nil {
@@ -326,6 +372,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, nil
 				}
 				return m, m.loopView.StartOnce()
+			case key.Matches(msg, m.keys.DashboardFixupBlocked):
+				return m, m.startFixupCmd()
 			case key.Matches(msg, m.keys.DashboardBuildSpecs):
 				if m.specsView == nil {
 					return m, nil
@@ -417,10 +465,131 @@ type loopRunModeMsg struct {
 	running bool
 }
 
+type fixupRunner func(context.Context, loop.FixupOptions) (loop.FixupResult, error)
+
+type fixupSummary struct {
+	scanned  int
+	eligible int
+	requeued int
+	skipped  int
+	failed   int
+}
+
+type fixupState struct {
+	running    bool
+	err        string
+	summary    fixupSummary
+	hasSummary bool
+	startedAt  time.Time
+	finishedAt time.Time
+}
+
+type fixupResultMsg struct {
+	runID      int
+	result     loop.FixupResult
+	err        error
+	finishedAt time.Time
+}
+
+type fixupLogBatchMsg struct {
+	batch logBatch
+}
+
+const (
+	defaultFixupMaxAttempts = 3
+	defaultFixupMaxItems    = 0
+)
+
 func loopRunModeCmd(running bool) tea.Cmd {
 	return func() tea.Msg {
 		return loopRunModeMsg{running: running}
 	}
+}
+
+func summaryFromFixupResult(result loop.FixupResult) fixupSummary {
+	return fixupSummary{
+		scanned:  result.ScannedBlocked,
+		eligible: result.Eligible,
+		requeued: len(result.RequeuedIDs),
+		skipped:  len(result.SkippedMax),
+		failed:   len(result.FailedIDs),
+	}
+}
+
+func formatFixupSummary(summary fixupSummary) string {
+	return fmt.Sprintf(
+		"Scanned %d | Eligible %d | Requeued %d | Skipped %d | Failed %d",
+		summary.scanned,
+		summary.eligible,
+		summary.requeued,
+		summary.skipped,
+		summary.failed,
+	)
+}
+
+func listenFixupLogs(logCh <-chan string, runID int) tea.Cmd {
+	return func() tea.Msg {
+		return fixupLogBatchMsg{batch: drainLogChannel(runID, logCh, 64)}
+	}
+}
+
+func (m *model) startFixupCmd() tea.Cmd {
+	if m.fixup.running {
+		m.fixup.err = "Fixup already running"
+		if m.loopView != nil {
+			m.loopView.appendLogLine(">> [RALPH] Fixup blocked already running.")
+		}
+		m.refreshLogsView()
+		return nil
+	}
+
+	m.fixup.running = true
+	m.fixup.err = ""
+	m.fixup.hasSummary = false
+	m.fixup.startedAt = time.Now()
+	m.fixup.finishedAt = time.Time{}
+	m.fixupLogRunID++
+	runID := m.fixupLogRunID
+
+	logCh := newLogChannel()
+	m.fixupLogCh = logCh
+
+	m.logInfo("fixup.start", map[string]any{
+		"max_attempts": defaultFixupMaxAttempts,
+		"max_items":    defaultFixupMaxItems,
+	})
+
+	fixupLogger := loopLogger{write: func(line string) {
+		sendLineBlocking(logCh, line)
+	}}
+
+	runCmd := func() tea.Msg {
+		defer close(logCh)
+		if m.fixupRunner == nil {
+			return fixupResultMsg{runID: runID, err: errors.New("fixup runner not configured"), finishedAt: time.Now()}
+		}
+		sendLineBlocking(logCh, ">> [RALPH] Fixup blocked starting.")
+		result, err := m.fixupRunner(context.Background(), loop.FixupOptions{
+			RepoRoot:      m.locations.RepoRoot,
+			PinDir:        m.cfg.Paths.PinDir,
+			MaxAttempts:   defaultFixupMaxAttempts,
+			MaxItems:      defaultFixupMaxItems,
+			RequireMain:   m.cfg.Loop.RequireMain,
+			AutoCommit:    m.cfg.Git.AutoCommit,
+			AutoPush:      m.cfg.Git.AutoPush,
+			RedactionMode: m.cfg.Logging.RedactionMode,
+			Logger:        fixupLogger,
+		})
+		if err != nil {
+			sendLineBlocking(logCh, ">> [RALPH] Fixup blocked failed: "+err.Error())
+		} else {
+			summary := summaryFromFixupResult(result)
+			sendLineBlocking(logCh, ">> [RALPH] Fixup blocked completed: "+formatFixupSummary(summary))
+		}
+		return fixupResultMsg{runID: runID, result: result, err: err, finishedAt: time.Now()}
+	}
+
+	return tea.Batch(runCmd, listenFixupLogs(logCh, runID))
 }
 
 func (m model) shouldBypassFocusToggle(msg tea.KeyMsg) bool {

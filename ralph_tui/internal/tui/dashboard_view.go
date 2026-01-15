@@ -36,7 +36,7 @@ func (m model) dashboardView() string {
 		lines = append(lines, repoLines...)
 	}
 
-	statusLines := dashboardStatusLines(m.pinView, m.loopView, m.specsView)
+	statusLines := dashboardStatusLines(m.pinView, m.loopView, m.specsView, m.fixup)
 	if len(statusLines) > 0 {
 		lines = append(lines, "")
 		lines = append(lines, "Status:")
@@ -118,7 +118,7 @@ func dashboardLogPath(m model) string {
 	return path
 }
 
-func dashboardStatusLines(p *pinView, l *loopView, s *specsView) []string {
+func dashboardStatusLines(p *pinView, l *loopView, s *specsView, f fixupState) []string {
 	lines := make([]string, 0)
 	if status := dashboardPinStatus(p); status != "" {
 		lines = append(lines, "Pin: "+status)
@@ -128,6 +128,9 @@ func dashboardStatusLines(p *pinView, l *loopView, s *specsView) []string {
 	}
 	if status := dashboardLoopFailure(l); status != "" {
 		lines = append(lines, "Loop failure: "+status)
+	}
+	if status := dashboardFixupStatus(f); status != "" {
+		lines = append(lines, "Fixup: "+status)
 	}
 	if status := dashboardSpecsStatus(s); status != "" {
 		lines = append(lines, "Specs: "+status)
@@ -197,6 +200,22 @@ func dashboardSpecsStatus(s *specsView) string {
 	}
 	if s.previewLoading && !s.running {
 		return "Rendering preview..."
+	}
+	return ""
+}
+
+func dashboardFixupStatus(f fixupState) string {
+	if f.running {
+		return "Running..."
+	}
+	if f.err != "" {
+		if f.hasSummary {
+			return "Error: " + f.err + " | " + formatFixupSummary(f.summary)
+		}
+		return "Error: " + f.err
+	}
+	if f.hasSummary {
+		return formatFixupSummary(f.summary)
 	}
 	return ""
 }

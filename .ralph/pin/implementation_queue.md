@@ -1,10 +1,6 @@
 # Implementation Queue
 
 ## Queue
-- [ ] RQ-0442 [P1] [ui]: Implement Dashboard "fixup blocked" action (key 'f') end-to-end; reflect progress in UI/logs and help. (ralph_tui/internal/tui/dashboard_view.go, ralph_tui/internal/tui/model.go, ralph_tui/internal/tui/keymap.go, ralph_tui/internal/tui/help_keymap.go, ralph_tui/internal/loop/fixup.go)
-  - Evidence: Dashboard renders "Actions: r loop once | f fixup blocked | b build specs" but there is no dashboard keybinding for 'f' and no handler in `model.Update`, so the UI advertises a non-existent feature.
-  - Plan: Add a dashboard keybinding + handler to run `loop.FixupBlockedItems` asynchronously, stream its output into Logs (or a dedicated section), surface result counts in dashboard status, and add integration tests for the key path.
-
 - [ ] RQ-0443 [P1] [ui]: Correct Dashboard queue summary accuracy (unfiltered counts, true "last done" from implementation_done.md, and better "next item" semantics). (ralph_tui/internal/tui/dashboard_view.go, ralph_tui/internal/pin/pin.go, ralph_tui/internal/tui/pin_view.go)
   - Evidence: `dashboardQueueSummaryFor` uses `pinView.items` (which can be filtered by search) and derives "Last done" from checked queue items, but checked items are not the done log and may never be moved; dashboard can report misleading queue stats.
   - Plan: Compute dashboard queue stats from the real queue/done files (or `pinView.allItems` plus done-tail parsing), ensure filtering doesn’t affect dashboard, and add unit tests for summary correctness.

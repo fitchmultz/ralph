@@ -5,9 +5,11 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/mitchfultz/ralph/ralph_tui/internal/loop"
 )
 
 type modelDriver struct {
@@ -175,5 +177,51 @@ func TestDashboardRepoStatusDegradesWithoutGit(t *testing.T) {
 	}
 	if !strings.Contains(view, "git missing") {
 		t.Fatalf("expected repo status to show git missing, got %q", view)
+	}
+}
+
+func TestDashboardFixupKeyStartsRunAndUpdatesStatus(t *testing.T) {
+	m, _, _ := newHermeticModel(t)
+	driver := newModelDriver(t, m)
+	driver.SelectScreen(screenDashboard)
+
+	driver.KeyRunes("f")
+
+	if !driver.m.fixup.running {
+		t.Fatalf("expected fixup to be running")
+	}
+	if driver.m.fixupLogCh == nil {
+		t.Fatalf("expected fixup log channel to be initialized")
+	}
+	runID := driver.m.fixupLogRunID
+
+	if driver.m.loopView == nil {
+		t.Fatalf("expected loop view to be initialized")
+	}
+
+	driver.Send(fixupLogBatchMsg{batch: logBatch{RunID: runID, Lines: []string{"fixup line"}}})
+	if !strings.Contains(strings.Join(driver.m.loopView.LogLines(), "\n"), "fixup line") {
+		t.Fatalf("expected fixup log line to be captured in loop logs")
+	}
+
+	driver.Send(fixupLogBatchMsg{batch: logBatch{RunID: runID, Done: true}})
+	if driver.m.fixupLogCh != nil {
+		t.Fatalf("expected fixup log channel to be cleared on completion")
+	}
+
+	result := loop.FixupResult{
+		ScannedBlocked: 2,
+		Eligible:       1,
+		RequeuedIDs:    []string{"RQ-0002"},
+		FailedIDs:      []string{"RQ-0003"},
+	}
+	driver.Send(fixupResultMsg{runID: runID, result: result, finishedAt: time.Now()})
+
+	if driver.m.fixup.running {
+		t.Fatalf("expected fixup to be marked stopped")
+	}
+	view := driver.m.contentView()
+	if !strings.Contains(view, "Fixup: Scanned 2 | Eligible 1 | Requeued 1 | Skipped 0 | Failed 1") {
+		t.Fatalf("expected dashboard to report fixup summary, got %q", view)
 	}
 }
