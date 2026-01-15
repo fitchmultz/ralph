@@ -1,6 +1,13 @@
 # Implementation Done
 
 ## Done
+- [x] RQ-0423 [code]: Fix process-group cancellation reliability (stop/cancel should kill ALL child procs) for loop + specs runners across platforms. (ralph_tui/internal/procgroup/procgroup_unix.go, ralph_tui/internal/loop/exec.go, ralph_tui/internal/specs/specs.go)
+  - Evidence:
+    - `ralph_tui/internal/procgroup/procgroup_unix.go` only overrides `cmd.Cancel` when `cmd.Cancel != nil`; if it is nil (or doesn’t kill the process group), child processes may survive cancel.
+    - Both loop and specs rely on context cancellation to stop runner processes; lingering children are a common "hang/lag" failure mode.
+  - Plan:
+    - Update procgroup configuration to always set up process-group cancellation on Unix (define `cmd.Cancel` to kill PGID, with a safe fallback when `cmd.Process` is nil).
+    - Ensure loop/specs use this consistently and add regression tests (similar to existing specs cancel tests) that confirm child processes die on cancel.
 - [x] RQ-0422 [ops]: Add `ralph init` (bootstrap) and TUI self-heal for missing/invalid `.ralph/pin` files so the app works in fresh repos. (ralph_tui/cmd/ralph/main.go, ralph_tui/internal/pin/pin.go, ralph_tui/internal/paths/paths.go, .ralph/pin/README.md)
   - Evidence:
     - Most workflows assume `.ralph/pin/implementation_queue.md` et al exist; `pin.ValidatePin()` hard-requires Queue/Done/Lookup/README files.
