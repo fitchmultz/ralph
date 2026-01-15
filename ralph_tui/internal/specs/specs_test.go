@@ -12,12 +12,17 @@ import (
 func TestFillPromptReplacements(t *testing.T) {
 	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "specs_builder.md")
-	content := "AGENTS.md\n" + interactivePlaceholder + "\n" + innovatePlaceholder
+	content := "AGENTS.md\n" + interactivePlaceholder + "\n" + innovatePlaceholder + "\n" + scoutPlaceholder
 	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		t.Fatalf("write template: %v", err)
 	}
 
-	prompt, err := FillPrompt(path, true, true)
+	prompt, err := FillPrompt(path, FillPromptOptions{
+		Interactive:   true,
+		Innovate:      true,
+		ScoutWorkflow: true,
+		UserFocus:     "Focus on specs + tui overlap",
+	})
 	if err != nil {
 		t.Fatalf("FillPrompt failed: %v", err)
 	}
@@ -26,6 +31,12 @@ func TestFillPromptReplacements(t *testing.T) {
 	}
 	if !strings.Contains(prompt, "AUTOFILL/SCOUT MODE ENABLED") {
 		t.Fatalf("innovate instructions missing")
+	}
+	if !strings.Contains(prompt, "SCOUT WORKFLOW ENABLED") {
+		t.Fatalf("scout workflow instructions missing")
+	}
+	if !strings.Contains(prompt, "Focus on specs + tui overlap") {
+		t.Fatalf("user focus missing")
 	}
 }
 
@@ -37,9 +48,28 @@ func TestFillPromptMissingPlaceholderErrors(t *testing.T) {
 		t.Fatalf("write template: %v", err)
 	}
 
-	_, err := FillPrompt(path, true, false)
+	_, err := FillPrompt(path, FillPromptOptions{
+		Interactive: true,
+	})
 	if err == nil {
 		t.Fatalf("expected error for missing interactive placeholder")
+	}
+}
+
+func TestFillPromptMissingScoutPlaceholderErrors(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "specs_builder.md")
+	content := "AGENTS.md\n" + interactivePlaceholder + "\n" + innovatePlaceholder
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatalf("write template: %v", err)
+	}
+
+	_, err := FillPrompt(path, FillPromptOptions{
+		ScoutWorkflow: true,
+		UserFocus:     "Pin/specs",
+	})
+	if err == nil {
+		t.Fatalf("expected error for missing scout placeholder")
 	}
 }
 

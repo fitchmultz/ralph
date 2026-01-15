@@ -26,6 +26,8 @@ type keyMap struct {
 	ToggleInteractive         key.Binding
 	ToggleInnovate            key.Binding
 	ToggleAutofill            key.Binding
+	ToggleScoutWorkflow       key.Binding
+	EditUserFocus             key.Binding
 	RunSpecs                  key.Binding
 	StopSpecs                 key.Binding
 	RunLoopOnce               key.Binding
@@ -113,6 +115,14 @@ func newKeyMap() keyMap {
 			key.WithKeys("a"),
 			key.WithHelp("a", "toggle autofill scout"),
 		),
+		ToggleScoutWorkflow: key.NewBinding(
+			key.WithKeys("w"),
+			key.WithHelp("w", "toggle scout workflow"),
+		),
+		EditUserFocus: key.NewBinding(
+			key.WithKeys("u"),
+			key.WithHelp("u", "edit user focus"),
+		),
 		RunSpecs: key.NewBinding(
 			key.WithKeys("r"),
 			key.WithHelp("r", "run specs build"),
@@ -154,7 +164,7 @@ func (k keyMap) FullHelp() [][]key.Binding {
 		{k.EditSpecsSettings, k.ToggleLogsFormat, k.SaveGlobal, k.SaveRepo},
 		{k.Discard},
 		{k.ValidatePin, k.MoveChecked, k.BlockItem},
-		{k.ToggleInteractive, k.ToggleInnovate, k.ToggleAutofill, k.RunSpecs, k.StopSpecs},
+		{k.ToggleInteractive, k.ToggleInnovate, k.ToggleAutofill, k.ToggleScoutWorkflow, k.EditUserFocus, k.RunSpecs, k.StopSpecs},
 		{k.RunLoopOnce, k.RunLoopContinuous, k.StopLoop, k.EditLoopConfig, k.ToggleForceContextBuilder},
 	}
 }

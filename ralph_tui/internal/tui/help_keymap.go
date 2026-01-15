@@ -35,11 +35,11 @@ type specsKeyMap struct {
 }
 
 func (s specsKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{s.keys.EditSpecsSettings, s.keys.ToggleInteractive, s.keys.ToggleInnovate, s.keys.RunSpecs, s.keys.StopSpecs}
+	return []key.Binding{s.keys.EditSpecsSettings, s.keys.ToggleInteractive, s.keys.ToggleInnovate, s.keys.ToggleScoutWorkflow, s.keys.RunSpecs, s.keys.StopSpecs}
 }
 
 func (s specsKeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{{s.keys.EditSpecsSettings, s.keys.ToggleInteractive, s.keys.ToggleInnovate, s.keys.ToggleAutofill}, {s.keys.RunSpecs, s.keys.StopSpecs}}
+	return [][]key.Binding{{s.keys.EditSpecsSettings, s.keys.ToggleInteractive, s.keys.ToggleInnovate, s.keys.ToggleAutofill, s.keys.ToggleScoutWorkflow, s.keys.EditUserFocus}, {s.keys.RunSpecs, s.keys.StopSpecs}}
 }
 
 type loopKeyMap struct {

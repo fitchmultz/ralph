@@ -1,15 +1,6 @@
 # Implementation Queue
 
 ## Queue
-- [ ] RQ-0418 [code]: Upgrade Specs builder prompt to be bug-hunt oriented + add an interactive "scout" workflow that accepts a user focus prompt and seeds queue items for specific areas. (.ralph/pin/specs_builder.md, ralph_tui/internal/specs/specs.go, ralph_tui/internal/tui/specs_view.go, ralph_tui/cmd/ralph/main.go)
-  - Evidence:
-    - `.ralph/pin/specs_builder.md` is currently generic and does not guide targeted bug-finding runs the way your "identify 10-20 bugs" prompt does.
-    - `ralph_tui/internal/specs/specs.go` `innovateInstructions` references repo areas like `backend/`, `tools/`, `frontend/`, and `ops/` that do not match this repo’s actual layout (`ralph_tui/internal/...`, `ralph_legacy/...`), which reduces scouting quality.
-    - Specs "interactive" is currently just a boolean (`BuildOptions.Interactive`) and there is no way (in CLI or TUI) to pass a user-entered "focus area" prompt into the build/scout process.
-  - Plan:
-    - Redesign the specs builder templates/instructions to explicitly run bug-detection/scouting on a user-specified subsystem (e.g., `tui`, `loop`, `pin`, `config`) and to produce evidence-backed queue items.
-    - Add a user-provided "scout prompt" input (CLI flag + TUI input) that becomes part of the filled prompt content/signature so the preview matches the actual run.
-    - Add regression tests for prompt filling (placeholders present) and for the new "scout prompt" threading.
 - [ ] RQ-0419 [code]: Disable autofill-scout by default; fix/clarify auto-scout toggle semantics and make it reliably reflected across TUI/CLI/specs runs. (ralph_tui/internal/config/defaults.json, ralph_tui/internal/tui/specs_view.go, ralph_tui/internal/specs/specs.go, ralph_tui/cmd/ralph/main.go)
   - Evidence:
     - `ralph_tui/internal/config/defaults.json` sets `specs.autofill_scout` to `true` by default; you want it disabled by default.

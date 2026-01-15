@@ -25,6 +25,7 @@ const (
 const (
 	interactivePlaceholder = "{{INTERACTIVE_INSTRUCTIONS}}"
 	innovatePlaceholder    = "{{INNOVATE_INSTRUCTIONS}}"
+	scoutPlaceholder       = "{{SCOUT_WORKFLOW}}"
 )
 
 const interactiveInstructions = "INTERACTIVE MODE ENABLED. Before adding any new queue items:\n" +
@@ -33,18 +34,18 @@ const interactiveInstructions = "INTERACTIVE MODE ENABLED. Before adding any new
 	"3) Wait for the user's response, then incorporate it.\n" +
 	"If no new items are proposed, ask the user if they want any new directions.\n"
 
-const innovateInstructions = "AUTOFILL/SCOUT MODE ENABLED (AGGRESSIVE).\n" +
+const innovateInstructions = "AUTOFILL/SCOUT MODE ENABLED (BUG-HUNT).\n" +
 	"\n" +
-	"This repo intentionally avoids TODO/TBD placeholders. You must rely on 'AI vibes' grounded in real repo signals:\n" +
-	"- duplicated logic across tools/backends\n" +
-	"- inconsistent CLI contracts / help/docstring standards\n" +
-	"- missing shared helpers that should live under shared modules (e.g., internal/ or lib/)\n" +
-	"- workflow gaps in Makefile/composite pipelines\n" +
-	"- missing regression coverage for brittle logic\n" +
+	"This repo intentionally avoids TODO/TBD placeholders. You must rely on evidence from the repo and prioritize:\n" +
+	"- architectural debt and risky coupling\n" +
+	"- duplicated logic across packages (e.g., TUI vs legacy scripts)\n" +
+	"- workflow gaps in Makefile or CLI flows\n" +
+	"- missing regression tests for brittle paths\n" +
+	"- config/state mismatches between defaults, UI, and CLI\n" +
 	"\n" +
 	"Mandatory scouting (repo_prompt):\n" +
 	"- Start by calling get_file_tree.\n" +
-	"- Then read a small but representative set of files across backend/, tools/, frontend/, and ops/.\n" +
+	"- Then read a small but representative set of files across ralph_tui/internal/, ralph_tui/cmd/, ralph_legacy/bin/, ralph_legacy/specs/, and .ralph/pin/.\n" +
 	"\n" +
 	"Queue seeding rule:\n" +
 	"- If `## Queue` is empty, you MUST populate it with 10-15 high-leverage, outcome-sized items.\n" +
@@ -52,6 +53,25 @@ const innovateInstructions = "AUTOFILL/SCOUT MODE ENABLED (AGGRESSIVE).\n" +
 	"Evidence requirement for NEW items:\n" +
 	"- Each item must cite concrete file paths and what you observed (function/class/pattern), or a concrete Make target/workflow gap.\n" +
 	"- Do not invent evidence; only claim what you can point to in the repo.\n"
+
+const scoutWorkflowTemplate = "SCOUT WORKFLOW ENABLED.\n" +
+	"\n" +
+	"Goal: run a focused bug hunt and seed evidence-backed queue items.\n" +
+	"1) Confirm the focus area below. If it is missing or vague, interpret it conservatively.\n" +
+	"2) Scan the lookup table + pin files to find related modules.\n" +
+	"3) Read targeted files and identify real, concrete risks (bugs, regressions, missing tests).\n" +
+	"4) Propose queue items scoped to the focus area with evidence and a clear plan.\n" +
+	"5) Prefer fixes that centralize shared logic and prevent the same bug class from recurring.\n" +
+	"\n" +
+	"User focus prompt:\n%s\n"
+
+// FillPromptOptions controls how template placeholders are replaced.
+type FillPromptOptions struct {
+	Interactive   bool
+	Innovate      bool
+	ScoutWorkflow bool
+	UserFocus     string
+}
 
 // Runner selects which specs runner to invoke.
 type Runner string
@@ -67,6 +87,8 @@ type BuildOptions struct {
 	Innovate         bool
 	InnovateExplicit bool
 	AutofillScout    bool
+	ScoutWorkflow    bool
+	UserFocus        string
 	PrintPrompt      bool
 	Stdout           io.Writer
 	Stderr           io.Writer
@@ -104,8 +126,16 @@ func (o BuildOptions) runnerBackend() RunnerBackend {
 	return defaultRunnerBackend{}
 }
 
-// FillPrompt loads and fills the prompt template with interactive/innovate placeholders.
-func FillPrompt(templatePath string, interactive bool, innovate bool) (string, error) {
+func scoutWorkflowInstructions(userFocus string) string {
+	focus := strings.TrimSpace(userFocus)
+	if focus == "" {
+		focus = "(none provided)"
+	}
+	return fmt.Sprintf(scoutWorkflowTemplate, focus)
+}
+
+// FillPrompt loads and fills the prompt template with interactive/innovate/scout placeholders.
+func FillPrompt(templatePath string, opts FillPromptOptions) (string, error) {
 	content, err := os.ReadFile(templatePath)
 	if err != nil {
 		return "", err
@@ -115,11 +145,16 @@ func FillPrompt(templatePath string, interactive bool, innovate bool) (string, e
 		return "", fmt.Errorf("Prompt template must reference AGENTS.md (root): %s", templatePath)
 	}
 
-	prompt, err = replacePlaceholder(prompt, interactivePlaceholder, interactiveInstructions, interactive)
+	prompt, err = replacePlaceholder(prompt, interactivePlaceholder, interactiveInstructions, opts.Interactive)
 	if err != nil {
 		return "", err
 	}
-	prompt, err = replacePlaceholder(prompt, innovatePlaceholder, innovateInstructions, innovate)
+	prompt, err = replacePlaceholder(prompt, innovatePlaceholder, innovateInstructions, opts.Innovate)
+	if err != nil {
+		return "", err
+	}
+	scoutInstructions := scoutWorkflowInstructions(opts.UserFocus)
+	prompt, err = replacePlaceholder(prompt, scoutPlaceholder, scoutInstructions, opts.ScoutWorkflow)
 	if err != nil {
 		return "", err
 	}
@@ -175,7 +210,12 @@ func Build(ctx context.Context, opts BuildOptions) (BuildResult, error) {
 		return BuildResult{}, err
 	}
 
-	prompt, err := FillPrompt(opts.PromptTemplate, opts.Interactive, effectiveInnovate)
+	prompt, err := FillPrompt(opts.PromptTemplate, FillPromptOptions{
+		Interactive:   opts.Interactive,
+		Innovate:      effectiveInnovate,
+		ScoutWorkflow: opts.ScoutWorkflow,
+		UserFocus:     opts.UserFocus,
+	})
 	if err != nil {
 		return BuildResult{}, err
 	}

@@ -16,6 +16,8 @@
   },
   "specs": {
     "autofill_scout": true,
+    "scout_workflow": false,
+    "user_focus": "",
     "runner": "codex",
     "runner_args": [],
     "reasoning_effort": "auto"

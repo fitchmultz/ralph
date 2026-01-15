@@ -9,6 +9,7 @@ You are the Ralph specs builder for this repository.
 
 {{INTERACTIVE_INSTRUCTIONS}}
 {{INNOVATE_INSTRUCTIONS}}
+{{SCOUT_WORKFLOW}}
 
 # INSTRUCTIONS
 - Update `.ralph/pin/implementation_queue.md` with actionable items.

@@ -46,6 +46,8 @@ type PathsConfig struct {
 // SpecsConfig controls spec-building features.
 type SpecsConfig struct {
 	AutofillScout   bool     `json:"autofill_scout"`
+	ScoutWorkflow   bool     `json:"scout_workflow"`
+	UserFocus       string   `json:"user_focus"`
 	Runner          string   `json:"runner"`
 	RunnerArgs      []string `json:"runner_args"`
 	ReasoningEffort string   `json:"reasoning_effort"`
@@ -204,6 +206,8 @@ type PathsPartial struct {
 // SpecsPartial overrides SpecsConfig fields when set.
 type SpecsPartial struct {
 	AutofillScout   *bool    `json:"autofill_scout,omitempty"`
+	ScoutWorkflow   *bool    `json:"scout_workflow,omitempty"`
+	UserFocus       *string  `json:"user_focus,omitempty"`
 	Runner          *string  `json:"runner,omitempty"`
 	RunnerArgs      []string `json:"runner_args,omitempty"`
 	ReasoningEffort *string  `json:"reasoning_effort,omitempty"`

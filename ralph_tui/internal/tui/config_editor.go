@@ -40,6 +40,8 @@ type configFormData struct {
 	CacheDir          string
 	PinDir            string
 	SpecsAutofill     bool
+	SpecsScout        bool
+	SpecsUserFocus    string
 	SpecsRunner       string
 	SpecsRunnerArgs   string
 	SpecsEffort       string
@@ -419,6 +421,8 @@ func (e *configEditor) buildForm() *huh.Form {
 		),
 		huh.NewGroup(
 			huh.NewConfirm().Title("Specs Autofill Scout").Value(&e.data.SpecsAutofill),
+			huh.NewConfirm().Title("Specs Scout Workflow").Value(&e.data.SpecsScout),
+			huh.NewInput().Title("Specs User Focus").Value(&e.data.SpecsUserFocus),
 			huh.NewSelect[string]().
 				Title("Specs Runner").
 				Options(
@@ -493,6 +497,8 @@ func formDataFromConfig(cfg config.Config) configFormData {
 		CacheDir:          cfg.Paths.CacheDir,
 		PinDir:            cfg.Paths.PinDir,
 		SpecsAutofill:     cfg.Specs.AutofillScout,
+		SpecsScout:        cfg.Specs.ScoutWorkflow,
+		SpecsUserFocus:    cfg.Specs.UserFocus,
 		SpecsRunner:       cfg.Specs.Runner,
 		SpecsRunnerArgs:   formatArgsLines(cfg.Specs.RunnerArgs),
 		SpecsEffort:       runnerargs.DisplayEffort(cfg.Specs.ReasoningEffort),
@@ -596,6 +602,8 @@ func partialFromForm(data configFormData) (config.PartialConfig, error) {
 		},
 		Specs: &config.SpecsPartial{
 			AutofillScout:   &data.SpecsAutofill,
+			ScoutWorkflow:   &data.SpecsScout,
+			UserFocus:       &data.SpecsUserFocus,
 			Runner:          &specsRunner,
 			RunnerArgs:      parseArgsLines(data.SpecsRunnerArgs),
 			ReasoningEffort: &specsEffort,

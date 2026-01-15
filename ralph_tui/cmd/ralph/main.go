@@ -307,6 +307,23 @@ func newSpecsBuildCommand() *cobra.Command {
 				autofillScout = false
 			}
 
+			scoutWorkflow := cfg.Specs.ScoutWorkflow
+			if cmd.Flags().Changed("scout-workflow") {
+				scoutWorkflow, err = cmd.Flags().GetBool("scout-workflow")
+				if err != nil {
+					return err
+				}
+			}
+
+			userFocus := cfg.Specs.UserFocus
+			if cmd.Flags().Changed("user-focus") {
+				userFocus, err = cmd.Flags().GetString("user-focus")
+				if err != nil {
+					return err
+				}
+			}
+			userFocus = strings.TrimSpace(userFocus)
+
 			promptPath, err := cmd.Flags().GetString("prompt")
 			if err != nil {
 				return err
@@ -333,6 +350,8 @@ func newSpecsBuildCommand() *cobra.Command {
 				Innovate:         innovate,
 				InnovateExplicit: cmd.Flags().Changed("innovate"),
 				AutofillScout:    autofillScout,
+				ScoutWorkflow:    scoutWorkflow,
+				UserFocus:        userFocus,
 				PrintPrompt:      printPrompt,
 			})
 			if err != nil {
@@ -364,6 +383,8 @@ func newSpecsBuildCommand() *cobra.Command {
 	cmd.Flags().Bool("innovate", false, "Allow the specs builder to add new queue items directly to Queue")
 	cmd.Flags().Bool("autofill-scout", false, "Enable auto-innovate when Queue is empty")
 	cmd.Flags().Bool("no-autofill-scout", false, "Disable auto-innovate when Queue is empty")
+	cmd.Flags().Bool("scout-workflow", false, "Include scout workflow instructions in the prompt")
+	cmd.Flags().String("user-focus", "", "Optional focus prompt to guide the scout workflow")
 	cmd.Flags().Bool("print-prompt", false, "Print the filled prompt and exit")
 	cmd.Flags().String("prompt", "", "Prompt template path (default: .ralph/pin/specs_builder.md)")
 

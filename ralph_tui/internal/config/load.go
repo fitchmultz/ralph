@@ -206,6 +206,12 @@ func applyPartial(base Config, partial PartialConfig, basePath string) (Config, 
 		if partial.Specs.AutofillScout != nil {
 			base.Specs.AutofillScout = *partial.Specs.AutofillScout
 		}
+		if partial.Specs.ScoutWorkflow != nil {
+			base.Specs.ScoutWorkflow = *partial.Specs.ScoutWorkflow
+		}
+		if partial.Specs.UserFocus != nil {
+			base.Specs.UserFocus = strings.TrimSpace(*partial.Specs.UserFocus)
+		}
 		if partial.Specs.Runner != nil {
 			base.Specs.Runner = strings.TrimSpace(*partial.Specs.Runner)
 		}
