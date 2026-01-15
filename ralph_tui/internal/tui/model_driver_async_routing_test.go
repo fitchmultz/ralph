@@ -2,9 +2,11 @@
 package tui
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
+	"github.com/mitchfultz/ralph/ralph_tui/internal/loop"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/pin"
 )
 
@@ -105,6 +107,17 @@ func TestModelDriver_MidRunSwitchesDoNotDropAsyncMessages(t *testing.T) {
 		}
 
 		driver.SelectScreen(screenDashboard)
+		for i := 1; i <= 40; i++ {
+			driver.Send(loopStateMsg{
+				runID: runID,
+				state: loop.State{
+					Mode:            loop.ModeContinuous,
+					Iteration:       i,
+					ActiveItemID:    fmt.Sprintf("RQ-%04d", i),
+					ActiveItemTitle: "Background update",
+				},
+			})
+		}
 		driver.Send(loopLogBatchMsg{batch: logBatch{RunID: runID, Lines: []string{"loop line one"}}})
 		driver.Send(loopLogBatchMsg{batch: logBatch{RunID: runID, Lines: []string{"loop line two"}, Done: true}})
 		driver.Send(loopResultMsg{})
@@ -117,6 +130,12 @@ func TestModelDriver_MidRunSwitchesDoNotDropAsyncMessages(t *testing.T) {
 		}
 		if driver.m.loopView.logCh != nil {
 			t.Fatalf("expected loop log channel to be cleared")
+		}
+		if driver.m.loopView.state.Iteration != 40 {
+			t.Fatalf("expected latest iteration 40, got %d", driver.m.loopView.state.Iteration)
+		}
+		if driver.m.loopView.state.ActiveItemID != "RQ-0040" {
+			t.Fatalf("expected latest active item ID RQ-0040, got %q", driver.m.loopView.state.ActiveItemID)
 		}
 		if !strings.Contains(strings.Join(driver.m.loopView.LogLines(), "\n"), "loop line two") {
 			t.Fatalf("expected loop logs to include log lines")

@@ -2,6 +2,7 @@
 package tui
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -109,6 +110,36 @@ func TestLoopStateUpdatesAndClears(t *testing.T) {
 	_ = view.Update(loopStateMsg{runID: 2, done: true}, newKeyMap())
 	if view.stateCh != nil {
 		t.Fatalf("expected state channel to clear on done")
+	}
+}
+
+func TestLoopStateLatestOnlyAfterManyUpdates(t *testing.T) {
+	view := newLoopView(testLoopConfig(), paths.Locations{})
+	view.stateRunID = 1
+	stateCh := make(chan loop.State, 1)
+	view.stateCh = stateCh
+	sink := loopStateSink{ch: stateCh}
+
+	for i := 1; i <= 40; i++ {
+		sink.Update(loop.State{
+			Mode:            loop.ModeContinuous,
+			Iteration:       i,
+			ActiveItemID:    fmt.Sprintf("RQ-%04d", i),
+			ActiveItemTitle: "Streaming update",
+		})
+	}
+
+	msg := listenLoopState(stateCh, 1)()
+	cmd := view.Update(msg, newKeyMap())
+
+	if view.state.Iteration != 40 {
+		t.Fatalf("expected latest iteration 40, got %d", view.state.Iteration)
+	}
+	if view.state.ActiveItemID != "RQ-0040" {
+		t.Fatalf("expected latest active item ID RQ-0040, got %q", view.state.ActiveItemID)
+	}
+	if cmd == nil {
+		t.Fatalf("expected loop state update to resubscribe")
 	}
 }
 

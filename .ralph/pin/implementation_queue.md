@@ -1,10 +1,6 @@
 # Implementation Queue
 
 ## Queue
-- [ ] RQ-0456 [code]: Fix Run Loop TUI state streaming (continuous updates + prevent deadlock when state channel fills). (ralph_tui/internal/tui/loop_view.go, ralph_tui/internal/tui/loop_view_test.go, ralph_tui/internal/tui/model_driver_async_routing_test.go)
-  - Evidence: `loopView.startRun()` schedules `listenLoopState(stateCh, runID)` only once, but `loopView.Update` handling of `loopStateMsg` never re-subscribes, so only the first state update is consumed. Meanwhile `loopStateSink.Update` uses a blocking send (`s.ch <- state`) with a fixed buffer (`make(chan loop.State, 32)`), so longer runs can stall once the buffer fills (runner blocks trying to emit state).
-  - Plan: (1) Re-subscribe after every received `loopStateMsg` until `done=true`, (2) change state delivery to "latest-only" semantics (non-blocking send that drops/overwrites older state) to prevent runner stalls, and (3) add regression tests that simulate >32 state updates and assert the loop continues and the UI reflects the latest active item/iteration.
-
 - [ ] RQ-0457 [code]: Make loop finalize completion detection item-ID based (avoid false completion when new unchecked items are inserted). (ralph_tui/internal/loop/loop.go, ralph_tui/internal/loop/queue.go, ralph_tui/internal/loop/loop_test.go)
   - Evidence: `Runner.finalizeIteration()` currently decides `completed` via `firstAfter == nil || firstAfter.ID != itemID`. If a runner adds a new unchecked item at the top of the queue (or tag filters shift what's "first"), this can misclassify the current item as "completed" even if it remains unchecked elsewhere, which risks committing/validating the wrong thing.
   - Plan: Introduce an explicit "item completion" check by scanning queue+done for `itemID` and verifying either (a) it moved to Done, or (b) it is checked and no longer eligible as the active unchecked item; then update finalize logic + add tests covering the "new item inserted above" case.

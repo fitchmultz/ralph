@@ -217,6 +217,9 @@ func (l *loopView) Update(msg tea.Msg, keys keyMap) tea.Cmd {
 		}
 		l.state = msg.state
 		l.Resize(l.width, l.height)
+		if l.stateCh != nil {
+			return listenLoopState(l.stateCh, l.stateRunID)
+		}
 		return nil
 	case loopLogBatchMsg:
 		if msg.batch.RunID != l.logRunID {
@@ -495,7 +498,7 @@ func (l *loopView) startRun(runOnce bool) tea.Cmd {
 	l.logCh = logCh
 	l.logRunID++
 	runID := l.logRunID
-	stateCh := make(chan loop.State, 32)
+	stateCh := make(chan loop.State, 1)
 	l.stateCh = stateCh
 	l.stateRunID++
 	stateRunID := l.stateRunID
@@ -965,14 +968,26 @@ func listenLoopLogs(logCh <-chan string, runID int) tea.Cmd {
 }
 
 type loopStateSink struct {
-	ch chan<- loop.State
+	ch chan loop.State
 }
 
 func (s loopStateSink) Update(state loop.State) {
 	if s.ch == nil {
 		return
 	}
-	s.ch <- state
+	select {
+	case s.ch <- state:
+		return
+	default:
+	}
+	select {
+	case <-s.ch:
+	default:
+	}
+	select {
+	case s.ch <- state:
+	default:
+	}
 }
 
 func listenLoopState(stateCh <-chan loop.State, runID int) tea.Cmd {
