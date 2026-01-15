@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -26,11 +27,17 @@ type fileStamp struct {
 const fileStampHashMaxBytes int64 = 64 * 1024
 
 func getFileStamp(path string) (fileStamp, error) {
-	info, err := os.Stat(path)
+	handle, err := os.Open(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return fileStamp{Exists: false}, nil
 		}
+		return fileStamp{}, err
+	}
+	defer handle.Close()
+
+	info, err := handle.Stat()
+	if err != nil {
 		return fileStamp{}, err
 	}
 	stamp := fileStamp{
@@ -45,15 +52,14 @@ func getFileStamp(path string) (fileStamp, error) {
 		stamp.HasCtime = details.hasCtime
 	}
 	if info.Size() <= fileStampHashMaxBytes {
-		hash, err := hashFileContents(path)
+		hash, bytesRead, err := hashFilePrefixAt(handle, info.Size())
 		if err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				return fileStamp{Exists: false}, nil
-			}
 			return fileStamp{}, err
 		}
-		stamp.Hash = hash
-		stamp.HasHash = true
+		if bytesRead == info.Size() {
+			stamp.Hash = hash
+			stamp.HasHash = true
+		}
 	}
 	return stamp, nil
 }
@@ -111,11 +117,32 @@ func fileStampSignature(stamp fileStamp) string {
 	return strings.Join(parts, ";")
 }
 
-func hashFileContents(path string) (string, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return "", err
+func hashFilePrefixAt(reader io.ReaderAt, size int64) (string, int64, error) {
+	if size <= 0 {
+		return "", 0, nil
 	}
-	hash := sha256.Sum256(data)
-	return hex.EncodeToString(hash[:]), nil
+	hasher := sha256.New()
+	const bufSize = 32 * 1024
+	buf := make([]byte, bufSize)
+	var offset int64
+	for offset < size {
+		toRead := size - offset
+		if toRead > int64(len(buf)) {
+			toRead = int64(len(buf))
+		}
+		n, err := reader.ReadAt(buf[:toRead], offset)
+		if n > 0 {
+			if _, writeErr := hasher.Write(buf[:n]); writeErr != nil {
+				return "", offset, writeErr
+			}
+			offset += int64(n)
+		}
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return "", offset, err
+		}
+	}
+	return hex.EncodeToString(hasher.Sum(nil)), offset, nil
 }

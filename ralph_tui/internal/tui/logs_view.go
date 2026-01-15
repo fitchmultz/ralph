@@ -167,6 +167,11 @@ func (l *logsView) Refresh(loopLines []string, specsLines []string) {
 		stamp, changed, err := fileChanged(l.logPath, l.lastStamp)
 		if err != nil {
 			l.logErr = err.Error()
+		} else if !stamp.Exists {
+			if l.logErr != "" {
+				l.logErr = ""
+			}
+			l.lastStamp = stamp
 		} else if changed || l.logErr != "" {
 			lines, err := tailFileLines(l.logPath, logsTailLines)
 			if err != nil {
@@ -220,6 +225,11 @@ func (l *logsView) formatLabel() string {
 	return "raw"
 }
 
+type tailReadAtStater interface {
+	Stat() (os.FileInfo, error)
+	ReadAt(p []byte, off int64) (n int, err error)
+}
+
 func tailFileLines(path string, limit int) ([]string, error) {
 	if limit <= 0 {
 		return []string{}, nil
@@ -233,6 +243,10 @@ func tailFileLines(path string, limit int) ([]string, error) {
 	}
 	defer file.Close()
 
+	return tailFileLinesFromHandle(file, limit)
+}
+
+func tailFileLinesFromHandle(file tailReadAtStater, limit int) ([]string, error) {
 	info, err := file.Stat()
 	if err != nil {
 		return nil, err
@@ -240,12 +254,12 @@ func tailFileLines(path string, limit int) ([]string, error) {
 	if info.Size() == 0 {
 		return []string{}, nil
 	}
-
 	const chunkSize int64 = 64 * 1024
 	pos := info.Size()
 	newlineCount := 0
 	chunks := make([][]byte, 0, 8)
 	trimTrailing := true
+	retriesRemaining := 1
 
 	for pos > 0 && newlineCount < limit+1 {
 		readLen := chunkSize
@@ -253,14 +267,24 @@ func tailFileLines(path string, limit int) ([]string, error) {
 			readLen = pos
 		}
 		pos -= readLen
-		if _, err := file.Seek(pos, io.SeekStart); err != nil {
-			return nil, err
-		}
 
 		buf := make([]byte, int(readLen))
-		if _, err := io.ReadFull(file, buf); err != nil {
+		n, err := file.ReadAt(buf, pos)
+		if err != nil && !errors.Is(err, io.EOF) {
 			return nil, err
 		}
+		if n == 0 {
+			if errors.Is(err, io.EOF) && retriesRemaining > 0 {
+				info, statErr := file.Stat()
+				if statErr == nil && info.Size() < pos+readLen {
+					pos = info.Size()
+					retriesRemaining--
+					continue
+				}
+			}
+			break
+		}
+		buf = buf[:n]
 
 		if trimTrailing {
 			buf = bytes.TrimRight(buf, "\n")

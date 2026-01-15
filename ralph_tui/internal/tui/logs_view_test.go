@@ -4,10 +4,13 @@ package tui
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 )
 
 func TestLogsViewRefreshRendersContent(t *testing.T) {
@@ -160,6 +163,55 @@ func TestTailFileLines(t *testing.T) {
 	}
 }
 
+func TestTailFileLinesFromHandleTruncationDuringRead(t *testing.T) {
+	initialLines := []string{"line-1", "line-2", "line-3", "line-4", "line-5"}
+	initialData := []byte(strings.Join(initialLines, "\n") + "\n")
+
+	file := newMemoryTailFile(initialData)
+	file.onRead = func(f *memoryTailFile) {
+		f.data = []byte("fresh-1\nfresh-2\n")
+	}
+
+	lines, err := tailFileLinesFromHandle(file, 5)
+	if err != nil {
+		t.Fatalf("tailFileLinesFromHandle: %v", err)
+	}
+	if strings.Join(lines, "\n") != "fresh-1\nfresh-2" {
+		t.Fatalf("unexpected lines after truncation: %q", lines)
+	}
+}
+
+func TestLogsViewRefreshRotationGapKeepsDebugTail(t *testing.T) {
+	tmpDir := t.TempDir()
+	logPath := filepath.Join(tmpDir, "ralph_tui.log")
+	if err := os.WriteFile(logPath, []byte("first\nsecond\n"), 0o600); err != nil {
+		t.Fatalf("write log file: %v", err)
+	}
+
+	view := newLogsView(logPath)
+	view.Refresh(nil, nil)
+	if !strings.Contains(view.renderContent(), "second") {
+		t.Fatalf("expected initial log content")
+	}
+
+	rotatedPath := logPath + ".1"
+	if err := os.Rename(logPath, rotatedPath); err != nil {
+		t.Fatalf("rotate log file: %v", err)
+	}
+	view.Refresh(nil, nil)
+	if !strings.Contains(view.renderContent(), "second") {
+		t.Fatalf("expected logs view to keep previous tail during rotation gap")
+	}
+
+	if err := os.WriteFile(logPath, []byte("fresh\n"), 0o600); err != nil {
+		t.Fatalf("write new log file: %v", err)
+	}
+	view.Refresh(nil, nil)
+	if !strings.Contains(view.renderContent(), "fresh") {
+		t.Fatalf("expected logs view to read new log content after rotation")
+	}
+}
+
 func TestLogsViewRefreshSuppressesRedundantViewportUpdates(t *testing.T) {
 	tmpDir := t.TempDir()
 	logPath := filepath.Join(tmpDir, "ralph_tui.log")
@@ -195,3 +247,48 @@ func TestLogsViewRefreshSuppressesRedundantViewportUpdates(t *testing.T) {
 		t.Fatalf("expected refreshed viewport update, got %d", view.viewportSetContentCalls)
 	}
 }
+
+type memoryTailFile struct {
+	mu     sync.Mutex
+	data   []byte
+	onRead func(*memoryTailFile)
+}
+
+func newMemoryTailFile(data []byte) *memoryTailFile {
+	return &memoryTailFile{data: data}
+}
+
+func (m *memoryTailFile) Stat() (os.FileInfo, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return memoryFileInfo{size: int64(len(m.data))}, nil
+}
+
+func (m *memoryTailFile) ReadAt(p []byte, off int64) (int, error) {
+	m.mu.Lock()
+	if m.onRead != nil {
+		m.onRead(m)
+		m.onRead = nil
+	}
+	if off >= int64(len(m.data)) {
+		m.mu.Unlock()
+		return 0, io.EOF
+	}
+	n := copy(p, m.data[off:])
+	m.mu.Unlock()
+	if n < len(p) {
+		return n, io.EOF
+	}
+	return n, nil
+}
+
+type memoryFileInfo struct {
+	size int64
+}
+
+func (m memoryFileInfo) Name() string       { return "memory.log" }
+func (m memoryFileInfo) Size() int64        { return m.size }
+func (m memoryFileInfo) Mode() os.FileMode  { return 0o600 }
+func (m memoryFileInfo) ModTime() time.Time { return time.Unix(0, 0) }
+func (m memoryFileInfo) IsDir() bool        { return false }
+func (m memoryFileInfo) Sys() any           { return nil }

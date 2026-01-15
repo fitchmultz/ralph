@@ -1,10 +1,6 @@
 # Implementation Queue
 
 ## Queue
-- [ ] RQ-0448 [code]: Harden Logs view tail reader against concurrent writes/rotations (avoid spurious errors and blank Logs screen). (ralph_tui/internal/tui/logs_view.go, ralph_tui/internal/tui/logs_view_test.go)
-  - Evidence: `tailFileLines` does Stat → Seek → `io.ReadFull` across assumed-stable byte ranges; when the log file changes concurrently (append/rotate), this can return errors and surface as "Error:" in Logs.
-  - Plan: Make tail reading resilient (ReadAt, tolerate EOF/UnexpectedEOF, retry on size changes), add a regression test that simulates concurrent append/rotation, and ensure the Logs screen degrades gracefully.
-
 - [ ] RQ-0447 [code]: Improve loop/specs output persistence (buffering + fewer flushes) to avoid laggy UI while keeping lossless capture guarantees. (ralph_tui/internal/tui/output_persistence.go, ralph_tui/internal/tui/loop_view.go, ralph_tui/internal/tui/specs_view.go, ralph_tui/internal/tui/output_capture_test.go)
   - Evidence: `outputFileWriter.AppendLines` flushes on every call; loop/specs write frequently, which can introduce IO stalls and degrade perceived streaming performance.
   - Plan: Add buffered/periodic flushing (or larger buffered batches), ensure Close always flushes, keep lossless test coverage, and add a benchmark/contract test to keep per-line overhead bounded.
