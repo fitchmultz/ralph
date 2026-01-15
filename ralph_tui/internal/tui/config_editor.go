@@ -192,6 +192,13 @@ func (e *configEditor) Resize(width int, height int) {
 	if height > 0 {
 		e.form = e.form.WithHeight(formHeight)
 	}
+	// Ensure the form has built its view even before it receives user input.
+	if width > 0 || height > 0 {
+		model, _ := e.form.Update(tea.WindowSizeMsg{Width: width, Height: formHeight})
+		if form, ok := model.(*huh.Form); ok {
+			e.form = form
+		}
+	}
 }
 
 func (e *configEditor) statusLine() string {

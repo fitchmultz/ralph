@@ -31,6 +31,7 @@ You are an autonomous engineer working in this repo.
 - `make ci` passed.
 
 ## DECISION HEURISTICS
+- Follow global guidance provided by `~/.codex/AGENTS.md` and repo specific guidance found in `AGENTS.md` in this repo.
 - Delete or consolidate before adding new parts.
 - Add components only if they reduce total risk/maintenance or increase measurable signal.
 - Prefer central shared helpers when logic repeats.
@@ -45,7 +46,7 @@ You are an autonomous engineer working in this repo.
 4. If you use `context_builder`, execute the plan it generated.
 5. Before coding: if the task touches a new area not represented in `.ralph/pin/lookup_table.md`, or materially changes workflow/architecture, run `ralph specs build` and re-read the refreshed specs.
 6. Implement the correct, durable solution. Fix root causes. If the correct solution requires refactoring or touching multiple files, do it. Standardize and centralize patterns so the same bug class cannot reappear elsewhere.
-7. Use repo tooling (`uv run python`, Makefile targets) and shared helpers.
+7. Use repo tooling (e.g. `uv run python`, Makefile targets) and shared helpers.
 8. Mark completion by checking the item in `.ralph/pin/implementation_queue.md` (`- [x]`). Do not move items to Done or Blocked; the runner will reconcile queue state.
    - Add any *new* items directly to the `## Queue` section (not a separate follow-on section).
    - Any new queue item MUST include:

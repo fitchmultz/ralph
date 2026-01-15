@@ -41,6 +41,27 @@ func TestConfigReloadBumpsRefreshGeneration(t *testing.T) {
 	}
 }
 
+func TestConfigScreenRendersFormWithoutInput(t *testing.T) {
+	_, locs, cfg := newHermeticModel(t)
+	m := newModel(cfg, locs, StartOptions{})
+
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 30})
+	m = updated.(model)
+
+	m.switchScreen(screenConfig, true)
+	if m.configView == nil {
+		t.Fatalf("expected config view to be initialized")
+	}
+
+	view := m.configView.View()
+	if view == "" {
+		t.Fatalf("expected config view to render, got empty view")
+	}
+	if !strings.Contains(view, "UI Theme") {
+		t.Fatalf("expected config view to include UI Theme field")
+	}
+}
+
 func TestTabBypassesGlobalFocusWhenFormActive(t *testing.T) {
 	cases := []struct {
 		name  string
