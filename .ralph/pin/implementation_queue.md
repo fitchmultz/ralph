@@ -1,6 +1,10 @@
 # Implementation Queue
 
 ## Queue
+- [ ] RQ-0465 [docs]: Mark ralph_legacy as frozen and document that all new work targets ralph_tui. (README.md, AGENTS.md, CLAUDE.md)
+  - Evidence: Current docs still describe ralph_legacy as active; the repo lacks a clear statement that new development belongs in ralph_tui.
+  - Plan: Add a concise note in docs + agent guidance that ralph_legacy is in maintenance-only mode, point new work to ralph_tui paths, and keep the repo structure section aligned with this policy.
+
 - [ ] RQ-0447 [code]: Improve loop/specs output persistence (buffering + fewer flushes) to avoid laggy UI while keeping lossless capture guarantees. (ralph_tui/internal/tui/output_persistence.go, ralph_tui/internal/tui/loop_view.go, ralph_tui/internal/tui/specs_view.go, ralph_tui/internal/tui/output_capture_test.go)
   - Evidence: `outputFileWriter.AppendLines` flushes on every call; loop/specs write frequently, which can introduce IO stalls and degrade perceived streaming performance.
   - Plan: Add buffered/periodic flushing (or larger buffered batches), ensure Close always flushes, keep lossless test coverage, and add a benchmark/contract test to keep per-line overhead bounded.
@@ -36,6 +40,10 @@
 - [ ] RQ-0452 [docs]: Align on-screen key hints and help output with actual bindings (remove misleading hints, document new shortcuts, add guard tests). (ralph_tui/internal/tui/dashboard_view.go, ralph_tui/internal/tui/help_keymap.go, ralph_tui/internal/tui/keymap.go)
   - Evidence: Several screens embed hard-coded "Keys:" lines that can drift from `keymap.go` (e.g., Dashboard advertises fixup blocked). This breaks discoverability and causes user confusion.
   - Plan: Centralize key-hint rendering (or derive from `keyMap`), update view strings, and add tests that assert advertised keys exist and are handled.
+
+- [ ] RQ-0464 [code][ui][docs]: Add configurable project type (default: code; option: docs) to drive prompts and workflows for non-code repos. (ralph_tui/internal/config, ralph_tui/internal/tui/config_editor.go, ralph_tui/internal/prompts/defaults/, ralph_tui/internal/specs, ralph_tui/internal/loop, ralph_tui/internal/pin, README.md)
+  - Evidence: Current prompt templates assume code-heavy repos, which performs poorly on doc-heavy knowledge bases; users need a docs-focused flow for documentation improvements, link fixes, and research synthesis.
+  - Plan: Add `project_type` config (default `code`, allow `docs`) and persist it in pin/config; surface it in the config editor; during `ralph init`, prompt for repo type (with optional auto-detect + confirmation) so new repos start with the right prompts; select prompt templates for specs and loop runs based on project type; add docs-focused prompt variants (doc maintenance, link checks, research synthesis) and tests to ensure prompt selection + config round-trips per type.
 
 ## Blocked
 
