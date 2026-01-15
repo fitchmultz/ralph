@@ -1,6 +1,9 @@
 # Implementation Done
 
 ## Done
+- [x] RQ-0406 [code]: Fix async message routing so background screen updates aren't dropped (pin/specs/loop). (ralph_tui/internal/tui/model.go, ralph_tui/internal/tui/pin_view.go, ralph_tui/internal/tui/specs_view.go, ralph_tui/internal/tui/loop_view.go, ralph_tui/internal/tui/model_driver_test.go)
+  - Evidence: model.Update routes most non-key messages only to the active screen via updateActiveView(); model.Init starts pinView.reloadAsync(true) and specsView.RefreshPreviewCmd() while Dashboard is active, so pinReloadMsg/specsPreviewMsg can be dropped and leave views stuck in loading. Also loop/specs run messages (loopLogBatchMsg/loopResultMsg, specsLogBatchMsg/specsBuildResultMsg) are dropped if the user navigates away mid-run, causing stuck running states + output writers never being closed.
+  - Plan: Dispatch view-specific messages to their owning view regardless of m.screen (type-switch by msg), while still letting the active view handle user input; batch returned cmds safely. Add driver tests that (1) start on dashboard and assert initial pin/specs async loads complete, and (2) start loop/specs, switch screens mid-run, and assert state and output persistence clean up correctly.
 - [x] RQ-0405 [ui]: Fix global Tab focus stealing from huh forms (config/loop edit/pin block). (ralph_tui/internal/tui/model.go, ralph_tui/internal/tui/config_editor.go, ralph_tui/internal/tui/loop_view.go, ralph_tui/internal/tui/pin_view.go)
   - Evidence: model handles Tab focus before delegating to active view; huh uses Tab for navigation, so forms can feel broken/unintuitive.
   - Plan: Detect active huh forms and bypass global focus toggle; or rebind focus key to avoid Tab conflict; update help text and add tests for form navigation.

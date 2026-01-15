@@ -271,7 +271,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if !handled {
-		cmds = append(cmds, m.updateActiveView(msg))
+		if cmd, ok := m.updateBackgroundViews(msg); ok {
+			if cmd != nil {
+				cmds = append(cmds, cmd)
+			}
+		} else {
+			cmds = append(cmds, m.updateActiveView(msg))
+		}
 	}
 
 	return m, tea.Batch(cmds...)
@@ -297,6 +303,29 @@ func (m model) activeViewUsesTabNavigation() bool {
 		return m.pinView != nil && m.pinView.HandlesTabNavigation()
 	default:
 		return false
+	}
+}
+
+// updateBackgroundViews ensures async view messages are handled even when inactive.
+func (m *model) updateBackgroundViews(msg tea.Msg) (tea.Cmd, bool) {
+	switch msg.(type) {
+	case pinReloadMsg:
+		if m.pinView == nil {
+			return nil, true
+		}
+		return m.pinView.Update(msg, m.keys), true
+	case specsBuildResultMsg, specsLogBatchMsg, specsPreviewMsg:
+		if m.specsView == nil {
+			return nil, true
+		}
+		return m.specsView.Update(msg, m.keys), true
+	case loopResultMsg, loopLogBatchMsg:
+		if m.loopView == nil {
+			return nil, true
+		}
+		return m.loopView.Update(msg, m.keys), true
+	default:
+		return nil, false
 	}
 }
 
