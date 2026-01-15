@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/config"
@@ -36,29 +37,42 @@ func Start(cfg config.Config, locations paths.Locations, opts StartOptions) erro
 }
 
 type model struct {
-	nav              list.Model
-	screen           screen
-	help             help.Model
-	keys             keyMap
-	navFocused       bool
-	navCollapsed     bool
-	cfg              config.Config
-	configView       *configEditor
-	pinView          *pinView
-	specsView        *specsView
-	loopView         *loopView
-	logsView         *logsView
-	logger           *tuiLogger
-	logErr           error
-	cliOverrides     config.PartialConfig
-	sessionOverrides config.PartialConfig
-	refreshGen       int
-	width            int
-	height           int
-	layout           layoutSpec
-	initErr          error
-	locations        paths.Locations
+	nav                list.Model
+	screen             screen
+	help               help.Model
+	keys               keyMap
+	searchInput        textinput.Model
+	searchActive       bool
+	searchTarget       searchTarget
+	searchErr          string
+	priorNavSelected   int
+	searchNavCollapsed bool
+	navFocused         bool
+	navCollapsed       bool
+	cfg                config.Config
+	configView         *configEditor
+	pinView            *pinView
+	specsView          *specsView
+	loopView           *loopView
+	logsView           *logsView
+	logger             *tuiLogger
+	logErr             error
+	cliOverrides       config.PartialConfig
+	sessionOverrides   config.PartialConfig
+	refreshGen         int
+	width              int
+	height             int
+	layout             layoutSpec
+	initErr            error
+	locations          paths.Locations
 }
+
+type searchTarget int
+
+const (
+	searchTargetNav searchTarget = iota
+	searchTargetPin
+)
 
 func newModel(cfg config.Config, locations paths.Locations, opts StartOptions) model {
 	items := make([]list.Item, 0)
@@ -70,8 +84,14 @@ func newModel(cfg config.Config, locations paths.Locations, opts StartOptions) m
 	l.Title = "Ralph"
 	l.SetShowFilter(false)
 	l.SetShowStatusBar(false)
-	l.SetFilteringEnabled(false)
+	l.SetFilteringEnabled(true)
 	l.SetShowHelp(false)
+
+	searchInput := textinput.New()
+	searchInput.Prompt = "Search: "
+	searchInput.Placeholder = "Screens, queue IDs, tags"
+	searchInput.CharLimit = 120
+	searchInput.Width = 32
 
 	var err error
 
@@ -98,6 +118,8 @@ func newModel(cfg config.Config, locations paths.Locations, opts StartOptions) m
 		screen:           screenDashboard,
 		help:             help.New(),
 		keys:             newKeyMap(),
+		searchInput:      searchInput,
+		priorNavSelected: l.Index(),
 		navFocused:       true,
 		navCollapsed:     false,
 		cfg:              cfg,
@@ -235,6 +257,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, m.refreshScreen(m.screen, true)...)
 			return m, tea.Batch(cmds...)
 		}
+		if key.Matches(msg, m.keys.Search) {
+			m.beginSearch()
+			return m, nil
+		}
 		if m.screen == screenDashboard {
 			switch {
 			case key.Matches(msg, m.keys.DashboardRunLoopOnce):
@@ -292,6 +318,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		if m.navFocused && !m.navCollapsed {
+			if m.searchActive {
+				cmd := m.updateSearch(msg)
+				return m, cmd
+			}
 			updated, cmd := m.nav.Update(msg)
 			m.nav = updated
 			cmds = append(cmds, cmd)
@@ -302,6 +332,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		} else {
+			if m.searchActive {
+				cmd := m.updateSearch(msg)
+				return m, cmd
+			}
 			cmds = append(cmds, m.updateActiveView(msg))
 		}
 
@@ -373,6 +407,12 @@ func (m model) View() string {
 	}
 
 	navView := strings.TrimRight(m.nav.View(), "\n")
+	if m.searchActive {
+		searchView := m.searchView()
+		if searchView != "" {
+			navView = searchView + "\n" + navView
+		}
+	}
 	contentView := strings.TrimRight(m.contentView(), "\n")
 
 	navStyle, contentStyle := m.panelStyles(m.layout.navWidth, m.layout.bodyHeight, m.layout.contentWidth, m.layout.bodyHeight)
@@ -428,6 +468,17 @@ func (m model) View() string {
 		}
 	}
 	return withFinalNewline(rendered)
+}
+
+func (m model) searchView() string {
+	if !m.searchActive {
+		return ""
+	}
+	line := m.searchInput.View()
+	if m.searchErr != "" {
+		line = line + " " + m.searchErr
+	}
+	return line
 }
 
 func max(a, b int) int {
@@ -589,7 +640,7 @@ func (m model) panelStyles(navOuterW, navOuterH, contentOuterW, contentOuterH in
 			paddingRight = 0
 			paddingLeft = 0
 		}
-		if outerH < 3 {
+		if outerH <= 3 {
 			paddingTop = 0
 			paddingBottom = 0
 		}
@@ -644,6 +695,7 @@ func (m *model) relayout() {
 	contentInnerH := max(0, m.layout.bodyHeight-contentFrameH)
 
 	m.nav.SetSize(navInnerW, navInnerH)
+	m.searchInput.Width = navInnerW
 	m.resizeViews(contentInnerW, contentInnerH)
 }
 
@@ -925,6 +977,9 @@ func (m *model) applyFocus() {
 	if m.navCollapsed {
 		m.navFocused = false
 	}
+	if m.searchActive {
+		m.navFocused = false
+	}
 	if m.pinView != nil {
 		if m.navFocused || m.screen != screenPin {
 			m.pinView.Blur()
@@ -945,6 +1000,119 @@ func (m *model) applyFocus() {
 		} else {
 			m.loopView.Focus()
 		}
+	}
+}
+
+func (m *model) beginSearch() {
+	if m.searchActive {
+		return
+	}
+	m.searchNavCollapsed = m.navCollapsed
+	if m.navCollapsed {
+		m.navCollapsed = false
+	}
+	if m.navFocused && !m.navCollapsed {
+		m.searchTarget = searchTargetNav
+	} else if m.screen == screenPin {
+		m.searchTarget = searchTargetPin
+	} else {
+		m.searchTarget = searchTargetNav
+	}
+	m.searchActive = true
+	m.searchErr = ""
+	m.searchInput.SetValue("")
+	m.searchInput.Focus()
+	m.priorNavSelected = m.nav.Index()
+	m.updateSearchTargetState("")
+	m.applyFocus()
+	m.relayout()
+}
+
+func (m *model) updateSearch(msg tea.KeyMsg) tea.Cmd {
+	prevValue := m.searchInput.Value()
+	updated, cmd := m.searchInput.Update(msg)
+	m.searchInput = updated
+	if prevValue != m.searchInput.Value() {
+		m.updateSearchTargetState(m.searchInput.Value())
+	}
+
+	if key.Matches(msg, m.keys.Select) || msg.Type == tea.KeyEnter {
+		m.acceptSearch()
+		return nil
+	}
+	if msg.Type == tea.KeyEsc {
+		m.cancelSearch()
+		return nil
+	}
+	if msg.Type == tea.KeyCtrlF {
+		m.cancelSearch()
+		m.navFocused = !m.navFocused
+		m.applyFocus()
+		m.relayout()
+		return nil
+	}
+	return cmd
+}
+
+func (m *model) acceptSearch() {
+	if !m.searchActive {
+		return
+	}
+	m.searchActive = false
+	m.searchInput.Blur()
+	m.searchErr = ""
+	if m.searchNavCollapsed {
+		m.navCollapsed = true
+		m.navFocused = false
+	}
+	if m.searchTarget == searchTargetNav {
+		if item, ok := m.nav.SelectedItem().(navItem); ok {
+			m.nav.ResetFilter()
+			m.switchScreen(item.screen, true)
+		}
+	} else if m.searchTarget == searchTargetPin && m.pinView != nil {
+		m.pinView.FinalizeSearch()
+		m.navFocused = false
+		m.applyFocus()
+		m.relayout()
+	}
+}
+
+func (m *model) cancelSearch() {
+	if !m.searchActive {
+		return
+	}
+	m.searchActive = false
+	m.searchInput.Blur()
+	m.searchErr = ""
+	m.nav.ResetFilter()
+	if m.pinView != nil {
+		m.pinView.CancelSearch()
+	}
+	if m.priorNavSelected >= 0 {
+		m.nav.Select(m.priorNavSelected)
+	}
+	if m.searchNavCollapsed {
+		m.navCollapsed = true
+		m.navFocused = false
+	}
+	m.applyFocus()
+	m.relayout()
+}
+
+func (m *model) updateSearchTargetState(term string) {
+	if m.searchTarget == searchTargetNav {
+		m.nav.SetFilterText(term)
+		m.searchErr = ""
+		return
+	}
+	if m.searchTarget == searchTargetPin && m.pinView != nil {
+		if err := m.pinView.ApplySearch(term); err != nil {
+			m.searchErr = "(" + err.Error() + ")"
+		} else {
+			m.searchErr = ""
+		}
+		return
 	}
 }
 

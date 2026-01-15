@@ -1,6 +1,14 @@
 # Implementation Done
 
 ## Done
+- [x] RQ-0421 [ui]: Add search/command-palette style navigation + Pin queue filtering to handle large queues without manual scrolling. (ralph_tui/internal/tui/model.go, ralph_tui/internal/tui/pin_view.go, ralph_tui/internal/tui/keymap.go)
+  - Evidence:
+    - The nav list explicitly disables filtering (`SetShowFilter(false)`, `SetFilteringEnabled(false)`), so there is no fast jump across screens.
+    - The Pin screen uses a table with no search/filter mode; for large queues this becomes slow and "laggy" to navigate.
+  - Plan:
+    - Add a "search mode" (command palette style) with a text input; support jumping screens and filtering Pin queue rows by ID/title/tag.
+    - Ensure selection/scroll restoration still works when filters are cleared.
+    - Update help + add a small unit test for filter activation and for stable selection when filtering.
 - [x] RQ-0420 [ui]: Replace empty Dashboard with a real status overview (queue counts, running state, last results, log path) + quick actions. (ralph_tui/internal/tui/model.go, ralph_tui/internal/tui/screens.go, ralph_tui/internal/tui/help_keymap.go)
   - Evidence:
     - `ralph_tui/internal/tui/model.go` currently returns a placeholder for `screenDashboard`: "Dashboard\n\nSummary panels will land here." (no actionable information).

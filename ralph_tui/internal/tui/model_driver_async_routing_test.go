@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/charmbracelet/bubbles/table"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/pin"
 )
 
@@ -19,8 +18,6 @@ func TestModelDriver_BackgroundAsyncUpdatesNotDropped(t *testing.T) {
 		Lines:  []string{"- [ ] RQ-0100 [code]: Background update"},
 		ID:     "RQ-0100",
 	}
-	status := "[ ]"
-	rows := []table.Row{{status, item.ID, trimTitle(item.Header)}}
 	if driver.m.pinView == nil {
 		t.Fatalf("expected pin view to be initialized")
 	}
@@ -28,7 +25,7 @@ func TestModelDriver_BackgroundAsyncUpdatesNotDropped(t *testing.T) {
 		t.Fatalf("expected specs view to be initialized")
 	}
 
-	driver.Send(pinReloadMsg{items: []pin.QueueItem{item}, rows: rows})
+	driver.Send(pinReloadMsg{items: []pin.QueueItem{item}})
 	driver.Send(specsPreviewMsg{preview: "Preview content", effective: true, auto: true})
 
 	if len(driver.m.pinView.items) != 1 {

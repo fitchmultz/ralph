@@ -4,6 +4,7 @@ package tui
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -33,7 +34,6 @@ const (
 
 type pinReloadMsg struct {
 	items       []pin.QueueItem
-	rows        []table.Row
 	queueStamp  fileStamp
 	blocked     int
 	err         error
@@ -44,6 +44,7 @@ type pinReloadMsg struct {
 type pinView struct {
 	files        pin.Files
 	items        []pin.QueueItem
+	allItems     []pin.QueueItem
 	blockedCount int
 	table        table.Model
 	tableStyles  table.Styles
@@ -62,12 +63,17 @@ type pinView struct {
 	width        int
 	height       int
 	queueStamp   fileStamp
+	searchTerm   string
+	searchAnchor string
+	searchOffset int
 }
 
 const (
 	defaultPinViewWidth = 80
 	pinViewChromeHeight = 4
 )
+
+var pinTagPattern = regexp.MustCompile(`\[(db|ui|code|ops|docs)\]`)
 
 func newPinView(cfg config.Config, locations paths.Locations) (*pinView, error) {
 	files := pin.ResolveFiles(cfg.Paths.PinDir)
@@ -113,23 +119,13 @@ func (p *pinView) Update(msg tea.Msg, keys keyMap) tea.Cmd {
 			return nil
 		}
 		p.err = ""
-		p.items = reloadMsg.items
+		p.setQueueItems(reloadMsg.items, prevSelectedID, prevDetailOffset, reloadMsg.resetScroll)
 		p.blockedCount = reloadMsg.blocked
-		p.table.SetRows(reloadMsg.rows)
 		if reloadMsg.stampErr == nil {
 			p.queueStamp = reloadMsg.queueStamp
 		}
-		p.restoreSelection(prevSelectedID)
-		p.clampCursor()
-		p.setTableColumns(p.width)
-		sameSelection := prevSelectedID != "" && prevSelectedID == p.selectedItemID()
 		if reloadMsg.stampErr != nil {
 			p.setRefreshError("Pin file watch error", reloadMsg.stampErr)
-		}
-		if sameSelection && !reloadMsg.resetScroll {
-			p.syncDetailWithOffset(false, prevDetailOffset)
-		} else {
-			p.syncDetail(reloadMsg.resetScroll || !sameSelection)
 		}
 		if p.reloadAgain {
 			p.reloadAgain = false
@@ -240,6 +236,9 @@ func (p *pinView) statusLine() string {
 	if p.status != "" {
 		return joinStatus(p.status, focusNote)
 	}
+	if p.searchTerm != "" {
+		return joinStatus(fmt.Sprintf("Filter: %s", p.searchTerm), focusNote)
+	}
 	return focusNote
 }
 
@@ -313,24 +312,13 @@ func (p *pinView) reload() error {
 	if err != nil {
 		return err
 	}
-	p.items = items
+	p.setQueueItems(items, p.selectedItemID(), p.detail.YOffset, true)
 	p.blockedCount = blocked
-	rows := make([]table.Row, 0, len(items))
-	for _, item := range items {
-		status := "[ ]"
-		if item.Checked {
-			status = "[x]"
-		}
-		rows = append(rows, table.Row{status, item.ID, trimTitle(item.Header)})
-	}
-	p.table.SetRows(rows)
-	p.setTableColumns(p.width)
 	if stamp, err := getFileStamp(p.files.QueuePath); err == nil {
 		p.queueStamp = stamp
 	} else {
 		p.setRefreshError("Pin file watch error", err)
 	}
-	p.syncDetail(true)
 	return nil
 }
 
@@ -349,14 +337,6 @@ func (p *pinView) reloadAsync(resetScroll bool) tea.Cmd {
 		if err != nil {
 			return pinReloadMsg{err: err, resetScroll: resetScroll}
 		}
-		rows := make([]table.Row, 0, len(items))
-		for _, item := range items {
-			status := "[ ]"
-			if item.Checked {
-				status = "[x]"
-			}
-			rows = append(rows, table.Row{status, item.ID, trimTitle(item.Header)})
-		}
 		var stamp fileStamp
 		var stampErr error
 		if current, err := getFileStamp(files.QueuePath); err == nil {
@@ -366,7 +346,6 @@ func (p *pinView) reloadAsync(resetScroll bool) tea.Cmd {
 		}
 		return pinReloadMsg{
 			items:       items,
-			rows:        rows,
 			queueStamp:  stamp,
 			blocked:     blocked,
 			stampErr:    stampErr,
@@ -619,4 +598,150 @@ func requireNonEmpty(label string) func(string) error {
 		}
 		return nil
 	}
+}
+
+func (p *pinView) setQueueItems(items []pin.QueueItem, prevSelectedID string, prevDetailOffset int, resetScroll bool) {
+	p.allItems = items
+	displayItems := items
+	if p.searchTerm != "" {
+		displayItems = filterQueueItems(items, p.searchTerm)
+	}
+	p.items = displayItems
+	p.table.SetRows(makePinRows(displayItems))
+	p.setTableColumns(p.width)
+	if prevSelectedID != "" {
+		p.restoreSelection(prevSelectedID)
+	}
+	p.clampCursor()
+	sameSelection := prevSelectedID != "" && prevSelectedID == p.selectedItemID()
+	if sameSelection && !resetScroll {
+		p.syncDetailWithOffset(false, prevDetailOffset)
+	} else {
+		p.syncDetail(resetScroll || !sameSelection)
+	}
+}
+
+func (p *pinView) ApplySearch(term string) error {
+	term = strings.TrimSpace(term)
+	if term == "" && p.searchTerm == "" {
+		return nil
+	}
+	prevSelectedID := p.selectedItemID()
+	prevDetailOffset := p.detail.YOffset
+	if p.searchTerm == "" && term != "" {
+		p.searchAnchor = prevSelectedID
+		p.searchOffset = prevDetailOffset
+	}
+	p.searchTerm = term
+	p.items = filterQueueItems(p.allItems, term)
+	p.table.SetRows(makePinRows(p.items))
+	p.setTableColumns(p.width)
+	if term == "" {
+		if p.searchAnchor != "" {
+			p.restoreSelection(p.searchAnchor)
+		} else if prevSelectedID != "" {
+			p.restoreSelection(prevSelectedID)
+		}
+		p.clampCursor()
+		if p.searchAnchor != "" && p.searchAnchor == p.selectedItemID() {
+			p.syncDetailWithOffset(false, p.searchOffset)
+		} else {
+			p.syncDetail(true)
+		}
+		p.searchAnchor = ""
+		p.searchOffset = 0
+		return nil
+	}
+	if prevSelectedID != "" {
+		p.restoreSelection(prevSelectedID)
+	}
+	p.clampCursor()
+	p.syncDetail(true)
+	return nil
+}
+
+func (p *pinView) CancelSearch() {
+	if p.searchTerm == "" {
+		return
+	}
+	p.searchTerm = ""
+	p.items = p.allItems
+	p.table.SetRows(makePinRows(p.items))
+	p.setTableColumns(p.width)
+	if p.searchAnchor != "" {
+		p.restoreSelection(p.searchAnchor)
+	}
+	p.clampCursor()
+	if p.searchAnchor != "" && p.searchAnchor == p.selectedItemID() {
+		p.syncDetailWithOffset(false, p.searchOffset)
+	} else {
+		p.syncDetail(true)
+	}
+	p.searchAnchor = ""
+	p.searchOffset = 0
+}
+
+func (p *pinView) FinalizeSearch() {
+	if p.searchTerm == "" {
+		p.CancelSearch()
+		return
+	}
+	p.searchAnchor = ""
+	p.searchOffset = 0
+}
+
+func makePinRows(items []pin.QueueItem) []table.Row {
+	rows := make([]table.Row, 0, len(items))
+	for _, item := range items {
+		status := "[ ]"
+		if item.Checked {
+			status = "[x]"
+		}
+		rows = append(rows, table.Row{status, item.ID, trimTitle(item.Header)})
+	}
+	return rows
+}
+
+func filterQueueItems(items []pin.QueueItem, term string) []pin.QueueItem {
+	term = strings.ToLower(strings.TrimSpace(term))
+	if term == "" {
+		return items
+	}
+	parts := strings.Fields(term)
+	filtered := make([]pin.QueueItem, 0, len(items))
+	for _, item := range items {
+		if matchesQueueItem(item, parts) {
+			filtered = append(filtered, item)
+		}
+	}
+	return filtered
+}
+
+func matchesQueueItem(item pin.QueueItem, parts []string) bool {
+	if len(parts) == 0 {
+		return true
+	}
+	tags := strings.Join(extractPinTags(item.Header), " ")
+	haystack := strings.ToLower(strings.Join([]string{item.ID, trimTitle(item.Header), tags}, " "))
+	for _, part := range parts {
+		if !strings.Contains(haystack, part) {
+			return false
+		}
+	}
+	return true
+}
+
+func extractPinTags(header string) []string {
+	matches := pinTagPattern.FindAllStringSubmatch(header, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+	tags := make([]string, 0, len(matches))
+	for _, match := range matches {
+		if len(match) < 2 {
+			continue
+		}
+		tags = append(tags, match[1])
+	}
+	return tags
 }

@@ -11,11 +11,11 @@ type globalKeyMap struct {
 }
 
 func (g globalKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{g.keys.Quit, g.keys.ToggleNav, g.keys.Focus, g.keys.Help, g.keys.RefreshNow, g.keys.Select}
+	return []key.Binding{g.keys.Quit, g.keys.ToggleNav, g.keys.Focus, g.keys.Help, g.keys.RefreshNow, g.keys.Search, g.keys.Select}
 }
 
 func (g globalKeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{{g.keys.Quit, g.keys.ToggleNav, g.keys.Focus, g.keys.Help, g.keys.RefreshNow, g.keys.Select}}
+	return [][]key.Binding{{g.keys.Quit, g.keys.ToggleNav, g.keys.Focus, g.keys.Help, g.keys.RefreshNow, g.keys.Search, g.keys.Select}}
 }
 
 type pinKeyMap struct {
