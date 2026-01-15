@@ -1,6 +1,9 @@
 # Implementation Done
 
 ## Done
+- [x] RQ-0404 [code]: Reduce log refresh churn and large-log stutter in Logs view. (ralph_tui/internal/tui/logs_view.go, ralph_tui/internal/tui/file_watch.go)
+  - Evidence: tailFileLines uses os.ReadFile on every refresh; Refresh always rebuilds viewport content; large logs stutter and churn CPU.
+  - Plan: Implement tailing that reads only the last N lines without loading full file; track rendered signature and skip SetContent when no content changes; add tests covering unchanged-stamp refresh.
 - [x] RQ-0403 [ui]: Fix Pin queue editing UX (toggle checked) + exact ID matching for block. (ralph_tui/internal/tui/pin_view.go, ralph_tui/internal/pin/pin.go, ralph_tui/internal/pin/pin_test.go)
   - Evidence: pin.BlockItem matches via strings.Contains (RQ-0001 can match RQ-00010); Pin view has no toggle for checkmarks, forcing manual markdown edits.
   - Plan: Match item IDs exactly (use ExtractItemID or parsed QueueItem IDs); add toggle-checked action in Pin view; add unit tests for ID matching and toggle behavior.

@@ -1,9 +1,6 @@
 # Implementation Queue
 
 ## Queue
-- [ ] RQ-0404 [code]: Reduce log refresh churn and large-log stutter in Logs view. (ralph_tui/internal/tui/logs_view.go, ralph_tui/internal/tui/file_watch.go)
-  - Evidence: tailFileLines uses os.ReadFile on every refresh; Refresh always rebuilds viewport content; large logs stutter and churn CPU.
-  - Plan: Implement tailing that reads only the last N lines without loading full file; track rendered signature and skip SetContent when no content changes; add tests covering unchanged-stamp refresh.
 - [ ] RQ-0405 [ui]: Fix global Tab focus stealing from huh forms (config/loop edit/pin block). (ralph_tui/internal/tui/model.go, ralph_tui/internal/tui/config_editor.go, ralph_tui/internal/tui/loop_view.go, ralph_tui/internal/tui/pin_view.go)
   - Evidence: model handles Tab focus before delegating to active view; huh uses Tab for navigation, so forms can feel broken/unintuitive.
   - Plan: Detect active huh forms and bypass global focus toggle; or rebind focus key to avoid Tab conflict; update help text and add tests for form navigation.

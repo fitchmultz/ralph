@@ -2,9 +2,11 @@
 package tui
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"sort"
 	"strconv"
@@ -27,16 +29,18 @@ const (
 )
 
 type logsView struct {
-	viewport   viewport.Model
-	logPath    string
-	logErr     string
-	lastStamp  fileStamp
-	debugLines []string
-	loopLines  []string
-	specsLines []string
-	format     logsFormat
-	width      int
-	height     int
+	viewport                viewport.Model
+	logPath                 string
+	logErr                  string
+	lastStamp               fileStamp
+	debugLines              []string
+	loopLines               []string
+	specsLines              []string
+	format                  logsFormat
+	width                   int
+	height                  int
+	lastRenderedContent     string
+	viewportSetContentCalls int
 }
 
 func newLogsView(logPath string) *logsView {
@@ -78,10 +82,7 @@ func (l *logsView) ToggleFormat() {
 	} else {
 		l.format = logsFormatRaw
 	}
-	l.viewport.SetContent(l.renderContent())
-	if atBottom {
-		l.viewport.GotoBottom()
-	}
+	l.setViewportContentIfChanged(l.renderContent(), atBottom)
 }
 
 func (l *logsView) View() string {
@@ -125,10 +126,8 @@ func (l *logsView) Refresh(loopLines []string, specsLines []string) {
 		}
 	}
 
-	l.viewport.SetContent(l.renderContent())
-	if atBottom {
-		l.viewport.GotoBottom()
-	}
+	rendered := l.renderContent()
+	l.setViewportContentIfChanged(rendered, atBottom)
 }
 
 func (l *logsView) statusLine() string {
@@ -164,14 +163,76 @@ func (l *logsView) formatLabel() string {
 }
 
 func tailFileLines(path string, limit int) ([]string, error) {
-	data, err := os.ReadFile(path)
+	if limit <= 0 {
+		return []string{}, nil
+	}
+	file, err := os.Open(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return []string{}, nil
 		}
 		return nil, err
 	}
-	content := strings.TrimRight(string(data), "\n")
+	defer file.Close()
+
+	info, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if info.Size() == 0 {
+		return []string{}, nil
+	}
+
+	const chunkSize int64 = 64 * 1024
+	pos := info.Size()
+	newlineCount := 0
+	chunks := make([][]byte, 0, 8)
+	trimTrailing := true
+
+	for pos > 0 && newlineCount < limit+1 {
+		readLen := chunkSize
+		if pos < readLen {
+			readLen = pos
+		}
+		pos -= readLen
+		if _, err := file.Seek(pos, io.SeekStart); err != nil {
+			return nil, err
+		}
+
+		buf := make([]byte, int(readLen))
+		if _, err := io.ReadFull(file, buf); err != nil {
+			return nil, err
+		}
+
+		if trimTrailing {
+			buf = bytes.TrimRight(buf, "\n")
+			if len(buf) == 0 {
+				continue
+			}
+			trimTrailing = false
+		}
+
+		newlineCount += bytes.Count(buf, []byte{'\n'})
+		chunks = append(chunks, buf)
+	}
+
+	if len(chunks) == 0 {
+		return []string{}, nil
+	}
+
+	totalLen := 0
+	for _, chunk := range chunks {
+		totalLen += len(chunk)
+	}
+	data := make([]byte, 0, totalLen)
+	for i := len(chunks) - 1; i >= 0; i-- {
+		data = append(data, chunks[i]...)
+	}
+	if len(data) == 0 {
+		return []string{}, nil
+	}
+
+	content := string(data)
 	if content == "" {
 		return []string{}, nil
 	}
@@ -200,6 +261,18 @@ func (l *logsView) renderLines(lines []string, fallback string) string {
 		return fallback
 	}
 	return strings.Join(formatted, "\n")
+}
+
+func (l *logsView) setViewportContentIfChanged(content string, wasAtBottom bool) {
+	if content == l.lastRenderedContent {
+		return
+	}
+	l.viewport.SetContent(content)
+	l.viewportSetContentCalls++
+	l.lastRenderedContent = content
+	if wasAtBottom {
+		l.viewport.GotoBottom()
+	}
 }
 
 func formatLogLines(lines []string) []string {
