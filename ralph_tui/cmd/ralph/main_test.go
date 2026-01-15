@@ -3,6 +3,7 @@ package main
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/spf13/pflag"
@@ -61,5 +62,40 @@ func TestMergeRunnerArgsWithEffort_ArgsOverrideEffort(t *testing.T) {
 
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("expected args %v, got %v", want, got)
+	}
+}
+
+func TestParseOnlyTagsCLI(t *testing.T) {
+	cases := []struct {
+		name  string
+		input string
+		want  []string
+	}{
+		{name: "comma-separated", input: "ui,docs", want: []string{"ui", "docs"}},
+		{name: "space-separated", input: "ui code", want: []string{"ui", "code"}},
+		{name: "brackets-and-mixed", input: "ui, [code] docs", want: []string{"ui", "code", "docs"}},
+		{name: "empty", input: " ", want: []string{}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := parseOnlyTagsCLI(tc.input)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Fatalf("expected %v, got %v", tc.want, got)
+			}
+		})
+	}
+}
+
+func TestParseOnlyTagsCLI_UnknownTag(t *testing.T) {
+	_, err := parseOnlyTagsCLI("ui,unknown")
+	if err == nil {
+		t.Fatalf("expected error for unknown tag")
+	}
+	if !strings.Contains(err.Error(), "--only-tag has unsupported tag") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }

@@ -1,6 +1,10 @@
 # Implementation Done
 
 ## Done
+- [x] RQ-0459 [code]: Unify CLI `--only-tag` parsing with config/tag rules (commas+spaces; validate unknown tags; consistent loop selection). (ralph_tui/cmd/ralph/main.go, ralph_tui/internal/pin/pin.go, ralph_tui/cmd/ralph/main_test.go)
+  - Evidence: `splitTagsCLI()` splits only on commas, but `config.Validate()` accepts whitespace-separated tags via `pin.ParseTagList`. A config like `loop.only_tags = "ui code"` can validate, yet CLI parsing would pass `[]string{"ui code"}` into the loop and effectively match nothing. Unknown tags supplied via CLI aren't validated early, leading to confusing "no items found" behavior.
+  - Plan: Replace `splitTagsCLI` usage with `pin.ParseTagList` + validation of `Unknown` tags (error fast), normalize tag values consistently, and add CLI unit tests for comma/space/bracket inputs (e.g., `ui, [code] docs`).
+
 - [x] RQ-0458 [code]: Fix git helper semantics (BranchExists error handling + AheadCount parsing) and unblock fixup reliability. (ralph_tui/internal/loop/git.go, ralph_tui/internal/loop/fixup.go, ralph_tui/internal/loop/git_test.go)
   - Evidence: `BranchExists()` checks `err.(*exec.ExitError)` but `gitRun()` wraps failures in `*loop.GitCommandError`, so a missing branch can incorrectly return an error instead of `(false, nil)`. This affects fixup (`validateWipBranchInWorktree` calls `BranchExists` and can abort the whole fixup run). Also `AheadCount()` uses `fmt.Sscanf` without checking the scan error, so invalid output can silently report `0`.
   - Plan: (1) Update `BranchExists` to use `errors.As` to detect the underlying `*exec.ExitError` inside `*GitCommandError` and treat "verify failed" as "branch does not exist", (2) harden `AheadCount` parsing to return an error if the count can't be parsed, and (3) add focused unit tests for both behaviors.

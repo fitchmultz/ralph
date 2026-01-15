@@ -142,13 +142,8 @@ func (c Config) Validate() error {
 		return fmt.Errorf("loop.max_repair_attempts must be >= 0")
 	}
 	if strings.TrimSpace(c.Loop.OnlyTags) != "" {
-		parsed := pin.ParseTagList(c.Loop.OnlyTags)
-		if len(parsed.Unknown) > 0 {
-			return fmt.Errorf(
-				"loop.only_tags has unsupported tag(s): %s (supported: %s)",
-				strings.Join(parsed.Unknown, ", "),
-				strings.Join(pin.SupportedTags(), ", "),
-			)
+		if _, err := pin.ValidateTagList("loop.only_tags", c.Loop.OnlyTags); err != nil {
+			return err
 		}
 	}
 	if strings.TrimSpace(c.Loop.Runner) == "" {

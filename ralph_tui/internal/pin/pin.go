@@ -112,6 +112,20 @@ func ParseTagList(input string) TagList {
 	return TagList{Tags: tags, Unknown: unknown}
 }
 
+// ValidateTagList parses tags and returns an error that names the source when unsupported tags are present.
+func ValidateTagList(source string, input string) ([]string, error) {
+	parsed := ParseTagList(input)
+	if len(parsed.Unknown) > 0 {
+		return nil, fmt.Errorf(
+			"%s has unsupported tag(s): %s (supported: %s)",
+			source,
+			strings.Join(parsed.Unknown, ", "),
+			strings.Join(SupportedTags(), ", "),
+		)
+	}
+	return parsed.Tags, nil
+}
+
 // MatchesAnyTag returns true if the header contains any of the provided tags.
 func MatchesAnyTag(header string, tags []string) bool {
 	if len(tags) == 0 {

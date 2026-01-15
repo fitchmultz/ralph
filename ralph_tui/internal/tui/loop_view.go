@@ -841,15 +841,7 @@ func loopFormDataFromOverrides(overrides loopOverrides) loopFormData {
 }
 
 func parseOnlyTags(value string) ([]string, error) {
-	parsed := pin.ParseTagList(value)
-	if len(parsed.Unknown) > 0 {
-		return nil, fmt.Errorf(
-			"loop.only_tags has unsupported tag(s): %s (supported: %s)",
-			strings.Join(parsed.Unknown, ", "),
-			strings.Join(pin.SupportedTags(), ", "),
-		)
-	}
-	return parsed.Tags, nil
+	return pin.ValidateTagList("loop.only_tags", value)
 }
 
 func loopModeLabel(runOnce bool) string {

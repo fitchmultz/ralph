@@ -627,6 +627,10 @@ func newLoopRunCommand() *cobra.Command {
 				cmd.Flags().Args(),
 				effort,
 			)
+			onlyTagsParsed, err := parseOnlyTagsCLI(onlyTags)
+			if err != nil {
+				return err
+			}
 			runner, err := loop.NewRunner(loop.Options{
 				RepoRoot:            locs.RepoRoot,
 				PinDir:              cfg.Paths.PinDir,
@@ -640,7 +644,7 @@ func newLoopRunCommand() *cobra.Command {
 				MaxIterations:       maxIterations,
 				MaxStalled:          maxStalled,
 				MaxRepairAttempts:   maxRepair,
-				OnlyTags:            splitTagsCLI(onlyTags, ""),
+				OnlyTags:            onlyTagsParsed,
 				Once:                runOnce,
 				RequireMain:         cfg.Loop.RequireMain,
 				AutoCommit:          cfg.Git.AutoCommit,
@@ -666,7 +670,7 @@ func newLoopRunCommand() *cobra.Command {
 	cmd.Flags().Int("max-iterations", 0, "Stop after N iterations (0 = infinite)")
 	cmd.Flags().Int("max-stalled", 3, "Auto-block after N stalled iterations")
 	cmd.Flags().Int("max-repair-attempts", 2, "Supervisor repair attempts before auto-block")
-	cmd.Flags().String("only-tag", "", "Only execute queue items tagged with [tag] (comma-separated)")
+	cmd.Flags().String("only-tag", "", "Only execute queue items tagged with [tag] (comma/space-separated)")
 	cmd.Flags().Bool("once", false, "Run exactly one iteration and exit")
 	cmd.Flags().String("reasoning-effort", "", "Codex reasoning effort override (auto/low/medium/high/off)")
 	cmd.Flags().Bool("force-context-builder", false, "Force context_builder even when reasoning effort is medium/high")
@@ -746,23 +750,11 @@ func newLoopFixupCommand() *cobra.Command {
 	return cmd
 }
 
-func splitTagsCLI(flag string, fallback string) []string {
-	value := strings.TrimSpace(flag)
-	if value == "" {
-		value = strings.TrimSpace(fallback)
+func parseOnlyTagsCLI(value string) ([]string, error) {
+	if strings.TrimSpace(value) == "" {
+		return []string{}, nil
 	}
-	if value == "" {
-		return []string{}
-	}
-	parts := strings.Split(value, ",")
-	out := make([]string, 0, len(parts))
-	for _, part := range parts {
-		trimmed := strings.TrimSpace(part)
-		if trimmed != "" {
-			out = append(out, trimmed)
-		}
-	}
-	return out
+	return pin.ValidateTagList("--only-tag", value)
 }
 
 func resolveFlagString(flags *pflag.FlagSet, name string, fallback string) (string, error) {

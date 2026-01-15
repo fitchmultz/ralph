@@ -1,10 +1,6 @@
 # Implementation Queue
 
 ## Queue
-- [ ] RQ-0459 [code]: Unify CLI `--only-tag` parsing with config/tag rules (commas+spaces; validate unknown tags; consistent loop selection). (ralph_tui/cmd/ralph/main.go, ralph_tui/internal/pin/pin.go, ralph_tui/cmd/ralph/main_test.go)
-  - Evidence: `splitTagsCLI()` splits only on commas, but `config.Validate()` accepts whitespace-separated tags via `pin.ParseTagList`. A config like `loop.only_tags = "ui code"` can validate, yet CLI parsing would pass `[]string{"ui code"}` into the loop and effectively match nothing. Unknown tags supplied via CLI aren't validated early, leading to confusing "no items found" behavior.
-  - Plan: Replace `splitTagsCLI` usage with `pin.ParseTagList` + validation of `Unknown` tags (error fast), normalize tag values consistently, and add CLI unit tests for comma/space/bracket inputs (e.g., `ui, [code] docs`).
-
 - [ ] RQ-0450 [code]: Eliminate DRY violations in runner invocation (specs vs loop); validate opencode args and ensure streaming behavior is consistent across commands. (ralph_tui/internal/loop/runner.go, ralph_tui/internal/specs/specs.go, ralph_tui/internal/runnerargs/effort.go)
   - Evidence: Codex/opencode command construction is duplicated between `loop.RunnerInvoker.RunPrompt` and `specs.runRunner`, increasing the risk of argument drift and inconsistent behavior (including streaming semantics).
   - Plan: Extract shared runner invocation utilities, align opencode argument conventions in both paths, and add hermetic tests that assert arguments and streaming output behavior.
