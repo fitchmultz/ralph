@@ -1,6 +1,9 @@
 # Implementation Done
 
 ## Done
+- [x] RQ-0403 [ui]: Fix Pin queue editing UX (toggle checked) + exact ID matching for block. (ralph_tui/internal/tui/pin_view.go, ralph_tui/internal/pin/pin.go, ralph_tui/internal/pin/pin_test.go)
+  - Evidence: pin.BlockItem matches via strings.Contains (RQ-0001 can match RQ-00010); Pin view has no toggle for checkmarks, forcing manual markdown edits.
+  - Plan: Match item IDs exactly (use ExtractItemID or parsed QueueItem IDs); add toggle-checked action in Pin view; add unit tests for ID matching and toggle behavior.
 - [x] RQ-0402 [code]: Preserve CLI/session overrides on config reload; reflect effective config in editor. (ralph_tui/internal/tui/model.go, ralph_tui/internal/tui/config_editor.go, ralph_tui/internal/config/load.go)
   - Evidence: reloadConfigCmd calls LoadFromLocations without SessionOverrides/CLIOverrides; config editor reconstructs from files/defaults instead of active runtime config, so session changes are lost or invisible.
   - Plan: Track session overrides in model; pass both SessionOverrides and CLIOverrides into LoadFromLocations on reload; seed config editor from the effective config instead of file-only layers; add regression tests for reload preserving overrides.

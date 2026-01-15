@@ -1,9 +1,6 @@
 # Implementation Queue
 
 ## Queue
-- [ ] RQ-0403 [ui]: Fix Pin queue editing UX (toggle checked) + exact ID matching for block. (ralph_tui/internal/tui/pin_view.go, ralph_tui/internal/pin/pin.go, ralph_tui/internal/pin/pin_test.go)
-  - Evidence: pin.BlockItem matches via strings.Contains (RQ-0001 can match RQ-00010); Pin view has no toggle for checkmarks, forcing manual markdown edits.
-  - Plan: Match item IDs exactly (use ExtractItemID or parsed QueueItem IDs); add toggle-checked action in Pin view; add unit tests for ID matching and toggle behavior.
 - [ ] RQ-0404 [code]: Reduce log refresh churn and large-log stutter in Logs view. (ralph_tui/internal/tui/logs_view.go, ralph_tui/internal/tui/file_watch.go)
   - Evidence: tailFileLines uses os.ReadFile on every refresh; Refresh always rebuilds viewport content; large logs stutter and churn CPU.
   - Plan: Implement tailing that reads only the last N lines without loading full file; track rendered signature and skip SetContent when no content changes; add tests covering unchanged-stamp refresh.
@@ -40,6 +37,12 @@
 - [ ] RQ-0415 [code]: Remove or implement dead config knobs (runner.max_workers/dry_run, loop.workers/poll_seconds, git.require_clean/commit_prefix) so settings actually do something. (ralph_tui/internal/config/config.go, ralph_tui/internal/config/defaults.json, ralph_tui/internal/tui/config_editor.go, ralph_tui/cmd/ralph/main.go, ralph_tui/internal/loop/loop.go)
   - Evidence: config schema + config editor expose several fields that are not wired into behavior anywhere (runner.max_workers, runner.dry_run, loop.workers, loop.poll_seconds, git.require_clean, git.commit_prefix), so users can change them but nothing changes at runtime.
   - Plan: Audit each knob and either wire it into loop/specs/TUI behavior with clear semantics, or deprecate/remove it with a migration step and updated docs/tests; ensure config validation stays correct and does not enforce unused fields.
+- [ ] RQ-0416 [code]: Consolidate specs builder logic so Go TUI/CLI and legacy script do not drift. (ralph_tui/internal/specs/specs.go, ralph_legacy/bin/build_specs.sh)
+  - Evidence: `ralph_tui/internal/specs/specs.go` implements locking, prompt template validation, runner selection, and autofill-scout logic; `ralph_legacy/bin/build_specs.sh` re-implements the same flow in shell, including separate defaults and lock handling, which risks divergence.
+  - Plan: Choose a single canonical implementation (likely `ralph specs build` in Go) and have the legacy script delegate to it or deprecate/remove the script; align defaults (prompt template path, autofill-scout policy, runner checks); update docs/tests to cover the canonical path.
+- [ ] RQ-0417 [docs]: Standardize specs template location and references across legacy + TUI to avoid split-brain prompts. (ralph_tui/internal/specs/specs.go, ralph_legacy/specs/specs_builder.md, .ralph/pin/specs_builder.md)
+  - Evidence: Go specs builder defaults to `.ralph/pin/specs_builder.md`, while `ralph_legacy/bin/build_specs.sh` defaults to `ralph_legacy/specs/specs_builder.md`, creating two separate templates with overlapping instructions.
+  - Plan: Decide on a single template source of truth (pin vs legacy), migrate the other path to a redirect or wrapper, and update any docs or scripts referencing the non-canonical location.
 
 ## Blocked
 

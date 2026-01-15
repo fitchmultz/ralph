@@ -10,10 +10,11 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/mitchfultz/ralph/ralph_tui/internal/queueid"
 )
 
 var (
-	idPattern     = regexp.MustCompile(`[A-Z0-9]{2,10}-\d{4}`)
 	tagPattern    = regexp.MustCompile(`\[(db|ui|code|ops|docs)\]`)
 	scopePattern  = regexp.MustCompile(`\([^()]+\)\s*$`)
 	queueItemLine = regexp.MustCompile(`^- \[[ x]\] `)
@@ -172,7 +173,7 @@ func MoveCheckedToDone(queuePath string, donePath string, prepend bool) ([]strin
 		}
 		if inQueue && strings.HasPrefix(header, "- [x]") {
 			moved = append(moved, block)
-			if match := idPattern.FindString(header); match != "" {
+			if match := queueid.Extract(header); match != "" {
 				ids = append(ids, match)
 			}
 			continue
@@ -259,7 +260,7 @@ func BlockItem(queuePath string, itemID string, reasonLines []string, metadata M
 			newBlocks = append(newBlocks, block)
 			continue
 		}
-		if inQueue && strings.Contains(header, itemID) && strings.HasPrefix(header, "- [") {
+		if inQueue && strings.HasPrefix(header, "- [") && extractID(header) == itemID {
 			itemBlock = block
 			continue
 		}
@@ -290,6 +291,68 @@ func BlockItem(queuePath string, itemID string, reasonLines []string, metadata M
 	}
 
 	return true, nil
+}
+
+// ToggleQueueItemChecked flips the checked state for a queue item by ID.
+func ToggleQueueItemChecked(queuePath string, itemID string) (bool, bool, error) {
+	if err := requireFile(queuePath); err != nil {
+		return false, false, err
+	}
+
+	lines, err := readLines(queuePath)
+	if err != nil {
+		return false, false, err
+	}
+
+	blocks := splitBlocks(lines)
+	newBlocks := make([][]string, 0, len(blocks))
+	updated := false
+	checked := false
+	inQueue := false
+
+	for _, block := range blocks {
+		header := firstLine(block)
+		switch {
+		case strings.TrimSpace(header) == "## Queue":
+			inQueue = true
+			newBlocks = append(newBlocks, block)
+			continue
+		case strings.HasPrefix(header, "## "):
+			inQueue = false
+			newBlocks = append(newBlocks, block)
+			continue
+		}
+
+		if inQueue && strings.HasPrefix(header, "- [") && extractID(header) == itemID {
+			header = toggleCheckHeader(header)
+			block[0] = header
+			updated = true
+			checked = strings.HasPrefix(header, "- [x]")
+		}
+		newBlocks = append(newBlocks, block)
+	}
+
+	if !updated {
+		return false, false, nil
+	}
+
+	flattened := flattenBlocks(newBlocks)
+	if err := writeLines(queuePath, flattened); err != nil {
+		return false, false, err
+	}
+
+	return true, checked, nil
+}
+
+func toggleCheckHeader(header string) string {
+	trimmed := strings.TrimLeft(header, " \t")
+	if strings.HasPrefix(trimmed, "- [x]") {
+		return strings.Replace(header, "- [x]", "- [ ]", 1)
+	}
+	if strings.HasPrefix(trimmed, "- [ ]") {
+		return strings.Replace(header, "- [ ]", "- [x]", 1)
+	}
+	return header
 }
 
 func appendMetadata(block []string, reasonLines []string, metadata Metadata) []string {
@@ -345,7 +408,7 @@ func extractIDs(lines []string) []string {
 	ids := make([]string, 0)
 	for _, line := range lines {
 		if queueItemLine.MatchString(line) {
-			if match := idPattern.FindString(line); match != "" {
+			if match := queueid.Extract(line); match != "" {
 				ids = append(ids, match)
 			}
 		}
@@ -354,16 +417,13 @@ func extractIDs(lines []string) []string {
 }
 
 func extractID(line string) string {
-	if match := idPattern.FindString(line); match != "" {
-		return match
-	}
-	return ""
+	return queueid.Extract(line)
 }
 
 func missingIDLines(lines []string) []string {
 	missing := make([]string, 0)
 	for _, line := range lines {
-		if queueItemLine.MatchString(line) && !idPattern.MatchString(line) {
+		if queueItemLine.MatchString(line) && queueid.Extract(line) == "" {
 			missing = append(missing, line)
 		}
 	}
@@ -389,7 +449,7 @@ func validateQueueItemFormat(lines []string) error {
 			return
 		}
 
-		idOk := idPattern.MatchString(header)
+		idOk := queueid.Extract(header) != ""
 		tagOk := tagPattern.MatchString(header)
 		colonOk := strings.Contains(header, ": ")
 		scopeOk := scopePattern.MatchString(header)

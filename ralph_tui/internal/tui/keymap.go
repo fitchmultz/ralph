@@ -19,6 +19,7 @@ type keyMap struct {
 	ValidatePin       key.Binding
 	MoveChecked       key.Binding
 	BlockItem         key.Binding
+	ToggleChecked     key.Binding
 	TogglePane        key.Binding
 	ToggleInteractive key.Binding
 	ToggleInnovate    key.Binding
@@ -79,6 +80,10 @@ func newKeyMap() keyMap {
 		BlockItem: key.NewBinding(
 			key.WithKeys("b"),
 			key.WithHelp("b", "block item"),
+		),
+		ToggleChecked: key.NewBinding(
+			key.WithKeys("x"),
+			key.WithHelp("x", "toggle checked"),
 		),
 		TogglePane: key.NewBinding(
 			key.WithKeys("ctrl+t"),

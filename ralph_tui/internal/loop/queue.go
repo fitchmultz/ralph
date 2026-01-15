@@ -5,12 +5,9 @@ package loop
 import (
 	"fmt"
 	"os"
-	"regexp"
 	"strings"
-)
 
-var (
-	idPattern = regexp.MustCompile(`[A-Z0-9]{2,10}-\d{4}`)
+	"github.com/mitchfultz/ralph/ralph_tui/internal/queueid"
 )
 
 // QueueItem captures a parsed queue item header and block.
@@ -54,11 +51,7 @@ func CurrentItemBlock(queuePath string, itemID string) (string, error) {
 
 // ExtractItemID returns the ID from a queue header line.
 func ExtractItemID(line string) string {
-	match := idPattern.FindString(line)
-	if match == "" {
-		return ""
-	}
-	return match
+	return queueid.Extract(line)
 }
 
 // ExtractItemTitle returns the title portion of a queue item line.
@@ -67,7 +60,7 @@ func ExtractItemTitle(line string) string {
 	if strings.HasPrefix(trimmed, "- [") {
 		trimmed = strings.TrimSpace(trimmed[5:])
 	}
-	if id := idPattern.FindString(trimmed); id != "" {
+	if id := queueid.Extract(trimmed); id != "" {
 		idx := strings.Index(trimmed, id)
 		if idx >= 0 {
 			trimmed = strings.TrimSpace(trimmed[idx+len(id):])

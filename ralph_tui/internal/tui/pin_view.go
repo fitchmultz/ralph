@@ -137,6 +137,8 @@ func (p *pinView) Update(msg tea.Msg, keys keyMap) tea.Cmd {
 		case key.Matches(keyMsg, keys.BlockItem):
 			p.startBlock()
 			return nil
+		case key.Matches(keyMsg, keys.ToggleChecked):
+			return p.toggleChecked()
 		}
 	}
 
@@ -375,6 +377,33 @@ func (p *pinView) finishBlock() tea.Cmd {
 	p.err = ""
 	p.mode = pinModeTable
 	return p.reloadAsync(true)
+}
+
+func (p *pinView) toggleChecked() tea.Cmd {
+	item := p.selectedItem()
+	if item == nil || item.ID == "" {
+		p.err = "No queue item selected."
+		p.status = ""
+		return nil
+	}
+	ok, checked, err := pin.ToggleQueueItemChecked(p.files.QueuePath, item.ID)
+	if err != nil {
+		p.err = err.Error()
+		p.status = ""
+		return nil
+	}
+	if !ok {
+		p.err = fmt.Sprintf("Item %s not found in Queue.", item.ID)
+		p.status = ""
+		return nil
+	}
+	state := "unchecked"
+	if checked {
+		state = "checked"
+	}
+	p.status = fmt.Sprintf("Marked %s as %s", item.ID, state)
+	p.err = ""
+	return p.reloadAsync(false)
 }
 
 func (p *pinView) syncDetail(resetScroll bool) {

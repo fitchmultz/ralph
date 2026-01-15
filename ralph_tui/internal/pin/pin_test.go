@@ -144,6 +144,70 @@ func TestBlockItemFixtures(t *testing.T) {
 	assertSliceEqual(t, block[len(block)-len(expectedTail):], expectedTail)
 }
 
+func TestBlockItemMatchesExactID(t *testing.T) {
+	fixture := mustLocateFixtures(t)
+
+	tmpDir := t.TempDir()
+	queuePath := copyFixture(t, fixture.queue, filepath.Join(tmpDir, "implementation_queue.md"))
+
+	data, err := os.ReadFile(queuePath)
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+	content := strings.ReplaceAll(string(data), "RQ-0001", "RQ-00010")
+	content = strings.ReplaceAll(content, "RQ-0002", "RQ-00020")
+	content = strings.ReplaceAll(content, "RQ-0003", "RQ-00030")
+	content = strings.ReplaceAll(content, "RQ-0004", "RQ-00040")
+	if err := os.WriteFile(queuePath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	ok, err := BlockItem(queuePath, "RQ-0001", []string{"reason"}, Metadata{})
+	if err != nil {
+		t.Fatalf("BlockItem failed: %v", err)
+	}
+	if ok {
+		t.Fatalf("expected block to fail for missing exact ID")
+	}
+}
+
+func TestToggleQueueItemChecked(t *testing.T) {
+	fixture := mustLocateFixtures(t)
+
+	tmpDir := t.TempDir()
+	queuePath := copyFixture(t, fixture.queue, filepath.Join(tmpDir, "implementation_queue.md"))
+
+	ok, checked, err := ToggleQueueItemChecked(queuePath, "RQ-0001")
+	if err != nil {
+		t.Fatalf("ToggleQueueItemChecked failed: %v", err)
+	}
+	if !ok {
+		t.Fatalf("expected toggle to succeed")
+	}
+	if !checked {
+		t.Fatalf("expected item to be checked after toggle")
+	}
+
+	items, err := ReadQueueItems(queuePath)
+	if err != nil {
+		t.Fatalf("ReadQueueItems failed: %v", err)
+	}
+	if len(items) == 0 {
+		t.Fatalf("expected queue items")
+	}
+	if !items[0].Checked {
+		t.Fatalf("expected first item to be checked")
+	}
+
+	_, checked, err = ToggleQueueItemChecked(queuePath, "RQ-0001")
+	if err != nil {
+		t.Fatalf("ToggleQueueItemChecked failed: %v", err)
+	}
+	if checked {
+		t.Fatalf("expected item to be unchecked after second toggle")
+	}
+}
+
 func mustLocateFixtures(t *testing.T) fixturePaths {
 	t.Helper()
 	_, file, _, ok := runtime.Caller(0)
