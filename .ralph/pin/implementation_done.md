@@ -1,6 +1,14 @@
 # Implementation Done
 
 ## Done
+- [x] RQ-0438 [ui]: Add a safe "edit queue" + "commit pin changes" workflow in the TUI (reduce manual git mistakes and the need to stop the loop to edit files). (ralph_tui/internal/tui/pin_view.go, ralph_tui/internal/tui/model.go, ralph_tui/internal/loop/git.go, ralph_tui/internal/loop/loop.go)
+  - Evidence:
+    - Today, editing `.ralph/pin/implementation_queue.md` happens outside Ralph; if the user forgets to commit before starting the loop, the loop can treat the repo as dirty and quarantine/reset, losing the edits.
+    - The TUI provides pin operations (toggle, move checked, block) but does not offer a first-class way to open the queue in $EDITOR or to commit pin-only changes safely.
+  - Plan:
+    - Add a Pin-screen action to open the queue file in the user’s editor (respecting `$EDITOR`) and then reload/validate pin on return.
+    - Add an option to auto-commit only pin files (queue/done/lookup/specs_builder) with a safe commit message, and wire this into the loop preflight so pin-only dirtiness is handled gracefully.
+    - Add tests for the new TUI commands and ensure they don’t run while a loop iteration is actively running.
 - [x] RQ-0437 [code]: Support richer queue item metadata (notes/links/extra context) without breaking pin validation or loop parsing; optionally move to a structured format. (ralph_tui/internal/pin/pin.go, ralph_tui/internal/loop/queue.go, .ralph/pin/README.md)
   - Evidence:
     - `pin.ValidatePin()` enforces a strict queue item header format + requires `Evidence` and `Plan`, but there is no supported place for additional structured notes; users report the system "freaks out" when they add extra detail.

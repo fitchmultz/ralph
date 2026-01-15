@@ -361,7 +361,7 @@ func CommitAll(ctx context.Context, repoRoot string, message string) error {
 }
 
 func CommitPaths(ctx context.Context, repoRoot string, message string, paths ...string) error {
-	args := append([]string{"add"}, paths...)
+	args := append([]string{"add", "-A", "--"}, paths...)
 	if err := gitRun(ctx, repoRoot, args...); err != nil {
 		return err
 	}

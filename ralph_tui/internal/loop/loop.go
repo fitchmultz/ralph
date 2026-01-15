@@ -239,6 +239,36 @@ func (r *Runner) Run(ctx context.Context) error {
 			logGitError(r.redactor, r.opts.Logger, "status", err)
 			return err
 		}
+		if r.opts.AutoCommit {
+			committed, err := AutoCommitPinOnlyChanges(ctx, r.opts.RepoRoot, r.pinFiles, "chore: commit pin changes (pre-loop)")
+			if err != nil {
+				logGitError(r.redactor, r.opts.Logger, "commit pin changes", err)
+				return err
+			}
+			if committed {
+				if r.opts.AutoPush {
+					r.pushIfAhead(ctx)
+				}
+				headBefore, err = HeadSHA(ctx, r.opts.RepoRoot)
+				if err != nil {
+					if isCancellation(ctx, err) {
+						r.finalizeOnCancel(ctx)
+						return nil
+					}
+					logGitError(r.redactor, r.opts.Logger, "head sha", err)
+					return err
+				}
+				status, err = StatusDetails(ctx, r.opts.RepoRoot)
+				if err != nil {
+					if isCancellation(ctx, err) {
+						r.finalizeOnCancel(ctx)
+						return nil
+					}
+					logGitError(r.redactor, r.opts.Logger, "status", err)
+					return err
+				}
+			}
+		}
 		if !status.IsClean(r.opts.AllowUntracked) {
 			switch r.opts.DirtyRepoStart {
 			case DirtyRepoPolicyWarn:

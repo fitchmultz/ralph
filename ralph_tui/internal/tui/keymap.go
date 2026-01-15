@@ -24,6 +24,7 @@ type keyMap struct {
 	ResetField                key.Binding
 	ResetLayer                key.Binding
 	ValidatePin               key.Binding
+	EditQueue                 key.Binding
 	MoveChecked               key.Binding
 	BlockItem                 key.Binding
 	ToggleChecked             key.Binding
@@ -116,6 +117,10 @@ func newKeyMap() keyMap {
 			key.WithKeys("v"),
 			key.WithHelp("v", "validate pin"),
 		),
+		EditQueue: key.NewBinding(
+			key.WithKeys("e"),
+			key.WithHelp("e", "edit queue"),
+		),
 		MoveChecked: key.NewBinding(
 			key.WithKeys("m"),
 			key.WithHelp("m", "move checked"),
@@ -207,7 +212,7 @@ func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Quit, k.ToggleNav, k.Focus, k.Help, k.RefreshNow, k.Search, k.Select},
 		{k.EditSpecsSettings, k.ToggleLogsFormat, k.SaveGlobal, k.SaveRepo, k.Discard, k.ResetField, k.ResetLayer},
-		{k.ValidatePin, k.MoveChecked, k.BlockItem},
+		{k.ValidatePin, k.EditQueue, k.MoveChecked, k.BlockItem},
 		{k.ToggleInteractive, k.ToggleInnovate, k.ToggleAutofill, k.ToggleScoutWorkflow, k.EditUserFocus, k.RunSpecs, k.StopSpecs},
 		{k.RunLoopOnce, k.RunLoopContinuous, k.StopLoop, k.EditLoopConfig, k.ToggleForceContextBuilder, k.JumpToPin, k.JumpToLogs},
 	}

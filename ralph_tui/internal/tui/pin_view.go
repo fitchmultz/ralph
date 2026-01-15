@@ -4,6 +4,8 @@ package tui
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -12,6 +14,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/google/shlex"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/config"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/paths"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/pin"
@@ -40,32 +43,37 @@ type pinReloadMsg struct {
 	resetScroll bool
 }
 
+type pinQueueEditDoneMsg struct {
+	err error
+}
+
 type pinView struct {
-	files           pin.Files
-	items           []pin.QueueItem
-	allItems        []pin.QueueItem
-	blockedCount    int
-	table           table.Model
-	tableStyles     table.Styles
-	detail          viewport.Model
-	status          string
-	err             string
-	mode            pinMode
-	focus           pinFocus
-	loading         bool
-	reloadAgain     bool
-	blockForm       *huh.Form
-	blockReason     string
-	config          config.Config
-	locations       paths.Locations
-	logger          *tuiLogger
-	width           int
-	height          int
-	queueStamp      fileStamp
-	searchTerm      string
-	searchAnchor    string
-	searchOffset    int
-	pendingSelectID string
+	files               pin.Files
+	items               []pin.QueueItem
+	allItems            []pin.QueueItem
+	blockedCount        int
+	table               table.Model
+	tableStyles         table.Styles
+	detail              viewport.Model
+	status              string
+	err                 string
+	mode                pinMode
+	focus               pinFocus
+	loading             bool
+	reloadAgain         bool
+	blockForm           *huh.Form
+	blockReason         string
+	config              config.Config
+	locations           paths.Locations
+	logger              *tuiLogger
+	width               int
+	height              int
+	queueStamp          fileStamp
+	searchTerm          string
+	searchAnchor        string
+	searchOffset        int
+	pendingSelectID     string
+	validateAfterReload bool
 }
 
 const (
@@ -90,7 +98,15 @@ func newPinView(cfg config.Config, locations paths.Locations) (*pinView, error) 
 	return view, nil
 }
 
-func (p *pinView) Update(msg tea.Msg, keys keyMap) tea.Cmd {
+func (p *pinView) Update(msg tea.Msg, keys keyMap, loopMode loopMode) tea.Cmd {
+	if pinCommandsBlocked(loopMode) && p.mode == pinModeBlockForm {
+		p.blockForm = nil
+		p.blockReason = ""
+		p.mode = pinModeTable
+		p.err = ""
+		p.status = "Pin updates disabled while loop is running."
+		return nil
+	}
 	if p.mode == pinModeBlockForm {
 		model, cmd := p.blockForm.Update(msg)
 		if form, ok := model.(*huh.Form); ok {
@@ -114,6 +130,7 @@ func (p *pinView) Update(msg tea.Msg, keys keyMap) tea.Cmd {
 			p.err = reloadMsg.err.Error()
 			p.status = ""
 			p.reloadAgain = false
+			p.validateAfterReload = false
 			return nil
 		}
 		p.err = ""
@@ -129,7 +146,22 @@ func (p *pinView) Update(msg tea.Msg, keys keyMap) tea.Cmd {
 			p.reloadAgain = false
 			return p.reloadAsync(false)
 		}
+		if p.validateAfterReload {
+			p.validateAfterReload = false
+			p.runValidate()
+		}
 		return nil
+	}
+	if doneMsg, ok := msg.(pinQueueEditDoneMsg); ok {
+		if doneMsg.err != nil {
+			p.err = doneMsg.err.Error()
+			p.status = ""
+			return nil
+		}
+		p.err = ""
+		p.status = ""
+		p.validateAfterReload = true
+		return p.reloadAsync(true)
 	}
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		switch {
@@ -143,14 +175,31 @@ func (p *pinView) Update(msg tea.Msg, keys keyMap) tea.Cmd {
 			}
 			return nil
 		case key.Matches(keyMsg, keys.ValidatePin):
+			if p.commandsBlocked(loopMode) {
+				return nil
+			}
 			p.runValidate()
 			return nil
+		case key.Matches(keyMsg, keys.EditQueue):
+			if p.commandsBlocked(loopMode) {
+				return nil
+			}
+			return p.editQueueCmd()
 		case key.Matches(keyMsg, keys.MoveChecked):
+			if p.commandsBlocked(loopMode) {
+				return nil
+			}
 			return p.runMoveChecked()
 		case key.Matches(keyMsg, keys.BlockItem):
+			if p.commandsBlocked(loopMode) {
+				return nil
+			}
 			p.startBlock()
 			return nil
 		case key.Matches(keyMsg, keys.ToggleChecked):
+			if p.commandsBlocked(loopMode) {
+				return nil
+			}
 			return p.toggleChecked()
 		}
 	}
@@ -362,6 +411,21 @@ func (p *pinView) runValidate() {
 	p.status = ">> [RALPH] Pin validation OK."
 }
 
+func (p *pinView) editQueueCmd() tea.Cmd {
+	editor := strings.TrimSpace(os.Getenv("EDITOR"))
+	cmd, err := buildEditorCommand(editor, p.files.QueuePath)
+	if err != nil {
+		p.err = err.Error()
+		p.status = ""
+		return nil
+	}
+	p.err = ""
+	p.status = "Opening editor..."
+	return tea.ExecProcess(cmd, func(err error) tea.Msg {
+		return pinQueueEditDoneMsg{err: err}
+	})
+}
+
 func (p *pinView) runMoveChecked() tea.Cmd {
 	ids, err := pin.MoveCheckedToDone(p.files.QueuePath, p.files.DonePath, false)
 	if err != nil {
@@ -465,6 +529,15 @@ func (p *pinView) toggleChecked() tea.Cmd {
 	p.status = fmt.Sprintf("Marked %s as %s", item.ID, state)
 	p.err = ""
 	return p.reloadAsync(false)
+}
+
+func (p *pinView) commandsBlocked(loopMode loopMode) bool {
+	if !pinCommandsBlocked(loopMode) {
+		return false
+	}
+	p.err = ""
+	p.status = "Pin updates disabled while loop is running."
+	return true
 }
 
 func (p *pinView) syncDetail(resetScroll bool) {
@@ -758,4 +831,25 @@ func matchesQueueItem(item pin.QueueItem, parts []string) bool {
 		}
 	}
 	return true
+}
+
+func pinCommandsBlocked(loopMode loopMode) bool {
+	return loopMode == loopRunning || loopMode == loopStopping
+}
+
+func buildEditorCommand(editor string, filePath string) (*exec.Cmd, error) {
+	if strings.TrimSpace(editor) == "" {
+		editor = "vi"
+	}
+	args, err := shlex.Split(editor)
+	if err != nil {
+		return nil, fmt.Errorf("parse $EDITOR: %w", err)
+	}
+	if len(args) == 0 {
+		return nil, fmt.Errorf("editor command is empty")
+	}
+	args = append(args, filePath)
+	cmd := exec.Command(args[0], args[1:]...)
+	cmd.Env = os.Environ()
+	return cmd, nil
 }

@@ -1,14 +1,6 @@
 # Implementation Queue
 
 ## Queue
-- [ ] RQ-0438 [ui]: Add a safe "edit queue" + "commit pin changes" workflow in the TUI (reduce manual git mistakes and the need to stop the loop to edit files). (ralph_tui/internal/tui/pin_view.go, ralph_tui/internal/tui/model.go, ralph_tui/internal/loop/git.go, ralph_tui/internal/loop/loop.go)
-  - Evidence:
-    - Today, editing `.ralph/pin/implementation_queue.md` happens outside Ralph; if the user forgets to commit before starting the loop, the loop can treat the repo as dirty and quarantine/reset, losing the edits.
-    - The TUI provides pin operations (toggle, move checked, block) but does not offer a first-class way to open the queue in $EDITOR or to commit pin-only changes safely.
-  - Plan:
-    - Add a Pin-screen action to open the queue file in the user’s editor (respecting `$EDITOR`) and then reload/validate pin on return.
-    - Add an option to auto-commit only pin files (queue/done/lookup/specs_builder) with a safe commit message, and wire this into the loop preflight so pin-only dirtiness is handled gracefully.
-    - Add tests for the new TUI commands and ensure they don’t run while a loop iteration is actively running.
 - [ ] RQ-0439 [code]: Fix reasoning_effort "auto" semantics and policy block accuracy (align what we display vs what we actually pass to codex; make P1 behavior explicit). (ralph_tui/internal/loop/loop.go, ralph_tui/internal/runnerargs/effort.go, ralph_tui/internal/tui/loop_view.go)
   - Evidence:
     - `loop.Run()` computes an `effectiveEffort` (including `[P1] => high`) and prints the "CODEX CONTEXT BUILDER POLICY" block based on it, but `runnerargs.ApplyReasoningEffort(..., "auto")` may inject no args—so the policy block can claim an effort that isn’t actually applied.

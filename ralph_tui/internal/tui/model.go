@@ -453,7 +453,7 @@ func (m *model) updateBackgroundViews(msg tea.Msg) (tea.Cmd, bool) {
 		if m.pinView == nil {
 			return nil, true
 		}
-		return m.pinView.Update(msg, m.keys), true
+		return m.pinView.Update(msg, m.keys, m.loopMode()), true
 	case specsBuildResultMsg, specsLogBatchMsg, specsPreviewMsg:
 		if m.specsView == nil {
 			return nil, true
@@ -946,7 +946,7 @@ func (m *model) updateActiveView(msg tea.Msg) tea.Cmd {
 		}
 	case screenPin:
 		if m.pinView != nil {
-			return m.pinView.Update(msg, m.keys)
+			return m.pinView.Update(msg, m.keys, m.loopMode())
 		}
 	case screenBuildSpecs:
 		if m.specsView != nil {
@@ -1125,6 +1125,13 @@ func (m *model) applyLoopRunMode(running bool) {
 	}
 }
 
+func (m *model) loopMode() loopMode {
+	if m.loopView == nil {
+		return loopIdle
+	}
+	return m.loopView.mode
+}
+
 func (m *model) beginSearch() {
 	if m.searchActive {
 		return
@@ -1257,7 +1264,7 @@ func (m *model) routePinSelectionKey(msg tea.KeyMsg) tea.Cmd {
 		}
 		return nil
 	default:
-		return m.pinView.Update(msg, m.keys)
+		return m.pinView.Update(msg, m.keys, m.loopMode())
 	}
 }
 

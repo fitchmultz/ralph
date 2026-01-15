@@ -157,6 +157,41 @@ func ResolveFiles(pinDir string) Files {
 	}
 }
 
+// AllPaths returns the full paths of all pin files.
+func (f Files) AllPaths() []string {
+	return []string{
+		f.QueuePath,
+		f.DonePath,
+		f.LookupPath,
+		f.ReadmePath,
+		f.SpecsPath,
+	}
+}
+
+// RelativePaths returns repo-relative paths for all pin files, using forward slashes.
+func (f Files) RelativePaths(repoRoot string) []string {
+	paths := f.AllPaths()
+	relatives := make([]string, 0, len(paths))
+	for _, path := range paths {
+		rel, err := filepath.Rel(repoRoot, path)
+		if err != nil {
+			continue
+		}
+		relatives = append(relatives, filepath.ToSlash(rel))
+	}
+	return relatives
+}
+
+// RelativePathSet returns a set of repo-relative pin file paths.
+func (f Files) RelativePathSet(repoRoot string) map[string]struct{} {
+	relatives := f.RelativePaths(repoRoot)
+	set := make(map[string]struct{}, len(relatives))
+	for _, path := range relatives {
+		set[path] = struct{}{}
+	}
+	return set
+}
+
 // ValidatePin enforces the pin/spec validation rules.
 func ValidatePin(files Files) error {
 	if err := requireFile(files.QueuePath); err != nil {

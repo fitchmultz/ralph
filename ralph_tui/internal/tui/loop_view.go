@@ -674,25 +674,7 @@ func (l *loopView) appendGitDiffSummary(ctx context.Context) {
 
 func (l *loopView) commitPinOnly(ctx context.Context) (bool, error) {
 	files := pin.ResolveFiles(l.cfg.Paths.PinDir)
-	changed, err := loop.DiffNameOnly(ctx, l.locations.RepoRoot)
-	if err != nil {
-		return false, err
-	}
-	pinSet := pinRelativePaths(l.locations.RepoRoot, files)
-	hasPinChanges := false
-	for _, path := range changed {
-		if _, ok := pinSet[path]; ok {
-			hasPinChanges = true
-			break
-		}
-	}
-	if !hasPinChanges {
-		return false, nil
-	}
-	if err := loop.CommitPaths(ctx, l.locations.RepoRoot, "chore: commit pin changes (pre-loop)", files.QueuePath, files.DonePath, files.LookupPath, files.ReadmePath, files.SpecsPath); err != nil {
-		return false, err
-	}
-	return true, nil
+	return loop.CommitPinChanges(ctx, l.locations.RepoRoot, files, "chore: commit pin changes (pre-loop)")
 }
 
 func (l *loopView) stop() {
@@ -829,25 +811,6 @@ func parseOnlyTags(value string) ([]string, error) {
 		)
 	}
 	return parsed.Tags, nil
-}
-
-func pinRelativePaths(repoRoot string, files pin.Files) map[string]struct{} {
-	paths := []string{
-		files.QueuePath,
-		files.DonePath,
-		files.LookupPath,
-		files.ReadmePath,
-		files.SpecsPath,
-	}
-	relatives := make(map[string]struct{}, len(paths))
-	for _, path := range paths {
-		rel, err := filepath.Rel(repoRoot, path)
-		if err != nil {
-			continue
-		}
-		relatives[filepath.ToSlash(rel)] = struct{}{}
-	}
-	return relatives
 }
 
 func loopModeLabel(runOnce bool) string {

@@ -66,7 +66,7 @@ func TestPinReloadAsyncClearsReloadAgainOnError(t *testing.T) {
 
 	view.loading = true
 	view.reloadAgain = true
-	_ = view.Update(pinReloadMsg{err: errSentinel}, newTestKeyMap())
+	_ = view.Update(pinReloadMsg{err: errSentinel}, newTestKeyMap(), loopIdle)
 	if view.reloadAgain {
 		t.Fatalf("expected reloadAgain to clear on reload error")
 	}
@@ -100,6 +100,7 @@ func TestPinReloadPreservesSelectionAndScrollWhenItemRemains(t *testing.T) {
 	_ = view.Update(
 		pinReloadMsg{items: reloadedItems, queueStamp: view.queueStamp},
 		newTestKeyMap(),
+		loopIdle,
 	)
 
 	if item := view.selectedItem(); item == nil || item.ID != "RQ-002" {
@@ -135,6 +136,7 @@ func TestPinReloadClampsCursorWhenRowsShrink(t *testing.T) {
 	_ = view.Update(
 		pinReloadMsg{items: reloadedItems, queueStamp: view.queueStamp},
 		newTestKeyMap(),
+		loopIdle,
 	)
 
 	if view.table.Cursor() != 0 {
