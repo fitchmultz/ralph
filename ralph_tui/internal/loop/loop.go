@@ -49,6 +49,7 @@ type Runner struct {
 	redactor                *Redactor
 	pinFiles                pin.Files
 	pushFailed              bool
+	pushCanceled            bool
 	lastValidateOutput      string
 	lastCIOutput            string
 	lastFailureStage        string
@@ -58,6 +59,26 @@ type Runner struct {
 	effectiveEffort         string
 	contextBuilderMandatory bool
 	state                   State
+}
+
+const (
+	makeCITimeout         = 20 * time.Minute
+	cancelFinalizeTimeout = 2 * time.Minute
+	gitCommitTimeout      = 2 * time.Minute
+	gitPushTimeout        = 5 * time.Minute
+)
+
+type FinalizeMode int
+
+const (
+	FinalizeModeNormal FinalizeMode = iota
+	FinalizeModeCancelBestEffort
+)
+
+type FinalizeOptions struct {
+	Mode       FinalizeMode
+	AllowPush  bool
+	SkipVerify bool
 }
 
 // NewRunner constructs a loop runner.
@@ -88,7 +109,7 @@ func (r *Runner) Run(ctx context.Context) error {
 	if err := r.verifyFiles(); err != nil {
 		return err
 	}
-	if err := r.verifyBranch(); err != nil {
+	if err := r.verifyBranch(ctx); err != nil {
 		return err
 	}
 
@@ -110,6 +131,7 @@ func (r *Runner) Run(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
+			r.finalizeOnCancel(ctx)
 			return nil
 		default:
 		}
@@ -157,8 +179,12 @@ func (r *Runner) Run(ctx context.Context) error {
 		r.effectiveEffort = effectiveEffort
 		r.contextBuilderMandatory = effectiveEffort == "low" || effectiveEffort == "off" || r.opts.ForceContextBuilder
 
-		headBefore, err := HeadSHA(r.opts.RepoRoot)
+		headBefore, err := HeadSHA(ctx, r.opts.RepoRoot)
 		if err != nil {
+			if isCancellation(ctx, err) {
+				r.finalizeOnCancel(ctx)
+				return nil
+			}
 			logGitError(r.redactor, r.opts.Logger, "head sha", err)
 			return err
 		}
@@ -169,29 +195,43 @@ func (r *Runner) Run(ctx context.Context) error {
 		}
 		r.currentItemBlock = block
 
-		if err := r.reconcileCheckedQueueItems(); err != nil {
-			r.handleIterationFailure(ctx, itemID, firstItem.Header, headBefore, "pin-ops", failureMessage("Failed to move checked queue items", err))
+		if err := r.reconcileCheckedQueueItems(ctx); err != nil {
+			if r.handleIterationFailure(ctx, itemID, firstItem.Header, headBefore, "pin-ops", failureMessage("Failed to move checked queue items", err), err) {
+				return nil
+			}
 			continue
 		}
 
-		headBefore, err = HeadSHA(r.opts.RepoRoot)
+		headBefore, err = HeadSHA(ctx, r.opts.RepoRoot)
 		if err != nil {
+			if isCancellation(ctx, err) {
+				r.finalizeOnCancel(ctx)
+				return nil
+			}
 			logGitError(r.redactor, r.opts.Logger, "head sha", err)
 			return err
 		}
 
-		dirty, err := StatusPorcelain(r.opts.RepoRoot)
+		dirty, err := StatusPorcelain(ctx, r.opts.RepoRoot)
 		if err != nil {
+			if isCancellation(ctx, err) {
+				r.finalizeOnCancel(ctx)
+				return nil
+			}
 			logGitError(r.redactor, r.opts.Logger, "status", err)
 			return err
 		}
 		if dirty != "" {
-			r.handleIterationFailure(ctx, itemID, firstItem.Header, headBefore, "preflight", fmt.Sprintf("Working tree is dirty before iteration %d.", iterations))
+			if r.handleIterationFailure(ctx, itemID, firstItem.Header, headBefore, "preflight", fmt.Sprintf("Working tree is dirty before iteration %d.", iterations), nil) {
+				return nil
+			}
 			continue
 		}
 
 		if err := r.runValidatePin(); err != nil {
-			r.handleIterationFailure(ctx, itemID, firstItem.Header, headBefore, "pin-validate", fmt.Sprintf("validate_pin failed before iteration %d.", iterations))
+			if r.handleIterationFailure(ctx, itemID, firstItem.Header, headBefore, "pin-validate", fmt.Sprintf("validate_pin failed before iteration %d.", iterations), err) {
+				return nil
+			}
 			continue
 		}
 
@@ -217,23 +257,37 @@ func (r *Runner) Run(ctx context.Context) error {
 		}
 		if err := runner.RunPrompt(ctx, promptFile); err != nil {
 			cleanup()
-			r.handleIterationFailure(ctx, itemID, firstItem.Header, headBefore, "runner", fmt.Sprintf("%s failed on iteration %d.", r.opts.Runner, iterations))
+			if r.handleIterationFailure(ctx, itemID, firstItem.Header, headBefore, "runner", fmt.Sprintf("%s failed on iteration %d.", r.opts.Runner, iterations), err) {
+				return nil
+			}
 			continue
 		}
 		cleanup()
 
-		if err := r.finalizeIteration(itemID, firstItem.Header, headBefore); err != nil {
-			r.handleIterationFailure(ctx, itemID, firstItem.Header, headBefore, r.lastFailureStage, r.lastFailureMessage)
+		if err := r.finalizeIteration(ctx, itemID, firstItem.Header, headBefore, FinalizeOptions{Mode: FinalizeModeNormal, AllowPush: true}); err != nil {
+			if r.handleIterationFailure(ctx, itemID, firstItem.Header, headBefore, r.lastFailureStage, r.lastFailureMessage, err) {
+				return nil
+			}
 			continue
 		}
+		if ctx.Err() != nil {
+			r.finalizeOnCancel(ctx)
+			return nil
+		}
 
-		dirty, err = StatusPorcelain(r.opts.RepoRoot)
+		dirty, err = StatusPorcelain(ctx, r.opts.RepoRoot)
 		if err != nil {
+			if isCancellation(ctx, err) {
+				r.finalizeOnCancel(ctx)
+				return nil
+			}
 			logGitError(r.redactor, r.opts.Logger, "status", err)
 			return err
 		}
 		if dirty != "" {
-			r.handleIterationFailure(ctx, itemID, firstItem.Header, headBefore, "post-commit", fmt.Sprintf("Working tree is dirty after iteration %d.", iterations))
+			if r.handleIterationFailure(ctx, itemID, firstItem.Header, headBefore, "post-commit", fmt.Sprintf("Working tree is dirty after iteration %d.", iterations), nil) {
+				return nil
+			}
 			continue
 		}
 
@@ -243,8 +297,12 @@ func (r *Runner) Run(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		headAfter, err := HeadSHA(r.opts.RepoRoot)
+		headAfter, err := HeadSHA(ctx, r.opts.RepoRoot)
 		if err != nil {
+			if isCancellation(ctx, err) {
+				r.finalizeOnCancel(ctx)
+				return nil
+			}
 			logGitError(r.redactor, r.opts.Logger, "head sha", err)
 			return err
 		}
@@ -255,7 +313,9 @@ func (r *Runner) Run(ctx context.Context) error {
 		}
 
 		if r.opts.MaxStalled > 0 && stalled >= r.opts.MaxStalled {
-			r.handleIterationFailure(ctx, itemID, firstItem.Header, headBefore, "stall", fmt.Sprintf("Stalled for %d iterations (head and first queue item unchanged).", stalled))
+			if r.handleIterationFailure(ctx, itemID, firstItem.Header, headBefore, "stall", fmt.Sprintf("Stalled for %d iterations (head and first queue item unchanged).", stalled), nil) {
+				return nil
+			}
 			continue
 		}
 
@@ -269,6 +329,7 @@ func (r *Runner) Run(ctx context.Context) error {
 			select {
 			case <-time.After(time.Duration(r.opts.SleepSeconds) * time.Second):
 			case <-ctx.Done():
+				r.finalizeOnCancel(ctx)
 				return nil
 			}
 		}
@@ -320,11 +381,11 @@ func (r *Runner) verifyFiles() error {
 	return nil
 }
 
-func (r *Runner) verifyBranch() error {
+func (r *Runner) verifyBranch(ctx context.Context) error {
 	if !r.opts.RequireMain {
 		return nil
 	}
-	branch, err := CurrentBranch(r.opts.RepoRoot)
+	branch, err := CurrentBranch(ctx, r.opts.RepoRoot)
 	if err != nil {
 		logGitError(r.redactor, r.opts.Logger, "current branch", err)
 		return err
@@ -381,11 +442,11 @@ func (r *Runner) loadWorkerPrompt() (string, error) {
 	return prompts.WorkerPrompt(prompts.Runner(r.opts.Runner))
 }
 
-func (r *Runner) finalizeIteration(itemID string, itemLine string, headBefore string) error {
+func (r *Runner) finalizeIteration(ctx context.Context, itemID string, itemLine string, headBefore string, opts FinalizeOptions) error {
 	r.lastFailureStage = ""
 	r.lastFailureMessage = ""
 
-	headNow, err := HeadSHA(r.opts.RepoRoot)
+	headNow, err := HeadSHA(ctx, r.opts.RepoRoot)
 	if err != nil {
 		logGitError(r.redactor, r.opts.Logger, "head sha", err)
 		return err
@@ -413,7 +474,7 @@ func (r *Runner) finalizeIteration(itemID string, itemLine string, headBefore st
 		completed = true
 	}
 
-	dirty, err := StatusPorcelain(r.opts.RepoRoot)
+	dirty, err := StatusPorcelain(ctx, r.opts.RepoRoot)
 	if err != nil {
 		logGitError(r.redactor, r.opts.Logger, "status", err)
 		return err
@@ -441,7 +502,7 @@ func (r *Runner) finalizeIteration(itemID string, itemLine string, headBefore st
 
 	onlySpecs := true
 	pinPrefix := pinPathPrefix(r.opts.RepoRoot, r.opts.PinDir)
-	changed, err := DiffNameOnly(r.opts.RepoRoot)
+	changed, err := DiffNameOnly(ctx, r.opts.RepoRoot)
 	if err != nil {
 		logGitError(r.redactor, r.opts.Logger, "diff --name-only", err)
 		r.lastFailureStage = "git"
@@ -455,8 +516,8 @@ func (r *Runner) finalizeIteration(itemID string, itemLine string, headBefore st
 		}
 	}
 
-	if !onlySpecs {
-		if err := r.runMakeCI(); err != nil {
+	if !onlySpecs && !opts.SkipVerify {
+		if err := r.runMakeCI(ctx); err != nil {
 			r.lastFailureStage = "verify"
 			r.lastFailureMessage = "make ci failed."
 			return err
@@ -468,14 +529,16 @@ func (r *Runner) finalizeIteration(itemID string, itemLine string, headBefore st
 		title = "completed"
 	}
 	if r.opts.AutoCommit {
-		if err := CommitAll(r.opts.RepoRoot, fmt.Sprintf("%s: %s", itemID, title)); err != nil {
+		commitCtx, cancel := withTimeout(ctx, gitCommitTimeout)
+		defer cancel()
+		if err := CommitAll(commitCtx, r.opts.RepoRoot, fmt.Sprintf("%s: %s", itemID, title)); err != nil {
 			logGitError(r.redactor, r.opts.Logger, "commit", err)
 			r.lastFailureStage = "commit"
 			r.lastFailureMessage = fmt.Sprintf("git commit failed: %v", err)
 			return err
 		}
-		if r.opts.AutoPush {
-			r.pushIfAhead()
+		if r.opts.AutoPush && opts.AllowPush {
+			r.pushIfAhead(ctx)
 		}
 	}
 
@@ -488,25 +551,27 @@ func (r *Runner) finalizeIteration(itemID string, itemLine string, headBefore st
 	return nil
 }
 
-func (r *Runner) reconcileCheckedQueueItems() error {
+func (r *Runner) reconcileCheckedQueueItems(ctx context.Context) error {
 	movedIDs, err := pin.MoveCheckedToDone(r.pinFiles.QueuePath, r.pinFiles.DonePath, true)
 	if err != nil {
 		return err
 	}
 	summary := pin.SummarizeIDs(movedIDs)
 	if summary != "" {
-		dirty, err := StatusPorcelain(r.opts.RepoRoot)
+		dirty, err := StatusPorcelain(ctx, r.opts.RepoRoot)
 		if err != nil {
 			logGitError(r.redactor, r.opts.Logger, "status", err)
 			return err
 		}
 		if dirty != "" && r.opts.AutoCommit {
-			if err := CommitPaths(r.opts.RepoRoot, fmt.Sprintf("chore: move completed queue items (%s)", summary), r.pinFiles.QueuePath, r.pinFiles.DonePath); err != nil {
+			commitCtx, cancel := withTimeout(ctx, gitCommitTimeout)
+			defer cancel()
+			if err := CommitPaths(commitCtx, r.opts.RepoRoot, fmt.Sprintf("chore: move completed queue items (%s)", summary), r.pinFiles.QueuePath, r.pinFiles.DonePath); err != nil {
 				logGitError(r.redactor, r.opts.Logger, "commit", err)
 				return err
 			}
 			if r.opts.AutoPush {
-				r.pushIfAhead()
+				r.pushIfAhead(ctx)
 			}
 		}
 	}
@@ -530,7 +595,7 @@ func (r *Runner) runValidatePin() error {
 	return nil
 }
 
-func (r *Runner) runMakeCI() error {
+func (r *Runner) runMakeCI(ctx context.Context) error {
 	file, err := os.CreateTemp("", "ralph_make_ci_*.log")
 	if err != nil {
 		return err
@@ -538,8 +603,10 @@ func (r *Runner) runMakeCI() error {
 	r.lastCIOutput = file.Name()
 	_ = file.Close()
 
-	cmd := exec.Command("make", "-C", r.opts.RepoRoot, "ci")
-	if err := RunCommandWithFile(cmd, r.redactor, r.opts.Logger, r.lastCIOutput); err != nil {
+	ciCtx, cancel := withTimeout(ctx, makeCITimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ciCtx, "make", "-C", r.opts.RepoRoot, "ci")
+	if err := RunCommandWithFile(ciCtx, cmd, r.redactor, r.opts.Logger, r.lastCIOutput); err != nil {
 		return err
 	}
 	return nil
@@ -556,17 +623,50 @@ func (r *Runner) cleanupIterationArtifacts() {
 	r.lastCIOutput = ""
 }
 
-func (r *Runner) handleIterationFailure(ctx context.Context, itemID string, itemLine string, headBefore string, stage string, message string) {
+func (r *Runner) finalizeOnCancel(ctx context.Context) {
+	r.logf(">> [RALPH] Cancellation detected; attempting best-effort reconciliation.")
+	cleanupCtx, cancel := withTimeout(context.Background(), cancelFinalizeTimeout)
+	defer cancel()
+
+	if err := r.reconcileCheckedQueueItems(cleanupCtx); err != nil {
+		r.logf(">> [RALPH] Warning: failed to reconcile checked queue items on cancel: %v", err)
+	}
+	if err := r.runValidatePin(); err != nil {
+		r.logf(">> [RALPH] Warning: validate_pin failed during cancel cleanup: %v", err)
+	}
+	r.cleanupIterationArtifacts()
+}
+
+func (r *Runner) finalizeCanceledIteration(ctx context.Context, itemID string, itemLine string, headBefore string, stage string, cause error) {
+	r.logf(">> [RALPH] Cancellation during %s; skipping supervisor/quarantine.", stage)
+	cleanupCtx, cancel := withTimeout(context.Background(), cancelFinalizeTimeout)
+	defer cancel()
+
+	if err := r.finalizeIteration(cleanupCtx, itemID, itemLine, headBefore, FinalizeOptions{
+		Mode:       FinalizeModeCancelBestEffort,
+		AllowPush:  r.opts.AutoPush,
+		SkipVerify: true,
+	}); err != nil {
+		r.logf(">> [RALPH] Warning: cancel finalization failed: %v", err)
+	}
+	r.cleanupIterationArtifacts()
+}
+
+func (r *Runner) handleIterationFailure(ctx context.Context, itemID string, itemLine string, headBefore string, stage string, message string, cause error) bool {
 	r.logf(">> [RALPH] Iteration failure (%s): %s", stage, message)
+	if isCancellation(ctx, cause) {
+		r.finalizeCanceledIteration(ctx, itemID, itemLine, headBefore, stage, cause)
+		return true
+	}
 
 	attempt := 1
 	for attempt <= r.opts.MaxRepairAttempts {
 		r.logf(">> [RALPH] Supervisor attempt %d/%d...", attempt, r.opts.MaxRepairAttempts)
 		r.runSupervisor(ctx, stage, message)
 		if r.lastFailureStage == "" {
-			if err := r.finalizeIteration(itemID, itemLine, headBefore); err == nil {
+			if err := r.finalizeIteration(ctx, itemID, itemLine, headBefore, FinalizeOptions{Mode: FinalizeModeNormal, AllowPush: true}); err == nil {
 				r.cleanupIterationArtifacts()
-				return
+				return false
 			}
 			stage = r.lastFailureStage
 			message = r.lastFailureMessage
@@ -577,17 +677,18 @@ func (r *Runner) handleIterationFailure(ctx context.Context, itemID string, item
 		attempt++
 	}
 
-	wipBranch, err := r.quarantine(itemID, headBefore, message)
+	wipBranch, err := r.quarantine(ctx, itemID, headBefore, message)
 	if err != nil {
 		r.logf("Error: %s", err.Error())
-		return
+		return false
 	}
-	r.autoBlock(itemID, message, wipBranch, headBefore)
+	r.autoBlock(ctx, itemID, message, wipBranch, headBefore)
 	r.cleanupIterationArtifacts()
+	return false
 }
 
 func (r *Runner) runSupervisor(ctx context.Context, stage string, message string) {
-	contextFile, cleanup, err := r.buildSupervisorContext(stage, message)
+	contextFile, cleanup, err := r.buildSupervisorContext(ctx, stage, message)
 	if err != nil {
 		r.lastFailureStage = "supervisor"
 		r.lastFailureMessage = err.Error()
@@ -610,7 +711,7 @@ func (r *Runner) runSupervisor(ctx context.Context, stage string, message string
 	r.lastFailureMessage = ""
 }
 
-func (r *Runner) buildSupervisorContext(stage string, message string) (string, func(), error) {
+func (r *Runner) buildSupervisorContext(ctx context.Context, stage string, message string) (string, func(), error) {
 	content, err := r.loadSupervisorPrompt()
 	if err != nil {
 		return "", func() {}, err
@@ -630,7 +731,7 @@ func (r *Runner) buildSupervisorContext(stage string, message string) (string, f
 	builder.WriteString(r.currentItemBlock)
 	builder.WriteString("\n\n")
 
-	status, err := StatusSummary(r.opts.RepoRoot)
+	status, err := StatusSummary(ctx, r.opts.RepoRoot)
 	if err != nil {
 		logGitError(r.redactor, r.opts.Logger, "status summary", err)
 		status = fmt.Sprintf("Error: %v", err)
@@ -639,7 +740,7 @@ func (r *Runner) buildSupervisorContext(stage string, message string) (string, f
 	builder.WriteString(status)
 	builder.WriteString("\n\n")
 
-	stat, err := DiffStat(r.opts.RepoRoot)
+	stat, err := DiffStat(ctx, r.opts.RepoRoot)
 	if err != nil {
 		logGitError(r.redactor, r.opts.Logger, "diff --stat", err)
 		stat = fmt.Sprintf("Error: %v", err)
@@ -648,7 +749,7 @@ func (r *Runner) buildSupervisorContext(stage string, message string) (string, f
 	builder.WriteString(stat)
 	builder.WriteString("\n\n")
 
-	diff, err := Diff(r.opts.RepoRoot)
+	diff, err := Diff(ctx, r.opts.RepoRoot)
 	if err != nil {
 		logGitError(r.redactor, r.opts.Logger, "diff", err)
 		diff = fmt.Sprintf("Error: %v", err)
@@ -702,11 +803,11 @@ func (r *Runner) loadSupervisorPrompt() (string, error) {
 	return prompts.SupervisorPrompt()
 }
 
-func (r *Runner) quarantine(itemID string, headBefore string, reason string) (string, error) {
+func (r *Runner) quarantine(ctx context.Context, itemID string, headBefore string, reason string) (string, error) {
 	wipBranch := CreateWipBranchName(itemID, time.Now().Format("20060102_150405"))
 	candidate := wipBranch
 	for attempt := 0; attempt < 5; attempt++ {
-		if err := CheckoutNewBranch(r.opts.RepoRoot, candidate); err == nil {
+		if err := CheckoutNewBranch(ctx, r.opts.RepoRoot, candidate); err == nil {
 			wipBranch = candidate
 			break
 		}
@@ -716,33 +817,35 @@ func (r *Runner) quarantine(itemID string, headBefore string, reason string) (st
 		}
 	}
 
-	dirty, err := StatusPorcelain(r.opts.RepoRoot)
+	dirty, err := StatusPorcelain(ctx, r.opts.RepoRoot)
 	if err != nil {
 		logGitError(r.redactor, r.opts.Logger, "status", err)
 		return "", err
 	}
 	if dirty != "" {
 		shortReason := CommitMessageShort(reason)
-		if err := CommitAll(r.opts.RepoRoot, fmt.Sprintf("WIP %s: quarantine (%s)", itemID, shortReason)); err != nil {
+		commitCtx, cancel := withTimeout(ctx, gitCommitTimeout)
+		defer cancel()
+		if err := CommitAll(commitCtx, r.opts.RepoRoot, fmt.Sprintf("WIP %s: quarantine (%s)", itemID, shortReason)); err != nil {
 			logGitError(r.redactor, r.opts.Logger, "commit", err)
 			return "", err
 		}
 	}
 
-	if err := CheckoutBranch(r.opts.RepoRoot, "main"); err != nil {
+	if err := CheckoutBranch(ctx, r.opts.RepoRoot, "main"); err != nil {
 		return "", err
 	}
-	if err := ResetHard(r.opts.RepoRoot, headBefore); err != nil {
+	if err := ResetHard(ctx, r.opts.RepoRoot, headBefore); err != nil {
 		return "", err
 	}
-	if err := Clean(r.opts.RepoRoot); err != nil {
+	if err := Clean(ctx, r.opts.RepoRoot); err != nil {
 		return "", err
 	}
 
 	return wipBranch, nil
 }
 
-func (r *Runner) autoBlock(itemID string, reason string, wipBranch string, headBefore string) {
+func (r *Runner) autoBlock(ctx context.Context, itemID string, reason string, wipBranch string, headBefore string) {
 	unblockHint := fmt.Sprintf("Inspect %s and requeue once fixed.", wipBranch)
 	reasons := []string{reason, fmt.Sprintf("Unblock: %s", unblockHint)}
 	_, err := pin.BlockItem(r.pinFiles.QueuePath, itemID, reasons, pin.Metadata{
@@ -757,18 +860,24 @@ func (r *Runner) autoBlock(itemID string, reason string, wipBranch string, headB
 
 	if r.opts.AutoCommit {
 		shortReason := CommitMessageShort(reason)
-		if err := CommitPaths(r.opts.RepoRoot, fmt.Sprintf("%s: auto-block (%s)", itemID, shortReason), r.pinFiles.QueuePath); err != nil {
+		commitCtx, cancel := withTimeout(ctx, gitCommitTimeout)
+		defer cancel()
+		if err := CommitPaths(commitCtx, r.opts.RepoRoot, fmt.Sprintf("%s: auto-block (%s)", itemID, shortReason), r.pinFiles.QueuePath); err != nil {
 			logGitError(r.redactor, r.opts.Logger, "commit", err)
 			r.logf(">> [RALPH] Warning: auto-block commit failed; local pin edits remain.")
 		}
 		if r.opts.AutoPush {
-			r.pushIfAhead()
+			r.pushIfAhead(ctx)
 		}
 	}
 }
 
-func (r *Runner) pushIfAhead() {
-	ahead, err := AheadCount(r.opts.RepoRoot)
+func (r *Runner) pushIfAhead(ctx context.Context) {
+	if r.pushCanceled {
+		r.logf(">> [RALPH] Push skipped; cancellation already interrupted a push attempt.")
+		return
+	}
+	ahead, err := AheadCount(ctx, r.opts.RepoRoot)
 	if err != nil {
 		logGitError(r.redactor, r.opts.Logger, "ahead count", err)
 		r.logf(">> [RALPH] Warning: unable to determine ahead count; skipping push.")
@@ -779,13 +888,19 @@ func (r *Runner) pushIfAhead() {
 		return
 	}
 	r.logf(">> [RALPH] Pushing %d commit(s) to upstream...", ahead)
-	if err := Push(r.opts.RepoRoot); err != nil {
+	pushCtx, cancel := withTimeout(ctx, gitPushTimeout)
+	defer cancel()
+	if err := Push(pushCtx, r.opts.RepoRoot); err != nil {
 		logGitError(r.redactor, r.opts.Logger, "push", err)
+		if isCancellation(pushCtx, err) {
+			r.logf(">> [RALPH] Push canceled; leaving commits locally.")
+			r.pushCanceled = true
+		}
 		r.logf(">> [RALPH] Warning: git push failed; continuing with local commits.")
 		r.pushFailed = true
 		return
 	}
-	aheadAfter, err := AheadCount(r.opts.RepoRoot)
+	aheadAfter, err := AheadCount(ctx, r.opts.RepoRoot)
 	if err != nil {
 		logGitError(r.redactor, r.opts.Logger, "ahead count", err)
 		r.logf(">> [RALPH] Warning: unable to verify upstream sync after push.")
@@ -802,7 +917,7 @@ func (r *Runner) logPushFailed() {
 	if !r.pushFailed {
 		return
 	}
-	ahead, err := AheadCount(r.opts.RepoRoot)
+	ahead, err := AheadCount(context.Background(), r.opts.RepoRoot)
 	if err != nil {
 		logGitError(r.redactor, r.opts.Logger, "ahead count", err)
 		r.logf(">> [RALPH] Push required; ahead count unavailable.")
@@ -827,6 +942,26 @@ func failureMessage(message string, err error) string {
 		return message
 	}
 	return fmt.Sprintf("%s: %v", message, err)
+}
+
+func isCancellation(ctx context.Context, err error) bool {
+	if ctx != nil && ctx.Err() != nil {
+		return true
+	}
+	if err == nil {
+		return false
+	}
+	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
+}
+
+func withTimeout(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if timeout <= 0 {
+		return ctx, func() {}
+	}
+	return context.WithTimeout(ctx, timeout)
 }
 
 func (r *Runner) publishState(state State) {

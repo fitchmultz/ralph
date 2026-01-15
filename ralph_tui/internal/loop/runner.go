@@ -30,7 +30,7 @@ func (r RunnerInvoker) RunPrompt(ctx context.Context, promptPath string) error {
 		}
 		defer file.Close()
 		cmd.Stdin = file
-		if err := RunCommand(cmd, r.Redactor, r.Logger); err != nil {
+		if err := RunCommand(ctx, cmd, r.Redactor, r.Logger); err != nil {
 			return fmt.Errorf("codex failed while running loop: %w", err)
 		}
 		return nil
@@ -38,7 +38,7 @@ func (r RunnerInvoker) RunPrompt(ctx context.Context, promptPath string) error {
 		args := append([]string{"run"}, r.RunnerArgs...)
 		args = append(args, "--file", promptPath, "--", "Follow the attached prompt file verbatim.")
 		cmd := exec.CommandContext(ctx, "opencode", args...)
-		if err := RunCommand(cmd, r.Redactor, r.Logger); err != nil {
+		if err := RunCommand(ctx, cmd, r.Redactor, r.Logger); err != nil {
 			return fmt.Errorf("opencode failed while running loop: %w", err)
 		}
 		return nil

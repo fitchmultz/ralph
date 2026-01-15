@@ -2,6 +2,7 @@
 package loop
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -12,7 +13,7 @@ import (
 func TestCurrentBranchErrorIncludesStderrTail(t *testing.T) {
 	requireTool(t, "git")
 	repoRoot := t.TempDir()
-	_, err := CurrentBranch(repoRoot)
+	_, err := CurrentBranch(context.Background(), repoRoot)
 	if err == nil {
 		t.Fatal("expected error for non-git repo")
 	}
@@ -39,7 +40,7 @@ func TestAheadCountReturnsErrorWhenNoUpstream(t *testing.T) {
 	runCmd(t, repoRoot, "git", "add", ".")
 	runCmd(t, repoRoot, "git", "commit", "-m", "init")
 
-	_, err := AheadCount(repoRoot)
+	_, err := AheadCount(context.Background(), repoRoot)
 	if err == nil {
 		t.Fatal("expected error when no upstream is configured")
 	}

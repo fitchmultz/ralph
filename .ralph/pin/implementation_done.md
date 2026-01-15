@@ -1,6 +1,15 @@
 # Implementation Done
 
 ## Done
+- [x] RQ-0428 [code]: Harden loop end-of-turn finalization + cancellation handling (ensure queue->done, commit/push, and no quarantine on user stop). (ralph_tui/internal/loop/loop.go, ralph_tui/internal/loop/exec.go, ralph_tui/internal/loop/git.go)
+  - Evidence:
+    - `handleIterationFailure()` runs supervisor + quarantine even when the underlying error is `context.Canceled`, so a user stop can unexpectedly create WIP branches/auto-block items.
+    - `runMakeCI()` shells out with `exec.Command("make", ...)` and `RunCommandWithFile()` forces `context.Background()` via `ensureCommandContext()`, so `make ci` cannot be canceled and can hang the end-of-turn pipeline.
+    - Git operations (`CommitAll`, `CommitPaths`, `Push`) are not context-aware and can also hang, leaving the queue item checked but not moved/committed/pushed.
+  - Plan:
+    - Thread a real `ctx` (plus sane timeouts) through all external commands (runner, make ci, git commit/push) and log each stage transition.
+    - Treat cancellation as a clean stop: skip supervisor/quarantine, but still attempt best-effort reconciliation (move checked -> done, validate pin, and commit/push if configured and safe).
+    - Add regression tests that cancel at key stages (runner, make ci, push) and assert no quarantine occurs and pin files are left in a consistent state.
 - [x] RQ-0427 [code]: Improve git helper error reporting + surface failures in the UI/logs instead of swallowing details. (ralph_tui/internal/loop/git.go, ralph_tui/internal/loop/loop.go, ralph_tui/internal/tui/logs_view.go)
   - Evidence:
     - `ralph_tui/internal/loop/git.go` `CurrentBranch()` returns `fmt.Errorf("Unable to detect current git branch.")` without the underlying error or stderr, making failures opaque.

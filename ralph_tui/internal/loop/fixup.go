@@ -62,7 +62,7 @@ func FixupBlockedItems(ctx context.Context, opts FixupOptions) (FixupResult, err
 	}
 
 	if opts.RequireMain {
-		branch, err := CurrentBranch(opts.RepoRoot)
+		branch, err := CurrentBranch(ctx, opts.RepoRoot)
 		if err != nil {
 			logGitError(redactor, opts.Logger, "current branch", err)
 			return result, err
@@ -72,7 +72,7 @@ func FixupBlockedItems(ctx context.Context, opts FixupOptions) (FixupResult, err
 		}
 	}
 
-	dirty, err := StatusPorcelain(opts.RepoRoot)
+	dirty, err := StatusPorcelain(ctx, opts.RepoRoot)
 	if err != nil {
 		logGitError(redactor, opts.Logger, "status", err)
 		return result, err
@@ -145,7 +145,7 @@ func FixupBlockedItems(ctx context.Context, opts FixupOptions) (FixupResult, err
 }
 
 func validateWipBranchInWorktree(ctx context.Context, opts FixupOptions, wipBranch string, knownGood string) error {
-	exists, err := BranchExists(opts.RepoRoot, wipBranch)
+	exists, err := BranchExists(ctx, opts.RepoRoot, wipBranch)
 	if err != nil {
 		return err
 	}
@@ -158,11 +158,11 @@ func validateWipBranchInWorktree(ctx context.Context, opts FixupOptions, wipBran
 		return err
 	}
 	defer func() {
-		_ = WorktreeRemove(opts.RepoRoot, worktreePath)
+		_ = WorktreeRemove(context.Background(), opts.RepoRoot, worktreePath)
 		_ = os.RemoveAll(worktreePath)
 	}()
 
-	if err := WorktreeAddDetach(opts.RepoRoot, worktreePath, wipBranch); err != nil {
+	if err := WorktreeAddDetach(ctx, opts.RepoRoot, worktreePath, wipBranch); err != nil {
 		return err
 	}
 
@@ -172,7 +172,7 @@ func validateWipBranchInWorktree(ctx context.Context, opts FixupOptions, wipBran
 	}
 
 	pinPrefix := pinPathPrefix(opts.RepoRoot, opts.PinDir)
-	changed, err := DiffNameOnlyRange(opts.RepoRoot, knownGood, wipBranch)
+	changed, err := DiffNameOnlyRange(ctx, opts.RepoRoot, knownGood, wipBranch)
 	if err != nil {
 		return err
 	}
@@ -187,7 +187,7 @@ func validateWipBranchInWorktree(ctx context.Context, opts FixupOptions, wipBran
 
 func runMakeCIInWorktree(ctx context.Context, opts FixupOptions, worktreePath string) error {
 	cmd := exec.CommandContext(ctx, "make", "-C", worktreePath, "ci")
-	if err := RunCommand(cmd, NewRedactor(os.Environ(), opts.RedactionMode), opts.Logger); err != nil {
+	if err := RunCommand(ctx, cmd, NewRedactor(os.Environ(), opts.RedactionMode), opts.Logger); err != nil {
 		return err
 	}
 	return nil
@@ -206,7 +206,7 @@ func commitPinChanges(opts FixupOptions, redactor *Redactor, message string) err
 	if !opts.AutoCommit {
 		return nil
 	}
-	status, err := StatusPorcelain(opts.RepoRoot)
+	status, err := StatusPorcelain(context.Background(), opts.RepoRoot)
 	if err != nil {
 		logGitError(redactor, opts.Logger, "status", err)
 		return err
@@ -216,14 +216,14 @@ func commitPinChanges(opts FixupOptions, redactor *Redactor, message string) err
 	}
 
 	queuePath := filepath.Join(opts.PinDir, "implementation_queue.md")
-	if err := CommitPaths(opts.RepoRoot, message, queuePath); err != nil {
+	if err := CommitPaths(context.Background(), opts.RepoRoot, message, queuePath); err != nil {
 		logGitError(redactor, opts.Logger, "commit", err)
 		return err
 	}
 	if !opts.AutoPush {
 		return nil
 	}
-	ahead, err := AheadCount(opts.RepoRoot)
+	ahead, err := AheadCount(context.Background(), opts.RepoRoot)
 	if err != nil {
 		logGitError(redactor, opts.Logger, "ahead count", err)
 		return err
@@ -231,7 +231,7 @@ func commitPinChanges(opts FixupOptions, redactor *Redactor, message string) err
 	if ahead <= 0 {
 		return nil
 	}
-	if err := Push(opts.RepoRoot); err != nil {
+	if err := Push(context.Background(), opts.RepoRoot); err != nil {
 		logGitError(redactor, opts.Logger, "push", err)
 		return fmt.Errorf("git push failed: %w", err)
 	}
