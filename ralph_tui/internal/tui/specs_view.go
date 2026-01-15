@@ -607,13 +607,6 @@ func previewInputSignature(
 	return fmt.Sprintf("%x", hash.Sum(nil))
 }
 
-func fileStampSignature(stamp fileStamp) string {
-	if !stamp.Exists {
-		return "missing"
-	}
-	return fmt.Sprintf("%d:%d", stamp.Size, stamp.ModTime.UnixNano())
-}
-
 func (s *specsView) SetConfig(cfg config.Config, locations paths.Locations) {
 	s.cfg = cfg
 	s.locations = locations

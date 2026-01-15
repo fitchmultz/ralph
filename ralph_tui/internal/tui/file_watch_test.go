@@ -92,3 +92,39 @@ func TestFileChangedDetectsSizeAndModtime(t *testing.T) {
 		t.Fatalf("expected modtime change to be detected")
 	}
 }
+
+func TestFileChangedDetectsSameSizeSameModtimeContentChange(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "queue.md")
+	baseTime := time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC)
+
+	if err := os.WriteFile(path, []byte("one"), 0o600); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+	if err := os.Chtimes(path, baseTime, baseTime); err != nil {
+		t.Fatalf("set modtime: %v", err)
+	}
+
+	stamp, changed, err := fileChanged(path, fileStamp{})
+	if err != nil {
+		t.Fatalf("fileChanged initial: %v", err)
+	}
+	if !changed {
+		t.Fatalf("expected initial stat to be a change from empty stamp")
+	}
+
+	if err := os.WriteFile(path, []byte("two"), 0o600); err != nil {
+		t.Fatalf("rewrite file: %v", err)
+	}
+	if err := os.Chtimes(path, baseTime, baseTime); err != nil {
+		t.Fatalf("reset modtime: %v", err)
+	}
+
+	_, changed, err = fileChanged(path, stamp)
+	if err != nil {
+		t.Fatalf("fileChanged same size/modtime update: %v", err)
+	}
+	if !changed {
+		t.Fatalf("expected same size/modtime content change to be detected")
+	}
+}

@@ -1,6 +1,14 @@
 # Implementation Done
 
 ## Done
+- [x] RQ-0433 [code]: Improve file change detection so the UI doesn’t miss fast edits (same-size/same-modtime changes; atomic-save editors) and reduce "stale until refresh" bugs. (ralph_tui/internal/tui/file_watch.go, ralph_tui/internal/tui/file_watch_test.go, ralph_tui/internal/tui/pin_view.go)
+  - Evidence:
+    - `fileStamp` only tracks `ModTime` + `Size`; if content changes without changing either (possible with quick edits or coarse filesystem timestamp resolution), `fileChanged()` will report no change.
+    - Pin/specs/log refresh logic relies on this stamp, so missed change detection can make the TUI appear "laggy" or "broken" until a manual refresh.
+  - Plan:
+    - Extend `fileStamp` with stronger identity (inode/ctime where available, and/or a small content hash for small files) and update `sameFileStamp` accordingly.
+    - Add unit tests that rewrite a file to different content with the same size and forced modtime and assert the new stamp detects a change.
+    - Apply the improved stamp logic to Pin/Specs/Logs refresh paths and keep the performance characteristics reasonable for large files.
 - [x] RQ-0432 [code]: Make pin file writes atomic + lock-protected (prevent corruption/lost edits when loop/TUI/user all touch pin files). (ralph_tui/internal/pin/pin.go, ralph_tui/internal/config/save.go, ralph_tui/internal/loop/loop.go)
   - Evidence:
     - `pin.writeLines()` uses `os.WriteFile()` directly, which is not atomic and can leave partial/truncated pin files if the process is interrupted mid-write.
