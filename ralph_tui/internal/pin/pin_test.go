@@ -27,6 +27,21 @@ func TestValidatePinFixtures(t *testing.T) {
 	}
 }
 
+func TestReadQueueSummaryFixtures(t *testing.T) {
+	fixture := mustLocateFixtures(t)
+
+	items, blocked, err := ReadQueueSummary(fixture.queue)
+	if err != nil {
+		t.Fatalf("ReadQueueSummary failed: %v", err)
+	}
+	if len(items) != 2 {
+		t.Fatalf("expected 2 queue items, got %d", len(items))
+	}
+	if blocked != 1 {
+		t.Fatalf("expected 1 blocked item, got %d", blocked)
+	}
+}
+
 func TestMoveCheckedToDoneFixtures(t *testing.T) {
 	fixture := mustLocateFixtures(t)
 

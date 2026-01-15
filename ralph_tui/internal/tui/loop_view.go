@@ -201,6 +201,13 @@ func (l *loopView) Update(msg tea.Msg, keys keyMap) tea.Cmd {
 	return nil
 }
 
+func (l *loopView) StartOnce() tea.Cmd {
+	if l == nil || l.mode != loopIdle {
+		return nil
+	}
+	return l.start(true)
+}
+
 func (l *loopView) HandlesTabNavigation() bool {
 	return l.mode == loopEditing && l.editForm != nil
 }

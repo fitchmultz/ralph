@@ -96,43 +96,62 @@ type QueueItem struct {
 	Checked bool
 }
 
-// ReadQueueItems returns queue items from the Queue section.
-func ReadQueueItems(queuePath string) ([]QueueItem, error) {
+// ReadQueueSummary returns queue items plus the blocked item count.
+func ReadQueueSummary(queuePath string) ([]QueueItem, int, error) {
 	lines, err := readLines(queuePath)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	blocks := splitBlocks(lines)
 	items := make([]QueueItem, 0)
+	blockedCount := 0
 	inQueue := false
+	inBlocked := false
 	for _, block := range blocks {
 		if len(block) == 0 {
 			continue
 		}
 		header := block[0]
-		if strings.TrimSpace(header) == "## Queue" {
+		switch {
+		case strings.TrimSpace(header) == "## Queue":
 			inQueue = true
+			inBlocked = false
 			continue
-		}
-		if strings.HasPrefix(header, "## ") {
+		case strings.TrimSpace(header) == "## Blocked":
 			inQueue = false
+			inBlocked = true
+			continue
+		case strings.HasPrefix(header, "## "):
+			inQueue = false
+			inBlocked = false
 			continue
 		}
-		if !inQueue {
+
+		if !strings.HasPrefix(header, "- [") {
 			continue
 		}
-		if strings.HasPrefix(header, "- [") {
+		if inQueue {
 			items = append(items, QueueItem{
 				Header:  header,
 				Lines:   block,
 				ID:      extractID(header),
 				Checked: strings.HasPrefix(header, "- [x]"),
 			})
+			continue
+		}
+		if inBlocked {
+			blockedCount++
 		}
 	}
 
-	return items, nil
+	return items, blockedCount, nil
+}
+
+// ReadQueueItems returns queue items from the Queue section.
+func ReadQueueItems(queuePath string) ([]QueueItem, error) {
+	items, _, err := ReadQueueSummary(queuePath)
+	return items, err
 }
 
 // MoveCheckedToDone moves checked blocks from Queue to Done.

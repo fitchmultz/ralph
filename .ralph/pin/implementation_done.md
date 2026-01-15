@@ -1,6 +1,13 @@
 # Implementation Done
 
 ## Done
+- [x] RQ-0420 [ui]: Replace empty Dashboard with a real status overview (queue counts, running state, last results, log path) + quick actions. (ralph_tui/internal/tui/model.go, ralph_tui/internal/tui/screens.go, ralph_tui/internal/tui/help_keymap.go)
+  - Evidence:
+    - `ralph_tui/internal/tui/model.go` currently returns a placeholder for `screenDashboard`: "Dashboard\n\nSummary panels will land here." (no actionable information).
+  - Plan:
+    - Show at-a-glance stats: unchecked queue count, blocked count, current/last queue item ID (if available), loop running state + mode, specs running state, last status messages, and resolved log path.
+    - Add one or two "quick actions" shortcuts (e.g., start loop once/continuous, run specs) and document them in help.
+    - Add small render contract coverage for the dashboard at narrow widths/heights.
 - [x] RQ-0419 [code]: Disable autofill-scout by default; fix/clarify auto-scout toggle semantics and make it reliably reflected across TUI/CLI/specs runs. (ralph_tui/internal/config/defaults.json, ralph_tui/internal/tui/specs_view.go, ralph_tui/internal/specs/specs.go, ralph_tui/cmd/ralph/main.go)
   - Evidence:
     - `ralph_tui/internal/config/defaults.json` sets `specs.autofill_scout` to `true` by default; you want it disabled by default.

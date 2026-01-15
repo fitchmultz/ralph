@@ -35,6 +35,8 @@ type keyMap struct {
 	StopLoop                  key.Binding
 	EditLoopConfig            key.Binding
 	ToggleForceContextBuilder key.Binding
+	DashboardRunLoopOnce      key.Binding
+	DashboardBuildSpecs       key.Binding
 }
 
 func newKeyMap() keyMap {
@@ -150,6 +152,14 @@ func newKeyMap() keyMap {
 		ToggleForceContextBuilder: key.NewBinding(
 			key.WithKeys("p"),
 			key.WithHelp("p", "force context_builder"),
+		),
+		DashboardRunLoopOnce: key.NewBinding(
+			key.WithKeys("r"),
+			key.WithHelp("r", "run loop once"),
+		),
+		DashboardBuildSpecs: key.NewBinding(
+			key.WithKeys("b"),
+			key.WithHelp("b", "build specs"),
 		),
 	}
 }

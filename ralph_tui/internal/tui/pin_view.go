@@ -35,31 +35,33 @@ type pinReloadMsg struct {
 	items       []pin.QueueItem
 	rows        []table.Row
 	queueStamp  fileStamp
+	blocked     int
 	err         error
 	stampErr    error
 	resetScroll bool
 }
 
 type pinView struct {
-	files       pin.Files
-	items       []pin.QueueItem
-	table       table.Model
-	tableStyles table.Styles
-	detail      viewport.Model
-	status      string
-	err         string
-	mode        pinMode
-	focus       pinFocus
-	loading     bool
-	reloadAgain bool
-	blockForm   *huh.Form
-	blockReason string
-	config      config.Config
-	locations   paths.Locations
-	logger      *tuiLogger
-	width       int
-	height      int
-	queueStamp  fileStamp
+	files        pin.Files
+	items        []pin.QueueItem
+	blockedCount int
+	table        table.Model
+	tableStyles  table.Styles
+	detail       viewport.Model
+	status       string
+	err          string
+	mode         pinMode
+	focus        pinFocus
+	loading      bool
+	reloadAgain  bool
+	blockForm    *huh.Form
+	blockReason  string
+	config       config.Config
+	locations    paths.Locations
+	logger       *tuiLogger
+	width        int
+	height       int
+	queueStamp   fileStamp
 }
 
 const (
@@ -112,6 +114,7 @@ func (p *pinView) Update(msg tea.Msg, keys keyMap) tea.Cmd {
 		}
 		p.err = ""
 		p.items = reloadMsg.items
+		p.blockedCount = reloadMsg.blocked
 		p.table.SetRows(reloadMsg.rows)
 		if reloadMsg.stampErr == nil {
 			p.queueStamp = reloadMsg.queueStamp
@@ -306,11 +309,12 @@ func (p *pinView) setRefreshError(prefix string, err error) {
 }
 
 func (p *pinView) reload() error {
-	items, err := pin.ReadQueueItems(p.files.QueuePath)
+	items, blocked, err := pin.ReadQueueSummary(p.files.QueuePath)
 	if err != nil {
 		return err
 	}
 	p.items = items
+	p.blockedCount = blocked
 	rows := make([]table.Row, 0, len(items))
 	for _, item := range items {
 		status := "[ ]"
@@ -341,7 +345,7 @@ func (p *pinView) reloadAsync(resetScroll bool) tea.Cmd {
 	p.err = ""
 	files := p.files
 	return func() tea.Msg {
-		items, err := pin.ReadQueueItems(files.QueuePath)
+		items, blocked, err := pin.ReadQueueSummary(files.QueuePath)
 		if err != nil {
 			return pinReloadMsg{err: err, resetScroll: resetScroll}
 		}
@@ -364,6 +368,7 @@ func (p *pinView) reloadAsync(resetScroll bool) tea.Cmd {
 			items:       items,
 			rows:        rows,
 			queueStamp:  stamp,
+			blocked:     blocked,
 			stampErr:    stampErr,
 			resetScroll: resetScroll,
 		}

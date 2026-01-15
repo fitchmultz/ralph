@@ -276,6 +276,17 @@ func (s *specsView) Update(msg tea.Msg, keys keyMap) tea.Cmd {
 	return cmd
 }
 
+func (s *specsView) StartBuild() tea.Cmd {
+	if s == nil || s.running {
+		return nil
+	}
+	s.running = true
+	s.status = "Running specs build..."
+	s.err = ""
+	s.persistErr = ""
+	return s.runBuildCmd()
+}
+
 func (s *specsView) View() string {
 	header := "Build Specs"
 	status := s.statusLine()

@@ -54,6 +54,18 @@ func (l loopKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{{l.keys.RunLoopOnce, l.keys.RunLoopContinuous, l.keys.StopLoop, l.keys.EditLoopConfig}}
 }
 
+type dashboardKeyMap struct {
+	keys keyMap
+}
+
+func (d dashboardKeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{d.keys.DashboardRunLoopOnce, d.keys.DashboardBuildSpecs}
+}
+
+func (d dashboardKeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{{d.keys.DashboardRunLoopOnce, d.keys.DashboardBuildSpecs}}
+}
+
 type configKeyMap struct {
 	keys keyMap
 }

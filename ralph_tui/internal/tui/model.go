@@ -235,6 +235,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, m.refreshScreen(m.screen, true)...)
 			return m, tea.Batch(cmds...)
 		}
+		if m.screen == screenDashboard {
+			switch {
+			case key.Matches(msg, m.keys.DashboardRunLoopOnce):
+				if m.loopView == nil {
+					return m, nil
+				}
+				return m, m.loopView.StartOnce()
+			case key.Matches(msg, m.keys.DashboardBuildSpecs):
+				if m.specsView == nil {
+					return m, nil
+				}
+				return m, m.specsView.StartBuild()
+			}
+		}
 		if key.Matches(msg, m.keys.EditSpecsSettings) && m.screen == screenBuildSpecs {
 			cmds = append(cmds, m.switchScreen(screenConfig, true)...)
 			return m, tea.Batch(cmds...)
@@ -433,7 +447,7 @@ func min(a, b int) int {
 func (m model) contentView() string {
 	switch m.screen {
 	case screenDashboard:
-		return "Dashboard\n\nSummary panels will land here."
+		return m.dashboardView()
 	case screenRunLoop:
 		if m.loopView == nil {
 			return "Run Loop\n\nRun loop unavailable."
@@ -890,6 +904,8 @@ func (m *model) helpKeyMap() help.KeyMap {
 
 func (m *model) screenKeyMap() help.KeyMap {
 	switch m.screen {
+	case screenDashboard:
+		return dashboardKeyMap{keys: m.keys}
 	case screenConfig:
 		return configKeyMap{keys: m.keys}
 	case screenPin:

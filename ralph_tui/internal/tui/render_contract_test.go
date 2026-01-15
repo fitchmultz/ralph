@@ -63,6 +63,40 @@ func TestRenderContract(t *testing.T) {
 	}
 }
 
+func TestDashboardRenderContractNarrowSizes(t *testing.T) {
+	_, locs, cfg := newHermeticModel(t)
+
+	sizes := []struct {
+		w int
+		h int
+	}{
+		{w: 12, h: 5},
+		{w: 15, h: 6},
+		{w: 18, h: 6},
+		{w: 20, h: 6},
+	}
+
+	for _, size := range sizes {
+		for _, showAll := range []bool{false, true} {
+			for _, navCollapsed := range []bool{false, true} {
+				name := fmt.Sprintf("dashboard-narrow-w%dxh%d-help%t-collapse%t", size.w, size.h, showAll, navCollapsed)
+				t.Run(name, func(t *testing.T) {
+					m := newModel(cfg, locs, StartOptions{})
+					m.screen = screenDashboard
+					m.navCollapsed = navCollapsed
+					m.navFocused = false
+					m.help.ShowAll = showAll
+					m.applyFocus()
+					m.width = size.w
+					m.height = size.h
+					m.relayout()
+					assertRenderFits(t, m, size.w, size.h)
+				})
+			}
+		}
+	}
+}
+
 func assertRenderFits(t *testing.T, m model, w, h int) {
 	t.Helper()
 	out := m.View()

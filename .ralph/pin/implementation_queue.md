@@ -1,13 +1,6 @@
 # Implementation Queue
 
 ## Queue
-- [ ] RQ-0420 [ui]: Replace empty Dashboard with a real status overview (queue counts, running state, last results, log path) + quick actions. (ralph_tui/internal/tui/model.go, ralph_tui/internal/tui/screens.go, ralph_tui/internal/tui/help_keymap.go)
-  - Evidence:
-    - `ralph_tui/internal/tui/model.go` currently returns a placeholder for `screenDashboard`: "Dashboard\n\nSummary panels will land here." (no actionable information).
-  - Plan:
-    - Show at-a-glance stats: unchecked queue count, blocked count, current/last queue item ID (if available), loop running state + mode, specs running state, last status messages, and resolved log path.
-    - Add one or two "quick actions" shortcuts (e.g., start loop once/continuous, run specs) and document them in help.
-    - Add small render contract coverage for the dashboard at narrow widths/heights.
 - [ ] RQ-0421 [ui]: Add search/command-palette style navigation + Pin queue filtering to handle large queues without manual scrolling. (ralph_tui/internal/tui/model.go, ralph_tui/internal/tui/pin_view.go, ralph_tui/internal/tui/keymap.go)
   - Evidence:
     - The nav list explicitly disables filtering (`SetShowFilter(false)`, `SetFilteringEnabled(false)`), so there is no fast jump across screens.
