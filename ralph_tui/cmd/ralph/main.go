@@ -314,7 +314,7 @@ func newSpecsBuildCommand() *cobra.Command {
 				return err
 			}
 
-			result, err := specs.Build(specs.BuildOptions{
+			result, err := specs.Build(context.Background(), specs.BuildOptions{
 				RepoRoot:         locs.RepoRoot,
 				PinDir:           cfg.Paths.PinDir,
 				PromptTemplate:   promptPath,

@@ -1,9 +1,6 @@
 # Implementation Queue
 
 ## Queue
-- [ ] RQ-0409 [code]: Make Specs build cancellable (stop key) and prevent hung runner processes from wedging the TUI. (ralph_tui/internal/tui/specs_view.go, ralph_tui/internal/specs/specs.go, ralph_tui/internal/loop/process_group_unix.go)
-  - Evidence: specs.Build uses exec.Command without context; specsView has no stop/cancel UX; if codex/opencode hangs, the only escape is killing the entire TUI process.
-  - Plan: Thread context through specs.Build/runRunner (use exec.CommandContext) and reuse process-group cancellation logic so all child processes die on cancel; add a stop key while specs is running; ensure log channels/output persistence close cleanly; add a hermetic test path by allowing a stub runner in tests (or an env override similar to RALPH_LOOP_SKIP_RUNNER_CHECK).
 - [ ] RQ-0410 [code]: Reduce Specs preview lag by caching the glamour renderer + skipping re-render when prompt inputs are unchanged. (ralph_tui/internal/tui/specs_view.go)
   - Evidence: refreshPreviewAsync() rebuilds a glamour.TermRenderer and renders the full prompt on every refresh/toggle; this is CPU-heavy and contributes to sluggish UI when toggling innovate/autofill/interactive or resizing.
   - Plan: Cache the renderer keyed by preview width; track an input signature (template stamp + flags + lastRunOutput/diffStat) and skip Render/viewport.SetContent if unchanged; add tests that width changes invalidate the cache and redundant refreshes do not re-render.

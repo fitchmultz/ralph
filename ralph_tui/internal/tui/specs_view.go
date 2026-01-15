@@ -3,6 +3,8 @@
 package tui
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -45,6 +47,7 @@ type specsView struct {
 	diffStat          string
 	runLogs           []string
 	lastRunOutput     string
+	buildCancel       context.CancelFunc
 	logCh             chan string
 	logRunID          int
 	pendingResult     *specsBuildResultMsg
@@ -176,6 +179,12 @@ func (s *specsView) Update(msg tea.Msg, keys keyMap) tea.Cmd {
 			s.err = ""
 			s.persistErr = ""
 			return s.runBuildCmd()
+		case key.Matches(msg, keys.StopSpecs):
+			if !s.running {
+				return nil
+			}
+			s.cancelBuild()
+			return nil
 		case msg.String() == "j":
 			s.activeViewport().LineDown(1)
 			return nil
@@ -237,7 +246,7 @@ func (s *specsView) optionsView() string {
 		fmt.Sprintf("Interactive: %s", yesNo(s.interactive)),
 		fmt.Sprintf("Innovate: %s", innovate),
 		fmt.Sprintf("Autofill scout: %s", yesNo(s.autofillScout)),
-		"Keys: e settings (runner/args/effort) | i interactive | n innovate | a autofill | r run build",
+		"Keys: e settings (runner/args/effort) | i interactive | n innovate | a autofill | r run build | s stop build",
 		"Scroll: \u2191/\u2193 PgUp/PgDn (Tab to focus)",
 	}
 	return strings.Join(lines, "\n")
@@ -318,6 +327,8 @@ func (s *specsView) runBuildCmd() tea.Cmd {
 	s.pendingResult = nil
 	s.logViewport.SetContent("")
 	s.logViewport.GotoTop()
+	ctx, cancel := context.WithCancel(context.Background())
+	s.buildCancel = cancel
 	if s.logger != nil {
 		appliedArgs := applyReasoningEffort(string(s.runner), s.runnerArgs, s.reasoningEffort, "medium")
 		s.logger.Info("specs.run.start", map[string]any{
@@ -334,8 +345,9 @@ func (s *specsView) runBuildCmd() tea.Cmd {
 	writer := newStreamWriter(sink)
 
 	runCmd := func() tea.Msg {
+		defer cancel()
 		defer close(logCh)
-		result, err := specs.Build(specs.BuildOptions{
+		result, err := specs.Build(ctx, specs.BuildOptions{
 			RepoRoot:         s.locations.RepoRoot,
 			PinDir:           s.cfg.Paths.PinDir,
 			Runner:           s.runner,
@@ -504,7 +516,17 @@ func (s *specsView) finalizeRunOutput() {
 }
 
 func (s *specsView) applyBuildResult(msg specsBuildResultMsg) tea.Cmd {
+	s.buildCancel = nil
 	if msg.err != nil {
+		if errors.Is(msg.err, context.Canceled) {
+			s.err = ""
+			s.status = "Specs build canceled."
+			s.previewDirty = true
+			if s.logger != nil {
+				s.logger.Info("specs.run.canceled", map[string]any{})
+			}
+			return s.RefreshPreviewCmd()
+		}
 		s.err = msg.err.Error()
 		s.status = ""
 		s.previewDirty = true
@@ -571,6 +593,14 @@ func (s *specsView) stopPersistingOutput() {
 		}
 		s.logOutputError("specs.output.persist.error", err, s.specsOutputPath())
 	}
+}
+
+func (s *specsView) cancelBuild() {
+	if s.buildCancel == nil {
+		return
+	}
+	s.status = "Canceling specs build..."
+	s.buildCancel()
 }
 
 func (s *specsView) persistSpecsLines(lines []string) {

@@ -1,14 +1,15 @@
 //go:build !windows
 
-// Package loop provides process group cancellation helpers for Unix systems.
-package loop
+// Package procgroup configures process groups for cancellation on Unix systems.
+package procgroup
 
 import (
 	"os/exec"
 	"syscall"
 )
 
-func configureProcessGroup(cmd *exec.Cmd) {
+// Configure sets up process-group cancellation so context cancel kills the group.
+func Configure(cmd *exec.Cmd) {
 	if cmd == nil {
 		return
 	}

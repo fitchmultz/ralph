@@ -1,6 +1,9 @@
 # Implementation Done
 
 ## Done
+- [x] RQ-0409 [code]: Make Specs build cancellable (stop key) and prevent hung runner processes from wedging the TUI. (ralph_tui/internal/tui/specs_view.go, ralph_tui/internal/specs/specs.go, ralph_tui/internal/loop/process_group_unix.go)
+  - Evidence: specs.Build uses exec.Command without context; specsView has no stop/cancel UX; if codex/opencode hangs, the only escape is killing the entire TUI process.
+  - Plan: Thread context through specs.Build/runRunner (use exec.CommandContext) and reuse process-group cancellation logic so all child processes die on cancel; add a stop key while specs is running; ensure log channels/output persistence close cleanly; add a hermetic test path by allowing a stub runner in tests (or an env override similar to RALPH_LOOP_SKIP_RUNNER_CHECK).
 - [x] RQ-0408 [code]: Fix tuiLogger startup rotation recursion/handle leak and add a rotation regression test. (ralph_tui/internal/tui/logging.go, ralph_tui/internal/tui/logging_test.go)
   - Evidence: logging.rotateIfNeededLocked() calls l.openFileLocked() after renaming, but openFileLocked() itself calls rotateIfNeededLocked() before opening; when the log file is already oversized at startup (file handle is nil), rotation can open the file twice and leak a descriptor, and fileSize bookkeeping can become inconsistent.
   - Plan: Refactor rotation to never call openFileLocked recursively (rotate only, then let the caller open), or make openFileLocked return early if rotation already opened a file; add a unit test that forces startup-time rotation (pre-create an oversized log) and asserts old file moves to .1 and subsequent writes go to the new file without leaking handles.

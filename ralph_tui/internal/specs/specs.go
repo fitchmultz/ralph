@@ -3,15 +3,18 @@
 package specs
 
 import (
-	"bytes"
+	"context"
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/mitchfultz/ralph/ralph_tui/internal/procgroup"
 )
 
 const (
@@ -68,6 +71,7 @@ type BuildOptions struct {
 	Stdout           io.Writer
 	Stderr           io.Writer
 	Stdin            io.Reader
+	RunnerBackend    RunnerBackend
 }
 
 // BuildResult captures build outputs.
@@ -75,6 +79,29 @@ type BuildResult struct {
 	Prompt            string
 	PromptPath        string
 	EffectiveInnovate bool
+}
+
+// RunnerBackend abstracts runner execution for hermetic tests.
+type RunnerBackend interface {
+	LookPath(file string) (string, error)
+	CommandContext(ctx context.Context, name string, args ...string) *exec.Cmd
+}
+
+type defaultRunnerBackend struct{}
+
+func (defaultRunnerBackend) LookPath(file string) (string, error) {
+	return exec.LookPath(file)
+}
+
+func (defaultRunnerBackend) CommandContext(ctx context.Context, name string, args ...string) *exec.Cmd {
+	return exec.CommandContext(ctx, name, args...)
+}
+
+func (o BuildOptions) runnerBackend() RunnerBackend {
+	if o.RunnerBackend != nil {
+		return o.RunnerBackend
+	}
+	return defaultRunnerBackend{}
 }
 
 // FillPrompt loads and fills the prompt template with interactive/innovate placeholders.
@@ -119,7 +146,13 @@ func ResolveInnovate(queuePath string, innovate bool, innovateExplicit bool, aut
 }
 
 // Build runs the specs builder with the given options.
-func Build(opts BuildOptions) (BuildResult, error) {
+func Build(ctx context.Context, opts BuildOptions) (BuildResult, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return BuildResult{}, err
+	}
 	if opts.PromptTemplate == "" {
 		opts.PromptTemplate = filepath.Join(opts.PinDir, "specs_builder.md")
 	}
@@ -127,7 +160,7 @@ func Build(opts BuildOptions) (BuildResult, error) {
 		opts.Runner = RunnerCodex
 	}
 
-	if err := verifyRunner(opts.Runner); err != nil {
+	if err := verifyRunner(opts.runnerBackend(), opts.Runner); err != nil {
 		return BuildResult{}, err
 	}
 
@@ -169,7 +202,10 @@ func Build(opts BuildOptions) (BuildResult, error) {
 		}
 	}
 
-	if err := runRunner(opts, prompt, promptPath); err != nil {
+	if err := ctx.Err(); err != nil {
+		return BuildResult{}, err
+	}
+	if err := runRunner(ctx, opts, prompt, promptPath); err != nil {
 		return BuildResult{}, err
 	}
 
@@ -270,7 +306,8 @@ func writeTempPrompt(prompt string) (string, func(), error) {
 	return path, cleanup, nil
 }
 
-func runRunner(opts BuildOptions, prompt string, promptPath string) error {
+func runRunner(ctx context.Context, opts BuildOptions, prompt string, promptPath string) error {
+	backend := opts.runnerBackend()
 	runArgs := append([]string{}, opts.RunnerArgs...)
 	stdout := opts.Stdout
 	stderr := opts.Stderr
@@ -288,18 +325,23 @@ func runRunner(opts BuildOptions, prompt string, promptPath string) error {
 	switch opts.Runner {
 	case RunnerCodex:
 		if opts.Interactive {
-			cmd := exec.Command("codex", append(runArgs, prompt)...)
+			cmd := backend.CommandContext(ctx, "codex", append(runArgs, prompt)...)
+			procgroup.Configure(cmd)
 			cmd.Stdout = stdout
 			cmd.Stderr = stderr
 			cmd.Stdin = stdin
 			if err := cmd.Run(); err != nil {
-				return fmt.Errorf("codex failed while building specs.")
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
+				return fmt.Errorf("codex failed while building specs: %w", err)
 			}
 			return nil
 		}
 		args := append([]string{"exec"}, runArgs...)
 		args = append(args, "-")
-		cmd := exec.Command("codex", args...)
+		cmd := backend.CommandContext(ctx, "codex", args...)
+		procgroup.Configure(cmd)
 		file, err := os.Open(promptPath)
 		if err != nil {
 			return err
@@ -309,28 +351,39 @@ func runRunner(opts BuildOptions, prompt string, promptPath string) error {
 		cmd.Stdout = stdout
 		cmd.Stderr = stderr
 		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("codex failed while building specs.")
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			return fmt.Errorf("codex failed while building specs: %w", err)
 		}
 		return nil
 	case RunnerOpencode:
 		if opts.Interactive {
-			cmd := exec.Command("opencode", append(runArgs, prompt)...)
+			cmd := backend.CommandContext(ctx, "opencode", append(runArgs, prompt)...)
+			procgroup.Configure(cmd)
 			cmd.Stdout = stdout
 			cmd.Stderr = stderr
 			cmd.Stdin = stdin
 			if err := cmd.Run(); err != nil {
-				return fmt.Errorf("opencode failed while building specs.")
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
+				return fmt.Errorf("opencode failed while building specs: %w", err)
 			}
 			return nil
 		}
 		args := append([]string{"run"}, runArgs...)
 		args = append(args, "--file", promptPath, "--", "Follow the attached prompt file verbatim.")
-		cmd := exec.Command("opencode", args...)
+		cmd := backend.CommandContext(ctx, "opencode", args...)
+		procgroup.Configure(cmd)
 		cmd.Stdout = stdout
 		cmd.Stderr = stderr
 		cmd.Stdin = stdin
 		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("opencode failed while building specs.")
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			return fmt.Errorf("opencode failed while building specs: %w", err)
 		}
 		return nil
 	default:
@@ -338,14 +391,14 @@ func runRunner(opts BuildOptions, prompt string, promptPath string) error {
 	}
 }
 
-func verifyRunner(runner Runner) error {
+func verifyRunner(backend RunnerBackend, runner Runner) error {
 	switch runner {
 	case RunnerCodex:
-		if _, err := exec.LookPath("codex"); err != nil {
+		if _, err := backend.LookPath("codex"); err != nil {
 			return fmt.Errorf("codex is not on PATH. Install it or use --runner opencode.")
 		}
 	case RunnerOpencode:
-		if _, err := exec.LookPath("opencode"); err != nil {
+		if _, err := backend.LookPath("opencode"); err != nil {
 			return fmt.Errorf("opencode is not on PATH. Install it or use --runner codex.")
 		}
 	default:
@@ -390,35 +443,7 @@ func uncheckedQueueCount(queuePath string) (int, error) {
 }
 
 func lockChecksum(repoRoot string) string {
-	cmd := exec.Command("cksum")
-	cmd.Stdin = bytes.NewBufferString(repoRoot)
-	output, err := cmd.Output()
-	if err == nil {
-		fields := strings.Fields(string(output))
-		if len(fields) > 0 {
-			return fields[0]
-		}
-	}
-	return fmt.Sprintf("%x", crc32Checksum(repoRoot))
-}
-
-func crc32Checksum(value string) uint32 {
-	return crc32Sum([]byte(value))
-}
-
-func crc32Sum(data []byte) uint32 {
-	var crc uint32 = 0xFFFFFFFF
-	for _, b := range data {
-		crc ^= uint32(b) << 24
-		for i := 0; i < 8; i++ {
-			if crc&0x80000000 != 0 {
-				crc = (crc << 1) ^ 0x04C11DB7
-			} else {
-				crc <<= 1
-			}
-		}
-	}
-	return crc
+	return fmt.Sprintf("%x", crc32.ChecksumIEEE([]byte(repoRoot)))
 }
 
 func isPIDRunning(pid int) bool {
