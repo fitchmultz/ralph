@@ -36,6 +36,8 @@ type keyMap struct {
 	StopLoop                  key.Binding
 	EditLoopConfig            key.Binding
 	ToggleForceContextBuilder key.Binding
+	JumpToPin                 key.Binding
+	JumpToLogs                key.Binding
 	DashboardRunLoopOnce      key.Binding
 	DashboardBuildSpecs       key.Binding
 }
@@ -158,6 +160,14 @@ func newKeyMap() keyMap {
 			key.WithKeys("p"),
 			key.WithHelp("p", "force context_builder"),
 		),
+		JumpToPin: key.NewBinding(
+			key.WithKeys("P"),
+			key.WithHelp("shift+p", "jump to pin"),
+		),
+		JumpToLogs: key.NewBinding(
+			key.WithKeys("L"),
+			key.WithHelp("shift+l", "jump to logs"),
+		),
 		DashboardRunLoopOnce: key.NewBinding(
 			key.WithKeys("r"),
 			key.WithHelp("r", "run loop once"),
@@ -180,6 +190,6 @@ func (k keyMap) FullHelp() [][]key.Binding {
 		{k.Discard},
 		{k.ValidatePin, k.MoveChecked, k.BlockItem},
 		{k.ToggleInteractive, k.ToggleInnovate, k.ToggleAutofill, k.ToggleScoutWorkflow, k.EditUserFocus, k.RunSpecs, k.StopSpecs},
-		{k.RunLoopOnce, k.RunLoopContinuous, k.StopLoop, k.EditLoopConfig, k.ToggleForceContextBuilder},
+		{k.RunLoopOnce, k.RunLoopContinuous, k.StopLoop, k.EditLoopConfig, k.ToggleForceContextBuilder, k.JumpToPin, k.JumpToLogs},
 	}
 }

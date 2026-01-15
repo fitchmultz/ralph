@@ -1,14 +1,6 @@
 # Implementation Queue
 
 ## Queue
-- [ ] RQ-0425 [ui]: Improve Run Loop screen UX: show active queue item/progress, add jump-to-Pin/logs shortcuts, and reduce wasted space while running. (ralph_tui/internal/tui/loop_view.go, ralph_tui/internal/tui/model.go, ralph_tui/internal/loop/loop.go)
-  - Evidence:
-    - The Run Loop screen currently shows static override values + a log viewport, but not the active queue item ID/title (even though the loop runner knows `firstItem.ID` and `currentItemBlock`).
-    - Switching screens via the left nav during runs is slow and space-inefficient (and you explicitly want better use of screen space during loop runs).
-  - Plan:
-    - Plumb structured "loop state" messages (active item ID/title, iteration count, mode) from `internal/loop` into the TUI so the loop screen can show real progress.
-    - Add a hotkey to jump directly to Pin (and auto-select the active item) and/or to Logs.
-    - Combine with nav collapse to provide a genuinely useful "run mode" layout while the loop is active.
 - [ ] RQ-0426 [ui]: Make Config editor less confusing: show per-field source (default/global/repo/session/cli), simplify Save actions, and add 'reset layer/field' controls. (ralph_tui/internal/tui/config_editor.go, ralph_tui/internal/config/load.go, ralph_tui/internal/tui/help_keymap.go)
   - Evidence:
     - The config editor supports layers but does not show where each effective value came from (defaults vs global vs repo vs session/CLI), which makes it hard to reason about changes.

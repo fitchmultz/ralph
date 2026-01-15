@@ -42,30 +42,31 @@ type pinReloadMsg struct {
 }
 
 type pinView struct {
-	files        pin.Files
-	items        []pin.QueueItem
-	allItems     []pin.QueueItem
-	blockedCount int
-	table        table.Model
-	tableStyles  table.Styles
-	detail       viewport.Model
-	status       string
-	err          string
-	mode         pinMode
-	focus        pinFocus
-	loading      bool
-	reloadAgain  bool
-	blockForm    *huh.Form
-	blockReason  string
-	config       config.Config
-	locations    paths.Locations
-	logger       *tuiLogger
-	width        int
-	height       int
-	queueStamp   fileStamp
-	searchTerm   string
-	searchAnchor string
-	searchOffset int
+	files           pin.Files
+	items           []pin.QueueItem
+	allItems        []pin.QueueItem
+	blockedCount    int
+	table           table.Model
+	tableStyles     table.Styles
+	detail          viewport.Model
+	status          string
+	err             string
+	mode            pinMode
+	focus           pinFocus
+	loading         bool
+	reloadAgain     bool
+	blockForm       *huh.Form
+	blockReason     string
+	config          config.Config
+	locations       paths.Locations
+	logger          *tuiLogger
+	width           int
+	height          int
+	queueStamp      fileStamp
+	searchTerm      string
+	searchAnchor    string
+	searchOffset    int
+	pendingSelectID string
 }
 
 const (
@@ -612,6 +613,12 @@ func (p *pinView) setQueueItems(items []pin.QueueItem, prevSelectedID string, pr
 	if prevSelectedID != "" {
 		p.restoreSelection(prevSelectedID)
 	}
+	if p.pendingSelectID != "" {
+		p.restoreSelection(p.pendingSelectID)
+		if p.selectedItemID() == p.pendingSelectID {
+			p.pendingSelectID = ""
+		}
+	}
 	p.clampCursor()
 	sameSelection := prevSelectedID != "" && prevSelectedID == p.selectedItemID()
 	if sameSelection && !resetScroll {
@@ -619,6 +626,31 @@ func (p *pinView) setQueueItems(items []pin.QueueItem, prevSelectedID string, pr
 	} else {
 		p.syncDetail(resetScroll || !sameSelection)
 	}
+}
+
+func (p *pinView) SelectItemByID(itemID string) bool {
+	if p == nil {
+		return false
+	}
+	itemID = strings.TrimSpace(itemID)
+	if itemID == "" {
+		return false
+	}
+	p.pendingSelectID = itemID
+	if p.searchTerm != "" {
+		p.searchTerm = ""
+		p.items = p.allItems
+		p.table.SetRows(makePinRows(p.items))
+		p.setTableColumns(p.width)
+	}
+	p.restoreSelection(itemID)
+	p.clampCursor()
+	if p.selectedItemID() == itemID {
+		p.pendingSelectID = ""
+		p.syncDetail(true)
+		return true
+	}
+	return false
 }
 
 func (p *pinView) ApplySearch(term string) error {

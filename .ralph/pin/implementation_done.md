@@ -1,6 +1,14 @@
 # Implementation Done
 
 ## Done
+- [x] RQ-0425 [ui]: Improve Run Loop screen UX: show active queue item/progress, add jump-to-Pin/logs shortcuts, and reduce wasted space while running. (ralph_tui/internal/tui/loop_view.go, ralph_tui/internal/tui/model.go, ralph_tui/internal/loop/loop.go)
+  - Evidence:
+    - The Run Loop screen currently shows static override values + a log viewport, but not the active queue item ID/title (even though the loop runner knows `firstItem.ID` and `currentItemBlock`).
+    - Switching screens via the left nav during runs is slow and space-inefficient (and you explicitly want better use of screen space during loop runs).
+  - Plan:
+    - Plumb structured "loop state" messages (active item ID/title, iteration count, mode) from `internal/loop` into the TUI so the loop screen can show real progress.
+    - Add a hotkey to jump directly to Pin (and auto-select the active item) and/or to Logs.
+    - Combine with nav collapse to provide a genuinely useful "run mode" layout while the loop is active.
 - [x] RQ-0424 [code]: Reduce TUI lag during noisy runs by eliminating O(n) log joins and excessive viewport.SetContent churn. (ralph_tui/internal/tui/loop_view.go, ralph_tui/internal/tui/specs_view.go, ralph_tui/internal/tui/logs_view.go)
   - Evidence:
     - `loop_view.appendLogLines()` calls `strings.Join(l.logs, "\n")` on every batch update (logs can reach 2000 lines), which is O(n) per update.

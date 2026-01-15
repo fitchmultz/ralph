@@ -47,11 +47,11 @@ type loopKeyMap struct {
 }
 
 func (l loopKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{l.keys.RunLoopOnce, l.keys.RunLoopContinuous, l.keys.StopLoop, l.keys.EditLoopConfig}
+	return []key.Binding{l.keys.RunLoopOnce, l.keys.RunLoopContinuous, l.keys.StopLoop, l.keys.EditLoopConfig, l.keys.JumpToPin, l.keys.JumpToLogs}
 }
 
 func (l loopKeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{{l.keys.RunLoopOnce, l.keys.RunLoopContinuous, l.keys.StopLoop, l.keys.EditLoopConfig}}
+	return [][]key.Binding{{l.keys.RunLoopOnce, l.keys.RunLoopContinuous, l.keys.StopLoop, l.keys.EditLoopConfig, l.keys.JumpToPin, l.keys.JumpToLogs}}
 }
 
 type dashboardKeyMap struct {

@@ -38,34 +38,36 @@ func Start(cfg config.Config, locations paths.Locations, opts StartOptions) erro
 }
 
 type model struct {
-	nav                list.Model
-	screen             screen
-	help               help.Model
-	keys               keyMap
-	searchInput        textinput.Model
-	searchActive       bool
-	searchTarget       searchTarget
-	searchErr          string
-	priorNavSelected   int
-	searchNavCollapsed bool
-	navFocused         bool
-	navCollapsed       bool
-	cfg                config.Config
-	configView         *configEditor
-	pinView            *pinView
-	specsView          *specsView
-	loopView           *loopView
-	logsView           *logsView
-	logger             *tuiLogger
-	logErr             error
-	cliOverrides       config.PartialConfig
-	sessionOverrides   config.PartialConfig
-	refreshGen         int
-	width              int
-	height             int
-	layout             layoutSpec
-	initErr            error
-	locations          paths.Locations
+	nav                 list.Model
+	screen              screen
+	help                help.Model
+	keys                keyMap
+	searchInput         textinput.Model
+	searchActive        bool
+	searchTarget        searchTarget
+	searchErr           string
+	priorNavSelected    int
+	searchNavCollapsed  bool
+	navFocused          bool
+	navCollapsed        bool
+	cfg                 config.Config
+	configView          *configEditor
+	pinView             *pinView
+	specsView           *specsView
+	loopView            *loopView
+	logsView            *logsView
+	logger              *tuiLogger
+	logErr              error
+	cliOverrides        config.PartialConfig
+	sessionOverrides    config.PartialConfig
+	refreshGen          int
+	width               int
+	height              int
+	layout              layoutSpec
+	initErr             error
+	locations           paths.Locations
+	loopAutoCollapsed   bool
+	loopNavWasCollapsed bool
 }
 
 type searchTarget int
@@ -222,6 +224,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, m.refreshViews()...)
 		cmds = append(cmds, refreshCmd(m.cfg.UI.RefreshSeconds, m.refreshGen))
 		handled = true
+	case loopRunModeMsg:
+		m.applyLoopRunMode(msg.running)
+		handled = true
 	case configReloadMsg:
 		if msg.err != nil {
 			m.logError("config.reload.error", msg.err)
@@ -258,6 +263,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if key.Matches(msg, m.keys.ToggleNav) {
 			m.navCollapsed = !m.navCollapsed
+			if m.loopAutoCollapsed {
+				m.loopAutoCollapsed = false
+			}
 			if m.navCollapsed {
 				m.navFocused = false
 			}
@@ -277,6 +285,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if key.Matches(msg, m.keys.Search) {
 			m.beginSearch()
 			return m, nil
+		}
+		if key.Matches(msg, m.keys.JumpToPin) {
+			cmds = append(cmds, m.switchScreen(screenPin, true)...)
+			if m.pinView != nil && m.loopView != nil {
+				m.pinView.SelectItemByID(m.loopView.ActiveItemID())
+			}
+			return m, tea.Batch(cmds...)
+		}
+		if key.Matches(msg, m.keys.JumpToLogs) {
+			cmds = append(cmds, m.switchScreen(screenLogs, true)...)
+			return m, tea.Batch(cmds...)
 		}
 		if m.screen == screenDashboard {
 			switch {
@@ -372,6 +391,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
+type loopRunModeMsg struct {
+	running bool
+}
+
+func loopRunModeCmd(running bool) tea.Cmd {
+	return func() tea.Msg {
+		return loopRunModeMsg{running: running}
+	}
+}
+
 func (m model) shouldBypassFocusToggle(msg tea.KeyMsg) bool {
 	if m.navFocused {
 		return false
@@ -408,7 +437,7 @@ func (m *model) updateBackgroundViews(msg tea.Msg) (tea.Cmd, bool) {
 			return nil, true
 		}
 		return m.specsView.Update(msg, m.keys), true
-	case loopResultMsg, loopLogBatchMsg:
+	case loopResultMsg, loopLogBatchMsg, loopStateMsg:
 		if m.loopView == nil {
 			return nil, true
 		}
@@ -1017,6 +1046,29 @@ func (m *model) applyFocus() {
 		} else {
 			m.loopView.Focus()
 		}
+	}
+}
+
+func (m *model) applyLoopRunMode(running bool) {
+	if running {
+		if !m.navCollapsed {
+			m.loopNavWasCollapsed = m.navCollapsed
+			m.navCollapsed = true
+			m.navFocused = false
+			m.loopAutoCollapsed = true
+			m.applyFocus()
+			m.relayout()
+		}
+		return
+	}
+	if m.loopAutoCollapsed {
+		m.navCollapsed = m.loopNavWasCollapsed
+		m.loopAutoCollapsed = false
+		if m.navCollapsed {
+			m.navFocused = false
+		}
+		m.applyFocus()
+		m.relayout()
 	}
 }
 

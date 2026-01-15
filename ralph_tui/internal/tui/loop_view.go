@@ -33,6 +33,9 @@ type loopView struct {
 	editData             loopFormData
 	logCh                chan string
 	logRunID             int
+	stateCh              chan loop.State
+	stateRunID           int
+	state                loop.State
 	logger               *tuiLogger
 	output               *outputFileWriter
 	width                int
@@ -73,6 +76,12 @@ type loopLogBatchMsg struct {
 	batch logBatch
 }
 
+type loopStateMsg struct {
+	runID int
+	state loop.State
+	done  bool
+}
+
 type loopLogger struct {
 	write func(string)
 }
@@ -106,6 +115,7 @@ func newLoopView(cfg config.Config, locations paths.Locations) *loopView {
 		},
 		mode:   loopIdle,
 		status: "Idle",
+		state:  loop.State{Mode: loop.ModeIdle},
 	}
 }
 
@@ -134,6 +144,7 @@ func (l *loopView) Update(msg tea.Msg, keys keyMap) tea.Cmd {
 	switch msg := msg.(type) {
 	case loopResultMsg:
 		l.mode = loopIdle
+		l.state.Mode = loop.ModeIdle
 		if msg.err != nil {
 			l.err = msg.err.Error()
 			l.status = "Stopped with error"
@@ -149,6 +160,18 @@ func (l *loopView) Update(msg tea.Msg, keys keyMap) tea.Cmd {
 		}
 		l.stopPersistingOutput()
 		l.cancel = nil
+		l.Resize(l.width, l.height)
+		return loopRunModeCmd(false)
+	case loopStateMsg:
+		if msg.runID != l.stateRunID {
+			return nil
+		}
+		if msg.done {
+			l.stateCh = nil
+			return nil
+		}
+		l.state = msg.state
+		l.Resize(l.width, l.height)
 		return nil
 	case loopLogBatchMsg:
 		if msg.batch.RunID != l.logRunID {
@@ -216,6 +239,13 @@ func (l *loopView) HandlesTabNavigation() bool {
 	return l.mode == loopEditing && l.editForm != nil
 }
 
+func (l *loopView) ActiveItemID() string {
+	if l == nil {
+		return ""
+	}
+	return l.state.ActiveItemID
+}
+
 func (l *loopView) View() string {
 	head := "Run Loop"
 	status := l.statusLine()
@@ -223,8 +253,13 @@ func (l *loopView) View() string {
 	if l.mode == loopEditing && l.editForm != nil {
 		return withFinalNewline(head + "\n" + status + "\n\n" + l.editForm.View())
 	}
+	state := l.stateView()
 	logs := l.viewport.View()
-	return withFinalNewline(head + "\n" + status + "\n\n" + controls + "\n\n" + logs)
+	body := head + "\n" + status
+	if state != "" {
+		body += "\n" + state
+	}
+	return withFinalNewline(body + "\n\n" + controls + "\n\n" + logs)
 }
 
 func (l *loopView) statusLine() string {
@@ -238,6 +273,9 @@ func (l *loopView) statusLine() string {
 }
 
 func (l *loopView) controlsView() string {
+	if l.mode == loopRunning || l.mode == loopStopping {
+		return l.runControlsView()
+	}
 	effortResult := runnerargs.ApplyReasoningEffort(l.overrides.Runner, l.overrides.RunnerArgs, l.overrides.ReasoningEffort)
 	effectiveLabel := runnerargs.DisplayEffortResult(effortResult)
 	mandatory := l.overrides.ForceContextBuilder || effortResult.Effective == "low" || effortResult.Effective == "off"
@@ -254,7 +292,51 @@ func (l *loopView) controlsView() string {
 		fmt.Sprintf("Runner args: %d", len(l.overrides.RunnerArgs)),
 		fmt.Sprintf("Reasoning effort: %s (effective: %s)", runnerargs.DisplayEffort(l.overrides.ReasoningEffort), effectiveLabel),
 		fmt.Sprintf("Force context_builder: %s (mandatory: %s)", yesNo(l.overrides.ForceContextBuilder), yesNo(mandatory)),
-		"Keys: r run once | c continuous | s stop | e edit overrides | p force ctx builder",
+		"Keys: r run once | c continuous | s stop | e edit overrides | p force ctx builder | shift+p pin | shift+l logs",
+	}
+	return strings.Join(lines, "\n")
+}
+
+func (l *loopView) runControlsView() string {
+	lines := []string{
+		fmt.Sprintf("Runner: %s (%s)", l.overrides.Runner, runnerargs.DisplayEffort(l.overrides.ReasoningEffort)),
+		fmt.Sprintf("Sleep: %ds | Max iterations: %s | Max stalled: %d", l.overrides.SleepSeconds, iterationLimitLabel(l.overrides.MaxIterations), l.overrides.MaxStalled),
+		fmt.Sprintf("Only tags: %s | Require main: %s | Auto commit/push: %s/%s", l.overrides.OnlyTags, yesNo(l.overrides.RequireMain), yesNo(l.overrides.AutoCommit), yesNo(l.overrides.AutoPush)),
+		"Keys: s stop | e edit overrides | p force ctx builder | shift+p pin | shift+l logs",
+	}
+	return strings.Join(lines, "\n")
+}
+
+func iterationLimitLabel(limit int) string {
+	if limit <= 0 {
+		return "unlimited"
+	}
+	return fmt.Sprintf("%d", limit)
+}
+
+func (l *loopView) stateView() string {
+	if l.state.ActiveItemID == "" && l.state.Iteration == 0 {
+		return ""
+	}
+	lines := []string{}
+	if l.state.ActiveItemID != "" {
+		title := strings.TrimSpace(l.state.ActiveItemTitle)
+		if title != "" {
+			lines = append(lines, fmt.Sprintf("Active item: %s — %s", l.state.ActiveItemID, title))
+		} else {
+			lines = append(lines, fmt.Sprintf("Active item: %s", l.state.ActiveItemID))
+		}
+	}
+	if l.state.Iteration > 0 {
+		maxLabel := iterationLimitLabel(l.overrides.MaxIterations)
+		if maxLabel != "unlimited" {
+			lines = append(lines, fmt.Sprintf("Iteration: %d of %s (%s)", l.state.Iteration, maxLabel, l.state.Mode))
+		} else {
+			lines = append(lines, fmt.Sprintf("Iteration: %d (%s)", l.state.Iteration, l.state.Mode))
+		}
+	}
+	if len(lines) == 0 {
+		return ""
 	}
 	return strings.Join(lines, "\n")
 }
@@ -264,7 +346,13 @@ func (l *loopView) start(runOnce bool) tea.Cmd {
 	l.outputErr = ""
 	l.status = "Running"
 	l.mode = loopRunning
+	if runOnce {
+		l.state = loop.State{Mode: loop.ModeOnce, Iteration: 0}
+	} else {
+		l.state = loop.State{Mode: loop.ModeContinuous, Iteration: 0}
+	}
 	l.startPersistingOutput()
+	l.Resize(l.width, l.height)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	l.cancel = cancel
@@ -273,6 +361,10 @@ func (l *loopView) start(runOnce bool) tea.Cmd {
 	l.logCh = logCh
 	l.logRunID++
 	runID := l.logRunID
+	stateCh := make(chan loop.State, 32)
+	l.stateCh = stateCh
+	l.stateRunID++
+	stateRunID := l.stateRunID
 	if l.logger != nil {
 		applied := runnerargs.ApplyReasoningEffort(l.overrides.Runner, l.overrides.RunnerArgs, l.overrides.ReasoningEffort)
 		l.logger.Info("loop.start", map[string]any{
@@ -298,6 +390,9 @@ func (l *loopView) start(runOnce bool) tea.Cmd {
 				sendLineBlocking(logCh, line)
 			},
 		}
+		stateSink := loopStateSink{
+			ch: stateCh,
+		}
 		runner, err := loop.NewRunner(loop.Options{
 			RepoRoot:            l.locations.RepoRoot,
 			PinDir:              l.cfg.Paths.PinDir,
@@ -318,20 +413,24 @@ func (l *loopView) start(runOnce bool) tea.Cmd {
 			ForceContextBuilder: l.overrides.ForceContextBuilder,
 			RedactionMode:       l.cfg.Logging.RedactionMode,
 			Logger:              logger,
+			StateSink:           stateSink,
 		})
 		if err != nil {
 			close(logCh)
+			close(stateCh)
 			return loopResultMsg{err: err}
 		}
 		if err := runner.Run(ctx); err != nil {
 			close(logCh)
+			close(stateCh)
 			return loopResultMsg{err: err}
 		}
 		close(logCh)
+		close(stateCh)
 		return loopResultMsg{}
 	}
 
-	return tea.Batch(runCmd, listenLoopLogs(logCh, runID))
+	return tea.Batch(runCmd, listenLoopLogs(logCh, runID), listenLoopState(stateCh, stateRunID), loopRunModeCmd(true))
 }
 
 func (l *loopView) stop() {
@@ -481,7 +580,13 @@ func (l *loopView) Resize(width int, height int) {
 	l.width = width
 	l.height = height
 	controlsLines := strings.Count(l.controlsView(), "\n") + 1
-	logHeight := height - (controlsLines + 4)
+	extraLines := 4
+	stateView := l.stateView()
+	stateLines := strings.Count(stateView, "\n")
+	if stateView != "" {
+		stateLines++
+	}
+	logHeight := height - (controlsLines + extraLines + stateLines)
 	if logHeight < 0 {
 		logHeight = 0
 	}
@@ -571,6 +676,27 @@ func loopLogFlushThreshold(atBottom bool) int {
 func listenLoopLogs(logCh <-chan string, runID int) tea.Cmd {
 	return func() tea.Msg {
 		return loopLogBatchMsg{batch: drainLogChannel(runID, logCh, 64)}
+	}
+}
+
+type loopStateSink struct {
+	ch chan<- loop.State
+}
+
+func (s loopStateSink) Update(state loop.State) {
+	if s.ch == nil {
+		return
+	}
+	s.ch <- state
+}
+
+func listenLoopState(stateCh <-chan loop.State, runID int) tea.Cmd {
+	return func() tea.Msg {
+		state, ok := <-stateCh
+		if !ok {
+			return loopStateMsg{runID: runID, done: true}
+		}
+		return loopStateMsg{runID: runID, state: state}
 	}
 }
 

@@ -180,3 +180,32 @@ func TestPinFilterClearsAndRestoresSelection(t *testing.T) {
 		t.Fatalf("expected detail offset to restore to 1, got %d", view.detail.YOffset)
 	}
 }
+
+func TestPinSelectItemByIDClearsSearch(t *testing.T) {
+	_, locs, cfg := newHermeticModel(t)
+	view, err := newPinView(cfg, locs)
+	if err != nil {
+		t.Fatalf("newPinView failed: %v", err)
+	}
+
+	items := []pin.QueueItem{
+		{ID: "RQ-010", Header: "- [ ] RQ-010 [ui]: Alpha", Lines: []string{"- [ ] RQ-010 [ui]: Alpha"}},
+		{ID: "RQ-011", Header: "- [ ] RQ-011 [code]: Beta", Lines: []string{"- [ ] RQ-011 [code]: Beta"}},
+		{ID: "RQ-012", Header: "- [ ] RQ-012 [ops]: Gamma", Lines: []string{"- [ ] RQ-012 [ops]: Gamma"}},
+	}
+	view.setQueueItems(items, "", 0, true)
+
+	if err := view.ApplySearch("ops"); err != nil {
+		t.Fatalf("ApplySearch failed: %v", err)
+	}
+
+	if !view.SelectItemByID("RQ-011") {
+		t.Fatalf("expected SelectItemByID to succeed")
+	}
+	if view.searchTerm != "" {
+		t.Fatalf("expected search term cleared, got %q", view.searchTerm)
+	}
+	if item := view.selectedItem(); item == nil || item.ID != "RQ-011" {
+		t.Fatalf("expected selection to move to RQ-011, got %+v", item)
+	}
+}

@@ -40,6 +40,7 @@ type Options struct {
 	AutoPush            bool
 	RedactionMode       redaction.Mode
 	Logger              Logger
+	StateSink           StateSink
 }
 
 // Runner executes the loop.
@@ -56,6 +57,7 @@ type Runner struct {
 	currentItemBlock        string
 	effectiveEffort         string
 	contextBuilderMandatory bool
+	state                   State
 }
 
 // NewRunner constructs a loop runner.
@@ -98,6 +100,12 @@ func (r *Runner) Run(ctx context.Context) error {
 
 	iterations := 0
 	stalled := 0
+	runMode := ModeContinuous
+	if r.opts.Once {
+		runMode = ModeOnce
+	}
+	r.publishState(State{Mode: runMode, Iteration: 0})
+	defer r.publishState(State{Mode: ModeIdle})
 
 	for {
 		select {
@@ -116,6 +124,7 @@ func (r *Runner) Run(ctx context.Context) error {
 			} else {
 				r.logf(">> [RALPH] No unchecked items found in Queue. Exiting cleanly.")
 			}
+			r.publishState(State{Mode: ModeIdle})
 			r.logPushFailed()
 			return nil
 		}
@@ -184,6 +193,12 @@ func (r *Runner) Run(ctx context.Context) error {
 		}
 
 		iterations++
+		r.publishState(State{
+			Mode:            runMode,
+			Iteration:       iterations,
+			ActiveItemID:    itemID,
+			ActiveItemTitle: ExtractItemTitle(firstItem.Header),
+		})
 		r.logf(">> [RALPH] Iteration %d", iterations)
 
 		promptFile, cleanup, err := r.writePromptFile(firstItem.Header)
@@ -749,6 +764,13 @@ func (r *Runner) logf(format string, args ...any) {
 		line = r.redactor.Redact(line)
 	}
 	r.opts.Logger.WriteLine(line)
+}
+
+func (r *Runner) publishState(state State) {
+	r.state = state
+	if r.opts.StateSink != nil {
+		r.opts.StateSink.Update(state)
+	}
 }
 
 func contextBuilderPolicyBlock(effort string, mandatory bool, forced bool) string {

@@ -6,6 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/config"
+	"github.com/mitchfultz/ralph/ralph_tui/internal/loop"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/paths"
 )
 
@@ -64,6 +65,46 @@ func TestLoopLogBatchAppendsAndCloses(t *testing.T) {
 
 	if view.logCh != nil {
 		t.Fatalf("expected log channel to be cleared after done batch")
+	}
+}
+
+func TestLoopStateUpdatesAndClears(t *testing.T) {
+	view := newLoopView(testLoopConfig(), paths.Locations{})
+	view.stateRunID = 2
+	view.stateCh = make(chan loop.State)
+
+	state := loop.State{
+		Mode:            loop.ModeOnce,
+		Iteration:       1,
+		ActiveItemID:    "RQ-9001",
+		ActiveItemTitle: "Test item",
+	}
+	_ = view.Update(loopStateMsg{runID: 2, state: state}, newKeyMap())
+
+	if view.state.ActiveItemID != "RQ-9001" {
+		t.Fatalf("expected active item to update, got %q", view.state.ActiveItemID)
+	}
+	if view.state.Iteration != 1 {
+		t.Fatalf("expected iteration 1, got %d", view.state.Iteration)
+	}
+
+	_ = view.Update(loopStateMsg{runID: 2, done: true}, newKeyMap())
+	if view.stateCh != nil {
+		t.Fatalf("expected state channel to clear on done")
+	}
+}
+
+func TestLoopStateIgnoresStaleRun(t *testing.T) {
+	view := newLoopView(testLoopConfig(), paths.Locations{})
+	view.stateRunID = 3
+
+	_ = view.Update(loopStateMsg{
+		runID: 2,
+		state: loop.State{ActiveItemID: "RQ-1"},
+	}, newKeyMap())
+
+	if view.state.ActiveItemID != "" {
+		t.Fatalf("expected stale loop state to be ignored")
 	}
 }
 
