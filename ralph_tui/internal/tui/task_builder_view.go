@@ -37,6 +37,7 @@ type taskBuilderView struct {
 	effort      string
 	queueNow    bool
 	runNow      bool
+	insertAtTop bool
 
 	previewViewport viewport.Model
 }
@@ -70,6 +71,7 @@ func newTaskBuilderView(cfg config.Config, locations paths.Locations, keys keyMa
 		scope:           "repo",
 		queueNow:        true,
 		runNow:          false,
+		insertAtTop:     false,
 		previewViewport: vp,
 		status:          "Enter a prompt and submit to build a queue item.",
 	}
@@ -261,6 +263,9 @@ func (v *taskBuilderView) buildForm() *huh.Form {
 			huh.NewOption("high", "high"),
 		).
 		Value(&v.effort)
+	topField := huh.NewConfirm().
+		Title("High Priority (Insert at Top)").
+		Value(&v.insertAtTop)
 	queueField := huh.NewConfirm().
 		Title("Queue item now").
 		Value(&v.queueNow)
@@ -276,6 +281,7 @@ func (v *taskBuilderView) buildForm() *huh.Form {
 			descriptionField,
 			runnerField,
 			effortField,
+			topField,
 			queueField,
 			runField,
 		),
@@ -322,7 +328,7 @@ func (v *taskBuilderView) startBuild() tea.Cmd {
 		Scope:        v.scope,
 		Description:  v.description,
 		WriteToQueue: v.queueNow,
-		InsertAtTop:  true,
+		InsertAtTop:  v.insertAtTop,
 	}
 
 	runNow := v.runNow

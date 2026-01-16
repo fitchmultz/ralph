@@ -1,12 +1,10 @@
-// Package migrate relocates legacy Ralph pin files into the .ralph/pin layout.
+// Package migrate ensures the Ralph pin layout is initialized and configured.
 // Entrypoint: Run.
 package migrate
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/mitchfultz/ralph/ralph_tui/internal/config"
@@ -17,14 +15,15 @@ import (
 // Result captures migration outcomes.
 type Result struct {
 	RepoRoot     string
-	OldPinDir    string
-	NewPinDir    string
+	PinDir       string
+	CacheDir     string
 	ConfigPath   string
 	ConfigPinDir string
-	Moved        []string
+	Created      []string
+	Overwritten  []string
 }
 
-// Run performs the pin migration and validates the resulting pin files.
+// Run ensures the pin layout exists, updates repo config, and validates the pin files.
 func Run(repoRoot string, repoConfigPath string) (Result, error) {
 	cleanRoot := filepath.Clean(strings.TrimSpace(repoRoot))
 	if cleanRoot == "" {
@@ -32,26 +31,15 @@ func Run(repoRoot string, repoConfigPath string) (Result, error) {
 	}
 
 	result := Result{
-		RepoRoot:  cleanRoot,
-		OldPinDir: filepath.Join(cleanRoot, "ralph_legacy", "specs"),
-		NewPinDir: filepath.Join(cleanRoot, ".ralph", "pin"),
+		RepoRoot: cleanRoot,
+		PinDir:   filepath.Join(cleanRoot, ".ralph", "pin"),
 	}
 	if repoConfigPath == "" {
 		repoConfigPath = filepath.Join(cleanRoot, ".ralph", "ralph.json")
 	}
 	result.ConfigPath = repoConfigPath
 
-	moved, err := movePinDir(result.OldPinDir, result.NewPinDir)
-	if err != nil {
-		return result, err
-	}
-	result.Moved = moved
-
-	if !dirExists(result.NewPinDir) {
-		return result, fmt.Errorf("pin directory not found at %s", result.NewPinDir)
-	}
-
-	relPin := relativePath(cleanRoot, result.NewPinDir)
+	relPin := relativePath(cleanRoot, result.PinDir)
 	result.ConfigPinDir = relPin
 
 	partial, err := config.LoadPartial(repoConfigPath)
@@ -78,7 +66,7 @@ func Run(repoRoot string, repoConfigPath string) (Result, error) {
 	if updated.Paths == nil {
 		updated.Paths = &config.PathsPartial{}
 	}
-	pinPath := result.NewPinDir
+	pinPath := result.PinDir
 	updated.Paths.PinDir = &pinPath
 	updated.ProjectType = &resolvedProjectType
 
@@ -86,63 +74,43 @@ func Run(repoRoot string, repoConfigPath string) (Result, error) {
 		return result, err
 	}
 
-	if _, err := pin.EnsureSpecsTemplate(result.NewPinDir, resolvedProjectType); err != nil {
+	base, err := config.DefaultConfig()
+	if err != nil {
 		return result, err
 	}
-	files := pin.ResolveFiles(result.NewPinDir)
+	cfg := base
+	if partial != nil {
+		cfg, err = config.ApplyPartial(base, *partial, cleanRoot, cleanRoot)
+		if err != nil {
+			return result, err
+		}
+	} else {
+		cfg, err = config.ResolvePaths(base, cleanRoot, cleanRoot)
+		if err != nil {
+			return result, err
+		}
+	}
+
+	initResult, err := pin.InitLayout(result.PinDir, cfg.Paths.CacheDir, pin.InitOptions{
+		Force:       false,
+		ProjectType: resolvedProjectType,
+	})
+	if err != nil {
+		return result, err
+	}
+	result.CacheDir = initResult.CacheDir
+	result.Created = initResult.Created
+	result.Overwritten = initResult.Overwritten
+
+	if _, err := pin.EnsureSpecsTemplate(result.PinDir, resolvedProjectType); err != nil {
+		return result, err
+	}
+	files := pin.ResolveFiles(result.PinDir)
 	if err := pin.ValidatePin(files, resolvedProjectType); err != nil {
 		return result, err
 	}
 
 	return result, nil
-}
-
-func movePinDir(oldDir string, newDir string) ([]string, error) {
-	if !dirExists(oldDir) {
-		return nil, nil
-	}
-	if err := os.MkdirAll(newDir, 0o700); err != nil {
-		return nil, err
-	}
-	entries, err := os.ReadDir(oldDir)
-	if err != nil {
-		return nil, err
-	}
-	moved := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		src := filepath.Join(oldDir, entry.Name())
-		dst := filepath.Join(newDir, entry.Name())
-		if _, err := os.Stat(dst); err == nil {
-			return nil, fmt.Errorf("target already exists: %s", dst)
-		} else if !os.IsNotExist(err) {
-			return nil, err
-		}
-		if err := os.Rename(src, dst); err != nil {
-			return nil, err
-		}
-		moved = append(moved, entry.Name())
-	}
-	if empty, err := isEmptyDir(oldDir); err == nil && empty {
-		_ = os.Remove(oldDir)
-	}
-	sort.Strings(moved)
-	return moved, nil
-}
-
-func dirExists(path string) bool {
-	info, err := os.Stat(path)
-	if err != nil {
-		return false
-	}
-	return info.IsDir()
-}
-
-func isEmptyDir(path string) (bool, error) {
-	entries, err := os.ReadDir(path)
-	if err != nil {
-		return false, err
-	}
-	return len(entries) == 0, nil
 }
 
 func relativePath(base string, target string) string {

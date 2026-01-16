@@ -3,7 +3,6 @@ package taskbuilder
 import (
 	"fmt"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/mitchfultz/ralph/ralph_tui/internal/prompts"
 )
@@ -15,7 +14,6 @@ type FormatOptions struct {
 	Description string
 	Scope       string
 	Prompt      string
-	Recon       ReconResult
 }
 
 // FormatQueueItemBlock returns a block that satisfies pin queue validation rules.
@@ -44,11 +42,8 @@ func FormatQueueItemBlock(opts FormatOptions) ([]string, error) {
 	}
 
 	replacements := map[string]string{
-		"PROMPT":       summarizePrompt(opts.Prompt),
-		"REPO_SUMMARY": formatRepoSummary(opts.Recon),
-		"FILE_SUMMARY": formatFileSummary(opts.Recon),
-		"PROJECT_TYPE": string(opts.Recon.DetectedProjectType),
-		"SCOPE":        strings.Trim(scope, "()"),
+		"PROMPT": formatPromptForEvidence(opts.Prompt),
+		"SCOPE":  strings.Trim(scope, "()"),
 	}
 
 	evidenceLines, err := expandTemplateLines(evidenceTemplate, replacements)
@@ -61,9 +56,9 @@ func FormatQueueItemBlock(opts FormatOptions) ([]string, error) {
 	}
 
 	lines := []string{header}
-	lines = append(lines, "  - Evidence: Prompt input and repo recon.")
+	lines = append(lines, "  - Evidence:")
 	lines = appendIndentedLines(lines, evidenceLines)
-	lines = append(lines, "  - Plan: Deliver the work scoped by this prompt.")
+	lines = append(lines, "  - Plan:")
 	lines = appendIndentedLines(lines, planLines)
 	return lines, nil
 }
@@ -112,60 +107,24 @@ func appendIndentedLines(lines []string, extra []string) []string {
 	return lines
 }
 
-func summarizePrompt(prompt string) string {
+// formatPromptForEvidence formats the prompt to be safe and readable in a bullet list.
+// It preserves the full text (no truncation) and adds quote markers to multi-line inputs.
+func formatPromptForEvidence(prompt string) string {
 	trimmed := strings.TrimSpace(prompt)
 	if trimmed == "" {
 		return "n/a"
 	}
-	collapsed := strings.Join(strings.Fields(trimmed), " ")
-	return truncateRunes(collapsed, 180)
-}
 
-func truncateRunes(value string, max int) string {
-	if max <= 0 || value == "" {
-		return value
+	if !strings.Contains(trimmed, "\n") && len(trimmed) < 100 {
+		return trimmed
 	}
-	if utf8.RuneCountInString(value) <= max {
-		return value
-	}
-	runes := []rune(value)
-	if max <= 1 {
-		return string(runes[:max])
-	}
-	return string(runes[:max-1]) + "..."
-}
 
-func formatRepoSummary(recon ReconResult) string {
-	parts := make([]string, 0, 4)
-	if strings.TrimSpace(recon.GitBranch) != "" {
-		parts = append(parts, fmt.Sprintf("branch %s", recon.GitBranch))
+	lines := strings.Split(trimmed, "\n")
+	quoted := make([]string, 0, len(lines))
+	for _, line := range lines {
+		quoted = append(quoted, "> "+line)
 	}
-	if strings.TrimSpace(recon.GitStatusSummary) != "" {
-		parts = append(parts, recon.GitStatusSummary)
-	}
-	if recon.GitAheadCount > 0 {
-		parts = append(parts, fmt.Sprintf("ahead %d", recon.GitAheadCount))
-	}
-	if strings.TrimSpace(recon.LastCommitSummary) != "" {
-		parts = append(parts, fmt.Sprintf("last commit %s", recon.LastCommitSummary))
-	}
-	if len(parts) == 0 {
-		return "git status unavailable"
-	}
-	return strings.Join(parts, "; ")
-}
-
-func formatFileSummary(recon ReconResult) string {
-	limit := recon.FileScanLimit
-	scan := fmt.Sprintf("scanned %d files", recon.TotalFiles)
-	if recon.FileScanCapped && limit > 0 {
-		scan = fmt.Sprintf("scanned first %d files (cap %d)", recon.TotalFiles, limit)
-	}
-	extSummary := formatExtSummary(recon.ExtCounts, 5)
-	if extSummary != "" {
-		return fmt.Sprintf("%s; top extensions: %s", scan, extSummary)
-	}
-	return scan
+	return strings.Join(quoted, "\n")
 }
 
 func deriveDescription(prompt string) string {
@@ -182,6 +141,20 @@ func deriveDescription(prompt string) string {
 		return ""
 	}
 	return truncateRunes(first, 90)
+}
+
+func truncateRunes(value string, max int) string {
+	if max <= 0 || value == "" {
+		return value
+	}
+	runes := []rune(value)
+	if len(runes) <= max {
+		return value
+	}
+	if max <= 1 {
+		return string(runes[:max])
+	}
+	return string(runes[:max-1]) + "..."
 }
 
 func expandTemplateLines(template string, replacements map[string]string) ([]string, error) {

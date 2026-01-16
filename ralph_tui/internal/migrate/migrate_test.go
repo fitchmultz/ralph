@@ -12,24 +12,18 @@ import (
 	"github.com/mitchfultz/ralph/ralph_tui/internal/project"
 )
 
-func TestRunMigratesPinAndUpdatesConfig(t *testing.T) {
+func TestRunInitializesPinAndUpdatesConfig(t *testing.T) {
 	repoRoot := t.TempDir()
-	oldPin := filepath.Join(repoRoot, "ralph_legacy", "specs")
-	writeMinimalPin(t, repoRoot, oldPin)
-
 	configPath := filepath.Join(repoRoot, ".ralph", "ralph.json")
 	result, err := Run(repoRoot, configPath)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
-	if result.NewPinDir != filepath.Join(repoRoot, ".ralph", "pin") {
-		t.Fatalf("unexpected new pin dir: %s", result.NewPinDir)
+	if result.PinDir != filepath.Join(repoRoot, ".ralph", "pin") {
+		t.Fatalf("unexpected pin dir: %s", result.PinDir)
 	}
-	if _, err := os.Stat(filepath.Join(result.NewPinDir, "implementation_queue.md")); err != nil {
-		t.Fatalf("expected queue at new location: %v", err)
-	}
-	if _, err := os.Stat(filepath.Join(oldPin, "implementation_queue.md")); !os.IsNotExist(err) {
-		t.Fatalf("expected old queue to be moved")
+	if _, err := os.Stat(filepath.Join(result.PinDir, "implementation_queue.md")); err != nil {
+		t.Fatalf("expected queue at pin dir: %v", err)
 	}
 
 	payload := readJSONMap(t, configPath)
@@ -44,7 +38,7 @@ func TestRunMigratesPinAndUpdatesConfig(t *testing.T) {
 		t.Fatalf("expected project_type code, got %#v", got)
 	}
 
-	files := pin.ResolveFiles(result.NewPinDir)
+	files := pin.ResolveFiles(result.PinDir)
 	if _, err := os.Stat(files.SpecsBuilderCodePath); err != nil {
 		t.Fatalf("expected specs_builder after migrate: %v", err)
 	}
@@ -56,11 +50,8 @@ func TestRunMigratesPinAndUpdatesConfig(t *testing.T) {
 	}
 }
 
-func TestRunMigratesPinAndUpdatesConfigDocs(t *testing.T) {
+func TestRunInitializesPinAndUpdatesConfigDocs(t *testing.T) {
 	repoRoot := t.TempDir()
-	oldPin := filepath.Join(repoRoot, "ralph_legacy", "specs")
-	writeMinimalPin(t, repoRoot, oldPin)
-
 	configPath := filepath.Join(repoRoot, ".ralph", "ralph.json")
 	if err := os.MkdirAll(filepath.Dir(configPath), 0o700); err != nil {
 		t.Fatalf("mkdir config dir: %v", err)
@@ -80,8 +71,8 @@ func TestRunMigratesPinAndUpdatesConfigDocs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
-	if result.NewPinDir != filepath.Join(repoRoot, ".ralph", "pin") {
-		t.Fatalf("unexpected new pin dir: %s", result.NewPinDir)
+	if result.PinDir != filepath.Join(repoRoot, ".ralph", "pin") {
+		t.Fatalf("unexpected pin dir: %s", result.PinDir)
 	}
 
 	updated := readJSONMap(t, configPath)
@@ -89,7 +80,7 @@ func TestRunMigratesPinAndUpdatesConfigDocs(t *testing.T) {
 		t.Fatalf("expected project_type docs, got %#v", got)
 	}
 
-	files := pin.ResolveFiles(result.NewPinDir)
+	files := pin.ResolveFiles(result.PinDir)
 	if _, err := os.Stat(files.SpecsBuilderCodePath); err != nil {
 		t.Fatalf("expected specs_builder after migrate: %v", err)
 	}
@@ -111,8 +102,11 @@ func TestRunKeepsExistingPin(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
-	if len(result.Moved) != 0 {
-		t.Fatalf("expected no moved entries, got %v", result.Moved)
+	if len(result.Created) != 0 {
+		t.Fatalf("expected no created entries, got %v", result.Created)
+	}
+	if len(result.Overwritten) != 0 {
+		t.Fatalf("expected no overwritten entries, got %v", result.Overwritten)
 	}
 	if _, err := os.Stat(configPath); err != nil {
 		t.Fatalf("expected config written: %v", err)
@@ -128,11 +122,15 @@ func writeMinimalPin(t *testing.T, repoRoot string, pinDir string) {
 	done := filepath.Join(pinDir, "implementation_done.md")
 	lookup := filepath.Join(pinDir, "lookup_table.md")
 	readme := filepath.Join(pinDir, "README.md")
+	specsCode := filepath.Join(pinDir, "specs_builder.md")
+	specsDocs := filepath.Join(pinDir, "specs_builder_docs.md")
 
 	writeFile(t, queue, "## Queue\n- [ ] RQ-0001 [code]: Test item. (README.md)\n  - Evidence: test\n  - Plan: test\n\n## Blocked\n\n## Parking Lot\n")
 	writeFile(t, done, "## Done\n")
 	writeFile(t, lookup, "")
 	writeFile(t, readme, "Pin docs\n")
+	writeFile(t, specsCode, "# Specs builder\n")
+	writeFile(t, specsDocs, "# Specs builder docs\n")
 
 }
 

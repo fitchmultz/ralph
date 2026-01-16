@@ -13,20 +13,12 @@ import (
 )
 
 func TestFormatQueueItemBlockIncludesEvidenceAndPlan(t *testing.T) {
-	recon := ReconResult{
-		DetectedProjectType: project.TypeCode,
-		GitStatusSummary:    "clean",
-		TotalFiles:          5,
-		ExtCounts:           map[string]int{".go": 4, ".md": 1},
-	}
-
 	block, err := FormatQueueItemBlock(FormatOptions{
 		ID:          "RQ-1234",
 		Tags:        []string{"code"},
 		Description: "Add task builder formatting",
 		Scope:       "ralph_tui/internal/taskbuilder",
 		Prompt:      "Create a task builder entry from prompt input.",
-		Recon:       recon,
 	})
 	if err != nil {
 		t.Fatalf("FormatQueueItemBlock failed: %v", err)

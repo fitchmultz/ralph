@@ -9,7 +9,7 @@ This repo intentionally avoids TODO/TBD placeholders. You must rely on evidence 
 
 Mandatory scouting (repo_prompt):
 - Start by calling get_file_tree.
-- Then read a small but representative set of docs across README.md, AGENTS.md, CLAUDE.md, .ralph/pin/, ralph_tui/internal/prompts/defaults/, and ralph_legacy/specs/.
+- Then read a small but representative set of docs across README.md, AGENTS.md, CLAUDE.md, .ralph/pin/, and ralph_tui/internal/prompts/defaults/.
 
 Queue seeding rule:
 - If `## Queue` is empty, you MUST populate it with 10-15 high-leverage, outcome-sized items.

@@ -1,4 +1,4 @@
-// Package taskbuilder builds queue items from prompt input and repo recon.
+// Package taskbuilder builds queue items from prompt input.
 package taskbuilder
 
 import (
@@ -9,8 +9,6 @@ import (
 	"github.com/mitchfultz/ralph/ralph_tui/internal/pin"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/project"
 )
-
-const defaultReconMaxFiles = 50000
 
 // BuildOptions controls task builder behavior.
 type BuildOptions struct {
@@ -27,11 +25,10 @@ type BuildOptions struct {
 	InsertAtTop  bool
 }
 
-// BuildResult captures queue item output plus recon details.
+// BuildResult captures queue item output.
 type BuildResult struct {
 	ID        string
 	ItemBlock []string
-	Recon     ReconResult
 }
 
 // Build constructs a valid queue item and optionally writes it into Queue.
@@ -76,11 +73,6 @@ func Build(ctx context.Context, opts BuildOptions) (BuildResult, error) {
 		}
 	}
 
-	recon, err := Recon(opts.RepoRoot, ReconOptions{MaxFiles: defaultReconMaxFiles})
-	if err != nil {
-		return BuildResult{}, err
-	}
-
 	files := pin.ResolveFiles(opts.PinDir)
 	id, err := pin.NextQueueID(files, "")
 	if err != nil {
@@ -93,7 +85,6 @@ func Build(ctx context.Context, opts BuildOptions) (BuildResult, error) {
 		Description: description,
 		Scope:       opts.Scope,
 		Prompt:      prompt,
-		Recon:       recon,
 	})
 	if err != nil {
 		return BuildResult{}, err
@@ -105,7 +96,7 @@ func Build(ctx context.Context, opts BuildOptions) (BuildResult, error) {
 		}
 	}
 
-	return BuildResult{ID: id, ItemBlock: block, Recon: recon}, nil
+	return BuildResult{ID: id, ItemBlock: block}, nil
 }
 
 func defaultTagsFor(projectType project.Type) []string {

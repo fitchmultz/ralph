@@ -105,7 +105,7 @@ func newMigrateCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:     "migrate",
 		Short:   "Migrate Ralph pin files to the final layout",
-		Long:    "Move ralph_legacy/specs pin files into .ralph/pin, update repo config, and validate the pin.",
+		Long:    "Ensure the .ralph/pin layout exists, update repo config, and validate the pin.",
 		Example: "  ralph migrate",
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -119,10 +119,16 @@ func newMigrateCommand() *cobra.Command {
 			}
 
 			out := cmd.OutOrStdout()
-			if len(result.Moved) > 0 {
-				_, _ = fmt.Fprintf(out, ">> [RALPH] Moved %d pin files to %s.\n", len(result.Moved), result.NewPinDir)
+			if len(result.Created) == 0 && len(result.Overwritten) == 0 {
+				_, _ = fmt.Fprintf(out, ">> [RALPH] Pin already initialized at %s.\n", result.PinDir)
 			} else {
-				_, _ = fmt.Fprintf(out, ">> [RALPH] Pin already located at %s.\n", result.NewPinDir)
+				_, _ = fmt.Fprintf(out, ">> [RALPH] Pin initialized at %s.\n", result.PinDir)
+			}
+			if len(result.Created) > 0 {
+				_, _ = fmt.Fprintf(out, ">> [RALPH] Created: %s\n", strings.Join(result.Created, ", "))
+			}
+			if len(result.Overwritten) > 0 {
+				_, _ = fmt.Fprintf(out, ">> [RALPH] Overwritten: %s\n", strings.Join(result.Overwritten, ", "))
 			}
 			_, _ = fmt.Fprintf(out, ">> [RALPH] Updated %s (paths.pin_dir=%s).\n", result.ConfigPath, result.ConfigPinDir)
 			_, err = fmt.Fprintln(out, ">> [RALPH] Pin validation OK.")
@@ -543,6 +549,11 @@ func newTaskBuildCommand() *cobra.Command {
 				return err
 			}
 
+			prepend, err := flags.GetBool("prepend")
+			if err != nil {
+				return err
+			}
+
 			runnerName, err := resolveRunnerFlag(flags, "runner", cfg.Loop.Runner)
 			if err != nil {
 				return err
@@ -561,7 +572,7 @@ func newTaskBuildCommand() *cobra.Command {
 				Scope:        scope,
 				Description:  description,
 				WriteToQueue: !dryRun,
-				InsertAtTop:  true,
+				InsertAtTop:  prepend,
 			})
 			if err != nil {
 				return err
@@ -642,6 +653,7 @@ func newTaskBuildCommand() *cobra.Command {
 	cmd.Flags().String("description", "", "Optional queue item summary (defaults to prompt first line)")
 	cmd.Flags().String("runner", "codex", "Runner to use: codex or opencode")
 	cmd.Flags().String("reasoning-effort", "", "Codex reasoning effort override (auto/low/medium/high/off)")
+	cmd.Flags().Bool("prepend", false, "Insert item at the top of the queue (default: append to bottom)")
 	cmd.Flags().Bool("dry-run", false, "Print the queue item without writing to disk")
 	cmd.Flags().Bool("run", false, "Run one loop iteration after queuing the task")
 
