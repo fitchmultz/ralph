@@ -56,7 +56,7 @@ func InsertQueueItem(queuePath string, itemBlock []string, opts InsertQueueOptio
 }
 
 // MoveQueueItemToDone moves a queue item by ID into the Done file and marks it checked.
-func MoveQueueItemToDone(queuePath string, donePath string, itemID string, prepend bool) (bool, error) {
+func MoveQueueItemToDone(queuePath string, donePath string, itemID string, opts DoneWriteOptions) (bool, error) {
 	lock, err := acquirePinLock(filepath.Dir(queuePath))
 	if err != nil {
 		return false, err
@@ -118,7 +118,7 @@ func MoveQueueItemToDone(queuePath string, donePath string, itemID string, prepe
 	doneLines = updated
 	insertPos := doneIndex + 1
 
-	if prepend {
+	if opts.Prepend {
 		doneLines = insertLines(doneLines, insertPos, itemBlock)
 	} else {
 		sectionEnd := len(doneLines)
@@ -136,6 +136,13 @@ func MoveQueueItemToDone(queuePath string, donePath string, itemID string, prepe
 	}
 
 	if err := writeLines(queuePath, flattenBlocks(newBlocks)); err != nil {
+		return false, err
+	}
+
+	if _, err := TrimDoneItems(donePath, DoneTrimOptions{
+		Limit:       opts.RetentionLimit,
+		NewestAtTop: opts.Prepend,
+	}); err != nil {
 		return false, err
 	}
 

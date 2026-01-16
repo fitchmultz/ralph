@@ -599,7 +599,10 @@ func (p *pinView) startMoveChecked() {
 func (p *pinView) finishMoveChecked() tea.Cmd {
 	p.mode = pinModeTable
 	p.moveForm = nil
-	ids, err := pin.MoveCheckedToDone(p.files.QueuePath, p.files.DonePath, p.movePrepend)
+	ids, err := pin.MoveCheckedToDone(p.files.QueuePath, p.files.DonePath, pin.DoneWriteOptions{
+		Prepend:        p.movePrepend,
+		RetentionLimit: p.config.Paths.DoneRetentionLimit,
+	})
 	if err != nil {
 		p.err = err.Error()
 		p.status = ""

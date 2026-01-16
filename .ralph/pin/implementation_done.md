@@ -1,6 +1,9 @@
 # Implementation Done
 
 ## Done
+- [x] RQ-0495 [code]: Define a retention/trimming strategy for implementation_done.md to prevent unbounded growth. (ralph_tui/internal/pin, ralph_tui/internal/tui, .ralph/pin/implementation_done.md)
+  - Evidence: implementation_done.md grows indefinitely as tasks are completed, which risks slower reads and TUI load times.
+  - Plan: Measure current read/parse behavior; propose and document a safe retention limit and trimming strategy; add tooling or automation to enforce it; update tests and any UX messaging as needed.
 - [x] RQ-0494 [ui]: Fix Build Specs "edit user focus" input and prompt injection. (ralph_tui/internal/tui, ralph_tui/internal/prompts, ralph_tui/internal/specs)
   - Evidence: Pressing "u" switches the panel to user focus edit mode, but typed input does not render or persist, and saving does not inject user focus into the prompt.
   - Plan: Trace the Build Specs view input handling for user focus; ensure the input component is bound to state, rendered, and persisted; update prompt assembly to include the user focus content; add regression tests for edit/save behavior.

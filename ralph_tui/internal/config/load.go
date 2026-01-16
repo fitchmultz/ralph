@@ -212,6 +212,9 @@ func applyPartial(base Config, partial PartialConfig, basePath string, repoRoot 
 			}
 			base.Paths.PinDir = resolved
 		}
+		if partial.Paths.DoneRetentionLimit != nil {
+			base.Paths.DoneRetentionLimit = *partial.Paths.DoneRetentionLimit
+		}
 	}
 	if partial.Specs != nil {
 		if partial.Specs.AutofillScout != nil {

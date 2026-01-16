@@ -72,7 +72,10 @@ func TestMoveQueueItemToDoneMovesBlock(t *testing.T) {
 	queuePath := copyFixture(t, fixture.queue, filepath.Join(tmpDir, "implementation_queue.md"))
 	donePath := copyFixture(t, fixture.done, filepath.Join(tmpDir, "implementation_done.md"))
 
-	found, err := MoveQueueItemToDone(queuePath, donePath, "RQ-0001", true)
+	found, err := MoveQueueItemToDone(queuePath, donePath, "RQ-0001", DoneWriteOptions{
+		Prepend:        true,
+		RetentionLimit: 0,
+	})
 	if err != nil {
 		t.Fatalf("MoveQueueItemToDone failed: %v", err)
 	}

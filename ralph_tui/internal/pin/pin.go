@@ -46,6 +46,18 @@ const (
 	SpecsBuilderDocsFilename = "specs_builder_docs.md"
 )
 
+// DoneWriteOptions controls insertion + retention behavior when writing to implementation_done.md.
+type DoneWriteOptions struct {
+	Prepend        bool
+	RetentionLimit int
+}
+
+// DoneTrimOptions controls how trimming interprets "most recent".
+type DoneTrimOptions struct {
+	Limit       int
+	NewestAtTop bool
+}
+
 // TagList captures parsed tags plus any unknown values.
 type TagList struct {
 	Tags    []string
@@ -507,8 +519,96 @@ func ReadQueueItems(queuePath string) ([]QueueItem, error) {
 	return items, err
 }
 
+// TrimDoneItems trims the ## Done section in the done file.
+// Returns trimmed=true if it removed any done items.
+func TrimDoneItems(donePath string, opts DoneTrimOptions) (trimmed bool, err error) {
+	if opts.Limit <= 0 {
+		return false, nil
+	}
+
+	lines, err := readLines(donePath)
+	if err != nil {
+		return false, err
+	}
+
+	updated, trimmed := trimDoneLines(lines, opts)
+	if !trimmed {
+		return false, nil
+	}
+
+	if err := writeLines(donePath, updated); err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+func trimDoneLines(doneLines []string, opts DoneTrimOptions) ([]string, bool) {
+	if opts.Limit <= 0 {
+		return doneLines, false
+	}
+
+	blocks := splitBlocks(doneLines)
+	inDone := false
+	doneBlocks := make([][]string, 0)
+	headerIndex := -1
+
+	for idx, block := range blocks {
+		if len(block) == 0 {
+			continue
+		}
+		header := block[0]
+		if strings.TrimSpace(header) == "## Done" {
+			inDone = true
+			headerIndex = idx
+			continue
+		}
+		if strings.HasPrefix(header, "## ") {
+			if inDone {
+				inDone = false
+			}
+			continue
+		}
+
+		if inDone && strings.HasPrefix(header, "- [") {
+			doneBlocks = append(doneBlocks, block)
+		}
+	}
+
+	if len(doneBlocks) <= opts.Limit {
+		return doneLines, false
+	}
+
+	var keepBlocks [][]string
+	if opts.NewestAtTop {
+		keepBlocks = doneBlocks[:opts.Limit]
+	} else {
+		keepBlocks = doneBlocks[len(doneBlocks)-opts.Limit:]
+	}
+
+	updated := make([][]string, 0, len(blocks)-len(doneBlocks)+len(keepBlocks))
+	if headerIndex >= 0 {
+		updated = append(updated, blocks[headerIndex])
+	}
+	updated = append(updated, keepBlocks...)
+
+	nextSectionIndex := -1
+	for i := headerIndex + 1; i < len(blocks); i++ {
+		if len(blocks[i]) > 0 && strings.HasPrefix(blocks[i][0], "## ") && strings.TrimSpace(blocks[i][0]) != "## Done" {
+			nextSectionIndex = i
+			break
+		}
+	}
+
+	if nextSectionIndex >= 0 {
+		updated = append(updated, blocks[nextSectionIndex:]...)
+	}
+
+	return flattenBlocks(updated), true
+}
+
 // MoveCheckedToDone moves checked blocks from Queue to Done.
-func MoveCheckedToDone(queuePath string, donePath string, prepend bool) ([]string, error) {
+func MoveCheckedToDone(queuePath string, donePath string, opts DoneWriteOptions) ([]string, error) {
 	lock, err := acquirePinLock(filepath.Dir(queuePath))
 	if err != nil {
 		return nil, err
@@ -569,7 +669,7 @@ func MoveCheckedToDone(queuePath string, donePath string, prepend bool) ([]strin
 			inserted = append(inserted, block...)
 		}
 
-		if prepend {
+		if opts.Prepend {
 			doneLines = insertLines(doneLines, insertPos, inserted)
 		} else {
 			sectionEnd := len(doneLines)
@@ -583,6 +683,13 @@ func MoveCheckedToDone(queuePath string, donePath string, prepend bool) ([]strin
 		}
 
 		if err := writeLines(donePath, doneLines); err != nil {
+			return nil, err
+		}
+
+		if _, err := TrimDoneItems(donePath, DoneTrimOptions{
+			Limit:       opts.RetentionLimit,
+			NewestAtTop: opts.Prepend,
+		}); err != nil {
 			return nil, err
 		}
 	}

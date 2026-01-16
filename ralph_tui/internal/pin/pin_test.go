@@ -511,7 +511,10 @@ func TestMoveCheckedToDoneFixtures(t *testing.T) {
 			}
 			inserted := flattenBlocks(movedBlocks)
 
-			_, err = MoveCheckedToDone(queuePath, donePath, tc.prepend)
+			_, err = MoveCheckedToDone(queuePath, donePath, DoneWriteOptions{
+				Prepend:        tc.prepend,
+				RetentionLimit: 0,
+			})
 			if err != nil {
 				t.Fatalf("MoveCheckedToDone failed: %v", err)
 			}
@@ -585,7 +588,10 @@ func TestMoveCheckedToDonePrependUpdatesDoneSummary(t *testing.T) {
 		t.Fatalf("write done: %v", err)
 	}
 
-	ids, err := MoveCheckedToDone(queuePath, donePath, true)
+	ids, err := MoveCheckedToDone(queuePath, donePath, DoneWriteOptions{
+		Prepend:        true,
+		RetentionLimit: 0,
+	})
 	if err != nil {
 		t.Fatalf("MoveCheckedToDone failed: %v", err)
 	}
@@ -628,7 +634,10 @@ func TestMoveCheckedToDoneMovesUppercaseX(t *testing.T) {
 		t.Fatalf("write done: %v", err)
 	}
 
-	ids, err := MoveCheckedToDone(queuePath, donePath, true)
+	ids, err := MoveCheckedToDone(queuePath, donePath, DoneWriteOptions{
+		Prepend:        true,
+		RetentionLimit: 0,
+	})
 	if err != nil {
 		t.Fatalf("MoveCheckedToDone failed: %v", err)
 	}
@@ -1008,7 +1017,10 @@ func TestConcurrentPinMoveCheckedToDone(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			<-start
-			_, err := MoveCheckedToDone(queuePath, donePath, true)
+			_, err := MoveCheckedToDone(queuePath, donePath, DoneWriteOptions{
+				Prepend:        true,
+				RetentionLimit: 0,
+			})
 			results <- err
 		}()
 	}
@@ -1175,4 +1187,194 @@ func fileExists(path string) bool {
 		return false
 	}
 	return !info.IsDir()
+}
+
+func TestMoveCheckedToDoneTrimsDoneRetentionLimitPrepend(t *testing.T) {
+	tmpDir := t.TempDir()
+	queuePath := filepath.Join(tmpDir, "implementation_queue.md")
+	donePath := filepath.Join(tmpDir, "implementation_done.md")
+
+	queueContent := strings.Join([]string{
+		"# Implementation Queue",
+		"",
+		"## Queue",
+		"- [x] RQ-0200 [code]: New item to move. (x)",
+		"  - Evidence: test",
+		"  - Plan: test",
+		"",
+		"## Blocked",
+		"",
+		"## Parking Lot",
+		"",
+	}, "\n")
+
+	doneContent := strings.Join([]string{
+		"# Implementation Done",
+		"",
+		"## Done",
+		"- [x] RQ-0001 [code]: Oldest done. (x)",
+		"  - Evidence: older",
+		"  - Plan: done",
+		"",
+		"- [x] RQ-0002 [code]: Old done. (x)",
+		"  - Evidence: older",
+		"  - Plan: done",
+		"",
+		"- [x] RQ-0003 [code]: Old done. (x)",
+		"  - Evidence: older",
+		"  - Plan: done",
+		"",
+		"- [x] RQ-0004 [code]: Old done. (x)",
+		"  - Evidence: older",
+		"  - Plan: done",
+		"",
+		"- [x] RQ-0005 [code]: Old done. (x)",
+		"  - Evidence: older",
+		"  - Plan: done",
+		"",
+	}, "\n")
+
+	if err := os.WriteFile(queuePath, []byte(queueContent), 0o600); err != nil {
+		t.Fatalf("write queue: %v", err)
+	}
+	if err := os.WriteFile(donePath, []byte(doneContent), 0o600); err != nil {
+		t.Fatalf("write done: %v", err)
+	}
+
+	_, err := MoveCheckedToDone(queuePath, donePath, DoneWriteOptions{
+		Prepend:        true,
+		RetentionLimit: 3,
+	})
+	if err != nil {
+		t.Fatalf("MoveCheckedToDone failed: %v", err)
+	}
+
+	doneItems, err := ReadDoneItems(donePath)
+	if err != nil {
+		t.Fatalf("ReadDoneItems failed: %v", err)
+	}
+
+	if len(doneItems) != 3 {
+		t.Fatalf("expected 3 done items after trimming, got %d", len(doneItems))
+	}
+
+	if doneItems[0].ID != "RQ-0200" {
+		t.Fatalf("expected first done item to be RQ-0200 (the moved item), got %s", doneItems[0].ID)
+	}
+
+	if doneItems[1].ID != "RQ-0001" {
+		t.Fatalf("expected second done item to be RQ-0001, got %s", doneItems[1].ID)
+	}
+
+	if doneItems[2].ID != "RQ-0002" {
+		t.Fatalf("expected third done item to be RQ-0002, got %s", doneItems[2].ID)
+	}
+}
+
+func TestTrimDoneItems(t *testing.T) {
+	tmpDir := t.TempDir()
+	donePath := filepath.Join(tmpDir, "implementation_done.md")
+
+	doneContent := strings.Join([]string{
+		"# Implementation Done",
+		"",
+		"## Done",
+		"- [x] RQ-0001 [code]: Done 1. (x)",
+		"  - Evidence: test",
+		"  - Plan: test",
+		"",
+		"- [x] RQ-0002 [code]: Done 2. (x)",
+		"  - Evidence: test",
+		"  - Plan: test",
+		"",
+		"- [x] RQ-0003 [code]: Done 3. (x)",
+		"  - Evidence: test",
+		"  - Plan: test",
+		"",
+		"- [x] RQ-0004 [code]: Done 4. (x)",
+		"  - Evidence: test",
+		"  - Plan: test",
+		"",
+		"- [x] RQ-0005 [code]: Done 5. (x)",
+		"  - Evidence: test",
+		"  - Plan: test",
+		"",
+	}, "\n")
+
+	if err := os.WriteFile(donePath, []byte(doneContent), 0o600); err != nil {
+		t.Fatalf("write done: %v", err)
+	}
+
+	trimmed, err := TrimDoneItems(donePath, DoneTrimOptions{
+		Limit:       3,
+		NewestAtTop: true,
+	})
+	if err != nil {
+		t.Fatalf("TrimDoneItems failed: %v", err)
+	}
+
+	if !trimmed {
+		t.Fatalf("expected trimmed to be true")
+	}
+
+	doneItems, err := ReadDoneItems(donePath)
+	if err != nil {
+		t.Fatalf("ReadDoneItems failed: %v", err)
+	}
+
+	if len(doneItems) != 3 {
+		t.Fatalf("expected 3 done items after trimming, got %d", len(doneItems))
+	}
+
+	if doneItems[0].ID != "RQ-0001" {
+		t.Fatalf("expected first done item to be RQ-0001, got %s", doneItems[0].ID)
+	}
+
+	if doneItems[2].ID != "RQ-0003" {
+		t.Fatalf("expected third done item to be RQ-0003, got %s", doneItems[2].ID)
+	}
+}
+
+func TestTrimDoneItemsLimitZeroNoTrim(t *testing.T) {
+	tmpDir := t.TempDir()
+	donePath := filepath.Join(tmpDir, "implementation_done.md")
+
+	doneContent := strings.Join([]string{
+		"# Implementation Done",
+		"",
+		"## Done",
+		"- [x] RQ-0001 [code]: Done 1. (x)",
+		"  - Evidence: test",
+		"  - Plan: test",
+		"",
+		"- [x] RQ-0002 [code]: Done 2. (x)",
+		"  - Evidence: test",
+		"  - Plan: test",
+		"",
+	}, "\n")
+
+	if err := os.WriteFile(donePath, []byte(doneContent), 0o600); err != nil {
+		t.Fatalf("write done: %v", err)
+	}
+
+	trimmed, err := TrimDoneItems(donePath, DoneTrimOptions{
+		Limit:       0,
+		NewestAtTop: true,
+	})
+	if err != nil {
+		t.Fatalf("TrimDoneItems failed: %v", err)
+	}
+
+	if trimmed {
+		t.Fatalf("expected trimmed to be false when limit is 0")
+	}
+
+	doneItems, err := ReadDoneItems(donePath)
+	if err != nil {
+		t.Fatalf("ReadDoneItems failed: %v", err)
+	}
+
+	if len(doneItems) != 2 {
+		t.Fatalf("expected 2 done items (no trimming), got %d", len(doneItems))
+	}
 }

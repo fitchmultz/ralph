@@ -43,9 +43,10 @@ type LoggingConfig struct {
 // PathsConfig declares filesystem locations used by Ralph.
 // Repo config paths are resolved relative to the repo root when possible.
 type PathsConfig struct {
-	DataDir  string `json:"data_dir"`
-	CacheDir string `json:"cache_dir"`
-	PinDir   string `json:"pin_dir"`
+	DataDir            string `json:"data_dir"`
+	CacheDir           string `json:"cache_dir"`
+	PinDir             string `json:"pin_dir"`
+	DoneRetentionLimit int    `json:"done_retention_limit"`
 }
 
 // SpecsConfig controls spec-building features.
@@ -130,6 +131,9 @@ func (c Config) Validate() error {
 	}
 	if !filepath.IsAbs(c.Paths.PinDir) {
 		return fmt.Errorf("paths.pin_dir must be absolute")
+	}
+	if c.Paths.DoneRetentionLimit < 0 {
+		return fmt.Errorf("paths.done_retention_limit must be >= 0")
 	}
 	if strings.TrimSpace(c.Specs.Runner) == "" {
 		return fmt.Errorf("specs.runner must be set")
@@ -244,9 +248,10 @@ type LoggingPartial struct {
 
 // PathsPartial overrides PathsConfig fields when set.
 type PathsPartial struct {
-	DataDir  *string `json:"data_dir,omitempty"`
-	CacheDir *string `json:"cache_dir,omitempty"`
-	PinDir   *string `json:"pin_dir,omitempty"`
+	DataDir            *string `json:"data_dir,omitempty"`
+	CacheDir           *string `json:"cache_dir,omitempty"`
+	PinDir             *string `json:"pin_dir,omitempty"`
+	DoneRetentionLimit *int    `json:"done_retention_limit,omitempty"`
 }
 
 // SpecsPartial overrides SpecsConfig fields when set.

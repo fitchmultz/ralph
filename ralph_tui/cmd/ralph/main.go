@@ -636,6 +636,7 @@ func newTaskBuildCommand() *cobra.Command {
 					QuarantineClean:         cfg.Loop.DirtyRepo.QuarantineCleanUntracked,
 					RedactionMode:           cfg.Logging.RedactionMode,
 					LogMaxBufferedBytes:     cfg.Logging.MaxBufferedBytes,
+					DoneRetentionLimit:      cfg.Paths.DoneRetentionLimit,
 					Logger:                  logger,
 				})
 				if err != nil {
@@ -1022,6 +1023,7 @@ func newLoopRunCommand() *cobra.Command {
 				QuarantineClean:         quarantineClean,
 				RedactionMode:           cfg.Logging.RedactionMode,
 				LogMaxBufferedBytes:     cfg.Logging.MaxBufferedBytes,
+				DoneRetentionLimit:      cfg.Paths.DoneRetentionLimit,
 				Logger:                  logger,
 			})
 			if err != nil {
@@ -1285,7 +1287,10 @@ func newPinMoveCheckedCommand() *cobra.Command {
 			}
 			prepend := !appendMode
 			files := pin.ResolveFiles(cfg.Paths.PinDir)
-			ids, err := pin.MoveCheckedToDone(files.QueuePath, files.DonePath, prepend)
+			ids, err := pin.MoveCheckedToDone(files.QueuePath, files.DonePath, pin.DoneWriteOptions{
+				Prepend:        prepend,
+				RetentionLimit: cfg.Paths.DoneRetentionLimit,
+			})
 			if err != nil {
 				return err
 			}

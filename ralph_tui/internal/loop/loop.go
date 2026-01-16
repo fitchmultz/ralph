@@ -48,6 +48,7 @@ type Options struct {
 	QuarantineClean         bool
 	RedactionMode           redaction.Mode
 	LogMaxBufferedBytes     int
+	DoneRetentionLimit      int
 	Logger                  Logger
 	StateSink               StateSink
 }
@@ -636,7 +637,10 @@ func (r *Runner) finalizeIteration(ctx context.Context, itemID string, itemLine 
 		pinOnlyHeadAdvance = true
 	}
 
-	movedIDs, err := pin.MoveCheckedToDone(r.pinFiles.QueuePath, r.pinFiles.DonePath, true)
+	movedIDs, err := pin.MoveCheckedToDone(r.pinFiles.QueuePath, r.pinFiles.DonePath, pin.DoneWriteOptions{
+		Prepend:        true,
+		RetentionLimit: r.opts.DoneRetentionLimit,
+	})
 	if err != nil {
 		r.lastFailureStage = "pin-ops"
 		r.lastFailureMessage = "Failed to move checked queue items."
@@ -727,7 +731,10 @@ func (r *Runner) finalizeIteration(ctx context.Context, itemID string, itemLine 
 }
 
 func (r *Runner) reconcileCheckedQueueItems(ctx context.Context) error {
-	movedIDs, err := pin.MoveCheckedToDone(r.pinFiles.QueuePath, r.pinFiles.DonePath, true)
+	movedIDs, err := pin.MoveCheckedToDone(r.pinFiles.QueuePath, r.pinFiles.DonePath, pin.DoneWriteOptions{
+		Prepend:        true,
+		RetentionLimit: r.opts.DoneRetentionLimit,
+	})
 	if err != nil {
 		return err
 	}
