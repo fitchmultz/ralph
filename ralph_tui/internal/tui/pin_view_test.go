@@ -147,68 +147,83 @@ func TestPinReloadClampsCursorWhenRowsShrink(t *testing.T) {
 	}
 }
 
-func TestPinFilterClearsAndRestoresSelection(t *testing.T) {
+func TestPinSearchEntriesIncludesQueueAndBlocked(t *testing.T) {
 	_, locs, cfg := newHermeticModel(t)
 	view, err := newPinView(cfg, locs)
 	if err != nil {
 		t.Fatalf("newPinView failed: %v", err)
 	}
 
-	items := []pin.QueueItem{
+	queueItems := []pin.QueueItem{
 		{ID: "RQ-010", Header: "- [ ] RQ-010 [ui]: Alpha", Lines: []string{"- [ ] RQ-010 [ui]: Alpha"}},
-		{ID: "RQ-011", Header: "- [ ] RQ-011 [code]: Beta", Lines: []string{"- [ ] RQ-011 [code]: Beta", "detail line", "extra line"}},
-		{ID: "RQ-012", Header: "- [ ] RQ-012 [ops]: Gamma", Lines: []string{"- [ ] RQ-012 [ops]: Gamma"}},
 	}
-	view.setItems(items, nil, "", 0, true)
-	view.table.SetCursor(1)
-	view.detail.Height = 1
-	view.syncDetail(true)
-	view.detail.SetYOffset(1)
+	blockedItems := []pin.BlockedItem{
+		{ID: "RQ-900", Header: "- [ ] RQ-900 [ops]: Blocked", Lines: []string{"- [ ] RQ-900 [ops]: Blocked"}},
+	}
+	view.setItems(queueItems, blockedItems, "", 0, true)
 
-	if err := view.ApplySearch("ops"); err != nil {
-		t.Fatalf("ApplySearch failed: %v", err)
+	entries := view.SearchEntries()
+	if len(entries) != 2 {
+		t.Fatalf("expected 2 search entries, got %d", len(entries))
 	}
-	if len(view.items) != 1 || view.items[0].ID != "RQ-012" {
-		t.Fatalf("expected filtered items to include only RQ-012, got %+v", view.items)
+	if entries[0].Section != pinSectionQueue || entries[0].ID != "RQ-010" {
+		t.Fatalf("expected queue entry first, got %+v", entries[0])
 	}
-
-	if err := view.ApplySearch(""); err != nil {
-		t.Fatalf("ApplySearch clear failed: %v", err)
-	}
-	if item := view.selectedItem(); item == nil || item.ID != "RQ-011" {
-		t.Fatalf("expected selection to restore to RQ-011, got %+v", item)
-	}
-	if view.detail.YOffset != 1 {
-		t.Fatalf("expected detail offset to restore to 1, got %d", view.detail.YOffset)
+	if entries[1].Section != pinSectionBlocked || entries[1].ID != "RQ-900" {
+		t.Fatalf("expected blocked entry second, got %+v", entries[1])
 	}
 }
 
-func TestPinSelectItemByIDClearsSearch(t *testing.T) {
+func TestPinSelectItemSwitchesSection(t *testing.T) {
 	_, locs, cfg := newHermeticModel(t)
 	view, err := newPinView(cfg, locs)
 	if err != nil {
 		t.Fatalf("newPinView failed: %v", err)
 	}
 
-	items := []pin.QueueItem{
+	queueItems := []pin.QueueItem{
 		{ID: "RQ-010", Header: "- [ ] RQ-010 [ui]: Alpha", Lines: []string{"- [ ] RQ-010 [ui]: Alpha"}},
-		{ID: "RQ-011", Header: "- [ ] RQ-011 [code]: Beta", Lines: []string{"- [ ] RQ-011 [code]: Beta"}},
-		{ID: "RQ-012", Header: "- [ ] RQ-012 [ops]: Gamma", Lines: []string{"- [ ] RQ-012 [ops]: Gamma"}},
 	}
-	view.setItems(items, nil, "", 0, true)
+	blockedItems := []pin.BlockedItem{
+		{ID: "RQ-900", Header: "- [ ] RQ-900 [ops]: Blocked", Lines: []string{"- [ ] RQ-900 [ops]: Blocked"}},
+	}
+	view.setItems(queueItems, blockedItems, "", 0, true)
 
-	if err := view.ApplySearch("ops"); err != nil {
-		t.Fatalf("ApplySearch failed: %v", err)
+	if !view.SelectItem(pinSectionBlocked, "RQ-900") {
+		t.Fatalf("expected SelectItem to succeed")
+	}
+	if view.section != pinSectionBlocked {
+		t.Fatalf("expected section to switch to blocked, got %v", view.section)
+	}
+	if view.selectedItemID() != "RQ-900" {
+		t.Fatalf("expected selection to move to RQ-900, got %q", view.selectedItemID())
+	}
+}
+
+func TestPinSelectItemByIDSwitchesToQueue(t *testing.T) {
+	_, locs, cfg := newHermeticModel(t)
+	view, err := newPinView(cfg, locs)
+	if err != nil {
+		t.Fatalf("newPinView failed: %v", err)
 	}
 
-	if !view.SelectItemByID("RQ-011") {
+	queueItems := []pin.QueueItem{
+		{ID: "RQ-010", Header: "- [ ] RQ-010 [ui]: Alpha", Lines: []string{"- [ ] RQ-010 [ui]: Alpha"}},
+	}
+	blockedItems := []pin.BlockedItem{
+		{ID: "RQ-900", Header: "- [ ] RQ-900 [ops]: Blocked", Lines: []string{"- [ ] RQ-900 [ops]: Blocked"}},
+	}
+	view.setItems(queueItems, blockedItems, "", 0, true)
+	view.section = pinSectionBlocked
+
+	if !view.SelectItemByID("RQ-010") {
 		t.Fatalf("expected SelectItemByID to succeed")
 	}
-	if view.searchTerm != "" {
-		t.Fatalf("expected search term cleared, got %q", view.searchTerm)
+	if view.section != pinSectionQueue {
+		t.Fatalf("expected section to switch to queue, got %v", view.section)
 	}
-	if item := view.selectedItem(); item == nil || item.ID != "RQ-011" {
-		t.Fatalf("expected selection to move to RQ-011, got %+v", item)
+	if view.selectedItemID() != "RQ-010" {
+		t.Fatalf("expected selection to move to RQ-010, got %q", view.selectedItemID())
 	}
 }
 

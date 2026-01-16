@@ -2,10 +2,6 @@
 
 ## Queue
 
-- [ ] RQ-0470 [ui]: Fix Search UX: make it actually search "screens, queue IDs, tags"; remove hidden list filtering and improve search target model. (ralph_tui/internal/tui/model.go, ralph_tui/internal/tui/screens.go, ralph_tui/internal/tui/pin_view.go)
-  - Evidence: Search placeholder says "Screens, queue IDs, tags" (`model.go`) but nav search only filters `navItem.FilterValue()` which returns just the title (`screens.go`), and pin search target is only available when already on the Pin screen (`canSearchPin`). Additionally, the nav list has filtering enabled while filter UI is hidden and filter keybindings are cleared, risking invisible filter state (`newModel`).
-  - Plan: Disable Bubble list built-in filtering entirely; implement explicit search behaviors: (1) screens (title + description + internal screenName), (2) queue IDs/tags by loading pin data even when not on Pin screen, (3) predictable target toggle and status line. Update placeholder/help to match reality; add tests for search routing and selection.
-
 - [ ] RQ-0471 [ui]: Layout + resize correctness sweep across all screens (fix hardcoded chrome heights, wrapping-aware sizing, and tiny-terminal behavior). (ralph_tui/internal/tui/model.go, ralph_tui/internal/tui/pin_view.go, ralph_tui/internal/tui/loop_view.go, ralph_tui/internal/tui/specs_view.go, ralph_tui/internal/tui/config_editor.go, ralph_tui/internal/tui/viewport_layout.go)
   - Evidence: `pinView.Resize` subtracts a constant `pinViewChromeHeight=4` regardless of whether status lines are present, wasting space; `loopView.Resize` and `specsView.Resize` use `strings.Count()` on unwrapped strings, which ignores line wrapping and can miscompute viewport sizes on narrow terminals; `loopView.Resize` resizes forms whenever `editForm != nil` even if not in edit mode.
   - Plan: Replace line-count heuristics with `lipgloss.Height()` (after width-aware wrapping) for controls/status blocks; compute chrome height dynamically; centralize sizing in a shared helper; add snapshot tests for small widths/heights to prevent regressions.

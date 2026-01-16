@@ -31,16 +31,11 @@ func (t typingGlobalKeyMap) FullHelp() [][]key.Binding {
 }
 
 type searchKeyMap struct {
-	keys            keyMap
-	canToggleTarget bool
+	keys keyMap
 }
 
 func (s searchKeyMap) ShortHelp() []key.Binding {
-	bindings := []key.Binding{s.keys.Quit, s.keys.SearchCancel, s.keys.Select}
-	if s.canToggleTarget {
-		bindings = append(bindings, s.keys.SearchTargetToggle)
-	}
-	return bindings
+	return []key.Binding{s.keys.Quit, s.keys.SearchCancel, s.keys.Select}
 }
 
 func (s searchKeyMap) FullHelp() [][]key.Binding {

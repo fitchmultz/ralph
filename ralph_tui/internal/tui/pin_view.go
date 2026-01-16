@@ -136,10 +136,6 @@ type pinView struct {
 	width                 int
 	height                int
 	queueStamp            fileStamp
-	searchTerm            string
-	searchAnchor          string
-	searchOffset          int
-	searchAnchorSection   pinSection
 	pendingSelectID       string
 	validateAfterReload   bool
 	queueSelectedID       string
@@ -801,9 +797,6 @@ func (p *pinView) contextStatus() string {
 		fmt.Sprintf("Queue: %d (checked %d)", len(p.queueAll), p.queueCheckedCount(p.queueAll)),
 		fmt.Sprintf("Blocked: %d", p.blockedItemsCount()),
 	}
-	if p.searchTerm != "" {
-		parts = append(parts, fmt.Sprintf("Filter: %s (%d/%d)", p.searchTerm, len(p.items), len(p.allItems)))
-	}
 	return strings.Join(parts, " | ")
 }
 
@@ -904,12 +897,8 @@ func (p *pinView) applyActiveItems(prevSelectedID string, prevDetailOffset int, 
 	} else {
 		p.allItems = p.queueAll
 	}
-	displayItems := p.allItems
-	if p.searchTerm != "" {
-		displayItems = filterPinEntries(p.allItems, p.searchTerm)
-	}
-	p.items = displayItems
-	p.table.SetRows(makePinRows(displayItems))
+	p.items = p.allItems
+	p.table.SetRows(makePinRows(p.items))
 	p.setTableColumns(p.width)
 	if prevSelectedID != "" {
 		p.restoreSelection(prevSelectedID)
@@ -930,109 +919,47 @@ func (p *pinView) applyActiveItems(prevSelectedID string, prevDetailOffset int, 
 	p.cacheSelection()
 }
 
-func (p *pinView) SelectItemByID(itemID string) bool {
+func (p *pinView) SearchEntries() []pinTableEntry {
 	if p == nil {
-		return false
+		return nil
 	}
-	if p.section != pinSectionQueue {
-		p.status = "Switch to Queue to select by ID."
-		p.err = ""
+	items := make([]pinTableEntry, 0, len(p.queueAll)+len(p.blockedAll))
+	items = append(items, p.queueAll...)
+	items = append(items, p.blockedAll...)
+	return items
+}
+
+func (p *pinView) SelectItem(section pinSection, itemID string) bool {
+	return p.selectItemInSection(section, itemID, false)
+}
+
+func (p *pinView) SelectItemByID(itemID string) bool {
+	return p.selectItemInSection(pinSectionQueue, itemID, true)
+}
+
+func (p *pinView) selectItemInSection(section pinSection, itemID string, allowPending bool) bool {
+	if p == nil {
 		return false
 	}
 	itemID = strings.TrimSpace(itemID)
 	if itemID == "" {
 		return false
 	}
-	p.pendingSelectID = itemID
-	if p.searchTerm != "" {
-		p.searchTerm = ""
-		p.applyActiveItems("", 0, true)
+	if allowPending && section == pinSectionQueue {
+		p.pendingSelectID = itemID
 	}
-	p.restoreSelection(itemID)
-	p.clampCursor()
-	if p.selectedItemID() == itemID {
-		p.pendingSelectID = ""
-		p.syncDetail(true)
+	if p.section != section {
 		p.cacheSelection()
+		p.section = section
+	}
+	p.applyActiveItems(itemID, 0, true)
+	if p.selectedItemID() == itemID {
+		if allowPending && section == pinSectionQueue {
+			p.pendingSelectID = ""
+		}
 		return true
 	}
 	return false
-}
-
-func (p *pinView) ApplySearch(term string) error {
-	term = strings.TrimSpace(term)
-	if term == "" && p.searchTerm == "" {
-		return nil
-	}
-	prevSelectedID := p.selectedItemID()
-	prevDetailOffset := p.detail.YOffset
-	if p.searchTerm == "" && term != "" {
-		p.searchAnchor = prevSelectedID
-		p.searchOffset = prevDetailOffset
-		p.searchAnchorSection = p.section
-	}
-	p.searchTerm = term
-	p.items = filterPinEntries(p.allItems, term)
-	p.table.SetRows(makePinRows(p.items))
-	p.setTableColumns(p.width)
-	if term == "" {
-		if p.searchAnchor != "" && p.searchAnchorSection == p.section {
-			p.restoreSelection(p.searchAnchor)
-		} else if prevSelectedID != "" {
-			p.restoreSelection(prevSelectedID)
-		}
-		p.clampCursor()
-		if p.searchAnchor != "" && p.searchAnchorSection == p.section && p.searchAnchor == p.selectedItemID() {
-			p.syncDetailWithOffset(false, p.searchOffset)
-		} else {
-			p.syncDetail(true)
-		}
-		p.searchAnchor = ""
-		p.searchOffset = 0
-		p.searchAnchorSection = p.section
-		p.cacheSelection()
-		return nil
-	}
-	if prevSelectedID != "" {
-		p.restoreSelection(prevSelectedID)
-	}
-	p.clampCursor()
-	p.syncDetail(true)
-	p.cacheSelection()
-	return nil
-}
-
-func (p *pinView) CancelSearch() {
-	if p.searchTerm == "" {
-		return
-	}
-	p.searchTerm = ""
-	p.items = p.allItems
-	p.table.SetRows(makePinRows(p.items))
-	p.setTableColumns(p.width)
-	if p.searchAnchor != "" && p.searchAnchorSection == p.section {
-		p.restoreSelection(p.searchAnchor)
-	}
-	p.clampCursor()
-	if p.searchAnchor != "" && p.searchAnchorSection == p.section && p.searchAnchor == p.selectedItemID() {
-		p.syncDetailWithOffset(false, p.searchOffset)
-	} else {
-		p.syncDetail(true)
-	}
-	p.searchAnchor = ""
-	p.searchOffset = 0
-	p.searchAnchorSection = p.section
-	p.cacheSelection()
-}
-
-func (p *pinView) FinalizeSearch() {
-	if p.searchTerm == "" {
-		p.CancelSearch()
-		return
-	}
-	p.searchAnchor = ""
-	p.searchOffset = 0
-	p.searchAnchorSection = p.section
 }
 
 func makePinRows(items []pinTableEntry) []table.Row {
@@ -1041,35 +968,6 @@ func makePinRows(items []pinTableEntry) []table.Row {
 		rows = append(rows, table.Row{item.StatusCell(), item.ID, trimTitle(item.Header)})
 	}
 	return rows
-}
-
-func filterPinEntries(items []pinTableEntry, term string) []pinTableEntry {
-	term = strings.ToLower(strings.TrimSpace(term))
-	if term == "" {
-		return items
-	}
-	parts := strings.Fields(term)
-	filtered := make([]pinTableEntry, 0, len(items))
-	for _, item := range items {
-		if matchesPinEntry(item, parts) {
-			filtered = append(filtered, item)
-		}
-	}
-	return filtered
-}
-
-func matchesPinEntry(item pinTableEntry, parts []string) bool {
-	if len(parts) == 0 {
-		return true
-	}
-	tags := strings.Join(pin.ExtractTags(item.Header), " ")
-	haystack := strings.ToLower(strings.Join([]string{item.ID, trimTitle(item.Header), tags}, " "))
-	for _, part := range parts {
-		if !strings.Contains(haystack, part) {
-			return false
-		}
-	}
-	return true
 }
 
 func pinCommandsBlocked(loopMode loopMode) bool {

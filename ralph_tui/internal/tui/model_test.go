@@ -3,7 +3,6 @@
 package tui
 
 import (
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -241,14 +240,11 @@ func TestSearchRoutesSelectionKeysToNav(t *testing.T) {
 	if !m.searchActive {
 		t.Fatalf("expected search to be active")
 	}
-	if m.searchTarget != searchTargetNav {
-		t.Fatalf("expected search target nav, got %v", m.searchTarget)
-	}
 	if !m.navPanelFocusedEffective() {
 		t.Fatalf("expected nav panel to be focused during nav search")
 	}
-	if !strings.Contains(m.searchInput.Prompt, "Search (Nav):") {
-		t.Fatalf("expected search prompt to include nav target")
+	if !strings.Contains(m.searchInput.Prompt, "Search:") {
+		t.Fatalf("expected search prompt to include Search")
 	}
 
 	startIndex := m.nav.Index()
@@ -271,165 +267,6 @@ func TestSearchRoutesSelectionKeysToNav(t *testing.T) {
 	m = updated.(model)
 	if m.nav.Index() != 0 {
 		t.Fatalf("expected nav selection to move to start")
-	}
-}
-
-func TestSearchTabTogglesTargetOnPinScreen(t *testing.T) {
-	base, _, cfg := newHermeticModel(t)
-
-	queueContent := strings.Join([]string{
-		"## Queue",
-		"- [ ] RQ-0001 [ui]: First item (pin_view.go)",
-		"  - Evidence: test fixture",
-		"  - Plan: test fixture",
-		"- [ ] RQ-0002 [ui]: Second item (pin_view.go)",
-		"  - Evidence: test fixture",
-		"  - Plan: test fixture",
-		"- [ ] RQ-0003 [ui]: Third item (pin_view.go)",
-		"  - Evidence: test fixture",
-		"  - Plan: test fixture",
-		"",
-		"## Blocked",
-		"",
-		"## Parking Lot",
-		"",
-	}, "\n")
-	writeTestFile(t, filepath.Join(cfg.Paths.PinDir, "implementation_queue.md"), queueContent)
-
-	m := base
-	m.switchScreen(screenPin, true)
-	if m.pinView == nil {
-		t.Fatalf("pin view missing")
-	}
-	if err := m.pinView.reload(); err != nil {
-		t.Fatalf("reload pin view: %v", err)
-	}
-	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
-	m = updated.(model)
-
-	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyCtrlK})
-	m = updated.(model)
-
-	if m.searchTarget != searchTargetPin {
-		t.Fatalf("expected search target pin, got %v", m.searchTarget)
-	}
-	if m.navPanelFocusedEffective() {
-		t.Fatalf("expected content panel focus during pin search")
-	}
-	if !strings.Contains(m.searchInput.Prompt, "Search (Pin):") {
-		t.Fatalf("expected search prompt to include pin target")
-	}
-
-	startCursor := m.pinView.table.Cursor()
-	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
-	m = updated.(model)
-	if m.pinView.table.Cursor() == startCursor {
-		t.Fatalf("expected pin table cursor to move down")
-	}
-
-	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyTab})
-	m = updated.(model)
-	if m.searchTarget != searchTargetNav {
-		t.Fatalf("expected search target nav after tab, got %v", m.searchTarget)
-	}
-	if !m.navPanelFocusedEffective() {
-		t.Fatalf("expected nav panel focus after tab")
-	}
-	if !strings.Contains(m.searchInput.Prompt, "Search (Nav):") {
-		t.Fatalf("expected search prompt to include nav target after tab")
-	}
-
-	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyTab})
-	m = updated.(model)
-	if m.searchTarget != searchTargetPin {
-		t.Fatalf("expected search target pin after second tab, got %v", m.searchTarget)
-	}
-	if m.navPanelFocusedEffective() {
-		t.Fatalf("expected content focus after toggling back to pin")
-	}
-	if !strings.Contains(m.searchInput.Prompt, "Search (Pin):") {
-		t.Fatalf("expected search prompt to include pin target after second tab")
-	}
-}
-
-func TestSearchSelectionKeysAffectOnlyActiveTarget(t *testing.T) {
-	base, _, cfg := newHermeticModel(t)
-
-	queueContent := strings.Join([]string{
-		"## Queue",
-		"- [ ] RQ-0001 [ui]: First item (pin_view.go)",
-		"  - Evidence: test fixture",
-		"  - Plan: test fixture",
-		"- [ ] RQ-0002 [ui]: Second item (pin_view.go)",
-		"  - Evidence: test fixture",
-		"  - Plan: test fixture",
-		"",
-		"## Blocked",
-		"",
-		"## Parking Lot",
-		"",
-	}, "\n")
-	writeTestFile(t, filepath.Join(cfg.Paths.PinDir, "implementation_queue.md"), queueContent)
-
-	m := base
-	m.switchScreen(screenPin, true)
-	if m.pinView == nil {
-		t.Fatalf("pin view missing")
-	}
-	if err := m.pinView.reload(); err != nil {
-		t.Fatalf("reload pin view: %v", err)
-	}
-	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
-	m = updated.(model)
-
-	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyCtrlK})
-	m = updated.(model)
-
-	pinCursor := m.pinView.table.Cursor()
-	navIndex := m.nav.Index()
-	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
-	m = updated.(model)
-	if m.pinView.table.Cursor() == pinCursor {
-		t.Fatalf("expected pin cursor to move when pin is target")
-	}
-	if m.nav.Index() != navIndex {
-		t.Fatalf("expected nav selection to remain unchanged when pin is target")
-	}
-
-	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyTab})
-	m = updated.(model)
-
-	pinCursor = m.pinView.table.Cursor()
-	navIndex = m.nav.Index()
-	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
-	m = updated.(model)
-	if m.nav.Index() == navIndex {
-		t.Fatalf("expected nav selection to move when nav is target")
-	}
-	if m.pinView.table.Cursor() != pinCursor {
-		t.Fatalf("expected pin cursor to remain unchanged when nav is target")
-	}
-}
-
-func TestSearchTabDoesNotToggleGlobalFocus(t *testing.T) {
-	base, _, _ := newHermeticModel(t)
-	m := base
-
-	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyCtrlK})
-	m = updated.(model)
-
-	priorNavFocused := m.navFocused
-	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyTab})
-	m = updated.(model)
-
-	if !m.searchActive {
-		t.Fatalf("expected search to remain active after tab")
-	}
-	if m.searchTarget != searchTargetNav {
-		t.Fatalf("expected search target to remain nav on non-pin screen")
-	}
-	if m.navFocused != priorNavFocused {
-		t.Fatalf("expected global focus to remain unchanged during search")
 	}
 }
 

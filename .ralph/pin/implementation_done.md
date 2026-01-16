@@ -1,6 +1,10 @@
 # Implementation Done
 
 ## Done
+- [x] RQ-0470 [ui]: Fix Search UX: make it actually search "screens, queue IDs, tags"; remove hidden list filtering and improve search target model. (ralph_tui/internal/tui/model.go, ralph_tui/internal/tui/screens.go, ralph_tui/internal/tui/pin_view.go)
+  - Evidence: Search placeholder says "Screens, queue IDs, tags" (`model.go`) but nav search only filters `navItem.FilterValue()` which returns just the title (`screens.go`), and pin search target is only available when already on the Pin screen (`canSearchPin`). Additionally, the nav list has filtering enabled while filter UI is hidden and filter keybindings are cleared, risking invisible filter state (`newModel`).
+  - Plan: Disable Bubble list built-in filtering entirely; implement explicit search behaviors: (1) screens (title + description + internal screenName), (2) queue IDs/tags by loading pin data even when not on Pin screen, (3) predictable target toggle and status line. Update placeholder/help to match reality; add tests for search routing and selection.
+
 - [x] RQ-0469 [ui]: Redesign keymaps for consistency and safety (resolve collisions, reduce single-letter globals, improve hints/help). (ralph_tui/internal/tui/keymap.go, ralph_tui/internal/tui/help_keymap.go, ralph_tui/internal/tui/key_hints.go, ralph_tui/internal/tui/model.go)
   - Evidence: Key bindings reuse the same letters across screens (`e`, `r`, `s`, `q`) and some are globally trapped in `model.Update`, making future text inputs hostile; help/hints currently present overlapping or misleading shortcuts (e.g., specs view hints mention Tab behaviors that aren’t true while editing).
   - Plan: Establish a keybinding policy: global actions use ctrl+ combos; screen actions are letters only when no text entry is active; add a dedicated "modal/input" keymap. Update help keymaps + on-screen hint rendering to match; add a conflict test to prevent regressions.

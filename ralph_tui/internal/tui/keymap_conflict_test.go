@@ -16,8 +16,7 @@ func TestKeymapContextsHaveNoConflicts(t *testing.T) {
 		km   help.KeyMap
 	}{
 		{name: "global", km: globalKeyMap{keys: keys}},
-		{name: "search", km: searchKeyMap{keys: keys, canToggleTarget: false}},
-		{name: "search-target", km: searchKeyMap{keys: keys, canToggleTarget: true}},
+		{name: "search", km: searchKeyMap{keys: keys}},
 		{name: "dashboard", km: mergedKeyMap{global: globalKeyMap{keys: keys}, screen: dashboardKeyMap{keys: keys}}},
 		{name: "config", km: mergedKeyMap{global: globalKeyMap{keys: keys}, screen: configKeyMap{keys: keys}}},
 		{name: "pin", km: mergedKeyMap{global: globalKeyMap{keys: keys}, screen: pinKeyMap{keys: keys}}},

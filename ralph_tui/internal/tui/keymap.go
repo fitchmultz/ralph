@@ -14,7 +14,6 @@ type keyMap struct {
 	RefreshNow                key.Binding
 	Search                    key.Binding
 	SearchCancel              key.Binding
-	SearchTargetToggle        key.Binding
 	Select                    key.Binding
 	EditSpecsSettings         key.Binding
 	ToggleLogsFormat          key.Binding
@@ -78,10 +77,6 @@ func newKeyMap() keyMap {
 		SearchCancel: key.NewBinding(
 			key.WithKeys("esc"),
 			key.WithHelp("esc", "cancel search"),
-		),
-		SearchTargetToggle: key.NewBinding(
-			key.WithKeys("tab", "shift+tab"),
-			key.WithHelp("tab", "toggle target"),
 		),
 		Select: key.NewBinding(
 			key.WithKeys("enter"),

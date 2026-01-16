@@ -23,6 +23,7 @@ type navItem struct {
 func (n navItem) Title() string       { return n.title }
 func (n navItem) Description() string { return n.desc }
 func (n navItem) FilterValue() string { return n.title }
+func (n navItem) navKey() string      { return "screen:" + screenName(n.screen) }
 
 func navigationItems() []navItem {
 	return []navItem{
