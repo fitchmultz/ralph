@@ -2,10 +2,6 @@
 
 ## Queue
 
-- [ ] RQ-0475 [code]: Deduplicate prompt/template sources to prevent drift (pin defaults vs embedded prompts vs .ralph templates). (ralph_tui/internal/pin/defaults.go, ralph_tui/internal/pin/templates.go, ralph_tui/internal/prompts/prompts.go, ralph_tui/internal/prompts/defaults/*, .ralph/pin/specs_builder.md, .ralph/pin/specs_builder_docs.md)
-  - Evidence: Prompt content is duplicated in multiple places: `.ralph/pin/specs_builder*.md`, embedded defaults in `internal/pin/defaults.go`, and embedded worker prompts in `internal/prompts/defaults/`. These copies are similar-but-not-identical, increasing drift and confusing users.
-  - Plan: Introduce canonical prompt "partials" and generate/compose templates from a single source of truth. Ensure pin init/template creation and embedded defaults reference the same canonical content; add a consistency check (and/or tests) to catch drift.
-
 - [ ] RQ-0476 [ui]: Pin screen feature completeness: add unblock/requeue actions and blocked-item tooling in TUI (stop relying on external editor for routine flows). (ralph_tui/internal/tui/pin_view.go, ralph_tui/internal/tui/keymap.go, ralph_tui/internal/tui/help_keymap.go, ralph_tui/internal/pin/pin.go)
   - Evidence: The `pin` package supports `RequeueBlockedItem` and blocked metadata parsing (`pin.go`), but `pin_view.go` exposes no TUI action to requeue/unblock blocked items, inspect WIP branch metadata in an actionable way, or perform common pin workflows without opening an external editor.
   - Plan: Add blocked-item actions in the Pin view: requeue selected blocked item (top/bottom), show/copy WIP branch + known-good SHA, and optionally reset fixup attempt metadata. Add keybindings + help; keep commands disabled while loop is running.

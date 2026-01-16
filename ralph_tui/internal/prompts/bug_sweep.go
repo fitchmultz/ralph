@@ -18,9 +18,5 @@ func BugSweepEntry(projectType project.Type) (string, error) {
 	if resolved == project.TypeDocs {
 		filename = bugSweepDocsPath
 	}
-	content, err := defaultPrompts.ReadFile(filename)
-	if err != nil {
-		return "", err
-	}
-	return string(content), nil
+	return readDefault(filename)
 }

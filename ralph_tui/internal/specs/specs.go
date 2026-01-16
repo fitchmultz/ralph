@@ -31,75 +31,8 @@ const (
 	innovatePlaceholder    = "{{INNOVATE_INSTRUCTIONS}}"
 	scoutPlaceholder       = "{{SCOUT_WORKFLOW}}"
 	bugSweepPlaceholder    = "{{BUG_SWEEP_ENTRY}}"
+	userFocusPlaceholder   = "{{USER_FOCUS}}"
 )
-
-const interactiveInstructions = "INTERACTIVE MODE ENABLED. Before adding any new queue items:\n" +
-	"1) List the candidate items you intend to add (bulleted).\n" +
-	"2) Ask the user for directives/approval or edits.\n" +
-	"3) Wait for the user's response, then incorporate it.\n" +
-	"If no new items are proposed, ask the user if they want any new directions.\n"
-
-const innovateInstructionsCode = "AUTOFILL/SCOUT MODE ENABLED (BUG-HUNT).\n" +
-	"\n" +
-	"This repo intentionally avoids TODO/TBD placeholders. You must rely on evidence from the repo and prioritize:\n" +
-	"- architectural debt and risky coupling\n" +
-	"- duplicated logic across packages (e.g., TUI vs legacy scripts)\n" +
-	"- workflow gaps in Makefile or CLI flows\n" +
-	"- missing regression tests for brittle paths\n" +
-	"- config/state mismatches between defaults, UI, and CLI\n" +
-	"\n" +
-	"Mandatory scouting (repo_prompt):\n" +
-	"- Start by calling get_file_tree.\n" +
-	"- Then read a small but representative set of files across ralph_tui/internal/, ralph_tui/cmd/, ralph_legacy/bin/, ralph_legacy/specs/, and .ralph/pin/.\n" +
-	"\n" +
-	"Queue seeding rule:\n" +
-	"- If `## Queue` is empty, you MUST populate it with 10-15 high-leverage, outcome-sized items.\n" +
-	"\n" +
-	"Evidence requirement for NEW items:\n" +
-	"- Each item must cite concrete file paths and what you observed (function/class/pattern), or a concrete Make target/workflow gap.\n" +
-	"- Do not invent evidence; only claim what you can point to in the repo.\n"
-
-const innovateInstructionsDocs = "AUTOFILL/SCOUT MODE ENABLED (DOCS ITERATION/COMPLETION).\n" +
-	"\n" +
-	"This repo intentionally avoids TODO/TBD placeholders. You must rely on evidence from the repo and prioritize:\n" +
-	"- missing or placeholder sections in docs/specs\n" +
-	"- navigation gaps, weak cross-links, or dead-end paths\n" +
-	"- inconsistent terminology, voice, or naming across docs\n" +
-	"- doc-to-workflow mismatches (Makefile, CLI, pin/spec templates)\n" +
-	"- missing examples for core workflows\n" +
-	"\n" +
-	"Mandatory scouting (repo_prompt):\n" +
-	"- Start by calling get_file_tree.\n" +
-	"- Then read a small but representative set of docs across README.md, AGENTS.md, CLAUDE.md, .ralph/pin/, ralph_tui/internal/prompts/defaults/, and ralph_legacy/specs/.\n" +
-	"\n" +
-	"Queue seeding rule:\n" +
-	"- If `## Queue` is empty, you MUST populate it with 10-15 high-leverage, outcome-sized items.\n" +
-	"\n" +
-	"Evidence requirement for NEW items:\n" +
-	"- Each item must cite concrete file paths and what you observed (section/heading/pattern), or a concrete docs workflow gap.\n" +
-	"- Do not invent evidence; only claim what you can point to in the repo.\n"
-
-const scoutWorkflowTemplateCode = "SCOUT WORKFLOW ENABLED.\n" +
-	"\n" +
-	"Goal: run a focused bug hunt and seed evidence-backed queue items.\n" +
-	"1) Confirm the focus area below. If it is missing or vague, interpret it conservatively.\n" +
-	"2) Scan the lookup table + pin files to find related modules.\n" +
-	"3) Read targeted files and identify real, concrete risks (bugs, regressions, missing tests).\n" +
-	"4) Propose queue items scoped to the focus area with evidence and a clear plan.\n" +
-	"5) Prefer fixes that centralize shared logic and prevent the same bug class from recurring.\n" +
-	"\n" +
-	"User focus prompt:\n%s\n"
-
-const scoutWorkflowTemplateDocs = "SCOUT WORKFLOW ENABLED.\n" +
-	"\n" +
-	"Goal: run a focused docs iteration/completion sweep and seed evidence-backed queue items.\n" +
-	"1) Confirm the focus area below. If it is missing or vague, interpret it conservatively.\n" +
-	"2) Scan the lookup table + pin files to find related documentation surfaces.\n" +
-	"3) Read targeted docs and identify concrete gaps (missing sections, inconsistent terminology, unclear workflows, stale references).\n" +
-	"4) Propose queue items scoped to the focus area with evidence and a clear plan.\n" +
-	"5) Prefer fixes that centralize guidance and prevent the same docs gap from recurring.\n" +
-	"\n" +
-	"User focus prompt:\n%s\n"
 
 // FillPromptOptions controls how template placeholders are replaced.
 type FillPromptOptions struct {
@@ -171,26 +104,27 @@ func (o BuildOptions) runnerBackend() RunnerBackend {
 	return defaultRunnerBackend{}
 }
 
-func innovateInstructionsFor(projectType project.Type) string {
-	if projectType == project.TypeDocs {
-		return innovateInstructionsDocs
-	}
-	return innovateInstructionsCode
+func innovateInstructionsFor(projectType project.Type) (string, error) {
+	return prompts.SpecsInnovateInstructions(projectType)
 }
 
-func scoutWorkflowTemplateFor(projectType project.Type) string {
-	if projectType == project.TypeDocs {
-		return scoutWorkflowTemplateDocs
-	}
-	return scoutWorkflowTemplateCode
+func scoutWorkflowTemplateFor(projectType project.Type) (string, error) {
+	return prompts.SpecsScoutWorkflowTemplate(projectType)
 }
 
-func scoutWorkflowInstructions(projectType project.Type, userFocus string) string {
+func scoutWorkflowInstructions(projectType project.Type, userFocus string) (string, error) {
+	template, err := scoutWorkflowTemplateFor(projectType)
+	if err != nil {
+		return "", err
+	}
 	focus := strings.TrimSpace(userFocus)
 	if focus == "" {
 		focus = "(none provided)"
 	}
-	return fmt.Sprintf(scoutWorkflowTemplateFor(projectType), focus)
+	if !strings.Contains(template, userFocusPlaceholder) {
+		return "", fmt.Errorf("scout workflow template missing %s placeholder", userFocusPlaceholder)
+	}
+	return strings.ReplaceAll(template, userFocusPlaceholder, focus), nil
 }
 
 // ResolvePromptTemplate returns the prompt template path, creating defaults when needed.
@@ -216,15 +150,35 @@ func FillPrompt(templatePath string, opts FillPromptOptions) (string, error) {
 		return "", err
 	}
 
+	interactiveInstructions := ""
+	if opts.Interactive {
+		interactiveInstructions, err = prompts.SpecsInteractiveInstructions()
+		if err != nil {
+			return "", err
+		}
+	}
 	prompt, err = replacePlaceholder(prompt, interactivePlaceholder, interactiveInstructions, opts.Interactive)
 	if err != nil {
 		return "", err
 	}
-	prompt, err = replacePlaceholder(prompt, innovatePlaceholder, innovateInstructionsFor(resolvedType), opts.Innovate)
+	innovateInstructions := ""
+	if opts.Innovate {
+		innovateInstructions, err = innovateInstructionsFor(resolvedType)
+		if err != nil {
+			return "", err
+		}
+	}
+	prompt, err = replacePlaceholder(prompt, innovatePlaceholder, innovateInstructions, opts.Innovate)
 	if err != nil {
 		return "", err
 	}
-	scoutInstructions := scoutWorkflowInstructions(resolvedType, opts.UserFocus)
+	scoutInstructions := ""
+	if opts.ScoutWorkflow {
+		scoutInstructions, err = scoutWorkflowInstructions(resolvedType, opts.UserFocus)
+		if err != nil {
+			return "", err
+		}
+	}
 	prompt, err = replacePlaceholder(prompt, scoutPlaceholder, scoutInstructions, opts.ScoutWorkflow)
 	if err != nil {
 		return "", err

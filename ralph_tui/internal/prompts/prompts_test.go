@@ -1,6 +1,8 @@
 package prompts
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -56,4 +58,80 @@ func TestDocsWorkerPromptMentionsDocsWorkflow(t *testing.T) {
 	if !strings.Contains(content, "cross-links") {
 		t.Fatalf("expected docs worker prompt to mention cross-links")
 	}
+}
+
+func TestEmbeddedDefaultsIncludeRequiredTemplates(t *testing.T) {
+	required := []string{
+		"defaults/prompt_codex.md",
+		"defaults/prompt_codex_docs.md",
+		"defaults/prompt_opencode.md",
+		"defaults/prompt_opencode_docs.md",
+		"defaults/supervisor_prompt.md",
+		"defaults/specs_bug_sweep_code.md",
+		"defaults/specs_bug_sweep_docs.md",
+		"defaults/pin_implementation_queue.md",
+		"defaults/pin_implementation_done.md",
+		"defaults/pin_lookup_table.md",
+		"defaults/pin_readme.md",
+		"defaults/pin_specs_builder.md",
+		"defaults/pin_specs_builder_docs.md",
+		"defaults/specs_interactive_instructions.md",
+		"defaults/specs_innovate_instructions_code.md",
+		"defaults/specs_innovate_instructions_docs.md",
+		"defaults/specs_scout_workflow_template_code.md",
+		"defaults/specs_scout_workflow_template_docs.md",
+	}
+
+	for _, path := range required {
+		if _, err := defaultPrompts.ReadFile(path); err != nil {
+			t.Fatalf("missing embedded default %q: %v", path, err)
+		}
+	}
+}
+
+func TestRepoPinTemplatesMatchEmbeddedDefaults(t *testing.T) {
+	cases := []struct {
+		name        string
+		embedded    string
+		repoRelPath []string
+	}{
+		{
+			name:        "specs_builder",
+			embedded:    pinSpecsBuilderCodePath,
+			repoRelPath: []string{".ralph", "pin", "specs_builder.md"},
+		},
+		{
+			name:        "specs_builder_docs",
+			embedded:    pinSpecsBuilderDocsPath,
+			repoRelPath: []string{".ralph", "pin", "specs_builder_docs.md"},
+		},
+		{
+			name:        "pin_readme",
+			embedded:    pinReadmePath,
+			repoRelPath: []string{".ralph", "pin", "README.md"},
+		},
+	}
+
+	for _, tc := range cases {
+		embeddedContent, err := readDefault(tc.embedded)
+		if err != nil {
+			t.Fatalf("failed to read embedded %s: %v", tc.name, err)
+		}
+		repoContent, err := readRepoFile(tc.repoRelPath...)
+		if err != nil {
+			t.Fatalf("failed to read repo %s: %v", tc.name, err)
+		}
+		if strings.TrimSpace(embeddedContent) != strings.TrimSpace(repoContent) {
+			t.Fatalf("repo %s does not match embedded template", tc.name)
+		}
+	}
+}
+
+func readRepoFile(parts ...string) (string, error) {
+	repoRoot := filepath.Join(append([]string{"..", "..", ".."}, parts...)...)
+	content, err := os.ReadFile(repoRoot)
+	if err != nil {
+		return "", err
+	}
+	return string(content), nil
 }

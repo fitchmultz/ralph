@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/mitchfultz/ralph/ralph_tui/internal/project"
+	"github.com/mitchfultz/ralph/ralph_tui/internal/prompts"
 )
 
 // EnsureSpecsTemplate ensures the project-specific specs template exists and returns its path.
@@ -41,8 +42,12 @@ func specsTemplateForProject(pinDir string, projectType project.Type) (string, s
 	if err != nil {
 		return "", "", fmt.Errorf("project_type must be code or docs")
 	}
-	if resolvedType == project.TypeDocs {
-		return filepath.Join(cleanPinDir, "specs_builder_docs.md"), defaultSpecsBuilderDocsContent, nil
+	content, err := prompts.PinSpecsBuilder(resolvedType)
+	if err != nil {
+		return "", "", err
 	}
-	return filepath.Join(cleanPinDir, "specs_builder.md"), defaultSpecsBuilderContent, nil
+	if resolvedType == project.TypeDocs {
+		return filepath.Join(cleanPinDir, "specs_builder_docs.md"), content, nil
+	}
+	return filepath.Join(cleanPinDir, "specs_builder.md"), content, nil
 }

@@ -1,6 +1,10 @@
 # Implementation Done
 
 ## Done
+- [x] RQ-0475 [code]: Deduplicate prompt/template sources to prevent drift (pin defaults vs embedded prompts vs .ralph templates). (ralph_tui/internal/pin/defaults.go, ralph_tui/internal/pin/templates.go, ralph_tui/internal/prompts/prompts.go, ralph_tui/internal/prompts/defaults/*, .ralph/pin/specs_builder.md, .ralph/pin/specs_builder_docs.md)
+  - Evidence: Prompt content is duplicated in multiple places: `.ralph/pin/specs_builder*.md`, embedded defaults in `internal/pin/defaults.go`, and embedded worker prompts in `internal/prompts/defaults/`. These copies are similar-but-not-identical, increasing drift and confusing users.
+  - Plan: Introduce canonical prompt "partials" and generate/compose templates from a single source of truth. Ensure pin init/template creation and embedded defaults reference the same canonical content; add a consistency check (and/or tests) to catch drift.
+
 - [x] RQ-0474 [docs]: Fix docs project prompting: shift from "docs bug sweep" to "docs iteration/completion"; make innovate/scout instructions project-type aware. (ralph_tui/internal/specs/specs.go, ralph_tui/internal/prompts/defaults/specs_bug_sweep_docs.md, ralph_tui/internal/prompts/defaults/prompt_codex_docs.md, ralph_tui/internal/prompts/defaults/prompt_opencode_docs.md, .ralph/pin/specs_builder_docs.md)
   - Evidence: The docs bug sweep entry focuses on "broken/outdated links" and similar hygiene (`specs_bug_sweep_docs.md`) but doesn’t explicitly drive documentation completion/iteration; `specs.go` uses a single `innovateInstructions` block that is explicitly code/bug-hunt oriented and is applied to docs projects too, contributing to "docs treated like code."
   - Plan: Redesign docs prompts to explicitly cover doc iteration: fleshing out placeholders, restructuring sections, reconciling terminology, adding examples, and validating navigation/links. Implement project-type-specific innovate instructions and (if needed) scout workflow variants; update both embedded defaults and `.ralph/pin` templates.

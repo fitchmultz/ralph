@@ -11,6 +11,7 @@ import (
 
 	"github.com/mitchfultz/ralph/ralph_tui/internal/fileutil"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/project"
+	"github.com/mitchfultz/ralph/ralph_tui/internal/prompts"
 )
 
 // InitOptions configures how pin initialization behaves.
@@ -52,28 +53,53 @@ func InitLayout(pinDir string, cacheDir string, opts InitOptions) (InitResult, e
 	}
 	defer lock.Release()
 
+	projectType, err := project.ResolveType(opts.ProjectType)
+	if err != nil {
+		return InitResult{}, fmt.Errorf("project_type must be code or docs")
+	}
+	queueContent, err := prompts.PinImplementationQueue()
+	if err != nil {
+		return InitResult{}, err
+	}
+	doneContent, err := prompts.PinImplementationDone()
+	if err != nil {
+		return InitResult{}, err
+	}
+	lookupContent, err := prompts.PinLookupTable()
+	if err != nil {
+		return InitResult{}, err
+	}
+	readmeContent, err := prompts.PinReadme()
+	if err != nil {
+		return InitResult{}, err
+	}
+	specsContent, err := prompts.PinSpecsBuilder(project.TypeCode)
+	if err != nil {
+		return InitResult{}, err
+	}
+
 	files := ResolveFiles(cleanPinDir)
 	entries := []struct {
 		path    string
 		content string
 	}{
-		{path: files.QueuePath, content: defaultQueueContent},
-		{path: files.DonePath, content: defaultDoneContent},
-		{path: files.LookupPath, content: defaultLookupContent},
-		{path: files.ReadmePath, content: defaultReadmeContent},
-		{path: files.SpecsPath, content: defaultSpecsBuilderContent},
+		{path: files.QueuePath, content: queueContent},
+		{path: files.DonePath, content: doneContent},
+		{path: files.LookupPath, content: lookupContent},
+		{path: files.ReadmePath, content: readmeContent},
+		{path: files.SpecsPath, content: specsContent},
 	}
 
-	projectType, err := project.ResolveType(opts.ProjectType)
-	if err != nil {
-		return InitResult{}, fmt.Errorf("project_type must be code or docs")
-	}
 	if projectType == project.TypeDocs {
+		docsContent, err := prompts.PinSpecsBuilder(project.TypeDocs)
+		if err != nil {
+			return InitResult{}, err
+		}
 		docsTemplate := filepath.Join(cleanPinDir, "specs_builder_docs.md")
 		entries = append(entries, struct {
 			path    string
 			content string
-		}{path: docsTemplate, content: defaultSpecsBuilderDocsContent})
+		}{path: docsTemplate, content: docsContent})
 	}
 
 	result := InitResult{
