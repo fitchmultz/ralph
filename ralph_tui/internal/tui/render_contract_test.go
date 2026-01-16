@@ -14,19 +14,7 @@ import (
 func TestRenderContract(t *testing.T) {
 	_, locs, cfg := newHermeticModel(t)
 
-	sizes := []struct {
-		w int
-		h int
-	}{
-		{w: 20, h: 8},
-		{w: 30, h: 10},
-		{w: 40, h: 10},
-		{w: 48, h: 12},
-		{w: 60, h: 20},
-		{w: 80, h: 24},
-		{w: 100, h: 40},
-		{w: 120, h: 50},
-	}
+	sizes := renderContractSizes()
 
 	screens := []screen{
 		screenDashboard,
@@ -67,15 +55,7 @@ func TestRenderContract(t *testing.T) {
 func TestDashboardRenderContractNarrowSizes(t *testing.T) {
 	_, locs, cfg := newHermeticModel(t)
 
-	sizes := []struct {
-		w int
-		h int
-	}{
-		{w: 12, h: 5},
-		{w: 15, h: 6},
-		{w: 18, h: 6},
-		{w: 20, h: 6},
-	}
+	sizes := dashboardNarrowSizes()
 
 	for _, size := range sizes {
 		for _, showAll := range []bool{false, true} {
@@ -101,14 +81,7 @@ func TestDashboardRenderContractNarrowSizes(t *testing.T) {
 func TestDashboardRepoPanelFitsNarrowSizes(t *testing.T) {
 	_, locs, cfg := newHermeticModel(t)
 
-	sizes := []struct {
-		w int
-		h int
-	}{
-		{w: 12, h: 5},
-		{w: 18, h: 6},
-		{w: 24, h: 8},
-	}
+	sizes := dashboardRepoPanelSizes()
 
 	for _, size := range sizes {
 		t.Run(fmt.Sprintf("repo-narrow-w%dxh%d", size.w, size.h), func(t *testing.T) {
@@ -154,16 +127,7 @@ func assertRenderFits(t *testing.T, m model, w, h int) {
 
 func TestBorderContract(t *testing.T) {
 	_, locs, cfg := newHermeticModel(t)
-	sizes := []struct {
-		w int
-		h int
-	}{
-		{w: 48, h: 12},
-		{w: 60, h: 20},
-		{w: 80, h: 24},
-		{w: 100, h: 40},
-		{w: 120, h: 50},
-	}
+	sizes := renderContractSizes()
 	screens := []screen{
 		screenDashboard,
 		screenRunLoop,

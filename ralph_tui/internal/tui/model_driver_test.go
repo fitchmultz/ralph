@@ -106,6 +106,16 @@ func (d *modelDriver) AssertViewWithinBounds() {
 	}
 }
 
+func (d *modelDriver) Snapshot(name string) {
+	d.t.Helper()
+	assertSnapshot(d.t, "scenarios", name, d.m.View())
+}
+
+func (d *modelDriver) AssertViewContains(lines ...string) {
+	d.t.Helper()
+	assertContainsLines(d.t, d.m.View(), lines...)
+}
+
 func TestModelDriver_NavigationResizeKeyFlows(t *testing.T) {
 	m, _, _ := newHermeticModel(t)
 	driver := newModelDriver(t, m)

@@ -1,6 +1,21 @@
 # Implementation Queue
 
 ## Queue
+- [ ] RQ-0498 [code]: Add unit tests for fileutil atomic writes. (ralph_tui/internal/fileutil/atomic.go)
+  - Evidence: Critical write/rename helper has no package-level tests; failures could corrupt pin/config files.
+  - Plan: Add `atomic_test.go` to cover successful atomic write, content preservation, permissions, and error behavior when the destination directory is missing.
+- [ ] RQ-0499 [code]: Add unit tests for paths resolution. (ralph_tui/internal/paths/paths.go)
+  - Evidence: Path resolution is core to repo/root discovery yet lacks direct tests; regressions could break startup in nested directories.
+  - Plan: Add `paths_test.go` to validate resolving from repo root, resolving from nested subdirectories, and error behavior when no `.ralph/` exists.
+- [ ] RQ-0500 [code]: Add unit tests for project type detection. (ralph_tui/internal/project/detect.go, ralph_tui/internal/project/type.go)
+  - Evidence: Heuristic type detection has no unit tests; incorrect detection picks the wrong prompt templates.
+  - Plan: Add `detect_test.go` to verify code-heavy repos resolve to `code`, docs-heavy repos resolve to `docs`, and ambiguous/empty cases follow defaults.
+- [ ] RQ-0501 [code]: Add unit tests for redaction classification. (ralph_tui/internal/redaction/redaction.go)
+  - Evidence: Redaction classification logic is not unit tested; a miss risks leaking secrets.
+  - Plan: Add `redaction_test.go` with sensitive key patterns (API_KEY, PASSWORD, token) and safe keys (PATH, HOME, SHELL) to validate classification.
+- [ ] RQ-0502 [code]: Add unit tests for procgroup signal handling. (ralph_tui/internal/procgroup/procgroup_unix.go, ralph_tui/internal/procgroup/procgroup_windows.go)
+  - Evidence: Process group handling is platform-specific and lacks regression tests; failures can leave orphaned processes.
+  - Plan: Add `procgroup_test.go` to verify process group creation and signal propagation with a small helper command; gate OS-specific behavior appropriately.
 - [ ] RQ-0493 [code]: Support an optional Notes metadata bullet in queue items. (ralph_tui/internal/pin/pin.go, ralph_tui/internal/pin/pin_test.go, ralph_tui/internal/pin/testdata/pin/implementation_queue.md)
   - Evidence: Queue validation currently only recognizes Evidence/Plan metadata; optional context needs are forced into Evidence/Plan or left out.
   - Plan: Extend metadata validation to allow a "- Notes:" bullet (optional); update fixtures and tests to cover items with and without Notes.
@@ -16,6 +31,7 @@
 - [ ] RQ-0497 [code]: Change default log path to PWD .ralph/logs/ralph.log. (ralph_tui/internal/config, ralph_tui/cmd/ralph/main.go)
   - Evidence: Current default log path needs to be updated to `.ralph/logs/ralph.log` to keep all ralph-related files under `.ralph/`.
   - Plan: Update default log path to `.ralph/logs/ralph.log` in configuration; ensure logs directory is created if needed; update any path references and tests.
+
 
 ## Blocked
 

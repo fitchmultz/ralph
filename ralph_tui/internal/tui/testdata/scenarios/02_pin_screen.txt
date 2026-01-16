@@ -1,0 +1,23 @@
+╭────────────────────────╮╭────────────────────────────────────────────────────╮
+│                        ││                                                    │
+│    Ralph               ││ Pin                                                │
+│                        ││ Loading pin... | Focus: table (ctrl+t)             │
+│   Dashboard            ││                                                    │
+│   Overview of Ralph a… ││  Status  ID  Title                                 │
+│                        ││                                                    │
+│   Run Loop             ││                                                    │
+│   Run loop controls    ││                                                    │
+│                        ││                                                    │
+│   Build Specs          ││                                                    │
+│   Specs builder        ││                                                    │
+│                        ││                                                    │
+│   Task Builder         ││                                                    │
+│   Queue task builder   ││                                                    │
+│                        ││                                                    │
+│ │ Pin                  ││                                                    │
+│ │ Pin manager          ││                                                    │
+│                        ││                                                    │
+│   ••                   ││                                                    │
+╰────────────────────────╯╰────────────────────────────────────────────────────╯
+
+ctrl+q quit • ctrl+n toggle nav • ctrl+f toggle focus • ctrl+h toggle help …

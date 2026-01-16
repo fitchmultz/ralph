@@ -1,0 +1,23 @@
+╭────────────────────────╮╭────────────────────────────────────────────────────╮
+│                        ││                                                    │
+│    Ralph               ││ Config (editing: Repo)                             │
+│                        ││ Save: ctrl+g global • ctrl+r repo • ctrl+d clear s │
+│ │ Dashboard            ││                                                    │
+│ │ Overview of Ralph a… ││   Layer                                            │
+│                        ││     Global                                         │
+│   Run Loop             ││   > Repo                                           │
+│   Run loop controls    ││     Session                                        │
+│                        ││                                                    │
+│   Build Specs          ││   Project Type                                     │
+│   Specs builder        ││   Source: default                                  │
+│                        ││   > code (default)                                 │
+│   •••                  ││                                                    │
+╰────────────────────────╯╰────────────────────────────────────────────────────╯
+
+ctrl+q quit            ctrl+g save global    
+ctrl+n toggle nav      ctrl+r save repo      
+ctrl+f toggle focus    ctrl+d discard session
+ctrl+h toggle help     ctrl+u reset field    
+ctrl+l refresh now     ctrl+o reset layer    
+ctrl+k search                                
+enter  open                                  

@@ -153,12 +153,16 @@ func (v *taskBuilderView) View() string {
 		formView = v.form.View()
 	}
 	preview := v.previewViewport.View()
+	previewContent := v.preview
 	body := header + "\n" + status
 	if formView != "" {
 		body += "\n\n" + formView
 	}
 	if preview != "" {
 		body += "\n\nQueue Preview\n" + preview
+	}
+	if preview == "" && previewContent != "" {
+		body += "\n\n[DEBUG: viewport blank but content not empty, len=" + fmt.Sprint(len(previewContent)) + "]"
 	}
 	return withFinalNewline(body)
 }

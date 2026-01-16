@@ -9,14 +9,19 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/config"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/paths"
+	"github.com/muesli/termenv"
 )
 
 func newHermeticModel(t *testing.T) (model, paths.Locations, config.Config) {
 	t.Helper()
 
 	repoRoot := t.TempDir()
+	t.Setenv("HOME", repoRoot)
+	t.Setenv("USERPROFILE", repoRoot)
 	pinDir := filepath.Join(repoRoot, ".ralph", "pin")
 	if err := os.MkdirAll(pinDir, 0o755); err != nil {
 		t.Fatalf("create pin dir: %v", err)
@@ -84,6 +89,95 @@ func mustReadFile(t *testing.T, path string) []byte {
 		t.Fatalf("read %s: %v", path, err)
 	}
 	return data
+}
+
+type terminalSize struct {
+	w int
+	h int
+}
+
+func renderContractSizes() []terminalSize {
+	return []terminalSize{
+		{w: 20, h: 8},
+		{w: 30, h: 10},
+		{w: 40, h: 10},
+		{w: 48, h: 12},
+		{w: 60, h: 20},
+		{w: 80, h: 24},
+		{w: 100, h: 40},
+		{w: 120, h: 50},
+	}
+}
+
+func dashboardNarrowSizes() []terminalSize {
+	return []terminalSize{
+		{w: 12, h: 5},
+		{w: 15, h: 6},
+		{w: 18, h: 6},
+		{w: 20, h: 6},
+	}
+}
+
+func dashboardRepoPanelSizes() []terminalSize {
+	return []terminalSize{
+		{w: 12, h: 5},
+		{w: 18, h: 6},
+		{w: 24, h: 8},
+	}
+}
+
+func withAsciiColorProfile(t *testing.T, fn func()) {
+	t.Helper()
+	previous := lipgloss.ColorProfile()
+	lipgloss.SetColorProfile(termenv.Ascii)
+	t.Cleanup(func() {
+		lipgloss.SetColorProfile(previous)
+	})
+	fn()
+}
+
+func normalizeRender(rendered string) string {
+	clean := ansi.Strip(rendered)
+	lines := strings.Split(strings.TrimRight(clean, "\n"), "\n")
+	for i, line := range lines {
+		if idx := strings.Index(line, "Log path: "); idx >= 0 {
+			tail := ""
+			if borderIdx := strings.LastIndex(line, "│"); borderIdx > idx {
+				tail = line[borderIdx:]
+			}
+			lines[i] = line[:idx] + "Log path: <log> " + tail
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+func assertSnapshot(t *testing.T, subDir string, name string, rendered string) {
+	t.Helper()
+	dir := filepath.Join("testdata", subDir)
+	path := filepath.Join(dir, name+".txt")
+	if os.Getenv("UPDATE_GOLDEN") != "" {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("create snapshot dir: %v", err)
+		}
+		if err := os.WriteFile(path, []byte(normalizeRender(rendered)), 0o644); err != nil {
+			t.Fatalf("write snapshot: %v", err)
+		}
+	}
+	want := string(mustReadFile(t, path))
+	got := normalizeRender(rendered)
+	if got != want {
+		t.Fatalf("snapshot mismatch for %s\n--- got ---\n%s\n--- want ---\n%s", path, got, want)
+	}
+}
+
+func assertContainsLines(t *testing.T, rendered string, lines ...string) {
+	t.Helper()
+	clean := normalizeRender(rendered)
+	for _, line := range lines {
+		if !strings.Contains(clean, line) {
+			t.Fatalf("expected to find %q in output:\n%s", line, clean)
+		}
+	}
 }
 
 func ensureGit(t *testing.T) {

@@ -1,0 +1,23 @@
+╭────────────────────────╮╭────────────────────────────────────────────────────╮
+│                        ││                                                    │
+│    Ralph               ││ Config (editing: Repo)                             │
+│                        ││ Save: ctrl+g global • ctrl+r repo • ctrl+d clear s │
+│ │ Dashboard            ││                                                    │
+│ │ Overview of Ralph a… ││   Layer                                            │
+│                        ││     Global                                         │
+│   Run Loop             ││   > Repo                                           │
+│   Run loop controls    ││     Session                                        │
+│                        ││                                                    │
+│   Build Specs          ││   Project Type                                     │
+│   Specs builder        ││   Source: default                                  │
+│                        ││   > code (default)                                 │
+│   Task Builder         ││     docs                                           │
+│   Queue task builder   ││                                                    │
+│                        ││   UI Theme                                         │
+│   Pin                  ││   Source: default                                  │
+│   Pin manager          ││   > classic                                        │
+│                        ││                                                    │
+│   ••                   ││                                                    │
+╰────────────────────────╯╰────────────────────────────────────────────────────╯
+
+ctrl+q quit • ctrl+n toggle nav • ctrl+f toggle focus • ctrl+h toggle help …
