@@ -48,7 +48,10 @@ func LoadFromLocations(opts LoadOptions) (Config, error) {
 	if repoRoot == "" {
 		repoRoot = opts.Locations.CWD
 	}
-	base = resolveConfigPaths(base, repoRoot, repoRoot)
+	base, err = resolveConfigPaths(base, repoRoot, repoRoot)
+	if err != nil {
+		return Config{}, err
+	}
 
 	merged := base
 
@@ -110,7 +113,8 @@ func ApplyPartial(base Config, partial PartialConfig, basePath string, repoRoot 
 }
 
 // ResolvePaths resolves relative paths in a base config using the supplied basePath and repoRoot.
-func ResolvePaths(cfg Config, basePath string, repoRoot string) Config {
+// Returns an error when resolution fails.
+func ResolvePaths(cfg Config, basePath string, repoRoot string) (Config, error) {
 	return resolveConfigPaths(cfg, basePath, repoRoot)
 }
 
@@ -172,7 +176,7 @@ func applyPartial(base Config, partial PartialConfig, basePath string, repoRoot 
 			if trimmed == "" {
 				base.Logging.File = ""
 			} else {
-				resolved, err := resolvePathWithRepo(basePath, repoRoot, trimmed)
+				resolved, err := resolvePathWithRepo("logging.file", basePath, repoRoot, trimmed)
 				if err != nil {
 					return base, err
 				}
@@ -185,21 +189,21 @@ func applyPartial(base Config, partial PartialConfig, basePath string, repoRoot 
 	}
 	if partial.Paths != nil {
 		if partial.Paths.DataDir != nil {
-			resolved, err := resolvePathWithRepo(basePath, repoRoot, *partial.Paths.DataDir)
+			resolved, err := resolvePathWithRepo("paths.data_dir", basePath, repoRoot, *partial.Paths.DataDir)
 			if err != nil {
 				return base, err
 			}
 			base.Paths.DataDir = resolved
 		}
 		if partial.Paths.CacheDir != nil {
-			resolved, err := resolvePathWithRepo(basePath, repoRoot, *partial.Paths.CacheDir)
+			resolved, err := resolvePathWithRepo("paths.cache_dir", basePath, repoRoot, *partial.Paths.CacheDir)
 			if err != nil {
 				return base, err
 			}
 			base.Paths.CacheDir = resolved
 		}
 		if partial.Paths.PinDir != nil {
-			resolved, err := resolvePathWithRepo(basePath, repoRoot, *partial.Paths.PinDir)
+			resolved, err := resolvePathWithRepo("paths.pin_dir", basePath, repoRoot, *partial.Paths.PinDir)
 			if err != nil {
 				return base, err
 			}
@@ -312,44 +316,55 @@ func stripDeprecatedConfigFields(data []byte) ([]byte, error) {
 	return cleaned, nil
 }
 
-func resolveConfigPaths(cfg Config, basePath string, repoRoot string) Config {
-	if resolved, err := resolvePathWithRepo(basePath, repoRoot, cfg.Paths.DataDir); err == nil {
-		cfg.Paths.DataDir = resolved
+func resolveConfigPaths(cfg Config, basePath string, repoRoot string) (Config, error) {
+	resolved, err := resolvePathWithRepo("paths.data_dir", basePath, repoRoot, cfg.Paths.DataDir)
+	if err != nil {
+		return cfg, err
 	}
-	if resolved, err := resolvePathWithRepo(basePath, repoRoot, cfg.Paths.CacheDir); err == nil {
-		cfg.Paths.CacheDir = resolved
+	cfg.Paths.DataDir = resolved
+
+	resolved, err = resolvePathWithRepo("paths.cache_dir", basePath, repoRoot, cfg.Paths.CacheDir)
+	if err != nil {
+		return cfg, err
 	}
-	if resolved, err := resolvePathWithRepo(basePath, repoRoot, cfg.Paths.PinDir); err == nil {
-		cfg.Paths.PinDir = resolved
+	cfg.Paths.CacheDir = resolved
+
+	resolved, err = resolvePathWithRepo("paths.pin_dir", basePath, repoRoot, cfg.Paths.PinDir)
+	if err != nil {
+		return cfg, err
 	}
+	cfg.Paths.PinDir = resolved
+
 	if strings.TrimSpace(cfg.Logging.File) != "" {
-		if resolved, err := resolvePathWithRepo(basePath, repoRoot, cfg.Logging.File); err == nil {
-			cfg.Logging.File = resolved
+		resolved, err = resolvePathWithRepo("logging.file", basePath, repoRoot, cfg.Logging.File)
+		if err != nil {
+			return cfg, err
 		}
+		cfg.Logging.File = resolved
 	}
 
-	return cfg
+	return cfg, nil
 }
 
-func resolvePathWithRepo(basePath string, repoRoot string, value string) (string, error) {
+func resolvePathWithRepo(field string, basePath string, repoRoot string, value string) (string, error) {
 	clean := strings.TrimSpace(value)
 	if clean == "" {
-		return "", fmt.Errorf("path cannot be empty")
+		return "", fmt.Errorf("resolve %s: path cannot be empty", field)
 	}
 	if strings.Contains(clean, "{repo}") {
-		repoName := strings.TrimSpace(filepath.Base(strings.TrimSpace(repoRoot)))
-		if repoName == "" || repoName == "." || repoName == string(filepath.Separator) {
-			repoName = strings.TrimSpace(filepath.Base(strings.TrimSpace(basePath)))
+		repoName := candidateRepoName(repoRoot)
+		if repoName == "" {
+			repoName = candidateRepoName(basePath)
 		}
-		if repoName == "" || repoName == "." {
-			return "", fmt.Errorf("path contains {repo} but repo root is unknown")
+		if repoName == "" {
+			return "", fmt.Errorf("resolve %s: unknown repo root", field)
 		}
 		clean = strings.ReplaceAll(clean, "{repo}", repoName)
 	}
 	if strings.HasPrefix(clean, "~") {
 		home, err := os.UserHomeDir()
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("resolve %s: %w", field, err)
 		}
 		if clean == "~" {
 			clean = home
@@ -364,4 +379,23 @@ func resolvePathWithRepo(basePath string, repoRoot string, value string) (string
 		return filepath.Clean(clean), nil
 	}
 	return filepath.Clean(filepath.Join(basePath, clean)), nil
+}
+
+func candidateRepoName(path string) string {
+	trimmed := strings.TrimSpace(path)
+	if trimmed == "" {
+		return ""
+	}
+	cleaned := filepath.Clean(trimmed)
+	if cleaned == "." || cleaned == string(filepath.Separator) {
+		return ""
+	}
+	base := filepath.Base(cleaned)
+	if base == "" || base == "." || base == string(filepath.Separator) {
+		return ""
+	}
+	if strings.HasSuffix(base, ":") && len(base) == 2 {
+		return ""
+	}
+	return base
 }

@@ -123,7 +123,10 @@ func TestLoggingFileResolvesRelative(t *testing.T) {
 	if err != nil {
 		t.Fatalf("default config: %v", err)
 	}
-	base = ResolvePaths(base, tmpDir, tmpDir)
+	base, err = ResolvePaths(base, tmpDir, tmpDir)
+	if err != nil {
+		t.Fatalf("ResolvePaths failed: %v", err)
+	}
 
 	partial := PartialConfig{
 		Logging: &LoggingPartial{File: stringPtr("logs/ralph_tui.log")},
@@ -158,11 +161,159 @@ func TestResolvePathsExpandsRepoToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("default config: %v", err)
 	}
-	cfg := ResolvePaths(base, repoRoot, repoRoot)
+	cfg, err := ResolvePaths(base, repoRoot, repoRoot)
+	if err != nil {
+		t.Fatalf("ResolvePaths failed: %v", err)
+	}
 
 	expected := filepath.Join(homeDir, ".ralph", "cache", filepath.Base(repoRoot))
 	if cfg.Paths.CacheDir != expected {
 		t.Fatalf("expected cache_dir %q, got %q", expected, cfg.Paths.CacheDir)
+	}
+}
+
+func TestResolvePathWithRepo_RepoTokenExpansion(t *testing.T) {
+	tmpDir := t.TempDir()
+	repoRoot := filepath.Join(tmpDir, "myrepo")
+	basePath := filepath.Join(tmpDir, "workdir")
+	relativeRoot := filepath.Join(tmpDir, "relative-root")
+
+	cases := []struct {
+		name       string
+		repoRoot   string
+		basePath   string
+		value      string
+		want       string
+		wantErrStr string
+	}{
+		{
+			name:     "uses repo root basename",
+			repoRoot: repoRoot,
+			basePath: repoRoot,
+			value:    "cache/{repo}",
+			want:     filepath.Join(repoRoot, "cache", filepath.Base(repoRoot)),
+		},
+		{
+			name:     "falls back to base path",
+			repoRoot: string(filepath.Separator),
+			basePath: basePath,
+			value:    "cache/{repo}",
+			want:     filepath.Join(basePath, "cache", filepath.Base(basePath)),
+		},
+		{
+			name:       "errors when repo root is unknown",
+			repoRoot:   string(filepath.Separator),
+			basePath:   ".",
+			value:      "cache/{repo}",
+			wantErrStr: "unknown repo root",
+		},
+		{
+			name:     "handles nested relative base path",
+			repoRoot: relativeRoot,
+			basePath: relativeRoot,
+			value:    "pin/{repo}",
+			want:     filepath.Join(relativeRoot, "pin", filepath.Base(relativeRoot)),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			resolved, err := resolvePathWithRepo("paths.cache_dir", tc.basePath, tc.repoRoot, tc.value)
+			if tc.wantErrStr != "" {
+				if err == nil {
+					t.Fatalf("expected error, got nil")
+				}
+				if !strings.Contains(err.Error(), tc.wantErrStr) {
+					t.Fatalf("expected error to contain %q, got %v", tc.wantErrStr, err)
+				}
+				if !strings.Contains(err.Error(), "resolve paths.cache_dir") {
+					t.Fatalf("expected error to include field context, got %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if resolved != tc.want {
+				t.Fatalf("expected %q, got %q", tc.want, resolved)
+			}
+		})
+	}
+}
+
+func TestSavePartial_RelativeRoot_RoundTripLoad(t *testing.T) {
+	tmpDir := t.TempDir()
+	repoRoot := filepath.Join(tmpDir, "repo")
+	homeDir := filepath.Join(tmpDir, "home")
+	cwd := filepath.Join(repoRoot, "work")
+
+	mustMkdirAll(t, filepath.Join(repoRoot, ".ralph"))
+	mustMkdirAll(t, cwd)
+	mustMkdirAll(t, homeDir)
+
+	t.Setenv("HOME", homeDir)
+	if runtime.GOOS == "windows" {
+		t.Setenv("USERPROFILE", homeDir)
+	}
+
+	inside := filepath.Join(repoRoot, "data")
+	outside := filepath.Join(tmpDir, "outside")
+	rootPath := repoRoot
+
+	partial := PartialConfig{
+		Paths: &PathsPartial{
+			DataDir:  &inside,
+			CacheDir: &outside,
+			PinDir:   &rootPath,
+		},
+	}
+
+	repoConfigPath := filepath.Join(repoRoot, ".ralph", "ralph.json")
+	if err := SavePartial(repoConfigPath, partial, SaveOptions{RelativeRoot: repoRoot}); err != nil {
+		t.Fatalf("SavePartial failed: %v", err)
+	}
+
+	data, err := os.ReadFile(repoConfigPath)
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	var saved PartialConfig
+	if err := json.Unmarshal(data, &saved); err != nil {
+		t.Fatalf("unmarshal config: %v", err)
+	}
+	if saved.Paths == nil {
+		t.Fatalf("expected saved paths config")
+	}
+	if saved.Paths.DataDir == nil || *saved.Paths.DataDir != filepath.Join("data") {
+		t.Fatalf("expected data_dir to be relative, got %#v", saved.Paths.DataDir)
+	}
+	if saved.Paths.CacheDir == nil || *saved.Paths.CacheDir != outside {
+		t.Fatalf("expected cache_dir to remain absolute, got %#v", saved.Paths.CacheDir)
+	}
+	if saved.Paths.PinDir == nil || *saved.Paths.PinDir != repoRoot {
+		t.Fatalf("expected pin_dir to remain absolute, got %#v", saved.Paths.PinDir)
+	}
+
+	cfg, err := LoadFromLocations(LoadOptions{
+		Locations: paths.Locations{
+			CWD:            cwd,
+			RepoRoot:       repoRoot,
+			RepoConfigPath: repoConfigPath,
+			HomeDir:        homeDir,
+		},
+	})
+	if err != nil {
+		t.Fatalf("LoadFromLocations failed: %v", err)
+	}
+
+	if cfg.Paths.DataDir != filepath.Join(repoRoot, "data") {
+		t.Fatalf("expected data_dir %q, got %q", filepath.Join(repoRoot, "data"), cfg.Paths.DataDir)
+	}
+	if cfg.Paths.CacheDir != outside {
+		t.Fatalf("expected cache_dir %q, got %q", outside, cfg.Paths.CacheDir)
+	}
+	if cfg.Paths.PinDir != repoRoot {
+		t.Fatalf("expected pin_dir %q, got %q", repoRoot, cfg.Paths.PinDir)
 	}
 }
 
@@ -268,7 +419,10 @@ func TestOnlyTagsValidation(t *testing.T) {
 		t.Fatalf("default config: %v", err)
 	}
 	tmpDir := t.TempDir()
-	base = ResolvePaths(base, tmpDir, tmpDir)
+	base, err = ResolvePaths(base, tmpDir, tmpDir)
+	if err != nil {
+		t.Fatalf("ResolvePaths failed: %v", err)
+	}
 	base.Loop.OnlyTags = "unknown"
 	err = base.Validate()
 	if err == nil {

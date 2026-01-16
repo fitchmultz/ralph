@@ -18,18 +18,19 @@ import (
 )
 
 type configEditor struct {
-	locations    paths.Locations
-	drafts       map[string]config.PartialConfig
-	layer        string
-	cliOverrides config.PartialConfig
-	data         configFormData
-	form         *huh.Form
-	saveError    string
-	saveNote     string
-	width        int
-	height       int
-	fieldDescs   map[string]func(string)
-	sources      config.FieldSources
+	locations       paths.Locations
+	drafts          map[string]config.PartialConfig
+	layer           string
+	cliOverrides    config.PartialConfig
+	data            configFormData
+	form            *huh.Form
+	saveError       string
+	resolutionError string
+	saveNote        string
+	width           int
+	height          int
+	fieldDescs      map[string]func(string)
+	sources         config.FieldSources
 }
 
 type configFormData struct {
@@ -241,6 +242,9 @@ func (e *configEditor) statusLine() string {
 	if e.saveError != "" {
 		return fmt.Sprintf("Error: %s", e.saveError)
 	}
+	if e.resolutionError != "" {
+		return fmt.Sprintf("Resolve error: %s", e.resolutionError)
+	}
 	if e.saveNote != "" {
 		return e.saveNote
 	}
@@ -433,8 +437,10 @@ func (e *configEditor) refreshFieldSources() {
 	}
 	sources, err := e.computeFieldSources()
 	if err != nil {
+		e.resolutionError = err.Error()
 		return
 	}
+	e.resolutionError = ""
 	e.sources = sources
 	for key, setter := range e.fieldDescs {
 		setter(fmt.Sprintf("Source: %s", e.sourceForKey(key)))
@@ -458,7 +464,10 @@ func (e *configEditor) layerConfigs() (config.Config, config.Config, config.Conf
 	if repoRoot == "" {
 		repoRoot = e.locations.CWD
 	}
-	defaults = config.ResolvePaths(defaults, repoRoot, repoRoot)
+	defaults, err = config.ResolvePaths(defaults, repoRoot, repoRoot)
+	if err != nil {
+		return config.Config{}, config.Config{}, config.Config{}, config.Config{}, config.Config{}, err
+	}
 
 	globalCfg, err := config.ApplyPartial(defaults, e.drafts[layerGlobal], e.locations.HomeDir, repoRoot)
 	if err != nil {
@@ -505,15 +514,17 @@ func (e *configEditor) layerConfigsForSources() (config.Config, config.Config, c
 	}
 
 	if partial, err := partialFromForm(e.data); err == nil {
-		if currentCfg, err := config.ApplyPartial(baseCfg, partial, basePath, repoRoot); err == nil {
-			switch e.layer {
-			case layerGlobal:
-				globalCfg = currentCfg
-			case layerRepo:
-				repoCfg = currentCfg
-			case layerSession:
-				sessionCfg = currentCfg
-			}
+		currentCfg, err := config.ApplyPartial(baseCfg, partial, basePath, repoRoot)
+		if err != nil {
+			return config.Config{}, config.Config{}, config.Config{}, config.Config{}, config.Config{}, err
+		}
+		switch e.layer {
+		case layerGlobal:
+			globalCfg = currentCfg
+		case layerRepo:
+			repoCfg = currentCfg
+		case layerSession:
+			sessionCfg = currentCfg
 		}
 	}
 

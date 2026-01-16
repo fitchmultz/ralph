@@ -50,7 +50,10 @@ func newHermeticModel(t *testing.T) (model, paths.Locations, config.Config) {
 	if err != nil {
 		t.Fatalf("default config: %v", err)
 	}
-	cfg := config.ResolvePaths(base, repoRoot, repoRoot)
+	cfg, err := config.ResolvePaths(base, repoRoot, repoRoot)
+	if err != nil {
+		t.Fatalf("ResolvePaths failed: %v", err)
+	}
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("validate config: %v", err)
 	}
