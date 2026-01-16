@@ -1,6 +1,9 @@
 # Implementation Done
 
 ## Done
+- [x] RQ-0501 [code]: Add unit tests for redaction classification. (ralph_tui/internal/redaction/redaction.go)
+  - Evidence: Redaction classification logic is not unit tested; a miss risks leaking secrets.
+  - Plan: Add `redaction_test.go` with sensitive key patterns (API_KEY, PASSWORD, token) and safe keys (PATH, HOME, SHELL) to validate classification.
 - [x] RQ-0500 [code]: Add unit tests for project type detection. (ralph_tui/internal/project/detect.go, ralph_tui/internal/project/type.go)
   - Evidence: Heuristic type detection has no unit tests; incorrect detection picks the wrong prompt templates.
   - Plan: Add `detect_test.go` to verify code-heavy repos resolve to `code`, docs-heavy repos resolve to `docs`, and ambiguous/empty cases follow defaults.
