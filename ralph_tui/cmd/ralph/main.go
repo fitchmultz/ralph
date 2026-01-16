@@ -1054,17 +1054,18 @@ func newPinMoveCheckedCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "move-checked",
 		Short:   "Move checked queue items into the done log",
-		Long:    "Move checked queue items from the Queue section into the Done log.",
-		Example: "  ralph pin move-checked\n  ralph pin move-checked --prepend",
+		Long:    "Move checked queue items from the Queue section into the Done log. Defaults to prepending new Done items.",
+		Example: "  ralph pin move-checked\n  ralph pin move-checked --append",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := loadConfig(cmd)
 			if err != nil {
 				return err
 			}
-			prepend, err := cmd.Flags().GetBool("prepend")
+			appendMode, err := cmd.Flags().GetBool("append")
 			if err != nil {
 				return err
 			}
+			prepend := !appendMode
 			files := pin.ResolveFiles(cfg.Paths.PinDir)
 			ids, err := pin.MoveCheckedToDone(files.QueuePath, files.DonePath, prepend)
 			if err != nil {
@@ -1078,7 +1079,7 @@ func newPinMoveCheckedCommand() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().Bool("prepend", false, "Insert moved items at the top of the Done section")
+	cmd.Flags().Bool("append", false, "Append moved items to the bottom of the Done section (legacy; default prepends)")
 	return cmd
 }
 

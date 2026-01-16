@@ -323,7 +323,8 @@ type BlockedItem struct {
 // ReadDoneSummary returns the Done section summary.
 //
 // LastID is the most recent done item, which is expected to be at the top
-// of the Done section (prepend semantics).
+// of the Done section (prepend semantics). Ralph defaults to prepending new
+// Done items in the CLI, TUI, and loop runner.
 func ReadDoneSummary(donePath string) (DoneSummary, error) {
 	lines, err := readLines(donePath)
 	if err != nil {

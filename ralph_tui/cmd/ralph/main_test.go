@@ -2,10 +2,12 @@
 package main
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
 
@@ -130,4 +132,41 @@ func TestParseOnlyTagsCLI_UnknownTag(t *testing.T) {
 	if !strings.Contains(err.Error(), "--only-tag has unsupported tag") {
 		t.Fatalf("unexpected error: %v", err)
 	}
+}
+
+func TestPinMoveCheckedFlagDefaults(t *testing.T) {
+	root := newRootCommand()
+	cmd, err := findCommand(root, "pin", "move-checked")
+	if err != nil {
+		t.Fatalf("locate move-checked: %v", err)
+	}
+
+	appendFlag := cmd.Flags().Lookup("append")
+	if appendFlag == nil {
+		t.Fatalf("expected append flag")
+	}
+	if appendFlag.DefValue != "false" {
+		t.Fatalf("expected append default false, got %q", appendFlag.DefValue)
+	}
+	if cmd.Flags().Lookup("prepend") != nil {
+		t.Fatalf("expected prepend flag removed")
+	}
+}
+
+func findCommand(root *cobra.Command, path ...string) (*cobra.Command, error) {
+	cmd := root
+	for _, name := range path {
+		found := false
+		for _, sub := range cmd.Commands() {
+			if sub.Name() == name {
+				cmd = sub
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, fmt.Errorf("command %q not found", name)
+		}
+	}
+	return cmd, nil
 }

@@ -460,6 +460,61 @@ func TestMoveCheckedToDoneFixtures(t *testing.T) {
 	}
 }
 
+func TestMoveCheckedToDonePrependUpdatesDoneSummary(t *testing.T) {
+	tmpDir := t.TempDir()
+	queuePath := filepath.Join(tmpDir, "implementation_queue.md")
+	donePath := filepath.Join(tmpDir, "implementation_done.md")
+
+	queueContent := strings.Join([]string{
+		"# Implementation Queue",
+		"",
+		"## Queue",
+		"- [x] RQ-0101 [code]: Move to done. (x)",
+		"  - Evidence: done",
+		"  - Plan: done",
+		"",
+		"## Blocked",
+		"",
+		"## Parking Lot",
+		"",
+	}, "\n")
+	doneContent := strings.Join([]string{
+		"# Implementation Done",
+		"",
+		"## Done",
+		"- [x] RQ-0001 [code]: Older done. (x)",
+		"  - Evidence: older",
+		"  - Plan: done",
+		"",
+	}, "\n")
+
+	if err := os.WriteFile(queuePath, []byte(queueContent), 0o600); err != nil {
+		t.Fatalf("write queue: %v", err)
+	}
+	if err := os.WriteFile(donePath, []byte(doneContent), 0o600); err != nil {
+		t.Fatalf("write done: %v", err)
+	}
+
+	ids, err := MoveCheckedToDone(queuePath, donePath, true)
+	if err != nil {
+		t.Fatalf("MoveCheckedToDone failed: %v", err)
+	}
+	if len(ids) != 1 || ids[0] != "RQ-0101" {
+		t.Fatalf("expected moved ID RQ-0101, got %#v", ids)
+	}
+
+	summary, err := ReadDoneSummary(donePath)
+	if err != nil {
+		t.Fatalf("ReadDoneSummary failed: %v", err)
+	}
+	if summary.Total != 2 {
+		t.Fatalf("expected 2 done items, got %d", summary.Total)
+	}
+	if summary.LastID != "RQ-0101" {
+		t.Fatalf("expected last done ID RQ-0101, got %q", summary.LastID)
+	}
+}
+
 func TestMoveCheckedToDoneMovesUppercaseX(t *testing.T) {
 	tmpDir := t.TempDir()
 	queuePath := filepath.Join(tmpDir, "implementation_queue.md")
