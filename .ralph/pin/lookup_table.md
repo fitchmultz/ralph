@@ -9,6 +9,8 @@
 | version | Build-time version metadata lives in `ralph_tui/internal/version/`. |
 | config | Config models and save/load logic for the Ralph TUI live in `ralph_tui/internal/config/`. |
 | tui | Ralph TUI layout, keybindings, and view behavior live in `ralph_tui/internal/tui/`. |
+| repo_status | Dashboard repo status sampling lives in `ralph_tui/internal/tui/repo_status.go`. |
+| logs_view | Log viewer formatting, filters, and tailing live in `ralph_tui/internal/tui/logs_view.go`. |
 | loop | Supervised loop runner, git helpers, and redaction live in `ralph_tui/internal/loop/`. |
 | lockfile | Directory-based lock helper shared across Ralph (`ralph_tui/internal/lockfile/`). |
 | fileutil | Atomic file write helpers shared across Ralph (`ralph_tui/internal/fileutil/`). |
