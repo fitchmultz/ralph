@@ -14,7 +14,7 @@ func TestNextQueueIDFromFixtures(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NextQueueID failed: %v", err)
 	}
-	if nextID != "RQ-0006" {
-		t.Fatalf("expected RQ-0006, got %s", nextID)
+	if nextID != "RQ-0007" {
+		t.Fatalf("expected RQ-0007, got %s", nextID)
 	}
 }

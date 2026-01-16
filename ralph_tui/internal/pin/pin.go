@@ -1139,7 +1139,7 @@ func validateQueueItemFormat(lines []string) error {
 
 	if bad {
 		return fmt.Errorf(
-			"Queue items in ## Queue must follow the required format (ID + routing tag(s) + scope + Evidence + Plan).\n\n%s",
+			"Queue items in ## Queue must follow the required format (ID + routing tag(s) + scope + Evidence + Plan + optional Notes).\n\n%s",
 			strings.Join(output, "\n"),
 		)
 	}
@@ -1149,6 +1149,7 @@ func validateQueueItemFormat(lines []string) error {
 type queueItemLineCheck struct {
 	Evidence bool
 	Plan     bool
+	Notes    bool
 	Errors   []string
 }
 
@@ -1171,6 +1172,9 @@ func validateQueueItemLines(lines []string) queueItemLineCheck {
 		}
 		if strings.HasPrefix(line, metadataIndent+"- Plan:") {
 			check.Plan = true
+		}
+		if strings.HasPrefix(line, metadataIndent+"- Notes:") {
+			check.Notes = true
 		}
 
 		if (strings.HasPrefix(trimmed, "- ") || strings.HasPrefix(trimmed, "-\t")) && indentLen < len(metadataIndent) {

@@ -404,8 +404,8 @@ func TestReadQueueSummaryFixtures(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadQueueSummary failed: %v", err)
 	}
-	if len(items) != 2 {
-		t.Fatalf("expected 2 queue items, got %d", len(items))
+	if len(items) != 3 {
+		t.Fatalf("expected 3 queue items, got %d", len(items))
 	}
 	if blocked != 1 {
 		t.Fatalf("expected 1 blocked item, got %d", blocked)
