@@ -954,8 +954,7 @@ func joinStatus(primary string, secondary string) string {
 }
 
 func trimTitle(header string) string {
-	trimmed := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(header, "- [ ]"), "- [x]"))
-	return trimmed
+	return pin.TrimCheckboxPrefix(header)
 }
 
 func (p *pinView) setTableColumns(width int) {

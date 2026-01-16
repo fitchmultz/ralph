@@ -16,9 +16,9 @@ import (
 )
 
 var (
-	tagPattern      = regexp.MustCompile(`\[(db|ui|code|ops|docs)\]`)
+	tagPattern      = regexp.MustCompile(`(?i)\[(db|ui|code|ops|docs)\]`)
 	scopePattern    = regexp.MustCompile(`\([^()]+\)\s*$`)
-	queueItemLine   = regexp.MustCompile(`^- \[[ x]\] `)
+	queueItemLine   = regexp.MustCompile(`^- \[[ xX]\] `)
 	supportedTags   = []string{"db", "ui", "code", "ops", "docs"}
 	supportedTagSet = map[string]struct{}{
 		"db":   {},
@@ -362,7 +362,7 @@ func ReadDoneItems(donePath string) ([]QueueItem, error) {
 			Header:  header,
 			Lines:   block,
 			ID:      extractID(header),
-			Checked: strings.HasPrefix(header, "- [x]"),
+			Checked: isHeaderChecked(header),
 		})
 	}
 
@@ -409,7 +409,7 @@ func ReadQueueSummary(queuePath string) ([]QueueItem, int, error) {
 				Header:  header,
 				Lines:   block,
 				ID:      extractID(header),
-				Checked: strings.HasPrefix(header, "- [x]"),
+				Checked: isHeaderChecked(header),
 			})
 			continue
 		}
@@ -502,7 +502,7 @@ func MoveCheckedToDone(queuePath string, donePath string, prepend bool) ([]strin
 			newQueue = append(newQueue, block...)
 			continue
 		}
-		if inQueue && strings.HasPrefix(header, "- [x]") {
+		if inQueue && isHeaderChecked(header) {
 			moved = append(moved, block)
 			if match := queueid.Extract(header); match != "" {
 				ids = append(ids, match)
@@ -862,7 +862,7 @@ func ToggleQueueItemChecked(queuePath string, itemID string) (bool, bool, error)
 			header = toggleCheckHeader(header)
 			block[0] = header
 			updated = true
-			checked = strings.HasPrefix(header, "- [x]")
+			checked = isHeaderChecked(header)
 		}
 		newBlocks = append(newBlocks, block)
 	}
@@ -879,15 +879,49 @@ func ToggleQueueItemChecked(queuePath string, itemID string) (bool, bool, error)
 	return true, checked, nil
 }
 
-func toggleCheckHeader(header string) string {
+func parseCheckboxHeader(header string) (indent string, tail string, checked bool, ok bool) {
 	trimmed := strings.TrimLeft(header, " \t")
-	if strings.HasPrefix(trimmed, "- [x]") {
-		return strings.Replace(header, "- [x]", "- [ ]", 1)
+	indent = header[:len(header)-len(trimmed)]
+	if !strings.HasPrefix(trimmed, "- [") {
+		return "", "", false, false
 	}
-	if strings.HasPrefix(trimmed, "- [ ]") {
-		return strings.Replace(header, "- [ ]", "- [x]", 1)
+	rest := strings.TrimPrefix(trimmed, "- [")
+	closeIdx := strings.Index(rest, "]")
+	if closeIdx == -1 {
+		return "", "", false, false
 	}
-	return header
+	checkbox := rest[:closeIdx]
+	normalized := strings.TrimSpace(checkbox)
+	if normalized != "" && !strings.EqualFold(normalized, "x") {
+		return "", "", false, false
+	}
+	tail = rest[closeIdx+1:]
+	return indent, tail, strings.EqualFold(normalized, "x"), true
+}
+
+func isHeaderChecked(header string) bool {
+	_, _, checked, ok := parseCheckboxHeader(header)
+	return ok && checked
+}
+
+// TrimCheckboxPrefix removes the leading checkbox marker from a queue header.
+func TrimCheckboxPrefix(header string) string {
+	_, tail, _, ok := parseCheckboxHeader(header)
+	if !ok {
+		return strings.TrimSpace(header)
+	}
+	return strings.TrimSpace(tail)
+}
+
+func toggleCheckHeader(header string) string {
+	indent, tail, checked, ok := parseCheckboxHeader(header)
+	if !ok {
+		return header
+	}
+	if checked {
+		return indent + "- [ ]" + tail
+	}
+	return indent + "- [x]" + tail
 }
 
 func appendMetadata(block []string, reasonLines []string, metadata Metadata) []string {
@@ -1403,17 +1437,11 @@ func stripFixupMetadata(block []string) ([]string, bool) {
 }
 
 func setHeaderUnchecked(header string) string {
-	trimmed := strings.TrimLeft(header, " \t")
-	if strings.HasPrefix(trimmed, "- [x]") {
-		return strings.Replace(header, "- [x]", "- [ ]", 1)
-	}
-	if strings.HasPrefix(trimmed, "- [ ]") {
+	indent, tail, _, ok := parseCheckboxHeader(header)
+	if !ok {
 		return header
 	}
-	if strings.HasPrefix(trimmed, "- [") {
-		return strings.Replace(header, "- [", "- [ ]", 1)
-	}
-	return header
+	return indent + "- [ ]" + tail
 }
 
 func readLines(path string) ([]string, error) {

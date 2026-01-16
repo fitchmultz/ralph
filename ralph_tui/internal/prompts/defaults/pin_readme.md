@@ -27,6 +27,9 @@ Queue items require `Evidence` and `Plan` bullets. You may add extra metadata af
 indented notes/links or an indented YAML block. Keep extra metadata indented by two spaces so it stays
 inside the queue item block.
 
+Routing tags are case-insensitive (for example, `[UI]` and `[ui]` are equivalent). Queue checkboxes
+accept both `[x]` and `[X]` as checked markers.
+
 Example:
 
   - [ ] RQ-1234 [code]: Add richer queue metadata support. (ralph_tui/internal/pin/pin.go)

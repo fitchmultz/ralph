@@ -1,9 +1,6 @@
 # Implementation Queue
 
 ## Queue
-- [ ] RQ-0485 [code]: Make pin tag parsing and checkbox matching case-insensitive. (ralph_tui/internal/pin/pin.go, ralph_tui/internal/loop/queue.go)
-  - Evidence: tagPattern only matches lowercase tags, so headers like [UI] are ignored and --only-tag filtering fails; queueItemLine only matches "- [x]" so uppercase "- [X]" items are skipped by validation and MoveCheckedToDone.
-  - Plan: Use case-insensitive tag parsing and allow [X] in queue item detection; normalize tags/checked state consistently; add tests.
 - [ ] RQ-0486 [code]: Let specs --print-prompt run without runner binaries. (ralph_tui/internal/specs/specs.go)
   - Evidence: Build verifies the runner and acquires a lock before checking PrintPrompt, so `ralph specs build --print-prompt` fails if codex/opencode is missing and takes a lock unnecessarily.
   - Plan: Short-circuit runner verification and lock acquisition when PrintPrompt is true; add tests.

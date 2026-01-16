@@ -115,8 +115,51 @@ func TestValidatePinRejectsUnsafeMetadataLines(t *testing.T) {
 	}
 }
 
+func TestValidatePinAcceptsUppercaseTags(t *testing.T) {
+	fixture := mustLocateFixtures(t)
+
+	tmpDir := t.TempDir()
+	queuePath := copyFixture(t, fixture.queue, filepath.Join(tmpDir, "implementation_queue.md"))
+	donePath := copyFixture(t, fixture.done, filepath.Join(tmpDir, "implementation_done.md"))
+	lookupPath := copyFixture(t, fixture.lookup, filepath.Join(tmpDir, "lookup_table.md"))
+	readmePath := copyFixture(t, fixture.readme, filepath.Join(tmpDir, "README.md"))
+
+	data, err := os.ReadFile(queuePath)
+	if err != nil {
+		t.Fatalf("read queue: %v", err)
+	}
+
+	updated := strings.Replace(string(data), "[code]", "[CODE]", 1)
+	if updated == string(data) {
+		t.Fatalf("failed to uppercase routing tag in fixture")
+	}
+	if err := os.WriteFile(queuePath, []byte(updated), 0o600); err != nil {
+		t.Fatalf("write queue: %v", err)
+	}
+
+	if err := ValidatePin(Files{
+		QueuePath:  queuePath,
+		DonePath:   donePath,
+		LookupPath: lookupPath,
+		ReadmePath: readmePath,
+	}); err != nil {
+		t.Fatalf("ValidatePin failed with uppercase tags: %v", err)
+	}
+}
+
 func TestExtractTags(t *testing.T) {
 	header := "- [ ] RQ-0001 [code] [ui]: Example"
+	tags := ExtractTags(header)
+	if len(tags) != 2 {
+		t.Fatalf("expected 2 tags, got %#v", tags)
+	}
+	if tags[0] != "code" || tags[1] != "ui" {
+		t.Fatalf("unexpected tags: %#v", tags)
+	}
+}
+
+func TestExtractTagsCaseInsensitive(t *testing.T) {
+	header := "- [ ] RQ-0001 [CODE] [Ui]: Example"
 	tags := ExtractTags(header)
 	if len(tags) != 2 {
 		t.Fatalf("expected 2 tags, got %#v", tags)
@@ -197,6 +240,36 @@ func TestReadQueueSummaryFixtures(t *testing.T) {
 	}
 	if blocked != 1 {
 		t.Fatalf("expected 1 blocked item, got %d", blocked)
+	}
+}
+
+func TestReadQueueItemsRecognizesUppercaseXAsChecked(t *testing.T) {
+	tmpDir := t.TempDir()
+	queuePath := filepath.Join(tmpDir, "implementation_queue.md")
+	content := strings.Join([]string{
+		"## Queue",
+		"- [X] RQ-0001 [code]: Uppercase check. (x)",
+		"  - Evidence: uppercase checkbox should parse.",
+		"  - Plan: ensure parser recognizes [X].",
+		"",
+		"## Blocked",
+		"",
+		"## Parking Lot",
+		"",
+	}, "\n")
+	if err := os.WriteFile(queuePath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write queue: %v", err)
+	}
+
+	items, err := ReadQueueItems(queuePath)
+	if err != nil {
+		t.Fatalf("ReadQueueItems failed: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected 1 queue item, got %d", len(items))
+	}
+	if !items[0].Checked {
+		t.Fatalf("expected uppercase [X] to be checked")
 	}
 }
 
@@ -305,6 +378,57 @@ func TestMoveCheckedToDoneFixtures(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestMoveCheckedToDoneMovesUppercaseX(t *testing.T) {
+	tmpDir := t.TempDir()
+	queuePath := filepath.Join(tmpDir, "implementation_queue.md")
+	donePath := filepath.Join(tmpDir, "implementation_done.md")
+
+	queueContent := strings.Join([]string{
+		"## Queue",
+		"- [X] RQ-0100 [code]: Move uppercase checkbox. (x)",
+		"  - Evidence: uppercase checkbox should move.",
+		"  - Plan: verify MoveCheckedToDone handles [X].",
+		"",
+		"## Blocked",
+		"",
+		"## Parking Lot",
+		"",
+	}, "\n")
+	if err := os.WriteFile(queuePath, []byte(queueContent), 0o600); err != nil {
+		t.Fatalf("write queue: %v", err)
+	}
+	if err := os.WriteFile(donePath, []byte("## Done\n"), 0o600); err != nil {
+		t.Fatalf("write done: %v", err)
+	}
+
+	ids, err := MoveCheckedToDone(queuePath, donePath, true)
+	if err != nil {
+		t.Fatalf("MoveCheckedToDone failed: %v", err)
+	}
+	if len(ids) != 1 || ids[0] != "RQ-0100" {
+		t.Fatalf("expected moved ID RQ-0100, got %#v", ids)
+	}
+
+	queueLines := readFileLines(t, queuePath)
+	for _, line := range queueLines {
+		if strings.Contains(line, "RQ-0100") {
+			t.Fatalf("expected queue item removed, found %q", line)
+		}
+	}
+
+	doneLines := readFileLines(t, donePath)
+	found := false
+	for _, line := range doneLines {
+		if strings.Contains(line, "RQ-0100") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected done item to be inserted")
 	}
 }
 
@@ -418,6 +542,44 @@ func TestToggleQueueItemChecked(t *testing.T) {
 	}
 	if checked {
 		t.Fatalf("expected item to be unchecked after second toggle")
+	}
+}
+
+func TestToggleQueueItemCheckedHandlesUppercaseX(t *testing.T) {
+	tmpDir := t.TempDir()
+	queuePath := filepath.Join(tmpDir, "implementation_queue.md")
+	content := strings.Join([]string{
+		"## Queue",
+		"- [X] RQ-0200 [code]: Toggle uppercase checkbox. (x)",
+		"  - Evidence: uppercase checkbox should toggle.",
+		"  - Plan: ensure toggle normalizes to unchecked.",
+		"",
+		"## Blocked",
+		"",
+		"## Parking Lot",
+		"",
+	}, "\n")
+	if err := os.WriteFile(queuePath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write queue: %v", err)
+	}
+
+	ok, checked, err := ToggleQueueItemChecked(queuePath, "RQ-0200")
+	if err != nil {
+		t.Fatalf("ToggleQueueItemChecked failed: %v", err)
+	}
+	if !ok {
+		t.Fatalf("expected toggle to succeed")
+	}
+	if checked {
+		t.Fatalf("expected item to be unchecked after toggle")
+	}
+
+	lines := readFileLines(t, queuePath)
+	if len(lines) < 2 || !strings.HasPrefix(lines[1], "- [ ]") {
+		if len(lines) < 2 {
+			t.Fatalf("expected queue header to exist after toggle")
+		}
+		t.Fatalf("expected header to be unchecked, got %q", lines[1])
 	}
 }
 
