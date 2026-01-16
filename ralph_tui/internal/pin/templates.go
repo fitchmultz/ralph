@@ -37,14 +37,11 @@ func specsTemplateForProject(pinDir string, projectType project.Type) (string, s
 	if cleanPinDir == "" {
 		return "", "", fmt.Errorf("pin directory is required")
 	}
-	normalized := project.NormalizeType(string(projectType))
-	if normalized == "" {
-		normalized = project.DefaultType()
-	}
-	if !project.ValidType(normalized) {
+	resolvedType, err := project.ResolveType(projectType)
+	if err != nil {
 		return "", "", fmt.Errorf("project_type must be code or docs")
 	}
-	if normalized == project.TypeDocs {
+	if resolvedType == project.TypeDocs {
 		return filepath.Join(cleanPinDir, "specs_builder_docs.md"), defaultSpecsBuilderDocsContent, nil
 	}
 	return filepath.Join(cleanPinDir, "specs_builder.md"), defaultSpecsBuilderContent, nil

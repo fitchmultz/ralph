@@ -37,10 +37,11 @@ You are an autonomous engineer working in this repo.
 - Prefer central shared helpers when logic repeats.
 - Validate with tests/data checks; CI is necessary but not sufficient.
 
-## DOCS WORKFLOW
-- Treat this repository as documentation-first: prioritize prose clarity, navigation, and consistency.
-- Perform link checks when relevant; fix or update broken links and references.
-- Produce research synthesis by reconciling related docs into concise, accurate summaries.
+## DOCS ITERATION / COMPLETION WORKFLOW
+- Treat this repository as documentation-first: drive toward complete, coherent, and navigable docs.
+- Replace placeholders and thin sections with concrete guidance, examples, and step-by-step workflows.
+- Reconcile terminology and naming across docs; fix inconsistencies and stale references.
+- Validate navigation and cross-links; close dead ends and add missing cross-references.
 - Avoid code changes unless the documentation goal depends on them.
 
 1. Pick the highest-priority unchecked item in the `## Queue` section of `.ralph/pin/implementation_queue.md` (Queue is the only executable section). Each queue item must start with an ID like `RQ-0123:`.

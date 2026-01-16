@@ -64,11 +64,8 @@ func InitLayout(pinDir string, cacheDir string, opts InitOptions) (InitResult, e
 		{path: files.SpecsPath, content: defaultSpecsBuilderContent},
 	}
 
-	projectType := project.NormalizeType(string(opts.ProjectType))
-	if projectType == "" {
-		projectType = project.DefaultType()
-	}
-	if !project.ValidType(projectType) {
+	projectType, err := project.ResolveType(opts.ProjectType)
+	if err != nil {
 		return InitResult{}, fmt.Errorf("project_type must be code or docs")
 	}
 	if projectType == project.TypeDocs {

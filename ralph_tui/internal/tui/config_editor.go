@@ -995,11 +995,8 @@ func partialFromForm(data configFormData) (config.PartialConfig, error) {
 	if err != nil {
 		return config.PartialConfig{}, err
 	}
-	projectType := project.NormalizeType(data.ProjectType)
-	if projectType == "" {
-		projectType = project.DefaultType()
-	}
-	if !project.ValidType(projectType) {
+	projectType, err := project.ResolveType(project.Type(data.ProjectType))
+	if err != nil {
 		return config.PartialConfig{}, fmt.Errorf("project_type must be code or docs")
 	}
 	logLevel := strings.ToLower(strings.TrimSpace(data.LogLevel))

@@ -1,10 +1,6 @@
 package prompts
 
-import (
-	"fmt"
-
-	"github.com/mitchfultz/ralph/ralph_tui/internal/project"
-)
+import "github.com/mitchfultz/ralph/ralph_tui/internal/project"
 
 const (
 	bugSweepCodePath = "defaults/specs_bug_sweep_code.md"
@@ -13,16 +9,13 @@ const (
 
 // BugSweepEntry returns the default bug-sweep prompt entry for a project type.
 func BugSweepEntry(projectType project.Type) (string, error) {
-	normalized := project.NormalizeType(string(projectType))
-	if normalized == "" {
-		normalized = project.DefaultType()
-	}
-	if !project.ValidType(normalized) {
-		return "", fmt.Errorf("unsupported project type: %s", projectType)
+	resolved, err := project.ResolveType(projectType)
+	if err != nil {
+		return "", err
 	}
 
 	filename := bugSweepCodePath
-	if normalized == project.TypeDocs {
+	if resolved == project.TypeDocs {
 		filename = bugSweepDocsPath
 	}
 	content, err := defaultPrompts.ReadFile(filename)

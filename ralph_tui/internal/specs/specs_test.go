@@ -79,12 +79,23 @@ func TestFillPromptMissingScoutPlaceholderErrors(t *testing.T) {
 
 func TestFillPromptBugSweepEntryReplacement(t *testing.T) {
 	cases := []struct {
-		name        string
-		projectType project.Type
-		expectType  string
+		name         string
+		projectType  project.Type
+		expectType   string
+		expectHeader string
 	}{
-		{name: "code", projectType: project.TypeCode, expectType: "PROJECT TYPE: CODE"},
-		{name: "docs", projectType: project.TypeDocs, expectType: "PROJECT TYPE: DOCS"},
+		{
+			name:         "code",
+			projectType:  project.TypeCode,
+			expectType:   "PROJECT TYPE: CODE",
+			expectHeader: "BUG SWEEP PROMPT ENTRY",
+		},
+		{
+			name:         "docs",
+			projectType:  project.TypeDocs,
+			expectType:   "PROJECT TYPE: DOCS",
+			expectHeader: "DOCS ITERATION / COMPLETION PROMPT ENTRY",
+		},
 	}
 
 	for _, testCase := range cases {
@@ -105,11 +116,60 @@ func TestFillPromptBugSweepEntryReplacement(t *testing.T) {
 			if strings.Contains(prompt, bugSweepPlaceholder) {
 				t.Fatalf("expected bug sweep placeholder to be replaced")
 			}
-			if !strings.Contains(prompt, "BUG SWEEP PROMPT ENTRY") {
-				t.Fatalf("expected bug sweep entry to be inserted")
+			if !strings.Contains(prompt, testCase.expectHeader) {
+				t.Fatalf("expected bug sweep entry header %q", testCase.expectHeader)
 			}
 			if !strings.Contains(prompt, testCase.expectType) {
 				t.Fatalf("expected project type marker %q", testCase.expectType)
+			}
+		})
+	}
+}
+
+func TestFillPromptProjectTypeInstructions(t *testing.T) {
+	cases := []struct {
+		name                string
+		projectType         project.Type
+		expectInnovateToken string
+		expectScoutToken    string
+	}{
+		{
+			name:                "code",
+			projectType:         project.TypeCode,
+			expectInnovateToken: "BUG-HUNT",
+			expectScoutToken:    "focused bug hunt",
+		},
+		{
+			name:                "docs",
+			projectType:         project.TypeDocs,
+			expectInnovateToken: "DOCS ITERATION/COMPLETION",
+			expectScoutToken:    "docs iteration/completion sweep",
+		},
+	}
+
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			path := filepath.Join(tmpDir, "specs_builder.md")
+			content := "AGENTS.md\n" + innovatePlaceholder + "\n" + scoutPlaceholder
+			if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+				t.Fatalf("write template: %v", err)
+			}
+
+			prompt, err := FillPrompt(path, FillPromptOptions{
+				ProjectType:   testCase.projectType,
+				Innovate:      true,
+				ScoutWorkflow: true,
+				UserFocus:     "Docs focus",
+			})
+			if err != nil {
+				t.Fatalf("FillPrompt failed: %v", err)
+			}
+			if !strings.Contains(prompt, testCase.expectInnovateToken) {
+				t.Fatalf("expected innovate marker %q", testCase.expectInnovateToken)
+			}
+			if !strings.Contains(prompt, testCase.expectScoutToken) {
+				t.Fatalf("expected scout marker %q", testCase.expectScoutToken)
 			}
 		})
 	}

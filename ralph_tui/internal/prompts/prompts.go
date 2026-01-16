@@ -20,15 +20,12 @@ var defaultPrompts embed.FS
 
 // WorkerPrompt returns the default worker prompt content for a runner and project type.
 func WorkerPrompt(runner Runner, projectType project.Type) (string, error) {
-	normalized := project.NormalizeType(string(projectType))
-	if normalized == "" {
-		normalized = project.DefaultType()
-	}
-	if !project.ValidType(normalized) {
-		return "", fmt.Errorf("unsupported project type: %s", projectType)
+	resolvedType, err := project.ResolveType(projectType)
+	if err != nil {
+		return "", err
 	}
 
-	filename, err := workerPromptFilename(runner, normalized)
+	filename, err := workerPromptFilename(runner, resolvedType)
 	if err != nil {
 		return "", err
 	}
@@ -42,12 +39,9 @@ func WorkerPrompt(runner Runner, projectType project.Type) (string, error) {
 
 // SupervisorPrompt returns the default supervisor prompt content for a project type.
 func SupervisorPrompt(projectType project.Type) (string, error) {
-	normalized := project.NormalizeType(string(projectType))
-	if normalized == "" {
-		normalized = project.DefaultType()
-	}
-	if !project.ValidType(normalized) {
-		return "", fmt.Errorf("unsupported project type: %s", projectType)
+	_, err := project.ResolveType(projectType)
+	if err != nil {
+		return "", err
 	}
 
 	content, err := defaultPrompts.ReadFile("defaults/supervisor_prompt.md")

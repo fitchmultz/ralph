@@ -1,7 +1,10 @@
 // Package project defines Ralph project types and normalization helpers.
 package project
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 // Type describes the repo focus that drives prompt defaults.
 type Type string
@@ -35,4 +38,16 @@ func ValidType(value Type) bool {
 // AllowedTypes returns the supported project type values.
 func AllowedTypes() []Type {
 	return []Type{TypeCode, TypeDocs}
+}
+
+// ResolveType normalizes, defaults, and validates a project type.
+func ResolveType(value Type) (Type, error) {
+	normalized := NormalizeType(string(value))
+	if normalized == "" {
+		normalized = DefaultType()
+	}
+	if !ValidType(normalized) {
+		return "", fmt.Errorf("unsupported project type: %s", value)
+	}
+	return normalized, nil
 }

@@ -10,8 +10,10 @@ You are the Ralph specs builder for this repository (documentation-focused).
 # INSTRUCTIONS
 {{BUG_SWEEP_ENTRY}}
 
-- The documentation is riddled with issues and the user experience is poor. There are at least 20 doc problems present that need identified and squashed. Identify 15+ (no upper limit) issues/flaws/etc, and batch the findings into remediation tasks.
-- Some items to look for: broken/obsolete links, outdated or missing references, unclear sections, missing cross-links, inconsistent terminology, weak navigation, or gaps in doc workflows. This list is not comprehensive.
+- Treat this as a documentation iteration/completion pass: replace placeholders, fill thin sections, and align docs with actual workflows.
+- Identify 15+ (no upper limit) concrete doc gaps and batch the findings into remediation tasks.
+- Prioritize clarity, navigation, and consistency; add missing examples and cross-links where they improve flow.
+- Validate links and references; fix or update anything stale.
 - If code changes are required to support docs workflows, include them only when the documentation goal depends on it.
 - When you have your batches of tasks, add them to the `.ralph/pin/implementation_queue.md` queue file according to the required spec queue formatting. Each task in the queue (each batch of findings) will be executed sequentially by an agent. Feel free to innovate, refactor, redo things, reorganize, etc. Do NOT be afraid of large scale changes if they are required to move the docs in the correct direction.
 - Add the highest priority items to the top of the task queue.

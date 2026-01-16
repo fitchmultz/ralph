@@ -47,13 +47,13 @@ func TestDocsWorkerPromptMentionsDocsWorkflow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to load docs worker prompt: %v", err)
 	}
-	if !strings.Contains(content, "DOCS WORKFLOW") {
-		t.Fatalf("expected docs worker prompt to mention docs workflow")
+	if !strings.Contains(content, "DOCS ITERATION / COMPLETION WORKFLOW") {
+		t.Fatalf("expected docs worker prompt to mention docs iteration workflow")
 	}
-	if !strings.Contains(content, "link checks") {
-		t.Fatalf("expected docs worker prompt to mention link checks")
+	if !strings.Contains(content, "placeholders") {
+		t.Fatalf("expected docs worker prompt to mention placeholders")
 	}
-	if !strings.Contains(content, "research synthesis") {
-		t.Fatalf("expected docs worker prompt to mention research synthesis")
+	if !strings.Contains(content, "cross-links") {
+		t.Fatalf("expected docs worker prompt to mention cross-links")
 	}
 }

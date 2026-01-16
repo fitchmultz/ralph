@@ -96,13 +96,11 @@ func NewRunner(opts Options) (*Runner, error) {
 	if opts.PinDir == "" {
 		return nil, fmt.Errorf("pin dir required")
 	}
-	if strings.TrimSpace(string(opts.ProjectType)) == "" {
-		opts.ProjectType = project.DefaultType()
-	}
-	opts.ProjectType = project.NormalizeType(string(opts.ProjectType))
-	if !project.ValidType(opts.ProjectType) {
+	resolvedProjectType, err := project.ResolveType(opts.ProjectType)
+	if err != nil {
 		return nil, fmt.Errorf("project_type must be code or docs")
 	}
+	opts.ProjectType = resolvedProjectType
 	if opts.DirtyRepoStart == "" {
 		opts.DirtyRepoStart = DirtyRepoPolicyError
 	}
