@@ -1,9 +1,6 @@
 # Implementation Queue
 
 ## Queue
-- [ ] RQ-0487 [ui]: Bound specs preview renderer cache growth. (ralph_tui/internal/tui/specs_view.go)
-  - Evidence: previewRenderers caches a renderer per width with no eviction; repeated resizes accumulate renderers and memory.
-  - Plan: Add an LRU/size cap or clear the cache on resize/theme changes; add tests.
 - [ ] RQ-0488 [code]: Validate specs templates and docs-specific pin files. (ralph_tui/internal/pin/pin.go, ralph_tui/internal/pin/init.go, ralph_tui/internal/pin/templates.go)
   - Evidence: ValidatePin ignores specs_builder.md; MissingFiles does not include specs_builder_docs.md, so docs projects can miss the template without error.
   - Plan: Extend validation/missing-file checks to include specs builder templates based on project type; update init/migrate flows and tests.

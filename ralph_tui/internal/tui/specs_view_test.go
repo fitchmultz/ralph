@@ -108,6 +108,149 @@ func TestSpecsPreviewRendererCachesByWidth(t *testing.T) {
 	}
 }
 
+func TestSpecsPreviewRendererCacheIsBounded(t *testing.T) {
+	_, locs, cfg := newHermeticModel(t)
+	view, err := newSpecsView(cfg, locs, newTestKeyMap())
+	if err != nil {
+		t.Fatalf("newSpecsView failed: %v", err)
+	}
+
+	buildCalls := 0
+	view.rendererBuilder = func(width int) (previewRenderer, error) {
+		buildCalls++
+		return &fakePreviewRenderer{output: fmt.Sprintf("rendered-%d", width)}, nil
+	}
+
+	baseWidth := 80
+	overflow := 3
+	for i := 0; i < specsPreviewRendererCacheMaxEntries+overflow; i++ {
+		if _, err := view.previewRenderer(baseWidth + i); err != nil {
+			t.Fatalf("previewRenderer failed: %v", err)
+		}
+	}
+
+	expectedBuilds := specsPreviewRendererCacheMaxEntries + overflow
+	if buildCalls != expectedBuilds {
+		t.Fatalf("expected %d renderer builds, got %d", expectedBuilds, buildCalls)
+	}
+	if len(view.previewRenderers) != specsPreviewRendererCacheMaxEntries {
+		t.Fatalf("expected cache size %d, got %d", specsPreviewRendererCacheMaxEntries, len(view.previewRenderers))
+	}
+	for i := 0; i < overflow; i++ {
+		if _, ok := view.previewRenderers[baseWidth+i]; ok {
+			t.Fatalf("expected width %d to be evicted", baseWidth+i)
+		}
+	}
+
+	if _, err := view.previewRenderer(baseWidth); err != nil {
+		t.Fatalf("previewRenderer failed: %v", err)
+	}
+	if buildCalls != expectedBuilds+1 {
+		t.Fatalf("expected rebuild after eviction, got %d builds", buildCalls)
+	}
+}
+
+func TestSpecsPreviewRendererCacheEvictsLeastRecentlyUsed(t *testing.T) {
+	_, locs, cfg := newHermeticModel(t)
+	view, err := newSpecsView(cfg, locs, newTestKeyMap())
+	if err != nil {
+		t.Fatalf("newSpecsView failed: %v", err)
+	}
+
+	buildCalls := 0
+	view.rendererBuilder = func(width int) (previewRenderer, error) {
+		buildCalls++
+		return &fakePreviewRenderer{output: fmt.Sprintf("rendered-%d", width)}, nil
+	}
+
+	baseWidth := 100
+	for i := 0; i < specsPreviewRendererCacheMaxEntries; i++ {
+		if _, err := view.previewRenderer(baseWidth + i); err != nil {
+			t.Fatalf("previewRenderer failed: %v", err)
+		}
+	}
+
+	if _, err := view.previewRenderer(baseWidth); err != nil {
+		t.Fatalf("previewRenderer failed: %v", err)
+	}
+
+	if _, err := view.previewRenderer(baseWidth + specsPreviewRendererCacheMaxEntries); err != nil {
+		t.Fatalf("previewRenderer failed: %v", err)
+	}
+
+	if _, ok := view.previewRenderers[baseWidth]; !ok {
+		t.Fatalf("expected most-recent width %d to remain cached", baseWidth)
+	}
+	if _, ok := view.previewRenderers[baseWidth+1]; ok {
+		t.Fatalf("expected width %d to be evicted", baseWidth+1)
+	}
+
+	expectedBuilds := specsPreviewRendererCacheMaxEntries + 1
+	if buildCalls != expectedBuilds {
+		t.Fatalf("expected %d renderer builds, got %d", expectedBuilds, buildCalls)
+	}
+
+	if _, err := view.previewRenderer(baseWidth + 1); err != nil {
+		t.Fatalf("previewRenderer failed: %v", err)
+	}
+	if buildCalls != expectedBuilds+1 {
+		t.Fatalf("expected rebuild for evicted width, got %d builds", buildCalls)
+	}
+
+	if _, err := view.previewRenderer(baseWidth); err != nil {
+		t.Fatalf("previewRenderer failed: %v", err)
+	}
+	if buildCalls != expectedBuilds+1 {
+		t.Fatalf("expected cached width to stay hot, got %d builds", buildCalls)
+	}
+}
+
+func TestSpecsPreviewRendererCacheClearsOnThemeChange(t *testing.T) {
+	_, locs, cfg := newHermeticModel(t)
+	view, err := newSpecsView(cfg, locs, newTestKeyMap())
+	if err != nil {
+		t.Fatalf("newSpecsView failed: %v", err)
+	}
+
+	buildCalls := 0
+	view.rendererBuilder = func(width int) (previewRenderer, error) {
+		buildCalls++
+		return &fakePreviewRenderer{output: fmt.Sprintf("rendered-%d", width)}, nil
+	}
+
+	if _, err := view.previewRenderer(80); err != nil {
+		t.Fatalf("previewRenderer failed: %v", err)
+	}
+	if buildCalls != 1 {
+		t.Fatalf("expected 1 renderer build, got %d", buildCalls)
+	}
+	if len(view.previewRenderers) != 1 {
+		t.Fatalf("expected cache size 1, got %d", len(view.previewRenderers))
+	}
+
+	updatedCfg := cfg
+	updatedCfg.UI.Theme = cfg.UI.Theme + "-changed"
+	view.SetConfig(updatedCfg, locs)
+
+	if len(view.previewRenderers) != 0 {
+		t.Fatalf("expected cache to clear on theme change, got %d entries", len(view.previewRenderers))
+	}
+
+	if _, err := view.previewRenderer(80); err != nil {
+		t.Fatalf("previewRenderer failed: %v", err)
+	}
+	if buildCalls != 2 {
+		t.Fatalf("expected renderer rebuild after theme change, got %d builds", buildCalls)
+	}
+
+	if _, err := view.previewRenderer(80); err != nil {
+		t.Fatalf("previewRenderer failed: %v", err)
+	}
+	if buildCalls != 2 {
+		t.Fatalf("expected cached renderer reuse, got %d builds", buildCalls)
+	}
+}
+
 func TestSpecsPreviewSkipsRenderWhenInputsUnchanged(t *testing.T) {
 	_, locs, cfg := newHermeticModel(t)
 	view, err := newSpecsView(cfg, locs, newTestKeyMap())

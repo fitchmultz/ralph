@@ -3,6 +3,7 @@
 package tui
 
 import (
+	"container/list"
 	"context"
 	"errors"
 	"fmt"
@@ -65,6 +66,8 @@ type specsView struct {
 	previewWidth            int
 	rendererBuilder         func(int) (previewRenderer, error)
 	previewRenderers        map[int]previewRenderer
+	previewRendererLRU      *list.List
+	previewRendererLRUIndex map[int]*list.Element
 	running                 bool
 	diffStat                string
 	diffStatSummary         string
@@ -141,6 +144,8 @@ func newSpecsView(cfg config.Config, locations paths.Locations, keys keyMap) (*s
 		resizeDebounce:          250 * time.Millisecond,
 		rendererBuilder:         buildRenderer,
 		previewRenderers:        map[int]previewRenderer{},
+		previewRendererLRU:      list.New(),
+		previewRendererLRUIndex: map[int]*list.Element{},
 		runLogBuf:               newLogLineBuffer(500, 400),
 	}
 	if stamp, err := getFileStamp(filepath.Join(cfg.Paths.PinDir, "implementation_queue.md")); err == nil {
@@ -797,6 +802,8 @@ type previewRenderer interface {
 	Render(string) (string, error)
 }
 
+const specsPreviewRendererCacheMaxEntries = 8
+
 func buildRenderer(previewWidth int) (previewRenderer, error) {
 	wrapWidth := previewWidth
 	if wrapWidth <= 0 {
@@ -808,11 +815,28 @@ func buildRenderer(previewWidth int) (previewRenderer, error) {
 	)
 }
 
+func (s *specsView) clearPreviewRendererCache() {
+	s.previewRenderers = map[int]previewRenderer{}
+	s.previewRendererLRU = list.New()
+	s.previewRendererLRUIndex = map[int]*list.Element{}
+}
+
 func (s *specsView) previewRenderer(width int) (previewRenderer, error) {
 	if s.previewRenderers == nil {
 		s.previewRenderers = map[int]previewRenderer{}
 	}
+	if s.previewRendererLRU == nil {
+		s.previewRendererLRU = list.New()
+	}
+	if s.previewRendererLRUIndex == nil {
+		s.previewRendererLRUIndex = map[int]*list.Element{}
+	}
 	if renderer, ok := s.previewRenderers[width]; ok {
+		if element, ok := s.previewRendererLRUIndex[width]; ok {
+			s.previewRendererLRU.MoveToFront(element)
+		} else {
+			s.previewRendererLRUIndex[width] = s.previewRendererLRU.PushFront(width)
+		}
 		return renderer, nil
 	}
 	if s.rendererBuilder == nil {
@@ -823,6 +847,21 @@ func (s *specsView) previewRenderer(width int) (previewRenderer, error) {
 		return nil, err
 	}
 	s.previewRenderers[width] = renderer
+	s.previewRendererLRUIndex[width] = s.previewRendererLRU.PushFront(width)
+	for len(s.previewRenderers) > specsPreviewRendererCacheMaxEntries {
+		element := s.previewRendererLRU.Back()
+		if element == nil {
+			break
+		}
+		lruWidth, ok := element.Value.(int)
+		if !ok {
+			s.previewRendererLRU.Remove(element)
+			continue
+		}
+		s.previewRendererLRU.Remove(element)
+		delete(s.previewRendererLRUIndex, lruWidth)
+		delete(s.previewRenderers, lruWidth)
+	}
 	return renderer, nil
 }
 
@@ -851,6 +890,7 @@ func previewInputSignature(
 }
 
 func (s *specsView) SetConfig(cfg config.Config, locations paths.Locations) {
+	oldTheme := s.cfg.UI.Theme
 	s.cfg = cfg
 	s.locations = locations
 	if s.lastConfigAutofillScout != cfg.Specs.AutofillScout {
@@ -886,6 +926,10 @@ func (s *specsView) SetConfig(cfg config.Config, locations paths.Locations) {
 		if stamp, err := getFileStamp(promptPath); err == nil {
 			s.promptStamp = stamp
 		}
+	}
+	if oldTheme != cfg.UI.Theme {
+		s.clearPreviewRendererCache()
+		s.previewDirty = true
 	}
 	if !s.running {
 		s.previewDirty = true
