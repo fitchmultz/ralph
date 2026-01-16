@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -32,6 +33,16 @@ func (b testRunnerBackend) CommandContext(ctx context.Context, name string, args
 		"RALPH_SPECS_MODE="+b.mode,
 	)
 	return cmd
+}
+
+type failLookPathBackend struct{}
+
+func (failLookPathBackend) LookPath(file string) (string, error) {
+	return "", fmt.Errorf("unexpected LookPath for %s", file)
+}
+
+func (failLookPathBackend) CommandContext(ctx context.Context, name string, args ...string) *exec.Cmd {
+	return exec.CommandContext(ctx, name, args...)
 }
 
 type lockedBuffer struct {
@@ -219,6 +230,67 @@ func TestBuildRunnerFlushesStreamingWriter(t *testing.T) {
 	}
 	if !strings.Contains(output.String(), "partial") {
 		t.Fatalf("expected flushed output to include partial line, got %q", output.String())
+	}
+}
+
+func TestBuildPrintPromptSkipsRunnerVerification(t *testing.T) {
+	template := "AGENTS.md\n" + interactivePlaceholder + "\n" + innovatePlaceholder + "\nHello from template."
+	pinDir := writeSpecsPinDir(t, template)
+	result, err := Build(context.Background(), BuildOptions{
+		RepoRoot:      pinDir,
+		PinDir:        pinDir,
+		Runner:        RunnerCodex,
+		RunnerBackend: failLookPathBackend{},
+		PrintPrompt:   true,
+	})
+	if err != nil {
+		t.Fatalf("Build failed: %v", err)
+	}
+	if !strings.Contains(result.Prompt, "Hello from template.") {
+		t.Fatalf("expected prompt to include template content")
+	}
+}
+
+func TestBuildPrintPromptSkipsLockAcquisition(t *testing.T) {
+	template := "AGENTS.md\n" + interactivePlaceholder + "\n" + innovatePlaceholder + "\nLock test."
+	pinDir := writeSpecsPinDir(t, template)
+	lockBase := t.TempDir()
+	t.Setenv("TMPDIR", lockBase)
+
+	cmd := exec.Command(os.Args[0], "-test.run=TestSpecsRunnerHelperProcess", "--")
+	cmd.Env = append(os.Environ(),
+		"RALPH_SPECS_HELPER=1",
+		"RALPH_SPECS_MODE=sleep",
+	)
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start helper: %v", err)
+	}
+	defer func() {
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+	}()
+
+	lockDir := filepath.Join(strings.TrimRight(lockBase, string(os.PathSeparator)), fmt.Sprintf("ralph.lock.%s", lockChecksum(pinDir)))
+	if err := os.MkdirAll(lockDir, 0o700); err != nil {
+		t.Fatalf("create lock dir: %v", err)
+	}
+	ownerPath := filepath.Join(lockDir, "owner.pid")
+	if err := os.WriteFile(ownerPath, []byte(strconv.Itoa(cmd.Process.Pid)), 0o600); err != nil {
+		t.Fatalf("write owner pid: %v", err)
+	}
+
+	result, err := Build(context.Background(), BuildOptions{
+		RepoRoot:      pinDir,
+		PinDir:        pinDir,
+		Runner:        RunnerCodex,
+		RunnerBackend: failLookPathBackend{},
+		PrintPrompt:   true,
+	})
+	if err != nil {
+		t.Fatalf("Build failed: %v", err)
+	}
+	if !strings.Contains(result.Prompt, "Lock test.") {
+		t.Fatalf("expected prompt to include template content")
 	}
 }
 

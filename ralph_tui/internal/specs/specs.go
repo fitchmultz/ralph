@@ -252,11 +252,22 @@ func Build(ctx context.Context, opts BuildOptions) (BuildResult, error) {
 		return BuildResult{}, err
 	}
 	opts.PromptTemplate = templatePath
-	normalizedRunner := runnerargs.NormalizeRunner(string(opts.Runner))
-	if normalizedRunner == "" {
-		normalizedRunner = string(RunnerCodex)
+	normalizedRunner, err := normalizeAndValidateRunner(opts.Runner)
+	if err != nil {
+		return BuildResult{}, err
 	}
-	opts.Runner = Runner(normalizedRunner)
+	opts.Runner = normalizedRunner
+
+	if opts.PrintPrompt {
+		prompt, effectiveInnovate, err := buildPrompt(opts)
+		if err != nil {
+			return BuildResult{}, err
+		}
+		return BuildResult{
+			Prompt:            prompt,
+			EffectiveInnovate: effectiveInnovate,
+		}, nil
+	}
 
 	if err := verifyRunner(opts.runnerBackend(), opts.Runner); err != nil {
 		return BuildResult{}, err
@@ -268,18 +279,7 @@ func Build(ctx context.Context, opts BuildOptions) (BuildResult, error) {
 	}
 	defer lock.Release()
 
-	effectiveInnovate, err := ResolveInnovate(filepath.Join(opts.PinDir, "implementation_queue.md"), opts.Innovate, opts.InnovateExplicit, opts.AutofillScout)
-	if err != nil {
-		return BuildResult{}, err
-	}
-
-	prompt, err := FillPrompt(opts.PromptTemplate, FillPromptOptions{
-		Interactive:   opts.Interactive,
-		Innovate:      effectiveInnovate,
-		ScoutWorkflow: opts.ScoutWorkflow,
-		UserFocus:     opts.UserFocus,
-		ProjectType:   opts.ProjectType,
-	})
+	prompt, effectiveInnovate, err := buildPrompt(opts)
 	if err != nil {
 		return BuildResult{}, err
 	}
@@ -296,10 +296,6 @@ func Build(ctx context.Context, opts BuildOptions) (BuildResult, error) {
 		EffectiveInnovate: effectiveInnovate,
 	}
 
-	if opts.PrintPrompt {
-		return result, nil
-	}
-
 	if opts.Interactive {
 		if err := enforceInteractiveSize(prompt, opts.Runner); err != nil {
 			return BuildResult{}, err
@@ -314,6 +310,26 @@ func Build(ctx context.Context, opts BuildOptions) (BuildResult, error) {
 	}
 
 	return result, nil
+}
+
+func buildPrompt(opts BuildOptions) (string, bool, error) {
+	effectiveInnovate, err := ResolveInnovate(filepath.Join(opts.PinDir, "implementation_queue.md"), opts.Innovate, opts.InnovateExplicit, opts.AutofillScout)
+	if err != nil {
+		return "", false, err
+	}
+
+	prompt, err := FillPrompt(opts.PromptTemplate, FillPromptOptions{
+		Interactive:   opts.Interactive,
+		Innovate:      effectiveInnovate,
+		ScoutWorkflow: opts.ScoutWorkflow,
+		UserFocus:     opts.UserFocus,
+		ProjectType:   opts.ProjectType,
+	})
+	if err != nil {
+		return "", false, err
+	}
+
+	return prompt, effectiveInnovate, nil
 }
 
 // AcquireLock obtains the Ralph build lock.
@@ -456,8 +472,11 @@ func flushWriter(writer io.Writer) {
 }
 
 func verifyRunner(backend RunnerBackend, runner Runner) error {
-	normalized := runnerargs.NormalizeRunner(string(runner))
-	switch Runner(normalized) {
+	normalized, err := normalizeAndValidateRunner(runner)
+	if err != nil {
+		return err
+	}
+	switch normalized {
 	case RunnerCodex:
 		if _, err := backend.LookPath("codex"); err != nil {
 			return fmt.Errorf("codex is not on PATH. Install it or use --runner opencode.")
@@ -466,10 +485,25 @@ func verifyRunner(backend RunnerBackend, runner Runner) error {
 		if _, err := backend.LookPath("opencode"); err != nil {
 			return fmt.Errorf("opencode is not on PATH. Install it or use --runner codex.")
 		}
-	default:
-		return fmt.Errorf("--runner must be codex or opencode (got: %s)", runner)
 	}
 	return nil
+}
+
+func normalizeAndValidateRunner(value Runner) (Runner, error) {
+	normalized := Runner(runnerargs.NormalizeRunner(string(value)))
+	if normalized == "" {
+		normalized = RunnerCodex
+	}
+	switch normalized {
+	case RunnerCodex, RunnerOpencode:
+		return normalized, nil
+	default:
+		trimmed := strings.TrimSpace(string(value))
+		if trimmed == "" {
+			trimmed = string(value)
+		}
+		return "", fmt.Errorf("--runner must be codex or opencode (got: %s)", trimmed)
+	}
 }
 
 func enforceInteractiveSize(prompt string, runner Runner) error {

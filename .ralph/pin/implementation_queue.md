@@ -1,9 +1,6 @@
 # Implementation Queue
 
 ## Queue
-- [ ] RQ-0486 [code]: Let specs --print-prompt run without runner binaries. (ralph_tui/internal/specs/specs.go)
-  - Evidence: Build verifies the runner and acquires a lock before checking PrintPrompt, so `ralph specs build --print-prompt` fails if codex/opencode is missing and takes a lock unnecessarily.
-  - Plan: Short-circuit runner verification and lock acquisition when PrintPrompt is true; add tests.
 - [ ] RQ-0487 [ui]: Bound specs preview renderer cache growth. (ralph_tui/internal/tui/specs_view.go)
   - Evidence: previewRenderers caches a renderer per width with no eviction; repeated resizes accumulate renderers and memory.
   - Plan: Add an LRU/size cap or clear the cache on resize/theme changes; add tests.
