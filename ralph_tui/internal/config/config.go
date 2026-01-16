@@ -68,16 +68,17 @@ type DirtyRepoConfig struct {
 
 // LoopConfig controls loop scheduling knobs.
 type LoopConfig struct {
-	SleepSeconds      int             `json:"sleep_seconds"`
-	MaxIterations     int             `json:"max_iterations"`
-	MaxStalled        int             `json:"max_stalled"`
-	MaxRepairAttempts int             `json:"max_repair_attempts"`
-	OnlyTags          string          `json:"only_tags"`
-	RequireMain       bool            `json:"require_main"`
-	Runner            string          `json:"runner"`
-	RunnerArgs        []string        `json:"runner_args"`
-	ReasoningEffort   string          `json:"reasoning_effort"`
-	DirtyRepo         DirtyRepoConfig `json:"dirty_repo"`
+	SleepSeconds            int             `json:"sleep_seconds"`
+	MaxIterations           int             `json:"max_iterations"`
+	MaxStalled              int             `json:"max_stalled"`
+	MaxRepairAttempts       int             `json:"max_repair_attempts"`
+	RunnerInactivitySeconds int             `json:"runner_inactivity_seconds"`
+	OnlyTags                string          `json:"only_tags"`
+	RequireMain             bool            `json:"require_main"`
+	Runner                  string          `json:"runner"`
+	RunnerArgs              []string        `json:"runner_args"`
+	ReasoningEffort         string          `json:"reasoning_effort"`
+	DirtyRepo               DirtyRepoConfig `json:"dirty_repo"`
 }
 
 // GitConfig controls Git behaviors invoked by Ralph.
@@ -150,6 +151,9 @@ func (c Config) Validate() error {
 	}
 	if c.Loop.MaxRepairAttempts < 0 {
 		return fmt.Errorf("loop.max_repair_attempts must be >= 0")
+	}
+	if c.Loop.RunnerInactivitySeconds < 0 {
+		return fmt.Errorf("loop.runner_inactivity_seconds must be >= 0")
 	}
 	if strings.TrimSpace(c.Loop.OnlyTags) != "" {
 		if _, err := pin.ValidateTagList("loop.only_tags", c.Loop.OnlyTags); err != nil {
@@ -265,16 +269,17 @@ type DirtyRepoPartial struct {
 
 // LoopPartial overrides LoopConfig fields when set.
 type LoopPartial struct {
-	SleepSeconds      *int              `json:"sleep_seconds,omitempty"`
-	MaxIterations     *int              `json:"max_iterations,omitempty"`
-	MaxStalled        *int              `json:"max_stalled,omitempty"`
-	MaxRepairAttempts *int              `json:"max_repair_attempts,omitempty"`
-	OnlyTags          *string           `json:"only_tags,omitempty"`
-	RequireMain       *bool             `json:"require_main,omitempty"`
-	Runner            *string           `json:"runner,omitempty"`
-	RunnerArgs        []string          `json:"runner_args,omitempty"`
-	ReasoningEffort   *string           `json:"reasoning_effort,omitempty"`
-	DirtyRepo         *DirtyRepoPartial `json:"dirty_repo,omitempty"`
+	SleepSeconds            *int              `json:"sleep_seconds,omitempty"`
+	MaxIterations           *int              `json:"max_iterations,omitempty"`
+	MaxStalled              *int              `json:"max_stalled,omitempty"`
+	MaxRepairAttempts       *int              `json:"max_repair_attempts,omitempty"`
+	RunnerInactivitySeconds *int              `json:"runner_inactivity_seconds,omitempty"`
+	OnlyTags                *string           `json:"only_tags,omitempty"`
+	RequireMain             *bool             `json:"require_main,omitempty"`
+	Runner                  *string           `json:"runner,omitempty"`
+	RunnerArgs              []string          `json:"runner_args,omitempty"`
+	ReasoningEffort         *string           `json:"reasoning_effort,omitempty"`
+	DirtyRepo               *DirtyRepoPartial `json:"dirty_repo,omitempty"`
 }
 
 // GitPartial overrides GitConfig fields when set.

@@ -48,6 +48,14 @@ func helperMain() {
 		markQueueChecked(queuePath, itemID)
 		touchReadme(repoRoot)
 		fmt.Println("RUNNER_DONE")
+	case "runner_inactivity":
+		if repoRoot == "" {
+			_, _ = fmt.Fprintln(os.Stderr, "missing repo root")
+			os.Exit(2)
+		}
+		touchReadme(repoRoot)
+		fmt.Println("RUNNER_STARTED")
+		time.Sleep(30 * time.Second)
 	default:
 		_, _ = fmt.Fprintf(os.Stderr, "unknown helper mode: %s\n", mode)
 		os.Exit(2)

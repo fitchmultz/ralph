@@ -54,6 +54,7 @@ type configFormData struct {
 	LoopMaxIterations string
 	LoopMaxStalled    string
 	LoopMaxRepair     string
+	LoopInactivity    string
 	LoopOnlyTags      string
 	LoopRequireMain   bool
 	LoopRunner        string
@@ -97,6 +98,7 @@ const (
 	fieldLoopMaxIterations  = "loop.max_iterations"
 	fieldLoopMaxStalled     = "loop.max_stalled"
 	fieldLoopMaxRepair      = "loop.max_repair_attempts"
+	fieldLoopInactivity     = "loop.runner_inactivity_seconds"
 	fieldLoopOnlyTags       = "loop.only_tags"
 	fieldLoopRequireMain    = "loop.require_main"
 	fieldLoopRunner         = "loop.runner"
@@ -602,6 +604,8 @@ func (e *configEditor) sourceForKey(key string) config.SourceLayer {
 		return e.sources.LoopMaxStalled
 	case fieldLoopMaxRepair:
 		return e.sources.LoopMaxRepair
+	case fieldLoopInactivity:
+		return e.sources.LoopInactivity
 	case fieldLoopOnlyTags:
 		return e.sources.LoopOnlyTags
 	case fieldLoopRequireMain:
@@ -663,6 +667,8 @@ func (e *configEditor) applyFieldValueFromConfig(key string, cfg config.Config) 
 		e.data.LoopMaxStalled = strconv.Itoa(cfg.Loop.MaxStalled)
 	case fieldLoopMaxRepair:
 		e.data.LoopMaxRepair = strconv.Itoa(cfg.Loop.MaxRepairAttempts)
+	case fieldLoopInactivity:
+		e.data.LoopInactivity = strconv.Itoa(cfg.Loop.RunnerInactivitySeconds)
 	case fieldLoopOnlyTags:
 		e.data.LoopOnlyTags = cfg.Loop.OnlyTags
 	case fieldLoopRequireMain:
@@ -760,6 +766,8 @@ func (e *configEditor) syncFocusedFieldValue(field huh.Field, key string) {
 				input.Value(&e.data.LoopMaxStalled)
 			case fieldLoopMaxRepair:
 				input.Value(&e.data.LoopMaxRepair)
+			case fieldLoopInactivity:
+				input.Value(&e.data.LoopInactivity)
 			case fieldLoopOnlyTags:
 				input.Value(&e.data.LoopOnlyTags)
 			}
@@ -902,6 +910,8 @@ func (e *configEditor) buildForm() *huh.Form {
 	e.registerFieldDesc(fieldLoopMaxStalled, func(desc string) { loopMaxStalled.Description(desc) })
 	loopMaxRepair := huh.NewInput().Title("Max Repair Attempts").Value(&e.data.LoopMaxRepair).Validate(nonNegativeInt("loop.max_repair_attempts")).Key(fieldLoopMaxRepair)
 	e.registerFieldDesc(fieldLoopMaxRepair, func(desc string) { loopMaxRepair.Description(desc) })
+	loopInactivity := huh.NewInput().Title("Runner Inactivity Seconds").Value(&e.data.LoopInactivity).Validate(nonNegativeInt("loop.runner_inactivity_seconds")).Key(fieldLoopInactivity)
+	e.registerFieldDesc(fieldLoopInactivity, func(desc string) { loopInactivity.Description(desc) })
 	loopOnlyTags := huh.NewInput().Title("Only Tags").Value(&e.data.LoopOnlyTags).Key(fieldLoopOnlyTags)
 	e.registerFieldDesc(fieldLoopOnlyTags, func(desc string) { loopOnlyTags.Description(desc) })
 	loopRequireMain := huh.NewConfirm().Title("Require Main Branch").Value(&e.data.LoopRequireMain).Key(fieldLoopRequireMain)
@@ -958,6 +968,7 @@ func (e *configEditor) buildForm() *huh.Form {
 			loopMaxIterations,
 			loopMaxStalled,
 			loopMaxRepair,
+			loopInactivity,
 			loopOnlyTags,
 			loopRequireMain,
 			loopRunner,
@@ -991,6 +1002,7 @@ func formDataFromConfig(cfg config.Config) configFormData {
 		LoopMaxIterations: strconv.Itoa(cfg.Loop.MaxIterations),
 		LoopMaxStalled:    strconv.Itoa(cfg.Loop.MaxStalled),
 		LoopMaxRepair:     strconv.Itoa(cfg.Loop.MaxRepairAttempts),
+		LoopInactivity:    strconv.Itoa(cfg.Loop.RunnerInactivitySeconds),
 		LoopOnlyTags:      cfg.Loop.OnlyTags,
 		LoopRequireMain:   cfg.Loop.RequireMain,
 		LoopRunner:        cfg.Loop.Runner,
@@ -1019,6 +1031,10 @@ func partialFromForm(data configFormData) (config.PartialConfig, error) {
 		return config.PartialConfig{}, err
 	}
 	maxRepair, err := parseNonNegativeInt("loop.max_repair_attempts", data.LoopMaxRepair)
+	if err != nil {
+		return config.PartialConfig{}, err
+	}
+	loopInactivity, err := parseNonNegativeInt("loop.runner_inactivity_seconds", data.LoopInactivity)
 	if err != nil {
 		return config.PartialConfig{}, err
 	}
@@ -1104,15 +1120,16 @@ func partialFromForm(data configFormData) (config.PartialConfig, error) {
 			ReasoningEffort: &specsEffort,
 		},
 		Loop: &config.LoopPartial{
-			SleepSeconds:      &sleepSeconds,
-			MaxIterations:     &maxIterations,
-			MaxStalled:        &maxStalled,
-			MaxRepairAttempts: &maxRepair,
-			OnlyTags:          &data.LoopOnlyTags,
-			RequireMain:       &data.LoopRequireMain,
-			Runner:            &loopRunner,
-			RunnerArgs:        parseArgsLines(data.LoopRunnerArgs),
-			ReasoningEffort:   &loopEffort,
+			SleepSeconds:            &sleepSeconds,
+			MaxIterations:           &maxIterations,
+			MaxStalled:              &maxStalled,
+			MaxRepairAttempts:       &maxRepair,
+			RunnerInactivitySeconds: &loopInactivity,
+			OnlyTags:                &data.LoopOnlyTags,
+			RequireMain:             &data.LoopRequireMain,
+			Runner:                  &loopRunner,
+			RunnerArgs:              parseArgsLines(data.LoopRunnerArgs),
+			ReasoningEffort:         &loopEffort,
 		},
 		Git: &config.GitPartial{
 			AutoCommit: &data.GitAutoCommit,

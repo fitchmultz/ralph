@@ -37,6 +37,7 @@ type FieldSources struct {
 	LoopMaxIterations SourceLayer
 	LoopMaxStalled    SourceLayer
 	LoopMaxRepair     SourceLayer
+	LoopInactivity    SourceLayer
 	LoopOnlyTags      SourceLayer
 	LoopRequireMain   SourceLayer
 	LoopRunner        SourceLayer
@@ -69,6 +70,7 @@ func FieldSourcesForConfigs(defaults, globalCfg, repoCfg, cliCfg, sessionCfg Con
 		LoopMaxIterations: SourceDefault,
 		LoopMaxStalled:    SourceDefault,
 		LoopMaxRepair:     SourceDefault,
+		LoopInactivity:    SourceDefault,
 		LoopOnlyTags:      SourceDefault,
 		LoopRequireMain:   SourceDefault,
 		LoopRunner:        SourceDefault,
@@ -101,6 +103,7 @@ func FieldSourcesForConfigs(defaults, globalCfg, repoCfg, cliCfg, sessionCfg Con
 	sources.LoopMaxIterations = resolveSource(defaults.Loop.MaxIterations, globalCfg.Loop.MaxIterations, repoCfg.Loop.MaxIterations, cliCfg.Loop.MaxIterations, sessionCfg.Loop.MaxIterations)
 	sources.LoopMaxStalled = resolveSource(defaults.Loop.MaxStalled, globalCfg.Loop.MaxStalled, repoCfg.Loop.MaxStalled, cliCfg.Loop.MaxStalled, sessionCfg.Loop.MaxStalled)
 	sources.LoopMaxRepair = resolveSource(defaults.Loop.MaxRepairAttempts, globalCfg.Loop.MaxRepairAttempts, repoCfg.Loop.MaxRepairAttempts, cliCfg.Loop.MaxRepairAttempts, sessionCfg.Loop.MaxRepairAttempts)
+	sources.LoopInactivity = resolveSource(defaults.Loop.RunnerInactivitySeconds, globalCfg.Loop.RunnerInactivitySeconds, repoCfg.Loop.RunnerInactivitySeconds, cliCfg.Loop.RunnerInactivitySeconds, sessionCfg.Loop.RunnerInactivitySeconds)
 	sources.LoopOnlyTags = resolveSource(defaults.Loop.OnlyTags, globalCfg.Loop.OnlyTags, repoCfg.Loop.OnlyTags, cliCfg.Loop.OnlyTags, sessionCfg.Loop.OnlyTags)
 	sources.LoopRequireMain = resolveSource(defaults.Loop.RequireMain, globalCfg.Loop.RequireMain, repoCfg.Loop.RequireMain, cliCfg.Loop.RequireMain, sessionCfg.Loop.RequireMain)
 	sources.LoopRunner = resolveSource(defaults.Loop.Runner, globalCfg.Loop.Runner, repoCfg.Loop.Runner, cliCfg.Loop.Runner, sessionCfg.Loop.Runner)

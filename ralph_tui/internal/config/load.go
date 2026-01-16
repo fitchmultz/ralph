@@ -246,6 +246,9 @@ func applyPartial(base Config, partial PartialConfig, basePath string, repoRoot 
 		if partial.Loop.MaxRepairAttempts != nil {
 			base.Loop.MaxRepairAttempts = *partial.Loop.MaxRepairAttempts
 		}
+		if partial.Loop.RunnerInactivitySeconds != nil {
+			base.Loop.RunnerInactivitySeconds = *partial.Loop.RunnerInactivitySeconds
+		}
 		if partial.Loop.OnlyTags != nil {
 			base.Loop.OnlyTags = strings.TrimSpace(*partial.Loop.OnlyTags)
 		}

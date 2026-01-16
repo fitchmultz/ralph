@@ -5,4 +5,4 @@ Sleep seconds: 5
 Max iterations: 0
 Max stalled: 3
 Max repair attempt
-Only tags: 
+Runner inactivity:

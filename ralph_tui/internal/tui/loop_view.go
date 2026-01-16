@@ -57,6 +57,7 @@ type loopOverrides struct {
 	MaxIterations       int
 	MaxStalled          int
 	MaxRepairAttempts   int
+	RunnerInactivity    int
 	OnlyTags            string
 	RequireMain         bool
 	AutoCommit          bool
@@ -134,6 +135,7 @@ func newLoopView(cfg config.Config, locations paths.Locations, keys keyMap) *loo
 			MaxIterations:       cfg.Loop.MaxIterations,
 			MaxStalled:          cfg.Loop.MaxStalled,
 			MaxRepairAttempts:   cfg.Loop.MaxRepairAttempts,
+			RunnerInactivity:    cfg.Loop.RunnerInactivitySeconds,
 			OnlyTags:            cfg.Loop.OnlyTags,
 			RequireMain:         cfg.Loop.RequireMain,
 			AutoCommit:          cfg.Git.AutoCommit,
@@ -374,6 +376,7 @@ func (l *loopView) controlsView() string {
 		fmt.Sprintf("Max iterations: %d", l.overrides.MaxIterations),
 		fmt.Sprintf("Max stalled: %d", l.overrides.MaxStalled),
 		fmt.Sprintf("Max repair attempts: %d", l.overrides.MaxRepairAttempts),
+		fmt.Sprintf("Runner inactivity: %s", inactivityLabel(l.overrides.RunnerInactivity)),
 		fmt.Sprintf("Only tags: %s", l.overrides.OnlyTags),
 		fmt.Sprintf("Require main: %s", yesNo(l.overrides.RequireMain)),
 		fmt.Sprintf("Auto commit: %s", yesNo(l.overrides.AutoCommit)),
@@ -427,6 +430,7 @@ func (l *loopView) runControlsView() string {
 	}
 	lines = append(lines,
 		fmt.Sprintf("Sleep: %ds | Max iterations: %s | Max stalled: %d", l.overrides.SleepSeconds, l.iterationLimitLabel(), l.overrides.MaxStalled),
+		fmt.Sprintf("Runner inactivity: %s", inactivityLabel(l.overrides.RunnerInactivity)),
 		fmt.Sprintf("Only tags: %s | Require main: %s | Auto commit/push: %s/%s", l.overrides.OnlyTags, yesNo(l.overrides.RequireMain), yesNo(l.overrides.AutoCommit), yesNo(l.overrides.AutoPush)),
 		fmt.Sprintf("Dirty repo start/during: %s/%s | Allow untracked: %s | Quarantine clean: %s", l.overrides.DirtyRepoStart, l.overrides.DirtyRepoDuring, yesNo(l.overrides.AllowUntracked), yesNo(l.overrides.QuarantineClean)),
 	)
@@ -449,6 +453,13 @@ func iterationLimitLabel(limit int) string {
 		return "unlimited"
 	}
 	return fmt.Sprintf("%d", limit)
+}
+
+func inactivityLabel(seconds int) string {
+	if seconds <= 0 {
+		return "disabled"
+	}
+	return (time.Duration(seconds) * time.Second).String()
 }
 
 func (l *loopView) stateView() string {
@@ -561,23 +572,24 @@ func (l *loopView) startRun(runOnce bool) tea.Cmd {
 	if l.logger != nil {
 		applied := runnerargs.ApplyReasoningEffort(l.overrides.Runner, l.overrides.RunnerArgs, l.overrides.ReasoningEffort)
 		l.logger.Info("loop.start", map[string]any{
-			"mode":                  loopModeLabel(runOnce),
-			"sleep_seconds":         l.overrides.SleepSeconds,
-			"max_iterations":        l.overrides.MaxIterations,
-			"max_stalled":           l.overrides.MaxStalled,
-			"max_repair":            l.overrides.MaxRepairAttempts,
-			"only_tags":             l.overrides.OnlyTags,
-			"require_main":          l.overrides.RequireMain,
-			"auto_commit":           l.overrides.AutoCommit,
-			"auto_push":             l.overrides.AutoPush,
-			"dirty_start_policy":    l.overrides.DirtyRepoStart,
-			"dirty_during_policy":   l.overrides.DirtyRepoDuring,
-			"allow_untracked":       l.overrides.AllowUntracked,
-			"quarantine_clean":      l.overrides.QuarantineClean,
-			"runner":                l.overrides.Runner,
-			"runner_args_count":     len(applied.Args),
-			"reasoning_effort":      runnerargs.DisplayEffort(l.overrides.ReasoningEffort),
-			"force_context_builder": l.overrides.ForceContextBuilder,
+			"mode":                      loopModeLabel(runOnce),
+			"sleep_seconds":             l.overrides.SleepSeconds,
+			"max_iterations":            l.overrides.MaxIterations,
+			"max_stalled":               l.overrides.MaxStalled,
+			"max_repair":                l.overrides.MaxRepairAttempts,
+			"runner_inactivity_seconds": l.overrides.RunnerInactivity,
+			"only_tags":                 l.overrides.OnlyTags,
+			"require_main":              l.overrides.RequireMain,
+			"auto_commit":               l.overrides.AutoCommit,
+			"auto_push":                 l.overrides.AutoPush,
+			"dirty_start_policy":        l.overrides.DirtyRepoStart,
+			"dirty_during_policy":       l.overrides.DirtyRepoDuring,
+			"allow_untracked":           l.overrides.AllowUntracked,
+			"quarantine_clean":          l.overrides.QuarantineClean,
+			"runner":                    l.overrides.Runner,
+			"runner_args_count":         len(applied.Args),
+			"reasoning_effort":          runnerargs.DisplayEffort(l.overrides.ReasoningEffort),
+			"force_context_builder":     l.overrides.ForceContextBuilder,
 		})
 	}
 
@@ -592,32 +604,33 @@ func (l *loopView) startRun(runOnce bool) tea.Cmd {
 			ch: stateCh,
 		}
 		runner, err := loop.NewRunner(loop.Options{
-			RepoRoot:            l.locations.RepoRoot,
-			PinDir:              l.cfg.Paths.PinDir,
-			PromptPath:          "",
-			SupervisorPrompt:    "",
-			ProjectType:         l.cfg.ProjectType,
-			Runner:              l.overrides.Runner,
-			RunnerArgs:          runnerargs.ApplyReasoningEffort(l.overrides.Runner, l.overrides.RunnerArgs, l.overrides.ReasoningEffort).Args,
-			ReasoningEffort:     l.overrides.ReasoningEffort,
-			SleepSeconds:        l.overrides.SleepSeconds,
-			MaxIterations:       l.overrides.MaxIterations,
-			MaxStalled:          l.overrides.MaxStalled,
-			MaxRepairAttempts:   l.overrides.MaxRepairAttempts,
-			OnlyTags:            onlyTags,
-			Once:                runOnce,
-			RequireMain:         l.overrides.RequireMain,
-			AutoCommit:          l.overrides.AutoCommit,
-			AutoPush:            l.overrides.AutoPush,
-			DirtyRepoStart:      loop.DirtyRepoPolicy(l.overrides.DirtyRepoStart),
-			DirtyRepoDuring:     loop.DirtyRepoPolicy(l.overrides.DirtyRepoDuring),
-			AllowUntracked:      l.overrides.AllowUntracked,
-			QuarantineClean:     l.overrides.QuarantineClean,
-			ForceContextBuilder: l.overrides.ForceContextBuilder,
-			RedactionMode:       l.cfg.Logging.RedactionMode,
-			LogMaxBufferedBytes: l.cfg.Logging.MaxBufferedBytes,
-			Logger:              logger,
-			StateSink:           stateSink,
+			RepoRoot:                l.locations.RepoRoot,
+			PinDir:                  l.cfg.Paths.PinDir,
+			PromptPath:              "",
+			SupervisorPrompt:        "",
+			ProjectType:             l.cfg.ProjectType,
+			Runner:                  l.overrides.Runner,
+			RunnerArgs:              runnerargs.ApplyReasoningEffort(l.overrides.Runner, l.overrides.RunnerArgs, l.overrides.ReasoningEffort).Args,
+			ReasoningEffort:         l.overrides.ReasoningEffort,
+			SleepSeconds:            l.overrides.SleepSeconds,
+			MaxIterations:           l.overrides.MaxIterations,
+			MaxStalled:              l.overrides.MaxStalled,
+			MaxRepairAttempts:       l.overrides.MaxRepairAttempts,
+			RunnerInactivitySeconds: l.overrides.RunnerInactivity,
+			OnlyTags:                onlyTags,
+			Once:                    runOnce,
+			RequireMain:             l.overrides.RequireMain,
+			AutoCommit:              l.overrides.AutoCommit,
+			AutoPush:                l.overrides.AutoPush,
+			DirtyRepoStart:          loop.DirtyRepoPolicy(l.overrides.DirtyRepoStart),
+			DirtyRepoDuring:         loop.DirtyRepoPolicy(l.overrides.DirtyRepoDuring),
+			AllowUntracked:          l.overrides.AllowUntracked,
+			QuarantineClean:         l.overrides.QuarantineClean,
+			ForceContextBuilder:     l.overrides.ForceContextBuilder,
+			RedactionMode:           l.cfg.Logging.RedactionMode,
+			LogMaxBufferedBytes:     l.cfg.Logging.MaxBufferedBytes,
+			Logger:                  logger,
+			StateSink:               stateSink,
 		})
 		if err != nil {
 			close(logCh)
@@ -804,6 +817,7 @@ func (l *loopView) buildEditForm() *huh.Form {
 			huh.NewInput().Title("Max Iterations").Value(&l.editData.MaxIterations).Validate(nonNegativeInt("loop.max_iterations")),
 			huh.NewInput().Title("Max Stalled").Value(&l.editData.MaxStalled).Validate(nonNegativeInt("loop.max_stalled")),
 			huh.NewInput().Title("Max Repair Attempts").Value(&l.editData.MaxRepairAttempts).Validate(nonNegativeInt("loop.max_repair_attempts")),
+			huh.NewInput().Title("Runner Inactivity Seconds").Value(&l.editData.RunnerInactivity).Validate(nonNegativeInt("loop.runner_inactivity_seconds")),
 		),
 		huh.NewGroup(
 			huh.NewInput().Title("Only Tags").Value(&l.editData.OnlyTags),
@@ -854,6 +868,10 @@ func (l *loopView) applyEditData() error {
 	if err != nil {
 		return err
 	}
+	runnerInactivity, err := parseNonNegativeInt("loop.runner_inactivity_seconds", l.editData.RunnerInactivity)
+	if err != nil {
+		return err
+	}
 	if _, err := parseOnlyTags(l.editData.OnlyTags); err != nil {
 		return err
 	}
@@ -861,6 +879,7 @@ func (l *loopView) applyEditData() error {
 	l.overrides.MaxIterations = maxIterations
 	l.overrides.MaxStalled = maxStalled
 	l.overrides.MaxRepairAttempts = maxRepair
+	l.overrides.RunnerInactivity = runnerInactivity
 	l.overrides.OnlyTags = strings.TrimSpace(l.editData.OnlyTags)
 	l.overrides.RequireMain = l.editData.RequireMain
 	l.overrides.AutoCommit = l.editData.AutoCommit
@@ -886,6 +905,7 @@ type loopFormData struct {
 	MaxIterations       string
 	MaxStalled          string
 	MaxRepairAttempts   string
+	RunnerInactivity    string
 	OnlyTags            string
 	RequireMain         bool
 	AutoCommit          bool
@@ -902,6 +922,7 @@ func loopFormDataFromOverrides(overrides loopOverrides) loopFormData {
 		MaxIterations:       fmt.Sprintf("%d", overrides.MaxIterations),
 		MaxStalled:          fmt.Sprintf("%d", overrides.MaxStalled),
 		MaxRepairAttempts:   fmt.Sprintf("%d", overrides.MaxRepairAttempts),
+		RunnerInactivity:    fmt.Sprintf("%d", overrides.RunnerInactivity),
 		OnlyTags:            overrides.OnlyTags,
 		RequireMain:         overrides.RequireMain,
 		AutoCommit:          overrides.AutoCommit,
@@ -978,6 +999,7 @@ func (l *loopView) SetConfig(cfg config.Config, locations paths.Locations) {
 		MaxIterations:       cfg.Loop.MaxIterations,
 		MaxStalled:          cfg.Loop.MaxStalled,
 		MaxRepairAttempts:   cfg.Loop.MaxRepairAttempts,
+		RunnerInactivity:    cfg.Loop.RunnerInactivitySeconds,
 		OnlyTags:            cfg.Loop.OnlyTags,
 		RequireMain:         cfg.Loop.RequireMain,
 		AutoCommit:          cfg.Git.AutoCommit,

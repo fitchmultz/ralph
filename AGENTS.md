@@ -43,6 +43,7 @@
 - Default pin/spec templates live in `.ralph/pin/` (TUI) and `ralph_legacy/specs/` (legacy).
 - Update path references in docs/prompts when moving or renaming directories.
 - For TUI resize behavior, avoid min-size clamps that exceed available space; views should shrink to fit to prevent selection/highlight mismatches.
+- Loop runner inactivity is controlled by `loop.runner_inactivity_seconds`; when triggered, the loop resets to the last known good commit and restarts the item (no WIP quarantine).
 - TUI keybinding policy (RQ-0469):
   - Global actions must use `ctrl+` combos only; avoid bare letters for global scope.
   - While typing in a content view, global shortcuts do not fire (except quit); route keys to the active view.

@@ -388,6 +388,18 @@ func TestLoggingMaxBufferedBytesValidation(t *testing.T) {
 	}
 }
 
+func TestRunnerInactivityValidation(t *testing.T) {
+	base, err := DefaultConfig()
+	if err != nil {
+		t.Fatalf("default config: %v", err)
+	}
+
+	base.Loop.RunnerInactivitySeconds = -1
+	if err := base.Validate(); err == nil {
+		t.Fatalf("expected validation error for loop.runner_inactivity_seconds")
+	}
+}
+
 func TestApplyPartialNormalizesRedactionMode(t *testing.T) {
 	base, err := DefaultConfig()
 	if err != nil {

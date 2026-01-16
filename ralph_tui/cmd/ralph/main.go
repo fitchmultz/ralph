@@ -705,6 +705,14 @@ func newLoopRunCommand() *cobra.Command {
 				}
 				maxRepair = value
 			}
+			runnerInactivity := cfg.Loop.RunnerInactivitySeconds
+			if flags.Changed("runner-inactivity-seconds") {
+				value, err := flags.GetInt("runner-inactivity-seconds")
+				if err != nil {
+					return err
+				}
+				runnerInactivity = value
+			}
 
 			onlyTags := cfg.Loop.OnlyTags
 			if flags.Changed("only-tag") {
@@ -779,7 +787,7 @@ func newLoopRunCommand() *cobra.Command {
 			runOnce, _ := flags.GetBool("once")
 			forceContextBuilder, _ := flags.GetBool("force-context-builder")
 
-			if sleepSeconds < 0 || maxIterations < 0 || maxStalled < 0 || maxRepair < 0 {
+			if sleepSeconds < 0 || maxIterations < 0 || maxStalled < 0 || maxRepair < 0 || runnerInactivity < 0 {
 				return fmt.Errorf("loop numeric values must be non-negative")
 			}
 
@@ -799,31 +807,32 @@ func newLoopRunCommand() *cobra.Command {
 				return err
 			}
 			runner, err := loop.NewRunner(loop.Options{
-				RepoRoot:            locs.RepoRoot,
-				PinDir:              cfg.Paths.PinDir,
-				PromptPath:          promptPath,
-				SupervisorPrompt:    supervisorPrompt,
-				ProjectType:         cfg.ProjectType,
-				Runner:              runnerName,
-				RunnerArgs:          runnerArgs,
-				ReasoningEffort:     effort,
-				ForceContextBuilder: forceContextBuilder,
-				SleepSeconds:        sleepSeconds,
-				MaxIterations:       maxIterations,
-				MaxStalled:          maxStalled,
-				MaxRepairAttempts:   maxRepair,
-				OnlyTags:            onlyTagsParsed,
-				Once:                runOnce,
-				RequireMain:         cfg.Loop.RequireMain,
-				AutoCommit:          cfg.Git.AutoCommit,
-				AutoPush:            cfg.Git.AutoPush,
-				DirtyRepoStart:      dirtyStartPolicy,
-				DirtyRepoDuring:     dirtyDuringPolicy,
-				AllowUntracked:      allowUntracked,
-				QuarantineClean:     quarantineClean,
-				RedactionMode:       cfg.Logging.RedactionMode,
-				LogMaxBufferedBytes: cfg.Logging.MaxBufferedBytes,
-				Logger:              logger,
+				RepoRoot:                locs.RepoRoot,
+				PinDir:                  cfg.Paths.PinDir,
+				PromptPath:              promptPath,
+				SupervisorPrompt:        supervisorPrompt,
+				ProjectType:             cfg.ProjectType,
+				Runner:                  runnerName,
+				RunnerArgs:              runnerArgs,
+				ReasoningEffort:         effort,
+				ForceContextBuilder:     forceContextBuilder,
+				SleepSeconds:            sleepSeconds,
+				MaxIterations:           maxIterations,
+				MaxStalled:              maxStalled,
+				MaxRepairAttempts:       maxRepair,
+				RunnerInactivitySeconds: runnerInactivity,
+				OnlyTags:                onlyTagsParsed,
+				Once:                    runOnce,
+				RequireMain:             cfg.Loop.RequireMain,
+				AutoCommit:              cfg.Git.AutoCommit,
+				AutoPush:                cfg.Git.AutoPush,
+				DirtyRepoStart:          dirtyStartPolicy,
+				DirtyRepoDuring:         dirtyDuringPolicy,
+				AllowUntracked:          allowUntracked,
+				QuarantineClean:         quarantineClean,
+				RedactionMode:           cfg.Logging.RedactionMode,
+				LogMaxBufferedBytes:     cfg.Logging.MaxBufferedBytes,
+				Logger:                  logger,
 			})
 			if err != nil {
 				return err
@@ -839,6 +848,7 @@ func newLoopRunCommand() *cobra.Command {
 	cmd.Flags().Int("max-iterations", 0, "Stop after N iterations (0 = infinite)")
 	cmd.Flags().Int("max-stalled", 3, "Auto-block after N stalled iterations")
 	cmd.Flags().Int("max-repair-attempts", 2, "Supervisor repair attempts before auto-block")
+	cmd.Flags().Int("runner-inactivity-seconds", 0, "Cancel and reset when the runner is inactive for N seconds (0 = disabled)")
 	cmd.Flags().String("only-tag", "", "Only execute queue items tagged with [tag] (comma/space-separated)")
 	cmd.Flags().Bool("once", false, "Run exactly one iteration and exit")
 	cmd.Flags().String("reasoning-effort", "", "Codex reasoning effort override (auto/low/medium/high/off)")

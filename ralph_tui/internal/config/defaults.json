@@ -29,6 +29,7 @@
     "max_iterations": 0,
     "max_stalled": 3,
     "max_repair_attempts": 2,
+    "runner_inactivity_seconds": 1800,
     "only_tags": "",
     "require_main": true,
     "runner": "codex",

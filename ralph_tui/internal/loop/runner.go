@@ -18,6 +18,7 @@ type RunnerInvoker struct {
 	Redactor            *Redactor
 	Logger              Logger
 	LogMaxBufferedBytes int
+	DisableStdin        bool
 }
 
 // RunPrompt runs the runner using the provided prompt file.
@@ -29,6 +30,14 @@ func (r RunnerInvoker) RunPrompt(ctx context.Context, promptPath string) error {
 	cmd := exec.CommandContext(ctx, invocation.Name, invocation.Args...)
 	if invocation.PromptStdinPath != "" {
 		file, err := os.Open(invocation.PromptStdinPath)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+		cmd.Stdin = file
+	}
+	if r.DisableStdin && cmd.Stdin == nil {
+		file, err := os.Open(os.DevNull)
 		if err != nil {
 			return err
 		}

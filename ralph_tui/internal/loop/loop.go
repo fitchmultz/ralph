@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/mitchfultz/ralph/ralph_tui/internal/pin"
@@ -22,32 +23,33 @@ import (
 
 // Options controls loop execution.
 type Options struct {
-	RepoRoot            string
-	PinDir              string
-	PromptPath          string
-	SupervisorPrompt    string
-	ProjectType         project.Type
-	Runner              string
-	RunnerArgs          []string
-	ReasoningEffort     string
-	ForceContextBuilder bool
-	SleepSeconds        int
-	MaxIterations       int
-	MaxStalled          int
-	MaxRepairAttempts   int
-	OnlyTags            []string
-	Once                bool
-	RequireMain         bool
-	AutoCommit          bool
-	AutoPush            bool
-	DirtyRepoStart      DirtyRepoPolicy
-	DirtyRepoDuring     DirtyRepoPolicy
-	AllowUntracked      bool
-	QuarantineClean     bool
-	RedactionMode       redaction.Mode
-	LogMaxBufferedBytes int
-	Logger              Logger
-	StateSink           StateSink
+	RepoRoot                string
+	PinDir                  string
+	PromptPath              string
+	SupervisorPrompt        string
+	ProjectType             project.Type
+	Runner                  string
+	RunnerArgs              []string
+	ReasoningEffort         string
+	ForceContextBuilder     bool
+	SleepSeconds            int
+	MaxIterations           int
+	MaxStalled              int
+	MaxRepairAttempts       int
+	RunnerInactivitySeconds int
+	OnlyTags                []string
+	Once                    bool
+	RequireMain             bool
+	AutoCommit              bool
+	AutoPush                bool
+	DirtyRepoStart          DirtyRepoPolicy
+	DirtyRepoDuring         DirtyRepoPolicy
+	AllowUntracked          bool
+	QuarantineClean         bool
+	RedactionMode           redaction.Mode
+	LogMaxBufferedBytes     int
+	Logger                  Logger
+	StateSink               StateSink
 }
 
 // Runner executes the loop.
@@ -69,9 +71,23 @@ type Runner struct {
 	state                   State
 }
 
+// RunnerInactivityError reports a runner that produced no output for too long.
+type RunnerInactivityError struct {
+	Inactivity time.Duration
+	Cause      error
+}
+
+func (e *RunnerInactivityError) Error() string {
+	if e == nil {
+		return "runner inactivity timeout"
+	}
+	return fmt.Sprintf("runner inactive for %s", e.Inactivity)
+}
+
 const (
 	makeCITimeout         = 20 * time.Minute
 	cancelFinalizeTimeout = 2 * time.Minute
+	runnerCancelTimeout   = 30 * time.Second
 	gitCommitTimeout      = 2 * time.Minute
 	gitPushTimeout        = 5 * time.Minute
 )
@@ -108,6 +124,9 @@ func NewRunner(opts Options) (*Runner, error) {
 	}
 	if opts.DirtyRepoDuring == "" {
 		opts.DirtyRepoDuring = DirtyRepoPolicyQuarantine
+	}
+	if opts.RunnerInactivitySeconds < 0 {
+		return nil, fmt.Errorf("runner_inactivity_seconds must be >= 0")
 	}
 	if _, err := ParseDirtyRepoPolicy(string(opts.DirtyRepoStart)); err != nil {
 		return nil, err
@@ -217,6 +236,15 @@ func (r *Runner) Run(ctx context.Context) error {
 			logGitError(r.redactor, r.opts.Logger, "head sha", err)
 			return err
 		}
+		branchBefore, err := CurrentBranch(ctx, r.opts.RepoRoot)
+		if err != nil {
+			if isCancellation(ctx, err) {
+				r.finalizeOnCancel(ctx)
+				return nil
+			}
+			logGitError(r.redactor, r.opts.Logger, "current branch", err)
+			return err
+		}
 
 		block, err := CurrentItemBlock(r.pinFiles.QueuePath, itemID)
 		if err != nil {
@@ -238,6 +266,15 @@ func (r *Runner) Run(ctx context.Context) error {
 				return nil
 			}
 			logGitError(r.redactor, r.opts.Logger, "head sha", err)
+			return err
+		}
+		branchBefore, err = CurrentBranch(ctx, r.opts.RepoRoot)
+		if err != nil {
+			if isCancellation(ctx, err) {
+				r.finalizeOnCancel(ctx)
+				return nil
+			}
+			logGitError(r.redactor, r.opts.Logger, "current branch", err)
 			return err
 		}
 
@@ -267,6 +304,15 @@ func (r *Runner) Run(ctx context.Context) error {
 						return nil
 					}
 					logGitError(r.redactor, r.opts.Logger, "head sha", err)
+					return err
+				}
+				branchBefore, err = CurrentBranch(ctx, r.opts.RepoRoot)
+				if err != nil {
+					if isCancellation(ctx, err) {
+						r.finalizeOnCancel(ctx)
+						return nil
+					}
+					logGitError(r.redactor, r.opts.Logger, "current branch", err)
 					return err
 				}
 				status, err = StatusDetails(ctx, r.opts.RepoRoot)
@@ -336,9 +382,16 @@ func (r *Runner) Run(ctx context.Context) error {
 			Redactor:            r.redactor,
 			Logger:              r.opts.Logger,
 			LogMaxBufferedBytes: r.opts.LogMaxBufferedBytes,
+			DisableStdin:        true,
 		}
-		if err := runner.RunPrompt(ctx, promptFile); err != nil {
+		if err := r.runRunnerPrompt(ctx, runner, promptFile); err != nil {
 			cleanup()
+			var inactivityErr *RunnerInactivityError
+			if errors.As(err, &inactivityErr) {
+				r.handleRunnerInactivity(itemID, headBefore, branchBefore, inactivityErr)
+				r.cleanupIterationArtifacts()
+				continue
+			}
 			if r.handleIterationFailure(ctx, itemID, firstItem.Header, headBefore, "runner", fmt.Sprintf("%s failed on iteration %d.", r.opts.Runner, iterations), err) {
 				return nil
 			}
@@ -827,8 +880,9 @@ func (r *Runner) runSupervisor(ctx context.Context, stage string, message string
 		Redactor:            r.redactor,
 		Logger:              r.opts.Logger,
 		LogMaxBufferedBytes: r.opts.LogMaxBufferedBytes,
+		DisableStdin:        true,
 	}
-	if err := runner.RunPrompt(ctx, contextFile); err != nil {
+	if err := r.runRunnerPrompt(ctx, runner, contextFile); err != nil {
 		r.lastFailureStage = "supervisor"
 		r.lastFailureMessage = "Supervisor runner failed."
 		return
@@ -1109,6 +1163,134 @@ func (r *Runner) recordFailure(stage string, message string) {
 	r.lastFailureStage = stage
 	r.lastFailureMessage = message
 	r.publishState(r.stateWithFailure(r.state))
+}
+
+type activityTracker struct {
+	mu   sync.Mutex
+	last time.Time
+}
+
+func newActivityTracker() *activityTracker {
+	return &activityTracker{last: time.Now()}
+}
+
+func (t *activityTracker) Mark() {
+	if t == nil {
+		return
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.last = time.Now()
+}
+
+func (t *activityTracker) IdleFor(now time.Time) time.Duration {
+	if t == nil {
+		return 0
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if now.IsZero() {
+		now = time.Now()
+	}
+	return now.Sub(t.last)
+}
+
+type activityLogger struct {
+	inner   Logger
+	tracker *activityTracker
+}
+
+func (a activityLogger) WriteLine(line string) {
+	if a.tracker != nil {
+		a.tracker.Mark()
+	}
+	if a.inner != nil {
+		a.inner.WriteLine(line)
+	}
+}
+
+func (r *Runner) runRunnerPrompt(ctx context.Context, runner RunnerInvoker, promptFile string) error {
+	inactivity := time.Duration(r.opts.RunnerInactivitySeconds) * time.Second
+	if inactivity <= 0 {
+		return runner.RunPrompt(ctx, promptFile)
+	}
+	tracker := newActivityTracker()
+	runner.Logger = activityLogger{inner: runner.Logger, tracker: tracker}
+
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- runner.RunPrompt(runCtx, promptFile)
+	}()
+
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case err := <-errCh:
+			return err
+		case <-ticker.C:
+			if tracker.IdleFor(time.Now()) >= inactivity {
+				cancel()
+				err := waitForRunnerExit(errCh, runnerCancelTimeout)
+				return &RunnerInactivityError{Inactivity: inactivity, Cause: err}
+			}
+		case <-ctx.Done():
+			cancel()
+			return waitForRunnerExit(errCh, runnerCancelTimeout)
+		}
+	}
+}
+
+func waitForRunnerExit(errCh <-chan error, timeout time.Duration) error {
+	if timeout <= 0 {
+		return <-errCh
+	}
+	select {
+	case err := <-errCh:
+		return err
+	case <-time.After(timeout):
+		return context.DeadlineExceeded
+	}
+}
+
+func (r *Runner) handleRunnerInactivity(itemID string, headBefore string, branchBefore string, err *RunnerInactivityError) {
+	label := "runner inactivity timeout"
+	duration := "unknown"
+	if err != nil {
+		label = fmt.Sprintf("No output for %s.", err.Inactivity)
+		duration = err.Inactivity.String()
+	}
+	r.recordFailure("runner-inactivity", label)
+	r.logf(">> [RALPH] Runner inactive for %s; resetting %s to %s and restarting.", duration, itemID, headBefore)
+
+	cleanupCtx, cancel := withTimeout(context.Background(), cancelFinalizeTimeout)
+	defer cancel()
+	if resetErr := r.resetToKnownGood(cleanupCtx, headBefore, branchBefore); resetErr != nil {
+		r.logf(">> [RALPH] Warning: reset after inactivity failed: %v", resetErr)
+	}
+}
+
+func (r *Runner) resetToKnownGood(ctx context.Context, headBefore string, branchBefore string) error {
+	if branchBefore != "" && branchBefore != "HEAD" {
+		if err := CheckoutBranch(ctx, r.opts.RepoRoot, branchBefore); err != nil {
+			return err
+		}
+	}
+	if strings.TrimSpace(headBefore) != "" {
+		if err := ResetHard(ctx, r.opts.RepoRoot, headBefore); err != nil {
+			return err
+		}
+	}
+	if r.opts.QuarantineClean {
+		if err := Clean(ctx, r.opts.RepoRoot); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func contextBuilderPolicyBlock(effort string, mandatory bool, forced bool, note string) string {

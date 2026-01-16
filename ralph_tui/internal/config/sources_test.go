@@ -23,6 +23,7 @@ func TestFieldSourcesForConfigs(t *testing.T) {
 
 	cliCfg := repoCfg
 	cliCfg.Loop.OnlyTags = "ui"
+	cliCfg.Loop.RunnerInactivitySeconds = 900
 
 	sessionCfg := cliCfg
 	sessionCfg.Git.AutoPush = !defaults.Git.AutoPush
@@ -43,6 +44,9 @@ func TestFieldSourcesForConfigs(t *testing.T) {
 	}
 	if sources.LoopOnlyTags != SourceCLI {
 		t.Fatalf("expected loop.only_tags source cli, got %q", sources.LoopOnlyTags)
+	}
+	if sources.LoopInactivity != SourceCLI {
+		t.Fatalf("expected loop.runner_inactivity_seconds source cli, got %q", sources.LoopInactivity)
 	}
 	if sources.GitAutoPush != SourceSession {
 		t.Fatalf("expected git.auto_push source session, got %q", sources.GitAutoPush)
