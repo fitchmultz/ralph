@@ -6,12 +6,13 @@
     "refresh_seconds": 5
   },
   "logging": {
-    "level": "info",
+    "level": "debug",
     "file": "",
-    "redaction_mode": "secrets_only"
+    "redaction_mode": "secrets_only",
+    "max_buffered_bytes": 1048576
   },
   "paths": {
-    "data_dir": "data",
+    "data_dir": ".ralph/data",
     "cache_dir": "/Users/mitchfultz/.ralph/cache/ralph",
     "pin_dir": ".ralph/pin"
   },
