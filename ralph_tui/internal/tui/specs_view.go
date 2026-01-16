@@ -741,7 +741,7 @@ func (s *specsView) runBuildCmd() tea.Cmd {
 			return specsBuildResultMsg{err: err}
 		}
 		files := pin.ResolveFiles(s.cfg.Paths.PinDir)
-		pinErr := pin.ValidatePin(files)
+		pinErr := pin.ValidatePin(files, s.cfg.ProjectType)
 		diffStat, diffErr := specs.GitDiffStat(s.locations.RepoRoot)
 		if diffErr != nil {
 			diffStat = ""

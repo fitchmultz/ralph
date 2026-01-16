@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/mitchfultz/ralph/ralph_tui/internal/project"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/queueid"
 )
 
@@ -55,7 +56,7 @@ type FixDuplicateIDsResult struct {
 }
 
 // FixDuplicateQueueIDs renumbers duplicate IDs in the queue file without modifying the done log.
-func FixDuplicateQueueIDs(files Files, fallbackPrefix string) (FixDuplicateIDsResult, error) {
+func FixDuplicateQueueIDs(files Files, fallbackPrefix string, projectType project.Type) (FixDuplicateIDsResult, error) {
 	lock, err := acquirePinLock(filepath.Dir(files.QueuePath))
 	if err != nil {
 		return FixDuplicateIDsResult{}, err
@@ -132,7 +133,7 @@ func FixDuplicateQueueIDs(files Files, fallbackPrefix string) (FixDuplicateIDsRe
 	if err := writeLines(files.QueuePath, queueLines); err != nil {
 		return result, err
 	}
-	if err := ValidatePin(files); err != nil {
+	if err := ValidatePin(files, projectType); err != nil {
 		return result, err
 	}
 

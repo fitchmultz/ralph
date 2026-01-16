@@ -168,7 +168,7 @@ func newInitCommand() *cobra.Command {
 				return err
 			}
 			files := pin.ResolveFiles(cfg.Paths.PinDir)
-			if err := pin.ValidatePin(files); err != nil {
+			if err := pin.ValidatePin(files, projectType); err != nil {
 				return err
 			}
 			if err := persistProjectTypeConfig(locs.RepoConfigPath, locs.RepoRoot, projectType); err != nil {
@@ -587,7 +587,7 @@ func newSpecsBuildCommand() *cobra.Command {
 			}
 
 			files := pin.ResolveFiles(cfg.Paths.PinDir)
-			if err := pin.ValidatePin(files); err != nil {
+			if err := pin.ValidatePin(files, cfg.ProjectType); err != nil {
 				return err
 			}
 			if _, err := fmt.Fprintln(cmd.OutOrStdout(), ">> [RALPH] Pin validation OK."); err != nil {
@@ -976,7 +976,7 @@ func newPinValidateCommand() *cobra.Command {
 				return err
 			}
 			files := pin.ResolveFiles(cfg.Paths.PinDir)
-			if err := pin.ValidatePin(files); err != nil {
+			if err := pin.ValidatePin(files, cfg.ProjectType); err != nil {
 				return err
 			}
 			_, err = fmt.Fprintln(cmd.OutOrStdout(), ">> [RALPH] Pin validation OK.")
@@ -998,7 +998,7 @@ func newPinNextIDCommand() *cobra.Command {
 				return err
 			}
 			files := pin.ResolveFiles(cfg.Paths.PinDir)
-			if err := pin.ValidatePin(files); err != nil {
+			if err := pin.ValidatePin(files, cfg.ProjectType); err != nil {
 				return err
 			}
 			nextID, err := pin.NextQueueID(files, "")
@@ -1024,7 +1024,7 @@ func newPinFixIDsCommand() *cobra.Command {
 				return err
 			}
 			files := pin.ResolveFiles(cfg.Paths.PinDir)
-			result, err := pin.FixDuplicateQueueIDs(files, "")
+			result, err := pin.FixDuplicateQueueIDs(files, "", cfg.ProjectType)
 			if err != nil {
 				return err
 			}

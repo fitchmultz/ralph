@@ -138,6 +138,9 @@ func setupRepoWithQueue(t *testing.T, itemID string) (string, string) {
 	if err := os.WriteFile(filepath.Join(pinDir, "specs_builder.md"), []byte(""), 0o600); err != nil {
 		t.Fatalf("write specs: %v", err)
 	}
+	if err := os.WriteFile(filepath.Join(pinDir, "specs_builder_docs.md"), []byte(""), 0o600); err != nil {
+		t.Fatalf("write specs docs: %v", err)
+	}
 	if err := os.WriteFile(filepath.Join(pinDir, "implementation_done.md"), []byte("## Done\n"), 0o600); err != nil {
 		t.Fatalf("write done: %v", err)
 	}

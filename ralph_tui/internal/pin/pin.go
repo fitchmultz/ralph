@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/mitchfultz/ralph/ralph_tui/internal/fileutil"
+	"github.com/mitchfultz/ralph/ralph_tui/internal/project"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/queueid"
 )
 
@@ -37,6 +38,11 @@ const (
 	unblockHintPrefix   = "- Unblock hint:"
 	fixupAttemptsPrefix = "- Fixup attempts:"
 	fixupLastPrefix     = "- Fixup last:"
+)
+
+const (
+	SpecsBuilderCodeFilename = "specs_builder.md"
+	SpecsBuilderDocsFilename = "specs_builder_docs.md"
 )
 
 // TagList captures parsed tags plus any unknown values.
@@ -163,21 +169,23 @@ func MatchesAnyTag(header string, tags []string) bool {
 
 // Files describes the Ralph pin/spec files on disk.
 type Files struct {
-	QueuePath  string
-	DonePath   string
-	LookupPath string
-	ReadmePath string
-	SpecsPath  string
+	QueuePath            string
+	DonePath             string
+	LookupPath           string
+	ReadmePath           string
+	SpecsBuilderCodePath string
+	SpecsBuilderDocsPath string
 }
 
 // ResolveFiles returns the expected pin file locations for the given repo.
 func ResolveFiles(pinDir string) Files {
 	return Files{
-		QueuePath:  filepath.Join(pinDir, "implementation_queue.md"),
-		DonePath:   filepath.Join(pinDir, "implementation_done.md"),
-		LookupPath: filepath.Join(pinDir, "lookup_table.md"),
-		ReadmePath: filepath.Join(pinDir, "README.md"),
-		SpecsPath:  filepath.Join(pinDir, "specs_builder.md"),
+		QueuePath:            filepath.Join(pinDir, "implementation_queue.md"),
+		DonePath:             filepath.Join(pinDir, "implementation_done.md"),
+		LookupPath:           filepath.Join(pinDir, "lookup_table.md"),
+		ReadmePath:           filepath.Join(pinDir, "README.md"),
+		SpecsBuilderCodePath: filepath.Join(pinDir, SpecsBuilderCodeFilename),
+		SpecsBuilderDocsPath: filepath.Join(pinDir, SpecsBuilderDocsFilename),
 	}
 }
 
@@ -188,8 +196,36 @@ func (f Files) AllPaths() []string {
 		f.DonePath,
 		f.LookupPath,
 		f.ReadmePath,
-		f.SpecsPath,
+		f.SpecsBuilderCodePath,
+		f.SpecsBuilderDocsPath,
 	}
+}
+
+// RequiredSpecsBuilderPath returns the specs builder template for the given project type.
+func (f Files) RequiredSpecsBuilderPath(projectType project.Type) (string, error) {
+	resolvedType, err := project.ResolveType(projectType)
+	if err != nil {
+		return "", fmt.Errorf("project_type must be code or docs")
+	}
+	if resolvedType == project.TypeDocs {
+		return f.SpecsBuilderDocsPath, nil
+	}
+	return f.SpecsBuilderCodePath, nil
+}
+
+// RequiredPaths returns pin files required for validation.
+func (f Files) RequiredPaths(projectType project.Type) ([]string, error) {
+	if _, err := project.ResolveType(projectType); err != nil {
+		return nil, fmt.Errorf("project_type must be code or docs")
+	}
+	return []string{
+		f.QueuePath,
+		f.DonePath,
+		f.LookupPath,
+		f.ReadmePath,
+		f.SpecsBuilderCodePath,
+		f.SpecsBuilderDocsPath,
+	}, nil
 }
 
 // RelativePaths returns repo-relative paths for all pin files, using forward slashes.
@@ -217,18 +253,15 @@ func (f Files) RelativePathSet(repoRoot string) map[string]struct{} {
 }
 
 // ValidatePin enforces the pin/spec validation rules.
-func ValidatePin(files Files) error {
-	if err := requireFile(files.QueuePath); err != nil {
+func ValidatePin(files Files, projectType project.Type) error {
+	required, err := files.RequiredPaths(projectType)
+	if err != nil {
 		return err
 	}
-	if err := requireFile(files.DonePath); err != nil {
-		return err
-	}
-	if err := requireFile(files.LookupPath); err != nil {
-		return err
-	}
-	if err := requireFile(files.ReadmePath); err != nil {
-		return err
+	for _, path := range required {
+		if err := requireFile(path); err != nil {
+			return err
+		}
 	}
 
 	queueLines, err := readLines(files.QueuePath)

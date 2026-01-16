@@ -11,6 +11,7 @@ import (
 
 	"github.com/mitchfultz/ralph/ralph_tui/internal/config"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/pin"
+	"github.com/mitchfultz/ralph/ralph_tui/internal/project"
 )
 
 // Result captures migration outcomes.
@@ -61,18 +62,35 @@ func Run(repoRoot string, repoConfigPath string) (Result, error) {
 	if partial != nil {
 		updated = *partial
 	}
+	resolvedProjectType := project.DefaultType()
+	if updated.ProjectType != nil {
+		resolvedProjectType, err = project.ResolveType(*updated.ProjectType)
+		if err != nil {
+			return result, fmt.Errorf("project_type must be code or docs")
+		}
+	} else {
+		detected, _, err := project.DetectType(cleanRoot)
+		if err != nil {
+			return result, err
+		}
+		resolvedProjectType = detected
+	}
 	if updated.Paths == nil {
 		updated.Paths = &config.PathsPartial{}
 	}
 	pinPath := result.NewPinDir
 	updated.Paths.PinDir = &pinPath
+	updated.ProjectType = &resolvedProjectType
 
 	if err := config.SavePartial(repoConfigPath, updated, config.SaveOptions{RelativeRoot: cleanRoot}); err != nil {
 		return result, err
 	}
 
+	if _, err := pin.EnsureSpecsTemplate(result.NewPinDir, resolvedProjectType); err != nil {
+		return result, err
+	}
 	files := pin.ResolveFiles(result.NewPinDir)
-	if err := pin.ValidatePin(files); err != nil {
+	if err := pin.ValidatePin(files, resolvedProjectType); err != nil {
 		return result, err
 	}
 

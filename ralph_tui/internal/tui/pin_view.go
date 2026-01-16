@@ -547,7 +547,7 @@ func (p *pinView) reloadAsync(resetScroll bool) tea.Cmd {
 }
 
 func (p *pinView) runValidate() {
-	if err := pin.ValidatePin(p.files); err != nil {
+	if err := pin.ValidatePin(p.files, p.config.ProjectType); err != nil {
 		p.err = err.Error()
 		p.status = ""
 		return

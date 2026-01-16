@@ -15,18 +15,20 @@ import (
 )
 
 type fixturePaths struct {
-	pinDir string
-	queue  string
-	done   string
-	lookup string
-	readme string
+	pinDir    string
+	queue     string
+	done      string
+	lookup    string
+	readme    string
+	specsCode string
+	specsDocs string
 }
 
 func TestValidatePinFixtures(t *testing.T) {
 	fixture := mustLocateFixtures(t)
 	files := ResolveFiles(fixture.pinDir)
 
-	if err := ValidatePin(files); err != nil {
+	if err := ValidatePin(files, project.TypeCode); err != nil {
 		t.Fatalf("ValidatePin failed: %v", err)
 	}
 }
@@ -35,7 +37,7 @@ func TestValidatePinAllowsEmptyQueueAndDone(t *testing.T) {
 	fixture := mustLocateEmptyFixtures(t)
 	files := ResolveFiles(fixture.pinDir)
 
-	if err := ValidatePin(files); err != nil {
+	if err := ValidatePin(files, project.TypeCode); err != nil {
 		t.Fatalf("ValidatePin failed for empty fixtures: %v", err)
 	}
 }
@@ -44,10 +46,12 @@ func TestValidatePinAllowsExtraMetadata(t *testing.T) {
 	fixture := mustLocateFixtures(t)
 
 	tmpDir := t.TempDir()
-	queuePath := copyFixture(t, fixture.queue, filepath.Join(tmpDir, "implementation_queue.md"))
-	donePath := copyFixture(t, fixture.done, filepath.Join(tmpDir, "implementation_done.md"))
-	lookupPath := copyFixture(t, fixture.lookup, filepath.Join(tmpDir, "lookup_table.md"))
-	readmePath := copyFixture(t, fixture.readme, filepath.Join(tmpDir, "README.md"))
+	files := ResolveFiles(tmpDir)
+	queuePath := copyFixture(t, fixture.queue, files.QueuePath)
+	_ = copyFixture(t, fixture.done, files.DonePath)
+	_ = copyFixture(t, fixture.lookup, files.LookupPath)
+	_ = copyFixture(t, fixture.readme, files.ReadmePath)
+	copyFixtureSpecs(t, fixture, files)
 
 	data, err := os.ReadFile(queuePath)
 	if err != nil {
@@ -69,12 +73,7 @@ func TestValidatePinAllowsExtraMetadata(t *testing.T) {
 		t.Fatalf("write queue: %v", err)
 	}
 
-	if err := ValidatePin(Files{
-		QueuePath:  queuePath,
-		DonePath:   donePath,
-		LookupPath: lookupPath,
-		ReadmePath: readmePath,
-	}); err != nil {
+	if err := ValidatePin(files, project.TypeCode); err != nil {
 		t.Fatalf("ValidatePin failed with extra metadata: %v", err)
 	}
 }
@@ -83,10 +82,12 @@ func TestValidatePinRejectsUnsafeMetadataLines(t *testing.T) {
 	fixture := mustLocateFixtures(t)
 
 	tmpDir := t.TempDir()
-	queuePath := copyFixture(t, fixture.queue, filepath.Join(tmpDir, "implementation_queue.md"))
-	donePath := copyFixture(t, fixture.done, filepath.Join(tmpDir, "implementation_done.md"))
-	lookupPath := copyFixture(t, fixture.lookup, filepath.Join(tmpDir, "lookup_table.md"))
-	readmePath := copyFixture(t, fixture.readme, filepath.Join(tmpDir, "README.md"))
+	files := ResolveFiles(tmpDir)
+	queuePath := copyFixture(t, fixture.queue, files.QueuePath)
+	_ = copyFixture(t, fixture.done, files.DonePath)
+	_ = copyFixture(t, fixture.lookup, files.LookupPath)
+	_ = copyFixture(t, fixture.readme, files.ReadmePath)
+	copyFixtureSpecs(t, fixture, files)
 
 	data, err := os.ReadFile(queuePath)
 	if err != nil {
@@ -101,12 +102,7 @@ func TestValidatePinRejectsUnsafeMetadataLines(t *testing.T) {
 		t.Fatalf("write queue: %v", err)
 	}
 
-	err = ValidatePin(Files{
-		QueuePath:  queuePath,
-		DonePath:   donePath,
-		LookupPath: lookupPath,
-		ReadmePath: readmePath,
-	})
+	err = ValidatePin(files, project.TypeCode)
 	if err == nil {
 		t.Fatalf("expected ValidatePin to fail with unsafe metadata")
 	}
@@ -119,10 +115,12 @@ func TestValidatePinAcceptsUppercaseTags(t *testing.T) {
 	fixture := mustLocateFixtures(t)
 
 	tmpDir := t.TempDir()
-	queuePath := copyFixture(t, fixture.queue, filepath.Join(tmpDir, "implementation_queue.md"))
-	donePath := copyFixture(t, fixture.done, filepath.Join(tmpDir, "implementation_done.md"))
-	lookupPath := copyFixture(t, fixture.lookup, filepath.Join(tmpDir, "lookup_table.md"))
-	readmePath := copyFixture(t, fixture.readme, filepath.Join(tmpDir, "README.md"))
+	files := ResolveFiles(tmpDir)
+	queuePath := copyFixture(t, fixture.queue, files.QueuePath)
+	_ = copyFixture(t, fixture.done, files.DonePath)
+	_ = copyFixture(t, fixture.lookup, files.LookupPath)
+	_ = copyFixture(t, fixture.readme, files.ReadmePath)
+	copyFixtureSpecs(t, fixture, files)
 
 	data, err := os.ReadFile(queuePath)
 	if err != nil {
@@ -137,12 +135,7 @@ func TestValidatePinAcceptsUppercaseTags(t *testing.T) {
 		t.Fatalf("write queue: %v", err)
 	}
 
-	if err := ValidatePin(Files{
-		QueuePath:  queuePath,
-		DonePath:   donePath,
-		LookupPath: lookupPath,
-		ReadmePath: readmePath,
-	}); err != nil {
+	if err := ValidatePin(files, project.TypeCode); err != nil {
 		t.Fatalf("ValidatePin failed with uppercase tags: %v", err)
 	}
 }
@@ -196,12 +189,15 @@ func TestInitLayoutCreatesValidPin(t *testing.T) {
 	}
 
 	files := ResolveFiles(pinDir)
-	if err := ValidatePin(files); err != nil {
+	if err := ValidatePin(files, project.TypeCode); err != nil {
 		t.Fatalf("ValidatePin failed after init: %v", err)
 	}
 
-	if _, err := os.Stat(files.SpecsPath); err != nil {
+	if _, err := os.Stat(files.SpecsBuilderCodePath); err != nil {
 		t.Fatalf("specs_builder missing after init: %v", err)
+	}
+	if _, err := os.Stat(files.SpecsBuilderDocsPath); err != nil {
+		t.Fatalf("specs_builder_docs missing after init: %v", err)
 	}
 
 	cacheInfo, err := os.Stat(result.CacheDir)
@@ -223,8 +219,91 @@ func TestInitLayoutCreatesDocsTemplate(t *testing.T) {
 		t.Fatalf("InitLayout failed: %v", err)
 	}
 
-	if _, err := os.Stat(filepath.Join(pinDir, "specs_builder_docs.md")); err != nil {
+	files := ResolveFiles(pinDir)
+	if _, err := os.Stat(files.SpecsBuilderDocsPath); err != nil {
 		t.Fatalf("specs_builder_docs missing after init: %v", err)
+	}
+	if _, err := os.Stat(files.SpecsBuilderCodePath); err != nil {
+		t.Fatalf("specs_builder missing after docs init: %v", err)
+	}
+	if err := ValidatePin(files, project.TypeDocs); err != nil {
+		t.Fatalf("ValidatePin failed for docs init: %v", err)
+	}
+}
+
+func TestValidatePinDocsRequiresDocsTemplate(t *testing.T) {
+	fixture := mustLocateFixtures(t)
+
+	tmpDir := t.TempDir()
+	files := ResolveFiles(tmpDir)
+	_ = copyFixture(t, fixture.queue, files.QueuePath)
+	_ = copyFixture(t, fixture.done, files.DonePath)
+	_ = copyFixture(t, fixture.lookup, files.LookupPath)
+	_ = copyFixture(t, fixture.readme, files.ReadmePath)
+	_ = copyFixture(t, fixture.specsCode, files.SpecsBuilderCodePath)
+
+	err := ValidatePin(files, project.TypeDocs)
+	if err == nil {
+		t.Fatalf("expected ValidatePin to require docs template")
+	}
+	if !strings.Contains(err.Error(), SpecsBuilderDocsFilename) {
+		t.Fatalf("expected missing docs template error, got: %v", err)
+	}
+}
+
+func TestMissingFilesIncludesSpecsTemplatesForCodeProject(t *testing.T) {
+	fixture := mustLocateFixtures(t)
+
+	tmpDir := t.TempDir()
+	files := ResolveFiles(tmpDir)
+	_ = copyFixture(t, fixture.queue, files.QueuePath)
+	_ = copyFixture(t, fixture.done, files.DonePath)
+	_ = copyFixture(t, fixture.lookup, files.LookupPath)
+	_ = copyFixture(t, fixture.readme, files.ReadmePath)
+
+	missing, err := MissingFiles(files, project.TypeCode)
+	if err != nil {
+		t.Fatalf("MissingFiles failed: %v", err)
+	}
+	if len(missing) != 2 {
+		t.Fatalf("expected 2 missing templates, got %d (%v)", len(missing), missing)
+	}
+	missingSet := make(map[string]struct{}, len(missing))
+	for _, path := range missing {
+		missingSet[path] = struct{}{}
+	}
+	for _, expected := range []string{files.SpecsBuilderCodePath, files.SpecsBuilderDocsPath} {
+		if _, ok := missingSet[expected]; !ok {
+			t.Fatalf("expected missing template %s, got %v", expected, missing)
+		}
+	}
+}
+
+func TestMissingFilesIncludesSpecsTemplatesForDocsProject(t *testing.T) {
+	fixture := mustLocateFixtures(t)
+
+	tmpDir := t.TempDir()
+	files := ResolveFiles(tmpDir)
+	_ = copyFixture(t, fixture.queue, files.QueuePath)
+	_ = copyFixture(t, fixture.done, files.DonePath)
+	_ = copyFixture(t, fixture.lookup, files.LookupPath)
+	_ = copyFixture(t, fixture.readme, files.ReadmePath)
+
+	missing, err := MissingFiles(files, project.TypeDocs)
+	if err != nil {
+		t.Fatalf("MissingFiles failed: %v", err)
+	}
+	if len(missing) != 2 {
+		t.Fatalf("expected 2 missing templates, got %d (%v)", len(missing), missing)
+	}
+	missingSet := make(map[string]struct{}, len(missing))
+	for _, path := range missing {
+		missingSet[path] = struct{}{}
+	}
+	for _, expected := range []string{files.SpecsBuilderCodePath, files.SpecsBuilderDocsPath} {
+		if _, ok := missingSet[expected]; !ok {
+			t.Fatalf("expected missing template %s, got %v", expected, missing)
+		}
 	}
 }
 
@@ -768,10 +847,12 @@ func TestConcurrentPinMoveCheckedToDone(t *testing.T) {
 	fixture := mustLocateFixtures(t)
 
 	tmpDir := t.TempDir()
-	queuePath := copyFixture(t, fixture.queue, filepath.Join(tmpDir, "implementation_queue.md"))
-	donePath := copyFixture(t, fixture.done, filepath.Join(tmpDir, "implementation_done.md"))
-	lookupPath := copyFixture(t, fixture.lookup, filepath.Join(tmpDir, "lookup_table.md"))
-	readmePath := copyFixture(t, fixture.readme, filepath.Join(tmpDir, "README.md"))
+	files := ResolveFiles(tmpDir)
+	queuePath := copyFixture(t, fixture.queue, files.QueuePath)
+	donePath := copyFixture(t, fixture.done, files.DonePath)
+	_ = copyFixture(t, fixture.lookup, files.LookupPath)
+	_ = copyFixture(t, fixture.readme, files.ReadmePath)
+	copyFixtureSpecs(t, fixture, files)
 
 	start := make(chan struct{})
 	results := make(chan error, 2)
@@ -808,12 +889,7 @@ func TestConcurrentPinMoveCheckedToDone(t *testing.T) {
 		t.Fatalf("expected 1 success/1 failure, got %d success/%d failure", successes, failures)
 	}
 
-	if err := ValidatePin(Files{
-		QueuePath:  queuePath,
-		DonePath:   donePath,
-		LookupPath: lookupPath,
-		ReadmePath: readmePath,
-	}); err != nil {
+	if err := ValidatePin(files, project.TypeCode); err != nil {
 		t.Fatalf("ValidatePin failed after concurrent move: %v", err)
 	}
 }
@@ -835,12 +911,16 @@ func mustLocateFixtures(t *testing.T) fixturePaths {
 	done := filepath.Join(pinDir, "implementation_done.md")
 	lookup := filepath.Join(pinDir, "lookup_table.md")
 	readme := filepath.Join(pinDir, "README.md")
+	specsCode := filepath.Join(pinDir, SpecsBuilderCodeFilename)
+	specsDocs := filepath.Join(pinDir, SpecsBuilderDocsFilename)
 	return fixturePaths{
-		pinDir: pinDir,
-		queue:  queue,
-		done:   done,
-		lookup: lookup,
-		readme: readme,
+		pinDir:    pinDir,
+		queue:     queue,
+		done:      done,
+		lookup:    lookup,
+		readme:    readme,
+		specsCode: specsCode,
+		specsDocs: specsDocs,
 	}
 }
 
@@ -861,12 +941,16 @@ func mustLocateEmptyFixtures(t *testing.T) fixturePaths {
 	done := filepath.Join(pinDir, "implementation_done.md")
 	lookup := filepath.Join(pinDir, "lookup_table.md")
 	readme := filepath.Join(pinDir, "README.md")
+	specsCode := filepath.Join(pinDir, SpecsBuilderCodeFilename)
+	specsDocs := filepath.Join(pinDir, SpecsBuilderDocsFilename)
 	return fixturePaths{
-		pinDir: pinDir,
-		queue:  queue,
-		done:   done,
-		lookup: lookup,
-		readme: readme,
+		pinDir:    pinDir,
+		queue:     queue,
+		done:      done,
+		lookup:    lookup,
+		readme:    readme,
+		specsCode: specsCode,
+		specsDocs: specsDocs,
 	}
 }
 
@@ -880,6 +964,12 @@ func copyFixture(t *testing.T, src string, dst string) string {
 		t.Fatalf("write fixture: %v", err)
 	}
 	return dst
+}
+
+func copyFixtureSpecs(t *testing.T, fixture fixturePaths, files Files) {
+	t.Helper()
+	_ = copyFixture(t, fixture.specsCode, files.SpecsBuilderCodePath)
+	_ = copyFixture(t, fixture.specsDocs, files.SpecsBuilderDocsPath)
 }
 
 func readFileLines(t *testing.T, path string) []string {

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/mitchfultz/ralph/ralph_tui/internal/pin"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/redaction"
 )
 
@@ -138,6 +139,8 @@ func writePinFiles(t *testing.T, pinDir string, queue string, done string, looku
 	writeFile(t, filepath.Join(pinDir, "implementation_done.md"), done)
 	writeFile(t, filepath.Join(pinDir, "lookup_table.md"), lookup)
 	writeFile(t, filepath.Join(pinDir, "README.md"), readme)
+	writeFile(t, filepath.Join(pinDir, pin.SpecsBuilderCodeFilename), "Specs builder\n")
+	writeFile(t, filepath.Join(pinDir, pin.SpecsBuilderDocsFilename), "Specs builder docs\n")
 }
 
 func queueWithItem() string {

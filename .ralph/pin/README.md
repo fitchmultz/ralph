@@ -9,7 +9,7 @@ The pin directory should include:
 - implementation_done.md
 - lookup_table.md
 - specs_builder.md
-- specs_builder_docs.md (docs projects)
+- specs_builder_docs.md
 
 ## Queue IDs
 To allocate the next queue ID, run:

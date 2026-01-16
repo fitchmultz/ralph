@@ -84,7 +84,8 @@ func setupPinRepo(t *testing.T, includeExtra bool) (string, pin.Files) {
 	writePinFile(t, files.DonePath, "## Done\n")
 	writePinFile(t, files.LookupPath, "## Lookup\n")
 	writePinFile(t, files.ReadmePath, "Pin readme.\n")
-	writePinFile(t, files.SpecsPath, "Specs builder.\n")
+	writePinFile(t, files.SpecsBuilderCodePath, "Specs builder.\n")
+	writePinFile(t, files.SpecsBuilderDocsPath, "Specs builder docs.\n")
 	if includeExtra {
 		writePinFile(t, filepath.Join(repoRoot, "notes.txt"), "base\n")
 	}

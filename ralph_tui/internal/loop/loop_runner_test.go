@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mitchfultz/ralph/ralph_tui/internal/pin"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/redaction"
 )
 
@@ -32,6 +33,8 @@ func TestRunnerEffortAutoUsesQueuePriority(t *testing.T) {
 	writeFile(t, done, "## Done\n")
 	writeFile(t, lookup, "")
 	writeFile(t, readme, "")
+	writeFile(t, filepath.Join(pinDir, pin.SpecsBuilderCodeFilename), "Specs builder\n")
+	writeFile(t, filepath.Join(pinDir, pin.SpecsBuilderDocsFilename), "Specs builder docs\n")
 
 	logger := &bufferLogger{}
 	runner, err := NewRunner(Options{
@@ -96,6 +99,8 @@ func TestRunnerStopsOnEmptyQueue(t *testing.T) {
 	writeFile(t, done, "## Done\n")
 	writeFile(t, lookup, "")
 	writeFile(t, readme, "")
+	writeFile(t, filepath.Join(pinDir, pin.SpecsBuilderCodeFilename), "Specs builder\n")
+	writeFile(t, filepath.Join(pinDir, pin.SpecsBuilderDocsFilename), "Specs builder docs\n")
 
 	logger := &bufferLogger{}
 	runner, err := NewRunner(Options{
@@ -147,6 +152,8 @@ func TestRunnerLogsGitErrors(t *testing.T) {
 	writeFile(t, done, "## Done\n")
 	writeFile(t, lookup, "")
 	writeFile(t, readme, "")
+	writeFile(t, filepath.Join(pinDir, pin.SpecsBuilderCodeFilename), "Specs builder\n")
+	writeFile(t, filepath.Join(pinDir, pin.SpecsBuilderDocsFilename), "Specs builder docs\n")
 
 	logger := &bufferLogger{}
 	runner, err := NewRunner(Options{

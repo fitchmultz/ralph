@@ -708,7 +708,7 @@ func (r *Runner) runValidatePin() error {
 	r.lastValidateOutput = file.Name()
 	_ = file.Close()
 
-	err = pin.ValidatePin(r.pinFiles)
+	err = pin.ValidatePin(r.pinFiles, r.opts.ProjectType)
 	if err != nil {
 		_ = os.WriteFile(r.lastValidateOutput, []byte(err.Error()), 0o600)
 		return err

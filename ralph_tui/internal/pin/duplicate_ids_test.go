@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/mitchfultz/ralph/ralph_tui/internal/project"
 )
 
 func TestDuplicateIDsDetectsCrossDuplicates(t *testing.T) {
@@ -46,10 +48,12 @@ func TestFixDuplicateQueueIDsRenumbersQueue(t *testing.T) {
 	fixture := mustLocateFixtures(t)
 
 	tmpDir := t.TempDir()
-	queuePath := copyFixture(t, fixture.queue, filepath.Join(tmpDir, "implementation_queue.md"))
-	donePath := copyFixture(t, fixture.done, filepath.Join(tmpDir, "implementation_done.md"))
-	lookupPath := copyFixture(t, fixture.lookup, filepath.Join(tmpDir, "lookup_table.md"))
-	readmePath := copyFixture(t, fixture.readme, filepath.Join(tmpDir, "README.md"))
+	files := ResolveFiles(tmpDir)
+	queuePath := copyFixture(t, fixture.queue, files.QueuePath)
+	donePath := copyFixture(t, fixture.done, files.DonePath)
+	lookupPath := copyFixture(t, fixture.lookup, files.LookupPath)
+	readmePath := copyFixture(t, fixture.readme, files.ReadmePath)
+	copyFixtureSpecs(t, fixture, files)
 
 	data, err := os.ReadFile(queuePath)
 	if err != nil {
@@ -64,11 +68,13 @@ func TestFixDuplicateQueueIDsRenumbersQueue(t *testing.T) {
 	}
 
 	result, err := FixDuplicateQueueIDs(Files{
-		QueuePath:  queuePath,
-		DonePath:   donePath,
-		LookupPath: lookupPath,
-		ReadmePath: readmePath,
-	}, "")
+		QueuePath:            queuePath,
+		DonePath:             donePath,
+		LookupPath:           lookupPath,
+		ReadmePath:           readmePath,
+		SpecsBuilderCodePath: files.SpecsBuilderCodePath,
+		SpecsBuilderDocsPath: files.SpecsBuilderDocsPath,
+	}, "", project.TypeCode)
 	if err != nil {
 		t.Fatalf("FixDuplicateQueueIDs failed: %v", err)
 	}
@@ -87,12 +93,7 @@ func TestFixDuplicateQueueIDsRenumbersQueue(t *testing.T) {
 		t.Fatalf("expected queue to include new ID RQ-0006")
 	}
 
-	if err := ValidatePin(Files{
-		QueuePath:  queuePath,
-		DonePath:   donePath,
-		LookupPath: lookupPath,
-		ReadmePath: readmePath,
-	}); err != nil {
+	if err := ValidatePin(files, project.TypeCode); err != nil {
 		t.Fatalf("ValidatePin failed after fix: %v", err)
 	}
 }
@@ -101,8 +102,10 @@ func TestFixDuplicateQueueIDsRejectsDoneDuplicates(t *testing.T) {
 	fixture := mustLocateFixtures(t)
 
 	tmpDir := t.TempDir()
-	queuePath := copyFixture(t, fixture.queue, filepath.Join(tmpDir, "implementation_queue.md"))
-	donePath := copyFixture(t, fixture.done, filepath.Join(tmpDir, "implementation_done.md"))
+	files := ResolveFiles(tmpDir)
+	queuePath := copyFixture(t, fixture.queue, files.QueuePath)
+	donePath := copyFixture(t, fixture.done, files.DonePath)
+	copyFixtureSpecs(t, fixture, files)
 
 	doneData, err := os.ReadFile(donePath)
 	if err != nil {
@@ -114,9 +117,11 @@ func TestFixDuplicateQueueIDsRejectsDoneDuplicates(t *testing.T) {
 	}
 
 	_, err = FixDuplicateQueueIDs(Files{
-		QueuePath: queuePath,
-		DonePath:  donePath,
-	}, "")
+		QueuePath:            queuePath,
+		DonePath:             donePath,
+		SpecsBuilderCodePath: files.SpecsBuilderCodePath,
+		SpecsBuilderDocsPath: files.SpecsBuilderDocsPath,
+	}, "", project.TypeCode)
 	if err == nil {
 		t.Fatalf("expected error for done duplicates")
 	}

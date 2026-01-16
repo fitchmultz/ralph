@@ -8,6 +8,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/pin"
+	"github.com/mitchfultz/ralph/ralph_tui/internal/project"
 )
 
 type pinFixPrompt struct {
@@ -21,9 +22,9 @@ type pinFixResultMsg struct {
 	err    error
 }
 
-func fixPinDuplicatesCmd(files pin.Files) tea.Cmd {
+func fixPinDuplicatesCmd(files pin.Files, projectType project.Type) tea.Cmd {
 	return func() tea.Msg {
-		result, err := pin.FixDuplicateQueueIDs(files, "")
+		result, err := pin.FixDuplicateQueueIDs(files, "", projectType)
 		return pinFixResultMsg{result: result, err: err}
 	}
 }

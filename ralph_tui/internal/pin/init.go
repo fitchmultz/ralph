@@ -53,8 +53,7 @@ func InitLayout(pinDir string, cacheDir string, opts InitOptions) (InitResult, e
 	}
 	defer lock.Release()
 
-	projectType, err := project.ResolveType(opts.ProjectType)
-	if err != nil {
+	if _, err := project.ResolveType(opts.ProjectType); err != nil {
 		return InitResult{}, fmt.Errorf("project_type must be code or docs")
 	}
 	queueContent, err := prompts.PinImplementationQueue()
@@ -73,7 +72,7 @@ func InitLayout(pinDir string, cacheDir string, opts InitOptions) (InitResult, e
 	if err != nil {
 		return InitResult{}, err
 	}
-	specsContent, err := prompts.PinSpecsBuilder(project.TypeCode)
+	specsTemplates, err := specsTemplatesAll(cleanPinDir)
 	if err != nil {
 		return InitResult{}, err
 	}
@@ -87,19 +86,15 @@ func InitLayout(pinDir string, cacheDir string, opts InitOptions) (InitResult, e
 		{path: files.DonePath, content: doneContent},
 		{path: files.LookupPath, content: lookupContent},
 		{path: files.ReadmePath, content: readmeContent},
-		{path: files.SpecsPath, content: specsContent},
 	}
-
-	if projectType == project.TypeDocs {
-		docsContent, err := prompts.PinSpecsBuilder(project.TypeDocs)
-		if err != nil {
-			return InitResult{}, err
-		}
-		docsTemplate := filepath.Join(cleanPinDir, "specs_builder_docs.md")
+	for _, template := range specsTemplates {
 		entries = append(entries, struct {
 			path    string
 			content string
-		}{path: docsTemplate, content: docsContent})
+		}{
+			path:    template.path,
+			content: template.content,
+		})
 	}
 
 	result := InitResult{
@@ -130,13 +125,10 @@ func InitLayout(pinDir string, cacheDir string, opts InitOptions) (InitResult, e
 }
 
 // MissingFiles returns missing pin files (full paths).
-func MissingFiles(files Files) []string {
-	paths := []string{
-		files.QueuePath,
-		files.DonePath,
-		files.LookupPath,
-		files.ReadmePath,
-		files.SpecsPath,
+func MissingFiles(files Files, projectType project.Type) ([]string, error) {
+	paths, err := files.RequiredPaths(projectType)
+	if err != nil {
+		return nil, err
 	}
 	missing := make([]string, 0)
 	for _, path := range paths {
@@ -148,7 +140,7 @@ func MissingFiles(files Files) []string {
 		}
 	}
 	sort.Strings(missing)
-	return missing
+	return missing, nil
 }
 
 type initStatus int

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/mitchfultz/ralph/ralph_tui/internal/pin"
+	"github.com/mitchfultz/ralph/ralph_tui/internal/project"
 )
 
 func TestRunMigratesPinAndUpdatesConfig(t *testing.T) {
@@ -39,9 +40,63 @@ func TestRunMigratesPinAndUpdatesConfig(t *testing.T) {
 	if got := pathsValue["pin_dir"]; got != filepath.Join(".ralph", "pin") {
 		t.Fatalf("expected pin_dir .ralph/pin, got %#v", got)
 	}
+	if got := payload["project_type"]; got != string(project.TypeCode) {
+		t.Fatalf("expected project_type code, got %#v", got)
+	}
 
 	files := pin.ResolveFiles(result.NewPinDir)
-	if err := pin.ValidatePin(files); err != nil {
+	if _, err := os.Stat(files.SpecsBuilderCodePath); err != nil {
+		t.Fatalf("expected specs_builder after migrate: %v", err)
+	}
+	if _, err := os.Stat(files.SpecsBuilderDocsPath); err != nil {
+		t.Fatalf("expected specs_builder_docs after migrate: %v", err)
+	}
+	if err := pin.ValidatePin(files, project.TypeCode); err != nil {
+		t.Fatalf("pin validation failed: %v", err)
+	}
+}
+
+func TestRunMigratesPinAndUpdatesConfigDocs(t *testing.T) {
+	repoRoot := t.TempDir()
+	oldPin := filepath.Join(repoRoot, "ralph_legacy", "specs")
+	writeMinimalPin(t, repoRoot, oldPin)
+
+	configPath := filepath.Join(repoRoot, ".ralph", "ralph.json")
+	if err := os.MkdirAll(filepath.Dir(configPath), 0o700); err != nil {
+		t.Fatalf("mkdir config dir: %v", err)
+	}
+	payload := map[string]any{
+		"project_type": "docs",
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("marshal config: %v", err)
+	}
+	if err := os.WriteFile(configPath, data, 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	result, err := Run(repoRoot, configPath)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+	if result.NewPinDir != filepath.Join(repoRoot, ".ralph", "pin") {
+		t.Fatalf("unexpected new pin dir: %s", result.NewPinDir)
+	}
+
+	updated := readJSONMap(t, configPath)
+	if got := updated["project_type"]; got != string(project.TypeDocs) {
+		t.Fatalf("expected project_type docs, got %#v", got)
+	}
+
+	files := pin.ResolveFiles(result.NewPinDir)
+	if _, err := os.Stat(files.SpecsBuilderCodePath); err != nil {
+		t.Fatalf("expected specs_builder after migrate: %v", err)
+	}
+	if _, err := os.Stat(files.SpecsBuilderDocsPath); err != nil {
+		t.Fatalf("expected specs_builder_docs after migrate: %v", err)
+	}
+	if err := pin.ValidatePin(files, project.TypeDocs); err != nil {
 		t.Fatalf("pin validation failed: %v", err)
 	}
 }

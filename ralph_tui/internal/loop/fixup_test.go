@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/mitchfultz/ralph/ralph_tui/internal/pin"
+	"github.com/mitchfultz/ralph/ralph_tui/internal/project"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/redaction"
 )
 
@@ -26,6 +27,7 @@ func TestFixupRequeuesWhenCIPasses(t *testing.T) {
 	result, err := FixupBlockedItems(context.Background(), FixupOptions{
 		RepoRoot:      repoRoot,
 		PinDir:        pinDir,
+		ProjectType:   project.TypeCode,
 		MaxAttempts:   3,
 		MaxItems:      0,
 		RequireMain:   true,
@@ -73,6 +75,7 @@ func TestFixupRecordsAttemptOnFailure(t *testing.T) {
 	result, err := FixupBlockedItems(context.Background(), FixupOptions{
 		RepoRoot:      repoRoot,
 		PinDir:        pinDir,
+		ProjectType:   project.TypeCode,
 		MaxAttempts:   3,
 		MaxItems:      0,
 		RequireMain:   true,
@@ -113,6 +116,7 @@ func TestFixupSkipsCIForPinOnlyChanges(t *testing.T) {
 	result, err := FixupBlockedItems(context.Background(), FixupOptions{
 		RepoRoot:      repoRoot,
 		PinDir:        pinDir,
+		ProjectType:   project.TypeCode,
 		MaxAttempts:   3,
 		MaxItems:      0,
 		RequireMain:   true,
@@ -143,6 +147,8 @@ func setupFixupRepo(t *testing.T, makefile string, wipChange func(repoRoot strin
 	writeFileContent(t, filepath.Join(repoRoot, "Makefile"), makefile)
 	writeFileContent(t, filepath.Join(pinDir, "README.md"), "pin readme\n")
 	writeFileContent(t, filepath.Join(pinDir, "lookup_table.md"), "| Area | Notes |\n| --- | --- |\n")
+	writeFileContent(t, filepath.Join(pinDir, pin.SpecsBuilderCodeFilename), "Specs builder\n")
+	writeFileContent(t, filepath.Join(pinDir, pin.SpecsBuilderDocsFilename), "Specs builder docs\n")
 	writeFileContent(t, filepath.Join(pinDir, "implementation_done.md"), "## Done\n")
 	writeFileContent(t, filepath.Join(pinDir, "implementation_queue.md"), baseQueue())
 

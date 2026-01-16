@@ -38,6 +38,7 @@ func newHermeticModel(t *testing.T) (model, paths.Locations, config.Config) {
 	writeTestFile(t, filepath.Join(pinDir, "lookup_table.md"), "## Lookup\n")
 	writeTestFile(t, filepath.Join(pinDir, "README.md"), "Ralph pin fixtures.\n")
 	writeTestFile(t, filepath.Join(pinDir, "specs_builder.md"), "Use AGENTS.md for instructions.\n\n{{INTERACTIVE_INSTRUCTIONS}}\n\n{{INNOVATE_INSTRUCTIONS}}\n")
+	writeTestFile(t, filepath.Join(pinDir, "specs_builder_docs.md"), "Use AGENTS.md for instructions.\n\n{{INTERACTIVE_INSTRUCTIONS}}\n\n{{INNOVATE_INSTRUCTIONS}}\n")
 
 	ensureGit(t)
 	runGit(t, repoRoot, "init", "-b", "main")

@@ -257,6 +257,7 @@ func setupLoopRepo(t *testing.T, makefile string, itemID string) (string, string
 	writeFileContent(t, filepath.Join(pinDir, "README.md"), "pin readme\n")
 	writeFileContent(t, filepath.Join(pinDir, "lookup_table.md"), "| Area | Notes |\n| --- | --- |\n")
 	writeFileContent(t, filepath.Join(pinDir, "specs_builder.md"), "")
+	writeFileContent(t, filepath.Join(pinDir, "specs_builder_docs.md"), "")
 	writeFileContent(t, filepath.Join(pinDir, "implementation_done.md"), "## Done\n")
 	writeFileContent(t, filepath.Join(pinDir, "implementation_queue.md"), queueFixture(itemID))
 

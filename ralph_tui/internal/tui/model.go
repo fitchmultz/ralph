@@ -117,13 +117,15 @@ func newModel(cfg config.Config, locations paths.Locations, opts StartOptions) m
 	pinFiles := pin.ResolveFiles(cfg.Paths.PinDir)
 	var pinFix *pinFixPrompt
 	if err == nil {
-		missing := pin.MissingFiles(pinFiles)
-		if len(missing) > 0 {
+		missing, missingErr := pin.MissingFiles(pinFiles, cfg.ProjectType)
+		if missingErr != nil {
+			err = missingErr
+		} else if len(missing) > 0 {
 			err = fmt.Errorf(
 				"Ralph pin files missing:\n- %s\n\nRun `ralph init` to create defaults.",
 				strings.Join(missing, "\n- "),
 			)
-		} else if pinErr := pin.ValidatePin(pinFiles); pinErr != nil {
+		} else if pinErr := pin.ValidatePin(pinFiles, cfg.ProjectType); pinErr != nil {
 			report, reportErr := pin.DuplicateIDs(pinFiles)
 			if reportErr == nil && len(report.Fixable) > 0 && len(report.InDone) == 0 {
 				pinFix = &pinFixPrompt{
@@ -262,7 +264,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "y":
 				m.pinFixPrompt.running = true
 				pinFiles := pin.ResolveFiles(m.cfg.Paths.PinDir)
-				return m, fixPinDuplicatesCmd(pinFiles)
+				return m, fixPinDuplicatesCmd(pinFiles, m.cfg.ProjectType)
 			case "n", "q", "esc", "ctrl+c":
 				m.initErr = fmt.Errorf(
 					"Ralph pin files are invalid: %v\n\nRun `ralph pin validate` for details or `ralph pin fix-ids` to repair duplicates.",
@@ -728,6 +730,7 @@ func (m *model) startFixupCmd() tea.Cmd {
 		result, err := m.fixupRunner(m.runCtx, loop.FixupOptions{
 			RepoRoot:            m.locations.RepoRoot,
 			PinDir:              m.cfg.Paths.PinDir,
+			ProjectType:         m.cfg.ProjectType,
 			MaxAttempts:         defaultFixupMaxAttempts,
 			MaxItems:            defaultFixupMaxItems,
 			RequireMain:         m.cfg.Loop.RequireMain,

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/mitchfultz/ralph/ralph_tui/internal/pin"
+	"github.com/mitchfultz/ralph/ralph_tui/internal/project"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/redaction"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/specs"
 )
@@ -20,6 +21,7 @@ import (
 type FixupOptions struct {
 	RepoRoot            string
 	PinDir              string
+	ProjectType         project.Type
 	MaxAttempts         int
 	MaxItems            int
 	RequireMain         bool
@@ -56,6 +58,11 @@ func FixupBlockedItems(ctx context.Context, opts FixupOptions) (FixupResult, err
 	if opts.PinDir == "" {
 		return result, fmt.Errorf("pin dir is required")
 	}
+	resolvedProjectType, err := project.ResolveType(opts.ProjectType)
+	if err != nil {
+		return result, fmt.Errorf("project_type must be code or docs")
+	}
+	opts.ProjectType = resolvedProjectType
 
 	redactor := NewRedactor(os.Environ(), opts.RedactionMode)
 	logFixup(redactor, opts.Logger, ">> [RALPH] Fixup acquiring lock.")
@@ -124,7 +131,7 @@ func FixupBlockedItems(ctx context.Context, opts FixupOptions) (FixupResult, err
 			if !updated {
 				return result, fmt.Errorf("blocked item %s not found during requeue", item.ID)
 			}
-			if err := pin.ValidatePin(pin.ResolveFiles(opts.PinDir)); err != nil {
+			if err := pin.ValidatePin(pin.ResolveFiles(opts.PinDir), opts.ProjectType); err != nil {
 				return result, err
 			}
 			if err := commitPinChanges(opts, redactor, fmt.Sprintf("%s: fixup requeue", item.ID)); err != nil {
@@ -147,7 +154,7 @@ func FixupBlockedItems(ctx context.Context, opts FixupOptions) (FixupResult, err
 		if !updated {
 			return result, fmt.Errorf("blocked item %s not found during attempt update", item.ID)
 		}
-		if err := pin.ValidatePin(pin.ResolveFiles(opts.PinDir)); err != nil {
+		if err := pin.ValidatePin(pin.ResolveFiles(opts.PinDir), opts.ProjectType); err != nil {
 			return result, err
 		}
 		if err := commitPinChanges(opts, redactor, fmt.Sprintf("%s: fixup attempt %d", item.ID, attempts)); err != nil {
@@ -182,7 +189,7 @@ func validateWipBranchInWorktree(ctx context.Context, opts FixupOptions, redacto
 	}
 
 	worktreePinDir := pinDirForWorktree(opts.RepoRoot, opts.PinDir, worktreePath)
-	if err := pin.ValidatePin(pin.ResolveFiles(worktreePinDir)); err != nil {
+	if err := pin.ValidatePin(pin.ResolveFiles(worktreePinDir), opts.ProjectType); err != nil {
 		return err
 	}
 
