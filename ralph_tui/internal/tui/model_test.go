@@ -145,9 +145,7 @@ func TestTypingBlocksGlobalShortcutsInSpecsUserFocus(t *testing.T) {
 	if m.specsView == nil {
 		t.Fatalf("specs view missing")
 	}
-	m.specsView.userFocusInput.SetValue("")
-	m.specsView.userFocusInput.Focus()
-	m.specsView.editUserFocus = true
+	m.specsView.openUserFocusEditor()
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyCtrlK})
 	m = updated.(model)

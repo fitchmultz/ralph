@@ -294,6 +294,18 @@ func (e *configEditor) SessionOverrides() config.PartialConfig {
 	return e.drafts[layerSession]
 }
 
+func (e *configEditor) SetSessionOverrides(overrides config.PartialConfig) {
+	if e == nil {
+		return
+	}
+	e.drafts[layerSession] = overrides
+	if e.layer == layerSession && !e.IsTyping() {
+		_ = e.resetLayer(layerSession)
+		return
+	}
+	e.refreshFieldSources()
+}
+
 func (e *configEditor) handleAction(action string) bool {
 	if action == "" {
 		return false
@@ -693,12 +705,15 @@ func (e *configEditor) syncFocusedFieldValue(field huh.Field, key string) {
 				selectField.Value(&e.data.LoopEffort)
 			}
 		}
-	case fieldSpecsRunnerArgs, fieldLoopRunnerArgs:
+	case fieldSpecsRunnerArgs, fieldLoopRunnerArgs, fieldSpecsUserFocus:
 		if textField, ok := field.(*huh.Text); ok {
-			if key == fieldSpecsRunnerArgs {
+			switch key {
+			case fieldSpecsRunnerArgs:
 				textField.Value(&e.data.SpecsRunnerArgs)
-			} else {
+			case fieldLoopRunnerArgs:
 				textField.Value(&e.data.LoopRunnerArgs)
+			case fieldSpecsUserFocus:
+				textField.Value(&e.data.SpecsUserFocus)
 			}
 		}
 	default:
@@ -718,8 +733,6 @@ func (e *configEditor) syncFocusedFieldValue(field huh.Field, key string) {
 				input.Value(&e.data.CacheDir)
 			case fieldPinDir:
 				input.Value(&e.data.PinDir)
-			case fieldSpecsUserFocus:
-				input.Value(&e.data.SpecsUserFocus)
 			case fieldLoopSleepSeconds:
 				input.Value(&e.data.LoopSleepSeconds)
 			case fieldLoopMaxIterations:
@@ -830,7 +843,7 @@ func (e *configEditor) buildForm() *huh.Form {
 	e.registerFieldDesc(fieldSpecsAutofillScout, func(desc string) { specsAutofill.Description(desc) })
 	specsScout := huh.NewConfirm().Title("Specs Scout Workflow").Value(&e.data.SpecsScout).Key(fieldSpecsScoutWorkflow)
 	e.registerFieldDesc(fieldSpecsScoutWorkflow, func(desc string) { specsScout.Description(desc) })
-	specsUserFocus := huh.NewInput().Title("Specs User Focus").Value(&e.data.SpecsUserFocus).Key(fieldSpecsUserFocus)
+	specsUserFocus := huh.NewText().Title("Specs User Focus").Value(&e.data.SpecsUserFocus).Lines(4).Key(fieldSpecsUserFocus)
 	e.registerFieldDesc(fieldSpecsUserFocus, func(desc string) { specsUserFocus.Description(desc) })
 	specsRunner := huh.NewSelect[string]().
 		Title("Specs Runner").

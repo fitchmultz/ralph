@@ -12,11 +12,10 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
-	"github.com/charmbracelet/x/ansi"
+	"github.com/charmbracelet/huh"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/config"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/paths"
 	"github.com/mitchfultz/ralph/ralph_tui/internal/pin"
@@ -41,7 +40,9 @@ type specsView struct {
 	userFocus               string
 	userFocusExplicit       bool
 	editUserFocus           bool
-	userFocusInput          textinput.Model
+	userFocusDraft          string
+	userFocusForm           *huh.Form
+	userFocusFormH          int
 	effectiveInnovate       bool
 	autoEnabled             bool
 	autoEnabledReason       string
@@ -56,6 +57,8 @@ type specsView struct {
 	persistErr              string
 	previewViewport         viewport.Model
 	logViewport             viewport.Model
+	width                   int
+	height                  int
 	previewWidth            int
 	rendererBuilder         func(int) (previewRenderer, error)
 	previewRenderers        map[int]previewRenderer
@@ -110,12 +113,6 @@ func newSpecsView(cfg config.Config, locations paths.Locations, keys keyMap) (*s
 	logViewport := viewport.New(80, 20)
 	vp.Style = paddedViewportStyle
 	logViewport.Style = paddedViewportStyle
-	userFocusInput := textinput.New()
-	userFocusInput.Prompt = "User focus: "
-	userFocusInput.Placeholder = "Describe the focus area for the scout workflow"
-	userFocusInput.CharLimit = 200
-	userFocusInput.Width = 60
-	userFocusInput.SetValue(cfg.Specs.UserFocus)
 	view := &specsView{
 		cfg:                     cfg,
 		keys:                    keys,
@@ -130,7 +127,6 @@ func newSpecsView(cfg config.Config, locations paths.Locations, keys keyMap) (*s
 		lastConfigAutofillScout: cfg.Specs.AutofillScout,
 		lastConfigScoutWorkflow: cfg.Specs.ScoutWorkflow,
 		lastConfigUserFocus:     cfg.Specs.UserFocus,
-		userFocusInput:          userFocusInput,
 		previewViewport:         vp,
 		logViewport:             logViewport,
 		previewWidth:            80,
@@ -222,20 +218,20 @@ func (s *specsView) Update(msg tea.Msg, keys keyMap) tea.Cmd {
 	case tea.KeyMsg:
 		if s.editUserFocus && !s.running {
 			switch msg.String() {
-			case "enter":
-				s.editUserFocus = false
-				s.userFocus = strings.TrimSpace(s.userFocusInput.Value())
-				s.userFocusExplicit = true
-				s.userFocusInput.Blur()
-				return s.requestPreviewRefresh()
 			case "esc":
-				s.editUserFocus = false
-				s.userFocusInput.Blur()
+				s.cancelUserFocusEditor()
 				return nil
+			case "ctrl+s":
+				return s.commitUserFocusEditor()
 			}
-			var cmd tea.Cmd
-			s.userFocusInput, cmd = s.userFocusInput.Update(msg)
-			return cmd
+			if s.userFocusForm != nil {
+				updated, cmd := s.userFocusForm.Update(msg)
+				if form, ok := updated.(*huh.Form); ok {
+					s.userFocusForm = form
+				}
+				return cmd
+			}
+			return nil
 		}
 		switch {
 		case key.Matches(msg, keys.ToggleInteractive) && !s.running:
@@ -254,10 +250,7 @@ func (s *specsView) Update(msg tea.Msg, keys keyMap) tea.Cmd {
 			s.scoutExplicit = true
 			return s.requestPreviewRefresh()
 		case key.Matches(msg, keys.EditUserFocus) && !s.running:
-			s.userFocusInput.SetValue(s.userFocus)
-			s.userFocusInput.CursorEnd()
-			s.userFocusInput.Focus()
-			s.editUserFocus = true
+			s.openUserFocusEditor()
 			return nil
 		case key.Matches(msg, keys.RunSpecs):
 			if s.running {
@@ -347,7 +340,7 @@ func (s *specsView) optionsView() string {
 	}
 	userFocusLine := fmt.Sprintf("User focus: %s", formatUserFocus(s.userFocus))
 	if s.editUserFocus {
-		userFocusLine = fmt.Sprintf("User focus (editing): %s", s.userFocusInput.View())
+		userFocusLine = "User focus: (editing...)"
 	}
 	effortResult := runnerargs.ApplyReasoningEffort(string(s.runner), s.runnerArgs, s.reasoningEffort)
 	effectiveLabel := runnerargs.DisplayEffortResult(effortResult)
@@ -364,14 +357,82 @@ func (s *specsView) optionsView() string {
 		"Scroll: \u2191/\u2193 PgUp/PgDn (Ctrl+F to focus)",
 	}
 	if s.editUserFocus {
-		lines = append(lines, "Edit focus: Enter to save | Esc to cancel")
+		lines = append(lines, "Edit focus: Esc cancel | Ctrl+S save")
 	}
 	return strings.Join(lines, "\n")
+}
+
+func (s *specsView) openUserFocusEditor() {
+	s.userFocusDraft = s.userFocus
+	s.userFocusForm = huh.NewForm(
+		huh.NewGroup(
+			huh.NewText().
+				Title("Specs User Focus").
+				Value(&s.userFocusDraft).
+				Lines(s.userFocusEditorLines()).
+				Key("specs.user_focus"),
+		),
+	).WithShowHelp(false)
+	s.editUserFocus = true
+	s.resizeUserFocusEditor(s.width, s.userFocusFormH)
+}
+
+func (s *specsView) userFocusEditorLines() int {
+	const defaultLines = 8
+	if s.userFocusFormH <= 0 {
+		return defaultLines
+	}
+	lines := s.userFocusFormH - 4
+	lines = max(lines, 3)
+	lines = min(lines, 12)
+	return lines
+}
+
+func (s *specsView) cancelUserFocusEditor() {
+	s.editUserFocus = false
+	s.userFocusForm = nil
+	s.userFocusDraft = ""
+}
+
+func (s *specsView) commitUserFocusEditor() tea.Cmd {
+	s.editUserFocus = false
+	s.userFocus = strings.TrimSpace(s.userFocusDraft)
+	s.userFocusExplicit = true
+	s.userFocusForm = nil
+	s.userFocusDraft = ""
+	return tea.Batch(
+		func() tea.Msg {
+			return specsUserFocusUpdatedMsg{UserFocus: s.userFocus}
+		},
+		s.requestPreviewRefresh(),
+	)
+}
+
+func (s *specsView) userFocusEditorView() string {
+	lines := []string{
+		"Editing User Focus",
+		"Esc cancel | Ctrl+S save",
+		"",
+	}
+	if s.userFocusForm != nil {
+		lines = append(lines, s.userFocusForm.View())
+	}
+	return strings.Join(lines, "\n")
+}
+
+func (s *specsView) resizeUserFocusEditor(width int, editorHeight int) {
+	if s.userFocusForm == nil {
+		return
+	}
+	s.userFocusForm = resizeHuhFormToFit(s.userFocusForm, max(0, width), max(0, editorHeight))
 }
 
 func (s *specsView) previewView() string {
 	if s.running {
 		return s.logViewport.View()
+	}
+	if s.editUserFocus {
+		return s.userFocusEditorView()
 	}
 	if s.previewErr != "" {
 		return fmt.Sprintf("Prompt preview error: %s", s.previewErr)
@@ -565,8 +626,8 @@ func formatUserFocus(value string) string {
 }
 
 func (s *specsView) Resize(width int, height int) {
-	promptWidth := ansi.StringWidth(s.userFocusInput.Prompt)
-	s.userFocusInput.Width = max(0, width-promptWidth)
+	s.width = width
+	s.height = height
 	header := "Build Specs"
 	status := s.statusLine()
 	options := s.optionsView()
@@ -577,6 +638,10 @@ func (s *specsView) Resize(width int, height int) {
 		wrappedBlock{Text: options, MinRows: 1, BlankLinesAfter: 1},
 	)
 	previewHeight := remainingHeight(height, chrome)
+	s.userFocusFormH = previewHeight
+	if s.editUserFocus {
+		s.resizeUserFocusEditor(width, previewHeight)
+	}
 	resizeViewportToFit(&s.previewViewport, max(0, width), max(0, previewHeight), paddedViewportStyle)
 	resizeViewportToFit(&s.logViewport, max(0, width), max(0, previewHeight), paddedViewportStyle)
 	s.previewWidth = max(0, s.previewViewport.Width)
@@ -658,10 +723,8 @@ func (s *specsView) SetConfig(cfg config.Config, locations paths.Locations) {
 	if s.lastConfigUserFocus != cfg.Specs.UserFocus {
 		s.userFocus = cfg.Specs.UserFocus
 		s.userFocusExplicit = false
-		s.userFocusInput.SetValue(s.userFocus)
 	} else if !s.userFocusExplicit {
 		s.userFocus = cfg.Specs.UserFocus
-		s.userFocusInput.SetValue(s.userFocus)
 	}
 	s.lastConfigAutofillScout = cfg.Specs.AutofillScout
 	s.lastConfigScoutWorkflow = cfg.Specs.ScoutWorkflow

@@ -385,6 +385,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case configReloadRequestMsg:
 		m.syncSessionOverridesFromEditor()
 		return m, m.reloadConfigCmd()
+	case specsUserFocusUpdatedMsg:
+		value := strings.TrimSpace(msg.UserFocus)
+		if m.sessionOverrides.Specs == nil {
+			m.sessionOverrides.Specs = &config.SpecsPartial{}
+		}
+		m.sessionOverrides.Specs.UserFocus = &value
+		if m.configView != nil {
+			m.configView.SetSessionOverrides(m.sessionOverrides)
+		}
+		return m, m.reloadConfigCmd()
 	case repoStatusMsg:
 		m.repoStatus = msg.result
 		handled = true

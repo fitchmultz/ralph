@@ -1,6 +1,10 @@
 # Implementation Done
 
 ## Done
+- [x] RQ-0472 [ui]: Specs "User Focus" editor overhaul (multiline, persistent, and non-disruptive). (ralph_tui/internal/tui/specs_view.go, ralph_tui/internal/tui/config_editor.go, ralph_tui/internal/tui/model.go)
+  - Evidence: `specsView.userFocusInput` is single-line with `CharLimit=200` (`specs_view.go`) and config editor uses a single-line input for `specs.user_focus` (`config_editor.go`), which is too limiting for real focus descriptions; additionally, user focus changes in the Specs screen do not persist into config/session overrides, creating drift between UI state and config.
+  - Plan: Replace user focus editing with a modal multi-line editor (e.g., `huh.Text` with a bounded line count), support saving to session overrides (and optionally repo/global), and show a clear "editing" indicator + cancel/accept keys. Ensure the typing-mode routing fix (RQ-0468) covers this path.
+
 - [x] RQ-0471 [ui]: Layout + resize correctness sweep across all screens (fix hardcoded chrome heights, wrapping-aware sizing, and tiny-terminal behavior). (ralph_tui/internal/tui/model.go, ralph_tui/internal/tui/pin_view.go, ralph_tui/internal/tui/loop_view.go, ralph_tui/internal/tui/specs_view.go, ralph_tui/internal/tui/config_editor.go, ralph_tui/internal/tui/viewport_layout.go)
   - Evidence: `pinView.Resize` subtracts a constant `pinViewChromeHeight=4` regardless of whether status lines are present, wasting space; `loopView.Resize` and `specsView.Resize` use `strings.Count()` on unwrapped strings, which ignores line wrapping and can miscompute viewport sizes on narrow terminals; `loopView.Resize` resizes forms whenever `editForm != nil` even if not in edit mode.
   - Plan: Replace line-count heuristics with `lipgloss.Height()` (after width-aware wrapping) for controls/status blocks; compute chrome height dynamically; centralize sizing in a shared helper; add snapshot tests for small widths/heights to prevent regressions.
