@@ -1,6 +1,9 @@
 # Implementation Done
 
 ## Done
+- [x] RQ-0491 [code]: Support docs-* and code-* routing tags in queue validation for the default pin file. (.ralph/pin/implementation_queue.md, ralph_tui/internal/pin/pin.go, ralph_tui/internal/pin/pin_test.go, ralph_tui/cmd/ralph/main.go)
+  - Evidence: Queue validation only allows [db]/[ui]/[code]/[ops]/[docs]; tags like [docs-compliance] or [code-refactor] are rejected even when they reflect valid work streams.
+  - Plan: Allow [docs-*] and [code-*] tags (any suffix) in addition to existing tags; update validation and CLI help examples; add tests for docs-* and code-* tags against the default pin file.
 - [x] RQ-0490 [code]: Enforce indentation for queue item metadata bullets. (ralph_tui/internal/pin/pin.go)
   - Evidence: validateQueueItemLines checks Evidence/Plan by trimmed prefix only; unindented "- Evidence:" passes even though the format requires indented metadata, leading to ambiguous formatting.
   - Plan: Require Evidence/Plan and extra metadata bullets to be indented by two spaces; update fixtures and validation tests.

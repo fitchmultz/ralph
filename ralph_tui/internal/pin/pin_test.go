@@ -200,6 +200,36 @@ func TestValidatePinAcceptsUppercaseTags(t *testing.T) {
 	}
 }
 
+func TestValidatePinAcceptsTagSuffixes(t *testing.T) {
+	fixture := mustLocateFixtures(t)
+
+	tmpDir := t.TempDir()
+	files := ResolveFiles(tmpDir)
+	queuePath := copyFixture(t, fixture.queue, files.QueuePath)
+	_ = copyFixture(t, fixture.done, files.DonePath)
+	_ = copyFixture(t, fixture.lookup, files.LookupPath)
+	_ = copyFixture(t, fixture.readme, files.ReadmePath)
+	copyFixtureSpecs(t, fixture, files)
+
+	data, err := os.ReadFile(queuePath)
+	if err != nil {
+		t.Fatalf("read queue: %v", err)
+	}
+
+	updated := strings.Replace(string(data), "[code]", "[code-refactor]", 1)
+	updated = strings.Replace(updated, "[docs]", "[docs-compliance]", 1)
+	if updated == string(data) {
+		t.Fatalf("failed to update routing tags in fixture")
+	}
+	if err := os.WriteFile(queuePath, []byte(updated), 0o600); err != nil {
+		t.Fatalf("write queue: %v", err)
+	}
+
+	if err := ValidatePin(files, project.TypeCode); err != nil {
+		t.Fatalf("ValidatePin failed with tag suffixes: %v", err)
+	}
+}
+
 func TestExtractTags(t *testing.T) {
 	header := "- [ ] RQ-0001 [code] [ui]: Example"
 	tags := ExtractTags(header)
@@ -223,11 +253,11 @@ func TestExtractTagsCaseInsensitive(t *testing.T) {
 }
 
 func TestParseTagList(t *testing.T) {
-	result := ParseTagList(" ui, [code] docs,unknown,[bad] ")
+	result := ParseTagList(" ui, [code-refactor] docs-compliance,unknown,[bad] ")
 	if len(result.Tags) != 3 {
 		t.Fatalf("expected 3 tags, got %#v", result.Tags)
 	}
-	if result.Tags[0] != "ui" || result.Tags[1] != "code" || result.Tags[2] != "docs" {
+	if result.Tags[0] != "ui" || result.Tags[1] != "code-refactor" || result.Tags[2] != "docs-compliance" {
 		t.Fatalf("unexpected tags: %#v", result.Tags)
 	}
 	if len(result.Unknown) != 2 {

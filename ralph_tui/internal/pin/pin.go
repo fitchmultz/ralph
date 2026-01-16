@@ -17,10 +17,10 @@ import (
 )
 
 var (
-	tagPattern      = regexp.MustCompile(`(?i)\[(db|ui|code|ops|docs)\]`)
+	tagPattern      = regexp.MustCompile(`(?i)\[(db|ui|ops|code(?:-[^\]\s]+)?|docs(?:-[^\]\s]+)?)\]`)
 	scopePattern    = regexp.MustCompile(`\([^()]+\)\s*$`)
 	queueItemLine   = regexp.MustCompile(`^- \[[ xX]\] `)
-	supportedTags   = []string{"db", "ui", "code", "ops", "docs"}
+	supportedTags   = []string{"db", "ui", "code", "code-*", "ops", "docs", "docs-*"}
 	supportedTagSet = map[string]struct{}{
 		"db":   {},
 		"ui":   {},
@@ -28,6 +28,7 @@ var (
 		"ops":  {},
 		"docs": {},
 	}
+	supportedTagPrefixes = []string{"code-", "docs-"}
 )
 
 const (
@@ -112,7 +113,7 @@ func ParseTagList(input string) TagList {
 		if tag == "" {
 			continue
 		}
-		if _, ok := supportedTagSet[tag]; !ok {
+		if !isSupportedTag(tag) {
 			if _, dup := unknownSeen[tag]; !dup {
 				unknownSeen[tag] = struct{}{}
 				unknown = append(unknown, tag)
@@ -126,6 +127,18 @@ func ParseTagList(input string) TagList {
 		tags = append(tags, tag)
 	}
 	return TagList{Tags: tags, Unknown: unknown}
+}
+
+func isSupportedTag(tag string) bool {
+	if _, ok := supportedTagSet[tag]; ok {
+		return true
+	}
+	for _, prefix := range supportedTagPrefixes {
+		if strings.HasPrefix(tag, prefix) && len(tag) > len(prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 // ValidateTagList parses tags and returns an error that names the source when unsupported tags are present.
@@ -1077,7 +1090,7 @@ func validateQueueItemFormat(lines []string) error {
 				output = append(output, "  - Missing ID like RQ-0123")
 			}
 			if !tagOk {
-				output = append(output, "  - Missing routing tag like [code]/[db]/[ui]/[ops]/[docs]")
+				output = append(output, "  - Missing routing tag like [code]/[code-*]/[db]/[ui]/[ops]/[docs]/[docs-*]")
 			}
 			if !colonOk {
 				output = append(output, "  - Missing \":\" after ID/tags")

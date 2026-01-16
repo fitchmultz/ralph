@@ -1,9 +1,6 @@
 # Implementation Queue
 
 ## Queue
-- [ ] RQ-0491 [code]: Support docs-* and code-* routing tags in queue validation for the default pin file. (.ralph/pin/implementation_queue.md, ralph_tui/internal/pin/pin.go, ralph_tui/internal/pin/pin_test.go, ralph_tui/cmd/ralph/main.go)
-  - Evidence: Queue validation only allows [db]/[ui]/[code]/[ops]/[docs]; tags like [docs-compliance] or [code-refactor] are rejected even when they reflect valid work streams.
-  - Plan: Allow [docs-*] and [code-*] tags (any suffix) in addition to existing tags; update validation and CLI help examples; add tests for docs-* and code-* tags against the default pin file.
 - [ ] RQ-0492 [ui]: Add a TUI task-builder mode (plus CLI entrypoint) that turns prompts into queue-formatted items. (ralph_tui/internal/tui, ralph_tui/internal/pin, ralph_tui/internal/prompts, ralph_tui/cmd/ralph/main.go)
   - Evidence: Users currently have to hand-format queue entries and track IDs/tags manually; the requested workflow is an agent-led prompt session that inserts correctly formatted tasks automatically.
   - Plan: Implement a TUI flow with a CLI entrypoint that launches it; agent choices are Codex/OpenCode with low/medium/high reasoning options; reuse NextQueueID/queue format rules; add prompt injection templates and repo recon for Evidence/Plan; add tests and help text.

@@ -634,7 +634,7 @@ func newLoopRunCommand() *cobra.Command {
 		Use:     "run",
 		Short:   "Run the supervised loop",
 		Long:    "Run the Ralph worker loop, enforcing pin invariants and quarantine rules.",
-		Example: "  ralph loop run --once\n  ralph loop run --only-tag db,ui\n  ralph loop run --force-context-builder --reasoning-effort medium",
+		Example: "  ralph loop run --once\n  ralph loop run --only-tag db,ui,docs-compliance\n  ralph loop run --force-context-builder --reasoning-effort medium",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := loadConfig(cmd)
 			if err != nil {
@@ -849,7 +849,7 @@ func newLoopRunCommand() *cobra.Command {
 	cmd.Flags().Int("max-stalled", 3, "Auto-block after N stalled iterations")
 	cmd.Flags().Int("max-repair-attempts", 2, "Supervisor repair attempts before auto-block")
 	cmd.Flags().Int("runner-inactivity-seconds", 0, "Cancel and reset when the runner is inactive for N seconds (0 = disabled)")
-	cmd.Flags().String("only-tag", "", "Only execute queue items tagged with [tag] (comma/space-separated)")
+	cmd.Flags().String("only-tag", "", "Only execute queue items tagged with [tag] (comma/space-separated; supports code-* and docs-*)")
 	cmd.Flags().Bool("once", false, "Run exactly one iteration and exit")
 	cmd.Flags().String("reasoning-effort", "", "Codex reasoning effort override (auto/low/medium/high/off)")
 	cmd.Flags().Bool("force-context-builder", false, "Force context_builder even when reasoning effort is medium/high")
