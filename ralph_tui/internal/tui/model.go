@@ -396,7 +396,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		keyFields["nav_focused"] = m.navFocused
 		keyFields["nav_collapsed"] = m.navCollapsed
 		m.logDebug("key.event", keyFields)
-		if key.Matches(msg, m.keys.Quit) {
+		if isHardQuitKey(msg) {
 			m.logInfo("tui.quit", map[string]any{"screen": screenName(m.screen)})
 			m.Shutdown("key.quit")
 			return m, tea.Quit
@@ -404,6 +404,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.searchActive {
 			cmd := m.updateSearch(msg)
 			return m, cmd
+		}
+		if m.isTyping() && isTextEntryKey(msg) {
+			cmd := m.updateActiveView(msg)
+			return m, cmd
+		}
+		if key.Matches(msg, m.keys.Quit) {
+			m.logInfo("tui.quit", map[string]any{"screen": screenName(m.screen)})
+			m.Shutdown("key.quit")
+			return m, tea.Quit
 		}
 		if key.Matches(msg, m.keys.ToggleNav) {
 			m.navCollapsed = !m.navCollapsed
@@ -739,7 +748,28 @@ func (m model) shouldBypassFocusToggle(msg tea.KeyMsg) bool {
 	if msg.Type != tea.KeyTab {
 		return false
 	}
+	if m.isTyping() {
+		return true
+	}
 	return m.activeViewUsesTabNavigation()
+}
+
+func (m model) isTyping() bool {
+	if m.focusedPanelEffective() != focusedPanelContent {
+		return false
+	}
+	switch m.screen {
+	case screenConfig:
+		return m.configView != nil && m.configView.IsTyping()
+	case screenPin:
+		return m.pinView != nil && m.pinView.IsTyping()
+	case screenBuildSpecs:
+		return m.specsView != nil && m.specsView.IsTyping()
+	case screenRunLoop:
+		return m.loopView != nil && m.loopView.IsTyping()
+	default:
+		return false
+	}
 }
 
 func (m model) activeViewUsesTabNavigation() bool {

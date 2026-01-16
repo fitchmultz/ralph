@@ -169,6 +169,13 @@ func (e *configEditor) Update(msg tea.Msg) tea.Cmd {
 	return cmd
 }
 
+func (e *configEditor) IsTyping() bool {
+	if e == nil || e.form == nil {
+		return false
+	}
+	return e.form.GetFocusedField() != nil
+}
+
 func (e *configEditor) HandlesTabNavigation() bool {
 	return e.form != nil
 }

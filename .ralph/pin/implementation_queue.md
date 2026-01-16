@@ -2,13 +2,6 @@
 
 ## Queue
 
-- [ ] RQ-0468 [ui]: Fix text-entry/keybinding conflicts (user focus + all forms); implement typing-safe key routing so global shortcuts don’t fire while editing. (ralph_tui/internal/tui/model.go, ralph_tui/internal/tui/keymap.go, ralph_tui/internal/tui/specs_view.go, ralph_tui/internal/tui/pin_view.go, ralph_tui/internal/tui/config_editor.go)
-  - Evidence: `model.Update` handles `q` (Quit) and `e` (EditSpecsSettings) before delegating to views, so while `specsView.editUserFocus` is active (`specs_view.go`) typing can quit/switch screens (matches reported "can’t type user focus; panel changes"). Similar collision risk exists for pin block/move forms and config editor inputs.
-  - Plan: Add a small "text entry active" signal from views (specs user-focus editor, huh forms, search input) and gate global/screen shortcuts while typing (keep ctrl+c/esc). Route key events to the focused view first, then fall back to global bindings only when safe; add regression coverage for typing scenarios.
-  - Notes:
-    - Ensure run/stop/edit shortcuts do not trigger while a text input is focused.
-    - Confirm focus/panel state is stable while typing (no unintended nav/content switches).
-
 - [ ] RQ-0469 [ui]: Redesign keymaps for consistency and safety (resolve collisions, reduce single-letter globals, improve hints/help). (ralph_tui/internal/tui/keymap.go, ralph_tui/internal/tui/help_keymap.go, ralph_tui/internal/tui/key_hints.go, ralph_tui/internal/tui/model.go)
   - Evidence: Key bindings reuse the same letters across screens (`e`, `r`, `s`, `q`) and some are globally trapped in `model.Update`, making future text inputs hostile; help/hints currently present overlapping or misleading shortcuts (e.g., specs view hints mention Tab behaviors that aren’t true while editing).
   - Plan: Establish a keybinding policy: global actions use ctrl+ combos; screen actions are letters only when no text entry is active; add a dedicated "modal/input" keymap. Update help keymaps + on-screen hint rendering to match; add a conflict test to prevent regressions.

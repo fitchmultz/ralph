@@ -326,6 +326,13 @@ func (p *pinView) HandlesTabNavigation() bool {
 	return p.mode == pinModeMoveCheckedForm && p.moveForm != nil
 }
 
+func (p *pinView) IsTyping() bool {
+	if p == nil {
+		return false
+	}
+	return p.mode == pinModeBlockForm || p.mode == pinModeMoveCheckedForm
+}
+
 func (p *pinView) View() string {
 	if p.mode == pinModeBlockForm && p.blockForm != nil {
 		return withFinalNewline("Block item\n\n" + p.blockForm.View())

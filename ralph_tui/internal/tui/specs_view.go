@@ -727,6 +727,13 @@ func (s *specsView) Focus() {}
 
 func (s *specsView) Blur() {}
 
+func (s *specsView) IsTyping() bool {
+	if s == nil {
+		return false
+	}
+	return s.editUserFocus
+}
+
 func (s *specsView) activeViewport() *viewport.Model {
 	if s.running {
 		return &s.logViewport

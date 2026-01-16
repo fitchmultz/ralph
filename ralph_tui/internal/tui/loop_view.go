@@ -297,6 +297,13 @@ func (l *loopView) HandlesTabNavigation() bool {
 	return (l.mode == loopEditing && l.editForm != nil) || (l.mode == loopGuarding && l.guardForm != nil)
 }
 
+func (l *loopView) IsTyping() bool {
+	if l == nil {
+		return false
+	}
+	return (l.mode == loopEditing && l.editForm != nil) || (l.mode == loopGuarding && l.guardForm != nil)
+}
+
 func (l *loopView) ActiveItemID() string {
 	if l == nil {
 		return ""

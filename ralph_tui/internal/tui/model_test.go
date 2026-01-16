@@ -126,6 +126,66 @@ func TestTabBypassesGlobalFocusWhenFormActive(t *testing.T) {
 	}
 }
 
+func TestTypingBlocksGlobalShortcutsInSpecsUserFocus(t *testing.T) {
+	base, _, _ := newHermeticModel(t)
+	m := base
+	m.switchScreen(screenBuildSpecs, true)
+	if m.specsView == nil {
+		t.Fatalf("specs view missing")
+	}
+	m.specsView.userFocusInput.SetValue("")
+	m.specsView.userFocusInput.Focus()
+	m.specsView.editUserFocus = true
+
+	updated, _ := m.Update(runeKey('/'))
+	m = updated.(model)
+	if m.searchActive {
+		t.Fatalf("expected search to remain inactive while typing")
+	}
+	if !strings.Contains(m.specsView.userFocusInput.Value(), "/") {
+		t.Fatalf("expected user focus input to capture '/'")
+	}
+
+	updated, _ = m.Update(runeKey('e'))
+	m = updated.(model)
+	if m.screen != screenBuildSpecs {
+		t.Fatalf("expected screen to remain build specs while typing")
+	}
+
+	updated, _ = m.Update(runeKey('q'))
+	m = updated.(model)
+	if m.shuttingDown {
+		t.Fatalf("expected 'q' to be ignored while typing")
+	}
+
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
+	m = updated.(model)
+	if !m.shuttingDown {
+		t.Fatalf("expected ctrl+c to quit while typing")
+	}
+}
+
+func TestTypingBlocksGlobalSearchInConfigEditorInput(t *testing.T) {
+	base, _, _ := newHermeticModel(t)
+	m := base
+	m.switchScreen(screenConfig, true)
+	if m.configView == nil {
+		t.Fatalf("config view missing")
+	}
+	m.configView.form.NextField()
+	m.configView.form.NextField()
+
+	before := m.configView.data.UITheme
+	updated, _ := m.Update(runeKey('/'))
+	m = updated.(model)
+	if m.searchActive {
+		t.Fatalf("expected search to remain inactive while typing")
+	}
+	if !strings.Contains(m.configView.data.UITheme, "/") || m.configView.data.UITheme == before {
+		t.Fatalf("expected config input to capture '/'")
+	}
+}
+
 func TestNavCollapseForcesContentFocus(t *testing.T) {
 	_, locs, cfg := newHermeticModel(t)
 	m := newModel(cfg, locs, StartOptions{})
@@ -409,4 +469,8 @@ func TestSearchEnterSelectsNavItem(t *testing.T) {
 	if m.navFocused {
 		t.Fatalf("expected content focus after enter")
 	}
+}
+
+func runeKey(r rune) tea.KeyMsg {
+	return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}}
 }

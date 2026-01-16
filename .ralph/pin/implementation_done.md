@@ -1,6 +1,13 @@
 # Implementation Done
 
 ## Done
+- [x] RQ-0468 [ui]: Fix text-entry/keybinding conflicts (user focus + all forms); implement typing-safe key routing so global shortcuts don’t fire while editing. (ralph_tui/internal/tui/model.go, ralph_tui/internal/tui/keymap.go, ralph_tui/internal/tui/specs_view.go, ralph_tui/internal/tui/pin_view.go, ralph_tui/internal/tui/config_editor.go)
+  - Evidence: `model.Update` handles `q` (Quit) and `e` (EditSpecsSettings) before delegating to views, so while `specsView.editUserFocus` is active (`specs_view.go`) typing can quit/switch screens (matches reported "can’t type user focus; panel changes"). Similar collision risk exists for pin block/move forms and config editor inputs.
+  - Plan: Add a small "text entry active" signal from views (specs user-focus editor, huh forms, search input) and gate global/screen shortcuts while typing (keep ctrl+c/esc). Route key events to the focused view first, then fall back to global bindings only when safe; add regression coverage for typing scenarios.
+  - Notes:
+    - Ensure run/stop/edit shortcuts do not trigger while a text input is focused.
+    - Confirm focus/panel state is stable while typing (no unintended nav/content switches).
+
 - [x] RQ-0467 [docs][ux]: Add project-type aware bug-sweep prompt entry for spec/queue builder. (ralph_tui/internal/prompts/defaults, ralph_tui/internal/specs, ralph_tui/internal/pin, .ralph/pin)
   - Evidence: Need a standardized prompt that adapts by project type and batches 15+ findings into queue tasks, populating `.ralph/pin/implementation_queue.md` and `.ralph/pin/lookup_table.md`.
   - Plan: Add a dedicated prompt template for spec/queue builder mode that inserts the project type, ensure it targets the pin queue format, and document usage in pin/specs builder guidance.
