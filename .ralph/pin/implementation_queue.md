@@ -1,9 +1,6 @@
 # Implementation Queue
 
 ## Queue
-- [ ] RQ-0502 [code]: Add unit tests for procgroup signal handling. (ralph_tui/internal/procgroup/procgroup_unix.go, ralph_tui/internal/procgroup/procgroup_windows.go)
-  - Evidence: Process group handling is platform-specific and lacks regression tests; failures can leave orphaned processes.
-  - Plan: Add `procgroup_test.go` to verify process group creation and signal propagation with a small helper command; gate OS-specific behavior appropriately.
 - [ ] RQ-0493 [code]: Support an optional Notes metadata bullet in queue items. (ralph_tui/internal/pin/pin.go, ralph_tui/internal/pin/pin_test.go, ralph_tui/internal/pin/testdata/pin/implementation_queue.md)
   - Evidence: Queue validation currently only recognizes Evidence/Plan metadata; optional context needs are forced into Evidence/Plan or left out.
   - Plan: Extend metadata validation to allow a "- Notes:" bullet (optional); update fixtures and tests to cover items with and without Notes.

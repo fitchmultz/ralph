@@ -1,6 +1,9 @@
 # Implementation Done
 
 ## Done
+- [x] RQ-0502 [code]: Add unit tests for procgroup signal handling. (ralph_tui/internal/procgroup/procgroup_unix.go, ralph_tui/internal/procgroup/procgroup_windows.go)
+  - Evidence: Process group handling is platform-specific and lacks regression tests; failures can leave orphaned processes.
+  - Plan: Add `procgroup_test.go` to verify process group creation and signal propagation with a small helper command; gate OS-specific behavior appropriately.
 - [x] RQ-0501 [code]: Add unit tests for redaction classification. (ralph_tui/internal/redaction/redaction.go)
   - Evidence: Redaction classification logic is not unit tested; a miss risks leaking secrets.
   - Plan: Add `redaction_test.go` with sensitive key patterns (API_KEY, PASSWORD, token) and safe keys (PATH, HOME, SHELL) to validate classification.
