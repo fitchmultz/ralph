@@ -477,68 +477,81 @@ func newSpecsBuildCommand() *cobra.Command {
 				return err
 			}
 
-			interactive, err := cmd.Flags().GetBool("interactive")
+			flags := cmd.Flags()
+			interactive, err := flags.GetBool("interactive")
 			if err != nil {
 				return err
 			}
-			innovate, err := cmd.Flags().GetBool("innovate")
+			innovate, err := flags.GetBool("innovate")
 			if err != nil {
 				return err
 			}
-			printPrompt, err := cmd.Flags().GetBool("print-prompt")
+			printPrompt, err := flags.GetBool("print-prompt")
 			if err != nil {
 				return err
 			}
-			autofillScoutFlag, err := cmd.Flags().GetBool("autofill-scout")
+			autofillScoutFlag, err := flags.GetBool("autofill-scout")
 			if err != nil {
 				return err
 			}
-			noAutofillScoutFlag, err := cmd.Flags().GetBool("no-autofill-scout")
+			noAutofillScoutFlag, err := flags.GetBool("no-autofill-scout")
 			if err != nil {
 				return err
 			}
 			if autofillScoutFlag && noAutofillScoutFlag {
 				return fmt.Errorf("cannot set both --autofill-scout and --no-autofill-scout")
 			}
-			autofillScout := cfg.Specs.AutofillScout
+			var overrides specs.BuildOptionOverrides
+			if flags.Changed("innovate") {
+				overrides.Innovate = &innovate
+			}
 			if autofillScoutFlag {
-				autofillScout = true
+				value := true
+				overrides.AutofillScout = &value
+			} else if noAutofillScoutFlag {
+				value := false
+				overrides.AutofillScout = &value
 			}
-			if noAutofillScoutFlag {
-				autofillScout = false
-			}
-
-			scoutWorkflow := cfg.Specs.ScoutWorkflow
-			if cmd.Flags().Changed("scout-workflow") {
-				scoutWorkflow, err = cmd.Flags().GetBool("scout-workflow")
+			if flags.Changed("scout-workflow") {
+				value, err := flags.GetBool("scout-workflow")
 				if err != nil {
 					return err
 				}
+				overrides.ScoutWorkflow = &value
 			}
-
-			userFocus := cfg.Specs.UserFocus
-			if cmd.Flags().Changed("user-focus") {
-				userFocus, err = cmd.Flags().GetString("user-focus")
+			if flags.Changed("user-focus") {
+				value, err := flags.GetString("user-focus")
 				if err != nil {
 					return err
 				}
+				overrides.UserFocus = &value
 			}
-			userFocus = strings.TrimSpace(userFocus)
+			if flags.Changed("runner") {
+				value, err := flags.GetString("runner")
+				if err != nil {
+					return err
+				}
+				runner := specs.Runner(value)
+				overrides.Runner = &runner
+			}
 
-			promptPath, err := cmd.Flags().GetString("prompt")
+			promptPath, err := flags.GetString("prompt")
 			if err != nil {
 				return err
 			}
 
-			runner, err := resolveFlagString(cmd.Flags(), "runner", cfg.Specs.Runner)
-			if err != nil {
-				return err
-			}
-			runnerArgs := mergeRunnerArgsWithEffort(
-				runner,
-				cfg.Specs.RunnerArgs,
-				cmd.Flags().Args(),
-				cfg.Specs.ReasoningEffort,
+			resolved := specs.ResolveBuildOptions(
+				specs.BuildOptionDefaults{
+					Innovate:        false,
+					AutofillScout:   cfg.Specs.AutofillScout,
+					ScoutWorkflow:   cfg.Specs.ScoutWorkflow,
+					UserFocus:       cfg.Specs.UserFocus,
+					Runner:          specs.Runner(cfg.Specs.Runner),
+					RunnerArgs:      cfg.Specs.RunnerArgs,
+					ReasoningEffort: cfg.Specs.ReasoningEffort,
+				},
+				overrides,
+				flags.Args(),
 			)
 
 			result, err := specs.Build(context.Background(), specs.BuildOptions{
@@ -546,14 +559,14 @@ func newSpecsBuildCommand() *cobra.Command {
 				PinDir:           cfg.Paths.PinDir,
 				PromptTemplate:   promptPath,
 				ProjectType:      cfg.ProjectType,
-				Runner:           specs.Runner(runner),
-				RunnerArgs:       runnerArgs,
+				Runner:           resolved.Runner,
+				RunnerArgs:       resolved.RunnerArgs,
 				Interactive:      interactive,
-				Innovate:         innovate,
-				InnovateExplicit: cmd.Flags().Changed("innovate"),
-				AutofillScout:    autofillScout,
-				ScoutWorkflow:    scoutWorkflow,
-				UserFocus:        userFocus,
+				Innovate:         resolved.Innovate,
+				InnovateExplicit: resolved.InnovateExplicit,
+				AutofillScout:    resolved.AutofillScout,
+				ScoutWorkflow:    resolved.ScoutWorkflow,
+				UserFocus:        resolved.UserFocus,
 				PrintPrompt:      printPrompt,
 			})
 			if err != nil {

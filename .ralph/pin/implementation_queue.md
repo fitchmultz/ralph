@@ -2,10 +2,6 @@
 
 ## Queue
 
-- [ ] RQ-0473 [code]: Consolidate specs build option precedence across CLI + TUI; centralize innovate/autofill/scout/user-focus/runner args resolution. (ralph_tui/internal/specs/specs.go, ralph_tui/cmd/ralph/main.go, ralph_tui/internal/tui/specs_view.go, ralph_tui/internal/runnerargs/effort.go)
-  - Evidence: Specs options are resolved in multiple places: CLI flags in `cmd/ralph/main.go`, TUI toggles in `specs_view.go`, and innovate auto-enable logic in `specs.ResolveInnovateDetails`. This duplication makes behavior inconsistent (e.g., config provides autofill/scout/user_focus but CLI flags default false and TUI has its own toggles), and runner-effort injection is duplicated.
-  - Plan: Introduce a single resolver in `internal/specs/` that merges config + explicit toggles + CLI/session state into an "effective specs options" struct used by both CLI and TUI. Add unit tests for precedence and innovate auto-enable behavior.
-
 - [ ] RQ-0474 [docs]: Fix docs project prompting: shift from "docs bug sweep" to "docs iteration/completion"; make innovate/scout instructions project-type aware. (ralph_tui/internal/specs/specs.go, ralph_tui/internal/prompts/defaults/specs_bug_sweep_docs.md, ralph_tui/internal/prompts/defaults/prompt_codex_docs.md, ralph_tui/internal/prompts/defaults/prompt_opencode_docs.md, .ralph/pin/specs_builder_docs.md)
   - Evidence: The docs bug sweep entry focuses on "broken/outdated links" and similar hygiene (`specs_bug_sweep_docs.md`) but doesn’t explicitly drive documentation completion/iteration; `specs.go` uses a single `innovateInstructions` block that is explicitly code/bug-hunt oriented and is applied to docs projects too, contributing to "docs treated like code."
   - Plan: Redesign docs prompts to explicitly cover doc iteration: fleshing out placeholders, restructuring sections, reconciling terminology, adding examples, and validating navigation/links. Implement project-type-specific innovate instructions and (if needed) scout workflow variants; update both embedded defaults and `.ralph/pin` templates.

@@ -467,7 +467,34 @@ func (s *specsView) refreshPreviewAsync() tea.Cmd {
 	priorAuto := s.autoEnabled
 	priorAutoReason := s.autoEnabledReason
 
-	signature := previewInputSignature(previewWidth, promptStamp, queueStamp, interactive, innovate, innovateExplicit, autofillScout, scoutWorkflow, userFocus, runSignature, diffStatSignature)
+	var overrides specs.BuildOptionOverrides
+	if innovateExplicit {
+		overrides.Innovate = &innovate
+	}
+	if s.autofillExplicit {
+		overrides.AutofillScout = &autofillScout
+	}
+	if s.scoutExplicit {
+		overrides.ScoutWorkflow = &scoutWorkflow
+	}
+	if s.userFocusExplicit {
+		overrides.UserFocus = &userFocus
+	}
+	resolved := specs.ResolveBuildOptions(
+		specs.BuildOptionDefaults{
+			Innovate:        innovate,
+			AutofillScout:   cfg.Specs.AutofillScout,
+			ScoutWorkflow:   cfg.Specs.ScoutWorkflow,
+			UserFocus:       cfg.Specs.UserFocus,
+			Runner:          s.runner,
+			RunnerArgs:      s.runnerArgs,
+			ReasoningEffort: s.reasoningEffort,
+		},
+		overrides,
+		nil,
+	)
+
+	signature := previewInputSignature(previewWidth, promptStamp, queueStamp, interactive, resolved.Innovate, resolved.InnovateExplicit, resolved.AutofillScout, resolved.ScoutWorkflow, resolved.UserFocus, runSignature, diffStatSignature)
 	if s.previewErr == "" && s.preview != "" && signature == priorSignature {
 		return func() tea.Msg {
 			return specsPreviewMsg{
@@ -487,7 +514,7 @@ func (s *specsView) refreshPreviewAsync() tea.Cmd {
 	}
 	return func() tea.Msg {
 		queuePath := filepath.Join(cfg.Paths.PinDir, "implementation_queue.md")
-		resolution, err := specs.ResolveInnovateDetails(queuePath, innovate, innovateExplicit, autofillScout)
+		resolution, err := specs.ResolveInnovateDetails(queuePath, resolved.Innovate, resolved.InnovateExplicit, resolved.AutofillScout)
 		if err != nil {
 			return specsPreviewMsg{err: err}
 		}
@@ -499,8 +526,9 @@ func (s *specsView) refreshPreviewAsync() tea.Cmd {
 		prompt, err := specs.FillPrompt(promptPath, specs.FillPromptOptions{
 			Interactive:   interactive,
 			Innovate:      resolution.Effective,
-			ScoutWorkflow: scoutWorkflow,
-			UserFocus:     userFocus,
+			ScoutWorkflow: resolved.ScoutWorkflow,
+			UserFocus:     resolved.UserFocus,
+			ProjectType:   cfg.ProjectType,
 		})
 		if err != nil {
 			return specsPreviewMsg{err: err}
@@ -551,17 +579,47 @@ func (s *specsView) runBuildCmd() tea.Cmd {
 	s.buildCancel = cancel
 	done := make(chan struct{})
 	s.buildDone = done
+	cfg := s.cfg
+	innovate := s.innovate
+	autofillScout := s.autofillScout
+	scoutWorkflow := s.scoutWorkflow
+	userFocus := s.userFocus
+	var overrides specs.BuildOptionOverrides
+	if s.innovateExplicit {
+		overrides.Innovate = &innovate
+	}
+	if s.autofillExplicit {
+		overrides.AutofillScout = &autofillScout
+	}
+	if s.scoutExplicit {
+		overrides.ScoutWorkflow = &scoutWorkflow
+	}
+	if s.userFocusExplicit {
+		overrides.UserFocus = &userFocus
+	}
+	resolved := specs.ResolveBuildOptions(
+		specs.BuildOptionDefaults{
+			Innovate:        innovate,
+			AutofillScout:   cfg.Specs.AutofillScout,
+			ScoutWorkflow:   cfg.Specs.ScoutWorkflow,
+			UserFocus:       cfg.Specs.UserFocus,
+			Runner:          s.runner,
+			RunnerArgs:      s.runnerArgs,
+			ReasoningEffort: s.reasoningEffort,
+		},
+		overrides,
+		nil,
+	)
 	if s.logger != nil {
-		applied := runnerargs.ApplyReasoningEffort(string(s.runner), s.runnerArgs, s.reasoningEffort)
 		s.logger.Info("specs.run.start", map[string]any{
-			"runner":            s.runner,
-			"runner_args_count": len(applied.Args),
-			"reasoning_effort":  runnerargs.DisplayEffort(s.reasoningEffort),
+			"runner":            resolved.Runner,
+			"runner_args_count": len(resolved.RunnerArgs),
+			"reasoning_effort":  runnerargs.DisplayEffort(resolved.ReasoningEffort),
 			"interactive":       s.interactive,
-			"innovate":          s.innovate,
-			"autofillScout":     s.autofillScout,
-			"scout_workflow":    s.scoutWorkflow,
-			"user_focus_set":    strings.TrimSpace(s.userFocus) != "",
+			"innovate":          resolved.Innovate,
+			"autofillScout":     resolved.AutofillScout,
+			"scout_workflow":    resolved.ScoutWorkflow,
+			"user_focus_set":    resolved.UserFocus != "",
 		})
 	}
 
@@ -576,14 +634,14 @@ func (s *specsView) runBuildCmd() tea.Cmd {
 			RepoRoot:         s.locations.RepoRoot,
 			PinDir:           s.cfg.Paths.PinDir,
 			ProjectType:      s.cfg.ProjectType,
-			Runner:           s.runner,
-			RunnerArgs:       runnerargs.ApplyReasoningEffort(string(s.runner), s.runnerArgs, s.reasoningEffort).Args,
+			Runner:           resolved.Runner,
+			RunnerArgs:       resolved.RunnerArgs,
 			Interactive:      s.interactive,
-			Innovate:         s.innovate,
-			InnovateExplicit: s.innovateExplicit,
-			AutofillScout:    s.autofillScout,
-			ScoutWorkflow:    s.scoutWorkflow,
-			UserFocus:        s.userFocus,
+			Innovate:         resolved.Innovate,
+			InnovateExplicit: resolved.InnovateExplicit,
+			AutofillScout:    resolved.AutofillScout,
+			ScoutWorkflow:    resolved.ScoutWorkflow,
+			UserFocus:        resolved.UserFocus,
 			Stdout:           writer,
 			Stderr:           writer,
 		})

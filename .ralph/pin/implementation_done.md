@@ -1,6 +1,10 @@
 # Implementation Done
 
 ## Done
+- [x] RQ-0473 [code]: Consolidate specs build option precedence across CLI + TUI; centralize innovate/autofill/scout/user-focus/runner args resolution. (ralph_tui/internal/specs/specs.go, ralph_tui/cmd/ralph/main.go, ralph_tui/internal/tui/specs_view.go, ralph_tui/internal/runnerargs/effort.go)
+  - Evidence: Specs options are resolved in multiple places: CLI flags in `cmd/ralph/main.go`, TUI toggles in `specs_view.go`, and innovate auto-enable logic in `specs.ResolveInnovateDetails`. This duplication makes behavior inconsistent (e.g., config provides autofill/scout/user_focus but CLI flags default false and TUI has its own toggles), and runner-effort injection is duplicated.
+  - Plan: Introduce a single resolver in `internal/specs/` that merges config + explicit toggles + CLI/session state into an "effective specs options" struct used by both CLI and TUI. Add unit tests for precedence and innovate auto-enable behavior.
+
 - [x] RQ-0472 [ui]: Specs "User Focus" editor overhaul (multiline, persistent, and non-disruptive). (ralph_tui/internal/tui/specs_view.go, ralph_tui/internal/tui/config_editor.go, ralph_tui/internal/tui/model.go)
   - Evidence: `specsView.userFocusInput` is single-line with `CharLimit=200` (`specs_view.go`) and config editor uses a single-line input for `specs.user_focus` (`config_editor.go`), which is too limiting for real focus descriptions; additionally, user focus changes in the Specs screen do not persist into config/session overrides, creating drift between UI state and config.
   - Plan: Replace user focus editing with a modal multi-line editor (e.g., `huh.Text` with a bounded line count), support saving to session overrides (and optionally repo/global), and show a clear "editing" indicator + cancel/accept keys. Ensure the typing-mode routing fix (RQ-0468) covers this path.

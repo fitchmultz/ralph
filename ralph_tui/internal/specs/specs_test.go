@@ -5,10 +5,12 @@ package specs
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/mitchfultz/ralph/ralph_tui/internal/project"
+	"github.com/mitchfultz/ralph/ralph_tui/internal/runnerargs"
 )
 
 func TestFillPromptReplacements(t *testing.T) {
@@ -206,5 +208,94 @@ func TestResolveInnovateDetailsNonEmptyQueue(t *testing.T) {
 	}
 	if resolution.AutoReason != "" {
 		t.Fatalf("expected empty auto reason, got %q", resolution.AutoReason)
+	}
+}
+
+func TestResolveBuildOptionsPrecedence(t *testing.T) {
+	trueVal := true
+	falseVal := false
+	focus := "  hello \n"
+
+	resolved := ResolveBuildOptions(
+		BuildOptionDefaults{
+			Innovate:        false,
+			AutofillScout:   false,
+			ScoutWorkflow:   false,
+			UserFocus:       "default",
+			Runner:          Runner(" CODEX "),
+			RunnerArgs:      []string{"--base"},
+			ReasoningEffort: "Medium",
+		},
+		BuildOptionOverrides{
+			Innovate:      &falseVal,
+			AutofillScout: &trueVal,
+			ScoutWorkflow: &trueVal,
+			UserFocus:     &focus,
+		},
+		[]string{"--extra"},
+	)
+
+	if !resolved.InnovateExplicit || resolved.Innovate {
+		t.Fatalf("expected explicit innovate false")
+	}
+	if !resolved.AutofillScout {
+		t.Fatalf("expected autofill override true")
+	}
+	if !resolved.ScoutWorkflow {
+		t.Fatalf("expected scout workflow override true")
+	}
+	if resolved.UserFocus != "hello" {
+		t.Fatalf("expected trimmed focus, got %q", resolved.UserFocus)
+	}
+	if resolved.Runner != RunnerCodex {
+		t.Fatalf("expected runner normalized to codex, got %q", resolved.Runner)
+	}
+	expectedArgs := []string{"-c", "model_reasoning_effort=\"medium\"", "--base", "--extra"}
+	if !reflect.DeepEqual(resolved.RunnerArgs, expectedArgs) {
+		t.Fatalf("unexpected runner args: %#v", resolved.RunnerArgs)
+	}
+	if resolved.Effort.Source != runnerargs.EffortSourceExplicit {
+		t.Fatalf("expected explicit effort source, got %s", resolved.Effort.Source)
+	}
+}
+
+func TestResolveBuildOptionsExistingEffortArg(t *testing.T) {
+	resolved := ResolveBuildOptions(
+		BuildOptionDefaults{
+			Runner:          RunnerCodex,
+			RunnerArgs:      []string{"-c", "model_reasoning_effort=\"low\"", "--x"},
+			ReasoningEffort: "high",
+		},
+		BuildOptionOverrides{},
+		nil,
+	)
+
+	if resolved.Effort.Source != runnerargs.EffortSourceArgs {
+		t.Fatalf("expected args effort source, got %s", resolved.Effort.Source)
+	}
+	if resolved.Effort.Effective != "low" {
+		t.Fatalf("expected effective low, got %q", resolved.Effort.Effective)
+	}
+	if !reflect.DeepEqual(resolved.RunnerArgs, []string{"-c", "model_reasoning_effort=\"low\"", "--x"}) {
+		t.Fatalf("unexpected runner args: %#v", resolved.RunnerArgs)
+	}
+}
+
+func TestResolveBuildOptionsOpencodeNoEffortInjection(t *testing.T) {
+	resolved := ResolveBuildOptions(
+		BuildOptionDefaults{
+			Runner:          RunnerOpencode,
+			RunnerArgs:      []string{"--a"},
+			ReasoningEffort: "high",
+		},
+		BuildOptionOverrides{},
+		[]string{"--b"},
+	)
+
+	if resolved.Effort.Source != runnerargs.EffortSourceNone {
+		t.Fatalf("expected no effort source, got %s", resolved.Effort.Source)
+	}
+	if !reflect.DeepEqual(resolved.RunnerArgs, []string{"--a", "--b"}) {
+		t.Fatalf("unexpected runner args: %#v", resolved.RunnerArgs)
 	}
 }
