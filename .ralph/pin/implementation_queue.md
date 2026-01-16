@@ -1,6 +1,58 @@
 # Implementation Queue
 
 ## Queue
+
+- [ ] RQ-0468 [ui]: Fix text-entry/keybinding conflicts (user focus + all forms); implement typing-safe key routing so global shortcuts don’t fire while editing. (ralph_tui/internal/tui/model.go, ralph_tui/internal/tui/keymap.go, ralph_tui/internal/tui/specs_view.go, ralph_tui/internal/tui/pin_view.go, ralph_tui/internal/tui/config_editor.go)
+  - Evidence: `model.Update` handles `q` (Quit) and `e` (EditSpecsSettings) before delegating to views, so while `specsView.editUserFocus` is active (`specs_view.go`) typing can quit/switch screens (matches reported "can’t type user focus; panel changes"). Similar collision risk exists for pin block/move forms and config editor inputs.
+  - Plan: Add a small "text entry active" signal from views (specs user-focus editor, huh forms, search input) and gate global/screen shortcuts while typing (keep ctrl+c/esc). Route key events to the focused view first, then fall back to global bindings only when safe; add regression coverage for typing scenarios.
+  - Notes:
+    - Ensure run/stop/edit shortcuts do not trigger while a text input is focused.
+    - Confirm focus/panel state is stable while typing (no unintended nav/content switches).
+
+- [ ] RQ-0469 [ui]: Redesign keymaps for consistency and safety (resolve collisions, reduce single-letter globals, improve hints/help). (ralph_tui/internal/tui/keymap.go, ralph_tui/internal/tui/help_keymap.go, ralph_tui/internal/tui/key_hints.go, ralph_tui/internal/tui/model.go)
+  - Evidence: Key bindings reuse the same letters across screens (`e`, `r`, `s`, `q`) and some are globally trapped in `model.Update`, making future text inputs hostile; help/hints currently present overlapping or misleading shortcuts (e.g., specs view hints mention Tab behaviors that aren’t true while editing).
+  - Plan: Establish a keybinding policy: global actions use ctrl+ combos; screen actions are letters only when no text entry is active; add a dedicated "modal/input" keymap. Update help keymaps + on-screen hint rendering to match; add a conflict test to prevent regressions.
+
+- [ ] RQ-0470 [ui]: Fix Search UX: make it actually search "screens, queue IDs, tags"; remove hidden list filtering and improve search target model. (ralph_tui/internal/tui/model.go, ralph_tui/internal/tui/screens.go, ralph_tui/internal/tui/pin_view.go)
+  - Evidence: Search placeholder says "Screens, queue IDs, tags" (`model.go`) but nav search only filters `navItem.FilterValue()` which returns just the title (`screens.go`), and pin search target is only available when already on the Pin screen (`canSearchPin`). Additionally, the nav list has filtering enabled while filter UI is hidden and filter keybindings are cleared, risking invisible filter state (`newModel`).
+  - Plan: Disable Bubble list built-in filtering entirely; implement explicit search behaviors: (1) screens (title + description + internal screenName), (2) queue IDs/tags by loading pin data even when not on Pin screen, (3) predictable target toggle and status line. Update placeholder/help to match reality; add tests for search routing and selection.
+
+- [ ] RQ-0471 [ui]: Layout + resize correctness sweep across all screens (fix hardcoded chrome heights, wrapping-aware sizing, and tiny-terminal behavior). (ralph_tui/internal/tui/model.go, ralph_tui/internal/tui/pin_view.go, ralph_tui/internal/tui/loop_view.go, ralph_tui/internal/tui/specs_view.go, ralph_tui/internal/tui/config_editor.go, ralph_tui/internal/tui/viewport_layout.go)
+  - Evidence: `pinView.Resize` subtracts a constant `pinViewChromeHeight=4` regardless of whether status lines are present, wasting space; `loopView.Resize` and `specsView.Resize` use `strings.Count()` on unwrapped strings, which ignores line wrapping and can miscompute viewport sizes on narrow terminals; `loopView.Resize` resizes forms whenever `editForm != nil` even if not in edit mode.
+  - Plan: Replace line-count heuristics with `lipgloss.Height()` (after width-aware wrapping) for controls/status blocks; compute chrome height dynamically; centralize sizing in a shared helper; add snapshot tests for small widths/heights to prevent regressions.
+
+- [ ] RQ-0472 [ui]: Specs "User Focus" editor overhaul (multiline, persistent, and non-disruptive). (ralph_tui/internal/tui/specs_view.go, ralph_tui/internal/tui/config_editor.go, ralph_tui/internal/tui/model.go)
+  - Evidence: `specsView.userFocusInput` is single-line with `CharLimit=200` (`specs_view.go`) and config editor uses a single-line input for `specs.user_focus` (`config_editor.go`), which is too limiting for real focus descriptions; additionally, user focus changes in the Specs screen do not persist into config/session overrides, creating drift between UI state and config.
+  - Plan: Replace user focus editing with a modal multi-line editor (e.g., `huh.Text` with a bounded line count), support saving to session overrides (and optionally repo/global), and show a clear "editing" indicator + cancel/accept keys. Ensure the typing-mode routing fix (RQ-0468) covers this path.
+
+- [ ] RQ-0473 [code]: Consolidate specs build option precedence across CLI + TUI; centralize innovate/autofill/scout/user-focus/runner args resolution. (ralph_tui/internal/specs/specs.go, ralph_tui/cmd/ralph/main.go, ralph_tui/internal/tui/specs_view.go, ralph_tui/internal/runnerargs/effort.go)
+  - Evidence: Specs options are resolved in multiple places: CLI flags in `cmd/ralph/main.go`, TUI toggles in `specs_view.go`, and innovate auto-enable logic in `specs.ResolveInnovateDetails`. This duplication makes behavior inconsistent (e.g., config provides autofill/scout/user_focus but CLI flags default false and TUI has its own toggles), and runner-effort injection is duplicated.
+  - Plan: Introduce a single resolver in `internal/specs/` that merges config + explicit toggles + CLI/session state into an "effective specs options" struct used by both CLI and TUI. Add unit tests for precedence and innovate auto-enable behavior.
+
+- [ ] RQ-0474 [docs]: Fix docs project prompting: shift from "docs bug sweep" to "docs iteration/completion"; make innovate/scout instructions project-type aware. (ralph_tui/internal/specs/specs.go, ralph_tui/internal/prompts/defaults/specs_bug_sweep_docs.md, ralph_tui/internal/prompts/defaults/prompt_codex_docs.md, ralph_tui/internal/prompts/defaults/prompt_opencode_docs.md, .ralph/pin/specs_builder_docs.md)
+  - Evidence: The docs bug sweep entry focuses on "broken/outdated links" and similar hygiene (`specs_bug_sweep_docs.md`) but doesn’t explicitly drive documentation completion/iteration; `specs.go` uses a single `innovateInstructions` block that is explicitly code/bug-hunt oriented and is applied to docs projects too, contributing to "docs treated like code."
+  - Plan: Redesign docs prompts to explicitly cover doc iteration: fleshing out placeholders, restructuring sections, reconciling terminology, adding examples, and validating navigation/links. Implement project-type-specific innovate instructions and (if needed) scout workflow variants; update both embedded defaults and `.ralph/pin` templates.
+
+- [ ] RQ-0475 [code]: Deduplicate prompt/template sources to prevent drift (pin defaults vs embedded prompts vs .ralph templates). (ralph_tui/internal/pin/defaults.go, ralph_tui/internal/pin/templates.go, ralph_tui/internal/prompts/prompts.go, ralph_tui/internal/prompts/defaults/*, .ralph/pin/specs_builder.md, .ralph/pin/specs_builder_docs.md)
+  - Evidence: Prompt content is duplicated in multiple places: `.ralph/pin/specs_builder*.md`, embedded defaults in `internal/pin/defaults.go`, and embedded worker prompts in `internal/prompts/defaults/`. These copies are similar-but-not-identical, increasing drift and confusing users.
+  - Plan: Introduce canonical prompt "partials" and generate/compose templates from a single source of truth. Ensure pin init/template creation and embedded defaults reference the same canonical content; add a consistency check (and/or tests) to catch drift.
+
+- [ ] RQ-0476 [ui]: Pin screen feature completeness: add unblock/requeue actions and blocked-item tooling in TUI (stop relying on external editor for routine flows). (ralph_tui/internal/tui/pin_view.go, ralph_tui/internal/tui/keymap.go, ralph_tui/internal/tui/help_keymap.go, ralph_tui/internal/pin/pin.go)
+  - Evidence: The `pin` package supports `RequeueBlockedItem` and blocked metadata parsing (`pin.go`), but `pin_view.go` exposes no TUI action to requeue/unblock blocked items, inspect WIP branch metadata in an actionable way, or perform common pin workflows without opening an external editor.
+  - Plan: Add blocked-item actions in the Pin view: requeue selected blocked item (top/bottom), show/copy WIP branch + known-good SHA, and optionally reset fixup attempt metadata. Add keybindings + help; keep commands disabled while loop is running.
+
+- [ ] RQ-0477 [ui]: Logs screen improvements: use persisted loop/specs output on restart, harden tailing, and add lightweight filtering. (ralph_tui/internal/tui/logs_view.go, ralph_tui/internal/tui/loop_view.go, ralph_tui/internal/tui/specs_view.go, ralph_tui/internal/tui/file_watch.go)
+  - Evidence: Loop/specs output is persisted to disk (`loop_output.log`, `specs_output.log`) but Logs view only displays in-memory buffers passed from active views, so after a restart the Logs screen loses loop/specs history even though files exist. Also, `tailFileLinesFromHandle` trims `\n` but not `\r`, and formatted mode repeatedly JSON-decodes log lines, which can be costly during frequent refreshes.
+  - Plan: Teach Logs view to read persisted loop/specs outputs from cache as a fallback/source-of-truth; watch those files with the existing stamp logic. Normalize CRLF handling in tailing; add simple filters (component/level) and keep formatted rendering incremental/cached.
+
+- [ ] RQ-0478 [code]: Config/path resolution + error reporting fixes (stop silently ignoring path resolution errors; surface actionable messages in UI). (ralph_tui/internal/config/load.go, ralph_tui/internal/config/config.go, ralph_tui/internal/tui/config_editor.go)
+  - Evidence: `resolveConfigPaths` silently ignores `resolvePathWithRepo` errors (`config/load.go`), which can leave invalid (relative) paths that later fail `Config.Validate()` with less actionable messages. Config editor field-source refresh also ignores errors, hiding why values can’t be resolved.
+  - Plan: Propagate path resolution errors with contextual messages (which field/path failed and why), surface them in the config editor status line, and add unit tests for `{repo}` expansion and relative-root save/load edge cases.
+
+- [ ] RQ-0479 [ops]: Reduce refresh/jitter and background workload to address lag (adaptive refresh, debounce preview rendering, avoid heavy work when screen inactive). (ralph_tui/internal/tui/model.go, ralph_tui/internal/tui/specs_view.go, ralph_tui/internal/tui/repo_status.go)
+  - Evidence: `refreshCmd` ticks frequently and triggers repo status sampling + view refresh checks even when screens are inactive (`model.refreshViews`). Specs preview rendering (glamour) can be expensive and is re-triggered on many resizes (`specs_view.Resize` sets `previewDirty=true`), contributing to a laggy experience.
+  - Plan: Make refresh adaptive: only run heavy refresh logic when the relevant screen is visible, debounce preview rendering on rapid resize, and add lightweight timing logs at debug level to identify hotspots. Keep a manual "refresh now" as an escape hatch.
+
 ## Blocked
 
 ## Parking Lot
