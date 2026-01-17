@@ -7,7 +7,6 @@
   - `.ralph/queue.yaml` is the **source of truth** for active work.
   - `.ralph/done.yaml` archives completed tasks (same schema as queue).
   - `.ralph/prompts/*.md` are repo-local prompt templates used by `ralph scan`, `ralph task build`, and `ralph run`.
-- `ralph_tui/`: **Legacy** Go TUI/CLI + Markdown pin workflow (`.ralph/pin/*`). This path is deprecated/frozen; do not modify unless a queue task explicitly targets it.
 
 ## Build, Test, and Development Commands (Rust)
 - `cargo test -p ralph`

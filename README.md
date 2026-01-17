@@ -10,8 +10,6 @@ The canonical implementation is the Rust CLI in `crates/ralph/`.
 - Done archive: `.ralph/done.yaml`
 - Prompt templates: `.ralph/prompts/`
 
-The legacy Go TUI/CLI lives in `ralph_tui/` and uses the Markdown pin workflow under `.ralph/pin/`. That Go implementation is frozen during the Rust rewrite and should only be modified when a queue task explicitly targets it.
-
 ## Quick Start (Rust)
 
 - Install the `ralph` binary to `~/.local/bin`:
@@ -30,14 +28,6 @@ The legacy Go TUI/CLI lives in `ralph_tui/` and uses the Markdown pin workflow u
   - `cargo run -p ralph -- run one`
 - Archive completed tasks:
   - `cargo run -p ralph -- queue done`
-
-## Go vs Rust Mapping
-
-Rust is the canonical workflow for queue-driven execution. The Go TUI remains for legacy pin workflows only.
-
-- Queue validation: Go `ralph pin validate` -> Rust `ralph queue validate`
-- Backlog management: Go `.ralph/pin/*` -> Rust `.ralph/queue.yaml` + `.ralph/done.yaml`
-- Task execution loop: Go TUI loop -> Rust `ralph run one` / `ralph run loop`
 
 ## Configuration
 

@@ -1,3 +1,0 @@
-- Analyze the request in Evidence.
-- Implement the requested changes in {{SCOPE}}.
-- Verify changes with tests and validation.

@@ -129,7 +129,7 @@ tasks:
     evidence:
       - "`crates/ralph/src/main.rs` implements only `queue validate|next|set-status`; there is no Rust CLI command to display a task by ID, show the next runnable task, or list tasks in a user-friendly way."
       - "`crates/ralph/src/run_cmd.rs` selects the first `todo` task internally, but users cannot inspect which task would run next without opening `.ralph/queue.yaml` manually."
-      - "There is no queue listing command in the Rust CLI; users must open `.ralph/queue.yaml` or use the Go pin workflows (`.ralph/pin/*`)."
+      - "There is no queue listing command in the Rust CLI; users must open `.ralph/queue.yaml` manually."
       - "Simple, script-friendly, and filterable list/show commands are critical to workflow migration and single-task UX."
     plan:
       - Add `ralph queue show <TASK_ID>` to print a task (YAML or human-readable) and exit non-zero if not found.
