@@ -17,7 +17,7 @@ mod task_cmd;
 use anyhow::{bail, Result};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
-use crate::contracts::Runner as RunnerKind;
+use crate::contracts::{Runner as RunnerKind, Task, TaskStatus};
 
 fn main() {
     if let Err(err) = run() {
@@ -56,7 +56,29 @@ fn handle_queue(cmd: QueueCommand) -> Result<()> {
                 resolved.id_width,
             )?;
         }
-        QueueCommand::Next => {
+        QueueCommand::Next(args) => {
+            let queue_file = queue::load_queue(&resolved.queue_path)?;
+            let done = queue::load_queue_or_default(&resolved.done_path)?;
+            let done_ref = if done.tasks.is_empty() && !resolved.done_path.exists() {
+                None
+            } else {
+                Some(&done)
+            };
+            queue::validate_queue_set(
+                &queue_file,
+                done_ref,
+                &resolved.id_prefix,
+                resolved.id_width,
+            )?;
+            let next = queue::next_todo_task(&queue_file)
+                .ok_or_else(|| anyhow::anyhow!("no todo tasks found"))?;
+            if args.with_title {
+                println!("{}\t{}", next.id.trim(), next.title.trim());
+            } else {
+                println!("{}", next.id.trim());
+            }
+        }
+        QueueCommand::NextId => {
             let queue_file = queue::load_queue(&resolved.queue_path)?;
             let done = queue::load_queue_or_default(&resolved.done_path)?;
             let done_ref = if done.tasks.is_empty() && !resolved.done_path.exists() {
@@ -71,6 +93,31 @@ fn handle_queue(cmd: QueueCommand) -> Result<()> {
                 resolved.id_width,
             )?;
             println!("{next}");
+        }
+        QueueCommand::Show(args) => {
+            let queue_file = queue::load_queue(&resolved.queue_path)?;
+            queue::validate_queue(&queue_file, &resolved.id_prefix, resolved.id_width)?;
+            let task = queue::find_task(&queue_file, &args.task_id)
+                .ok_or_else(|| anyhow::anyhow!("task not found: {}", args.task_id.trim()))?;
+            match args.format {
+                QueueShowFormat::Yaml => {
+                    let rendered = serde_yaml::to_string(task)?;
+                    print!("{rendered}");
+                }
+                QueueShowFormat::Compact => {
+                    println!("{}", format_task_compact(task));
+                }
+            }
+        }
+        QueueCommand::List(args) => {
+            let queue_file = queue::load_queue(&resolved.queue_path)?;
+            queue::validate_queue(&queue_file, &resolved.id_prefix, resolved.id_width)?;
+            let statuses: Vec<TaskStatus> = args.status.into_iter().map(|s| s.into()).collect();
+            let limit = resolve_list_limit(args.limit, args.all);
+            let tasks = queue::filter_tasks(&queue_file, &statuses, &args.tag, limit);
+            for task in tasks {
+                println!("{}", format_task_compact(task));
+            }
         }
         QueueCommand::Done => {
             let report = queue::archive_done_tasks(
@@ -235,9 +282,24 @@ fn parse_runner(value: &str) -> Result<RunnerKind> {
     }
 }
 
+fn format_task_compact(task: &Task) -> String {
+    format!("{}\t{}\t{}", task.id.trim(), task.status, task.title.trim())
+}
+
+fn resolve_list_limit(limit: u32, all: bool) -> Option<usize> {
+    if all || limit == 0 {
+        None
+    } else {
+        Some(limit as usize)
+    }
+}
+
 #[derive(Parser)]
 #[command(name = "ralph")]
 #[command(about = "Ralph (Rust rewrite)")]
+#[command(
+    after_long_help = "Examples:\n  ralph queue list\n  ralph queue show RQ-0008\n  ralph queue next --with-title\n  ralph run one\n  ralph task build \"Fix the flaky test\""
+)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -254,6 +316,9 @@ enum Command {
 }
 
 #[derive(Args)]
+#[command(
+    after_long_help = "Examples:\n  ralph queue list\n  ralph queue list --status todo --tag rust\n  ralph queue show RQ-0008\n  ralph queue next --with-title\n  ralph queue next-id"
+)]
 struct QueueArgs {
     #[command(subcommand)]
     command: QueueCommand,
@@ -339,8 +404,14 @@ struct ScanArgs {
 enum QueueCommand {
     /// Validate the active queue (and done archive if present).
     Validate,
+    /// Print the next todo task (ID by default).
+    Next(QueueNextArgs),
     /// Print the next available task ID (across queue + done archive).
-    Next,
+    NextId,
+    /// Show a task by ID.
+    Show(QueueShowArgs),
+    /// List tasks in queue order.
+    List(QueueListArgs),
     /// Move completed tasks from queue.yaml to done.yaml.
     Done,
     /// Update a task status in the active queue.
@@ -382,6 +453,50 @@ enum StatusArg {
     Done,
 }
 
+#[derive(Clone, Copy, Debug, ValueEnum)]
+#[clap(rename_all = "snake_case")]
+enum QueueShowFormat {
+    Yaml,
+    Compact,
+}
+
+#[derive(Args)]
+struct QueueNextArgs {
+    /// Include the task title after the ID.
+    #[arg(long)]
+    with_title: bool,
+}
+
+#[derive(Args)]
+struct QueueShowArgs {
+    /// Task ID to show.
+    #[arg(value_name = "TASK_ID")]
+    task_id: String,
+
+    /// Output format.
+    #[arg(long, value_enum, default_value_t = QueueShowFormat::Yaml)]
+    format: QueueShowFormat,
+}
+
+#[derive(Args)]
+struct QueueListArgs {
+    /// Filter by status (repeatable).
+    #[arg(long, value_enum)]
+    status: Vec<StatusArg>,
+
+    /// Filter by tag (repeatable, case-insensitive).
+    #[arg(long)]
+    tag: Vec<String>,
+
+    /// Maximum tasks to show (0 = no limit).
+    #[arg(long, default_value_t = 50)]
+    limit: u32,
+
+    /// Show all tasks (ignores --limit).
+    #[arg(long)]
+    all: bool,
+}
+
 impl From<StatusArg> for contracts::TaskStatus {
     fn from(value: StatusArg) -> Self {
         match value {
@@ -395,7 +510,7 @@ impl From<StatusArg> for contracts::TaskStatus {
 
 #[cfg(test)]
 mod tests {
-    use super::contracts::{QueueFile, TaskStatus};
+    use super::contracts::{QueueFile, Task, TaskStatus};
     use anyhow::Context;
     use std::path::PathBuf;
 
@@ -431,5 +546,28 @@ mod tests {
 
         assert_eq!(left, right);
         Ok(())
+    }
+
+    #[test]
+    fn format_task_compact_trims_fields() {
+        let task = Task {
+            id: " RQ-0001 ".to_string(),
+            status: TaskStatus::Doing,
+            title: "  Fix bug  ".to_string(),
+            tags: vec![],
+            scope: vec![],
+            evidence: vec!["e".to_string()],
+            plan: vec!["p".to_string()],
+            notes: vec![],
+            request: None,
+            agent: None,
+            created_at: None,
+            updated_at: None,
+            completed_at: None,
+            blocked_reason: None,
+        };
+
+        let rendered = super::format_task_compact(&task);
+        assert_eq!(rendered, "RQ-0001\tdoing\tFix bug");
     }
 }

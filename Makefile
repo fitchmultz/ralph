@@ -2,14 +2,18 @@ RUST_WORKSPACE := .
 PREFIX ?= $(HOME)/.local
 BIN_DIR ?= $(PREFIX)/bin
 BIN_NAME ?= ralph
-BIN_PATH ?= $(BIN_DIR)/$(BIN_NAME)
 
 .PHONY: install update lint type-check format clean test generate build ci
 
 install:
 	cargo build --workspace --release
-	mkdir -p $(BIN_DIR)
-	install -m 0755 target/release/ralph $(BIN_PATH)
+	@bin_dir="$(BIN_DIR)"; \
+	if [ ! -w "$$bin_dir" ]; then \
+		bin_dir="$(CURDIR)/.local/bin"; \
+		echo "install: $(BIN_DIR) not writable; using $$bin_dir"; \
+	fi; \
+	mkdir -p "$$bin_dir"; \
+	install -m 0755 target/release/$(BIN_NAME) "$$bin_dir/$(BIN_NAME)"
 
 update:
 	cargo update

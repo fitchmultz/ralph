@@ -20,6 +20,8 @@ The legacy Go TUI/CLI lives in `ralph_tui/` and uses the Markdown pin workflow u
   - `cargo test --workspace`
 - Validate queue:
   - `cargo run -p ralph -- queue validate`
+- Inspect queue:
+  - `cargo run -p ralph -- queue list`
 - Add a task from a request:
   - `cargo run -p ralph -- task build "<request>"`
 - Seed the backlog with a scan:

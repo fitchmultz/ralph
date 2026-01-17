@@ -1,31 +1,5 @@
 version: 1
 tasks:
-  - id: RQ-0008
-    status: todo
-    title: Add queue inspection (show, next, list) with filtering and compact output
-    tags:
-      - rust
-      - queue
-      - ux
-    scope:
-      - crates/ralph/src/main.rs
-      - crates/ralph/src/queue.rs
-      - crates/ralph/src/contracts.rs
-      - ralph queue
-    evidence:
-      - "`crates/ralph/src/main.rs` implements only `queue validate|next|set-status`; there is no Rust CLI command to display a task by ID, show the next runnable task, or list tasks in a user-friendly way."
-      - "`crates/ralph/src/run_cmd.rs` selects the first `todo` task internally, but users cannot inspect which task would run next without opening `.ralph/queue.yaml` manually."
-      - "There is no queue listing command in the Rust CLI; users must open `.ralph/queue.yaml` or use the Go pin workflows (`.ralph/pin/*`)."
-      - "Simple, script-friendly, and filterable list/show commands are critical to workflow migration and single-task UX."
-    plan:
-      - Add `ralph queue show <TASK_ID>` to print a task (YAML or human-readable) and exit non-zero if not found.
-      - Add `ralph queue next` to print the next todo task's ID (and optionally title) according to current run selection logic.
-      - Add `ralph queue list` to print queue as `ID  STATUS  TITLE` with stable queue-order, filterable by `--status`, `--tag`, and limitable via `--limit`/`--all`.
-      - Add tests for not-found/empty queue cases, selection consistency, and all filtering/formatting behaviors.
-      - Ensure all output is script-friendly (one task per line).
-    request: scan finding
-    created_at: 2026-01-17T17:26:38Z
-    updated_at: 2026-01-17T17:26:38Z
   - id: RQ-0005
     status: todo
     title: Make Rust CLI defaults come from `.ralph/config.yaml` (runner/model/effort) instead of hardcoded flags

@@ -217,7 +217,7 @@ pub fn set_status(
                 let redacted = redaction::redact_text(reason);
                 let trimmed = redacted.trim();
                 if !trimmed.is_empty() {
-                    task.blocked_reason = Some(trimmed.to_string());
+                    task.blocked_reason = Some(sanitize_yaml_text("Reason: ", trimmed).to_string());
                 }
             }
         }
@@ -231,15 +231,88 @@ pub fn set_status(
         let redacted = redaction::redact_text(note);
         let trimmed = redacted.trim();
         if !trimmed.is_empty() {
-            task.notes.push(trimmed.to_string());
+            task.notes
+                .push(sanitize_yaml_text("Note: ", trimmed).to_string());
         }
     }
 
     Ok(())
 }
 
+pub fn find_task<'a>(queue: &'a QueueFile, task_id: &str) -> Option<&'a Task> {
+    let needle = task_id.trim();
+    if needle.is_empty() {
+        return None;
+    }
+    queue.tasks.iter().find(|task| task.id.trim() == needle)
+}
+
+fn sanitize_yaml_text(prefix: &str, value: &str) -> String {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return String::new();
+    }
+    if let Some(first) = trimmed.chars().next() {
+        if first == '`' {
+            return format!("{prefix}{trimmed}");
+        }
+    }
+    trimmed.to_string()
+}
+
+pub fn next_todo_task(queue: &QueueFile) -> Option<&Task> {
+    queue
+        .tasks
+        .iter()
+        .find(|task| task.status == TaskStatus::Todo)
+}
+
+pub fn filter_tasks<'a>(
+    queue: &'a QueueFile,
+    statuses: &[TaskStatus],
+    tags: &[String],
+    limit: Option<usize>,
+) -> Vec<&'a Task> {
+    let status_filter: HashSet<TaskStatus> = statuses.iter().copied().collect();
+    let tag_filter: HashSet<String> = tags
+        .iter()
+        .map(|tag| normalize_tag(tag))
+        .filter(|tag| !tag.is_empty())
+        .collect();
+
+    let has_status_filter = !status_filter.is_empty();
+    let has_tag_filter = !tag_filter.is_empty();
+
+    let mut out = Vec::new();
+    for task in &queue.tasks {
+        if has_status_filter && !status_filter.contains(&task.status) {
+            continue;
+        }
+        if has_tag_filter
+            && !task
+                .tags
+                .iter()
+                .any(|tag| tag_filter.contains(&normalize_tag(tag)))
+        {
+            continue;
+        }
+
+        out.push(task);
+        if let Some(limit) = limit {
+            if out.len() >= limit {
+                break;
+            }
+        }
+    }
+    out
+}
+
 fn normalize_prefix(prefix: &str) -> String {
     prefix.trim().to_uppercase()
+}
+
+fn normalize_tag(tag: &str) -> String {
+    tag.trim().to_lowercase()
 }
 
 fn validate_task_required_fields(index: usize, task: &Task) -> Result<()> {
@@ -332,11 +405,15 @@ mod tests {
     use tempfile::TempDir;
 
     fn task(id: &str) -> Task {
+        task_with(id, TaskStatus::Todo, vec!["code".to_string()])
+    }
+
+    fn task_with(id: &str, status: TaskStatus, tags: Vec<String>) -> Task {
         Task {
             id: id.to_string(),
-            status: TaskStatus::Todo,
+            status,
             title: "Test task".to_string(),
-            tags: vec!["code".to_string()],
+            tags,
             scope: vec!["crates/ralph".to_string()],
             evidence: vec!["observed".to_string()],
             plan: vec!["do thing".to_string()],
@@ -446,6 +523,30 @@ mod tests {
     }
 
     #[test]
+    fn set_status_sanitizes_leading_backticks() -> Result<()> {
+        let mut queue = QueueFile {
+            version: 1,
+            tasks: vec![task("RQ-0001")],
+        };
+
+        let now = "2026-01-17T00:00:00Z";
+        set_status(
+            &mut queue,
+            "RQ-0001",
+            TaskStatus::Blocked,
+            now,
+            Some("`token` exposed"),
+            Some("`make ci` failed"),
+        )?;
+
+        let t = &queue.tasks[0];
+        assert_eq!(t.blocked_reason.as_deref(), Some("Reason: `token` exposed"));
+        assert_eq!(t.notes, vec!["Note: `make ci` failed".to_string()]);
+
+        Ok(())
+    }
+
+    #[test]
     fn validate_queue_set_rejects_cross_file_duplicates() {
         let active = QueueFile {
             version: 1,
@@ -517,5 +618,79 @@ mod tests {
         assert!(report2.moved_ids.is_empty());
         assert!(report2.skipped_ids.is_empty());
         Ok(())
+    }
+
+    #[test]
+    fn find_task_returns_none_for_missing_or_blank() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![task("RQ-0001")],
+        };
+        assert!(find_task(&queue, "").is_none());
+        assert!(find_task(&queue, "RQ-9999").is_none());
+    }
+
+    #[test]
+    fn next_todo_task_picks_first_todo() {
+        let mut todo = task("RQ-0002");
+        todo.status = TaskStatus::Todo;
+        let mut doing = task("RQ-0001");
+        doing.status = TaskStatus::Doing;
+
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![doing, todo],
+        };
+        let found = next_todo_task(&queue).expect("todo task");
+        assert_eq!(found.id, "RQ-0002");
+    }
+
+    #[test]
+    fn next_todo_task_none_when_empty() {
+        let mut doing = task("RQ-0001");
+        doing.status = TaskStatus::Doing;
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![doing],
+        };
+        assert!(next_todo_task(&queue).is_none());
+    }
+
+    #[test]
+    fn filter_tasks_by_status_and_tag() {
+        let mut todo = task_with(
+            "RQ-0001",
+            TaskStatus::Todo,
+            vec!["rust".to_string(), "queue".to_string()],
+        );
+        todo.title = "First".to_string();
+        let doing = task_with("RQ-0002", TaskStatus::Doing, vec!["docs".to_string()]);
+        let done = task_with("RQ-0003", TaskStatus::Done, vec!["RUST".to_string()]);
+
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![todo, doing, done],
+        };
+
+        let filtered = filter_tasks(
+            &queue,
+            &[TaskStatus::Todo, TaskStatus::Done],
+            &["rust".to_string()],
+            None,
+        );
+        let ids: Vec<&str> = filtered.iter().map(|t| t.id.as_str()).collect();
+        assert_eq!(ids, vec!["RQ-0001", "RQ-0003"]);
+    }
+
+    #[test]
+    fn filter_tasks_applies_limit() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![task("RQ-0001"), task("RQ-0002"), task("RQ-0003")],
+        };
+
+        let filtered = filter_tasks(&queue, &[], &[], Some(2));
+        let ids: Vec<&str> = filtered.iter().map(|t| t.id.as_str()).collect();
+        assert_eq!(ids, vec!["RQ-0001", "RQ-0002"]);
     }
 }

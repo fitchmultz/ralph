@@ -14,6 +14,7 @@
 - `cargo run -p ralph -- queue validate`
 - `cargo run -p ralph -- init`
 - `cargo run -p ralph -- queue next`
+- `cargo run -p ralph -- queue next-id`
 - `cargo run -p ralph -- queue done`
 - `cargo run -p ralph -- task build "<request>"`
 - `cargo run -p ralph -- scan --focus "<focus>"`

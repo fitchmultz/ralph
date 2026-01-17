@@ -16,8 +16,13 @@ usage and migration guidance.
   - `cargo run -p ralph -- queue validate`
 - Bootstrap repo files (queue + config):
   - `cargo run -p ralph -- init`
+- Inspect queue:
+  - `cargo run -p ralph -- queue list`
+  - `cargo run -p ralph -- queue list --status todo --tag rust`
+  - `cargo run -p ralph -- queue show RQ-0008`
+  - `cargo run -p ralph -- queue next --with-title`
 - Next task ID:
-  - `cargo run -p ralph -- queue next`
+  - `cargo run -p ralph -- queue next-id`
 - Archive completed tasks:
   - `cargo run -p ralph -- queue done`
 - Build a task from a request:
