@@ -24,10 +24,10 @@ Convert findings into executable YAML tasks and insert them into `.ralph/queue.y
 
 ## QUEUE INSERTION RULES
 - Insert new tasks near the TOP of the queue in priority order (top = highest priority).
-- IMPORTANT (avoid reversed ordering): if you are adding multiple tasks and using `ralph queue next-id` repeatedly, do NOT keep inserting each newly generated task at the absolute top of the file. That reverses priority order. Instead:
+- IMPORTANT (avoid reversed ordering): if you are adding multiple tasks and using `ralph queue next` repeatedly, do NOT keep inserting each newly generated task at the absolute top of the file. That reverses priority order. Instead:
   - Insert the first new task at the top of the queue.
   - Insert each subsequent new task immediately BELOW the previously inserted new tasks so the final top-to-bottom ordering matches your intended priority order.
-- Use `ralph queue next-id` for each new task ID.
+- Use `ralph queue next` for each new task ID.
 - Each new task must include:
   - `id`, `status: todo`, `title`, `tags`, `scope`, `evidence`, `plan`
   - `request`: a short statement like "scan finding"

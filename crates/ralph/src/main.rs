@@ -2,6 +2,7 @@ mod contracts;
 
 mod config;
 mod fsutil;
+mod init_cmd;
 mod queue;
 mod run_cmd;
 mod timeutil;
@@ -32,6 +33,7 @@ fn run() -> Result<()> {
         Command::Run(args) => handle_run(args.command),
         Command::Task(args) => handle_task(args.command),
         Command::Scan(args) => handle_scan(args),
+        Command::Init(args) => handle_init(args),
     }
 }
 
@@ -53,7 +55,7 @@ fn handle_queue(cmd: QueueCommand) -> Result<()> {
                 resolved.id_width,
             )?;
         }
-        QueueCommand::NextId => {
+        QueueCommand::Next => {
             let queue_file = queue::load_queue(&resolved.queue_path)?;
             let done = queue::load_queue_or_default(&resolved.done_path)?;
             let done_ref = if done.tasks.is_empty() && !resolved.done_path.exists() {
@@ -69,7 +71,7 @@ fn handle_queue(cmd: QueueCommand) -> Result<()> {
             )?;
             println!("{next}");
         }
-        QueueCommand::Archive => {
+        QueueCommand::Done => {
             let report = queue::archive_done_tasks(
                 &resolved.queue_path,
                 &resolved.done_path,
@@ -77,10 +79,10 @@ fn handle_queue(cmd: QueueCommand) -> Result<()> {
                 resolved.id_width,
             )?;
             if report.moved_ids.is_empty() && report.skipped_ids.is_empty() {
-                println!(">> [RALPH] No done tasks to archive.");
+                println!(">> [RALPH] No done tasks to move.");
             } else {
                 println!(
-                    ">> [RALPH] Archived {} done task(s) ({} skipped as already archived).",
+                    ">> [RALPH] Moved {} done task(s) ({} skipped as already done).",
                     report.moved_ids.len(),
                     report.skipped_ids.len()
                 );
@@ -130,6 +132,28 @@ fn handle_config(cmd: ConfigCommand) -> Result<()> {
                 println!("project_config: (unavailable)");
             }
         }
+    }
+    Ok(())
+}
+
+fn handle_init(args: InitArgs) -> Result<()> {
+    let resolved = config::resolve_from_cwd()?;
+    let report = init_cmd::run_init(&resolved, init_cmd::InitOptions { force: args.force })?;
+    if report.queue_created {
+        println!("queue: created ({})", resolved.queue_path.display());
+    } else {
+        println!("queue: exists ({})", resolved.queue_path.display());
+    }
+    if report.config_created {
+        if let Some(path) = resolved.project_config_path.as_ref() {
+            println!("config: created ({})", path.display());
+        } else {
+            println!("config: created");
+        }
+    } else if let Some(path) = resolved.project_config_path.as_ref() {
+        println!("config: exists ({})", path.display());
+    } else {
+        println!("config: exists");
     }
     Ok(())
 }
@@ -225,6 +249,7 @@ enum Command {
     Run(RunArgs),
     Task(TaskArgs),
     Scan(ScanArgs),
+    Init(InitArgs),
 }
 
 #[derive(Args)]
@@ -249,6 +274,13 @@ struct RunArgs {
 struct TaskArgs {
     #[command(subcommand)]
     command: TaskCommand,
+}
+
+#[derive(Args)]
+struct InitArgs {
+    /// Overwrite existing files if they already exist.
+    #[arg(long)]
+    force: bool,
 }
 
 #[derive(Subcommand)]
@@ -307,9 +339,9 @@ enum QueueCommand {
     /// Validate the active queue (and done archive if present).
     Validate,
     /// Print the next available task ID (across queue + done archive).
-    NextId,
+    Next,
     /// Move completed tasks from queue.yaml to done.yaml.
-    Archive,
+    Done,
     /// Update a task status in the active queue.
     SetStatus {
         task_id: String,

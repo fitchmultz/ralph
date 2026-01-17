@@ -1,9 +1,15 @@
 RUST_WORKSPACE := .
+PREFIX ?= $(HOME)/.local
+BIN_DIR ?= $(PREFIX)/bin
+BIN_NAME ?= ralph
+BIN_PATH ?= $(BIN_DIR)/$(BIN_NAME)
 
 .PHONY: install update lint type-check format clean test generate build ci
 
 install:
-	cargo fetch
+	cargo build --workspace --release
+	mkdir -p $(BIN_DIR)
+	install -m 0755 target/release/ralph $(BIN_PATH)
 
 update:
 	cargo update
@@ -30,4 +36,4 @@ generate:
 build:
 	cargo build --workspace
 
-ci: generate format type-check lint build test
+ci: generate format type-check lint build test install

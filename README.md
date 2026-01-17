@@ -14,6 +14,8 @@ The legacy Go TUI/CLI lives in `ralph_tui/` and uses the Markdown pin workflow u
 
 ## Quick Start (Rust)
 
+- Install the `ralph` binary to `~/.local/bin`:
+  - `make install`
 - Run tests:
   - `cargo test --workspace`
 - Validate queue:
@@ -25,7 +27,7 @@ The legacy Go TUI/CLI lives in `ralph_tui/` and uses the Markdown pin workflow u
 - Execute the next task (first `todo` task in queue order):
   - `cargo run -p ralph -- run one`
 - Archive completed tasks:
-  - `cargo run -p ralph -- queue archive`
+  - `cargo run -p ralph -- queue done`
 
 ## Go vs Rust Mapping
 

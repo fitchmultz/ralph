@@ -14,10 +14,12 @@ usage and migration guidance.
 
 - Validate queue:
   - `cargo run -p ralph -- queue validate`
+- Bootstrap repo files (queue + config):
+  - `cargo run -p ralph -- init`
 - Next task ID:
-  - `cargo run -p ralph -- queue next-id`
+  - `cargo run -p ralph -- queue next`
 - Archive completed tasks:
-  - `cargo run -p ralph -- queue archive`
+  - `cargo run -p ralph -- queue done`
 - Build a task from a request:
   - `cargo run -p ralph -- task build "<request>"`
 - Seed tasks from a scan:
@@ -35,8 +37,8 @@ Core behavior:
 - Task order is priority: the first `todo` in `.ralph/queue.yaml` is selected.
 - The supervisor does NOT set `doing`; the agent does.
 - Completed tasks should be moved from `.ralph/queue.yaml` to `.ralph/done.yaml`.
-- Agents move completed tasks directly in the YAML files (not via `ralph queue archive`).
-- `ralph queue archive` can be used to clean up any remaining `done` tasks in the queue.
+- Agents move completed tasks directly in the YAML files (not via `ralph queue done`).
+- `ralph queue done` can be used to clean up any remaining `done` tasks in the queue.
 - After the agent exits, the supervisor checks the repo state:
   - If the repo is clean and the task is `done` (archived), it proceeds to the next task.
   - If the repo is dirty, it runs `make ci`. On green, it commits + pushes all changes.

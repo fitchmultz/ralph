@@ -55,13 +55,13 @@ Ship correct, durable changes quickly and safely.
 2. Immediately set its `status` to `doing` and set/update `updated_at` to current UTC RFC3339 time.
 3. Execute the task. Use repo conventions. Keep changes minimal and correct.
 4. If you discover follow-up work that should be queued, add new task(s) directly BELOW the current task in `.ralph/queue.yaml`:
-   - Use unique IDs from `ralph queue next-id`.
+   - Use unique IDs from `ralph queue next`.
    - Each new task must include concrete evidence and a clear plan.
 5. When complete:
    - Set `status: done`
    - Set `completed_at` to current UTC RFC3339 time
    - Add 1-5 `notes` bullets summarizing what changed and how to verify
-   - Move the completed task from `.ralph/queue.yaml` into `.ralph/done.yaml` (append to the `tasks` list and remove it from the queue file). Create `.ralph/done.yaml` if missing; it uses the same `version: 1` + `tasks` schema as the queue. Do this by editing the files directly (do not run `ralph queue archive`).
+   - Move the completed task from `.ralph/queue.yaml` into `.ralph/done.yaml` (append to the `tasks` list and remove it from the queue file). Create `.ralph/done.yaml` if missing; it uses the same `version: 1` + `tasks` schema as the queue. Do this by editing the files directly (do not run `ralph queue done`).
    - Run `make ci` and ensure it passes.
    - Commit and push all changes (including `.ralph/queue.yaml`) so the repo is clean for the next run.
 6. If you cannot complete the task:

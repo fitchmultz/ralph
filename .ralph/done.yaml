@@ -42,7 +42,7 @@ tasks:
       - make ci
     evidence:
       - "The repo has a Rust workspace (`Cargo.toml` with member `crates/ralph`), but the root `Makefile` only runs Go checks under `ralph_tui/`."
-      - "The Rust CLI is the mechanism used by `.ralph/prompts/*.md` (`ralph queue next-id`, `ralph scan`, etc.), so missing Rust checks in `make ci` is a workflow gap."
+      - "The Rust CLI is the mechanism used by `.ralph/prompts/*.md` (`ralph queue next`, `ralph scan`, etc.), so missing Rust checks in `make ci` is a workflow gap."
     plan:
       - "Add Makefile targets for Rust: `rust-build`, `rust-test`, `rust-format` (cargo fmt), and `rust-lint` (cargo clippy)."
       - Update `make ci` to run both Go and Rust gates (or introduce `make ci-rust` and make `ci` depend on both).
@@ -55,3 +55,34 @@ tasks:
     created_at: 2026-01-17T17:26:38Z
     updated_at: 2026-01-17T20:06:56Z
     completed_at: 2026-01-17T20:06:56Z
+  - id: RQ-0003
+    status: done
+    title: Add Rust bootstrap command to create `.ralph/queue.yaml` and `.ralph/config.yaml` when missing
+    tags:
+      - rust
+      - cli
+      - onboarding
+    scope:
+      - crates/ralph/src/config.rs
+      - crates/ralph/src/queue.rs
+      - crates/ralph/src/main.rs
+      - .ralph/README.md
+      - ralph init
+      - ralph config
+    evidence:
+      - "The Rust CLI supports layered YAML config at `.ralph/config.yaml` via `crates/ralph/src/config.rs`, but this repo currently has no `.ralph/config.yaml`."
+      - "`crates/ralph/src/queue.rs::load_queue` requires the queue file to exist; there is no Rust `init` command to create a valid empty queue (`version: 1`, `tasks: []`)."
+      - "`.ralph/README.md` describes `.ralph/queue.yaml` as the source of truth for Rust, but does not provide a bootstrap command/workflow."
+    plan:
+      - Add a Rust CLI command (`ralph init` or `ralph config init`) that creates `.ralph/queue.yaml` and `.ralph/config.yaml` if missing (no overwrite unless `--force`).
+      - Ensure created files match the queue/config contracts and use atomic writes.
+      - "Add tests covering: missing files, already-present files, and `--force` behavior."
+      - Update `.ralph/README.md` to document the bootstrap workflow.
+    notes:
+      - Added `ralph init` to create queue/config files with --force support.
+      - Added init tests for missing/existing/force scenarios.
+      - Documented bootstrap workflow in `.ralph/README.md`.
+    request: scan finding
+    created_at: 2026-01-17T17:26:38Z
+    updated_at: 2026-01-17T21:12:48Z
+    completed_at: 2026-01-17T21:12:48Z
