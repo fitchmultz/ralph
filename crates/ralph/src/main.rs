@@ -40,12 +40,41 @@ fn handle_queue(cmd: QueueCommand) -> Result<()> {
 	match cmd {
 		QueueCommand::Validate => {
 			let queue_file = queue::load_queue(&resolved.queue_path)?;
-			queue::validate_queue(&queue_file, &resolved.id_prefix, resolved.id_width)?;
+			let done = queue::load_queue_or_default(&resolved.done_path)?;
+			let done_ref = if done.tasks.is_empty() && !resolved.done_path.exists() {
+				None
+			} else {
+				Some(&done)
+			};
+			queue::validate_queue_set(&queue_file, done_ref, &resolved.id_prefix, resolved.id_width)?;
 		}
 		QueueCommand::NextId => {
 			let queue_file = queue::load_queue(&resolved.queue_path)?;
-			let next = queue::next_id(&queue_file, &resolved.id_prefix, resolved.id_width)?;
+			let done = queue::load_queue_or_default(&resolved.done_path)?;
+			let done_ref = if done.tasks.is_empty() && !resolved.done_path.exists() {
+				None
+			} else {
+				Some(&done)
+			};
+			let next = queue::next_id_across(&queue_file, done_ref, &resolved.id_prefix, resolved.id_width)?;
 			println!("{next}");
+		}
+		QueueCommand::Archive => {
+			let report = queue::archive_done_tasks(
+				&resolved.queue_path,
+				&resolved.done_path,
+				&resolved.id_prefix,
+				resolved.id_width,
+			)?;
+			if report.moved_ids.is_empty() && report.skipped_ids.is_empty() {
+				println!(">> [RALPH] No done tasks to archive.");
+			} else {
+				println!(
+					">> [RALPH] Archived {} done task(s) ({} skipped as already archived).",
+					report.moved_ids.len(),
+					report.skipped_ids.len()
+				);
+			}
 		}
 		QueueCommand::SetStatus {
 			task_id,
@@ -79,6 +108,7 @@ fn handle_config(cmd: ConfigCommand) -> Result<()> {
 		ConfigCommand::Paths => {
 			println!("repo_root: {}", resolved.repo_root.display());
 			println!("queue: {}", resolved.queue_path.display());
+			println!("done: {}", resolved.done_path.display());
 			if let Some(path) = resolved.global_config_path.as_ref() {
 				println!("global_config: {}", path.display());
 			} else {
@@ -266,6 +296,7 @@ struct ScanArgs {
 enum QueueCommand {
 	Validate,
 	NextId,
+	Archive,
 	SetStatus {
 		task_id: String,
 		status: StatusArg,

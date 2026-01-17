@@ -30,6 +30,7 @@ Ship correct, durable changes quickly and safely.
   - `done` with `completed_at` when complete
   - leave as `doing` or revert to `todo` if incomplete but not blocked
 - Do NOT set `status: blocked`.
+- Completed tasks are moved from `.ralph/queue.yaml` to `.ralph/done.yaml` (same YAML schema).
 - `.ralph/queue.yaml` remains valid YAML and matches the queue contract.
 - CI gate is 100% clean: run `make ci` and fix all failures before ending your turn.
 - Git hygiene (leave a clean repo state for the next run):
@@ -60,6 +61,7 @@ Ship correct, durable changes quickly and safely.
    - Set `status: done`
    - Set `completed_at` to current UTC RFC3339 time
    - Add 1-5 `notes` bullets summarizing what changed and how to verify
+   - Move the completed task from `.ralph/queue.yaml` into `.ralph/done.yaml` (append to the `tasks` list and remove it from the queue file). Create `.ralph/done.yaml` if missing; it uses the same `version: 1` + `tasks` schema as the queue. Do this by editing the files directly (do not run `ralph queue archive`).
    - Run `make ci` and ensure it passes.
    - Commit and push all changes (including `.ralph/queue.yaml`) so the repo is clean for the next run.
 6. If you cannot complete the task:

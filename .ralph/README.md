@@ -6,6 +6,7 @@ This repo is undergoing a Rust rewrite of Ralph. The Rust implementation uses th
 ## Files
 
 - `.ralph/queue.yaml` — YAML task queue (source of truth for active work).
+- `.ralph/done.yaml` — YAML archive of completed tasks (same schema as queue).
 - `.ralph/prompts/` — optional prompt overrides used by the runner.
 
 ## Supervisor Workflow (Rust)
@@ -15,17 +16,20 @@ This repo is undergoing a Rust rewrite of Ralph. The Rust implementation uses th
 Core behavior:
 - Task order is priority: the first `todo` in `.ralph/queue.yaml` is selected.
 - The supervisor does NOT set `doing`; the agent does.
+- Completed tasks should be moved from `.ralph/queue.yaml` to `.ralph/done.yaml`.
+- Agents move completed tasks directly in the YAML files (not via `ralph queue archive`).
+- `ralph queue archive` can be used to clean up any remaining `done` tasks in the queue.
 - After the agent exits, the supervisor checks the repo state:
   - If the repo is clean and the task is `done`, it proceeds to the next task.
   - If the repo is dirty, it runs `make ci`. On green, it commits + pushes all changes.
-  - If the task is not `done`, the supervisor sets `done`, runs `make ci`, and commits + pushes.
+  - If the task is not `done`, the supervisor sets `done`, archives the task, and commits + pushes.
 - `status: blocked` is not supported. If encountered, the supervisor reverts uncommitted changes
   (if any) and stops.
 
 Common scenarios:
 - Agent completes normally (done + CI + commit + push) -> supervisor sees clean repo and moves on.
 - Agent leaves dirty repo -> supervisor runs CI, commits, pushes.
-- Agent forgets to mark `done` -> supervisor sets `done`, runs CI, commits, pushes.
+- Agent forgets to mark `done` -> supervisor sets `done`, archives, commits, pushes.
 
 ## Legacy (Go) Ralph
 

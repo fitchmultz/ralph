@@ -16,8 +16,15 @@ pub fn run_scan(resolved: &config::Resolved, opts: ScanOptions) -> Result<()> {
 
 	let before = queue::load_queue(&resolved.queue_path)
 		.with_context(|| format!("read queue {}", resolved.queue_path.display()))?;
-	if let Err(err) = queue::validate_queue(&before, &resolved.id_prefix, resolved.id_width)
-		.context("validate queue before scan")
+	let done = queue::load_queue_or_default(&resolved.done_path)
+		.with_context(|| format!("read done {}", resolved.done_path.display()))?;
+	let done_ref = if done.tasks.is_empty() && !resolved.done_path.exists() {
+		None
+	} else {
+		Some(&done)
+	};
+	if let Err(err) = queue::validate_queue_set(&before, done_ref, &resolved.id_prefix, resolved.id_width)
+		.context("validate queue set before scan")
 	{
 		gitutil::revert_uncommitted(&resolved.repo_root)?;
 		return Err(err);
@@ -73,8 +80,15 @@ pub fn run_scan(resolved: &config::Resolved, opts: ScanOptions) -> Result<()> {
 		}
 	};
 
-	if let Err(err) = queue::validate_queue(&after, &resolved.id_prefix, resolved.id_width)
-		.context("validate queue after scan")
+	let done_after = queue::load_queue_or_default(&resolved.done_path)
+		.with_context(|| format!("read done {}", resolved.done_path.display()))?;
+	let done_after_ref = if done_after.tasks.is_empty() && !resolved.done_path.exists() {
+		None
+	} else {
+		Some(&done_after)
+	};
+	if let Err(err) = queue::validate_queue_set(&after, done_after_ref, &resolved.id_prefix, resolved.id_width)
+		.context("validate queue set after scan")
 	{
 		gitutil::revert_uncommitted(&resolved.repo_root)?;
 		return Err(err);

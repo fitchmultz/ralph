@@ -1,5 +1,5 @@
 use crate::config;
-use crate::contracts::{Model, ReasoningEffort, Runner, TaskStatus};
+use crate::contracts::{Model, QueueFile, ReasoningEffort, Runner, TaskStatus};
 use crate::{gitutil, prompts, queue, runner, timeutil};
 use anyhow::{anyhow, bail, Context, Result};
 use std::path::Path;
@@ -38,7 +38,13 @@ pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()>
 
 pub fn run_one(resolved: &config::Resolved) -> Result<RunOutcome> {
 	let queue_file = queue::load_queue(&resolved.queue_path)?;
-	queue::validate_queue(&queue_file, &resolved.id_prefix, resolved.id_width)?;
+	let done = queue::load_queue_or_default(&resolved.done_path)?;
+	let done_ref = if done.tasks.is_empty() && !resolved.done_path.exists() {
+		None
+	} else {
+		Some(&done)
+	};
+	queue::validate_queue_set(&queue_file, done_ref, &resolved.id_prefix, resolved.id_width)?;
 
 	let idx = match queue_file.tasks.iter().position(|t| t.status == TaskStatus::Todo) {
 		Some(idx) => idx,
@@ -138,14 +144,17 @@ fn post_run_supervise(resolved: &config::Resolved, task_id: &str) -> Result<()> 
 	let is_dirty = !status.trim().is_empty();
 
 	let mut queue_file = queue::load_queue(&resolved.queue_path)?;
-	queue::validate_queue(&queue_file, &resolved.id_prefix, resolved.id_width)?;
+	let mut done_file = queue::load_queue_or_default(&resolved.done_path)?;
+	let done_ref = if done_file.tasks.is_empty() && !resolved.done_path.exists() {
+		None
+	} else {
+		Some(&done_file)
+	};
+	queue::validate_queue_set(&queue_file, done_ref, &resolved.id_prefix, resolved.id_width)?;
 
-	let (task_status, task_title) = queue_file
-		.tasks
-		.iter()
-		.find(|t| t.id.trim() == task_id)
-		.map(|t| (t.status, t.title.clone()))
-		.ok_or_else(|| anyhow!("task {task_id} no longer exists in queue"))?;
+	let (mut task_status, task_title, mut in_done) =
+		find_task_status(&queue_file, &done_file, task_id)
+			.ok_or_else(|| anyhow!("task {task_id} not found in queue or done"))?;
 
 	if task_status == TaskStatus::Blocked {
 		if is_dirty {
@@ -160,14 +169,21 @@ fn post_run_supervise(resolved: &config::Resolved, task_id: &str) -> Result<()> 
 			gitutil::revert_uncommitted(&resolved.repo_root)?;
 			bail!("make ci failed; reverted uncommitted changes: {:#}", err);
 		}
+
 		queue_file = queue::load_queue(&resolved.queue_path)?;
-		queue::validate_queue(&queue_file, &resolved.id_prefix, resolved.id_width)?;
-		let (task_status, task_title) = queue_file
-			.tasks
-			.iter()
-			.find(|t| t.id.trim() == task_id)
-			.map(|t| (t.status, t.title.clone()))
-			.ok_or_else(|| anyhow!("task {task_id} no longer exists in queue"))?;
+		done_file = queue::load_queue_or_default(&resolved.done_path)?;
+		let done_ref = if done_file.tasks.is_empty() && !resolved.done_path.exists() {
+			None
+		} else {
+			Some(&done_file)
+		};
+		queue::validate_queue_set(&queue_file, done_ref, &resolved.id_prefix, resolved.id_width)?;
+
+		let (status_after, _title_after, in_done_after) =
+			find_task_status(&queue_file, &done_file, task_id)
+				.ok_or_else(|| anyhow!("task {task_id} not found in queue or done"))?;
+		task_status = status_after;
+		in_done = in_done_after;
 
 		if task_status == TaskStatus::Blocked {
 			gitutil::revert_uncommitted(&resolved.repo_root)?;
@@ -175,43 +191,85 @@ fn post_run_supervise(resolved: &config::Resolved, task_id: &str) -> Result<()> 
 		}
 
 		if task_status != TaskStatus::Done {
+			if in_done {
+				gitutil::revert_uncommitted(&resolved.repo_root)?;
+				bail!("task {task_id} is archived but not done");
+			}
 			let now = timeutil::now_utc_rfc3339()?;
 			queue::set_status(&mut queue_file, task_id, TaskStatus::Done, &now, None, None)?;
 			queue::save_queue(&resolved.queue_path, &queue_file)?;
 		}
 
+		queue::archive_done_tasks(
+			&resolved.queue_path,
+			&resolved.done_path,
+			&resolved.id_prefix,
+			resolved.id_width,
+		)?;
+
 		let commit_message = format_task_commit_message(task_id, &task_title);
 		gitutil::commit_all(&resolved.repo_root, &commit_message)?;
 		if gitutil::is_ahead_of_upstream(&resolved.repo_root)? {
 			gitutil::push_upstream(&resolved.repo_root)?;
 		}
-
 		gitutil::require_clean_repo(&resolved.repo_root)?;
 		return Ok(());
 	}
 
+	if task_status == TaskStatus::Done && in_done {
+		if gitutil::is_ahead_of_upstream(&resolved.repo_root)? {
+			gitutil::push_upstream(&resolved.repo_root)?;
+		}
+		return Ok(());
+	}
+
+	let mut changed = false;
 	if task_status != TaskStatus::Done {
+		if in_done {
+			bail!("task {task_id} is archived but not done");
+		}
 		let now = timeutil::now_utc_rfc3339()?;
 		queue::set_status(&mut queue_file, task_id, TaskStatus::Done, &now, None, None)?;
 		queue::save_queue(&resolved.queue_path, &queue_file)?;
-		if let Err(err) = run_make_ci(&resolved.repo_root) {
-			gitutil::revert_uncommitted(&resolved.repo_root)?;
-			bail!("make ci failed; reverted uncommitted changes: {:#}", err);
-		}
-		let commit_message = format_task_commit_message(task_id, &task_title);
-		gitutil::commit_all(&resolved.repo_root, &commit_message)?;
-		if gitutil::is_ahead_of_upstream(&resolved.repo_root)? {
-			gitutil::push_upstream(&resolved.repo_root)?;
-		}
-		gitutil::require_clean_repo(&resolved.repo_root)?;
+		changed = true;
+	}
+
+	let report = queue::archive_done_tasks(
+		&resolved.queue_path,
+		&resolved.done_path,
+		&resolved.id_prefix,
+		resolved.id_width,
+	)?;
+	if !report.moved_ids.is_empty() || !report.skipped_ids.is_empty() {
+		changed = true;
+	}
+
+	if !changed {
 		return Ok(());
 	}
 
+	let commit_message = format_task_commit_message(task_id, &task_title);
+	gitutil::commit_all(&resolved.repo_root, &commit_message)?;
 	if gitutil::is_ahead_of_upstream(&resolved.repo_root)? {
 		gitutil::push_upstream(&resolved.repo_root)?;
 	}
-
+	gitutil::require_clean_repo(&resolved.repo_root)?;
 	Ok(())
+}
+
+fn find_task_status(
+	queue_file: &QueueFile,
+	done_file: &QueueFile,
+	task_id: &str,
+) -> Option<(TaskStatus, String, bool)> {
+	let needle = task_id.trim();
+	if let Some(task) = queue_file.tasks.iter().find(|t| t.id.trim() == needle) {
+		return Some((task.status, task.title.clone(), false));
+	}
+	if let Some(task) = done_file.tasks.iter().find(|t| t.id.trim() == needle) {
+		return Some((task.status, task.title.clone(), true));
+	}
+	None
 }
 
 fn run_make_ci(repo_root: &Path) -> Result<()> {

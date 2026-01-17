@@ -10,6 +10,7 @@ pub struct Resolved {
 	pub config: Config,
 	pub repo_root: PathBuf,
 	pub queue_path: PathBuf,
+	pub done_path: PathBuf,
 	pub id_prefix: String,
 	pub id_width: usize,
 	pub global_config_path: Option<PathBuf>,
@@ -53,11 +54,13 @@ pub fn resolve_from_cwd() -> Result<Resolved> {
 	let id_prefix = resolve_id_prefix(&cfg)?;
 	let id_width = resolve_id_width(&cfg)?;
 	let queue_path = resolve_queue_path(&repo_root, &cfg)?;
+	let done_path = resolve_done_path(&repo_root, &cfg)?;
 
 	Ok(Resolved {
 		config: cfg,
 		repo_root,
 		queue_path,
+		done_path,
 		id_prefix,
 		id_width,
 		global_config_path: global_path,
@@ -85,6 +88,9 @@ fn apply_layer(mut base: Config, layer: ConfigLayer) -> Result<Config> {
 
 	if let Some(file) = layer.queue.file {
 		base.queue.file = Some(file);
+	}
+	if let Some(file) = layer.queue.done_file {
+		base.queue.done_file = Some(file);
 	}
 	if let Some(prefix) = layer.queue.id_prefix {
 		base.queue.id_prefix = Some(prefix);
@@ -137,6 +143,21 @@ fn resolve_queue_path(repo_root: &Path, cfg: &Config) -> Result<PathBuf> {
 		.unwrap_or_else(|| PathBuf::from(".ralph/queue.yaml"));
 	if value.as_os_str().is_empty() {
 		bail!("queue.file must be non-empty when set");
+	}
+	if value.is_absolute() {
+		return Ok(value);
+	}
+	Ok(repo_root.join(value))
+}
+
+fn resolve_done_path(repo_root: &Path, cfg: &Config) -> Result<PathBuf> {
+	let value = cfg
+		.queue
+		.done_file
+		.clone()
+		.unwrap_or_else(|| PathBuf::from(".ralph/done.yaml"));
+	if value.as_os_str().is_empty() {
+		bail!("queue.done_file must be non-empty when set");
 	}
 	if value.is_absolute() {
 		return Ok(value);

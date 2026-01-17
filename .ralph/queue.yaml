@@ -1,123 +1,25 @@
 version: 1
 tasks:
-  - id: RQ-0018
+  - id: RQ-0002
     status: todo
-    title: Add dirty-repo preflight checks for runner-driven Rust commands (run/scan/task build)
+    title: Align root docs for Rust rewrite vs Go legacy
     tags:
+      - docs
       - rust
-      - safety
-      - workflow
+      - migration
     scope:
-      - crates/ralph/src/run_cmd.rs
-      - crates/ralph/src/task_cmd.rs
-      - crates/ralph/src/scan_cmd.rs
-      - .ralph/prompts/worker.md
-      - ralph_tui/cmd/ralph/main.go
+      - README.md
+      - .ralph/README.md
+      - crates/ralph/src/main.rs
+      - Makefile
     evidence:
-      - "The worker prompt requires a clean working tree before starting work (see `.ralph/prompts/worker.md`), but the Rust CLI does not enforce this preflight."
-      - "`crates/ralph/src/run_cmd.rs`, `task_cmd.rs`, and `scan_cmd.rs` run external automation in the repo root without checking `git status` first."
-      - "The Go CLI exposes dirty repo policies for the loop runner (`dirty-start-policy`, `dirty-during-policy`) (see `ralph_tui/cmd/ralph/main.go` flags), but the Rust rewrite has no equivalent safeguards."
+      - "README.md describes `ralph_tui/` as the active CLI/TUI, while `.ralph/README.md` states the repo is undergoing a Rust rewrite using `.ralph/queue.yaml`."
+      - "The Rust CLI is implemented under `crates/ralph/src/main.rs` and exposes `ralph queue|config|run|task|scan`."
+      - "The root `Makefile` only targets the Go CLI (`ralph_tui`) and does not mention the Rust rewrite, which risks confusion during migration."
     plan:
-      - Add a small git helper in Rust to detect a dirty working tree (configurable whether to count untracked files as dirty).
-      - Enforce clean-repo preflight for `ralph run one`, `ralph scan`, and `ralph task build` by default, with an explicit override flag for power users.
-      - Add tests using a temp git repo to cover clean vs dirty detection and untracked handling.
-      - Document the behavior in `--help` output and `.ralph/README.md`.
-    request: scan finding
-    created_at: 2026-01-17T17:26:38Z
-    updated_at: 2026-01-17T17:26:38Z
-  - id: RQ-0019
-    status: todo
-    title: Enforce queue-only edits for `ralph scan` and `ralph task build` (detect + rollback non-queue changes)
-    tags:
-      - rust
-      - safety
-      - scan
-    scope:
-      - crates/ralph/src/scan_cmd.rs
-      - crates/ralph/src/task_cmd.rs
-      - crates/ralph/src/runner.rs
-      - .ralph/prompts/scan.md
-      - .ralph/prompts/task_builder.md
-      - ralph scan
-      - ralph task build
-    evidence:
-      - "Both `.ralph/prompts/scan.md` and `.ralph/prompts/task_builder.md` instruct the agent to modify `.ralph/queue.yaml` only, but the Rust CLI does not enforce this invariant."
-      - "`crates/ralph/src/task_cmd.rs` and `crates/ralph/src/scan_cmd.rs` run an external runner and only validate the queue before/after; they never check for other file changes."
-      - "`crates/ralph/src/runner.rs` invokes Codex with `--full-auto --sandbox workspace-write`, which permits edits anywhere in the workspace if the model deviates from instructions."
-    plan:
-      - Snapshot repo state before invoking the runner (git status + content hash of `.ralph/queue.yaml`).
-      - After the runner exits, fail if any paths other than `.ralph/queue.yaml` changed; automatically rollback those changes and keep the queue consistent.
-      - Add a safe escape hatch flag (e.g. `--allow-non-queue-changes`) that is off by default and clearly warned in `--help`.
-      - Add integration tests using a temp git repo to ensure non-queue changes are detected and rolled back.
-    request: scan finding
-    created_at: 2026-01-17T17:26:38Z
-    updated_at: 2026-01-17T17:26:38Z
-  - id: RQ-0017
-    status: todo
-    title: Make `ralph run one` failure-safe (never leave a task stuck in `doing` on internal errors)
-    tags:
-      - rust
-      - run-loop
-      - safety
-    scope:
-      - crates/ralph/src/run_cmd.rs
-      - crates/ralph/src/runner.rs
-      - crates/ralph/src/queue.rs
-      - ralph run one
-    evidence:
-      - "`crates/ralph/src/run_cmd.rs` writes `status: doing` to `.ralph/queue.yaml` before calling `runner::run_prompt`; if `run_prompt` returns an error (spawn failure, IO error), the function returns early and the task can remain stuck in `doing`."
-      - "`runner::run_prompt` can fail before producing a `RunnerOutput` (e.g. `Command::spawn` errors in `crates/ralph/src/runner.rs`), which is not handled as a status transition today."
-    plan:
-      - Refactor `run_one` to ensure any error after marking a task `doing` results in a deterministic queue update (block or revert) with a clear reason.
-      - Treat runner spawn/IO errors similarly to non-zero exit codes by marking the task `blocked` and appending a concise (redacted) diagnostic note.
-      - Add tests that simulate runner spawn failure and assert the queue does not contain a stuck `doing` task afterward.
-      - Keep queue writes atomic and avoid losing concurrent edits (add file lock if needed).
-    request: scan finding
-    created_at: 2026-01-17T17:26:38Z
-    updated_at: 2026-01-17T17:26:38Z
-  - id: RQ-0016
-    status: todo
-    title: Verify `ralph run one` completion by checking the task status changed from `doing`
-    tags:
-      - rust
-      - run-loop
-      - safety
-    scope:
-      - crates/ralph/src/run_cmd.rs
-      - crates/ralph/src/prompts.rs
-      - .ralph/prompts/worker.md
-      - ralph run one
-    evidence:
-      - "`crates/ralph/src/run_cmd.rs` sets the selected task to `doing`, runs the external runner, and if the process exits 0 it prints success and returns without verifying the task was marked `done` or otherwise updated."
-      - "The worker prompt requires the agent to update `.ralph/queue.yaml` status and timestamps (see `.ralph/prompts/worker.md`), but `ralph run one` does not enforce or verify this invariant."
-    plan:
-      - After the runner exits successfully, reload `.ralph/queue.yaml` and verify the task is no longer `doing` (expect `done` or `blocked`).
-      - "If the task remains `doing`, treat it as a failed run: mark it `blocked` (or revert to `todo`) with a clear reason and append a note about the missing queue update."
-      - Add tests that simulate a runner which exits 0 without editing the queue, and assert the CLI enforces the invariant.
-      - Update `.ralph/prompts/worker.md` if needed to make the expectation explicit and machine-checkable.
-    request: scan finding
-    created_at: 2026-01-17T17:26:38Z
-    updated_at: 2026-01-17T17:26:38Z
-  - id: RQ-0015
-    status: todo
-    title: Redact secrets before persisting runner output into `.ralph/queue.yaml` notes
-    tags:
-      - rust
-      - safety
-      - queue
-    scope:
-      - crates/ralph/src/run_cmd.rs
-      - crates/ralph/src/runner.rs
-      - crates/ralph/src/contracts.rs
-      - ralph_tui/internal/redaction
-    evidence:
-      - "`crates/ralph/src/run_cmd.rs` appends a tail of combined runner stdout/stderr into task `notes` when the runner fails."
-      - "Persisting raw runner output into versioned repo state risks leaking secrets (tokens, keys, private URLs); the Go implementation includes a redaction layer (`ralph_tui/internal/redaction`)."
-    plan:
-      - Introduce a Rust redaction helper that can scrub common secret patterns and values from environment variables before writing to `Task.notes`.
-      - Apply redaction to runner output tails and to any error strings persisted into `blocked_reason` or notes.
-      - Add tests with representative secret-like strings to ensure redaction works and does not over-redact normal logs.
-      - Consider a config/flag to disable persisting output tails entirely for high-security repos.
+      - Clarify in `README.md` which CLI is canonical for queue/runner workflows today and how Go vs Rust coexist during migration.
+      - Add a short mapping section (Go commands/screens ↔ Rust commands) to reduce user error.
+      - Update `.ralph/README.md` to link to the canonical docs and list the minimal commands to get started with the Rust queue.
     request: scan finding
     created_at: 2026-01-17T17:26:38Z
     updated_at: 2026-01-17T17:26:38Z
@@ -141,246 +43,6 @@ tasks:
       - Update `make ci` to run both Go and Rust gates (or introduce `make ci-rust` and make `ci` depend on both).
       - Ensure commands run from repo root and respect workspace conventions.
       - Document the new targets briefly in `README.md`.
-    request: scan finding
-    created_at: 2026-01-17T17:26:38Z
-    updated_at: 2026-01-17T17:26:38Z
-  - id: RQ-0006
-    status: todo
-    title: Strengthen `ralph queue validate` with timestamp and status invariants
-    tags:
-      - rust
-      - queue
-      - safety
-    scope:
-      - crates/ralph/src/queue.rs
-      - crates/ralph/src/contracts.rs
-      - crates/ralph/src/timeutil.rs
-      - ralph queue validate
-    evidence:
-      - "`crates/ralph/src/queue.rs::validate_task_required_fields` enforces non-empty `tags/scope/evidence/plan` but does not validate `created_at/updated_at/completed_at` format or presence."
-      - "`crates/ralph/src/contracts.rs` stores timestamps as RFC3339 strings for tool-agnostic YAML, but there is currently no validation that strings are valid RFC3339."
-      - "`crates/ralph/src/queue.rs::set_status` sets `completed_at` when marking `done`, but invalid or missing timestamps on tasks would currently pass `ralph queue validate`."
-    plan:
-      - Parse timestamps with the `time` crate (RFC3339) during validation when fields are present; fail with precise task index/id on error.
-      - Add status invariants to `validate_queue` (e.g. `done` requires `completed_at`, `blocked` requires `blocked_reason`, `todo/doing` must not have `completed_at`).
-      - Validate monotonicity constraints where possible (e.g. `updated_at` should be >= `created_at` when both exist).
-      - Add unit tests covering invalid timestamps, missing invariants, and valid queues.
-    request: scan finding
-    created_at: 2026-01-17T17:26:38Z
-    updated_at: 2026-01-17T17:26:38Z
-  - id: RQ-0007
-    status: todo
-    title: Improve `ralph queue set-status` ergonomics (clear blocked reason, add note-only, consistent timestamps)
-    tags:
-      - rust
-      - queue
-      - ux
-    scope:
-      - crates/ralph/src/main.rs
-      - crates/ralph/src/queue.rs
-      - ralph queue set-status
-    evidence:
-      - "`crates/ralph/src/main.rs` exposes `ralph queue set-status --reason/--note`, but there is no dedicated command to append notes without changing status."
-      - "`crates/ralph/src/queue.rs::set_status` only updates `blocked_reason` when a non-empty `reason` is provided; when status remains `blocked` and `--reason` is omitted/empty, an existing `blocked_reason` cannot be cleared."
-      - "`crates/ralph/src/queue.rs::set_status` sets `updated_at`, but `ralph queue validate` currently does not enforce timestamp invariants (see `crates/ralph/src/queue.rs::validate_queue`)."
-    plan:
-      - Add explicit CLI support to clear fields (`--clear-reason`, `--clear-notes` or targeted note removal) with safe defaults.
-      - Add `ralph queue note <TASK_ID> --note ...` to append notes without changing status.
-      - Ensure status transitions consistently manage `completed_at` and `blocked_reason`, and always update `updated_at`.
-      - Add tests for blocked_reason clearing, note-only appends, and timestamp updates.
-    request: scan finding
-    created_at: 2026-01-17T17:26:38Z
-    updated_at: 2026-01-17T17:26:38Z
-  - id: RQ-0008
-    status: todo
-    title: Add `ralph queue show` and `ralph queue next` for single-task UX
-    tags:
-      - rust
-      - queue
-      - ux
-    scope:
-      - crates/ralph/src/main.rs
-      - crates/ralph/src/queue.rs
-      - crates/ralph/src/contracts.rs
-      - ralph queue
-    evidence:
-      - "`crates/ralph/src/main.rs` implements `queue validate|next-id|set-status` only; there is no Rust CLI command to display a task by ID or show the next runnable task."
-      - "`crates/ralph/src/run_cmd.rs` selects the first `todo` task internally, but there is no user-facing way to inspect which task would run next without opening `.ralph/queue.yaml` manually."
-    plan:
-      - Add `ralph queue show <TASK_ID>` that prints the task in YAML (or a human-readable view) and exits non-zero if not found.
-      - Add `ralph queue next` that prints the next `todo` task ID (and optionally title) using the same selection logic as `run one`.
-      - Add tests for not-found cases, empty queues, and stable selection ordering.
-    request: scan finding
-    created_at: 2026-01-17T17:26:38Z
-    updated_at: 2026-01-17T17:26:38Z
-  - id: RQ-0009
-    status: todo
-    title: Add `ralph queue list` with filtering and compact output
-    tags:
-      - rust
-      - queue
-      - ux
-    scope:
-      - crates/ralph/src/main.rs
-      - crates/ralph/src/queue.rs
-      - ralph queue
-    evidence:
-      - "`crates/ralph/src/main.rs` lacks a `queue list` command; users must open `.ralph/queue.yaml` to see the backlog."
-      - "Queue UX is currently split between Rust (`.ralph/queue.yaml`) and Go pin workflows (`.ralph/pin/*`), increasing the need for a simple, consistent list view in the Rust CLI."
-    plan:
-      - Add `ralph queue list` that prints tasks as `ID  STATUS  TITLE` with stable ordering (queue order).
-      - "Add filters: `--status` (todo/doing/blocked/done), `--tag`, and `--limit`/`--all`."
-      - Add tests for formatting and filtering behavior.
-      - Ensure output remains script-friendly (one task per line by default).
-    request: scan finding
-    created_at: 2026-01-17T17:26:38Z
-    updated_at: 2026-01-17T17:26:38Z
-  - id: RQ-0005
-    status: todo
-    title: Make Rust CLI defaults come from `.ralph/config.yaml` (runner/model/effort) instead of hardcoded flags
-    tags:
-      - rust
-      - config
-      - ux
-    scope:
-      - crates/ralph/src/config.rs
-      - crates/ralph/src/main.rs
-      - crates/ralph/src/runner.rs
-      - ralph config
-      - ralph scan
-      - ralph task build
-    evidence:
-      - "`crates/ralph/src/main.rs` hardcodes defaults for flags like `scan --model` (default `gpt-5.2`) and `scan --effort` (default `high`) instead of using resolved config defaults."
-      - "`crates/ralph/src/config.rs::resolve_from_cwd` loads `.ralph/config.yaml` (when present) and already resolves agent defaults (runner/model/reasoning_effort)."
-      - "Hardcoded defaults drift from config defaults (see `crates/ralph/src/contracts.rs::Config::default` vs `ScanArgs` defaults), making runs inconsistent across machines."
-    plan:
-      - Change CLI args to optional overrides (no default_value in clap) and compute effective runner/model/effort from resolved config in `handle_scan` and `handle_task`.
-      - Ensure `runner::validate_model_for_runner` still runs after resolution and produces a clear error on invalid combinations.
-      - Add tests covering default resolution with and without `.ralph/config.yaml`.
-      - "Update `--help` text to document precedence: CLI flags override repo config, which overrides global config, which overrides defaults."
-    request: scan finding
-    created_at: 2026-01-17T17:26:38Z
-    updated_at: 2026-01-17T17:26:38Z
-  - id: RQ-0004
-    status: todo
-    title: Improve `ralph task build` UX (dry-run, tag validation, prepend/append control)
-    tags:
-      - rust
-      - task-builder
-      - ux
-    scope:
-      - crates/ralph/src/main.rs
-      - crates/ralph/src/task_cmd.rs
-      - crates/ralph/src/queue.rs
-      - .ralph/prompts/task_builder.md
-      - ralph task build
-      - ralph queue validate
-    evidence:
-      - "`crates/ralph/src/main.rs` defines `task build` with `--tags`/`--scope` as freeform strings and no `--dry-run` or insertion control."
-      - "`crates/ralph/src/task_cmd.rs::build_task` always runs the external runner, which must edit `.ralph/queue.yaml` directly."
-      - "The Go CLI has richer task builder ergonomics, including `--dry-run`, `--run`, `--prepend`, and tag validation (see `ralph_tui/cmd/ralph/main.go` around `newTaskBuildCommand`)."
-    plan:
-      - "Add Rust CLI flags for `ralph task build`: `--dry-run` (no queue write), `--prepend/--append` (desired insertion behavior), and structured `--tags/--scope` parsing."
-      - Validate tags (non-empty, trimmed, safe characters) before invoking the runner; fail fast with a helpful error.
-      - Implement `--dry-run` by running the builder against an isolated copy of `.ralph/queue.yaml` and printing the diff/added tasks without persisting changes.
-      - Add tests covering flag parsing, tag validation failures, and prepend/append behavior.
-    request: scan finding
-    created_at: 2026-01-17T17:26:38Z
-    updated_at: 2026-01-17T17:26:38Z
-  - id: RQ-0013
-    status: todo
-    title: Implement `ralph run loop` skeleton (iterations, sleep, only-tag filter, stop conditions)
-    tags:
-      - rust
-      - run-loop
-      - ux
-    scope:
-      - crates/ralph/src/main.rs
-      - crates/ralph/src/run_cmd.rs
-      - crates/ralph/src/queue.rs
-      - ralph_tui/cmd/ralph/main.go
-      - ralph run
-    evidence:
-      - "`crates/ralph/src/main.rs` defines `RunCommand::One` only; there is no Rust equivalent of the Go loop runner."
-      - "The Go CLI has a full loop command with iteration controls and filtering (see `ralph_tui/cmd/ralph/main.go` around `newLoopCommand`)."
-    plan:
-      - Add a `ralph run loop` subcommand and flags for iteration control (sleep seconds, max iterations) and selection filters (`--only-tag`).
-      - Implement task selection and status transitions using the Rust queue contract (`.ralph/queue.yaml`) while keeping queue order as priority.
-      - Ensure loop exits cleanly when no `todo` tasks match filters, and prints a concise summary per iteration.
-      - Add tests covering selection logic, stop conditions, and that tasks remain valid/consistent across iterations.
-    request: scan finding
-    created_at: 2026-01-17T17:26:38Z
-    updated_at: 2026-01-17T17:26:38Z
-  - id: RQ-0012
-    status: todo
-    title: Add runner inactivity timeout + reset semantics to Rust loop (requires streaming runner output)
-    tags:
-      - rust
-      - run-loop
-      - safety
-    scope:
-      - crates/ralph/src/runner.rs
-      - crates/ralph/src/run_cmd.rs
-      - ralph_tui/internal/loop/loop_inactivity_test.go
-      - ralph_tui/internal/loop/loop.go
-      - ralph run
-    evidence:
-      - "The Go loop runner supports inactivity resets (`loop.runner_inactivity_seconds`) and has regression coverage (see `ralph_tui/internal/loop/loop_inactivity_test.go`)."
-      - "The Rust runner captures full output via `wait_with_output` (`crates/ralph/src/runner.rs::run_codex` and `run_opencode`), so it cannot detect a 'no output for N seconds' condition."
-      - "Without streaming output, a long-running or stalled runner can hang `ralph run` indefinitely and/or buffer unbounded output in memory."
-    plan:
-      - Refactor `runner::run_prompt` to stream stdout/stderr while the child runs (track last-output timestamp).
-      - Add an inactivity timeout option for `ralph run loop` / `ralph run one` that cancels the runner when no output is observed for N seconds.
-      - Implement reset-to-known-good semantics on inactivity (mirroring the Go behavior) and ensure the queue item is restarted/requeued safely.
-      - Add tests that simulate inactivity (e.g. helper runner that stops producing output) and assert the repo is clean after reset.
-    request: scan finding
-    created_at: 2026-01-17T17:26:38Z
-    updated_at: 2026-01-17T17:26:38Z
-  - id: RQ-0010
-    status: todo
-    title: Define a Rust queue contract for blocked-task fixup metadata (WIP branch, known-good SHA, attempts)
-    tags:
-      - rust
-      - queue
-      - design
-    scope:
-      - crates/ralph/src/contracts.rs
-      - crates/ralph/src/queue.rs
-      - .ralph/README.md
-      - ralph_tui/internal/loop/fixup.go
-    evidence:
-      - "The Go implementation has a blocked-item fixup workflow keyed off WIP metadata (see `ralph_tui/internal/loop/fixup.go` uses `item.Metadata.WIPBranch` and `item.Metadata.KnownGood`)."
-      - "The Rust queue task schema (`crates/ralph/src/contracts.rs::Task`) currently has `blocked_reason` and freeform `notes`, but no structured fields for fixup eligibility or tracking."
-    plan:
-      - Define a minimal structured schema for fixup metadata in the Rust queue contract (e.g. a new optional `fixup` block on `Task`).
-      - Decide how attempts/limits are tracked (fields vs notes) and document the conventions in `.ralph/README.md`.
-      - Update YAML serde structs and `ralph queue validate` to enforce the schema when present.
-      - Add unit tests for parsing/serialization and validation of fixup metadata.
-    request: scan finding
-    created_at: 2026-01-17T17:26:38Z
-    updated_at: 2026-01-17T17:26:38Z
-  - id: RQ-0011
-    status: todo
-    title: Implement Rust fixup command to re-attempt blocked tasks using fixup metadata (isolated worktree + CI gate)
-    tags:
-      - rust
-      - run-loop
-      - safety
-    scope:
-      - crates/ralph/src/main.rs
-      - crates/ralph/src/queue.rs
-      - crates/ralph/src/fsutil.rs
-      - ralph_tui/internal/loop/fixup.go
-      - ralph queue fixup
-      - make ci
-    evidence:
-      - "The Go CLI includes `loop fixup` to scan blocked items with WIP metadata, validate in an isolated worktree, and requeue when safe (see `ralph_tui/internal/loop/fixup.go`)."
-      - "The Rust CLI has no equivalent command; it only supports `run one` and cannot automate safe requeue of blocked tasks."
-    plan:
-      - Add a Rust CLI command (e.g. `ralph queue fixup` or `ralph run fixup`) that scans `blocked` tasks with fixup metadata.
-      - For each eligible task, validate in an isolated git worktree and run `make ci` when changes are not queue-only (mirroring the Go logic).
-      - On success, requeue by setting status back to `todo` and clearing `blocked_reason`; on failure, increment attempts and append a concise failure note.
-      - "Add tests using a temp git repo/worktree to cover: clean preconditions, requeue success, and failure attempt recording."
     request: scan finding
     created_at: 2026-01-17T17:26:38Z
     updated_at: 2026-01-17T17:26:38Z
@@ -410,46 +72,78 @@ tasks:
     request: scan finding
     created_at: 2026-01-17T17:26:38Z
     updated_at: 2026-01-17T17:26:38Z
-  - id: RQ-0002
+  - id: RQ-0015
     status: todo
-    title: Align root docs for Rust rewrite vs Go legacy
+    title: Redact secrets before persisting runner output into `.ralph/queue.yaml` notes
     tags:
-      - docs
       - rust
-      - migration
+      - safety
+      - queue
     scope:
-      - README.md
-      - .ralph/README.md
-      - crates/ralph/src/main.rs
-      - Makefile
+      - crates/ralph/src/run_cmd.rs
+      - crates/ralph/src/runner.rs
+      - crates/ralph/src/contracts.rs
+      - ralph_tui/internal/redaction
     evidence:
-      - "README.md describes `ralph_tui/` as the active CLI/TUI, while `.ralph/README.md` states the repo is undergoing a Rust rewrite using `.ralph/queue.yaml`."
-      - "The Rust CLI is implemented under `crates/ralph/src/main.rs` and exposes `ralph queue|config|run|task|scan`."
-      - "The root `Makefile` only targets the Go CLI (`ralph_tui`) and does not mention the Rust rewrite, which risks confusion during migration."
+      - "`crates/ralph/src/run_cmd.rs` appends a tail of combined runner stdout/stderr into task `notes` when the runner fails."
+      - "Persisting raw runner output into versioned repo state risks leaking secrets (tokens, keys, private URLs); the Go implementation includes a redaction layer (`ralph_tui/internal/redaction`)."
     plan:
-      - Clarify in `README.md` which CLI is canonical for queue/runner workflows today and how Go vs Rust coexist during migration.
-      - Add a short mapping section (Go commands/screens ↔ Rust commands) to reduce user error.
-      - Update `.ralph/README.md` to link to the canonical docs and list the minimal commands to get started with the Rust queue.
+      - Introduce a Rust redaction helper that can scrub common secret patterns and values from environment variables before writing to `Task.notes`.
+      - Apply redaction to runner output tails and to any error strings persisted into `blocked_reason` or notes.
+      - Add tests with representative secret-like strings to ensure redaction works and does not over-redact normal logs.
+      - Consider a config/flag to disable persisting output tails entirely for high-security repos.
     request: scan finding
     created_at: 2026-01-17T17:26:38Z
     updated_at: 2026-01-17T17:26:38Z
-  - id: RQ-0001
+  - id: RQ-0008
     status: todo
-    title: Add done.yaml support and archive command for completed tasks
+    title: Add queue inspection (show, next, list) with filtering and compact output
     tags:
+      - rust
       - queue
-      - archive
+      - ux
     scope:
-      - .ralph/queue.yaml
-      - ralph queue done
-      - ralph queue archive
+      - crates/ralph/src/main.rs
+      - crates/ralph/src/queue.rs
+      - crates/ralph/src/contracts.rs
+      - ralph queue
     evidence:
-      - "User request: Add done.yaml support and a command to archive done tasks."
+      - "`crates/ralph/src/main.rs` implements only `queue validate|next-id|set-status`; there is no Rust CLI command to display a task by ID, show the next runnable task, or list tasks in a user-friendly way."
+      - "`crates/ralph/src/run_cmd.rs` selects the first `todo` task internally, but users cannot inspect which task would run next without opening `.ralph/queue.yaml` manually."
+      - "There is no queue listing command in the Rust CLI; users must open `.ralph/queue.yaml` or use the Go pin workflows (`.ralph/pin/*`)."
+      - "Simple, script-friendly, and filterable list/show commands are critical to workflow migration and single-task UX."
     plan:
-      - Define done.yaml semantics and storage location aligned with .ralph queue contract.
-      - Implement a command to move completed tasks from queue.yaml into done.yaml.
-      - Add tests for done.yaml creation, append behavior, and archive command behavior.
-      - Update CLI help/documentation to reflect the new archive command and done.yaml usage.
-    request: Add done.yaml support and a command to archive done tasks
-    created_at: 2026-01-17T17:21:57Z
-    updated_at: 2026-01-17T17:21:57Z
+      - Add `ralph queue show <TASK_ID>` to print a task (YAML or human-readable) and exit non-zero if not found.
+      - Add `ralph queue next` to print the next todo task's ID (and optionally title) according to current run selection logic.
+      - Add `ralph queue list` to print queue as `ID  STATUS  TITLE` with stable queue-order, filterable by `--status`, `--tag`, and limitable via `--limit`/`--all`.
+      - Add tests for not-found/empty queue cases, selection consistency, and all filtering/formatting behaviors.
+      - Ensure all output is script-friendly (one task per line).
+    request: scan finding
+    created_at: 2026-01-17T17:26:38Z
+    updated_at: 2026-01-17T17:26:38Z
+  - id: RQ-0005
+    status: todo
+    title: Make Rust CLI defaults come from `.ralph/config.yaml` (runner/model/effort) instead of hardcoded flags
+    tags:
+      - rust
+      - config
+      - ux
+    scope:
+      - crates/ralph/src/config.rs
+      - crates/ralph/src/main.rs
+      - crates/ralph/src/runner.rs
+      - ralph config
+      - ralph scan
+      - ralph task build
+    evidence:
+      - "`crates/ralph/src/main.rs` hardcodes defaults for flags like `scan --model` (default `gpt-5.2`) and `scan --effort` (default `high`) instead of using resolved config defaults."
+      - "`crates/ralph/src/config.rs::resolve_from_cwd` loads `.ralph/config.yaml` (when present) and already resolves agent defaults (runner/model/reasoning_effort)."
+      - "Hardcoded defaults drift from config defaults (see `crates/ralph/src/contracts.rs::Config::default` vs `ScanArgs` defaults), making runs inconsistent across machines."
+    plan:
+      - Change CLI args to optional overrides (no default_value in clap) and compute effective runner/model/effort from resolved config in `handle_scan` and `handle_task`.
+      - Ensure `runner::validate_model_for_runner` still runs after resolution and produces a clear error on invalid combinations.
+      - Add tests covering default resolution with and without `.ralph/config.yaml`.
+      - "Update `--help` text to document precedence: CLI flags override repo config, which overrides global config, which overrides defaults."
+    request: scan finding
+    created_at: 2026-01-17T17:26:38Z
+    updated_at: 2026-01-17T17:26:38Z

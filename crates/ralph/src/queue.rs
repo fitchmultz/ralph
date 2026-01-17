@@ -4,10 +4,23 @@ use anyhow::{anyhow, bail, Context, Result};
 use std::collections::HashSet;
 use std::path::Path;
 
+#[derive(Debug, Clone)]
+pub struct ArchiveReport {
+	pub moved_ids: Vec<String>,
+	pub skipped_ids: Vec<String>,
+}
+
 pub fn load_queue(path: &Path) -> Result<QueueFile> {
 	let raw = std::fs::read_to_string(path).with_context(|| format!("read queue file {}", path.display()))?;
 	let queue: QueueFile = serde_yaml::from_str(&raw).with_context(|| format!("parse queue YAML {}", path.display()))?;
 	Ok(queue)
+}
+
+pub fn load_queue_or_default(path: &Path) -> Result<QueueFile> {
+	if !path.exists() {
+		return Ok(QueueFile::default());
+	}
+	load_queue(path)
 }
 
 pub fn save_queue(path: &Path, queue: &QueueFile) -> Result<()> {
@@ -43,6 +56,34 @@ pub fn validate_queue(queue: &QueueFile, id_prefix: &str, id_width: usize) -> Re
 	Ok(())
 }
 
+pub fn validate_queue_set(
+	active: &QueueFile,
+	done: Option<&QueueFile>,
+	id_prefix: &str,
+	id_width: usize,
+) -> Result<()> {
+	validate_queue(active, id_prefix, id_width)?;
+	if let Some(done) = done {
+		validate_queue(done, id_prefix, id_width)?;
+	}
+
+	let mut seen = HashSet::new();
+	for task in &active.tasks {
+		let key = task.id.trim().to_string();
+		seen.insert(key);
+	}
+	if let Some(done) = done {
+		for task in &done.tasks {
+			let key = task.id.trim().to_string();
+			if !seen.insert(key.clone()) {
+				bail!("duplicate task id across queue + done: {}", key);
+			}
+		}
+	}
+
+	Ok(())
+}
+
 pub fn next_id(queue: &QueueFile, id_prefix: &str, id_width: usize) -> Result<String> {
 	validate_queue(queue, id_prefix, id_width)?;
 	let expected_prefix = normalize_prefix(id_prefix);
@@ -57,6 +98,90 @@ pub fn next_id(queue: &QueueFile, id_prefix: &str, id_width: usize) -> Result<St
 
 	let next_value = max_value.saturating_add(1);
 	Ok(format_id(&expected_prefix, next_value, id_width))
+}
+
+pub fn next_id_across(
+	active: &QueueFile,
+	done: Option<&QueueFile>,
+	id_prefix: &str,
+	id_width: usize,
+) -> Result<String> {
+	validate_queue_set(active, done, id_prefix, id_width)?;
+	let expected_prefix = normalize_prefix(id_prefix);
+
+	let mut max_value: u32 = 0;
+	for (idx, task) in active.tasks.iter().enumerate() {
+		let value = validate_task_id(idx, &task.id, &expected_prefix, id_width)?;
+		if value > max_value {
+			max_value = value;
+		}
+	}
+	if let Some(done) = done {
+		for (idx, task) in done.tasks.iter().enumerate() {
+			let value = validate_task_id(idx, &task.id, &expected_prefix, id_width)?;
+			if value > max_value {
+				max_value = value;
+			}
+		}
+	}
+
+	let next_value = max_value.saturating_add(1);
+	Ok(format_id(&expected_prefix, next_value, id_width))
+}
+
+pub fn archive_done_tasks(
+	queue_path: &Path,
+	done_path: &Path,
+	id_prefix: &str,
+	id_width: usize,
+) -> Result<ArchiveReport> {
+	let mut active = load_queue(queue_path)?;
+	let mut done = load_queue_or_default(done_path)?;
+
+	validate_queue(&active, id_prefix, id_width)?;
+	validate_queue(&done, id_prefix, id_width)?;
+
+	let mut done_ids: HashSet<String> = done.tasks.iter().map(|t| t.id.trim().to_string()).collect();
+	for task in &active.tasks {
+		if task.status == TaskStatus::Done {
+			continue;
+		}
+		let key = task.id.trim().to_string();
+		if done_ids.contains(&key) {
+			bail!("duplicate task id across queue + done: {}", key);
+		}
+	}
+	let mut moved_ids = Vec::new();
+	let mut skipped_ids = Vec::new();
+	let mut remaining = Vec::new();
+
+	for task in active.tasks.into_iter() {
+		if task.status != TaskStatus::Done {
+			remaining.push(task);
+			continue;
+		}
+
+		let key = task.id.trim().to_string();
+		if done_ids.contains(&key) {
+			skipped_ids.push(key);
+			continue;
+		}
+
+		done_ids.insert(key.clone());
+		moved_ids.push(key);
+		done.tasks.push(task);
+	}
+
+	active.tasks = remaining;
+
+	if moved_ids.is_empty() && skipped_ids.is_empty() {
+		return Ok(ArchiveReport { moved_ids, skipped_ids });
+	}
+
+	save_queue(done_path, &done)?;
+	save_queue(queue_path, &active)?;
+
+	Ok(ArchiveReport { moved_ids, skipped_ids })
 }
 
 pub fn set_status(
@@ -195,6 +320,7 @@ fn format_id(prefix: &str, number: u32, width: usize) -> String {
 mod tests {
 	use super::*;
 	use crate::contracts::{Task, TaskStatus};
+	use tempfile::TempDir;
 
 	fn task(id: &str) -> Task {
 		Task {
@@ -270,6 +396,77 @@ mod tests {
 		assert_eq!(t.blocked_reason, None);
 		assert!(t.notes.iter().any(|n| n == "completed"));
 
+		Ok(())
+	}
+
+	#[test]
+	fn validate_queue_set_rejects_cross_file_duplicates() {
+		let active = QueueFile {
+			version: 1,
+			tasks: vec![task("RQ-0001")],
+		};
+		let done = QueueFile {
+			version: 1,
+			tasks: vec![task("RQ-0001")],
+		};
+		let err = validate_queue_set(&active, Some(&done), "RQ", 4).unwrap_err();
+		let msg = format!("{err:#}");
+		assert!(msg.to_lowercase().contains("duplicate"), "unexpected error: {msg}");
+	}
+
+	#[test]
+	fn next_id_across_includes_done() -> Result<()> {
+		let active = QueueFile {
+			version: 1,
+			tasks: vec![task("RQ-0002")],
+		};
+		let done = QueueFile {
+			version: 1,
+			tasks: vec![task("RQ-0009")],
+		};
+		let next = next_id_across(&active, Some(&done), "RQ", 4)?;
+		assert_eq!(next, "RQ-0010");
+		Ok(())
+	}
+
+	#[test]
+	fn archive_done_tasks_moves_and_dedupes() -> Result<()> {
+		let dir = TempDir::new()?;
+		let queue_path = dir.path().join("queue.yaml");
+		let done_path = dir.path().join("done.yaml");
+
+		let mut done_task = task("RQ-0002");
+		done_task.status = TaskStatus::Done;
+
+		let mut active_task = task("RQ-0001");
+		active_task.status = TaskStatus::Done;
+
+		let active = QueueFile {
+			version: 1,
+			tasks: vec![active_task.clone(), done_task.clone()],
+		};
+
+		let done = QueueFile {
+			version: 1,
+			tasks: vec![done_task],
+		};
+
+		save_queue(&queue_path, &active)?;
+		save_queue(&done_path, &done)?;
+
+		let report = archive_done_tasks(&queue_path, &done_path, "RQ", 4)?;
+		assert_eq!(report.moved_ids, vec!["RQ-0001".to_string()]);
+		assert_eq!(report.skipped_ids, vec!["RQ-0002".to_string()]);
+
+		let active_after = load_queue(&queue_path)?;
+		assert!(active_after.tasks.is_empty());
+
+		let done_after = load_queue(&done_path)?;
+		assert_eq!(done_after.tasks.len(), 2);
+
+		let report2 = archive_done_tasks(&queue_path, &done_path, "RQ", 4)?;
+		assert!(report2.moved_ids.is_empty());
+		assert!(report2.skipped_ids.is_empty());
 		Ok(())
 	}
 }

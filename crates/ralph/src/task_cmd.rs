@@ -44,8 +44,15 @@ pub fn build_task(resolved: &config::Resolved, opts: TaskBuildOptions) -> Result
 
 	let before = queue::load_queue(&resolved.queue_path)
 		.with_context(|| format!("read queue {}", resolved.queue_path.display()))?;
-	queue::validate_queue(&before, &resolved.id_prefix, resolved.id_width)
-		.context("validate queue before task build")?;
+	let done = queue::load_queue_or_default(&resolved.done_path)
+		.with_context(|| format!("read done {}", resolved.done_path.display()))?;
+	let done_ref = if done.tasks.is_empty() && !resolved.done_path.exists() {
+		None
+	} else {
+		Some(&done)
+	};
+	queue::validate_queue_set(&before, done_ref, &resolved.id_prefix, resolved.id_width)
+		.context("validate queue set before task build")?;
 	let before_ids = task_id_set(&before);
 
 	let template = prompts::load_task_builder_prompt(&resolved.repo_root)?;
@@ -105,8 +112,15 @@ pub fn build_task(resolved: &config::Resolved, opts: TaskBuildOptions) -> Result
 		}
 	};
 
-	if let Err(err) = queue::validate_queue(&after, &resolved.id_prefix, resolved.id_width)
-		.context("validate queue after task build")
+	let done_after = queue::load_queue_or_default(&resolved.done_path)
+		.with_context(|| format!("read done {}", resolved.done_path.display()))?;
+	let done_after_ref = if done_after.tasks.is_empty() && !resolved.done_path.exists() {
+		None
+	} else {
+		Some(&done_after)
+	};
+	if let Err(err) = queue::validate_queue_set(&after, done_after_ref, &resolved.id_prefix, resolved.id_width)
+		.context("validate queue set after task build")
 	{
 		gitutil::revert_uncommitted(&resolved.repo_root)?;
 		return Err(err);

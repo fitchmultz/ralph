@@ -4,7 +4,8 @@
 - `crates/ralph/`: **Active** Rust CLI (the Rust rewrite).
   - Run locally via `cargo run -p ralph -- <command>`
 - `.ralph/`: Repo-local runtime state for the Rust CLI.
-  - `.ralph/queue.yaml` is the **source of truth** for work.
+  - `.ralph/queue.yaml` is the **source of truth** for active work.
+  - `.ralph/done.yaml` archives completed tasks (same schema as queue).
   - `.ralph/prompts/*.md` are repo-local prompt templates used by `ralph scan`, `ralph task build`, and `ralph run`.
 - `ralph_tui/`: **Legacy** Go TUI/CLI + Markdown pin workflow (`.ralph/pin/*`). This path is deprecated/frozen; do not modify unless a queue task explicitly targets it.
 
@@ -12,6 +13,7 @@
 - `cargo test -p ralph`
 - `cargo run -p ralph -- queue validate`
 - `cargo run -p ralph -- queue next-id`
+- `cargo run -p ralph -- queue archive`
 - `cargo run -p ralph -- task build "<request>"`
 - `cargo run -p ralph -- scan --focus "<focus>"`
 - `cargo run -p ralph -- run one`
@@ -19,6 +21,7 @@
 
 ## Queue & Prompt Contract (Rust)
 - Source of truth is `.ralph/queue.yaml` (YAML). Task order is priority (top runs first).
+- Completed tasks must be moved to `.ralph/done.yaml` and removed from `.ralph/queue.yaml`.
 - New tasks must include: `id`, `status`, `title`, `tags`, `scope`, `evidence`, `plan` (and typically `request`, `created_at`, `updated_at`).
 - Prompt templates live in `.ralph/prompts/` and reference these files.
 
