@@ -1,0 +1,25 @@
+version: 1
+tasks:
+  - id: RQ-0001
+    status: todo
+    title: "Bootstrap Rust rewrite scaffold (workspace + YAML queue + prompts)"
+    tags: ["code"]
+    scope:
+      - "Cargo.toml"
+      - "crates/ralph/src/contracts.rs"
+      - ".ralph/queue.yaml"
+      - ".ralph/prompts/worker.md"
+    evidence:
+      - "Repo currently contains Go-based ralph_tui with Markdown pin workflow; the 2026-01-16 rebuild plan mandates a Rust rewrite with a YAML queue."
+    plan:
+      - "Create Rust workspace and ralph binary crate"
+      - "Define strict YAML contracts in crates/ralph/src/contracts.rs"
+      - "Seed .ralph/queue.yaml and prompt templates under .ralph/prompts/"
+      - "Add cargo test that round-trips the queue YAML"
+    notes: []
+    request: null
+    agent: null
+    created_at: "2026-01-17T00:00:00Z"
+    updated_at: "2026-01-17T00:00:00Z"
+    completed_at: null
+    blocked_reason: null
