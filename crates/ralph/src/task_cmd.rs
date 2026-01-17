@@ -97,13 +97,6 @@ pub fn build_task(resolved: &config::Resolved, opts: TaskBuildOptions) -> Result
         }
     };
 
-    if !output.stdout.is_empty() {
-        print!("{}", output.stdout);
-    }
-    if !output.stderr.is_empty() {
-        eprint!("{}", output.stderr);
-    }
-
     let after = match queue::load_queue(&resolved.queue_path)
         .with_context(|| format!("read queue {}", resolved.queue_path.display()))
     {

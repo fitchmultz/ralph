@@ -126,13 +126,6 @@ pub fn run_one(resolved: &config::Resolved) -> Result<RunOutcome> {
         }
     };
 
-    if !output.stdout.is_empty() {
-        print!("{}", output.stdout);
-    }
-    if !output.stderr.is_empty() {
-        eprint!("{}", output.stderr);
-    }
-
     if !output.success() {
         let exit_reason = match output.status.code() {
             Some(code) => format!("runner exited non-zero (code={code})"),
