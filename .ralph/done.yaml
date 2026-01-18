@@ -1,5 +1,36 @@
 version: 1
 tasks:
+  - id: RQ-0049
+    status: done
+    title: Add a stress test suite for huge queues repeated operations and long-run stability
+    tags:
+      - rust
+      - stress
+      - performance
+      - p0
+    scope:
+      - crates/ralph/src/queue.rs
+      - crates/ralph/src/main.rs
+      - crates/ralph/tests
+    evidence:
+      - queue operations must remain stable under thousands of tasks and repeated reads and writes
+      - no stress coverage exists for serialization filtering archive and repair logic
+      - long-run reliability matters more than feature parity
+    plan:
+      - create stress tests that generate 10000 tasks and validate list show next-id performance
+      - run repeated archive and set-status cycles to ensure no corruption panic or quadratic blowups
+      - add an ignored test mode for long run burn-in and document how to execute it
+      - enforce deterministic runtime bounds for key operations in CI-safe mode
+    notes:
+      - Added large-scale stress coverage for validate/next-id/filter/show against 10k-task queues.
+      - Added deterministic runtime bound checks to flag regressions in key operations.
+      - Added archive and mutation cycle stress tests plus YAML repair stress coverage.
+      - Gated burn-in test behind RALPH_STRESS_BURN_IN and documented the command.
+    request: go-to-rust production readiness
+    created_at: 2026-01-18T07:00:00Z
+    updated_at: 2026-01-18T10:45:00Z
+    completed_at: 2026-01-18T10:45:00Z
+
   - id: RQ-0047
     status: done
     title: Add cross-process lock for queue and done mutations to prevent concurrent corruption

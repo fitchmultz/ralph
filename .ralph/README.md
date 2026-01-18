@@ -87,3 +87,13 @@ Common scenarios:
 - Agent completes normally (done + archive + CI + commit + push) -> supervisor sees clean repo and moves on.
 - Agent leaves dirty repo -> supervisor runs CI, archives, commits, pushes.
 - Agent forgets to mark `done` -> supervisor sets `done`, archives, commits, pushes.
+
+## Stress and Burn-In Tests
+
+Stress tests live in `crates/ralph/tests/stress_queue_contract_test.rs` and include large-scale queue operations, archive/mutate cycles, and YAML repair stress.
+
+Long-run burn-in is guarded by an env var so CI stays deterministic:
+- `RALPH_STRESS_BURN_IN=1 cargo test -p ralph --test stress_queue_contract_test -- --ignored --nocapture`
+
+CI-safe stress coverage (already included in standard test runs):
+- `cargo test -p ralph --test stress_queue_contract_test`

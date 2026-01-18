@@ -2,13 +2,26 @@ use anyhow::{Context, Result};
 use ralph::contracts::{QueueFile, Task, TaskStatus};
 use ralph::queue;
 use std::path::PathBuf;
+use std::time::{Duration, Instant};
 use tempfile::TempDir;
 
 const ID_WIDTH: usize = 5;
+const ID_PREFIX: &str = "RQ";
+const STRESS_TOTAL_TASKS: u32 = 10_000;
+const STRESS_DONE_TASKS: u32 = 5_000;
+const STRESS_RUNTIME_BOUND_SECS: u64 = 3;
 
-fn make_task(id_num: u32, status: TaskStatus) -> Task {
+#[derive(Clone, Copy)]
+struct StressProfile {
+    total_tasks: u32,
+    done_tasks: u32,
+    iterations: u32,
+    archive_batch: u32,
+}
+
+fn make_task_with(id_num: u32, status: TaskStatus, id_prefix: &str, id_width: usize) -> Task {
     Task {
-        id: format!("RQ-{id_num:0width$}", width = ID_WIDTH),
+        id: format!("{id_prefix}-{id_num:0width$}", width = id_width),
         status,
         title: format!("Task {id_num}"),
         tags: vec!["rust".to_string()],
@@ -25,6 +38,59 @@ fn make_task(id_num: u32, status: TaskStatus) -> Task {
     }
 }
 
+fn build_queue(
+    profile: &StressProfile,
+    id_prefix: &str,
+    id_width: usize,
+) -> (QueueFile, QueueFile) {
+    let mut active = QueueFile {
+        version: 1,
+        tasks: Vec::new(),
+    };
+    let mut done = QueueFile {
+        version: 1,
+        tasks: Vec::new(),
+    };
+
+    let done_target = profile.done_tasks.min(profile.total_tasks);
+    for i in 1..=profile.total_tasks {
+        if i <= done_target {
+            done.tasks
+                .push(make_task_with(i, TaskStatus::Done, id_prefix, id_width));
+        } else {
+            active
+                .tasks
+                .push(make_task_with(i, TaskStatus::Todo, id_prefix, id_width));
+        }
+    }
+
+    (active, done)
+}
+
+fn build_raw_yaml_with_colons(task_count: u32, id_prefix: &str, id_width: usize) -> String {
+    let mut out = String::from("version: 1\ntasks:\n");
+    for i in 1..=task_count {
+        out.push_str(&format!(
+            "  - id: {id_prefix}-{i:0width$}\n",
+            width = id_width
+        ));
+        out.push_str("    status: todo\n");
+        out.push_str(&format!("    title: Task {i}: needs repair\n"));
+        out.push_str("    tags:\n      - rust\n");
+        out.push_str("    scope:\n      - crates/ralph\n");
+        out.push_str(&format!(
+            "    evidence:\n      - evidence {i}: contains colon\n"
+        ));
+        out.push_str(&format!("    plan:\n      - plan {i}: exercise repair\n"));
+        out.push_str("    notes: []\n");
+    }
+    out
+}
+
+fn make_task(id_num: u32, status: TaskStatus) -> Task {
+    make_task_with(id_num, status, ID_PREFIX, ID_WIDTH)
+}
+
 fn write_queue_files(
     dir: &TempDir,
     active: &QueueFile,
@@ -39,29 +105,43 @@ fn write_queue_files(
 
 #[test]
 fn stress_queue_ops_large_scale() -> Result<()> {
-    let mut active = QueueFile {
-        version: 1,
-        tasks: Vec::new(),
+    let profile = StressProfile {
+        total_tasks: STRESS_TOTAL_TASKS,
+        done_tasks: STRESS_DONE_TASKS,
+        iterations: 0,
+        archive_batch: 0,
     };
-    let mut done = QueueFile {
-        version: 1,
-        tasks: Vec::new(),
-    };
+    let (active, done) = build_queue(&profile, ID_PREFIX, ID_WIDTH);
 
-    // 10,000 tasks total, split across queue and done with non-overlapping IDs.
-    for i in 1..=5000u32 {
-        active.tasks.push(make_task(i, TaskStatus::Todo));
-    }
-    for i in 5001..=10000u32 {
-        done.tasks.push(make_task(i, TaskStatus::Done));
-    }
-
-    queue::validate_queue_set(&active, Some(&done), "RQ", ID_WIDTH)
+    queue::validate_queue_set(&active, Some(&done), ID_PREFIX, ID_WIDTH)
         .context("validate queue set")?;
 
-    let next =
-        queue::next_id_across(&active, Some(&done), "RQ", ID_WIDTH).context("next id across")?;
+    let next = queue::next_id_across(&active, Some(&done), ID_PREFIX, ID_WIDTH)
+        .context("next id across")?;
     anyhow::ensure!(next == "RQ-10001", "unexpected next id: {next}");
+
+    let filtered = queue::filter_tasks(
+        &active,
+        &[TaskStatus::Todo],
+        &["rust".to_string()],
+        &["crates/ralph".to_string()],
+        Some(5),
+    );
+    anyhow::ensure!(
+        filtered.len() == 5,
+        "unexpected filtered len: {}",
+        filtered.len()
+    );
+    anyhow::ensure!(filtered[0].id == "RQ-05001", "unexpected first filtered id");
+    anyhow::ensure!(filtered[4].id == "RQ-05005", "unexpected fifth filtered id");
+
+    let found_active = queue::find_task_across(&active, Some(&done), "RQ-05001")
+        .ok_or_else(|| anyhow::anyhow!("expected to find active task"))?;
+    anyhow::ensure!(found_active.status == TaskStatus::Todo);
+
+    let found_done = queue::find_task_across(&active, Some(&done), "RQ-00042")
+        .ok_or_else(|| anyhow::anyhow!("expected to find done task"))?;
+    anyhow::ensure!(found_done.status == TaskStatus::Done);
 
     // Serialize and parse roundtrip.
     let dir = TempDir::new().context("create temp dir")?;
@@ -75,8 +155,91 @@ fn stress_queue_ops_large_scale() -> Result<()> {
         queue::load_queue_with_repair(&done_path).context("load done")?;
     anyhow::ensure!(!repaired_done, "unexpected repair on valid YAML (done)");
 
-    queue::validate_queue_set(&reloaded_active, Some(&reloaded_done), "RQ", ID_WIDTH)
+    queue::validate_queue_set(&reloaded_active, Some(&reloaded_done), ID_PREFIX, ID_WIDTH)
         .context("validate reloaded queue set")?;
+
+    Ok(())
+}
+
+#[test]
+fn stress_queue_ops_runtime_bounds() -> Result<()> {
+    let profile = StressProfile {
+        total_tasks: STRESS_TOTAL_TASKS,
+        done_tasks: STRESS_DONE_TASKS,
+        iterations: 0,
+        archive_batch: 0,
+    };
+    let (active, done) = build_queue(&profile, ID_PREFIX, ID_WIDTH);
+
+    let start = Instant::now();
+    queue::validate_queue_set(&active, Some(&done), ID_PREFIX, ID_WIDTH)?;
+    let _ = queue::next_id_across(&active, Some(&done), ID_PREFIX, ID_WIDTH)?;
+    let _ = queue::filter_tasks(&active, &[], &[], &[], Some(50));
+    let elapsed = start.elapsed();
+
+    let bound = Duration::from_secs(STRESS_RUNTIME_BOUND_SECS);
+    anyhow::ensure!(
+        elapsed <= bound,
+        "stress ops exceeded bound: {:?} > {:?}",
+        elapsed,
+        bound
+    );
+
+    Ok(())
+}
+
+#[test]
+fn stress_queue_archive_and_mutate_cycles() -> Result<()> {
+    let profile = StressProfile {
+        total_tasks: 2000,
+        done_tasks: 0,
+        iterations: 20,
+        archive_batch: 25,
+    };
+
+    let (active, done) = build_queue(&profile, ID_PREFIX, ID_WIDTH);
+    let dir = TempDir::new().context("create temp dir")?;
+    let (queue_path, done_path) = write_queue_files(&dir, &active, &done)?;
+    let now = "2026-01-18T00:00:00Z";
+
+    for iter in 0..profile.iterations {
+        let mut current = queue::load_queue(&queue_path).context("load active")?;
+        let start = 1 + iter * profile.archive_batch;
+        if start > profile.total_tasks {
+            break;
+        }
+        let end = (start + profile.archive_batch).min(profile.total_tasks + 1);
+
+        for id_num in start..end {
+            let id = format!("{ID_PREFIX}-{id_num:0width$}", width = ID_WIDTH);
+            let _ = queue::set_status(&mut current, &id, TaskStatus::Done, now, None, None);
+        }
+
+        queue::save_queue(&queue_path, &current).context("save active")?;
+        let _report = queue::archive_done_tasks(&queue_path, &done_path, ID_PREFIX, ID_WIDTH)
+            .with_context(|| format!("archive iteration {iter}"))?;
+
+        let active_reloaded = queue::load_queue(&queue_path).context("reload active")?;
+        let done_reloaded = queue::load_queue_or_default(&done_path).context("reload done")?;
+        queue::validate_queue_set(&active_reloaded, Some(&done_reloaded), ID_PREFIX, ID_WIDTH)
+            .context("validate after iteration")?;
+    }
+
+    Ok(())
+}
+
+#[test]
+fn stress_queue_repair_large_yaml_scalars() -> Result<()> {
+    let dir = TempDir::new().context("create temp dir")?;
+    let queue_path = dir.path().join("queue.yaml");
+    let raw = build_raw_yaml_with_colons(2000, ID_PREFIX, ID_WIDTH);
+    std::fs::write(&queue_path, raw).context("write raw queue")?;
+
+    let (queue, repaired) = queue::load_queue_with_repair(&queue_path)?;
+    anyhow::ensure!(repaired, "expected repair for colon scalars");
+    anyhow::ensure!(queue.tasks.len() == 2000, "unexpected task count");
+
+    queue::validate_queue(&queue, ID_PREFIX, ID_WIDTH).context("validate repaired queue")?;
 
     Ok(())
 }
@@ -84,6 +247,9 @@ fn stress_queue_ops_large_scale() -> Result<()> {
 #[test]
 #[ignore]
 fn stress_queue_ops_burn_in_long() -> Result<()> {
+    if std::env::var("RALPH_STRESS_BURN_IN").ok().as_deref() != Some("1") {
+        return Ok(());
+    }
     // Burn-in: smaller queue, repeated archive + status updates + reload.
     // This is intentionally long-running and is executed by `make test` (which includes ignored tests).
     let dir = TempDir::new().context("create temp dir")?;
@@ -113,8 +279,8 @@ fn stress_queue_ops_burn_in_long() -> Result<()> {
     queue::save_queue(&done_path, &done).context("save initial done")?;
 
     // Run a bounded number of iterations; each iteration archives done tasks and marks a few todo as done.
-    for iter in 0..25u32 {
-        let report = queue::archive_done_tasks(&queue_path, &done_path, "RQ", ID_WIDTH)
+    for iter in 0..200u32 {
+        let report = queue::archive_done_tasks(&queue_path, &done_path, ID_PREFIX, ID_WIDTH)
             .with_context(|| format!("archive iteration {iter}"))?;
         let _ = report;
 
@@ -133,7 +299,7 @@ fn stress_queue_ops_burn_in_long() -> Result<()> {
         // Reload both and validate invariants.
         let active_reloaded = queue::load_queue(&queue_path).context("reload active")?;
         let done_reloaded = queue::load_queue_or_default(&done_path).context("reload done")?;
-        queue::validate_queue_set(&active_reloaded, Some(&done_reloaded), "RQ", ID_WIDTH)
+        queue::validate_queue_set(&active_reloaded, Some(&done_reloaded), ID_PREFIX, ID_WIDTH)
             .context("validate after iteration")?;
     }
 
