@@ -1,6 +1,7 @@
 mod contracts;
 
 mod config;
+mod doctor_cmd;
 mod fsutil;
 mod init_cmd;
 mod outpututil;
@@ -36,6 +37,7 @@ fn run() -> Result<()> {
         Command::Task(args) => handle_task(args.command),
         Command::Scan(args) => handle_scan(args),
         Command::Init(args) => handle_init(args),
+        Command::Doctor => handle_doctor(),
     }
 }
 
@@ -275,6 +277,11 @@ fn handle_init(args: InitArgs) -> Result<()> {
     Ok(())
 }
 
+fn handle_doctor() -> Result<()> {
+    let resolved = config::resolve_from_cwd()?;
+    doctor_cmd::run_doctor(&resolved)
+}
+
 fn handle_run(cmd: RunCommand) -> Result<()> {
     let resolved = config::resolve_from_cwd()?;
     match cmd {
@@ -488,6 +495,8 @@ enum Command {
     Task(TaskArgs),
     Scan(ScanArgs),
     Init(InitArgs),
+    /// Verify environment readiness and configuration.
+    Doctor,
 }
 
 #[derive(Args)]

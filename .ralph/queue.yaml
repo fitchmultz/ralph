@@ -1,29 +1,5 @@
 version: 1
 tasks:
-  - id: RQ-0052
-    status: todo
-    title: Add ralph doctor command to verify environment readiness and surface actionable diagnostics
-    tags:
-      - rust
-      - ux
-      - tooling
-      - p1
-    scope:
-      - crates/ralph/src/main.rs
-      - crates/ralph/src/config.rs
-      - crates/ralph/src/gitutil.rs
-      - crates/ralph/src/runner.rs
-    evidence:
-      - Go TUI surfaced status and configuration context while Rust CLI has no single readiness check
-      - production use requires fast diagnosis for missing git runner binaries invalid queue state and missing upstream
-      - absence of a doctor command increases support load and friction
-    plan:
-      - add ralph doctor that checks config paths queue validity git availability and runner binaries
-      - print a concise report and exit non-zero on failures
-      - add tests for missing files and missing binaries using PATH manipulation
-    request: go-to-rust production readiness
-    created_at: 2026-01-18T07:00:00Z
-    updated_at: 2026-01-18T07:00:00Z
   - id: RQ-0056
     status: todo
     title: Formalize and document production stress verification commands and acceptance gates

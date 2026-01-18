@@ -7,6 +7,7 @@
 
 pub mod config;
 pub mod contracts;
+pub mod doctor_cmd;
 pub mod fsutil;
 pub mod gitutil;
 pub mod init_cmd;
