@@ -19,6 +19,7 @@ tasks:
       - "`crates/ralph/src/config.rs::resolve_from_cwd` loads `.ralph/config.yaml` (when present) and already resolves agent defaults (runner/model/reasoning_effort)."
       - "Hardcoded defaults drift from config defaults (see `crates/ralph/src/contracts.rs::Config::default` vs `ScanArgs` defaults), making runs inconsistent across machines."
     plan:
+      - Use the RepoPrompt context_builder to gather context and generate plan.
       - Change CLI args to optional overrides (no default_value in clap) and compute effective runner/model/effort from resolved config in `handle_scan` and `handle_task`.
       - Ensure `runner::validate_model_for_runner` still runs after resolution and produces a clear error on invalid combinations.
       - Add tests covering default resolution with and without `.ralph/config.yaml`.
