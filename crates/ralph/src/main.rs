@@ -390,9 +390,30 @@ fn resolve_agent_args(
         None => resolved.config.agent.runner.unwrap_or_default(),
     };
 
-    let model = match model_override {
-        Some(value) => runner::parse_model(value)?,
-        None => resolved.config.agent.model.unwrap_or_default(),
+    let model = match (model_override, resolved.config.agent.model) {
+        (Some(value), _) => runner::parse_model(value)?,
+        (None, Some(m)) => m,
+        (None, None) => match runner_kind {
+            RunnerKind::Codex => contracts::Model::Gpt52Codex,
+            RunnerKind::Opencode => contracts::Model::Glm47,
+        },
+    };
+
+    // Apply runner-aware default if no explicit override was provided (CLI or Task).
+    // This ensures that switching runners (e.g., via CLI) picks the correct default for that runner.
+    // Specifically, if the runner is Opencode and the effective model is the incompatible
+    // Codex default (Gpt52Codex) or unset, we default to Glm47.
+    // Otherwise, we respect the explicit config model (e.g., gpt-5.2 is valid for Opencode).
+    let effective_model = if model_override.is_none() {
+        if runner_kind == RunnerKind::Opencode
+            && (model == contracts::Model::Gpt52Codex || resolved.config.agent.model.is_none())
+        {
+            contracts::Model::Glm47
+        } else {
+            model
+        }
+    } else {
+        model
     };
 
     let reasoning_effort = if runner_kind == RunnerKind::Codex {
@@ -405,8 +426,8 @@ fn resolve_agent_args(
         None
     };
 
-    runner::validate_model_for_runner(runner_kind, model)?;
-    Ok((runner_kind, model, reasoning_effort))
+    runner::validate_model_for_runner(runner_kind, effective_model)?;
+    Ok((runner_kind, effective_model, reasoning_effort))
 }
 
 fn format_task_compact(task: &Task) -> String {
@@ -926,6 +947,35 @@ agent:
         assert_eq!(runner, super::RunnerKind::Codex);
         assert_eq!(model, super::contracts::Model::Gpt52Codex);
         assert_eq!(effort, Some(super::contracts::ReasoningEffort::High));
+        Ok(())
+    }
+
+    #[test]
+    fn resolve_agent_args_defaults_to_glm47_for_opencode_runner() -> anyhow::Result<()> {
+        let temp = TempDir::new().context("create temp dir")?;
+        let _lock = env_lock().lock().expect("env lock");
+        let repo_root = temp.path().to_path_buf();
+
+        // Config has Codex defaults
+        write_project_config(
+            repo_root.as_path(),
+            r#"version: 1
+agent:
+  runner: codex
+  model: gpt-5.2-codex
+  reasoning_effort: high
+"#,
+        )?;
+        let _guard = EnvGuard::enter(&repo_root)?;
+        let resolved = crate::config::resolve_from_cwd().context("resolve config")?;
+
+        // CLI override selects Opencode, but no model override.
+        // Should default to Glm47, ignoring config model gpt-5.2-codex.
+        let (runner, model, effort) =
+            super::resolve_agent_args(&resolved, Some("opencode"), None, None)?;
+        assert_eq!(runner, super::RunnerKind::Opencode);
+        assert_eq!(model, super::contracts::Model::Glm47);
+        assert_eq!(effort, None);
         Ok(())
     }
 

@@ -163,11 +163,27 @@ fn resolve_run_agent_settings(
         .or(resolved.config.agent.runner)
         .unwrap_or_default();
 
-    let model: Model = overrides
-        .model
-        .or(task_agent.and_then(|agent| agent.model))
-        .or(resolved.config.agent.model)
-        .unwrap_or_default();
+    let model = match (
+        overrides.model,
+        task_agent.and_then(|agent| agent.model),
+        resolved.config.agent.model,
+    ) {
+        (Some(m), _, _) | (_, Some(m), _) => m,
+        (None, None, None) => match runner_kind {
+            Runner::Codex => Model::Gpt52Codex,
+            Runner::Opencode => Model::Glm47,
+        },
+        (None, None, Some(m)) => {
+            // If runner is Opencode and config model is the incompatible Codex default (Gpt52Codex),
+            // default to Glm47 to avoid provider errors.
+            // Otherwise, respect the explicit config model (e.g., gpt-5.2 is valid for Opencode).
+            if runner_kind == Runner::Opencode && m == Model::Gpt52Codex {
+                Model::Glm47
+            } else {
+                m
+            }
+        }
+    };
 
     let effort_candidate: Option<ReasoningEffort> = overrides
         .reasoning_effort
@@ -462,6 +478,32 @@ mod tests {
         assert_eq!(runner, Runner::Codex);
         assert_eq!(model, Model::Gpt52Codex);
         assert_eq!(effort, Some(ReasoningEffort::High));
+        Ok(())
+    }
+
+    #[test]
+    fn resolve_run_agent_settings_defaults_to_glm47_for_opencode_runner() -> Result<()> {
+        // Config defaults to Codex + Gpt52Codex
+        let resolved = resolved_with_agent_defaults(
+            Some(Runner::Codex),
+            Some(Model::Gpt52Codex),
+            Some(ReasoningEffort::Medium),
+        );
+
+        let task = base_task();
+
+        // Override runner to Opencode, but not model.
+        // Should default to Glm47 to avoid model mismatch.
+        let overrides = AgentOverrides {
+            runner: Some(Runner::Opencode),
+            model: None,
+            reasoning_effort: None,
+        };
+
+        let (runner, model, effort) = resolve_run_agent_settings(&resolved, &task, &overrides)?;
+        assert_eq!(runner, Runner::Opencode);
+        assert_eq!(model, Model::Glm47);
+        assert_eq!(effort, None);
         Ok(())
     }
 
