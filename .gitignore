@@ -7,7 +7,6 @@
 ralph_tui/ralph
 .ralph/cache/
 .ralph/logs/
-target/debug/
-target/release/*
+target/
 !target/release/ralph*
 .ralph/lock
