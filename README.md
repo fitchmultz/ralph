@@ -52,7 +52,7 @@ Quick usage:
 
 Defaults and config:
 - `ralph run one` pulls runner/model from the task `agent` block if present, otherwise from config.
-- Configure defaults in `.ralph/config.yaml` (or global config):
+- Configure defaults in `.ralph/config.yaml` (or `~/.config/ralph/config.yaml`):
 
 ```yaml
 version: 1

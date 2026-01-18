@@ -1,5 +1,32 @@
 version: 1
 tasks:
+  - id: RQ-0005
+    status: todo
+    title: Make Rust CLI defaults come from `.ralph/config.yaml` (runner/model/effort) instead of hardcoded flags
+    tags:
+      - rust
+      - config
+      - ux
+    scope:
+      - crates/ralph/src/config.rs
+      - crates/ralph/src/main.rs
+      - crates/ralph/src/runner.rs
+      - ralph config
+      - ralph scan
+      - ralph task build
+    evidence:
+      - "`crates/ralph/src/main.rs` hardcodes defaults for flags like `scan --model` (default `gpt-5.2`) and `scan --effort` (default `high`) instead of using resolved config defaults."
+      - "`crates/ralph/src/config.rs::resolve_from_cwd` loads `.ralph/config.yaml` (when present) and already resolves agent defaults (runner/model/reasoning_effort)."
+      - "Hardcoded defaults drift from config defaults (see `crates/ralph/src/contracts.rs::Config::default` vs `ScanArgs` defaults), making runs inconsistent across machines."
+    plan:
+      - Use the RepoPrompt context_builder to gather context and generate plan.
+      - Change CLI args to optional overrides (no default_value in clap) and compute effective runner/model/effort from resolved config in `handle_scan` and `handle_task`.
+      - Ensure `runner::validate_model_for_runner` still runs after resolution and produces a clear error on invalid combinations.
+      - Add tests covering default resolution with and without `.ralph/config.yaml`.
+      - "Update `--help` text to document precedence: CLI flags override repo config, which overrides global config, which overrides defaults."
+    request: scan finding
+    created_at: 2026-01-17T17:26:38Z
+    updated_at: 2026-01-17T17:26:38Z
   - id: RQ-0002
     status: done
     title: Align root docs for Rust rewrite vs Go legacy
@@ -141,7 +168,7 @@ tasks:
       - Added `queue list`, `queue show`, and `queue next` (plus `queue next-id`) with script-friendly output, filters, and formats.
       - Centralized queue filtering/selection helpers and added coverage for empty/not-found, filtering, and formatting behaviors.
       - Updated Rust CLI help and docs to reflect new queue inspection commands.
-      - Note: `make ci` now installs to a repo-local bin when the default bin dir is not writable.
+      - "Note: `make ci` now installs to a repo-local bin when the default bin dir is not writable."
     request: scan finding
     created_at: 2026-01-17T17:26:38Z
     updated_at: 2026-01-17T22:45:36Z

@@ -53,7 +53,7 @@ One-off usage:
 - `cargo run -p ralph -- task build --runner opencode --model gpt-5.2 "Add tests for X"`
 - `cargo run -p ralph -- scan --runner opencode --model gpt-5.2 --focus "CI gaps"`
 
-Defaults via config (`.ralph/config.yaml` or global):
+Defaults via config (`.ralph/config.yaml` or `~/.config/ralph/config.yaml`):
 
 ```yaml
 version: 1

@@ -15,8 +15,10 @@ const DEFAULT_TASK_BUILDER_PROMPT: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/assets/prompts/task_builder.md"
 ));
-const DEFAULT_SCAN_PROMPT: &str =
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/prompts/scan.md"));
+const DEFAULT_SCAN_PROMPT: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/assets/prompts/scan.md"
+));
 
 pub fn load_worker_prompt(repo_root: &Path) -> Result<String> {
     load_prompt_with_fallback(
@@ -69,12 +71,7 @@ pub fn render_task_builder_prompt(
 }
 
 pub fn load_scan_prompt(repo_root: &Path) -> Result<String> {
-    load_prompt_with_fallback(
-        repo_root,
-        SCAN_PROMPT_REL_PATH,
-        DEFAULT_SCAN_PROMPT,
-        "scan",
-    )
+    load_prompt_with_fallback(repo_root, SCAN_PROMPT_REL_PATH, DEFAULT_SCAN_PROMPT, "scan")
 }
 
 pub fn render_scan_prompt(template: &str, user_focus: &str) -> Result<String> {

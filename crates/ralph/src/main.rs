@@ -232,14 +232,12 @@ fn handle_task(cmd: TaskCommand) -> Result<()> {
     match cmd {
         TaskCommand::Build(args) => {
             let request = task_cmd::read_request_from_args_or_stdin(&args.request)?;
-            let runner_kind = parse_runner(&args.runner)?;
-            let model = runner::parse_model(&args.model)?;
-            let effort = runner::parse_reasoning_effort(&args.effort)?;
-            let reasoning_effort = if runner_kind == RunnerKind::Codex {
-                Some(effort)
-            } else {
-                None
-            };
+            let (runner_kind, model, reasoning_effort) = resolve_agent_args(
+                &resolved,
+                args.runner.as_deref(),
+                args.model.as_deref(),
+                args.effort.as_deref(),
+            )?;
 
             task_cmd::build_task(
                 &resolved,
@@ -258,14 +256,12 @@ fn handle_task(cmd: TaskCommand) -> Result<()> {
 
 fn handle_scan(args: ScanArgs) -> Result<()> {
     let resolved = config::resolve_from_cwd()?;
-    let runner_kind = parse_runner(&args.runner)?;
-    let model = runner::parse_model(&args.model)?;
-    let effort = runner::parse_reasoning_effort(&args.effort)?;
-    let reasoning_effort = if runner_kind == RunnerKind::Codex {
-        Some(effort)
-    } else {
-        None
-    };
+    let (runner_kind, model, reasoning_effort) = resolve_agent_args(
+        &resolved,
+        args.runner.as_deref(),
+        args.model.as_deref(),
+        args.effort.as_deref(),
+    )?;
 
     scan_cmd::run_scan(
         &resolved,
@@ -285,6 +281,40 @@ fn parse_runner(value: &str) -> Result<RunnerKind> {
         "opencode" => Ok(RunnerKind::Opencode),
         _ => bail!("--runner must be codex or opencode (got: {})", value.trim()),
     }
+}
+
+fn resolve_agent_args(
+    resolved: &config::Resolved,
+    runner_override: Option<&str>,
+    model_override: Option<&str>,
+    effort_override: Option<&str>,
+) -> Result<(
+    RunnerKind,
+    contracts::Model,
+    Option<contracts::ReasoningEffort>,
+)> {
+    let runner_kind = match runner_override {
+        Some(value) => parse_runner(value)?,
+        None => resolved.config.agent.runner.unwrap_or_default(),
+    };
+
+    let model = match model_override {
+        Some(value) => runner::parse_model(value)?,
+        None => resolved.config.agent.model.unwrap_or_default(),
+    };
+
+    let reasoning_effort = if runner_kind == RunnerKind::Codex {
+        let effort = match effort_override {
+            Some(value) => runner::parse_reasoning_effort(value)?,
+            None => resolved.config.agent.reasoning_effort.unwrap_or_default(),
+        };
+        Some(effort)
+    } else {
+        None
+    };
+
+    runner::validate_model_for_runner(runner_kind, model)?;
+    Ok((runner_kind, model, reasoning_effort))
 }
 
 fn format_task_compact(task: &Task) -> String {
@@ -373,17 +403,18 @@ struct TaskBuildArgs {
     #[arg(long, default_value = "")]
     scope: String,
 
-    /// Runner to use (default: codex).
-    #[arg(long, default_value = "codex")]
-    runner: String,
+    /// Runner to use. CLI flag overrides config defaults (project > global > built-in).
+    #[arg(long)]
+    runner: Option<String>,
 
-    /// Model to use (default: gpt-5.2-codex).
-    #[arg(long, default_value = "gpt-5.2-codex")]
-    model: String,
+    /// Model to use. CLI flag overrides config defaults (project > global > built-in).
+    #[arg(long)]
+    model: Option<String>,
 
-    /// Codex reasoning effort (default: low). Ignored for opencode.
-    #[arg(long, default_value = "low")]
-    effort: String,
+    /// Codex reasoning effort. CLI flag overrides config defaults (project > global > built-in).
+    /// Ignored for opencode.
+    #[arg(long)]
+    effort: Option<String>,
 }
 
 #[derive(Args)]
@@ -392,17 +423,18 @@ struct ScanArgs {
     #[arg(long, default_value = "")]
     focus: String,
 
-    /// Runner to use (default: codex).
-    #[arg(long, default_value = "codex")]
-    runner: String,
+    /// Runner to use. CLI flag overrides config defaults (project > global > built-in).
+    #[arg(long)]
+    runner: Option<String>,
 
-    /// Model to use (default: gpt-5.2).
-    #[arg(long, default_value = "gpt-5.2")]
-    model: String,
+    /// Model to use. CLI flag overrides config defaults (project > global > built-in).
+    #[arg(long)]
+    model: Option<String>,
 
-    /// Codex reasoning effort (default: high). Ignored for opencode.
-    #[arg(long, default_value = "high")]
-    effort: String,
+    /// Codex reasoning effort. CLI flag overrides config defaults (project > global > built-in).
+    /// Ignored for opencode.
+    #[arg(long)]
+    effort: Option<String>,
 }
 
 #[derive(Subcommand)]
@@ -517,10 +549,50 @@ impl From<StatusArg> for contracts::TaskStatus {
 mod tests {
     use super::contracts::{QueueFile, Task, TaskStatus};
     use anyhow::Context;
+    use std::ffi::OsString;
     use std::path::PathBuf;
+    use std::{env, fs};
+    use tempfile::TempDir;
 
     fn repo_root() -> PathBuf {
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
+    }
+
+    struct EnvGuard {
+        cwd: PathBuf,
+        xdg_config_home: Option<OsString>,
+    }
+
+    impl EnvGuard {
+        fn enter(path: &PathBuf) -> anyhow::Result<Self> {
+            let cwd = env::current_dir().context("read cwd")?;
+            let xdg_config_home = env::var_os("XDG_CONFIG_HOME");
+            let xdg_path = path.join("xdg");
+            fs::create_dir_all(xdg_path.join("ralph")).context("create xdg config dir")?;
+            env::set_var("XDG_CONFIG_HOME", &xdg_path);
+            env::set_current_dir(path).context("set cwd")?;
+            Ok(Self {
+                cwd,
+                xdg_config_home,
+            })
+        }
+    }
+
+    impl Drop for EnvGuard {
+        fn drop(&mut self) {
+            let _ = env::set_current_dir(&self.cwd);
+            match &self.xdg_config_home {
+                Some(value) => env::set_var("XDG_CONFIG_HOME", value),
+                None => env::remove_var("XDG_CONFIG_HOME"),
+            }
+        }
+    }
+
+    fn write_project_config(repo_root: &std::path::Path, contents: &str) -> anyhow::Result<()> {
+        let config_dir = repo_root.join(".ralph");
+        fs::create_dir_all(&config_dir).context("create .ralph dir")?;
+        fs::write(config_dir.join("config.yaml"), contents).context("write config.yaml")?;
+        Ok(())
     }
 
     #[test]
@@ -574,5 +646,86 @@ mod tests {
 
         let rendered = super::format_task_compact(&task);
         assert_eq!(rendered, "RQ-0001\tdoing\tFix bug");
+    }
+
+    #[test]
+    fn resolve_agent_args_uses_defaults_without_config_or_overrides() -> anyhow::Result<()> {
+        let temp = TempDir::new().context("create temp dir")?;
+        let _guard = EnvGuard::enter(&temp.path().to_path_buf())?;
+        let resolved = crate::config::resolve_from_cwd().context("resolve config")?;
+        let (runner, model, effort) = super::resolve_agent_args(&resolved, None, None, None)?;
+        assert_eq!(runner, super::RunnerKind::Codex);
+        assert_eq!(model, super::contracts::Model::Gpt52Codex);
+        assert_eq!(effort, Some(super::contracts::ReasoningEffort::Medium));
+        Ok(())
+    }
+
+    #[test]
+    fn resolve_agent_args_uses_project_config_defaults() -> anyhow::Result<()> {
+        let temp = TempDir::new().context("create temp dir")?;
+        let repo_root = temp.path().to_path_buf();
+        write_project_config(
+            repo_root.as_path(),
+            r#"version: 1
+agent:
+  runner: opencode
+  model: gpt-5.2
+  reasoning_effort: high
+"#,
+        )?;
+        let _guard = EnvGuard::enter(&repo_root)?;
+        let resolved = crate::config::resolve_from_cwd().context("resolve config")?;
+        let (runner, model, effort) = super::resolve_agent_args(&resolved, None, None, None)?;
+        assert_eq!(runner, super::RunnerKind::Opencode);
+        assert_eq!(model, super::contracts::Model::Gpt52);
+        assert_eq!(effort, None);
+        Ok(())
+    }
+
+    #[test]
+    fn resolve_agent_args_cli_overrides_project_config() -> anyhow::Result<()> {
+        let temp = TempDir::new().context("create temp dir")?;
+        let repo_root = temp.path().to_path_buf();
+        write_project_config(
+            repo_root.as_path(),
+            r#"version: 1
+agent:
+  runner: opencode
+  model: gpt-5.2
+  reasoning_effort: low
+"#,
+        )?;
+        let _guard = EnvGuard::enter(&repo_root)?;
+        let resolved = crate::config::resolve_from_cwd().context("resolve config")?;
+        let (runner, model, effort) = super::resolve_agent_args(
+            &resolved,
+            Some("codex"),
+            Some("gpt-5.2-codex"),
+            Some("high"),
+        )?;
+        assert_eq!(runner, super::RunnerKind::Codex);
+        assert_eq!(model, super::contracts::Model::Gpt52Codex);
+        assert_eq!(effort, Some(super::contracts::ReasoningEffort::High));
+        Ok(())
+    }
+
+    #[test]
+    fn resolve_agent_args_rejects_invalid_runner_model_combo() -> anyhow::Result<()> {
+        let temp = TempDir::new().context("create temp dir")?;
+        let repo_root = temp.path().to_path_buf();
+        write_project_config(
+            repo_root.as_path(),
+            r#"version: 1
+agent:
+  runner: codex
+  model: glm-4.7
+  reasoning_effort: medium
+"#,
+        )?;
+        let _guard = EnvGuard::enter(&repo_root)?;
+        let resolved = crate::config::resolve_from_cwd().context("resolve config")?;
+        let err = super::resolve_agent_args(&resolved, None, None, None).unwrap_err();
+        assert!(format!("{err:#}").contains("glm-4.7"));
+        Ok(())
     }
 }
