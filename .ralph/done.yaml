@@ -637,3 +637,27 @@ tasks:
     created_at: 2026-01-18T07:00:00Z
     updated_at: 2026-01-18T07:15:00Z
     completed_at: 2026-01-18T07:15:00Z
+  completed_at: 2026-01-18T07:15:00Z
+
+- id: RQ-0057
+  status: done
+  title: Prevent data loss when revert_uncommitted cleans untracked files
+  tags:
+    - rust
+    - safety
+    - git
+  scope:
+    - crates/ralph/src/gitutil.rs
+  evidence:
+    - revert_uncommitted runs git clean -fd which removes all untracked files
+  plan:
+    - Update revert_uncommitted to exclude .env and other known local files or provide a safe allowlist
+    - Add tests to ensure protected files remain after cleanup
+    - Document the cleanup behavior and exclusions
+  notes:
+    - Updated `gitutil::revert_uncommitted` to exclude `.env` and `.env.*` from `git clean`.
+    - Added `tests/git_safety_test.rs` to verify untracked `.env` files are preserved.
+  request: scan finding
+  created_at: 2026-01-18T20:45:41Z
+  updated_at: 2026-01-18T21:00:00Z
+  completed_at: 2026-01-18T21:00:00Z
