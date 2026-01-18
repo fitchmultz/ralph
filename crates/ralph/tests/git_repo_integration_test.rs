@@ -135,3 +135,31 @@ fn run_one_refuses_to_run_when_repo_is_dirty_and_a_todo_exists() -> Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn scan_refuses_to_run_when_repo_is_dirty() -> Result<()> {
+    let dir = TempDir::new().context("create temp dir")?;
+    git_init(dir.path())?;
+
+    // Ensure ralph runtime files exist.
+    let (status, stdout, stderr) = run_in_dir(dir.path(), &["init", "--force"]);
+    anyhow::ensure!(
+        status.success(),
+        "ralph init failed\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    // Make the repo dirty with an untracked file.
+    std::fs::write(dir.path().join("untracked.txt"), "dirty").context("write dirty file")?;
+
+    let (status, stdout, stderr) = run_in_dir(dir.path(), &["scan", "--focus", "security"]);
+    anyhow::ensure!(
+        !status.success(),
+        "expected scan to fail on dirty repo\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+    anyhow::ensure!(
+        stderr.to_lowercase().contains("repo is dirty"),
+        "expected dirty repo error\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    Ok(())
+}

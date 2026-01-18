@@ -1,5 +1,36 @@
 version: 1
 tasks:
+  - id: RQ-0046
+    status: done
+    title: Eliminate data loss risk by enforcing clean-repo preflight for scan and any destructive revert path
+    tags:
+      - rust
+      - safety
+      - workflow
+      - p0
+    scope:
+      - crates/ralph/src/scan_cmd.rs
+      - crates/ralph/src/gitutil.rs
+      - crates/ralph/src/task_cmd.rs
+      - crates/ralph/src/run_cmd.rs
+    evidence:
+      - scan can run without a clean repo preflight while failure paths call revert_uncommitted
+      - revert_uncommitted can delete untracked files and discard changes which is catastrophic if user work is present
+      - production behavior must never destroy unrelated work
+    plan:
+      - require a clean repo before scan executes any runner invocation
+      - audit all code paths that call revert_uncommitted and ensure they are gated behind an explicit clean-repo guarantee
+      - add tests asserting dirty repo causes a hard stop with clear messaging
+      - ensure error text is explicit about why the stop exists and how to proceed
+    notes:
+      - Added gitutil::require_clean_repo guard at start of run_scan in scan_cmd.rs
+      - Aligns scan behavior with run_one and task_build safety preflights
+      - Ensures scan_refuses_to_run_when_repo_is_dirty test passes correctly
+    request: go-to-rust production readiness
+    created_at: 2026-01-18T07:00:00Z
+    updated_at: 2026-01-18T08:00:00Z
+    completed_at: 2026-01-18T08:00:00Z
+
   - id: RQ-0005
     status: done
     title: Make Rust CLI defaults come from `.ralph/config.yaml` (runner/model/effort) instead of hardcoded flags
