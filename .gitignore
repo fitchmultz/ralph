@@ -10,3 +10,4 @@ ralph_tui/ralph
 target/debug/
 target/release
 !target/release/ralph*
+.ralph/lock/owner
