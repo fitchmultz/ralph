@@ -6,7 +6,7 @@
 - `.ralph/`: Repo-local runtime state for the Rust CLI.
   - `.ralph/queue.yaml` is the **source of truth** for active work.
   - `.ralph/done.yaml` archives completed tasks (same schema as queue).
-  - `.ralph/prompts/*.md` are repo-local prompt templates used by `ralph scan`, `ralph task build`, and `ralph run`.
+  - Prompt templates are embedded in the Rust CLI; repo-local overrides can be placed in `ralph/prompts/*.md`.
 
 ## Build, Test, and Development Commands (Rust)
 - `cargo test -p ralph`
@@ -24,7 +24,7 @@
 - Source of truth is `.ralph/queue.yaml` (YAML). Task order is priority (top runs first).
 - Completed tasks must be moved to `.ralph/done.yaml` and removed from `.ralph/queue.yaml`.
 - New tasks must include: `id`, `status`, `title`, `tags`, `scope`, `evidence`, `plan` (and typically `request`, `created_at`, `updated_at`).
-- Prompt templates live in `.ralph/prompts/` and reference these files.
+- Prompt templates are embedded in the Rust CLI; overrides can be placed in `ralph/prompts/` and reference these files.
 
 ## Git + CI Expectations (Current Rust State)
 - The execution agent owns the lifecycle: update queue status, run `make ci`, commit, and push.

@@ -8,13 +8,13 @@ usage and migration guidance.
 
 - `.ralph/queue.yaml` — YAML task queue (source of truth for active work).
 - `.ralph/done.yaml` — YAML archive of completed tasks (same schema as queue).
-- `.ralph/prompts/` — optional prompt overrides used by the runner.
+- `ralph/prompts/` — optional prompt overrides (defaults are embedded in the Rust CLI).
 
 ## Minimal Rust Commands
 
 - Validate queue:
   - `cargo run -p ralph -- queue validate`
-- Bootstrap repo files (queue + config):
+- Bootstrap repo files (queue + done + config):
   - `cargo run -p ralph -- init`
 - Inspect queue:
   - `cargo run -p ralph -- queue list`
@@ -33,6 +33,17 @@ usage and migration guidance.
   - `cargo run -p ralph -- run one`
 - Run multiple tasks:
   - `cargo run -p ralph -- run loop --max-tasks 0`
+
+## Prompt Overrides
+
+Defaults are embedded in the Rust CLI. To override prompts for this repo, create files under
+`ralph/prompts/`:
+
+- `ralph/prompts/worker.md`
+- `ralph/prompts/task_builder.md`
+- `ralph/prompts/scan.md`
+
+Missing files fall back to the embedded defaults. Overrides must keep required placeholders.
 
 ## Supervisor Workflow (Rust)
 

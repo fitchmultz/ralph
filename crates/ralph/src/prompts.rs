@@ -1,48 +1,43 @@
 use anyhow::{bail, Context, Result};
 use std::fs;
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-const WORKER_PROMPT_REL_PATH: &str = ".ralph/prompts/worker.md";
-const TASK_BUILDER_PROMPT_REL_PATH: &str = ".ralph/prompts/task_builder.md";
-const SCAN_PROMPT_REL_PATH: &str = ".ralph/prompts/scan.md";
+const WORKER_PROMPT_REL_PATH: &str = "ralph/prompts/worker.md";
+const TASK_BUILDER_PROMPT_REL_PATH: &str = "ralph/prompts/task_builder.md";
+const SCAN_PROMPT_REL_PATH: &str = "ralph/prompts/scan.md";
 
-pub fn worker_prompt_path(repo_root: &Path) -> PathBuf {
-    repo_root.join(WORKER_PROMPT_REL_PATH)
-}
+const DEFAULT_WORKER_PROMPT: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/assets/prompts/worker.md"
+));
+const DEFAULT_TASK_BUILDER_PROMPT: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/assets/prompts/task_builder.md"
+));
+const DEFAULT_SCAN_PROMPT: &str =
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/prompts/scan.md"));
 
 pub fn load_worker_prompt(repo_root: &Path) -> Result<String> {
-    let path = worker_prompt_path(repo_root);
-    match fs::read_to_string(&path) {
-        Ok(contents) => Ok(contents),
-        Err(err) if err.kind() == io::ErrorKind::NotFound => bail!(
-            "worker prompt template not found at {} (expected repo-local prompts).",
-            path.display()
-        ),
-        Err(err) => Err(err).with_context(|| format!("read worker prompt {}", path.display())),
-    }
+    load_prompt_with_fallback(
+        repo_root,
+        WORKER_PROMPT_REL_PATH,
+        DEFAULT_WORKER_PROMPT,
+        "worker",
+    )
 }
 
 pub fn render_worker_prompt(template: &str) -> Result<String> {
     Ok(template.replace("{{INTERACTIVE_INSTRUCTIONS}}", ""))
 }
 
-pub fn task_builder_prompt_path(repo_root: &Path) -> PathBuf {
-    repo_root.join(TASK_BUILDER_PROMPT_REL_PATH)
-}
-
 pub fn load_task_builder_prompt(repo_root: &Path) -> Result<String> {
-    let path = task_builder_prompt_path(repo_root);
-    match fs::read_to_string(&path) {
-        Ok(contents) => Ok(contents),
-        Err(err) if err.kind() == io::ErrorKind::NotFound => bail!(
-            "task builder prompt template not found at {} (expected repo-local prompts).",
-            path.display()
-        ),
-        Err(err) => {
-            Err(err).with_context(|| format!("read task builder prompt {}", path.display()))
-        }
-    }
+    load_prompt_with_fallback(
+        repo_root,
+        TASK_BUILDER_PROMPT_REL_PATH,
+        DEFAULT_TASK_BUILDER_PROMPT,
+        "task builder",
+    )
 }
 
 pub fn render_task_builder_prompt(
@@ -73,20 +68,13 @@ pub fn render_task_builder_prompt(
     Ok(rendered)
 }
 
-pub fn scan_prompt_path(repo_root: &Path) -> PathBuf {
-    repo_root.join(SCAN_PROMPT_REL_PATH)
-}
-
 pub fn load_scan_prompt(repo_root: &Path) -> Result<String> {
-    let path = scan_prompt_path(repo_root);
-    match fs::read_to_string(&path) {
-        Ok(contents) => Ok(contents),
-        Err(err) if err.kind() == io::ErrorKind::NotFound => bail!(
-            "scan prompt template not found at {} (expected repo-local prompts).",
-            path.display()
-        ),
-        Err(err) => Err(err).with_context(|| format!("read scan prompt {}", path.display())),
-    }
+    load_prompt_with_fallback(
+        repo_root,
+        SCAN_PROMPT_REL_PATH,
+        DEFAULT_SCAN_PROMPT,
+        "scan",
+    )
 }
 
 pub fn render_scan_prompt(template: &str, user_focus: &str) -> Result<String> {
@@ -98,9 +86,25 @@ pub fn render_scan_prompt(template: &str, user_focus: &str) -> Result<String> {
     Ok(template.replace("{{USER_FOCUS}}", focus))
 }
 
+fn load_prompt_with_fallback(
+    repo_root: &Path,
+    rel_path: &str,
+    embedded_default: &'static str,
+    label: &str,
+) -> Result<String> {
+    let path = repo_root.join(rel_path);
+    match fs::read_to_string(&path) {
+        Ok(contents) => Ok(contents),
+        Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(embedded_default.to_string()),
+        Err(err) => Err(err).with_context(|| format!("read {label} prompt {}", path.display())),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use tempfile::TempDir;
 
     #[test]
     fn render_worker_prompt_replaces_interactive_instructions() -> Result<()> {
@@ -127,6 +131,25 @@ mod tests {
         assert!(rendered.contains("code"));
         assert!(rendered.contains("repo"));
         assert!(!rendered.contains("{{USER_REQUEST}}"));
+        Ok(())
+    }
+
+    #[test]
+    fn load_worker_prompt_falls_back_to_embedded_default_when_missing() -> Result<()> {
+        let dir = TempDir::new()?;
+        let prompt = load_worker_prompt(dir.path())?;
+        assert!(prompt.contains("# MISSION"));
+        Ok(())
+    }
+
+    #[test]
+    fn load_worker_prompt_uses_override_when_present() -> Result<()> {
+        let dir = TempDir::new()?;
+        let overrides = dir.path().join("ralph/prompts");
+        fs::create_dir_all(&overrides)?;
+        fs::write(overrides.join("worker.md"), "override")?;
+        let prompt = load_worker_prompt(dir.path())?;
+        assert_eq!(prompt, "override");
         Ok(())
     }
 }

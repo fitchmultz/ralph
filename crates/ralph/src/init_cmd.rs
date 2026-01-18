@@ -11,6 +11,7 @@ pub struct InitOptions {
 
 pub struct InitReport {
     pub queue_created: bool,
+    pub done_created: bool,
     pub config_created: bool,
 }
 
@@ -19,6 +20,7 @@ pub fn run_init(resolved: &config::Resolved, opts: InitOptions) -> Result<InitRe
     fs::create_dir_all(&ralph_dir).with_context(|| format!("create {}", ralph_dir.display()))?;
 
     let queue_created = write_queue(&resolved.queue_path, opts.force)?;
+    let done_created = write_done(&resolved.done_path, opts.force)?;
     let config_path = resolved
         .project_config_path
         .as_ref()
@@ -27,6 +29,7 @@ pub fn run_init(resolved: &config::Resolved, opts: InitOptions) -> Result<InitRe
 
     Ok(InitReport {
         queue_created,
+        done_created,
         config_created,
     })
 }
@@ -35,6 +38,9 @@ fn write_queue(path: &Path, force: bool) -> Result<bool> {
     if path.exists() && !force {
         return Ok(false);
     }
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).with_context(|| format!("create {}", parent.display()))?;
+    }
     let queue = QueueFile::default();
     let rendered = serde_yaml::to_string(&queue).context("serialize queue YAML")?;
     fsutil::write_atomic(path, rendered.as_bytes())
@@ -42,9 +48,26 @@ fn write_queue(path: &Path, force: bool) -> Result<bool> {
     Ok(true)
 }
 
+fn write_done(path: &Path, force: bool) -> Result<bool> {
+    if path.exists() && !force {
+        return Ok(false);
+    }
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).with_context(|| format!("create {}", parent.display()))?;
+    }
+    let queue = QueueFile::default();
+    let rendered = serde_yaml::to_string(&queue).context("serialize done YAML")?;
+    fsutil::write_atomic(path, rendered.as_bytes())
+        .with_context(|| format!("write done YAML {}", path.display()))?;
+    Ok(true)
+}
+
 fn write_config(path: &Path, force: bool) -> Result<bool> {
     if path.exists() && !force {
         return Ok(false);
+    }
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).with_context(|| format!("create {}", parent.display()))?;
     }
     let cfg = Config::default();
     let rendered = serde_yaml::to_string(&cfg).context("serialize config YAML")?;
@@ -82,9 +105,12 @@ mod tests {
         let resolved = resolved_for(&dir);
         let report = run_init(&resolved, InitOptions { force: false })?;
         assert!(report.queue_created);
+        assert!(report.done_created);
         assert!(report.config_created);
         let queue = crate::queue::load_queue(&resolved.queue_path)?;
         assert_eq!(queue.version, 1);
+        let done = crate::queue::load_queue(&resolved.done_path)?;
+        assert_eq!(done.version, 1);
         let raw_cfg = std::fs::read_to_string(resolved.project_config_path.as_ref().unwrap())?;
         let cfg: Config = serde_yaml::from_str(&raw_cfg)?;
         assert_eq!(cfg.version, 1);
@@ -97,15 +123,19 @@ mod tests {
         let resolved = resolved_for(&dir);
         std::fs::create_dir_all(resolved.repo_root.join(".ralph"))?;
         std::fs::write(&resolved.queue_path, "version: 1\ntasks:\n  - id: RQ-0001\n    status: todo\n    title: Keep\n    tags: [code]\n    scope: [x]\n    evidence: [y]\n    plan: [z]\n")?;
+        std::fs::write(&resolved.done_path, "version: 1\ntasks:\n  - id: RQ-0002\n    status: done\n    title: Done\n    tags: [code]\n    scope: [x]\n    evidence: [y]\n    plan: [z]\n")?;
         std::fs::write(
             resolved.project_config_path.as_ref().unwrap(),
             "version: 1\nqueue:\n  file: .ralph/queue.yaml\n",
         )?;
         let report = run_init(&resolved, InitOptions { force: false })?;
         assert!(!report.queue_created);
+        assert!(!report.done_created);
         assert!(!report.config_created);
         let raw = std::fs::read_to_string(&resolved.queue_path)?;
         assert!(raw.contains("Keep"));
+        let done_raw = std::fs::read_to_string(&resolved.done_path)?;
+        assert!(done_raw.contains("Done"));
         Ok(())
     }
 
@@ -115,12 +145,14 @@ mod tests {
         let resolved = resolved_for(&dir);
         std::fs::create_dir_all(resolved.repo_root.join(".ralph"))?;
         std::fs::write(&resolved.queue_path, "version: 1\ntasks: []\n")?;
+        std::fs::write(&resolved.done_path, "version: 1\ntasks: []\n")?;
         std::fs::write(
             resolved.project_config_path.as_ref().unwrap(),
             "version: 1\nproject_type: docs\n",
         )?;
         let report = run_init(&resolved, InitOptions { force: true })?;
         assert!(report.queue_created);
+        assert!(report.done_created);
         assert!(report.config_created);
         let cfg_raw = std::fs::read_to_string(resolved.project_config_path.as_ref().unwrap())?;
         let cfg: Config = serde_yaml::from_str(&cfg_raw)?;

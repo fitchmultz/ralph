@@ -192,6 +192,11 @@ fn handle_init(args: InitArgs) -> Result<()> {
     } else {
         println!("queue: exists ({})", resolved.queue_path.display());
     }
+    if report.done_created {
+        println!("done: created ({})", resolved.done_path.display());
+    } else {
+        println!("done: exists ({})", resolved.done_path.display());
+    }
     if report.config_created {
         if let Some(path) = resolved.project_config_path.as_ref() {
             println!("config: created ({})", path.display());

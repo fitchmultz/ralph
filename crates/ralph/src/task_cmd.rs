@@ -4,7 +4,7 @@ use anyhow::{bail, Context, Result};
 use std::collections::HashSet;
 use std::io::Read;
 
-// TaskBuildOptions controls runner-driven task creation via .ralph/prompts/task_builder.md.
+// TaskBuildOptions controls runner-driven task creation via ralph/prompts/task_builder.md.
 pub struct TaskBuildOptions {
     pub request: String,
     pub hint_tags: String,
