@@ -86,7 +86,7 @@ pub fn run_scan(resolved: &config::Resolved, opts: ScanOptions) -> Result<()> {
         }
     };
 
-    let after = match queue::load_queue_with_repair(&resolved.queue_path)
+    let mut after = match queue::load_queue_with_repair(&resolved.queue_path)
         .with_context(|| format!("read queue {}", resolved.queue_path.display()))
     {
         Ok((queue, repaired)) => {
@@ -127,6 +127,16 @@ pub fn run_scan(resolved: &config::Resolved, opts: ScanOptions) -> Result<()> {
 
     if output.success() {
         let added = added_tasks(&before_ids, &after);
+        if !added.is_empty() {
+            let added_ids: Vec<String> = added.iter().map(|(id, _)| id.clone()).collect();
+            let now = time::OffsetDateTime::now_utc()
+                .format(&time::format_description::well_known::Rfc3339)
+                .unwrap_or_else(|_| "2026-01-18T00:00:00Z".to_string());
+            let default_request = format!("scan: {}", opts.focus);
+            queue::backfill_missing_fields(&mut after, &added_ids, &default_request, &now);
+            queue::save_queue(&resolved.queue_path, &after)
+                .context("save queue with backfilled fields")?;
+        }
         if added.is_empty() {
             println!(">> [RALPH] Scan completed. No new tasks detected.");
         } else {

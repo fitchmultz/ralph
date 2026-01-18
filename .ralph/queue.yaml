@@ -1,27 +1,6 @@
 version: 1
 tasks:
-
-
-  - id: RQ-0069
-    status: todo
-    title: Backfill missing request and timestamps after scan or task build
-    tags:
-      - rust
-      - queue
-      - ux
-    scope:
-      - crates/ralph/src/scan_cmd.rs
-      - crates/ralph/src/task_cmd.rs
-      - crates/ralph/src/queue.rs
-    evidence:
-      - scan_cmd and task_cmd do not fill request or created_at and updated_at if runner omits them
-    plan:
-      - Detect newly added tasks lacking request or timestamps
-      - Populate missing fields using the input request and current UTC time
-      - Add tests for backfill behavior
-    request: scan finding
-    created_at: 2026-01-18T20:45:41Z
-    updated_at: 2026-01-18T20:45:41Z
+ 
 
   - id: RQ-0070
     status: todo

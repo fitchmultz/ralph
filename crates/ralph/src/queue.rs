@@ -378,6 +378,39 @@ pub fn next_todo_task(queue: &QueueFile) -> Option<&Task> {
         .find(|task| task.status == TaskStatus::Todo)
 }
 
+pub fn backfill_missing_fields(
+    queue: &mut QueueFile,
+    new_task_ids: &[String],
+    default_request: &str,
+    now_utc: &str,
+) {
+    let now = now_utc.trim();
+    if now.is_empty() {
+        return;
+    }
+
+    for task in queue.tasks.iter_mut() {
+        if !new_task_ids.contains(&task.id.trim().to_string()) {
+            continue;
+        }
+
+        if task.request.as_ref().is_none_or(|r| r.trim().is_empty()) {
+            let req = default_request.trim();
+            if !req.is_empty() {
+                task.request = Some(req.to_string());
+            }
+        }
+
+        if task.created_at.as_ref().is_none_or(|t| t.trim().is_empty()) {
+            task.created_at = Some(now.to_string());
+        }
+
+        if task.updated_at.as_ref().is_none_or(|t| t.trim().is_empty()) {
+            task.updated_at = Some(now.to_string());
+        }
+    }
+}
+
 pub fn filter_tasks<'a>(
     queue: &'a QueueFile,
     statuses: &[TaskStatus],
@@ -1068,6 +1101,148 @@ tasks:
         let (queue, repaired) = load_queue_or_default_with_repair(&queue_path)?;
         assert!(!repaired);
         assert!(queue.tasks.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn backfill_missing_fields_populates_request() -> Result<()> {
+        let mut queue = QueueFile {
+            version: 1,
+            tasks: vec![task("RQ-0001")],
+        };
+        queue.tasks[0].request = None;
+
+        backfill_missing_fields(
+            &mut queue,
+            &["RQ-0001".to_string()],
+            "default request",
+            "2026-01-18T00:00:00Z",
+        );
+
+        assert_eq!(queue.tasks[0].request, Some("default request".to_string()));
+        Ok(())
+    }
+
+    #[test]
+    fn backfill_missing_fields_populates_timestamps() -> Result<()> {
+        let mut queue = QueueFile {
+            version: 1,
+            tasks: vec![task("RQ-0001")],
+        };
+        queue.tasks[0].created_at = None;
+        queue.tasks[0].updated_at = None;
+
+        backfill_missing_fields(
+            &mut queue,
+            &["RQ-0001".to_string()],
+            "default request",
+            "2026-01-18T12:34:56Z",
+        );
+
+        assert_eq!(
+            queue.tasks[0].created_at,
+            Some("2026-01-18T12:34:56Z".to_string())
+        );
+        assert_eq!(
+            queue.tasks[0].updated_at,
+            Some("2026-01-18T12:34:56Z".to_string())
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn backfill_missing_fields_skips_existing_values() -> Result<()> {
+        let mut queue = QueueFile {
+            version: 1,
+            tasks: vec![task("RQ-0001")],
+        };
+
+        backfill_missing_fields(
+            &mut queue,
+            &["RQ-0001".to_string()],
+            "new request",
+            "2026-01-18T12:34:56Z",
+        );
+
+        assert_eq!(queue.tasks[0].request, Some("test request".to_string()));
+        assert_eq!(
+            queue.tasks[0].created_at,
+            Some("2026-01-18T00:00:00Z".to_string())
+        );
+        assert_eq!(
+            queue.tasks[0].updated_at,
+            Some("2026-01-18T00:00:00Z".to_string())
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn backfill_missing_fields_only_affects_specified_ids() -> Result<()> {
+        let mut t1 = task("RQ-0001");
+        t1.request = None;
+        let t2 = task("RQ-0002");
+        let mut queue = QueueFile {
+            version: 1,
+            tasks: vec![t1, t2],
+        };
+
+        backfill_missing_fields(
+            &mut queue,
+            &["RQ-0001".to_string()],
+            "backfilled request",
+            "2026-01-18T12:34:56Z",
+        );
+
+        assert_eq!(
+            queue.tasks[0].request,
+            Some("backfilled request".to_string())
+        );
+        assert_eq!(queue.tasks[1].request, Some("test request".to_string()));
+        Ok(())
+    }
+
+    #[test]
+    fn backfill_missing_fields_handles_empty_string_as_missing() -> Result<()> {
+        let mut queue = QueueFile {
+            version: 1,
+            tasks: vec![task("RQ-0001")],
+        };
+        queue.tasks[0].request = Some("".to_string());
+        queue.tasks[0].created_at = Some("".to_string());
+        queue.tasks[0].updated_at = Some("".to_string());
+
+        backfill_missing_fields(
+            &mut queue,
+            &["RQ-0001".to_string()],
+            "default request",
+            "2026-01-18T12:34:56Z",
+        );
+
+        assert_eq!(queue.tasks[0].request, Some("default request".to_string()));
+        assert_eq!(
+            queue.tasks[0].created_at,
+            Some("2026-01-18T12:34:56Z".to_string())
+        );
+        assert_eq!(
+            queue.tasks[0].updated_at,
+            Some("2026-01-18T12:34:56Z".to_string())
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn backfill_missing_fields_empty_now_skips() -> Result<()> {
+        let mut queue = QueueFile {
+            version: 1,
+            tasks: vec![task("RQ-0001")],
+        };
+        queue.tasks[0].created_at = None;
+        queue.tasks[0].updated_at = None;
+
+        backfill_missing_fields(&mut queue, &["RQ-0001".to_string()], "default request", "");
+
+        assert_eq!(queue.tasks[0].created_at, None);
+        assert_eq!(queue.tasks[0].updated_at, None);
         Ok(())
     }
 }
