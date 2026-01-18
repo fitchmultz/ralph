@@ -1,5 +1,5 @@
-use crate::contracts::{Model, QueueFile, ReasoningEffort, Runner};
-use crate::{config, gitutil, prompts, queue, runner};
+use crate::contracts::{Model, ProjectType, QueueFile, ReasoningEffort, Runner};
+use crate::{config, gitutil, outpututil, prompts, queue, redaction, runner};
 use anyhow::{bail, Context, Result};
 use std::collections::HashSet;
 
@@ -30,7 +30,8 @@ pub fn run_scan(resolved: &config::Resolved, opts: ScanOptions) -> Result<()> {
     let before_ids = task_id_set(&before);
 
     let template = prompts::load_scan_prompt(&resolved.repo_root)?;
-    let prompt = prompts::render_scan_prompt(&template, &opts.focus)?;
+    let project_type = resolved.config.project_type.unwrap_or(ProjectType::Code);
+    let prompt = prompts::render_scan_prompt(&template, &opts.focus, project_type)?;
 
     let codex_bin = resolved
         .config
@@ -101,20 +102,19 @@ pub fn run_scan(resolved: &config::Resolved, opts: ScanOptions) -> Result<()> {
         return Err(err);
     }
 
-    let added = added_tasks(&before_ids, &after);
-    if added.is_empty() {
-        println!(">> [RALPH] Scan completed. No new tasks detected.");
-    } else {
-        println!(">> [RALPH] Scan added {} task(s):", added.len());
-        for (id, title) in added.iter().take(15) {
-            println!("- {}: {}", id, title);
-        }
-        if added.len() > 15 {
-            println!("...and {} more.", added.len() - 15);
-        }
-    }
-
     if output.success() {
+        let added = added_tasks(&before_ids, &after);
+        if added.is_empty() {
+            println!(">> [RALPH] Scan completed. No new tasks detected.");
+        } else {
+            println!(">> [RALPH] Scan added {} task(s):", added.len());
+            for (id, title) in added.iter().take(15) {
+                println!("- {}: {}", id, title);
+            }
+            if added.len() > 15 {
+                println!("...and {} more.", added.len() - 15);
+            }
+        }
         return Ok(());
     }
 
@@ -123,8 +123,25 @@ pub fn run_scan(resolved: &config::Resolved, opts: ScanOptions) -> Result<()> {
         None => "scan runner terminated by signal".to_string(),
     };
 
+    let combined = output.combined();
+    let redacted = redaction::redact_text(&combined);
+    let tail = outpututil::tail_lines(
+        &redacted,
+        outpututil::OUTPUT_TAIL_LINES,
+        outpututil::OUTPUT_TAIL_LINE_MAX_CHARS,
+    );
+    if !tail.is_empty() {
+        eprintln!(">> [RALPH] scan runner output (tail):");
+        for line in tail {
+            eprintln!(">> [RALPH] scan runner: {line}");
+        }
+    }
+
     gitutil::revert_uncommitted(&resolved.repo_root)?;
-    bail!(exit_reason)
+    bail!(
+        "{}; reverted uncommitted changes; rerun is recommended",
+        exit_reason
+    )
 }
 
 fn task_id_set(queue: &QueueFile) -> HashSet<String> {

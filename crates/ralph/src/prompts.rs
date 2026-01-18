@@ -1,3 +1,4 @@
+use crate::contracts::ProjectType;
 use anyhow::{bail, Context, Result};
 use std::fs;
 use std::io;
@@ -29,8 +30,43 @@ pub fn load_worker_prompt(repo_root: &Path) -> Result<String> {
     )
 }
 
-pub fn render_worker_prompt(template: &str) -> Result<String> {
-    Ok(template.replace("{{INTERACTIVE_INSTRUCTIONS}}", ""))
+fn project_type_guidance(project_type: ProjectType) -> &'static str {
+    match project_type {
+        ProjectType::Code => {
+            r#"
+## PROJECT TYPE: CODE
+
+This is a code repository. Prioritize:
+- Implementation correctness and type safety
+- Test coverage and regression prevention
+- Performance and resource efficiency
+- Clean, maintainable code structure
+"#
+        }
+        ProjectType::Docs => {
+            r#"
+## PROJECT TYPE: DOCS
+
+This is a documentation repository. Prioritize:
+- Clear, accurate information
+- Consistent formatting and structure
+- Accessibility and readability
+- Examples and practical guidance
+"#
+        }
+    }
+}
+
+pub fn render_worker_prompt(template: &str, project_type: ProjectType) -> Result<String> {
+    let guidance = project_type_guidance(project_type);
+    let rendered = if template.contains("{{PROJECT_TYPE_GUIDANCE}}") {
+        template.replace("{{PROJECT_TYPE_GUIDANCE}}", guidance)
+    } else {
+        format!("{}\n{}", template, guidance)
+    };
+    let rendered = rendered.replace("{{INTERACTIVE_INSTRUCTIONS}}", "");
+    ensure_no_unresolved_placeholders(&rendered, "worker")?;
+    Ok(rendered)
 }
 
 pub fn load_task_builder_prompt(repo_root: &Path) -> Result<String> {
@@ -47,6 +83,7 @@ pub fn render_task_builder_prompt(
     user_request: &str,
     hint_tags: &str,
     hint_scope: &str,
+    project_type: ProjectType,
 ) -> Result<String> {
     if !template.contains("{{USER_REQUEST}}") {
         bail!("task builder prompt template missing {{USER_REQUEST}} placeholder");
@@ -63,10 +100,17 @@ pub fn render_task_builder_prompt(
         bail!("user request must be non-empty");
     }
 
-    let mut rendered = template.replace("{{USER_REQUEST}}", request);
+    let guidance = project_type_guidance(project_type);
+    let mut rendered = if template.contains("{{PROJECT_TYPE_GUIDANCE}}") {
+        template.replace("{{PROJECT_TYPE_GUIDANCE}}", guidance)
+    } else {
+        format!("{}\n{}", template, guidance)
+    };
+    rendered = rendered.replace("{{USER_REQUEST}}", request);
     rendered = rendered.replace("{{HINT_TAGS}}", hint_tags.trim());
     rendered = rendered.replace("{{HINT_SCOPE}}", hint_scope.trim());
     rendered = rendered.replace("{{INTERACTIVE_INSTRUCTIONS}}", "");
+    ensure_no_unresolved_placeholders(&rendered, "task builder")?;
     Ok(rendered)
 }
 
@@ -74,13 +118,70 @@ pub fn load_scan_prompt(repo_root: &Path) -> Result<String> {
     load_prompt_with_fallback(repo_root, SCAN_PROMPT_REL_PATH, DEFAULT_SCAN_PROMPT, "scan")
 }
 
-pub fn render_scan_prompt(template: &str, user_focus: &str) -> Result<String> {
+pub fn render_scan_prompt(
+    template: &str,
+    user_focus: &str,
+    project_type: ProjectType,
+) -> Result<String> {
     if !template.contains("{{USER_FOCUS}}") {
         bail!("scan prompt template missing {{USER_FOCUS}} placeholder");
     }
     let focus = user_focus.trim();
     let focus = if focus.is_empty() { "(none)" } else { focus };
-    Ok(template.replace("{{USER_FOCUS}}", focus))
+
+    let guidance = project_type_guidance(project_type);
+    let rendered = if template.contains("{{PROJECT_TYPE_GUIDANCE}}") {
+        template.replace("{{PROJECT_TYPE_GUIDANCE}}", guidance)
+    } else {
+        format!("{}\n{}", template, guidance)
+    };
+    let rendered = rendered.replace("{{USER_FOCUS}}", focus);
+    ensure_no_unresolved_placeholders(&rendered, "scan")?;
+    Ok(rendered)
+}
+
+fn unresolved_placeholders(rendered: &str) -> Vec<String> {
+    let mut placeholders = Vec::new();
+    let bytes = rendered.as_bytes();
+    let mut i = 0;
+
+    while i < bytes.len().saturating_sub(3) {
+        if bytes[i] == b'{' && bytes[i + 1] == b'{' {
+            if let Some(end) = bytes[i..].iter().position(|&b| b == b'}') {
+                let end_idx = i + end;
+                if end_idx < bytes.len().saturating_sub(1) && bytes[end_idx + 1] == b'}' {
+                    let placeholder = &rendered[i..end_idx + 2];
+                    let trimmed = placeholder.trim_matches(|c| c == '{' || c == '}');
+                    if !trimmed.is_empty() {
+                        placeholders.push(trimmed.to_uppercase());
+                    }
+                    i = end_idx + 2;
+                    continue;
+                }
+            }
+        }
+        i += 1;
+    }
+
+    let mut unique: Vec<String> = placeholders
+        .into_iter()
+        .collect::<std::collections::HashSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+    unique.sort();
+    unique
+}
+
+fn ensure_no_unresolved_placeholders(rendered: &str, label: &str) -> Result<()> {
+    let placeholders = unresolved_placeholders(rendered);
+    if !placeholders.is_empty() {
+        bail!(
+            "prompt validation failed for {}: unresolved placeholders remain after rendering: {}",
+            label,
+            placeholders.join(", ")
+        );
+    }
+    Ok(())
 }
 
 fn load_prompt_with_fallback(
@@ -106,7 +207,7 @@ mod tests {
     #[test]
     fn render_worker_prompt_replaces_interactive_instructions() -> Result<()> {
         let template = "Hello\n{{INTERACTIVE_INSTRUCTIONS}}\n";
-        let rendered = render_worker_prompt(template)?;
+        let rendered = render_worker_prompt(template, ProjectType::Code)?;
         assert!(!rendered.contains("{{INTERACTIVE_INSTRUCTIONS}}"));
         Ok(())
     }
@@ -114,7 +215,7 @@ mod tests {
     #[test]
     fn render_scan_prompt_replaces_focus_placeholder() -> Result<()> {
         let template = "FOCUS:\n{{USER_FOCUS}}\n";
-        let rendered = render_scan_prompt(template, "hello world")?;
+        let rendered = render_scan_prompt(template, "hello world", ProjectType::Code)?;
         assert!(rendered.contains("hello world"));
         assert!(!rendered.contains("{{USER_FOCUS}}"));
         Ok(())
@@ -123,7 +224,8 @@ mod tests {
     #[test]
     fn render_task_builder_prompt_replaces_placeholders() -> Result<()> {
         let template = "Request:\n{{USER_REQUEST}}\nTags:\n{{HINT_TAGS}}\nScope:\n{{HINT_SCOPE}}\n";
-        let rendered = render_task_builder_prompt(template, "do thing", "code", "repo")?;
+        let rendered =
+            render_task_builder_prompt(template, "do thing", "code", "repo", ProjectType::Code)?;
         assert!(rendered.contains("do thing"));
         assert!(rendered.contains("code"));
         assert!(rendered.contains("repo"));
@@ -148,5 +250,38 @@ mod tests {
         let prompt = load_worker_prompt(dir.path())?;
         assert_eq!(prompt, "override");
         Ok(())
+    }
+
+    #[test]
+    fn ensure_no_unresolved_placeholders_passes_when_none_remain() -> Result<()> {
+        let rendered = "Hello world";
+        assert!(ensure_no_unresolved_placeholders(rendered, "test").is_ok());
+        Ok(())
+    }
+
+    #[test]
+    fn ensure_no_unresolved_placeholders_fails_with_placeholder() -> Result<()> {
+        let rendered = "Hello {{MISSING}} world";
+        let err = ensure_no_unresolved_placeholders(rendered, "test").unwrap_err();
+        assert!(err.to_string().contains("MISSING"));
+        assert!(err.to_string().contains("unresolved placeholders"));
+        Ok(())
+    }
+
+    #[test]
+    fn unresolved_placeholders_finds_all_placeholders() {
+        let rendered = "Test {{ONE}} and {{TWO}} and {{three}}";
+        let placeholders = unresolved_placeholders(rendered);
+        assert_eq!(placeholders.len(), 3);
+        assert!(placeholders.contains(&"ONE".to_string()));
+        assert!(placeholders.contains(&"TWO".to_string()));
+        assert!(placeholders.contains(&"THREE".to_string()));
+    }
+
+    #[test]
+    fn unresolved_placeholders_returns_sorted_unique() {
+        let rendered = "Test {{Z}} and {{A}} and {{B}} and {{A}}";
+        let placeholders = unresolved_placeholders(rendered);
+        assert_eq!(placeholders, vec!["A", "B", "Z"]);
     }
 }

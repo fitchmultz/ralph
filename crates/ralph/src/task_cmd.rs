@@ -1,5 +1,5 @@
-use crate::contracts::{Model, QueueFile, ReasoningEffort, Runner};
-use crate::{config, gitutil, prompts, queue, runner};
+use crate::contracts::{Model, ProjectType, QueueFile, ReasoningEffort, Runner};
+use crate::{config, gitutil, outpututil, prompts, queue, redaction, runner};
 use anyhow::{bail, Context, Result};
 use std::collections::HashSet;
 use std::io::Read;
@@ -58,11 +58,13 @@ pub fn build_task(resolved: &config::Resolved, opts: TaskBuildOptions) -> Result
     let before_ids = task_id_set(&before);
 
     let template = prompts::load_task_builder_prompt(&resolved.repo_root)?;
+    let project_type = resolved.config.project_type.unwrap_or(ProjectType::Code);
     let prompt = prompts::render_task_builder_prompt(
         &template,
         &opts.request,
         &opts.hint_tags,
         &opts.hint_scope,
+        project_type,
     )?;
 
     let codex_bin = resolved
@@ -134,20 +136,19 @@ pub fn build_task(resolved: &config::Resolved, opts: TaskBuildOptions) -> Result
         return Err(err);
     }
 
-    let added = added_tasks(&before_ids, &after);
-    if added.is_empty() {
-        println!(">> [RALPH] Task builder completed. No new tasks detected.");
-    } else {
-        println!(">> [RALPH] Task builder added {} task(s):", added.len());
-        for (id, title) in added.iter().take(10) {
-            println!("- {}: {}", id, title);
-        }
-        if added.len() > 10 {
-            println!("...and {} more.", added.len() - 10);
-        }
-    }
-
     if output.success() {
+        let added = added_tasks(&before_ids, &after);
+        if added.is_empty() {
+            println!(">> [RALPH] Task builder completed. No new tasks detected.");
+        } else {
+            println!(">> [RALPH] Task builder added {} task(s):", added.len());
+            for (id, title) in added.iter().take(10) {
+                println!("- {}: {}", id, title);
+            }
+            if added.len() > 10 {
+                println!("...and {} more.", added.len() - 10);
+            }
+        }
         return Ok(());
     }
 
@@ -156,8 +157,25 @@ pub fn build_task(resolved: &config::Resolved, opts: TaskBuildOptions) -> Result
         None => "task builder runner terminated by signal".to_string(),
     };
 
+    let combined = output.combined();
+    let redacted = redaction::redact_text(&combined);
+    let tail = outpututil::tail_lines(
+        &redacted,
+        outpututil::OUTPUT_TAIL_LINES,
+        outpututil::OUTPUT_TAIL_LINE_MAX_CHARS,
+    );
+    if !tail.is_empty() {
+        eprintln!(">> [RALPH] task builder output (tail):");
+        for line in tail {
+            eprintln!(">> [RALPH] task builder: {line}");
+        }
+    }
+
     gitutil::revert_uncommitted(&resolved.repo_root)?;
-    bail!(exit_reason)
+    bail!(
+        "{}; reverted uncommitted changes; rerun is recommended",
+        exit_reason
+    )
 }
 
 fn task_id_set(queue: &QueueFile) -> HashSet<String> {

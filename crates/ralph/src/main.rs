@@ -3,6 +3,7 @@ mod contracts;
 mod config;
 mod fsutil;
 mod init_cmd;
+mod outpututil;
 mod queue;
 mod redaction;
 mod run_cmd;

@@ -73,6 +73,8 @@ Ralph uses a two-layer YAML config:
 
 ## Project Types
 
-Ralph supports a configurable `project_type` (`code` or `docs`) to tune prompts and workflows. This is read from config and primarily affects prompt defaults.
+ Ralph supports a configurable `project_type` (`code` or `docs`) to tune prompts and workflows. This is read from config and injects a project-type-specific guidance section into all prompts (worker, scan, and task builder).
 
-See `.ralph/README.md` for Rust runtime-file details.
+ The guidance section appears at the end of each prompt if the `{{PROJECT_TYPE_GUIDANCE}}` placeholder is not present in a custom prompt override.
+
+ See `.ralph/README.md` for Rust runtime-file details.

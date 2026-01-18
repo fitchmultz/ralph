@@ -13,7 +13,16 @@ pub struct ArchiveReport {
 
 pub fn load_queue(path: &Path) -> Result<QueueFile> {
     let raw = std::fs::read_to_string(path)
-        .with_context(|| format!("read queue file {}", path.display()))?;
+        .map_err(|err| {
+            if err.kind() == std::io::ErrorKind::NotFound {
+                anyhow!(
+                    "queue file not found: {}; run `ralph init` or inspect paths via `ralph config paths`",
+                    path.display()
+                )
+            } else {
+                anyhow::anyhow!(err).context(format!("read queue file {}", path.display()))
+            }
+        })?;
     let queue: QueueFile = serde_yaml::from_str(&raw)
         .with_context(|| format!("parse queue YAML {}", path.display()))?;
     Ok(queue)

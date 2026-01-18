@@ -8,6 +8,7 @@ Ship correct, durable changes quickly and safely.
 3. `.ralph/queue.yaml`
 
 # INSTRUCTIONS
+{{PROJECT_TYPE_GUIDANCE}}
 {{INTERACTIVE_INSTRUCTIONS}}
 
 ## OPERATING RULES

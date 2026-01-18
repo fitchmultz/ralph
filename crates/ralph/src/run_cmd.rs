@@ -1,12 +1,9 @@
 use crate::config;
-use crate::contracts::{Model, QueueFile, ReasoningEffort, Runner, TaskStatus};
-use crate::{gitutil, prompts, queue, redaction, runner, timeutil};
+use crate::contracts::{Model, ProjectType, QueueFile, ReasoningEffort, Runner, TaskStatus};
+use crate::{gitutil, outpututil, prompts, queue, redaction, runner, timeutil};
 use anyhow::{anyhow, bail, Context, Result};
 use std::path::Path;
 use std::process::{Command, Stdio};
-
-const OUTPUT_TAIL_LINES: usize = 20;
-const OUTPUT_TAIL_LINE_MAX_CHARS: usize = 200;
 
 pub enum RunOutcome {
     NoTodo,
@@ -105,7 +102,8 @@ pub fn run_one(resolved: &config::Resolved) -> Result<RunOutcome> {
         .unwrap_or("opencode");
 
     let template = prompts::load_worker_prompt(&resolved.repo_root)?;
-    let prompt = prompts::render_worker_prompt(&template)?;
+    let project_type = resolved.config.project_type.unwrap_or(ProjectType::Code);
+    let prompt = prompts::render_worker_prompt(&template, project_type)?;
 
     let output = match runner::run_prompt(
         runner_kind,
@@ -134,7 +132,11 @@ pub fn run_one(resolved: &config::Resolved) -> Result<RunOutcome> {
 
         let combined = output.combined();
         let redacted = redaction::redact_text(&combined);
-        let tail = tail_lines(&redacted, OUTPUT_TAIL_LINES, OUTPUT_TAIL_LINE_MAX_CHARS);
+        let tail = outpututil::tail_lines(
+            &redacted,
+            outpututil::OUTPUT_TAIL_LINES,
+            outpututil::OUTPUT_TAIL_LINE_MAX_CHARS,
+        );
         if !tail.is_empty() {
             eprintln!(">> [RALPH] runner output (tail):");
             for line in tail {
@@ -316,60 +318,5 @@ fn format_task_commit_message(task_id: &str, title: &str) -> String {
     let mut raw = format!("{task_id}: {title}");
     raw = raw.replace(['\n', '\r', '\t'], " ");
     let squashed = raw.split_whitespace().collect::<Vec<&str>>().join(" ");
-    truncate_chars(&squashed, 100)
-}
-
-fn tail_lines(text: &str, max_lines: usize, max_chars: usize) -> Vec<String> {
-    if max_lines == 0 || text.trim().is_empty() {
-        return Vec::new();
-    }
-    let mut lines: Vec<&str> = text
-        .lines()
-        .map(|l| l.trim_end())
-        .filter(|l| !l.trim().is_empty())
-        .collect();
-
-    if lines.len() > max_lines {
-        lines = lines[lines.len() - max_lines..].to_vec();
-    }
-
-    lines
-        .into_iter()
-        .map(|line| truncate_chars(line.trim(), max_chars))
-        .collect()
-}
-
-fn truncate_chars(value: &str, max_chars: usize) -> String {
-    if max_chars == 0 {
-        return String::new();
-    }
-    let mut chars = value.chars();
-    let mut out = String::new();
-    for _ in 0..max_chars {
-        match chars.next() {
-            Some(ch) => out.push(ch),
-            None => return out,
-        }
-    }
-    if chars.next().is_none() {
-        return out;
-    }
-    if max_chars <= 3 {
-        return out;
-    }
-    out.truncate(max_chars - 3);
-    out.push_str("...");
-    out
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn truncate_chars_adds_ellipsis() {
-        let value = "abcdefghijklmnopqrstuvwxyz";
-        let truncated = truncate_chars(value, 10);
-        assert_eq!(truncated, "abcdefg...");
-    }
+    outpututil::truncate_chars(&squashed, 100)
 }

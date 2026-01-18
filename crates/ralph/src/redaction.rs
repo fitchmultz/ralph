@@ -13,6 +13,9 @@ pub fn redact_text(value: &str) -> String {
 
 pub fn looks_sensitive_env_key(key: &str) -> bool {
     let normalized = normalize_key(key);
+    if normalized == "APIKEY" || normalized == "PRIVATEKEY" {
+        return true;
+    }
     for token in normalized.split(['_', '-']) {
         if token.is_empty() {
             continue;
@@ -207,7 +210,8 @@ mod tests {
             ("HOME", false),
             ("SHELL", false),
             ("MONKEY", false),
-            ("PRIVATEKEY", false),
+            ("PRIVATEKEY", true),
+            ("APIKEY", true),
         ];
 
         for (key, expected) in cases {
@@ -276,5 +280,19 @@ mod tests {
         std::env::remove_var("PATH");
 
         assert!(output.contains("/usr/bin"));
+    }
+
+    #[test]
+    fn redact_text_masks_privatekey_env_value() {
+        let _guard = env_lock().lock().expect("env lock");
+        std::env::set_var("PRIVATEKEY", "supersecretkeyvalue");
+
+        let input = "key is supersecretkeyvalue";
+        let output = redact_text(input);
+
+        std::env::remove_var("PRIVATEKEY");
+
+        assert!(!output.contains("supersecretkeyvalue"));
+        assert!(output.contains(REDACTED));
     }
 }
