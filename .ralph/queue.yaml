@@ -58,26 +58,6 @@ tasks:
     request: scan finding
     created_at: 2026-01-18T20:45:41Z
     updated_at: 2026-01-18T20:45:41Z
-
-  - id: RQ-0061
-    status: todo
-    title: Remove install side effects from make ci
-    tags:
-      - build
-      - workflow
-      - tooling
-    scope:
-      - Makefile
-    evidence:
-      - make ci includes install which writes to a user bin directory and runs ralph --help
-    plan:
-      - Remove install from the ci target or split into a separate target
-      - Ensure ci still runs generate format type-check lint build test
-      - Update docs if they imply make ci installs binaries
-    request: scan finding
-    created_at: 2026-01-18T20:45:41Z
-    updated_at: 2026-01-18T20:45:41Z
-
   - id: RQ-0062
     status: todo
     title: Use YAML repair when loading queue before scan
@@ -169,7 +149,7 @@ tasks:
     evidence:
       - repair_yaml_scalars skips quoting list items when looks_like_mapping returns true
     plan:
-      - 'Adjust list item repair logic to quote ambiguous scalars like foo: bar'
+      - "Adjust list item repair logic to quote ambiguous scalars like foo: bar"
       - Add tests for evidence and plan list items containing colon patterns
       - Confirm mapping detection still works for real mappings
     request: scan finding
