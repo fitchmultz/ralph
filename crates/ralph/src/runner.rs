@@ -441,7 +441,9 @@ fn run_claude_direct(
         .arg("--model")
         .arg(model.as_str())
         .arg("--permission-mode")
-        .arg(permission_mode_to_arg(mode));
+        .arg(permission_mode_to_arg(mode))
+        .arg("--output-format")
+        .arg("stream");
     run_with_streaming(cmd, Some(prompt.as_bytes()), bin, timeout)
 }
 
