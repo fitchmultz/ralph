@@ -562,3 +562,30 @@ tasks:
     created_at: 2026-01-19T04:00:47Z
     updated_at: 2026-01-19T04:42:03Z
     completed_at: 2026-01-19T04:42:03Z
+  - id: RQ-0097
+    status: done
+    title: Refactor gitutil.rs to use thiserror for structured errors
+    tags:
+      - rust
+      - git
+      - refactor
+    scope:
+      - crates/ralph/src/gitutil.rs
+    evidence:
+      - |-
+        `gitutil.rs` uses a manual `GitPushError` struct and `classify_push_error` that
+        just returns strings for `bail!`. It doesn't leverage `thiserror` for real types.
+    plan:
+      - Define a proper `GitError` enum using `thiserror`.
+      - "Include variants for common failures: NoUpstream, AuthFailed, DirtyRepo, etc."
+      - Update call sites to use these structured errors for better programmatic handling and consistent display.
+    notes:
+      - Defined `GitError` enum using `thiserror` in `gitutil.rs`.
+      - Replaced `GitPushError` with `GitError` variants (NoUpstream, AuthFailed, PushFailed, DirtyRepo, CommandFailed).
+      - Updated `gitutil` functions to return `Result<T, GitError>`.
+      - Refactored `run_cmd::push_if_ahead` to use structured error matching for skipping push when no upstream is configured.
+      - Verified with `make ci`.
+    request: scan finding
+    created_at: 2026-01-19T04:00:47Z
+    updated_at: 2026-01-18T10:15:00Z
+    completed_at: 2026-01-18T10:15:00Z

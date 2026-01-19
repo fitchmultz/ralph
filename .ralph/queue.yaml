@@ -1,26 +1,5 @@
 version: 1
 tasks:
-  - id: RQ-0097
-    status: todo
-    title: Refactor gitutil.rs to use thiserror for structured errors
-    tags:
-      - rust
-      - git
-      - refactor
-    scope:
-      - crates/ralph/src/gitutil.rs
-    evidence:
-      - |-
-        `gitutil.rs` uses a manual `GitPushError` struct and `classify_push_error` that
-        just returns strings for `bail!`. It doesn't leverage `thiserror` for real types.
-    plan:
-      - Define a proper `GitError` enum using `thiserror`.
-      - "Include variants for common failures: NoUpstream, AuthFailed, DirtyRepo, etc."
-      - Update call sites to use these structured errors for better programmatic handling and consistent display.
-    notes: []
-    request: scan finding
-    created_at: 2026-01-19T04:00:47Z
-    updated_at: 2026-01-19T04:00:47Z
   - id: RQ-0091
     status: todo
     title: Standardize top-level error formatting and redaction in main.rs

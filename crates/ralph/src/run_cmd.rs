@@ -1,5 +1,6 @@
 use crate::config;
 use crate::contracts::{Model, ProjectType, QueueFile, ReasoningEffort, Runner, TaskStatus};
+use crate::gitutil::GitError;
 use crate::{gitutil, outpututil, prompts, queue, redaction, runner, timeutil};
 use anyhow::{anyhow, bail, Context, Result};
 use std::path::Path;
@@ -382,12 +383,11 @@ fn push_if_ahead(repo_root: &Path) -> Result<()> {
                 return Ok(());
             }
         }
+        Err(GitError::NoUpstream) | Err(GitError::NoUpstreamConfigured) => {
+            log::warn!("skipping push (no upstream configured)");
+            return Ok(());
+        }
         Err(err) => {
-            let msg = err.to_string().to_lowercase();
-            if msg.contains("no upstream") {
-                log::warn!("skipping push (no upstream configured)");
-                return Ok(());
-            }
             return Err(anyhow!("upstream check failed: {:#}", err));
         }
     }
