@@ -72,29 +72,6 @@ fn build_queue(
     (active, done)
 }
 
-fn build_raw_yaml_with_colons(task_count: u32, id_prefix: &str, id_width: usize) -> String {
-    let mut out = String::from("version: 1\ntasks:\n");
-    for i in 1..=task_count {
-        out.push_str(&format!(
-            "  - id: {id_prefix}-{i:0width$}\n",
-            width = id_width
-        ));
-        out.push_str("    status: todo\n");
-        out.push_str(&format!("    title: Task {i}: needs repair\n"));
-        out.push_str("    tags:\n      - rust\n");
-        out.push_str("    scope:\n      - crates/ralph\n");
-        out.push_str(&format!(
-            "    evidence:\n      - evidence {i}: contains colon\n"
-        ));
-        out.push_str(&format!("    plan:\n      - plan {i}: exercise repair\n"));
-        out.push_str("    notes: []\n");
-        out.push_str("    request: stress test\n");
-        out.push_str("    created_at: 2026-01-18T00:00:00Z\n");
-        out.push_str("    updated_at: 2026-01-18T00:00:00Z\n");
-    }
-    out
-}
-
 fn make_task(id_num: u32, status: TaskStatus) -> Task {
     make_task_with(id_num, status, ID_PREFIX, ID_WIDTH)
 }
@@ -104,8 +81,8 @@ fn write_queue_files(
     active: &QueueFile,
     done: &QueueFile,
 ) -> Result<(PathBuf, PathBuf)> {
-    let queue_path = dir.path().join("queue.yaml");
-    let done_path = dir.path().join("done.yaml");
+    let queue_path = dir.path().join("queue.json");
+    let done_path = dir.path().join("done.json");
     queue::save_queue(&queue_path, active).with_context(|| "save active queue")?;
     queue::save_queue(&done_path, done).with_context(|| "save done queue")?;
     Ok((queue_path, done_path))
@@ -155,13 +132,8 @@ fn stress_queue_ops_large_scale() -> Result<()> {
     let dir = TempDir::new().context("create temp dir")?;
     let (queue_path, done_path) = write_queue_files(&dir, &active, &done)?;
 
-    let (reloaded_active, repaired_active) =
-        queue::load_queue_with_repair(&queue_path, ID_PREFIX, ID_WIDTH).context("load active")?;
-    anyhow::ensure!(!repaired_active, "unexpected repair on valid YAML (active)");
-
-    let (reloaded_done, repaired_done) =
-        queue::load_queue_with_repair(&done_path, ID_PREFIX, ID_WIDTH).context("load done")?;
-    anyhow::ensure!(!repaired_done, "unexpected repair on valid YAML (done)");
+    let reloaded_active = queue::load_queue(&queue_path).context("load active")?;
+    let reloaded_done = queue::load_queue(&done_path).context("load done")?;
 
     queue::validate_queue_set(&reloaded_active, Some(&reloaded_done), ID_PREFIX, ID_WIDTH)
         .context("validate reloaded queue set")?;
@@ -211,13 +183,7 @@ fn stress_queue_archive_and_mutate_cycles() -> Result<()> {
     let now = "2026-01-18T00:00:00Z";
 
     for iter in 0..profile.iterations {
-        let (mut current, repaired_current) =
-            queue::load_queue_with_repair(&queue_path, ID_PREFIX, ID_WIDTH)
-                .context("load active")?;
-        anyhow::ensure!(
-            !repaired_current,
-            "unexpected repair on valid YAML (active)"
-        );
+        let mut current = queue::load_queue(&queue_path).context("load active")?;
         let start = 1 + iter * profile.archive_batch;
         if start > profile.total_tasks {
             break;
@@ -233,52 +199,49 @@ fn stress_queue_archive_and_mutate_cycles() -> Result<()> {
         let _report = queue::archive_done_tasks(&queue_path, &done_path, ID_PREFIX, ID_WIDTH)
             .with_context(|| format!("archive iteration {iter}"))?;
 
-        let active_reloaded = queue::load_queue_with_repair(&queue_path, ID_PREFIX, ID_WIDTH)
-            .context("reload active")?;
-        anyhow::ensure!(
-            !active_reloaded.1,
-            "unexpected repair on valid YAML (active)"
-        );
-        let done_reloaded = queue::load_queue_with_repair(&done_path, ID_PREFIX, ID_WIDTH)
-            .context("reload done")?;
-        anyhow::ensure!(!done_reloaded.1, "unexpected repair on valid YAML (done)");
-        queue::validate_queue_set(
-            &active_reloaded.0,
-            Some(&done_reloaded.0),
-            ID_PREFIX,
-            ID_WIDTH,
-        )
-        .context("validate after iteration")?;
+        let active_reloaded = queue::load_queue(&queue_path).context("reload active")?;
+        let done_reloaded = queue::load_queue(&done_path).context("reload done")?;
+        queue::validate_queue_set(&active_reloaded, Some(&done_reloaded), ID_PREFIX, ID_WIDTH)
+            .context("validate after iteration")?;
     }
 
     Ok(())
 }
 
 #[test]
-fn stress_queue_repair_large_yaml_scalars() -> Result<()> {
+fn stress_queue_load_large_yaml_scalars() -> Result<()> {
     let dir = TempDir::new().context("create temp dir")?;
-    let queue_path = dir.path().join("queue.yaml");
-    let raw = build_raw_yaml_with_colons(2000, ID_PREFIX, ID_WIDTH);
-    std::fs::write(&queue_path, raw).context("write raw queue")?;
+    let queue_path = dir.path().join("queue.json");
 
-    let (queue, repaired) = queue::load_queue_with_repair(&queue_path, ID_PREFIX, ID_WIDTH)?;
-    anyhow::ensure!(repaired, "expected repair for colon scalars");
-    anyhow::ensure!(queue.tasks.len() == 2000, "unexpected task count");
+    // Build a large queue and save it
+    let mut queue = QueueFile {
+        version: 1,
+        tasks: Vec::new(),
+    };
+    for i in 1..=2000 {
+        queue
+            .tasks
+            .push(make_task_with(i, TaskStatus::Todo, ID_PREFIX, ID_WIDTH));
+    }
+    queue::save_queue(&queue_path, &queue)?;
 
-    queue::validate_queue(&queue, ID_PREFIX, ID_WIDTH).context("validate repaired queue")?;
+    let reloaded = queue::load_queue(&queue_path)?;
+    anyhow::ensure!(reloaded.tasks.len() == 2000, "unexpected task count");
+
+    queue::validate_queue(&reloaded, ID_PREFIX, ID_WIDTH).context("validate loaded queue")?;
 
     Ok(())
 }
 
 #[test]
-fn stress_queue_repair_edge_cases() -> Result<()> {
+fn stress_queue_yaml_fallback() -> Result<()> {
     let dir = TempDir::new().context("create temp dir")?;
     let id_prefix = "RQ";
     let id_width = 4;
 
-    // Case 1: Truncated YAML
+    // Case 1: Incomplete YAML - should parse with defaults
     {
-        let queue_path = dir.path().join("truncated.yaml");
+        let queue_path = dir.path().join("incomplete.yaml");
         let raw = r#"version: 1
 tasks:
   - id: RQ-0001
@@ -287,27 +250,16 @@ tasks:
     tags:
       - test
 "#;
-        std::fs::write(&queue_path, raw).context("write truncated queue")?;
+        std::fs::write(&queue_path, raw).context("write incomplete queue")?;
 
-        // This should fail to parse but might be repairable if repair_queue_schema can handle partials.
-        // Actually, repair_queue_schema uses serde_yaml::from_str(raw).ok()?, which will return None for invalid YAML.
-        // So it depends on if the other repair_yaml_* functions can make it valid enough for serde_yaml.
-        let result = queue::load_queue_with_repair(&queue_path, id_prefix, id_width);
-        // Truncated YAML usually cannot be safely repaired unless we know how to close it.
-        // Ralph's repair logic currently doesn't "close" truncated YAML, so this might remain an error.
-        // But we want to see HOW it fails or if it can recover anything.
-        if let Ok((q, repaired)) = result {
-            println!(
-                "Truncated YAML repaired: {}, tasks: {}",
-                repaired,
-                q.tasks.len()
-            );
-        } else {
-            println!("Truncated YAML correctly failed to parse/repair");
-        }
+        let result = queue::load_queue(&queue_path);
+        anyhow::ensure!(result.is_ok(), "incomplete YAML should parse with defaults");
+        let queue = result?;
+        anyhow::ensure!(queue.tasks.len() == 1, "should have 1 task");
+        anyhow::ensure!(queue.tasks[0].id == "RQ-0001", "task ID should match");
     }
 
-    // Case 2: Invalid types (string for version)
+    // Case 2: Invalid types (string for version) - should fail
     {
         let queue_path = dir.path().join("invalid_types.yaml");
         let raw = r#"version: "one"
@@ -329,39 +281,22 @@ tasks:
 "#;
         std::fs::write(&queue_path, raw).context("write invalid types queue")?;
 
-        let (queue, repaired) = queue::load_queue_with_repair(&queue_path, id_prefix, id_width)
-            .context("load invalid types")?;
-        anyhow::ensure!(repaired, "expected repair for version type mismatch");
-        anyhow::ensure!(queue.version == 1, "version should be repaired to 1");
+        let result = queue::load_queue(&queue_path);
+        anyhow::ensure!(result.is_err(), "invalid version type should fail to parse");
     }
 
-    // Case 3: Nested scalar colons
+    // Case 3: Valid YAML should load successfully
     {
-        let queue_path = dir.path().join("nested_colons.yaml");
-        let raw = r#"version: 1
-tasks:
-  - id: RQ-0001
-    status: todo
-    title: Task with : nested : colons
-    tags:
-      - test:tag
-    scope:
-      - crates/ralph:src/queue.rs
-    evidence:
-      - evidence: with : multiple : colons
-    plan:
-      - plan: with:colons
-    request: test
-    created_at: 2026-01-18T00:00:00Z
-    updated_at: 2026-01-18T00:00:00Z
-"#;
-        std::fs::write(&queue_path, raw).context("write nested colons queue")?;
+        let queue_path = dir.path().join("valid.yaml");
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![make_task_with(1, TaskStatus::Todo, id_prefix, id_width)],
+        };
+        let raw = serde_yaml::to_string(&queue)?;
+        std::fs::write(&queue_path, raw).context("write valid queue")?;
 
-        let (queue, repaired) = queue::load_queue_with_repair(&queue_path, id_prefix, id_width)
-            .context("load nested colons")?;
-        anyhow::ensure!(repaired, "expected repair for nested colons");
-        anyhow::ensure!(queue.tasks[0].title == "Task with : nested : colons");
-        anyhow::ensure!(queue.tasks[0].evidence[0] == "evidence: with : multiple : colons");
+        let loaded = queue::load_queue(&queue_path).context("load valid YAML")?;
+        anyhow::ensure!(loaded.tasks.len() == 1, "valid YAML should load");
     }
 
     Ok(())
@@ -376,8 +311,8 @@ fn stress_queue_ops_burn_in_long() -> Result<()> {
     // Burn-in: smaller queue, repeated archive + status updates + reload.
     // This is intentionally long-running and is executed by `make test` (which includes ignored tests).
     let dir = TempDir::new().context("create temp dir")?;
-    let queue_path = dir.path().join("queue.yaml");
-    let done_path = dir.path().join("done.yaml");
+    let queue_path = dir.path().join("queue.json");
+    let done_path = dir.path().join("done.json");
 
     let mut active = QueueFile {
         version: 1,
@@ -407,13 +342,7 @@ fn stress_queue_ops_burn_in_long() -> Result<()> {
             .with_context(|| format!("archive iteration {iter}"))?;
         let _ = report;
 
-        let (mut current, repaired_current) =
-            queue::load_queue_with_repair(&queue_path, ID_PREFIX, ID_WIDTH)
-                .context("load active")?;
-        anyhow::ensure!(
-            !repaired_current,
-            "unexpected repair on valid YAML (active)"
-        );
+        let mut current = queue::load_queue(&queue_path).context("load active")?;
         let now = "2026-01-18T00:00:00Z";
 
         // Mark a deterministic slice of todo tasks as done each iteration.
@@ -426,22 +355,10 @@ fn stress_queue_ops_burn_in_long() -> Result<()> {
         queue::save_queue(&queue_path, &current).context("save active")?;
 
         // Reload both and validate invariants.
-        let active_reloaded = queue::load_queue_with_repair(&queue_path, ID_PREFIX, ID_WIDTH)
-            .context("reload active")?;
-        anyhow::ensure!(
-            !active_reloaded.1,
-            "unexpected repair on valid YAML (active)"
-        );
-        let done_reloaded = queue::load_queue_with_repair(&done_path, ID_PREFIX, ID_WIDTH)
-            .context("reload done")?;
-        anyhow::ensure!(!done_reloaded.1, "unexpected repair on valid YAML (done)");
-        queue::validate_queue_set(
-            &active_reloaded.0,
-            Some(&done_reloaded.0),
-            ID_PREFIX,
-            ID_WIDTH,
-        )
-        .context("validate after iteration")?;
+        let active_reloaded = queue::load_queue(&queue_path).context("reload active")?;
+        let done_reloaded = queue::load_queue(&done_path).context("reload done")?;
+        queue::validate_queue_set(&active_reloaded, Some(&done_reloaded), ID_PREFIX, ID_WIDTH)
+            .context("validate after iteration")?;
     }
 
     Ok(())

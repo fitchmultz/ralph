@@ -43,22 +43,10 @@ pub fn build_task(resolved: &config::Resolved, opts: TaskBuildOptions) -> Result
         bail!("Missing request: task build requires a request description. Provide a non-empty request.");
     }
 
-    let (before, repaired_before) =
-        queue::load_queue_with_repair(&resolved.queue_path, &resolved.id_prefix, resolved.id_width)
-            .with_context(|| format!("read queue {}", resolved.queue_path.display()))?;
-    if repaired_before {
-        log::warn!(
-            "Repaired queue YAML format issues in {}",
-            resolved.queue_path.display()
-        );
-    }
-    let (done, repaired_done) = queue::load_queue_or_default_with_repair(
-        &resolved.done_path,
-        &resolved.id_prefix,
-        resolved.id_width,
-    )
-    .with_context(|| format!("read done {}", resolved.done_path.display()))?;
-    queue::warn_if_repaired(&resolved.done_path, repaired_done);
+    let before = queue::load_queue(&resolved.queue_path)
+        .with_context(|| format!("read queue {}", resolved.queue_path.display()))?;
+    let done = queue::load_queue_or_default(&resolved.done_path)
+        .with_context(|| format!("read done {}", resolved.done_path.display()))?;
     let done_ref = if done.tasks.is_empty() && !resolved.done_path.exists() {
         None
     } else {
@@ -116,34 +104,17 @@ pub fn build_task(resolved: &config::Resolved, opts: TaskBuildOptions) -> Result
         },
     )?;
 
-    let mut after = match queue::load_queue_with_repair(
-        &resolved.queue_path,
-        &resolved.id_prefix,
-        resolved.id_width,
-    )
-    .with_context(|| format!("read queue {}", resolved.queue_path.display()))
+    let mut after = match queue::load_queue(&resolved.queue_path)
+        .with_context(|| format!("read queue {}", resolved.queue_path.display()))
     {
-        Ok((queue, repaired)) => {
-            if repaired {
-                log::warn!(
-                    "Repaired queue YAML format issues in {}",
-                    resolved.queue_path.display()
-                );
-            }
-            queue
-        }
+        Ok(queue) => queue,
         Err(err) => {
             return Err(err);
         }
     };
 
-    let (done_after, repaired_done_after) = queue::load_queue_or_default_with_repair(
-        &resolved.done_path,
-        &resolved.id_prefix,
-        resolved.id_width,
-    )
-    .with_context(|| format!("read done {}", resolved.done_path.display()))?;
-    queue::warn_if_repaired(&resolved.done_path, repaired_done_after);
+    let done_after = queue::load_queue_or_default(&resolved.done_path)
+        .with_context(|| format!("read done {}", resolved.done_path.display()))?;
     let done_after_ref = if done_after.tasks.is_empty() && !resolved.done_path.exists() {
         None
     } else {

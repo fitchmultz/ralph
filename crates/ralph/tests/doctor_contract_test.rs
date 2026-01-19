@@ -271,9 +271,9 @@ fn doctor_fails_with_invalid_done_archive() -> Result<()> {
     // Setup Makefile
     std::fs::write(dir.path().join("Makefile"), "ci:\n\tcargo test\n")?;
 
-    // Corrupt done.yaml
-    let done_path = dir.path().join(".ralph/done.yaml");
-    std::fs::write(&done_path, "invalid yaml: { [")?;
+    // Corrupt done.json
+    let done_path = dir.path().join(".ralph/done.json");
+    std::fs::write(&done_path, "invalid json: { [")?;
 
     let output = Command::new(ralph_bin())
         .current_dir(dir.path())

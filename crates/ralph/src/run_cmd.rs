@@ -28,12 +28,7 @@ pub struct RunLoopOptions {
 pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()> {
     let mut completed = 0u32;
 
-    let (queue_file, repaired) = queue::load_queue_with_repair(
-        &resolved.queue_path,
-        &resolved.id_prefix,
-        resolved.id_width,
-    )?;
-    queue::warn_if_repaired(&resolved.queue_path, repaired);
+    let queue_file = queue::load_queue(&resolved.queue_path)?;
 
     let initial_todo_count = queue_file
         .tasks
@@ -73,18 +68,8 @@ pub fn run_one(
     force: bool,
 ) -> Result<RunOutcome> {
     let _queue_lock = queue::acquire_queue_lock(&resolved.repo_root, "run one", force)?;
-    let (queue_file, repaired_queue) = queue::load_queue_with_repair(
-        &resolved.queue_path,
-        &resolved.id_prefix,
-        resolved.id_width,
-    )?;
-    queue::warn_if_repaired(&resolved.queue_path, repaired_queue);
-    let (done, repaired_done) = queue::load_queue_or_default_with_repair(
-        &resolved.done_path,
-        &resolved.id_prefix,
-        resolved.id_width,
-    )?;
-    queue::warn_if_repaired(&resolved.done_path, repaired_done);
+    let queue_file = queue::load_queue(&resolved.queue_path)?;
+    let done = queue::load_queue_or_default(&resolved.done_path)?;
     let done_ref = if done.tasks.is_empty() && !resolved.done_path.exists() {
         None
     } else {
@@ -127,7 +112,7 @@ pub fn run_one(
     gitutil::require_clean_repo_ignoring_paths(
         &resolved.repo_root,
         force,
-        &[".ralph/queue.yaml", ".ralph/done.yaml"],
+        &[".ralph/queue.yaml", ".ralph/done.json"],
     )?;
 
     let settings = resolve_run_agent_settings(resolved, &task, agent_overrides)?;
@@ -206,18 +191,8 @@ fn post_run_supervise(resolved: &config::Resolved, task_id: &str) -> Result<()> 
     let status = gitutil::status_porcelain(&resolved.repo_root)?;
     let is_dirty = !status.trim().is_empty();
 
-    let (mut queue_file, repaired_queue) = queue::load_queue_with_repair(
-        &resolved.queue_path,
-        &resolved.id_prefix,
-        resolved.id_width,
-    )?;
-    queue::warn_if_repaired(&resolved.queue_path, repaired_queue);
-    let (mut done_file, repaired_done) = queue::load_queue_or_default_with_repair(
-        &resolved.done_path,
-        &resolved.id_prefix,
-        resolved.id_width,
-    )?;
-    queue::warn_if_repaired(&resolved.done_path, repaired_done);
+    let mut queue_file = queue::load_queue(&resolved.queue_path)?;
+    let mut done_file = queue::load_queue_or_default(&resolved.done_path)?;
     let done_ref = if done_file.tasks.is_empty() && !resolved.done_path.exists() {
         None
     } else {
@@ -240,20 +215,8 @@ fn post_run_supervise(resolved: &config::Resolved, task_id: &str) -> Result<()> 
             bail!("CI gate failed: 'make ci' did not pass after the task completed. Uncommitted changes were reverted. Fix the issues reported by CI and try again. Error: {:#}", err);
         }
 
-        let (reloaded_queue, repaired_queue) = queue::load_queue_with_repair(
-            &resolved.queue_path,
-            &resolved.id_prefix,
-            resolved.id_width,
-        )?;
-        queue::warn_if_repaired(&resolved.queue_path, repaired_queue);
-        queue_file = reloaded_queue;
-        let (reloaded_done, repaired_done) = queue::load_queue_or_default_with_repair(
-            &resolved.done_path,
-            &resolved.id_prefix,
-            resolved.id_width,
-        )?;
-        queue::warn_if_repaired(&resolved.done_path, repaired_done);
-        done_file = reloaded_done;
+        queue_file = queue::load_queue(&resolved.queue_path)?;
+        done_file = queue::load_queue_or_default(&resolved.done_path)?;
         let done_ref = if done_file.tasks.is_empty() && !resolved.done_path.exists() {
             None
         } else {
@@ -275,7 +238,7 @@ fn post_run_supervise(resolved: &config::Resolved, task_id: &str) -> Result<()> 
         if task_status != TaskStatus::Done {
             if in_done {
                 gitutil::revert_uncommitted(&resolved.repo_root)?;
-                bail!("Task inconsistency: task {task_id} is archived in done.yaml but its status is not 'done'. Review the task state in .ralph/done.yaml.");
+                bail!("Task inconsistency: task {task_id} is archived in done.json but its status is not 'done'. Review the task state in .ralph/done.json.");
             }
             let now = timeutil::now_utc_rfc3339()?;
             queue::set_status(&mut queue_file, task_id, TaskStatus::Done, &now, None)?;
@@ -295,7 +258,7 @@ fn post_run_supervise(resolved: &config::Resolved, task_id: &str) -> Result<()> 
         gitutil::require_clean_repo_ignoring_paths(
             &resolved.repo_root,
             false,
-            &[".ralph/queue.yaml", ".ralph/done.yaml"],
+            &[".ralph/queue.json", ".ralph/done.json"],
         )?;
         return Ok(());
     }
@@ -308,7 +271,7 @@ fn post_run_supervise(resolved: &config::Resolved, task_id: &str) -> Result<()> 
     let mut changed = false;
     if task_status != TaskStatus::Done {
         if in_done {
-            bail!("Task inconsistency: task {task_id} is archived in done.yaml but its status is not 'done'. Review the task state in .ralph/done.yaml.");
+            bail!("Task inconsistency: task {task_id} is archived in done.json but its status is not 'done'. Review the task state in .ralph/done.json.");
         }
         let now = timeutil::now_utc_rfc3339()?;
         queue::set_status(&mut queue_file, task_id, TaskStatus::Done, &now, None)?;
@@ -336,7 +299,7 @@ fn post_run_supervise(resolved: &config::Resolved, task_id: &str) -> Result<()> 
     gitutil::require_clean_repo_ignoring_paths(
         &resolved.repo_root,
         false,
-        &[".ralph/queue.yaml", ".ralph/done.yaml"],
+        &[".ralph/queue.yaml", ".ralph/done.json"],
     )?;
     Ok(())
 }
@@ -425,7 +388,7 @@ mod tests {
             },
             queue: QueueConfig {
                 file: Some(PathBuf::from(".ralph/queue.yaml")),
-                done_file: Some(PathBuf::from(".ralph/done.yaml")),
+                done_file: Some(PathBuf::from(".ralph/done.json")),
                 id_prefix: Some("RQ".to_string()),
                 id_width: Some(4),
             },
@@ -436,7 +399,7 @@ mod tests {
             config: cfg,
             repo_root: repo_root.clone(),
             queue_path: repo_root.join(".ralph/queue.yaml"),
-            done_path: repo_root.join(".ralph/done.yaml"),
+            done_path: repo_root.join(".ralph/done.json"),
             id_prefix: "RQ".to_string(),
             id_width: 4,
             global_config_path: None,

@@ -42,23 +42,14 @@ pub fn run_doctor(resolved: &config::Resolved) -> Result<()> {
     // 2. Queue Checks
     log::info!("Checking Ralph queue...");
     if resolved.queue_path.exists() {
-        match queue::load_queue_with_repair(
-            &resolved.queue_path,
-            &resolved.id_prefix,
-            resolved.id_width,
-        ) {
-            Ok((q, repaired)) => {
-                queue::warn_if_repaired(&resolved.queue_path, repaired);
-                match queue::validate_queue(&q, &resolved.id_prefix, resolved.id_width) {
-                    Ok(_) => {
-                        outpututil::log_success(&format!("queue valid ({} tasks)", q.tasks.len()))
-                    }
-                    Err(e) => {
-                        outpututil::log_error(&format!("queue validation failed: {}", e));
-                        failures.push("queue validation failed");
-                    }
+        match queue::load_queue(&resolved.queue_path) {
+            Ok(q) => match queue::validate_queue(&q, &resolved.id_prefix, resolved.id_width) {
+                Ok(_) => outpututil::log_success(&format!("queue valid ({} tasks)", q.tasks.len())),
+                Err(e) => {
+                    outpututil::log_error(&format!("queue validation failed: {}", e));
+                    failures.push("queue validation failed");
                 }
-            }
+            },
             Err(e) => {
                 outpututil::log_error(&format!("failed to load queue: {}", e));
                 failures.push("queue load failed");
@@ -75,24 +66,17 @@ pub fn run_doctor(resolved: &config::Resolved) -> Result<()> {
     // 2b. Done Archive Checks
     log::info!("Checking Ralph done archive...");
     if resolved.done_path.exists() {
-        match queue::load_queue_with_repair(
-            &resolved.done_path,
-            &resolved.id_prefix,
-            resolved.id_width,
-        ) {
-            Ok((d, repaired)) => {
-                queue::warn_if_repaired(&resolved.done_path, repaired);
-                match queue::validate_queue(&d, &resolved.id_prefix, resolved.id_width) {
-                    Ok(_) => outpututil::log_success(&format!(
-                        "done archive valid ({} tasks)",
-                        d.tasks.len()
-                    )),
-                    Err(e) => {
-                        outpututil::log_error(&format!("done archive validation failed: {}", e));
-                        failures.push("done archive validation failed");
-                    }
+        match queue::load_queue(&resolved.done_path) {
+            Ok(d) => match queue::validate_queue(&d, &resolved.id_prefix, resolved.id_width) {
+                Ok(_) => outpututil::log_success(&format!(
+                    "done archive valid ({} tasks)",
+                    d.tasks.len()
+                )),
+                Err(e) => {
+                    outpututil::log_error(&format!("done archive validation failed: {}", e));
+                    failures.push("done archive validation failed");
                 }
-            }
+            },
             Err(e) => {
                 outpututil::log_error(&format!("failed to load done archive: {}", e));
                 failures.push("done archive load failed");

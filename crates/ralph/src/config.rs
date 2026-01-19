@@ -81,8 +81,13 @@ pub fn resolve_from_cwd() -> Result<Resolved> {
 
 fn load_layer(path: &Path) -> Result<ConfigLayer> {
     let raw = fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
-    let layer: ConfigLayer =
-        serde_yaml::from_str(&raw).with_context(|| format!("parse YAML {}", path.display()))?;
+    // Try JSON first, fall back to YAML for backward compatibility
+    let layer = if let Ok(json_layer) = serde_json::from_str::<ConfigLayer>(&raw) {
+        json_layer
+    } else {
+        serde_yaml::from_str::<ConfigLayer>(&raw)
+            .with_context(|| format!("parse config {} as JSON or YAML", path.display()))?
+    };
     Ok(layer)
 }
 
@@ -111,25 +116,25 @@ fn validate_config(cfg: &Config) -> Result<()> {
 
     if let Some(prefix) = &cfg.queue.id_prefix {
         if prefix.trim().is_empty() {
-            bail!("Empty queue.id_prefix: prefix is required if specified. Set a non-empty prefix (e.g., 'RQ') in .ralph/config.yaml or via --id-prefix.");
+            bail!("Empty queue.id_prefix: prefix is required if specified. Set a non-empty prefix (e.g., 'RQ') in .ralph/config.json or via --id-prefix.");
         }
     }
 
     if let Some(width) = cfg.queue.id_width {
         if width == 0 {
-            bail!("Invalid queue.id_width: width must be greater than 0. Set a valid width (e.g., 4) in .ralph/config.yaml or via --id-width.");
+            bail!("Invalid queue.id_width: width must be greater than 0. Set a valid width (e.g., 4) in .ralph/config.json or via --id-width.");
         }
     }
 
     if let Some(file) = &cfg.queue.file {
         if file.as_os_str().is_empty() {
-            bail!("Empty queue.file: path is required if specified. Specify a valid path (e.g., '.ralph/queue.yaml') in .ralph/config.yaml or via --queue-file.");
+            bail!("Empty queue.file: path is required if specified. Specify a valid path (e.g., '.ralph/queue.json') in .ralph/config.json or via --queue-file.");
         }
     }
 
     if let Some(done_file) = &cfg.queue.done_file {
         if done_file.as_os_str().is_empty() {
-            bail!("Empty queue.done_file: path is required if specified. Specify a valid path (e.g., '.ralph/done.yaml') in .ralph/config.yaml or via --done-file.");
+            bail!("Empty queue.done_file: path is required if specified. Specify a valid path (e.g., '.ralph/done.json') in .ralph/config.json or via --done-file.");
         }
     }
 
@@ -161,7 +166,7 @@ fn resolve_id_prefix(cfg: &Config) -> Result<String> {
     let raw = cfg.queue.id_prefix.as_deref().unwrap_or("RQ");
     let trimmed = raw.trim();
     if trimmed.is_empty() {
-        bail!("Empty queue.id_prefix: prefix is required. Set a non-empty prefix (e.g., 'RQ') in .ralph/config.yaml or via --id-prefix.");
+        bail!("Empty queue.id_prefix: prefix is required. Set a non-empty prefix (e.g., 'RQ') in .ralph/config.json or via --id-prefix.");
     }
     Ok(trimmed.to_uppercase())
 }
@@ -169,7 +174,7 @@ fn resolve_id_prefix(cfg: &Config) -> Result<String> {
 fn resolve_id_width(cfg: &Config) -> Result<usize> {
     let width = cfg.queue.id_width.unwrap_or(4) as usize;
     if width == 0 {
-        bail!("Invalid queue.id_width: width must be greater than 0. Set a valid width (e.g., 4) in .ralph/config.yaml or via --id-width.");
+        bail!("Invalid queue.id_width: width must be greater than 0. Set a valid width (e.g., 4) in .ralph/config.json or via --id-width.");
     }
     Ok(width)
 }
@@ -179,9 +184,9 @@ fn resolve_queue_path(repo_root: &Path, cfg: &Config) -> Result<PathBuf> {
         .queue
         .file
         .clone()
-        .unwrap_or_else(|| PathBuf::from(".ralph/queue.yaml"));
+        .unwrap_or_else(|| PathBuf::from(".ralph/queue.json"));
     if value.as_os_str().is_empty() {
-        bail!("Empty queue.file: path is required. Specify a valid path (e.g., '.ralph/queue.yaml') in .ralph/config.yaml or via --queue-file.");
+        bail!("Empty queue.file: path is required. Specify a valid path (e.g., '.ralph/queue.json') in .ralph/config.json or via --queue-file.");
     }
     if value.is_absolute() {
         return Ok(value);
@@ -194,9 +199,9 @@ fn resolve_done_path(repo_root: &Path, cfg: &Config) -> Result<PathBuf> {
         .queue
         .done_file
         .clone()
-        .unwrap_or_else(|| PathBuf::from(".ralph/done.yaml"));
+        .unwrap_or_else(|| PathBuf::from(".ralph/done.json"));
     if value.as_os_str().is_empty() {
-        bail!("Empty queue.done_file: path is required. Specify a valid path (e.g., '.ralph/done.yaml') in .ralph/config.yaml or via --done-file.");
+        bail!("Empty queue.done_file: path is required. Specify a valid path (e.g., '.ralph/done.json') in .ralph/config.json or via --done-file.");
     }
     if value.is_absolute() {
         return Ok(value);
@@ -211,11 +216,27 @@ fn global_config_path() -> Option<PathBuf> {
         let home = env::var_os("HOME")?;
         PathBuf::from(home).join(".config")
     };
-    Some(base.join("ralph").join("config.yaml"))
+    let ralph_dir = base.join("ralph");
+    // Prefer config.json, fall back to config.yaml
+    let json_path = ralph_dir.join("config.json");
+    let yaml_path = ralph_dir.join("config.yaml");
+    if json_path.exists() {
+        Some(json_path)
+    } else {
+        Some(yaml_path)
+    }
 }
 
 fn project_config_path(repo_root: &Path) -> PathBuf {
-    repo_root.join(".ralph").join("config.yaml")
+    let ralph_dir = repo_root.join(".ralph");
+    // Prefer config.json, fall back to config.yaml
+    let json_path = ralph_dir.join("config.json");
+    let yaml_path = ralph_dir.join("config.yaml");
+    if json_path.exists() {
+        json_path
+    } else {
+        yaml_path
+    }
 }
 
 fn find_repo_root(start: &Path) -> PathBuf {
@@ -223,11 +244,16 @@ fn find_repo_root(start: &Path) -> PathBuf {
     for dir in start.ancestors() {
         log::debug!("checking directory: {}", dir.display());
         let ralph_dir = dir.join(".ralph");
-        if ralph_dir.is_dir()
-            && (ralph_dir.join("queue.yaml").is_file() || ralph_dir.join("config.yaml").is_file())
-        {
-            log::debug!("found repo root at: {} (via .ralph/)", dir.display());
-            return dir.to_path_buf();
+        if ralph_dir.is_dir() {
+            // Check for JSON files first, then fall back to YAML for migration
+            let has_json =
+                ralph_dir.join("queue.json").is_file() || ralph_dir.join("config.json").is_file();
+            let has_yaml =
+                ralph_dir.join("queue.yaml").is_file() || ralph_dir.join("config.yaml").is_file();
+            if has_json || has_yaml {
+                log::debug!("found repo root at: {} (via .ralph/)", dir.display());
+                return dir.to_path_buf();
+            }
         }
         if dir.join(".git").exists() {
             log::debug!("found repo root at: {} (via .git/)", dir.display());

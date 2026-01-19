@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-/* ----------------------------- Config (YAML) ----------------------------- */
+/* ----------------------------- Config (JSON) ----------------------------- */
 /*
 Config is layered:
 - Global config (defaults)
@@ -31,10 +31,10 @@ pub struct Config {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(default, deny_unknown_fields)]
 pub struct QueueConfig {
-    /// Path to the YAML queue file, relative to repo root.
+    /// Path to the JSON queue file, relative to repo root.
     pub file: Option<PathBuf>,
 
-    /// Path to the YAML done archive file, relative to repo root.
+    /// Path to the JSON done archive file, relative to repo root.
     pub done_file: Option<PathBuf>,
 
     /// ID prefix (default: "RQ").
@@ -220,7 +220,7 @@ pub enum ReasoningEffort {
     High,
 }
 
-/* --------------------------- QueueFile (YAML) ---------------------------- */
+/* --------------------------- QueueFile (JSON) ---------------------------- */
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -231,7 +231,7 @@ pub struct QueueFile {
     pub tasks: Vec<Task>,
 }
 
-/* ------------------------------ Task (YAML) ------------------------------ */
+/* ------------------------------ Task (JSON) ------------------------------ */
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(deny_unknown_fields)]
@@ -391,8 +391,8 @@ impl Default for Config {
             version: 1,
             project_type: Some(ProjectType::Code),
             queue: QueueConfig {
-                file: Some(PathBuf::from(".ralph/queue.yaml")),
-                done_file: Some(PathBuf::from(".ralph/done.yaml")),
+                file: Some(PathBuf::from(".ralph/queue.json")),
+                done_file: Some(PathBuf::from(".ralph/done.json")),
                 id_prefix: Some("RQ".to_string()),
                 id_width: Some(4),
             },

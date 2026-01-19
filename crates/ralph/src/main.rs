@@ -70,21 +70,10 @@ fn load_and_validate_queues(
     resolved: &config::Resolved,
     include_done: bool,
 ) -> Result<(QueueFile, Option<QueueFile>)> {
-    let (queue_file, repaired_queue) = queue::load_queue_with_repair(
-        &resolved.queue_path,
-        &resolved.id_prefix,
-        resolved.id_width,
-    )?;
-    queue::warn_if_repaired(&resolved.queue_path, repaired_queue);
+    let queue_file = queue::load_queue(&resolved.queue_path)?;
 
     let done_file = if include_done {
-        let (done, repaired_done) = queue::load_queue_or_default_with_repair(
-            &resolved.done_path,
-            &resolved.id_prefix,
-            resolved.id_width,
-        )?;
-        queue::warn_if_repaired(&resolved.done_path, repaired_done);
-        Some(done)
+        Some(queue::load_queue_or_default(&resolved.done_path)?)
     } else {
         None
     };
@@ -317,17 +306,6 @@ fn handle_queue(cmd: QueueCommand, force: bool) -> Result<()> {
                 log::info!("Queue is not locked.");
             }
         }
-        QueueCommand::Repair => {
-            let _queue_lock =
-                queue::acquire_queue_lock(&resolved.repo_root, "queue repair", force)?;
-            let report =
-                queue::repair_queue(&resolved.queue_path, &resolved.id_prefix, resolved.id_width)?;
-            if report.repaired {
-                log::info!("Repaired queue YAML.");
-            } else {
-                log::info!("Queue YAML is already valid (no repairs needed).");
-            }
-        }
         QueueCommand::SetStatus {
             task_id,
             status,
@@ -335,12 +313,7 @@ fn handle_queue(cmd: QueueCommand, force: bool) -> Result<()> {
         } => {
             let _queue_lock =
                 queue::acquire_queue_lock(&resolved.repo_root, "queue set-status", force)?;
-            let (mut queue_file, repaired_queue) = queue::load_queue_with_repair(
-                &resolved.queue_path,
-                &resolved.id_prefix,
-                resolved.id_width,
-            )?;
-            queue::warn_if_repaired(&resolved.queue_path, repaired_queue);
+            let mut queue_file = queue::load_queue(&resolved.queue_path)?;
             let now = timeutil::now_utc_rfc3339()?;
             queue::set_status(
                 &mut queue_file,
@@ -353,12 +326,7 @@ fn handle_queue(cmd: QueueCommand, force: bool) -> Result<()> {
         }
         QueueCommand::Sort(args) => {
             let _queue_lock = queue::acquire_queue_lock(&resolved.repo_root, "queue sort", force)?;
-            let (mut queue_file, repaired_queue) = queue::load_queue_with_repair(
-                &resolved.queue_path,
-                &resolved.id_prefix,
-                resolved.id_width,
-            )?;
-            queue::warn_if_repaired(&resolved.queue_path, repaired_queue);
+            let mut queue_file = queue::load_queue(&resolved.queue_path)?;
 
             match args.sort_by.as_str() {
                 "priority" => {
@@ -447,9 +415,6 @@ fn handle_init(args: InitArgs, force_lock: bool) -> Result<()> {
             }
             init_cmd::FileInitStatus::Valid => {
                 log::info!("{}: exists (valid) ({})", label, path.display())
-            }
-            init_cmd::FileInitStatus::Repaired => {
-                log::info!("{}: exists (repaired) ({})", label, path.display())
             }
         }
     }
@@ -790,9 +755,6 @@ enum QueueCommand {
     /// Remove the queue lock file.
     #[command(after_long_help = "Example:\n  ralph queue unlock")]
     Unlock,
-    /// Repair invalid YAML scalars in the queue file.
-    #[command(after_long_help = "Example:\n  ralph queue repair")]
-    Repair,
     /// Update a task status in the active queue.
     #[command(
         after_long_help = "Example:\n  ralph queue set-status RQ-0001 doing --note \"Starting work\""
