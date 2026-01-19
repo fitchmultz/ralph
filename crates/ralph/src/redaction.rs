@@ -1,3 +1,5 @@
+//! Redaction logic for sensitive data in strings, errors, and logs.
+
 use std::fmt;
 
 const REDACTED: &str = "[REDACTED]";
@@ -87,6 +89,44 @@ impl log::Log for RedactedLogger {
 
     fn flush(&self) {
         self.inner.flush();
+    }
+}
+
+/// Macros for logging with immediate redaction.
+/// Note: These are mostly redundant if `RedactedLogger` is used, but provide
+/// explicit intent and can be used when the global logger is not wrapped.
+#[macro_export]
+macro_rules! rinfo {
+    ($($arg:tt)+) => {
+        log::info!("{}", $crate::redaction::redact_text(&format!($($arg)+)))
+    }
+}
+
+#[macro_export]
+macro_rules! rwarn {
+    ($($arg:tt)+) => {
+        log::warn!("{}", $crate::redaction::redact_text(&format!($($arg)+)))
+    }
+}
+
+#[macro_export]
+macro_rules! rerror {
+    ($($arg:tt)+) => {
+        log::error!("{}", $crate::redaction::redact_text(&format!($($arg)+)))
+    }
+}
+
+#[macro_export]
+macro_rules! rdebug {
+    ($($arg:tt)+) => {
+        log::debug!("{}", $crate::redaction::redact_text(&format!($($arg)+)))
+    }
+}
+
+#[macro_export]
+macro_rules! rtrace {
+    ($($arg:tt)+) => {
+        log::trace!("{}", $crate::redaction::redact_text(&format!($($arg)+)))
     }
 }
 

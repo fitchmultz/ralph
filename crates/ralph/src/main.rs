@@ -47,7 +47,8 @@ fn run() -> Result<()> {
     // We need `builder.build()` to get the logger, then wrap it.
     let logger = builder.build();
     let max_level = logger.filter();
-    let _ = redaction::RedactedLogger::init(Box::new(logger), max_level);
+    redaction::RedactedLogger::init(Box::new(logger), max_level)
+        .context("initialize redacted logger")?;
 
     match cli.command {
         Command::Queue(args) => handle_queue(args.command, cli.force),

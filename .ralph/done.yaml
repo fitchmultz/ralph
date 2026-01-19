@@ -536,3 +536,29 @@ tasks:
     created_at: 2026-01-19T04:00:47Z
     updated_at: 2026-01-19T05:15:00Z
     completed_at: 2026-01-19T05:15:00Z
+  - id: RQ-0095
+    status: done
+    title: Implement a logging wrapper with automatic redaction
+    tags:
+      - rust
+      - safety
+      - logging
+    scope:
+      - crates/ralph/src/redaction.rs
+    evidence:
+      - |-
+        Redaction is currently applied manually in some places (like `run_cmd.rs` error handling)
+        but forgotten in others. A centralized logging wrapper would ensure consistency.
+    plan:
+      - Implement a macro or helper that wraps standard `log` macros to apply `redact_text`.
+      - Alternatively, implement a custom `Log` implementation that redacts all messages.
+      - Ensure that all sensitive data (env vars, keys) is automatically masked in all logs.
+    notes:
+      - Implemented `RedactedLogger` as a `log::Log` wrapper that automatically redacts all log messages using `redact_text`.
+      - Added `rinfo!`, `rwarn!`, `rerror!`, `rdebug!`, and `rtrace!` macros for explicit redacted logging.
+      - Integrated `RedactedLogger` into `main.rs` to wrap the global logger.
+      - Added top-of-file purpose header to `redaction.rs` as per AGENTS.md.
+    request: scan finding
+    created_at: 2026-01-19T04:00:47Z
+    updated_at: 2026-01-19T04:42:03Z
+    completed_at: 2026-01-19T04:42:03Z
