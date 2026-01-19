@@ -2,7 +2,9 @@ use crate::config;
 use crate::contracts::Runner;
 use crate::gitutil;
 use crate::queue;
+use crate::runner;
 use anyhow::Result;
+use std::fs;
 use std::process::Command;
 
 pub fn run_doctor(resolved: &config::Resolved) -> Result<()> {
@@ -60,6 +62,29 @@ pub fn run_doctor(resolved: &config::Resolved) -> Result<()> {
         failures.push("missing queue file");
     }
 
+    // 2b. Done Archive Checks
+    println!("Checking Ralph done archive...");
+    if resolved.done_path.exists() {
+        match queue::load_queue_with_repair(&resolved.done_path) {
+            Ok((d, repaired)) => {
+                queue::warn_if_repaired(&resolved.done_path, repaired);
+                match queue::validate_queue(&d, &resolved.id_prefix, resolved.id_width) {
+                    Ok(_) => println!("  [OK] done archive valid ({} tasks)", d.tasks.len()),
+                    Err(e) => {
+                        println!("  [FAIL] done archive validation failed: {}", e);
+                        failures.push("done archive validation failed");
+                    }
+                }
+            }
+            Err(e) => {
+                println!("  [FAIL] failed to load done archive: {}", e);
+                failures.push("done archive load failed");
+            }
+        }
+    } else {
+        println!("  [OK] done archive missing (optional)");
+    }
+
     // 3. Runner Checks
     println!("Checking Agent configuration...");
     let runner = resolved.config.agent.runner.unwrap_or_default();
@@ -92,6 +117,43 @@ pub fn run_doctor(resolved: &config::Resolved) -> Result<()> {
         failures.push("runner binary missing");
     } else {
         println!("  [OK] runner binary '{}' ({:?}) found", bin_name, runner);
+    }
+
+    // 3b. Model Compatibility Check
+    let model =
+        runner::resolve_model_for_runner(runner, None, None, resolved.config.agent.model.clone());
+    if let Err(e) = runner::validate_model_for_runner(runner, &model) {
+        println!("  [FAIL] config model/runner mismatch: {}", e);
+        failures.push("config model/runner mismatch");
+    } else {
+        println!(
+            "  [OK] model '{}' compatible with runner '{:?}'",
+            model.as_str(),
+            runner
+        );
+    }
+
+    // 4. Project Checks
+    println!("Checking project environment...");
+    let makefile_path = resolved.repo_root.join("Makefile");
+    if makefile_path.exists() {
+        println!("  [OK] Makefile found");
+        match fs::read_to_string(&makefile_path) {
+            Ok(content) => {
+                if content.contains("ci:") {
+                    println!("  [OK] Makefile has 'ci' target");
+                } else {
+                    println!("  [WARN] Makefile exists but missing 'ci' target");
+                }
+            }
+            Err(e) => {
+                println!("  [FAIL] failed to read Makefile: {}", e);
+                failures.push("failed to read Makefile");
+            }
+        }
+    } else {
+        println!("  [FAIL] Makefile missing in repo root");
+        failures.push("missing Makefile");
     }
 
     if failures.is_empty() {

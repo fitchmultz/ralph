@@ -1,23 +1,5 @@
 version: 1
 tasks:
-  - id: RQ-0078
-    status: todo
-    title: Enhance doctor command to validate done.yaml and check Makefile
-    tags:
-      - rust
-      - ux
-    scope:
-      - crates/ralph/src/doctor_cmd.rs
-    evidence:
-      - doctor currently ignores the done archive and doesn't check for CI readiness (Makefile)
-    plan:
-      - Add validation for done.yaml in run_doctor
-      - Check for presence of Makefile and 'ci' target
-      - Add check for common config errors (e.g., runner/model mismatches)
-    notes: []
-    request: scan finding
-    created_at: 2026-01-18T22:00:00Z
-    updated_at: 2026-01-18T22:00:00Z
   - id: RQ-0079
     status: todo
     title: Audit TaskStatus serialization for consistent snake_case

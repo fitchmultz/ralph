@@ -47,6 +47,9 @@ fn doctor_passes_in_clean_env() -> Result<()> {
         .args(["init", "--force"])
         .status()?;
 
+    // Setup Makefile
+    std::fs::write(dir.path().join("Makefile"), "ci:\n\tcargo test\n")?;
+
     let output = Command::new(ralph_bin())
         .current_dir(dir.path())
         .arg("doctor")
@@ -102,6 +105,9 @@ fn doctor_warns_on_missing_upstream() -> Result<()> {
         .args(["init", "--force"])
         .status()?;
 
+    // Setup Makefile
+    std::fs::write(dir.path().join("Makefile"), "ci:\n\tcargo test\n")?;
+
     let output = Command::new(ralph_bin())
         .current_dir(dir.path())
         .arg("doctor")
@@ -133,6 +139,9 @@ fn doctor_fails_with_nonexistent_runner_binary() -> Result<()> {
         .current_dir(dir.path())
         .args(["init", "--force"])
         .status()?;
+
+    // Setup Makefile
+    std::fs::write(dir.path().join("Makefile"), "ci:\n\tcargo test\n")?;
 
     // Configure a non-existent runner binary
     let config_path = dir.path().join(".ralph/config.yaml");
@@ -173,6 +182,9 @@ fn doctor_fails_with_nonexistent_gemini_binary() -> Result<()> {
         .args(["init", "--force"])
         .status()?;
 
+    // Setup Makefile
+    std::fs::write(dir.path().join("Makefile"), "ci:\n\tcargo test\n")?;
+
     let config_path = dir.path().join(".ralph/config.yaml");
     let config_content = r#"version: 1
 agent:
@@ -193,5 +205,39 @@ agent:
     let combined_output = format!("{}\n{}", stdout, stderr);
     assert!(combined_output.contains("this-gemini-does-not-exist-xyz123"));
     assert!(combined_output.contains("[FAIL]"));
+    Ok(())
+}
+
+#[test]
+fn doctor_fails_with_invalid_done_archive() -> Result<()> {
+    let dir = TempDir::new()?;
+    Command::new("git")
+        .current_dir(dir.path())
+        .arg("init")
+        .status()?;
+
+    Command::new(ralph_bin())
+        .current_dir(dir.path())
+        .args(["init", "--force"])
+        .status()?;
+
+    // Setup Makefile
+    std::fs::write(dir.path().join("Makefile"), "ci:\n\tcargo test\n")?;
+
+    // Corrupt done.yaml
+    let done_path = dir.path().join(".ralph/done.yaml");
+    std::fs::write(&done_path, "invalid yaml: { [")?;
+
+    let output = Command::new(ralph_bin())
+        .current_dir(dir.path())
+        .arg("doctor")
+        .output()?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(!output.status.success());
+    assert!(
+        stdout.contains("[FAIL] done archive validation failed")
+            || stdout.contains("[FAIL] failed to load done archive")
+    );
     Ok(())
 }
