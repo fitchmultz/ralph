@@ -87,7 +87,7 @@ pub struct AgentConfig {
 
     /// Enable two-pass plan-then-implement workflow (default: true).
     /// When enabled, Claude first generates a plan in plan mode, then implements it.
-    /// Currently supported for Claude runner only.
+    /// Currently supported for Claude and OpenCode runners.
     pub two_pass_plan: Option<bool>,
 
     /// Claude permission mode for tool and edit approval.

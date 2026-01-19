@@ -1,950 +1,928 @@
 version: 1
 tasks:
-- id: RQ-0108
-  status: todo
-  title: Add two-pass plan mode support for OpenCode runner
-  tags:
-  - rust
-  - runner
-  - feature
-  scope:
-  - crates/ralph/src/runner.rs
-  evidence:
-  - Claude runner supports two_pass_plan but OpenCode does not; documentation says "will expand to OpenCode in the future"
-  - 'The two_pass_plan_enabled_for: false in task_cmd.rs and scan_cmd.rs comments indicate this is tracked technical debt'
-  plan:
-  - Implement run_opencode_two_pass function similar to run_claude_two_pass
-  - Add plan generation phase using RepoPrompt or equivalent tooling
-  - Add implementation phase with auto-approval
-  - Update task_cmd.rs and scan_cmd.rs to enable two_pass_plan for OpenCode
-  - Add tests for OpenCode two-pass behavior
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0110
-  status: todo
-  title: Implement task dependency tracking and ordering
-  tags:
-  - rust
-  - queue
-  - feature
-  scope:
-  - crates/ralph/src/contracts.rs
-  - crates/ralph/src/queue.rs
-  - crates/ralph/src/run_cmd.rs
-  evidence:
-  - Queue is ordered by priority but there is no dependency system
-  - Tasks cannot specify "must complete after RQ-0100" requirements
-  - Complex multi-step workflows require manual ordering
-  plan:
-  - Add depends_on field to Task contract (list of task IDs)
-  - Validate dependencies exist in queue or done during queue validation
-  - Skip dependent tasks if dependency fails during run loop
-  - Add queue list --filter-deps=RQ-0100 to show dependency chain
-  - Add tests for dependency validation and execution ordering
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0111
-  status: todo
-  title: Add task priority field and sorting capabilities
-  tags:
-  - rust
-  - queue
-  - ux
-  scope:
-  - crates/ralph/src/contracts.rs
-  - crates/ralph/src/queue.rs
-  - crates/ralph/src/main.rs
-  evidence:
-  - Queue is ordered by priority but there is no explicit priority field
-  - Tasks must be manually reordered by editing YAML
-  - No way to sort by "importance" without manual reordering
-  plan:
-  - 'Add priority field to Task (enum: critical, high, medium, low)'
-  - Add queue sort --by=priority command
-  - Add queue list --sort-by=priority flag
-  - Update task build and scan prompts to request priority from agent
-  - Add tests for priority sorting and validation
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0112
-  status: todo
-  title: Implement task blocking/muting for temporary exclusions
-  tags:
-  - rust
-  - queue
-  - ux
-  scope:
-  - crates/ralph/src/contracts.rs
-  - crates/ralph/src/run_cmd.rs
-  - crates/ralph/src/main.rs
-  evidence:
-  - No way to temporarily exclude a task without deleting it or moving it to done
-  - When a task is blocked (e.g., waiting for external dependency), it still appears as todo
-  - Users may want to "skip this for now" without losing the task definition
-  plan:
-  - Add blocked field to Task (boolean, default false)
-  - Update run_one to skip blocked tasks with a log message
-  - Add queue block/unblock <task-id> commands
-  - Add --blocked filter to queue list
-  - Add tests for blocking behavior in run loop
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0113
-  status: todo
-  title: Add git conflict detection and recovery in post_run_supervise
-  tags:
-  - rust
-  - safety
-  - git
-  scope:
-  - crates/ralph/src/run_cmd.rs
-  - crates/ralph/src/gitutil.rs
-  evidence:
-  - post_run_supervise commits changes but doesn't detect merge conflicts
-  - If git push fails due to diverged history, the state is unclear
-  - No check for merge markers before committing
-  plan:
-  - Add gitutil::has_merge_conflicts() to detect conflict markers
-  - In post_run_supervise, check for conflicts after dirty check
-  - If conflicts found, bail with instructions to resolve
-  - Add gitutil::is_diverged() to check if local is behind remote
-  - Add tests for conflict detection scenarios
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0114
-  status: todo
-  title: Implement per-task output directory isolation
-  tags:
-  - rust
-  - safety
-  - runner
-  scope:
-  - crates/ralph/src/run_cmd.rs
-  - crates/ralph/src/contracts.rs
-  evidence:
-  - Runners share the same working directory; simultaneous or overlapping runs could interfere
-  - No isolation between task executions for temp files or artifacts
-  - If run loop runs multiple tasks in parallel (future), they would conflict
-  plan:
-  - Add .ralph/work/<task-id> working directory per task execution
-  - Set runner working directory to task-specific work dir
-  - Copy/link necessary files into work dir before execution
-  - Clean up work dir after task completes (on success or failure)
-  - Add fsutil::create_task_workdir and cleanup helpers
-  - Add tests for work directory lifecycle
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0115
-  status: todo
-  title: Add concurrent task execution support with worker pools
-  tags:
-  - rust
-  - performance
-  - feature
-  scope:
-  - crates/ralph/src/run_cmd.rs
-  - crates/ralph/src/contracts.rs
-  evidence:
-  - run loop executes tasks sequentially; no parallel execution option
-  - For independent tasks (no dependencies), parallel execution would be much faster
-  - Modern runtimes have many cores; sequential execution is underutilization
-  plan:
-  - Add --workers/-j flag to run loop (default 1 for sequential)
-  - Use rayon or tokio to execute N tasks concurrently
-  - Ensure queue lock is held but tasks run in isolation (see RQ-0114)
-  - Limit concurrency based on available CPU cores
-  - Add tests for concurrent execution correctness
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0116
-  status: todo
-  title: Add task retry mechanism with exponential backoff
-  tags:
-  - rust
-  - reliability
-  - runner
-  scope:
-  - crates/ralph/src/contracts.rs
-  - crates/ralph/src/run_cmd.rs
-  evidence:
-  - Transient runner failures (network, API timeouts) cause task to fail completely
-  - No built-in retry for flaky runners or temporary infrastructure issues
-  - Users must manually re-run tasks that failed transiently
-  plan:
-  - Add retry field to Task (count, backoff_seconds)
-  - In run_one, catch runner errors and check if retries remain
-  - On retry, log the retry attempt and wait with backoff
-  - Update task status to track retry_count in notes
-  - Add tests for retry logic with mock runner failures
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0117
-  status: todo
-  title: Implement task template library for recurring patterns
-  tags:
-  - rust
-  - ux
-  - templates
-  scope:
-  - crates/ralph/src/task_cmd.rs
-  - .ralph/templates/
-  evidence:
-  - Common task patterns (e.g., "add tests for X", "refactor Y") are re-entered manually each time
-  - scan and task build prompts don't have access to prior task definitions
-  - No way to quickly create tasks from predefined templates
-  plan:
-  - Create .ralph/templates/ directory for task template YAML files
-  - Add ralph task list-templates command
-  - Add ralph task create-from-template <name> command
-  - Templates include default tags, scope patterns, and plan structure
-  - Add tests for template loading and instantiation
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0118
-  status: todo
-  title: Add task statistics and reporting commands
-  tags:
-  - rust
-  - ux
-  - analytics
-  scope:
-  - crates/ralph/src/main.rs
-  - crates/ralph/src/queue.rs
-  evidence:
-  - No way to get aggregate stats about task completion rates
-  - Cannot see average task duration, success/failure ratios, or tag distribution
-  - Historical analysis requires manual YAML parsing
-  plan:
-  - Add ralph queue stats command with completion rate, avg duration, tag breakdown
-  - Add ralph queue history command to show task creation/completion timeline
-  - Add ralph queue burndown command to show velocity chart
-  - Calculate duration from created_at to completed_at in done tasks
-  - Add tests for stats calculation accuracy
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0119
-  status: todo
-  title: Implement task search and filter by content patterns
-  tags:
-  - rust
-  - ux
-  - search
-  scope:
-  - crates/ralph/src/queue.rs
-  - crates/ralph/src/main.rs
-  evidence:
-  - queue list supports filtering by status, tag, and scope but not by title/content
-  - Cannot search for "all tasks mentioning 'database'"
-  - Full-text search across task descriptions would be powerful
-  plan:
-  - Add queue search <query> command
-  - Implement substring match against title, evidence, plan, notes
-  - Support regex search with --regex flag
-  - Add --match-case for case-sensitive search (default insensitive)
-  - Add tests for search accuracy and performance
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0120
-  status: todo
-  title: Add interactive task selection and TUI mode
-  tags:
-  - rust
-  - ux
-  - tui
-  scope:
-  - crates/ralph/src/main.rs
-  - Cargo.toml
-  evidence:
-  - All commands are non-interactive; users must copy-paste task IDs
-  - No way to interactively select a task to run next
-  - Terminal UI would improve workflow for browsing and selecting tasks
-  plan:
-  - Add --interactive/-i flag to run one and run loop
-  - Use a TUI library (ratatui or termion) to show task browser
-  - Allow arrow key navigation and task inspection
-  - Support task actions (run, edit, delete) from TUI
-  - Add tests for TUI mode (screen scraping or mock input)
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0121
-  status: todo
-  title: Implement task checkpoint and resume for long-running operations
-  tags:
-  - rust
-  - reliability
-  - state
-  scope:
-  - crates/ralph/src/run_cmd.rs
-  - crates/ralph/src/contracts.rs
-  evidence:
-  - If Ralph crashes during a run loop, progress is lost
-  - No checkpoint file to track which tasks are in-flight
-  - Resume after crash requires manual inspection of queue state
-  plan:
-  - Add .ralph/state.yaml with current_task_id and phase
-  - 'Update state at key points: task started, CI passed, committing'
-  - On Ralph startup, detect incomplete state and prompt to resume
-  - Add ralph run resume command to continue interrupted run
-  - Add tests for state checkpointing and recovery
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0122
-  status: todo
-  title: Add Git LFS (Large File Storage) detection and handling
-  tags:
-  - git
-  - lfs
-  - safety
-  scope:
-  - crates/ralph/src/gitutil.rs
-  - crates/ralph/src/doctor_cmd.rs
-  evidence:
-  - Git LFS files are not detected; could cause unexpected behavior
-  - No check for .gitattributes/lfs during doctor
-  - Large files in LFS could affect performance and disk usage
-  plan:
-  - Add gitutil::has_lfs() to detect .git/lfs directory or .gitattributes LFS patterns
-  - Add gitutil::list_lfs_files() to show tracked LFS files
-  - Add LFS check to doctor command
-  - Add warning during run if LFS files are modified
-  - Add tests for LFS detection (requires LFS installation or mocking)
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0123
-  status: todo
-  title: Implement task archiving policies (auto-archive after N days)
-  tags:
-  - rust
-  - queue
-  - policy
-  scope:
-  - crates/ralph/src/contracts.rs
-  - crates/ralph/src/queue.rs
-  - crates/ralph/src/main.rs
-  evidence:
-  - done.yaml grows indefinitely; no automatic cleanup
-  - Old completed tasks accumulate forever
-  - No way to auto-archive tasks older than X days
-  plan:
-  - Add archive_policy field to QueueConfig (retention_days, auto_archive)
-  - Add queue archive --apply-policy command
-  - Run auto-archive during queue validate or init
-  - Add prompt before deletion (dry-run with --dry-run flag)
-  - Add tests for archival policy calculation and execution
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0124
-  status: todo
-  title: Add subtask support and hierarchical task breakdown
-  tags:
-  - rust
-  - queue
-  - feature
-  scope:
-  - crates/ralph/src/contracts.rs
-  - crates/ralph/src/queue.rs
-  evidence:
-  - Large tasks must be broken down into multiple top-level tasks manually
-  - No parent-child relationship between tasks
-  - Cannot expand a task to see its subtasks or collapse them
-  plan:
-  - Add parent_id field to Task for subtasks
-  - Add queue show --recursive to display task hierarchy
-  - Add queue expand <task-id> to break down a task into subtasks
-  - Add queue flatten to move subtasks to top-level
-  - Update validation to prevent cycles in parent-child relationships
-  - Add tests for hierarchy operations
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0125
-  status: todo
-  title: Implement task scheduling (defer to future date/time)
-  tags:
-  - rust
-  - queue
-  - scheduling
-  scope:
-  - crates/ralph/src/contracts.rs
-  - crates/ralph/src/run_cmd.rs
-  evidence:
-  - No way to schedule a task for "next week" or "tomorrow at 9am"
-  - All tasks are immediately actionable (unless manually blocked)
-  - Cannot set start_date or due_date on tasks
-  plan:
-  - Add scheduled_for and due_by fields to Task (RFC3339 timestamps)
-  - Update run_one to skip tasks where scheduled_for > now
-  - Add queue list --overdue to show past-due tasks
-  - Add queue schedule <task-id> <timestamp> command
-  - Log warnings when approaching due date
-  - Add tests for scheduling behavior
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0126
-  status: todo
-  title: Add task labeling and custom field support
-  tags:
-  - rust
-  - queue
-  - extensibility
-  scope:
-  - crates/ralph/src/contracts.rs
-  - crates/ralph/src/queue.rs
-  evidence:
-  - 'Tasks have fixed schema: id, status, title, tags, scope, evidence, plan, notes, request, agent, timestamps'
-  - No way to attach custom metadata like "priority_score", "story_points", "sprint"
-  - Teams using Ralph for project management may want custom fields
-  plan:
-  - 'Add custom_fields: HashMap<String, String> to Task'
-  - Update validation to allow arbitrary custom fields
-  - Update queue show to display custom fields
-  - Add queue set-field <task-id> <key> <value> command
-  - Add tests for custom field persistence and retrieval
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0127
-  status: todo
-  title: Implement task links and references
-  tags:
-  - rust
-  - queue
-  - references
-  scope:
-  - crates/ralph/src/contracts.rs
-  - crates/ralph/src/queue.rs
-  evidence:
-  - Tasks cannot reference related tasks, PRs, or issues
-  - No way to say "this blocks RQ-0100" or "implements RQ-0099"
-  - Cross-references would improve task discoverability
-  plan:
-  - Add related_tasks and blocks/is_blocked_by fields to Task
-  - Add queue link <from-id> <to-id> command to establish relationships
-  - Update validation to prevent self-references and enforce consistency
-  - Add queue show --links to display relationship graph
-  - Add tests for relationship tracking
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0128
-  status: todo
-  title: Add batch task operations for bulk edits
-  tags:
-  - rust
-  - ux
-  - batch
-  scope:
-  - crates/ralph/src/main.rs
-  - crates/ralph/src/queue.rs
-  evidence:
-  - No way to update multiple tasks at once
-  - Cannot set all "database" tags to "backend" in one command
-  - Bulk operations require manual YAML editing or multiple CLI calls
-  plan:
-  - Add queue batch set-status --filter=tag:database --to=doing command
-  - Add queue batch set-tag --filter=tag:rust --add=performance command
-  - Add queue batch delete --filter=status:todo --force command
-  - Implement dry-run with --dry-run flag to preview changes
-  - Add tests for batch operations correctness
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0129
-  status: todo
-  title: Implement task diff and change tracking
-  tags:
-  - rust
-  - ux
-  - audit
-  scope:
-  - crates/ralph/src/queue.rs
-  - crates/ralph/src/main.rs
-  evidence:
-  - No way to see what changed between task edits
-  - Cannot audit who modified a task and when
-  - No history of task state transitions
-  plan:
-  - Add .ralph/task_history.yaml or embed history in task notes
-  - Track each state change with timestamp and "actor" (user or runner)
-  - Add queue history <task-id> command to show transition log
-  - Add queue diff <task-id> to show against done archive version
-  - Add tests for history tracking and diff calculation
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0130
-  status: todo
-  title: Add webhook or notification integration for task events
-  tags:
-  - rust
-  - notifications
-  - integrations
-  scope:
-  - crates/ralph/src/contracts.rs
-  - crates/ralph/src/run_cmd.rs
-  evidence:
-  - No external notifications when tasks complete or fail
-  - Teams must manually check queue status
-  - Integrations with Slack, Discord, email would improve visibility
-  plan:
-  - Add webhooks field to Config (URL list)
-  - Send HTTP POST on task state changes with event payload
-  - Add ralph queue test-webhook <url> command
-  - Support signing webhooks with HMAC secret
-  - Add retry logic for failed webhook deliveries
-  - Add tests for webhook delivery and signing
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0131
-  status: todo
-  title: Implement task import/export for cross-repo sharing
-  tags:
-  - rust
-  - portability
-  - sharing
-  scope:
-  - crates/ralph/src/main.rs
-  - crates/ralph/src/queue.rs
-  evidence:
-  - No way to export tasks to share with another team or repo
-  - Cannot import tasks from external sources
-  - Task templates or best practices cannot be easily distributed
-  plan:
-  - Add ralph queue export --output=tasks.yaml command
-  - Add ralph queue import --input=tasks.yaml command
-  - Support --filter flag to export only matching tasks
-  - Validate imported tasks against schema and existing IDs
-  - Add --merge flag to combine imported tasks with existing queue
-  - Add tests for import/export correctness
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0132
-  status: todo
-  title: Add environment variable interpolation in prompts
-  tags:
-  - rust
-  - prompts
-  - config
-  scope:
-  - crates/ralph/src/prompts.rs
-  evidence:
-  - Prompts are static; cannot reference env vars or config values
-  - No way to customize prompts with project-specific values
-  - 'Templates like "API endpoint: ${API_URL}" would be useful'
-  plan:
-  - Add env var interpolation to prompt rendering (e.g., ${VAR:-default})
-  - Add config value interpolation (e.g., {{agent.runner}})
-  - Support escaping with $${VAR} or \\${VAR}
-  - Document supported variables in prompt override docs
-  - Add tests for interpolation edge cases
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0133
-  status: todo
-  title: Implement multi-repo workspace support
-  tags:
-  - rust
-  - workspaces
-  - architecture
-  scope:
-  - crates/ralph/src/config.rs
-  - crates/ralph/src/run_cmd.rs
-  evidence:
-  - Ralph assumes a single repo rooted at repo_root
-  - Monorepos with multiple projects need separate queues per subproject
-  - No way to run tasks against different repos from one Ralph instance
-  plan:
-  - Add workspaces config with repo list and path mappings
-  - Update run_cmd to execute tasks in specific repo contexts
-  - Add --repo flag to run/scan/task commands to target repo
-  - Support relative paths and workspace root discovery
-  - Add tests for multi-repo task execution
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0134
-  status: todo
-  title: Add signal handling for graceful shutdown during run loop
-  tags:
-  - rust
-  - reliability
-  - signals
-  scope:
-  - crates/ralph/src/run_cmd.rs
-  - crates/ralph/Cargo.toml
-  evidence:
-  - Ctrl+C during run loop may leave repo in inconsistent state
-  - No SIGTERM/SIGINT handler for graceful shutdown
-  - Long-running tasks cannot be cleanly interrupted mid-execution
-  plan:
-  - Add signal handler for SIGTERM and SIGINT in run_cmd
-  - On interrupt, wait for current runner subprocess to complete
-  - Set a timeout for graceful shutdown, then force kill if needed
-  - Save partial progress before exiting
-  - Add "Interrupted" status to Task to show incomplete runs
-  - Add tests for graceful shutdown behavior
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0135
-  status: todo
-  title: Implement task ownership and assignment
-  tags:
-  - rust
-  - queue
-  - collaboration
-  scope:
-  - crates/ralph/src/contracts.rs
-  - crates/ralph/src/queue.rs
-  evidence:
-  - No way to assign tasks to specific users or teams
-  - Cannot filter tasks by "who is working on what"
-  - Team collaboration requires manual coordination
-  plan:
-  - Add assigned_to field to Task (string or list)
-  - Add queue assign <task-id> <user> command
-  - Add queue list --assigned-to=<user> filter
-  - Update scan and task prompts to request assignment from agent
-  - Add validation to ensure assigned users are in allowlist (if configured)
-  - Add tests for assignment filtering
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0136
-  status: todo
-  title: Add task estimation and time tracking fields
-  tags:
-  - rust
-  - queue
-  - planning
-  scope:
-  - crates/ralph/src/contracts.rs
-  - crates/ralph/src/queue.rs
-  evidence:
-  - No way to record time estimates vs actual time
-  - Cannot track "this task was estimated at 2h but took 4h"
-  - Planning for future sprints requires historical time data
-  plan:
-  - Add estimate_minutes and actual_minutes fields to Task
-  - Add queue set-time <task-id> <estimate|actual>=<minutes> command
-  - Calculate actual from created_at to completed_at as fallback
-  - Add queue report --estimates to show estimate vs actual accuracy
-  - Add tests for time tracking calculations
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0137
-  status: todo
-  title: Implement task aliases and shortcuts
-  tags:
-  - rust
-  - ux
-  - shortcuts
-  scope:
-  - crates/ralph/src/contracts.rs
-  - crates/ralph/src/main.rs
-  evidence:
-  - Task IDs are numeric; users must remember "RQ-0100" format
-  - No way to create named shortcuts like "fix-auth-bug"
-  - Cannot reference tasks by memorable names in commands
-  plan:
-  - Add aliases field to Task (list of strings)
-  - Add queue alias <task-id> <name> command
-  - Add queue unalias <name> command
-  - Support <alias> in any command that takes <task-id>
-  - Validate aliases are unique and don't shadow IDs
-  - Add tests for alias resolution and conflicts
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0138
-  status: todo
-  title: Add task validation rules and custom schemas
-  tags:
-  - rust
-  - validation
-  - config
-  scope:
-  - crates/ralph/src/config.rs
-  - crates/ralph/src/queue.rs
-  evidence:
-  - Validation is hardcoded; teams cannot add custom rules
-  - Cannot enforce project-specific constraints like "all tasks must have 'estimate'"
-  - No way to require certain tags or forbid others
-  plan:
-  - Add validation_rules to Config (required_fields, required_tags, forbidden_tags)
-  - Extend queue validation to check custom rules
-  - Add ralph queue test-rules command to validate against config
-  - Support rule inheritance from global to project config
-  - Add tests for custom validation rules
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0139
-  status: todo
-  title: Implement task lifecycle hooks and triggers
-  tags:
-  - rust
-  - automation
-  - hooks
-  scope:
-  - crates/ralph/src/contracts.rs
-  - crates/ralph/src/run_cmd.rs
-  evidence:
-  - No way to run custom scripts on task state transitions
-  - Cannot trigger notifications or external actions when tasks complete
-  - Automation requires manual intervention after each task
-  plan:
-  - Add hooks.on_task_start, hooks.on_task_complete, hooks.on_task_fail to Config
-  - Define hooks as command lists to execute
-  - Run hooks in run_cmd at appropriate lifecycle points
-  - Pass task context as env vars (RALPH_TASK_ID, RALPH_STATUS, etc.)
-  - Add hook validation to prevent infinite loops or dangerous commands
-  - Add tests for hook execution and error handling
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0140
-  status: todo
-  title: Add task branching and alternative scenarios
-  tags:
-  - rust
-  - queue
-  - scenarios
-  scope:
-  - crates/ralph/src/contracts.rs
-  - crates/ralph/src/queue.rs
-  evidence:
-  - No support for "if X fails, try Y instead" scenarios
-  - Cannot create alternative approaches within a single task
-  - Teams must create multiple top-level tasks for Plan A/B/C
-  plan:
-  - Add alternatives field to Task (list of alternative plans)
-  - Add queue list-alternatives <task-id> to show Plan B/C options
-  - Add queue mark-as-primary <task-id> to promote alternative to main plan
-  - Update prompts to suggest alternatives when primary plan fails
-  - Add tests for alternative plan management
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0141
-  status: todo
-  title: Implement task rollbacks and undo functionality
-  tags:
-  - rust
-  - git
-  - safety
-  scope:
-  - crates/ralph/src/main.rs
-  - crates/ralph/src/run_cmd.rs
-  evidence:
-  - No way to undo a completed task and restore previous state
-  - If a task makes things worse, you must manually revert its changes
-  - Cannot "rewind" to before a task ran
-  plan:
-  - Add ralph run undo <n> command to revert last N task commits
-  - Use git revert with commit message matching to identify task commits
-  - Move task from done back to queue with status=todo
-  - Add --dry-run flag to preview what would be reverted
-  - Add tests for undo correctness and edge cases
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0142
-  status: todo
-  title: Add color output support and terminal detection
-  tags:
-  - rust
-  - ux
-  - cli
-  scope:
-  - crates/ralph/src/main.rs
-  - crates/ralph/src/outpututil.rs
-  evidence:
-  - No global --color flag or NO_COLOR env var support
-  - Colored output in doctor_cmd doesn't respect terminal capabilities
-  - Cannot disable color for CI/CD environments
-  plan:
-  - Add --color flag (auto, always, never) to CLI
-  - Respect NO_COLOR and TERM=dumb environment variables
-  - Update colored crate usage to check terminal support
-  - Add outpututil::should_use_color() helper
-  - Add tests for color output in different TERM settings
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0143
-  status: todo
-  title: Implement task sandboxing with container support
-  tags:
-  - rust
-  - containers
-  - isolation
-  scope:
-  - crates/ralph/src/contracts.rs
-  - crates/ralph/src/run_cmd.rs
-  evidence:
-  - Tasks run directly on host system with full access
-  - No isolation for potentially dangerous operations
-  - Cannot run tasks in Docker/podman for reproducibility
-  plan:
-  - 'Add container field to Task (image: String, volumes: Vec<String>)'
-  - Update runutil to wrap runner in container execution
-  - Support both Docker and Podman backends
-  - Add fallback to host execution if container unavailable
-  - Add tests for container invocation (requires container runtime)
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0144
-  status: todo
-  title: Add task dependencies on external resources
-  tags:
-  - rust
-  - validation
-  - external
-  scope:
-  - crates/ralph/src/contracts.rs
-  - crates/ralph/src/run_cmd.rs
-  evidence:
-  - Tasks cannot specify prerequisites like "service X must be running"
-  - No validation that required external APIs/services are available
-  - Cannot defer task execution until external conditions are met
-  plan:
-  - Add requires field to Task (list of external dependencies)
-  - 'Define dependency types: service, url, env_var, file_exists'
-  - Add queue check-dependencies <task-id> command
-  - Check dependencies in run_one before executing task
-  - Add tests for dependency checking and validation
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0145
-  status: todo
-  title: Implement task progress tracking and checkpointing
-  tags:
-  - rust
-  - progress
-  - runner
-  scope:
-  - crates/ralph/src/contracts.rs
-  - crates/ralph/src/queue.rs
-  evidence:
-  - Long-running tasks provide no intermediate progress updates
-  - No way for agents to report "50% complete"
-  - Cannot resume from checkpoints within a task
-  plan:
-  - Add progress field to Task (percentage, current_step, total_steps)
-  - Add queue set-progress <task-id> <percentage> command
-  - Agents can update progress via special comments or RPC
-  - Display progress bar in run loop output
-  - Add tests for progress tracking and display
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0146
-  status: todo
-  title: Add task comments and discussion threads
-  tags:
-  - rust
-  - collaboration
-  - comments
-  scope:
-  - crates/ralph/src/contracts.rs
-  - crates/ralph/src/main.rs
-  evidence:
-  - Task notes are flat; no threaded discussions
-  - Cannot have conversations within a task about approach
-  - Notes don't track who said what and when
-  plan:
-  - Add comments field to Task (list of structured comment objects)
-  - Each comment has author, timestamp, and content
-  - Add queue comment <task-id> <message> command
-  - Add queue show-comments <task-id> command
-  - Support thread replies with --reply-to=<comment-id>
-  - Add tests for comment threading
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
-- id: RQ-0147
-  status: todo
-  title: Implement task pinning for important items
-  tags:
-  - rust
-  - ux
-  - pinning
-  scope:
-  - crates/ralph/src/contracts.rs
-  - crates/ralph/src/queue.rs
-  evidence:
-  - Important tasks can be accidentally reordered or modified
-  - No way to "protect" critical tasks from changes
-  - Pinned tasks should resist auto-sorting or bulk operations
-  plan:
-  - Add pinned field to Task (boolean, default false)
-  - Add queue pin/unpin <task-id> commands
-  - Update queue list to show pinned indicator (* or 📌)
-  - Skip pinned tasks during auto-sort operations
-  - Require --force to edit pinned tasks
-  - Add tests for pin protection behavior
-  notes: []
-  request: scan finding
-  created_at: 2025-01-19T12:00:00Z
-  updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0110
+    status: todo
+    title: Implement task dependency tracking and ordering
+    tags:
+      - rust
+      - queue
+      - feature
+    scope:
+      - crates/ralph/src/contracts.rs
+      - crates/ralph/src/queue.rs
+      - crates/ralph/src/run_cmd.rs
+    evidence:
+      - Queue is ordered by priority but there is no dependency system
+      - Tasks cannot specify "must complete after RQ-0100" requirements
+      - Complex multi-step workflows require manual ordering
+    plan:
+      - Add depends_on field to Task contract (list of task IDs)
+      - Validate dependencies exist in queue or done during queue validation
+      - Skip dependent tasks if dependency fails during run loop
+      - Add queue list --filter-deps=RQ-0100 to show dependency chain
+      - Add tests for dependency validation and execution ordering
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0111
+    status: todo
+    title: Add task priority field and sorting capabilities
+    tags:
+      - rust
+      - queue
+      - ux
+    scope:
+      - crates/ralph/src/contracts.rs
+      - crates/ralph/src/queue.rs
+      - crates/ralph/src/main.rs
+    evidence:
+      - Queue is ordered by priority but there is no explicit priority field
+      - Tasks must be manually reordered by editing YAML
+      - No way to sort by "importance" without manual reordering
+    plan:
+      - "Add priority field to Task (enum: critical, high, medium, low)"
+      - Add queue sort --by=priority command
+      - Add queue list --sort-by=priority flag
+      - Update task build and scan prompts to request priority from agent
+      - Add tests for priority sorting and validation
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0112
+    status: todo
+    title: Implement task blocking/muting for temporary exclusions
+    tags:
+      - rust
+      - queue
+      - ux
+    scope:
+      - crates/ralph/src/contracts.rs
+      - crates/ralph/src/run_cmd.rs
+      - crates/ralph/src/main.rs
+    evidence:
+      - No way to temporarily exclude a task without deleting it or moving it to done
+      - When a task is blocked (e.g., waiting for external dependency), it still appears as todo
+      - Users may want to "skip this for now" without losing the task definition
+    plan:
+      - Add blocked field to Task (boolean, default false)
+      - Update run_one to skip blocked tasks with a log message
+      - Add queue block/unblock <task-id> commands
+      - Add --blocked filter to queue list
+      - Add tests for blocking behavior in run loop
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0113
+    status: todo
+    title: Add git conflict detection and recovery in post_run_supervise
+    tags:
+      - rust
+      - safety
+      - git
+    scope:
+      - crates/ralph/src/run_cmd.rs
+      - crates/ralph/src/gitutil.rs
+    evidence:
+      - post_run_supervise commits changes but doesn't detect merge conflicts
+      - If git push fails due to diverged history, the state is unclear
+      - No check for merge markers before committing
+    plan:
+      - Add gitutil::has_merge_conflicts() to detect conflict markers
+      - In post_run_supervise, check for conflicts after dirty check
+      - If conflicts found, bail with instructions to resolve
+      - Add gitutil::is_diverged() to check if local is behind remote
+      - Add tests for conflict detection scenarios
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0114
+    status: todo
+    title: Implement per-task output directory isolation
+    tags:
+      - rust
+      - safety
+      - runner
+    scope:
+      - crates/ralph/src/run_cmd.rs
+      - crates/ralph/src/contracts.rs
+    evidence:
+      - Runners share the same working directory; simultaneous or overlapping runs could interfere
+      - No isolation between task executions for temp files or artifacts
+      - If run loop runs multiple tasks in parallel (future), they would conflict
+    plan:
+      - Add .ralph/work/<task-id> working directory per task execution
+      - Set runner working directory to task-specific work dir
+      - Copy/link necessary files into work dir before execution
+      - Clean up work dir after task completes (on success or failure)
+      - Add fsutil::create_task_workdir and cleanup helpers
+      - Add tests for work directory lifecycle
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0115
+    status: todo
+    title: Add concurrent task execution support with worker pools
+    tags:
+      - rust
+      - performance
+      - feature
+    scope:
+      - crates/ralph/src/run_cmd.rs
+      - crates/ralph/src/contracts.rs
+    evidence:
+      - run loop executes tasks sequentially; no parallel execution option
+      - For independent tasks (no dependencies), parallel execution would be much faster
+      - Modern runtimes have many cores; sequential execution is underutilization
+    plan:
+      - Add --workers/-j flag to run loop (default 1 for sequential)
+      - Use rayon or tokio to execute N tasks concurrently
+      - Ensure queue lock is held but tasks run in isolation (see RQ-0114)
+      - Limit concurrency based on available CPU cores
+      - Add tests for concurrent execution correctness
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0116
+    status: todo
+    title: Add task retry mechanism with exponential backoff
+    tags:
+      - rust
+      - reliability
+      - runner
+    scope:
+      - crates/ralph/src/contracts.rs
+      - crates/ralph/src/run_cmd.rs
+    evidence:
+      - Transient runner failures (network, API timeouts) cause task to fail completely
+      - No built-in retry for flaky runners or temporary infrastructure issues
+      - Users must manually re-run tasks that failed transiently
+    plan:
+      - Add retry field to Task (count, backoff_seconds)
+      - In run_one, catch runner errors and check if retries remain
+      - On retry, log the retry attempt and wait with backoff
+      - Update task status to track retry_count in notes
+      - Add tests for retry logic with mock runner failures
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0117
+    status: todo
+    title: Implement task template library for recurring patterns
+    tags:
+      - rust
+      - ux
+      - templates
+    scope:
+      - crates/ralph/src/task_cmd.rs
+      - .ralph/templates/
+    evidence:
+      - Common task patterns (e.g., "add tests for X", "refactor Y") are re-entered manually each time
+      - scan and task build prompts don't have access to prior task definitions
+      - No way to quickly create tasks from predefined templates
+    plan:
+      - Create .ralph/templates/ directory for task template YAML files
+      - Add ralph task list-templates command
+      - Add ralph task create-from-template <name> command
+      - Templates include default tags, scope patterns, and plan structure
+      - Add tests for template loading and instantiation
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0118
+    status: todo
+    title: Add task statistics and reporting commands
+    tags:
+      - rust
+      - ux
+      - analytics
+    scope:
+      - crates/ralph/src/main.rs
+      - crates/ralph/src/queue.rs
+    evidence:
+      - No way to get aggregate stats about task completion rates
+      - Cannot see average task duration, success/failure ratios, or tag distribution
+      - Historical analysis requires manual YAML parsing
+    plan:
+      - Add ralph queue stats command with completion rate, avg duration, tag breakdown
+      - Add ralph queue history command to show task creation/completion timeline
+      - Add ralph queue burndown command to show velocity chart
+      - Calculate duration from created_at to completed_at in done tasks
+      - Add tests for stats calculation accuracy
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0119
+    status: todo
+    title: Implement task search and filter by content patterns
+    tags:
+      - rust
+      - ux
+      - search
+    scope:
+      - crates/ralph/src/queue.rs
+      - crates/ralph/src/main.rs
+    evidence:
+      - queue list supports filtering by status, tag, and scope but not by title/content
+      - Cannot search for "all tasks mentioning 'database'"
+      - Full-text search across task descriptions would be powerful
+    plan:
+      - Add queue search <query> command
+      - Implement substring match against title, evidence, plan, notes
+      - Support regex search with --regex flag
+      - Add --match-case for case-sensitive search (default insensitive)
+      - Add tests for search accuracy and performance
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0120
+    status: todo
+    title: Add interactive task selection and TUI mode
+    tags:
+      - rust
+      - ux
+      - tui
+    scope:
+      - crates/ralph/src/main.rs
+      - Cargo.toml
+    evidence:
+      - All commands are non-interactive; users must copy-paste task IDs
+      - No way to interactively select a task to run next
+      - Terminal UI would improve workflow for browsing and selecting tasks
+    plan:
+      - Add --interactive/-i flag to run one and run loop
+      - Use a TUI library (ratatui or termion) to show task browser
+      - Allow arrow key navigation and task inspection
+      - Support task actions (run, edit, delete) from TUI
+      - Add tests for TUI mode (screen scraping or mock input)
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0121
+    status: todo
+    title: Implement task checkpoint and resume for long-running operations
+    tags:
+      - rust
+      - reliability
+      - state
+    scope:
+      - crates/ralph/src/run_cmd.rs
+      - crates/ralph/src/contracts.rs
+    evidence:
+      - If Ralph crashes during a run loop, progress is lost
+      - No checkpoint file to track which tasks are in-flight
+      - Resume after crash requires manual inspection of queue state
+    plan:
+      - Add .ralph/state.yaml with current_task_id and phase
+      - "Update state at key points: task started, CI passed, committing"
+      - On Ralph startup, detect incomplete state and prompt to resume
+      - Add ralph run resume command to continue interrupted run
+      - Add tests for state checkpointing and recovery
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0122
+    status: todo
+    title: Add Git LFS (Large File Storage) detection and handling
+    tags:
+      - git
+      - lfs
+      - safety
+    scope:
+      - crates/ralph/src/gitutil.rs
+      - crates/ralph/src/doctor_cmd.rs
+    evidence:
+      - Git LFS files are not detected; could cause unexpected behavior
+      - No check for .gitattributes/lfs during doctor
+      - Large files in LFS could affect performance and disk usage
+    plan:
+      - Add gitutil::has_lfs() to detect .git/lfs directory or .gitattributes LFS patterns
+      - Add gitutil::list_lfs_files() to show tracked LFS files
+      - Add LFS check to doctor command
+      - Add warning during run if LFS files are modified
+      - Add tests for LFS detection (requires LFS installation or mocking)
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0123
+    status: todo
+    title: Implement task archiving policies (auto-archive after N days)
+    tags:
+      - rust
+      - queue
+      - policy
+    scope:
+      - crates/ralph/src/contracts.rs
+      - crates/ralph/src/queue.rs
+      - crates/ralph/src/main.rs
+    evidence:
+      - done.yaml grows indefinitely; no automatic cleanup
+      - Old completed tasks accumulate forever
+      - No way to auto-archive tasks older than X days
+    plan:
+      - Add archive_policy field to QueueConfig (retention_days, auto_archive)
+      - Add queue archive --apply-policy command
+      - Run auto-archive during queue validate or init
+      - Add prompt before deletion (dry-run with --dry-run flag)
+      - Add tests for archival policy calculation and execution
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0124
+    status: todo
+    title: Add subtask support and hierarchical task breakdown
+    tags:
+      - rust
+      - queue
+      - feature
+    scope:
+      - crates/ralph/src/contracts.rs
+      - crates/ralph/src/queue.rs
+    evidence:
+      - Large tasks must be broken down into multiple top-level tasks manually
+      - No parent-child relationship between tasks
+      - Cannot expand a task to see its subtasks or collapse them
+    plan:
+      - Add parent_id field to Task for subtasks
+      - Add queue show --recursive to display task hierarchy
+      - Add queue expand <task-id> to break down a task into subtasks
+      - Add queue flatten to move subtasks to top-level
+      - Update validation to prevent cycles in parent-child relationships
+      - Add tests for hierarchy operations
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0125
+    status: todo
+    title: Implement task scheduling (defer to future date/time)
+    tags:
+      - rust
+      - queue
+      - scheduling
+    scope:
+      - crates/ralph/src/contracts.rs
+      - crates/ralph/src/run_cmd.rs
+    evidence:
+      - No way to schedule a task for "next week" or "tomorrow at 9am"
+      - All tasks are immediately actionable (unless manually blocked)
+      - Cannot set start_date or due_date on tasks
+    plan:
+      - Add scheduled_for and due_by fields to Task (RFC3339 timestamps)
+      - Update run_one to skip tasks where scheduled_for > now
+      - Add queue list --overdue to show past-due tasks
+      - Add queue schedule <task-id> <timestamp> command
+      - Log warnings when approaching due date
+      - Add tests for scheduling behavior
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0126
+    status: todo
+    title: Add task labeling and custom field support
+    tags:
+      - rust
+      - queue
+      - extensibility
+    scope:
+      - crates/ralph/src/contracts.rs
+      - crates/ralph/src/queue.rs
+    evidence:
+      - "Tasks have fixed schema: id, status, title, tags, scope, evidence, plan, notes, request, agent, timestamps"
+      - No way to attach custom metadata like "priority_score", "story_points", "sprint"
+      - Teams using Ralph for project management may want custom fields
+    plan:
+      - "Add custom_fields: HashMap<String, String> to Task"
+      - Update validation to allow arbitrary custom fields
+      - Update queue show to display custom fields
+      - Add queue set-field <task-id> <key> <value> command
+      - Add tests for custom field persistence and retrieval
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0127
+    status: todo
+    title: Implement task links and references
+    tags:
+      - rust
+      - queue
+      - references
+    scope:
+      - crates/ralph/src/contracts.rs
+      - crates/ralph/src/queue.rs
+    evidence:
+      - Tasks cannot reference related tasks, PRs, or issues
+      - No way to say "this blocks RQ-0100" or "implements RQ-0099"
+      - Cross-references would improve task discoverability
+    plan:
+      - Add related_tasks and blocks/is_blocked_by fields to Task
+      - Add queue link <from-id> <to-id> command to establish relationships
+      - Update validation to prevent self-references and enforce consistency
+      - Add queue show --links to display relationship graph
+      - Add tests for relationship tracking
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0128
+    status: todo
+    title: Add batch task operations for bulk edits
+    tags:
+      - rust
+      - ux
+      - batch
+    scope:
+      - crates/ralph/src/main.rs
+      - crates/ralph/src/queue.rs
+    evidence:
+      - No way to update multiple tasks at once
+      - Cannot set all "database" tags to "backend" in one command
+      - Bulk operations require manual YAML editing or multiple CLI calls
+    plan:
+      - Add queue batch set-status --filter=tag:database --to=doing command
+      - Add queue batch set-tag --filter=tag:rust --add=performance command
+      - Add queue batch delete --filter=status:todo --force command
+      - Implement dry-run with --dry-run flag to preview changes
+      - Add tests for batch operations correctness
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0129
+    status: todo
+    title: Implement task diff and change tracking
+    tags:
+      - rust
+      - ux
+      - audit
+    scope:
+      - crates/ralph/src/queue.rs
+      - crates/ralph/src/main.rs
+    evidence:
+      - No way to see what changed between task edits
+      - Cannot audit who modified a task and when
+      - No history of task state transitions
+    plan:
+      - Add .ralph/task_history.yaml or embed history in task notes
+      - Track each state change with timestamp and "actor" (user or runner)
+      - Add queue history <task-id> command to show transition log
+      - Add queue diff <task-id> to show against done archive version
+      - Add tests for history tracking and diff calculation
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0130
+    status: todo
+    title: Add webhook or notification integration for task events
+    tags:
+      - rust
+      - notifications
+      - integrations
+    scope:
+      - crates/ralph/src/contracts.rs
+      - crates/ralph/src/run_cmd.rs
+    evidence:
+      - No external notifications when tasks complete or fail
+      - Teams must manually check queue status
+      - Integrations with Slack, Discord, email would improve visibility
+    plan:
+      - Add webhooks field to Config (URL list)
+      - Send HTTP POST on task state changes with event payload
+      - Add ralph queue test-webhook <url> command
+      - Support signing webhooks with HMAC secret
+      - Add retry logic for failed webhook deliveries
+      - Add tests for webhook delivery and signing
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0131
+    status: todo
+    title: Implement task import/export for cross-repo sharing
+    tags:
+      - rust
+      - portability
+      - sharing
+    scope:
+      - crates/ralph/src/main.rs
+      - crates/ralph/src/queue.rs
+    evidence:
+      - No way to export tasks to share with another team or repo
+      - Cannot import tasks from external sources
+      - Task templates or best practices cannot be easily distributed
+    plan:
+      - Add ralph queue export --output=tasks.yaml command
+      - Add ralph queue import --input=tasks.yaml command
+      - Support --filter flag to export only matching tasks
+      - Validate imported tasks against schema and existing IDs
+      - Add --merge flag to combine imported tasks with existing queue
+      - Add tests for import/export correctness
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0132
+    status: todo
+    title: Add environment variable interpolation in prompts
+    tags:
+      - rust
+      - prompts
+      - config
+    scope:
+      - crates/ralph/src/prompts.rs
+    evidence:
+      - Prompts are static; cannot reference env vars or config values
+      - No way to customize prompts with project-specific values
+      - 'Templates like "API endpoint: ${API_URL}" would be useful'
+    plan:
+      - Add env var interpolation to prompt rendering (e.g., ${VAR:-default})
+      - Add config value interpolation (e.g., {{agent.runner}})
+      - Support escaping with $${VAR} or \\${VAR}
+      - Document supported variables in prompt override docs
+      - Add tests for interpolation edge cases
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0133
+    status: todo
+    title: Implement multi-repo workspace support
+    tags:
+      - rust
+      - workspaces
+      - architecture
+    scope:
+      - crates/ralph/src/config.rs
+      - crates/ralph/src/run_cmd.rs
+    evidence:
+      - Ralph assumes a single repo rooted at repo_root
+      - Monorepos with multiple projects need separate queues per subproject
+      - No way to run tasks against different repos from one Ralph instance
+    plan:
+      - Add workspaces config with repo list and path mappings
+      - Update run_cmd to execute tasks in specific repo contexts
+      - Add --repo flag to run/scan/task commands to target repo
+      - Support relative paths and workspace root discovery
+      - Add tests for multi-repo task execution
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0134
+    status: todo
+    title: Add signal handling for graceful shutdown during run loop
+    tags:
+      - rust
+      - reliability
+      - signals
+    scope:
+      - crates/ralph/src/run_cmd.rs
+      - crates/ralph/Cargo.toml
+    evidence:
+      - Ctrl+C during run loop may leave repo in inconsistent state
+      - No SIGTERM/SIGINT handler for graceful shutdown
+      - Long-running tasks cannot be cleanly interrupted mid-execution
+    plan:
+      - Add signal handler for SIGTERM and SIGINT in run_cmd
+      - On interrupt, wait for current runner subprocess to complete
+      - Set a timeout for graceful shutdown, then force kill if needed
+      - Save partial progress before exiting
+      - Add "Interrupted" status to Task to show incomplete runs
+      - Add tests for graceful shutdown behavior
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0135
+    status: todo
+    title: Implement task ownership and assignment
+    tags:
+      - rust
+      - queue
+      - collaboration
+    scope:
+      - crates/ralph/src/contracts.rs
+      - crates/ralph/src/queue.rs
+    evidence:
+      - No way to assign tasks to specific users or teams
+      - Cannot filter tasks by "who is working on what"
+      - Team collaboration requires manual coordination
+    plan:
+      - Add assigned_to field to Task (string or list)
+      - Add queue assign <task-id> <user> command
+      - Add queue list --assigned-to=<user> filter
+      - Update scan and task prompts to request assignment from agent
+      - Add validation to ensure assigned users are in allowlist (if configured)
+      - Add tests for assignment filtering
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0136
+    status: todo
+    title: Add task estimation and time tracking fields
+    tags:
+      - rust
+      - queue
+      - planning
+    scope:
+      - crates/ralph/src/contracts.rs
+      - crates/ralph/src/queue.rs
+    evidence:
+      - No way to record time estimates vs actual time
+      - Cannot track "this task was estimated at 2h but took 4h"
+      - Planning for future sprints requires historical time data
+    plan:
+      - Add estimate_minutes and actual_minutes fields to Task
+      - Add queue set-time <task-id> <estimate|actual>=<minutes> command
+      - Calculate actual from created_at to completed_at as fallback
+      - Add queue report --estimates to show estimate vs actual accuracy
+      - Add tests for time tracking calculations
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0137
+    status: todo
+    title: Implement task aliases and shortcuts
+    tags:
+      - rust
+      - ux
+      - shortcuts
+    scope:
+      - crates/ralph/src/contracts.rs
+      - crates/ralph/src/main.rs
+    evidence:
+      - Task IDs are numeric; users must remember "RQ-0100" format
+      - No way to create named shortcuts like "fix-auth-bug"
+      - Cannot reference tasks by memorable names in commands
+    plan:
+      - Add aliases field to Task (list of strings)
+      - Add queue alias <task-id> <name> command
+      - Add queue unalias <name> command
+      - Support <alias> in any command that takes <task-id>
+      - Validate aliases are unique and don't shadow IDs
+      - Add tests for alias resolution and conflicts
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0138
+    status: todo
+    title: Add task validation rules and custom schemas
+    tags:
+      - rust
+      - validation
+      - config
+    scope:
+      - crates/ralph/src/config.rs
+      - crates/ralph/src/queue.rs
+    evidence:
+      - Validation is hardcoded; teams cannot add custom rules
+      - Cannot enforce project-specific constraints like "all tasks must have 'estimate'"
+      - No way to require certain tags or forbid others
+    plan:
+      - Add validation_rules to Config (required_fields, required_tags, forbidden_tags)
+      - Extend queue validation to check custom rules
+      - Add ralph queue test-rules command to validate against config
+      - Support rule inheritance from global to project config
+      - Add tests for custom validation rules
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0139
+    status: todo
+    title: Implement task lifecycle hooks and triggers
+    tags:
+      - rust
+      - automation
+      - hooks
+    scope:
+      - crates/ralph/src/contracts.rs
+      - crates/ralph/src/run_cmd.rs
+    evidence:
+      - No way to run custom scripts on task state transitions
+      - Cannot trigger notifications or external actions when tasks complete
+      - Automation requires manual intervention after each task
+    plan:
+      - Add hooks.on_task_start, hooks.on_task_complete, hooks.on_task_fail to Config
+      - Define hooks as command lists to execute
+      - Run hooks in run_cmd at appropriate lifecycle points
+      - Pass task context as env vars (RALPH_TASK_ID, RALPH_STATUS, etc.)
+      - Add hook validation to prevent infinite loops or dangerous commands
+      - Add tests for hook execution and error handling
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0140
+    status: todo
+    title: Add task branching and alternative scenarios
+    tags:
+      - rust
+      - queue
+      - scenarios
+    scope:
+      - crates/ralph/src/contracts.rs
+      - crates/ralph/src/queue.rs
+    evidence:
+      - No support for "if X fails, try Y instead" scenarios
+      - Cannot create alternative approaches within a single task
+      - Teams must create multiple top-level tasks for Plan A/B/C
+    plan:
+      - Add alternatives field to Task (list of alternative plans)
+      - Add queue list-alternatives <task-id> to show Plan B/C options
+      - Add queue mark-as-primary <task-id> to promote alternative to main plan
+      - Update prompts to suggest alternatives when primary plan fails
+      - Add tests for alternative plan management
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0141
+    status: todo
+    title: Implement task rollbacks and undo functionality
+    tags:
+      - rust
+      - git
+      - safety
+    scope:
+      - crates/ralph/src/main.rs
+      - crates/ralph/src/run_cmd.rs
+    evidence:
+      - No way to undo a completed task and restore previous state
+      - If a task makes things worse, you must manually revert its changes
+      - Cannot "rewind" to before a task ran
+    plan:
+      - Add ralph run undo <n> command to revert last N task commits
+      - Use git revert with commit message matching to identify task commits
+      - Move task from done back to queue with status=todo
+      - Add --dry-run flag to preview what would be reverted
+      - Add tests for undo correctness and edge cases
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0142
+    status: todo
+    title: Add color output support and terminal detection
+    tags:
+      - rust
+      - ux
+      - cli
+    scope:
+      - crates/ralph/src/main.rs
+      - crates/ralph/src/outpututil.rs
+    evidence:
+      - No global --color flag or NO_COLOR env var support
+      - Colored output in doctor_cmd doesn't respect terminal capabilities
+      - Cannot disable color for CI/CD environments
+    plan:
+      - Add --color flag (auto, always, never) to CLI
+      - Respect NO_COLOR and TERM=dumb environment variables
+      - Update colored crate usage to check terminal support
+      - Add outpututil::should_use_color() helper
+      - Add tests for color output in different TERM settings
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0143
+    status: todo
+    title: Implement task sandboxing with container support
+    tags:
+      - rust
+      - containers
+      - isolation
+    scope:
+      - crates/ralph/src/contracts.rs
+      - crates/ralph/src/run_cmd.rs
+    evidence:
+      - Tasks run directly on host system with full access
+      - No isolation for potentially dangerous operations
+      - Cannot run tasks in Docker/podman for reproducibility
+    plan:
+      - "Add container field to Task (image: String, volumes: Vec<String>)"
+      - Update runutil to wrap runner in container execution
+      - Support both Docker and Podman backends
+      - Add fallback to host execution if container unavailable
+      - Add tests for container invocation (requires container runtime)
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0144
+    status: todo
+    title: Add task dependencies on external resources
+    tags:
+      - rust
+      - validation
+      - external
+    scope:
+      - crates/ralph/src/contracts.rs
+      - crates/ralph/src/run_cmd.rs
+    evidence:
+      - Tasks cannot specify prerequisites like "service X must be running"
+      - No validation that required external APIs/services are available
+      - Cannot defer task execution until external conditions are met
+    plan:
+      - Add requires field to Task (list of external dependencies)
+      - "Define dependency types: service, url, env_var, file_exists"
+      - Add queue check-dependencies <task-id> command
+      - Check dependencies in run_one before executing task
+      - Add tests for dependency checking and validation
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0145
+    status: todo
+    title: Implement task progress tracking and checkpointing
+    tags:
+      - rust
+      - progress
+      - runner
+    scope:
+      - crates/ralph/src/contracts.rs
+      - crates/ralph/src/queue.rs
+    evidence:
+      - Long-running tasks provide no intermediate progress updates
+      - No way for agents to report "50% complete"
+      - Cannot resume from checkpoints within a task
+    plan:
+      - Add progress field to Task (percentage, current_step, total_steps)
+      - Add queue set-progress <task-id> <percentage> command
+      - Agents can update progress via special comments or RPC
+      - Display progress bar in run loop output
+      - Add tests for progress tracking and display
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0146
+    status: todo
+    title: Add task comments and discussion threads
+    tags:
+      - rust
+      - collaboration
+      - comments
+    scope:
+      - crates/ralph/src/contracts.rs
+      - crates/ralph/src/main.rs
+    evidence:
+      - Task notes are flat; no threaded discussions
+      - Cannot have conversations within a task about approach
+      - Notes don't track who said what and when
+    plan:
+      - Add comments field to Task (list of structured comment objects)
+      - Each comment has author, timestamp, and content
+      - Add queue comment <task-id> <message> command
+      - Add queue show-comments <task-id> command
+      - Support thread replies with --reply-to=<comment-id>
+      - Add tests for comment threading
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z
+  - id: RQ-0147
+    status: todo
+    title: Implement task pinning for important items
+    tags:
+      - rust
+      - ux
+      - pinning
+    scope:
+      - crates/ralph/src/contracts.rs
+      - crates/ralph/src/queue.rs
+    evidence:
+      - Important tasks can be accidentally reordered or modified
+      - No way to "protect" critical tasks from changes
+      - Pinned tasks should resist auto-sorting or bulk operations
+    plan:
+      - Add pinned field to Task (boolean, default false)
+      - Add queue pin/unpin <task-id> commands
+      - Update queue list to show pinned indicator (* or 📌)
+      - Skip pinned tasks during auto-sort operations
+      - Require --force to edit pinned tasks
+      - Add tests for pin protection behavior
+    notes: []
+    request: scan finding
+    created_at: 2025-01-19T12:00:00Z
+    updated_at: 2025-01-19T12:00:00Z

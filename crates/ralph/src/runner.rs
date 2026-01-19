@@ -288,9 +288,14 @@ pub fn run_prompt(
             &prepared_prompt,
             timeout,
         )?,
-        Runner::Opencode => {
-            run_opencode(work_dir, bins.opencode, model, &prepared_prompt, timeout)?
-        }
+        Runner::Opencode => run_opencode(
+            work_dir,
+            bins.opencode,
+            &model,
+            &prepared_prompt,
+            timeout,
+            two_pass_plan,
+        )?,
         Runner::Gemini => run_gemini(work_dir, bins.gemini, model, &prepared_prompt, timeout)?,
         Runner::Claude => run_claude(
             work_dir,
@@ -363,7 +368,22 @@ fn run_codex(
 fn run_opencode(
     work_dir: &Path,
     bin: &str,
-    model: Model,
+    model: &Model,
+    prompt: &str,
+    timeout: Option<Duration>,
+    two_pass_plan: bool,
+) -> Result<RunnerOutput, RunnerError> {
+    if two_pass_plan {
+        run_opencode_two_pass(work_dir, bin, model, prompt, timeout)
+    } else {
+        run_opencode_direct(work_dir, bin, model, prompt, timeout)
+    }
+}
+
+fn run_opencode_direct(
+    work_dir: &Path,
+    bin: &str,
+    model: &Model,
     prompt: &str,
     timeout: Option<Duration>,
 ) -> Result<RunnerOutput, RunnerError> {
@@ -392,6 +412,62 @@ fn run_opencode(
         .stderr(Stdio::piped());
 
     run_with_streaming(cmd, None, bin, timeout)
+}
+
+fn run_opencode_two_pass(
+    work_dir: &Path,
+    bin: &str,
+    model: &Model,
+    prompt: &str,
+    timeout: Option<Duration>,
+) -> Result<RunnerOutput, RunnerError> {
+    log::info!("OpenCode two-pass mode: generating plan first");
+
+    // Pass 1: Generate plan
+    let plan_output = match generate_opencode_plan(work_dir, bin, model, prompt, timeout) {
+        Ok(plan) => plan,
+        Err(e) => {
+            log::warn!(
+                "Plan generation failed: {}, falling back to direct implementation",
+                e
+            );
+            return run_opencode_direct(work_dir, bin, model, prompt, timeout);
+        }
+    };
+
+    // Extract plan from stdout (no JSON parsing needed for OpenCode)
+    let plan_text = plan_output.stdout.trim().to_string();
+
+    // Pass 2: Implement
+    let implementation_prompt = format!("Implement this plan:\n\n{}", plan_text);
+    log::info!(
+        "OpenCode two-pass mode: implementing plan ({} bytes)",
+        implementation_prompt.len()
+    );
+
+    run_opencode_direct(work_dir, bin, model, &implementation_prompt, timeout)
+}
+
+fn generate_opencode_plan(
+    work_dir: &Path,
+    bin: &str,
+    model: &Model,
+    prompt: &str,
+    timeout: Option<Duration>,
+) -> Result<RunnerOutput, RunnerError> {
+    let planning_prompt = build_opencode_planning_prompt(prompt);
+    run_opencode_direct(work_dir, bin, model, &planning_prompt, timeout)
+}
+
+fn build_opencode_planning_prompt(prompt: &str) -> String {
+    format!(
+        "PLANNING MODE: You are in planning mode. You MUST use the RepoPrompt context_builder tool \
+        to generate the plan. Do not proceed without using context_builder first. Analyze the \
+        codebase and generate a plan, but DO NOT make any edits or changes. Only explore using tools, \
+        then output your plan. This phase is ONLY for plan generation; do not implement anything, \
+        even after the plan is produced. Implementation happens only in phase 2.\n\n{}",
+        prompt
+    )
 }
 
 fn run_gemini(
@@ -1128,5 +1204,13 @@ mod tests {
         assert!(planning_prompt.contains("ONLY for plan generation"));
         assert!(planning_prompt.contains("Implementation happens only in phase 2"));
         assert!(planning_prompt.ends_with(user_prompt));
+    }
+
+    #[test]
+    fn build_opencode_planning_prompt_requires_context_builder() {
+        let user_prompt = "Do the thing.";
+        let planning_prompt = build_opencode_planning_prompt(user_prompt);
+        assert!(planning_prompt.contains("MUST use the RepoPrompt context_builder tool"));
+        assert!(planning_prompt.contains("DO NOT make any edits"));
     }
 }
