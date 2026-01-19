@@ -31,10 +31,7 @@ pub fn load_queue_or_default_with_repair(path: &Path) -> Result<(QueueFile, bool
 
 pub fn warn_if_repaired(path: &Path, repaired: bool) {
     if repaired {
-        eprintln!(
-            ">> [RALPH] Repaired invalid YAML scalars in {}",
-            path.display()
-        );
+        log::warn!("Repaired invalid YAML scalars in {}", path.display());
     }
 }
 

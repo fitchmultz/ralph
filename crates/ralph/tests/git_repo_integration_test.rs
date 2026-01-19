@@ -315,7 +315,7 @@ fn run_one_succeeds_without_upstream_and_warns() -> Result<()> {
     );
 
     anyhow::ensure!(
-        stderr.contains("Warning: skipping push"),
+        stderr.contains("skipping push (no upstream configured)"),
         "expected warning about skipping push\nstdout:\n{stdout}\nstderr:\n{stderr}"
     );
 

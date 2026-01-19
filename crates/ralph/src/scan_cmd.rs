@@ -22,8 +22,8 @@ pub fn run_scan(resolved: &config::Resolved, opts: ScanOptions) -> Result<()> {
     {
         Ok((queue, repaired)) => {
             if repaired {
-                eprintln!(
-                    ">> [RALPH] Repaired invalid YAML scalars in {}",
+                log::warn!(
+                    "Repaired invalid YAML scalars in {}",
                     resolved.queue_path.display()
                 );
             }
@@ -102,8 +102,8 @@ pub fn run_scan(resolved: &config::Resolved, opts: ScanOptions) -> Result<()> {
     {
         Ok((queue, repaired)) => {
             if repaired {
-                eprintln!(
-                    ">> [RALPH] Repaired invalid YAML scalars in {}",
+                log::warn!(
+                    "Repaired invalid YAML scalars in {}",
                     resolved.queue_path.display()
                 );
             }
@@ -149,14 +149,14 @@ pub fn run_scan(resolved: &config::Resolved, opts: ScanOptions) -> Result<()> {
                 .context("save queue with backfilled fields")?;
         }
         if added.is_empty() {
-            println!(">> [RALPH] Scan completed. No new tasks detected.");
+            log::info!("Scan completed. No new tasks detected.");
         } else {
-            println!(">> [RALPH] Scan added {} task(s):", added.len());
+            log::info!("Scan added {} task(s):", added.len());
             for (id, title) in added.iter().take(15) {
-                println!("- {}: {}", id, title);
+                log::info!("- {}: {}", id, title);
             }
             if added.len() > 15 {
-                println!("...and {} more.", added.len() - 15);
+                log::info!("...and {} more.", added.len() - 15);
             }
         }
         return Ok(());
@@ -175,9 +175,9 @@ pub fn run_scan(resolved: &config::Resolved, opts: ScanOptions) -> Result<()> {
         outpututil::OUTPUT_TAIL_LINE_MAX_CHARS,
     );
     if !tail.is_empty() {
-        eprintln!(">> [RALPH] scan runner output (tail):");
+        log::error!("scan runner output (tail):");
         for line in tail {
-            eprintln!(">> [RALPH] scan runner: {line}");
+            log::info!("scan runner: {line}");
         }
     }
 

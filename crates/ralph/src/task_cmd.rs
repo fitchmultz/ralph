@@ -50,8 +50,8 @@ pub fn build_task(resolved: &config::Resolved, opts: TaskBuildOptions) -> Result
     let (before, repaired_before) = queue::load_queue_with_repair(&resolved.queue_path)
         .with_context(|| format!("read queue {}", resolved.queue_path.display()))?;
     if repaired_before {
-        eprintln!(
-            ">> [RALPH] Repaired invalid YAML scalars in {}",
+        log::warn!(
+            "Repaired invalid YAML scalars in {}",
             resolved.queue_path.display()
         );
     }
@@ -124,8 +124,8 @@ pub fn build_task(resolved: &config::Resolved, opts: TaskBuildOptions) -> Result
     {
         Ok((queue, repaired)) => {
             if repaired {
-                eprintln!(
-                    ">> [RALPH] Repaired invalid YAML scalars in {}",
+                log::warn!(
+                    "Repaired invalid YAML scalars in {}",
                     resolved.queue_path.display()
                 );
             }
@@ -171,14 +171,14 @@ pub fn build_task(resolved: &config::Resolved, opts: TaskBuildOptions) -> Result
                 .context("save queue with backfilled fields")?;
         }
         if added.is_empty() {
-            println!(">> [RALPH] Task builder completed. No new tasks detected.");
+            log::info!("Task builder completed. No new tasks detected.");
         } else {
-            println!(">> [RALPH] Task builder added {} task(s):", added.len());
+            log::info!("Task builder added {} task(s):", added.len());
             for (id, title) in added.iter().take(10) {
-                println!("- {}: {}", id, title);
+                log::info!("- {}: {}", id, title);
             }
             if added.len() > 10 {
-                println!("...and {} more.", added.len() - 10);
+                log::info!("...and {} more.", added.len() - 10);
             }
         }
         return Ok(());
@@ -197,9 +197,9 @@ pub fn build_task(resolved: &config::Resolved, opts: TaskBuildOptions) -> Result
         outpututil::OUTPUT_TAIL_LINE_MAX_CHARS,
     );
     if !tail.is_empty() {
-        eprintln!(">> [RALPH] task builder output (tail):");
+        log::error!("task builder output (tail):");
         for line in tail {
-            eprintln!(">> [RALPH] task builder: {line}");
+            log::info!("task builder: {line}");
         }
     }
 

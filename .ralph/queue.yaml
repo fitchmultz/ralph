@@ -1,24 +1,5 @@
 version: 1
 tasks:
-  - id: RQ-0082
-    status: todo
-    title: Integrate a logging crate (e.g., env_logger) for output control
-    tags:
-      - rust
-      - observability
-    scope:
-      - crates/ralph/src/main.rs
-      - crates/ralph/Cargo.toml
-    evidence:
-      - direct println/eprintln usage makes verbosity control difficult
-    plan:
-      - Add env_logger or tracing-subscriber dependency
-      - Replace strategic println/eprintln with log macros (info!, warn!, debug!)
-      - Allow controlling verbosity via RUST_LOG or a --verbose flag
-    notes: []
-    request: scan finding
-    created_at: 2026-01-18T22:00:00Z
-    updated_at: 2026-01-18T22:00:00Z
   - id: RQ-0083
     status: todo
     title: Improve run_loop reporting and remaining tasks count

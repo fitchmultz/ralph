@@ -268,3 +268,28 @@ tasks:
     created_at: 2026-01-18T22:00:00Z
     updated_at: 2026-01-18T22:50:00Z
     completed_at: 2026-01-18T22:50:00Z
+  - id: RQ-0082
+    status: done
+    title: Integrate a logging crate (e.g., env_logger) for output control
+    tags:
+      - rust
+      - observability
+    scope:
+      - crates/ralph/src/main.rs
+      - crates/ralph/Cargo.toml
+    evidence:
+      - direct println/eprintln usage makes verbosity control difficult
+    plan:
+      - Add env_logger or tracing-subscriber dependency
+      - Replace strategic println/eprintln with log macros (info!, warn!, debug!)
+      - Allow controlling verbosity via RUST_LOG or a --verbose flag
+    notes:
+      - Added `log` and `env_logger` dependencies.
+      - Added global `--verbose` flag to CLI (sets log level to `debug`).
+      - Initialized `env_logger` with `info` as default level.
+      - Replaced strategic `println!`/`eprintln!` calls with `log` macros across `main.rs`, `queue.rs`, `run_cmd.rs`, `scan_cmd.rs`, and `task_cmd.rs`.
+      - Updated `git_repo_integration_test.rs` to handle new log format.
+    request: scan finding
+    created_at: 2026-01-18T22:00:00Z
+    updated_at: 2026-01-18T23:36:00Z
+    completed_at: 2026-01-19T02:48:00Z

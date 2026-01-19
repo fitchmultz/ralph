@@ -31,6 +31,15 @@ fn main() {
 fn run() -> Result<()> {
     dotenvy::dotenv().ok();
     let cli = Cli::parse();
+
+    let mut builder = env_logger::Builder::from_default_env();
+    if cli.verbose {
+        builder.filter_level(log::LevelFilter::Debug);
+    } else if std::env::var("RUST_LOG").is_err() {
+        builder.filter_level(log::LevelFilter::Info);
+    }
+    builder.init();
+
     match cli.command {
         Command::Queue(args) => handle_queue(args.command, cli.force),
         Command::Config(args) => handle_config(args.command),
@@ -171,9 +180,9 @@ fn handle_queue(cmd: QueueCommand, force: bool) -> Result<()> {
                 resolved.id_width,
             )?;
             if report.moved_ids.is_empty() {
-                println!(">> [RALPH] No done tasks to move.");
+                log::info!("No done tasks to move.");
             } else {
-                println!(">> [RALPH] Moved {} done task(s).", report.moved_ids.len());
+                log::info!("Moved {} done task(s).", report.moved_ids.len());
             }
         }
         QueueCommand::Unlock => {
@@ -181,12 +190,9 @@ fn handle_queue(cmd: QueueCommand, force: bool) -> Result<()> {
             if lock_dir.exists() {
                 std::fs::remove_dir_all(&lock_dir)
                     .with_context(|| format!("remove lock dir {}", lock_dir.display()))?;
-                println!(
-                    ">> [RALPH] Queue unlocked (removed {}).",
-                    lock_dir.display()
-                );
+                log::info!("Queue unlocked (removed {}).", lock_dir.display());
             } else {
-                println!(">> [RALPH] Queue is not locked.");
+                log::info!("Queue is not locked.");
             }
         }
         QueueCommand::Repair => {
@@ -194,9 +200,9 @@ fn handle_queue(cmd: QueueCommand, force: bool) -> Result<()> {
                 queue::acquire_queue_lock(&resolved.repo_root, "queue repair", force)?;
             let report = queue::repair_queue(&resolved.queue_path)?;
             if report.repaired {
-                println!(">> [RALPH] Repaired queue YAML.");
+                log::info!("Repaired queue YAML.");
             } else {
-                println!(">> [RALPH] Queue YAML is already valid (no repairs needed).");
+                log::info!("Queue YAML is already valid (no repairs needed).");
             }
         }
         QueueCommand::SetStatus {
@@ -474,6 +480,10 @@ struct Cli {
     /// Force operations (e.g., bypass stale queue locks).
     #[arg(long, global = true)]
     force: bool,
+
+    /// Increase output verbosity (sets log level to info).
+    #[arg(short, long, global = true)]
+    verbose: bool,
 }
 
 #[derive(Subcommand)]

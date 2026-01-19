@@ -28,7 +28,7 @@ pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()>
     let mut completed = 0u32;
     loop {
         if opts.max_tasks != 0 && completed >= opts.max_tasks {
-            println!(">> [RALPH] Reached max task limit ({completed}).");
+            log::info!("Reached max task limit ({completed}).");
             return Ok(());
         }
 
@@ -36,7 +36,7 @@ pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()>
             RunOutcome::NoTodo => return Ok(()),
             RunOutcome::Ran { task_id } => {
                 completed += 1;
-                println!(">> [RALPH] Completed {task_id}.");
+                log::info!("Completed {task_id}.");
             }
         }
     }
@@ -71,7 +71,7 @@ pub fn run_one(
     {
         Some(idx) => idx,
         None => {
-            println!(">> [RALPH] No todo tasks found.");
+            log::info!("No todo tasks found.");
             return Ok(RunOutcome::NoTodo);
         }
     };
@@ -148,9 +148,9 @@ pub fn run_one(
             outpututil::OUTPUT_TAIL_LINE_MAX_CHARS,
         );
         if !tail.is_empty() {
-            eprintln!(">> [RALPH] runner output (tail):");
+            log::error!("runner output (tail):");
             for line in tail {
-                eprintln!(">> [RALPH] runner: {line}");
+                log::info!("runner: {line}");
             }
         }
 
@@ -158,7 +158,7 @@ pub fn run_one(
         bail!("runner failed ({exit_reason}); reverted uncommitted changes; rerun is recommended");
     }
 
-    println!(">> [RALPH] Runner completed successfully for {task_id}.");
+    log::info!("Runner completed successfully for {task_id}.");
 
     post_run_supervise(resolved, &task_id)?;
     Ok(RunOutcome::Ran { task_id })
@@ -304,7 +304,7 @@ fn push_if_ahead(repo_root: &Path) -> Result<()> {
         Err(err) => {
             let msg = err.to_string().to_lowercase();
             if msg.contains("no upstream") {
-                eprintln!(">> [RALPH] Warning: skipping push (no upstream configured)");
+                log::warn!("skipping push (no upstream configured)");
                 return Ok(());
             }
             return Err(anyhow!("upstream check failed: {:#}", err));
