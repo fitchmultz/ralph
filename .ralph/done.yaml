@@ -51,3 +51,29 @@ tasks:
     created_at: 2026-01-18T20:45:41Z
     updated_at: 2026-01-18T20:55:00Z
     completed_at: 2026-01-18T20:55:00Z
+  - id: RQ-0072
+    status: done
+    title: Introduce canonical .env and .env.example and load dotenv in CLI
+    tags:
+      - config
+      - tooling
+      - rust
+    scope:
+      - .env
+      - .env.example
+      - crates/ralph/src/main.rs
+    evidence:
+      - project policy requires a canonical .env file but the repo has none
+    plan:
+      - Add .env and .env.example with non-secret defaults
+      - Load dotenv early in CLI startup
+      - Document expected variables and usage
+    request: scan finding
+    created_at: 2026-01-18T20:45:41Z
+    updated_at: 2026-01-18T21:28:41Z
+    completed_at: 2026-01-18T21:28:41Z
+    notes:
+      - Added .env and .env.example with RALPH_STRESS_BURN_IN=0
+      - Added dotenvy = "0.15" to crates/ralph/Cargo.toml
+      - Loaded dotenv early in crates/ralph/src/main.rs using dotenvy::dotenv().ok()
+      - Verified with make ci

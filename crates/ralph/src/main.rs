@@ -29,6 +29,7 @@ fn main() {
 }
 
 fn run() -> Result<()> {
+    dotenvy::dotenv().ok();
     let cli = Cli::parse();
     match cli.command {
         Command::Queue(args) => handle_queue(args.command),
