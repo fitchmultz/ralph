@@ -717,34 +717,40 @@ fn spawn_json_reader<R: Read + Send + 'static>(
 
 /// Display meaningful content from JSON, filtering noise
 fn display_filtered_json(json: &JsonValue, sink: &StreamSink) -> anyhow::Result<()> {
-    // Only display assistant messages (which contain the actual response)
+    // Display the result field (actual text output from Claude)
+    if let Some(result) = json.get("result").and_then(|r| r.as_str()) {
+        if !result.is_empty() {
+            sink.write_all(result.as_bytes())?;
+            sink.write_all(b"\n")?;
+        }
+    }
+
+    // Display tool use events for visibility
     if let Some(event_type) = json.get("type").and_then(|t| t.as_str()) {
         if event_type == "assistant" {
-            // Extract message.content array
             if let Some(message) = json.get("message") {
                 if let Some(content) = message.get("content").and_then(|c| c.as_array()) {
                     for item in content {
                         if let Some(item_type) = item.get("type").and_then(|t| t.as_str()) {
-                            match item_type {
-                                "text" => {
-                                    // Display text content
-                                    if let Some(text) = item.get("text").and_then(|t| t.as_str()) {
-                                        sink.write_all(text.as_bytes())?;
-                                        sink.write_all(b"\n")?;
-                                    }
+                            if item_type == "tool_use" {
+                                if let Some(name) = item.get("name").and_then(|n| n.as_str()) {
+                                    let msg = format!("[Using: {}]\n", name);
+                                    sink.write_all(msg.as_bytes())?;
                                 }
-                                "tool_use" => {
-                                    // Display tool use as [Using: ToolName]
-                                    if let Some(name) = item.get("name").and_then(|n| n.as_str()) {
-                                        let msg = format!("[Using: {}]\n", name);
-                                        sink.write_all(msg.as_bytes())?;
-                                    }
-                                }
-                                _ => {}
                             }
                         }
                     }
                 }
+            }
+        }
+    }
+
+    // Display permission denials
+    if let Some(denials) = json.get("permission_denials").and_then(|d| d.as_array()) {
+        for denial in denials {
+            if let Some(tool_name) = denial.get("tool_name").and_then(|t| t.as_str()) {
+                let msg = format!("[Permission denied: {}]\n", tool_name);
+                sink.write_all(msg.as_bytes())?;
             }
         }
     }
