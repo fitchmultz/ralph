@@ -76,6 +76,12 @@ pub fn run_doctor(resolved: &config::Resolved) -> Result<()> {
             .opencode_bin
             .as_deref()
             .unwrap_or("opencode"),
+        Runner::Gemini => resolved
+            .config
+            .agent
+            .gemini_bin
+            .as_deref()
+            .unwrap_or("gemini"),
     };
 
     if let Err(e) = check_command(bin_name, &["--version"]) {

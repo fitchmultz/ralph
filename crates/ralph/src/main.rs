@@ -403,7 +403,11 @@ fn parse_runner(value: &str) -> Result<RunnerKind> {
     match normalized.as_str() {
         "codex" => Ok(RunnerKind::Codex),
         "opencode" => Ok(RunnerKind::Opencode),
-        _ => bail!("--runner must be codex or opencode (got: {})", value.trim()),
+        "gemini" => Ok(RunnerKind::Gemini),
+        _ => bail!(
+            "--runner must be codex, opencode, or gemini (got: {})",
+            value.trim()
+        ),
     }
 }
 
@@ -449,31 +453,16 @@ fn resolve_agent_args(
         None => resolved.config.agent.runner.unwrap_or_default(),
     };
 
-    let model = match (model_override, resolved.config.agent.model.clone()) {
-        (Some(value), _) => runner::parse_model(value)?,
-        (None, Some(m)) => m,
-        (None, None) => match runner_kind {
-            RunnerKind::Codex => contracts::Model::Gpt52Codex,
-            RunnerKind::Opencode => contracts::Model::Glm47,
-        },
+    let override_model = match model_override {
+        Some(value) => Some(runner::parse_model(value)?),
+        None => None,
     };
-
-    // Apply runner-aware default if no explicit override was provided (CLI or Task).
-    // This ensures that switching runners (e.g., via CLI) picks the correct default for that runner.
-    // Specifically, if the runner is Opencode and the effective model is the incompatible
-    // Codex default (Gpt52Codex) or unset, we default to Glm47.
-    // Otherwise, we respect the explicit config model (e.g., gpt-5.2 is valid for Opencode).
-    let effective_model = if model_override.is_none() {
-        if runner_kind == RunnerKind::Opencode
-            && (model == contracts::Model::Gpt52Codex || resolved.config.agent.model.is_none())
-        {
-            contracts::Model::Glm47
-        } else {
-            model
-        }
-    } else {
-        model
-    };
+    let effective_model = runner::resolve_model_for_runner(
+        runner_kind,
+        override_model,
+        None,
+        resolved.config.agent.model.clone(),
+    );
 
     let reasoning_effort = if runner_kind == RunnerKind::Codex {
         let effort = match effort_override {
@@ -532,7 +521,7 @@ fn resolve_list_limit(limit: u32, all: bool) -> Option<usize> {
 #[command(name = "ralph")]
 #[command(about = "Ralph (Rust rewrite)")]
 #[command(
-    after_long_help = "Runner selection:\n  - CLI flags override project config, which overrides global config, which overrides built-in defaults.\n  - Default runner/model come from config files: project config (.ralph/config.yaml) > global config (~/.config/ralph/config.yaml) > built-in.\n  - `task build` and `scan` accept --runner/--model/--effort as one-off overrides.\n  - `run one` and `run loop` accept --runner/--model/--effort as one-off overrides; otherwise they use task.agent overrides when present; otherwise config agent defaults.\n\nConfig example (.ralph/config.yaml):\n  version: 1\n  agent:\n    runner: opencode\n    model: gpt-5.2\n    opencode_bin: opencode\n\nNotes:\n  - Allowed runners: codex, opencode\n  - Allowed models: gpt-5.2-codex, gpt-5.2, zai-coding-plan/glm-4.7, gemini-3-pro-preview, gemini-3-flash-preview (codex supports only gpt-5.2-codex + gpt-5.2; opencode accepts arbitrary model ids)\n\nExamples:\n  ralph queue list\n  ralph queue show RQ-0008\n  ralph queue next --with-title\n  ralph scan --runner opencode --model gpt-5.2 --focus \"CI gaps\"\n  ralph task build --runner codex --model gpt-5.2-codex --effort high \"Fix the flaky test\"\n  ralph run one"
+    after_long_help = "Runner selection:\n  - CLI flags override project config, which overrides global config, which overrides built-in defaults.\n  - Default runner/model come from config files: project config (.ralph/config.yaml) > global config (~/.config/ralph/config.yaml) > built-in.\n  - `task build` and `scan` accept --runner/--model/--effort as one-off overrides.\n  - `run one` and `run loop` accept --runner/--model/--effort as one-off overrides; otherwise they use task.agent overrides when present; otherwise config agent defaults.\n\nConfig example (.ralph/config.yaml):\n  version: 1\n  agent:\n    runner: opencode\n    model: gpt-5.2\n    opencode_bin: opencode\n    gemini_bin: gemini\n\nNotes:\n  - Allowed runners: codex, opencode, gemini\n  - Allowed models: gpt-5.2-codex, gpt-5.2, zai-coding-plan/glm-4.7, gemini-3-pro-preview, gemini-3-flash-preview (codex supports only gpt-5.2-codex + gpt-5.2; opencode/gemini accept arbitrary model ids)\n\nExamples:\n  ralph queue list\n  ralph queue show RQ-0008\n  ralph queue next --with-title\n  ralph scan --runner opencode --model gpt-5.2 --focus \"CI gaps\"\n  ralph task build --runner codex --model gpt-5.2-codex --effort high \"Fix the flaky test\"\n  ralph scan --runner gemini --model gemini-3-flash-preview --focus \"risk audit\"\n  ralph run one"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -572,8 +561,8 @@ struct ConfigArgs {
 
 #[derive(Args)]
 #[command(
-    about = "Run the Ralph supervisor (executes queued tasks via codex/opencode)",
-    after_long_help = "Runner selection:\n  - `ralph run` selects runner/model/effort with this precedence:\n      1) CLI overrides (flags on `run one` / `run loop`)\n      2) the task's `agent` override (if present in .ralph/queue.yaml)\n      3) otherwise the resolved config defaults (`agent.runner`, `agent.model`, `agent.reasoning_effort`).\n\nNotes:\n  - Allowed runners: codex, opencode\n  - Allowed models: gpt-5.2-codex, gpt-5.2, zai-coding-plan/glm-4.7, gemini-3-pro-preview, gemini-3-flash-preview (codex supports only gpt-5.2-codex + gpt-5.2; opencode accepts arbitrary model ids)\n  - `--effort` is codex-only and is ignored for opencode.\n\nTo change defaults for this repo, edit .ralph/config.yaml:\n  version: 1\n  agent:\n    runner: opencode\n    model: gpt-5.2\n\nExamples:\n  ralph run one\n  ralph run one --runner opencode --model gpt-5.2\n  ralph run one --runner codex --model gpt-5.2-codex --effort high\n  ralph run loop --max-tasks 0\n  ralph run loop --max-tasks 1 --runner opencode --model gpt-5.2"
+    about = "Run the Ralph supervisor (executes queued tasks via codex/opencode/gemini)",
+    after_long_help = "Runner selection:\n  - `ralph run` selects runner/model/effort with this precedence:\n      1) CLI overrides (flags on `run one` / `run loop`)\n      2) the task's `agent` override (if present in .ralph/queue.yaml)\n      3) otherwise the resolved config defaults (`agent.runner`, `agent.model`, `agent.reasoning_effort`).\n\nNotes:\n  - Allowed runners: codex, opencode, gemini\n  - Allowed models: gpt-5.2-codex, gpt-5.2, zai-coding-plan/glm-4.7, gemini-3-pro-preview, gemini-3-flash-preview (codex supports only gpt-5.2-codex + gpt-5.2; opencode/gemini accept arbitrary model ids)\n  - `--effort` is codex-only and is ignored for opencode.\n\nTo change defaults for this repo, edit .ralph/config.yaml:\n  version: 1\n  agent:\n    runner: opencode\n    model: gpt-5.2\n    gemini_bin: gemini\n\nExamples:\n  ralph run one\n  ralph run one --runner opencode --model gpt-5.2\n  ralph run one --runner codex --model gpt-5.2-codex --effort high\n  ralph run one --runner gemini --model gemini-3-flash-preview\n  ralph run loop --max-tasks 0\n  ralph run loop --max-tasks 1 --runner opencode --model gpt-5.2"
 )]
 struct RunArgs {
     #[command(subcommand)]
@@ -600,7 +589,7 @@ enum TaskCommand {
 
 #[derive(Args)]
 #[command(
-    after_long_help = "Runner selection:\n  - Override runner/model/effort for this invocation using flags.\n  - Defaults come from config when flags are omitted.\n\nExamples:\n  ralph task build \"Add integration tests for run one\"\n  ralph task build --runner opencode --model gpt-5.2 \"Add docs for OpenCode setup\"\n  ralph task build --runner codex --model gpt-5.2-codex --effort high \"Fix queue validation\"\n  echo \"Triage flaky CI\" | ralph task build --runner codex --model gpt-5.2-codex --effort medium"
+    after_long_help = "Runner selection:\n  - Override runner/model/effort for this invocation using flags.\n  - Defaults come from config when flags are omitted.\n\nExamples:\n  ralph task build \"Add integration tests for run one\"\n  ralph task build --runner opencode --model gpt-5.2 \"Add docs for OpenCode setup\"\n  ralph task build --runner gemini --model gemini-3-flash-preview \"Draft risk checklist\"\n  ralph task build --runner codex --model gpt-5.2-codex --effort high \"Fix queue validation\"\n  echo \"Triage flaky CI\" | ralph task build --runner codex --model gpt-5.2-codex --effort medium"
 )]
 struct TaskBuildArgs {
     /// Freeform request text; if omitted, reads from stdin.
@@ -624,14 +613,14 @@ struct TaskBuildArgs {
     model: Option<String>,
 
     /// Codex reasoning effort. CLI flag overrides config defaults (project > global > built-in).
-    /// Ignored for opencode.
+    /// Ignored for opencode and gemini.
     #[arg(long)]
     effort: Option<String>,
 }
 
 #[derive(Args)]
 #[command(
-    after_long_help = "Runner selection:\n  - Override runner/model/effort for this invocation using flags.\n  - Defaults come from config when flags are omitted.\n\nExamples:\n  ralph scan --focus \"production readiness gaps\"\n  ralph scan --runner opencode --model gpt-5.2 --focus \"CI and safety gaps\"\n  ralph scan --runner codex --model gpt-5.2-codex --effort high --focus \"queue correctness\""
+    after_long_help = "Runner selection:\n  - Override runner/model/effort for this invocation using flags.\n  - Defaults come from config when flags are omitted.\n\nExamples:\n  ralph scan --focus \"production readiness gaps\"\n  ralph scan --runner opencode --model gpt-5.2 --focus \"CI and safety gaps\"\n  ralph scan --runner gemini --model gemini-3-flash-preview --focus \"risk audit\"\n  ralph scan --runner codex --model gpt-5.2-codex --effort high --focus \"queue correctness\""
 )]
 struct ScanArgs {
     /// Optional focus prompt to guide the scan.
@@ -647,7 +636,7 @@ struct ScanArgs {
     model: Option<String>,
 
     /// Codex reasoning effort. CLI flag overrides config defaults (project > global > built-in).
-    /// Ignored for opencode.
+    /// Ignored for opencode and gemini.
     #[arg(long)]
     effort: Option<String>,
 }
@@ -689,7 +678,7 @@ enum ConfigCommand {
 enum RunCommand {
     #[command(
         about = "Run exactly one task (the first todo in .ralph/queue.yaml)",
-        after_long_help = "Runner selection (precedence):\n  1) CLI overrides (--runner/--model/--effort)\n  2) task.agent in .ralph/queue.yaml (if present)\n  3) config defaults (.ralph/config.yaml then ~/.config/ralph/config.yaml)\n\nExamples:\n  ralph run one\n  ralph run one --runner opencode --model gpt-5.2\n  ralph run one --runner codex --model gpt-5.2-codex --effort high\n  ralph queue next --with-title"
+        after_long_help = "Runner selection (precedence):\n  1) CLI overrides (--runner/--model/--effort)\n  2) task.agent in .ralph/queue.yaml (if present)\n  3) config defaults (.ralph/config.yaml then ~/.config/ralph/config.yaml)\n\nExamples:\n  ralph run one\n  ralph run one --runner opencode --model gpt-5.2\n  ralph run one --runner gemini --model gemini-3-flash-preview\n  ralph run one --runner codex --model gpt-5.2-codex --effort high\n  ralph queue next --with-title"
     )]
     One(RunOneArgs),
     #[command(
@@ -701,16 +690,16 @@ enum RunCommand {
 
 #[derive(Args, Clone, Debug, Default)]
 struct RunAgentArgs {
-    /// Runner override for this invocation (codex or opencode). Overrides task.agent and config.
+    /// Runner override for this invocation (codex, opencode, gemini). Overrides task.agent and config.
     #[arg(long)]
     runner: Option<String>,
 
     /// Model override for this invocation. Overrides task.agent and config.
-    /// Allowed: gpt-5.2-codex, gpt-5.2, zai-coding-plan/glm-4.7, gemini-3-pro-preview, gemini-3-flash-preview (codex supports only gpt-5.2-codex/gpt-5.2; opencode accepts arbitrary model ids).
+    /// Allowed: gpt-5.2-codex, gpt-5.2, zai-coding-plan/glm-4.7, gemini-3-pro-preview, gemini-3-flash-preview (codex supports only gpt-5.2-codex/gpt-5.2; opencode/gemini accept arbitrary model ids).
     #[arg(long)]
     model: Option<String>,
 
-    /// Codex reasoning effort override (minimal, low, medium, high). Ignored for opencode.
+    /// Codex reasoning effort override (minimal, low, medium, high). Ignored for opencode and gemini.
     #[arg(long)]
     effort: Option<String>,
 }
@@ -1038,6 +1027,33 @@ agent:
             super::resolve_agent_args(&resolved, Some("opencode"), None, None)?;
         assert_eq!(runner, super::RunnerKind::Opencode);
         assert_eq!(model, super::contracts::Model::Glm47);
+        assert_eq!(effort, None);
+        Ok(())
+    }
+
+    #[test]
+    fn resolve_agent_args_defaults_to_gemini_flash_for_gemini_runner() -> anyhow::Result<()> {
+        let temp = TempDir::new().context("create temp dir")?;
+        let _lock = env_lock().lock().expect("env lock");
+        let repo_root = temp.path().to_path_buf();
+
+        // Config has Codex defaults
+        write_project_config(
+            repo_root.as_path(),
+            r#"version: 1
+agent:
+  runner: codex
+  model: gpt-5.2-codex
+  reasoning_effort: high
+"#,
+        )?;
+        let _guard = EnvGuard::enter(&repo_root)?;
+        let resolved = crate::config::resolve_from_cwd().context("resolve config")?;
+
+        let (runner, model, effort) =
+            super::resolve_agent_args(&resolved, Some("gemini"), None, None)?;
+        assert_eq!(runner, super::RunnerKind::Gemini);
+        assert_eq!(model.as_str(), "gemini-3-flash-preview");
         assert_eq!(effort, None);
         Ok(())
     }

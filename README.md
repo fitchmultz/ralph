@@ -41,15 +41,18 @@ Ralph embeds default prompts in the Rust binary. To override them for a repo, ad
 If a file is missing, Ralph falls back to the embedded default. Any override must keep required
 placeholders (for example `{{USER_REQUEST}}` in the task builder prompt).
 
-## OpenCode Runner
+## Runners (OpenCode + Gemini)
 
-Ralph supports the OpenCode CLI as a runner alongside Codex.
+Ralph supports the OpenCode and Gemini CLIs as runners alongside Codex.
 
 Quick usage:
 - Ensure `opencode` is installed and on `PATH` (or set `agent.opencode_bin`).
+- Ensure `gemini` is installed and on `PATH` (or set `agent.gemini_bin`).
 - Use `--runner opencode` on `task build` or `scan`:
   - `cargo run -p ralph -- task build --runner opencode --model gpt-5.2 "Add tests for X"`
   - `cargo run -p ralph -- scan --runner opencode --model gpt-5.2 --focus "CI gaps"`
+- Use `--runner gemini`:
+  - `cargo run -p ralph -- scan --runner gemini --model gemini-3-flash-preview --focus "risk audit"`
 
 Defaults and config:
 - `ralph run one` pulls runner/model from the task `agent` block if present, otherwise from config.
@@ -61,10 +64,13 @@ agent:
   runner: opencode
   model: gpt-5.2
   opencode_bin: opencode
+  gemini_bin: gemini
 ```
 
 Allowed models: `gpt-5.2-codex`, `gpt-5.2`, `zai-coding-plan/glm-4.7`, `gemini-3-pro-preview`, `gemini-3-flash-preview`. Note: Codex
-supports only `gpt-5.2-codex` and `gpt-5.2`; OpenCode accepts arbitrary model IDs.
+supports only `gpt-5.2-codex` and `gpt-5.2`; OpenCode/Gemini accept arbitrary model IDs.
+
+Gemini runner prepends a RepoPrompt tooling instruction at the top of every prompt.
 
 ## Configuration
 

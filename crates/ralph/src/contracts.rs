@@ -24,7 +24,7 @@ pub struct Config {
     /// Queue-related configuration.
     pub queue: QueueConfig,
 
-    /// Agent runner defaults (Codex CLI or OpenCode).
+    /// Agent runner defaults (Codex, OpenCode, or Gemini).
     pub agent: AgentConfig,
 }
 
@@ -61,6 +61,9 @@ pub struct AgentConfig {
 
     /// Override the opencode executable name/path (default is "opencode" if None).
     pub opencode_bin: Option<String>,
+
+    /// Override the gemini executable name/path (default is "gemini" if None).
+    pub gemini_bin: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -77,6 +80,7 @@ pub enum Runner {
     #[default]
     Codex,
     Opencode,
+    Gemini,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -266,6 +270,7 @@ impl Default for Config {
                 reasoning_effort: Some(ReasoningEffort::Medium),
                 codex_bin: Some("codex".to_string()),
                 opencode_bin: Some("opencode".to_string()),
+                gemini_bin: Some("gemini".to_string()),
             },
         }
     }

@@ -118,6 +118,26 @@ fn run_one_accepts_runner_and_model_overrides_without_todo_tasks() -> Result<()>
         "expected success (NoTodo) when effort is provided with opencode\nstdout:\n{stdout}\nstderr:\n{stderr}"
     );
 
+    let (status, stdout, stderr) = run_in_dir(
+        dir.path(),
+        &[
+            "run",
+            "one",
+            "--runner",
+            "gemini",
+            "--model",
+            "gemini-3-flash-preview",
+        ],
+    );
+    anyhow::ensure!(
+        status.success(),
+        "expected success (NoTodo) with valid gemini overrides\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+    anyhow::ensure!(
+        stdout.contains("No todo tasks found") || stderr.contains("No todo tasks found"),
+        "expected NoTodo message\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
     Ok(())
 }
 
@@ -133,7 +153,7 @@ fn run_one_rejects_invalid_runner_flag() -> Result<()> {
 
     assert_failure(status, &stdout, &stderr);
     anyhow::ensure!(
-        stderr.contains("--runner must be codex or opencode"),
+        stderr.contains("--runner must be codex, opencode, or gemini"),
         "expected helpful runner error\nstdout:\n{stdout}\nstderr:\n{stderr}"
     );
 

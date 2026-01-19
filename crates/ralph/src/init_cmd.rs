@@ -197,6 +197,7 @@ mod tests {
             cfg.agent.reasoning_effort,
             Some(crate::contracts::ReasoningEffort::Medium)
         );
+        assert_eq!(cfg.agent.gemini_bin, Some("gemini".to_string()));
         Ok(())
     }
 }

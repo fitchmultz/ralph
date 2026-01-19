@@ -117,6 +117,9 @@ fn apply_layer(mut base: Config, layer: ConfigLayer) -> Result<Config> {
     if let Some(bin) = layer.agent.opencode_bin {
         base.agent.opencode_bin = Some(bin);
     }
+    if let Some(bin) = layer.agent.gemini_bin {
+        base.agent.gemini_bin = Some(bin);
+    }
 
     Ok(base)
 }

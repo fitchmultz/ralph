@@ -12,6 +12,9 @@ use std::time::{Duration, Instant};
 use std::os::unix::process::CommandExt;
 
 const OPENCODE_PROMPT_FILE_MESSAGE: &str = "Follow the attached prompt file verbatim.";
+const GEMINI_PROMPT_PREFIX: &str =
+    "Use RepoPrompt tools to search for files, read files, and apply edits if available.";
+const DEFAULT_GEMINI_MODEL: &str = "gemini-3-flash-preview";
 
 struct CtrlCState {
     active_pgid: Mutex<Option<i32>>,
@@ -104,19 +107,78 @@ pub fn validate_model_for_runner(runner: Runner, model: &Model) -> Result<()> {
     Ok(())
 }
 
+#[derive(Clone, Copy)]
+pub struct RunnerBinaries<'a> {
+    pub codex: &'a str,
+    pub opencode: &'a str,
+    pub gemini: &'a str,
+}
+
+pub fn default_model_for_runner(runner: Runner) -> Model {
+    match runner {
+        Runner::Codex => Model::Gpt52Codex,
+        Runner::Opencode => Model::Glm47,
+        Runner::Gemini => Model::Custom(DEFAULT_GEMINI_MODEL.to_string()),
+    }
+}
+
+pub fn resolve_model_for_runner(
+    runner: Runner,
+    override_model: Option<Model>,
+    task_model: Option<Model>,
+    config_model: Option<Model>,
+) -> Model {
+    if let Some(model) = override_model {
+        return model;
+    }
+    if let Some(model) = task_model {
+        return model;
+    }
+
+    match config_model {
+        None => default_model_for_runner(runner),
+        Some(model) => {
+            if runner != Runner::Codex && model == Model::Gpt52Codex {
+                default_model_for_runner(runner)
+            } else {
+                model
+            }
+        }
+    }
+}
+
 pub fn run_prompt(
     runner: Runner,
     work_dir: &Path,
-    codex_bin: &str,
-    opencode_bin: &str,
+    bins: RunnerBinaries<'_>,
     model: Model,
     reasoning_effort: Option<ReasoningEffort>,
     prompt: &str,
 ) -> Result<RunnerOutput> {
     validate_model_for_runner(runner, &model)?;
+    let prepared_prompt = prepare_prompt(runner, prompt);
     match runner {
-        Runner::Codex => run_codex(work_dir, codex_bin, model, reasoning_effort, prompt),
-        Runner::Opencode => run_opencode(work_dir, opencode_bin, model, prompt),
+        Runner::Codex => run_codex(
+            work_dir,
+            bins.codex,
+            model,
+            reasoning_effort,
+            &prepared_prompt,
+        ),
+        Runner::Opencode => run_opencode(work_dir, bins.opencode, model, &prepared_prompt),
+        Runner::Gemini => run_gemini(work_dir, bins.gemini, model, &prepared_prompt),
+    }
+}
+
+fn prepare_prompt(runner: Runner, prompt: &str) -> String {
+    if runner == Runner::Gemini {
+        let trimmed = prompt.trim_start();
+        if trimmed.is_empty() {
+            return format!("{GEMINI_PROMPT_PREFIX}\n");
+        }
+        format!("{GEMINI_PROMPT_PREFIX}\n\n{prompt}")
+    } else {
+        prompt.to_string()
     }
 }
 
@@ -171,6 +233,14 @@ fn run_opencode(work_dir: &Path, bin: &str, model: Model, prompt: &str) -> Resul
         .stderr(Stdio::piped());
 
     run_with_streaming(cmd, None, bin)
+}
+
+fn run_gemini(work_dir: &Path, bin: &str, model: Model, prompt: &str) -> Result<RunnerOutput> {
+    let mut cmd = Command::new(bin);
+    cmd.current_dir(work_dir);
+    ensure_self_on_path(&mut cmd);
+    cmd.arg("--model").arg(model.as_str());
+    run_with_streaming(cmd, Some(prompt.as_bytes()), bin)
 }
 
 enum StreamSink {
@@ -398,5 +468,17 @@ mod tests {
         let msg = format!("{err:#}");
         assert!(msg.contains("gemini-3-pro-preview"));
         assert!(msg.contains("gpt-5.2-codex"));
+    }
+
+    #[test]
+    fn resolve_model_for_runner_defaults_for_gemini() {
+        let model = resolve_model_for_runner(Runner::Gemini, None, None, None);
+        assert_eq!(model.as_str(), DEFAULT_GEMINI_MODEL);
+    }
+
+    #[test]
+    fn resolve_model_for_runner_replaces_codex_default_for_gemini() {
+        let model = resolve_model_for_runner(Runner::Gemini, None, None, Some(Model::Gpt52Codex));
+        assert_eq!(model.as_str(), DEFAULT_GEMINI_MODEL);
     }
 }

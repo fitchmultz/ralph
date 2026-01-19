@@ -89,12 +89,22 @@ pub fn build_task(resolved: &config::Resolved, opts: TaskBuildOptions) -> Result
         .opencode_bin
         .as_deref()
         .unwrap_or("opencode");
+    let gemini_bin = resolved
+        .config
+        .agent
+        .gemini_bin
+        .as_deref()
+        .unwrap_or("gemini");
+    let bins = runner::RunnerBinaries {
+        codex: codex_bin,
+        opencode: opencode_bin,
+        gemini: gemini_bin,
+    };
 
     let output = match runner::run_prompt(
         opts.runner,
         &resolved.repo_root,
-        codex_bin,
-        opencode_bin,
+        bins,
         opts.model,
         opts.reasoning_effort,
         &prompt,

@@ -101,6 +101,17 @@ pub fn run_one(
         .opencode_bin
         .as_deref()
         .unwrap_or("opencode");
+    let gemini_bin = resolved
+        .config
+        .agent
+        .gemini_bin
+        .as_deref()
+        .unwrap_or("gemini");
+    let bins = runner::RunnerBinaries {
+        codex: codex_bin,
+        opencode: opencode_bin,
+        gemini: gemini_bin,
+    };
 
     let template = prompts::load_worker_prompt(&resolved.repo_root)?;
     let project_type = resolved.config.project_type.unwrap_or(ProjectType::Code);
@@ -109,8 +120,7 @@ pub fn run_one(
     let output = match runner::run_prompt(
         runner_kind,
         &resolved.repo_root,
-        codex_bin,
-        opencode_bin,
+        bins,
         model,
         reasoning_effort,
         &prompt,
@@ -168,27 +178,12 @@ fn resolve_run_agent_settings(
         .or(resolved.config.agent.runner)
         .unwrap_or_default();
 
-    let model = match (
+    let model = runner::resolve_model_for_runner(
+        runner_kind,
         overrides.model.clone(),
         task_agent.and_then(|agent| agent.model.clone()),
         resolved.config.agent.model.clone(),
-    ) {
-        (Some(m), _, _) | (_, Some(m), _) => m,
-        (None, None, None) => match runner_kind {
-            Runner::Codex => Model::Gpt52Codex,
-            Runner::Opencode => Model::Glm47,
-        },
-        (None, None, Some(m)) => {
-            // If runner is Opencode and config model is the incompatible Codex default (Gpt52Codex),
-            // default to Glm47 to avoid provider errors.
-            // Otherwise, respect the explicit config model (e.g., gpt-5.2 is valid for Opencode).
-            if runner_kind == Runner::Opencode && m == Model::Gpt52Codex {
-                Model::Glm47
-            } else {
-                m
-            }
-        }
-    };
+    );
 
     let effort_candidate: Option<ReasoningEffort> = overrides
         .reasoning_effort
@@ -405,6 +400,7 @@ mod tests {
                 reasoning_effort: effort,
                 codex_bin: Some("codex".to_string()),
                 opencode_bin: Some("opencode".to_string()),
+                gemini_bin: Some("gemini".to_string()),
             },
             queue: QueueConfig {
                 file: Some(PathBuf::from(".ralph/queue.yaml")),
@@ -518,6 +514,30 @@ mod tests {
         let (runner, model, effort) = resolve_run_agent_settings(&resolved, &task, &overrides)?;
         assert_eq!(runner, Runner::Opencode);
         assert_eq!(model, Model::Glm47);
+        assert_eq!(effort, None);
+        Ok(())
+    }
+
+    #[test]
+    fn resolve_run_agent_settings_defaults_to_gemini_flash_for_gemini_runner() -> Result<()> {
+        // Config defaults to Codex + Gpt52Codex
+        let resolved = resolved_with_agent_defaults(
+            Some(Runner::Codex),
+            Some(Model::Gpt52Codex),
+            Some(ReasoningEffort::Medium),
+        );
+
+        let task = base_task();
+
+        let overrides = AgentOverrides {
+            runner: Some(Runner::Gemini),
+            model: None,
+            reasoning_effort: None,
+        };
+
+        let (runner, model, effort) = resolve_run_agent_settings(&resolved, &task, &overrides)?;
+        assert_eq!(runner, Runner::Gemini);
+        assert_eq!(model.as_str(), "gemini-3-flash-preview");
         assert_eq!(effort, None);
         Ok(())
     }

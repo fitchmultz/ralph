@@ -39,7 +39,8 @@
   - Global: `~/.config/ralph/config.yaml`
   - Project: `.ralph/config.yaml` (overrides global)
 - CLI flags can override at runtime; they should not be relied on as persisted config.
-- OpenCode usage: set `agent.runner: opencode` (and `agent.opencode_bin` if needed); allowed models include `gpt-5.2-codex`, `gpt-5.2`, `zai-coding-plan/glm-4.7`, `gemini-3-pro-preview`, `gemini-3-flash-preview` (Codex supports only `gpt-5.2-codex` + `gpt-5.2`; OpenCode accepts arbitrary model IDs).
+- Runner usage: set `agent.runner: opencode` or `agent.runner: gemini` (and `agent.opencode_bin`/`agent.gemini_bin` if needed); allowed models include `gpt-5.2-codex`, `gpt-5.2`, `zai-coding-plan/glm-4.7`, `gemini-3-pro-preview`, `gemini-3-flash-preview` (Codex supports only `gpt-5.2-codex` + `gpt-5.2`; OpenCode/Gemini accept arbitrary model IDs).
+- Gemini runner prepends a RepoPrompt tooling instruction at the top of every prompt.
 
 ## Configuration & Security
 - Do not commit real secrets if the repo is public.
