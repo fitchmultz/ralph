@@ -86,8 +86,7 @@ pub fn run_one(
     // This prevents accidental destruction of unrelated user work on failure recovery.
     gitutil::require_clean_repo(&resolved.repo_root)?;
 
-    let (runner_kind, model, reasoning_effort) =
-        resolve_run_agent_settings(resolved, &task, agent_overrides)?;
+    let settings = resolve_run_agent_settings(resolved, &task, agent_overrides)?;
 
     let codex_bin = resolved
         .config
@@ -118,20 +117,20 @@ pub fn run_one(
     let prompt = prompts::render_worker_prompt(&template, project_type)?;
 
     let output = match runner::run_prompt(
-        runner_kind,
+        settings.runner,
         &resolved.repo_root,
         bins,
-        model,
-        reasoning_effort,
+        settings.model,
+        settings.reasoning_effort,
         &prompt,
     ) {
         Ok(output) => output,
         Err(err) => {
             gitutil::revert_uncommitted(&resolved.repo_root)?;
             bail!(
-				"runner invocation failed; reverted uncommitted changes; rerun is recommended: {:#}",
-				err
-			);
+                                    "runner invocation failed; reverted uncommitted changes; rerun is recommended: {:#}",
+                                    err
+                            );
         }
     };
 
@@ -169,37 +168,15 @@ fn resolve_run_agent_settings(
     resolved: &config::Resolved,
     task: &crate::contracts::Task,
     overrides: &AgentOverrides,
-) -> Result<(Runner, Model, Option<ReasoningEffort>)> {
-    let task_agent = task.agent.as_ref();
-
-    let runner_kind: Runner = overrides
-        .runner
-        .or(task_agent.and_then(|agent| agent.runner))
-        .or(resolved.config.agent.runner)
-        .unwrap_or_default();
-
-    let model = runner::resolve_model_for_runner(
-        runner_kind,
+) -> Result<runner::AgentSettings> {
+    runner::resolve_agent_settings(
+        overrides.runner,
         overrides.model.clone(),
-        task_agent.and_then(|agent| agent.model.clone()),
-        resolved.config.agent.model.clone(),
-    );
-
-    let effort_candidate: Option<ReasoningEffort> = overrides
-        .reasoning_effort
-        .or(task_agent.and_then(|agent| agent.reasoning_effort))
-        .or(resolved.config.agent.reasoning_effort);
-
-    let reasoning_effort = if runner_kind == Runner::Codex {
-        Some(effort_candidate.unwrap_or_default())
-    } else {
-        None
-    };
-
-    runner::validate_model_for_runner(runner_kind, &model)?;
-    Ok((runner_kind, model, reasoning_effort))
+        overrides.reasoning_effort,
+        task.agent.as_ref(),
+        &resolved.config.agent,
+    )
 }
-
 fn post_run_supervise(resolved: &config::Resolved, task_id: &str) -> Result<()> {
     let status = gitutil::status_porcelain(&resolved.repo_root)?;
     let is_dirty = !status.trim().is_empty();
@@ -457,10 +434,10 @@ mod tests {
         });
 
         let overrides = AgentOverrides::default();
-        let (runner, model, effort) = resolve_run_agent_settings(&resolved, &task, &overrides)?;
-        assert_eq!(runner, Runner::Opencode);
-        assert_eq!(model, Model::Gpt52);
-        assert_eq!(effort, None);
+        let settings = resolve_run_agent_settings(&resolved, &task, &overrides)?;
+        assert_eq!(settings.runner, Runner::Opencode);
+        assert_eq!(settings.model, Model::Gpt52);
+        assert_eq!(settings.reasoning_effort, None);
         Ok(())
     }
 
@@ -485,10 +462,10 @@ mod tests {
             reasoning_effort: Some(ReasoningEffort::High),
         };
 
-        let (runner, model, effort) = resolve_run_agent_settings(&resolved, &task, &overrides)?;
-        assert_eq!(runner, Runner::Codex);
-        assert_eq!(model, Model::Gpt52Codex);
-        assert_eq!(effort, Some(ReasoningEffort::High));
+        let settings = resolve_run_agent_settings(&resolved, &task, &overrides)?;
+        assert_eq!(settings.runner, Runner::Codex);
+        assert_eq!(settings.model, Model::Gpt52Codex);
+        assert_eq!(settings.reasoning_effort, Some(ReasoningEffort::High));
         Ok(())
     }
 
@@ -511,10 +488,10 @@ mod tests {
             reasoning_effort: None,
         };
 
-        let (runner, model, effort) = resolve_run_agent_settings(&resolved, &task, &overrides)?;
-        assert_eq!(runner, Runner::Opencode);
-        assert_eq!(model, Model::Glm47);
-        assert_eq!(effort, None);
+        let settings = resolve_run_agent_settings(&resolved, &task, &overrides)?;
+        assert_eq!(settings.runner, Runner::Opencode);
+        assert_eq!(settings.model, Model::Glm47);
+        assert_eq!(settings.reasoning_effort, None);
         Ok(())
     }
 
@@ -535,10 +512,10 @@ mod tests {
             reasoning_effort: None,
         };
 
-        let (runner, model, effort) = resolve_run_agent_settings(&resolved, &task, &overrides)?;
-        assert_eq!(runner, Runner::Gemini);
-        assert_eq!(model.as_str(), "gemini-3-flash-preview");
-        assert_eq!(effort, None);
+        let settings = resolve_run_agent_settings(&resolved, &task, &overrides)?;
+        assert_eq!(settings.runner, Runner::Gemini);
+        assert_eq!(settings.model.as_str(), "gemini-3-flash-preview");
+        assert_eq!(settings.reasoning_effort, None);
         Ok(())
     }
 
@@ -551,10 +528,10 @@ mod tests {
         let task = base_task();
         let overrides = AgentOverrides::default();
 
-        let (runner, model, effort) = resolve_run_agent_settings(&resolved, &task, &overrides)?;
-        assert_eq!(runner, Runner::Codex);
-        assert_eq!(model, Model::Gpt52Codex);
-        assert_eq!(effort, Some(ReasoningEffort::Medium));
+        let settings = resolve_run_agent_settings(&resolved, &task, &overrides)?;
+        assert_eq!(settings.runner, Runner::Codex);
+        assert_eq!(settings.model, Model::Gpt52Codex);
+        assert_eq!(settings.reasoning_effort, Some(ReasoningEffort::Medium));
         Ok(())
     }
 
@@ -573,10 +550,10 @@ mod tests {
             reasoning_effort: Some(ReasoningEffort::High),
         };
 
-        let (runner, model, effort) = resolve_run_agent_settings(&resolved, &task, &overrides)?;
-        assert_eq!(runner, Runner::Opencode);
-        assert_eq!(model, Model::Gpt52);
-        assert_eq!(effort, None);
+        let settings = resolve_run_agent_settings(&resolved, &task, &overrides)?;
+        assert_eq!(settings.runner, Runner::Opencode);
+        assert_eq!(settings.model, Model::Gpt52);
+        assert_eq!(settings.reasoning_effort, None);
         Ok(())
     }
 }

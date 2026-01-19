@@ -1,7 +1,7 @@
 version: 1
 tasks:
 - id: RQ-0075
-  status: todo
+  status: done
   title: Centralize RunnerKind and Model resolution logic
   tags:
   - rust
@@ -16,10 +16,15 @@ tasks:
   - Consolidate resolution logic into runner.rs or a dedicated settings module
   - 'Ensure consistent precedence: CLI > task.agent > project config > global config > built-in'
   - Update main.rs, task_cmd.rs, scan_cmd.rs, and run_cmd.rs to use the centralized logic
-  notes: []
+  notes:
+  - Created `runner::AgentSettings` struct and `resolve_agent_settings` function in `crates/ralph/src/runner.rs`.
+  - Updated `crates/ralph/src/main.rs` to use `resolve_agent_settings` for `task` and `scan` commands.
+  - Updated `crates/ralph/src/run_cmd.rs` to use `resolve_agent_settings` for `run one` and `run loop`.
+  - Verified with `make ci`.
   request: scan finding
   created_at: 2026-01-18T22:00:00Z
-  updated_at: 2026-01-18T22:00:00Z
+  updated_at: 2026-01-19T01:30:00Z
+  completed_at: 2026-01-19T01:30:00Z
 - id: RQ-0076
   status: todo
   title: Audit and harden YAML repair logic in queue.rs

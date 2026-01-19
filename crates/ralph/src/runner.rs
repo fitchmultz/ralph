@@ -1,4 +1,4 @@
-use crate::contracts::{Model, ReasoningEffort, Runner};
+use crate::contracts::{AgentConfig, Model, ReasoningEffort, Runner, TaskAgent};
 use anyhow::{anyhow, bail, Context, Result};
 use std::io::{Read, Write};
 use std::path::Path;
@@ -89,6 +89,51 @@ impl RunnerOutput {
         }
         format!("{}{}", self.stdout, self.stderr)
     }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct AgentSettings {
+    pub runner: Runner,
+    pub model: Model,
+    pub reasoning_effort: Option<ReasoningEffort>,
+}
+
+pub fn resolve_agent_settings(
+    runner_override: Option<Runner>,
+    model_override: Option<Model>,
+    effort_override: Option<ReasoningEffort>,
+    task_agent: Option<&TaskAgent>,
+    config_agent: &AgentConfig,
+) -> Result<AgentSettings> {
+    let runner = runner_override
+        .or(task_agent.and_then(|a| a.runner))
+        .or(config_agent.runner)
+        .unwrap_or_default();
+
+    let model = resolve_model_for_runner(
+        runner,
+        model_override,
+        task_agent.and_then(|a| a.model.clone()),
+        config_agent.model.clone(),
+    );
+
+    let effort_candidate = effort_override
+        .or(task_agent.and_then(|a| a.reasoning_effort))
+        .or(config_agent.reasoning_effort);
+
+    let reasoning_effort = if runner == Runner::Codex {
+        Some(effort_candidate.unwrap_or_default())
+    } else {
+        None
+    };
+
+    validate_model_for_runner(runner, &model)?;
+
+    Ok(AgentSettings {
+        runner,
+        model,
+        reasoning_effort,
+    })
 }
 
 pub fn validate_model_for_runner(runner: Runner, model: &Model) -> Result<()> {

@@ -314,7 +314,7 @@ fn handle_task(cmd: TaskCommand, force: bool) -> Result<()> {
     match cmd {
         TaskCommand::Build(args) => {
             let request = task_cmd::read_request_from_args_or_stdin(&args.request)?;
-            let (runner_kind, model, reasoning_effort) = resolve_agent_args(
+            let settings = resolve_agent_args(
                 &resolved,
                 args.runner.as_deref(),
                 args.model.as_deref(),
@@ -327,9 +327,9 @@ fn handle_task(cmd: TaskCommand, force: bool) -> Result<()> {
                     request,
                     hint_tags: args.tags,
                     hint_scope: args.scope,
-                    runner: runner_kind,
-                    model,
-                    reasoning_effort,
+                    runner: settings.runner,
+                    model: settings.model,
+                    reasoning_effort: settings.reasoning_effort,
                     force,
                 },
             )
@@ -339,7 +339,7 @@ fn handle_task(cmd: TaskCommand, force: bool) -> Result<()> {
 
 fn handle_scan(args: ScanArgs, force: bool) -> Result<()> {
     let resolved = config::resolve_from_cwd()?;
-    let (runner_kind, model, reasoning_effort) = resolve_agent_args(
+    let settings = resolve_agent_args(
         &resolved,
         args.runner.as_deref(),
         args.model.as_deref(),
@@ -350,9 +350,9 @@ fn handle_scan(args: ScanArgs, force: bool) -> Result<()> {
         &resolved,
         scan_cmd::ScanOptions {
             focus: args.focus,
-            runner: runner_kind,
-            model,
-            reasoning_effort,
+            runner: settings.runner,
+            model: settings.model,
+            reasoning_effort: settings.reasoning_effort,
             force,
         },
     )
@@ -403,39 +403,23 @@ fn resolve_agent_args(
     runner_override: Option<&str>,
     model_override: Option<&str>,
     effort_override: Option<&str>,
-) -> Result<(
-    RunnerKind,
-    contracts::Model,
-    Option<contracts::ReasoningEffort>,
-)> {
+) -> Result<runner::AgentSettings> {
     let runner_kind = match runner_override {
-        Some(value) => parse_runner(value)?,
-        None => resolved.config.agent.runner.unwrap_or_default(),
+        Some(value) => Some(parse_runner(value)?),
+        None => None,
     };
 
-    let override_model = match model_override {
+    let model = match model_override {
         Some(value) => Some(runner::parse_model(value)?),
         None => None,
     };
-    let effective_model = runner::resolve_model_for_runner(
-        runner_kind,
-        override_model,
-        None,
-        resolved.config.agent.model.clone(),
-    );
 
-    let reasoning_effort = if runner_kind == RunnerKind::Codex {
-        let effort = match effort_override {
-            Some(value) => runner::parse_reasoning_effort(value)?,
-            None => resolved.config.agent.reasoning_effort.unwrap_or_default(),
-        };
-        Some(effort)
-    } else {
-        None
+    let effort = match effort_override {
+        Some(value) => Some(runner::parse_reasoning_effort(value)?),
+        None => None,
     };
 
-    runner::validate_model_for_runner(runner_kind, &effective_model)?;
-    Ok((runner_kind, effective_model, reasoning_effort))
+    runner::resolve_agent_settings(runner_kind, model, effort, None, &resolved.config.agent)
 }
 
 fn format_task_compact(task: &Task) -> String {
@@ -904,10 +888,13 @@ mod tests {
         let temp = TempDir::new().context("create temp dir")?;
         let _guard = EnvGuard::enter(&temp.path().to_path_buf())?;
         let resolved = crate::config::resolve_from_cwd().context("resolve config")?;
-        let (runner, model, effort) = super::resolve_agent_args(&resolved, None, None, None)?;
-        assert_eq!(runner, super::RunnerKind::Codex);
-        assert_eq!(model, super::contracts::Model::Gpt52Codex);
-        assert_eq!(effort, Some(super::contracts::ReasoningEffort::Medium));
+        let settings = super::resolve_agent_args(&resolved, None, None, None)?;
+        assert_eq!(settings.runner, super::RunnerKind::Codex);
+        assert_eq!(settings.model, super::contracts::Model::Gpt52Codex);
+        assert_eq!(
+            settings.reasoning_effort,
+            Some(super::contracts::ReasoningEffort::Medium)
+        );
         Ok(())
     }
 
@@ -927,10 +914,10 @@ agent:
         )?;
         let _guard = EnvGuard::enter(&repo_root)?;
         let resolved = crate::config::resolve_from_cwd().context("resolve config")?;
-        let (runner, model, effort) = super::resolve_agent_args(&resolved, None, None, None)?;
-        assert_eq!(runner, super::RunnerKind::Opencode);
-        assert_eq!(model, super::contracts::Model::Gpt52);
-        assert_eq!(effort, None);
+        let settings = super::resolve_agent_args(&resolved, None, None, None)?;
+        assert_eq!(settings.runner, super::RunnerKind::Opencode);
+        assert_eq!(settings.model, super::contracts::Model::Gpt52);
+        assert_eq!(settings.reasoning_effort, None);
         Ok(())
     }
 
@@ -950,15 +937,18 @@ agent:
         )?;
         let _guard = EnvGuard::enter(&repo_root)?;
         let resolved = crate::config::resolve_from_cwd().context("resolve config")?;
-        let (runner, model, effort) = super::resolve_agent_args(
+        let settings = super::resolve_agent_args(
             &resolved,
             Some("codex"),
             Some("gpt-5.2-codex"),
             Some("high"),
         )?;
-        assert_eq!(runner, super::RunnerKind::Codex);
-        assert_eq!(model, super::contracts::Model::Gpt52Codex);
-        assert_eq!(effort, Some(super::contracts::ReasoningEffort::High));
+        assert_eq!(settings.runner, super::RunnerKind::Codex);
+        assert_eq!(settings.model, super::contracts::Model::Gpt52Codex);
+        assert_eq!(
+            settings.reasoning_effort,
+            Some(super::contracts::ReasoningEffort::High)
+        );
         Ok(())
     }
 
@@ -983,11 +973,10 @@ agent:
 
         // CLI override selects Opencode, but no model override.
         // Should default to Glm47, ignoring config model gpt-5.2-codex.
-        let (runner, model, effort) =
-            super::resolve_agent_args(&resolved, Some("opencode"), None, None)?;
-        assert_eq!(runner, super::RunnerKind::Opencode);
-        assert_eq!(model, super::contracts::Model::Glm47);
-        assert_eq!(effort, None);
+        let settings = super::resolve_agent_args(&resolved, Some("opencode"), None, None)?;
+        assert_eq!(settings.runner, super::RunnerKind::Opencode);
+        assert_eq!(settings.model, super::contracts::Model::Glm47);
+        assert_eq!(settings.reasoning_effort, None);
         Ok(())
     }
 
@@ -1010,11 +999,10 @@ agent:
         let _guard = EnvGuard::enter(&repo_root)?;
         let resolved = crate::config::resolve_from_cwd().context("resolve config")?;
 
-        let (runner, model, effort) =
-            super::resolve_agent_args(&resolved, Some("gemini"), None, None)?;
-        assert_eq!(runner, super::RunnerKind::Gemini);
-        assert_eq!(model.as_str(), "gemini-3-flash-preview");
-        assert_eq!(effort, None);
+        let settings = super::resolve_agent_args(&resolved, Some("gemini"), None, None)?;
+        assert_eq!(settings.runner, super::RunnerKind::Gemini);
+        assert_eq!(settings.model.as_str(), "gemini-3-flash-preview");
+        assert_eq!(settings.reasoning_effort, None);
         Ok(())
     }
 
