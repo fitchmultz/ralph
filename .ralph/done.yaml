@@ -717,7 +717,7 @@ tasks:
     updated_at: 2026-01-18T21:00:00Z
     completed_at: 2026-01-18T21:07:00Z
     notes:
-      - Updated 30+ `bail!` calls in `config.rs`, `queue.rs`, `run_cmd.rs`, `task_cmd.rs`, `scan_cmd.rs`, `prompts.rs`, `main.rs`, and `doctor_cmd.rs` to follow the "Problem: Solution" pattern.
+      - 'Updated 30+ `bail!` calls in `config.rs`, `queue.rs`, `run_cmd.rs`, `task_cmd.rs`, `scan_cmd.rs`, `prompts.rs`, `main.rs`, and `doctor_cmd.rs` to follow the "Problem: Solution" pattern.'
       - Ensured that error messages provide actionable advice (e.g., specific config keys or flags to set).
       - Updated unit tests and contract tests to reflect the new improved error messages.
       - Verified that `make ci` passes with all tests updated.
