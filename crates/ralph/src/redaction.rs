@@ -198,6 +198,13 @@ pub fn is_path_like_env_key(key: &str) -> bool {
     )
 }
 
+fn push_next_char(out: &mut String, text: &str, index: &mut usize) {
+    debug_assert!(text.is_char_boundary(*index));
+    let ch = text[*index..].chars().next().unwrap();
+    out.push(ch);
+    *index += ch.len_utf8();
+}
+
 fn redact_aws_keys(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     let bytes = text.as_bytes();
@@ -253,8 +260,7 @@ fn redact_aws_keys(text: &str) -> String {
             }
         }
 
-        out.push(bytes[i] as char);
-        i += 1;
+        push_next_char(&mut out, text, &mut i);
     }
     out
 }
@@ -274,8 +280,7 @@ fn redact_ssh_keys(text: &str) -> String {
                 }
             }
         }
-        out.push(text.as_bytes()[i] as char);
-        i += 1;
+        push_next_char(&mut out, text, &mut i);
     }
     out
 }
@@ -286,10 +291,9 @@ fn redact_hex_tokens(text: &str) -> String {
     let mut i = 0;
 
     while i < bytes.len() {
-        let ch = bytes[i] as char;
-        if ch.is_ascii_hexdigit() {
+        if bytes[i].is_ascii_hexdigit() {
             let start = i;
-            while i < bytes.len() && (bytes[i] as char).is_ascii_hexdigit() {
+            while i < bytes.len() && bytes[i].is_ascii_hexdigit() {
                 i += 1;
             }
             let len = i - start;
@@ -304,8 +308,7 @@ fn redact_hex_tokens(text: &str) -> String {
             }
             out.push_str(&text[start..i]);
         } else {
-            out.push(ch);
-            i += 1;
+            push_next_char(&mut out, text, &mut i);
         }
     }
     out
@@ -594,6 +597,13 @@ mod tests {
         let output = redact_text(input);
         assert!(!output.contains("abcdef123456"));
         assert!(output.contains("Bearer [REDACTED]"));
+    }
+
+    #[test]
+    fn redact_text_handles_non_ascii() {
+        let input = "Read AGENTS.md — voila âêîö 你好";
+        let output = redact_text(input);
+        assert_eq!(output, input);
     }
 
     #[test]

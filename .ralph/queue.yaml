@@ -1,27 +1,5 @@
 version: 1
 tasks:
-- id: RQ-0107
-  status: todo
-  title: Prevent redaction panic on non-UTF-8 boundary slicing
-  tags:
-  - bugfix
-  - rust
-  - reliability
-  scope:
-  - crates/ralph/src/redaction.rs
-  - crates/ralph (redaction callers)
-  - cargo test -p ralph
-  evidence:
-  - 'User request: Error: Provider returned error thread ''main'' (15281963) panicked at crates/ralph/src/redaction.rs:235:16: byte index 2634 is not a char boundary; it is inside ''â'' (bytes 2633..2635) of |  Read     AGENTS.md'
-  plan:
-  - Reproduce the panic path in redaction and identify the slicing logic at the reported location.
-  - Update redaction to avoid byte-index slicing on UTF-8 strings (use char-safe boundaries or bytes-to-str conversion).
-  - Add or adjust tests to cover non-ASCII inputs and prevent regressions.
-  - Run `cargo test -p ralph` and any targeted checks tied to redaction behavior.
-  notes: []
-  request: 'This error popped up while running a loop in a different repo. Fix. Error: Provider returned error thread ''main'' (15281963) panicked at crates/ralph/src/redaction.rs:235:16: byte index 2634 is not a char boundary; it is inside ''â'' (bytes 2633..2635) of |  Read     AGENTS.md'
-  created_at: 2026-01-19T05:45:41Z
-  updated_at: 2026-01-19T05:45:41Z
 - id: RQ-0106
   status: todo
   title: Audit and remove dead or duplicated code with shared helpers
