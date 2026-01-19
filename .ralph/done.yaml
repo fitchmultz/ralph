@@ -819,7 +819,7 @@ tasks:
     notes:
       - Updated `validate_task_required_fields`, `validate_task_id`, `ensure_list_non_empty`, `ensure_field_present`, and `validate_rfc3339` in `queue.rs`.
       - Error messages now include examples of valid values (IDs, timestamps) and suggest running 'ralph queue repair' for malformed YAML.
-      - Standardized "Problem: Solution" pattern for all validation bailouts.
+      - 'Standardized "Problem: Solution" pattern for all validation bailouts.'
       - Verified with `make ci`.
     request: scan finding
     created_at: 2026-01-19T04:00:47Z
