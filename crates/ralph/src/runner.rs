@@ -13,7 +13,7 @@ use std::os::unix::process::CommandExt;
 
 const OPENCODE_PROMPT_FILE_MESSAGE: &str = "Follow the attached prompt file verbatim.";
 const GEMINI_PROMPT_PREFIX: &str =
-    "Use RepoPrompt tools to search for files, read files, and apply edits if available.";
+    "If RepoPrompt tools are available, you MUST use them for file search, reading, and edits (do not bypass them).";
 const DEFAULT_GEMINI_MODEL: &str = "gemini-3-flash-preview";
 
 struct CtrlCState {
