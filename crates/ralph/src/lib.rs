@@ -1,6 +1,6 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 
-//! Ralph (Rust rewrite) library surface.
+//! Ralph library surface.
 //!
 //! The CLI entrypoint is `src/main.rs`. This crate exposes internal modules so
 //! integration/stress tests can exercise real behavior without mocks.

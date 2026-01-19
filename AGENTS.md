@@ -1,9 +1,9 @@
 # Contributor Guide
 
 ## Project Structure & Source of Truth
-- `crates/ralph/`: **Active** Rust CLI (the Rust rewrite).
+- `crates/ralph/`: **Active** Rust CLI.
   - Run locally via `cargo run -p ralph -- <command>`
-- `.ralph/`: Repo-local runtime state for the Rust CLI.
+- `.ralph/`: Repo-local runtime state.
   - `.ralph/queue.yaml` is the **source of truth** for active work.
   - `.ralph/done.yaml` archives completed tasks (same schema as queue).
   - Prompt templates are embedded in the Rust CLI; repo-local overrides can be placed in `.ralph/prompts/*.md`.

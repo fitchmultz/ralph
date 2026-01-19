@@ -211,7 +211,7 @@ mod tests {
         let readme_path = resolved.repo_root.join(".ralph/README.md");
         assert!(readme_path.exists());
         let readme_raw = std::fs::read_to_string(readme_path)?;
-        assert!(readme_raw.contains("# Ralph (Rust rewrite) runtime files"));
+        assert!(readme_raw.contains("# Ralph runtime files"));
         Ok(())
     }
 

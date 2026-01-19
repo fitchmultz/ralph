@@ -488,7 +488,7 @@ fn resolve_list_limit(limit: u32, all: bool) -> Option<usize> {
 
 #[derive(Parser)]
 #[command(name = "ralph")]
-#[command(about = "Ralph (Rust rewrite)")]
+#[command(about = "Ralph")]
 #[command(
     after_long_help = "Runner selection:\n  - CLI flags override project config, which overrides global config, which overrides built-in defaults.\n  - Default runner/model come from config files: project config (.ralph/config.yaml) > global config (~/.config/ralph/config.yaml) > built-in.\n  - `task build` and `scan` accept --runner/--model/--effort as one-off overrides.\n  - `run one` and `run loop` accept --runner/--model/--effort as one-off overrides; otherwise they use task.agent overrides when present; otherwise config agent defaults.\n\nConfig example (.ralph/config.yaml):\n  version: 1\n  agent:\n    runner: opencode\n    model: gpt-5.2\n    opencode_bin: opencode\n    gemini_bin: gemini\n    claude_bin: claude\n\nNotes:\n  - Allowed runners: codex, opencode, gemini, claude\n  - Allowed models: gpt-5.2-codex, gpt-5.2, zai-coding-plan/glm-4.7, gemini-3-pro-preview, gemini-3-flash-preview, sonnet, opus (codex supports only gpt-5.2-codex + gpt-5.2; opencode/gemini/claude accept arbitrary model ids)\n\nExamples:\n  ralph queue list\n  ralph queue show RQ-0008\n  ralph queue next --with-title\n  ralph scan --runner opencode --model gpt-5.2 --focus \"CI gaps\"\n  ralph task build --runner codex --model gpt-5.2-codex --effort high \"Fix the flaky test\"\n  ralph scan --runner gemini --model gemini-3-flash-preview --focus \"risk audit\"\n  ralph scan --runner claude --model sonnet --focus \"risk audit\"\n  ralph task build --runner claude --model opus \"Add tests for X\"\n  ralph run one"
 )]

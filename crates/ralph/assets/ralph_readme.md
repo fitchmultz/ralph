@@ -1,6 +1,6 @@
-# Ralph (Rust rewrite) runtime files
+# Ralph runtime files
 
-This repo is using Ralph. The implementation uses the `.ralph/` directory for repo-local state.
+This repo is using Ralph. The `.ralph/` directory holds repo-local state.
 
 ## Files
 

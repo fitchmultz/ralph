@@ -1,8 +1,6 @@
-# Ralph (Rust rewrite) runtime files
+# Ralph runtime files
 
-This repo is undergoing a Rust rewrite of Ralph. The Rust implementation uses the
-`.ralph/` directory for repo-local state. See the root `README.md` for canonical
-usage and migration guidance.
+This repo is using Ralph. The `.ralph/` directory holds repo-local state. See the root `README.md` for usage details.
 
 ## Files
 

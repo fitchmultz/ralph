@@ -2,9 +2,9 @@
 
 Ralph is a tool for managing AI agent loops with a structured YAML task queue.
 
-## Current Status (Rust rewrite)
+## Status
 
-The canonical implementation is the Rust CLI in `crates/ralph/`.
+The Ralph CLI is in `crates/ralph/`.
 
 - Queue (source of truth): `.ralph/queue.yaml`
 - Done archive: `.ralph/done.yaml`
