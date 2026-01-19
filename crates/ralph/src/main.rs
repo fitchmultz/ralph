@@ -111,9 +111,12 @@ fn handle_queue(cmd: QueueCommand, force: bool) -> Result<()> {
             let next = queue::next_todo_task(&queue_file)
                 .ok_or_else(|| anyhow::anyhow!("no todo tasks found"))?;
             if args.with_title {
-                println!("{}\t{}", next.id.trim(), next.title.trim());
+                println!(
+                    "{}",
+                    outpututil::format_task_id_title(&next.id, &next.title)
+                );
             } else {
-                println!("{}", next.id.trim());
+                println!("{}", outpututil::format_task_id(&next.id));
             }
         }
         QueueCommand::NextId => {

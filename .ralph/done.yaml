@@ -614,3 +614,30 @@ tasks:
     created_at: 2026-01-19T04:00:47Z
     updated_at: 2026-01-19T04:46:56Z
     completed_at: 2026-01-19T04:48:40Z
+  - id: RQ-0105
+    status: done
+    title: Refactor task formatting to use centralized utility
+    tags:
+      - rust
+      - ux
+      - refactor
+    scope:
+      - crates/ralph/src/main.rs
+    evidence:
+      - |-
+        `format_task_compact` and `format_task_long` are defined in `main.rs`.
+        They should be moved to `outpututil.rs` or `contracts.rs` and standardized.
+    plan:
+      - Move task formatting logic out of `main.rs`.
+      - Ensure consistent trimming and joining of tags/scope.
+      - Integrate with the new `outpututil` helpers for consistent CLI presentation.
+    notes:
+      - Standardized `format_task_compact` and `format_task_detailed` in `outpututil.rs` with consistent `\t` separators.
+      - Extracted `join_csv_trimmed` as a public helper in `outpututil.rs`.
+      - Added `format_task_id` and `format_task_id_title` to `outpututil.rs` and used them in `main.rs`.
+      - Centralized `format_task_commit_message` in `outpututil.rs` and used it in `run_cmd.rs`.
+      - Verified with `make ci`.
+    request: scan finding
+    created_at: 2026-01-19T04:00:47Z
+    updated_at: 2026-01-18T00:00:00Z
+    completed_at: 2026-01-18T00:00:00Z

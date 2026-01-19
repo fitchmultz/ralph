@@ -324,7 +324,7 @@ fn post_run_supervise(resolved: &config::Resolved, task_id: &str) -> Result<()> 
             resolved.id_width,
         )?;
 
-        let commit_message = format_task_commit_message(task_id, &task_title);
+        let commit_message = outpututil::format_task_commit_message(task_id, &task_title);
         gitutil::commit_all(&resolved.repo_root, &commit_message)?;
         push_if_ahead(&resolved.repo_root)?;
         gitutil::require_clean_repo_ignoring_paths(
@@ -365,7 +365,7 @@ fn post_run_supervise(resolved: &config::Resolved, task_id: &str) -> Result<()> 
         return Ok(());
     }
 
-    let commit_message = format_task_commit_message(task_id, &task_title);
+    let commit_message = outpututil::format_task_commit_message(task_id, &task_title);
     gitutil::commit_all(&resolved.repo_root, &commit_message)?;
     push_if_ahead(&resolved.repo_root)?;
     gitutil::require_clean_repo_ignoring_paths(
@@ -427,13 +427,6 @@ fn run_make_ci(repo_root: &Path) -> Result<()> {
     }
 
     bail!("make ci failed with exit code {:?}", status.code())
-}
-
-fn format_task_commit_message(task_id: &str, title: &str) -> String {
-    let mut raw = format!("{task_id}: {title}");
-    raw = raw.replace(['\n', '\r', '\t'], " ");
-    let squashed = raw.split_whitespace().collect::<Vec<&str>>().join(" ");
-    outpututil::truncate_chars(&squashed, 100)
 }
 
 #[cfg(test)]

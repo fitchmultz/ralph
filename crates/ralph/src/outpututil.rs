@@ -56,9 +56,33 @@ pub fn style_status(status: TaskStatus) -> colored::ColoredString {
     }
 }
 
+pub fn join_csv_trimmed(values: &[String]) -> String {
+    values
+        .iter()
+        .map(|v| v.trim())
+        .filter(|v| !v.is_empty())
+        .collect::<Vec<&str>>()
+        .join(",")
+}
+
+pub fn format_task_id(id: &str) -> String {
+    id.trim().to_string()
+}
+
+pub fn format_task_id_title(id: &str, title: &str) -> String {
+    format!("{}\t{}", id.trim(), title.trim())
+}
+
+pub fn format_task_commit_message(task_id: &str, title: &str) -> String {
+    let mut raw = format!("{}: {}", task_id.trim(), title.trim());
+    raw = raw.replace(['\n', '\r', '\t'], " ");
+    let squashed = raw.split_whitespace().collect::<Vec<&str>>().join(" ");
+    truncate_chars(&squashed, 100)
+}
+
 pub fn format_task_compact(task: &Task) -> String {
     format!(
-        "{}\t{}	{}",
+        "{}\t{}\t{}",
         task.id.trim(),
         style_status(task.status),
         task.title.trim()
@@ -66,22 +90,13 @@ pub fn format_task_compact(task: &Task) -> String {
 }
 
 pub fn format_task_detailed(task: &Task) -> String {
-    fn join_trimmed(values: &[String]) -> String {
-        values
-            .iter()
-            .map(|v| v.trim())
-            .filter(|v| !v.is_empty())
-            .collect::<Vec<&str>>()
-            .join(",")
-    }
-
-    let tags = join_trimmed(&task.tags);
-    let scope = join_trimmed(&task.scope);
+    let tags = join_csv_trimmed(&task.tags);
+    let scope = join_csv_trimmed(&task.scope);
     let updated_at = task.updated_at.as_deref().unwrap_or("").trim();
     let completed_at = task.completed_at.as_deref().unwrap_or("").trim();
 
     format!(
-        "{}\t{}	{}	{}	{}	{}	{}",
+        "{}\t{}\t{}\t{}\t{}\t{}\t{}",
         task.id.trim(),
         style_status(task.status),
         task.title.trim(),
