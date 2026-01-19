@@ -153,7 +153,7 @@ fn run_one_rejects_invalid_runner_flag() -> Result<()> {
 
     assert_failure(status, &stdout, &stderr);
     anyhow::ensure!(
-        stderr.contains("--runner must be codex, opencode, or gemini"),
+        stderr.contains("--runner must be 'codex', 'opencode', or 'gemini'"),
         "expected helpful runner error\nstdout:\n{stdout}\nstderr:\n{stderr}"
     );
 

@@ -21,7 +21,7 @@ pub fn read_request_from_args_or_stdin(args: &[String]) -> Result<String> {
         let joined = args.join(" ");
         let trimmed = joined.trim();
         if trimmed.is_empty() {
-            bail!("request text required");
+            bail!("Missing request: task build requires a request description. Pass arguments or pipe input to the command.");
         }
         return Ok(trimmed.to_string());
     }
@@ -32,7 +32,7 @@ pub fn read_request_from_args_or_stdin(args: &[String]) -> Result<String> {
         .context("read stdin")?;
     let trimmed = buf.trim();
     if trimmed.is_empty() {
-        bail!("request text required (pass arguments or pipe input)");
+        bail!("Missing request: task build requires a request description (pass arguments or pipe input to the command).");
     }
     Ok(trimmed.to_string())
 }
@@ -48,7 +48,7 @@ pub fn build_task(resolved: &config::Resolved, opts: TaskBuildOptions) -> Result
     let _queue_lock = queue::acquire_queue_lock(&resolved.repo_root, "task build", opts.force)?;
 
     if opts.request.trim().is_empty() {
-        bail!("request text required");
+        bail!("Missing request: task build requires a request description. Provide a non-empty request.");
     }
 
     let (before, repaired_before) =
@@ -122,10 +122,10 @@ pub fn build_task(resolved: &config::Resolved, opts: TaskBuildOptions) -> Result
         Ok(output) => output,
         Err(runner::RunnerError::Interrupted) => {
             gitutil::revert_uncommitted(&resolved.repo_root)?;
-            bail!("task builder runner interrupted; reverted uncommitted changes");
+            bail!("Task builder interrupted: the agent run was canceled. Uncommitted changes were reverted to maintain a clean repo state.");
         }
         Err(runner::RunnerError::Timeout) => {
-            bail!("task builder runner timed out; changes in the working tree were NOT reverted");
+            bail!("Task builder timed out: the agent run exceeded the time limit. Changes in the working tree were NOT reverted; review the repo state manually.");
         }
         Err(runner::RunnerError::NonZeroExit {
             code,
@@ -145,7 +145,7 @@ pub fn build_task(resolved: &config::Resolved, opts: TaskBuildOptions) -> Result
                 }
             }
             gitutil::revert_uncommitted(&resolved.repo_root)?;
-            bail!("task builder runner exited non-zero (code={code}); reverted uncommitted changes; rerun is recommended");
+            bail!("Task builder failed: the agent exited with a non-zero code ({code}). Uncommitted changes were reverted. Rerunning the command is recommended after investigating the cause.");
         }
         Err(runner::RunnerError::TerminatedBySignal { stdout: _, stderr }) => {
             let redacted = redaction::redact_text(&stderr);
@@ -161,12 +161,12 @@ pub fn build_task(resolved: &config::Resolved, opts: TaskBuildOptions) -> Result
                 }
             }
             gitutil::revert_uncommitted(&resolved.repo_root)?;
-            bail!("task builder runner terminated by signal; reverted uncommitted changes; rerun is recommended");
+            bail!("Task builder terminated: the agent was stopped by a signal. Uncommitted changes were reverted. Rerunning the command is recommended.");
         }
         Err(err) => {
             gitutil::revert_uncommitted(&resolved.repo_root)?;
             bail!(
-                "task builder runner failed to execute; reverted uncommitted changes: {:#}",
+                "Task builder failed: the agent could not be started or encountered an error. Uncommitted changes were reverted. Error: {:#}",
                 err
             );
         }

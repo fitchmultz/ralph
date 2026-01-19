@@ -184,7 +184,7 @@ pub fn run_doctor(resolved: &config::Resolved) -> Result<()> {
         for fail in &failures {
             log::error!("  - {}", fail);
         }
-        anyhow::bail!("doctor check failed");
+        anyhow::bail!("Doctor check failed: one or more critical components are missing or misconfigured. Review the error logs above and fix the reported issues before running Ralph.");
     }
 }
 

@@ -110,15 +110,15 @@ pub fn save_queue(path: &Path, queue: &QueueFile) -> Result<()> {
 
 pub fn validate_queue(queue: &QueueFile, id_prefix: &str, id_width: usize) -> Result<()> {
     if queue.version != 1 {
-        bail!("queue.yaml version must be 1 (got {})", queue.version);
+        bail!("Unsupported queue.yaml version: {}. Ralph requires version 1. Update the 'version' field in .ralph/queue.yaml.", queue.version);
     }
     if id_width == 0 {
-        bail!("id_width must be > 0");
+        bail!("Invalid id_width: width must be greater than 0. Set a valid width (e.g., 4) in .ralph/config.yaml or via --id-width.");
     }
 
     let expected_prefix = normalize_prefix(id_prefix);
     if expected_prefix.is_empty() {
-        bail!("id_prefix must be non-empty");
+        bail!("Empty id_prefix: prefix is required. Set a non-empty prefix (e.g., 'RQ') in .ralph/config.yaml or via --id-prefix.");
     }
 
     let mut seen = HashSet::new();
@@ -128,7 +128,7 @@ pub fn validate_queue(queue: &QueueFile, id_prefix: &str, id_width: usize) -> Re
 
         let key = task.id.trim().to_string();
         if !seen.insert(key.clone()) {
-            bail!("duplicate task id detected: {}", key);
+            bail!("Duplicate task ID detected: {}. Ensure each task in .ralph/queue.yaml has a unique ID.", key);
         }
     }
 
@@ -149,7 +149,7 @@ pub fn validate_queue_set(
         for task in &done.tasks {
             let id = task.id.trim();
             if active_ids.contains(id) {
-                bail!("duplicate task id detected across queue and done: {}", id);
+                bail!("Duplicate task ID detected across queue and done: {}. Ensure task IDs are unique across .ralph/queue.yaml and .ralph/done.yaml.", id);
             }
         }
     }
@@ -235,7 +235,7 @@ pub fn set_status(
 ) -> Result<()> {
     let now = now_rfc3339.trim();
     if now.is_empty() {
-        bail!("now timestamp is required");
+        bail!("Missing timestamp: current time is required for this operation. Ensure a valid RFC3339 timestamp is provided.");
     }
     OffsetDateTime::parse(now, &Rfc3339).with_context(|| {
         format!(
@@ -246,7 +246,7 @@ pub fn set_status(
 
     let needle = task_id.trim();
     if needle.is_empty() {
-        bail!("task_id is required");
+        bail!("Missing task_id: a task ID is required for this operation. Provide a valid ID (e.g., 'RQ-0001').");
     }
 
     let task = queue
@@ -1055,10 +1055,10 @@ fn normalize_tag(tag: &str) -> String {
 
 fn validate_task_required_fields(index: usize, task: &Task) -> Result<()> {
     if task.id.trim().is_empty() {
-        bail!("task[{}] id is required", index);
+        bail!("Missing task ID: task at index {} is missing an 'id' field. Add a valid ID (e.g., 'RQ-0001') to the task.", index);
     }
     if task.title.trim().is_empty() {
-        bail!("task[{}] title is required (id={})", index, task.id);
+        bail!("Missing task title: task {} (index {}) is missing a 'title' field. Add a descriptive title to the task.", task.id, index);
     }
     ensure_list_non_empty("tags", index, &task.id, &task.tags)?;
     ensure_list_non_empty("scope", index, &task.id, &task.scope)?;
@@ -1069,13 +1069,13 @@ fn validate_task_required_fields(index: usize, task: &Task) -> Result<()> {
     if let Some(ts) = task.created_at.as_deref() {
         validate_rfc3339("created_at", index, &task.id, ts)?;
     } else {
-        bail!("task[{}] created_at is required (id={})", index, task.id);
+        bail!("Missing created_at: task {} (index {}) is missing the 'created_at' timestamp. Add a valid RFC3339 timestamp.", task.id, index);
     }
 
     if let Some(ts) = task.updated_at.as_deref() {
         validate_rfc3339("updated_at", index, &task.id, ts)?;
     } else {
-        bail!("task[{}] updated_at is required (id={})", index, task.id);
+        bail!("Missing updated_at: task {} (index {}) is missing the 'updated_at' timestamp. Add a valid RFC3339 timestamp.", task.id, index);
     }
 
     if let Some(ts) = task.completed_at.as_deref() {
@@ -1089,10 +1089,11 @@ fn validate_rfc3339(label: &str, index: usize, id: &str, value: &str) -> Result<
     let trimmed = value.trim();
     if trimmed.is_empty() {
         bail!(
-            "task[{}] {} is required and must be non-empty (id={})",
-            index,
+            "Missing {}: task {} (index {}) requires a non-empty '{}' field. Add the missing information.",
             label,
-            id
+            id,
+            index,
+            label
         );
     }
     OffsetDateTime::parse(trimmed, &Rfc3339).with_context(|| {
@@ -1106,16 +1107,17 @@ fn validate_rfc3339(label: &str, index: usize, id: &str, value: &str) -> Result<
 
 fn ensure_list_non_empty(label: &str, index: usize, id: &str, values: &[String]) -> Result<()> {
     if values.is_empty() {
-        bail!("task[{}] {} must be non-empty (id={})", index, label, id);
+        bail!("Empty {}: task {} (index {}) '{}' field cannot be empty. Add at least one item to the list.", label, id, index, label);
     }
     for (i, value) in values.iter().enumerate() {
         if value.trim().is_empty() {
             bail!(
-                "task[{}] {}[{}] must be non-empty (id={})",
+                "Empty {} item: task {} (index {}) contains an empty string at {}[{}]. Remove the empty item or add content.",
+                label,
+                id,
                 index,
                 label,
-                i,
-                id
+                i
             );
         }
     }
@@ -1126,10 +1128,11 @@ fn ensure_field_present(label: &str, index: usize, id: &str, value: Option<&str>
     match value {
         Some(v) if !v.trim().is_empty() => Ok(()),
         _ => bail!(
-            "task[{}] {} is required and must be non-empty (id={})",
-            index,
+            "Missing {}: task {} (index {}) requires a non-empty '{}' field. Add the missing information.",
             label,
-            id
+            id,
+            index,
+            label
         ),
     }
 }
@@ -1141,32 +1144,36 @@ fn validate_task_id(
     id_width: usize,
 ) -> Result<u32> {
     let trimmed = raw_id.trim();
-    let (prefix_raw, num_raw) = trimmed
-        .split_once('-')
-        .ok_or_else(|| anyhow!("task[{}] id must contain '-' (got: {})", index, trimmed))?;
+    let (prefix_raw, num_raw) = trimmed.split_once('-').ok_or_else(|| {
+        anyhow!(
+            "Invalid task ID format: task at index {} has ID '{}' which is missing a '-'. Task IDs must follow the 'PREFIX-NUMBER' format (e.g., 'RQ-0001').",
+            index,
+            trimmed
+        )
+    })?;
 
     let prefix = prefix_raw.trim().to_uppercase();
     if prefix != expected_prefix {
         bail!(
-            "task[{}] id prefix must be {} (got: {})",
+            "Mismatched task ID prefix: task at index {} has prefix '{}' but expected '{}'. Update the task ID to match the project prefix.",
             index,
-            expected_prefix,
-            prefix
+            prefix,
+            expected_prefix
         );
     }
 
     let num = num_raw.trim();
     if num.len() != id_width {
         bail!(
-            "task[{}] id numeric width must be {} digits (got: {})",
+            "Invalid task ID width: task at index {} has a numeric suffix of length {} but expected {}. Pad the numeric part with leading zeros to match the width.",
             index,
-            id_width,
-            num
+            num.len(),
+            id_width
         );
     }
     if !num.chars().all(|c| c.is_ascii_digit()) {
         bail!(
-            "task[{}] id numeric suffix must be digits (got: {})",
+            "Invalid task ID: task at index {} has non-digit characters in its numeric suffix '{}'. Ensure the ID suffix contains only digits (e.g., '0001').",
             index,
             num
         );
@@ -1236,7 +1243,7 @@ mod tests {
             tasks: vec![task],
         };
         let err = validate_queue(&queue, "RQ", 4).unwrap_err();
-        assert!(format!("{err}").contains("request is required"));
+        assert!(format!("{err}").contains("Missing request"));
     }
 
     #[test]
@@ -1248,7 +1255,7 @@ mod tests {
             tasks: vec![task],
         };
         let err = validate_queue(&queue, "RQ", 4).unwrap_err();
-        assert!(format!("{err}").contains("request is required"));
+        assert!(format!("{err}").contains("Missing request"));
     }
 
     #[test]
@@ -1260,7 +1267,7 @@ mod tests {
             tasks: vec![task],
         };
         let err = validate_queue(&queue, "RQ", 4).unwrap_err();
-        assert!(format!("{err}").contains("created_at is required"));
+        assert!(format!("{err}").contains("Missing created_at"));
     }
 
     #[test]
@@ -1272,7 +1279,7 @@ mod tests {
             tasks: vec![task],
         };
         let err = validate_queue(&queue, "RQ", 4).unwrap_err();
-        assert!(format!("{err}").contains("updated_at is required"));
+        assert!(format!("{err}").contains("Missing updated_at"));
     }
 
     #[test]
@@ -1393,7 +1400,7 @@ mod tests {
             tasks: vec![task("RQ-0001")],
         };
         let err = validate_queue_set(&active, Some(&done), "RQ", 4).unwrap_err();
-        assert!(format!("{err}").contains("duplicate task id detected across queue and done"));
+        assert!(format!("{err}").contains("Duplicate task ID detected across queue and done"));
     }
 
     #[test]
@@ -1602,7 +1609,7 @@ tasks:
         save_queue(&done_path, &done)?;
 
         let err = archive_done_tasks(&queue_path, &done_path, "RQ", 4).unwrap_err();
-        assert!(format!("{err}").contains("duplicate task id detected across queue and done"));
+        assert!(format!("{err}").contains("Duplicate task ID detected across queue and done"));
 
         Ok(())
     }

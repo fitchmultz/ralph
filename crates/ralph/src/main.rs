@@ -153,7 +153,7 @@ fn handle_queue(cmd: QueueCommand, force: bool) -> Result<()> {
         }
         QueueCommand::List(args) => {
             if args.include_done && args.only_done {
-                bail!("--include-done and --only-done are mutually exclusive");
+                bail!("Conflicting flags: --include-done and --only-done are mutually exclusive. Choose either to include done tasks or to only show done tasks.");
             }
 
             let (queue_file, done_file) =
@@ -406,7 +406,7 @@ fn parse_runner(value: &str) -> Result<RunnerKind> {
         "opencode" => Ok(RunnerKind::Opencode),
         "gemini" => Ok(RunnerKind::Gemini),
         _ => bail!(
-            "--runner must be codex, opencode, or gemini (got: {})",
+            "Invalid runner: --runner must be 'codex', 'opencode', or 'gemini' (got: {}). Set a supported runner in .ralph/config.yaml or via the --runner flag.",
             value.trim()
         ),
     }

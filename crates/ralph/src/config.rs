@@ -80,7 +80,7 @@ fn load_layer(path: &Path) -> Result<ConfigLayer> {
 fn apply_layer(mut base: Config, layer: ConfigLayer) -> Result<Config> {
     if let Some(version) = layer.version {
         if version != 1 {
-            bail!("config version must be 1 (got {})", version);
+            bail!("Unsupported config version: {}. Ralph requires version 1. Update the 'version' field in your config file.", version);
         }
         base.version = version;
     }
@@ -97,46 +97,46 @@ fn apply_layer(mut base: Config, layer: ConfigLayer) -> Result<Config> {
 
 fn validate_config(cfg: &Config) -> Result<()> {
     if cfg.version != 1 {
-        bail!("config version must be 1 (got {})", cfg.version);
+        bail!("Unsupported config version: {}. Ralph requires version 1. Update the 'version' field in your config file.", cfg.version);
     }
 
     if let Some(prefix) = &cfg.queue.id_prefix {
         if prefix.trim().is_empty() {
-            bail!("queue.id_prefix cannot be empty if specified");
+            bail!("Empty queue.id_prefix: prefix is required if specified. Set a non-empty prefix (e.g., 'RQ') in .ralph/config.yaml or via --id-prefix.");
         }
     }
 
     if let Some(width) = cfg.queue.id_width {
         if width == 0 {
-            bail!("queue.id_width must be > 0");
+            bail!("Invalid queue.id_width: width must be greater than 0. Set a valid width (e.g., 4) in .ralph/config.yaml or via --id-width.");
         }
     }
 
     if let Some(file) = &cfg.queue.file {
         if file.as_os_str().is_empty() {
-            bail!("queue.file cannot be empty if specified");
+            bail!("Empty queue.file: path is required if specified. Specify a valid path (e.g., '.ralph/queue.yaml') in .ralph/config.yaml or via --queue-file.");
         }
     }
 
     if let Some(done_file) = &cfg.queue.done_file {
         if done_file.as_os_str().is_empty() {
-            bail!("queue.done_file cannot be empty if specified");
+            bail!("Empty queue.done_file: path is required if specified. Specify a valid path (e.g., '.ralph/done.yaml') in .ralph/config.yaml or via --done-file.");
         }
     }
 
     if let Some(bin) = &cfg.agent.codex_bin {
         if bin.trim().is_empty() {
-            bail!("agent.codex_bin cannot be empty if specified");
+            bail!("Empty agent.codex_bin: binary path is required if specified. Set the path to the codex binary in your config.");
         }
     }
     if let Some(bin) = &cfg.agent.opencode_bin {
         if bin.trim().is_empty() {
-            bail!("agent.opencode_bin cannot be empty if specified");
+            bail!("Empty agent.opencode_bin: binary path is required if specified. Set the path to the opencode binary in your config.");
         }
     }
     if let Some(bin) = &cfg.agent.gemini_bin {
         if bin.trim().is_empty() {
-            bail!("agent.gemini_bin cannot be empty if specified");
+            bail!("Empty agent.gemini_bin: binary path is required if specified. Set the path to the gemini binary in your config.");
         }
     }
 
@@ -147,7 +147,7 @@ fn resolve_id_prefix(cfg: &Config) -> Result<String> {
     let raw = cfg.queue.id_prefix.as_deref().unwrap_or("RQ");
     let trimmed = raw.trim();
     if trimmed.is_empty() {
-        bail!("queue.id_prefix must be non-empty");
+        bail!("Empty queue.id_prefix: prefix is required. Set a non-empty prefix (e.g., 'RQ') in .ralph/config.yaml or via --id-prefix.");
     }
     Ok(trimmed.to_uppercase())
 }
@@ -155,7 +155,7 @@ fn resolve_id_prefix(cfg: &Config) -> Result<String> {
 fn resolve_id_width(cfg: &Config) -> Result<usize> {
     let width = cfg.queue.id_width.unwrap_or(4) as usize;
     if width == 0 {
-        bail!("queue.id_width must be > 0");
+        bail!("Invalid queue.id_width: width must be greater than 0. Set a valid width (e.g., 4) in .ralph/config.yaml or via --id-width.");
     }
     Ok(width)
 }
@@ -167,7 +167,7 @@ fn resolve_queue_path(repo_root: &Path, cfg: &Config) -> Result<PathBuf> {
         .clone()
         .unwrap_or_else(|| PathBuf::from(".ralph/queue.yaml"));
     if value.as_os_str().is_empty() {
-        bail!("queue.file must be non-empty when set");
+        bail!("Empty queue.file: path is required. Specify a valid path (e.g., '.ralph/queue.yaml') in .ralph/config.yaml or via --queue-file.");
     }
     if value.is_absolute() {
         return Ok(value);
@@ -182,7 +182,7 @@ fn resolve_done_path(repo_root: &Path, cfg: &Config) -> Result<PathBuf> {
         .clone()
         .unwrap_or_else(|| PathBuf::from(".ralph/done.yaml"));
     if value.as_os_str().is_empty() {
-        bail!("queue.done_file must be non-empty when set");
+        bail!("Empty queue.done_file: path is required. Specify a valid path (e.g., '.ralph/done.yaml') in .ralph/config.yaml or via --done-file.");
     }
     if value.is_absolute() {
         return Ok(value);

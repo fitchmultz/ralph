@@ -694,3 +694,30 @@ tasks:
       - Introduced `log_success`, `log_warn`, and `log_error` in `outpututil.rs` for consistent status reporting.
       - Updated `doctor_contract_test.rs` to verify new log output format and destination (stderr).
       - Verified that `make ci` passes with 159 tests.
+  - id: RQ-0094
+    status: done
+    title: Standardize anyhow::bail! messages to include fix direction
+    tags:
+      - rust
+      - ux
+      - error-handling
+    scope:
+      - crates/ralph/src/config.rs
+      - crates/ralph/src/queue.rs
+    evidence:
+      - |-
+        Many `bail!` messages in `config.rs` and `queue.rs` simply state what is wrong
+        without providing guidance on how the user can fix it (e.g., "id_prefix must be non-empty").
+    plan:
+      - Audit `bail!` calls in core logic.
+      - 'Update error messages to follow a "Problem: Context. Solution: Action." pattern.'
+      - 'Example: "id_prefix is empty. Set a valid prefix in .ralph/config.yaml or via --id-prefix."'
+    request: scan finding
+    created_at: 2026-01-19T04:00:47Z
+    updated_at: 2026-01-18T21:00:00Z
+    completed_at: 2026-01-18T21:07:00Z
+    notes:
+      - Updated 30+ `bail!` calls in `config.rs`, `queue.rs`, `run_cmd.rs`, `task_cmd.rs`, `scan_cmd.rs`, `prompts.rs`, `main.rs`, and `doctor_cmd.rs` to follow the "Problem: Solution" pattern.
+      - Ensured that error messages provide actionable advice (e.g., specific config keys or flags to set).
+      - Updated unit tests and contract tests to reflect the new improved error messages.
+      - Verified that `make ci` passes with all tests updated.

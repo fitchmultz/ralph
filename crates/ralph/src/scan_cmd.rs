@@ -103,10 +103,10 @@ pub fn run_scan(resolved: &config::Resolved, opts: ScanOptions) -> Result<()> {
         Ok(output) => output,
         Err(runner::RunnerError::Interrupted) => {
             gitutil::revert_uncommitted(&resolved.repo_root)?;
-            bail!("scan runner interrupted; reverted uncommitted changes");
+            bail!("Scan runner interrupted: the agent run was canceled. Uncommitted changes were reverted to maintain a clean repo state.");
         }
         Err(runner::RunnerError::Timeout) => {
-            bail!("scan runner timed out; changes in the working tree were NOT reverted");
+            bail!("Scan runner timed out: the agent run exceeded the time limit. Changes in the working tree were NOT reverted; review the repo state manually.");
         }
         Err(runner::RunnerError::NonZeroExit {
             code,
@@ -126,7 +126,7 @@ pub fn run_scan(resolved: &config::Resolved, opts: ScanOptions) -> Result<()> {
                 }
             }
             gitutil::revert_uncommitted(&resolved.repo_root)?;
-            bail!("scan runner exited non-zero (code={code}); reverted uncommitted changes; rerun is recommended");
+            bail!("Scan runner failed: the agent exited with a non-zero code ({code}). Uncommitted changes were reverted. Rerunning the command is recommended after investigating the cause.");
         }
         Err(runner::RunnerError::TerminatedBySignal { stdout: _, stderr }) => {
             let redacted = redaction::redact_text(&stderr);
@@ -142,12 +142,12 @@ pub fn run_scan(resolved: &config::Resolved, opts: ScanOptions) -> Result<()> {
                 }
             }
             gitutil::revert_uncommitted(&resolved.repo_root)?;
-            bail!("scan runner terminated by signal; reverted uncommitted changes; rerun is recommended");
+            bail!("Scan runner terminated: the agent was stopped by a signal. Uncommitted changes were reverted. Rerunning the command is recommended.");
         }
         Err(err) => {
             gitutil::revert_uncommitted(&resolved.repo_root)?;
             bail!(
-                "scan runner failed to execute; reverted uncommitted changes: {:#}",
+                "Scan runner failed: the agent could not be started or encountered an error. Uncommitted changes were reverted. Error: {:#}",
                 err
             );
         }

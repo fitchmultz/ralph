@@ -1,27 +1,5 @@
 version: 1
 tasks:
-  - id: RQ-0094
-    status: todo
-    title: Standardize anyhow::bail! messages to include fix direction
-    tags:
-      - rust
-      - ux
-      - error-handling
-    scope:
-      - crates/ralph/src/config.rs
-      - crates/ralph/src/queue.rs
-    evidence:
-      - |-
-        Many `bail!` messages in `config.rs` and `queue.rs` simply state what is wrong
-        without providing guidance on how the user can fix it (e.g., "id_prefix must be non-empty").
-    plan:
-      - Audit `bail!` calls in core logic.
-      - 'Update error messages to follow a "Problem: Context. Solution: Action." pattern.'
-      - 'Example: "id_prefix is empty. Set a valid prefix in .ralph/config.yaml or via --id-prefix."'
-    notes: []
-    request: scan finding
-    created_at: 2026-01-19T04:00:47Z
-    updated_at: 2026-01-19T04:00:47Z
   - id: RQ-0096
     status: todo
     title: Improve fsutil::acquire_dir_lock error messages

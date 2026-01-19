@@ -96,18 +96,18 @@ pub fn render_task_builder_prompt(
     project_type: ProjectType,
 ) -> Result<String> {
     if !template.contains("{{USER_REQUEST}}") {
-        bail!("task builder prompt template missing {{USER_REQUEST}} placeholder");
+        bail!("Template error: task builder prompt template is missing the required '{{USER_REQUEST}}' placeholder. Ensure the template in .ralph/prompts/task_builder.md includes this placeholder.");
     }
     if !template.contains("{{HINT_TAGS}}") {
-        bail!("task builder prompt template missing {{HINT_TAGS}} placeholder");
+        bail!("Template error: task builder prompt template is missing the required '{{HINT_TAGS}}' placeholder. Ensure the template includes this placeholder.");
     }
     if !template.contains("{{HINT_SCOPE}}") {
-        bail!("task builder prompt template missing {{HINT_SCOPE}} placeholder");
+        bail!("Template error: task builder prompt template is missing the required '{{HINT_SCOPE}}' placeholder. Ensure the template includes this placeholder.");
     }
 
     let request = user_request.trim();
     if request.is_empty() {
-        bail!("user request must be non-empty");
+        bail!("Missing request: user request must be non-empty. Provide a descriptive request for the task builder.");
     }
 
     let guidance = project_type_guidance(project_type);
@@ -134,7 +134,7 @@ pub fn render_scan_prompt(
     project_type: ProjectType,
 ) -> Result<String> {
     if !template.contains("{{USER_FOCUS}}") {
-        bail!("scan prompt template missing {{USER_FOCUS}} placeholder");
+        bail!("Template error: scan prompt template is missing the required '{{USER_FOCUS}}' placeholder. Ensure the template in .ralph/prompts/scan.md includes this placeholder.");
     }
     let focus = user_focus.trim();
     let focus = if focus.is_empty() { "(none)" } else { focus };
@@ -186,9 +186,10 @@ fn ensure_no_unresolved_placeholders(rendered: &str, label: &str) -> Result<()> 
     let placeholders = unresolved_placeholders(rendered);
     if !placeholders.is_empty() {
         bail!(
-            "prompt validation failed for {}: unresolved placeholders remain after rendering: {}",
+            "Prompt validation failed for {}: unresolved placeholders remain after rendering: {}. Review the {} prompt template and ensure all placeholders are either removed or correctly formatted.",
             label,
-            placeholders.join(", ")
+            placeholders.join(", "),
+            label
         );
     }
     Ok(())

@@ -112,7 +112,7 @@ pub fn run_one(
     let task = queue_file.tasks[idx].clone();
     let task_id = task.id.trim().to_string();
     if task_id.is_empty() {
-        bail!("selected task has empty id");
+        bail!("Invalid task: selected task has an empty ID. Ensure the task has a valid ID (e.g., 'RQ-0001') in .ralph/queue.yaml.");
     }
 
     // Require a clean repo before we invoke the runner.
@@ -165,10 +165,10 @@ pub fn run_one(
         Ok(output) => output,
         Err(runner::RunnerError::Interrupted) => {
             gitutil::revert_uncommitted(&resolved.repo_root)?;
-            bail!("runner interrupted; reverted uncommitted changes");
+            bail!("Runner interrupted: the execution was canceled by the user or system. Uncommitted changes were reverted to maintain a clean repo state.");
         }
         Err(runner::RunnerError::Timeout) => {
-            bail!("runner timed out; changes in the working tree were NOT reverted");
+            bail!("Runner timed out: the execution exceeded the allowed time limit. Changes in the working tree were NOT reverted; review the repo state manually.");
         }
         Err(runner::RunnerError::NonZeroExit {
             code,
@@ -188,7 +188,7 @@ pub fn run_one(
                 }
             }
             gitutil::revert_uncommitted(&resolved.repo_root)?;
-            bail!("runner exited non-zero (code={code}); reverted uncommitted changes; rerun is recommended");
+            bail!("Runner failed: the agent exited with a non-zero code ({code}). Uncommitted changes were reverted. Rerunning the task is recommended after investigating the cause.");
         }
         Err(runner::RunnerError::TerminatedBySignal { stdout: _, stderr }) => {
             let redacted = redaction::redact_text(&stderr);
@@ -204,15 +204,13 @@ pub fn run_one(
                 }
             }
             gitutil::revert_uncommitted(&resolved.repo_root)?;
-            bail!(
-                "runner terminated by signal; reverted uncommitted changes; rerun is recommended"
-            );
+            bail!("Runner terminated: the agent was stopped by a signal. Uncommitted changes were reverted. Rerunning the task is recommended.");
         }
         Err(err) => {
             // For other errors (BinaryMissing, SpawnFailed, etc.), revert is safe but likely a no-op.
             gitutil::revert_uncommitted(&resolved.repo_root)?;
             bail!(
-                "runner invocation failed; reverted uncommitted changes; rerun is recommended: {:#}",
+                "Runner invocation failed: the agent could not be started or encountered an error. Uncommitted changes were reverted. Rerunning the task is recommended. Error: {:#}",
                 err
             );
         }
@@ -272,7 +270,7 @@ fn post_run_supervise(resolved: &config::Resolved, task_id: &str) -> Result<()> 
     if is_dirty {
         if let Err(err) = run_make_ci(&resolved.repo_root) {
             gitutil::revert_uncommitted(&resolved.repo_root)?;
-            bail!("make ci failed; reverted uncommitted changes: {:#}", err);
+            bail!("CI gate failed: 'make ci' did not pass after the task completed. Uncommitted changes were reverted. Fix the issues reported by CI and try again. Error: {:#}", err);
         }
 
         let (reloaded_queue, repaired_queue) = queue::load_queue_with_repair(
@@ -310,7 +308,7 @@ fn post_run_supervise(resolved: &config::Resolved, task_id: &str) -> Result<()> 
         if task_status != TaskStatus::Done {
             if in_done {
                 gitutil::revert_uncommitted(&resolved.repo_root)?;
-                bail!("task {task_id} is archived but not done");
+                bail!("Task inconsistency: task {task_id} is archived in done.yaml but its status is not 'done'. Review the task state in .ralph/done.yaml.");
             }
             let now = timeutil::now_utc_rfc3339()?;
             queue::set_status(&mut queue_file, task_id, TaskStatus::Done, &now, None)?;
@@ -343,7 +341,7 @@ fn post_run_supervise(resolved: &config::Resolved, task_id: &str) -> Result<()> 
     let mut changed = false;
     if task_status != TaskStatus::Done {
         if in_done {
-            bail!("task {task_id} is archived but not done");
+            bail!("Task inconsistency: task {task_id} is archived in done.yaml but its status is not 'done'. Review the task state in .ralph/done.yaml.");
         }
         let now = timeutil::now_utc_rfc3339()?;
         queue::set_status(&mut queue_file, task_id, TaskStatus::Done, &now, None)?;
@@ -392,7 +390,7 @@ fn push_if_ahead(repo_root: &Path) -> Result<()> {
         }
     }
     if let Err(err) = gitutil::push_upstream(repo_root) {
-        bail!("git push failed; repo has unpushed commits: {:#}", err);
+        bail!("Git push failed: the repository has unpushed commits but the push operation failed. Push manually to sync with upstream. Error: {:#}", err);
     }
     Ok(())
 }
@@ -426,7 +424,7 @@ fn run_make_ci(repo_root: &Path) -> Result<()> {
         return Ok(());
     }
 
-    bail!("make ci failed with exit code {:?}", status.code())
+    bail!("CI failed: 'make ci' exited with code {:?}. Fix the linting, type-checking, or test failures before proceeding.", status.code())
 }
 
 #[cfg(test)]
