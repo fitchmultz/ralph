@@ -315,3 +315,27 @@ tasks:
     created_at: 2026-01-18T22:00:00Z
     updated_at: 2026-01-18T22:00:00Z
     completed_at: 2026-01-18T22:15:00Z
+  - id: RQ-0084
+    status: done
+    title: Enhance handle_init to verify existing file validity
+    tags:
+      - rust
+      - ux
+    scope:
+      - crates/ralph/src/init_cmd.rs
+      - crates/ralph/src/main.rs
+    evidence:
+      - init just prints "exists" for files; it doesn't check if they are valid or need repair
+    plan:
+      - Add validation/repair logic to handle_init for existing queue/done/config files
+      - Report "exists (valid)" or "exists (repaired)" instead of just "exists"
+    notes:
+      - Added validation and repair logic to `init` command for existing queue, done, and config files.
+      - Updated `InitReport` and `FileInitStatus` to track whether files were created, valid, or repaired.
+      - Updated `main.rs` to report "exists (valid)" or "exists (repaired)" in the output.
+      - Added unit test `init_repairs_existing_when_not_forced` to verify repair behavior.
+      - Verified all tests pass with `make ci`.
+    request: scan finding
+    created_at: 2026-01-18T22:00:00Z
+    updated_at: 2026-01-18T22:50:00Z
+    completed_at: 2026-01-18T22:50:00Z

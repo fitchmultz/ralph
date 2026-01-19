@@ -276,26 +276,27 @@ fn handle_init(args: InitArgs, force_lock: bool) -> Result<()> {
             force_lock,
         },
     )?;
-    if report.queue_created {
-        println!("queue: created ({})", resolved.queue_path.display());
-    } else {
-        println!("queue: exists ({})", resolved.queue_path.display());
-    }
-    if report.done_created {
-        println!("done: created ({})", resolved.done_path.display());
-    } else {
-        println!("done: exists ({})", resolved.done_path.display());
-    }
-    if report.config_created {
-        if let Some(path) = resolved.project_config_path.as_ref() {
-            println!("config: created ({})", path.display());
-        } else {
-            println!("config: created");
+
+    fn report_status(label: &str, status: init_cmd::FileInitStatus, path: &std::path::Path) {
+        match status {
+            init_cmd::FileInitStatus::Created => {
+                println!("{}: created ({})", label, path.display())
+            }
+            init_cmd::FileInitStatus::Valid => {
+                println!("{}: exists (valid) ({})", label, path.display())
+            }
+            init_cmd::FileInitStatus::Repaired => {
+                println!("{}: exists (repaired) ({})", label, path.display())
+            }
         }
-    } else if let Some(path) = resolved.project_config_path.as_ref() {
-        println!("config: exists ({})", path.display());
+    }
+
+    report_status("queue", report.queue_status, &resolved.queue_path);
+    report_status("done", report.done_status, &resolved.done_path);
+    if let Some(path) = resolved.project_config_path.as_ref() {
+        report_status("config", report.config_status, path);
     } else {
-        println!("config: exists");
+        println!("config: unavailable");
     }
     Ok(())
 }
