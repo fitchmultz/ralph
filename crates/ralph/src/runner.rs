@@ -211,6 +211,17 @@ pub struct RunnerBinaries<'a> {
     pub gemini: &'a str,
 }
 
+pub fn resolve_binaries(agent: &AgentConfig) -> RunnerBinaries<'_> {
+    let codex = agent.codex_bin.as_deref().unwrap_or("codex");
+    let opencode = agent.opencode_bin.as_deref().unwrap_or("opencode");
+    let gemini = agent.gemini_bin.as_deref().unwrap_or("gemini");
+    RunnerBinaries {
+        codex,
+        opencode,
+        gemini,
+    }
+}
+
 pub fn default_model_for_runner(runner: Runner) -> Model {
     match runner {
         Runner::Codex => Model::Gpt52Codex,

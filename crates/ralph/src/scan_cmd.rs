@@ -1,7 +1,6 @@
-use crate::contracts::{Model, ProjectType, QueueFile, ReasoningEffort, Runner};
-use crate::{config, gitutil, outpututil, prompts, queue, runner};
-use anyhow::{bail, Context, Result};
-use std::collections::HashSet;
+use crate::contracts::{Model, ProjectType, ReasoningEffort, Runner};
+use crate::{config, gitutil, prompts, queue, runner, runutil, timeutil};
+use anyhow::{Context, Result};
 
 pub struct ScanOptions {
     pub focus: String,
@@ -61,97 +60,41 @@ pub fn run_scan(resolved: &config::Resolved, opts: ScanOptions) -> Result<()> {
         gitutil::revert_uncommitted(&resolved.repo_root)?;
         return Err(err);
     }
-    let before_ids = task_id_set(&before);
+    let before_ids = queue::task_id_set(&before);
 
     let template = prompts::load_scan_prompt(&resolved.repo_root)?;
     let project_type = resolved.config.project_type.unwrap_or(ProjectType::Code);
     let prompt = prompts::render_scan_prompt(&template, &opts.focus, project_type)?;
 
-    let codex_bin = resolved
-        .config
-        .agent
-        .codex_bin
-        .as_deref()
-        .unwrap_or("codex");
-    let opencode_bin = resolved
-        .config
-        .agent
-        .opencode_bin
-        .as_deref()
-        .unwrap_or("opencode");
-    let gemini_bin = resolved
-        .config
-        .agent
-        .gemini_bin
-        .as_deref()
-        .unwrap_or("gemini");
-    let bins = runner::RunnerBinaries {
-        codex: codex_bin,
-        opencode: opencode_bin,
-        gemini: gemini_bin,
-    };
-
-    let _output = match runner::run_prompt(
-        opts.runner,
-        &resolved.repo_root,
-        bins,
-        opts.model,
-        opts.reasoning_effort,
-        &prompt,
-        None,
-    ) {
-        Ok(output) => output,
-        Err(runner::RunnerError::Interrupted) => {
-            gitutil::revert_uncommitted(&resolved.repo_root)?;
-            bail!("Scan runner interrupted: the agent run was canceled. Uncommitted changes were reverted to maintain a clean repo state.");
-        }
-        Err(runner::RunnerError::Timeout) => {
-            bail!("Scan runner timed out: the agent run exceeded the time limit. Changes in the working tree were NOT reverted; review the repo state manually.");
-        }
-        Err(runner::RunnerError::NonZeroExit {
-            code,
-            stdout: _,
-            stderr,
-        }) => {
-            let redacted = stderr.to_string();
-            let tail = outpututil::tail_lines(
-                &redacted,
-                outpututil::OUTPUT_TAIL_LINES,
-                outpututil::OUTPUT_TAIL_LINE_MAX_CHARS,
-            );
-            if !tail.is_empty() {
-                log::error!("scan runner stderr (tail):");
-                for line in tail {
-                    log::info!("scan runner: {line}");
-                }
-            }
-            gitutil::revert_uncommitted(&resolved.repo_root)?;
-            bail!("Scan runner failed: the agent exited with a non-zero code ({code}). Uncommitted changes were reverted. Rerunning the command is recommended after investigating the cause.");
-        }
-        Err(runner::RunnerError::TerminatedBySignal { stdout: _, stderr }) => {
-            let redacted = stderr.to_string();
-            let tail = outpututil::tail_lines(
-                &redacted,
-                outpututil::OUTPUT_TAIL_LINES,
-                outpututil::OUTPUT_TAIL_LINE_MAX_CHARS,
-            );
-            if !tail.is_empty() {
-                log::error!("scan runner stderr (tail):");
-                for line in tail {
-                    log::info!("scan runner: {line}");
-                }
-            }
-            gitutil::revert_uncommitted(&resolved.repo_root)?;
-            bail!("Scan runner terminated: the agent was stopped by a signal. Uncommitted changes were reverted. Rerunning the command is recommended.");
-        }
-        Err(err) => {
-            gitutil::revert_uncommitted(&resolved.repo_root)?;
-            bail!(
-                "Scan runner failed: the agent could not be started or encountered an error. Uncommitted changes were reverted. Error: {:#}",
-                err
-            );
-        }
-    };
+    let bins = runner::resolve_binaries(&resolved.config.agent);
+    let _output = runutil::run_prompt_with_handling(
+        runutil::RunnerInvocation {
+            repo_root: &resolved.repo_root,
+            runner_kind: opts.runner,
+            bins,
+            model: opts.model,
+            reasoning_effort: opts.reasoning_effort,
+            prompt: &prompt,
+            timeout: None,
+        },
+        runutil::RunnerErrorMessages {
+            log_label: "scan runner",
+            interrupted_msg: "Scan runner interrupted: the agent run was canceled. Uncommitted changes were reverted to maintain a clean repo state.",
+            timeout_msg: "Scan runner timed out: the agent run exceeded the time limit. Changes in the working tree were NOT reverted; review the repo state manually.",
+            terminated_msg: "Scan runner terminated: the agent was stopped by a signal. Uncommitted changes were reverted. Rerunning the command is recommended.",
+            non_zero_msg: |code| {
+                format!(
+                    "Scan runner failed: the agent exited with a non-zero code ({code}). Uncommitted changes were reverted. Rerunning the command is recommended after investigating the cause."
+                )
+            },
+            other_msg: |err| {
+                format!(
+                    "Scan runner failed: the agent could not be started or encountered an error. Uncommitted changes were reverted. Error: {:#}",
+                    err
+                )
+            },
+        },
+    )?;
 
     let mut after = match queue::load_queue_with_repair(
         &resolved.queue_path,
@@ -199,12 +142,10 @@ pub fn run_scan(resolved: &config::Resolved, opts: ScanOptions) -> Result<()> {
         return Err(err);
     }
 
-    let added = added_tasks(&before_ids, &after);
+    let added = queue::added_tasks(&before_ids, &after);
     if !added.is_empty() {
         let added_ids: Vec<String> = added.iter().map(|(id, _)| id.clone()).collect();
-        let now = time::OffsetDateTime::now_utc()
-            .format(&time::format_description::well_known::Rfc3339)
-            .unwrap_or_else(|_| "2026-01-18T00:00:00Z".to_string());
+        let now = timeutil::now_utc_rfc3339_or_fallback();
         let default_request = format!("scan: {}", opts.focus);
         queue::backfill_missing_fields(&mut after, &added_ids, &default_request, &now);
         queue::save_queue(&resolved.queue_path, &after)
@@ -222,31 +163,4 @@ pub fn run_scan(resolved: &config::Resolved, opts: ScanOptions) -> Result<()> {
         }
     }
     Ok(())
-}
-
-fn task_id_set(queue: &QueueFile) -> HashSet<String> {
-    let mut set = HashSet::new();
-    for task in &queue.tasks {
-        let id = task.id.trim();
-        if id.is_empty() {
-            continue;
-        }
-        set.insert(id.to_string());
-    }
-    set
-}
-
-fn added_tasks(before: &HashSet<String>, after: &QueueFile) -> Vec<(String, String)> {
-    let mut added = Vec::new();
-    for task in &after.tasks {
-        let id = task.id.trim();
-        if id.is_empty() {
-            continue;
-        }
-        if before.contains(id) {
-            continue;
-        }
-        added.push((id.to_string(), task.title.trim().to_string()));
-    }
-    added
 }

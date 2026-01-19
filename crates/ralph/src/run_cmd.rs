@@ -1,7 +1,7 @@
 use crate::config;
 use crate::contracts::{Model, ProjectType, QueueFile, ReasoningEffort, Runner, TaskStatus};
 use crate::gitutil::GitError;
-use crate::{gitutil, outpututil, prompts, queue, runner, timeutil};
+use crate::{gitutil, outpututil, prompts, queue, runner, runutil, timeutil};
 use anyhow::{anyhow, bail, Context, Result};
 use std::path::Path;
 use std::process::{Command, Stdio};
@@ -133,96 +133,40 @@ pub fn run_one(
     );
     let start = std::time::Instant::now();
 
-    let codex_bin = resolved
-        .config
-        .agent
-        .codex_bin
-        .as_deref()
-        .unwrap_or("codex");
-    let opencode_bin = resolved
-        .config
-        .agent
-        .opencode_bin
-        .as_deref()
-        .unwrap_or("opencode");
-    let gemini_bin = resolved
-        .config
-        .agent
-        .gemini_bin
-        .as_deref()
-        .unwrap_or("gemini");
-    let bins = runner::RunnerBinaries {
-        codex: codex_bin,
-        opencode: opencode_bin,
-        gemini: gemini_bin,
-    };
+    let bins = runner::resolve_binaries(&resolved.config.agent);
 
     let template = prompts::load_worker_prompt(&resolved.repo_root)?;
     let project_type = resolved.config.project_type.unwrap_or(ProjectType::Code);
     let prompt = prompts::render_worker_prompt(&template, project_type)?;
 
-    let _output = match runner::run_prompt(
-        settings.runner,
-        &resolved.repo_root,
-        bins,
-        settings.model,
-        settings.reasoning_effort,
-        &prompt,
-        None,
-    ) {
-        Ok(output) => output,
-        Err(runner::RunnerError::Interrupted) => {
-            gitutil::revert_uncommitted(&resolved.repo_root)?;
-            bail!("Runner interrupted: the execution was canceled by the user or system. Uncommitted changes were reverted to maintain a clean repo state.");
-        }
-        Err(runner::RunnerError::Timeout) => {
-            bail!("Runner timed out: the execution exceeded the allowed time limit. Changes in the working tree were NOT reverted; review the repo state manually.");
-        }
-        Err(runner::RunnerError::NonZeroExit {
-            code,
-            stdout: _,
-            stderr,
-        }) => {
-            let redacted = stderr.to_string();
-            let tail = outpututil::tail_lines(
-                &redacted,
-                outpututil::OUTPUT_TAIL_LINES,
-                outpututil::OUTPUT_TAIL_LINE_MAX_CHARS,
-            );
-            if !tail.is_empty() {
-                log::error!("runner stderr (tail):");
-                for line in tail {
-                    log::info!("runner: {line}");
-                }
-            }
-            gitutil::revert_uncommitted(&resolved.repo_root)?;
-            bail!("Runner failed: the agent exited with a non-zero code ({code}). Uncommitted changes were reverted. Rerunning the task is recommended after investigating the cause.");
-        }
-        Err(runner::RunnerError::TerminatedBySignal { stdout: _, stderr }) => {
-            let redacted = stderr.to_string();
-            let tail = outpututil::tail_lines(
-                &redacted,
-                outpututil::OUTPUT_TAIL_LINES,
-                outpututil::OUTPUT_TAIL_LINE_MAX_CHARS,
-            );
-            if !tail.is_empty() {
-                log::error!("runner stderr (tail):");
-                for line in tail {
-                    log::info!("runner: {line}");
-                }
-            }
-            gitutil::revert_uncommitted(&resolved.repo_root)?;
-            bail!("Runner terminated: the agent was stopped by a signal. Uncommitted changes were reverted. Rerunning the task is recommended.");
-        }
-        Err(err) => {
-            // For other errors (BinaryMissing, SpawnFailed, etc.), revert is safe but likely a no-op.
-            gitutil::revert_uncommitted(&resolved.repo_root)?;
-            bail!(
-                "Runner invocation failed: the agent could not be started or encountered an error. Uncommitted changes were reverted. Rerunning the task is recommended. Error: {:#}",
-                err
-            );
-        }
-    };
+    let _output = runutil::run_prompt_with_handling(
+        runutil::RunnerInvocation {
+            repo_root: &resolved.repo_root,
+            runner_kind: settings.runner,
+            bins,
+            model: settings.model,
+            reasoning_effort: settings.reasoning_effort,
+            prompt: &prompt,
+            timeout: None,
+        },
+        runutil::RunnerErrorMessages {
+            log_label: "runner",
+            interrupted_msg: "Runner interrupted: the execution was canceled by the user or system. Uncommitted changes were reverted to maintain a clean repo state.",
+            timeout_msg: "Runner timed out: the execution exceeded the allowed time limit. Changes in the working tree were NOT reverted; review the repo state manually.",
+            terminated_msg: "Runner terminated: the agent was stopped by a signal. Uncommitted changes were reverted. Rerunning the task is recommended.",
+            non_zero_msg: |code| {
+                format!(
+                    "Runner failed: the agent exited with a non-zero code ({code}). Uncommitted changes were reverted. Rerunning the task is recommended after investigating the cause."
+                )
+            },
+            other_msg: |err| {
+                format!(
+                    "Runner invocation failed: the agent could not be started or encountered an error. Uncommitted changes were reverted. Rerunning the task is recommended. Error: {:#}",
+                    err
+                )
+            },
+        },
+    )?;
 
     let duration = start.elapsed();
     log::info!("Runner completed successfully for {task_id} in {duration:?}.");

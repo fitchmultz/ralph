@@ -17,6 +17,7 @@ pub mod queue;
 pub mod redaction;
 pub mod run_cmd;
 pub mod runner;
+pub mod runutil;
 pub mod scan_cmd;
 pub mod task_cmd;
 pub mod timeutil;

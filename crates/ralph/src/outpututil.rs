@@ -107,22 +107,14 @@ pub fn format_task_detailed(task: &Task) -> String {
     )
 }
 
-#[allow(dead_code)]
 pub fn log_success(msg: &str) {
     log::info!("{} {}", "OK".green().bold(), msg);
 }
 
-#[allow(dead_code)]
-pub fn log_info(msg: &str) {
-    log::info!("{}", msg);
-}
-
-#[allow(dead_code)]
 pub fn log_warn(msg: &str) {
     log::warn!("{} {}", "WARN".yellow().bold(), msg);
 }
 
-#[allow(dead_code)]
 pub fn log_error(msg: &str) {
     log::error!("{} {}", "FAIL".red().bold(), msg);
 }

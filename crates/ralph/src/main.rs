@@ -8,6 +8,7 @@ mod outpututil;
 mod queue;
 mod redaction;
 mod run_cmd;
+mod runutil;
 mod timeutil;
 
 mod gitutil;

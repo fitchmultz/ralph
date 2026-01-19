@@ -90,59 +90,6 @@ pub fn status_porcelain(repo_root: &Path) -> Result<String, GitError> {
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
 
-// require_clean_repo fails if the repo has any uncommitted changes.
-// This enforces the assumption that the repo is clean before any agent run.
-#[allow(dead_code)]
-pub fn require_clean_repo(repo_root: &Path, force: bool) -> Result<(), GitError> {
-    let status = status_porcelain(repo_root)?;
-    if status.trim().is_empty() {
-        return Ok(());
-    }
-
-    if force {
-        return Ok(());
-    }
-
-    let mut tracked = Vec::new();
-    let mut untracked = Vec::new();
-
-    for line in status.lines() {
-        let trimmed = line.trim_start();
-        if trimmed.starts_with("??") {
-            untracked.push(line);
-        } else {
-            tracked.push(line);
-        }
-    }
-
-    let mut details = String::new();
-
-    if !tracked.is_empty() {
-        details.push_str("\n\nTracked changes (suggest 'git stash' or 'git commit'):");
-        for line in tracked.iter().take(10) {
-            details.push_str("\n  ");
-            details.push_str(line);
-        }
-        if tracked.len() > 10 {
-            details.push_str(&format!("\n  ...and {} more", tracked.len() - 10));
-        }
-    }
-
-    if !untracked.is_empty() {
-        details.push_str("\n\nUntracked files (suggest 'git clean -fd' or 'git add'):");
-        for line in untracked.iter().take(10) {
-            details.push_str("\n  ");
-            details.push_str(line);
-        }
-        if untracked.len() > 10 {
-            details.push_str(&format!("\n  ...and {} more", untracked.len() - 10));
-        }
-    }
-
-    details.push_str("\n\nUse --force to bypass this check if you are sure.");
-    Err(GitError::DirtyRepo { details })
-}
-
 pub fn require_clean_repo_ignoring_paths(
     repo_root: &Path,
     force: bool,

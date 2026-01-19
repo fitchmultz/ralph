@@ -957,6 +957,30 @@ pub fn next_todo_task(queue: &QueueFile) -> Option<&Task> {
         .find(|task| task.status == TaskStatus::Todo)
 }
 
+pub fn task_id_set(queue: &QueueFile) -> HashSet<String> {
+    let mut set = HashSet::new();
+    for task in &queue.tasks {
+        let id = task.id.trim();
+        if id.is_empty() {
+            continue;
+        }
+        set.insert(id.to_string());
+    }
+    set
+}
+
+pub fn added_tasks(before: &HashSet<String>, after: &QueueFile) -> Vec<(String, String)> {
+    let mut added = Vec::new();
+    for task in &after.tasks {
+        let id = task.id.trim();
+        if id.is_empty() || before.contains(id) {
+            continue;
+        }
+        added.push((id.to_string(), task.title.trim().to_string()));
+    }
+    added
+}
+
 pub fn backfill_missing_fields(
     queue: &mut QueueFile,
     new_task_ids: &[String],
