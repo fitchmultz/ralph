@@ -38,7 +38,16 @@ fn run() -> Result<()> {
     } else if std::env::var("RUST_LOG").is_err() {
         builder.filter_level(log::LevelFilter::Info);
     }
-    builder.init();
+
+    // We want to capture the max level *before* we consume the builder into a logger,
+    // but env_logger::Builder doesn't expose it easily after build.
+    // However, we can set the global max level ourselves after init if we knew it.
+    // A simpler approach with env_logger 0.11+ is to let it parse env vars, then build.
+    // But `builder.init()` consumes the builder and sets the logger.
+    // We need `builder.build()` to get the logger, then wrap it.
+    let logger = builder.build();
+    let max_level = logger.filter();
+    let _ = redaction::RedactedLogger::init(Box::new(logger), max_level);
 
     match cli.command {
         Command::Queue(args) => handle_queue(args.command, cli.force),

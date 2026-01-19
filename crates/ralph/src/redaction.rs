@@ -41,6 +41,55 @@ where
     }
 }
 
+/// A `log::Log` implementation that wraps another logger and redacts all log messages.
+pub struct RedactedLogger {
+    inner: Box<dyn log::Log>,
+}
+
+impl RedactedLogger {
+    /// Creates a new `RedactedLogger` wrapping the given logger.
+    pub fn new(inner: Box<dyn log::Log>) -> Self {
+        Self { inner }
+    }
+
+    /// wraps the provided logger and sets it as the global logger.
+    /// This is a convenience for `log::set_boxed_logger(Box::new(RedactedLogger::new(inner)))`.
+    pub fn init(
+        inner: Box<dyn log::Log>,
+        max_level: log::LevelFilter,
+    ) -> Result<(), log::SetLoggerError> {
+        log::set_boxed_logger(Box::new(Self::new(inner)))?;
+        log::set_max_level(max_level);
+        Ok(())
+    }
+}
+
+impl log::Log for RedactedLogger {
+    fn enabled(&self, metadata: &log::Metadata) -> bool {
+        self.inner.enabled(metadata)
+    }
+
+    fn log(&self, record: &log::Record) {
+        if self.enabled(record.metadata()) {
+            let redacted_msg = redact_text(&format!("{}", record.args()));
+            self.inner.log(
+                &log::Record::builder()
+                    .args(format_args!("{}", redacted_msg))
+                    .level(record.level())
+                    .target(record.target())
+                    .file(record.file())
+                    .line(record.line())
+                    .module_path(record.module_path())
+                    .build(),
+            );
+        }
+    }
+
+    fn flush(&self) {
+        self.inner.flush();
+    }
+}
+
 pub fn redact_text(value: &str) -> String {
     if value.trim().is_empty() {
         return value.to_string();
@@ -543,5 +592,42 @@ mod tests {
         assert!(res.is_err());
         let err = res.unwrap_err();
         assert!(format!("{}", err).contains("API_KEY=[REDACTED]"));
+    }
+
+    struct MockLogger {
+        last_msg: std::sync::Arc<std::sync::Mutex<String>>,
+    }
+
+    impl log::Log for MockLogger {
+        fn enabled(&self, _: &log::Metadata) -> bool {
+            true
+        }
+        fn log(&self, record: &log::Record) {
+            let mut lock = self.last_msg.lock().unwrap();
+            *lock = format!("{}", record.args());
+        }
+        fn flush(&self) {}
+    }
+
+    #[test]
+    fn redacted_logger_masks_output() {
+        let last_msg = std::sync::Arc::new(std::sync::Mutex::new(String::new()));
+        let mock = Box::new(MockLogger {
+            last_msg: last_msg.clone(),
+        });
+
+        let wrapper = RedactedLogger::new(mock);
+
+        let record = log::Record::builder()
+            .args(format_args!("Connecting with API_KEY=secret123"))
+            .level(log::Level::Info)
+            .build();
+
+        use log::Log;
+        wrapper.log(&record);
+
+        let msg = last_msg.lock().unwrap();
+        assert!(!msg.contains("secret123"));
+        assert!(msg.contains("API_KEY=[REDACTED]"));
     }
 }

@@ -1,7 +1,7 @@
 version: 1
 tasks:
 - id: RQ-0095
-  status: todo
+  status: doing
   title: Implement a logging wrapper with automatic redaction
   tags:
   - rust
@@ -20,7 +20,7 @@ tasks:
   notes: []
   request: scan finding
   created_at: 2026-01-19T04:00:47Z
-  updated_at: 2026-01-19T04:00:47Z
+  updated_at: 2026-01-18T00:00:00Z
 - id: RQ-0097
   status: todo
   title: Refactor gitutil.rs to use thiserror for structured errors
