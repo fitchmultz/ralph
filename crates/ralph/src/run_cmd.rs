@@ -97,14 +97,21 @@ pub fn run_one(
         resolved.id_width,
     )?;
 
-    let idx = match queue_file
-        .tasks
-        .iter()
-        .position(|t| t.status == TaskStatus::Todo)
-    {
+    let idx = match queue_file.tasks.iter().position(|t| {
+        t.status == TaskStatus::Todo && queue::are_dependencies_met(t, &queue_file, done_ref)
+    }) {
         Some(idx) => idx,
         None => {
-            log::info!("No todo tasks found.");
+            // Check if there are any Todo tasks at all
+            let has_todo = queue_file
+                .tasks
+                .iter()
+                .any(|t| t.status == TaskStatus::Todo);
+            if has_todo {
+                log::info!("All todo tasks are blocked by unmet dependencies. Complete the prerequisite tasks first.");
+            } else {
+                log::info!("No todo tasks found.");
+            }
             return Ok(RunOutcome::NoTodo);
         }
     };
@@ -452,6 +459,7 @@ mod tests {
             created_at: None,
             updated_at: None,
             completed_at: None,
+            depends_on: vec![],
         }
     }
 

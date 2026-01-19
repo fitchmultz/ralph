@@ -154,6 +154,9 @@ pub fn validate_queue_set(
         }
     }
 
+    // Validate dependencies
+    validate_dependencies(active, done)?;
+
     Ok(())
 }
 
@@ -797,6 +800,7 @@ fn is_task_field_key(key: &str) -> bool {
             | "created_at"
             | "updated_at"
             | "completed_at"
+            | "depends_on"
     )
 }
 
@@ -1215,6 +1219,207 @@ fn validate_task_id(
     Ok(value)
 }
 
+/// Check if all dependencies for a task are met (referenced tasks are Done).
+/// Dependencies are met if the referenced task is Done in either queue or done archive.
+pub fn are_dependencies_met(task: &Task, active: &QueueFile, done: Option<&QueueFile>) -> bool {
+    let task_id = task.id.trim();
+    for dep_id in &task.depends_on {
+        let dep_id = dep_id.trim();
+        if dep_id.is_empty() {
+            continue;
+        }
+        // Skip self-references (will be caught by validation)
+        if dep_id == task_id {
+            return false;
+        }
+        // Check if dependency exists and is Done in active queue
+        let met = active
+            .tasks
+            .iter()
+            .any(|t| t.id.trim() == dep_id && t.status == TaskStatus::Done);
+        if met {
+            continue;
+        }
+        // Check if dependency exists and is Done in done archive
+        let done_met = done.is_some_and(|d| {
+            d.tasks
+                .iter()
+                .any(|t| t.id.trim() == dep_id && t.status == TaskStatus::Done)
+        });
+        if !done_met {
+            return false;
+        }
+    }
+    true
+}
+
+/// Get all tasks that depend on the given task ID (recursively).
+/// Returns a list of task IDs that depend on the root task.
+pub fn get_dependents(root_id: &str, active: &QueueFile, done: Option<&QueueFile>) -> Vec<String> {
+    let mut dependents = Vec::new();
+    let mut visited = std::collections::HashSet::new();
+    let root_id = root_id.trim();
+
+    fn collect_dependents(
+        task_id: &str,
+        active: &QueueFile,
+        done: Option<&QueueFile>,
+        dependents: &mut Vec<String>,
+        visited: &mut std::collections::HashSet<String>,
+    ) {
+        if visited.contains(task_id) {
+            return;
+        }
+        visited.insert(task_id.to_string());
+
+        // Check all tasks in active queue
+        for task in &active.tasks {
+            let current_id = task.id.trim();
+            if task.depends_on.iter().any(|d| d.trim() == task_id) {
+                if !dependents.contains(&current_id.to_string()) {
+                    dependents.push(current_id.to_string());
+                }
+                collect_dependents(current_id, active, done, dependents, visited);
+            }
+        }
+
+        // Check all tasks in done archive
+        if let Some(done_file) = done {
+            for task in &done_file.tasks {
+                let current_id = task.id.trim();
+                if task.depends_on.iter().any(|d| d.trim() == task_id) {
+                    if !dependents.contains(&current_id.to_string()) {
+                        dependents.push(current_id.to_string());
+                    }
+                    collect_dependents(current_id, active, done, dependents, visited);
+                }
+            }
+        }
+    }
+
+    collect_dependents(root_id, active, done, &mut dependents, &mut visited);
+    dependents
+}
+
+fn validate_dependencies(active: &QueueFile, done: Option<&QueueFile>) -> Result<()> {
+    let all_task_ids: HashSet<&str> = active
+        .tasks
+        .iter()
+        .map(|t| t.id.trim())
+        .chain(
+            done.iter()
+                .flat_map(|d| d.tasks.iter().map(|t| t.id.trim())),
+        )
+        .collect();
+
+    // Build adjacency list for cycle detection
+    let mut graph: std::collections::HashMap<&str, Vec<&str>> = std::collections::HashMap::new();
+
+    for task in &active.tasks {
+        let task_id = task.id.trim();
+        for dep_id in &task.depends_on {
+            let dep_id = dep_id.trim();
+            if dep_id.is_empty() {
+                continue;
+            }
+
+            // Check for self-reference
+            if dep_id == task_id {
+                bail!(
+                    "Self-dependency detected: task {} depends on itself. Remove the self-reference from the depends_on field in .ralph/queue.yaml.",
+                    task_id
+                );
+            }
+
+            // Check that dependency exists
+            if !all_task_ids.contains(dep_id) {
+                bail!(
+                    "Invalid dependency: task {} depends on non-existent task {}. Ensure the dependency task ID exists in .ralph/queue.yaml or .ralph/done.yaml.",
+                    task_id,
+                    dep_id
+                );
+            }
+
+            // Build graph for cycle detection
+            graph.entry(task_id).or_default().push(dep_id);
+        }
+    }
+
+    // Also check done archive for dependencies
+    if let Some(done_file) = done {
+        for task in &done_file.tasks {
+            let task_id = task.id.trim();
+            for dep_id in &task.depends_on {
+                let dep_id = dep_id.trim();
+                if dep_id.is_empty() {
+                    continue;
+                }
+
+                // Check for self-reference
+                if dep_id == task_id {
+                    bail!(
+                        "Self-dependency detected: task {} depends on itself. Remove the self-reference from the depends_on field in .ralph/done.yaml.",
+                        task_id
+                    );
+                }
+
+                // Check that dependency exists
+                if !all_task_ids.contains(dep_id) {
+                    bail!(
+                        "Invalid dependency: task {} depends on non-existent task {}. Ensure the dependency task ID exists in .ralph/queue.yaml or .ralph/done.yaml.",
+                        task_id,
+                        dep_id
+                    );
+                }
+
+                // Build graph for cycle detection
+                graph.entry(task_id).or_default().push(dep_id);
+            }
+        }
+    }
+
+    // Detect cycles using DFS
+    let mut visited = std::collections::HashSet::new();
+    let mut rec_stack = std::collections::HashSet::new();
+
+    for node in graph.keys() {
+        if has_cycle(node, &graph, &mut visited, &mut rec_stack) {
+            bail!(
+                "Circular dependency detected involving task {}. Task dependencies must form a DAG (no cycles). Review the depends_on fields to break the cycle.",
+                node
+            );
+        }
+    }
+
+    Ok(())
+}
+
+fn has_cycle(
+    node: &str,
+    graph: &std::collections::HashMap<&str, Vec<&str>>,
+    visited: &mut std::collections::HashSet<String>,
+    rec_stack: &mut std::collections::HashSet<String>,
+) -> bool {
+    let node_key = node.to_string();
+    visited.insert(node_key.clone());
+    rec_stack.insert(node_key.clone());
+
+    if let Some(neighbors) = graph.get(node) {
+        for neighbor in neighbors.iter() {
+            if !visited.contains(*neighbor) {
+                if has_cycle(neighbor, graph, visited, rec_stack) {
+                    return true;
+                }
+            } else if rec_stack.contains(*neighbor) {
+                return true;
+            }
+        }
+    }
+
+    rec_stack.remove(&node_key);
+    false
+}
+
 fn format_id(prefix: &str, number: u32, width: usize) -> String {
     format!("{}-{:0width$}", prefix, number, width = width)
 }
@@ -1244,6 +1449,7 @@ mod tests {
             created_at: Some("2026-01-18T00:00:00Z".to_string()),
             updated_at: Some("2026-01-18T00:00:00Z".to_string()),
             completed_at: None,
+            depends_on: vec![],
         }
     }
 

@@ -58,7 +58,7 @@ Convert findings into executable YAML tasks and insert them into `.ralph/queue.y
   - `request` (non-empty; short statement like "scan finding")
   - `created_at` (non-empty; current UTC RFC3339 time)
   - `updated_at` (non-empty; current UTC RFC3339 time)
-- Optional keys: `notes`, `agent`, `completed_at`
+- Optional keys: `notes`, `agent`, `completed_at`, `depends_on`
 
 ## YAML SAFETY
 - Do not include shell-escape artifacts like `\"` or `'\''` inside YAML values.

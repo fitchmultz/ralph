@@ -188,6 +188,19 @@ fn handle_queue(cmd: QueueCommand, force: bool) -> Result<()> {
                 }
             }
 
+            // Apply dependency filter if specified
+            let tasks = if let Some(ref root_id) = args.filter_deps {
+                let dependents_list = queue::get_dependents(root_id, &queue_file, done_ref);
+                let dependents: std::collections::HashSet<&str> =
+                    dependents_list.iter().map(|s| s.as_str()).collect();
+                tasks
+                    .into_iter()
+                    .filter(|t| dependents.contains(t.id.trim()))
+                    .collect()
+            } else {
+                tasks
+            };
+
             let max = limit.unwrap_or(usize::MAX);
             for task in tasks.into_iter().take(max) {
                 match args.format {
@@ -765,7 +778,7 @@ struct QueueShowArgs {
 
 #[derive(Args)]
 #[command(
-    after_long_help = "Examples:\n  ralph queue list\n  ralph queue list --status todo --tag rust\n  ralph queue list --status doing --scope crates/ralph\n  ralph queue list --include-done --limit 20\n  ralph queue list --only-done --all"
+    after_long_help = "Examples:\n  ralph queue list\n  ralph queue list --status todo --tag rust\n  ralph queue list --status doing --scope crates/ralph\n  ralph queue list --include-done --limit 20\n  ralph queue list --only-done --all\n  ralph queue list --filter-deps=RQ-0100"
 )]
 struct QueueListArgs {
     /// Filter by status (repeatable).
@@ -779,6 +792,10 @@ struct QueueListArgs {
     /// Filter by scope token (repeatable, case-insensitive; substring match).
     #[arg(long)]
     scope: Vec<String>,
+
+    /// Filter by tasks that depend on the given task ID (recursively).
+    #[arg(long)]
+    filter_deps: Option<String>,
 
     /// Include tasks from .ralph/done.yaml after active queue output.
     #[arg(long)]
