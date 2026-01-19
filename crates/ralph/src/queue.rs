@@ -345,7 +345,10 @@ fn repair_yaml_scalars(raw: &str) -> Option<String> {
 
         if let Some(rest) = trimmed.strip_prefix("- ") {
             let indent = line.len() - trimmed.len();
-            if indent > 2 && (should_quote_scalar(rest) || looks_like_mapping(rest)) {
+            if indent > 2
+                && (should_quote_scalar(rest) || looks_like_mapping(rest))
+                && !looks_like_task_start(rest)
+            {
                 let value = rest.trim();
                 updated = format!(
                     "{}- {}",
@@ -376,6 +379,34 @@ fn repair_yaml_scalars(raw: &str) -> Option<String> {
     } else {
         None
     }
+}
+
+fn is_task_field_key(key: &str) -> bool {
+    matches!(
+        key,
+        "id" | "status"
+            | "title"
+            | "tags"
+            | "scope"
+            | "evidence"
+            | "plan"
+            | "notes"
+            | "request"
+            | "agent"
+            | "created_at"
+            | "updated_at"
+            | "completed_at"
+    )
+}
+
+fn looks_like_task_start(value: &str) -> bool {
+    if let Some((left, _)) = value.split_once(": ") {
+        return is_task_field_key(left.trim());
+    }
+    if let Some(left) = value.strip_suffix(':') {
+        return is_task_field_key(left.trim());
+    }
+    false
 }
 
 fn should_quote_scalar(value: &str) -> bool {

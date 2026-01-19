@@ -150,3 +150,27 @@ tasks:
     created_at: 2026-01-18T22:00:00Z
     updated_at: 2026-01-19T01:30:00Z
     completed_at: 2026-01-19T01:30:00Z
+  - id: RQ-0076
+    status: done
+    title: Audit and harden YAML repair logic in queue.rs
+    tags:
+    - rust
+    - correctness
+    - safety
+    scope:
+    - crates/ralph/src/queue.rs
+    evidence:
+    - repair_yaml_scalars uses brittle string manipulation and basic prefix/substring checks
+    plan:
+    - Expand test suite with complex/nested YAML breakage
+    - Explore more robust repair strategies (e.g., partial parsing or selective escaping)
+    - Ensure repair logic handles all standard scalar types and edge-case colons
+    notes:
+    - Added comprehensive test suite in `crates/ralph/tests/yaml_repair_test.rs` covering edge cases.
+    - Hardened `repair_yaml_scalars` to prevent quoting of task object fields (e.g. `id`, `title`) when indented > 2 spaces.
+    - Introduced `is_task_field_key` and `looks_like_task_start` helper functions.
+    - Verified fixes with new tests and existing stress tests.
+    request: scan finding
+    created_at: 2026-01-18T22:00:00Z
+    updated_at: 2026-01-19T01:45:00Z
+    completed_at: 2026-01-19T01:45:00Z
