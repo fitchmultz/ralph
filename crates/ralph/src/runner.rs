@@ -1,5 +1,5 @@
 use crate::contracts::{Model, ReasoningEffort, Runner};
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use std::io::{Read, Write};
 use std::path::Path;
 use std::process::{Command, ExitStatus, Stdio};
@@ -88,9 +88,18 @@ impl RunnerOutput {
     }
 }
 
-pub fn validate_model_for_runner(runner: Runner, model: Model) -> Result<()> {
-    if runner == Runner::Codex && model == Model::Glm47 {
-        bail!("model zai-coding-plan/glm-4.7 is not supported for codex runner");
+pub fn validate_model_for_runner(runner: Runner, model: &Model) -> Result<()> {
+    if runner == Runner::Codex {
+        match model {
+            Model::Gpt52Codex | Model::Gpt52 => {}
+            Model::Glm47 => {
+                bail!("model zai-coding-plan/glm-4.7 is not supported for codex runner")
+            }
+            Model::Custom(name) => bail!(
+                "model {} is not supported for codex runner (allowed: gpt-5.2-codex, gpt-5.2)",
+                name
+            ),
+        }
     }
     Ok(())
 }
@@ -104,7 +113,7 @@ pub fn run_prompt(
     reasoning_effort: Option<ReasoningEffort>,
     prompt: &str,
 ) -> Result<RunnerOutput> {
-    validate_model_for_runner(runner, model)?;
+    validate_model_for_runner(runner, &model)?;
     match runner {
         Runner::Codex => run_codex(work_dir, codex_bin, model, reasoning_effort, prompt),
         Runner::Opencode => run_opencode(work_dir, opencode_bin, model, prompt),
@@ -124,7 +133,7 @@ fn run_codex(
     cmd.arg("exec")
         .arg("--full-auto")
         .arg("--model")
-        .arg(model_as_str(model));
+        .arg(model.as_str());
 
     if let Some(effort) = reasoning_effort {
         cmd.arg("-c").arg(format!(
@@ -153,7 +162,7 @@ fn run_opencode(work_dir: &Path, bin: &str, model: Model, prompt: &str) -> Resul
     ensure_self_on_path(&mut cmd);
     cmd.arg("run")
         .arg("--model")
-        .arg(model_as_str(model))
+        .arg(model.as_str())
         .arg("--file")
         .arg(tmp.path())
         .arg("--")
@@ -342,14 +351,6 @@ fn wait_for_child(child: &mut std::process::Child, ctrlc: &CtrlCState) -> Result
     }
 }
 
-fn model_as_str(model: Model) -> &'static str {
-    match model {
-        Model::Gpt52Codex => "gpt-5.2-codex",
-        Model::Gpt52 => "gpt-5.2",
-        Model::Glm47 => "zai-coding-plan/glm-4.7",
-    }
-}
-
 fn effort_as_str(effort: ReasoningEffort) -> &'static str {
     match effort {
         ReasoningEffort::Minimal => "minimal",
@@ -361,15 +362,8 @@ fn effort_as_str(effort: ReasoningEffort) -> &'static str {
 
 pub fn parse_model(value: &str) -> Result<Model> {
     let trimmed = value.trim();
-    match trimmed {
-        "gpt-5.2-codex" => Ok(Model::Gpt52Codex),
-        "gpt-5.2" => Ok(Model::Gpt52),
-        "zai-coding-plan/glm-4.7" => Ok(Model::Glm47),
-        _ => bail!(
-            "unsupported model: {} (allowed: gpt-5.2-codex, gpt-5.2, zai-coding-plan/glm-4.7)",
-            trimmed
-        ),
-    }
+    let model = trimmed.parse::<Model>().map_err(|err| anyhow!(err))?;
+    Ok(model)
 }
 
 pub fn parse_reasoning_effort(value: &str) -> Result<ReasoningEffort> {
@@ -392,8 +386,17 @@ mod tests {
 
     #[test]
     fn validate_model_for_runner_rejects_glm47_on_codex() {
-        let err = validate_model_for_runner(Runner::Codex, Model::Glm47).unwrap_err();
+        let err = validate_model_for_runner(Runner::Codex, &Model::Glm47).unwrap_err();
         let msg = format!("{err:#}");
         assert!(msg.contains("zai-coding-plan/glm-4.7"));
+    }
+
+    #[test]
+    fn validate_model_for_runner_rejects_custom_on_codex() {
+        let model = Model::Custom("gemini-3-pro-preview".to_string());
+        let err = validate_model_for_runner(Runner::Codex, &model).unwrap_err();
+        let msg = format!("{err:#}");
+        assert!(msg.contains("gemini-3-pro-preview"));
+        assert!(msg.contains("gpt-5.2-codex"));
     }
 }

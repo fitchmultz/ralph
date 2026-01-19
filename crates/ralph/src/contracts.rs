@@ -79,15 +79,60 @@ pub enum Runner {
     Opencode,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum Model {
     #[default]
-    #[serde(rename = "gpt-5.2-codex")]
     Gpt52Codex,
-    #[serde(rename = "gpt-5.2")]
     Gpt52,
-    #[serde(rename = "zai-coding-plan/glm-4.7")]
     Glm47,
+    Custom(String),
+}
+
+impl Serialize for Model {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for Model {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = String::deserialize(deserializer)?;
+        value.parse().map_err(serde::de::Error::custom)
+    }
+}
+
+impl Model {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Model::Gpt52Codex => "gpt-5.2-codex",
+            Model::Gpt52 => "gpt-5.2",
+            Model::Glm47 => "zai-coding-plan/glm-4.7",
+            Model::Custom(value) => value.as_str(),
+        }
+    }
+}
+
+impl std::str::FromStr for Model {
+    type Err = &'static str;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            return Err("model cannot be empty");
+        }
+        Ok(match trimmed {
+            "gpt-5.2-codex" => Model::Gpt52Codex,
+            "gpt-5.2" => Model::Gpt52,
+            "zai-coding-plan/glm-4.7" => Model::Glm47,
+            other => Model::Custom(other.to_string()),
+        })
+    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]

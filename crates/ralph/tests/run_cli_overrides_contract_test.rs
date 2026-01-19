@@ -145,6 +145,44 @@ fn run_one_rejects_invalid_model_flag() -> Result<()> {
     let dir = TempDir::new().context("create temp dir")?;
     git_init(dir.path())?;
 
+    let (status, stdout, stderr) = run_in_dir(dir.path(), &["init", "--force"]);
+    anyhow::ensure!(
+        status.success(),
+        "ralph init failed\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    let (status, stdout, stderr) = run_in_dir(
+        dir.path(),
+        &[
+            "run",
+            "one",
+            "--runner",
+            "codex",
+            "--model",
+            "definitely-not-a-model",
+        ],
+    );
+
+    assert_failure(status, &stdout, &stderr);
+    anyhow::ensure!(
+        stderr.contains("not supported for codex runner"),
+        "expected helpful model error\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn run_one_accepts_custom_model_for_opencode() -> Result<()> {
+    let dir = TempDir::new().context("create temp dir")?;
+    git_init(dir.path())?;
+
+    let (status, stdout, stderr) = run_in_dir(dir.path(), &["init", "--force"]);
+    anyhow::ensure!(
+        status.success(),
+        "ralph init failed\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
     let (status, stdout, stderr) = run_in_dir(
         dir.path(),
         &[
@@ -153,14 +191,16 @@ fn run_one_rejects_invalid_model_flag() -> Result<()> {
             "--runner",
             "opencode",
             "--model",
-            "definitely-not-a-model",
+            "gemini-3-pro-preview",
         ],
     );
-
-    assert_failure(status, &stdout, &stderr);
     anyhow::ensure!(
-        stderr.contains("unsupported model"),
-        "expected helpful model error\nstdout:\n{stdout}\nstderr:\n{stderr}"
+        status.success(),
+        "expected success (NoTodo) with custom opencode model\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+    anyhow::ensure!(
+        stdout.contains("No todo tasks found") || stderr.contains("No todo tasks found"),
+        "expected NoTodo message\nstdout:\n{stdout}\nstderr:\n{stderr}"
     );
 
     Ok(())

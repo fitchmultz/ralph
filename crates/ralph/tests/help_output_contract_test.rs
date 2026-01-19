@@ -67,6 +67,9 @@ fn root_help_mentions_runner_and_models_and_precedence() {
     assert_contains(&combined, "gpt-5.2-codex");
     assert_contains(&combined, "gpt-5.2");
     assert_contains(&combined, "zai-coding-plan/glm-4.7");
+    assert_contains(&combined, "gemini-3-pro-preview");
+    assert_contains(&combined, "gemini-3-flash-preview");
+    assert_contains(&combined, "arbitrary model ids");
 
     assert_contains(&combined, "CLI flags override");
     assert_contains(&combined, "project config");

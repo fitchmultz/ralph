@@ -167,9 +167,9 @@ fn resolve_run_agent_settings(
         .unwrap_or_default();
 
     let model = match (
-        overrides.model,
-        task_agent.and_then(|agent| agent.model),
-        resolved.config.agent.model,
+        overrides.model.clone(),
+        task_agent.and_then(|agent| agent.model.clone()),
+        resolved.config.agent.model.clone(),
     ) {
         (Some(m), _, _) | (_, Some(m), _) => m,
         (None, None, None) => match runner_kind {
@@ -199,7 +199,7 @@ fn resolve_run_agent_settings(
         None
     };
 
-    runner::validate_model_for_runner(runner_kind, model)?;
+    runner::validate_model_for_runner(runner_kind, &model)?;
     Ok((runner_kind, model, reasoning_effort))
 }
 

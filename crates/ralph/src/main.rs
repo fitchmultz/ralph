@@ -398,6 +398,10 @@ fn resolve_run_agent_overrides(args: &RunAgentArgs) -> Result<run_cmd::AgentOver
         None => None,
     };
 
+    if let (Some(runner_kind), Some(model)) = (runner, model.as_ref()) {
+        runner::validate_model_for_runner(runner_kind, model)?;
+    }
+
     Ok(run_cmd::AgentOverrides {
         runner,
         model,
@@ -420,7 +424,7 @@ fn resolve_agent_args(
         None => resolved.config.agent.runner.unwrap_or_default(),
     };
 
-    let model = match (model_override, resolved.config.agent.model) {
+    let model = match (model_override, resolved.config.agent.model.clone()) {
         (Some(value), _) => runner::parse_model(value)?,
         (None, Some(m)) => m,
         (None, None) => match runner_kind {
@@ -456,7 +460,7 @@ fn resolve_agent_args(
         None
     };
 
-    runner::validate_model_for_runner(runner_kind, effective_model)?;
+    runner::validate_model_for_runner(runner_kind, &effective_model)?;
     Ok((runner_kind, effective_model, reasoning_effort))
 }
 
@@ -503,7 +507,7 @@ fn resolve_list_limit(limit: u32, all: bool) -> Option<usize> {
 #[command(name = "ralph")]
 #[command(about = "Ralph (Rust rewrite)")]
 #[command(
-    after_long_help = "Runner selection:\n  - CLI flags override project config, which overrides global config, which overrides built-in defaults.\n  - Default runner/model come from config files: project config (.ralph/config.yaml) > global config (~/.config/ralph/config.yaml) > built-in.\n  - `task build` and `scan` accept --runner/--model/--effort as one-off overrides.\n  - `run one` and `run loop` accept --runner/--model/--effort as one-off overrides; otherwise they use task.agent overrides when present; otherwise config agent defaults.\n\nConfig example (.ralph/config.yaml):\n  version: 1\n  agent:\n    runner: opencode\n    model: gpt-5.2\n    opencode_bin: opencode\n\nNotes:\n  - Allowed runners: codex, opencode\n  - Allowed models: gpt-5.2-codex, gpt-5.2, zai-coding-plan/glm-4.7 (zai-coding-plan/glm-4.7 is NOT supported for codex)\n\nExamples:\n  ralph queue list\n  ralph queue show RQ-0008\n  ralph queue next --with-title\n  ralph scan --runner opencode --model gpt-5.2 --focus \"CI gaps\"\n  ralph task build --runner codex --model gpt-5.2-codex --effort high \"Fix the flaky test\"\n  ralph run one"
+    after_long_help = "Runner selection:\n  - CLI flags override project config, which overrides global config, which overrides built-in defaults.\n  - Default runner/model come from config files: project config (.ralph/config.yaml) > global config (~/.config/ralph/config.yaml) > built-in.\n  - `task build` and `scan` accept --runner/--model/--effort as one-off overrides.\n  - `run one` and `run loop` accept --runner/--model/--effort as one-off overrides; otherwise they use task.agent overrides when present; otherwise config agent defaults.\n\nConfig example (.ralph/config.yaml):\n  version: 1\n  agent:\n    runner: opencode\n    model: gpt-5.2\n    opencode_bin: opencode\n\nNotes:\n  - Allowed runners: codex, opencode\n  - Allowed models: gpt-5.2-codex, gpt-5.2, zai-coding-plan/glm-4.7, gemini-3-pro-preview, gemini-3-flash-preview (codex supports only gpt-5.2-codex + gpt-5.2; opencode accepts arbitrary model ids)\n\nExamples:\n  ralph queue list\n  ralph queue show RQ-0008\n  ralph queue next --with-title\n  ralph scan --runner opencode --model gpt-5.2 --focus \"CI gaps\"\n  ralph task build --runner codex --model gpt-5.2-codex --effort high \"Fix the flaky test\"\n  ralph run one"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -540,7 +544,7 @@ struct ConfigArgs {
 #[derive(Args)]
 #[command(
     about = "Run the Ralph supervisor (executes queued tasks via codex/opencode)",
-    after_long_help = "Runner selection:\n  - `ralph run` selects runner/model/effort with this precedence:\n      1) CLI overrides (flags on `run one` / `run loop`)\n      2) the task's `agent` override (if present in .ralph/queue.yaml)\n      3) otherwise the resolved config defaults (`agent.runner`, `agent.model`, `agent.reasoning_effort`).\n\nNotes:\n  - Allowed runners: codex, opencode\n  - Allowed models: gpt-5.2-codex, gpt-5.2, zai-coding-plan/glm-4.7 (zai-coding-plan/glm-4.7 is NOT supported for codex)\n  - `--effort` is codex-only and is ignored for opencode.\n\nTo change defaults for this repo, edit .ralph/config.yaml:\n  version: 1\n  agent:\n    runner: opencode\n    model: gpt-5.2\n\nExamples:\n  ralph run one\n  ralph run one --runner opencode --model gpt-5.2\n  ralph run one --runner codex --model gpt-5.2-codex --effort high\n  ralph run loop --max-tasks 0\n  ralph run loop --max-tasks 1 --runner opencode --model gpt-5.2"
+    after_long_help = "Runner selection:\n  - `ralph run` selects runner/model/effort with this precedence:\n      1) CLI overrides (flags on `run one` / `run loop`)\n      2) the task's `agent` override (if present in .ralph/queue.yaml)\n      3) otherwise the resolved config defaults (`agent.runner`, `agent.model`, `agent.reasoning_effort`).\n\nNotes:\n  - Allowed runners: codex, opencode\n  - Allowed models: gpt-5.2-codex, gpt-5.2, zai-coding-plan/glm-4.7, gemini-3-pro-preview, gemini-3-flash-preview (codex supports only gpt-5.2-codex + gpt-5.2; opencode accepts arbitrary model ids)\n  - `--effort` is codex-only and is ignored for opencode.\n\nTo change defaults for this repo, edit .ralph/config.yaml:\n  version: 1\n  agent:\n    runner: opencode\n    model: gpt-5.2\n\nExamples:\n  ralph run one\n  ralph run one --runner opencode --model gpt-5.2\n  ralph run one --runner codex --model gpt-5.2-codex --effort high\n  ralph run loop --max-tasks 0\n  ralph run loop --max-tasks 1 --runner opencode --model gpt-5.2"
 )]
 struct RunArgs {
     #[command(subcommand)]
@@ -671,7 +675,7 @@ struct RunAgentArgs {
     runner: Option<String>,
 
     /// Model override for this invocation. Overrides task.agent and config.
-    /// Allowed: gpt-5.2-codex, gpt-5.2, zai-coding-plan/glm-4.7 (zai-coding-plan/glm-4.7 is NOT supported for codex).
+    /// Allowed: gpt-5.2-codex, gpt-5.2, zai-coding-plan/glm-4.7, gemini-3-pro-preview, gemini-3-flash-preview (codex supports only gpt-5.2-codex/gpt-5.2; opencode accepts arbitrary model ids).
     #[arg(long)]
     model: Option<String>,
 
