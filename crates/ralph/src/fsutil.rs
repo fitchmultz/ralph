@@ -38,6 +38,11 @@ pub fn queue_lock_dir(repo_root: &Path) -> PathBuf {
 }
 
 pub fn acquire_dir_lock(lock_dir: &Path, label: &str, force: bool) -> Result<DirLock> {
+    log::debug!(
+        "acquiring dir lock: {} (label: {})",
+        lock_dir.display(),
+        label
+    );
     if let Some(parent) = lock_dir.parent() {
         fs::create_dir_all(parent)
             .with_context(|| format!("create lock parent {}", parent.display()))?;
@@ -144,6 +149,7 @@ fn format_lock_error(
 }
 
 fn write_lock_owner(owner_path: &Path, owner: &LockOwner) -> Result<()> {
+    log::debug!("writing lock owner: {}", owner_path.display());
     let mut file = fs::File::create(owner_path)
         .with_context(|| format!("create lock owner {}", owner_path.display()))?;
     file.write_all(owner.render().as_bytes())
@@ -234,6 +240,7 @@ fn command_line() -> String {
 }
 
 pub fn write_atomic(path: &Path, contents: &[u8]) -> Result<()> {
+    log::debug!("atomic write: {}", path.display());
     let dir = path
         .parent()
         .context("atomic write requires a parent directory")?;
@@ -256,6 +263,7 @@ pub fn write_atomic(path: &Path, contents: &[u8]) -> Result<()> {
 fn sync_dir_best_effort(dir: &Path) {
     #[cfg(unix)]
     {
+        log::debug!("syncing directory: {}", dir.display());
         if let Ok(file) = fs::File::open(dir) {
             let _ = file.sync_all();
         }

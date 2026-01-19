@@ -1,22 +1,2 @@
 version: 1
-tasks:
-  - id: RQ-0104
-    status: todo
-    title: Audit and improve logging in fsutil sync operations
-    tags:
-      - rust
-      - logging
-      - fs
-    scope:
-      - crates/ralph/src/fsutil.rs
-    evidence:
-      - |-
-        `sync_dir_best_effort` and other fs operations fail silently or without much
-        context. While "best effort" implies silence, debug logs would be valuable.
-    plan:
-      - Add `log::debug!` or `log::trace!` to file synchronization and atomic write steps.
-      - Include path information in these logs to help trace filesystem issues.
-    notes: []
-    request: scan finding
-    created_at: 2026-01-19T04:00:47Z
-    updated_at: 2026-01-19T04:00:47Z
+tasks: []
