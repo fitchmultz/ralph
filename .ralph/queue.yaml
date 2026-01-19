@@ -1,27 +1,5 @@
 version: 1
 tasks:
-  - id: RQ-0106
-    status: todo
-    title: Remove all usage of [allow(dead_code)] by refactoring or deleting dead code
-    tags:
-      - rust
-      - refactor
-      - cleanup
-    scope:
-      - rg "#\\[allow\\(dead_code\\)\\]"
-      - crates/ralph
-      - ralph_tui
-    evidence:
-      - "User request: identify all usage of #[allow(dead_code)] and refactor the code to not require this."
-    plan:
-      - Locate all
-      - For each occurrence, remove dead code or refactor call sites so the item is used legitimately.
-      - Replace any needed annotations with correct, narrower alternatives only if strictly required.
-      - Run relevant tests (at least cargo test -p ralph) and update any failing code paths.
-    notes: []
-    request: identify all usage of
-    created_at: 2026-01-19T04:29:23Z
-    updated_at: 2026-01-19T04:29:23Z
   - id: RQ-0095
     status: doing
     title: Implement a logging wrapper with automatic redaction
