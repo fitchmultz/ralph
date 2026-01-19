@@ -110,15 +110,59 @@ pub fn build_task(resolved: &config::Resolved, opts: TaskBuildOptions) -> Result
         gemini: gemini_bin,
     };
 
-    let output = match runner::run_prompt(
+    let _output = match runner::run_prompt(
         opts.runner,
         &resolved.repo_root,
         bins,
         opts.model,
         opts.reasoning_effort,
         &prompt,
+        None,
     ) {
         Ok(output) => output,
+        Err(runner::RunnerError::Interrupted) => {
+            gitutil::revert_uncommitted(&resolved.repo_root)?;
+            bail!("task builder runner interrupted; reverted uncommitted changes");
+        }
+        Err(runner::RunnerError::Timeout) => {
+            bail!("task builder runner timed out; changes in the working tree were NOT reverted");
+        }
+        Err(runner::RunnerError::NonZeroExit {
+            code,
+            stdout: _,
+            stderr,
+        }) => {
+            let redacted = redaction::redact_text(&stderr);
+            let tail = outpututil::tail_lines(
+                &redacted,
+                outpututil::OUTPUT_TAIL_LINES,
+                outpututil::OUTPUT_TAIL_LINE_MAX_CHARS,
+            );
+            if !tail.is_empty() {
+                log::error!("task builder stderr (tail):");
+                for line in tail {
+                    log::info!("task builder: {line}");
+                }
+            }
+            gitutil::revert_uncommitted(&resolved.repo_root)?;
+            bail!("task builder runner exited non-zero (code={code}); reverted uncommitted changes; rerun is recommended");
+        }
+        Err(runner::RunnerError::TerminatedBySignal { stdout: _, stderr }) => {
+            let redacted = redaction::redact_text(&stderr);
+            let tail = outpututil::tail_lines(
+                &redacted,
+                outpututil::OUTPUT_TAIL_LINES,
+                outpututil::OUTPUT_TAIL_LINE_MAX_CHARS,
+            );
+            if !tail.is_empty() {
+                log::error!("task builder stderr (tail):");
+                for line in tail {
+                    log::info!("task builder: {line}");
+                }
+            }
+            gitutil::revert_uncommitted(&resolved.repo_root)?;
+            bail!("task builder runner terminated by signal; reverted uncommitted changes; rerun is recommended");
+        }
         Err(err) => {
             gitutil::revert_uncommitted(&resolved.repo_root)?;
             bail!(
@@ -174,56 +218,29 @@ pub fn build_task(resolved: &config::Resolved, opts: TaskBuildOptions) -> Result
         return Err(err);
     }
 
-    if output.success() {
-        let added = added_tasks(&before_ids, &after);
-        if !added.is_empty() {
-            let added_ids: Vec<String> = added.iter().map(|(id, _)| id.clone()).collect();
-            let now = time::OffsetDateTime::now_utc()
-                .format(&time::format_description::well_known::Rfc3339)
-                .unwrap_or_else(|_| "2026-01-18T00:00:00Z".to_string());
-            let default_request = opts.request.clone();
-            queue::backfill_missing_fields(&mut after, &added_ids, &default_request, &now);
-            queue::save_queue(&resolved.queue_path, &after)
-                .context("save queue with backfilled fields")?;
-        }
-        if added.is_empty() {
-            log::info!("Task builder completed. No new tasks detected.");
-        } else {
-            log::info!("Task builder added {} task(s):", added.len());
-            for (id, title) in added.iter().take(10) {
-                log::info!("- {}: {}", id, title);
-            }
-            if added.len() > 10 {
-                log::info!("...and {} more.", added.len() - 10);
-            }
-        }
-        return Ok(());
+    let added = added_tasks(&before_ids, &after);
+    if !added.is_empty() {
+        let added_ids: Vec<String> = added.iter().map(|(id, _)| id.clone()).collect();
+        let now = time::OffsetDateTime::now_utc()
+            .format(&time::format_description::well_known::Rfc3339)
+            .unwrap_or_else(|_| "2026-01-18T00:00:00Z".to_string());
+        let default_request = opts.request.clone();
+        queue::backfill_missing_fields(&mut after, &added_ids, &default_request, &now);
+        queue::save_queue(&resolved.queue_path, &after)
+            .context("save queue with backfilled fields")?;
     }
-
-    let exit_reason = match output.status.code() {
-        Some(code) => format!("task builder runner exited non-zero (code={code})"),
-        None => "task builder runner terminated by signal".to_string(),
-    };
-
-    let combined = output.combined();
-    let redacted = redaction::redact_text(&combined);
-    let tail = outpututil::tail_lines(
-        &redacted,
-        outpututil::OUTPUT_TAIL_LINES,
-        outpututil::OUTPUT_TAIL_LINE_MAX_CHARS,
-    );
-    if !tail.is_empty() {
-        log::error!("task builder output (tail):");
-        for line in tail {
-            log::info!("task builder: {line}");
+    if added.is_empty() {
+        log::info!("Task builder completed. No new tasks detected.");
+    } else {
+        log::info!("Task builder added {} task(s):", added.len());
+        for (id, title) in added.iter().take(10) {
+            log::info!("- {}: {}", id, title);
+        }
+        if added.len() > 10 {
+            log::info!("...and {} more.", added.len() - 10);
         }
     }
-
-    gitutil::revert_uncommitted(&resolved.repo_root)?;
-    bail!(
-        "{}; reverted uncommitted changes; rerun is recommended",
-        exit_reason
-    )
+    Ok(())
 }
 
 fn task_id_set(queue: &QueueFile) -> HashSet<String> {

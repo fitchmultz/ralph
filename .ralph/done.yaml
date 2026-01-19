@@ -265,10 +265,36 @@ tasks:
       - Updated all callers in `run_cmd.rs`, `scan_cmd.rs`, and `task_cmd.rs` to pass the `force` flag.
       - Added integration test `run_one_succeeds_when_repo_is_dirty_and_force_is_used` in `git_repo_integration_test.rs`.
     request: scan finding
-    created_at: 2026-01-18T22:00:00Z
+    created_at: 2026-01-18T22:50:00Z
     updated_at: 2026-01-18T22:50:00Z
     completed_at: 2026-01-18T22:50:00Z
-  - id: RQ-0082
+  - id: RQ-0085
+    status: done
+    title: Improve runner::run_prompt error reporting with structured types
+    tags:
+      - rust
+      - error-handling
+    scope:
+      - crates/ralph/src/runner.rs
+      - crates/ralph/src/run_cmd.rs
+    evidence:
+      - runner errors are currently generic anyhow::Error, making recovery decisions harder
+    plan:
+      - Define a RunnerError enum (BinaryMissing, Timeout, NonZeroExit, etc.)
+      - Update run_prompt and its callers to use structured errors
+      - Improve supervisor response to specific failure modes (e.g., don't revert if it's just a timeout)
+    notes:
+      - Defined `RunnerError` enum with `BinaryMissing`, `SpawnFailed`, `NonZeroExit`, `TerminatedBySignal`, `Interrupted`, `Timeout`, and `Io` variants.
+      - Updated `runner::run_prompt` and its sub-functions to return `Result<RunnerOutput, RunnerError>`.
+      - Added `timeout` support to `run_prompt` and `wait_for_child`.
+      - Updated `run_cmd.rs`, `task_cmd.rs`, and `scan_cmd.rs` to handle structured errors and log specific details.
+      - Implemented "no revert on timeout" logic in `run_cmd.rs`.
+      - Added `thiserror` dependency to `crates/ralph/Cargo.toml`.
+      - Verified with `make ci`.
+    request: scan finding
+    created_at: 2026-01-18T22:00:00Z
+    updated_at: 2026-01-18T22:45:00Z
+    completed_at: 2026-01-18T22:45:00Z
     status: done
     title: Integrate a logging crate (e.g., env_logger) for output control
     tags:

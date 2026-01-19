@@ -1,24 +1,5 @@
 version: 1
 tasks:
-  - id: RQ-0085
-    status: todo
-    title: Improve runner::run_prompt error reporting with structured types
-    tags:
-      - rust
-      - error-handling
-    scope:
-      - crates/ralph/src/runner.rs
-      - crates/ralph/src/run_cmd.rs
-    evidence:
-      - runner errors are currently generic anyhow::Error, making recovery decisions harder
-    plan:
-      - Define a RunnerError enum (BinaryMissing, Timeout, NonZeroExit, etc.)
-      - Update run_prompt and its callers to use structured errors
-      - Improve supervisor response to specific failure modes (e.g., don't revert if it's just a timeout)
-    notes: []
-    request: scan finding
-    created_at: 2026-01-18T22:00:00Z
-    updated_at: 2026-01-18T22:00:00Z
   - id: RQ-0086
     status: todo
     title: Audit config.rs for robust error handling and layering
@@ -69,6 +50,22 @@ tasks:
       - Review all long_help and after_long_help strings in main.rs
       - Ensure consistent formatting for examples and runner/model notes
       - Verify all subcommands have at least one clear example
+    notes: []
+    request: scan finding
+    created_at: 2026-01-18T22:00:00Z
+    updated_at: 2026-01-18T22:00:00Z
+  - id: RQ-0089
+    status: todo
+    title: Update all rust cargo dependencies to the latest version and run `make ci` to verify everything still works
+    tags:
+      - rust
+    scope:
+      - Cargo.toml
+    evidence:
+      - some dependencies are out of date
+    plan:
+      - Update all dependencies to the latest version
+      - Run make ci to verify everything still works
     notes: []
     request: scan finding
     created_at: 2026-01-18T22:00:00Z

@@ -152,47 +152,70 @@ pub fn run_one(
     let project_type = resolved.config.project_type.unwrap_or(ProjectType::Code);
     let prompt = prompts::render_worker_prompt(&template, project_type)?;
 
-    let output = match runner::run_prompt(
+    let _output = match runner::run_prompt(
         settings.runner,
         &resolved.repo_root,
         bins,
         settings.model,
         settings.reasoning_effort,
         &prompt,
+        None,
     ) {
         Ok(output) => output,
-        Err(err) => {
+        Err(runner::RunnerError::Interrupted) => {
+            gitutil::revert_uncommitted(&resolved.repo_root)?;
+            bail!("runner interrupted; reverted uncommitted changes");
+        }
+        Err(runner::RunnerError::Timeout) => {
+            bail!("runner timed out; changes in the working tree were NOT reverted");
+        }
+        Err(runner::RunnerError::NonZeroExit {
+            code,
+            stdout: _,
+            stderr,
+        }) => {
+            let redacted = redaction::redact_text(&stderr);
+            let tail = outpututil::tail_lines(
+                &redacted,
+                outpututil::OUTPUT_TAIL_LINES,
+                outpututil::OUTPUT_TAIL_LINE_MAX_CHARS,
+            );
+            if !tail.is_empty() {
+                log::error!("runner stderr (tail):");
+                for line in tail {
+                    log::info!("runner: {line}");
+                }
+            }
+            gitutil::revert_uncommitted(&resolved.repo_root)?;
+            bail!("runner exited non-zero (code={code}); reverted uncommitted changes; rerun is recommended");
+        }
+        Err(runner::RunnerError::TerminatedBySignal { stdout: _, stderr }) => {
+            let redacted = redaction::redact_text(&stderr);
+            let tail = outpututil::tail_lines(
+                &redacted,
+                outpututil::OUTPUT_TAIL_LINES,
+                outpututil::OUTPUT_TAIL_LINE_MAX_CHARS,
+            );
+            if !tail.is_empty() {
+                log::error!("runner stderr (tail):");
+                for line in tail {
+                    log::info!("runner: {line}");
+                }
+            }
             gitutil::revert_uncommitted(&resolved.repo_root)?;
             bail!(
-                                    "runner invocation failed; reverted uncommitted changes; rerun is recommended: {:#}",
-                                    err
-                            );
+                "runner terminated by signal; reverted uncommitted changes; rerun is recommended"
+            );
+        }
+        Err(err) => {
+            // For other errors (BinaryMissing, SpawnFailed, etc.), revert is safe but likely a no-op.
+            gitutil::revert_uncommitted(&resolved.repo_root)?;
+            bail!(
+                "runner invocation failed; reverted uncommitted changes; rerun is recommended: {:#}",
+                err
+            );
         }
     };
-
-    if !output.success() {
-        let exit_reason = match output.status.code() {
-            Some(code) => format!("runner exited non-zero (code={code})"),
-            None => "runner terminated by signal".to_string(),
-        };
-
-        let combined = output.combined();
-        let redacted = redaction::redact_text(&combined);
-        let tail = outpututil::tail_lines(
-            &redacted,
-            outpututil::OUTPUT_TAIL_LINES,
-            outpututil::OUTPUT_TAIL_LINE_MAX_CHARS,
-        );
-        if !tail.is_empty() {
-            log::error!("runner output (tail):");
-            for line in tail {
-                log::info!("runner: {line}");
-            }
-        }
-
-        gitutil::revert_uncommitted(&resolved.repo_root)?;
-        bail!("runner failed ({exit_reason}); reverted uncommitted changes; rerun is recommended");
-    }
 
     log::info!("Runner completed successfully for {task_id}.");
 

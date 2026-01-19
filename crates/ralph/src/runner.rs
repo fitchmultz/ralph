@@ -11,6 +11,45 @@ use std::time::{Duration, Instant};
 #[cfg(unix)]
 use std::os::unix::process::CommandExt;
 
+#[derive(Debug, thiserror::Error)]
+pub enum RunnerError {
+    #[error("runner binary not found: {bin}")]
+    BinaryMissing {
+        bin: String,
+        #[source]
+        source: std::io::Error,
+    },
+
+    #[error("runner failed to spawn: {bin}")]
+    SpawnFailed {
+        bin: String,
+        #[source]
+        source: std::io::Error,
+    },
+
+    #[error("runner exited non-zero (code={code})")]
+    NonZeroExit {
+        code: i32,
+        stdout: String,
+        stderr: String,
+    },
+
+    #[error("runner terminated by signal")]
+    TerminatedBySignal { stdout: String, stderr: String },
+
+    #[error("runner interrupted")]
+    Interrupted,
+
+    #[error("runner timed out")]
+    Timeout,
+
+    #[error("io error: {0}")]
+    Io(#[from] std::io::Error),
+
+    #[error("other error: {0}")]
+    Other(#[from] anyhow::Error),
+}
+
 const OPENCODE_PROMPT_FILE_MESSAGE: &str = "Follow the attached prompt file verbatim.";
 const GEMINI_PROMPT_PREFIX: &str =
     "If RepoPrompt tools are available, you MUST use them for file search, reading, and edits (do not bypass them).";
@@ -75,21 +114,7 @@ pub struct RunnerOutput {
     pub stderr: String,
 }
 
-impl RunnerOutput {
-    pub fn success(&self) -> bool {
-        self.status.success()
-    }
-
-    pub fn combined(&self) -> String {
-        if self.stdout.is_empty() {
-            return self.stderr.clone();
-        }
-        if self.stderr.is_empty() {
-            return self.stdout.clone();
-        }
-        format!("{}{}", self.stdout, self.stderr)
-    }
-}
+impl RunnerOutput {}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AgentSettings {
@@ -199,20 +224,41 @@ pub fn run_prompt(
     model: Model,
     reasoning_effort: Option<ReasoningEffort>,
     prompt: &str,
-) -> Result<RunnerOutput> {
-    validate_model_for_runner(runner, &model)?;
+    timeout: Option<Duration>,
+) -> Result<RunnerOutput, RunnerError> {
+    validate_model_for_runner(runner, &model).map_err(RunnerError::Other)?;
     let prepared_prompt = prepare_prompt(runner, prompt);
-    match runner {
+    let output = match runner {
         Runner::Codex => run_codex(
             work_dir,
             bins.codex,
             model,
             reasoning_effort,
             &prepared_prompt,
-        ),
-        Runner::Opencode => run_opencode(work_dir, bins.opencode, model, &prepared_prompt),
-        Runner::Gemini => run_gemini(work_dir, bins.gemini, model, &prepared_prompt),
+            timeout,
+        )?,
+        Runner::Opencode => {
+            run_opencode(work_dir, bins.opencode, model, &prepared_prompt, timeout)?
+        }
+        Runner::Gemini => run_gemini(work_dir, bins.gemini, model, &prepared_prompt, timeout)?,
+    };
+
+    if !output.status.success() {
+        if let Some(code) = output.status.code() {
+            return Err(RunnerError::NonZeroExit {
+                code,
+                stdout: output.stdout,
+                stderr: output.stderr,
+            });
+        } else {
+            return Err(RunnerError::TerminatedBySignal {
+                stdout: output.stdout,
+                stderr: output.stderr,
+            });
+        }
     }
+
+    Ok(output)
 }
 
 fn prepare_prompt(runner: Runner, prompt: &str) -> String {
@@ -233,7 +279,8 @@ fn run_codex(
     model: Model,
     reasoning_effort: Option<ReasoningEffort>,
     prompt: &str,
-) -> Result<RunnerOutput> {
+    timeout: Option<Duration>,
+) -> Result<RunnerOutput, RunnerError> {
     let mut cmd = Command::new(bin);
     cmd.current_dir(work_dir);
     ensure_self_on_path(&mut cmd);
@@ -250,19 +297,26 @@ fn run_codex(
     }
 
     cmd.arg("-");
-    run_with_streaming(cmd, Some(prompt.as_bytes()), "codex")
+    run_with_streaming(cmd, Some(prompt.as_bytes()), bin, timeout)
 }
 
-fn run_opencode(work_dir: &Path, bin: &str, model: Model, prompt: &str) -> Result<RunnerOutput> {
+fn run_opencode(
+    work_dir: &Path,
+    bin: &str,
+    model: Model,
+    prompt: &str,
+    timeout: Option<Duration>,
+) -> Result<RunnerOutput, RunnerError> {
     let mut tmp = tempfile::Builder::new()
         .prefix("ralph_prompt_")
         .suffix(".md")
         .tempfile()
-        .context("create temp prompt file")?;
+        .map_err(|e| RunnerError::Other(anyhow!("create temp prompt file: {}", e)))?;
 
     tmp.write_all(prompt.as_bytes())
-        .context("write prompt file")?;
-    tmp.flush().context("flush prompt file")?;
+        .map_err(|e| RunnerError::Other(anyhow!("write prompt file: {}", e)))?;
+    tmp.flush()
+        .map_err(|e| RunnerError::Other(anyhow!("flush prompt file: {}", e)))?;
 
     let mut cmd = Command::new(bin);
     cmd.current_dir(work_dir);
@@ -277,10 +331,16 @@ fn run_opencode(work_dir: &Path, bin: &str, model: Model, prompt: &str) -> Resul
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
-    run_with_streaming(cmd, None, bin)
+    run_with_streaming(cmd, None, bin, timeout)
 }
 
-fn run_gemini(work_dir: &Path, bin: &str, model: Model, prompt: &str) -> Result<RunnerOutput> {
+fn run_gemini(
+    work_dir: &Path,
+    bin: &str,
+    model: Model,
+    prompt: &str,
+    timeout: Option<Duration>,
+) -> Result<RunnerOutput, RunnerError> {
     let mut cmd = Command::new(bin);
     cmd.current_dir(work_dir);
     ensure_self_on_path(&mut cmd);
@@ -288,7 +348,7 @@ fn run_gemini(work_dir: &Path, bin: &str, model: Model, prompt: &str) -> Result<
         .arg(model.as_str())
         .arg("--approval-mode")
         .arg("yolo");
-    run_with_streaming(cmd, Some(prompt.as_bytes()), bin)
+    run_with_streaming(cmd, Some(prompt.as_bytes()), bin, timeout)
 }
 
 enum StreamSink {
@@ -317,7 +377,8 @@ fn run_with_streaming(
     mut cmd: Command,
     stdin_payload: Option<&[u8]>,
     bin: &str,
-) -> Result<RunnerOutput> {
+    timeout: Option<Duration>,
+) -> Result<RunnerOutput, RunnerError> {
     cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
     if stdin_payload.is_some() {
         cmd.stdin(Stdio::piped());
@@ -334,27 +395,46 @@ fn run_with_streaming(
     let ctrlc = ctrlc_state();
     ctrlc.interrupted.store(false, Ordering::SeqCst);
 
-    let mut child = cmd.spawn().with_context(|| format!("spawn {}", bin))?;
+    let mut child = cmd.spawn().map_err(|e| {
+        if e.kind() == std::io::ErrorKind::NotFound {
+            RunnerError::BinaryMissing {
+                bin: bin.to_string(),
+                source: e,
+            }
+        } else {
+            RunnerError::SpawnFailed {
+                bin: bin.to_string(),
+                source: e,
+            }
+        }
+    })?;
 
     if let Some(payload) = stdin_payload {
-        let stdin = child.stdin.as_mut().context("open stdin for child")?;
-        stdin.write_all(payload).context("write prompt to stdin")?;
+        let mut stdin = child.stdin.take().ok_or_else(|| {
+            RunnerError::Other(anyhow!("failed to open stdin for child: {}", bin))
+        })?;
+        stdin.write_all(payload).map_err(RunnerError::Io)?;
+        drop(stdin);
     }
-
-    drop(child.stdin.take());
 
     #[cfg(unix)]
     {
         let mut guard = ctrlc
             .active_pgid
             .lock()
-            .map_err(|_| anyhow::anyhow!("lock ctrl-c state"))?;
+            .map_err(|_| RunnerError::Other(anyhow!("lock ctrl-c state")))?;
         let pid = child.id() as i32;
         *guard = Some(pid);
     }
 
-    let stdout = child.stdout.take().context("capture child stdout")?;
-    let stderr = child.stderr.take().context("capture child stderr")?;
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| RunnerError::Other(anyhow!("capture child stdout")))?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or_else(|| RunnerError::Other(anyhow!("capture child stderr")))?;
 
     let stdout_buf = Arc::new(Mutex::new(String::new()));
     let stderr_buf = Arc::new(Mutex::new(String::new()));
@@ -362,36 +442,42 @@ fn run_with_streaming(
     let stdout_handle = spawn_reader(stdout, StreamSink::Stdout, Arc::clone(&stdout_buf));
     let stderr_handle = spawn_reader(stderr, StreamSink::Stderr, Arc::clone(&stderr_buf));
 
-    let status = wait_for_child(&mut child, ctrlc)?;
+    let status = wait_for_child(&mut child, ctrlc, timeout)?;
 
     #[cfg(unix)]
     {
         let mut guard = ctrlc
             .active_pgid
             .lock()
-            .map_err(|_| anyhow::anyhow!("lock ctrl-c state"))?;
+            .map_err(|_| RunnerError::Other(anyhow!("lock ctrl-c state")))?;
         *guard = None;
     }
 
     stdout_handle
         .join()
-        .map_err(|_| anyhow::anyhow!("stdout reader panicked"))??;
+        .map_err(|_| RunnerError::Other(anyhow!("stdout reader panicked")))?
+        .map_err(RunnerError::Other)?;
     stderr_handle
         .join()
-        .map_err(|_| anyhow::anyhow!("stderr reader panicked"))??;
+        .map_err(|_| RunnerError::Other(anyhow!("stderr reader panicked")))?
+        .map_err(RunnerError::Other)?;
 
     let stdout = {
         let mut guard = stdout_buf
             .lock()
-            .map_err(|_| anyhow::anyhow!("lock stdout buffer"))?;
+            .map_err(|_| RunnerError::Other(anyhow!("lock stdout buffer")))?;
         std::mem::take(&mut *guard)
     };
     let stderr = {
         let mut guard = stderr_buf
             .lock()
-            .map_err(|_| anyhow::anyhow!("lock stderr buffer"))?;
+            .map_err(|_| RunnerError::Other(anyhow!("lock stderr buffer")))?;
         std::mem::take(&mut *guard)
     };
+
+    if ctrlc.interrupted.load(Ordering::SeqCst) {
+        return Err(RunnerError::Interrupted);
+    }
 
     Ok(RunnerOutput {
         status,
@@ -404,7 +490,7 @@ fn spawn_reader<R: Read + Send + 'static>(
     mut reader: R,
     sink: StreamSink,
     buffer: Arc<Mutex<String>>,
-) -> thread::JoinHandle<Result<()>> {
+) -> thread::JoinHandle<anyhow::Result<()>> {
     thread::spawn(move || {
         let mut buf = [0u8; 8192];
         loop {
@@ -424,14 +510,43 @@ fn spawn_reader<R: Read + Send + 'static>(
     })
 }
 
-fn wait_for_child(child: &mut std::process::Child, ctrlc: &CtrlCState) -> Result<ExitStatus> {
+fn wait_for_child(
+    child: &mut std::process::Child,
+    ctrlc: &CtrlCState,
+    timeout: Option<Duration>,
+) -> Result<ExitStatus, RunnerError> {
     let mut interrupt_sent = false;
     let mut kill_sent = false;
     let start = Instant::now();
+    let mut interrupt_time = None;
 
     loop {
+        let now = Instant::now();
+
+        if let Some(timeout) = timeout {
+            if now.duration_since(start) > timeout && !interrupt_sent {
+                log::warn!("Runner timed out after {:?}; sending interrupt", timeout);
+                interrupt_sent = true;
+                interrupt_time = Some(now);
+                #[cfg(unix)]
+                {
+                    let pgid = ctrlc.active_pgid.lock().ok().and_then(|guard| *guard);
+                    if let Some(pgid) = pgid {
+                        unsafe {
+                            libc::kill(-pgid, libc::SIGINT);
+                        }
+                    }
+                }
+                #[cfg(not(unix))]
+                {
+                    let _ = child.kill();
+                }
+            }
+        }
+
         if ctrlc.interrupted.load(Ordering::SeqCst) && !interrupt_sent {
             interrupt_sent = true;
+            interrupt_time = Some(now);
             #[cfg(unix)]
             {
                 let pgid = ctrlc.active_pgid.lock().ok().and_then(|guard| *guard);
@@ -447,22 +562,34 @@ fn wait_for_child(child: &mut std::process::Child, ctrlc: &CtrlCState) -> Result
             }
         }
 
-        if interrupt_sent && !kill_sent && start.elapsed() > Duration::from_secs(2) {
-            kill_sent = true;
-            #[cfg(unix)]
-            {
-                let pgid = ctrlc.active_pgid.lock().ok().and_then(|guard| *guard);
-                if let Some(pgid) = pgid {
-                    unsafe {
-                        libc::kill(-pgid, libc::SIGKILL);
+        if interrupt_sent && !kill_sent {
+            let elapsed_since_interrupt = now.duration_since(interrupt_time.unwrap());
+            if elapsed_since_interrupt > Duration::from_secs(2) {
+                kill_sent = true;
+                #[cfg(unix)]
+                {
+                    let pgid = ctrlc.active_pgid.lock().ok().and_then(|guard| *guard);
+                    if let Some(pgid) = pgid {
+                        unsafe {
+                            libc::kill(-pgid, libc::SIGKILL);
+                        }
                     }
                 }
+                let _ = child.kill();
             }
-            let _ = child.kill();
         }
 
-        if let Some(status) = child.try_wait().context("poll child status")? {
-            return Ok(status);
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                if let Some(timeout) = timeout {
+                    if now.duration_since(start) > timeout {
+                        return Err(RunnerError::Timeout);
+                    }
+                }
+                return Ok(status);
+            }
+            Ok(None) => {}
+            Err(e) => return Err(RunnerError::Io(e)),
         }
 
         thread::sleep(Duration::from_millis(50));
