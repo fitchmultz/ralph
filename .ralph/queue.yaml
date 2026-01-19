@@ -1,2 +1,275 @@
 version: 1
-tasks: []
+tasks:
+- id: RQ-0074
+  status: todo
+  title: Refactor main.rs to centralize queue loading and validation
+  tags:
+  - rust
+  - refactor
+  scope:
+  - crates/ralph/src/main.rs
+  evidence:
+  - handle_queue repeats loading/validation boilerplate in 5+ subcommands
+  plan:
+  - Extract common load/validate logic into a helper function in main.rs or a new module
+  - Update handle_queue subcommands to use the helper
+  - Verify no regression in error messages or behavior
+  notes: []
+  request: scan finding
+  created_at: 2026-01-18T22:00:00Z
+  updated_at: 2026-01-18T22:00:00Z
+- id: RQ-0075
+  status: todo
+  title: Centralize RunnerKind and Model resolution logic
+  tags:
+  - rust
+  - refactor
+  scope:
+  - crates/ralph/src/main.rs
+  - crates/ralph/src/run_cmd.rs
+  - crates/ralph/src/runner.rs
+  evidence:
+  - resolve_agent_args (main.rs) and resolve_run_agent_settings (run_cmd.rs) overlap significantly
+  plan:
+  - Consolidate resolution logic into runner.rs or a dedicated settings module
+  - 'Ensure consistent precedence: CLI > task.agent > project config > global config > built-in'
+  - Update main.rs, task_cmd.rs, scan_cmd.rs, and run_cmd.rs to use the centralized logic
+  notes: []
+  request: scan finding
+  created_at: 2026-01-18T22:00:00Z
+  updated_at: 2026-01-18T22:00:00Z
+- id: RQ-0076
+  status: todo
+  title: Audit and harden YAML repair logic in queue.rs
+  tags:
+  - rust
+  - correctness
+  - safety
+  scope:
+  - crates/ralph/src/queue.rs
+  evidence:
+  - repair_yaml_scalars uses brittle string manipulation and basic prefix/substring checks
+  plan:
+  - Expand test suite with complex/nested YAML breakage
+  - Explore more robust repair strategies (e.g., partial parsing or selective escaping)
+  - Ensure repair logic handles all standard scalar types and edge-case colons
+  notes: []
+  request: scan finding
+  created_at: 2026-01-18T22:00:00Z
+  updated_at: 2026-01-18T22:00:00Z
+- id: RQ-0077
+  status: todo
+  title: Reconcile Task field requirements in contracts.rs vs queue.rs
+  tags:
+  - rust
+  - consistency
+  scope:
+  - crates/ralph/src/contracts.rs
+  - crates/ralph/src/queue.rs
+  evidence:
+  - Task fields like tags and scope have serde defaults but are strictly required by the validator
+  plan:
+  - Decide if fields should be truly optional or strictly required
+  - If required, remove
+  - Update validator and tests to match the source of truth
+  notes: []
+  request: scan finding
+  created_at: 2026-01-18T22:00:00Z
+  updated_at: 2026-01-18T22:00:00Z
+- id: RQ-0078
+  status: todo
+  title: Enhance doctor command to validate done.yaml and check Makefile
+  tags:
+  - rust
+  - ux
+  scope:
+  - crates/ralph/src/doctor_cmd.rs
+  evidence:
+  - doctor currently ignores the done archive and doesn't check for CI readiness (Makefile)
+  plan:
+  - Add validation for done.yaml in run_doctor
+  - Check for presence of Makefile and 'ci' target
+  - Add check for common config errors (e.g., runner/model mismatches)
+  notes: []
+  request: scan finding
+  created_at: 2026-01-18T22:00:00Z
+  updated_at: 2026-01-18T22:00:00Z
+- id: RQ-0079
+  status: todo
+  title: Audit TaskStatus serialization for consistent snake_case
+  tags:
+  - rust
+  - consistency
+  scope:
+  - crates/ralph/src/contracts.rs
+  evidence:
+  - internal enums are mapped manually; ensure serde(rename_all = "snake_case") is respected everywhere
+  plan:
+  - Verify all TaskStatus usages in YAML match "todo", "doing", "done"
+  - Audit other enums (Runner, Model, ReasoningEffort) for consistency
+  notes: []
+  request: scan finding
+  created_at: 2026-01-18T22:00:00Z
+  updated_at: 2026-01-18T22:00:00Z
+- id: RQ-0080
+  status: todo
+  title: Improve gitutil::require_clean_repo error message
+  tags:
+  - rust
+  - ux
+  scope:
+  - crates/ralph/src/gitutil.rs
+  evidence:
+  - current error bails with raw porcelain output; lacks actionable bypass/stash advice
+  plan:
+  - Update error message to suggest 'git stash' or using '--force' (if applicable)
+  - Distinguish between untracked and tracked changes in the message
+  notes: []
+  request: scan finding
+  created_at: 2026-01-18T22:00:00Z
+  updated_at: 2026-01-18T22:00:00Z
+- id: RQ-0081
+  status: todo
+  title: Expand redaction.rs with more sensitive patterns
+  tags:
+  - rust
+  - security
+  scope:
+  - crates/ralph/src/redaction.rs
+  evidence:
+  - current redaction is limited to bearer tokens and some env var keys
+  plan:
+  - Add patterns for AWS keys, SSH private key headers, and generic hex tokens
+  - Improve key-value pair detection for multi-line values
+  - Add tests for new patterns
+  notes: []
+  request: scan finding
+  created_at: 2026-01-18T22:00:00Z
+  updated_at: 2026-01-18T22:00:00Z
+- id: RQ-0082
+  status: todo
+  title: Integrate a logging crate (e.g., env_logger) for output control
+  tags:
+  - rust
+  - observability
+  scope:
+  - crates/ralph/src/main.rs
+  - crates/ralph/Cargo.toml
+  evidence:
+  - direct println/eprintln usage makes verbosity control difficult
+  plan:
+  - Add env_logger or tracing-subscriber dependency
+  - Replace strategic println/eprintln with log macros (info!, warn!, debug!)
+  - Allow controlling verbosity via RUST_LOG or a --verbose flag
+  notes: []
+  request: scan finding
+  created_at: 2026-01-18T22:00:00Z
+  updated_at: 2026-01-18T22:00:00Z
+- id: RQ-0083
+  status: todo
+  title: Improve run_loop reporting and remaining tasks count
+  tags:
+  - rust
+  - ux
+  scope:
+  - crates/ralph/src/run_cmd.rs
+  evidence:
+  - run_loop doesn't report how many todo tasks remain or total progress
+  plan:
+  - Count initial todo tasks before starting loop
+  - Report "Task X of Y" or "Z tasks remaining" in the loop output
+  notes: []
+  request: scan finding
+  created_at: 2026-01-18T22:00:00Z
+  updated_at: 2026-01-18T22:00:00Z
+- id: RQ-0084
+  status: todo
+  title: Enhance handle_init to verify existing file validity
+  tags:
+  - rust
+  - ux
+  scope:
+  - crates/ralph/src/init_cmd.rs
+  - crates/ralph/src/main.rs
+  evidence:
+  - init just prints "exists" for files; it doesn't check if they are valid or need repair
+  plan:
+  - Add validation/repair logic to handle_init for existing queue/done/config files
+  - Report "exists (valid)" or "exists (repaired)" instead of just "exists"
+  notes: []
+  request: scan finding
+  created_at: 2026-01-18T22:00:00Z
+  updated_at: 2026-01-18T22:00:00Z
+- id: RQ-0085
+  status: todo
+  title: Improve runner::run_prompt error reporting with structured types
+  tags:
+  - rust
+  - error-handling
+  scope:
+  - crates/ralph/src/runner.rs
+  - crates/ralph/src/run_cmd.rs
+  evidence:
+  - runner errors are currently generic anyhow::Error, making recovery decisions harder
+  plan:
+  - Define a RunnerError enum (BinaryMissing, Timeout, NonZeroExit, etc.)
+  - Update run_prompt and its callers to use structured errors
+  - Improve supervisor response to specific failure modes (e.g., don't revert if it's just a timeout)
+  notes: []
+  request: scan finding
+  created_at: 2026-01-18T22:00:00Z
+  updated_at: 2026-01-18T22:00:00Z
+- id: RQ-0086
+  status: todo
+  title: Audit config.rs for robust error handling and layering
+  tags:
+  - rust
+  - correctness
+  scope:
+  - crates/ralph/src/config.rs
+  evidence:
+  - apply_layer uses manual field-by-field copy; missing some validation checks
+  plan:
+  - Audit apply_layer for missing fields or inconsistent merging
+  - Ensure all Option fields in ConfigLayer are correctly handled
+  - Add more descriptive errors for invalid config values
+  notes: []
+  request: scan finding
+  created_at: 2026-01-18T22:00:00Z
+  updated_at: 2026-01-18T22:00:00Z
+- id: RQ-0087
+  status: todo
+  title: Add stress tests for edge-case YAML breakage and recovery
+  tags:
+  - rust
+  - testing
+  scope:
+  - crates/ralph/src/queue.rs
+  - crates/ralph/tests/stress_queue_contract_test.rs
+  evidence:
+  - current stress tests focus on volume, not necessarily complex structural breakage
+  plan:
+  - Add specific test cases for truncated YAML, invalid types, and nested scalar colons
+  - Verify that Ralph reliably repairs or bails with clear errors
+  notes: []
+  request: scan finding
+  created_at: 2026-01-18T22:00:00Z
+  updated_at: 2026-01-18T22:00:00Z
+- id: RQ-0088
+  status: todo
+  title: Audit CLI help strings for completeness and consistency
+  tags:
+  - rust
+  - ux
+  scope:
+  - crates/ralph/src/main.rs
+  evidence:
+  - some subcommands have more detailed help/examples than others
+  plan:
+  - Review all long_help and after_long_help strings in main.rs
+  - Ensure consistent formatting for examples and runner/model notes
+  - Verify all subcommands have at least one clear example
+  notes: []
+  request: scan finding
+  created_at: 2026-01-18T22:00:00Z
+  updated_at: 2026-01-18T22:00:00Z
