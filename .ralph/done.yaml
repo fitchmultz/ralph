@@ -1003,3 +1003,27 @@ tasks:
   created_at: 2025-01-19T17:00:00Z
   updated_at: 2026-01-19T20:08:57Z
   completed_at: 2026-01-19T20:08:57Z
+- id: RQ-0148
+  status: done
+  title: Change done.yaml archival behavior to append completed tasks to the END
+  tags:
+  - rust
+  - prompts
+  - queue
+  scope:
+  - crates/ralph/assets/prompts/worker.md
+  evidence:
+  - 'Current done.yaml has tasks in reverse chronological order (newest first: RQ-0101, then RQ-0069)'
+  - The queue.rs archive_done_tasks function already appends to the end via done.tasks.push(task)
+  - The worker.md prompt says "append to the tasks list" but agents are inserting at the top
+  - 'User explicitly requested: "have agents append the completed task queue item to the END of the done.yaml file"'
+  plan:
+  - Update worker.md line 35 to say "appended to the END of .ralph/done.yaml" instead of just "appended to .ralph/done.yaml"
+  - Update worker.md line 70 to say "append to the END of the tasks list in .ralph/done.yaml" instead of just "append to the tasks list"
+  - Update worker.md line 72 to clarify "appended to the END of .ralph/done.yaml"
+  - Test by verifying the prompt language explicitly states "END" to prevent top-insertion behavior
+  notes: []
+  request: Modify the bahvior and prompts to have agents append the completed task queue item to the END of the done.yaml file instead of the current behavior. Still remove 'done' items from the queue.yaml file but instead of adding completed items to the top of done.yaml have them add it to the end.
+  created_at: 2025-01-19T16:00:00Z
+  updated_at: 2026-01-19T20:17:55.049973Z
+  completed_at: 2026-01-19T20:17:55.049973Z

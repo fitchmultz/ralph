@@ -31,7 +31,7 @@ Ship correct, durable changes quickly and safely.
   - `done` with `completed_at` when complete
   - leave as `doing` or revert to `todo` if incomplete but not blocked
 - Do NOT set `status: blocked`.
-- Completed tasks are moved from `.ralph/queue.yaml` to `.ralph/done.yaml` (same YAML schema).
+- Completed tasks are moved from `.ralph/queue.yaml` to the END of `.ralph/done.yaml` (same YAML schema).
 - Before committing/pushing, the completed task is removed from `.ralph/queue.yaml` and appended to `.ralph/done.yaml`.
 - `.ralph/queue.yaml` remains valid YAML and matches the queue contract.
 - CI gate is 100% clean: run `make ci` and fix all failures before ending your turn.
@@ -67,9 +67,9 @@ Ship correct, durable changes quickly and safely.
    - Set `status: done`
    - Set `completed_at` to current UTC RFC3339 time
    - Add 1-5 `notes` bullets summarizing what changed and how to verify
-   - Move the completed task from `.ralph/queue.yaml` into `.ralph/done.yaml` (append to the `tasks` list and remove it from the queue file). Create `.ralph/done.yaml` if missing; it uses the same `version: 1` + `tasks` schema as the queue. Do this by editing the files directly (do not run `ralph queue done`).
+   - Move the completed task from `.ralph/queue.yaml` to the END of `.ralph/done.yaml` (append to the END of the `tasks` list and remove it from the queue file). Create `.ralph/done.yaml` if missing; it uses the same `version: 1` + `tasks` schema as the queue. Do this by editing the files directly (do not run `ralph queue done`).
    - Run `make ci` and ensure it passes.
-   - Commit and push all changes (including `.ralph/queue.yaml`) so the repo is clean for the next run. Do NOT commit/push until the task has been removed from `.ralph/queue.yaml` and appended to `.ralph/done.yaml`.
+   - Commit and push all changes (including `.ralph/queue.yaml`) so the repo is clean for the next run. Do NOT commit/push until the task has been removed from `.ralph/queue.yaml` and appended to the END of `.ralph/done.yaml`.
 6. If you cannot complete the task:
    - Revert or discard partial changes so the repo is clean (do not leave failing WIP changes in the working tree).
    - Leave the task as `todo` (or `doing` if you plan to immediately resume in the same run).
