@@ -1,4 +1,4 @@
-use crate::contracts::{Model, ProjectType, ReasoningEffort, Runner};
+use crate::contracts::{ClaudePermissionMode, Model, ProjectType, ReasoningEffort, Runner};
 use crate::{config, gitutil, prompts, queue, runner, runutil, timeutil};
 use anyhow::{Context, Result};
 
@@ -69,6 +69,8 @@ pub fn run_scan(resolved: &config::Resolved, opts: ScanOptions) -> Result<()> {
     let bins = runner::resolve_binaries(&resolved.config.agent);
     // Two-pass mode disabled for scan (only generates findings, should not implement)
     let two_pass_plan = false;
+    // Force BypassPermissions for scan (needs tool access for exploration)
+    let permission_mode = Some(ClaudePermissionMode::BypassPermissions);
 
     let _output = runutil::run_prompt_with_handling(
         runutil::RunnerInvocation {
@@ -80,6 +82,7 @@ pub fn run_scan(resolved: &config::Resolved, opts: ScanOptions) -> Result<()> {
             prompt: &prompt,
             timeout: None,
             two_pass_plan,
+            permission_mode,
         },
         runutil::RunnerErrorMessages {
             log_label: "scan runner",

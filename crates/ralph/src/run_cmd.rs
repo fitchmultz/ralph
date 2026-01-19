@@ -140,6 +140,8 @@ pub fn run_one(
     let prompt = prompts::render_worker_prompt(&template, project_type)?;
     // Two-pass mode enabled for implementation workflows
     let two_pass_plan = resolved.config.agent.two_pass_plan.unwrap_or(true);
+    // Use configured permission mode (default: BypassPermissions)
+    let permission_mode = resolved.config.agent.claude_permission_mode;
 
     let _output = runutil::run_prompt_with_handling(
         runutil::RunnerInvocation {
@@ -151,6 +153,7 @@ pub fn run_one(
             prompt: &prompt,
             timeout: None,
             two_pass_plan,
+            permission_mode,
         },
         runutil::RunnerErrorMessages {
             log_label: "runner",
@@ -386,7 +389,9 @@ fn run_make_ci(repo_root: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::contracts::{AgentConfig, Config, Model, QueueConfig, Task, TaskAgent, TaskStatus};
+    use crate::contracts::{
+        AgentConfig, ClaudePermissionMode, Config, Model, QueueConfig, Task, TaskAgent, TaskStatus,
+    };
     use std::path::PathBuf;
     use tempfile::TempDir;
 
@@ -408,6 +413,7 @@ mod tests {
                 gemini_bin: Some("gemini".to_string()),
                 claude_bin: Some("claude".to_string()),
                 two_pass_plan: Some(true),
+                claude_permission_mode: Some(ClaudePermissionMode::BypassPermissions),
             },
             queue: QueueConfig {
                 file: Some(PathBuf::from(".ralph/queue.yaml")),

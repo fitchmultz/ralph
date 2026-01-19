@@ -89,6 +89,11 @@ pub struct AgentConfig {
     /// When enabled, Claude first generates a plan in plan mode, then implements it.
     /// Currently supported for Claude runner only.
     pub two_pass_plan: Option<bool>,
+
+    /// Claude permission mode for tool and edit approval.
+    /// AcceptEdits: auto-approves file edits only
+    /// BypassPermissions: skip all permission prompts (YOLO mode)
+    pub claude_permission_mode: Option<ClaudePermissionMode>,
 }
 
 impl AgentConfig {
@@ -117,6 +122,9 @@ impl AgentConfig {
         if other.two_pass_plan.is_some() {
             self.two_pass_plan = other.two_pass_plan;
         }
+        if other.claude_permission_mode.is_some() {
+            self.claude_permission_mode = other.claude_permission_mode;
+        }
     }
 }
 
@@ -136,6 +144,14 @@ pub enum Runner {
     Opencode,
     Gemini,
     Claude,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ClaudePermissionMode {
+    #[default]
+    AcceptEdits,
+    BypassPermissions,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -328,6 +344,7 @@ impl Default for Config {
                 gemini_bin: Some("gemini".to_string()),
                 claude_bin: Some("claude".to_string()),
                 two_pass_plan: Some(true),
+                claude_permission_mode: Some(ClaudePermissionMode::BypassPermissions),
             },
         }
     }

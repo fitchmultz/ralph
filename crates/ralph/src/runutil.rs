@@ -1,6 +1,6 @@
 //! Shared helpers for runner invocations with consistent error handling.
 
-use crate::contracts::{Model, ReasoningEffort, Runner};
+use crate::contracts::{ClaudePermissionMode, Model, ReasoningEffort, Runner};
 use crate::{gitutil, outpututil, runner};
 use anyhow::{bail, Result};
 use std::path::Path;
@@ -15,6 +15,7 @@ pub struct RunnerInvocation<'a> {
     pub prompt: &'a str,
     pub timeout: Option<Duration>,
     pub two_pass_plan: bool,
+    pub permission_mode: Option<ClaudePermissionMode>,
 }
 
 pub struct RunnerErrorMessages<'a, FNonZero, FOther>
@@ -47,6 +48,7 @@ where
         prompt,
         timeout,
         two_pass_plan,
+        permission_mode,
     } = invocation;
     let RunnerErrorMessages {
         log_label,
@@ -66,6 +68,7 @@ where
         prompt,
         timeout,
         two_pass_plan,
+        permission_mode,
     ) {
         Ok(output) => Ok(output),
         Err(runner::RunnerError::Interrupted) => {

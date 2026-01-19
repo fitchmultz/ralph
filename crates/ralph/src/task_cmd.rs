@@ -1,4 +1,4 @@
-use crate::contracts::{Model, ProjectType, ReasoningEffort, Runner};
+use crate::contracts::{ClaudePermissionMode, Model, ProjectType, ReasoningEffort, Runner};
 use crate::{config, gitutil, prompts, queue, runner, runutil, timeutil};
 use anyhow::{bail, Context, Result};
 use std::io::Read;
@@ -88,6 +88,8 @@ pub fn build_task(resolved: &config::Resolved, opts: TaskBuildOptions) -> Result
     let bins = runner::resolve_binaries(&resolved.config.agent);
     // Two-pass mode disabled for task build (only generates task, should not implement)
     let two_pass_plan = false;
+    // Force BypassPermissions for task build (needs tool access for exploration)
+    let permission_mode = Some(ClaudePermissionMode::BypassPermissions);
 
     let _output = runutil::run_prompt_with_handling(
         runutil::RunnerInvocation {
@@ -99,6 +101,7 @@ pub fn build_task(resolved: &config::Resolved, opts: TaskBuildOptions) -> Result
             prompt: &prompt,
             timeout: None,
             two_pass_plan,
+            permission_mode,
         },
         runutil::RunnerErrorMessages {
             log_label: "task builder",

@@ -1,6 +1,9 @@
-use crate::contracts::{AgentConfig, Model, ReasoningEffort, Runner, TaskAgent};
+use crate::contracts::{
+    AgentConfig, ClaudePermissionMode, Model, ReasoningEffort, Runner, TaskAgent,
+};
 use crate::redaction::{redact_text, RedactedString};
 use anyhow::{anyhow, bail, Context, Result};
+use serde_json::Value as JsonValue;
 use std::fmt;
 use std::io::{Read, Write};
 use std::path::Path;
@@ -270,6 +273,7 @@ pub fn run_prompt(
     prompt: &str,
     timeout: Option<Duration>,
     two_pass_plan: bool,
+    permission_mode: Option<ClaudePermissionMode>,
 ) -> Result<RunnerOutput, RunnerError> {
     validate_model_for_runner(runner, &model).map_err(RunnerError::Other)?;
     let prepared_prompt = prepare_prompt(runner, prompt);
@@ -293,6 +297,7 @@ pub fn run_prompt(
             &prepared_prompt,
             timeout,
             two_pass_plan,
+            permission_mode,
         )?,
     };
 
@@ -411,11 +416,12 @@ fn run_claude(
     prompt: &str,
     timeout: Option<Duration>,
     two_pass_plan: bool,
+    permission_mode: Option<ClaudePermissionMode>,
 ) -> Result<RunnerOutput, RunnerError> {
     if two_pass_plan {
-        run_claude_two_pass(work_dir, bin, model, prompt, timeout)
+        run_claude_two_pass(work_dir, bin, model, prompt, timeout, permission_mode)
     } else {
-        run_claude_direct(work_dir, bin, model, prompt, timeout)
+        run_claude_direct(work_dir, bin, model, prompt, timeout, permission_mode)
     }
 }
 
@@ -425,14 +431,25 @@ fn run_claude_direct(
     model: Model,
     prompt: &str,
     timeout: Option<Duration>,
+    permission_mode: Option<ClaudePermissionMode>,
 ) -> Result<RunnerOutput, RunnerError> {
+    let mode = permission_mode.unwrap_or(ClaudePermissionMode::BypassPermissions);
     let mut cmd = Command::new(bin);
     cmd.current_dir(work_dir);
     ensure_self_on_path(&mut cmd);
     cmd.arg("-p") // Print mode (headless, skips workspace trust)
         .arg("--model")
-        .arg(model.as_str());
+        .arg(model.as_str())
+        .arg("--permission-mode")
+        .arg(permission_mode_to_arg(mode));
     run_with_streaming(cmd, Some(prompt.as_bytes()), bin, timeout)
+}
+
+fn permission_mode_to_arg(mode: ClaudePermissionMode) -> &'static str {
+    match mode {
+        ClaudePermissionMode::AcceptEdits => "acceptEdits",
+        ClaudePermissionMode::BypassPermissions => "bypassPermissions",
+    }
 }
 
 fn run_claude_two_pass(
@@ -441,10 +458,11 @@ fn run_claude_two_pass(
     model: Model,
     prompt: &str,
     timeout: Option<Duration>,
+    permission_mode: Option<ClaudePermissionMode>,
 ) -> Result<RunnerOutput, RunnerError> {
     log::info!("Claude two-pass mode: generating plan first");
 
-    // Pass 1: Generate plan in plan mode
+    // Pass 1: Generate plan with bypassPermissions + planning constraint
     let plan_output = match generate_claude_plan(work_dir, bin, &model, prompt, timeout) {
         Ok(plan) => plan,
         Err(e) => {
@@ -452,28 +470,38 @@ fn run_claude_two_pass(
                 "Plan generation failed: {}, falling back to direct implementation",
                 e
             );
-            return run_claude_direct(work_dir, bin, model, prompt, timeout);
+            return run_claude_direct(work_dir, bin, model, prompt, timeout, permission_mode);
         }
     };
 
-    // Pass 2: Implement with acceptEdits mode
-    let implementation_prompt = format!("Implement this plan:\n\n{}", plan_output.stdout.trim());
+    // Extract plan from stream-json output
+    let plan_text = match parse_stream_json_plan(&plan_output.stdout) {
+        Ok(text) => text,
+        Err(e) => {
+            log::warn!(
+                "Failed to parse plan from stream-json: {}, using raw output",
+                e
+            );
+            plan_output.stdout.trim().to_string()
+        }
+    };
+
+    // Pass 2: Implement with configured permission mode
+    let implementation_prompt = format!("Implement this plan:\n\n{}", plan_text);
 
     log::info!(
         "Claude two-pass mode: implementing plan ({} bytes)",
         implementation_prompt.len()
     );
 
-    let mut cmd = Command::new(bin);
-    cmd.current_dir(work_dir);
-    ensure_self_on_path(&mut cmd);
-    cmd.arg("-p")
-        .arg("--model")
-        .arg(model.as_str())
-        .arg("--permission-mode")
-        .arg("acceptEdits");
-
-    run_with_streaming(cmd, Some(implementation_prompt.as_bytes()), bin, timeout)
+    run_claude_direct(
+        work_dir,
+        bin,
+        model,
+        &implementation_prompt,
+        timeout,
+        permission_mode,
+    )
 }
 
 fn generate_claude_plan(
@@ -483,6 +511,13 @@ fn generate_claude_plan(
     prompt: &str,
     timeout: Option<Duration>,
 ) -> Result<RunnerOutput, RunnerError> {
+    // Add planning constraint to the prompt
+    let planning_prompt = format!(
+        "PLANNING MODE: You are in planning mode. Analyze the codebase and generate a plan, \
+        but DO NOT make any edits or changes. Only explore using tools, then output your plan.\n\n{}",
+        prompt
+    );
+
     let mut cmd = Command::new(bin);
     cmd.current_dir(work_dir);
     ensure_self_on_path(&mut cmd);
@@ -490,11 +525,235 @@ fn generate_claude_plan(
         .arg("--model")
         .arg(model.as_str())
         .arg("--permission-mode")
-        .arg("plan")
+        .arg("bypassPermissions")
         .arg("--output-format")
-        .arg("json");
+        .arg("stream-json")
+        .arg("--verbose");
 
-    run_with_streaming(cmd, Some(prompt.as_bytes()), bin, timeout)
+    run_with_streaming_json(cmd, Some(planning_prompt.as_bytes()), bin, timeout)
+}
+
+/// Parse stream-json output and extract the result field
+fn parse_stream_json_plan(json_output: &str) -> Result<String> {
+    let mut last_result = None;
+
+    for line in json_output.lines() {
+        if let Ok(json) = serde_json::from_str::<JsonValue>(line) {
+            if let Some(result) = json.get("result").and_then(|r| r.as_str()) {
+                last_result = Some(result.to_string());
+            }
+            // Log permission denials
+            if let Some(denials) = json.get("permission_denials").and_then(|d| d.as_array()) {
+                for denial in denials {
+                    if let Some(tool_name) = denial.get("tool_name").and_then(|t| t.as_str()) {
+                        if let Some(input) = denial.get("tool_input") {
+                            log::warn!("Permission denied: {} (input: {})", tool_name, input);
+                        } else {
+                            log::warn!("Permission denied: {}", tool_name);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    last_result.ok_or_else(|| anyhow!("No result field found in stream-json output"))
+}
+
+/// Stream JSON output with visual filtering
+fn run_with_streaming_json(
+    mut cmd: Command,
+    stdin_payload: Option<&[u8]>,
+    bin: &str,
+    timeout: Option<Duration>,
+) -> Result<RunnerOutput, RunnerError> {
+    cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
+    if stdin_payload.is_some() {
+        cmd.stdin(Stdio::piped());
+    }
+
+    #[cfg(unix)]
+    unsafe {
+        cmd.pre_exec(|| {
+            let _ = libc::setpgid(0, 0);
+            Ok(())
+        });
+    }
+
+    let ctrlc = ctrlc_state();
+    ctrlc.interrupted.store(false, Ordering::SeqCst);
+
+    let mut child = cmd.spawn().map_err(|e| {
+        if e.kind() == std::io::ErrorKind::NotFound {
+            RunnerError::BinaryMissing {
+                bin: bin.to_string(),
+                source: e,
+            }
+        } else {
+            RunnerError::SpawnFailed {
+                bin: bin.to_string(),
+                source: e,
+            }
+        }
+    })?;
+
+    if let Some(payload) = stdin_payload {
+        let mut stdin = child.stdin.take().ok_or_else(|| {
+            RunnerError::Other(anyhow!("failed to open stdin for child: {}", bin))
+        })?;
+        stdin.write_all(payload).map_err(RunnerError::Io)?;
+        drop(stdin);
+    }
+
+    #[cfg(unix)]
+    {
+        let mut guard = ctrlc
+            .active_pgid
+            .lock()
+            .map_err(|_| RunnerError::Other(anyhow!("lock ctrl-c state")))?;
+        let pid = child.id() as i32;
+        *guard = Some(pid);
+    }
+
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| RunnerError::Other(anyhow!("capture child stdout")))?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or_else(|| RunnerError::Other(anyhow!("capture child stderr")))?;
+
+    let stdout_buf = Arc::new(Mutex::new(String::new()));
+    let stderr_buf = Arc::new(Mutex::new(String::new()));
+
+    let stdout_handle = spawn_json_reader(stdout, StreamSink::Stdout, Arc::clone(&stdout_buf));
+    let stderr_handle = spawn_reader(stderr, StreamSink::Stderr, Arc::clone(&stderr_buf));
+
+    let status = wait_for_child(&mut child, ctrlc, timeout)?;
+
+    #[cfg(unix)]
+    {
+        let mut guard = ctrlc
+            .active_pgid
+            .lock()
+            .map_err(|_| RunnerError::Other(anyhow!("lock ctrl-c state")))?;
+        *guard = None;
+    }
+
+    stdout_handle
+        .join()
+        .map_err(|_| RunnerError::Other(anyhow!("stdout reader panicked")))?
+        .map_err(RunnerError::Other)?;
+    stderr_handle
+        .join()
+        .map_err(|_| RunnerError::Other(anyhow!("stderr reader panicked")))?
+        .map_err(RunnerError::Other)?;
+
+    let stdout = {
+        let mut guard = stdout_buf
+            .lock()
+            .map_err(|_| RunnerError::Other(anyhow!("lock stdout buffer")))?;
+        std::mem::take(&mut *guard)
+    };
+    let stderr = {
+        let mut guard = stderr_buf
+            .lock()
+            .map_err(|_| RunnerError::Other(anyhow!("lock stderr buffer")))?;
+        std::mem::take(&mut *guard)
+    };
+
+    if ctrlc.interrupted.load(Ordering::SeqCst) {
+        return Err(RunnerError::Interrupted);
+    }
+
+    Ok(RunnerOutput {
+        status,
+        stdout,
+        stderr,
+    })
+}
+
+/// Spawn a reader that parses JSON lines and displays meaningful content
+fn spawn_json_reader<R: Read + Send + 'static>(
+    mut reader: R,
+    sink: StreamSink,
+    buffer: Arc<Mutex<String>>,
+) -> thread::JoinHandle<anyhow::Result<()>> {
+    thread::spawn(move || {
+        let mut buf = [0u8; 8192];
+        let mut line_buf = String::new();
+
+        loop {
+            let read = reader.read(&mut buf).context("read child output")?;
+            if read == 0 {
+                break;
+            }
+
+            let text = String::from_utf8_lossy(&buf[..read]);
+            for ch in text.chars() {
+                if ch == '\n' {
+                    if let Ok(json) = serde_json::from_str::<JsonValue>(&line_buf) {
+                        display_filtered_json(&json, &sink)?;
+                    }
+                    line_buf.clear();
+                } else {
+                    line_buf.push(ch);
+                }
+            }
+
+            // Lock buffer and append
+            let mut guard = buffer
+                .lock()
+                .map_err(|_| anyhow::anyhow!("lock output buffer"))?;
+            guard.push_str(&text);
+        }
+        Ok(())
+    })
+}
+
+/// Display meaningful content from JSON, filtering noise
+fn display_filtered_json(json: &JsonValue, sink: &StreamSink) -> anyhow::Result<()> {
+    // Show result content (plain text, no JSON wrapper)
+    if let Some(result) = json.get("result").and_then(|r| r.as_str()) {
+        match sink {
+            StreamSink::Stdout => {
+                let mut out = std::io::stdout().lock();
+                out.write_all(result.as_bytes())?;
+                out.write_all(b"\n")?;
+                out.flush()?;
+            }
+            StreamSink::Stderr => {
+                let mut err = std::io::stderr().lock();
+                err.write_all(result.as_bytes())?;
+                err.write_all(b"\n")?;
+                err.flush()?;
+            }
+        }
+    }
+
+    // Show permission denials
+    if let Some(denials) = json.get("permission_denials").and_then(|d| d.as_array()) {
+        for denial in denials {
+            if let Some(tool_name) = denial.get("tool_name").and_then(|t| t.as_str()) {
+                let msg = format!("[Permission denied: {}]\n", tool_name);
+                match sink {
+                    StreamSink::Stdout => {
+                        let mut out = std::io::stdout().lock();
+                        out.write_all(msg.as_bytes())?;
+                        out.flush()?;
+                    }
+                    StreamSink::Stderr => {
+                        let mut err = std::io::stderr().lock();
+                        err.write_all(msg.as_bytes())?;
+                        err.flush()?;
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(())
 }
 
 enum StreamSink {
