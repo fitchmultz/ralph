@@ -773,3 +773,30 @@ tasks:
       - Implemented `Display` and `Debug` for `RunnerOutput` to ensure its content is always redacted when displayed.
       - Simplified call sites in `scan_cmd.rs`, `task_cmd.rs`, and `run_cmd.rs` by leveraging automatic redaction.
       - Added unit tests in `runner.rs` to verify redaction in `RunnerError` and `RunnerOutput`.
+  - id: RQ-0100
+    status: done
+    title: Add log statements for task execution lifecycle and duration
+    tags:
+      - rust
+      - logging
+      - runner
+    scope:
+      - crates/ralph/src/run_cmd.rs
+    evidence:
+      - |-
+        Task execution currently logs completion but doesn't log the start or the
+        duration of the run. This makes it hard to track progress in long-running loops.
+    plan:
+      - Add a log message when a task starts execution, including its ID and title.
+      - Record the start time and log the total duration on completion.
+      - Log the runner and model being used for the specific task.
+    notes:
+      - Added a log message when a task starts execution, including its ID, title, runner, and model.
+      - Recorded the start time using `std::time::Instant`.
+      - Logged the total duration on successful completion.
+      - Updated `crates/ralph/src/run_cmd.rs` to implement these lifecycle logs.
+      - Verified with `make ci`.
+    request: scan finding
+    created_at: 2026-01-19T04:00:47Z
+    updated_at: 2026-01-18T22:38:00Z
+    completed_at: 2026-01-18T22:42:00Z

@@ -125,6 +125,14 @@ pub fn run_one(
 
     let settings = resolve_run_agent_settings(resolved, &task, agent_overrides)?;
 
+    log::info!(
+        "Executing {task_id}: {title} (runner: {runner:?}, model: {model})",
+        title = task.title,
+        runner = settings.runner,
+        model = settings.model.as_str()
+    );
+    let start = std::time::Instant::now();
+
     let codex_bin = resolved
         .config
         .agent
@@ -216,7 +224,8 @@ pub fn run_one(
         }
     };
 
-    log::info!("Runner completed successfully for {task_id}.");
+    let duration = start.elapsed();
+    log::info!("Runner completed successfully for {task_id} in {duration:?}.");
 
     post_run_supervise(resolved, &task_id)?;
     Ok(RunOutcome::Ran { task_id })
