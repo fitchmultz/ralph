@@ -349,14 +349,20 @@ fn repair_yaml_structure(raw: &str) -> Option<String> {
 
     for line in raw.lines() {
         let trimmed = line.trim_start();
-        let updated = if line.len() != trimmed.len()
-            && (trimmed.starts_with("version:") || trimmed.starts_with("tasks:"))
-        {
+        let indent = line.len() - trimmed.len();
+
+        let mut updated = line.to_string();
+
+        if let Some(rest) = trimmed.strip_prefix("version:") {
+            let rest = rest.trim();
+            if rest != "1" || indent > 0 {
+                updated = "version: 1".to_string();
+                changed = true;
+            }
+        } else if trimmed.starts_with("tasks:") && indent > 0 {
+            updated = "tasks:".to_string();
             changed = true;
-            trimmed.to_string()
-        } else {
-            line.to_string()
-        };
+        }
 
         out.push_str(&updated);
         out.push('\n');
@@ -532,10 +538,12 @@ fn repair_yaml_scalars(raw: &str) -> Option<String> {
 
         if let Some(rest) = trimmed.strip_prefix("- ") {
             let indent = line.len() - trimmed.len();
-            if indent > 2
-                && (should_quote_scalar(rest) || looks_like_mapping(rest))
-                && !looks_like_task_start(rest)
-            {
+            let is_id = is_id_field(rest);
+            let is_field = looks_like_task_start(rest);
+
+            let skip_quote = if indent <= 2 { is_field } else { is_id };
+
+            if !skip_quote && (should_quote_scalar(rest) || looks_like_mapping(rest)) {
                 let value = rest.trim();
                 updated = format!(
                     "{}- {}",
@@ -794,6 +802,16 @@ fn is_task_field_key(key: &str) -> bool {
 
 fn is_list_field_key(key: &str) -> bool {
     matches!(key, "tags" | "scope" | "evidence" | "plan" | "notes")
+}
+
+fn is_id_field(value: &str) -> bool {
+    if let Some((left, _)) = value.split_once(": ") {
+        return left.trim() == "id";
+    }
+    if let Some(left) = value.strip_suffix(':') {
+        return left.trim() == "id";
+    }
+    false
 }
 
 fn looks_like_task_start(value: &str) -> bool {

@@ -1,23 +1,5 @@
 version: 1
 tasks:
-  - id: RQ-0087
-    status: todo
-    title: Add stress tests for edge-case YAML breakage and recovery
-    tags:
-      - rust
-      - testing
-    scope:
-      - crates/ralph/src/queue.rs
-      - crates/ralph/tests/stress_queue_contract_test.rs
-    evidence:
-      - current stress tests focus on volume, not necessarily complex structural breakage
-    plan:
-      - Add specific test cases for truncated YAML, invalid types, and nested scalar colons
-      - Verify that Ralph reliably repairs or bails with clear errors
-    notes: []
-    request: scan finding
-    created_at: 2026-01-18T22:00:00Z
-    updated_at: 2026-01-18T22:00:00Z
   - id: RQ-0088
     status: todo
     title: Audit CLI help strings for completeness and consistency
@@ -52,3 +34,21 @@ tasks:
     request: scan finding
     created_at: 2026-01-18T22:00:00Z
     updated_at: 2026-01-18T22:00:00Z
+  - id: RQ-0090
+    status: todo
+    title: Add .ralph/README.md creation to `ralph init` when loop prompts reference it
+    tags:
+      - rust
+      - docs
+    scope:
+      - crates/ralph/src/init_cmd.rs
+      - .ralph/README.md
+    evidence:
+      - loop prompts can include .ralph/README.md, but init does not ensure it exists
+    plan:
+      - Detect when loop prompts reference .ralph/README.md
+      - Create .ralph/README.md during `ralph init` when referenced
+      - Add tests to cover prompt references and init behavior
+    notes:
+    created_at: 2026-01-19T03:36:03Z
+    updated_at: 2026-01-19T03:36:03Z

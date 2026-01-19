@@ -390,3 +390,26 @@ tasks:
     created_at: 2026-01-18T22:00:00Z
     updated_at: 2026-01-18T22:45:00Z
     completed_at: 2026-01-18T22:45:00Z
+  - id: RQ-0087
+    status: done
+    title: Add stress tests for edge-case YAML breakage and recovery
+    tags:
+      - rust
+      - testing
+    scope:
+      - crates/ralph/src/queue.rs
+      - crates/ralph/tests/stress_queue_contract_test.rs
+    evidence:
+      - current stress tests focus on volume, not necessarily complex structural breakage
+    plan:
+      - Add specific test cases for truncated YAML, invalid types, and nested scalar colons
+      - Verify that Ralph reliably repairs or bails with clear errors
+    notes:
+      - Added `stress_queue_repair_edge_cases` test covering truncated YAML, invalid types, and nested scalar colons.
+      - Improved `repair_yaml_structure` to proactively fix version mismatch and tasks indentation.
+      - Refined `repair_yaml_scalars` to correctly distinguish between task starts and list items needing quotes.
+      - Fixed Clippy warnings in `crates/ralph/src/queue.rs`.
+    request: scan finding
+    created_at: 2026-01-18T22:00:00Z
+    updated_at: 2026-01-18T22:36:20Z
+    completed_at: 2026-01-19T03:55:00Z

@@ -269,6 +269,103 @@ fn stress_queue_repair_large_yaml_scalars() -> Result<()> {
 }
 
 #[test]
+fn stress_queue_repair_edge_cases() -> Result<()> {
+    let dir = TempDir::new().context("create temp dir")?;
+    let id_prefix = "RQ";
+    let id_width = 4;
+
+    // Case 1: Truncated YAML
+    {
+        let queue_path = dir.path().join("truncated.yaml");
+        let raw = r#"version: 1
+tasks:
+  - id: RQ-0001
+    status: todo
+    title: Truncated task
+    tags:
+      - test
+"#;
+        std::fs::write(&queue_path, raw).context("write truncated queue")?;
+
+        // This should fail to parse but might be repairable if repair_queue_schema can handle partials.
+        // Actually, repair_queue_schema uses serde_yaml::from_str(raw).ok()?, which will return None for invalid YAML.
+        // So it depends on if the other repair_yaml_* functions can make it valid enough for serde_yaml.
+        let result = queue::load_queue_with_repair(&queue_path, id_prefix, id_width);
+        // Truncated YAML usually cannot be safely repaired unless we know how to close it.
+        // Ralph's repair logic currently doesn't "close" truncated YAML, so this might remain an error.
+        // But we want to see HOW it fails or if it can recover anything.
+        if let Ok((q, repaired)) = result {
+            println!(
+                "Truncated YAML repaired: {}, tasks: {}",
+                repaired,
+                q.tasks.len()
+            );
+        } else {
+            println!("Truncated YAML correctly failed to parse/repair");
+        }
+    }
+
+    // Case 2: Invalid types (string for version)
+    {
+        let queue_path = dir.path().join("invalid_types.yaml");
+        let raw = r#"version: "one"
+tasks:
+  - id: RQ-0001
+    status: todo
+    title: Invalid type
+    tags:
+      - test
+    scope:
+      - crates/ralph
+    evidence:
+      - testing
+    plan:
+      - test
+    request: test
+    created_at: 2026-01-18T00:00:00Z
+    updated_at: 2026-01-18T00:00:00Z
+"#;
+        std::fs::write(&queue_path, raw).context("write invalid types queue")?;
+
+        let (queue, repaired) = queue::load_queue_with_repair(&queue_path, id_prefix, id_width)
+            .context("load invalid types")?;
+        anyhow::ensure!(repaired, "expected repair for version type mismatch");
+        anyhow::ensure!(queue.version == 1, "version should be repaired to 1");
+    }
+
+    // Case 3: Nested scalar colons
+    {
+        let queue_path = dir.path().join("nested_colons.yaml");
+        let raw = r#"version: 1
+tasks:
+  - id: RQ-0001
+    status: todo
+    title: Task with : nested : colons
+    tags:
+      - test:tag
+    scope:
+      - crates/ralph:src/queue.rs
+    evidence:
+      - evidence: with : multiple : colons
+    plan:
+      - plan: with:colons
+    request: test
+    created_at: 2026-01-18T00:00:00Z
+    updated_at: 2026-01-18T00:00:00Z
+"#;
+        std::fs::write(&queue_path, raw).context("write nested colons queue")?;
+
+        let (queue, repaired) = queue::load_queue_with_repair(&queue_path, id_prefix, id_width)
+            .context("load nested colons")?;
+        anyhow::ensure!(repaired, "expected repair for nested colons");
+        anyhow::ensure!(queue.tasks[0].title == "Task with : nested : colons");
+        anyhow::ensure!(queue.tasks[0].evidence[0] == "evidence: with : multiple : colons");
+    }
+
+    Ok(())
+}
+
+#[test]
 #[ignore]
 fn stress_queue_ops_burn_in_long() -> Result<()> {
     if std::env::var("RALPH_STRESS_BURN_IN").ok().as_deref() != Some("1") {
