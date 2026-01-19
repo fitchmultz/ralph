@@ -1,26 +1,5 @@
 version: 1
 tasks:
-  - id: RQ-0101
-    status: todo
-    title: Standardize log vs println! usage across command handlers
-    tags:
-      - rust
-      - logging
-      - refactor
-    scope:
-      - crates/ralph/src/main.rs
-    evidence:
-      - |-
-        Command handlers in `main.rs` (like `handle_queue`, `handle_config`) mix `log::info!`
-        and `println!`. Status messages should ideally use the logger to allow filtering.
-    plan:
-      - Audit `handle_*` functions in `main.rs`.
-      - Move status/info messages to `log::info!`.
-      - Keep `println!` only for primary command output (e.g., task IDs, YAML output).
-    notes: []
-    request: scan finding
-    created_at: 2026-01-19T04:00:47Z
-    updated_at: 2026-01-19T04:00:47Z
   - id: RQ-0092
     status: todo
     title: Refactor doctor_cmd.rs to use standardized logging and levels

@@ -298,13 +298,13 @@ fn handle_init(args: InitArgs, force_lock: bool) -> Result<()> {
     fn report_status(label: &str, status: init_cmd::FileInitStatus, path: &std::path::Path) {
         match status {
             init_cmd::FileInitStatus::Created => {
-                println!("{}: created ({})", label, path.display())
+                log::info!("{}: created ({})", label, path.display())
             }
             init_cmd::FileInitStatus::Valid => {
-                println!("{}: exists (valid) ({})", label, path.display())
+                log::info!("{}: exists (valid) ({})", label, path.display())
             }
             init_cmd::FileInitStatus::Repaired => {
-                println!("{}: exists (repaired) ({})", label, path.display())
+                log::info!("{}: exists (repaired) ({})", label, path.display())
             }
         }
     }
@@ -318,7 +318,7 @@ fn handle_init(args: InitArgs, force_lock: bool) -> Result<()> {
     if let Some(path) = resolved.project_config_path.as_ref() {
         report_status("config", report.config_status, path);
     } else {
-        println!("config: unavailable");
+        log::info!("config: unavailable");
     }
     Ok(())
 }

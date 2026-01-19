@@ -1,5 +1,32 @@
 version: 1
 tasks:
+  - id: RQ-0101
+    status: done
+    title: Standardize log vs println! usage across command handlers
+    tags:
+      - rust
+      - logging
+      - refactor
+    scope:
+      - crates/ralph/src/main.rs
+    evidence:
+      - |-
+        Command handlers in `main.rs` (like `handle_queue`, `handle_config`) mix `log::info!`
+        and `println!`. Status messages should ideally use the logger to allow filtering.
+    plan:
+      - Audit `handle_*` functions in `main.rs`.
+      - Move status/info messages to `log::info!`.
+      - Keep `println!` only for primary command output (e.g., task IDs, YAML output).
+    request: scan finding
+    created_at: 2026-01-19T04:00:47Z
+    updated_at: 2026-01-18T18:00:00Z
+    completed_at: 2026-01-18T18:15:00Z
+    notes:
+      - Audited `handle_*` functions in `main.rs` for `println!` vs `log::info!` usage.
+      - Refactored `handle_init` to use `log::info!` for status reporting.
+      - Confirmed `handle_queue` status messages already use `log::info!`.
+      - Maintained `println!` for primary command output (IDs, YAML, Config Paths).
+      - Verified that `make ci` passes with all tests reflecting new log output format.
   - id: RQ-0069
     status: done
     title: Backfill missing request and timestamps after scan or task build
