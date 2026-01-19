@@ -21,6 +21,31 @@ const DEFAULT_SCAN_PROMPT: &str = include_str!(concat!(
     "/assets/prompts/scan.md"
 ));
 
+/// Instructions for planning phase: set task status to "doing" as the first action
+pub const TASK_STATUS_DOING_INSTRUCTION: &str = r#"
+## PLANNING PHASE EXCEPTION: Task Status Update
+As the FIRST action, you MUST update the task status:
+1. Read `.ralph/queue.yaml`
+2. Find the first `todo` task (this is your task)
+3. Set its `status` to `doing`
+4. Set its `updated_at` to current UTC RFC3339 time
+5. Write the updated `.ralph/queue.yaml`
+
+This is the ONLY edit allowed during planning. After this status update, proceed with read-only exploration.
+"#;
+
+/// Instructions for implementation phase: complete task and move to done.yaml
+pub const TASK_COMPLETION_WORKFLOW: &str = r#"
+## IMPLEMENTATION COMPLETION CHECKLIST
+When implementation is complete, you MUST:
+1. Set task `status: done` with `completed_at` timestamp
+2. Add 1-5 `notes` bullets (what changed, how to verify, what's next)
+3. Move task from `.ralph/queue.yaml` to END of `.ralph/done.yaml`
+4. Run `make ci` - must pass 100%
+5. Commit all changes: `RQ-####: <short summary>`
+6. Push and verify `git status --porcelain` is empty
+"#;
+
 pub fn prompts_reference_readme(repo_root: &Path) -> Result<bool> {
     let worker = load_worker_prompt(repo_root)?;
     let task_builder = load_task_builder_prompt(repo_root)?;

@@ -3,6 +3,7 @@
 use crate::contracts::{
     AgentConfig, ClaudePermissionMode, Model, ReasoningEffort, Runner, TaskAgent,
 };
+use crate::prompts::{TASK_COMPLETION_WORKFLOW, TASK_STATUS_DOING_INSTRUCTION};
 use crate::redaction::{redact_text, RedactedString};
 use anyhow::{anyhow, bail, Context, Result};
 use serde_json::Value as JsonValue;
@@ -439,7 +440,7 @@ fn run_opencode_two_pass(
     let plan_text = plan_output.stdout.trim().to_string();
 
     // Pass 2: Implement
-    let implementation_prompt = format!("Implement this plan:\n\n{}", plan_text);
+    let implementation_prompt = build_opencode_implementation_prompt(&plan_text);
     log::info!(
         "OpenCode two-pass mode: implementing plan ({} bytes)",
         implementation_prompt.len()
@@ -461,12 +462,35 @@ fn generate_opencode_plan(
 
 fn build_opencode_planning_prompt(prompt: &str) -> String {
     format!(
-        "PLANNING MODE: You are in planning mode. You MUST use the RepoPrompt context_builder tool \
-        to generate the plan. Do not proceed without using context_builder first. Analyze the \
-        codebase and generate a plan, but DO NOT make any edits or changes. Only explore using tools, \
-        then output your plan. This phase is ONLY for plan generation; do not implement anything, \
-        even after the plan is produced. Implementation happens only in phase 2.\n\n{}",
-        prompt
+        r#"PLANNING MODE - PHASE 1 OF 2
+
+{TASK_STATUS_DOING_INSTRUCTION}
+
+## AFTER STATUS UPDATE: Read-only exploration
+- Use RepoPrompt context_builder to generate the plan
+- DO NOT make any other edits or changes
+- DO NOT implement anything
+- Only explore, then output your plan
+
+Implementation happens in Phase 2.
+
+---
+
+{prompt}"#
+    )
+}
+
+fn build_opencode_implementation_prompt(plan_text: &str) -> String {
+    format!(
+        r#"IMPLEMENTATION MODE - PHASE 2 OF 2
+
+Implement the plan below completely and correctly.
+
+{TASK_COMPLETION_WORKFLOW}
+
+## PLAN TO IMPLEMENT:
+
+{plan_text}"#
     )
 }
 
@@ -568,7 +592,7 @@ fn run_claude_two_pass(
     };
 
     // Pass 2: Implement with configured permission mode
-    let implementation_prompt = format!("Implement this plan:\n\n{}", plan_text);
+    let implementation_prompt = build_claude_implementation_prompt(&plan_text);
 
     log::info!(
         "Claude two-pass mode: implementing plan ({} bytes)",
@@ -612,12 +636,35 @@ fn generate_claude_plan(
 
 fn build_claude_planning_prompt(prompt: &str) -> String {
     format!(
-        "PLANNING MODE: You are in planning mode. You MUST use the RepoPrompt context_builder tool \
-        to generate the plan. Do not proceed without using context_builder first. Analyze the \
-        codebase and generate a plan, but DO NOT make any edits or changes. Only explore using tools, \
-        then output your plan. This phase is ONLY for plan generation; do not implement anything, \
-        even after the plan is produced. Implementation happens only in phase 2.\n\n{}",
-        prompt
+        r#"PLANNING MODE - PHASE 1 OF 2
+
+{TASK_STATUS_DOING_INSTRUCTION}
+
+## AFTER STATUS UPDATE: Read-only exploration
+- Use RepoPrompt context_builder to generate the plan
+- DO NOT make any other edits or changes
+- DO NOT implement anything
+- Only explore, then output your plan
+
+Implementation happens in Phase 2.
+
+---
+
+{prompt}"#
+    )
+}
+
+fn build_claude_implementation_prompt(plan_text: &str) -> String {
+    format!(
+        r#"IMPLEMENTATION MODE - PHASE 2 OF 2
+
+Implement the plan below completely and correctly.
+
+{TASK_COMPLETION_WORKFLOW}
+
+## PLAN TO IMPLEMENT:
+
+{plan_text}"#
     )
 }
 
@@ -1199,10 +1246,10 @@ mod tests {
         let user_prompt = "Do the thing.";
         let planning_prompt = build_claude_planning_prompt(user_prompt);
 
-        assert!(planning_prompt.contains("MUST use the RepoPrompt context_builder tool"));
-        assert!(planning_prompt.contains("DO NOT make any edits"));
-        assert!(planning_prompt.contains("ONLY for plan generation"));
-        assert!(planning_prompt.contains("Implementation happens only in phase 2"));
+        assert!(planning_prompt.contains("PLANNING MODE - PHASE 1 OF 2"));
+        assert!(planning_prompt.contains("Set its `status` to `doing`"));
+        assert!(planning_prompt.contains("ONLY edit allowed during planning"));
+        assert!(planning_prompt.contains("Implementation happens in Phase 2"));
         assert!(planning_prompt.ends_with(user_prompt));
     }
 
@@ -1210,7 +1257,35 @@ mod tests {
     fn build_opencode_planning_prompt_requires_context_builder() {
         let user_prompt = "Do the thing.";
         let planning_prompt = build_opencode_planning_prompt(user_prompt);
-        assert!(planning_prompt.contains("MUST use the RepoPrompt context_builder tool"));
-        assert!(planning_prompt.contains("DO NOT make any edits"));
+        assert!(planning_prompt.contains("PLANNING MODE - PHASE 1 OF 2"));
+        assert!(planning_prompt.contains("Set its `status` to `doing`"));
+        assert!(planning_prompt.contains("ONLY edit allowed during planning"));
+    }
+
+    #[test]
+    fn build_claude_implementation_prompt_contains_completion_workflow() {
+        let plan = "Step 1: Do this\nStep 2: Do that";
+        let impl_prompt = build_claude_implementation_prompt(plan);
+
+        assert!(impl_prompt.contains("IMPLEMENTATION MODE - PHASE 2 OF 2"));
+        assert!(impl_prompt.contains("Set task `status: done`"));
+        assert!(impl_prompt.contains("completed_at"));
+        assert!(impl_prompt.contains("Move task from `.ralph/queue.yaml`"));
+        assert!(impl_prompt.contains("`.ralph/done.yaml`"));
+        assert!(impl_prompt.contains("Run `make ci`"));
+        assert!(impl_prompt.contains("must pass 100%"));
+        assert!(impl_prompt.ends_with(plan));
+    }
+
+    #[test]
+    fn build_opencode_implementation_prompt_contains_completion_workflow() {
+        let plan = "Step 1: Do this\nStep 2: Do that";
+        let impl_prompt = build_opencode_implementation_prompt(plan);
+
+        assert!(impl_prompt.contains("IMPLEMENTATION MODE - PHASE 2 OF 2"));
+        assert!(impl_prompt.contains("Set task `status: done`"));
+        assert!(impl_prompt.contains("Run `make ci`"));
+        assert!(impl_prompt.contains("git status --porcelain"));
+        assert!(impl_prompt.ends_with(plan));
     }
 }
