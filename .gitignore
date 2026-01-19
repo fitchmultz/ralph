@@ -9,4 +9,3 @@ ralph_tui/ralph
 .ralph/logs/
 target/
 .ralph/lock
-.claude/settings.local.json
