@@ -510,3 +510,29 @@ tasks:
     created_at: 2026-01-19T04:00:47Z
     updated_at: 2026-01-19T05:00:00Z
     completed_at: 2026-01-19T05:00:00Z
+  - id: RQ-0103
+    status: done
+    title: Implement RedactedError wrapper for safe error display
+    tags:
+      - rust
+      - safety
+      - error-handling
+    scope:
+      - crates/ralph/src/redaction.rs
+    evidence:
+      - |-
+        There is no easy way to wrap an arbitrary `anyhow::Error` and ensure it is
+        redacted when displayed. This leads to manual redaction logic at various display sites.
+    plan:
+      - Create a `RedactedError(anyhow::Error)` wrapper in `redaction.rs`.
+      - Implement `Display` and `Debug` for it, applying `redact_text` to the output.
+      - Provide a helper method `redacted()` for `Result` to easily wrap errors.
+    notes:
+      - Implemented `RedactedError` struct wrapping `anyhow::Error`.
+      - Implemented `Display` and `Debug` for `RedactedError` to automatically apply redaction.
+      - Added `Redactable` trait with `redacted()` helper for `Result`.
+      - Added unit tests for `RedactedError` and `Redactable`.
+    request: scan finding
+    created_at: 2026-01-19T04:00:47Z
+    updated_at: 2026-01-19T05:15:00Z
+    completed_at: 2026-01-19T05:15:00Z

@@ -1,5 +1,45 @@
+use std::fmt;
+
 const REDACTED: &str = "[REDACTED]";
 const MIN_ENV_VALUE_LEN: usize = 6;
+
+/// A wrapper around `anyhow::Error` that applies redaction when displayed via `Display` or `Debug`.
+#[allow(dead_code)]
+pub struct RedactedError(pub anyhow::Error);
+
+impl fmt::Display for RedactedError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let text = format!("{}", self.0);
+        write!(f, "{}", redact_text(&text))
+    }
+}
+
+impl fmt::Debug for RedactedError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Redact both the main error and the alternate format (full chain/backtrace)
+        let text = if f.alternate() {
+            format!("{:#?}", self.0)
+        } else {
+            format!("{:?}", self.0)
+        };
+        write!(f, "{}", redact_text(&text))
+    }
+}
+
+/// Helper trait to easily wrap `anyhow::Error` or `Result` into a `RedactedError`.
+#[allow(dead_code)]
+pub trait Redactable<T, E> {
+    fn redacted(self) -> Result<T, RedactedError>;
+}
+
+impl<T, E> Redactable<T, E> for Result<T, E>
+where
+    E: Into<anyhow::Error>,
+{
+    fn redacted(self) -> Result<T, RedactedError> {
+        self.map_err(|e| RedactedError(e.into()))
+    }
+}
 
 pub fn redact_text(value: &str) -> String {
     if value.trim().is_empty() {
@@ -474,5 +514,34 @@ mod tests {
 
         assert!(!output.contains("supersecretkeyvalue"));
         assert!(output.contains(REDACTED));
+    }
+
+    #[test]
+    fn redacted_error_display_redacts_content() {
+        let err = anyhow::anyhow!("failed to connect: API_KEY=secret123");
+        let wrapped = RedactedError(err);
+        let output = format!("{}", wrapped);
+        assert!(!output.contains("secret123"));
+        assert!(output.contains("API_KEY=[REDACTED]"));
+    }
+
+    #[test]
+    fn redacted_error_debug_redacts_content() {
+        let err = anyhow::anyhow!("failed to connect: API_KEY=secret123");
+        let wrapped = RedactedError(err);
+        let output = format!("{:?}", wrapped);
+        assert!(!output.contains("secret123"));
+        assert!(output.contains("API_KEY=[REDACTED]"));
+    }
+
+    #[test]
+    fn redactable_trait_wraps_result_error() {
+        fn fail() -> anyhow::Result<()> {
+            anyhow::bail!("API_KEY=secret123")
+        }
+        let res = fail().redacted();
+        assert!(res.is_err());
+        let err = res.unwrap_err();
+        assert!(format!("{}", err).contains("API_KEY=[REDACTED]"));
     }
 }
