@@ -73,8 +73,11 @@ agent:
   two_pass_plan: true
 ```
 
-Allowed models: `gpt-5.2-codex`, `gpt-5.2`, `zai-coding-plan/glm-4.7`, `gemini-3-pro-preview`, `gemini-3-flash-preview`, `sonnet`, `opus`. Note: Codex
-supports only `gpt-5.2-codex` and `gpt-5.2`; OpenCode/Gemini/Claude accept arbitrary model IDs.
+**Allowed models by runner:**
+- **Codex**: `gpt-5.2-codex`, `gpt-5.2` (only these two)
+- **OpenCode**: arbitrary model IDs (e.g., `zai-coding-plan/glm-4.7`)
+- **Gemini**: `gemini-3-pro-preview`, `gemini-3-flash-preview`, or arbitrary IDs
+- **Claude**: `sonnet` (default), `opus`, or arbitrary model IDs
 
 **Two-pass plan mode**: When enabled (`two_pass_plan: true`), Claude first generates a plan in plan mode, then implements it with auto-approval. This provides better structure and visibility into planned changes. If plan generation fails, falls back to direct implementation. Currently supported for Claude runner only; will expand to OpenCode in the future.
 
