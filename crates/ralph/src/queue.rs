@@ -17,9 +17,9 @@ pub struct RepairReport {
     pub repaired: bool,
 }
 
-pub fn acquire_queue_lock(repo_root: &Path, label: &str) -> Result<fsutil::DirLock> {
+pub fn acquire_queue_lock(repo_root: &Path, label: &str, force: bool) -> Result<fsutil::DirLock> {
     let lock_dir = fsutil::queue_lock_dir(repo_root);
-    fsutil::acquire_dir_lock(&lock_dir, label)
+    fsutil::acquire_dir_lock(&lock_dir, label, force)
 }
 
 pub fn load_queue_or_default_with_repair(path: &Path) -> Result<(QueueFile, bool)> {

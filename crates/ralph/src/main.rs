@@ -16,7 +16,7 @@ mod runner;
 mod scan_cmd;
 mod task_cmd;
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
 use crate::contracts::{Runner as RunnerKind, Task, TaskStatus};
@@ -32,17 +32,17 @@ fn run() -> Result<()> {
     dotenvy::dotenv().ok();
     let cli = Cli::parse();
     match cli.command {
-        Command::Queue(args) => handle_queue(args.command),
+        Command::Queue(args) => handle_queue(args.command, cli.force),
         Command::Config(args) => handle_config(args.command),
-        Command::Run(args) => handle_run(args.command),
-        Command::Task(args) => handle_task(args.command),
-        Command::Scan(args) => handle_scan(args),
-        Command::Init(args) => handle_init(args),
+        Command::Run(args) => handle_run(args.command, cli.force),
+        Command::Task(args) => handle_task(args.command, cli.force),
+        Command::Scan(args) => handle_scan(args, cli.force),
+        Command::Init(args) => handle_init(args, cli.force),
         Command::Doctor => handle_doctor(),
     }
 }
 
-fn handle_queue(cmd: QueueCommand) -> Result<()> {
+fn handle_queue(cmd: QueueCommand, force: bool) -> Result<()> {
     let resolved = config::resolve_from_cwd()?;
     match cmd {
         QueueCommand::Validate => {
@@ -203,7 +203,7 @@ fn handle_queue(cmd: QueueCommand) -> Result<()> {
             }
         }
         QueueCommand::Done => {
-            let _queue_lock = queue::acquire_queue_lock(&resolved.repo_root, "queue done")?;
+            let _queue_lock = queue::acquire_queue_lock(&resolved.repo_root, "queue done", force)?;
             let report = queue::archive_done_tasks(
                 &resolved.queue_path,
                 &resolved.done_path,
@@ -216,8 +216,22 @@ fn handle_queue(cmd: QueueCommand) -> Result<()> {
                 println!(">> [RALPH] Moved {} done task(s).", report.moved_ids.len());
             }
         }
+        QueueCommand::Unlock => {
+            let lock_dir = fsutil::queue_lock_dir(&resolved.repo_root);
+            if lock_dir.exists() {
+                std::fs::remove_dir_all(&lock_dir)
+                    .with_context(|| format!("remove lock dir {}", lock_dir.display()))?;
+                println!(
+                    ">> [RALPH] Queue unlocked (removed {}).",
+                    lock_dir.display()
+                );
+            } else {
+                println!(">> [RALPH] Queue is not locked.");
+            }
+        }
         QueueCommand::Repair => {
-            let _queue_lock = queue::acquire_queue_lock(&resolved.repo_root, "queue repair")?;
+            let _queue_lock =
+                queue::acquire_queue_lock(&resolved.repo_root, "queue repair", force)?;
             let report = queue::repair_queue(&resolved.queue_path)?;
             if report.repaired {
                 println!(">> [RALPH] Repaired queue YAML.");
@@ -230,7 +244,8 @@ fn handle_queue(cmd: QueueCommand) -> Result<()> {
             status,
             note,
         } => {
-            let _queue_lock = queue::acquire_queue_lock(&resolved.repo_root, "queue set-status")?;
+            let _queue_lock =
+                queue::acquire_queue_lock(&resolved.repo_root, "queue set-status", force)?;
             let (mut queue_file, repaired_queue) =
                 queue::load_queue_with_repair(&resolved.queue_path)?;
             queue::warn_if_repaired(&resolved.queue_path, repaired_queue);
@@ -274,9 +289,15 @@ fn handle_config(cmd: ConfigCommand) -> Result<()> {
     Ok(())
 }
 
-fn handle_init(args: InitArgs) -> Result<()> {
+fn handle_init(args: InitArgs, force_lock: bool) -> Result<()> {
     let resolved = config::resolve_from_cwd()?;
-    let report = init_cmd::run_init(&resolved, init_cmd::InitOptions { force: args.force })?;
+    let report = init_cmd::run_init(
+        &resolved,
+        init_cmd::InitOptions {
+            force: args.force,
+            force_lock,
+        },
+    )?;
     if report.queue_created {
         println!("queue: created ({})", resolved.queue_path.display());
     } else {
@@ -306,12 +327,12 @@ fn handle_doctor() -> Result<()> {
     doctor_cmd::run_doctor(&resolved)
 }
 
-fn handle_run(cmd: RunCommand) -> Result<()> {
+fn handle_run(cmd: RunCommand, force: bool) -> Result<()> {
     let resolved = config::resolve_from_cwd()?;
     match cmd {
         RunCommand::One(args) => {
             let overrides = resolve_run_agent_overrides(&args.agent)?;
-            let _ = run_cmd::run_one(&resolved, &overrides)?;
+            let _ = run_cmd::run_one(&resolved, &overrides, force)?;
             Ok(())
         }
         RunCommand::Loop(args) => {
@@ -321,13 +342,14 @@ fn handle_run(cmd: RunCommand) -> Result<()> {
                 run_cmd::RunLoopOptions {
                     max_tasks: args.max_tasks,
                     agent_overrides: overrides,
+                    force,
                 },
             )
         }
     }
 }
 
-fn handle_task(cmd: TaskCommand) -> Result<()> {
+fn handle_task(cmd: TaskCommand, force: bool) -> Result<()> {
     let resolved = config::resolve_from_cwd()?;
     match cmd {
         TaskCommand::Build(args) => {
@@ -348,13 +370,14 @@ fn handle_task(cmd: TaskCommand) -> Result<()> {
                     runner: runner_kind,
                     model,
                     reasoning_effort,
+                    force,
                 },
             )
         }
     }
 }
 
-fn handle_scan(args: ScanArgs) -> Result<()> {
+fn handle_scan(args: ScanArgs, force: bool) -> Result<()> {
     let resolved = config::resolve_from_cwd()?;
     let (runner_kind, model, reasoning_effort) = resolve_agent_args(
         &resolved,
@@ -370,6 +393,7 @@ fn handle_scan(args: ScanArgs) -> Result<()> {
             runner: runner_kind,
             model,
             reasoning_effort,
+            force,
         },
     )
 }
@@ -513,6 +537,10 @@ fn resolve_list_limit(limit: u32, all: bool) -> Option<usize> {
 struct Cli {
     #[command(subcommand)]
     command: Command,
+
+    /// Force operations (e.g., bypass stale queue locks).
+    #[arg(long, global = true)]
+    force: bool,
 }
 
 #[derive(Subcommand)]
@@ -638,6 +666,8 @@ enum QueueCommand {
     List(QueueListArgs),
     /// Move completed tasks from queue.yaml to done.yaml.
     Done,
+    /// Remove the queue lock file.
+    Unlock,
     /// Repair invalid YAML scalars in the queue file.
     Repair,
     /// Update a task status in the active queue.

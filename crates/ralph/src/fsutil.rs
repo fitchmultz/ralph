@@ -37,7 +37,7 @@ pub fn queue_lock_dir(repo_root: &Path) -> PathBuf {
     repo_root.join(".ralph").join("lock")
 }
 
-pub fn acquire_dir_lock(lock_dir: &Path, label: &str) -> Result<DirLock> {
+pub fn acquire_dir_lock(lock_dir: &Path, label: &str, force: bool) -> Result<DirLock> {
     if let Some(parent) = lock_dir.parent() {
         fs::create_dir_all(parent)
             .with_context(|| format!("create lock parent {}", parent.display()))?;
@@ -55,6 +55,16 @@ pub fn acquire_dir_lock(lock_dir: &Path, label: &str) -> Result<DirLock> {
                 }
             };
 
+            let is_stale = owner
+                .as_ref()
+                .is_some_and(|o| pid_is_running(o.pid) == Some(false));
+
+            if force && is_stale {
+                let _ = fs::remove_dir_all(lock_dir);
+                // Retry once
+                return acquire_dir_lock(lock_dir, label, false);
+            }
+
             let mut msg = if let Some(owner) = owner {
                 let mut base = format!(
                     "queue lock is held by pid {} (label: {}, started_at: {}, command: {}) at {}",
@@ -64,7 +74,7 @@ pub fn acquire_dir_lock(lock_dir: &Path, label: &str) -> Result<DirLock> {
                     owner.command,
                     lock_dir.display()
                 );
-                if let Some(false) = pid_is_running(owner.pid) {
+                if is_stale {
                     base.push_str(" (stale pid)");
                 }
                 base
@@ -79,10 +89,17 @@ pub fn acquire_dir_lock(lock_dir: &Path, label: &str) -> Result<DirLock> {
                 msg.push_str(" (owner metadata unreadable)");
             }
 
-            msg.push_str(&format!(
-                "; remove {} if you are sure no other ralph process is running",
-                lock_dir.display()
-            ));
+            if is_stale {
+                msg.push_str(&format!(
+                    "; use --force or remove {} to unlock",
+                    lock_dir.display()
+                ));
+            } else {
+                msg.push_str(&format!(
+                    "; remove {} if you are sure no other ralph process is running",
+                    lock_dir.display()
+                ));
+            }
             return Err(anyhow!(msg));
         }
         Err(err) => {

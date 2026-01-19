@@ -8,6 +8,7 @@ use std::path::Path;
 
 pub struct InitOptions {
     pub force: bool,
+    pub force_lock: bool,
 }
 
 pub struct InitReport {
@@ -20,7 +21,7 @@ pub fn run_init(resolved: &config::Resolved, opts: InitOptions) -> Result<InitRe
     let ralph_dir = resolved.repo_root.join(".ralph");
     fs::create_dir_all(&ralph_dir).with_context(|| format!("create {}", ralph_dir.display()))?;
 
-    let _queue_lock = queue::acquire_queue_lock(&resolved.repo_root, "init")?;
+    let _queue_lock = queue::acquire_queue_lock(&resolved.repo_root, "init", opts.force_lock)?;
 
     let queue_created = write_queue(&resolved.queue_path, opts.force)?;
     let done_created = write_done(&resolved.done_path, opts.force)?;
@@ -106,7 +107,13 @@ mod tests {
     fn init_creates_missing_files() -> Result<()> {
         let dir = TempDir::new()?;
         let resolved = resolved_for(&dir);
-        let report = run_init(&resolved, InitOptions { force: false })?;
+        let report = run_init(
+            &resolved,
+            InitOptions {
+                force: false,
+                force_lock: false,
+            },
+        )?;
         assert!(report.queue_created);
         assert!(report.done_created);
         assert!(report.config_created);
@@ -133,7 +140,13 @@ mod tests {
             resolved.project_config_path.as_ref().unwrap(),
             "version: 1\nqueue:\n  file: .ralph/queue.yaml\n",
         )?;
-        let report = run_init(&resolved, InitOptions { force: false })?;
+        let report = run_init(
+            &resolved,
+            InitOptions {
+                force: false,
+                force_lock: false,
+            },
+        )?;
         assert!(!report.queue_created);
         assert!(!report.done_created);
         assert!(!report.config_created);
@@ -155,7 +168,13 @@ mod tests {
             resolved.project_config_path.as_ref().unwrap(),
             "version: 1\nproject_type: docs\n",
         )?;
-        let report = run_init(&resolved, InitOptions { force: true })?;
+        let report = run_init(
+            &resolved,
+            InitOptions {
+                force: true,
+                force_lock: false,
+            },
+        )?;
         assert!(report.queue_created);
         assert!(report.done_created);
         assert!(report.config_created);

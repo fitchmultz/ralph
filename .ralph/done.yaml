@@ -77,3 +77,29 @@ tasks:
       - Added dotenvy = "0.15" to crates/ralph/Cargo.toml
       - Loaded dotenv early in crates/ralph/src/main.rs using dotenvy::dotenv().ok()
       - Verified with make ci
+  - id: RQ-0073
+    status: done
+    title: Handle stale queue locks via auto-clean or force unlock command
+    tags:
+      - rust
+      - ux
+      - queue
+    scope:
+      - crates/ralph/src/fsutil.rs
+      - crates/ralph/src/main.rs
+    evidence:
+      - acquire_dir_lock only reports stale pid and requires manual removal of .ralph/lock
+    plan:
+      - Add stale lock detection and an opt-in auto-clean or queue unlock command
+      - Ensure lock cleanup is safe when the pid is still active
+      - Add tests for stale lock cleanup behavior
+    request: scan finding
+    created_at: 2026-01-18T20:45:41Z
+    updated_at: 2026-01-18T20:53:00Z
+    completed_at: 2026-01-19T00:41:00Z
+    notes:
+      - Added `force` flag to `acquire_dir_lock` and `acquire_queue_lock` to auto-clean stale locks.
+      - Added global `--force` flag to CLI to opt-in to stale lock cleanup.
+      - Added `ralph queue unlock` command to manually remove the lock directory.
+      - Added regression tests in `crates/ralph/tests/stale_lock_cleanup_test.rs`.
+      - Ensured lock cleanup is skipped if the PID is still active, even with `--force`.

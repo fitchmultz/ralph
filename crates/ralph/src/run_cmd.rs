@@ -21,6 +21,7 @@ pub struct RunLoopOptions {
     /// 0 means "no limit"
     pub max_tasks: u32,
     pub agent_overrides: AgentOverrides,
+    pub force: bool,
 }
 
 pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()> {
@@ -31,7 +32,7 @@ pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()>
             return Ok(());
         }
 
-        match run_one(resolved, &opts.agent_overrides)? {
+        match run_one(resolved, &opts.agent_overrides, opts.force)? {
             RunOutcome::NoTodo => return Ok(()),
             RunOutcome::Ran { task_id } => {
                 completed += 1;
@@ -44,8 +45,9 @@ pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()>
 pub fn run_one(
     resolved: &config::Resolved,
     agent_overrides: &AgentOverrides,
+    force: bool,
 ) -> Result<RunOutcome> {
-    let _queue_lock = queue::acquire_queue_lock(&resolved.repo_root, "run one")?;
+    let _queue_lock = queue::acquire_queue_lock(&resolved.repo_root, "run one", force)?;
     let (queue_file, repaired_queue) = queue::load_queue_with_repair(&resolved.queue_path)?;
     queue::warn_if_repaired(&resolved.queue_path, repaired_queue);
     let (done, repaired_done) = queue::load_queue_or_default_with_repair(&resolved.done_path)?;

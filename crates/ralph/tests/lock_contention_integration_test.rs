@@ -23,7 +23,7 @@ fn lock_holder_process() -> Result<()> {
 
     std::fs::create_dir_all(repo_root.join(".ralph")).context("create .ralph dir")?;
 
-    let _lock = queue::acquire_queue_lock(&repo_root, "lock holder")?;
+    let _lock = queue::acquire_queue_lock(&repo_root, "lock holder", false)?;
     println!("LOCK_HELD");
     let _ = std::io::stdout().flush();
 
@@ -85,7 +85,7 @@ fn lock_contention_blocks_second_process() -> Result<()> {
 
     anyhow::ensure!(got_signal, "lock holder did not signal readiness");
 
-    let err = queue::acquire_queue_lock(&repo_root, "contender").unwrap_err();
+    let err = queue::acquire_queue_lock(&repo_root, "contender", false).unwrap_err();
     let msg = format!("{err:#}");
     let lock_dir = fsutil::queue_lock_dir(&repo_root);
 
