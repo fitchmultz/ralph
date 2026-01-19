@@ -1,23 +1,5 @@
 version: 1
 tasks:
-  - id: RQ-0086
-    status: todo
-    title: Audit config.rs for robust error handling and layering
-    tags:
-      - rust
-      - correctness
-    scope:
-      - crates/ralph/src/config.rs
-    evidence:
-      - apply_layer uses manual field-by-field copy; missing some validation checks
-    plan:
-      - Audit apply_layer for missing fields or inconsistent merging
-      - Ensure all Option fields in ConfigLayer are correctly handled
-      - Add more descriptive errors for invalid config values
-    notes: []
-    request: scan finding
-    created_at: 2026-01-18T22:00:00Z
-    updated_at: 2026-01-18T22:00:00Z
   - id: RQ-0087
     status: todo
     title: Add stress tests for edge-case YAML breakage and recovery

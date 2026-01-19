@@ -44,6 +44,23 @@ pub struct QueueConfig {
     pub id_width: Option<u8>,
 }
 
+impl QueueConfig {
+    pub fn merge_from(&mut self, other: Self) {
+        if other.file.is_some() {
+            self.file = other.file;
+        }
+        if other.done_file.is_some() {
+            self.done_file = other.done_file;
+        }
+        if other.id_prefix.is_some() {
+            self.id_prefix = other.id_prefix;
+        }
+        if other.id_width.is_some() {
+            self.id_width = other.id_width;
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(default, deny_unknown_fields)]
 pub struct AgentConfig {
@@ -64,6 +81,29 @@ pub struct AgentConfig {
 
     /// Override the gemini executable name/path (default is "gemini" if None).
     pub gemini_bin: Option<String>,
+}
+
+impl AgentConfig {
+    pub fn merge_from(&mut self, other: Self) {
+        if other.runner.is_some() {
+            self.runner = other.runner;
+        }
+        if other.model.is_some() {
+            self.model = other.model;
+        }
+        if other.reasoning_effort.is_some() {
+            self.reasoning_effort = other.reasoning_effort;
+        }
+        if other.codex_bin.is_some() {
+            self.codex_bin = other.codex_bin;
+        }
+        if other.opencode_bin.is_some() {
+            self.opencode_bin = other.opencode_bin;
+        }
+        if other.gemini_bin.is_some() {
+            self.gemini_bin = other.gemini_bin;
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]

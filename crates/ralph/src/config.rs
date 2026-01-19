@@ -1,5 +1,5 @@
 use crate::contracts::{AgentConfig, Config, ProjectType, QueueConfig};
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs;
@@ -39,19 +39,19 @@ pub fn resolve_from_cwd() -> Result<Resolved> {
         if path.exists() {
             let layer = load_layer(path)
                 .with_context(|| format!("load global config {}", path.display()))?;
-            cfg = apply_layer(cfg, layer)?;
+            cfg = apply_layer(cfg, layer)
+                .with_context(|| format!("apply global config {}", path.display()))?;
         }
     }
 
     if project_path.exists() {
         let layer = load_layer(&project_path)
             .with_context(|| format!("load project config {}", project_path.display()))?;
-        cfg = apply_layer(cfg, layer)?;
+        cfg = apply_layer(cfg, layer)
+            .with_context(|| format!("apply project config {}", project_path.display()))?;
     }
 
-    if cfg.version != 1 {
-        return Err(anyhow!("config version must be 1 (got {})", cfg.version));
-    }
+    validate_config(&cfg)?;
 
     let id_prefix = resolve_id_prefix(&cfg)?;
     let id_width = resolve_id_width(&cfg)?;
@@ -89,39 +89,58 @@ fn apply_layer(mut base: Config, layer: ConfigLayer) -> Result<Config> {
         base.project_type = Some(project_type);
     }
 
-    if let Some(file) = layer.queue.file {
-        base.queue.file = Some(file);
-    }
-    if let Some(file) = layer.queue.done_file {
-        base.queue.done_file = Some(file);
-    }
-    if let Some(prefix) = layer.queue.id_prefix {
-        base.queue.id_prefix = Some(prefix);
-    }
-    if let Some(width) = layer.queue.id_width {
-        base.queue.id_width = Some(width);
-    }
-
-    if let Some(runner) = layer.agent.runner {
-        base.agent.runner = Some(runner);
-    }
-    if let Some(model) = layer.agent.model {
-        base.agent.model = Some(model);
-    }
-    if let Some(effort) = layer.agent.reasoning_effort {
-        base.agent.reasoning_effort = Some(effort);
-    }
-    if let Some(bin) = layer.agent.codex_bin {
-        base.agent.codex_bin = Some(bin);
-    }
-    if let Some(bin) = layer.agent.opencode_bin {
-        base.agent.opencode_bin = Some(bin);
-    }
-    if let Some(bin) = layer.agent.gemini_bin {
-        base.agent.gemini_bin = Some(bin);
-    }
+    base.queue.merge_from(layer.queue);
+    base.agent.merge_from(layer.agent);
 
     Ok(base)
+}
+
+fn validate_config(cfg: &Config) -> Result<()> {
+    if cfg.version != 1 {
+        bail!("config version must be 1 (got {})", cfg.version);
+    }
+
+    if let Some(prefix) = &cfg.queue.id_prefix {
+        if prefix.trim().is_empty() {
+            bail!("queue.id_prefix cannot be empty if specified");
+        }
+    }
+
+    if let Some(width) = cfg.queue.id_width {
+        if width == 0 {
+            bail!("queue.id_width must be > 0");
+        }
+    }
+
+    if let Some(file) = &cfg.queue.file {
+        if file.as_os_str().is_empty() {
+            bail!("queue.file cannot be empty if specified");
+        }
+    }
+
+    if let Some(done_file) = &cfg.queue.done_file {
+        if done_file.as_os_str().is_empty() {
+            bail!("queue.done_file cannot be empty if specified");
+        }
+    }
+
+    if let Some(bin) = &cfg.agent.codex_bin {
+        if bin.trim().is_empty() {
+            bail!("agent.codex_bin cannot be empty if specified");
+        }
+    }
+    if let Some(bin) = &cfg.agent.opencode_bin {
+        if bin.trim().is_empty() {
+            bail!("agent.opencode_bin cannot be empty if specified");
+        }
+    }
+    if let Some(bin) = &cfg.agent.gemini_bin {
+        if bin.trim().is_empty() {
+            bail!("agent.gemini_bin cannot be empty if specified");
+        }
+    }
+
+    Ok(())
 }
 
 fn resolve_id_prefix(cfg: &Config) -> Result<String> {
