@@ -441,8 +441,11 @@ fn run_claude_direct(
         .arg("--model")
         .arg(model.as_str())
         .arg("--permission-mode")
-        .arg(permission_mode_to_arg(mode));
-    run_with_streaming(cmd, Some(prompt.as_bytes()), bin, timeout)
+        .arg(permission_mode_to_arg(mode))
+        .arg("--output-format")
+        .arg("stream-json")
+        .arg("--verbose");
+    run_with_streaming_json(cmd, Some(prompt.as_bytes()), bin, timeout)
 }
 
 fn permission_mode_to_arg(mode: ClaudePermissionMode) -> &'static str {
@@ -714,61 +717,32 @@ fn spawn_json_reader<R: Read + Send + 'static>(
 
 /// Display meaningful content from JSON, filtering noise
 fn display_filtered_json(json: &JsonValue, sink: &StreamSink) -> anyhow::Result<()> {
-    // Show message content (type: "message" for direct output)
-    if let Some(msg_type) = json.get("type").and_then(|t| t.as_str()) {
-        if msg_type == "message" {
-            if let Some(message) = json.get("message").and_then(|m| m.as_str()) {
-                match sink {
-                    StreamSink::Stdout => {
-                        let mut out = std::io::stdout().lock();
-                        out.write_all(message.as_bytes())?;
-                        out.write_all(b"\n")?;
-                        out.flush()?;
-                    }
-                    StreamSink::Stderr => {
-                        let mut err = std::io::stderr().lock();
-                        err.write_all(message.as_bytes())?;
-                        err.write_all(b"\n")?;
-                        err.flush()?;
-                    }
-                }
-            }
-        }
-    }
-
-    // Show result content (plain text, no JSON wrapper)
-    if let Some(result) = json.get("result").and_then(|r| r.as_str()) {
-        match sink {
-            StreamSink::Stdout => {
-                let mut out = std::io::stdout().lock();
-                out.write_all(result.as_bytes())?;
-                out.write_all(b"\n")?;
-                out.flush()?;
-            }
-            StreamSink::Stderr => {
-                let mut err = std::io::stderr().lock();
-                err.write_all(result.as_bytes())?;
-                err.write_all(b"\n")?;
-                err.flush()?;
-            }
-        }
-    }
-
-    // Show permission denials
-    if let Some(denials) = json.get("permission_denials").and_then(|d| d.as_array()) {
-        for denial in denials {
-            if let Some(tool_name) = denial.get("tool_name").and_then(|t| t.as_str()) {
-                let msg = format!("[Permission denied: {}]\n", tool_name);
-                match sink {
-                    StreamSink::Stdout => {
-                        let mut out = std::io::stdout().lock();
-                        out.write_all(msg.as_bytes())?;
-                        out.flush()?;
-                    }
-                    StreamSink::Stderr => {
-                        let mut err = std::io::stderr().lock();
-                        err.write_all(msg.as_bytes())?;
-                        err.flush()?;
+    // Only display assistant messages (which contain the actual response)
+    if let Some(event_type) = json.get("type").and_then(|t| t.as_str()) {
+        if event_type == "assistant" {
+            // Extract message.content array
+            if let Some(message) = json.get("message") {
+                if let Some(content) = message.get("content").and_then(|c| c.as_array()) {
+                    for item in content {
+                        if let Some(item_type) = item.get("type").and_then(|t| t.as_str()) {
+                            match item_type {
+                                "text" => {
+                                    // Display text content
+                                    if let Some(text) = item.get("text").and_then(|t| t.as_str()) {
+                                        sink.write_all(text.as_bytes())?;
+                                        sink.write_all(b"\n")?;
+                                    }
+                                }
+                                "tool_use" => {
+                                    // Display tool use as [Using: ToolName]
+                                    if let Some(name) = item.get("name").and_then(|n| n.as_str()) {
+                                        let msg = format!("[Using: {}]\n", name);
+                                        sink.write_all(msg.as_bytes())?;
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
                     }
                 }
             }
