@@ -317,6 +317,13 @@ fn handle_queue(cmd: QueueCommand, force: bool) -> Result<()> {
             }
         }
         QueueCommand::Complete(args) => {
+            let lock_dir = fsutil::queue_lock_dir(&resolved.repo_root);
+            if fsutil::is_supervising_process(&lock_dir)? {
+                log::info!(
+                    "Running under supervision - task completion will be handled by supervisor process"
+                );
+                return Ok(());
+            }
             let _queue_lock =
                 queue::acquire_queue_lock(&resolved.repo_root, "queue complete", force)?;
             let status = match args.status {

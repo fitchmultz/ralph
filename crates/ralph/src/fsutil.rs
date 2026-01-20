@@ -48,6 +48,29 @@ pub fn ralph_temp_root() -> PathBuf {
     std::env::temp_dir().join(RALPH_TEMP_DIR_NAME)
 }
 
+/// Check if the queue lock is currently held by a supervising process
+/// (run one or run loop), which means the caller is running under
+/// ralph's supervision and should not attempt to acquire the lock.
+pub fn is_supervising_process(lock_dir: &Path) -> Result<bool> {
+    let owner_path = lock_dir.join("owner");
+
+    let raw = match fs::read_to_string(&owner_path) {
+        Ok(raw) => raw,
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(err) => {
+            return Err(anyhow!(err))
+                .with_context(|| format!("read lock owner {}", owner_path.display()))
+        }
+    };
+
+    let owner = match parse_lock_owner(&raw) {
+        Some(owner) => owner,
+        None => return Ok(false),
+    };
+
+    Ok(owner.label == "run one" || owner.label == "run loop")
+}
+
 pub fn cleanup_stale_temp_entries(
     base: &Path,
     prefixes: &[&str],
