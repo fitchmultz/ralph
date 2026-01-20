@@ -67,38 +67,6 @@
       "custom_fields": {}
     },
     {
-      "id": "RQ-0168",
-      "status": "todo",
-      "title": "Add --dry-run support to 'run' commands",
-      "priority": "medium",
-      "tags": [
-        "rust",
-        "cli",
-        "run",
-        "ux"
-      ],
-      "scope": [
-        "crates/ralph/src/run.rs",
-        "crates/ralph/src/cli.rs"
-      ],
-      "evidence": [
-        "No way to preview what tasks would do without executing",
-        "User request: 'Add --dry-run support to run commands (Medium)'"
-      ],
-      "plan": [
-        "Add --dry-run flag to run one and run loop commands",
-        "Skip actual agent execution, print what would run",
-        "Show task details that would be executed",
-        "Add tests for dry-run output"
-      ],
-      "notes": [],
-      "request": "New Tasks (Top 10): 6. RQ-0138: Add --dry-run support to 'run' commands (Medium)",
-      "created_at": "2026-01-20T18:00:00Z",
-      "updated_at": "2026-01-20T18:00:00Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0169",
       "status": "todo",
       "title": "Optimize validate_queue_set for large done files",
