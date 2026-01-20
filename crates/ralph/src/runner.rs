@@ -3,6 +3,7 @@
 use crate::contracts::{
     AgentConfig, ClaudePermissionMode, Model, ReasoningEffort, Runner, TaskAgent,
 };
+use crate::fsutil;
 use crate::prompts::{TASK_COMPLETION_WORKFLOW, TASK_STATUS_DOING_INSTRUCTION};
 use crate::redaction::{redact_text, RedactedString};
 use anyhow::{anyhow, bail, Context, Result};
@@ -70,6 +71,7 @@ const GEMINI_PROMPT_PREFIX: &str =
     "If RepoPrompt tools are available, you MUST use them for file search, reading, and edits (do not bypass them).";
 const DEFAULT_GEMINI_MODEL: &str = "gemini-3-flash-preview";
 const DEFAULT_CLAUDE_MODEL: &str = "sonnet";
+const TEMP_RETENTION: Duration = Duration::from_secs(60 * 60 * 24 * 7);
 
 struct CtrlCState {
     active_pgid: Mutex<Option<i32>>,
@@ -406,10 +408,16 @@ fn run_opencode_direct(
     timeout: Option<Duration>,
     output_handler: Option<OutputHandler>,
 ) -> Result<RunnerOutput, RunnerError> {
+    if let Err(err) = fsutil::cleanup_default_temp_dirs(TEMP_RETENTION) {
+        log::warn!("temp cleanup failed: {:#}", err);
+    }
+
+    let temp_dir = fsutil::create_ralph_temp_dir("prompt")
+        .map_err(|e| RunnerError::Other(anyhow!("create temp dir: {}", e)))?;
     let mut tmp = tempfile::Builder::new()
-        .prefix("ralph_prompt_")
+        .prefix("prompt_")
         .suffix(".md")
-        .tempfile()
+        .tempfile_in(temp_dir.path())
         .map_err(|e| RunnerError::Other(anyhow!("create temp prompt file: {}", e)))?;
 
     tmp.write_all(prompt.as_bytes())
@@ -1268,6 +1276,7 @@ pub fn parse_reasoning_effort(value: &str) -> Result<ReasoningEffort> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::process::ExitStatus;
 
     #[test]
     fn validate_model_for_runner_rejects_glm47_on_codex() {

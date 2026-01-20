@@ -1,4 +1,8 @@
+//! Git helpers for repo status, commits, and LFS detection.
+
 use anyhow::{Context, Result};
+use std::collections::HashSet;
+use std::fs;
 use std::path::Path;
 use std::process::Command;
 use thiserror::Error;
@@ -88,6 +92,50 @@ pub fn status_porcelain(repo_root: &Path) -> Result<String, GitError> {
     }
 
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}
+
+pub fn status_paths(repo_root: &Path) -> Result<Vec<String>, GitError> {
+    let status = status_porcelain(repo_root)?;
+    if status.trim().is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let mut paths = Vec::new();
+    for line in status.lines() {
+        let trimmed = line.trim_start();
+        if let Some(path) = parse_status_path(trimmed) {
+            if !path.trim().is_empty() {
+                paths.push(path.trim().to_string());
+            }
+        }
+    }
+    Ok(paths)
+}
+
+pub fn filter_modified_lfs_files(status_paths: &[String], lfs_files: &[String]) -> Vec<String> {
+    if status_paths.is_empty() || lfs_files.is_empty() {
+        return Vec::new();
+    }
+
+    let mut lfs_set = HashSet::new();
+    for path in lfs_files {
+        lfs_set.insert(path.trim().to_string());
+    }
+
+    let mut matches = Vec::new();
+    for path in status_paths {
+        let trimmed = path.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if lfs_set.contains(trimmed) {
+            matches.push(trimmed.to_string());
+        }
+    }
+
+    matches.sort();
+    matches.dedup();
+    matches
 }
 
 pub fn require_clean_repo_ignoring_paths(
@@ -316,4 +364,62 @@ pub fn push_upstream(repo_root: &Path) -> Result<(), GitError> {
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     Err(classify_push_error(&stderr))
+}
+
+// has_lfs detects if Git LFS is initialized in the repository.
+pub fn has_lfs(repo_root: &Path) -> Result<bool> {
+    // Check for .git/lfs directory first
+    let git_lfs_dir = repo_root.join(".git/lfs");
+    if git_lfs_dir.is_dir() {
+        return Ok(true);
+    }
+
+    // Check .gitattributes for LFS filter patterns
+    let gitattributes = repo_root.join(".gitattributes");
+    if gitattributes.is_file() {
+        let content = fs::read_to_string(&gitattributes)
+            .with_context(|| format!("read .gitattributes in {}", repo_root.display()))?;
+        return Ok(content.contains("filter=lfs"));
+    }
+
+    Ok(false)
+}
+
+// list_lfs_files returns a list of LFS-tracked files in the repository.
+pub fn list_lfs_files(repo_root: &Path) -> Result<Vec<String>> {
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(repo_root)
+        .args(["lfs", "ls-files"])
+        .output()
+        .with_context(|| format!("run git lfs ls-files in {}", repo_root.display()))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        // If LFS is not installed or initialized, return empty list
+        if stderr.contains("not a git lfs repository")
+            || stderr.contains("git: lfs is not a git command")
+        {
+            return Ok(Vec::new());
+        }
+        return Err(GitError::CommandFailed {
+            args: "lfs ls-files".to_string(),
+            code: output.status.code(),
+            stderr: stderr.trim().to_string(),
+        }
+        .into());
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut files = Vec::new();
+
+    // Parse git lfs ls-files output format:
+    // each line is: "SHA256 * path/to/file"
+    for line in stdout.lines() {
+        if let Some((_, path)) = line.rsplit_once(" * ") {
+            files.push(path.to_string());
+        }
+    }
+
+    Ok(files)
 }

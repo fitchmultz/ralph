@@ -295,8 +295,11 @@ mod tests {
         );
         assert_eq!(cfg.queue.id_prefix, Some("RQ".to_string()));
         assert_eq!(cfg.queue.id_width, Some(4));
-        assert_eq!(cfg.agent.runner, Some(crate::contracts::Runner::Codex));
-        assert_eq!(cfg.agent.model, Some(crate::contracts::Model::Gpt52Codex));
+        assert_eq!(cfg.agent.runner, Some(crate::contracts::Runner::Claude));
+        assert_eq!(
+            cfg.agent.model,
+            Some(crate::contracts::Model::Custom("sonnet".to_string()))
+        );
         assert_eq!(
             cfg.agent.reasoning_effort,
             Some(crate::contracts::ReasoningEffort::Medium)

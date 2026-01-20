@@ -25,7 +25,7 @@ pub struct Config {
     /// Queue-related configuration.
     pub queue: QueueConfig,
 
-    /// Agent runner defaults (Codex, OpenCode, or Gemini).
+    /// Agent runner defaults (Claude, Codex, OpenCode, or Gemini).
     pub agent: AgentConfig,
 }
 
@@ -140,10 +140,10 @@ pub enum ProjectType {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Runner {
-    #[default]
     Codex,
     Opencode,
     Gemini,
+    #[default]
     Claude,
 }
 
@@ -413,8 +413,8 @@ impl Default for Config {
                 id_width: Some(4),
             },
             agent: AgentConfig {
-                runner: Some(Runner::Codex),
-                model: Some(Model::Gpt52Codex),
+                runner: Some(Runner::Claude),
+                model: Some(Model::Custom("sonnet".to_string())),
                 reasoning_effort: Some(ReasoningEffort::Medium),
                 codex_bin: Some("codex".to_string()),
                 opencode_bin: Some("opencode".to_string()),

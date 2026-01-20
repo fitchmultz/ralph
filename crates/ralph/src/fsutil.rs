@@ -1,8 +1,11 @@
+//! Filesystem helpers for locks, atomic writes, and temp cleanup.
+
 use crate::timeutil;
 use anyhow::{anyhow, Context, Result};
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::time::{Duration, SystemTime};
 
 #[derive(Debug)]
 pub struct DirLock {
@@ -33,8 +36,114 @@ impl LockOwner {
     }
 }
 
+const RALPH_TEMP_DIR_NAME: &str = "ralph";
+const LEGACY_PROMPT_PREFIX: &str = "ralph_prompt_";
+pub const RALPH_TEMP_PREFIX: &str = "ralph_";
+
 pub fn queue_lock_dir(repo_root: &Path) -> PathBuf {
     repo_root.join(".ralph").join("lock")
+}
+
+pub fn ralph_temp_root() -> PathBuf {
+    std::env::temp_dir().join(RALPH_TEMP_DIR_NAME)
+}
+
+pub fn cleanup_stale_temp_entries(
+    base: &Path,
+    prefixes: &[&str],
+    retention: Duration,
+) -> Result<usize> {
+    if !base.exists() {
+        return Ok(0);
+    }
+
+    let now = SystemTime::now();
+    let mut removed = 0usize;
+
+    for entry in fs::read_dir(base).with_context(|| format!("read temp dir {}", base.display()))? {
+        let entry = entry.with_context(|| format!("read temp dir entry in {}", base.display()))?;
+        let path = entry.path();
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+
+        if !prefixes.iter().any(|prefix| name.starts_with(prefix)) {
+            continue;
+        }
+
+        let metadata = match entry.metadata() {
+            Ok(metadata) => metadata,
+            Err(err) => {
+                log::warn!(
+                    "unable to read temp metadata for {}: {}",
+                    path.display(),
+                    err
+                );
+                continue;
+            }
+        };
+
+        let modified = match metadata.modified() {
+            Ok(time) => time,
+            Err(err) => {
+                log::warn!(
+                    "unable to read temp modified time for {}: {}",
+                    path.display(),
+                    err
+                );
+                continue;
+            }
+        };
+
+        let age = match now.duration_since(modified) {
+            Ok(age) => age,
+            Err(_) => continue,
+        };
+
+        if age < retention {
+            continue;
+        }
+
+        if metadata.is_dir() {
+            if fs::remove_dir_all(&path).is_ok() {
+                removed += 1;
+            } else {
+                log::warn!("failed to remove temp dir {}", path.display());
+            }
+        } else if fs::remove_file(&path).is_ok() {
+            removed += 1;
+        } else {
+            log::warn!("failed to remove temp file {}", path.display());
+        }
+    }
+
+    Ok(removed)
+}
+
+pub fn cleanup_stale_temp_dirs(base: &Path, retention: Duration) -> Result<usize> {
+    cleanup_stale_temp_entries(base, &[RALPH_TEMP_PREFIX], retention)
+}
+
+pub fn cleanup_default_temp_dirs(retention: Duration) -> Result<usize> {
+    let mut removed = 0usize;
+    removed += cleanup_stale_temp_dirs(&ralph_temp_root(), retention)?;
+    removed +=
+        cleanup_stale_temp_entries(&std::env::temp_dir(), &[LEGACY_PROMPT_PREFIX], retention)?;
+    Ok(removed)
+}
+
+pub fn create_ralph_temp_dir(label: &str) -> Result<tempfile::TempDir> {
+    let base = ralph_temp_root();
+    fs::create_dir_all(&base).with_context(|| format!("create temp dir {}", base.display()))?;
+    let prefix = format!(
+        "{prefix}{label}_",
+        prefix = RALPH_TEMP_PREFIX,
+        label = label.trim()
+    );
+    let dir = tempfile::Builder::new()
+        .prefix(&prefix)
+        .tempdir_in(&base)
+        .with_context(|| format!("create temp dir in {}", base.display()))?;
+    Ok(dir)
 }
 
 pub fn acquire_dir_lock(lock_dir: &Path, label: &str, force: bool) -> Result<DirLock> {

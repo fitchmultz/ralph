@@ -97,6 +97,53 @@ fn test_status_porcelain_with_untracked_files() {
 }
 
 #[test]
+fn test_status_paths_includes_tracked_and_untracked() {
+    let dir = TempDir::new().expect("create temp dir");
+    init_git_repo(&dir);
+
+    commit_file(&dir, "tracked.txt", "content", "initial");
+    fs::write(dir.path().join("tracked.txt"), "modified").expect("modify tracked");
+    fs::write(dir.path().join("untracked.txt"), "new").expect("create untracked");
+
+    let paths = gitutil::status_paths(dir.path()).expect("status paths");
+    assert!(paths.contains(&"tracked.txt".to_string()));
+    assert!(paths.contains(&"untracked.txt".to_string()));
+}
+
+#[test]
+fn test_filter_modified_lfs_files_intersects_lists() {
+    let status_paths = vec![
+        "assets/large.bin".to_string(),
+        "notes.txt".to_string(),
+        "media/video.mov".to_string(),
+    ];
+    let lfs_files = vec![
+        "assets/large.bin".to_string(),
+        "media/video.mov".to_string(),
+    ];
+    let modified = gitutil::filter_modified_lfs_files(&status_paths, &lfs_files);
+    assert_eq!(
+        modified,
+        vec![
+            "assets/large.bin".to_string(),
+            "media/video.mov".to_string()
+        ]
+    );
+}
+
+#[test]
+fn test_has_lfs_detects_gitattributes_filter() {
+    let dir = TempDir::new().expect("create temp dir");
+    init_git_repo(&dir);
+
+    let attrs = dir.path().join(".gitattributes");
+    fs::write(&attrs, "*.bin filter=lfs diff=lfs merge=lfs -text\n").expect("write gitattributes");
+
+    let has_lfs = gitutil::has_lfs(dir.path()).expect("has lfs");
+    assert!(has_lfs);
+}
+
+#[test]
 fn test_status_porcelain_non_git_directory() {
     let dir = TempDir::new().expect("create temp dir");
     // Not a git repository

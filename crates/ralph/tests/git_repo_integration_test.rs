@@ -1,3 +1,5 @@
+// Integration tests for ralph CLI behavior against real git repositories.
+
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
@@ -101,6 +103,35 @@ fn write_valid_single_todo_queue(dir: &Path) -> Result<()> {
     Ok(())
 }
 
+fn configure_runner(dir: &Path, runner: &str, model: &str, bin_path: Option<&Path>) -> Result<()> {
+    let config_path = dir.join(".ralph/config.json");
+    let mut config: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&config_path).context("read config")?)
+            .context("parse config")?;
+    let agent = config
+        .get_mut("agent")
+        .ok_or_else(|| anyhow::anyhow!("config missing agent section"))?;
+    agent["runner"] = serde_json::json!(runner);
+    agent["model"] = serde_json::json!(model);
+    agent["two_pass_plan"] = serde_json::json!(false);
+    if let Some(path) = bin_path {
+        let key = match runner {
+            "codex" => "codex_bin",
+            "opencode" => "opencode_bin",
+            "gemini" => "gemini_bin",
+            "claude" => "claude_bin",
+            _ => return Err(anyhow::anyhow!("unsupported runner: {}", runner)),
+        };
+        agent[key] = serde_json::json!(path.to_string_lossy().to_string());
+    }
+    std::fs::write(
+        &config_path,
+        serde_json::to_string_pretty(&config).context("serialize config")?,
+    )
+    .context("write config")?;
+    Ok(())
+}
+
 #[test]
 fn init_and_validate_work_in_fresh_git_repo() -> Result<()> {
     let dir = TempDir::new().context("create temp dir")?;
@@ -111,6 +142,7 @@ fn init_and_validate_work_in_fresh_git_repo() -> Result<()> {
         status.success(),
         "ralph init failed\nstdout:\n{stdout}\nstderr:\n{stderr}"
     );
+    configure_runner(dir.path(), "codex", "gpt-5.2-codex", None)?;
 
     let (status, stdout, stderr) = run_in_dir(dir.path(), &["queue", "validate"]);
     anyhow::ensure!(
@@ -132,6 +164,7 @@ fn run_one_refuses_to_run_when_repo_is_dirty_and_a_todo_exists() -> Result<()> {
         status.success(),
         "ralph init failed\nstdout:\n{stdout}\nstderr:\n{stderr}"
     );
+    configure_runner(dir.path(), "codex", "gpt-5.2-codex", None)?;
 
     // Ensure there is a todo item so run_cmd hits the clean-repo preflight.
     write_valid_single_todo_queue(dir.path())?;
@@ -188,14 +221,11 @@ fn run_one_succeeds_when_repo_is_dirty_and_force_is_used() -> Result<()> {
         std::fs::set_permissions(&runner_path, perms)?;
     }
 
-    let path_env = std::env::join_paths(std::iter::once(bin_dir).chain(std::env::split_paths(
-        &std::env::var("PATH").unwrap_or_default(),
-    )))?;
+    configure_runner(dir.path(), "codex", "gpt-5.2-codex", Some(&runner_path))?;
 
     // Use --force to bypass the dirty repo check.
     let output = Command::new(ralph_bin())
         .current_dir(dir.path())
-        .env("PATH", path_env)
         .arg("--force")
         .arg("run")
         .arg("one")
@@ -256,7 +286,9 @@ fn run_one_succeeds_without_upstream_and_warns() -> Result<()> {
         std::fs::set_permissions(&runner_path, perms)?;
     }
 
-    // 4. Run `ralph run one` with the fake runner on PATH
+    configure_runner(dir.path(), "codex", "gpt-5.2-codex", Some(&runner_path))?;
+
+    // 4. Run `ralph run one` with the fake runner
     Command::new("git")
         .current_dir(dir.path())
         .args(["add", "."])
@@ -266,13 +298,8 @@ fn run_one_succeeds_without_upstream_and_warns() -> Result<()> {
         .args(["commit", "-m", "setup test env"])
         .status()?;
 
-    let path_env = std::env::join_paths(std::iter::once(bin_dir).chain(std::env::split_paths(
-        &std::env::var("PATH").unwrap_or_default(),
-    )))?;
-
     let output = Command::new(ralph_bin())
         .current_dir(dir.path())
-        .env("PATH", path_env)
         .arg("run")
         .arg("one")
         .output()?;
@@ -323,6 +350,126 @@ fn scan_refuses_to_run_when_repo_is_dirty() -> Result<()> {
     anyhow::ensure!(
         stderr.to_lowercase().contains("repo is dirty"),
         "expected dirty repo error\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn run_one_reverts_changes_when_ci_fails() -> Result<()> {
+    let dir = TempDir::new().context("create temp dir")?;
+    git_init(dir.path())?;
+
+    // Ensure ralph runtime files exist.
+    let (status, stdout, stderr) = run_in_dir(dir.path(), &["init", "--force"]);
+    anyhow::ensure!(
+        status.success(),
+        "ralph init failed\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    // Add a task to the queue.
+    write_valid_single_todo_queue(dir.path())?;
+
+    // Modify the config to use codex runner instead of claude.
+    let config_path = dir.path().join(".ralph/config.json");
+    let mut config: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&config_path).context("read config")?)
+            .context("parse config")?;
+    if let Some(agent) = config.get_mut("agent") {
+        if let Some(runner) = agent.get_mut("runner") {
+            *runner = serde_json::json!("codex");
+        }
+        if let Some(model) = agent.get_mut("model") {
+            *model = serde_json::json!("gpt-5.2-codex");
+        }
+    }
+    std::fs::write(
+        &config_path,
+        serde_json::to_string_pretty(&config).context("serialize config")?,
+    )
+    .context("write config")?;
+
+    // Create a Makefile with a failing `ci` target.
+    let makefile_content = r#"ci:
+	@echo 'CI failing'
+	exit 1
+"#;
+    std::fs::write(dir.path().join("Makefile"), makefile_content).context("write Makefile")?;
+
+    // Create a "dirty runner" that creates a file and exits 0.
+    let bin_dir = dir.path().join("bin");
+    std::fs::create_dir(&bin_dir).context("create bin dir")?;
+    let runner_path = bin_dir.join("codex");
+    let dirty_file = dir.path().join("dirty-file.txt");
+    let script = format!(
+        "#!/bin/sh\necho 'creating dirty file' > {}\nexit 0\n",
+        dirty_file.display()
+    );
+    std::fs::write(&runner_path, script).context("write runner script")?;
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = std::fs::metadata(&runner_path)?.permissions();
+        perms.set_mode(0o755);
+        std::fs::set_permissions(&runner_path, perms)?;
+    }
+
+    // Commit the setup so the repo starts clean.
+    Command::new("git")
+        .current_dir(dir.path())
+        .args(["add", "."])
+        .status()
+        .context("git add")?;
+    Command::new("git")
+        .current_dir(dir.path())
+        .args(["commit", "-m", "setup test env"])
+        .status()
+        .context("git commit")?;
+
+    // Run `ralph run one`.
+    let path_env = std::env::join_paths(std::iter::once(bin_dir).chain(std::env::split_paths(
+        &std::env::var("PATH").unwrap_or_default(),
+    )))?;
+    let output = Command::new(ralph_bin())
+        .current_dir(dir.path())
+        .env("PATH", path_env)
+        .arg("run")
+        .arg("one")
+        .output()
+        .context("run ralph run one")?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    // Assert: execution fails.
+    anyhow::ensure!(
+        !output.status.success(),
+        "expected run one to fail due to CI\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    // Assert: stderr mentions CI failure.
+    anyhow::ensure!(
+        stderr.contains("CI gate failed") || stderr.contains("CI failed"),
+        "expected CI failure message in stderr\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    // Assert: dirty file does NOT exist (changes were reverted).
+    anyhow::ensure!(
+        !dirty_file.exists(),
+        "dirty file should not exist after CI failure and rollback"
+    );
+
+    // Assert: repo is clean (no uncommitted changes).
+    let git_status = Command::new("git")
+        .current_dir(dir.path())
+        .args(["status", "--porcelain"])
+        .output()
+        .context("git status")?;
+    let status_output = String::from_utf8_lossy(&git_status.stdout);
+    anyhow::ensure!(
+        status_output.trim().is_empty(),
+        "repo should be clean after rollback, but git status showed:\n{status_output}"
     );
 
     Ok(())

@@ -1205,12 +1205,12 @@ mod tests {
         let _guard = EnvGuard::enter(&temp.path().to_path_buf())?;
         let resolved = crate::config::resolve_from_cwd().context("resolve config")?;
         let settings = super::resolve_agent_args(&resolved, None, None, None)?;
-        assert_eq!(settings.runner, super::RunnerKind::Codex);
-        assert_eq!(settings.model, super::contracts::Model::Gpt52Codex);
+        assert_eq!(settings.runner, super::RunnerKind::Claude);
         assert_eq!(
-            settings.reasoning_effort,
-            Some(super::contracts::ReasoningEffort::Medium)
+            settings.model,
+            super::contracts::Model::Custom("sonnet".to_string())
         );
+        assert_eq!(settings.reasoning_effort, None);
         Ok(())
     }
 

@@ -4,16 +4,16 @@
   "type": "object",
   "properties": {
     "agent": {
-      "description": "Agent runner defaults (Codex, OpenCode, or Gemini).",
+      "description": "Agent runner defaults (Claude, Codex, OpenCode, or Gemini).",
       "default": {
         "claude_bin": "claude",
         "claude_permission_mode": "bypass_permissions",
         "codex_bin": "codex",
         "gemini_bin": "gemini",
-        "model": "gpt-5.2-codex",
+        "model": "sonnet",
         "opencode_bin": "opencode",
         "reasoning_effort": "medium",
-        "runner": "codex",
+        "runner": "claude",
         "two_pass_plan": true
       },
       "allOf": [

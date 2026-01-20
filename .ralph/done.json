@@ -1210,7 +1210,7 @@
         "cargo test -p ralph"
       ],
       "evidence": [
-        "User request: Error: Provider returned error thread 'main' (15281963) panicked at crates/ralph/src/redaction.rs:235:16: byte index 2634 is not a char boundary; it is inside 'â' (bytes 2633..2635) of |  Read     AGENTS.md"
+        "User request: Error: Provider returned error thread 'main' (15281963) panicked at crates/ralph/src/redaction.rs:235:16: byte index 2634 is not a char boundary; it is inside '\u00e2' (bytes 2633..2635) of |  Read     AGENTS.md"
       ],
       "plan": [
         "Reproduce the panic path in redaction and identify the slicing logic at the reported location.",
@@ -1224,7 +1224,7 @@
         "Added a non-ASCII regression test for redact_text.",
         "Ran `cargo test -p ralph`."
       ],
-      "request": "This error popped up while running a loop in a different repo. Fix. Error: Provider returned error thread 'main' (15281963) panicked at crates/ralph/src/redaction.rs:235:16: byte index 2634 is not a char boundary; it is inside 'â' (bytes 2633..2635) of |  Read     AGENTS.md",
+      "request": "This error popped up while running a loop in a different repo. Fix. Error: Provider returned error thread 'main' (15281963) panicked at crates/ralph/src/redaction.rs:235:16: byte index 2634 is not a char boundary; it is inside '\u00e2' (bytes 2633..2635) of |  Read     AGENTS.md",
       "created_at": "2026-01-19T05:45:41+00:00",
       "updated_at": "2026-01-19T05:50:46+00:00",
       "completed_at": "2026-01-19T05:50:46+00:00",
@@ -2626,6 +2626,83 @@
       "created_at": "2025-01-19T15:30:00+00:00",
       "updated_at": "2026-01-20T03:05:00+00:00",
       "completed_at": "2026-01-20T03:05:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0122",
+      "status": "done",
+      "title": "Add Git LFS (Large File Storage) detection and handling",
+      "priority": "medium",
+      "tags": [
+        "git",
+        "lfs",
+        "safety"
+      ],
+      "scope": [
+        "crates/ralph/src/gitutil.rs",
+        "crates/ralph/src/doctor_cmd.rs"
+      ],
+      "evidence": [
+        "Git LFS files are not detected; could cause unexpected behavior",
+        "No check for .gitattributes/lfs during doctor",
+        "Large files in LFS could affect performance and disk usage"
+      ],
+      "plan": [
+        "Add gitutil::has_lfs() to detect .git/lfs directory or .gitattributes LFS patterns",
+        "Add gitutil::list_lfs_files() to show tracked LFS files",
+        "Add LFS check to doctor command",
+        "Add warning during run if LFS files are modified",
+        "Add tests for LFS detection (requires LFS installation or mocking)"
+      ],
+      "notes": [
+        "Added git status path extraction and LFS modified-file intersection helpers in gitutil.",
+        "Warn when modified LFS-tracked files are present during post-run supervision.",
+        "Expanded LFS detection tests (gitattributes and modified file matching).",
+        "Aligned doctor LFS output with log conventions."
+      ],
+      "request": "scan finding",
+      "created_at": "2025-01-19T12:00:00+00:00",
+      "updated_at": "2026-01-20T04:09:57Z",
+      "depends_on": [],
+      "completed_at": "2026-01-20T04:09:57Z"
+    },
+    {
+      "id": "RQ-0156",
+      "status": "done",
+      "title": "Fix long-running tests and tmp cleanup for run_one flow",
+      "priority": "high",
+      "tags": [
+        "rust",
+        "tests",
+        "cleanup",
+        "performance"
+      ],
+      "scope": [
+        "crates/ralph/tests",
+        "crates/ralph/src",
+        "cargo test -p ralph"
+      ],
+      "evidence": [
+        "User reported tests running over 60 seconds: run_one_succeeds_when_repo_is_dirty_and_force_is_used and run_one_succeeds_without_upstream_and_warns",
+        "User requested investigation beyond those tests and proper cleanup of private tmp directories"
+      ],
+      "plan": [
+        "Reproduce slow tests and identify shared logic causing stalls across test suite",
+        "Audit tmp directory usage in run_one and related helpers; ensure cleanup on success/failure and stale tmp removal",
+        "Refactor shared test helpers or runtime logic to eliminate long waits/timeouts and add reliable cleanup",
+        "Add/expand tests to cover cleanup behavior and prevent regressions in slow/faulty test paths",
+        "Run full test suite with focus on ralph tests to confirm runtimes and cleanup behavior"
+      ],
+      "notes": [
+        "Configured run_one integration tests to use a fake runner path via .ralph/config.json, preventing real runner execution.",
+        "Added ralph temp root helpers and cleanup for stale prompt files (including legacy ralph_prompt_* entries).",
+        "Opencode prompt files are now created inside a ralph-owned temp directory and cleaned on reuse.",
+        "Added fsutil tests for temp cleanup and temp root creation."
+      ],
+      "request": "These tests take a long time to complete. Investigate the logic and fix. Also, ensure we are doing proper cleanup when writing to private tmp directories. System restart will do some cleanup but that becomes an issue if the system hasn't been restarted in a while. Do not focus on ONLY these tests as others may be faulty. test run_one_succeeds_when_repo_is_dirty_and_force_is_used has been running for over 60 seconds; test run_one_succeeds_without_upstream_and_warns has been running for over 60 seconds",
+      "created_at": "2026-01-20T03:47:17Z",
+      "updated_at": "2026-01-20T04:09:57Z",
+      "completed_at": "2026-01-20T04:09:57Z",
       "depends_on": []
     }
   ]

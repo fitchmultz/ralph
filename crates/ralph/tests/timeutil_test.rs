@@ -22,11 +22,12 @@ fn test_now_utc_rfc3339_format() {
     assert!(result.is_ok());
 
     let timestamp = result.unwrap();
-    // RFC3339 format with fractional seconds: YYYY-MM-DDTHH:MM:SS.sssssssssZ
-    // Example: 2025-01-19T12:34:56.123456789Z (length varies based on fractional seconds)
-    assert!(timestamp.len() >= 20); // At minimum: YYYY-MM-DDTHH:MM:SSZ
+    // RFC3339 format with fixed fractional seconds: YYYY-MM-DDTHH:MM:SS.sssssssssZ
+    // Example: 2025-01-19T12:34:56.123456789Z (length 30)
+    assert_eq!(timestamp.len(), 30);
     assert!(timestamp.contains('T'));
     assert!(timestamp.ends_with('Z'));
+    assert!(timestamp.contains('.'));
 
     // Date part: YYYY-MM-DD
     let date_part = &timestamp[0..10];
@@ -122,15 +123,16 @@ fn test_now_utc_rfc3339_or_fallback_success() {
 
 #[test]
 fn test_fallback_constant() {
-    assert_eq!(timeutil::FALLBACK_RFC3339, "2026-01-18T00:00:00Z");
+    assert_eq!(timeutil::FALLBACK_RFC3339, "2026-01-18T00:00:00.000000000Z");
 }
 
 #[test]
 fn test_fallback_constant_format() {
     let fallback = timeutil::FALLBACK_RFC3339;
-    assert_eq!(fallback.len(), 20);
+    assert_eq!(fallback.len(), 30);
     assert_eq!(&fallback[10..11], "T");
-    assert_eq!(&fallback[19..20], "Z");
+    assert_eq!(&fallback[19..20], ".");
+    assert_eq!(&fallback[29..30], "Z");
 }
 
 #[test]
@@ -188,15 +190,13 @@ fn test_now_utc_rfc3339_or_fallback_never_empty() {
     // Even if system time fails, should return fallback
     let timestamp = timeutil::now_utc_rfc3339_or_fallback();
     assert!(!timestamp.is_empty());
-    // Timestamp has fractional seconds, so length > 20
-    assert!(timestamp.len() >= 20);
+    // Timestamp has fixed fractional seconds
+    assert_eq!(timestamp.len(), 30);
 }
 
 #[test]
 fn test_now_utc_rfc3339_consistent_length() {
-    // The time crate's Rfc3339 format has varying fractional second precision
-    // Within a single run, timestamps should be consistent length
-    // but across multiple runs the nanosecond precision may vary
+    // Fixed fractional second precision should yield consistent lengths.
     let timestamps: Vec<_> = (0..5)
         .map(|_| timeutil::now_utc_rfc3339().unwrap())
         .collect();
@@ -226,6 +226,8 @@ fn test_fallback_timestamp_components() {
     assert_eq!(&fallback[14..16], "00");
     // Second: 00
     assert_eq!(&fallback[17..19], "00");
+    // Fractional seconds separator
+    assert_eq!(&fallback[19..20], ".");
     // Zulu: Z
-    assert_eq!(&fallback[19..20], "Z");
+    assert_eq!(&fallback[29..30], "Z");
 }

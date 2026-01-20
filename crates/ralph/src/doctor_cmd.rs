@@ -1,3 +1,5 @@
+//! Doctor checks for Git, queue, and runner configuration health.
+
 use crate::config;
 use crate::contracts::Runner;
 use crate::gitutil;
@@ -36,6 +38,32 @@ pub fn run_doctor(resolved: &config::Resolved) -> Result<()> {
         Ok(u) => outpututil::log_success(&format!("upstream configured: {}", u)),
         Err(e) => {
             outpututil::log_warn(&format!("no upstream configured: {}", e));
+        }
+    }
+
+    // Git LFS Checks
+    log::info!("Checking Git LFS...");
+    match gitutil::has_lfs(&resolved.repo_root) {
+        Ok(true) => {
+            outpututil::log_success("Git LFS detected");
+            match gitutil::list_lfs_files(&resolved.repo_root) {
+                Ok(files) => {
+                    if files.is_empty() {
+                        log::info!("LFS initialized but no files tracked");
+                    } else {
+                        outpututil::log_success(&format!("LFS tracking {} file(s)", files.len()));
+                    }
+                }
+                Err(e) => {
+                    outpututil::log_warn(&format!("Failed to list LFS files: {}", e));
+                }
+            }
+        }
+        Ok(false) => {
+            log::info!("Git LFS not detected");
+        }
+        Err(e) => {
+            outpututil::log_warn(&format!("LFS check failed: {}", e));
         }
     }
 

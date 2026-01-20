@@ -1,3 +1,5 @@
+//! Run command orchestration for single tasks and run loops.
+
 use crate::config;
 use crate::contracts::{Model, ProjectType, QueueFile, ReasoningEffort, Runner, TaskStatus};
 use crate::gitutil::GitError;
@@ -301,6 +303,7 @@ fn post_run_supervise(resolved: &config::Resolved, task_id: &str) -> Result<()> 
             .ok_or_else(|| anyhow!("task {task_id} not found in queue or done"))?;
 
     if is_dirty {
+        warn_if_modified_lfs(&resolved.repo_root);
         if let Err(err) = run_make_ci(&resolved.repo_root) {
             gitutil::revert_uncommitted(&resolved.repo_root)?;
             bail!("CI gate failed: 'make ci' did not pass after the task completed. Uncommitted changes were reverted. Fix the issues reported by CI and try again. Error: {:#}", err);
@@ -393,6 +396,51 @@ fn post_run_supervise(resolved: &config::Resolved, task_id: &str) -> Result<()> 
         &[".ralph/queue.yaml", ".ralph/done.json"],
     )?;
     Ok(())
+}
+
+fn warn_if_modified_lfs(repo_root: &Path) {
+    match gitutil::has_lfs(repo_root) {
+        Ok(true) => {}
+        Ok(false) => return,
+        Err(err) => {
+            log::warn!("Git LFS detection failed: {:#}", err);
+            return;
+        }
+    }
+
+    let status_paths = match gitutil::status_paths(repo_root) {
+        Ok(paths) => paths,
+        Err(err) => {
+            log::warn!("Unable to read git status for LFS warning: {:#}", err);
+            return;
+        }
+    };
+
+    if status_paths.is_empty() {
+        return;
+    }
+
+    let lfs_files = match gitutil::list_lfs_files(repo_root) {
+        Ok(files) => files,
+        Err(err) => {
+            log::warn!("Unable to list LFS files: {:#}", err);
+            return;
+        }
+    };
+
+    if lfs_files.is_empty() {
+        log::warn!(
+            "Git LFS detected but no tracked files were listed; review LFS changes manually."
+        );
+        return;
+    }
+
+    let modified = gitutil::filter_modified_lfs_files(&status_paths, &lfs_files);
+    if modified.is_empty() {
+        return;
+    }
+
+    log::warn!("Modified Git LFS files detected: {}", modified.join(", "));
 }
 
 fn push_if_ahead(repo_root: &Path) -> Result<()> {

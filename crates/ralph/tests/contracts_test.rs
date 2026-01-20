@@ -455,8 +455,11 @@ fn test_config_default() {
     );
     assert_eq!(config.queue.id_prefix, Some("RQ".to_string()));
     assert_eq!(config.queue.id_width, Some(4));
-    assert_eq!(config.agent.runner, Some(Runner::Codex));
-    assert_eq!(config.agent.model, Some(Model::Gpt52Codex));
+    assert_eq!(config.agent.runner, Some(Runner::Claude));
+    assert_eq!(
+        config.agent.model,
+        Some(Model::Custom("sonnet".to_string()))
+    );
 }
 
 #[test]
@@ -477,7 +480,7 @@ fn test_task_agent_defaults() {
 
 #[test]
 fn test_runner_default() {
-    assert_eq!(Runner::default(), Runner::Codex);
+    assert_eq!(Runner::default(), Runner::Claude);
 }
 
 #[test]
