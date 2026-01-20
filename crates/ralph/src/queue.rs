@@ -58,6 +58,10 @@ pub fn validate_queue(queue: &QueueFile, id_prefix: &str, id_width: usize) -> Re
         validate_task_required_fields(idx, task)?;
         validate_task_id(idx, &task.id, &expected_prefix, id_width)?;
 
+        if task.status == TaskStatus::Rejected {
+            continue;
+        }
+
         let key = task.id.trim().to_string();
         if !seen.insert(key.clone()) {
             bail!("Duplicate task ID detected: {}. Ensure each task in .ralph/queue.json has a unique ID.", key);
@@ -77,8 +81,16 @@ pub fn validate_queue_set(
     if let Some(done) = done {
         validate_queue(done, id_prefix, id_width)?;
 
-        let active_ids: HashSet<&str> = active.tasks.iter().map(|t| t.id.trim()).collect();
+        let active_ids: HashSet<&str> = active
+            .tasks
+            .iter()
+            .filter(|t| t.status != TaskStatus::Rejected)
+            .map(|t| t.id.trim())
+            .collect();
         for task in &done.tasks {
+            if task.status == TaskStatus::Rejected {
+                continue;
+            }
             let id = task.id.trim();
             if active_ids.contains(id) {
                 bail!("Duplicate task ID detected across queue and done: {}. Ensure task IDs are unique across .ralph/queue.json and .ralph/done.json.", id);
@@ -104,6 +116,9 @@ pub fn next_id_across(
     let mut max_value: u32 = 0;
     for (idx, task) in active.tasks.iter().enumerate() {
         let value = validate_task_id(idx, &task.id, &expected_prefix, id_width)?;
+        if task.status == TaskStatus::Rejected {
+            continue;
+        }
         if value > max_value {
             max_value = value;
         }
@@ -111,6 +126,9 @@ pub fn next_id_across(
     if let Some(done) = done {
         for (idx, task) in done.tasks.iter().enumerate() {
             let value = validate_task_id(idx, &task.id, &expected_prefix, id_width)?;
+            if task.status == TaskStatus::Rejected {
+                continue;
+            }
             if value > max_value {
                 max_value = value;
             }
@@ -1423,6 +1441,93 @@ mod tests {
 
         let results = search_tasks(tasks.iter().copied(), "login", true, false)?;
         assert_eq!(results.len(), 0);
+        Ok(())
+    }
+
+    #[test]
+    fn validate_queue_allows_duplicate_if_one_is_rejected() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![
+                task_with("RQ-0001", TaskStatus::Todo, vec!["tag".to_string()]),
+                task_with("RQ-0001", TaskStatus::Rejected, vec!["tag".to_string()]),
+            ],
+        };
+        assert!(validate_queue(&queue, "RQ", 4).is_ok());
+    }
+
+    #[test]
+    fn validate_queue_set_allows_duplicate_across_files_if_rejected() {
+        let active = QueueFile {
+            version: 1,
+            tasks: vec![task_with(
+                "RQ-0001",
+                TaskStatus::Todo,
+                vec!["tag".to_string()],
+            )],
+        };
+        let done = QueueFile {
+            version: 1,
+            tasks: vec![task_with(
+                "RQ-0001",
+                TaskStatus::Rejected,
+                vec!["tag".to_string()],
+            )],
+        };
+        assert!(validate_queue_set(&active, Some(&done), "RQ", 4).is_ok());
+
+        let active2 = QueueFile {
+            version: 1,
+            tasks: vec![task_with(
+                "RQ-0001",
+                TaskStatus::Rejected,
+                vec!["tag".to_string()],
+            )],
+        };
+        let done2 = QueueFile {
+            version: 1,
+            tasks: vec![task_with(
+                "RQ-0001",
+                TaskStatus::Done,
+                vec!["tag".to_string()],
+            )],
+        };
+        assert!(validate_queue_set(&active2, Some(&done2), "RQ", 4).is_ok());
+    }
+
+    #[test]
+    fn next_id_across_ignores_rejected() -> Result<()> {
+        let active = QueueFile {
+            version: 1,
+            tasks: vec![
+                task_with("RQ-0001", TaskStatus::Todo, vec!["tag".to_string()]),
+                task_with("RQ-0009", TaskStatus::Rejected, vec!["tag".to_string()]),
+            ],
+        };
+        let next = next_id_across(&active, None, "RQ", 4)?;
+        assert_eq!(next, "RQ-0002");
+        Ok(())
+    }
+
+    #[test]
+    fn next_id_across_includes_done_non_rejected() -> Result<()> {
+        let active = QueueFile {
+            version: 1,
+            tasks: vec![task_with(
+                "RQ-0001",
+                TaskStatus::Todo,
+                vec!["tag".to_string()],
+            )],
+        };
+        let done = QueueFile {
+            version: 1,
+            tasks: vec![
+                task_with("RQ-0005", TaskStatus::Done, vec!["tag".to_string()]),
+                task_with("RQ-0009", TaskStatus::Rejected, vec!["tag".to_string()]),
+            ],
+        };
+        let next = next_id_across(&active, Some(&done), "RQ", 4)?;
+        assert_eq!(next, "RQ-0006");
         Ok(())
     }
 }

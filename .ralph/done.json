@@ -2926,5 +2926,44 @@
       "depends_on": [],
       "custom_fields": {}
     }
+    {
+      "id": "RQ-0173",
+      "status": "done",
+      "title": "Fix next-id to exclude rejected tasks from max ID calculation",
+      "priority": "high",
+      "tags": [
+        "rust",
+        "cli",
+        "queue",
+        "bug"
+      ],
+      "scope": [
+        "crates/ralph/src/queue.rs"
+      ],
+      "evidence": [
+        "Error from scan: 'Duplicate task ID detected across queue and done: RQ-0135. Note: The task RQ-0135 is present in done.json with status rejected.'",
+        "The next_id_across function in queue.rs currently includes all tasks from done.json when finding the max ID, even rejected ones",
+        "User request: 'Fix the logic for the next-id that somehow misses IDs with the rejected status'"
+      ],
+      "plan": [
+        "Modify next_id_across to filter out tasks with status 'rejected' when computing max ID",
+        "Update validate_queue_set to also exclude 'rejected' tasks from duplicate ID checks",
+        "Add tests to verify rejected tasks are excluded from next-id calculation",
+        "Add tests to verify non-rejected tasks in done.json are still included"
+      ],
+      "notes": [
+        "Modified validate_queue to skip Rejected tasks during duplicate ID checks.",
+        "Modified validate_queue_set to skip Rejected tasks during cross-queue duplicate checks.",
+        "Modified next_id_across to skip Rejected tasks during max ID calculation.",
+        "Added comprehensive unit tests for all scenarios involving Rejected tasks.",
+        "Verified all changes with make ci."
+      ],
+      "request": "Fix the logic for the next-id that somehow misses IDs with the rejected status",
+      "created_at": "2025-01-20T18:30:00Z",
+      "updated_at": "2026-01-20T21:08:07Z",
+      "completed_at": "2026-01-20T21:08:07Z",
+      "depends_on": [],
+      "custom_fields": {}
+    }
   ]
 }
