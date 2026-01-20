@@ -35,7 +35,8 @@
       "created_at": "2026-01-18T20:45:41+00:00",
       "updated_at": "2026-01-18T21:00:00+00:00",
       "completed_at": "2026-01-18T21:30:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0070",
@@ -68,7 +69,8 @@
       "created_at": "2026-01-18T20:45:41+00:00",
       "updated_at": "2026-01-18T20:55:00+00:00",
       "completed_at": "2026-01-18T20:55:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0072",
@@ -103,7 +105,8 @@
       "created_at": "2026-01-18T20:45:41+00:00",
       "updated_at": "2026-01-18T21:28:41+00:00",
       "completed_at": "2026-01-18T21:28:41+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0073",
@@ -138,7 +141,8 @@
       "created_at": "2026-01-18T20:45:41+00:00",
       "updated_at": "2026-01-18T20:53:00+00:00",
       "completed_at": "2026-01-19T00:41:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0074",
@@ -169,7 +173,8 @@
       "created_at": "2026-01-18T22:00:00+00:00",
       "updated_at": "2026-01-19T01:00:00+00:00",
       "completed_at": "2026-01-19T01:00:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0075",
@@ -203,7 +208,8 @@
       "created_at": "2026-01-18T22:00:00+00:00",
       "updated_at": "2026-01-19T01:30:00+00:00",
       "completed_at": "2026-01-19T01:30:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0076",
@@ -236,7 +242,8 @@
       "created_at": "2026-01-18T22:00:00+00:00",
       "updated_at": "2026-01-19T01:45:00+00:00",
       "completed_at": "2026-01-19T01:45:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0078",
@@ -268,7 +275,8 @@
       "created_at": "2026-01-18T22:00:00+00:00",
       "updated_at": "2026-01-18T22:30:00+00:00",
       "completed_at": "2026-01-18T22:30:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0079",
@@ -301,7 +309,8 @@
       "created_at": "2026-01-18T22:00:00+00:00",
       "updated_at": "2026-01-18T22:15:00+00:00",
       "completed_at": "2026-01-18T22:45:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0080",
@@ -333,7 +342,8 @@
       "created_at": "2026-01-18T22:00:00+00:00",
       "updated_at": "2026-01-18T22:50:00+00:00",
       "completed_at": "2026-01-18T22:50:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0081",
@@ -366,7 +376,8 @@
       "created_at": "2026-01-18T22:00:00+00:00",
       "updated_at": "2026-01-18T22:15:00+00:00",
       "completed_at": "2026-01-18T22:30:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0082",
@@ -400,7 +411,8 @@
       "created_at": "2026-01-18T22:00:00+00:00",
       "updated_at": "2026-01-18T23:36:00+00:00",
       "completed_at": "2026-01-19T02:48:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0083",
@@ -431,7 +443,8 @@
       "created_at": "2026-01-18T22:00:00+00:00",
       "updated_at": "2026-01-18T22:00:00+00:00",
       "completed_at": "2026-01-18T22:15:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0084",
@@ -464,7 +477,8 @@
       "created_at": "2026-01-18T22:00:00+00:00",
       "updated_at": "2026-01-18T22:50:00+00:00",
       "completed_at": "2026-01-18T22:50:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0085",
@@ -500,7 +514,8 @@
       "created_at": "2026-01-18T22:00:00+00:00",
       "updated_at": "2026-01-18T22:45:00+00:00",
       "completed_at": "2026-01-18T22:45:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0086",
@@ -533,7 +548,8 @@
       "created_at": "2026-01-18T22:00:00+00:00",
       "updated_at": "2026-01-18T22:38:00+00:00",
       "completed_at": "2026-01-19T03:05:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0087",
@@ -565,7 +581,8 @@
       "created_at": "2026-01-18T22:00:00+00:00",
       "updated_at": "2026-01-18T22:36:20+00:00",
       "completed_at": "2026-01-19T03:55:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0088",
@@ -598,7 +615,8 @@
       "created_at": "2026-01-18T22:00:00+00:00",
       "updated_at": "2026-01-18T22:05:00+00:00",
       "completed_at": "2026-01-18T22:10:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0089",
@@ -628,7 +646,8 @@
       "created_at": "2026-01-18T22:00:00+00:00",
       "updated_at": "2026-01-18T22:57:00+00:00",
       "completed_at": "2026-01-18T22:57:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0090",
@@ -663,7 +682,8 @@
       "created_at": "2026-01-19T03:36:03+00:00",
       "updated_at": "2026-01-19T03:49:54+00:00",
       "completed_at": "2026-01-19T03:56:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0091",
@@ -695,7 +715,8 @@
       "created_at": "2026-01-19T04:00:47+00:00",
       "updated_at": "2026-01-19T04:46:56+00:00",
       "completed_at": "2026-01-19T04:48:40+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0092",
@@ -728,7 +749,8 @@
       "created_at": "2026-01-19T04:00:47+00:00",
       "updated_at": "2026-01-18T05:05:00+00:00",
       "completed_at": "2026-01-18T05:05:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0093",
@@ -761,7 +783,8 @@
       "created_at": "2026-01-19T04:00:47+00:00",
       "updated_at": "2026-01-19T05:00:00+00:00",
       "completed_at": "2026-01-19T05:00:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0094",
@@ -795,7 +818,8 @@
       "created_at": "2026-01-19T04:00:47+00:00",
       "updated_at": "2026-01-18T21:00:00+00:00",
       "completed_at": "2026-01-18T21:07:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0095",
@@ -828,7 +852,8 @@
       "created_at": "2026-01-19T04:00:47+00:00",
       "updated_at": "2026-01-19T04:42:03+00:00",
       "completed_at": "2026-01-19T04:42:03+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0096",
@@ -861,7 +886,8 @@
       "created_at": "2026-01-19T04:00:47+00:00",
       "updated_at": "2026-01-18T22:38:00+00:00",
       "completed_at": "2026-01-19T05:12:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0097",
@@ -895,7 +921,8 @@
       "created_at": "2026-01-19T04:00:47+00:00",
       "updated_at": "2026-01-18T10:15:00+00:00",
       "completed_at": "2026-01-18T10:15:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0098",
@@ -928,7 +955,8 @@
       "created_at": "2026-01-19T04:00:47+00:00",
       "updated_at": "2026-01-18T20:11:00+00:00",
       "completed_at": "2026-01-18T20:30:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0099",
@@ -961,7 +989,8 @@
       "created_at": "2026-01-19T04:00:47+00:00",
       "updated_at": "2026-01-18T16:00:00+00:00",
       "completed_at": "2026-01-18T16:10:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0100",
@@ -995,7 +1024,8 @@
       "created_at": "2026-01-19T04:00:47+00:00",
       "updated_at": "2026-01-18T22:38:00+00:00",
       "completed_at": "2026-01-18T22:42:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0101",
@@ -1029,7 +1059,8 @@
       "created_at": "2026-01-19T04:00:47+00:00",
       "updated_at": "2026-01-18T18:00:00+00:00",
       "completed_at": "2026-01-18T18:15:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0102",
@@ -1061,7 +1092,8 @@
       "created_at": "2026-01-19T04:00:47+00:00",
       "updated_at": "2026-01-19T05:23:13+00:00",
       "completed_at": "2026-01-19T05:26:29+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0103",
@@ -1094,7 +1126,8 @@
       "created_at": "2026-01-19T04:00:47+00:00",
       "updated_at": "2026-01-19T05:15:00+00:00",
       "completed_at": "2026-01-19T05:15:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0104",
@@ -1123,7 +1156,8 @@
       "created_at": "2026-01-19T04:00:47+00:00",
       "updated_at": "2026-01-18T10:15:00+00:00",
       "completed_at": "2026-01-18T10:15:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0105",
@@ -1157,7 +1191,8 @@
       "created_at": "2026-01-19T04:00:47+00:00",
       "updated_at": "2026-01-18T00:00:00+00:00",
       "completed_at": "2026-01-18T00:00:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0106",
@@ -1192,7 +1227,8 @@
       "created_at": "2026-01-19T05:39:27+00:00",
       "updated_at": "2026-01-19T06:08:02+00:00",
       "completed_at": "2026-01-19T06:08:02+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0107",
@@ -1210,7 +1246,7 @@
         "cargo test -p ralph"
       ],
       "evidence": [
-        "User request: Error: Provider returned error thread 'main' (15281963) panicked at crates/ralph/src/redaction.rs:235:16: byte index 2634 is not a char boundary; it is inside '\u00e2' (bytes 2633..2635) of |  Read     AGENTS.md"
+        "User request: Error: Provider returned error thread 'main' (15281963) panicked at crates/ralph/src/redaction.rs:235:16: byte index 2634 is not a char boundary; it is inside 'â' (bytes 2633..2635) of |  Read     AGENTS.md"
       ],
       "plan": [
         "Reproduce the panic path in redaction and identify the slicing logic at the reported location.",
@@ -1224,11 +1260,12 @@
         "Added a non-ASCII regression test for redact_text.",
         "Ran `cargo test -p ralph`."
       ],
-      "request": "This error popped up while running a loop in a different repo. Fix. Error: Provider returned error thread 'main' (15281963) panicked at crates/ralph/src/redaction.rs:235:16: byte index 2634 is not a char boundary; it is inside '\u00e2' (bytes 2633..2635) of |  Read     AGENTS.md",
+      "request": "This error popped up while running a loop in a different repo. Fix. Error: Provider returned error thread 'main' (15281963) panicked at crates/ralph/src/redaction.rs:235:16: byte index 2634 is not a char boundary; it is inside 'â' (bytes 2633..2635) of |  Read     AGENTS.md",
       "created_at": "2026-01-19T05:45:41+00:00",
       "updated_at": "2026-01-19T05:50:46+00:00",
       "completed_at": "2026-01-19T05:50:46+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0108",
@@ -1258,7 +1295,8 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0109",
@@ -1289,7 +1327,8 @@
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2026-01-19T19:15:56.127982+00:00",
       "completed_at": "2026-01-19T19:15:56.127982+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0110",
@@ -1325,7 +1364,8 @@
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2026-01-19T20:48:41.222861+00:00",
       "completed_at": "2026-01-19T20:48:41.222861+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0111",
@@ -1358,7 +1398,8 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0112",
@@ -1392,7 +1433,8 @@
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2026-01-19T20:49:54.185406+00:00",
       "completed_at": "2026-01-19T20:49:54.185406+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0113",
@@ -1424,7 +1466,8 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0114",
@@ -1457,7 +1500,8 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0115",
@@ -1489,7 +1533,8 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0116",
@@ -1521,7 +1566,8 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0117",
@@ -1553,7 +1599,8 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0118",
@@ -1596,7 +1643,8 @@
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2026-01-19T22:37:28+00:00",
       "completed_at": "2026-01-19T22:45:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0119",
@@ -1635,7 +1683,8 @@
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2026-01-19T23:00:00+00:00",
       "completed_at": "2026-01-19T23:00:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0123",
@@ -1668,7 +1717,8 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0124",
@@ -1701,7 +1751,8 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0125",
@@ -1734,7 +1785,8 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0127",
@@ -1766,7 +1818,8 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0128",
@@ -1798,7 +1851,8 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0129",
@@ -1830,7 +1884,8 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0130",
@@ -1863,7 +1918,8 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0131",
@@ -1896,7 +1952,8 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0133",
@@ -1928,7 +1985,8 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0134",
@@ -1961,7 +2019,8 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0135",
@@ -1994,7 +2053,8 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0136",
@@ -2026,7 +2086,8 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0137",
@@ -2059,7 +2120,8 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0140",
@@ -2091,7 +2153,8 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0141",
@@ -2123,7 +2186,8 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0143",
@@ -2155,7 +2219,8 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0144",
@@ -2187,7 +2252,8 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0148",
@@ -2219,7 +2285,8 @@
       "created_at": "2025-01-19T16:00:00+00:00",
       "updated_at": "2026-01-19T20:17:55.049973+00:00",
       "completed_at": "2026-01-19T20:17:55.049973+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0149",
@@ -2251,7 +2318,8 @@
       "created_at": "2026-01-19T19:39:21+00:00",
       "updated_at": "2026-01-19T19:42:32.176827+00:00",
       "completed_at": "2026-01-19T19:42:32.176827+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0150",
@@ -2290,7 +2358,8 @@
       "created_at": "2025-01-19T17:00:00+00:00",
       "updated_at": "2026-01-19T20:08:57+00:00",
       "completed_at": "2026-01-19T20:08:57+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0151",
@@ -2335,7 +2404,8 @@
       "created_at": "2025-01-19T16:42:13+00:00",
       "updated_at": "2026-01-19T23:56:21.483840+00:00",
       "completed_at": "2026-01-19T23:56:21.483840+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0152",
@@ -2396,7 +2466,8 @@
       "request": "Now that we have switched to JSON for the queue format we need to remove all YAML code from the codebase. Users will be required to migrate or rebuild existing queue docs to the JSON format manually or via external means. This decision is final. Make sure we have a defined JSON schema doc that is our queue JSON schema source of truth and the code utilizes it. That way modifying the schema going forward is much easier.",
       "created_at": "2025-01-19T13:22:00+00:00",
       "updated_at": "2026-01-20T01:19:39+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0120",
@@ -2429,7 +2500,8 @@
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2026-01-20T01:40:54.382986Z",
       "completed_at": "2026-01-20T01:40:54.382986Z",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0121",
@@ -2461,7 +2533,8 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T14:45:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0153",
@@ -2522,7 +2595,8 @@
       "created_at": "2026-01-20T01:44:29+00:00",
       "updated_at": "2026-01-20T01:52:25+00:00",
       "completed_at": "2026-01-20T02:00:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0154",
@@ -2572,7 +2646,8 @@
       "created_at": "2026-01-19T00:00:00+00:00",
       "updated_at": "2026-01-19T23:00:00+00:00",
       "completed_at": "2026-01-19T23:00:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0155",
@@ -2626,7 +2701,8 @@
       "created_at": "2025-01-19T15:30:00+00:00",
       "updated_at": "2026-01-20T03:05:00+00:00",
       "completed_at": "2026-01-20T03:05:00+00:00",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
     },
     {
       "id": "RQ-0122",
@@ -2663,8 +2739,9 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2026-01-20T04:09:57Z",
+      "completed_at": "2026-01-20T04:09:57Z",
       "depends_on": [],
-      "completed_at": "2026-01-20T04:09:57Z"
+      "custom_fields": {}
     },
     {
       "id": "RQ-0156",
@@ -2703,7 +2780,46 @@
       "created_at": "2026-01-20T03:47:17Z",
       "updated_at": "2026-01-20T04:09:57Z",
       "completed_at": "2026-01-20T04:09:57Z",
-      "depends_on": []
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0126",
+      "status": "done",
+      "title": "Add task labeling and custom field support",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "queue",
+        "extensibility"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts.rs",
+        "crates/ralph/src/queue.rs"
+      ],
+      "evidence": [
+        "Tasks have fixed schema: id, status, title, tags, scope, evidence, plan, notes, request, agent, timestamps",
+        "No way to attach custom metadata",
+        "Teams using Ralph for project management may want custom fields"
+      ],
+      "plan": [
+        "Add custom_fields: HashMap<String, String> to Task",
+        "Update validation to allow arbitrary custom fields",
+        "Update queue show to display custom fields",
+        "Add queue set-field <task-id> <key> <value> command",
+        "Add tests for custom field persistence and retrieval"
+      ],
+      "notes": [
+        "Implemented custom_fields HashMap, set_field CLI command, validation, TUI display, and tests"
+      ],
+      "request": "scan finding",
+      "created_at": "2025-01-19T12:00:00+00:00",
+      "updated_at": "2026-01-20T05:13:41.100630000Z",
+      "completed_at": "2026-01-20T05:13:41.100630000Z",
+      "depends_on": [],
+      "custom_fields": {
+        "complexity": "low"
+      }
     }
   ]
 }

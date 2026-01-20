@@ -129,6 +129,7 @@ fn test_task_serialization_full() {
         updated_at: Some("2025-01-19T01:00:00Z".to_string()),
         completed_at: None,
         depends_on: vec!["RQ-0000".to_string()],
+        custom_fields: std::collections::HashMap::new(),
     };
 
     let json = serde_json::to_string(&task).unwrap();
@@ -243,6 +244,7 @@ fn test_task_serialization_roundtrip() {
         updated_at: Some("2025-01-19T01:00:00Z".to_string()),
         completed_at: None,
         depends_on: vec![],
+        custom_fields: std::collections::HashMap::new(),
     };
 
     let json = serde_json::to_string(&original).unwrap();

@@ -210,6 +210,53 @@ pub fn set_status(
     Ok(())
 }
 
+pub fn set_field(
+    queue: &mut QueueFile,
+    task_id: &str,
+    key: &str,
+    value: &str,
+    now_rfc3339: &str,
+) -> Result<()> {
+    let key_trimmed = key.trim();
+    if key_trimmed.is_empty() {
+        bail!("Missing custom field key: a key is required for this operation. Provide a valid key (e.g., 'severity').");
+    }
+    if key_trimmed.chars().any(|c| c.is_whitespace()) {
+        bail!(
+            "Invalid custom field key: '{}' contains whitespace. Custom field keys must not contain whitespace.",
+            key_trimmed
+        );
+    }
+
+    let needle = task_id.trim();
+    if needle.is_empty() {
+        bail!("Missing task_id: a task ID is required for this operation. Provide a valid ID (e.g., 'RQ-0001').");
+    }
+
+    let now = now_rfc3339.trim();
+    if now.is_empty() {
+        bail!("Missing timestamp: current time is required for this operation. Ensure a valid RFC3339 timestamp is provided.");
+    }
+    OffsetDateTime::parse(now, &Rfc3339).with_context(|| {
+        format!(
+            "now timestamp must be a valid RFC3339 UTC timestamp (got: {})",
+            now
+        )
+    })?;
+
+    let task = queue
+        .tasks
+        .iter_mut()
+        .find(|t| t.id.trim() == needle)
+        .ok_or_else(|| anyhow!("task not found: {}", needle))?;
+
+    task.custom_fields
+        .insert(key_trimmed.to_string(), value.trim().to_string());
+    task.updated_at = Some(now.to_string());
+
+    Ok(())
+}
+
 pub fn find_task<'a>(queue: &'a QueueFile, task_id: &str) -> Option<&'a Task> {
     let needle = task_id.trim();
     if needle.is_empty() {
@@ -461,6 +508,23 @@ fn validate_task_required_fields(index: usize, task: &Task) -> Result<()> {
     ensure_list_non_empty("evidence", index, &task.id, &task.evidence)?;
     ensure_list_non_empty("plan", index, &task.id, &task.plan)?;
     ensure_field_present("request", index, &task.id, task.request.as_deref())?;
+
+    // Validate custom field keys
+    for (key_idx, (key, _value)) in task.custom_fields.iter().enumerate() {
+        let key_trimmed = key.trim();
+        if key_trimmed.is_empty() {
+            bail!(
+                "Empty custom field key: task {} (index {}) has an empty key at custom_fields[{}]. Remove the empty key or provide a valid key.",
+                task.id, index, key_idx
+            );
+        }
+        if key_trimmed.chars().any(|c| c.is_whitespace()) {
+            bail!(
+                "Invalid custom field key: task {} (index {}) has a key with whitespace at custom_fields[{}]: '{}'. Custom field keys must not contain whitespace.",
+                task.id, index, key_idx, key_trimmed
+            );
+        }
+    }
 
     if let Some(ts) = task.created_at.as_deref() {
         validate_rfc3339("created_at", index, &task.id, ts)?;
@@ -814,6 +878,7 @@ pub fn delete_task(queue: &mut QueueFile, task_id: &str) -> Result<bool> {
 mod tests {
     use super::*;
     use crate::contracts::{Task, TaskStatus};
+    use std::collections::HashMap;
 
     fn task(id: &str) -> Task {
         task_with(id, TaskStatus::Todo, vec!["code".to_string()])
@@ -836,6 +901,7 @@ mod tests {
             updated_at: Some("2026-01-18T00:00:00Z".to_string()),
             completed_at: None,
             depends_on: vec![],
+            custom_fields: HashMap::new(),
         }
     }
 

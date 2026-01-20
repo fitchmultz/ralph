@@ -848,6 +848,31 @@ fn draw_task_details(f: &mut Frame<'_>, app: &mut App, area: Rect) {
             ]));
         }
 
+        // Custom Fields
+        if !task.custom_fields.is_empty() {
+            lines.push(Line::from(""));
+            lines.push(Line::from(vec![
+                Span::styled(
+                    "Custom Fields",
+                    Style::default().add_modifier(Modifier::UNDERLINED),
+                ),
+                Span::styled(":", Style::default()),
+            ]));
+            let mut sorted_fields: Vec<_> = task.custom_fields.iter().collect();
+            sorted_fields.sort_by_key(|&(k, _)| k);
+            for (key, value) in sorted_fields {
+                for line in wrap_text(
+                    &format!("  • {}: {}", key, value),
+                    app.detail_width.saturating_sub(4) as usize,
+                ) {
+                    lines.push(Line::from(Span::styled(
+                        line,
+                        Style::default().fg(Color::LightCyan),
+                    )));
+                }
+            }
+        }
+
         // Timestamps
         lines.push(Line::from(""));
         lines.push(Line::from(vec![
@@ -1019,6 +1044,7 @@ mod tests {
             updated_at: Some("2026-01-19T00:00:00Z".to_string()),
             completed_at: None,
             depends_on: vec![],
+            custom_fields: std::collections::HashMap::new(),
         }
     }
 

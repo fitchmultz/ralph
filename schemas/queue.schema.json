@@ -73,6 +73,14 @@
             "null"
           ]
         },
+        "custom_fields": {
+          "description": "Custom user-defined fields (key-value pairs for extensibility).",
+          "default": {},
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
         "depends_on": {
           "description": "Task IDs that this task depends on (must be Done before this task can run).",
           "default": [],

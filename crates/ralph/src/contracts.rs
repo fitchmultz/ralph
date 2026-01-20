@@ -2,6 +2,7 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 /* ----------------------------- Config (JSON) ----------------------------- */
@@ -296,6 +297,10 @@ pub struct Task {
     /// Task IDs that this task depends on (must be Done before this task can run).
     #[serde(default)]
     pub depends_on: Vec<String>,
+
+    /// Custom user-defined fields (key-value pairs for extensibility).
+    #[serde(default)]
+    pub custom_fields: HashMap<String, String>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, Default, JsonSchema)]

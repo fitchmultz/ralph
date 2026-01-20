@@ -106,8 +106,21 @@ pub fn format_task_detailed(task: &Task) -> String {
     let updated_at = task.updated_at.as_deref().unwrap_or("").trim();
     let completed_at = task.completed_at.as_deref().unwrap_or("").trim();
 
+    // Format custom fields as "key=value" pairs, comma-separated
+    let custom_fields_str = if task.custom_fields.is_empty() {
+        String::new()
+    } else {
+        let mut fields: Vec<String> = task
+            .custom_fields
+            .iter()
+            .map(|(k, v)| format!("{}={}", k, v))
+            .collect();
+        fields.sort();
+        fields.join(",")
+    };
+
     format!(
-        "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+        "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
         task.id.trim(),
         style_status(task.status),
         style_priority(task.priority),
@@ -115,7 +128,8 @@ pub fn format_task_detailed(task: &Task) -> String {
         tags,
         scope,
         updated_at,
-        completed_at
+        completed_at,
+        custom_fields_str
     )
 }
 

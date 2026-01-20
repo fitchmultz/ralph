@@ -25,6 +25,7 @@ fn make_test_task(id: &str, title: &str, status: TaskStatus) -> Task {
         updated_at: Some("2026-01-19T00:00:00Z".to_string()),
         completed_at: None,
         depends_on: vec![],
+        custom_fields: std::collections::HashMap::new(),
     }
 }
 

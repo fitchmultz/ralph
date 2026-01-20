@@ -563,6 +563,7 @@ mod tests {
             updated_at: None,
             completed_at: None,
             depends_on: vec![],
+            custom_fields: std::collections::HashMap::new(),
         }
     }
 

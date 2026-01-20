@@ -339,6 +339,19 @@ fn handle_queue(cmd: QueueCommand, force: bool) -> Result<()> {
             )?;
             queue::save_queue(&resolved.queue_path, &queue_file)?;
         }
+        QueueCommand::SetField {
+            task_id,
+            key,
+            value,
+        } => {
+            let _queue_lock =
+                queue::acquire_queue_lock(&resolved.repo_root, "queue set-field", force)?;
+            let mut queue_file = queue::load_queue(&resolved.queue_path)?;
+            let now = timeutil::now_utc_rfc3339()?;
+            queue::set_field(&mut queue_file, &task_id, &key, &value, &now)?;
+            queue::save_queue(&resolved.queue_path, &queue_file)?;
+            log::info!("Set field '{}' on task {}.", key, task_id);
+        }
         QueueCommand::Sort(args) => {
             let _queue_lock = queue::acquire_queue_lock(&resolved.repo_root, "queue sort", force)?;
             let mut queue_file = queue::load_queue(&resolved.queue_path)?;
@@ -833,6 +846,17 @@ enum QueueCommand {
         status: StatusArg,
         #[arg(long)]
         note: Option<String>,
+    },
+    /// Set a custom field on a task.
+    #[command(
+        after_long_help = "Examples:\n  ralph queue set-field RQ-0001 severity high\n  ralph queue set-field RQ-0002 complexity \"O(n log n)\""
+    )]
+    SetField {
+        task_id: String,
+        /// Custom field key (must not contain whitespace).
+        key: String,
+        /// Custom field value.
+        value: String,
     },
     /// Sort tasks by priority (reorders the queue file).
     #[command(after_long_help = "Examples:\n  ralph queue sort\n  ralph queue sort --descending")]

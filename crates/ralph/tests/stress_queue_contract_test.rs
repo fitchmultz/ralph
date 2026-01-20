@@ -40,6 +40,7 @@ fn make_task_with(id_num: u32, status: TaskStatus, id_prefix: &str, id_width: us
             None
         },
         depends_on: vec![],
+        custom_fields: std::collections::HashMap::new(),
     }
 }
 
