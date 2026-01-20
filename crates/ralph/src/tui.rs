@@ -57,6 +57,17 @@ pub struct App {
     pub autoscroll: bool,
 }
 
+/// Actions that can result from handling a key event.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TuiAction {
+    /// Continue running the TUI
+    Continue,
+    /// Exit the TUI
+    Quit,
+    /// Run a specific task (transitions to Executing mode)
+    RunTask(String),
+}
+
 /// Interaction modes for the TUI.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AppMode {
@@ -181,6 +192,128 @@ impl App {
     }
 }
 
+/// Handle a key event and return the resulting action.
+///
+/// This function is the core of TUI interaction handling and is public
+/// to allow testing without a full terminal setup.
+pub fn handle_key_event(app: &mut App, key: KeyCode, now_rfc3339: &str) -> Result<TuiAction> {
+    match app.mode.clone() {
+        AppMode::Normal => handle_normal_mode_key(app, key, now_rfc3339),
+        AppMode::EditingTitle(ref current) => {
+            handle_editing_mode_key(app, key, current, now_rfc3339)
+        }
+        AppMode::ConfirmDelete => handle_confirm_delete_key(app, key),
+        AppMode::Executing { .. } => handle_executing_mode_key(app, key),
+    }
+}
+
+/// Handle key events in Normal mode.
+fn handle_normal_mode_key(app: &mut App, key: KeyCode, now_rfc3339: &str) -> Result<TuiAction> {
+    match key {
+        KeyCode::Char('q') | KeyCode::Esc => Ok(TuiAction::Quit),
+        KeyCode::Up | KeyCode::Char('k') => {
+            app.move_up();
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Down | KeyCode::Char('j') => {
+            let list_height = 20;
+            app.move_down(list_height);
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Enter => {
+            if let Some(task) = app.selected_task() {
+                let task_id = task.id.clone();
+                app.mode = AppMode::Executing {
+                    task_id: task_id.clone(),
+                };
+                app.logs.clear();
+                app.log_scroll = 0;
+                Ok(TuiAction::RunTask(task_id))
+            } else {
+                Ok(TuiAction::Continue)
+            }
+        }
+        KeyCode::Char('d') => {
+            if app.selected_task().is_some() {
+                app.mode = AppMode::ConfirmDelete;
+            }
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Char('e') => {
+            if let Some(task) = app.selected_task() {
+                app.mode = AppMode::EditingTitle(task.title.clone());
+            }
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Char('s') => {
+            let _ = app.cycle_status(now_rfc3339);
+            Ok(TuiAction::Continue)
+        }
+        _ => Ok(TuiAction::Continue),
+    }
+}
+
+/// Handle key events in EditingTitle mode.
+fn handle_editing_mode_key(
+    app: &mut App,
+    key: KeyCode,
+    current: &str,
+    _now_rfc3339: &str,
+) -> Result<TuiAction> {
+    match key {
+        KeyCode::Enter => {
+            let new_title = current.to_string();
+            let _ = app.update_title(new_title);
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Esc => {
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Char(c) => {
+            let mut new_title = current.to_string();
+            new_title.push(c);
+            app.mode = AppMode::EditingTitle(new_title);
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Backspace => {
+            let mut new_title = current.to_string();
+            new_title.pop();
+            app.mode = AppMode::EditingTitle(new_title);
+            Ok(TuiAction::Continue)
+        }
+        _ => Ok(TuiAction::Continue),
+    }
+}
+
+/// Handle key events in ConfirmDelete mode.
+fn handle_confirm_delete_key(app: &mut App, key: KeyCode) -> Result<TuiAction> {
+    match key {
+        KeyCode::Char('y') | KeyCode::Char('Y') => {
+            let _ = app.delete_selected_task();
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        _ => Ok(TuiAction::Continue),
+    }
+}
+
+/// Handle key events in Executing mode.
+fn handle_executing_mode_key(app: &mut App, key: KeyCode) -> Result<TuiAction> {
+    match key {
+        KeyCode::Esc => {
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        _ => Ok(TuiAction::Continue),
+    }
+}
+
 /// Event sent from the runner thread to the TUI.
 enum RunnerEvent {
     /// Output chunk received
@@ -290,106 +423,33 @@ where
 
                     let mut app_ref = app.borrow_mut();
 
-                    match app_ref.mode.clone() {
-                        AppMode::Normal => {
-                            match key.code {
-                                KeyCode::Char('q') | KeyCode::Esc => {
-                                    break;
-                                }
-                                KeyCode::Up | KeyCode::Char('k') => {
-                                    app_ref.move_up();
-                                }
-                                KeyCode::Down | KeyCode::Char('j') => {
-                                    let list_height = 20;
-                                    app_ref.move_down(list_height);
-                                }
-                                KeyCode::Enter => {
-                                    if let Some(task) = app_ref.selected_task() {
-                                        let task_id = task.id.clone();
-                                        // Set executing mode
-                                        app_ref.mode = AppMode::Executing {
-                                            task_id: task_id.clone(),
-                                        };
-                                        app_ref.logs.clear();
-                                        app_ref.log_scroll = 0;
+                    // Use the extracted handle_key_event function
+                    let now = timeutil::now_utc_rfc3339().unwrap();
+                    match handle_key_event(&mut app_ref, key.code, &now).unwrap() {
+                        TuiAction::Quit => break,
+                        TuiAction::Continue => {}
+                        TuiAction::RunTask(task_id) => {
+                            // Spawn runner thread
+                            let tx_clone = tx.clone();
+                            let tx_clone_for_handler = tx.clone();
+                            let handler: crate::runner::OutputHandler =
+                                Arc::new(Box::new(move |text: &str| {
+                                    let _ = tx_clone_for_handler
+                                        .send(RunnerEvent::Output(text.to_string()));
+                                }));
 
-                                        // Spawn runner thread
-                                        let tx_clone = tx.clone();
-                                        let tx_clone_for_handler = tx.clone();
-                                        let handler: crate::runner::OutputHandler =
-                                            Arc::new(Box::new(move |text: &str| {
-                                                let _ = tx_clone_for_handler
-                                                    .send(RunnerEvent::Output(text.to_string()));
-                                            }));
-
-                                        let runner_fn = runner_factory(task_id.clone(), handler);
-                                        thread::spawn(move || {
-                                            let result = runner_fn();
-                                            match result {
-                                                Ok(()) => {
-                                                    let _ = tx_clone.send(RunnerEvent::Finished);
-                                                }
-                                                Err(e) => {
-                                                    let _ = tx_clone
-                                                        .send(RunnerEvent::Error(e.to_string()));
-                                                }
-                                            }
-                                        });
+                            let runner_fn = runner_factory(task_id.clone(), handler);
+                            thread::spawn(move || {
+                                let result = runner_fn();
+                                match result {
+                                    Ok(()) => {
+                                        let _ = tx_clone.send(RunnerEvent::Finished);
+                                    }
+                                    Err(e) => {
+                                        let _ = tx_clone.send(RunnerEvent::Error(e.to_string()));
                                     }
                                 }
-                                KeyCode::Char('d') => {
-                                    if app_ref.selected_task().is_some() {
-                                        app_ref.mode = AppMode::ConfirmDelete;
-                                    }
-                                }
-                                KeyCode::Char('e') => {
-                                    if let Some(task) = app_ref.selected_task() {
-                                        app_ref.mode = AppMode::EditingTitle(task.title.clone());
-                                    }
-                                }
-                                KeyCode::Char('s') => {
-                                    let now = timeutil::now_utc_rfc3339().unwrap();
-                                    let _ = app_ref.cycle_status(&now);
-                                }
-                                _ => {}
-                            }
-                        }
-                        AppMode::EditingTitle(ref current) => match key.code {
-                            KeyCode::Enter => {
-                                let new_title = current.clone();
-                                let _ = app_ref.update_title(new_title);
-                                app_ref.mode = AppMode::Normal;
-                            }
-                            KeyCode::Esc => {
-                                app_ref.mode = AppMode::Normal;
-                            }
-                            KeyCode::Char(c) => {
-                                let mut new_title = current.clone();
-                                new_title.push(c);
-                                app_ref.mode = AppMode::EditingTitle(new_title);
-                            }
-                            KeyCode::Backspace => {
-                                let mut new_title = current.clone();
-                                new_title.pop();
-                                app_ref.mode = AppMode::EditingTitle(new_title);
-                            }
-                            _ => {}
-                        },
-                        AppMode::ConfirmDelete => match key.code {
-                            KeyCode::Char('y') | KeyCode::Char('Y') => {
-                                let _ = app_ref.delete_selected_task();
-                                app_ref.mode = AppMode::Normal;
-                            }
-                            KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
-                                app_ref.mode = AppMode::Normal;
-                            }
-                            _ => {}
-                        },
-                        AppMode::Executing { .. } => {
-                            // In executing mode, only allow Esc to cancel (doesn't actually cancel, just returns to normal)
-                            if key.code == KeyCode::Esc {
-                                app_ref.mode = AppMode::Normal;
-                            }
+                            });
                         }
                     }
                 }
@@ -425,7 +485,9 @@ fn wrap_text(text: &str, width: usize) -> Vec<String> {
 }
 
 /// Draw the main UI.
-fn draw_ui(f: &mut Frame<'_>, app: &mut App) {
+///
+/// Public to allow testing with TestBackend.
+pub fn draw_ui(f: &mut Frame<'_>, app: &mut App) {
     let size = f.area();
 
     // Handle Executing mode separately (full-screen output view)

@@ -2,51 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0154",
-      "status": "todo",
-      "title": "Add rigid automated testing of TUI for functional and visual validation",
-      "priority": "high",
-      "tags": [
-        "rust",
-        "tui",
-        "testing",
-        "ux"
-      ],
-      "scope": [
-        "crates/ralph/src/tui.rs",
-        "crates/ralph/tests/"
-      ],
-      "evidence": [
-        "User request: Add rigid automated testing of the TUI to automate testing the TUI as much as possible to ensure it works functionally and is visually appealing for maximal user experience",
-        "Existing TUI (tui.rs) has basic unit tests but no integration/end-to-end tests",
-        "No automated validation of visual rendering, terminal behavior, or user interactions",
-        "TUI uses ratatui with complex state management (Normal, EditingTitle, ConfirmDelete, Executing modes)",
-        "No tests for keyboard event handling, scrolling, selection, or mode transitions",
-        "Visual regression testing absent; color schemes, layouts, and text wrapping not validated",
-        "No tests for terminal edge cases (resize, alternate screen, raw mode cleanup)"
-      ],
-      "plan": [
-        "Add ratatui testing backend dependencies to Cargo.toml (ratatui doesn't include test backend by default)",
-        "Create tests/tui_contract_test.rs with unit tests for App state management (navigation, status cycling, deletion, editing)",
-        "Create tests/tui_rendering_test.rs with automated rendering tests using a mock terminal backend to validate UI layout and output",
-        "Add tests for all AppMode transitions (Normal, EditingTitle, ConfirmDelete, Executing)",
-        "Add keyboard event handling tests for all key bindings (q/Esc, Up/Down/j/k, Enter, d, e, s)",
-        "Add scrolling tests for task list and execution log views",
-        "Add visual regression tests for task list rendering, task details panel, confirmation dialog, and execution view",
-        "Add text wrapping tests for long titles, evidence, and plan fields",
-        "Add color scheme validation tests (status colors, priority colors, selection highlighting)",
-        "Add edge case tests (empty queue, single task, very long task titles, special characters)",
-        "Add terminal lifecycle tests (raw mode enable/disable, alternate screen enter/leave, panic recovery)",
-        "Add integration test that spawns TUI with a test queue and validates initial state",
-        "Document testing approach in AGENTS.md or a dedicated TESTING.md for TUI"
-      ],
-      "notes": [],
-      "request": "Add a task to add rigid automated testing of the TUI to automate testing the TUI as much as possible to ensure it works functionally and is visually appealing for maximal user experience.",
-      "created_at": "2026-01-19T00:00:00+00:00",
-      "updated_at": "2026-01-19T00:00:00+00:00",
-      "depends_on": []
-    },
-    {
       "id": "RQ-0122",
       "status": "todo",
       "title": "Add Git LFS (Large File Storage) detection and handling",
