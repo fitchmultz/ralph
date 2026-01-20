@@ -1317,7 +1317,8 @@ mod tests {
     }
 
     #[test]
-    fn resolve_agent_args_rejects_invalid_runner_model_combo() -> anyhow::Result<()> {
+    fn resolve_agent_args_defaults_for_codex_when_config_model_incompatible() -> anyhow::Result<()>
+    {
         let temp = TempDir::new().context("create temp dir")?;
         let _lock = env_lock().lock().expect("env lock");
         let repo_root = temp.path().to_path_buf();
@@ -1327,8 +1328,13 @@ mod tests {
         )?;
         let _guard = EnvGuard::enter(&repo_root)?;
         let resolved = crate::config::resolve_from_cwd().context("resolve config")?;
-        let err = super::resolve_agent_args(&resolved, None, None, None).unwrap_err();
-        assert!(format!("{err:#}").contains("zai-coding-plan/glm-4.7"));
+        let settings = super::resolve_agent_args(&resolved, None, None, None)?;
+        assert_eq!(settings.runner, super::RunnerKind::Codex);
+        assert_eq!(settings.model, super::contracts::Model::Gpt52Codex);
+        assert_eq!(
+            settings.reasoning_effort,
+            Some(super::contracts::ReasoningEffort::Medium)
+        );
         Ok(())
     }
 }

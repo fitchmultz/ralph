@@ -253,22 +253,29 @@ pub fn resolve_model_for_runner(
     task_model: Option<Model>,
     config_model: Option<Model>,
 ) -> Model {
+    let normalize_model = |model: Model| {
+        if runner == Runner::Codex {
+            match model {
+                Model::Gpt52Codex | Model::Gpt52 => model,
+                _ => default_model_for_runner(runner),
+            }
+        } else if model == Model::Gpt52Codex {
+            default_model_for_runner(runner)
+        } else {
+            model
+        }
+    };
+
     if let Some(model) = override_model {
         return model;
     }
     if let Some(model) = task_model {
-        return model;
+        return normalize_model(model);
     }
 
     match config_model {
         None => default_model_for_runner(runner),
-        Some(model) => {
-            if runner != Runner::Codex && model == Model::Gpt52Codex {
-                default_model_for_runner(runner)
-            } else {
-                model
-            }
-        }
+        Some(model) => normalize_model(model),
     }
 }
 
@@ -1304,6 +1311,34 @@ mod tests {
     fn resolve_model_for_runner_replaces_codex_default_for_gemini() {
         let model = resolve_model_for_runner(Runner::Gemini, None, None, Some(Model::Gpt52Codex));
         assert_eq!(model.as_str(), DEFAULT_GEMINI_MODEL);
+    }
+
+    #[test]
+    fn resolve_model_for_runner_defaults_for_codex_when_config_incompatible() {
+        let model = resolve_model_for_runner(
+            Runner::Codex,
+            None,
+            None,
+            Some(Model::Custom("sonnet".to_string())),
+        );
+        assert_eq!(model, Model::Gpt52Codex);
+    }
+
+    #[test]
+    fn resolve_model_for_runner_normalizes_task_model_for_codex() {
+        let model = resolve_model_for_runner(
+            Runner::Codex,
+            None,
+            Some(Model::Custom("sonnet".to_string())),
+            None,
+        );
+        assert_eq!(model, Model::Gpt52Codex);
+    }
+
+    #[test]
+    fn resolve_model_for_runner_normalizes_task_model_for_opencode() {
+        let model = resolve_model_for_runner(Runner::Opencode, None, Some(Model::Gpt52Codex), None);
+        assert_eq!(model, Model::Glm47);
     }
 
     #[test]
