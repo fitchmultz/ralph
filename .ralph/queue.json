@@ -2,67 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0152",
-      "status": "doing",
-      "title": "Remove all YAML code and establish JSON schema as source of truth",
-      "priority": "high",
-      "tags": [
-        "rust",
-        "migration",
-        "schema"
-      ],
-      "scope": [
-        "crates/ralph/Cargo.toml",
-        "crates/ralph/src/config.rs",
-        "crates/ralph/src/queue.rs",
-        "crates/ralph/src/main.rs",
-        "crates/ralph/src/init_cmd.rs",
-        "crates/ralph/src/run_cmd.rs",
-        "crates/ralph/src/prompts.rs",
-        "crates/ralph/tests/stress_queue_contract_test.rs",
-        "crates/ralph/assets/prompts/worker.md",
-        "crates/ralph/assets/prompts/task_builder.md",
-        "crates/ralph/assets/prompts/scan.md"
-      ],
-      "evidence": [
-        "User request: Now that we have switched to JSON for the queue format we need to remove all YAML code from the codebase. Users will be required to migrate or rebuild existing queue docs to the JSON format manually or via external means. This decision is final. Make sure we have a defined JSON schema doc that is our queue JSON schema source of truth and the code utilizes it.",
-        "Current YAML fallback code in config.rs:88 (load_layer tries YAML if JSON fails)",
-        "Current YAML fallback code in queue.rs:35 (load_queue tries YAML if JSON fails)",
-        "serde_yaml dependency in Cargo.toml:18",
-        "YAML format option in main.rs:137 (queue show --format yaml)",
-        "YAML format option in main.rs:383 (config show)",
-        "YAML references in run_cmd.rs:107, :115, :302, :390, :401, :406",
-        "YAML references in prompts.rs:28, :32, :43, :1273, :1274",
-        "YAML references in init_cmd.rs:120 (config validation)",
-        "YAML test code in stress_queue_contract_test.rs:295",
-        "All prompt templates (worker.md, task_builder.md, scan.md) reference queue.yaml, done.yaml, and YAML contract"
-      ],
-      "plan": [
-        "Create JSON schema source of truth document at docs/queue-schema.json or .ralph/schema.json",
-        "Generate JSON schema from Rust contracts using schemars to ensure consistency",
-        "Add schema export command: ralph queue schema to output the current schema",
-        "Remove serde_yaml dependency from Cargo.toml",
-        "Remove YAML fallback logic from config.rs load_layer (line 82-92)",
-        "Remove YAML fallback logic from queue.rs load_queue (line 30-39)",
-        "Remove --format yaml option from queue show command in main.rs",
-        "Remove --format yaml option from config show command in main.rs",
-        "Remove YAML path fallbacks from config.rs (global_config_path, project_config_path)",
-        "Remove YAML path checks from find_repo_root",
-        "Update run_cmd.rs to reference .json files instead of .yaml in error messages and test mocks",
-        "Update prompts.rs constants to reference .json files instead of .yaml",
-        "Update init_cmd.rs to remove YAML validation fallback",
-        "Remove YAML test code from stress_queue_contract_test.rs",
-        "Update all prompt templates (worker.md, task_builder.md, scan.md) to reference JSON instead of YAML",
-        "Update AGENTS.md and .ralph/README.md to reference JSON files instead of YAML",
-        "Run make ci to ensure all changes pass"
-      ],
-      "notes": [],
-      "request": "Now that we have switched to JSON for the queue format we need to remove all YAML code from the codebase. Users will be required to migrate or rebuild existing queue docs to the JSON format manually or via external means. This decision is final. Make sure we have a defined JSON schema doc that is our queue JSON schema source of truth and the code utilizes it. That way modifying the schema going forward is much easier.",
-      "created_at": "2025-01-19T13:22:00+00:00",
-      "updated_at": "2025-01-19T13:22:00+00:00",
-      "depends_on": []
-    },
-    {
       "id": "RQ-0120",
       "status": "todo",
       "title": "Add interactive task selection and TUI mode",

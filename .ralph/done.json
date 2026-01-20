@@ -2,40 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0101",
-      "status": "done",
-      "title": "Standardize log vs println! usage across command handlers",
-      "priority": "medium",
-      "tags": [
-        "rust",
-        "logging",
-        "refactor"
-      ],
-      "scope": [
-        "crates/ralph/src/main.rs"
-      ],
-      "evidence": [
-        "Command handlers in `main.rs` (like `handle_queue`, `handle_config`) mix `log::info!`\nand `println!`. Status messages should ideally use the logger to allow filtering."
-      ],
-      "plan": [
-        "Audit `handle_*` functions in `main.rs`.",
-        "Move status/info messages to `log::info!`.",
-        "Keep `println!` only for primary command output (e.g., task IDs, YAML output)."
-      ],
-      "notes": [
-        "Audited `handle_*` functions in `main.rs` for `println!` vs `log::info!` usage.",
-        "Refactored `handle_init` to use `log::info!` for status reporting.",
-        "Confirmed `handle_queue` status messages already use `log::info!`.",
-        "Maintained `println!` for primary command output (IDs, YAML, Config Paths).",
-        "Verified that `make ci` passes with all tests reflecting new log output format."
-      ],
-      "request": "scan finding",
-      "created_at": "2026-01-19T04:00:47+00:00",
-      "updated_at": "2026-01-18T18:00:00+00:00",
-      "completed_at": "2026-01-18T18:15:00+00:00",
-      "depends_on": []
-    },
-    {
       "id": "RQ-0069",
       "status": "done",
       "title": "Backfill missing request and timestamps after scan or task build",
@@ -338,36 +304,35 @@
       "depends_on": []
     },
     {
-      "id": "RQ-0086",
+      "id": "RQ-0080",
       "status": "done",
-      "title": "Audit config.rs for robust error handling and layering",
+      "title": "Improve gitutil::require_clean_repo error message",
       "priority": "medium",
       "tags": [
         "rust",
-        "correctness"
+        "ux"
       ],
       "scope": [
-        "crates/ralph/src/config.rs"
+        "crates/ralph/src/gitutil.rs"
       ],
       "evidence": [
-        "apply_layer uses manual field-by-field copy; missing some validation checks"
+        "current error bails with raw porcelain output; lacks actionable bypass/stash advice"
       ],
       "plan": [
-        "Audit apply_layer for missing fields or inconsistent merging",
-        "Ensure all Option fields in ConfigLayer are correctly handled",
-        "Add more descriptive errors for invalid config values"
+        "Update error message to suggest 'git stash' or using '--force' (if applicable)",
+        "Distinguish between untracked and tracked changes in the message"
       ],
       "notes": [
-        "Refactored `apply_layer` to use centralized `merge_from` methods on `QueueConfig` and `AgentConfig`.",
-        "Added `validate_config` function to ensure all configuration values (version, id_prefix, id_width, file paths, and runner binaries) are valid and non-empty.",
-        "Improved error context by wrapping `apply_layer` calls with `with_context` in `resolve_from_cwd`.",
-        "Removed redundant validation from `resolve_id_prefix` and others while maintaining safety.",
-        "Verified with `make ci`."
+        "Updated `require_clean_repo` to parse `git status --porcelain` and distinguish tracked vs untracked changes.",
+        "Added helpful suggestions (`git stash`, `git commit`, `git clean -fd`, `git add`) and mentioned `--force`.",
+        "Added a `force` parameter to `require_clean_repo` to allow bypassing the check via the global `--force` CLI flag.",
+        "Updated all callers in `run_cmd.rs`, `scan_cmd.rs`, and `task_cmd.rs` to pass the `force` flag.",
+        "Added integration test `run_one_succeeds_when_repo_is_dirty_and_force_is_used` in `git_repo_integration_test.rs`."
       ],
       "request": "scan finding",
       "created_at": "2026-01-18T22:00:00+00:00",
-      "updated_at": "2026-01-18T22:38:00+00:00",
-      "completed_at": "2026-01-19T03:05:00+00:00",
+      "updated_at": "2026-01-18T22:50:00+00:00",
+      "completed_at": "2026-01-18T22:50:00+00:00",
       "depends_on": []
     },
     {
@@ -401,38 +366,6 @@
       "created_at": "2026-01-18T22:00:00+00:00",
       "updated_at": "2026-01-18T22:15:00+00:00",
       "completed_at": "2026-01-18T22:30:00+00:00",
-      "depends_on": []
-    },
-    {
-      "id": "RQ-0080",
-      "status": "done",
-      "title": "Improve gitutil::require_clean_repo error message",
-      "priority": "medium",
-      "tags": [
-        "rust",
-        "ux"
-      ],
-      "scope": [
-        "crates/ralph/src/gitutil.rs"
-      ],
-      "evidence": [
-        "current error bails with raw porcelain output; lacks actionable bypass/stash advice"
-      ],
-      "plan": [
-        "Update error message to suggest 'git stash' or using '--force' (if applicable)",
-        "Distinguish between untracked and tracked changes in the message"
-      ],
-      "notes": [
-        "Updated `require_clean_repo` to parse `git status --porcelain` and distinguish tracked vs untracked changes.",
-        "Added helpful suggestions (`git stash`, `git commit`, `git clean -fd`, `git add`) and mentioned `--force`.",
-        "Added a `force` parameter to `require_clean_repo` to allow bypassing the check via the global `--force` CLI flag.",
-        "Updated all callers in `run_cmd.rs`, `scan_cmd.rs`, and `task_cmd.rs` to pass the `force` flag.",
-        "Added integration test `run_one_succeeds_when_repo_is_dirty_and_force_is_used` in `git_repo_integration_test.rs`."
-      ],
-      "request": "scan finding",
-      "created_at": "2026-01-18T22:00:00+00:00",
-      "updated_at": "2026-01-18T22:50:00+00:00",
-      "completed_at": "2026-01-18T22:50:00+00:00",
       "depends_on": []
     },
     {
@@ -570,6 +503,39 @@
       "depends_on": []
     },
     {
+      "id": "RQ-0086",
+      "status": "done",
+      "title": "Audit config.rs for robust error handling and layering",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "correctness"
+      ],
+      "scope": [
+        "crates/ralph/src/config.rs"
+      ],
+      "evidence": [
+        "apply_layer uses manual field-by-field copy; missing some validation checks"
+      ],
+      "plan": [
+        "Audit apply_layer for missing fields or inconsistent merging",
+        "Ensure all Option fields in ConfigLayer are correctly handled",
+        "Add more descriptive errors for invalid config values"
+      ],
+      "notes": [
+        "Refactored `apply_layer` to use centralized `merge_from` methods on `QueueConfig` and `AgentConfig`.",
+        "Added `validate_config` function to ensure all configuration values (version, id_prefix, id_width, file paths, and runner binaries) are valid and non-empty.",
+        "Improved error context by wrapping `apply_layer` calls with `with_context` in `resolve_from_cwd`.",
+        "Removed redundant validation from `resolve_id_prefix` and others while maintaining safety.",
+        "Verified with `make ci`."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-18T22:00:00+00:00",
+      "updated_at": "2026-01-18T22:38:00+00:00",
+      "completed_at": "2026-01-19T03:05:00+00:00",
+      "depends_on": []
+    },
+    {
       "id": "RQ-0087",
       "status": "done",
       "title": "Add stress tests for edge-case YAML breakage and recovery",
@@ -700,139 +666,6 @@
       "depends_on": []
     },
     {
-      "id": "RQ-0093",
-      "status": "done",
-      "title": "Implement centralized CLI output utility for consistent formatting",
-      "priority": "medium",
-      "tags": [
-        "rust",
-        "ux",
-        "utility"
-      ],
-      "scope": [
-        "crates/ralph/src/outpututil.rs"
-      ],
-      "evidence": [
-        "`outpututil.rs` is currently very minimal. CLI output patterns like task lists,\nstatus reports, and error summaries are implemented ad-hoc in various command modules."
-      ],
-      "plan": [
-        "Expand `outpututil.rs` with helpers for common CLI output patterns (e.g., info/success/warning prefixes).",
-        "Add support for basic ANSI colors/styles if appropriate (mimicking project conventions).",
-        "Provide a standardized way to print task summaries used by `queue list` and `run`."
-      ],
-      "notes": [
-        "Added `colored` dependency to `crates/ralph/Cargo.toml`.",
-        "Expanded `outpututil.rs` with `print_info`, `print_success`, `print_warn`, `print_error` helpers.",
-        "Implemented `format_task_compact` and `format_task_detailed` in `outpututil.rs` with status coloring.",
-        "Refactored `main.rs` to use the centralized formatting logic."
-      ],
-      "request": "scan finding",
-      "created_at": "2026-01-19T04:00:47+00:00",
-      "updated_at": "2026-01-19T05:00:00+00:00",
-      "completed_at": "2026-01-19T05:00:00+00:00",
-      "depends_on": []
-    },
-    {
-      "id": "RQ-0103",
-      "status": "done",
-      "title": "Implement RedactedError wrapper for safe error display",
-      "priority": "medium",
-      "tags": [
-        "rust",
-        "safety",
-        "error-handling"
-      ],
-      "scope": [
-        "crates/ralph/src/redaction.rs"
-      ],
-      "evidence": [
-        "There is no easy way to wrap an arbitrary `anyhow::Error` and ensure it is\nredacted when displayed. This leads to manual redaction logic at various display sites."
-      ],
-      "plan": [
-        "Create a `RedactedError(anyhow::Error)` wrapper in `redaction.rs`.",
-        "Implement `Display` and `Debug` for it, applying `redact_text` to the output.",
-        "Provide a helper method `redacted()` for `Result` to easily wrap errors."
-      ],
-      "notes": [
-        "Implemented `RedactedError` struct wrapping `anyhow::Error`.",
-        "Implemented `Display` and `Debug` for `RedactedError` to automatically apply redaction.",
-        "Added `Redactable` trait with `redacted()` helper for `Result`.",
-        "Added unit tests for `RedactedError` and `Redactable`."
-      ],
-      "request": "scan finding",
-      "created_at": "2026-01-19T04:00:47+00:00",
-      "updated_at": "2026-01-19T05:15:00+00:00",
-      "completed_at": "2026-01-19T05:15:00+00:00",
-      "depends_on": []
-    },
-    {
-      "id": "RQ-0095",
-      "status": "done",
-      "title": "Implement a logging wrapper with automatic redaction",
-      "priority": "medium",
-      "tags": [
-        "rust",
-        "safety",
-        "logging"
-      ],
-      "scope": [
-        "crates/ralph/src/redaction.rs"
-      ],
-      "evidence": [
-        "Redaction is currently applied manually in some places (like `run_cmd.rs` error handling)\nbut forgotten in others. A centralized logging wrapper would ensure consistency."
-      ],
-      "plan": [
-        "Implement a macro or helper that wraps standard `log` macros to apply `redact_text`.",
-        "Alternatively, implement a custom `Log` implementation that redacts all messages.",
-        "Ensure that all sensitive data (env vars, keys) is automatically masked in all logs."
-      ],
-      "notes": [
-        "Implemented `RedactedLogger` as a `log::Log` wrapper that automatically redacts all log messages using `redact_text`.",
-        "Added `rinfo!`, `rwarn!`, `rerror!`, `rdebug!`, and `rtrace!` macros for explicit redacted logging.",
-        "Integrated `RedactedLogger` into `main.rs` to wrap the global logger.",
-        "Added top-of-file purpose header to `redaction.rs` as per AGENTS.md."
-      ],
-      "request": "scan finding",
-      "created_at": "2026-01-19T04:00:47+00:00",
-      "updated_at": "2026-01-19T04:42:03+00:00",
-      "completed_at": "2026-01-19T04:42:03+00:00",
-      "depends_on": []
-    },
-    {
-      "id": "RQ-0097",
-      "status": "done",
-      "title": "Refactor gitutil.rs to use thiserror for structured errors",
-      "priority": "medium",
-      "tags": [
-        "rust",
-        "git",
-        "refactor"
-      ],
-      "scope": [
-        "crates/ralph/src/gitutil.rs"
-      ],
-      "evidence": [
-        "`gitutil.rs` uses a manual `GitPushError` struct and `classify_push_error` that\njust returns strings for `bail!`. It doesn't leverage `thiserror` for real types."
-      ],
-      "plan": [
-        "Define a proper `GitError` enum using `thiserror`.",
-        "Include variants for common failures: NoUpstream, AuthFailed, DirtyRepo, etc.",
-        "Update call sites to use these structured errors for better programmatic handling and consistent display."
-      ],
-      "notes": [
-        "Defined `GitError` enum using `thiserror` in `gitutil.rs`.",
-        "Replaced `GitPushError` with `GitError` variants (NoUpstream, AuthFailed, PushFailed, DirtyRepo, CommandFailed).",
-        "Updated `gitutil` functions to return `Result<T, GitError>`.",
-        "Refactored `run_cmd::push_if_ahead` to use structured error matching for skipping push when no upstream is configured.",
-        "Verified with `make ci`."
-      ],
-      "request": "scan finding",
-      "created_at": "2026-01-19T04:00:47+00:00",
-      "updated_at": "2026-01-18T10:15:00+00:00",
-      "completed_at": "2026-01-18T10:15:00+00:00",
-      "depends_on": []
-    },
-    {
       "id": "RQ-0091",
       "status": "done",
       "title": "Standardize top-level error formatting and redaction in main.rs",
@@ -862,40 +695,6 @@
       "created_at": "2026-01-19T04:00:47+00:00",
       "updated_at": "2026-01-19T04:46:56+00:00",
       "completed_at": "2026-01-19T04:48:40+00:00",
-      "depends_on": []
-    },
-    {
-      "id": "RQ-0105",
-      "status": "done",
-      "title": "Refactor task formatting to use centralized utility",
-      "priority": "medium",
-      "tags": [
-        "rust",
-        "ux",
-        "refactor"
-      ],
-      "scope": [
-        "crates/ralph/src/main.rs"
-      ],
-      "evidence": [
-        "`format_task_compact` and `format_task_long` are defined in `main.rs`.\nThey should be moved to `outpututil.rs` or `contracts.rs` and standardized."
-      ],
-      "plan": [
-        "Move task formatting logic out of `main.rs`.",
-        "Ensure consistent trimming and joining of tags/scope.",
-        "Integrate with the new `outpututil` helpers for consistent CLI presentation."
-      ],
-      "notes": [
-        "Standardized `format_task_compact` and `format_task_detailed` in `outpututil.rs` with consistent `\\t` separators.",
-        "Extracted `join_csv_trimmed` as a public helper in `outpututil.rs`.",
-        "Added `format_task_id` and `format_task_id_title` to `outpututil.rs` and used them in `main.rs`.",
-        "Centralized `format_task_commit_message` in `outpututil.rs` and used it in `run_cmd.rs`.",
-        "Verified with `make ci`."
-      ],
-      "request": "scan finding",
-      "created_at": "2026-01-19T04:00:47+00:00",
-      "updated_at": "2026-01-18T00:00:00+00:00",
-      "completed_at": "2026-01-18T00:00:00+00:00",
       "depends_on": []
     },
     {
@@ -929,6 +728,39 @@
       "created_at": "2026-01-19T04:00:47+00:00",
       "updated_at": "2026-01-18T05:05:00+00:00",
       "completed_at": "2026-01-18T05:05:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0093",
+      "status": "done",
+      "title": "Implement centralized CLI output utility for consistent formatting",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "ux",
+        "utility"
+      ],
+      "scope": [
+        "crates/ralph/src/outpututil.rs"
+      ],
+      "evidence": [
+        "`outpututil.rs` is currently very minimal. CLI output patterns like task lists,\nstatus reports, and error summaries are implemented ad-hoc in various command modules."
+      ],
+      "plan": [
+        "Expand `outpututil.rs` with helpers for common CLI output patterns (e.g., info/success/warning prefixes).",
+        "Add support for basic ANSI colors/styles if appropriate (mimicking project conventions).",
+        "Provide a standardized way to print task summaries used by `queue list` and `run`."
+      ],
+      "notes": [
+        "Added `colored` dependency to `crates/ralph/Cargo.toml`.",
+        "Expanded `outpututil.rs` with `print_info`, `print_success`, `print_warn`, `print_error` helpers.",
+        "Implemented `format_task_compact` and `format_task_detailed` in `outpututil.rs` with status coloring.",
+        "Refactored `main.rs` to use the centralized formatting logic."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-19T04:00:47+00:00",
+      "updated_at": "2026-01-19T05:00:00+00:00",
+      "completed_at": "2026-01-19T05:00:00+00:00",
       "depends_on": []
     },
     {
@@ -966,6 +798,39 @@
       "depends_on": []
     },
     {
+      "id": "RQ-0095",
+      "status": "done",
+      "title": "Implement a logging wrapper with automatic redaction",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "safety",
+        "logging"
+      ],
+      "scope": [
+        "crates/ralph/src/redaction.rs"
+      ],
+      "evidence": [
+        "Redaction is currently applied manually in some places (like `run_cmd.rs` error handling)\nbut forgotten in others. A centralized logging wrapper would ensure consistency."
+      ],
+      "plan": [
+        "Implement a macro or helper that wraps standard `log` macros to apply `redact_text`.",
+        "Alternatively, implement a custom `Log` implementation that redacts all messages.",
+        "Ensure that all sensitive data (env vars, keys) is automatically masked in all logs."
+      ],
+      "notes": [
+        "Implemented `RedactedLogger` as a `log::Log` wrapper that automatically redacts all log messages using `redact_text`.",
+        "Added `rinfo!`, `rwarn!`, `rerror!`, `rdebug!`, and `rtrace!` macros for explicit redacted logging.",
+        "Integrated `RedactedLogger` into `main.rs` to wrap the global logger.",
+        "Added top-of-file purpose header to `redaction.rs` as per AGENTS.md."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-19T04:00:47+00:00",
+      "updated_at": "2026-01-19T04:42:03+00:00",
+      "completed_at": "2026-01-19T04:42:03+00:00",
+      "depends_on": []
+    },
+    {
       "id": "RQ-0096",
       "status": "done",
       "title": "Improve fsutil::acquire_dir_lock error messages",
@@ -996,6 +861,73 @@
       "created_at": "2026-01-19T04:00:47+00:00",
       "updated_at": "2026-01-18T22:38:00+00:00",
       "completed_at": "2026-01-19T05:12:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0097",
+      "status": "done",
+      "title": "Refactor gitutil.rs to use thiserror for structured errors",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "git",
+        "refactor"
+      ],
+      "scope": [
+        "crates/ralph/src/gitutil.rs"
+      ],
+      "evidence": [
+        "`gitutil.rs` uses a manual `GitPushError` struct and `classify_push_error` that\njust returns strings for `bail!`. It doesn't leverage `thiserror` for real types."
+      ],
+      "plan": [
+        "Define a proper `GitError` enum using `thiserror`.",
+        "Include variants for common failures: NoUpstream, AuthFailed, DirtyRepo, etc.",
+        "Update call sites to use these structured errors for better programmatic handling and consistent display."
+      ],
+      "notes": [
+        "Defined `GitError` enum using `thiserror` in `gitutil.rs`.",
+        "Replaced `GitPushError` with `GitError` variants (NoUpstream, AuthFailed, PushFailed, DirtyRepo, CommandFailed).",
+        "Updated `gitutil` functions to return `Result<T, GitError>`.",
+        "Refactored `run_cmd::push_if_ahead` to use structured error matching for skipping push when no upstream is configured.",
+        "Verified with `make ci`."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-19T04:00:47+00:00",
+      "updated_at": "2026-01-18T10:15:00+00:00",
+      "completed_at": "2026-01-18T10:15:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0098",
+      "status": "done",
+      "title": "Add debug logging for config resolution and repo root discovery",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "logging",
+        "config"
+      ],
+      "scope": [
+        "crates/ralph/src/config.rs"
+      ],
+      "evidence": [
+        "`find_repo_root` and `resolve_from_cwd` operate silently. If configuration\nloading fails or picks the wrong directory, it's difficult to debug without code changes."
+      ],
+      "plan": [
+        "Add `log::debug!` statements to `find_repo_root` showing each directory checked.",
+        "Log the paths of global and project config files being loaded.",
+        "Log the final resolved paths for queue, done, and root."
+      ],
+      "notes": [
+        "Added `log::debug!` statements to `find_repo_root` showing each directory checked during root discovery.",
+        "Added debug logs for global and project config loading in `resolve_from_cwd`.",
+        "Logged final resolved paths for `repo_root`, `queue_path`, and `done_path`.",
+        "Verified with `make ci`."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-19T04:00:47+00:00",
+      "updated_at": "2026-01-18T20:11:00+00:00",
+      "completed_at": "2026-01-18T20:30:00+00:00",
       "depends_on": []
     },
     {
@@ -1066,6 +998,40 @@
       "depends_on": []
     },
     {
+      "id": "RQ-0101",
+      "status": "done",
+      "title": "Standardize log vs println! usage across command handlers",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "logging",
+        "refactor"
+      ],
+      "scope": [
+        "crates/ralph/src/main.rs"
+      ],
+      "evidence": [
+        "Command handlers in `main.rs` (like `handle_queue`, `handle_config`) mix `log::info!`\nand `println!`. Status messages should ideally use the logger to allow filtering."
+      ],
+      "plan": [
+        "Audit `handle_*` functions in `main.rs`.",
+        "Move status/info messages to `log::info!`.",
+        "Keep `println!` only for primary command output (e.g., task IDs, YAML output)."
+      ],
+      "notes": [
+        "Audited `handle_*` functions in `main.rs` for `println!` vs `log::info!` usage.",
+        "Refactored `handle_init` to use `log::info!` for status reporting.",
+        "Confirmed `handle_queue` status messages already use `log::info!`.",
+        "Maintained `println!` for primary command output (IDs, YAML, Config Paths).",
+        "Verified that `make ci` passes with all tests reflecting new log output format."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-19T04:00:47+00:00",
+      "updated_at": "2026-01-18T18:00:00+00:00",
+      "completed_at": "2026-01-18T18:15:00+00:00",
+      "depends_on": []
+    },
+    {
       "id": "RQ-0102",
       "status": "done",
       "title": "Enhance queue validation errors with fix instructions",
@@ -1098,36 +1064,36 @@
       "depends_on": []
     },
     {
-      "id": "RQ-0098",
+      "id": "RQ-0103",
       "status": "done",
-      "title": "Add debug logging for config resolution and repo root discovery",
+      "title": "Implement RedactedError wrapper for safe error display",
       "priority": "medium",
       "tags": [
         "rust",
-        "logging",
-        "config"
+        "safety",
+        "error-handling"
       ],
       "scope": [
-        "crates/ralph/src/config.rs"
+        "crates/ralph/src/redaction.rs"
       ],
       "evidence": [
-        "`find_repo_root` and `resolve_from_cwd` operate silently. If configuration\nloading fails or picks the wrong directory, it's difficult to debug without code changes."
+        "There is no easy way to wrap an arbitrary `anyhow::Error` and ensure it is\nredacted when displayed. This leads to manual redaction logic at various display sites."
       ],
       "plan": [
-        "Add `log::debug!` statements to `find_repo_root` showing each directory checked.",
-        "Log the paths of global and project config files being loaded.",
-        "Log the final resolved paths for queue, done, and root."
+        "Create a `RedactedError(anyhow::Error)` wrapper in `redaction.rs`.",
+        "Implement `Display` and `Debug` for it, applying `redact_text` to the output.",
+        "Provide a helper method `redacted()` for `Result` to easily wrap errors."
       ],
       "notes": [
-        "Added `log::debug!` statements to `find_repo_root` showing each directory checked during root discovery.",
-        "Added debug logs for global and project config loading in `resolve_from_cwd`.",
-        "Logged final resolved paths for `repo_root`, `queue_path`, and `done_path`.",
-        "Verified with `make ci`."
+        "Implemented `RedactedError` struct wrapping `anyhow::Error`.",
+        "Implemented `Display` and `Debug` for `RedactedError` to automatically apply redaction.",
+        "Added `Redactable` trait with `redacted()` helper for `Result`.",
+        "Added unit tests for `RedactedError` and `Redactable`."
       ],
       "request": "scan finding",
       "created_at": "2026-01-19T04:00:47+00:00",
-      "updated_at": "2026-01-18T20:11:00+00:00",
-      "completed_at": "2026-01-18T20:30:00+00:00",
+      "updated_at": "2026-01-19T05:15:00+00:00",
+      "completed_at": "2026-01-19T05:15:00+00:00",
       "depends_on": []
     },
     {
@@ -1160,39 +1126,37 @@
       "depends_on": []
     },
     {
-      "id": "RQ-0107",
+      "id": "RQ-0105",
       "status": "done",
-      "title": "Prevent redaction panic on non-UTF-8 boundary slicing",
+      "title": "Refactor task formatting to use centralized utility",
       "priority": "medium",
       "tags": [
-        "bugfix",
         "rust",
-        "reliability"
+        "ux",
+        "refactor"
       ],
       "scope": [
-        "crates/ralph/src/redaction.rs",
-        "crates/ralph (redaction callers)",
-        "cargo test -p ralph"
+        "crates/ralph/src/main.rs"
       ],
       "evidence": [
-        "User request: Error: Provider returned error thread 'main' (15281963) panicked at crates/ralph/src/redaction.rs:235:16: byte index 2634 is not a char boundary; it is inside '\u00e2' (bytes 2633..2635) of |  Read     AGENTS.md"
+        "`format_task_compact` and `format_task_long` are defined in `main.rs`.\nThey should be moved to `outpututil.rs` or `contracts.rs` and standardized."
       ],
       "plan": [
-        "Reproduce the panic path in redaction and identify the slicing logic at the reported location.",
-        "Update redaction to avoid byte-index slicing on UTF-8 strings (use char-safe boundaries or bytes-to-str conversion).",
-        "Add or adjust tests to cover non-ASCII inputs and prevent regressions.",
-        "Run `cargo test -p ralph` and any targeted checks tied to redaction behavior."
+        "Move task formatting logic out of `main.rs`.",
+        "Ensure consistent trimming and joining of tags/scope.",
+        "Integrate with the new `outpututil` helpers for consistent CLI presentation."
       ],
       "notes": [
-        "Updated redaction loops to advance on UTF-8 boundaries and avoid byte-to-char casting.",
-        "Added a shared helper for safe character copying during redaction scans.",
-        "Added a non-ASCII regression test for redact_text.",
-        "Ran `cargo test -p ralph`."
+        "Standardized `format_task_compact` and `format_task_detailed` in `outpututil.rs` with consistent `\\t` separators.",
+        "Extracted `join_csv_trimmed` as a public helper in `outpututil.rs`.",
+        "Added `format_task_id` and `format_task_id_title` to `outpututil.rs` and used them in `main.rs`.",
+        "Centralized `format_task_commit_message` in `outpututil.rs` and used it in `run_cmd.rs`.",
+        "Verified with `make ci`."
       ],
-      "request": "This error popped up while running a loop in a different repo. Fix. Error: Provider returned error thread 'main' (15281963) panicked at crates/ralph/src/redaction.rs:235:16: byte index 2634 is not a char boundary; it is inside '\u00e2' (bytes 2633..2635) of |  Read     AGENTS.md",
-      "created_at": "2026-01-19T05:45:41+00:00",
-      "updated_at": "2026-01-19T05:50:46+00:00",
-      "completed_at": "2026-01-19T05:50:46+00:00",
+      "request": "scan finding",
+      "created_at": "2026-01-19T04:00:47+00:00",
+      "updated_at": "2026-01-18T00:00:00+00:00",
+      "completed_at": "2026-01-18T00:00:00+00:00",
       "depends_on": []
     },
     {
@@ -1231,137 +1195,39 @@
       "depends_on": []
     },
     {
-      "id": "RQ-0109",
+      "id": "RQ-0107",
       "status": "done",
-      "title": "Add queue 'status' support for 'rejected' to allow the user to reject task queue items.",
+      "title": "Prevent redaction panic on non-UTF-8 boundary slicing",
       "priority": "medium",
       "tags": [
+        "bugfix",
         "rust",
-        "reliability",
-        "config"
+        "reliability"
       ],
       "scope": [
-        "crates/ralph/src/contracts.rs",
-        "crates/ralph/src/run_cmd.rs",
-        "crates/ralph/src/task_cmd.rs",
-        "crates/ralph/src/scan_cmd.rs"
+        "crates/ralph/src/redaction.rs",
+        "crates/ralph (redaction callers)",
+        "cargo test -p ralph"
       ],
       "evidence": [
-        "Rejected is not currently supported as a task status"
+        "User request: Error: Provider returned error thread 'main' (15281963) panicked at crates/ralph/src/redaction.rs:235:16: byte index 2634 is not a char boundary; it is inside 'â' (bytes 2633..2635) of |  Read     AGENTS.md"
       ],
       "plan": [
-        "Add rejected field as a valid option",
-        "Wire rejected up the same way the other status values are handled",
-        "If a task is in the queue.yaml file running `ralph queue validate` and or `ralph queue repair` should move the task to the bottom of the done.yaml file"
-      ],
-      "notes": [],
-      "request": "user request",
-      "created_at": "2025-01-19T12:00:00+00:00",
-      "updated_at": "2026-01-19T19:15:56.127982+00:00",
-      "completed_at": "2026-01-19T19:15:56.127982+00:00",
-      "depends_on": []
-    },
-    {
-      "id": "RQ-0149",
-      "status": "done",
-      "title": "Update AGENTS.md to use make ci instead of cargo build/test",
-      "priority": "medium",
-      "tags": [
-        "docs",
-        "ci",
-        "agents"
-      ],
-      "scope": [
-        "AGENTS.md"
-      ],
-      "evidence": [
-        "AGENTS.md line 30 already mentions run 'make ci' as the gate",
-        "The \"Build, Test, and Development Commands\" section (line 11-21) lists individual cargo commands",
-        "User requested agents run 'make ci' instead of 'cargo build' or 'cargo test' directly",
-        "make ci includes generate, format, type-check, lint, build, test, install (comprehensive gate)"
-      ],
-      "plan": [
-        "Add a note or bullet in AGENTS.md emphasizing that agents should run 'make ci' as the comprehensive gate",
-        "Clarify that individual cargo commands (cargo test, cargo build) are for development/iteration, not the final gate",
-        "Ensure the documentation distinguishes between \"development commands\" and \"CI gate requirements\"",
-        "Test by verifying the language explicitly directs agents to use 'make ci' for validation"
-      ],
-      "notes": [],
-      "request": "Update the AGENTS.md file, which already mentions running the 'make ci' gate, to have the agents run 'make ci' instead of 'cargo build' or 'cargo test' directly as the make ci gate includes both steps and is more comprehensive.",
-      "created_at": "2026-01-19T19:39:21+00:00",
-      "updated_at": "2026-01-19T19:42:32.176827+00:00",
-      "completed_at": "2026-01-19T19:42:32.176827+00:00",
-      "depends_on": []
-    },
-    {
-      "id": "RQ-0150",
-      "status": "done",
-      "title": "Make RepoPrompt context_builder mandatory for Claude plan generation",
-      "priority": "medium",
-      "tags": [
-        "rust",
-        "runner",
-        "prompts",
-        "reprompt"
-      ],
-      "scope": [
-        "crates/ralph/src/runner.rs"
-      ],
-      "evidence": [
-        "The generate_claude_plan function (line 510) creates a planning prompt but does not mandate RepoPrompt context_builder usage",
-        "Current planning prompt says \"Analyze the codebase and generate a plan, but DO NOT make any edits\"",
-        "RepoPrompt context_builder tool is available but not explicitly required for plan generation",
-        "User explicitly requested: \"Modify the prompt sent to the claude plan loop to make using the Repo Prompt context_builder tool to generate the plan mandatory\""
-      ],
-      "plan": [
-        "Modify the generate_claude_plan function planning_prompt to explicitly require using RepoPrompt context_builder",
-        "Add mandatory instruction: \"You MUST use the RepoPrompt context_builder tool to generate the plan. Do not proceed without using context_builder first.\"",
-        "Update the planning mode prompt to emphasize that context_builder is a non-optional requirement",
-        "Harden language that stresses that the plan generation phase is ONLY for plan generation, even after the Repo Prompt plan is provided. ONLY Phase 2 implements the plan. Phase 1 is only for plan generation.",
-        "Test by running two-pass plan mode and verifying context_builder is used",
-        "Run make ci to ensure tests pass"
+        "Reproduce the panic path in redaction and identify the slicing logic at the reported location.",
+        "Update redaction to avoid byte-index slicing on UTF-8 strings (use char-safe boundaries or bytes-to-str conversion).",
+        "Add or adjust tests to cover non-ASCII inputs and prevent regressions.",
+        "Run `cargo test -p ralph` and any targeted checks tied to redaction behavior."
       ],
       "notes": [
-        "Required Claude planning prompts to mandate RepoPrompt context_builder usage and reinforce plan-only phase.",
-        "Added a dedicated planning prompt builder with unit coverage for the mandatory language.",
-        "Verified with make ci."
+        "Updated redaction loops to advance on UTF-8 boundaries and avoid byte-to-char casting.",
+        "Added a shared helper for safe character copying during redaction scans.",
+        "Added a non-ASCII regression test for redact_text.",
+        "Ran `cargo test -p ralph`."
       ],
-      "request": "Modify the prompt sent to the claude plan loop to make using the Repo Prompt context_builder tool to generate the plan mandatory.",
-      "created_at": "2025-01-19T17:00:00+00:00",
-      "updated_at": "2026-01-19T20:08:57+00:00",
-      "completed_at": "2026-01-19T20:08:57+00:00",
-      "depends_on": []
-    },
-    {
-      "id": "RQ-0148",
-      "status": "done",
-      "title": "Change done.yaml archival behavior to append completed tasks to the END",
-      "priority": "medium",
-      "tags": [
-        "rust",
-        "prompts",
-        "queue"
-      ],
-      "scope": [
-        "crates/ralph/assets/prompts/worker.md"
-      ],
-      "evidence": [
-        "Current done.yaml has tasks in reverse chronological order (newest first: RQ-0101, then RQ-0069)",
-        "The queue.rs archive_done_tasks function already appends to the end via done.tasks.push(task)",
-        "The worker.md prompt says \"append to the tasks list\" but agents are inserting at the top",
-        "User explicitly requested: \"have agents append the completed task queue item to the END of the done.yaml file\""
-      ],
-      "plan": [
-        "Update worker.md line 35 to say \"appended to the END of .ralph/done.yaml\" instead of just \"appended to .ralph/done.yaml\"",
-        "Update worker.md line 70 to say \"append to the END of the tasks list in .ralph/done.yaml\" instead of just \"append to the tasks list\"",
-        "Update worker.md line 72 to clarify \"appended to the END of .ralph/done.yaml\"",
-        "Test by verifying the prompt language explicitly states \"END\" to prevent top-insertion behavior"
-      ],
-      "notes": [],
-      "request": "Modify the bahvior and prompts to have agents append the completed task queue item to the END of the done.yaml file instead of the current behavior. Still remove 'done' items from the queue.yaml file but instead of adding completed items to the top of done.yaml have them add it to the end.",
-      "created_at": "2025-01-19T16:00:00+00:00",
-      "updated_at": "2026-01-19T20:17:55.049973+00:00",
-      "completed_at": "2026-01-19T20:17:55.049973+00:00",
+      "request": "This error popped up while running a loop in a different repo. Fix. Error: Provider returned error thread 'main' (15281963) panicked at crates/ralph/src/redaction.rs:235:16: byte index 2634 is not a char boundary; it is inside 'â' (bytes 2633..2635) of |  Read     AGENTS.md",
+      "created_at": "2026-01-19T05:45:41+00:00",
+      "updated_at": "2026-01-19T05:50:46+00:00",
+      "completed_at": "2026-01-19T05:50:46+00:00",
       "depends_on": []
     },
     {
@@ -1392,6 +1258,37 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0109",
+      "status": "done",
+      "title": "Add queue 'status' support for 'rejected' to allow the user to reject task queue items.",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "reliability",
+        "config"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts.rs",
+        "crates/ralph/src/run_cmd.rs",
+        "crates/ralph/src/task_cmd.rs",
+        "crates/ralph/src/scan_cmd.rs"
+      ],
+      "evidence": [
+        "Rejected is not currently supported as a task status"
+      ],
+      "plan": [
+        "Add rejected field as a valid option",
+        "Wire rejected up the same way the other status values are handled",
+        "If a task is in the queue.yaml file running `ralph queue validate` and or `ralph queue repair` should move the task to the bottom of the done.yaml file"
+      ],
+      "notes": [],
+      "request": "user request",
+      "created_at": "2025-01-19T12:00:00+00:00",
+      "updated_at": "2026-01-19T19:15:56.127982+00:00",
+      "completed_at": "2026-01-19T19:15:56.127982+00:00",
       "depends_on": []
     },
     {
@@ -1428,6 +1325,39 @@
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2026-01-19T20:48:41.222861+00:00",
       "completed_at": "2026-01-19T20:48:41.222861+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0111",
+      "status": "done",
+      "title": "Add task priority field and sorting capabilities",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "queue",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts.rs",
+        "crates/ralph/src/queue.rs",
+        "crates/ralph/src/main.rs"
+      ],
+      "evidence": [
+        "Queue is ordered by priority but there is no explicit priority field",
+        "Tasks must be manually reordered by editing YAML",
+        "No way to sort by \"importance\" without manual reordering"
+      ],
+      "plan": [
+        "Add priority field to Task (enum: critical, high, medium, low)",
+        "Add queue sort --by=priority command",
+        "Add queue list --sort-by=priority flag",
+        "Update task build and scan prompts to request priority from agent",
+        "Add tests for priority sorting and validation"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2025-01-19T12:00:00+00:00",
+      "updated_at": "2025-01-19T12:00:00+00:00",
       "depends_on": []
     },
     {
@@ -1623,6 +1553,88 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0118",
+      "status": "done",
+      "title": "Add task statistics and reporting commands",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "ux",
+        "analytics"
+      ],
+      "scope": [
+        "crates/ralph/src/main.rs",
+        "crates/ralph/src/reports.rs"
+      ],
+      "evidence": [
+        "No way to get aggregate stats about task completion rates",
+        "Cannot see average task duration, success/failure ratios, or tag distribution",
+        "Historical analysis requires manual YAML parsing"
+      ],
+      "plan": [
+        "Add ralph queue stats command with completion rate, avg duration, tag breakdown",
+        "Add ralph queue history command to show task creation/completion timeline",
+        "Add ralph queue burndown command to show velocity chart",
+        "Calculate duration from created_at to completed_at in done tasks",
+        "Add tests for stats calculation accuracy"
+      ],
+      "notes": [
+        "Created crates/ralph/src/reports.rs with print_stats, print_history, print_burndown functions",
+        "Added QueueStatsArgs, QueueHistoryArgs, QueueBurndownArgs argument structs to main.rs",
+        "Added Stats, History, Burndown variants to QueueCommand enum",
+        "Updated handle_queue to load active+done tasks and dispatch to reports functions",
+        "Duration calculation uses completed_at - created_at for Done tasks only",
+        "Burndown logic: Open tasks at day D = created_at <= D AND (completed_at IS NULL OR completed_at > D)",
+        "Tag filtering is case-insensitive, inclusive OR for multiple tags",
+        "Added unit tests for duration formatting, date parsing, and calculation logic",
+        "Verified with make ci (all 111 tests passed)"
+      ],
+      "request": "scan finding",
+      "created_at": "2025-01-19T12:00:00+00:00",
+      "updated_at": "2026-01-19T22:37:28+00:00",
+      "completed_at": "2026-01-19T22:45:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0119",
+      "status": "done",
+      "title": "Implement task search and filter by content patterns",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "ux",
+        "search"
+      ],
+      "scope": [
+        "crates/ralph/src/queue.rs",
+        "crates/ralph/src/main.rs"
+      ],
+      "evidence": [
+        "queue list supports filtering by status, tag, and scope but not by title/content",
+        "Cannot search for \"all tasks mentioning 'database'\"",
+        "Full-text search across task descriptions would be powerful"
+      ],
+      "plan": [
+        "Add queue search <query> command",
+        "Implement substring match against title, evidence, plan, notes",
+        "Support regex search with --regex flag",
+        "Add --match-case for case-sensitive search (default insensitive)",
+        "Add tests for search accuracy and performance"
+      ],
+      "notes": [
+        "Note: Added regex = \"1.11\" dependency to Cargo.toml",
+        "Note: Implemented search_tasks() in queue.rs with SearchMatcher enum for regex/substring modes",
+        "Note: Added QueueSearchArgs with filters: --status, --tag, --scope, --include-done, --only-done, --format, --limit, --all",
+        "Note: Added unit tests for substring (case-sensitive/insensitive), regex (valid/invalid), field-specific matches",
+        "Note: CLI examples: ralph queue search \"authentication\", ralph queue search \"RQ-\\\\d{4}\" --regex"
+      ],
+      "request": "scan finding",
+      "created_at": "2025-01-19T12:00:00+00:00",
+      "updated_at": "2026-01-19T23:00:00+00:00",
+      "completed_at": "2026-01-19T23:00:00+00:00",
       "depends_on": []
     },
     {
@@ -2178,118 +2190,106 @@
       "depends_on": []
     },
     {
-      "id": "RQ-0111",
+      "id": "RQ-0148",
       "status": "done",
-      "title": "Add task priority field and sorting capabilities",
+      "title": "Change done.yaml archival behavior to append completed tasks to the END",
       "priority": "medium",
       "tags": [
         "rust",
-        "queue",
-        "ux"
+        "prompts",
+        "queue"
       ],
       "scope": [
-        "crates/ralph/src/contracts.rs",
-        "crates/ralph/src/queue.rs",
-        "crates/ralph/src/main.rs"
+        "crates/ralph/assets/prompts/worker.md"
       ],
       "evidence": [
-        "Queue is ordered by priority but there is no explicit priority field",
-        "Tasks must be manually reordered by editing YAML",
-        "No way to sort by \"importance\" without manual reordering"
+        "Current done.yaml has tasks in reverse chronological order (newest first: RQ-0101, then RQ-0069)",
+        "The queue.rs archive_done_tasks function already appends to the end via done.tasks.push(task)",
+        "The worker.md prompt says \"append to the tasks list\" but agents are inserting at the top",
+        "User explicitly requested: \"have agents append the completed task queue item to the END of the done.yaml file\""
       ],
       "plan": [
-        "Add priority field to Task (enum: critical, high, medium, low)",
-        "Add queue sort --by=priority command",
-        "Add queue list --sort-by=priority flag",
-        "Update task build and scan prompts to request priority from agent",
-        "Add tests for priority sorting and validation"
+        "Update worker.md line 35 to say \"appended to the END of .ralph/done.yaml\" instead of just \"appended to .ralph/done.yaml\"",
+        "Update worker.md line 70 to say \"append to the END of the tasks list in .ralph/done.yaml\" instead of just \"append to the tasks list\"",
+        "Update worker.md line 72 to clarify \"appended to the END of .ralph/done.yaml\"",
+        "Test by verifying the prompt language explicitly states \"END\" to prevent top-insertion behavior"
       ],
       "notes": [],
-      "request": "scan finding",
-      "created_at": "2025-01-19T12:00:00+00:00",
-      "updated_at": "2025-01-19T12:00:00+00:00",
+      "request": "Modify the bahvior and prompts to have agents append the completed task queue item to the END of the done.yaml file instead of the current behavior. Still remove 'done' items from the queue.yaml file but instead of adding completed items to the top of done.yaml have them add it to the end.",
+      "created_at": "2025-01-19T16:00:00+00:00",
+      "updated_at": "2026-01-19T20:17:55.049973+00:00",
+      "completed_at": "2026-01-19T20:17:55.049973+00:00",
       "depends_on": []
     },
     {
-      "id": "RQ-0118",
+      "id": "RQ-0149",
       "status": "done",
-      "title": "Add task statistics and reporting commands",
+      "title": "Update AGENTS.md to use make ci instead of cargo build/test",
       "priority": "medium",
       "tags": [
-        "rust",
-        "ux",
-        "analytics"
+        "docs",
+        "ci",
+        "agents"
       ],
       "scope": [
-        "crates/ralph/src/main.rs",
-        "crates/ralph/src/reports.rs"
+        "AGENTS.md"
       ],
       "evidence": [
-        "No way to get aggregate stats about task completion rates",
-        "Cannot see average task duration, success/failure ratios, or tag distribution",
-        "Historical analysis requires manual YAML parsing"
+        "AGENTS.md line 30 already mentions run 'make ci' as the gate",
+        "The \"Build, Test, and Development Commands\" section (line 11-21) lists individual cargo commands",
+        "User requested agents run 'make ci' instead of 'cargo build' or 'cargo test' directly",
+        "make ci includes generate, format, type-check, lint, build, test, install (comprehensive gate)"
       ],
       "plan": [
-        "Add ralph queue stats command with completion rate, avg duration, tag breakdown",
-        "Add ralph queue history command to show task creation/completion timeline",
-        "Add ralph queue burndown command to show velocity chart",
-        "Calculate duration from created_at to completed_at in done tasks",
-        "Add tests for stats calculation accuracy"
+        "Add a note or bullet in AGENTS.md emphasizing that agents should run 'make ci' as the comprehensive gate",
+        "Clarify that individual cargo commands (cargo test, cargo build) are for development/iteration, not the final gate",
+        "Ensure the documentation distinguishes between \"development commands\" and \"CI gate requirements\"",
+        "Test by verifying the language explicitly directs agents to use 'make ci' for validation"
       ],
-      "notes": [
-        "Created crates/ralph/src/reports.rs with print_stats, print_history, print_burndown functions",
-        "Added QueueStatsArgs, QueueHistoryArgs, QueueBurndownArgs argument structs to main.rs",
-        "Added Stats, History, Burndown variants to QueueCommand enum",
-        "Updated handle_queue to load active+done tasks and dispatch to reports functions",
-        "Duration calculation uses completed_at - created_at for Done tasks only",
-        "Burndown logic: Open tasks at day D = created_at <= D AND (completed_at IS NULL OR completed_at > D)",
-        "Tag filtering is case-insensitive, inclusive OR for multiple tags",
-        "Added unit tests for duration formatting, date parsing, and calculation logic",
-        "Verified with make ci (all 111 tests passed)"
-      ],
-      "request": "scan finding",
-      "created_at": "2025-01-19T12:00:00+00:00",
-      "updated_at": "2026-01-19T22:37:28+00:00",
-      "completed_at": "2026-01-19T22:45:00+00:00",
+      "notes": [],
+      "request": "Update the AGENTS.md file, which already mentions running the 'make ci' gate, to have the agents run 'make ci' instead of 'cargo build' or 'cargo test' directly as the make ci gate includes both steps and is more comprehensive.",
+      "created_at": "2026-01-19T19:39:21+00:00",
+      "updated_at": "2026-01-19T19:42:32.176827+00:00",
+      "completed_at": "2026-01-19T19:42:32.176827+00:00",
       "depends_on": []
     },
     {
-      "id": "RQ-0119",
+      "id": "RQ-0150",
       "status": "done",
-      "title": "Implement task search and filter by content patterns",
+      "title": "Make RepoPrompt context_builder mandatory for Claude plan generation",
       "priority": "medium",
       "tags": [
         "rust",
-        "ux",
-        "search"
+        "runner",
+        "prompts",
+        "reprompt"
       ],
       "scope": [
-        "crates/ralph/src/queue.rs",
-        "crates/ralph/src/main.rs"
+        "crates/ralph/src/runner.rs"
       ],
       "evidence": [
-        "queue list supports filtering by status, tag, and scope but not by title/content",
-        "Cannot search for \"all tasks mentioning 'database'\"",
-        "Full-text search across task descriptions would be powerful"
+        "The generate_claude_plan function (line 510) creates a planning prompt but does not mandate RepoPrompt context_builder usage",
+        "Current planning prompt says \"Analyze the codebase and generate a plan, but DO NOT make any edits\"",
+        "RepoPrompt context_builder tool is available but not explicitly required for plan generation",
+        "User explicitly requested: \"Modify the prompt sent to the claude plan loop to make using the Repo Prompt context_builder tool to generate the plan mandatory\""
       ],
       "plan": [
-        "Add queue search <query> command",
-        "Implement substring match against title, evidence, plan, notes",
-        "Support regex search with --regex flag",
-        "Add --match-case for case-sensitive search (default insensitive)",
-        "Add tests for search accuracy and performance"
+        "Modify the generate_claude_plan function planning_prompt to explicitly require using RepoPrompt context_builder",
+        "Add mandatory instruction: \"You MUST use the RepoPrompt context_builder tool to generate the plan. Do not proceed without using context_builder first.\"",
+        "Update the planning mode prompt to emphasize that context_builder is a non-optional requirement",
+        "Harden language that stresses that the plan generation phase is ONLY for plan generation, even after the Repo Prompt plan is provided. ONLY Phase 2 implements the plan. Phase 1 is only for plan generation.",
+        "Test by running two-pass plan mode and verifying context_builder is used",
+        "Run make ci to ensure tests pass"
       ],
       "notes": [
-        "Note: Added regex = \"1.11\" dependency to Cargo.toml",
-        "Note: Implemented search_tasks() in queue.rs with SearchMatcher enum for regex/substring modes",
-        "Note: Added QueueSearchArgs with filters: --status, --tag, --scope, --include-done, --only-done, --format, --limit, --all",
-        "Note: Added unit tests for substring (case-sensitive/insensitive), regex (valid/invalid), field-specific matches",
-        "Note: CLI examples: ralph queue search \"authentication\", ralph queue search \"RQ-\\\\d{4}\" --regex"
+        "Required Claude planning prompts to mandate RepoPrompt context_builder usage and reinforce plan-only phase.",
+        "Added a dedicated planning prompt builder with unit coverage for the mandatory language.",
+        "Verified with make ci."
       ],
-      "request": "scan finding",
-      "created_at": "2025-01-19T12:00:00+00:00",
-      "updated_at": "2026-01-19T23:00:00+00:00",
-      "completed_at": "2026-01-19T23:00:00+00:00",
+      "request": "Modify the prompt sent to the claude plan loop to make using the Repo Prompt context_builder tool to generate the plan mandatory.",
+      "created_at": "2025-01-19T17:00:00+00:00",
+      "updated_at": "2026-01-19T20:08:57+00:00",
+      "completed_at": "2026-01-19T20:08:57+00:00",
       "depends_on": []
     },
     {
@@ -2335,6 +2335,67 @@
       "created_at": "2025-01-19T16:42:13+00:00",
       "updated_at": "2026-01-19T23:56:21.483840+00:00",
       "completed_at": "2026-01-19T23:56:21.483840+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0152",
+      "status": "done",
+      "title": "Remove all YAML code and establish JSON schema as source of truth",
+      "priority": "high",
+      "tags": [
+        "rust",
+        "migration",
+        "schema"
+      ],
+      "scope": [
+        "crates/ralph/Cargo.toml",
+        "crates/ralph/src/config.rs",
+        "crates/ralph/src/queue.rs",
+        "crates/ralph/src/main.rs",
+        "crates/ralph/src/init_cmd.rs",
+        "crates/ralph/src/run_cmd.rs",
+        "crates/ralph/src/prompts.rs",
+        "crates/ralph/tests/stress_queue_contract_test.rs",
+        "crates/ralph/assets/prompts/worker.md",
+        "crates/ralph/assets/prompts/task_builder.md",
+        "crates/ralph/assets/prompts/scan.md"
+      ],
+      "evidence": [
+        "User request: Now that we have switched to JSON for the queue format we need to remove all YAML code from the codebase. Users will be required to migrate or rebuild existing queue docs to the JSON format manually or via external means. This decision is final. Make sure we have a defined JSON schema doc that is our queue JSON schema source of truth and the code utilizes it.",
+        "Current YAML fallback code in config.rs:88 (load_layer tries YAML if JSON fails)",
+        "Current YAML fallback code in queue.rs:35 (load_queue tries YAML if JSON fails)",
+        "serde_yaml dependency in Cargo.toml:18",
+        "YAML format option in main.rs:137 (queue show --format yaml)",
+        "YAML format option in main.rs:383 (config show)",
+        "YAML references in run_cmd.rs:107, :115, :302, :390, :401, :406",
+        "YAML references in prompts.rs:28, :32, :43, :1273, :1274",
+        "YAML references in init_cmd.rs:120 (config validation)",
+        "YAML test code in stress_queue_contract_test.rs:295",
+        "All prompt templates (worker.md, task_builder.md, scan.md) reference queue.yaml, done.yaml, and YAML contract"
+      ],
+      "plan": [
+        "Create JSON schema source of truth document at docs/queue-schema.json or .ralph/schema.json",
+        "Generate JSON schema from Rust contracts using schemars to ensure consistency",
+        "Add schema export command: ralph queue schema to output the current schema",
+        "Remove serde_yaml dependency from Cargo.toml",
+        "Remove YAML fallback logic from config.rs load_layer (line 82-92)",
+        "Remove YAML fallback logic from queue.rs load_queue (line 30-39)",
+        "Remove --format yaml option from queue show command in main.rs",
+        "Remove --format yaml option from config show command in main.rs",
+        "Remove YAML path fallbacks from config.rs (global_config_path, project_config_path)",
+        "Remove YAML path checks from find_repo_root",
+        "Update run_cmd.rs to reference .json files instead of .yaml in error messages and test mocks",
+        "Update prompts.rs constants to reference .json files instead of .yaml",
+        "Update init_cmd.rs to remove YAML validation fallback",
+        "Remove YAML test code from stress_queue_contract_test.rs",
+        "Update all prompt templates (worker.md, task_builder.md, scan.md) to reference JSON instead of YAML",
+        "Update AGENTS.md and .ralph/README.md to reference JSON files instead of YAML",
+        "Run make ci to ensure all changes pass"
+      ],
+      "notes": [],
+      "request": "Now that we have switched to JSON for the queue format we need to remove all YAML code from the codebase. Users will be required to migrate or rebuild existing queue docs to the JSON format manually or via external means. This decision is final. Make sure we have a defined JSON schema doc that is our queue JSON schema source of truth and the code utilizes it. That way modifying the schema going forward is much easier.",
+      "created_at": "2025-01-19T13:22:00+00:00",
+      "updated_at": "2026-01-20T01:19:39+00:00",
       "depends_on": []
     }
   ]
