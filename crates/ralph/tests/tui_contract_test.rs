@@ -54,6 +54,7 @@ fn test_app_new_initializes_state() {
     assert!(app.logs.is_empty());
     assert_eq!(app.log_scroll, 0);
     assert!(app.autoscroll);
+    assert_eq!(app.list_height, 20);
 }
 
 #[test]

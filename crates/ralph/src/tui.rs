@@ -55,6 +55,8 @@ pub struct App {
     pub log_scroll: usize,
     /// Whether to auto-scroll execution logs
     pub autoscroll: bool,
+    /// Height of the task list (for scrolling calculation)
+    pub list_height: usize,
 }
 
 /// Actions that can result from handling a key event.
@@ -94,6 +96,7 @@ impl App {
             logs: Vec::new(),
             log_scroll: 0,
             autoscroll: true,
+            list_height: 20,
         }
     }
 
@@ -216,7 +219,7 @@ fn handle_normal_mode_key(app: &mut App, key: KeyCode, now_rfc3339: &str) -> Res
             Ok(TuiAction::Continue)
         }
         KeyCode::Down | KeyCode::Char('j') => {
-            let list_height = 20;
+            let list_height = app.list_height;
             app.move_down(list_height);
             Ok(TuiAction::Continue)
         }
@@ -648,6 +651,7 @@ fn draw_task_list(f: &mut Frame<'_>, app: &mut App, area: Rect) {
     ]);
 
     let list_height = area.height.saturating_sub(2) as usize; // Subtract borders
+    app.list_height = list_height;
 
     let items: Vec<ListItem> = app
         .queue

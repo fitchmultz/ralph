@@ -2892,6 +2892,39 @@
       "completed_at": "2026-01-20T12:15:00Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0162",
+      "status": "done",
+      "title": "Fix TUI scrolling height to be dynamic",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "tui",
+        "bugfix"
+      ],
+      "scope": [
+        "crates/ralph/src/tui.rs"
+      ],
+      "evidence": [
+        "Scrolling used hardcoded height of 20 in key handler, ignoring actual terminal height"
+      ],
+      "plan": [
+        "Add list_height to App struct",
+        "Update list_height in draw loop",
+        "Use dynamic height in key handler"
+      ],
+      "notes": [
+        "Fixed hardcoded list height of 20 in `move_down` handler.",
+        "Now TUI scrolling correctly respects terminal window size.",
+        "Updated `tui_contract_test` to verify `list_height` initialization."
+      ],
+      "request": "Fix TUI scrolling",
+      "created_at": "2026-01-20T17:30:00Z",
+      "updated_at": "2026-01-20T17:35:00Z",
+      "completed_at": "2026-01-20T17:35:00Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }
