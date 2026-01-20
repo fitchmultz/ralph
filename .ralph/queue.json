@@ -2,38 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0159",
-      "status": "todo",
-      "title": "Fix stale YAML documentation and CLI help strings",
-      "priority": "low",
-      "tags": [
-        "docs",
-        "cli",
-        "cleanup"
-      ],
-      "scope": [
-        "README.md",
-        "crates/ralph/src/main.rs"
-      ],
-      "evidence": [
-        "Root README.md refers to .ralph/queue.yaml and .ralph/done.yaml",
-        "CLI help strings in main.rs mention .yaml config files",
-        "Implementation actually uses JSON (.ralph/queue.json, etc.)"
-      ],
-      "plan": [
-        "Search for '.yaml' in README.md and replace with '.json' where referring to Ralph files",
-        "Search for '.yaml' in crates/ralph/src/main.rs and replace with '.json' in help strings",
-        "Verify .ralph/README.md is already correct (as noted in request)",
-        "Run 'cargo run -p ralph -- --help' to verify CLI output"
-      ],
-      "notes": [],
-      "request": "Root README is stale and still claims YAML... CLI help text still references .yaml in multiple places",
-      "created_at": "2026-01-20T12:05:00Z",
-      "updated_at": "2026-01-20T12:05:00Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0160",
       "status": "todo",
       "title": "Fix TUI persistence, reloading, and scrolling logic",
