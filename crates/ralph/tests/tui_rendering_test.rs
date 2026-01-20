@@ -644,3 +644,77 @@ fn test_render_with_multiline_evidence() {
     assert!(output.contains("Second evidence item"));
     assert!(output.contains("Third evidence item"));
 }
+
+#[test]
+fn test_render_scrolling_hides_top_tasks() {
+    let tasks: Vec<Task> = (0..20)
+        .map(|i| Task {
+            id: format!("RQ-{:04}", i),
+            title: format!("Task Number {}", i),
+            status: TaskStatus::Todo,
+            priority: TaskPriority::Medium,
+            tags: vec![],
+            scope: vec![],
+            evidence: vec![],
+            plan: vec![],
+            notes: vec![],
+            request: None,
+            agent: None,
+            created_at: None,
+            updated_at: None,
+            completed_at: None,
+            depends_on: vec![],
+            custom_fields: std::collections::HashMap::new(),
+        })
+        .collect();
+
+    let queue = QueueFile { version: 1, tasks };
+    let mut app = App::new(queue);
+
+    // Set scroll to 5, so RQ-0000 to RQ-0004 should be hidden
+    app.scroll = 5;
+    // Also select a visible task so RQ-0000 doesn't show up in details panel
+    app.selected = 5;
+
+    let mut terminal = setup_test_terminal(80, 24);
+    let output = get_rendered_output(&mut terminal, &mut app);
+
+    assert!(!output.contains("RQ-0000"));
+    assert!(!output.contains("RQ-0004"));
+    assert!(output.contains("RQ-0005"));
+}
+#[test]
+fn test_render_scrolling_shows_bottom_tasks() {
+    let tasks: Vec<Task> = (0..30)
+        .map(|i| Task {
+            id: format!("RQ-{:04}", i),
+            title: format!("Task Number {}", i),
+            status: TaskStatus::Todo,
+            priority: TaskPriority::Medium,
+            tags: vec![],
+            scope: vec![],
+            evidence: vec![],
+            plan: vec![],
+            notes: vec![],
+            request: None,
+            agent: None,
+            created_at: None,
+            updated_at: None,
+            completed_at: None,
+            depends_on: vec![],
+            custom_fields: std::collections::HashMap::new(),
+        })
+        .collect();
+
+    let queue = QueueFile { version: 1, tasks };
+    let mut app = App::new(queue);
+
+    // Scroll down to show later tasks
+    app.scroll = 20;
+
+    let mut terminal = setup_test_terminal(80, 24);
+    let output = get_rendered_output(&mut terminal, &mut app);
+
+    assert!(output.contains("RQ-0020"));
+    assert!(output.contains("RQ-0025"));
+}

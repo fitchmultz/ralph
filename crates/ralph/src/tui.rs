@@ -396,6 +396,23 @@ where
                         }
                     }
                     RunnerEvent::Finished => {
+                        // Reload queue to capture any changes made by the runner (or agents)
+                        match queue::load_queue(queue_path) {
+                            Ok(new_queue) => {
+                                app_ref.queue = new_queue;
+                                // Clamp selection to new bounds
+                                if app_ref.queue.tasks.is_empty() {
+                                    app_ref.selected = 0;
+                                } else if app_ref.selected >= app_ref.queue.tasks.len() {
+                                    app_ref.selected = app_ref.queue.tasks.len() - 1;
+                                }
+                                app_ref.dirty = false;
+                            }
+                            Err(e) => {
+                                app_ref.logs.push(format!("ERROR reloading queue: {}", e));
+                            }
+                        }
+
                         // Restore normal mode
                         if let AppMode::Executing { .. } = &app_ref.mode {
                             app_ref.mode = AppMode::Normal;
@@ -408,6 +425,17 @@ where
                         }
                     }
                 }
+            }
+
+            // Auto-save if dirty
+            if app.borrow().dirty {
+                let mut app_ref = app.borrow_mut();
+                if let Err(e) = queue::save_queue(queue_path, &app_ref.queue) {
+                    app_ref.logs.push(format!("ERROR saving queue: {}", e));
+                    // Don't clear dirty flag so we retry? Or clear to avoid spam?
+                    // Let's clear it to avoid infinite error loops in the UI
+                }
+                app_ref.dirty = false;
             }
 
             // Handle events with timeout (for polling runner events)
@@ -619,11 +647,15 @@ fn draw_task_list(f: &mut Frame<'_>, app: &mut App, area: Rect) {
         Span::raw(")"),
     ]);
 
+    let list_height = area.height.saturating_sub(2) as usize; // Subtract borders
+
     let items: Vec<ListItem> = app
         .queue
         .tasks
         .iter()
         .enumerate()
+        .skip(app.scroll)
+        .take(list_height)
         .map(|(i, task)| {
             let is_selected = i == app.selected;
             let status_style = Style::default().fg(status_color(task.status));

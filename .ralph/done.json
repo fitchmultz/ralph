@@ -2853,6 +2853,45 @@
       "completed_at": "2026-01-20T12:05:00Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0160",
+      "status": "done",
+      "title": "Fix TUI persistence, reloading, and scrolling logic",
+      "priority": "high",
+      "tags": [
+        "rust",
+        "tui",
+        "bug"
+      ],
+      "scope": [
+        "crates/ralph/src/tui.rs",
+        "crates/ralph/src/run_cmd.rs"
+      ],
+      "evidence": [
+        "TUI modifies in-memory App.queue but never calls queue::save_queue",
+        "Edits to title/status/deletion are lost on quit",
+        "UI does not reload queue from disk after running a task (stale state)",
+        "Scrolling logic updates offset but render loop draws all tasks (no slicing)"
+      ],
+      "plan": [
+        "In crates/ralph/src/tui.rs, add save_queue call in run_tui when app.dirty is true",
+        "In run_tui loop, reload queue from disk after runner_fn returns (to capture agent changes)",
+        "Update draw_task_list to slice app.queue.tasks using app.scroll and visible height",
+        "Ensure highlight index logic matches the visual slice"
+      ],
+      "notes": [
+        "Added auto-save in run_tui loop when app.dirty is true.",
+        "Added queue::load_queue in RunnerEvent::Finished to reload state from disk.",
+        "Updated draw_task_list to respect app.scroll and render only visible tasks.",
+        "Added test_render_scrolling_hides_top_tasks and test_render_scrolling_shows_bottom_tasks to verify scrolling logic."
+      ],
+      "request": "TUI does not persist edits to disk... after a task run, the UI does not reload... TUI scrolling is not actually implemented",
+      "created_at": "2026-01-20T12:05:00Z",
+      "updated_at": "2026-01-20T12:15:00Z",
+      "completed_at": "2026-01-20T12:15:00Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }
