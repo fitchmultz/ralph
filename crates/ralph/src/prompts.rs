@@ -23,28 +23,27 @@ const DEFAULT_SCAN_PROMPT: &str = include_str!(concat!(
     "/assets/prompts/scan.md"
 ));
 
-/// Instructions for planning phase: set task status to "doing" as the first action
+/// Instructions for tooling requirements when RepoPrompt is required.
 pub const REPOPROMPT_REQUIRED_INSTRUCTION: &str = r#"
 ## TOOLING REQUIREMENT: RepoPrompt
 You are running in a RepoPrompt-enabled environment. You MUST use the available RepoPrompt tools (`read_file`, `search_file_content`, `run_shell_command`, etc.) to explore the codebase. Do not rely on internal knowledge or assumptions. Verify everything.
 "#;
 
 pub const REPOPROMPT_CONTEXT_BUILDER_PLANNING_INSTRUCTION: &str = r#"
-## PLANNING REQUIREMENT: Use context_builder
+## PLANNING REQUIREMENT: Use context_builder with plan response type
 To generate the plan, you MUST use the `context_builder` tool.
-1. Provide a detailed `instructions` argument to `context_builder` that describes the task.
-2. In the `instructions`, explicitly request: "Gather context AND generate the plan in a single step."
-3. Set `response_type` to "plan" (if available) or "clarify" and ask for the plan in the instructions.
+1. Provide an extensively detailed `instructions` argument to `context_builder` that describes the task.
+2. MANDATORY: set `response_type` to "plan". The context_builder MUST be executed with a plan requested as the response type.
 "#;
 
-/// Instructions for implementation phase: complete task and move to done.json
+/// Instructions for implementation phase: complete task and run CI.
 pub const TASK_COMPLETION_WORKFLOW: &str = r#"
 ## IMPLEMENTATION COMPLETION CHECKLIST
 When implementation is complete, you MUST:
 1. Set task `status: done` with `completed_at` timestamp
 2. Add 1-5 `notes` bullets (what changed, how to verify, what's next)
 3. Move task from `.ralph/queue.json` to END of `.ralph/done.json`
-4. Run `make ci` - must pass 100%
+4. Run `make ci` - must pass 100% (fix issues and re-run until green)
 5. Commit all changes: `RQ-####: <short summary>`
 6. Push and verify `git status --porcelain` is empty
 "#;
@@ -59,25 +58,6 @@ pub fn wrap_with_repoprompt_requirement(prompt: &str, required: bool) -> String 
         REPOPROMPT_CONTEXT_BUILDER_PLANNING_INSTRUCTION.trim(),
         prompt
     )
-}
-
-pub fn task_status_doing_instruction_for(task_id: &str) -> String {
-    format!(
-        r#"
-## PLANNING PHASE EXCEPTION: Task Status Update
-As the FIRST action, you MUST update the task status:
-1. Read `.ralph/queue.json`
-2. Find task `{}` (this is your task)
-3. Set its `status` to `doing`
-4. Set its `updated_at` to current UTC RFC3339 time
-5. Write the updated `.ralph/queue.json`
-
-This is the ONLY edit allowed during planning. After this status update, proceed with read-only exploration.
-"#,
-        task_id
-    )
-    .trim()
-    .to_string()
 }
 
 /// Expand environment variables and config values in a template string.

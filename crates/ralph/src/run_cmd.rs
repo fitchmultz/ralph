@@ -4,7 +4,7 @@ use crate::config;
 use crate::contracts::{Model, ProjectType, QueueFile, ReasoningEffort, Runner, TaskStatus};
 use crate::gitutil::GitError;
 use crate::promptflow::{
-    self, build_phase1_prompt, build_phase2_prompt, build_single_phase_prompt, RunPhase,
+    self, build_phase1_prompt, build_phase2_prompt, build_single_phase_prompt,
 };
 use crate::{gitutil, outpututil, prompts, queue, runner, runutil, timeutil};
 use anyhow::{anyhow, bail, Context, Result};
@@ -16,7 +16,10 @@ pub struct AgentOverrides {
     pub runner: Option<Runner>,
     pub model: Option<Model>,
     pub reasoning_effort: Option<ReasoningEffort>,
-    pub phase: Option<RunPhase>,
+    /// Execution shape override:
+    /// - 1 => single-pass execution
+    /// - 2 => two-pass execution (plan then implement)
+    pub phases: Option<u8>,
     pub repoprompt_required: Option<bool>,
 }
 
@@ -121,47 +124,47 @@ fn run_one_impl(
         resolved.id_width,
     )?;
 
-    // Determine config and policy
-    let two_pass_enabled = resolved.config.agent.two_pass_plan.unwrap_or(true);
+    // Determine execution shape and policy
+    let phases: u8 = agent_overrides.phases.unwrap_or_else(|| {
+        if resolved.config.agent.two_pass_plan.unwrap_or(true) {
+            2
+        } else {
+            1
+        }
+    });
+    if phases != 1 && phases != 2 {
+        bail!("Invalid phases value: {} (expected 1 or 2)", phases);
+    }
+
     let rp_required = agent_overrides
         .repoprompt_required
         .or(resolved.config.agent.require_repoprompt)
         .unwrap_or(false);
-
-    if agent_overrides.phase.is_some() && !two_pass_enabled {
-        bail!("Cannot use --phase when two-pass planning is disabled in config.");
-    }
 
     let policy = promptflow::PromptPolicy {
         require_repoprompt: rp_required,
     };
 
     // --- Task Selection ---
+    // Prefer resuming a `doing` task (crash recovery), otherwise take first runnable `todo`.
     let task_idx = if let Some(id) = target_task_id {
-        // Find specific task
         queue_file
             .tasks
             .iter()
             .position(|t| t.id == id)
             .ok_or_else(|| anyhow!("Target task {} not found in queue", id))?
-    } else if agent_overrides.phase == Some(RunPhase::Phase2) {
-        // Phase 2 requires a 'doing' task
-        match queue_file
-            .tasks
-            .iter()
-            .position(|t| t.status == TaskStatus::Doing)
-        {
-            Some(idx) => idx,
-            None => bail!("No tasks in 'doing' status found for Phase 2 execution."),
-        }
+    } else if let Some(idx) = queue_file
+        .tasks
+        .iter()
+        .position(|t| t.status == TaskStatus::Doing)
+    {
+        idx
     } else {
-        // Default (Phase 1 or Full): Find first runnable 'todo'
         match queue_file.tasks.iter().position(|t| {
             t.status == TaskStatus::Todo && queue::are_dependencies_met(t, &queue_file, done_ref)
         }) {
             Some(idx) => idx,
             None => {
-                // Check if blocked or empty
                 let has_todo = queue_file
                     .tasks
                     .iter()
@@ -179,22 +182,15 @@ fn run_one_impl(
     let task = queue_file.tasks[task_idx].clone();
     let task_id = task.id.trim().to_string();
 
-    // Verify task state for Phase 2
-    if agent_overrides.phase == Some(RunPhase::Phase2) && task.status != TaskStatus::Doing {
-        // This might happen if we targeted a specific ID that isn't Doing
-        bail!(
-            "Task {} is not in 'doing' status (current: {}). Phase 2 requires 'doing' status.",
-            task_id,
-            task.status
-        );
-    }
-
     // Require clean repo
     gitutil::require_clean_repo_ignoring_paths(
         &resolved.repo_root,
         force,
         &[".ralph/queue.json", ".ralph/done.json"],
     )?;
+
+    // Mark the task as doing before running the agent.
+    mark_task_doing(resolved, &task_id)?;
 
     // Resolve runner settings
     let settings = resolve_run_agent_settings(resolved, &task, agent_overrides)?;
@@ -207,50 +203,39 @@ fn run_one_impl(
         model = settings.model.as_str()
     );
 
-    // --- Phase 2 Execution (Standalone) ---
-    if agent_overrides.phase == Some(RunPhase::Phase2) {
-        let plan_text = promptflow::read_plan_cache(&resolved.repo_root, &task_id)
-            .context("Failed to read cached plan for Phase 2")?;
-
-        let prompt = build_phase2_prompt(&plan_text, &policy);
-        execute_runner_pass(
-            resolved,
-            &settings,
-            bins,
-            &prompt,
-            output_handler.clone(),
-            true, // supervision enabled
-            "Implementation",
-        )?;
-
-        post_run_supervise(resolved, &task_id)?;
-        return Ok(RunOutcome::Ran { task_id });
-    }
-
-    // --- Phase 1 or Single Phase ---
+    // --- Prompt Construction ---
     let template = prompts::load_worker_prompt(&resolved.repo_root)?;
     let project_type = resolved.config.project_type.unwrap_or(ProjectType::Code);
     let base_prompt = prompts::render_worker_prompt(&template, project_type, &resolved.config)?;
 
-    if two_pass_enabled {
-        // Phase 1 execution
+    if phases == 2 {
+        log::info!("Phase 1/2 (Planning) for {task_id}...");
         let p1_prompt = build_phase1_prompt(&base_prompt, &task_id, &policy);
-
-        // Disable permission bypass for planning if configured, though planning is usually read-only.
-        // But context_builder is a tool. We generally want to allow it.
-        // Actually, contract says "Phase 1 planning runs Claude with BypassPermissions".
-        // We'll handle that by locally modifying permission_mode if it's Claude.
         let output = execute_runner_pass(
             resolved,
             &settings,
             bins,
             &p1_prompt,
             output_handler.clone(),
-            true, // revert on error
+            true,
             "Planning",
         )?;
 
-        // Extract and cache plan
+        // ENFORCEMENT: Phase 1 must not implement.
+        // It may only edit `.ralph/queue.json` / `.ralph/done.json` (status bookkeeping).
+        if let Err(err) = gitutil::require_clean_repo_ignoring_paths(
+            &resolved.repo_root,
+            false,
+            &[".ralph/queue.json", ".ralph/done.json"],
+        ) {
+            gitutil::revert_uncommitted(&resolved.repo_root)?;
+            bail!(
+                "Phase 1 violated plan-only contract: it modified files outside allowed queue bookkeeping. Reverted changes. Error: {:#}",
+                err
+            );
+        }
+
+        // Extract and cache plan (STRICT: markers required)
         let plan_text = promptflow::extract_plan_text(settings.runner, &output.stdout)?;
         promptflow::write_plan_cache(&resolved.repo_root, &task_id, &plan_text)?;
         log::info!(
@@ -258,14 +243,7 @@ fn run_one_impl(
             promptflow::plan_cache_path(&resolved.repo_root, &task_id).display()
         );
 
-        // If explicit Phase 1, we are done.
-        if agent_overrides.phase == Some(RunPhase::Phase1) {
-            log::info!("Phase 1 complete. Run with --phase 2 to implement.");
-            return Ok(RunOutcome::Ran { task_id });
-        }
-
-        // Otherwise (Implicit Phase 2), continue immediately
-        log::info!("Proceeding to Phase 2 (Implementation)...");
+        log::info!("Phase 2/2 (Implementation) for {task_id}...");
         let p2_prompt = build_phase2_prompt(&plan_text, &policy);
         execute_runner_pass(
             resolved,
@@ -278,22 +256,22 @@ fn run_one_impl(
         )?;
 
         post_run_supervise(resolved, &task_id)?;
-    } else {
-        // Single Phase execution
-        let prompt = build_single_phase_prompt(&base_prompt, &task_id, &policy);
-        execute_runner_pass(
-            resolved,
-            &settings,
-            bins,
-            &prompt,
-            output_handler.clone(),
-            true,
-            "Execution",
-        )?;
-
-        post_run_supervise(resolved, &task_id)?;
+        return Ok(RunOutcome::Ran { task_id });
     }
 
+    // phases == 1: Single-pass execution
+    let prompt = build_single_phase_prompt(&base_prompt, &task_id, &policy);
+    execute_runner_pass(
+        resolved,
+        &settings,
+        bins,
+        &prompt,
+        output_handler.clone(),
+        true,
+        "Execution",
+    )?;
+
+    post_run_supervise(resolved, &task_id)?;
     Ok(RunOutcome::Ran { task_id })
 }
 
@@ -364,6 +342,14 @@ fn resolve_run_agent_settings(
         task.agent.as_ref(),
         &resolved.config.agent,
     )
+}
+
+fn mark_task_doing(resolved: &config::Resolved, task_id: &str) -> Result<()> {
+    let mut queue_file = queue::load_queue(&resolved.queue_path)?;
+    let now = timeutil::now_utc_rfc3339()?;
+    queue::set_status(&mut queue_file, task_id, TaskStatus::Doing, &now, None)?;
+    queue::save_queue(&resolved.queue_path, &queue_file)?;
+    Ok(())
 }
 
 fn post_run_supervise(resolved: &config::Resolved, task_id: &str) -> Result<()> {
@@ -696,7 +682,7 @@ mod tests {
             runner: Some(Runner::Codex),
             model: Some(Model::Gpt52Codex),
             reasoning_effort: Some(ReasoningEffort::High),
-            phase: None,
+            phases: None,
             repoprompt_required: None,
         };
 
@@ -724,7 +710,7 @@ mod tests {
             runner: Some(Runner::Opencode),
             model: None,
             reasoning_effort: None,
-            phase: None,
+            phases: None,
             repoprompt_required: None,
         };
 
@@ -750,7 +736,7 @@ mod tests {
             runner: Some(Runner::Gemini),
             model: None,
             reasoning_effort: None,
-            phase: None,
+            phases: None,
             repoprompt_required: None,
         };
 
@@ -790,7 +776,7 @@ mod tests {
             runner: Some(Runner::Opencode),
             model: Some(Model::Gpt52),
             reasoning_effort: Some(ReasoningEffort::High),
-            phase: None,
+            phases: None,
             repoprompt_required: None,
         };
 

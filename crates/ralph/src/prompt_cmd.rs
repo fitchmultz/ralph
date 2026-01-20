@@ -116,6 +116,12 @@ fn resolve_worker_task_id(resolved: &config::Resolved, task_id: Option<String>) 
     );
 }
 
+/// Load plan text for Phase 2 prompt preview.
+///
+/// NOTE: This function is ONLY used by the `ralph prompt` command for preview/inspection.
+/// Actual runtime execution (`ralph run`) extracts the plan directly from Phase 1 output
+/// and will error if no plan exists. This function uses a placeholder when missing
+/// to allow previewing Phase 2 prompts even when no cached plan exists.
 fn load_plan_text_for_phase2(
     repo_root: &Path,
     task_id: &str,
@@ -140,12 +146,18 @@ fn load_plan_text_for_phase2(
         return Ok(trimmed.to_string());
     }
 
-    promptflow::read_plan_cache(repo_root, task_id).with_context(|| {
-        format!(
-            "No --plan-text/--plan-file provided, and cached plan was missing/invalid for task {}",
-            task_id
-        )
-    })
+    // For preview command only: if cache is missing, use placeholder instead of erroring.
+    // Runtime execution will still error appropriately since it extracts plan from Phase 1 output.
+    match promptflow::read_plan_cache(repo_root, task_id) {
+        Ok(plan) => Ok(plan),
+        Err(_) => {
+            let cache_path = promptflow::plan_cache_path(repo_root, task_id);
+            Ok(format!(
+                "*No plan file found*\n\nNo plan file was found at {}. Please proceed with implementation based on the task requirements.",
+                cache_path.display()
+            ))
+        }
+    }
 }
 
 pub fn build_worker_prompt(

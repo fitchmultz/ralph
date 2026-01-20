@@ -274,6 +274,10 @@ fn run_one_succeeds_without_upstream_and_warns() -> Result<()> {
     // 2. Add a task
     write_valid_single_todo_queue(dir.path())?;
 
+    // Create a dummy Makefile for post_run_supervise.
+    std::fs::write(dir.path().join("Makefile"), "ci:\n\t@echo 'CI passed'\n")
+        .context("write Makefile")?;
+
     let runner_path = create_fake_runner(dir.path(), "codex", "#!/bin/sh\nexit 0\n")?;
     configure_runner(dir.path(), "codex", "gpt-5.2-codex", Some(&runner_path))?;
 

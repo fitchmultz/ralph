@@ -22,8 +22,8 @@
 - `cargo run -p ralph -- task build "<request>"`
 - `cargo run -p ralph -- scan --focus "<focus>"`
 - `cargo run -p ralph -- run one`
-- `cargo run -p ralph -- run one --phase 1` (generate plan only)
-- `cargo run -p ralph -- run one --phase 2` (implement cached plan)
+- `cargo run -p ralph -- run one --phases 1` (single-pass execution)
+- `cargo run -p ralph -- run one --phases 2` (two-pass: plan then implement)
 - `cargo run -p ralph -- run loop --max-tasks 0`
 
 ## Queue & Prompt Contract (Rust)
@@ -42,7 +42,7 @@
 - **When adding new CLI arguments**: Always update help text (clap `after_long_help`, doc comments) to include examples.
 - **Help examples must cover**: new flags, their purpose, and typical usage patterns.
 - **Verification**: Run `cargo run -p ralph -- <command> --help` to review output before committing.
-- **Common gaps to watch for**: missing `--phase` examples, `--interactive` (`-i`), `--rp-on`/`--rp-off`, runner/model overrides.
+- **Common gaps to watch for**: missing `--phases` examples, `--interactive` (`-i`), `--rp-on`/`--rp-off`, runner/model overrides.
 
 ## Configuration
 - Two-layer JSON config:

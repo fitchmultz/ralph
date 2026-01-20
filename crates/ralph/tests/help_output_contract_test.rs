@@ -110,7 +110,7 @@ fn run_one_help_mentions_flags_and_examples() {
     assert_contains(&combined, "--runner");
     assert_contains(&combined, "--model");
     assert_contains(&combined, "--effort");
-    assert_contains(&combined, "--phase");
+    assert_contains(&combined, "--phases");
     assert_contains(&combined, "--rp-on");
     assert_contains(&combined, "--rp-off");
 

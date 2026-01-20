@@ -29,6 +29,8 @@ This repo is using Ralph. The `.ralph/` directory holds repo-local state.
   - `ralph run one`
 - Run multiple tasks:
   - `ralph run loop --max-tasks 0`
+  - `ralph run loop --phases 2 --max-tasks 0` (two-pass, default)
+  - `ralph run loop --phases 1 --max-tasks 1` (single-pass)
 
 ## Template Variables
 
@@ -65,7 +67,8 @@ One-off usage:
 - `ralph scan --runner gemini --model gemini-3-flash-preview --focus "risk audit"`
 - `ralph scan --runner claude --model sonnet --focus "risk audit"`
 - `ralph task build --runner claude --model opus --rp-on "Add tests for X"`
-- `ralph run one --phase 1` (generate plan only)
+- `ralph run one --phases 2` (two-pass: plan then implement, default)
+- `ralph run one --phases 1` (single-pass execution)
 
 Defaults via config (`.ralph/config.json` or `~/.config/ralph/config.json`):
 
@@ -97,4 +100,4 @@ When enabled (`two_pass_plan: true`, default: true), Ralph orchestrates executio
 1. **Phase 1 (Planning)**: The agent generates a detailed plan and caches it in `.ralph/cache/plans/<TASK_ID>.md`.
 2. **Phase 2 (Implementation)**: The agent implements the cached plan.
 
-You can force a specific phase using `ralph run one --phase 1` or `ralph run one --phase 2`. Standalone Phase 1 execution allows for manual plan review before implementation.
+Use `ralph run one --phases 2` to run both phases sequentially (default), or `ralph run one --phases 1` for single-pass execution.

@@ -109,8 +109,8 @@ fn worker_single_phase_includes_completion_workflow() -> Result<()> {
         },
     )?;
 
-    assert!(prompt.contains("immediately implement"));
-    assert!(prompt.contains(ralph::prompts::TASK_COMPLETION_WORKFLOW));
+    assert!(prompt.contains("single-pass execution mode"));
+    assert!(prompt.contains("IMPLEMENTATION COMPLETION CHECKLIST"));
     Ok(())
 }
 
@@ -134,6 +134,32 @@ fn worker_phase2_requires_plan_text() -> Result<()> {
 
     assert!(prompt.contains("IMPLEMENTATION MODE - PHASE 2 OF 2"));
     assert!(prompt.contains("PLAN BODY"));
+    assert!(prompt.contains(ralph::prompts::TASK_COMPLETION_WORKFLOW));
+    Ok(())
+}
+
+#[test]
+fn worker_phase2_uses_placeholder_when_no_plan_found() -> Result<()> {
+    let temp = TempDir::new()?;
+    write_minimal_queue(&temp)?;
+    let resolved = make_resolved(&temp);
+
+    let prompt = prompt_cmd::build_worker_prompt(
+        &resolved,
+        WorkerPromptOptions {
+            task_id: Some("RQ-0001".to_string()),
+            mode: WorkerMode::Phase2,
+            repoprompt_required: false,
+            plan_file: None,
+            plan_text: None,
+            explain: false,
+        },
+    )?;
+
+    assert!(prompt.contains("IMPLEMENTATION MODE - PHASE 2 OF 2"));
+    assert!(prompt.contains("*No plan file found*"));
+    assert!(prompt.contains("No plan file was found at"));
+    assert!(prompt.contains("Please proceed with implementation based on the task requirements"));
     assert!(prompt.contains(ralph::prompts::TASK_COMPLETION_WORKFLOW));
     Ok(())
 }

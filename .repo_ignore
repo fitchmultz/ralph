@@ -3,3 +3,4 @@ target/flycheck0/stderr
 Cargo.lock
 target/release/
 .claude/
+CLAUDE.md

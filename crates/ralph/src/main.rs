@@ -25,7 +25,6 @@ mod tui;
 
 use anyhow::{bail, Context, Result};
 use clap::{Args, Parser, Subcommand, ValueEnum};
-use promptflow::RunPhase;
 
 use crate::contracts::{QueueFile, Runner as RunnerKind, Task, TaskStatus};
 
@@ -489,8 +488,8 @@ fn handle_prompt(args: PromptArgs) -> Result<()> {
                 crate::prompt_cmd::WorkerMode::Single
             } else if let Some(phase) = p.phase {
                 match phase {
-                    RunPhase::Phase1 => crate::prompt_cmd::WorkerMode::Phase1,
-                    RunPhase::Phase2 => crate::prompt_cmd::WorkerMode::Phase2,
+                    promptflow::RunPhase::Phase1 => crate::prompt_cmd::WorkerMode::Phase1,
+                    promptflow::RunPhase::Phase2 => crate::prompt_cmd::WorkerMode::Phase2,
                 }
             } else {
                 // Default behavior: match runtime behavior as closely as possible:
@@ -560,8 +559,7 @@ fn handle_run(cmd: RunCommand, force: bool) -> Result<()> {
     let resolved = config::resolve_from_cwd()?;
     match cmd {
         RunCommand::One(args) => {
-            let mut overrides = resolve_run_agent_overrides(&args.agent)?;
-            overrides.phase = args.phase;
+            let overrides = resolve_run_agent_overrides(&args.agent)?;
 
             if args.interactive {
                 // Capture the values we need by moving them into the factory
@@ -732,7 +730,7 @@ fn resolve_run_agent_overrides(args: &RunAgentArgs) -> Result<run_cmd::AgentOver
         runner,
         model,
         reasoning_effort,
-        phase: None, // Set by caller if needed (run one)
+        phases: args.phases,
         repoprompt_required,
     })
 }
@@ -829,7 +827,7 @@ struct ConfigArgs {
 #[derive(Args)]
 #[command(
     about = "Run the Ralph supervisor (executes queued tasks via codex/opencode/gemini/claude)",
-    after_long_help = "Runner selection:\n  - `ralph run` selects runner/model/effort with this precedence:\n      1) CLI overrides (flags on `run one` / `run loop`)\n      2) the task's `agent` override (if present in .ralph/queue.json)\n      3) otherwise the resolved config defaults (`agent.runner`, `agent.model`, `agent.reasoning_effort`).\n\nNotes:\n  - Allowed runners: codex, opencode, gemini, claude\n  - Allowed models: gpt-5.2-codex, gpt-5.2, zai-coding-plan/glm-4.7, gemini-3-pro-preview, gemini-3-flash-preview, sonnet, opus (codex supports only gpt-5.2-codex + gpt-5.2; opencode/gemini/claude accept arbitrary model ids)\n  - `--effort` is codex-only and is ignored for other runners.\n\nTo change defaults for this repo, edit .ralph/config.json:\n  version: 1\n  agent:\n    runner: claude\n    model: sonnet\n    gemini_bin: gemini\n\nExamples:\n  ralph run one\n  ralph run one --phase 1\n  ralph run one --phase 2\n  ralph run one --runner opencode --model gpt-5.2\n  ralph run one --runner codex --model gpt-5.2-codex --effort high\n  ralph run one --runner gemini --model gemini-3-flash-preview\n  ralph run loop --max-tasks 0\n  ralph run loop --max-tasks 1 --runner opencode --model gpt-5.2"
+    after_long_help = "Runner selection:\n  - `ralph run` selects runner/model/effort with this precedence:\n      1) CLI overrides (flags on `run one` / `run loop`)\n      2) the task's `agent` override (if present in .ralph/queue.json)\n      3) otherwise the resolved config defaults (`agent.runner`, `agent.model`, `agent.reasoning_effort`).\n\nNotes:\n  - Allowed runners: codex, opencode, gemini, claude\n  - Allowed models: gpt-5.2-codex, gpt-5.2, zai-coding-plan/glm-4.7, gemini-3-pro-preview, gemini-3-flash-preview, sonnet, opus (codex supports only gpt-5.2-codex + gpt-5.2; opencode/gemini/claude accept arbitrary model ids)\n  - `--effort` is codex-only and is ignored for other runners.\n\nTo change defaults for this repo, edit .ralph/config.json:\n  version: 1\n  agent:\n    runner: claude\n    model: sonnet\n    gemini_bin: gemini\n\nExamples:\n  ralph run one\n  ralph run one --phases 2\n  ralph run one --phases 1\n  ralph run one --runner opencode --model gpt-5.2\n  ralph run one --runner codex --model gpt-5.2-codex --effort high\n  ralph run one --runner gemini --model gemini-3-flash-preview\n  ralph run loop --max-tasks 0\n  ralph run loop --max-tasks 1 --runner opencode --model gpt-5.2"
 )]
 struct RunArgs {
     #[command(subcommand)]
@@ -962,7 +960,7 @@ struct PromptWorkerArgs {
 
     /// Force a specific worker phase (1=Plan, 2=Implement).
     #[arg(long, value_parser = parse_phase)]
-    phase: Option<RunPhase>,
+    phase: Option<promptflow::RunPhase>,
 
     /// Task id to use for status-update instructions (defaults to first todo task).
     #[arg(long)]
@@ -1122,12 +1120,12 @@ enum ConfigCommand {
 enum RunCommand {
     #[command(
         about = "Run exactly one task (the first todo in .ralph/queue.json)",
-        after_long_help = "Runner selection (precedence):\n  1) CLI overrides (--runner/--model/--effort)\n  2) task.agent in .ralph/queue.json (if present)\n  3) config defaults (.ralph/config.json then ~/.config/ralph/config.json)\n\nExamples:\n  ralph run one\n  ralph run one -i\n  ralph run one --phase 1\n  ralph run one --phase 2\n  ralph run one --runner opencode --model gpt-5.2\n  ralph run one --runner gemini --model gemini-3-flash-preview\n  ralph run one --runner codex --model gpt-5.2-codex --effort high\n  ralph run one --rp-on\n  ralph run one --rp-off"
+        after_long_help = "Runner selection (precedence):\n  1) CLI overrides (--runner/--model/--effort)\n  2) task.agent in .ralph/queue.json (if present)\n  3) config defaults (.ralph/config.json then ~/.config/ralph/config.json)\n\nExamples:\n  ralph run one\n  ralph run one -i\n  ralph run one --phases 2\n  ralph run one --phases 1\n  ralph run one --runner opencode --model gpt-5.2\n  ralph run one --runner gemini --model gemini-3-flash-preview\n  ralph run one --runner codex --model gpt-5.2-codex --effort high\n  ralph run one --rp-on\n  ralph run one --rp-off"
     )]
     One(RunOneArgs),
     #[command(
         about = "Run tasks repeatedly until no todo remain (or --max-tasks is reached)",
-        after_long_help = "Examples:\n  ralph run loop --max-tasks 0\n  ralph run loop --max-tasks 3\n  ralph run loop --max-tasks 1 --runner opencode --model gpt-5.2\n  ralph run loop -i\n  ralph run loop --rp-on\n  ralph run loop --rp-off"
+        after_long_help = "Examples:\n  ralph run loop --max-tasks 0\n  ralph run loop --phases 2 --max-tasks 0\n  ralph run loop --phases 1 --max-tasks 1\n  ralph run loop --max-tasks 3\n  ralph run loop --max-tasks 1 --runner opencode --model gpt-5.2\n  ralph run loop -i\n  ralph run loop --rp-on\n  ralph run loop --rp-off"
     )]
     Loop(RunLoopArgs),
 }
@@ -1147,6 +1145,14 @@ struct RunAgentArgs {
     #[arg(long)]
     effort: Option<String>,
 
+    /// Execution shape:
+    /// - 1 => single-pass execution (no mandated planning step)
+    /// - 2 => two-pass execution (plan then implement)
+    ///
+    /// If omitted, defaults to config `agent.two_pass_plan` (default true => 2 phases).
+    #[arg(long, value_parser = clap::value_parser!(u8).range(1..=2))]
+    phases: Option<u8>,
+
     /// Force RepoPrompt required (must use context_builder).
     #[arg(long, conflicts_with = "rp_off")]
     rp_on: bool,
@@ -1162,24 +1168,14 @@ struct RunOneArgs {
     #[arg(short = 'i', long)]
     interactive: bool,
 
-    /// Force execution of specific phase (1=Plan, 2=Implement).
-    ///
-    /// Two-phase planning separates task understanding from implementation:
-    ///   - Phase 1 (Plan): Generate a detailed implementation plan
-    ///   - Phase 2 (Implement): Execute the cached plan from Phase 1
-    ///
-    /// If omitted, runs both phases sequentially when two-phase is enabled by the runner.
-    #[arg(long, value_parser = parse_phase)]
-    phase: Option<RunPhase>,
-
     #[command(flatten)]
     agent: RunAgentArgs,
 }
 
-fn parse_phase(s: &str) -> Result<RunPhase, String> {
+fn parse_phase(s: &str) -> Result<promptflow::RunPhase, String> {
     match s {
-        "1" => Ok(RunPhase::Phase1),
-        "2" => Ok(RunPhase::Phase2),
+        "1" => Ok(promptflow::RunPhase::Phase1),
+        "2" => Ok(promptflow::RunPhase::Phase2),
         _ => Err(format!("invalid phase '{}', expected 1 or 2", s)),
     }
 }

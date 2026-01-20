@@ -82,7 +82,7 @@ When enabled (`two_pass_plan: true`, default: true), Ralph orchestrates executio
 1. **Phase 1 (Planning)**: The agent generates a detailed plan and caches it in `.ralph/cache/plans/<TASK_ID>.md`.
 2. **Phase 2 (Implementation)**: The agent implements the cached plan.
 
-Use `ralph run one --phase 1` to generate a plan for manual review, then `ralph run one --phase 2` to execute it.
+Use `ralph run one --phases 2` to run both phases sequentially (default), or `ralph run one --phases 1` for single-pass execution.
 
 ## Configuration
 

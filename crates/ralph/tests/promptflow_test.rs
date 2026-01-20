@@ -14,8 +14,7 @@ fn build_phase1_prompt_contains_required_elements() {
     let prompt = promptflow::build_phase1_prompt(base, task_id, &policy);
 
     assert!(prompt.contains("PLANNING MODE - PHASE 1 OF 2"));
-    assert!(prompt.contains("Task Status Update"));
-    assert!(prompt.contains(task_id));
+    assert!(prompt.contains("NO FILE EDITS ARE ALLOWED IN PHASE 1"));
     assert!(prompt.contains(prompts::REPOPROMPT_REQUIRED_INSTRUCTION));
     assert!(prompt.contains(prompts::REPOPROMPT_CONTEXT_BUILDER_PLANNING_INSTRUCTION));
     assert!(prompt.contains("PLAN ONLY"));
@@ -64,11 +63,10 @@ fn build_single_phase_prompt_contains_required_elements() {
 
     let prompt = promptflow::build_single_phase_prompt(base, task_id, &policy);
 
-    assert!(prompt.contains("Task Status Update"));
-    assert!(prompt.contains(prompts::REPOPROMPT_REQUIRED_INSTRUCTION));
-    assert!(prompt.contains(prompts::REPOPROMPT_CONTEXT_BUILDER_PLANNING_INSTRUCTION));
+    assert!(prompt.contains("TOOLING REQUIREMENT: RepoPrompt"));
+    assert!(!prompt.contains(prompts::REPOPROMPT_CONTEXT_BUILDER_PLANNING_INSTRUCTION));
     assert!(prompt.contains(prompts::TASK_COMPLETION_WORKFLOW));
-    assert!(prompt.contains("immediately implement"));
+    assert!(prompt.contains("single-pass execution mode"));
     assert!(prompt.contains(base));
 }
 
@@ -85,10 +83,9 @@ More text",
 }
 
 #[test]
-fn extract_plan_text_fallbacks_to_trimmed() {
+fn extract_plan_text_requires_markers() {
     let output = "  THE PLAN  ";
-    let plan = promptflow::extract_plan_text(Runner::Claude, output).unwrap();
-    assert_eq!(plan, "THE PLAN");
+    assert!(promptflow::extract_plan_text(Runner::Claude, output).is_err());
 }
 
 #[test]

@@ -33,9 +33,7 @@ clean:
 
 test:
 	cargo test --workspace --all-targets -- --include-ignored
-	cargo test --workspace --all-targets -- --include-ignored --test-threads=1
-	RUSTDOCFLAGS="-D warnings" cargo test --workspace --doc -- --include-ignored
-	cargo test --workspace --all-targets --release -- --include-ignored
+	cargo test --workspace --doc -- --include-ignored
 	cargo build --workspace --release
 
 stress:

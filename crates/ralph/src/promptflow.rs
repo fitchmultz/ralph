@@ -51,7 +51,7 @@ pub fn read_plan_cache(repo_root: &Path, task_id: &str) -> Result<String> {
 /// Build the prompt for Phase 1 (Planning).
 pub fn build_phase1_prompt(
     base_worker_prompt: &str,
-    task_id: &str,
+    _task_id: &str,
     policy: &PromptPolicy,
 ) -> String {
     let mut instructions = String::new();
@@ -59,11 +59,7 @@ pub fn build_phase1_prompt(
     // 1. Heading
     instructions.push_str("# PLANNING MODE - PHASE 1 OF 2\n\n");
 
-    // 2. Status update instruction (FIRST action)
-    instructions.push_str(&prompts::task_status_doing_instruction_for(task_id));
-    instructions.push('\n');
-
-    // 3. RepoPrompt requirement (if enabled)
+    // 2. RepoPrompt requirement (if enabled)
     if policy.require_repoprompt {
         instructions.push_str(prompts::REPOPROMPT_REQUIRED_INSTRUCTION);
         instructions.push_str("\n\n");
@@ -71,17 +67,37 @@ pub fn build_phase1_prompt(
         instructions.push('\n');
     }
 
-    // 4. Planning-only constraint + Marker requirement
+    // 3. Planning-only constraint + Marker requirement
     instructions.push_str(&format!(
-        r#"\n## OUTPUT REQUIREMENT: PLAN ONLY
+        r#"
+## OUTPUT REQUIREMENT: PLAN ONLY
 You are in Phase 1 (Planning). You must NOT implement the code yet.
 Your goal is to understand the task, gather context, and produce a detailed plan.
 
-After your analysis (and `context_builder` usage if applicable), you must output the final plan wrapped in these exact markers:
+## STRICT PROHIBITIONS (PHASE 1 ONLY)
+**DO NOT DO ANY OF THE FOLLOWING:**
+- Create or modify any files (Ralph handles queue bookkeeping)
+- Run tests, `make ci`, or any validation commands
+- Execute `git add`, `git commit`, or `git push`
+- Write, edit, or change any source code, configuration, or documentation files
+- Make any implementation changes whatsoever
+
+**NO FILE EDITS ARE ALLOWED IN PHASE 1.**
+
+**IF YOU START IMPLEMENTING:**
+- STOP immediately
+- Revert any file changes you made
+- Return to planning mode
+- Only output a plan wrapped in the required markers
+
+## PLAN OUTPUT REQUIREMENT
+You MUST output the final plan wrapped in these exact markers:
 
 {begin}
 <your plan here>
 {end}
+
+**Your output MUST be wrapped in these plan markers.** Without these markers, Phase 1 will fail.
 
 The plan should be detailed enough for Phase 2 implementation.
 "#,
@@ -124,74 +140,57 @@ pub fn build_phase2_prompt(plan_text: &str, policy: &PromptPolicy) -> String {
 /// Build the prompt for Single Phase (Plan + Implement).
 pub fn build_single_phase_prompt(
     base_worker_prompt: &str,
-    task_id: &str,
+    _task_id: &str,
     policy: &PromptPolicy,
 ) -> String {
     let mut instructions = String::new();
 
-    // 1. Status update instruction (FIRST action)
-    instructions.push_str(&prompts::task_status_doing_instruction_for(task_id));
-    instructions.push('\n');
-
-    // 2. RepoPrompt requirement
+    // 1. RepoPrompt requirement (tooling requirement only; no mandated planning tool step)
     if policy.require_repoprompt {
         instructions.push_str(prompts::REPOPROMPT_REQUIRED_INSTRUCTION);
         instructions.push_str("\n\n");
-        instructions.push_str(prompts::REPOPROMPT_CONTEXT_BUILDER_PLANNING_INSTRUCTION);
-        instructions.push('\n');
     }
 
-    // 3. Completion workflow
+    // 2. Completion workflow
     instructions.push_str(prompts::TASK_COMPLETION_WORKFLOW);
     instructions.push('\n');
 
-    // 4. Combined instruction
-    instructions
-        .push_str("You must plan and then immediately implement the solution in this session.\n");
+    // 3. Single-pass semantics: planning is optional.
+    instructions.push_str(
+        "You are in single-pass execution mode. You may do brief planning, but you are NOT required to produce a separate plan first. Proceed directly to implementation.\n",
+    );
 
-    // 5. Divider and base prompt
+    // 4. Divider and base prompt
     format!("{}\n\n---\n\n{}", instructions.trim(), base_worker_prompt)
 }
 
 /// Extract the plan text from the runner's stdout.
-pub fn extract_plan_text(runner_kind: Runner, stdout: &str) -> Result<String> {
-    // 1. Pre-process stdout based on runner
-    let content = if runner_kind == Runner::Claude {
-        // Claude uses JSON-L output, we want the "result" field of the last line usually,
-        // but here we are looking for the plan markers in the *text* output.
-        // Assuming `stdout` passed here is the full raw stdout.
-        // Actually, the `runner.rs` usually returns the *text* response if it handles parsing.
-        // Let's assume `stdout` here is the actual model text response.
-        // If it returns raw JSON-L for Claude (which it seems to do in `runner.rs`),
-        // we need to handle that.
-        // Let's look at `runner.rs` later. For now, let's assume `stdout` contains the text we need.
-        // If it's JSON-L, we might need to parse it.
-        // However, based on the plan, `extract_plan_text` takes `runner_kind` to handle this.
+///
+/// **Strict contract:** Phase 1 must output a plan wrapped in:
+/// - `<<RALPH_PLAN_BEGIN>>`
+/// - `<<RALPH_PLAN_END>>`
+///
+/// If markers are missing, we fail the run. This prevents Phase 1 from
+/// "accidentally" implementing changes and having the entire transcript cached as a plan.
+pub fn extract_plan_text(_runner_kind: Runner, stdout: &str) -> Result<String> {
+    let content = stdout;
 
-        // Heuristic: try to find markers in the raw string first.
-        stdout
-    } else {
-        stdout
-    };
-
-    // 2. Extract between markers
     if let Some(start_idx) = content.find(RALPH_PHASE1_PLAN_BEGIN) {
         if let Some(end_idx) = content.find(RALPH_PHASE1_PLAN_END) {
             let start = start_idx + RALPH_PHASE1_PLAN_BEGIN.len();
             if start < end_idx {
-                return Ok(content[start..end_idx].trim().to_string());
+                let plan = content[start..end_idx].trim();
+                if plan.is_empty() {
+                    bail!("Extracted plan is empty (markers present but body is empty)");
+                }
+                return Ok(plan.to_string());
             }
         }
     }
 
-    // 3. Fallback: if no markers, verify it's not empty and return trimmed content.
-    // This supports legacy behavior or if the model forgot markers but output a plan.
-    // Ideally we want to be strict, but for now we fallback.
-    // EXCEPT: The plan says "Otherwise fallback to trimmed stdout".
-    let trimmed = content.trim();
-    if trimmed.is_empty() {
-        bail!("Extracted plan is empty");
-    }
-
-    Ok(trimmed.to_string())
+    bail!(
+        "Phase 1 plan output missing required markers. The agent must output the plan wrapped in:\n{}\n<plan>\n{}\n",
+        RALPH_PHASE1_PLAN_BEGIN,
+        RALPH_PHASE1_PLAN_END
+    );
 }
