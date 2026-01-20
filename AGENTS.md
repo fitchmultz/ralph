@@ -38,6 +38,12 @@
 - The supervisor (`ralph run`) verifies the repo is clean and will commit/push only if needed.
 - Prefer commit messages like `RQ-####: <short summary>`.
 
+## CLI Help Documentation
+- **When adding new CLI arguments**: Always update help text (clap `after_long_help`, doc comments) to include examples.
+- **Help examples must cover**: new flags, their purpose, and typical usage patterns.
+- **Verification**: Run `cargo run -p ralph -- <command> --help` to review output before committing.
+- **Common gaps to watch for**: missing `--phase` examples, `--interactive` (`-i`), `--rp-on`/`--rp-off`, runner/model overrides.
+
 ## Configuration
 - Two-layer JSON config:
   - Global: `~/.config/ralph/config.json`

@@ -614,7 +614,7 @@ fn parse_runner(value: &str) -> Result<RunnerKind> {
         "gemini" => Ok(RunnerKind::Gemini),
         "claude" => Ok(RunnerKind::Claude),
         _ => bail!(
-            "Invalid runner: --runner must be 'codex', 'opencode', 'gemini', or 'claude' (got: {}). Set a supported runner in .ralph/config.yaml or via the --runner flag.",
+            "Invalid runner: --runner must be 'codex', 'opencode', 'gemini', or 'claude' (got: {}). Set a supported runner in .ralph/config.json or via the --runner flag.",
             value.trim()
         ),
     }
@@ -693,7 +693,7 @@ fn resolve_list_limit(limit: u32, all: bool) -> Option<usize> {
 #[command(name = "ralph")]
 #[command(about = "Ralph")]
 #[command(
-    after_long_help = "Runner selection:\n  - CLI flags override project config, which overrides global config, which overrides built-in defaults.\n  - Default runner/model come from config files: project config (.ralph/config.yaml) > global config (~/.config/ralph/config.yaml) > built-in.\n  - `task build` and `scan` accept --runner/--model/--effort as one-off overrides.\n  - `run one` and `run loop` accept --runner/--model/--effort as one-off overrides; otherwise they use task.agent overrides when present; otherwise config agent defaults.\n\nConfig example (.ralph/config.yaml):\n  version: 1\n  agent:\n    runner: opencode\n    model: gpt-5.2\n    opencode_bin: opencode\n    gemini_bin: gemini\n    claude_bin: claude\n\nNotes:\n  - Allowed runners: codex, opencode, gemini, claude\n  - Allowed models: gpt-5.2-codex, gpt-5.2, zai-coding-plan/glm-4.7, gemini-3-pro-preview, gemini-3-flash-preview, sonnet, opus (codex supports only gpt-5.2-codex + gpt-5.2; opencode/gemini/claude accept arbitrary model ids)\n\nExamples:\n  ralph queue list\n  ralph queue show RQ-0008\n  ralph queue next --with-title\n  ralph scan --runner opencode --model gpt-5.2 --focus \"CI gaps\"\n  ralph task build --runner codex --model gpt-5.2-codex --effort high \"Fix the flaky test\"\n  ralph scan --runner gemini --model gemini-3-flash-preview --focus \"risk audit\"\n  ralph scan --runner claude --model sonnet --focus \"risk audit\"\n  ralph task build --runner claude --model opus \"Add tests for X\"\n  ralph run one"
+    after_long_help = "Runner selection:\n  - CLI flags override project config, which overrides global config, which overrides built-in defaults.\n  - Default runner/model come from config files: project config (.ralph/config.json) > global config (~/.config/ralph/config.json) > built-in.\n  - `task build` and `scan` accept --runner/--model/--effort as one-off overrides.\n  - `run one` and `run loop` accept --runner/--model/--effort as one-off overrides; otherwise they use task.agent overrides when present; otherwise config agent defaults.\n\nConfig example (.ralph/config.json):\n  {\n    \"version\": 1,\n    \"agent\": {\n      \"runner\": \"opencode\",\n      \"model\": \"gpt-5.2\",\n      \"opencode_bin\": \"opencode\",\n      \"gemini_bin\": \"gemini\",\n      \"claude_bin\": \"claude\"\n    }\n  }\n\nNotes:\n  - Allowed runners: codex, opencode, gemini, claude\n  - Allowed models: gpt-5.2-codex, gpt-5.2, zai-coding-plan/glm-4.7, gemini-3-pro-preview, gemini-3-flash-preview, sonnet, opus (codex supports only gpt-5.2-codex + gpt-5.2; opencode/gemini/claude accept arbitrary model ids)\n  - Use -i/--interactive with `run one` or `run loop` to launch the TUI for task selection and management\n\nExamples:\n  ralph queue list\n  ralph queue show RQ-0008\n  ralph queue next --with-title\n  ralph scan --runner opencode --model gpt-5.2 --focus \"CI gaps\"\n  ralph task build --runner codex --model gpt-5.2-codex --effort high \"Fix the flaky test\"\n  ralph scan --runner gemini --model gemini-3-flash-preview --focus \"risk audit\"\n  ralph scan --runner claude --model sonnet --focus \"risk audit\"\n  ralph task build --runner claude --model opus \"Add tests for X\"\n  ralph run one\n  ralph run one -i\n  ralph run loop --max-tasks 1\n  ralph run loop -i"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -744,7 +744,7 @@ struct ConfigArgs {
 #[derive(Args)]
 #[command(
     about = "Run the Ralph supervisor (executes queued tasks via codex/opencode/gemini/claude)",
-    after_long_help = "Runner selection:\n  - `ralph run` selects runner/model/effort with this precedence:\n      1) CLI overrides (flags on `run one` / `run loop`)\n      2) the task's `agent` override (if present in .ralph/queue.json)\n      3) otherwise the resolved config defaults (`agent.runner`, `agent.model`, `agent.reasoning_effort`).\n\nNotes:\n  - Allowed runners: codex, opencode, gemini, claude\n  - Allowed models: gpt-5.2-codex, gpt-5.2, zai-coding-plan/glm-4.7, gemini-3-pro-preview, gemini-3-flash-preview, sonnet, opus (codex supports only gpt-5.2-codex + gpt-5.2; opencode/gemini/claude accept arbitrary model ids)\n  - `--effort` is codex-only and is ignored for other runners.\n\nTo change defaults for this repo, edit .ralph/config.json:\n  version: 1\n  agent:\n    runner: claude\n    model: sonnet\n    gemini_bin: gemini\n\nExamples:\n  ralph run one\n  ralph run one --runner opencode --model gpt-5.2\n  ralph run one --runner codex --model gpt-5.2-codex --effort high\n  ralph run one --runner gemini --model gemini-3-flash-preview\n  ralph run loop --max-tasks 0\n  ralph run loop --max-tasks 1 --runner opencode --model gpt-5.2"
+    after_long_help = "Runner selection:\n  - `ralph run` selects runner/model/effort with this precedence:\n      1) CLI overrides (flags on `run one` / `run loop`)\n      2) the task's `agent` override (if present in .ralph/queue.json)\n      3) otherwise the resolved config defaults (`agent.runner`, `agent.model`, `agent.reasoning_effort`).\n\nNotes:\n  - Allowed runners: codex, opencode, gemini, claude\n  - Allowed models: gpt-5.2-codex, gpt-5.2, zai-coding-plan/glm-4.7, gemini-3-pro-preview, gemini-3-flash-preview, sonnet, opus (codex supports only gpt-5.2-codex + gpt-5.2; opencode/gemini/claude accept arbitrary model ids)\n  - `--effort` is codex-only and is ignored for other runners.\n\nTo change defaults for this repo, edit .ralph/config.json:\n  version: 1\n  agent:\n    runner: claude\n    model: sonnet\n    gemini_bin: gemini\n\nExamples:\n  ralph run one\n  ralph run one --phase 1\n  ralph run one --phase 2\n  ralph run one --runner opencode --model gpt-5.2\n  ralph run one --runner codex --model gpt-5.2-codex --effort high\n  ralph run one --runner gemini --model gemini-3-flash-preview\n  ralph run loop --max-tasks 0\n  ralph run loop --max-tasks 1 --runner opencode --model gpt-5.2"
 )]
 struct RunArgs {
     #[command(subcommand)]
@@ -776,15 +776,12 @@ struct InitArgs {
 enum TaskCommand {
     /// Build a new task from a natural language request.
     #[command(
-        after_long_help = "Example:\n  ralph task build \"Add tests for the new queue logic\""
+        after_long_help = "Runner selection:\n  - Override runner/model/effort for this invocation using flags.\n  - Defaults come from config when flags are omitted.\n\nExamples:\n  ralph task build \"Add integration tests for run one\"\n  ralph task build --tags cli,rust \"Refactor queue parsing\"\n  ralph task build --scope crates/ralph \"Fix TUI rendering bug\"\n  ralph task build --runner opencode --model gpt-5.2 \"Add docs for OpenCode setup\"\n  ralph task build --runner gemini --model gemini-3-flash-preview \"Draft risk checklist\"\n  ralph task build --runner codex --model gpt-5.2-codex --effort high \"Fix queue validation\"\n  ralph task build --rp-on \"Audit error handling\"\n  ralph task build --rp-off \"Quick typo fix\"\n  echo \"Triage flaky CI\" | ralph task build --runner codex --model gpt-5.2-codex --effort medium"
     )]
     Build(TaskBuildArgs),
 }
 
 #[derive(Args)]
-#[command(
-    after_long_help = "Runner selection:\n  - Override runner/model/effort for this invocation using flags.\n  - Defaults come from config when flags are omitted.\n\nExamples:\n  ralph task build \"Add integration tests for run one\"\n  ralph task build --runner opencode --model gpt-5.2 \"Add docs for OpenCode setup\"\n  ralph task build --runner gemini --model gemini-3-flash-preview \"Draft risk checklist\"\n  ralph task build --runner codex --model gpt-5.2-codex --effort high \"Fix queue validation\"\n  echo \"Triage flaky CI\" | ralph task build --runner codex --model gpt-5.2-codex --effort medium"
-)]
 struct TaskBuildArgs {
     /// Freeform request text; if omitted, reads from stdin.
     #[arg(value_name = "REQUEST")]
@@ -823,7 +820,7 @@ struct TaskBuildArgs {
 #[derive(Args)]
 #[command(
     about = "Scan the repository for new tasks and focus areas",
-    after_long_help = "Runner selection:\n  - Override runner/model/effort for this invocation using flags.\n  - Defaults come from config when flags are omitted.\n\nExamples:\n  ralph scan --focus \"production readiness gaps\"\n  ralph scan --runner opencode --model gpt-5.2 --focus \"CI and safety gaps\"\n  ralph scan --runner gemini --model gemini-3-flash-preview --focus \"risk audit\"\n  ralph scan --runner codex --model gpt-5.2-codex --effort high --focus \"queue correctness\""
+    after_long_help = "Runner selection:\n  - Override runner/model/effort for this invocation using flags.\n  - Defaults come from config when flags are omitted.\n\nExamples:\n  ralph scan --focus \"production readiness gaps\"\n  ralph scan --runner opencode --model gpt-5.2 --focus \"CI and safety gaps\"\n  ralph scan --runner gemini --model gemini-3-flash-preview --focus \"risk audit\"\n  ralph scan --runner codex --model gpt-5.2-codex --effort high --focus \"queue correctness\"\n  ralph scan --rp-on \"Deep codebase analysis\"\n  ralph scan --rp-off \"Quick surface scan\""
 )]
 struct ScanArgs {
     /// Optional focus prompt to guide the scan.
@@ -939,12 +936,12 @@ enum ConfigCommand {
 enum RunCommand {
     #[command(
         about = "Run exactly one task (the first todo in .ralph/queue.json)",
-        after_long_help = "Runner selection (precedence):\n  1) CLI overrides (--runner/--model/--effort)\n  2) task.agent in .ralph/queue.json (if present)\n  3) config defaults (.ralph/config.json then ~/.config/ralph/config.json)\n\nExamples:\n  ralph run one\n  ralph run one --runner opencode --model gpt-5.2\n  ralph run one --runner gemini --model gemini-3-flash-preview\n  ralph run one --runner codex --model gpt-5.2-codex --effort high\n  ralph queue next --with-title"
+        after_long_help = "Runner selection (precedence):\n  1) CLI overrides (--runner/--model/--effort)\n  2) task.agent in .ralph/queue.json (if present)\n  3) config defaults (.ralph/config.json then ~/.config/ralph/config.json)\n\nExamples:\n  ralph run one\n  ralph run one -i\n  ralph run one --phase 1\n  ralph run one --phase 2\n  ralph run one --runner opencode --model gpt-5.2\n  ralph run one --runner gemini --model gemini-3-flash-preview\n  ralph run one --runner codex --model gpt-5.2-codex --effort high\n  ralph run one --rp-on\n  ralph run one --rp-off"
     )]
     One(RunOneArgs),
     #[command(
         about = "Run tasks repeatedly until no todo remain (or --max-tasks is reached)",
-        after_long_help = "Examples:\n  ralph run loop --max-tasks 0\n  ralph run loop --max-tasks 3\n  ralph run loop --max-tasks 1 --runner opencode --model gpt-5.2"
+        after_long_help = "Examples:\n  ralph run loop --max-tasks 0\n  ralph run loop --max-tasks 3\n  ralph run loop --max-tasks 1 --runner opencode --model gpt-5.2\n  ralph run loop -i\n  ralph run loop --rp-on\n  ralph run loop --rp-off"
     )]
     Loop(RunLoopArgs),
 }
@@ -980,7 +977,12 @@ struct RunOneArgs {
     interactive: bool,
 
     /// Force execution of specific phase (1=Plan, 2=Implement).
-    /// If omitted, runs both phases (if two-phase enabled).
+    ///
+    /// Two-phase planning separates task understanding from implementation:
+    ///   - Phase 1 (Plan): Generate a detailed implementation plan
+    ///   - Phase 2 (Implement): Execute the cached plan from Phase 1
+    ///
+    /// If omitted, runs both phases sequentially when two-phase is enabled by the runner.
     #[arg(long, value_parser = parse_phase)]
     phase: Option<RunPhase>,
 
@@ -1084,11 +1086,11 @@ struct QueueListArgs {
     #[arg(long)]
     filter_deps: Option<String>,
 
-    /// Include tasks from .ralph/done.yaml after active queue output.
+    /// Include tasks from .ralph/done.json after active queue output.
     #[arg(long)]
     include_done: bool,
 
-    /// Only list tasks from .ralph/done.yaml (ignores active queue).
+    /// Only list tasks from .ralph/done.json (ignores active queue).
     #[arg(long)]
     only_done: bool,
 
@@ -1154,11 +1156,11 @@ struct QueueSearchArgs {
     #[arg(long)]
     scope: Vec<String>,
 
-    /// Include tasks from .ralph/done.yaml in search.
+    /// Include tasks from .ralph/done.json in search.
     #[arg(long)]
     include_done: bool,
 
-    /// Only search tasks in .ralph/done.yaml (ignores active queue).
+    /// Only search tasks in .ralph/done.json (ignores active queue).
     #[arg(long)]
     only_done: bool,
 
