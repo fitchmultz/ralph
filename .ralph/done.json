@@ -2397,6 +2397,39 @@
       "created_at": "2025-01-19T13:22:00+00:00",
       "updated_at": "2026-01-20T01:19:39+00:00",
       "depends_on": []
+    },
+    {
+      "id": "RQ-0120",
+      "status": "done",
+      "title": "Add interactive task selection and TUI mode",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "ux",
+        "tui"
+      ],
+      "scope": [
+        "crates/ralph/src/main.rs",
+        "Cargo.toml"
+      ],
+      "evidence": [
+        "All commands are non-interactive; users must copy-paste task IDs",
+        "No way to interactively select a task to run next",
+        "Terminal UI would improve workflow for browsing and selecting tasks"
+      ],
+      "plan": [
+        "Add --interactive/-i flag to run one and run loop",
+        "Use a TUI library (ratatui or termion) to show task browser",
+        "Allow arrow key navigation and task inspection",
+        "Support task actions (run, edit, delete) from TUI",
+        "Add tests for TUI mode (screen scraping or mock input)"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2025-01-19T12:00:00+00:00",
+      "updated_at": "2026-01-20T01:40:54.382986Z",
+      "completed_at": "2026-01-20T01:40:54.382986Z",
+      "depends_on": []
     }
   ]
 }
