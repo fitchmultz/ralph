@@ -1,4 +1,357 @@
 {
   "version": 1,
-  "tasks": []
+  "tasks": [
+    {
+      "id": "RQ-0173",
+      "status": "todo",
+      "title": "Fix next-id to exclude rejected tasks from max ID calculation",
+      "priority": "high",
+      "tags": [
+        "rust",
+        "cli",
+        "queue",
+        "bug"
+      ],
+      "scope": [
+        "crates/ralph/src/queue.rs"
+      ],
+      "evidence": [
+        "Error from scan: 'Duplicate task ID detected across queue and done: RQ-0135. Note: The task RQ-0135 is present in done.json with status rejected.'",
+        "The next_id_across function in queue.rs currently includes all tasks from done.json when finding the max ID, even rejected ones",
+        "User request: 'Fix the logic for the next-id that somehow misses IDs with the rejected status'"
+      ],
+      "plan": [
+        "Modify next_id_across to filter out tasks with status 'rejected' when computing max ID",
+        "Update validate_queue_set to also exclude 'rejected' tasks from duplicate ID checks",
+        "Add tests to verify rejected tasks are excluded from next-id calculation",
+        "Add tests to verify non-rejected tasks in done.json are still included"
+      ],
+      "notes": [],
+      "request": "Fix the logic for the next-id that somehow misses IDs with the rejected status",
+      "created_at": "2025-01-20T18:30:00Z",
+      "updated_at": "2025-01-20T18:30:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0163",
+      "status": "todo",
+      "title": "Safeguard scan results by saving raw output before revert",
+      "priority": "high",
+      "tags": [
+        "rust",
+        "cli",
+        "scan",
+        "data-loss"
+      ],
+      "scope": [
+        "crates/ralph/src/scan.rs",
+        "crates/ralph/src/queue.rs"
+      ],
+      "evidence": [
+        "Scan results may be lost if git revert fails",
+        "User request: 'Safeguard scan results by saving raw output before revert (High)'"
+      ],
+      "plan": [
+        "Add intermediate save of scan results to temp file before git operations",
+        "Implement recovery path to load from temp if revert fails",
+        "Add tests for temp file save and recovery scenarios"
+      ],
+      "notes": [],
+      "request": "New Tasks (Top 10): 1. RQ-0137: Safeguard scan results by saving raw output before revert (High)",
+      "created_at": "2026-01-20T18:00:00Z",
+      "updated_at": "2026-01-20T18:00:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0164",
+      "status": "todo",
+      "title": "Graceful shutdown on Ctrl+C in 'run loop'",
+      "priority": "high",
+      "tags": [
+        "rust",
+        "cli",
+        "signal-handling",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/src/run.rs"
+      ],
+      "evidence": [
+        "Ctrl+C currently causes abrupt termination",
+        "User request: 'Graceful shutdown on Ctrl+C in run loop (High)'"
+      ],
+      "plan": [
+        "Add tokio::signal::ctrl_c handler to run loop",
+        "Set shutdown flag on SIGINT",
+        "Complete current task cleanup before exit",
+        "Add tests for shutdown behavior"
+      ],
+      "notes": [],
+      "request": "New Tasks (Top 10): 2. RQ-0149: Graceful shutdown on Ctrl+C in 'run loop' (High)",
+      "created_at": "2026-01-20T18:00:00Z",
+      "updated_at": "2026-01-20T18:00:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0165",
+      "status": "todo",
+      "title": "Implement 'ralph queue repair' command",
+      "priority": "high",
+      "tags": [
+        "rust",
+        "cli",
+        "queue",
+        "validation"
+      ],
+      "scope": [
+        "crates/ralph/src/queue.rs",
+        "crates/ralph/src/cli.rs"
+      ],
+      "evidence": [
+        "No way to fix corrupted queue files",
+        "User request: 'Implement ralph queue repair command (High)'",
+        "Note: Original RQ-0135 was rejected in done.json"
+      ],
+      "plan": [
+        "Add queue repair subcommand to CLI",
+        "Validate and fix JSON structure in queue.json and done.json",
+        "Remove duplicate IDs (prefer queue over done, prefer newer status)",
+        "Add missing required fields with defaults",
+        "Add tests for repair scenarios"
+      ],
+      "notes": [],
+      "request": "New Tasks (Top 10): 3. RQ-0135: Implement 'ralph queue repair' command (High)",
+      "created_at": "2026-01-20T18:00:00Z",
+      "updated_at": "2026-01-20T18:00:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0166",
+      "status": "todo",
+      "title": "Deduplicate agent argument resolution logic",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "refactor",
+        "cli",
+        "agent"
+      ],
+      "scope": [
+        "crates/ralph/src/agent.rs",
+        "crates/ralph/src/run.rs",
+        "crates/ralph/src/scan.rs"
+      ],
+      "evidence": [
+        "Agent argument resolution is duplicated across multiple commands",
+        "User request: 'Deduplicate agent argument resolution logic (Medium)'"
+      ],
+      "plan": [
+        "Extract agent resolution to shared module/function",
+        "Update run, scan, and task build commands to use shared logic",
+        "Add tests for shared resolution function",
+        "Remove duplicated code paths"
+      ],
+      "notes": [],
+      "request": "New Tasks (Top 10): 4. RQ-0143: Deduplicate agent argument resolution logic (Medium)",
+      "created_at": "2026-01-20T18:00:00Z",
+      "updated_at": "2026-01-20T18:00:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0167",
+      "status": "todo",
+      "title": "Implement 'ralph queue prune' to clean up done.json",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "cli",
+        "queue"
+      ],
+      "scope": [
+        "crates/ralph/src/queue.rs",
+        "crates/ralph/src/cli.rs"
+      ],
+      "evidence": [
+        "done.json grows indefinitely",
+        "User request: 'Implement ralph queue prune to clean up done.json (Medium)'"
+      ],
+      "plan": [
+        "Add queue prune subcommand to CLI",
+        "Add --age flag to prune tasks older than N days",
+        "Add --status flag to prune only certain statuses",
+        "Add --keep-last flag to always keep N most recent tasks",
+        "Add tests for prune behavior"
+      ],
+      "notes": [],
+      "request": "New Tasks (Top 10): 5. RQ-0136: Implement 'ralph queue prune' to clean up done.json (Medium)",
+      "created_at": "2026-01-20T18:00:00Z",
+      "updated_at": "2026-01-20T18:00:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0168",
+      "status": "todo",
+      "title": "Add --dry-run support to 'run' commands",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "cli",
+        "run",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/src/run.rs",
+        "crates/ralph/src/cli.rs"
+      ],
+      "evidence": [
+        "No way to preview what tasks would do without executing",
+        "User request: 'Add --dry-run support to run commands (Medium)'"
+      ],
+      "plan": [
+        "Add --dry-run flag to run one and run loop commands",
+        "Skip actual agent execution, print what would run",
+        "Show task details that would be executed",
+        "Add tests for dry-run output"
+      ],
+      "notes": [],
+      "request": "New Tasks (Top 10): 6. RQ-0138: Add --dry-run support to 'run' commands (Medium)",
+      "created_at": "2026-01-20T18:00:00Z",
+      "updated_at": "2026-01-20T18:00:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0169",
+      "status": "todo",
+      "title": "Optimize validate_queue_set for large done files",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "performance",
+        "queue",
+        "validation"
+      ],
+      "scope": [
+        "crates/ralph/src/queue.rs"
+      ],
+      "evidence": [
+        "validate_queue_set is slow with large done.json files",
+        "User request: 'Optimize validate_queue_set for large done files (Medium)'"
+      ],
+      "plan": [
+        "Profile current validation to identify bottlenecks",
+        "Use HashSet for ID deduplication check instead of nested loops",
+        "Add streaming validation for very large files",
+        "Add benchmark tests for validation performance"
+      ],
+      "notes": [],
+      "request": "New Tasks (Top 10): 7. RQ-0139: Optimize validate_queue_set for large done files (Medium)",
+      "created_at": "2026-01-20T18:00:00Z",
+      "updated_at": "2026-01-20T18:00:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0170",
+      "status": "todo",
+      "title": "Implement 'ralph task edit' command",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "cli",
+        "task"
+      ],
+      "scope": [
+        "crates/ralph/src/task.rs",
+        "crates/ralph/src/cli.rs"
+      ],
+      "evidence": [
+        "No way to edit existing tasks from CLI",
+        "User request: 'Implement ralph task edit command (Medium)'"
+      ],
+      "plan": [
+        "Add task edit subcommand with --id flag",
+        "Support editing title, status, priority, tags via flags",
+        "Support $EDITOR for full task JSON editing",
+        "Add tests for edit operations"
+      ],
+      "notes": [],
+      "request": "New Tasks (Top 10): 8. RQ-0141: Implement 'ralph task edit' command (Medium)",
+      "created_at": "2026-01-20T18:00:00Z",
+      "updated_at": "2026-01-20T18:00:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0171",
+      "status": "todo",
+      "title": "Support 'draft' task status",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "cli",
+        "queue",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/src/queue.rs",
+        "crates/ralph/src/task.rs"
+      ],
+      "evidence": [
+        "Need a way to create tasks that aren't ready to run",
+        "User request: 'Support draft task status (Medium)'"
+      ],
+      "plan": [
+        "Add 'draft' to task status enum",
+        "Filter draft tasks out of 'run one' and 'run loop' by default",
+        "Add --include-draft flag to run commands",
+        "Add 'ralph task ready' command to promote draft to todo",
+        "Add tests for draft task behavior"
+      ],
+      "notes": [],
+      "request": "New Tasks (Top 10): 9. RQ-0147: Support 'draft' task status (Medium)",
+      "created_at": "2026-01-20T18:00:00Z",
+      "updated_at": "2026-01-20T18:00:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0172",
+      "status": "todo",
+      "title": "Expose explicit ID targeting in 'ralph run one'",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "cli",
+        "run",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/src/run.rs",
+        "crates/ralph/src/cli.rs"
+      ],
+      "evidence": [
+        "Cannot run a specific task by ID",
+        "User request: 'Expose explicit ID targeting in ralph run one (Medium)'"
+      ],
+      "plan": [
+        "Add --id flag to 'run one' command",
+        "When --id is specified, run that exact task instead of queue next",
+        "Validate task exists and is in runnable state",
+        "Add tests for ID targeting"
+      ],
+      "notes": [],
+      "request": "New Tasks (Top 10): 10. RQ-0148: Expose explicit ID targeting in 'ralph run one' (Medium)",
+      "created_at": "2026-01-20T18:00:00Z",
+      "updated_at": "2026-01-20T18:00:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    }
+  ]
 }
