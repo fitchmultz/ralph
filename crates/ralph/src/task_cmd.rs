@@ -1,7 +1,9 @@
+//! Task-building command helpers (request parsing, runner invocation, and queue updates).
+
 use crate::contracts::{ClaudePermissionMode, Model, ProjectType, ReasoningEffort, Runner};
 use crate::{config, prompts, queue, runner, runutil, timeutil};
 use anyhow::{bail, Context, Result};
-use std::io::Read;
+use std::io::{IsTerminal, Read};
 
 // TaskBuildOptions controls runner-driven task creation via .ralph/prompts/task_builder.md.
 pub struct TaskBuildOptions {
@@ -14,8 +16,11 @@ pub struct TaskBuildOptions {
     pub force: bool,
 }
 
-// read_request_from_args_or_stdin joins any positional args, otherwise reads stdin.
-pub fn read_request_from_args_or_stdin(args: &[String]) -> Result<String> {
+fn read_request_from_args_or_reader(
+    args: &[String],
+    stdin_is_terminal: bool,
+    mut reader: impl Read,
+) -> Result<String> {
     if !args.is_empty() {
         let joined = args.join(" ");
         let trimmed = joined.trim();
@@ -25,15 +30,25 @@ pub fn read_request_from_args_or_stdin(args: &[String]) -> Result<String> {
         return Ok(trimmed.to_string());
     }
 
+    if stdin_is_terminal {
+        bail!("Missing request: task build requires a request description. Pass arguments or pipe input to the command.");
+    }
+
     let mut buf = String::new();
-    std::io::stdin()
-        .read_to_string(&mut buf)
-        .context("read stdin")?;
+    reader.read_to_string(&mut buf).context("read stdin")?;
     let trimmed = buf.trim();
     if trimmed.is_empty() {
         bail!("Missing request: task build requires a request description (pass arguments or pipe input to the command).");
     }
     Ok(trimmed.to_string())
+}
+
+// read_request_from_args_or_stdin joins any positional args, otherwise reads stdin.
+pub fn read_request_from_args_or_stdin(args: &[String]) -> Result<String> {
+    let stdin = std::io::stdin();
+    let stdin_is_terminal = stdin.is_terminal();
+    let handle = stdin.lock();
+    read_request_from_args_or_reader(args, stdin_is_terminal, handle)
 }
 
 pub fn build_task(resolved: &config::Resolved, opts: TaskBuildOptions) -> Result<()> {
@@ -150,4 +165,36 @@ pub fn build_task(resolved: &config::Resolved, opts: TaskBuildOptions) -> Result
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::read_request_from_args_or_reader;
+    use std::io::Cursor;
+
+    #[test]
+    fn read_request_from_args_or_reader_rejects_empty_args_on_terminal() {
+        let args: Vec<String> = vec![];
+        let reader = Cursor::new("");
+        let err = read_request_from_args_or_reader(&args, true, reader).unwrap_err();
+        let message = err.to_string();
+        assert!(message.contains("Missing request"));
+        assert!(message.contains("Pass arguments"));
+    }
+
+    #[test]
+    fn read_request_from_args_or_reader_reads_piped_input() {
+        let args: Vec<String> = vec![];
+        let reader = Cursor::new("  hello world  ");
+        let value = read_request_from_args_or_reader(&args, false, reader).unwrap();
+        assert_eq!(value, "hello world");
+    }
+
+    #[test]
+    fn read_request_from_args_or_reader_rejects_empty_piped_input() {
+        let args: Vec<String> = vec![];
+        let reader = Cursor::new("   ");
+        let err = read_request_from_args_or_reader(&args, false, reader).unwrap_err();
+        assert!(err.to_string().contains("Missing request"));
+    }
 }
