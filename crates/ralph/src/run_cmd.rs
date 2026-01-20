@@ -67,6 +67,7 @@ pub fn run_one_with_id(
     agent_overrides: &AgentOverrides,
     force: bool,
     task_id: &str,
+    output_handler: Option<runner::OutputHandler>,
 ) -> Result<()> {
     let _queue_lock = queue::acquire_queue_lock(&resolved.repo_root, "run one with id", force)?;
     let queue_file = queue::load_queue(&resolved.queue_path)?;
@@ -123,6 +124,7 @@ pub fn run_one_with_id(
             two_pass_plan,
             permission_mode,
             revert_on_error: true,
+            output_handler: output_handler.clone(),
         },
         runutil::RunnerErrorMessages {
             log_label: "runner",
@@ -235,6 +237,7 @@ pub fn run_one(
             two_pass_plan,
             permission_mode,
             revert_on_error: true,
+            output_handler: None,
         },
         runutil::RunnerErrorMessages {
             log_label: "runner",

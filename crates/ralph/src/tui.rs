@@ -27,6 +27,9 @@ use ratatui::{
     Frame, Terminal,
 };
 use std::path::Path;
+use std::sync::{mpsc, Arc};
+use std::thread;
+use std::time::Duration;
 
 use crate::contracts::{QueueFile, Task, TaskStatus};
 use crate::queue;
@@ -46,6 +49,12 @@ pub struct App {
     pub detail_width: u16,
     /// Flag indicating if queue was modified (needs save)
     pub dirty: bool,
+    /// Execution logs (when in Executing mode)
+    pub logs: Vec<String>,
+    /// Scroll offset for execution logs
+    pub log_scroll: usize,
+    /// Whether to auto-scroll execution logs
+    pub autoscroll: bool,
 }
 
 /// Interaction modes for the TUI.
@@ -57,6 +66,8 @@ pub enum AppMode {
     EditingTitle(String),
     /// Confirming task deletion
     ConfirmDelete,
+    /// Executing a task (live output view)
+    Executing { task_id: String },
 }
 
 impl App {
@@ -69,6 +80,9 @@ impl App {
             scroll: 0,
             detail_width: 60,
             dirty: false,
+            logs: Vec::new(),
+            log_scroll: 0,
+            autoscroll: true,
         }
     }
 
@@ -167,23 +181,34 @@ impl App {
     }
 }
 
+/// Event sent from the runner thread to the TUI.
+enum RunnerEvent {
+    /// Output chunk received
+    Output(String),
+    /// Task finished (success or failure)
+    Finished,
+    /// Task failed with error
+    Error(String),
+}
+
 /// Run the TUI application.
 ///
 /// This function:
 /// 1. Sets up the terminal for TUI mode
 /// 2. Runs the interactive event loop
 /// 3. Cleans up terminal state on exit
-/// 4. Returns the selected task ID if user pressed Enter to execute
+/// 4. Returns None (tasks are executed within TUI in Executing mode)
 ///
-/// The `on_execute` callback is invoked when user presses Enter on a task.
-/// It receives the task ID and should return whether the TUI should continue running.
-pub fn run_tui<F>(queue_path: &Path, _on_execute: F) -> Result<Option<String>>
+/// The `runner_factory` creates a closure that executes a task when called.
+/// It receives the task ID and an output handler callback.
+pub fn run_tui<F, E>(queue_path: &Path, runner_factory: F) -> Result<Option<String>>
 where
-    F: Fn(&str) -> Result<bool>,
+    F: Fn(String, crate::runner::OutputHandler) -> E + Send + Sync + 'static,
+    E: FnOnce() -> Result<()> + Send + 'static,
 {
     // Load the queue
-    let mut queue = queue::load_queue(queue_path)?;
-    let mut app = App::new(queue.clone());
+    let queue = queue::load_queue(queue_path)?;
+    let app = App::new(queue.clone());
 
     // Setup terminal
     enable_raw_mode().context("enable raw mode")?;
@@ -192,106 +217,186 @@ where
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend).context("create terminal")?;
 
+    // Create channels for runner events
+    let (tx, rx) = mpsc::channel();
+
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        let mut execute_task_id: Option<String> = None;
+        // We use a RefCell for interior mutability within the closure
+        use std::cell::RefCell;
+        let app = RefCell::new(app);
 
         // Main event loop
         loop {
             // Draw the UI
             terminal
-                .draw(|f| draw_ui(f, &mut app))
+                .draw(|f| {
+                    let mut app_ref = app.borrow_mut();
+                    // Update detail width from current terminal size
+                    app_ref.detail_width = f.area().width.saturating_sub(4);
+                    draw_ui(f, &mut app_ref)
+                })
                 .context("draw UI")
                 .unwrap();
 
-            // Handle events
-            if let Event::Key(key) = event::read().context("read event").unwrap() {
-                // Ignore key release events
-                if key.kind == KeyEventKind::Release {
-                    continue;
-                }
-
-                match app.mode {
-                    AppMode::Normal => {
-                        match key.code {
-                            KeyCode::Char('q') | KeyCode::Esc => {
-                                break;
+            // Check for runner events
+            while let Ok(event) = rx.try_recv() {
+                let mut app_ref = app.borrow_mut();
+                match event {
+                    RunnerEvent::Output(text) => {
+                        // Split text into lines and append to logs
+                        for line in text.lines() {
+                            app_ref.logs.push(line.to_string());
+                        }
+                        // Keep logs bounded (max 10k lines)
+                        if app_ref.logs.len() > 10000 {
+                            let excess = app_ref.logs.len() - 10000;
+                            app_ref.logs.drain(0..excess);
+                            app_ref.log_scroll = app_ref.log_scroll.saturating_sub(excess);
+                        }
+                        // Auto-scroll if enabled
+                        if app_ref.autoscroll {
+                            // Scroll to show latest logs
+                            let visible_lines = 20; // Approximate
+                            if app_ref.logs.len() > visible_lines {
+                                app_ref.log_scroll = app_ref.logs.len() - visible_lines;
                             }
-                            KeyCode::Up | KeyCode::Char('k') => {
-                                app.move_up();
-                            }
-                            KeyCode::Down | KeyCode::Char('j') => {
-                                // Calculate visible list area (main layout - borders - margins)
-                                let list_height = 20; // Approximate, will be adjusted in draw
-                                app.move_down(list_height);
-                            }
-                            KeyCode::Enter => {
-                                if let Some(task) = app.selected_task() {
-                                    execute_task_id = Some(task.id.clone());
-                                    break;
-                                }
-                            }
-                            KeyCode::Char('d') => {
-                                if app.selected_task().is_some() {
-                                    app.mode = AppMode::ConfirmDelete;
-                                }
-                            }
-                            KeyCode::Char('e') => {
-                                if let Some(task) = app.selected_task() {
-                                    app.mode = AppMode::EditingTitle(task.title.clone());
-                                }
-                            }
-                            KeyCode::Char('s') => {
-                                let now = timeutil::now_utc_rfc3339()?;
-                                let _ = app.cycle_status(&now);
-                            }
-                            _ => {}
                         }
                     }
-                    AppMode::EditingTitle(ref current) => {
-                        match key.code {
+                    RunnerEvent::Finished => {
+                        // Restore normal mode
+                        if let AppMode::Executing { .. } = &app_ref.mode {
+                            app_ref.mode = AppMode::Normal;
+                        }
+                    }
+                    RunnerEvent::Error(msg) => {
+                        app_ref.logs.push(format!("ERROR: {}", msg));
+                        if let AppMode::Executing { .. } = &app_ref.mode {
+                            app_ref.mode = AppMode::Normal;
+                        }
+                    }
+                }
+            }
+
+            // Handle events with timeout (for polling runner events)
+            if event::poll(Duration::from_millis(100))
+                .context("poll event")
+                .unwrap()
+            {
+                if let Event::Key(key) = event::read().context("read event").unwrap() {
+                    // Ignore key release events
+                    if key.kind == KeyEventKind::Release {
+                        continue;
+                    }
+
+                    let mut app_ref = app.borrow_mut();
+
+                    match app_ref.mode.clone() {
+                        AppMode::Normal => {
+                            match key.code {
+                                KeyCode::Char('q') | KeyCode::Esc => {
+                                    break;
+                                }
+                                KeyCode::Up | KeyCode::Char('k') => {
+                                    app_ref.move_up();
+                                }
+                                KeyCode::Down | KeyCode::Char('j') => {
+                                    let list_height = 20;
+                                    app_ref.move_down(list_height);
+                                }
+                                KeyCode::Enter => {
+                                    if let Some(task) = app_ref.selected_task() {
+                                        let task_id = task.id.clone();
+                                        // Set executing mode
+                                        app_ref.mode = AppMode::Executing {
+                                            task_id: task_id.clone(),
+                                        };
+                                        app_ref.logs.clear();
+                                        app_ref.log_scroll = 0;
+
+                                        // Spawn runner thread
+                                        let tx_clone = tx.clone();
+                                        let tx_clone_for_handler = tx.clone();
+                                        let handler: crate::runner::OutputHandler =
+                                            Arc::new(Box::new(move |text: &str| {
+                                                let _ = tx_clone_for_handler
+                                                    .send(RunnerEvent::Output(text.to_string()));
+                                            }));
+
+                                        let runner_fn = runner_factory(task_id.clone(), handler);
+                                        thread::spawn(move || {
+                                            let result = runner_fn();
+                                            match result {
+                                                Ok(()) => {
+                                                    let _ = tx_clone.send(RunnerEvent::Finished);
+                                                }
+                                                Err(e) => {
+                                                    let _ = tx_clone
+                                                        .send(RunnerEvent::Error(e.to_string()));
+                                                }
+                                            }
+                                        });
+                                    }
+                                }
+                                KeyCode::Char('d') => {
+                                    if app_ref.selected_task().is_some() {
+                                        app_ref.mode = AppMode::ConfirmDelete;
+                                    }
+                                }
+                                KeyCode::Char('e') => {
+                                    if let Some(task) = app_ref.selected_task() {
+                                        app_ref.mode = AppMode::EditingTitle(task.title.clone());
+                                    }
+                                }
+                                KeyCode::Char('s') => {
+                                    let now = timeutil::now_utc_rfc3339().unwrap();
+                                    let _ = app_ref.cycle_status(&now);
+                                }
+                                _ => {}
+                            }
+                        }
+                        AppMode::EditingTitle(ref current) => match key.code {
                             KeyCode::Enter => {
-                                // Save the edited title
                                 let new_title = current.clone();
-                                let _ = app.update_title(new_title);
-                                app.mode = AppMode::Normal;
+                                let _ = app_ref.update_title(new_title);
+                                app_ref.mode = AppMode::Normal;
                             }
                             KeyCode::Esc => {
-                                app.mode = AppMode::Normal;
+                                app_ref.mode = AppMode::Normal;
                             }
                             KeyCode::Char(c) => {
                                 let mut new_title = current.clone();
                                 new_title.push(c);
-                                app.mode = AppMode::EditingTitle(new_title);
+                                app_ref.mode = AppMode::EditingTitle(new_title);
                             }
                             KeyCode::Backspace => {
                                 let mut new_title = current.clone();
                                 new_title.pop();
-                                app.mode = AppMode::EditingTitle(new_title);
+                                app_ref.mode = AppMode::EditingTitle(new_title);
                             }
                             _ => {}
+                        },
+                        AppMode::ConfirmDelete => match key.code {
+                            KeyCode::Char('y') | KeyCode::Char('Y') => {
+                                let _ = app_ref.delete_selected_task();
+                                app_ref.mode = AppMode::Normal;
+                            }
+                            KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
+                                app_ref.mode = AppMode::Normal;
+                            }
+                            _ => {}
+                        },
+                        AppMode::Executing { .. } => {
+                            // In executing mode, only allow Esc to cancel (doesn't actually cancel, just returns to normal)
+                            if key.code == KeyCode::Esc {
+                                app_ref.mode = AppMode::Normal;
+                            }
                         }
                     }
-                    AppMode::ConfirmDelete => match key.code {
-                        KeyCode::Char('y') | KeyCode::Char('Y') => {
-                            let _ = app.delete_selected_task();
-                            app.mode = AppMode::Normal;
-                        }
-                        KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
-                            app.mode = AppMode::Normal;
-                        }
-                        _ => {}
-                    },
                 }
             }
         }
 
-        // Save queue if dirty
-        if app.dirty {
-            queue = app.queue;
-            queue::save_queue(queue_path, &queue)?;
-        }
-
-        Ok(execute_task_id)
+        Ok::<_, anyhow::Error>(None)
     }));
 
     // Cleanup terminal
@@ -323,6 +428,12 @@ fn wrap_text(text: &str, width: usize) -> Vec<String> {
 fn draw_ui(f: &mut Frame<'_>, app: &mut App) {
     let size = f.area();
 
+    // Handle Executing mode separately (full-screen output view)
+    if matches!(app.mode, AppMode::Executing { .. }) {
+        draw_execution_view(f, app, size);
+        return;
+    }
+
     // Main layout: split into left (task list) and right (details)
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
@@ -339,6 +450,99 @@ fn draw_ui(f: &mut Frame<'_>, app: &mut App) {
     if app.mode == AppMode::ConfirmDelete {
         draw_confirm_dialog(f, size);
     }
+}
+
+/// Draw the execution view (full-screen output during task execution).
+fn draw_execution_view(f: &mut Frame<'_>, app: &mut App, area: Rect) {
+    let task_id = match &app.mode {
+        AppMode::Executing { task_id } => task_id.clone(),
+        _ => "Unknown".to_string(),
+    };
+
+    // Create a block with title
+    let title = Line::from(vec![
+        Span::styled("Executing: ", Style::default().add_modifier(Modifier::BOLD)),
+        Span::styled(&task_id, Style::default().fg(Color::Cyan)),
+        Span::raw(" "),
+        Span::styled("(Esc to return)", Style::default().fg(Color::DarkGray)),
+    ]);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(title)
+        .title_alignment(Alignment::Left);
+
+    let inner = block.inner(area);
+    f.render_widget(block, area);
+
+    // Calculate visible log lines
+    let visible_height = inner.height.saturating_sub(2) as usize; // Leave room for borders
+    let log_count = app.logs.len();
+    let start_idx = if app.log_scroll + visible_height > log_count {
+        log_count.saturating_sub(visible_height)
+    } else {
+        app.log_scroll
+    };
+
+    // Get visible log lines
+    let visible_logs: Vec<&String> = app
+        .logs
+        .iter()
+        .skip(start_idx)
+        .take(visible_height)
+        .collect();
+
+    // Render logs
+    let log_text = Text::from(
+        visible_logs
+            .iter()
+            .map(|line| Line::from(line.as_str()))
+            .collect::<Vec<_>>(),
+    );
+
+    let paragraph = Paragraph::new(log_text)
+        .block(Block::default())
+        .wrap(Wrap { trim: true });
+
+    f.render_widget(paragraph, inner);
+
+    // Draw status indicator at bottom
+    let status_line = if log_count > 0 {
+        Line::from(vec![
+            Span::raw("Lines: "),
+            Span::styled(format!("{}", log_count), Style::default().fg(Color::Cyan)),
+            Span::raw(" | Scroll: "),
+            Span::styled(
+                format!("{}/{}", app.log_scroll, log_count),
+                Style::default().fg(Color::Cyan),
+            ),
+            Span::raw(" | "),
+            Span::styled("Auto-scroll: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(
+                if app.autoscroll { "ON" } else { "OFF" },
+                Style::default().fg(if app.autoscroll {
+                    Color::Green
+                } else {
+                    Color::Red
+                }),
+            ),
+        ])
+    } else {
+        Line::from(vec![Span::styled(
+            "Waiting for output...",
+            Style::default().fg(Color::DarkGray),
+        )])
+    };
+
+    let status_area = Rect {
+        x: inner.x,
+        y: inner.y + inner.height.saturating_sub(1),
+        width: inner.width,
+        height: 1,
+    };
+
+    let status_paragraph = Paragraph::new(status_line);
+    f.render_widget(status_paragraph, status_area);
 }
 
 /// Draw the task list panel.
@@ -654,6 +858,10 @@ fn draw_task_details(f: &mut Frame<'_>, app: &mut App, area: Rect) {
             Span::raw(":no "),
             Span::styled("Esc", Style::default().add_modifier(Modifier::BOLD)),
             Span::raw(":cancel"),
+        ],
+        AppMode::Executing { .. } => vec![
+            Span::styled("Esc", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(":return to list (task continues)"),
         ],
     };
 

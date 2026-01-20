@@ -16,6 +16,10 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
 use std::time::{Duration, Instant};
 
+/// Callback type for streaming runner output to consumers (e.g., TUI).
+/// Called with each chunk of output as it's received from the runner process.
+pub type OutputHandler = Arc<Box<dyn Fn(&str) + Send + Sync>>;
+
 #[cfg(unix)]
 use std::os::unix::process::CommandExt;
 
@@ -277,6 +281,7 @@ pub fn run_prompt(
     timeout: Option<Duration>,
     two_pass_plan: bool,
     permission_mode: Option<ClaudePermissionMode>,
+    output_handler: Option<OutputHandler>,
 ) -> Result<RunnerOutput, RunnerError> {
     validate_model_for_runner(runner, &model).map_err(RunnerError::Other)?;
     let prepared_prompt = prepare_prompt(runner, prompt);
@@ -288,6 +293,7 @@ pub fn run_prompt(
             reasoning_effort,
             &prepared_prompt,
             timeout,
+            output_handler.clone(),
         )?,
         Runner::Opencode => run_opencode(
             work_dir,
@@ -296,8 +302,16 @@ pub fn run_prompt(
             &prepared_prompt,
             timeout,
             two_pass_plan,
+            output_handler.clone(),
         )?,
-        Runner::Gemini => run_gemini(work_dir, bins.gemini, model, &prepared_prompt, timeout)?,
+        Runner::Gemini => run_gemini(
+            work_dir,
+            bins.gemini,
+            model,
+            &prepared_prompt,
+            timeout,
+            output_handler.clone(),
+        )?,
         Runner::Claude => run_claude(
             work_dir,
             bins.claude,
@@ -306,6 +320,7 @@ pub fn run_prompt(
             timeout,
             two_pass_plan,
             permission_mode,
+            output_handler,
         )?,
     };
 
@@ -346,6 +361,7 @@ fn run_codex(
     reasoning_effort: Option<ReasoningEffort>,
     prompt: &str,
     timeout: Option<Duration>,
+    output_handler: Option<OutputHandler>,
 ) -> Result<RunnerOutput, RunnerError> {
     let mut cmd = Command::new(bin);
     cmd.current_dir(work_dir);
@@ -363,7 +379,7 @@ fn run_codex(
     }
 
     cmd.arg("-");
-    run_with_streaming(cmd, Some(prompt.as_bytes()), bin, timeout)
+    stream_command(cmd, Some(prompt.as_bytes()), bin, timeout, output_handler)
 }
 
 fn run_opencode(
@@ -373,11 +389,12 @@ fn run_opencode(
     prompt: &str,
     timeout: Option<Duration>,
     two_pass_plan: bool,
+    output_handler: Option<OutputHandler>,
 ) -> Result<RunnerOutput, RunnerError> {
     if two_pass_plan {
-        run_opencode_two_pass(work_dir, bin, model, prompt, timeout)
+        run_opencode_two_pass(work_dir, bin, model, prompt, timeout, output_handler)
     } else {
-        run_opencode_direct(work_dir, bin, model, prompt, timeout)
+        run_opencode_direct(work_dir, bin, model, prompt, timeout, output_handler)
     }
 }
 
@@ -387,6 +404,7 @@ fn run_opencode_direct(
     model: &Model,
     prompt: &str,
     timeout: Option<Duration>,
+    output_handler: Option<OutputHandler>,
 ) -> Result<RunnerOutput, RunnerError> {
     let mut tmp = tempfile::Builder::new()
         .prefix("ralph_prompt_")
@@ -412,7 +430,7 @@ fn run_opencode_direct(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
-    run_with_streaming(cmd, None, bin, timeout)
+    stream_command(cmd, None, bin, timeout, output_handler)
 }
 
 fn run_opencode_two_pass(
@@ -421,6 +439,7 @@ fn run_opencode_two_pass(
     model: &Model,
     prompt: &str,
     timeout: Option<Duration>,
+    output_handler: Option<OutputHandler>,
 ) -> Result<RunnerOutput, RunnerError> {
     log::info!("OpenCode two-pass mode: generating plan first");
 
@@ -432,7 +451,7 @@ fn run_opencode_two_pass(
                 "Plan generation failed: {}, falling back to direct implementation",
                 e
             );
-            return run_opencode_direct(work_dir, bin, model, prompt, timeout);
+            return run_opencode_direct(work_dir, bin, model, prompt, timeout, output_handler);
         }
     };
 
@@ -446,7 +465,14 @@ fn run_opencode_two_pass(
         implementation_prompt.len()
     );
 
-    run_opencode_direct(work_dir, bin, model, &implementation_prompt, timeout)
+    run_opencode_direct(
+        work_dir,
+        bin,
+        model,
+        &implementation_prompt,
+        timeout,
+        output_handler,
+    )
 }
 
 fn generate_opencode_plan(
@@ -457,7 +483,7 @@ fn generate_opencode_plan(
     timeout: Option<Duration>,
 ) -> Result<RunnerOutput, RunnerError> {
     let planning_prompt = build_opencode_planning_prompt(prompt);
-    run_opencode_direct(work_dir, bin, model, &planning_prompt, timeout)
+    run_opencode_direct(work_dir, bin, model, &planning_prompt, timeout, None)
 }
 
 fn build_opencode_planning_prompt(prompt: &str) -> String {
@@ -500,6 +526,7 @@ fn run_gemini(
     model: Model,
     prompt: &str,
     timeout: Option<Duration>,
+    output_handler: Option<OutputHandler>,
 ) -> Result<RunnerOutput, RunnerError> {
     let mut cmd = Command::new(bin);
     cmd.current_dir(work_dir);
@@ -508,9 +535,10 @@ fn run_gemini(
         .arg(model.as_str())
         .arg("--approval-mode")
         .arg("yolo");
-    run_with_streaming(cmd, Some(prompt.as_bytes()), bin, timeout)
+    stream_command(cmd, Some(prompt.as_bytes()), bin, timeout, output_handler)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn run_claude(
     work_dir: &Path,
     bin: &str,
@@ -519,11 +547,28 @@ fn run_claude(
     timeout: Option<Duration>,
     two_pass_plan: bool,
     permission_mode: Option<ClaudePermissionMode>,
+    output_handler: Option<OutputHandler>,
 ) -> Result<RunnerOutput, RunnerError> {
     if two_pass_plan {
-        run_claude_two_pass(work_dir, bin, model, prompt, timeout, permission_mode)
+        run_claude_two_pass(
+            work_dir,
+            bin,
+            model,
+            prompt,
+            timeout,
+            permission_mode,
+            output_handler,
+        )
     } else {
-        run_claude_direct(work_dir, bin, model, prompt, timeout, permission_mode)
+        run_claude_direct(
+            work_dir,
+            bin,
+            model,
+            prompt,
+            timeout,
+            permission_mode,
+            output_handler,
+        )
     }
 }
 
@@ -534,6 +579,7 @@ fn run_claude_direct(
     prompt: &str,
     timeout: Option<Duration>,
     permission_mode: Option<ClaudePermissionMode>,
+    output_handler: Option<OutputHandler>,
 ) -> Result<RunnerOutput, RunnerError> {
     let mode = permission_mode.unwrap_or(ClaudePermissionMode::BypassPermissions);
     let mut cmd = Command::new(bin);
@@ -547,7 +593,7 @@ fn run_claude_direct(
         .arg("--output-format")
         .arg("stream-json")
         .arg("--verbose");
-    run_with_streaming_json(cmd, Some(prompt.as_bytes()), bin, timeout)
+    run_with_streaming_json(cmd, Some(prompt.as_bytes()), bin, timeout, output_handler)
 }
 
 fn permission_mode_to_arg(mode: ClaudePermissionMode) -> &'static str {
@@ -564,6 +610,7 @@ fn run_claude_two_pass(
     prompt: &str,
     timeout: Option<Duration>,
     permission_mode: Option<ClaudePermissionMode>,
+    output_handler: Option<OutputHandler>,
 ) -> Result<RunnerOutput, RunnerError> {
     log::info!("Claude two-pass mode: generating plan first");
 
@@ -575,7 +622,15 @@ fn run_claude_two_pass(
                 "Plan generation failed: {}, falling back to direct implementation",
                 e
             );
-            return run_claude_direct(work_dir, bin, model, prompt, timeout, permission_mode);
+            return run_claude_direct(
+                work_dir,
+                bin,
+                model,
+                prompt,
+                timeout,
+                permission_mode,
+                output_handler,
+            );
         }
     };
 
@@ -606,6 +661,7 @@ fn run_claude_two_pass(
         &implementation_prompt,
         timeout,
         permission_mode,
+        output_handler,
     )
 }
 
@@ -631,7 +687,7 @@ fn generate_claude_plan(
         .arg("stream-json")
         .arg("--verbose");
 
-    run_with_streaming_json(cmd, Some(planning_prompt.as_bytes()), bin, timeout)
+    run_with_streaming_json(cmd, Some(planning_prompt.as_bytes()), bin, timeout, None)
 }
 
 fn build_claude_planning_prompt(prompt: &str) -> String {
@@ -701,6 +757,7 @@ fn run_with_streaming_json(
     stdin_payload: Option<&[u8]>,
     bin: &str,
     timeout: Option<Duration>,
+    output_handler: Option<OutputHandler>,
 ) -> Result<RunnerOutput, RunnerError> {
     cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
     if stdin_payload.is_some() {
@@ -762,8 +819,18 @@ fn run_with_streaming_json(
     let stdout_buf = Arc::new(Mutex::new(String::new()));
     let stderr_buf = Arc::new(Mutex::new(String::new()));
 
-    let stdout_handle = spawn_json_reader(stdout, StreamSink::Stdout, Arc::clone(&stdout_buf));
-    let stderr_handle = spawn_reader(stderr, StreamSink::Stderr, Arc::clone(&stderr_buf));
+    let stdout_handle = spawn_json_reader(
+        stdout,
+        StreamSink::Stdout,
+        Arc::clone(&stdout_buf),
+        output_handler.clone(),
+    );
+    let stderr_handle = spawn_reader(
+        stderr,
+        StreamSink::Stderr,
+        Arc::clone(&stderr_buf),
+        output_handler,
+    );
 
     let status = wait_for_child(&mut child, ctrlc, timeout)?;
 
@@ -814,6 +881,7 @@ fn spawn_json_reader<R: Read + Send + 'static>(
     mut reader: R,
     sink: StreamSink,
     buffer: Arc<Mutex<String>>,
+    output_handler: Option<OutputHandler>,
 ) -> thread::JoinHandle<anyhow::Result<()>> {
     thread::spawn(move || {
         let mut buf = [0u8; 8192];
@@ -842,6 +910,10 @@ fn spawn_json_reader<R: Read + Send + 'static>(
                 .lock()
                 .map_err(|_| anyhow::anyhow!("lock output buffer"))?;
             guard.push_str(&text);
+            // Call output handler if provided
+            if let Some(handler) = &output_handler {
+                handler(&text);
+            }
         }
         Ok(())
     })
@@ -923,11 +995,14 @@ impl StreamSink {
     }
 }
 
-fn run_with_streaming(
+/// Run a command with streaming output support.
+/// If `output_handler` is provided, output chunks are sent to the callback as they arrive.
+pub fn stream_command(
     mut cmd: Command,
     stdin_payload: Option<&[u8]>,
     bin: &str,
     timeout: Option<Duration>,
+    output_handler: Option<OutputHandler>,
 ) -> Result<RunnerOutput, RunnerError> {
     cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
     if stdin_payload.is_some() {
@@ -989,8 +1064,18 @@ fn run_with_streaming(
     let stdout_buf = Arc::new(Mutex::new(String::new()));
     let stderr_buf = Arc::new(Mutex::new(String::new()));
 
-    let stdout_handle = spawn_reader(stdout, StreamSink::Stdout, Arc::clone(&stdout_buf));
-    let stderr_handle = spawn_reader(stderr, StreamSink::Stderr, Arc::clone(&stderr_buf));
+    let stdout_handle = spawn_reader(
+        stdout,
+        StreamSink::Stdout,
+        Arc::clone(&stdout_buf),
+        output_handler.clone(),
+    );
+    let stderr_handle = spawn_reader(
+        stderr,
+        StreamSink::Stderr,
+        Arc::clone(&stderr_buf),
+        output_handler,
+    );
 
     let status = wait_for_child(&mut child, ctrlc, timeout)?;
 
@@ -1040,6 +1125,7 @@ fn spawn_reader<R: Read + Send + 'static>(
     mut reader: R,
     sink: StreamSink,
     buffer: Arc<Mutex<String>>,
+    output_handler: Option<OutputHandler>,
 ) -> thread::JoinHandle<anyhow::Result<()>> {
     thread::spawn(move || {
         let mut buf = [0u8; 8192];
@@ -1055,6 +1141,10 @@ fn spawn_reader<R: Read + Send + 'static>(
                 .lock()
                 .map_err(|_| anyhow::anyhow!("lock output buffer"))?;
             guard.push_str(&text);
+            // Call output handler if provided
+            if let Some(handler) = &output_handler {
+                handler(&text);
+            }
         }
         Ok(())
     })

@@ -84,6 +84,7 @@ pub fn build_task(resolved: &config::Resolved, opts: TaskBuildOptions) -> Result
             two_pass_plan,
             permission_mode,
             revert_on_error: false,
+            output_handler: None,
         },
         runutil::RunnerErrorMessages {
             log_label: "task builder",

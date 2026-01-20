@@ -452,17 +452,25 @@ fn handle_run(cmd: RunCommand, force: bool) -> Result<()> {
     match cmd {
         RunCommand::One(args) => {
             if args.interactive {
-                let task_id = tui::run_tui(&resolved.queue_path, |_task_id| {
-                    // In TUI mode, we don't execute tasks within the TUI
-                    // The task_id is returned after TUI exits
-                    Ok(false)
-                })?;
-
-                // Execute the selected task (if any)
-                if let Some(task_id) = task_id {
-                    let overrides = resolve_run_agent_overrides(&args.agent)?;
-                    run_cmd::run_one_with_id(&resolved, &overrides, force, &task_id)?;
-                }
+                let overrides = resolve_run_agent_overrides(&args.agent)?;
+                // Capture the values we need by moving them into the factory
+                let resolved_clone = resolved.clone();
+                let runner_factory = move |task_id: String, handler: runner::OutputHandler| {
+                    let resolved = resolved_clone.clone();
+                    let overrides = overrides.clone();
+                    let force = force;
+                    move || {
+                        run_cmd::run_one_with_id(
+                            &resolved,
+                            &overrides,
+                            force,
+                            &task_id,
+                            Some(handler),
+                        )
+                    }
+                };
+                // Tasks are executed within TUI, run_tui returns None
+                let _ = tui::run_tui(&resolved.queue_path, runner_factory)?;
                 Ok(())
             } else {
                 let overrides = resolve_run_agent_overrides(&args.agent)?;
@@ -472,18 +480,25 @@ fn handle_run(cmd: RunCommand, force: bool) -> Result<()> {
         }
         RunCommand::Loop(args) => {
             if args.interactive {
-                // In loop mode, run TUI repeatedly until user quits or no tasks remain
-                loop {
-                    let task_id = tui::run_tui(&resolved.queue_path, |_task_id| Ok(false))?;
-
-                    match task_id {
-                        Some(task_id) => {
-                            let overrides = resolve_run_agent_overrides(&args.agent)?;
-                            run_cmd::run_one_with_id(&resolved, &overrides, force, &task_id)?;
-                        }
-                        None => break, // User quit without selecting a task
+                let overrides = resolve_run_agent_overrides(&args.agent)?;
+                // Capture the values we need by moving them into the factory
+                let resolved_clone = resolved.clone();
+                let runner_factory = move |task_id: String, handler: runner::OutputHandler| {
+                    let resolved = resolved_clone.clone();
+                    let overrides = overrides.clone();
+                    let force = force;
+                    move || {
+                        run_cmd::run_one_with_id(
+                            &resolved,
+                            &overrides,
+                            force,
+                            &task_id,
+                            Some(handler),
+                        )
                     }
-                }
+                };
+                // Tasks are executed within TUI, run_tui returns None
+                let _ = tui::run_tui(&resolved.queue_path, runner_factory)?;
                 Ok(())
             } else {
                 let overrides = resolve_run_agent_overrides(&args.agent)?;

@@ -2,50 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0153",
-      "status": "todo",
-      "title": "Refine TUI behavior to eliminate friction and maximize user experience",
-      "priority": "high",
-      "tags": [
-        "rust",
-        "tui",
-        "ux",
-        "ratatui"
-      ],
-      "scope": [
-        "crates/ralph/src/tui.rs",
-        "crates/ralph/src/main.rs",
-        "crates/ralph/src/run_cmd.rs"
-      ],
-      "evidence": [
-        "User request: \"Refine the TUI behavior keeping user experience in mind. Maximize the TUI user experience to eliminate all friction and confusing patterns.\"",
-        "User request: \"When users start a task they need to be able to view the output similar to running the loop, or one off execution, in non-interactive mode.\"",
-        "User request: \"Non-interactive mode is the preferred user view still but the TUI must be robust and maximize the user experience for users that prefer it.\"",
-        "Current TUI implementation (crates/ralph/src/tui.rs) suspends TUI, runs task, restores - no output visibility during execution",
-        "Non-interactive mode shows full runner output (stdout/stderr) in real-time via inherited stdio",
-        "TUI lacks live task execution view, progress indication, and output streaming",
-        "Task execution in TUI mode (main.rs:454-465) exits TUI, runs task blindly, no status feedback"
-      ],
-      "plan": [
-        "Add TUI task execution mode: suspend TUI, show live output in scrollable view, restore after completion",
-        "Implement split-panel execution view with task output streaming and status updates",
-        "Add progress indicators for task execution (runner status, CI gate, git operations)",
-        "Add configurable output verbosity levels in TUI (minimal, normal, verbose)",
-        "Improve TUI responsiveness during long-running operations (non-blocking redraws)",
-        "Add task execution history and result summary in TUI after task completes",
-        "Implement graceful TUI recovery from terminal resize and signal handling",
-        "Add TUI-specific help mode and key binding reference",
-        "Preserve non-interactive mode as default (no behavior changes to --run one/loop without -i)",
-        "Add tests for TUI execution view, output streaming, and terminal state management",
-        "Ensure CI gate (make ci) output is visible in TUI execution mode"
-      ],
-      "notes": [],
-      "request": "Refine the TUI behavior keeping user experience in mind. Maximize the TUI user experience to eliminate all friction and confusing patterns. When users start a task they need to be able to view the output similar to running the loop, or one off execution, in non-interactive mode. Non-interactive mode is the preferred user view still but the TUI must be robust and maximize the user experience for users that prefer it.",
-      "created_at": "2026-01-20T01:44:29+00:00",
-      "updated_at": "2026-01-20T01:44:29+00:00",
-      "depends_on": []
-    },
-    {
       "id": "RQ-0122",
       "status": "todo",
       "title": "Add Git LFS (Large File Storage) detection and handling",

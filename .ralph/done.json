@@ -2462,6 +2462,67 @@
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T14:45:00+00:00",
       "depends_on": []
+    },
+    {
+      "id": "RQ-0153",
+      "status": "done",
+      "title": "Refine TUI behavior to eliminate friction and maximize user experience",
+      "priority": "high",
+      "tags": [
+        "rust",
+        "tui",
+        "ux",
+        "ratatui"
+      ],
+      "scope": [
+        "crates/ralph/src/tui.rs",
+        "crates/ralph/src/main.rs",
+        "crates/ralph/src/run_cmd.rs",
+        "crates/ralph/src/runner.rs",
+        "crates/ralph/src/runutil.rs"
+      ],
+      "evidence": [
+        "User request: \"Refine the TUI behavior keeping user experience in mind. Maximize the TUI user experience to eliminate all friction and confusing patterns.\"",
+        "User request: \"When users start a task they need to be able to view the output similar to running the loop, or one off execution, in non-interactive mode.\"",
+        "User request: \"Non-interactive mode is the preferred user view still but the TUI must be robust and maximize the user experience for users that prefer it.\"",
+        "Current TUI implementation (crates/ralph/src/tui.rs) suspends TUI, runs task, restores - no output visibility during execution",
+        "Non-interactive mode shows full runner output (stdout/stderr) in real-time via inherited stdio",
+        "TUI lacks live task execution view, progress indication, and output streaming",
+        "Task execution in TUI mode (main.rs:454-465) exits TUI, runs task blindly, no status feedback"
+      ],
+      "plan": [
+        "Add TUI task execution mode: suspend TUI, show live output in scrollable view, restore after completion",
+        "Implement split-panel execution view with task output streaming and status updates",
+        "Add progress indicators for task execution (runner status, CI gate, git operations)",
+        "Add configurable output verbosity levels in TUI (minimal, normal, verbose)",
+        "Improve TUI responsiveness during long-running operations (non-blocking redraws)",
+        "Add task execution history and result summary in TUI after task completes",
+        "Implement graceful TUI recovery from terminal resize and signal handling",
+        "Add TUI-specific help mode and key binding reference",
+        "Preserve non-interactive mode as default (no behavior changes to --run one/loop without -i)",
+        "Add tests for TUI execution view, output streaming, and terminal state management",
+        "Ensure CI gate (make ci) output is visible in TUI execution mode"
+      ],
+      "notes": [
+        "Added OutputHandler callback type to runner.rs for streaming output",
+        "Added stream_command() function to support live output capture via callback",
+        "Updated all runner functions (run_codex, run_opencode, run_gemini, run_claude) to accept and pass through output_handler",
+        "Added output_handler field to RunnerInvocation struct in runutil.rs",
+        "Updated run_one_with_id() to accept output_handler parameter",
+        "Added Executing mode to AppMode enum with task_id field",
+        "Added logs, log_scroll, and autoscroll fields to App struct",
+        "Rewrote run_tui() to use polling event loop with mpsc channel for runner events",
+        "Added draw_execution_view() function for full-screen output display during task execution",
+        "Updated main.rs to create runner factory closure for TUI execution",
+        "TUI now executes tasks inline without exiting, showing live output in Executing mode",
+        "Non-interactive mode unchanged (output_handler=None defaults to original behavior)",
+        "All tests pass (make ci)"
+      ],
+      "request": "Refine the TUI behavior keeping user experience in mind. Maximize the TUI user experience to eliminate all friction and confusing patterns. When users start a task they need to be able to view the output similar to running the loop, or one off execution, in non-interactive mode. Non-interactive mode is the preferred user view still but the TUI must be robust and maximize the user experience for users that prefer it.",
+      "created_at": "2026-01-20T01:44:29+00:00",
+      "updated_at": "2026-01-20T01:52:25+00:00",
+      "completed_at": "2026-01-20T02:00:00+00:00",
+      "depends_on": []
     }
   ]
 }

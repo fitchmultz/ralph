@@ -19,6 +19,8 @@ pub struct RunnerInvocation<'a> {
     /// If true, revert uncommitted changes on runner errors.
     /// Set to false for task build to preserve user's existing work.
     pub revert_on_error: bool,
+    /// Optional callback for streaming runner output.
+    pub output_handler: Option<runner::OutputHandler>,
 }
 
 pub struct RunnerErrorMessages<'a, FNonZero, FOther>
@@ -53,6 +55,7 @@ where
         two_pass_plan,
         permission_mode,
         revert_on_error,
+        output_handler,
     } = invocation;
     let RunnerErrorMessages {
         log_label,
@@ -73,6 +76,7 @@ where
         timeout,
         two_pass_plan,
         permission_mode,
+        output_handler,
     ) {
         Ok(output) => Ok(output),
         Err(runner::RunnerError::Interrupted) => {

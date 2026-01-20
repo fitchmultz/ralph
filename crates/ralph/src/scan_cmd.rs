@@ -60,6 +60,7 @@ pub fn run_scan(resolved: &config::Resolved, opts: ScanOptions) -> Result<()> {
             two_pass_plan,
             permission_mode,
             revert_on_error: true,
+            output_handler: None,
         },
         runutil::RunnerErrorMessages {
             log_label: "scan runner",
