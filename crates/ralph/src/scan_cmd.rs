@@ -15,7 +15,7 @@ pub fn run_scan(resolved: &config::Resolved, opts: ScanOptions) -> Result<()> {
     gitutil::require_clean_repo_ignoring_paths(
         &resolved.repo_root,
         opts.force,
-        &[".ralph/queue.yaml", ".ralph/done.yaml"],
+        &[".ralph/queue.json", ".ralph/done.json"],
     )?;
 
     let _queue_lock = queue::acquire_queue_lock(&resolved.repo_root, "scan", opts.force)?;

@@ -1270,8 +1270,8 @@ mod tests {
         assert!(impl_prompt.contains("IMPLEMENTATION MODE - PHASE 2 OF 2"));
         assert!(impl_prompt.contains("Set task `status: done`"));
         assert!(impl_prompt.contains("completed_at"));
-        assert!(impl_prompt.contains("Move task from `.ralph/queue.yaml`"));
-        assert!(impl_prompt.contains("`.ralph/done.yaml`"));
+        assert!(impl_prompt.contains("Move task from `.ralph/queue.json`"));
+        assert!(impl_prompt.contains("`.ralph/done.json`"));
         assert!(impl_prompt.contains("Run `make ci`"));
         assert!(impl_prompt.contains("must pass 100%"));
         assert!(impl_prompt.ends_with(plan));

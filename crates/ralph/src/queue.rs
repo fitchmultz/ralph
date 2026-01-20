@@ -28,13 +28,8 @@ pub fn load_queue_or_default(path: &Path) -> Result<QueueFile> {
 pub fn load_queue(path: &Path) -> Result<QueueFile> {
     let raw = std::fs::read_to_string(path)
         .with_context(|| format!("read queue file {}", path.display()))?;
-    // Try JSON first, fall back to YAML for migration
-    let queue = if let Ok(json_queue) = serde_json::from_str::<QueueFile>(&raw) {
-        json_queue
-    } else {
-        serde_yaml::from_str::<QueueFile>(&raw)
-            .with_context(|| format!("parse queue {} as JSON or YAML", path.display()))?
-    };
+    let queue = serde_json::from_str::<QueueFile>(&raw)
+        .with_context(|| format!("parse queue {} as JSON", path.display()))?;
     Ok(queue)
 }
 

@@ -4,8 +4,8 @@
 - `crates/ralph/`: **Active** Rust CLI.
   - Run locally via `cargo run -p ralph -- <command>`
 - `.ralph/`: Repo-local runtime state.
-  - `.ralph/queue.yaml` is the **source of truth** for active work.
-  - `.ralph/done.yaml` archives completed tasks (same schema as queue).
+  - `.ralph/queue.json` is the **source of truth** for active work.
+  - `.ralph/done.json` archives completed tasks (same schema as queue).
   - Prompt templates are embedded in the Rust CLI; repo-local overrides can be placed in `.ralph/prompts/*.md`.
 
 ## Build, Test, and Development Commands (Rust)
@@ -25,8 +25,8 @@
 - `cargo run -p ralph -- run loop --max-tasks 0`
 
 ## Queue & Prompt Contract (Rust)
-- Source of truth is `.ralph/queue.yaml` (YAML). Task order is priority (top runs first).
-- Completed tasks must be moved to `.ralph/done.yaml` and removed from `.ralph/queue.yaml`.
+- Source of truth is `.ralph/queue.json` (JSON). Task order is priority (top runs first).
+- Completed tasks must be moved to `.ralph/done.json` and removed from `.ralph/queue.json`.
 - New tasks must include: `id`, `status`, `title`, `tags`, `scope`, `evidence`, `plan` (and typically `request`, `created_at`, `updated_at`).
 - Prompt templates are embedded in the Rust CLI; overrides can be placed in `.ralph/prompts/` and reference these files.
 
@@ -36,16 +36,16 @@
 - Prefer commit messages like `RQ-####: <short summary>`.
 
 ## Configuration
-- Two-layer YAML config:
-  - Global: `~/.config/ralph/config.yaml`
-  - Project: `.ralph/config.yaml` (overrides global)
+- Two-layer JSON config:
+  - Global: `~/.config/ralph/config.json`
+  - Project: `.ralph/config.json` (overrides global)
 - CLI flags can override at runtime; they should not be relied on as persisted config.
 - Runner usage: set `agent.runner: opencode` or `agent.runner: gemini` (and `agent.opencode_bin`/`agent.gemini_bin` if needed); allowed models include `gpt-5.2-codex`, `gpt-5.2`, `zai-coding-plan/glm-4.7`, `gemini-3-pro-preview`, `gemini-3-flash-preview` (Codex supports only `gpt-5.2-codex` + `gpt-5.2`; OpenCode/Gemini accept arbitrary model IDs).
 - Gemini runner prepends a RepoPrompt tooling instruction at the top of every prompt.
 
 ## Configuration & Security
 - Do not commit real secrets if the repo is public.
-- Treat runner output as potentially sensitive; avoid copying raw output into `.ralph/queue.yaml` notes without redaction.
+- Treat runner output as potentially sensitive; avoid copying raw output into `.ralph/queue.json` notes without redaction.
 
 ## First-Principles Simplicity
 - Start from the fundamentals, strip to essentials, then rebuild the simplest working path.

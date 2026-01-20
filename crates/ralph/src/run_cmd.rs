@@ -104,7 +104,7 @@ pub fn run_one(
     let task = queue_file.tasks[idx].clone();
     let task_id = task.id.trim().to_string();
     if task_id.is_empty() {
-        bail!("Invalid task: selected task has an empty ID. Ensure the task has a valid ID (e.g., 'RQ-0001') in .ralph/queue.yaml.");
+        bail!("Invalid task: selected task has an empty ID. Ensure the task has a valid ID (e.g., 'RQ-0001') in .ralph/queue.json.");
     }
 
     // Require a clean repo before we invoke the runner.
@@ -112,7 +112,7 @@ pub fn run_one(
     gitutil::require_clean_repo_ignoring_paths(
         &resolved.repo_root,
         force,
-        &[".ralph/queue.yaml", ".ralph/done.json"],
+        &[".ralph/queue.json", ".ralph/done.json"],
     )?;
 
     let settings = resolve_run_agent_settings(resolved, &task, agent_overrides)?;
@@ -238,7 +238,7 @@ fn post_run_supervise(resolved: &config::Resolved, task_id: &str) -> Result<()> 
         if task_status != TaskStatus::Done {
             if in_done {
                 gitutil::revert_uncommitted(&resolved.repo_root)?;
-                bail!("Task inconsistency: task {task_id} is archived in done.json but its status is not 'done'. Review the task state in .ralph/done.json.");
+                bail!("Task inconsistency: task {task_id} is archived in .ralph/done.json but its status is not 'done'. Review the task state in .ralph/done.json.");
             }
             let now = timeutil::now_utc_rfc3339()?;
             queue::set_status(&mut queue_file, task_id, TaskStatus::Done, &now, None)?;
@@ -271,7 +271,7 @@ fn post_run_supervise(resolved: &config::Resolved, task_id: &str) -> Result<()> 
     let mut changed = false;
     if task_status != TaskStatus::Done {
         if in_done {
-            bail!("Task inconsistency: task {task_id} is archived in done.json but its status is not 'done'. Review the task state in .ralph/done.json.");
+            bail!("Task inconsistency: task {task_id} is archived in .ralph/done.json but its status is not 'done'. Review the task state in .ralph/done.json.");
         }
         let now = timeutil::now_utc_rfc3339()?;
         queue::set_status(&mut queue_file, task_id, TaskStatus::Done, &now, None)?;
@@ -387,7 +387,7 @@ mod tests {
                 claude_permission_mode: Some(ClaudePermissionMode::BypassPermissions),
             },
             queue: QueueConfig {
-                file: Some(PathBuf::from(".ralph/queue.yaml")),
+                file: Some(PathBuf::from(".ralph/queue.json")),
                 done_file: Some(PathBuf::from(".ralph/done.json")),
                 id_prefix: Some("RQ".to_string()),
                 id_width: Some(4),
@@ -398,12 +398,12 @@ mod tests {
         config::Resolved {
             config: cfg,
             repo_root: repo_root.clone(),
-            queue_path: repo_root.join(".ralph/queue.yaml"),
+            queue_path: repo_root.join(".ralph/queue.json"),
             done_path: repo_root.join(".ralph/done.json"),
             id_prefix: "RQ".to_string(),
             id_width: 4,
             global_config_path: None,
-            project_config_path: Some(repo_root.join(".ralph/config.yaml")),
+            project_config_path: Some(repo_root.join(".ralph/config.json")),
         }
     }
 

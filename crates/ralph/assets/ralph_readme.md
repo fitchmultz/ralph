@@ -4,8 +4,8 @@ This repo is using Ralph. The `.ralph/` directory holds repo-local state.
 
 ## Files
 
-- `.ralph/queue.yaml` — YAML task queue (source of truth for active work).
-- `.ralph/done.yaml` — YAML archive of completed tasks (same schema as queue).
+- `.ralph/queue.json` — JSON task queue (source of truth for active work).
+- `.ralph/done.json` — JSON archive of completed tasks (same schema as queue).
 - `.ralph/prompts/` — optional prompt overrides (defaults are embedded in the Rust CLI).
 
 ## Minimal Rust Commands
@@ -41,17 +41,20 @@ One-off usage:
 - `ralph scan --runner claude --model sonnet --focus "risk audit"`
 - `ralph task build --runner claude --model opus "Add tests for X"`
 
-Defaults via config (`.ralph/config.yaml` or `~/.config/ralph/config.yaml`):
+Defaults via config (`.ralph/config.json` or `~/.config/ralph/config.json`):
 
-```yaml
-version: 1
-agent:
-  runner: opencode
-  model: gpt-5.2
-  opencode_bin: opencode
-  gemini_bin: gemini
-  claude_bin: claude
-  two_pass_plan: true
+```json
+{
+  "version": 1,
+  "agent": {
+    "runner": "opencode",
+    "model": "gpt-5.2",
+    "opencode_bin": "opencode",
+    "gemini_bin": "gemini",
+    "claude_bin": "claude",
+    "two_pass_plan": true
+  }
+}
 ```
 
 **Allowed models by runner:**

@@ -133,8 +133,8 @@ fn handle_queue(cmd: QueueCommand, force: bool) -> Result<()> {
                 .ok_or_else(|| anyhow::anyhow!("task not found: {}", args.task_id.trim()))?;
 
             match args.format {
-                QueueShowFormat::Yaml => {
-                    let rendered = serde_yaml::to_string(task)?;
+                QueueShowFormat::Json => {
+                    let rendered = serde_json::to_string_pretty(task)?;
                     print!("{rendered}");
                 }
                 QueueShowFormat::Compact => {
@@ -380,7 +380,7 @@ fn handle_config(cmd: ConfigCommand) -> Result<()> {
     let resolved = config::resolve_from_cwd()?;
     match cmd {
         ConfigCommand::Show => {
-            let rendered = serde_yaml::to_string(&resolved.config)?;
+            let rendered = serde_json::to_string_pretty(&resolved.config)?;
             print!("{rendered}");
         }
         ConfigCommand::Paths => {
@@ -645,7 +645,7 @@ struct ConfigArgs {
 #[derive(Args)]
 #[command(
     about = "Run the Ralph supervisor (executes queued tasks via codex/opencode/gemini)",
-    after_long_help = "Runner selection:\n  - `ralph run` selects runner/model/effort with this precedence:\n      1) CLI overrides (flags on `run one` / `run loop`)\n      2) the task's `agent` override (if present in .ralph/queue.yaml)\n      3) otherwise the resolved config defaults (`agent.runner`, `agent.model`, `agent.reasoning_effort`).\n\nNotes:\n  - Allowed runners: codex, opencode, gemini\n  - Allowed models: gpt-5.2-codex, gpt-5.2, zai-coding-plan/glm-4.7, gemini-3-pro-preview, gemini-3-flash-preview (codex supports only gpt-5.2-codex + gpt-5.2; opencode/gemini accept arbitrary model ids)\n  - `--effort` is codex-only and is ignored for opencode.\n\nTo change defaults for this repo, edit .ralph/config.yaml:\n  version: 1\n  agent:\n    runner: opencode\n    model: gpt-5.2\n    gemini_bin: gemini\n\nExamples:\n  ralph run one\n  ralph run one --runner opencode --model gpt-5.2\n  ralph run one --runner codex --model gpt-5.2-codex --effort high\n  ralph run one --runner gemini --model gemini-3-flash-preview\n  ralph run loop --max-tasks 0\n  ralph run loop --max-tasks 1 --runner opencode --model gpt-5.2"
+    after_long_help = "Runner selection:\n  - `ralph run` selects runner/model/effort with this precedence:\n      1) CLI overrides (flags on `run one` / `run loop`)\n      2) the task's `agent` override (if present in .ralph/queue.json)\n      3) otherwise the resolved config defaults (`agent.runner`, `agent.model`, `agent.reasoning_effort`).\n\nNotes:\n  - Allowed runners: codex, opencode, gemini\n  - Allowed models: gpt-5.2-codex, gpt-5.2, zai-coding-plan/glm-4.7, gemini-3-pro-preview, gemini-3-flash-preview (codex supports only gpt-5.2-codex + gpt-5.2; opencode/gemini accept arbitrary model ids)\n  - `--effort` is codex-only and is ignored for opencode.\n\nTo change defaults for this repo, edit .ralph/config.json:\n  version: 1\n  agent:\n    runner: opencode\n    model: gpt-5.2\n    gemini_bin: gemini\n\nExamples:\n  ralph run one\n  ralph run one --runner opencode --model gpt-5.2\n  ralph run one --runner codex --model gpt-5.2-codex --effort high\n  ralph run one --runner gemini --model gemini-3-flash-preview\n  ralph run loop --max-tasks 0\n  ralph run loop --max-tasks 1 --runner opencode --model gpt-5.2"
 )]
 struct RunArgs {
     #[command(subcommand)]
@@ -757,7 +757,7 @@ enum QueueCommand {
         after_long_help = "Examples:\n  ralph queue search \"authentication\"\n  ralph queue search \"RQ-\\d{4}\" --regex\n  ralph queue search \"TODO\" --match-case\n  ralph queue search \"fix\" --status todo --tag rust"
     )]
     Search(QueueSearchArgs),
-    /// Move completed tasks from queue.yaml to done.yaml.
+    /// Move completed tasks from queue.json to done.json.
     #[command(after_long_help = "Example:\n  ralph queue done")]
     Done,
     /// Remove the queue lock file.
@@ -812,8 +812,8 @@ enum ConfigCommand {
 #[derive(Subcommand)]
 enum RunCommand {
     #[command(
-        about = "Run exactly one task (the first todo in .ralph/queue.yaml)",
-        after_long_help = "Runner selection (precedence):\n  1) CLI overrides (--runner/--model/--effort)\n  2) task.agent in .ralph/queue.yaml (if present)\n  3) config defaults (.ralph/config.yaml then ~/.config/ralph/config.yaml)\n\nExamples:\n  ralph run one\n  ralph run one --runner opencode --model gpt-5.2\n  ralph run one --runner gemini --model gemini-3-flash-preview\n  ralph run one --runner codex --model gpt-5.2-codex --effort high\n  ralph queue next --with-title"
+        about = "Run exactly one task (the first todo in .ralph/queue.json)",
+        after_long_help = "Runner selection (precedence):\n  1) CLI overrides (--runner/--model/--effort)\n  2) task.agent in .ralph/queue.json (if present)\n  3) config defaults (.ralph/config.json then ~/.config/ralph/config.json)\n\nExamples:\n  ralph run one\n  ralph run one --runner opencode --model gpt-5.2\n  ralph run one --runner gemini --model gemini-3-flash-preview\n  ralph run one --runner codex --model gpt-5.2-codex --effort high\n  ralph queue next --with-title"
     )]
     One(RunOneArgs),
     #[command(
@@ -871,8 +871,8 @@ enum StatusArg {
 #[derive(Clone, Copy, Debug, ValueEnum)]
 #[clap(rename_all = "snake_case")]
 enum QueueShowFormat {
-    /// Full YAML representation of the task.
-    Yaml,
+    /// Full JSON representation of the task.
+    Json,
     /// Compact tab-separated summary (ID, status, title).
     Compact,
 }
@@ -904,7 +904,7 @@ struct QueueShowArgs {
     task_id: String,
 
     /// Output format.
-    #[arg(long, value_enum, default_value_t = QueueShowFormat::Yaml)]
+    #[arg(long, value_enum, default_value_t = QueueShowFormat::Json)]
     format: QueueShowFormat,
 }
 
@@ -1109,7 +1109,7 @@ mod tests {
     fn write_project_config(repo_root: &std::path::Path, contents: &str) -> anyhow::Result<()> {
         let config_dir = repo_root.join(".ralph");
         fs::create_dir_all(&config_dir).context("create .ralph dir")?;
-        fs::write(config_dir.join("config.yaml"), contents).context("write config.yaml")?;
+        fs::write(config_dir.join("config.json"), contents).context("write config.json")?;
         Ok(())
     }
 
@@ -1166,12 +1166,7 @@ mod tests {
         let repo_root = temp.path().to_path_buf();
         write_project_config(
             repo_root.as_path(),
-            r#"version: 1
-agent:
-  runner: opencode
-  model: gpt-5.2
-  reasoning_effort: high
-"#,
+            r#"{"version":1,"agent":{"runner":"opencode","model":"gpt-5.2","reasoning_effort":"high"}}"#,
         )?;
         let _guard = EnvGuard::enter(&repo_root)?;
         let resolved = crate::config::resolve_from_cwd().context("resolve config")?;
@@ -1189,12 +1184,7 @@ agent:
         let repo_root = temp.path().to_path_buf();
         write_project_config(
             repo_root.as_path(),
-            r#"version: 1
-agent:
-  runner: opencode
-  model: gpt-5.2
-  reasoning_effort: low
-"#,
+            r#"{"version":1,"agent":{"runner":"opencode","model":"gpt-5.2","reasoning_effort":"low"}}"#,
         )?;
         let _guard = EnvGuard::enter(&repo_root)?;
         let resolved = crate::config::resolve_from_cwd().context("resolve config")?;
@@ -1222,12 +1212,7 @@ agent:
         // Config has Codex defaults
         write_project_config(
             repo_root.as_path(),
-            r#"version: 1
-agent:
-  runner: codex
-  model: gpt-5.2-codex
-  reasoning_effort: high
-"#,
+            r#"{"version":1,"agent":{"runner":"codex","model":"gpt-5.2-codex","reasoning_effort":"high"}}"#,
         )?;
         let _guard = EnvGuard::enter(&repo_root)?;
         let resolved = crate::config::resolve_from_cwd().context("resolve config")?;
@@ -1250,12 +1235,7 @@ agent:
         // Config has Codex defaults
         write_project_config(
             repo_root.as_path(),
-            r#"version: 1
-agent:
-  runner: codex
-  model: gpt-5.2-codex
-  reasoning_effort: high
-"#,
+            r#"{"version":1,"agent":{"runner":"codex","model":"gpt-5.2-codex","reasoning_effort":"high"}}"#,
         )?;
         let _guard = EnvGuard::enter(&repo_root)?;
         let resolved = crate::config::resolve_from_cwd().context("resolve config")?;
@@ -1274,12 +1254,7 @@ agent:
         let repo_root = temp.path().to_path_buf();
         write_project_config(
             repo_root.as_path(),
-            r#"version: 1
-agent:
-  runner: codex
-  model: zai-coding-plan/glm-4.7
-  reasoning_effort: medium
-"#,
+            r#"{"version":1,"agent":{"runner":"codex","model":"zai-coding-plan/glm-4.7","reasoning_effort":"medium"}}"#,
         )?;
         let _guard = EnvGuard::enter(&repo_root)?;
         let resolved = crate::config::resolve_from_cwd().context("resolve config")?;

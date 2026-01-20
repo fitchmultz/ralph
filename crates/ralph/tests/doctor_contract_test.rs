@@ -152,12 +152,8 @@ fn doctor_fails_with_nonexistent_runner_binary() -> Result<()> {
     std::fs::write(dir.path().join("Makefile"), "ci:\n\tcargo test\n")?;
 
     // Configure a non-existent runner binary
-    let config_path = dir.path().join(".ralph/config.yaml");
-    let config_content = r#"version: 1
-agent:
-  runner: opencode
-  opencode_bin: "this-binary-does-not-exist-xyz123"
-"#;
+    let config_path = dir.path().join(".ralph/config.json");
+    let config_content = r#"{"version":1,"agent":{"runner":"opencode","opencode_bin":"this-binary-does-not-exist-xyz123"}}"#;
     std::fs::write(&config_path, config_content)?;
 
     let output = Command::new(ralph_bin())
@@ -193,12 +189,8 @@ fn doctor_fails_with_nonexistent_gemini_binary() -> Result<()> {
     // Setup Makefile
     std::fs::write(dir.path().join("Makefile"), "ci:\n\tcargo test\n")?;
 
-    let config_path = dir.path().join(".ralph/config.yaml");
-    let config_content = r#"version: 1
-agent:
-  runner: gemini
-  gemini_bin: "this-gemini-does-not-exist-xyz123"
-"#;
+    let config_path = dir.path().join(".ralph/config.json");
+    let config_content = r#"{"version":1,"agent":{"runner":"gemini","gemini_bin":"this-gemini-does-not-exist-xyz123"}}"#;
     std::fs::write(&config_path, config_content)?;
 
     let output = Command::new(ralph_bin())
@@ -232,12 +224,8 @@ fn doctor_fails_with_nonexistent_claude_binary() -> Result<()> {
     // Setup Makefile
     std::fs::write(dir.path().join("Makefile"), "ci:\n\tcargo test\n")?;
 
-    let config_path = dir.path().join(".ralph/config.yaml");
-    let config_content = r#"version: 1
-agent:
-  runner: claude
-  claude_bin: "this-claude-does-not-exist-xyz123"
-"#;
+    let config_path = dir.path().join(".ralph/config.json");
+    let config_content = r#"{"version":1,"agent":{"runner":"claude","claude_bin":"this-claude-does-not-exist-xyz123"}}"#;
     std::fs::write(&config_path, config_content)?;
 
     let output = Command::new(ralph_bin())

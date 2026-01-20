@@ -81,13 +81,8 @@ pub fn resolve_from_cwd() -> Result<Resolved> {
 
 fn load_layer(path: &Path) -> Result<ConfigLayer> {
     let raw = fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
-    // Try JSON first, fall back to YAML for backward compatibility
-    let layer = if let Ok(json_layer) = serde_json::from_str::<ConfigLayer>(&raw) {
-        json_layer
-    } else {
-        serde_yaml::from_str::<ConfigLayer>(&raw)
-            .with_context(|| format!("parse config {} as JSON or YAML", path.display()))?
-    };
+    let layer = serde_json::from_str::<ConfigLayer>(&raw)
+        .with_context(|| format!("parse config {} as JSON", path.display()))?;
     Ok(layer)
 }
 
@@ -217,26 +212,13 @@ fn global_config_path() -> Option<PathBuf> {
         PathBuf::from(home).join(".config")
     };
     let ralph_dir = base.join("ralph");
-    // Prefer config.json, fall back to config.yaml
     let json_path = ralph_dir.join("config.json");
-    let yaml_path = ralph_dir.join("config.yaml");
-    if json_path.exists() {
-        Some(json_path)
-    } else {
-        Some(yaml_path)
-    }
+    Some(json_path)
 }
 
 fn project_config_path(repo_root: &Path) -> PathBuf {
     let ralph_dir = repo_root.join(".ralph");
-    // Prefer config.json, fall back to config.yaml
-    let json_path = ralph_dir.join("config.json");
-    let yaml_path = ralph_dir.join("config.yaml");
-    if json_path.exists() {
-        json_path
-    } else {
-        yaml_path
-    }
+    ralph_dir.join("config.json")
 }
 
 fn find_repo_root(start: &Path) -> PathBuf {
@@ -245,12 +227,9 @@ fn find_repo_root(start: &Path) -> PathBuf {
         log::debug!("checking directory: {}", dir.display());
         let ralph_dir = dir.join(".ralph");
         if ralph_dir.is_dir() {
-            // Check for JSON files first, then fall back to YAML for migration
             let has_json =
                 ralph_dir.join("queue.json").is_file() || ralph_dir.join("config.json").is_file();
-            let has_yaml =
-                ralph_dir.join("queue.yaml").is_file() || ralph_dir.join("config.yaml").is_file();
-            if has_json || has_yaml {
+            if has_json {
                 log::debug!("found repo root at: {} (via .ralph/)", dir.display());
                 return dir.to_path_buf();
             }

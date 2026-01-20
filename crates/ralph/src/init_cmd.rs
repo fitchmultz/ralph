@@ -115,10 +115,7 @@ fn write_config(path: &Path, force: bool) -> Result<FileInitStatus> {
         // Validate existing config by trying to parse it
         let raw =
             fs::read_to_string(path).with_context(|| format!("read config {}", path.display()))?;
-        // Try JSON first, fall back to YAML
-        if serde_json::from_str::<Config>(&raw).is_ok()
-            || serde_yaml::from_str::<Config>(&raw).is_ok()
-        {
+        if serde_json::from_str::<Config>(&raw).is_ok() {
             return Ok(FileInitStatus::Valid);
         }
         return Ok(FileInitStatus::Valid);

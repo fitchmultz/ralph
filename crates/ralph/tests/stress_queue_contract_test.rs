@@ -209,7 +209,7 @@ fn stress_queue_archive_and_mutate_cycles() -> Result<()> {
 }
 
 #[test]
-fn stress_queue_load_large_yaml_scalars() -> Result<()> {
+fn stress_queue_load_large_scalars() -> Result<()> {
     let dir = TempDir::new().context("create temp dir")?;
     let queue_path = dir.path().join("queue.json");
 
@@ -229,75 +229,6 @@ fn stress_queue_load_large_yaml_scalars() -> Result<()> {
     anyhow::ensure!(reloaded.tasks.len() == 2000, "unexpected task count");
 
     queue::validate_queue(&reloaded, ID_PREFIX, ID_WIDTH).context("validate loaded queue")?;
-
-    Ok(())
-}
-
-#[test]
-fn stress_queue_yaml_fallback() -> Result<()> {
-    let dir = TempDir::new().context("create temp dir")?;
-    let id_prefix = "RQ";
-    let id_width = 4;
-
-    // Case 1: Incomplete YAML - should parse with defaults
-    {
-        let queue_path = dir.path().join("incomplete.yaml");
-        let raw = r#"version: 1
-tasks:
-  - id: RQ-0001
-    status: todo
-    title: Truncated task
-    tags:
-      - test
-"#;
-        std::fs::write(&queue_path, raw).context("write incomplete queue")?;
-
-        let result = queue::load_queue(&queue_path);
-        anyhow::ensure!(result.is_ok(), "incomplete YAML should parse with defaults");
-        let queue = result?;
-        anyhow::ensure!(queue.tasks.len() == 1, "should have 1 task");
-        anyhow::ensure!(queue.tasks[0].id == "RQ-0001", "task ID should match");
-    }
-
-    // Case 2: Invalid types (string for version) - should fail
-    {
-        let queue_path = dir.path().join("invalid_types.yaml");
-        let raw = r#"version: "one"
-tasks:
-  - id: RQ-0001
-    status: todo
-    title: Invalid type
-    tags:
-      - test
-    scope:
-      - crates/ralph
-    evidence:
-      - testing
-    plan:
-      - test
-    request: test
-    created_at: 2026-01-18T00:00:00Z
-    updated_at: 2026-01-18T00:00:00Z
-"#;
-        std::fs::write(&queue_path, raw).context("write invalid types queue")?;
-
-        let result = queue::load_queue(&queue_path);
-        anyhow::ensure!(result.is_err(), "invalid version type should fail to parse");
-    }
-
-    // Case 3: Valid YAML should load successfully
-    {
-        let queue_path = dir.path().join("valid.yaml");
-        let queue = QueueFile {
-            version: 1,
-            tasks: vec![make_task_with(1, TaskStatus::Todo, id_prefix, id_width)],
-        };
-        let raw = serde_yaml::to_string(&queue)?;
-        std::fs::write(&queue_path, raw).context("write valid queue")?;
-
-        let loaded = queue::load_queue(&queue_path).context("load valid YAML")?;
-        anyhow::ensure!(loaded.tasks.len() == 1, "valid YAML should load");
-    }
 
     Ok(())
 }

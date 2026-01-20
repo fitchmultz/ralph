@@ -3,7 +3,7 @@
   "tasks": [
     {
       "id": "RQ-0152",
-      "status": "todo",
+      "status": "doing",
       "title": "Remove all YAML code and establish JSON schema as source of truth",
       "priority": "high",
       "tags": [
