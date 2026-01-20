@@ -1,7 +1,5 @@
-//! Run command orchestration for single tasks and run loops.
-
 use crate::config;
-use crate::contracts::{Model, ProjectType, QueueFile, ReasoningEffort, Runner, TaskStatus};
+use crate::contracts::{ProjectType, QueueFile, TaskStatus};
 use crate::gitutil::GitError;
 use crate::promptflow::{
     self, build_phase1_prompt, build_phase2_prompt, build_single_phase_prompt,
@@ -11,17 +9,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use std::path::Path;
 use std::process::{Command, Stdio};
 
-#[derive(Debug, Clone, Default)]
-pub struct AgentOverrides {
-    pub runner: Option<Runner>,
-    pub model: Option<Model>,
-    pub reasoning_effort: Option<ReasoningEffort>,
-    /// Execution shape override:
-    /// - 1 => single-pass execution
-    /// - 2 => two-pass execution (plan then implement)
-    pub phases: Option<u8>,
-    pub repoprompt_required: Option<bool>,
-}
+pub use crate::agent::AgentOverrides;
 
 pub enum RunOutcome {
     NoTodo,
@@ -572,7 +560,8 @@ fn run_make_ci(repo_root: &Path) -> Result<()> {
 mod tests {
     use super::*;
     use crate::contracts::{
-        AgentConfig, ClaudePermissionMode, Config, Model, QueueConfig, Task, TaskAgent, TaskStatus,
+        AgentConfig, ClaudePermissionMode, Config, Model, QueueConfig, ReasoningEffort, Runner,
+        Task, TaskAgent, TaskStatus,
     };
     use std::path::PathBuf;
     use tempfile::TempDir;

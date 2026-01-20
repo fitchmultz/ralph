@@ -3043,6 +3043,50 @@
       "completed_at": "2026-01-20T21:45:00Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0166",
+      "status": "done",
+      "title": "Deduplicate agent argument resolution logic",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "refactor",
+        "cli",
+        "agent"
+      ],
+      "scope": [
+        "crates/ralph/src/agent.rs",
+        "crates/ralph/src/main.rs",
+        "crates/ralph/src/run_cmd.rs",
+        "crates/ralph/src/scan_cmd.rs",
+        "crates/ralph/src/task_cmd.rs"
+      ],
+      "evidence": [
+        "Agent argument resolution was duplicated across multiple commands",
+        "User request: 'Deduplicate agent argument resolution logic (Medium)'"
+      ],
+      "plan": [
+        "Extract agent resolution to shared module/function",
+        "Update run, scan, and task build commands to use shared logic",
+        "Add tests for shared resolution function",
+        "Remove duplicated code paths"
+      ],
+      "notes": [
+        "Created new agent.rs module with AgentArgs, RunAgentArgs, and AgentOverrides types",
+        "Moved parse_runner, resolve_run_agent_overrides, resolve_agent_overrides, and resolve_rp_required functions to agent.rs",
+        "Updated main.rs, run_cmd.rs, scan_cmd.rs, and task_cmd.rs to use agent module",
+        "Removed duplicate resolve_rp_required from prompt_cmd.rs",
+        "Added agent module to lib.rs for test visibility",
+        "All tests pass (121 unit tests, 44 TUI tests)",
+        "make ci passes successfully"
+      ],
+      "request": "New Tasks (Top 10): 4. RQ-0143: Deduplicate agent argument resolution logic (Medium)",
+      "created_at": "2026-01-20T18:00:00Z",
+      "updated_at": "2026-01-20T22:05:00Z",
+      "completed_at": "2026-01-20T22:05:46Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

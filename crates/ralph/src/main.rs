@@ -1,5 +1,6 @@
 //! Ralph CLI entrypoint and command routing.
 
+mod agent;
 mod contracts;
 
 mod config;
@@ -26,7 +27,8 @@ mod tui;
 use anyhow::{bail, Context, Result};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
-use crate::contracts::{QueueFile, Runner as RunnerKind, Task, TaskStatus};
+use crate::agent::RunAgentArgs;
+use crate::contracts::{QueueFile, Task, TaskStatus};
 
 fn main() {
     if let Err(err) = run() {
@@ -519,7 +521,7 @@ fn handle_prompt(args: PromptArgs) -> Result<()> {
 
     match args.command {
         PromptCommand::Worker(p) => {
-            let rp_required = crate::prompt_cmd::resolve_rp_required(p.rp_on, p.rp_off, &resolved);
+            let rp_required = agent::resolve_rp_required(p.rp_on, p.rp_off, &resolved);
 
             let mode = if p.single {
                 crate::prompt_cmd::WorkerMode::Single
@@ -553,7 +555,7 @@ fn handle_prompt(args: PromptArgs) -> Result<()> {
             print!("{prompt}");
         }
         PromptCommand::Scan(p) => {
-            let rp_required = crate::prompt_cmd::resolve_rp_required(p.rp_on, p.rp_off, &resolved);
+            let rp_required = agent::resolve_rp_required(p.rp_on, p.rp_off, &resolved);
             let prompt = crate::prompt_cmd::build_scan_prompt(
                 &resolved,
                 crate::prompt_cmd::ScanPromptOptions {
@@ -565,7 +567,7 @@ fn handle_prompt(args: PromptArgs) -> Result<()> {
             print!("{prompt}");
         }
         PromptCommand::TaskBuilder(p) => {
-            let rp_required = crate::prompt_cmd::resolve_rp_required(p.rp_on, p.rp_off, &resolved);
+            let rp_required = agent::resolve_rp_required(p.rp_on, p.rp_off, &resolved);
 
             // For convenience, allow stdin usage like `task build` does.
             let request = if let Some(r) = p.request {
@@ -596,7 +598,7 @@ fn handle_run(cmd: RunCommand, force: bool) -> Result<()> {
     let resolved = config::resolve_from_cwd()?;
     match cmd {
         RunCommand::One(args) => {
-            let overrides = resolve_run_agent_overrides(&args.agent)?;
+            let overrides = agent::resolve_run_agent_overrides(&args.agent)?;
 
             if args.interactive {
                 // Capture the values we need by moving them into the factory
@@ -624,7 +626,7 @@ fn handle_run(cmd: RunCommand, force: bool) -> Result<()> {
             }
         }
         RunCommand::Loop(args) => {
-            let overrides = resolve_run_agent_overrides(&args.agent)?;
+            let overrides = agent::resolve_run_agent_overrides(&args.agent)?;
 
             if args.interactive {
                 // Capture the values we need by moving them into the factory
@@ -665,11 +667,19 @@ fn handle_task(cmd: TaskCommand, force: bool) -> Result<()> {
     match cmd {
         TaskCommand::Build(args) => {
             let request = task_cmd::read_request_from_args_or_stdin(&args.request)?;
-            let settings = resolve_agent_args(
-                &resolved,
-                args.runner.as_deref(),
-                args.model.as_deref(),
-                args.effort.as_deref(),
+            let overrides = agent::resolve_agent_overrides(&agent::AgentArgs {
+                runner: args.runner.clone(),
+                model: args.model.clone(),
+                effort: args.effort.clone(),
+                rp_on: args.rp_on,
+                rp_off: args.rp_off,
+            })?;
+            let settings = runner::resolve_agent_settings(
+                overrides.runner,
+                overrides.model,
+                overrides.reasoning_effort,
+                None,
+                &resolved.config.agent,
             )?;
 
             task_cmd::build_task(
@@ -682,30 +692,32 @@ fn handle_task(cmd: TaskCommand, force: bool) -> Result<()> {
                     model: settings.model,
                     reasoning_effort: settings.reasoning_effort,
                     force,
-                    repoprompt_required: resolve_rp_required(args.rp_on, args.rp_off, &resolved),
+                    repoprompt_required: agent::resolve_rp_required(
+                        args.rp_on,
+                        args.rp_off,
+                        &resolved,
+                    ),
                 },
             )
         }
     }
 }
 
-fn resolve_rp_required(rp_on: bool, rp_off: bool, resolved: &config::Resolved) -> bool {
-    if rp_on {
-        return true;
-    }
-    if rp_off {
-        return false;
-    }
-    resolved.config.agent.require_repoprompt.unwrap_or(false)
-}
-
 fn handle_scan(args: ScanArgs, force: bool) -> Result<()> {
     let resolved = config::resolve_from_cwd()?;
-    let settings = resolve_agent_args(
-        &resolved,
-        args.runner.as_deref(),
-        args.model.as_deref(),
-        args.effort.as_deref(),
+    let overrides = agent::resolve_agent_overrides(&agent::AgentArgs {
+        runner: args.runner.clone(),
+        model: args.model.clone(),
+        effort: args.effort.clone(),
+        rp_on: args.rp_on,
+        rp_off: args.rp_off,
+    })?;
+    let settings = runner::resolve_agent_settings(
+        overrides.runner,
+        overrides.model,
+        overrides.reasoning_effort,
+        None,
+        &resolved.config.agent,
     )?;
 
     scan_cmd::run_scan(
@@ -716,87 +728,12 @@ fn handle_scan(args: ScanArgs, force: bool) -> Result<()> {
             model: settings.model,
             reasoning_effort: settings.reasoning_effort,
             force,
-            repoprompt_required: resolve_rp_required(args.rp_on, args.rp_off, &resolved),
+            repoprompt_required: agent::resolve_rp_required(args.rp_on, args.rp_off, &resolved),
         },
     )
 }
 
-fn parse_runner(value: &str) -> Result<RunnerKind> {
-    let normalized = value.trim().to_lowercase();
-    match normalized.as_str() {
-        "codex" => Ok(RunnerKind::Codex),
-        "opencode" => Ok(RunnerKind::Opencode),
-        "gemini" => Ok(RunnerKind::Gemini),
-        "claude" => Ok(RunnerKind::Claude),
-        _ => bail!(
-            "Invalid runner: --runner must be 'codex', 'opencode', 'gemini', or 'claude' (got: {}). Set a supported runner in .ralph/config.json or via the --runner flag.",
-            value.trim()
-        ),
-    }
-}
-
-fn resolve_run_agent_overrides(args: &RunAgentArgs) -> Result<run_cmd::AgentOverrides> {
-    let runner = match args.runner.as_deref() {
-        Some(value) => Some(parse_runner(value)?),
-        None => None,
-    };
-
-    let model = match args.model.as_deref() {
-        Some(value) => Some(runner::parse_model(value)?),
-        None => None,
-    };
-
-    let reasoning_effort = match args.effort.as_deref() {
-        Some(value) => Some(runner::parse_reasoning_effort(value)?),
-        None => None,
-    };
-
-    if let (Some(runner_kind), Some(model)) = (runner, model.as_ref()) {
-        runner::validate_model_for_runner(runner_kind, model)?;
-    }
-
-    let repoprompt_required = if args.rp_on {
-        Some(true)
-    } else if args.rp_off {
-        Some(false)
-    } else {
-        None
-    };
-
-    Ok(run_cmd::AgentOverrides {
-        runner,
-        model,
-        reasoning_effort,
-        phases: args.phases,
-        repoprompt_required,
-    })
-}
-
-fn resolve_agent_args(
-    resolved: &config::Resolved,
-    runner_override: Option<&str>,
-    model_override: Option<&str>,
-    effort_override: Option<&str>,
-) -> Result<runner::AgentSettings> {
-    let runner_kind = match runner_override {
-        Some(value) => Some(parse_runner(value)?),
-        None => None,
-    };
-
-    let model = match model_override {
-        Some(value) => Some(runner::parse_model(value)?),
-        None => None,
-    };
-
-    let effort = match effort_override {
-        Some(value) => Some(runner::parse_reasoning_effort(value)?),
-        None => None,
-    };
-
-    runner::resolve_agent_settings(runner_kind, model, effort, None, &resolved.config.agent)
-}
-
-fn resolve_list_limit(limit: u32, all: bool) -> Option<usize> {
+pub(crate) fn resolve_list_limit(limit: u32, all: bool) -> Option<usize> {
     if all || limit == 0 {
         None
     } else {
@@ -1170,38 +1107,6 @@ enum RunCommand {
     Loop(RunLoopArgs),
 }
 
-#[derive(Args, Clone, Debug, Default)]
-struct RunAgentArgs {
-    /// Runner override for this invocation (codex, opencode, gemini, claude). Overrides task.agent and config.
-    #[arg(long)]
-    runner: Option<String>,
-
-    /// Model override for this invocation. Overrides task.agent and config.
-    /// Allowed: gpt-5.2-codex, gpt-5.2, zai-coding-plan/glm-4.7, gemini-3-pro-preview, gemini-3-flash-preview, sonnet, opus (codex supports only gpt-5.2-codex/gpt-5.2; opencode/gemini/claude accept arbitrary model ids).
-    #[arg(long)]
-    model: Option<String>,
-
-    /// Codex reasoning effort override (minimal, low, medium, high). Ignored for other runners.
-    #[arg(long)]
-    effort: Option<String>,
-
-    /// Execution shape:
-    /// - 1 => single-pass execution (no mandated planning step)
-    /// - 2 => two-pass execution (plan then implement)
-    ///
-    /// If omitted, defaults to config `agent.two_pass_plan` (default true => 2 phases).
-    #[arg(long, value_parser = clap::value_parser!(u8).range(1..=2))]
-    phases: Option<u8>,
-
-    /// Force RepoPrompt required (must use context_builder).
-    #[arg(long, conflicts_with = "rp_off")]
-    rp_on: bool,
-
-    /// Force RepoPrompt not required.
-    #[arg(long, conflicts_with = "rp_on")]
-    rp_off: bool,
-}
-
 #[derive(Args)]
 struct RunOneArgs {
     /// Launch interactive TUI mode for task selection and management.
@@ -1445,7 +1350,7 @@ impl From<StatusArg> for contracts::TaskStatus {
 
 #[cfg(test)]
 mod tests {
-    use super::contracts::{QueueFile, TaskStatus};
+    use super::contracts::{QueueFile, Runner, TaskStatus};
     use anyhow::Context;
     use std::ffi::OsString;
     use std::path::PathBuf;
@@ -1535,8 +1440,15 @@ mod tests {
         let temp = TempDir::new().context("create temp dir")?;
         let _guard = EnvGuard::enter(&temp.path().to_path_buf())?;
         let resolved = crate::config::resolve_from_cwd().context("resolve config")?;
-        let settings = super::resolve_agent_args(&resolved, None, None, None)?;
-        assert_eq!(settings.runner, super::RunnerKind::Claude);
+        let overrides = super::agent::resolve_agent_overrides(&super::agent::AgentArgs::default())?;
+        let settings = crate::runner::resolve_agent_settings(
+            overrides.runner,
+            overrides.model,
+            overrides.reasoning_effort,
+            None,
+            &resolved.config.agent,
+        )?;
+        assert_eq!(settings.runner, Runner::Claude);
         assert_eq!(
             settings.model,
             super::contracts::Model::Custom("sonnet".to_string())
@@ -1556,8 +1468,15 @@ mod tests {
         )?;
         let _guard = EnvGuard::enter(&repo_root)?;
         let resolved = crate::config::resolve_from_cwd().context("resolve config")?;
-        let settings = super::resolve_agent_args(&resolved, None, None, None)?;
-        assert_eq!(settings.runner, super::RunnerKind::Opencode);
+        let overrides = super::agent::resolve_agent_overrides(&super::agent::AgentArgs::default())?;
+        let settings = crate::runner::resolve_agent_settings(
+            overrides.runner,
+            overrides.model,
+            overrides.reasoning_effort,
+            None,
+            &resolved.config.agent,
+        )?;
+        assert_eq!(settings.runner, Runner::Opencode);
         assert_eq!(settings.model, super::contracts::Model::Gpt52);
         assert_eq!(settings.reasoning_effort, None);
         Ok(())
@@ -1574,13 +1493,20 @@ mod tests {
         )?;
         let _guard = EnvGuard::enter(&repo_root)?;
         let resolved = crate::config::resolve_from_cwd().context("resolve config")?;
-        let settings = super::resolve_agent_args(
-            &resolved,
-            Some("codex"),
-            Some("gpt-5.2-codex"),
-            Some("high"),
+        let overrides = super::agent::resolve_agent_overrides(&super::agent::AgentArgs {
+            runner: Some("codex".to_string()),
+            model: Some("gpt-5.2-codex".to_string()),
+            effort: Some("high".to_string()),
+            ..Default::default()
+        })?;
+        let settings = crate::runner::resolve_agent_settings(
+            overrides.runner,
+            overrides.model,
+            overrides.reasoning_effort,
+            None,
+            &resolved.config.agent,
         )?;
-        assert_eq!(settings.runner, super::RunnerKind::Codex);
+        assert_eq!(settings.runner, Runner::Codex);
         assert_eq!(settings.model, super::contracts::Model::Gpt52Codex);
         assert_eq!(
             settings.reasoning_effort,
@@ -1605,8 +1531,18 @@ mod tests {
 
         // CLI override selects Opencode, but no model override.
         // Should default to Glm47, ignoring config model gpt-5.2-codex.
-        let settings = super::resolve_agent_args(&resolved, Some("opencode"), None, None)?;
-        assert_eq!(settings.runner, super::RunnerKind::Opencode);
+        let overrides = super::agent::resolve_agent_overrides(&super::agent::AgentArgs {
+            runner: Some("opencode".to_string()),
+            ..Default::default()
+        })?;
+        let settings = crate::runner::resolve_agent_settings(
+            overrides.runner,
+            overrides.model,
+            overrides.reasoning_effort,
+            None,
+            &resolved.config.agent,
+        )?;
+        assert_eq!(settings.runner, Runner::Opencode);
         assert_eq!(settings.model, super::contracts::Model::Glm47);
         assert_eq!(settings.reasoning_effort, None);
         Ok(())
@@ -1626,8 +1562,18 @@ mod tests {
         let _guard = EnvGuard::enter(&repo_root)?;
         let resolved = crate::config::resolve_from_cwd().context("resolve config")?;
 
-        let settings = super::resolve_agent_args(&resolved, Some("gemini"), None, None)?;
-        assert_eq!(settings.runner, super::RunnerKind::Gemini);
+        let overrides = super::agent::resolve_agent_overrides(&super::agent::AgentArgs {
+            runner: Some("gemini".to_string()),
+            ..Default::default()
+        })?;
+        let settings = crate::runner::resolve_agent_settings(
+            overrides.runner,
+            overrides.model,
+            overrides.reasoning_effort,
+            None,
+            &resolved.config.agent,
+        )?;
+        assert_eq!(settings.runner, Runner::Gemini);
         assert_eq!(settings.model.as_str(), "gemini-3-flash-preview");
         assert_eq!(settings.reasoning_effort, None);
         Ok(())
@@ -1645,8 +1591,15 @@ mod tests {
         )?;
         let _guard = EnvGuard::enter(&repo_root)?;
         let resolved = crate::config::resolve_from_cwd().context("resolve config")?;
-        let settings = super::resolve_agent_args(&resolved, None, None, None)?;
-        assert_eq!(settings.runner, super::RunnerKind::Codex);
+        let overrides = super::agent::resolve_agent_overrides(&super::agent::AgentArgs::default())?;
+        let settings = crate::runner::resolve_agent_settings(
+            overrides.runner,
+            overrides.model,
+            overrides.reasoning_effort,
+            None,
+            &resolved.config.agent,
+        )?;
+        assert_eq!(settings.runner, Runner::Codex);
         assert_eq!(settings.model, super::contracts::Model::Gpt52Codex);
         assert_eq!(
             settings.reasoning_effort,

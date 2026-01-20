@@ -308,17 +308,3 @@ pub fn build_task_builder_prompt(
 
     Ok(format!("{header}{prompt}"))
 }
-
-/// Helper used by CLI to match rp flag semantics consistently:
-/// - --rp-on => true
-/// - --rp-off => false
-/// - neither => config.agent.require_repoprompt (default false)
-pub fn resolve_rp_required(rp_on: bool, rp_off: bool, resolved: &config::Resolved) -> bool {
-    if rp_on {
-        return true;
-    }
-    if rp_off {
-        return false;
-    }
-    resolved.config.agent.require_repoprompt.unwrap_or(false)
-}

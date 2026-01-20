@@ -5,6 +5,7 @@
 //! The CLI entrypoint is `src/main.rs`. This crate exposes internal modules so
 //! integration/stress tests can exercise real behavior without mocks.
 
+pub mod agent;
 pub mod config;
 pub mod contracts;
 pub mod doctor_cmd;
