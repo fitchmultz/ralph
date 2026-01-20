@@ -1114,19 +1114,19 @@ mod tests {
     }
 
     #[test]
-    fn queue_yaml_roundtrip_preserves_ids_and_statuses() -> anyhow::Result<()> {
-        let path = repo_root().join(".ralph/queue.yaml");
+    fn queue_json_roundtrip_preserves_ids_and_statuses() -> anyhow::Result<()> {
+        let path = repo_root().join(".ralph/queue.json");
         let raw =
             std::fs::read_to_string(&path).with_context(|| format!("read {}", path.display()))?;
 
         let parsed: QueueFile =
-            serde_yaml::from_str(&raw).with_context(|| "parse .ralph/queue.yaml as QueueFile")?;
+            serde_json::from_str(&raw).with_context(|| "parse .ralph/queue.json as QueueFile")?;
 
-        let rendered =
-            serde_yaml::to_string(&parsed).with_context(|| "serialize QueueFile back to YAML")?;
+        let rendered = serde_json::to_string_pretty(&parsed)
+            .with_context(|| "serialize QueueFile back to JSON")?;
 
-        let reparsed: QueueFile = serde_yaml::from_str(&rendered)
-            .with_context(|| "parse serialized YAML as QueueFile")?;
+        let reparsed: QueueFile = serde_json::from_str(&rendered)
+            .with_context(|| "parse serialized JSON as QueueFile")?;
 
         let left: Vec<(String, TaskStatus)> = parsed
             .tasks

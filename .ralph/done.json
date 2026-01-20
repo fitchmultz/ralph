@@ -1,0 +1,2341 @@
+{
+  "version": 1,
+  "tasks": [
+    {
+      "id": "RQ-0101",
+      "status": "done",
+      "title": "Standardize log vs println! usage across command handlers",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "logging",
+        "refactor"
+      ],
+      "scope": [
+        "crates/ralph/src/main.rs"
+      ],
+      "evidence": [
+        "Command handlers in `main.rs` (like `handle_queue`, `handle_config`) mix `log::info!`\nand `println!`. Status messages should ideally use the logger to allow filtering."
+      ],
+      "plan": [
+        "Audit `handle_*` functions in `main.rs`.",
+        "Move status/info messages to `log::info!`.",
+        "Keep `println!` only for primary command output (e.g., task IDs, YAML output)."
+      ],
+      "notes": [
+        "Audited `handle_*` functions in `main.rs` for `println!` vs `log::info!` usage.",
+        "Refactored `handle_init` to use `log::info!` for status reporting.",
+        "Confirmed `handle_queue` status messages already use `log::info!`.",
+        "Maintained `println!` for primary command output (IDs, YAML, Config Paths).",
+        "Verified that `make ci` passes with all tests reflecting new log output format."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-19T04:00:47+00:00",
+      "updated_at": "2026-01-18T18:00:00+00:00",
+      "completed_at": "2026-01-18T18:15:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0069",
+      "status": "done",
+      "title": "Backfill missing request and timestamps after scan or task build",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "queue",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/src/scan_cmd.rs",
+        "crates/ralph/src/task_cmd.rs",
+        "crates/ralph/src/queue.rs"
+      ],
+      "evidence": [
+        "scan_cmd and task_cmd do not fill request or created_at and updated_at if runner omits them"
+      ],
+      "plan": [
+        "Detect newly added tasks lacking request or timestamps",
+        "Populate missing fields using the input request and current UTC time",
+        "Add tests for backfill behavior"
+      ],
+      "notes": [
+        "Added backfill_missing_fields function to queue.rs",
+        "Updated scan_cmd.rs to backfill new tasks after runner succeeds",
+        "Updated task_cmd.rs to backfill new tasks after runner succeeds",
+        "Added 6 tests covering backfill behavior (populate, skip existing, empty string handling)",
+        "All tests pass and make ci completes successfully"
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-18T20:45:41+00:00",
+      "updated_at": "2026-01-18T21:00:00+00:00",
+      "completed_at": "2026-01-18T21:30:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0070",
+      "status": "done",
+      "title": "Validate RFC3339 timestamps in set_status and queue validation",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "correctness",
+        "queue"
+      ],
+      "scope": [
+        "crates/ralph/src/queue.rs"
+      ],
+      "evidence": [
+        "set_status only checks now is non-empty and validation never parses timestamps"
+      ],
+      "plan": [
+        "Parse timestamps with time::OffsetDateTime and reject invalid formats",
+        "Validate created_at updated_at and completed_at when present",
+        "Add tests for invalid timestamp handling"
+      ],
+      "notes": [
+        "Added RFC3339 validation for created_at, updated_at, and completed_at in queue.rs",
+        "Updated set_status to validate incoming timestamps",
+        "Added parsing and macros features to time crate dependency",
+        "Added regression tests for invalid timestamp formats"
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-18T20:45:41+00:00",
+      "updated_at": "2026-01-18T20:55:00+00:00",
+      "completed_at": "2026-01-18T20:55:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0072",
+      "status": "done",
+      "title": "Introduce canonical .env and .env.example and load dotenv in CLI",
+      "priority": "medium",
+      "tags": [
+        "config",
+        "tooling",
+        "rust"
+      ],
+      "scope": [
+        ".env",
+        ".env.example",
+        "crates/ralph/src/main.rs"
+      ],
+      "evidence": [
+        "project policy requires a canonical .env file but the repo has none"
+      ],
+      "plan": [
+        "Add .env and .env.example with non-secret defaults",
+        "Load dotenv early in CLI startup",
+        "Document expected variables and usage"
+      ],
+      "notes": [
+        "Added .env and .env.example with RALPH_STRESS_BURN_IN=0",
+        "Added dotenvy = \"0.15\" to crates/ralph/Cargo.toml",
+        "Loaded dotenv early in crates/ralph/src/main.rs using dotenvy::dotenv().ok()",
+        "Verified with make ci"
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-18T20:45:41+00:00",
+      "updated_at": "2026-01-18T21:28:41+00:00",
+      "completed_at": "2026-01-18T21:28:41+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0073",
+      "status": "done",
+      "title": "Handle stale queue locks via auto-clean or force unlock command",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "ux",
+        "queue"
+      ],
+      "scope": [
+        "crates/ralph/src/fsutil.rs",
+        "crates/ralph/src/main.rs"
+      ],
+      "evidence": [
+        "acquire_dir_lock only reports stale pid and requires manual removal of .ralph/lock"
+      ],
+      "plan": [
+        "Add stale lock detection and an opt-in auto-clean or queue unlock command",
+        "Ensure lock cleanup is safe when the pid is still active",
+        "Add tests for stale lock cleanup behavior"
+      ],
+      "notes": [
+        "Added `force` flag to `acquire_dir_lock` and `acquire_queue_lock` to auto-clean stale locks.",
+        "Added global `--force` flag to CLI to opt-in to stale lock cleanup.",
+        "Added `ralph queue unlock` command to manually remove the lock directory.",
+        "Added regression tests in `crates/ralph/tests/stale_lock_cleanup_test.rs`.",
+        "Ensured lock cleanup is skipped if the PID is still active, even with `--force`."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-18T20:45:41+00:00",
+      "updated_at": "2026-01-18T20:53:00+00:00",
+      "completed_at": "2026-01-19T00:41:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0074",
+      "status": "done",
+      "title": "Refactor main.rs to centralize queue loading and validation",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "refactor"
+      ],
+      "scope": [
+        "crates/ralph/src/main.rs"
+      ],
+      "evidence": [
+        "handle_queue repeats loading/validation boilerplate in 5+ subcommands"
+      ],
+      "plan": [
+        "Extract common load/validate logic into a helper function in main.rs or a new module",
+        "Update handle_queue subcommands to use the helper",
+        "Verify no regression in error messages or behavior"
+      ],
+      "notes": [
+        "Extracted load_and_validate_queues helper function in crates/ralph/src/main.rs.",
+        "Updated handle_queue to use the helper in Validate, Next, NextId, Show, and List commands.",
+        "Verified functionality with cargo run -p ralph -- queue validate and make ci."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-18T22:00:00+00:00",
+      "updated_at": "2026-01-19T01:00:00+00:00",
+      "completed_at": "2026-01-19T01:00:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0075",
+      "status": "done",
+      "title": "Centralize RunnerKind and Model resolution logic",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "refactor"
+      ],
+      "scope": [
+        "crates/ralph/src/main.rs",
+        "crates/ralph/src/run_cmd.rs",
+        "crates/ralph/src/runner.rs"
+      ],
+      "evidence": [
+        "resolve_agent_args (main.rs) and resolve_run_agent_settings (run_cmd.rs) overlap significantly"
+      ],
+      "plan": [
+        "Consolidate resolution logic into runner.rs or a dedicated settings module",
+        "Ensure consistent precedence: CLI > task.agent > project config > global config > built-in",
+        "Update main.rs, task_cmd.rs, scan_cmd.rs, and run_cmd.rs to use the centralized logic"
+      ],
+      "notes": [
+        "Created `runner::AgentSettings` struct and `resolve_agent_settings` function in `crates/ralph/src/runner.rs`.",
+        "Updated `crates/ralph/src/main.rs` to use `resolve_agent_settings` for `task` and `scan` commands.",
+        "Updated `crates/ralph/src/run_cmd.rs` to use `resolve_agent_settings` for `run one` and `run loop`.",
+        "Verified with `make ci`."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-18T22:00:00+00:00",
+      "updated_at": "2026-01-19T01:30:00+00:00",
+      "completed_at": "2026-01-19T01:30:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0076",
+      "status": "done",
+      "title": "Audit and harden YAML repair logic in queue.rs",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "correctness",
+        "safety"
+      ],
+      "scope": [
+        "crates/ralph/src/queue.rs"
+      ],
+      "evidence": [
+        "repair_yaml_scalars uses brittle string manipulation and basic prefix/substring checks"
+      ],
+      "plan": [
+        "Expand test suite with complex/nested YAML breakage",
+        "Explore more robust repair strategies (e.g., partial parsing or selective escaping)",
+        "Ensure repair logic handles all standard scalar types and edge-case colons"
+      ],
+      "notes": [
+        "Added comprehensive test suite in `crates/ralph/tests/yaml_repair_test.rs` covering edge cases.",
+        "Hardened `repair_yaml_scalars` to prevent quoting of task object fields (e.g. `id`, `title`) when indented > 2 spaces.",
+        "Introduced `is_task_field_key` and `looks_like_task_start` helper functions.",
+        "Verified fixes with new tests and existing stress tests."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-18T22:00:00+00:00",
+      "updated_at": "2026-01-19T01:45:00+00:00",
+      "completed_at": "2026-01-19T01:45:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0078",
+      "status": "done",
+      "title": "Enhance doctor command to validate done.yaml and check Makefile",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/src/doctor_cmd.rs"
+      ],
+      "evidence": [
+        "doctor currently ignores the done archive and doesn't check for CI readiness (Makefile)"
+      ],
+      "plan": [
+        "Add validation for done.yaml in run_doctor",
+        "Check for presence of Makefile and 'ci' target",
+        "Add check for common config errors (e.g., runner/model mismatches)"
+      ],
+      "notes": [
+        "Added validation for done.yaml in doctor command.",
+        "Added check for Makefile presence and ci target in doctor.",
+        "Added model/runner compatibility check in doctor.",
+        "Updated doctor_contract_test.rs to include Makefile in test environments and added a new test for done.yaml failure."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-18T22:00:00+00:00",
+      "updated_at": "2026-01-18T22:30:00+00:00",
+      "completed_at": "2026-01-18T22:30:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0079",
+      "status": "done",
+      "title": "Audit TaskStatus serialization for consistent snake_case",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "consistency"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts.rs"
+      ],
+      "evidence": [
+        "internal enums are mapped manually; ensure serde(rename_all = \"snake_case\") is respected everywhere"
+      ],
+      "plan": [
+        "Verify all TaskStatus usages in YAML match \"todo\", \"doing\", \"done\"",
+        "Audit other enums (Runner, Model, ReasoningEffort) for consistency"
+      ],
+      "notes": [
+        "Audited crates/ralph/src/contracts.rs and confirmed all public enums (ProjectType, Runner, ReasoningEffort, TaskStatus) use",
+        "Audited crates/ralph/src/main.rs and confirmed all ValueEnum implementations (StatusArg, QueueShowFormat, QueueListFormat) use",
+        "Verified Model uses manual serialization with specific kebab-case strings which is consistent with its cross-tool requirements.",
+        "Verified all current TaskStatus usages in .ralph/queue.yaml and .ralph/done.yaml correctly use \"todo\", \"doing\", and \"done\".",
+        "Confirmed is_task_field_key in queue.rs uses consistent snake_case for field matching.",
+        "make ci passed successfully."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-18T22:00:00+00:00",
+      "updated_at": "2026-01-18T22:15:00+00:00",
+      "completed_at": "2026-01-18T22:45:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0086",
+      "status": "done",
+      "title": "Audit config.rs for robust error handling and layering",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "correctness"
+      ],
+      "scope": [
+        "crates/ralph/src/config.rs"
+      ],
+      "evidence": [
+        "apply_layer uses manual field-by-field copy; missing some validation checks"
+      ],
+      "plan": [
+        "Audit apply_layer for missing fields or inconsistent merging",
+        "Ensure all Option fields in ConfigLayer are correctly handled",
+        "Add more descriptive errors for invalid config values"
+      ],
+      "notes": [
+        "Refactored `apply_layer` to use centralized `merge_from` methods on `QueueConfig` and `AgentConfig`.",
+        "Added `validate_config` function to ensure all configuration values (version, id_prefix, id_width, file paths, and runner binaries) are valid and non-empty.",
+        "Improved error context by wrapping `apply_layer` calls with `with_context` in `resolve_from_cwd`.",
+        "Removed redundant validation from `resolve_id_prefix` and others while maintaining safety.",
+        "Verified with `make ci`."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-18T22:00:00+00:00",
+      "updated_at": "2026-01-18T22:38:00+00:00",
+      "completed_at": "2026-01-19T03:05:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0081",
+      "status": "done",
+      "title": "Expand redaction.rs with more sensitive patterns",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "security"
+      ],
+      "scope": [
+        "crates/ralph/src/redaction.rs"
+      ],
+      "evidence": [
+        "current redaction is limited to bearer tokens and some env var keys"
+      ],
+      "plan": [
+        "Add patterns for AWS keys, SSH private key headers, and generic hex tokens",
+        "Improve key-value pair detection for multi-line values",
+        "Add tests for new patterns"
+      ],
+      "notes": [
+        "Added AWS key redaction (AKIA and 40-char secrets).",
+        "Added SSH private key redaction (BEGIN/END markers).",
+        "Added generic hex token redaction (32+ chars).",
+        "Improved key-value pair redaction to handle YAML-style multi-line indicators (| and >).",
+        "Added regression tests in `crates/ralph/tests/redaction_expansion_test.rs`."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-18T22:00:00+00:00",
+      "updated_at": "2026-01-18T22:15:00+00:00",
+      "completed_at": "2026-01-18T22:30:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0080",
+      "status": "done",
+      "title": "Improve gitutil::require_clean_repo error message",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/src/gitutil.rs"
+      ],
+      "evidence": [
+        "current error bails with raw porcelain output; lacks actionable bypass/stash advice"
+      ],
+      "plan": [
+        "Update error message to suggest 'git stash' or using '--force' (if applicable)",
+        "Distinguish between untracked and tracked changes in the message"
+      ],
+      "notes": [
+        "Updated `require_clean_repo` to parse `git status --porcelain` and distinguish tracked vs untracked changes.",
+        "Added helpful suggestions (`git stash`, `git commit`, `git clean -fd`, `git add`) and mentioned `--force`.",
+        "Added a `force` parameter to `require_clean_repo` to allow bypassing the check via the global `--force` CLI flag.",
+        "Updated all callers in `run_cmd.rs`, `scan_cmd.rs`, and `task_cmd.rs` to pass the `force` flag.",
+        "Added integration test `run_one_succeeds_when_repo_is_dirty_and_force_is_used` in `git_repo_integration_test.rs`."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-18T22:00:00+00:00",
+      "updated_at": "2026-01-18T22:50:00+00:00",
+      "completed_at": "2026-01-18T22:50:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0082",
+      "status": "done",
+      "title": "Integrate a logging crate (e.g., env_logger) for output control",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "observability"
+      ],
+      "scope": [
+        "crates/ralph/src/main.rs",
+        "crates/ralph/Cargo.toml"
+      ],
+      "evidence": [
+        "direct println/eprintln usage makes verbosity control difficult"
+      ],
+      "plan": [
+        "Add env_logger or tracing-subscriber dependency",
+        "Replace strategic println/eprintln with log macros (info!, warn!, debug!)",
+        "Allow controlling verbosity via RUST_LOG or a --verbose flag"
+      ],
+      "notes": [
+        "Added `log` and `env_logger` dependencies.",
+        "Added global `--verbose` flag to CLI (sets log level to `debug`).",
+        "Initialized `env_logger` with `info` as default level.",
+        "Replaced strategic `println!`/`eprintln!` calls with `log` macros across `main.rs`, `queue.rs`, `run_cmd.rs`, `scan_cmd.rs`, and `task_cmd.rs`.",
+        "Updated `git_repo_integration_test.rs` to handle new log format."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-18T22:00:00+00:00",
+      "updated_at": "2026-01-18T23:36:00+00:00",
+      "completed_at": "2026-01-19T02:48:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0083",
+      "status": "done",
+      "title": "Improve run_loop reporting and remaining tasks count",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/src/run_cmd.rs"
+      ],
+      "evidence": [
+        "run_loop doesn't report how many todo tasks remain or total progress"
+      ],
+      "plan": [
+        "Count initial todo tasks before starting loop",
+        "Report \"Task X of Y\" or \"Z tasks remaining\" in the loop output"
+      ],
+      "notes": [
+        "Count initial todo tasks at the start of the loop.",
+        "Log \"Starting run loop with X todo tasks.\"",
+        "Log \"Completed task_id (X/Y)\" after each successful task.",
+        "Log \"No more todo tasks remaining.\" when the queue is exhausted."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-18T22:00:00+00:00",
+      "updated_at": "2026-01-18T22:00:00+00:00",
+      "completed_at": "2026-01-18T22:15:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0084",
+      "status": "done",
+      "title": "Enhance handle_init to verify existing file validity",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/src/init_cmd.rs",
+        "crates/ralph/src/main.rs"
+      ],
+      "evidence": [
+        "init just prints \"exists\" for files; it doesn't check if they are valid or need repair"
+      ],
+      "plan": [
+        "Add validation/repair logic to handle_init for existing queue/done/config files",
+        "Report \"exists (valid)\" or \"exists (repaired)\" instead of just \"exists\""
+      ],
+      "notes": [
+        "Added validation and repair logic to `init` command for existing queue, done, and config files.",
+        "Updated `InitReport` and `FileInitStatus` to track whether files were created, valid, or repaired.",
+        "Updated `main.rs` to report \"exists (valid)\" or \"exists (repaired)\" in the output.",
+        "Added unit test `init_repairs_existing_when_not_forced` to verify repair behavior.",
+        "Verified all tests pass with `make ci`."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-18T22:00:00+00:00",
+      "updated_at": "2026-01-18T22:50:00+00:00",
+      "completed_at": "2026-01-18T22:50:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0085",
+      "status": "done",
+      "title": "Improve runner::run_prompt error reporting with structured types",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "error-handling"
+      ],
+      "scope": [
+        "crates/ralph/src/runner.rs",
+        "crates/ralph/src/run_cmd.rs"
+      ],
+      "evidence": [
+        "runner errors are currently generic anyhow::Error, making recovery decisions harder"
+      ],
+      "plan": [
+        "Define a RunnerError enum (BinaryMissing, Timeout, NonZeroExit, etc.)",
+        "Update run_prompt and its callers to use structured errors",
+        "Improve supervisor response to specific failure modes (e.g., don't revert if it's just a timeout)"
+      ],
+      "notes": [
+        "Defined `RunnerError` enum with `BinaryMissing`, `SpawnFailed`, `NonZeroExit`, `TerminatedBySignal`, `Interrupted`, `Timeout`, and `Io` variants.",
+        "Updated `runner::run_prompt` and its sub-functions to return `Result<RunnerOutput, RunnerError>`.",
+        "Added `timeout` support to `run_prompt` and `wait_for_child`.",
+        "Updated `run_cmd.rs`, `task_cmd.rs`, and `scan_cmd.rs` to handle structured errors and log specific details.",
+        "Implemented \"no revert on timeout\" logic in `run_cmd.rs`.",
+        "Added `thiserror` dependency to `crates/ralph/Cargo.toml`.",
+        "Verified with `make ci`."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-18T22:00:00+00:00",
+      "updated_at": "2026-01-18T22:45:00+00:00",
+      "completed_at": "2026-01-18T22:45:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0087",
+      "status": "done",
+      "title": "Add stress tests for edge-case YAML breakage and recovery",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "testing"
+      ],
+      "scope": [
+        "crates/ralph/src/queue.rs",
+        "crates/ralph/tests/stress_queue_contract_test.rs"
+      ],
+      "evidence": [
+        "current stress tests focus on volume, not necessarily complex structural breakage"
+      ],
+      "plan": [
+        "Add specific test cases for truncated YAML, invalid types, and nested scalar colons",
+        "Verify that Ralph reliably repairs or bails with clear errors"
+      ],
+      "notes": [
+        "Added `stress_queue_repair_edge_cases` test covering truncated YAML, invalid types, and nested scalar colons.",
+        "Improved `repair_yaml_structure` to proactively fix version mismatch and tasks indentation.",
+        "Refined `repair_yaml_scalars` to correctly distinguish between task starts and list items needing quotes.",
+        "Fixed Clippy warnings in `crates/ralph/src/queue.rs`."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-18T22:00:00+00:00",
+      "updated_at": "2026-01-18T22:36:20+00:00",
+      "completed_at": "2026-01-19T03:55:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0088",
+      "status": "done",
+      "title": "Audit CLI help strings for completeness and consistency",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/src/main.rs"
+      ],
+      "evidence": [
+        "some subcommands have more detailed help/examples than others"
+      ],
+      "plan": [
+        "Review all long_help and after_long_help strings in main.rs",
+        "Ensure consistent formatting for examples and runner/model notes",
+        "Verify all subcommands have at least one clear example"
+      ],
+      "notes": [
+        "Added about and after_long_help with examples to all subcommands in main.rs.",
+        "Added doc comments to StatusArg, QueueShowFormat, and QueueListFormat for better ValueEnum help.",
+        "Ensured consistent example formatting across all commands.",
+        "Fixed missing about for scan and init subcommands.",
+        "Verified with cargo run -p ralph -- --help and subcommands."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-18T22:00:00+00:00",
+      "updated_at": "2026-01-18T22:05:00+00:00",
+      "completed_at": "2026-01-18T22:10:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0089",
+      "status": "done",
+      "title": "Update all rust cargo dependencies to the latest version and run `make ci` to verify everything still works",
+      "priority": "medium",
+      "tags": [
+        "rust"
+      ],
+      "scope": [
+        "Cargo.toml"
+      ],
+      "evidence": [
+        "some dependencies are out of date"
+      ],
+      "plan": [
+        "Update all dependencies to the latest version",
+        "Run make ci to verify everything still works"
+      ],
+      "notes": [
+        "Updated `thiserror` from 1.0 to 2.0 in `crates/ralph/Cargo.toml`.",
+        "Updated all other dependencies to their exact latest versions in `crates/ralph/Cargo.toml`.",
+        "Verified with `make ci` (all 153 tests passed).",
+        "Confirmed `Cargo.lock` is updated and synchronized."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-18T22:00:00+00:00",
+      "updated_at": "2026-01-18T22:57:00+00:00",
+      "completed_at": "2026-01-18T22:57:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0090",
+      "status": "done",
+      "title": "Add .ralph/README.md creation to `ralph init` when loop prompts reference it",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "docs"
+      ],
+      "scope": [
+        "crates/ralph/src/init_cmd.rs",
+        ".ralph/README.md"
+      ],
+      "evidence": [
+        "loop prompts can include .ralph/README.md, but init does not ensure it exists"
+      ],
+      "plan": [
+        "Detect when loop prompts reference .ralph/README.md",
+        "Create .ralph/README.md during `ralph init` when referenced",
+        "Add tests to cover prompt references and init behavior"
+      ],
+      "notes": [
+        "Added `prompts_reference_readme` to `prompts.rs` to detect references in active prompts.",
+        "Added `crates/ralph/assets/ralph_readme.md` as default content for `.ralph/README.md`.",
+        "Updated `ralph init` to create `.ralph/README.md` if referenced and missing (or if forced).",
+        "Updated `main.rs` to report `readme` initialization status.",
+        "Added unit tests in `init_cmd.rs` covering both referenced and unreferenced scenarios.",
+        "Verified with `make ci`."
+      ],
+      "request": "scan repair",
+      "created_at": "2026-01-19T03:36:03+00:00",
+      "updated_at": "2026-01-19T03:49:54+00:00",
+      "completed_at": "2026-01-19T03:56:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0093",
+      "status": "done",
+      "title": "Implement centralized CLI output utility for consistent formatting",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "ux",
+        "utility"
+      ],
+      "scope": [
+        "crates/ralph/src/outpututil.rs"
+      ],
+      "evidence": [
+        "`outpututil.rs` is currently very minimal. CLI output patterns like task lists,\nstatus reports, and error summaries are implemented ad-hoc in various command modules."
+      ],
+      "plan": [
+        "Expand `outpututil.rs` with helpers for common CLI output patterns (e.g., info/success/warning prefixes).",
+        "Add support for basic ANSI colors/styles if appropriate (mimicking project conventions).",
+        "Provide a standardized way to print task summaries used by `queue list` and `run`."
+      ],
+      "notes": [
+        "Added `colored` dependency to `crates/ralph/Cargo.toml`.",
+        "Expanded `outpututil.rs` with `print_info`, `print_success`, `print_warn`, `print_error` helpers.",
+        "Implemented `format_task_compact` and `format_task_detailed` in `outpututil.rs` with status coloring.",
+        "Refactored `main.rs` to use the centralized formatting logic."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-19T04:00:47+00:00",
+      "updated_at": "2026-01-19T05:00:00+00:00",
+      "completed_at": "2026-01-19T05:00:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0103",
+      "status": "done",
+      "title": "Implement RedactedError wrapper for safe error display",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "safety",
+        "error-handling"
+      ],
+      "scope": [
+        "crates/ralph/src/redaction.rs"
+      ],
+      "evidence": [
+        "There is no easy way to wrap an arbitrary `anyhow::Error` and ensure it is\nredacted when displayed. This leads to manual redaction logic at various display sites."
+      ],
+      "plan": [
+        "Create a `RedactedError(anyhow::Error)` wrapper in `redaction.rs`.",
+        "Implement `Display` and `Debug` for it, applying `redact_text` to the output.",
+        "Provide a helper method `redacted()` for `Result` to easily wrap errors."
+      ],
+      "notes": [
+        "Implemented `RedactedError` struct wrapping `anyhow::Error`.",
+        "Implemented `Display` and `Debug` for `RedactedError` to automatically apply redaction.",
+        "Added `Redactable` trait with `redacted()` helper for `Result`.",
+        "Added unit tests for `RedactedError` and `Redactable`."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-19T04:00:47+00:00",
+      "updated_at": "2026-01-19T05:15:00+00:00",
+      "completed_at": "2026-01-19T05:15:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0095",
+      "status": "done",
+      "title": "Implement a logging wrapper with automatic redaction",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "safety",
+        "logging"
+      ],
+      "scope": [
+        "crates/ralph/src/redaction.rs"
+      ],
+      "evidence": [
+        "Redaction is currently applied manually in some places (like `run_cmd.rs` error handling)\nbut forgotten in others. A centralized logging wrapper would ensure consistency."
+      ],
+      "plan": [
+        "Implement a macro or helper that wraps standard `log` macros to apply `redact_text`.",
+        "Alternatively, implement a custom `Log` implementation that redacts all messages.",
+        "Ensure that all sensitive data (env vars, keys) is automatically masked in all logs."
+      ],
+      "notes": [
+        "Implemented `RedactedLogger` as a `log::Log` wrapper that automatically redacts all log messages using `redact_text`.",
+        "Added `rinfo!`, `rwarn!`, `rerror!`, `rdebug!`, and `rtrace!` macros for explicit redacted logging.",
+        "Integrated `RedactedLogger` into `main.rs` to wrap the global logger.",
+        "Added top-of-file purpose header to `redaction.rs` as per AGENTS.md."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-19T04:00:47+00:00",
+      "updated_at": "2026-01-19T04:42:03+00:00",
+      "completed_at": "2026-01-19T04:42:03+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0097",
+      "status": "done",
+      "title": "Refactor gitutil.rs to use thiserror for structured errors",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "git",
+        "refactor"
+      ],
+      "scope": [
+        "crates/ralph/src/gitutil.rs"
+      ],
+      "evidence": [
+        "`gitutil.rs` uses a manual `GitPushError` struct and `classify_push_error` that\njust returns strings for `bail!`. It doesn't leverage `thiserror` for real types."
+      ],
+      "plan": [
+        "Define a proper `GitError` enum using `thiserror`.",
+        "Include variants for common failures: NoUpstream, AuthFailed, DirtyRepo, etc.",
+        "Update call sites to use these structured errors for better programmatic handling and consistent display."
+      ],
+      "notes": [
+        "Defined `GitError` enum using `thiserror` in `gitutil.rs`.",
+        "Replaced `GitPushError` with `GitError` variants (NoUpstream, AuthFailed, PushFailed, DirtyRepo, CommandFailed).",
+        "Updated `gitutil` functions to return `Result<T, GitError>`.",
+        "Refactored `run_cmd::push_if_ahead` to use structured error matching for skipping push when no upstream is configured.",
+        "Verified with `make ci`."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-19T04:00:47+00:00",
+      "updated_at": "2026-01-18T10:15:00+00:00",
+      "completed_at": "2026-01-18T10:15:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0091",
+      "status": "done",
+      "title": "Standardize top-level error formatting and redaction in main.rs",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "safety",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/src/main.rs"
+      ],
+      "evidence": [
+        "Top-level error handling in `main.rs` uses `eprintln!(\"Error: {:#}\", err);`.\nThis is unformatted and does not redact potential secrets contained in error messages."
+      ],
+      "plan": [
+        "Integrate `redaction::redact_text` into the top-level error printing in `main.rs`.",
+        "Use consistent formatting (e.g., bold or color) for \"Error:\" prefix.",
+        "Ensure nested errors (via `{:#}`) are also redacted."
+      ],
+      "notes": [
+        "Integrated redaction::redact_text into top-level error handling in main.rs.",
+        "Standardized \"Error:\" prefix with bold red formatting.",
+        "Verified with cargo run and manual error triggering."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-19T04:00:47+00:00",
+      "updated_at": "2026-01-19T04:46:56+00:00",
+      "completed_at": "2026-01-19T04:48:40+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0105",
+      "status": "done",
+      "title": "Refactor task formatting to use centralized utility",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "ux",
+        "refactor"
+      ],
+      "scope": [
+        "crates/ralph/src/main.rs"
+      ],
+      "evidence": [
+        "`format_task_compact` and `format_task_long` are defined in `main.rs`.\nThey should be moved to `outpututil.rs` or `contracts.rs` and standardized."
+      ],
+      "plan": [
+        "Move task formatting logic out of `main.rs`.",
+        "Ensure consistent trimming and joining of tags/scope.",
+        "Integrate with the new `outpututil` helpers for consistent CLI presentation."
+      ],
+      "notes": [
+        "Standardized `format_task_compact` and `format_task_detailed` in `outpututil.rs` with consistent `\\t` separators.",
+        "Extracted `join_csv_trimmed` as a public helper in `outpututil.rs`.",
+        "Added `format_task_id` and `format_task_id_title` to `outpututil.rs` and used them in `main.rs`.",
+        "Centralized `format_task_commit_message` in `outpututil.rs` and used it in `run_cmd.rs`.",
+        "Verified with `make ci`."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-19T04:00:47+00:00",
+      "updated_at": "2026-01-18T00:00:00+00:00",
+      "completed_at": "2026-01-18T00:00:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0092",
+      "status": "done",
+      "title": "Refactor doctor_cmd.rs to use standardized logging and levels",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "logging",
+        "refactor"
+      ],
+      "scope": [
+        "crates/ralph/src/doctor_cmd.rs"
+      ],
+      "evidence": [
+        "`doctor_cmd.rs` uses `println!` for almost everything, which ignores the `log` crate\nand user verbosity settings. It also manually manages \"OK/FAIL\" prefixes."
+      ],
+      "plan": [
+        "Replace `println!` calls with appropriate `log` levels (info, warn, error).",
+        "Use a helper for consistent \"OK/FAIL/WARN\" status reporting.",
+        "Ensure the output respects the `--verbose` flag via the logger configuration."
+      ],
+      "notes": [
+        "Replaced all `println!` and `eprintln!` calls in `doctor_cmd.rs` with `log` macros.",
+        "Introduced `log_success`, `log_warn`, and `log_error` in `outpututil.rs` for consistent status reporting.",
+        "Updated `doctor_contract_test.rs` to verify new log output format and destination (stderr).",
+        "Verified that `make ci` passes with 159 tests."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-19T04:00:47+00:00",
+      "updated_at": "2026-01-18T05:05:00+00:00",
+      "completed_at": "2026-01-18T05:05:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0094",
+      "status": "done",
+      "title": "Standardize anyhow::bail! messages to include fix direction",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "ux",
+        "error-handling"
+      ],
+      "scope": [
+        "crates/ralph/src/config.rs",
+        "crates/ralph/src/queue.rs"
+      ],
+      "evidence": [
+        "Many `bail!` messages in `config.rs` and `queue.rs` simply state what is wrong\nwithout providing guidance on how the user can fix it (e.g., \"id_prefix must be non-empty\")."
+      ],
+      "plan": [
+        "Audit `bail!` calls in core logic.",
+        "Update error messages to follow a \"Problem: Context. Solution: Action.\" pattern.",
+        "Example: \"id_prefix is empty. Set a valid prefix in .ralph/config.yaml or via --id-prefix.\""
+      ],
+      "notes": [
+        "Updated 30+ `bail!` calls in `config.rs`, `queue.rs`, `run_cmd.rs`, `task_cmd.rs`, `scan_cmd.rs`, `prompts.rs`, `main.rs`, and `doctor_cmd.rs` to follow the \"Problem: Solution\" pattern.",
+        "Ensured that error messages provide actionable advice (e.g., specific config keys or flags to set).",
+        "Updated unit tests and contract tests to reflect the new improved error messages.",
+        "Verified that `make ci` passes with all tests updated."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-19T04:00:47+00:00",
+      "updated_at": "2026-01-18T21:00:00+00:00",
+      "completed_at": "2026-01-18T21:07:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0096",
+      "status": "done",
+      "title": "Improve fsutil::acquire_dir_lock error messages",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "error-handling",
+        "fs"
+      ],
+      "scope": [
+        "crates/ralph/src/fsutil.rs"
+      ],
+      "evidence": [
+        "`acquire_dir_lock` builds a very long, complex error message as a single string.\nIt's hard to read and doesn't clearly separate the state from the suggested fix."
+      ],
+      "plan": [
+        "Refactor the error message generation in `acquire_dir_lock` for better readability.",
+        "Use newlines and clear sections (Lock Holder, Started At, Suggested Action).",
+        "Ensure the message provides specific `rm` commands for the lock directory."
+      ],
+      "notes": [
+        "Refactored `acquire_dir_lock` to use a structured error message format.",
+        "Added `format_lock_error` helper for clear separation of state and suggested actions.",
+        "Updated `stale_lock_cleanup_test.rs` to reflect the new message format.",
+        "Verified that `make ci` passes with the changes."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-19T04:00:47+00:00",
+      "updated_at": "2026-01-18T22:38:00+00:00",
+      "completed_at": "2026-01-19T05:12:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0099",
+      "status": "done",
+      "title": "Integrate redaction into RunnerOutput and RunnerError display",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "safety",
+        "runner"
+      ],
+      "scope": [
+        "crates/ralph/src/runner.rs"
+      ],
+      "evidence": [
+        "`RunnerError::NonZeroExit` and `TerminatedBySignal` store raw stdout/stderr strings.\nWhile `run_cmd.rs` redacts them before logging, other consumers might not."
+      ],
+      "plan": [
+        "Ensure that `RunnerError` formatting (via `thiserror`) applies redaction to stdout/stderr.",
+        "Audit all places where `RunnerOutput` is displayed to ensure redaction is applied."
+      ],
+      "notes": [
+        "Implemented `RedactedString` wrapper in `redaction.rs` that automatically redacts on `Display` and `Debug`.",
+        "Updated `RunnerError` to use `RedactedString` for `stdout` and `stderr` fields, ensuring automatic redaction via `thiserror`.",
+        "Implemented `Display` and `Debug` for `RunnerOutput` to ensure its content is always redacted when displayed.",
+        "Simplified call sites in `scan_cmd.rs`, `task_cmd.rs`, and `run_cmd.rs` by leveraging automatic redaction.",
+        "Added unit tests in `runner.rs` to verify redaction in `RunnerError` and `RunnerOutput`."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-19T04:00:47+00:00",
+      "updated_at": "2026-01-18T16:00:00+00:00",
+      "completed_at": "2026-01-18T16:10:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0100",
+      "status": "done",
+      "title": "Add log statements for task execution lifecycle and duration",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "logging",
+        "runner"
+      ],
+      "scope": [
+        "crates/ralph/src/run_cmd.rs"
+      ],
+      "evidence": [
+        "Task execution currently logs completion but doesn't log the start or the\nduration of the run. This makes it hard to track progress in long-running loops."
+      ],
+      "plan": [
+        "Add a log message when a task starts execution, including its ID and title.",
+        "Record the start time and log the total duration on completion.",
+        "Log the runner and model being used for the specific task."
+      ],
+      "notes": [
+        "Added a log message when a task starts execution, including its ID, title, runner, and model.",
+        "Recorded the start time using `std::time::Instant`.",
+        "Logged the total duration on successful completion.",
+        "Updated `crates/ralph/src/run_cmd.rs` to implement these lifecycle logs.",
+        "Verified with `make ci`."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-19T04:00:47+00:00",
+      "updated_at": "2026-01-18T22:38:00+00:00",
+      "completed_at": "2026-01-18T22:42:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0102",
+      "status": "done",
+      "title": "Enhance queue validation errors with fix instructions",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "queue",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/src/queue.rs"
+      ],
+      "evidence": [
+        "`validate_task_required_fields` and `validate_task_id` provide exact errors but\ncould be more helpful (e.g., \"id must contain '-'\" could suggest the correct format)."
+      ],
+      "plan": [
+        "Update validation error messages to include examples of valid values.",
+        "Suggest specific fixes (e.g., \"run 'ralph queue repair' if the YAML is slightly malformed\")."
+      ],
+      "notes": [
+        "Updated `validate_task_required_fields`, `validate_task_id`, `ensure_list_non_empty`, `ensure_field_present`, and `validate_rfc3339` in `queue.rs`.",
+        "Error messages now include examples of valid values (IDs, timestamps) and suggest running 'ralph queue repair' for malformed YAML.",
+        "Standardized \"Problem: Solution\" pattern for all validation bailouts.",
+        "Verified with `make ci`."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-19T04:00:47+00:00",
+      "updated_at": "2026-01-19T05:23:13+00:00",
+      "completed_at": "2026-01-19T05:26:29+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0098",
+      "status": "done",
+      "title": "Add debug logging for config resolution and repo root discovery",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "logging",
+        "config"
+      ],
+      "scope": [
+        "crates/ralph/src/config.rs"
+      ],
+      "evidence": [
+        "`find_repo_root` and `resolve_from_cwd` operate silently. If configuration\nloading fails or picks the wrong directory, it's difficult to debug without code changes."
+      ],
+      "plan": [
+        "Add `log::debug!` statements to `find_repo_root` showing each directory checked.",
+        "Log the paths of global and project config files being loaded.",
+        "Log the final resolved paths for queue, done, and root."
+      ],
+      "notes": [
+        "Added `log::debug!` statements to `find_repo_root` showing each directory checked during root discovery.",
+        "Added debug logs for global and project config loading in `resolve_from_cwd`.",
+        "Logged final resolved paths for `repo_root`, `queue_path`, and `done_path`.",
+        "Verified with `make ci`."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-19T04:00:47+00:00",
+      "updated_at": "2026-01-18T20:11:00+00:00",
+      "completed_at": "2026-01-18T20:30:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0104",
+      "status": "done",
+      "title": "Audit and improve logging in fsutil sync operations",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "logging",
+        "fs"
+      ],
+      "scope": [
+        "crates/ralph/src/fsutil.rs"
+      ],
+      "evidence": [
+        "`sync_dir_best_effort` and other fs operations fail silently or without much\ncontext. While \"best effort\" implies silence, debug logs would be valuable."
+      ],
+      "plan": [
+        "Add `log::debug!` or `log::trace!` to file synchronization and atomic write steps.",
+        "Include path information in these logs to help trace filesystem issues."
+      ],
+      "notes": [
+        "Added debug logging to sync_dir_best_effort, write_atomic, acquire_dir_lock, and write_lock_owner."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-19T04:00:47+00:00",
+      "updated_at": "2026-01-18T10:15:00+00:00",
+      "completed_at": "2026-01-18T10:15:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0107",
+      "status": "done",
+      "title": "Prevent redaction panic on non-UTF-8 boundary slicing",
+      "priority": "medium",
+      "tags": [
+        "bugfix",
+        "rust",
+        "reliability"
+      ],
+      "scope": [
+        "crates/ralph/src/redaction.rs",
+        "crates/ralph (redaction callers)",
+        "cargo test -p ralph"
+      ],
+      "evidence": [
+        "User request: Error: Provider returned error thread 'main' (15281963) panicked at crates/ralph/src/redaction.rs:235:16: byte index 2634 is not a char boundary; it is inside '\u00e2' (bytes 2633..2635) of |  Read     AGENTS.md"
+      ],
+      "plan": [
+        "Reproduce the panic path in redaction and identify the slicing logic at the reported location.",
+        "Update redaction to avoid byte-index slicing on UTF-8 strings (use char-safe boundaries or bytes-to-str conversion).",
+        "Add or adjust tests to cover non-ASCII inputs and prevent regressions.",
+        "Run `cargo test -p ralph` and any targeted checks tied to redaction behavior."
+      ],
+      "notes": [
+        "Updated redaction loops to advance on UTF-8 boundaries and avoid byte-to-char casting.",
+        "Added a shared helper for safe character copying during redaction scans.",
+        "Added a non-ASCII regression test for redact_text.",
+        "Ran `cargo test -p ralph`."
+      ],
+      "request": "This error popped up while running a loop in a different repo. Fix. Error: Provider returned error thread 'main' (15281963) panicked at crates/ralph/src/redaction.rs:235:16: byte index 2634 is not a char boundary; it is inside '\u00e2' (bytes 2633..2635) of |  Read     AGENTS.md",
+      "created_at": "2026-01-19T05:45:41+00:00",
+      "updated_at": "2026-01-19T05:50:46+00:00",
+      "completed_at": "2026-01-19T05:50:46+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0106",
+      "status": "done",
+      "title": "Audit and remove dead or duplicated code with shared helpers",
+      "priority": "medium",
+      "tags": [
+        "refactor",
+        "dry",
+        "cleanup"
+      ],
+      "scope": [
+        "crates/ralph",
+        "repo-wide scan for duplication and dead code"
+      ],
+      "evidence": [
+        "User request: Thorough review of dead code and duplicated code/redunandant code. Make sure we are not violating DRY principals and all code is consistenly using helpers, etc."
+      ],
+      "plan": [
+        "Scan the repo for dead code, unused modules, and duplicated logic; inventory candidates with file paths.",
+        "Identify shared patterns that should be centralized and propose/implement helpers to remove duplication.",
+        "Remove dead code and refactor duplicates to use shared helpers, keeping behavior unchanged and tests updated.",
+        "Run relevant checks/tests and ensure consistency with repo standards."
+      ],
+      "notes": [
+        "Centralized runner error handling and log tailing in `crates/ralph/src/runutil.rs`.",
+        "Reused shared helpers for runner binaries, task diffing, and timestamp fallback across scan/task/run.",
+        "Removed unused `gitutil::require_clean_repo` and `outpututil::log_info`.",
+        "Verified with `make ci`."
+      ],
+      "request": "Thorough review of dead code and duplicated code/redunandant code. Make sure we are not violating DRY principals and all code is consistenly using helpers, etc.",
+      "created_at": "2026-01-19T05:39:27+00:00",
+      "updated_at": "2026-01-19T06:08:02+00:00",
+      "completed_at": "2026-01-19T06:08:02+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0109",
+      "status": "done",
+      "title": "Add queue 'status' support for 'rejected' to allow the user to reject task queue items.",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "reliability",
+        "config"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts.rs",
+        "crates/ralph/src/run_cmd.rs",
+        "crates/ralph/src/task_cmd.rs",
+        "crates/ralph/src/scan_cmd.rs"
+      ],
+      "evidence": [
+        "Rejected is not currently supported as a task status"
+      ],
+      "plan": [
+        "Add rejected field as a valid option",
+        "Wire rejected up the same way the other status values are handled",
+        "If a task is in the queue.yaml file running `ralph queue validate` and or `ralph queue repair` should move the task to the bottom of the done.yaml file"
+      ],
+      "notes": [],
+      "request": "user request",
+      "created_at": "2025-01-19T12:00:00+00:00",
+      "updated_at": "2026-01-19T19:15:56.127982+00:00",
+      "completed_at": "2026-01-19T19:15:56.127982+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0149",
+      "status": "done",
+      "title": "Update AGENTS.md to use make ci instead of cargo build/test",
+      "priority": "medium",
+      "tags": [
+        "docs",
+        "ci",
+        "agents"
+      ],
+      "scope": [
+        "AGENTS.md"
+      ],
+      "evidence": [
+        "AGENTS.md line 30 already mentions run 'make ci' as the gate",
+        "The \"Build, Test, and Development Commands\" section (line 11-21) lists individual cargo commands",
+        "User requested agents run 'make ci' instead of 'cargo build' or 'cargo test' directly",
+        "make ci includes generate, format, type-check, lint, build, test, install (comprehensive gate)"
+      ],
+      "plan": [
+        "Add a note or bullet in AGENTS.md emphasizing that agents should run 'make ci' as the comprehensive gate",
+        "Clarify that individual cargo commands (cargo test, cargo build) are for development/iteration, not the final gate",
+        "Ensure the documentation distinguishes between \"development commands\" and \"CI gate requirements\"",
+        "Test by verifying the language explicitly directs agents to use 'make ci' for validation"
+      ],
+      "notes": [],
+      "request": "Update the AGENTS.md file, which already mentions running the 'make ci' gate, to have the agents run 'make ci' instead of 'cargo build' or 'cargo test' directly as the make ci gate includes both steps and is more comprehensive.",
+      "created_at": "2026-01-19T19:39:21+00:00",
+      "updated_at": "2026-01-19T19:42:32.176827+00:00",
+      "completed_at": "2026-01-19T19:42:32.176827+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0150",
+      "status": "done",
+      "title": "Make RepoPrompt context_builder mandatory for Claude plan generation",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "runner",
+        "prompts",
+        "reprompt"
+      ],
+      "scope": [
+        "crates/ralph/src/runner.rs"
+      ],
+      "evidence": [
+        "The generate_claude_plan function (line 510) creates a planning prompt but does not mandate RepoPrompt context_builder usage",
+        "Current planning prompt says \"Analyze the codebase and generate a plan, but DO NOT make any edits\"",
+        "RepoPrompt context_builder tool is available but not explicitly required for plan generation",
+        "User explicitly requested: \"Modify the prompt sent to the claude plan loop to make using the Repo Prompt context_builder tool to generate the plan mandatory\""
+      ],
+      "plan": [
+        "Modify the generate_claude_plan function planning_prompt to explicitly require using RepoPrompt context_builder",
+        "Add mandatory instruction: \"You MUST use the RepoPrompt context_builder tool to generate the plan. Do not proceed without using context_builder first.\"",
+        "Update the planning mode prompt to emphasize that context_builder is a non-optional requirement",
+        "Harden language that stresses that the plan generation phase is ONLY for plan generation, even after the Repo Prompt plan is provided. ONLY Phase 2 implements the plan. Phase 1 is only for plan generation.",
+        "Test by running two-pass plan mode and verifying context_builder is used",
+        "Run make ci to ensure tests pass"
+      ],
+      "notes": [
+        "Required Claude planning prompts to mandate RepoPrompt context_builder usage and reinforce plan-only phase.",
+        "Added a dedicated planning prompt builder with unit coverage for the mandatory language.",
+        "Verified with make ci."
+      ],
+      "request": "Modify the prompt sent to the claude plan loop to make using the Repo Prompt context_builder tool to generate the plan mandatory.",
+      "created_at": "2025-01-19T17:00:00+00:00",
+      "updated_at": "2026-01-19T20:08:57+00:00",
+      "completed_at": "2026-01-19T20:08:57+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0148",
+      "status": "done",
+      "title": "Change done.yaml archival behavior to append completed tasks to the END",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "prompts",
+        "queue"
+      ],
+      "scope": [
+        "crates/ralph/assets/prompts/worker.md"
+      ],
+      "evidence": [
+        "Current done.yaml has tasks in reverse chronological order (newest first: RQ-0101, then RQ-0069)",
+        "The queue.rs archive_done_tasks function already appends to the end via done.tasks.push(task)",
+        "The worker.md prompt says \"append to the tasks list\" but agents are inserting at the top",
+        "User explicitly requested: \"have agents append the completed task queue item to the END of the done.yaml file\""
+      ],
+      "plan": [
+        "Update worker.md line 35 to say \"appended to the END of .ralph/done.yaml\" instead of just \"appended to .ralph/done.yaml\"",
+        "Update worker.md line 70 to say \"append to the END of the tasks list in .ralph/done.yaml\" instead of just \"append to the tasks list\"",
+        "Update worker.md line 72 to clarify \"appended to the END of .ralph/done.yaml\"",
+        "Test by verifying the prompt language explicitly states \"END\" to prevent top-insertion behavior"
+      ],
+      "notes": [],
+      "request": "Modify the bahvior and prompts to have agents append the completed task queue item to the END of the done.yaml file instead of the current behavior. Still remove 'done' items from the queue.yaml file but instead of adding completed items to the top of done.yaml have them add it to the end.",
+      "created_at": "2025-01-19T16:00:00+00:00",
+      "updated_at": "2026-01-19T20:17:55.049973+00:00",
+      "completed_at": "2026-01-19T20:17:55.049973+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0108",
+      "status": "done",
+      "title": "Add two-pass plan mode support for OpenCode runner",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "runner",
+        "feature"
+      ],
+      "scope": [
+        "crates/ralph/src/runner.rs"
+      ],
+      "evidence": [
+        "Claude runner supports two_pass_plan but OpenCode does not; documentation says \"will expand to OpenCode in the future\"",
+        "The two_pass_plan_enabled_for: false in task_cmd.rs and scan_cmd.rs comments indicate this is tracked technical debt"
+      ],
+      "plan": [
+        "Implement run_opencode_two_pass function similar to run_claude_two_pass",
+        "Add plan generation phase using RepoPrompt or equivalent tooling",
+        "Add implementation phase with auto-approval",
+        "Update task_cmd.rs and scan_cmd.rs to enable two_pass_plan for OpenCode",
+        "Add tests for OpenCode two-pass behavior"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2025-01-19T12:00:00+00:00",
+      "updated_at": "2025-01-19T12:00:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0110",
+      "status": "done",
+      "title": "Implement task dependency tracking and ordering",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "queue",
+        "feature"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts.rs",
+        "crates/ralph/src/queue.rs",
+        "crates/ralph/src/run_cmd.rs"
+      ],
+      "evidence": [
+        "Queue is ordered by priority but there is no dependency system",
+        "Tasks cannot specify \"must complete after RQ-0100\" requirements",
+        "Complex multi-step workflows require manual ordering"
+      ],
+      "plan": [
+        "Add depends_on field to Task contract (list of task IDs)",
+        "Validate dependencies exist in queue or done during queue validation",
+        "Skip dependent tasks if dependency fails during run loop",
+        "Add queue list --filter-deps=RQ-0100 to show dependency chain",
+        "Add tests for dependency validation and execution ordering"
+      ],
+      "notes": [
+        "Implemented depends_on field with validation, cycle detection, and --filter-deps flag"
+      ],
+      "request": "scan finding",
+      "created_at": "2025-01-19T12:00:00+00:00",
+      "updated_at": "2026-01-19T20:48:41.222861+00:00",
+      "completed_at": "2026-01-19T20:48:41.222861+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0112",
+      "status": "rejected",
+      "title": "Implement task blocking/muting for temporary exclusions",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "queue",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts.rs",
+        "crates/ralph/src/run_cmd.rs",
+        "crates/ralph/src/main.rs"
+      ],
+      "evidence": [
+        "No way to temporarily exclude a task without deleting it or moving it to done",
+        "When a task is blocked (e.g., waiting for external dependency), it still appears as todo",
+        "Users may want to \"skip this for now\" without losing the task definition"
+      ],
+      "plan": [
+        "Add blocked field to Task (boolean, default false)",
+        "Update run_one to skip blocked tasks with a log message",
+        "Add queue block/unblock <task-id> commands",
+        "Add --blocked filter to queue list",
+        "Add tests for blocking behavior in run loop"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2025-01-19T12:00:00+00:00",
+      "updated_at": "2026-01-19T20:49:54.185406+00:00",
+      "completed_at": "2026-01-19T20:49:54.185406+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0113",
+      "status": "rejected",
+      "title": "Add git conflict detection and recovery in post_run_supervise",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "safety",
+        "git"
+      ],
+      "scope": [
+        "crates/ralph/src/run_cmd.rs",
+        "crates/ralph/src/gitutil.rs"
+      ],
+      "evidence": [
+        "post_run_supervise commits changes but doesn't detect merge conflicts",
+        "If git push fails due to diverged history, the state is unclear",
+        "No check for merge markers before committing"
+      ],
+      "plan": [
+        "Add gitutil::has_merge_conflicts() to detect conflict markers",
+        "In post_run_supervise, check for conflicts after dirty check",
+        "If conflicts found, bail with instructions to resolve",
+        "Add gitutil::is_diverged() to check if local is behind remote",
+        "Add tests for conflict detection scenarios"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2025-01-19T12:00:00+00:00",
+      "updated_at": "2025-01-19T12:00:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0114",
+      "status": "rejected",
+      "title": "Implement per-task output directory isolation",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "safety",
+        "runner"
+      ],
+      "scope": [
+        "crates/ralph/src/run_cmd.rs",
+        "crates/ralph/src/contracts.rs"
+      ],
+      "evidence": [
+        "Runners share the same working directory; simultaneous or overlapping runs could interfere",
+        "No isolation between task executions for temp files or artifacts",
+        "If run loop runs multiple tasks in parallel (future), they would conflict"
+      ],
+      "plan": [
+        "Add .ralph/work/<task-id> working directory per task execution",
+        "Set runner working directory to task-specific work dir",
+        "Copy/link necessary files into work dir before execution",
+        "Clean up work dir after task completes (on success or failure)",
+        "Add fsutil::create_task_workdir and cleanup helpers",
+        "Add tests for work directory lifecycle"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2025-01-19T12:00:00+00:00",
+      "updated_at": "2025-01-19T12:00:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0115",
+      "status": "rejected",
+      "title": "Add concurrent task execution support with worker pools",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "performance",
+        "feature"
+      ],
+      "scope": [
+        "crates/ralph/src/run_cmd.rs",
+        "crates/ralph/src/contracts.rs"
+      ],
+      "evidence": [
+        "run loop executes tasks sequentially; no parallel execution option",
+        "For independent tasks (no dependencies), parallel execution would be much faster",
+        "Modern runtimes have many cores; sequential execution is underutilization"
+      ],
+      "plan": [
+        "Add --workers/-j flag to run loop (default 1 for sequential)",
+        "Use rayon or tokio to execute N tasks concurrently",
+        "Ensure queue lock is held but tasks run in isolation (see RQ-0114)",
+        "Limit concurrency based on available CPU cores",
+        "Add tests for concurrent execution correctness"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2025-01-19T12:00:00+00:00",
+      "updated_at": "2025-01-19T12:00:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0116",
+      "status": "rejected",
+      "title": "Add task retry mechanism with exponential backoff",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "reliability",
+        "runner"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts.rs",
+        "crates/ralph/src/run_cmd.rs"
+      ],
+      "evidence": [
+        "Transient runner failures (network, API timeouts) cause task to fail completely",
+        "No built-in retry for flaky runners or temporary infrastructure issues",
+        "Users must manually re-run tasks that failed transiently"
+      ],
+      "plan": [
+        "Add retry field to Task (count, backoff_seconds)",
+        "In run_one, catch runner errors and check if retries remain",
+        "On retry, log the retry attempt and wait with backoff",
+        "Update task status to track retry_count in notes",
+        "Add tests for retry logic with mock runner failures"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2025-01-19T12:00:00+00:00",
+      "updated_at": "2025-01-19T12:00:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0117",
+      "status": "rejected",
+      "title": "Implement task template library for recurring patterns",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "ux",
+        "templates"
+      ],
+      "scope": [
+        "crates/ralph/src/task_cmd.rs",
+        ".ralph/templates/"
+      ],
+      "evidence": [
+        "Common task patterns (e.g., \"add tests for X\", \"refactor Y\") are re-entered manually each time",
+        "scan and task build prompts don't have access to prior task definitions",
+        "No way to quickly create tasks from predefined templates"
+      ],
+      "plan": [
+        "Create .ralph/templates/ directory for task template YAML files",
+        "Add ralph task list-templates command",
+        "Add ralph task create-from-template <name> command",
+        "Templates include default tags, scope patterns, and plan structure",
+        "Add tests for template loading and instantiation"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2025-01-19T12:00:00+00:00",
+      "updated_at": "2025-01-19T12:00:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0123",
+      "status": "rejected",
+      "title": "Implement task archiving policies (auto-archive after N days)",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "queue",
+        "policy"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts.rs",
+        "crates/ralph/src/queue.rs",
+        "crates/ralph/src/main.rs"
+      ],
+      "evidence": [
+        "done.yaml grows indefinitely; no automatic cleanup",
+        "Old completed tasks accumulate forever",
+        "No way to auto-archive tasks older than X days"
+      ],
+      "plan": [
+        "Add archive_policy field to QueueConfig (retention_days, auto_archive)",
+        "Add queue archive --apply-policy command",
+        "Run auto-archive during queue validate or init",
+        "Add prompt before deletion (dry-run with --dry-run flag)",
+        "Add tests for archival policy calculation and execution"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2025-01-19T12:00:00+00:00",
+      "updated_at": "2025-01-19T12:00:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0124",
+      "status": "rejected",
+      "title": "Add subtask support and hierarchical task breakdown",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "queue",
+        "feature"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts.rs",
+        "crates/ralph/src/queue.rs"
+      ],
+      "evidence": [
+        "Large tasks must be broken down into multiple top-level tasks manually",
+        "No parent-child relationship between tasks",
+        "Cannot expand a task to see its subtasks or collapse them"
+      ],
+      "plan": [
+        "Add parent_id field to Task for subtasks",
+        "Add queue show --recursive to display task hierarchy",
+        "Add queue expand <task-id> to break down a task into subtasks",
+        "Add queue flatten to move subtasks to top-level",
+        "Update validation to prevent cycles in parent-child relationships",
+        "Add tests for hierarchy operations"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2025-01-19T12:00:00+00:00",
+      "updated_at": "2025-01-19T12:00:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0125",
+      "status": "rejected",
+      "title": "Implement task scheduling (defer to future date/time)",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "queue",
+        "scheduling"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts.rs",
+        "crates/ralph/src/run_cmd.rs"
+      ],
+      "evidence": [
+        "No way to schedule a task for \"next week\" or \"tomorrow at 9am\"",
+        "All tasks are immediately actionable (unless manually blocked)",
+        "Cannot set start_date or due_date on tasks"
+      ],
+      "plan": [
+        "Add scheduled_for and due_by fields to Task (RFC3339 timestamps)",
+        "Update run_one to skip tasks where scheduled_for > now",
+        "Add queue list --overdue to show past-due tasks",
+        "Add queue schedule <task-id> <timestamp> command",
+        "Log warnings when approaching due date",
+        "Add tests for scheduling behavior"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2025-01-19T12:00:00+00:00",
+      "updated_at": "2025-01-19T12:00:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0127",
+      "status": "rejected",
+      "title": "Implement task links and references",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "queue",
+        "references"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts.rs",
+        "crates/ralph/src/queue.rs"
+      ],
+      "evidence": [
+        "Tasks cannot reference related tasks, PRs, or issues",
+        "No way to say \"this blocks RQ-0100\" or \"implements RQ-0099\"",
+        "Cross-references would improve task discoverability"
+      ],
+      "plan": [
+        "Add related_tasks and blocks/is_blocked_by fields to Task",
+        "Add queue link <from-id> <to-id> command to establish relationships",
+        "Update validation to prevent self-references and enforce consistency",
+        "Add queue show --links to display relationship graph",
+        "Add tests for relationship tracking"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2025-01-19T12:00:00+00:00",
+      "updated_at": "2025-01-19T12:00:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0128",
+      "status": "rejected",
+      "title": "Add batch task operations for bulk edits",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "ux",
+        "batch"
+      ],
+      "scope": [
+        "crates/ralph/src/main.rs",
+        "crates/ralph/src/queue.rs"
+      ],
+      "evidence": [
+        "No way to update multiple tasks at once",
+        "Cannot set all \"database\" tags to \"backend\" in one command",
+        "Bulk operations require manual YAML editing or multiple CLI calls"
+      ],
+      "plan": [
+        "Add queue batch set-status --filter=tag:database --to=doing command",
+        "Add queue batch set-tag --filter=tag:rust --add=performance command",
+        "Add queue batch delete --filter=status:todo --force command",
+        "Implement dry-run with --dry-run flag to preview changes",
+        "Add tests for batch operations correctness"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2025-01-19T12:00:00+00:00",
+      "updated_at": "2025-01-19T12:00:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0129",
+      "status": "rejected",
+      "title": "Implement task diff and change tracking",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "ux",
+        "audit"
+      ],
+      "scope": [
+        "crates/ralph/src/queue.rs",
+        "crates/ralph/src/main.rs"
+      ],
+      "evidence": [
+        "No way to see what changed between task edits",
+        "Cannot audit who modified a task and when",
+        "No history of task state transitions"
+      ],
+      "plan": [
+        "Add .ralph/task_history.yaml or embed history in task notes",
+        "Track each state change with timestamp and \"actor\" (user or runner)",
+        "Add queue history <task-id> command to show transition log",
+        "Add queue diff <task-id> to show against done archive version",
+        "Add tests for history tracking and diff calculation"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2025-01-19T12:00:00+00:00",
+      "updated_at": "2025-01-19T12:00:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0130",
+      "status": "rejected",
+      "title": "Add webhook or notification integration for task events",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "notifications",
+        "integrations"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts.rs",
+        "crates/ralph/src/run_cmd.rs"
+      ],
+      "evidence": [
+        "No external notifications when tasks complete or fail",
+        "Teams must manually check queue status",
+        "Integrations with Slack, Discord, email would improve visibility"
+      ],
+      "plan": [
+        "Add webhooks field to Config (URL list)",
+        "Send HTTP POST on task state changes with event payload",
+        "Add ralph queue test-webhook <url> command",
+        "Support signing webhooks with HMAC secret",
+        "Add retry logic for failed webhook deliveries",
+        "Add tests for webhook delivery and signing"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2025-01-19T12:00:00+00:00",
+      "updated_at": "2025-01-19T12:00:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0131",
+      "status": "rejected",
+      "title": "Implement task import/export for cross-repo sharing",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "portability",
+        "sharing"
+      ],
+      "scope": [
+        "crates/ralph/src/main.rs",
+        "crates/ralph/src/queue.rs"
+      ],
+      "evidence": [
+        "No way to export tasks to share with another team or repo",
+        "Cannot import tasks from external sources",
+        "Task templates or best practices cannot be easily distributed"
+      ],
+      "plan": [
+        "Add ralph queue export --output=tasks.yaml command",
+        "Add ralph queue import --input=tasks.yaml command",
+        "Support --filter flag to export only matching tasks",
+        "Validate imported tasks against schema and existing IDs",
+        "Add --merge flag to combine imported tasks with existing queue",
+        "Add tests for import/export correctness"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2025-01-19T12:00:00+00:00",
+      "updated_at": "2025-01-19T12:00:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0133",
+      "status": "rejected",
+      "title": "Implement multi-repo workspace support",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "workspaces",
+        "architecture"
+      ],
+      "scope": [
+        "crates/ralph/src/config.rs",
+        "crates/ralph/src/run_cmd.rs"
+      ],
+      "evidence": [
+        "Ralph assumes a single repo rooted at repo_root",
+        "Monorepos with multiple projects need separate queues per subproject",
+        "No way to run tasks against different repos from one Ralph instance"
+      ],
+      "plan": [
+        "Add workspaces config with repo list and path mappings",
+        "Update run_cmd to execute tasks in specific repo contexts",
+        "Add --repo flag to run/scan/task commands to target repo",
+        "Support relative paths and workspace root discovery",
+        "Add tests for multi-repo task execution"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2025-01-19T12:00:00+00:00",
+      "updated_at": "2025-01-19T12:00:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0134",
+      "status": "rejected",
+      "title": "Add signal handling for graceful shutdown during run loop",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "reliability",
+        "signals"
+      ],
+      "scope": [
+        "crates/ralph/src/run_cmd.rs",
+        "crates/ralph/Cargo.toml"
+      ],
+      "evidence": [
+        "Ctrl+C during run loop may leave repo in inconsistent state",
+        "No SIGTERM/SIGINT handler for graceful shutdown",
+        "Long-running tasks cannot be cleanly interrupted mid-execution"
+      ],
+      "plan": [
+        "Add signal handler for SIGTERM and SIGINT in run_cmd",
+        "On interrupt, wait for current runner subprocess to complete",
+        "Set a timeout for graceful shutdown, then force kill if needed",
+        "Save partial progress before exiting",
+        "Add \"Interrupted\" status to Task to show incomplete runs",
+        "Add tests for graceful shutdown behavior"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2025-01-19T12:00:00+00:00",
+      "updated_at": "2025-01-19T12:00:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0135",
+      "status": "rejected",
+      "title": "Implement task ownership and assignment",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "queue",
+        "collaboration"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts.rs",
+        "crates/ralph/src/queue.rs"
+      ],
+      "evidence": [
+        "No way to assign tasks to specific users or teams",
+        "Cannot filter tasks by \"who is working on what\"",
+        "Team collaboration requires manual coordination"
+      ],
+      "plan": [
+        "Add assigned_to field to Task (string or list)",
+        "Add queue assign <task-id> <user> command",
+        "Add queue list --assigned-to=<user> filter",
+        "Update scan and task prompts to request assignment from agent",
+        "Add validation to ensure assigned users are in allowlist (if configured)",
+        "Add tests for assignment filtering"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2025-01-19T12:00:00+00:00",
+      "updated_at": "2025-01-19T12:00:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0136",
+      "status": "rejected",
+      "title": "Add task estimation and time tracking fields",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "queue",
+        "planning"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts.rs",
+        "crates/ralph/src/queue.rs"
+      ],
+      "evidence": [
+        "No way to record time estimates vs actual time",
+        "Cannot track \"this task was estimated at 2h but took 4h\"",
+        "Planning for future sprints requires historical time data"
+      ],
+      "plan": [
+        "Add estimate_minutes and actual_minutes fields to Task",
+        "Add queue set-time <task-id> <estimate|actual>=<minutes> command",
+        "Calculate actual from created_at to completed_at as fallback",
+        "Add queue report --estimates to show estimate vs actual accuracy",
+        "Add tests for time tracking calculations"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2025-01-19T12:00:00+00:00",
+      "updated_at": "2025-01-19T12:00:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0137",
+      "status": "rejected",
+      "title": "Implement task aliases and shortcuts",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "ux",
+        "shortcuts"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts.rs",
+        "crates/ralph/src/main.rs"
+      ],
+      "evidence": [
+        "Task IDs are numeric; users must remember \"RQ-0100\" format",
+        "No way to create named shortcuts like \"fix-auth-bug\"",
+        "Cannot reference tasks by memorable names in commands"
+      ],
+      "plan": [
+        "Add aliases field to Task (list of strings)",
+        "Add queue alias <task-id> <name> command",
+        "Add queue unalias <name> command",
+        "Support <alias> in any command that takes <task-id>",
+        "Validate aliases are unique and don't shadow IDs",
+        "Add tests for alias resolution and conflicts"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2025-01-19T12:00:00+00:00",
+      "updated_at": "2025-01-19T12:00:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0140",
+      "status": "rejected",
+      "title": "Add task branching and alternative scenarios",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "queue",
+        "scenarios"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts.rs",
+        "crates/ralph/src/queue.rs"
+      ],
+      "evidence": [
+        "No support for \"if X fails, try Y instead\" scenarios",
+        "Cannot create alternative approaches within a single task",
+        "Teams must create multiple top-level tasks for Plan A/B/C"
+      ],
+      "plan": [
+        "Add alternatives field to Task (list of alternative plans)",
+        "Add queue list-alternatives <task-id> to show Plan B/C options",
+        "Add queue mark-as-primary <task-id> to promote alternative to main plan",
+        "Update prompts to suggest alternatives when primary plan fails",
+        "Add tests for alternative plan management"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2025-01-19T12:00:00+00:00",
+      "updated_at": "2025-01-19T12:00:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0141",
+      "status": "rejected",
+      "title": "Implement task rollbacks and undo functionality",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "git",
+        "safety"
+      ],
+      "scope": [
+        "crates/ralph/src/main.rs",
+        "crates/ralph/src/run_cmd.rs"
+      ],
+      "evidence": [
+        "No way to undo a completed task and restore previous state",
+        "If a task makes things worse, you must manually revert its changes",
+        "Cannot \"rewind\" to before a task ran"
+      ],
+      "plan": [
+        "Add ralph run undo <n> command to revert last N task commits",
+        "Use git revert with commit message matching to identify task commits",
+        "Move task from done back to queue with status=todo",
+        "Add --dry-run flag to preview what would be reverted",
+        "Add tests for undo correctness and edge cases"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2025-01-19T12:00:00+00:00",
+      "updated_at": "2025-01-19T12:00:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0143",
+      "status": "rejected",
+      "title": "Implement task sandboxing with container support",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "containers",
+        "isolation"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts.rs",
+        "crates/ralph/src/run_cmd.rs"
+      ],
+      "evidence": [
+        "Tasks run directly on host system with full access",
+        "No isolation for potentially dangerous operations",
+        "Cannot run tasks in Docker/podman for reproducibility"
+      ],
+      "plan": [
+        "Add container field to Task (image: String, volumes: Vec<String>)",
+        "Update runutil to wrap runner in container execution",
+        "Support both Docker and Podman backends",
+        "Add fallback to host execution if container unavailable",
+        "Add tests for container invocation (requires container runtime)"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2025-01-19T12:00:00+00:00",
+      "updated_at": "2025-01-19T12:00:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0144",
+      "status": "rejected",
+      "title": "Add task dependencies on external resources",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "validation",
+        "external"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts.rs",
+        "crates/ralph/src/run_cmd.rs"
+      ],
+      "evidence": [
+        "Tasks cannot specify prerequisites like \"service X must be running\"",
+        "No validation that required external APIs/services are available",
+        "Cannot defer task execution until external conditions are met"
+      ],
+      "plan": [
+        "Add requires field to Task (list of external dependencies)",
+        "Define dependency types: service, url, env_var, file_exists",
+        "Add queue check-dependencies <task-id> command",
+        "Check dependencies in run_one before executing task",
+        "Add tests for dependency checking and validation"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2025-01-19T12:00:00+00:00",
+      "updated_at": "2025-01-19T12:00:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0111",
+      "status": "done",
+      "title": "Add task priority field and sorting capabilities",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "queue",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts.rs",
+        "crates/ralph/src/queue.rs",
+        "crates/ralph/src/main.rs"
+      ],
+      "evidence": [
+        "Queue is ordered by priority but there is no explicit priority field",
+        "Tasks must be manually reordered by editing YAML",
+        "No way to sort by \"importance\" without manual reordering"
+      ],
+      "plan": [
+        "Add priority field to Task (enum: critical, high, medium, low)",
+        "Add queue sort --by=priority command",
+        "Add queue list --sort-by=priority flag",
+        "Update task build and scan prompts to request priority from agent",
+        "Add tests for priority sorting and validation"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2025-01-19T12:00:00+00:00",
+      "updated_at": "2025-01-19T12:00:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0118",
+      "status": "done",
+      "title": "Add task statistics and reporting commands",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "ux",
+        "analytics"
+      ],
+      "scope": [
+        "crates/ralph/src/main.rs",
+        "crates/ralph/src/reports.rs"
+      ],
+      "evidence": [
+        "No way to get aggregate stats about task completion rates",
+        "Cannot see average task duration, success/failure ratios, or tag distribution",
+        "Historical analysis requires manual YAML parsing"
+      ],
+      "plan": [
+        "Add ralph queue stats command with completion rate, avg duration, tag breakdown",
+        "Add ralph queue history command to show task creation/completion timeline",
+        "Add ralph queue burndown command to show velocity chart",
+        "Calculate duration from created_at to completed_at in done tasks",
+        "Add tests for stats calculation accuracy"
+      ],
+      "notes": [
+        "Created crates/ralph/src/reports.rs with print_stats, print_history, print_burndown functions",
+        "Added QueueStatsArgs, QueueHistoryArgs, QueueBurndownArgs argument structs to main.rs",
+        "Added Stats, History, Burndown variants to QueueCommand enum",
+        "Updated handle_queue to load active+done tasks and dispatch to reports functions",
+        "Duration calculation uses completed_at - created_at for Done tasks only",
+        "Burndown logic: Open tasks at day D = created_at <= D AND (completed_at IS NULL OR completed_at > D)",
+        "Tag filtering is case-insensitive, inclusive OR for multiple tags",
+        "Added unit tests for duration formatting, date parsing, and calculation logic",
+        "Verified with make ci (all 111 tests passed)"
+      ],
+      "request": "scan finding",
+      "created_at": "2025-01-19T12:00:00+00:00",
+      "updated_at": "2026-01-19T22:37:28+00:00",
+      "completed_at": "2026-01-19T22:45:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0119",
+      "status": "done",
+      "title": "Implement task search and filter by content patterns",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "ux",
+        "search"
+      ],
+      "scope": [
+        "crates/ralph/src/queue.rs",
+        "crates/ralph/src/main.rs"
+      ],
+      "evidence": [
+        "queue list supports filtering by status, tag, and scope but not by title/content",
+        "Cannot search for \"all tasks mentioning 'database'\"",
+        "Full-text search across task descriptions would be powerful"
+      ],
+      "plan": [
+        "Add queue search <query> command",
+        "Implement substring match against title, evidence, plan, notes",
+        "Support regex search with --regex flag",
+        "Add --match-case for case-sensitive search (default insensitive)",
+        "Add tests for search accuracy and performance"
+      ],
+      "notes": [
+        "Note: Added regex = \"1.11\" dependency to Cargo.toml",
+        "Note: Implemented search_tasks() in queue.rs with SearchMatcher enum for regex/substring modes",
+        "Note: Added QueueSearchArgs with filters: --status, --tag, --scope, --include-done, --only-done, --format, --limit, --all",
+        "Note: Added unit tests for substring (case-sensitive/insensitive), regex (valid/invalid), field-specific matches",
+        "Note: CLI examples: ralph queue search \"authentication\", ralph queue search \"RQ-\\\\d{4}\" --regex"
+      ],
+      "request": "scan finding",
+      "created_at": "2025-01-19T12:00:00+00:00",
+      "updated_at": "2026-01-19T23:00:00+00:00",
+      "completed_at": "2026-01-19T23:00:00+00:00",
+      "depends_on": []
+    },
+    {
+      "id": "RQ-0151",
+      "status": "done",
+      "title": "Migrate from YAML to JSON for queue and config files",
+      "priority": "high",
+      "tags": [
+        "rust",
+        "migration",
+        "data-format"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts.rs",
+        "crates/ralph/src/queue.rs",
+        "crates/ralph/src/config.rs",
+        ".ralph/queue.yaml",
+        ".ralph/done.yaml",
+        ".ralph/config.yaml",
+        "AGENTS.md",
+        ".ralph/README.md"
+      ],
+      "evidence": [
+        "Current YAML parsing requires ~350 lines of repair code in queue.rs (repair_yaml_structure, repair_yaml_list_fields, repair_yaml_scalars, repair_queue_schema, quote_scalar_for_yaml)",
+        "YAML scalar quoting is ambiguous: colons, special characters, and indentation cause parse failures",
+        "TUI is planned (RQ-0120) - JSON provides more robust programmatic manipulation for interactive editing",
+        "JSON Schema is a standard for defining clear, validated contracts",
+        "serde_json is already a dependency (used in runner.rs for stream-json parsing)",
+        "User explicitly requested assessment and migration to structured JSON schema"
+      ],
+      "plan": [
+        "Create JSON Schema definitions for QueueFile, Task, Config, and related types",
+        "Replace serde_yaml with serde_json for queue/done/config serialization",
+        "Remove all YAML repair logic (~350 lines in queue.rs)",
+        "Create migration command (ralph queue migrate-to-json) to convert existing YAML files",
+        "Update all documentation references from .yaml to .json",
+        "Add backward-compatible read support for YAML during transition period",
+        "Update tests to use JSON instead of YAML",
+        "Run make ci to verify all tests pass"
+      ],
+      "notes": [],
+      "request": "Assess whether the current YAML approach for task management is really the best approach. User believes moving to a structured JSON schema is a better approach to avoid the parsing complexities that have been detected during the development of this app. Since a TUI is planned for the future, using JSON, which is still human readable, is likely more robust to enable better TUI interaction and reliable task building, tracking, and execution. Having a defined schema makes it clear what fields are supported and what format is expected. If the assessment deems it is warranted, make a plan to implement and then implement it, replacing all existing YAML functionality. Existing queue docs will needs a migration path.",
+      "created_at": "2025-01-19T16:42:13+00:00",
+      "updated_at": "2026-01-19T23:56:21.483840+00:00",
+      "completed_at": "2026-01-19T23:56:21.483840+00:00",
+      "depends_on": []
+    }
+  ]
+}
