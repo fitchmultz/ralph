@@ -110,7 +110,7 @@ pub fn run_one_with_id(
 
     let template = prompts::load_worker_prompt(&resolved.repo_root)?;
     let project_type = resolved.config.project_type.unwrap_or(ProjectType::Code);
-    let prompt = prompts::render_worker_prompt(&template, project_type)?;
+    let prompt = prompts::render_worker_prompt(&template, project_type, &resolved.config)?;
     let two_pass_plan = resolved.config.agent.two_pass_plan.unwrap_or(true);
     let permission_mode = resolved.config.agent.claude_permission_mode;
 
@@ -221,7 +221,7 @@ pub fn run_one(
 
     let template = prompts::load_worker_prompt(&resolved.repo_root)?;
     let project_type = resolved.config.project_type.unwrap_or(ProjectType::Code);
-    let prompt = prompts::render_worker_prompt(&template, project_type)?;
+    let prompt = prompts::render_worker_prompt(&template, project_type, &resolved.config)?;
     // Two-pass mode enabled for implementation workflows
     let two_pass_plan = resolved.config.agent.two_pass_plan.unwrap_or(true);
     // Use configured permission mode (default: BypassPermissions)

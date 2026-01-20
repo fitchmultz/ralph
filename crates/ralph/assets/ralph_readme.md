@@ -30,6 +30,31 @@ This repo is using Ralph. The `.ralph/` directory holds repo-local state.
 - Run multiple tasks:
   - `ralph run loop --max-tasks 0`
 
+## Template Variables
+
+Prompt templates support variable interpolation for environment variables and config values:
+
+### Environment Variables
+- `${VAR}` — expand environment variable (leaves literal if not set)
+- `${VAR:-default}` — expand with default value if not set
+- Example: `API endpoint: ${API_URL:-https://api.example.com}`
+
+### Config Values
+- `{{config.section.key}}` — expand from config (supports nested paths)
+- Supported paths:
+  - `{{config.agent.runner}}` — current runner (e.g., `Claude`)
+  - `{{config.agent.model}}` — current model (e.g., `gpt-5.2-codex`)
+  - `{{config.queue.id_prefix}}` — task ID prefix (e.g., `RQ`)
+  - `{{config.queue.id_width}}` — task ID width (e.g., `4`)
+  - `{{config.project_type}}` — project type (e.g., `Code`)
+- Example: `Using {{config.agent.model}} via {{config.agent.runner}}`
+
+### Escaping
+- `$${VAR}` — escaped, outputs literal `${VAR}`
+- `\${VAR}` — escaped, outputs literal `${VAR}`
+
+Note: Standard placeholders like `{{USER_REQUEST}}` are still processed after variable expansion.
+
 ## Runners (OpenCode + Gemini + Claude)
 
 Ralph can use the OpenCode, Gemini, or Claude CLI as a runner.

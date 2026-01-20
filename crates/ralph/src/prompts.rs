@@ -1,5 +1,7 @@
-use crate::contracts::ProjectType;
+use crate::contracts::{Config, ProjectType};
 use anyhow::{bail, Context, Result};
+use regex::Regex;
+use std::env;
 use std::fs;
 use std::io;
 use std::path::Path;
@@ -45,6 +47,121 @@ When implementation is complete, you MUST:
 5. Commit all changes: `RQ-####: <short summary>`
 6. Push and verify `git status --porcelain` is empty
 "#;
+
+/// Expand environment variables and config values in a template string.
+///
+/// Syntax:
+/// - `${VAR}` - expand environment variable (error if missing)
+/// - `${VAR:-default}` - expand environment variable with default value
+/// - `{{config.section.key}}` - expand config value (supports nested paths)
+/// - `$${VAR}` or `\${VAR}` - escaped, outputs literal `${VAR}`
+///
+/// The function processes escapes first, then env vars, then config values.
+/// This order ensures that escaped sequences are preserved throughout.
+pub fn expand_variables(template: &str, config: &Config) -> Result<String> {
+    let mut result = template.to_string();
+
+    // First pass: handle escaping
+    // $${VAR} -> ${VAR}, \${VAR} -> ${VAR}
+    let escape_regex = Regex::new(r"\$\$\{|\\\$\{").unwrap();
+    result = escape_regex.replace_all(&result, "${").to_string();
+
+    // Second pass: expand environment variables
+    // ${VAR} or ${VAR:-default}
+    let env_regex = Regex::new(r"\$\{([A-Za-z_][A-Za-z0-9_]*)(:-([^}]*))?\}").unwrap();
+    result = env_regex
+        .replace_all(&result, |caps: &regex::Captures| {
+            let var_name = &caps[1];
+            let default = caps.get(3).map(|m| m.as_str());
+            match env::var(var_name) {
+                Ok(value) => value,
+                Err(_) => match default {
+                    Some(d) => d.to_string(),
+                    None => {
+                        log::warn!(
+                            "Environment variable '${}' not found in prompt template. Use ${{{var_name}:-default}} for a default value.",
+                            var_name
+                        );
+                        format!("${{{var_name}}}")
+                    }
+                },
+            }
+        })
+        .to_string();
+
+    // Third pass: expand config values
+    // {{config.section.key}} - only if it starts with "config."
+    // We need to skip non-config placeholders like {{USER_REQUEST}}
+    let config_regex = Regex::new(r"\{\{config\.([^}]+)\}\}").unwrap();
+    result = config_regex
+        .replace_all(&result, |caps: &regex::Captures| {
+            let path = &caps[1];
+            match get_config_value(config, path) {
+                Ok(value) => value,
+                Err(e) => {
+                    log::warn!(
+                        "Failed to expand config value 'config.{}' in prompt template: {}. Using literal placeholder.",
+                        path, e
+                    );
+                    format!("{{{{config.{}}}}}", path)
+                }
+            }
+        })
+        .to_string();
+
+    Ok(result)
+}
+
+/// Get a config value by dot-separated path (e.g., "agent.runner", "queue.id_prefix").
+/// Returns a string representation of the value.
+fn get_config_value(config: &Config, path: &str) -> Result<String> {
+    let parts: Vec<&str> = path.split('.').collect();
+    match parts.as_slice() {
+        ["agent", "runner"] => config
+            .agent
+            .runner
+            .map(|r| format!("{:?}", r))
+            .or_else(|| config.agent.runner.map(|r| format!("{:?}", r)))
+            .ok_or_else(|| anyhow::anyhow!("agent.runner not set")),
+        ["agent", "model"] => config
+            .agent
+            .model
+            .as_ref()
+            .map(|m| m.as_str().to_string())
+            .ok_or_else(|| anyhow::anyhow!("agent.model not set")),
+        ["agent", "reasoning_effort"] => config
+            .agent
+            .reasoning_effort
+            .map(|e| format!("{:?}", e))
+            .ok_or_else(|| anyhow::anyhow!("agent.reasoning_effort not set")),
+        ["agent", "two_pass_plan"] => config
+            .agent
+            .two_pass_plan
+            .map(|b| b.to_string())
+            .ok_or_else(|| anyhow::anyhow!("agent.two_pass_plan not set")),
+        ["agent", "claude_permission_mode"] => config
+            .agent
+            .claude_permission_mode
+            .map(|m| format!("{:?}", m))
+            .ok_or_else(|| anyhow::anyhow!("agent.claude_permission_mode not set")),
+        ["queue", "id_prefix"] => config
+            .queue
+            .id_prefix
+            .clone()
+            .ok_or_else(|| anyhow::anyhow!("queue.id_prefix not set")),
+        ["queue", "id_width"] => config
+            .queue
+            .id_width
+            .map(|w| w.to_string())
+            .ok_or_else(|| anyhow::anyhow!("queue.id_width not set")),
+        ["project_type"] => config
+            .project_type
+            .map(|p| format!("{:?}", p))
+            .ok_or_else(|| anyhow::anyhow!("project_type not set")),
+        ["version"] => Ok(config.version.to_string()),
+        _ => bail!("unknown config path: '{}'", path),
+    }
+}
 
 pub fn prompts_reference_readme(repo_root: &Path) -> Result<bool> {
     let worker = load_worker_prompt(repo_root)?;
@@ -92,12 +209,18 @@ This is a documentation repository. Prioritize:
     }
 }
 
-pub fn render_worker_prompt(template: &str, project_type: ProjectType) -> Result<String> {
+pub fn render_worker_prompt(
+    template: &str,
+    project_type: ProjectType,
+    config: &Config,
+) -> Result<String> {
+    // Expand environment variables and config values first
+    let expanded = expand_variables(template, config)?;
     let guidance = project_type_guidance(project_type);
-    let rendered = if template.contains("{{PROJECT_TYPE_GUIDANCE}}") {
-        template.replace("{{PROJECT_TYPE_GUIDANCE}}", guidance)
+    let rendered = if expanded.contains("{{PROJECT_TYPE_GUIDANCE}}") {
+        expanded.replace("{{PROJECT_TYPE_GUIDANCE}}", guidance)
     } else {
-        format!("{}\n{}", template, guidance)
+        format!("{}\n{}", expanded, guidance)
     };
     let rendered = rendered.replace("{{INTERACTIVE_INSTRUCTIONS}}", "");
     ensure_no_unresolved_placeholders(&rendered, "worker")?;
@@ -119,6 +242,7 @@ pub fn render_task_builder_prompt(
     hint_tags: &str,
     hint_scope: &str,
     project_type: ProjectType,
+    config: &Config,
 ) -> Result<String> {
     if !template.contains("{{USER_REQUEST}}") {
         bail!("Template error: task builder prompt template is missing the required '{{USER_REQUEST}}' placeholder. Ensure the template in .ralph/prompts/task_builder.md includes this placeholder.");
@@ -135,11 +259,13 @@ pub fn render_task_builder_prompt(
         bail!("Missing request: user request must be non-empty. Provide a descriptive request for the task builder.");
     }
 
+    // Expand environment variables and config values first
+    let expanded = expand_variables(template, config)?;
     let guidance = project_type_guidance(project_type);
-    let mut rendered = if template.contains("{{PROJECT_TYPE_GUIDANCE}}") {
-        template.replace("{{PROJECT_TYPE_GUIDANCE}}", guidance)
+    let mut rendered = if expanded.contains("{{PROJECT_TYPE_GUIDANCE}}") {
+        expanded.replace("{{PROJECT_TYPE_GUIDANCE}}", guidance)
     } else {
-        format!("{}\n{}", template, guidance)
+        format!("{}\n{}", expanded, guidance)
     };
     rendered = rendered.replace("{{USER_REQUEST}}", request);
     rendered = rendered.replace("{{HINT_TAGS}}", hint_tags.trim());
@@ -157,6 +283,7 @@ pub fn render_scan_prompt(
     template: &str,
     user_focus: &str,
     project_type: ProjectType,
+    config: &Config,
 ) -> Result<String> {
     if !template.contains("{{USER_FOCUS}}") {
         bail!("Template error: scan prompt template is missing the required '{{USER_FOCUS}}' placeholder. Ensure the template in .ralph/prompts/scan.md includes this placeholder.");
@@ -164,11 +291,13 @@ pub fn render_scan_prompt(
     let focus = user_focus.trim();
     let focus = if focus.is_empty() { "(none)" } else { focus };
 
+    // Expand environment variables and config values first
+    let expanded = expand_variables(template, config)?;
     let guidance = project_type_guidance(project_type);
-    let rendered = if template.contains("{{PROJECT_TYPE_GUIDANCE}}") {
-        template.replace("{{PROJECT_TYPE_GUIDANCE}}", guidance)
+    let rendered = if expanded.contains("{{PROJECT_TYPE_GUIDANCE}}") {
+        expanded.replace("{{PROJECT_TYPE_GUIDANCE}}", guidance)
     } else {
-        format!("{}\n{}", template, guidance)
+        format!("{}\n{}", expanded, guidance)
     };
     let rendered = rendered.replace("{{USER_FOCUS}}", focus);
     ensure_no_unresolved_placeholders(&rendered, "scan")?;
@@ -237,13 +366,19 @@ fn load_prompt_with_fallback(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::contracts::Config;
     use std::fs;
     use tempfile::TempDir;
+
+    fn default_config() -> Config {
+        Config::default()
+    }
 
     #[test]
     fn render_worker_prompt_replaces_interactive_instructions() -> Result<()> {
         let template = "Hello\n{{INTERACTIVE_INSTRUCTIONS}}\n";
-        let rendered = render_worker_prompt(template, ProjectType::Code)?;
+        let config = default_config();
+        let rendered = render_worker_prompt(template, ProjectType::Code, &config)?;
         assert!(!rendered.contains("{{INTERACTIVE_INSTRUCTIONS}}"));
         Ok(())
     }
@@ -251,7 +386,8 @@ mod tests {
     #[test]
     fn render_scan_prompt_replaces_focus_placeholder() -> Result<()> {
         let template = "FOCUS:\n{{USER_FOCUS}}\n";
-        let rendered = render_scan_prompt(template, "hello world", ProjectType::Code)?;
+        let config = default_config();
+        let rendered = render_scan_prompt(template, "hello world", ProjectType::Code, &config)?;
         assert!(rendered.contains("hello world"));
         assert!(!rendered.contains("{{USER_FOCUS}}"));
         Ok(())
@@ -260,8 +396,15 @@ mod tests {
     #[test]
     fn render_task_builder_prompt_replaces_placeholders() -> Result<()> {
         let template = "Request:\n{{USER_REQUEST}}\nTags:\n{{HINT_TAGS}}\nScope:\n{{HINT_SCOPE}}\n";
-        let rendered =
-            render_task_builder_prompt(template, "do thing", "code", "repo", ProjectType::Code)?;
+        let config = default_config();
+        let rendered = render_task_builder_prompt(
+            template,
+            "do thing",
+            "code",
+            "repo",
+            ProjectType::Code,
+            &config,
+        )?;
         assert!(rendered.contains("do thing"));
         assert!(rendered.contains("code"));
         assert!(rendered.contains("repo"));
@@ -319,5 +462,118 @@ mod tests {
         let rendered = "Test {{Z}} and {{A}} and {{B}} and {{A}}";
         let placeholders = unresolved_placeholders(rendered);
         assert_eq!(placeholders, vec!["A", "B", "Z"]);
+    }
+
+    #[test]
+    fn expand_variables_expands_env_var_with_default() -> Result<()> {
+        // Use unique variable name to avoid test interference
+        let var_name = "RALPH_TEST_DEFAULT_VAR";
+        std::env::remove_var(var_name);
+        let template = format!("Value: ${{{}:-default_value}}", var_name);
+        let config = default_config();
+        let result = expand_variables(&template, &config)?;
+        assert_eq!(result, "Value: default_value");
+        Ok(())
+    }
+
+    #[test]
+    fn expand_variables_expands_env_var_when_set() -> Result<()> {
+        // Use unique variable name to avoid test interference
+        let var_name = "RALPH_TEST_SET_VAR";
+        let template = format!("Value: ${{{}:-default}}", var_name);
+        let config = default_config();
+        std::env::set_var(var_name, "actual_value");
+        let result = expand_variables(&template, &config)?;
+        std::env::remove_var(var_name);
+        assert_eq!(result, "Value: actual_value");
+        Ok(())
+    }
+
+    #[test]
+    fn expand_variables_leaves_missing_env_var_literal() -> Result<()> {
+        let template = "Value: ${MISSING_VAR}";
+        let config = default_config();
+        let result = expand_variables(template, &config)?;
+        // When env var is missing and no default, it leaves the literal
+        assert!(result.contains("${MISSING_VAR}"));
+        Ok(())
+    }
+
+    #[test]
+    fn expand_variables_handles_dollar_escape() -> Result<()> {
+        let template = "Literal: $${ESCAPED}";
+        let config = default_config();
+        let result = expand_variables(template, &config)?;
+        assert_eq!(result, "Literal: ${ESCAPED}");
+        Ok(())
+    }
+
+    #[test]
+    fn expand_variables_handles_backslash_escape() -> Result<()> {
+        let template = "Literal: \\${ESCAPED}";
+        let config = default_config();
+        let result = expand_variables(template, &config)?;
+        assert_eq!(result, "Literal: ${ESCAPED}");
+        Ok(())
+    }
+
+    #[test]
+    fn expand_variables_expands_config_runner() -> Result<()> {
+        let template = "Runner: {{config.agent.runner}}";
+        let mut config = default_config();
+        config.agent.runner = Some(crate::contracts::Runner::Claude);
+        let result = expand_variables(template, &config)?;
+        assert!(result.contains("Runner: Claude"));
+        Ok(())
+    }
+
+    #[test]
+    fn expand_variables_expands_config_model() -> Result<()> {
+        let template = "Model: {{config.agent.model}}";
+        let mut config = default_config();
+        config.agent.model = Some(crate::contracts::Model::Gpt52Codex);
+        let result = expand_variables(template, &config)?;
+        assert!(result.contains("gpt-5.2-codex"));
+        Ok(())
+    }
+
+    #[test]
+    fn expand_variables_expands_config_queue_id_prefix() -> Result<()> {
+        let template = "Prefix: {{config.queue.id_prefix}}";
+        let mut config = default_config();
+        config.queue.id_prefix = Some("TASK".to_string());
+        let result = expand_variables(template, &config)?;
+        assert!(result.contains("Prefix: TASK"));
+        Ok(())
+    }
+
+    #[test]
+    fn expand_variables_leaves_non_config_placeholders() -> Result<()> {
+        let template = "Request: {{USER_REQUEST}}";
+        let config = default_config();
+        let result = expand_variables(template, &config)?;
+        assert!(result.contains("{{USER_REQUEST}}"));
+        Ok(())
+    }
+
+    #[test]
+    fn expand_variables_mixed_env_and_config() -> Result<()> {
+        let template = "Model: {{config.agent.model}}, Var: ${TEST:-default}";
+        let mut config = default_config();
+        config.agent.model = Some(crate::contracts::Model::Gpt52Codex);
+        let result = expand_variables(template, &config)?;
+        assert!(result.contains("gpt-5.2-codex"));
+        assert!(result.contains("Var: default"));
+        Ok(())
+    }
+
+    #[test]
+    fn expand_variables_invalid_config_path_left_literal() -> Result<()> {
+        let template = "Value: {{config.invalid.path}}";
+        let config = default_config();
+        let result = expand_variables(template, &config)?;
+        // Invalid config paths are left as-is
+        assert!(result.contains("{{config.invalid.path}}"));
+        Ok(())
     }
 }

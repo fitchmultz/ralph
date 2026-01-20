@@ -79,6 +79,7 @@ pub fn build_task(resolved: &config::Resolved, opts: TaskBuildOptions) -> Result
         &opts.hint_tags,
         &opts.hint_scope,
         project_type,
+        &resolved.config,
     )?;
 
     let bins = runner::resolve_binaries(&resolved.config.agent);

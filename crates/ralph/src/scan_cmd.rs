@@ -40,7 +40,8 @@ pub fn run_scan(resolved: &config::Resolved, opts: ScanOptions) -> Result<()> {
 
     let template = prompts::load_scan_prompt(&resolved.repo_root)?;
     let project_type = resolved.config.project_type.unwrap_or(ProjectType::Code);
-    let prompt = prompts::render_scan_prompt(&template, &opts.focus, project_type)?;
+    let prompt =
+        prompts::render_scan_prompt(&template, &opts.focus, project_type, &resolved.config)?;
 
     let bins = runner::resolve_binaries(&resolved.config.agent);
     // Two-pass mode disabled for scan (only generates findings, should not implement)

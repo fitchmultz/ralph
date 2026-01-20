@@ -2,38 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0132",
-      "status": "todo",
-      "title": "Add environment variable interpolation in prompts",
-      "priority": "medium",
-      "tags": [
-        "rust",
-        "prompts",
-        "config"
-      ],
-      "scope": [
-        "crates/ralph/src/prompts.rs"
-      ],
-      "evidence": [
-        "Prompts are static; cannot reference env vars or config values",
-        "No way to customize prompts with project-specific values",
-        "Templates like \"API endpoint: ${API_URL}\" would be useful"
-      ],
-      "plan": [
-        "Add env var interpolation to prompt rendering (e.g., ${VAR:-default})",
-        "Add config value interpolation (e.g., {{agent.runner}})",
-        "Support escaping with $${VAR} or \\\\${VAR}",
-        "Document supported variables in prompt override docs",
-        "Add tests for interpolation edge cases"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2025-01-19T12:00:00+00:00",
-      "updated_at": "2026-01-19T19:45:00Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0138",
       "status": "todo",
       "title": "Add task validation rules and custom schemas",
@@ -222,7 +190,7 @@
       "plan": [
         "Add pinned field to Task (boolean, default false)",
         "Add queue pin/unpin <task-id> commands",
-        "Update queue list to show pinned indicator (* or 📌)",
+        "Update queue list to show pinned indicator (* or \ud83d\udccc)",
         "Skip pinned tasks during auto-sort operations",
         "Require --force to edit pinned tasks",
         "Add tests for pin protection behavior"
