@@ -43,7 +43,10 @@ stress:
 	RALPH_STRESS_BURN_IN=1 cargo test -p ralph --test stress_queue_contract_test --release -- --ignored --nocapture
 
 generate:
-	@echo "No API type generation configured."
+	@mkdir -p schemas
+	@cargo run -q --bin ralph -- config schema > schemas/config.schema.json
+	@cargo run -q --bin ralph -- queue schema > schemas/queue.schema.json
+	@echo "Schemas generated in schemas/"
 
 build:
 	cargo build --workspace

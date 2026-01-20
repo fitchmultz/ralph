@@ -1,0 +1,212 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "QueueFile",
+  "type": "object",
+  "required": [
+    "version"
+  ],
+  "properties": {
+    "tasks": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Task"
+      }
+    },
+    "version": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "Model": {
+      "type": "string"
+    },
+    "ReasoningEffort": {
+      "type": "string",
+      "enum": [
+        "minimal",
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "Runner": {
+      "type": "string",
+      "enum": [
+        "codex",
+        "opencode",
+        "gemini",
+        "claude"
+      ]
+    },
+    "Task": {
+      "type": "object",
+      "required": [
+        "id",
+        "title"
+      ],
+      "properties": {
+        "agent": {
+          "description": "Optional per-task agent override (runner/model/effort).",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/TaskAgent"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "completed_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "created_at": {
+          "description": "RFC3339 UTC timestamps as strings to keep the contract tool-agnostic.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "depends_on": {
+          "description": "Task IDs that this task depends on (must be Done before this task can run).",
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "evidence": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "id": {
+          "type": "string"
+        },
+        "notes": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "plan": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "priority": {
+          "default": "medium",
+          "allOf": [
+            {
+              "$ref": "#/definitions/TaskPriority"
+            }
+          ]
+        },
+        "request": {
+          "description": "Original human request that created the task (Task Builder / Scan).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "scope": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "status": {
+          "default": "todo",
+          "allOf": [
+            {
+              "$ref": "#/definitions/TaskStatus"
+            }
+          ]
+        },
+        "tags": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "title": {
+          "type": "string"
+        },
+        "updated_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "TaskAgent": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Model"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reasoning_effort": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ReasoningEffort"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "runner": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Runner"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "TaskPriority": {
+      "type": "string",
+      "enum": [
+        "critical",
+        "high",
+        "medium",
+        "low"
+      ]
+    },
+    "TaskStatus": {
+      "type": "string",
+      "enum": [
+        "todo",
+        "doing",
+        "done",
+        "rejected"
+      ]
+    }
+  }
+}

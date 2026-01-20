@@ -368,6 +368,10 @@ fn handle_queue(cmd: QueueCommand, force: bool) -> Result<()> {
                 .filter(|d| !d.tasks.is_empty() || resolved.done_path.exists());
             reports::print_burndown(&queue_file, done_ref, args.days)?;
         }
+        QueueCommand::Schema => {
+            let schema = schemars::schema_for!(contracts::QueueFile);
+            println!("{}", serde_json::to_string_pretty(&schema)?);
+        }
     }
     Ok(())
 }
@@ -393,6 +397,10 @@ fn handle_config(cmd: ConfigCommand) -> Result<()> {
             } else {
                 println!("project_config: (unavailable)");
             }
+        }
+        ConfigCommand::Schema => {
+            let schema = schemars::schema_for!(contracts::Config);
+            println!("{}", serde_json::to_string_pretty(&schema)?);
         }
     }
     Ok(())
@@ -783,6 +791,9 @@ enum QueueCommand {
         after_long_help = "Examples:\n  ralph queue burndown\n  ralph queue burndown --days 30"
     )]
     Burndown(QueueBurndownArgs),
+    /// Print the JSON schema for the queue file.
+    #[command(after_long_help = "Example:\n  ralph queue schema")]
+    Schema,
 }
 
 #[derive(Subcommand)]
@@ -793,6 +804,9 @@ enum ConfigCommand {
     /// Print paths to the queue, done archive, and config files.
     #[command(after_long_help = "Example:\n  ralph config paths")]
     Paths,
+    /// Print the JSON schema for the configuration.
+    #[command(after_long_help = "Example:\n  ralph config schema")]
+    Schema,
 }
 
 #[derive(Subcommand)]

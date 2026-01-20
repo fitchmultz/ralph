@@ -1,5 +1,6 @@
 #![allow(clippy::struct_excessive_bools)]
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -12,7 +13,7 @@ Merge is leaf-wise: project values override global values when the project value
 To make that merge unambiguous, leaf fields are Option<T>.
 */
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(default, deny_unknown_fields)]
 pub struct Config {
     /// Schema version for config.
@@ -28,7 +29,7 @@ pub struct Config {
     pub agent: AgentConfig,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
 #[serde(default, deny_unknown_fields)]
 pub struct QueueConfig {
     /// Path to the JSON queue file, relative to repo root.
@@ -61,7 +62,7 @@ impl QueueConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
 #[serde(default, deny_unknown_fields)]
 pub struct AgentConfig {
     /// Which harness to use by default.
@@ -128,7 +129,7 @@ impl AgentConfig {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ProjectType {
     #[default]
@@ -136,7 +137,7 @@ pub enum ProjectType {
     Docs,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Runner {
     #[default]
@@ -146,7 +147,7 @@ pub enum Runner {
     Claude,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ClaudePermissionMode {
     #[default]
@@ -210,7 +211,22 @@ impl std::str::FromStr for Model {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+// Manual JsonSchema implementation for Model since it has custom Serialize/Deserialize
+impl schemars::JsonSchema for Model {
+    fn schema_name() -> String {
+        "Model".to_string()
+    }
+
+    fn json_schema(_: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+        schemars::schema::SchemaObject {
+            instance_type: Some(schemars::schema::InstanceType::String.into()),
+            ..Default::default()
+        }
+        .into()
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ReasoningEffort {
     Minimal,
@@ -222,7 +238,7 @@ pub enum ReasoningEffort {
 
 /* --------------------------- QueueFile (JSON) ---------------------------- */
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct QueueFile {
     pub version: u32,
@@ -233,7 +249,7 @@ pub struct QueueFile {
 
 /* ------------------------------ Task (JSON) ------------------------------ */
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Task {
     pub id: String,
@@ -282,7 +298,7 @@ pub struct Task {
     pub depends_on: Vec<String>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, Default, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum TaskStatus {
     #[default]
@@ -292,7 +308,7 @@ pub enum TaskStatus {
     Rejected,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum TaskPriority {
     Critical,
@@ -361,7 +377,7 @@ impl std::fmt::Display for TaskStatus {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct TaskAgent {
     #[serde(default, skip_serializing_if = "Option::is_none")]

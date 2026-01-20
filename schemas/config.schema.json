@@ -1,0 +1,231 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Config",
+  "type": "object",
+  "properties": {
+    "agent": {
+      "description": "Agent runner defaults (Codex, OpenCode, or Gemini).",
+      "default": {
+        "claude_bin": "claude",
+        "claude_permission_mode": "bypass_permissions",
+        "codex_bin": "codex",
+        "gemini_bin": "gemini",
+        "model": "gpt-5.2-codex",
+        "opencode_bin": "opencode",
+        "reasoning_effort": "medium",
+        "runner": "codex",
+        "two_pass_plan": true
+      },
+      "allOf": [
+        {
+          "$ref": "#/definitions/AgentConfig"
+        }
+      ]
+    },
+    "project_type": {
+      "description": "\"code\" or \"docs\". Drives prompt defaults and small workflow decisions.",
+      "default": "code",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/ProjectType"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "queue": {
+      "description": "Queue-related configuration.",
+      "default": {
+        "done_file": ".ralph/done.json",
+        "file": ".ralph/queue.json",
+        "id_prefix": "RQ",
+        "id_width": 4
+      },
+      "allOf": [
+        {
+          "$ref": "#/definitions/QueueConfig"
+        }
+      ]
+    },
+    "version": {
+      "description": "Schema version for config.",
+      "default": 1,
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "AgentConfig": {
+      "type": "object",
+      "properties": {
+        "claude_bin": {
+          "description": "Override the claude executable name/path (default is \"claude\" if None).",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "claude_permission_mode": {
+          "description": "Claude permission mode for tool and edit approval. AcceptEdits: auto-approves file edits only BypassPermissions: skip all permission prompts (YOLO mode)",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ClaudePermissionMode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "codex_bin": {
+          "description": "Override the codex executable name/path (default is \"codex\" if None).",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "gemini_bin": {
+          "description": "Override the gemini executable name/path (default is \"gemini\" if None).",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "model": {
+          "description": "Default model.",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Model"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "opencode_bin": {
+          "description": "Override the opencode executable name/path (default is \"opencode\" if None).",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reasoning_effort": {
+          "description": "Default reasoning effort (only meaningful for Codex models).",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ReasoningEffort"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "runner": {
+          "description": "Which harness to use by default.",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Runner"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "two_pass_plan": {
+          "description": "Enable two-pass plan-then-implement workflow (default: true). When enabled, Claude first generates a plan in plan mode, then implements it. Currently supported for Claude and OpenCode runners.",
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "ClaudePermissionMode": {
+      "type": "string",
+      "enum": [
+        "accept_edits",
+        "bypass_permissions"
+      ]
+    },
+    "Model": {
+      "type": "string"
+    },
+    "ProjectType": {
+      "type": "string",
+      "enum": [
+        "code",
+        "docs"
+      ]
+    },
+    "QueueConfig": {
+      "type": "object",
+      "properties": {
+        "done_file": {
+          "description": "Path to the JSON done archive file, relative to repo root.",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "file": {
+          "description": "Path to the JSON queue file, relative to repo root.",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id_prefix": {
+          "description": "ID prefix (default: \"RQ\").",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id_width": {
+          "description": "Zero pad width for the numeric suffix (default: 4 -> RQ-0001).",
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint8",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    },
+    "ReasoningEffort": {
+      "type": "string",
+      "enum": [
+        "minimal",
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "Runner": {
+      "type": "string",
+      "enum": [
+        "codex",
+        "opencode",
+        "gemini",
+        "claude"
+      ]
+    }
+  }
+}
