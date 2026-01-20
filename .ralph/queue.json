@@ -53,7 +53,7 @@
         "Resume after crash requires manual inspection of queue state"
       ],
       "plan": [
-        "Add .ralph/state.yaml with current_task_id and phase",
+        "Add .ralph/state.json with current_task_id and phase",
         "Update state at key points: task started, CI passed, committing",
         "On Ralph startup, detect incomplete state and prompt to resume",
         "Add ralph run resume command to continue interrupted run",
@@ -62,7 +62,7 @@
       "notes": [],
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
-      "updated_at": "2025-01-19T12:00:00+00:00",
+      "updated_at": "2025-01-19T14:45:00+00:00",
       "depends_on": []
     },
     {
