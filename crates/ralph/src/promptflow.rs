@@ -54,14 +54,17 @@ pub fn read_plan_cache(repo_root: &Path, task_id: &str) -> Result<String> {
 /// Build the prompt for Phase 1 (Planning).
 pub fn build_phase1_prompt(
     base_worker_prompt: &str,
-    _task_id: &str,
+    task_id: &str,
     policy: &PromptPolicy,
 ) -> String {
     let mut instructions = String::new();
 
     // 1. Heading
     instructions.push_str("# PLANNING MODE - PHASE 1 OF 2\n\n");
-    instructions.push_str("Task status is already set to `doing` by Ralph. Do NOT change it.\n\n");
+    instructions.push_str(&format!(
+        "CURRENT TASK: {} (Ralph has already set this task to `doing`). Do NOT switch tasks.\n\n",
+        task_id.trim()
+    ));
 
     // 2. RepoPrompt requirement (if enabled)
     if policy.require_repoprompt {
@@ -233,7 +236,7 @@ pub fn build_phase3_prompt(
 pub fn build_single_phase_prompt(
     base_worker_prompt: &str,
     completion_checklist: &str,
-    _task_id: &str,
+    task_id: &str,
     policy: &PromptPolicy,
 ) -> String {
     let mut instructions = String::new();
@@ -244,7 +247,10 @@ pub fn build_single_phase_prompt(
         instructions.push_str("\n\n");
     }
 
-    instructions.push_str("Task status is already set to `doing` by Ralph. Do NOT change it.\n\n");
+    instructions.push_str(&format!(
+        "CURRENT TASK: {} (Ralph has already set this task to `doing`). Do NOT switch tasks.\n\n",
+        task_id.trim()
+    ));
 
     // 2. Completion workflow
     let checklist = completion_checklist.trim();

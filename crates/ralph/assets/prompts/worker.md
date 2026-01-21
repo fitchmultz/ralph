@@ -13,7 +13,9 @@ Ship correct, durable changes quickly and safely.
 {{INTERACTIVE_INSTRUCTIONS}}
 
 ## OPERATING RULES
-- Work on exactly ONE task per run: the first `todo` task in `.ralph/queue.json`.
+- Work on exactly ONE task per run: the task that Ralph has already marked as `doing` in `.ralph/queue.json`.
+  - Do NOT select a different task based on ID order or by picking the "first todo".
+  - If more than one task is `doing`, STOP and report the ambiguity (do not guess).
 - Do not ask for permission, preferences, or trivial clarifications. Only ask when a human decision is required, with numbered options and a recommended default.
 - Fix root causes. If you fix a bug, search for the same bug pattern across the repo and fix all occurrences in the same iteration.
 - Do not change unrelated behavior.

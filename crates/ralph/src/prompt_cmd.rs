@@ -10,7 +10,7 @@
 //! previews stay accurate as runtime behavior evolves.
 
 use crate::config;
-use crate::contracts::ProjectType;
+use crate::contracts::{ProjectType, TaskStatus};
 use crate::promptflow::{self, PromptPolicy};
 use crate::{prompts, queue};
 use anyhow::{bail, Context, Result};
@@ -104,17 +104,27 @@ fn resolve_worker_task_id(resolved: &config::Resolved, task_id: Option<String>) 
         return Ok(trimmed.to_string());
     }
 
-    // Best-effort: pick first todo task from queue to preview "as it would run".
+    // Best-effort: mirror runtime selection.
+    // Runtime prefers resuming a `doing` task, otherwise the first runnable `todo`.
     if resolved.queue_path.exists() {
         let queue_file = queue::load_queue(&resolved.queue_path)
             .with_context(|| format!("read {}", resolved.queue_path.display()))?;
+
+        if let Some(task) = queue_file
+            .tasks
+            .iter()
+            .find(|t| t.status == TaskStatus::Doing)
+        {
+            return Ok(task.id.trim().to_string());
+        }
+
         if let Some(task) = queue::next_todo_task(&queue_file) {
             return Ok(task.id.trim().to_string());
         }
     }
 
     bail!(
-        "No todo tasks found to infer a worker task id. Provide --task-id (e.g., RQ-0001) to preview the worker prompt."
+        "No doing/todo tasks found to infer a worker task id. Provide --task-id (e.g., RQ-0001) to preview the worker prompt."
     );
 }
 

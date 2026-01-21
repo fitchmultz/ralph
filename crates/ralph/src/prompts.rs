@@ -49,28 +49,29 @@ You are running in a RepoPrompt-enabled environment. You MUST use the available 
 pub const REPOPROMPT_CONTEXT_BUILDER_PLANNING_INSTRUCTION: &str = r#"
 ## PLANNING REQUIREMENT: Use context_builder and passthrough the plan verbatim
 To generate the plan, you MUST use the `context_builder` tool.
-1. Provide an extensively detailed `instructions` argument to `context_builder` that describes the task.
-2. MANDATORY: set `response_type` to "plan". The context_builder MUST be executed with a plan requested as the response type.
+1. Provide an extensively detailed `instructions` argument to `context_builder` that describes the CURRENT TASK (use the task context provided in the prompt; do not pick another task).
+2. MANDATORY: set `response_type` to "plan". The `context_builder` MUST be executed with a plan requested as the response type.
 3. VERBATIM OUTPUT: Once `context_builder` returns, you MUST output its plan EXACTLY AS-IS, with zero edits, summarization, or reformatting.
-4. WRAP EXACTLY: Output MUST be wrapped in:
+
+## OUTPUT FORMAT (MANDATORY)
+You MUST output the plan wrapped in these exact markers:
+
 <<RALPH_PLAN_BEGIN>>
 <verbatim plan from context_builder>
+<<RALPH_PLAN_END>>
 
----
-
-Proceed with the implementation of the plan above.
+Do NOT add any other text before, inside, or after the markers.
+Do NOT start implementation in Phase 1.
 "#;
 
 pub fn wrap_with_repoprompt_requirement(prompt: &str, required: bool) -> String {
     if !required {
         return prompt.to_string();
     }
-    format!(
-        "{}\n\n{}\n\n{}",
-        REPOPROMPT_REQUIRED_INSTRUCTION.trim(),
-        REPOPROMPT_CONTEXT_BUILDER_PLANNING_INSTRUCTION.trim(),
-        prompt
-    )
+
+    // This wrapper is used for non-worker prompts (scan/task builder) where we want to
+    // require RepoPrompt tooling, but not force a Phase 1-style plan-marker contract.
+    format!("{}\n\n{}", REPOPROMPT_REQUIRED_INSTRUCTION.trim(), prompt)
 }
 
 /// Expand environment variables and config values in a template string.

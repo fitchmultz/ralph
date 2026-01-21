@@ -135,11 +135,24 @@ fn run_one_impl(
     // --- Task Selection ---
     // Prefer resuming a `doing` task (crash recovery), otherwise take first runnable `todo`.
     let task_idx = if let Some(id) = target_task_id {
-        queue_file
+        let needle = id.trim();
+        if needle.is_empty() {
+            bail!("Target task id is empty");
+        }
+        let idx = queue_file
             .tasks
             .iter()
-            .position(|t| t.id == id)
-            .ok_or_else(|| anyhow!("Target task {} not found in queue", id))?
+            .position(|t| t.id.trim() == needle)
+            .ok_or_else(|| anyhow!("Target task {} not found in queue", needle))?;
+        let status = queue_file.tasks[idx].status;
+        if status == TaskStatus::Done || status == TaskStatus::Rejected {
+            bail!(
+                "Target task {} is not runnable (status: {}). Choose a todo/doing task.",
+                needle,
+                status
+            );
+        }
+        idx
     } else if let Some(idx) = queue_file
         .tasks
         .iter()
@@ -193,7 +206,13 @@ fn run_one_impl(
     // --- Prompt Construction ---
     let template = prompts::load_worker_prompt(&resolved.repo_root)?;
     let project_type = resolved.config.project_type.unwrap_or(ProjectType::Code);
-    let base_prompt = prompts::render_worker_prompt(&template, project_type, &resolved.config)?;
+    let mut base_prompt = prompts::render_worker_prompt(&template, project_type, &resolved.config)?;
+
+    // Inject an authoritative task context block to prevent the agent from selecting
+    // a different task (e.g., "first todo" or "lowest ID") after Ralph marks the
+    // selected task as `doing`.
+    let task_context = task_context_for_prompt(&task)?;
+    base_prompt = format!("{task_context}\n\n---\n\n{base_prompt}");
 
     if phases == 2 {
         log::info!("Phase 1/2 (Planning) for {task_id}...");
@@ -455,6 +474,31 @@ fn resolve_run_agent_settings(
         task.agent.as_ref(),
         &resolved.config.agent,
     )
+}
+
+fn task_context_for_prompt(task: &crate::contracts::Task) -> Result<String> {
+    let id = task.id.trim();
+    let title = task.title.trim();
+    let rendered =
+        serde_json::to_string_pretty(task).context("serialize task JSON for prompt context")?;
+
+    Ok(format!(
+        r#"# CURRENT TASK (AUTHORITATIVE)
+
+You MUST work on this exact task and no other task.
+- Do NOT switch tasks based on queue order, "first todo", or "lowest ID".
+- Ignore `.ralph/done.json` except as historical reference if explicitly needed.
+- Ralph has already set this task to `doing`. Do NOT change task status manually.
+
+Task ID: {id}
+Title: {title}
+
+Raw task JSON (source of truth):
+```json
+{rendered}
+```
+"#,
+    ))
 }
 
 fn mark_task_doing(resolved: &config::Resolved, task_id: &str) -> Result<()> {
@@ -1057,6 +1101,18 @@ mod tests {
         assert_eq!(settings.runner, Runner::Opencode);
         assert_eq!(settings.model, Model::Gpt52);
         assert_eq!(settings.reasoning_effort, None);
+        Ok(())
+    }
+
+    #[test]
+    fn task_context_block_includes_id_and_title() -> Result<()> {
+        let mut t = base_task();
+        t.id = "RQ-0001".to_string();
+        t.title = "Hello world".to_string();
+        let rendered = task_context_for_prompt(&t)?;
+        assert!(rendered.contains("RQ-0001"));
+        assert!(rendered.contains("Hello world"));
+        assert!(rendered.contains("Raw task JSON"));
         Ok(())
     }
 
