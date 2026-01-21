@@ -2072,6 +2072,42 @@
       "completed_at": "2026-01-21T21:18:22.387288000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0204",
+      "status": "done",
+      "title": "Init should validate existing queue/done contents, not only parse JSON",
+      "priority": "medium",
+      "tags": [
+        "init",
+        "queue",
+        "validation"
+      ],
+      "scope": [
+        "crates/ralph/src/init_cmd.rs",
+        "crates/ralph/src/queue/validation.rs",
+        "crates/ralph/tests/init_cmd_test.rs"
+      ],
+      "evidence": [
+        "crates/ralph/src/init_cmd.rs write_queue/write_done only load JSON without running queue::validate_queue, so structurally invalid tasks pass init validation."
+      ],
+      "plan": [
+        "Run queue validation on existing queue/done files during init when not forcing.",
+        "Surface clear errors when invariants fail.",
+        "Add tests covering invalid queue/done inputs.",
+        "Ensure prompts reflect the desired and required functionality for this task."
+      ],
+      "notes": [
+        "Init now validates existing queue and done files (semantic validation) when they exist and are not being overwritten.",
+        "Added new tests in init_cmd.rs and init_validation_test.rs to cover invalid existing queue/done scenarios.",
+        "Verified that invalid ID prefixes or missing required fields cause init to fail as expected."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-21T19:59:34Z",
+      "updated_at": "2026-01-21T21:27:16.731728000Z",
+      "completed_at": "2026-01-21T21:27:16.731728000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

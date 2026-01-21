@@ -23,6 +23,7 @@ pub enum FileInitStatus {
     Valid,
 }
 
+#[derive(Debug)]
 pub struct InitReport {
     pub queue_status: FileInitStatus,
     pub done_status: FileInitStatus,
@@ -71,12 +72,14 @@ pub fn run_init(resolved: &config::Resolved, opts: InitOptions) -> Result<InitRe
 fn write_queue(
     path: &Path,
     force: bool,
-    _id_prefix: &str,
-    _id_width: usize,
+    id_prefix: &str,
+    id_width: usize,
 ) -> Result<FileInitStatus> {
     if path.exists() && !force {
         // Validate existing file by trying to load it
-        let _queue = queue::load_queue(path)?;
+        let queue = queue::load_queue(path)?;
+        queue::validate_queue(&queue, id_prefix, id_width)
+            .with_context(|| format!("validate existing queue {}", path.display()))?;
         return Ok(FileInitStatus::Valid);
     }
     if let Some(parent) = path.parent() {
@@ -92,12 +95,14 @@ fn write_queue(
 fn write_done(
     path: &Path,
     force: bool,
-    _id_prefix: &str,
-    _id_width: usize,
+    id_prefix: &str,
+    id_width: usize,
 ) -> Result<FileInitStatus> {
     if path.exists() && !force {
         // Validate existing file by trying to load it
-        let _queue = queue::load_queue(path)?;
+        let queue = queue::load_queue(path)?;
+        queue::validate_queue(&queue, id_prefix, id_width)
+            .with_context(|| format!("validate existing done {}", path.display()))?;
         return Ok(FileInitStatus::Valid);
     }
     if let Some(parent) = path.parent() {
@@ -233,7 +238,8 @@ mod tests {
       "plan": ["z"],
       "request": "test",
       "created_at": "2026-01-18T00:00:00Z",
-      "updated_at": "2026-01-18T00:00:00Z"
+      "updated_at": "2026-01-18T00:00:00Z",
+      "completed_at": "2026-01-18T00:00:00Z"
     }
   ]
 }"#;
@@ -358,6 +364,98 @@ mod tests {
         assert_eq!(report.readme_status, None);
         let readme_path = resolved.repo_root.join(".ralph/README.md");
         assert!(!readme_path.exists());
+        Ok(())
+    }
+
+    #[test]
+    fn init_fails_on_invalid_existing_queue() -> Result<()> {
+        let dir = TempDir::new()?;
+        let resolved = resolved_for(&dir);
+        std::fs::create_dir_all(resolved.repo_root.join(".ralph"))?;
+
+        // Create a queue with an invalid ID prefix (WRONG-0001 vs RQ)
+        let queue_json = r#"{
+  "version": 1,
+  "tasks": [
+    {
+      "id": "WRONG-0001",
+      "status": "todo",
+      "title": "Bad ID",
+      "tags": [],
+      "scope": [],
+      "evidence": [],
+      "plan": [],
+      "request": "test",
+      "created_at": "2026-01-18T00:00:00Z",
+      "updated_at": "2026-01-18T00:00:00Z"
+    }
+  ]
+}"#;
+        std::fs::write(&resolved.queue_path, queue_json)?;
+        std::fs::write(&resolved.done_path, r#"{"version":1,"tasks":[]}"#)?;
+        std::fs::write(
+            resolved.project_config_path.as_ref().unwrap(),
+            r#"{"version":1,"project_type":"code"}"#,
+        )?;
+
+        let result = run_init(
+            &resolved,
+            InitOptions {
+                force: false,
+                force_lock: false,
+            },
+        );
+
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("validate existing queue"));
+        Ok(())
+    }
+
+    #[test]
+    fn init_fails_on_invalid_existing_done() -> Result<()> {
+        let dir = TempDir::new()?;
+        let resolved = resolved_for(&dir);
+        std::fs::create_dir_all(resolved.repo_root.join(".ralph"))?;
+
+        std::fs::write(&resolved.queue_path, r#"{"version":1,"tasks":[]}"#)?;
+
+        // Create a done file with a task that has invalid status for done file (todo instead of done)
+        // Or we could use ID prefix mismatch again. Let's use ID prefix mismatch for simplicity and certainty.
+        let done_json = r#"{
+  "version": 1,
+  "tasks": [
+    {
+      "id": "WRONG-0002",
+      "status": "done",
+      "title": "Bad ID",
+      "tags": [],
+      "scope": [],
+      "evidence": [],
+      "plan": [],
+      "request": "test",
+      "created_at": "2026-01-18T00:00:00Z",
+      "updated_at": "2026-01-18T00:00:00Z"
+    }
+  ]
+}"#;
+        std::fs::write(&resolved.done_path, done_json)?;
+        std::fs::write(
+            resolved.project_config_path.as_ref().unwrap(),
+            r#"{"version":1,"project_type":"code"}"#,
+        )?;
+
+        let result = run_init(
+            &resolved,
+            InitOptions {
+                force: false,
+                force_lock: false,
+            },
+        );
+
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("validate existing done"));
         Ok(())
     }
 }
