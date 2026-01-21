@@ -2,6 +2,38 @@
   "version": 1,
   "tasks": [
     {
+      "id": "RQ-0193",
+      "status": "todo",
+      "title": "Simplify 'ralph task build' to 'ralph task' alias",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "cli",
+        "ux",
+        "refactoring"
+      ],
+      "scope": [
+        "crates/ralph/src/cli.rs",
+        "crates/ralph/src/task.rs"
+      ],
+      "evidence": [
+        "User request: 'I want to simplify the 'ralph task build' command to be invoked via 'ralph task'"
+      ],
+      "plan": [
+        "Make 'build' the default subcommand under 'ralph task' (i.e., 'ralph task <args>' behaves like 'ralph task build <args>')",
+        "Keep 'ralph task build' as an explicit alias for backward compatibility",
+        "Update help text to show 'ralph task' as primary usage",
+        "Update AGENTS.md and .ralph/README.md documentation",
+        "Run make ci to verify changes"
+      ],
+      "notes": [],
+      "request": "I want to simplify the 'ralph task build' command to be invoked via 'ralph task'",
+      "created_at": "2026-01-21T00:00:00Z",
+      "updated_at": "2026-01-21T00:00:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
       "id": "RQ-0189",
       "status": "todo",
       "title": "Verify and consolidate refactored codebase",
