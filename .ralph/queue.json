@@ -2,41 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0177",
-      "status": "todo",
-      "title": "Refactor queue.rs: Extract validation module",
-      "priority": "high",
-      "tags": [
-        "rust",
-        "refactoring",
-        "queue",
-        "validation"
-      ],
-      "scope": [
-        "crates/ralph/src/queue.rs",
-        "crates/ralph/src/queue/validation.rs"
-      ],
-      "evidence": [
-        "queue.rs is 2496 lines - too large for effective maintenance",
-        "Validation functions (validate_queue, validate_queue_set, validate_task_required_fields, validate_rfc3339, validate_dependencies, are_dependencies_met) can be extracted",
-        "User request: 'Several files in this project are thousand of lines long. We need to refactor while maintaing the same functionality.'"
-      ],
-      "plan": [
-        "Create crates/ralph/src/queue/validation.rs module",
-        "Extract all validation functions: validate_queue, validate_queue_set, validate_task_required_fields, validate_rfc3339, ensure_list_non_empty, ensure_field_present, validate_task_id, validate_dependencies, are_dependencies_met, has_cycle",
-        "Move validation-related helper types (if any)",
-        "Update queue.rs to re-export validation module public functions",
-        "Run make ci to ensure no functionality changes",
-        "Update all imports in queue.rs and other files that use validation functions"
-      ],
-      "notes": [],
-      "request": "Several files in this project are thousand of lines long. We need to refactor while maintaing the same functionality. Smaller file sizes are easier to maintain and find what is needed. Also easier to make sure we are not violating DRY and YAGNI principals. Create several tasks to completely tackle this effort. use the queue fields at your disposal to ensure this is done logically.",
-      "created_at": "2026-01-20T19:00:00Z",
-      "updated_at": "2026-01-20T19:00:00Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0178",
       "status": "todo",
       "title": "Refactor queue.rs: Extract pruning module",
