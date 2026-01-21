@@ -2,40 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0185",
-      "status": "todo",
-      "title": "Refactor tui.rs: Extract event handling module",
-      "priority": "medium",
-      "tags": [
-        "rust",
-        "refactoring",
-        "tui",
-        "event-handling"
-      ],
-      "scope": [
-        "crates/ralph/src/tui.rs",
-        "crates/ralph/src/tui/events.rs"
-      ],
-      "evidence": [
-        "tui.rs is 1221 lines - too large for effective maintenance",
-        "Event handling functions (handle_key_event, handle_normal_mode_key, handle_editing_mode_key, handle_confirm_delete_key, handle_executing_mode_key) and types (TuiAction, AppMode) can be extracted",
-        "User request: 'Several files in this project are thousand of lines long. We need to refactor while maintaing the same functionality.'"
-      ],
-      "plan": [
-        "Create crates/ralph/src/tui/events.rs module",
-        "Extract event handling functions and types: handle_key_event, handle_normal_mode_key, handle_editing_mode_key, handle_confirm_delete_key, handle_executing_mode_key, TuiAction, AppMode",
-        "Update tui.rs to use events module for key handling",
-        "Run make ci to ensure no functionality changes",
-        "Verify TUI tests still pass"
-      ],
-      "notes": [],
-      "request": "Several files in this project are thousand of lines long. We need to refactor while maintaing the same functionality. Smaller file sizes are easier to maintain and find what is needed. Also easier to make sure we are not violating DRY and YAGNI principals. Create several tasks to completely tackle this effort. use the queue fields at your disposal to ensure this is done logically.",
-      "created_at": "2026-01-20T19:00:00Z",
-      "updated_at": "2026-01-20T19:00:00Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0186",
       "status": "todo",
       "title": "Refactor runner.rs: Extract runner execution module",
