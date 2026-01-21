@@ -115,9 +115,12 @@ fn write_config(path: &Path, force: bool) -> Result<FileInitStatus> {
         // Validate existing config by trying to parse it
         let raw =
             fs::read_to_string(path).with_context(|| format!("read config {}", path.display()))?;
-        if serde_json::from_str::<Config>(&raw).is_ok() {
-            return Ok(FileInitStatus::Valid);
-        }
+        serde_json::from_str::<Config>(&raw).with_context(|| {
+            format!(
+                "Config file exists but is invalid JSON: {}. Use --force to overwrite.",
+                path.display()
+            )
+        })?;
         return Ok(FileInitStatus::Valid);
     }
     if let Some(parent) = path.parent() {

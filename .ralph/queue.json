@@ -2,36 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0203",
-      "status": "todo",
-      "title": "Init should fail fast on invalid config JSON instead of marking valid",
-      "priority": "medium",
-      "tags": [
-        "init",
-        "config",
-        "validation"
-      ],
-      "scope": [
-        "crates/ralph/src/init_cmd.rs",
-        "crates/ralph/tests/init_cmd_test.rs"
-      ],
-      "evidence": [
-        "crates/ralph/src/init_cmd.rs write_config returns FileInitStatus::Valid even when serde_json::from_str::<Config> fails."
-      ],
-      "plan": [
-        "Return an error or reinitialize when config JSON is invalid and --force is not set.",
-        "Add tests to ensure invalid config files are detected.",
-        "Update CLI/help/docs if behavior changes.",
-        "Ensure prompts reflect the desired and required functionality for this task."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-21T19:59:34Z",
-      "updated_at": "2026-01-21T19:59:34Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0204",
       "status": "todo",
       "title": "Init should validate existing queue/done contents, not only parse JSON",

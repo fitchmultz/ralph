@@ -218,6 +218,11 @@ ralph config schema
 ### Flags
 - `--force`: overwrite existing files.
 
+Behavior:
+- Creates `.ralph` directory and files if missing.
+- Validates existing `config.json`, `queue.json`, and `done.json` if they exist (fails if invalid unless `--force` is used).
+- Checks/creates `README.md` if referenced by prompts.
+
 Example:
 ```bash
 ralph init --force
