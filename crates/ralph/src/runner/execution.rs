@@ -363,7 +363,7 @@ fn spawn_json_reader<R: Read + Send + 'static>(
             let text = String::from_utf8_lossy(&buf[..read]);
             for ch in text.chars() {
                 if ch == '\n' {
-                    if let Ok(json) = serde_json::from_str::<JsonValue>(&line_buf) {
+                    if let Some(json) = parse_json_line(&line_buf) {
                         display_filtered_json(&json, &sink)?;
                     }
                     line_buf.clear();
@@ -386,17 +386,21 @@ fn spawn_json_reader<R: Read + Send + 'static>(
     })
 }
 
-/// Display meaningful content from JSON, filtering noise
-fn display_filtered_json(json: &JsonValue, sink: &StreamSink) -> anyhow::Result<()> {
-    // Display the result field (actual text output from Claude)
+fn parse_json_line(line: &str) -> Option<JsonValue> {
+    serde_json::from_str::<JsonValue>(line).ok()
+}
+
+const CODEX_REASONING_PREFIX: &str = "[Reasoning] ";
+
+fn extract_display_lines(json: &JsonValue) -> Vec<String> {
+    let mut lines = Vec::new();
+
     if let Some(result) = json.get("result").and_then(|r| r.as_str()) {
         if !result.is_empty() {
-            sink.write_all(result.as_bytes())?;
-            sink.write_all(b"\n")?;
+            lines.push(result.to_string());
         }
     }
 
-    // Display tool use events and text content for visibility
     if let Some(event_type) = json.get("type").and_then(|t| t.as_str()) {
         if event_type == "assistant" {
             if let Some(message) = json.get("message") {
@@ -405,17 +409,13 @@ fn display_filtered_json(json: &JsonValue, sink: &StreamSink) -> anyhow::Result<
                         if let Some(item_type) = item.get("type").and_then(|t| t.as_str()) {
                             match item_type {
                                 "text" => {
-                                    // Display text content from Claude
                                     if let Some(text) = item.get("text").and_then(|t| t.as_str()) {
-                                        sink.write_all(text.as_bytes())?;
-                                        sink.write_all(b"\n")?;
+                                        lines.push(text.to_string());
                                     }
                                 }
                                 "tool_use" => {
-                                    // Display tool use as [Using: ToolName]
                                     if let Some(name) = item.get("name").and_then(|n| n.as_str()) {
-                                        let msg = format!("[Using: {}]\n", name);
-                                        sink.write_all(msg.as_bytes())?;
+                                        lines.push(format!("[Using: {}]", name));
                                     }
                                 }
                                 _ => {}
@@ -425,16 +425,48 @@ fn display_filtered_json(json: &JsonValue, sink: &StreamSink) -> anyhow::Result<
                 }
             }
         }
+
+        if event_type == "item.completed" {
+            if let Some(item) = json.get("item") {
+                if let Some(item_type) = item.get("type").and_then(|t| t.as_str()) {
+                    match item_type {
+                        "agent_message" => {
+                            if let Some(text) = item.get("text").and_then(|t| t.as_str()) {
+                                if !text.is_empty() {
+                                    lines.push(text.to_string());
+                                }
+                            }
+                        }
+                        "reasoning" => {
+                            if let Some(text) = item.get("text").and_then(|t| t.as_str()) {
+                                if !text.is_empty() {
+                                    lines.push(format!("{}{}", CODEX_REASONING_PREFIX, text));
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
     }
 
-    // Display permission denials
     if let Some(denials) = json.get("permission_denials").and_then(|d| d.as_array()) {
         for denial in denials {
             if let Some(tool_name) = denial.get("tool_name").and_then(|t| t.as_str()) {
-                let msg = format!("[Permission denied: {}]\n", tool_name);
-                sink.write_all(msg.as_bytes())?;
+                lines.push(format!("[Permission denied: {}]", tool_name));
             }
         }
+    }
+
+    lines
+}
+
+/// Display meaningful content from JSON, filtering noise
+fn display_filtered_json(json: &JsonValue, sink: &StreamSink) -> anyhow::Result<()> {
+    for line in extract_display_lines(json) {
+        sink.write_all(line.as_bytes())?;
+        sink.write_all(b"\n")?;
     }
 
     Ok(())
@@ -453,6 +485,7 @@ pub fn run_codex(
     cmd.current_dir(work_dir);
     ensure_self_on_path(&mut cmd);
     cmd.arg("exec")
+        .arg("--json")
         .arg("--full-auto")
         .arg("--model")
         .arg(model.as_str());
@@ -465,7 +498,7 @@ pub fn run_codex(
     }
 
     cmd.arg("-");
-    stream_command(cmd, Some(prompt.as_bytes()), bin, timeout, output_handler)
+    run_with_streaming_json(cmd, Some(prompt.as_bytes()), bin, timeout, output_handler)
 }
 
 pub fn run_opencode(
@@ -689,6 +722,7 @@ pub fn stream_command(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn permission_mode_to_arg_mapping() {
@@ -708,5 +742,68 @@ mod tests {
         assert_eq!(effort_as_str(ReasoningEffort::Low), "low");
         assert_eq!(effort_as_str(ReasoningEffort::Medium), "medium");
         assert_eq!(effort_as_str(ReasoningEffort::High), "high");
+    }
+
+    #[test]
+    fn parse_json_line_handles_invalid_json() {
+        assert!(parse_json_line("{").is_none());
+    }
+
+    #[test]
+    fn extract_display_lines_codex_agent_message() {
+        let payload = json!({
+            "type": "item.completed",
+            "item": {"type": "agent_message", "text": "Hi!"}
+        });
+        assert_eq!(extract_display_lines(&payload), vec!["Hi!"]);
+    }
+
+    #[test]
+    fn extract_display_lines_codex_reasoning() {
+        let payload = json!({
+            "type": "item.completed",
+            "item": {"type": "reasoning", "text": "Working it out"}
+        });
+        assert_eq!(
+            extract_display_lines(&payload),
+            vec!["[Reasoning] Working it out"]
+        );
+    }
+
+    #[test]
+    fn extract_display_lines_claude_result_and_tool_use() {
+        let payload = json!({
+            "result": "Final answer",
+            "type": "assistant",
+            "message": {
+                "content": [
+                    {"type": "text", "text": "Streamed text"},
+                    {"type": "tool_use", "name": "search"}
+                ]
+            }
+        });
+        assert_eq!(
+            extract_display_lines(&payload),
+            vec!["Final answer", "Streamed text", "[Using: search]"]
+        );
+    }
+
+    #[test]
+    fn extract_display_lines_permission_denial() {
+        let payload = json!({
+            "permission_denials": [
+                {"tool_name": "write"}
+            ]
+        });
+        assert_eq!(
+            extract_display_lines(&payload),
+            vec!["[Permission denied: write]"]
+        );
+    }
+
+    #[test]
+    fn extract_display_lines_unknown_event_is_noop() {
+        let payload = json!({"type": "unknown"});
+        assert!(extract_display_lines(&payload).is_empty());
     }
 }

@@ -1635,6 +1635,43 @@
         "RQ-0188"
       ],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0194",
+      "status": "done",
+      "title": "Enhance Codex runner streaming output with JSON events",
+      "priority": "medium",
+      "tags": [
+        "codex",
+        "runner",
+        "streaming",
+        "json"
+      ],
+      "scope": [
+        "crates/ralph/src",
+        "codex exec --help",
+        "codex exec --json \"just say hi\""
+      ],
+      "evidence": [
+        "User request: \"Enahnce the streaming output for the codex runner. Switch to using 'codex exec --json' and capture the reasoning and agent_message. Maintain the streaming output. Run 'codex exec --help' to see the menu of options. User has captured 'codex exec --json \"just say hi\"' in a file located at /tmp/codex-exec.log\""
+      ],
+      "plan": [
+        "Locate Codex runner streaming implementation and identify where stdout/stderr events are parsed",
+        "Run `codex exec --help` and `codex exec --json \"just say hi\"` to capture supported flags and JSONL event shape",
+        "Switch runner to `codex exec --json` and stream JSONL events while preserving existing streaming UX",
+        "Extract and surface `reasoning` and `agent_message` fields in output/logs with clear formatting",
+        "Add/extend tests to cover JSONL parsing, streaming behavior, and failure modes"
+      ],
+      "notes": [
+        "Reviewed JSON streaming changes and tests; no functional gaps found",
+        "make ci passes"
+      ],
+      "request": "Enahnce the streaming output for the codex runner. Switch to using 'codex exec --json' and capture the reasoning and agent_message. Maintain the streaming output. Run 'codex exec --help' to see the menu of options. Run 'codex exec --json \"just say hi\"' to see a sample output.",
+      "created_at": "2026-01-21T18:27:50Z",
+      "updated_at": "2026-01-21T18:48:38.634081000Z",
+      "completed_at": "2026-01-21T18:48:38.634081000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }
