@@ -22,7 +22,7 @@ fn make_resolved(temp: &TempDir) -> ralph::config::Resolved {
             id_width: Some(4),
         },
         agent: AgentConfig {
-            two_pass_plan: Some(true),
+            phases: Some(3),
             require_repoprompt: Some(false),
             ..Default::default()
         },
@@ -212,5 +212,30 @@ fn task_builder_prompt_includes_request_and_hints() -> Result<()> {
     assert!(prompt.contains("Add tests"));
     assert!(prompt.contains("rust,tests"));
     assert!(prompt.contains("crates/ralph"));
+    Ok(())
+}
+
+#[test]
+fn worker_phase3_includes_code_review_prompt() -> Result<()> {
+    let temp = TempDir::new()?;
+    write_minimal_queue(&temp)?;
+    let resolved = make_resolved(&temp);
+
+    let prompt = prompt_cmd::build_worker_prompt(
+        &resolved,
+        WorkerPromptOptions {
+            task_id: Some("RQ-0001".to_string()),
+            mode: WorkerMode::Phase3,
+            repoprompt_required: false,
+            plan_file: None,
+            plan_text: None,
+            explain: false,
+        },
+    )?;
+
+    assert!(prompt.contains("CODE REVIEW MODE - PHASE 3 OF 3"));
+    assert!(prompt.contains("CODING STANDARDS"));
+    assert!(prompt.contains("IMPLEMENTATION COMPLETION CHECKLIST"));
+    assert!(prompt.contains("PRE-FLIGHT OVERRIDE"));
     Ok(())
 }

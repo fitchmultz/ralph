@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 pub enum RunPhase {
     Phase1, // Planning
     Phase2, // Implementation
+    Phase3, // Code review
 }
 
 #[derive(Debug, Clone)]
@@ -148,6 +149,84 @@ pub fn build_phase2_prompt(
     instructions.push_str("Proceed with the implementation of the plan above.");
 
     instructions
+}
+
+/// Build the prompt for Phase 2 handoff (3-phase workflow).
+pub fn build_phase2_handoff_prompt(
+    plan_text: &str,
+    handoff_checklist: &str,
+    policy: &PromptPolicy,
+) -> String {
+    let mut instructions = String::new();
+
+    // 1. Heading
+    instructions.push_str("# IMPLEMENTATION MODE - PHASE 2 OF 3\n\n");
+    instructions.push_str("Task status is already set to `doing` by Ralph. Do NOT change it.\n\n");
+
+    // 2. RepoPrompt requirement (optional in phase 2, but good for consistency)
+    if policy.require_repoprompt {
+        instructions.push_str(prompts::REPOPROMPT_REQUIRED_INSTRUCTION);
+        instructions.push_str("\n\n");
+    }
+
+    // 3. Handoff workflow
+    let checklist = handoff_checklist.trim();
+    if !checklist.is_empty() {
+        instructions.push_str(checklist);
+        instructions.push_str("\n\n");
+    }
+
+    // 4. The Plan
+    instructions.push_str("# APPROVED PLAN\n\n");
+    instructions.push_str(plan_text);
+    instructions.push_str("\n\n---\n\n");
+
+    // 5. Instruction to execute
+    instructions
+        .push_str("Proceed with the implementation of the plan above. Stop after Phase 2 handoff.");
+
+    instructions
+}
+
+/// Build the prompt for Phase 3 (Code Review).
+pub fn build_phase3_prompt(
+    base_worker_prompt: &str,
+    code_review_body: &str,
+    completion_checklist: &str,
+    policy: &PromptPolicy,
+    _task_id: &str,
+) -> String {
+    let mut instructions = String::new();
+
+    // 1. Heading
+    instructions.push_str("# CODE REVIEW MODE - PHASE 3 OF 3\n\n");
+    instructions.push_str("Task status is already set to `doing` by Ralph. Do NOT change it (use `ralph queue complete` when finished).\n\n");
+
+    // 2. Override dirty-repo rule: Phase 3 expects pending changes from Phase 2.
+    instructions.push_str("## PRE-FLIGHT OVERRIDE\n");
+    instructions.push_str("The repo is expected to be dirty in Phase 3 due to Phase 2 changes. Do NOT stop because the working tree is dirty.\n\n");
+
+    // 3. RepoPrompt requirement
+    if policy.require_repoprompt {
+        instructions.push_str(prompts::REPOPROMPT_REQUIRED_INSTRUCTION);
+        instructions.push_str("\n\n");
+    }
+
+    // 4. Code review body + completion checklist
+    let review = code_review_body.trim();
+    if !review.is_empty() {
+        instructions.push_str(review);
+        instructions.push_str("\n\n");
+    }
+
+    let checklist = completion_checklist.trim();
+    if !checklist.is_empty() {
+        instructions.push_str(checklist);
+        instructions.push_str("\n\n");
+    }
+
+    // 5. Divider and base prompt
+    format!("{}\n\n---\n\n{}", instructions.trim(), base_worker_prompt)
 }
 
 /// Build the prompt for Single Phase (Plan + Implement).

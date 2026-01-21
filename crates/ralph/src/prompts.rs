@@ -12,6 +12,8 @@ const WORKER_PROMPT_REL_PATH: &str = ".ralph/prompts/worker.md";
 const TASK_BUILDER_PROMPT_REL_PATH: &str = ".ralph/prompts/task_builder.md";
 const SCAN_PROMPT_REL_PATH: &str = ".ralph/prompts/scan.md";
 const COMPLETION_CHECKLIST_REL_PATH: &str = ".ralph/prompts/completion_checklist.md";
+const CODE_REVIEW_PROMPT_REL_PATH: &str = ".ralph/prompts/code_review.md";
+const PHASE2_HANDOFF_CHECKLIST_REL_PATH: &str = ".ralph/prompts/phase2_handoff_checklist.md";
 
 const DEFAULT_WORKER_PROMPT: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -28,6 +30,14 @@ const DEFAULT_SCAN_PROMPT: &str = include_str!(concat!(
 const DEFAULT_COMPLETION_CHECKLIST: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/assets/prompts/completion_checklist.md"
+));
+const DEFAULT_CODE_REVIEW_PROMPT: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/assets/prompts/code_review.md"
+));
+const DEFAULT_PHASE2_HANDOFF_CHECKLIST: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/assets/prompts/phase2_handoff_checklist.md"
 ));
 
 /// Instructions for tooling requirements when RepoPrompt is required.
@@ -149,11 +159,6 @@ fn get_config_value(config: &Config, path: &str) -> Result<String> {
             .reasoning_effort
             .map(|e| format!("{:?}", e))
             .ok_or_else(|| anyhow::anyhow!("agent.reasoning_effort not set")),
-        ["agent", "two_pass_plan"] => config
-            .agent
-            .two_pass_plan
-            .map(|b| b.to_string())
-            .ok_or_else(|| anyhow::anyhow!("agent.two_pass_plan not set")),
         ["agent", "claude_permission_mode"] => config
             .agent
             .claude_permission_mode
@@ -183,11 +188,15 @@ pub fn prompts_reference_readme(repo_root: &Path) -> Result<bool> {
     let task_builder = load_task_builder_prompt(repo_root)?;
     let scan = load_scan_prompt(repo_root)?;
     let completion_checklist = load_completion_checklist(repo_root)?;
+    let code_review = load_code_review_prompt(repo_root)?;
+    let phase2_handoff = load_phase2_handoff_checklist(repo_root)?;
 
     Ok(worker.contains(".ralph/README.md")
         || task_builder.contains(".ralph/README.md")
         || scan.contains(".ralph/README.md")
-        || completion_checklist.contains(".ralph/README.md"))
+        || completion_checklist.contains(".ralph/README.md")
+        || code_review.contains(".ralph/README.md")
+        || phase2_handoff.contains(".ralph/README.md"))
 }
 
 pub fn load_worker_prompt(repo_root: &Path) -> Result<String> {
@@ -206,6 +215,24 @@ pub fn load_completion_checklist(repo_root: &Path) -> Result<String> {
         COMPLETION_CHECKLIST_REL_PATH,
         DEFAULT_COMPLETION_CHECKLIST,
         "completion checklist",
+    )
+}
+
+pub fn load_code_review_prompt(repo_root: &Path) -> Result<String> {
+    load_prompt_with_fallback(
+        repo_root,
+        CODE_REVIEW_PROMPT_REL_PATH,
+        DEFAULT_CODE_REVIEW_PROMPT,
+        "code review",
+    )
+}
+
+pub fn load_phase2_handoff_checklist(repo_root: &Path) -> Result<String> {
+    load_prompt_with_fallback(
+        repo_root,
+        PHASE2_HANDOFF_CHECKLIST_REL_PATH,
+        DEFAULT_PHASE2_HANDOFF_CHECKLIST,
+        "phase2 handoff checklist",
     )
 }
 
@@ -259,6 +286,56 @@ pub fn render_completion_checklist(template: &str, config: &Config) -> Result<St
     let expanded = expand_variables(template, config)?;
     ensure_no_unresolved_placeholders(&expanded, "completion checklist")?;
     Ok(expanded)
+}
+
+pub fn render_phase2_handoff_checklist(template: &str, config: &Config) -> Result<String> {
+    let expanded = expand_variables(template, config)?;
+    ensure_no_unresolved_placeholders(&expanded, "phase2 handoff checklist")?;
+    Ok(expanded)
+}
+
+pub fn render_code_review_prompt(
+    template: &str,
+    task_id: &str,
+    git_status: &str,
+    git_diff: &str,
+    git_diff_staged: &str,
+    project_type: ProjectType,
+    config: &Config,
+) -> Result<String> {
+    if !template.contains("{{TASK_ID}}") {
+        bail!("Template error: code review prompt template is missing the required '{{TASK_ID}}' placeholder.");
+    }
+    if !template.contains("{{GIT_STATUS}}") {
+        bail!("Template error: code review prompt template is missing the required '{{GIT_STATUS}}' placeholder.");
+    }
+    if !template.contains("{{GIT_DIFF}}") {
+        bail!("Template error: code review prompt template is missing the required '{{GIT_DIFF}}' placeholder.");
+    }
+    if !template.contains("{{GIT_DIFF_STAGED}}") {
+        bail!("Template error: code review prompt template is missing the required '{{GIT_DIFF_STAGED}}' placeholder.");
+    }
+
+    let id = task_id.trim();
+    if id.is_empty() {
+        bail!("Missing task id: code review prompt requires a non-empty task id.");
+    }
+
+    let expanded = expand_variables(template, config)?;
+    let guidance = project_type_guidance(project_type);
+    let mut rendered = if expanded.contains("{{PROJECT_TYPE_GUIDANCE}}") {
+        expanded.replace("{{PROJECT_TYPE_GUIDANCE}}", guidance)
+    } else {
+        format!("{}\n{}", expanded, guidance)
+    };
+
+    rendered = rendered.replace("{{TASK_ID}}", id);
+    rendered = rendered.replace("{{GIT_STATUS}}", git_status);
+    rendered = rendered.replace("{{GIT_DIFF}}", git_diff);
+    rendered = rendered.replace("{{GIT_DIFF_STAGED}}", git_diff_staged);
+
+    ensure_no_unresolved_placeholders(&rendered, "code review")?;
+    Ok(rendered)
 }
 
 pub fn load_task_builder_prompt(repo_root: &Path) -> Result<String> {
@@ -626,6 +703,44 @@ mod tests {
         let result = expand_variables(template, &config)?;
         assert!(result.contains("gpt-5.2-codex"));
         assert!(result.contains("Var: default"));
+        Ok(())
+    }
+
+    #[test]
+    fn render_code_review_prompt_replaces_placeholders() -> Result<()> {
+        let template = "ID={{TASK_ID}}\n{{GIT_STATUS}}\n{{GIT_DIFF}}\n{{GIT_DIFF_STAGED}}\n";
+        let config = default_config();
+        let rendered = render_code_review_prompt(
+            template,
+            "RQ-0001",
+            "STATUS",
+            "DIFF",
+            "STAGED",
+            ProjectType::Code,
+            &config,
+        )?;
+        assert!(rendered.contains("ID=RQ-0001"));
+        assert!(rendered.contains("STATUS"));
+        assert!(rendered.contains("DIFF"));
+        assert!(rendered.contains("STAGED"));
+        Ok(())
+    }
+
+    #[test]
+    fn render_code_review_prompt_fails_missing_task_id() -> Result<()> {
+        let template = "{{TASK_ID}}\n{{GIT_STATUS}}\n{{GIT_DIFF}}\n{{GIT_DIFF_STAGED}}\n";
+        let config = default_config();
+        let result = render_code_review_prompt(
+            template,
+            "", // Empty task ID
+            "STATUS",
+            "DIFF",
+            "STAGED",
+            ProjectType::Code,
+            &config,
+        );
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("task id"));
         Ok(())
     }
 

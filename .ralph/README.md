@@ -67,8 +67,10 @@ One-off usage:
 - `ralph scan --runner gemini --model gemini-3-flash-preview --focus "risk audit"`
 - `ralph scan --runner claude --model sonnet --focus "risk audit"`
 - `ralph task build --runner claude --model opus --rp-on "Add tests for X"`
-- `ralph run one --phases 2` (two-pass: plan then implement, default)
+- `ralph run one --phases 3` (3-phase: plan, implement+CI, review+complete, default)
+- `ralph run one --phases 2` (2-phase: plan then implement, default)
 - `ralph run one --phases 1` (single-pass execution)
+
 
 Defaults via config (`.ralph/config.json` or `~/.config/ralph/config.json`):
 
@@ -78,7 +80,7 @@ Defaults via config (`.ralph/config.json` or `~/.config/ralph/config.json`):
   "agent": {
     "runner": "claude",
     "model": "sonnet",
-    "two_pass_plan": true,
+    "phases": 3,
     "require_repoprompt": false
   }
 }
@@ -95,9 +97,12 @@ Ralph can explicitly require the usage of RepoPrompt tools. When enabled via con
 1. Instruct the agent to use RepoPrompt tools for exploration.
 2. During planning, require the agent to use the `context_builder` tool to gather context AND generate the plan in a single step.
 
-### Two-phase Planning
-When enabled (`two_pass_plan: true`, default: true), Ralph orchestrates execution in two phases for all runners:
+### Three-phase Workflow (Default)
+Ralph supports a 3-phase workflow by default (configured via `agent.phases: 3`):
 1. **Phase 1 (Planning)**: The agent generates a detailed plan and caches it in `.ralph/cache/plans/<TASK_ID>.md`.
-2. **Phase 2 (Implementation)**: The agent implements the cached plan.
+2. **Phase 2 (Implementation + CI)**: The agent implements the plan and must pass `make ci`, then stops without completing the task.
+3. **Phase 3 (Code Review + Completion)**: The agent reviews the pending diff against hardcoded standards, refines as needed, re-runs `make ci`, completes the task, commits, and pushes.
 
-Use `ralph run one --phases 2` to run both phases sequentially (default), or `ralph run one --phases 1` for single-pass execution.
+Use `ralph run one --phases 3` for full 3-phase execution. You can also set `agent.phases` in config to control the default.
+
+

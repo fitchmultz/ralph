@@ -110,8 +110,7 @@ fn configure_runner(dir: &Path, runner: &str, model: &str, bin_path: Option<&Pat
         let initial_config = r#"{ 
   "agent": {
     "runner": "codex",
-    "model": "gpt-5.2-codex",
-    "two_pass_plan": false
+    "model": "gpt-5.2-codex"
   },
   "queue": {
     "id_prefix": "RQ",
@@ -129,7 +128,7 @@ fn configure_runner(dir: &Path, runner: &str, model: &str, bin_path: Option<&Pat
         .ok_or_else(|| anyhow::anyhow!("config missing agent section"))?;
     agent["runner"] = serde_json::json!(runner);
     agent["model"] = serde_json::json!(model);
-    agent["two_pass_plan"] = serde_json::json!(false);
+    agent["phases"] = serde_json::json!(1);
     if let Some(path) = bin_path {
         let key = match runner {
             "codex" => "codex_bin",

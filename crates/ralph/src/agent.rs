@@ -61,9 +61,10 @@ pub struct RunAgentArgs {
     /// Execution shape:
     /// - 1 => single-pass execution (no mandated planning step)
     /// - 2 => two-pass execution (plan then implement)
+    /// - 3 => three-pass execution (plan, implement+CI, review+complete)
     ///
-    /// If omitted, defaults to config `agent.two_pass_plan` (default true => 2 phases).
-    #[arg(long, value_parser = clap::value_parser!(u8).range(1..=2))]
+    /// If omitted, defaults to config `agent.phases`.
+    #[arg(long, value_parser = clap::value_parser!(u8).range(1..=3))]
     pub phases: Option<u8>,
 
     /// Force RepoPrompt required (must use context_builder).
@@ -86,6 +87,7 @@ pub struct AgentOverrides {
     /// Execution shape override:
     /// - 1 => single-pass execution
     /// - 2 => two-pass execution (plan then implement)
+    /// - 3 => three-pass execution (plan, implement+CI, review+complete)
     pub phases: Option<u8>,
     pub repoprompt_required: Option<bool>,
 }
@@ -219,7 +221,7 @@ mod tests {
                 opencode_bin: Some("opencode".to_string()),
                 gemini_bin: Some("gemini".to_string()),
                 claude_bin: Some("claude".to_string()),
-                two_pass_plan: Some(true),
+                phases: Some(2),
                 claude_permission_mode: Some(ClaudePermissionMode::BypassPermissions),
                 require_repoprompt: None,
             },

@@ -133,6 +133,12 @@ pub fn validate_config(cfg: &Config) -> Result<()> {
         }
     }
 
+    if let Some(phases) = cfg.agent.phases {
+        if !(1..=3).contains(&phases) {
+            bail!("Invalid agent.phases: {}. Supported values are 1, 2, or 3. Update .ralph/config.json or CLI flags.", phases);
+        }
+    }
+
     if let Some(bin) = &cfg.agent.codex_bin {
         if bin.trim().is_empty() {
             bail!("Empty agent.codex_bin: binary path is required if specified. Set the path to the codex binary in your config.");

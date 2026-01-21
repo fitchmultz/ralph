@@ -27,6 +27,8 @@ pub enum WorkerMode {
     Phase1,
     /// Show the prompt for phase 2 (implementation). Requires plan text.
     Phase2,
+    /// Show the prompt for phase 3 (code review).
+    Phase3,
     /// Show the combined single-phase prompt (plan+implement).
     Single,
 }
@@ -191,6 +193,26 @@ pub fn build_worker_prompt(
             let completion_checklist = load_completion_checklist()?;
             promptflow::build_phase2_prompt(&plan_text, &completion_checklist, &policy)
         }
+        WorkerMode::Phase3 => {
+            let review_template = prompts::load_code_review_prompt(&resolved.repo_root)?;
+            let review_body = prompts::render_code_review_prompt(
+                &review_template,
+                &task_id,
+                "(git status unavailable in prompt preview)",
+                "(git diff unavailable in prompt preview)",
+                "(git diff --staged unavailable in prompt preview)",
+                project_type,
+                &resolved.config,
+            )?;
+            let completion_checklist = load_completion_checklist()?;
+            promptflow::build_phase3_prompt(
+                &base_prompt,
+                &review_body,
+                &completion_checklist,
+                &policy,
+                &task_id,
+            )
+        }
         WorkerMode::Single => {
             let completion_checklist = load_completion_checklist()?;
             promptflow::build_single_phase_prompt(
@@ -214,6 +236,7 @@ pub fn build_worker_prompt(
         match opts.mode {
             WorkerMode::Phase1 => "phase1",
             WorkerMode::Phase2 => "phase2",
+            WorkerMode::Phase3 => "phase3",
             WorkerMode::Single => "single",
         }
     ));

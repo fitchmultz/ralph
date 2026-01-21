@@ -67,7 +67,8 @@ One-off usage:
 - `ralph scan --runner gemini --model gemini-3-flash-preview --focus "risk audit"`
 - `ralph scan --runner claude --model sonnet --focus "risk audit"`
 - `ralph task build --runner claude --model opus --rp-on "Add tests for X"`
-- `ralph run one --phases 2` (two-pass: plan then implement, default)
+- `ralph run one --phases 3` (3-phase: plan, implement+CI, review+complete, default)
+- `ralph run one --phases 2` (2-phase: plan then implement)
 - `ralph run one --phases 1` (single-pass execution)
 
 Defaults via config (`.ralph/config.json` or `~/.config/ralph/config.json`):
@@ -78,7 +79,7 @@ Defaults via config (`.ralph/config.json` or `~/.config/ralph/config.json`):
   "agent": {
     "runner": "claude",
     "model": "sonnet",
-    "two_pass_plan": true,
+    "phases": 3,
     "require_repoprompt": false
   }
 }
@@ -94,10 +95,3 @@ Defaults via config (`.ralph/config.json` or `~/.config/ralph/config.json`):
 Ralph can explicitly require the usage of RepoPrompt tools. When enabled via config (`require_repoprompt: true`) or CLI (`--rp-on`), Ralph will:
 1. Instruct the agent to use RepoPrompt tools for exploration.
 2. During planning, require the agent to use the `context_builder` tool to gather context AND generate the plan in a single step.
-
-### Two-phase Planning
-When enabled (`two_pass_plan: true`, default: true), Ralph orchestrates execution in two phases for all runners:
-1. **Phase 1 (Planning)**: The agent generates a detailed plan and caches it in `.ralph/cache/plans/<TASK_ID>.md`.
-2. **Phase 2 (Implementation)**: The agent implements the cached plan.
-
-Use `ralph run one --phases 2` to run both phases sequentially (default), or `ralph run one --phases 1` for single-pass execution.

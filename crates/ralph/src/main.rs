@@ -557,12 +557,13 @@ fn handle_prompt(args: PromptArgs) -> Result<()> {
                 match phase {
                     promptflow::RunPhase::Phase1 => crate::prompt_cmd::WorkerMode::Phase1,
                     promptflow::RunPhase::Phase2 => crate::prompt_cmd::WorkerMode::Phase2,
+                    promptflow::RunPhase::Phase3 => crate::prompt_cmd::WorkerMode::Phase3,
                 }
             } else {
-                // Default behavior: match runtime behavior as closely as possible:
-                // If two-pass planning is enabled, default to showing Phase 1 prompt (first prompt in the sequence).
+                // Default behavior: match runtime behavior as closely as possible.
+                // If multi-phase planning is enabled, default to showing Phase 1 prompt (first prompt in the sequence).
                 // Otherwise default to single-phase.
-                if resolved.config.agent.two_pass_plan.unwrap_or(true) {
+                if resolved.config.agent.phases.unwrap_or(2) > 1 {
                     crate::prompt_cmd::WorkerMode::Phase1
                 } else {
                     crate::prompt_cmd::WorkerMode::Single
@@ -1130,12 +1131,12 @@ enum ConfigCommand {
 enum RunCommand {
     #[command(
         about = "Run exactly one task (the first todo in .ralph/queue.json)",
-        after_long_help = "Runner selection (precedence):\n  1) CLI overrides (--runner/--model/--effort)\n  2) task.agent in .ralph/queue.json (if present)\n  3) config defaults (.ralph/config.json then ~/.config/ralph/config.json)\n\nExamples:\n  ralph run one\n  ralph run one -i\n  ralph run one --phases 2\n  ralph run one --phases 1\n  ralph run one --runner opencode --model gpt-5.2\n  ralph run one --runner gemini --model gemini-3-flash-preview\n  ralph run one --runner codex --model gpt-5.2-codex --effort high\n  ralph run one --rp-on\n  ralph run one --rp-off"
+        after_long_help = "Runner selection (precedence):\n  1) CLI overrides (--runner/--model/--effort)\n  2) task.agent in .ralph/queue.json (if present)\n  3) config defaults (.ralph/config.json then ~/.config/ralph/config.json)\n\nExamples:\n  ralph run one\n  ralph run one -i\n  ralph run one --phases 3\n  ralph run one --phases 2\n  ralph run one --phases 1\n  ralph run one --runner opencode --model gpt-5.2\n  ralph run one --runner gemini --model gemini-3-flash-preview\n  ralph run one --runner codex --model gpt-5.2-codex --effort high\n  ralph run one --rp-on\n  ralph run one --rp-off"
     )]
     One(RunOneArgs),
     #[command(
         about = "Run tasks repeatedly until no todo remain (or --max-tasks is reached)",
-        after_long_help = "Examples:\n  ralph run loop --max-tasks 0\n  ralph run loop --phases 2 --max-tasks 0\n  ralph run loop --phases 1 --max-tasks 1\n  ralph run loop --max-tasks 3\n  ralph run loop --max-tasks 1 --runner opencode --model gpt-5.2\n  ralph run loop -i\n  ralph run loop --rp-on\n  ralph run loop --rp-off"
+        after_long_help = "Examples:\n  ralph run loop --max-tasks 0\n  ralph run loop --phases 3 --max-tasks 0\n  ralph run loop --phases 2 --max-tasks 0\n  ralph run loop --phases 1 --max-tasks 1\n  ralph run loop --max-tasks 3\n  ralph run loop --max-tasks 1 --runner opencode --model gpt-5.2\n  ralph run loop -i\n  ralph run loop --rp-on\n  ralph run loop --rp-off"
     )]
     Loop(RunLoopArgs),
 }
@@ -1154,7 +1155,8 @@ fn parse_phase(s: &str) -> Result<promptflow::RunPhase, String> {
     match s {
         "1" => Ok(promptflow::RunPhase::Phase1),
         "2" => Ok(promptflow::RunPhase::Phase2),
-        _ => Err(format!("invalid phase '{}', expected 1 or 2", s)),
+        "3" => Ok(promptflow::RunPhase::Phase3),
+        _ => Err(format!("invalid phase '{}', expected 1, 2, or 3", s)),
     }
 }
 

@@ -62,8 +62,8 @@ Defaults and config:
   "agent": {
     "runner": "claude",
     "model": "sonnet",
-    "two_pass_plan": true,
-    "require_repoprompt": false
+    "phases": 3,
+    "gemini_bin": "gemini"
   }
 }
 ```
@@ -77,12 +77,13 @@ Defaults and config:
 ### RepoPrompt Integration
 Ralph can explicitly require RepoPrompt usage. When enabled via config (`require_repoprompt: true`) or CLI (`--rp-on`), Ralph instructs the agent to use RepoPrompt tools for exploration and planning.
 
-### Two-phase Planning
-When enabled (`two_pass_plan: true`, default: true), Ralph orchestrates execution in two phases for ALL runners:
+### Three-phase Workflow (Default)
+Ralph supports a 3-phase workflow by default:
 1. **Phase 1 (Planning)**: The agent generates a detailed plan and caches it in `.ralph/cache/plans/<TASK_ID>.md`.
-2. **Phase 2 (Implementation)**: The agent implements the cached plan.
+2. **Phase 2 (Implementation + CI)**: The agent implements the plan and must pass `make ci`, then stops without completing the task.
+3. **Phase 3 (Code Review + Completion)**: The agent reviews the pending diff against hardcoded standards, refines as needed, re-runs `make ci`, completes the task, commits, and pushes.
 
-Use `ralph run one --phases 2` to run both phases sequentially (default), or `ralph run one --phases 1` for single-pass execution.
+Use `ralph run one --phases 3` for full 3-phase execution (default). Use `--phases 2` for plan+implement, or `--phases 1` for single-pass execution. You can also set `agent.phases` in config to control the default.
 
 ## Configuration
 

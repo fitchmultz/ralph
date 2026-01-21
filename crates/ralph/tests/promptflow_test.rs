@@ -109,3 +109,38 @@ fn plan_cache_roundtrip() {
 
     assert_eq!(loaded, plan);
 }
+
+#[test]
+fn build_phase2_handoff_prompt_contains_required_elements() {
+    let plan = "My Plan";
+    let checklist = "## PHASE 2 HANDOFF CHECKLIST (3-PHASE WORKFLOW)\n- done";
+    let policy = PromptPolicy {
+        require_repoprompt: false,
+    };
+
+    let prompt = promptflow::build_phase2_handoff_prompt(plan, checklist, &policy);
+
+    assert!(prompt.contains("IMPLEMENTATION MODE - PHASE 2 OF 3"));
+    assert!(prompt.contains(checklist));
+    assert!(prompt.contains("APPROVED PLAN"));
+    assert!(prompt.contains(plan));
+}
+
+#[test]
+fn build_phase3_prompt_contains_required_elements() {
+    let base = "BASE_PROMPT";
+    let review = "CODE REVIEW BODY";
+    let checklist = "## IMPLEMENTATION COMPLETION CHECKLIST\n- done";
+    let policy = PromptPolicy {
+        require_repoprompt: true,
+    };
+
+    let prompt = promptflow::build_phase3_prompt(base, review, checklist, &policy, "RQ-0001");
+
+    assert!(prompt.contains("CODE REVIEW MODE - PHASE 3 OF 3"));
+    assert!(prompt.contains(prompts::REPOPROMPT_REQUIRED_INSTRUCTION));
+    assert!(prompt.contains("PRE-FLIGHT OVERRIDE"));
+    assert!(prompt.contains(review));
+    assert!(prompt.contains(checklist));
+    assert!(prompt.contains(base));
+}

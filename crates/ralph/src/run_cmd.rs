@@ -2,7 +2,8 @@ use crate::config;
 use crate::contracts::{ProjectType, QueueFile, TaskStatus};
 use crate::gitutil::GitError;
 use crate::promptflow::{
-    self, build_phase1_prompt, build_phase2_prompt, build_single_phase_prompt,
+    self, build_phase1_prompt, build_phase2_handoff_prompt, build_phase2_prompt,
+    build_phase3_prompt, build_single_phase_prompt,
 };
 use crate::{gitutil, outpututil, prompts, queue, runner, runutil, timeutil};
 use anyhow::{anyhow, bail, Context, Result};
@@ -113,15 +114,12 @@ fn run_one_impl(
     )?;
 
     // Determine execution shape and policy
-    let phases: u8 = agent_overrides.phases.unwrap_or_else(|| {
-        if resolved.config.agent.two_pass_plan.unwrap_or(true) {
-            2
-        } else {
-            1
-        }
-    });
-    if phases != 1 && phases != 2 {
-        bail!("Invalid phases value: {} (expected 1 or 2)", phases);
+    let phases: u8 = agent_overrides
+        .phases
+        .or(resolved.config.agent.phases)
+        .unwrap_or(2);
+    if !(1..=3).contains(&phases) {
+        bail!("Invalid phases value: {} (expected 1, 2, or 3)", phases);
     }
 
     let rp_required = agent_overrides
@@ -247,6 +245,120 @@ fn run_one_impl(
         )?;
 
         post_run_supervise(resolved, &task_id)?;
+        return Ok(RunOutcome::Ran { task_id });
+    }
+
+    if phases == 3 {
+        log::info!("Phase 1/3 (Planning) for {task_id}...");
+        let p1_prompt = build_phase1_prompt(&base_prompt, &task_id, &policy);
+        let output = execute_runner_pass(
+            resolved,
+            &settings,
+            bins,
+            &p1_prompt,
+            output_handler.clone(),
+            true,
+            "Planning",
+        )?;
+
+        // ENFORCEMENT: Phase 1 must not implement.
+        if let Err(err) = gitutil::require_clean_repo_ignoring_paths(
+            &resolved.repo_root,
+            false,
+            &[".ralph/queue.json", ".ralph/done.json"],
+        ) {
+            gitutil::revert_uncommitted(&resolved.repo_root)?;
+            bail!(
+                "Phase 1 violated plan-only contract: it modified files outside allowed queue bookkeeping. Reverted changes. Error: {:#}",
+                err
+            );
+        }
+
+        let plan_text = promptflow::extract_plan_text(settings.runner, &output.stdout)?;
+        promptflow::write_plan_cache(&resolved.repo_root, &task_id, &plan_text)?;
+        log::info!(
+            "Plan cached for {task_id} at {}",
+            promptflow::plan_cache_path(&resolved.repo_root, &task_id).display()
+        );
+
+        log::info!("Phase 2/3 (Implementation) for {task_id}...");
+        let handoff_template = prompts::load_phase2_handoff_checklist(&resolved.repo_root)?;
+        let handoff_checklist =
+            prompts::render_phase2_handoff_checklist(&handoff_template, &resolved.config)?;
+        let p2_prompt = build_phase2_handoff_prompt(&plan_text, &handoff_checklist, &policy);
+        execute_runner_pass(
+            resolved,
+            &settings,
+            bins,
+            &p2_prompt,
+            output_handler.clone(),
+            true,
+            "Implementation",
+        )?;
+
+        if let Err(err) = run_make_ci(&resolved.repo_root) {
+            gitutil::revert_uncommitted(&resolved.repo_root)?;
+            bail!(
+                "CI gate failed after Phase 2. Uncommitted changes were reverted. Fix the issues reported by CI and rerun. Error: {:#}",
+                err
+            );
+        }
+
+        let review_context = collect_review_context(&resolved.repo_root)?;
+        let review_template = prompts::load_code_review_prompt(&resolved.repo_root)?;
+        let review_body = prompts::render_code_review_prompt(
+            &review_template,
+            &task_id,
+            &review_context.status,
+            &review_context.diff,
+            &review_context.diff_staged,
+            project_type,
+            &resolved.config,
+        )?;
+        let checklist_template = prompts::load_completion_checklist(&resolved.repo_root)?;
+        let completion_checklist =
+            prompts::render_completion_checklist(&checklist_template, &resolved.config)?;
+        let p3_prompt = build_phase3_prompt(
+            &base_prompt,
+            &review_body,
+            &completion_checklist,
+            &policy,
+            &task_id,
+        );
+
+        runutil::run_prompt_with_handling(
+            runutil::RunnerInvocation {
+                repo_root: &resolved.repo_root,
+                runner_kind: settings.runner,
+                bins,
+                model: settings.model.clone(),
+                reasoning_effort: settings.reasoning_effort,
+                prompt: &p3_prompt,
+                timeout: None,
+                permission_mode: resolved.config.agent.claude_permission_mode,
+                revert_on_error: false,
+                output_handler: output_handler.clone(),
+            },
+            runutil::RunnerErrorMessages {
+                log_label: "Code review",
+                interrupted_msg: "Code review interrupted: the agent run was canceled. Review the working tree and rerun Phase 3 to complete the task.",
+                timeout_msg: "Code review timed out: the agent run exceeded the time limit. Review the working tree and rerun Phase 3 to complete the task.",
+                terminated_msg: "Code review terminated: the agent was stopped by a signal. Review the working tree and rerun Phase 3 to complete the task.",
+                non_zero_msg: |code| {
+                    format!(
+                        "Code review failed: the agent exited with a non-zero code ({code}). Review the working tree and rerun Phase 3 to complete the task."
+                    )
+                },
+                other_msg: |err| {
+                    format!(
+                        "Code review failed: the agent could not be started or encountered an error. Review the working tree and rerun Phase 3. Error: {:#}",
+                        err
+                    )
+                },
+            },
+        )?;
+
+        ensure_phase3_completion(resolved, &task_id)?;
         return Ok(RunOutcome::Ran { task_id });
     }
 
@@ -562,6 +674,79 @@ fn run_make_ci(repo_root: &Path) -> Result<()> {
     bail!("CI failed: 'make ci' exited with code {:?}. Fix the linting, type-checking, or test failures before proceeding.", status.code())
 }
 
+fn ensure_phase3_completion(resolved: &config::Resolved, task_id: &str) -> Result<()> {
+    let queue_file = queue::load_queue(&resolved.queue_path)?;
+    let done_file = queue::load_queue_or_default(&resolved.done_path)?;
+    let done_ref = if done_file.tasks.is_empty() && !resolved.done_path.exists() {
+        None
+    } else {
+        Some(&done_file)
+    };
+    queue::validate_queue_set(
+        &queue_file,
+        done_ref,
+        &resolved.id_prefix,
+        resolved.id_width,
+    )?;
+
+    let (status, _title, in_done) = find_task_status(&queue_file, &done_file, task_id)
+        .ok_or_else(|| anyhow!("task {task_id} not found in queue or done"))?;
+
+    if !in_done || !(status == TaskStatus::Done || status == TaskStatus::Rejected) {
+        bail!(
+            "Phase 3 incomplete: task {task_id} is not archived with a terminal status. Run `ralph queue complete` in Phase 3 before finishing."
+        );
+    }
+
+    gitutil::require_clean_repo_ignoring_paths(&resolved.repo_root, false, &[])?;
+    Ok(())
+}
+
+struct ReviewContext {
+    status: String,
+    diff: String,
+    diff_staged: String,
+}
+
+fn collect_review_context(repo_root: &Path) -> Result<ReviewContext> {
+    let status = Command::new("git")
+        .arg("-C")
+        .arg(repo_root)
+        .args(["status", "--porcelain"])
+        .output()
+        .with_context(|| format!("run git status --porcelain in {}", repo_root.display()))?;
+    let diff = Command::new("git")
+        .arg("-C")
+        .arg(repo_root)
+        .args(["diff"])
+        .output()
+        .with_context(|| format!("run git diff in {}", repo_root.display()))?;
+    let diff_staged = Command::new("git")
+        .arg("-C")
+        .arg(repo_root)
+        .args(["diff", "--staged"])
+        .output()
+        .with_context(|| format!("run git diff --staged in {}", repo_root.display()))?;
+
+    let status_str = String::from_utf8_lossy(&status.stdout).to_string();
+    let diff_str = String::from_utf8_lossy(&diff.stdout).to_string();
+    let diff_staged_str = String::from_utf8_lossy(&diff_staged.stdout).to_string();
+
+    Ok(ReviewContext {
+        status: normalize_git_output(status_str, "(no pending changes)"),
+        diff: normalize_git_output(diff_str, "(no diff)"),
+        diff_staged: normalize_git_output(diff_staged_str, "(no staged diff)"),
+    })
+}
+
+fn normalize_git_output(value: String, empty_label: &str) -> String {
+    if value.trim().is_empty() {
+        empty_label.to_string()
+    } else {
+        value
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -589,7 +774,7 @@ mod tests {
                 opencode_bin: Some("opencode".to_string()),
                 gemini_bin: Some("gemini".to_string()),
                 claude_bin: Some("claude".to_string()),
-                two_pass_plan: Some(true),
+                phases: Some(2),
                 claude_permission_mode: Some(ClaudePermissionMode::BypassPermissions),
                 require_repoprompt: None,
             },

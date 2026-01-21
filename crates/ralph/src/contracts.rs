@@ -87,19 +87,18 @@ pub struct AgentConfig {
     /// Override the claude executable name/path (default is "claude" if None).
     pub claude_bin: Option<String>,
 
-    /// Enable two-pass plan-then-implement workflow (default: true).
-    /// When enabled, the agent first generates a plan, then implements it.
-    /// Supported for all runners.
-    pub two_pass_plan: Option<bool>,
-
     /// Claude permission mode for tool and edit approval.
     /// AcceptEdits: auto-approves file edits only
     /// BypassPermissions: skip all permission prompts (YOLO mode)
     pub claude_permission_mode: Option<ClaudePermissionMode>,
 
     /// Require RepoPrompt usage during planning.
-    /// If true, the agent must use the context_builder tool to generate the plan.
+    /// If true, agent must use of context_builder tool to generate a plan.
     pub require_repoprompt: Option<bool>,
+
+    /// Number of execution phases (1, 2, or 3).
+    /// 1 = single-pass, 2 = plan+implement, 3 = plan+implement+review.
+    pub phases: Option<u8>,
 }
 
 impl AgentConfig {
@@ -125,8 +124,8 @@ impl AgentConfig {
         if other.claude_bin.is_some() {
             self.claude_bin = other.claude_bin;
         }
-        if other.two_pass_plan.is_some() {
-            self.two_pass_plan = other.two_pass_plan;
+        if other.phases.is_some() {
+            self.phases = other.phases;
         }
         if other.claude_permission_mode.is_some() {
             self.claude_permission_mode = other.claude_permission_mode;
@@ -432,7 +431,7 @@ impl Default for Config {
                 opencode_bin: Some("opencode".to_string()),
                 gemini_bin: Some("gemini".to_string()),
                 claude_bin: Some("claude".to_string()),
-                two_pass_plan: Some(true),
+                phases: Some(3),
                 claude_permission_mode: Some(ClaudePermissionMode::BypassPermissions),
                 require_repoprompt: Some(false),
             },

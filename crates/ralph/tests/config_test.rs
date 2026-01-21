@@ -529,7 +529,7 @@ fn test_agent_config_merge_from_partial() {
         opencode_bin: None,
         gemini_bin: None,
         claude_bin: None,
-        two_pass_plan: Some(true),
+        phases: Some(2),
         claude_permission_mode: None,
         require_repoprompt: None,
     };
@@ -542,7 +542,7 @@ fn test_agent_config_merge_from_partial() {
         opencode_bin: Some("opencode".to_string()),
         gemini_bin: None,
         claude_bin: None,
-        two_pass_plan: None,
+        phases: Some(3),
         claude_permission_mode: None,
         require_repoprompt: None,
     };
@@ -554,5 +554,20 @@ fn test_agent_config_merge_from_partial() {
     assert_eq!(base.reasoning_effort, Some(ReasoningEffort::High));
     assert_eq!(base.codex_bin, Some("codex".to_string()));
     assert_eq!(base.opencode_bin, Some("opencode".to_string()));
-    assert_eq!(base.two_pass_plan, Some(true));
+    assert_eq!(base.phases, Some(3));
+}
+
+#[test]
+fn test_validate_config_invalid_phases_fails() {
+    let mut cfg = Config::default();
+
+    // Test phase 0
+    cfg.agent.phases = Some(0);
+    let result = config::validate_config(&cfg);
+    assert!(result.is_err());
+
+    // Test phase 4
+    cfg.agent.phases = Some(4);
+    let result = config::validate_config(&cfg);
+    assert!(result.is_err());
 }
