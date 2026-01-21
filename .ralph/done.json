@@ -29,6 +29,7 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
+      "completed_at": "2026-01-21T21:15:15.427233000Z",
       "depends_on": [],
       "custom_fields": {}
     },
@@ -63,6 +64,7 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
+      "completed_at": "2026-01-21T21:15:15.427233000Z",
       "depends_on": [],
       "custom_fields": {}
     },
@@ -96,6 +98,7 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
+      "completed_at": "2026-01-21T21:15:15.427233000Z",
       "depends_on": [],
       "custom_fields": {}
     },
@@ -130,6 +133,7 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
+      "completed_at": "2026-01-21T21:15:15.427233000Z",
       "depends_on": [],
       "custom_fields": {}
     },
@@ -163,6 +167,7 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
+      "completed_at": "2026-01-21T21:15:15.427233000Z",
       "depends_on": [],
       "custom_fields": {}
     },
@@ -196,6 +201,7 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
+      "completed_at": "2026-01-21T21:15:15.427233000Z",
       "depends_on": [],
       "custom_fields": {}
     },
@@ -229,6 +235,7 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
+      "completed_at": "2026-01-21T21:15:15.427233000Z",
       "depends_on": [],
       "custom_fields": {}
     },
@@ -263,6 +270,7 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
+      "completed_at": "2026-01-21T21:15:15.427233000Z",
       "depends_on": [],
       "custom_fields": {}
     },
@@ -297,6 +305,7 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
+      "completed_at": "2026-01-21T21:15:15.427233000Z",
       "depends_on": [],
       "custom_fields": {}
     },
@@ -331,6 +340,7 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
+      "completed_at": "2026-01-21T21:15:15.427233000Z",
       "depends_on": [],
       "custom_fields": {}
     },
@@ -364,6 +374,7 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
+      "completed_at": "2026-01-21T21:15:15.427233000Z",
       "depends_on": [],
       "custom_fields": {}
     },
@@ -397,6 +408,7 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
+      "completed_at": "2026-01-21T21:15:15.427233000Z",
       "depends_on": [],
       "custom_fields": {}
     },
@@ -430,6 +442,7 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
+      "completed_at": "2026-01-21T21:15:15.427233000Z",
       "depends_on": [],
       "custom_fields": {}
     },
@@ -464,6 +477,7 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
+      "completed_at": "2026-01-21T21:15:15.427233000Z",
       "depends_on": [],
       "custom_fields": {}
     },
@@ -498,6 +512,7 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
+      "completed_at": "2026-01-21T21:15:15.427233000Z",
       "depends_on": [],
       "custom_fields": {}
     },
@@ -531,6 +546,7 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
+      "completed_at": "2026-01-21T21:15:15.427233000Z",
       "depends_on": [],
       "custom_fields": {}
     },
@@ -565,6 +581,7 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
+      "completed_at": "2026-01-21T21:15:15.427233000Z",
       "depends_on": [],
       "custom_fields": {}
     },
@@ -599,6 +616,7 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
+      "completed_at": "2026-01-21T21:15:15.427233000Z",
       "depends_on": [],
       "custom_fields": {}
     },
@@ -632,6 +650,7 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
+      "completed_at": "2026-01-21T21:15:15.427233000Z",
       "depends_on": [],
       "custom_fields": {}
     },
@@ -666,6 +685,7 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
+      "completed_at": "2026-01-21T21:15:15.427233000Z",
       "depends_on": [],
       "custom_fields": {}
     },
@@ -699,6 +719,7 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
+      "completed_at": "2026-01-21T21:15:15.427233000Z",
       "depends_on": [],
       "custom_fields": {}
     },
@@ -732,6 +753,7 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
+      "completed_at": "2026-01-21T21:15:15.427233000Z",
       "depends_on": [],
       "custom_fields": {}
     },
@@ -765,6 +787,7 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
+      "completed_at": "2026-01-21T21:15:15.427233000Z",
       "depends_on": [],
       "custom_fields": {}
     },
@@ -798,6 +821,7 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T12:00:00+00:00",
+      "completed_at": "2026-01-21T21:15:15.427233000Z",
       "depends_on": [],
       "custom_fields": {}
     },
@@ -860,6 +884,7 @@
       "request": "Now that we have switched to JSON for the queue format we need to remove all YAML code from the codebase. Users will be required to migrate or rebuild existing queue docs to the JSON format manually or via external means. This decision is final. Make sure we have a defined JSON schema doc that is our queue JSON schema source of truth and the code utilizes it. That way modifying the schema going forward is much easier.",
       "created_at": "2025-01-19T13:22:00+00:00",
       "updated_at": "2026-01-20T01:19:39+00:00",
+      "completed_at": "2026-01-21T21:15:15.427233000Z",
       "depends_on": [],
       "custom_fields": {}
     },
@@ -893,6 +918,7 @@
       "request": "scan finding",
       "created_at": "2025-01-19T12:00:00+00:00",
       "updated_at": "2025-01-19T14:45:00+00:00",
+      "completed_at": "2026-01-21T21:15:15.427233000Z",
       "depends_on": [],
       "custom_fields": {}
     },
@@ -1814,6 +1840,7 @@
       "request": "Review commands for consistency issues for usability. Specifically 'ralph queue complete' which I think makes more sense to be 'ralph task done <ID>' which marks that task ID done and move to done.json. Same for 'ralph task ready <ID>' which marks a task in status draft as 'todo'. I want to still be able to run 'ralph task \"New task description\" and have new tasks be added to the queue, this functionality does not need to change. Essentially, do an audit of the 'ralph task' and 'ralph queue' commands and figure out where there is overlap and get rid of confusion by settling on a convention.",
       "created_at": "2026-01-21T19:32:16Z",
       "updated_at": "2026-01-21T19:32:52.004907000Z",
+      "completed_at": "2026-01-21T21:15:15.427233000Z",
       "depends_on": [],
       "custom_fields": {}
     },
@@ -1972,6 +1999,41 @@
       "created_at": "2026-01-21T19:59:34Z",
       "updated_at": "2026-01-21T21:06:32.697567000Z",
       "completed_at": "2026-01-21T21:06:32.697567000Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0202",
+      "status": "done",
+      "title": "Archive rejected tasks in ralph queue done",
+      "priority": "medium",
+      "tags": [
+        "queue",
+        "workflow",
+        "consistency"
+      ],
+      "scope": [
+        "crates/ralph/src/queue/operations/archive.rs",
+        "crates/ralph/src/cli/queue.rs",
+        "docs/cli.md"
+      ],
+      "evidence": [
+        "crates/ralph/src/queue/operations/archive.rs only moves TaskStatus::Done tasks to done.json.",
+        "docs/cli.md describes ralph task done as archiving done/rejected tasks, but ralph queue done leaves rejected tasks in the active queue."
+      ],
+      "plan": [
+        "Decide whether queue done should archive rejected tasks alongside done tasks.",
+        "Update archive_done_tasks logic and CLI/docs accordingly.",
+        "Add tests to cover rejected tasks being archived (or explicitly excluded).",
+        "Ensure prompts reflect the desired and required functionality for this task."
+      ],
+      "notes": [
+        "Manually completing via agent (lock removed)."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-21T19:59:34Z",
+      "updated_at": "2026-01-21T21:15:08.955198000Z",
+      "completed_at": "2026-01-21T21:15:08.955198000Z",
       "depends_on": [],
       "custom_fields": {}
     }

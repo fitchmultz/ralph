@@ -25,7 +25,7 @@ pub fn archive_done_tasks(
     let mut remaining = Vec::new();
 
     for task in active.tasks.into_iter() {
-        if task.status != TaskStatus::Done {
+        if task.status != TaskStatus::Done && task.status != TaskStatus::Rejected {
             remaining.push(task);
             continue;
         }

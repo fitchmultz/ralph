@@ -220,9 +220,9 @@ pub fn handle_queue(cmd: QueueCommand, force: bool) -> Result<()> {
                 resolved.id_width,
             )?;
             if report.moved_ids.is_empty() {
-                log::info!("No done tasks to move.");
+                log::info!("No completed tasks to move.");
             } else {
-                log::info!("Moved {} done task(s).", report.moved_ids.len());
+                log::info!("Moved {} completed task(s).", report.moved_ids.len());
             }
         }
         QueueCommand::Repair(args) => {

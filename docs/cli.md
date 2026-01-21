@@ -47,7 +47,7 @@ ralph run one --runner codex --model gpt-5.2-codex --effort high
 - `show`: show a task by ID.
 - `list`: list tasks with filtering and sorting.
 - `search`: search task content with filters.
-- `done`: move done tasks from queue to archive.
+- `done`: move completed tasks (done/rejected) from queue to archive.
 - `repair`: repair queue/done files.
 - `unlock`: remove queue lock.
 - `set-status`: update a task status in the active queue.

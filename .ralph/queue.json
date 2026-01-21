@@ -2,38 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0202",
-      "status": "todo",
-      "title": "Archive rejected tasks in ralph queue done",
-      "priority": "medium",
-      "tags": [
-        "queue",
-        "workflow",
-        "consistency"
-      ],
-      "scope": [
-        "crates/ralph/src/queue/operations/archive.rs",
-        "crates/ralph/src/cli/queue.rs",
-        "docs/cli.md"
-      ],
-      "evidence": [
-        "crates/ralph/src/queue/operations/archive.rs only moves TaskStatus::Done tasks to done.json.",
-        "docs/cli.md describes ralph task done as archiving done/rejected tasks, but ralph queue done leaves rejected tasks in the active queue."
-      ],
-      "plan": [
-        "Decide whether queue done should archive rejected tasks alongside done tasks.",
-        "Update archive_done_tasks logic and CLI/docs accordingly.",
-        "Add tests to cover rejected tasks being archived (or explicitly excluded).",
-        "Ensure prompts reflect the desired and required functionality for this task."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-21T19:59:34Z",
-      "updated_at": "2026-01-21T19:59:34Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0203",
       "status": "todo",
       "title": "Init should fail fast on invalid config JSON instead of marking valid",
