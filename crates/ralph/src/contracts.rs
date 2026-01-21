@@ -103,6 +103,7 @@ pub struct AgentConfig {
 
     /// Number of execution phases (1, 2, or 3).
     /// 1 = single-pass, 2 = plan+implement, 3 = plan+implement+review.
+    #[schemars(range(min = 1, max = 3))]
     pub phases: Option<u8>,
 }
 

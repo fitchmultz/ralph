@@ -2,37 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0211",
-      "status": "todo",
-      "title": "Align config schema phases constraints with runtime validation",
-      "priority": "medium",
-      "tags": [
-        "config",
-        "schema",
-        "validation"
-      ],
-      "scope": [
-        "schemas/config.schema.json",
-        "crates/ralph/src/config.rs",
-        "docs/configuration.md"
-      ],
-      "evidence": [
-        "schemas/config.schema.json allows agent.phases minimum 0 while crates/ralph/src/config.rs rejects any value outside 1..=3."
-      ],
-      "plan": [
-        "Update config schema to restrict phases to 1, 2, or 3 (enum or min/max).",
-        "Regenerate schema and update docs/examples.",
-        "Add tests to ensure schema and validation stay aligned.",
-        "Ensure prompts reflect the desired and required functionality for this task."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-21T19:59:34Z",
-      "updated_at": "2026-01-21T19:59:34Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0212",
       "status": "todo",
       "title": "Add missing module docstrings to core files",
