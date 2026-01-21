@@ -5,7 +5,7 @@ use clap::Args;
 
 use crate::{config, init_cmd};
 
-pub(crate) fn handle_init(args: InitArgs, force_lock: bool) -> Result<()> {
+pub fn handle_init(args: InitArgs, force_lock: bool) -> Result<()> {
     let resolved = config::resolve_from_cwd()?;
     let report = init_cmd::run_init(
         &resolved,

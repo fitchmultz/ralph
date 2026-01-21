@@ -5,7 +5,7 @@ use clap::{Args, Subcommand};
 
 use crate::{agent, config, runner, task_cmd};
 
-pub(crate) fn handle_task(cmd: TaskCommand, force: bool) -> Result<()> {
+pub fn handle_task(cmd: TaskCommand, force: bool) -> Result<()> {
     let resolved = config::resolve_from_cwd()?;
     match cmd {
         TaskCommand::Build(args) => {

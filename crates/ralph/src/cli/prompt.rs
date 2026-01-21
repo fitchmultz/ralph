@@ -5,7 +5,7 @@ use clap::{Args, Subcommand};
 
 use crate::{agent, config, promptflow};
 
-pub(crate) fn handle_prompt(args: PromptArgs) -> Result<()> {
+pub fn handle_prompt(args: PromptArgs) -> Result<()> {
     let resolved = config::resolve_from_cwd()?;
 
     match args.command {

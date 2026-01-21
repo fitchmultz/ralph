@@ -7,7 +7,7 @@ use super::{load_and_validate_queues, resolve_list_limit};
 use crate::contracts::{Task, TaskStatus};
 use crate::{completions, config, contracts, fsutil, outpututil, queue, reports, timeutil};
 
-pub(crate) fn handle_queue(cmd: QueueCommand, force: bool) -> Result<()> {
+pub fn handle_queue(cmd: QueueCommand, force: bool) -> Result<()> {
     let resolved = config::resolve_from_cwd()?;
     match cmd {
         QueueCommand::Validate => {

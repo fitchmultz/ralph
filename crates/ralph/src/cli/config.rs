@@ -5,7 +5,7 @@ use clap::{Args, Subcommand};
 
 use crate::{config, contracts};
 
-pub(crate) fn handle_config(cmd: ConfigCommand) -> Result<()> {
+pub fn handle_config(cmd: ConfigCommand) -> Result<()> {
     let resolved = config::resolve_from_cwd()?;
     match cmd {
         ConfigCommand::Show => {

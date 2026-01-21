@@ -5,7 +5,7 @@ use clap::{Args, Subcommand};
 
 use crate::{agent, config, run_cmd, runner, tui};
 
-pub(crate) fn handle_run(cmd: RunCommand, force: bool) -> Result<()> {
+pub fn handle_run(cmd: RunCommand, force: bool) -> Result<()> {
     let resolved = config::resolve_from_cwd()?;
     match cmd {
         RunCommand::One(args) => {

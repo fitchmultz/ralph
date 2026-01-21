@@ -1,31 +1,8 @@
 //! Ralph CLI entrypoint and command routing.
 
-mod agent;
-mod cli;
-mod completions;
-mod config;
-mod contracts;
-mod doctor_cmd;
-mod fsutil;
-mod gitutil;
-mod init_cmd;
-mod outpututil;
-mod prompt_cmd;
-mod promptflow;
-mod prompts;
-mod queue;
-mod redaction;
-mod reports;
-mod run_cmd;
-mod runner;
-mod runutil;
-mod scan_cmd;
-mod task_cmd;
-mod timeutil;
-mod tui;
-
 use anyhow::{Context, Result};
 use clap::Parser;
+use ralph::{cli, redaction};
 
 fn main() {
     if let Err(err) = run() {
@@ -60,13 +37,13 @@ fn run() -> Result<()> {
         .context("initialize redacted logger")?;
 
     match cli.command {
-        cli::Command::Queue(args) => crate::cli::queue::handle_queue(args.command, cli.force),
-        cli::Command::Config(args) => crate::cli::config::handle_config(args.command),
-        cli::Command::Run(args) => crate::cli::run::handle_run(args.command, cli.force),
-        cli::Command::Task(args) => crate::cli::task::handle_task(args.command, cli.force),
-        cli::Command::Scan(args) => crate::cli::scan::handle_scan(args, cli.force),
-        cli::Command::Init(args) => crate::cli::init::handle_init(args, cli.force),
-        cli::Command::Prompt(args) => crate::cli::prompt::handle_prompt(args),
-        cli::Command::Doctor => crate::cli::doctor::handle_doctor(),
+        cli::Command::Queue(args) => cli::queue::handle_queue(args.command, cli.force),
+        cli::Command::Config(args) => cli::config::handle_config(args.command),
+        cli::Command::Run(args) => cli::run::handle_run(args.command, cli.force),
+        cli::Command::Task(args) => cli::task::handle_task(args.command, cli.force),
+        cli::Command::Scan(args) => cli::scan::handle_scan(args, cli.force),
+        cli::Command::Init(args) => cli::init::handle_init(args, cli.force),
+        cli::Command::Prompt(args) => cli::prompt::handle_prompt(args),
+        cli::Command::Doctor => cli::doctor::handle_doctor(),
     }
 }

@@ -6,7 +6,6 @@
 //! integration/stress tests can exercise real behavior without mocks.
 
 pub mod agent;
-#[allow(dead_code)]
 pub mod cli;
 pub mod completions;
 pub mod config;

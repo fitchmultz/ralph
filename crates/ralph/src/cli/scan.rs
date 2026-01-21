@@ -5,7 +5,7 @@ use clap::Args;
 
 use crate::{agent, config, runner, scan_cmd};
 
-pub(crate) fn handle_scan(args: ScanArgs, force: bool) -> Result<()> {
+pub fn handle_scan(args: ScanArgs, force: bool) -> Result<()> {
     let resolved = config::resolve_from_cwd()?;
     let overrides = agent::resolve_agent_overrides(&agent::AgentArgs {
         runner: args.runner.clone(),

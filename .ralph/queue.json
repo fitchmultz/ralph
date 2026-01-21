@@ -2,53 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0182",
-      "status": "todo",
-      "title": "Refactor main.rs: Extract CLI handlers to dedicated modules",
-      "priority": "high",
-      "tags": [
-        "rust",
-        "refactoring",
-        "cli",
-        "command-handlers"
-      ],
-      "scope": [
-        "crates/ralph/src/main.rs",
-        "crates/ralph/src/cli/queue.rs",
-        "crates/ralph/src/cli/config.rs",
-        "crates/ralph/src/cli/run.rs",
-        "crates/ralph/src/cli/task.rs",
-        "crates/ralph/src/cli/scan.rs",
-        "crates/ralph/src/cli/init.rs",
-        "crates/ralph/src/cli/prompt.rs",
-        "crates/ralph/src/cli/doctor.rs"
-      ],
-      "evidence": [
-        "main.rs is 1724 lines - too large for effective maintenance",
-        "Contains handlers: handle_queue, handle_config, handle_run, handle_task, handle_scan, handle_init, handle_prompt, handle_doctor",
-        "User request: 'Several files in this project are thousand of lines long. We need to refactor while maintaing the same functionality.'"
-      ],
-      "plan": [
-        "Create crates/ralph/src/cli/ directory with mod.rs",
-        "Extract handle_queue and Queue-related types to cli/queue.rs",
-        "Extract handle_config and Config-related types to cli/config.rs",
-        "Extract handle_run and Run-related types to cli/run.rs",
-        "Extract handle_task and Task-related types to cli/task.rs",
-        "Extract handle_scan and Scan-related types to cli/scan.rs",
-        "Extract handle_init and Init-related types to cli/init.rs",
-        "Extract handle_prompt and Prompt-related types to cli/prompt.rs",
-        "Extract handle_doctor to cli/doctor.rs",
-        "Update main.rs to use cli module handlers",
-        "Run make ci to ensure no functionality changes"
-      ],
-      "notes": [],
-      "request": "Several files in this project are thousand of lines long. We need to refactor while maintaing the same functionality. Smaller file sizes are easier to maintain and find what is needed. Also easier to make sure we are not violating DRY and YAGNI principals. Create several tasks to completely tackle this effort. use the queue fields at your disposal to ensure this is done logically.",
-      "created_at": "2026-01-20T19:00:00Z",
-      "updated_at": "2026-01-20T19:00:00Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0183",
       "status": "todo",
       "title": "Refactor main.rs: Extract CLI types to dedicated module",
