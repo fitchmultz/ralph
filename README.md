@@ -1,6 +1,8 @@
 # Ralph
 
-Ralph is a tool for managing AI agent loops with a structured YAML task queue.
+Purpose: Describe Ralph's CLI, defaults, and workflow entry points for contributors.
+
+Ralph is a tool for managing AI agent loops with a structured JSON task queue.
 
 ## Status
 
@@ -10,6 +12,10 @@ The Ralph CLI is in `crates/ralph/`.
 - Done archive: `.ralph/done.json`
 - Prompt templates: built-in defaults; override in `.ralph/prompts/`
 - **Production Verification:** See `.ralph/README.md`.
+
+## Documentation
+
+Start with `docs/index.md` for configuration, queue/task schema, CLI usage, workflow, and environment variables.
 
 ## Quick Start (Rust)
 

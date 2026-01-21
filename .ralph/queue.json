@@ -2,43 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0190",
-      "status": "todo",
-      "title": "Create organization documentation in Markdown",
-      "priority": "medium",
-      "tags": [
-        "docs",
-        "markdown",
-        "documentation",
-        "github"
-      ],
-      "scope": [
-        "docs/",
-        "README.md",
-        "AGENTS.md"
-      ],
-      "evidence": [
-        "User requires organization documentation in Markdown viewable within the GitHub repo",
-        "Documentation should be repository-native (no custom web UI)",
-        "Ensure documentation covers configurable/customizable items with examples",
-        "AGENTS.md must be updated with reminder to keep documentation up to date when defaults or schemas change"
-      ],
-      "plan": [
-        "Create a Markdown documentation structure under docs/ suitable for GitHub viewing",
-        "Include comprehensive sections for all configuration options (global config, project config, CLI flags) with examples",
-        "Document high-level architecture and workflow without diving deep into non-configurable internals",
-        "Update README.md to link to the documentation index",
-        "Update AGENTS.md to add documentation maintenance reminders for defaults, schemas, and configuration changes",
-        "Run make ci to ensure build passes"
-      ],
-      "notes": [],
-      "request": "Change RQ-0190 to create organization documentation in Markdown that is viewable within the GitHub repo. Focus on repository-native docs (no custom web UI), include all configurable/customizable items with examples, and update AGENTS.md to remind maintainers to keep docs current when defaults or schemas change.",
-      "created_at": "2026-01-21T14:26:59Z",
-      "updated_at": "2026-01-21T15:42:01Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0189",
       "status": "todo",
       "title": "Verify and consolidate refactored codebase",

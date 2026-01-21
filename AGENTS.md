@@ -1,5 +1,7 @@
 # Contributor Guide
 
+Purpose: Capture repo-wide operating expectations for contributors and agents.
+
 ## Project Structure & Source of Truth
 - `crates/ralph/`: **Active** Rust CLI.
   - Run locally via `cargo run -p ralph -- <command>`
@@ -52,6 +54,9 @@
 - CLI flags can override at runtime; they should not be relied on as persisted config.
 - Runner usage: set `agent.runner: claude` or `agent.runner: gemini` (and `agent.opencode_bin`/`agent.gemini_bin` if needed); allowed models include `gpt-5.2-codex`, `gpt-5.2`, `zai-coding-plan/glm-4.7`, `gemini-3-pro-preview`, `gemini-3-flash-preview`, `sonnet`, `opus` (Codex supports only `gpt-5.2-codex` + `gpt-5.2`; OpenCode/Gemini/Claude accept arbitrary model IDs).
 - **RepoPrompt**: When `agent.require_repoprompt: true` (or `--rp-on`), agents MUST use RepoPrompt tools (`read_file`, `context_builder`, etc.).
+
+## Documentation Maintenance
+- When config defaults, schemas, CLI flags, or task fields change, update `docs/` and keep examples in sync with the source of truth.
 
 ## Configuration & Security
 - Do not commit real secrets if the repo is public.
