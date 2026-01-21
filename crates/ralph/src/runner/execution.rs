@@ -426,7 +426,7 @@ fn extract_display_lines(json: &JsonValue) -> Vec<String> {
             }
         }
 
-        if event_type == "item.completed" {
+        if event_type == "item.completed" || event_type == "item.started" {
             if let Some(item) = json.get("item") {
                 if let Some(item_type) = item.get("type").and_then(|t| t.as_str()) {
                     match item_type {
@@ -434,6 +434,7 @@ fn extract_display_lines(json: &JsonValue) -> Vec<String> {
                             if let Some(text) = item.get("text").and_then(|t| t.as_str()) {
                                 if !text.is_empty() {
                                     lines.push(text.to_string());
+                                    lines.push(String::new());
                                 }
                             }
                         }
@@ -442,6 +443,16 @@ fn extract_display_lines(json: &JsonValue) -> Vec<String> {
                                 if !text.is_empty() {
                                     lines.push(format!("{}{}", CODEX_REASONING_PREFIX, text));
                                 }
+                            }
+                        }
+                        "mcp_tool_call" => {
+                            if let Some(line) = format_codex_tool_line(item) {
+                                lines.push(line);
+                            }
+                        }
+                        "command_execution" => {
+                            if let Some(line) = format_codex_command_line(item) {
+                                lines.push(line);
                             }
                         }
                         _ => {}
@@ -460,6 +471,35 @@ fn extract_display_lines(json: &JsonValue) -> Vec<String> {
     }
 
     lines
+}
+
+fn format_codex_tool_line(item: &JsonValue) -> Option<String> {
+    let server = item.get("server").and_then(|s| s.as_str());
+    let tool = item.get("tool").and_then(|t| t.as_str());
+    let name = match (server, tool) {
+        (Some(server), Some(tool)) => format!("{}.{}", server, tool),
+        (Some(server), None) => server.to_string(),
+        (None, Some(tool)) => tool.to_string(),
+        (None, None) => return None,
+    };
+
+    Some(format!("[Tool] {}{}", name, status_suffix(item)))
+}
+
+fn format_codex_command_line(item: &JsonValue) -> Option<String> {
+    let command = item.get("command").and_then(|c| c.as_str())?;
+    let mut suffix = status_suffix(item);
+    if let Some(exit_code) = item.get("exit_code").and_then(|code| code.as_i64()) {
+        suffix = format!("{} (exit {})", suffix.trim_end(), exit_code);
+    }
+    Some(format!("[Command] {}{}", command, suffix))
+}
+
+fn status_suffix(item: &JsonValue) -> String {
+    item.get("status")
+        .and_then(|s| s.as_str())
+        .map(|status| format!(" ({})", status))
+        .unwrap_or_default()
 }
 
 /// Display meaningful content from JSON, filtering noise
@@ -755,7 +795,7 @@ mod tests {
             "type": "item.completed",
             "item": {"type": "agent_message", "text": "Hi!"}
         });
-        assert_eq!(extract_display_lines(&payload), vec!["Hi!"]);
+        assert_eq!(extract_display_lines(&payload), vec!["Hi!", ""]);
     }
 
     #[test]
@@ -767,6 +807,40 @@ mod tests {
         assert_eq!(
             extract_display_lines(&payload),
             vec!["[Reasoning] Working it out"]
+        );
+    }
+
+    #[test]
+    fn extract_display_lines_codex_tool_call() {
+        let payload = json!({
+            "type": "item.completed",
+            "item": {
+                "type": "mcp_tool_call",
+                "server": "RepoPrompt",
+                "tool": "get_file_tree",
+                "status": "completed"
+            }
+        });
+        assert_eq!(
+            extract_display_lines(&payload),
+            vec!["[Tool] RepoPrompt.get_file_tree (completed)"]
+        );
+    }
+
+    #[test]
+    fn extract_display_lines_codex_command_execution() {
+        let payload = json!({
+            "type": "item.started",
+            "item": {
+                "type": "command_execution",
+                "command": "/bin/zsh -lc ls",
+                "status": "in_progress",
+                "exit_code": null
+            }
+        });
+        assert_eq!(
+            extract_display_lines(&payload),
+            vec!["[Command] /bin/zsh -lc ls (in_progress)"]
         );
     }
 
