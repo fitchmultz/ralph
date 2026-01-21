@@ -63,3 +63,4 @@
 - Complexity budget: add components only when they reduce total risk/maintenance or increase measurable value.
 - Evidence over opinion: tests, data constraints, and benchmarks settle debates; formatters/linters settle style.
 - Centralize early: if similar logic exists, consolidate into shared helpers/modules.
+- Dead-code linting: prefer an explicit, minimal usage pattern (e.g., a type annotation) over suppressing with allow attributes when preserving a public API.
