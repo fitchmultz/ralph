@@ -21,7 +21,7 @@ Purpose: Capture repo-wide operating expectations for contributors and agents.
 - `cargo run -p ralph -- queue next`
 - `cargo run -p ralph -- queue next-id`
 - `cargo run -p ralph -- queue done`
-- `cargo run -p ralph -- task build "<request>"`
+- `cargo run -p ralph -- task "<request>"`
 - `cargo run -p ralph -- scan --focus "<focus>"`
 - `cargo run -p ralph -- run one`
 - `cargo run -p ralph -- run one --phases 1` (single-pass execution)

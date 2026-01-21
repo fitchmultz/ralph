@@ -59,7 +59,7 @@ pub fn handle_prompt(args: PromptArgs) -> Result<()> {
         PromptCommand::TaskBuilder(p) => {
             let rp_required = agent::resolve_rp_required(p.rp_on, p.rp_off, &resolved);
 
-            // For convenience, allow stdin usage like `task build` does.
+            // For convenience, allow stdin usage like `task` does.
             let request = if let Some(r) = p.request {
                 r
             } else {

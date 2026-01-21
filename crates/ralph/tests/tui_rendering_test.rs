@@ -95,7 +95,7 @@ fn test_render_empty_queue_shows_message() {
     let output = get_rendered_output(&mut terminal, &mut app);
 
     assert!(output.contains("No tasks in queue."));
-    assert!(output.contains("ralph task build"));
+    assert!(output.contains("ralph task"));
 }
 
 #[test]

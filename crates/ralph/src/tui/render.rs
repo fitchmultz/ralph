@@ -455,7 +455,7 @@ fn draw_task_details(f: &mut Frame<'_>, app: &mut App, area: Rect) {
             Line::from(""),
             Line::from("Create a task with:"),
             Line::from(Span::styled(
-                "  ralph task build \"your request\"",
+                "  ralph task \"your request\"",
                 Style::default().fg(Color::Cyan),
             )),
         ]);

@@ -11,7 +11,7 @@ use clap::Args;
 
 /// CLI arguments for agent configuration.
 ///
-/// Used by `task build` and `scan` commands.
+/// Used by `task` and `scan` commands.
 #[derive(Args, Clone, Debug, Default)]
 pub struct AgentArgs {
     /// Runner override for this invocation (codex, opencode, gemini, claude).

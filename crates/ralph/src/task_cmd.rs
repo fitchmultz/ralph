@@ -26,20 +26,20 @@ fn read_request_from_args_or_reader(
         let joined = args.join(" ");
         let trimmed = joined.trim();
         if trimmed.is_empty() {
-            bail!("Missing request: task build requires a request description. Pass arguments or pipe input to the command.");
+            bail!("Missing request: task requires a request description. Pass arguments or pipe input to the command.");
         }
         return Ok(trimmed.to_string());
     }
 
     if stdin_is_terminal {
-        bail!("Missing request: task build requires a request description. Pass arguments or pipe input to the command.");
+        bail!("Missing request: task requires a request description. Pass arguments or pipe input to the command.");
     }
 
     let mut buf = String::new();
     reader.read_to_string(&mut buf).context("read stdin")?;
     let trimmed = buf.trim();
     if trimmed.is_empty() {
-        bail!("Missing request: task build requires a request description (pass arguments or pipe input to the command).");
+        bail!("Missing request: task requires a request description (pass arguments or pipe input to the command).");
     }
     Ok(trimmed.to_string())
 }
@@ -53,10 +53,10 @@ pub fn read_request_from_args_or_stdin(args: &[String]) -> Result<String> {
 }
 
 pub fn build_task(resolved: &config::Resolved, opts: TaskBuildOptions) -> Result<()> {
-    let _queue_lock = queue::acquire_queue_lock(&resolved.repo_root, "task build", opts.force)?;
+    let _queue_lock = queue::acquire_queue_lock(&resolved.repo_root, "task", opts.force)?;
 
     if opts.request.trim().is_empty() {
-        bail!("Missing request: task build requires a request description. Provide a non-empty request.");
+        bail!("Missing request: task requires a request description. Provide a non-empty request.");
     }
 
     let before = queue::load_queue(&resolved.queue_path)
@@ -69,7 +69,7 @@ pub fn build_task(resolved: &config::Resolved, opts: TaskBuildOptions) -> Result
         Some(&done)
     };
     queue::validate_queue_set(&before, done_ref, &resolved.id_prefix, resolved.id_width)
-        .context("validate queue set before task build")?;
+        .context("validate queue set before task")?;
     let before_ids = queue::task_id_set(&before);
 
     let template = prompts::load_task_builder_prompt(&resolved.repo_root)?;
@@ -86,8 +86,8 @@ pub fn build_task(resolved: &config::Resolved, opts: TaskBuildOptions) -> Result
     prompt = prompts::wrap_with_repoprompt_requirement(&prompt, opts.repoprompt_required);
 
     let bins = runner::resolve_binaries(&resolved.config.agent);
-    // Two-pass mode disabled for task build (only generates task, should not implement)
-    // Force BypassPermissions for task build (needs tool access for exploration)
+    // Two-pass mode disabled for task (only generates task, should not implement)
+    // Force BypassPermissions for task (needs tool access for exploration)
     let permission_mode = Some(ClaudePermissionMode::BypassPermissions);
 
     let _output = runutil::run_prompt_with_handling(
@@ -149,7 +149,7 @@ pub fn build_task(resolved: &config::Resolved, opts: TaskBuildOptions) -> Result
         &resolved.id_prefix,
         resolved.id_width,
     )
-    .context("validate queue set after task build")?;
+    .context("validate queue set after task")?;
 
     let added = queue::added_tasks(&before_ids, &after);
     if !added.is_empty() {

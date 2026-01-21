@@ -40,7 +40,7 @@ fn run() -> Result<()> {
         cli::Command::Queue(args) => cli::queue::handle_queue(args.command, cli.force),
         cli::Command::Config(args) => cli::config::handle_config(args.command),
         cli::Command::Run(args) => cli::run::handle_run(args.command, cli.force),
-        cli::Command::Task(args) => cli::task::handle_task(args.command, cli.force),
+        cli::Command::Task(args) => cli::task::handle_task(args, cli.force),
         cli::Command::Scan(args) => cli::scan::handle_scan(args, cli.force),
         cli::Command::Init(args) => cli::init::handle_init(args, cli.force),
         cli::Command::Prompt(args) => cli::prompt::handle_prompt(args),

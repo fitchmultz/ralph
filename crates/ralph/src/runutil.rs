@@ -17,7 +17,7 @@ pub struct RunnerInvocation<'a> {
     pub timeout: Option<Duration>,
     pub permission_mode: Option<ClaudePermissionMode>,
     /// If true, revert uncommitted changes on runner errors.
-    /// Set to false for task build to preserve user's existing work.
+    /// Set to false for task to preserve user's existing work.
     pub revert_on_error: bool,
     /// Policy for reverting uncommitted changes when errors occur.
     pub git_revert_mode: GitRevertMode,

@@ -22,7 +22,7 @@ This repo is using Ralph. The `.ralph/` directory holds repo-local state.
 - Archive completed tasks:
   - `ralph queue done`
 - Build a task from a request:
-  - `ralph task build "<request>"`
+  - `ralph task "<request>"`
 - Seed tasks from a scan:
   - `ralph scan --focus "<focus>"`
 - Run one task:
@@ -62,11 +62,11 @@ Note: Standard placeholders like `{{USER_REQUEST}}` are still processed after va
 Ralph can use Codex, OpenCode, Gemini, or Claude CLI as a runner.
 
 One-off usage:
-- `ralph task build --runner opencode --model gpt-5.2 "Add tests for X"`
+- `ralph task --runner opencode --model gpt-5.2 "Add tests for X"`
 - `ralph scan --runner opencode --model gpt-5.2 --focus "CI gaps"`
 - `ralph scan --runner gemini --model gemini-3-flash-preview --focus "risk audit"`
 - `ralph scan --runner claude --model sonnet --focus "risk audit"`
-- `ralph task build --runner claude --model opus --rp-on "Add tests for X"`
+- `ralph task --runner claude --model opus --rp-on "Add tests for X"`
 - `ralph run one --phases 3` (3-phase: plan, implement+CI, review+complete, default)
 - `ralph run one --phases 2` (2-phase: plan then implement, default)
 - `ralph run one --phases 1` (single-pass execution)
@@ -114,4 +114,3 @@ Ralph can control whether uncommitted changes are reverted when runner/supervisi
 
 Example:
 - `ralph run one --git-revert-mode disabled`
-

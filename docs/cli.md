@@ -16,14 +16,14 @@ ralph --force queue done
 - `ralph init`: bootstrap `.ralph/queue.json`, `.ralph/done.json`, and `.ralph/config.json`.
 - `ralph queue <subcommand>`: validate, list, search, and update tasks.
 - `ralph run <subcommand>`: run tasks via a runner (codex/opencode/gemini/claude).
-- `ralph task build`: create a task from a request.
+- `ralph task`: create a task from a request (default subcommand; `ralph task build` still works).
 - `ralph scan`: generate new tasks via scanning.
 - `ralph prompt <subcommand>`: render compiled prompts.
 - `ralph config <subcommand>`: inspect config and paths.
 - `ralph doctor`: verify environment readiness.
 
 ## Runner and Model Overrides
-These flags are supported on `task build`, `scan`, `run one`, and `run loop` (see each section for full usage):
+These flags are supported on `task`, `scan`, `run one`, and `run loop` (see each section for full usage):
 - `--runner <codex|opencode|gemini|claude>`
 - `--model <model-id>`
 - `--effort <minimal|low|medium|high>` (codex only)
@@ -31,7 +31,7 @@ These flags are supported on `task build`, `scan`, `run one`, and `run loop` (se
 
 Examples:
 ```bash
-ralph task build --runner opencode --model gpt-5.2 "Add tests for X"
+ralph task --runner opencode --model gpt-5.2 "Add tests for X"
 ralph scan --runner gemini --model gemini-3-flash-preview --focus "risk audit"
 ralph run one --runner codex --model gpt-5.2-codex --effort high
 ```
@@ -133,7 +133,7 @@ ralph run loop --max-tasks 0
 ralph run loop --git-revert-mode disabled --max-tasks 1
 ```
 
-## `ralph task build`
+## `ralph task`
 ### Flags
 - `REQUEST` (positional; if omitted, reads from stdin)
 - `--tags <tag1,tag2>`
@@ -145,9 +145,10 @@ ralph run loop --git-revert-mode disabled --max-tasks 1
 
 Examples:
 ```bash
-ralph task build "Add integration tests"
-ralph task build --tags cli,rust --scope crates/ralph "Fix queue parsing"
-echo "Triage flaky CI" | ralph task build --runner codex --model gpt-5.2-codex --effort medium
+ralph task "Add integration tests"
+ralph task --tags cli,rust --scope crates/ralph "Fix queue parsing"
+echo "Triage flaky CI" | ralph task --runner codex --model gpt-5.2-codex --effort medium
+ralph task build "Explicit build subcommand still works"
 ```
 
 ## `ralph scan`

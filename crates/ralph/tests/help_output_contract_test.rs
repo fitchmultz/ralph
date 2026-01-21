@@ -136,6 +136,20 @@ fn task_build_help_mentions_rp_flags() {
 }
 
 #[test]
+fn task_help_mentions_default_and_explicit_build() {
+    let (status, stdout, stderr) = run(&["task", "--help"]);
+    assert!(
+        status.success(),
+        "expected `ralph task --help` to succeed\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    let combined = format!("{stdout}\n{stderr}");
+
+    assert_contains(&combined, "ralph task");
+    assert_contains(&combined, "build");
+}
+
+#[test]
 fn scan_help_mentions_rp_flags() {
     let (status, stdout, stderr) = run(&["scan", "--help"]);
     assert!(

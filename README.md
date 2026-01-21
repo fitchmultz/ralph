@@ -28,7 +28,7 @@ Start with `docs/index.md` for configuration, queue/task schema, CLI usage, work
 - Inspect queue:
   - `cargo run -p ralph -- queue list`
 - Add a task from a request:
-  - `cargo run -p ralph -- task build "<request>"`
+  - `cargo run -p ralph -- task "<request>"`
 - Seed the backlog with a scan:
   - `cargo run -p ralph -- scan --focus "<focus>"`
 - Execute the next task (first `todo` task in queue order):
@@ -53,8 +53,8 @@ Ralph supports Codex, OpenCode, Gemini, and Claude CLIs as runners.
 
 Quick usage:
 - Ensure runner binaries are installed and on `PATH`.
-- Use `--runner <kind>` on `task build`, `scan`, or `run`:
-  - `cargo run -p ralph -- task build --runner opencode --model gpt-5.2 "Add tests for X"`
+- Use `--runner <kind>` on `task`, `scan`, or `run`:
+  - `cargo run -p ralph -- task --runner opencode --model gpt-5.2 "Add tests for X"`
   - `cargo run -p ralph -- scan --runner opencode --model gpt-5.2 --focus "CI gaps"`
   - `cargo run -p ralph -- run one --runner claude --model opus`
 
