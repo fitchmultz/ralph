@@ -162,11 +162,13 @@ mod tests {
 
     #[test]
     fn next_id_across_ignores_rejected() -> Result<()> {
+        let mut t_rejected = task_with("RQ-0009", TaskStatus::Rejected, vec!["tag".to_string()]);
+        t_rejected.completed_at = Some("2026-01-18T00:00:00Z".to_string());
         let active = QueueFile {
             version: 1,
             tasks: vec![
                 task_with("RQ-0001", TaskStatus::Todo, vec!["tag".to_string()]),
-                task_with("RQ-0009", TaskStatus::Rejected, vec!["tag".to_string()]),
+                t_rejected,
             ],
         };
         let next = next_id_across(&active, None, "RQ", 4)?;
@@ -184,12 +186,13 @@ mod tests {
                 vec!["tag".to_string()],
             )],
         };
+        let mut t_done = task_with("RQ-0005", TaskStatus::Done, vec!["tag".to_string()]);
+        t_done.completed_at = Some("2026-01-18T00:00:00Z".to_string());
+        let mut t_rejected = task_with("RQ-0009", TaskStatus::Rejected, vec!["tag".to_string()]);
+        t_rejected.completed_at = Some("2026-01-18T00:00:00Z".to_string());
         let done = QueueFile {
             version: 1,
-            tasks: vec![
-                task_with("RQ-0005", TaskStatus::Done, vec!["tag".to_string()]),
-                task_with("RQ-0009", TaskStatus::Rejected, vec!["tag".to_string()]),
-            ],
+            tasks: vec![t_done, t_rejected],
         };
         let next = next_id_across(&active, Some(&done), "RQ", 4)?;
         assert_eq!(next, "RQ-0006");

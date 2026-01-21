@@ -123,6 +123,13 @@ fn validate_task_required_fields(index: usize, task: &Task) -> Result<()> {
 
     if let Some(ts) = task.completed_at.as_deref() {
         validate_rfc3339("completed_at", index, &task.id, ts)?;
+    } else if task.status == TaskStatus::Done || task.status == TaskStatus::Rejected {
+        bail!(
+            "Missing completed_at: task {} (index {}) is in status '{:?}' but missing 'completed_at'. Add a valid RFC3339 timestamp.",
+            task.id,
+            index,
+            task.status
+        );
     }
 
     Ok(())
@@ -494,14 +501,29 @@ mod tests {
 
     #[test]
     fn validate_queue_allows_duplicate_if_one_is_rejected() {
+        let mut t_rejected = task_with("RQ-0001", TaskStatus::Rejected, vec!["tag".to_string()]);
+        t_rejected.completed_at = Some("2026-01-18T00:00:00Z".to_string());
         let queue = QueueFile {
             version: 1,
             tasks: vec![
                 task_with("RQ-0001", TaskStatus::Todo, vec!["tag".to_string()]),
-                task_with("RQ-0001", TaskStatus::Rejected, vec!["tag".to_string()]),
+                t_rejected,
             ],
         };
         assert!(validate_queue(&queue, "RQ", 4).is_ok());
+    }
+
+    #[test]
+    fn validate_rejects_done_without_completed_at() {
+        let mut task = task("RQ-0001");
+        task.status = TaskStatus::Done;
+        task.completed_at = None;
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![task],
+        };
+        let err = validate_queue(&queue, "RQ", 4).unwrap_err();
+        assert!(format!("{err}").contains("Missing completed_at"));
     }
 
     #[test]
@@ -514,31 +536,25 @@ mod tests {
                 vec!["tag".to_string()],
             )],
         };
+        let mut t_rejected = task_with("RQ-0001", TaskStatus::Rejected, vec!["tag".to_string()]);
+        t_rejected.completed_at = Some("2026-01-18T00:00:00Z".to_string());
         let done = QueueFile {
             version: 1,
-            tasks: vec![task_with(
-                "RQ-0001",
-                TaskStatus::Rejected,
-                vec!["tag".to_string()],
-            )],
+            tasks: vec![t_rejected],
         };
         assert!(validate_queue_set(&active, Some(&done), "RQ", 4).is_ok());
 
+        let mut t_rejected2 = task_with("RQ-0001", TaskStatus::Rejected, vec!["tag".to_string()]);
+        t_rejected2.completed_at = Some("2026-01-18T00:00:00Z".to_string());
         let active2 = QueueFile {
             version: 1,
-            tasks: vec![task_with(
-                "RQ-0001",
-                TaskStatus::Rejected,
-                vec!["tag".to_string()],
-            )],
+            tasks: vec![t_rejected2],
         };
+        let mut t_done = task_with("RQ-0001", TaskStatus::Done, vec!["tag".to_string()]);
+        t_done.completed_at = Some("2026-01-18T00:00:00Z".to_string());
         let done2 = QueueFile {
             version: 1,
-            tasks: vec![task_with(
-                "RQ-0001",
-                TaskStatus::Done,
-                vec!["tag".to_string()],
-            )],
+            tasks: vec![t_done],
         };
         assert!(validate_queue_set(&active2, Some(&done2), "RQ", 4).is_ok());
     }

@@ -33,7 +33,7 @@ Common optional fields:
 - `status`: `draft`, `todo`, `doing`, `done`, `rejected` (default: `todo`).
 - `priority`: `critical`, `high`, `medium`, `low` (default: `medium`).
 - `request`: original human request (string or null).
-- `completed_at`: RFC3339 UTC timestamp (string or null).
+- `completed_at`: RFC3339 UTC timestamp (required if status is `done` or `rejected`, otherwise optional).
 - `agent`: per-task runner override (see below).
 
 Per-task agent overrides:

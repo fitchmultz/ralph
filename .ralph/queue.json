@@ -2,41 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0200",
-      "status": "todo",
-      "title": "Require completed_at for Done/Rejected tasks and backfill in repair",
-      "priority": "high",
-      "tags": [
-        "queue",
-        "validation",
-        "reports"
-      ],
-      "scope": [
-        "crates/ralph/src/queue/validation.rs",
-        "crates/ralph/src/queue/repair.rs",
-        "crates/ralph/src/queue/prune.rs",
-        "crates/ralph/src/reports.rs",
-        "docs/queue-and-tasks.md",
-        "schemas/queue.schema.json"
-      ],
-      "evidence": [
-        "crates/ralph/src/queue/validation.rs only validates completed_at if present and does not require it for Done/Rejected tasks.",
-        "crates/ralph/src/queue/prune.rs and crates/ralph/src/reports.rs rely on completed_at to compute ordering/age/durations."
-      ],
-      "plan": [
-        "Update validation to require completed_at when status is Done or Rejected.",
-        "Ensure repair/backfill fills missing completed_at for terminal tasks.",
-        "Update schema/docs/tests to enforce terminal timestamp requirements.",
-        "Ensure prompts reflect the desired and required functionality for this task."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-21T19:59:34Z",
-      "updated_at": "2026-01-21T19:59:34Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0201",
       "status": "todo",
       "title": "Queue next/worker prompt should skip blocked tasks with unmet dependencies",

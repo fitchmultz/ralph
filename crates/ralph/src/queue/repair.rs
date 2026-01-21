@@ -95,7 +95,7 @@ pub fn repair_queue(
                     }
                 } else {
                     // Create/Update required
-                    if label == "created_at" || label == "updated_at" {
+                    if label == "created_at" || label == "updated_at" || label == "completed_at" {
                         *ts = Some(now.clone());
                         report.fixed_timestamps += 1;
                     }
@@ -287,5 +287,39 @@ mod tests {
 
         assert!(set.contains("RQ-0002"));
         assert_eq!(set.len(), 1);
+    }
+
+    #[test]
+    fn repair_backfills_completed_at_for_done_tasks() {
+        use crate::queue::save_queue;
+        use tempfile::tempdir;
+
+        let dir = tempdir().unwrap();
+        let queue_path = dir.path().join("queue.json");
+        let done_path = dir.path().join("done.json");
+
+        let mut t = task("RQ-0001", vec![]);
+        t.status = TaskStatus::Done;
+        t.completed_at = None;
+
+        let active = QueueFile {
+            version: 1,
+            tasks: vec![t],
+        };
+        save_queue(&queue_path, &active).unwrap();
+        save_queue(
+            &done_path,
+            &QueueFile {
+                version: 1,
+                tasks: vec![],
+            },
+        )
+        .unwrap();
+
+        let report = repair_queue(&queue_path, &done_path, "RQ", 4, false).unwrap();
+        assert!(report.fixed_timestamps > 0);
+
+        let repaired = crate::queue::load_queue_or_default(&queue_path).unwrap();
+        assert!(repaired.tasks[0].completed_at.is_some());
     }
 }
