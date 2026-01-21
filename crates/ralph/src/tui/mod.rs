@@ -10,7 +10,7 @@
 //! - `Enter`: Execute task (suspends TUI, runs task, restores)
 //! - `d`: Delete task (with confirmation)
 //! - `e`: Edit task title
-//! - `s`: Cycle status (Todo → Doing → Done → Rejected → Todo)
+//! - `s`: Cycle status (Draft → Todo → Doing → Done → Rejected → Draft)
 
 use anyhow::{anyhow, bail, Context, Result};
 use crossterm::{
@@ -110,10 +110,11 @@ impl App {
             .ok_or_else(|| anyhow!("No task selected"))?;
 
         let new_status = match task.status {
+            TaskStatus::Draft => TaskStatus::Todo,
             TaskStatus::Todo => TaskStatus::Doing,
             TaskStatus::Doing => TaskStatus::Done,
             TaskStatus::Done => TaskStatus::Rejected,
-            TaskStatus::Rejected => TaskStatus::Todo,
+            TaskStatus::Rejected => TaskStatus::Draft,
         };
 
         task.status = new_status;
@@ -123,7 +124,7 @@ impl App {
             TaskStatus::Done | TaskStatus::Rejected => {
                 task.completed_at = Some(now_rfc3339.to_string());
             }
-            TaskStatus::Todo | TaskStatus::Doing => {
+            TaskStatus::Draft | TaskStatus::Todo | TaskStatus::Doing => {
                 task.completed_at = None;
             }
         }
@@ -443,9 +444,12 @@ mod tests {
     fn app_cycle_status_cycles_correctly() {
         let queue = QueueFile {
             version: 1,
-            tasks: vec![make_test_task("RQ-0001", "Task 1", TaskStatus::Todo)],
+            tasks: vec![make_test_task("RQ-0001", "Task 1", TaskStatus::Draft)],
         };
         let mut app = App::new(queue);
+
+        app.cycle_status("2026-01-19T00:00:00Z").unwrap();
+        assert_eq!(app.queue.tasks[0].status, TaskStatus::Todo);
 
         app.cycle_status("2026-01-19T00:00:00Z").unwrap();
         assert_eq!(app.queue.tasks[0].status, TaskStatus::Doing);
@@ -457,7 +461,7 @@ mod tests {
         assert_eq!(app.queue.tasks[0].status, TaskStatus::Rejected);
 
         app.cycle_status("2026-01-19T00:00:00Z").unwrap();
-        assert_eq!(app.queue.tasks[0].status, TaskStatus::Todo);
+        assert_eq!(app.queue.tasks[0].status, TaskStatus::Draft);
     }
 
     #[test]

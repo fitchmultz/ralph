@@ -210,6 +210,7 @@
     "TaskStatus": {
       "type": "string",
       "enum": [
+        "draft",
         "todo",
         "doing",
         "done",

@@ -36,7 +36,7 @@ pub fn complete_task(
 ) -> Result<()> {
     match status {
         TaskStatus::Done | TaskStatus::Rejected => {}
-        TaskStatus::Todo | TaskStatus::Doing => {
+        TaskStatus::Draft | TaskStatus::Todo | TaskStatus::Doing => {
             bail!(
                 "Invalid completion status: only 'done' or 'rejected' are allowed. Got: {:?}. Use 'ralph queue complete {} done' or 'ralph queue complete {} rejected'.",
                 status, task_id, task_id
@@ -67,6 +67,12 @@ pub fn complete_task(
 
     match task.status {
         TaskStatus::Todo | TaskStatus::Doing => {}
+        TaskStatus::Draft => {
+            bail!(
+                "task {} is still in draft status. Promote it to todo before completing.",
+                needle
+            );
+        }
         TaskStatus::Done | TaskStatus::Rejected => {
             bail!(
                 "task {} is already in a terminal state: {:?}. Cannot complete a task that is already done or rejected.",
@@ -132,7 +138,7 @@ pub fn set_status(
         TaskStatus::Done | TaskStatus::Rejected => {
             task.completed_at = Some(now.clone());
         }
-        TaskStatus::Todo | TaskStatus::Doing => {
+        TaskStatus::Draft | TaskStatus::Todo | TaskStatus::Doing => {
             task.completed_at = None;
         }
     }
@@ -146,4 +152,32 @@ pub fn set_status(
     }
 
     Ok(())
+}
+
+pub fn promote_draft_to_todo(
+    queue: &mut QueueFile,
+    task_id: &str,
+    now_rfc3339: &str,
+    note: Option<&str>,
+) -> Result<()> {
+    let needle = task_id.trim();
+    if needle.is_empty() {
+        bail!("Missing task_id: a task ID is required for this operation. Provide a valid ID (e.g., 'RQ-0001').");
+    }
+
+    let task = queue
+        .tasks
+        .iter()
+        .find(|t| t.id.trim() == needle)
+        .ok_or_else(|| anyhow!("task not found: {}", needle))?;
+
+    if task.status != TaskStatus::Draft {
+        bail!(
+            "task {} is not in draft status (current status: {}). Only draft tasks can be marked ready.",
+            needle,
+            task.status
+        );
+    }
+
+    set_status(queue, needle, TaskStatus::Todo, now_rfc3339, note)
 }

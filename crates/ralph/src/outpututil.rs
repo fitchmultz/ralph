@@ -1,3 +1,5 @@
+//! Output formatting helpers for Ralph CLI and TUI surfaces.
+
 use colored::Colorize;
 
 use crate::contracts::{Task, TaskPriority, TaskStatus};
@@ -50,6 +52,7 @@ pub fn tail_lines(text: &str, max_lines: usize, max_chars: usize) -> Vec<String>
 
 pub fn style_status(status: TaskStatus) -> colored::ColoredString {
     match status {
+        TaskStatus::Draft => "draft".dimmed(),
         TaskStatus::Todo => "todo".blue(),
         TaskStatus::Doing => "doing".yellow().bold(),
         TaskStatus::Done => "done".green(),

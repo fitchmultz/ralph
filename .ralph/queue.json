@@ -1,38 +1,4 @@
 {
   "version": 1,
-  "tasks": [
-    {
-      "id": "RQ-0171",
-      "status": "todo",
-      "title": "Support 'draft' task status",
-      "priority": "medium",
-      "tags": [
-        "rust",
-        "cli",
-        "queue",
-        "ux"
-      ],
-      "scope": [
-        "crates/ralph/src/queue.rs",
-        "crates/ralph/src/task.rs"
-      ],
-      "evidence": [
-        "Need a way to create tasks that aren't ready to run",
-        "User request: 'New Tasks (Top 10): 9. RQ-0147: Support draft task status (Medium)'"
-      ],
-      "plan": [
-        "Add 'draft' to task status enum",
-        "Filter draft tasks out of 'run one' and 'run loop' by default",
-        "Add --include-draft flag to run commands",
-        "Add 'ralph task ready' command to promote draft to todo",
-        "Add tests for draft task behavior"
-      ],
-      "notes": [],
-      "request": "New Tasks (Top 10): 9. RQ-0147: Support 'draft' task status (Medium)",
-      "created_at": "2026-01-20T18:00:00Z",
-      "updated_at": "2026-01-20T18:00:00Z",
-      "depends_on": [],
-      "custom_fields": {}
-    }
-  ]
+  "tasks": []
 }

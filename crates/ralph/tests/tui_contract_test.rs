@@ -201,6 +201,10 @@ fn test_cycle_status_cycles_correctly() {
     );
 
     app.cycle_status("2026-01-19T03:00:00Z").unwrap();
+    assert_eq!(app.queue.tasks[0].status, TaskStatus::Draft);
+    assert_eq!(app.queue.tasks[0].completed_at, None);
+
+    app.cycle_status("2026-01-19T04:00:00Z").unwrap();
     assert_eq!(app.queue.tasks[0].status, TaskStatus::Todo);
     assert_eq!(app.queue.tasks[0].completed_at, None);
 }

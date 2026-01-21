@@ -78,6 +78,10 @@ pub struct RunAgentArgs {
     /// Git revert mode for automatic error handling (ask, enabled, disabled).
     #[arg(long, value_parser = ["ask", "enabled", "disabled"])]
     pub git_revert_mode: Option<String>,
+
+    /// Include draft tasks when selecting what to run.
+    #[arg(long)]
+    pub include_draft: bool,
 }
 
 /// Agent overrides from CLI arguments.
@@ -95,6 +99,7 @@ pub struct AgentOverrides {
     pub phases: Option<u8>,
     pub repoprompt_required: Option<bool>,
     pub git_revert_mode: Option<GitRevertMode>,
+    pub include_draft: Option<bool>,
 }
 
 /// Parse a runner string into a Runner enum.
@@ -155,6 +160,8 @@ pub fn resolve_run_agent_overrides(args: &RunAgentArgs) -> Result<AgentOverrides
         None => None,
     };
 
+    let include_draft = if args.include_draft { Some(true) } else { None };
+
     Ok(AgentOverrides {
         runner,
         model,
@@ -162,6 +169,7 @@ pub fn resolve_run_agent_overrides(args: &RunAgentArgs) -> Result<AgentOverrides
         phases: args.phases,
         repoprompt_required,
         git_revert_mode,
+        include_draft,
     })
 }
 
@@ -205,6 +213,7 @@ pub fn resolve_agent_overrides(args: &AgentArgs) -> Result<AgentOverrides> {
         phases: None,
         repoprompt_required,
         git_revert_mode: None,
+        include_draft: None,
     })
 }
 
@@ -312,6 +321,7 @@ mod tests {
         assert_eq!(overrides.reasoning_effort, None);
         assert_eq!(overrides.repoprompt_required, None);
         assert_eq!(overrides.git_revert_mode, None);
+        assert_eq!(overrides.include_draft, None);
     }
 
     #[test]
@@ -327,6 +337,7 @@ mod tests {
         let overrides = resolve_agent_overrides(&args).unwrap();
         assert_eq!(overrides.repoprompt_required, Some(true));
         assert_eq!(overrides.git_revert_mode, None);
+        assert_eq!(overrides.include_draft, None);
     }
 
     #[test]
@@ -339,6 +350,7 @@ mod tests {
             rp_on: false,
             rp_off: false,
             git_revert_mode: Some("enabled".to_string()),
+            include_draft: true,
         };
 
         let overrides = resolve_run_agent_overrides(&args).unwrap();
@@ -347,5 +359,6 @@ mod tests {
         assert_eq!(overrides.reasoning_effort, Some(ReasoningEffort::High));
         assert_eq!(overrides.phases, Some(2));
         assert_eq!(overrides.git_revert_mode, Some(GitRevertMode::Enabled));
+        assert_eq!(overrides.include_draft, Some(true));
     }
 }

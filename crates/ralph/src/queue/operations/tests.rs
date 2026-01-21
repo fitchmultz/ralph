@@ -124,6 +124,44 @@ fn set_status_sanitizes_leading_backticks() -> anyhow::Result<()> {
 }
 
 #[test]
+fn promote_draft_to_todo_updates_status_and_timestamps() -> anyhow::Result<()> {
+    let mut queue = QueueFile {
+        version: 1,
+        tasks: vec![task_with(
+            "RQ-0001",
+            TaskStatus::Draft,
+            vec!["code".to_string()],
+        )],
+    };
+
+    let now = "2026-01-17T00:00:00Z";
+    promote_draft_to_todo(&mut queue, "RQ-0001", now, Some("ready"))?;
+
+    let t = &queue.tasks[0];
+    assert_eq!(t.status, TaskStatus::Todo);
+    assert_eq!(t.updated_at.as_deref(), Some(now));
+    assert_eq!(t.completed_at, None);
+    assert!(t.notes.iter().any(|n| n == "ready"));
+    Ok(())
+}
+
+#[test]
+fn promote_draft_to_todo_rejects_non_draft() {
+    let mut queue = QueueFile {
+        version: 1,
+        tasks: vec![task_with(
+            "RQ-0001",
+            TaskStatus::Todo,
+            vec!["code".to_string()],
+        )],
+    };
+
+    let err =
+        promote_draft_to_todo(&mut queue, "RQ-0001", "2026-01-17T00:00:00Z", None).unwrap_err();
+    assert!(format!("{err}").contains("not in draft status"));
+}
+
+#[test]
 fn added_tasks_returns_titles_for_new_tasks() {
     let before = task_id_set(&QueueFile {
         version: 1,

@@ -136,6 +136,20 @@ mod tests {
     }
 
     #[test]
+    fn cli_parses_run_include_draft() {
+        let cli = Cli::try_parse_from(["ralph", "run", "one", "--include-draft"]).expect("parse");
+        match cli.command {
+            Command::Run(run::RunArgs { command }) => match command {
+                run::RunCommand::One(args) => {
+                    assert!(args.agent.include_draft);
+                }
+                _ => panic!("expected run one command"),
+            },
+            _ => panic!("expected run command"),
+        }
+    }
+
+    #[test]
     fn cli_parses_run_one_id() {
         let cli = Cli::try_parse_from(["ralph", "run", "one", "--id", "RQ-0001"]).expect("parse");
         match cli.command {
@@ -169,6 +183,20 @@ mod tests {
                 assert!(command.is_none(), "expected implicit build subcommand");
                 assert_eq!(build.request, vec!["Add".to_string(), "tests".to_string()]);
             }
+            _ => panic!("expected task command"),
+        }
+    }
+
+    #[test]
+    fn cli_parses_task_ready_subcommand() {
+        let cli = Cli::try_parse_from(["ralph", "task", "ready", "RQ-0005"]).expect("parse");
+        match cli.command {
+            Command::Task(task::TaskArgs { command, .. }) => match command {
+                Some(task::TaskCommand::Ready(args)) => {
+                    assert_eq!(args.task_id, "RQ-0005");
+                }
+                _ => panic!("expected task ready command"),
+            },
             _ => panic!("expected task command"),
         }
     }

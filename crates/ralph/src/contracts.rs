@@ -1,3 +1,5 @@
+//! Core data contracts for Ralph configuration and queue/task JSON structures.
+
 #![allow(clippy::struct_excessive_bools)]
 
 use schemars::JsonSchema;
@@ -340,6 +342,7 @@ pub struct Task {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, Default, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum TaskStatus {
+    Draft,
     #[default]
     Todo,
     Doing,
@@ -402,6 +405,7 @@ impl std::fmt::Display for TaskPriority {
 impl TaskStatus {
     pub fn as_str(self) -> &'static str {
         match self {
+            TaskStatus::Draft => "draft",
             TaskStatus::Todo => "todo",
             TaskStatus::Doing => "doing",
             TaskStatus::Done => "done",

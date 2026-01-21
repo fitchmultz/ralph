@@ -10,6 +10,7 @@ pub(crate) fn select_run_one_task_index(
     queue_file: &QueueFile,
     done_ref: Option<&QueueFile>,
     target_task_id: Option<&str>,
+    include_draft: bool,
 ) -> Result<Option<usize>> {
     if let Some(task_id) = target_task_id {
         let needle = task_id.trim();
@@ -29,6 +30,20 @@ pub(crate) fn select_run_one_task_index(
                     needle,
                     task.status
                 );
+            }
+            TaskStatus::Draft => {
+                if !include_draft {
+                    bail!(
+                        "Target task {} is in draft status. Use --include-draft to run draft tasks.",
+                        needle
+                    );
+                }
+                if !queue::are_dependencies_met(task, queue_file, done_ref) {
+                    bail!(
+                        "Target task {} is blocked by unmet dependencies. Resolve dependencies before running.",
+                        needle
+                    );
+                }
             }
             TaskStatus::Todo => {
                 if !queue::are_dependencies_met(task, queue_file, done_ref) {
@@ -52,7 +67,13 @@ pub(crate) fn select_run_one_task_index(
     }
 
     Ok(queue_file.tasks.iter().position(|t| {
-        t.status == TaskStatus::Todo && queue::are_dependencies_met(t, queue_file, done_ref)
+        if t.status == TaskStatus::Todo {
+            return queue::are_dependencies_met(t, queue_file, done_ref);
+        }
+        if include_draft && t.status == TaskStatus::Draft {
+            return queue::are_dependencies_met(t, queue_file, done_ref);
+        }
+        false
     }))
 }
 
@@ -110,7 +131,7 @@ mod tests {
     #[test]
     fn select_run_one_task_index_finds_target() -> anyhow::Result<()> {
         let queue_file = queue_with_tasks(vec![base_task()]);
-        let idx = select_run_one_task_index(&queue_file, None, Some("RQ-0001"))?;
+        let idx = select_run_one_task_index(&queue_file, None, Some("RQ-0001"), false)?;
         assert_eq!(idx, Some(0));
         Ok(())
     }
@@ -118,7 +139,7 @@ mod tests {
     #[test]
     fn select_run_one_task_index_errors_when_target_missing() {
         let queue_file = queue_with_tasks(vec![base_task()]);
-        let err = select_run_one_task_index(&queue_file, None, Some("RQ-9999"))
+        let err = select_run_one_task_index(&queue_file, None, Some("RQ-9999"), false)
             .expect_err("missing target should error");
         assert!(err.to_string().contains("not found"));
     }
@@ -126,7 +147,7 @@ mod tests {
     #[test]
     fn select_run_one_task_index_errors_when_target_done() {
         let queue_file = queue_with_tasks(vec![task_with_status(TaskStatus::Done)]);
-        let err = select_run_one_task_index(&queue_file, None, Some("RQ-0001"))
+        let err = select_run_one_task_index(&queue_file, None, Some("RQ-0001"), false)
             .expect_err("done target should error");
         assert!(err.to_string().contains("not runnable"));
     }
@@ -134,7 +155,7 @@ mod tests {
     #[test]
     fn select_run_one_task_index_errors_when_target_rejected() {
         let queue_file = queue_with_tasks(vec![task_with_status(TaskStatus::Rejected)]);
-        let err = select_run_one_task_index(&queue_file, None, Some("RQ-0001"))
+        let err = select_run_one_task_index(&queue_file, None, Some("RQ-0001"), false)
             .expect_err("rejected target should error");
         assert!(err.to_string().contains("not runnable"));
     }
@@ -144,7 +165,7 @@ mod tests {
         let mut task = base_task();
         task.depends_on = vec!["RQ-0002".to_string()];
         let queue_file = queue_with_tasks(vec![task]);
-        let err = select_run_one_task_index(&queue_file, None, Some("RQ-0001"))
+        let err = select_run_one_task_index(&queue_file, None, Some("RQ-0001"), false)
             .expect_err("blocked target should error");
         assert!(err.to_string().contains("blocked by unmet dependencies"));
     }
@@ -152,7 +173,31 @@ mod tests {
     #[test]
     fn select_run_one_task_index_allows_doing() -> anyhow::Result<()> {
         let queue_file = queue_with_tasks(vec![task_with_status(TaskStatus::Doing)]);
-        let idx = select_run_one_task_index(&queue_file, None, Some("RQ-0001"))?;
+        let idx = select_run_one_task_index(&queue_file, None, Some("RQ-0001"), false)?;
+        assert_eq!(idx, Some(0));
+        Ok(())
+    }
+
+    #[test]
+    fn select_run_one_task_index_rejects_draft_without_flag() {
+        let queue_file = queue_with_tasks(vec![task_with_status(TaskStatus::Draft)]);
+        let err = select_run_one_task_index(&queue_file, None, Some("RQ-0001"), false)
+            .expect_err("draft target should error");
+        assert!(err.to_string().contains("draft"));
+    }
+
+    #[test]
+    fn select_run_one_task_index_allows_draft_with_flag() -> anyhow::Result<()> {
+        let queue_file = queue_with_tasks(vec![task_with_status(TaskStatus::Draft)]);
+        let idx = select_run_one_task_index(&queue_file, None, Some("RQ-0001"), true)?;
+        assert_eq!(idx, Some(0));
+        Ok(())
+    }
+
+    #[test]
+    fn select_run_one_task_index_selects_draft_when_included() -> anyhow::Result<()> {
+        let queue_file = queue_with_tasks(vec![task_with_status(TaskStatus::Draft)]);
+        let idx = select_run_one_task_index(&queue_file, None, None, true)?;
         assert_eq!(idx, Some(0));
         Ok(())
     }

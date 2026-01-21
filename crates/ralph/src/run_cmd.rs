@@ -38,15 +38,22 @@ pub struct RunLoopOptions {
 pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()> {
     let queue_file = queue::load_queue(&resolved.queue_path)?;
 
+    let include_draft = opts.agent_overrides.include_draft.unwrap_or(false);
     let initial_todo_count = queue_file
         .tasks
         .iter()
-        .filter(|t| t.status == TaskStatus::Todo)
+        .filter(|t| {
+            t.status == TaskStatus::Todo || (include_draft && t.status == TaskStatus::Draft)
+        })
         .count() as u32;
 
     if initial_todo_count == 0 {
         // Keep this phrase stable; some tests look for it.
-        log::info!("No todo tasks found.");
+        if include_draft {
+            log::info!("No todo or draft tasks found.");
+        } else {
+            log::info!("No todo tasks found.");
+        }
         return Ok(());
     }
 
@@ -157,21 +164,24 @@ fn run_one_impl(
 
     // --- Task Selection ---
     // Prefer resuming a `doing` task (crash recovery), otherwise take first runnable `todo`.
-    let task_idx = match select_run_one_task_index(&queue_file, done_ref, target_task_id)? {
-        Some(idx) => idx,
-        None => {
-            let has_todo = queue_file
-                .tasks
-                .iter()
-                .any(|t| t.status == TaskStatus::Todo);
-            if has_todo {
-                log::info!("All todo tasks are blocked by unmet dependencies.");
-            } else {
-                log::info!("No todo tasks found.");
+    let include_draft = agent_overrides.include_draft.unwrap_or(false);
+    let task_idx =
+        match select_run_one_task_index(&queue_file, done_ref, target_task_id, include_draft)? {
+            Some(idx) => idx,
+            None => {
+                let has_runnable = queue_file.tasks.iter().any(|t| {
+                    t.status == TaskStatus::Todo || (include_draft && t.status == TaskStatus::Draft)
+                });
+                if has_runnable {
+                    log::info!("All runnable tasks are blocked by unmet dependencies.");
+                } else if include_draft {
+                    log::info!("No todo or draft tasks found.");
+                } else {
+                    log::info!("No todo tasks found.");
+                }
+                return Ok(RunOutcome::NoTodo);
             }
-            return Ok(RunOutcome::NoTodo);
-        }
-    };
+        };
 
     let task = queue_file.tasks[task_idx].clone();
     let task_id = task.id.trim().to_string();

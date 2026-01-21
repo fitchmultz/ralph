@@ -21,7 +21,7 @@ Required:
 - `title` (string)
 
 Common optional fields:
-- `status`: `todo`, `doing`, `done`, `rejected` (default: `todo`).
+- `status`: `draft`, `todo`, `doing`, `done`, `rejected` (default: `todo`).
 - `priority`: `critical`, `high`, `medium`, `low` (default: `medium`).
 - `tags`: list of strings.
 - `scope`: list of strings.
@@ -65,3 +65,4 @@ Per-task agent overrides:
 ## Lifecycle Notes
 - Tasks run in the file order from `.ralph/queue.json`.
 - Completed tasks are removed from `.ralph/queue.json` and appended to `.ralph/done.json`.
+- Draft tasks (`status: draft`) are skipped by `run one` and `run loop` unless `--include-draft` is set.

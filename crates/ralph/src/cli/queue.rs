@@ -515,6 +515,8 @@ pub enum QueueCommand {
 #[derive(Clone, Copy, Debug, ValueEnum)]
 #[clap(rename_all = "snake_case")]
 pub enum StatusArg {
+    /// Task is a draft and not ready to run.
+    Draft,
     /// Task is waiting to be started.
     Todo,
     /// Task is currently being worked on.
@@ -749,6 +751,7 @@ pub struct QueuePruneArgs {
 impl From<StatusArg> for contracts::TaskStatus {
     fn from(value: StatusArg) -> Self {
         match value {
+            StatusArg::Draft => contracts::TaskStatus::Draft,
             StatusArg::Todo => contracts::TaskStatus::Todo,
             StatusArg::Doing => contracts::TaskStatus::Doing,
             StatusArg::Done => contracts::TaskStatus::Done,

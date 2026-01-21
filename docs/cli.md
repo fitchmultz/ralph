@@ -17,6 +17,7 @@ ralph --force queue done
 - `ralph queue <subcommand>`: validate, list, search, and update tasks.
 - `ralph run <subcommand>`: run tasks via a runner (codex/opencode/gemini/claude).
 - `ralph task`: create a task from a request (default subcommand; `ralph task build` still works).
+- `ralph task ready`: promote a draft task to todo.
 - `ralph scan`: generate new tasks via scanning.
 - `ralph prompt <subcommand>`: render compiled prompts.
 - `ralph config <subcommand>`: inspect config and paths.
@@ -61,7 +62,7 @@ ralph run one --runner codex --model gpt-5.2-codex --effort high
 - `next`: `--with-title`
 - `show`: `TASK_ID` and `--format <json|compact>`
 - `list`:
-  - `--status <todo|doing|done|rejected>` (repeatable)
+  - `--status <draft|todo|doing|done|rejected>` (repeatable)
   - `--tag <tag>` (repeatable)
   - `--scope <token>` (repeatable)
   - `--filter-deps <TASK_ID>`
@@ -72,7 +73,7 @@ ralph run one --runner codex --model gpt-5.2-codex --effort high
 - `search`:
   - `QUERY`
   - `--regex` / `--match-case`
-  - `--status <todo|doing|done|rejected>` (repeatable)
+  - `--status <draft|todo|doing|done|rejected>` (repeatable)
   - `--tag <tag>` (repeatable)
   - `--scope <token>` (repeatable)
   - `--include-done` / `--only-done`
@@ -87,7 +88,7 @@ ralph run one --runner codex --model gpt-5.2-codex --effort high
 - `burndown`: `--days <N>`
 - `prune`:
   - `--age <days>`
-  - `--status <todo|doing|done|rejected>` (repeatable)
+  - `--status <draft|todo|doing|done|rejected>` (repeatable)
   - `--keep-last <N>`
   - `--dry-run`
 - `repair`: `--dry-run`
@@ -95,6 +96,7 @@ ralph run one --runner codex --model gpt-5.2-codex --effort high
 Examples:
 ```bash
 ralph queue list --status todo --tag rust
+ralph queue list --status draft
 ralph queue list --include-done --limit 20
 ralph queue list --filter-deps RQ-0100
 ralph queue search "RQ-\\d{4}" --regex
@@ -119,6 +121,7 @@ ralph queue repair --dry-run
 - `--phases <1|2|3>`
 - `--rp-on` / `--rp-off`
 - `--git-revert-mode <ask|enabled|disabled>`
+- `--include-draft`
 - `-i`, `--interactive`
 - `run one` only: `--id <TASK_ID>` (non-interactive only)
 - `run loop` only: `--max-tasks <N>`
@@ -129,7 +132,9 @@ ralph run one
 ralph run one --id RQ-0001
 ralph run one -i
 ralph run one --phases 3
+ralph run one --include-draft
 ralph run loop --max-tasks 0
+ralph run loop --include-draft --max-tasks 1
 ralph run loop --git-revert-mode disabled --max-tasks 1
 ```
 
@@ -147,6 +152,7 @@ Examples:
 ```bash
 ralph task "Add integration tests"
 ralph task --tags cli,rust --scope crates/ralph "Fix queue parsing"
+ralph task ready RQ-0005
 echo "Triage flaky CI" | ralph task --runner codex --model gpt-5.2-codex --effort medium
 ralph task build "Explicit build subcommand still works"
 ```

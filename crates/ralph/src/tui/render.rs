@@ -551,6 +551,7 @@ fn draw_confirm_dialog(f: &mut Frame<'_>, area: Rect) {
 /// Get the color for a task status.
 fn status_color(status: TaskStatus) -> Color {
     match status {
+        TaskStatus::Draft => Color::DarkGray,
         TaskStatus::Todo => Color::Blue,
         TaskStatus::Doing => Color::Yellow,
         TaskStatus::Done => Color::Green,
@@ -583,6 +584,7 @@ mod tests {
 
     #[test]
     fn status_color_maps_all_statuses() {
+        assert_eq!(status_color(TaskStatus::Draft), Color::DarkGray);
         assert_eq!(status_color(TaskStatus::Todo), Color::Blue);
         assert_eq!(status_color(TaskStatus::Doing), Color::Yellow);
         assert_eq!(status_color(TaskStatus::Done), Color::Green);
