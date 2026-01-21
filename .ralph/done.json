@@ -966,6 +966,46 @@
       "completed_at": "2026-01-21T04:08:30.434041000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0179",
+      "status": "done",
+      "title": "Refactor queue.rs: Extract search and filter module",
+      "priority": "high",
+      "tags": [
+        "rust",
+        "refactoring",
+        "queue",
+        "search"
+      ],
+      "scope": [
+        "crates/ralph/src/queue.rs",
+        "crates/ralph/src/queue/search.rs"
+      ],
+      "evidence": [
+        "queue.rs is 2496 lines - too large for effective maintenance",
+        "Search and filter functions (search_tasks, filter_tasks, SearchMatcher, normalize_scope, normalize_tag) can be extracted",
+        "User request: 'Several files in this project are thousand of lines long. We need to refactor while maintaing the same functionality.'"
+      ],
+      "plan": [
+        "Create crates/ralph/src/queue/search.rs module",
+        "Extract search_tasks, filter_tasks, SearchMatcher, normalize_scope, normalize_tag functions",
+        "Update queue.rs to re-export search module public functions",
+        "Run make ci to ensure no functionality changes",
+        "Update imports in queue.rs and other files that use search functions"
+      ],
+      "notes": [
+        "Extracted search and filter logic to crates/ralph/src/queue/search.rs",
+        "Maintained public API via re-exports in queue.rs",
+        "Moved related tests to the new module",
+        "Verified all tests pass with make ci"
+      ],
+      "request": "Several files in this project are thousand of lines long. We need to refactor while maintaing the same functionality. Smaller file sizes are easier to maintain and find what is needed. Also easier to make sure we are not violating DRY and YAGNI principals. Create several tasks to completely tackle this effort. use the queue fields at your disposal to ensure this is done logically.",
+      "created_at": "2026-01-20T19:00:00Z",
+      "updated_at": "2026-01-21T04:17:45.908037000Z",
+      "completed_at": "2026-01-21T04:17:45.908037000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }
