@@ -2,37 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0206",
-      "status": "todo",
-      "title": "Update TUI title edits to set updated_at",
-      "priority": "medium",
-      "tags": [
-        "tui",
-        "queue",
-        "data-consistency"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/events.rs",
-        "crates/ralph/src/tui/mod.rs",
-        "crates/ralph/tests/tui_contract_test.rs"
-      ],
-      "evidence": [
-        "crates/ralph/src/tui/events.rs handle_editing_mode_key ignores now_rfc3339 and App::update_title does not set updated_at, so edits don't update timestamps."
-      ],
-      "plan": [
-        "Thread now_rfc3339 into title update and set updated_at when the title changes.",
-        "Add/adjust tests to assert updated_at changes on edit.",
-        "Ensure no regressions in TUI edit flows.",
-        "Ensure prompts reflect the desired and required functionality for this task."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-21T19:59:34Z",
-      "updated_at": "2026-01-21T19:59:34Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0207",
       "status": "todo",
       "title": "Include request/custom_fields/tags/scope in queue search",

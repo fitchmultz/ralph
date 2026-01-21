@@ -154,7 +154,7 @@ impl App {
     }
 
     /// Update the title of the selected task.
-    pub fn update_title(&mut self, new_title: String) -> Result<()> {
+    pub fn update_title(&mut self, new_title: String, now_rfc3339: &str) -> Result<()> {
         let task = self
             .queue
             .tasks
@@ -166,6 +166,7 @@ impl App {
         }
 
         task.title = new_title;
+        task.updated_at = Some(now_rfc3339.to_string());
         self.dirty = true;
         Ok(())
     }
@@ -506,8 +507,13 @@ mod tests {
         };
         let mut app = App::new(queue);
 
-        app.update_title("New Title".to_string()).unwrap();
+        app.update_title("New Title".to_string(), "2026-01-20T12:00:00Z")
+            .unwrap();
         assert_eq!(app.queue.tasks[0].title, "New Title");
+        assert_eq!(
+            app.queue.tasks[0].updated_at,
+            Some("2026-01-20T12:00:00Z".to_string())
+        );
         assert!(app.dirty);
     }
 
@@ -519,7 +525,11 @@ mod tests {
         };
         let mut app = App::new(queue);
 
-        assert!(app.update_title("".to_string()).is_err());
-        assert!(app.update_title("   ".to_string()).is_err());
+        assert!(app
+            .update_title("".to_string(), "2026-01-20T12:00:00Z")
+            .is_err());
+        assert!(app
+            .update_title("   ".to_string(), "2026-01-20T12:00:00Z")
+            .is_err());
     }
 }

@@ -289,8 +289,13 @@ fn test_delete_selected_task_fails_with_no_selection() {
 fn test_update_title_changes_title() {
     let mut app = App::new(make_test_queue());
 
-    app.update_title("New Title".to_string()).unwrap();
+    app.update_title("New Title".to_string(), "2026-01-20T12:00:00Z")
+        .unwrap();
     assert_eq!(app.queue.tasks[0].title, "New Title");
+    assert_eq!(
+        app.queue.tasks[0].updated_at,
+        Some("2026-01-20T12:00:00Z".to_string())
+    );
     assert!(app.dirty);
 }
 
@@ -298,8 +303,12 @@ fn test_update_title_changes_title() {
 fn test_update_title_rejects_empty_title() {
     let mut app = App::new(make_test_queue());
 
-    assert!(app.update_title("".to_string()).is_err());
-    assert!(app.update_title("   ".to_string()).is_err());
+    assert!(app
+        .update_title("".to_string(), "2026-01-20T12:00:00Z")
+        .is_err());
+    assert!(app
+        .update_title("   ".to_string(), "2026-01-20T12:00:00Z")
+        .is_err());
     assert!(!app.dirty); // Should not set dirty on failure
 }
 
@@ -311,7 +320,9 @@ fn test_update_title_fails_with_no_selection() {
     };
     let mut app = App::new(queue);
 
-    assert!(app.update_title("New Title".to_string()).is_err());
+    assert!(app
+        .update_title("New Title".to_string(), "2026-01-20T12:00:00Z")
+        .is_err());
 }
 
 // Event handling tests

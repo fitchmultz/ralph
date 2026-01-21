@@ -106,12 +106,12 @@ fn handle_editing_mode_key(
     app: &mut App,
     key: KeyCode,
     current: &str,
-    _now_rfc3339: &str,
+    now_rfc3339: &str,
 ) -> Result<TuiAction> {
     match key {
         KeyCode::Enter => {
             let new_title = current.to_string();
-            if let Err(e) = app.update_title(new_title) {
+            if let Err(e) = app.update_title(new_title, now_rfc3339) {
                 app.logs.push(format!("Error: {}", e));
             } else {
                 app.mode = AppMode::Normal;
