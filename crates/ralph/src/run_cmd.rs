@@ -108,6 +108,56 @@ pub fn run_one(
     run_one_impl(resolved, agent_overrides, force, None, None)
 }
 
+fn select_run_one_task_index(
+    queue_file: &QueueFile,
+    done_ref: Option<&QueueFile>,
+    target_task_id: Option<&str>,
+) -> Result<Option<usize>> {
+    if let Some(task_id) = target_task_id {
+        let needle = task_id.trim();
+        if needle.is_empty() {
+            bail!("Target task id is empty");
+        }
+        let idx = queue_file
+            .tasks
+            .iter()
+            .position(|t| t.id.trim() == needle)
+            .ok_or_else(|| anyhow!("Target task {} not found in queue", needle))?;
+        let task = &queue_file.tasks[idx];
+        match task.status {
+            TaskStatus::Done | TaskStatus::Rejected => {
+                bail!(
+                    "Target task {} is not runnable (status: {}). Choose a todo/doing task.",
+                    needle,
+                    task.status
+                );
+            }
+            TaskStatus::Todo => {
+                if !queue::are_dependencies_met(task, queue_file, done_ref) {
+                    bail!(
+                        "Target task {} is blocked by unmet dependencies. Resolve dependencies before running.",
+                        needle
+                    );
+                }
+            }
+            TaskStatus::Doing => {}
+        }
+        return Ok(Some(idx));
+    }
+
+    if let Some(idx) = queue_file
+        .tasks
+        .iter()
+        .position(|t| t.status == TaskStatus::Doing)
+    {
+        return Ok(Some(idx));
+    }
+
+    Ok(queue_file.tasks.iter().position(|t| {
+        t.status == TaskStatus::Todo && queue::are_dependencies_met(t, queue_file, done_ref)
+    }))
+}
+
 fn run_one_impl(
     resolved: &config::Resolved,
     agent_overrides: &AgentOverrides,
@@ -155,48 +205,19 @@ fn run_one_impl(
 
     // --- Task Selection ---
     // Prefer resuming a `doing` task (crash recovery), otherwise take first runnable `todo`.
-    let task_idx = if let Some(id) = target_task_id {
-        let needle = id.trim();
-        if needle.is_empty() {
-            bail!("Target task id is empty");
-        }
-        let idx = queue_file
-            .tasks
-            .iter()
-            .position(|t| t.id.trim() == needle)
-            .ok_or_else(|| anyhow!("Target task {} not found in queue", needle))?;
-        let status = queue_file.tasks[idx].status;
-        if status == TaskStatus::Done || status == TaskStatus::Rejected {
-            bail!(
-                "Target task {} is not runnable (status: {}). Choose a todo/doing task.",
-                needle,
-                status
-            );
-        }
-        idx
-    } else if let Some(idx) = queue_file
-        .tasks
-        .iter()
-        .position(|t| t.status == TaskStatus::Doing)
-    {
-        idx
-    } else {
-        match queue_file.tasks.iter().position(|t| {
-            t.status == TaskStatus::Todo && queue::are_dependencies_met(t, &queue_file, done_ref)
-        }) {
-            Some(idx) => idx,
-            None => {
-                let has_todo = queue_file
-                    .tasks
-                    .iter()
-                    .any(|t| t.status == TaskStatus::Todo);
-                if has_todo {
-                    log::info!("All todo tasks are blocked by unmet dependencies.");
-                } else {
-                    log::info!("No todo tasks found.");
-                }
-                return Ok(RunOutcome::NoTodo);
+    let task_idx = match select_run_one_task_index(&queue_file, done_ref, target_task_id)? {
+        Some(idx) => idx,
+        None => {
+            let has_todo = queue_file
+                .tasks
+                .iter()
+                .any(|t| t.status == TaskStatus::Todo);
+            if has_todo {
+                log::info!("All todo tasks are blocked by unmet dependencies.");
+            } else {
+                log::info!("No todo tasks found.");
             }
+            return Ok(RunOutcome::NoTodo);
         }
     };
 
@@ -710,6 +731,10 @@ mod tests {
         }
     }
 
+    fn queue_with_tasks(tasks: Vec<Task>) -> QueueFile {
+        QueueFile { version: 1, tasks }
+    }
+
     #[test]
     fn resolve_run_agent_settings_task_agent_overrides_config() -> Result<()> {
         let resolved = resolved_with_agent_defaults(
@@ -870,6 +895,56 @@ mod tests {
         assert!(rendered.contains("RQ-0001"));
         assert!(rendered.contains("Hello world"));
         assert!(rendered.contains("Raw task JSON"));
+        Ok(())
+    }
+
+    #[test]
+    fn select_run_one_task_index_finds_target() -> Result<()> {
+        let queue_file = queue_with_tasks(vec![base_task()]);
+        let idx = select_run_one_task_index(&queue_file, None, Some("RQ-0001"))?;
+        assert_eq!(idx, Some(0));
+        Ok(())
+    }
+
+    #[test]
+    fn select_run_one_task_index_errors_when_target_missing() {
+        let queue_file = queue_with_tasks(vec![base_task()]);
+        let err = select_run_one_task_index(&queue_file, None, Some("RQ-9999"))
+            .expect_err("missing target should error");
+        assert!(err.to_string().contains("not found"));
+    }
+
+    #[test]
+    fn select_run_one_task_index_errors_when_target_done() {
+        let queue_file = queue_with_tasks(vec![task_with_status(TaskStatus::Done)]);
+        let err = select_run_one_task_index(&queue_file, None, Some("RQ-0001"))
+            .expect_err("done target should error");
+        assert!(err.to_string().contains("not runnable"));
+    }
+
+    #[test]
+    fn select_run_one_task_index_errors_when_target_rejected() {
+        let queue_file = queue_with_tasks(vec![task_with_status(TaskStatus::Rejected)]);
+        let err = select_run_one_task_index(&queue_file, None, Some("RQ-0001"))
+            .expect_err("rejected target should error");
+        assert!(err.to_string().contains("not runnable"));
+    }
+
+    #[test]
+    fn select_run_one_task_index_errors_when_dependencies_unmet() {
+        let mut task = base_task();
+        task.depends_on = vec!["RQ-0002".to_string()];
+        let queue_file = queue_with_tasks(vec![task]);
+        let err = select_run_one_task_index(&queue_file, None, Some("RQ-0001"))
+            .expect_err("blocked target should error");
+        assert!(err.to_string().contains("blocked by unmet dependencies"));
+    }
+
+    #[test]
+    fn select_run_one_task_index_allows_doing() -> Result<()> {
+        let queue_file = queue_with_tasks(vec![task_with_status(TaskStatus::Doing)]);
+        let idx = select_run_one_task_index(&queue_file, None, Some("RQ-0001"))?;
+        assert_eq!(idx, Some(0));
         Ok(())
     }
 

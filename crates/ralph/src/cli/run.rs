@@ -32,7 +32,11 @@ pub fn handle_run(cmd: RunCommand, force: bool) -> Result<()> {
                 let _ = tui::run_tui(&resolved.queue_path, runner_factory)?;
                 Ok(())
             } else {
-                let _ = run_cmd::run_one(&resolved, &overrides, force)?;
+                if let Some(task_id) = args.id.as_deref() {
+                    run_cmd::run_one_with_id(&resolved, &overrides, force, task_id, None)?;
+                } else {
+                    let _ = run_cmd::run_one(&resolved, &overrides, force)?;
+                }
                 Ok(())
             }
         }
@@ -87,7 +91,7 @@ pub struct RunArgs {
 pub enum RunCommand {
     #[command(
         about = "Run exactly one task (the first todo in .ralph/queue.json)",
-        after_long_help = "Runner selection (precedence):\n  1) CLI overrides (--runner/--model/--effort)\n  2) task.agent in .ralph/queue.json (if present)\n  3) config defaults (.ralph/config.json then ~/.config/ralph/config.json)\n\nExamples:\n  ralph run one\n  ralph run one -i\n  ralph run one --phases 3\n  ralph run one --phases 2\n  ralph run one --phases 1\n  ralph run one --runner opencode --model gpt-5.2\n  ralph run one --runner gemini --model gemini-3-flash-preview\n  ralph run one --runner codex --model gpt-5.2-codex --effort high\n  ralph run one --git-revert-mode enabled\n  ralph run one --rp-on\n  ralph run one --rp-off"
+        after_long_help = "Runner selection (precedence):\n  1) CLI overrides (--runner/--model/--effort)\n  2) task.agent in .ralph/queue.json (if present)\n  3) config defaults (.ralph/config.json then ~/.config/ralph/config.json)\n\nExamples:\n  ralph run one\n  ralph run one --id RQ-0001\n  ralph run one -i\n  ralph run one --phases 3\n  ralph run one --phases 2\n  ralph run one --phases 1\n  ralph run one --runner opencode --model gpt-5.2\n  ralph run one --runner gemini --model gemini-3-flash-preview\n  ralph run one --runner codex --model gpt-5.2-codex --effort high\n  ralph run one --git-revert-mode enabled\n  ralph run one --rp-on\n  ralph run one --rp-off"
     )]
     One(RunOneArgs),
     #[command(
@@ -102,6 +106,10 @@ pub struct RunOneArgs {
     /// Launch interactive TUI mode for task selection and management.
     #[arg(short = 'i', long)]
     pub interactive: bool,
+
+    /// Run a specific task by ID (non-interactive only).
+    #[arg(long, value_name = "TASK_ID", conflicts_with = "interactive")]
+    pub id: Option<String>,
 
     #[command(flatten)]
     pub agent: crate::agent::RunAgentArgs,

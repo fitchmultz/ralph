@@ -113,10 +113,12 @@ fn run_one_help_mentions_flags_and_examples() {
     assert_contains(&combined, "--phases");
     assert_contains(&combined, "--rp-on");
     assert_contains(&combined, "--rp-off");
+    assert_contains(&combined, "--id");
 
     // Examples should demonstrate explicit selection.
     assert_contains(&combined, "ralph run one");
     assert_contains(&combined, "--runner");
+    assert_contains(&combined, "ralph run one --id");
 }
 
 #[test]

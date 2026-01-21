@@ -133,4 +133,30 @@ mod tests {
             _ => panic!("expected run command"),
         }
     }
+
+    #[test]
+    fn cli_parses_run_one_id() {
+        let cli = Cli::try_parse_from(["ralph", "run", "one", "--id", "RQ-0001"]).expect("parse");
+        match cli.command {
+            Command::Run(run::RunArgs { command }) => match command {
+                run::RunCommand::One(args) => {
+                    assert_eq!(args.id.as_deref(), Some("RQ-0001"));
+                }
+                _ => panic!("expected run one command"),
+            },
+            _ => panic!("expected run command"),
+        }
+    }
+
+    #[test]
+    fn cli_rejects_run_one_id_with_interactive() {
+        let err = Cli::try_parse_from(["ralph", "run", "one", "--id", "RQ-0001", "-i"])
+            .err()
+            .expect("parse failure");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("cannot be used with") || msg.contains("conflicts"),
+            "unexpected error: {msg}"
+        );
+    }
 }

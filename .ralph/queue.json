@@ -2,38 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0172",
-      "status": "todo",
-      "title": "Expose explicit ID targeting in 'ralph run one'",
-      "priority": "medium",
-      "tags": [
-        "rust",
-        "cli",
-        "run",
-        "ux"
-      ],
-      "scope": [
-        "crates/ralph/src/run.rs",
-        "crates/ralph/src/cli.rs"
-      ],
-      "evidence": [
-        "Cannot run a specific task by ID",
-        "User request: 'New Tasks (Top 10): 10. RQ-0148: Expose explicit ID targeting in ralph run one (Medium)'"
-      ],
-      "plan": [
-        "Add --id flag to 'run one' command",
-        "When --id is specified, run that exact task instead of queue next",
-        "Validate task exists and is in runnable state",
-        "Add tests for ID targeting"
-      ],
-      "notes": [],
-      "request": "New Tasks (Top 10): 10. RQ-0148: Expose explicit ID targeting in 'ralph run one' (Medium)",
-      "created_at": "2026-01-20T18:00:00Z",
-      "updated_at": "2026-01-20T18:00:00Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0190",
       "status": "todo",
       "title": "Create organization documentation in Markdown",

@@ -1468,6 +1468,43 @@
       "completed_at": "2026-01-21T16:37:43.365394000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0172",
+      "status": "done",
+      "title": "Expose explicit ID targeting in 'ralph run one'",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "cli",
+        "run",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/src/run.rs",
+        "crates/ralph/src/cli.rs"
+      ],
+      "evidence": [
+        "Cannot run a specific task by ID",
+        "User request: 'New Tasks (Top 10): 10. RQ-0148: Expose explicit ID targeting in ralph run one (Medium)'"
+      ],
+      "plan": [
+        "Add --id flag to 'run one' command",
+        "When --id is specified, run that exact task instead of queue next",
+        "Validate task exists and is in runnable state",
+        "Add tests for ID targeting"
+      ],
+      "notes": [
+        "Added --id targeting for run one with dependency validation.",
+        "Centralized selection logic and tests for ID targeting and CLI conflicts.",
+        "Help output contract updated; make ci passing."
+      ],
+      "request": "New Tasks (Top 10): 10. RQ-0148: Expose explicit ID targeting in 'ralph run one' (Medium)",
+      "created_at": "2026-01-20T18:00:00Z",
+      "updated_at": "2026-01-21T17:01:58.989886000Z",
+      "completed_at": "2026-01-21T17:01:58.989886000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }
