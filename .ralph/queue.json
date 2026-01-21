@@ -2,6 +2,50 @@
   "version": 1,
   "tasks": [
     {
+      "id": "RQ-0192",
+      "status": "todo",
+      "title": "Add config option to control automatic git revert behavior",
+      "priority": "high",
+      "tags": [
+        "rust",
+        "config",
+        "git",
+        "supervisor"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts.rs",
+        "crates/ralph/src/config.rs",
+        "crates/ralph/src/runutil.rs",
+        "crates/ralph/src/run_cmd.rs",
+        "crates/ralph/src/cli/run.rs",
+        ".ralph/README.md"
+      ],
+      "evidence": [
+        "Current git revert behavior is automatic with no user control",
+        "gitutil::revert_uncommitted is called from runutil.rs on runner errors and from run_cmd.rs on CI failure",
+        "runutil.rs has revert_on_error bool flag but no config option",
+        "User request: 'Add a config option to control automatic the existing git revert changes behavior. I want to support Ask (default), enabled, disabled.'"
+      ],
+      "plan": [
+        "Add GitRevertMode enum to contracts.rs with variants: Ask (default), Enabled, Disabled",
+        "Add git_revert_mode field to AgentConfig in contracts.rs",
+        "Add merge_from support for git_revert_mode in AgentConfig",
+        "Update config.rs validate_config to handle the new option",
+        "Modify runutil.rs to respect git_revert_mode: when Ask, prompt user; when Enabled, revert; when Disabled, skip revert and exit with message",
+        "Update run_cmd.rs CI failure handling to respect git_revert_mode",
+        "Add CLI flag --git-revert-mode to override config at runtime",
+        "Update .ralph/README.md to document the new git_revert_mode config option",
+        "Add tests for all three modes",
+        "Run make ci to ensure build passes"
+      ],
+      "notes": [],
+      "request": "Add a config option to control automatic the existing git revert changes behavior. I want to support Ask (default), enabled, disabled. With Ask enabled by default anytime the current git revert functionality happens instead the user is prompted and asked what they'd like to do. User can then decide to revert and continue, do not revert and exit, any other options worth adding. Enabled mode maintains functionality as it currently works today. Disabled means the supervisor does NOT auto revert and instead just exits the loops leaving the repo intact with a message as to why it was exited.",
+      "created_at": "2026-01-21T16:30:00Z",
+      "updated_at": "2026-01-21T16:30:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
       "id": "RQ-0172",
       "status": "todo",
       "title": "Expose explicit ID targeting in 'ralph run one'",
@@ -30,41 +74,6 @@
       "request": "New Tasks (Top 10): 10. RQ-0148: Expose explicit ID targeting in 'ralph run one' (Medium)",
       "created_at": "2026-01-20T18:00:00Z",
       "updated_at": "2026-01-20T18:00:00Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
-      "id": "RQ-0191",
-      "status": "todo",
-      "title": "Change queue behavior to always pull from top of file",
-      "priority": "high",
-      "tags": [
-        "rust",
-        "queue",
-        "behavior",
-        "priority"
-      ],
-      "scope": [
-        "crates/ralph/src/queue/operations.rs",
-        "crates/ralph/src/cli/queue.rs",
-        "AGENTS.md"
-      ],
-      "evidence": [
-        "User request: 'Modify queue behavior to ALWAYS pull from the top of the queue.json file, regardless of priority'",
-        "AGENTS.md line 30 states 'Task order is priority (top runs first)' which needs to be updated",
-        "Current next_todo_task function already pulls first todo task from file, but documentation suggests priority ordering"
-      ],
-      "plan": [
-        "Review all code paths that affect task selection order (next_todo_task, queue list, etc.)",
-        "Update AGENTS.md line 30 to clarify that file order is the source of truth",
-        "Ensure no automatic priority-based sorting happens during task execution",
-        "Preserve existing 'queue sort --by=priority' command for manual sorting when desired",
-        "Run make ci to ensure build passes"
-      ],
-      "notes": [],
-      "request": "Modify queue behavior to ALWAYS pull from the top of the queue.json file, regardless of priority.",
-      "created_at": "2026-01-21T15:43:13Z",
-      "updated_at": "2026-01-21T15:43:13Z",
       "depends_on": [],
       "custom_fields": {}
     },

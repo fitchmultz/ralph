@@ -27,7 +27,7 @@
 - `cargo run -p ralph -- run loop --max-tasks 0`
 
 ## Queue & Prompt Contract (Rust)
-- Source of truth is `.ralph/queue.json` (JSON). Task order is priority (top runs first).
+- Source of truth is `.ralph/queue.json` (JSON). Task order follows file order (top runs first).
 - Completed tasks must be moved to `.ralph/done.json` and removed from `.ralph/queue.json`.
 - New tasks must include: `id`, `status`, `title`, `tags`, `scope`, `evidence`, `plan` (and typically `request`, `created_at`, `updated_at`).
 - Prompt templates are embedded in the Rust CLI; overrides can be placed in `.ralph/prompts/` and reference these files.

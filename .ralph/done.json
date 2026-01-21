@@ -1339,6 +1339,42 @@
       "completed_at": "2026-01-21T08:42:36.744597000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0191",
+      "status": "done",
+      "title": "Change queue behavior to always pull from top of file",
+      "priority": "high",
+      "tags": [
+        "rust",
+        "queue",
+        "behavior",
+        "priority"
+      ],
+      "scope": [
+        "crates/ralph/src/queue/operations.rs",
+        "crates/ralph/src/cli/queue.rs",
+        "AGENTS.md"
+      ],
+      "evidence": [
+        "User request: 'Modify queue behavior to ALWAYS pull from the top of the queue.json file, regardless of priority'",
+        "AGENTS.md line 30 states 'Task order is priority (top runs first)' which needs to be updated",
+        "Current next_todo_task function already pulls first todo task from file, but documentation suggests priority ordering"
+      ],
+      "plan": [
+        "Review all code paths that affect task selection order (next_todo_task, queue list, etc.)",
+        "Update AGENTS.md line 30 to clarify that file order is the source of truth",
+        "Ensure no automatic priority-based sorting happens during task execution",
+        "Preserve existing 'queue sort --by=priority' command for manual sorting when desired",
+        "Run make ci to ensure build passes"
+      ],
+      "notes": [],
+      "request": "Modify queue behavior to ALWAYS pull from the top of the queue.json file, regardless of priority.",
+      "created_at": "2026-01-21T15:43:13Z",
+      "updated_at": "2026-01-21T15:43:13Z",
+      "depends_on": [],
+      "custom_fields": {},
+      "completed_at": "2026-01-21T15:59:30Z"
     }
   ]
 }

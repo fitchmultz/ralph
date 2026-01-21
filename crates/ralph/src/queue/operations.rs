@@ -295,6 +295,7 @@ pub fn find_task_across<'a>(
     find_task(active, task_id).or_else(|| done.and_then(|d| find_task(d, task_id)))
 }
 
+/// Return the first todo task by file order (top-of-file wins).
 pub fn next_todo_task(queue: &QueueFile) -> Option<&Task> {
     queue
         .tasks
@@ -680,6 +681,23 @@ mod tests {
         assert_eq!(queue.tasks[0].id, "RQ-0002"); // Critical first
         assert_eq!(queue.tasks[1].id, "RQ-0003"); // High second
         assert_eq!(queue.tasks[2].id, "RQ-0001"); // Low last
+    }
+
+    #[test]
+    fn next_todo_task_uses_file_order_not_priority() {
+        let mut queue = QueueFile {
+            version: 1,
+            tasks: vec![
+                task_with("RQ-0001", TaskStatus::Todo, vec![]),
+                task_with("RQ-0002", TaskStatus::Todo, vec![]),
+            ],
+        };
+        queue.tasks[0].priority = TaskPriority::Low;
+        queue.tasks[1].priority = TaskPriority::Critical;
+
+        let next = next_todo_task(&queue).expect("expected a todo task");
+
+        assert_eq!(next.id, "RQ-0001");
     }
 
     #[test]
