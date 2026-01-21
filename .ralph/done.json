@@ -3200,6 +3200,45 @@
       "completed_at": "2026-01-21T01:56:58.443017000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0167",
+      "status": "done",
+      "title": "Implement 'ralph queue prune' to clean up done.json",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "cli",
+        "queue"
+      ],
+      "scope": [
+        "crates/ralph/src/queue.rs",
+        "crates/ralph/src/cli.rs"
+      ],
+      "evidence": [
+        "done.json grows indefinitely",
+        "User request: 'Implement ralph queue prune to clean up done.json (Medium)'"
+      ],
+      "plan": [
+        "Add queue prune subcommand to CLI",
+        "Add --age flag to prune tasks older than N days",
+        "Add --status flag to prune only certain statuses",
+        "Add --keep-last flag to always keep N most recent tasks",
+        "Add tests for prune behavior"
+      ],
+      "notes": [
+        "Implemented ralph queue prune with age, status, and keep-last filters",
+        "Added PruneReport and PruneOptions types to queue.rs",
+        "Added 9 comprehensive tests covering all filter combinations and edge cases",
+        "Safety-first: tasks with missing/invalid completed_at are kept",
+        "Dry-run mode preserves file on disk for preview"
+      ],
+      "request": "New Tasks (Top 10): 5. RQ-0136: Implement 'ralph queue prune' to clean up done.json (Medium)",
+      "created_at": "2026-01-20T18:00:00Z",
+      "updated_at": "2026-01-21T02:18:24.543638000Z",
+      "completed_at": "2026-01-21T02:18:24.543638000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

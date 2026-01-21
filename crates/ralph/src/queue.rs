@@ -1,17 +1,48 @@
+//! Task queue persistence, validation, and pruning.
+//!
+//! This module handles loading, saving, and validating task queues stored
+//! as JSON files (.ralph/queue.json for active tasks, .ralph/done.json
+//! for completed tasks). It provides operations for moving completed tasks,
+//! updating task status, repairing queue data, and pruning old tasks from
+//! the done archive.
+
 use crate::contracts::{QueueFile, Task, TaskStatus};
 use crate::fsutil;
 use crate::redaction;
 use crate::timeutil;
 use anyhow::{anyhow, bail, Context, Result};
 use regex::Regex;
+use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::path::Path;
 use time::format_description::well_known::Rfc3339;
-use time::OffsetDateTime;
+use time::{Duration, OffsetDateTime};
 
 #[derive(Debug, Clone)]
 pub struct ArchiveReport {
     pub moved_ids: Vec<String>,
+}
+
+/// Result of a prune operation on the done archive.
+#[derive(Debug, Clone, Default)]
+pub struct PruneReport {
+    /// IDs of tasks that were pruned (or would be pruned in dry-run).
+    pub pruned_ids: Vec<String>,
+    /// IDs of tasks that were kept (protected by keep-last or didn't match filters).
+    pub kept_ids: Vec<String>,
+}
+
+/// Options for pruning tasks from the done archive.
+#[derive(Debug, Clone)]
+pub struct PruneOptions {
+    /// Minimum age in days for a task to be pruned (None = no age filter).
+    pub age_days: Option<u32>,
+    /// Statuses to prune (empty = all statuses).
+    pub statuses: HashSet<TaskStatus>,
+    /// Keep the N most recently completed tasks regardless of other filters.
+    pub keep_last: Option<u32>,
+    /// If true, report what would be pruned without writing to disk.
+    pub dry_run: bool,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -1121,6 +1152,151 @@ fn format_id(prefix: &str, number: u32, width: usize) -> String {
     format!("{}-{:0width$}", prefix, number, width = width)
 }
 
+/// Prune tasks from the done archive based on age, status, and keep-last rules.
+///
+/// This function loads the done archive, applies pruning rules, and optionally
+/// saves the result. Pruning preserves the original order of remaining tasks.
+///
+/// # Arguments
+/// * `done_path` - Path to the done archive file
+/// * `options` - Pruning options (age filter, status filter, keep-last, dry-run)
+///
+/// # Returns
+/// A `PruneReport` containing the IDs of pruned and kept tasks.
+pub fn prune_done_tasks(done_path: &Path, options: PruneOptions) -> Result<PruneReport> {
+    let mut done = load_queue_or_default(done_path)?;
+    let report = prune_done_queue(&mut done.tasks, &options)?;
+
+    if !options.dry_run && !report.pruned_ids.is_empty() {
+        save_queue(done_path, &done)?;
+    }
+
+    Ok(report)
+}
+
+/// Core pruning logic for a task list.
+///
+/// Tasks are sorted by completion date (most recent first), then keep-last
+/// protection is applied, then age and status filters. The original order of
+/// remaining tasks is preserved.
+fn prune_done_queue(tasks: &mut Vec<Task>, options: &PruneOptions) -> Result<PruneReport> {
+    let now = timeutil::now_utc_rfc3339_or_fallback();
+    let now_dt = parse_completed_at(&now).unwrap_or_else(OffsetDateTime::now_utc);
+
+    let age_duration = options.age_days.map(|d| Duration::days(d as i64));
+
+    // Sort indices by completion date descending (most recent first)
+    let mut indices: Vec<usize> = (0..tasks.len()).collect();
+    indices.sort_by(|&i, &j| compare_completed_desc(&tasks[i], &j, tasks));
+
+    // Apply keep-last protection using task IDs instead of indices
+    let mut keep_set: HashSet<String> = HashSet::new();
+    if let Some(keep_n) = options.keep_last {
+        for &idx in indices.iter().take(keep_n as usize) {
+            keep_set.insert(tasks[idx].id.clone());
+        }
+    }
+
+    let mut pruned_ids = Vec::new();
+    let mut kept_ids = Vec::new();
+
+    // Filter tasks - iterate by index to avoid borrow issues
+    let mut keep_mask = vec![false; tasks.len()];
+    for (idx, task) in tasks.iter().enumerate() {
+        // Check keep-last protection first
+        if keep_set.contains(&task.id) {
+            keep_mask[idx] = true;
+            kept_ids.push(task.id.clone());
+            continue;
+        }
+
+        // Check status filter
+        if !options.statuses.is_empty() && !options.statuses.contains(&task.status) {
+            keep_mask[idx] = true;
+            kept_ids.push(task.id.clone());
+            continue;
+        }
+
+        // Check age filter
+        if let Some(ref completed_at) = task.completed_at {
+            if let Some(task_dt) = parse_completed_at(completed_at) {
+                if let Some(age_dur) = age_duration {
+                    // Calculate age: now - task_dt
+                    // Use checked_sub to handle potential underflow gracefully
+                    let age = if now_dt >= task_dt {
+                        now_dt - task_dt
+                    } else {
+                        // Task is in the future (clock skew), treat as 0 age
+                        Duration::ZERO
+                    };
+                    if age < age_dur {
+                        // Too recent to prune
+                        keep_mask[idx] = true;
+                        kept_ids.push(task.id.clone());
+                        continue;
+                    }
+                }
+            } else {
+                // Invalid completed_at - keep for safety (don't prune by age)
+                keep_mask[idx] = true;
+                kept_ids.push(task.id.clone());
+                continue;
+            }
+        } else {
+            // Missing completed_at - keep for safety (don't prune by age)
+            keep_mask[idx] = true;
+            kept_ids.push(task.id.clone());
+            continue;
+        }
+
+        // Task passes all filters - mark for pruning
+        pruned_ids.push(task.id.clone());
+    }
+
+    // Remove pruned tasks while preserving order
+    let mut new_tasks = Vec::new();
+    for (idx, task) in tasks.drain(..).enumerate() {
+        if keep_mask[idx] {
+            new_tasks.push(task);
+        }
+    }
+    *tasks = new_tasks;
+
+    Ok(PruneReport {
+        pruned_ids,
+        kept_ids,
+    })
+}
+
+/// Parse an RFC3339 timestamp into OffsetDateTime.
+/// Returns None if the timestamp is invalid.
+fn parse_completed_at(ts: &str) -> Option<OffsetDateTime> {
+    OffsetDateTime::parse(ts, &Rfc3339).ok()
+}
+
+/// Compare two tasks by completion date for descending sort.
+/// Tasks with valid completed_at come first (most recent), then tasks with
+/// missing or invalid timestamps (treated as oldest).
+fn compare_completed_desc(a: &Task, idx_b: &usize, tasks: &[Task]) -> Ordering {
+    let b = &tasks[*idx_b];
+    let a_ts = parse_completed_at;
+    let b_ts = parse_completed_at;
+
+    match (a.completed_at.as_deref(), b.completed_at.as_deref()) {
+        (Some(ts_a), Some(ts_b)) => {
+            match (a_ts(ts_a), b_ts(ts_b)) {
+                (Some(dt_a), Some(dt_b)) => dt_a.cmp(&dt_b).reverse(), // Most recent first
+                (Some(_), None) => Ordering::Less,                     // Valid comes before invalid
+                (None, Some(_)) => Ordering::Greater,                  // Invalid comes after valid
+                (None, None) => Ordering::Equal,
+            }
+        }
+        (Some(_), None) => Ordering::Less, // Valid comes before missing
+        (None, Some(_)) => Ordering::Greater, // Missing comes after valid
+        (None, None) => Ordering::Equal,
+    }
+}
+
 #[allow(dead_code)]
 pub fn delete_task(queue: &mut QueueFile, task_id: &str) -> Result<bool> {
     let needle = task_id.trim();
@@ -1143,9 +1319,24 @@ mod tests {
     use super::*;
     use crate::contracts::{Task, TaskStatus};
     use std::collections::HashMap;
+    use tempfile::TempDir;
 
     fn task(id: &str) -> Task {
         task_with(id, TaskStatus::Todo, vec!["code".to_string()])
+    }
+
+    /// Create a task with a specific completion timestamp.
+    fn done_task_with_completed(id: &str, completed_at: &str) -> Task {
+        let mut t = task_with(id, TaskStatus::Done, vec!["done".to_string()]);
+        t.completed_at = Some(completed_at.to_string());
+        t
+    }
+
+    /// Create a task without a completion timestamp.
+    fn done_task_missing_completed(id: &str) -> Task {
+        let mut t = task_with(id, TaskStatus::Done, vec!["done".to_string()]);
+        t.completed_at = None;
+        t
     }
 
     fn task_with(id: &str, status: TaskStatus, tags: Vec<String>) -> Task {
@@ -1989,5 +2180,317 @@ mod tests {
         assert!(format!("{err}").to_lowercase().contains("task not found"));
 
         Ok(())
+    }
+
+    #[test]
+    fn prune_by_age_only() {
+        // now = 2026-01-20T12:00:00Z
+        let tasks = vec![
+            done_task_with_completed("RQ-0001", "2026-01-01T12:00:00Z"), // 19 days ago
+            done_task_with_completed("RQ-0002", "2026-01-10T12:00:00Z"), // 10 days ago
+            done_task_with_completed("RQ-0003", "2026-01-19T12:00:00Z"), // 1 day ago
+        ];
+
+        let temp_dir = TempDir::new().unwrap();
+        let done_path = temp_dir.path().join("done.json");
+        let queue_file = QueueFile {
+            version: 1,
+            tasks: tasks.clone(),
+        };
+        save_queue(&done_path, &queue_file).unwrap();
+
+        let options = PruneOptions {
+            age_days: Some(15),
+            statuses: HashSet::new(),
+            keep_last: None,
+            dry_run: false,
+        };
+
+        let mut done = load_queue(&done_path).unwrap();
+        let report = prune_done_queue(&mut done.tasks, &options).unwrap();
+
+        // RQ-0001 (19 days old) should be pruned
+        assert_eq!(report.pruned_ids, vec!["RQ-0001"]);
+        assert_eq!(report.kept_ids.len(), 2);
+        assert!(report.kept_ids.contains(&"RQ-0002".to_string()));
+        assert!(report.kept_ids.contains(&"RQ-0003".to_string()));
+        assert_eq!(done.tasks.len(), 2);
+    }
+
+    #[test]
+    fn prune_by_status_only() {
+        let mut tasks = vec![
+            done_task_with_completed("RQ-0001", "2026-01-01T12:00:00Z"),
+            done_task_with_completed("RQ-0002", "2026-01-10T12:00:00Z"),
+            task_with("RQ-0003", TaskStatus::Rejected, vec!["done".to_string()]),
+        ];
+        // Set completed_at for rejected task
+        tasks[2].completed_at = Some("2026-01-15T12:00:00Z".to_string());
+
+        let temp_dir = TempDir::new().unwrap();
+        let done_path = temp_dir.path().join("done.json");
+        let queue_file = QueueFile {
+            version: 1,
+            tasks: tasks.clone(),
+        };
+        save_queue(&done_path, &queue_file).unwrap();
+
+        let options = PruneOptions {
+            age_days: None,
+            statuses: vec![TaskStatus::Rejected].into_iter().collect(),
+            keep_last: None,
+            dry_run: false,
+        };
+
+        let mut done = load_queue(&done_path).unwrap();
+        let report = prune_done_queue(&mut done.tasks, &options).unwrap();
+
+        // Only RQ-0003 (rejected) should be pruned
+        assert_eq!(report.pruned_ids, vec!["RQ-0003"]);
+        assert_eq!(report.kept_ids.len(), 2);
+        assert_eq!(done.tasks.len(), 2);
+    }
+
+    #[test]
+    fn prune_keep_last_protects_recent() {
+        let tasks = vec![
+            done_task_with_completed("RQ-0001", "2026-01-01T12:00:00Z"), // Oldest
+            done_task_with_completed("RQ-0002", "2026-01-10T12:00:00Z"),
+            done_task_with_completed("RQ-0003", "2026-01-15T12:00:00Z"),
+            done_task_with_completed("RQ-0004", "2026-01-19T12:00:00Z"), // Most recent
+        ];
+
+        let temp_dir = TempDir::new().unwrap();
+        let done_path = temp_dir.path().join("done.json");
+        let queue_file = QueueFile {
+            version: 1,
+            tasks: tasks.clone(),
+        };
+        save_queue(&done_path, &queue_file).unwrap();
+
+        let options = PruneOptions {
+            age_days: None, // No age filter
+            statuses: HashSet::new(),
+            keep_last: Some(2), // Keep 2 most recent
+            dry_run: false,
+        };
+
+        let mut done = load_queue(&done_path).unwrap();
+        let report = prune_done_queue(&mut done.tasks, &options).unwrap();
+
+        // RQ-0003 and RQ-0004 (2 most recent) should be kept
+        // RQ-0001 and RQ-0002 should be pruned
+        assert_eq!(report.kept_ids.len(), 2);
+        assert!(report.kept_ids.contains(&"RQ-0003".to_string()));
+        assert!(report.kept_ids.contains(&"RQ-0004".to_string()));
+        assert_eq!(report.pruned_ids.len(), 2);
+        assert!(report.pruned_ids.contains(&"RQ-0001".to_string()));
+        assert!(report.pruned_ids.contains(&"RQ-0002".to_string()));
+        assert_eq!(done.tasks.len(), 2);
+    }
+
+    #[test]
+    fn prune_combined_age_and_status() {
+        let mut tasks = vec![
+            done_task_with_completed("RQ-0001", "2026-01-01T12:00:00Z"), // Old Done
+            done_task_with_completed("RQ-0002", "2026-01-10T12:00:00Z"), // Recent Done
+            task_with("RQ-0003", TaskStatus::Rejected, vec!["done".to_string()]),
+            task_with("RQ-0004", TaskStatus::Rejected, vec!["done".to_string()]),
+        ];
+        tasks[2].completed_at = Some("2026-01-05T12:00:00Z".to_string()); // Old Rejected
+        tasks[3].completed_at = Some("2026-01-15T12:00:00Z".to_string()); // Recent Rejected
+
+        let temp_dir = TempDir::new().unwrap();
+        let done_path = temp_dir.path().join("done.json");
+        let queue_file = QueueFile {
+            version: 1,
+            tasks: tasks.clone(),
+        };
+        save_queue(&done_path, &queue_file).unwrap();
+
+        let options = PruneOptions {
+            age_days: Some(10),
+            statuses: vec![TaskStatus::Rejected].into_iter().collect(),
+            keep_last: None,
+            dry_run: false,
+        };
+
+        let mut done = load_queue(&done_path).unwrap();
+        let report = prune_done_queue(&mut done.tasks, &options).unwrap();
+
+        // Only RQ-0003 (old rejected) should be pruned
+        assert_eq!(report.pruned_ids, vec!["RQ-0003"]);
+        assert_eq!(report.kept_ids.len(), 3);
+        assert_eq!(done.tasks.len(), 3);
+    }
+
+    #[test]
+    fn prune_missing_completed_at_kept_for_safety() {
+        let tasks = vec![
+            done_task_with_completed("RQ-0001", "2026-01-01T12:00:00Z"), // 19 days ago
+            done_task_missing_completed("RQ-0002"),                      // Missing completed_at
+            done_task_with_completed("RQ-0003", "2026-01-18T12:00:00Z"), // 2 days ago - recent
+        ];
+
+        let temp_dir = TempDir::new().unwrap();
+        let done_path = temp_dir.path().join("done.json");
+        let queue_file = QueueFile {
+            version: 1,
+            tasks: tasks.clone(),
+        };
+        save_queue(&done_path, &queue_file).unwrap();
+
+        let options = PruneOptions {
+            age_days: Some(5), // Should prune tasks older than 5 days
+            statuses: HashSet::new(),
+            keep_last: None,
+            dry_run: false,
+        };
+
+        let mut done = load_queue(&done_path).unwrap();
+        let report = prune_done_queue(&mut done.tasks, &options).unwrap();
+
+        // RQ-0001 should be pruned (old with valid timestamp)
+        // RQ-0002 should be KEPT (missing completed_at - safety)
+        // RQ-0003 should be KEPT (recent - only 2 days old)
+        assert_eq!(report.pruned_ids, vec!["RQ-0001"]);
+        assert_eq!(report.kept_ids.len(), 2);
+        assert!(report.kept_ids.contains(&"RQ-0002".to_string()));
+        assert!(report.kept_ids.contains(&"RQ-0003".to_string()));
+        assert_eq!(done.tasks.len(), 2);
+    }
+
+    #[test]
+    fn prune_dry_run_does_not_write_to_disk() {
+        let tasks = vec![
+            done_task_with_completed("RQ-0001", "2026-01-01T12:00:00Z"), // 19 days ago - should be pruned
+            done_task_with_completed("RQ-0002", "2026-01-18T12:00:00Z"), // 2 days ago - should be kept
+        ];
+
+        let temp_dir = TempDir::new().unwrap();
+        let done_path = temp_dir.path().join("done.json");
+        let queue_file = QueueFile {
+            version: 1,
+            tasks: tasks.clone(),
+        };
+        save_queue(&done_path, &queue_file).unwrap();
+
+        let options = PruneOptions {
+            age_days: Some(5), // Prune older than 5 days
+            statuses: HashSet::new(),
+            keep_last: None,
+            dry_run: true, // Dry run
+        };
+
+        let report = prune_done_tasks(&done_path, options).unwrap();
+
+        // Should report what would be pruned
+        assert_eq!(report.pruned_ids, vec!["RQ-0001"]);
+
+        // But file should be unchanged
+        let done_after = load_queue(&done_path).unwrap();
+        assert_eq!(done_after.tasks.len(), 2); // Still has both tasks
+    }
+
+    #[test]
+    fn prune_preserves_original_order() {
+        let tasks = vec![
+            done_task_with_completed("RQ-0001", "2026-01-01T12:00:00Z"), // 19 days ago - should be pruned
+            done_task_with_completed("RQ-0002", "2026-01-16T12:00:00Z"), // 4 days ago - should be kept
+            done_task_with_completed("RQ-0003", "2026-01-18T12:00:00Z"), // 2 days ago - should be kept
+        ];
+
+        let temp_dir = TempDir::new().unwrap();
+        let done_path = temp_dir.path().join("done.json");
+        let queue_file = QueueFile {
+            version: 1,
+            tasks: tasks.clone(),
+        };
+        save_queue(&done_path, &queue_file).unwrap();
+
+        let options = PruneOptions {
+            age_days: Some(5), // Prune older than 5 days
+            statuses: HashSet::new(),
+            keep_last: None,
+            dry_run: false,
+        };
+
+        prune_done_tasks(&done_path, options).unwrap();
+
+        let done_after = load_queue(&done_path).unwrap();
+        assert_eq!(done_after.tasks.len(), 2);
+        // Remaining tasks should preserve original order
+        assert_eq!(done_after.tasks[0].id, "RQ-0002");
+        assert_eq!(done_after.tasks[1].id, "RQ-0003");
+    }
+
+    #[test]
+    fn prune_with_keep_last_and_age_combines_filters() {
+        let tasks = vec![
+            done_task_with_completed("RQ-0001", "2026-01-01T12:00:00Z"), // Very old
+            done_task_with_completed("RQ-0002", "2026-01-10T12:00:00Z"), // Recent
+            done_task_with_completed("RQ-0003", "2026-01-15T12:00:00Z"), // Very recent
+        ];
+
+        let temp_dir = TempDir::new().unwrap();
+        let done_path = temp_dir.path().join("done.json");
+        let queue_file = QueueFile {
+            version: 1,
+            tasks: tasks.clone(),
+        };
+        save_queue(&done_path, &queue_file).unwrap();
+
+        let options = PruneOptions {
+            age_days: Some(5), // Prune older than 5 days
+            statuses: HashSet::new(),
+            keep_last: Some(1), // But always keep 1 most recent
+            dry_run: false,
+        };
+
+        let mut done = load_queue(&done_path).unwrap();
+        let report = prune_done_queue(&mut done.tasks, &options).unwrap();
+
+        // RQ-0001 should be pruned (old)
+        // RQ-0002 should be pruned (old, not protected by keep-last)
+        // RQ-0003 should be kept (most recent, protected by keep-last)
+        assert_eq!(report.pruned_ids.len(), 2);
+        assert!(report.pruned_ids.contains(&"RQ-0001".to_string()));
+        assert!(report.pruned_ids.contains(&"RQ-0002".to_string()));
+        assert_eq!(report.kept_ids, vec!["RQ-0003"]);
+        assert_eq!(done.tasks.len(), 1);
+    }
+
+    #[test]
+    fn prune_invalid_completed_at_kept_for_safety() {
+        let mut tasks = vec![
+            done_task_with_completed("RQ-0001", "2026-01-01T12:00:00Z"),
+            task_with("RQ-0002", TaskStatus::Done, vec!["done".to_string()]),
+        ];
+        // Set invalid timestamp
+        tasks[1].completed_at = Some("not-a-valid-timestamp".to_string());
+
+        let temp_dir = TempDir::new().unwrap();
+        let done_path = temp_dir.path().join("done.json");
+        let queue_file = QueueFile {
+            version: 1,
+            tasks: tasks.clone(),
+        };
+        save_queue(&done_path, &queue_file).unwrap();
+
+        let options = PruneOptions {
+            age_days: Some(5),
+            statuses: HashSet::new(),
+            keep_last: None,
+            dry_run: false,
+        };
+
+        let mut done = load_queue(&done_path).unwrap();
+        let report = prune_done_queue(&mut done.tasks, &options).unwrap();
+
+        // RQ-0001 should be pruned (old with valid timestamp)
+        // RQ-0002 should be KEPT (invalid timestamp - safety)
+        assert_eq!(report.pruned_ids, vec!["RQ-0001"]);
+        assert_eq!(report.kept_ids, vec!["RQ-0002"]);
+        assert_eq!(done.tasks.len(), 1);
     }
 }

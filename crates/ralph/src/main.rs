@@ -478,6 +478,36 @@ fn handle_queue(cmd: QueueCommand, force: bool) -> Result<()> {
             let schema = schemars::schema_for!(contracts::QueueFile);
             println!("{}", serde_json::to_string_pretty(&schema)?);
         }
+        QueueCommand::Prune(args) => {
+            let _queue_lock = queue::acquire_queue_lock(&resolved.repo_root, "queue prune", force)?;
+            let report = queue::prune_done_tasks(
+                &resolved.done_path,
+                queue::PruneOptions {
+                    age_days: args.age,
+                    statuses: args.status.into_iter().map(|s| s.into()).collect(),
+                    keep_last: args.keep_last,
+                    dry_run: args.dry_run,
+                },
+            )?;
+            if args.dry_run {
+                log::info!("Dry run: would prune {} task(s).", report.pruned_ids.len());
+                if !report.pruned_ids.is_empty() {
+                    log::info!("Pruned IDs: {}", report.pruned_ids.join(", "));
+                }
+                if !report.kept_ids.is_empty() {
+                    log::info!("Kept IDs: {}", report.kept_ids.join(", "));
+                }
+            } else {
+                if report.pruned_ids.is_empty() {
+                    log::info!("No tasks pruned.");
+                } else {
+                    log::info!("Pruned {} task(s).", report.pruned_ids.len());
+                }
+                if !report.kept_ids.is_empty() {
+                    log::debug!("Kept {} task(s).", report.kept_ids.len());
+                }
+            }
+        }
     }
     Ok(())
 }
@@ -1049,6 +1079,11 @@ enum QueueCommand {
     /// Validate the active queue (and done archive if present).
     #[command(after_long_help = "Example:\n  ralph queue validate")]
     Validate,
+    /// Prune tasks from the done archive based on age, status, or keep-last rules.
+    #[command(
+        after_long_help = "Prune removes old tasks from .ralph/done.json while preserving recent history.\n\nSafety:\n  --keep-last always protects the N most recently completed tasks (by completed_at).\n  If no filters are provided, all tasks are pruned except those protected by --keep-last.\n  Missing or invalid completed_at timestamps are treated as oldest for keep-last ordering\n  but do NOT match the age filter (safety-first).\n\nExamples:\n  ralph queue prune --dry-run --age 30 --status rejected\n  ralph queue prune --keep-last 100\n  ralph queue prune --age 90\n  ralph queue prune --age 30 --status done --keep-last 50"
+    )]
+    Prune(QueuePruneArgs),
     /// Print the next todo task (ID by default).
     #[command(after_long_help = "Examples:\n  ralph queue next\n  ralph queue next --with-title")]
     Next(QueueNextArgs),
@@ -1390,6 +1425,28 @@ struct QueueBurndownArgs {
 #[derive(Args)]
 struct RepairArgs {
     /// Show what would be changed without writing to disk.
+    #[arg(long)]
+    dry_run: bool,
+}
+
+#[derive(Args)]
+#[command(
+    after_long_help = "Prune removes old tasks from .ralph/done.json while preserving recent history.\n\nSafety:\n  --keep-last always protects the N most recently completed tasks (by completed_at).\n  If no filters are provided, all tasks are pruned except those protected by --keep-last.\n  Missing or invalid completed_at timestamps are treated as oldest for keep-last ordering\n  but do NOT match the age filter (safety-first).\n\nExamples:\n  ralph queue prune --dry-run --age 30 --status rejected\n  ralph queue prune --keep-last 100\n  ralph queue prune --age 90\n  ralph queue prune --age 30 --status done --keep-last 50"
+)]
+struct QueuePruneArgs {
+    /// Only prune tasks completed at least N days ago.
+    #[arg(long)]
+    age: Option<u32>,
+
+    /// Filter by task status (repeatable).
+    #[arg(long, value_enum)]
+    status: Vec<StatusArg>,
+
+    /// Keep the N most recently completed tasks regardless of filters.
+    #[arg(long)]
+    keep_last: Option<u32>,
+
+    /// Show what would be pruned without writing to disk.
     #[arg(long)]
     dry_run: bool,
 }
