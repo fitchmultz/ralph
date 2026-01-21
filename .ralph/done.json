@@ -2392,6 +2392,42 @@
       "completed_at": "2026-01-21T22:33:25.786342000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0212",
+      "status": "done",
+      "title": "Add missing module docstrings to core files",
+      "priority": "low",
+      "tags": [
+        "docs",
+        "hygiene"
+      ],
+      "scope": [
+        "crates/ralph/src/config.rs",
+        "crates/ralph/src/lib.rs",
+        "crates/ralph/src/init_cmd.rs",
+        "crates/ralph/src/scan_cmd.rs"
+      ],
+      "evidence": [
+        "crates/ralph/src/config.rs, crates/ralph/src/lib.rs, crates/ralph/src/init_cmd.rs, and crates/ralph/src/scan_cmd.rs lack top-of-file //! module docstrings.",
+        "AGENTS.md requires every code file to have a docstring describing its purpose."
+      ],
+      "plan": [
+        "Add concise module-level docstrings to the missing files.",
+        "Keep descriptions consistent with existing module docs.",
+        "Verify linting/tests still pass.",
+        "Ensure prompts reflect the desired and required functionality for this task."
+      ],
+      "notes": [
+        "Add module docstrings for config/init/scan commands.",
+        "make ci passed."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-21T19:59:34Z",
+      "updated_at": "2026-01-21T22:37:07.178888000Z",
+      "completed_at": "2026-01-21T22:37:07.178888000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

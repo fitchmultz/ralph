@@ -1,3 +1,5 @@
+//! Task scanning command that inspects repo state and updates the queue.
+
 use crate::contracts::{
     ClaudePermissionMode, GitRevertMode, Model, ProjectType, ReasoningEffort, Runner,
 };

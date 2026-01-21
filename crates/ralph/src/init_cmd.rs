@@ -1,3 +1,5 @@
+//! Initialization workflow for creating `.ralph` state and starter files.
+
 use crate::config;
 use crate::contracts::{Config, QueueFile};
 use crate::fsutil;

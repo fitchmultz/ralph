@@ -2,38 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0212",
-      "status": "todo",
-      "title": "Add missing module docstrings to core files",
-      "priority": "low",
-      "tags": [
-        "docs",
-        "hygiene"
-      ],
-      "scope": [
-        "crates/ralph/src/config.rs",
-        "crates/ralph/src/lib.rs",
-        "crates/ralph/src/init_cmd.rs",
-        "crates/ralph/src/scan_cmd.rs"
-      ],
-      "evidence": [
-        "crates/ralph/src/config.rs, crates/ralph/src/lib.rs, crates/ralph/src/init_cmd.rs, and crates/ralph/src/scan_cmd.rs lack top-of-file //! module docstrings.",
-        "AGENTS.md requires every code file to have a docstring describing its purpose."
-      ],
-      "plan": [
-        "Add concise module-level docstrings to the missing files.",
-        "Keep descriptions consistent with existing module docs.",
-        "Verify linting/tests still pass.",
-        "Ensure prompts reflect the desired and required functionality for this task."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-21T19:59:34Z",
-      "updated_at": "2026-01-21T19:59:34Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0213",
       "status": "todo",
       "title": "Treat rejected tasks as terminal in queue stats",

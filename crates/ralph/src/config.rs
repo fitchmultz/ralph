@@ -1,3 +1,5 @@
+//! Configuration resolution for Ralph, including global and project layers.
+
 use crate::contracts::{AgentConfig, Config, ProjectType, QueueConfig};
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
