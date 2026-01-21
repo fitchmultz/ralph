@@ -28,7 +28,7 @@ Optional hint scope (may be empty):
 ## JSON QUEUE CONTRACT (DO NOT DEVIATE)
 - Root: `{"version": 1, "tasks": [...]}`
 - Task required keys:
-  - `id` (use `ralph queue next`)
+  - `id` (use `ralph queue next-id`)
   - `status` (always `todo` for new tasks)
   - `priority` (one of: `critical`, `high`, `medium`, `low`; defaults to `medium` if omitted)
   - `title` (short, outcome-sized)
@@ -56,9 +56,9 @@ Optional hint scope (may be empty):
 - Create the smallest number of tasks that makes the request executable.
 - If the request is clearly multiple independent deliverables, split into multiple tasks in priority order.
 - Do not invent evidence. If you cannot cite repo specifics, use evidence from the user request as evidence.
-- Use `ralph queue next` for each new task ID.
+- Use `ralph queue next-id` for each new task ID (note: `ralph queue next` returns the next queued task, not a new ID).
 - Insert new task(s) at the TOP of the queue unless the request explicitly says otherwise.
-- IMPORTANT (avoid reversed ordering): if you add multiple tasks and are using `ralph queue next` repeatedly, do NOT insert each newly created task at the absolute top of the file. That reverses the intended priority order. Instead, insert the first new task at the top, then insert subsequent new tasks immediately BELOW the previously inserted new tasks.
+- IMPORTANT (avoid reversed ordering): if you add multiple tasks and are using `ralph queue next-id` repeatedly, do NOT insert each newly created task at the absolute top of the file. That reverses the intended priority order. Instead, insert the first new task at the top, then insert subsequent new tasks immediately BELOW the previously inserted new tasks.
 - Set `request` on each task to the original user request.
 - Set `created_at` and `updated_at` to current UTC RFC3339 time.
 

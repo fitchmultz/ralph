@@ -56,6 +56,24 @@ fn load_worker_prompt_falls_back_to_embedded_default_when_missing() -> Result<()
 }
 
 #[test]
+fn default_task_builder_prompt_mentions_next_id_command() -> Result<()> {
+    let dir = TempDir::new()?;
+    let prompt = load_task_builder_prompt(dir.path())?;
+    assert!(prompt.contains("ralph queue next-id"));
+    assert!(!prompt.contains("ralph queue next` for each new task ID"));
+    Ok(())
+}
+
+#[test]
+fn default_scan_prompt_mentions_next_id_command() -> Result<()> {
+    let dir = TempDir::new()?;
+    let prompt = load_scan_prompt(dir.path())?;
+    assert!(prompt.contains("ralph queue next-id"));
+    assert!(!prompt.contains("ralph queue next` for each new task ID"));
+    Ok(())
+}
+
+#[test]
 fn default_worker_prompt_excludes_completion_checklist() -> Result<()> {
     let dir = TempDir::new()?;
     let prompt = load_worker_prompt(dir.path())?;

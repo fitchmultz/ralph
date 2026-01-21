@@ -1672,6 +1672,41 @@
       "completed_at": "2026-01-21T18:48:38.634081000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0196",
+      "status": "done",
+      "title": "Clarify prompt guidance for next task ID command",
+      "priority": "medium",
+      "tags": [
+        "prompts",
+        "cli",
+        "docs"
+      ],
+      "scope": [
+        ".ralph/prompts",
+        "crates/ralph/src"
+      ],
+      "evidence": [
+        "User request: \"Update prompts to clarify which command to use when trying to fetch the next-id for task IDs. See this agent output from a recent run ''ralph queue next' returns existing IDs, I'll run 'ralph queue next-id' to get new IDs and note this deviation in the summary to maintain accuracy while respecting instructions.'\""
+      ],
+      "plan": [
+        "Locate the prompt text that instructs agents on fetching task IDs",
+        "Update wording to distinguish between `ralph queue next` (next task) and `ralph queue next-id` (new ID)",
+        "Add or adjust examples to reflect the correct command usage",
+        "Validate prompt changes by inspecting the updated prompt text in the relevant source"
+      ],
+      "notes": [
+        "Update scan/task builder prompts to use ralph queue next-id and clarify next vs next-id.",
+        "Add prompt tests asserting next-id guidance in embedded defaults.",
+        "make ci"
+      ],
+      "request": "Update prompts to clarify which command to use when trying to fetch the next-id for task IDs. See this agent output from a recent run ''ralph queue next' returns existing IDs, I'll run 'ralph queue next-id' to get new IDs and note this deviation in the summary to maintain accuracy while respecting instructions.'",
+      "created_at": "2026-01-21T18:52:38Z",
+      "updated_at": "2026-01-21T18:58:01.616650000Z",
+      "completed_at": "2026-01-21T18:58:01.616650000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

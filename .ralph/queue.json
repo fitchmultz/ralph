@@ -2,36 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0196",
-      "status": "todo",
-      "title": "Clarify prompt guidance for next task ID command",
-      "priority": "medium",
-      "tags": [
-        "prompts",
-        "cli",
-        "docs"
-      ],
-      "scope": [
-        ".ralph/prompts",
-        "crates/ralph/src"
-      ],
-      "evidence": [
-        "User request: \"Update prompts to clarify which command to use when trying to fetch the next-id for task IDs. See this agent output from a recent run ''ralph queue next' returns existing IDs, I'll run 'ralph queue next-id' to get new IDs and note this deviation in the summary to maintain accuracy while respecting instructions.'\""
-      ],
-      "plan": [
-        "Locate the prompt text that instructs agents on fetching task IDs",
-        "Update wording to distinguish between `ralph queue next` (next task) and `ralph queue next-id` (new ID)",
-        "Add or adjust examples to reflect the correct command usage",
-        "Validate prompt changes by inspecting the updated prompt text in the relevant source"
-      ],
-      "notes": [],
-      "request": "Update prompts to clarify which command to use when trying to fetch the next-id for task IDs. See this agent output from a recent run ''ralph queue next' returns existing IDs, I'll run 'ralph queue next-id' to get new IDs and note this deviation in the summary to maintain accuracy while respecting instructions.'",
-      "created_at": "2026-01-21T18:52:38Z",
-      "updated_at": "2026-01-21T18:52:38Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0195",
       "status": "todo",
       "title": "Capture tool/command calls in codex JSON stream",
@@ -54,7 +24,8 @@
         "Locate codex JSON streaming output handling in the runner execution path",
         "Extend JSON event parsing to capture tool and command call payloads alongside messages",
         "Add/extend tests that assert tool and command calls are emitted in the JSON stream",
-        "Validate against the captured /tmp/codex-exec.json fixture or a minimal repro"
+        "Validate against the captured /tmp/codex-exec.json fixture or a minimal repro",
+        "Add a blank newline after the agent messages for visual improvements."
       ],
       "notes": [],
       "request": "Create a task to enhance the codex runner JSON streaming output to capture tool and command calls in addition to messages. The user has captured the outputs of 'codex exec --json \"Say hello. Then connect to repo prompt and get the file tree. Then run a bash command to list files in this repo. then send 'I'm done now' and exit\" 2>&1 | tee /tmp/codex-exec.log' in the /tmp/codex-exec.json file for review",
