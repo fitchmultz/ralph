@@ -1299,6 +1299,46 @@
       "completed_at": "2026-01-21T08:15:06.281310000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0187",
+      "status": "done",
+      "title": "Refactor run_cmd.rs: Extract phase execution logic",
+      "priority": "medium",
+      "tags": [
+        "rust",
+        "refactoring",
+        "run",
+        "phase-execution"
+      ],
+      "scope": [
+        "crates/ralph/src/run_cmd.rs",
+        "crates/ralph/src/run_cmd/phases.rs"
+      ],
+      "evidence": [
+        "run_cmd.rs is 1114 lines - too large for effective maintenance",
+        "Contains phase execution logic (phase 1, 2, 3) mixed with run loop and task execution",
+        "User request: 'Several files in this project are thousand of lines long. We need to refactor while maintaing the same functionality.'"
+      ],
+      "plan": [
+        "Analyze run_cmd.rs to identify phase-specific functions",
+        "Create crates/ralph/src/run_cmd/phases.rs module",
+        "Extract phase execution logic to dedicated functions/modules",
+        "Update run_cmd.rs to use phases module",
+        "Run make ci to ensure no functionality changes"
+      ],
+      "notes": [
+        "Extracted phase execution logic from run_cmd.rs into new phases.rs module",
+        "Created PhaseInvocation struct to group shared parameters",
+        "Reduced run_cmd.rs from 1114 to 858 lines",
+        "All 171 tests pass, make ci passes"
+      ],
+      "request": "Several files in this project are thousand of lines long. We need to refactor while maintaing the same functionality. Smaller file sizes are easier to maintain and find what is needed. Also easier to make sure we are not violating DRY and YAGNI principals. Create several tasks to completely tackle this effort. use the queue fields at your disposal to ensure this is done logically.",
+      "created_at": "2026-01-20T19:00:00Z",
+      "updated_at": "2026-01-21T08:42:36.744597000Z",
+      "completed_at": "2026-01-21T08:42:36.744597000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }
