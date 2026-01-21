@@ -2,6 +2,51 @@
   "version": 1,
   "tasks": [
     {
+      "id": "RQ-0177",
+      "status": "todo",
+      "title": "Implement 3-phase workflow with code review phase",
+      "priority": "high",
+      "tags": [
+        "rust",
+        "cli",
+        "workflow",
+        "code-review"
+      ],
+      "scope": [
+        "crates/ralph/src/run_cmd.rs",
+        "crates/ralph/src/promptflow.rs",
+        "crates/ralph/src/prompts.rs",
+        "crates/ralph/src/contracts.rs",
+        "crates/ralph/src/cli.rs"
+      ],
+      "evidence": [
+        "User request: 'Implement a 3 phase workflow. Phase 1 of this new workflow is identical to phase 1 of the 2 step workflow. Phase 2 is practically identical to phase 2 of the 2 phase workflow EXCEPT instead of marking the task done in the queue and committing and pushing it ends its turn after it makes all of its changes and validated the make ci gate is green. This is where Phase 3 begins. It will see all of the pending git changes and be told to rigorously review the task and do a code review. Phase 3 makes sure the entire task is actually complete, it was done properly, tested, aligns with the coding standards of the project and agent guidance (extract the agent guidance from ~/.codex/AGENTS.md and AGENTS.md in the project and hardcode the coding standards into the phase 3 code review prompt). If it identifies some loose ends, duplicated code, issues, violations of coding standards, a better more efficient way to do it, etc it makes the refinements. The same make ci iteration rule applies to this agent. Once it has signed off on the code, or adjusted the changes to improve the quality, it validates the ci gate, uses the ralph queue complete command, commits and pushes.'",
+        "Current 2-phase workflow in run_cmd.rs (lines 199-251)",
+        "Existing promptflow module with build_phase1_prompt and build_phase2_prompt",
+        "AgentConfig has two_pass_plan option (contracts.rs line 93)",
+        "Completion checklist in prompts.rs loaded from completion_checklist.md"
+      ],
+      "plan": [
+        "Add Phase3 enum variant to promptflow::RunPhase",
+        "Create build_phase3_prompt function in promptflow.rs for code review phase",
+        "Create new prompt template for Phase 3 code review (code_review.md in assets/prompts/)",
+        "Hardcode coding standards from ~/.codex/AGENTS.md and AGENTS.md into the Phase 3 prompt",
+        "Update run_one_impl in run_cmd.rs to support phases == 3",
+        "Phase 1: Planning (existing logic, unchanged)",
+        "Phase 2: Implementation with exit after make ci validation (don't call post_run_supervise, don't complete task)",
+        "Phase 3: Code review - agent sees git diff, reviews against coding standards, makes refinements, then calls ralph queue complete and commits/pushes",
+        "Update CLI --phases argument to accept 1, 2, or 3",
+        "Update AgentConfig to default to 3 phases",
+        "Add tests for 3-phase workflow behavior"
+      ],
+      "notes": [],
+      "request": "Implement a 3 phase workflow. Phase 1 of this new workflow is identical to phase 1 of the 2 step workflow. Phase 2 is practically identical to phase 2 of the 2 phase workflow EXCEPT instead of marking the task done in the queue and committing and pushing it ends its turn after it makes all of its changes and validated the make ci gate is green. This is where Phase 3 begins. It will see all of the pending git changes and be told to rigorously review the task and do a code review. Phase 3 makes sure the entire task is actually complete, it was done properly, tested, aligns with the coding standards of the project and agent guidance (extract the agent guidance from ~/.codex/AGENTS.md and AGENTS.md in the project and hardcode the coding standards into the phase 3 code review prompt). If it identifies some loose ends, duplicated code, issues, violations of coding standards, a better more efficient way to do it, etc it makes the refinements. The same make ci iteration rule applies to this agent. Once it has signed off on the code, or adjusted the changes to improve the quality, it validates the ci gate, uses the ralph queue complete command, commits and pushes.",
+      "created_at": "2025-01-20T20:00:00Z",
+      "updated_at": "2025-01-20T20:00:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
       "id": "RQ-0174",
       "status": "todo",
       "title": "Implement 'ralph queue complete' command to finish tasks",
