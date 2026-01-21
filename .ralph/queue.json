@@ -1,35 +1,4 @@
 {
   "version": 1,
-  "tasks": [
-    {
-      "id": "RQ-0213",
-      "status": "todo",
-      "title": "Treat rejected tasks as terminal in queue stats",
-      "priority": "low",
-      "tags": [
-        "reports",
-        "ux",
-        "metrics"
-      ],
-      "scope": [
-        "crates/ralph/src/reports.rs",
-        "docs/cli.md"
-      ],
-      "evidence": [
-        "crates/ralph/src/reports.rs computes completion rate using status==Done only, so rejected tasks are counted as active."
-      ],
-      "plan": [
-        "Decide whether rejected should count as completed (terminal) and update stats logic.",
-        "Adjust output text to reflect the new definition.",
-        "Add tests for completion rate and active counts with rejected tasks.",
-        "Ensure prompts reflect the desired and required functionality for this task."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-21T19:59:34Z",
-      "updated_at": "2026-01-21T19:59:34Z",
-      "depends_on": [],
-      "custom_fields": {}
-    }
-  ]
+  "tasks": []
 }

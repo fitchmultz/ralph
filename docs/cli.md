@@ -53,7 +53,7 @@ ralph run one --runner codex --model gpt-5.2-codex --effort high
 - `set-status`: update a task status in the active queue.
 - `set-field`: set a custom field on a task.
 - `sort`: reorder queue by priority (or another field).
-- `stats`: show queue statistics.
+- `stats`: show queue statistics (terminal = done + rejected).
 - `history`: show task history timeline.
 - `burndown`: show remaining-task burndown.
 - `schema`: print the queue JSON schema.

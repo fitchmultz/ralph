@@ -13,6 +13,44 @@ use time::{Duration, OffsetDateTime};
 
 use crate::contracts::{QueueFile, Task, TaskStatus};
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct StatsSummary {
+    total: usize,
+    done: usize,
+    rejected: usize,
+    terminal: usize,
+    active: usize,
+    terminal_rate: f64,
+}
+
+fn summarize_tasks(tasks: &[&Task]) -> StatsSummary {
+    let total = tasks.len();
+    let done = tasks
+        .iter()
+        .filter(|t| t.status == TaskStatus::Done)
+        .count();
+    let rejected = tasks
+        .iter()
+        .filter(|t| t.status == TaskStatus::Rejected)
+        .count();
+    let terminal = done + rejected;
+    let active = total.saturating_sub(terminal);
+    let terminal_rate = if total == 0 {
+        0.0
+    } else {
+        (terminal as f64 / total as f64) * 100.0
+    };
+
+    StatsSummary {
+        total,
+        done,
+        rejected,
+        terminal,
+        active,
+        terminal_rate,
+    }
+}
+
 /// Print summary statistics for tasks.
 ///
 /// # Arguments
@@ -46,18 +84,13 @@ pub fn print_stats(queue: &QueueFile, done: Option<&QueueFile>, tags: &[String])
         return Ok(());
     }
 
-    let done_count = filtered_tasks
-        .iter()
-        .filter(|t| t.status == TaskStatus::Done)
-        .count();
-
-    let completion_rate = (done_count as f64 / total as f64) * 100.0;
+    let summary = summarize_tasks(&filtered_tasks);
 
     // Calculate durations for completed tasks
     let mut durations: Vec<Duration> = Vec::new();
     for task in filtered_tasks
         .iter()
-        .filter(|t| t.status == TaskStatus::Done)
+        .filter(|t| t.status == TaskStatus::Done || t.status == TaskStatus::Rejected)
     {
         if let (Some(created), Some(completed)) = (&task.created_at, &task.completed_at) {
             if let (Ok(start), Ok(end)) = (parse_ts(created), parse_ts(completed)) {
@@ -83,9 +116,14 @@ pub fn print_stats(queue: &QueueFile, done: Option<&QueueFile>, tags: &[String])
     println!("================");
     println!();
 
-    println!("Total tasks: {}", total);
-    println!("Completed: {} ({:.1}%)", done_count, completion_rate);
-    println!("Active: {}", total - done_count);
+    println!("Total tasks: {}", summary.total);
+    println!(
+        "Terminal (done/rejected): {} ({:.1}%)",
+        summary.terminal, summary.terminal_rate
+    );
+    println!("Done: {}", summary.done);
+    println!("Rejected: {}", summary.rejected);
+    println!("Active: {}", summary.active);
     println!();
 
     if !durations.is_empty() {
@@ -95,7 +133,7 @@ pub fn print_stats(queue: &QueueFile, done: Option<&QueueFile>, tags: &[String])
         let median = sorted_durations[sorted_durations.len() / 2];
 
         println!(
-            "Duration Statistics (for {} completed task{} with valid timestamps):",
+            "Duration Statistics (for {} terminal task{} with valid timestamps):",
             durations.len(),
             if durations.len() == 1 { "" } else { "s" }
         );
@@ -455,5 +493,47 @@ mod tests {
             .replace_second(0)
             .unwrap();
         assert_eq!(format_date_key(dt), "2026-01-19");
+    }
+
+    fn task_with_status(id: &str, status: TaskStatus) -> Task {
+        Task {
+            id: id.to_string(),
+            status,
+            title: "Test task".to_string(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn test_summarize_tasks_terminal_counts_rejected() {
+        let tasks = [
+            task_with_status("RQ-0001", TaskStatus::Todo),
+            task_with_status("RQ-0002", TaskStatus::Doing),
+            task_with_status("RQ-0003", TaskStatus::Done),
+            task_with_status("RQ-0004", TaskStatus::Rejected),
+        ];
+        let refs: Vec<&Task> = tasks.iter().collect();
+        let summary = summarize_tasks(&refs);
+
+        assert_eq!(summary.total, 4);
+        assert_eq!(summary.done, 1);
+        assert_eq!(summary.rejected, 1);
+        assert_eq!(summary.terminal, 2);
+        assert_eq!(summary.active, 2);
+        assert!((summary.terminal_rate - 50.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_summarize_tasks_empty() {
+        let tasks: Vec<Task> = Vec::new();
+        let refs: Vec<&Task> = tasks.iter().collect();
+        let summary = summarize_tasks(&refs);
+
+        assert_eq!(summary.total, 0);
+        assert_eq!(summary.done, 0);
+        assert_eq!(summary.rejected, 0);
+        assert_eq!(summary.terminal, 0);
+        assert_eq!(summary.active, 0);
+        assert_eq!(summary.terminal_rate, 0.0);
     }
 }
