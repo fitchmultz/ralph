@@ -46,7 +46,7 @@ ralph run one --runner codex --model gpt-5.2-codex --effort high
 - `next-id`: print next available task ID.
 - `show`: show a task by ID.
 - `list`: list tasks with filtering and sorting.
-- `search`: search task content with filters.
+- `search`: search task content (title, evidence, plan, notes, request, tags, scope, custom fields) with filters.
 - `done`: move completed tasks (done/rejected) from queue to archive.
 - `repair`: repair queue/done files.
 - `unlock`: remove queue lock.

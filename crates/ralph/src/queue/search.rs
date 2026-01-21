@@ -113,6 +113,13 @@ pub fn search_tasks<'a>(
             || task.evidence.iter().any(|e| matcher.matches(e))
             || task.plan.iter().any(|p| matcher.matches(p))
             || task.notes.iter().any(|n| matcher.matches(n))
+            || task.request.as_ref().is_some_and(|r| matcher.matches(r))
+            || task.tags.iter().any(|t| matcher.matches(t))
+            || task.scope.iter().any(|s| matcher.matches(s))
+            || task
+                .custom_fields
+                .iter()
+                .any(|(k, v)| matcher.matches(k) || matcher.matches(v))
         {
             results.push(task);
         }
@@ -247,6 +254,13 @@ mod tests {
         t1.evidence = vec!["Login fails".to_string()];
         t1.plan = vec!["Debug token".to_string()];
         t1.notes = vec!["Checked logs".to_string()];
+        t1.request = Some("User request to fix login".to_string());
+        t1.tags = vec!["auth".to_string(), "bug".to_string()];
+        t1.scope = vec!["crates/auth".to_string()];
+        t1.custom_fields
+            .insert("severity".to_string(), "high".to_string());
+        t1.custom_fields
+            .insert("owner".to_string(), "team-security".to_string());
 
         let tasks: Vec<&Task> = vec![&t1];
 
@@ -264,6 +278,26 @@ mod tests {
 
         // Notes match
         let results = search_tasks(tasks.iter().copied(), "checked logs", false, false)?;
+        assert_eq!(results.len(), 1);
+
+        // Request match
+        let results = search_tasks(tasks.iter().copied(), "user request", false, false)?;
+        assert_eq!(results.len(), 1);
+
+        // Tag match
+        let results = search_tasks(tasks.iter().copied(), "bug", false, false)?;
+        assert_eq!(results.len(), 1);
+
+        // Scope match
+        let results = search_tasks(tasks.iter().copied(), "crates/auth", false, false)?;
+        assert_eq!(results.len(), 1);
+
+        // Custom field key match
+        let results = search_tasks(tasks.iter().copied(), "severity", false, false)?;
+        assert_eq!(results.len(), 1);
+
+        // Custom field value match
+        let results = search_tasks(tasks.iter().copied(), "team-security", false, false)?;
         assert_eq!(results.len(), 1);
 
         Ok(())

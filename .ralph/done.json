@@ -2179,6 +2179,42 @@
       "completed_at": "2026-01-21T21:41:56.860086000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0207",
+      "status": "done",
+      "title": "Include request/custom_fields/tags/scope in queue search",
+      "priority": "medium",
+      "tags": [
+        "queue",
+        "search",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/src/queue/search.rs",
+        "crates/ralph/src/cli/queue.rs",
+        "docs/cli.md"
+      ],
+      "evidence": [
+        "crates/ralph/src/queue/search.rs matches only title/evidence/plan/notes; request, tags, scope, and custom_fields are ignored."
+      ],
+      "plan": [
+        "Decide which additional fields should be searchable (request, tags, scope, custom_fields) and update search logic.",
+        "Update CLI help/docs to reflect the expanded search surface.",
+        "Add tests covering matches in the newly included fields.",
+        "Ensure prompts reflect the desired and required functionality for this task."
+      ],
+      "notes": [
+        "Updated search logic to include request, tags, scope, and custom_fields",
+        "Added tests for new search fields",
+        "Updated CLI help and documentation"
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-21T19:59:34Z",
+      "updated_at": "2026-01-21T21:49:31.181065000Z",
+      "completed_at": "2026-01-21T21:49:31.181065000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

@@ -415,7 +415,7 @@ pub enum QueueCommand {
     Show(QueueShowArgs),
     /// List tasks in queue order.
     List(QueueListArgs),
-    /// Search tasks by content (title, evidence, plan, notes).
+    /// Search tasks by content (title, evidence, plan, notes, request, tags, scope, custom fields).
     #[command(
         after_long_help = "Examples:\n  ralph queue search \"authentication\"\n  ralph queue search \"RQ-\\d{4}\" --regex\n  ralph queue search \"TODO\" --match-case\n  ralph queue search \"fix\" --status todo --tag rust"
     )]
@@ -591,6 +591,7 @@ pub struct QueueSortArgs {
 }
 
 #[derive(Args)]
+/// Search tasks by content (title, evidence, plan, notes, request, tags, scope, custom fields).
 #[command(
     after_long_help = "Examples:\n  ralph queue search \"authentication\"\n  ralph queue search \"RQ-\\d{4}\" --regex\n  ralph queue search \"TODO\" --match-case\n  ralph queue search \"fix\" --status todo --tag rust"
 )]

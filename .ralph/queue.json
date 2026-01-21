@@ -2,37 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0207",
-      "status": "todo",
-      "title": "Include request/custom_fields/tags/scope in queue search",
-      "priority": "medium",
-      "tags": [
-        "queue",
-        "search",
-        "ux"
-      ],
-      "scope": [
-        "crates/ralph/src/queue/search.rs",
-        "crates/ralph/src/cli/queue.rs",
-        "docs/cli.md"
-      ],
-      "evidence": [
-        "crates/ralph/src/queue/search.rs matches only title/evidence/plan/notes; request, tags, scope, and custom_fields are ignored."
-      ],
-      "plan": [
-        "Decide which additional fields should be searchable (request, tags, scope, custom_fields) and update search logic.",
-        "Update CLI help/docs to reflect the expanded search surface.",
-        "Add tests covering matches in the newly included fields.",
-        "Ensure prompts reflect the desired and required functionality for this task."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-21T19:59:34Z",
-      "updated_at": "2026-01-21T19:59:34Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0208",
       "status": "todo",
       "title": "Regex search should honor --match-case",
