@@ -2,41 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0180",
-      "status": "todo",
-      "title": "Refactor queue.rs: Extract task operations module",
-      "priority": "high",
-      "tags": [
-        "rust",
-        "refactoring",
-        "queue",
-        "task-operations"
-      ],
-      "scope": [
-        "crates/ralph/src/queue.rs",
-        "crates/ralph/src/queue/operations.rs"
-      ],
-      "evidence": [
-        "queue.rs is 2496 lines - too large for effective maintenance",
-        "Task operation functions (complete_task, set_status, set_field, find_task, find_task_across, next_todo_task, delete_task, archive_done_tasks, sort_tasks_by_priority) can be extracted",
-        "User request: 'Several files in this project are thousand of lines long. We need to refactor while maintaing the same functionality.'"
-      ],
-      "plan": [
-        "Create crates/ralph/src/queue/operations.rs module",
-        "Extract task operation functions: complete_task, set_status, set_field, find_task, find_task_across, next_todo_task, delete_task, archive_done_tasks, sort_tasks_by_priority, added_tasks, backfill_missing_fields",
-        "Extract ArchiveReport type",
-        "Update queue.rs to re-export operations module public functions and types",
-        "Run make ci to ensure no functionality changes",
-        "Update imports in queue.rs and other files that use these functions"
-      ],
-      "notes": [],
-      "request": "Several files in this project are thousand of lines long. We need to refactor while maintaing the same functionality. Smaller file sizes are easier to maintain and find what is needed. Also easier to make sure we are not violating DRY and YAGNI principals. Create several tasks to completely tackle this effort. use the queue fields at your disposal to ensure this is done logically.",
-      "created_at": "2026-01-20T19:00:00Z",
-      "updated_at": "2026-01-20T19:00:00Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0181",
       "status": "todo",
       "title": "Refactor queue.rs: Extract repair module",
