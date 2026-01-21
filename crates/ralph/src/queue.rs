@@ -6,152 +6,24 @@
 //! updating task status, repairing queue data, and pruning old tasks from
 //! the done archive.
 
-use crate::contracts::{QueueFile, Task, TaskStatus};
+use crate::contracts::{QueueFile, TaskStatus};
 use crate::fsutil;
-use crate::timeutil;
 use anyhow::{Context, Result};
-use std::collections::HashSet;
 use std::path::Path;
-use time::format_description::well_known::Rfc3339;
-use time::OffsetDateTime;
 
 pub mod operations;
 pub mod prune;
+pub mod repair;
 pub mod search;
 pub mod validation;
 
 pub use operations::*;
 pub use prune::{prune_done_tasks, PruneOptions, PruneReport};
+pub use repair::*;
 pub use search::{filter_tasks, search_tasks};
 pub use validation::{are_dependencies_met, validate_queue, validate_queue_set};
 
 // Pruning types live in `queue::prune` (re-exported from this module).
-
-#[derive(Debug, Default, Clone)]
-pub struct RepairReport {
-    pub fixed_tasks: usize,
-    pub remapped_ids: Vec<(String, String)>,
-    pub fixed_timestamps: usize,
-}
-
-impl RepairReport {
-    pub fn is_empty(&self) -> bool {
-        self.fixed_tasks == 0 && self.remapped_ids.is_empty() && self.fixed_timestamps == 0
-    }
-}
-
-pub fn repair_queue(
-    queue_path: &Path,
-    done_path: &Path,
-    id_prefix: &str,
-    id_width: usize,
-    dry_run: bool,
-) -> Result<RepairReport> {
-    let mut active = load_queue_or_default(queue_path)?;
-    let mut done = load_queue_or_default(done_path)?;
-
-    let mut report = RepairReport::default();
-    let expected_prefix = normalize_prefix(id_prefix);
-    let now = timeutil::now_utc_rfc3339_or_fallback();
-
-    // 1. Scan for max ID to ensure new IDs don't collide
-    let mut max_id_val: u32 = 0;
-    let mut scan_max = |tasks: &[Task]| {
-        for task in tasks {
-            if let Ok(val) = validation::validate_task_id(0, &task.id, &expected_prefix, id_width) {
-                max_id_val = max_id_val.max(val);
-            }
-        }
-    };
-    scan_max(&active.tasks);
-    scan_max(&done.tasks);
-
-    let mut next_id_val = max_id_val + 1;
-    let mut seen_ids = HashSet::new();
-
-    // Helper to repair a list of tasks
-    let mut repair_tasks = |tasks: &mut Vec<Task>| {
-        for task in tasks.iter_mut() {
-            let mut modified = false;
-
-            // Fix missing fields
-            if task.title.trim().is_empty() {
-                task.title = "Untitled".to_string();
-                modified = true;
-            }
-            if task.tags.is_empty() {
-                task.tags.push("untagged".to_string());
-                modified = true;
-            }
-            if task.scope.is_empty() {
-                task.scope.push("unknown".to_string());
-                modified = true;
-            }
-            if task.evidence.is_empty() {
-                task.evidence.push("None provided".to_string());
-                modified = true;
-            }
-            if task.plan.is_empty() {
-                task.plan.push("To be determined".to_string());
-                modified = true;
-            }
-            if task.request.as_ref().is_none_or(|r| r.trim().is_empty()) {
-                task.request = Some("Imported task".to_string());
-                modified = true;
-            }
-
-            // Fix timestamps
-            let mut fix_ts = |ts: &mut Option<String>, label: &str| {
-                if let Some(val) = ts {
-                    if OffsetDateTime::parse(val, &Rfc3339).is_err() {
-                        *ts = Some(now.clone());
-                        report.fixed_timestamps += 1;
-                    }
-                } else {
-                    // Create/Update required
-                    if label == "created_at" || label == "updated_at" {
-                        *ts = Some(now.clone());
-                        report.fixed_timestamps += 1;
-                    }
-                }
-            };
-            fix_ts(&mut task.created_at, "created_at");
-            fix_ts(&mut task.updated_at, "updated_at");
-            if task.status == TaskStatus::Done || task.status == TaskStatus::Rejected {
-                fix_ts(&mut task.completed_at, "completed_at");
-            }
-
-            if modified {
-                report.fixed_tasks += 1;
-            }
-
-            // Fix ID
-            // We use a normalized key for collision detection
-            let id_key = task.id.trim().to_uppercase();
-            let is_valid_format =
-                validation::validate_task_id(0, &task.id, &expected_prefix, id_width).is_ok();
-
-            if !is_valid_format || seen_ids.contains(&id_key) || id_key.is_empty() {
-                let new_id = format_id(&expected_prefix, next_id_val, id_width);
-                next_id_val += 1;
-                report.remapped_ids.push((task.id.clone(), new_id.clone()));
-                task.id = new_id.clone();
-                seen_ids.insert(new_id);
-            } else {
-                seen_ids.insert(id_key);
-            }
-        }
-    };
-
-    repair_tasks(&mut active.tasks);
-    repair_tasks(&mut done.tasks);
-
-    if !dry_run && !report.is_empty() {
-        save_queue(queue_path, &active)?;
-        save_queue(done_path, &done)?;
-    }
-    Ok(report)
-}
 
 pub fn acquire_queue_lock(repo_root: &Path, label: &str, force: bool) -> Result<fsutil::DirLock> {
     let lock_dir = fsutil::queue_lock_dir(repo_root);
@@ -215,11 +87,11 @@ pub fn next_id_across(
     Ok(format_id(&expected_prefix, next_value, id_width))
 }
 
-fn normalize_prefix(prefix: &str) -> String {
+pub(crate) fn normalize_prefix(prefix: &str) -> String {
     prefix.trim().to_uppercase()
 }
 
-fn format_id(prefix: &str, number: u32, width: usize) -> String {
+pub(crate) fn format_id(prefix: &str, number: u32, width: usize) -> String {
     format!("{}-{:0width$}", prefix, number, width = width)
 }
 

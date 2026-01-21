@@ -393,54 +393,6 @@ pub fn task_id_set(queue: &QueueFile) -> HashSet<String> {
     set
 }
 
-/// Get all tasks that depend on the given task ID (recursively).
-/// Returns a list of task IDs that depend on the root task.
-pub fn get_dependents(root_id: &str, active: &QueueFile, done: Option<&QueueFile>) -> Vec<String> {
-    let mut dependents = Vec::new();
-    let mut visited = std::collections::HashSet::new();
-    let root_id = root_id.trim();
-
-    fn collect_dependents(
-        task_id: &str,
-        active: &QueueFile,
-        done: Option<&QueueFile>,
-        dependents: &mut Vec<String>,
-        visited: &mut std::collections::HashSet<String>,
-    ) {
-        if visited.contains(task_id) {
-            return;
-        }
-        visited.insert(task_id.to_string());
-
-        // Check all tasks in active queue
-        for task in &active.tasks {
-            let current_id = task.id.trim();
-            if task.depends_on.iter().any(|d| d.trim() == task_id) {
-                if !dependents.contains(&current_id.to_string()) {
-                    dependents.push(current_id.to_string());
-                }
-                collect_dependents(current_id, active, done, dependents, visited);
-            }
-        }
-
-        // Check all tasks in done archive
-        if let Some(done_file) = done {
-            for task in &done_file.tasks {
-                let current_id = task.id.trim();
-                if task.depends_on.iter().any(|d| d.trim() == task_id) {
-                    if !dependents.contains(&current_id.to_string()) {
-                        dependents.push(current_id.to_string());
-                    }
-                    collect_dependents(current_id, active, done, dependents, visited);
-                }
-            }
-        }
-    }
-
-    collect_dependents(root_id, active, done, &mut dependents, &mut visited);
-    dependents
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

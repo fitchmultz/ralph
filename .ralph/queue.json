@@ -2,40 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0181",
-      "status": "todo",
-      "title": "Refactor queue.rs: Extract repair module",
-      "priority": "high",
-      "tags": [
-        "rust",
-        "refactoring",
-        "queue",
-        "repair"
-      ],
-      "scope": [
-        "crates/ralph/src/queue.rs",
-        "crates/ralph/src/queue/repair.rs"
-      ],
-      "evidence": [
-        "queue.rs is 2496 lines - too large for effective maintenance",
-        "Repair functions (repair_queue, get_dependents) and RepairReport type can be extracted",
-        "User request: 'Several files in this project are thousand of lines long. We need to refactor while maintaing the same functionality.'"
-      ],
-      "plan": [
-        "Create crates/ralph/src/queue/repair.rs module",
-        "Extract repair_queue, get_dependents functions and RepairReport type",
-        "Update queue.rs to re-export repair module public functions and types",
-        "Run make ci to ensure no functionality changes",
-        "Update imports in queue.rs and other files that use repair functions"
-      ],
-      "notes": [],
-      "request": "Several files in this project are thousand of lines long. We need to refactor while maintaing the same functionality. Smaller file sizes are easier to maintain and find what is needed. Also easier to make sure we are not violating DRY and YAGNI principals. Create several tasks to completely tackle this effort. use the queue fields at your disposal to ensure this is done logically.",
-      "created_at": "2026-01-20T19:00:00Z",
-      "updated_at": "2026-01-20T19:00:00Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0182",
       "status": "todo",
       "title": "Refactor main.rs: Extract CLI handlers to dedicated modules",
