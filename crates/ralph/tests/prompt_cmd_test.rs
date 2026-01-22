@@ -3,7 +3,6 @@ use ralph::contracts::{AgentConfig, Config, ProjectType, QueueConfig};
 use ralph::prompt_cmd::{
     self, ScanPromptOptions, TaskBuilderPromptOptions, WorkerMode, WorkerPromptOptions,
 };
-use ralph::promptflow;
 use std::path::PathBuf;
 use tempfile::TempDir;
 
@@ -67,7 +66,7 @@ fn write_minimal_queue(temp: &TempDir) -> Result<()> {
 }
 
 #[test]
-fn worker_phase1_includes_markers_and_optional_rp() -> Result<()> {
+fn worker_phase1_includes_plan_cache_path_and_optional_rp() -> Result<()> {
     let temp = TempDir::new()?;
     write_minimal_queue(&temp)?;
     let resolved = make_resolved(&temp);
@@ -85,8 +84,7 @@ fn worker_phase1_includes_markers_and_optional_rp() -> Result<()> {
     )?;
 
     assert!(prompt.contains("PLANNING MODE - PHASE 1 OF 2"));
-    assert!(prompt.contains(promptflow::RALPH_PHASE1_PLAN_BEGIN));
-    assert!(prompt.contains(promptflow::RALPH_PHASE1_PLAN_END));
+    assert!(prompt.contains(".ralph/cache/plans/RQ-0001.md"));
     assert!(prompt.contains(ralph::prompts::REPOPROMPT_REQUIRED_INSTRUCTION));
     assert!(!prompt.contains("IMPLEMENTATION COMPLETION CHECKLIST"));
     Ok(())

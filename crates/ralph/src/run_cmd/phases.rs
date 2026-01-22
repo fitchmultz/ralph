@@ -42,7 +42,7 @@ pub fn execute_phase1_planning(ctx: &PhaseInvocation<'_>, total_phases: u8) -> R
 
     logging::with_scope(&label, || {
         let p1_prompt = promptflow::build_phase1_prompt(ctx.base_prompt, ctx.task_id, ctx.policy);
-        let output = execute_runner_pass(
+        let _output = execute_runner_pass(
             ctx.resolved,
             ctx.settings,
             ctx.bins,
@@ -54,11 +54,18 @@ pub fn execute_phase1_planning(ctx: &PhaseInvocation<'_>, total_phases: u8) -> R
         )?;
 
         // ENFORCEMENT: Phase 1 must not implement.
-        // It may only edit `.ralph/queue.json` / `.ralph/done.json` (status bookkeeping).
+        // It may only edit `.ralph/queue.json` / `.ralph/done.json` (status bookkeeping)
+        // plus the plan cache file for the current task.
+        let plan_cache_rel = format!(".ralph/cache/plans/{}.md", ctx.task_id);
+        let allowed_paths = [
+            ".ralph/queue.json",
+            ".ralph/done.json",
+            plan_cache_rel.as_str(),
+        ];
         if let Err(err) = gitutil::require_clean_repo_ignoring_paths(
             &ctx.resolved.repo_root,
             false,
-            &[".ralph/queue.json", ".ralph/done.json"],
+            &allowed_paths,
         ) {
             let outcome = runutil::apply_git_revert_mode(
                 &ctx.resolved.repo_root,
@@ -75,9 +82,8 @@ pub fn execute_phase1_planning(ctx: &PhaseInvocation<'_>, total_phases: u8) -> R
             );
         }
 
-        // Extract and cache plan (STRICT: markers required)
-        let plan_text = promptflow::extract_plan_text(ctx.settings.runner, &output.stdout)?;
-        promptflow::write_plan_cache(&ctx.resolved.repo_root, ctx.task_id, &plan_text)?;
+        // Read plan from cache (Phase 1 writes it directly).
+        let plan_text = promptflow::read_plan_cache(&ctx.resolved.repo_root, ctx.task_id)?;
         log::info!(
             "Plan cached for {} at {}",
             ctx.task_id,

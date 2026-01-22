@@ -1,5 +1,4 @@
-use ralph::contracts::Runner;
-use ralph::promptflow::{self, PromptPolicy, RALPH_PHASE1_PLAN_BEGIN, RALPH_PHASE1_PLAN_END};
+use ralph::promptflow::{self, PromptPolicy};
 use ralph::prompts;
 use tempfile::TempDir;
 
@@ -18,8 +17,7 @@ fn build_phase1_prompt_contains_required_elements() {
     assert!(prompt.contains(prompts::REPOPROMPT_REQUIRED_INSTRUCTION));
     assert!(prompt.contains(prompts::REPOPROMPT_CONTEXT_BUILDER_PLANNING_INSTRUCTION));
     assert!(prompt.contains("PLAN ONLY"));
-    assert!(prompt.contains(RALPH_PHASE1_PLAN_BEGIN));
-    assert!(prompt.contains(RALPH_PHASE1_PLAN_END));
+    assert!(prompt.contains(".ralph/cache/plans/RQ-1234.md"));
     assert!(prompt.contains(base));
     assert!(!prompt.contains("IMPLEMENTATION COMPLETION CHECKLIST"));
 }
@@ -74,30 +72,6 @@ fn build_single_phase_prompt_contains_required_elements() {
 }
 
 #[test]
-fn extract_plan_text_extracts_between_markers() {
-    let output = format!(
-        "Some text\n{}\nTHE PLAN\n{}
-More text",
-        RALPH_PHASE1_PLAN_BEGIN, RALPH_PHASE1_PLAN_END
-    );
-
-    let plan = promptflow::extract_plan_text(Runner::Claude, &output).unwrap();
-    assert_eq!(plan, "THE PLAN");
-}
-
-#[test]
-fn extract_plan_text_requires_markers() {
-    let output = "  THE PLAN  ";
-    assert!(promptflow::extract_plan_text(Runner::Claude, output).is_err());
-}
-
-#[test]
-fn extract_plan_text_fails_empty() {
-    let output = "   ";
-    assert!(promptflow::extract_plan_text(Runner::Claude, output).is_err());
-}
-
-#[test]
 fn plan_cache_roundtrip() {
     let dir = TempDir::new().unwrap();
     let root = dir.path();
@@ -108,6 +82,24 @@ fn plan_cache_roundtrip() {
     let loaded = promptflow::read_plan_cache(root, task_id).unwrap();
 
     assert_eq!(loaded, plan);
+}
+
+#[test]
+fn read_plan_cache_fails_when_missing() {
+    let dir = TempDir::new().unwrap();
+    let root = dir.path();
+    let err = promptflow::read_plan_cache(root, "RQ-0000").unwrap_err();
+    assert!(err.to_string().contains("Plan cache not found"));
+}
+
+#[test]
+fn read_plan_cache_fails_when_empty() {
+    let dir = TempDir::new().unwrap();
+    let root = dir.path();
+    let task_id = "RQ-0002";
+    promptflow::write_plan_cache(root, task_id, "   ").unwrap();
+    let err = promptflow::read_plan_cache(root, task_id).unwrap_err();
+    assert!(err.to_string().contains("Plan cache is empty"));
 }
 
 #[test]
