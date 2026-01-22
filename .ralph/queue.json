@@ -1,4 +1,516 @@
 {
   "version": 1,
-  "tasks": []
+  "tasks": [
+    {
+      "id": "RQ-0231",
+      "status": "doing",
+      "title": "Make next-id generate unique IDs without queue mutation",
+      "priority": "medium",
+      "tags": [
+        "queue",
+        "cli",
+        "ids"
+      ],
+      "scope": [
+        "cargo run -p ralph -- queue next-id",
+        "crates/ralph/src/queue.rs",
+        "crates/ralph/src/cli/queue.rs",
+        "docs/cli.md"
+      ],
+      "evidence": [
+        "User reports `ralph queue next-id` returns the same ID when queue and done are empty, requiring sequential queue updates to generate multiple IDs.",
+        "User reports generating multiple tasks requires iterative insertions because next-id does not advance without queue mutation."
+      ],
+      "plan": [
+        "Locate next-id ID derivation and confirm behavior when queue/done are empty.",
+        "Implement a monotonic ID source that advances without requiring queue mutations (persisted counter or derived from done+queue with explicit increment logic).",
+        "Add CLI support for requesting multiple IDs in one invocation if appropriate and document the behavior.",
+        "Add tests for empty-queue behavior and multi-ID generation to prevent regressions."
+      ],
+      "notes": [],
+      "request": "Read the following excerpt from an agent run of ralph scan. We need to improve this.. \"The next-id command returns the same ID if queue and done are empty since it bases IDs on existing entries; to get unique IDs for multiple tasks, I must add each new task to the queue file before calling next-id again. This means generating all 15 tasks requires sequential steps of getting next-id, inserting that task, then repeating, rather than calling next-id upfront in a loop without updates. [Reasoning] **Planning ID generation via iterative queue updates** The best way to generate multiple unique IDs with 'ralph queue next-id' is to call it repeatedly, appending placeholder but valid tasks to the queue file each time to advance the ID counter. This maintains schema validity and satisfies the requirement to use the command for each ID. I'll script this process to incrementally build queue.json with stub tasks, then replace with final tasks later. [Reasoning] **Detailing comprehensive TUI task definitions for scripted insertion** I’m finalizing 16 well-documented tasks with concrete evidence, scoped file references, prioritized order, and explicit test plans. Next, I’ll script these as Python dicts to generate valid queue entries with incremental IDs—calling 'ralph queue next-id' per task—and write the full queue.json in one go, ensuring correctness and compliance. [Reasoning] **Planning task ID generation** The 'ralph queue next-id' command returns the same ID if the queue isn't updated, so to get unique IDs for multiple tasks, the queue must be updated after each insertion. Since repeatedly running the command without queue updates won't produce new IDs, the plan is to either update the queue incrementally after each task or run the command once, then generate subsequent IDs manually based on the initial output. [Reasoning] **Designing detailed TUI tasks list** I've enumerated 15+ concrete TUI improvement tasks with priorities, evidence from code, and stepwise plans. Next, I'll script inserting these tasks sequentially into the queue.json by repeatedly calling 'ralph queue next-id' and updating the queue file after each insertion to comply with ID generation rules.\"",
+      "created_at": "2026-01-22T02:57:59Z",
+      "updated_at": "2026-01-22T02:59:53.494404000Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0215",
+      "status": "todo",
+      "title": "Add dedicated `ralph tui` entrypoint for browsing/management",
+      "priority": "high",
+      "tags": [
+        "tui",
+        "cli",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/mod.rs",
+        "crates/ralph/src/cli/run.rs",
+        "crates/ralph/src/tui/mod.rs",
+        "docs/cli.md"
+      ],
+      "evidence": [
+        "`crates/ralph/src/cli/mod.rs` Command enum has no TUI subcommand; only Run/Queue/Task/etc.",
+        "`crates/ralph/src/cli/run.rs` is the only place that calls `tui::run_tui`, gated behind `--interactive` on `run one/loop`."
+      ],
+      "plan": [
+        "Add a `tui` subcommand (or equivalent) that launches `tui::run_tui` without requiring `run one/loop`.",
+        "Define a no-op runner factory or a browse-only mode so users can open the TUI without executing tasks.",
+        "Update CLI docs/help to include the new entrypoint and expected behavior.",
+        "Add CLI parse tests for the new subcommand and TUI entrypoint wiring."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-22T02:50:11Z",
+      "updated_at": "2026-01-22T02:50:11Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0216",
+      "status": "todo",
+      "title": "Acquire queue lock for TUI sessions to prevent concurrent writes",
+      "priority": "high",
+      "tags": [
+        "tui",
+        "queue",
+        "safety"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/mod.rs",
+        "crates/ralph/src/queue.rs",
+        "crates/ralph/src/run_cmd.rs"
+      ],
+      "evidence": [
+        "`crates/ralph/src/tui/mod.rs` `run_tui` loads/saves the queue but never calls `queue::acquire_queue_lock`.",
+        "Other mutating commands (e.g., `crates/ralph/src/run_cmd.rs`) take the queue lock before edits."
+      ],
+      "plan": [
+        "Thread `force`/lock intent into `run_tui` so TUI can acquire a queue lock for the session.",
+        "Acquire the lock before loading the queue and keep it alive for the TUI lifetime.",
+        "Add tests to ensure the TUI path requests a lock (unit test with a temporary repo)."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-22T02:50:11Z",
+      "updated_at": "2026-01-22T02:50:11Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0217",
+      "status": "todo",
+      "title": "Validate queue before launching TUI and surface errors",
+      "priority": "high",
+      "tags": [
+        "tui",
+        "queue",
+        "validation"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/mod.rs",
+        "crates/ralph/src/cli/mod.rs",
+        "crates/ralph/src/queue/validation.rs"
+      ],
+      "evidence": [
+        "`crates/ralph/src/tui/mod.rs` uses `queue::load_queue` directly and does not call `validate_queue` or `validate_queue_set`.",
+        "`crates/ralph/src/cli/mod.rs` has `load_and_validate_queues`, but it is not used by the TUI path."
+      ],
+      "plan": [
+        "Validate the queue (and done archive if needed) before entering raw mode.",
+        "If validation fails, show a clear error and exit without leaving the terminal in raw mode.",
+        "Add tests covering invalid queue inputs for the TUI entrypoint."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-22T02:50:11Z",
+      "updated_at": "2026-01-22T02:50:11Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0218",
+      "status": "todo",
+      "title": "Prevent silent data loss when TUI auto-save fails",
+      "priority": "high",
+      "tags": [
+        "tui",
+        "queue",
+        "reliability"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/mod.rs"
+      ],
+      "evidence": [
+        "In `crates/ralph/src/tui/mod.rs`, the auto-save branch logs an error but still clears `app_ref.dirty`, losing pending changes if save fails."
+      ],
+      "plan": [
+        "Keep `dirty` true on save failures and surface an on-screen error/state.",
+        "Add a retry path (manual or automatic) instead of clearing the dirty flag.",
+        "Add tests to verify dirty is preserved on save errors."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-22T02:50:11Z",
+      "updated_at": "2026-01-22T02:50:11Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0219",
+      "status": "todo",
+      "title": "Block or confirm quit while a task is executing in TUI",
+      "priority": "high",
+      "tags": [
+        "tui",
+        "ux",
+        "safety"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/mod.rs",
+        "crates/ralph/src/tui/events.rs"
+      ],
+      "evidence": [
+        "`crates/ralph/src/tui/mod.rs` spawns a runner thread on `RunTask` but does not track or join it when quitting.",
+        "`crates/ralph/src/tui/events.rs` only blocks quit in Executing mode; after Esc returns to Normal, `q` exits without warning even if a task is still running."
+      ],
+      "plan": [
+        "Track whether a runner thread is active and expose that in app state.",
+        "Require confirmation or block quitting while a task is executing.",
+        "Add tests for quit behavior when a task is active."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-22T02:50:11Z",
+      "updated_at": "2026-01-22T02:50:11Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0220",
+      "status": "todo",
+      "title": "Add log scrolling controls and autoscroll toggle in Executing view",
+      "priority": "medium",
+      "tags": [
+        "tui",
+        "ux",
+        "logs"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/events.rs",
+        "crates/ralph/src/tui/mod.rs",
+        "crates/ralph/src/tui/render.rs"
+      ],
+      "evidence": [
+        "`App` includes `log_scroll` and `autoscroll`, but `handle_executing_mode_key` only handles `Esc` and never updates those fields."
+      ],
+      "plan": [
+        "Add keybindings for scrolling (PgUp/PgDn, Up/Down) and toggling autoscroll.",
+        "Update render footer to display new keybindings.",
+        "Add tests for log scroll and autoscroll state transitions."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-22T02:50:11Z",
+      "updated_at": "2026-01-22T02:50:11Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0221",
+      "status": "todo",
+      "title": "Use actual viewport height for log autoscroll calculations",
+      "priority": "medium",
+      "tags": [
+        "tui",
+        "ux",
+        "logs"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/mod.rs",
+        "crates/ralph/src/tui/render.rs"
+      ],
+      "evidence": [
+        "`crates/ralph/src/tui/mod.rs` hardcodes `visible_lines = 20` when adjusting log autoscroll, ignoring real terminal size."
+      ],
+      "plan": [
+        "Track the execution view height in app state during rendering.",
+        "Use that height for log autoscroll and scroll bounds calculations.",
+        "Add tests to ensure log scrolling respects viewport size."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-22T02:50:11Z",
+      "updated_at": "2026-01-22T02:50:11Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0222",
+      "status": "todo",
+      "title": "Add manual refresh key to reload queue from disk",
+      "priority": "medium",
+      "tags": [
+        "tui",
+        "queue",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/events.rs",
+        "crates/ralph/src/tui/mod.rs"
+      ],
+      "evidence": [
+        "`crates/ralph/src/tui/mod.rs` only reloads the queue on `RunnerEvent::Finished`; there is no user-triggered refresh.",
+        "`crates/ralph/src/tui/events.rs` has no keybinding for reload/refresh."
+      ],
+      "plan": [
+        "Add a refresh keybinding (e.g., `r`) in Normal mode.",
+        "Reload queue from disk, clamp selection, and show errors in logs.",
+        "Add tests for refresh behavior and selection clamping."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-22T02:50:11Z",
+      "updated_at": "2026-01-22T02:50:11Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0223",
+      "status": "todo",
+      "title": "Add priority editing in TUI (cycle or picker)",
+      "priority": "medium",
+      "tags": [
+        "tui",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/events.rs",
+        "crates/ralph/src/tui/mod.rs",
+        "crates/ralph/src/contracts.rs"
+      ],
+      "evidence": [
+        "`crates/ralph/src/tui/events.rs` does not expose any keybinding to change `TaskPriority` even though the UI renders it.",
+        "`App` methods only update status/title/delete; no priority mutation exists in `crates/ralph/src/tui/mod.rs`."
+      ],
+      "plan": [
+        "Add an `App` method to cycle or set `TaskPriority` with timestamp updates.",
+        "Wire a Normal-mode keybinding (e.g., `p`) and update footer help.",
+        "Add tests to verify priority updates and timestamp behavior."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-22T02:50:11Z",
+      "updated_at": "2026-01-22T02:50:11Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0224",
+      "status": "todo",
+      "title": "Add TUI flow to create new tasks without leaving the UI",
+      "priority": "medium",
+      "tags": [
+        "tui",
+        "ux",
+        "queue"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/events.rs",
+        "crates/ralph/src/tui/mod.rs",
+        "crates/ralph/src/contracts.rs"
+      ],
+      "evidence": [
+        "`crates/ralph/src/tui/events.rs` has no keybinding to create tasks; only delete/edit/status/run are supported.",
+        "`crates/ralph/src/tui/mod.rs` lacks any creation flow beyond loading an existing queue."
+      ],
+      "plan": [
+        "Design a minimal creation mode (title + status/priority defaults) and integrate with queue persistence.",
+        "Add keybinding (e.g., `n`) to enter creation mode and confirm/cancel behavior.",
+        "Add tests for creating tasks and validating required fields."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-22T02:50:11Z",
+      "updated_at": "2026-01-22T02:50:11Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0225",
+      "status": "todo",
+      "title": "Add search/filter in TUI for status/tag/text",
+      "priority": "medium",
+      "tags": [
+        "tui",
+        "ux",
+        "search"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/events.rs",
+        "crates/ralph/src/tui/mod.rs",
+        "crates/ralph/src/queue/search.rs"
+      ],
+      "evidence": [
+        "TUI always renders the full queue list in `crates/ralph/src/tui/render.rs` with no filtering state.",
+        "`crates/ralph/src/tui/events.rs` has no search/filter keybindings despite existing queue search utilities in `crates/ralph/src/queue/search.rs`."
+      ],
+      "plan": [
+        "Introduce filter state in `App` (query + status/tags).",
+        "Add a search input mode and keybindings (e.g., `/` to search, `f` to filter status).",
+        "Use queue search/filter utilities to produce the displayed list.",
+        "Add tests for filter/search behavior and selection clamping."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-22T02:50:11Z",
+      "updated_at": "2026-01-22T02:50:11Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0226",
+      "status": "todo",
+      "title": "Add in-TUI help overlay for keybindings",
+      "priority": "medium",
+      "tags": [
+        "tui",
+        "ux",
+        "docs"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/events.rs",
+        "crates/ralph/src/tui/render.rs"
+      ],
+      "evidence": [
+        "`crates/ralph/src/tui/render.rs` only shows a compact footer; there is no full help overlay or key to open it.",
+        "`crates/ralph/src/tui/events.rs` has no `?`/`h` handler to show help."
+      ],
+      "plan": [
+        "Add a Help mode with a full-screen overlay listing keybindings and actions.",
+        "Wire `?`/`h` to toggle Help mode and update footer hints.",
+        "Add tests to ensure help mode transitions and rendering paths."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-22T02:50:11Z",
+      "updated_at": "2026-01-22T02:50:11Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0227",
+      "status": "todo",
+      "title": "Add empty-queue action prompts (create task / open task command)",
+      "priority": "medium",
+      "tags": [
+        "tui",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/render.rs",
+        "crates/ralph/src/tui/events.rs"
+      ],
+      "evidence": [
+        "When no tasks exist, `crates/ralph/src/tui/render.rs` renders a static message and provides no action to create tasks in TUI."
+      ],
+      "plan": [
+        "Add CTA hints in the empty state (e.g., `n` to create).",
+        "Ensure the keybinding launches the creation flow or defers to CLI guidance.",
+        "Add tests for empty-state rendering and key behavior."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-22T02:50:11Z",
+      "updated_at": "2026-01-22T02:50:11Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0228",
+      "status": "todo",
+      "title": "Document TUI usage and keybindings in CLI docs",
+      "priority": "low",
+      "tags": [
+        "docs",
+        "tui"
+      ],
+      "scope": [
+        "docs/cli.md",
+        "crates/ralph/src/tui/mod.rs"
+      ],
+      "evidence": [
+        "`docs/cli.md` documents `-i` but does not list TUI keybindings or behaviors; keybindings are only in the TUI module doc comment (`crates/ralph/src/tui/mod.rs`)."
+      ],
+      "plan": [
+        "Add a TUI section to `docs/cli.md` describing entrypoints and keybindings.",
+        "Keep docs aligned with actual keybindings and modes.",
+        "Add a documentation check in tests if applicable (or update existing doc tests)."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-22T02:50:11Z",
+      "updated_at": "2026-01-22T02:50:11Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0229",
+      "status": "todo",
+      "title": "Update `ralph run --help` to surface TUI entrypoints and examples",
+      "priority": "low",
+      "tags": [
+        "docs",
+        "cli",
+        "tui"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/run.rs"
+      ],
+      "evidence": [
+        "`crates/ralph/src/cli/run.rs` `RunArgs` after_long_help examples do not include `-i` or TUI launch guidance, so `ralph run --help` omits interactive discovery."
+      ],
+      "plan": [
+        "Add TUI examples and a short note to the `RunArgs` after_long_help string.",
+        "Verify `ralph run --help` output includes the interactive entrypoint.",
+        "Add a small CLI help snapshot test if one exists."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-22T02:50:11Z",
+      "updated_at": "2026-01-22T02:50:11Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0230",
+      "status": "todo",
+      "title": "Add CLI parse tests for TUI entrypoint and interactive flags",
+      "priority": "low",
+      "tags": [
+        "tests",
+        "cli",
+        "tui"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/mod.rs",
+        "crates/ralph/src/cli/run.rs"
+      ],
+      "evidence": [
+        "Only a single interactive-related test exists (`cli_rejects_run_one_id_with_interactive`) in `crates/ralph/src/cli/mod.rs`; there are no tests ensuring valid `-i` paths parse correctly."
+      ],
+      "plan": [
+        "Add CLI parsing tests for `ralph run one -i` and `ralph run loop -i`.",
+        "If a new TUI subcommand is added, add parse tests for it.",
+        "Ensure tests cover negative and positive interactive cases."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-22T02:50:11Z",
+      "updated_at": "2026-01-22T02:50:11Z",
+      "depends_on": [],
+      "custom_fields": {}
+    }
+  ]
 }
