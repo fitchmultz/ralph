@@ -2,38 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0225",
-      "status": "todo",
-      "title": "Add search/filter in TUI for status/tag/text",
-      "priority": "medium",
-      "tags": [
-        "tui",
-        "ux",
-        "search"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/events.rs",
-        "crates/ralph/src/tui/mod.rs",
-        "crates/ralph/src/queue/search.rs"
-      ],
-      "evidence": [
-        "TUI always renders the full queue list in `crates/ralph/src/tui/render.rs` with no filtering state.",
-        "`crates/ralph/src/tui/events.rs` has no search/filter keybindings despite existing queue search utilities in `crates/ralph/src/queue/search.rs`."
-      ],
-      "plan": [
-        "Introduce filter state in `App` (query + status/tags).",
-        "Add a search input mode and keybindings (e.g., `/` to search, `f` to filter status).",
-        "Use queue search/filter utilities to produce the displayed list.",
-        "Add tests for filter/search behavior and selection clamping."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-22T02:50:11Z",
-      "updated_at": "2026-01-22T02:50:11Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0226",
       "status": "todo",
       "title": "Add in-TUI help overlay for keybindings",

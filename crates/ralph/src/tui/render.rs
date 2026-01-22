@@ -154,27 +154,37 @@ fn draw_execution_view(f: &mut Frame<'_>, app: &mut App, area: Rect) {
 
 /// Draw the task list panel.
 fn draw_task_list(f: &mut Frame<'_>, app: &mut App, area: Rect) {
+    let total_count = app.queue.tasks.len();
+    let visible_count = app.filtered_len();
+    let count_label = if app.has_active_filters() {
+        format!("{}/{}", visible_count, total_count)
+    } else {
+        format!("{}", total_count)
+    };
+    let filter_summary = app.filter_summary();
     let title = Line::from(vec![
         Span::styled("Tasks", Style::default().add_modifier(Modifier::BOLD)),
         Span::raw(" ("),
+        Span::styled(count_label, Style::default().fg(Color::DarkGray)),
+        Span::raw(")"),
+        Span::raw(" "),
         Span::styled(
-            format!("{}", app.queue.tasks.len()),
+            filter_summary.unwrap_or_default(),
             Style::default().fg(Color::DarkGray),
         ),
-        Span::raw(")"),
     ]);
 
     let list_height = area.height.saturating_sub(2) as usize; // Subtract borders
     app.list_height = list_height;
 
     let items: Vec<ListItem> = app
-        .queue
-        .tasks
+        .filtered_indices
         .iter()
         .enumerate()
         .skip(app.scroll)
         .take(list_height)
-        .map(|(i, task)| {
+        .filter_map(|(i, &task_index)| {
+            let task = app.queue.tasks.get(task_index)?;
             let is_selected = i == app.selected;
             let status_style = Style::default().fg(status_color(task.status));
 
@@ -210,7 +220,7 @@ fn draw_task_list(f: &mut Frame<'_>, app: &mut App, area: Rect) {
                 ])
             };
 
-            ListItem::new(line)
+            Some(ListItem::new(line))
         })
         .collect();
 
@@ -219,9 +229,9 @@ fn draw_task_list(f: &mut Frame<'_>, app: &mut App, area: Rect) {
     f.render_widget(list, area);
 
     // Draw selection indicator manually
-    if !app.queue.tasks.is_empty() {
+    if app.filtered_len() > 0 {
         let list_height = area.height.saturating_sub(2) as usize; // Subtract borders
-        let visible_count = list_height.min(app.queue.tasks.len());
+        let visible_count = list_height.min(app.filtered_len());
         let selected_offset = app.selected.saturating_sub(app.scroll);
 
         if selected_offset < visible_count {
@@ -262,6 +272,29 @@ fn draw_task_details(f: &mut Frame<'_>, app: &mut App, area: Rect) {
             Span::styled("New Task: ", Style::default().add_modifier(Modifier::BOLD)),
             Span::styled(
                 title,
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled("_", Style::default().fg(Color::Yellow)), // Cursor
+        ]),
+        AppMode::Searching(query) => Line::from(vec![
+            Span::styled("Search: ", Style::default().add_modifier(Modifier::BOLD)),
+            Span::styled(
+                query,
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled("_", Style::default().fg(Color::Yellow)), // Cursor
+        ]),
+        AppMode::FilteringTags(tags) => Line::from(vec![
+            Span::styled(
+                "Filter Tags: ",
+                Style::default().add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                tags,
                 Style::default()
                     .fg(Color::Yellow)
                     .add_modifier(Modifier::BOLD),
@@ -323,6 +356,67 @@ fn draw_task_details(f: &mut Frame<'_>, app: &mut App, area: Rect) {
             lines.push(Line::from(Span::styled(line, style)));
         }
 
+        let text = Text::from(lines);
+        let paragraph = Paragraph::new(text).wrap(Wrap { trim: false });
+        f.render_widget(paragraph, inner);
+    } else if let AppMode::Searching(current) = &app.mode {
+        let mut lines = vec![
+            Line::from(vec![
+                Span::styled(
+                    "Search Query",
+                    Style::default().add_modifier(Modifier::UNDERLINED),
+                ),
+                Span::styled(":", Style::default()),
+            ]),
+            Line::from(""),
+        ];
+        let display = if current.is_empty() {
+            "(type to search across title, tags, scope, plan, evidence, notes)"
+        } else {
+            current
+        };
+        for line in wrap_text(display, app.detail_width as usize) {
+            let style = if current.is_empty() {
+                Style::default().fg(Color::DarkGray)
+            } else {
+                Style::default().add_modifier(Modifier::BOLD)
+            };
+            lines.push(Line::from(Span::styled(line, style)));
+        }
+        lines.push(Line::from(""));
+        lines.push(Line::from(Span::styled(
+            "Press Enter to apply or Esc to cancel.",
+            Style::default().fg(Color::DarkGray),
+        )));
+        let text = Text::from(lines);
+        let paragraph = Paragraph::new(text).wrap(Wrap { trim: false });
+        f.render_widget(paragraph, inner);
+    } else if let AppMode::FilteringTags(current) = &app.mode {
+        let mut lines = vec![
+            Line::from(vec![
+                Span::styled("Tags", Style::default().add_modifier(Modifier::UNDERLINED)),
+                Span::styled(" (comma-separated):", Style::default()),
+            ]),
+            Line::from(""),
+        ];
+        let display = if current.is_empty() {
+            "(e.g., tui, ux, docs)"
+        } else {
+            current
+        };
+        for line in wrap_text(display, app.detail_width as usize) {
+            let style = if current.is_empty() {
+                Style::default().fg(Color::DarkGray)
+            } else {
+                Style::default().add_modifier(Modifier::BOLD)
+            };
+            lines.push(Line::from(Span::styled(line, style)));
+        }
+        lines.push(Line::from(""));
+        lines.push(Line::from(Span::styled(
+            "Press Enter to apply or Esc to cancel.",
+            Style::default().fg(Color::DarkGray),
+        )));
         let text = Text::from(lines);
         let paragraph = Paragraph::new(text).wrap(Wrap { trim: false });
         f.render_widget(paragraph, inner);
@@ -504,7 +598,7 @@ fn draw_task_details(f: &mut Frame<'_>, app: &mut App, area: Rect) {
         let text = Text::from(lines);
         let paragraph = Paragraph::new(text).wrap(Wrap { trim: false });
         f.render_widget(paragraph, inner);
-    } else {
+    } else if app.queue.tasks.is_empty() {
         let text = Text::from(vec![
             Line::from(""),
             Line::from("No tasks in queue."),
@@ -517,6 +611,29 @@ fn draw_task_details(f: &mut Frame<'_>, app: &mut App, area: Rect) {
             Line::from(""),
             Line::from(Span::styled(
                 "Press n to create one in the TUI.",
+                Style::default().fg(Color::DarkGray),
+            )),
+        ]);
+        let paragraph = Paragraph::new(text).wrap(Wrap { trim: false });
+        f.render_widget(paragraph, inner);
+    } else {
+        let filter_hint = app
+            .filter_summary()
+            .unwrap_or_else(|| "filters active".to_string());
+        let text = Text::from(vec![
+            Line::from(""),
+            Line::from("No tasks match current filters."),
+            Line::from(Span::styled(
+                filter_hint,
+                Style::default().fg(Color::DarkGray),
+            )),
+            Line::from(""),
+            Line::from(Span::styled(
+                "Press x to clear filters.",
+                Style::default().fg(Color::Yellow),
+            )),
+            Line::from(Span::styled(
+                "Press / to search or t to filter tags.",
                 Style::default().fg(Color::DarkGray),
             )),
         ]);
@@ -610,8 +727,16 @@ fn help_footer_spans(app: &App) -> Vec<Span<'static>> {
             Span::raw(":edit "),
             Span::styled("n", Style::default().add_modifier(Modifier::BOLD)),
             Span::raw(":new "),
+            Span::styled("/", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(":search "),
+            Span::styled("t", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(":tags "),
+            Span::styled("f", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(":filter "),
+            Span::styled("x", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(":clear "),
             Span::styled("s", Style::default().add_modifier(Modifier::BOLD)),
-            Span::raw(":status "),
+            Span::raw(":cycle "),
             Span::styled("p", Style::default().add_modifier(Modifier::BOLD)),
             Span::raw(":priority "),
             Span::styled("r", Style::default().add_modifier(Modifier::BOLD)),
@@ -626,6 +751,18 @@ fn help_footer_spans(app: &App) -> Vec<Span<'static>> {
         AppMode::CreatingTask(_) => vec![
             Span::styled("Enter", Style::default().add_modifier(Modifier::BOLD)),
             Span::raw(":create "),
+            Span::styled("Esc", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(":cancel"),
+        ],
+        AppMode::Searching(_) => vec![
+            Span::styled("Enter", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(":search "),
+            Span::styled("Esc", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(":cancel"),
+        ],
+        AppMode::FilteringTags(_) => vec![
+            Span::styled("Enter", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(":apply "),
             Span::styled("Esc", Style::default().add_modifier(Modifier::BOLD)),
             Span::raw(":cancel"),
         ],

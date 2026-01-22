@@ -11,9 +11,13 @@
 //! - `d`: Delete task (with confirmation)
 //! - `e`: Edit task title
 //! - `s`: Cycle status (Draft → Todo → Doing → Done → Rejected → Draft)
+//! - `f`: Cycle status filter (All → Todo → Doing → Done → Draft → Rejected → All)
 //! - `p`: Cycle priority (Low → Medium → High → Critical → Low)
 //! - `r`: Reload queue from disk
 //! - `n`: Create a new task
+//! - `/`: Search tasks by text
+//! - `t`: Filter tasks by tags
+//! - `x`: Clear active filters
 //! - Executing view: `↑`/`↓`/`j`/`k` scroll, `PgUp`/`PgDn` page, `a` toggles auto-scroll
 
 use anyhow::{anyhow, bail, Context, Result};
@@ -37,6 +41,17 @@ pub mod render;
 
 pub use events::{handle_key_event, AppMode, TuiAction};
 pub use render::draw_ui;
+
+/// Active filters applied to the task list.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct FilterState {
+    /// Free-text search query (substring match across task fields).
+    pub query: String,
+    /// Status filters (empty means all statuses).
+    pub statuses: Vec<TaskStatus>,
+    /// Tag filters (empty means all tags).
+    pub tags: Vec<String>,
+}
 
 /// Application state for the TUI.
 pub struct App {
@@ -72,12 +87,16 @@ pub struct App {
     pub id_width: usize,
     /// Optional path to the done queue for ID generation.
     pub done_path: Option<PathBuf>,
+    /// Active filters applied to the task list.
+    pub filters: FilterState,
+    /// Cached filtered task indices into `queue.tasks`.
+    pub filtered_indices: Vec<usize>,
 }
 
 impl App {
     /// Create a new TUI app from a queue file.
     pub fn new(queue: QueueFile) -> Self {
-        Self {
+        let mut app = Self {
             queue,
             selected: 0,
             mode: AppMode::Normal,
@@ -94,17 +113,38 @@ impl App {
             id_prefix: "RQ".to_string(),
             id_width: 4,
             done_path: None,
-        }
+            filters: FilterState::default(),
+            filtered_indices: Vec::new(),
+        };
+        app.rebuild_filtered_view();
+        app
     }
 
     /// Get the currently selected task, if any.
     pub fn selected_task(&self) -> Option<&Task> {
-        self.queue.tasks.get(self.selected)
+        self.selected_task_index()
+            .and_then(|idx| self.queue.tasks.get(idx))
+    }
+
+    /// Get the currently selected task index in the queue, if any.
+    pub fn selected_task_index(&self) -> Option<usize> {
+        self.filtered_indices.get(self.selected).copied()
+    }
+
+    /// Get the currently selected task mutably, if any.
+    pub fn selected_task_mut(&mut self) -> Option<&mut Task> {
+        let idx = self.selected_task_index()?;
+        self.queue.tasks.get_mut(idx)
+    }
+
+    /// Return the number of tasks in the filtered view.
+    pub fn filtered_len(&self) -> usize {
+        self.filtered_indices.len()
     }
 
     /// Move selection up.
     pub fn move_up(&mut self) {
-        if !self.queue.tasks.is_empty() && self.selected > 0 {
+        if self.filtered_len() > 0 && self.selected > 0 {
             self.selected -= 1;
             if self.selected < self.scroll {
                 self.scroll = self.selected;
@@ -114,7 +154,7 @@ impl App {
 
     /// Move selection down.
     pub fn move_down(&mut self, list_height: usize) {
-        if self.selected + 1 < self.queue.tasks.len() {
+        if self.selected + 1 < self.filtered_len() {
             self.selected += 1;
             // Scroll down if selection is below visible area
             if self.selected >= self.scroll + list_height {
@@ -125,10 +165,13 @@ impl App {
 
     /// Cycle the status of the selected task.
     pub fn cycle_status(&mut self, now_rfc3339: &str) -> Result<()> {
+        let task_id = self
+            .selected_task()
+            .map(|t| t.id.clone())
+            .ok_or_else(|| anyhow!("No task selected"))?;
+
         let task = self
-            .queue
-            .tasks
-            .get_mut(self.selected)
+            .selected_task_mut()
             .ok_or_else(|| anyhow!("No task selected"))?;
 
         let new_status = match task.status {
@@ -152,49 +195,71 @@ impl App {
         }
 
         self.dirty = true;
+        self.rebuild_filtered_view_with_preferred(Some(&task_id));
         Ok(())
     }
 
     /// Cycle the priority of the selected task.
     pub fn cycle_priority(&mut self, now_rfc3339: &str) -> Result<()> {
+        let task_id = self
+            .selected_task()
+            .map(|t| t.id.clone())
+            .ok_or_else(|| anyhow!("No task selected"))?;
+
         let task = self
-            .queue
-            .tasks
-            .get_mut(self.selected)
+            .selected_task_mut()
             .ok_or_else(|| anyhow!("No task selected"))?;
 
         task.priority = task.priority.cycle();
         task.updated_at = Some(now_rfc3339.to_string());
         self.dirty = true;
+        self.rebuild_filtered_view_with_preferred(Some(&task_id));
         Ok(())
     }
 
     /// Delete the selected task (returns the deleted task for confirmation).
     pub fn delete_selected_task(&mut self) -> Result<Task> {
+        let selected_index = self
+            .selected_task_index()
+            .ok_or_else(|| anyhow!("No task selected"))?;
         let task = self
             .queue
             .tasks
-            .get(self.selected)
+            .get(selected_index)
             .ok_or_else(|| anyhow!("No task selected"))?
             .clone();
 
-        self.queue.tasks.remove(self.selected);
+        // Try to preserve selection of the next task, or previous if at end
+        let preferred_id = if selected_index + 1 < self.queue.tasks.len() {
+            self.queue
+                .tasks
+                .get(selected_index + 1)
+                .map(|t| t.id.clone())
+        } else if selected_index > 0 {
+            self.queue
+                .tasks
+                .get(selected_index - 1)
+                .map(|t| t.id.clone())
+        } else {
+            None
+        };
 
-        // Adjust selection if needed
-        if self.selected >= self.queue.tasks.len() && !self.queue.tasks.is_empty() {
-            self.selected = self.queue.tasks.len() - 1;
-        }
+        self.queue.tasks.remove(selected_index);
 
         self.dirty = true;
+        self.rebuild_filtered_view_with_preferred(preferred_id.as_deref());
         Ok(task)
     }
 
     /// Update the title of the selected task.
     pub fn update_title(&mut self, new_title: String, now_rfc3339: &str) -> Result<()> {
+        let task_id = self
+            .selected_task()
+            .map(|t| t.id.clone())
+            .ok_or_else(|| anyhow!("No task selected"))?;
+
         let task = self
-            .queue
-            .tasks
-            .get_mut(self.selected)
+            .selected_task_mut()
             .ok_or_else(|| anyhow!("No task selected"))?;
 
         if new_title.trim().is_empty() {
@@ -204,6 +269,7 @@ impl App {
         task.title = new_title;
         task.updated_at = Some(now_rfc3339.to_string());
         self.dirty = true;
+        self.rebuild_filtered_view_with_preferred(Some(&task_id));
         Ok(())
     }
 
@@ -245,14 +311,95 @@ impl App {
         };
 
         self.queue.tasks.push(task);
-        self.selected = self.queue.tasks.len().saturating_sub(1);
-        let list_height = self.list_height.max(1);
-        if self.selected >= self.scroll + list_height {
-            self.scroll = self.selected.saturating_sub(list_height.saturating_sub(1));
+        let new_index = self.queue.tasks.len().saturating_sub(1);
+        self.rebuild_filtered_view();
+        if let Some(filtered_pos) = self
+            .filtered_indices
+            .iter()
+            .position(|&idx| idx == new_index)
+        {
+            self.selected = filtered_pos;
+            let list_height = self.list_height.max(1);
+            if self.selected >= self.scroll + list_height {
+                self.scroll = self.selected.saturating_sub(list_height.saturating_sub(1));
+            }
         }
         self.dirty = true;
         self.mode = AppMode::Normal;
         Ok(())
+    }
+
+    /// Cycle the active status filter (All -> Todo -> Doing -> Done -> Draft -> Rejected -> All).
+    pub fn cycle_status_filter(&mut self) {
+        let preferred_id = self.selected_task().map(|t| t.id.clone());
+        let next = match self.filters.statuses.as_slice() {
+            [] => Some(TaskStatus::Todo),
+            [TaskStatus::Todo] => Some(TaskStatus::Doing),
+            [TaskStatus::Doing] => Some(TaskStatus::Done),
+            [TaskStatus::Done] => Some(TaskStatus::Draft),
+            [TaskStatus::Draft] => Some(TaskStatus::Rejected),
+            [TaskStatus::Rejected] => None,
+            _ => None,
+        };
+
+        self.filters.statuses = next.map(|status| vec![status]).unwrap_or_default();
+        self.rebuild_filtered_view_with_preferred(preferred_id.as_deref());
+    }
+
+    /// Set the tag filter list (empty to clear).
+    pub fn set_tag_filters(&mut self, tags: Vec<String>) {
+        let preferred_id = self.selected_task().map(|t| t.id.clone());
+        self.filters.tags = tags;
+        self.rebuild_filtered_view_with_preferred(preferred_id.as_deref());
+    }
+
+    /// Set the search query (empty to clear).
+    pub fn set_search_query(&mut self, query: String) {
+        let preferred_id = self.selected_task().map(|t| t.id.clone());
+        self.filters.query = query;
+        self.rebuild_filtered_view_with_preferred(preferred_id.as_deref());
+    }
+
+    /// Clear all active filters (query, tags, status).
+    pub fn clear_filters(&mut self) {
+        let preferred_id = self.selected_task().map(|t| t.id.clone());
+        self.filters = FilterState::default();
+        self.rebuild_filtered_view_with_preferred(preferred_id.as_deref());
+    }
+
+    /// Return true if any filters are active.
+    pub fn has_active_filters(&self) -> bool {
+        !self.filters.query.trim().is_empty()
+            || !self.filters.tags.is_empty()
+            || !self.filters.statuses.is_empty()
+    }
+
+    /// Create a human-readable summary of active filters.
+    pub fn filter_summary(&self) -> Option<String> {
+        if !self.has_active_filters() {
+            return None;
+        }
+
+        let mut parts = Vec::new();
+        if let Some(status) = self.filters.statuses.first() {
+            parts.push(format!("status={}", status.as_str()));
+        }
+        if !self.filters.tags.is_empty() {
+            parts.push(format!("tags={}", self.filters.tags.join(",")));
+        }
+        if !self.filters.query.trim().is_empty() {
+            parts.push(format!("query={}", self.filters.query.trim()));
+        }
+        Some(format!("filters: {}", parts.join(" ")))
+    }
+
+    /// Parse comma or whitespace-separated tags from input string.
+    pub fn parse_tags(input: &str) -> Vec<String> {
+        input
+            .split(|c: char| c == ',' || c.is_whitespace())
+            .map(|tag| tag.trim().to_string())
+            .filter(|tag| !tag.is_empty())
+            .collect()
     }
 
     fn log_visible_lines(&self) -> usize {
@@ -294,20 +441,98 @@ impl App {
         self.log_scroll = self.max_log_scroll(visible_lines);
     }
 
+    /// Rebuild the filtered view, optionally preserving selection of a preferred task ID.
+    pub(crate) fn rebuild_filtered_view(&mut self) {
+        self.rebuild_filtered_view_with_preferred(None);
+    }
+
+    /// Rebuild the filtered view, optionally preserving selection of a preferred task ID.
+    fn rebuild_filtered_view_with_preferred(&mut self, preferred_id: Option<&str>) {
+        let mut filtered = queue::filter_tasks(
+            &self.queue,
+            &self.filters.statuses,
+            &self.filters.tags,
+            &[],
+            None,
+        );
+
+        if !self.filters.query.trim().is_empty() {
+            match queue::search_tasks(filtered, &self.filters.query, false, false) {
+                Ok(results) => {
+                    filtered = results;
+                }
+                Err(err) => {
+                    self.logs.push(format!("Error: {}", err));
+                    filtered = Vec::new();
+                }
+            }
+        }
+
+        let mut index_by_id = std::collections::HashMap::new();
+        for (idx, task) in self.queue.tasks.iter().enumerate() {
+            index_by_id.insert(task.id.as_str(), idx);
+        }
+
+        self.filtered_indices = filtered
+            .iter()
+            .filter_map(|task| index_by_id.get(task.id.as_str()).copied())
+            .collect();
+
+        // Try to preserve selection of preferred_id if provided
+        if let Some(preferred_id) = preferred_id {
+            if let Some(new_pos) =
+                self.filtered_indices
+                    .iter()
+                    .enumerate()
+                    .find_map(|(pos, &idx)| {
+                        self.queue.tasks.get(idx).and_then(|task| {
+                            if task.id == preferred_id {
+                                Some(pos)
+                            } else {
+                                None
+                            }
+                        })
+                    })
+            {
+                self.selected = new_pos;
+                self.clamp_selection_and_scroll();
+                return;
+            }
+            // Preferred task was filtered out, reset selection to 0
+            self.selected = 0;
+        }
+
+        self.clamp_selection_and_scroll();
+    }
+
+    fn clamp_selection_and_scroll(&mut self) {
+        if self.filtered_indices.is_empty() {
+            self.selected = 0;
+            self.scroll = 0;
+            return;
+        }
+
+        if self.selected >= self.filtered_indices.len() {
+            self.selected = self.filtered_indices.len().saturating_sub(1);
+        }
+
+        if self.scroll > self.selected {
+            self.scroll = self.selected;
+        }
+
+        let list_height = self.list_height.max(1);
+        if self.selected >= self.scroll + list_height {
+            self.scroll = self.selected.saturating_sub(list_height.saturating_sub(1));
+        }
+    }
+
     /// Reload the queue from disk, clamping selection and recording errors.
     fn reload_queue_from_disk(&mut self, queue_path: &Path) {
+        let preferred_id = self.selected_task().map(|t| t.id.clone());
         match queue::load_queue(queue_path) {
             Ok(new_queue) => {
                 self.queue = new_queue;
-                if self.queue.tasks.is_empty() {
-                    self.selected = 0;
-                    self.scroll = 0;
-                } else if self.selected >= self.queue.tasks.len() {
-                    self.selected = self.queue.tasks.len() - 1;
-                }
-                if self.scroll > self.selected {
-                    self.scroll = self.selected;
-                }
+                self.rebuild_filtered_view_with_preferred(preferred_id.as_deref());
                 self.dirty = false;
                 self.save_error = None;
             }
@@ -559,6 +784,12 @@ mod tests {
             depends_on: vec![],
             custom_fields: std::collections::HashMap::new(),
         }
+    }
+
+    fn make_test_task_with_tags(id: &str, title: &str, tags: Vec<&str>) -> Task {
+        let mut task = make_test_task(id, title, TaskStatus::Todo);
+        task.tags = tags.into_iter().map(|tag| tag.to_string()).collect();
+        task
     }
 
     #[test]
@@ -980,6 +1211,69 @@ mod tests {
     }
 
     #[test]
+    fn app_filters_by_search_query() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![
+                make_test_task("RQ-0001", "Alpha task", TaskStatus::Todo),
+                make_test_task("RQ-0002", "Beta task", TaskStatus::Todo),
+            ],
+        };
+        let mut app = App::new(queue);
+        app.set_search_query("alpha".to_string());
+
+        assert_eq!(app.filtered_len(), 1);
+        assert_eq!(
+            app.selected_task().map(|task| task.id.as_str()),
+            Some("RQ-0001")
+        );
+    }
+
+    #[test]
+    fn app_filters_by_tags() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![
+                make_test_task_with_tags("RQ-0001", "UI polish", vec!["ux", "tui"]),
+                make_test_task_with_tags("RQ-0002", "Docs", vec!["docs"]),
+            ],
+        };
+        let mut app = App::new(queue);
+        app.set_tag_filters(vec!["tui".to_string()]);
+
+        assert_eq!(app.filtered_len(), 1);
+        assert_eq!(
+            app.selected_task().map(|task| task.id.as_str()),
+            Some("RQ-0001")
+        );
+    }
+
+    #[test]
+    fn selection_clamps_when_filtering() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![
+                make_test_task("RQ-0001", "Alpha", TaskStatus::Todo),
+                make_test_task("RQ-0002", "Beta", TaskStatus::Todo),
+                make_test_task("RQ-0003", "Gamma", TaskStatus::Todo),
+            ],
+        };
+        let mut app = App::new(queue);
+        app.selected = 2;
+        app.scroll = 2;
+
+        app.set_search_query("Alpha".to_string());
+
+        assert_eq!(app.selected, 0);
+        assert_eq!(app.scroll, 0);
+        assert_eq!(app.filtered_len(), 1);
+        assert_eq!(
+            app.selected_task().map(|task| task.id.as_str()),
+            Some("RQ-0001")
+        );
+    }
+
+    #[test]
     fn set_log_visible_lines_autoscrolls_to_bottom() {
         let mut app = App::new(QueueFile::default());
         app.logs = (0..50).map(|i| format!("line {}", i)).collect();
@@ -1003,5 +1297,158 @@ mod tests {
 
         assert_eq!(app.log_visible_lines, 20);
         assert_eq!(app.log_scroll, 30);
+    }
+
+    #[test]
+    fn parse_tags_splits_comma_separated() {
+        let tags = App::parse_tags("tui,ux,docs");
+        assert_eq!(tags, vec!["tui", "ux", "docs"]);
+    }
+
+    #[test]
+    fn parse_tags_splits_whitespace_separated() {
+        let tags = App::parse_tags("tui ux docs");
+        assert_eq!(tags, vec!["tui", "ux", "docs"]);
+    }
+
+    #[test]
+    fn parse_tags_handles_mixed_separators() {
+        let tags = App::parse_tags("tui, ux docs");
+        assert_eq!(tags, vec!["tui", "ux", "docs"]);
+    }
+
+    #[test]
+    fn parse_tags_trims_whitespace() {
+        let tags = App::parse_tags("  tui  ,  ux  ");
+        assert_eq!(tags, vec!["tui", "ux"]);
+    }
+
+    #[test]
+    fn parse_tags_filters_empty_tags() {
+        let tags = App::parse_tags("tui,,ux, ,docs");
+        assert_eq!(tags, vec!["tui", "ux", "docs"]);
+    }
+
+    #[test]
+    fn rebuild_filtered_view_preserves_selection_with_preferred_id() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![
+                make_test_task("RQ-0001", "Alpha", TaskStatus::Todo),
+                make_test_task("RQ-0002", "Beta", TaskStatus::Doing),
+                make_test_task("RQ-0003", "Gamma", TaskStatus::Todo),
+            ],
+        };
+        let mut app = App::new(queue);
+        app.selected = 1; // Select RQ-0002
+
+        // Filter to only Todo tasks - RQ-0002 should be filtered out
+        app.filters.statuses = vec![TaskStatus::Todo];
+        app.rebuild_filtered_view_with_preferred(Some("RQ-0002"));
+
+        // RQ-0002 is filtered out, so selection should clamp to first available
+        assert_eq!(app.filtered_len(), 2);
+        assert_eq!(app.selected, 0);
+    }
+
+    #[test]
+    fn rebuild_filtered_view_preserves_selection_when_task_still_visible() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![
+                make_test_task("RQ-0001", "Alpha", TaskStatus::Todo),
+                make_test_task("RQ-0002", "Beta", TaskStatus::Doing),
+                make_test_task("RQ-0003", "Gamma", TaskStatus::Todo),
+            ],
+        };
+        let mut app = App::new(queue);
+        app.selected = 1; // Select RQ-0002
+
+        // Change filter but keep RQ-0002 visible
+        app.filters.statuses = vec![TaskStatus::Doing];
+        app.rebuild_filtered_view_with_preferred(Some("RQ-0002"));
+
+        // RQ-0002 should still be selected
+        assert_eq!(app.filtered_len(), 1);
+        assert_eq!(app.selected, 0);
+        assert_eq!(app.selected_task().map(|t| t.id.as_str()), Some("RQ-0002"));
+    }
+
+    #[test]
+    fn cycle_status_preserves_selection() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![make_test_task("RQ-0001", "Task 1", TaskStatus::Todo)],
+        };
+        let mut app = App::new(queue);
+        app.selected = 0;
+
+        app.cycle_status("2026-01-19T00:00:00Z").unwrap();
+
+        // Selection should be preserved
+        assert_eq!(app.selected, 0);
+        assert_eq!(app.selected_task().map(|t| t.id.as_str()), Some("RQ-0001"));
+    }
+
+    #[test]
+    fn delete_task_preserves_selection_of_next_task() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![
+                make_test_task("RQ-0001", "Task 1", TaskStatus::Todo),
+                make_test_task("RQ-0002", "Task 2", TaskStatus::Todo),
+                make_test_task("RQ-0003", "Task 3", TaskStatus::Todo),
+            ],
+        };
+        let mut app = App::new(queue);
+        app.selected = 0; // Select RQ-0001
+
+        app.delete_selected_task().unwrap();
+
+        // Should select RQ-0002 (next task)
+        assert_eq!(app.selected, 0);
+        assert_eq!(app.selected_task().map(|t| t.id.as_str()), Some("RQ-0002"));
+    }
+
+    #[test]
+    fn delete_task_preserves_selection_of_previous_when_at_end() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![
+                make_test_task("RQ-0001", "Task 1", TaskStatus::Todo),
+                make_test_task("RQ-0002", "Task 2", TaskStatus::Todo),
+            ],
+        };
+        let mut app = App::new(queue);
+        app.selected = 1; // Select RQ-0002 (last task)
+
+        app.delete_selected_task().unwrap();
+
+        // Should select RQ-0001 (previous task)
+        assert_eq!(app.selected, 0);
+        assert_eq!(app.selected_task().map(|t| t.id.as_str()), Some("RQ-0001"));
+    }
+
+    #[test]
+    fn clear_filters_restores_full_list() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![
+                make_test_task("RQ-0001", "Alpha", TaskStatus::Todo),
+                make_test_task("RQ-0002", "Beta", TaskStatus::Doing),
+                make_test_task("RQ-0003", "Gamma", TaskStatus::Done),
+            ],
+        };
+        let mut app = App::new(queue);
+        app.set_search_query("Alpha".to_string());
+        app.set_tag_filters(vec!["test".to_string()]);
+        app.cycle_status_filter();
+
+        assert_eq!(app.filtered_len(), 1);
+
+        app.clear_filters();
+
+        assert_eq!(app.filtered_len(), 3);
+        assert_eq!(app.queue.tasks.len(), 3);
     }
 }

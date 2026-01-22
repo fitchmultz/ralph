@@ -36,6 +36,10 @@ pub enum AppMode {
     EditingTitle(String),
     /// Creating a new task (title input)
     CreatingTask(String),
+    /// Searching tasks (query input)
+    Searching(String),
+    /// Filtering tasks by tag list (comma-separated input)
+    FilteringTags(String),
     /// Confirming task deletion
     ConfirmDelete,
     /// Confirming quit while a task is running
@@ -57,6 +61,8 @@ pub fn handle_key_event(app: &mut App, key: KeyCode, now_rfc3339: &str) -> Resul
         AppMode::CreatingTask(ref current) => {
             handle_creating_mode_key(app, key, current, now_rfc3339)
         }
+        AppMode::Searching(ref current) => handle_searching_mode_key(app, key, current),
+        AppMode::FilteringTags(ref current) => handle_filtering_tags_key(app, key, current),
         AppMode::ConfirmDelete => handle_confirm_delete_key(app, key),
         AppMode::ConfirmQuit => handle_confirm_quit_key(app, key),
         AppMode::Executing { .. } => handle_executing_mode_key(app, key),
@@ -112,6 +118,22 @@ fn handle_normal_mode_key(app: &mut App, key: KeyCode, now_rfc3339: &str) -> Res
         }
         KeyCode::Char('n') => {
             app.mode = AppMode::CreatingTask(String::new());
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Char('/') => {
+            app.mode = AppMode::Searching(app.filters.query.clone());
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Char('t') => {
+            app.mode = AppMode::FilteringTags(app.filters.tags.join(","));
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Char('f') => {
+            app.cycle_status_filter();
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Char('x') => {
+            app.clear_filters();
             Ok(TuiAction::Continue)
         }
         KeyCode::Char('s') => {
@@ -196,6 +218,63 @@ fn handle_creating_mode_key(
             let mut new_title = current.to_string();
             new_title.pop();
             app.mode = AppMode::CreatingTask(new_title);
+            Ok(TuiAction::Continue)
+        }
+        _ => Ok(TuiAction::Continue),
+    }
+}
+
+/// Handle key events in Searching mode.
+fn handle_searching_mode_key(app: &mut App, key: KeyCode, current: &str) -> Result<TuiAction> {
+    match key {
+        KeyCode::Enter => {
+            app.set_search_query(current.to_string());
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Esc => {
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Char(c) => {
+            let mut next = current.to_string();
+            next.push(c);
+            app.mode = AppMode::Searching(next);
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Backspace => {
+            let mut next = current.to_string();
+            next.pop();
+            app.mode = AppMode::Searching(next);
+            Ok(TuiAction::Continue)
+        }
+        _ => Ok(TuiAction::Continue),
+    }
+}
+
+/// Handle key events in FilteringTags mode.
+fn handle_filtering_tags_key(app: &mut App, key: KeyCode, current: &str) -> Result<TuiAction> {
+    match key {
+        KeyCode::Enter => {
+            let tags = App::parse_tags(current);
+            app.set_tag_filters(tags);
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Esc => {
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Char(c) => {
+            let mut next = current.to_string();
+            next.push(c);
+            app.mode = AppMode::FilteringTags(next);
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Backspace => {
+            let mut next = current.to_string();
+            next.pop();
+            app.mode = AppMode::FilteringTags(next);
             Ok(TuiAction::Continue)
         }
         _ => Ok(TuiAction::Continue),
@@ -511,6 +590,91 @@ mod tests {
 
         assert_eq!(action, TuiAction::Continue);
         assert_eq!(app.mode, AppMode::CreatingTask(String::new()));
+    }
+
+    #[test]
+    fn search_key_enters_search_mode() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![make_test_task("RQ-0001")],
+        };
+        let mut app = App::new(queue);
+
+        let action = handle_key_event(&mut app, KeyCode::Char('/'), "2026-01-20T12:00:00Z")
+            .expect("handle key");
+
+        assert_eq!(action, TuiAction::Continue);
+        assert_eq!(app.mode, AppMode::Searching(String::new()));
+    }
+
+    #[test]
+    fn tag_filter_key_enters_filter_mode_with_existing_tags() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![make_test_task("RQ-0001")],
+        };
+        let mut app = App::new(queue);
+        app.filters.tags = vec!["tui".to_string(), "ux".to_string()];
+
+        let action = handle_key_event(&mut app, KeyCode::Char('t'), "2026-01-20T12:00:00Z")
+            .expect("handle key");
+
+        assert_eq!(action, TuiAction::Continue);
+        assert_eq!(app.mode, AppMode::FilteringTags("tui,ux".to_string()));
+    }
+
+    #[test]
+    fn clear_filters_key_resets_filters() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![make_test_task("RQ-0001")],
+        };
+        let mut app = App::new(queue);
+        app.set_search_query("task".to_string());
+        app.set_tag_filters(vec!["tui".to_string()]);
+        app.cycle_status_filter();
+
+        let action = handle_key_event(&mut app, KeyCode::Char('x'), "2026-01-20T12:00:00Z")
+            .expect("handle key");
+
+        assert_eq!(action, TuiAction::Continue);
+        assert!(app.filters.query.is_empty());
+        assert!(app.filters.tags.is_empty());
+        assert!(app.filters.statuses.is_empty());
+    }
+
+    #[test]
+    fn search_mode_enter_applies_query() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![make_test_task("RQ-0001")],
+        };
+        let mut app = App::new(queue);
+        app.mode = AppMode::Searching("login".to_string());
+
+        let action =
+            handle_key_event(&mut app, KeyCode::Enter, "2026-01-20T12:00:00Z").expect("handle key");
+
+        assert_eq!(action, TuiAction::Continue);
+        assert_eq!(app.filters.query, "login");
+        assert_eq!(app.mode, AppMode::Normal);
+    }
+
+    #[test]
+    fn tag_filter_mode_enter_applies_tags() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![make_test_task("RQ-0001")],
+        };
+        let mut app = App::new(queue);
+        app.mode = AppMode::FilteringTags("tui, ux".to_string());
+
+        let action =
+            handle_key_event(&mut app, KeyCode::Enter, "2026-01-20T12:00:00Z").expect("handle key");
+
+        assert_eq!(action, TuiAction::Continue);
+        assert_eq!(app.filters.tags, vec!["tui".to_string(), "ux".to_string()]);
+        assert_eq!(app.mode, AppMode::Normal);
     }
 
     #[test]
