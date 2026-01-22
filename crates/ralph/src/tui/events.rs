@@ -111,6 +111,12 @@ fn handle_normal_mode_key(app: &mut App, key: KeyCode, now_rfc3339: &str) -> Res
             }
             Ok(TuiAction::Continue)
         }
+        KeyCode::Char('p') => {
+            if let Err(e) = app.cycle_priority(now_rfc3339) {
+                app.logs.push(format!("Error: {}", e));
+            }
+            Ok(TuiAction::Continue)
+        }
         KeyCode::Char('r') => Ok(TuiAction::ReloadQueue),
         _ => Ok(TuiAction::Continue),
     }
@@ -412,5 +418,40 @@ mod tests {
 
         assert_eq!(action, TuiAction::ReloadQueue);
         assert_eq!(app.mode, AppMode::Normal);
+    }
+
+    #[test]
+    fn priority_key_cycles_selected_task() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![make_test_task("RQ-0001")],
+        };
+        let mut app = App::new(queue);
+
+        let action = handle_key_event(&mut app, KeyCode::Char('p'), "2026-01-20T12:00:00Z")
+            .expect("handle key");
+
+        assert_eq!(action, TuiAction::Continue);
+        assert_eq!(app.queue.tasks[0].priority, TaskPriority::High);
+        assert_eq!(
+            app.queue.tasks[0].updated_at,
+            Some("2026-01-20T12:00:00Z".to_string())
+        );
+    }
+
+    #[test]
+    fn priority_key_logs_error_without_selection() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![],
+        };
+        let mut app = App::new(queue);
+
+        let action = handle_key_event(&mut app, KeyCode::Char('p'), "2026-01-20T12:00:00Z")
+            .expect("handle key");
+
+        assert_eq!(action, TuiAction::Continue);
+        assert_eq!(app.logs.len(), 1);
+        assert!(app.logs[0].contains("No task selected"));
     }
 }

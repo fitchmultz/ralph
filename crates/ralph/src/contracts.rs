@@ -395,6 +395,16 @@ impl TaskPriority {
             TaskPriority::Low => 0,
         }
     }
+
+    /// Cycle to the next priority in ascending order, wrapping after Critical.
+    pub fn cycle(self) -> Self {
+        match self {
+            TaskPriority::Low => TaskPriority::Medium,
+            TaskPriority::Medium => TaskPriority::High,
+            TaskPriority::High => TaskPriority::Critical,
+            TaskPriority::Critical => TaskPriority::Low,
+        }
+    }
 }
 
 impl std::fmt::Display for TaskPriority {
@@ -475,7 +485,7 @@ impl Default for Config {
 
 #[cfg(test)]
 mod tests {
-    use super::GitRevertMode;
+    use super::{GitRevertMode, TaskPriority};
 
     #[test]
     fn git_revert_mode_parses_snake_case() {
@@ -491,5 +501,13 @@ mod tests {
     fn git_revert_mode_from_str_rejects_invalid() {
         let err = "wat".parse::<GitRevertMode>().expect_err("invalid");
         assert!(err.contains("git_revert_mode"));
+    }
+
+    #[test]
+    fn task_priority_cycle_wraps_through_all_values() {
+        assert_eq!(TaskPriority::Low.cycle(), TaskPriority::Medium);
+        assert_eq!(TaskPriority::Medium.cycle(), TaskPriority::High);
+        assert_eq!(TaskPriority::High.cycle(), TaskPriority::Critical);
+        assert_eq!(TaskPriority::Critical.cycle(), TaskPriority::Low);
     }
 }

@@ -2,36 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0223",
-      "status": "todo",
-      "title": "Add priority editing in TUI (cycle or picker)",
-      "priority": "medium",
-      "tags": [
-        "tui",
-        "ux"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/events.rs",
-        "crates/ralph/src/tui/mod.rs",
-        "crates/ralph/src/contracts.rs"
-      ],
-      "evidence": [
-        "`crates/ralph/src/tui/events.rs` does not expose any keybinding to change `TaskPriority` even though the UI renders it.",
-        "`App` methods only update status/title/delete; no priority mutation exists in `crates/ralph/src/tui/mod.rs`."
-      ],
-      "plan": [
-        "Add an `App` method to cycle or set `TaskPriority` with timestamp updates.",
-        "Wire a Normal-mode keybinding (e.g., `p`) and update footer help.",
-        "Add tests to verify priority updates and timestamp behavior."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-22T02:50:11Z",
-      "updated_at": "2026-01-22T02:50:11Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0224",
       "status": "todo",
       "title": "Add TUI flow to create new tasks without leaving the UI",

@@ -11,6 +11,7 @@
 //! - `d`: Delete task (with confirmation)
 //! - `e`: Edit task title
 //! - `s`: Cycle status (Draft → Todo → Doing → Done → Rejected → Draft)
+//! - `p`: Cycle priority (Low → Medium → High → Critical → Low)
 //! - `r`: Reload queue from disk
 //! - Executing view: `↑`/`↓`/`j`/`k` scroll, `PgUp`/`PgDn` page, `a` toggles auto-scroll
 
@@ -140,6 +141,20 @@ impl App {
             }
         }
 
+        self.dirty = true;
+        Ok(())
+    }
+
+    /// Cycle the priority of the selected task.
+    pub fn cycle_priority(&mut self, now_rfc3339: &str) -> Result<()> {
+        let task = self
+            .queue
+            .tasks
+            .get_mut(self.selected)
+            .ok_or_else(|| anyhow!("No task selected"))?;
+
+        task.priority = task.priority.cycle();
+        task.updated_at = Some(now_rfc3339.to_string());
         self.dirty = true;
         Ok(())
     }
@@ -559,6 +574,46 @@ mod tests {
 
         app.cycle_status("2026-01-19T00:00:00Z").unwrap();
         assert_eq!(app.queue.tasks[0].status, TaskStatus::Draft);
+    }
+
+    #[test]
+    fn app_cycle_priority_cycles_correctly_and_updates_timestamp() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![make_test_task("RQ-0001", "Task 1", TaskStatus::Todo)],
+        };
+        let mut app = App::new(queue);
+
+        app.cycle_priority("2026-01-20T12:00:00Z").unwrap();
+        assert_eq!(app.queue.tasks[0].priority, TaskPriority::High);
+        assert_eq!(
+            app.queue.tasks[0].updated_at,
+            Some("2026-01-20T12:00:00Z".to_string())
+        );
+        assert!(app.dirty);
+
+        app.cycle_priority("2026-01-20T12:00:01Z").unwrap();
+        assert_eq!(app.queue.tasks[0].priority, TaskPriority::Critical);
+
+        app.cycle_priority("2026-01-20T12:00:02Z").unwrap();
+        assert_eq!(app.queue.tasks[0].priority, TaskPriority::Low);
+
+        app.cycle_priority("2026-01-20T12:00:03Z").unwrap();
+        assert_eq!(app.queue.tasks[0].priority, TaskPriority::Medium);
+    }
+
+    #[test]
+    fn app_cycle_priority_errors_when_no_task_selected() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![],
+        };
+        let mut app = App::new(queue);
+
+        let err = app
+            .cycle_priority("2026-01-20T12:00:00Z")
+            .expect_err("expected no task selected error");
+        assert!(err.to_string().contains("No task selected"));
     }
 
     #[test]

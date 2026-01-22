@@ -552,6 +552,8 @@ fn help_footer_spans(app: &App) -> Vec<Span<'static>> {
             Span::raw(":edit "),
             Span::styled("s", Style::default().add_modifier(Modifier::BOLD)),
             Span::raw(":status "),
+            Span::styled("p", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(":priority "),
             Span::styled("r", Style::default().add_modifier(Modifier::BOLD)),
             Span::raw(":refresh"),
         ],
