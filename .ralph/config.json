@@ -8,15 +8,15 @@
     "id_width": 4
   },
   "agent": {
-    "runner": "codex",
-    "model": "gpt-5.2-codex",
+    "runner": "gemini",
+    "model": "gemini-3-flash-preview",
     "reasoning_effort": "low",
     "codex_bin": "codex",
     "opencode_bin": "opencode",
     "gemini_bin": "gemini",
     "claude_bin": "claude",
     "claude_permission_mode": "bypass_permissions",
-    "require_repoprompt": false,
+    "require_repoprompt": true,
     "git_revert_mode": "ask",
     "phases": 3
   }
