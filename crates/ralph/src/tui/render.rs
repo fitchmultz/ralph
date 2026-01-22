@@ -42,9 +42,11 @@ pub fn draw_ui(f: &mut Frame<'_>, app: &mut App) {
     // Right panel: task details
     draw_task_details(f, app, chunks[1]);
 
-    // Draw confirmation dialog if in ConfirmDelete mode
+    // Draw confirmation dialog if in ConfirmDelete or ConfirmQuit mode
     if app.mode == AppMode::ConfirmDelete {
-        draw_confirm_dialog(f, size);
+        draw_confirm_dialog(f, size, "Delete this task?", "(y/n)");
+    } else if app.mode == AppMode::ConfirmQuit {
+        draw_confirm_dialog(f, size, "Task still running. Quit?", "(y/n)");
     }
 }
 
@@ -480,7 +482,7 @@ fn draw_task_details(f: &mut Frame<'_>, app: &mut App, area: Rect) {
 }
 
 /// Draw the confirmation dialog for task deletion.
-fn draw_confirm_dialog(f: &mut Frame<'_>, area: Rect) {
+fn draw_confirm_dialog(f: &mut Frame<'_>, area: Rect, message: &str, hint: &str) {
     let popup_width = 40.min(area.width.saturating_sub(4));
     let popup_height = 6;
 
@@ -496,11 +498,9 @@ fn draw_confirm_dialog(f: &mut Frame<'_>, area: Rect) {
     let popup = Paragraph::new(vec![
         Line::from(""),
         Line::from(vec![
-            Span::styled(
-                "Delete this task? ",
-                Style::default().add_modifier(Modifier::BOLD),
-            ),
-            Span::styled("(y/n)", Style::default().fg(Color::Yellow)),
+            Span::styled(message, Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(" "),
+            Span::styled(hint, Style::default().fg(Color::Yellow)),
         ]),
         Line::from(""),
     ])
@@ -563,6 +563,14 @@ fn help_footer_spans(app: &App) -> Vec<Span<'static>> {
             Span::raw(":yes "),
             Span::styled("n", Style::default().add_modifier(Modifier::BOLD)),
             Span::raw(":no "),
+            Span::styled("Esc", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(":cancel"),
+        ],
+        AppMode::ConfirmQuit => vec![
+            Span::styled("y", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(":quit "),
+            Span::styled("n", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(":stay "),
             Span::styled("Esc", Style::default().add_modifier(Modifier::BOLD)),
             Span::raw(":cancel"),
         ],

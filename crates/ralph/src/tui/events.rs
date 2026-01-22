@@ -34,6 +34,8 @@ pub enum AppMode {
     EditingTitle(String),
     /// Confirming task deletion
     ConfirmDelete,
+    /// Confirming quit while a task is running
+    ConfirmQuit,
     /// Executing a task (live output view)
     Executing { task_id: String },
 }
@@ -49,6 +51,7 @@ pub fn handle_key_event(app: &mut App, key: KeyCode, now_rfc3339: &str) -> Resul
             handle_editing_mode_key(app, key, current, now_rfc3339)
         }
         AppMode::ConfirmDelete => handle_confirm_delete_key(app, key),
+        AppMode::ConfirmQuit => handle_confirm_quit_key(app, key),
         AppMode::Executing { .. } => handle_executing_mode_key(app, key),
     }
 }
@@ -56,7 +59,14 @@ pub fn handle_key_event(app: &mut App, key: KeyCode, now_rfc3339: &str) -> Resul
 /// Handle key events in Normal mode.
 fn handle_normal_mode_key(app: &mut App, key: KeyCode, now_rfc3339: &str) -> Result<TuiAction> {
     match key {
-        KeyCode::Char('q') | KeyCode::Esc => Ok(TuiAction::Quit),
+        KeyCode::Char('q') | KeyCode::Esc => {
+            if app.runner_active {
+                app.mode = AppMode::ConfirmQuit;
+                Ok(TuiAction::Continue)
+            } else {
+                Ok(TuiAction::Quit)
+            }
+        }
         KeyCode::Up | KeyCode::Char('k') => {
             app.move_up();
             Ok(TuiAction::Continue)
@@ -74,6 +84,7 @@ fn handle_normal_mode_key(app: &mut App, key: KeyCode, now_rfc3339: &str) -> Res
                 };
                 app.logs.clear();
                 app.log_scroll = 0;
+                app.runner_active = true;
                 Ok(TuiAction::RunTask(task_id))
             } else {
                 Ok(TuiAction::Continue)
@@ -156,6 +167,18 @@ fn handle_confirm_delete_key(app: &mut App, key: KeyCode) -> Result<TuiAction> {
     }
 }
 
+/// Handle key events in ConfirmQuit mode.
+fn handle_confirm_quit_key(app: &mut App, key: KeyCode) -> Result<TuiAction> {
+    match key {
+        KeyCode::Char('y') | KeyCode::Char('Y') => Ok(TuiAction::Quit),
+        KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        _ => Ok(TuiAction::Continue),
+    }
+}
+
 /// Handle key events in Executing mode.
 fn handle_executing_mode_key(app: &mut App, key: KeyCode) -> Result<TuiAction> {
     match key {
@@ -164,5 +187,115 @@ fn handle_executing_mode_key(app: &mut App, key: KeyCode) -> Result<TuiAction> {
             Ok(TuiAction::Continue)
         }
         _ => Ok(TuiAction::Continue),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::contracts::{QueueFile, Task, TaskPriority, TaskStatus};
+
+    fn make_test_task(id: &str) -> Task {
+        Task {
+            id: id.to_string(),
+            title: "Test task".to_string(),
+            status: TaskStatus::Todo,
+            priority: TaskPriority::Medium,
+            tags: vec![],
+            scope: vec![],
+            evidence: vec![],
+            plan: vec![],
+            notes: vec![],
+            request: None,
+            agent: None,
+            created_at: Some("2026-01-19T00:00:00Z".to_string()),
+            updated_at: Some("2026-01-19T00:00:00Z".to_string()),
+            completed_at: None,
+            depends_on: vec![],
+            custom_fields: std::collections::HashMap::new(),
+        }
+    }
+
+    #[test]
+    fn quit_when_not_running_exits_immediately() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![make_test_task("RQ-0001")],
+        };
+        let mut app = App::new(queue);
+
+        let action = handle_key_event(&mut app, KeyCode::Char('q'), "2026-01-19T00:00:00Z")
+            .expect("handle key");
+
+        assert_eq!(action, TuiAction::Quit);
+        assert_eq!(app.mode, AppMode::Normal);
+    }
+
+    #[test]
+    fn quit_when_running_requires_confirmation() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![make_test_task("RQ-0001")],
+        };
+        let mut app = App::new(queue);
+        app.runner_active = true;
+
+        let action = handle_key_event(&mut app, KeyCode::Char('q'), "2026-01-19T00:00:00Z")
+            .expect("handle key");
+
+        assert_eq!(action, TuiAction::Continue);
+        assert_eq!(app.mode, AppMode::ConfirmQuit);
+    }
+
+    #[test]
+    fn confirm_quit_accepts_yes() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![make_test_task("RQ-0001")],
+        };
+        let mut app = App::new(queue);
+        app.mode = AppMode::ConfirmQuit;
+
+        let action = handle_key_event(&mut app, KeyCode::Char('y'), "2026-01-19T00:00:00Z")
+            .expect("handle key");
+
+        assert_eq!(action, TuiAction::Quit);
+    }
+
+    #[test]
+    fn confirm_quit_cancels_on_no() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![make_test_task("RQ-0001")],
+        };
+        let mut app = App::new(queue);
+        app.mode = AppMode::ConfirmQuit;
+
+        let action = handle_key_event(&mut app, KeyCode::Char('n'), "2026-01-19T00:00:00Z")
+            .expect("handle key");
+
+        assert_eq!(action, TuiAction::Continue);
+        assert_eq!(app.mode, AppMode::Normal);
+    }
+
+    #[test]
+    fn run_task_sets_runner_active() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![make_test_task("RQ-0001")],
+        };
+        let mut app = App::new(queue);
+
+        let action =
+            handle_key_event(&mut app, KeyCode::Enter, "2026-01-19T00:00:00Z").expect("handle key");
+
+        assert_eq!(action, TuiAction::RunTask("RQ-0001".to_string()));
+        assert!(app.runner_active);
+        assert_eq!(
+            app.mode,
+            AppMode::Executing {
+                task_id: "RQ-0001".to_string()
+            }
+        );
     }
 }

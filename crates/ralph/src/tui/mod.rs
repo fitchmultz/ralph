@@ -5,7 +5,7 @@
 //! - Right panel: detailed view of the selected task
 //!
 //! Key bindings:
-//! - `q` / `Esc`: Quit
+//! - `q` / `Esc`: Quit (prompts if a task is still running)
 //! - `Up` / `Down` / `j` / `k`: Navigate task list
 //! - `Enter`: Execute task (suspends TUI, runs task, restores)
 //! - `d`: Delete task (with confirmation)
@@ -57,6 +57,8 @@ pub struct App {
     pub autoscroll: bool,
     /// Height of the task list (for scrolling calculation)
     pub list_height: usize,
+    /// Whether a runner thread is currently executing a task.
+    pub runner_active: bool,
 }
 
 impl App {
@@ -74,6 +76,7 @@ impl App {
             log_scroll: 0,
             autoscroll: true,
             list_height: 20,
+            runner_active: false,
         }
     }
 
@@ -279,6 +282,7 @@ where
                         }
                     }
                     RunnerEvent::Finished => {
+                        app_ref.runner_active = false;
                         // Reload queue to capture any changes made by the runner (or agents)
                         match queue::load_queue(queue_path) {
                             Ok(new_queue) => {
@@ -297,14 +301,21 @@ where
                             }
                         }
 
-                        // Restore normal mode
-                        if let AppMode::Executing { .. } = &app_ref.mode {
+                        // Restore normal mode if we were in a runner-related view
+                        if matches!(
+                            &app_ref.mode,
+                            AppMode::Executing { .. } | AppMode::ConfirmQuit
+                        ) {
                             app_ref.mode = AppMode::Normal;
                         }
                     }
                     RunnerEvent::Error(msg) => {
+                        app_ref.runner_active = false;
                         app_ref.logs.push(format!("ERROR: {}", msg));
-                        if let AppMode::Executing { .. } = &app_ref.mode {
+                        if matches!(
+                            &app_ref.mode,
+                            AppMode::Executing { .. } | AppMode::ConfirmQuit
+                        ) {
                             app_ref.mode = AppMode::Normal;
                         }
                     }
@@ -430,6 +441,7 @@ mod tests {
         assert_eq!(app.mode, AppMode::Normal);
         assert_eq!(app.scroll, 0);
         assert!(!app.dirty);
+        assert!(!app.runner_active);
     }
 
     #[test]
@@ -444,6 +456,7 @@ mod tests {
         let app = App::new(queue);
         assert_eq!(app.selected, 0);
         assert_eq!(app.queue.tasks.len(), 2);
+        assert!(!app.runner_active);
     }
 
     #[test]

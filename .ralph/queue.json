@@ -2,36 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0219",
-      "status": "todo",
-      "title": "Block or confirm quit while a task is executing in TUI",
-      "priority": "high",
-      "tags": [
-        "tui",
-        "ux",
-        "safety"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/mod.rs",
-        "crates/ralph/src/tui/events.rs"
-      ],
-      "evidence": [
-        "`crates/ralph/src/tui/mod.rs` spawns a runner thread on `RunTask` but does not track or join it when quitting.",
-        "`crates/ralph/src/tui/events.rs` only blocks quit in Executing mode; after Esc returns to Normal, `q` exits without warning even if a task is still running."
-      ],
-      "plan": [
-        "Track whether a runner thread is active and expose that in app state.",
-        "Require confirmation or block quitting while a task is executing.",
-        "Add tests for quit behavior when a task is active."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-22T02:50:11Z",
-      "updated_at": "2026-01-22T02:50:11Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0220",
       "status": "todo",
       "title": "Add log scrolling controls and autoscroll toggle in Executing view",

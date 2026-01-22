@@ -282,6 +282,18 @@ fn test_render_confirm_delete_dialog() {
 }
 
 #[test]
+fn test_render_confirm_quit_dialog() {
+    let queue = make_test_queue();
+    let mut app = App::new(queue);
+    app.mode = AppMode::ConfirmQuit;
+    let mut terminal = setup_test_terminal(80, 24);
+
+    let output = get_rendered_output(&mut terminal, &mut app);
+    assert!(output.contains("Task still running. Quit?"));
+    assert!(output.contains("(y/n)"));
+}
+
+#[test]
 fn test_render_executing_mode_shows_task_id() {
     let queue = make_test_queue();
     let mut app = App::new(queue);
@@ -416,6 +428,19 @@ fn test_render_help_footer_confirm_delete_mode() {
     let output = get_rendered_output(&mut terminal, &mut app);
     assert!(output.contains("y:yes"));
     assert!(output.contains("n:no"));
+    assert!(output.contains("Esc:cancel"));
+}
+
+#[test]
+fn test_render_help_footer_confirm_quit_mode() {
+    let queue = make_test_queue();
+    let mut app = App::new(queue);
+    app.mode = AppMode::ConfirmQuit;
+    let mut terminal = setup_test_terminal(80, 24);
+
+    let output = get_rendered_output(&mut terminal, &mut app);
+    assert!(output.contains("y:quit"));
+    assert!(output.contains("n:stay"));
     assert!(output.contains("Esc:cancel"));
 }
 
