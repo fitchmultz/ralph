@@ -2,6 +2,97 @@
   "version": 1,
   "tasks": [
     {
+      "id": "RQ-0233",
+      "status": "todo",
+      "title": "Enable editing ralph config from the TUI",
+      "priority": "medium",
+      "tags": [
+        "tui",
+        "config",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/src/tui",
+        "crates/ralph/src/config",
+        "crates/ralph/src/commands"
+      ],
+      "evidence": [
+        "User request: \"Enable modifying the ralph config via the TUI\""
+      ],
+      "plan": [
+        "Review current TUI actions and config load/save paths to confirm how config is surfaced today.",
+        "Design a TUI flow for viewing and editing config fields with validation and clear save/cancel behavior.",
+        "Wire the edit flow to persist changes to the project config file and surface errors in the TUI.",
+        "Add tests covering success and failure paths for config edits via the TUI."
+      ],
+      "notes": [],
+      "request": "Enable modifying the ralph config via the TUI",
+      "created_at": "2026-01-22T16:24:34Z",
+      "updated_at": "2026-01-22T16:24:34Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0232",
+      "status": "todo",
+      "title": "Enable full task field editing in the TUI",
+      "priority": "high",
+      "tags": [
+        "tui",
+        "tasks",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/src/tui",
+        "crates/ralph/src/commands"
+      ],
+      "evidence": [
+        "User request: \"Enhance the task edit functionality to allow editing all fields of the task. Currently only the title can be edited after hitting the 'e' key\""
+      ],
+      "plan": [
+        "Review the current TUI edit flow and task model to identify which fields are editable and where changes are persisted.",
+        "Extend the edit UI and validation to support editing all task fields (status, priority, tags, scope, evidence, plan, request, notes, and custom fields as applicable), ensuring consistent input handling.",
+        "Update the task update command/path to persist the expanded edits and handle failure cases cleanly.",
+        "Add tests covering the new edit behavior, including validation errors and successful updates across fields."
+      ],
+      "notes": [],
+      "request": "Enhance the task edit functionality to allow editing all fields of the task. Currently only the title can be edited after hitting the 'e' key",
+      "created_at": "2026-01-22T16:23:30Z",
+      "updated_at": "2026-01-22T16:23:30Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0231",
+      "status": "todo",
+      "title": "Add ralph scan support in the TUI",
+      "priority": "medium",
+      "tags": [
+        "tui",
+        "scan",
+        "cli"
+      ],
+      "scope": [
+        "crates/ralph/src/tui",
+        "crates/ralph/src/cli",
+        "crates/ralph/src/commands"
+      ],
+      "evidence": [
+        "User request: \"Add 'ralph scan' support to the ralph tui\""
+      ],
+      "plan": [
+        "Review current TUI entrypoints and command wiring to identify where scan actions should live.",
+        "Implement TUI flow to configure and trigger `ralph scan` from within the interface.",
+        "Add tests covering the new TUI scan action, including failure modes and validation."
+      ],
+      "notes": [],
+      "request": "Add 'ralph scan' support to the ralph tui",
+      "created_at": "2026-01-22T16:20:33Z",
+      "updated_at": "2026-01-22T16:20:33Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
       "id": "RQ-0226",
       "status": "draft",
       "title": "Add in-TUI help overlay for keybindings",
