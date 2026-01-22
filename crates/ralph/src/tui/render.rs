@@ -83,7 +83,7 @@ fn draw_execution_view(f: &mut Frame<'_>, app: &mut App, area: Rect) {
 
     // Calculate visible log lines
     let visible_height = inner.height.saturating_sub(2) as usize; // Leave room for borders
-    app.log_visible_lines = visible_height.max(1);
+    app.set_log_visible_lines(visible_height);
     let log_count = app.logs.len();
     let start_idx = if app.log_scroll + visible_height > log_count {
         log_count.saturating_sub(visible_height)

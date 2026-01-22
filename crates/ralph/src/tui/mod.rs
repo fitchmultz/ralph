@@ -184,6 +184,15 @@ impl App {
         self.log_visible_lines.max(1)
     }
 
+    fn set_log_visible_lines(&mut self, visible_lines: usize) {
+        let visible_lines = visible_lines.max(1);
+        self.log_visible_lines = visible_lines;
+        let max_scroll = self.max_log_scroll(visible_lines);
+        if self.autoscroll || self.log_scroll > max_scroll {
+            self.log_scroll = max_scroll;
+        }
+    }
+
     fn max_log_scroll(&self, visible_lines: usize) -> usize {
         self.logs.len().saturating_sub(visible_lines)
     }
@@ -728,5 +737,31 @@ mod tests {
         assert!(!app.dirty);
         assert!(app.save_error.is_none());
         Ok(())
+    }
+
+    #[test]
+    fn set_log_visible_lines_autoscrolls_to_bottom() {
+        let mut app = App::new(QueueFile::default());
+        app.logs = (0..50).map(|i| format!("line {}", i)).collect();
+        app.autoscroll = true;
+        app.log_scroll = 0;
+
+        app.set_log_visible_lines(5);
+
+        assert_eq!(app.log_visible_lines, 5);
+        assert_eq!(app.log_scroll, 45);
+    }
+
+    #[test]
+    fn set_log_visible_lines_clamps_scroll_when_out_of_bounds() {
+        let mut app = App::new(QueueFile::default());
+        app.logs = (0..50).map(|i| format!("line {}", i)).collect();
+        app.autoscroll = false;
+        app.log_scroll = 40;
+
+        app.set_log_visible_lines(20);
+
+        assert_eq!(app.log_visible_lines, 20);
+        assert_eq!(app.log_scroll, 30);
     }
 }

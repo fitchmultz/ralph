@@ -2675,6 +2675,39 @@
       "completed_at": "2026-01-22T04:32:29.567859000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0221",
+      "status": "done",
+      "title": "Use actual viewport height for log autoscroll calculations",
+      "priority": "medium",
+      "tags": [
+        "tui",
+        "ux",
+        "logs"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/mod.rs",
+        "crates/ralph/src/tui/render.rs"
+      ],
+      "evidence": [
+        "`crates/ralph/src/tui/mod.rs` hardcodes `visible_lines = 20` when adjusting log autoscroll, ignoring real terminal size."
+      ],
+      "plan": [
+        "Track the execution view height in app state during rendering.",
+        "Use that height for log autoscroll and scroll bounds calculations.",
+        "Add tests to ensure log scrolling respects viewport size."
+      ],
+      "notes": [
+        "Use render viewport height to update log visible lines and autoscroll bounds.",
+        "Add App tests covering log visible line updates and scroll clamping."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-22T02:50:11Z",
+      "updated_at": "2026-01-22T04:41:05.402699000Z",
+      "completed_at": "2026-01-22T04:41:05.402699000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

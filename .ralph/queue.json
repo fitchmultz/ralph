@@ -2,35 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0221",
-      "status": "todo",
-      "title": "Use actual viewport height for log autoscroll calculations",
-      "priority": "medium",
-      "tags": [
-        "tui",
-        "ux",
-        "logs"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/mod.rs",
-        "crates/ralph/src/tui/render.rs"
-      ],
-      "evidence": [
-        "`crates/ralph/src/tui/mod.rs` hardcodes `visible_lines = 20` when adjusting log autoscroll, ignoring real terminal size."
-      ],
-      "plan": [
-        "Track the execution view height in app state during rendering.",
-        "Use that height for log autoscroll and scroll bounds calculations.",
-        "Add tests to ensure log scrolling respects viewport size."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-22T02:50:11Z",
-      "updated_at": "2026-01-22T02:50:11Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0222",
       "status": "todo",
       "title": "Add manual refresh key to reload queue from disk",
