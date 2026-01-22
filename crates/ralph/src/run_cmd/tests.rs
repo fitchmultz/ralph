@@ -30,6 +30,8 @@ fn resolved_with_agent_defaults(
             phases: Some(2),
             claude_permission_mode: Some(ClaudePermissionMode::BypassPermissions),
             require_repoprompt: None,
+            ci_gate_command: Some("make ci".to_string()),
+            ci_gate_enabled: Some(true),
             git_revert_mode: Some(GitRevertMode::Ask),
         },
         queue: QueueConfig {
@@ -87,6 +89,8 @@ fn resolved_with_repo_root(repo_root: PathBuf) -> crate::config::Resolved {
             phases: Some(3),
             claude_permission_mode: Some(ClaudePermissionMode::BypassPermissions),
             require_repoprompt: None,
+            ci_gate_command: Some("make ci".to_string()),
+            ci_gate_enabled: Some(true),
             git_revert_mode: Some(GitRevertMode::Ask),
         },
         queue: QueueConfig {

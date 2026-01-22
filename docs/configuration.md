@@ -25,6 +25,8 @@ Supported fields:
 - `reasoning_effort`: `minimal`, `low`, `medium`, `high` (Codex only).
 - `require_repoprompt`: `true` or `false`.
 - `git_revert_mode`: `ask`, `enabled`, or `disabled`.
+- `ci_gate_command`: command to run for the CI gate (default: `make ci`).
+- `ci_gate_enabled`: enable or disable the CI gate (default: `true`).
 - `claude_bin`, `codex_bin`, `opencode_bin`, `gemini_bin`: override runner executable path/name.
 - `claude_permission_mode`: `accept_edits` or `bypass_permissions`.
 
@@ -38,7 +40,18 @@ Example:
     "phases": 3,
     "require_repoprompt": false,
     "git_revert_mode": "ask",
-    "claude_permission_mode": "bypass_permissions"
+    "claude_permission_mode": "bypass_permissions",
+    "ci_gate_command": "make ci",
+    "ci_gate_enabled": true
+  }
+}
+```
+
+To disable CI gating entirely (skip running any command), set:
+```json
+{
+  "agent": {
+    "ci_gate_enabled": false
   }
 }
 ```

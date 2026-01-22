@@ -9,7 +9,7 @@ When implementation is complete, you MUST:
    - Do NOT set `blocked`.
 3. Do NOT manually edit `.ralph/queue.json` or `.ralph/done.json` to complete tasks, and do not run `ralph queue archive` for single-task completion.
 4. Ensure `.ralph/queue.json` remains valid JSON and respects the queue contract.
-5. Run `make ci` and fix all failures before ending your turn.
+5. If the CI gate is enabled ({{config.agent.ci_gate_enabled}}), run `{{config.agent.ci_gate_command}}` and fix all failures before ending your turn.
 6. Git hygiene:
    - Do NOT commit or push until `ralph task done` succeeds.
    - Commit ALL changes (including `.ralph/queue.json`) with `RQ-####: <short summary>`.

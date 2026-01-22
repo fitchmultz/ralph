@@ -250,6 +250,8 @@ mod tests {
                 phases: Some(2),
                 claude_permission_mode: Some(ClaudePermissionMode::BypassPermissions),
                 require_repoprompt: None,
+                ci_gate_command: Some("make ci".to_string()),
+                ci_gate_enabled: Some(true),
                 git_revert_mode: Some(GitRevertMode::Ask),
             },
             queue: QueueConfig::default(),

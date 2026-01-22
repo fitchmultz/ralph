@@ -6,6 +6,8 @@
     "agent": {
       "description": "Agent runner defaults (Claude, Codex, OpenCode, or Gemini).",
       "default": {
+        "ci_gate_command": "make ci",
+        "ci_gate_enabled": true,
         "claude_bin": "claude",
         "claude_permission_mode": "bypass_permissions",
         "codex_bin": "codex",
@@ -63,6 +65,22 @@
     "AgentConfig": {
       "type": "object",
       "properties": {
+        "ci_gate_command": {
+          "description": "CI gate command to run (default: \"make ci\").",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ci_gate_enabled": {
+          "description": "Enable or disable the CI gate entirely (default: true).",
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "claude_bin": {
           "description": "Override the claude executable name/path (default is \"claude\" if None).",
           "default": null,

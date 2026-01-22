@@ -95,7 +95,9 @@ Defaults via config (`.ralph/config.json` or `~/.config/ralph/config.json`):
     "model": "sonnet",
     "phases": 3,
     "require_repoprompt": false,
-    "git_revert_mode": "ask"
+    "git_revert_mode": "ask",
+    "ci_gate_command": "make ci",
+    "ci_gate_enabled": true
   }
 }
 ```
@@ -114,8 +116,8 @@ Ralph can explicitly require the usage of RepoPrompt tools. When enabled via con
 ### Three-phase Workflow (Default)
 Ralph supports a 3-phase workflow by default (configured via `agent.phases: 3`):
 1. **Phase 1 (Planning)**: The agent generates a detailed plan and caches it in `.ralph/cache/plans/<TASK_ID>.md`.
-2. **Phase 2 (Implementation + CI)**: The agent implements the plan and must pass `make ci`, then stops without completing the task.
-3. **Phase 3 (Code Review + Completion)**: The agent reviews the pending diff against hardcoded standards, refines as needed, re-runs `make ci`, completes the task, commits, and pushes.
+2. **Phase 2 (Implementation + CI)**: The agent implements the plan and must pass the configured CI gate command (default `make ci`) when enabled, then stops without completing the task.
+3. **Phase 3 (Code Review + Completion)**: The agent reviews the pending diff against hardcoded standards, refines as needed, re-runs the configured CI gate command (default `make ci`) when enabled, completes the task, commits, and pushes.
 
 Use `ralph run one --phases 3` for full 3-phase execution. You can also set `agent.phases` in config to control the default.
 

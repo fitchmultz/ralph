@@ -178,6 +178,15 @@ pub fn validate_config(cfg: &Config) -> Result<()> {
         }
     }
 
+    let ci_gate_enabled = cfg.agent.ci_gate_enabled.unwrap_or(true);
+    if ci_gate_enabled {
+        if let Some(command) = &cfg.agent.ci_gate_command {
+            if command.trim().is_empty() {
+                bail!("Empty agent.ci_gate_command: CI gate command must be non-empty when enabled. Set a command (e.g., 'make ci') or disable the gate with agent.ci_gate_enabled=false.");
+            }
+        }
+    }
+
     Ok(())
 }
 
@@ -300,5 +309,24 @@ mod tests {
 
         assert_eq!(loaded.version, Some(1));
         Ok(())
+    }
+
+    #[test]
+    fn validate_config_rejects_empty_ci_gate_command_when_enabled() {
+        let mut cfg = Config::default();
+        cfg.agent.ci_gate_command = Some("   ".to_string());
+        cfg.agent.ci_gate_enabled = Some(true);
+
+        let err = validate_config(&cfg).expect_err("expected validation to fail");
+        assert!(err.to_string().contains("agent.ci_gate_command"));
+    }
+
+    #[test]
+    fn validate_config_allows_empty_ci_gate_command_when_disabled() {
+        let mut cfg = Config::default();
+        cfg.agent.ci_gate_command = Some(" ".to_string());
+        cfg.agent.ci_gate_enabled = Some(false);
+
+        validate_config(&cfg).expect("validation should pass when disabled");
     }
 }

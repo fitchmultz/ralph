@@ -343,6 +343,26 @@ fn expand_variables_expands_config_queue_id_prefix() -> Result<()> {
 }
 
 #[test]
+fn expand_variables_expands_config_ci_gate_command() -> Result<()> {
+    let template = "CI: {{config.agent.ci_gate_command}}";
+    let mut config = default_config();
+    config.agent.ci_gate_command = Some("make ci".to_string());
+    let result = expand_variables(template, &config)?;
+    assert!(result.contains("CI: make ci"));
+    Ok(())
+}
+
+#[test]
+fn expand_variables_expands_config_ci_gate_enabled() -> Result<()> {
+    let template = "Enabled: {{config.agent.ci_gate_enabled}}";
+    let mut config = default_config();
+    config.agent.ci_gate_enabled = Some(false);
+    let result = expand_variables(template, &config)?;
+    assert!(result.contains("Enabled: false"));
+    Ok(())
+}
+
+#[test]
 fn expand_variables_leaves_non_config_placeholders() -> Result<()> {
     let template = "Request: {{USER_REQUEST}}";
     let config = default_config();

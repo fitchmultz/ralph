@@ -15,7 +15,7 @@ mod selection;
 mod supervision;
 
 use selection::select_run_one_task_index;
-use supervision::{find_task_status, post_run_supervise, run_make_ci};
+use supervision::{find_task_status, post_run_supervise};
 
 // Preserve existing `run_cmd.rs` unit tests which call `apply_phase3_completion_signal` directly.
 #[allow(unused_imports)]

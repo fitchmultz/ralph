@@ -7,7 +7,7 @@ Task ID: {{TASK_ID}}
 - Execute the git diff command of your choice to view all changed files
 
 ## CODING STANDARDS (HARD REQUIREMENTS)
-- Required CI Gate: `make ci` must pass before completion.
+- Required CI Gate: if enabled ({{config.agent.ci_gate_enabled}}), `{{config.agent.ci_gate_command}}` must pass before completion.
 - First Principles: start from fundamentals; simplify before adding.
 - Delete Before Adding: net-negative diffs are wins when behavior stays correct.
 - Evidence Over Opinion: tests, data constraints, and benchmarks settle debates; formatters/linters settle style.

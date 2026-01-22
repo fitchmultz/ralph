@@ -132,6 +132,28 @@ fn configure_runner(dir: &Path, runner: &str, model: &str, bin_path: Option<&Pat
     Ok(())
 }
 
+fn configure_ci_gate(dir: &Path, command: Option<&str>, enabled: Option<bool>) -> Result<()> {
+    let config_path = dir.join(".ralph/config.json");
+    let mut config: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&config_path).context("read config")?)
+            .context("parse config")?;
+    let agent = config
+        .get_mut("agent")
+        .ok_or_else(|| anyhow::anyhow!("config missing agent section"))?;
+    if let Some(command) = command {
+        agent["ci_gate_command"] = serde_json::json!(command);
+    }
+    if let Some(enabled) = enabled {
+        agent["ci_gate_enabled"] = serde_json::json!(enabled);
+    }
+    std::fs::write(
+        &config_path,
+        serde_json::to_string_pretty(&config).context("serialize config")?,
+    )
+    .context("write config")?;
+    Ok(())
+}
+
 fn create_fake_runner(dir: &Path, runner: &str, script: &str) -> Result<PathBuf> {
     let bin_dir = dir.join("bin");
     std::fs::create_dir(&bin_dir)?;
@@ -147,6 +169,21 @@ fn create_fake_runner(dir: &Path, runner: &str, script: &str) -> Result<PathBuf>
     }
 
     Ok(runner_path)
+}
+
+fn create_executable_script(dir: &Path, name: &str, script: &str) -> Result<PathBuf> {
+    let path = dir.join(name);
+    std::fs::write(&path, script)?;
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = std::fs::metadata(&path)?.permissions();
+        perms.set_mode(0o755);
+        std::fs::set_permissions(&path, perms)?;
+    }
+
+    Ok(path)
 }
 
 #[test]
@@ -571,6 +608,147 @@ fn run_one_keeps_changes_when_ci_fails_and_git_revert_mode_ask_non_tty() -> Resu
     anyhow::ensure!(
         dirty_file.exists(),
         "dirty file should remain when ask mode runs non-interactively"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn run_one_fails_when_custom_ci_gate_command_fails() -> Result<()> {
+    let dir = TempDir::new().context("create temp dir")?;
+    git_init(dir.path())?;
+
+    let (status, stdout, stderr) = run_in_dir(dir.path(), &["init", "--force"]);
+    anyhow::ensure!(
+        status.success(),
+        "ralph init failed\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    write_valid_single_todo_queue(dir.path())?;
+
+    let script = "#!/bin/sh\necho 'CI failing'\nexit 2\n";
+    create_executable_script(dir.path(), "ci-gate.sh", script)?;
+    configure_ci_gate(dir.path(), Some("./ci-gate.sh"), Some(true))?;
+
+    let dirty_file = dir.path().join("dirty-file.txt");
+    let runner_script = format!(
+        "#!/bin/sh\necho 'creating dirty file' > {}\nexit 0\n",
+        dirty_file.display()
+    );
+    let runner_path =
+        create_fake_runner(dir.path(), "codex", &runner_script).context("write runner script")?;
+    configure_runner(dir.path(), "codex", "gpt-5.2-codex", Some(&runner_path))?;
+
+    Command::new("git")
+        .current_dir(dir.path())
+        .args(["add", "."])
+        .status()
+        .context("git add")?;
+    Command::new("git")
+        .current_dir(dir.path())
+        .args(["commit", "-m", "setup test env"])
+        .status()
+        .context("git commit")?;
+
+    let output = Command::new(ralph_bin())
+        .current_dir(dir.path())
+        .arg("run")
+        .arg("one")
+        .arg("--git-revert-mode")
+        .arg("disabled")
+        .output()
+        .context("run ralph run one")?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    anyhow::ensure!(
+        !output.status.success(),
+        "expected run one to fail due to CI\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    anyhow::ensure!(
+        stderr.contains("CI gate failed") || stderr.contains("CI failed"),
+        "expected CI failure message in stderr\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    anyhow::ensure!(
+        stderr.contains("./ci-gate.sh"),
+        "expected CI gate command in stderr\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn run_one_succeeds_when_ci_gate_disabled() -> Result<()> {
+    let dir = TempDir::new().context("create temp dir")?;
+    git_init(dir.path())?;
+
+    let (status, stdout, stderr) = run_in_dir(dir.path(), &["init", "--force"]);
+    anyhow::ensure!(
+        status.success(),
+        "ralph init failed\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    write_valid_single_todo_queue(dir.path())?;
+
+    let script = "#!/bin/sh\necho 'CI failing'\nexit 2\n";
+    create_executable_script(dir.path(), "ci-gate.sh", script)?;
+    configure_ci_gate(dir.path(), Some("./ci-gate.sh"), Some(false))?;
+
+    let dirty_file = dir.path().join("dirty-file.txt");
+    let runner_script = format!(
+        "#!/bin/sh\necho 'creating dirty file' > {}\nexit 0\n",
+        dirty_file.display()
+    );
+    let runner_path =
+        create_fake_runner(dir.path(), "codex", &runner_script).context("write runner script")?;
+    configure_runner(dir.path(), "codex", "gpt-5.2-codex", Some(&runner_path))?;
+
+    Command::new("git")
+        .current_dir(dir.path())
+        .args(["add", "."])
+        .status()
+        .context("git add")?;
+    Command::new("git")
+        .current_dir(dir.path())
+        .args(["commit", "-m", "setup test env"])
+        .status()
+        .context("git commit")?;
+
+    let output = Command::new(ralph_bin())
+        .current_dir(dir.path())
+        .arg("run")
+        .arg("one")
+        .arg("--git-revert-mode")
+        .arg("disabled")
+        .output()
+        .context("run ralph run one")?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    anyhow::ensure!(
+        output.status.success(),
+        "expected run one to succeed with CI gate disabled\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    let done_content = std::fs::read_to_string(dir.path().join(".ralph/done.json"))?;
+    anyhow::ensure!(
+        done_content.contains("RQ-0001"),
+        "task should be moved to done when CI gate is disabled"
+    );
+
+    let git_status = Command::new("git")
+        .current_dir(dir.path())
+        .args(["status", "--porcelain"])
+        .output()
+        .context("git status")?;
+    let status_output = String::from_utf8_lossy(&git_status.stdout);
+    anyhow::ensure!(
+        status_output.trim().is_empty(),
+        "repo should be clean after successful run, but git status showed:\n{status_output}"
     );
 
     Ok(())

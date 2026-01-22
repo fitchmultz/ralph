@@ -14,7 +14,7 @@ Your goal is to understand the task, gather context, and produce a detailed plan
 ## STRICT PROHIBITIONS (PHASE 1 ONLY)
 **DO NOT DO ANY OF THE FOLLOWING:**
 - Create or modify any files, EXCEPT the plan cache file below (Ralph handles queue bookkeeping)
-- Run tests, `make ci`, or any validation commands
+- Run tests, the configured CI gate command (`{{config.agent.ci_gate_command}}`) when enabled, or any validation commands
 - Execute `git add`, `git commit`, or `git push`
 - Write, edit, or change any source code, configuration, or documentation files
 - Make any implementation changes whatsoever

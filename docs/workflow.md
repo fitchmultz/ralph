@@ -27,8 +27,8 @@ Overrides must preserve required placeholders (for example `{{USER_REQUEST}}` in
 ## Three-Phase Workflow
 Default execution uses three phases:
 1. Phase 1 (Planning): plan is cached at `.ralph/cache/plans/<TASK_ID>.md`.
-2. Phase 2 (Implementation + CI): apply changes, run `make ci`, then stop.
-3. Phase 3 (Review + Completion): review diff, re-run `make ci`, complete task, commit, and push.
+2. Phase 2 (Implementation + CI): apply changes, run the configured CI gate command (default `make ci`) when enabled, then stop.
+3. Phase 3 (Review + Completion): review diff, re-run the configured CI gate command (default `make ci`) when enabled, complete task, commit, and push.
 
 Phases can be set via `--phases` or `agent.phases` in config.
 

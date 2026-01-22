@@ -18,6 +18,8 @@
     "claude_permission_mode": "bypass_permissions",
     "require_repoprompt": false,
     "git_revert_mode": "ask",
+    "ci_gate_command": "make ci",
+    "ci_gate_enabled": true,
     "phases": 3
   }
 }

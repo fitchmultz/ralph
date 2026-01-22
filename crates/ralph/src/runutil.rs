@@ -5,6 +5,7 @@ use crate::{fsutil, gitutil, outpututil, runner};
 use anyhow::{bail, Result};
 use std::io::{BufRead, BufReader, IsTerminal, Write};
 use std::path::Path;
+use std::process::Command;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -232,6 +233,19 @@ pub fn format_revert_failure_message(base: &str, outcome: RevertOutcome) -> Stri
     match outcome {
         RevertOutcome::Reverted => format!("{base} Uncommitted changes were reverted."),
         RevertOutcome::Skipped { reason } => format!("{base} Revert skipped ({reason})."),
+    }
+}
+
+/// Build a shell command for the current platform (sh -c on Unix, cmd /C on Windows).
+pub fn shell_command(command: &str) -> Command {
+    if cfg!(windows) {
+        let mut cmd = Command::new("cmd");
+        cmd.arg("/C").arg(command);
+        cmd
+    } else {
+        let mut cmd = Command::new("sh");
+        cmd.arg("-c").arg(command);
+        cmd
     }
 }
 

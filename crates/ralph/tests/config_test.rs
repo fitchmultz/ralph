@@ -532,6 +532,8 @@ fn test_agent_config_merge_from_partial() {
         phases: Some(2),
         claude_permission_mode: None,
         require_repoprompt: None,
+        ci_gate_command: Some("make ci".to_string()),
+        ci_gate_enabled: Some(true),
         git_revert_mode: Some(GitRevertMode::Ask),
     };
 
@@ -546,6 +548,8 @@ fn test_agent_config_merge_from_partial() {
         phases: Some(3),
         claude_permission_mode: None,
         require_repoprompt: None,
+        ci_gate_command: Some("custom ci".to_string()),
+        ci_gate_enabled: Some(false),
         git_revert_mode: Some(GitRevertMode::Disabled),
     };
 
@@ -557,6 +561,8 @@ fn test_agent_config_merge_from_partial() {
     assert_eq!(base.codex_bin, Some("codex".to_string()));
     assert_eq!(base.opencode_bin, Some("opencode".to_string()));
     assert_eq!(base.phases, Some(3));
+    assert_eq!(base.ci_gate_command, Some("custom ci".to_string()));
+    assert_eq!(base.ci_gate_enabled, Some(false));
 }
 
 #[test]

@@ -2992,6 +2992,37 @@
       "completed_at": "2026-01-22T20:23:22.850672000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0235",
+      "status": "done",
+      "title": "Add configurable CI gate command with opt-out",
+      "priority": "medium",
+      "tags": [
+        "ci",
+        "config",
+        "cli"
+      ],
+      "scope": [
+        "crates/ralph/src",
+        ".ralph/config.json",
+        "docs"
+      ],
+      "evidence": [
+        "User request: \"Currently all validation logic revolves around the 'make ci' gate. However, come projects do not have 'make ci'. We need to be able to allow customization of the CI gate command. Users can set the command to be valid based on the project, but it defaults to the current 'make ci'. If a user really wants to completely ignore any CI gate at all we should have a way to allow it.\""
+      ],
+      "plan": [
+        "Inspect current CI gate execution and config flow to identify where the command is hard-coded.",
+        "Add a configurable CI gate command with default of `make ci`, and allow explicit opt-out/disable behavior.",
+        "Update CLI/help/docs to describe configuration and opt-out, and add tests covering default, custom, and disabled gate behavior."
+      ],
+      "notes": [],
+      "request": "Currently all validation logic revolves around the 'make ci' gate. However, come projects do not have 'make ci'. We need to be able to allow customization of the CI gate command. Users can set the command to be valid based on the project, but it defaults to the current 'make ci'. If a user really wants to completely ignore any CI gate at all we should have a way to allow it.",
+      "created_at": "2026-01-22T18:37:08Z",
+      "updated_at": "2026-01-22T21:58:02.520257000Z",
+      "completed_at": "2026-01-22T21:58:02.520257000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

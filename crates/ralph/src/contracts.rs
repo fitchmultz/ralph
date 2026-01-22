@@ -98,6 +98,12 @@ pub struct AgentConfig {
     /// If true, agent must use of context_builder tool to generate a plan.
     pub require_repoprompt: Option<bool>,
 
+    /// CI gate command to run (default: "make ci").
+    pub ci_gate_command: Option<String>,
+
+    /// Enable or disable the CI gate entirely (default: true).
+    pub ci_gate_enabled: Option<bool>,
+
     /// Controls automatic git revert behavior when runner or supervision errors occur.
     pub git_revert_mode: Option<GitRevertMode>,
 
@@ -138,6 +144,12 @@ impl AgentConfig {
         }
         if other.require_repoprompt.is_some() {
             self.require_repoprompt = other.require_repoprompt;
+        }
+        if other.ci_gate_command.is_some() {
+            self.ci_gate_command = other.ci_gate_command;
+        }
+        if other.ci_gate_enabled.is_some() {
+            self.ci_gate_enabled = other.ci_gate_enabled;
         }
         if other.git_revert_mode.is_some() {
             self.git_revert_mode = other.git_revert_mode;
@@ -477,6 +489,8 @@ impl Default for Config {
                 phases: Some(3),
                 claude_permission_mode: Some(ClaudePermissionMode::BypassPermissions),
                 require_repoprompt: Some(false),
+                ci_gate_command: Some("make ci".to_string()),
+                ci_gate_enabled: Some(true),
                 git_revert_mode: Some(GitRevertMode::Ask),
             },
         }

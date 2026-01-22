@@ -133,7 +133,7 @@ pub fn execute_phase2_implementation(
                 "Implementation",
             )?;
 
-            if let Err(err) = super::run_make_ci(&ctx.resolved.repo_root) {
+            if let Err(err) = super::supervision::run_ci_gate(ctx.resolved) {
                 let outcome = runutil::apply_git_revert_mode(
                     &ctx.resolved.repo_root,
                     ctx.git_revert_mode,

@@ -8,7 +8,7 @@ use crate::gitutil::GitError;
 use crate::{gitutil, outpututil, queue, runutil, timeutil};
 use anyhow::{anyhow, bail, Context, Result};
 use std::path::Path;
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 
 pub(crate) fn post_run_supervise(
     resolved: &crate::config::Resolved,
@@ -41,7 +41,7 @@ pub(crate) fn post_run_supervise(
 
         if is_dirty {
             warn_if_modified_lfs(&resolved.repo_root);
-            if let Err(err) = run_make_ci(&resolved.repo_root) {
+            if let Err(err) = run_ci_gate(resolved) {
                 let outcome = runutil::apply_git_revert_mode(
                     &resolved.repo_root,
                     git_revert_mode,
@@ -51,7 +51,10 @@ pub(crate) fn post_run_supervise(
                 bail!(
                     "{} Error: {:#}",
                     runutil::format_revert_failure_message(
-                        "CI gate failed: 'make ci' did not pass after the task completed.",
+                        &format!(
+                            "CI gate failed: '{}' did not pass after the task completed.",
+                            ci_gate_command_label(resolved)
+                        ),
                         outcome,
                     ),
                     err
@@ -242,21 +245,59 @@ pub(super) fn find_task_status(
     None
 }
 
-pub(super) fn run_make_ci(repo_root: &Path) -> Result<()> {
-    logging::with_scope("CI gate (make ci)", || {
-        let status = Command::new("make")
-            .arg("ci")
-            .current_dir(repo_root)
+pub(super) fn run_ci_gate(resolved: &crate::config::Resolved) -> Result<()> {
+    let enabled = resolved.config.agent.ci_gate_enabled.unwrap_or(true);
+    let command = resolved
+        .config
+        .agent
+        .ci_gate_command
+        .as_deref()
+        .unwrap_or("make ci")
+        .trim();
+
+    if !enabled {
+        log::info!("CI gate disabled; skipping configured command '{command}'.");
+        return Ok(());
+    }
+
+    if command.is_empty() {
+        bail!("CI gate command is empty but CI gate is enabled. Set agent.ci_gate_command or disable the gate with agent.ci_gate_enabled=false.");
+    }
+
+    logging::with_scope(&format!("CI gate ({command})"), || {
+        let status = runutil::shell_command(command)
+            .current_dir(&resolved.repo_root)
             .stdin(Stdio::inherit())
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit())
             .status()
-            .with_context(|| format!("run make ci in {}", repo_root.display()))?;
+            .with_context(|| {
+                format!(
+                    "run CI gate command '{}' in {}",
+                    command,
+                    resolved.repo_root.display()
+                )
+            })?;
 
         if status.success() {
             return Ok(());
         }
 
-        bail!("CI failed: 'make ci' exited with code {:?}. Fix the linting, type-checking, or test failures before proceeding.", status.code())
+        bail!(
+            "CI failed: '{}' exited with code {:?}. Fix the linting, type-checking, or test failures before proceeding.",
+            command,
+            status.code()
+        )
     })
+}
+
+fn ci_gate_command_label(resolved: &crate::config::Resolved) -> String {
+    resolved
+        .config
+        .agent
+        .ci_gate_command
+        .as_deref()
+        .unwrap_or("make ci")
+        .trim()
+        .to_string()
 }
