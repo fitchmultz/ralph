@@ -2641,6 +2641,40 @@
       "completed_at": "2026-01-22T04:17:54.829608000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0220",
+      "status": "done",
+      "title": "Add log scrolling controls and autoscroll toggle in Executing view",
+      "priority": "medium",
+      "tags": [
+        "tui",
+        "ux",
+        "logs"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/events.rs",
+        "crates/ralph/src/tui/mod.rs",
+        "crates/ralph/src/tui/render.rs"
+      ],
+      "evidence": [
+        "`App` includes `log_scroll` and `autoscroll`, but `handle_executing_mode_key` only handles `Esc` and never updates those fields."
+      ],
+      "plan": [
+        "Add keybindings for scrolling (PgUp/PgDn, Up/Down) and toggling autoscroll.",
+        "Update render footer to display new keybindings.",
+        "Add tests for log scroll and autoscroll state transitions."
+      ],
+      "notes": [
+        "Add executing view scroll controls with cached visible line tracking.",
+        "Add tests for visible line caching and App defaults."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-22T02:50:11Z",
+      "updated_at": "2026-01-22T04:32:29.567859000Z",
+      "completed_at": "2026-01-22T04:32:29.567859000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

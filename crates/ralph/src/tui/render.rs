@@ -83,6 +83,7 @@ fn draw_execution_view(f: &mut Frame<'_>, app: &mut App, area: Rect) {
 
     // Calculate visible log lines
     let visible_height = inner.height.saturating_sub(2) as usize; // Leave room for borders
+    app.log_visible_lines = visible_height.max(1);
     let log_count = app.logs.len();
     let start_idx = if app.log_scroll + visible_height > log_count {
         log_count.saturating_sub(visible_height)
@@ -576,7 +577,13 @@ fn help_footer_spans(app: &App) -> Vec<Span<'static>> {
         ],
         AppMode::Executing { .. } => vec![
             Span::styled("Esc", Style::default().add_modifier(Modifier::BOLD)),
-            Span::raw(":return to list (task continues)"),
+            Span::raw(":return "),
+            Span::styled("↑↓", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(":scroll "),
+            Span::styled("PgUp/PgDn", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(":page "),
+            Span::styled("a", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(":autoscroll"),
         ],
     };
 
@@ -597,6 +604,8 @@ fn help_footer_spans(app: &App) -> Vec<Span<'static>> {
 mod tests {
     use super::*;
     use crate::contracts::QueueFile;
+    use ratatui::backend::TestBackend;
+    use ratatui::Terminal;
 
     #[test]
     fn wrap_text_returns_nonempty_for_nonempty_input() {
@@ -633,5 +642,21 @@ mod tests {
         let rendered = format!("{:?}", help_text);
 
         assert!(rendered.contains("SAVE ERROR"));
+    }
+
+    #[test]
+    fn executing_view_updates_visible_lines_cache() {
+        let backend = TestBackend::new(40, 10);
+        let mut terminal = Terminal::new(backend).expect("create terminal");
+        let mut app = App::new(QueueFile::default());
+        app.mode = AppMode::Executing {
+            task_id: "RQ-0001".to_string(),
+        };
+        app.log_visible_lines = 20;
+
+        terminal.draw(|f| draw_ui(f, &mut app)).expect("draw ui");
+
+        let expected = 10usize.saturating_sub(2).saturating_sub(2).max(1);
+        assert_eq!(app.log_visible_lines, expected);
     }
 }

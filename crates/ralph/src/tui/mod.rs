@@ -11,6 +11,7 @@
 //! - `d`: Delete task (with confirmation)
 //! - `e`: Edit task title
 //! - `s`: Cycle status (Draft → Todo → Doing → Done → Rejected → Draft)
+//! - Executing view: `↑`/`↓`/`j`/`k` scroll, `PgUp`/`PgDn` page, `a` toggles auto-scroll
 
 use anyhow::{anyhow, bail, Context, Result};
 use crossterm::{
@@ -55,6 +56,8 @@ pub struct App {
     pub log_scroll: usize,
     /// Whether to auto-scroll execution logs
     pub autoscroll: bool,
+    /// Last known visible log lines in Executing view (for paging/auto-scroll).
+    pub log_visible_lines: usize,
     /// Height of the task list (for scrolling calculation)
     pub list_height: usize,
     /// Whether a runner thread is currently executing a task.
@@ -75,6 +78,7 @@ impl App {
             logs: Vec::new(),
             log_scroll: 0,
             autoscroll: true,
+            log_visible_lines: 20,
             list_height: 20,
             runner_active: false,
         }
@@ -174,6 +178,36 @@ impl App {
         task.updated_at = Some(now_rfc3339.to_string());
         self.dirty = true;
         Ok(())
+    }
+
+    fn log_visible_lines(&self) -> usize {
+        self.log_visible_lines.max(1)
+    }
+
+    fn max_log_scroll(&self, visible_lines: usize) -> usize {
+        self.logs.len().saturating_sub(visible_lines)
+    }
+
+    fn scroll_logs_up(&mut self, lines: usize) {
+        if lines == 0 {
+            return;
+        }
+        self.autoscroll = false;
+        self.log_scroll = self.log_scroll.saturating_sub(lines);
+    }
+
+    fn scroll_logs_down(&mut self, lines: usize, visible_lines: usize) {
+        if lines == 0 {
+            return;
+        }
+        self.autoscroll = false;
+        let max_scroll = self.max_log_scroll(visible_lines);
+        self.log_scroll = (self.log_scroll + lines).min(max_scroll);
+    }
+
+    fn enable_autoscroll(&mut self, visible_lines: usize) {
+        self.autoscroll = true;
+        self.log_scroll = self.max_log_scroll(visible_lines);
     }
 }
 
@@ -275,10 +309,8 @@ where
                         // Auto-scroll if enabled
                         if app_ref.autoscroll {
                             // Scroll to show latest logs
-                            let visible_lines = 20; // Approximate
-                            if app_ref.logs.len() > visible_lines {
-                                app_ref.log_scroll = app_ref.logs.len() - visible_lines;
-                            }
+                            let visible_lines = app_ref.log_visible_lines();
+                            app_ref.log_scroll = app_ref.max_log_scroll(visible_lines);
                         }
                     }
                     RunnerEvent::Finished => {

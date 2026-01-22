@@ -84,6 +84,7 @@ fn handle_normal_mode_key(app: &mut App, key: KeyCode, now_rfc3339: &str) -> Res
                 };
                 app.logs.clear();
                 app.log_scroll = 0;
+                app.autoscroll = true;
                 app.runner_active = true;
                 Ok(TuiAction::RunTask(task_id))
             } else {
@@ -181,9 +182,35 @@ fn handle_confirm_quit_key(app: &mut App, key: KeyCode) -> Result<TuiAction> {
 
 /// Handle key events in Executing mode.
 fn handle_executing_mode_key(app: &mut App, key: KeyCode) -> Result<TuiAction> {
+    let visible_lines = app.log_visible_lines();
+    let page_lines = visible_lines.saturating_sub(1).max(1);
     match key {
         KeyCode::Esc => {
             app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Up | KeyCode::Char('k') => {
+            app.scroll_logs_up(1);
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Down | KeyCode::Char('j') => {
+            app.scroll_logs_down(1, visible_lines);
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::PageUp => {
+            app.scroll_logs_up(page_lines);
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::PageDown => {
+            app.scroll_logs_down(page_lines, visible_lines);
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Char('a') => {
+            if app.autoscroll {
+                app.autoscroll = false;
+            } else {
+                app.enable_autoscroll(visible_lines);
+            }
             Ok(TuiAction::Continue)
         }
         _ => Ok(TuiAction::Continue),
@@ -297,5 +324,75 @@ mod tests {
                 task_id: "RQ-0001".to_string()
             }
         );
+    }
+
+    #[test]
+    fn executing_mode_scroll_up_disables_autoscroll() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![make_test_task("RQ-0001")],
+        };
+        let mut app = App::new(queue);
+        app.mode = AppMode::Executing {
+            task_id: "RQ-0001".to_string(),
+        };
+        app.logs = (0..40).map(|i| format!("line {}", i)).collect();
+        app.log_scroll = 5;
+        app.autoscroll = true;
+
+        let action =
+            handle_key_event(&mut app, KeyCode::Up, "2026-01-19T00:00:00Z").expect("handle key");
+
+        assert_eq!(action, TuiAction::Continue);
+        assert_eq!(app.log_scroll, 4);
+        assert!(!app.autoscroll);
+    }
+
+    #[test]
+    fn executing_mode_page_down_clamps_at_end() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![make_test_task("RQ-0001")],
+        };
+        let mut app = App::new(queue);
+        app.mode = AppMode::Executing {
+            task_id: "RQ-0001".to_string(),
+        };
+        app.logs = (0..50).map(|i| format!("line {}", i)).collect();
+        app.log_scroll = 0;
+        app.autoscroll = false;
+
+        handle_key_event(&mut app, KeyCode::PageDown, "2026-01-19T00:00:00Z").expect("handle key");
+        assert_eq!(app.log_scroll, 19);
+
+        handle_key_event(&mut app, KeyCode::PageDown, "2026-01-19T00:00:00Z").expect("handle key");
+        assert_eq!(app.log_scroll, 30);
+
+        handle_key_event(&mut app, KeyCode::PageDown, "2026-01-19T00:00:00Z").expect("handle key");
+        assert_eq!(app.log_scroll, 30);
+    }
+
+    #[test]
+    fn executing_mode_toggle_autoscroll_jumps_to_bottom() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![make_test_task("RQ-0001")],
+        };
+        let mut app = App::new(queue);
+        app.mode = AppMode::Executing {
+            task_id: "RQ-0001".to_string(),
+        };
+        app.logs = (0..50).map(|i| format!("line {}", i)).collect();
+        app.log_scroll = 5;
+        app.autoscroll = false;
+
+        handle_key_event(&mut app, KeyCode::Char('a'), "2026-01-19T00:00:00Z").expect("handle key");
+
+        assert!(app.autoscroll);
+        assert_eq!(app.log_scroll, 30);
+
+        handle_key_event(&mut app, KeyCode::Char('a'), "2026-01-19T00:00:00Z").expect("handle key");
+        assert!(!app.autoscroll);
+        assert_eq!(app.log_scroll, 30);
     }
 }
