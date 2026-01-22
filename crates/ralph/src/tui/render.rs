@@ -551,7 +551,9 @@ fn help_footer_spans(app: &App) -> Vec<Span<'static>> {
             Span::styled("e", Style::default().add_modifier(Modifier::BOLD)),
             Span::raw(":edit "),
             Span::styled("s", Style::default().add_modifier(Modifier::BOLD)),
-            Span::raw(":status"),
+            Span::raw(":status "),
+            Span::styled("r", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(":refresh"),
         ],
         AppMode::EditingTitle(_) => vec![
             Span::styled("Enter", Style::default().add_modifier(Modifier::BOLD)),

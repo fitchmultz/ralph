@@ -11,6 +11,7 @@
 //! - `d`: Delete task (with confirmation)
 //! - `e`: Edit task title
 //! - `s`: Cycle status (Draft → Todo → Doing → Done → Rejected → Draft)
+//! - `r`: Reload queue from disk
 //! - Executing view: `↑`/`↓`/`j`/`k` scroll, `PgUp`/`PgDn` page, `a` toggles auto-scroll
 
 use anyhow::{anyhow, bail, Context, Result};
@@ -20,6 +21,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use ratatui::{backend::CrosstermBackend, Terminal};
+use std::path::Path;
 use std::sync::{mpsc, Arc};
 use std::thread;
 use std::time::Duration;
@@ -218,6 +220,29 @@ impl App {
         self.autoscroll = true;
         self.log_scroll = self.max_log_scroll(visible_lines);
     }
+
+    /// Reload the queue from disk, clamping selection and recording errors.
+    fn reload_queue_from_disk(&mut self, queue_path: &Path) {
+        match queue::load_queue(queue_path) {
+            Ok(new_queue) => {
+                self.queue = new_queue;
+                if self.queue.tasks.is_empty() {
+                    self.selected = 0;
+                    self.scroll = 0;
+                } else if self.selected >= self.queue.tasks.len() {
+                    self.selected = self.queue.tasks.len() - 1;
+                }
+                if self.scroll > self.selected {
+                    self.scroll = self.selected;
+                }
+                self.dirty = false;
+                self.save_error = None;
+            }
+            Err(e) => {
+                self.logs.push(format!("ERROR reloading queue: {}", e));
+            }
+        }
+    }
 }
 
 fn auto_save_if_dirty(app: &mut App, queue_path: &std::path::Path) {
@@ -325,22 +350,7 @@ where
                     RunnerEvent::Finished => {
                         app_ref.runner_active = false;
                         // Reload queue to capture any changes made by the runner (or agents)
-                        match queue::load_queue(queue_path) {
-                            Ok(new_queue) => {
-                                app_ref.queue = new_queue;
-                                // Clamp selection to new bounds
-                                if app_ref.queue.tasks.is_empty() {
-                                    app_ref.selected = 0;
-                                } else if app_ref.selected >= app_ref.queue.tasks.len() {
-                                    app_ref.selected = app_ref.queue.tasks.len() - 1;
-                                }
-                                app_ref.dirty = false;
-                                app_ref.save_error = None;
-                            }
-                            Err(e) => {
-                                app_ref.logs.push(format!("ERROR reloading queue: {}", e));
-                            }
-                        }
+                        app_ref.reload_queue_from_disk(queue_path);
 
                         // Restore normal mode if we were in a runner-related view
                         if matches!(
@@ -384,6 +394,9 @@ where
                     match handle_key_event(&mut app_ref, key.code, &now)? {
                         TuiAction::Quit => break,
                         TuiAction::Continue => {}
+                        TuiAction::ReloadQueue => {
+                            app_ref.reload_queue_from_disk(queue_path);
+                        }
                         TuiAction::RunTask(task_id) => {
                             // Spawn runner thread
                             let tx_clone = tx.clone();
@@ -618,6 +631,53 @@ mod tests {
         assert!(app
             .update_title("   ".to_string(), "2026-01-20T12:00:00Z")
             .is_err());
+    }
+
+    #[test]
+    fn reload_queue_clamps_selection_and_clears_dirty() -> Result<()> {
+        let temp = TempDir::new()?;
+        let queue_path = temp.path().join("queue.json");
+        let initial_queue = QueueFile {
+            version: 1,
+            tasks: vec![
+                make_test_task("RQ-0001", "Task 1", TaskStatus::Todo),
+                make_test_task("RQ-0002", "Task 2", TaskStatus::Doing),
+            ],
+        };
+        queue::save_queue(&queue_path, &initial_queue)?;
+        let mut app = App::new(initial_queue);
+        app.selected = 1;
+        app.scroll = 1;
+        app.dirty = true;
+
+        let updated_queue = QueueFile {
+            version: 1,
+            tasks: vec![make_test_task("RQ-0003", "Task 3", TaskStatus::Todo)],
+        };
+        queue::save_queue(&queue_path, &updated_queue)?;
+
+        app.reload_queue_from_disk(&queue_path);
+
+        assert_eq!(app.queue.tasks.len(), 1);
+        assert_eq!(app.selected, 0);
+        assert_eq!(app.scroll, 0);
+        assert!(!app.dirty);
+        assert!(app.save_error.is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn reload_queue_logs_errors_on_failure() -> Result<()> {
+        let temp = TempDir::new()?;
+        let bad_path = temp.path().join("queue_dir");
+        std::fs::create_dir_all(&bad_path)?;
+        let mut app = App::new(QueueFile::default());
+
+        app.reload_queue_from_disk(&bad_path);
+
+        assert_eq!(app.logs.len(), 1);
+        assert!(app.logs[0].contains("ERROR reloading queue"));
+        Ok(())
     }
 
     #[test]

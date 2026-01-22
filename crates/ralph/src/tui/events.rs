@@ -21,6 +21,8 @@ pub enum TuiAction {
     Continue,
     /// Exit the TUI
     Quit,
+    /// Reload the queue from disk
+    ReloadQueue,
     /// Run a specific task (transitions to Executing mode)
     RunTask(String),
 }
@@ -109,6 +111,7 @@ fn handle_normal_mode_key(app: &mut App, key: KeyCode, now_rfc3339: &str) -> Res
             }
             Ok(TuiAction::Continue)
         }
+        KeyCode::Char('r') => Ok(TuiAction::ReloadQueue),
         _ => Ok(TuiAction::Continue),
     }
 }
@@ -394,5 +397,20 @@ mod tests {
         handle_key_event(&mut app, KeyCode::Char('a'), "2026-01-19T00:00:00Z").expect("handle key");
         assert!(!app.autoscroll);
         assert_eq!(app.log_scroll, 30);
+    }
+
+    #[test]
+    fn refresh_key_requests_reload() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![make_test_task("RQ-0001")],
+        };
+        let mut app = App::new(queue);
+
+        let action = handle_key_event(&mut app, KeyCode::Char('r'), "2026-01-19T00:00:00Z")
+            .expect("handle key");
+
+        assert_eq!(action, TuiAction::ReloadQueue);
+        assert_eq!(app.mode, AppMode::Normal);
     }
 }

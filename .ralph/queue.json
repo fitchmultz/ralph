@@ -2,36 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0222",
-      "status": "todo",
-      "title": "Add manual refresh key to reload queue from disk",
-      "priority": "medium",
-      "tags": [
-        "tui",
-        "queue",
-        "ux"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/events.rs",
-        "crates/ralph/src/tui/mod.rs"
-      ],
-      "evidence": [
-        "`crates/ralph/src/tui/mod.rs` only reloads the queue on `RunnerEvent::Finished`; there is no user-triggered refresh.",
-        "`crates/ralph/src/tui/events.rs` has no keybinding for reload/refresh."
-      ],
-      "plan": [
-        "Add a refresh keybinding (e.g., `r`) in Normal mode.",
-        "Reload queue from disk, clamp selection, and show errors in logs.",
-        "Add tests for refresh behavior and selection clamping."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-22T02:50:11Z",
-      "updated_at": "2026-01-22T02:50:11Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0223",
       "status": "todo",
       "title": "Add priority editing in TUI (cycle or picker)",
