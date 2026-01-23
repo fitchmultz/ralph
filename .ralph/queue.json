@@ -2,6 +2,47 @@
   "version": 1,
   "tasks": [
     {
+      "id": "RQ-0246",
+      "status": "todo",
+      "title": "Enable multi-iteration execution per task with refined follow-up prompts",
+      "priority": "medium",
+      "tags": [
+        "runner",
+        "phases",
+        "prompts",
+        "config",
+        "queue"
+      ],
+      "scope": [
+        "crates/ralph/src/run_cmd",
+        "crates/ralph/src/runner",
+        "crates/ralph/src/config",
+        "crates/ralph/src/queue",
+        "crates/ralph/assets/prompts",
+        ".ralph/prompts",
+        "docs/cli.md",
+        "docs/configuration.md",
+        "docs/queue-and-tasks.md"
+      ],
+      "evidence": [
+        "User request: Add a capability to do multiple iterations per task, keeping the three-phase approach (support 1, 2, and 3 phases) but looping the same task multiple times with refined prompts and per-pass reasoning effort."
+      ],
+      "plan": [
+        "Define the iteration model (config defaults, optional per-task override) including how many loops to run and how phases map per loop.",
+        "Implement queue/task and config support for iteration counts and per-iteration reasoning effort overrides while keeping backward compatibility explicit.",
+        "Update runner loop execution to repeat the task for the configured number of iterations, preserving phase behavior (1, 2, or 3 phases) each time.",
+        "Revise prompts for follow-up iterations to focus on refinement and regression review without explicitly stating pass numbers.",
+        "Add tests for iteration scheduling, config/task overrides, and prompt selection behavior across loops.",
+        "Update CLI/docs to describe iteration configuration, task fields, and usage examples."
+      ],
+      "notes": [],
+      "request": "Add a capability to do multiple iterations per task. You may ask, why? The reason is that some models are more capable than others. Oftentimes, a dumber model does syntactically correct and functional code, but it does it in a way that is sloppy. So by having that same dumber model run across the same task multiple times, it enables iteration that enhances outcomes. On the initial loop, the agents have to examine the current state, and then come up with the solution and implement the solution for the task at hand. This leads to a lot of context being used on exploration and contemplation. Context gets bloated, and quality decreases because a lot of irrelevant information ends up in the context. On the subsequent passes for the same task, since the task has already been achieved, it has more of a clear context to be able to focus on how to do it better instead of having to come up with the new implementation solution altogether. Iteration enhances outcomes and leads to better outcomes. So for example, keep the three-phased approach, but do two loops on the same task, on the second go-round, it will be prompted that it had already been executed once before, and on the second go-round, it makes sure to identify any unexpected or unplanned behavior changes, poor coding habits. Outstanding follow-ups that need to be executed. And just does overall refinement to make it a better approach. Think of it like multiple senior developers doing like a peer review refinement process per task. This will lead to higher outcomes. Currently, the three-phase approach consists of phase one planning, phase two implementing the plan, and phase three completing any outstanding work that remained after phase two, as well as doing a thorough review for bugs, regressions, etc. Phase three is essentially like a code review, but it can also make changes. We will likely want to tweak the prompts for the second loop, or what. I want to avoid using any verbiage in the second and any subsequent loops that denotes that it is doing a second pass or a third pass, etc., because that may cause the agent to get a little lazy and assume that things are already done. I want to encourage the comprehensive approach liDon't repeat yourself as certainly a principle I want in place. Code readability, code maintainability, concise code, elegantly simple code but not feature or functionally simple code. I think it would be beneficial to be able to have different levels of reasoning applied for the initial pass of the task and the subsequent passes. I could see some potential downsides, but the reason to do this is to fold one to decrease runtime and for cost purposes, but if we have a model run on the first pass with high reasoning, it can spend a lot of time on doing it correctly or mostly correct on that initial pass and then on subsequent runs, since the task is overall a bit easier due to existing solutions being in place, we could have a lower reasoning level configured. We already allow for the reasoning effort to be controlled globally and by project in the config file, as well as have task-specific reasoning set in the task queue.",
+      "created_at": "2026-01-23T20:17:22Z",
+      "updated_at": "2026-01-23T20:17:22Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
       "id": "RQ-0245",
       "status": "todo",
       "title": "Add per-task model_effort override for runner reasoning effort",
