@@ -2,6 +2,41 @@
   "version": 1,
   "tasks": [
     {
+      "id": "RQ-0244",
+      "status": "todo",
+      "title": "Add config and flag to toggle automatic git commit/push",
+      "priority": "medium",
+      "tags": [
+        "config",
+        "git",
+        "cli",
+        "docs",
+        "tests"
+      ],
+      "scope": [
+        "crates/ralph/src/",
+        "docs/configuration.md",
+        "docs/cli.md",
+        ".ralph/config.json"
+      ],
+      "evidence": [
+        "User request: Add a configuration option and flag that allows the user to enable (default) or disable automatic git commit and git push; currently every successful loop finishes with an automatic git commit and git push; there is already a config option for git_revert_mode."
+      ],
+      "plan": [
+        "Locate the current commit/push behavior in the run loop and how git_revert_mode is modeled in config/CLI.",
+        "Add a new config setting with default enabled plus a CLI flag to override it at runtime, wiring it into the commit/push decision path.",
+        "Update documentation and help output to describe the new setting/flag with examples.",
+        "Update prompts to reflect the new config and flag.",
+        "Add tests for config parsing, CLI overrides, and both enabled/disabled commit+push paths (including failure modes)."
+      ],
+      "notes": [],
+      "request": "Add a configuration option and flag that allows the user to enable (default) or disable automatic git commit and git push. Currently every successful loop finishes with an automatic git commit and git push. We already have a config option for 'git_revert_mode' so we need a new config to toggle the automatic commit and push behavior.",
+      "created_at": "2026-01-23T16:20:33Z",
+      "updated_at": "2026-01-23T16:20:33Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
       "id": "RQ-0243",
       "status": "todo",
       "title": "Inject Phase 2 final response into Phase 3 prompt for context",
