@@ -3060,6 +3060,41 @@
       "completed_at": "2026-01-22T22:35:05.138228000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0226",
+      "status": "done",
+      "title": "Add in-TUI help overlay for keybindings",
+      "priority": "medium",
+      "tags": [
+        "tui",
+        "ux",
+        "docs"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/events.rs",
+        "crates/ralph/src/tui/render.rs"
+      ],
+      "evidence": [
+        "`crates/ralph/src/tui/render.rs` only shows a compact footer; there is no full help overlay or key to open it.",
+        "`crates/ralph/src/tui/events.rs` has no `?`/`h` handler to show help."
+      ],
+      "plan": [
+        "Add a Help mode with a full-screen overlay listing keybindings and actions.",
+        "Wire `?`/`h` to toggle Help mode and update footer hints.",
+        "Add tests to ensure help mode transitions and rendering paths."
+      ],
+      "notes": [
+        "Add Help mode toggle via ?/h and close behavior",
+        "Render full-screen help overlay with keybinding catalog",
+        "Cover help mode transitions and overlay rendering in tests"
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-22T02:50:11Z",
+      "updated_at": "2026-01-23T00:53:59.467182000Z",
+      "completed_at": "2026-01-23T00:53:59.467182000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

@@ -69,6 +69,11 @@ pub fn draw_ui(f: &mut Frame<'_>, app: &mut App) {
         draw_footer(f, app, footer);
     }
 
+    // Help overlay (full-screen).
+    if app.mode == AppMode::Help {
+        draw_help_overlay(f, size);
+    }
+
     // Confirmation dialogs.
     if app.mode == AppMode::ConfirmDelete {
         draw_confirm_dialog(f, size, "Delete this task?", "(y/n)");
@@ -126,6 +131,92 @@ fn draw_footer(f: &mut Frame<'_>, app: &App, area: Rect) {
         .style(Style::default().bg(Color::DarkGray).fg(Color::White));
 
     f.render_widget(help_paragraph, area);
+}
+
+/// Draw the full-screen help overlay with keybindings.
+fn draw_help_overlay(f: &mut Frame<'_>, area: Rect) {
+    let popup = area.inner(Margin {
+        horizontal: 2,
+        vertical: 1,
+    });
+    f.render_widget(Clear, popup);
+
+    let block = Block::default()
+        .title(Line::from(Span::styled(
+            "Help",
+            Style::default().add_modifier(Modifier::BOLD),
+        )))
+        .borders(Borders::ALL);
+    f.render_widget(block, popup);
+
+    let inner = popup.inner(Margin {
+        horizontal: 1,
+        vertical: 1,
+    });
+
+    let lines: Vec<Line<'static>> = vec![
+        Line::from(Span::styled(
+            "Keybindings",
+            Style::default().add_modifier(Modifier::BOLD),
+        )),
+        Line::from("Press Esc or ?/h to close."),
+        Line::from(""),
+        Line::from(Span::styled(
+            "Navigation",
+            Style::default().add_modifier(Modifier::BOLD),
+        )),
+        Line::from("Up/Down or j/k: move selection"),
+        Line::from("Enter: run selected task"),
+        Line::from(""),
+        Line::from(Span::styled(
+            "Actions",
+            Style::default().add_modifier(Modifier::BOLD),
+        )),
+        Line::from("l: toggle loop mode"),
+        Line::from("a: archive done/rejected tasks"),
+        Line::from("d: delete selected task"),
+        Line::from("e: edit task fields"),
+        Line::from("n: create a new task"),
+        Line::from("c: edit project config"),
+        Line::from("g: scan repository"),
+        Line::from("r: reload queue from disk"),
+        Line::from("q: quit"),
+        Line::from(""),
+        Line::from(Span::styled(
+            "Filters & Search",
+            Style::default().add_modifier(Modifier::BOLD),
+        )),
+        Line::from("/: search tasks"),
+        Line::from("t: filter by tags"),
+        Line::from("f: cycle status filter"),
+        Line::from("x: clear filters"),
+        Line::from(""),
+        Line::from(Span::styled(
+            "Quick Changes",
+            Style::default().add_modifier(Modifier::BOLD),
+        )),
+        Line::from("s: cycle task status"),
+        Line::from("p: cycle priority"),
+        Line::from(""),
+        Line::from(Span::styled(
+            "Command Palette",
+            Style::default().add_modifier(Modifier::BOLD),
+        )),
+        Line::from(": open palette (type to filter, Enter to run, Esc to cancel)"),
+        Line::from(""),
+        Line::from(Span::styled(
+            "Execution View",
+            Style::default().add_modifier(Modifier::BOLD),
+        )),
+        Line::from("Esc: return to task list"),
+        Line::from("Up/Down or j/k: scroll logs"),
+        Line::from("PgUp/PgDn: page logs"),
+        Line::from("a: toggle auto-scroll"),
+        Line::from("l: stop loop mode"),
+    ];
+
+    let paragraph = Paragraph::new(Text::from(lines)).wrap(Wrap { trim: false });
+    f.render_widget(paragraph, inner);
 }
 
 /// Draw the execution view (full-screen output during task execution).
@@ -1186,6 +1277,8 @@ fn draw_task_editor(
 fn help_footer_spans(app: &App) -> Vec<Span<'static>> {
     let mut help_text = match &app.mode {
         AppMode::Normal => vec![
+            Span::styled("?/h", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(":help "),
             Span::styled(":", Style::default().add_modifier(Modifier::BOLD)),
             Span::raw(":cmd "),
             Span::styled("q", Style::default().add_modifier(Modifier::BOLD)),
@@ -1270,6 +1363,12 @@ fn help_footer_spans(app: &App) -> Vec<Span<'static>> {
             Span::styled("x", Style::default().add_modifier(Modifier::BOLD)),
             Span::raw(":clear "),
             Span::styled("Esc", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(":close"),
+        ],
+        AppMode::Help => vec![
+            Span::styled("Esc", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(":close "),
+            Span::styled("?/h", Style::default().add_modifier(Modifier::BOLD)),
             Span::raw(":close"),
         ],
         AppMode::CommandPalette { .. } => vec![

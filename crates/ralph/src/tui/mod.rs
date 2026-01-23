@@ -11,6 +11,7 @@
 //! Key bindings (high-level):
 //! - `:`: command palette
 //! - `q` / `Esc`: Quit (prompts if a task is still running)
+//! - `?` / `h`: Help overlay
 //! - `Up` / `Down` / `j` / `k`: Navigate task list
 //! - `Enter`: Execute selected task
 //! - `l`: Toggle loop (auto-run next runnable tasks)

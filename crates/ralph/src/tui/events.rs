@@ -10,6 +10,7 @@
 //! - `:` opens a command palette (discoverability)
 //! - `l` toggles loop mode (auto-run tasks)
 //! - `a` archives terminal tasks (done/rejected) with confirmation
+//! - `?`/`h` shows the help overlay
 
 use anyhow::Result;
 use crossterm::event::KeyCode;
@@ -38,6 +39,8 @@ pub enum TuiAction {
 pub enum AppMode {
     /// Normal navigation mode
     Normal,
+    /// Full-screen help overlay
+    Help,
     /// Editing task fields
     EditingTask {
         selected: usize,
@@ -79,6 +82,7 @@ impl PartialEq for AppMode {
         use AppMode::*;
         match (self, other) {
             (Normal, Normal) => true,
+            (Help, Help) => true,
             (
                 EditingTask {
                     selected: left_selected,
@@ -172,6 +176,7 @@ pub struct PaletteEntry {
 pub fn handle_key_event(app: &mut App, key: KeyCode, now_rfc3339: &str) -> Result<TuiAction> {
     match app.mode.clone() {
         AppMode::Normal => handle_normal_mode_key(app, key, now_rfc3339),
+        AppMode::Help => handle_help_mode_key(app, key),
         AppMode::EditingTask {
             selected,
             editing_value,
@@ -204,6 +209,10 @@ pub fn handle_key_event(app: &mut App, key: KeyCode, now_rfc3339: &str) -> Resul
 /// Handle key events in Normal mode.
 fn handle_normal_mode_key(app: &mut App, key: KeyCode, now_rfc3339: &str) -> Result<TuiAction> {
     match key {
+        KeyCode::Char('?') | KeyCode::Char('h') => {
+            app.mode = AppMode::Help;
+            Ok(TuiAction::Continue)
+        }
         KeyCode::Char(':') => {
             app.mode = AppMode::CommandPalette {
                 query: String::new(),
@@ -286,6 +295,17 @@ fn handle_normal_mode_key(app: &mut App, key: KeyCode, now_rfc3339: &str) -> Res
             app.execute_palette_command(PaletteCommand::CyclePriority, now_rfc3339)
         }
         KeyCode::Char('r') => Ok(TuiAction::ReloadQueue),
+        _ => Ok(TuiAction::Continue),
+    }
+}
+
+/// Handle key events in Help mode.
+fn handle_help_mode_key(app: &mut App, key: KeyCode) -> Result<TuiAction> {
+    match key {
+        KeyCode::Char('?') | KeyCode::Char('h') | KeyCode::Esc => {
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
         _ => Ok(TuiAction::Continue),
     }
 }
@@ -1006,6 +1026,100 @@ mod tests {
             AppMode::CommandPalette { .. } => {}
             other => panic!("expected command palette, got {:?}", other),
         }
+    }
+
+    #[test]
+    fn help_key_enters_help_mode() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![make_test_task("RQ-0001")],
+        };
+        let mut app = App::new(queue);
+
+        let action = handle_key_event(&mut app, KeyCode::Char('?'), "2026-01-20T00:00:00Z")
+            .expect("handle key");
+
+        assert_eq!(action, TuiAction::Continue);
+        assert_eq!(app.mode, AppMode::Help);
+    }
+
+    #[test]
+    fn help_key_enters_help_mode_with_h() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![make_test_task("RQ-0001")],
+        };
+        let mut app = App::new(queue);
+
+        let action = handle_key_event(&mut app, KeyCode::Char('h'), "2026-01-20T00:00:00Z")
+            .expect("handle key");
+
+        assert_eq!(action, TuiAction::Continue);
+        assert_eq!(app.mode, AppMode::Help);
+    }
+
+    #[test]
+    fn help_mode_closes_on_escape() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![make_test_task("RQ-0001")],
+        };
+        let mut app = App::new(queue);
+        app.mode = AppMode::Help;
+
+        let action =
+            handle_key_event(&mut app, KeyCode::Esc, "2026-01-20T00:00:00Z").expect("handle key");
+
+        assert_eq!(action, TuiAction::Continue);
+        assert_eq!(app.mode, AppMode::Normal);
+    }
+
+    #[test]
+    fn help_mode_closes_on_h() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![make_test_task("RQ-0001")],
+        };
+        let mut app = App::new(queue);
+        app.mode = AppMode::Help;
+
+        let action = handle_key_event(&mut app, KeyCode::Char('h'), "2026-01-20T00:00:00Z")
+            .expect("handle key");
+
+        assert_eq!(action, TuiAction::Continue);
+        assert_eq!(app.mode, AppMode::Normal);
+    }
+
+    #[test]
+    fn help_mode_closes_on_question_mark() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![make_test_task("RQ-0001")],
+        };
+        let mut app = App::new(queue);
+        app.mode = AppMode::Help;
+
+        let action = handle_key_event(&mut app, KeyCode::Char('?'), "2026-01-20T00:00:00Z")
+            .expect("handle key");
+
+        assert_eq!(action, TuiAction::Continue);
+        assert_eq!(app.mode, AppMode::Normal);
+    }
+
+    #[test]
+    fn help_mode_ignores_unrelated_keys() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![make_test_task("RQ-0001")],
+        };
+        let mut app = App::new(queue);
+        app.mode = AppMode::Help;
+
+        let action = handle_key_event(&mut app, KeyCode::Char('x'), "2026-01-20T00:00:00Z")
+            .expect("handle key");
+
+        assert_eq!(action, TuiAction::Continue);
+        assert_eq!(app.mode, AppMode::Help);
     }
 
     #[test]

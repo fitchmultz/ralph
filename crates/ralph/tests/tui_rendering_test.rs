@@ -494,6 +494,7 @@ fn test_render_help_footer_normal_mode() {
     let output = get_rendered_output(&mut terminal, &mut app);
     // Check for keybinding hints (help footer may be truncated on narrow terminals)
     // Core navigation and actions
+    assert!(output.contains("?/h:help"));
     assert!(output.contains("q:quit"));
     assert!(output.contains(":nav"));
     assert!(output.contains(":run"));
@@ -579,6 +580,20 @@ fn test_render_help_footer_executing_mode() {
     let output = get_rendered_output(&mut terminal, &mut app);
     // In executing mode, the help footer is in the execution view title
     assert!(output.contains("Esc to return"));
+}
+
+#[test]
+fn test_render_help_overlay() {
+    let queue = make_test_queue();
+    let mut app = App::new(queue);
+    app.mode = AppMode::Help;
+    let mut terminal = setup_test_terminal(80, 24);
+
+    let output = get_rendered_output(&mut terminal, &mut app);
+    assert!(output.contains("Help"));
+    assert!(output.contains("Keybindings"));
+    assert!(output.contains("Navigation"));
+    assert!(output.contains("Esc:close"));
 }
 
 #[test]
