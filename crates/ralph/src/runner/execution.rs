@@ -2,6 +2,7 @@
 
 use anyhow::{anyhow, Context};
 use serde_json::Value as JsonValue;
+use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::path::Path;
 use std::process::{Command, ExitStatus, Stdio};
@@ -363,6 +364,7 @@ fn spawn_json_reader<R: Read + Send + 'static>(
     thread::spawn(move || {
         let mut buf = [0u8; 8192];
         let mut line_buf = String::new();
+        let mut tool_name_by_id: HashMap<String, String> = HashMap::new();
 
         loop {
             let read = reader.read(&mut buf).context("read child output")?;
@@ -373,7 +375,30 @@ fn spawn_json_reader<R: Read + Send + 'static>(
             let text = String::from_utf8_lossy(&buf[..read]);
             for ch in text.chars() {
                 if ch == '\n' {
-                    if let Some(json) = parse_json_line(&line_buf) {
+                    if let Some(mut json) = parse_json_line(&line_buf) {
+                        if let Some(event_type) = json.get("type").and_then(|t| t.as_str()) {
+                            if event_type == "tool_use" {
+                                if let (Some(tool_id), Some(tool_name)) = (
+                                    json.get("tool_id").and_then(|v| v.as_str()),
+                                    json.get("tool_name").and_then(|v| v.as_str()),
+                                ) {
+                                    tool_name_by_id
+                                        .insert(tool_id.to_string(), tool_name.to_string());
+                                }
+                            } else if event_type == "tool_result" {
+                                let tool_id = json.get("tool_id").and_then(|v| v.as_str());
+                                if let Some(tool_id) = tool_id {
+                                    if let Some(tool_name) = tool_name_by_id.remove(tool_id) {
+                                        if let Some(obj) = json.as_object_mut() {
+                                            obj.insert(
+                                                "tool_name".to_string(),
+                                                JsonValue::String(tool_name),
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                        }
                         if let Some(id) = extract_session_id_from_json(&json) {
                             if let Ok(mut guard) = session_id_buf.lock() {
                                 *guard = Some(id);
@@ -448,6 +473,7 @@ fn extract_session_id_from_text(stdout: &str) -> Option<String> {
 }
 
 const CODEX_REASONING_PREFIX: &str = "[Reasoning] ";
+const TOOL_VALUE_MAX_LEN: usize = 160;
 
 fn extract_display_lines(json: &JsonValue) -> Vec<String> {
     let mut lines = Vec::new();
@@ -470,9 +496,24 @@ fn extract_display_lines(json: &JsonValue) -> Vec<String> {
                                         lines.push(text.to_string());
                                     }
                                 }
+                                "thinking" | "analysis" | "reasoning" => {
+                                    if let Some(text) = item.get("text").and_then(|t| t.as_str()) {
+                                        if !text.is_empty() {
+                                            lines.push(format!(
+                                                "{}{}",
+                                                CODEX_REASONING_PREFIX, text
+                                            ));
+                                        }
+                                    }
+                                }
                                 "tool_use" => {
                                     if let Some(name) = item.get("name").and_then(|n| n.as_str()) {
-                                        lines.push(format!("[Using: {}]", name));
+                                        let suffix = item
+                                            .get("input")
+                                            .and_then(format_tool_details)
+                                            .map(|details| format!(" {}", details))
+                                            .unwrap_or_default();
+                                        lines.push(format!("[Tool] {}{}", name, suffix));
                                     }
                                 }
                                 _ => {}
@@ -542,7 +583,17 @@ fn extract_display_lines(json: &JsonValue) -> Vec<String> {
                 let suffix = status
                     .map(|value| format!(" ({value})"))
                     .unwrap_or_default();
-                lines.push(format!("[Tool] {tool}{suffix}"));
+                let details = json
+                    .get("part")
+                    .and_then(|p| {
+                        p.get("state")
+                            .and_then(|s| s.get("input"))
+                            .or_else(|| p.get("input"))
+                    })
+                    .and_then(format_tool_details)
+                    .map(|details| format!(" {}", details))
+                    .unwrap_or_default();
+                lines.push(format!("[Tool] {tool}{suffix}{details}"));
             }
         }
 
@@ -570,6 +621,27 @@ fn extract_display_lines(json: &JsonValue) -> Vec<String> {
                 }
             }
         }
+
+        if event_type == "tool_use" {
+            if let Some(tool) = json.get("tool_name").and_then(|t| t.as_str()) {
+                let details = json
+                    .get("parameters")
+                    .and_then(format_tool_details)
+                    .map(|details| format!(" {}", details))
+                    .unwrap_or_default();
+                lines.push(format!("[Tool] {tool}{details}"));
+            }
+        }
+
+        if event_type == "tool_result" {
+            if let Some(tool) = json.get("tool_name").and_then(|t| t.as_str()) {
+                let status = json
+                    .get("status")
+                    .and_then(|s| s.as_str())
+                    .unwrap_or("completed");
+                lines.push(format!("[Tool] {tool} ({status})"));
+            }
+        }
     }
 
     if let Some(denials) = json.get("permission_denials").and_then(|d| d.as_array()) {
@@ -593,7 +665,14 @@ fn format_codex_tool_line(item: &JsonValue) -> Option<String> {
         (None, None) => return None,
     };
 
-    Some(format!("[Tool] {}{}", name, status_suffix(item)))
+    let details = item
+        .get("arguments")
+        .or_else(|| item.get("args"))
+        .or_else(|| item.get("input"))
+        .and_then(format_tool_details)
+        .map(|details| format!(" {}", details))
+        .unwrap_or_default();
+    Some(format!("[Tool] {}{}{}", name, status_suffix(item), details))
 }
 
 fn format_codex_command_line(item: &JsonValue) -> Option<String> {
@@ -610,6 +689,105 @@ fn status_suffix(item: &JsonValue) -> String {
         .and_then(|s| s.as_str())
         .map(|status| format!(" ({})", status))
         .unwrap_or_default()
+}
+
+fn format_tool_details(input: &JsonValue) -> Option<String> {
+    let object = input.as_object()?;
+    let mut parts = Vec::new();
+
+    if let Some(action) = lookup_string(object, &["action", "op", "fn"]) {
+        parts.push(format!("action={}", action));
+    }
+
+    if let Some(path) = lookup_string(object, &["path", "file_path", "filePath"]) {
+        parts.push(format!("path={}", path));
+    }
+
+    if let Some(paths) = lookup_array_len(object, &["paths", "file_paths", "files"]) {
+        parts.push(format!("paths={}", paths));
+    }
+
+    if let Some(command) = lookup_string(object, &["command", "cmd"]) {
+        let value = normalize_tool_value(&command);
+        parts.push(format!("cmd={}", truncate_tool_value(&value)));
+    }
+
+    if let Some(pattern) = lookup_string(object, &["pattern", "glob", "query"]) {
+        let value = normalize_tool_value(&pattern);
+        parts.push(format!("pattern={}", truncate_tool_value(&value)));
+    }
+
+    if let Some(content) = lookup_string(object, &["content", "text", "message"]) {
+        let value = normalize_tool_value(&content);
+        parts.push(format!("content_len={}", content.len()));
+        if !value.is_empty() {
+            parts.push(format!("content={}", truncate_tool_value(&value)));
+        }
+    }
+
+    if let Some(edits) = lookup_array_len(object, &["edits", "slices"]) {
+        parts.push(format!("edits={}", edits));
+    }
+
+    if parts.is_empty() {
+        None
+    } else {
+        Some(parts.join(" "))
+    }
+}
+
+fn lookup_string(object: &serde_json::Map<String, JsonValue>, keys: &[&str]) -> Option<String> {
+    for key in keys {
+        if let Some(value) = object.get(*key) {
+            if let Some(text) = value.as_str() {
+                return Some(text.to_string());
+            }
+            if value.is_number() || value.is_boolean() {
+                return Some(value.to_string());
+            }
+        }
+    }
+    None
+}
+
+fn lookup_array_len(object: &serde_json::Map<String, JsonValue>, keys: &[&str]) -> Option<usize> {
+    for key in keys {
+        if let Some(value) = object.get(*key) {
+            if let Some(array) = value.as_array() {
+                return Some(array.len());
+            }
+        }
+    }
+    None
+}
+
+fn normalize_tool_value(value: &str) -> String {
+    let mut out = String::new();
+    let mut last_space = false;
+    for ch in value.trim().chars() {
+        if ch.is_whitespace() {
+            if !last_space {
+                out.push(' ');
+                last_space = true;
+            }
+        } else {
+            last_space = false;
+            out.push(ch);
+        }
+    }
+    out
+}
+
+fn truncate_tool_value(value: &str) -> String {
+    if value.len() <= TOOL_VALUE_MAX_LEN {
+        return value.to_string();
+    }
+    let mut out = String::new();
+    for ch in value.chars().take(TOOL_VALUE_MAX_LEN - 1) {
+        out.push(ch);
+    }
+    out.push('…');
+    out
 }
 
 /// Display meaningful content from JSON, filtering noise
@@ -977,12 +1155,16 @@ mod tests {
                 "type": "mcp_tool_call",
                 "server": "RepoPrompt",
                 "tool": "get_file_tree",
-                "status": "completed"
+                "status": "completed",
+                "arguments": {
+                    "path": "/tmp/project",
+                    "pattern": "*.rs"
+                }
             }
         });
         assert_eq!(
             extract_display_lines(&payload),
-            vec!["[Tool] RepoPrompt.get_file_tree (completed)"]
+            vec!["[Tool] RepoPrompt.get_file_tree (completed) path=/tmp/project pattern=*.rs"]
         );
     }
 
@@ -1011,13 +1193,17 @@ mod tests {
             "message": {
                 "content": [
                     {"type": "text", "text": "Streamed text"},
-                    {"type": "tool_use", "name": "search"}
+                    {"type": "tool_use", "name": "Read", "input": {"file_path": "/tmp/a.txt"}}
                 ]
             }
         });
         assert_eq!(
             extract_display_lines(&payload),
-            vec!["Final answer", "Streamed text", "[Using: search]"]
+            vec![
+                "Final answer",
+                "Streamed text",
+                "[Tool] Read path=/tmp/a.txt"
+            ]
         );
     }
 
@@ -1073,12 +1259,38 @@ mod tests {
             "type": "tool_use",
             "part": {
                 "tool": "read",
-                "state": { "status": "completed" }
+                "state": {
+                    "status": "completed",
+                    "input": { "filePath": "/tmp/example.txt" }
+                }
             }
         });
         assert_eq!(
             extract_display_lines(&payload),
-            vec!["[Tool] read (completed)"]
+            vec!["[Tool] read (completed) path=/tmp/example.txt"]
+        );
+    }
+
+    #[test]
+    fn extract_display_lines_gemini_tool_use_and_result() {
+        let tool_use = json!({
+            "type": "tool_use",
+            "tool_name": "read_file",
+            "parameters": { "file_path": "notes.txt" }
+        });
+        assert_eq!(
+            extract_display_lines(&tool_use),
+            vec!["[Tool] read_file path=notes.txt"]
+        );
+
+        let tool_result = json!({
+            "type": "tool_result",
+            "tool_name": "read_file",
+            "status": "success"
+        });
+        assert_eq!(
+            extract_display_lines(&tool_result),
+            vec!["[Tool] read_file (success)"]
         );
     }
 
