@@ -3161,6 +3161,38 @@
       "completed_at": "2026-01-23T01:14:27.159363000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0229",
+      "status": "done",
+      "title": "Update `ralph run --help` to surface TUI entrypoints and examples",
+      "priority": "low",
+      "tags": [
+        "docs",
+        "cli",
+        "tui"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/run.rs"
+      ],
+      "evidence": [
+        "`crates/ralph/src/cli/run.rs` `RunArgs` after_long_help examples do not include `-i` or TUI launch guidance, so `ralph run --help` omits interactive discovery."
+      ],
+      "plan": [
+        "Add TUI examples and a short note to the `RunArgs` after_long_help string.",
+        "Verify `ralph run --help` output includes the interactive entrypoint.",
+        "Add a small CLI help snapshot test if one exists."
+      ],
+      "notes": [
+        "Add TUI entrypoint note to ralph run help text.",
+        "Assert run help mentions TUI commands in help contract test."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-22T02:50:11Z",
+      "updated_at": "2026-01-23T01:20:36.783527000Z",
+      "completed_at": "2026-01-23T01:20:36.783527000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

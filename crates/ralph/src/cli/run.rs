@@ -203,8 +203,7 @@ Notes:\n\
  - Allowed models: gpt-5.2-codex, gpt-5.2, zai-coding-plan/glm-4.7, gemini-3-pro-preview, gemini-3-flash-preview, sonnet, opus (codex supports only gpt-5.2-codex + gpt-5.2; opencode/gemini/claude accept arbitrary model ids)\n\
  - `--effort` is codex-only and is ignored for other runners.\n\
  - `--git-revert-mode` controls whether Ralph reverts uncommitted changes on errors (ask, enabled, disabled).\n\
- - `ralph tui` launches the full interactive UI.\n\
- - `ralph run one -i` and `ralph run loop -i` launch the same TUI for compatibility.\n\
+ - TUI entrypoints: `ralph tui`, `ralph run one -i`, `ralph run loop -i`.\n\
 \n\
 To change defaults for this repo, edit .ralph/config.json:\n\
  version: 1\n\

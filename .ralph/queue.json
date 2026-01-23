@@ -2,34 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0229",
-      "status": "todo",
-      "title": "Update `ralph run --help` to surface TUI entrypoints and examples",
-      "priority": "low",
-      "tags": [
-        "docs",
-        "cli",
-        "tui"
-      ],
-      "scope": [
-        "crates/ralph/src/cli/run.rs"
-      ],
-      "evidence": [
-        "`crates/ralph/src/cli/run.rs` `RunArgs` after_long_help examples do not include `-i` or TUI launch guidance, so `ralph run --help` omits interactive discovery."
-      ],
-      "plan": [
-        "Add TUI examples and a short note to the `RunArgs` after_long_help string.",
-        "Verify `ralph run --help` output includes the interactive entrypoint.",
-        "Add a small CLI help snapshot test if one exists."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-22T02:50:11Z",
-      "updated_at": "2026-01-22T16:19:21.142947000Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0230",
       "status": "todo",
       "title": "Add CLI parse tests for TUI entrypoint and interactive flags",
