@@ -530,21 +530,14 @@ impl App {
                 task.title = trimmed.to_string();
             }
             TaskEditKey::Status => {
-                task.status = match task.status {
+                let next_status = match task.status {
                     TaskStatus::Draft => TaskStatus::Todo,
                     TaskStatus::Todo => TaskStatus::Doing,
                     TaskStatus::Doing => TaskStatus::Done,
                     TaskStatus::Done => TaskStatus::Rejected,
                     TaskStatus::Rejected => TaskStatus::Draft,
                 };
-                match task.status {
-                    TaskStatus::Done | TaskStatus::Rejected => {
-                        task.completed_at = Some(now_rfc3339.to_string());
-                    }
-                    TaskStatus::Draft | TaskStatus::Todo | TaskStatus::Doing => {
-                        task.completed_at = None;
-                    }
-                }
+                queue::apply_status_policy(task, next_status, now_rfc3339, None)?;
             }
             TaskEditKey::Priority => {
                 task.priority = task.priority.cycle();
@@ -680,31 +673,15 @@ impl App {
 
     /// Archive terminal tasks (Done/Rejected) into the done queue.
     pub fn archive_terminal_tasks(&mut self, now_rfc3339: &str) -> Result<usize> {
-        let mut moved: Vec<Task> = Vec::new();
-        let mut kept: Vec<Task> = Vec::with_capacity(self.queue.tasks.len());
+        let report =
+            queue::archive_terminal_tasks_in_memory(&mut self.queue, &mut self.done, now_rfc3339)?;
 
-        for mut task in self.queue.tasks.drain(..) {
-            let is_terminal = matches!(task.status, TaskStatus::Done | TaskStatus::Rejected);
-            if is_terminal {
-                if task.completed_at.is_none() {
-                    task.completed_at = Some(now_rfc3339.to_string());
-                }
-                task.updated_at = Some(now_rfc3339.to_string());
-                moved.push(task);
-            } else {
-                kept.push(task);
-            }
-        }
-
-        self.queue.tasks = kept;
-
-        if moved.is_empty() {
+        if report.moved_ids.is_empty() {
             self.set_status_message("No done/rejected tasks to archive");
             return Ok(0);
         }
 
-        let moved_count = moved.len();
-        self.done.tasks.extend(moved);
+        let moved_count = report.moved_ids.len();
 
         self.dirty = true;
         self.dirty_done = true;
@@ -2311,6 +2288,37 @@ mod tests {
     }
 
     #[test]
+    fn apply_task_edit_cycles_status_with_policy() -> Result<()> {
+        let mut queue = QueueFile {
+            version: 1,
+            tasks: vec![make_test_task("RQ-0001", "Task 1", TaskStatus::Done)],
+        };
+        queue.tasks[0].completed_at = Some("2026-01-19T00:00:00Z".to_string());
+
+        let mut app = App::new(queue);
+
+        app.apply_task_edit(TaskEditKey::Status, "", "2026-01-20T12:00:00Z")?;
+        assert_eq!(app.queue.tasks[0].status, TaskStatus::Rejected);
+        assert_eq!(
+            app.queue.tasks[0].completed_at.as_deref(),
+            Some("2026-01-20T12:00:00Z")
+        );
+        assert_eq!(
+            app.queue.tasks[0].updated_at.as_deref(),
+            Some("2026-01-20T12:00:00Z")
+        );
+
+        app.apply_task_edit(TaskEditKey::Status, "", "2026-01-21T12:00:00Z")?;
+        assert_eq!(app.queue.tasks[0].status, TaskStatus::Draft);
+        assert!(app.queue.tasks[0].completed_at.is_none());
+        assert_eq!(
+            app.queue.tasks[0].updated_at.as_deref(),
+            Some("2026-01-21T12:00:00Z")
+        );
+        Ok(())
+    }
+
+    #[test]
     fn apply_task_edit_custom_fields_parses_and_validates() -> Result<()> {
         let queue = QueueFile {
             version: 1,
@@ -2498,6 +2506,62 @@ mod tests {
         assert_eq!(
             app.status_message.as_deref(),
             Some("No done/rejected tasks to archive")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn archive_terminal_tasks_stamps_timestamps() -> Result<()> {
+        let mut done_task = make_test_task("RQ-0001", "Task 1", TaskStatus::Done);
+        done_task.updated_at = None;
+        done_task.completed_at = None;
+
+        let mut rejected_task = make_test_task("RQ-0002", "Task 2", TaskStatus::Rejected);
+        rejected_task.updated_at = Some("2026-01-19T00:00:00Z".to_string());
+        rejected_task.completed_at = Some("2026-01-19T00:00:00Z".to_string());
+
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![done_task, rejected_task],
+        };
+        let mut app = App::new(queue);
+
+        let moved = app.archive_terminal_tasks("2026-01-20T12:00:00Z")?;
+
+        assert_eq!(moved, 2);
+        assert!(app.dirty);
+        assert!(app.dirty_done);
+        assert_eq!(app.queue.tasks.len(), 0);
+        assert_eq!(app.done.tasks.len(), 2);
+
+        let done_archived = app
+            .done
+            .tasks
+            .iter()
+            .find(|t| t.id == "RQ-0001")
+            .expect("RQ-0001 archived");
+        assert_eq!(
+            done_archived.updated_at.as_deref(),
+            Some("2026-01-20T12:00:00Z")
+        );
+        assert_eq!(
+            done_archived.completed_at.as_deref(),
+            Some("2026-01-20T12:00:00Z")
+        );
+
+        let rejected_archived = app
+            .done
+            .tasks
+            .iter()
+            .find(|t| t.id == "RQ-0002")
+            .expect("RQ-0002 archived");
+        assert_eq!(
+            rejected_archived.updated_at.as_deref(),
+            Some("2026-01-20T12:00:00Z")
+        );
+        assert_eq!(
+            rejected_archived.completed_at.as_deref(),
+            Some("2026-01-19T00:00:00Z")
         );
         Ok(())
     }

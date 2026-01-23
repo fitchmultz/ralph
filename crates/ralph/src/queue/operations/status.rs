@@ -1,11 +1,62 @@
 //! Status mutation helpers for queue tasks.
 
 use super::validate::parse_rfc3339_utc;
-use crate::contracts::{QueueFile, TaskStatus};
+use crate::contracts::{QueueFile, Task, TaskStatus};
 use crate::queue::{load_queue, load_queue_or_default, save_queue, validation};
 use crate::redaction;
 use anyhow::{anyhow, bail, Result};
 use std::path::Path;
+
+/// Apply the shared status-transition policy to a task.
+///
+/// This updates status, updated_at, and completed_at based on terminal states,
+/// and optionally appends a redacted note.
+pub fn apply_status_policy(
+    task: &mut Task,
+    status: TaskStatus,
+    now_rfc3339: &str,
+    note: Option<&str>,
+) -> Result<()> {
+    apply_status_fields(task, status, now_rfc3339)?;
+
+    if let Some(note) = note {
+        append_redacted_note(task, note);
+    }
+
+    Ok(())
+}
+
+fn apply_status_fields(task: &mut Task, status: TaskStatus, now_rfc3339: &str) -> Result<()> {
+    let now = parse_rfc3339_utc(now_rfc3339)?;
+
+    task.status = status;
+    task.updated_at = Some(now.clone());
+
+    match status {
+        TaskStatus::Done | TaskStatus::Rejected => {
+            task.completed_at = Some(now);
+        }
+        TaskStatus::Draft | TaskStatus::Todo | TaskStatus::Doing => {
+            task.completed_at = None;
+        }
+    }
+
+    Ok(())
+}
+
+fn append_redacted_note(task: &mut Task, note: &str) {
+    let redacted = redaction::redact_text(note);
+    let trimmed = redacted.trim();
+    if !trimmed.is_empty() {
+        task.notes.push(trimmed.to_string());
+    }
+}
+
+fn append_redacted_notes(task: &mut Task, notes: &[String]) {
+    for note in notes {
+        append_redacted_note(task, note);
+    }
+}
 
 /// Complete a single task and move it to the done archive.
 ///
@@ -83,19 +134,8 @@ pub fn complete_task(
 
     let mut completed_task = active.tasks.remove(task_idx);
 
-    let now = parse_rfc3339_utc(now_rfc3339)?;
-
-    completed_task.status = status;
-    completed_task.updated_at = Some(now.clone());
-    completed_task.completed_at = Some(now.clone());
-
-    for note in notes {
-        let redacted = redaction::redact_text(note);
-        let trimmed = redacted.trim();
-        if !trimmed.is_empty() {
-            completed_task.notes.push(trimmed.to_string());
-        }
-    }
+    apply_status_fields(&mut completed_task, status, now_rfc3339)?;
+    append_redacted_notes(&mut completed_task, notes);
 
     let mut done = load_queue_or_default(done_path)?;
 
@@ -118,8 +158,6 @@ pub fn set_status(
     now_rfc3339: &str,
     note: Option<&str>,
 ) -> Result<()> {
-    let now = parse_rfc3339_utc(now_rfc3339)?;
-
     let needle = task_id.trim();
     if needle.is_empty() {
         bail!("Missing task_id: a task ID is required for this operation. Provide a valid ID (e.g., 'RQ-0001').");
@@ -131,25 +169,7 @@ pub fn set_status(
         .find(|t| t.id.trim() == needle)
         .ok_or_else(|| anyhow!("task not found: {}", needle))?;
 
-    task.status = status;
-    task.updated_at = Some(now.clone());
-
-    match status {
-        TaskStatus::Done | TaskStatus::Rejected => {
-            task.completed_at = Some(now.clone());
-        }
-        TaskStatus::Draft | TaskStatus::Todo | TaskStatus::Doing => {
-            task.completed_at = None;
-        }
-    }
-
-    if let Some(note) = note {
-        let redacted = redaction::redact_text(note);
-        let trimmed = redacted.trim();
-        if !trimmed.is_empty() {
-            task.notes.push(trimmed.to_string());
-        }
-    }
+    apply_status_policy(task, status, now_rfc3339, note)?;
 
     Ok(())
 }

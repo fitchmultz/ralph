@@ -2,38 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0239",
-      "status": "todo",
-      "title": "Align archive and status transition policy across CLI and TUI",
-      "priority": "high",
-      "tags": [
-        "queue",
-        "tui",
-        "cli",
-        "consistency"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/mod.rs",
-        "crates/ralph/src/queue/operations/archive.rs",
-        "crates/ralph/src/queue/operations/status.rs"
-      ],
-      "evidence": [
-        "Duplication audit: archive and status update logic duplicated in crates/ralph/src/tui/mod.rs and queue operations with differing timestamp handling and validation rules."
-      ],
-      "plan": [
-        "Confirm the intended archive and status-transition rules for CLI and TUI (timestamps, validation, allowed transitions).",
-        "Introduce a shared mutation policy helper in queue operations that applies the agreed rules.",
-        "Update TUI and CLI paths to use the shared helper and remove duplicated logic.",
-        "Add tests covering terminal archive stamping and invalid/valid status transitions across both surfaces."
-      ],
-      "notes": [],
-      "request": "Read .ralph/cache/reports/duplication_and_consistency_audit.md and create tasks in the queue.json. Make sure to add all available fields, use depends_on, etc. Feel free to combine items in the report into single tasks to be executed together if necessary.",
-      "created_at": "2026-01-23T15:28:48Z",
-      "updated_at": "2026-01-23T15:28:48Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0240",
       "status": "todo",
       "title": "Unify runnable task selection for loop/run across CLI and TUI",

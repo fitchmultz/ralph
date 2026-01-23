@@ -936,3 +936,63 @@ fn archive_done_tasks_moves_done_and_rejected() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn archive_terminal_tasks_in_memory_stamps_timestamps() -> anyhow::Result<()> {
+    let mut done_task = task_with("RQ-0001", TaskStatus::Done, vec![]);
+    done_task.updated_at = None;
+    done_task.completed_at = None;
+
+    let mut rejected_task = task_with("RQ-0002", TaskStatus::Rejected, vec![]);
+    rejected_task.updated_at = Some("2026-01-10T00:00:00Z".to_string());
+    rejected_task.completed_at = Some("2026-01-10T00:00:00Z".to_string());
+
+    let todo_task = task_with("RQ-0003", TaskStatus::Todo, vec![]);
+
+    let mut active = QueueFile {
+        version: 1,
+        tasks: vec![done_task, rejected_task, todo_task],
+    };
+    let mut done = QueueFile::default();
+
+    let now = "2026-01-22T00:00:00Z";
+    let report = archive_terminal_tasks_in_memory(&mut active, &mut done, now)?;
+
+    assert_eq!(report.moved_ids.len(), 2);
+    assert!(report.moved_ids.contains(&"RQ-0001".to_string()));
+    assert!(report.moved_ids.contains(&"RQ-0002".to_string()));
+    assert_eq!(active.tasks.len(), 1);
+    assert_eq!(active.tasks[0].id, "RQ-0003");
+    assert_eq!(done.tasks.len(), 2);
+
+    let done_archived = done
+        .tasks
+        .iter()
+        .find(|t| t.id == "RQ-0001")
+        .expect("RQ-0001 archived");
+    assert_eq!(done_archived.updated_at.as_deref(), Some(now));
+    assert_eq!(done_archived.completed_at.as_deref(), Some(now));
+
+    let rejected_archived = done
+        .tasks
+        .iter()
+        .find(|t| t.id == "RQ-0002")
+        .expect("RQ-0002 archived");
+    assert_eq!(rejected_archived.updated_at.as_deref(), Some(now));
+    assert_eq!(
+        rejected_archived.completed_at.as_deref(),
+        Some("2026-01-10T00:00:00Z")
+    );
+
+    Ok(())
+}
+
+#[test]
+fn archive_terminal_tasks_in_memory_rejects_invalid_rfc3339() {
+    let mut active = QueueFile::default();
+    let mut done = QueueFile::default();
+
+    let err =
+        archive_terminal_tasks_in_memory(&mut active, &mut done, "not-a-timestamp").unwrap_err();
+    assert!(format!("{err}").contains("must be a valid RFC3339 UTC timestamp"));
+}
