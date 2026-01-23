@@ -21,6 +21,7 @@
     "ci_gate_enabled": true,
     "git_commit_push_enabled": true,
     "git_revert_mode": "ask",
-    "phases": 3
+    "phases": 3,
+    "iterations": 1
   }
 }
