@@ -3,7 +3,7 @@
   "tasks": [
     {
       "id": "RQ-0226",
-      "status": "draft",
+      "status": "todo",
       "title": "Add in-TUI help overlay for keybindings",
       "priority": "medium",
       "tags": [
@@ -33,7 +33,7 @@
     },
     {
       "id": "RQ-0227",
-      "status": "draft",
+      "status": "todo",
       "title": "Add empty-queue action prompts (create task / open task command)",
       "priority": "medium",
       "tags": [
@@ -61,7 +61,7 @@
     },
     {
       "id": "RQ-0228",
-      "status": "draft",
+      "status": "todo",
       "title": "Document TUI usage and keybindings in CLI docs",
       "priority": "low",
       "tags": [
@@ -89,7 +89,7 @@
     },
     {
       "id": "RQ-0229",
-      "status": "draft",
+      "status": "todo",
       "title": "Update `ralph run --help` to surface TUI entrypoints and examples",
       "priority": "low",
       "tags": [
@@ -117,7 +117,7 @@
     },
     {
       "id": "RQ-0230",
-      "status": "draft",
+      "status": "todo",
       "title": "Add CLI parse tests for TUI entrypoint and interactive flags",
       "priority": "low",
       "tags": [
