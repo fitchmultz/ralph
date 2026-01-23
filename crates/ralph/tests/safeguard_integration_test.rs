@@ -123,12 +123,16 @@ fn configure_runner(dir: &Path, runner: &str, model: &str, bin_path: Option<&Pat
     let mut config: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(&config_path).context("read config")?)
             .context("parse config")?;
+    if config.get("agent").is_none() {
+        config["agent"] = serde_json::json!({});
+    }
     let agent = config
         .get_mut("agent")
+        .and_then(|value| value.as_object_mut())
         .ok_or_else(|| anyhow::anyhow!("config missing agent section"))?;
-    agent["runner"] = serde_json::json!(runner);
-    agent["model"] = serde_json::json!(model);
-    agent["phases"] = serde_json::json!(1);
+    agent.insert("runner".to_string(), serde_json::json!(runner));
+    agent.insert("model".to_string(), serde_json::json!(model));
+    agent.insert("phases".to_string(), serde_json::json!(1));
     if let Some(path) = bin_path {
         let key = match runner {
             "codex" => "codex_bin",
@@ -137,7 +141,10 @@ fn configure_runner(dir: &Path, runner: &str, model: &str, bin_path: Option<&Pat
             "claude" => "claude_bin",
             _ => return Err(anyhow::anyhow!("unsupported runner: {}", runner)),
         };
-        agent[key] = serde_json::json!(path.to_string_lossy().to_string());
+        agent.insert(
+            key.to_string(),
+            serde_json::json!(path.to_string_lossy().to_string()),
+        );
     }
     std::fs::write(
         &config_path,

@@ -117,6 +117,7 @@ pub fn run_doctor(resolved: &config::Resolved) -> Result<()> {
     // 3. Runner Checks
     log::info!("Checking Agent configuration...");
     let runner = resolved.config.agent.runner.unwrap_or_default();
+    let runner_configured = runner_configured(resolved);
     let bin_name = match runner {
         Runner::Codex => resolved
             .config
@@ -145,11 +146,16 @@ pub fn run_doctor(resolved: &config::Resolved) -> Result<()> {
     };
 
     if let Err(e) = check_command(bin_name, &["--version"]) {
-        outpututil::log_error(&format!(
+        let message = format!(
             "runner binary '{}' ({:?}) check failed: {}",
             bin_name, runner, e
-        ));
-        failures.push("runner binary missing");
+        );
+        if runner_configured {
+            outpututil::log_error(&message);
+            failures.push("runner binary missing");
+        } else {
+            outpututil::log_warn(&message);
+        }
     } else {
         outpututil::log_success(&format!(
             "runner binary '{}' ({:?}) found",
@@ -209,6 +215,40 @@ pub fn run_doctor(resolved: &config::Resolved) -> Result<()> {
         }
         anyhow::bail!("Doctor check failed: one or more critical components are missing or misconfigured. Review the error logs above and fix the reported issues before running Ralph.");
     }
+}
+
+fn runner_configured(resolved: &config::Resolved) -> bool {
+    let mut configured = false;
+    let mut consider_layer = |path: &std::path::Path| {
+        if configured {
+            return;
+        }
+        let layer = match config::load_layer(path) {
+            Ok(layer) => layer,
+            Err(err) => {
+                log::warn!("Unable to load config layer at {}: {}", path.display(), err);
+                return;
+            }
+        };
+        configured = layer.agent.runner.is_some()
+            || layer.agent.codex_bin.is_some()
+            || layer.agent.opencode_bin.is_some()
+            || layer.agent.gemini_bin.is_some()
+            || layer.agent.claude_bin.is_some();
+    };
+
+    if let Some(path) = resolved.global_config_path.as_ref() {
+        if path.exists() {
+            consider_layer(path);
+        }
+    }
+    if let Some(path) = resolved.project_config_path.as_ref() {
+        if path.exists() {
+            consider_layer(path);
+        }
+    }
+
+    configured
 }
 
 fn check_command(bin: &str, args: &[&str]) -> Result<()> {

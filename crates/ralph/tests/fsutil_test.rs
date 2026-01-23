@@ -2,7 +2,6 @@
 
 use ralph::fsutil;
 use std::fs;
-use std::path::PathBuf;
 use std::thread;
 use std::time::Duration;
 use tempfile::TempDir;
@@ -294,12 +293,14 @@ fn test_write_atomic_unicode_content() {
 
 #[test]
 fn test_write_atomic_without_parent_fails() {
-    // Try to write to a path like "/test.txt" (no parent directory)
-    let file_path = PathBuf::from("/test.txt");
+    let dir = TempDir::new().expect("create temp dir");
+    let parent_path = dir.path().join("parent-file");
+    fs::write(&parent_path, b"parent").expect("write parent file");
+    let file_path = parent_path.join("test.txt");
     let contents = b"test";
 
     let result = fsutil::write_atomic(&file_path, contents);
-    // Should fail because we can't create parent directory at root
+    // Should fail because parent_path is a file, not a directory
     assert!(result.is_err());
 }
 

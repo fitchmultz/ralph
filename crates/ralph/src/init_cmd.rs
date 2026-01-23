@@ -133,8 +133,8 @@ fn write_config(path: &Path, force: bool) -> Result<FileInitStatus> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).with_context(|| format!("create {}", parent.display()))?;
     }
-    let cfg = Config::default();
-    let rendered = serde_json::to_string_pretty(&cfg).context("serialize config JSON")?;
+    let rendered = serde_json::to_string_pretty(&serde_json::json!({ "version": 1 }))
+        .context("serialize config JSON")?;
     fsutil::write_atomic(path, rendered.as_bytes())
         .with_context(|| format!("write config JSON {}", path.display()))?;
     Ok(FileInitStatus::Created)
