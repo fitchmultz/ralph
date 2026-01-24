@@ -11,12 +11,15 @@ use std::time::{Duration, SystemTime};
 pub struct DirLock {
     lock_dir: PathBuf,
     owner_path: PathBuf,
+    remove_dir_on_drop: bool,
 }
 
 impl Drop for DirLock {
     fn drop(&mut self) {
         let _ = fs::remove_file(&self.owner_path);
-        let _ = fs::remove_dir(&self.lock_dir);
+        if self.remove_dir_on_drop {
+            let _ = fs::remove_dir(&self.lock_dir);
+        }
     }
 }
 
@@ -48,6 +51,10 @@ pub fn ralph_temp_root() -> PathBuf {
     std::env::temp_dir().join(RALPH_TEMP_DIR_NAME)
 }
 
+fn is_supervising_label(label: &str) -> bool {
+    matches!(label, "run one" | "run loop" | "tui")
+}
+
 /// Check if the queue lock is currently held by a supervising process
 /// (run one or run loop), which means the caller is running under
 /// ralph's supervision and should not attempt to acquire the lock.
@@ -68,7 +75,7 @@ pub fn is_supervising_process(lock_dir: &Path) -> Result<bool> {
         None => return Ok(false),
     };
 
-    Ok(owner.label == "run one" || owner.label == "run loop" || owner.label == "tui")
+    Ok(is_supervising_label(&owner.label))
 }
 
 pub fn cleanup_stale_temp_entries(
@@ -191,6 +198,9 @@ pub fn acquire_dir_lock(lock_dir: &Path, label: &str, force: bool) -> Result<Dir
             .with_context(|| format!("create lock parent {}", parent.display()))?;
     }
 
+    let trimmed_label = label.trim();
+    let is_task_label = trimmed_label == "task";
+
     match fs::create_dir(lock_dir) {
         Ok(()) => {}
         Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => {
@@ -213,8 +223,17 @@ pub fn acquire_dir_lock(lock_dir: &Path, label: &str, force: bool) -> Result<Dir
                 return acquire_dir_lock(lock_dir, label, false);
             }
 
-            let msg = format_lock_error(lock_dir, owner.as_ref(), is_stale, owner_unreadable);
-            return Err(anyhow!(msg));
+            // Shared lock mode: "task" label can coexist with supervising lock
+            if is_task_label
+                && owner
+                    .as_ref()
+                    .is_some_and(|o| is_supervising_label(&o.label))
+            {
+                // Proceed to create sidecar owner file below
+            } else {
+                let msg = format_lock_error(lock_dir, owner.as_ref(), is_stale, owner_unreadable);
+                return Err(anyhow!(msg));
+            }
         }
         Err(err) => {
             return Err(anyhow!(err))
@@ -222,29 +241,37 @@ pub fn acquire_dir_lock(lock_dir: &Path, label: &str, force: bool) -> Result<Dir
         }
     }
 
-    let label = label.trim();
-    let label = if label.is_empty() {
+    let effective_label = if trimmed_label.is_empty() {
         "unspecified"
     } else {
-        label
+        trimmed_label
     };
     let owner = LockOwner {
         pid: std::process::id(),
         started_at: timeutil::now_utc_rfc3339()?,
         command: command_line(),
-        label: label.to_string(),
+        label: effective_label.to_string(),
     };
 
-    let owner_path = lock_dir.join("owner");
+    // For "task" label in shared lock mode, create sidecar owner file
+    let owner_path = if is_task_label && lock_dir.exists() {
+        lock_dir.join(format!("owner_task_{}", std::process::id()))
+    } else {
+        lock_dir.join("owner")
+    };
+
     if let Err(err) = write_lock_owner(&owner_path, &owner) {
         let _ = fs::remove_file(&owner_path);
-        let _ = fs::remove_dir(lock_dir);
+        if !is_task_label {
+            let _ = fs::remove_dir(lock_dir);
+        }
         return Err(err);
     }
 
     Ok(DirLock {
         lock_dir: lock_dir.to_path_buf(),
         owner_path,
+        remove_dir_on_drop: !is_task_label,
     })
 }
 

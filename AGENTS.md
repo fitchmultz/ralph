@@ -7,6 +7,7 @@ Purpose: Capture repo-wide operating expectations for contributors and agents.
   - Run locally via `cargo run -p ralph -- <command>`
 - `.ralph/`: Repo-local runtime state.
   - `.ralph/queue.json` is the **source of truth** for active work.
+  - When creating tasks via `ralph task`, new tasks are inserted at the top **unless** the first task is `doing`, in which case new tasks are inserted just below it (position 1).
   - `.ralph/done.json` archives completed tasks (same schema as queue).
   - Prompt templates are embedded in the Rust CLI and organized under `crates/ralph/assets/prompts/`; repo-local overrides can be placed in `.ralph/prompts/*.md`.
 

@@ -77,3 +77,6 @@ Notes:
 - Tasks run in the file order from `.ralph/queue.json`.
 - Completed tasks are removed from `.ralph/queue.json` and appended to `.ralph/done.json`.
 - Draft tasks (`status: draft`) are skipped by `run one` and `run loop` unless `--include-draft` is set.
+- `ralph task` inserts new tasks near the top of the queue:
+  - Default: insert at position 0 (top).
+  - If the first task is already `doing`, insert at position 1 (immediately below the in-progress task).

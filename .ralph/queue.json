@@ -49,42 +49,6 @@
       "custom_fields": {}
     },
     {
-      "id": "RQ-0285",
-      "status": "todo",
-      "title": "Allow adding tasks during a run via ralph task with smart queue positioning",
-      "priority": "high",
-      "tags": [
-        "queue",
-        "task",
-        "lock",
-        "run"
-      ],
-      "scope": [
-        "crates/ralph/src/task_cmd.rs",
-        "crates/ralph/src/fsutil.rs",
-        "crates/ralph/src/queue/operations/mutation.rs"
-      ],
-      "evidence": [
-        "crates/ralph/src/task_cmd.rs: build_task_impl acquires queue lock with label 'task'.",
-        "crates/ralph/src/fsutil.rs: is_supervising_process checks if lock label is 'run one'/'run loop'/'tui'.",
-        "User request: New tasks should be added to top of queue, except when first task has status 'doing' then insert second.",
-        "Current behavior: New tasks are inserted at top by task builder agent without considering first task status."
-      ],
-      "plan": [
-        "Add a function in queue/operations/mutation.rs to determine insertion position: return 1 (second position) if first task status is 'doing', else 0 (top).",
-        "Update task_cmd.rs backfill_missing_fields or add new helper to insert new tasks at calculated position instead of always at top.",
-        "Update fsutil.rs is_supervising_process to also allow 'task' label as supervising (or add separate is_task_allowed_under_supervision check).",
-        "Add tests covering: insertion at top when first task is todo, insertion at second when first task is doing, lock allows task during run.",
-        "Update docs/cli.md if the task insertion behavior needs documentation."
-      ],
-      "notes": [],
-      "request": "Be able to add tasks during a run via 'ralph task'. New tasks are added to the top of the queue as normal EXCEPT if the first task in the queue has a status of 'doing' in which the new task is added directly AFTER the first command, so second in line. Make sure the lock allows this for this specific use case.",
-      "created_at": "2026-01-24T18:30:00Z",
-      "updated_at": "2026-01-24T18:30:00Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0253",
       "status": "todo",
       "title": "Use porcelain -z parsing for git status to handle spaces/renames safely",

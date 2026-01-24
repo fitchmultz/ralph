@@ -80,7 +80,8 @@ fn repoprompt_planning_instruction_mentions_preflight_and_parity() {
     assert!(instruction.contains("RepoPrompt produces a plan, but you own its correctness"));
     assert!(instruction.contains("quick repo reality check"));
     assert!(instruction.contains("Parity rule"));
-    assert!(instruction.contains("append; do NOT replace the selection"));
+    assert!(instruction.contains("append (add) missing files"));
+    assert!(instruction.contains("do NOT replace selection"));
     assert!(instruction.contains("provided chat ID"));
 }
 

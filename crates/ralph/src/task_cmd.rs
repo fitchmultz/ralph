@@ -81,6 +81,10 @@ fn build_task_impl(
 
     let before = queue::load_queue(&resolved.queue_path)
         .with_context(|| format!("read queue {}", resolved.queue_path.display()))?;
+
+    // Compute insertion strategy from pre-run queue state
+    let insert_index = queue::suggest_new_task_insert_index(&before);
+
     let done = queue::load_queue_or_default(&resolved.done_path)
         .with_context(|| format!("read done {}", resolved.done_path.display()))?;
     let done_ref = if done.tasks.is_empty() && !resolved.done_path.exists() {
@@ -175,6 +179,10 @@ fn build_task_impl(
     let added = queue::added_tasks(&before_ids, &after);
     if !added.is_empty() {
         let added_ids: Vec<String> = added.iter().map(|(id, _)| id.clone()).collect();
+
+        // Enforce smart positioning deterministically
+        queue::reposition_new_tasks(&mut after, &added_ids, insert_index);
+
         let now = timeutil::now_utc_rfc3339_or_fallback();
         let default_request = opts.request.clone();
         queue::backfill_missing_fields(&mut after, &added_ids, &default_request, &now);
