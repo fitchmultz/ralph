@@ -1,6 +1,6 @@
 //! Git helpers for repo status, commits, and LFS detection.
 
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashSet;
 use std::fs;
@@ -86,18 +86,22 @@ fn classify_push_error(stderr: &str) -> GitError {
     GitError::PushFailed(detail)
 }
 
-// status_porcelain returns raw `git status --porcelain` output (may be empty).
+/// status_porcelain returns raw `git status --porcelain -z` output (may be empty).
+///
+/// NOTE: With `-z`, records are NUL-terminated (0x00) instead of newline-terminated.
+/// This makes the output safe to parse even when filenames contain spaces/newlines.
 pub fn status_porcelain(repo_root: &Path) -> Result<String, GitError> {
     let output = git_base_command(repo_root)
         .arg("status")
         .arg("--porcelain")
+        .arg("-z")
         .output()
-        .with_context(|| format!("run git status --porcelain in {}", repo_root.display()))?;
+        .with_context(|| format!("run git status --porcelain -z in {}", repo_root.display()))?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
         return Err(GitError::CommandFailed {
-            args: "status --porcelain".to_string(),
+            args: "status --porcelain -z".to_string(),
             code: output.status.code(),
             stderr: stderr.trim().to_string(),
         });
@@ -108,17 +112,15 @@ pub fn status_porcelain(repo_root: &Path) -> Result<String, GitError> {
 
 pub fn status_paths(repo_root: &Path) -> Result<Vec<String>, GitError> {
     let status = status_porcelain(repo_root)?;
-    if status.trim().is_empty() {
+    if status.is_empty() {
         return Ok(Vec::new());
     }
 
     let mut paths = Vec::new();
-    for line in status.lines() {
-        let trimmed = line.trim_start();
-        if let Some(path) = parse_status_path(trimmed) {
-            if !path.trim().is_empty() {
-                paths.push(path.trim().to_string());
-            }
+    let entries = parse_porcelain_z_entries(&status)?;
+    for entry in entries {
+        if !entry.path.is_empty() {
+            paths.push(entry.path);
         }
     }
     Ok(paths)
@@ -282,14 +284,15 @@ pub fn require_clean_repo_ignoring_paths(
     let mut tracked = Vec::new();
     let mut untracked = Vec::new();
 
-    for line in status.lines() {
-        let trimmed = line.trim_start();
-        let path = parse_status_path(trimmed).unwrap_or("");
+    let entries = parse_porcelain_z_entries(&status)?;
+    for entry in entries {
+        let path = entry.path.as_str();
         if !path_is_allowed(path, allowed_paths) {
-            if trimmed.starts_with("??") {
-                untracked.push(line);
+            let display = format_porcelain_entry(&entry);
+            if entry.xy == "??" {
+                untracked.push(display);
             } else {
-                tracked.push(line);
+                tracked.push(display);
             }
         }
     }
@@ -326,20 +329,150 @@ pub fn require_clean_repo_ignoring_paths(
     Err(GitError::DirtyRepo { details })
 }
 
-fn parse_status_path(line: &str) -> Option<&str> {
-    let trimmed = line.trim_start();
-    if trimmed.len() < 3 {
-        return None;
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PorcelainZEntry {
+    xy: String,
+    old_path: Option<String>,
+    path: String,
+}
+
+fn parse_porcelain_z_entries(status: &str) -> Result<Vec<PorcelainZEntry>, GitError> {
+    if status.is_empty() {
+        return Ok(Vec::new());
     }
-    let status = &trimmed[..2];
-    let rest = trimmed.get(2..)?.trim();
-    if status == "??" {
-        return Some(rest);
+
+    // Keep simple split-based approach, but parse defensively:
+    // - `git status --porcelain -z` is record-delimited by NUL
+    // - trailing NULs (and even accidental consecutive NULs) should not truncate parsing
+    let fields: Vec<&str> = status.split('\0').collect();
+    let mut idx = 0usize;
+
+    let mut entries = Vec::new();
+    while let Some(entry) = parse_status_path(&fields, &mut idx)? {
+        entries.push(entry);
     }
-    if let Some((_, path)) = rest.rsplit_once(" -> ") {
-        return Some(path.trim());
+    Ok(entries)
+}
+
+fn is_rename_or_copy_xy(xy: &str) -> bool {
+    let bytes = xy.as_bytes();
+    if bytes.len() != 2 {
+        return false;
     }
-    Some(rest)
+    matches!(bytes[0], b'R' | b'C') || matches!(bytes[1], b'R' | b'C')
+}
+
+fn take_required_field<'a>(
+    fields: &'a [&'a str],
+    idx: &mut usize,
+    label: &str,
+    head: &str,
+    xy: &str,
+) -> Result<&'a str, GitError> {
+    let value = fields.get(*idx).copied().ok_or_else(|| {
+        GitError::Other(anyhow!(
+            "malformed porcelain -z output: missing {} after field {:?} (XY={:?}, next_index={})",
+            label,
+            head,
+            xy,
+            *idx
+        ))
+    })?;
+    *idx = idx.saturating_add(1);
+
+    if value.is_empty() {
+        return Err(GitError::Other(anyhow!(
+            "malformed porcelain -z output: empty {} after field {:?} (XY={:?})",
+            label,
+            head,
+            xy
+        )));
+    }
+
+    Ok(value)
+}
+
+fn parse_status_path(
+    fields: &[&str],
+    idx: &mut usize,
+) -> Result<Option<PorcelainZEntry>, GitError> {
+    // Skip empty fields so we don't prematurely stop on trailing NULs or accidental
+    // consecutive NULs. This is defensive; valid git output should not include empty
+    // records.
+    while *idx < fields.len() && fields[*idx].is_empty() {
+        *idx += 1;
+    }
+
+    if *idx >= fields.len() {
+        return Ok(None);
+    }
+
+    let head = fields[*idx];
+    *idx += 1;
+
+    let (xy, inline_path) = parse_xy_and_inline_path(head)?;
+    let is_rename_or_copy = is_rename_or_copy_xy(xy);
+
+    let path = match inline_path {
+        Some(path) => path,
+        None => take_required_field(fields, idx, "path", head, xy)?,
+    };
+
+    if path.is_empty() {
+        return Err(GitError::Other(anyhow!(
+            "malformed porcelain -z output: empty path in field {:?} (XY={:?})",
+            head,
+            xy
+        )));
+    }
+
+    let old_path = if is_rename_or_copy {
+        Some(
+            take_required_field(fields, idx, "old path field for rename/copy", head, xy)?
+                .to_string(),
+        )
+    } else {
+        None
+    };
+
+    Ok(Some(PorcelainZEntry {
+        xy: xy.to_string(),
+        old_path,
+        path: path.to_string(),
+    }))
+}
+
+fn parse_xy_and_inline_path(field: &str) -> Result<(&str, Option<&str>), GitError> {
+    if field.len() < 2 {
+        return Err(GitError::Other(anyhow!(
+            "malformed porcelain -z output: field too short for XY status: {:?}",
+            field
+        )));
+    }
+
+    let xy = &field[..2];
+
+    if field.len() == 2 {
+        return Ok((xy, None));
+    }
+
+    let bytes = field.as_bytes();
+    if bytes.len() >= 3 && bytes[2] == b' ' {
+        return Ok((xy, Some(&field[3..])));
+    }
+
+    Err(GitError::Other(anyhow!(
+        "malformed porcelain -z output: expected `XY<space>path` or `XY` field, got: {:?}",
+        field
+    )))
+}
+
+fn format_porcelain_entry(entry: &PorcelainZEntry) -> String {
+    if let Some(old) = entry.old_path.as_deref() {
+        format!("{} {} -> {}", entry.xy, old, entry.path)
+    } else {
+        format!("{} {}", entry.xy, entry.path)
+    }
 }
 
 fn path_is_allowed(path: &str, allowed_paths: &[&str]) -> bool {
@@ -539,4 +672,39 @@ pub fn list_lfs_files(repo_root: &Path) -> Result<Vec<String>> {
     }
 
     Ok(files)
+}
+
+#[cfg(test)]
+mod porcelain_parser_tests {
+    use super::*;
+
+    #[test]
+    fn parse_porcelain_z_entries_skips_empty_fields_including_trailing_nuls() -> Result<()> {
+        // The empty segment between two NULs should not truncate parsing.
+        let status = "?? file1\0\0?? file2\0\0";
+        let entries = parse_porcelain_z_entries(status)?;
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].xy, "??");
+        assert_eq!(entries[0].path, "file1");
+        assert_eq!(entries[1].xy, "??");
+        assert_eq!(entries[1].path, "file2");
+        Ok(())
+    }
+
+    #[test]
+    fn parse_porcelain_z_entries_parses_copy_entries() -> Result<()> {
+        // We unit-test C (copy) parsing directly rather than relying on git heuristics
+        // to detect copies in a temp repo.
+        let status = "C  new name.txt\0old name.txt\0";
+        let entries = parse_porcelain_z_entries(status)?;
+        assert_eq!(
+            entries,
+            vec![PorcelainZEntry {
+                xy: "C ".to_string(),
+                old_path: Some("old name.txt".to_string()),
+                path: "new name.txt".to_string(),
+            }]
+        );
+        Ok(())
+    }
 }

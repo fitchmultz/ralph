@@ -809,13 +809,9 @@ mod tests {
         let reverted = fs::read_to_string(&file_path).expect("read file after revert");
         assert_eq!(reverted, "original");
 
-        let status = Command::new("git")
-            .args(["status", "--porcelain"])
-            .current_dir(dir.path())
-            .output()
-            .expect("git status --porcelain");
+        let status = gitutil::status_porcelain(dir.path()).expect("git status --porcelain -z");
         assert!(
-            String::from_utf8_lossy(&status.stdout).trim().is_empty(),
+            status.trim().is_empty(),
             "expected clean repo after timeout revert"
         );
 

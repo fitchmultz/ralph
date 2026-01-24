@@ -958,16 +958,13 @@ echo '{{"sessionID":"sess-123"}}'
         let plan_text = execute_phase1_planning(&invocation, 2)?;
         assert_eq!(plan_text.trim(), "plan content");
 
-        let status = Command::new("git")
-            .current_dir(temp.path())
-            .args(["status", "--porcelain"])
-            .output()?;
-        let stdout = String::from_utf8_lossy(&status.stdout);
-        let lines: Vec<&str> = stdout.lines().collect();
+        let mut paths = gitutil::status_paths(temp.path())?;
+        paths.sort();
+
         anyhow::ensure!(
-            lines.len() == 1 && lines[0].trim_end() == "?? baseline.txt",
-            "expected baseline dirty path only, got:\n{}",
-            stdout
+            paths.len() == 1 && paths[0] == "baseline.txt",
+            "expected baseline dirty path only, got: {:?}",
+            paths
         );
 
         Ok(())

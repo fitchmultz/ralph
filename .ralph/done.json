@@ -3966,6 +3966,42 @@
       "completed_at": "2026-01-24T21:03:33.902550000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0253",
+      "status": "done",
+      "title": "Use porcelain -z parsing for git status to handle spaces/renames safely",
+      "priority": "high",
+      "tags": [
+        "git",
+        "robustness"
+      ],
+      "scope": [
+        "crates/ralph/src/gitutil.rs",
+        "crates/ralph/tests/gitutil_test.rs"
+      ],
+      "evidence": [
+        "crates/ralph/src/gitutil.rs: status_porcelain runs `git status --porcelain` and parse_status_path splits on ' -> '.",
+        "crates/ralph/src/gitutil.rs: parse_status_path relies on whitespace-delimited lines, which is brittle for quoted paths."
+      ],
+      "plan": [
+        "Switch to `git status --porcelain -z` and parse NUL-delimited entries (including renames).",
+        "Update status_paths/parse_status_path logic to handle rename pairs and spaces reliably.",
+        "Add tests for paths with spaces and rename output."
+      ],
+      "notes": [
+        "Switched git status --porcelain to --porcelain -z for safe NUL-delimited parsing",
+        "Added explicit byte checks for rename/copy detection (R/C) instead of imprecise contains()",
+        "Parser now handles empty fields/trailing NULs defensively",
+        "Added tests for paths with spaces, renames, and newlines/tabs",
+        "All 441 tests pass; CI gate passes"
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-24T12:40:25Z",
+      "updated_at": "2026-01-24T21:43:05.560748000Z",
+      "completed_at": "2026-01-24T21:43:05.560748000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

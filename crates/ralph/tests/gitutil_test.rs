@@ -111,6 +111,74 @@ fn test_status_paths_includes_tracked_and_untracked() {
 }
 
 #[test]
+fn test_status_paths_handles_paths_with_spaces() {
+    let dir = TempDir::new().expect("create temp dir");
+    init_git_repo(&dir);
+
+    commit_file(&dir, "file with spaces.txt", "content", "initial");
+    fs::write(dir.path().join("file with spaces.txt"), "modified").expect("modify tracked");
+    fs::write(dir.path().join("untracked file.txt"), "new").expect("create untracked");
+
+    let paths = gitutil::status_paths(dir.path()).expect("status paths");
+    assert!(
+        paths.contains(&"file with spaces.txt".to_string()),
+        "expected modified tracked file with spaces"
+    );
+    assert!(
+        paths.contains(&"untracked file.txt".to_string()),
+        "expected untracked file with spaces"
+    );
+}
+
+#[test]
+fn test_status_paths_returns_new_path_for_renames_with_spaces() {
+    let dir = TempDir::new().expect("create temp dir");
+    init_git_repo(&dir);
+
+    commit_file(&dir, "old name.txt", "content", "initial");
+
+    let mv_status = Command::new("git")
+        .args(["mv", "old name.txt", "new name.txt"])
+        .current_dir(dir.path())
+        .status()
+        .expect("git mv failed");
+    assert!(mv_status.success(), "git mv should succeed");
+
+    let paths = gitutil::status_paths(dir.path()).expect("status paths");
+    assert!(
+        paths.contains(&"new name.txt".to_string()),
+        "expected new rename destination path"
+    );
+    assert!(
+        !paths.contains(&"old name.txt".to_string()),
+        "should not return old rename source path (API compatibility requirement)"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn test_status_paths_handles_paths_with_newlines_and_tabs() {
+    let dir = TempDir::new().expect("create temp dir");
+    init_git_repo(&dir);
+
+    let newline_name = "line1\nline2.txt";
+    let tab_name = "tab\tname.txt";
+
+    fs::write(dir.path().join(newline_name), "content").expect("write newline file");
+    fs::write(dir.path().join(tab_name), "content").expect("write tab file");
+
+    let paths = gitutil::status_paths(dir.path()).expect("status paths");
+    assert!(
+        paths.contains(&newline_name.to_string()),
+        "expected newline-containing path to be parsed via -z"
+    );
+    assert!(
+        paths.contains(&tab_name.to_string()),
+        "expected tab-containing path to be parsed via -z"
+    );
+}
+
+#[test]
 fn test_filter_modified_lfs_files_intersects_lists() {
     let status_paths = vec![
         "assets/large.bin".to_string(),
@@ -142,7 +210,6 @@ fn test_has_lfs_detects_gitattributes_filter() {
     let has_lfs = gitutil::has_lfs(dir.path()).expect("has lfs");
     assert!(has_lfs);
 }
-
 #[test]
 fn test_status_porcelain_non_git_directory() {
     let dir = TempDir::new().expect("create temp dir");
