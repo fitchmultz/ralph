@@ -6,6 +6,7 @@ A prior execution of this task already occurred in this run. Focus on refinement
 - identify regressions or unintended behavior changes
 - simplify or harden the implementation where possible
 - do NOT assume the task is complete
+- check for an existing plan and reuse the same file path if it exists. do not create a plan document outside of .ralph/cache/plans.
 
 The working tree may already be dirty from earlier work. Do NOT stop because the repo is dirty.
 "#;
