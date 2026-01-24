@@ -1,0 +1,315 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Config",
+  "type": "object",
+  "properties": {
+    "agent": {
+      "description": "Agent runner defaults (Claude, Codex, OpenCode, or Gemini).",
+      "default": {
+        "ci_gate_command": "make ci",
+        "ci_gate_enabled": true,
+        "claude_bin": "claude",
+        "claude_permission_mode": "bypass_permissions",
+        "codex_bin": "codex",
+        "followup_reasoning_effort": null,
+        "gemini_bin": "gemini",
+        "git_commit_push_enabled": true,
+        "git_revert_mode": "ask",
+        "iterations": 1,
+        "model": "sonnet",
+        "opencode_bin": "opencode",
+        "phases": 3,
+        "reasoning_effort": "medium",
+        "require_repoprompt": false,
+        "runner": "claude"
+      },
+      "allOf": [
+        {
+          "$ref": "#/definitions/AgentConfig"
+        }
+      ]
+    },
+    "project_type": {
+      "description": "\"code\" or \"docs\". Drives prompt defaults and small workflow decisions.",
+      "default": "code",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/ProjectType"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "queue": {
+      "description": "Queue-related configuration.",
+      "default": {
+        "done_file": ".ralph/done.json",
+        "file": ".ralph/queue.json",
+        "id_prefix": "RQ",
+        "id_width": 4
+      },
+      "allOf": [
+        {
+          "$ref": "#/definitions/QueueConfig"
+        }
+      ]
+    },
+    "version": {
+      "description": "Schema version for config.",
+      "default": 1,
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "AgentConfig": {
+      "type": "object",
+      "properties": {
+        "ci_gate_command": {
+          "description": "CI gate command to run (default: \"make ci\").",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ci_gate_enabled": {
+          "description": "Enable or disable the CI gate entirely (default: true).",
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "claude_bin": {
+          "description": "Override the claude executable name/path (default is \"claude\" if None).",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "claude_permission_mode": {
+          "description": "Claude permission mode for tool and edit approval. AcceptEdits: auto-approves file edits only BypassPermissions: skip all permission prompts (YOLO mode)",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ClaudePermissionMode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "codex_bin": {
+          "description": "Override the codex executable name/path (default is \"codex\" if None).",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "followup_reasoning_effort": {
+          "description": "Reasoning effort override for follow-up iterations (iterations > 1). Only meaningful for Codex models.",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ReasoningEffort"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "gemini_bin": {
+          "description": "Override the gemini executable name/path (default is \"gemini\" if None).",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "git_commit_push_enabled": {
+          "description": "Enable automatic git commit and push after successful runs (default: true).",
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "git_revert_mode": {
+          "description": "Controls automatic git revert behavior when runner or supervision errors occur.",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/GitRevertMode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "iterations": {
+          "description": "Number of iterations to run for each task (default: 1).",
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint8",
+          "minimum": 1.0
+        },
+        "model": {
+          "description": "Default model.",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Model"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "opencode_bin": {
+          "description": "Override the opencode executable name/path (default is \"opencode\" if None).",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "phases": {
+          "description": "Number of execution phases (1, 2, or 3). 1 = single-pass, 2 = plan+implement, 3 = plan+implement+review.",
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint8",
+          "maximum": 3.0,
+          "minimum": 1.0
+        },
+        "reasoning_effort": {
+          "description": "Default reasoning effort (only meaningful for Codex models).",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ReasoningEffort"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "require_repoprompt": {
+          "description": "Require RepoPrompt usage during planning. If true, agent must use of context_builder tool to generate a plan.",
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "runner": {
+          "description": "Which harness to use by default.",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Runner"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "ClaudePermissionMode": {
+      "type": "string",
+      "enum": [
+        "accept_edits",
+        "bypass_permissions"
+      ]
+    },
+    "GitRevertMode": {
+      "type": "string",
+      "enum": [
+        "ask",
+        "enabled",
+        "disabled"
+      ]
+    },
+    "Model": {
+      "type": "string"
+    },
+    "ProjectType": {
+      "type": "string",
+      "enum": [
+        "code",
+        "docs"
+      ]
+    },
+    "QueueConfig": {
+      "type": "object",
+      "properties": {
+        "done_file": {
+          "description": "Path to the JSON done archive file, relative to repo root.",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "file": {
+          "description": "Path to the JSON queue file, relative to repo root.",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id_prefix": {
+          "description": "ID prefix (default: \"RQ\").",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id_width": {
+          "description": "Zero pad width for the numeric suffix (default: 4 -> RQ-0001).",
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint8",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    },
+    "ReasoningEffort": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "xhigh"
+      ]
+    },
+    "Runner": {
+      "type": "string",
+      "enum": [
+        "codex",
+        "opencode",
+        "gemini",
+        "claude"
+      ]
+    }
+  }
+}
