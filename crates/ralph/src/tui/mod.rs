@@ -50,6 +50,7 @@ use crate::contracts::{
     ClaudePermissionMode, GitRevertMode, Model, ProjectType, QueueFile, ReasoningEffort, Runner,
     Task, TaskPriority, TaskStatus,
 };
+use crate::outpututil::format_custom_fields;
 use crate::timeutil;
 use crate::{fsutil, queue, runutil};
 
@@ -489,7 +490,7 @@ impl App {
             TaskEditEntry {
                 key: TaskEditKey::CustomFields,
                 label: "custom_fields",
-                value: display_custom_fields(&task.custom_fields),
+                value: format_custom_fields(&task.custom_fields, "(empty)"),
                 kind: TaskEditKind::Map,
             },
             TaskEditEntry {
@@ -526,7 +527,7 @@ impl App {
             TaskEditKey::Notes => task.notes.join(", "),
             TaskEditKey::Request => task.request.clone().unwrap_or_default(),
             TaskEditKey::DependsOn => task.depends_on.join(", "),
-            TaskEditKey::CustomFields => edit_custom_fields(&task.custom_fields),
+            TaskEditKey::CustomFields => format_custom_fields(&task.custom_fields, ""),
             TaskEditKey::CreatedAt => task.created_at.clone().unwrap_or_default(),
             TaskEditKey::UpdatedAt => task.updated_at.clone().unwrap_or_default(),
             TaskEditKey::CompletedAt => task.completed_at.clone().unwrap_or_default(),
@@ -2192,32 +2193,6 @@ fn display_list(values: &[String]) -> String {
     } else {
         values.join(", ")
     }
-}
-
-fn display_custom_fields(values: &HashMap<String, String>) -> String {
-    if values.is_empty() {
-        return "(empty)".to_string();
-    }
-    let mut entries: Vec<(&String, &String)> = values.iter().collect();
-    entries.sort_by(|(a, _), (b, _)| a.cmp(b));
-    entries
-        .into_iter()
-        .map(|(key, value)| format!("{}={}", key, value))
-        .collect::<Vec<String>>()
-        .join(", ")
-}
-
-fn edit_custom_fields(values: &HashMap<String, String>) -> String {
-    if values.is_empty() {
-        return String::new();
-    }
-    let mut entries: Vec<(&String, &String)> = values.iter().collect();
-    entries.sort_by(|(a, _), (b, _)| a.cmp(b));
-    entries
-        .into_iter()
-        .map(|(key, value)| format!("{}={}", key, value))
-        .collect::<Vec<String>>()
-        .join(", ")
 }
 
 fn cycle_project_type(value: Option<ProjectType>) -> Option<ProjectType> {

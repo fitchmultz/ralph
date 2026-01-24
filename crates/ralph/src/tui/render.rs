@@ -9,6 +9,7 @@
 
 use super::{App, AppMode, ConfigFieldKind, TaskEditKind};
 use crate::contracts::{TaskPriority, TaskStatus};
+use crate::outpututil::truncate_chars;
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Margin, Rect},
     style::{Color, Modifier, Style},
@@ -853,6 +854,10 @@ fn draw_task_details(f: &mut Frame<'_>, app: &mut App, area: Rect) {
                 ),
                 Span::styled(":", Style::default()),
             ]));
+            // Note: We inline custom fields sorting/formatting here (rather than using
+            // format_custom_fields from outpututil) because we need per-line wrapping
+            // for the TUI display. The format_custom_fields helper returns a single
+            // concatenated string which doesn't work for our text layout.
             let mut sorted_fields: Vec<_> = task.custom_fields.iter().collect();
             sorted_fields.sort_by_key(|&(k, _)| k);
             for (key, value) in sorted_fields {
@@ -1143,21 +1148,6 @@ fn priority_color(priority: TaskPriority) -> Color {
     }
 }
 
-fn truncate_to_width(value: &str, max: usize) -> String {
-    if value.len() <= max {
-        return value.to_string();
-    }
-    if max <= 3 {
-        return value.chars().take(max).collect();
-    }
-    let mut result = value
-        .chars()
-        .take(max.saturating_sub(3))
-        .collect::<String>();
-    result.push_str("...");
-    result
-}
-
 fn draw_config_editor(
     f: &mut Frame<'_>,
     app: &App,
@@ -1221,7 +1211,7 @@ fn draw_config_editor(
             }
             let label = format!("{:label_width$}", entry.label);
             let line_text = format!("{} {}", label, value);
-            let display = truncate_to_width(&line_text, list_area.width as usize);
+            let display = truncate_chars(&line_text, list_area.width as usize);
 
             let mut style = Style::default();
             if entry.value == "(global default)" {
@@ -1321,7 +1311,7 @@ fn draw_task_editor(
             }
             let label = format!("{:label_width$}", entry.label);
             let line_text = format!("{} {}", label, value);
-            let display = truncate_to_width(&line_text, list_area.width as usize);
+            let display = truncate_chars(&line_text, list_area.width as usize);
 
             let mut style = Style::default();
             if entry.value == "(empty)" {

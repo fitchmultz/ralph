@@ -438,20 +438,6 @@ fn next_todo_task_uses_file_order_not_priority() {
 }
 
 #[test]
-fn delete_task_removes_task() -> anyhow::Result<()> {
-    let mut queue = QueueFile {
-        version: 1,
-        tasks: vec![task("RQ-0001"), task("RQ-0002")],
-    };
-
-    let deleted = delete_task(&mut queue, "RQ-0002")?;
-    assert!(deleted);
-    assert_eq!(queue.tasks.len(), 1);
-    assert_eq!(queue.tasks[0].id, "RQ-0001");
-    Ok(())
-}
-
-#[test]
 fn task_id_set_ignores_empty_ids() {
     let mut queue = QueueFile {
         version: 1,

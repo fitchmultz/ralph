@@ -1,7 +1,6 @@
 //! Collection/mutation helpers for queue tasks.
 
 use crate::contracts::QueueFile;
-use anyhow::{bail, Result};
 use std::collections::HashSet;
 
 pub fn added_tasks(before: &HashSet<String>, after: &QueueFile) -> Vec<(String, String)> {
@@ -61,23 +60,6 @@ pub fn sort_tasks_by_priority(queue: &mut QueueFile, descending: bool) {
             other => other,
         }
     });
-}
-
-#[allow(dead_code)]
-pub fn delete_task(queue: &mut QueueFile, task_id: &str) -> Result<bool> {
-    let needle = task_id.trim();
-    if needle.is_empty() {
-        bail!("Missing task_id: a task ID is required for this operation. Provide a valid ID (e.g., 'RQ-0001').");
-    }
-
-    let original_len = queue.tasks.len();
-    queue.tasks.retain(|t| t.id.trim() != needle);
-
-    let deleted = queue.tasks.len() < original_len;
-    if !deleted {
-        bail!("task not found: {}", needle);
-    }
-    Ok(deleted)
 }
 
 pub fn task_id_set(queue: &QueueFile) -> HashSet<String> {

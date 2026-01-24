@@ -2,40 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0242",
-      "status": "todo",
-      "title": "Consolidate formatting helpers and remove dead helper code",
-      "priority": "low",
-      "tags": [
-        "refactor",
-        "cleanup",
-        "tui",
-        "cli"
-      ],
-      "scope": [
-        "crates/ralph/src/outpututil.rs",
-        "crates/ralph/src/tui/render.rs",
-        "crates/ralph/src/tui/mod.rs",
-        "crates/ralph/src/queue/operations/mutation.rs",
-        "crates/ralph/src/redaction.rs"
-      ],
-      "evidence": [
-        "Duplication audit: formatting helpers duplicated across CLI/TUI; dead helpers exist in queue/operations/mutation.rs and redaction.rs; redundant custom-field formatting in tui/mod.rs."
-      ],
-      "plan": [
-        "Identify shared semantic formatting behaviors that can be centralized without changing CLI/TUI presentation.",
-        "Consolidate duplicate formatting helpers and remove redundant custom-field formatting logic.",
-        "Remove dead helper code with allow(dead_code) where unused, updating tests accordingly.",
-        "Add tests for consolidated formatting and ensure removal does not regress existing outputs."
-      ],
-      "notes": [],
-      "request": "Read .ralph/cache/reports/duplication_and_consistency_audit.md and create tasks in the queue.json. Make sure to add all available fields, use depends_on, etc. Feel free to combine items in the report into single tasks to be executed together if necessary.",
-      "created_at": "2026-01-23T15:28:48Z",
-      "updated_at": "2026-01-23T15:28:48Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0237",
       "status": "todo",
       "title": "Add TUI flow to create a task from a description",

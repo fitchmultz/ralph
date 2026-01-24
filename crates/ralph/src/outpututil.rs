@@ -103,24 +103,32 @@ pub fn format_task_compact(task: &Task) -> String {
     )
 }
 
+/// Format custom fields as "key=value" pairs, comma-separated and sorted.
+///
+/// # Arguments
+/// * `values` - The custom fields HashMap
+/// * `empty_placeholder` - String to return when HashMap is empty (e.g., "(empty)" or "")
+///
+/// # Returns
+/// Comma-separated "key=value" pairs, or the empty_placeholder if no fields exist.
+pub fn format_custom_fields(
+    values: &std::collections::HashMap<String, String>,
+    empty_placeholder: &str,
+) -> String {
+    if values.is_empty() {
+        return empty_placeholder.to_string();
+    }
+    let mut fields: Vec<String> = values.iter().map(|(k, v)| format!("{}={}", k, v)).collect();
+    fields.sort();
+    fields.join(",")
+}
+
 pub fn format_task_detailed(task: &Task) -> String {
     let tags = join_csv_trimmed(&task.tags);
     let scope = join_csv_trimmed(&task.scope);
     let updated_at = task.updated_at.as_deref().unwrap_or("").trim();
     let completed_at = task.completed_at.as_deref().unwrap_or("").trim();
-
-    // Format custom fields as "key=value" pairs, comma-separated
-    let custom_fields_str = if task.custom_fields.is_empty() {
-        String::new()
-    } else {
-        let mut fields: Vec<String> = task
-            .custom_fields
-            .iter()
-            .map(|(k, v)| format!("{}={}", k, v))
-            .collect();
-        fields.sort();
-        fields.join(",")
-    };
+    let custom_fields_str = format_custom_fields(&task.custom_fields, "");
 
     format!(
         "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
@@ -287,5 +295,37 @@ mod tests {
         assert!(high.to_string().contains("high"));
         assert!(medium.to_string().contains("medium"));
         assert!(low.to_string().contains("low"));
+    }
+
+    #[test]
+    fn format_custom_fields_with_placeholder_returns_placeholder_when_empty() {
+        let fields = std::collections::HashMap::new();
+        assert_eq!(format_custom_fields(&fields, "(empty)"), "(empty)");
+    }
+
+    #[test]
+    fn format_custom_fields_with_empty_string_returns_empty_when_empty() {
+        let fields = std::collections::HashMap::new();
+        assert_eq!(format_custom_fields(&fields, ""), "");
+    }
+
+    #[test]
+    fn format_custom_fields_sorts_and_formats_key_value_pairs() {
+        let mut fields = std::collections::HashMap::new();
+        fields.insert("zebra".to_string(), "last".to_string());
+        fields.insert("apple".to_string(), "first".to_string());
+        fields.insert("banana".to_string(), "middle".to_string());
+
+        let result = format_custom_fields(&fields, "(empty)");
+        assert_eq!(result, "apple=first,banana=middle,zebra=last");
+    }
+
+    #[test]
+    fn format_custom_fields_handles_single_field() {
+        let mut fields = std::collections::HashMap::new();
+        fields.insert("key".to_string(), "value".to_string());
+
+        let result = format_custom_fields(&fields, "");
+        assert_eq!(result, "key=value");
     }
 }
