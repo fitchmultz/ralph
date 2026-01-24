@@ -785,6 +785,100 @@ fn test_next_runnable_task_skips_blocked() {
 }
 
 #[test]
+fn select_runnable_task_index_prefers_doing() {
+    let mut todo = task("RQ-0001");
+    todo.status = TaskStatus::Todo;
+
+    let mut doing = task("RQ-0002");
+    doing.status = TaskStatus::Doing;
+
+    let queue = QueueFile {
+        version: 1,
+        tasks: vec![todo, doing],
+    };
+
+    let idx = select_runnable_task_index(&queue, None, RunnableSelectionOptions::new(false, true))
+        .expect("should select doing");
+    assert_eq!(idx, 1);
+}
+
+#[test]
+fn select_runnable_task_index_prefers_todo_over_draft() {
+    let mut draft = task("RQ-0001");
+    draft.status = TaskStatus::Draft;
+
+    let mut todo = task("RQ-0002");
+    todo.status = TaskStatus::Todo;
+
+    let queue = QueueFile {
+        version: 1,
+        tasks: vec![draft, todo],
+    };
+
+    let idx = select_runnable_task_index(&queue, None, RunnableSelectionOptions::new(true, true))
+        .expect("should select todo");
+    assert_eq!(idx, 1);
+}
+
+#[test]
+fn select_runnable_task_index_with_target_rejects_empty_id() {
+    let queue = QueueFile {
+        version: 1,
+        tasks: vec![task("RQ-0001")],
+    };
+
+    let err = select_runnable_task_index_with_target(
+        &queue,
+        None,
+        "   ",
+        RunnableSelectionOptions::new(false, true),
+    )
+    .unwrap_err();
+    assert!(format!("{err}").to_lowercase().contains("empty"));
+}
+
+#[test]
+fn select_runnable_task_index_with_target_rejects_draft_without_flag() {
+    let mut draft = task("RQ-0001");
+    draft.status = TaskStatus::Draft;
+
+    let queue = QueueFile {
+        version: 1,
+        tasks: vec![draft],
+    };
+
+    let err = select_runnable_task_index_with_target(
+        &queue,
+        None,
+        "RQ-0001",
+        RunnableSelectionOptions::new(false, true),
+    )
+    .unwrap_err();
+    assert!(format!("{err}").to_lowercase().contains("include-draft"));
+}
+
+#[test]
+fn select_runnable_task_index_with_target_rejects_unmet_dependencies() {
+    let mut blocked = task("RQ-0001");
+    blocked.status = TaskStatus::Todo;
+    blocked.depends_on = vec!["RQ-0002".to_string()];
+
+    let queue = QueueFile {
+        version: 1,
+        tasks: vec![blocked],
+    };
+
+    let err = select_runnable_task_index_with_target(
+        &queue,
+        None,
+        "RQ-0001",
+        RunnableSelectionOptions::new(false, true),
+    )
+    .unwrap_err();
+    assert!(format!("{err}").to_lowercase().contains("dependencies"));
+}
+
+#[test]
 fn test_next_runnable_task_returns_unblocked() {
     let mut t1 = task("RQ-0002");
     t1.status = TaskStatus::Todo;

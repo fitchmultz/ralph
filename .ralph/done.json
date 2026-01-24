@@ -3526,6 +3526,43 @@
       "completed_at": "2026-01-24T03:14:39.946717000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0240",
+      "status": "done",
+      "title": "Unify runnable task selection for loop/run across CLI and TUI",
+      "priority": "medium",
+      "tags": [
+        "queue",
+        "selection",
+        "tui",
+        "cli"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/mod.rs",
+        "crates/ralph/src/run_cmd/selection.rs",
+        "crates/ralph/src/queue/operations/query.rs"
+      ],
+      "evidence": [
+        "Duplication audit: TUI next_loop_task_id re-implements next runnable selection and differs from queue::next_runnable_task and run_cmd::select_run_one_task_index (Doing priority and validation behavior)."
+      ],
+      "plan": [
+        "Define the intended runnable-task selection policy for loop and run-one (Doing priority, draft handling, validation errors).",
+        "Extract or extend a shared selection helper to encode the agreed policy.",
+        "Update TUI loop and CLI run selection to call the shared helper.",
+        "Add tests for selection ordering, draft handling, and target-id validation errors."
+      ],
+      "notes": [
+        "Unify runnable selection via shared helper for run/tui/prompt preview",
+        "Add queue selection validation + preference tests",
+        "Add prompt_cmd selection tests; fix clippy ordering"
+      ],
+      "request": "Read .ralph/cache/reports/duplication_and_consistency_audit.md and create tasks in the queue.json. Make sure to add all available fields, use depends_on, etc. Feel free to combine items in the report into single tasks to be executed together if necessary.",
+      "created_at": "2026-01-23T15:28:48Z",
+      "updated_at": "2026-01-24T03:40:41.384173000Z",
+      "completed_at": "2026-01-24T03:40:41.384173000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

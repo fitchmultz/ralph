@@ -2,9 +2,11 @@
 //!
 //! Encapsulates selection rules for choosing which task to run during `run one`.
 
-use crate::contracts::{QueueFile, TaskStatus};
-use crate::queue;
-use anyhow::{anyhow, bail, Result};
+use crate::contracts::QueueFile;
+use crate::queue::operations::{
+    select_runnable_task_index, select_runnable_task_index_with_target, RunnableSelectionOptions,
+};
+use anyhow::Result;
 
 pub(crate) fn select_run_one_task_index(
     queue_file: &QueueFile,
@@ -12,69 +14,13 @@ pub(crate) fn select_run_one_task_index(
     target_task_id: Option<&str>,
     include_draft: bool,
 ) -> Result<Option<usize>> {
+    let options = RunnableSelectionOptions::new(include_draft, true);
     if let Some(task_id) = target_task_id {
-        let needle = task_id.trim();
-        if needle.is_empty() {
-            bail!("Target task id is empty");
-        }
-        let idx = queue_file
-            .tasks
-            .iter()
-            .position(|t| t.id.trim() == needle)
-            .ok_or_else(|| anyhow!("Target task {} not found in queue", needle))?;
-        let task = &queue_file.tasks[idx];
-        match task.status {
-            TaskStatus::Done | TaskStatus::Rejected => {
-                bail!(
-                    "Target task {} is not runnable (status: {}). Choose a todo/doing task.",
-                    needle,
-                    task.status
-                );
-            }
-            TaskStatus::Draft => {
-                if !include_draft {
-                    bail!(
-                        "Target task {} is in draft status. Use --include-draft to run draft tasks.",
-                        needle
-                    );
-                }
-                if !queue::are_dependencies_met(task, queue_file, done_ref) {
-                    bail!(
-                        "Target task {} is blocked by unmet dependencies. Resolve dependencies before running.",
-                        needle
-                    );
-                }
-            }
-            TaskStatus::Todo => {
-                if !queue::are_dependencies_met(task, queue_file, done_ref) {
-                    bail!(
-                        "Target task {} is blocked by unmet dependencies. Resolve dependencies before running.",
-                        needle
-                    );
-                }
-            }
-            TaskStatus::Doing => {}
-        }
-        return Ok(Some(idx));
+        return select_runnable_task_index_with_target(queue_file, done_ref, task_id, options)
+            .map(Some);
     }
 
-    if let Some(idx) = queue_file
-        .tasks
-        .iter()
-        .position(|t| t.status == TaskStatus::Doing)
-    {
-        return Ok(Some(idx));
-    }
-
-    Ok(queue_file.tasks.iter().position(|t| {
-        if t.status == TaskStatus::Todo {
-            return queue::are_dependencies_met(t, queue_file, done_ref);
-        }
-        if include_draft && t.status == TaskStatus::Draft {
-            return queue::are_dependencies_met(t, queue_file, done_ref);
-        }
-        false
-    }))
+    Ok(select_runnable_task_index(queue_file, done_ref, options))
 }
 
 #[cfg(test)]
@@ -85,6 +31,27 @@ mod tests {
     fn task_with_status(status: TaskStatus) -> Task {
         Task {
             id: "RQ-0001".to_string(),
+            status,
+            title: "Test task".to_string(),
+            priority: Default::default(),
+            tags: vec!["rust".to_string()],
+            scope: vec!["crates/ralph".to_string()],
+            evidence: vec!["observed".to_string()],
+            plan: vec!["do thing".to_string()],
+            notes: vec![],
+            request: Some("test request".to_string()),
+            agent: None,
+            created_at: Some("2026-01-18T00:00:00Z".to_string()),
+            updated_at: Some("2026-01-18T00:00:00Z".to_string()),
+            completed_at: None,
+            depends_on: vec![],
+            custom_fields: std::collections::HashMap::new(),
+        }
+    }
+
+    fn task_with_id_status(id: &str, status: TaskStatus) -> Task {
+        Task {
+            id: id.to_string(),
             status,
             title: "Test task".to_string(),
             priority: Default::default(),
@@ -199,6 +166,28 @@ mod tests {
         let queue_file = queue_with_tasks(vec![task_with_status(TaskStatus::Draft)]);
         let idx = select_run_one_task_index(&queue_file, None, None, true)?;
         assert_eq!(idx, Some(0));
+        Ok(())
+    }
+
+    #[test]
+    fn select_run_one_task_index_prefers_doing_over_todo() -> anyhow::Result<()> {
+        let queue_file = queue_with_tasks(vec![
+            task_with_id_status("RQ-0001", TaskStatus::Todo),
+            task_with_id_status("RQ-0002", TaskStatus::Doing),
+        ]);
+        let idx = select_run_one_task_index(&queue_file, None, None, false)?;
+        assert_eq!(idx, Some(1));
+        Ok(())
+    }
+
+    #[test]
+    fn select_run_one_task_index_prefers_todo_over_draft() -> anyhow::Result<()> {
+        let queue_file = queue_with_tasks(vec![
+            task_with_id_status("RQ-0001", TaskStatus::Draft),
+            task_with_id_status("RQ-0002", TaskStatus::Todo),
+        ]);
+        let idx = select_run_one_task_index(&queue_file, None, None, true)?;
+        assert_eq!(idx, Some(1));
         Ok(())
     }
 }

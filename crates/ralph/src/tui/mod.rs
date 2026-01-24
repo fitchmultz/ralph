@@ -1467,26 +1467,13 @@ impl App {
 
     /// Select the next runnable task for loop mode.
     ///
-    /// This respects queue order (file order) and skips tasks whose dependencies are not met.
+    /// This prefers resuming `doing` tasks, then the first runnable `todo`, then `draft` (when
+    /// enabled), while skipping tasks whose dependencies are not met.
     pub fn next_loop_task_id(&self) -> Option<String> {
-        for task in &self.queue.tasks {
-            let eligible = match task.status {
-                TaskStatus::Todo => true,
-                TaskStatus::Draft if self.loop_include_draft => true,
-                _ => false,
-            };
-            if !eligible {
-                continue;
-            }
-
-            // Use the existing dependency checker from queue operations.
-            let deps_ok =
-                queue::operations::are_dependencies_met(task, &self.queue, Some(&self.done));
-            if deps_ok {
-                return Some(task.id.clone());
-            }
-        }
-        None
+        let options =
+            queue::operations::RunnableSelectionOptions::new(self.loop_include_draft, true);
+        queue::operations::select_runnable_task_index(&self.queue, Some(&self.done), options)
+            .and_then(|idx| self.queue.tasks.get(idx).map(|task| task.id.clone()))
     }
 
     /// Rebuild the filtered view.
