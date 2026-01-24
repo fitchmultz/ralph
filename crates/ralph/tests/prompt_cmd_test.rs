@@ -80,6 +80,8 @@ fn worker_phase1_includes_plan_cache_path_and_optional_rp() -> Result<()> {
             task_id: None,
             mode: WorkerMode::Phase1,
             repoprompt_required: true,
+            iterations: 1,
+            iteration_index: 1,
             plan_file: None,
             plan_text: None,
             explain: false,
@@ -105,6 +107,8 @@ fn worker_single_phase_includes_completion_workflow() -> Result<()> {
             task_id: None,
             mode: WorkerMode::Single,
             repoprompt_required: false,
+            iterations: 1,
+            iteration_index: 1,
             plan_file: None,
             plan_text: None,
             explain: false,
@@ -140,6 +144,8 @@ fn worker_phase2_requires_plan_text() -> Result<()> {
             task_id: Some("RQ-0001".to_string()),
             mode: WorkerMode::Phase2,
             repoprompt_required: true,
+            iterations: 1,
+            iteration_index: 1,
             plan_file: None,
             plan_text: Some("PLAN BODY".to_string()),
             explain: false,
@@ -164,6 +170,8 @@ fn worker_phase2_uses_placeholder_when_no_plan_found() -> Result<()> {
             task_id: Some("RQ-0001".to_string()),
             mode: WorkerMode::Phase2,
             repoprompt_required: false,
+            iterations: 1,
+            iteration_index: 1,
             plan_file: None,
             plan_text: None,
             explain: false,
@@ -235,6 +243,8 @@ fn worker_phase3_includes_code_review_prompt() -> Result<()> {
             task_id: Some("RQ-0001".to_string()),
             mode: WorkerMode::Phase3,
             repoprompt_required: false,
+            iterations: 1,
+            iteration_index: 1,
             plan_file: None,
             plan_text: None,
             explain: false,
@@ -244,5 +254,30 @@ fn worker_phase3_includes_code_review_prompt() -> Result<()> {
     assert!(prompt.contains("CODE REVIEW MODE - PHASE 3 OF 3"));
     assert!(prompt.contains("CODING STANDARDS"));
     assert!(prompt.contains("PRE-FLIGHT OVERRIDE"));
+    Ok(())
+}
+
+#[test]
+fn worker_phase2_includes_iteration_context_for_followup() -> Result<()> {
+    let temp = TempDir::new()?;
+    write_minimal_queue(&temp)?;
+    let resolved = make_resolved(&temp);
+
+    let prompt = prompt_cmd::build_worker_prompt(
+        &resolved,
+        WorkerPromptOptions {
+            task_id: Some("RQ-0001".to_string()),
+            mode: WorkerMode::Phase2,
+            repoprompt_required: false,
+            iterations: 3,
+            iteration_index: 2,
+            plan_file: None,
+            plan_text: Some("PLAN BODY".to_string()),
+            explain: false,
+        },
+    )?;
+
+    assert!(prompt.contains("REFINEMENT CONTEXT"));
+    assert!(prompt.contains("ITERATION COMPLETION RULES"));
     Ok(())
 }

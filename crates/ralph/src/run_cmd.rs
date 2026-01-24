@@ -423,6 +423,11 @@ fn apply_followup_reasoning_effort(
     if let Some(effort) = followup_reasoning_effort {
         if settings.runner == crate::contracts::Runner::Codex {
             settings.reasoning_effort = Some(effort);
+        } else {
+            log::warn!(
+                "Follow-up reasoning_effort configured, but runner {:?} does not support it; ignoring override.",
+                settings.runner
+            );
         }
     }
     settings

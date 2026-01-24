@@ -18,6 +18,7 @@ ralph --force queue archive
 * `ralph queue <subcommand>`: validate, list, search, and batch-maintain tasks.
 * `ralph run <subcommand>`: run tasks via a runner (codex/opencode/gemini/claude).
 * `ralph tui`: launch the interactive UI (queue + execution + loop).
+* `ralph prompt <subcommand>`: render compiled prompts for inspection.
 * `ralph task`: create a task from a request.
 * `ralph scan`: generate new tasks via scanning.
 * `ralph doctor`: verify environment readiness.
@@ -100,6 +101,25 @@ ralph run one -i
 ralph run loop --max-tasks 0
 ralph run loop -i --max-tasks 3
 ralph run one --git-commit-push-off
+```
+
+## `ralph prompt`
+
+Render prompt previews to inspect the exact text sent to runners.
+
+Key flags:
+- `ralph prompt worker --phase <1|2|3>`: choose phase prompt.
+- `--iterations` / `--iteration-index`: simulate follow-up iteration context.
+- `--plan-text` / `--plan-file`: embed phase 2 plan text for previewing.
+- `--rp-on` / `--rp-off`: force RepoPrompt requirement.
+
+Examples:
+
+```bash
+ralph prompt worker --phase 1 --rp-on
+ralph prompt worker --phase 2 --plan-text "Plan body"
+ralph prompt worker --phase 2 --iteration-index 2 --iterations 3
+ralph prompt worker --phase 3 --task-id RQ-0001
 ```
 
 ## Runner and Model Overrides

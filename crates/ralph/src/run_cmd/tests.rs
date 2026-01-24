@@ -11,8 +11,55 @@ use crate::contracts::{
 };
 use crate::queue;
 use crate::runner;
+use log::{LevelFilter, Log, Metadata, Record};
 use std::path::PathBuf;
+use std::sync::{Mutex, OnceLock};
 use tempfile::TempDir;
+
+struct TestLogger;
+
+static LOGGER: TestLogger = TestLogger;
+static LOGGER_STATE: OnceLock<LoggerState> = OnceLock::new();
+static LOGS: OnceLock<Mutex<Vec<String>>> = OnceLock::new();
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum LoggerState {
+    TestLogger,
+    OtherLogger,
+}
+
+impl Log for TestLogger {
+    fn enabled(&self, _metadata: &Metadata<'_>) -> bool {
+        true
+    }
+
+    fn log(&self, record: &Record<'_>) {
+        let logs = LOGS.get_or_init(|| Mutex::new(Vec::new()));
+        let mut guard = logs.lock().expect("log mutex");
+        guard.push(record.args().to_string());
+    }
+
+    fn flush(&self) {}
+}
+
+fn init_logger() -> (LoggerState, &'static Mutex<Vec<String>>) {
+    let state = *LOGGER_STATE.get_or_init(|| {
+        if log::set_logger(&LOGGER).is_ok() {
+            log::set_max_level(LevelFilter::Warn);
+            LoggerState::TestLogger
+        } else {
+            LoggerState::OtherLogger
+        }
+    });
+    (state, LOGS.get_or_init(|| Mutex::new(Vec::new())))
+}
+
+fn take_logs() -> (LoggerState, Vec<String>) {
+    let (state, logs) = init_logger();
+    let mut guard = logs.lock().expect("log mutex");
+    let drained = guard.drain(..).collect::<Vec<_>>();
+    (state, drained)
+}
 
 fn resolved_with_agent_defaults(
     runner: Option<Runner>,
@@ -406,6 +453,27 @@ fn apply_followup_reasoning_effort_overrides_codex_only() {
     let updated_non_codex =
         apply_followup_reasoning_effort(&base_non_codex, Some(ReasoningEffort::High), true);
     assert_eq!(updated_non_codex.reasoning_effort, None);
+}
+
+#[test]
+fn apply_followup_reasoning_effort_warns_for_non_codex() {
+    let base_non_codex = runner::AgentSettings {
+        runner: Runner::Opencode,
+        model: Model::Glm47,
+        reasoning_effort: None,
+    };
+
+    let (state, _) = take_logs();
+    let _ = apply_followup_reasoning_effort(&base_non_codex, Some(ReasoningEffort::High), true);
+    let (_, logs) = take_logs();
+
+    if state == LoggerState::TestLogger {
+        assert!(
+            logs.iter()
+                .any(|entry| entry.contains("Follow-up reasoning_effort configured")),
+            "expected warning log, got {logs:?}"
+        );
+    }
 }
 
 #[test]

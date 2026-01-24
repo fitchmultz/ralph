@@ -37,6 +37,8 @@ pub fn handle_prompt(args: PromptArgs) -> Result<()> {
                     task_id: p.task_id,
                     mode,
                     repoprompt_required: rp_required,
+                    iterations: p.iterations,
+                    iteration_index: p.iteration_index,
                     plan_file: p.plan_file,
                     plan_text: p.plan_text,
                     explain: p.explain,
@@ -96,7 +98,7 @@ fn parse_phase(s: &str) -> Result<promptflow::RunPhase, String> {
 #[derive(Args)]
 #[command(
     about = "Render and print compiled prompts (preview what the agent will see)",
-    after_long_help = "This command prints the final compiled prompt after:\n  - loading embedded or overridden templates\n  - expanding config/env variables\n  - injecting project-type guidance\n  - applying phase wrappers and RepoPrompt requirements\n\nExamples:\n  ralph prompt worker --phase 1 --rp-on\n  ralph prompt worker --single\n  ralph prompt scan --focus \"risk audit\" --rp-off\n  ralph prompt task-builder --request \"Add tests\" --tags rust --scope crates/ralph\n"
+    after_long_help = "This command prints the final compiled prompt after:\n  - loading embedded or overridden templates\n  - expanding config/env variables\n  - injecting project-type guidance\n  - applying phase wrappers and RepoPrompt requirements\n\nExamples:\n  ralph prompt worker --phase 1 --rp-on\n  ralph prompt worker --single\n  ralph prompt worker --phase 2 --iteration-index 2 --iterations 3\n  ralph prompt scan --focus \"risk audit\" --rp-off\n  ralph prompt task-builder --request \"Add tests\" --tags rust --scope crates/ralph\n"
 )]
 pub struct PromptArgs {
     #[command(subcommand)]
@@ -134,6 +136,14 @@ pub struct PromptWorkerArgs {
     /// For phase 2: inline plan text (takes precedence over --plan-file and cache).
     #[arg(long)]
     pub plan_text: Option<String>,
+
+    /// Simulate total iteration count for prompt preview.
+    #[arg(long, default_value_t = 1)]
+    pub iterations: u8,
+
+    /// Simulate which iteration index to preview (1-based).
+    #[arg(long, default_value_t = 1)]
+    pub iteration_index: u8,
 
     /// Force RepoPrompt required.
     #[arg(long, conflicts_with = "rp_off")]

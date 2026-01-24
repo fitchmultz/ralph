@@ -40,6 +40,10 @@ pub struct WorkerPromptOptions {
     pub mode: WorkerMode,
     /// RepoPrompt required decision already resolved (flags + config).
     pub repoprompt_required: bool,
+    /// Total iteration count to simulate when rendering prompts.
+    pub iterations: u8,
+    /// 1-based iteration index to simulate when rendering prompts.
+    pub iteration_index: u8,
 
     /// Optional explicit plan file for Phase 2.
     /// If omitted in Phase 2, we try the cached plan at `.ralph/cache/plans/{{TASK_ID}}.md`.
@@ -200,6 +204,19 @@ pub fn build_worker_prompt(
     opts: WorkerPromptOptions,
 ) -> Result<String> {
     let task_id = resolve_worker_task_id(resolved, opts.task_id)?;
+    if opts.iterations == 0 {
+        bail!("--iterations must be >= 1");
+    }
+    if opts.iteration_index == 0 {
+        bail!("--iteration-index must be >= 1");
+    }
+    if opts.iteration_index > opts.iterations {
+        bail!(
+            "--iteration-index ({}) cannot exceed --iterations ({})",
+            opts.iteration_index,
+            opts.iterations
+        );
+    }
 
     let template = prompts::load_worker_prompt(&resolved.repo_root)?;
     let project_type = resolved.config.project_type.unwrap_or(ProjectType::Code);
@@ -209,9 +226,23 @@ pub fn build_worker_prompt(
     let policy = PromptPolicy {
         require_repoprompt: opts.repoprompt_required,
     };
-    let iteration_context = "";
-    let iteration_completion_block = "";
-    let phase3_completion_guidance = prompts::PHASE3_COMPLETION_GUIDANCE_FINAL;
+    let is_followup = opts.iteration_index > 1;
+    let is_final_iteration = opts.iteration_index == opts.iterations;
+    let iteration_context = if is_followup {
+        prompts::ITERATION_CONTEXT_REFINEMENT
+    } else {
+        ""
+    };
+    let iteration_completion_block = if is_final_iteration {
+        ""
+    } else {
+        prompts::ITERATION_COMPLETION_BLOCK
+    };
+    let phase3_completion_guidance = if is_final_iteration {
+        prompts::PHASE3_COMPLETION_GUIDANCE_FINAL
+    } else {
+        prompts::PHASE3_COMPLETION_GUIDANCE_NONFINAL
+    };
 
     let configured_phases = resolved.config.agent.phases.unwrap_or(2);
     let total_phases = match opts.mode {
@@ -342,6 +373,10 @@ pub fn build_worker_prompt(
     header.push_str(&format!(
         "- repoprompt_required: {}\n",
         opts.repoprompt_required
+    ));
+    header.push_str(&format!(
+        "- iteration: {}/{}\n",
+        opts.iteration_index, opts.iterations
     ));
     header.push_str(&format!(
         "- worker template source: {}\n",

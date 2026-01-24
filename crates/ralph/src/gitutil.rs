@@ -1,8 +1,11 @@
 //! Git helpers for repo status, commits, and LFS detection.
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
+use std::collections::hash_map::DefaultHasher;
 use std::collections::HashSet;
 use std::fs;
+use std::hash::Hasher;
+use std::io::Read;
 use std::path::Path;
 use std::process::Command;
 use thiserror::Error;
@@ -119,6 +122,121 @@ pub fn status_paths(repo_root: &Path) -> Result<Vec<String>, GitError> {
         }
     }
     Ok(paths)
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PathSnapshot {
+    pub path: String,
+    fingerprint: Option<u64>,
+}
+
+/// Create deterministic fingerprints for a list of baseline dirty paths.
+///
+/// This is used to ensure Phase 1 plan-only runs do not mutate pre-existing
+/// dirty files when `allow_dirty_repo` is true.
+pub fn snapshot_paths(repo_root: &Path, paths: &[String]) -> Result<Vec<PathSnapshot>> {
+    if paths.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let mut unique = HashSet::new();
+    let mut snapshots = Vec::new();
+    for path in paths {
+        let trimmed = path.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let normalized = trimmed.strip_prefix("./").unwrap_or(trimmed);
+        if !unique.insert(normalized.to_string()) {
+            continue;
+        }
+        let fingerprint = snapshot_path(&repo_root.join(normalized))?;
+        snapshots.push(PathSnapshot {
+            path: normalized.to_string(),
+            fingerprint,
+        });
+    }
+
+    snapshots.sort_by(|a, b| a.path.cmp(&b.path));
+    Ok(snapshots)
+}
+
+/// Validate that each baseline dirty path is unchanged from its fingerprint.
+pub fn ensure_paths_unchanged(repo_root: &Path, snapshots: &[PathSnapshot]) -> Result<()> {
+    for snapshot in snapshots {
+        let current = snapshot_path(&repo_root.join(&snapshot.path))?;
+        if current != snapshot.fingerprint {
+            bail!(
+                "Baseline dirty path changed during Phase 1: {}",
+                snapshot.path
+            );
+        }
+    }
+    Ok(())
+}
+
+fn snapshot_path(path: &Path) -> Result<Option<u64>> {
+    if !path.exists() {
+        return Ok(None);
+    }
+    let metadata = fs::symlink_metadata(path)?;
+    if metadata.is_dir() {
+        Ok(Some(hash_dir(path)?))
+    } else if metadata.is_file() {
+        Ok(Some(hash_file(path)?))
+    } else if metadata.file_type().is_symlink() {
+        let target = fs::read_link(path)?;
+        Ok(Some(hash_bytes(&target.to_string_lossy())))
+    } else {
+        Ok(Some(metadata.len()))
+    }
+}
+
+fn hash_dir(path: &Path) -> Result<u64> {
+    let mut entries: Vec<_> = fs::read_dir(path)?.collect::<Result<_, _>>()?;
+    entries.sort_by_key(|entry| entry.file_name());
+
+    let mut hasher = DefaultHasher::new();
+    for entry in entries {
+        let name = entry.file_name();
+        hasher.write(name.to_string_lossy().as_bytes());
+        let file_type = entry.file_type()?;
+        if file_type.is_dir() {
+            hasher.write_u8(1);
+            hasher.write_u64(hash_dir(&entry.path())?);
+        } else if file_type.is_file() {
+            hasher.write_u8(2);
+            hasher.write_u64(hash_file(&entry.path())?);
+        } else if file_type.is_symlink() {
+            hasher.write_u8(3);
+            let target = fs::read_link(entry.path())?;
+            hasher.write(target.to_string_lossy().as_bytes());
+        } else {
+            hasher.write_u8(4);
+            hasher.write_u64(entry.metadata()?.len());
+        }
+    }
+    Ok(hasher.finish())
+}
+
+fn hash_file(path: &Path) -> Result<u64> {
+    let mut file = fs::File::open(path)?;
+    let mut hasher = DefaultHasher::new();
+    let mut buf = [0u8; 8192];
+    loop {
+        let read = file.read(&mut buf)?;
+        if read == 0 {
+            break;
+        }
+        hasher.write(&buf[..read]);
+    }
+    Ok(hasher.finish())
+}
+
+fn hash_bytes(value: &str) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    hasher.write(value.as_bytes());
+    hasher.finish()
 }
 
 pub fn filter_modified_lfs_files(status_paths: &[String], lfs_files: &[String]) -> Vec<String> {

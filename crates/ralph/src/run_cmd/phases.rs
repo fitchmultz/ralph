@@ -99,6 +99,11 @@ pub fn execute_phase1_planning(ctx: &PhaseInvocation<'_>, total_phases: u8) -> R
         } else {
             Vec::new()
         };
+        let baseline_snapshots = if ctx.allow_dirty_repo {
+            gitutil::snapshot_paths(&ctx.resolved.repo_root, &baseline_paths)?
+        } else {
+            Vec::new()
+        };
         let p1_template = prompts::load_worker_phase1_prompt(&ctx.resolved.repo_root)?;
         let p1_prompt = promptflow::build_phase1_prompt(
             &p1_template,
@@ -146,11 +151,22 @@ pub fn execute_phase1_planning(ctx: &PhaseInvocation<'_>, total_phases: u8) -> R
             allowed.extend(baseline_paths.iter().cloned());
             let allowed_refs: Vec<&str> = allowed.iter().map(String::as_str).collect();
 
-            match gitutil::require_clean_repo_ignoring_paths(
+            let status = gitutil::require_clean_repo_ignoring_paths(
                 &ctx.resolved.repo_root,
                 false,
                 &allowed_refs,
-            ) {
+            );
+            let snapshot_check = match status {
+                Ok(()) => {
+                    gitutil::ensure_paths_unchanged(&ctx.resolved.repo_root, &baseline_snapshots)
+                        .map_err(|err| {
+                            gitutil::GitError::Other(err.context("baseline dirty path changed"))
+                        })
+                }
+                Err(err) => Err(err),
+            };
+
+            match snapshot_check {
                 Ok(()) => break,
                 Err(err) => {
                     let outcome = runutil::apply_git_revert_mode(
@@ -172,7 +188,7 @@ pub fn execute_phase1_planning(ctx: &PhaseInvocation<'_>, total_phases: u8) -> R
                             bail!(
                                 "{} Error: {:#}",
                                 runutil::format_revert_failure_message(
-                                    "Phase 1 violated plan-only contract: it modified files outside allowed queue bookkeeping.",
+                                    "Phase 1 violated plan-only contract: it modified files outside allowed queue bookkeeping, including baseline dirty paths.",
                                     outcome,
                                 ),
                                 err
@@ -405,6 +421,14 @@ pub fn execute_phase3_review(ctx: &PhaseInvocation<'_>) -> Result<()> {
         )?;
 
         if !ctx.is_final_iteration {
+            let continue_session = super::supervision::ContinueSession {
+                runner: ctx.settings.runner,
+                model: ctx.settings.model.clone(),
+                reasoning_effort: ctx.settings.reasoning_effort,
+                session_id: output.session_id.clone(),
+                output_handler: ctx.output_handler.clone(),
+            };
+            run_ci_gate_with_continue(ctx, continue_session, |_output| Ok(()))?;
             if completions::take_completion_signal(&ctx.resolved.repo_root, ctx.task_id)?.is_some()
             {
                 log::warn!(
@@ -741,6 +765,7 @@ mod tests {
         cfg.agent.git_commit_push_enabled = Some(true);
         cfg.agent.require_repoprompt = Some(false);
         cfg.agent.opencode_bin = Some(opencode_bin.display().to_string());
+        cfg.agent.ci_gate_enabled = Some(false);
         cfg.queue = QueueConfig {
             file: Some(PathBuf::from(".ralph/queue.json")),
             done_file: Some(PathBuf::from(".ralph/done.json")),
@@ -816,6 +841,7 @@ mod tests {
         let temp = TempDir::new()?;
         git_init(temp.path())?;
         std::fs::create_dir_all(temp.path().join(".ralph/cache/plans"))?;
+        std::fs::write(temp.path().join("baseline.txt"), "baseline")?;
 
         let script = format!(
             r#"#!/bin/sh
@@ -881,7 +907,7 @@ echo '{{"sessionID":"sess-123"}}'
             iteration_completion_block: "",
             phase3_completion_guidance: "",
             is_final_iteration: true,
-            allow_dirty_repo: false,
+            allow_dirty_repo: true,
         };
 
         let plan_text = execute_phase1_planning(&invocation, 2)?;
@@ -892,10 +918,76 @@ echo '{{"sessionID":"sess-123"}}'
             .args(["status", "--porcelain"])
             .output()?;
         let stdout = String::from_utf8_lossy(&status.stdout);
+        let lines: Vec<&str> = stdout.lines().collect();
         anyhow::ensure!(
-            stdout.trim().is_empty(),
-            "expected clean repo after resume, got:\n{}",
+            lines.len() == 1 && lines[0].trim_end() == "?? baseline.txt",
+            "expected baseline dirty path only, got:\n{}",
             stdout
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn phase1_rejects_changes_to_baseline_dirty_paths() -> Result<()> {
+        let temp = TempDir::new()?;
+        git_init(temp.path())?;
+        std::fs::create_dir_all(temp.path().join(".ralph/cache/plans"))?;
+        std::fs::write(temp.path().join("baseline.txt"), "baseline")?;
+
+        let script = format!(
+            r#"#!/bin/sh
+set -e
+plan="{root}/.ralph/cache/plans/RQ-0001.md"
+baseline="{root}/baseline.txt"
+echo "changed" > "$baseline"
+echo "plan content" > "$plan"
+echo '{{"type":"text","part":{{"text":"ok"}}}}'
+echo '{{"sessionID":"sess-123"}}'
+"#,
+            root = temp.path().display()
+        );
+        let runner_path = create_fake_runner(temp.path(), "opencode", &script)?;
+
+        let resolved = resolved_for_repo(temp.path().to_path_buf(), &runner_path);
+        let settings = runner::AgentSettings {
+            runner: Runner::Opencode,
+            model: Model::Custom("zai-coding-plan/glm-4.7".to_string()),
+            reasoning_effort: None,
+        };
+        let bins = runner::RunnerBinaries {
+            codex: "codex",
+            opencode: runner_path.to_str().expect("runner path"),
+            gemini: "gemini",
+            claude: "claude",
+        };
+        let policy = promptflow::PromptPolicy {
+            require_repoprompt: false,
+        };
+
+        let invocation = PhaseInvocation {
+            resolved: &resolved,
+            settings: &settings,
+            bins,
+            task_id: "RQ-0001",
+            base_prompt: "base prompt",
+            policy: &policy,
+            output_handler: None,
+            project_type: ProjectType::Code,
+            git_revert_mode: GitRevertMode::Disabled,
+            git_commit_push_enabled: true,
+            revert_prompt: None,
+            iteration_context: "",
+            iteration_completion_block: "",
+            phase3_completion_guidance: "",
+            is_final_iteration: true,
+            allow_dirty_repo: true,
+        };
+
+        let err = execute_phase1_planning(&invocation, 2).expect_err("expected baseline violation");
+        assert!(
+            err.to_string().contains("baseline dirty path changed"),
+            "unexpected error: {err}"
         );
 
         Ok(())
@@ -977,6 +1069,59 @@ echo '{"sessionID":"sess-123"}'
 
         let signal_after = completions::read_completion_signal(temp.path(), "RQ-0001")?;
         assert!(signal_after.is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn phase3_review_non_final_runs_ci_gate_when_enabled() -> Result<()> {
+        let temp = TempDir::new()?;
+        let script = r#"#!/bin/sh
+echo '{"sessionID":"sess-123"}'
+"#;
+        let runner_path = create_fake_runner(temp.path(), "opencode", script)?;
+
+        let mut resolved = resolved_for_repo(temp.path().to_path_buf(), &runner_path);
+        let ci_marker = temp.path().join("ci-gate-ran.txt");
+        resolved.config.agent.ci_gate_enabled = Some(true);
+        resolved.config.agent.ci_gate_command = Some(format!("echo ok > {}", ci_marker.display()));
+
+        let settings = runner::AgentSettings {
+            runner: Runner::Opencode,
+            model: Model::Custom("zai-coding-plan/glm-4.7".to_string()),
+            reasoning_effort: None,
+        };
+        let bins = runner::RunnerBinaries {
+            codex: "codex",
+            opencode: runner_path.to_str().expect("runner path"),
+            gemini: "gemini",
+            claude: "claude",
+        };
+        let policy = promptflow::PromptPolicy {
+            require_repoprompt: false,
+        };
+
+        let invocation = PhaseInvocation {
+            resolved: &resolved,
+            settings: &settings,
+            bins,
+            task_id: "RQ-0001",
+            base_prompt: "base prompt",
+            policy: &policy,
+            output_handler: None,
+            project_type: ProjectType::Code,
+            git_revert_mode: GitRevertMode::Ask,
+            git_commit_push_enabled: true,
+            revert_prompt: None,
+            iteration_context: "iteration",
+            iteration_completion_block: "block",
+            phase3_completion_guidance: "guidance",
+            is_final_iteration: false,
+            allow_dirty_repo: true,
+        };
+
+        execute_phase3_review(&invocation)?;
+
+        assert!(ci_marker.exists(), "expected CI gate command to run");
         Ok(())
     }
 }

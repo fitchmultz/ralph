@@ -246,6 +246,26 @@ fn render_worker_phase1_prompt_allows_placeholder_like_base_prompt() -> Result<(
 }
 
 #[test]
+fn render_worker_phase1_prompt_allows_placeholder_like_iteration_context() -> Result<()> {
+    let template =
+        "ID={{TASK_ID}}\nPHASE={{TOTAL_PHASES}}\n{{ITERATION_CONTEXT}}\nPLAN={{PLAN_PATH}}\n{{BASE_WORKER_PROMPT}}\n";
+    let config = default_config();
+    let iteration_context = "ITERATION {{PLACEHOLDER}}";
+    let rendered = render_worker_phase1_prompt(
+        template,
+        "BASE",
+        iteration_context,
+        "RQ-0001",
+        2,
+        ".ralph/cache/plans/RQ-0001.md",
+        false,
+        &config,
+    )?;
+    assert!(rendered.contains(iteration_context));
+    Ok(())
+}
+
+#[test]
 fn render_worker_phase2_prompt_skips_repoprompt_when_not_required() -> Result<()> {
     let template =
         "PHASE={{TOTAL_PHASES}}\nID={{TASK_ID}}\n{{ITERATION_CONTEXT}}\n{{PLAN_TEXT}}\n{{ITERATION_COMPLETION_BLOCK}}\n{{CHECKLIST}}\n{{BASE_WORKER_PROMPT}}\n{{REPOPROMPT_BLOCK}}\n";
@@ -317,6 +337,28 @@ fn render_worker_phase2_handoff_prompt_allows_placeholder_like_base_prompt() -> 
 }
 
 #[test]
+fn render_worker_phase2_handoff_prompt_allows_placeholder_like_iteration_context() -> Result<()> {
+    let template =
+        "PHASE={{TOTAL_PHASES}}\nID={{TASK_ID}}\n{{ITERATION_CONTEXT}}\n{{PLAN_TEXT}}\n{{ITERATION_COMPLETION_BLOCK}}\n{{CHECKLIST}}\n{{BASE_WORKER_PROMPT}}\n";
+    let config = default_config();
+    let iteration_context = "ITERATION {{PLACEHOLDER}}";
+    let rendered = render_worker_phase2_handoff_prompt(
+        template,
+        "BASE",
+        "PLAN",
+        "CHECKLIST",
+        iteration_context,
+        "COMPLETE",
+        "RQ-0001",
+        3,
+        false,
+        &config,
+    )?;
+    assert!(rendered.contains(iteration_context));
+    Ok(())
+}
+
+#[test]
 fn render_worker_phase2_prompt_allows_placeholder_like_plan_text() -> Result<()> {
     let template =
         "PHASE={{TOTAL_PHASES}}\nID={{TASK_ID}}\n{{ITERATION_CONTEXT}}\n{{PLAN_TEXT}}\n{{ITERATION_COMPLETION_BLOCK}}\n{{CHECKLIST}}\n{{BASE_WORKER_PROMPT}}\n{{REPOPROMPT_BLOCK}}\n";
@@ -335,6 +377,28 @@ fn render_worker_phase2_prompt_allows_placeholder_like_plan_text() -> Result<()>
         &config,
     )?;
     assert!(rendered.contains(plan_text));
+    Ok(())
+}
+
+#[test]
+fn render_worker_phase2_prompt_allows_placeholder_like_iteration_context() -> Result<()> {
+    let template =
+        "PHASE={{TOTAL_PHASES}}\nID={{TASK_ID}}\n{{ITERATION_CONTEXT}}\n{{PLAN_TEXT}}\n{{ITERATION_COMPLETION_BLOCK}}\n{{CHECKLIST}}\n{{BASE_WORKER_PROMPT}}\n";
+    let config = default_config();
+    let iteration_context = "ITERATION {{PLACEHOLDER}}";
+    let rendered = render_worker_phase2_prompt(
+        template,
+        "BASE",
+        "PLAN",
+        "CHECKLIST",
+        iteration_context,
+        "COMPLETE",
+        "RQ-0001",
+        2,
+        false,
+        &config,
+    )?;
+    assert!(rendered.contains(iteration_context));
     Ok(())
 }
 
@@ -416,6 +480,29 @@ fn render_worker_phase3_prompt_allows_placeholder_like_base_prompt() -> Result<(
 }
 
 #[test]
+fn render_worker_phase3_prompt_allows_placeholder_like_iteration_context() -> Result<()> {
+    let template = "PHASE={{TOTAL_PHASES}}\nID={{TASK_ID}}\n{{PHASE3_COMPLETION_GUIDANCE}}\n{{ITERATION_CONTEXT}}\n{{CODE_REVIEW_BODY}}\n{{ITERATION_COMPLETION_BLOCK}}\n{{COMPLETION_CHECKLIST}}\n{{PHASE2_FINAL_RESPONSE}}\n{{BASE_WORKER_PROMPT}}\n";
+    let config = default_config();
+    let iteration_context = "ITERATION {{PLACEHOLDER}}";
+    let rendered = render_worker_phase3_prompt(
+        template,
+        "BASE",
+        "REVIEW",
+        "PHASE2",
+        "RQ-0001",
+        "CHECKLIST",
+        iteration_context,
+        "COMPLETE",
+        "GUIDE",
+        3,
+        false,
+        &config,
+    )?;
+    assert!(rendered.contains(iteration_context));
+    Ok(())
+}
+
+#[test]
 fn render_worker_single_phase_prompt_requires_task_id() -> Result<()> {
     let template =
         "{{TASK_ID}}\n{{ITERATION_CONTEXT}}\n{{ITERATION_COMPLETION_BLOCK}}\n{{CHECKLIST}}\n{{BASE_WORKER_PROMPT}}\n";
@@ -451,6 +538,26 @@ fn render_worker_single_phase_prompt_allows_placeholder_like_base_prompt() -> Re
         &config,
     )?;
     assert!(rendered.contains(base_prompt));
+    Ok(())
+}
+
+#[test]
+fn render_worker_single_phase_prompt_allows_placeholder_like_iteration_context() -> Result<()> {
+    let template =
+        "{{TASK_ID}}\n{{ITERATION_CONTEXT}}\n{{ITERATION_COMPLETION_BLOCK}}\n{{CHECKLIST}}\n{{BASE_WORKER_PROMPT}}\n";
+    let config = default_config();
+    let iteration_context = "ITERATION {{PLACEHOLDER}}";
+    let rendered = render_worker_single_phase_prompt(
+        template,
+        "BASE",
+        "CHECKLIST",
+        iteration_context,
+        "COMPLETE",
+        "RQ-0001",
+        false,
+        &config,
+    )?;
+    assert!(rendered.contains(iteration_context));
     Ok(())
 }
 
