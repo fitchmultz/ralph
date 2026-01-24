@@ -39,11 +39,14 @@ Common optional fields:
 Per-task agent overrides:
 - `agent.runner`: `codex`, `opencode`, `gemini`, or `claude`.
 - `agent.model`: model id string.
-- `agent.reasoning_effort`: `minimal`, `low`, `medium`, `high`.
+- `agent.model_effort`: `default`, `low`, `medium`, `high`, `xhigh` (Codex only).
 - `agent.iterations`: number of iterations for this task (default: 1).
 - `agent.followup_reasoning_effort`: reasoning effort for iterations after the first (Codex only).
 
-Note: `agent.followup_reasoning_effort` is ignored for non-Codex runners.
+Notes:
+- `agent.model_effort: default` (or omitting the field) uses the configured `agent.reasoning_effort`.
+- `agent.followup_reasoning_effort` is ignored for non-Codex runners.
+- Breaking change: `agent.reasoning_effort` in task entries is replaced by `agent.model_effort`.
 
 ## Example Task
 ```json
@@ -63,7 +66,7 @@ Note: `agent.followup_reasoning_effort` is ignored for non-Codex runners.
   "agent": {
     "runner": "codex",
     "model": "gpt-5.2-codex",
-    "reasoning_effort": "high",
+    "model_effort": "high",
     "iterations": 2,
     "followup_reasoning_effort": "low"
   }

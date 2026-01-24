@@ -4,6 +4,7 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -299,11 +300,38 @@ impl schemars::JsonSchema for Model {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ReasoningEffort {
-    Minimal,
     Low,
     #[default]
     Medium,
     High,
+    #[serde(rename = "xhigh")]
+    #[schemars(rename = "xhigh")]
+    XHigh,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ModelEffort {
+    #[default]
+    Default,
+    Low,
+    Medium,
+    High,
+    #[serde(rename = "xhigh")]
+    #[schemars(rename = "xhigh")]
+    XHigh,
+}
+
+impl ModelEffort {
+    pub fn as_reasoning_effort(self) -> Option<ReasoningEffort> {
+        match self {
+            ModelEffort::Default => None,
+            ModelEffort::Low => Some(ReasoningEffort::Low),
+            ModelEffort::Medium => Some(ReasoningEffort::Medium),
+            ModelEffort::High => Some(ReasoningEffort::High),
+            ModelEffort::XHigh => Some(ReasoningEffort::XHigh),
+        }
+    }
 }
 
 /* --------------------------- QueueFile (JSON) ---------------------------- */
@@ -351,7 +379,7 @@ pub struct Task {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub request: Option<String>,
 
-    /// Optional per-task agent override (runner/model/effort/iterations).
+    /// Optional per-task agent override (runner/model/model_effort/iterations).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agent: Option<TaskAgent>,
 
@@ -472,8 +500,10 @@ pub struct TaskAgent {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<Model>,
 
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub reasoning_effort: Option<ReasoningEffort>,
+    /// Per-task reasoning effort override for Codex models. Default falls back to config.
+    #[serde(default, skip_serializing_if = "model_effort_is_default")]
+    #[schemars(schema_with = "model_effort_schema")]
+    pub model_effort: ModelEffort,
 
     /// Number of iterations to run for this task (overrides config).
     #[schemars(range(min = 1))]
@@ -483,6 +513,18 @@ pub struct TaskAgent {
     /// Reasoning effort override for follow-up iterations (iterations > 1).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub followup_reasoning_effort: Option<ReasoningEffort>,
+}
+
+fn model_effort_is_default(value: &ModelEffort) -> bool {
+    matches!(value, ModelEffort::Default)
+}
+
+fn model_effort_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+    let mut schema = <ModelEffort as JsonSchema>::json_schema(gen);
+    if let schemars::schema::Schema::Object(ref mut schema_object) = schema {
+        schema_object.metadata().default = Some(json!("default"));
+    }
+    schema
 }
 
 /* ------------------------------ Defaults -------------------------------- */

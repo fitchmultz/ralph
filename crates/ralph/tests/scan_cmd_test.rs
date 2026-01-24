@@ -82,10 +82,10 @@ fn test_scan_options_all_models() {
 fn test_scan_options_all_reasoning_efforts() {
     let efforts = vec![
         None,
-        Some(ralph::contracts::ReasoningEffort::Minimal),
         Some(ralph::contracts::ReasoningEffort::Low),
         Some(ralph::contracts::ReasoningEffort::Medium),
         Some(ralph::contracts::ReasoningEffort::High),
+        Some(ralph::contracts::ReasoningEffort::XHigh),
     ];
 
     for effort in efforts {

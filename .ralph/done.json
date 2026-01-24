@@ -3485,6 +3485,47 @@
       "completed_at": "2026-01-24T02:21:39.425089000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0245",
+      "status": "done",
+      "title": "Add per-task model_effort override for runner reasoning effort",
+      "priority": "medium",
+      "tags": [
+        "queue",
+        "schema",
+        "runner",
+        "config"
+      ],
+      "scope": [
+        "crates/ralph/src/queue",
+        "crates/ralph/src/config",
+        "crates/ralph/src/runner",
+        "docs/queue-and-tasks.md",
+        "docs/configuration.md",
+        "schemas/"
+      ],
+      "evidence": [
+        "User request: Add support for a 'model_effort' field in the queue schema with default 'default' that overrides config reasoning_effort per task; support low/medium/high/xhigh and align accepted levels accordingly."
+      ],
+      "plan": [
+        "Update the queue task schema and parsing/validation to accept optional model_effort with default handling and supported values (default, low, medium, high, xhigh).",
+        "Wire model_effort through runner selection so it overrides config reasoning_effort when the runner/model supports it (codex), and falls back to config when default or absent.",
+        "Align reasoning effort enum/validation across config and runners to the codex-supported levels and document any breaking changes.",
+        "Add tests for schema validation, config fallback, and runner override behavior for supported/unsupported values.",
+        "Update docs (queue-and-tasks, configuration, CLI help if needed) to describe model_effort behavior and examples."
+      ],
+      "notes": [
+        "Add per-task model_effort override with default handling for Codex.",
+        "Align reasoning effort levels to low/medium/high/xhigh and update parsing.",
+        "Update schemas/docs/tests for queue/config/task behavior and overrides."
+      ],
+      "request": "Add support for a 'model_effort' field in the queue schema. This field defaults to a value of 'default'. If the runner and model executing the task (currently only codex runner) supports a reasoning effort level the value of 'model_effort' overrides the global and repo config value of reasoning_effort when executing this task. A value of 'default', or if 'model_effort' is excluded, uses the value provided by the config. This enables users to specify variable reasoning efforts based on the task. The task builder should prefer to lean on 'default' but it may choose to set the value to any of the following (all of which are supported by codex, the only runner supporting this at the moment): low, medium (codex default), high, xhigh. If our accepted reasoning levels in ralph differ from these then update them accordingly to match.",
+      "created_at": "2026-01-23T20:14:41Z",
+      "updated_at": "2026-01-24T03:14:39.946717000Z",
+      "completed_at": "2026-01-24T03:14:39.946717000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

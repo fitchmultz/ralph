@@ -22,7 +22,7 @@ Supported fields:
 - `runner`: `codex`, `opencode`, `gemini`, or `claude`.
 - `model`: default model id (string).
 - `phases`: number of phases (1, 2, or 3).
-- `reasoning_effort`: `minimal`, `low`, `medium`, `high` (Codex only).
+- `reasoning_effort`: `low`, `medium`, `high`, `xhigh` (Codex only).
 - `iterations`: number of iterations to run per task (default: 1).
 - `followup_reasoning_effort`: reasoning effort for iterations after the first (Codex only).
 - `require_repoprompt`: `true` or `false`.
@@ -35,6 +35,7 @@ Supported fields:
 
 Notes:
 - `followup_reasoning_effort` is ignored for non-Codex runners.
+- Breaking change: `reasoning_effort` no longer accepts `minimal`; use `low`, `medium`, `high`, or `xhigh`.
 
 Example:
 ```json

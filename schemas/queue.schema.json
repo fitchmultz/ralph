@@ -27,10 +27,10 @@
     "ReasoningEffort": {
       "type": "string",
       "enum": [
-        "minimal",
         "low",
         "medium",
-        "high"
+        "high",
+        "xhigh"
       ]
     },
     "Runner": {
@@ -50,7 +50,7 @@
       ],
       "properties": {
         "agent": {
-          "description": "Optional per-task agent override (runner/model/effort/iterations).",
+          "description": "Optional per-task agent override (runner/model/model_effort/iterations).",
           "anyOf": [
             {
               "$ref": "#/definitions/TaskAgent"
@@ -195,14 +195,16 @@
             }
           ]
         },
-        "reasoning_effort": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/ReasoningEffort"
-            },
-            {
-              "type": "null"
-            }
+        "model_effort": {
+          "description": "Per-task reasoning effort override for Codex models. Default falls back to config.",
+          "default": "default",
+          "type": "string",
+          "enum": [
+            "default",
+            "low",
+            "medium",
+            "high",
+            "xhigh"
           ]
         },
         "runner": {

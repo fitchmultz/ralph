@@ -296,10 +296,10 @@
     "ReasoningEffort": {
       "type": "string",
       "enum": [
-        "minimal",
         "low",
         "medium",
-        "high"
+        "high",
+        "xhigh"
       ]
     },
     "Runner": {

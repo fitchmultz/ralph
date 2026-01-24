@@ -2049,10 +2049,10 @@ fn display_runner(value: Option<Runner>) -> String {
 
 fn display_reasoning_effort(value: Option<ReasoningEffort>) -> String {
     match value {
-        Some(ReasoningEffort::Minimal) => "minimal".to_string(),
         Some(ReasoningEffort::Low) => "low".to_string(),
         Some(ReasoningEffort::Medium) => "medium".to_string(),
         Some(ReasoningEffort::High) => "high".to_string(),
+        Some(ReasoningEffort::XHigh) => "xhigh".to_string(),
         None => default_config_value(),
     }
 }
@@ -2180,11 +2180,11 @@ fn cycle_runner(value: Option<Runner>) -> Option<Runner> {
 
 fn cycle_reasoning_effort(value: Option<ReasoningEffort>) -> Option<ReasoningEffort> {
     match value {
-        None => Some(ReasoningEffort::Minimal),
-        Some(ReasoningEffort::Minimal) => Some(ReasoningEffort::Low),
+        None => Some(ReasoningEffort::Low),
         Some(ReasoningEffort::Low) => Some(ReasoningEffort::Medium),
         Some(ReasoningEffort::Medium) => Some(ReasoningEffort::High),
-        Some(ReasoningEffort::High) => None,
+        Some(ReasoningEffort::High) => Some(ReasoningEffort::XHigh),
+        Some(ReasoningEffort::XHigh) => None,
     }
 }
 

@@ -267,10 +267,10 @@ fn test_runner_invocation_all_reasoning_efforts() {
 
     let efforts = vec![
         None,
-        Some(ReasoningEffort::Minimal),
         Some(ReasoningEffort::Low),
         Some(ReasoningEffort::Medium),
         Some(ReasoningEffort::High),
+        Some(ReasoningEffort::XHigh),
     ];
 
     for effort in efforts {

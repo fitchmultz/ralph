@@ -6,8 +6,8 @@ use super::{
 };
 use crate::completions;
 use crate::contracts::{
-    AgentConfig, ClaudePermissionMode, Config, GitRevertMode, Model, QueueConfig, QueueFile,
-    ReasoningEffort, Runner, Task, TaskAgent, TaskStatus,
+    AgentConfig, ClaudePermissionMode, Config, GitRevertMode, Model, ModelEffort, QueueConfig,
+    QueueFile, ReasoningEffort, Runner, Task, TaskAgent, TaskStatus,
 };
 use crate::queue;
 use crate::runner;
@@ -254,7 +254,7 @@ fn resolve_run_agent_settings_task_agent_overrides_config() -> anyhow::Result<()
     task.agent = Some(TaskAgent {
         runner: Some(Runner::Opencode),
         model: Some(Model::Gpt52),
-        reasoning_effort: Some(ReasoningEffort::High),
+        model_effort: ModelEffort::High,
         iterations: None,
         followup_reasoning_effort: None,
     });
@@ -279,7 +279,7 @@ fn resolve_run_agent_settings_cli_overrides_task_agent_and_config() -> anyhow::R
     task.agent = Some(TaskAgent {
         runner: Some(Runner::Opencode),
         model: Some(Model::Gpt52),
-        reasoning_effort: Some(ReasoningEffort::Low),
+        model_effort: ModelEffort::Low,
         iterations: None,
         followup_reasoning_effort: None,
     });
@@ -374,6 +374,52 @@ fn resolve_run_agent_settings_effort_defaults_to_medium_for_codex_when_unspecifi
 }
 
 #[test]
+fn resolve_run_agent_settings_model_effort_default_uses_config() -> anyhow::Result<()> {
+    let resolved = resolved_with_agent_defaults(
+        Some(Runner::Codex),
+        Some(Model::Gpt52Codex),
+        Some(ReasoningEffort::High),
+    );
+
+    let mut task = base_task();
+    task.agent = Some(TaskAgent {
+        runner: Some(Runner::Codex),
+        model: Some(Model::Gpt52Codex),
+        model_effort: ModelEffort::Default,
+        iterations: None,
+        followup_reasoning_effort: None,
+    });
+
+    let overrides = super::AgentOverrides::default();
+    let settings = resolve_run_agent_settings(&resolved, &task, &overrides)?;
+    assert_eq!(settings.reasoning_effort, Some(ReasoningEffort::High));
+    Ok(())
+}
+
+#[test]
+fn resolve_run_agent_settings_model_effort_overrides_config_for_codex() -> anyhow::Result<()> {
+    let resolved = resolved_with_agent_defaults(
+        Some(Runner::Codex),
+        Some(Model::Gpt52Codex),
+        Some(ReasoningEffort::Low),
+    );
+
+    let mut task = base_task();
+    task.agent = Some(TaskAgent {
+        runner: Some(Runner::Codex),
+        model: Some(Model::Gpt52Codex),
+        model_effort: ModelEffort::XHigh,
+        iterations: None,
+        followup_reasoning_effort: None,
+    });
+
+    let overrides = super::AgentOverrides::default();
+    let settings = resolve_run_agent_settings(&resolved, &task, &overrides)?;
+    assert_eq!(settings.reasoning_effort, Some(ReasoningEffort::XHigh));
+    Ok(())
+}
+
+#[test]
 fn resolve_run_agent_settings_effort_is_ignored_for_opencode() -> anyhow::Result<()> {
     let resolved = resolved_with_agent_defaults(
         Some(Runner::Opencode),
@@ -381,7 +427,14 @@ fn resolve_run_agent_settings_effort_is_ignored_for_opencode() -> anyhow::Result
         Some(ReasoningEffort::Low),
     );
 
-    let task = base_task();
+    let mut task = base_task();
+    task.agent = Some(TaskAgent {
+        runner: Some(Runner::Opencode),
+        model: Some(Model::Gpt52),
+        model_effort: ModelEffort::High,
+        iterations: None,
+        followup_reasoning_effort: None,
+    });
     let overrides = super::AgentOverrides {
         runner: Some(Runner::Opencode),
         model: Some(Model::Gpt52),
@@ -421,7 +474,7 @@ fn resolve_iteration_settings_prefers_task_over_config() -> anyhow::Result<()> {
     task.agent = Some(TaskAgent {
         runner: None,
         model: None,
-        reasoning_effort: None,
+        model_effort: ModelEffort::Default,
         iterations: Some(2),
         followup_reasoning_effort: Some(ReasoningEffort::High),
     });

@@ -87,6 +87,7 @@ ralph tui --runner codex --model gpt-5.2-codex --effort high
 Run iterations are controlled by config and task settings:
 - `agent.iterations` (config) or `task.agent.iterations` (per task) repeat the selected phases.
 - `agent.followup_reasoning_effort` or `task.agent.followup_reasoning_effort` applies to follow-up iterations.
+- `task.agent.model_effort` overrides `agent.reasoning_effort` for Codex tasks (`default` defers to config).
 
 ### Interactive flags
 
@@ -128,7 +129,7 @@ These flags are supported on `task`, `scan`, `run one`, `run loop`, and `tui`:
 
 * `--runner <codex|opencode|gemini|claude>`
 * `--model <model-id>`
-* `--effort <minimal|low|medium|high>` (codex only)
+* `--effort <low|medium|high|xhigh>` (codex only)
 * `--rp-on` / `--rp-off`
 
 Examples:

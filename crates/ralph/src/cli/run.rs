@@ -92,7 +92,7 @@ pub fn handle_run(cmd: RunCommand, force: bool) -> Result<()> {
     after_long_help = "Runner selection:\n\
  - `ralph run` selects runner/model/effort with this precedence:\n\
  1) CLI overrides (flags on `run one` / `run loop`)\n\
- 2) the task's `agent` override (if present in .ralph/queue.json)\n\
+ 2) the task's `agent` override (runner/model plus `model_effort` if set)\n\
  3) otherwise the resolved config defaults (`agent.runner`, `agent.model`, `agent.reasoning_effort`).\n\
 \n\
 Notes:\n\

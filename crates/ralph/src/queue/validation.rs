@@ -472,7 +472,7 @@ mod tests {
         task.agent = Some(TaskAgent {
             runner: None,
             model: None,
-            reasoning_effort: None,
+            model_effort: crate::contracts::ModelEffort::Default,
             iterations: Some(0),
             followup_reasoning_effort: None,
         });

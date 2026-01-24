@@ -25,7 +25,7 @@ pub struct AgentArgs {
     #[arg(long)]
     pub model: Option<String>,
 
-    /// Codex reasoning effort override (minimal, low, medium, high).
+    /// Codex reasoning effort override (low, medium, high, xhigh).
     /// Ignored for other runners.
     #[arg(long)]
     pub effort: Option<String>,
@@ -53,7 +53,7 @@ pub struct RunAgentArgs {
     #[arg(long)]
     pub model: Option<String>,
 
-    /// Codex reasoning effort override (minimal, low, medium, high).
+    /// Codex reasoning effort override (low, medium, high, xhigh).
     /// Ignored for other runners.
     #[arg(long)]
     pub effort: Option<String>,

@@ -1165,10 +1165,10 @@ pub fn run_claude_resume(
 
 fn effort_as_str(effort: ReasoningEffort) -> &'static str {
     match effort {
-        ReasoningEffort::Minimal => "minimal",
         ReasoningEffort::Low => "low",
         ReasoningEffort::Medium => "medium",
         ReasoningEffort::High => "high",
+        ReasoningEffort::XHigh => "xhigh",
     }
 }
 
@@ -1193,10 +1193,10 @@ mod tests {
 
     #[test]
     fn effort_as_str_mapping() {
-        assert_eq!(effort_as_str(ReasoningEffort::Minimal), "minimal");
         assert_eq!(effort_as_str(ReasoningEffort::Low), "low");
         assert_eq!(effort_as_str(ReasoningEffort::Medium), "medium");
         assert_eq!(effort_as_str(ReasoningEffort::High), "high");
+        assert_eq!(effort_as_str(ReasoningEffort::XHigh), "xhigh");
     }
 
     #[test]

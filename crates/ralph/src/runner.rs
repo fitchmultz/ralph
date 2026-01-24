@@ -126,7 +126,7 @@ pub fn resolve_agent_settings(
     );
 
     let effort_candidate = effort_override
-        .or(task_agent.and_then(|a| a.reasoning_effort))
+        .or(task_agent.and_then(|a| a.model_effort.as_reasoning_effort()))
         .or(config_agent.reasoning_effort);
 
     let reasoning_effort = if runner == Runner::Codex {
@@ -399,12 +399,12 @@ pub fn parse_model(value: &str) -> Result<Model> {
 pub fn parse_reasoning_effort(value: &str) -> Result<ReasoningEffort> {
     let normalized = value.trim().to_lowercase();
     match normalized.as_str() {
-        "minimal" => Ok(ReasoningEffort::Minimal),
         "low" => Ok(ReasoningEffort::Low),
         "medium" => Ok(ReasoningEffort::Medium),
         "high" => Ok(ReasoningEffort::High),
+        "xhigh" => Ok(ReasoningEffort::XHigh),
         _ => bail!(
-            "unsupported reasoning effort: {} (allowed: minimal, low, medium, high)",
+            "unsupported reasoning effort: {} (allowed: low, medium, high, xhigh)",
             value.trim()
         ),
     }
@@ -479,6 +479,19 @@ mod tests {
     fn resolve_model_for_runner_defaults_for_claude() {
         let model = resolve_model_for_runner(Runner::Claude, None, None, None, false);
         assert_eq!(model.as_str(), DEFAULT_CLAUDE_MODEL);
+    }
+
+    #[test]
+    fn parse_reasoning_effort_accepts_xhigh() {
+        let effort = parse_reasoning_effort(" xhigh ").expect("xhigh effort");
+        assert_eq!(effort, ReasoningEffort::XHigh);
+    }
+
+    #[test]
+    fn parse_reasoning_effort_rejects_minimal() {
+        let err = parse_reasoning_effort("minimal").unwrap_err();
+        let msg = format!("{err:#}");
+        assert!(msg.contains("allowed: low, medium, high, xhigh"));
     }
 
     #[test]
