@@ -8,8 +8,8 @@
     "id_width": 4
   },
   "agent": {
-    "runner": "gemini",
-    "model": "gemini-3-flash-preview",
+    "runner": "opencode",
+    "model": "zai-coding-plan/glm-4.7",
     "reasoning_effort": "low",
     "codex_bin": "codex",
     "opencode_bin": "opencode",
