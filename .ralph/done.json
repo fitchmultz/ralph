@@ -3563,6 +3563,43 @@
       "completed_at": "2026-01-24T03:40:41.384173000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0241",
+      "status": "done",
+      "title": "Align CLI and TUI search/filter pipeline with shared core",
+      "priority": "medium",
+      "tags": [
+        "queue",
+        "search",
+        "tui",
+        "cli"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/queue.rs",
+        "crates/ralph/src/tui/mod.rs"
+      ],
+      "evidence": [
+        "Duplication audit: CLI supports scope filtering and regex/case-sensitive search while TUI has fixed case-insensitive non-regex search and no scope filter."
+      ],
+      "plan": [
+        "Define the shared search/filter semantics and which capabilities are surfaced in CLI vs TUI.",
+        "Introduce a shared filter/search core that accepts parameters for regex/case/scope behavior.",
+        "Update CLI and TUI to call the shared core with their respective options.",
+        "Add tests for regex/case/scope handling and TUI-specific defaults."
+      ],
+      "notes": [
+        "Added 9 new tests for scope filtering and combined filters in queue/search.rs",
+        "Updated CLI search help text to include --scope example",
+        "CLI and TUI already fully aligned via shared filter_tasks() and search_tasks()",
+        "All 397 tests pass in make ci"
+      ],
+      "request": "Read .ralph/cache/reports/duplication_and_consistency_audit.md and create tasks in the queue.json. Make sure to add all available fields, use depends_on, etc. Feel free to combine items in the report into single tasks to be executed together if necessary.",
+      "created_at": "2026-01-23T15:28:48Z",
+      "updated_at": "2026-01-24T05:11:20.060182000Z",
+      "completed_at": "2026-01-24T05:11:20.060182000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

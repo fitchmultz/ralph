@@ -13,6 +13,20 @@ use anyhow::{Context, Result};
 use regex::{Regex, RegexBuilder};
 use std::collections::HashSet;
 
+/// Options controlling search and filtering behavior.
+///
+/// This struct unifies the parameters used by both CLI and TUI for
+/// consistent search semantics across surfaces.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct SearchOptions {
+    /// Use regular expression matching (default: false, use substring).
+    pub use_regex: bool,
+    /// Case-sensitive search (default: false, case-insensitive).
+    pub case_sensitive: bool,
+    /// Scope filter tokens (default: empty, no scope filter).
+    pub scopes: Vec<String>,
+}
+
 fn normalize_scope(value: &str) -> String {
     value.trim().to_lowercase()
 }
@@ -341,5 +355,290 @@ mod tests {
         let results = search_tasks(tasks.iter().copied(), "login", true, true)?;
         assert_eq!(results.len(), 0);
         Ok(())
+    }
+
+    #[test]
+    fn search_options_default_values() {
+        let opts = SearchOptions::default();
+        assert!(!opts.use_regex, "default: substring search");
+        assert!(!opts.case_sensitive, "default: case-insensitive");
+        assert!(opts.scopes.is_empty(), "default: no scope filter");
+    }
+
+    #[test]
+    fn search_options_regex_enabled() {
+        let opts = SearchOptions {
+            use_regex: true,
+            case_sensitive: false,
+            scopes: vec![],
+        };
+        assert!(opts.use_regex, "regex enabled");
+        assert!(!opts.case_sensitive, "case-insensitive");
+    }
+
+    #[test]
+    fn search_options_case_sensitive_enabled() {
+        let opts = SearchOptions {
+            use_regex: false,
+            case_sensitive: true,
+            scopes: vec![],
+        };
+        assert!(!opts.use_regex, "substring search");
+        assert!(opts.case_sensitive, "case-sensitive");
+    }
+
+    #[test]
+    fn search_options_both_enabled() {
+        let opts = SearchOptions {
+            use_regex: true,
+            case_sensitive: true,
+            scopes: vec![],
+        };
+        assert!(opts.use_regex, "regex enabled");
+        assert!(opts.case_sensitive, "case-sensitive");
+    }
+
+    #[test]
+    fn search_options_with_scopes() {
+        let opts = SearchOptions {
+            use_regex: false,
+            case_sensitive: false,
+            scopes: vec!["crates/ralph".to_string()],
+        };
+        assert!(!opts.use_regex, "substring search");
+        assert!(!opts.case_sensitive, "case-insensitive");
+        assert_eq!(opts.scopes.len(), 1, "one scope filter");
+        assert_eq!(opts.scopes[0], "crates/ralph");
+    }
+
+    fn task_with_scope(id: &str, scope: Vec<String>) -> Task {
+        let mut t = task(id);
+        t.scope = scope;
+        t
+    }
+
+    fn task_with_tags_scope_status(
+        id: &str,
+        tags: Vec<String>,
+        scope: Vec<String>,
+        status: TaskStatus,
+    ) -> Task {
+        let mut t = task(id);
+        t.tags = tags;
+        t.scope = scope;
+        t.status = status;
+        t
+    }
+
+    #[test]
+    fn filter_tasks_with_scope_filter() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![
+                task_with_scope("RQ-0001", vec!["crates/ralph".to_string()]),
+                task_with_scope("RQ-0002", vec!["docs/cli".to_string()]),
+                task_with_scope("RQ-0003", vec!["crates/auth".to_string()]),
+            ],
+        };
+
+        let results = filter_tasks(&queue, &[], &[], &["crates/ralph".to_string()], None);
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].id, "RQ-0001");
+    }
+
+    #[test]
+    fn filter_tasks_scope_filter_case_insensitive() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![
+                task_with_scope("RQ-0001", vec!["CRATES/ralph".to_string()]),
+                task_with_scope("RQ-0002", vec!["docs/cli".to_string()]),
+            ],
+        };
+
+        let results = filter_tasks(&queue, &[], &[], &["crates/ralph".to_string()], None);
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].id, "RQ-0001");
+    }
+
+    #[test]
+    fn filter_tasks_scope_filter_substring() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![
+                task_with_scope("RQ-0001", vec!["crates/ralph/src/cli".to_string()]),
+                task_with_scope("RQ-0002", vec!["docs/cli".to_string()]),
+                task_with_scope("RQ-0003", vec!["crates/auth".to_string()]),
+            ],
+        };
+
+        let results = filter_tasks(&queue, &[], &[], &["crates/ralph".to_string()], None);
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].id, "RQ-0001");
+    }
+
+    #[test]
+    fn filter_tasks_with_multiple_scopes_or_logic() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![
+                task_with_scope("RQ-0001", vec!["crates/ralph".to_string()]),
+                task_with_scope("RQ-0002", vec!["docs".to_string()]),
+                task_with_scope("RQ-0003", vec!["crates/auth".to_string()]),
+            ],
+        };
+
+        let results = filter_tasks(
+            &queue,
+            &[],
+            &[],
+            &["crates/ralph".to_string(), "docs".to_string()],
+            None,
+        );
+        assert_eq!(results.len(), 2);
+        assert!(results.iter().any(|t| t.id == "RQ-0001"));
+        assert!(results.iter().any(|t| t.id == "RQ-0002"));
+    }
+
+    #[test]
+    fn filter_tasks_with_no_scope_filter() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![
+                task_with_scope("RQ-0001", vec!["crates/ralph".to_string()]),
+                task_with_scope("RQ-0002", vec!["docs/cli".to_string()]),
+            ],
+        };
+
+        let results = filter_tasks(&queue, &[], &[], &[], None);
+        assert_eq!(results.len(), 2);
+    }
+
+    #[test]
+    fn filter_tasks_combined_filters() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![
+                task_with_tags_scope_status(
+                    "RQ-0001",
+                    vec!["rust".to_string()],
+                    vec!["crates/ralph".to_string()],
+                    TaskStatus::Todo,
+                ),
+                task_with_tags_scope_status(
+                    "RQ-0002",
+                    vec!["docs".to_string()],
+                    vec!["docs".to_string()],
+                    TaskStatus::Done,
+                ),
+                task_with_tags_scope_status(
+                    "RQ-0003",
+                    vec!["rust".to_string()],
+                    vec!["crates".to_string()],
+                    TaskStatus::Doing,
+                ),
+                task_with_tags_scope_status(
+                    "RQ-0004",
+                    vec!["rust".to_string()],
+                    vec!["crates/ralph".to_string()],
+                    TaskStatus::Todo,
+                ),
+            ],
+        };
+
+        let results = filter_tasks(
+            &queue,
+            &[TaskStatus::Todo],
+            &["rust".to_string()],
+            &["crates/ralph".to_string()],
+            None,
+        );
+        assert_eq!(results.len(), 2);
+        assert!(results.iter().any(|t| t.id == "RQ-0001"));
+        assert!(results.iter().any(|t| t.id == "RQ-0004"));
+    }
+
+    #[test]
+    fn filter_tasks_status_only() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![
+                task_with_tags_scope_status("RQ-0001", vec![], vec![], TaskStatus::Todo),
+                task_with_tags_scope_status("RQ-0002", vec![], vec![], TaskStatus::Doing),
+                task_with_tags_scope_status("RQ-0003", vec![], vec![], TaskStatus::Todo),
+            ],
+        };
+
+        let results = filter_tasks(&queue, &[TaskStatus::Todo], &[], &[], None);
+        assert_eq!(results.len(), 2);
+        assert!(results.iter().all(|t| t.status == TaskStatus::Todo));
+    }
+
+    #[test]
+    fn filter_tasks_tag_only() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![
+                task_with_tags_scope_status(
+                    "RQ-0001",
+                    vec!["rust".to_string()],
+                    vec![],
+                    TaskStatus::Todo,
+                ),
+                task_with_tags_scope_status(
+                    "RQ-0002",
+                    vec!["docs".to_string()],
+                    vec![],
+                    TaskStatus::Todo,
+                ),
+                task_with_tags_scope_status(
+                    "RQ-0003",
+                    vec!["RUST".to_string()],
+                    vec![],
+                    TaskStatus::Doing,
+                ),
+            ],
+        };
+
+        let results = filter_tasks(&queue, &[], &["rust".to_string()], &[], None);
+        assert_eq!(results.len(), 2);
+        assert!(results.iter().any(|t| t.id == "RQ-0001"));
+        assert!(results.iter().any(|t| t.id == "RQ-0003"));
+    }
+
+    #[test]
+    fn filter_tasks_with_limit() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![
+                task_with_tags_scope_status(
+                    "RQ-0001",
+                    vec!["rust".to_string()],
+                    vec!["crates/ralph".to_string()],
+                    TaskStatus::Todo,
+                ),
+                task_with_tags_scope_status(
+                    "RQ-0002",
+                    vec!["rust".to_string()],
+                    vec!["crates/ralph".to_string()],
+                    TaskStatus::Todo,
+                ),
+                task_with_tags_scope_status(
+                    "RQ-0003",
+                    vec!["rust".to_string()],
+                    vec!["crates/ralph".to_string()],
+                    TaskStatus::Todo,
+                ),
+            ],
+        };
+
+        let results = filter_tasks(
+            &queue,
+            &[TaskStatus::Todo],
+            &["rust".to_string()],
+            &["crates/ralph".to_string()],
+            Some(2),
+        );
+        assert_eq!(results.len(), 2);
     }
 }

@@ -21,7 +21,7 @@ pub mod validation;
 pub use operations::*;
 pub use prune::{prune_done_tasks, PruneOptions, PruneReport};
 pub use repair::*;
-pub use search::{filter_tasks, search_tasks};
+pub use search::{filter_tasks, search_tasks, SearchOptions};
 pub use validation::{validate_queue, validate_queue_set};
 
 // Pruning types live in `queue::prune` (re-exported from this module).

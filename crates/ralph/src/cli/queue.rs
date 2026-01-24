@@ -382,7 +382,7 @@ pub enum QueueCommand {
 
     /// Search tasks by content (title, evidence, plan, notes, request, tags, scope, custom fields).
     #[command(
-        after_long_help = "Examples:\n ralph queue search \"authentication\"\n ralph queue search \"RQ-\\d{4}\" --regex\n ralph queue search \"TODO\" --match-case\n ralph queue search \"fix\" --status todo --tag rust"
+        after_long_help = "Examples:\n ralph queue search \"authentication\"\n ralph queue search \"RQ-\\d{4}\" --regex\n ralph queue search \"TODO\" --match-case\n ralph queue search \"fix\" --status todo --tag rust\n ralph queue search \"refactor\" --scope crates/ralph --tag rust"
     )]
     Search(QueueSearchArgs),
 
@@ -583,7 +583,7 @@ impl std::fmt::Display for QueueSortOrder {
 #[derive(Args)]
 /// Search tasks by content (title, evidence, plan, notes, request, tags, scope, custom fields).
 #[command(
-    after_long_help = "Examples:\n  ralph queue search \"authentication\"\n  ralph queue search \"RQ-\\d{4}\" --regex\n  ralph queue search \"TODO\" --match-case\n  ralph queue search \"fix\" --status todo --tag rust"
+    after_long_help = "Examples:\n  ralph queue search \"authentication\"\n  ralph queue search \"RQ-\\d{4}\" --regex\n  ralph queue search \"TODO\" --match-case\n  ralph queue search \"fix\" --status todo --tag rust\n  ralph queue search \"refactor\" --scope crates/ralph --tag rust"
 )]
 pub struct QueueSearchArgs {
     /// Search query (substring or regex pattern).

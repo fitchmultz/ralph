@@ -189,8 +189,11 @@ fn draw_help_overlay(f: &mut Frame<'_>, area: Rect) {
         )),
         Line::from("/: search tasks"),
         Line::from("t: filter by tags"),
+        Line::from("o: filter by scope"),
         Line::from("f: cycle status filter"),
         Line::from("x: clear filters"),
+        Line::from("C: toggle case-sensitive search"),
+        Line::from("R: toggle regex search"),
         Line::from(""),
         Line::from(Span::styled(
             "Quick Changes",
@@ -524,6 +527,19 @@ fn draw_task_details(f: &mut Frame<'_>, app: &mut App, area: Rect) {
             ),
             Span::styled(
                 tags,
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled("_", Style::default().fg(Color::Yellow)), // Cursor
+        ]),
+        AppMode::FilteringScopes(scopes) => Line::from(vec![
+            Span::styled(
+                "Filter Scopes: ",
+                Style::default().add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                scopes,
                 Style::default()
                     .fg(Color::Yellow)
                     .add_modifier(Modifier::BOLD),
@@ -1420,6 +1436,12 @@ fn help_footer_spans(app: &App) -> Vec<Span<'static>> {
             Span::raw(":cancel"),
         ],
         AppMode::FilteringTags(_) => vec![
+            Span::styled("Enter", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(":apply "),
+            Span::styled("Esc", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(":cancel"),
+        ],
+        AppMode::FilteringScopes(_) => vec![
             Span::styled("Enter", Style::default().add_modifier(Modifier::BOLD)),
             Span::raw(":apply "),
             Span::styled("Esc", Style::default().add_modifier(Modifier::BOLD)),

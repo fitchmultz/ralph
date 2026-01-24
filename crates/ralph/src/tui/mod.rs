@@ -9,7 +9,7 @@
 //! - Command palette for discoverability (`:`)
 //!
 //! Key bindings (high-level):
-//! - `:`: command palette
+//! - `:`: command palette (filter by tags/scopes, toggle regex/case-sensitive)
 //! - `q` / `Esc`: Quit (prompts if a task is still running)
 //! - `?` / `h`: Help overlay
 //! - `Up` / `Down` / `j` / `k`: Navigate task list
@@ -79,6 +79,8 @@ pub struct FilterState {
     pub statuses: Vec<TaskStatus>,
     /// Tag filters (empty means all tags).
     pub tags: Vec<String>,
+    /// Search options (regex mode, case sensitivity).
+    pub search_options: queue::SearchOptions,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -280,6 +282,9 @@ impl App {
         !self.filters.query.trim().is_empty()
             || !self.filters.tags.is_empty()
             || !self.filters.statuses.is_empty()
+            || !self.filters.search_options.scopes.is_empty()
+            || self.filters.search_options.use_regex
+            || self.filters.search_options.case_sensitive
     }
 
     /// Create a human-readable summary of active filters.
@@ -298,7 +303,40 @@ impl App {
         if !self.filters.query.trim().is_empty() {
             parts.push(format!("query={}", self.filters.query.trim()));
         }
+        for scope in &self.filters.search_options.scopes {
+            parts.push(format!("scope={}", scope));
+        }
+        if self.filters.search_options.use_regex {
+            parts.push("regex".to_string());
+        }
+        if self.filters.search_options.case_sensitive {
+            parts.push("case-sensitive".to_string());
+        }
         Some(format!("filters: {}", parts.join(" ")))
+    }
+
+    /// Toggle case-sensitive search.
+    pub fn toggle_case_sensitive(&mut self) {
+        self.filters.search_options.case_sensitive = !self.filters.search_options.case_sensitive;
+        let state = if self.filters.search_options.case_sensitive {
+            "enabled"
+        } else {
+            "disabled"
+        };
+        self.set_status_message(format!("Case-sensitive search {}", state));
+        self.rebuild_filtered_view();
+    }
+
+    /// Toggle regex search.
+    pub fn toggle_regex(&mut self) {
+        self.filters.search_options.use_regex = !self.filters.search_options.use_regex;
+        let state = if self.filters.search_options.use_regex {
+            "enabled"
+        } else {
+            "disabled"
+        };
+        self.set_status_message(format!("Regex search {}", state));
+        self.rebuild_filtered_view();
     }
 
     /// Get the currently selected task, if any.
@@ -714,6 +752,12 @@ impl App {
     pub fn set_tag_filters(&mut self, tags: Vec<String>) {
         let preferred_id = self.selected_task().map(|t| t.id.clone());
         self.filters.tags = tags;
+        self.rebuild_filtered_view_with_preferred(preferred_id.as_deref());
+    }
+
+    pub fn set_scope_filters(&mut self, scopes: Vec<String>) {
+        let preferred_id = self.selected_task().map(|t| t.id.clone());
+        self.filters.search_options.scopes = scopes;
         self.rebuild_filtered_view_with_preferred(preferred_id.as_deref());
     }
 
@@ -1236,6 +1280,10 @@ impl App {
                 title: "Filter by tags".to_string(),
             },
             PaletteEntry {
+                cmd: PaletteCommand::FilterScopes,
+                title: "Filter by scope".to_string(),
+            },
+            PaletteEntry {
                 cmd: PaletteCommand::ClearFilters,
                 title: "Clear filters".to_string(),
             },
@@ -1246,6 +1294,14 @@ impl App {
             PaletteEntry {
                 cmd: PaletteCommand::CyclePriority,
                 title: "Cycle selected task priority".to_string(),
+            },
+            PaletteEntry {
+                cmd: PaletteCommand::ToggleCaseSensitive,
+                title: "Toggle case-sensitive search".to_string(),
+            },
+            PaletteEntry {
+                cmd: PaletteCommand::ToggleRegex,
+                title: "Toggle regex search".to_string(),
             },
             PaletteEntry {
                 cmd: PaletteCommand::ReloadQueue,
@@ -1381,6 +1437,10 @@ impl App {
                 self.mode = AppMode::FilteringTags(self.filters.tags.join(","));
                 Ok(TuiAction::Continue)
             }
+            PaletteCommand::FilterScopes => {
+                self.mode = AppMode::FilteringScopes(self.filters.search_options.scopes.join(","));
+                Ok(TuiAction::Continue)
+            }
             PaletteCommand::ClearFilters => {
                 self.clear_filters();
                 self.set_status_message("Filters cleared");
@@ -1400,6 +1460,14 @@ impl App {
                 } else {
                     self.set_status_message("Priority updated");
                 }
+                Ok(TuiAction::Continue)
+            }
+            PaletteCommand::ToggleCaseSensitive => {
+                self.toggle_case_sensitive();
+                Ok(TuiAction::Continue)
+            }
+            PaletteCommand::ToggleRegex => {
+                self.toggle_regex();
                 Ok(TuiAction::Continue)
             }
             PaletteCommand::ReloadQueue => Ok(TuiAction::ReloadQueue),
@@ -1486,12 +1554,17 @@ impl App {
             &self.queue,
             &self.filters.statuses,
             &self.filters.tags,
-            &[],
+            &self.filters.search_options.scopes,
             None,
         );
 
         if !self.filters.query.trim().is_empty() {
-            match queue::search_tasks(filtered, &self.filters.query, false, false) {
+            match queue::search_tasks(
+                filtered,
+                &self.filters.query,
+                self.filters.search_options.use_regex,
+                self.filters.search_options.case_sensitive,
+            ) {
                 Ok(results) => {
                     filtered = results;
                 }
@@ -2617,5 +2690,95 @@ mod tests {
         app.start_scan_execution("focus".to_string(), false, false);
         assert_eq!(app.running_task_id.as_deref(), Some("scan: focus"));
         assert!(matches!(app.running_kind, Some(RunningKind::Scan { .. })));
+    }
+
+    #[test]
+    fn filter_summary_includes_case_sensitive() {
+        let mut app = App::new(QueueFile::default());
+        app.filters.search_options.case_sensitive = true;
+        app.filters.query = "test".to_string();
+
+        let summary = app.filter_summary();
+        assert!(summary.is_some());
+        assert!(summary.as_ref().unwrap().contains("case-sensitive"));
+        assert!(summary.as_ref().unwrap().contains("query=test"));
+    }
+
+    #[test]
+    fn filter_summary_includes_regex() {
+        let mut app = App::new(QueueFile::default());
+        app.filters.search_options.use_regex = true;
+        app.filters.query = "RQ-\\d{4}".to_string();
+
+        let summary = app.filter_summary();
+        assert!(summary.is_some());
+        assert!(summary.as_ref().unwrap().contains("regex"));
+        assert!(summary.as_ref().unwrap().contains("query=RQ-\\d{4}"));
+    }
+
+    #[test]
+    fn filter_summary_includes_both_search_options() {
+        let mut app = App::new(QueueFile::default());
+        app.filters.search_options.use_regex = true;
+        app.filters.search_options.case_sensitive = true;
+        app.filters.query = "test".to_string();
+
+        let summary = app.filter_summary();
+        assert!(summary.is_some());
+        assert!(summary.as_ref().unwrap().contains("regex"));
+        assert!(summary.as_ref().unwrap().contains("case-sensitive"));
+    }
+
+    #[test]
+    fn has_active_filters_detects_search_options() {
+        let mut app = App::new(QueueFile::default());
+
+        assert!(!app.has_active_filters(), "no filters active by default");
+
+        app.filters.search_options.use_regex = true;
+        assert!(
+            app.has_active_filters(),
+            "regex option makes filters active"
+        );
+
+        app.filters.search_options.use_regex = false;
+        assert!(!app.has_active_filters(), "regex option disabled");
+
+        app.filters.search_options.case_sensitive = true;
+        assert!(
+            app.has_active_filters(),
+            "case-sensitive option makes filters active"
+        );
+
+        app.filters.search_options.case_sensitive = false;
+        assert!(!app.has_active_filters(), "case-sensitive option disabled");
+    }
+
+    #[test]
+    fn filter_summary_includes_scopes() {
+        let mut app = App::new(QueueFile::default());
+        app.filters.search_options.scopes = vec!["crates/ralph".to_string()];
+        app.filters.query = "test".to_string();
+
+        let summary = app.filter_summary();
+        assert!(summary.is_some());
+        assert!(summary.as_ref().unwrap().contains("scope=crates/ralph"));
+        assert!(summary.as_ref().unwrap().contains("query=test"));
+    }
+
+    #[test]
+    fn has_active_filters_detects_scopes() {
+        let mut app = App::new(QueueFile::default());
+
+        assert!(!app.has_active_filters(), "no filters active by default");
+
+        app.filters.search_options.scopes = vec!["frontend".to_string()];
+        assert!(
+            app.has_active_filters(),
+            "scope filter makes filters active"
+        );
+
+        app.filters.search_options.scopes.clear();
+        assert!(!app.has_active_filters(), "scope filter disabled");
     }
 }

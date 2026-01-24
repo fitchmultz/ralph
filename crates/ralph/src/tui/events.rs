@@ -52,6 +52,8 @@ pub enum AppMode {
     Searching(String),
     /// Filtering tasks by tag list (comma-separated input)
     FilteringTags(String),
+    /// Filtering tasks by scope list (comma-separated input)
+    FilteringScopes(String),
     /// Editing project configuration
     EditingConfig {
         selected: usize,
@@ -98,6 +100,7 @@ impl PartialEq for AppMode {
             (CreatingTask(left), CreatingTask(right)) => left == right,
             (Searching(left), Searching(right)) => left == right,
             (FilteringTags(left), FilteringTags(right)) => left == right,
+            (FilteringScopes(left), FilteringScopes(right)) => left == right,
             (
                 EditingConfig {
                     selected: left_selected,
@@ -166,9 +169,12 @@ pub enum PaletteCommand {
     ScanRepo,
     Search,
     FilterTags,
+    FilterScopes,
     ClearFilters,
     CycleStatus,
     CyclePriority,
+    ToggleCaseSensitive,
+    ToggleRegex,
     ReloadQueue,
     Quit,
 }
@@ -197,6 +203,7 @@ pub fn handle_key_event(app: &mut App, key: KeyCode, now_rfc3339: &str) -> Resul
         }
         AppMode::Searching(ref current) => handle_searching_mode_key(app, key, current),
         AppMode::FilteringTags(ref current) => handle_filtering_tags_key(app, key, current),
+        AppMode::FilteringScopes(ref current) => handle_filtering_scopes_key(app, key, current),
         AppMode::EditingConfig {
             selected,
             editing_value,
@@ -282,6 +289,9 @@ fn handle_normal_mode_key(app: &mut App, key: KeyCode, now_rfc3339: &str) -> Res
             };
             Ok(TuiAction::Continue)
         }
+        KeyCode::Char('C') => {
+            app.execute_palette_command(PaletteCommand::ToggleCaseSensitive, now_rfc3339)
+        }
         KeyCode::Char('g') => {
             if app.runner_active {
                 app.set_status_message("Runner already active");
@@ -302,6 +312,10 @@ fn handle_normal_mode_key(app: &mut App, key: KeyCode, now_rfc3339: &str) -> Res
             app.mode = AppMode::FilteringTags(app.filters.tags.join(","));
             Ok(TuiAction::Continue)
         }
+        KeyCode::Char('o') => {
+            app.mode = AppMode::FilteringScopes(app.filters.search_options.scopes.join(","));
+            Ok(TuiAction::Continue)
+        }
         KeyCode::Char('f') => {
             app.cycle_status_filter();
             Ok(TuiAction::Continue)
@@ -316,6 +330,7 @@ fn handle_normal_mode_key(app: &mut App, key: KeyCode, now_rfc3339: &str) -> Res
             app.execute_palette_command(PaletteCommand::CyclePriority, now_rfc3339)
         }
         KeyCode::Char('r') => Ok(TuiAction::ReloadQueue),
+        KeyCode::Char('R') => app.execute_palette_command(PaletteCommand::ToggleRegex, now_rfc3339),
         _ => Ok(TuiAction::Continue),
     }
 }
@@ -560,6 +575,34 @@ fn handle_filtering_tags_key(app: &mut App, key: KeyCode, current: &str) -> Resu
             let mut next = current.to_string();
             next.pop();
             app.mode = AppMode::FilteringTags(next);
+            Ok(TuiAction::Continue)
+        }
+        _ => Ok(TuiAction::Continue),
+    }
+}
+
+fn handle_filtering_scopes_key(app: &mut App, key: KeyCode, current: &str) -> Result<TuiAction> {
+    match key {
+        KeyCode::Enter => {
+            let scopes = App::parse_list(current);
+            app.set_scope_filters(scopes);
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Esc => {
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Char(c) => {
+            let mut next = current.to_string();
+            next.push(c);
+            app.mode = AppMode::FilteringScopes(next);
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Backspace => {
+            let mut next = current.to_string();
+            next.pop();
+            app.mode = AppMode::FilteringScopes(next);
             Ok(TuiAction::Continue)
         }
         _ => Ok(TuiAction::Continue),
@@ -1444,5 +1487,158 @@ mod tests {
         let _ = handle_key_event(&mut app, KeyCode::Enter, "2026-01-20T00:00:00Z").expect("key");
 
         assert_eq!(app.project_config.queue.id_prefix.as_deref(), Some("X"));
+    }
+
+    #[test]
+    fn uppercase_c_toggles_case_sensitive() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![make_test_task("RQ-0001")],
+        };
+        let mut app = App::new(queue);
+
+        let action = handle_key_event(&mut app, KeyCode::Char('C'), "2026-01-20T00:00:00Z")
+            .expect("handle key");
+
+        assert_eq!(action, TuiAction::Continue);
+        assert!(app.filters.search_options.case_sensitive);
+        assert_eq!(
+            app.status_message.as_deref(),
+            Some("Case-sensitive search enabled")
+        );
+    }
+
+    #[test]
+    fn uppercase_r_toggles_regex() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![make_test_task("RQ-0001")],
+        };
+        let mut app = App::new(queue);
+
+        let action = handle_key_event(&mut app, KeyCode::Char('R'), "2026-01-20T00:00:00Z")
+            .expect("handle key");
+
+        assert_eq!(action, TuiAction::Continue);
+        assert!(app.filters.search_options.use_regex);
+        assert_eq!(app.status_message.as_deref(), Some("Regex search enabled"));
+    }
+
+    #[test]
+    fn toggle_case_sensitive_twice_restores_default() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![make_test_task("RQ-0001")],
+        };
+        let mut app = App::new(queue);
+
+        handle_key_event(&mut app, KeyCode::Char('C'), "2026-01-20T00:00:00Z").expect("handle key");
+        assert!(app.filters.search_options.case_sensitive);
+
+        handle_key_event(&mut app, KeyCode::Char('C'), "2026-01-20T00:00:00Z").expect("handle key");
+        assert!(!app.filters.search_options.case_sensitive);
+        assert_eq!(
+            app.status_message.as_deref(),
+            Some("Case-sensitive search disabled")
+        );
+    }
+
+    #[test]
+    fn toggle_regex_twice_restores_default() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![make_test_task("RQ-0001")],
+        };
+        let mut app = App::new(queue);
+
+        handle_key_event(&mut app, KeyCode::Char('R'), "2026-01-20T00:00:00Z").expect("handle key");
+        assert!(app.filters.search_options.use_regex);
+
+        handle_key_event(&mut app, KeyCode::Char('R'), "2026-01-20T00:00:00Z").expect("handle key");
+        assert!(!app.filters.search_options.use_regex);
+        assert_eq!(app.status_message.as_deref(), Some("Regex search disabled"));
+    }
+
+    #[test]
+    fn palette_toggle_case_sensitive_command() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![make_test_task("RQ-0001")],
+        };
+        let mut app = App::new(queue);
+
+        app.execute_palette_command(PaletteCommand::ToggleCaseSensitive, "2026-01-20T00:00:00Z")
+            .expect("execute command");
+
+        assert!(app.filters.search_options.case_sensitive);
+        assert_eq!(
+            app.status_message.as_deref(),
+            Some("Case-sensitive search enabled")
+        );
+    }
+
+    #[test]
+    fn palette_toggle_regex_command() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![make_test_task("RQ-0001")],
+        };
+        let mut app = App::new(queue);
+
+        app.execute_palette_command(PaletteCommand::ToggleRegex, "2026-01-20T00:00:00Z")
+            .expect("execute command");
+
+        assert!(app.filters.search_options.use_regex);
+        assert_eq!(app.status_message.as_deref(), Some("Regex search enabled"));
+    }
+
+    #[test]
+    fn uppercase_o_enters_scope_filter_mode() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![make_test_task("RQ-0001")],
+        };
+        let mut app = App::new(queue);
+
+        let action = handle_key_event(&mut app, KeyCode::Char('o'), "2026-01-20T00:00:00Z")
+            .expect("handle key");
+
+        assert_eq!(action, TuiAction::Continue);
+        assert!(matches!(app.mode, AppMode::FilteringScopes(_)));
+    }
+
+    #[test]
+    fn palette_filter_scopes_command() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![make_test_task("RQ-0001")],
+        };
+        let mut app = App::new(queue);
+
+        app.execute_palette_command(PaletteCommand::FilterScopes, "2026-01-20T00:00:00Z")
+            .expect("execute command");
+
+        assert!(matches!(app.mode, AppMode::FilteringScopes(_)));
+    }
+
+    #[test]
+    fn enter_applies_scope_filter() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![make_test_task("RQ-0001")],
+        };
+        let mut app = App::new(queue);
+        app.mode = AppMode::FilteringScopes("crates/ralph".to_string());
+
+        let action =
+            handle_key_event(&mut app, KeyCode::Enter, "2026-01-20T00:00:00Z").expect("handle key");
+
+        assert_eq!(action, TuiAction::Continue);
+        assert_eq!(app.mode, AppMode::Normal, "mode should return to Normal");
+        assert_eq!(
+            app.filters.search_options.scopes,
+            vec!["crates/ralph"],
+            "scope filter should be applied"
+        );
     }
 }
