@@ -141,7 +141,32 @@ Or:
 
 ---
 
-### 6) `ralph task field <KEY> <VALUE> <TASK_ID>` (Set custom fields)
+### 6) `ralph task edit <FIELD> <VALUE> <TASK_ID>` (Edit any task field)
+
+**CLI behavior**
+- Updates any task field (default + custom fields) in-place.
+- List fields accept comma/newline-separated values.
+- `custom_fields` expects `key=value` entries (comma/newline-separated).
+- Optional fields (`request`, `created_at`, `updated_at`, `completed_at`) can be cleared with `""`.
+
+Examples:
+```
+ralph task edit title "Clarify CLI edit" RQ-0001
+ralph task edit status doing RQ-0001
+ralph task edit tags "cli, rust" RQ-0001
+ralph task edit custom_fields "severity=high, owner=ralph" RQ-0001
+ralph task edit request "" RQ-0001
+```
+
+**TUI equivalent**
+- Select the task
+- Press `e`
+- Navigate to a field
+- Press `Enter` to edit/cycle
+
+---
+
+### 7) `ralph task field <KEY> <VALUE> <TASK_ID>` (Set custom fields)
 
 **CLI behavior**
 - Sets one custom field key/value on a task.

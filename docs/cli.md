@@ -104,6 +104,32 @@ ralph run loop -i --max-tasks 3
 ralph run one --git-commit-push-off
 ```
 
+## `ralph task`
+
+Create tasks and edit task fields from the CLI.
+
+Common subcommands:
+- `ralph task <request>`: create a task from a freeform request.
+- `ralph task status <draft|todo|doing|done|rejected> <TASK_ID>`: update status.
+- `ralph task edit <FIELD> <VALUE> <TASK_ID>`: edit any task field (default + custom).
+- `ralph task field <KEY> <VALUE> <TASK_ID>`: set one custom field.
+
+Field formats (for `ralph task edit`):
+- Lists (`tags`, `scope`, `evidence`, `plan`, `notes`, `depends_on`): comma/newline-separated.
+- `custom_fields`: `key=value` pairs, comma/newline-separated.
+- Optional text (`request`, `created_at`, `updated_at`, `completed_at`): pass `""` to clear.
+
+Examples:
+
+```bash
+ralph task "Add CLI task edit command"
+ralph task status doing RQ-0001
+ralph task edit title "Update queue edit docs" RQ-0001
+ralph task edit tags "cli, rust" RQ-0001
+ralph task edit custom_fields "severity=high, owner=ralph" RQ-0001
+ralph task edit request "" RQ-0001
+```
+
 ## `ralph prompt`
 
 Render prompt previews to inspect the exact text sent to runners.

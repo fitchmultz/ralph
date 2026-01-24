@@ -5,6 +5,9 @@ When implementation is complete, you MUST:
 2. Run `ralph task done --note "<note>" {{TASK_ID}}` to move the task from `.ralph/queue.json` to `.ralph/done.json`.
    - Use `ralph task reject --note "<note>" {{TASK_ID}}` when appropriate; only `done` and `rejected` are valid completion statuses.
    - Provide 1-5 summary notes using repeated `--note` flags (each note should be a short bullet).
+   - **Queue freshness check (MANDATORY before marking done/rejected):** quickly scan other tasks in `.ralph/queue.json` (typically `todo` / `doing`) and identify any tasks whose **assumptions, plan, evidence, or notes** are now stale because of what you just changed (APIs, file paths, behavior, config, constraints, etc.).
+     - If affected, update those tasks using `ralph task field <KEY> <VALUE> <TASK_ID>` to add clarifying notes so future agents aren't misled.
+     - Prefer minimal, high-signal updates to eliminate confirmed stale data (e.g., `ralph task field stale_api "This API no longer exists; see <new path>" RQ-0XXX`).
 3. If the task is incomplete but you are stopping:
    - Leave it in `.ralph/queue.json` as `doing` (or revert to `todo` if not continuing).
    - Do NOT set `blocked`.

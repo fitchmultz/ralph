@@ -1,9 +1,10 @@
 //! `ralph task ...` command group: Clap types and handler.
 
 use anyhow::Result;
-use clap::{Args, Subcommand};
+use clap::{Args, Subcommand, ValueEnum};
 
 use crate::contracts::TaskStatus;
+use crate::queue::TaskEditKey;
 use crate::{agent, completions, config, fsutil, queue, runner, task_cmd, timeutil};
 
 pub fn handle_task(args: TaskArgs, force: bool) -> Result<()> {
@@ -90,6 +91,35 @@ pub fn handle_task(args: TaskArgs, force: bool) -> Result<()> {
             queue::set_field(&mut queue_file, &args.task_id, &args.key, &args.value, &now)?;
             queue::save_queue(&resolved.queue_path, &queue_file)?;
             log::info!("Set field '{}' on task {}.", args.key, args.task_id);
+            Ok(())
+        }
+
+        Some(TaskCommand::Edit(args)) => {
+            let _queue_lock = queue::acquire_queue_lock(&resolved.repo_root, "task edit", force)?;
+            let mut queue_file = queue::load_queue(&resolved.queue_path)?;
+            let done_file = queue::load_queue_or_default(&resolved.done_path)?;
+            let done_ref = if done_file.tasks.is_empty() && !resolved.done_path.exists() {
+                None
+            } else {
+                Some(&done_file)
+            };
+            let now = timeutil::now_utc_rfc3339()?;
+            queue::apply_task_edit(
+                &mut queue_file,
+                done_ref,
+                &args.task_id,
+                args.field.into(),
+                &args.value,
+                &now,
+                &resolved.id_prefix,
+                resolved.id_width,
+            )?;
+            queue::save_queue(&resolved.queue_path, &queue_file)?;
+            log::info!(
+                "Updated task {} field {}.",
+                args.task_id,
+                args.field.as_str()
+            );
             Ok(())
         }
 
@@ -215,7 +245,7 @@ fn complete_task_or_signal(
 #[command(
     about = "Create and build tasks from freeform requests",
     subcommand_required = false,
-    after_long_help = "Examples:\n ralph task \"Add tests for the new queue logic\"\n ralph task --runner opencode --model gpt-5.2 \"Fix CLI help strings\"\n ralph task ready RQ-0005\n ralph task status doing --note \"Starting work\" RQ-0001\n ralph task field severity high RQ-0003\n ralph task done --note \"Finished work\" RQ-0001\n ralph task reject --note \"No longer needed\" RQ-0002\n ralph task build \"(explicit build subcommand still works)\""
+    after_long_help = "Examples:\n ralph task \"Add tests for the new queue logic\"\n ralph task --runner opencode --model gpt-5.2 \"Fix CLI help strings\"\n ralph task ready RQ-0005\n ralph task status doing --note \"Starting work\" RQ-0001\n ralph task edit title \"Refine queue edit\" RQ-0001\n ralph task field severity high RQ-0003\n ralph task done --note \"Finished work\" RQ-0001\n ralph task reject --note \"No longer needed\" RQ-0002\n ralph task build \"(explicit build subcommand still works)\""
 )]
 pub struct TaskArgs {
     #[command(subcommand)]
@@ -265,6 +295,12 @@ pub enum TaskCommand {
         after_long_help = "Examples:\n ralph task field severity high RQ-0001\n ralph task field complexity \"O(n log n)\" RQ-0002"
     )]
     Field(TaskFieldArgs),
+
+    /// Edit any task field (default or custom).
+    #[command(
+        after_long_help = "Examples:\n ralph task edit title \"Clarify CLI edit\" RQ-0001\n ralph task edit status doing RQ-0001\n ralph task edit priority high RQ-0001\n ralph task edit tags \"cli, rust\" RQ-0001\n ralph task edit custom_fields \"severity=high, owner=ralph\" RQ-0001\n ralph task edit request \"\" RQ-0001\n ralph task edit completed_at \"2026-01-20T12:00:00Z\" RQ-0001"
+    )]
+    Edit(TaskEditArgs),
 }
 
 #[derive(Args)]
@@ -389,4 +425,79 @@ pub struct TaskFieldArgs {
     /// Task ID to update.
     #[arg(value_name = "TASK_ID")]
     pub task_id: String,
+}
+
+#[derive(Args)]
+pub struct TaskEditArgs {
+    /// Task field to update.
+    #[arg(value_enum)]
+    pub field: TaskEditFieldArg,
+
+    /// New field value (empty string clears optional fields).
+    pub value: String,
+
+    /// Task ID to update.
+    #[arg(value_name = "TASK_ID")]
+    pub task_id: String,
+}
+
+#[derive(ValueEnum, Clone, Copy, Debug)]
+#[clap(rename_all = "snake_case")]
+pub enum TaskEditFieldArg {
+    Title,
+    Status,
+    Priority,
+    Tags,
+    Scope,
+    Evidence,
+    Plan,
+    Notes,
+    Request,
+    DependsOn,
+    CustomFields,
+    CreatedAt,
+    UpdatedAt,
+    CompletedAt,
+}
+
+impl TaskEditFieldArg {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            TaskEditFieldArg::Title => "title",
+            TaskEditFieldArg::Status => "status",
+            TaskEditFieldArg::Priority => "priority",
+            TaskEditFieldArg::Tags => "tags",
+            TaskEditFieldArg::Scope => "scope",
+            TaskEditFieldArg::Evidence => "evidence",
+            TaskEditFieldArg::Plan => "plan",
+            TaskEditFieldArg::Notes => "notes",
+            TaskEditFieldArg::Request => "request",
+            TaskEditFieldArg::DependsOn => "depends_on",
+            TaskEditFieldArg::CustomFields => "custom_fields",
+            TaskEditFieldArg::CreatedAt => "created_at",
+            TaskEditFieldArg::UpdatedAt => "updated_at",
+            TaskEditFieldArg::CompletedAt => "completed_at",
+        }
+    }
+}
+
+impl From<TaskEditFieldArg> for TaskEditKey {
+    fn from(value: TaskEditFieldArg) -> Self {
+        match value {
+            TaskEditFieldArg::Title => TaskEditKey::Title,
+            TaskEditFieldArg::Status => TaskEditKey::Status,
+            TaskEditFieldArg::Priority => TaskEditKey::Priority,
+            TaskEditFieldArg::Tags => TaskEditKey::Tags,
+            TaskEditFieldArg::Scope => TaskEditKey::Scope,
+            TaskEditFieldArg::Evidence => TaskEditKey::Evidence,
+            TaskEditFieldArg::Plan => TaskEditKey::Plan,
+            TaskEditFieldArg::Notes => TaskEditKey::Notes,
+            TaskEditFieldArg::Request => TaskEditKey::Request,
+            TaskEditFieldArg::DependsOn => TaskEditKey::DependsOn,
+            TaskEditFieldArg::CustomFields => TaskEditKey::CustomFields,
+            TaskEditFieldArg::CreatedAt => TaskEditKey::CreatedAt,
+            TaskEditFieldArg::UpdatedAt => TaskEditKey::UpdatedAt,
+            TaskEditFieldArg::CompletedAt => TaskEditKey::CompletedAt,
+        }
+    }
 }

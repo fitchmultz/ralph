@@ -30,6 +30,15 @@
 //! - `g`: Scan repository for new tasks
 //! - Executing view: `↑`/`↓`/`j`/`k` scroll, `PgUp`/`PgDn` page, `a` toggles auto-scroll, `l` stops loop
 
+use crate::config::{self, ConfigLayer};
+use crate::contracts::{
+    ClaudePermissionMode, GitRevertMode, Model, ProjectType, QueueFile, ReasoningEffort, Runner,
+    Task, TaskPriority, TaskStatus,
+};
+use crate::outpututil::format_custom_fields;
+use crate::queue::TaskEditKey;
+use crate::timeutil;
+use crate::{fsutil, queue, runutil};
 use anyhow::{anyhow, bail, Context, Result};
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyEventKind},
@@ -42,17 +51,6 @@ use std::path::{Path, PathBuf};
 use std::sync::{mpsc, Arc};
 use std::thread;
 use std::time::Duration;
-use time::format_description::well_known::Rfc3339;
-use time::OffsetDateTime;
-
-use crate::config::{self, ConfigLayer};
-use crate::contracts::{
-    ClaudePermissionMode, GitRevertMode, Model, ProjectType, QueueFile, ReasoningEffort, Runner,
-    Task, TaskPriority, TaskStatus,
-};
-use crate::outpututil::format_custom_fields;
-use crate::timeutil;
-use crate::{fsutil, queue, runutil};
 
 pub mod events;
 pub mod render;
@@ -98,24 +96,6 @@ pub enum TaskEditKind {
     List,
     Map,
     OptionalText,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TaskEditKey {
-    Title,
-    Status,
-    Priority,
-    Tags,
-    Scope,
-    Evidence,
-    Plan,
-    Notes,
-    Request,
-    DependsOn,
-    CustomFields,
-    CreatedAt,
-    UpdatedAt,
-    CompletedAt,
 }
 
 #[derive(Debug, Clone)]
@@ -546,111 +526,17 @@ impl App {
             .selected_task()
             .map(|t| t.id.clone())
             .ok_or_else(|| anyhow!("No task selected"))?;
-        let index = self
-            .selected_task_index()
-            .ok_or_else(|| anyhow!("No task selected"))?;
-        let previous = self
-            .queue
-            .tasks
-            .get(index)
-            .cloned()
-            .ok_or_else(|| anyhow!("No task selected"))?;
 
-        let task = self
-            .queue
-            .tasks
-            .get_mut(index)
-            .ok_or_else(|| anyhow!("No task selected"))?;
-
-        let trimmed = input.trim();
-
-        match key {
-            TaskEditKey::Title => {
-                if trimmed.is_empty() {
-                    bail!("Title cannot be empty");
-                }
-                task.title = trimmed.to_string();
-            }
-            TaskEditKey::Status => {
-                let next_status = match task.status {
-                    TaskStatus::Draft => TaskStatus::Todo,
-                    TaskStatus::Todo => TaskStatus::Doing,
-                    TaskStatus::Doing => TaskStatus::Done,
-                    TaskStatus::Done => TaskStatus::Rejected,
-                    TaskStatus::Rejected => TaskStatus::Draft,
-                };
-                queue::apply_status_policy(task, next_status, now_rfc3339, None)?;
-            }
-            TaskEditKey::Priority => {
-                task.priority = task.priority.cycle();
-            }
-            TaskEditKey::Tags => {
-                task.tags = Self::parse_list(trimmed);
-            }
-            TaskEditKey::Scope => {
-                task.scope = Self::parse_list(trimmed);
-            }
-            TaskEditKey::Evidence => {
-                task.evidence = Self::parse_list(trimmed);
-            }
-            TaskEditKey::Plan => {
-                task.plan = Self::parse_list(trimmed);
-            }
-            TaskEditKey::Notes => {
-                task.notes = Self::parse_list(trimmed);
-            }
-            TaskEditKey::Request => {
-                task.request = if trimmed.is_empty() {
-                    None
-                } else {
-                    Some(trimmed.to_string())
-                };
-            }
-            TaskEditKey::DependsOn => {
-                task.depends_on = Self::parse_list(trimmed);
-            }
-            TaskEditKey::CustomFields => {
-                task.custom_fields = Self::parse_custom_fields(trimmed)?;
-            }
-            TaskEditKey::CreatedAt => {
-                Self::validate_rfc3339_input("created_at", trimmed)?;
-                task.created_at = if trimmed.is_empty() {
-                    None
-                } else {
-                    Some(trimmed.to_string())
-                };
-            }
-            TaskEditKey::UpdatedAt => {
-                Self::validate_rfc3339_input("updated_at", trimmed)?;
-                task.updated_at = if trimmed.is_empty() {
-                    None
-                } else {
-                    Some(trimmed.to_string())
-                };
-            }
-            TaskEditKey::CompletedAt => {
-                Self::validate_rfc3339_input("completed_at", trimmed)?;
-                task.completed_at = if trimmed.is_empty() {
-                    None
-                } else {
-                    Some(trimmed.to_string())
-                };
-            }
-        }
-
-        if !matches!(key, TaskEditKey::UpdatedAt) {
-            task.updated_at = Some(now_rfc3339.to_string());
-        }
-
-        if let Err(err) = queue::validate_queue_set(
-            &self.queue,
+        queue::apply_task_edit(
+            &mut self.queue,
             Some(&self.done),
+            &task_id,
+            key,
+            input,
+            now_rfc3339,
             &self.id_prefix,
             self.id_width,
-        ) {
-            self.queue.tasks[index] = previous;
-            return Err(err);
-        }
+        )?;
 
         self.dirty = true;
         self.set_status_message(format!("Updated {}", task_id));
@@ -783,43 +669,6 @@ impl App {
             .map(|item| item.trim().to_string())
             .filter(|item| !item.is_empty())
             .collect()
-    }
-
-    fn parse_custom_fields(input: &str) -> Result<HashMap<String, String>> {
-        let mut map = HashMap::new();
-        if input.trim().is_empty() {
-            return Ok(map);
-        }
-
-        for raw in input.split([',', '\n']) {
-            let trimmed = raw.trim();
-            if trimmed.is_empty() {
-                continue;
-            }
-            let (key, value) = trimmed
-                .split_once('=')
-                .ok_or_else(|| anyhow!("Custom field entry must be key=value"))?;
-            let key = key.trim();
-            if key.is_empty() {
-                bail!("Custom field key cannot be empty");
-            }
-            if key.chars().any(|c| c.is_whitespace()) {
-                bail!("Custom field keys cannot contain whitespace");
-            }
-            let value = value.trim();
-            map.insert(key.to_string(), value.to_string());
-        }
-        Ok(map)
-    }
-
-    fn validate_rfc3339_input(label: &str, value: &str) -> Result<()> {
-        let trimmed = value.trim();
-        if trimmed.is_empty() {
-            return Ok(());
-        }
-        OffsetDateTime::parse(trimmed, &Rfc3339)
-            .with_context(|| format!("{} must be a valid RFC3339 timestamp", label))?;
-        Ok(())
     }
 
     /// Parse comma or whitespace-separated tags from input string.

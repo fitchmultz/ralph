@@ -3848,6 +3848,39 @@
       "completed_at": "2026-01-24T18:20:10.916188000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0267",
+      "status": "done",
+      "title": "Keep queue tasks plan/evidence/notes up to date as other tasks complete",
+      "priority": "medium",
+      "tags": [
+        "queue",
+        "prompts",
+        "agents",
+        "data-integrity"
+      ],
+      "scope": [
+        "crates/ralph/assets/prompts/"
+      ],
+      "evidence": [
+        "User request: 'Determine the best way to keep queue tasks plan/evidence/notes up to date as other tasks are completed to avoid outdated information which could misguide agents.'",
+        "User suggests: 'subtle prompt tweaks during the final review phase in which the task is marked done is likely the best, simplest, safest solution since it sees the completed work.'"
+      ],
+      "plan": [
+        "Read the worker phase prompts (worker.md, worker_phase1.md, worker_phase2.md, worker_phase2_handoff.md, worker_phase3.md, worker_single_phase.md) to understand the current review/complete flow.",
+        "Identify the review phase where tasks are marked done (likely worker_phase3.md or worker_single_phase.md).",
+        "Add prompt guidance to the final review phase: when marking a task done, scan other pending tasks in the queue and update their plan/evidence/notes if the completed work affects their assumptions.",
+        "Focus on subtle, safe nudges: ask the agent to check for obviously stale references without requiring full queue analysis.",
+        "Test the updated prompts to ensure agents actually perform this check during completion."
+      ],
+      "notes": [],
+      "request": "Determine the best way to keep queue tasks plan/evidence/notes up to date as other tasks are completed to avoid outdated information which could misguide agents. Implement the solution, e.g. subtle prompt tweaks during the final review phase in which the task is marked done is likely the best, simplest, safest solution since it sees the completed work.",
+      "created_at": "2026-01-24T16:03:15.000000000Z",
+      "updated_at": "2026-01-24T18:34:43.091942000Z",
+      "completed_at": "2026-01-24T18:34:43.091942000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }
