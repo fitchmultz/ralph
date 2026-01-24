@@ -2,45 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0283",
-      "status": "doing",
-      "title": "Fix temp dir cleanup during make ci runs to prevent disk space exhaustion",
-      "priority": "high",
-      "tags": [
-        "tests",
-        "tempfile",
-        "cleanup",
-        "ci"
-      ],
-      "scope": [
-        "crates/ralph/src/fsutil.rs",
-        "Makefile",
-        "crates/ralph/tests/"
-      ],
-      "evidence": [
-        "User report: During long runs of 'ralph run loop' the '/private/var/folders' path becomes riddled with temporary git repos created during 'make ci' that do not get cleaned up until system restart.",
-        "User evidence: ls -aR /private/var/folders/*/T/.tmp* shows many .tmp* directories with .ralph subdirectories containing queue.json, config.json, done.json, lock, prompts, etc.",
-        "crates/ralph/src/fsutil.rs: ralph_temp_root() creates temp dirs under std::env::temp_dir().join('ralph'), but many tests use TempDir::new() directly.",
-        "grep shows 39 files using TempDir::new, NamedTempFile::new, or tempfile directly.",
-        "Makefile: ci target runs cargo test which creates many temp directories that may not be cleaned up on failure."
-      ],
-      "plan": [
-        "Audit all TempDir::new() and NamedTempFile::new() usages in tests and src to understand cleanup patterns.",
-        "Determine if tempfile crate is being used correctly (TempDir should auto-delete on drop).",
-        "Check if temp dirs are persisting due to panic/abort/crash paths that bypass Drop.",
-        "Consider using a centralized temp dir location (e.g., target/tmp) for all test temp dirs.",
-        "Add make ci cleanup: ensure temp dirs are cleaned up even on test failure.",
-        "Add a make clean-temp target to manually clean stale Ralph temp directories.",
-        "Add a post-test cleanup step to fsutil or the Makefile to remove orphaned temp dirs."
-      ],
-      "notes": [],
-      "request": "During long runs of 'ralph run loop' the '/private/var/folders' path becomes riddles with temporary git repos created during 'make ci' and do not get cleaned up until the user restarts the system. This eventually leads to tests failing due to lack of disk space. Proper cleanup is required when writing to temporary directories.",
-      "created_at": "2025-01-24T20:45:00.000000000Z",
-      "updated_at": "2026-01-24T16:11:09.819139000Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0252",
       "status": "todo",
       "title": "Dirty repo on runner timeout honor git_revert_mode config",
