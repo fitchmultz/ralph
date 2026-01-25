@@ -4388,6 +4388,41 @@
       "completed_at": "2026-01-25T17:43:15.779753000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0255",
+      "status": "done",
+      "title": "Fix prune keep-last logic to handle duplicate IDs (rejected tasks)",
+      "priority": "medium",
+      "tags": [
+        "queue",
+        "prune"
+      ],
+      "scope": [
+        "crates/ralph/src/queue/prune.rs",
+        "crates/ralph/src/queue/validation.rs"
+      ],
+      "evidence": [
+        "crates/ralph/src/queue/prune.rs: keep_last uses HashSet of task IDs to protect tasks.",
+        "crates/ralph/src/queue/validation.rs: rejected tasks are skipped in duplicate detection, allowing duplicate IDs.",
+        "keep_last currently can keep more than N tasks when IDs repeat."
+      ],
+      "plan": [
+        "Change keep_last protection to track task indices instead of IDs.",
+        "Add tests with duplicate IDs to ensure keep_last respects count.",
+        "Verify prune reports remain accurate after change."
+      ],
+      "notes": [
+        "Switched prune keep-last protection to use task indices so duplicate IDs no longer inflate keep set.",
+        "Added duplicate-ID regression test covering keep-last count and report ordering.",
+        "make ci"
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-24T12:40:25Z",
+      "updated_at": "2026-01-25T17:49:20.771815000Z",
+      "completed_at": "2026-01-25T17:49:20.771815000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

@@ -84,11 +84,11 @@ fn prune_done_queue_at(
     let mut indices: Vec<usize> = (0..tasks.len()).collect();
     indices.sort_by(|&i, &j| compare_completed_desc(&tasks[i], &j, tasks));
 
-    // Apply keep-last protection using task IDs instead of indices
-    let mut keep_set: HashSet<String> = HashSet::new();
+    // Apply keep-last protection by index to avoid duplicate-ID inflation
+    let mut keep_set: HashSet<usize> = HashSet::new();
     if let Some(keep_n) = options.keep_last {
         for &idx in indices.iter().take(keep_n as usize) {
-            keep_set.insert(tasks[idx].id.clone());
+            keep_set.insert(idx);
         }
     }
 
@@ -99,7 +99,7 @@ fn prune_done_queue_at(
     let mut keep_mask = vec![false; tasks.len()];
     for (idx, task) in tasks.iter().enumerate() {
         // Check keep-last protection first
-        if keep_set.contains(&task.id) {
+        if keep_set.contains(&idx) {
             keep_mask[idx] = true;
             kept_ids.push(task.id.clone());
             continue;
@@ -358,6 +358,42 @@ mod tests {
         assert!(report.pruned_ids.contains(&"RQ-0001".to_string()));
         assert!(report.pruned_ids.contains(&"RQ-0002".to_string()));
         assert_eq!(done.tasks.len(), 2);
+    }
+
+    #[test]
+    fn prune_keep_last_with_duplicate_ids() {
+        let tasks = vec![
+            done_task_with_completed("RQ-0001", "2026-01-01T12:00:00Z"),
+            done_task_with_completed("RQ-0002", "2026-01-10T12:00:00Z"),
+            done_task_with_completed("RQ-0003", "2026-01-15T12:00:00Z"),
+            done_task_with_completed("RQ-0003", "2026-01-19T12:00:00Z"),
+        ];
+
+        let temp_dir = TempDir::new().unwrap();
+        let done_path = temp_dir.path().join("done.json");
+        let queue_file = QueueFile {
+            version: 1,
+            tasks: tasks.clone(),
+        };
+        save_queue(&done_path, &queue_file).unwrap();
+
+        let options = PruneOptions {
+            age_days: None,
+            statuses: HashSet::new(),
+            keep_last: Some(2),
+            dry_run: false,
+        };
+
+        let mut done = load_queue(&done_path).unwrap();
+        let report = prune_done_queue_at(&mut done.tasks, &options, fixed_now()).unwrap();
+
+        assert_eq!(report.kept_ids.len(), 2);
+        assert_eq!(report.pruned_ids.len(), 2);
+        assert_eq!(done.tasks.len(), 2);
+        assert_eq!(done.tasks[0].id, "RQ-0003");
+        assert_eq!(done.tasks[1].id, "RQ-0003");
+        assert_eq!(report.kept_ids, vec!["RQ-0003", "RQ-0003"]);
+        assert_eq!(report.pruned_ids, vec!["RQ-0001", "RQ-0002"]);
     }
 
     #[test]

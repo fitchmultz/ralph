@@ -2,36 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0255",
-      "status": "todo",
-      "title": "Fix prune keep-last logic to handle duplicate IDs (rejected tasks)",
-      "priority": "medium",
-      "tags": [
-        "queue",
-        "prune"
-      ],
-      "scope": [
-        "crates/ralph/src/queue/prune.rs",
-        "crates/ralph/src/queue/validation.rs"
-      ],
-      "evidence": [
-        "crates/ralph/src/queue/prune.rs: keep_last uses HashSet of task IDs to protect tasks.",
-        "crates/ralph/src/queue/validation.rs: rejected tasks are skipped in duplicate detection, allowing duplicate IDs.",
-        "keep_last currently can keep more than N tasks when IDs repeat."
-      ],
-      "plan": [
-        "Change keep_last protection to track task indices instead of IDs.",
-        "Add tests with duplicate IDs to ensure keep_last respects count.",
-        "Verify prune reports remain accurate after change."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-24T12:40:25Z",
-      "updated_at": "2026-01-24T12:40:25Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0269",
       "status": "todo",
       "title": "Optimize queue backfill_missing_fields to avoid O(n^2) ID lookups",
