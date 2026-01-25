@@ -30,6 +30,7 @@ format:
 clean: clean-temp
 	cargo clean
 	find . -name '*.log' -type f -delete
+	rm -rf .ralph/cache .ralph/lock .ralph/logs
 
 clean-temp:
 	rm -rf target/tmp

@@ -4192,6 +4192,41 @@
       "completed_at": "2026-01-25T04:00:53.464509000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0260",
+      "status": "done",
+      "title": "Expand make clean to remove repo temp/lock artifacts",
+      "priority": "medium",
+      "tags": [
+        "makefile",
+        "cleanup"
+      ],
+      "scope": [
+        "Makefile",
+        ".ralph/"
+      ],
+      "evidence": [
+        "Makefile: clean only runs cargo clean and deletes *.log files.",
+        "Repo creates .ralph/cache and .ralph/lock directories that are not removed by clean."
+      ],
+      "plan": [
+        "Extend make clean to remove .ralph/cache, .ralph/lock, and other temp artifacts.",
+        "Ensure clean remains safe (do not delete user config or secrets).",
+        "Update any docs if clean behavior changes."
+      ],
+      "notes": [
+        "Extended make clean to remove .ralph/cache, .ralph/lock, .ralph/logs",
+        "Added Makefile CI contract test verifying temp cleanup",
+        "All user data (queue.json, done.json, config.json, prompts/, README.md) preserved",
+        "make ci passed with full test coverage"
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-24T12:40:25Z",
+      "updated_at": "2026-01-25T05:32:43.558268000Z",
+      "completed_at": "2026-01-25T05:32:43.558268000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

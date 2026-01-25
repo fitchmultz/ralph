@@ -2,35 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0260",
-      "status": "todo",
-      "title": "Expand make clean to remove repo temp/lock artifacts",
-      "priority": "medium",
-      "tags": [
-        "makefile",
-        "cleanup"
-      ],
-      "scope": [
-        "Makefile",
-        ".ralph/"
-      ],
-      "evidence": [
-        "Makefile: clean only runs cargo clean and deletes *.log files.",
-        "Repo creates .ralph/cache and .ralph/lock directories that are not removed by clean."
-      ],
-      "plan": [
-        "Extend make clean to remove .ralph/cache, .ralph/lock, and other temp artifacts.",
-        "Ensure clean remains safe (do not delete user config or secrets).",
-        "Update any docs if clean behavior changes."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-24T12:40:25Z",
-      "updated_at": "2026-01-24T12:40:25Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0256",
       "status": "todo",
       "title": "Allow require_clean_repo_ignoring_paths to ignore directory prefixes",
