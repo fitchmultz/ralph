@@ -7,13 +7,20 @@
 //! - `burndown`: Text chart of remaining tasks over time
 
 use anyhow::Result;
+use serde::Serialize;
 use std::collections::{BTreeMap, HashMap};
 use time::format_description::well_known::Rfc3339;
 use time::{Duration, OffsetDateTime};
 
 use crate::contracts::{QueueFile, Task, TaskStatus};
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ReportFormat {
+    Text,
+    Json,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
 struct StatsSummary {
     total: usize,
     done: usize,
@@ -21,6 +28,81 @@ struct StatsSummary {
     terminal: usize,
     active: usize,
     terminal_rate: f64,
+}
+
+#[derive(Debug, Serialize)]
+struct StatsFilters {
+    tags: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct DurationStats {
+    count: usize,
+    average_seconds: i64,
+    median_seconds: i64,
+    average_human: String,
+    median_human: String,
+}
+
+#[derive(Debug, Serialize)]
+struct TagBreakdown {
+    tag: String,
+    count: usize,
+    percentage: f64,
+}
+
+#[derive(Debug, Serialize)]
+struct StatsReport {
+    summary: StatsSummary,
+    durations: Option<DurationStats>,
+    tag_breakdown: Vec<TagBreakdown>,
+    filters: StatsFilters,
+}
+
+#[derive(Debug, Serialize)]
+struct HistoryWindow {
+    days: i64,
+    start_date: String,
+    end_date: String,
+}
+
+#[derive(Debug, Serialize)]
+struct HistoryDay {
+    date: String,
+    created: Vec<String>,
+    completed: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct HistoryReport {
+    window: HistoryWindow,
+    days: Vec<HistoryDay>,
+}
+
+#[derive(Debug, Serialize)]
+struct BurndownWindow {
+    days: i64,
+    start_date: String,
+    end_date: String,
+}
+
+#[derive(Debug, Serialize)]
+struct BurndownDay {
+    date: String,
+    remaining: usize,
+}
+
+#[derive(Debug, Serialize)]
+struct BurndownLegend {
+    scale_per_block: usize,
+}
+
+#[derive(Debug, Serialize)]
+struct BurndownReport {
+    window: BurndownWindow,
+    daily_counts: Vec<BurndownDay>,
+    max_count: usize,
+    legend: Option<BurndownLegend>,
 }
 
 fn summarize_tasks(tasks: &[&Task]) -> StatsSummary {
@@ -51,42 +133,35 @@ fn summarize_tasks(tasks: &[&Task]) -> StatsSummary {
     }
 }
 
-/// Print summary statistics for tasks.
-///
-/// # Arguments
-/// * `queue` - Active queue tasks
-/// * `done` - Completed tasks (optional)
-/// * `tags` - Optional tag filter (case-insensitive)
-pub fn print_stats(queue: &QueueFile, done: Option<&QueueFile>, tags: &[String]) -> Result<()> {
+fn collect_all_tasks<'a>(queue: &'a QueueFile, done: Option<&'a QueueFile>) -> Vec<&'a Task> {
     let mut all_tasks: Vec<&Task> = queue.tasks.iter().collect();
     if let Some(done_file) = done {
         all_tasks.extend(done_file.tasks.iter().collect::<Vec<&Task>>());
     }
+    all_tasks
+}
 
-    // Filter by tags if specified
-    let filtered_tasks = if tags.is_empty() {
-        all_tasks
-    } else {
-        all_tasks
-            .into_iter()
-            .filter(|t| {
-                let task_tags_lower: Vec<String> =
-                    t.tags.iter().map(|s| s.to_lowercase()).collect();
-                tags.iter()
-                    .any(|tag| task_tags_lower.contains(&tag.to_lowercase()))
-            })
-            .collect()
-    };
-
-    let total = filtered_tasks.len();
-    if total == 0 {
-        println!("No tasks found.");
-        return Ok(());
+fn filter_tasks_by_tags<'a>(tasks: Vec<&'a Task>, tags: &[String]) -> Vec<&'a Task> {
+    if tags.is_empty() {
+        return tasks;
     }
+
+    tasks
+        .into_iter()
+        .filter(|t| {
+            let task_tags_lower: Vec<String> = t.tags.iter().map(|s| s.to_lowercase()).collect();
+            tags.iter()
+                .any(|tag| task_tags_lower.contains(&tag.to_lowercase()))
+        })
+        .collect()
+}
+
+fn build_stats_report(queue: &QueueFile, done: Option<&QueueFile>, tags: &[String]) -> StatsReport {
+    let all_tasks = collect_all_tasks(queue, done);
+    let filtered_tasks = filter_tasks_by_tags(all_tasks, tags);
 
     let summary = summarize_tasks(&filtered_tasks);
 
-    // Calculate durations for completed tasks
     let mut durations: Vec<Duration> = Vec::new();
     for task in filtered_tasks
         .iter()
@@ -101,7 +176,23 @@ pub fn print_stats(queue: &QueueFile, done: Option<&QueueFile>, tags: &[String])
         }
     }
 
-    // Tag breakdown
+    let durations = if durations.is_empty() {
+        None
+    } else {
+        let avg_duration = avg_duration(&durations);
+        let mut sorted_durations = durations.clone();
+        sorted_durations.sort();
+        let median = sorted_durations[sorted_durations.len() / 2];
+
+        Some(DurationStats {
+            count: durations.len(),
+            average_seconds: avg_duration.whole_seconds(),
+            median_seconds: median.whole_seconds(),
+            average_human: format_duration(avg_duration),
+            median_human: format_duration(median),
+        })
+    };
+
     let mut tag_counts: HashMap<String, usize> = HashMap::new();
     for task in &filtered_tasks {
         for tag in &task.tags {
@@ -111,63 +202,32 @@ pub fn print_stats(queue: &QueueFile, done: Option<&QueueFile>, tags: &[String])
     let mut sorted_tags: Vec<(String, usize)> = tag_counts.into_iter().collect();
     sorted_tags.sort_by(|a, b| b.1.cmp(&a.1));
 
-    // Print stats
-    println!("Task Statistics");
-    println!("================");
-    println!();
+    let total = summary.total as f64;
+    let tag_breakdown = sorted_tags
+        .into_iter()
+        .map(|(tag, count)| TagBreakdown {
+            tag,
+            count,
+            percentage: if total == 0.0 {
+                0.0
+            } else {
+                (count as f64 / total) * 100.0
+            },
+        })
+        .collect();
 
-    println!("Total tasks: {}", summary.total);
-    println!(
-        "Terminal (done/rejected): {} ({:.1}%)",
-        summary.terminal, summary.terminal_rate
-    );
-    println!("Done: {}", summary.done);
-    println!("Rejected: {}", summary.rejected);
-    println!("Active: {}", summary.active);
-    println!();
-
-    if !durations.is_empty() {
-        let avg_duration = avg_duration(&durations);
-        let mut sorted_durations = durations.clone();
-        sorted_durations.sort();
-        let median = sorted_durations[sorted_durations.len() / 2];
-
-        println!(
-            "Duration Statistics (for {} terminal task{} with valid timestamps):",
-            durations.len(),
-            if durations.len() == 1 { "" } else { "s" }
-        );
-        println!("  Average: {}", format_duration(avg_duration));
-        println!("  Median:  {}", format_duration(median));
-        println!();
+    StatsReport {
+        summary,
+        durations,
+        tag_breakdown,
+        filters: StatsFilters {
+            tags: tags.to_vec(),
+        },
     }
-
-    if !sorted_tags.is_empty() {
-        println!("Tag Breakdown:");
-        for (tag, count) in sorted_tags {
-            let percentage = (count as f64 / total as f64) * 100.0;
-            println!("  {} ({}: {:.1}%)", count, tag, percentage);
-        }
-    }
-
-    Ok(())
 }
 
-/// Print history of task events by day.
-///
-/// # Arguments
-/// * `queue` - Active queue tasks
-/// * `done` - Completed tasks (optional)
-/// * `days` - Number of days to show (default: 7)
-pub fn print_history(queue: &QueueFile, done: Option<&QueueFile>, days: u32) -> Result<()> {
-    let mut all_tasks: Vec<&Task> = queue.tasks.iter().collect();
-    if let Some(done_file) = done {
-        all_tasks.extend(done_file.tasks.iter().collect::<Vec<&Task>>());
-    }
-
-    let days_to_show = days.max(1) as i64;
-    let now = OffsetDateTime::now_utc();
-    let start_of_day = (now - Duration::days(days_to_show - 1))
+fn start_of_window(now: OffsetDateTime, days_to_show: i64) -> OffsetDateTime {
+    (now - Duration::days(days_to_show - 1))
         .replace_hour(0)
         .unwrap()
         .replace_minute(0)
@@ -175,9 +235,16 @@ pub fn print_history(queue: &QueueFile, done: Option<&QueueFile>, days: u32) -> 
         .replace_second(0)
         .unwrap()
         .replace_nanosecond(0)
-        .unwrap();
+        .unwrap()
+}
 
-    // Group events by day
+fn build_history_report(queue: &QueueFile, done: Option<&QueueFile>, days: u32) -> HistoryReport {
+    let all_tasks = collect_all_tasks(queue, done);
+    let days_to_show = days.max(1) as i64;
+    let now = OffsetDateTime::now_utc();
+    let start_of_day = start_of_window(now, days_to_show);
+    let end_of_day = start_of_day + Duration::days(days_to_show - 1);
+
     let mut created_by_day: BTreeMap<String, Vec<String>> = BTreeMap::new();
     let mut completed_by_day: BTreeMap<String, Vec<String>> = BTreeMap::new();
 
@@ -207,85 +274,36 @@ pub fn print_history(queue: &QueueFile, done: Option<&QueueFile>, days: u32) -> 
         }
     }
 
-    println!(
-        "Task History (last {} day{})",
-        days_to_show,
-        if days_to_show == 1 { "" } else { "s" }
-    );
-    println!(
-        "================{}",
-        "=".repeat(if days_to_show == 1 { 11 } else { 12 })
-    );
-    println!();
-
-    let mut has_events = false;
-
-    // Iterate through days
+    let mut days = Vec::new();
     for i in 0..days_to_show {
         let day_dt = start_of_day + Duration::days(i);
         let day_key = format_date_key(day_dt);
-
-        let created = created_by_day
-            .get(&day_key)
-            .map(|v| v.as_slice())
-            .unwrap_or(&[]);
-        let completed = completed_by_day
-            .get(&day_key)
-            .map(|v| v.as_slice())
-            .unwrap_or(&[]);
-
-        if created.is_empty() && completed.is_empty() {
-            continue;
-        }
-
-        has_events = true;
-
-        println!("{}", day_key);
-        if !created.is_empty() {
-            println!("  Created: {}", created.join(", "));
-        }
-        if !completed.is_empty() {
-            println!("  Completed: {}", completed.join(", "));
-        }
-        println!();
+        let created = created_by_day.get(&day_key).cloned().unwrap_or_default();
+        let completed = completed_by_day.get(&day_key).cloned().unwrap_or_default();
+        days.push(HistoryDay {
+            date: day_key,
+            created,
+            completed,
+        });
     }
 
-    if !has_events {
-        println!(
-            "No task creation or completion events in the last {} day{}.",
-            days_to_show,
-            if days_to_show == 1 { "" } else { "s" }
-        );
+    HistoryReport {
+        window: HistoryWindow {
+            days: days_to_show,
+            start_date: format_date_key(start_of_day),
+            end_date: format_date_key(end_of_day),
+        },
+        days,
     }
-
-    Ok(())
 }
 
-/// Print burndown chart of remaining tasks over time.
-///
-/// # Arguments
-/// * `queue` - Active queue tasks
-/// * `done` - Completed tasks (optional)
-/// * `days` - Number of days to show (default: 7)
-pub fn print_burndown(queue: &QueueFile, done: Option<&QueueFile>, days: u32) -> Result<()> {
-    let mut all_tasks: Vec<&Task> = queue.tasks.iter().collect();
-    if let Some(done_file) = done {
-        all_tasks.extend(done_file.tasks.iter().collect::<Vec<&Task>>());
-    }
-
+fn build_burndown_report(queue: &QueueFile, done: Option<&QueueFile>, days: u32) -> BurndownReport {
+    let all_tasks = collect_all_tasks(queue, done);
     let days_to_show = days.max(1) as i64;
     let now = OffsetDateTime::now_utc();
-    let start_of_day = (now - Duration::days(days_to_show - 1))
-        .replace_hour(0)
-        .unwrap()
-        .replace_minute(0)
-        .unwrap()
-        .replace_second(0)
-        .unwrap()
-        .replace_nanosecond(0)
-        .unwrap();
+    let start_of_day = start_of_window(now, days_to_show);
+    let end_of_day = start_of_day + Duration::days(days_to_show - 1);
 
-    // Calculate remaining tasks per day
     let mut daily_counts: BTreeMap<String, usize> = BTreeMap::new();
 
     for i in 0..days_to_show {
@@ -297,8 +315,6 @@ pub fn print_burndown(queue: &QueueFile, done: Option<&QueueFile>, days: u32) ->
             let created = task.created_at.as_ref().and_then(|ts| parse_ts(ts).ok());
             let completed = task.completed_at.as_ref().and_then(|ts| parse_ts(ts).ok());
 
-            // Task is "open" if it was created on or before this day AND
-            // (not completed OR completed after this day)
             let is_open = match created {
                 Some(created_dt) => {
                     let created_before_or_on = created_dt <= day_end;
@@ -320,50 +336,227 @@ pub fn print_burndown(queue: &QueueFile, done: Option<&QueueFile>, days: u32) ->
         daily_counts.insert(day_key, remaining);
     }
 
-    println!(
-        "Task Burndown (last {} day{})",
-        days_to_show,
-        if days_to_show == 1 { "" } else { "s" }
-    );
-    println!(
-        "================{}",
-        "=".repeat(if days_to_show == 1 { 11 } else { 12 })
-    );
-    println!();
-
-    if daily_counts.is_empty() {
-        println!("No data to display.");
-        return Ok(());
-    }
-
     let max_count = *daily_counts.values().max().unwrap_or(&0);
-    if max_count == 0 {
-        println!(
-            "No remaining tasks in the last {} day{}.",
-            days_to_show,
-            if days_to_show == 1 { "" } else { "s" }
-        );
-        return Ok(());
+    let legend = if max_count == 0 {
+        None
+    } else {
+        Some(BurndownLegend {
+            scale_per_block: (max_count / 20).max(1),
+        })
+    };
+
+    let daily_counts = daily_counts
+        .into_iter()
+        .map(|(date, remaining)| BurndownDay { date, remaining })
+        .collect();
+
+    BurndownReport {
+        window: BurndownWindow {
+            days: days_to_show,
+            start_date: format_date_key(start_of_day),
+            end_date: format_date_key(end_of_day),
+        },
+        daily_counts,
+        max_count,
+        legend,
+    }
+}
+
+fn print_json<T: Serialize>(report: &T) -> Result<()> {
+    let rendered = serde_json::to_string_pretty(report)?;
+    print!("{rendered}");
+    Ok(())
+}
+
+/// Print summary statistics for tasks.
+///
+/// # Arguments
+/// * `queue` - Active queue tasks
+/// * `done` - Completed tasks (optional)
+/// * `tags` - Optional tag filter (case-insensitive)
+pub fn print_stats(
+    queue: &QueueFile,
+    done: Option<&QueueFile>,
+    tags: &[String],
+    format: ReportFormat,
+) -> Result<()> {
+    let report = build_stats_report(queue, done, tags);
+
+    match format {
+        ReportFormat::Json => {
+            print_json(&report)?;
+        }
+        ReportFormat::Text => {
+            if report.summary.total == 0 {
+                println!("No tasks found.");
+                return Ok(());
+            }
+
+            println!("Task Statistics");
+            println!("================");
+            println!();
+
+            println!("Total tasks: {}", report.summary.total);
+            println!(
+                "Terminal (done/rejected): {} ({:.1}%)",
+                report.summary.terminal, report.summary.terminal_rate
+            );
+            println!("Done: {}", report.summary.done);
+            println!("Rejected: {}", report.summary.rejected);
+            println!("Active: {}", report.summary.active);
+            println!();
+
+            if let Some(durations) = &report.durations {
+                println!(
+                    "Duration Statistics (for {} terminal task{} with valid timestamps):",
+                    durations.count,
+                    if durations.count == 1 { "" } else { "s" }
+                );
+                println!("  Average: {}", durations.average_human);
+                println!("  Median:  {}", durations.median_human);
+                println!();
+            }
+
+            if !report.tag_breakdown.is_empty() {
+                println!("Tag Breakdown:");
+                for entry in &report.tag_breakdown {
+                    println!(
+                        "  {} ({}: {:.1}%)",
+                        entry.count, entry.tag, entry.percentage
+                    );
+                }
+            }
+        }
     }
 
-    // Print header
-    println!("Remaining Tasks");
-    println!();
+    Ok(())
+}
 
-    // Print each day with a simple bar chart
-    for (day_key, count) in &daily_counts {
-        let bar_len = (*count as f64 / max_count as f64 * 20.0).round() as usize;
-        let bar = "█".repeat(bar_len);
+/// Print history of task events by day.
+///
+/// # Arguments
+/// * `queue` - Active queue tasks
+/// * `done` - Completed tasks (optional)
+/// * `days` - Number of days to show (default: 7)
+pub fn print_history(
+    queue: &QueueFile,
+    done: Option<&QueueFile>,
+    days: u32,
+    format: ReportFormat,
+) -> Result<()> {
+    let report = build_history_report(queue, done, days);
 
-        println!("  {} | {} {}", day_key, bar, count);
+    match format {
+        ReportFormat::Json => {
+            print_json(&report)?;
+        }
+        ReportFormat::Text => {
+            println!(
+                "Task History (last {} day{})",
+                report.window.days,
+                if report.window.days == 1 { "" } else { "s" }
+            );
+            println!(
+                "================{}",
+                "=".repeat(if report.window.days == 1 { 11 } else { 12 })
+            );
+            println!();
+
+            let mut has_events = false;
+
+            for day in &report.days {
+                if day.created.is_empty() && day.completed.is_empty() {
+                    continue;
+                }
+
+                has_events = true;
+
+                println!("{}", day.date);
+                if !day.created.is_empty() {
+                    println!("  Created: {}", day.created.join(", "));
+                }
+                if !day.completed.is_empty() {
+                    println!("  Completed: {}", day.completed.join(", "));
+                }
+                println!();
+            }
+
+            if !has_events {
+                println!(
+                    "No task creation or completion events in the last {} day{}.",
+                    report.window.days,
+                    if report.window.days == 1 { "" } else { "s" }
+                );
+            }
+        }
     }
 
-    println!();
-    println!(
-        "█ = ~{} task{}",
-        (max_count / 20).max(1),
-        if max_count / 20 == 1 { "" } else { "s" }
-    );
+    Ok(())
+}
+
+/// Print burndown chart of remaining tasks over time.
+///
+/// # Arguments
+/// * `queue` - Active queue tasks
+/// * `done` - Completed tasks (optional)
+/// * `days` - Number of days to show (default: 7)
+pub fn print_burndown(
+    queue: &QueueFile,
+    done: Option<&QueueFile>,
+    days: u32,
+    format: ReportFormat,
+) -> Result<()> {
+    let report = build_burndown_report(queue, done, days);
+
+    match format {
+        ReportFormat::Json => {
+            print_json(&report)?;
+        }
+        ReportFormat::Text => {
+            println!(
+                "Task Burndown (last {} day{})",
+                report.window.days,
+                if report.window.days == 1 { "" } else { "s" }
+            );
+            println!(
+                "================{}",
+                "=".repeat(if report.window.days == 1 { 11 } else { 12 })
+            );
+            println!();
+
+            if report.daily_counts.is_empty() {
+                println!("No data to display.");
+                return Ok(());
+            }
+
+            if report.max_count == 0 {
+                println!(
+                    "No remaining tasks in the last {} day{}.",
+                    report.window.days,
+                    if report.window.days == 1 { "" } else { "s" }
+                );
+                return Ok(());
+            }
+
+            println!("Remaining Tasks");
+            println!();
+
+            for day in &report.daily_counts {
+                let bar_len =
+                    (day.remaining as f64 / report.max_count as f64 * 20.0).round() as usize;
+                let bar = "█".repeat(bar_len);
+
+                println!("  {} | {} {}", day.date, bar, day.remaining);
+            }
+
+            println!();
+            println!(
+                "█ = ~{} task{}",
+                (report.max_count / 20).max(1),
+                if report.max_count / 20 == 1 { "" } else { "s" }
+            );
+        }
+    }
 
     Ok(())
 }

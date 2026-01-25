@@ -290,21 +290,21 @@ pub fn handle_queue(cmd: QueueCommand, force: bool) -> Result<()> {
             let done_ref = done_file
                 .as_ref()
                 .filter(|d| !d.tasks.is_empty() || resolved.done_path.exists());
-            reports::print_stats(&queue_file, done_ref, &args.tag)?;
+            reports::print_stats(&queue_file, done_ref, &args.tag, args.format.into())?;
         }
         QueueCommand::History(args) => {
             let (queue_file, done_file) = load_and_validate_queues(&resolved, true)?;
             let done_ref = done_file
                 .as_ref()
                 .filter(|d| !d.tasks.is_empty() || resolved.done_path.exists());
-            reports::print_history(&queue_file, done_ref, args.days)?;
+            reports::print_history(&queue_file, done_ref, args.days, args.format.into())?;
         }
         QueueCommand::Burndown(args) => {
             let (queue_file, done_file) = load_and_validate_queues(&resolved, true)?;
             let done_ref = done_file
                 .as_ref()
                 .filter(|d| !d.tasks.is_empty() || resolved.done_path.exists());
-            reports::print_burndown(&queue_file, done_ref, args.days)?;
+            reports::print_burndown(&queue_file, done_ref, args.days, args.format.into())?;
         }
         QueueCommand::Schema => {
             let schema = schemars::schema_for!(contracts::QueueFile);
@@ -456,6 +456,15 @@ pub enum QueueListFormat {
     Compact,
     /// Detailed tab-separated format including tags, scope, and timestamps.
     Long,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+#[clap(rename_all = "snake_case")]
+pub enum QueueReportFormat {
+    /// Human-readable report output.
+    Text,
+    /// JSON output for scripting.
+    Json,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -633,28 +642,44 @@ pub struct QueueSearchArgs {
 
 #[derive(Args)]
 #[command(
-    after_long_help = "Examples:\n  ralph queue stats\n  ralph queue stats --tag rust --tag cli"
+    after_long_help = "Examples:\n  ralph queue stats\n  ralph queue stats --tag rust --tag cli\n  ralph queue stats --format json"
 )]
 pub struct QueueStatsArgs {
     /// Filter by tag (repeatable, case-insensitive).
     #[arg(long)]
     pub tag: Vec<String>,
+
+    /// Output format.
+    #[arg(long, value_enum, default_value_t = QueueReportFormat::Text)]
+    pub format: QueueReportFormat,
 }
 
 #[derive(Args)]
-#[command(after_long_help = "Examples:\n  ralph queue history\n  ralph queue history --days 14")]
+#[command(
+    after_long_help = "Examples:\n  ralph queue history\n  ralph queue history --days 14\n  ralph queue history --format json"
+)]
 pub struct QueueHistoryArgs {
     /// Number of days to show (default: 7).
     #[arg(long, default_value_t = 7)]
     pub days: u32,
+
+    /// Output format.
+    #[arg(long, value_enum, default_value_t = QueueReportFormat::Text)]
+    pub format: QueueReportFormat,
 }
 
 #[derive(Args)]
-#[command(after_long_help = "Examples:\n  ralph queue burndown\n  ralph queue burndown --days 30")]
+#[command(
+    after_long_help = "Examples:\n  ralph queue burndown\n  ralph queue burndown --days 30\n  ralph queue burndown --format json"
+)]
 pub struct QueueBurndownArgs {
     /// Number of days to show (default: 7).
     #[arg(long, default_value_t = 7)]
     pub days: u32,
+
+    /// Output format.
+    #[arg(long, value_enum, default_value_t = QueueReportFormat::Text)]
+    pub format: QueueReportFormat,
 }
 
 #[derive(Args)]
@@ -694,6 +719,15 @@ impl From<StatusArg> for contracts::TaskStatus {
             StatusArg::Doing => contracts::TaskStatus::Doing,
             StatusArg::Done => contracts::TaskStatus::Done,
             StatusArg::Rejected => contracts::TaskStatus::Rejected,
+        }
+    }
+}
+
+impl From<QueueReportFormat> for reports::ReportFormat {
+    fn from(value: QueueReportFormat) -> Self {
+        match value {
+            QueueReportFormat::Text => reports::ReportFormat::Text,
+            QueueReportFormat::Json => reports::ReportFormat::Json,
         }
     }
 }

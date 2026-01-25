@@ -109,6 +109,40 @@ Clean-repo checks for `run one` and `run loop` allow changes to `.ralph/config.j
 (alongside `.ralph/queue.json` and `.ralph/done.json`). Use `--force` to bypass the
 clean-repo check entirely if needed.
 
+## `ralph queue` reports
+
+Queue reports default to human-readable text but can emit JSON for scripting.
+
+### `ralph queue stats`
+
+Summarize completion rates, durations, and tag breakdowns.
+
+```bash
+ralph queue stats
+ralph queue stats --tag rust --tag cli
+ralph queue stats --format json
+```
+
+### `ralph queue history`
+
+Show creation/completion events by day.
+
+```bash
+ralph queue history
+ralph queue history --days 14
+ralph queue history --format json
+```
+
+### `ralph queue burndown`
+
+Render remaining-task counts over time.
+
+```bash
+ralph queue burndown
+ralph queue burndown --days 30
+ralph queue burndown --format json
+```
+
 ## `ralph task`
 
 Create tasks and edit task fields from CLI.

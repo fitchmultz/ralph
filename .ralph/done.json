@@ -4547,6 +4547,51 @@
       "completed_at": "2026-01-25T23:01:48.171613000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0258",
+      "status": "done",
+      "title": "Add JSON output option for queue stats/history/burndown",
+      "priority": "medium",
+      "tags": [
+        "reports",
+        "cli",
+        "ux",
+        "docs",
+        "tests"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/queue.rs",
+        "crates/ralph/src/reports.rs",
+        "crates/ralph/tests/queue_stats_history_test.rs",
+        "docs/cli.md"
+      ],
+      "evidence": [
+        "crates/ralph/src/cli/queue.rs: QueueStatsArgs only defines --tag; QueueHistoryArgs/QueueBurndownArgs only define --days (no format flag).",
+        "crates/ralph/src/reports.rs: print_stats/print_history/print_burndown emit text output via println! without JSON serialization.",
+        "crates/ralph/tests/queue_stats_history_test.rs: integration tests assert text-only output like \"Task Statistics\" and \"Task Burndown\".",
+        "docs/cli.md: queue documentation does not describe stats/history/burndown outputs or any JSON format option."
+      ],
+      "plan": [
+        "Add a shared --format (text|json) flag to queue stats/history/burndown CLI args and wire it through command dispatch.",
+        "Implement JSON output structs/serialization in reports.rs while preserving text as the default.",
+        "Update CLI docs/help and adjust queue_stats_history_test.rs to cover both text and JSON output paths."
+      ],
+      "notes": [
+        "Current integration tests in queue_stats_history_test.rs are tightly coupled to text output, so they must be updated when JSON support is added.",
+        "Added --format text|json flag for queue stats/history/burndown and wired dispatch.",
+        "Implemented JSON report serialization with shared report builders while preserving text output.",
+        "Expanded integration tests and CLI docs for JSON report output."
+      ],
+      "request": "scan finding",
+      "agent": {
+        "model_effort": "medium"
+      },
+      "created_at": "2026-01-24T12:40:25Z",
+      "updated_at": "2026-01-25T23:31:10.320545000Z",
+      "completed_at": "2026-01-25T23:31:10.320545000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }
