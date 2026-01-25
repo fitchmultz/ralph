@@ -4,12 +4,15 @@ use anyhow::Result;
 use clap::{Args, Subcommand};
 
 use crate::cli::interactive;
-use crate::{agent, config, run_cmd, tui};
+use crate::{agent, config, debuglog, run_cmd, tui};
 
 pub fn handle_run(cmd: RunCommand, force: bool) -> Result<()> {
     let resolved = config::resolve_from_cwd()?;
     match cmd {
         RunCommand::One(args) => {
+            if args.debug {
+                debuglog::enable(&resolved.repo_root)?;
+            }
             let overrides = agent::resolve_run_agent_overrides(&args.agent)?;
 
             if args.interactive {
@@ -40,6 +43,9 @@ pub fn handle_run(cmd: RunCommand, force: bool) -> Result<()> {
             }
         }
         RunCommand::Loop(args) => {
+            if args.debug {
+                debuglog::enable(&resolved.repo_root)?;
+            }
             let overrides = agent::resolve_run_agent_overrides(&args.agent)?;
 
             if args.interactive {
@@ -149,6 +155,7 @@ Examples:\n\
  ralph run one\n\
  ralph run one --id RQ-0001\n\
  ralph run one -i\n\
+ ralph run one --debug\n\
  ralph run one --phases 3\n\
  ralph run one --phases 2\n\
  ralph run one --phases 1\n\
@@ -171,6 +178,7 @@ Examples:\n\
  ralph run loop --phases 2 --max-tasks 0\n\
  ralph run loop --phases 1 --max-tasks 1\n\
  ralph run loop --max-tasks 3\n\
+ ralph run loop --max-tasks 1 --debug\n\
  ralph run loop --max-tasks 1 --runner opencode --model gpt-5.2\n\
  ralph run loop --include-draft --max-tasks 1\n\
  ralph run loop --git-revert-mode disabled --max-tasks 1\n\
@@ -186,6 +194,10 @@ pub struct RunOneArgs {
     /// Launch interactive TUI mode for task selection and management.
     #[arg(short = 'i', long)]
     pub interactive: bool,
+
+    /// Capture raw supervisor + runner output to .ralph/logs/debug.log.
+    #[arg(long)]
+    pub debug: bool,
 
     /// Run a specific task by ID (non-interactive only).
     #[arg(long, value_name = "TASK_ID", conflicts_with = "interactive")]
@@ -204,6 +216,10 @@ pub struct RunLoopArgs {
     /// Launch interactive TUI mode for task selection and management.
     #[arg(short = 'i', long)]
     pub interactive: bool,
+
+    /// Capture raw supervisor + runner output to .ralph/logs/debug.log.
+    #[arg(long)]
+    pub debug: bool,
 
     #[command(flatten)]
     pub agent: crate::agent::RunAgentArgs,

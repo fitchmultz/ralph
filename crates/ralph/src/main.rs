@@ -81,6 +81,7 @@ mod tests {
         let cmd = cli::Command::Run(cli::run::RunArgs {
             command: cli::run::RunCommand::One(cli::run::RunOneArgs {
                 interactive: true,
+                debug: false,
                 id: None,
                 agent: ralph::agent::RunAgentArgs::default(),
             }),
@@ -94,6 +95,7 @@ mod tests {
             command: cli::run::RunCommand::Loop(cli::run::RunLoopArgs {
                 max_tasks: 0,
                 interactive: true,
+                debug: false,
                 agent: ralph::agent::RunAgentArgs::default(),
             }),
         });
@@ -105,6 +107,7 @@ mod tests {
         let cmd = cli::Command::Run(cli::run::RunArgs {
             command: cli::run::RunCommand::One(cli::run::RunOneArgs {
                 interactive: false,
+                debug: false,
                 id: Some("RQ-0001".to_string()),
                 agent: ralph::agent::RunAgentArgs::default(),
             }),

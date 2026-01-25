@@ -10,6 +10,7 @@ pub mod cli;
 pub mod completions;
 pub mod config;
 pub mod contracts;
+pub mod debuglog;
 pub mod doctor_cmd;
 pub mod fsutil;
 pub mod gitutil;

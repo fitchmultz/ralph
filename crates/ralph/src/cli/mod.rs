@@ -159,6 +159,34 @@ mod tests {
     }
 
     #[test]
+    fn cli_parses_run_one_debug() {
+        let cli = Cli::try_parse_from(["ralph", "run", "one", "--debug"]).expect("parse");
+        match cli.command {
+            Command::Run(run::RunArgs { command }) => match command {
+                run::RunCommand::One(args) => {
+                    assert!(args.debug);
+                }
+                _ => panic!("expected run one command"),
+            },
+            _ => panic!("expected run command"),
+        }
+    }
+
+    #[test]
+    fn cli_parses_run_loop_debug() {
+        let cli = Cli::try_parse_from(["ralph", "run", "loop", "--debug"]).expect("parse");
+        match cli.command {
+            Command::Run(run::RunArgs { command }) => match command {
+                run::RunCommand::Loop(args) => {
+                    assert!(args.debug);
+                }
+                _ => panic!("expected run loop command"),
+            },
+            _ => panic!("expected run command"),
+        }
+    }
+
+    #[test]
     fn cli_parses_run_one_id() {
         let cli = Cli::try_parse_from(["ralph", "run", "one", "--id", "RQ-0001"]).expect("parse");
         match cli.command {

@@ -67,6 +67,7 @@ impl log::Log for RedactedLogger {
 
     fn log(&self, record: &log::Record) {
         if self.enabled(record.metadata()) {
+            crate::debuglog::write_log_record(record);
             let redacted_msg = redact_text(&format!("{}", record.args()));
             self.inner.log(
                 &log::Record::builder()
@@ -433,7 +434,11 @@ fn normalize_key(key: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::debuglog::{
+        enable as enable_debug_log, reset_for_tests as reset_debug_log, test_lock as debug_lock,
+    };
     use std::sync::{Mutex, OnceLock};
+    use tempfile::tempdir;
 
     fn env_lock() -> &'static Mutex<()> {
         static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -580,5 +585,33 @@ mod tests {
         let msg = last_msg.lock().unwrap();
         assert!(!msg.contains("secret123"));
         assert!(msg.contains("API_KEY=[REDACTED]"));
+    }
+
+    #[test]
+    fn redacted_logger_writes_raw_log_to_debug_log() {
+        let _guard = debug_lock().lock().expect("debug log lock");
+        reset_debug_log();
+        let dir = tempdir().expect("tempdir");
+        enable_debug_log(dir.path()).expect("enable debug log");
+
+        let last_msg = std::sync::Arc::new(std::sync::Mutex::new(String::new()));
+        let mock = Box::new(MockLogger {
+            last_msg: last_msg.clone(),
+        });
+
+        let wrapper = RedactedLogger::new(mock);
+
+        let record = log::Record::builder()
+            .args(format_args!("Connecting with API_KEY=secret123"))
+            .level(log::Level::Info)
+            .build();
+
+        use log::Log;
+        wrapper.log(&record);
+
+        let debug_log = dir.path().join(".ralph/logs/debug.log");
+        let contents = std::fs::read_to_string(&debug_log).expect("read log");
+        assert!(contents.contains("API_KEY=secret123"), "log: {contents}");
+        reset_debug_log();
     }
 }

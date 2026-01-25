@@ -4307,6 +4307,52 @@
       "completed_at": "2026-01-25T17:11:28.064199000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0289",
+      "status": "done",
+      "title": "Add debug mode logging to .ralph/logs/debug.log",
+      "priority": "medium",
+      "tags": [
+        "debug",
+        "logging",
+        "run",
+        "cli"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/run.rs",
+        "crates/ralph/src/run_cmd.rs",
+        "crates/ralph/src/runner/execution.rs",
+        "crates/ralph/src/run_cmd/phases.rs",
+        "docs/cli.md"
+      ],
+      "evidence": [
+        "User request: Add a debug mode that logs raw outputs to .ralph/logs/debug.log to make it easier to debug issues.",
+        "User request: Do not sanitize anything in this debug log mode as it is written to the log.",
+        "User request: Make sure we capture everything from both the ralph loop and the agent runners.",
+        "User request: Do not modify the output shown to the user, just capture the debug verbosity in the log file.",
+        "User request example: 'ralph run loop --max-tasks 1 --debug' would log the output to the file."
+      ],
+      "plan": [
+        "Add --debug CLI flag to run commands (run one, run loop).",
+        "Create .ralph/logs/ directory and debug.log file writer infrastructure.",
+        "Capture raw stdout/stderr from runner execution to debug.log when --debug is enabled.",
+        "Capture raw output from ralph loop phases to debug.log when --debug is enabled.",
+        "Ensure user-visible output remains unchanged (debug log is separate from user output).",
+        "Add tests for debug logging functionality.",
+        "Update docs/cli.md with --debug flag documentation and examples."
+      ],
+      "notes": [
+        "Added debug log test locking to avoid global state races.",
+        "Validated raw log records are captured in debug.log without redaction.",
+        "make ci passed."
+      ],
+      "request": "Add a debug mode that logs raw outputs to .ralph/logs/debug.log to make it easier to debug issues. Do not sanitize anything in this debug log mode as it is written to the log. Make sure we capture everything from both the ralph loop and the agent runners. Do not modify the output shown to the user, just capture the debug verbosity in the log file. e.g. 'ralph run loop --max-tasks 1 --debug' would log the output to the file.",
+      "created_at": "2026-01-25T16:33:36Z",
+      "updated_at": "2026-01-25T17:35:42.459588000Z",
+      "completed_at": "2026-01-25T17:35:42.459588000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

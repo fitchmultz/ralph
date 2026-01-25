@@ -101,6 +101,7 @@ ralph run one
 ralph run one -i
 ralph run loop --max-tasks 0
 ralph run loop -i --max-tasks 3
+ralph run loop --max-tasks 1 --debug
 ralph run one --git-commit-push-off
 ```
 
@@ -213,12 +214,14 @@ The `run one` and `run loop` commands also support:
 
 * `--git-revert-mode <ask|enabled|disabled>`
 * `--git-commit-push-on` / `--git-commit-push-off`
+* `--debug` (capture raw supervisor + runner output to `.ralph/logs/debug.log`)
 
 Examples:
 
 ```bash
 ralph run one --git-revert-mode disabled
 ralph run one --git-commit-push-off
+ralph run loop --max-tasks 1 --debug
 ```
 
 ## Help Output
