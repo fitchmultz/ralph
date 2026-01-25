@@ -71,10 +71,22 @@ members = []
         .context("run make clean")?;
     assert!(status.success(), "make clean should succeed");
 
-    // Verify temp directories removed
+    // Verify temp directories removed (except completion signals)
     assert!(
-        !ralph_dir.join("cache").exists(),
-        "cache directory should be removed"
+        !ralph_dir.join("cache/plans").exists(),
+        "cache plans directory should be removed"
+    );
+    assert!(
+        !ralph_dir.join("cache/test_plan.md").exists(),
+        "cache test_plan.md should be removed"
+    );
+    assert!(
+        ralph_dir.join("cache/completions").exists(),
+        "completion signals directory should be preserved"
+    );
+    assert!(
+        ralph_dir.join("cache/completions/test.json").exists(),
+        "completion signal should be preserved"
     );
     assert!(
         !ralph_dir.join("lock").exists(),
