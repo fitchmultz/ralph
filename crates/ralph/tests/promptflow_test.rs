@@ -11,7 +11,8 @@ fn build_phase1_prompt_contains_required_elements() {
     let task_id = "RQ-1234";
     let config = Config::default();
     let policy = PromptPolicy {
-        require_repoprompt: true,
+        repoprompt_plan_required: true,
+        repoprompt_tool_injection: true,
     };
     let repo_root = TempDir::new().unwrap();
     let template = prompts::load_worker_phase1_prompt(repo_root.path()).unwrap();
@@ -35,7 +36,8 @@ fn build_phase1_prompt_omits_rp_if_disabled() {
     let task_id = "RQ-1234";
     let config = Config::default();
     let policy = PromptPolicy {
-        require_repoprompt: false,
+        repoprompt_plan_required: false,
+        repoprompt_tool_injection: false,
     };
     let repo_root = TempDir::new().unwrap();
     let template = prompts::load_worker_phase1_prompt(repo_root.path()).unwrap();
@@ -53,7 +55,8 @@ fn build_phase2_prompt_contains_required_elements() {
     let checklist = "## IMPLEMENTATION COMPLETION CHECKLIST\n- done";
     let config = Config::default();
     let policy = PromptPolicy {
-        require_repoprompt: true,
+        repoprompt_plan_required: false,
+        repoprompt_tool_injection: true,
     };
     let repo_root = TempDir::new().unwrap();
     let template = prompts::load_worker_phase2_prompt(repo_root.path()).unwrap();
@@ -88,7 +91,8 @@ fn build_single_phase_prompt_contains_required_elements() {
     let task_id = "RQ-1234";
     let config = Config::default();
     let policy = PromptPolicy {
-        require_repoprompt: true,
+        repoprompt_plan_required: false,
+        repoprompt_tool_injection: true,
     };
     let repo_root = TempDir::new().unwrap();
     let template = prompts::load_worker_single_phase_prompt(repo_root.path()).unwrap();
@@ -142,7 +146,8 @@ fn build_phase2_handoff_prompt_contains_required_elements() {
     let checklist = "## PHASE 2 HANDOFF CHECKLIST (3-PHASE WORKFLOW)\n- done";
     let config = Config::default();
     let policy = PromptPolicy {
-        require_repoprompt: false,
+        repoprompt_plan_required: false,
+        repoprompt_tool_injection: false,
     };
     let repo_root = TempDir::new().unwrap();
     let template = prompts::load_worker_phase2_handoff_prompt(repo_root.path()).unwrap();
@@ -179,7 +184,8 @@ fn build_phase3_prompt_contains_required_elements() {
     let phase2_final = "PHASE 2 FINAL";
     let config = Config::default();
     let policy = PromptPolicy {
-        require_repoprompt: true,
+        repoprompt_plan_required: false,
+        repoprompt_tool_injection: true,
     };
     let repo_root = TempDir::new().unwrap();
     let template = prompts::load_worker_phase3_prompt(repo_root.path()).unwrap();

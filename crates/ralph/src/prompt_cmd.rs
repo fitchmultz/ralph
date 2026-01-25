@@ -38,8 +38,10 @@ pub struct WorkerPromptOptions {
     /// If None, we will attempt to pick the first todo task from the queue.
     pub task_id: Option<String>,
     pub mode: WorkerMode,
-    /// RepoPrompt required decision already resolved (flags + config).
-    pub repoprompt_required: bool,
+    /// RepoPrompt planning requirement already resolved (flags + config).
+    pub repoprompt_plan_required: bool,
+    /// RepoPrompt tooling reminder injection already resolved (flags + config).
+    pub repoprompt_tool_injection: bool,
     /// Total iteration count to simulate when rendering prompts.
     pub iterations: u8,
     /// 1-based iteration index to simulate when rendering prompts.
@@ -58,7 +60,7 @@ pub struct WorkerPromptOptions {
 #[derive(Debug, Clone)]
 pub struct ScanPromptOptions {
     pub focus: String,
-    pub repoprompt_required: bool,
+    pub repoprompt_tool_injection: bool,
     pub explain: bool,
 }
 
@@ -67,7 +69,7 @@ pub struct TaskBuilderPromptOptions {
     pub request: String,
     pub hint_tags: String,
     pub hint_scope: String,
-    pub repoprompt_required: bool,
+    pub repoprompt_tool_injection: bool,
     pub explain: bool,
 }
 
@@ -221,7 +223,8 @@ pub fn build_worker_prompt(
         prompts::render_worker_prompt(&template, &task_id, project_type, &resolved.config)?;
 
     let policy = PromptPolicy {
-        require_repoprompt: opts.repoprompt_required,
+        repoprompt_plan_required: opts.repoprompt_plan_required,
+        repoprompt_tool_injection: opts.repoprompt_tool_injection,
     };
     let is_followup = opts.iteration_index > 1;
     let is_final_iteration = opts.iteration_index == opts.iterations;
@@ -368,8 +371,12 @@ pub fn build_worker_prompt(
         }
     ));
     header.push_str(&format!(
-        "- repoprompt_required: {}\n",
-        opts.repoprompt_required
+        "- repoprompt_plan_required: {}\n",
+        opts.repoprompt_plan_required
+    ));
+    header.push_str(&format!(
+        "- repoprompt_tool_injection: {}\n",
+        opts.repoprompt_tool_injection
     ));
     header.push_str(&format!(
         "- iteration: {}/{}\n",
@@ -389,7 +396,8 @@ pub fn build_scan_prompt(resolved: &config::Resolved, opts: ScanPromptOptions) -
     let project_type = resolved.config.project_type.unwrap_or(ProjectType::Code);
     let rendered =
         prompts::render_scan_prompt(&template, &opts.focus, project_type, &resolved.config)?;
-    let prompt = prompts::wrap_with_repoprompt_requirement(&rendered, opts.repoprompt_required);
+    let prompt =
+        prompts::wrap_with_repoprompt_requirement(&rendered, opts.repoprompt_tool_injection);
 
     if !opts.explain {
         return Ok(prompt);
@@ -406,8 +414,8 @@ pub fn build_scan_prompt(resolved: &config::Resolved, opts: ScanPromptOptions) -
         }
     ));
     header.push_str(&format!(
-        "- repoprompt_required: {}\n",
-        opts.repoprompt_required
+        "- repoprompt_tool_injection: {}\n",
+        opts.repoprompt_tool_injection
     ));
     header.push_str(&format!(
         "- scan template source: {}\n",
@@ -437,7 +445,8 @@ pub fn build_task_builder_prompt(
         project_type,
         &resolved.config,
     )?;
-    let prompt = prompts::wrap_with_repoprompt_requirement(&rendered, opts.repoprompt_required);
+    let prompt =
+        prompts::wrap_with_repoprompt_requirement(&rendered, opts.repoprompt_tool_injection);
 
     if !opts.explain {
         return Ok(prompt);
@@ -463,8 +472,8 @@ pub fn build_task_builder_prompt(
         }
     ));
     header.push_str(&format!(
-        "- repoprompt_required: {}\n",
-        opts.repoprompt_required
+        "- repoprompt_tool_injection: {}\n",
+        opts.repoprompt_tool_injection
     ));
     header.push_str(&format!(
         "- task builder template source: {}\n",

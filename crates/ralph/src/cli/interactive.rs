@@ -84,7 +84,7 @@ pub fn build_interactive_factories_with_invokers(
         None,
         &resolved.config.agent,
     )?;
-    let scan_repoprompt_required = agent::resolve_rp_required(rp_on, rp_off, resolved);
+    let scan_repoprompt_tool_injection = agent::resolve_rp_required(rp_on, rp_off, resolved);
     let scan_git_revert_mode = overrides
         .git_revert_mode
         .or(resolved.config.agent.git_revert_mode)
@@ -113,14 +113,14 @@ pub fn build_interactive_factories_with_invokers(
     let resolved_for_scan = resolved.clone();
     let scan_settings = scan_settings.clone();
     let scan_invoker_for_factory = Arc::clone(&scan_invoker);
-    let repoprompt_required = scan_repoprompt_required;
+    let repoprompt_tool_injection = scan_repoprompt_tool_injection;
     let git_revert_mode = scan_git_revert_mode;
     let scan_factory: ScanFactory = Box::new(move |focus, handler, revert_prompt| {
         let resolved = resolved_for_scan.clone();
         let settings = scan_settings.clone();
         let scan_invoker = Arc::clone(&scan_invoker_for_factory);
         let force = force;
-        let repoprompt_required = repoprompt_required;
+        let repoprompt_tool_injection = repoprompt_tool_injection;
         let git_revert_mode = git_revert_mode;
         Box::new(move || {
             (scan_invoker)(
@@ -131,7 +131,7 @@ pub fn build_interactive_factories_with_invokers(
                     model: settings.model,
                     reasoning_effort: settings.reasoning_effort,
                     force,
-                    repoprompt_required,
+                    repoprompt_tool_injection,
                     git_revert_mode,
                     lock_mode: scan_cmd::ScanLockMode::Held,
                     output_handler: Some(handler),
@@ -220,7 +220,7 @@ mod tests {
         config.agent.runner = Some(Runner::Codex);
         config.agent.model = Some(Model::Gpt52Codex);
         config.agent.reasoning_effort = Some(ReasoningEffort::High);
-        config.agent.require_repoprompt = Some(true);
+        config.agent.repoprompt_tool_injection = Some(true);
         config.agent.git_revert_mode = Some(GitRevertMode::Enabled);
 
         let (resolved, _dir) = resolved_with_config(config);
@@ -313,7 +313,7 @@ mod tests {
             Some(ReasoningEffort::High)
         );
         assert!(scan_call.options.force);
-        assert!(!scan_call.options.repoprompt_required);
+        assert!(!scan_call.options.repoprompt_tool_injection);
         assert_eq!(scan_call.options.git_revert_mode, GitRevertMode::Enabled);
         assert_eq!(scan_call.options.lock_mode, scan_cmd::ScanLockMode::Held);
         assert!(scan_call.options.output_handler.is_some());
@@ -326,7 +326,7 @@ mod tests {
         config.agent.runner = Some(Runner::Gemini);
         config.agent.model = Some(Model::Custom("gemini-3-flash-preview".to_string()));
         config.agent.reasoning_effort = Some(ReasoningEffort::High);
-        config.agent.require_repoprompt = Some(true);
+        config.agent.repoprompt_tool_injection = Some(true);
         config.agent.git_revert_mode = Some(GitRevertMode::Disabled);
 
         let (resolved, _dir) = resolved_with_config(config);
@@ -374,7 +374,7 @@ mod tests {
         );
         assert_eq!(scan_call.options.reasoning_effort, None);
         assert!(!scan_call.options.force);
-        assert!(scan_call.options.repoprompt_required);
+        assert!(scan_call.options.repoprompt_tool_injection);
         assert_eq!(scan_call.options.git_revert_mode, GitRevertMode::Disabled);
     }
 }

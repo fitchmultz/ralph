@@ -14,7 +14,7 @@ pub struct TaskBuildOptions {
     pub model: Model,
     pub reasoning_effort: Option<ReasoningEffort>,
     pub force: bool,
-    pub repoprompt_required: bool,
+    pub repoprompt_tool_injection: bool,
 }
 
 // TaskUpdateSettings controls runner-driven task updates via .ralph/prompts/task_updater.md.
@@ -24,7 +24,7 @@ pub struct TaskUpdateSettings {
     pub model: Model,
     pub reasoning_effort: Option<ReasoningEffort>,
     pub force: bool,
-    pub repoprompt_required: bool,
+    pub repoprompt_tool_injection: bool,
 }
 
 fn read_request_from_args_or_reader(
@@ -117,7 +117,7 @@ fn build_task_impl(
         &resolved.config,
     )?;
 
-    prompt = prompts::wrap_with_repoprompt_requirement(&prompt, opts.repoprompt_required);
+    prompt = prompts::wrap_with_repoprompt_requirement(&prompt, opts.repoprompt_tool_injection);
 
     let bins = runner::resolve_binaries(&resolved.config.agent);
     // Two-pass mode disabled for task (only generates task, should not implement)
@@ -296,7 +296,8 @@ fn update_task_impl(
         &resolved.config,
     )?;
 
-    let prompt = prompts::wrap_with_repoprompt_requirement(&prompt, settings.repoprompt_required);
+    let prompt =
+        prompts::wrap_with_repoprompt_requirement(&prompt, settings.repoprompt_tool_injection);
 
     let bins = runner::resolve_binaries(&resolved.config.agent);
     let permission_mode = Some(ClaudePermissionMode::BypassPermissions);

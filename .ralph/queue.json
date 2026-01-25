@@ -2,53 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0286",
-      "status": "todo",
-      "title": "Split require_repoprompt config into rp_plan_required and rp_tool_injection flags",
-      "priority": "medium",
-      "tags": [
-        "config",
-        "repoprompt",
-        "agent"
-      ],
-      "scope": [
-        "crates/ralph/src/contracts.rs",
-        "crates/ralph/src/run_cmd/phases.rs",
-        "crates/ralph/src/run_cmd.rs",
-        "crates/ralph/src/promptflow.rs",
-        "schemas/config.schema.json",
-        "docs/configuration.md"
-      ],
-      "evidence": [
-        "crates/ralph/src/contracts.rs:108: require_repoprompt is a single Option<bool> field in AgentConfig.",
-        "docs/configuration.md:28: require_repoprompt is documented as a single boolean flag.",
-        "crates/ralph/src/promptflow.rs:92-112: build_phase1_prompt receives policy.require_repoprompt and passes it to render_worker_phase1_prompt.",
-        "User request: Separate into 'repoprompt_plan_required' (injects context_builder planning instructions) and 'repoprompt_tool_injection' (only injects tooling reminders)."
-      ],
-      "plan": [
-        "Add two new fields to AgentConfig in contracts.rs: repoprompt_plan_required (Option<bool>) and repoprompt_tool_injection (Option<bool>).",
-        "Update AgentConfig::merge_from to merge the new fields.",
-        "Update Config::default() in contracts.rs to set appropriate defaults for both new fields.",
-        "Update the schema (schemas/config.schema.json) to include the two new fields.",
-        "Update PromptPolicy in promptflow.rs to have separate fields: repoprompt_plan_required and repoprompt_tool_injection.",
-        "Update run_cmd.rs to create PromptPolicy with both flags.",
-        "Modify build_phase1_prompt in promptflow.rs to use repoprompt_plan_required for planning instructions and repoprompt_tool_injection for tooling reminders.",
-        "Find all other usages of require_repoprompt in promptflow.rs and run_cmd/phases.rs and update logic to use the new flags appropriately (repoprompt_tool_injection for all phases, repoprompt_plan_required for phase 1 planning).",
-        "Add tests covering: both flags true, only plan_required true, only tool_injection true, both false.",
-        "Update docs/configuration.md to document the new separate flags.",
-        "Deprecate but keep require_repoprompt for backward compatibility, mapping it to repoprompt_plan_required for migration."
-      ],
-      "notes": [],
-      "request": "Separate the repoprompt config settings into 2 configuration settings instead of 1. One config setting for 'repoprompt_plan_required' and one for 'repoprompt_tool_injection'. The first config injects the context_builder planning instructions while the latter only injects the repo prompt tooling reminders.",
-      "created_at": "2026-01-24T17:35:33Z",
-      "updated_at": "2026-01-24T18:00:00Z",
-      "depends_on": [],
-      "custom_fields": {},
-      "agent": {
-        "model_effort": "medium"
-      }
-    },
-    {
       "id": "RQ-0258",
       "status": "todo",
       "title": "Add JSON output option for queue stats/history/burndown",
@@ -81,13 +34,13 @@
         "Current integration tests in queue_stats_history_test.rs are tightly coupled to text output, so they must be updated when JSON support is added."
       ],
       "request": "scan finding",
+      "agent": {
+        "model_effort": "medium"
+      },
       "created_at": "2026-01-24T12:40:25Z",
       "updated_at": "2026-01-25T21:42:15Z",
       "depends_on": [],
-      "custom_fields": {},
-      "agent": {
-        "model_effort": "medium"
-      }
+      "custom_fields": {}
     },
     {
       "id": "RQ-0264",
@@ -115,13 +68,13 @@
         "Tag breakdown casing is currently untested; new assertions should pin the normalized output."
       ],
       "request": "scan finding",
+      "agent": {
+        "model_effort": "low"
+      },
       "created_at": "2026-01-24T12:40:25Z",
       "updated_at": "2026-01-25T21:43:24Z",
       "depends_on": [],
-      "custom_fields": {},
-      "agent": {
-        "model_effort": "low"
-      }
+      "custom_fields": {}
     },
     {
       "id": "RQ-0268",
@@ -167,13 +120,13 @@
         "makefile_ci_contract_test.rs is newly identified as missing a module docstring; task_cmd_test.rs is already documented and removed from scope."
       ],
       "request": "scan finding",
+      "agent": {
+        "model_effort": "low"
+      },
       "created_at": "2026-01-24T16:07:23.268929000Z",
       "updated_at": "2026-01-25T21:44:48Z",
       "depends_on": [],
-      "custom_fields": {},
-      "agent": {
-        "model_effort": "low"
-      }
+      "custom_fields": {}
     },
     {
       "id": "RQ-0270",
@@ -205,13 +158,13 @@
         "runner.rs is the entry point that calls execution::run_* functions, so the refactor must preserve or update those call sites."
       ],
       "request": "scan finding",
+      "agent": {
+        "model_effort": "high"
+      },
       "created_at": "2026-01-24T16:07:23.268929000Z",
       "updated_at": "2026-01-25T21:46:21Z",
       "depends_on": [],
-      "custom_fields": {},
-      "agent": {
-        "model_effort": "high"
-      }
+      "custom_fields": {}
     },
     {
       "id": "RQ-0271",
@@ -244,13 +197,13 @@
         "run_cmd/tests.rs already exists for shared run command tests, so phase-specific tests should either move into a dedicated phases_tests module or integrate with that existing test module."
       ],
       "request": "scan finding",
+      "agent": {
+        "model_effort": "high"
+      },
       "created_at": "2026-01-24T16:07:23.268929000Z",
       "updated_at": "2026-01-25T21:47:35Z",
       "depends_on": [],
-      "custom_fields": {},
-      "agent": {
-        "model_effort": "high"
-      }
+      "custom_fields": {}
     },
     {
       "id": "RQ-0249",
@@ -283,13 +236,13 @@
         "Current code treats rejected dependencies as unmet, which conflicts with the CLI status help text that claims dependents can proceed."
       ],
       "request": "scan finding",
+      "agent": {
+        "model_effort": "medium"
+      },
       "created_at": "2026-01-24T12:40:25Z",
       "updated_at": "2026-01-25T21:49:23Z",
       "depends_on": [],
-      "custom_fields": {},
-      "agent": {
-        "model_effort": "medium"
-      }
+      "custom_fields": {}
     },
     {
       "id": "RQ-0281",
@@ -320,13 +273,13 @@
         "Run command tests appear to already live in crates/ralph/src/run_cmd/tests.rs; remaining work is verification and cleanup if anything was missed."
       ],
       "request": "scan finding",
+      "agent": {
+        "model_effort": "low"
+      },
       "created_at": "2026-01-24T16:07:23.268929000Z",
       "updated_at": "2026-01-25T21:50:43Z",
       "depends_on": [],
-      "custom_fields": {},
-      "agent": {
-        "model_effort": "low"
-      }
+      "custom_fields": {}
     },
     {
       "id": "RQ-0282",
@@ -358,13 +311,13 @@
         "runutil is still a single file module, so the least intrusive move is a crate-level runutil_tests.rs registered under #[cfg(test)]."
       ],
       "request": "scan finding",
+      "agent": {
+        "model_effort": "low"
+      },
       "created_at": "2026-01-24T16:07:23.268929000Z",
       "updated_at": "2026-01-25T21:52:08Z",
       "depends_on": [],
-      "custom_fields": {},
-      "agent": {
-        "model_effort": "low"
-      }
+      "custom_fields": {}
     },
     {
       "id": "RQ-0279",
@@ -395,13 +348,13 @@
         "Queue CLI is still wired through a single queue.rs module; no subcommand directory exists yet."
       ],
       "request": "scan finding",
+      "agent": {
+        "model_effort": "medium"
+      },
       "created_at": "2026-01-24T16:07:23.268929000Z",
       "updated_at": "2026-01-25T21:53:47Z",
       "depends_on": [],
-      "custom_fields": {},
-      "agent": {
-        "model_effort": "medium"
-      }
+      "custom_fields": {}
     },
     {
       "id": "RQ-0280",
@@ -433,13 +386,13 @@
         "validation.rs grew to 660 lines, so splitting tests will reduce production-module size without changing behavior."
       ],
       "request": "scan finding",
+      "agent": {
+        "model_effort": "medium"
+      },
       "created_at": "2026-01-24T16:07:23.268929000Z",
       "updated_at": "2026-01-25T21:55:32Z",
       "depends_on": [],
-      "custom_fields": {},
-      "agent": {
-        "model_effort": "medium"
-      }
+      "custom_fields": {}
     },
     {
       "id": "RQ-0275",
@@ -471,13 +424,13 @@
         "operations.rs already declares `mod tests;`, so moving to a tests/ directory should retain that entry point via tests/mod.rs."
       ],
       "request": "scan finding",
+      "agent": {
+        "model_effort": "medium"
+      },
       "created_at": "2026-01-24T16:07:23.268929000Z",
       "updated_at": "2026-01-25T21:57:12Z",
       "depends_on": [],
-      "custom_fields": {},
-      "agent": {
-        "model_effort": "medium"
-      }
+      "custom_fields": {}
     },
     {
       "id": "RQ-0261",
@@ -506,13 +459,13 @@
         "Queue docs currently omit next/next-id/show/archive/schema alongside the maintenance/reporting subcommands; coverage should include both navigation and maintenance commands."
       ],
       "request": "scan finding",
+      "agent": {
+        "model_effort": "medium"
+      },
       "created_at": "2026-01-24T12:40:25Z",
       "updated_at": "2026-01-25T21:58:51Z",
       "depends_on": [],
-      "custom_fields": {},
-      "agent": {
-        "model_effort": "medium"
-      }
+      "custom_fields": {}
     },
     {
       "id": "RQ-0262",
@@ -542,13 +495,13 @@
         "The --include-draft flag is defined on RunAgentArgs in crates/ralph/src/agent.rs and surfaced via run.rs help examples."
       ],
       "request": "scan finding",
+      "agent": {
+        "model_effort": "low"
+      },
       "created_at": "2026-01-24T12:40:25Z",
       "updated_at": "2026-01-25T22:00:23Z",
       "depends_on": [],
-      "custom_fields": {},
-      "agent": {
-        "model_effort": "low"
-      }
+      "custom_fields": {}
     },
     {
       "id": "RQ-0263",
@@ -584,13 +537,13 @@
         "Run docs/help already mention the clean-repo bypass; the gap is global flag wording and scan documentation/help text."
       ],
       "request": "scan finding",
+      "agent": {
+        "model_effort": "medium"
+      },
       "created_at": "2026-01-24T12:40:25Z",
       "updated_at": "2026-01-25T22:02:30Z",
       "depends_on": [],
-      "custom_fields": {},
-      "agent": {
-        "model_effort": "medium"
-      }
+      "custom_fields": {}
     },
     {
       "id": "RQ-0272",
@@ -623,13 +576,13 @@
         "The tui directory currently only contains mod.rs, events.rs, and render.rs, so new core submodules will be added alongside those existing files."
       ],
       "request": "scan finding",
+      "agent": {
+        "model_effort": "medium"
+      },
       "created_at": "2026-01-24T16:07:23.268929000Z",
       "updated_at": "2026-01-25T22:03:53Z",
       "depends_on": [],
-      "custom_fields": {},
-      "agent": {
-        "model_effort": "medium"
-      }
+      "custom_fields": {}
     },
     {
       "id": "RQ-0273",
@@ -662,13 +615,13 @@
         "events.rs already documents per-mode dispatch, so the refactor should preserve that flow while reducing file size."
       ],
       "request": "scan finding",
+      "agent": {
+        "model_effort": "high"
+      },
       "created_at": "2026-01-24T16:07:23.268929000Z",
       "updated_at": "2026-01-25T22:05:17Z",
       "depends_on": [],
-      "custom_fields": {},
-      "agent": {
-        "model_effort": "high"
-      }
+      "custom_fields": {}
     },
     {
       "id": "RQ-0274",
@@ -701,13 +654,13 @@
         "tui/ currently has only mod.rs, events.rs, and render.rs, so the refactor will add a new render/ module directory and adjust exports."
       ],
       "request": "scan finding",
+      "agent": {
+        "model_effort": "medium"
+      },
       "created_at": "2026-01-24T16:07:23.268929000Z",
       "updated_at": "2026-01-25T22:06:22Z",
       "depends_on": [],
-      "custom_fields": {},
-      "agent": {
-        "model_effort": "medium"
-      }
+      "custom_fields": {}
     },
     {
       "id": "RQ-0276",
@@ -737,13 +690,13 @@
         "Test support helpers already live in crates/ralph/tests/test_support.rs, so reuse that module unless TUI-specific helpers need a separate file."
       ],
       "request": "scan finding",
+      "agent": {
+        "model_effort": "medium"
+      },
       "created_at": "2026-01-24T16:07:23.268929000Z",
       "updated_at": "2026-01-25T22:07:23Z",
       "depends_on": [],
-      "custom_fields": {},
-      "agent": {
-        "model_effort": "medium"
-      }
+      "custom_fields": {}
     },
     {
       "id": "RQ-0277",
@@ -774,13 +727,13 @@
         "tui_rendering_test.rs now mixes 50+ scenarios with the harness helpers in the same file, so a dedicated rendering support module will reduce duplication when splitting."
       ],
       "request": "scan finding",
+      "agent": {
+        "model_effort": "medium"
+      },
       "created_at": "2026-01-24T16:07:23.268929000Z",
       "updated_at": "2026-01-25T22:09:01Z",
       "depends_on": [],
-      "custom_fields": {},
-      "agent": {
-        "model_effort": "medium"
-      }
+      "custom_fields": {}
     },
     {
       "id": "RQ-0278",
@@ -813,13 +766,13 @@
         "The current file already defines multiple helper functions inline and uses mod test_support, so helper extraction can build on that existing shared module."
       ],
       "request": "scan finding",
+      "agent": {
+        "model_effort": "medium"
+      },
       "created_at": "2026-01-24T16:07:23.268929000Z",
       "updated_at": "2026-01-25T22:10:51Z",
       "depends_on": [],
-      "custom_fields": {},
-      "agent": {
-        "model_effort": "medium"
-      }
+      "custom_fields": {}
     },
     {
       "id": "RQ-0266",
@@ -853,13 +806,13 @@
       "notes": [
         "Selection movement already exists via move_up/move_down; reordering will need to operate on queue.tasks while respecting filtered_indices so the visible selection stays coherent."
       ],
+      "agent": {
+        "model_effort": "medium"
+      },
       "created_at": "2026-01-24T15:39:45.873331000Z",
       "updated_at": "2026-01-25T22:13:01Z",
       "depends_on": [],
-      "custom_fields": {},
-      "agent": {
-        "model_effort": "medium"
-      }
+      "custom_fields": {}
     }
   ]
 }

@@ -1,3 +1,5 @@
+//! Prompt command integration tests (prompt preview behaviors and wiring).
+
 use anyhow::Result;
 use ralph::contracts::{AgentConfig, Config, ProjectType, QueueConfig};
 use ralph::prompt_cmd::{
@@ -22,7 +24,9 @@ fn make_resolved(temp: &TempDir) -> ralph::config::Resolved {
         },
         agent: AgentConfig {
             phases: Some(3),
-            require_repoprompt: Some(false),
+            require_repoprompt: None,
+            repoprompt_plan_required: Some(false),
+            repoprompt_tool_injection: Some(false),
             ci_gate_command: Some("make ci".to_string()),
             ci_gate_enabled: Some(true),
             git_commit_push_enabled: Some(true),
@@ -79,7 +83,8 @@ fn worker_phase1_includes_plan_cache_path_and_optional_rp() -> Result<()> {
         WorkerPromptOptions {
             task_id: None,
             mode: WorkerMode::Phase1,
-            repoprompt_required: true,
+            repoprompt_plan_required: true,
+            repoprompt_tool_injection: true,
             iterations: 1,
             iteration_index: 1,
             plan_file: None,
@@ -106,7 +111,8 @@ fn worker_single_phase_includes_completion_workflow() -> Result<()> {
         WorkerPromptOptions {
             task_id: None,
             mode: WorkerMode::Single,
-            repoprompt_required: false,
+            repoprompt_plan_required: false,
+            repoprompt_tool_injection: false,
             iterations: 1,
             iteration_index: 1,
             plan_file: None,
@@ -143,7 +149,8 @@ fn worker_phase2_requires_plan_text() -> Result<()> {
         WorkerPromptOptions {
             task_id: Some("RQ-0001".to_string()),
             mode: WorkerMode::Phase2,
-            repoprompt_required: true,
+            repoprompt_plan_required: true,
+            repoprompt_tool_injection: true,
             iterations: 1,
             iteration_index: 1,
             plan_file: None,
@@ -169,7 +176,8 @@ fn worker_phase2_uses_placeholder_when_no_plan_found() -> Result<()> {
         WorkerPromptOptions {
             task_id: Some("RQ-0001".to_string()),
             mode: WorkerMode::Phase2,
-            repoprompt_required: false,
+            repoprompt_plan_required: false,
+            repoprompt_tool_injection: false,
             iterations: 1,
             iteration_index: 1,
             plan_file: None,
@@ -196,7 +204,7 @@ fn scan_prompt_replaces_focus_and_can_wrap_rp() -> Result<()> {
         &resolved,
         ScanPromptOptions {
             focus: "CI gaps".to_string(),
-            repoprompt_required: true,
+            repoprompt_tool_injection: true,
             explain: false,
         },
     )?;
@@ -220,7 +228,7 @@ fn task_builder_prompt_includes_request_and_hints() -> Result<()> {
             request: "Add tests".to_string(),
             hint_tags: "rust,tests".to_string(),
             hint_scope: "crates/ralph".to_string(),
-            repoprompt_required: false,
+            repoprompt_tool_injection: false,
             explain: false,
         },
     )?;
@@ -242,7 +250,8 @@ fn worker_phase3_includes_code_review_prompt() -> Result<()> {
         WorkerPromptOptions {
             task_id: Some("RQ-0001".to_string()),
             mode: WorkerMode::Phase3,
-            repoprompt_required: false,
+            repoprompt_plan_required: false,
+            repoprompt_tool_injection: false,
             iterations: 1,
             iteration_index: 1,
             plan_file: None,
@@ -268,7 +277,8 @@ fn worker_phase2_includes_iteration_context_for_followup() -> Result<()> {
         WorkerPromptOptions {
             task_id: Some("RQ-0001".to_string()),
             mode: WorkerMode::Phase2,
-            repoprompt_required: false,
+            repoprompt_plan_required: false,
+            repoprompt_tool_injection: false,
             iterations: 3,
             iteration_index: 2,
             plan_file: None,

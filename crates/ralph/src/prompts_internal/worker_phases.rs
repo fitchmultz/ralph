@@ -93,7 +93,8 @@ pub fn render_worker_phase1_prompt(
     task_id: &str,
     total_phases: u8,
     plan_path: &str,
-    repoprompt_required: bool,
+    repoprompt_plan_required: bool,
+    repoprompt_tool_injection: bool,
     config: &Config,
 ) -> Result<String> {
     let id = task_id.trim();
@@ -102,7 +103,7 @@ pub fn render_worker_phase1_prompt(
     }
 
     let expanded = super::expand_variables(template, config)?;
-    let repoprompt_block = repoprompt_block(repoprompt_required, true);
+    let repoprompt_block = repoprompt_block(repoprompt_tool_injection, repoprompt_plan_required);
     let safe_iteration_context = escape_placeholder_like_text(iteration_context.trim());
     let safe_base_worker_prompt = escape_placeholder_like_text(base_worker_prompt);
     let rendered = expanded
@@ -122,7 +123,10 @@ pub fn render_worker_phase1_prompt(
         .replace("{{REPOPROMPT_BLOCK}}", repoprompt_block.trim());
 
     ensure_no_unresolved_placeholders(&rendered_for_validation, "worker phase1")?;
-    Ok(clean_repoprompt_spacing(rendered, repoprompt_required))
+    Ok(clean_repoprompt_spacing(
+        rendered,
+        repoprompt_plan_required || repoprompt_tool_injection,
+    ))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -135,11 +139,11 @@ pub fn render_worker_phase2_prompt(
     iteration_completion_block: &str,
     task_id: &str,
     total_phases: u8,
-    repoprompt_required: bool,
+    repoprompt_tool_injection: bool,
     config: &Config,
 ) -> Result<String> {
     let expanded = super::expand_variables(template, config)?;
-    let repoprompt_block = repoprompt_block(repoprompt_required, false);
+    let repoprompt_block = repoprompt_block(repoprompt_tool_injection, false);
     let safe_plan_text = escape_placeholder_like_text(plan_text.trim());
     let safe_iteration_context = escape_placeholder_like_text(iteration_context.trim());
     let safe_iteration_completion_block =
@@ -171,7 +175,10 @@ pub fn render_worker_phase2_prompt(
         .replace("{{BASE_WORKER_PROMPT}}", safe_base_worker_prompt.trim())
         .replace("{{REPOPROMPT_BLOCK}}", repoprompt_block.trim());
     ensure_no_unresolved_placeholders(&rendered_for_validation, "worker phase2")?;
-    Ok(clean_repoprompt_spacing(rendered, repoprompt_required))
+    Ok(clean_repoprompt_spacing(
+        rendered,
+        repoprompt_tool_injection,
+    ))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -184,11 +191,11 @@ pub fn render_worker_phase2_handoff_prompt(
     iteration_completion_block: &str,
     task_id: &str,
     total_phases: u8,
-    repoprompt_required: bool,
+    repoprompt_tool_injection: bool,
     config: &Config,
 ) -> Result<String> {
     let expanded = super::expand_variables(template, config)?;
-    let repoprompt_block = repoprompt_block(repoprompt_required, false);
+    let repoprompt_block = repoprompt_block(repoprompt_tool_injection, false);
     let safe_plan_text = escape_placeholder_like_text(plan_text.trim());
     let safe_iteration_context = escape_placeholder_like_text(iteration_context.trim());
     let safe_iteration_completion_block =
@@ -220,7 +227,10 @@ pub fn render_worker_phase2_handoff_prompt(
         .replace("{{BASE_WORKER_PROMPT}}", safe_base_worker_prompt.trim())
         .replace("{{REPOPROMPT_BLOCK}}", repoprompt_block.trim());
     ensure_no_unresolved_placeholders(&rendered_for_validation, "worker phase2 handoff")?;
-    Ok(clean_repoprompt_spacing(rendered, repoprompt_required))
+    Ok(clean_repoprompt_spacing(
+        rendered,
+        repoprompt_tool_injection,
+    ))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -235,7 +245,7 @@ pub fn render_worker_phase3_prompt(
     iteration_completion_block: &str,
     phase3_completion_guidance: &str,
     total_phases: u8,
-    repoprompt_required: bool,
+    repoprompt_tool_injection: bool,
     config: &Config,
 ) -> Result<String> {
     let expanded = super::expand_variables(template, config)?;
@@ -243,7 +253,7 @@ pub fn render_worker_phase3_prompt(
     if base_worker_prompt.contains("## PROJECT TYPE:") {
         review_body = strip_project_type_guidance(&review_body);
     }
-    let repoprompt_block = repoprompt_block(repoprompt_required, false);
+    let repoprompt_block = repoprompt_block(repoprompt_tool_injection, false);
     let safe_phase2_final_response = escape_placeholder_like_text(phase2_final_response.trim());
     let safe_iteration_context = escape_placeholder_like_text(iteration_context.trim());
     let safe_iteration_completion_block =
@@ -291,7 +301,10 @@ pub fn render_worker_phase3_prompt(
         .replace("{{REPOPROMPT_BLOCK}}", repoprompt_block.trim());
 
     ensure_no_unresolved_placeholders(&rendered_for_validation, "worker phase3")?;
-    Ok(clean_repoprompt_spacing(rendered, repoprompt_required))
+    Ok(clean_repoprompt_spacing(
+        rendered,
+        repoprompt_tool_injection,
+    ))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -302,7 +315,7 @@ pub fn render_worker_single_phase_prompt(
     iteration_context: &str,
     iteration_completion_block: &str,
     task_id: &str,
-    repoprompt_required: bool,
+    repoprompt_tool_injection: bool,
     config: &Config,
 ) -> Result<String> {
     let id = task_id.trim();
@@ -311,7 +324,7 @@ pub fn render_worker_single_phase_prompt(
     }
 
     let expanded = super::expand_variables(template, config)?;
-    let repoprompt_block = repoprompt_block(repoprompt_required, false);
+    let repoprompt_block = repoprompt_block(repoprompt_tool_injection, false);
     let safe_iteration_context = escape_placeholder_like_text(iteration_context.trim());
     let safe_iteration_completion_block =
         escape_placeholder_like_text(iteration_completion_block.trim());
@@ -339,27 +352,30 @@ pub fn render_worker_single_phase_prompt(
         .replace("{{REPOPROMPT_BLOCK}}", repoprompt_block.trim());
 
     ensure_no_unresolved_placeholders(&rendered_for_validation, "worker single phase")?;
-    Ok(clean_repoprompt_spacing(rendered, repoprompt_required))
+    Ok(clean_repoprompt_spacing(
+        rendered,
+        repoprompt_tool_injection,
+    ))
 }
 
-fn repoprompt_block(required: bool, include_planning: bool) -> String {
-    if !required {
+fn repoprompt_block(tool_injection: bool, plan_required: bool) -> String {
+    if !tool_injection && !plan_required {
         return String::new();
     }
 
-    if include_planning {
-        format!(
-            "{}\n\n{}",
-            super::REPOPROMPT_REQUIRED_INSTRUCTION.trim(),
-            super::REPOPROMPT_CONTEXT_BUILDER_PLANNING_INSTRUCTION.trim()
-        )
-    } else {
-        super::REPOPROMPT_REQUIRED_INSTRUCTION.trim().to_string()
+    let mut sections = Vec::new();
+    if tool_injection {
+        sections.push(super::REPOPROMPT_REQUIRED_INSTRUCTION.trim());
     }
+    if plan_required {
+        sections.push(super::REPOPROMPT_CONTEXT_BUILDER_PLANNING_INSTRUCTION.trim());
+    }
+
+    sections.join("\n\n")
 }
 
-fn clean_repoprompt_spacing(rendered: String, repoprompt_required: bool) -> String {
-    if repoprompt_required {
+fn clean_repoprompt_spacing(rendered: String, repoprompt_present: bool) -> String {
+    if repoprompt_present {
         return rendered;
     }
 

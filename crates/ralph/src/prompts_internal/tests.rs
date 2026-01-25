@@ -224,6 +224,7 @@ fn render_worker_phase1_prompt_replaces_placeholders() -> Result<()> {
         2,
         ".ralph/cache/plans/RQ-0001.md",
         true,
+        true,
         &config,
     )?;
     assert!(rendered.contains("ID=RQ-0001"));
@@ -233,6 +234,55 @@ fn render_worker_phase1_prompt_replaces_placeholders() -> Result<()> {
     assert!(rendered.contains("TOOLING REQUIREMENT: RepoPrompt"));
     assert!(rendered.contains("PLANNING REQUIREMENT"));
     assert!(!rendered.contains("{{"));
+    Ok(())
+}
+
+#[test]
+fn render_worker_phase1_prompt_handles_repoprompt_flag_combinations() -> Result<()> {
+    let template = "{{REPOPROMPT_BLOCK}}\n";
+    let config = default_config();
+
+    let plan_only = render_worker_phase1_prompt(
+        template,
+        "BASE",
+        "",
+        "RQ-0001",
+        2,
+        ".ralph/cache/plans/RQ-0001.md",
+        true,
+        false,
+        &config,
+    )?;
+    assert!(plan_only.contains("PLANNING REQUIREMENT"));
+    assert!(!plan_only.contains("TOOLING REQUIREMENT: RepoPrompt"));
+
+    let tool_only = render_worker_phase1_prompt(
+        template,
+        "BASE",
+        "",
+        "RQ-0001",
+        2,
+        ".ralph/cache/plans/RQ-0001.md",
+        false,
+        true,
+        &config,
+    )?;
+    assert!(tool_only.contains("TOOLING REQUIREMENT: RepoPrompt"));
+    assert!(!tool_only.contains("PLANNING REQUIREMENT"));
+
+    let none = render_worker_phase1_prompt(
+        template,
+        "BASE",
+        "",
+        "RQ-0001",
+        2,
+        ".ralph/cache/plans/RQ-0001.md",
+        false,
+        false,
+        &config,
+    )?;
+    assert!(!none.contains("TOOLING REQUIREMENT: RepoPrompt"));
+    assert!(!none.contains("PLANNING REQUIREMENT"));
     Ok(())
 }
 
@@ -249,6 +299,7 @@ fn render_worker_phase1_prompt_allows_placeholder_like_base_prompt() -> Result<(
         "RQ-0001",
         2,
         ".ralph/cache/plans/RQ-0001.md",
+        false,
         false,
         &config,
     )?;
@@ -269,6 +320,7 @@ fn render_worker_phase1_prompt_allows_placeholder_like_iteration_context() -> Re
         "RQ-0001",
         2,
         ".ralph/cache/plans/RQ-0001.md",
+        false,
         false,
         &config,
     )?;

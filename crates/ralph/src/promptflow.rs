@@ -15,7 +15,8 @@ pub enum RunPhase {
 
 #[derive(Debug, Clone)]
 pub struct PromptPolicy {
-    pub require_repoprompt: bool,
+    pub repoprompt_plan_required: bool,
+    pub repoprompt_tool_injection: bool,
 }
 
 /// Path to the cached plan for a given task ID.
@@ -106,7 +107,8 @@ pub fn build_phase1_prompt(
         task_id,
         total_phases,
         &plan_path,
-        policy.require_repoprompt,
+        policy.repoprompt_plan_required,
+        policy.repoprompt_tool_injection,
         config,
     )
 }
@@ -134,7 +136,7 @@ pub fn build_phase2_prompt(
         iteration_completion_block,
         task_id,
         total_phases,
-        policy.require_repoprompt,
+        policy.repoprompt_tool_injection,
         config,
     )
 }
@@ -162,7 +164,7 @@ pub fn build_phase2_handoff_prompt(
         iteration_completion_block,
         task_id,
         total_phases,
-        policy.require_repoprompt,
+        policy.repoprompt_tool_injection,
         config,
     )
 }
@@ -194,7 +196,7 @@ pub fn build_phase3_prompt(
         iteration_completion_block,
         phase3_completion_guidance,
         total_phases,
-        policy.require_repoprompt,
+        policy.repoprompt_tool_injection,
         config,
     )
 }
@@ -218,7 +220,7 @@ pub fn build_single_phase_prompt(
         iteration_context,
         iteration_completion_block,
         task_id,
-        policy.require_repoprompt,
+        policy.repoprompt_tool_injection,
         config,
     )
 }

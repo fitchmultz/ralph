@@ -10,7 +10,7 @@ fn base_scan_options() -> scan_cmd::ScanOptions {
         model: Model::Gpt52Codex,
         reasoning_effort: None,
         force: false,
-        repoprompt_required: false,
+        repoprompt_tool_injection: false,
         git_revert_mode: GitRevertMode::Ask,
         lock_mode: scan_cmd::ScanLockMode::Acquire,
         output_handler: None,

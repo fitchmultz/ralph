@@ -4493,6 +4493,60 @@
       "custom_fields": {
         "status": "doing"
       }
+    },
+    {
+      "id": "RQ-0286",
+      "status": "done",
+      "title": "Split require_repoprompt config into rp_plan_required and rp_tool_injection flags",
+      "priority": "medium",
+      "tags": [
+        "config",
+        "repoprompt",
+        "agent"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts.rs",
+        "crates/ralph/src/run_cmd/phases.rs",
+        "crates/ralph/src/run_cmd.rs",
+        "crates/ralph/src/promptflow.rs",
+        "schemas/config.schema.json",
+        "docs/configuration.md"
+      ],
+      "evidence": [
+        "crates/ralph/src/contracts.rs:108: require_repoprompt is a single Option<bool> field in AgentConfig.",
+        "docs/configuration.md:28: require_repoprompt is documented as a single boolean flag.",
+        "crates/ralph/src/promptflow.rs:92-112: build_phase1_prompt receives policy.require_repoprompt and passes it to render_worker_phase1_prompt.",
+        "User request: Separate into 'repoprompt_plan_required' (injects context_builder planning instructions) and 'repoprompt_tool_injection' (only injects tooling reminders)."
+      ],
+      "plan": [
+        "Add two new fields to AgentConfig in contracts.rs: repoprompt_plan_required (Option<bool>) and repoprompt_tool_injection (Option<bool>).",
+        "Update AgentConfig::merge_from to merge the new fields.",
+        "Update Config::default() in contracts.rs to set appropriate defaults for both new fields.",
+        "Update the schema (schemas/config.schema.json) to include the two new fields.",
+        "Update PromptPolicy in promptflow.rs to have separate fields: repoprompt_plan_required and repoprompt_tool_injection.",
+        "Update run_cmd.rs to create PromptPolicy with both flags.",
+        "Modify build_phase1_prompt in promptflow.rs to use repoprompt_plan_required for planning instructions and repoprompt_tool_injection for tooling reminders.",
+        "Find all other usages of require_repoprompt in promptflow.rs and run_cmd/phases.rs and update logic to use the new flags appropriately (repoprompt_tool_injection for all phases, repoprompt_plan_required for phase 1 planning).",
+        "Add tests covering: both flags true, only plan_required true, only tool_injection true, both false.",
+        "Update docs/configuration.md to document the new separate flags.",
+        "Deprecate but keep require_repoprompt for backward compatibility, mapping it to repoprompt_plan_required for migration."
+      ],
+      "notes": [
+        "Split repoprompt plan/tool flags wired through config, CLI/TUI, and prompt rendering",
+        "Preserved legacy require_repoprompt mapping when new fields unset",
+        "Updated schema/docs/README/examples and prompt/scan/task builder wiring",
+        "Added/updated tests for new flags and prompt behavior",
+        "make ci"
+      ],
+      "request": "Separate the repoprompt config settings into 2 configuration settings instead of 1. One config setting for 'repoprompt_plan_required' and one for 'repoprompt_tool_injection'. The first config injects the context_builder planning instructions while the latter only injects the repo prompt tooling reminders.",
+      "agent": {
+        "model_effort": "medium"
+      },
+      "created_at": "2026-01-24T17:35:33Z",
+      "updated_at": "2026-01-25T23:01:48.171613000Z",
+      "completed_at": "2026-01-25T23:01:48.171613000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

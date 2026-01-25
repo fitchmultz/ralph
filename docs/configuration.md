@@ -25,7 +25,9 @@ Supported fields:
 - `reasoning_effort`: `low`, `medium`, `high`, `xhigh` (Codex only).
 - `iterations`: number of iterations to run per task (default: 1).
 - `followup_reasoning_effort`: reasoning effort for iterations after the first (Codex only).
-- `require_repoprompt`: `true` or `false`.
+- `repoprompt_plan_required`: require RepoPrompt planning instructions (context_builder) during Phase 1.
+- `repoprompt_tool_injection`: inject RepoPrompt tooling reminders into prompts.
+- `require_repoprompt`: `true` or `false` (deprecated; maps to both `repoprompt_plan_required` and `repoprompt_tool_injection` when the new fields are unset).
 - `git_revert_mode`: `ask`, `enabled`, or `disabled`.
 - `git_commit_push_enabled`: enable or disable automatic git commit/push after successful runs (default: `true`).
 - `ci_gate_command`: command to run for the CI gate (default: `make ci`).
@@ -50,7 +52,8 @@ Example:
     "iterations": 2,
     "reasoning_effort": "high",
     "followup_reasoning_effort": "low",
-    "require_repoprompt": false,
+    "repoprompt_plan_required": false,
+    "repoprompt_tool_injection": false,
     "git_commit_push_enabled": true,
     "git_revert_mode": "ask",
     "claude_permission_mode": "bypass_permissions",

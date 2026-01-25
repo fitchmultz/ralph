@@ -10,7 +10,7 @@ pub fn handle_prompt(args: PromptArgs) -> Result<()> {
 
     match args.command {
         PromptCommand::Worker(p) => {
-            let rp_required = agent::resolve_rp_required(p.rp_on, p.rp_off, &resolved);
+            let repoprompt_flags = agent::resolve_repoprompt_flags(p.rp_on, p.rp_off, &resolved);
 
             let mode = if p.single {
                 crate::prompt_cmd::WorkerMode::Single
@@ -36,7 +36,8 @@ pub fn handle_prompt(args: PromptArgs) -> Result<()> {
                 crate::prompt_cmd::WorkerPromptOptions {
                     task_id: p.task_id,
                     mode,
-                    repoprompt_required: rp_required,
+                    repoprompt_plan_required: repoprompt_flags.plan_required,
+                    repoprompt_tool_injection: repoprompt_flags.tool_injection,
                     iterations: p.iterations,
                     iteration_index: p.iteration_index,
                     plan_file: p.plan_file,
@@ -52,7 +53,7 @@ pub fn handle_prompt(args: PromptArgs) -> Result<()> {
                 &resolved,
                 crate::prompt_cmd::ScanPromptOptions {
                     focus: p.focus,
-                    repoprompt_required: rp_required,
+                    repoprompt_tool_injection: rp_required,
                     explain: p.explain,
                 },
             )?;
@@ -75,7 +76,7 @@ pub fn handle_prompt(args: PromptArgs) -> Result<()> {
                     request,
                     hint_tags: p.tags,
                     hint_scope: p.scope,
-                    repoprompt_required: rp_required,
+                    repoprompt_tool_injection: rp_required,
                     explain: p.explain,
                 },
             )?;
@@ -145,11 +146,11 @@ pub struct PromptWorkerArgs {
     #[arg(long, default_value_t = 1)]
     pub iteration_index: u8,
 
-    /// Force RepoPrompt required.
+    /// Force RepoPrompt flags on (planning requirement + tooling reminders).
     #[arg(long, conflicts_with = "rp_off")]
     pub rp_on: bool,
 
-    /// Force RepoPrompt not required.
+    /// Force RepoPrompt flags off (planning requirement + tooling reminders).
     #[arg(long, conflicts_with = "rp_on")]
     pub rp_off: bool,
 
@@ -164,11 +165,11 @@ pub struct PromptScanArgs {
     #[arg(long, default_value = "")]
     pub focus: String,
 
-    /// Force RepoPrompt required.
+    /// Force RepoPrompt flags on (planning requirement + tooling reminders).
     #[arg(long, conflicts_with = "rp_off")]
     pub rp_on: bool,
 
-    /// Force RepoPrompt not required.
+    /// Force RepoPrompt flags off (planning requirement + tooling reminders).
     #[arg(long, conflicts_with = "rp_on")]
     pub rp_off: bool,
 
@@ -191,11 +192,11 @@ pub struct PromptTaskBuilderArgs {
     #[arg(long, default_value = "")]
     pub scope: String,
 
-    /// Force RepoPrompt required.
+    /// Force RepoPrompt flags on (planning requirement + tooling reminders).
     #[arg(long, conflicts_with = "rp_off")]
     pub rp_on: bool,
 
-    /// Force RepoPrompt not required.
+    /// Force RepoPrompt flags off (planning requirement + tooling reminders).
     #[arg(long, conflicts_with = "rp_on")]
     pub rp_off: bool,
 

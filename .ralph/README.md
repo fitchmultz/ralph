@@ -96,7 +96,8 @@ Defaults via config (`.ralph/config.json` or `~/.config/ralph/config.json`):
     "model": "sonnet",
     "phases": 3,
     "iterations": 1,
-    "require_repoprompt": false,
+    "repoprompt_plan_required": false,
+    "repoprompt_tool_injection": false,
     "git_revert_mode": "ask",
     "git_commit_push_enabled": true,
     "ci_gate_command": "make ci",
@@ -112,9 +113,11 @@ Defaults via config (`.ralph/config.json` or `~/.config/ralph/config.json`):
 - **Claude**: `sonnet` (default), `opus`, or arbitrary model IDs
 
 ### RepoPrompt Integration
-Ralph can explicitly require the usage of RepoPrompt tools. When enabled via config (`require_repoprompt: true`) or CLI (`--rp-on`), Ralph will:
-1. Instruct the agent to use RepoPrompt tools for exploration.
-2. During planning, require the agent to use the `context_builder` tool to gather context AND generate the plan in a single step.
+Ralph can independently control RepoPrompt planning and tooling reminders:
+1. `repoprompt_plan_required`: injects the Phase 1 planning instructions, including the `context_builder` requirement.
+2. `repoprompt_tool_injection`: injects RepoPrompt tooling reminders into prompts.
+
+Legacy `require_repoprompt` remains supported and maps to both new flags when they are unset. CLI `--rp-on/--rp-off` toggles both flags.
 
 ### Three-phase Workflow (Default)
 Ralph supports a 3-phase workflow by default (configured via `agent.phases: 3`):

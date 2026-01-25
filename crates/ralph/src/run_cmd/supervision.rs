@@ -469,7 +469,9 @@ mod tests {
                 claude_permission_mode: Some(
                     crate::contracts::ClaudePermissionMode::BypassPermissions,
                 ),
-                require_repoprompt: Some(false),
+                require_repoprompt: None,
+                repoprompt_plan_required: Some(false),
+                repoprompt_tool_injection: Some(false),
                 ci_gate_command: Some("make ci".to_string()),
                 ci_gate_enabled: Some(false),
                 git_revert_mode: Some(GitRevertMode::Disabled),

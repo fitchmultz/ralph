@@ -123,7 +123,8 @@ pub enum ConfigKey {
     AgentGeminiBin,
     AgentClaudeBin,
     AgentClaudePermissionMode,
-    AgentRequireRepoPrompt,
+    AgentRepopromptPlanRequired,
+    AgentRepopromptToolInjection,
     AgentGitRevertMode,
     AgentGitCommitPushEnabled,
     AgentPhases,
@@ -820,9 +821,15 @@ impl App {
                 kind: ConfigFieldKind::Cycle,
             },
             ConfigEntry {
-                key: ConfigKey::AgentRequireRepoPrompt,
-                label: "agent.require_repoprompt",
-                value: display_bool(self.project_config.agent.require_repoprompt),
+                key: ConfigKey::AgentRepopromptPlanRequired,
+                label: "agent.repoprompt_plan_required",
+                value: display_bool(self.project_config.agent.repoprompt_plan_required),
+                kind: ConfigFieldKind::Toggle,
+            },
+            ConfigEntry {
+                key: ConfigKey::AgentRepopromptToolInjection,
+                label: "agent.repoprompt_tool_injection",
+                value: display_bool(self.project_config.agent.repoprompt_tool_injection),
                 kind: ConfigFieldKind::Toggle,
             },
             ConfigEntry {
@@ -1032,9 +1039,13 @@ impl App {
                 self.project_config.agent.claude_permission_mode =
                     cycle_claude_permission_mode(self.project_config.agent.claude_permission_mode);
             }
-            ConfigKey::AgentRequireRepoPrompt => {
-                self.project_config.agent.require_repoprompt =
-                    cycle_bool(self.project_config.agent.require_repoprompt);
+            ConfigKey::AgentRepopromptPlanRequired => {
+                self.project_config.agent.repoprompt_plan_required =
+                    cycle_bool(self.project_config.agent.repoprompt_plan_required);
+            }
+            ConfigKey::AgentRepopromptToolInjection => {
+                self.project_config.agent.repoprompt_tool_injection =
+                    cycle_bool(self.project_config.agent.repoprompt_tool_injection);
             }
             ConfigKey::AgentGitRevertMode => {
                 self.project_config.agent.git_revert_mode =
@@ -1073,8 +1084,11 @@ impl App {
             ConfigKey::AgentClaudePermissionMode => {
                 self.project_config.agent.claude_permission_mode = None;
             }
-            ConfigKey::AgentRequireRepoPrompt => {
-                self.project_config.agent.require_repoprompt = None
+            ConfigKey::AgentRepopromptPlanRequired => {
+                self.project_config.agent.repoprompt_plan_required = None
+            }
+            ConfigKey::AgentRepopromptToolInjection => {
+                self.project_config.agent.repoprompt_tool_injection = None
             }
             ConfigKey::AgentGitRevertMode => self.project_config.agent.git_revert_mode = None,
             ConfigKey::AgentGitCommitPushEnabled => {
@@ -1813,7 +1827,8 @@ where
                     .cloned()
                     .unwrap_or_default();
                 let reasoning_effort = resolved.config.agent.reasoning_effort;
-                let repoprompt_required = resolved.config.agent.require_repoprompt.unwrap_or(false);
+                let repoprompt_tool_injection =
+                    crate::agent::resolve_repoprompt_flags(false, false, &resolved).tool_injection;
                 let opts = crate::task_cmd::TaskBuildOptions {
                     request,
                     hint_tags: String::new(),
@@ -1822,7 +1837,7 @@ where
                     model,
                     reasoning_effort,
                     force: false, // Don't acquire lock since TUI already has it
-                    repoprompt_required,
+                    repoprompt_tool_injection,
                 };
                 crate::task_cmd::build_task_without_lock(&resolved, opts)?;
                 Ok(())

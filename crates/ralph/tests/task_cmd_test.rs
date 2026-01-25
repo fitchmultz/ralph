@@ -69,7 +69,7 @@ fn test_task_build_options_default_values() {
         model: Model::Gpt52Codex,
         reasoning_effort: None,
         force: false,
-        repoprompt_required: false,
+        repoprompt_tool_injection: false,
     };
 
     assert_eq!(opts.request, "test request");
@@ -91,7 +91,7 @@ fn test_task_build_options_with_values() {
         model: Model::Gpt52,
         reasoning_effort: Some(ralph::contracts::ReasoningEffort::High),
         force: true,
-        repoprompt_required: false,
+        repoprompt_tool_injection: false,
     };
 
     assert_eq!(opts.request, "implement feature");
@@ -114,7 +114,7 @@ fn test_task_build_options_empty_request_validation() {
         model: Model::Gpt52Codex,
         reasoning_effort: None,
         force: false,
-        repoprompt_required: false,
+        repoprompt_tool_injection: false,
     };
 
     assert!(opts.request.trim().is_empty());
@@ -130,7 +130,7 @@ fn test_task_build_options_whitespace_request_validation() {
         model: Model::Gpt52Codex,
         reasoning_effort: None,
         force: false,
-        repoprompt_required: false,
+        repoprompt_tool_injection: false,
     };
 
     assert!(opts.request.trim().is_empty());
@@ -154,7 +154,7 @@ fn test_task_build_options_all_runners() {
             model: Model::Gpt52Codex,
             reasoning_effort: None,
             force: false,
-            repoprompt_required: false,
+            repoprompt_tool_injection: false,
         };
         assert_eq!(opts.request, "test");
     }
@@ -178,7 +178,7 @@ fn test_task_build_options_all_models() {
             model,
             reasoning_effort: None,
             force: false,
-            repoprompt_required: false,
+            repoprompt_tool_injection: false,
         };
         assert_eq!(opts.request, "test");
     }
@@ -203,7 +203,7 @@ fn test_task_build_options_all_reasoning_efforts() {
             model: Model::Gpt52Codex,
             reasoning_effort: effort,
             force: false,
-            repoprompt_required: false,
+            repoprompt_tool_injection: false,
         };
         // Just verify we can create options with each effort level
         assert_eq!(opts.request, "test");
@@ -255,7 +255,7 @@ fn test_task_update_settings_default_values() {
         model: Model::Gpt52Codex,
         reasoning_effort: None,
         force: false,
-        repoprompt_required: false,
+        repoprompt_tool_injection: false,
     };
 
     assert!(settings.fields.is_empty());
@@ -273,7 +273,7 @@ fn test_task_update_settings_with_values() {
         model: Model::Gpt52,
         reasoning_effort: Some(ralph::contracts::ReasoningEffort::High),
         force: true,
-        repoprompt_required: true,
+        repoprompt_tool_injection: true,
     };
 
     assert_eq!(settings.fields, "scope,evidence,plan");
@@ -281,7 +281,7 @@ fn test_task_update_settings_with_values() {
     assert_eq!(settings.model, Model::Gpt52);
     assert!(settings.reasoning_effort.is_some());
     assert!(settings.force);
-    assert!(settings.repoprompt_required);
+    assert!(settings.repoprompt_tool_injection);
 }
 
 #[test]
@@ -332,7 +332,7 @@ fn test_task_update_settings_all_runners() {
             model: Model::Gpt52Codex,
             reasoning_effort: None,
             force: false,
-            repoprompt_required: false,
+            repoprompt_tool_injection: false,
         };
         assert!(settings.fields.is_empty());
     }
@@ -354,7 +354,7 @@ fn test_task_update_settings_all_models() {
             model,
             reasoning_effort: None,
             force: false,
-            repoprompt_required: false,
+            repoprompt_tool_injection: false,
         };
         assert!(settings.fields.is_empty());
     }
@@ -377,7 +377,7 @@ fn test_task_update_settings_all_reasoning_efforts() {
             model: Model::Gpt52Codex,
             reasoning_effort: effort,
             force: false,
-            repoprompt_required: false,
+            repoprompt_tool_injection: false,
         };
         assert!(settings.fields.is_empty());
     }

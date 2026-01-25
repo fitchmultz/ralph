@@ -105,7 +105,14 @@ pub struct AgentConfig {
 
     /// Require RepoPrompt usage during planning.
     /// If true, agent must use of context_builder tool to generate a plan.
+    /// Deprecated: use `repoprompt_plan_required` and `repoprompt_tool_injection`.
     pub require_repoprompt: Option<bool>,
+
+    /// Require RepoPrompt usage during planning (inject context_builder instructions).
+    pub repoprompt_plan_required: Option<bool>,
+
+    /// Inject RepoPrompt tooling reminder block into prompts.
+    pub repoprompt_tool_injection: Option<bool>,
 
     /// CI gate command to run (default: "make ci").
     pub ci_gate_command: Option<String>,
@@ -162,6 +169,12 @@ impl AgentConfig {
         }
         if other.require_repoprompt.is_some() {
             self.require_repoprompt = other.require_repoprompt;
+        }
+        if other.repoprompt_plan_required.is_some() {
+            self.repoprompt_plan_required = other.repoprompt_plan_required;
+        }
+        if other.repoprompt_tool_injection.is_some() {
+            self.repoprompt_tool_injection = other.repoprompt_tool_injection;
         }
         if other.ci_gate_command.is_some() {
             self.ci_gate_command = other.ci_gate_command;
@@ -564,6 +577,8 @@ impl Default for Config {
                 phases: Some(3),
                 claude_permission_mode: Some(ClaudePermissionMode::BypassPermissions),
                 require_repoprompt: Some(false),
+                repoprompt_plan_required: Some(false),
+                repoprompt_tool_injection: Some(false),
                 ci_gate_command: Some("make ci".to_string()),
                 ci_gate_enabled: Some(true),
                 git_revert_mode: Some(GitRevertMode::Ask),

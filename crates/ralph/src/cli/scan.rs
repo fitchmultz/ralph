@@ -30,7 +30,11 @@ pub fn handle_scan(args: ScanArgs, force: bool) -> Result<()> {
             model: settings.model,
             reasoning_effort: settings.reasoning_effort,
             force,
-            repoprompt_required: agent::resolve_rp_required(args.rp_on, args.rp_off, &resolved),
+            repoprompt_tool_injection: agent::resolve_rp_required(
+                args.rp_on,
+                args.rp_off,
+                &resolved,
+            ),
             git_revert_mode: resolved
                 .config
                 .agent
@@ -66,11 +70,11 @@ pub struct ScanArgs {
     #[arg(long)]
     pub effort: Option<String>,
 
-    /// Force RepoPrompt required (must use context_builder).
+    /// Force RepoPrompt flags on (planning requirement + tooling reminders).
     #[arg(long, conflicts_with = "rp_off")]
     pub rp_on: bool,
 
-    /// Force RepoPrompt not required.
+    /// Force RepoPrompt flags off (planning requirement + tooling reminders).
     #[arg(long, conflicts_with = "rp_on")]
     pub rp_off: bool,
 }

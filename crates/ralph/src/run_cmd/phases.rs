@@ -842,7 +842,8 @@ mod tests {
         cfg.agent.claude_permission_mode = Some(ClaudePermissionMode::BypassPermissions);
         cfg.agent.git_revert_mode = Some(GitRevertMode::Ask);
         cfg.agent.git_commit_push_enabled = Some(true);
-        cfg.agent.require_repoprompt = Some(false);
+        cfg.agent.repoprompt_plan_required = Some(false);
+        cfg.agent.repoprompt_tool_injection = Some(false);
         cfg.agent.opencode_bin = Some(opencode_bin.display().to_string());
         cfg.agent.ci_gate_enabled = Some(false);
         cfg.queue = QueueConfig {
@@ -958,7 +959,8 @@ echo '{{"sessionID":"sess-123"}}'
             claude: "claude",
         };
         let policy = promptflow::PromptPolicy {
-            require_repoprompt: false,
+            repoprompt_plan_required: false,
+            repoprompt_tool_injection: false,
         };
 
         let calls = Arc::new(AtomicUsize::new(0));
@@ -1043,7 +1045,8 @@ echo '{{"sessionID":"sess-123"}}'
             claude: "claude",
         };
         let policy = promptflow::PromptPolicy {
-            require_repoprompt: false,
+            repoprompt_plan_required: false,
+            repoprompt_tool_injection: false,
         };
 
         let prompt_handler: runutil::RevertPromptHandler =
@@ -1118,7 +1121,8 @@ echo '{{"sessionID":"sess-123"}}'
             claude: "claude",
         };
         let policy = promptflow::PromptPolicy {
-            require_repoprompt: false,
+            repoprompt_plan_required: false,
+            repoprompt_tool_injection: false,
         };
 
         let invocation = PhaseInvocation {
@@ -1248,7 +1252,8 @@ echo '{"sessionID":"sess-123"}'
             claude: "claude",
         };
         let policy = promptflow::PromptPolicy {
-            require_repoprompt: false,
+            repoprompt_plan_required: false,
+            repoprompt_tool_injection: false,
         };
 
         let signal = completions::CompletionSignal {
@@ -1310,7 +1315,8 @@ echo '{"sessionID":"sess-123"}'
             claude: "claude",
         };
         let policy = promptflow::PromptPolicy {
-            require_repoprompt: false,
+            repoprompt_plan_required: false,
+            repoprompt_tool_injection: false,
         };
 
         let invocation = PhaseInvocation {
@@ -1376,7 +1382,8 @@ echo '{{"sessionID":"sess-123"}}'
             claude: "claude",
         };
         let policy = promptflow::PromptPolicy {
-            require_repoprompt: false,
+            repoprompt_plan_required: false,
+            repoprompt_tool_injection: false,
         };
 
         let prompt_calls = Arc::new(AtomicUsize::new(0));

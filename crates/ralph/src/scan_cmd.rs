@@ -12,7 +12,7 @@ pub struct ScanOptions {
     pub model: Model,
     pub reasoning_effort: Option<ReasoningEffort>,
     pub force: bool,
-    pub repoprompt_required: bool,
+    pub repoprompt_tool_injection: bool,
     pub git_revert_mode: GitRevertMode,
     /// How to handle queue locking (acquire vs already-held by caller).
     pub lock_mode: ScanLockMode,
@@ -76,7 +76,7 @@ pub fn run_scan(resolved: &config::Resolved, opts: ScanOptions) -> Result<()> {
     let mut prompt =
         prompts::render_scan_prompt(&template, &opts.focus, project_type, &resolved.config)?;
 
-    prompt = prompts::wrap_with_repoprompt_requirement(&prompt, opts.repoprompt_required);
+    prompt = prompts::wrap_with_repoprompt_requirement(&prompt, opts.repoprompt_tool_injection);
 
     let bins = runner::resolve_binaries(&resolved.config.agent);
     // Two-pass mode disabled for scan (only generates findings, should not implement)

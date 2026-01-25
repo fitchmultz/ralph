@@ -201,10 +201,8 @@ fn run_one_impl(
         bail!("Invalid phases value: {} (expected 1, 2, or 3)", phases);
     }
 
-    let rp_required = agent_overrides
-        .repoprompt_required
-        .or(resolved.config.agent.require_repoprompt)
-        .unwrap_or(false);
+    let repoprompt_flags =
+        crate::agent::resolve_repoprompt_flags_from_overrides(agent_overrides, resolved);
 
     let git_revert_mode = agent_overrides
         .git_revert_mode
@@ -217,7 +215,8 @@ fn run_one_impl(
         .unwrap_or(true);
 
     let policy = promptflow::PromptPolicy {
-        require_repoprompt: rp_required,
+        repoprompt_plan_required: repoprompt_flags.plan_required,
+        repoprompt_tool_injection: repoprompt_flags.tool_injection,
     };
 
     // --- Task Selection ---
