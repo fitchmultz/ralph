@@ -2,6 +2,50 @@
   "version": 1,
   "tasks": [
     {
+      "id": "RQ-0286",
+      "status": "draft",
+      "title": "Split require_repoprompt config into rp_plan_required and rp_tool_injection flags",
+      "priority": "medium",
+      "tags": [
+        "config",
+        "repoprompt",
+        "agent"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts.rs",
+        "crates/ralph/src/run_cmd/phases.rs",
+        "crates/ralph/src/run_cmd.rs",
+        "crates/ralph/src/promptflow.rs",
+        "schemas/config.schema.json",
+        "docs/configuration.md"
+      ],
+      "evidence": [
+        "crates/ralph/src/contracts.rs:108: require_repoprompt is a single Option<bool> field in AgentConfig.",
+        "docs/configuration.md:28: require_repoprompt is documented as a single boolean flag.",
+        "crates/ralph/src/promptflow.rs:92-112: build_phase1_prompt receives policy.require_repoprompt and passes it to render_worker_phase1_prompt.",
+        "User request: Separate into 'repoprompt_plan_required' (injects context_builder planning instructions) and 'repoprompt_tool_injection' (only injects tooling reminders)."
+      ],
+      "plan": [
+        "Add two new fields to AgentConfig in contracts.rs: repoprompt_plan_required (Option<bool>) and repoprompt_tool_injection (Option<bool>).",
+        "Update AgentConfig::merge_from to merge the new fields.",
+        "Update Config::default() in contracts.rs to set appropriate defaults for both new fields.",
+        "Update the schema (schemas/config.schema.json) to include the two new fields.",
+        "Update PromptPolicy in promptflow.rs to have separate fields: repoprompt_plan_required and repoprompt_tool_injection.",
+        "Update run_cmd.rs to create PromptPolicy with both flags.",
+        "Modify build_phase1_prompt in promptflow.rs to use repoprompt_plan_required for planning instructions and repoprompt_tool_injection for tooling reminders.",
+        "Find all other usages of require_repoprompt in promptflow.rs and run_cmd/phases.rs and update logic to use the new flags appropriately (repoprompt_tool_injection for all phases, repoprompt_plan_required for phase 1 planning).",
+        "Add tests covering: both flags true, only plan_required true, only tool_injection true, both false.",
+        "Update docs/configuration.md to document the new separate flags.",
+        "Deprecate but keep require_repoprompt for backward compatibility, mapping it to repoprompt_plan_required for migration."
+      ],
+      "notes": [],
+      "request": "Separate the repoprompt config settings into 2 configuration settings instead of 1. One config setting for 'repoprompt_plan_required' and one for 'repoprompt_tool_injection'. The first config injects the context_builder planning instructions while the latter only injects the repo prompt tooling reminders.",
+      "created_at": "2026-01-24T17:35:33Z",
+      "updated_at": "2026-01-24T18:00:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
       "id": "RQ-0258",
       "status": "todo",
       "title": "Add JSON output option for queue stats/history/burndown",
@@ -37,7 +81,10 @@
       "created_at": "2026-01-24T12:40:25Z",
       "updated_at": "2026-01-25T21:42:15Z",
       "depends_on": [],
-      "custom_fields": {}
+      "custom_fields": {},
+      "agent": {
+        "model_effort": "medium"
+      }
     },
     {
       "id": "RQ-0264",
@@ -68,7 +115,10 @@
       "created_at": "2026-01-24T12:40:25Z",
       "updated_at": "2026-01-25T21:43:24Z",
       "depends_on": [],
-      "custom_fields": {}
+      "custom_fields": {},
+      "agent": {
+        "model_effort": "low"
+      }
     },
     {
       "id": "RQ-0268",
@@ -117,7 +167,10 @@
       "created_at": "2026-01-24T16:07:23.268929000Z",
       "updated_at": "2026-01-25T21:44:48Z",
       "depends_on": [],
-      "custom_fields": {}
+      "custom_fields": {},
+      "agent": {
+        "model_effort": "low"
+      }
     },
     {
       "id": "RQ-0270",
@@ -152,7 +205,10 @@
       "created_at": "2026-01-24T16:07:23.268929000Z",
       "updated_at": "2026-01-25T21:46:21Z",
       "depends_on": [],
-      "custom_fields": {}
+      "custom_fields": {},
+      "agent": {
+        "model_effort": "high"
+      }
     },
     {
       "id": "RQ-0271",
@@ -188,7 +244,10 @@
       "created_at": "2026-01-24T16:07:23.268929000Z",
       "updated_at": "2026-01-25T21:47:35Z",
       "depends_on": [],
-      "custom_fields": {}
+      "custom_fields": {},
+      "agent": {
+        "model_effort": "high"
+      }
     },
     {
       "id": "RQ-0249",
@@ -224,7 +283,10 @@
       "created_at": "2026-01-24T12:40:25Z",
       "updated_at": "2026-01-25T21:49:23Z",
       "depends_on": [],
-      "custom_fields": {}
+      "custom_fields": {},
+      "agent": {
+        "model_effort": "medium"
+      }
     },
     {
       "id": "RQ-0281",
@@ -258,7 +320,10 @@
       "created_at": "2026-01-24T16:07:23.268929000Z",
       "updated_at": "2026-01-25T21:50:43Z",
       "depends_on": [],
-      "custom_fields": {}
+      "custom_fields": {},
+      "agent": {
+        "model_effort": "low"
+      }
     },
     {
       "id": "RQ-0282",
@@ -293,7 +358,10 @@
       "created_at": "2026-01-24T16:07:23.268929000Z",
       "updated_at": "2026-01-25T21:52:08Z",
       "depends_on": [],
-      "custom_fields": {}
+      "custom_fields": {},
+      "agent": {
+        "model_effort": "low"
+      }
     },
     {
       "id": "RQ-0279",
@@ -317,7 +385,7 @@
       ],
       "plan": [
         "Create a new crates/ralph/src/cli/queue/ module directory with a mod.rs facade and per-subcommand files (e.g., list.rs, search.rs, stats.rs, history.rs, burndown.rs, repair.rs).",
-        "Move each subcommand’s args, help text, and handler wiring from queue.rs into the new files, keeping a small queue.rs (or queue/mod.rs) facade that re-exports the CLI surface.",
+        "Move each subcommand's args, help text, and handler wiring from queue.rs into the new files, keeping a small queue.rs (or queue/mod.rs) facade that re-exports the CLI surface.",
         "Update crates/ralph/src/cli/mod.rs and any references so the CLI dispatch uses the new module layout, then run the existing queue-related tests or `cargo test -p ralph queue` to confirm behavior."
       ],
       "notes": [
@@ -327,7 +395,10 @@
       "created_at": "2026-01-24T16:07:23.268929000Z",
       "updated_at": "2026-01-25T21:53:47Z",
       "depends_on": [],
-      "custom_fields": {}
+      "custom_fields": {},
+      "agent": {
+        "model_effort": "medium"
+      }
     },
     {
       "id": "RQ-0280",
@@ -362,7 +433,10 @@
       "created_at": "2026-01-24T16:07:23.268929000Z",
       "updated_at": "2026-01-25T21:55:32Z",
       "depends_on": [],
-      "custom_fields": {}
+      "custom_fields": {},
+      "agent": {
+        "model_effort": "medium"
+      }
     },
     {
       "id": "RQ-0275",
@@ -397,7 +471,10 @@
       "created_at": "2026-01-24T16:07:23.268929000Z",
       "updated_at": "2026-01-25T21:57:12Z",
       "depends_on": [],
-      "custom_fields": {}
+      "custom_fields": {},
+      "agent": {
+        "model_effort": "medium"
+      }
     },
     {
       "id": "RQ-0261",
@@ -429,7 +506,10 @@
       "created_at": "2026-01-24T12:40:25Z",
       "updated_at": "2026-01-25T21:58:51Z",
       "depends_on": [],
-      "custom_fields": {}
+      "custom_fields": {},
+      "agent": {
+        "model_effort": "medium"
+      }
     },
     {
       "id": "RQ-0262",
@@ -462,7 +542,10 @@
       "created_at": "2026-01-24T12:40:25Z",
       "updated_at": "2026-01-25T22:00:23Z",
       "depends_on": [],
-      "custom_fields": {}
+      "custom_fields": {},
+      "agent": {
+        "model_effort": "low"
+      }
     },
     {
       "id": "RQ-0263",
@@ -501,7 +584,10 @@
       "created_at": "2026-01-24T12:40:25Z",
       "updated_at": "2026-01-25T22:02:30Z",
       "depends_on": [],
-      "custom_fields": {}
+      "custom_fields": {},
+      "agent": {
+        "model_effort": "medium"
+      }
     },
     {
       "id": "RQ-0272",
@@ -537,7 +623,10 @@
       "created_at": "2026-01-24T16:07:23.268929000Z",
       "updated_at": "2026-01-25T22:03:53Z",
       "depends_on": [],
-      "custom_fields": {}
+      "custom_fields": {},
+      "agent": {
+        "model_effort": "medium"
+      }
     },
     {
       "id": "RQ-0273",
@@ -573,7 +662,10 @@
       "created_at": "2026-01-24T16:07:23.268929000Z",
       "updated_at": "2026-01-25T22:05:17Z",
       "depends_on": [],
-      "custom_fields": {}
+      "custom_fields": {},
+      "agent": {
+        "model_effort": "high"
+      }
     },
     {
       "id": "RQ-0274",
@@ -609,7 +701,10 @@
       "created_at": "2026-01-24T16:07:23.268929000Z",
       "updated_at": "2026-01-25T22:06:22Z",
       "depends_on": [],
-      "custom_fields": {}
+      "custom_fields": {},
+      "agent": {
+        "model_effort": "medium"
+      }
     },
     {
       "id": "RQ-0276",
@@ -642,7 +737,10 @@
       "created_at": "2026-01-24T16:07:23.268929000Z",
       "updated_at": "2026-01-25T22:07:23Z",
       "depends_on": [],
-      "custom_fields": {}
+      "custom_fields": {},
+      "agent": {
+        "model_effort": "medium"
+      }
     },
     {
       "id": "RQ-0277",
@@ -665,7 +763,7 @@
         "rg \"TestBackend\" crates/ralph/tests shows only tui_rendering_test.rs uses the TestBackend harness, so there is no shared TUI rendering helper module yet."
       ],
       "plan": [
-        "Group the existing rendering tests by area (task list/details, modes/dialogs, execution/logs, help/overlay/footer, layout/scrolling) and decide the target test file names under crates/ralph/tests/.",
+        "Group the existing rendering tests by area (task list/details, modes/dialogs, execution/logs, help/overlay/footer, layout/scrolling) and decide to target test file names under crates/ralph/tests/.",
         "Extract the shared rendering harness into a helper module (either a new tui_rendering_support.rs or an extension of test_support.rs) and update all split tests to import it.",
         "Move the grouped tests into the new files, remove the old monolithic file, and run `cargo test -p ralph tui_rendering` to confirm coverage stays intact."
       ],
@@ -676,7 +774,10 @@
       "created_at": "2026-01-24T16:07:23.268929000Z",
       "updated_at": "2026-01-25T22:09:01Z",
       "depends_on": [],
-      "custom_fields": {}
+      "custom_fields": {},
+      "agent": {
+        "model_effort": "medium"
+      }
     },
     {
       "id": "RQ-0278",
@@ -712,7 +813,10 @@
       "created_at": "2026-01-24T16:07:23.268929000Z",
       "updated_at": "2026-01-25T22:10:51Z",
       "depends_on": [],
-      "custom_fields": {}
+      "custom_fields": {},
+      "agent": {
+        "model_effort": "medium"
+      }
     },
     {
       "id": "RQ-0266",
@@ -739,8 +843,8 @@
         "crates/ralph/src/tui/render.rs: help overlay lists navigation/actions/quick changes but does not mention any task reordering shortcut."
       ],
       "plan": [
-        "Add App methods to move the selected task up/down in queue order (swap in queue.tasks), update filtered indices/selection, set dirty flags, and surface a status message when at boundaries.",
-        "Wire new reorder actions into TUI input (events.rs normal mode + palette command wiring in mod.rs) and document the keybindings in the help overlay (render.rs).",
+        "Add App methods to move task up/down in queue order (swap in queue.tasks), update filtered indices/selection, set dirty flags, and surface a status message when at boundaries.",
+        "Wire new reorder actions into TUI input (events.rs normal mode + palette command wiring in mod.rs) and document keybindings in the help overlay (render.rs).",
         "Add tests covering reorder success and boundary/no-op behavior in the TUI event tests, update help overlay assertions, and run `cargo test -p ralph tui`."
       ],
       "notes": [
@@ -749,7 +853,10 @@
       "created_at": "2026-01-24T15:39:45.873331000Z",
       "updated_at": "2026-01-25T22:13:01Z",
       "depends_on": [],
-      "custom_fields": {}
+      "custom_fields": {},
+      "agent": {
+        "model_effort": "medium"
+      }
     }
   ]
 }
