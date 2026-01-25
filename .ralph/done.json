@@ -4423,6 +4423,39 @@
       "completed_at": "2026-01-25T17:49:20.771815000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0269",
+      "status": "done",
+      "title": "Optimize queue backfill_missing_fields to avoid O(n^2) ID lookups",
+      "priority": "medium",
+      "tags": [
+        "queue",
+        "performance",
+        "refactor"
+      ],
+      "scope": [
+        "crates/ralph/src/queue/operations/mutation.rs"
+      ],
+      "evidence": [
+        "crates/ralph/src/queue/operations/mutation.rs: backfill_missing_fields loops all tasks and calls new_task_ids.contains(&task.id.trim().to_string()), which is O(n) per task and allocates on every iteration."
+      ],
+      "plan": [
+        "Convert new_task_ids into a HashSet<&str> (or HashSet<String>) once before the loop.",
+        "Avoid per-task string allocation by comparing trimmed &str where possible.",
+        "Add/adjust tests to cover backfill behavior with large task sets or duplicate IDs."
+      ],
+      "notes": [
+        "Optimized backfill_missing_fields to use a prebuilt HashSet for ID checks.",
+        "Added tests for empty and duplicate new_task_ids behavior.",
+        "CI gate: make ci"
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-24T16:07:23.268929000Z",
+      "updated_at": "2026-01-25T17:53:44.875174000Z",
+      "completed_at": "2026-01-25T17:53:44.875174000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

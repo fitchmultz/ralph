@@ -491,6 +491,51 @@ fn backfill_missing_fields_empty_now_skips() {
 }
 
 #[test]
+fn backfill_missing_fields_empty_new_task_ids_noops() {
+    let mut queue = QueueFile {
+        version: 1,
+        tasks: vec![task("RQ-0001")],
+    };
+    queue.tasks[0].request = None;
+    queue.tasks[0].created_at = None;
+    queue.tasks[0].updated_at = None;
+
+    backfill_missing_fields(&mut queue, &[], "default request", "2026-01-18T12:34:56Z");
+
+    assert_eq!(queue.tasks[0].request, None);
+    assert_eq!(queue.tasks[0].created_at, None);
+    assert_eq!(queue.tasks[0].updated_at, None);
+}
+
+#[test]
+fn backfill_missing_fields_handles_duplicate_new_task_ids() {
+    let mut queue = QueueFile {
+        version: 1,
+        tasks: vec![task("RQ-0001")],
+    };
+    queue.tasks[0].request = None;
+    queue.tasks[0].created_at = None;
+    queue.tasks[0].updated_at = None;
+
+    backfill_missing_fields(
+        &mut queue,
+        &["RQ-0001".to_string(), "RQ-0001".to_string()],
+        "default request",
+        "2026-01-18T12:34:56Z",
+    );
+
+    assert_eq!(queue.tasks[0].request, Some("default request".to_string()));
+    assert_eq!(
+        queue.tasks[0].created_at,
+        Some("2026-01-18T12:34:56Z".to_string())
+    );
+    assert_eq!(
+        queue.tasks[0].updated_at,
+        Some("2026-01-18T12:34:56Z".to_string())
+    );
+}
+
+#[test]
 fn sort_tasks_by_priority_descending_orders_high_first() {
     let mut queue = QueueFile {
         version: 1,

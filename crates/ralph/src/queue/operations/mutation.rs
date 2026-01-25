@@ -74,12 +74,13 @@ pub fn backfill_missing_fields(
     now_utc: &str,
 ) {
     let now = now_utc.trim();
-    if now.is_empty() {
+    if now.is_empty() || new_task_ids.is_empty() || queue.tasks.is_empty() {
         return;
     }
 
+    let new_task_set: HashSet<&str> = new_task_ids.iter().map(|id| id.as_str()).collect();
     for task in queue.tasks.iter_mut() {
-        if !new_task_ids.contains(&task.id.trim().to_string()) {
+        if !new_task_set.contains(task.id.trim()) {
             continue;
         }
 
