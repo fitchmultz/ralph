@@ -1,3 +1,5 @@
+//! Contract tests for queue stress handling and archive behavior.
+
 use anyhow::{Context, Result};
 use ralph::contracts::{QueueFile, Task, TaskStatus};
 use ralph::queue;

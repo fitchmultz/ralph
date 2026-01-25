@@ -4630,6 +4630,62 @@
       "completed_at": "2026-01-25T23:36:04.553834000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0268",
+      "status": "done",
+      "title": "Add module docstrings to integration tests missing file headers",
+      "priority": "medium",
+      "tags": [
+        "tests",
+        "docs",
+        "consistency"
+      ],
+      "scope": [
+        "crates/ralph/tests/doctor_contract_test.rs",
+        "crates/ralph/tests/lock_contention_integration_test.rs",
+        "crates/ralph/tests/run_cli_overrides_contract_test.rs",
+        "crates/ralph/tests/timeutil_test.rs",
+        "crates/ralph/tests/runutil_test.rs",
+        "crates/ralph/tests/git_repo_integration_test.rs",
+        "crates/ralph/tests/prompt_cmd_test.rs",
+        "crates/ralph/tests/fsutil_test.rs",
+        "crates/ralph/tests/safeguard_integration_test.rs",
+        "crates/ralph/tests/init_validation_test.rs",
+        "crates/ralph/tests/stale_lock_cleanup_test.rs",
+        "crates/ralph/tests/git_safety_test.rs",
+        "crates/ralph/tests/redaction_expansion_test.rs",
+        "crates/ralph/tests/config_test.rs",
+        "crates/ralph/tests/stress_queue_contract_test.rs",
+        "crates/ralph/tests/contracts_test.rs",
+        "crates/ralph/tests/scan_cmd_test.rs",
+        "crates/ralph/tests/gitutil_test.rs",
+        "crates/ralph/tests/makefile_ci_contract_test.rs"
+      ],
+      "evidence": [
+        "rg scan of crates/ralph/tests/*.rs shows 19 files where the first non-empty line does not start with //! (doctor_contract_test.rs, lock_contention_integration_test.rs, run_cli_overrides_contract_test.rs, timeutil_test.rs, runutil_test.rs, git_repo_integration_test.rs, prompt_cmd_test.rs, fsutil_test.rs, safeguard_integration_test.rs, init_validation_test.rs, stale_lock_cleanup_test.rs, git_safety_test.rs, redaction_expansion_test.rs, config_test.rs, stress_queue_contract_test.rs, contracts_test.rs, scan_cmd_test.rs, gitutil_test.rs, makefile_ci_contract_test.rs).",
+        "crates/ralph/tests/task_cmd_test.rs already starts with a //! module docstring, so it no longer needs header work."
+      ],
+      "plan": [
+        "Add a concise //! module-level docstring to each file listed in scope (convert existing // file headers to //! where present).",
+        "Keep docstrings consistent in tone and describe the test suite purpose in one sentence.",
+        "Run the existing test suite to confirm doc comment additions are non-breaking."
+      ],
+      "notes": [
+        "makefile_ci_contract_test.rs is newly identified as missing a module docstring; task_cmd_test.rs is already documented and removed from scope.",
+        "Added module-level docstrings to scoped integration test files.",
+        "Converted legacy // headers to //! where present.",
+        "No behavior changes; CI already green in Phase 2."
+      ],
+      "request": "scan finding",
+      "agent": {
+        "model_effort": "low"
+      },
+      "created_at": "2026-01-24T16:07:23.268929000Z",
+      "updated_at": "2026-01-25T23:39:46.046698000Z",
+      "completed_at": "2026-01-25T23:39:46.046698000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

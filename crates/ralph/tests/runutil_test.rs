@@ -1,4 +1,4 @@
-// runutil_test.rs - Unit tests for runutil.rs (execution loops, state transitions)
+//! Unit tests for runutil.rs (runner invocation and state transitions).
 
 use ralph::contracts::{ClaudePermissionMode, Model, ReasoningEffort, Runner};
 use ralph::runutil;

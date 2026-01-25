@@ -1,4 +1,4 @@
-// Integration tests for LLM output safeguarding.
+//! Integration tests for LLM output safeguarding.
 
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};

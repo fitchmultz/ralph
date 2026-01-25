@@ -1,4 +1,4 @@
-// fsutil_test.rs - Unit tests for fsutil.rs (file operations with proper error handling)
+//! Unit tests for fsutil.rs (file operations with proper error handling).
 
 use ralph::fsutil;
 use std::fs;

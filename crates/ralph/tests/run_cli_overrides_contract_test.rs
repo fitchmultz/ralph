@@ -1,3 +1,5 @@
+//! Contract tests for `ralph run` CLI override behavior.
+
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};

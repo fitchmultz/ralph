@@ -1,4 +1,4 @@
-// gitutil_test.rs - Unit tests for gitutil.rs (git operations, error cases, non-git directories)
+//! Unit tests for gitutil.rs (git operations, error cases, non-git directories).
 
 use ralph::gitutil;
 use std::fs;

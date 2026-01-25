@@ -1,4 +1,4 @@
-// Integration tests for Makefile CI contract.
+//! Integration tests for Makefile CI contract.
 
 use anyhow::{Context, Result};
 use std::process::Command;

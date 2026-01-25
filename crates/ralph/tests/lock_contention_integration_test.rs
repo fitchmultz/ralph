@@ -1,3 +1,5 @@
+//! Integration tests for lock contention handling and cleanup.
+
 use anyhow::{Context, Result};
 use ralph::{fsutil, queue};
 use std::io::{BufRead, BufReader, Write};

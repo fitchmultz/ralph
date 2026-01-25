@@ -1,3 +1,5 @@
+//! Unit tests for contracts defaults and config types.
+
 use ralph::contracts::{ClaudePermissionMode, Config, Model, ProjectType, ReasoningEffort, Runner};
 use std::path::PathBuf;
 

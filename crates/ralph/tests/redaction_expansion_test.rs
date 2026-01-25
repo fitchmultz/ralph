@@ -1,3 +1,5 @@
+//! Unit tests for redaction expansions and sensitive pattern masking.
+
 use ralph::redaction::redact_text;
 
 #[test]

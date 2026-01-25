@@ -1,4 +1,4 @@
-// timeutil_test.rs - Unit tests for timeutil.rs (timestamp parsing, formatting, edge cases)
+//! Unit tests for timeutil.rs (timestamp parsing, formatting, edge cases).
 
 use ralph::timeutil;
 use std::thread;

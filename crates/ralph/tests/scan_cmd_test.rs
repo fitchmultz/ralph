@@ -1,4 +1,4 @@
-// scan_cmd_test.rs - Unit tests for scan_cmd.rs (codebase scanning, focus filtering)
+//! Unit tests for scan_cmd.rs (codebase scanning, focus filtering).
 
 use ralph::contracts::{GitRevertMode, Model, Runner};
 use ralph::scan_cmd;

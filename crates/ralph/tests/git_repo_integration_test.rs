@@ -1,4 +1,4 @@
-// Integration tests for ralph CLI behavior against real git repositories.
+//! Integration tests for ralph CLI behavior against real git repositories.
 
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};

@@ -1,3 +1,5 @@
+//! Integration tests for stale lock cleanup behavior.
+
 use anyhow::{Context, Result};
 use ralph::fsutil;
 use std::fs;

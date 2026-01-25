@@ -1,4 +1,4 @@
-// config_test.rs - Unit tests for config.rs (config loading, merging, defaults, validation)
+//! Unit tests for config.rs (config loading, merging, defaults, validation).
 
 use ralph::config;
 use ralph::contracts::{

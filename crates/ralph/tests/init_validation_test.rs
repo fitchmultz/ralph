@@ -1,3 +1,5 @@
+//! Integration tests for init command validation and config wiring.
+
 use anyhow::Result;
 use ralph::config::Resolved;
 use ralph::contracts::Config;
