@@ -1,761 +1,675 @@
 {
-  "version": 1,
-  "tasks": [
-    {
-      "id": "RQ-0256",
-      "status": "todo",
-      "title": "Allow require_clean_repo_ignoring_paths to ignore directory prefixes",
-      "priority": "medium",
-      "tags": [
-        "git",
-        "run",
-        "ux"
-      ],
-      "scope": [
-        "crates/ralph/src/gitutil.rs",
-        "crates/ralph/src/run_cmd/phases.rs"
-      ],
-      "evidence": [
-        "crates/ralph/src/gitutil.rs: path_is_allowed only matches exact file paths.",
-        "crates/ralph/src/run_cmd/phases.rs: allowed paths are assembled for plan-only enforcement, but directory ignores are not supported."
-      ],
-      "plan": [
-        "Update path_is_allowed to treat allowed entries that end with '/' (or are directories) as prefix matches.",
-        "Add tests for nested paths under allowed directories.",
-        "Update callers (if needed) to pass directory prefixes for cache paths."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-24T12:40:25Z",
-      "updated_at": "2026-01-24T12:40:25Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
-      "id": "RQ-0255",
-      "status": "todo",
-      "title": "Fix prune keep-last logic to handle duplicate IDs (rejected tasks)",
-      "priority": "medium",
-      "tags": [
-        "queue",
-        "prune"
-      ],
-      "scope": [
-        "crates/ralph/src/queue/prune.rs",
-        "crates/ralph/src/queue/validation.rs"
-      ],
-      "evidence": [
-        "crates/ralph/src/queue/prune.rs: keep_last uses HashSet of task IDs to protect tasks.",
-        "crates/ralph/src/queue/validation.rs: rejected tasks are skipped in duplicate detection, allowing duplicate IDs.",
-        "keep_last currently can keep more than N tasks when IDs repeat."
-      ],
-      "plan": [
-        "Change keep_last protection to track task indices instead of IDs.",
-        "Add tests with duplicate IDs to ensure keep_last respects count.",
-        "Verify prune reports remain accurate after change."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-24T12:40:25Z",
-      "updated_at": "2026-01-24T12:40:25Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
-      "id": "RQ-0269",
-      "status": "todo",
-      "title": "Optimize queue backfill_missing_fields to avoid O(n^2) ID lookups",
-      "priority": "medium",
-      "tags": [
-        "queue",
-        "performance",
-        "refactor"
-      ],
-      "scope": [
-        "crates/ralph/src/queue/operations/mutation.rs"
-      ],
-      "evidence": [
-        "crates/ralph/src/queue/operations/mutation.rs: backfill_missing_fields loops all tasks and calls new_task_ids.contains(&task.id.trim().to_string()), which is O(n) per task and allocates on every iteration."
-      ],
-      "plan": [
-        "Convert new_task_ids into a HashSet<&str> (or HashSet<String>) once before the loop.",
-        "Avoid per-task string allocation by comparing trimmed &str where possible.",
-        "Add/adjust tests to cover backfill behavior with large task sets or duplicate IDs."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-24T16:07:23.268929000Z",
-      "updated_at": "2026-01-24T16:07:23.268929000Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
-      "id": "RQ-0257",
-      "status": "todo",
-      "title": "Fix burndown chart for zero-task windows and zero counts",
-      "priority": "medium",
-      "tags": [
-        "reports",
-        "ux"
-      ],
-      "scope": [
-        "crates/ralph/src/reports.rs",
-        "crates/ralph/tests/queue_stats_history_test.rs"
-      ],
-      "evidence": [
-        "crates/ralph/src/reports.rs: print_burndown uses bar_len.max(1) so zero counts still show a bar.",
-        "crates/ralph/src/reports.rs: max_count can be 0, leading to divide-by-zero/NaN in bar_len calculation."
-      ],
-      "plan": [
-        "Handle max_count == 0 with a clear message and early return.",
-        "Remove bar_len.max(1) so zero counts render as empty bars.",
-        "Add tests for empty/zero-task burndown output."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-24T12:40:25Z",
-      "updated_at": "2026-01-24T12:40:25Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
-      "id": "RQ-0258",
-      "status": "todo",
-      "title": "Add JSON output option for queue stats/history/burndown",
-      "priority": "medium",
-      "tags": [
-        "reports",
-        "cli",
-        "ux"
-      ],
-      "scope": [
-        "crates/ralph/src/cli/queue.rs",
-        "crates/ralph/src/reports.rs",
-        "docs/cli.md"
-      ],
-      "evidence": [
-        "crates/ralph/src/cli/queue.rs: QueueStatsArgs/QueueHistoryArgs/QueueBurndownArgs have no format option.",
-        "crates/ralph/src/reports.rs: report functions print text-only output."
-      ],
-      "plan": [
-        "Add --format (text|json) flags to stats/history/burndown CLI args.",
-        "Implement JSON structs/serialization in reports.rs.",
-        "Update docs and tests to cover JSON output."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-24T12:40:25Z",
-      "updated_at": "2026-01-24T12:40:25Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
-      "id": "RQ-0264",
-      "status": "todo",
-      "title": "Normalize tag casing in stats tag breakdown",
-      "priority": "low",
-      "tags": [
-        "reports",
-        "ux"
-      ],
-      "scope": [
-        "crates/ralph/src/reports.rs",
-        "crates/ralph/tests/queue_stats_history_test.rs"
-      ],
-      "evidence": [
-        "crates/ralph/src/reports.rs: print_stats lowercases tags for filtering but counts tags using original casing."
-      ],
-      "plan": [
-        "Normalize tags to lower-case when aggregating tag_counts.",
-        "Update any tests that assert tag breakdown output.",
-        "Ensure output remains stable for mixed-case tags."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-24T12:40:25Z",
-      "updated_at": "2026-01-24T12:40:25Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
-      "id": "RQ-0268",
-      "status": "todo",
-      "title": "Add module docstrings to integration tests missing file headers",
-      "priority": "medium",
-      "tags": [
-        "tests",
-        "docs",
-        "consistency"
-      ],
-      "scope": [
-        "crates/ralph/tests/doctor_contract_test.rs",
-        "crates/ralph/tests/lock_contention_integration_test.rs",
-        "crates/ralph/tests/run_cli_overrides_contract_test.rs",
-        "crates/ralph/tests/timeutil_test.rs",
-        "crates/ralph/tests/runutil_test.rs",
-        "crates/ralph/tests/task_cmd_test.rs",
-        "crates/ralph/tests/git_repo_integration_test.rs",
-        "crates/ralph/tests/prompt_cmd_test.rs",
-        "crates/ralph/tests/fsutil_test.rs",
-        "crates/ralph/tests/safeguard_integration_test.rs",
-        "crates/ralph/tests/init_validation_test.rs",
-        "crates/ralph/tests/stale_lock_cleanup_test.rs",
-        "crates/ralph/tests/git_safety_test.rs",
-        "crates/ralph/tests/redaction_expansion_test.rs",
-        "crates/ralph/tests/config_test.rs",
-        "crates/ralph/tests/stress_queue_contract_test.rs",
-        "crates/ralph/tests/contracts_test.rs",
-        "crates/ralph/tests/scan_cmd_test.rs",
-        "crates/ralph/tests/gitutil_test.rs"
-      ],
-      "evidence": [
-        "crates/ralph/tests/*.rs: 19 integration test files start without a module doc comment (e.g., crates/ralph/tests/doctor_contract_test.rs begins with `use ...`), violating the repo docstring requirement.",
-        "~/.codex/AGENTS.md: all code files must include a docstring explaining purpose."
-      ],
-      "plan": [
-        "Add a concise `//!` module-level docstring to each listed test file describing the test suite purpose.",
-        "Keep docstrings consistent in tone and scope across all test files.",
-        "Run the existing test suite to ensure the doc comment additions are non-breaking."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-24T16:07:23.268929000Z",
-      "updated_at": "2026-01-24T16:07:23.268929000Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
-      "id": "RQ-0270",
-      "status": "todo",
-      "title": "Decompose runner execution module into focused submodules",
-      "priority": "medium",
-      "tags": [
-        "runner",
-        "refactor",
-        "maintainability"
-      ],
-      "scope": [
-        "crates/ralph/src/runner/execution.rs",
-        "crates/ralph/src/runner/"
-      ],
-      "evidence": [
-        "crates/ralph/src/runner/execution.rs: 1501 lines (wc -l), combining process execution, streaming parsing, and response extraction.",
-        "crates/ralph/src/runner/execution.rs: contains in-file tests (`#[cfg(test)]` at line ~1177)."
-      ],
-      "plan": [
-        "Identify cohesive concerns (process spawn, stdout/stderr parsing, assistant response extraction).",
-        "Split into submodules (e.g., execution/process.rs, execution/stream.rs, execution/parse.rs) and re-export public APIs.",
-        "Move tests into a dedicated test module or integration test file and update imports."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-24T16:07:23.268929000Z",
-      "updated_at": "2026-01-24T16:07:23.268929000Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
-      "id": "RQ-0271",
-      "status": "todo",
-      "title": "Split run_cmd/phases.rs into per-phase modules",
-      "priority": "medium",
-      "tags": [
-        "run",
-        "refactor",
-        "maintainability"
-      ],
-      "scope": [
-        "crates/ralph/src/run_cmd/phases.rs",
-        "crates/ralph/src/run_cmd/"
-      ],
-      "evidence": [
-        "crates/ralph/src/run_cmd/phases.rs: 1127 lines (wc -l) covering Phase 1/2/3 orchestration and helper logic.",
-        "crates/ralph/src/run_cmd/phases.rs: in-file test module (`#[cfg(test)] mod tests`) with many #[test] cases around line ~700."
-      ],
-      "plan": [
-        "Extract phase-specific logic into modules (phase1.rs, phase2.rs, phase3.rs) under run_cmd/.",
-        "Move shared helpers into a dedicated module to avoid duplication.",
-        "Relocate tests into run_cmd/phases_tests.rs or crates/ralph/tests/run_cmd_phases_test.rs and update imports."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-24T16:07:23.268929000Z",
-      "updated_at": "2026-01-24T16:07:23.268929000Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
-      "id": "RQ-0249",
-      "status": "draft",
-      "title": "Allow rejected dependencies to unblock runnable tasks (or update docs/tests to match)",
-      "priority": "high",
-      "tags": [
-        "queue",
-        "dependencies",
-        "behavior"
-      ],
-      "scope": [
-        "crates/ralph/src/queue/operations/query.rs",
-        "crates/ralph/src/queue/operations/tests.rs",
-        "crates/ralph/src/cli/queue.rs"
-      ],
-      "evidence": [
-        "crates/ralph/src/cli/queue.rs: StatusArg::Rejected doc comment says dependents can proceed.",
-        "crates/ralph/src/queue/operations/query.rs: are_dependencies_met only treats TaskStatus::Done as satisfied.",
-        "crates/ralph/src/queue/operations/tests.rs: test_next_runnable_task_skips_rejected_dep asserts rejected dependency blocks."
-      ],
-      "plan": [
-        "Decide final dependency policy for rejected tasks (treat rejected as satisfied and undesired by the project owner).",
-        "Update are_dependencies_met and runnable selection logic to match the policy.",
-        "Adjust tests/docs to match the new behavior and run queue tests."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-24T12:40:25Z",
-      "updated_at": "2026-01-24T12:40:25Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
-      "id": "RQ-0281",
-      "status": "todo",
-      "title": "Move run_cmd.rs tests into a dedicated test module",
-      "priority": "medium",
-      "tags": [
-        "run",
-        "tests",
-        "refactor"
-      ],
-      "scope": [
-        "crates/ralph/src/run_cmd.rs",
-        "crates/ralph/src/run_cmd/"
-      ],
-      "evidence": [
-        "crates/ralph/src/run_cmd.rs: 470 lines (wc -l) with the command router plus in-file tests.",
-        "crates/ralph/src/run_cmd.rs: `#[cfg(test)]` block at line ~469."
-      ],
-      "plan": [
-        "Move run_cmd tests into a separate test module/file.",
-        "Keep run_cmd.rs focused on command parsing and dispatch.",
-        "Update any imports and ensure cargo test still covers the command router."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-24T16:07:23.268929000Z",
-      "updated_at": "2026-01-24T16:07:23.268929000Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
-      "id": "RQ-0282",
-      "status": "todo",
-      "title": "Move runutil.rs tests into a dedicated test module",
-      "priority": "medium",
-      "tags": [
-        "run",
-        "tests",
-        "refactor"
-      ],
-      "scope": [
-        "crates/ralph/src/runutil.rs",
-        "crates/ralph/src/"
-      ],
-      "evidence": [
-        "crates/ralph/src/runutil.rs: 539 lines (wc -l) with runtime helpers plus in-file tests.",
-        "crates/ralph/src/runutil.rs: `#[cfg(test)]` block at line ~381."
-      ],
-      "plan": [
-        "Extract runutil tests into a dedicated test module/file.",
-        "Retain only production helpers in runutil.rs.",
-        "Adjust module visibility as needed to keep tests compiling."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-24T16:07:23.268929000Z",
-      "updated_at": "2026-01-24T16:07:23.268929000Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
-      "id": "RQ-0279",
-      "status": "todo",
-      "title": "Refactor queue CLI module into subcommand files",
-      "priority": "medium",
-      "tags": [
-        "cli",
-        "refactor",
-        "maintainability"
-      ],
-      "scope": [
-        "crates/ralph/src/cli/queue.rs",
-        "crates/ralph/src/cli/"
-      ],
-      "evidence": [
-        "crates/ralph/src/cli/queue.rs: 699 lines (wc -l) defining multiple queue subcommands and their help text in a single module."
-      ],
-      "plan": [
-        "Split queue CLI subcommands into separate modules (e.g., queue/search.rs, queue/stats.rs, queue/repair.rs).",
-        "Re-export a small facade in queue/mod.rs to keep CLI wiring clear.",
-        "Move or adjust tests to match the new module structure."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-24T16:07:23.268929000Z",
-      "updated_at": "2026-01-24T16:07:23.268929000Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
-      "id": "RQ-0280",
-      "status": "todo",
-      "title": "Move queue validation tests out of validation.rs",
-      "priority": "medium",
-      "tags": [
-        "queue",
-        "tests",
-        "refactor"
-      ],
-      "scope": [
-        "crates/ralph/src/queue/validation.rs",
-        "crates/ralph/src/queue/"
-      ],
-      "evidence": [
-        "crates/ralph/src/queue/validation.rs: 560 lines (wc -l) with both validation logic and in-file tests.",
-        "crates/ralph/src/queue/validation.rs: `#[cfg(test)]` block at line ~363."
-      ],
-      "plan": [
-        "Extract validation tests into a dedicated test module or file.",
-        "Keep validation helpers in validation.rs and avoid test-only dependencies in production builds.",
-        "Update module wiring so tests are still compiled under #[cfg(test)]."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-24T16:07:23.268929000Z",
-      "updated_at": "2026-01-24T16:07:23.268929000Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
-      "id": "RQ-0275",
-      "status": "todo",
-      "title": "Split queue operation tests into smaller modules",
-      "priority": "medium",
-      "tags": [
-        "queue",
-        "tests",
-        "refactor"
-      ],
-      "scope": [
-        "crates/ralph/src/queue/operations/tests.rs",
-        "crates/ralph/src/queue/operations/"
-      ],
-      "evidence": [
-        "crates/ralph/src/queue/operations/tests.rs: 1078 lines (wc -l) covering many queue operations in one file."
-      ],
-      "plan": [
-        "Group tests by operation (archive, status, mutation, query) into separate test modules.",
-        "Extract shared fixtures/helpers into a common test util module.",
-        "Update mod.rs to include the new test modules under #[cfg(test)]."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-24T16:07:23.268929000Z",
-      "updated_at": "2026-01-24T16:07:23.268929000Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
-      "id": "RQ-0261",
-      "status": "todo",
-      "title": "Document full `ralph queue` subcommands in docs/cli.md",
-      "priority": "medium",
-      "tags": [
-        "docs",
-        "cli"
-      ],
-      "scope": [
-        "docs/cli.md",
-        "crates/ralph/src/cli/queue.rs"
-      ],
-      "evidence": [
-        "docs/cli.md queue section mentions validate/list/search only.",
-        "crates/ralph/src/cli/queue.rs defines prune/repair/unlock/sort/stats/history/burndown commands."
-      ],
-      "plan": [
-        "Add sections for prune/repair/unlock/sort/stats/history/burndown with brief descriptions.",
-        "Include examples aligned with CLI help output.",
-        "Review docs/cli.md for any other missing queue flags."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-24T12:40:25Z",
-      "updated_at": "2026-01-24T12:40:25Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
-      "id": "RQ-0262",
-      "status": "todo",
-      "title": "Document --include-draft for run one/loop in docs/cli.md",
-      "priority": "medium",
-      "tags": [
-        "docs",
-        "run"
-      ],
-      "scope": [
-        "docs/cli.md",
-        "crates/ralph/src/cli/run.rs"
-      ],
-      "evidence": [
-        "docs/cli.md run section does not mention --include-draft.",
-        "crates/ralph/src/cli/run.rs help/examples include --include-draft."
-      ],
-      "plan": [
-        "Add --include-draft description to run documentation.",
-        "Add example commands for run one/loop with draft inclusion.",
-        "Ensure docs match CLI help wording."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-24T12:40:25Z",
-      "updated_at": "2026-01-24T12:40:25Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
-      "id": "RQ-0263",
-      "status": "todo",
-      "title": "Clarify --force behavior for dirty-repo bypass in run/scan",
-      "priority": "medium",
-      "tags": [
-        "docs",
-        "safety"
-      ],
-      "scope": [
-        "docs/cli.md",
-        "crates/ralph/src/run_cmd.rs",
-        "crates/ralph/src/scan_cmd.rs"
-      ],
-      "evidence": [
-        "docs/cli.md describes --force only for stale locks.",
-        "crates/ralph/src/run_cmd.rs and crates/ralph/src/scan_cmd.rs pass force to require_clean_repo_ignoring_paths."
-      ],
-      "plan": [
-        "Update docs/cli.md to note --force bypasses clean-repo checks for run/scan.",
-        "Consider adding a warning note in CLI help text.",
-        "Verify documentation aligns with actual behavior."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-24T12:40:25Z",
-      "updated_at": "2026-01-24T12:40:25Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
-      "id": "RQ-0272",
-      "status": "todo",
-      "title": "Refactor TUI core module to reduce responsibilities",
-      "priority": "medium",
-      "tags": [
-        "tui",
-        "refactor",
-        "maintainability"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/mod.rs",
-        "crates/ralph/src/tui/"
-      ],
-      "evidence": [
-        "crates/ralph/src/tui/mod.rs: 2943 lines (wc -l) combining state models, command palette, IO, queue edits, and runtime execution.",
-        "crates/ralph/src/tui/mod.rs: in-file tests (`#[cfg(test)]` at line ~2382).",
-        "crates/ralph/src/tui/mod.rs doc header lists many features (queue browsing, editing, execution, loop, archive, palette), indicating multiple responsibilities in one file."
-      ],
-      "plan": [
-        "Identify cohesive sections (state models, queue IO, command palette/actions, execution view).",
-        "Split into submodules (e.g., state.rs, actions.rs, persistence.rs, palette.rs) and re-export the public API from mod.rs.",
-        "Move tests to a dedicated test module or integration tests and update paths."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-24T16:07:23.268929000Z",
-      "updated_at": "2026-01-24T16:07:23.268929000Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
-      "id": "RQ-0273",
-      "status": "todo",
-      "title": "Split TUI event handling into focused modules",
-      "priority": "medium",
-      "tags": [
-        "tui",
-        "refactor",
-        "maintainability"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/events.rs",
-        "crates/ralph/src/tui/"
-      ],
-      "evidence": [
-        "crates/ralph/src/tui/events.rs: 1827 lines (wc -l) handling keyboard events across multiple modes.",
-        "crates/ralph/src/tui/events.rs: in-file tests (`#[cfg(test)]` at line ~1097)."
-      ],
-      "plan": [
-        "Partition handlers by app mode (normal list, command palette, edit/config, scan/run modes).",
-        "Move each mode handler into its own module and route through a small dispatcher.",
-        "Move tests to a dedicated test module and update imports."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-24T16:07:23.268929000Z",
-      "updated_at": "2026-01-24T16:07:23.268929000Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
-      "id": "RQ-0274",
-      "status": "todo",
-      "title": "Split TUI rendering into component modules",
-      "priority": "medium",
-      "tags": [
-        "tui",
-        "refactor",
-        "maintainability"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/render.rs",
-        "crates/ralph/src/tui/"
-      ],
-      "evidence": [
-        "crates/ralph/src/tui/render.rs: 1706 lines (wc -l) containing all render logic.",
-        "crates/ralph/src/tui/render.rs: in-file tests (`#[cfg(test)]` at line ~1599)."
-      ],
-      "plan": [
-        "Extract rendering for major panels (task list, details, logs, overlays) into separate modules.",
-        "Keep a thin draw_ui wrapper that assembles components.",
-        "Move rendering tests into a dedicated test module and update imports."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-24T16:07:23.268929000Z",
-      "updated_at": "2026-01-24T16:07:23.268929000Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
-      "id": "RQ-0276",
-      "status": "todo",
-      "title": "Split TUI contract tests into scenario-focused files",
-      "priority": "medium",
-      "tags": [
-        "tui",
-        "tests",
-        "refactor"
-      ],
-      "scope": [
-        "crates/ralph/tests/tui_contract_test.rs",
-        "crates/ralph/tests/"
-      ],
-      "evidence": [
-        "crates/ralph/tests/tui_contract_test.rs: 976 lines (wc -l) containing multiple TUI behaviors in one integration test file."
-      ],
-      "plan": [
-        "Break the contract tests into multiple files by feature area (search, edit, archive, loop, etc.).",
-        "Move shared setup helpers into a common test util module.",
-        "Ensure cargo test still discovers all split test files."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-24T16:07:23.268929000Z",
-      "updated_at": "2026-01-24T16:07:23.268929000Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
-      "id": "RQ-0277",
-      "status": "todo",
-      "title": "Split TUI rendering tests into smaller files",
-      "priority": "medium",
-      "tags": [
-        "tui",
-        "tests",
-        "refactor"
-      ],
-      "scope": [
-        "crates/ralph/tests/tui_rendering_test.rs",
-        "crates/ralph/tests/"
-      ],
-      "evidence": [
-        "crates/ralph/tests/tui_rendering_test.rs: 886 lines (wc -l) with multiple rendering scenarios."
-      ],
-      "plan": [
-        "Split rendering tests by component/overlay into separate test files.",
-        "Extract shared render harness into a helper module.",
-        "Run rendering tests to confirm behavior remains unchanged."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-24T16:07:23.268929000Z",
-      "updated_at": "2026-01-24T16:07:23.268929000Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
-      "id": "RQ-0278",
-      "status": "todo",
-      "title": "Refactor git_repo_integration_test.rs into smaller scenario tests",
-      "priority": "medium",
-      "tags": [
-        "git",
-        "tests",
-        "refactor"
-      ],
-      "scope": [
-        "crates/ralph/tests/git_repo_integration_test.rs",
-        "crates/ralph/tests/"
-      ],
-      "evidence": [
-        "crates/ralph/tests/git_repo_integration_test.rs: 766 lines (wc -l) combining multiple git repo scenarios and helpers."
-      ],
-      "plan": [
-        "Split git repo integration tests by scenario into multiple files.",
-        "Move shared repo setup helpers into a common test util module.",
-        "Ensure test coverage remains the same after file split."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-24T16:07:23.268929000Z",
-      "updated_at": "2026-01-24T16:07:23.268929000Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
-      "id": "RQ-0266",
-      "status": "todo",
-      "title": "Make reordering tasks in the queue easier by adding functionality to the TUI",
-      "priority": "medium",
-      "tags": [
-        "tui",
-        "tasks",
-        "queue"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/mod.rs"
-      ],
-      "evidence": [
-        "crates/ralph/src/tui/mod.rs: TUI does not have a way to reorder tasks in the queue."
-      ],
-      "plan": [
-        "Add a TUI action that allows the user to reorder tasks in the queue.",
-        "Add tests covering successful task reordering and validation/error cases for the new TUI action.",
-        "Task order is determined top-down from the queue.json file. Move tasks around easily via arrow keys."
-      ],
-      "notes": [],
-      "created_at": "2026-01-24T15:39:45.873331000Z",
-      "updated_at": "2026-01-24T15:39:45.873331000Z",
-      "depends_on": [],
-      "custom_fields": {}
-    }
-  ]
+	"version": 1,
+	"tasks": [
+		{
+			"id": "RQ-0289",
+			"status": "todo",
+			"title": "Add debug mode logging to .ralph/logs/debug.log",
+			"priority": "medium",
+			"tags": ["debug", "logging", "run", "cli"],
+			"scope": [
+				"crates/ralph/src/cli/run.rs",
+				"crates/ralph/src/run_cmd.rs",
+				"crates/ralph/src/runner/execution.rs",
+				"crates/ralph/src/run_cmd/phases.rs",
+				"docs/cli.md"
+			],
+			"evidence": [
+				"User request: Add a debug mode that logs raw outputs to .ralph/logs/debug.log to make it easier to debug issues.",
+				"User request: Do not sanitize anything in this debug log mode as it is written to the log.",
+				"User request: Make sure we capture everything from both the ralph loop and the agent runners.",
+				"User request: Do not modify the output shown to the user, just capture the debug verbosity in the log file.",
+				"User request example: 'ralph run loop --max-tasks 1 --debug' would log the output to the file."
+			],
+			"plan": [
+				"Add --debug CLI flag to run commands (run one, run loop).",
+				"Create .ralph/logs/ directory and debug.log file writer infrastructure.",
+				"Capture raw stdout/stderr from runner execution to debug.log when --debug is enabled.",
+				"Capture raw output from ralph loop phases to debug.log when --debug is enabled.",
+				"Ensure user-visible output remains unchanged (debug log is separate from user output).",
+				"Add tests for debug logging functionality.",
+				"Update docs/cli.md with --debug flag documentation and examples."
+			],
+			"notes": [],
+			"request": "Add a debug mode that logs raw outputs to .ralph/logs/debug.log to make it easier to debug issues. Do not sanitize anything in this debug log mode as it is written to the log. Make sure we capture everything from both the ralph loop and the agent runners. Do not modify the output shown to the user, just capture the debug verbosity in the log file. e.g. 'ralph run loop --max-tasks 1 --debug' would log the output to the file.",
+			"created_at": "2026-01-25T16:33:36Z",
+			"updated_at": "2026-01-25T16:33:36Z",
+			"depends_on": [],
+			"custom_fields": {}
+		},
+		{
+			"id": "RQ-0256",
+			"status": "todo",
+			"title": "Allow require_clean_repo_ignoring_paths to ignore directory prefixes",
+			"priority": "medium",
+			"tags": ["git", "run", "ux"],
+			"scope": [
+				"crates/ralph/src/gitutil.rs",
+				"crates/ralph/src/run_cmd/phases.rs"
+			],
+			"evidence": [
+				"crates/ralph/src/gitutil.rs: path_is_allowed only matches exact file paths.",
+				"crates/ralph/src/run_cmd/phases.rs: allowed paths are assembled for plan-only enforcement, but directory ignores are not supported."
+			],
+			"plan": [
+				"Update path_is_allowed to treat allowed entries that end with '/' (or are directories) as prefix matches.",
+				"Add tests for nested paths under allowed directories.",
+				"Update callers (if needed) to pass directory prefixes for cache paths."
+			],
+			"notes": [],
+			"request": "scan finding",
+			"created_at": "2026-01-24T12:40:25Z",
+			"updated_at": "2026-01-24T12:40:25Z",
+			"depends_on": [],
+			"custom_fields": {}
+		},
+		{
+			"id": "RQ-0255",
+			"status": "todo",
+			"title": "Fix prune keep-last logic to handle duplicate IDs (rejected tasks)",
+			"priority": "medium",
+			"tags": ["queue", "prune"],
+			"scope": [
+				"crates/ralph/src/queue/prune.rs",
+				"crates/ralph/src/queue/validation.rs"
+			],
+			"evidence": [
+				"crates/ralph/src/queue/prune.rs: keep_last uses HashSet of task IDs to protect tasks.",
+				"crates/ralph/src/queue/validation.rs: rejected tasks are skipped in duplicate detection, allowing duplicate IDs.",
+				"keep_last currently can keep more than N tasks when IDs repeat."
+			],
+			"plan": [
+				"Change keep_last protection to track task indices instead of IDs.",
+				"Add tests with duplicate IDs to ensure keep_last respects count.",
+				"Verify prune reports remain accurate after change."
+			],
+			"notes": [],
+			"request": "scan finding",
+			"created_at": "2026-01-24T12:40:25Z",
+			"updated_at": "2026-01-24T12:40:25Z",
+			"depends_on": [],
+			"custom_fields": {}
+		},
+		{
+			"id": "RQ-0269",
+			"status": "todo",
+			"title": "Optimize queue backfill_missing_fields to avoid O(n^2) ID lookups",
+			"priority": "medium",
+			"tags": ["queue", "performance", "refactor"],
+			"scope": ["crates/ralph/src/queue/operations/mutation.rs"],
+			"evidence": [
+				"crates/ralph/src/queue/operations/mutation.rs: backfill_missing_fields loops all tasks and calls new_task_ids.contains(&task.id.trim().to_string()), which is O(n) per task and allocates on every iteration."
+			],
+			"plan": [
+				"Convert new_task_ids into a HashSet<&str> (or HashSet<String>) once before the loop.",
+				"Avoid per-task string allocation by comparing trimmed &str where possible.",
+				"Add/adjust tests to cover backfill behavior with large task sets or duplicate IDs."
+			],
+			"notes": [],
+			"request": "scan finding",
+			"created_at": "2026-01-24T16:07:23.268929000Z",
+			"updated_at": "2026-01-24T16:07:23.268929000Z",
+			"depends_on": [],
+			"custom_fields": {}
+		},
+		{
+			"id": "RQ-0257",
+			"status": "todo",
+			"title": "Fix burndown chart for zero-task windows and zero counts",
+			"priority": "medium",
+			"tags": ["reports", "ux"],
+			"scope": [
+				"crates/ralph/src/reports.rs",
+				"crates/ralph/tests/queue_stats_history_test.rs"
+			],
+			"evidence": [
+				"crates/ralph/src/reports.rs: print_burndown uses bar_len.max(1) so zero counts still show a bar.",
+				"crates/ralph/src/reports.rs: max_count can be 0, leading to divide-by-zero/NaN in bar_len calculation."
+			],
+			"plan": [
+				"Handle max_count == 0 with a clear message and early return.",
+				"Remove bar_len.max(1) so zero counts render as empty bars.",
+				"Add tests for empty/zero-task burndown output."
+			],
+			"notes": [],
+			"request": "scan finding",
+			"created_at": "2026-01-24T12:40:25Z",
+			"updated_at": "2026-01-24T12:40:25Z",
+			"depends_on": [],
+			"custom_fields": {}
+		},
+		{
+			"id": "RQ-0258",
+			"status": "todo",
+			"title": "Add JSON output option for queue stats/history/burndown",
+			"priority": "medium",
+			"tags": ["reports", "cli", "ux"],
+			"scope": [
+				"crates/ralph/src/cli/queue.rs",
+				"crates/ralph/src/reports.rs",
+				"docs/cli.md"
+			],
+			"evidence": [
+				"crates/ralph/src/cli/queue.rs: QueueStatsArgs/QueueHistoryArgs/QueueBurndownArgs have no format option.",
+				"crates/ralph/src/reports.rs: report functions print text-only output."
+			],
+			"plan": [
+				"Add --format (text|json) flags to stats/history/burndown CLI args.",
+				"Implement JSON structs/serialization in reports.rs.",
+				"Update docs and tests to cover JSON output."
+			],
+			"notes": [],
+			"request": "scan finding",
+			"created_at": "2026-01-24T12:40:25Z",
+			"updated_at": "2026-01-24T12:40:25Z",
+			"depends_on": [],
+			"custom_fields": {}
+		},
+		{
+			"id": "RQ-0264",
+			"status": "todo",
+			"title": "Normalize tag casing in stats tag breakdown",
+			"priority": "low",
+			"tags": ["reports", "ux"],
+			"scope": [
+				"crates/ralph/src/reports.rs",
+				"crates/ralph/tests/queue_stats_history_test.rs"
+			],
+			"evidence": [
+				"crates/ralph/src/reports.rs: print_stats lowercases tags for filtering but counts tags using original casing."
+			],
+			"plan": [
+				"Normalize tags to lower-case when aggregating tag_counts.",
+				"Update any tests that assert tag breakdown output.",
+				"Ensure output remains stable for mixed-case tags."
+			],
+			"notes": [],
+			"request": "scan finding",
+			"created_at": "2026-01-24T12:40:25Z",
+			"updated_at": "2026-01-24T12:40:25Z",
+			"depends_on": [],
+			"custom_fields": {}
+		},
+		{
+			"id": "RQ-0268",
+			"status": "todo",
+			"title": "Add module docstrings to integration tests missing file headers",
+			"priority": "medium",
+			"tags": ["tests", "docs", "consistency"],
+			"scope": [
+				"crates/ralph/tests/doctor_contract_test.rs",
+				"crates/ralph/tests/lock_contention_integration_test.rs",
+				"crates/ralph/tests/run_cli_overrides_contract_test.rs",
+				"crates/ralph/tests/timeutil_test.rs",
+				"crates/ralph/tests/runutil_test.rs",
+				"crates/ralph/tests/task_cmd_test.rs",
+				"crates/ralph/tests/git_repo_integration_test.rs",
+				"crates/ralph/tests/prompt_cmd_test.rs",
+				"crates/ralph/tests/fsutil_test.rs",
+				"crates/ralph/tests/safeguard_integration_test.rs",
+				"crates/ralph/tests/init_validation_test.rs",
+				"crates/ralph/tests/stale_lock_cleanup_test.rs",
+				"crates/ralph/tests/git_safety_test.rs",
+				"crates/ralph/tests/redaction_expansion_test.rs",
+				"crates/ralph/tests/config_test.rs",
+				"crates/ralph/tests/stress_queue_contract_test.rs",
+				"crates/ralph/tests/contracts_test.rs",
+				"crates/ralph/tests/scan_cmd_test.rs",
+				"crates/ralph/tests/gitutil_test.rs"
+			],
+			"evidence": [
+				"crates/ralph/tests/*.rs: 19 integration test files start without a module doc comment (e.g., crates/ralph/tests/doctor_contract_test.rs begins with `use ...`), violating the repo docstring requirement.",
+				"~/.codex/AGENTS.md: all code files must include a docstring explaining purpose."
+			],
+			"plan": [
+				"Add a concise `//!` module-level docstring to each listed test file describing the test suite purpose.",
+				"Keep docstrings consistent in tone and scope across all test files.",
+				"Run existing test suite to ensure that doc comment additions are non-breaking."
+			],
+			"notes": [],
+			"request": "scan finding",
+			"created_at": "2026-01-24T16:07:23.268929000Z",
+			"updated_at": "2026-01-24T16:07:23.268929000Z",
+			"depends_on": [],
+			"custom_fields": {}
+		},
+		{
+			"id": "RQ-0270",
+			"status": "todo",
+			"title": "Decompose runner execution module into focused submodules",
+			"priority": "medium",
+			"tags": ["runner", "refactor", "maintainability"],
+			"scope": [
+				"crates/ralph/src/runner/execution.rs",
+				"crates/ralph/src/runner/"
+			],
+			"evidence": [
+				"crates/ralph/src/runner/execution.rs: 1501 lines (wc -l), combining process execution, streaming parsing, and response extraction.",
+				"crates/ralph/src/runner/execution.rs: contains in-file tests (`#[cfg(test)]` at line ~1177)."
+			],
+			"plan": [
+				"Identify cohesive concerns (process spawn, stdout/stderr parsing, assistant response extraction).",
+				"Split into submodules (e.g., execution/process.rs, execution/stream.rs, execution/parse.rs) and re-export public APIs.",
+				"Move tests into a dedicated test module or integration test file and update imports."
+			],
+			"notes": [],
+			"request": "scan finding",
+			"created_at": "2026-01-24T16:07:23.268929000Z",
+			"updated_at": "2026-01-24T16:07:23.268929000Z",
+			"depends_on": [],
+			"custom_fields": {}
+		},
+		{
+			"id": "RQ-0271",
+			"status": "todo",
+			"title": "Split run_cmd/phases.rs into per-phase modules",
+			"priority": "medium",
+			"tags": ["run", "refactor", "maintainability"],
+			"scope": [
+				"crates/ralph/src/run_cmd/phases.rs",
+				"crates/ralph/src/run_cmd/"
+			],
+			"evidence": [
+				"crates/ralph/src/run_cmd/phases.rs: 1127 lines (wc -l) covering Phase 1/2/3 orchestration and helper logic.",
+				"crates/ralph/src/run_cmd/phases.rs: in-file test module (`#[cfg(test)] mod tests`) with many #[test] cases around line ~700."
+			],
+			"plan": [
+				"Extract phase-specific logic into modules (phase1.rs, phase2.rs, phase3.rs) under run_cmd/.",
+				"Move shared helpers into a dedicated module to avoid duplication.",
+				"Relocate tests into run_cmd/phases_tests.rs or crates/ralph/tests/run_cmd_phases_test.rs and update imports."
+			],
+			"notes": [],
+			"request": "scan finding",
+			"created_at": "2026-01-24T16:07:23.268929000Z",
+			"updated_at": "2026-01-24T16:07:23.268929000Z",
+			"depends_on": [],
+			"custom_fields": {}
+		},
+		{
+			"id": "RQ-0249",
+			"status": "draft",
+			"title": "Allow rejected dependencies to unblock runnable tasks (or update docs/tests to match)",
+			"priority": "high",
+			"tags": ["queue", "dependencies", "behavior"],
+			"scope": [
+				"crates/ralph/src/queue/operations/query.rs",
+				"crates/ralph/src/queue/operations/tests.rs",
+				"crates/ralph/src/cli/queue.rs"
+			],
+			"evidence": [
+				"crates/ralph/src/cli/queue.rs: StatusArg::Rejected doc comment says dependents can proceed.",
+				"crates/ralph/src/queue/operations/query.rs: are_dependencies_met only treats TaskStatus::Done as satisfied.",
+				"crates/ralph/src/queue/operations/tests.rs: test_next_runnable_task_skips_rejected_dep asserts rejected dependency blocks."
+			],
+			"plan": [
+				"Decide final dependency policy for rejected tasks (treat rejected as satisfied and undesired by the project owner).",
+				"Update are_dependencies_met and runnable selection logic to match policy.",
+				"Adjust tests/docs to match the new behavior and run queue tests."
+			],
+			"notes": [],
+			"request": "scan finding",
+			"created_at": "2026-01-24T12:40:25Z",
+			"updated_at": "2026-01-24T12:40:25Z",
+			"depends_on": [],
+			"custom_fields": {}
+		},
+		{
+			"id": "RQ-0281",
+			"status": "todo",
+			"title": "Move run_cmd.rs tests into a dedicated test module",
+			"priority": "medium",
+			"tags": ["run", "tests", "refactor"],
+			"scope": ["crates/ralph/src/run_cmd.rs", "crates/ralph/src/run_cmd/"],
+			"evidence": [
+				"crates/ralph/src/run_cmd.rs: 470 lines (wc -l) with command router plus in-file tests.",
+				"crates/ralph/src/run_cmd.rs: `#[cfg(test)]` block at line ~469."
+			],
+			"plan": [
+				"Move run_cmd tests into a separate test module/file.",
+				"Keep run_cmd.rs focused on command parsing and dispatch.",
+				"Update any imports and ensure cargo test still covers command router."
+			],
+			"notes": [],
+			"request": "scan finding",
+			"created_at": "2026-01-24T16:07:23.268929000Z",
+			"updated_at": "2026-01-24T16:07:23.268929000Z",
+			"depends_on": [],
+			"custom_fields": {}
+		},
+		{
+			"id": "RQ-0282",
+			"status": "todo",
+			"title": "Move runutil.rs tests into a dedicated test module",
+			"priority": "medium",
+			"tags": ["run", "tests", "refactor"],
+			"scope": ["crates/ralph/src/runutil.rs", "crates/ralph/src/"],
+			"evidence": [
+				"crates/ralph/src/runutil.rs: 539 lines (wc -l) with runtime helpers plus in-file tests.",
+				"crates/ralph/src/runutil.rs: `#[cfg(test)]` block at line ~381."
+			],
+			"plan": [
+				"Extract runutil tests into a dedicated test module/file.",
+				"Retain only production helpers in runutil.rs.",
+				"Adjust module visibility as needed to keep tests compiling."
+			],
+			"notes": [],
+			"request": "scan finding",
+			"created_at": "2026-01-24T16:07:23.268929000Z",
+			"updated_at": "2026-01-24T16:07:23.268929000Z",
+			"depends_on": [],
+			"custom_fields": {}
+		},
+		{
+			"id": "RQ-0279",
+			"status": "todo",
+			"title": "Refactor queue CLI module into subcommand files",
+			"priority": "medium",
+			"tags": ["cli", "refactor", "maintainability"],
+			"scope": ["crates/ralph/src/cli/queue.rs", "crates/ralph/src/cli/"],
+			"evidence": [
+				"crates/ralph/src/cli/queue.rs: 699 lines (wc -l) defining multiple queue subcommands and their help text in a single module."
+			],
+			"plan": [
+				"Split queue CLI subcommands into separate modules (e.g., queue/search.rs, queue/stats.rs, queue/repair.rs).",
+				"Re-export a small facade in queue/mod.rs to keep CLI wiring clear.",
+				"Move or adjust tests to match the new module structure."
+			],
+			"notes": [],
+			"request": "scan finding",
+			"created_at": "2026-01-24T16:07:23.268929000Z",
+			"updated_at": "2026-01-24T16:07:23.268929000Z",
+			"depends_on": [],
+			"custom_fields": {}
+		},
+		{
+			"id": "RQ-0280",
+			"status": "todo",
+			"title": "Move queue validation tests out of validation.rs",
+			"priority": "medium",
+			"tags": ["queue", "tests", "refactor"],
+			"scope": [
+				"crates/ralph/src/queue/validation.rs",
+				"crates/ralph/src/queue/"
+			],
+			"evidence": [
+				"crates/ralph/src/queue/validation.rs: 560 lines (wc -l) with both validation logic and in-file tests.",
+				"crates/ralph/src/queue/validation.rs: `#[cfg(test)]` block at line ~363."
+			],
+			"plan": [
+				"Extract validation tests into a dedicated test module or file.",
+				"Keep validation helpers in validation.rs and avoid test-only dependencies in production builds.",
+				"Update module wiring so tests are still compiled under #[cfg(test)]."
+			],
+			"notes": [],
+			"request": "scan finding",
+			"created_at": "2026-01-24T16:07:23.268929000Z",
+			"updated_at": "2026-01-24T16:07:23.268929000Z",
+			"depends_on": [],
+			"custom_fields": {}
+		},
+		{
+			"id": "RQ-0275",
+			"status": "todo",
+			"title": "Split queue operation tests into smaller modules",
+			"priority": "medium",
+			"tags": ["queue", "tests", "refactor"],
+			"scope": [
+				"crates/ralph/src/queue/operations/tests.rs",
+				"crates/ralph/src/queue/operations/"
+			],
+			"evidence": [
+				"crates/ralph/src/queue/operations/tests.rs: 1078 lines (wc -l) covering many queue operations in one file."
+			],
+			"plan": [
+				"Group tests by operation (archive, status, mutation, query) into separate test modules.",
+				"Extract shared fixtures/helpers into a common test util module.",
+				"Update mod.rs to include the new test modules under #[cfg(test)]."
+			],
+			"notes": [],
+			"request": "scan finding",
+			"created_at": "2026-01-24T16:07:23.268929000Z",
+			"updated_at": "2026-01-24T16:07:23.268929000Z",
+			"depends_on": [],
+			"custom_fields": {}
+		},
+		{
+			"id": "RQ-0261",
+			"status": "todo",
+			"title": "Document full `ralph queue` subcommands in docs/cli.md",
+			"priority": "medium",
+			"tags": ["docs", "cli"],
+			"scope": ["docs/cli.md", "crates/ralph/src/cli/queue.rs"],
+			"evidence": [
+				"docs/cli.md queue section mentions validate/list/search only.",
+				"crates/ralph/src/cli/queue.rs defines prune/repair/unlock/sort/stats/history/burndown commands."
+			],
+			"plan": [
+				"Add sections for prune/repair/unlock/sort/stats/history/burndown with brief descriptions.",
+				"Include examples aligned with CLI help output.",
+				"Review docs/cli.md for any other missing queue flags."
+			],
+			"notes": [],
+			"request": "scan finding",
+			"created_at": "2026-01-24T12:40:25Z",
+			"updated_at": "2026-01-24T12:40:25Z",
+			"depends_on": [],
+			"custom_fields": {}
+		},
+		{
+			"id": "RQ-0262",
+			"status": "todo",
+			"title": "Document --include-draft for run one/loop in docs/cli.md",
+			"priority": "medium",
+			"tags": ["docs", "run"],
+			"scope": ["docs/cli.md", "crates/ralph/src/cli/run.rs"],
+			"evidence": [
+				"docs/cli.md run section does not mention --include-draft.",
+				"crates/ralph/src/cli/run.rs help/examples include --include-draft."
+			],
+			"plan": [
+				"Add --include-draft description to run documentation.",
+				"Add example commands for run one/loop with draft inclusion.",
+				"Ensure docs match CLI help wording."
+			],
+			"notes": [],
+			"request": "scan finding",
+			"created_at": "2026-01-24T12:40:25Z",
+			"updated_at": "2026-01-24T12:40:25Z",
+			"depends_on": [],
+			"custom_fields": {}
+		},
+		{
+			"id": "RQ-0263",
+			"status": "todo",
+			"title": "Clarify --force behavior for dirty-repo bypass in run/scan",
+			"priority": "medium",
+			"tags": ["docs", "safety"],
+			"scope": [
+				"docs/cli.md",
+				"crates/ralph/src/run_cmd.rs",
+				"crates/ralph/src/scan_cmd.rs"
+			],
+			"evidence": [
+				"docs/cli.md describes --force only for stale locks.",
+				"crates/ralph/src/run_cmd.rs and crates/ralph/src/scan_cmd.rs pass force to require_clean_repo_ignoring_paths."
+			],
+			"plan": [
+				"Update docs/cli.md to note --force bypasses clean-repo checks for run/scan.",
+				"Consider adding a warning note in CLI help text.",
+				"Verify documentation aligns with actual behavior."
+			],
+			"notes": [],
+			"request": "scan finding",
+			"created_at": "2026-01-24T12:40:25Z",
+			"updated_at": "2026-01-24T12:40:25Z",
+			"depends_on": [],
+			"custom_fields": {}
+		},
+		{
+			"id": "RQ-0272",
+			"status": "todo",
+			"title": "Refactor TUI core module to reduce responsibilities",
+			"priority": "medium",
+			"tags": ["tui", "refactor", "maintainability"],
+			"scope": ["crates/ralph/src/tui/mod.rs", "crates/ralph/src/tui/"],
+			"evidence": [
+				"crates/ralph/src/tui/mod.rs: 2943 lines (wc -l) combining state models, command palette, IO, queue edits, and runtime execution.",
+				"crates/ralph/src/tui/mod.rs: in-file tests (`#[cfg(test)]` at line ~2382).",
+				"crates/ralph/src/tui/mod.rs doc header lists many features (queue browsing, editing, execution, loop, archive, palette), indicating multiple responsibilities in one file."
+			],
+			"plan": [
+				"Identify cohesive sections (state models, queue IO, command palette/actions, execution view).",
+				"Split into submodules (e.g., state.rs, actions.rs, persistence.rs, palette.rs) and re-export public API from mod.rs.",
+				"Move tests to a dedicated test module or integration tests and update paths."
+			],
+			"notes": [],
+			"request": "scan finding",
+			"created_at": "2026-01-24T16:07:23.268929000Z",
+			"updated_at": "2026-01-24T16:07:23.268929000Z",
+			"depends_on": [],
+			"custom_fields": {}
+		},
+		{
+			"id": "RQ-0273",
+			"status": "todo",
+			"title": "Split TUI event handling into focused modules",
+			"priority": "medium",
+			"tags": ["tui", "refactor", "maintainability"],
+			"scope": ["crates/ralph/src/tui/events.rs", "crates/ralph/src/tui/"],
+			"evidence": [
+				"crates/ralph/src/tui/events.rs: 1827 lines (wc -l) handling keyboard events across multiple modes.",
+				"crates/ralph/src/tui/events.rs: in-file tests (`#[cfg(test)]` at line ~1097)."
+			],
+			"plan": [
+				"Partition handlers by app mode (normal list, command palette, edit/config, scan/run modes).",
+				"Move each mode handler into its own module and route through a small dispatcher.",
+				"Move tests to a dedicated test module and update imports."
+			],
+			"notes": [],
+			"request": "scan finding",
+			"created_at": "2026-01-24T16:07:23.268929000Z",
+			"updated_at": "2026-01-24T16:07:23.268929000Z",
+			"depends_on": [],
+			"custom_fields": {}
+		},
+		{
+			"id": "RQ-0274",
+			"status": "todo",
+			"title": "Split TUI rendering into component modules",
+			"priority": "medium",
+			"tags": ["tui", "refactor", "maintainability"],
+			"scope": ["crates/ralph/src/tui/render.rs", "crates/ralph/src/tui/"],
+			"evidence": [
+				"crates/ralph/src/tui/render.rs: 1706 lines (wc -l) containing all render logic.",
+				"crates/ralph/src/tui/render.rs: in-file tests (`#[cfg(test)]` at line ~1599)."
+			],
+			"plan": [
+				"Extract rendering for major panels (task list, details, logs, overlays) into separate modules.",
+				"Keep a thin draw_ui wrapper that assembles components.",
+				"Move rendering tests into a dedicated test module and update imports."
+			],
+			"notes": [],
+			"request": "scan finding",
+			"created_at": "2026-01-24T16:07:23.268929000Z",
+			"updated_at": "2026-01-24T16:07:23.268929000Z",
+			"depends_on": [],
+			"custom_fields": {}
+		},
+		{
+			"id": "RQ-0276",
+			"status": "todo",
+			"title": "Split TUI contract tests into scenario-focused files",
+			"priority": "medium",
+			"tags": ["tui", "tests", "refactor"],
+			"scope": [
+				"crates/ralph/tests/tui_contract_test.rs",
+				"crates/ralph/tests/"
+			],
+			"evidence": [
+				"crates/ralph/tests/tui_contract_test.rs: 976 lines (wc -l) containing multiple TUI behaviors in one integration test file."
+			],
+			"plan": [
+				"Break contract tests into multiple files by feature area (search, edit, archive, loop, etc.).",
+				"Move shared setup helpers into a common test util module.",
+				"Ensure cargo test still discovers all split test files."
+			],
+			"notes": [],
+			"request": "scan finding",
+			"created_at": "2026-01-24T16:07:23.268929000Z",
+			"updated_at": "2026-01-24T16:07:23.268929000Z",
+			"depends_on": [],
+			"custom_fields": {}
+		},
+		{
+			"id": "RQ-0277",
+			"status": "todo",
+			"title": "Split TUI rendering tests into smaller files",
+			"priority": "medium",
+			"tags": ["tui", "tests", "refactor"],
+			"scope": [
+				"crates/ralph/tests/tui_rendering_test.rs",
+				"crates/ralph/tests/"
+			],
+			"evidence": [
+				"crates/ralph/tests/tui_rendering_test.rs: 886 lines (wc -l) with multiple rendering scenarios."
+			],
+			"plan": [
+				"Split rendering tests by component/overlay into separate test files.",
+				"Extract shared render harness into a helper module.",
+				"Run rendering tests to confirm behavior remains unchanged."
+			],
+			"notes": [],
+			"request": "scan finding",
+			"created_at": "2026-01-24T16:07:23.268929000Z",
+			"updated_at": "2026-01-24T16:07:23.268929000Z",
+			"depends_on": [],
+			"custom_fields": {}
+		},
+		{
+			"id": "RQ-0278",
+			"status": "todo",
+			"title": "Refactor git_repo_integration_test.rs into smaller scenario tests",
+			"priority": "medium",
+			"tags": ["git", "tests", "refactor"],
+			"scope": [
+				"crates/ralph/tests/git_repo_integration_test.rs",
+				"crates/ralph/tests/"
+			],
+			"evidence": [
+				"crates/ralph/tests/git_repo_integration_test.rs: 766 lines (wc -l) combining multiple git repo scenarios and helpers."
+			],
+			"plan": [
+				"Split git repo integration tests by scenario into multiple files.",
+				"Move shared repo setup helpers into a common test util module.",
+				"Ensure test coverage remains the same after file split."
+			],
+			"notes": [],
+			"request": "scan finding",
+			"created_at": "2026-01-24T16:07:23.268929000Z",
+			"updated_at": "2026-01-24T16:07:23.268929000Z",
+			"depends_on": [],
+			"custom_fields": {}
+		},
+		{
+			"id": "RQ-0266",
+			"status": "todo",
+			"title": "Make reordering tasks in queue easier by adding functionality to TUI",
+			"priority": "medium",
+			"tags": ["tui", "tasks", "queue"],
+			"scope": ["crates/ralph/src/tui/mod.rs"],
+			"evidence": [
+				"crates/ralph/src/tui/mod.rs: TUI does not have a way to reorder tasks in queue."
+			],
+			"plan": [
+				"Add a TUI action that allows user to reorder tasks in queue.",
+				"Add tests covering successful task reordering and validation/error cases for the new TUI action.",
+				"Task order is determined top-down from the queue.json file. Move tasks around easily via arrow keys."
+			],
+			"notes": [],
+			"created_at": "2026-01-24T15:39:45.873331000Z",
+			"updated_at": "2026-01-24T15:39:45.873331000Z",
+			"depends_on": [],
+			"custom_fields": {}
+		}
+	]
 }
