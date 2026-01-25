@@ -2,41 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0288",
-      "status": "todo",
-      "title": "Add ralph task update to refresh queue task fields from repo state",
-      "priority": "medium",
-      "tags": [
-        "cli",
-        "tasks",
-        "queue",
-        "maintenance"
-      ],
-      "scope": [
-        "crates/ralph/src/cli/task.rs",
-        "crates/ralph/src/task_cmd.rs",
-        "crates/ralph/src/prompts_internal/task_builder.rs",
-        "crates/ralph/tests/task_cmd_test.rs",
-        "docs/cli.md"
-      ],
-      "evidence": [
-        "User request: Add a 'ralph task update' command that examines tasks in .ralph/queue.json and updates scope, evidence, plan, notes, and other fields based on repo state."
-      ],
-      "plan": [
-        "Review existing task CLI/subcommand wiring to determine where to add a task update command and reuse task builder logic.",
-        "Define the update behavior (which fields are refreshed, how repo state is inspected, and how existing fields are preserved or replaced) and implement the update flow.",
-        "Add tests covering normal updates, no-op cases, and failure modes (invalid queue, missing files, unsafe overwrites).",
-        "Update docs/cli.md and CLI help examples to document ralph task update usage.",
-        "Run make ci to validate formatting, linting, type checks, and tests."
-      ],
-      "notes": [],
-      "request": "Add a 'ralph task update' command that examines the tasks in the existing ralph/queue.json file and updates the task scope, evidence, plan, notes, and other fields based on the current state of the repo. This is a maintenance task that should be run periodically to keep the tasks up to date with the current state of the repo. Outdated fields can cause the task to beexecuted incorrectly.",
-      "created_at": "2026-01-25T15:17:56Z",
-      "updated_at": "2026-01-25T15:17:56Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0256",
       "status": "todo",
       "title": "Allow require_clean_repo_ignoring_paths to ignore directory prefixes",

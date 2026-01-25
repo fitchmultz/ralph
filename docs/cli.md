@@ -106,13 +106,14 @@ ralph run one --git-commit-push-off
 
 ## `ralph task`
 
-Create tasks and edit task fields from the CLI.
+Create tasks and edit task fields from CLI.
 
 Common subcommands:
 - `ralph task <request>`: create a task from a freeform request.
 - `ralph task status <draft|todo|doing|done|rejected> <TASK_ID>`: update status.
 - `ralph task edit <FIELD> <VALUE> <TASK_ID>`: edit any task field (default + custom).
 - `ralph task field <KEY> <VALUE> <TASK_ID>`: set one custom field.
+- `ralph task update <TASK_ID>`: refresh task fields based on current repo state.
 
 Field formats (for `ralph task edit`):
 - Lists (`tags`, `scope`, `evidence`, `plan`, `notes`, `depends_on`): comma/newline-separated.
@@ -129,6 +130,42 @@ ralph task edit title "Update queue edit docs" RQ-0001
 ralph task edit tags "cli, rust" RQ-0001
 ralph task edit custom_fields "severity=high, owner=ralph" RQ-0001
 ralph task edit request "" RQ-0001
+```
+
+### ralph task update
+
+Update existing task fields based on current repository state.
+
+This command inspects the repo and refreshes task fields like scope, evidence, plan, notes, tags, and depends_on to reflect current code reality. Useful for keeping tasks synchronized with an evolving codebase.
+
+Common use cases:
+- Refresh task scope after code refactoring or file moves
+- Update evidence after implementation changes
+- Adjust plan after project structure changes
+- Clean up dependencies after tasks are completed/archived
+
+Fields that can be updated (all refreshed by default):
+- `scope` - file paths and/or commands relevant to the task
+- `evidence` - observations about task context
+- `plan` - sequential implementation steps
+- `notes` - additional notes or observations
+- `tags` - task categorization tags
+- `depends_on` - dependency task IDs
+
+Fields preserved (not changed):
+- `id`, `title`, `status`, `priority`, `created_at`, `request`, `agent`, `completed_at`, `custom_fields`
+
+Flags:
+- `--fields <FIELD_NAMES>` - specific fields to update (comma-separated, default: all)
+- `--runner/--model/--effort` - runner override for this invocation
+- `--rp-on`/`--rp-off` - force RepoPrompt requirement
+
+Examples:
+```bash
+ralph task update RQ-0001
+ralph task update --fields scope,evidence,plan RQ-0001
+ralph task update --runner opencode --model gpt-5.2 RQ-0001
+ralph task update --fields tags RQ-0042
 ```
 
 ## `ralph prompt`

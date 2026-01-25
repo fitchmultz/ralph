@@ -17,6 +17,17 @@ pub struct TaskBuildOptions {
     pub repoprompt_required: bool,
 }
 
+// TaskUpdateOptions controls runner-driven task update via .ralph/prompts/task_updater.md.
+pub struct TaskUpdateOptions {
+    pub task_id: String,
+    pub fields: String,
+    pub runner: Runner,
+    pub model: Model,
+    pub reasoning_effort: Option<ReasoningEffort>,
+    pub force: bool,
+    pub repoprompt_required: bool,
+}
+
 fn read_request_from_args_or_reader(
     args: &[String],
     stdin_is_terminal: bool,
@@ -131,6 +142,7 @@ fn build_task_impl(
                 .git_revert_mode
                 .unwrap_or(crate::contracts::GitRevertMode::Ask),
             output_handler: None,
+            output_stream: runner::OutputStream::Terminal,
             revert_prompt: None,
         },
         runutil::RunnerErrorMessages {
@@ -201,6 +213,154 @@ fn build_task_impl(
         }
     }
     Ok(())
+}
+
+pub fn update_task(resolved: &config::Resolved, opts: TaskUpdateOptions) -> Result<()> {
+    let _queue_lock = queue::acquire_queue_lock(&resolved.repo_root, "task update", opts.force)?;
+
+    let before = queue::load_queue(&resolved.queue_path)
+        .with_context(|| format!("read queue {}", resolved.queue_path.display()))?;
+
+    let task_id = opts.task_id.trim();
+    if !before.tasks.iter().any(|t| t.id.trim() == task_id) {
+        bail!("Task not found: {}", task_id);
+    }
+
+    let before_task = before
+        .tasks
+        .iter()
+        .find(|t| t.id.trim() == task_id)
+        .unwrap();
+    let before_json = serde_json::to_string(before_task)?;
+
+    let done = queue::load_queue_or_default(&resolved.done_path)
+        .with_context(|| format!("read done {}", resolved.done_path.display()))?;
+    let done_ref = if done.tasks.is_empty() && !resolved.done_path.exists() {
+        None
+    } else {
+        Some(&done)
+    };
+    queue::validate_queue_set(&before, done_ref, &resolved.id_prefix, resolved.id_width)
+        .context("validate queue set before task update")?;
+
+    let template = prompts::load_task_updater_prompt(&resolved.repo_root)?;
+    let project_type = resolved.config.project_type.unwrap_or(ProjectType::Code);
+    let prompt = prompts::render_task_updater_prompt(
+        &template,
+        &opts.task_id,
+        &opts.fields,
+        project_type,
+        &resolved.config,
+    )?;
+
+    let prompt = prompts::wrap_with_repoprompt_requirement(&prompt, opts.repoprompt_required);
+
+    let bins = runner::resolve_binaries(&resolved.config.agent);
+    let permission_mode = Some(ClaudePermissionMode::BypassPermissions);
+
+    let _output = runutil::run_prompt_with_handling(
+        runutil::RunnerInvocation {
+            repo_root: &resolved.repo_root,
+            runner_kind: opts.runner,
+            bins,
+            model: opts.model,
+            reasoning_effort: opts.reasoning_effort,
+            prompt: &prompt,
+            timeout: None,
+            permission_mode,
+            revert_on_error: true,
+            git_revert_mode: resolved
+                .config
+                .agent
+                .git_revert_mode
+                .unwrap_or(crate::contracts::GitRevertMode::Ask),
+            output_handler: None,
+            output_stream: runner::OutputStream::Terminal,
+            revert_prompt: None,
+        },
+        runutil::RunnerErrorMessages {
+            log_label: "task updater",
+            interrupted_msg: "Task updater interrupted: agent run was canceled.",
+            timeout_msg: "Task updater timed out: agent run exceeded time limit. Changes in the working tree were reverted; review repo state manually.",
+            terminated_msg: "Task updater terminated: agent was stopped by a signal. Review uncommitted changes before rerunning.",
+            non_zero_msg: |code| {
+                format!(
+                    "Task updater failed: agent exited with a non-zero code ({}). Changes in the working tree were reverted; review repo state before rerunning.",
+                    code
+                )
+            },
+            other_msg: |err| {
+                format!(
+                    "Task updater failed: agent could not be started or encountered an error. Error: {:#}",
+                    err
+                )
+            },
+        },
+    )?;
+
+    let after = match queue::load_queue(&resolved.queue_path)
+        .with_context(|| format!("read queue {}", resolved.queue_path.display()))
+    {
+        Ok(queue) => queue,
+        Err(err) => {
+            return Err(err);
+        }
+    };
+
+    let done_after = queue::load_queue_or_default(&resolved.done_path)
+        .with_context(|| format!("read done {}", resolved.done_path.display()))?;
+    let done_after_ref = if done_after.tasks.is_empty() && !resolved.done_path.exists() {
+        None
+    } else {
+        Some(&done_after)
+    };
+    queue::validate_queue_set(
+        &after,
+        done_after_ref,
+        &resolved.id_prefix,
+        resolved.id_width,
+    )
+    .context("validate queue set after task update")?;
+
+    let after_task = after.tasks.iter().find(|t| t.id.trim() == task_id).unwrap();
+    let after_json = serde_json::to_string(after_task)?;
+
+    if before_json == after_json {
+        log::info!("Task {} updated. No changes detected.", task_id);
+    } else {
+        let changed_fields = compare_task_fields(&before_json, &after_json)?;
+        log::info!(
+            "Task {} updated. Changed fields: {}",
+            task_id,
+            changed_fields.join(", ")
+        );
+    }
+
+    queue::save_queue(&resolved.queue_path, &after).context("save queue after task update")?;
+
+    Ok(())
+}
+
+pub fn compare_task_fields(before: &str, after: &str) -> Result<Vec<String>> {
+    let before_value: serde_json::Value = serde_json::from_str(before)?;
+    let after_value: serde_json::Value = serde_json::from_str(after)?;
+
+    if let (Some(before_obj), Some(after_obj)) = (before_value.as_object(), after_value.as_object())
+    {
+        let mut changed = Vec::new();
+        for (key, after_val) in after_obj {
+            if let Some(before_val) = before_obj.get(key) {
+                if before_val != after_val {
+                    changed.push(key.clone());
+                }
+            } else {
+                changed.push(key.clone());
+            }
+        }
+        Ok(changed)
+    } else {
+        Ok(vec!["task".to_string()])
+    }
 }
 
 #[cfg(test)]

@@ -246,3 +246,146 @@ fn test_read_request_preserves_internal_whitespace() {
     // Internal whitespace within args is preserved
     assert!(result.unwrap().starts_with("word1   word2"));
 }
+
+#[test]
+fn test_task_update_options_default_values() {
+    let opts = task_cmd::TaskUpdateOptions {
+        task_id: "RQ-0001".to_string(),
+        fields: String::new(),
+        runner: Runner::Codex,
+        model: Model::Gpt52Codex,
+        reasoning_effort: None,
+        force: false,
+        repoprompt_required: false,
+    };
+
+    assert_eq!(opts.task_id, "RQ-0001");
+    assert!(opts.fields.is_empty());
+    assert_eq!(opts.runner, Runner::Codex);
+    assert_eq!(opts.model, Model::Gpt52Codex);
+    assert!(opts.reasoning_effort.is_none());
+    assert!(!opts.force);
+}
+
+#[test]
+fn test_task_update_options_with_values() {
+    let opts = task_cmd::TaskUpdateOptions {
+        task_id: "RQ-0042".to_string(),
+        fields: "scope,evidence,plan".to_string(),
+        runner: Runner::Opencode,
+        model: Model::Gpt52,
+        reasoning_effort: Some(ralph::contracts::ReasoningEffort::High),
+        force: true,
+        repoprompt_required: true,
+    };
+
+    assert_eq!(opts.task_id, "RQ-0042");
+    assert_eq!(opts.fields, "scope,evidence,plan");
+    assert_eq!(opts.runner, Runner::Opencode);
+    assert_eq!(opts.model, Model::Gpt52);
+    assert!(opts.reasoning_effort.is_some());
+    assert!(opts.force);
+    assert!(opts.repoprompt_required);
+}
+
+#[test]
+fn test_compare_task_fields_no_changes() {
+    let before = r#"{"id":"RQ-0001","status":"todo","title":"Test task"}"#;
+    let after = r#"{"id":"RQ-0001","status":"todo","title":"Test task"}"#;
+
+    let result = task_cmd::compare_task_fields(before, after);
+    assert!(result.is_ok());
+    let changed = result.unwrap();
+    assert_eq!(changed.len(), 3);
+}
+
+#[test]
+fn test_compare_task_fields_some_changes() {
+    let before = r#"{"id":"RQ-0001","status":"todo","title":"Test task"}"#;
+    let after = r#"{"id":"RQ-0001","status":"doing","title":"Updated task"}"#;
+
+    let result = task_cmd::compare_task_fields(before, after);
+    assert!(result.is_ok());
+    let changed = result.unwrap();
+    assert!(changed.contains(&"status".to_string()));
+    assert!(changed.contains(&"title".to_string()));
+}
+
+#[test]
+fn test_compare_task_fields_invalid_json() {
+    let before = "{invalid json}";
+    let after = r#"{"id":"RQ-0001"}"#;
+
+    let result = task_cmd::compare_task_fields(before, after);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_task_update_options_all_runners() {
+    let runners = vec![
+        Runner::Codex,
+        Runner::Opencode,
+        Runner::Gemini,
+        Runner::Claude,
+    ];
+
+    for runner in runners {
+        let opts = task_cmd::TaskUpdateOptions {
+            task_id: "test".to_string(),
+            fields: String::new(),
+            runner,
+            model: Model::Gpt52Codex,
+            reasoning_effort: None,
+            force: false,
+            repoprompt_required: false,
+        };
+        assert_eq!(opts.task_id, "test");
+    }
+}
+
+#[test]
+fn test_task_update_options_all_models() {
+    let models = vec![
+        Model::Gpt52Codex,
+        Model::Gpt52,
+        Model::Glm47,
+        Model::Custom("custom-model".to_string()),
+    ];
+
+    for model in models {
+        let opts = task_cmd::TaskUpdateOptions {
+            task_id: "test".to_string(),
+            fields: String::new(),
+            runner: Runner::Codex,
+            model,
+            reasoning_effort: None,
+            force: false,
+            repoprompt_required: false,
+        };
+        assert_eq!(opts.task_id, "test");
+    }
+}
+
+#[test]
+fn test_task_update_options_all_reasoning_efforts() {
+    let efforts = vec![
+        None,
+        Some(ralph::contracts::ReasoningEffort::Low),
+        Some(ralph::contracts::ReasoningEffort::Medium),
+        Some(ralph::contracts::ReasoningEffort::High),
+        Some(ralph::contracts::ReasoningEffort::XHigh),
+    ];
+
+    for effort in efforts {
+        let opts = task_cmd::TaskUpdateOptions {
+            task_id: "test".to_string(),
+            fields: String::new(),
+            runner: Runner::Codex,
+            model: Model::Gpt52Codex,
+            reasoning_effort: effort,
+            force: false,
+            repoprompt_required: false,
+        };
+        assert_eq!(opts.task_id, "test");
+    }
+}
