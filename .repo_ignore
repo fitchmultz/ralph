@@ -1,7 +1,3 @@
-!**.ralph/cache/plans
-target/flycheck0/stdout
-target/flycheck0/stderr
-Cargo.lock
-target/release/
-.claude/
-CLAUDE.md
+!**
+.DS_Store
+target/
