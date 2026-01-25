@@ -3,7 +3,7 @@
   "tasks": [
     {
       "id": "RQ-0286",
-      "status": "draft",
+      "status": "todo",
       "title": "Split require_repoprompt config into rp_plan_required and rp_tool_injection flags",
       "priority": "medium",
       "tags": [
@@ -43,7 +43,10 @@
       "created_at": "2026-01-24T17:35:33Z",
       "updated_at": "2026-01-24T18:00:00Z",
       "depends_on": [],
-      "custom_fields": {}
+      "custom_fields": {},
+      "agent": {
+        "model_effort": "medium"
+      }
     },
     {
       "id": "RQ-0258",

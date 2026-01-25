@@ -19,7 +19,7 @@
     "gemini_bin": "gemini",
     "claude_bin": "claude",
     "claude_permission_mode": "bypass_permissions",
-    "require_repoprompt": false,
+    "require_repoprompt": true,
     "ci_gate_command": "make ci",
     "ci_gate_enabled": true,
     "git_commit_push_enabled": true,
