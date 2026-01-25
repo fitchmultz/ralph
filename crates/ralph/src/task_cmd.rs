@@ -1,4 +1,4 @@
-//! Task-building command helpers (request parsing, runner invocation, and queue updates).
+//! Task-building and task-updating command helpers (request parsing, runner invocation, and queue updates).
 
 use crate::contracts::{ClaudePermissionMode, Model, ProjectType, ReasoningEffort, Runner};
 use crate::{config, prompts, queue, runner, runutil, timeutil};
@@ -17,9 +17,8 @@ pub struct TaskBuildOptions {
     pub repoprompt_required: bool,
 }
 
-// TaskUpdateOptions controls runner-driven task update via .ralph/prompts/task_updater.md.
-pub struct TaskUpdateOptions {
-    pub task_id: String,
+// TaskUpdateSettings controls runner-driven task updates via .ralph/prompts/task_updater.md.
+pub struct TaskUpdateSettings {
     pub fields: String,
     pub runner: Runner,
     pub model: Model,
@@ -215,13 +214,57 @@ fn build_task_impl(
     Ok(())
 }
 
-pub fn update_task(resolved: &config::Resolved, opts: TaskUpdateOptions) -> Result<()> {
-    let _queue_lock = queue::acquire_queue_lock(&resolved.repo_root, "task update", opts.force)?;
+pub fn update_task(
+    resolved: &config::Resolved,
+    task_id: &str,
+    settings: &TaskUpdateSettings,
+) -> Result<()> {
+    update_task_impl(resolved, task_id, settings, true)
+}
+
+pub fn update_all_tasks(resolved: &config::Resolved, settings: &TaskUpdateSettings) -> Result<()> {
+    let _queue_lock =
+        queue::acquire_queue_lock(&resolved.repo_root, "task update", settings.force)?;
+
+    let queue_file = queue::load_queue(&resolved.queue_path)
+        .with_context(|| format!("read queue {}", resolved.queue_path.display()))?;
+
+    if queue_file.tasks.is_empty() {
+        bail!("No tasks in queue to update.");
+    }
+
+    let task_ids: Vec<String> = queue_file
+        .tasks
+        .iter()
+        .map(|task| task.id.clone())
+        .collect();
+    for task_id in task_ids {
+        update_task_impl(resolved, &task_id, settings, false)?;
+    }
+
+    Ok(())
+}
+
+fn update_task_impl(
+    resolved: &config::Resolved,
+    task_id: &str,
+    settings: &TaskUpdateSettings,
+    acquire_lock: bool,
+) -> Result<()> {
+    let _queue_lock = if acquire_lock {
+        Some(queue::acquire_queue_lock(
+            &resolved.repo_root,
+            "task update",
+            settings.force,
+        )?)
+    } else {
+        None
+    };
 
     let before = queue::load_queue(&resolved.queue_path)
         .with_context(|| format!("read queue {}", resolved.queue_path.display()))?;
 
-    let task_id = opts.task_id.trim();
+    let task_id = task_id.trim();
     if !before.tasks.iter().any(|t| t.id.trim() == task_id) {
         bail!("Task not found: {}", task_id);
     }
@@ -247,13 +290,13 @@ pub fn update_task(resolved: &config::Resolved, opts: TaskUpdateOptions) -> Resu
     let project_type = resolved.config.project_type.unwrap_or(ProjectType::Code);
     let prompt = prompts::render_task_updater_prompt(
         &template,
-        &opts.task_id,
-        &opts.fields,
+        task_id,
+        &settings.fields,
         project_type,
         &resolved.config,
     )?;
 
-    let prompt = prompts::wrap_with_repoprompt_requirement(&prompt, opts.repoprompt_required);
+    let prompt = prompts::wrap_with_repoprompt_requirement(&prompt, settings.repoprompt_required);
 
     let bins = runner::resolve_binaries(&resolved.config.agent);
     let permission_mode = Some(ClaudePermissionMode::BypassPermissions);
@@ -261,10 +304,10 @@ pub fn update_task(resolved: &config::Resolved, opts: TaskUpdateOptions) -> Resu
     let _output = runutil::run_prompt_with_handling(
         runutil::RunnerInvocation {
             repo_root: &resolved.repo_root,
-            runner_kind: opts.runner,
+            runner_kind: settings.runner,
             bins,
-            model: opts.model,
-            reasoning_effort: opts.reasoning_effort,
+            model: settings.model.clone(),
+            reasoning_effort: settings.reasoning_effort,
             prompt: &prompt,
             timeout: None,
             permission_mode,

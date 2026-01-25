@@ -124,18 +124,6 @@ pub fn handle_task(args: TaskArgs, force: bool) -> Result<()> {
         }
 
         Some(TaskCommand::Update(args)) => {
-            let _queue_lock =
-                crate::queue::acquire_queue_lock(&resolved.repo_root, "task update", force)?;
-
-            let queue_file = crate::queue::load_queue(&resolved.queue_path)?;
-            if !queue_file
-                .tasks
-                .iter()
-                .any(|t| t.id.trim() == args.task_id.trim())
-            {
-                bail!("Task not found: {}", args.task_id);
-            }
-
             let valid_fields = ["scope", "evidence", "plan", "notes", "tags", "depends_on"];
             let fields_to_update = if args.fields.trim().is_empty() || args.fields.trim() == "all" {
                 "scope,evidence,plan,notes,tags,depends_on".to_string()
@@ -167,22 +155,19 @@ pub fn handle_task(args: TaskArgs, force: bool) -> Result<()> {
                 &resolved.config.agent,
             )?;
 
-            task_cmd::update_task(
-                &resolved,
-                task_cmd::TaskUpdateOptions {
-                    task_id: args.task_id.clone(),
-                    fields: fields_to_update,
-                    runner: settings.runner,
-                    model: settings.model,
-                    reasoning_effort: settings.reasoning_effort,
-                    force,
-                    repoprompt_required: agent::resolve_rp_required(
-                        args.rp_on,
-                        args.rp_off,
-                        &resolved,
-                    ),
-                },
-            )
+            let update_settings = task_cmd::TaskUpdateSettings {
+                fields: fields_to_update,
+                runner: settings.runner,
+                model: settings.model,
+                reasoning_effort: settings.reasoning_effort,
+                force,
+                repoprompt_required: agent::resolve_rp_required(args.rp_on, args.rp_off, &resolved),
+            };
+
+            match args.task_id.as_deref() {
+                Some(task_id) => task_cmd::update_task(&resolved, task_id, &update_settings),
+                None => task_cmd::update_all_tasks(&resolved, &update_settings),
+            }
         }
 
         Some(TaskCommand::Build(args)) => {
@@ -307,7 +292,7 @@ fn complete_task_or_signal(
 #[command(
     about = "Create and build tasks from freeform requests",
     subcommand_required = false,
-    after_long_help = "Examples:\n ralph task \"Add tests for the new queue logic\"\n ralph task --runner opencode --model gpt-5.2 \"Fix CLI help strings\"\n ralph task ready RQ-0005\n ralph task status doing --note \"Starting work\" RQ-0001\n ralph task update RQ-0001\n ralph task update --fields scope,evidence RQ-0001\n ralph task edit title \"Refine queue edit\" RQ-0001\n ralph task field severity high RQ-0003\n ralph task done --note \"Finished work\" RQ-0001\n ralph task reject --note \"No longer needed\" RQ-0002\n ralph task build \"(explicit build subcommand still works)\""
+    after_long_help = "Examples:\n ralph task \"Add tests for the new queue logic\"\n ralph task --runner opencode --model gpt-5.2 \"Fix CLI help strings\"\n ralph task ready RQ-0005\n ralph task status doing --note \"Starting work\" RQ-0001\n ralph task update\n ralph task update RQ-0001\n ralph task update --fields scope,evidence RQ-0001\n ralph task edit title \"Refine queue edit\" RQ-0001\n ralph task field severity high RQ-0003\n ralph task done --note \"Finished work\" RQ-0001\n ralph task reject --note \"No longer needed\" RQ-0002\n ralph task build \"(explicit build subcommand still works)\""
 )]
 pub struct TaskArgs {
     #[command(subcommand)]
@@ -366,7 +351,7 @@ pub enum TaskCommand {
 
     /// Update existing task fields based on current repository state.
     #[command(
-        after_long_help = "Runner selection:\n - Override runner/model/effort for this invocation using flags.\n - Defaults come from config when flags are omitted.\n\nField selection:\n - By default, all updatable fields are refreshed: scope, evidence, plan, notes, tags, depends_on.\n - Use --fields to specify which fields to update.\n\nExamples:\n ralph task update RQ-0001\n ralph task update --fields scope,evidence,plan RQ-0001\n ralph task update --runner opencode --model gpt-5.2 RQ-0001\n ralph task update --fields tags RQ-0042"
+        after_long_help = "Runner selection:\n - Override runner/model/effort for this invocation using flags.\n - Defaults come from config when flags are omitted.\n\nField selection:\n - By default, all updatable fields are refreshed: scope, evidence, plan, notes, tags, depends_on.\n - Use --fields to specify which fields to update.\n\nTask selection:\n - Omit TASK_ID to update every task in the active queue.\n\nExamples:\n ralph task update\n ralph task update RQ-0001\n ralph task update --fields scope,evidence,plan RQ-0001\n ralph task update --runner opencode --model gpt-5.2 RQ-0001\n ralph task update --fields tags RQ-0042"
     )]
     Update(TaskUpdateArgs),
 }
@@ -538,9 +523,9 @@ pub struct TaskUpdateArgs {
     #[arg(long, conflicts_with = "rp_on")]
     pub rp_off: bool,
 
-    /// Task ID to update.
+    /// Task ID to update (omit to update all tasks).
     #[arg(value_name = "TASK_ID")]
-    pub task_id: String,
+    pub task_id: Option<String>,
 }
 
 #[derive(ValueEnum, Clone, Copy, Debug)]

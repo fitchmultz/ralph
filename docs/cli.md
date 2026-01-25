@@ -118,7 +118,7 @@ Common subcommands:
 - `ralph task status <draft|todo|doing|done|rejected> <TASK_ID>`: update status.
 - `ralph task edit <FIELD> <VALUE> <TASK_ID>`: edit any task field (default + custom).
 - `ralph task field <KEY> <VALUE> <TASK_ID>`: set one custom field.
-- `ralph task update <TASK_ID>`: refresh task fields based on current repo state.
+- `ralph task update [TASK_ID]`: refresh task fields based on current repo state (omit `TASK_ID` to update all tasks).
 
 Field formats (for `ralph task edit`):
 - Lists (`tags`, `scope`, `evidence`, `plan`, `notes`, `depends_on`): comma/newline-separated.
@@ -141,7 +141,7 @@ ralph task edit request "" RQ-0001
 
 Update existing task fields based on current repository state.
 
-This command inspects the repo and refreshes task fields like scope, evidence, plan, notes, tags, and depends_on to reflect current code reality. Useful for keeping tasks synchronized with an evolving codebase.
+This command inspects the repo and refreshes task fields like scope, evidence, plan, notes, tags, and depends_on to reflect current code reality. Useful for keeping tasks synchronized with an evolving codebase. Omit `TASK_ID` to refresh every task in the active queue.
 
 Common use cases:
 - Refresh task scope after code refactoring or file moves
@@ -167,6 +167,7 @@ Flags:
 
 Examples:
 ```bash
+ralph task update
 ralph task update RQ-0001
 ralph task update --fields scope,evidence,plan RQ-0001
 ralph task update --runner opencode --model gpt-5.2 RQ-0001

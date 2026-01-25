@@ -201,6 +201,34 @@ mod tests {
     }
 
     #[test]
+    fn cli_parses_task_update_without_id() {
+        let cli = Cli::try_parse_from(["ralph", "task", "update"]).expect("parse");
+        match cli.command {
+            Command::Task(task::TaskArgs { command, .. }) => match command {
+                Some(task::TaskCommand::Update(args)) => {
+                    assert!(args.task_id.is_none());
+                }
+                _ => panic!("expected task update command"),
+            },
+            _ => panic!("expected task command"),
+        }
+    }
+
+    #[test]
+    fn cli_parses_task_update_with_id() {
+        let cli = Cli::try_parse_from(["ralph", "task", "update", "RQ-0001"]).expect("parse");
+        match cli.command {
+            Command::Task(task::TaskArgs { command, .. }) => match command {
+                Some(task::TaskCommand::Update(args)) => {
+                    assert_eq!(args.task_id.as_deref(), Some("RQ-0001"));
+                }
+                _ => panic!("expected task update command"),
+            },
+            _ => panic!("expected task command"),
+        }
+    }
+
+    #[test]
     fn cli_rejects_run_one_id_with_interactive() {
         let err = Cli::try_parse_from(["ralph", "run", "one", "--id", "RQ-0001", "-i"])
             .err()
