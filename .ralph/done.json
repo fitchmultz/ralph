@@ -45,6 +45,7 @@
       "request": "Separate the repoprompt config settings into 2 configuration settings instead of 1. One config setting for 'repoprompt_plan_required' and one for 'repoprompt_tool_injection'. The first config injects the context_builder planning instructions while the latter only injects the repo prompt tooling reminders. When multiple iterations are enabled, do NOT honor the 'repoprompt_plan_required' config for phase 1 of the subsequent iterations. Only include it in the first iteration. DO honor the 'repoprompt_tool_injection' config for all iterations. Phase 1 of the subsequent iterations will still plan, just don't include the mandatory instructions to use the repo prompt context_builder.",
       "created_at": "2026-01-24T17:35:33Z",
       "updated_at": "2026-01-24T18:00:00Z",
+      "completed_at": "2026-01-24T18:00:00Z",
       "depends_on": [],
       "custom_fields": {}
     },
