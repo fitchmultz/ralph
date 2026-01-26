@@ -1,71 +1,33 @@
 //! Review prompt loading and rendering (code review, completion checklist, iteration checklist,
 //! phase2 handoff).
+//!
+//! Responsibilities: load review-related templates, render task-scoped content, and apply
+//! project-type guidance for code review prompts.
+//! Not handled: worker phase prompt composition, queue updates, or RepoPrompt instruction injection.
+//! Invariants/assumptions: required placeholders are present and task IDs are non-empty where needed.
 
+use super::registry::{load_prompt_template, prompt_template, PromptTemplateId};
 use super::util::{
-    ensure_no_unresolved_placeholders, load_prompt_with_fallback, project_type_guidance,
+    apply_project_type_guidance_if_needed, ensure_no_unresolved_placeholders,
+    ensure_required_placeholders,
 };
 use crate::contracts::{Config, ProjectType};
 use anyhow::{bail, Result};
 
-const COMPLETION_CHECKLIST_REL_PATH: &str = ".ralph/prompts/completion_checklist.md";
-const CODE_REVIEW_PROMPT_REL_PATH: &str = ".ralph/prompts/code_review.md";
-const PHASE2_HANDOFF_CHECKLIST_REL_PATH: &str = ".ralph/prompts/phase2_handoff_checklist.md";
-const ITERATION_CHECKLIST_REL_PATH: &str = ".ralph/prompts/iteration_checklist.md";
-
-const DEFAULT_COMPLETION_CHECKLIST: &str = include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/assets/prompts/completion_checklist.md"
-));
-
-const DEFAULT_CODE_REVIEW_PROMPT: &str = include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/assets/prompts/code_review.md"
-));
-
-const DEFAULT_PHASE2_HANDOFF_CHECKLIST: &str = include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/assets/prompts/phase2_handoff_checklist.md"
-));
-
-const DEFAULT_ITERATION_CHECKLIST: &str = include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/assets/prompts/iteration_checklist.md"
-));
-
 pub fn load_completion_checklist(repo_root: &std::path::Path) -> Result<String> {
-    load_prompt_with_fallback(
-        repo_root,
-        COMPLETION_CHECKLIST_REL_PATH,
-        DEFAULT_COMPLETION_CHECKLIST,
-        "completion checklist",
-    )
+    load_prompt_template(repo_root, PromptTemplateId::CompletionChecklist)
 }
 
 pub fn load_code_review_prompt(repo_root: &std::path::Path) -> Result<String> {
-    load_prompt_with_fallback(
-        repo_root,
-        CODE_REVIEW_PROMPT_REL_PATH,
-        DEFAULT_CODE_REVIEW_PROMPT,
-        "code review",
-    )
+    load_prompt_template(repo_root, PromptTemplateId::CodeReview)
 }
 
 pub fn load_phase2_handoff_checklist(repo_root: &std::path::Path) -> Result<String> {
-    load_prompt_with_fallback(
-        repo_root,
-        PHASE2_HANDOFF_CHECKLIST_REL_PATH,
-        DEFAULT_PHASE2_HANDOFF_CHECKLIST,
-        "phase2 handoff checklist",
-    )
+    load_prompt_template(repo_root, PromptTemplateId::Phase2HandoffChecklist)
 }
 
 pub fn load_iteration_checklist(repo_root: &std::path::Path) -> Result<String> {
-    load_prompt_with_fallback(
-        repo_root,
-        ITERATION_CHECKLIST_REL_PATH,
-        DEFAULT_ITERATION_CHECKLIST,
-        "iteration checklist",
-    )
+    load_prompt_template(repo_root, PromptTemplateId::IterationChecklist)
 }
 
 pub fn render_completion_checklist(
@@ -73,6 +35,7 @@ pub fn render_completion_checklist(
     task_id: &str,
     config: &Config,
 ) -> Result<String> {
+    let template_meta = prompt_template(PromptTemplateId::CompletionChecklist);
     let id = task_id.trim();
     if id.is_empty() {
         bail!("Missing task id: completion checklist requires a non-empty task id.");
@@ -80,13 +43,14 @@ pub fn render_completion_checklist(
 
     let expanded = super::expand_variables(template, config)?;
     let rendered = expanded.replace("{{TASK_ID}}", id);
-    ensure_no_unresolved_placeholders(&rendered, "completion checklist")?;
+    ensure_no_unresolved_placeholders(&rendered, template_meta.label)?;
     Ok(rendered)
 }
 
 pub fn render_phase2_handoff_checklist(template: &str, config: &Config) -> Result<String> {
+    let template_meta = prompt_template(PromptTemplateId::Phase2HandoffChecklist);
     let expanded = super::expand_variables(template, config)?;
-    ensure_no_unresolved_placeholders(&expanded, "phase2 handoff checklist")?;
+    ensure_no_unresolved_placeholders(&expanded, template_meta.label)?;
     Ok(expanded)
 }
 
@@ -95,6 +59,7 @@ pub fn render_iteration_checklist(
     task_id: &str,
     config: &Config,
 ) -> Result<String> {
+    let template_meta = prompt_template(PromptTemplateId::IterationChecklist);
     let id = task_id.trim();
     if id.is_empty() {
         bail!("Missing task id: iteration checklist requires a non-empty task id.");
@@ -102,7 +67,7 @@ pub fn render_iteration_checklist(
 
     let expanded = super::expand_variables(template, config)?;
     let rendered = expanded.replace("{{TASK_ID}}", id);
-    ensure_no_unresolved_placeholders(&rendered, "iteration checklist")?;
+    ensure_no_unresolved_placeholders(&rendered, template_meta.label)?;
     Ok(rendered)
 }
 
@@ -112,9 +77,8 @@ pub fn render_code_review_prompt(
     project_type: ProjectType,
     config: &Config,
 ) -> Result<String> {
-    if !template.contains("{{TASK_ID}}") {
-        bail!("Template error: code review prompt template is missing the required '{{TASK_ID}}' placeholder.");
-    }
+    let template_meta = prompt_template(PromptTemplateId::CodeReview);
+    ensure_required_placeholders(template, template_meta.required_placeholders)?;
 
     let id = task_id.trim();
     if id.is_empty() {
@@ -122,16 +86,15 @@ pub fn render_code_review_prompt(
     }
 
     let expanded = super::expand_variables(template, config)?;
-    let guidance = project_type_guidance(project_type);
-    let mut rendered = if expanded.contains("{{PROJECT_TYPE_GUIDANCE}}") {
-        expanded.replace("{{PROJECT_TYPE_GUIDANCE}}", guidance)
-    } else {
-        format!("{}\n{}", expanded, guidance)
-    };
+    let mut rendered = apply_project_type_guidance_if_needed(
+        &expanded,
+        project_type,
+        template_meta.project_type_guidance,
+    );
 
     rendered = rendered.replace("{{TASK_ID}}", id);
 
-    ensure_no_unresolved_placeholders(&rendered, "code review")?;
+    ensure_no_unresolved_placeholders(&rendered, template_meta.label)?;
 
     Ok(rendered)
 }

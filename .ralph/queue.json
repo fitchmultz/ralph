@@ -2,53 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0301",
-      "status": "todo",
-      "title": "Centralize prompt organization",
-      "priority": "medium",
-      "tags": [
-        "refactor",
-        "prompts",
-        "housekeeping"
-      ],
-      "scope": [
-        "crates/ralph/src/prompts.rs",
-        "crates/ralph/src/prompts_internal/mod.rs",
-        "crates/ralph/src/prompts_internal/util.rs",
-        "crates/ralph/src/prompts_internal/worker.rs",
-        "crates/ralph/src/prompts_internal/worker_phases.rs",
-        "crates/ralph/src/prompts_internal/scan.rs",
-        "crates/ralph/src/prompts_internal/task_builder.rs",
-        "crates/ralph/src/prompts_internal/task_updater.rs",
-        "crates/ralph/src/prompts_internal/review.rs",
-        "crates/ralph/src/prompts_internal/iteration.rs"
-      ],
-      "evidence": [
-        "Current prompt loading logic is duplicated across 7+ modules in crates/ralph/src/prompts_internal/.",
-        "Each module manually defines relative paths, embedded defaults, and boilerplate load/render functions.",
-        "Hardcoded string literals for template keys (e.g., {{TASK_ID}}, {{PROJECT_TYPE_GUIDANCE}}) are scattered and inconsistently handled.",
-        "The modularization of prompts has introduced redundant code that could be unified via a central registry."
-      ],
-      "plan": [
-        "Define a `Prompt` enum in `prompts_internal/util.rs` (or `mod.rs`) that maps each prompt to its relative path and embedded content.",
-        "Implement a `load` method for the `Prompt` enum that handles the fallback logic consistently.",
-        "Add a unified `render` method or helper that handles common variable expansion (env/config) and project guidance injection.",
-        "Refactor all submodules in `crates/ralph/src/prompts_internal/` to use the new `Prompt` enum for loading.",
-        "Update prompt consumers (phases, task builder, scan) to leverage the centralized registry.",
-        "Standardize placeholder validation and escaping across all prompt types.",
-        "Run `make ci` to verify that all prompts still load and render correctly."
-      ],
-      "notes": [
-        "Centralizing prompts into an enum will make it easier to add new prompt types and metadata in the future.",
-        "Consider if the enum should also track which placeholders are required for each prompt type."
-      ],
-      "request": "scan finding",
-      "created_at": "2026-01-26T15:35:00Z",
-      "updated_at": "2026-01-26T20:45:00Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0302",
       "status": "todo",
       "title": "Audit and tighten public API surface",

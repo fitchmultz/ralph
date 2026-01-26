@@ -1,5 +1,12 @@
 //! Prompt loading, rendering, and validation tests.
+//!
+//! Responsibilities: validate prompt registry mappings, fallback behavior, and rendering/validation
+//! paths.
+//! Not handled: end-to-end CLI behavior, queue updates, or runner integration beyond templates.
+//! Invariants/assumptions: embedded defaults include known headers and registry metadata matches
+//! prompt asset locations.
 
+use super::registry::{prompt_template, PromptTemplateId};
 use super::*;
 use crate::contracts::{Config, ProjectType};
 use std::fs;
@@ -7,6 +14,139 @@ use tempfile::TempDir;
 
 fn default_config() -> Config {
     Config::default()
+}
+
+#[test]
+fn registry_maps_prompt_metadata() {
+    struct Expectation {
+        id: PromptTemplateId,
+        rel_path: &'static str,
+        label: &'static str,
+        embedded_marker: &'static str,
+        project_guidance: bool,
+    }
+
+    let expectations = [
+        Expectation {
+            id: PromptTemplateId::Worker,
+            rel_path: ".ralph/prompts/worker.md",
+            label: "worker",
+            embedded_marker: "# MISSION",
+            project_guidance: true,
+        },
+        Expectation {
+            id: PromptTemplateId::WorkerPhase1,
+            rel_path: ".ralph/prompts/worker_phase1.md",
+            label: "worker phase1",
+            embedded_marker: "# PLANNING MODE",
+            project_guidance: false,
+        },
+        Expectation {
+            id: PromptTemplateId::WorkerPhase2,
+            rel_path: ".ralph/prompts/worker_phase2.md",
+            label: "worker phase2",
+            embedded_marker: "# IMPLEMENTATION MODE",
+            project_guidance: false,
+        },
+        Expectation {
+            id: PromptTemplateId::WorkerPhase2Handoff,
+            rel_path: ".ralph/prompts/worker_phase2_handoff.md",
+            label: "worker phase2 handoff",
+            embedded_marker: "# IMPLEMENTATION MODE - PHASE 2",
+            project_guidance: false,
+        },
+        Expectation {
+            id: PromptTemplateId::WorkerPhase3,
+            rel_path: ".ralph/prompts/worker_phase3.md",
+            label: "worker phase3",
+            embedded_marker: "# CODE REVIEW MODE",
+            project_guidance: false,
+        },
+        Expectation {
+            id: PromptTemplateId::WorkerSinglePhase,
+            rel_path: ".ralph/prompts/worker_single_phase.md",
+            label: "worker single phase",
+            embedded_marker: "single-pass execution mode",
+            project_guidance: false,
+        },
+        Expectation {
+            id: PromptTemplateId::TaskBuilder,
+            rel_path: ".ralph/prompts/task_builder.md",
+            label: "task builder",
+            embedded_marker: "ralph queue next-id",
+            project_guidance: true,
+        },
+        Expectation {
+            id: PromptTemplateId::TaskUpdater,
+            rel_path: ".ralph/prompts/task_updater.md",
+            label: "task updater",
+            embedded_marker: "{{FIELDS_TO_UPDATE}}",
+            project_guidance: true,
+        },
+        Expectation {
+            id: PromptTemplateId::Scan,
+            rel_path: ".ralph/prompts/scan.md",
+            label: "scan",
+            embedded_marker: "ralph queue next-id",
+            project_guidance: true,
+        },
+        Expectation {
+            id: PromptTemplateId::CodeReview,
+            rel_path: ".ralph/prompts/code_review.md",
+            label: "code review",
+            embedded_marker: "Phase 3 reviewer",
+            project_guidance: true,
+        },
+        Expectation {
+            id: PromptTemplateId::CompletionChecklist,
+            rel_path: ".ralph/prompts/completion_checklist.md",
+            label: "completion checklist",
+            embedded_marker: "IMPLEMENTATION COMPLETION CHECKLIST",
+            project_guidance: false,
+        },
+        Expectation {
+            id: PromptTemplateId::Phase2HandoffChecklist,
+            rel_path: ".ralph/prompts/phase2_handoff_checklist.md",
+            label: "phase2 handoff checklist",
+            embedded_marker: "PHASE 2 HANDOFF CHECKLIST",
+            project_guidance: false,
+        },
+        Expectation {
+            id: PromptTemplateId::IterationChecklist,
+            rel_path: ".ralph/prompts/iteration_checklist.md",
+            label: "iteration checklist",
+            embedded_marker: "ITERATION CHECKLIST",
+            project_guidance: false,
+        },
+    ];
+
+    for expectation in expectations {
+        let template = prompt_template(expectation.id);
+        assert_eq!(template.rel_path, expectation.rel_path);
+        assert_eq!(template.label, expectation.label);
+        assert_eq!(template.project_type_guidance, expectation.project_guidance);
+        assert!(template
+            .embedded_default
+            .contains(expectation.embedded_marker));
+    }
+}
+
+#[test]
+fn required_placeholders_fail_when_missing() {
+    let template = "no placeholders here";
+    let meta = prompt_template(PromptTemplateId::Scan);
+    let err = ensure_required_placeholders(template, meta.required_placeholders).unwrap_err();
+    assert!(err
+        .to_string()
+        .contains("scan prompt template is missing the required"));
+}
+
+#[test]
+fn required_placeholders_pass_when_present() -> Result<()> {
+    let template = "FOCUS={{USER_FOCUS}}";
+    let meta = prompt_template(PromptTemplateId::Scan);
+    ensure_required_placeholders(template, meta.required_placeholders)?;
+    Ok(())
 }
 
 #[test]

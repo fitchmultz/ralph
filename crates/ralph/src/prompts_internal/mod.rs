@@ -1,10 +1,13 @@
 //! Modular prompt templates and rendering.
 //!
-//! This module splits prompt loading/rendering by category while keeping a
-//! single re-export surface. It is intended to be re-exported by
-//! `crate::prompts` for backward compatibility.
+//! Responsibilities: provide a cohesive internal home for prompt template loading/rendering and
+//! re-export category-specific helpers for backward compatibility via `crate::prompts`.
+//! Not handled: CLI argument parsing, task queue IO, or prompt overrides outside `.ralph/prompts`.
+//! Invariants/assumptions: templates are validated for placeholders and `.ralph/prompts` overrides
+//! may be absent.
 
 pub mod iteration;
+mod registry;
 pub mod review;
 pub mod scan;
 pub mod task_builder;

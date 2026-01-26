@@ -6025,6 +6025,59 @@
       "completed_at": "2026-01-26T22:11:30.437860000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0301",
+      "status": "done",
+      "title": "Centralize prompt organization",
+      "priority": "medium",
+      "tags": [
+        "refactor",
+        "prompts",
+        "housekeeping",
+        "standardization"
+      ],
+      "scope": [
+        "crates/ralph/src/prompts.rs",
+        "crates/ralph/src/prompts_internal/mod.rs",
+        "crates/ralph/src/prompts_internal/util.rs",
+        "crates/ralph/src/prompts_internal/worker.rs",
+        "crates/ralph/src/prompts_internal/worker_phases.rs",
+        "crates/ralph/src/prompts_internal/scan.rs",
+        "crates/ralph/src/prompts_internal/task_builder.rs",
+        "crates/ralph/src/prompts_internal/task_updater.rs",
+        "crates/ralph/src/prompts_internal/review.rs",
+        "crates/ralph/src/prompts_internal/iteration.rs",
+        "crates/ralph/src/prompts_internal/tests.rs",
+        "crates/ralph/assets/prompts/"
+      ],
+      "evidence": [
+        "crates/ralph/src/prompts.rs is a thin compatibility shim that re-exports prompts_internal instead of housing prompt logic.",
+        "Each prompt category defines its own REL_PATH and DEFAULT_* constants plus load_* wrappers across worker.rs, worker_phases.rs, scan.rs, task_builder.rs, task_updater.rs, and review.rs.",
+        "Rendering logic is still implemented per-module with repeated placeholder replacement for tokens like {{PROJECT_TYPE_GUIDANCE}}, {{TASK_ID}}, and user-provided fields.",
+        "prompts_internal::util already centralizes load_prompt_with_fallback, expand_variables, and placeholder validation, but there is no single registry describing all prompt templates and required placeholders."
+      ],
+      "plan": [
+        "Introduce a PromptTemplate registry (enum or struct) in prompts_internal::util or a new prompts_internal::registry module that maps each prompt to its rel_path, embedded default, and required placeholders.",
+        "Add centralized helpers to load prompts via the registry and to apply shared rendering steps (env/config expansion and optional project_type guidance injection).",
+        "Refactor worker, worker_phases, scan, task_builder, task_updater, and review modules to consume the registry instead of duplicating REL_PATH/DEFAULT constants and load_* wrappers.",
+        "Update prompts_internal/tests.rs to cover registry mappings, override behavior, and render validation for each prompt type.",
+        "Run make ci to verify prompt loading, rendering, and tests still pass."
+      ],
+      "notes": [
+        "Keep prompts.rs as a compatibility re-export so public API stays stable while internal organization changes.",
+        "Consider storing per-prompt placeholder requirements and project-type guidance injection flags in the registry to reduce per-module branching.",
+        "Centralized prompt metadata behind registry loader and shared guidance injection",
+        "Aligned required placeholder validation with registry metadata and reduced public surface",
+        "Expanded prompt tests for registry mappings, overrides, and render validation",
+        "make ci"
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-26T15:35:00Z",
+      "updated_at": "2026-01-26T22:32:16.322407000Z",
+      "completed_at": "2026-01-26T22:32:16.322407000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

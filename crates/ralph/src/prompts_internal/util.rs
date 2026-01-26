@@ -1,6 +1,10 @@
 //! Shared prompt utilities (template expansion, validation, and loading).
 //!
-//! This module centralizes common behavior used by multiple prompt categories.
+//! Responsibilities: expand environment/config variables, validate placeholders, and load prompt
+//! overrides with fallbacks.
+//! Not handled: prompt-specific placeholder replacement rules or registry metadata.
+//! Invariants/assumptions: templates are UTF-8 strings using `{{...}}` placeholders and required
+//! placeholders include braces (e.g., `{{TASK_ID}}`).
 
 use crate::contracts::{Config, ProjectType};
 use anyhow::{bail, Context, Result};
@@ -9,6 +13,12 @@ use std::env;
 use std::fs;
 use std::io;
 use std::path::Path;
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct RequiredPlaceholder {
+    pub token: &'static str,
+    pub error_message: &'static str,
+}
 
 /// Instructions for tooling requirements when RepoPrompt tooling reminders are enabled.
 pub const REPOPROMPT_REQUIRED_INSTRUCTION: &str = r#"
@@ -230,6 +240,18 @@ pub fn ensure_no_unresolved_placeholders(rendered: &str, label: &str) -> Result<
     Ok(())
 }
 
+pub(crate) fn ensure_required_placeholders(
+    template: &str,
+    required: &[RequiredPlaceholder],
+) -> Result<()> {
+    for placeholder in required {
+        if !template.contains(placeholder.token) {
+            bail!(placeholder.error_message);
+        }
+    }
+    Ok(())
+}
+
 pub fn load_prompt_with_fallback(
     repo_root: &Path,
     rel_path: &str,
@@ -268,5 +290,26 @@ This is a documentation repository. Prioritize:
 - Examples and practical guidance
 "#
         }
+    }
+}
+
+pub fn apply_project_type_guidance(expanded: &str, project_type: ProjectType) -> String {
+    let guidance = project_type_guidance(project_type);
+    if expanded.contains("{{PROJECT_TYPE_GUIDANCE}}") {
+        expanded.replace("{{PROJECT_TYPE_GUIDANCE}}", guidance)
+    } else {
+        format!("{}\n{}", expanded, guidance)
+    }
+}
+
+pub fn apply_project_type_guidance_if_needed(
+    expanded: &str,
+    project_type: ProjectType,
+    enabled: bool,
+) -> String {
+    if enabled {
+        apply_project_type_guidance(expanded, project_type)
+    } else {
+        expanded.to_string()
     }
 }

@@ -1,88 +1,35 @@
 //! Worker phase prompt loading and rendering.
 //!
-//! This module centralizes phase-specific worker prompt templates so that
-//! Phase 1/2/3 and single-phase instructions are managed via prompt assets.
+//! Responsibilities: load phase-specific worker templates, render multi-phase content, and inject
+//! RepoPrompt instructions when configured.
+//! Not handled: base worker prompt rendering, checklist content generation, or queue/task
+//! persistence.
+//! Invariants/assumptions: phase templates include expected placeholders and rendering inputs are
+//! pre-trimmed by callers.
 
-use super::util::{
-    ensure_no_unresolved_placeholders, escape_placeholder_like_text, load_prompt_with_fallback,
-};
+use super::registry::{load_prompt_template, prompt_template, PromptTemplateId};
+use super::util::{ensure_no_unresolved_placeholders, escape_placeholder_like_text};
 use crate::contracts::Config;
 use anyhow::{bail, Result};
 
-const WORKER_PHASE1_PROMPT_REL_PATH: &str = ".ralph/prompts/worker_phase1.md";
-const WORKER_PHASE2_PROMPT_REL_PATH: &str = ".ralph/prompts/worker_phase2.md";
-const WORKER_PHASE2_HANDOFF_PROMPT_REL_PATH: &str = ".ralph/prompts/worker_phase2_handoff.md";
-const WORKER_PHASE3_PROMPT_REL_PATH: &str = ".ralph/prompts/worker_phase3.md";
-const WORKER_SINGLE_PHASE_PROMPT_REL_PATH: &str = ".ralph/prompts/worker_single_phase.md";
-
-const DEFAULT_WORKER_PHASE1_PROMPT: &str = include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/assets/prompts/worker_phase1.md"
-));
-
-const DEFAULT_WORKER_PHASE2_PROMPT: &str = include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/assets/prompts/worker_phase2.md"
-));
-
-const DEFAULT_WORKER_PHASE2_HANDOFF_PROMPT: &str = include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/assets/prompts/worker_phase2_handoff.md"
-));
-
-const DEFAULT_WORKER_PHASE3_PROMPT: &str = include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/assets/prompts/worker_phase3.md"
-));
-
-const DEFAULT_WORKER_SINGLE_PHASE_PROMPT: &str = include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/assets/prompts/worker_single_phase.md"
-));
-
 pub fn load_worker_phase1_prompt(repo_root: &std::path::Path) -> Result<String> {
-    load_prompt_with_fallback(
-        repo_root,
-        WORKER_PHASE1_PROMPT_REL_PATH,
-        DEFAULT_WORKER_PHASE1_PROMPT,
-        "worker phase1",
-    )
+    load_prompt_template(repo_root, PromptTemplateId::WorkerPhase1)
 }
 
 pub fn load_worker_phase2_prompt(repo_root: &std::path::Path) -> Result<String> {
-    load_prompt_with_fallback(
-        repo_root,
-        WORKER_PHASE2_PROMPT_REL_PATH,
-        DEFAULT_WORKER_PHASE2_PROMPT,
-        "worker phase2",
-    )
+    load_prompt_template(repo_root, PromptTemplateId::WorkerPhase2)
 }
 
 pub fn load_worker_phase2_handoff_prompt(repo_root: &std::path::Path) -> Result<String> {
-    load_prompt_with_fallback(
-        repo_root,
-        WORKER_PHASE2_HANDOFF_PROMPT_REL_PATH,
-        DEFAULT_WORKER_PHASE2_HANDOFF_PROMPT,
-        "worker phase2 handoff",
-    )
+    load_prompt_template(repo_root, PromptTemplateId::WorkerPhase2Handoff)
 }
 
 pub fn load_worker_phase3_prompt(repo_root: &std::path::Path) -> Result<String> {
-    load_prompt_with_fallback(
-        repo_root,
-        WORKER_PHASE3_PROMPT_REL_PATH,
-        DEFAULT_WORKER_PHASE3_PROMPT,
-        "worker phase3",
-    )
+    load_prompt_template(repo_root, PromptTemplateId::WorkerPhase3)
 }
 
 pub fn load_worker_single_phase_prompt(repo_root: &std::path::Path) -> Result<String> {
-    load_prompt_with_fallback(
-        repo_root,
-        WORKER_SINGLE_PHASE_PROMPT_REL_PATH,
-        DEFAULT_WORKER_SINGLE_PHASE_PROMPT,
-        "worker single phase",
-    )
+    load_prompt_template(repo_root, PromptTemplateId::WorkerSinglePhase)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -97,6 +44,7 @@ pub fn render_worker_phase1_prompt(
     repoprompt_tool_injection: bool,
     config: &Config,
 ) -> Result<String> {
+    let template_meta = prompt_template(PromptTemplateId::WorkerPhase1);
     let id = task_id.trim();
     if id.is_empty() {
         bail!("Missing task id: worker phase1 prompt requires a non-empty task id.");
@@ -122,7 +70,7 @@ pub fn render_worker_phase1_prompt(
         .replace("{{BASE_WORKER_PROMPT}}", safe_base_worker_prompt.trim())
         .replace("{{REPOPROMPT_BLOCK}}", repoprompt_block.trim());
 
-    ensure_no_unresolved_placeholders(&rendered_for_validation, "worker phase1")?;
+    ensure_no_unresolved_placeholders(&rendered_for_validation, template_meta.label)?;
     Ok(clean_repoprompt_spacing(
         rendered,
         repoprompt_plan_required || repoprompt_tool_injection,
@@ -142,6 +90,7 @@ pub fn render_worker_phase2_prompt(
     repoprompt_tool_injection: bool,
     config: &Config,
 ) -> Result<String> {
+    let template_meta = prompt_template(PromptTemplateId::WorkerPhase2);
     let expanded = super::expand_variables(template, config)?;
     let repoprompt_block = repoprompt_block(repoprompt_tool_injection, false);
     let safe_plan_text = escape_placeholder_like_text(plan_text.trim());
@@ -174,7 +123,7 @@ pub fn render_worker_phase2_prompt(
         .replace("{{TASK_ID}}", task_id.trim())
         .replace("{{BASE_WORKER_PROMPT}}", safe_base_worker_prompt.trim())
         .replace("{{REPOPROMPT_BLOCK}}", repoprompt_block.trim());
-    ensure_no_unresolved_placeholders(&rendered_for_validation, "worker phase2")?;
+    ensure_no_unresolved_placeholders(&rendered_for_validation, template_meta.label)?;
     Ok(clean_repoprompt_spacing(
         rendered,
         repoprompt_tool_injection,
@@ -194,6 +143,7 @@ pub fn render_worker_phase2_handoff_prompt(
     repoprompt_tool_injection: bool,
     config: &Config,
 ) -> Result<String> {
+    let template_meta = prompt_template(PromptTemplateId::WorkerPhase2Handoff);
     let expanded = super::expand_variables(template, config)?;
     let repoprompt_block = repoprompt_block(repoprompt_tool_injection, false);
     let safe_plan_text = escape_placeholder_like_text(plan_text.trim());
@@ -226,7 +176,7 @@ pub fn render_worker_phase2_handoff_prompt(
         .replace("{{TASK_ID}}", task_id.trim())
         .replace("{{BASE_WORKER_PROMPT}}", safe_base_worker_prompt.trim())
         .replace("{{REPOPROMPT_BLOCK}}", repoprompt_block.trim());
-    ensure_no_unresolved_placeholders(&rendered_for_validation, "worker phase2 handoff")?;
+    ensure_no_unresolved_placeholders(&rendered_for_validation, template_meta.label)?;
     Ok(clean_repoprompt_spacing(
         rendered,
         repoprompt_tool_injection,
@@ -248,6 +198,7 @@ pub fn render_worker_phase3_prompt(
     repoprompt_tool_injection: bool,
     config: &Config,
 ) -> Result<String> {
+    let template_meta = prompt_template(PromptTemplateId::WorkerPhase3);
     let expanded = super::expand_variables(template, config)?;
     let mut review_body = code_review_body.trim().to_string();
     if base_worker_prompt.contains("## PROJECT TYPE:") {
@@ -300,7 +251,7 @@ pub fn render_worker_phase3_prompt(
         .replace("{{TASK_ID}}", task_id.trim())
         .replace("{{REPOPROMPT_BLOCK}}", repoprompt_block.trim());
 
-    ensure_no_unresolved_placeholders(&rendered_for_validation, "worker phase3")?;
+    ensure_no_unresolved_placeholders(&rendered_for_validation, template_meta.label)?;
     Ok(clean_repoprompt_spacing(
         rendered,
         repoprompt_tool_injection,
@@ -318,6 +269,7 @@ pub fn render_worker_single_phase_prompt(
     repoprompt_tool_injection: bool,
     config: &Config,
 ) -> Result<String> {
+    let template_meta = prompt_template(PromptTemplateId::WorkerSinglePhase);
     let id = task_id.trim();
     if id.is_empty() {
         bail!("Missing task id: worker single-phase prompt requires a non-empty task id.");
@@ -351,7 +303,7 @@ pub fn render_worker_single_phase_prompt(
         .replace("{{BASE_WORKER_PROMPT}}", safe_base_worker_prompt.trim())
         .replace("{{REPOPROMPT_BLOCK}}", repoprompt_block.trim());
 
-    ensure_no_unresolved_placeholders(&rendered_for_validation, "worker single phase")?;
+    ensure_no_unresolved_placeholders(&rendered_for_validation, template_meta.label)?;
     Ok(clean_repoprompt_spacing(
         rendered,
         repoprompt_tool_injection,

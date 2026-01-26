@@ -1,25 +1,20 @@
 //! Worker prompt loading and rendering.
+//!
+//! Responsibilities: load the base worker template and render task-scoped instructions with
+//! project guidance.
+//! Not handled: phase-specific prompts, checklist prompts, or RepoPrompt block assembly.
+//! Invariants/assumptions: task IDs are non-empty when rendering and templates use `{{...}}` tokens.
 
+use super::registry::{load_prompt_template, prompt_template, PromptTemplateId};
 use super::util::{
-    ensure_no_unresolved_placeholders, load_prompt_with_fallback, project_type_guidance,
+    apply_project_type_guidance_if_needed, ensure_no_unresolved_placeholders,
+    ensure_required_placeholders,
 };
 use crate::contracts::{Config, ProjectType};
 use anyhow::Result;
 
-const WORKER_PROMPT_REL_PATH: &str = ".ralph/prompts/worker.md";
-
-const DEFAULT_WORKER_PROMPT: &str = include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/assets/prompts/worker.md"
-));
-
 pub fn load_worker_prompt(repo_root: &std::path::Path) -> Result<String> {
-    load_prompt_with_fallback(
-        repo_root,
-        WORKER_PROMPT_REL_PATH,
-        DEFAULT_WORKER_PROMPT,
-        "worker",
-    )
+    load_prompt_template(repo_root, PromptTemplateId::Worker)
 }
 
 pub fn render_worker_prompt(
@@ -28,20 +23,22 @@ pub fn render_worker_prompt(
     project_type: ProjectType,
     config: &Config,
 ) -> Result<String> {
+    let template_meta = prompt_template(PromptTemplateId::Worker);
+    ensure_required_placeholders(template, template_meta.required_placeholders)?;
+
     let id = task_id.trim();
     if id.is_empty() {
         anyhow::bail!("Missing task id: worker prompt requires a non-empty task id.");
     }
 
     let expanded = super::expand_variables(template, config)?;
-    let guidance = project_type_guidance(project_type);
-    let mut rendered = if expanded.contains("{{PROJECT_TYPE_GUIDANCE}}") {
-        expanded.replace("{{PROJECT_TYPE_GUIDANCE}}", guidance)
-    } else {
-        format!("{}\n{}", expanded, guidance)
-    };
+    let mut rendered = apply_project_type_guidance_if_needed(
+        &expanded,
+        project_type,
+        template_meta.project_type_guidance,
+    );
     rendered = rendered.replace("{{INTERACTIVE_INSTRUCTIONS}}", "");
     rendered = rendered.replace("{{TASK_ID}}", id);
-    ensure_no_unresolved_placeholders(&rendered, "worker")?;
+    ensure_no_unresolved_placeholders(&rendered, template_meta.label)?;
     Ok(rendered)
 }
