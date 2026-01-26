@@ -1,6 +1,8 @@
-use crate::config::ConfigLayer;
-use crate::contracts::{ClaudePermissionMode, GitRevertMode, Model, ReasoningEffort, Runner};
-use anyhow::{bail, Context, Result};
+use super::app::App;
+use crate::contracts::{
+    ClaudePermissionMode, GitRevertMode, Model, ProjectType, ReasoningEffort, Runner,
+};
+use anyhow::{anyhow, bail, Result};
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -42,14 +44,391 @@ pub struct ConfigEntry {
     pub kind: ConfigFieldKind,
 }
 
+impl App {
+    pub(crate) fn config_entries(&self) -> Vec<ConfigEntry> {
+        vec![
+            ConfigEntry {
+                key: ConfigKey::ProjectType,
+                label: "project_type",
+                value: display_project_type(self.project_config.project_type),
+                kind: ConfigFieldKind::Cycle,
+            },
+            ConfigEntry {
+                key: ConfigKey::QueueFile,
+                label: "queue.file",
+                value: display_path(self.project_config.queue.file.as_ref()),
+                kind: ConfigFieldKind::Text,
+            },
+            ConfigEntry {
+                key: ConfigKey::QueueDoneFile,
+                label: "queue.done_file",
+                value: display_path(self.project_config.queue.done_file.as_ref()),
+                kind: ConfigFieldKind::Text,
+            },
+            ConfigEntry {
+                key: ConfigKey::QueueIdPrefix,
+                label: "queue.id_prefix",
+                value: display_string(self.project_config.queue.id_prefix.as_ref()),
+                kind: ConfigFieldKind::Text,
+            },
+            ConfigEntry {
+                key: ConfigKey::QueueIdWidth,
+                label: "queue.id_width",
+                value: display_u8(self.project_config.queue.id_width),
+                kind: ConfigFieldKind::Text,
+            },
+            ConfigEntry {
+                key: ConfigKey::AgentRunner,
+                label: "agent.runner",
+                value: display_runner(self.project_config.agent.runner),
+                kind: ConfigFieldKind::Cycle,
+            },
+            ConfigEntry {
+                key: ConfigKey::AgentModel,
+                label: "agent.model",
+                value: display_model(self.project_config.agent.model.as_ref()),
+                kind: ConfigFieldKind::Text,
+            },
+            ConfigEntry {
+                key: ConfigKey::AgentReasoningEffort,
+                label: "agent.reasoning_effort",
+                value: display_reasoning_effort(self.project_config.agent.reasoning_effort),
+                kind: ConfigFieldKind::Cycle,
+            },
+            ConfigEntry {
+                key: ConfigKey::AgentIterations,
+                label: "agent.iterations",
+                value: display_u8(self.project_config.agent.iterations),
+                kind: ConfigFieldKind::Text,
+            },
+            ConfigEntry {
+                key: ConfigKey::AgentFollowupReasoningEffort,
+                label: "agent.followup_reasoning_effort",
+                value: display_reasoning_effort(
+                    self.project_config.agent.followup_reasoning_effort,
+                ),
+                kind: ConfigFieldKind::Cycle,
+            },
+            ConfigEntry {
+                key: ConfigKey::AgentCodexBin,
+                label: "agent.codex_bin",
+                value: display_string(self.project_config.agent.codex_bin.as_ref()),
+                kind: ConfigFieldKind::Text,
+            },
+            ConfigEntry {
+                key: ConfigKey::AgentOpencodeBin,
+                label: "agent.opencode_bin",
+                value: display_string(self.project_config.agent.opencode_bin.as_ref()),
+                kind: ConfigFieldKind::Text,
+            },
+            ConfigEntry {
+                key: ConfigKey::AgentGeminiBin,
+                label: "agent.gemini_bin",
+                value: display_string(self.project_config.agent.gemini_bin.as_ref()),
+                kind: ConfigFieldKind::Text,
+            },
+            ConfigEntry {
+                key: ConfigKey::AgentClaudeBin,
+                label: "agent.claude_bin",
+                value: display_string(self.project_config.agent.claude_bin.as_ref()),
+                kind: ConfigFieldKind::Text,
+            },
+            ConfigEntry {
+                key: ConfigKey::AgentClaudePermissionMode,
+                label: "agent.claude_permission_mode",
+                value: display_claude_permission_mode(
+                    self.project_config.agent.claude_permission_mode,
+                ),
+                kind: ConfigFieldKind::Cycle,
+            },
+            ConfigEntry {
+                key: ConfigKey::AgentRepopromptPlanRequired,
+                label: "agent.repoprompt_plan_required",
+                value: display_bool(self.project_config.agent.repoprompt_plan_required),
+                kind: ConfigFieldKind::Toggle,
+            },
+            ConfigEntry {
+                key: ConfigKey::AgentRepopromptToolInjection,
+                label: "agent.repoprompt_tool_injection",
+                value: display_bool(self.project_config.agent.repoprompt_tool_injection),
+                kind: ConfigFieldKind::Toggle,
+            },
+            ConfigEntry {
+                key: ConfigKey::AgentGitRevertMode,
+                label: "agent.git_revert_mode",
+                value: display_git_revert_mode(self.project_config.agent.git_revert_mode),
+                kind: ConfigFieldKind::Cycle,
+            },
+            ConfigEntry {
+                key: ConfigKey::AgentGitCommitPushEnabled,
+                label: "agent.git_commit_push_enabled",
+                value: display_bool(self.project_config.agent.git_commit_push_enabled),
+                kind: ConfigFieldKind::Toggle,
+            },
+            ConfigEntry {
+                key: ConfigKey::AgentPhases,
+                label: "agent.phases",
+                value: display_u8(self.project_config.agent.phases),
+                kind: ConfigFieldKind::Cycle,
+            },
+        ]
+    }
+
+    pub(crate) fn config_value_for_edit(&self, key: ConfigKey) -> String {
+        match key {
+            ConfigKey::QueueFile => self
+                .project_config
+                .queue
+                .file
+                .as_ref()
+                .map(|p: &PathBuf| p.to_string_lossy().to_string())
+                .unwrap_or_default(),
+            ConfigKey::QueueDoneFile => self
+                .project_config
+                .queue
+                .done_file
+                .as_ref()
+                .map(|p: &PathBuf| p.to_string_lossy().to_string())
+                .unwrap_or_default(),
+            ConfigKey::QueueIdPrefix => self
+                .project_config
+                .queue
+                .id_prefix
+                .as_ref()
+                .cloned()
+                .unwrap_or_default(),
+            ConfigKey::QueueIdWidth => self
+                .project_config
+                .queue
+                .id_width
+                .map(|v: u8| v.to_string())
+                .unwrap_or_default(),
+            ConfigKey::AgentModel => self
+                .project_config
+                .agent
+                .model
+                .as_ref()
+                .map(|v: &Model| v.as_str().to_string())
+                .unwrap_or_default(),
+            ConfigKey::AgentIterations => self
+                .project_config
+                .agent
+                .iterations
+                .map(|value: u8| value.to_string())
+                .unwrap_or_default(),
+            ConfigKey::AgentCodexBin => self
+                .project_config
+                .agent
+                .codex_bin
+                .as_ref()
+                .cloned()
+                .unwrap_or_default(),
+            ConfigKey::AgentOpencodeBin => self
+                .project_config
+                .agent
+                .opencode_bin
+                .as_ref()
+                .cloned()
+                .unwrap_or_default(),
+            ConfigKey::AgentGeminiBin => self
+                .project_config
+                .agent
+                .gemini_bin
+                .as_ref()
+                .cloned()
+                .unwrap_or_default(),
+            ConfigKey::AgentClaudeBin => self
+                .project_config
+                .agent
+                .claude_bin
+                .as_ref()
+                .cloned()
+                .unwrap_or_default(),
+            _ => String::new(),
+        }
+    }
+
+    pub(crate) fn apply_config_text_value(&mut self, key: ConfigKey, input: &str) -> Result<()> {
+        let trimmed = input.trim();
+        match key {
+            ConfigKey::QueueFile => {
+                self.project_config.queue.file = if trimmed.is_empty() {
+                    None
+                } else {
+                    Some(PathBuf::from(trimmed))
+                };
+            }
+            ConfigKey::QueueDoneFile => {
+                self.project_config.queue.done_file = if trimmed.is_empty() {
+                    None
+                } else {
+                    Some(PathBuf::from(trimmed))
+                };
+            }
+            ConfigKey::QueueIdPrefix => {
+                self.project_config.queue.id_prefix = if trimmed.is_empty() {
+                    None
+                } else {
+                    Some(trimmed.to_string())
+                };
+            }
+            ConfigKey::QueueIdWidth => {
+                self.project_config.queue.id_width = if trimmed.is_empty() {
+                    None
+                } else {
+                    let value: u8 = trimmed
+                        .parse()
+                        .map_err(|_| anyhow!("queue.id_width must be a valid number (e.g., 4)"))?;
+                    if value == 0 {
+                        bail!("queue.id_width must be greater than 0");
+                    }
+                    Some(value)
+                };
+            }
+            ConfigKey::AgentModel => {
+                self.project_config.agent.model = if trimmed.is_empty() {
+                    None
+                } else {
+                    Some(trimmed.parse::<Model>().map_err(|msg| anyhow!(msg))?)
+                };
+            }
+            ConfigKey::AgentIterations => {
+                self.project_config.agent.iterations = if trimmed.is_empty() {
+                    None
+                } else {
+                    let value: u8 = trimmed.parse().map_err(|_| {
+                        anyhow!("agent.iterations must be a valid number (e.g., 1)")
+                    })?;
+                    if value == 0 {
+                        bail!("agent.iterations must be greater than 0");
+                    }
+                    Some(value)
+                };
+            }
+            ConfigKey::AgentCodexBin => {
+                self.project_config.agent.codex_bin = if trimmed.is_empty() {
+                    None
+                } else {
+                    Some(trimmed.to_string())
+                };
+            }
+            ConfigKey::AgentOpencodeBin => {
+                self.project_config.agent.opencode_bin = if trimmed.is_empty() {
+                    None
+                } else {
+                    Some(trimmed.to_string())
+                };
+            }
+            ConfigKey::AgentGeminiBin => {
+                self.project_config.agent.gemini_bin = if trimmed.is_empty() {
+                    None
+                } else {
+                    Some(trimmed.to_string())
+                };
+            }
+            ConfigKey::AgentClaudeBin => {
+                self.project_config.agent.claude_bin = if trimmed.is_empty() {
+                    None
+                } else {
+                    Some(trimmed.to_string())
+                };
+            }
+            _ => {}
+        }
+        self.dirty_config = true;
+        Ok(())
+    }
+
+    pub(crate) fn cycle_config_value(&mut self, key: ConfigKey) {
+        match key {
+            ConfigKey::ProjectType => {
+                self.project_config.project_type =
+                    cycle_project_type(self.project_config.project_type);
+            }
+            ConfigKey::AgentRunner => {
+                self.project_config.agent.runner = cycle_runner(self.project_config.agent.runner);
+            }
+            ConfigKey::AgentReasoningEffort => {
+                self.project_config.agent.reasoning_effort =
+                    cycle_reasoning_effort(self.project_config.agent.reasoning_effort);
+            }
+            ConfigKey::AgentFollowupReasoningEffort => {
+                self.project_config.agent.followup_reasoning_effort =
+                    cycle_reasoning_effort(self.project_config.agent.followup_reasoning_effort);
+            }
+            ConfigKey::AgentClaudePermissionMode => {
+                self.project_config.agent.claude_permission_mode =
+                    cycle_claude_permission_mode(self.project_config.agent.claude_permission_mode);
+            }
+            ConfigKey::AgentRepopromptPlanRequired => {
+                self.project_config.agent.repoprompt_plan_required =
+                    cycle_bool(self.project_config.agent.repoprompt_plan_required);
+            }
+            ConfigKey::AgentRepopromptToolInjection => {
+                self.project_config.agent.repoprompt_tool_injection =
+                    cycle_bool(self.project_config.agent.repoprompt_tool_injection);
+            }
+            ConfigKey::AgentGitRevertMode => {
+                self.project_config.agent.git_revert_mode =
+                    cycle_git_revert_mode(self.project_config.agent.git_revert_mode);
+            }
+            ConfigKey::AgentGitCommitPushEnabled => {
+                self.project_config.agent.git_commit_push_enabled =
+                    cycle_bool(self.project_config.agent.git_commit_push_enabled);
+            }
+            ConfigKey::AgentPhases => {
+                self.project_config.agent.phases = cycle_phases(self.project_config.agent.phases);
+            }
+            _ => {}
+        }
+        self.dirty_config = true;
+    }
+
+    pub(crate) fn clear_config_value(&mut self, key: ConfigKey) {
+        match key {
+            ConfigKey::ProjectType => self.project_config.project_type = None,
+            ConfigKey::QueueFile => self.project_config.queue.file = None,
+            ConfigKey::QueueDoneFile => self.project_config.queue.done_file = None,
+            ConfigKey::QueueIdPrefix => self.project_config.queue.id_prefix = None,
+            ConfigKey::QueueIdWidth => self.project_config.queue.id_width = None,
+            ConfigKey::AgentRunner => self.project_config.agent.runner = None,
+            ConfigKey::AgentModel => self.project_config.agent.model = None,
+            ConfigKey::AgentReasoningEffort => self.project_config.agent.reasoning_effort = None,
+            ConfigKey::AgentIterations => self.project_config.agent.iterations = None,
+            ConfigKey::AgentFollowupReasoningEffort => {
+                self.project_config.agent.followup_reasoning_effort = None;
+            }
+            ConfigKey::AgentCodexBin => self.project_config.agent.codex_bin = None,
+            ConfigKey::AgentOpencodeBin => self.project_config.agent.opencode_bin = None,
+            ConfigKey::AgentGeminiBin => self.project_config.agent.gemini_bin = None,
+            ConfigKey::AgentClaudeBin => self.project_config.agent.claude_bin = None,
+            ConfigKey::AgentClaudePermissionMode => {
+                self.project_config.agent.claude_permission_mode = None;
+            }
+            ConfigKey::AgentRepopromptPlanRequired => {
+                self.project_config.agent.repoprompt_plan_required = None
+            }
+            ConfigKey::AgentRepopromptToolInjection => {
+                self.project_config.agent.repoprompt_tool_injection = None
+            }
+            ConfigKey::AgentGitRevertMode => self.project_config.agent.git_revert_mode = None,
+            ConfigKey::AgentGitCommitPushEnabled => {
+                self.project_config.agent.git_commit_push_enabled = None
+            }
+            ConfigKey::AgentPhases => self.project_config.agent.phases = None,
+        }
+        self.dirty_config = true;
+    }
+}
+
 fn default_config_value() -> String {
     "(global default)".to_string()
 }
 
-fn display_project_type(value: Option<crate::contracts::ProjectType>) -> String {
+fn display_project_type(value: Option<ProjectType>) -> String {
     match value {
-        Some(crate::contracts::ProjectType::Code) => "code".to_string(),
-        Some(crate::contracts::ProjectType::Docs) => "docs".to_string(),
+        Some(ProjectType::Code) => "code".to_string(),
+        Some(ProjectType::Docs) => "docs".to_string(),
         None => default_config_value(),
     }
 }
@@ -100,21 +479,21 @@ fn display_model(value: Option<&Model>) -> String {
 
 fn display_string(value: Option<&String>) -> String {
     match value {
-        Some(s) if !s.trim().is_empty() => s.clone(),
+        Some(text) if !text.trim().is_empty() => text.to_string(),
         _ => default_config_value(),
     }
 }
 
 fn display_path(value: Option<&PathBuf>) -> String {
     match value {
-        Some(p) => p.to_string_lossy().to_string(),
+        Some(path) => path.to_string_lossy().to_string(),
         None => default_config_value(),
     }
 }
 
 fn display_u8(value: Option<u8>) -> String {
     match value {
-        Some(v) => v.to_string(),
+        Some(value) => value.to_string(),
         None => default_config_value(),
     }
 }
@@ -127,391 +506,11 @@ fn display_bool(value: Option<bool>) -> String {
     }
 }
 
-pub fn config_entries(project_config: &ConfigLayer) -> Vec<ConfigEntry> {
-    vec![
-        ConfigEntry {
-            key: ConfigKey::ProjectType,
-            label: "project_type",
-            value: display_project_type(project_config.project_type),
-            kind: ConfigFieldKind::Cycle,
-        },
-        ConfigEntry {
-            key: ConfigKey::QueueFile,
-            label: "queue.file",
-            value: display_path(project_config.queue.file.as_ref()),
-            kind: ConfigFieldKind::Text,
-        },
-        ConfigEntry {
-            key: ConfigKey::QueueDoneFile,
-            label: "queue.done_file",
-            value: display_path(project_config.queue.done_file.as_ref()),
-            kind: ConfigFieldKind::Text,
-        },
-        ConfigEntry {
-            key: ConfigKey::QueueIdPrefix,
-            label: "queue.id_prefix",
-            value: display_string(project_config.queue.id_prefix.as_ref()),
-            kind: ConfigFieldKind::Text,
-        },
-        ConfigEntry {
-            key: ConfigKey::QueueIdWidth,
-            label: "queue.id_width",
-            value: display_u8(project_config.queue.id_width),
-            kind: ConfigFieldKind::Text,
-        },
-        ConfigEntry {
-            key: ConfigKey::AgentRunner,
-            label: "agent.runner",
-            value: display_runner(project_config.agent.runner),
-            kind: ConfigFieldKind::Cycle,
-        },
-        ConfigEntry {
-            key: ConfigKey::AgentModel,
-            label: "agent.model",
-            value: display_model(project_config.agent.model.as_ref()),
-            kind: ConfigFieldKind::Text,
-        },
-        ConfigEntry {
-            key: ConfigKey::AgentReasoningEffort,
-            label: "agent.reasoning_effort",
-            value: display_reasoning_effort(project_config.agent.reasoning_effort),
-            kind: ConfigFieldKind::Cycle,
-        },
-        ConfigEntry {
-            key: ConfigKey::AgentIterations,
-            label: "agent.iterations",
-            value: display_u8(project_config.agent.iterations),
-            kind: ConfigFieldKind::Text,
-        },
-        ConfigEntry {
-            key: ConfigKey::AgentFollowupReasoningEffort,
-            label: "agent.followup_reasoning_effort",
-            value: display_reasoning_effort(project_config.agent.followup_reasoning_effort),
-            kind: ConfigFieldKind::Cycle,
-        },
-        ConfigEntry {
-            key: ConfigKey::AgentCodexBin,
-            label: "agent.codex_bin",
-            value: display_string(project_config.agent.codex_bin.as_ref()),
-            kind: ConfigFieldKind::Text,
-        },
-        ConfigEntry {
-            key: ConfigKey::AgentOpencodeBin,
-            label: "agent.opencode_bin",
-            value: display_string(project_config.agent.opencode_bin.as_ref()),
-            kind: ConfigFieldKind::Text,
-        },
-        ConfigEntry {
-            key: ConfigKey::AgentGeminiBin,
-            label: "agent.gemini_bin",
-            value: display_string(project_config.agent.gemini_bin.as_ref()),
-            kind: ConfigFieldKind::Text,
-        },
-        ConfigEntry {
-            key: ConfigKey::AgentClaudeBin,
-            label: "agent.claude_bin",
-            value: display_string(project_config.agent.claude_bin.as_ref()),
-            kind: ConfigFieldKind::Text,
-        },
-        ConfigEntry {
-            key: ConfigKey::AgentClaudePermissionMode,
-            label: "agent.claude_permission_mode",
-            value: display_claude_permission_mode(project_config.agent.claude_permission_mode),
-            kind: ConfigFieldKind::Cycle,
-        },
-        ConfigEntry {
-            key: ConfigKey::AgentRepopromptPlanRequired,
-            label: "agent.repoprompt_plan_required",
-            value: display_bool(project_config.agent.repoprompt_plan_required),
-            kind: ConfigFieldKind::Toggle,
-        },
-        ConfigEntry {
-            key: ConfigKey::AgentRepopromptToolInjection,
-            label: "agent.repoprompt_tool_injection",
-            value: display_bool(project_config.agent.repoprompt_tool_injection),
-            kind: ConfigFieldKind::Toggle,
-        },
-        ConfigEntry {
-            key: ConfigKey::AgentGitRevertMode,
-            label: "agent.git_revert_mode",
-            value: display_git_revert_mode(project_config.agent.git_revert_mode),
-            kind: ConfigFieldKind::Cycle,
-        },
-        ConfigEntry {
-            key: ConfigKey::AgentGitCommitPushEnabled,
-            label: "agent.git_commit_push_enabled",
-            value: display_bool(project_config.agent.git_commit_push_enabled),
-            kind: ConfigFieldKind::Toggle,
-        },
-        ConfigEntry {
-            key: ConfigKey::AgentPhases,
-            label: "agent.phases",
-            value: display_u8(project_config.agent.phases),
-            kind: ConfigFieldKind::Cycle,
-        },
-    ]
-}
-
-pub fn config_value_for_edit(project_config: &ConfigLayer, key: ConfigKey) -> String {
-    match key {
-        ConfigKey::QueueFile => project_config
-            .queue
-            .file
-            .as_ref()
-            .map(|p| p.to_string_lossy().to_string())
-            .unwrap_or_default(),
-        ConfigKey::QueueDoneFile => project_config
-            .queue
-            .done_file
-            .as_ref()
-            .map(|p| p.to_string_lossy().to_string())
-            .unwrap_or_default(),
-        ConfigKey::QueueIdPrefix => project_config.queue.id_prefix.clone().unwrap_or_default(),
-        ConfigKey::QueueIdWidth => project_config
-            .queue
-            .id_width
-            .map(|v| v.to_string())
-            .unwrap_or_default(),
-        ConfigKey::AgentModel => project_config
-            .agent
-            .model
-            .as_ref()
-            .map(|v| v.as_str().to_string())
-            .unwrap_or_default(),
-        ConfigKey::AgentIterations => project_config
-            .agent
-            .iterations
-            .map(|value| value.to_string())
-            .unwrap_or_default(),
-        ConfigKey::AgentCodexBin => project_config
-            .agent
-            .codex_bin
-            .as_ref()
-            .cloned()
-            .unwrap_or_default(),
-        ConfigKey::AgentOpencodeBin => project_config
-            .agent
-            .opencode_bin
-            .as_ref()
-            .cloned()
-            .unwrap_or_default(),
-        ConfigKey::AgentGeminiBin => project_config
-            .agent
-            .gemini_bin
-            .as_ref()
-            .cloned()
-            .unwrap_or_default(),
-        ConfigKey::AgentClaudeBin => project_config
-            .agent
-            .claude_bin
-            .as_ref()
-            .cloned()
-            .unwrap_or_default(),
-        _ => String::new(),
-    }
-}
-
-pub fn apply_config_text_value(
-    project_config: &mut ConfigLayer,
-    dirty_config: &mut bool,
-    key: ConfigKey,
-    input: &str,
-) -> Result<()> {
-    let trimmed = input.trim();
-    match key {
-        ConfigKey::ProjectType => {
-            bail!("Config key {:?} does not support cycling", key)
-        }
-        ConfigKey::AgentRunner => {
-            bail!("Config key {:?} does not support cycling", key)
-        }
-        ConfigKey::QueueFile => {
-            let path = if trimmed.is_empty() {
-                None
-            } else {
-                Some(PathBuf::from(trimmed))
-            };
-            project_config.queue.file = path;
-            *dirty_config = true;
-        }
-        ConfigKey::QueueDoneFile => {
-            let path = if trimmed.is_empty() {
-                None
-            } else {
-                Some(PathBuf::from(trimmed))
-            };
-            project_config.queue.done_file = path;
-            *dirty_config = true;
-        }
-        ConfigKey::QueueIdPrefix => {
-            let prefix = if trimmed.is_empty() {
-                None
-            } else {
-                Some(trimmed.to_string())
-            };
-            project_config.queue.id_prefix = prefix;
-            *dirty_config = true;
-        }
-        ConfigKey::QueueIdWidth => {
-            let width = trimmed
-                .parse::<u8>()
-                .with_context(|| format!("invalid queue.id_width: {}", trimmed))?;
-            project_config.queue.id_width = Some(width);
-            *dirty_config = true;
-        }
-        ConfigKey::AgentModel => {
-            bail!("Config key {:?} does not support text editing", key)
-        }
-        ConfigKey::AgentIterations => {
-            let iterations = trimmed
-                .parse::<u8>()
-                .with_context(|| format!("invalid agent.iterations: {}", trimmed))?;
-            project_config.agent.iterations = Some(iterations);
-            *dirty_config = true;
-        }
-        ConfigKey::AgentCodexBin => {
-            let bin = if trimmed.is_empty() {
-                None
-            } else {
-                Some(trimmed.to_string())
-            };
-            project_config.agent.codex_bin = bin;
-            *dirty_config = true;
-        }
-        ConfigKey::AgentOpencodeBin => {
-            let bin = if trimmed.is_empty() {
-                None
-            } else {
-                Some(trimmed.to_string())
-            };
-            project_config.agent.opencode_bin = bin;
-            *dirty_config = true;
-        }
-        ConfigKey::AgentGeminiBin => {
-            let bin = if trimmed.is_empty() {
-                None
-            } else {
-                Some(trimmed.to_string())
-            };
-            project_config.agent.gemini_bin = bin;
-            *dirty_config = true;
-        }
-        ConfigKey::AgentClaudeBin => {
-            let bin = if trimmed.is_empty() {
-                None
-            } else {
-                Some(trimmed.to_string())
-            };
-            project_config.agent.claude_bin = bin;
-            *dirty_config = true;
-        }
-        _ => {
-            bail!("Config key {:?} does not support text editing", key)
-        }
-    }
-    Ok(())
-}
-
-pub fn cycle_config_value(
-    project_config: &mut ConfigLayer,
-    dirty_config: &mut bool,
-    key: ConfigKey,
-) {
-    match key {
-        ConfigKey::ProjectType => {
-            project_config.project_type = cycle_project_type(project_config.project_type);
-            *dirty_config = true;
-        }
-        ConfigKey::AgentRunner => {
-            project_config.agent.runner = cycle_runner(project_config.agent.runner);
-            *dirty_config = true;
-        }
-        ConfigKey::AgentReasoningEffort => {
-            project_config.agent.reasoning_effort =
-                cycle_reasoning_effort(project_config.agent.reasoning_effort);
-            *dirty_config = true;
-        }
-        ConfigKey::AgentFollowupReasoningEffort => {
-            project_config.agent.followup_reasoning_effort =
-                cycle_reasoning_effort(project_config.agent.followup_reasoning_effort);
-            *dirty_config = true;
-        }
-        ConfigKey::AgentClaudePermissionMode => {
-            project_config.agent.claude_permission_mode =
-                cycle_claude_permission_mode(project_config.agent.claude_permission_mode);
-            *dirty_config = true;
-        }
-        ConfigKey::AgentRepopromptPlanRequired => {
-            project_config.agent.repoprompt_plan_required =
-                cycle_bool(project_config.agent.repoprompt_plan_required);
-            *dirty_config = true;
-        }
-        ConfigKey::AgentRepopromptToolInjection => {
-            project_config.agent.repoprompt_tool_injection =
-                cycle_bool(project_config.agent.repoprompt_tool_injection);
-            *dirty_config = true;
-        }
-        ConfigKey::AgentGitRevertMode => {
-            project_config.agent.git_revert_mode =
-                cycle_git_revert_mode(project_config.agent.git_revert_mode);
-            *dirty_config = true;
-        }
-        ConfigKey::AgentGitCommitPushEnabled => {
-            project_config.agent.git_commit_push_enabled =
-                cycle_bool(project_config.agent.git_commit_push_enabled);
-            *dirty_config = true;
-        }
-        ConfigKey::AgentPhases => {
-            project_config.agent.phases = cycle_phases(project_config.agent.phases);
-            *dirty_config = true;
-        }
-        _ => {}
-    }
-}
-
-pub fn clear_config_value(
-    project_config: &mut ConfigLayer,
-    dirty_config: &mut bool,
-    key: ConfigKey,
-) {
-    match key {
-        ConfigKey::ProjectType => project_config.project_type = None,
-        ConfigKey::AgentRunner => project_config.agent.runner = None,
-        ConfigKey::QueueFile => project_config.queue.file = None,
-        ConfigKey::QueueDoneFile => project_config.queue.done_file = None,
-        ConfigKey::QueueIdPrefix => project_config.queue.id_prefix = None,
-        ConfigKey::QueueIdWidth => project_config.queue.id_width = None,
-        ConfigKey::AgentModel => project_config.agent.model = None,
-        ConfigKey::AgentIterations => project_config.agent.iterations = None,
-        ConfigKey::AgentCodexBin => project_config.agent.codex_bin = None,
-        ConfigKey::AgentOpencodeBin => project_config.agent.opencode_bin = None,
-        ConfigKey::AgentGeminiBin => project_config.agent.gemini_bin = None,
-        ConfigKey::AgentClaudeBin => project_config.agent.claude_bin = None,
-        ConfigKey::AgentReasoningEffort => project_config.agent.reasoning_effort = None,
-        ConfigKey::AgentFollowupReasoningEffort => {
-            project_config.agent.followup_reasoning_effort = None
-        }
-        ConfigKey::AgentClaudePermissionMode => project_config.agent.claude_permission_mode = None,
-        ConfigKey::AgentRepopromptPlanRequired => {
-            project_config.agent.repoprompt_plan_required = None
-        }
-        ConfigKey::AgentRepopromptToolInjection => {
-            project_config.agent.repoprompt_tool_injection = None
-        }
-        ConfigKey::AgentGitRevertMode => project_config.agent.git_revert_mode = None,
-        ConfigKey::AgentGitCommitPushEnabled => project_config.agent.git_commit_push_enabled = None,
-        ConfigKey::AgentPhases => project_config.agent.phases = None,
-    }
-    *dirty_config = true;
-}
-
-fn cycle_project_type(
-    value: Option<crate::contracts::ProjectType>,
-) -> Option<crate::contracts::ProjectType> {
+fn cycle_project_type(value: Option<ProjectType>) -> Option<ProjectType> {
     match value {
-        None => Some(crate::contracts::ProjectType::Code),
-        Some(crate::contracts::ProjectType::Code) => Some(crate::contracts::ProjectType::Docs),
-        Some(crate::contracts::ProjectType::Docs) => None,
+        None => Some(ProjectType::Code),
+        Some(ProjectType::Code) => Some(ProjectType::Docs),
+        Some(ProjectType::Docs) => None,
     }
 }
 

@@ -1,5 +1,9 @@
-use super::*;
-use crate::contracts::{Task, TaskPriority};
+use super::app::*;
+use super::config_edit::*;
+use super::events::{AppMode, PaletteCommand};
+use crate::contracts::{QueueFile, Task, TaskPriority, TaskStatus};
+use crate::queue::{self, TaskEditKey};
+use anyhow::Result;
 use tempfile::TempDir;
 
 fn make_test_task(id: &str, title: &str, status: TaskStatus) -> Task {
@@ -327,7 +331,7 @@ fn auto_save_clears_dirty_on_success() -> Result<()> {
 fn config_text_entry_rejects_invalid_id_width() {
     let mut app = App::new(QueueFile::default());
     let err = app
-        .apply_config_text_value(ConfigKey::QueueIdWidth, "")
+        .apply_config_text_value(ConfigKey::QueueIdWidth, "0")
         .expect_err("invalid id_width");
     assert!(err.to_string().contains("id_width"));
 }
@@ -546,17 +550,20 @@ fn task_builder_finish_reloads_queue_and_returns_to_normal() {
     let queue_path = tmp.path().join("queue.json");
     let done_path = tmp.path().join("done.json");
 
+    // Write initial queue
     let initial_queue = QueueFile {
         version: 1,
         tasks: vec![make_test_task("RQ-0001", "Task 1", TaskStatus::Todo)],
     };
     queue::save_queue(&queue_path, &initial_queue).expect("save initial queue");
 
+    // Create app and set it to executing mode (like task builder would)
     let mut app = App::new(QueueFile::default());
     app.mode = AppMode::Executing {
         task_id: "Task Builder".to_string(),
     };
 
+    // Write updated queue with new task
     let updated_queue = QueueFile {
         version: 1,
         tasks: vec![
@@ -566,11 +573,17 @@ fn task_builder_finish_reloads_queue_and_returns_to_normal() {
     };
     queue::save_queue(&queue_path, &updated_queue).expect("save updated queue");
 
+    // Simulate task builder finished
     app.on_task_builder_finished(&queue_path, &done_path);
 
+    // Verify queue was reloaded
     assert_eq!(app.queue.tasks.len(), 2);
     assert_eq!(app.queue.tasks[1].id, "RQ-0002");
+
+    // Verify mode returned to Normal
     assert_eq!(app.mode, AppMode::Normal);
+
+    // Verify status message
     assert_eq!(
         app.status_message.as_deref(),
         Some("Task builder completed")
@@ -586,9 +599,12 @@ fn task_builder_error_sets_status_and_returns_to_normal() {
 
     app.on_task_builder_error("test error");
 
+    // Verify error status message
     assert_eq!(
         app.status_message.as_deref(),
         Some("Task builder error: test error")
     );
+
+    // Verify mode returned to Normal
     assert_eq!(app.mode, AppMode::Normal);
 }

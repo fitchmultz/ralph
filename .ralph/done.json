@@ -5462,6 +5462,52 @@
       "custom_fields": {
         "stale_path": "queue CLI moved to crates/ralph/src/cli/queue/ (mod.rs); update scope/evidence references"
       }
+    },
+    {
+      "id": "RQ-0292",
+      "status": "done",
+      "title": "Decompose tui/mod.rs into submodules",
+      "priority": "high",
+      "tags": [
+        "refactor",
+        "tui",
+        "housekeeping"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/mod.rs",
+        "crates/ralph/src/tui/app.rs",
+        "crates/ralph/src/tui/task_edit.rs",
+        "crates/ralph/src/tui/config_edit.rs"
+      ],
+      "evidence": [
+        "crates/ralph/src/tui/mod.rs is 2958 lines long, violating size heuristics (~400 LOC recommended).",
+        "App struct and its massive impl block dominate the file.",
+        "Task and Config editing logic are mixed with core TUI lifecycle.",
+        "tui/config_edit.rs exists but some of its logic is still duplicated in mod.rs."
+      ],
+      "plan": [
+        "Create crates/ralph/src/tui/app.rs and move App, TuiOptions, FilterState, and RunningKind there.",
+        "Move core App lifecycle and state management methods to tui/app.rs.",
+        "Create crates/ralph/src/tui/task_edit.rs and move TaskEditKind, TaskEditEntry, and task-related editing methods there.",
+        "Refactor tui/mod.rs to use tui/config_edit.rs consistently and remove duplicated config logic.",
+        "Update tui/mod.rs to re-export new submodules and serve as a clean entry point.",
+        "Fix imports and visibility across the new module structure.",
+        "Run `make ci` to ensure no regressions."
+      ],
+      "notes": [
+        "tui/config_edit.rs is already partially implemented but not fully utilized by App.",
+        "Extracting TaskEdit logic will significantly reduce mod.rs size and improve cohesion.",
+        "Decomposed tui/mod.rs into app.rs and task_edit.rs.",
+        "Consolidated config editing logic in config_edit.rs.",
+        "Refined module visibility for better encapsulation.",
+        "Verified with make ci and full test suite."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-26T15:35:00Z",
+      "updated_at": "2026-01-26T16:50:23.552653000Z",
+      "completed_at": "2026-01-26T16:50:23.552653000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }
