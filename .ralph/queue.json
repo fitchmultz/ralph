@@ -2,44 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0275",
-      "status": "todo",
-      "title": "Split queue operation tests into smaller modules",
-      "priority": "medium",
-      "tags": [
-        "queue",
-        "tests",
-        "refactor"
-      ],
-      "scope": [
-        "crates/ralph/src/queue/operations.rs",
-        "crates/ralph/src/queue/operations/tests.rs",
-        "crates/ralph/src/queue/operations/"
-      ],
-      "evidence": [
-        "crates/ralph/src/queue/operations/tests.rs: 1544 lines (wc -l) covering multiple queue operations in a single test module.",
-        "crates/ralph/src/queue/operations.rs: uses `#[cfg(test)] mod tests;`, so all operation tests are still funneled through the single tests.rs module.",
-        "crates/ralph/src/queue/operations/: no per-operation test modules exist yet (only tests.rs alongside archive/edit/fields/mutation/query/status/validate sources)."
-      ],
-      "plan": [
-        "Decide the test module layout (for example, tests/mod.rs with archive.rs, status.rs, mutation.rs, query.rs, edit.rs, fields.rs, validate.rs) and map existing tests to their target modules.",
-        "Create the new test module files plus a shared test util module for fixtures, then move tests out of tests.rs.",
-        "Update `crates/ralph/src/queue/operations.rs` to keep `mod tests;` wired to the new module tree and run `cargo test -p ralph queue::operations`."
-      ],
-      "notes": [
-        "tests.rs has grown since the original scan (now 1544 lines), reinforcing the need to split by operation.",
-        "operations.rs already declares `mod tests;`, so moving to a tests/ directory should retain that entry point via tests/mod.rs."
-      ],
-      "request": "scan finding",
-      "agent": {
-        "model_effort": "medium"
-      },
-      "created_at": "2026-01-24T16:07:23.268929000Z",
-      "updated_at": "2026-01-25T21:57:12Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0261",
       "status": "todo",
       "title": "Document full `ralph queue` subcommands in docs/cli.md",

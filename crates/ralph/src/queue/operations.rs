@@ -21,4 +21,5 @@ pub use query::*;
 pub use status::*;
 
 #[cfg(test)]
+#[path = "operations/tests/mod.rs"]
 mod tests;
