@@ -8,8 +8,8 @@
     "id_width": 4
   },
   "agent": {
-    "runner": "opencode",
-    "model": "google/gemini-3-pro-preview",
+    "runner": "codex",
+    "model": "gpt-5.2-codex",
     "phases": 3,
     "iterations": 1,
     "reasoning_effort": "medium",
