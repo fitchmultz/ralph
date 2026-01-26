@@ -18,7 +18,7 @@ Purpose: Capture repo-wide operating expectations for contributors and agents wo
 
 **Key Architectural Patterns:**
 - **Queue-first**: Task queue is the primary source of truth; agents read/write tasks via `.ralph/queue.json`
-- **Runner-agnostic**: Supports multiple AI runners (Codex, OpenCode, Gemini, Claude) through a unified interface
+- **Runner-agnostic**: Supports multiple AI runners (Codex, OpenCode, Gemini, Claude, Cursor) through a unified interface
 - **Three-phase workflow**: Planning → Implementation + CI → Review + Completion (configurable)
 - **Prompt composition**: Worker prompts combine base `worker.md` with phase-specific wrappers
 
@@ -168,7 +168,7 @@ Purpose: Capture repo-wide operating expectations for contributors and agents wo
 4. Schema defaults (`schemas/config.schema.json`)
 
 **Key Configuration:**
-- `agent.runner`: Codex, OpenCode, Gemini, or Claude
+- `agent.runner`: Codex, OpenCode, Gemini, Claude, or Cursor
 - `agent.model`: Model ID string
 - `agent.phases`: Number of phases (1, 2, or 3)
 - `agent.reasoning_effort`: Low, medium, high, xhigh (Codex only)

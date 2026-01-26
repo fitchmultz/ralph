@@ -131,7 +131,7 @@ Generate new tasks by scanning the repository.
 Key flags:
 
 * `--focus <TEXT>`: Optional focus prompt to guide the scan.
-* `--runner <codex|opencode|gemini|claude>`, `--model <model-id>`, `--effort <low|medium|high|xhigh>`: Override runner/model/effort for this invocation.
+* `--runner <codex|opencode|gemini|claude|cursor>`, `--model <model-id>`, `--effort <low|medium|high|xhigh>`: Override runner/model/effort for this invocation.
 * `--rp-on` / `--rp-off`: Force RepoPrompt tooling reminders on/off for this invocation.
 
 Clean-repo checks for `scan` allow changes to `.ralph/queue.json` and `.ralph/done.json`
@@ -500,7 +500,7 @@ ralph prompt worker --phase 3 --task-id RQ-0001
 
 These flags are supported on `task`, `scan`, `run one`, `run loop`, and `tui`:
 
-* `--runner <codex|opencode|gemini|claude>`
+* `--runner <codex|opencode|gemini|claude|cursor>`
 * `--model <model-id>`
 * `--effort <low|medium|high|xhigh>` (codex only)
 * `--rp-on` / `--rp-off`

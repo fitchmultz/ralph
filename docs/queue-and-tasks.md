@@ -37,7 +37,7 @@ Common optional fields:
 - `custom_fields` (map of strings, defaults to empty).
 
 Per-task agent overrides:
-- `agent.runner`: `codex`, `opencode`, `gemini`, or `claude`.
+- `agent.runner`: `codex`, `opencode`, `gemini`, `claude`, or `cursor`.
 - `agent.model`: model id string.
 - `agent.model_effort`: `default`, `low`, `medium`, `high`, `xhigh` (Codex only).
 - `agent.iterations`: number of iterations for this task (default: 1).

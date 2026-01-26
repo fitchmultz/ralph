@@ -57,9 +57,9 @@ Prompt templates support variable interpolation for environment variables and co
 
 Note: Standard placeholders like `{{USER_REQUEST}}` are still processed after variable expansion.
 
-## Runners (Codex + OpenCode + Gemini + Claude)
+## Runners (Codex + OpenCode + Gemini + Claude + Cursor)
 
-Ralph can use Codex, OpenCode, Gemini, or Claude CLI as a runner.
+Ralph can use Codex, OpenCode, Gemini, Claude, or Cursor CLI as a runner.
 
 One-off usage:
 - `ralph task --runner opencode --model gpt-5.2 "Add tests for X"`

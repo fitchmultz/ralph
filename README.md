@@ -47,9 +47,9 @@ Ralph embeds default prompts in the Rust binary. To override them for a repo, ad
 If a file is missing, Ralph falls back to the embedded default. Any override must keep required
 placeholders (for example `{{USER_REQUEST}}` in the task builder prompt).
 
-## Runners (Codex + OpenCode + Gemini + Claude)
+## Runners (Codex + OpenCode + Gemini + Claude + Cursor)
 
-Ralph supports Codex, OpenCode, Gemini, and Claude CLIs as runners.
+Ralph supports Codex, OpenCode, Gemini, Claude, and Cursor CLIs as runners.
 
 Quick usage:
 - Ensure runner binaries are installed and on `PATH`.

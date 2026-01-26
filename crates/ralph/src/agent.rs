@@ -14,14 +14,14 @@ use clap::Args;
 /// Used by `task` and `scan` commands.
 #[derive(Args, Clone, Debug, Default)]
 pub struct AgentArgs {
-    /// Runner override for this invocation (codex, opencode, gemini, claude).
+    /// Runner override for this invocation (codex, opencode, gemini, claude, cursor).
     /// Overrides task.agent and config.
     #[arg(long)]
     pub runner: Option<String>,
 
     /// Model override for this invocation. Overrides task.agent and config.
     /// Allowed: gpt-5.2-codex, gpt-5.2, zai-coding-plan/glm-4.7, gemini-3-pro-preview, gemini-3-flash-preview, sonnet, opus
-    /// (codex supports only gpt-5.2-codex/gpt-5.2; opencode/gemini/claude accept arbitrary model ids).
+    /// (codex supports only gpt-5.2-codex/gpt-5.2; opencode/gemini/claude/cursor accept arbitrary model ids).
     #[arg(long)]
     pub model: Option<String>,
 
@@ -42,14 +42,14 @@ pub struct AgentArgs {
 /// Extended agent arguments for run commands (includes phases).
 #[derive(Args, Clone, Debug, Default)]
 pub struct RunAgentArgs {
-    /// Runner override for this invocation (codex, opencode, gemini, claude).
+    /// Runner override for this invocation (codex, opencode, gemini, claude, cursor).
     /// Overrides task.agent and config.
     #[arg(long)]
     pub runner: Option<String>,
 
     /// Model override for this invocation. Overrides task.agent and config.
     /// Allowed: gpt-5.2-codex, gpt-5.2, zai-coding-plan/glm-4.7, gemini-3-pro-preview, gemini-3-flash-preview, sonnet, opus
-    /// (codex supports only gpt-5.2-codex/gpt-5.2; opencode/gemini/claude accept arbitrary model ids).
+    /// (codex supports only gpt-5.2-codex/gpt-5.2; opencode/gemini/claude/cursor accept arbitrary model ids).
     #[arg(long)]
     pub model: Option<String>,
 
@@ -137,8 +137,9 @@ pub fn parse_runner(value: &str) -> Result<Runner> {
         "opencode" => Ok(Runner::Opencode),
         "gemini" => Ok(Runner::Gemini),
         "claude" => Ok(Runner::Claude),
+        "cursor" => Ok(Runner::Cursor),
         _ => bail!(
-            "Invalid runner: --runner must be 'codex', 'opencode', 'gemini', or 'claude' (got: {}). Set a supported runner in .ralph/config.json or via the --runner flag.",
+            "Invalid runner: --runner must be 'codex', 'opencode', 'gemini', 'claude', or 'cursor' (got: {}). Set a supported runner in .ralph/config.json or via the --runner flag.",
             value.trim()
         ),
     }

@@ -71,9 +71,9 @@ Worker prompts are composed from a base prompt plus phase-specific wrappers:
 If a repo-local override is missing, Ralph falls back to the embedded defaults in
 `crates/ralph/assets/prompts/`.
 
-## Runners (Codex + OpenCode + Gemini + Claude)
+## Runners (Codex + OpenCode + Gemini + Claude + Cursor)
 
-Ralph can use Codex, OpenCode, Gemini, or Claude CLI as a runner.
+Ralph can use Codex, OpenCode, Gemini, Claude, or Cursor CLI as a runner.
 
 One-off usage:
 - `ralph task --runner opencode --model gpt-5.2 "Add tests for X"`
