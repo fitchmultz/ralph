@@ -1,4 +1,676 @@
 {
   "version": 1,
-  "tasks": []
+  "tasks": [
+    {
+      "id": "RQ-0292",
+      "status": "todo",
+      "title": "Decompose tui/mod.rs into submodules",
+      "priority": "high",
+      "tags": [
+        "refactor",
+        "tui",
+        "housekeeping"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/mod.rs",
+        "crates/ralph/src/tui/app.rs",
+        "crates/ralph/src/tui/task_edit.rs",
+        "crates/ralph/src/tui/config_edit.rs"
+      ],
+      "evidence": [
+        "crates/ralph/src/tui/mod.rs is 2958 lines long, violating size heuristics (~400 LOC recommended).",
+        "App struct and its massive impl block dominate the file.",
+        "Task and Config editing logic are mixed with core TUI lifecycle.",
+        "tui/config_edit.rs exists but some of its logic is still duplicated in mod.rs."
+      ],
+      "plan": [
+        "Create crates/ralph/src/tui/app.rs and move App, TuiOptions, FilterState, and RunningKind there.",
+        "Move core App lifecycle and state management methods to tui/app.rs.",
+        "Create crates/ralph/src/tui/task_edit.rs and move TaskEditKind, TaskEditEntry, and task-related editing methods there.",
+        "Refactor tui/mod.rs to use tui/config_edit.rs consistently and remove duplicated config logic.",
+        "Update tui/mod.rs to re-export new submodules and serve as a clean entry point.",
+        "Fix imports and visibility across the new module structure.",
+        "Run `make ci` to ensure no regressions."
+      ],
+      "notes": [
+        "tui/config_edit.rs is already partially implemented but not fully utilized by App.",
+        "Extracting TaskEdit logic will significantly reduce mod.rs size and improve cohesion."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-26T15:35:00Z",
+      "updated_at": "2026-01-26T16:15:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0293",
+      "status": "todo",
+      "title": "Refactor post_run_supervise for better readability",
+      "priority": "high",
+      "tags": [
+        "refactor",
+        "supervision",
+        "housekeeping",
+        "dry"
+      ],
+      "scope": [
+        "crates/ralph/src/run_cmd/supervision.rs"
+      ],
+      "evidence": [
+        "post_run_supervise (lines 53-199) is a 146-line function that mixes concerns: repo dirty check, queue maintenance (backfill/validation), CI validation, and Git operations (commit/push).",
+        "It contains duplicated logic for queue reloading, backfilling completed_at, and validation (before and after the CI gate).",
+        "Git commit/push logic is repeated in multiple branches of the function.",
+        "Error handling paths are entangled with the branching logic for dirty/clean states."
+      ],
+      "plan": [
+        "Extract queue maintenance logic (backfill and validation) into a reusable helper function within supervision.rs or queue module.",
+        "Extract the Git finalization logic (commit, push, and clean repo check) into a dedicated function.",
+        "Refactor post_run_supervise to use these helpers, eliminating duplicated reload and maintenance blocks.",
+        "Streamline the flow for dirty vs. clean repo states to reduce nesting and redundancy.",
+        "Add clear anyhow context to each phase of the supervision process (Maintenance, CI Gate, Git Finalization).",
+        "Verify refactoring by running make ci and ensuring existing tests pass."
+      ],
+      "notes": [
+        "Check if some of the maintenance helpers should live in crates/ralph/src/queue.rs for broader utility.",
+        "The goal is to move towards a pipeline-style flow in post_run_supervise."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-26T15:35:00Z",
+      "updated_at": "2026-01-26T17:15:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0294",
+      "status": "todo",
+      "title": "Consolidate command implementations",
+      "priority": "medium",
+      "tags": [
+        "refactor",
+        "cli",
+        "housekeeping"
+      ],
+      "scope": [
+        "crates/ralph/src/doctor_cmd.rs",
+        "crates/ralph/src/init_cmd.rs",
+        "crates/ralph/src/prompt_cmd.rs",
+        "crates/ralph/src/run_cmd.rs",
+        "crates/ralph/src/run_cmd/",
+        "crates/ralph/src/scan_cmd.rs",
+        "crates/ralph/src/task_cmd.rs",
+        "crates/ralph/src/cli/"
+      ],
+      "evidence": [
+        "Command implementations are currently scattered as *_cmd.rs files in crates/ralph/src/ (doctor, init, prompt, run, scan, task).",
+        "The run_cmd implementation is split between a file (run_cmd.rs) and a directory (run_cmd/).",
+        "The cli/ module contains Clap definitions and handlers that delegate to these scattered cmd modules.",
+        "lib.rs exports each of these cmd modules individually, polluting the public API surface."
+      ],
+      "plan": [
+        "Create crates/ralph/src/commands/mod.rs to serve as the new consolidation point.",
+        "Move crates/ralph/src/init_cmd.rs to crates/ralph/src/commands/init.rs.",
+        "Move crates/ralph/src/doctor_cmd.rs to crates/ralph/src/commands/doctor.rs.",
+        "Move crates/ralph/src/prompt_cmd.rs to crates/ralph/src/commands/prompt.rs.",
+        "Move crates/ralph/src/scan_cmd.rs to crates/ralph/src/commands/scan.rs.",
+        "Move crates/ralph/src/task_cmd.rs to crates/ralph/src/commands/task.rs.",
+        "Consolidate crates/ralph/src/run_cmd.rs and crates/ralph/src/run_cmd/ into crates/ralph/src/commands/run/.",
+        "Update crates/ralph/src/lib.rs to export the commands module and remove individual cmd exports.",
+        "Refactor all submodules in crates/ralph/src/cli/ to import from crate::commands.",
+        "Run `make ci` to ensure all imports and visibility changes are correct."
+      ],
+      "notes": [
+        "This refactor improves the internal organization by clearly separating command logic from other core library modules.",
+        "Consolidating run_cmd resolves the ambiguity of having both a file and a directory with the same name."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-26T15:35:00Z",
+      "updated_at": "2026-01-26T17:35:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0295",
+      "status": "todo",
+      "title": "Audit and clean up AgentConfig fields",
+      "priority": "medium",
+      "tags": [
+        "refactor",
+        "contracts",
+        "config",
+        "cleanup"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts.rs",
+        "crates/ralph/src/agent.rs",
+        "docs/configuration.md",
+        "AGENTS.md",
+        "README.md",
+        "schemas/config.schema.json",
+        "crates/ralph/src/run_cmd/tests.rs",
+        "crates/ralph/tests/contracts_test.rs",
+        "crates/ralph/tests/config_test.rs"
+      ],
+      "evidence": [
+        "AgentConfig in crates/ralph/src/contracts.rs contains the require_repoprompt field, marked as deprecated (line 108).",
+        "crates/ralph/src/agent.rs still contains logic that falls back to require_repoprompt when resolving new flags (lines 251, 255).",
+        "docs/configuration.md and AGENTS.md still document and instruct based on the deprecated require_repoprompt flag.",
+        "schemas/config.schema.json still includes require_repoprompt in its definition."
+      ],
+      "plan": [
+        "Remove require_repoprompt field and its merge logic from AgentConfig in crates/ralph/src/contracts.rs.",
+        "Update the Default implementation for Config in crates/ralph/src/contracts.rs to remove require_repoprompt.",
+        "Update crates/ralph/src/agent.rs to remove all fallback logic and direct references to require_repoprompt.",
+        "Update all test suites and documentation files to use repoprompt_plan_required or repoprompt_tool_injection exclusively.",
+        "Run `make generate` to synchronize JSON schemas.",
+        "Run `make ci` to verify implementation correctness and ensure no regressions."
+      ],
+      "notes": [
+        "This task completes the migration by removing the legacy require_repoprompt field entirely.",
+        "The split into repoprompt_plan_required and repoprompt_tool_injection provides more granular control."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-26T15:35:00Z",
+      "updated_at": "2026-01-26T18:15:30Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0296",
+      "status": "todo",
+      "title": "Modularize lib.rs and tighten visibility",
+      "priority": "medium",
+      "tags": [
+        "refactor",
+        "housekeeping",
+        "visibility",
+        "architecture"
+      ],
+      "scope": [
+        "crates/ralph/src/lib.rs",
+        "crates/ralph/src/main.rs",
+        "crates/ralph/tests/"
+      ],
+      "evidence": [
+        "lib.rs is a flat list of 25+ pub mod exports, creating an unnecessarily large public API surface.",
+        "Many exported modules are command-specific and will be consolidated by RQ-0294.",
+        "Integration tests in crates/ralph/tests/ rely on these exports, making tightening visibility a delicate task.",
+        "The file lacks logical grouping for its 30+ modules."
+      ],
+      "plan": [
+        "Audit lib.rs exports against main.rs and tests/ usage.",
+        "Categorize modules into logical groups (Core, Commands, UI, Utils) within lib.rs using comments or sub-modules.",
+        "Tighten visibility to pub(crate) for modules not required by the public API or integration tests.",
+        "Coordinate with RQ-0294 to consolidate command modules into a single pub mod commands entry.",
+        "Verify changes with make ci and all integration tests."
+      ],
+      "notes": [
+        "This task should follow RQ-0294 to avoid redundant path changes.",
+        "Consider using pub(crate) for modules that must be visible to the test suite if they can be moved into the same crate structure, though integration tests require pub."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-26T15:35:00Z",
+      "updated_at": "2026-01-26T18:30:00Z",
+      "depends_on": [
+        "RQ-0294"
+      ],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0297",
+      "status": "todo",
+      "title": "Refactor runner command assembly (DRY)",
+      "priority": "medium",
+      "tags": [
+        "refactor",
+        "runner",
+        "dry",
+        "housekeeping"
+      ],
+      "scope": [
+        "crates/ralph/src/runner/execution/runners.rs",
+        "crates/ralph/src/runner/execution/process.rs",
+        "crates/ralph/src/runner.rs"
+      ],
+      "evidence": [
+        "All 8 runner implementation functions in `runners.rs` (including resume variants) repeat identical `Command` initialization boilerplate: `let mut cmd = Command::new(bin); cmd.current_dir(work_dir); ensure_self_on_path(&mut cmd);`.",
+        "Model flag handling (`--model`) and output format selection (`--json`, `--output-format stream-json`) are handled case-by-case instead of using a unified builder.",
+        "`run_opencode` manually handles temp file prompt creation and cleanup which could be generalized or standardized."
+      ],
+      "plan": [
+        "Extract common `Command` initialization logic into a shared helper (e.g., `process::new_runner_command`).",
+        "Implement a `RunnerCommandBuilder` to encapsulate standard runner arguments like model, output format, and input source (stdin vs temporary file).",
+        "Refactor all `run_*` and `run_*_resume` functions in `runners.rs` to use the unified builder.",
+        "Ensure `OpenCode`'s unique temp-file prompt handling is either standardized or cleanly integrated into the shared builder.",
+        "Verify all runners still correctly parse session IDs and stream output by running `make test`."
+      ],
+      "notes": [
+        "Standardizing the command assembly will make it easier to add new runners (e.g., OpenAI, Ollama) in the future.",
+        "Check if `ensure_self_on_path` should be moved to a more central utility if it's used elsewhere."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-26T15:35:00Z",
+      "updated_at": "2026-01-26T19:30:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0298",
+      "status": "todo",
+      "title": "Improve fsutil.rs cohesion",
+      "priority": "medium",
+      "tags": [
+        "refactor",
+        "housekeeping",
+        "cohesion",
+        "architecture"
+      ],
+      "scope": [
+        "crates/ralph/src/fsutil.rs",
+        "crates/ralph/src/lock.rs",
+        "crates/ralph/src/lib.rs",
+        "crates/ralph/tests/fsutil_test.rs"
+      ],
+      "evidence": [
+        "fsutil.rs (447 lines) mixes locking logic (9+ functions, 2 structs) with temp cleanup and atomic write helpers.",
+        "Locking logic requires specific Unix-only dependencies (libc) and complex error formatting that obscures the core utility functions.",
+        "Widespread usage of locking logic across CLI and TUI modules suggests it should be a first-class module."
+      ],
+      "plan": [
+        "Create crates/ralph/src/lock.rs and move locking-related structs (DirLock, LockOwner) and functions (acquire_dir_lock, is_supervising_process) there.",
+        "Move lock-specific private helpers (parse_lock_owner, write_lock_owner, read_lock_owner, pid_is_running, format_lock_error, is_supervising_label, command_line) to lock.rs.",
+        "Expose the new module in crates/ralph/src/lib.rs.",
+        "Update all call sites (queue.rs, cli/task.rs, tui/mod.rs, etc.) to import from the new lock module.",
+        "Split or update locking tests in crates/ralph/tests/fsutil_test.rs and other integration tests.",
+        "Run `make ci` to verify the refactoring."
+      ],
+      "notes": [
+        "Consider if general fs helpers like sync_dir_best_effort should be moved to a more central location if used by both lock and fsutil.",
+        "The goal is to reach a state where fsutil.rs is strictly for stateless filesystem operations."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-26T15:35:00Z",
+      "updated_at": "2026-01-26T20:00:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0299",
+      "status": "todo",
+      "title": "Add regression tests for runner JSON parsing",
+      "priority": "medium",
+      "tags": [
+        "test",
+        "runner",
+        "housekeeping"
+      ],
+      "scope": [
+        "crates/ralph/src/runner/execution/json.rs",
+        "crates/ralph/src/runner/execution/tests/parsing.rs"
+      ],
+      "evidence": [
+        "extract_session_id_from_text in json.rs relies on a simple per-line parse which fails if lines contain non-JSON prefixes (e.g., log tags).",
+        "Existing tests in parsing.rs cover only basic session/thread ID keys and well-formatted single lines.",
+        "No regression testing exists for malformed lines, partial JSON, non-string ID values, or multiple interleaved JSON objects."
+      ],
+      "plan": [
+        "Add exhaustive test cases to parsing.rs for extract_session_id_from_json covering non-string values and nested fields.",
+        "Expand extract_session_id_from_text tests to cover interleaved non-JSON lines and lines with log prefixes.",
+        "Improve extract_session_id_from_text implementation to be more robust to partial lines or prefixes if tests fail.",
+        "Ensure session ID extraction remains deterministic (first-win) and performs well on large outputs.",
+        "Run `make test -p ralph` to verify changes."
+      ],
+      "notes": [
+        "While explicit TODO markers in json.rs have been cleaned up, the parsing logic remains brittle for complex runner outputs."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-26T15:35:00Z",
+      "updated_at": "2026-01-26T19:45:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0300",
+      "status": "todo",
+      "title": "Standardize error handling context",
+      "priority": "medium",
+      "tags": [
+        "refactor",
+        "housekeeping",
+        "error-handling"
+      ],
+      "scope": [
+        "crates/ralph/src/runner/execution/process.rs",
+        "crates/ralph/src/runner/execution/runners.rs",
+        "crates/ralph/src/runner.rs",
+        "crates/ralph/src/queue/operations/",
+        "crates/ralph/src/queue/validation.rs"
+      ],
+      "evidence": [
+        "crates/ralph/src/runner/execution/process.rs contains sparse error messages like 'lock ctrl-c state' and 'stdout reader panicked' which lack actionable context.",
+        "crates/ralph/src/queue/validation.rs demonstrates the desired pattern of descriptive, actionable error messages with clear fix suggestions.",
+        "crates/ralph/src/runner.rs uses generic RunnerError::Other mapping that often hides the underlying cause or domain context.",
+        "Error handling in crates/ralph/src/queue/operations/ doesn't consistently use the Context trait to include task IDs in failure messages."
+      ],
+      "plan": [
+        "Audit crates/ralph/src/runner/execution/process.rs and runners.rs for sparse or generic error messages and replace with descriptive Context.",
+        "Audit crates/ralph/src/runner.rs for RunnerError::Other usages and wrap with domain-specific context (e.g., 'executing codex runner').",
+        "Refactor crates/ralph/src/queue/operations/ to use anyhow::Context for including task IDs in all task-related failure paths.",
+        "Ensure all validation errors follow the high-quality pattern established in validation.rs (actionable + descriptive).",
+        "Verify improved context by manually triggering failures (e.g., missing binaries, invalid IDs) and inspecting output.",
+        "Run `make ci` to ensure all error paths are correctly typed and handleable."
+      ],
+      "notes": [
+        "Use crates/ralph/src/queue/validation.rs as the gold standard for error context quality.",
+        "The goal is to ensure every error bubble-up to the CLI includes enough context for a user to diagnose without reading source code."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-26T15:35:00Z",
+      "updated_at": "2026-01-26T18:45:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0301",
+      "status": "todo",
+      "title": "Centralize prompt organization",
+      "priority": "medium",
+      "tags": [
+        "refactor",
+        "prompts",
+        "housekeeping"
+      ],
+      "scope": [
+        "crates/ralph/src/prompts.rs",
+        "crates/ralph/src/prompts_internal/mod.rs",
+        "crates/ralph/src/prompts_internal/util.rs",
+        "crates/ralph/src/prompts_internal/worker.rs",
+        "crates/ralph/src/prompts_internal/worker_phases.rs",
+        "crates/ralph/src/prompts_internal/scan.rs",
+        "crates/ralph/src/prompts_internal/task_builder.rs",
+        "crates/ralph/src/prompts_internal/task_updater.rs",
+        "crates/ralph/src/prompts_internal/review.rs",
+        "crates/ralph/src/prompts_internal/iteration.rs"
+      ],
+      "evidence": [
+        "Current prompt loading logic is duplicated across 7+ modules in crates/ralph/src/prompts_internal/.",
+        "Each module manually defines relative paths, embedded defaults, and boilerplate load/render functions.",
+        "Hardcoded string literals for template keys (e.g., {{TASK_ID}}, {{PROJECT_TYPE_GUIDANCE}}) are scattered and inconsistently handled.",
+        "The modularization of prompts has introduced redundant code that could be unified via a central registry."
+      ],
+      "plan": [
+        "Define a `Prompt` enum in `prompts_internal/util.rs` (or `mod.rs`) that maps each prompt to its relative path and embedded content.",
+        "Implement a `load` method for the `Prompt` enum that handles the fallback logic consistently.",
+        "Add a unified `render` method or helper that handles common variable expansion (env/config) and project guidance injection.",
+        "Refactor all submodules in `crates/ralph/src/prompts_internal/` to use the new `Prompt` enum for loading.",
+        "Update prompt consumers (phases, task builder, scan) to leverage the centralized registry.",
+        "Standardize placeholder validation and escaping across all prompt types.",
+        "Run `make ci` to verify that all prompts still load and render correctly."
+      ],
+      "notes": [
+        "Centralizing prompts into an enum will make it easier to add new prompt types and metadata in the future.",
+        "Consider if the enum should also track which placeholders are required for each prompt type."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-26T15:35:00Z",
+      "updated_at": "2026-01-26T20:45:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0302",
+      "status": "todo",
+      "title": "Audit and tighten public API surface",
+      "priority": "medium",
+      "tags": [
+        "refactor",
+        "housekeeping",
+        "visibility",
+        "api-design"
+      ],
+      "scope": [
+        "crates/ralph/src/lib.rs",
+        "crates/ralph/src/**/*.rs",
+        "crates/ralph/tests/"
+      ],
+      "evidence": [
+        "lib.rs currently exports 25+ submodules as `pub`, many of which are implementation details (e.g., `prompts`, `runner`, `run_cmd`).",
+        "Within these submodules, many items (structs, functions, enums) are marked `pub` when they are only consumed within the crate or even within their parent module.",
+        "Specific examples found in `crates/ralph/src/runner/execution/runners.rs` and `crates/ralph/src/prompts_internal/review.rs` where public items can be restricted to `pub(crate)` or `pub(super)`."
+      ],
+      "plan": [
+        "Wait for RQ-0296 (Modularize lib.rs and tighten visibility) to complete its reorganization of lib.rs.",
+        "Perform a recursive audit of all items marked `pub` within crates/ralph/src/ submodules.",
+        "Restrict visibility to `pub(crate)` or `pub(super)` for all items not required by the public API or integration tests in `tests/`.",
+        "Consolidate public exports into a minimal, intentional API surface documented in lib.rs.",
+        "Run `make ci` to verify that integration tests still have sufficient access."
+      ],
+      "notes": [
+        "This task should follow RQ-0296 to avoid redundant path changes during module reorganization.",
+        "Integration tests in `tests/` are the primary constraint; consider moving some logic-specific tests into internal `#[cfg(test)]` blocks to allow further tightening."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-26T15:35:00Z",
+      "updated_at": "2026-01-26T21:15:00Z",
+      "depends_on": [
+        "RQ-0296"
+      ],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0303",
+      "status": "todo",
+      "title": "Achieve feature parity across all runners",
+      "priority": "medium",
+      "tags": [
+        "improvement",
+        "runner",
+        "parity",
+        "standardization"
+      ],
+      "scope": [
+        "crates/ralph/src/runner/execution/runners.rs",
+        "crates/ralph/src/runner/execution/process.rs",
+        "crates/ralph/src/runner/execution/json.rs"
+      ],
+      "evidence": [
+        "Claude runner exposes unique flags like --verbose and --permission-mode that are not consistently mapped or available for other runners.",
+        "Gemini uses a hardcoded --approval-mode yolo which should be configurable or standardized.",
+        "Resume flags vary significantly across runners (resume vs -s vs --resume).",
+        "Output format selection is inconsistent (--json vs --format json vs --output-format stream-json).",
+        "Streaming consistency is not guaranteed when interleaved with non-JSON output, particularly in Codex and OpenCode."
+      ],
+      "plan": [
+        "Audit all runner CLI capabilities for shared features such as verbose mode and approval/permission settings.",
+        "Incorporate shared flag support into the RunnerCommandBuilder proposed by RQ-0297.",
+        "Refactor run_with_streaming_json in process.rs to handle varied JSON output styles and interleaved logs consistently.",
+        "Expose standardized settings (e.g., verbose, approval_mode) in AgentConfig and propagate them to runners.",
+        "Verify parity using integration tests that simulate diverse runner CLI outputs and edge cases.",
+        "Update documentation to reflect the standardized runner interface."
+      ],
+      "notes": [
+        "This task is a logical follow-up to the DRY refactoring in RQ-0297.",
+        "Improved parsing logic from RQ-0299 will be foundational for consistent streaming."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-26T15:35:00Z",
+      "updated_at": "2026-01-26T16:10:00Z",
+      "depends_on": [
+        "RQ-0297",
+        "RQ-0299"
+      ],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0305",
+      "status": "todo",
+      "title": "Audit and split contracts.rs",
+      "priority": "low",
+      "tags": [
+        "refactor",
+        "contracts",
+        "housekeeping",
+        "cohesion",
+        "architecture"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts.rs",
+        "crates/ralph/src/contracts/mod.rs",
+        "crates/ralph/src/contracts/config.rs",
+        "crates/ralph/src/contracts/task.rs",
+        "crates/ralph/src/contracts/queue.rs"
+      ],
+      "evidence": [
+        "crates/ralph/src/contracts.rs is 618 lines long (as of Jan 26, 2026).",
+        "It mixes configuration structures (AgentConfig, QueueConfig), task definitions (Task, TaskStatus), and queue file structures (QueueFile).",
+        "Violation of 'Cohesion' principle: it handles too many distinct responsibilities in a single file.",
+        "Violation of 'Size heuristic': it exceeds the recommended ~400 LOC."
+      ],
+      "plan": [
+        "Create crates/ralph/src/contracts/ directory.",
+        "Extract configuration-related structs and enums to crates/ralph/src/contracts/config.rs.",
+        "Extract task-related structs and enums to crates/ralph/src/contracts/task.rs.",
+        "Extract queue file structures to crates/ralph/src/contracts/queue.rs.",
+        "Move associated Default implementations and unit tests to their respective new modules.",
+        "Update crates/ralph/src/contracts/mod.rs to host re-exports for all items to maintain backward compatibility.",
+        "Replace crates/ralph/src/contracts.rs with a file that simply re-exports the contracts module or remove it if using contracts/mod.rs.",
+        "Run `make ci` to verify implementation correctness and ensure no regressions."
+      ],
+      "notes": [
+        "This refactor will improve maintainability and make it easier to locate specific data structures.",
+        "By maintaining re-exports in contracts.rs (or contracts/mod.rs), we avoid a massive rename across the entire codebase."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-26T15:35:00Z",
+      "updated_at": "2026-01-26T22:50:00Z",
+      "depends_on": [
+        "RQ-0295"
+      ],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0306",
+      "status": "todo",
+      "title": "Audit and improve CLI help examples",
+      "priority": "low",
+      "tags": [
+        "documentation",
+        "cli",
+        "housekeeping"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/mod.rs",
+        "crates/ralph/src/cli/task.rs",
+        "crates/ralph/src/cli/run.rs",
+        "crates/ralph/src/cli/scan.rs",
+        "crates/ralph/src/cli/prompt.rs",
+        "crates/ralph/src/cli/queue/mod.rs"
+      ],
+      "evidence": [
+        "Audit of `crates/ralph/src/cli/` reveals that while many commands have good examples, some gaps remain.",
+        "`TaskCommand::Update` in `task.rs` lacks explicit `--rp-on`/`--rp-off` examples in its `after_long_help` block.",
+        "`RunCommand::Loop` in `run.rs` lacks `--rp-on`/`--rp-off` examples, unlike `RunCommand::One`.",
+        "`RunCommand::One` examples for `--phases` are present but could be more descriptive about what each phase does (Plan/Implement/Review).",
+        "Most `queue` commands are well-documented, but `ralph queue validate` and `ralph queue next-id` have very minimal single-line examples."
+      ],
+      "plan": [
+        "Review and audit all `after_long_help` blocks in `crates/ralph/src/cli/` submodules.",
+        "Add `--rp-on` and `--rp-off` examples to `TaskCommand::Update` in `crates/ralph/src/cli/task.rs`.",
+        "Add `--rp-on` and `--rp-off` examples to `RunCommand::Loop` in `crates/ralph/src/cli/run.rs`.",
+        "Expand `--phases` examples in `run.rs` to clarify the 3-phase, 2-phase, and 1-phase workflows.",
+        "Enhance minimal examples for utility commands like `queue validate` and `queue next-id`.",
+        "Run `cargo run -p ralph -- <command> --help` to verify all help texts look polished and consistent.",
+        "Run `make ci` to ensure no regressions."
+      ],
+      "notes": [
+        "Focus on making examples actionable and covering newer flags like `--rp-on`, `--rp-off`, and `--phases` consistently.",
+        "Ensure examples match the actual behavior described in `docs/cli.md`."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-26T15:35:00Z",
+      "updated_at": "2026-01-26T23:55:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0307",
+      "status": "todo",
+      "title": "Optimize TUI filtering and indexing",
+      "priority": "low",
+      "tags": [
+        "performance",
+        "tui",
+        "refactor"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/mod.rs",
+        "crates/ralph/src/queue/search.rs"
+      ],
+      "evidence": [
+        "rebuild_filtered_view_with_preferred in crates/ralph/src/tui/mod.rs (lines 1553-1596) reconstructs an O(N) HashMap of all tasks on every call to resolve indices.",
+        "rebuild_filtered_view is called on nearly every TUI event (18 call sites in mod.rs), even when filter state hasn't changed (e.g., status message updates).",
+        "Queue filtering logic in crates/ralph/src/queue/search.rs returns Vec<&Task>, which is efficient for references but the TUI then performs redundant work to map these back to indices."
+      ],
+      "plan": [
+        "Cache the task ID to index mapping in the App struct and only update it when the queue is reloaded or mutated.",
+        "Introduce a filters_dirty flag to the App struct to skip redundant re-filtering when the filter parameters (query, status, tags, scopes) remain unchanged.",
+        "Refactor rebuild_filtered_view to leverage the cached mapping and avoid rebuilding the HashMap.",
+        "Profile TUI performance with a synthetic queue of 1,000+ tasks to identify further latency sources in the render/update loop.",
+        "Run `make ci` to ensure no regressions in TUI behavior or filtering logic."
+      ],
+      "notes": [
+        "This optimization is crucial for maintaining TUI responsiveness as project history grows.",
+        "Consider if filter_tasks should return indices directly to further simplify the TUI's responsibilities."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-26T15:35:00Z",
+      "updated_at": "2026-01-27T00:30:00Z",
+      "depends_on": [
+        "RQ-0292"
+      ],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0308",
+      "status": "todo",
+      "title": "Standardize timestamp handling",
+      "priority": "low",
+      "tags": [
+        "refactor",
+        "housekeeping",
+        "standardization"
+      ],
+      "scope": [
+        "crates/ralph/src/timeutil.rs",
+        "crates/ralph/src/queue/validation.rs",
+        "crates/ralph/src/reports.rs",
+        "crates/ralph/src/queue/prune.rs",
+        "crates/ralph/src/queue/operations/edit.rs",
+        "crates/ralph/src/queue/repair.rs",
+        "crates/ralph/src/queue/operations/validate.rs"
+      ],
+      "evidence": [
+        "Direct usage of OffsetDateTime::parse(..., &Rfc3339) exists in validation.rs, reports.rs, prune.rs, edit.rs, repair.rs, and validate.rs.",
+        "OffsetDateTime::now_utc() is used directly in reports.rs and prune.rs instead of using timeutil.",
+        "timeutil.rs lacks centralized parsing and formatting helpers for OffsetDateTime, leading to duplicated 'time' crate imports across modules.",
+        "Consistent subsecond precision (9 digits) is defined in timeutil.rs but not enforced during parsing or used in all formatting sites."
+      ],
+      "plan": [
+        "Extend crates/ralph/src/timeutil.rs with `parse_rfc3339(ts: &str) -> Result<OffsetDateTime>` and `format_rfc3339(dt: OffsetDateTime) -> Result<String>` using the fixed precision format.",
+        "Refactor all direct OffsetDateTime::parse calls to use timeutil::parse_rfc3339.",
+        "Refactor direct OffsetDateTime::now_utc() calls to use timeutil helpers where the intent is to generate or format a queue-compatible timestamp.",
+        "Centralize 'time' and 'Rfc3339' imports within timeutil.rs and remove redundant imports from consumer modules.",
+        "Update tests to verify that all timestamps generated by the system adhere to the fixed 9-digit subsecond precision.",
+        "Run `make ci` to ensure no regressions in queue validation or reporting."
+      ],
+      "notes": [
+        "Moving parse_ts from reports.rs to timeutil.rs is a key step.",
+        "The goal is to ensure the entire system uses the same RFC3339 flavor with consistent precision."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-26T15:35:00Z",
+      "updated_at": "2026-01-26T18:45:15Z",
+      "depends_on": [],
+      "custom_fields": {}
+    }
+  ]
 }
