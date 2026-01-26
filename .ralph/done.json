@@ -5843,6 +5843,49 @@
       "completed_at": "2026-01-26T20:07:47.189047000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0311",
+      "status": "done",
+      "title": "Fix persisting lock directory for 'task' commands",
+      "priority": "medium",
+      "tags": [
+        "bug",
+        "fsutil",
+        "lock"
+      ],
+      "scope": [
+        "crates/ralph/src/fsutil.rs",
+        "crates/ralph/tests/fsutil_test.rs"
+      ],
+      "evidence": [
+        "User reported lock file persisting after 'ralph task' and not cleaning up.",
+        "fsutil.rs: acquire_dir_lock sets remove_dir_on_drop: false for 'task' label.",
+        "DirLock::drop only attempts to remove lock_dir if remove_dir_on_drop is true.",
+        "When 'ralph task' runs, it creates the lock dir and a sidecar owner file. Upon exit, it removes the sidecar but leaves the empty lock dir.",
+        "Subsequent runs fail because acquire_dir_lock sees an existing lock dir but no 'owner' file (read_lock_owner returns None), triggering a 'Queue lock already held' error."
+      ],
+      "plan": [
+        "Modify DirLock::drop in crates/ralph/src/fsutil.rs to attempt fs::remove_dir(&self.lock_dir) regardless of remove_dir_on_drop flag.",
+        "Ensure the removal attempt suppresses errors (it will fail harmlessly if directory is not empty/still in use).",
+        "This ensures that the last process exiting a shared lock directory cleans it up.",
+        "Add a test case in crates/ralph/tests/fsutil_test.rs to verify sequential task execution (acquire 'task' lock -> drop -> acquire again) succeeds.",
+        "Run `make ci` to verify the fix and ensure no regressions."
+      ],
+      "notes": [
+        "This change ensures that 'ralph task' (which uses shared locking) cleans up the lock directory when it's the last process to exit, preventing subsequent runs from seeing a stale empty directory.",
+        "Modified DirLock::drop to always attempt best-effort removal of lock directory",
+        "Updated acquire_dir_lock to clean up if owner file write fails",
+        "Removed remove_dir_on_drop field from DirLock",
+        "Added regression test task_lock_cleans_up_directory_when_no_supervisor",
+        "Verified with make ci"
+      ],
+      "request": "The lock file is persisting after running 'ralph task \"Example task 123\"' and not being cleaned up properly.",
+      "created_at": "2026-01-26T19:31:51Z",
+      "updated_at": "2026-01-26T20:44:10.698437000Z",
+      "completed_at": "2026-01-26T20:44:10.698437000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

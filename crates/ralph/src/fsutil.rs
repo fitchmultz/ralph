@@ -11,15 +11,17 @@ use std::time::{Duration, SystemTime};
 pub struct DirLock {
     lock_dir: PathBuf,
     owner_path: PathBuf,
-    remove_dir_on_drop: bool,
 }
 
 impl Drop for DirLock {
     fn drop(&mut self) {
         let _ = fs::remove_file(&self.owner_path);
-        if self.remove_dir_on_drop {
-            let _ = fs::remove_dir(&self.lock_dir);
-        }
+
+        // Best-effort: remove the lock directory if it's empty.
+        // - For standard locks, removing the owner file above should leave the directory empty.
+        // - For shared "task" locks under supervision, the directory still contains the supervisor's
+        //   `owner` file, so this removal fails and the supervisor cleans up when it exits.
+        let _ = fs::remove_dir(&self.lock_dir);
     }
 }
 
@@ -262,16 +264,17 @@ pub fn acquire_dir_lock(lock_dir: &Path, label: &str, force: bool) -> Result<Dir
 
     if let Err(err) = write_lock_owner(&owner_path, &owner) {
         let _ = fs::remove_file(&owner_path);
-        if !is_task_label {
-            let _ = fs::remove_dir(lock_dir);
-        }
+
+        // Best-effort cleanup: if the lock directory is empty, remove it.
+        // This prevents task lock attempts from leaving an empty `.ralph/lock` behind on errors.
+        let _ = fs::remove_dir(lock_dir);
+
         return Err(err);
     }
 
     Ok(DirLock {
         lock_dir: lock_dir.to_path_buf(),
         owner_path,
-        remove_dir_on_drop: !is_task_label,
     })
 }
 
