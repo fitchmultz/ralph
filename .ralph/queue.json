@@ -2,47 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0300",
-      "status": "todo",
-      "title": "Standardize error handling context",
-      "priority": "medium",
-      "tags": [
-        "refactor",
-        "housekeeping",
-        "error-handling"
-      ],
-      "scope": [
-        "crates/ralph/src/runner/execution/process.rs",
-        "crates/ralph/src/runner/execution/runners.rs",
-        "crates/ralph/src/runner.rs",
-        "crates/ralph/src/queue/operations/",
-        "crates/ralph/src/queue/validation.rs"
-      ],
-      "evidence": [
-        "crates/ralph/src/runner/execution/process.rs contains sparse error messages like 'lock ctrl-c state' and 'stdout reader panicked' which lack actionable context.",
-        "crates/ralph/src/queue/validation.rs demonstrates the desired pattern of descriptive, actionable error messages with clear fix suggestions.",
-        "crates/ralph/src/runner.rs uses generic RunnerError::Other mapping that often hides the underlying cause or domain context.",
-        "Error handling in crates/ralph/src/queue/operations/ doesn't consistently use the Context trait to include task IDs in failure messages."
-      ],
-      "plan": [
-        "Audit crates/ralph/src/runner/execution/process.rs and runners.rs for sparse or generic error messages and replace with descriptive Context.",
-        "Audit crates/ralph/src/runner.rs for RunnerError::Other usages and wrap with domain-specific context (e.g., 'executing codex runner').",
-        "Refactor crates/ralph/src/queue/operations/ to use anyhow::Context for including task IDs in all task-related failure paths.",
-        "Ensure all validation errors follow the high-quality pattern established in validation.rs (actionable + descriptive).",
-        "Verify improved context by manually triggering failures (e.g., missing binaries, invalid IDs) and inspecting output.",
-        "Run `make ci` to ensure all error paths are correctly typed and handleable."
-      ],
-      "notes": [
-        "Use crates/ralph/src/queue/validation.rs as the gold standard for error context quality.",
-        "The goal is to ensure every error bubble-up to the CLI includes enough context for a user to diagnose without reading source code."
-      ],
-      "request": "scan finding",
-      "created_at": "2026-01-26T15:35:00Z",
-      "updated_at": "2026-01-26T18:45:00Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0301",
       "status": "todo",
       "title": "Centralize prompt organization",

@@ -1,4 +1,16 @@
 //! Query helpers for queue tasks.
+//!
+//! Responsibilities:
+//! - Locate tasks in active/done queues and determine runnable indices.
+//! - Enforce runnable status and dependency rules for selection.
+//!
+//! Does not handle:
+//! - Persisting queue data or mutating task fields.
+//! - Normalizing IDs beyond trimming whitespace.
+//!
+//! Assumptions/invariants:
+//! - Queues are already loaded and represent the source of truth.
+//! - Task IDs are matched after trimming and are case-sensitive.
 
 use crate::contracts::{QueueFile, Task, TaskStatus};
 use anyhow::{anyhow, bail, Result};
@@ -115,22 +127,33 @@ pub fn select_runnable_task_index_with_target(
     active: &QueueFile,
     done: Option<&QueueFile>,
     target_task_id: &str,
+    operation: &str,
     options: RunnableSelectionOptions,
 ) -> Result<usize> {
     let needle = target_task_id.trim();
     if needle.is_empty() {
-        bail!("Target task id is empty");
+        bail!(
+            "Queue query failed (operation={}): missing target_task_id. Example: --target RQ-0001.",
+            operation
+        );
     }
     let idx = active
         .tasks
         .iter()
         .position(|task| task.id.trim() == needle)
-        .ok_or_else(|| anyhow!("Target task {} not found in queue", needle))?;
+        .ok_or_else(|| {
+            anyhow!(
+                "Queue query failed (operation={}): target task not found: {}. Ensure it exists in .ralph/queue.json.",
+                operation,
+                needle
+            )
+        })?;
     let task = &active.tasks[idx];
     match task.status {
         TaskStatus::Done | TaskStatus::Rejected => {
             bail!(
-                "Target task {} is not runnable (status: {}). Choose a todo/doing task.",
+                "Queue query failed (operation={}): target task {} is not runnable (status: {}). Choose a todo/doing task.",
+                operation,
                 needle,
                 task.status
             );
@@ -138,13 +161,15 @@ pub fn select_runnable_task_index_with_target(
         TaskStatus::Draft => {
             if !options.include_draft {
                 bail!(
-                    "Target task {} is in draft status. Use --include-draft to run draft tasks.",
+                    "Queue query failed (operation={}): target task {} is in draft status. Use --include-draft to run draft tasks.",
+                    operation,
                     needle
                 );
             }
             if !are_dependencies_met(task, active, done) {
                 bail!(
-                    "Target task {} is blocked by unmet dependencies. Resolve dependencies before running.",
+                    "Queue query failed (operation={}): target task {} is blocked by unmet dependencies. Resolve dependencies before running.",
+                    operation,
                     needle
                 );
             }
@@ -152,7 +177,8 @@ pub fn select_runnable_task_index_with_target(
         TaskStatus::Todo => {
             if !are_dependencies_met(task, active, done) {
                 bail!(
-                    "Target task {} is blocked by unmet dependencies. Resolve dependencies before running.",
+                    "Queue query failed (operation={}): target task {} is blocked by unmet dependencies. Resolve dependencies before running.",
+                    operation,
                     needle
                 );
             }

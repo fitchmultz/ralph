@@ -1,4 +1,16 @@
 //! Runner orchestration for executing tasks across supported CLIs and parsing outputs.
+//!
+//! Responsibilities:
+//! - Resolve runner binaries, validate model compatibility, and dispatch execution.
+//! - Normalize runner output and surface runner-specific errors with context.
+//!
+//! Does not handle:
+//! - CLI argument parsing or queue/task selection.
+//! - Persisting queue data or managing task state transitions.
+//!
+//! Assumptions/invariants:
+//! - Runner binaries are available on PATH or configured explicitly.
+//! - Model validation rules are enforced before execution starts.
 
 mod execution;
 
@@ -75,6 +87,40 @@ pub enum RunnerError {
 
     #[error("other error: {0}")]
     Other(#[from] anyhow::Error),
+}
+
+fn runner_label(runner: Runner) -> &'static str {
+    match runner {
+        Runner::Codex => "codex",
+        Runner::Opencode => "opencode",
+        Runner::Gemini => "gemini",
+        Runner::Cursor => "cursor",
+        Runner::Claude => "claude",
+    }
+}
+
+pub(crate) fn runner_execution_error(runner: Runner, bin: &str, step: &str) -> RunnerError {
+    RunnerError::Other(anyhow!(
+        "Runner execution failed (runner={}, bin={}): {}.",
+        runner_label(runner),
+        bin,
+        step
+    ))
+}
+
+pub(crate) fn runner_execution_error_with_source(
+    runner: Runner,
+    bin: &str,
+    step: &str,
+    source: impl fmt::Display,
+) -> RunnerError {
+    RunnerError::Other(anyhow!(
+        "Runner execution failed (runner={}, bin={}): {}: {}.",
+        runner_label(runner),
+        bin,
+        step,
+        source
+    ))
 }
 
 const OPENCODE_PROMPT_FILE_MESSAGE: &str = "Follow the attached prompt file verbatim.";
@@ -265,7 +311,21 @@ pub fn run_prompt(
     output_handler: Option<OutputHandler>,
     output_stream: OutputStream,
 ) -> Result<RunnerOutput, RunnerError> {
-    validate_model_for_runner(runner, &model).map_err(RunnerError::Other)?;
+    let bin = match runner {
+        Runner::Codex => bins.codex,
+        Runner::Opencode => bins.opencode,
+        Runner::Gemini => bins.gemini,
+        Runner::Cursor => bins.cursor,
+        Runner::Claude => bins.claude,
+    };
+    validate_model_for_runner(runner, &model).map_err(|err| {
+        RunnerError::Other(anyhow!(
+            "Runner configuration error (operation=run_prompt, runner={}, bin={}): {}",
+            runner_label(runner),
+            bin,
+            err
+        ))
+    })?;
     let output = match runner {
         Runner::Codex => execution::run_codex(
             work_dir,
@@ -355,14 +415,36 @@ pub fn resume_session(
     } else {
         None
     };
-    validate_model_for_runner(runner, &model).map_err(RunnerError::Other)?;
+    let bin = match runner {
+        Runner::Codex => bins.codex,
+        Runner::Opencode => bins.opencode,
+        Runner::Gemini => bins.gemini,
+        Runner::Cursor => bins.cursor,
+        Runner::Claude => bins.claude,
+    };
+    validate_model_for_runner(runner, &model).map_err(|err| {
+        RunnerError::Other(anyhow!(
+            "Runner configuration error (operation=resume_session, runner={}, bin={}): {}",
+            runner_label(runner),
+            bin,
+            err
+        ))
+    })?;
     let session_id = session_id.trim();
     if session_id.is_empty() {
-        return Err(RunnerError::Other(anyhow!("missing session_id for resume")));
+        return Err(RunnerError::Other(anyhow!(
+            "Runner input error (operation=resume_session, runner={}, bin={}): session_id is required (non-empty). Example: --resume <SESSION_ID>.",
+            runner_label(runner),
+            bin
+        )));
     }
     let message = message.trim();
     if message.is_empty() {
-        return Err(RunnerError::Other(anyhow!("missing message for resume")));
+        return Err(RunnerError::Other(anyhow!(
+            "Runner input error (operation=resume_session, runner={}, bin={}): message is required (non-empty).",
+            runner_label(runner),
+            bin
+        )));
     }
 
     let output = match runner {
@@ -464,6 +546,7 @@ pub fn parse_reasoning_effort(value: &str) -> Result<ReasoningEffort> {
 mod tests {
     use super::*;
     use std::process::ExitStatus;
+    use tempfile::tempdir;
 
     #[test]
     fn validate_model_for_runner_rejects_glm47_on_codex() {
@@ -628,5 +711,78 @@ mod tests {
     #[test]
     fn output_stream_handler_only_suppresses_terminal_output() {
         assert!(!OutputStream::HandlerOnly.streams_to_terminal());
+    }
+
+    #[test]
+    fn runner_execution_error_includes_context() {
+        let err = runner_execution_error(Runner::Gemini, "gemini", "capture child stdout");
+        let msg = format!("{err}");
+        assert!(msg.contains("runner=gemini"));
+        assert!(msg.contains("bin=gemini"));
+        assert!(msg.contains("capture child stdout"));
+    }
+
+    #[test]
+    fn resume_session_missing_session_id_includes_runner_and_bin() {
+        let dir = tempdir().expect("tempdir");
+        let bins = RunnerBinaries {
+            codex: "codex",
+            opencode: "opencode",
+            gemini: "gemini",
+            claude: "claude",
+            cursor: "agent",
+        };
+
+        let err = resume_session(
+            Runner::Opencode,
+            dir.path(),
+            bins,
+            Model::Glm47,
+            None,
+            "   ",
+            "hello",
+            None,
+            None,
+            None,
+            OutputStream::HandlerOnly,
+        )
+        .unwrap_err();
+
+        let msg = format!("{err}");
+        assert!(msg.contains("operation=resume_session"));
+        assert!(msg.contains("runner=opencode"));
+        assert!(msg.contains("bin=opencode"));
+        assert!(msg.to_lowercase().contains("session_id"));
+    }
+
+    #[test]
+    fn run_prompt_invalid_model_includes_operation_and_bin() {
+        let dir = tempdir().expect("tempdir");
+        let bins = RunnerBinaries {
+            codex: "codex",
+            opencode: "opencode",
+            gemini: "gemini",
+            claude: "claude",
+            cursor: "agent",
+        };
+
+        let err = run_prompt(
+            Runner::Codex,
+            dir.path(),
+            bins,
+            Model::Glm47,
+            Some(ReasoningEffort::Low),
+            "prompt",
+            None,
+            None,
+            None,
+            OutputStream::HandlerOnly,
+        )
+        .unwrap_err();
+
+        let msg = format!("{err}");
+        assert!(msg.contains("operation=run_prompt"));
+        assert!(msg.contains("runner=codex"));
+        assert!(msg.contains("bin=codex"));
     }
 }

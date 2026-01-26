@@ -1,6 +1,16 @@
 //! Task selection helpers for run commands.
 //!
-//! Encapsulates selection rules for choosing which task to run during `run one`.
+//! Responsibilities:
+//! - Apply `run one`/`run --target` selection rules over queue and done data.
+//! - Delegate to queue selection helpers while preserving CLI operation context.
+//!
+//! Does not handle:
+//! - Persisting queue state or mutating tasks.
+//! - Dependency resolution beyond what queue selection helpers enforce.
+//!
+//! Assumptions/invariants:
+//! - Callers pass fully loaded `QueueFile` values and consistent done refs.
+//! - Target task IDs are trimmed and validated by downstream helpers.
 
 use crate::contracts::QueueFile;
 use crate::queue::operations::{
@@ -16,8 +26,14 @@ pub(crate) fn select_run_one_task_index(
 ) -> Result<Option<usize>> {
     let options = RunnableSelectionOptions::new(include_draft, true);
     if let Some(task_id) = target_task_id {
-        return select_runnable_task_index_with_target(queue_file, done_ref, task_id, options)
-            .map(Some);
+        return select_runnable_task_index_with_target(
+            queue_file,
+            done_ref,
+            task_id,
+            "run --target",
+            options,
+        )
+        .map(Some);
     }
 
     Ok(select_runnable_task_index(queue_file, done_ref, options))

@@ -1,4 +1,16 @@
 //! Tests for `query.rs` operations (finding/selecting runnable tasks).
+//!
+//! Responsibilities:
+//! - Validate runnable selection logic and query error context.
+//! - Cover status, dependency, and target-id failure modes.
+//!
+//! Does not handle:
+//! - End-to-end CLI command execution or queue persistence.
+//! - Validation of task edit inputs.
+//!
+//! Assumptions/invariants:
+//! - Helpers construct tasks with predictable IDs and statuses.
+//! - Queue order determines selection precedence.
 
 use super::*;
 
@@ -86,10 +98,13 @@ fn select_runnable_task_index_with_target_rejects_empty_id() {
         &queue,
         None,
         "   ",
+        "run --target",
         RunnableSelectionOptions::new(false, true),
     )
     .unwrap_err();
-    assert!(format!("{err}").to_lowercase().contains("empty"));
+    let msg = format!("{err}");
+    assert!(msg.contains("operation=run --target"));
+    assert!(msg.to_lowercase().contains("missing"));
 }
 
 #[test]
@@ -106,6 +121,7 @@ fn select_runnable_task_index_with_target_rejects_draft_without_flag() {
         &queue,
         None,
         "RQ-0001",
+        "run --target",
         RunnableSelectionOptions::new(false, true),
     )
     .unwrap_err();
@@ -127,6 +143,7 @@ fn select_runnable_task_index_with_target_rejects_unmet_dependencies() {
         &queue,
         None,
         "RQ-0001",
+        "run --target",
         RunnableSelectionOptions::new(false, true),
     )
     .unwrap_err();

@@ -5979,6 +5979,52 @@
       "completed_at": "2026-01-26T21:38:06.083188000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0300",
+      "status": "done",
+      "title": "Standardize error handling context",
+      "priority": "medium",
+      "tags": [
+        "refactor",
+        "housekeeping",
+        "error-handling"
+      ],
+      "scope": [
+        "crates/ralph/src/runner/execution/process.rs",
+        "crates/ralph/src/runner/execution/runners.rs",
+        "crates/ralph/src/runner.rs",
+        "crates/ralph/src/queue/operations/",
+        "crates/ralph/src/queue/validation.rs"
+      ],
+      "evidence": [
+        "crates/ralph/src/runner/execution/process.rs wraps thread joins and mutex locks with RunnerError::Other(anyhow!(...)) using terse messages like 'lock ctrl-c state', 'capture child stdout', and 'stdout reader panicked' that omit runner/bin context.",
+        "crates/ralph/src/runner/execution/runners.rs maps RunnerCommandBuilder::with_temp_prompt_file errors via RunnerError::Other without identifying the runner or prompt file being prepared.",
+        "crates/ralph/src/runner.rs returns RunnerError::Other(anyhow!(\"missing session_id for resume\")) and RunnerError::Other(anyhow!(\"missing message for resume\")) without operation context.",
+        "crates/ralph/src/queue/operations/edit.rs and query.rs emit generic errors like 'Title cannot be empty' and 'Target task id is empty' without task/operation context.",
+        "crates/ralph/src/queue/validation.rs consistently uses actionable, descriptive errors with fix guidance (e.g., id_prefix/id_width and RFC3339 hints)."
+      ],
+      "plan": [
+        "Inventory RunnerError::Other sources in crates/ralph/src/runner/execution/process.rs, crates/ralph/src/runner/execution/runners.rs, and crates/ralph/src/runner.rs and decide the required context fields (runner, bin, operation).",
+        "Introduce a small helper or consistent anyhow::Context usage to attach runner/bin/operation details when spawning, joining, and preparing prompts.",
+        "Update queue operation helpers (crates/ralph/src/queue/operations/edit.rs, query.rs, status.rs, etc.) to include task IDs and action context in error messages.",
+        "Align new error messages with the validation.rs style (actionable + concrete fix hints).",
+        "Add or update tests covering the new error message context for runner failures and task edit/query failures.",
+        "Run `make ci` to confirm error context changes don't regress tests or formatting."
+      ],
+      "notes": [
+        "Use crates/ralph/src/queue/validation.rs as the gold standard for error context quality.",
+        "Runner error messages should identify the runner/bin and the failing operation while preserving redaction behavior in RunnerError formatting.",
+        "Phase 3: updated module docstrings with responsibilities/limits/assumptions.",
+        "Reviewed error-context changes; no functional regressions found.",
+        "make ci passed after docstring updates."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-26T15:35:00Z",
+      "updated_at": "2026-01-26T22:11:30.437860000Z",
+      "completed_at": "2026-01-26T22:11:30.437860000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

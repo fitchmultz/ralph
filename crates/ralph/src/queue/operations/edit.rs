@@ -1,10 +1,21 @@
 //! Task edit helpers shared by CLI and TUI.
+//!
+//! Responsibilities:
+//! - Apply edits to a single task and update related timestamps.
+//! - Parse and validate edit input (status, priority, custom fields, RFC3339 values).
+//!
+//! Does not handle:
+//! - Persisting queue files or locating tasks outside the provided queue.
+//! - Cross-task dependency resolution beyond status policy checks.
+//!
+//! Assumptions/invariants:
+//! - Callers provide a loaded `QueueFile` and a valid RFC3339 `now` value.
+//! - Task IDs are matched after trimming and are case-sensitive.
 
-use super::validate::parse_rfc3339_utc;
+use super::validate::{ensure_task_id, parse_custom_fields_with_context, parse_rfc3339_utc};
 use crate::contracts::{QueueFile, TaskPriority, TaskStatus};
 use crate::queue;
 use anyhow::{anyhow, bail, Context, Result};
-use std::collections::HashMap;
 use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 
@@ -86,34 +97,43 @@ pub fn apply_task_edit(
     id_prefix: &str,
     id_width: usize,
 ) -> Result<()> {
-    let needle = task_id.trim();
-    if needle.is_empty() {
-        bail!("Missing task_id: a task ID is required for this operation. Provide a valid ID (e.g., 'RQ-0001').");
-    }
+    let operation = "edit";
+    let needle = ensure_task_id(task_id, operation)?;
 
     let index = queue
         .tasks
         .iter()
         .position(|t| t.id.trim() == needle)
-        .ok_or_else(|| anyhow!("task not found: {}", needle))?;
+        .ok_or_else(|| {
+            anyhow!(
+                "Queue edit failed (task_id={}): task not found in .ralph/queue.json.",
+                needle
+            )
+        })?;
 
-    let previous = queue
-        .tasks
-        .get(index)
-        .cloned()
-        .ok_or_else(|| anyhow!("task not found: {}", needle))?;
+    let previous = queue.tasks.get(index).cloned().ok_or_else(|| {
+        anyhow!(
+            "Queue edit failed (task_id={}): task not found in .ralph/queue.json.",
+            needle
+        )
+    })?;
 
-    let task = queue
-        .tasks
-        .get_mut(index)
-        .ok_or_else(|| anyhow!("task not found: {}", needle))?;
+    let task = queue.tasks.get_mut(index).ok_or_else(|| {
+        anyhow!(
+            "Queue edit failed (task_id={}): task not found in .ralph/queue.json.",
+            needle
+        )
+    })?;
 
     let trimmed = input.trim();
 
     match key {
         TaskEditKey::Title => {
             if trimmed.is_empty() {
-                bail!("Title cannot be empty");
+                bail!(
+                    "Queue edit failed (task_id={}, field=title): title cannot be empty. Provide a non-empty title (e.g., 'Fix login bug').",
+                    needle
+                );
             }
             task.title = trimmed.to_string();
         }
@@ -121,7 +141,9 @@ pub fn apply_task_edit(
             let next_status = if trimmed.is_empty() {
                 cycle_status(task.status)
             } else {
-                parse_status(trimmed)?
+                parse_status(trimmed).with_context(|| {
+                    format!("Queue edit failed (task_id={}, field=status)", needle)
+                })?
             };
             let now = ensure_now(now_rfc3339)?;
             queue::apply_status_policy(task, next_status, &now, None)?;
@@ -130,7 +152,9 @@ pub fn apply_task_edit(
             task.priority = if trimmed.is_empty() {
                 task.priority.cycle()
             } else {
-                parse_priority(trimmed)?
+                parse_priority(trimmed).with_context(|| {
+                    format!("Queue edit failed (task_id={}, field=priority)", needle)
+                })?
             };
         }
         TaskEditKey::Tags => {
@@ -159,10 +183,12 @@ pub fn apply_task_edit(
             task.depends_on = parse_list(trimmed);
         }
         TaskEditKey::CustomFields => {
-            task.custom_fields = parse_custom_fields(trimmed)?;
+            task.custom_fields = parse_custom_fields_with_context(needle, trimmed, operation)?;
         }
         TaskEditKey::CreatedAt => {
-            validate_rfc3339_input("created_at", trimmed)?;
+            validate_rfc3339_input("created_at", trimmed).with_context(|| {
+                format!("Queue edit failed (task_id={}, field=created_at)", needle)
+            })?;
             task.created_at = if trimmed.is_empty() {
                 None
             } else {
@@ -170,7 +196,9 @@ pub fn apply_task_edit(
             };
         }
         TaskEditKey::UpdatedAt => {
-            validate_rfc3339_input("updated_at", trimmed)?;
+            validate_rfc3339_input("updated_at", trimmed).with_context(|| {
+                format!("Queue edit failed (task_id={}, field=updated_at)", needle)
+            })?;
             task.updated_at = if trimmed.is_empty() {
                 None
             } else {
@@ -178,7 +206,9 @@ pub fn apply_task_edit(
             };
         }
         TaskEditKey::CompletedAt => {
-            validate_rfc3339_input("completed_at", trimmed)?;
+            validate_rfc3339_input("completed_at", trimmed).with_context(|| {
+                format!("Queue edit failed (task_id={}, field=completed_at)", needle)
+            })?;
             task.completed_at = if trimmed.is_empty() {
                 None
             } else {
@@ -247,33 +277,6 @@ fn parse_list(input: &str) -> Vec<String> {
         .map(|item| item.trim().to_string())
         .filter(|item| !item.is_empty())
         .collect()
-}
-
-fn parse_custom_fields(input: &str) -> Result<HashMap<String, String>> {
-    let mut map = HashMap::new();
-    if input.trim().is_empty() {
-        return Ok(map);
-    }
-
-    for raw in input.split([',', '\n']) {
-        let trimmed = raw.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-        let (key, value) = trimmed
-            .split_once('=')
-            .ok_or_else(|| anyhow!("Custom field entry must be key=value"))?;
-        let key = key.trim();
-        if key.is_empty() {
-            bail!("Custom field key cannot be empty");
-        }
-        if key.chars().any(|c| c.is_whitespace()) {
-            bail!("Custom field keys cannot contain whitespace");
-        }
-        let value = value.trim();
-        map.insert(key.to_string(), value.to_string());
-    }
-    Ok(map)
 }
 
 fn validate_rfc3339_input(label: &str, value: &str) -> Result<()> {

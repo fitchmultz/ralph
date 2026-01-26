@@ -1,14 +1,27 @@
 //! Runner-specific command assembly for execution.
+//!
+//! Responsibilities:
+//! - Assemble runner-specific commands and payloads for execution.
+//! - Delegate execution to the shared streaming process runner.
+//!
+//! Does not handle:
+//! - Validating models or global runner configuration.
+//! - Persisting runner output or mutating queue state.
+//!
+//! Assumptions/invariants:
+//! - Caller supplies validated model/runner inputs and a writable work dir.
+//! - Command builder guards are kept alive for the duration of execution.
 
 use std::path::Path;
 use std::time::Duration;
 
 use super::super::{
-    ClaudePermissionMode, Model, OutputHandler, OutputStream, ReasoningEffort, RunnerError,
-    RunnerOutput,
+    runner_execution_error_with_source, ClaudePermissionMode, Model, OutputHandler, OutputStream,
+    ReasoningEffort, RunnerError, RunnerOutput,
 };
 use super::command::RunnerCommandBuilder;
 use super::process::run_with_streaming_json;
+use crate::contracts::Runner;
 
 #[allow(clippy::too_many_arguments)]
 pub fn run_codex(
@@ -33,6 +46,7 @@ pub fn run_codex(
     run_with_streaming_json(
         cmd,
         payload.as_deref(),
+        Runner::Codex,
         bin,
         timeout,
         output_handler,
@@ -65,6 +79,7 @@ pub fn run_codex_resume(
     run_with_streaming_json(
         cmd,
         payload.as_deref(),
+        Runner::Codex,
         bin,
         timeout,
         output_handler,
@@ -86,12 +101,20 @@ pub fn run_opencode(
         .model(model)
         .opencode_format()
         .with_temp_prompt_file(prompt)
-        .map_err(RunnerError::Other)?
+        .map_err(|err| {
+            runner_execution_error_with_source(
+                Runner::Opencode,
+                bin,
+                "create temp prompt file",
+                err,
+            )
+        })?
         .build();
 
     run_with_streaming_json(
         cmd,
         payload.as_deref(),
+        Runner::Opencode,
         bin,
         timeout,
         output_handler,
@@ -123,6 +146,7 @@ pub fn run_opencode_resume(
     run_with_streaming_json(
         cmd,
         payload.as_deref(),
+        Runner::Opencode,
         bin,
         timeout,
         output_handler,
@@ -150,6 +174,7 @@ pub fn run_gemini(
     run_with_streaming_json(
         cmd,
         payload.as_deref(),
+        Runner::Gemini,
         bin,
         timeout,
         output_handler,
@@ -181,6 +206,7 @@ pub fn run_gemini_resume(
     run_with_streaming_json(
         cmd,
         payload.as_deref(),
+        Runner::Gemini,
         bin,
         timeout,
         output_handler,
@@ -211,6 +237,7 @@ pub fn run_claude(
     run_with_streaming_json(
         cmd,
         payload.as_deref(),
+        Runner::Claude,
         bin,
         timeout,
         output_handler,
@@ -244,6 +271,7 @@ pub fn run_claude_resume(
     run_with_streaming_json(
         cmd,
         payload.as_deref(),
+        Runner::Claude,
         bin,
         timeout,
         output_handler,
@@ -288,6 +316,7 @@ pub fn run_cursor(
     run_with_streaming_json(
         cmd,
         payload.as_deref(),
+        Runner::Cursor,
         bin,
         timeout,
         output_handler,
@@ -330,6 +359,7 @@ pub fn run_cursor_resume(
     run_with_streaming_json(
         cmd,
         payload.as_deref(),
+        Runner::Cursor,
         bin,
         timeout,
         output_handler,

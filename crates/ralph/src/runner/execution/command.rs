@@ -1,6 +1,19 @@
 //! Unified builder for runner commands.
+//!
+//! Responsibilities:
+//! - Build `Command` instances with runner-specific arguments and temp resources.
+//! - Manage temporary prompt files and stdin payloads for runners.
+//!
+//! Does not handle:
+//! - Executing commands or streaming output (see process module).
+//! - Validating high-level runner configuration (handled by caller).
+//!
+//! Assumptions/invariants:
+//! - Callers keep temp guards alive until command execution completes.
+//! - Provided binaries and working directories are valid and accessible.
 
 use anyhow::{anyhow, Result};
+use std::fmt;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -122,18 +135,18 @@ impl RunnerCommandBuilder {
         }
 
         let temp_dir = fsutil::create_ralph_temp_dir("prompt")
-            .map_err(|e| anyhow!("create temp dir: {}", e))?;
+            .map_err(|e| temp_prompt_file_error(&self.bin, "create_temp_dir", e))?;
 
         let mut tmp = tempfile::Builder::new()
             .prefix("prompt_")
             .suffix(".md")
             .tempfile_in(temp_dir.path())
-            .map_err(|e| anyhow!("create temp prompt file: {}", e))?;
+            .map_err(|e| temp_prompt_file_error(&self.bin, "create_temp_prompt_file", e))?;
 
         tmp.write_all(content.as_bytes())
-            .map_err(|e| anyhow!("write prompt file: {}", e))?;
+            .map_err(|e| temp_prompt_file_error(&self.bin, "write_prompt_file", e))?;
         tmp.flush()
-            .map_err(|e| anyhow!("flush prompt file: {}", e))?;
+            .map_err(|e| temp_prompt_file_error(&self.bin, "flush_prompt_file", e))?;
 
         self.cmd.arg("--file").arg(tmp.path());
         self.cmd.arg("--").arg(OPENCODE_PROMPT_FILE_MESSAGE);
@@ -164,6 +177,15 @@ impl RunnerCommandBuilder {
     }
 }
 
+fn temp_prompt_file_error(bin: &str, step: &str, source: impl fmt::Display) -> anyhow::Error {
+    anyhow!(
+        "Runner prompt file failed (bin={}, step={}): {}. Ensure the temp directory is writable and has available space.",
+        bin,
+        step,
+        source
+    )
+}
+
 pub(super) fn effort_as_str(effort: ReasoningEffort) -> &'static str {
     match effort {
         ReasoningEffort::Low => "low",
@@ -177,5 +199,19 @@ pub(super) fn permission_mode_to_arg(mode: ClaudePermissionMode) -> &'static str
     match mode {
         ClaudePermissionMode::AcceptEdits => "acceptEdits",
         ClaudePermissionMode::BypassPermissions => "bypassPermissions",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::temp_prompt_file_error;
+
+    #[test]
+    fn temp_prompt_file_error_includes_bin_and_step() {
+        let err = temp_prompt_file_error("opencode", "create_temp_dir", "boom");
+        let msg = format!("{err}");
+        assert!(msg.contains("bin=opencode"));
+        assert!(msg.contains("step=create_temp_dir"));
+        assert!(msg.contains("boom"));
     }
 }

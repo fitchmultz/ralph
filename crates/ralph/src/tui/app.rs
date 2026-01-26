@@ -403,7 +403,9 @@ impl App {
     pub fn create_task_from_title(&mut self, title: &str, now_rfc3339: &str) -> Result<()> {
         let trimmed = title.trim();
         if trimmed.is_empty() {
-            bail!("Title cannot be empty");
+            bail!(
+                "TUI create task failed: title cannot be empty. Provide a non-empty title (e.g., 'Fix login bug')."
+            );
         }
 
         let next_id = queue::next_id_across(
