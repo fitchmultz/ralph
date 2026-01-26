@@ -78,6 +78,7 @@ Notes:
 ## Lifecycle Notes
 - Tasks run in the file order from `.ralph/queue.json`.
 - Completed tasks are removed from `.ralph/queue.json` and appended to `.ralph/done.json`.
+- Dependencies: A task is blocked until all IDs in its `depends_on` list have status `done` or `rejected`.
 - Draft tasks (`status: draft`) are skipped by `run one` and `run loop` unless `--include-draft` is set.
 - `ralph task` inserts new tasks near the top of the queue:
   - Default: insert at position 0 (top).

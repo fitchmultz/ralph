@@ -173,7 +173,7 @@ fn test_next_runnable_task_skips_missing_dep() {
 }
 
 #[test]
-fn test_next_runnable_task_skips_rejected_dep() {
+fn test_next_runnable_task_allows_rejected_dep() {
     let mut t1 = task("RQ-0002");
     t1.status = TaskStatus::Todo;
     t1.depends_on = vec!["RQ-0001".to_string()];
@@ -191,7 +191,7 @@ fn test_next_runnable_task_skips_rejected_dep() {
         tasks: vec![t_rejected],
     };
 
-    // Strict check: Rejected is NOT Done, so it should be skipped
-    let next = next_runnable_task(&queue, Some(&done_queue));
-    assert!(next.is_none());
+    // Policy: Rejected dependencies do NOT block dependents.
+    let next = next_runnable_task(&queue, Some(&done_queue)).expect("should find runnable task");
+    assert_eq!(next.id, "RQ-0002");
 }

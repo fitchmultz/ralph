@@ -81,7 +81,7 @@
           }
         },
         "depends_on": {
-          "description": "Task IDs that this task depends on (must be Done before this task can run).",
+          "description": "Task IDs that this task depends on (must be Done or Rejected before this task can run).",
           "default": [],
           "type": "array",
           "items": {

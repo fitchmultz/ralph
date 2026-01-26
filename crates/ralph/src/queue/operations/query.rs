@@ -44,7 +44,7 @@ pub fn next_todo_task(queue: &QueueFile) -> Option<&Task> {
 
 /// Check if a task's dependencies are met.
 ///
-/// Dependencies are met if `depends_on` is empty OR all referenced tasks exist and have `status == TaskStatus::Done`.
+/// Dependencies are met if `depends_on` is empty OR all referenced tasks exist and have `status == TaskStatus::Done` or `TaskStatus::Rejected`.
 pub fn are_dependencies_met(task: &Task, active: &QueueFile, done: Option<&QueueFile>) -> bool {
     if task.depends_on.is_empty() {
         return true;
@@ -54,7 +54,7 @@ pub fn are_dependencies_met(task: &Task, active: &QueueFile, done: Option<&Queue
         let dep_task = find_task_across(active, done, dep_id);
         match dep_task {
             Some(t) => {
-                if t.status != TaskStatus::Done {
+                if t.status != TaskStatus::Done && t.status != TaskStatus::Rejected {
                     return false;
                 }
             }

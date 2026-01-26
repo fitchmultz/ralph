@@ -190,4 +190,20 @@ mod tests {
         assert_eq!(idx, Some(1));
         Ok(())
     }
+
+    #[test]
+    fn select_run_one_task_index_allows_rejected_dependency() -> anyhow::Result<()> {
+        let mut task = base_task();
+        task.depends_on = vec!["RQ-0002".to_string()];
+
+        let mut dep = task_with_id_status("RQ-0002", TaskStatus::Rejected);
+        dep.completed_at = Some("2026-01-18T00:00:00Z".to_string());
+
+        let queue_file = queue_with_tasks(vec![task]);
+        let done_file = queue_with_tasks(vec![dep]);
+
+        let idx = select_run_one_task_index(&queue_file, Some(&done_file), Some("RQ-0001"), false)?;
+        assert_eq!(idx, Some(0));
+        Ok(())
+    }
 }

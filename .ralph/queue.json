@@ -1,46 +1,4 @@
 {
   "version": 1,
-  "tasks": [
-    {
-      "id": "RQ-0249",
-      "status": "todo",
-      "title": "Allow rejected dependencies to unblock runnable tasks (or update docs/tests to match)",
-      "priority": "high",
-      "tags": [
-        "queue",
-        "dependencies",
-        "behavior",
-        "docs",
-        "tests"
-      ],
-      "scope": [
-        "crates/ralph/src/queue/operations/query.rs",
-        "crates/ralph/src/queue/operations/tests.rs",
-        "crates/ralph/src/cli/queue.rs"
-      ],
-      "evidence": [
-        "crates/ralph/src/cli/queue.rs: StatusArg::Rejected help text says dependents can proceed, implying rejected should unblock dependents.",
-        "crates/ralph/src/queue/operations/query.rs: are_dependencies_met requires each dependency to have status == TaskStatus::Done (Rejected is treated as unmet).",
-        "crates/ralph/src/queue/operations/tests.rs: test_next_runnable_task_skips_rejected_dep asserts a rejected dependency blocks runnable selection."
-      ],
-      "plan": [
-        "Confirm the intended dependency policy for rejected tasks (unblock dependents vs. keep blocked) by reviewing CLI help expectations and any project guidance.",
-        "Align queue dependency logic and comments with the chosen policy (update are_dependencies_met and related error messaging if rejected should satisfy dependencies, or update StatusArg::Rejected help text if it should not).",
-        "Adjust/add queue operation tests to cover the chosen behavior and ensure rejected dependency cases remain explicitly verified."
-      ],
-      "notes": [
-        "Current code treats rejected dependencies as unmet, which conflicts with the CLI status help text that claims dependents can proceed."
-      ],
-      "request": "scan finding",
-      "agent": {
-        "model_effort": "medium"
-      },
-      "created_at": "2026-01-24T12:40:25Z",
-      "updated_at": "2026-01-26T01:04:19.287168000Z",
-      "depends_on": [],
-      "custom_fields": {
-        "stale_path": "queue CLI moved to crates/ralph/src/cli/queue/ (mod.rs); update scope/evidence references"
-      }
-    }
-  ]
+  "tasks": []
 }
