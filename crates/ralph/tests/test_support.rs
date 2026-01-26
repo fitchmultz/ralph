@@ -2,6 +2,14 @@
 //!
 //! This module centralizes test-only helpers that are reused across multiple integration-test
 //! crates under `crates/ralph/tests/`.
+//!
+//! ## Why `dead_code` is allowed here
+//!
+//! Each file under `crates/ralph/tests/` is compiled as its own integration-test crate. This
+//! module is `mod`-included by many different test crates, each using a different subset of
+//! helpers below. Without a module-level `dead_code` allow, those crates would produce noisy
+//! warnings for helpers they don't happen to call.
+#![allow(dead_code)]
 
 use ralph::config;
 use ralph::contracts::{QueueFile, Task, TaskPriority, TaskStatus};
@@ -9,13 +17,11 @@ use std::env;
 use std::path::{Path, PathBuf};
 use tempfile::TempDir;
 
-#[allow(dead_code)]
 pub fn path_has_repo_markers(path: &Path) -> bool {
     path.ancestors()
         .any(|dir| dir.join(".git").exists() || dir.join(".ralph").is_dir())
 }
 
-#[allow(dead_code)]
 pub fn find_non_repo_temp_base() -> PathBuf {
     let cwd = env::current_dir().expect("resolve current dir");
     let repo_root = config::find_repo_root(&cwd);
@@ -38,7 +44,6 @@ pub fn find_non_repo_temp_base() -> PathBuf {
     repo_root
 }
 
-#[allow(dead_code)]
 pub fn temp_dir_outside_repo() -> TempDir {
     let base = find_non_repo_temp_base();
     std::fs::create_dir_all(&base).expect("ensure temp base exists");
@@ -49,7 +54,6 @@ pub fn temp_dir_outside_repo() -> TempDir {
 ///
 /// The fields are intentionally fully-populated so contract/rendering tests can rely on realistic
 /// data without repeating boilerplate.
-#[allow(dead_code)]
 pub fn make_test_task(id: &str, title: &str, status: TaskStatus) -> Task {
     let completed_at = match status {
         TaskStatus::Done | TaskStatus::Rejected => Some("2026-01-19T00:00:00Z".to_string()),
@@ -76,7 +80,6 @@ pub fn make_test_task(id: &str, title: &str, status: TaskStatus) -> Task {
 }
 
 /// Helper to create a test queue with multiple tasks.
-#[allow(dead_code)]
 pub fn make_test_queue() -> QueueFile {
     QueueFile {
         version: 1,
@@ -94,7 +97,6 @@ pub fn make_test_queue() -> QueueFile {
 /// - `plan` has two steps (to exercise multi-step rendering)
 /// - `completed_at` is intentionally `None` even for Done/Rejected tasks (rendering tests
 ///   explicitly control timestamp sections when needed)
-#[allow(dead_code)]
 pub fn make_render_test_task(id: &str, title: &str, status: TaskStatus) -> Task {
     let mut task = make_test_task(id, title, status);
     task.plan = vec![
@@ -106,7 +108,6 @@ pub fn make_render_test_task(id: &str, title: &str, status: TaskStatus) -> Task 
 }
 
 /// Rendering-focused queue fixture (uses `make_render_test_task`).
-#[allow(dead_code)]
 pub fn make_render_test_queue() -> QueueFile {
     QueueFile {
         version: 1,

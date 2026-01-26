@@ -2,43 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0277",
-      "status": "todo",
-      "title": "Split TUI rendering tests into smaller files",
-      "priority": "medium",
-      "tags": [
-        "tui",
-        "tests",
-        "refactor"
-      ],
-      "scope": [
-        "crates/ralph/tests/tui_rendering_test.rs",
-        "crates/ralph/tests/",
-        "cargo test -p ralph tui_rendering"
-      ],
-      "evidence": [
-        "crates/ralph/tests/tui_rendering_test.rs: 887 lines (wc -l) containing 53 rendering tests in a single file.",
-        "crates/ralph/tests/tui_rendering_test.rs: shared helpers (make_test_task, make_test_queue, setup_test_terminal, get_rendered_output, output_contains) are defined inline alongside the tests.",
-        "rg \"TestBackend\" crates/ralph/tests shows only tui_rendering_test.rs uses the TestBackend harness, so there is no shared TUI rendering helper module yet."
-      ],
-      "plan": [
-        "Group the existing rendering tests by area (task list/details, modes/dialogs, execution/logs, help/overlay/footer, layout/scrolling) and decide to target test file names under crates/ralph/tests/.",
-        "Extract the shared rendering harness into a helper module (either a new tui_rendering_support.rs or an extension of test_support.rs) and update all split tests to import it.",
-        "Move the grouped tests into the new files, remove the old monolithic file, and run `cargo test -p ralph tui_rendering` to confirm coverage stays intact."
-      ],
-      "notes": [
-        "tui_rendering_test.rs now mixes 50+ scenarios with the harness helpers in the same file, so a dedicated rendering support module will reduce duplication when splitting."
-      ],
-      "request": "scan finding",
-      "agent": {
-        "model_effort": "medium"
-      },
-      "created_at": "2026-01-24T16:07:23.268929000Z",
-      "updated_at": "2026-01-25T22:09:01Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0278",
       "status": "todo",
       "title": "Refactor git_repo_integration_test.rs into smaller scenario tests",
