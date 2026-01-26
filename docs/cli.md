@@ -15,7 +15,7 @@ ralph --force queue archive
 ## Core Commands
 
 * `ralph init`: bootstrap `.ralph/queue.json`, `.ralph/done.json`, and `.ralph/config.json`.
-* `ralph queue <subcommand>`: validate, list, search, and batch-maintain tasks.
+* `ralph queue <subcommand>`: inspect, search, validate, and maintain `.ralph/queue.json` + `.ralph/done.json`.
 * `ralph run <subcommand>`: run tasks via a runner (codex/opencode/gemini/claude).
 * `ralph tui`: launch the interactive UI (queue + execution + loop).
 * `ralph prompt <subcommand>`: render compiled prompts for inspection.
@@ -109,13 +109,226 @@ Clean-repo checks for `run one` and `run loop` allow changes to `.ralph/config.j
 (alongside `.ralph/queue.json` and `.ralph/done.json`). Use `--force` to bypass the
 clean-repo check entirely if needed.
 
-## `ralph queue` reports
+## `ralph queue`
 
-Queue reports default to human-readable text but can emit JSON for scripting.
+Inspect and manage the task queue (`.ralph/queue.json`) and done archive (`.ralph/done.json`).
+
+### Subcommands
+
+* `validate`: validate the active queue (and done archive if present).
+* `prune`: prune tasks from `.ralph/done.json` based on age/status/keep-last rules.
+* `next`: print the next todo task (ID by default).
+* `next-id`: print the next available task ID (across queue + done archive).
+* `show`: show a task by ID.
+* `list`: list tasks in queue order.
+* `search`: search tasks by content (title, evidence, plan, notes, request, tags, scope, custom fields).
+* `archive`: move completed tasks from queue.json to done.json.
+* `repair`: repair the queue and done files (fix missing fields, duplicates, timestamps).
+* `unlock`: remove the queue lock file.
+* `sort`: sort tasks by priority (reorders the queue file).
+* `stats`: show task statistics (completion rate, avg duration, tag breakdown).
+* `history`: show task history timeline (creation/completion events by day).
+* `burndown`: show burndown chart of remaining tasks over time.
+* `schema`: print the JSON schema for the queue file.
+
+### Queue Flags
+
+Common flag families across `ralph queue` subcommands:
+
+* Status filters (`list`, `search`):
+  * `--status <draft|todo|doing|done|rejected>` (repeatable)
+* Tag filters (`list`, `search`, `stats`):
+  * `--tag <TAG>` (repeatable; case-insensitive)
+* Scope filters (`list`, `search`):
+  * `--scope <TOKEN>` (repeatable; substring match; case-insensitive)
+* Done archive selection (`list`, `search`):
+  * `--include-done`: include tasks from `.ralph/done.json` after active queue output
+  * `--only-done`: only use `.ralph/done.json` (ignore active queue)
+  * `--include-done` and `--only-done` are mutually exclusive.
+* Output format:
+  * `list`, `search`: `--format <compact|long>` (default: `compact`)
+  * `show`: `--format <json|compact>` (default: `json`)
+  * `stats`, `history`, `burndown`: `--format <text|json>` (default: `text`)
+* Limits (`list`, `search`):
+  * `--limit <N>` (default: 50; `0` = no limit)
+  * `--all`: ignore `--limit`
+* Sorting:
+  * `list`: `--sort-by priority` and `--order <ascending|descending>` (sorts output only)
+  * `sort`: `--sort-by priority` and `--order <ascending|descending>` (reorders queue file)
+
+### `ralph queue validate`
+
+Validate `.ralph/queue.json` (and `.ralph/done.json` if present).
+
+```bash
+ralph queue validate
+```
+
+### `ralph queue prune`
+
+Prune removes old tasks from `.ralph/done.json` while preserving recent history.
+
+Safety:
+
+* `--keep-last` always protects N most recently completed tasks (by `completed_at`).
+* If no filters are provided, all tasks are pruned except those protected by `--keep-last`.
+* Missing or invalid `completed_at` timestamps are treated as oldest for keep-last ordering
+  but do NOT match the age filter (safety-first).
+
+Flags:
+
+* `--age <DAYS>`: only prune tasks completed at least N days ago.
+* `--status <draft|todo|doing|done|rejected>`: filter by status (repeatable).
+* `--keep-last <N>`: keep N most recently completed tasks regardless of filters.
+* `--dry-run`: show what would be pruned without writing to disk.
+
+```bash
+ralph queue prune --dry-run --age 30 --status rejected
+ralph queue prune --keep-last 100
+ralph queue prune --age 90
+ralph queue prune --age 30 --status done --keep-last 50
+```
+
+### `ralph queue next`
+
+Print the next runnable task (ID by default). If no runnable task exists, prints the next available ID.
+
+Flags:
+
+* `--with-title`: include task title after ID.
+
+```bash
+ralph queue next
+ralph queue next --with-title
+```
+
+### `ralph queue next-id`
+
+Print the next available task ID (across queue + done archive).
+
+```bash
+ralph queue next-id
+```
+
+### `ralph queue show`
+
+Show a task by ID.
+
+Flags:
+
+* `--format <json|compact>`: output format (default: `json`).
+
+```bash
+ralph queue show RQ-0001
+ralph queue show RQ-0001 --format compact
+```
+
+### `ralph queue list`
+
+List tasks in queue order.
+
+Flags:
+
+* `--status <draft|todo|doing|done|rejected>`: filter by status (repeatable).
+* `--tag <TAG>`: filter by tag (repeatable, case-insensitive).
+* `--scope <TOKEN>`: filter by scope token (repeatable, case-insensitive; substring match).
+* `--filter-deps <TASK_ID>`: filter by tasks that depend on the given task ID (recursively).
+* `--include-done`: include tasks from `.ralph/done.json` after active queue output.
+* `--only-done`: only list tasks from `.ralph/done.json` (ignores active queue).
+* `--format <compact|long>`: output format (default: `compact`).
+* `--limit <N>`: maximum tasks to show (default: 50; `0` = no limit).
+* `--all`: show all tasks (ignores `--limit`).
+* `--sort-by <priority>`: sort output by field.
+* `--order <ascending|descending>`: sort order (default: `descending`).
+
+```bash
+ralph queue list
+ralph queue list --status todo --tag rust
+ralph queue list --status doing --scope crates/ralph
+ralph queue list --include-done --limit 20
+ralph queue list --only-done --all
+ralph queue list --filter-deps=RQ-0100
+```
+
+### `ralph queue search`
+
+Search tasks by content (title, evidence, plan, notes, request, tags, scope, custom fields).
+
+Flags:
+
+* `--regex`: interpret query as a regular expression.
+* `--match-case`: case-sensitive search (default: case-insensitive).
+* `--status <draft|todo|doing|done|rejected>`: filter by status (repeatable).
+* `--tag <TAG>`: filter by tag (repeatable, case-insensitive).
+* `--scope <TOKEN>`: filter by scope token (repeatable, case-insensitive; substring match).
+* `--include-done`: include tasks from `.ralph/done.json` in search.
+* `--only-done`: only search tasks in `.ralph/done.json` (ignores active queue).
+* `--format <compact|long>`: output format (default: `compact`).
+* `--limit <N>`: maximum results to show (default: 50; `0` = no limit).
+* `--all`: show all results (ignores `--limit`).
+
+```bash
+ralph queue search "authentication"
+ralph queue search "RQ-\d{4}" --regex
+ralph queue search "TODO" --match-case
+ralph queue search "fix" --status todo --tag rust
+ralph queue search "refactor" --scope crates/ralph --tag rust
+```
+
+### `ralph queue archive`
+
+Move completed tasks from `.ralph/queue.json` to `.ralph/done.json`.
+
+```bash
+ralph queue archive
+```
+
+### `ralph queue repair`
+
+Repair the queue and done files (fix missing fields, duplicates, timestamps).
+
+Flags:
+
+* `--dry-run`: show what would be changed without writing to disk.
+
+```bash
+ralph queue repair
+ralph queue repair --dry-run
+```
+
+### `ralph queue unlock`
+
+Remove the queue lock file/directory.
+
+```bash
+ralph queue unlock
+```
+
+### `ralph queue sort`
+
+Sort tasks by priority (reorders the queue file).
+
+Flags:
+
+* `--sort-by <priority>`: sort by field (default: `priority`).
+* `--order <ascending|descending>`: sort order (default: `descending`, highest priority first).
+
+```bash
+ralph queue sort
+ralph queue sort --order descending
+ralph queue sort --order ascending
+```
 
 ### `ralph queue stats`
 
+Queue reports default to human-readable text but can emit JSON for scripting.
+
 Summarize completion rates, durations, and tag breakdowns.
+
+Flags:
+
+* `--tag <TAG>`: filter by tag (repeatable, case-insensitive).
+* `--format <text|json>`: output format (default: `text`).
 
 ```bash
 ralph queue stats
@@ -127,6 +340,11 @@ ralph queue stats --format json
 
 Show creation/completion events by day.
 
+Flags:
+
+* `--days <N>`: number of days to show (default: 7).
+* `--format <text|json>`: output format (default: `text`).
+
 ```bash
 ralph queue history
 ralph queue history --days 14
@@ -137,10 +355,23 @@ ralph queue history --format json
 
 Render remaining-task counts over time.
 
+Flags:
+
+* `--days <N>`: number of days to show (default: 7).
+* `--format <text|json>`: output format (default: `text`).
+
 ```bash
 ralph queue burndown
 ralph queue burndown --days 30
 ralph queue burndown --format json
+```
+
+### `ralph queue schema`
+
+Print the JSON schema for the queue file.
+
+```bash
+ralph queue schema
 ```
 
 ## `ralph task`

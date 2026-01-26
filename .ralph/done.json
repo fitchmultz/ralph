@@ -4944,6 +4944,47 @@
       "completed_at": "2026-01-26T03:03:35.966476000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0261",
+      "status": "done",
+      "title": "Document full `ralph queue` subcommands in docs/cli.md",
+      "priority": "medium",
+      "tags": [
+        "docs",
+        "cli",
+        "queue"
+      ],
+      "scope": [
+        "docs/cli.md",
+        "crates/ralph/src/cli/queue.rs"
+      ],
+      "evidence": [
+        "docs/cli.md: core command summary for `ralph queue` only mentions validate/list/search and has no detailed sections for prune/repair/unlock/sort/stats/history/burndown/schema.",
+        "crates/ralph/src/cli/queue.rs: QueueCommand includes validate, prune, next, next-id, show, list, search, archive, repair, unlock, sort, stats, history, burndown, schema subcommands."
+      ],
+      "plan": [
+        "Expand docs/cli.md `ralph queue` section to list all subcommands (validate, prune, next, next-id, show, list, search, archive, repair, unlock, sort, stats, history, burndown, schema) with short descriptions.",
+        "Add example invocations for each subcommand, mirroring queue.rs help text (after_long_help) where applicable.",
+        "Scan docs/cli.md for missing queue flags (format, include_done, only_done, limit/all, sort/order, tag/status filters) and update or add a queue flags subsection to match CLI help."
+      ],
+      "notes": [
+        "Queue docs currently omit next/next-id/show/archive/schema alongside the maintenance/reporting subcommands; coverage should include both navigation and maintenance commands.",
+        "Documented all 15 queue subcommands with flags and examples",
+        "Added Queue Flags section covering status/tag/scope filters, done archive selection, formats, limits, and sorting",
+        "All examples match CLI help text after_long_help"
+      ],
+      "request": "scan finding",
+      "agent": {
+        "model_effort": "medium"
+      },
+      "created_at": "2026-01-24T12:40:25Z",
+      "updated_at": "2026-01-26T03:54:25.892103000Z",
+      "completed_at": "2026-01-26T03:54:25.892103000Z",
+      "depends_on": [],
+      "custom_fields": {
+        "stale_path": "queue CLI moved to crates/ralph/src/cli/queue/ (mod.rs)"
+      }
     }
   ]
 }
