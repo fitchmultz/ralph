@@ -5,46 +5,12 @@
 //! - Drawing the UI with the test app state
 //! - Verifying the rendered output contains expected content
 
+mod test_support;
+
 use ralph::contracts::{QueueFile, Task, TaskPriority, TaskStatus};
 use ralph::tui::{self, App, AppMode};
 use ratatui::{backend::TestBackend, Terminal};
-
-/// Helper to create a test task.
-fn make_test_task(id: &str, title: &str, status: TaskStatus) -> Task {
-    Task {
-        id: id.to_string(),
-        title: title.to_string(),
-        status,
-        priority: TaskPriority::Medium,
-        tags: vec!["test".to_string()],
-        scope: vec!["crates/ralph".to_string()],
-        evidence: vec!["test evidence".to_string()],
-        plan: vec![
-            "test plan step 1".to_string(),
-            "test plan step 2".to_string(),
-        ],
-        notes: vec![],
-        request: Some("test request".to_string()),
-        agent: None,
-        created_at: Some("2026-01-19T00:00:00Z".to_string()),
-        updated_at: Some("2026-01-19T00:00:00Z".to_string()),
-        completed_at: None,
-        depends_on: vec![],
-        custom_fields: std::collections::HashMap::new(),
-    }
-}
-
-/// Helper to create a test queue with multiple tasks.
-fn make_test_queue() -> QueueFile {
-    QueueFile {
-        version: 1,
-        tasks: vec![
-            make_test_task("RQ-0001", "First Task", TaskStatus::Todo),
-            make_test_task("RQ-0002", "Second Task", TaskStatus::Doing),
-            make_test_task("RQ-0003", "Third Task", TaskStatus::Done),
-        ],
-    }
-}
+use test_support::make_render_test_queue as make_test_queue;
 
 /// Helper to setup a test terminal with the given dimensions.
 fn setup_test_terminal(width: u16, height: u16) -> Terminal<TestBackend> {

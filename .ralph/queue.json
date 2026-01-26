@@ -2,42 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0276",
-      "status": "todo",
-      "title": "Split TUI contract tests into scenario-focused files",
-      "priority": "medium",
-      "tags": [
-        "tui",
-        "tests",
-        "refactor"
-      ],
-      "scope": [
-        "crates/ralph/tests/tui_contract_test.rs",
-        "crates/ralph/tests/test_support.rs",
-        "crates/ralph/tests/"
-      ],
-      "evidence": [
-        "crates/ralph/tests/tui_contract_test.rs: 981 lines (wc -l), still a single integration test file covering multiple TUI behaviors.",
-        "crates/ralph/tests/test_support.rs: shared test helpers already exist and can host common TUI setup when splitting scenarios."
-      ],
-      "plan": [
-        "Identify TUI contract scenarios in tui_contract_test.rs and group them into feature-focused test files (for example, search, edit, archive, loop, queue navigation).",
-        "Move shared fixtures/setup into crates/ralph/tests/test_support.rs (or a new tui-specific helper module) and update the split tests to reuse that helper.",
-        "Ensure the new test files are picked up by cargo test and run the TUI contract tests to confirm behavior remains unchanged."
-      ],
-      "notes": [
-        "Test support helpers already live in crates/ralph/tests/test_support.rs, so reuse that module unless TUI-specific helpers need a separate file."
-      ],
-      "request": "scan finding",
-      "agent": {
-        "model_effort": "medium"
-      },
-      "created_at": "2026-01-24T16:07:23.268929000Z",
-      "updated_at": "2026-01-25T22:07:23Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0277",
       "status": "todo",
       "title": "Split TUI rendering tests into smaller files",

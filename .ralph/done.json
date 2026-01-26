@@ -5245,6 +5245,48 @@
       "completed_at": "2026-01-26T12:08:55.236736000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0276",
+      "status": "done",
+      "title": "Split TUI contract tests into scenario-focused files",
+      "priority": "medium",
+      "tags": [
+        "tui",
+        "tests",
+        "refactor"
+      ],
+      "scope": [
+        "crates/ralph/tests/tui_contract_test.rs",
+        "crates/ralph/tests/test_support.rs",
+        "crates/ralph/tests/"
+      ],
+      "evidence": [
+        "crates/ralph/tests/tui_contract_test.rs: 981 lines (wc -l), still a single integration test file covering multiple TUI behaviors.",
+        "crates/ralph/tests/test_support.rs: shared test helpers already exist and can host common TUI setup when splitting scenarios."
+      ],
+      "plan": [
+        "Identify TUI contract scenarios in tui_contract_test.rs and group them into feature-focused test files (for example, search, edit, archive, loop, queue navigation).",
+        "Move shared fixtures/setup into crates/ralph/tests/test_support.rs (or a new tui-specific helper module) and update the split tests to reuse that helper.",
+        "Ensure the new test files are picked up by cargo test and run the TUI contract tests to confirm behavior remains unchanged."
+      ],
+      "notes": [
+        "Test support helpers already live in crates/ralph/tests/test_support.rs, so reuse that module unless TUI-specific helpers need a separate file.",
+        "Split 981-line monolithic tui_contract_test.rs into 5 scenario-focused files",
+        "Centralized test fixtures (make_test_task, make_test_queue, make_render_test_task, make_render_test_queue) in test_support.rs",
+        "All 58 tests preserved (4+27+9+6+12) and passing",
+        "No TUI runtime code changes; only test structure refactored",
+        "Note: RQ-0277 evidence about tui_rendering_test.rs helpers is stale; they're now in test_support.rs"
+      ],
+      "request": "scan finding",
+      "agent": {
+        "model_effort": "medium"
+      },
+      "created_at": "2026-01-24T16:07:23.268929000Z",
+      "updated_at": "2026-01-26T13:10:18.995238000Z",
+      "completed_at": "2026-01-26T13:10:18.995238000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }
