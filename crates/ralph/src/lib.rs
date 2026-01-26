@@ -19,7 +19,7 @@ pub mod agent;
 pub mod config;
 pub mod contracts;
 pub mod queue;
-pub mod reports;
+pub(crate) mod reports;
 
 // --- Commands ----------------------------------------------------------------
 

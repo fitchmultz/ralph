@@ -129,7 +129,7 @@ const DEFAULT_CLAUDE_MODEL: &str = "sonnet";
 const DEFAULT_CURSOR_MODEL: &str = "auto";
 const TEMP_RETENTION: Duration = Duration::from_secs(60 * 60 * 24 * 7);
 
-pub struct RunnerOutput {
+pub(crate) struct RunnerOutput {
     pub status: ExitStatus,
     pub stdout: String,
     pub stderr: String,
@@ -160,13 +160,13 @@ impl fmt::Debug for RunnerOutput {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct AgentSettings {
+pub(crate) struct AgentSettings {
     pub runner: Runner,
     pub model: Model,
     pub reasoning_effort: Option<ReasoningEffort>,
 }
 
-pub fn resolve_agent_settings(
+pub(crate) fn resolve_agent_settings(
     runner_override: Option<Runner>,
     model_override: Option<Model>,
     effort_override: Option<ReasoningEffort>,
@@ -207,7 +207,7 @@ pub fn resolve_agent_settings(
     })
 }
 
-pub fn validate_model_for_runner(runner: Runner, model: &Model) -> Result<()> {
+pub(crate) fn validate_model_for_runner(runner: Runner, model: &Model) -> Result<()> {
     if runner == Runner::Codex {
         match model {
             Model::Gpt52Codex | Model::Gpt52 => {}
@@ -232,7 +232,7 @@ pub struct RunnerBinaries<'a> {
     pub cursor: &'a str,
 }
 
-pub fn resolve_binaries(agent: &AgentConfig) -> RunnerBinaries<'_> {
+pub(crate) fn resolve_binaries(agent: &AgentConfig) -> RunnerBinaries<'_> {
     let codex = agent.codex_bin.as_deref().unwrap_or("codex");
     let opencode = agent.opencode_bin.as_deref().unwrap_or("opencode");
     let gemini = agent.gemini_bin.as_deref().unwrap_or("gemini");
@@ -247,7 +247,7 @@ pub fn resolve_binaries(agent: &AgentConfig) -> RunnerBinaries<'_> {
     }
 }
 
-pub fn default_model_for_runner(runner: Runner) -> Model {
+pub(crate) fn default_model_for_runner(runner: Runner) -> Model {
     match runner {
         Runner::Codex => Model::Gpt52Codex,
         Runner::Opencode => Model::Glm47,
@@ -257,11 +257,11 @@ pub fn default_model_for_runner(runner: Runner) -> Model {
     }
 }
 
-pub fn extract_final_assistant_response(stdout: &str) -> Option<String> {
+pub(crate) fn extract_final_assistant_response(stdout: &str) -> Option<String> {
     execution::extract_final_assistant_response(stdout)
 }
 
-pub fn resolve_model_for_runner(
+pub(crate) fn resolve_model_for_runner(
     runner: Runner,
     override_model: Option<Model>,
     task_model: Option<Model>,
@@ -299,7 +299,7 @@ pub fn resolve_model_for_runner(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn run_prompt(
+pub(crate) fn run_prompt(
     runner: Runner,
     work_dir: &Path,
     bins: RunnerBinaries<'_>,
@@ -397,7 +397,7 @@ pub fn run_prompt(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn resume_session(
+pub(crate) fn resume_session(
     runner: Runner,
     work_dir: &Path,
     bins: RunnerBinaries<'_>,
@@ -522,13 +522,13 @@ pub fn resume_session(
     Ok(output)
 }
 
-pub fn parse_model(value: &str) -> Result<Model> {
+pub(crate) fn parse_model(value: &str) -> Result<Model> {
     let trimmed = value.trim();
     let model = trimmed.parse::<Model>().map_err(|err| anyhow!(err))?;
     Ok(model)
 }
 
-pub fn parse_reasoning_effort(value: &str) -> Result<ReasoningEffort> {
+pub(crate) fn parse_reasoning_effort(value: &str) -> Result<ReasoningEffort> {
     let normalized = value.trim().to_lowercase();
     match normalized.as_str() {
         "low" => Ok(ReasoningEffort::Low),

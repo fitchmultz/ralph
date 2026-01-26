@@ -6,33 +6,37 @@
 //! Invariants/assumptions: templates are validated for placeholders and `.ralph/prompts` overrides
 //! may be absent.
 
-pub mod iteration;
+pub(crate) mod iteration;
 mod registry;
-pub mod review;
-pub mod scan;
-pub mod task_builder;
-pub mod task_updater;
-pub mod util;
-pub mod worker;
-pub mod worker_phases;
+pub(crate) mod review;
+pub(crate) mod scan;
+pub(crate) mod task_builder;
+pub(crate) mod task_updater;
+pub(crate) mod util;
+pub(crate) mod worker;
+pub(crate) mod worker_phases;
 
 #[cfg(test)]
 mod tests;
 
-pub use iteration::*;
-pub use review::*;
-pub use scan::*;
-pub use task_builder::*;
-pub use task_updater::*;
-pub use util::*;
-pub use worker::*;
-pub use worker_phases::*;
+use review::{
+    load_code_review_prompt, load_completion_checklist, load_iteration_checklist,
+    load_phase2_handoff_checklist,
+};
+use scan::load_scan_prompt;
+use task_builder::load_task_builder_prompt;
+use task_updater::load_task_updater_prompt;
+use worker::load_worker_prompt;
+use worker_phases::{
+    load_worker_phase1_prompt, load_worker_phase2_handoff_prompt, load_worker_phase2_prompt,
+    load_worker_phase3_prompt, load_worker_single_phase_prompt,
+};
 
 use std::path::Path;
 
 use anyhow::Result;
 
-pub fn prompts_reference_readme(repo_root: &Path) -> Result<bool> {
+pub(crate) fn prompts_reference_readme(repo_root: &Path) -> Result<bool> {
     let worker = load_worker_prompt(repo_root)?;
     let worker_phase1 = load_worker_phase1_prompt(repo_root)?;
     let worker_phase2 = load_worker_phase2_prompt(repo_root)?;

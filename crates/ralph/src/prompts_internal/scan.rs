@@ -13,11 +13,11 @@ use super::util::{
 use crate::contracts::{Config, ProjectType};
 use anyhow::Result;
 
-pub fn load_scan_prompt(repo_root: &std::path::Path) -> Result<String> {
+pub(crate) fn load_scan_prompt(repo_root: &std::path::Path) -> Result<String> {
     load_prompt_template(repo_root, PromptTemplateId::Scan)
 }
 
-pub fn render_scan_prompt(
+pub(crate) fn render_scan_prompt(
     template: &str,
     user_focus: &str,
     project_type: ProjectType,
@@ -29,7 +29,7 @@ pub fn render_scan_prompt(
     let focus = user_focus.trim();
     let focus = if focus.is_empty() { "(none)" } else { focus };
 
-    let expanded = super::expand_variables(template, config)?;
+    let expanded = super::util::expand_variables(template, config)?;
     let base = apply_project_type_guidance_if_needed(
         &expanded,
         project_type,

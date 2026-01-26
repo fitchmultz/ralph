@@ -12,11 +12,11 @@ use super::util::{
 use crate::contracts::{Config, ProjectType};
 use anyhow::{bail, Result};
 
-pub fn load_task_updater_prompt(repo_root: &std::path::Path) -> Result<String> {
+pub(crate) fn load_task_updater_prompt(repo_root: &std::path::Path) -> Result<String> {
     load_prompt_template(repo_root, PromptTemplateId::TaskUpdater)
 }
 
-pub fn render_task_updater_prompt(
+pub(crate) fn render_task_updater_prompt(
     template: &str,
     task_id: &str,
     fields: &str,
@@ -30,7 +30,7 @@ pub fn render_task_updater_prompt(
         bail!("Missing task ID: task ID must be non-empty. Provide a valid task ID for the task updater.");
     }
 
-    let expanded = super::expand_variables(template, config)?;
+    let expanded = super::util::expand_variables(template, config)?;
     let base = apply_project_type_guidance_if_needed(
         &expanded,
         project_type,

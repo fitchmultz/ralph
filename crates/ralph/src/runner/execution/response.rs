@@ -1,10 +1,14 @@
 //! Response extraction helpers for runner output streams.
+//!
+//! Responsibilities: parse streaming runner JSON output and extract final assistant responses.
+//! Not handled: executing runners, managing processes, or validating runner configurations.
+//! Invariants/assumptions: stdout lines are JSON fragments emitted by supported runners.
 
 use serde_json::Value as JsonValue;
 
 use super::json::parse_json_line;
 
-pub fn extract_final_assistant_response(stdout: &str) -> Option<String> {
+pub(crate) fn extract_final_assistant_response(stdout: &str) -> Option<String> {
     let mut final_message: Option<String> = None;
     let mut streaming_buffer = String::new();
 

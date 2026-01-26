@@ -12,28 +12,28 @@ use super::util::{ensure_no_unresolved_placeholders, escape_placeholder_like_tex
 use crate::contracts::Config;
 use anyhow::{bail, Result};
 
-pub fn load_worker_phase1_prompt(repo_root: &std::path::Path) -> Result<String> {
+pub(crate) fn load_worker_phase1_prompt(repo_root: &std::path::Path) -> Result<String> {
     load_prompt_template(repo_root, PromptTemplateId::WorkerPhase1)
 }
 
-pub fn load_worker_phase2_prompt(repo_root: &std::path::Path) -> Result<String> {
+pub(crate) fn load_worker_phase2_prompt(repo_root: &std::path::Path) -> Result<String> {
     load_prompt_template(repo_root, PromptTemplateId::WorkerPhase2)
 }
 
-pub fn load_worker_phase2_handoff_prompt(repo_root: &std::path::Path) -> Result<String> {
+pub(crate) fn load_worker_phase2_handoff_prompt(repo_root: &std::path::Path) -> Result<String> {
     load_prompt_template(repo_root, PromptTemplateId::WorkerPhase2Handoff)
 }
 
-pub fn load_worker_phase3_prompt(repo_root: &std::path::Path) -> Result<String> {
+pub(crate) fn load_worker_phase3_prompt(repo_root: &std::path::Path) -> Result<String> {
     load_prompt_template(repo_root, PromptTemplateId::WorkerPhase3)
 }
 
-pub fn load_worker_single_phase_prompt(repo_root: &std::path::Path) -> Result<String> {
+pub(crate) fn load_worker_single_phase_prompt(repo_root: &std::path::Path) -> Result<String> {
     load_prompt_template(repo_root, PromptTemplateId::WorkerSinglePhase)
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn render_worker_phase1_prompt(
+pub(crate) fn render_worker_phase1_prompt(
     template: &str,
     base_worker_prompt: &str,
     iteration_context: &str,
@@ -50,7 +50,7 @@ pub fn render_worker_phase1_prompt(
         bail!("Missing task id: worker phase1 prompt requires a non-empty task id.");
     }
 
-    let expanded = super::expand_variables(template, config)?;
+    let expanded = super::util::expand_variables(template, config)?;
     let repoprompt_block = repoprompt_block(repoprompt_tool_injection, repoprompt_plan_required);
     let safe_iteration_context = escape_placeholder_like_text(iteration_context.trim());
     let safe_base_worker_prompt = escape_placeholder_like_text(base_worker_prompt);
@@ -78,7 +78,7 @@ pub fn render_worker_phase1_prompt(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn render_worker_phase2_prompt(
+pub(crate) fn render_worker_phase2_prompt(
     template: &str,
     base_worker_prompt: &str,
     plan_text: &str,
@@ -91,7 +91,7 @@ pub fn render_worker_phase2_prompt(
     config: &Config,
 ) -> Result<String> {
     let template_meta = prompt_template(PromptTemplateId::WorkerPhase2);
-    let expanded = super::expand_variables(template, config)?;
+    let expanded = super::util::expand_variables(template, config)?;
     let repoprompt_block = repoprompt_block(repoprompt_tool_injection, false);
     let safe_plan_text = escape_placeholder_like_text(plan_text.trim());
     let safe_iteration_context = escape_placeholder_like_text(iteration_context.trim());
@@ -131,7 +131,7 @@ pub fn render_worker_phase2_prompt(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn render_worker_phase2_handoff_prompt(
+pub(crate) fn render_worker_phase2_handoff_prompt(
     template: &str,
     base_worker_prompt: &str,
     plan_text: &str,
@@ -144,7 +144,7 @@ pub fn render_worker_phase2_handoff_prompt(
     config: &Config,
 ) -> Result<String> {
     let template_meta = prompt_template(PromptTemplateId::WorkerPhase2Handoff);
-    let expanded = super::expand_variables(template, config)?;
+    let expanded = super::util::expand_variables(template, config)?;
     let repoprompt_block = repoprompt_block(repoprompt_tool_injection, false);
     let safe_plan_text = escape_placeholder_like_text(plan_text.trim());
     let safe_iteration_context = escape_placeholder_like_text(iteration_context.trim());
@@ -184,7 +184,7 @@ pub fn render_worker_phase2_handoff_prompt(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn render_worker_phase3_prompt(
+pub(crate) fn render_worker_phase3_prompt(
     template: &str,
     base_worker_prompt: &str,
     code_review_body: &str,
@@ -199,7 +199,7 @@ pub fn render_worker_phase3_prompt(
     config: &Config,
 ) -> Result<String> {
     let template_meta = prompt_template(PromptTemplateId::WorkerPhase3);
-    let expanded = super::expand_variables(template, config)?;
+    let expanded = super::util::expand_variables(template, config)?;
     let mut review_body = code_review_body.trim().to_string();
     if base_worker_prompt.contains("## PROJECT TYPE:") {
         review_body = strip_project_type_guidance(&review_body);
@@ -259,7 +259,7 @@ pub fn render_worker_phase3_prompt(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn render_worker_single_phase_prompt(
+pub(crate) fn render_worker_single_phase_prompt(
     template: &str,
     base_worker_prompt: &str,
     checklist: &str,
@@ -275,7 +275,7 @@ pub fn render_worker_single_phase_prompt(
         bail!("Missing task id: worker single-phase prompt requires a non-empty task id.");
     }
 
-    let expanded = super::expand_variables(template, config)?;
+    let expanded = super::util::expand_variables(template, config)?;
     let repoprompt_block = repoprompt_block(repoprompt_tool_injection, false);
     let safe_iteration_context = escape_placeholder_like_text(iteration_context.trim());
     let safe_iteration_completion_block =
@@ -317,10 +317,10 @@ fn repoprompt_block(tool_injection: bool, plan_required: bool) -> String {
 
     let mut sections = Vec::new();
     if tool_injection {
-        sections.push(super::REPOPROMPT_REQUIRED_INSTRUCTION.trim());
+        sections.push(super::util::REPOPROMPT_REQUIRED_INSTRUCTION.trim());
     }
     if plan_required {
-        sections.push(super::REPOPROMPT_CONTEXT_BUILDER_PLANNING_INSTRUCTION.trim());
+        sections.push(super::util::REPOPROMPT_CONTEXT_BUILDER_PLANNING_INSTRUCTION.trim());
     }
 
     sections.join("\n\n")

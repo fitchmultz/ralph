@@ -14,23 +14,23 @@ use super::util::{
 use crate::contracts::{Config, ProjectType};
 use anyhow::{bail, Result};
 
-pub fn load_completion_checklist(repo_root: &std::path::Path) -> Result<String> {
+pub(crate) fn load_completion_checklist(repo_root: &std::path::Path) -> Result<String> {
     load_prompt_template(repo_root, PromptTemplateId::CompletionChecklist)
 }
 
-pub fn load_code_review_prompt(repo_root: &std::path::Path) -> Result<String> {
+pub(crate) fn load_code_review_prompt(repo_root: &std::path::Path) -> Result<String> {
     load_prompt_template(repo_root, PromptTemplateId::CodeReview)
 }
 
-pub fn load_phase2_handoff_checklist(repo_root: &std::path::Path) -> Result<String> {
+pub(crate) fn load_phase2_handoff_checklist(repo_root: &std::path::Path) -> Result<String> {
     load_prompt_template(repo_root, PromptTemplateId::Phase2HandoffChecklist)
 }
 
-pub fn load_iteration_checklist(repo_root: &std::path::Path) -> Result<String> {
+pub(crate) fn load_iteration_checklist(repo_root: &std::path::Path) -> Result<String> {
     load_prompt_template(repo_root, PromptTemplateId::IterationChecklist)
 }
 
-pub fn render_completion_checklist(
+pub(crate) fn render_completion_checklist(
     template: &str,
     task_id: &str,
     config: &Config,
@@ -41,20 +41,20 @@ pub fn render_completion_checklist(
         bail!("Missing task id: completion checklist requires a non-empty task id.");
     }
 
-    let expanded = super::expand_variables(template, config)?;
+    let expanded = super::util::expand_variables(template, config)?;
     let rendered = expanded.replace("{{TASK_ID}}", id);
     ensure_no_unresolved_placeholders(&rendered, template_meta.label)?;
     Ok(rendered)
 }
 
-pub fn render_phase2_handoff_checklist(template: &str, config: &Config) -> Result<String> {
+pub(crate) fn render_phase2_handoff_checklist(template: &str, config: &Config) -> Result<String> {
     let template_meta = prompt_template(PromptTemplateId::Phase2HandoffChecklist);
-    let expanded = super::expand_variables(template, config)?;
+    let expanded = super::util::expand_variables(template, config)?;
     ensure_no_unresolved_placeholders(&expanded, template_meta.label)?;
     Ok(expanded)
 }
 
-pub fn render_iteration_checklist(
+pub(crate) fn render_iteration_checklist(
     template: &str,
     task_id: &str,
     config: &Config,
@@ -65,13 +65,13 @@ pub fn render_iteration_checklist(
         bail!("Missing task id: iteration checklist requires a non-empty task id.");
     }
 
-    let expanded = super::expand_variables(template, config)?;
+    let expanded = super::util::expand_variables(template, config)?;
     let rendered = expanded.replace("{{TASK_ID}}", id);
     ensure_no_unresolved_placeholders(&rendered, template_meta.label)?;
     Ok(rendered)
 }
 
-pub fn render_code_review_prompt(
+pub(crate) fn render_code_review_prompt(
     template: &str,
     task_id: &str,
     project_type: ProjectType,
@@ -85,7 +85,7 @@ pub fn render_code_review_prompt(
         bail!("Missing task id: code review prompt requires a non-empty task id.");
     }
 
-    let expanded = super::expand_variables(template, config)?;
+    let expanded = super::util::expand_variables(template, config)?;
     let mut rendered = apply_project_type_guidance_if_needed(
         &expanded,
         project_type,

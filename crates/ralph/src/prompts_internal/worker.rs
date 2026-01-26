@@ -13,11 +13,11 @@ use super::util::{
 use crate::contracts::{Config, ProjectType};
 use anyhow::Result;
 
-pub fn load_worker_prompt(repo_root: &std::path::Path) -> Result<String> {
+pub(crate) fn load_worker_prompt(repo_root: &std::path::Path) -> Result<String> {
     load_prompt_template(repo_root, PromptTemplateId::Worker)
 }
 
-pub fn render_worker_prompt(
+pub(crate) fn render_worker_prompt(
     template: &str,
     task_id: &str,
     project_type: ProjectType,
@@ -31,7 +31,7 @@ pub fn render_worker_prompt(
         anyhow::bail!("Missing task id: worker prompt requires a non-empty task id.");
     }
 
-    let expanded = super::expand_variables(template, config)?;
+    let expanded = super::util::expand_variables(template, config)?;
     let mut rendered = apply_project_type_guidance_if_needed(
         &expanded,
         project_type,

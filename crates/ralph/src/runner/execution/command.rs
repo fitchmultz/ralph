@@ -27,7 +27,7 @@ use super::process::ensure_self_on_path;
 
 /// Builds `std::process::Command` instances with standardized configuration for runners.
 #[allow(dead_code)]
-pub struct RunnerCommandBuilder {
+pub(super) struct RunnerCommandBuilder {
     cmd: Command,
     bin: String,
     work_dir: PathBuf,

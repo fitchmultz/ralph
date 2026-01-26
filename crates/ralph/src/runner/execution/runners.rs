@@ -24,7 +24,7 @@ use super::process::run_with_streaming_json;
 use crate::contracts::Runner;
 
 #[allow(clippy::too_many_arguments)]
-pub fn run_codex(
+pub(crate) fn run_codex(
     work_dir: &Path,
     bin: &str,
     model: Model,
@@ -55,7 +55,7 @@ pub fn run_codex(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn run_codex_resume(
+pub(crate) fn run_codex_resume(
     work_dir: &Path,
     bin: &str,
     model: Model,
@@ -87,7 +87,7 @@ pub fn run_codex_resume(
     )
 }
 
-pub fn run_opencode(
+pub(crate) fn run_opencode(
     work_dir: &Path,
     bin: &str,
     model: &Model,
@@ -123,7 +123,7 @@ pub fn run_opencode(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn run_opencode_resume(
+pub(crate) fn run_opencode_resume(
     work_dir: &Path,
     bin: &str,
     model: &Model,
@@ -154,7 +154,7 @@ pub fn run_opencode_resume(
     )
 }
 
-pub fn run_gemini(
+pub(crate) fn run_gemini(
     work_dir: &Path,
     bin: &str,
     model: Model,
@@ -183,7 +183,7 @@ pub fn run_gemini(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn run_gemini_resume(
+pub(crate) fn run_gemini_resume(
     work_dir: &Path,
     bin: &str,
     model: Model,
@@ -215,7 +215,7 @@ pub fn run_gemini_resume(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn run_claude(
+pub(crate) fn run_claude(
     work_dir: &Path,
     bin: &str,
     model: Model,
@@ -246,7 +246,7 @@ pub fn run_claude(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn run_claude_resume(
+pub(crate) fn run_claude_resume(
     work_dir: &Path,
     bin: &str,
     model: Model,
@@ -284,7 +284,7 @@ fn cursor_is_planning(text: &str) -> bool {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn run_cursor(
+pub(crate) fn run_cursor(
     work_dir: &Path,
     bin: &str,
     model: Model,
@@ -325,7 +325,7 @@ pub fn run_cursor(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn run_cursor_resume(
+pub(crate) fn run_cursor_resume(
     work_dir: &Path,
     bin: &str,
     model: Model,

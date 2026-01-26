@@ -1,10 +1,13 @@
 //! Task statistics and reporting commands.
 //!
-//! Provides analytics on task velocity, completion rates, and tag distribution.
+//! Responsibilities: provide analytics on task velocity, completion rates, and tag distribution.
 //! Supports three report types:
 //! - `stats`: Summary statistics (completion rate, avg duration, tag breakdown)
 //! - `history`: Timeline of creation/completion events by day
 //! - `burndown`: Text chart of remaining tasks over time
+//!
+//! Not handled: queue persistence, CLI argument parsing, or prompt/runner workflows.
+//! Invariants/assumptions: queue files are validated before reporting and timestamps are RFC3339.
 
 use anyhow::Result;
 use serde::Serialize;
@@ -15,7 +18,7 @@ use time::{Duration, OffsetDateTime};
 use crate::contracts::{QueueFile, Task, TaskStatus};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ReportFormat {
+pub(crate) enum ReportFormat {
     Text,
     Json,
 }
@@ -375,7 +378,7 @@ fn print_json<T: Serialize>(report: &T) -> Result<()> {
 /// * `queue` - Active queue tasks
 /// * `done` - Completed tasks (optional)
 /// * `tags` - Optional tag filter (case-insensitive)
-pub fn print_stats(
+pub(crate) fn print_stats(
     queue: &QueueFile,
     done: Option<&QueueFile>,
     tags: &[String],
@@ -439,7 +442,7 @@ pub fn print_stats(
 /// * `queue` - Active queue tasks
 /// * `done` - Completed tasks (optional)
 /// * `days` - Number of days to show (default: 7)
-pub fn print_history(
+pub(crate) fn print_history(
     queue: &QueueFile,
     done: Option<&QueueFile>,
     days: u32,
@@ -501,7 +504,7 @@ pub fn print_history(
 /// * `queue` - Active queue tasks
 /// * `done` - Completed tasks (optional)
 /// * `days` - Number of days to show (default: 7)
-pub fn print_burndown(
+pub(crate) fn print_burndown(
     queue: &QueueFile,
     done: Option<&QueueFile>,
     days: u32,
@@ -563,13 +566,13 @@ pub fn print_burndown(
 }
 
 /// Parse an RFC3339 timestamp string into OffsetDateTime.
-pub fn parse_ts(ts: &str) -> Result<OffsetDateTime> {
+pub(crate) fn parse_ts(ts: &str) -> Result<OffsetDateTime> {
     OffsetDateTime::parse(ts, &Rfc3339)
         .map_err(|e| anyhow::anyhow!("Failed to parse timestamp '{}': {}", ts, e))
 }
 
 /// Format a Duration as a human-readable string (e.g., "2h 30m", "1d 4h").
-pub fn format_duration(duration: Duration) -> String {
+pub(crate) fn format_duration(duration: Duration) -> String {
     let total_seconds = duration.whole_seconds();
     let days = total_seconds / 86400;
     let hours = (total_seconds % 86400) / 3600;

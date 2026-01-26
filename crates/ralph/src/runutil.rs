@@ -1,4 +1,8 @@
 //! Shared helpers for runner invocations with consistent error handling.
+//!
+//! Responsibilities: execute runner invocations, manage temp resources, and normalize error handling.
+//! Not handled: prompt template rendering, queue/task persistence, or runner selection logic.
+//! Invariants/assumptions: caller supplies validated runner settings and respects revert policies.
 
 use crate::contracts::{ClaudePermissionMode, GitRevertMode, Model, ReasoningEffort, Runner};
 use crate::redaction::redact_text;
@@ -441,7 +445,7 @@ where
     }
 }
 
-pub fn run_prompt_with_handling<FNonZero, FOther>(
+pub(crate) fn run_prompt_with_handling<FNonZero, FOther>(
     invocation: RunnerInvocation<'_>,
     messages: RunnerErrorMessages<'_, FNonZero, FOther>,
 ) -> Result<runner::RunnerOutput>

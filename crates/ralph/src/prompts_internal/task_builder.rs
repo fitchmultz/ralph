@@ -12,11 +12,11 @@ use super::util::{
 use crate::contracts::{Config, ProjectType};
 use anyhow::{bail, Result};
 
-pub fn load_task_builder_prompt(repo_root: &std::path::Path) -> Result<String> {
+pub(crate) fn load_task_builder_prompt(repo_root: &std::path::Path) -> Result<String> {
     load_prompt_template(repo_root, PromptTemplateId::TaskBuilder)
 }
 
-pub fn render_task_builder_prompt(
+pub(crate) fn render_task_builder_prompt(
     template: &str,
     user_request: &str,
     hint_tags: &str,
@@ -32,7 +32,7 @@ pub fn render_task_builder_prompt(
         bail!("Missing request: user request must be non-empty. Provide a descriptive request for the task builder.");
     }
 
-    let expanded = super::expand_variables(template, config)?;
+    let expanded = super::util::expand_variables(template, config)?;
     let base = apply_project_type_guidance_if_needed(
         &expanded,
         project_type,

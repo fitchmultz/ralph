@@ -21,12 +21,12 @@ pub(crate) struct RequiredPlaceholder {
 }
 
 /// Instructions for tooling requirements when RepoPrompt tooling reminders are enabled.
-pub const REPOPROMPT_REQUIRED_INSTRUCTION: &str = r#"
+pub(crate) const REPOPROMPT_REQUIRED_INSTRUCTION: &str = r#"
 ## TOOLING REQUIREMENT: RepoPrompt
 You are running in a RepoPrompt-enabled environment. You MUST use the available RepoPrompt tools (`list_windows`, `select_window`, `apply_edits`, `read_file`, `file_search`, etc.) to explore the codebase. Do not rely on internal knowledge or assumptions. Verify everything.
 "#;
 
-pub const REPOPROMPT_CONTEXT_BUILDER_PLANNING_INSTRUCTION: &str = r#"
+pub(crate) const REPOPROMPT_CONTEXT_BUILDER_PLANNING_INSTRUCTION: &str = r#"
 ## PLANNING REQUIREMENT: Use context_builder and write the plan to the cache
 To generate the plan, you MUST use the `context_builder` tool.
 1. BEFORE invoking `context_builder`, do a quick repo reality check using the available tools:
@@ -50,7 +50,7 @@ Do NOT add any other text beyond the brief confirmation.
 Do NOT start implementation in Phase 1.
 "#;
 
-pub fn wrap_with_repoprompt_requirement(prompt: &str, required: bool) -> String {
+pub(crate) fn wrap_with_repoprompt_requirement(prompt: &str, required: bool) -> String {
     if !required {
         return prompt.to_string();
     }
@@ -68,7 +68,7 @@ pub fn wrap_with_repoprompt_requirement(prompt: &str, required: bool) -> String 
 ///
 /// The function processes escapes first, then env vars, then config values.
 /// This order ensures that escaped sequences are preserved throughout.
-pub fn expand_variables(template: &str, config: &Config) -> Result<String> {
+pub(crate) fn expand_variables(template: &str, config: &Config) -> Result<String> {
     let mut result = template.to_string();
 
     let escape_regex = Regex::new(r"\$\$\{|\\\$\{").unwrap();
@@ -184,7 +184,7 @@ fn get_config_value(config: &Config, path: &str) -> Result<String> {
     }
 }
 
-pub fn unresolved_placeholders(rendered: &str) -> Vec<String> {
+pub(crate) fn unresolved_placeholders(rendered: &str) -> Vec<String> {
     let mut placeholders = Vec::new();
     let bytes = rendered.as_bytes();
     let mut i = 0;
@@ -220,14 +220,14 @@ pub fn unresolved_placeholders(rendered: &str) -> Vec<String> {
 ///
 /// This keeps literal `{{...}}` sequences in user text from triggering unresolved
 /// placeholder errors while still allowing templates to enforce required tokens.
-pub fn escape_placeholder_like_text(text: &str) -> String {
+pub(crate) fn escape_placeholder_like_text(text: &str) -> String {
     if !text.contains("{{") && !text.contains("}}") {
         return text.to_string();
     }
     text.replace("{{", "{ {").replace("}}", "} }")
 }
 
-pub fn ensure_no_unresolved_placeholders(rendered: &str, label: &str) -> Result<()> {
+pub(crate) fn ensure_no_unresolved_placeholders(rendered: &str, label: &str) -> Result<()> {
     let placeholders = unresolved_placeholders(rendered);
     if !placeholders.is_empty() {
         bail!(
@@ -252,7 +252,7 @@ pub(crate) fn ensure_required_placeholders(
     Ok(())
 }
 
-pub fn load_prompt_with_fallback(
+pub(crate) fn load_prompt_with_fallback(
     repo_root: &Path,
     rel_path: &str,
     embedded_default: &'static str,
@@ -266,7 +266,7 @@ pub fn load_prompt_with_fallback(
     }
 }
 
-pub fn project_type_guidance(project_type: ProjectType) -> &'static str {
+pub(crate) fn project_type_guidance(project_type: ProjectType) -> &'static str {
     match project_type {
         ProjectType::Code => {
             r#"
@@ -293,7 +293,7 @@ This is a documentation repository. Prioritize:
     }
 }
 
-pub fn apply_project_type_guidance(expanded: &str, project_type: ProjectType) -> String {
+pub(crate) fn apply_project_type_guidance(expanded: &str, project_type: ProjectType) -> String {
     let guidance = project_type_guidance(project_type);
     if expanded.contains("{{PROJECT_TYPE_GUIDANCE}}") {
         expanded.replace("{{PROJECT_TYPE_GUIDANCE}}", guidance)
@@ -302,7 +302,7 @@ pub fn apply_project_type_guidance(expanded: &str, project_type: ProjectType) ->
     }
 }
 
-pub fn apply_project_type_guidance_if_needed(
+pub(crate) fn apply_project_type_guidance_if_needed(
     expanded: &str,
     project_type: ProjectType,
     enabled: bool,

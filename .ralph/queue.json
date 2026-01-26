@@ -2,46 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0302",
-      "status": "todo",
-      "title": "Audit and tighten public API surface",
-      "priority": "medium",
-      "tags": [
-        "refactor",
-        "housekeeping",
-        "visibility",
-        "api-design"
-      ],
-      "scope": [
-        "crates/ralph/src/lib.rs",
-        "crates/ralph/src/**/*.rs",
-        "crates/ralph/tests/"
-      ],
-      "evidence": [
-        "lib.rs currently exports 25+ submodules as `pub`, many of which are implementation details (e.g., `prompts`, `runner`, `run_cmd`).",
-        "Within these submodules, many items (structs, functions, enums) are marked `pub` when they are only consumed within the crate or even within their parent module.",
-        "Specific examples found in `crates/ralph/src/runner/execution/runners.rs` and `crates/ralph/src/prompts_internal/review.rs` where public items can be restricted to `pub(crate)` or `pub(super)`."
-      ],
-      "plan": [
-        "Wait for RQ-0296 (Modularize lib.rs and tighten visibility) to complete its reorganization of lib.rs.",
-        "Perform a recursive audit of all items marked `pub` within crates/ralph/src/ submodules.",
-        "Restrict visibility to `pub(crate)` or `pub(super)` for all items not required by the public API or integration tests in `tests/`.",
-        "Consolidate public exports into a minimal, intentional API surface documented in lib.rs.",
-        "Run `make ci` to verify that integration tests still have sufficient access."
-      ],
-      "notes": [
-        "This task should follow RQ-0296 to avoid redundant path changes during module reorganization.",
-        "Integration tests in `tests/` are the primary constraint; consider moving some logic-specific tests into internal `#[cfg(test)]` blocks to allow further tightening."
-      ],
-      "request": "scan finding",
-      "created_at": "2026-01-26T15:35:00Z",
-      "updated_at": "2026-01-26T21:15:00Z",
-      "depends_on": [
-        "RQ-0296"
-      ],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0303",
       "status": "draft",
       "title": "Achieve feature parity across all runners",
