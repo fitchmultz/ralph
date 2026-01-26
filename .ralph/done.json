@@ -4857,6 +4857,49 @@
       "completed_at": "2026-01-26T01:04:25.901053000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0280",
+      "status": "done",
+      "title": "Move queue validation tests out of validation.rs",
+      "priority": "medium",
+      "tags": [
+        "queue",
+        "tests",
+        "refactor"
+      ],
+      "scope": [
+        "crates/ralph/src/queue/validation.rs",
+        "crates/ralph/src/queue.rs",
+        "crates/ralph/src/queue/"
+      ],
+      "evidence": [
+        "crates/ralph/src/queue/validation.rs: 660 lines (wc -l) and still combines validation logic with in-file tests.",
+        "crates/ralph/src/queue/validation.rs: `#[cfg(test)]` appears at line 378.",
+        "rg --files crates/ralph/src/queue | rg -i \"validation\" returns only crates/ralph/src/queue/validation.rs (no separate validation test module).",
+        "crates/ralph/src/queue.rs: queue module declares `pub mod validation;`, so any new test module wiring needs to live in the queue module tree."
+      ],
+      "plan": [
+        "Pick the target test layout (either queue/validation/tests.rs with `#[cfg(test)] mod tests;` in validation.rs, or queue/validation_tests.rs wired from queue.rs).",
+        "Move the existing validation.rs tests into the new module file and adjust helper visibility with pub(crate) as needed.",
+        "Verify validation.rs is production-only and run `cargo test -p ralph validation` to confirm the moved tests still pass."
+      ],
+      "notes": [
+        "validation.rs grew to 660 lines, so splitting tests will reduce production-module size without changing behavior.",
+        "Extracted 15 validation tests from inline #[cfg(test)] block to validation/tests.rs",
+        "Reduced validation.rs from 660 to 379 lines (production code only)",
+        "Follows operations.rs → operations/tests.rs pattern exactly",
+        "All 15 validation tests pass; no API or behavior changes"
+      ],
+      "request": "scan finding",
+      "agent": {
+        "model_effort": "medium"
+      },
+      "created_at": "2026-01-24T16:07:23.268929000Z",
+      "updated_at": "2026-01-26T02:09:18.607571000Z",
+      "completed_at": "2026-01-26T02:09:18.607571000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }
