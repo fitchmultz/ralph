@@ -8,10 +8,10 @@
     "id_width": 4
   },
   "agent": {
-    "runner": "gemini",
-    "model": "gemini-3-flash-preview",
+    "runner": "opencode",
+    "model": "google/gemini-3-flash-preview",
     "phases": 3,
-    "iterations": 2,
+    "iterations": 1,
     "reasoning_effort": "medium",
     "followup_reasoning_effort": null,
     "codex_bin": "codex",
