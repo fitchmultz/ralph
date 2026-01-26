@@ -2,82 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0249",
-      "status": "draft",
-      "title": "Allow rejected dependencies to unblock runnable tasks (or update docs/tests to match)",
-      "priority": "high",
-      "tags": [
-        "queue",
-        "dependencies",
-        "behavior",
-        "docs",
-        "tests"
-      ],
-      "scope": [
-        "crates/ralph/src/queue/operations/query.rs",
-        "crates/ralph/src/queue/operations/tests.rs",
-        "crates/ralph/src/cli/queue.rs"
-      ],
-      "evidence": [
-        "crates/ralph/src/cli/queue.rs: StatusArg::Rejected help text says dependents can proceed, implying rejected should unblock dependents.",
-        "crates/ralph/src/queue/operations/query.rs: are_dependencies_met requires each dependency to have status == TaskStatus::Done (Rejected is treated as unmet).",
-        "crates/ralph/src/queue/operations/tests.rs: test_next_runnable_task_skips_rejected_dep asserts a rejected dependency blocks runnable selection."
-      ],
-      "plan": [
-        "Confirm the intended dependency policy for rejected tasks (unblock dependents vs. keep blocked) by reviewing CLI help expectations and any project guidance.",
-        "Align queue dependency logic and comments with the chosen policy (update are_dependencies_met and related error messaging if rejected should satisfy dependencies, or update StatusArg::Rejected help text if it should not).",
-        "Adjust/add queue operation tests to cover the chosen behavior and ensure rejected dependency cases remain explicitly verified."
-      ],
-      "notes": [
-        "Current code treats rejected dependencies as unmet, which conflicts with the CLI status help text that claims dependents can proceed."
-      ],
-      "request": "scan finding",
-      "agent": {
-        "model_effort": "medium"
-      },
-      "created_at": "2026-01-24T12:40:25Z",
-      "updated_at": "2026-01-25T21:49:23Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
-      "id": "RQ-0281",
-      "status": "todo",
-      "title": "Move run_cmd.rs tests into a dedicated test module",
-      "priority": "medium",
-      "tags": [
-        "run",
-        "tests",
-        "refactor"
-      ],
-      "scope": [
-        "crates/ralph/src/run_cmd.rs",
-        "crates/ralph/src/run_cmd/tests.rs",
-        "crates/ralph/src/run_cmd/"
-      ],
-      "evidence": [
-        "crates/ralph/src/run_cmd.rs: now declares `#[cfg(test)] mod tests;` instead of inline test blocks.",
-        "crates/ralph/src/run_cmd/tests.rs: dedicated test module exists and holds the run_cmd tests (594 lines per wc -l).",
-        "crates/ralph/src/run_cmd.rs: 481 lines (wc -l) focused on command routing plus the test module declaration."
-      ],
-      "plan": [
-        "Confirm run_cmd.rs no longer contains inline tests beyond the test module declaration and that run_cmd/tests.rs includes all run command cases.",
-        "If any inline tests remain or coverage is missing, move them into run_cmd/tests.rs and update module wiring.",
-        "Run `cargo test -p ralph run_cmd` to verify the command router tests still pass."
-      ],
-      "notes": [
-        "Run command tests appear to already live in crates/ralph/src/run_cmd/tests.rs; remaining work is verification and cleanup if anything was missed."
-      ],
-      "request": "scan finding",
-      "agent": {
-        "model_effort": "low"
-      },
-      "created_at": "2026-01-24T16:07:23.268929000Z",
-      "updated_at": "2026-01-25T21:50:43Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0282",
       "status": "todo",
       "title": "Move runutil.rs tests into a dedicated test module",
@@ -607,6 +531,45 @@
       },
       "created_at": "2026-01-24T15:39:45.873331000Z",
       "updated_at": "2026-01-25T22:13:01Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0249",
+      "status": "todo",
+      "title": "Allow rejected dependencies to unblock runnable tasks (or update docs/tests to match)",
+      "priority": "high",
+      "tags": [
+        "queue",
+        "dependencies",
+        "behavior",
+        "docs",
+        "tests"
+      ],
+      "scope": [
+        "crates/ralph/src/queue/operations/query.rs",
+        "crates/ralph/src/queue/operations/tests.rs",
+        "crates/ralph/src/cli/queue.rs"
+      ],
+      "evidence": [
+        "crates/ralph/src/cli/queue.rs: StatusArg::Rejected help text says dependents can proceed, implying rejected should unblock dependents.",
+        "crates/ralph/src/queue/operations/query.rs: are_dependencies_met requires each dependency to have status == TaskStatus::Done (Rejected is treated as unmet).",
+        "crates/ralph/src/queue/operations/tests.rs: test_next_runnable_task_skips_rejected_dep asserts a rejected dependency blocks runnable selection."
+      ],
+      "plan": [
+        "Confirm the intended dependency policy for rejected tasks (unblock dependents vs. keep blocked) by reviewing CLI help expectations and any project guidance.",
+        "Align queue dependency logic and comments with the chosen policy (update are_dependencies_met and related error messaging if rejected should satisfy dependencies, or update StatusArg::Rejected help text if it should not).",
+        "Adjust/add queue operation tests to cover the chosen behavior and ensure rejected dependency cases remain explicitly verified."
+      ],
+      "notes": [
+        "Current code treats rejected dependencies as unmet, which conflicts with the CLI status help text that claims dependents can proceed."
+      ],
+      "request": "scan finding",
+      "agent": {
+        "model_effort": "medium"
+      },
+      "created_at": "2026-01-24T12:40:25Z",
+      "updated_at": "2026-01-25T21:49:23Z",
       "depends_on": [],
       "custom_fields": {}
     }
