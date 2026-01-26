@@ -206,6 +206,7 @@ echo '{{"sessionID":"sess-123"}}'
         opencode: runner_path.to_str().expect("runner path"),
         gemini: "gemini",
         claude: "claude",
+        cursor: "agent",
     };
     let policy = promptflow::PromptPolicy {
         repoprompt_plan_required: false,
@@ -292,6 +293,7 @@ echo '{{"sessionID":"sess-123"}}'
         opencode: runner_path.to_str().expect("runner path"),
         gemini: "gemini",
         claude: "claude",
+        cursor: "agent",
     };
     let policy = promptflow::PromptPolicy {
         repoprompt_plan_required: false,
@@ -368,6 +370,7 @@ echo '{{"sessionID":"sess-123"}}'
         opencode: runner_path.to_str().expect("runner path"),
         gemini: "gemini",
         claude: "claude",
+        cursor: "agent",
     };
     let policy = promptflow::PromptPolicy {
         repoprompt_plan_required: false,
@@ -497,6 +500,7 @@ echo '{"sessionID":"sess-123"}'
         opencode: runner_path.to_str().expect("runner path"),
         gemini: "gemini",
         claude: "claude",
+        cursor: "agent",
     };
     let policy = promptflow::PromptPolicy {
         repoprompt_plan_required: false,
@@ -560,6 +564,7 @@ echo '{"sessionID":"sess-123"}'
         opencode: runner_path.to_str().expect("runner path"),
         gemini: "gemini",
         claude: "claude",
+        cursor: "agent",
     };
     let policy = promptflow::PromptPolicy {
         repoprompt_plan_required: false,
@@ -627,6 +632,7 @@ echo '{{"sessionID":"sess-123"}}'
         opencode: runner_path.to_str().expect("runner path"),
         gemini: "gemini",
         claude: "claude",
+        cursor: "agent",
     };
     let policy = promptflow::PromptPolicy {
         repoprompt_plan_required: false,

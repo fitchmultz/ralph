@@ -80,6 +80,7 @@ pub enum RunnerError {
 const OPENCODE_PROMPT_FILE_MESSAGE: &str = "Follow the attached prompt file verbatim.";
 const DEFAULT_GEMINI_MODEL: &str = "gemini-3-flash-preview";
 const DEFAULT_CLAUDE_MODEL: &str = "sonnet";
+const DEFAULT_CURSOR_MODEL: &str = "auto";
 const TEMP_RETENTION: Duration = Duration::from_secs(60 * 60 * 24 * 7);
 
 pub struct RunnerOutput {
@@ -182,6 +183,7 @@ pub struct RunnerBinaries<'a> {
     pub opencode: &'a str,
     pub gemini: &'a str,
     pub claude: &'a str,
+    pub cursor: &'a str,
 }
 
 pub fn resolve_binaries(agent: &AgentConfig) -> RunnerBinaries<'_> {
@@ -189,11 +191,13 @@ pub fn resolve_binaries(agent: &AgentConfig) -> RunnerBinaries<'_> {
     let opencode = agent.opencode_bin.as_deref().unwrap_or("opencode");
     let gemini = agent.gemini_bin.as_deref().unwrap_or("gemini");
     let claude = agent.claude_bin.as_deref().unwrap_or("claude");
+    let cursor = agent.cursor_bin.as_deref().unwrap_or("agent");
     RunnerBinaries {
         codex,
         opencode,
         gemini,
         claude,
+        cursor,
     }
 }
 
@@ -202,6 +206,7 @@ pub fn default_model_for_runner(runner: Runner) -> Model {
         Runner::Codex => Model::Gpt52Codex,
         Runner::Opencode => Model::Glm47,
         Runner::Gemini => Model::Custom(DEFAULT_GEMINI_MODEL.to_string()),
+        Runner::Cursor => Model::Custom(DEFAULT_CURSOR_MODEL.to_string()),
         Runner::Claude => Model::Custom(DEFAULT_CLAUDE_MODEL.to_string()),
     }
 }
@@ -284,6 +289,15 @@ pub fn run_prompt(
         Runner::Gemini => execution::run_gemini(
             work_dir,
             bins.gemini,
+            model,
+            prompt,
+            timeout,
+            output_handler.clone(),
+            output_stream,
+        )?,
+        Runner::Cursor => execution::run_cursor(
+            work_dir,
+            bins.cursor,
             model,
             prompt,
             timeout,
@@ -376,6 +390,16 @@ pub fn resume_session(
         Runner::Gemini => execution::run_gemini_resume(
             work_dir,
             bins.gemini,
+            model,
+            session_id,
+            message,
+            timeout,
+            output_handler,
+            output_stream,
+        ),
+        Runner::Cursor => execution::run_cursor_resume(
+            work_dir,
+            bins.cursor,
             model,
             session_id,
             message,
@@ -505,6 +529,12 @@ mod tests {
     fn resolve_model_for_runner_defaults_for_claude() {
         let model = resolve_model_for_runner(Runner::Claude, None, None, None, false);
         assert_eq!(model.as_str(), DEFAULT_CLAUDE_MODEL);
+    }
+
+    #[test]
+    fn resolve_model_for_runner_defaults_for_cursor() {
+        let model = resolve_model_for_runner(Runner::Cursor, None, None, None, false);
+        assert_eq!(model.as_str(), DEFAULT_CURSOR_MODEL);
     }
 
     #[test]

@@ -4,13 +4,14 @@
   "type": "object",
   "properties": {
     "agent": {
-      "description": "Agent runner defaults (Claude, Codex, OpenCode, or Gemini).",
+      "description": "Agent runner defaults (Claude, Codex, OpenCode, Gemini, or Cursor).",
       "default": {
         "ci_gate_command": "make ci",
         "ci_gate_enabled": true,
         "claude_bin": "claude",
         "claude_permission_mode": "bypass_permissions",
         "codex_bin": "codex",
+        "cursor_bin": "agent",
         "followup_reasoning_effort": null,
         "gemini_bin": "gemini",
         "git_commit_push_enabled": true,
@@ -108,6 +109,14 @@
         },
         "codex_bin": {
           "description": "Override the codex executable name/path (default is \"codex\" if None).",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "cursor_bin": {
+          "description": "Override the cursor agent executable name/path (default is \"agent\" if None).\n\nNOTE: Cursor's runner binary name is `agent` (not `cursor`).",
           "default": null,
           "type": [
             "string",
@@ -326,6 +335,7 @@
         "codex",
         "opencode",
         "gemini",
+        "cursor",
         "claude"
       ]
     }

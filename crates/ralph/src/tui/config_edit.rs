@@ -28,6 +28,7 @@ pub enum ConfigKey {
     AgentOpencodeBin,
     AgentGeminiBin,
     AgentClaudeBin,
+    AgentCursorBin,
     AgentClaudePermissionMode,
     AgentRepopromptPlanRequired,
     AgentRepopromptToolInjection,
@@ -131,6 +132,12 @@ impl App {
                 key: ConfigKey::AgentClaudeBin,
                 label: "agent.claude_bin",
                 value: display_string(self.project_config.agent.claude_bin.as_ref()),
+                kind: ConfigFieldKind::Text,
+            },
+            ConfigEntry {
+                key: ConfigKey::AgentCursorBin,
+                label: "agent.cursor_bin",
+                value: display_string(self.project_config.agent.cursor_bin.as_ref()),
                 kind: ConfigFieldKind::Text,
             },
             ConfigEntry {
@@ -244,6 +251,13 @@ impl App {
                 .as_ref()
                 .cloned()
                 .unwrap_or_default(),
+            ConfigKey::AgentCursorBin => self
+                .project_config
+                .agent
+                .cursor_bin
+                .as_ref()
+                .cloned()
+                .unwrap_or_default(),
             _ => String::new(),
         }
     }
@@ -333,6 +347,13 @@ impl App {
                     Some(trimmed.to_string())
                 };
             }
+            ConfigKey::AgentCursorBin => {
+                self.project_config.agent.cursor_bin = if trimmed.is_empty() {
+                    None
+                } else {
+                    Some(trimmed.to_string())
+                };
+            }
             _ => {}
         }
         self.dirty_config = true;
@@ -402,6 +423,7 @@ impl App {
             ConfigKey::AgentOpencodeBin => self.project_config.agent.opencode_bin = None,
             ConfigKey::AgentGeminiBin => self.project_config.agent.gemini_bin = None,
             ConfigKey::AgentClaudeBin => self.project_config.agent.claude_bin = None,
+            ConfigKey::AgentCursorBin => self.project_config.agent.cursor_bin = None,
             ConfigKey::AgentClaudePermissionMode => {
                 self.project_config.agent.claude_permission_mode = None;
             }
@@ -439,6 +461,7 @@ fn display_runner(value: Option<Runner>) -> String {
         Some(Runner::Opencode) => "opencode".to_string(),
         Some(Runner::Gemini) => "gemini".to_string(),
         Some(Runner::Claude) => "claude".to_string(),
+        Some(Runner::Cursor) => "cursor".to_string(),
         None => default_config_value(),
     }
 }
@@ -520,7 +543,8 @@ fn cycle_runner(value: Option<Runner>) -> Option<Runner> {
         Some(Runner::Codex) => Some(Runner::Opencode),
         Some(Runner::Opencode) => Some(Runner::Gemini),
         Some(Runner::Gemini) => Some(Runner::Claude),
-        Some(Runner::Claude) => None,
+        Some(Runner::Claude) => Some(Runner::Cursor),
+        Some(Runner::Cursor) => None,
     }
 }
 

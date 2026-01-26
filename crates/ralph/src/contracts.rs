@@ -29,7 +29,7 @@ pub struct Config {
     /// Queue-related configuration.
     pub queue: QueueConfig,
 
-    /// Agent runner defaults (Claude, Codex, OpenCode, or Gemini).
+    /// Agent runner defaults (Claude, Codex, OpenCode, Gemini, or Cursor).
     pub agent: AgentConfig,
 }
 
@@ -98,6 +98,11 @@ pub struct AgentConfig {
     /// Override the claude executable name/path (default is "claude" if None).
     pub claude_bin: Option<String>,
 
+    /// Override the cursor agent executable name/path (default is "agent" if None).
+    ///
+    /// NOTE: Cursor's runner binary name is `agent` (not `cursor`).
+    pub cursor_bin: Option<String>,
+
     /// Claude permission mode for tool and edit approval.
     /// AcceptEdits: auto-approves file edits only
     /// BypassPermissions: skip all permission prompts (YOLO mode)
@@ -162,6 +167,9 @@ impl AgentConfig {
         if other.claude_bin.is_some() {
             self.claude_bin = other.claude_bin;
         }
+        if other.cursor_bin.is_some() {
+            self.cursor_bin = other.cursor_bin;
+        }
         if other.phases.is_some() {
             self.phases = other.phases;
         }
@@ -206,6 +214,7 @@ pub enum Runner {
     Codex,
     Opencode,
     Gemini,
+    Cursor,
     #[default]
     Claude,
 }
@@ -575,6 +584,7 @@ impl Default for Config {
                 opencode_bin: Some("opencode".to_string()),
                 gemini_bin: Some("gemini".to_string()),
                 claude_bin: Some("claude".to_string()),
+                cursor_bin: Some("agent".to_string()),
                 phases: Some(3),
                 claude_permission_mode: Some(ClaudePermissionMode::BypassPermissions),
                 repoprompt_plan_required: Some(false),

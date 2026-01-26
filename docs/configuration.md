@@ -19,7 +19,7 @@ CLI flags override both for a single run. Defaults are defined by `schemas/confi
 `agent` controls default execution settings. Defaults are schema-defined.
 
 Supported fields:
-- `runner`: `codex`, `opencode`, `gemini`, or `claude`.
+- `runner`: `codex`, `opencode`, `gemini`, `claude`, or `cursor`.
 - `model`: default model id (string).
 - `phases`: number of phases (1, 2, or 3).
 - `update_task_before_run`: if `true`, Ralph runs `ralph task update <TASK-ID>` once per task immediately before execution begins (default: `false`). This updates task fields (scope, evidence, plan, notes, tags, depends_on) based on current repository state, priming agents with better task information. Runs only once per task, before the first iteration (not before subsequent iterations if `iterations > 1`). Can also be enabled via CLI flag: `--update-task`.
@@ -32,7 +32,7 @@ Supported fields:
 - `git_commit_push_enabled`: enable or disable automatic git commit/push after successful runs (default: `true`).
 - `ci_gate_command`: command to run for the CI gate (default: `make ci`).
 - `ci_gate_enabled`: enable or disable the CI gate (default: `true`).
-- `claude_bin`, `codex_bin`, `opencode_bin`, `gemini_bin`: override runner executable path/name.
+- `claude_bin`, `codex_bin`, `opencode_bin`, `gemini_bin`, `cursor_bin`: override runner executable path/name (Cursor uses the `agent` binary).
 - `claude_permission_mode`: `accept_edits` or `bypass_permissions`.
 
 Notes:

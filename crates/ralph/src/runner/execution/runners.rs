@@ -250,3 +250,89 @@ pub fn run_claude_resume(
         output_stream,
     )
 }
+
+fn cursor_is_planning(text: &str) -> bool {
+    text.contains("# PLANNING MODE")
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn run_cursor(
+    work_dir: &Path,
+    bin: &str,
+    model: Model,
+    prompt: &str,
+    timeout: Option<Duration>,
+    output_handler: Option<OutputHandler>,
+    output_stream: OutputStream,
+) -> Result<RunnerOutput, RunnerError> {
+    // Phase detection is intentionally string-based to avoid refactors:
+    // Phase 1 prompts include "# PLANNING MODE" (from worker_phase1.md).
+    let is_planning = cursor_is_planning(prompt);
+
+    let mut builder = RunnerCommandBuilder::new(bin, work_dir)
+        .model(&model)
+        .arg("--sandbox")
+        .arg(if is_planning { "enabled" } else { "disabled" });
+
+    if is_planning {
+        builder = builder.arg("--plan");
+    }
+
+    let (cmd, payload, _guards) = builder
+        .arg("--print")
+        .output_format("stream-json")
+        // Cursor agent CLI expects the prompt as a positional argument.
+        .arg(prompt)
+        .build();
+
+    run_with_streaming_json(
+        cmd,
+        payload.as_deref(),
+        bin,
+        timeout,
+        output_handler,
+        output_stream,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn run_cursor_resume(
+    work_dir: &Path,
+    bin: &str,
+    model: Model,
+    session_id: &str,
+    message: &str,
+    timeout: Option<Duration>,
+    output_handler: Option<OutputHandler>,
+    output_stream: OutputStream,
+) -> Result<RunnerOutput, RunnerError> {
+    // We only receive `message` for resume calls; use the same heuristic.
+    let is_planning = cursor_is_planning(message);
+
+    let mut builder = RunnerCommandBuilder::new(bin, work_dir)
+        .arg("--resume")
+        .arg(session_id)
+        .model(&model)
+        .arg("--sandbox")
+        .arg(if is_planning { "enabled" } else { "disabled" });
+
+    if is_planning {
+        builder = builder.arg("--plan");
+    }
+
+    let (cmd, payload, _guards) = builder
+        .arg("--print")
+        .output_format("stream-json")
+        // Cursor agent CLI expects the continuation message as a positional argument.
+        .arg(message)
+        .build();
+
+    run_with_streaming_json(
+        cmd,
+        payload.as_deref(),
+        bin,
+        timeout,
+        output_handler,
+        output_stream,
+    )
+}

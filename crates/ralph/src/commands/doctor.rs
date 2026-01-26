@@ -143,6 +143,12 @@ pub fn run_doctor(resolved: &config::Resolved) -> Result<()> {
             .claude_bin
             .as_deref()
             .unwrap_or("claude"),
+        Runner::Cursor => resolved
+            .config
+            .agent
+            .cursor_bin
+            .as_deref()
+            .unwrap_or("agent"),
     };
 
     if let Err(e) = check_command(bin_name, &["--version"]) {

@@ -338,6 +338,7 @@ mod tests {
                 opencode_bin: Some("opencode".to_string()),
                 gemini_bin: Some("gemini".to_string()),
                 claude_bin: Some("claude".to_string()),
+                cursor_bin: Some("agent".to_string()),
                 phases: Some(2),
                 update_task_before_run: None,
                 claude_permission_mode: Some(ClaudePermissionMode::BypassPermissions),

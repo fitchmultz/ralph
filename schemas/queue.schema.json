@@ -39,6 +39,7 @@
         "codex",
         "opencode",
         "gemini",
+        "cursor",
         "claude"
       ]
     },

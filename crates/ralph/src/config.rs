@@ -183,6 +183,11 @@ pub fn validate_config(cfg: &Config) -> Result<()> {
             bail!("Empty agent.claude_bin: binary path is required if specified. Set the path to the claude binary in your config.");
         }
     }
+    if let Some(bin) = &cfg.agent.cursor_bin {
+        if bin.trim().is_empty() {
+            bail!("Empty agent.cursor_bin: binary path is required if specified. Set the path to the Cursor agent binary (`agent`) in your config.");
+        }
+    }
 
     let ci_gate_enabled = cfg.agent.ci_gate_enabled.unwrap_or(true);
     if ci_gate_enabled {
@@ -354,5 +359,14 @@ mod tests {
 
         let err = validate_config(&cfg).expect_err("expected validation to fail");
         assert!(err.to_string().contains("agent.iterations"));
+    }
+
+    #[test]
+    fn validate_config_rejects_empty_cursor_bin() {
+        let mut cfg = Config::default();
+        cfg.agent.cursor_bin = Some("   ".to_string());
+
+        let err = validate_config(&cfg).expect_err("expected validation to fail");
+        assert!(err.to_string().contains("agent.cursor_bin"));
     }
 }
