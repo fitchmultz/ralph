@@ -2,6 +2,55 @@
   "version": 1,
   "tasks": [
     {
+      "id": "RQ-0310",
+      "status": "todo",
+      "title": "Add 'cursor' runner support",
+      "priority": "medium",
+      "tags": [
+        "feature",
+        "runner",
+        "cursor",
+        "integration"
+      ],
+      "scope": [
+        "crates/ralph/src/runner.rs",
+        "crates/ralph/src/runner/execution/runners.rs",
+        "crates/ralph/src/runner/execution/json.rs",
+        "crates/ralph/src/config.rs",
+        "docs/configuration.md",
+        "docs/cli.md"
+      ],
+      "evidence": [
+        "User requested support for 'cursor' runner using the 'agent' binary.",
+        "User provided specific CLI commands for planning (`--sandbox enabled`) vs execution (`--sandbox disabled`).",
+        "Integration requires parsing `session_id` from `stream-json` output for resume capability.",
+        "Existing runners (Codex, OpenCode) implement similar logic in `runners.rs`.",
+        "JSON parsing logic resides in `json.rs`, which needs to support the `agent` binary's output format."
+      ],
+      "plan": [
+        "Add `Cursor` variant to `Runner` enum in `crates/ralph/src/runner.rs`.",
+        "Implement `run_cursor` and `run_cursor_resume` in `crates/ralph/src/runner/execution/runners.rs` using the `RunnerCommandBuilder` (from RQ-0297).",
+        "Implement logic to determine `sandbox` state (enabled for Phase 1/Planning, disabled otherwise) either via context or config.",
+        "Update `crates/ralph/src/runner/execution/json.rs` to support `session_id` extraction from `agent` binary output.",
+        "Register 'cursor' in configuration validation in `crates/ralph/src/config.rs` and set default model to 'auto'.",
+        "Update `docs/configuration.md` and `docs/cli.md` with 'cursor' runner details and examples.",
+        "Run `make ci` to verify the new runner integration and help guidance."
+      ],
+      "notes": [
+        "Depends on RQ-0297 for clean command assembly.",
+        "Depends on RQ-0299 for robust JSON parsing.",
+        "The `agent` binary is external; ensure `make test` mocks or skips if binary is missing."
+      ],
+      "request": "Add support for a new runner named 'cursor'. This runner should have feature parity with the other runners, such as opencode. The default 'model' for this runner is 'auto'. Custom values are supported. User is responsible for configuring a supported model name. The user should be told to run 'agent models' to determine which models are supported for their account. The cursor runner uses the binary 'agent'. See 'agent --help' for more information. I have provided some examples of how to use this agent below. Planning phase: 'agent --model auto --sandbox enabled --plan --print --output-format stream-json \"Create a plan for the task ...\"' See the output of this command (e.g. for JSON parsing) in the file at '/tmp/cursor-agent-plan.md'. It contains 'session_id' which is needed for the follow up messages when applicable. For non-planning phases, use the following command for reference: 'agent --model auto --sandbox disabled --print --output-format stream-json \"List the files in this repo, then get the file tree via Repo Prompt, and then finish by creating a file in /tmp/cursor-agent-test.txt that simply contains the text Hello World.\". The output of this command was written to the file '/tmp/cursor-agent-test.txt'. To resume a session with the agent use the following command syntax: 'agent --model auto --sandbox disabled --print --output-format stream-json --resume 64e5dea1-0cc6-4f98-b07b-fbc150fdad78 \"Try RP again\"'.",
+      "created_at": "2026-01-26T21:00:00Z",
+      "updated_at": "2026-01-26T18:51:28Z",
+      "depends_on": [
+        "RQ-0297",
+        "RQ-0299"
+      ],
+      "custom_fields": {}
+    },
+    {
       "id": "RQ-0296",
       "status": "todo",
       "title": "Modularize lib.rs and tighten visibility",
