@@ -13,7 +13,7 @@ use std::path::Path;
 /// Instructions for tooling requirements when RepoPrompt tooling reminders are enabled.
 pub const REPOPROMPT_REQUIRED_INSTRUCTION: &str = r#"
 ## TOOLING REQUIREMENT: RepoPrompt
-You are running in a RepoPrompt-enabled environment. You MUST use the available RepoPrompt tools (`read_file`, `search_file_content`, `run_shell_command`, etc.) to explore the codebase. Do not rely on internal knowledge or assumptions. Verify everything.
+You are running in a RepoPrompt-enabled environment. You MUST use the available RepoPrompt tools (`list_windows`, `select_window`, `apply_edits`, `read_file`, `file_search`, etc.) to explore the codebase. Do not rely on internal knowledge or assumptions. Verify everything.
 "#;
 
 pub const REPOPROMPT_CONTEXT_BUILDER_PLANNING_INSTRUCTION: &str = r#"
