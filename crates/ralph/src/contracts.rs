@@ -103,11 +103,6 @@ pub struct AgentConfig {
     /// BypassPermissions: skip all permission prompts (YOLO mode)
     pub claude_permission_mode: Option<ClaudePermissionMode>,
 
-    /// Require RepoPrompt usage during planning.
-    /// If true, agent must use of context_builder tool to generate a plan.
-    /// Deprecated: use `repoprompt_plan_required` and `repoprompt_tool_injection`.
-    pub require_repoprompt: Option<bool>,
-
     /// Require RepoPrompt usage during planning (inject context_builder instructions).
     pub repoprompt_plan_required: Option<bool>,
 
@@ -166,9 +161,6 @@ impl AgentConfig {
         }
         if other.claude_permission_mode.is_some() {
             self.claude_permission_mode = other.claude_permission_mode;
-        }
-        if other.require_repoprompt.is_some() {
-            self.require_repoprompt = other.require_repoprompt;
         }
         if other.repoprompt_plan_required.is_some() {
             self.repoprompt_plan_required = other.repoprompt_plan_required;
@@ -576,7 +568,6 @@ impl Default for Config {
                 claude_bin: Some("claude".to_string()),
                 phases: Some(3),
                 claude_permission_mode: Some(ClaudePermissionMode::BypassPermissions),
-                require_repoprompt: Some(false),
                 repoprompt_plan_required: Some(false),
                 repoprompt_tool_injection: Some(false),
                 ci_gate_command: Some("make ci".to_string()),

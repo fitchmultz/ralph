@@ -117,7 +117,7 @@ Ralph can independently control RepoPrompt planning and tooling reminders:
 1. `repoprompt_plan_required`: injects the Phase 1 planning instructions, including the `context_builder` requirement.
 2. `repoprompt_tool_injection`: injects RepoPrompt tooling reminders into prompts.
 
-Legacy `require_repoprompt` remains supported and maps to both new flags when they are unset. CLI `--rp-on/--rp-off` toggles both flags.
+CLI `--rp-on/--rp-off` toggles both flags.
 
 ### Three-phase Workflow (Default)
 Ralph supports a 3-phase workflow by default (configured via `agent.phases: 3`):

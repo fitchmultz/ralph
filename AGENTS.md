@@ -172,14 +172,17 @@ Purpose: Capture repo-wide operating expectations for contributors and agents wo
 - `agent.model`: Model ID string
 - `agent.phases`: Number of phases (1, 2, or 3)
 - `agent.reasoning_effort`: Low, medium, high, xhigh (Codex only)
-- `agent.require_repoprompt`: Require RepoPrompt tools (true/false)
+- `agent.repoprompt_plan_required`: Require RepoPrompt planning step (true/false)
+- `agent.repoprompt_tool_injection`: Inject RepoPrompt tooling reminders (true/false)
 - `agent.ci_gate_command`: CI validation command (default: `make ci`)
 - `agent.ci_gate_enabled`: Enable/disable CI gate (default: true)
 - `queue.file`: Queue file path (default: `.ralph/queue.json`)
 - `queue.done_file`: Done archive path (default: `.ralph/done.json`)
 
 **RepoPrompt Integration:**
-- When `require_repoprompt: true` (or `--rp-on`), agents MUST use RepoPrompt tools
+- When `repoprompt_plan_required: true`, agents MUST use RepoPrompt tools during planning (use `context_builder`)
+- When `repoprompt_tool_injection: true`, prompts include RepoPrompt tooling reminders; follow them
+- CLI `--rp-on/--rp-off` toggles both flags together
 - RepoPrompt produces plans, but agent owns correctness—fix conflicts before writing
 - Preflight: Validate task assumptions and identify relevant files before invoking `context_builder`
 - Selection hygiene: If `context_builder` misses files, append them (don't replace selection)
@@ -254,5 +257,5 @@ See `docs/configuration.md` for complete configuration documentation.
 
 **RepoPrompt Issues:**
 - Ensure RepoPrompt is installed and configured
-- Check `require_repoprompt: true` in config or `--rp-on` flag
+- Check `repoprompt_plan_required` and/or `repoprompt_tool_injection` in config (or use `--rp-on`)
 - Verify selection includes relevant files before invoking `context_builder`

@@ -246,14 +246,8 @@ pub fn resolve_agent_overrides(args: &AgentArgs) -> Result<AgentOverrides> {
 }
 
 fn resolve_repoprompt_flags_from_agent_config(agent: &AgentConfig) -> RepopromptFlags {
-    let plan_required = agent
-        .repoprompt_plan_required
-        .or(agent.require_repoprompt)
-        .unwrap_or(false);
-    let tool_injection = agent
-        .repoprompt_tool_injection
-        .or(agent.require_repoprompt)
-        .unwrap_or(false);
+    let plan_required = agent.repoprompt_plan_required.unwrap_or(false);
+    let tool_injection = agent.repoprompt_tool_injection.unwrap_or(false);
     RepopromptFlags {
         plan_required,
         tool_injection,
@@ -325,7 +319,6 @@ mod tests {
                 claude_bin: Some("claude".to_string()),
                 phases: Some(2),
                 claude_permission_mode: Some(ClaudePermissionMode::BypassPermissions),
-                require_repoprompt: None,
                 repoprompt_plan_required: None,
                 repoprompt_tool_injection: None,
                 ci_gate_command: Some("make ci".to_string()),
@@ -387,27 +380,22 @@ mod tests {
     }
 
     #[test]
-    fn resolve_repoprompt_flags_prefers_new_fields_over_legacy() {
+    fn resolve_repoprompt_flags_defaults_false_when_unset() {
+        let resolved = resolved_with_defaults();
+        let flags = resolve_repoprompt_flags(false, false, &resolved);
+        assert!(!flags.plan_required);
+        assert!(!flags.tool_injection);
+    }
+
+    #[test]
+    fn resolve_repoprompt_flags_uses_config_fields() {
         let mut resolved = resolved_with_defaults();
-        resolved.config.agent.require_repoprompt = Some(true);
         resolved.config.agent.repoprompt_plan_required = Some(true);
         resolved.config.agent.repoprompt_tool_injection = Some(false);
 
         let flags = resolve_repoprompt_flags(false, false, &resolved);
         assert!(flags.plan_required);
         assert!(!flags.tool_injection);
-    }
-
-    #[test]
-    fn resolve_repoprompt_flags_uses_legacy_when_new_fields_unset() {
-        let mut resolved = resolved_with_defaults();
-        resolved.config.agent.require_repoprompt = Some(true);
-        resolved.config.agent.repoprompt_plan_required = None;
-        resolved.config.agent.repoprompt_tool_injection = None;
-
-        let flags = resolve_repoprompt_flags(false, false, &resolved);
-        assert!(flags.plan_required);
-        assert!(flags.tool_injection);
     }
 
     #[test]

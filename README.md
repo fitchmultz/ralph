@@ -81,7 +81,7 @@ Defaults and config:
 - **Claude**: `sonnet` (default), `opus`, or arbitrary model IDs
 
 ### RepoPrompt Integration
-Ralph can independently require RepoPrompt planning and tooling reminders. Configure `repoprompt_plan_required` to inject the Phase 1 planning instructions, and `repoprompt_tool_injection` to inject RepoPrompt tooling reminders in prompts. The legacy `require_repoprompt` flag still maps to both when the new fields are unset. CLI `--rp-on/--rp-off` continues to toggle both flags.
+Ralph can independently require RepoPrompt planning and tooling reminders. Configure `repoprompt_plan_required` to inject the Phase 1 planning instructions, and `repoprompt_tool_injection` to inject RepoPrompt tooling reminders in prompts. CLI `--rp-on/--rp-off` toggles both flags together.
 
 ### Three-phase Workflow (Default)
 Ralph supports a 3-phase workflow by default:

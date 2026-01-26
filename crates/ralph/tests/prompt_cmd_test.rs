@@ -25,7 +25,6 @@ fn make_resolved(temp: &TempDir) -> ralph::config::Resolved {
         },
         agent: AgentConfig {
             phases: Some(3),
-            require_repoprompt: None,
             repoprompt_plan_required: Some(false),
             repoprompt_tool_injection: Some(false),
             ci_gate_command: Some("make ci".to_string()),

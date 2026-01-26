@@ -29,6 +29,7 @@ fn test_config_default() {
         config.agent.claude_permission_mode,
         Some(ClaudePermissionMode::BypassPermissions)
     );
-    assert_eq!(config.agent.require_repoprompt, Some(false));
+    assert_eq!(config.agent.repoprompt_plan_required, Some(false));
+    assert_eq!(config.agent.repoprompt_tool_injection, Some(false));
     assert_eq!(config.agent.phases, Some(3));
 }

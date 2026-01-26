@@ -2,52 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0295",
-      "status": "todo",
-      "title": "Audit and clean up AgentConfig fields",
-      "priority": "medium",
-      "tags": [
-        "refactor",
-        "contracts",
-        "config",
-        "cleanup"
-      ],
-      "scope": [
-        "crates/ralph/src/contracts.rs",
-        "crates/ralph/src/agent.rs",
-        "docs/configuration.md",
-        "AGENTS.md",
-        "README.md",
-        "schemas/config.schema.json",
-        "crates/ralph/src/run_cmd/tests.rs",
-        "crates/ralph/tests/contracts_test.rs",
-        "crates/ralph/tests/config_test.rs"
-      ],
-      "evidence": [
-        "AgentConfig in crates/ralph/src/contracts.rs contains the require_repoprompt field, marked as deprecated (line 108).",
-        "crates/ralph/src/agent.rs still contains logic that falls back to require_repoprompt when resolving new flags (lines 251, 255).",
-        "docs/configuration.md and AGENTS.md still document and instruct based on the deprecated require_repoprompt flag.",
-        "schemas/config.schema.json still includes require_repoprompt in its definition."
-      ],
-      "plan": [
-        "Remove require_repoprompt field and its merge logic from AgentConfig in crates/ralph/src/contracts.rs.",
-        "Update the Default implementation for Config in crates/ralph/src/contracts.rs to remove require_repoprompt.",
-        "Update crates/ralph/src/agent.rs to remove all fallback logic and direct references to require_repoprompt.",
-        "Update all test suites and documentation files to use repoprompt_plan_required or repoprompt_tool_injection exclusively.",
-        "Run `make generate` to synchronize JSON schemas.",
-        "Run `make ci` to verify implementation correctness and ensure no regressions."
-      ],
-      "notes": [
-        "This task completes the migration by removing the legacy require_repoprompt field entirely.",
-        "The split into repoprompt_plan_required and repoprompt_tool_injection provides more granular control."
-      ],
-      "request": "scan finding",
-      "created_at": "2026-01-26T15:35:00Z",
-      "updated_at": "2026-01-26T18:15:30Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0296",
       "status": "todo",
       "title": "Modularize lib.rs and tighten visibility",

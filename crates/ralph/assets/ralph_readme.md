@@ -80,7 +80,8 @@ Defaults via config (`.ralph/config.json` or `~/.config/ralph/config.json`):
     "runner": "claude",
     "model": "sonnet",
     "phases": 3,
-    "require_repoprompt": false
+    "repoprompt_plan_required": false,
+    "repoprompt_tool_injection": false
   }
 }
 ```
@@ -92,6 +93,6 @@ Defaults via config (`.ralph/config.json` or `~/.config/ralph/config.json`):
 - **Claude**: `sonnet` (default), `opus`, or arbitrary model IDs
 
 ### RepoPrompt Integration
-Ralph can explicitly require the usage of RepoPrompt tools. When enabled via config (`require_repoprompt: true`) or CLI (`--rp-on`), Ralph will:
-1. Instruct the agent to use RepoPrompt tools for exploration.
-2. During planning, require the agent to use the `context_builder` tool to gather context AND generate the plan in a single step.
+Ralph can explicitly require the usage of RepoPrompt tools. When enabled via config (`repoprompt_plan_required: true` and/or `repoprompt_tool_injection: true`) or CLI (`--rp-on`), Ralph will:
+1. Instruct the agent to use RepoPrompt tools for exploration (tooling reminders when `repoprompt_tool_injection` is true).
+2. During planning, require the agent to use the `context_builder` tool to gather context AND generate the plan in a single step (when `repoprompt_plan_required` is true).

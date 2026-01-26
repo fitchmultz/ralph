@@ -22,7 +22,6 @@
         "reasoning_effort": "medium",
         "repoprompt_plan_required": false,
         "repoprompt_tool_injection": false,
-        "require_repoprompt": false,
         "runner": "claude"
       },
       "allOf": [
@@ -217,14 +216,6 @@
         },
         "repoprompt_tool_injection": {
           "description": "Inject RepoPrompt tooling reminder block into prompts.",
-          "default": null,
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "require_repoprompt": {
-          "description": "Require RepoPrompt usage during planning. If true, agent must use of context_builder tool to generate a plan. Deprecated: use `repoprompt_plan_required` and `repoprompt_tool_injection`.",
           "default": null,
           "type": [
             "boolean",
