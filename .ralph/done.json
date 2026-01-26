@@ -5886,6 +5886,47 @@
       "completed_at": "2026-01-26T20:44:10.698437000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0296",
+      "status": "done",
+      "title": "Modularize lib.rs and tighten visibility",
+      "priority": "medium",
+      "tags": [
+        "refactor",
+        "housekeeping",
+        "visibility",
+        "architecture"
+      ],
+      "scope": [
+        "crates/ralph/src/lib.rs",
+        "crates/ralph/src/main.rs",
+        "crates/ralph/tests/"
+      ],
+      "evidence": [
+        "lib.rs is a flat list of ~20 pub mod exports, creating an unnecessarily large public API surface.",
+        "Modules like `commands`, `cli`, and `tui` are exported alongside core utilities.",
+        "Integration tests in crates/ralph/tests/ rely on these exports, making tightening visibility a delicate task.",
+        "The file lacks logical grouping for its modules."
+      ],
+      "plan": [
+        "Audit lib.rs exports against main.rs and tests/ usage.",
+        "Categorize modules into logical groups (Core, Commands, UI, Utils) within lib.rs using comments or sub-modules.",
+        "Tighten visibility to pub(crate) for modules not required by the public API or integration tests.",
+        "Verify changes with make ci and all integration tests."
+      ],
+      "notes": [
+        "Consider using pub(crate) for modules that must be visible to the test suite if they can be moved into the same crate structure, though integration tests require pub.",
+        "Grouped lib.rs exports into logical sections (Core, Commands, UI, Utils, Internal)",
+        "Tightened visibility of completions and debuglog to pub(crate)",
+        "Verified changes with make ci"
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-26T15:35:00Z",
+      "updated_at": "2026-01-26T20:54:30.735940000Z",
+      "completed_at": "2026-01-26T20:54:30.735940000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

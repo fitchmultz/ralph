@@ -2,47 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0296",
-      "status": "todo",
-      "title": "Modularize lib.rs and tighten visibility",
-      "priority": "medium",
-      "tags": [
-        "refactor",
-        "housekeeping",
-        "visibility",
-        "architecture"
-      ],
-      "scope": [
-        "crates/ralph/src/lib.rs",
-        "crates/ralph/src/main.rs",
-        "crates/ralph/tests/"
-      ],
-      "evidence": [
-        "lib.rs is a flat list of 25+ pub mod exports, creating an unnecessarily large public API surface.",
-        "Many exported modules are command-specific and will be consolidated by RQ-0294.",
-        "Integration tests in crates/ralph/tests/ rely on these exports, making tightening visibility a delicate task.",
-        "The file lacks logical grouping for its 30+ modules."
-      ],
-      "plan": [
-        "Audit lib.rs exports against main.rs and tests/ usage.",
-        "Categorize modules into logical groups (Core, Commands, UI, Utils) within lib.rs using comments or sub-modules.",
-        "Tighten visibility to pub(crate) for modules not required by the public API or integration tests.",
-        "Coordinate with RQ-0294 to consolidate command modules into a single pub mod commands entry.",
-        "Verify changes with make ci and all integration tests."
-      ],
-      "notes": [
-        "This task should follow RQ-0294 to avoid redundant path changes.",
-        "Consider using pub(crate) for modules that must be visible to the test suite if they can be moved into the same crate structure, though integration tests require pub."
-      ],
-      "request": "scan finding",
-      "created_at": "2026-01-26T15:35:00Z",
-      "updated_at": "2026-01-26T18:30:00Z",
-      "depends_on": [
-        "RQ-0294"
-      ],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0298",
       "status": "todo",
       "title": "Improve fsutil.rs cohesion",
