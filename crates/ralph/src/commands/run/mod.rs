@@ -1,7 +1,7 @@
 //! Run command orchestration and supervision.
 //!
 //! This module owns task selection, queue bookkeeping, and post-run supervision.
-//! Phase-specific prompt/runner execution lives in `run_cmd::phases`.
+//! Phase-specific prompt/runner execution lives in `crate::commands::run::phases`.
 
 use crate::config;
 use crate::contracts::{AgentConfig, GitRevertMode, ProjectType, ReasoningEffort, TaskStatus};
@@ -17,7 +17,7 @@ mod supervision;
 use selection::select_run_one_task_index;
 use supervision::{find_task_status, post_run_supervise};
 
-// Preserve existing `run_cmd.rs` unit tests which call `apply_phase3_completion_signal` directly.
+// Preserve existing `commands::run` unit tests which call `apply_phase3_completion_signal` directly.
 #[allow(unused_imports)]
 pub(crate) use phases::apply_phase3_completion_signal;
 

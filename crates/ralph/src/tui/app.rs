@@ -1271,7 +1271,7 @@ where
                 let reasoning_effort = resolved.config.agent.reasoning_effort;
                 let repoprompt_tool_injection =
                     crate::agent::resolve_repoprompt_flags(false, false, &resolved).tool_injection;
-                let opts = crate::task_cmd::TaskBuildOptions {
+                let opts = crate::commands::task::TaskBuildOptions {
                     request,
                     hint_tags: String::new(),
                     hint_scope: String::new(),
@@ -1281,7 +1281,7 @@ where
                     force: false,
                     repoprompt_tool_injection,
                 };
-                crate::task_cmd::build_task_without_lock(&resolved, opts)?;
+                crate::commands::task::build_task_without_lock(&resolved, opts)?;
                 Ok(())
             }();
 

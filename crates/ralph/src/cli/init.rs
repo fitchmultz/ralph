@@ -3,7 +3,7 @@
 use anyhow::Result;
 use clap::Args;
 
-use crate::{config, init_cmd};
+use crate::{commands::init as init_cmd, config};
 
 pub fn handle_init(args: InitArgs, force_lock: bool) -> Result<()> {
     let resolved = config::resolve_from_cwd()?;

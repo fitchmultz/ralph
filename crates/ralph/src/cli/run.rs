@@ -4,7 +4,7 @@ use anyhow::Result;
 use clap::{Args, Subcommand};
 
 use crate::cli::interactive;
-use crate::{agent, config, debuglog, run_cmd, tui};
+use crate::{agent, commands::run as run_cmd, config, debuglog, tui};
 
 pub fn handle_run(cmd: RunCommand, force: bool) -> Result<()> {
     let resolved = config::resolve_from_cwd()?;

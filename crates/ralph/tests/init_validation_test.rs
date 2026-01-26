@@ -1,9 +1,9 @@
 //! Integration tests for init command validation and config wiring.
 
 use anyhow::Result;
+use ralph::commands::init::{run_init, InitOptions};
 use ralph::config::Resolved;
 use ralph::contracts::Config;
-use ralph::init_cmd::{run_init, InitOptions};
 use tempfile::TempDir;
 
 fn resolved_for(dir: &TempDir) -> Resolved {

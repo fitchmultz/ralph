@@ -2,7 +2,7 @@
 
 use super::shared::{execute_runner_pass, run_ci_gate_with_continue};
 use super::PhaseInvocation;
-use crate::run_cmd::{logging, supervision};
+use crate::commands::run::{logging, supervision};
 use crate::{promptflow, prompts};
 use anyhow::Result;
 
@@ -51,7 +51,7 @@ pub fn execute_single_phase(ctx: &PhaseInvocation<'_>) -> Result<()> {
         )?;
 
         if ctx.is_final_iteration {
-            crate::run_cmd::post_run_supervise(
+            crate::commands::run::post_run_supervise(
                 ctx.resolved,
                 ctx.task_id,
                 ctx.git_revert_mode,

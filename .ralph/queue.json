@@ -2,54 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0294",
-      "status": "todo",
-      "title": "Consolidate command implementations",
-      "priority": "medium",
-      "tags": [
-        "refactor",
-        "cli",
-        "housekeeping"
-      ],
-      "scope": [
-        "crates/ralph/src/doctor_cmd.rs",
-        "crates/ralph/src/init_cmd.rs",
-        "crates/ralph/src/prompt_cmd.rs",
-        "crates/ralph/src/run_cmd.rs",
-        "crates/ralph/src/run_cmd/",
-        "crates/ralph/src/scan_cmd.rs",
-        "crates/ralph/src/task_cmd.rs",
-        "crates/ralph/src/cli/"
-      ],
-      "evidence": [
-        "Command implementations are currently scattered as *_cmd.rs files in crates/ralph/src/ (doctor, init, prompt, run, scan, task).",
-        "The run_cmd implementation is split between a file (run_cmd.rs) and a directory (run_cmd/).",
-        "The cli/ module contains Clap definitions and handlers that delegate to these scattered cmd modules.",
-        "lib.rs exports each of these cmd modules individually, polluting the public API surface."
-      ],
-      "plan": [
-        "Create crates/ralph/src/commands/mod.rs to serve as the new consolidation point.",
-        "Move crates/ralph/src/init_cmd.rs to crates/ralph/src/commands/init.rs.",
-        "Move crates/ralph/src/doctor_cmd.rs to crates/ralph/src/commands/doctor.rs.",
-        "Move crates/ralph/src/prompt_cmd.rs to crates/ralph/src/commands/prompt.rs.",
-        "Move crates/ralph/src/scan_cmd.rs to crates/ralph/src/commands/scan.rs.",
-        "Move crates/ralph/src/task_cmd.rs to crates/ralph/src/commands/task.rs.",
-        "Consolidate crates/ralph/src/run_cmd.rs and crates/ralph/src/run_cmd/ into crates/ralph/src/commands/run/.",
-        "Update crates/ralph/src/lib.rs to export the commands module and remove individual cmd exports.",
-        "Refactor all submodules in crates/ralph/src/cli/ to import from crate::commands.",
-        "Run `make ci` to ensure all imports and visibility changes are correct."
-      ],
-      "notes": [
-        "This refactor improves the internal organization by clearly separating command logic from other core library modules.",
-        "Consolidating run_cmd resolves the ambiguity of having both a file and a directory with the same name."
-      ],
-      "request": "scan finding",
-      "created_at": "2026-01-26T15:35:00Z",
-      "updated_at": "2026-01-26T17:35:00Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0295",
       "status": "todo",
       "title": "Audit and clean up AgentConfig fields",

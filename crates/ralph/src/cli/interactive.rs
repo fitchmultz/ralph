@@ -3,7 +3,11 @@
 use anyhow::Result;
 use std::sync::Arc;
 
-use crate::{agent, config, run_cmd, runner, runutil, scan_cmd};
+use crate::{
+    agent,
+    commands::{run as run_cmd, scan as scan_cmd},
+    config, runner, runutil,
+};
 
 /// Factory that prepares a task runner closure for interactive execution.
 pub type RunnerFactory = Box<

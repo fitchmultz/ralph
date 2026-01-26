@@ -1,7 +1,7 @@
-//! Unit tests for scan_cmd.rs (codebase scanning, focus filtering).
+//! Unit tests for commands/scan.rs (codebase scanning, focus filtering).
 
+use ralph::commands::scan as scan_cmd;
 use ralph::contracts::{GitRevertMode, Model, Runner};
-use ralph::scan_cmd;
 
 fn base_scan_options() -> scan_cmd::ScanOptions {
     scan_cmd::ScanOptions {

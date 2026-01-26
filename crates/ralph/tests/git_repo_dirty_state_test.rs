@@ -17,7 +17,7 @@ fn run_one_refuses_to_run_when_repo_is_dirty_and_a_todo_exists() -> Result<()> {
     );
     test_support::configure_runner(dir.path(), "codex", "gpt-5.2-codex", None)?;
 
-    // Ensure there is a todo item so run_cmd hits the clean-repo preflight.
+    // Ensure there is a todo item so commands::run hits the clean-repo preflight.
     test_support::write_valid_single_todo_queue(dir.path())?;
 
     // Make the repo dirty with an untracked file.

@@ -3,7 +3,9 @@
 use anyhow::Result;
 use clap::{Args, Subcommand};
 
-use crate::{agent, config, promptflow};
+use crate::{
+    agent, commands::prompt as prompt_cmd, commands::task as task_cmd, config, promptflow,
+};
 
 pub fn handle_prompt(args: PromptArgs) -> Result<()> {
     let resolved = config::resolve_from_cwd()?;
@@ -13,27 +15,27 @@ pub fn handle_prompt(args: PromptArgs) -> Result<()> {
             let repoprompt_flags = agent::resolve_repoprompt_flags(p.rp_on, p.rp_off, &resolved);
 
             let mode = if p.single {
-                crate::prompt_cmd::WorkerMode::Single
+                prompt_cmd::WorkerMode::Single
             } else if let Some(phase) = p.phase {
                 match phase {
-                    promptflow::RunPhase::Phase1 => crate::prompt_cmd::WorkerMode::Phase1,
-                    promptflow::RunPhase::Phase2 => crate::prompt_cmd::WorkerMode::Phase2,
-                    promptflow::RunPhase::Phase3 => crate::prompt_cmd::WorkerMode::Phase3,
+                    promptflow::RunPhase::Phase1 => prompt_cmd::WorkerMode::Phase1,
+                    promptflow::RunPhase::Phase2 => prompt_cmd::WorkerMode::Phase2,
+                    promptflow::RunPhase::Phase3 => prompt_cmd::WorkerMode::Phase3,
                 }
             } else {
                 // Default behavior: match runtime behavior as closely as possible.
                 // If multi-phase planning is enabled, default to showing Phase 1 prompt (first prompt in the sequence).
                 // Otherwise default to single-phase.
                 if resolved.config.agent.phases.unwrap_or(2) > 1 {
-                    crate::prompt_cmd::WorkerMode::Phase1
+                    prompt_cmd::WorkerMode::Phase1
                 } else {
-                    crate::prompt_cmd::WorkerMode::Single
+                    prompt_cmd::WorkerMode::Single
                 }
             };
 
-            let prompt = crate::prompt_cmd::build_worker_prompt(
+            let prompt = prompt_cmd::build_worker_prompt(
                 &resolved,
-                crate::prompt_cmd::WorkerPromptOptions {
+                prompt_cmd::WorkerPromptOptions {
                     task_id: p.task_id,
                     mode,
                     repoprompt_plan_required: repoprompt_flags.plan_required,
@@ -49,9 +51,9 @@ pub fn handle_prompt(args: PromptArgs) -> Result<()> {
         }
         PromptCommand::Scan(p) => {
             let rp_required = agent::resolve_rp_required(p.rp_on, p.rp_off, &resolved);
-            let prompt = crate::prompt_cmd::build_scan_prompt(
+            let prompt = prompt_cmd::build_scan_prompt(
                 &resolved,
-                crate::prompt_cmd::ScanPromptOptions {
+                prompt_cmd::ScanPromptOptions {
                     focus: p.focus,
                     repoprompt_tool_injection: rp_required,
                     explain: p.explain,
@@ -67,12 +69,12 @@ pub fn handle_prompt(args: PromptArgs) -> Result<()> {
                 r
             } else {
                 // Re-use existing behavior to keep semantics consistent.
-                crate::task_cmd::read_request_from_args_or_stdin(&[])? // will read stdin if piped
+                task_cmd::read_request_from_args_or_stdin(&[])? // will read stdin if piped
             };
 
-            let prompt = crate::prompt_cmd::build_task_builder_prompt(
+            let prompt = prompt_cmd::build_task_builder_prompt(
                 &resolved,
-                crate::prompt_cmd::TaskBuilderPromptOptions {
+                prompt_cmd::TaskBuilderPromptOptions {
                     request,
                     hint_tags: p.tags,
                     hint_scope: p.scope,

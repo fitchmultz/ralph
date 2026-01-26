@@ -1,7 +1,7 @@
-//! Unit tests for task_cmd.rs (task building, request parsing, and settings structs).
+//! Unit tests for commands/task.rs (task building, request parsing, and settings structs).
 
+use ralph::commands::task as task_cmd;
 use ralph::contracts::{Model, Runner};
-use ralph::task_cmd;
 
 #[test]
 fn test_read_request_from_args_or_stdin_with_args() {

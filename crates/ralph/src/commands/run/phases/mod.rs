@@ -1,7 +1,7 @@
 //! Phase-specific execution logic for `ralph run`.
 //!
 //! This module isolates multi-phase runner workflows (planning, implementation,
-//! code review) from higher-level orchestration in `crate::run_cmd`.
+//! code review) from higher-level orchestration in `crate::commands::run`.
 
 use crate::config;
 use crate::contracts::{GitRevertMode, ProjectType};
@@ -25,7 +25,7 @@ pub use single::execute_single_phase;
 ///
 /// This struct intentionally groups parameters to keep function signatures small and
 /// avoid clippy `too_many_arguments`, while preserving exact behaviors from
-/// `run_cmd.rs`.
+/// `crate::commands::run`.
 #[derive(Clone)]
 pub struct PhaseInvocation<'a> {
     pub resolved: &'a config::Resolved,

@@ -1,10 +1,11 @@
 //! Prompt command integration tests (prompt preview behaviors and wiring).
 
 use anyhow::Result;
-use ralph::contracts::{AgentConfig, Config, ProjectType, QueueConfig};
-use ralph::prompt_cmd::{
-    self, ScanPromptOptions, TaskBuilderPromptOptions, WorkerMode, WorkerPromptOptions,
+use ralph::commands::prompt::{
+    self as prompt_cmd, ScanPromptOptions, TaskBuilderPromptOptions, WorkerMode,
+    WorkerPromptOptions,
 };
+use ralph::contracts::{AgentConfig, Config, ProjectType, QueueConfig};
 use std::path::PathBuf;
 use tempfile::TempDir;
 

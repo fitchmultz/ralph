@@ -5,7 +5,9 @@ use clap::{Args, Subcommand, ValueEnum};
 
 use crate::contracts::TaskStatus;
 use crate::queue::TaskEditKey;
-use crate::{agent, completions, config, fsutil, queue, runner, task_cmd, timeutil};
+use crate::{
+    agent, commands::task as task_cmd, completions, config, fsutil, queue, runner, timeutil,
+};
 
 pub fn handle_task(args: TaskArgs, force: bool) -> Result<()> {
     let resolved = config::resolve_from_cwd()?;

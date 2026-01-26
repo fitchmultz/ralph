@@ -2,9 +2,9 @@
 
 use anyhow::Result;
 
-use crate::{config, doctor_cmd};
+use crate::{commands::doctor, config};
 
 pub fn handle_doctor() -> Result<()> {
     let resolved = config::resolve_from_cwd()?;
-    doctor_cmd::run_doctor(&resolved)
+    doctor::run_doctor(&resolved)
 }

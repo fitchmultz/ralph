@@ -3,7 +3,7 @@
 use anyhow::Result;
 use clap::Args;
 
-use crate::{agent, config, runner, scan_cmd};
+use crate::{agent, commands::scan as scan_cmd, config, runner};
 
 pub fn handle_scan(args: ScanArgs, force: bool) -> Result<()> {
     let resolved = config::resolve_from_cwd()?;

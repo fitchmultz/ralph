@@ -4,13 +4,13 @@ use super::phase2::{cache_phase2_final_response, PHASE2_FINAL_RESPONSE_FALLBACK}
 use super::phase3::ensure_phase3_completion;
 use super::shared::run_ci_gate_with_continue;
 use super::{execute_phase1_planning, execute_phase3_review, PhaseInvocation};
+use crate::commands::run::supervision::ContinueSession;
 use crate::completions;
 use crate::contracts::{
     ClaudePermissionMode, Config, GitRevertMode, Model, QueueConfig, QueueFile, ReasoningEffort,
     Runner, Task, TaskPriority, TaskStatus,
 };
 use crate::queue;
-use crate::run_cmd::supervision::ContinueSession;
 use crate::{gitutil, promptflow, runner, runutil};
 use anyhow::Result;
 use std::path::{Path, PathBuf};

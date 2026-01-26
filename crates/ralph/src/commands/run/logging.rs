@@ -1,4 +1,4 @@
-//! Small logging helpers for the outer supervisor (`run_cmd`).
+//! Small logging helpers for the outer supervisor (`commands::run`).
 //!
 //! Goal: consistent, human-readable lifecycle logs for supervisor scopes:
 //! - "<Scope>: start"

@@ -2,10 +2,10 @@
 
 use super::shared::run_ci_gate_with_continue;
 use super::PhaseInvocation;
+use crate::commands::run::{logging, supervision};
 use crate::completions;
 use crate::config;
 use crate::contracts::TaskStatus;
-use crate::run_cmd::{logging, supervision};
 use crate::{gitutil, promptflow, prompts, queue, runutil, timeutil};
 use anyhow::{anyhow, bail, Result};
 
@@ -135,7 +135,7 @@ pub fn execute_phase3_review(ctx: &PhaseInvocation<'_>) -> Result<()> {
         loop {
             if let Some(status) = apply_phase3_completion_signal(ctx.resolved, ctx.task_id)? {
                 if status == TaskStatus::Done {
-                    crate::run_cmd::post_run_supervise(
+                    crate::commands::run::post_run_supervise(
                         ctx.resolved,
                         ctx.task_id,
                         ctx.git_revert_mode,
@@ -235,7 +235,7 @@ pub fn ensure_phase3_completion(
     )?;
 
     let (status, _title, in_done) =
-        crate::run_cmd::find_task_status(&queue_file, &done_file, task_id)
+        crate::commands::run::find_task_status(&queue_file, &done_file, task_id)
             .ok_or_else(|| anyhow!("task {task_id} not found in queue or done"))?;
 
     if !in_done || !(status == TaskStatus::Done || status == TaskStatus::Rejected) {
