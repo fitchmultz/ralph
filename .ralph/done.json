@@ -5197,6 +5197,54 @@
       "completed_at": "2026-01-26T10:07:41.397549000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0274",
+      "status": "done",
+      "title": "Split TUI rendering into component modules",
+      "priority": "medium",
+      "tags": [
+        "tui",
+        "refactor",
+        "maintainability",
+        "tests"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/render.rs",
+        "crates/ralph/src/tui/mod.rs",
+        "crates/ralph/src/tui/",
+        "cargo test -p ralph tui"
+      ],
+      "evidence": [
+        "crates/ralph/src/tui/render.rs: 1721 lines (wc -l) containing all render logic in a single file.",
+        "crates/ralph/src/tui/render.rs: in-file tests remain (`#[cfg(test)]` at line 1614).",
+        "crates/ralph/src/tui/: directory still only has mod.rs, events.rs, and render.rs (no render submodules)."
+      ],
+      "plan": [
+        "Map the render.rs sections (task list, details, logs, overlays, status/help chrome) into component boundaries and pick a module layout under crates/ralph/src/tui/render/.",
+        "Create the render/ module tree and move component render helpers into those files while keeping a thin draw_ui facade (render.rs or render/mod.rs) that assembles the UI.",
+        "Move the in-file tests into a dedicated render test module, update mod.rs exports, and run `cargo test -p ralph tui`."
+      ],
+      "notes": [
+        "tui/ currently has only mod.rs, events.rs, and render.rs, so the refactor will add a new render/ module directory and adjust exports.",
+        "Refactored render.rs (1721 lines) into component modules under tui/render/",
+        "Created modules: mod.rs (facade), panels.rs (task list/details/execution), overlays.rs (dialogs), footer.rs, utils.rs, tests.rs",
+        "Public API preserved: tui::draw_ui re-exported from render::draw_ui",
+        "Removed hot-path allocations (clone app.mode, to_string() calls, intermediate Vecs)",
+        "Added resilience: popup size clamping, area offsets, zero-width text wrapping",
+        "All 90 TUI tests pass, including 3 new tiny-terminal edge case tests",
+        "CI gate passes: 486 tests, build succeeds",
+        "RQ-0266 scope/evidence references deleted render.rs - needs update when queue unlocked"
+      ],
+      "request": "scan finding",
+      "agent": {
+        "model_effort": "medium"
+      },
+      "created_at": "2026-01-24T16:07:23.268929000Z",
+      "updated_at": "2026-01-26T12:08:55.236736000Z",
+      "completed_at": "2026-01-26T12:08:55.236736000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

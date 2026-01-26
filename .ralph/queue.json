@@ -2,45 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0274",
-      "status": "todo",
-      "title": "Split TUI rendering into component modules",
-      "priority": "medium",
-      "tags": [
-        "tui",
-        "refactor",
-        "maintainability",
-        "tests"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/render.rs",
-        "crates/ralph/src/tui/mod.rs",
-        "crates/ralph/src/tui/",
-        "cargo test -p ralph tui"
-      ],
-      "evidence": [
-        "crates/ralph/src/tui/render.rs: 1721 lines (wc -l) containing all render logic in a single file.",
-        "crates/ralph/src/tui/render.rs: in-file tests remain (`#[cfg(test)]` at line 1614).",
-        "crates/ralph/src/tui/: directory still only has mod.rs, events.rs, and render.rs (no render submodules)."
-      ],
-      "plan": [
-        "Map the render.rs sections (task list, details, logs, overlays, status/help chrome) into component boundaries and pick a module layout under crates/ralph/src/tui/render/.",
-        "Create the render/ module tree and move component render helpers into those files while keeping a thin draw_ui facade (render.rs or render/mod.rs) that assembles the UI.",
-        "Move the in-file tests into a dedicated render test module, update mod.rs exports, and run `cargo test -p ralph tui`."
-      ],
-      "notes": [
-        "tui/ currently has only mod.rs, events.rs, and render.rs, so the refactor will add a new render/ module directory and adjust exports."
-      ],
-      "request": "scan finding",
-      "agent": {
-        "model_effort": "medium"
-      },
-      "created_at": "2026-01-24T16:07:23.268929000Z",
-      "updated_at": "2026-01-25T22:06:22Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0276",
       "status": "todo",
       "title": "Split TUI contract tests into scenario-focused files",
