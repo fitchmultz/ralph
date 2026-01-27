@@ -7778,6 +7778,59 @@
       "completed_at": "2026-01-27T22:00:18.831229000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0346",
+      "status": "done",
+      "title": "Public docs: clarify supported platforms (Unix-only today vs Windows support plan)",
+      "priority": "medium",
+      "tags": [
+        "platform",
+        "docs",
+        "ux"
+      ],
+      "scope": [
+        "README.md",
+        "Makefile",
+        "crates/ralph/Cargo.toml",
+        "crates/ralph/src/lock.rs",
+        "crates/ralph/src/runner/execution/process.rs",
+        "docs/cli.md",
+        "make ci"
+      ],
+      "evidence": [
+        "`crates/ralph/src/lock.rs`: PID liveness is `None` on non-Unix (line 298-302) and lock error messages suggest `rm -rf ...` (line 212-221).",
+        "`crates/ralph/src/runner/execution/process.rs`: uses Unix-only process group control (`setpgid`, `kill(-pgid, ...)`) behind `#[cfg(unix)]` (lines 54-57, 104-111, 122-130, 142-151, 187-193, 221-228).",
+        "`Makefile`: relies on `bash -lc` and Unix tools (e.g., `mktemp`, `install`, `find`).",
+        "`crates/ralph/Cargo.toml`: `libc` dependency is unconditional (not gated by target), implying Unix assumption.",
+        "`README.md`: currently has no platform support statement or Windows compatibility notice."
+      ],
+      "plan": [
+        "Decide and document the supported platforms for the public release (e.g., macOS/Linux only initially).",
+        "Update README.md to explicitly state platform support and any known limitations (locks, signals, Makefile requirements).",
+        "Update docs/cli.md to mention platform requirements if relevant.",
+        "If Windows support is desired, add a scoped plan (feature gates + replacements for lock/process-group behavior).",
+        "Add tests (or build checks) that prevent accidental regressions in the supported-platform contract.",
+        "Run `make ci`."
+      ],
+      "notes": [
+        "All scoped files verified to exist as of 2026-01-27.",
+        "Unix-specific code patterns remain unchanged; task is still relevant.",
+        "Updated README.md with Platform Support section documenting Unix-only support",
+        "Updated docs/cli.md with Platform Requirements section",
+        "Made libc a target-specific dependency in Cargo.toml (Unix-only)",
+        "All Unix-specific code properly guarded with #[cfg(unix)]",
+        "make ci passes cleanly"
+      ],
+      "request": "scan finding",
+      "agent": {
+        "model_effort": "medium"
+      },
+      "created_at": "2026-01-27T18:17:26Z",
+      "updated_at": "2026-01-27T22:12:16.280522000Z",
+      "completed_at": "2026-01-27T22:12:16.280522000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

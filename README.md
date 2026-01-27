@@ -36,6 +36,20 @@ cd ralph
 make install
 ```
 
+## Platform Support
+
+Ralph is developed and tested on **Unix-like systems** (Linux, macOS). Windows support is limited:
+
+- **Fully supported**: Linux, macOS
+- **Limited on Windows**:
+  - Process group control (Ctrl-C handling, timeout interrupts) is Unix-only
+  - PID liveness detection for stale lock detection is Unix-only
+  - Directory sync operations are no-ops on non-Unix platforms
+  - The Makefile requires a Unix environment (WSL recommended for Windows users)
+  - Lock error messages reference Unix commands (`rm -rf`)
+
+For Windows users, we recommend using WSL2 for full functionality.
+
 ## Quick Start (Rust)
 
 - Install the `ralph` binary to `~/.local/bin`:
