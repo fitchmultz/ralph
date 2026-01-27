@@ -12,10 +12,10 @@
 use anyhow::Result;
 use serde::Serialize;
 use std::collections::{BTreeMap, HashMap};
-use time::format_description::well_known::Rfc3339;
 use time::{Duration, OffsetDateTime};
 
 use crate::contracts::{QueueFile, Task, TaskStatus};
+use crate::timeutil;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ReportFormat {
@@ -171,7 +171,10 @@ fn build_stats_report(queue: &QueueFile, done: Option<&QueueFile>, tags: &[Strin
         .filter(|t| t.status == TaskStatus::Done || t.status == TaskStatus::Rejected)
     {
         if let (Some(created), Some(completed)) = (&task.created_at, &task.completed_at) {
-            if let (Ok(start), Ok(end)) = (parse_ts(created), parse_ts(completed)) {
+            if let (Ok(start), Ok(end)) = (
+                timeutil::parse_rfc3339(created),
+                timeutil::parse_rfc3339(completed),
+            ) {
                 if end > start {
                     durations.push(end - start);
                 }
@@ -254,7 +257,7 @@ fn build_history_report(queue: &QueueFile, done: Option<&QueueFile>, days: u32) 
 
     for task in all_tasks {
         if let Some(created_ts) = &task.created_at {
-            if let Ok(dt) = parse_ts(created_ts) {
+            if let Ok(dt) = timeutil::parse_rfc3339(created_ts) {
                 if dt >= start_of_day {
                     let day_key = format_date_key(dt);
                     created_by_day
@@ -266,7 +269,7 @@ fn build_history_report(queue: &QueueFile, done: Option<&QueueFile>, days: u32) 
         }
 
         if let Some(completed_ts) = &task.completed_at {
-            if let Ok(dt) = parse_ts(completed_ts) {
+            if let Ok(dt) = timeutil::parse_rfc3339(completed_ts) {
                 if dt >= start_of_day {
                     let day_key = format_date_key(dt);
                     completed_by_day
@@ -316,8 +319,14 @@ fn build_burndown_report(queue: &QueueFile, done: Option<&QueueFile>, days: u32)
 
         let mut remaining = 0;
         for task in &all_tasks {
-            let created = task.created_at.as_ref().and_then(|ts| parse_ts(ts).ok());
-            let completed = task.completed_at.as_ref().and_then(|ts| parse_ts(ts).ok());
+            let created = task
+                .created_at
+                .as_ref()
+                .and_then(|ts| timeutil::parse_rfc3339(ts).ok());
+            let completed = task
+                .completed_at
+                .as_ref()
+                .and_then(|ts| timeutil::parse_rfc3339(ts).ok());
 
             let is_open = match created {
                 Some(created_dt) => {
@@ -565,12 +574,6 @@ pub(crate) fn print_burndown(
     Ok(())
 }
 
-/// Parse an RFC3339 timestamp string into OffsetDateTime.
-pub(crate) fn parse_ts(ts: &str) -> Result<OffsetDateTime> {
-    OffsetDateTime::parse(ts, &Rfc3339)
-        .map_err(|e| anyhow::anyhow!("Failed to parse timestamp '{}': {}", ts, e))
-}
-
 /// Format a Duration as a human-readable string (e.g., "2h 30m", "1d 4h").
 pub(crate) fn format_duration(duration: Duration) -> String {
     let total_seconds = duration.whole_seconds();
@@ -644,24 +647,6 @@ mod tests {
     fn test_format_duration_days_only() {
         let duration = Duration::days(3);
         assert_eq!(format_duration(duration), "3d 0h");
-    }
-
-    #[test]
-    fn test_parse_ts_valid() {
-        let ts = "2026-01-19T12:00:00Z";
-        let result = parse_ts(ts);
-        assert!(result.is_ok());
-        let dt = result.unwrap();
-        assert_eq!(dt.year(), 2026);
-        assert_eq!(dt.month() as u8, 1);
-        assert_eq!(dt.day(), 19);
-    }
-
-    #[test]
-    fn test_parse_ts_invalid() {
-        let ts = "invalid-timestamp";
-        let result = parse_ts(ts);
-        assert!(result.is_err());
     }
 
     #[test]

@@ -9,10 +9,10 @@
 //! callers can continue using `crate::queue::validate_queue` and friends.
 
 use crate::contracts::{QueueFile, Task, TaskStatus};
+use crate::timeutil;
 use anyhow::{anyhow, bail, Context, Result};
 use std::collections::{HashMap, HashSet};
-use time::format_description::well_known::Rfc3339;
-use time::OffsetDateTime;
+use time::UtcOffset;
 
 pub fn validate_queue(queue: &QueueFile, id_prefix: &str, id_width: usize) -> Result<()> {
     if queue.version != 1 {
@@ -143,13 +143,13 @@ fn validate_task_required_fields(index: usize, task: &Task) -> Result<()> {
     if let Some(ts) = task.created_at.as_deref() {
         validate_rfc3339("created_at", index, &task.id, ts)?;
     } else {
-        bail!("Missing created_at: task {} (index {}) is missing the 'created_at' timestamp. Add a valid RFC3339 timestamp (e.g., '2026-01-19T05:23:13Z').", task.id, index);
+        bail!("Missing created_at: task {} (index {}) is missing the 'created_at' timestamp. Add a valid RFC3339 timestamp (e.g., '2026-01-19T05:23:13.000000000Z').", task.id, index);
     }
 
     if let Some(ts) = task.updated_at.as_deref() {
         validate_rfc3339("updated_at", index, &task.id, ts)?;
     } else {
-        bail!("Missing updated_at: task {} (index {}) is missing the 'updated_at' timestamp. Add a valid RFC3339 timestamp (e.g., '2026-01-19T05:23:13Z').", task.id, index);
+        bail!("Missing updated_at: task {} (index {}) is missing the 'updated_at' timestamp. Add a valid RFC3339 timestamp (e.g., '2026-01-19T05:23:13.000000000Z').", task.id, index);
     }
 
     if let Some(ts) = task.completed_at.as_deref() {
@@ -170,19 +170,28 @@ fn validate_rfc3339(label: &str, index: usize, id: &str, value: &str) -> Result<
     let trimmed = value.trim();
     if trimmed.is_empty() {
         bail!(
-            "Missing {}: task {} (index {}) requires a non-empty '{}' field. Add a valid RFC3339 UTC timestamp (e.g., '2026-01-19T05:23:13Z').",
+            "Missing {}: task {} (index {}) requires a non-empty '{}' field. Add a valid RFC3339 UTC timestamp (e.g., '2026-01-19T05:23:13.000000000Z').",
             label,
             id,
             index,
             label
         );
     }
-    OffsetDateTime::parse(trimmed, &Rfc3339).with_context(|| {
+    let dt = timeutil::parse_rfc3339(trimmed).with_context(|| {
         format!(
-            "task[{}] {} must be a valid RFC3339 UTC timestamp (got: {}, id={}). Example: '2026-01-19T05:23:13Z'.",
+            "task[{}] {} must be a valid RFC3339 UTC timestamp (got: {}, id={}). Example: '2026-01-19T05:23:13.000000000Z'.",
             index, label, trimmed, id
         )
     })?;
+    if dt.offset() != UtcOffset::UTC {
+        bail!(
+            "task[{}] {} must be a valid RFC3339 UTC timestamp (got: {}, id={}). Example: '2026-01-19T05:23:13.000000000Z'.",
+            index,
+            label,
+            trimmed,
+            id
+        );
+    }
     Ok(())
 }
 

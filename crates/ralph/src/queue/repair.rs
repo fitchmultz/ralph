@@ -10,8 +10,7 @@ use crate::timeutil;
 use anyhow::Result;
 use std::collections::HashSet;
 use std::path::Path;
-use time::format_description::well_known::Rfc3339;
-use time::OffsetDateTime;
+use time::UtcOffset;
 
 #[derive(Debug, Default, Clone)]
 pub struct RepairReport {
@@ -89,9 +88,19 @@ pub fn repair_queue(
             // Fix timestamps
             let mut fix_ts = |ts: &mut Option<String>, label: &str| {
                 if let Some(val) = ts {
-                    if OffsetDateTime::parse(val, &Rfc3339).is_err() {
-                        *ts = Some(now.clone());
-                        report.fixed_timestamps += 1;
+                    match timeutil::parse_rfc3339(val) {
+                        Ok(dt) => {
+                            if dt.offset() != UtcOffset::UTC {
+                                let normalized =
+                                    timeutil::format_rfc3339(dt).unwrap_or_else(|_| now.clone());
+                                *ts = Some(normalized);
+                                report.fixed_timestamps += 1;
+                            }
+                        }
+                        Err(_) => {
+                            *ts = Some(now.clone());
+                            report.fixed_timestamps += 1;
+                        }
                     }
                 } else {
                     // Create/Update required
@@ -321,5 +330,56 @@ mod tests {
 
         let repaired = crate::queue::load_queue_or_default(&queue_path).unwrap();
         assert!(repaired.tasks[0].completed_at.is_some());
+    }
+
+    #[test]
+    fn repair_normalizes_non_utc_timestamps() {
+        use crate::queue::save_queue;
+        use tempfile::tempdir;
+
+        let dir = tempdir().unwrap();
+        let queue_path = dir.path().join("queue.json");
+        let done_path = dir.path().join("done.json");
+
+        let mut t = task("RQ-0001", vec![]);
+        t.status = TaskStatus::Done;
+        t.created_at = Some("2026-01-18T12:00:00-05:00".to_string());
+        t.updated_at = Some("2026-01-18T12:00:00-05:00".to_string());
+        t.completed_at = Some("2026-01-18T12:00:00-05:00".to_string());
+
+        let active = QueueFile {
+            version: 1,
+            tasks: vec![t],
+        };
+        save_queue(&queue_path, &active).unwrap();
+        save_queue(
+            &done_path,
+            &QueueFile {
+                version: 1,
+                tasks: vec![],
+            },
+        )
+        .unwrap();
+
+        let report = repair_queue(&queue_path, &done_path, "RQ", 4, false).unwrap();
+        assert!(report.fixed_timestamps > 0);
+
+        let repaired = crate::queue::load_queue_or_default(&queue_path).unwrap();
+        let expected = crate::timeutil::format_rfc3339(
+            crate::timeutil::parse_rfc3339("2026-01-18T12:00:00-05:00").unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            repaired.tasks[0].created_at.as_deref(),
+            Some(expected.as_str())
+        );
+        assert_eq!(
+            repaired.tasks[0].updated_at.as_deref(),
+            Some(expected.as_str())
+        );
+        assert_eq!(
+            repaired.tasks[0].completed_at.as_deref(),
+            Some(expected.as_str())
+        );
     }
 }

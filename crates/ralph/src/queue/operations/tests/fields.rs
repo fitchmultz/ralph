@@ -74,6 +74,7 @@ fn set_field_updates_custom_field_value() -> anyhow::Result<()> {
         task.custom_fields.get("severity").map(String::as_str),
         Some("high")
     );
-    assert_eq!(task.updated_at.as_deref(), Some("2026-01-19T00:00:00Z"));
+    let now_canon = canonical_rfc3339("2026-01-19T00:00:00Z");
+    assert_eq!(task.updated_at.as_deref(), Some(now_canon.as_str()));
     Ok(())
 }

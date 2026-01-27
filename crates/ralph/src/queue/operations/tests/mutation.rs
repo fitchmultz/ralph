@@ -19,11 +19,18 @@ fn backfill_terminal_completed_at_updates_only_missing() -> anyhow::Result<()> {
     };
 
     let now = "2026-01-17T00:00:00Z";
-    let updated = backfill_terminal_completed_at(&mut queue, now);
+    let now_canon = canonical_rfc3339(now);
+    let updated = backfill_terminal_completed_at(&mut queue, now_canon.as_str());
     assert_eq!(updated, 2);
 
-    assert_eq!(queue.tasks[0].completed_at.as_deref(), Some(now));
-    assert_eq!(queue.tasks[1].completed_at.as_deref(), Some(now));
+    assert_eq!(
+        queue.tasks[0].completed_at.as_deref(),
+        Some(now_canon.as_str())
+    );
+    assert_eq!(
+        queue.tasks[1].completed_at.as_deref(),
+        Some(now_canon.as_str())
+    );
     assert_eq!(
         queue.tasks[2].completed_at.as_deref(),
         Some("2026-01-01T00:00:00Z")
@@ -72,16 +79,17 @@ fn backfill_missing_fields_applies_defaults() {
             custom_fields: HashMap::new(),
         }],
     };
+    let now_canon = canonical_rfc3339("2026-01-18T00:00:00Z");
     backfill_missing_fields(
         &mut queue,
         &["RQ-0002".to_string()],
         "req",
-        "2026-01-18T00:00:00Z",
+        now_canon.as_str(),
     );
     let task = &queue.tasks[0];
     assert_eq!(task.request.as_deref(), Some("req"));
-    assert_eq!(task.created_at.as_deref(), Some("2026-01-18T00:00:00Z"));
-    assert_eq!(task.updated_at.as_deref(), Some("2026-01-18T00:00:00Z"));
+    assert_eq!(task.created_at.as_deref(), Some(now_canon.as_str()));
+    assert_eq!(task.updated_at.as_deref(), Some(now_canon.as_str()));
 }
 
 #[test]
@@ -92,11 +100,12 @@ fn backfill_missing_fields_populates_request() {
     };
     queue.tasks[0].request = None;
 
+    let now_canon = canonical_rfc3339("2026-01-18T12:34:56Z");
     backfill_missing_fields(
         &mut queue,
         &["RQ-0001".to_string()],
         "default request",
-        "2026-01-18T12:34:56Z",
+        now_canon.as_str(),
     );
 
     assert_eq!(queue.tasks[0].request, Some("default request".to_string()));
@@ -111,21 +120,16 @@ fn backfill_missing_fields_populates_timestamps() {
     queue.tasks[0].created_at = None;
     queue.tasks[0].updated_at = None;
 
+    let now_canon = canonical_rfc3339("2026-01-18T12:34:56Z");
     backfill_missing_fields(
         &mut queue,
         &["RQ-0001".to_string()],
         "default request",
-        "2026-01-18T12:34:56Z",
+        now_canon.as_str(),
     );
 
-    assert_eq!(
-        queue.tasks[0].created_at,
-        Some("2026-01-18T12:34:56Z".to_string())
-    );
-    assert_eq!(
-        queue.tasks[0].updated_at,
-        Some("2026-01-18T12:34:56Z".to_string())
-    );
+    assert_eq!(queue.tasks[0].created_at, Some(now_canon.clone()));
+    assert_eq!(queue.tasks[0].updated_at, Some(now_canon));
 }
 
 #[test]
@@ -187,22 +191,17 @@ fn backfill_missing_fields_handles_empty_string_as_missing() {
     queue.tasks[0].created_at = Some("".to_string());
     queue.tasks[0].updated_at = Some("".to_string());
 
+    let now_canon = canonical_rfc3339("2026-01-18T12:34:56Z");
     backfill_missing_fields(
         &mut queue,
         &["RQ-0001".to_string()],
         "default request",
-        "2026-01-18T12:34:56Z",
+        now_canon.as_str(),
     );
 
     assert_eq!(queue.tasks[0].request, Some("default request".to_string()));
-    assert_eq!(
-        queue.tasks[0].created_at,
-        Some("2026-01-18T12:34:56Z".to_string())
-    );
-    assert_eq!(
-        queue.tasks[0].updated_at,
-        Some("2026-01-18T12:34:56Z".to_string())
-    );
+    assert_eq!(queue.tasks[0].created_at, Some(now_canon.clone()));
+    assert_eq!(queue.tasks[0].updated_at, Some(now_canon));
 }
 
 #[test]
@@ -247,22 +246,17 @@ fn backfill_missing_fields_handles_duplicate_new_task_ids() {
     queue.tasks[0].created_at = None;
     queue.tasks[0].updated_at = None;
 
+    let now_canon = canonical_rfc3339("2026-01-18T12:34:56Z");
     backfill_missing_fields(
         &mut queue,
         &["RQ-0001".to_string(), "RQ-0001".to_string()],
         "default request",
-        "2026-01-18T12:34:56Z",
+        now_canon.as_str(),
     );
 
     assert_eq!(queue.tasks[0].request, Some("default request".to_string()));
-    assert_eq!(
-        queue.tasks[0].created_at,
-        Some("2026-01-18T12:34:56Z".to_string())
-    );
-    assert_eq!(
-        queue.tasks[0].updated_at,
-        Some("2026-01-18T12:34:56Z".to_string())
-    );
+    assert_eq!(queue.tasks[0].created_at, Some(now_canon.clone()));
+    assert_eq!(queue.tasks[0].updated_at, Some(now_canon));
 }
 
 #[test]

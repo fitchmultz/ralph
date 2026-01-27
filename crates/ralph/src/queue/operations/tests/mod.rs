@@ -5,6 +5,7 @@
 
 pub(crate) use super::*;
 pub(crate) use crate::contracts::{QueueFile, Task, TaskPriority, TaskStatus};
+use crate::timeutil;
 pub(crate) use std::collections::HashMap;
 
 pub(crate) fn task(id: &str) -> Task {
@@ -30,6 +31,11 @@ pub(crate) fn task_with(id: &str, status: TaskStatus, tags: Vec<String>) -> Task
         depends_on: vec![],
         custom_fields: HashMap::new(),
     }
+}
+
+pub(crate) fn canonical_rfc3339(ts: &str) -> String {
+    let dt = timeutil::parse_rfc3339(ts).expect("valid RFC3339 timestamp");
+    timeutil::format_rfc3339(dt).expect("format RFC3339 timestamp")
 }
 
 mod archive;

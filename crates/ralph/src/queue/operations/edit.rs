@@ -15,9 +15,9 @@
 use super::validate::{ensure_task_id, parse_custom_fields_with_context, parse_rfc3339_utc};
 use crate::contracts::{QueueFile, TaskPriority, TaskStatus};
 use crate::queue;
+use crate::timeutil;
 use anyhow::{anyhow, bail, Context, Result};
-use time::format_description::well_known::Rfc3339;
-use time::OffsetDateTime;
+use time::UtcOffset;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TaskEditKey {
@@ -186,34 +186,23 @@ pub fn apply_task_edit(
             task.custom_fields = parse_custom_fields_with_context(needle, trimmed, operation)?;
         }
         TaskEditKey::CreatedAt => {
-            validate_rfc3339_input("created_at", trimmed).with_context(|| {
+            let normalized = normalize_rfc3339_input("created_at", trimmed).with_context(|| {
                 format!("Queue edit failed (task_id={}, field=created_at)", needle)
             })?;
-            task.created_at = if trimmed.is_empty() {
-                None
-            } else {
-                Some(trimmed.to_string())
-            };
+            task.created_at = normalized;
         }
         TaskEditKey::UpdatedAt => {
-            validate_rfc3339_input("updated_at", trimmed).with_context(|| {
+            let normalized = normalize_rfc3339_input("updated_at", trimmed).with_context(|| {
                 format!("Queue edit failed (task_id={}, field=updated_at)", needle)
             })?;
-            task.updated_at = if trimmed.is_empty() {
-                None
-            } else {
-                Some(trimmed.to_string())
-            };
+            task.updated_at = normalized;
         }
         TaskEditKey::CompletedAt => {
-            validate_rfc3339_input("completed_at", trimmed).with_context(|| {
-                format!("Queue edit failed (task_id={}, field=completed_at)", needle)
-            })?;
-            task.completed_at = if trimmed.is_empty() {
-                None
-            } else {
-                Some(trimmed.to_string())
-            };
+            let normalized =
+                normalize_rfc3339_input("completed_at", trimmed).with_context(|| {
+                    format!("Queue edit failed (task_id={}, field=completed_at)", needle)
+                })?;
+            task.completed_at = normalized;
         }
     }
 
@@ -279,12 +268,17 @@ fn parse_list(input: &str) -> Vec<String> {
         .collect()
 }
 
-fn validate_rfc3339_input(label: &str, value: &str) -> Result<()> {
+fn normalize_rfc3339_input(label: &str, value: &str) -> Result<Option<String>> {
     let trimmed = value.trim();
     if trimmed.is_empty() {
-        return Ok(());
+        return Ok(None);
     }
-    OffsetDateTime::parse(trimmed, &Rfc3339)
+    let dt = timeutil::parse_rfc3339(trimmed)
         .with_context(|| format!("{} must be a valid RFC3339 timestamp", label))?;
-    Ok(())
+    if dt.offset() != UtcOffset::UTC {
+        bail!("{} must be a valid RFC3339 UTC timestamp", label);
+    }
+    let formatted = timeutil::format_rfc3339(dt)
+        .with_context(|| format!("{} must be a valid RFC3339 timestamp", label))?;
+    Ok(Some(formatted))
 }

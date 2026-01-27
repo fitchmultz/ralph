@@ -22,6 +22,7 @@ fn set_status_updates_timestamps_and_fields() -> anyhow::Result<()> {
     };
 
     let now = "2026-01-17T00:00:00Z";
+    let now_canon = canonical_rfc3339(now);
     set_status(
         &mut queue,
         "RQ-0001",
@@ -31,11 +32,12 @@ fn set_status_updates_timestamps_and_fields() -> anyhow::Result<()> {
     )?;
     let t = &queue.tasks[0];
     assert_eq!(t.status, TaskStatus::Doing);
-    assert_eq!(t.updated_at.as_deref(), Some(now));
+    assert_eq!(t.updated_at.as_deref(), Some(now_canon.as_str()));
     assert_eq!(t.completed_at, None);
     assert_eq!(t.notes, vec!["started".to_string()]);
 
     let now2 = "2026-01-17T00:02:00Z";
+    let now2_canon = canonical_rfc3339(now2);
     set_status(
         &mut queue,
         "RQ-0001",
@@ -45,8 +47,8 @@ fn set_status_updates_timestamps_and_fields() -> anyhow::Result<()> {
     )?;
     let t = &queue.tasks[0];
     assert_eq!(t.status, TaskStatus::Done);
-    assert_eq!(t.updated_at.as_deref(), Some(now2));
-    assert_eq!(t.completed_at.as_deref(), Some(now2));
+    assert_eq!(t.updated_at.as_deref(), Some(now2_canon.as_str()));
+    assert_eq!(t.completed_at.as_deref(), Some(now2_canon.as_str()));
     assert!(t.notes.iter().any(|n| n == "completed"));
 
     Ok(())
@@ -63,11 +65,12 @@ fn set_status_preserves_existing_completed_at_on_terminal_transition() -> anyhow
     };
 
     let now = "2026-01-17T00:02:00Z";
+    let now_canon = canonical_rfc3339(now);
     set_status(&mut queue, "RQ-0001", TaskStatus::Done, now, None)?;
 
     let t = &queue.tasks[0];
     assert_eq!(t.status, TaskStatus::Done);
-    assert_eq!(t.updated_at.as_deref(), Some(now));
+    assert_eq!(t.updated_at.as_deref(), Some(now_canon.as_str()));
     assert_eq!(t.completed_at.as_deref(), Some("2026-01-01T00:00:00Z"));
 
     Ok(())
@@ -84,11 +87,12 @@ fn set_status_backfills_empty_completed_at_on_terminal_transition() -> anyhow::R
     };
 
     let now = "2026-01-17T00:02:00Z";
+    let now_canon = canonical_rfc3339(now);
     set_status(&mut queue, "RQ-0001", TaskStatus::Done, now, None)?;
 
     let t = &queue.tasks[0];
     assert_eq!(t.status, TaskStatus::Done);
-    assert_eq!(t.completed_at.as_deref(), Some(now));
+    assert_eq!(t.completed_at.as_deref(), Some(now_canon.as_str()));
 
     Ok(())
 }
@@ -104,11 +108,12 @@ fn set_status_clears_completed_at_on_non_terminal_transition() -> anyhow::Result
     };
 
     let now = "2026-01-17T00:02:00Z";
+    let now_canon = canonical_rfc3339(now);
     set_status(&mut queue, "RQ-0001", TaskStatus::Todo, now, None)?;
 
     let t = &queue.tasks[0];
     assert_eq!(t.status, TaskStatus::Todo);
-    assert_eq!(t.updated_at.as_deref(), Some(now));
+    assert_eq!(t.updated_at.as_deref(), Some(now_canon.as_str()));
     assert_eq!(t.completed_at, None);
 
     Ok(())
@@ -170,11 +175,12 @@ fn promote_draft_to_todo_updates_status_and_timestamps() -> anyhow::Result<()> {
     };
 
     let now = "2026-01-17T00:00:00Z";
+    let now_canon = canonical_rfc3339(now);
     promote_draft_to_todo(&mut queue, "RQ-0001", now, Some("ready"))?;
 
     let t = &queue.tasks[0];
     assert_eq!(t.status, TaskStatus::Todo);
-    assert_eq!(t.updated_at.as_deref(), Some(now));
+    assert_eq!(t.updated_at.as_deref(), Some(now_canon.as_str()));
     assert_eq!(t.completed_at, None);
     assert!(t.notes.iter().any(|n| n == "ready"));
     Ok(())
@@ -228,6 +234,7 @@ fn complete_task_moves_task_from_queue_to_done() -> anyhow::Result<()> {
     std::fs::write(&queue_path, queue_json)?;
 
     let now = "2026-01-20T12:00:00Z";
+    let now_canon = canonical_rfc3339(now);
     complete_task(
         &queue_path,
         &done_path,
@@ -248,8 +255,14 @@ fn complete_task_moves_task_from_queue_to_done() -> anyhow::Result<()> {
     assert_eq!(done.tasks.len(), 1);
     assert_eq!(done.tasks[0].id, "RQ-0001");
     assert_eq!(done.tasks[0].status, TaskStatus::Done);
-    assert_eq!(done.tasks[0].completed_at.as_deref(), Some(now));
-    assert_eq!(done.tasks[0].updated_at.as_deref(), Some(now));
+    assert_eq!(
+        done.tasks[0].completed_at.as_deref(),
+        Some(now_canon.as_str())
+    );
+    assert_eq!(
+        done.tasks[0].updated_at.as_deref(),
+        Some(now_canon.as_str())
+    );
     assert_eq!(done.tasks[0].notes, vec!["Test note"]);
 
     Ok(())

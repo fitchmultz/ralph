@@ -17,6 +17,7 @@ use super::config_edit::*;
 use super::events::{AppMode, PaletteCommand};
 use crate::contracts::{QueueFile, Task, TaskPriority, TaskStatus};
 use crate::queue::{self, TaskEditKey};
+use crate::timeutil;
 use anyhow::Result;
 use tempfile::TempDir;
 
@@ -39,6 +40,11 @@ fn make_test_task(id: &str, title: &str, status: TaskStatus) -> Task {
         depends_on: vec![],
         custom_fields: std::collections::HashMap::new(),
     }
+}
+
+fn canonical_rfc3339(ts: &str) -> String {
+    let dt = timeutil::parse_rfc3339(ts).expect("valid RFC3339 timestamp");
+    timeutil::format_rfc3339(dt).expect("format RFC3339 timestamp")
 }
 
 fn make_test_task_with_tags(id: &str, title: &str, tags: Vec<&str>) -> Task {
@@ -129,7 +135,9 @@ fn apply_task_edit_cycles_status_with_policy() -> Result<()> {
 
     let mut app = App::new(queue);
 
-    app.apply_task_edit(TaskEditKey::Status, "", "2026-01-20T12:00:00Z")?;
+    let now = "2026-01-20T12:00:00Z";
+    let now_canon = canonical_rfc3339(now);
+    app.apply_task_edit(TaskEditKey::Status, "", now)?;
     assert_eq!(app.queue.tasks[0].status, TaskStatus::Rejected);
     assert_eq!(
         app.queue.tasks[0].completed_at.as_deref(),
@@ -137,15 +145,17 @@ fn apply_task_edit_cycles_status_with_policy() -> Result<()> {
     );
     assert_eq!(
         app.queue.tasks[0].updated_at.as_deref(),
-        Some("2026-01-20T12:00:00Z")
+        Some(now_canon.as_str())
     );
 
-    app.apply_task_edit(TaskEditKey::Status, "", "2026-01-21T12:00:00Z")?;
+    let now2 = "2026-01-21T12:00:00Z";
+    let now2_canon = canonical_rfc3339(now2);
+    app.apply_task_edit(TaskEditKey::Status, "", now2)?;
     assert_eq!(app.queue.tasks[0].status, TaskStatus::Draft);
     assert!(app.queue.tasks[0].completed_at.is_none());
     assert_eq!(
         app.queue.tasks[0].updated_at.as_deref(),
-        Some("2026-01-21T12:00:00Z")
+        Some(now2_canon.as_str())
     );
     Ok(())
 }
@@ -284,15 +294,13 @@ fn apply_task_edit_preserves_manual_updated_at() -> Result<()> {
     };
     let mut app = App::new(queue);
 
-    app.apply_task_edit(
-        TaskEditKey::UpdatedAt,
-        "2026-01-20T12:00:00Z",
-        "2026-01-22T12:00:00Z",
-    )?;
+    let updated_at = "2026-01-20T12:00:00Z";
+    let updated_at_canon = canonical_rfc3339(updated_at);
+    app.apply_task_edit(TaskEditKey::UpdatedAt, updated_at, "2026-01-22T12:00:00Z")?;
 
     assert_eq!(
         app.queue.tasks[0].updated_at.as_deref(),
-        Some("2026-01-20T12:00:00Z")
+        Some(updated_at_canon.as_str())
     );
     Ok(())
 }
@@ -486,7 +494,8 @@ fn archive_terminal_tasks_noop_when_none_terminal() -> Result<()> {
     };
     let mut app = App::new(queue);
 
-    let moved = app.archive_terminal_tasks("2026-01-20T12:00:00Z")?;
+    let now = "2026-01-20T12:00:00Z";
+    let moved = app.archive_terminal_tasks(now)?;
 
     assert_eq!(moved, 0);
     assert_eq!(app.queue.tasks.len(), 1);
@@ -514,7 +523,9 @@ fn archive_terminal_tasks_stamps_timestamps() -> Result<()> {
     };
     let mut app = App::new(queue);
 
-    let moved = app.archive_terminal_tasks("2026-01-20T12:00:00Z")?;
+    let now = "2026-01-20T12:00:00Z";
+    let now_canon = canonical_rfc3339(now);
+    let moved = app.archive_terminal_tasks(now)?;
 
     assert_eq!(moved, 2);
     assert!(app.dirty);
@@ -530,11 +541,11 @@ fn archive_terminal_tasks_stamps_timestamps() -> Result<()> {
         .expect("RQ-0001 archived");
     assert_eq!(
         done_archived.updated_at.as_deref(),
-        Some("2026-01-20T12:00:00Z")
+        Some(now_canon.as_str())
     );
     assert_eq!(
         done_archived.completed_at.as_deref(),
-        Some("2026-01-20T12:00:00Z")
+        Some(now_canon.as_str())
     );
 
     let rejected_archived = app
@@ -545,7 +556,7 @@ fn archive_terminal_tasks_stamps_timestamps() -> Result<()> {
         .expect("RQ-0002 archived");
     assert_eq!(
         rejected_archived.updated_at.as_deref(),
-        Some("2026-01-20T12:00:00Z")
+        Some(now_canon.as_str())
     );
     assert_eq!(
         rejected_archived.completed_at.as_deref(),

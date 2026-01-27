@@ -22,6 +22,7 @@ fn apply_task_edit_sets_status_from_input() -> anyhow::Result<()> {
     };
 
     let now = "2026-01-19T00:00:00Z";
+    let now_canon = canonical_rfc3339(now);
     apply_task_edit(
         &mut queue,
         None,
@@ -35,8 +36,8 @@ fn apply_task_edit_sets_status_from_input() -> anyhow::Result<()> {
 
     let t = &queue.tasks[0];
     assert_eq!(t.status, TaskStatus::Done);
-    assert_eq!(t.updated_at.as_deref(), Some(now));
-    assert_eq!(t.completed_at.as_deref(), Some(now));
+    assert_eq!(t.updated_at.as_deref(), Some(now_canon.as_str()));
+    assert_eq!(t.completed_at.as_deref(), Some(now_canon.as_str()));
 
     Ok(())
 }

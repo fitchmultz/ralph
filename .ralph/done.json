@@ -6267,6 +6267,56 @@
       "completed_at": "2026-01-27T00:33:16.926671000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0308",
+      "status": "done",
+      "title": "Standardize timestamp handling",
+      "priority": "low",
+      "tags": [
+        "refactor",
+        "housekeeping",
+        "standardization",
+        "timestamps"
+      ],
+      "scope": [
+        "crates/ralph/src/timeutil.rs",
+        "crates/ralph/src/queue/validation.rs",
+        "crates/ralph/src/reports.rs",
+        "crates/ralph/src/queue/prune.rs",
+        "crates/ralph/src/queue/operations/edit.rs",
+        "crates/ralph/src/queue/repair.rs",
+        "crates/ralph/src/queue/operations/validate.rs"
+      ],
+      "evidence": [
+        "timeutil.rs only provides now_utc_rfc3339 helpers with a fixed 9-digit format; it does not expose shared parse/format helpers.",
+        "reports.rs defines a local parse_ts helper that calls OffsetDateTime::parse with Rfc3339.",
+        "queue/validation.rs validates timestamps via OffsetDateTime::parse with Rfc3339 instead of a shared helper.",
+        "queue/prune.rs parses completed_at via OffsetDateTime::parse while separately using timeutil for the current timestamp.",
+        "queue/repair.rs, queue/operations/edit.rs, and queue/operations/validate.rs each parse RFC3339 timestamps directly via OffsetDateTime::parse."
+      ],
+      "plan": [
+        "Add timeutil::parse_rfc3339(ts: &str) -> Result<OffsetDateTime> and timeutil::format_rfc3339(dt: OffsetDateTime) -> Result<String> so parsing/formatting share the fixed 9-digit format.",
+        "Replace reports::parse_ts with timeutil::parse_rfc3339 and update all call sites.",
+        "Refactor direct OffsetDateTime::parse usage in queue/validation.rs, queue/prune.rs, queue/repair.rs, queue/operations/edit.rs, and queue/operations/validate.rs to use timeutil::parse_rfc3339.",
+        "Standardize timestamp generation/formatting to timeutil::now_utc_rfc3339 or timeutil::format_rfc3339 where queue-compatible timestamps are required.",
+        "Add/adjust tests to cover valid/invalid RFC3339 parsing and ensure 9-digit subsecond formatting is enforced.",
+        "Run `make ci` to validate queue validation, reports, and repair paths."
+      ],
+      "notes": [
+        "reports.rs still owns a parse_ts helper; migrate it to timeutil for shared parsing behavior.",
+        "prune.rs already uses timeutil for now timestamps but parses completed_at locally, which is another consolidation target.",
+        "queue/operations/validate.rs is the shared timestamp validation entry point and should rely on timeutil.",
+        "Normalize non-UTC timestamps during repair instead of replacing with now",
+        "Added repair test to assert UTC normalization for offset timestamps",
+        "CI: make ci"
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-26T15:35:00Z",
+      "updated_at": "2026-01-27T01:05:36.563519000Z",
+      "completed_at": "2026-01-27T01:05:36.563519000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

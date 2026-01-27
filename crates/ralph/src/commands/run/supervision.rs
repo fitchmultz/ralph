@@ -662,9 +662,7 @@ mod tests {
             .as_deref()
             .expect("completed_at should be stamped");
 
-        use time::format_description::well_known::Rfc3339;
-        use time::OffsetDateTime;
-        OffsetDateTime::parse(completed_at, &Rfc3339)?;
+        crate::timeutil::parse_rfc3339(completed_at)?;
 
         Ok(())
     }

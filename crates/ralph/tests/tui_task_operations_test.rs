@@ -7,8 +7,14 @@ mod test_support;
 
 use crossterm::event::KeyCode;
 use ralph::contracts::{QueueFile, TaskStatus};
+use ralph::timeutil;
 use ralph::tui::{self, App, AppMode, TuiAction};
 use test_support::{make_test_queue, make_test_task};
+
+fn canonical_rfc3339(ts: &str) -> String {
+    let dt = timeutil::parse_rfc3339(ts).expect("valid RFC3339 timestamp");
+    timeutil::format_rfc3339(dt).expect("format RFC3339 timestamp")
+}
 
 #[test]
 fn test_cycle_status_cycles_correctly() {
@@ -16,27 +22,23 @@ fn test_cycle_status_cycles_correctly() {
     let task = app.queue.tasks[0].clone();
     assert_eq!(task.status, TaskStatus::Todo);
 
-    app.cycle_status("2026-01-19T00:00:00Z").unwrap();
+    let now1 = "2026-01-19T00:00:00Z";
+    let now1_canon = canonical_rfc3339(now1);
+    app.cycle_status(now1).unwrap();
     assert_eq!(app.queue.tasks[0].status, TaskStatus::Doing);
-    assert_eq!(
-        app.queue.tasks[0].updated_at,
-        Some("2026-01-19T00:00:00Z".to_string())
-    );
+    assert_eq!(app.queue.tasks[0].updated_at, Some(now1_canon));
     assert_eq!(app.queue.tasks[0].completed_at, None);
 
-    app.cycle_status("2026-01-19T01:00:00Z").unwrap();
+    let now2 = "2026-01-19T01:00:00Z";
+    let now2_canon = canonical_rfc3339(now2);
+    app.cycle_status(now2).unwrap();
     assert_eq!(app.queue.tasks[0].status, TaskStatus::Done);
-    assert_eq!(
-        app.queue.tasks[0].completed_at,
-        Some("2026-01-19T01:00:00Z".to_string())
-    );
+    assert_eq!(app.queue.tasks[0].completed_at, Some(now2_canon.clone()));
 
-    app.cycle_status("2026-01-19T02:00:00Z").unwrap();
+    let now3 = "2026-01-19T02:00:00Z";
+    app.cycle_status(now3).unwrap();
     assert_eq!(app.queue.tasks[0].status, TaskStatus::Rejected);
-    assert_eq!(
-        app.queue.tasks[0].completed_at,
-        Some("2026-01-19T01:00:00Z".to_string())
-    );
+    assert_eq!(app.queue.tasks[0].completed_at, Some(now2_canon));
 
     app.cycle_status("2026-01-19T03:00:00Z").unwrap();
     assert_eq!(app.queue.tasks[0].status, TaskStatus::Draft);
@@ -137,7 +139,7 @@ fn test_editing_task_updates_title() {
     assert_eq!(app.queue.tasks[0].title, "New Title");
     assert_eq!(
         app.queue.tasks[0].updated_at,
-        Some("2026-01-20T12:00:00Z".to_string())
+        Some(canonical_rfc3339("2026-01-20T12:00:00Z"))
     );
     assert!(app.dirty);
 }
@@ -191,27 +193,22 @@ fn test_timestamps_updated_on_status_change() {
     assert_eq!(task.updated_at, Some("2026-01-19T00:00:00Z".to_string()));
     assert_eq!(task.completed_at, None);
 
-    app.cycle_status("2026-01-20T12:34:56Z").unwrap();
-    assert_eq!(
-        app.queue.tasks[0].updated_at,
-        Some("2026-01-20T12:34:56Z".to_string())
-    );
+    let status_now = "2026-01-20T12:34:56Z";
+    let status_now_canon = canonical_rfc3339(status_now);
+    app.cycle_status(status_now).unwrap();
+    assert_eq!(app.queue.tasks[0].updated_at, Some(status_now_canon));
 
-    app.cycle_status("2026-01-20T23:45:00Z").unwrap(); // Now Done
-    assert_eq!(
-        app.queue.tasks[0].updated_at,
-        Some("2026-01-20T23:45:00Z".to_string())
-    );
+    let done_now = "2026-01-20T23:45:00Z";
+    let done_now_canon = canonical_rfc3339(done_now);
+    app.cycle_status(done_now).unwrap(); // Now Done
+    assert_eq!(app.queue.tasks[0].updated_at, Some(done_now_canon.clone()));
     assert_eq!(
         app.queue.tasks[0].completed_at,
-        Some("2026-01-20T23:45:00Z".to_string())
+        Some(done_now_canon.clone())
     );
 
     app.cycle_status("2026-01-21T00:00:00Z").unwrap(); // Now Rejected
-    assert_eq!(
-        app.queue.tasks[0].completed_at,
-        Some("2026-01-20T23:45:00Z".to_string())
-    );
+    assert_eq!(app.queue.tasks[0].completed_at, Some(done_now_canon));
 
     app.cycle_status("2026-01-21T01:00:00Z").unwrap(); // Back to Todo
     assert_eq!(app.queue.tasks[0].completed_at, None);

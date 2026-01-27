@@ -1,10 +1,10 @@
 //! Integration tests for queue stats/history/burndown report output.
 
 use anyhow::{Context, Result};
+use ralph::timeutil;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
-use time::format_description::well_known::Rfc3339;
 use time::{Duration, OffsetDateTime};
 
 mod test_support;
@@ -194,13 +194,9 @@ fn history_json_returns_window_and_days() -> Result<()> {
     init_repo(dir.path())?;
 
     let now = OffsetDateTime::now_utc();
-    let day0 = now.format(&Rfc3339).context("format day0")?;
-    let day1 = (now - Duration::days(1))
-        .format(&Rfc3339)
-        .context("format day1")?;
-    let day2 = (now - Duration::days(2))
-        .format(&Rfc3339)
-        .context("format day2")?;
+    let day0 = timeutil::format_rfc3339(now).context("format day0")?;
+    let day1 = timeutil::format_rfc3339(now - Duration::days(1)).context("format day1")?;
+    let day2 = timeutil::format_rfc3339(now - Duration::days(2)).context("format day2")?;
     let queue = format!(
         r#"{{
   "version": 1,
@@ -380,7 +376,7 @@ fn burndown_zero_count_day_renders_empty_bar() -> Result<()> {
     init_repo(dir.path())?;
 
     let now = OffsetDateTime::now_utc();
-    let created_at = now.format(&Rfc3339).context("format created_at")?;
+    let created_at = timeutil::format_rfc3339(now).context("format created_at")?;
     let queue = format!(
         r#"{{
   "version": 1,

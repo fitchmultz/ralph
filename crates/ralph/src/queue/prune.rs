@@ -15,7 +15,6 @@ use anyhow::Result;
 use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::path::Path;
-use time::format_description::well_known::Rfc3339;
 use time::{Duration, OffsetDateTime};
 
 /// Result of a prune operation on the done archive.
@@ -182,7 +181,7 @@ fn prune_done_tasks_at(
 /// Parse an RFC3339 timestamp into OffsetDateTime.
 /// Returns None if the timestamp is invalid.
 fn parse_completed_at(ts: &str) -> Option<OffsetDateTime> {
-    OffsetDateTime::parse(ts, &Rfc3339).ok()
+    timeutil::parse_rfc3339_opt(ts)
 }
 
 /// Compare two tasks by completion date for descending sort.
@@ -210,17 +209,14 @@ fn compare_completed_desc(a: &Task, idx_b: &usize, tasks: &[Task]) -> Ordering {
 mod tests {
     //! Pruning behavior tests (age/status/keep-last, safety, and order preservation).
 
+    use super::super::{load_queue, save_queue};
     use super::*;
     use crate::contracts::{QueueFile, Task, TaskStatus};
     use std::collections::{HashMap, HashSet};
     use tempfile::TempDir;
-    use time::format_description::well_known::Rfc3339;
-
-    use super::super::{load_queue, save_queue};
 
     fn fixed_now() -> OffsetDateTime {
-        OffsetDateTime::parse("2026-01-20T12:00:00Z", &Rfc3339)
-            .expect("fixed timestamp should parse")
+        timeutil::parse_rfc3339("2026-01-20T12:00:00Z").expect("fixed timestamp should parse")
     }
 
     /// Create a task with a specific completion timestamp.

@@ -162,7 +162,7 @@ fn test_now_utc_rfc3339_only_zulu() {
 fn test_now_utc_rfc3339_has_fractional_seconds() {
     let timestamp = timeutil::now_utc_rfc3339().unwrap();
 
-    // The time crate's Rfc3339 format includes fractional seconds
+    // RFC3339 format should include fixed fractional seconds
     // Format is: YYYY-MM-DDTHH:MM:SS.sssssssssZ
     assert!(timestamp.contains('.'));
 }
@@ -179,9 +179,8 @@ fn test_now_utc_rfc3339_ascii_only() {
 fn test_now_utc_rfc3339_parseable() {
     let timestamp = timeutil::now_utc_rfc3339().unwrap();
 
-    // Should be parseable by standard libraries
-    use time::OffsetDateTime;
-    let parsed = OffsetDateTime::parse(&timestamp, &time::format_description::well_known::Rfc3339);
+    // Should be parseable by timeutil helpers
+    let parsed = timeutil::parse_rfc3339(&timestamp);
     assert!(parsed.is_ok());
 }
 
@@ -230,4 +229,29 @@ fn test_fallback_timestamp_components() {
     assert_eq!(&fallback[19..20], ".");
     // Zulu: Z
     assert_eq!(&fallback[29..30], "Z");
+}
+
+#[test]
+fn test_parse_rfc3339_valid() {
+    let ts = "2026-01-19T12:00:00Z";
+    let result = timeutil::parse_rfc3339(ts);
+    assert!(result.is_ok());
+    let dt = result.unwrap();
+    assert_eq!(dt.year(), 2026);
+    assert_eq!(dt.month() as u8, 1);
+    assert_eq!(dt.day(), 19);
+}
+
+#[test]
+fn test_parse_rfc3339_invalid() {
+    let ts = "invalid-timestamp";
+    let result = timeutil::parse_rfc3339(ts);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_format_rfc3339_normalizes_to_utc() {
+    let dt = timeutil::parse_rfc3339("2026-01-19T12:00:00-05:00").unwrap();
+    let formatted = timeutil::format_rfc3339(dt).unwrap();
+    assert_eq!(formatted, "2026-01-19T17:00:00.000000000Z");
 }

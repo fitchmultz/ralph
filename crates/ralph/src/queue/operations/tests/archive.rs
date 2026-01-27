@@ -138,9 +138,7 @@ fn archive_done_tasks_stamps_missing_completed_at() -> anyhow::Result<()> {
         .expect("completed_at should be stamped");
 
     // Ensure it is RFC3339 parseable.
-    use time::format_description::well_known::Rfc3339;
-    use time::OffsetDateTime;
-    OffsetDateTime::parse(completed_at, &Rfc3339).expect("completed_at must be RFC3339");
+    crate::timeutil::parse_rfc3339(completed_at).expect("completed_at must be RFC3339");
 
     Ok(())
 }
@@ -211,9 +209,7 @@ fn archive_done_tasks_backfills_existing_done_without_moves() -> anyhow::Result<
         .as_deref()
         .expect("completed_at should be backfilled");
 
-    use time::format_description::well_known::Rfc3339;
-    use time::OffsetDateTime;
-    OffsetDateTime::parse(completed_at, &Rfc3339).expect("completed_at must be RFC3339");
+    crate::timeutil::parse_rfc3339(completed_at).expect("completed_at must be RFC3339");
 
     Ok(())
 }
@@ -237,6 +233,7 @@ fn archive_terminal_tasks_in_memory_stamps_timestamps() -> anyhow::Result<()> {
     let mut done = QueueFile::default();
 
     let now = "2026-01-22T00:00:00Z";
+    let now_canon = canonical_rfc3339(now);
     let report = archive_terminal_tasks_in_memory(&mut active, &mut done, now)?;
 
     assert_eq!(report.moved_ids.len(), 2);
@@ -251,15 +248,24 @@ fn archive_terminal_tasks_in_memory_stamps_timestamps() -> anyhow::Result<()> {
         .iter()
         .find(|t| t.id == "RQ-0001")
         .expect("RQ-0001 archived");
-    assert_eq!(done_archived.updated_at.as_deref(), Some(now));
-    assert_eq!(done_archived.completed_at.as_deref(), Some(now));
+    assert_eq!(
+        done_archived.updated_at.as_deref(),
+        Some(now_canon.as_str())
+    );
+    assert_eq!(
+        done_archived.completed_at.as_deref(),
+        Some(now_canon.as_str())
+    );
 
     let rejected_archived = done
         .tasks
         .iter()
         .find(|t| t.id == "RQ-0002")
         .expect("RQ-0002 archived");
-    assert_eq!(rejected_archived.updated_at.as_deref(), Some(now));
+    assert_eq!(
+        rejected_archived.updated_at.as_deref(),
+        Some(now_canon.as_str())
+    );
     assert_eq!(
         rejected_archived.completed_at.as_deref(),
         Some("2026-01-10T00:00:00Z")
