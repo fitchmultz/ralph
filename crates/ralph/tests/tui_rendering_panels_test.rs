@@ -337,6 +337,32 @@ fn test_render_selection_highlighting() {
         status_line.contains("doing"),
         "expected details panel status line to include `doing`, got: {status_line:?}\n--- output ---\n{output}\n--- end ---"
     );
+
+    let selected_line = output
+        .lines()
+        .find(|line| line.contains("RQ-0002") && line.contains("doing"))
+        .unwrap_or_else(|| {
+            panic!(
+                "expected list row for RQ-0002 to be visible\n--- output ---\n{output}\n--- end ---"
+            )
+        });
+    assert!(
+        selected_line.contains("»"),
+        "expected highlight symbol on selected row, got: {selected_line:?}\n--- output ---\n{output}\n--- end ---"
+    );
+
+    let unselected_line = output
+        .lines()
+        .find(|line| line.contains("RQ-0001") && line.contains("todo"))
+        .unwrap_or_else(|| {
+            panic!(
+                "expected list row for RQ-0001 to be visible\n--- output ---\n{output}\n--- end ---"
+            )
+        });
+    assert!(
+        !unselected_line.contains("»"),
+        "expected unselected row to omit highlight symbol, got: {unselected_line:?}\n--- output ---\n{output}\n--- end ---"
+    );
 }
 
 #[test]

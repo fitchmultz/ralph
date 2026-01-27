@@ -107,6 +107,36 @@ fn make_long_tags_queue() -> QueueFile {
     }
 }
 
+fn make_task_list_queue() -> QueueFile {
+    let make_task = |id: &str, title: &str, status: TaskStatus| Task {
+        id: id.to_string(),
+        title: title.to_string(),
+        status,
+        priority: TaskPriority::Medium,
+        tags: vec![],
+        scope: vec![],
+        evidence: vec![],
+        plan: vec![],
+        notes: vec![],
+        request: None,
+        agent: None,
+        created_at: Some("2026-01-19T00:00:00Z".to_string()),
+        updated_at: Some("2026-01-19T00:00:00Z".to_string()),
+        completed_at: None,
+        depends_on: vec![],
+        custom_fields: HashMap::new(),
+    };
+
+    QueueFile {
+        version: 1,
+        tasks: vec![
+            make_task("RQ-0001", "First Task", TaskStatus::Todo),
+            make_task("RQ-0002", "Second Task", TaskStatus::Doing),
+            make_task("RQ-0003", "Third Task", TaskStatus::Done),
+        ],
+    }
+}
+
 #[test]
 fn wrap_text_returns_nonempty_for_nonempty_input() {
     let lines = wrap_text("hello world", 5);
@@ -523,6 +553,109 @@ fn command_palette_scrolls_selected_entry_into_view() {
             .expect("cell in buffer");
         assert_eq!(cell.bg, Color::Blue);
     }
+}
+
+#[test]
+fn task_list_highlight_keeps_selected_row_visible() {
+    use ratatui::style::Color;
+    use ratatui::{
+        backend::TestBackend,
+        layout::{Constraint, Direction, Layout, Rect},
+        Terminal,
+    };
+
+    fn find_text_in_rect(buffer: &Buffer, rect: Rect, needle: &str) -> Option<(u16, u16)> {
+        let needle_chars: Vec<char> = needle.chars().collect();
+        if rect.width < needle_chars.len() as u16 || rect.height == 0 {
+            return None;
+        }
+
+        let max_x = rect.x + rect.width.saturating_sub(needle_chars.len() as u16);
+        let max_y = rect.y + rect.height;
+
+        for y in rect.y..max_y {
+            for x_start in rect.x..=max_x {
+                let mut matched = true;
+                for (offset, expected) in needle_chars.iter().enumerate() {
+                    let x = x_start + offset as u16;
+                    let cell = buffer.cell((x, y)).expect("cell in buffer");
+                    let mut symbol_iter = cell.symbol().chars();
+                    if symbol_iter.next() != Some(*expected) || symbol_iter.next().is_some() {
+                        matched = false;
+                        break;
+                    }
+                }
+                if matched {
+                    return Some((y, x_start));
+                }
+            }
+        }
+        None
+    }
+
+    let backend = TestBackend::new(80, 12);
+    let mut terminal = Terminal::new(backend).expect("create terminal");
+    let mut app = App::new(make_task_list_queue());
+    app.selected = 1;
+
+    terminal
+        .draw(|f| tui::draw_ui(f, &mut app))
+        .expect("draw ui");
+
+    let buffer = terminal.backend().buffer();
+    let area = Rect {
+        x: 0,
+        y: 0,
+        width: buffer.area.width,
+        height: buffer.area.height,
+    };
+    let outer = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(2), Constraint::Length(1)].as_ref())
+        .split(area);
+    let main = outer[0];
+    let chunks = if main.width < 90 {
+        Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Percentage(45), Constraint::Percentage(55)].as_ref())
+            .split(main)
+    } else {
+        Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Percentage(45), Constraint::Percentage(55)].as_ref())
+            .split(main)
+    };
+    let list_area = chunks[0];
+
+    let selected = "RQ-0002";
+    let (selected_row, selected_col) =
+        find_text_in_rect(buffer, list_area, selected).expect("selected row visible in list");
+    for (offset, _) in selected.chars().enumerate() {
+        let cell = buffer
+            .cell((selected_col + offset as u16, selected_row))
+            .expect("cell in buffer");
+        assert_eq!(cell.bg, Color::Blue);
+    }
+    let selected_line = buffer_line(buffer, list_area.x, selected_row, list_area.width);
+    assert!(
+        selected_line.contains("»"),
+        "expected highlight symbol on selected row, got: {selected_line:?}"
+    );
+
+    let unselected = "RQ-0001";
+    let (unselected_row, unselected_col) =
+        find_text_in_rect(buffer, list_area, unselected).expect("unselected row visible in list");
+    for (offset, _) in unselected.chars().enumerate() {
+        let cell = buffer
+            .cell((unselected_col + offset as u16, unselected_row))
+            .expect("cell in buffer");
+        assert_ne!(cell.bg, Color::Blue);
+    }
+    let unselected_line = buffer_line(buffer, list_area.x, unselected_row, list_area.width);
+    assert!(
+        !unselected_line.contains("»"),
+        "expected no highlight symbol on unselected row, got: {unselected_line:?}"
+    );
 }
 
 #[test]

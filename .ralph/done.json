@@ -6804,6 +6804,45 @@
       "custom_fields": {
         "stale_evidence": "PageUp/PageDown now move the list selection in Normal mode when the list is focused (added in RQ-0318); remaining work is Home/End or additional navigation enhancements."
       }
+    },
+    {
+      "id": "RQ-0321",
+      "status": "done",
+      "title": "TUI: replace manual list highlight overlay with ListState highlight_style",
+      "priority": "medium",
+      "tags": [
+        "tui",
+        "ux",
+        "rendering"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/render/panels.rs",
+        "crates/ralph/src/tui/render/tests.rs",
+        "crates/ralph/tests/tui_rendering_panels_test.rs",
+        "make ci"
+      ],
+      "evidence": [
+        "`crates/ralph/src/tui/render/panels.rs`: `draw_task_list` builds a `List` without `ListState`/`highlight_style` and renders it directly.",
+        "`draw_task_list` then renders a full-width `Paragraph` with `Style::default().bg(Color::Blue)` over the selected row (`highlight_area`), which can mask the row contents."
+      ],
+      "plan": [
+        "Update `draw_task_list` to use `ListState` with `highlight_style`/`highlight_symbol` for selection styling.",
+        "Remove the manual highlight overlay pass that renders the blue `Paragraph`.",
+        "Add rendering tests that confirm the selected row text stays visible and the highlight indicator appears for in-view selections (plus a non-selected control row).",
+        "Run `make ci`."
+      ],
+      "notes": [
+        "Selection rows already add a leading \"»\" span and bold styling; refactor should avoid double-highlighting while relying on ListState for background styling.",
+        "Use ListState highlight styling for task list selection; removed manual overlay.",
+        "Added rendering tests to assert highlight visibility and indicator behavior.",
+        "make ci"
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-27T04:35:15Z",
+      "updated_at": "2026-01-27T13:26:14.874849000Z",
+      "completed_at": "2026-01-27T13:26:14.874849000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

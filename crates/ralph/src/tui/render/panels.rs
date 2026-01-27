@@ -19,7 +19,9 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Margin, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
-    widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap},
+    widgets::{
+        Block, Borders, Clear, HighlightSpacing, List, ListItem, ListState, Paragraph, Wrap,
+    },
     Frame,
 };
 
@@ -218,12 +220,6 @@ pub(super) fn draw_task_list(f: &mut Frame<'_>, app: &mut App, area: Rect) {
 
             let line = if is_selected {
                 Line::from(vec![
-                    Span::styled(
-                        "» ",
-                        Style::default()
-                            .fg(Color::Yellow)
-                            .add_modifier(Modifier::BOLD),
-                    ),
                     Span::styled(&task.id, Style::default().add_modifier(Modifier::BOLD)),
                     Span::raw(" "),
                     Span::styled(
@@ -237,7 +233,6 @@ pub(super) fn draw_task_list(f: &mut Frame<'_>, app: &mut App, area: Rect) {
                 ])
             } else {
                 Line::from(vec![
-                    Span::raw(" "),
                     Span::styled(&task.id, Style::default().fg(Color::DarkGray)),
                     Span::raw(" "),
                     Span::styled(task.status.as_str(), status_style),
@@ -252,30 +247,24 @@ pub(super) fn draw_task_list(f: &mut Frame<'_>, app: &mut App, area: Rect) {
         })
         .collect();
 
-    let list = List::new(items).block(Block::default().title(title).borders(Borders::ALL));
+    let list = List::new(items)
+        .block(Block::default().title(title).borders(Borders::ALL))
+        .highlight_style(Style::default().bg(Color::Blue))
+        .highlight_symbol("» ")
+        .highlight_spacing(HighlightSpacing::Always);
 
-    f.render_widget(list, area);
+    let visible_count = list_height.min(app.filtered_len());
+    let selected_in_view = if visible_count == 0 {
+        None
+    } else if app.selected >= app.scroll && app.selected < app.scroll + visible_count {
+        Some(app.selected.saturating_sub(app.scroll))
+    } else {
+        None
+    };
+    let mut state = ListState::default();
+    state.select(selected_in_view);
 
-    // Draw selection indicator manually
-    if app.filtered_len() > 0 {
-        let list_height = area.height.saturating_sub(2) as usize; // Subtract borders
-        let visible_count = list_height.min(app.filtered_len());
-        let selected_offset = app.selected.saturating_sub(app.scroll);
-
-        if selected_offset < visible_count {
-            let y = area.y + 1 + selected_offset as u16;
-            let highlight_area = Rect {
-                x: area.x,
-                y,
-                width: area.width,
-                height: 1,
-            };
-            f.render_widget(
-                Paragraph::new("").block(Block::default().style(Style::default().bg(Color::Blue))),
-                highlight_area,
-            );
-        }
-    }
+    f.render_stateful_widget(list, area, &mut state);
 }
 
 /// Draw the task details panel.

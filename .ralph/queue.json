@@ -2,39 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0321",
-      "status": "todo",
-      "title": "TUI: replace manual list highlight overlay with ListState highlight_style",
-      "priority": "medium",
-      "tags": [
-        "tui",
-        "ux",
-        "rendering"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/render/panels.rs",
-        "crates/ralph/src/tui/render/tests.rs",
-        "crates/ralph/tests/tui_rendering_panels_test.rs",
-        "make ci"
-      ],
-      "evidence": [
-        "`crates/ralph/src/tui/render/panels.rs`: `draw_task_list` renders a `List`, then manually draws a full-width blue `Paragraph` to indicate selection.",
-        "Manual overlay highlighting is atypical in Ratatui and risks erasing the list row content depending on widget behavior."
-      ],
-      "plan": [
-        "Refactor task list rendering to use `ListState` + `highlight_style`/`highlight_symbol`.",
-        "Remove the manual highlight overlay pass.",
-        "Add rendering tests that assert selected row text is still visible and highlighted.",
-        "Run `make ci`."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-27T04:35:15Z",
-      "updated_at": "2026-01-27T04:35:15Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0322",
       "status": "todo",
       "title": "TUI: truncate/filter-summary rendering to avoid title overflow",
