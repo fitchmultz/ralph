@@ -86,7 +86,6 @@
       "status": "todo",
       "title": "Public repo safety: stop committing `.env` (keep `.env.example`, ignore `.env`)",
       "priority": "high",
-      "model_effort": "low",
       "tags": [
         "security",
         "docs",
@@ -114,6 +113,9 @@
       "created_at": "2026-01-27T18:17:26Z",
       "updated_at": "2026-01-27T18:17:26Z",
       "depends_on": [],
+      "agent": {
+        "model_effort": "low"
+      },
       "custom_fields": {}
     },
     {
@@ -156,7 +158,9 @@
       "status": "todo",
       "title": "CLI help/docs: include Cursor runner in supported runners and examples",
       "priority": "high",
-      "model_effort": "low",
+      "agent": {
+        "model_effort": "low"
+      },
       "tags": [
         "cli",
         "docs",
@@ -192,7 +196,9 @@
       "status": "todo",
       "title": "Open-source readiness: add LICENSE + crate metadata and enable publishing",
       "priority": "high",
-      "model_effort": "low",
+      "agent": {
+        "model_effort": "low"
+      },
       "tags": [
         "release",
         "crates.io",
@@ -228,7 +234,9 @@
       "status": "todo",
       "title": "Repo hygiene: remove stray source backup file `util.rs.bak` and prevent recurrence",
       "priority": "high",
-      "model_effort": "low",
+      "agent": {
+        "model_effort": "low"
+      },
       "tags": [
         "cleanup",
         "prompts",
@@ -261,7 +269,9 @@
       "status": "todo",
       "title": "Docs parity: fix `.ralph/README.md` stale command (`queue done` → `queue archive`)",
       "priority": "medium",
-      "model_effort": "low",
+      "agent": {
+        "model_effort": "low"
+      },
       "tags": [
         "docs",
         "ux"
@@ -332,7 +342,9 @@
       "status": "todo",
       "title": "Contributor docs: dedupe and update `.cursorrules`/`CLAUDE.md`/`GEMINI.md` (remove stale flags)",
       "priority": "medium",
-      "model_effort": "low",
+      "agent": {
+        "model_effort": "low"
+      },
       "tags": [
         "docs",
         "contributors",
@@ -369,7 +381,9 @@
       "status": "todo",
       "title": "Public docs: clarify supported platforms (Unix-only today vs Windows support plan)",
       "priority": "medium",
-      "model_effort": "low",
+      "agent": {
+        "model_effort": "low"
+      },
       "tags": [
         "platform",
         "docs",
@@ -407,7 +421,9 @@
       "status": "todo",
       "title": "Security docs: add `SECURITY.md` (secrets, raw logs/dumps, disclosure)",
       "priority": "medium",
-      "model_effort": "low",
+      "agent": {
+        "model_effort": "low"
+      },
       "tags": [
         "security",
         "docs"
@@ -444,7 +460,9 @@
       "status": "todo",
       "title": "Release process: add `CHANGELOG.md` + versioning/release steps",
       "priority": "medium",
-      "model_effort": "high",
+      "agent": {
+        "model_effort": "high"
+      },
       "tags": [
         "release",
         "docs"
@@ -479,7 +497,9 @@
       "status": "todo",
       "title": "TUI UX: add safety explanations/warnings for risky config toggles (git push, approval mode)",
       "priority": "medium",
-      "model_effort": "low",
+      "agent": {
+        "model_effort": "low"
+      },
       "tags": [
         "tui",
         "security",
@@ -518,7 +538,9 @@
       "status": "todo",
       "title": "TUI parity: expose task builder overrides (runner/model/effort, tags/scope, repo-prompt)",
       "priority": "medium",
-      "model_effort": "high",
+      "agent": {
+        "model_effort": "high"
+      },
       "tags": [
         "tui",
         "ux",
@@ -556,7 +578,9 @@
       "status": "todo",
       "title": "TUI: handle resize and other non-key events explicitly",
       "priority": "medium",
-      "model_effort": "high",
+      "agent": {
+        "model_effort": "high"
+      },
       "tags": [
         "tui",
         "ux",
@@ -592,7 +616,9 @@
       "status": "todo",
       "title": "TUI: standardize confirm dialog keybindings (j/k, arrows, sensible defaults)",
       "priority": "medium",
-      "model_effort": "high",
+      "agent": {
+        "model_effort": "high"
+      },
       "tags": [
         "tui",
         "ux",
@@ -628,7 +654,9 @@
       "status": "todo",
       "title": "TUI: add “jump to task by ID” command (palette + input)",
       "priority": "medium",
-      "model_effort": "high",
+      "agent": {
+        "model_effort": "high"
+      },
       "tags": [
         "tui",
         "ux",
@@ -668,7 +696,9 @@
       "status": "todo",
       "title": "TUI: direct set-status/set-priority commands + optional auto-archive on terminal",
       "priority": "medium",
-      "model_effort": "high",
+      "agent": {
+        "model_effort": "high"
+      },
       "tags": [
         "tui",
         "ux",
@@ -708,7 +738,9 @@
       "status": "todo",
       "title": "TUI: add a mode/status bar for discoverability (mode, dirty/save, filters)",
       "priority": "low",
-      "model_effort": "medium",
+      "agent": {
+        "model_effort": "medium"
+      },
       "tags": [
         "tui",
         "ux",
@@ -743,7 +775,9 @@
       "status": "todo",
       "title": "TUI: improve command palette matching (fuzzy scoring + better ordering)",
       "priority": "low",
-      "model_effort": "medium",
+      "agent": {
+        "model_effort": "medium"
+      },
       "tags": [
         "tui",
         "ux",
@@ -776,7 +810,9 @@
       "status": "todo",
       "title": "Community: add `CONTRIBUTING.md` and `CODE_OF_CONDUCT.md` for public release",
       "priority": "low",
-      "model_effort": "low",
+      "agent": {
+        "model_effort": "low"
+      },
       "tags": [
         "docs",
         "community"
