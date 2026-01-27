@@ -8,8 +8,8 @@
     "id_width": 4
   },
   "agent": {
-    "runner": "opencode",
-    "model": "kimi-for-coding/k2p5",
+    "runner": "claude",
+    "model": "opus",
     "phases": 3,
     "iterations": 1,
     "reasoning_effort": "medium",
