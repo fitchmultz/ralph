@@ -23,7 +23,7 @@ This file is the fast path for contributors/agents; for deeper detail start at `
   - `crates/ralph/assets/prompts/`: embedded prompt templates (worker/task builder/scan)
 - `docs/`: CLI + workflow + configuration docs (`docs/index.md` is the entry point)
 - `schemas/`: generated JSON schemas (committed)
-- `.ralph/`: repo-local runtime state (not committed)
+- `.ralph/`: repo-local runtime state (partially committed; queue.json is tracked)
   - `.ralph/queue.json`: active tasks (source of truth)
   - `.ralph/done.json`: archived tasks
   - `.ralph/config.json`: project config (overrides global)

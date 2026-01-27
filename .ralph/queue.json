@@ -2,45 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0345",
-      "status": "todo",
-      "title": "Contributor docs: dedupe and update `.cursorrules`/`CLAUDE.md`/`GEMINI.md` (remove stale flags)",
-      "priority": "medium",
-      "tags": [
-        "docs",
-        "contributors",
-        "cleanup"
-      ],
-      "scope": [
-        ".cursorrules",
-        "CLAUDE.md",
-        "GEMINI.md",
-        "docs/cli.md",
-        "make ci"
-      ],
-      "evidence": [
-        "`.cursorrules`: still references removed `--rp-on/--rp-off` flags and claims `.ralph/` is “not committed”, which conflicts with this repo’s tracked `.ralph/queue.json` workflow.",
-        "`CLAUDE.md` and `GEMINI.md` duplicate the same contributor-guide content, including the stale flag references."
-      ],
-      "plan": [
-        "Decide the canonical contributor doc (e.g., `CONTRIBUTING.md` or a single runner-agnostic guide) and reduce duplication.",
-        "Update all runner-specific guide files to match current CLI (`--repo-prompt <tools|plan|off>`) and current `.ralph` conventions.",
-        "Ensure the guidance is safe-by-default and aligns with the public-release posture.",
-        "Run `make ci`."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "agent": {
-        "model_effort": "medium"
-      },
-      "created_at": "2026-01-27T18:17:26Z",
-      "updated_at": "2026-01-27T18:17:26Z",
-      "depends_on": [
-        "RQ-0335"
-      ],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0346",
       "status": "todo",
       "title": "Public docs: clarify supported platforms (Unix-only today vs Windows support plan)",

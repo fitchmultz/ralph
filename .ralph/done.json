@@ -7727,6 +7727,57 @@
       "completed_at": "2026-01-27T21:51:52.467396000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0345",
+      "status": "done",
+      "title": "Contributor docs: dedupe and update `.cursorrules`/`CLAUDE.md`/`GEMINI.md` (remove stale flags)",
+      "priority": "medium",
+      "tags": [
+        "docs",
+        "contributors",
+        "cleanup"
+      ],
+      "scope": [
+        ".cursorrules",
+        "CLAUDE.md",
+        "GEMINI.md",
+        "AGENTS.md",
+        "docs/cli.md",
+        "make ci"
+      ],
+      "evidence": [
+        "`.cursorrules` line 185: references stale `--rp-on/--rp-off` flags (should be `--repo-prompt <tools|plan|off>`).",
+        "`.cursorrules` line 13: claims `.ralph/` is 'not committed' which conflicts with this repo's tracked `.ralph/queue.json` workflow.",
+        "`GEMINI.md` line 185: same stale `--rp-on/--rp-off` reference.",
+        "`CLAUDE.md` (project-level): same issues as `.cursorrules`.",
+        "`AGENTS.md` exists as a runner-agnostic guide and should be the canonical source to reduce duplication."
+      ],
+      "plan": [
+        "Update `.cursorrules`: fix stale `--rp-on/--rp-off` reference to `--repo-prompt <tools|plan|off>` on line 185.",
+        "Update `.cursorrules`: clarify that `.ralph/` is partially committed (queue.json is tracked) on line 13.",
+        "Update `GEMINI.md`: fix stale `--rp-on/--rp-off` reference on line 185.",
+        "Update `CLAUDE.md`: fix same stale flag and commit status issues.",
+        "Ensure `AGENTS.md` remains the canonical runner-agnostic guide; reduce duplication in runner-specific files.",
+        "Run `make ci`."
+      ],
+      "notes": [
+        "AGENTS.md is the preferred canonical contributor guide (runner-agnostic).",
+        "Dependency RQ-0335 was invalid (not in queue) and has been removed.",
+        "Fixed stale --rp-on/--rp-off references to --repo-prompt <tools|plan|off> in .cursorrules",
+        "Updated .ralph/ 'not committed' to 'partially committed; queue.json is tracked' in .cursorrules, CLAUDE.md, GEMINI.md, and AGENTS.md",
+        "Added missing AGENTS.md fix that Phase 2 missed",
+        "make ci passed successfully"
+      ],
+      "request": "scan finding",
+      "agent": {
+        "model_effort": "medium"
+      },
+      "created_at": "2026-01-27T18:17:26Z",
+      "updated_at": "2026-01-27T22:00:18.831229000Z",
+      "completed_at": "2026-01-27T22:00:18.831229000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

@@ -10,7 +10,7 @@ Purpose: Capture repo-wide operating expectations for contributors and agents wo
   - `assets/prompts/`: Embedded prompt templates (worker phases, task builder, scan)
 - `docs/`: User-facing documentation (CLI reference, configuration, workflow)
 - `schemas/`: JSON schemas for config and queue validation
-- `.ralph/`: Repo-local runtime state (not committed)
+- `.ralph/`: Repo-local runtime state (partially committed; queue.json is tracked)
   - `queue.json`: Source of truth for active work
   - `done.json`: Archive of completed tasks
   - `config.json`: Project-specific configuration (overrides global)
