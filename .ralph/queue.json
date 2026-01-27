@@ -2,10 +2,597 @@
   "version": 1,
   "tasks": [
     {
+      "id": "RQ-0336",
+      "status": "todo",
+      "title": "Scan/Task builder: stop forcing bypass permissions; respect config/flags",
+      "priority": "critical",
+      "tags": [
+        "security",
+        "scan",
+        "task",
+        "runner"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/scan.rs",
+        "crates/ralph/src/commands/task.rs",
+        "crates/ralph/src/contracts/config.rs",
+        "crates/ralph/src/cli/scan.rs",
+        "crates/ralph/src/cli/task.rs",
+        "docs/cli.md",
+        "make ci"
+      ],
+      "evidence": [
+        "`crates/ralph/src/commands/scan.rs`: scan forces `permission_mode = Some(ClaudePermissionMode::BypassPermissions)` (comment: “Force BypassPermissions for scan”).",
+        "`crates/ralph/src/commands/task.rs`: task builder forces `permission_mode = Some(ClaudePermissionMode::BypassPermissions)` (comment: “Force BypassPermissions for task”).",
+        "`crates/ralph/src/contracts/config.rs`: `agent.claude_permission_mode` is configurable, but scan/task builder currently bypass it."
+      ],
+      "plan": [
+        "Decide how scan/task-builder should choose permission/approval behavior by runner (config default vs CLI flag vs per-command override).",
+        "Implement plumbing so scan/task-builder use the chosen setting (stop hardcoding `BypassPermissions`).",
+        "Update `--help` and `docs/cli.md` to document the behavior and the opt-in override for bypass/YOLO modes.",
+        "Add tests that assert scan/task-builder use the configured permission mode and error clearly when interactive approval would block non-interactive runs.",
+        "Run `make ci`."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-27T18:17:26Z",
+      "updated_at": "2026-01-27T18:17:26Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0337",
+      "status": "todo",
+      "title": "Security: redact or gate safeguard output dumps (avoid writing secrets to disk)",
+      "priority": "critical",
+      "tags": [
+        "security",
+        "redaction",
+        "runner",
+        "debug"
+      ],
+      "scope": [
+        "crates/ralph/src/fsutil.rs",
+        "crates/ralph/src/commands/scan.rs",
+        "crates/ralph/src/debuglog.rs",
+        "docs/workflow.md",
+        "docs/cli.md",
+        "make ci"
+      ],
+      "evidence": [
+        "`crates/ralph/src/fsutil.rs`: `safeguard_text_dump` writes the provided `content` to `output.txt` without applying `redaction::redact_text`.",
+        "`crates/ralph/src/commands/scan.rs`: on failures, scan saves raw runner stdout via `fsutil::safeguard_text_dump(\"scan_error\", &output.stdout)`.",
+        "`crates/ralph/src/debuglog.rs`: module is explicitly for raw, unredacted supervisor/runner output (enabled via `--debug`)."
+      ],
+      "plan": [
+        "Change safeguard dumps to write redacted content by default (use existing `crate::redaction`).",
+        "Add an explicit opt-in for writing raw output (env var or `--debug`), with loud warnings in logs/help.",
+        "Update scan/run error paths to use the redacted dump function and to avoid mentioning raw content unless explicitly enabled.",
+        "Add tests that prove secrets-like strings are redacted in dumps unless opt-in is enabled.",
+        "Update docs (`docs/cli.md`, `docs/workflow.md`) to document the new behavior.",
+        "Run `make ci`."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-27T18:17:26Z",
+      "updated_at": "2026-01-27T18:17:26Z",
+      "depends_on": [
+        "RQ-0335"
+      ],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0342",
+      "status": "todo",
+      "title": "Public repo safety: stop committing `.env` (keep `.env.example`, ignore `.env`)",
+      "priority": "high",
+      "model_effort": "low",
+      "tags": [
+        "security",
+        "docs",
+        "ux"
+      ],
+      "scope": [
+        ".env",
+        ".env.example",
+        ".gitignore",
+        "docs/environment.md",
+        "make ci"
+      ],
+      "evidence": [
+        "Repo root includes a committed `.env` with environment configuration (`RALPH_STRESS_BURN_IN=0`).",
+        "`.env.example` exists and mirrors the `.env` content; `.gitignore` ignores `**/*.env.*` but does not ignore `.env`."
+      ],
+      "plan": [
+        "Remove `.env` from the repo and add `.env` to `.gitignore`.",
+        "Keep `.env.example` as the canonical template and update `docs/environment.md` to reference it.",
+        "Add a small test or doc check to ensure `.env` is not reintroduced into the tracked tree.",
+        "Run `make ci`."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-27T18:17:26Z",
+      "updated_at": "2026-01-27T18:17:26Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0338",
+      "status": "todo",
+      "title": "Doctor: improve runner binary detection (version/help fallback + actionable guidance)",
+      "priority": "high",
+      "tags": [
+        "ux",
+        "doctor",
+        "runner"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/doctor.rs",
+        "scripts/runner_cli_inventory.sh",
+        "docs/cli.md",
+        "crates/ralph/tests/doctor_contract_test.rs",
+        "make ci"
+      ],
+      "evidence": [
+        "`crates/ralph/src/commands/doctor.rs`: runner check uses `check_command(bin_name, [\"--version\"])` only.",
+        "`scripts/runner_cli_inventory.sh`: version capture is best-effort and tries `--version`, `version`, and `-V`, falling back to help capture."
+      ],
+      "plan": [
+        "Refactor doctor runner checks to try multiple version invocations (and/or fall back to `--help`) to avoid false negatives.",
+        "Improve output to suggest next actions (which config keys to set for bin paths, which command to run to confirm).",
+        "Add tests with stub binaries/scripts that lack `--version` but do support `--help`.",
+        "Ensure `ralph doctor` still fails when a configured runner binary is truly missing/unexecutable.",
+        "Run `make ci`."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-27T18:17:26Z",
+      "updated_at": "2026-01-27T18:17:26Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0339",
+      "status": "todo",
+      "title": "CLI help/docs: include Cursor runner in supported runners and examples",
+      "priority": "high",
+      "model_effort": "low",
+      "tags": [
+        "cli",
+        "docs",
+        "ux",
+        "runner"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/mod.rs",
+        "docs/cli.md",
+        "README.md",
+        "crates/ralph/tests/help_output_contract_test.rs",
+        "make ci"
+      ],
+      "evidence": [
+        "`crates/ralph/src/cli/mod.rs`: top-level `after_long_help` says “Allowed runners: codex, opencode, gemini, claude” (missing cursor), while `Runner` includes `cursor` (see `schemas/config.schema.json`).",
+        "`schemas/config.schema.json`: runner enum includes `cursor`, and config includes `cursor_bin` (default `agent`)."
+      ],
+      "plan": [
+        "Update CLI help text to list Cursor as a supported runner where applicable (and mention the `agent` binary name).",
+        "Update `docs/cli.md` and `README.md` examples to include a Cursor example that works with the normalized runner CLI options.",
+        "Update/extend help output contract tests so this cannot regress.",
+        "Run `make ci`."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-27T18:17:26Z",
+      "updated_at": "2026-01-27T18:17:26Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0340",
+      "status": "todo",
+      "title": "Open-source readiness: add LICENSE + crate metadata and enable publishing",
+      "priority": "high",
+      "model_effort": "low",
+      "tags": [
+        "release",
+        "crates.io",
+        "docs"
+      ],
+      "scope": [
+        "crates/ralph/Cargo.toml",
+        "Cargo.toml",
+        "README.md",
+        "LICENSE",
+        "make ci"
+      ],
+      "evidence": [
+        "`crates/ralph/Cargo.toml`: package has `publish = false` and lacks typical publish metadata (license/repository/description).",
+        "Repo root: no `LICENSE` file is present (see repo file tree; `LICENSE`/`COPYING` not found)."
+      ],
+      "plan": [
+        "Choose an open-source license and add `LICENSE` (and, if needed, `NOTICE`).",
+        "Update `crates/ralph/Cargo.toml` with publish-ready metadata (license, description, repository, homepage, readme, keywords/categories).",
+        "Flip `publish = false` to the intended public posture (or document why it must remain false).",
+        "Update `README.md` with a public install path (e.g., `cargo install ralph` or `cargo install --path crates/ralph`).",
+        "Run `make ci`."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-27T18:17:26Z",
+      "updated_at": "2026-01-27T18:17:26Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0341",
+      "status": "todo",
+      "title": "Repo hygiene: remove stray source backup file `util.rs.bak` and prevent recurrence",
+      "priority": "high",
+      "model_effort": "low",
+      "tags": [
+        "cleanup",
+        "prompts",
+        "maintainability"
+      ],
+      "scope": [
+        "crates/ralph/src/prompts_internal/util.rs.bak",
+        "crates/ralph/src/prompts_internal/",
+        "Makefile",
+        "make ci"
+      ],
+      "evidence": [
+        "`crates/ralph/src/prompts_internal/util.rs.bak` exists in the source tree and contains duplicate/outdated prompt utility code.",
+        "`crates/ralph/src/prompts_internal/util.rs` is the real module; the `.bak` file is not referenced but is still shipped in-repo."
+      ],
+      "plan": [
+        "Delete `crates/ralph/src/prompts_internal/util.rs.bak`.",
+        "Add a CI/Makefile check (or a test) that fails if backup artifacts like `*.bak` exist under `crates/ralph/src/`.",
+        "Run `make ci`."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-27T18:17:26Z",
+      "updated_at": "2026-01-27T18:17:26Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0343",
+      "status": "todo",
+      "title": "Docs parity: fix `.ralph/README.md` stale command (`queue done` → `queue archive`)",
+      "priority": "medium",
+      "model_effort": "low",
+      "tags": [
+        "docs",
+        "ux"
+      ],
+      "scope": [
+        ".ralph/README.md",
+        "crates/ralph/assets/ralph_readme.md",
+        "crates/ralph/src/commands/init.rs",
+        "docs/workflow.md",
+        "make ci"
+      ],
+      "evidence": [
+        "`.ralph/README.md`: “Archive completed tasks” lists `ralph queue done` (stale/outdated command name).",
+        "`crates/ralph/src/cli/queue/mod.rs`: the queue subcommand is `archive` (`QueueCommand::Archive`).",
+        "`crates/ralph/assets/ralph_readme.md`: uses `ralph queue archive`, so the runtime README and embedded README are out of sync."
+      ],
+      "plan": [
+        "Update `.ralph/README.md` to use `ralph queue archive` and ensure examples match `docs/cli.md`.",
+        "Update the embedded `crates/ralph/assets/ralph_readme.md` so `ralph init` produces the corrected README.",
+        "Add/update a test in `crates/ralph/src/commands/init.rs` to assert the generated README contains `queue archive`.",
+        "Run `make ci`."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-27T18:17:26Z",
+      "updated_at": "2026-01-27T18:17:26Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0344",
+      "status": "todo",
+      "title": "Queue API clarity: rename `archive_done_tasks` to `archive_terminal_tasks` (Done+Rejected)",
+      "priority": "medium",
+      "tags": [
+        "queue",
+        "ux",
+        "refactor"
+      ],
+      "scope": [
+        "crates/ralph/src/queue/operations/archive.rs",
+        "crates/ralph/src/cli/queue/archive.rs",
+        "crates/ralph/src/commands/run/supervision.rs",
+        "docs/cli.md",
+        "make ci"
+      ],
+      "evidence": [
+        "`crates/ralph/src/queue/operations/archive.rs`: `archive_terminal_tasks_in_memory` moves tasks with status Done OR Rejected.",
+        "Same file: `archive_done_tasks(...)` calls `archive_terminal_tasks_in_memory`, so the function name contradicts behavior.",
+        "`crates/ralph/src/cli/queue/archive.rs` and `crates/ralph/src/commands/run/supervision.rs` call `queue::archive_done_tasks`, inheriting the confusing name."
+      ],
+      "plan": [
+        "Rename `archive_done_tasks` to a behavior-accurate name (e.g., `archive_terminal_tasks`) and update all call sites.",
+        "Update user-facing log messages to say “terminal tasks (done/rejected)” instead of “completed” if that’s more accurate.",
+        "Update docs (`docs/cli.md`) to clarify that `queue archive` moves Done+Rejected.",
+        "Update/extend queue operation tests to lock in behavior and naming consistency.",
+        "Run `make ci`."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-27T18:17:26Z",
+      "updated_at": "2026-01-27T18:17:26Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0345",
+      "status": "todo",
+      "title": "Contributor docs: dedupe and update `.cursorrules`/`CLAUDE.md`/`GEMINI.md` (remove stale flags)",
+      "priority": "medium",
+      "model_effort": "low",
+      "tags": [
+        "docs",
+        "contributors",
+        "cleanup"
+      ],
+      "scope": [
+        ".cursorrules",
+        "CLAUDE.md",
+        "GEMINI.md",
+        "docs/cli.md",
+        "make ci"
+      ],
+      "evidence": [
+        "`.cursorrules`: still references removed `--rp-on/--rp-off` flags and claims `.ralph/` is “not committed”, which conflicts with this repo’s tracked `.ralph/queue.json` workflow.",
+        "`CLAUDE.md` and `GEMINI.md` duplicate the same contributor-guide content, including the stale flag references."
+      ],
+      "plan": [
+        "Decide the canonical contributor doc (e.g., `CONTRIBUTING.md` or a single runner-agnostic guide) and reduce duplication.",
+        "Update all runner-specific guide files to match current CLI (`--repo-prompt <tools|plan|off>`) and current `.ralph` conventions.",
+        "Ensure the guidance is safe-by-default and aligns with the public-release posture.",
+        "Run `make ci`."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-27T18:17:26Z",
+      "updated_at": "2026-01-27T18:17:26Z",
+      "depends_on": [
+        "RQ-0335"
+      ],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0346",
+      "status": "todo",
+      "title": "Public docs: clarify supported platforms (Unix-only today vs Windows support plan)",
+      "priority": "medium",
+      "model_effort": "low",
+      "tags": [
+        "platform",
+        "docs",
+        "ux"
+      ],
+      "scope": [
+        "README.md",
+        "Makefile",
+        "crates/ralph/src/lock.rs",
+        "crates/ralph/src/runner/execution/process.rs",
+        "docs/cli.md",
+        "make ci"
+      ],
+      "evidence": [
+        "`crates/ralph/src/lock.rs`: PID liveness is `None` on non-Unix and lock error messages suggest `rm -rf ...`.",
+        "`crates/ralph/src/runner/execution/process.rs`: uses Unix-only process group control (`setpgid`, `kill(-pgid, ...)`) behind `#[cfg(unix)]`.",
+        "`Makefile`: relies on `bash -lc` and Unix tools (e.g., `mktemp`, `install`, `find`)."
+      ],
+      "plan": [
+        "Decide and document the supported platforms for the public release (e.g., macOS/Linux only initially).",
+        "Update README/docs to explicitly state platform support and any known limitations (locks, signals, Makefile requirements).",
+        "If Windows support is desired, add a scoped plan (feature gates + replacements for lock/process-group behavior).",
+        "Add tests (or build checks) that prevent accidental regressions in the supported-platform contract.",
+        "Run `make ci`."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-27T18:17:26Z",
+      "updated_at": "2026-01-27T18:17:26Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0347",
+      "status": "todo",
+      "title": "Security docs: add `SECURITY.md` (secrets, raw logs/dumps, disclosure)",
+      "priority": "medium",
+      "model_effort": "low",
+      "tags": [
+        "security",
+        "docs"
+      ],
+      "scope": [
+        "SECURITY.md",
+        "README.md",
+        "crates/ralph/src/debuglog.rs",
+        "crates/ralph/src/fsutil.rs",
+        "make ci"
+      ],
+      "evidence": [
+        "Repo root: `SECURITY.md` is missing.",
+        "`crates/ralph/src/debuglog.rs`: debug mode logs raw, unredacted runner output to disk.",
+        "`crates/ralph/src/fsutil.rs`: safeguard dumps write raw output to disk today."
+      ],
+      "plan": [
+        "Add `SECURITY.md` describing how to report vulnerabilities and what data to avoid sharing (runner outputs, logs, dumps).",
+        "Document redaction expectations and the implications of `--debug`/safeguard dumps.",
+        "Link `SECURITY.md` from `README.md`.",
+        "Run `make ci`."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-27T18:17:26Z",
+      "updated_at": "2026-01-27T18:17:26Z",
+      "depends_on": [
+        "RQ-0337"
+      ],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0349",
+      "status": "todo",
+      "title": "Release process: add `CHANGELOG.md` + versioning/release steps",
+      "priority": "medium",
+      "model_effort": "high",
+      "tags": [
+        "release",
+        "docs"
+      ],
+      "scope": [
+        "CHANGELOG.md",
+        "crates/ralph/Cargo.toml",
+        "README.md",
+        "make ci"
+      ],
+      "evidence": [
+        "Repo root: `CHANGELOG.md` is missing.",
+        "`crates/ralph/Cargo.toml`: package is not currently publish-ready (`publish = false`)."
+      ],
+      "plan": [
+        "Add `CHANGELOG.md` and adopt a consistent format (e.g., Keep a Changelog + SemVer).",
+        "Document the manual release procedure (no remote CI), including required local checks (`make ci`) and how versions are bumped.",
+        "Update `README.md` to point to the changelog and release policy.",
+        "Run `make ci`."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-27T18:17:26Z",
+      "updated_at": "2026-01-27T18:17:26Z",
+      "depends_on": [
+        "RQ-0340"
+      ],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0352",
+      "status": "todo",
+      "title": "TUI UX: add safety explanations/warnings for risky config toggles (git push, approval mode)",
+      "priority": "medium",
+      "model_effort": "low",
+      "tags": [
+        "tui",
+        "security",
+        "ux",
+        "config"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/config_edit.rs",
+        "crates/ralph/src/tui/render/overlays.rs",
+        "docs/configuration.md",
+        "make ci"
+      ],
+      "evidence": [
+        "`crates/ralph/src/tui/config_edit.rs`: config editor exposes `agent.git_commit_push_enabled` as a toggle.",
+        "Same file: config editor exposes `agent.runner_cli.defaults.approval_mode` (cycles through modes including `yolo`) and renders `bypass_permissions` for Claude permission mode.",
+        "There is no inline explanation in the TUI of what these risky modes do (auto-push, bypass approvals)."
+      ],
+      "plan": [
+        "Add short inline descriptions or a help overlay for high-risk config fields (git auto-push, permission/approval modes, debug logging).",
+        "Add a confirmation prompt or warning banner when enabling the riskiest modes (e.g., yolo/bypass + auto-push).",
+        "Update docs (`docs/configuration.md`) to align with the TUI wording.",
+        "Add tests for the warning/confirmation flow.",
+        "Run `make ci`."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-27T18:17:26Z",
+      "updated_at": "2026-01-27T18:17:26Z",
+      "depends_on": [
+        "RQ-0335"
+      ],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0351",
+      "status": "todo",
+      "title": "TUI parity: expose task builder overrides (runner/model/effort, tags/scope, repo-prompt)",
+      "priority": "medium",
+      "model_effort": "high",
+      "tags": [
+        "tui",
+        "ux",
+        "parity",
+        "task"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/events/create.rs",
+        "crates/ralph/src/tui/events/palette.rs",
+        "crates/ralph/src/tui/app.rs",
+        "docs/tui-task-management.md",
+        "make ci"
+      ],
+      "evidence": [
+        "`docs/tui-task-management.md`: task builder in TUI (“Build task with agent”) does not expose `--runner/--model/--effort`, `--tags/--scope` hinting, or `--repo-prompt` overrides.",
+        "`docs/tui-task-management.md`: recommends an “advanced” input flow to capture these overrides for closer CLI parity."
+      ],
+      "plan": [
+        "Design a TUI “advanced task builder” flow (modal fields or a compact syntax) to capture runner/model/effort + repo-prompt + tags/scope hints.",
+        "Thread the captured overrides into the task-builder invocation used by the TUI.",
+        "Handle invalid runner/model/effort values with clear inline validation.",
+        "Add tests that cover success and failure modes (missing/invalid overrides, cancellation, happy path).",
+        "Update `docs/tui-task-management.md` and `docs/cli.md` to document the parity.",
+        "Run `make ci`."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-27T18:17:26Z",
+      "updated_at": "2026-01-27T18:17:26Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0330",
+      "status": "todo",
+      "title": "TUI: handle resize and other non-key events explicitly",
+      "priority": "medium",
+      "model_effort": "high",
+      "tags": [
+        "tui",
+        "ux",
+        "stability"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/app.rs",
+        "crates/ralph/src/tui/events/mod.rs",
+        "crates/ralph/src/tui/tests.rs",
+        "make ci"
+      ],
+      "evidence": [
+        "`crates/ralph/src/tui/app.rs`: input loop only processes events matching `Event::Key`; `Event::Resize` is ignored.",
+        "`crates/ralph/src/tui/app.rs`: the same pattern implies other event types (mouse/paste) are ignored unless added explicitly."
+      ],
+      "plan": [
+        "Handle `Event::Resize` to avoid stale cached layout state and to prevent rendering artifacts on terminal resize.",
+        "Ensure non-key events are either ignored intentionally (without side-effects) or handled (mouse support task covers mouse).",
+        "Add a focused test (or a small harness) to ensure resize events do not panic and update cached dimensions appropriately.",
+        "Run `make ci`."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-27T04:35:15Z",
+      "updated_at": "2026-01-27T14:51:00.505336000Z",
+      "depends_on": [],
+      "custom_fields": {
+        "stale_note": "Mouse events now handled (RQ-0324); evidence about mouse being ignored is no longer accurate. Resize/paste still unhandled."
+      }
+    },
+    {
       "id": "RQ-0325",
       "status": "todo",
       "title": "TUI: standardize confirm dialog keybindings (j/k, arrows, sensible defaults)",
       "priority": "medium",
+      "model_effort": "high",
       "tags": [
         "tui",
         "ux",
@@ -41,6 +628,7 @@
       "status": "todo",
       "title": "TUI: add “jump to task by ID” command (palette + input)",
       "priority": "medium",
+      "model_effort": "high",
       "tags": [
         "tui",
         "ux",
@@ -80,6 +668,7 @@
       "status": "todo",
       "title": "TUI: direct set-status/set-priority commands + optional auto-archive on terminal",
       "priority": "medium",
+      "model_effort": "high",
       "tags": [
         "tui",
         "ux",
@@ -115,42 +704,11 @@
       "custom_fields": {}
     },
     {
-      "id": "RQ-0328",
-      "status": "todo",
-      "title": "TUI: improve command palette matching (fuzzy scoring + better ordering)",
-      "priority": "low",
-      "tags": [
-        "tui",
-        "ux",
-        "palette"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/app.rs",
-        "crates/ralph/src/tui/render/overlays.rs",
-        "crates/ralph/src/tui/events/tests.rs",
-        "make ci"
-      ],
-      "evidence": [
-        "`crates/ralph/src/tui/app.rs`: `palette_entries` filters commands via case-insensitive substring match only (`title.contains(q)`), with no scoring or ranking."
-      ],
-      "plan": [
-        "Introduce a small fuzzy scoring/ranking for palette entries (keeping stable ordering when query is empty).",
-        "Sort entries by score and add tie-breakers for predictable results.",
-        "Add tests that lock in ranking behavior for common queries.",
-        "Run `make ci`."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-27T04:35:15Z",
-      "updated_at": "2026-01-27T04:35:15Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0329",
       "status": "todo",
       "title": "TUI: add a mode/status bar for discoverability (mode, dirty/save, filters)",
       "priority": "low",
+      "model_effort": "medium",
       "tags": [
         "tui",
         "ux",
@@ -181,39 +739,70 @@
       "custom_fields": {}
     },
     {
-      "id": "RQ-0330",
+      "id": "RQ-0328",
       "status": "todo",
-      "title": "TUI: handle resize and other non-key events explicitly",
-      "priority": "medium",
+      "title": "TUI: improve command palette matching (fuzzy scoring + better ordering)",
+      "priority": "low",
+      "model_effort": "medium",
       "tags": [
         "tui",
         "ux",
-        "stability"
+        "palette"
       ],
       "scope": [
         "crates/ralph/src/tui/app.rs",
-        "crates/ralph/src/tui/events/mod.rs",
-        "crates/ralph/src/tui/tests.rs",
+        "crates/ralph/src/tui/render/overlays.rs",
+        "crates/ralph/src/tui/events/tests.rs",
         "make ci"
       ],
       "evidence": [
-        "`crates/ralph/src/tui/app.rs`: input loop only processes events matching `Event::Key`; `Event::Resize` is ignored.",
-        "`crates/ralph/src/tui/app.rs`: the same pattern implies other event types (mouse/paste) are ignored unless added explicitly."
+        "`crates/ralph/src/tui/app.rs`: `palette_entries` filters commands via case-insensitive substring match only (`title.contains(q)`), with no scoring or ranking."
       ],
       "plan": [
-        "Handle `Event::Resize` to avoid stale cached layout state and to prevent rendering artifacts on terminal resize.",
-        "Ensure non-key events are either ignored intentionally (without side-effects) or handled (mouse support task covers mouse).",
-        "Add a focused test (or a small harness) to ensure resize events do not panic and update cached dimensions appropriately.",
+        "Introduce a small fuzzy scoring/ranking for palette entries (keeping stable ordering when query is empty).",
+        "Sort entries by score and add tie-breakers for predictable results.",
+        "Add tests that lock in ranking behavior for common queries.",
         "Run `make ci`."
       ],
       "notes": [],
       "request": "scan finding",
       "created_at": "2026-01-27T04:35:15Z",
-      "updated_at": "2026-01-27T14:51:00.505336000Z",
+      "updated_at": "2026-01-27T04:35:15Z",
       "depends_on": [],
-      "custom_fields": {
-        "stale_note": "Mouse events now handled (RQ-0324); evidence about mouse being ignored is no longer accurate. Resize/paste still unhandled."
-      }
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0348",
+      "status": "todo",
+      "title": "Community: add `CONTRIBUTING.md` and `CODE_OF_CONDUCT.md` for public release",
+      "priority": "low",
+      "model_effort": "low",
+      "tags": [
+        "docs",
+        "community"
+      ],
+      "scope": [
+        "CONTRIBUTING.md",
+        "CODE_OF_CONDUCT.md",
+        "README.md",
+        "make ci"
+      ],
+      "evidence": [
+        "Repo root: `CONTRIBUTING.md` is missing.",
+        "Repo root: `CODE_OF_CONDUCT.md` is missing."
+      ],
+      "plan": [
+        "Add `CONTRIBUTING.md` that describes local workflow (`make ci`), issue triage expectations, and release/testing norms.",
+        "Add `CODE_OF_CONDUCT.md` (pick a standard template and adjust contact points).",
+        "Link both from `README.md`.",
+        "Run `make ci`."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-27T18:17:26Z",
+      "updated_at": "2026-01-27T18:17:26Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

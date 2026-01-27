@@ -7157,6 +7157,80 @@
       "completed_at": "2026-01-27T17:53:17.931772000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0350",
+      "status": "rejected",
+      "title": "Scan UX: expand `.repo_ignore` to exclude noisy generated/runtime paths",
+      "priority": "low",
+      "tags": [
+        "scan",
+        "repoprompt",
+        "ux"
+      ],
+      "scope": [
+        ".repo_ignore",
+        ".gitignore",
+        ".ralph/README.md",
+        "make ci"
+      ],
+      "evidence": [
+        "`.repo_ignore` currently contains only `!**`, `.DS_Store`, and `target/`, so scans and tooling may include `.ralph/cache` and other runtime artifacts.",
+        "`.gitignore` already ignores `.ralph/cache/*` and `.ralph/logs/`, suggesting these should also be excluded from scan/tool context by default."
+      ],
+      "plan": [
+        "Decide the intended meaning of `.repo_ignore` (tooling/scan ignore list) and document it briefly.",
+        "Add ignore entries for common generated/runtime paths (e.g., `.ralph/cache/`, `.ralph/logs/`, `.ralph/lock`, `target/`).",
+        "Ensure the ignore rules do not exclude source-of-truth files like `.ralph/queue.json`.",
+        "Run `make ci`."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-27T18:17:26Z",
+      "updated_at": "2026-01-27T18:17:26Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0335",
+      "status": "rejected",
+      "title": "Public defaults: make destructive actions opt-in (git push/commit, YOLO permissions)",
+      "priority": "critical",
+      "tags": [
+        "security",
+        "defaults",
+        "git",
+        "runner"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts/config.rs",
+        "schemas/config.schema.json",
+        "crates/ralph/src/commands/init.rs",
+        "crates/ralph/src/commands/run/supervision.rs",
+        "docs/configuration.md",
+        "README.md",
+        "make ci"
+      ],
+      "evidence": [
+        "`crates/ralph/src/contracts/config.rs`: `Config::default()` sets `agent.git_commit_push_enabled: Some(true)` and `agent.claude_permission_mode: Some(ClaudePermissionMode::BypassPermissions)`, and runner CLI defaults include `approval_mode: Some(RunnerApprovalMode::Yolo)`.",
+        "`schemas/config.schema.json`: schema defaults include `agent.git_commit_push_enabled: true` and `claude_permission_mode: bypass_permissions`.",
+        "`crates/ralph/src/commands/init.rs`: `write_config` writes only `{ \"version\": 1 }`, so new installs inherit built-in defaults.",
+        "`crates/ralph/src/commands/run/supervision.rs`: `post_run_supervise` calls `finalize_git_state(...)` and performs pushes when `git_commit_push_enabled` is true."
+      ],
+      "plan": [
+        "Define safe-by-default behavior for public users (disable auto git commit/push; avoid bypassing approvals by default).",
+        "Update `Config::default()` and schema defaults (`config schema`) to match the new safety posture.",
+        "Update `ralph init` to write an explicit starter `.ralph/config.json` that encodes the safe defaults (not just `{\"version\":1}`).",
+        "Update docs (`README.md`, `docs/configuration.md`) to explain the defaults and how to opt into auto-commit/push and relaxed approval modes.",
+        "Update/extend tests that assert default config behavior and supervisor git behavior.",
+        "Run `make ci`."
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-27T18:17:26Z",
+      "updated_at": "2026-01-27T18:17:26Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }
