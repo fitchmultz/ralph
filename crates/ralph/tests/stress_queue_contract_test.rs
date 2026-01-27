@@ -199,7 +199,7 @@ fn stress_queue_archive_and_mutate_cycles() -> Result<()> {
         }
 
         queue::save_queue(&queue_path, &current).context("save active")?;
-        let _report = queue::archive_done_tasks(&queue_path, &done_path, ID_PREFIX, ID_WIDTH)
+        let _report = queue::archive_terminal_tasks(&queue_path, &done_path, ID_PREFIX, ID_WIDTH)
             .with_context(|| format!("archive iteration {iter}"))?;
 
         let active_reloaded = queue::load_queue(&queue_path).context("reload active")?;
@@ -272,7 +272,7 @@ fn stress_queue_ops_burn_in_long() -> Result<()> {
 
     // Run a bounded number of iterations; each iteration archives done tasks and marks a few todo as done.
     for iter in 0..200u32 {
-        let report = queue::archive_done_tasks(&queue_path, &done_path, ID_PREFIX, ID_WIDTH)
+        let report = queue::archive_terminal_tasks(&queue_path, &done_path, ID_PREFIX, ID_WIDTH)
             .with_context(|| format!("archive iteration {iter}"))?;
         let _ = report;
 

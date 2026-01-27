@@ -7675,6 +7675,58 @@
       "completed_at": "2026-01-27T21:41:37.497582000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0344",
+      "status": "done",
+      "title": "Queue API clarity: rename `archive_done_tasks` to `archive_terminal_tasks` (Done+Rejected)",
+      "priority": "medium",
+      "tags": [
+        "queue",
+        "ux",
+        "refactor"
+      ],
+      "scope": [
+        "crates/ralph/src/queue/operations/archive.rs",
+        "crates/ralph/src/cli/queue/archive.rs",
+        "crates/ralph/src/commands/run/supervision.rs",
+        "crates/ralph/src/tui/app.rs",
+        "crates/ralph/src/tui/events/confirm.rs",
+        "crates/ralph/src/queue/operations/tests/archive.rs",
+        "docs/cli.md",
+        "make ci"
+      ],
+      "evidence": [
+        "`crates/ralph/src/queue/operations/archive.rs`: `archive_terminal_tasks_in_memory` moves tasks with status Done OR Rejected.",
+        "Same file: `archive_done_tasks(...)` calls `archive_terminal_tasks_in_memory`, so the function name contradicts behavior.",
+        "`crates/ralph/src/cli/queue/archive.rs` and `crates/ralph/src/commands/run/supervision.rs` call `queue::archive_done_tasks`, inheriting the confusing name.",
+        "`crates/ralph/src/tui/app.rs` and `crates/ralph/src/tui/events/confirm.rs` also use `archive_terminal_tasks` naming in TUI context.",
+        "`docs/cli.md` line 270: `archive done/rejected tasks` description already uses accurate terminology.",
+        "Tests in `crates/ralph/src/queue/operations/tests/archive.rs` verify both Done and Rejected tasks are archived."
+      ],
+      "plan": [
+        "Rename `archive_done_tasks` to `archive_terminal_tasks` and update all call sites (CLI, supervision, tests).",
+        "Update user-facing log messages in `crates/ralph/src/cli/queue/archive.rs` to say 'terminal tasks (done/rejected)' instead of 'completed'.",
+        "Verify `docs/cli.md` already documents Done+Rejected behavior; update if needed.",
+        "Update test function names in `crates/ralph/src/queue/operations/tests/archive.rs` for consistency.",
+        "Run `make ci`."
+      ],
+      "notes": [
+        "Verified 2026-01-27: All scope files exist. TUI already uses 'archive_terminal_tasks' naming (app.rs).",
+        "Docs already describe 'done/rejected' behavior accurately at line 270 of cli.md.",
+        "Tests already cover both Done and Rejected task archiving.",
+        "Renamed archive_done_tasks to archive_terminal_tasks across codebase",
+        "Updated all call sites in CLI, supervision, and tests",
+        "Updated user-facing log messages to say 'terminal tasks (done/rejected)'",
+        "Updated docs/cli.md to reflect accurate terminology",
+        "make ci passes - all 642+ tests pass"
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-27T18:17:26Z",
+      "updated_at": "2026-01-27T21:51:52.467396000Z",
+      "completed_at": "2026-01-27T21:51:52.467396000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

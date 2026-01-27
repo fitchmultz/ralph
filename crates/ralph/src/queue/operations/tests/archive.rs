@@ -3,7 +3,7 @@
 use super::*;
 
 #[test]
-fn archive_done_tasks_moves_done_and_rejected() -> anyhow::Result<()> {
+fn archive_terminal_tasks_moves_done_and_rejected() -> anyhow::Result<()> {
     use tempfile::TempDir;
 
     let temp_dir = TempDir::new()?;
@@ -68,7 +68,7 @@ fn archive_done_tasks_moves_done_and_rejected() -> anyhow::Result<()> {
         }"#;
     std::fs::write(&queue_path, queue_json)?;
 
-    let report = archive_done_tasks(&queue_path, &done_path, "RQ", 4)?;
+    let report = archive_terminal_tasks(&queue_path, &done_path, "RQ", 4)?;
 
     // Check report
     assert_eq!(report.moved_ids.len(), 2);
@@ -93,7 +93,7 @@ fn archive_done_tasks_moves_done_and_rejected() -> anyhow::Result<()> {
 }
 
 #[test]
-fn archive_done_tasks_stamps_missing_completed_at() -> anyhow::Result<()> {
+fn archive_terminal_tasks_stamps_missing_completed_at() -> anyhow::Result<()> {
     use tempfile::TempDir;
 
     let temp_dir = TempDir::new()?;
@@ -125,7 +125,7 @@ fn archive_done_tasks_stamps_missing_completed_at() -> anyhow::Result<()> {
         }"#;
     std::fs::write(&queue_path, queue_json)?;
 
-    let report = archive_done_tasks(&queue_path, &done_path, "RQ", 4)?;
+    let report = archive_terminal_tasks(&queue_path, &done_path, "RQ", 4)?;
     assert_eq!(report.moved_ids, vec!["RQ-0001".to_string()]);
 
     let done_content = std::fs::read_to_string(&done_path)?;
@@ -144,7 +144,7 @@ fn archive_done_tasks_stamps_missing_completed_at() -> anyhow::Result<()> {
 }
 
 #[test]
-fn archive_done_tasks_backfills_existing_done_without_moves() -> anyhow::Result<()> {
+fn archive_terminal_tasks_backfills_existing_done_without_moves() -> anyhow::Result<()> {
     use tempfile::TempDir;
 
     let temp_dir = TempDir::new()?;
@@ -199,7 +199,7 @@ fn archive_done_tasks_backfills_existing_done_without_moves() -> anyhow::Result<
         }"#;
     std::fs::write(&done_path, done_json)?;
 
-    let report = archive_done_tasks(&queue_path, &done_path, "RQ", 4)?;
+    let report = archive_terminal_tasks(&queue_path, &done_path, "RQ", 4)?;
     assert!(report.moved_ids.is_empty());
 
     let done_content = std::fs::read_to_string(&done_path)?;

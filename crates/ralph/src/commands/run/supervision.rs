@@ -134,7 +134,7 @@ pub(crate) fn post_run_supervise(
             )
             .context("Ensuring task is marked Done (dirty repo) failed")?;
 
-            queue::archive_done_tasks(
+            queue::archive_terminal_tasks(
                 &resolved.queue_path,
                 &resolved.done_path,
                 &resolved.id_prefix,
@@ -165,7 +165,7 @@ pub(crate) fn post_run_supervise(
         )
         .context("Ensuring task is marked Done (clean repo) failed")?;
 
-        let report = queue::archive_done_tasks(
+        let report = queue::archive_terminal_tasks(
             &resolved.queue_path,
             &resolved.done_path,
             &resolved.id_prefix,

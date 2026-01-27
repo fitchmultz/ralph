@@ -237,7 +237,7 @@ Inspect and manage the task queue (`.ralph/queue.json`) and done archive (`.ralp
 * `show`: show a task by ID.
 * `list`: list tasks in queue order.
 * `search`: search tasks by content (title, evidence, plan, notes, request, tags, scope, custom fields).
-* `archive`: move completed tasks from queue.json to done.json.
+* `archive`: move terminal tasks (done/rejected) from queue.json to done.json.
 * `repair`: repair the queue and done files (fix missing fields, duplicates, timestamps).
 * `unlock`: remove the queue lock file.
 * `sort`: sort tasks by priority (reorders the queue file).
@@ -394,7 +394,7 @@ ralph queue search "refactor" --scope crates/ralph --tag rust
 
 ### `ralph queue archive`
 
-Move completed tasks from `.ralph/queue.json` to `.ralph/done.json`.
+Move terminal tasks (done/rejected) from `.ralph/queue.json` to `.ralph/done.json`.
 
 ```bash
 ralph queue archive

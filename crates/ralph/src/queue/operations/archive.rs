@@ -44,7 +44,8 @@ pub fn archive_terminal_tasks_in_memory(
     Ok(ArchiveReport { moved_ids })
 }
 
-pub fn archive_done_tasks(
+/// Archive terminal tasks (Done/Rejected) from queue to done file.
+pub fn archive_terminal_tasks(
     queue_path: &Path,
     done_path: &Path,
     id_prefix: &str,
