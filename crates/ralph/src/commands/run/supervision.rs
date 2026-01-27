@@ -469,36 +469,10 @@ mod tests {
         AgentConfig, Config, QueueConfig, QueueFile, Runner, Task, TaskPriority, TaskStatus,
     };
     use crate::queue;
+    use crate::testsupport::git as git_test;
     use std::path::Path;
     use std::path::PathBuf;
-    use std::process::Command;
     use tempfile::TempDir;
-
-    fn git_run(repo_root: &Path, args: &[&str]) -> Result<()> {
-        let status = Command::new("git")
-            .current_dir(repo_root)
-            .args(args)
-            .status()?;
-        anyhow::ensure!(status.success(), "git {:?} failed", args);
-        Ok(())
-    }
-
-    fn git_output(repo_root: &Path, args: &[&str]) -> Result<String> {
-        let output = Command::new("git")
-            .current_dir(repo_root)
-            .args(args)
-            .output()?;
-        anyhow::ensure!(output.status.success(), "git {:?} failed", args);
-        Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
-    }
-
-    fn init_repo(dir: &Path) -> Result<()> {
-        git_run(dir, &["init"])?;
-        git_run(dir, &["config", "user.email", "test@example.com"])?;
-        git_run(dir, &["config", "user.name", "Test User"])?;
-        std::fs::create_dir_all(dir.join(".ralph"))?;
-        Ok(())
-    }
 
     fn write_queue(repo_root: &Path, status: TaskStatus) -> Result<()> {
         let task = Task {
@@ -527,12 +501,6 @@ mod tests {
                 tasks: vec![task],
             },
         )?;
-        Ok(())
-    }
-
-    fn commit_all(repo_root: &Path, message: &str) -> Result<()> {
-        git_run(repo_root, &["add", "-A"])?;
-        git_run(repo_root, &["commit", "-m", message])?;
         Ok(())
     }
 
@@ -617,15 +585,15 @@ mod tests {
     #[test]
     fn post_run_supervise_commits_and_cleans_when_enabled() -> Result<()> {
         let temp = TempDir::new()?;
-        init_repo(temp.path())?;
+        git_test::init_repo(temp.path())?;
         write_queue(temp.path(), TaskStatus::Todo)?;
-        commit_all(temp.path(), "init")?;
+        git_test::commit_all(temp.path(), "init")?;
         std::fs::write(temp.path().join("work.txt"), "change")?;
 
         let resolved = resolved_for_repo(temp.path());
         post_run_supervise(&resolved, "RQ-0001", GitRevertMode::Disabled, true, None)?;
 
-        let status = git_output(temp.path(), &["status", "--porcelain"])?;
+        let status = git_test::git_output(temp.path(), &["status", "--porcelain"])?;
         anyhow::ensure!(status.trim().is_empty(), "expected clean repo");
 
         let done_file = queue::load_queue_or_default(&resolved.done_path)?;
@@ -640,15 +608,15 @@ mod tests {
     #[test]
     fn post_run_supervise_skips_commit_when_disabled() -> Result<()> {
         let temp = TempDir::new()?;
-        init_repo(temp.path())?;
+        git_test::init_repo(temp.path())?;
         write_queue(temp.path(), TaskStatus::Todo)?;
-        commit_all(temp.path(), "init")?;
+        git_test::commit_all(temp.path(), "init")?;
         std::fs::write(temp.path().join("work.txt"), "change")?;
 
         let resolved = resolved_for_repo(temp.path());
         post_run_supervise(&resolved, "RQ-0001", GitRevertMode::Disabled, false, None)?;
 
-        let status = git_output(temp.path(), &["status", "--porcelain"])?;
+        let status = git_test::git_output(temp.path(), &["status", "--porcelain"])?;
         anyhow::ensure!(!status.trim().is_empty(), "expected dirty repo");
         Ok(())
     }
@@ -656,9 +624,9 @@ mod tests {
     #[test]
     fn post_run_supervise_backfills_missing_completed_at() -> Result<()> {
         let temp = TempDir::new()?;
-        init_repo(temp.path())?;
+        git_test::init_repo(temp.path())?;
         write_queue(temp.path(), TaskStatus::Done)?;
-        commit_all(temp.path(), "init")?;
+        git_test::commit_all(temp.path(), "init")?;
 
         let resolved = resolved_for_repo(temp.path());
         post_run_supervise(&resolved, "RQ-0001", GitRevertMode::Disabled, false, None)?;
@@ -682,20 +650,20 @@ mod tests {
     #[test]
     fn post_run_supervise_errors_on_push_failure_when_enabled() -> Result<()> {
         let temp = TempDir::new()?;
-        init_repo(temp.path())?;
+        git_test::init_repo(temp.path())?;
         write_queue(temp.path(), TaskStatus::Todo)?;
-        commit_all(temp.path(), "init")?;
+        git_test::commit_all(temp.path(), "init")?;
 
         let remote = TempDir::new()?;
-        git_run(remote.path(), &["init", "--bare"])?;
-        let branch = git_output(temp.path(), &["rev-parse", "--abbrev-ref", "HEAD"])?;
-        git_run(
+        git_test::git_run(remote.path(), &["init", "--bare"])?;
+        let branch = git_test::git_output(temp.path(), &["rev-parse", "--abbrev-ref", "HEAD"])?;
+        git_test::git_run(
             temp.path(),
             &["remote", "add", "origin", remote.path().to_str().unwrap()],
         )?;
-        git_run(temp.path(), &["push", "-u", "origin", &branch])?;
+        git_test::git_run(temp.path(), &["push", "-u", "origin", &branch])?;
         let missing_remote = temp.path().join("missing-remote");
-        git_run(
+        git_test::git_run(
             temp.path(),
             &[
                 "remote",
@@ -717,20 +685,20 @@ mod tests {
     #[test]
     fn post_run_supervise_skips_push_when_disabled() -> Result<()> {
         let temp = TempDir::new()?;
-        init_repo(temp.path())?;
+        git_test::init_repo(temp.path())?;
         write_queue(temp.path(), TaskStatus::Todo)?;
-        commit_all(temp.path(), "init")?;
+        git_test::commit_all(temp.path(), "init")?;
 
         let remote = TempDir::new()?;
-        git_run(remote.path(), &["init", "--bare"])?;
-        let branch = git_output(temp.path(), &["rev-parse", "--abbrev-ref", "HEAD"])?;
-        git_run(
+        git_test::git_run(remote.path(), &["init", "--bare"])?;
+        let branch = git_test::git_output(temp.path(), &["rev-parse", "--abbrev-ref", "HEAD"])?;
+        git_test::git_run(
             temp.path(),
             &["remote", "add", "origin", remote.path().to_str().unwrap()],
         )?;
-        git_run(temp.path(), &["push", "-u", "origin", &branch])?;
+        git_test::git_run(temp.path(), &["push", "-u", "origin", &branch])?;
         let missing_remote = temp.path().join("missing-remote");
-        git_run(
+        git_test::git_run(
             temp.path(),
             &[
                 "remote",

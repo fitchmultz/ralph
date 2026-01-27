@@ -787,35 +787,18 @@ mod porcelain_parser_tests {
 #[cfg(test)]
 mod clean_repo_tests {
     use super::*;
-    use std::path::Path;
-    use std::process::Command;
+    use crate::testsupport::git as git_test;
     use tempfile::TempDir;
-
-    fn git_run(repo_root: &Path, args: &[&str]) -> Result<()> {
-        let status = Command::new("git")
-            .current_dir(repo_root)
-            .args(args)
-            .status()?;
-        anyhow::ensure!(status.success(), "git {:?} failed", args);
-        Ok(())
-    }
-
-    fn init_repo(repo_root: &Path) -> Result<()> {
-        git_run(repo_root, &["init"])?;
-        git_run(repo_root, &["config", "user.email", "test@example.com"])?;
-        git_run(repo_root, &["config", "user.name", "Test User"])?;
-        Ok(())
-    }
 
     #[test]
     fn repo_dirty_only_allowed_paths_detects_config_only_changes() -> Result<()> {
         let temp = TempDir::new()?;
-        init_repo(temp.path())?;
+        git_test::init_repo(temp.path())?;
         std::fs::create_dir_all(temp.path().join(".ralph"))?;
         let config_path = temp.path().join(".ralph/config.json");
         std::fs::write(&config_path, "{ \"version\": 1 }")?;
-        git_run(temp.path(), &["add", ".ralph/config.json"])?;
-        git_run(temp.path(), &["commit", "-m", "init config"])?;
+        git_test::git_run(temp.path(), &["add", ".ralph/config.json"])?;
+        git_test::git_run(temp.path(), &["commit", "-m", "init config"])?;
 
         std::fs::write(&config_path, "{ \"version\": 2 }")?;
 
@@ -829,7 +812,7 @@ mod clean_repo_tests {
     #[test]
     fn repo_dirty_only_allowed_paths_rejects_other_changes() -> Result<()> {
         let temp = TempDir::new()?;
-        init_repo(temp.path())?;
+        git_test::init_repo(temp.path())?;
         std::fs::write(temp.path().join("notes.txt"), "hello")?;
 
         let dirty_allowed =
@@ -841,7 +824,7 @@ mod clean_repo_tests {
     #[test]
     fn repo_dirty_only_allowed_paths_accepts_directory_prefix_with_trailing_slash() -> Result<()> {
         let temp = TempDir::new()?;
-        init_repo(temp.path())?;
+        git_test::init_repo(temp.path())?;
         std::fs::create_dir_all(temp.path().join("cache/plans"))?;
         std::fs::write(temp.path().join("cache/plans/plan.md"), "plan")?;
 
@@ -855,7 +838,7 @@ mod clean_repo_tests {
     fn repo_dirty_only_allowed_paths_accepts_existing_directory_prefix_without_slash() -> Result<()>
     {
         let temp = TempDir::new()?;
-        init_repo(temp.path())?;
+        git_test::init_repo(temp.path())?;
         std::fs::create_dir_all(temp.path().join("cache"))?;
         std::fs::write(temp.path().join("cache/notes.txt"), "notes")?;
 
@@ -868,7 +851,7 @@ mod clean_repo_tests {
     #[test]
     fn repo_dirty_only_allowed_paths_rejects_paths_outside_allowed_directory() -> Result<()> {
         let temp = TempDir::new()?;
-        init_repo(temp.path())?;
+        git_test::init_repo(temp.path())?;
         std::fs::create_dir_all(temp.path().join("cache"))?;
         std::fs::write(temp.path().join("cache/notes.txt"), "notes")?;
         std::fs::write(temp.path().join("other.txt"), "nope")?;

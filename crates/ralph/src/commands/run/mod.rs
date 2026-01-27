@@ -18,9 +18,9 @@ mod supervision;
 use selection::select_run_one_task_index;
 use supervision::{find_task_status, post_run_supervise};
 
-// Preserve existing `commands::run` unit tests which call `apply_phase3_completion_signal` directly.
+// Preserve existing `commands::run` unit tests which call phase 3 helpers directly.
 #[allow(unused_imports)]
-pub(crate) use phases::apply_phase3_completion_signal;
+pub(crate) use phases::{apply_phase3_completion_signal, finalize_phase3_if_done};
 
 pub use crate::agent::AgentOverrides;
 

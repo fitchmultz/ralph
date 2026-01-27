@@ -18,6 +18,7 @@ mod tests;
 
 pub use phase1::execute_phase1_planning;
 pub use phase2::execute_phase2_implementation;
+pub(crate) use phase3::finalize_phase3_if_done;
 pub use phase3::{apply_phase3_completion_signal, execute_phase3_review};
 pub use single::execute_single_phase;
 

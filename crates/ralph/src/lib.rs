@@ -54,3 +54,6 @@ mod prompts_internal;
 
 #[cfg(test)]
 mod runutil_tests;
+
+#[cfg(test)]
+pub(crate) mod testsupport;

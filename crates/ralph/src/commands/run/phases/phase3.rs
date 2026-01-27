@@ -5,7 +5,7 @@ use super::PhaseInvocation;
 use crate::commands::run::{logging, supervision};
 use crate::completions;
 use crate::config;
-use crate::contracts::TaskStatus;
+use crate::contracts::{GitRevertMode, TaskStatus};
 use crate::{gitutil, promptflow, prompts, queue, runutil, timeutil};
 use anyhow::{anyhow, bail, Result};
 
@@ -133,17 +133,21 @@ pub fn execute_phase3_review(ctx: &PhaseInvocation<'_>) -> Result<()> {
             ci_failure_retry_count: 0,
         };
 
+        let mut finalized = false;
+
         loop {
-            if let Some(status) = apply_phase3_completion_signal(ctx.resolved, ctx.task_id)? {
-                if status == TaskStatus::Done {
-                    crate::commands::run::post_run_supervise(
-                        ctx.resolved,
-                        ctx.task_id,
-                        ctx.git_revert_mode,
-                        ctx.git_commit_push_enabled,
-                        ctx.revert_prompt.clone(),
-                    )?;
-                }
+            let applied_status = apply_phase3_completion_signal(ctx.resolved, ctx.task_id)?;
+            if !finalized
+                && finalize_phase3_if_done(
+                    ctx.resolved,
+                    ctx.task_id,
+                    applied_status,
+                    ctx.git_revert_mode,
+                    ctx.git_commit_push_enabled,
+                    ctx.revert_prompt.clone(),
+                )?
+            {
+                finalized = true;
             }
 
             match ensure_phase3_completion(ctx.resolved, ctx.task_id, ctx.git_commit_push_enabled) {
@@ -182,6 +186,65 @@ pub fn execute_phase3_review(ctx: &PhaseInvocation<'_>) -> Result<()> {
     })
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct Phase3TaskSnapshot {
+    status: TaskStatus,
+    in_done: bool,
+}
+
+fn load_phase3_task_snapshot(
+    resolved: &config::Resolved,
+    task_id: &str,
+) -> Result<Option<Phase3TaskSnapshot>> {
+    let queue_file = queue::load_queue(&resolved.queue_path)?;
+    let done_file = queue::load_queue_or_default(&resolved.done_path)?;
+    let done_ref = if done_file.tasks.is_empty() && !resolved.done_path.exists() {
+        None
+    } else {
+        Some(&done_file)
+    };
+    queue::validate_queue_set(
+        &queue_file,
+        done_ref,
+        &resolved.id_prefix,
+        resolved.id_width,
+    )?;
+    Ok(
+        crate::commands::run::find_task_status(&queue_file, &done_file, task_id)
+            .map(|(status, _title, in_done)| Phase3TaskSnapshot { status, in_done }),
+    )
+}
+
+pub(crate) fn finalize_phase3_if_done(
+    resolved: &config::Resolved,
+    task_id: &str,
+    applied_status: Option<TaskStatus>,
+    git_revert_mode: GitRevertMode,
+    git_commit_push_enabled: bool,
+    revert_prompt: Option<runutil::RevertPromptHandler>,
+) -> Result<bool> {
+    let should_finalize = if matches!(applied_status, Some(TaskStatus::Done)) {
+        true
+    } else {
+        load_phase3_task_snapshot(resolved, task_id)?
+            .map(|snapshot| snapshot.in_done && snapshot.status == TaskStatus::Done)
+            .unwrap_or(false)
+    };
+
+    if !should_finalize {
+        return Ok(false);
+    }
+
+    crate::commands::run::post_run_supervise(
+        resolved,
+        task_id,
+        git_revert_mode,
+        git_commit_push_enabled,
+        revert_prompt,
+    )?;
+    Ok(true)
+}
+
 pub fn apply_phase3_completion_signal(
     resolved: &config::Resolved,
     task_id: &str,
@@ -190,8 +253,28 @@ pub fn apply_phase3_completion_signal(
         return Ok(None);
     };
 
-    let now = timeutil::now_utc_rfc3339()?;
     let status = signal.status;
+    if let Some(snapshot) = load_phase3_task_snapshot(resolved, task_id)? {
+        if snapshot.in_done {
+            if snapshot.status != status {
+                bail!(
+                    "Completion signal status {:?} does not match archived task status {:?} for {}.",
+                    status,
+                    snapshot.status,
+                    task_id
+                );
+            }
+            remove_completion_signal(resolved, task_id)?;
+            log::info!(
+                "Completion signal for {} already applied (status {:?}); removing signal.",
+                task_id,
+                status
+            );
+            return Ok(Some(status));
+        }
+    }
+
+    let now = timeutil::now_utc_rfc3339()?;
     queue::complete_task(
         &resolved.queue_path,
         &resolved.done_path,
@@ -202,18 +285,23 @@ pub fn apply_phase3_completion_signal(
         &resolved.id_prefix,
         resolved.id_width,
     )?;
-    let signal_path = completions::completion_signal_path(&resolved.repo_root, task_id)?;
-    if let Err(err) = std::fs::remove_file(&signal_path) {
-        if err.kind() != std::io::ErrorKind::NotFound {
-            return Err(err.into());
-        }
-    }
+    remove_completion_signal(resolved, task_id)?;
     log::info!(
         "Supervisor finalized task {} with status {:?} from Phase 3 completion signal.",
         task_id,
         status
     );
     Ok(Some(status))
+}
+
+fn remove_completion_signal(resolved: &config::Resolved, task_id: &str) -> Result<()> {
+    let signal_path = completions::completion_signal_path(&resolved.repo_root, task_id)?;
+    if let Err(err) = std::fs::remove_file(&signal_path) {
+        if err.kind() != std::io::ErrorKind::NotFound {
+            return Err(err.into());
+        }
+    }
+    Ok(())
 }
 
 pub fn ensure_phase3_completion(

@@ -7057,6 +7057,61 @@
       "completed_at": "2026-01-27T16:33:27.793108000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0334",
+      "status": "done",
+      "title": "Fix Phase 3 completion race: ensure terminal archive + completion artifact despite dirty repo",
+      "priority": "high",
+      "tags": [
+        "phase-3",
+        "supervisor",
+        "race-condition",
+        "queue",
+        "completion",
+        "completion-signal",
+        "git"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/phases/phase3.rs",
+        "crates/ralph/src/commands/run/supervision.rs",
+        "crates/ralph/src/completions.rs",
+        "crates/ralph/src/cli/task.rs",
+        "crates/ralph/src/gitutil.rs",
+        ".ralph/queue.json",
+        ".ralph/done.json",
+        ".ralph/cache/completions",
+        "docs/cli.md",
+        "make ci"
+      ],
+      "evidence": [
+        "`crates/ralph/src/commands/run/phases/phase3.rs`: `ensure_phase3_completion` validates queue+done and errors unless the task is archived in done.json with status Done/Rejected.",
+        "`crates/ralph/src/commands/run/phases/phase3.rs`: when git commit/push is enabled, Phase 3 requires a clean repo, ignoring only `.ralph/config.json` for Done and using `RALPH_RUN_CLEAN_ALLOWED_PATHS` for Rejected.",
+        "`crates/ralph/src/commands/run/phases/phase3.rs`: `apply_phase3_completion_signal` reads `.ralph/cache/completions/<task>.json`, updates queue/done, then removes the signal file.",
+        "`crates/ralph/src/cli/task.rs`: under supervision, `ralph task done` writes a completion signal instead of directly updating queue/done.",
+        ".ralph/cache/completions exists and currently contains RQ-0318.json."
+      ],
+      "plan": [
+        "Review Phase 3 completion loop (apply completion signal, `post_run_supervise`, `ensure_phase3_completion`) and confirm the ordering of archive checks vs git-clean enforcement.",
+        "Reproduce the failure path by simulating a supervised completion signal plus dirty repo (queue/done updated) to see when the archive check or clean-repo check trips.",
+        "Adjust ordering/logic so the terminal archive status is checked after queue/done updates and completion signals are persisted, without treating queue/done edits as an incomplete Phase 3.",
+        "If clean-repo enforcement needs to tolerate queue/done updates, update the allowlist or add a targeted exception with clear justification.",
+        "Add tests for success and failure modes: completion signal present/absent, task archived vs missing, and dirty repo with queue/done updates.",
+        "Update CLI docs/help if the Phase 3 completion requirements or `ralph task done` behavior changes.",
+        "Run `make ci`."
+      ],
+      "notes": [
+        "Completion signal artifacts are stored under `.ralph/cache/completions` and the directory is currently populated (RQ-0318.json), so the completion-signal path is active in this repo.",
+        "Finalize Phase 3 when completion signal is missing but task is already archived.",
+        "Make completion signals idempotent and add tests for archived/no-signal completion.",
+        "Centralize unit-test git helpers and update tests to use them."
+      ],
+      "request": "There is a bug and/or race condition intermittently happening upon phase 3 agent completion which causes the superviosr to engage and interrupt and nothing can be done to get it to finish properly and cleanly. Supervisor claimed \"Error: Phase 3 incomplete: task was not archived with a terminal status. Revert skipped (user chose to keep changes). Error: repo is dirty; commit/stash your changes before running Ralph.\" but the task had properly been moved from queue.json to done.json with a status of 'done'. See interaction with an agent below.\n---\nPhase 3 completion check: action? [1=keep (default), 2=revert, 3=other]: is 'make ci' clean?\n[Reasoning] **Confirming CI run with live tests skipped**\n\nYes, I ran 'make ci SKIP_LIVE_TESTS=1' and all tests passed with live tests skipped as requested.\nYes. 'make ci' completed cleanly with 'SKIP_LIVE_TESTS=1' (live tests were skipped by that flag).\n\nPhase 3 completion check: action? [1=keep (default), 2=revert, 3=other]: the completion file in .ralph/cache/completions is not present for this task ID\n[Reasoning] **Checking file presence**\n[Command] /bin/zsh -lc 'ls -la /Users/mitchfultz/Projects/splunk-tui/.ralph/cache/completions' (in_progress)\n[Command] /bin/zsh -lc 'ls -la /Users/mitchfultz/Projects/splunk-tui/.ralph/cache/completions' (completed) (exit 0)\n[Reasoning] **Confirming empty directory and suggesting next steps**\n\nThe target directory is empty, likely because the ralph completion file wasn't generated or created. I'll confirm this status and ask if the user wants to regenerate it by rerunning the ralph task, noting it might duplicate work.\nConfirmed: '.ralph/cache/completions/' is empty in this repo (no completion file for any task IDs right now).\n\nIf you want me to regenerate the completion artifact for 'RQ-0108', say the word and I’ll investigate the right 'ralph' command to do so (without changing task state).\n\nPhase 3 completion check: action? [1=keep (default), 2=revert, 3=other]: what command did your instructions/prompt tell you to do?\nRun 'ralph task done --note \"<note>\" RQ-0108' after completing checks.\nPhase 3 completion check: action? [1=keep (default), 2=revert, 3=other]: ^[1\n1\n[Reasoning] **Requesting clarification on unclear input**\nI’m not sure what '' refers to here. Can you clarify what you want me to do or check?\n\nPhase 3 completion check: action? [1=keep (default), 2=revert, 3=other]: [2026-01-27T15:31:30Z ERROR ralph::commands::run::logging] Phase 3/3 (Review) for RQ-0108: error: Phase 3 incomplete: task was not archived with a terminal status. Revert skipped (user chose to keep changes). Error: repo is dirty; commit/stash your changes before running Ralph.\n\n    Tracked changes (suggest 'git stash' or 'git commit'):\n       M .ralph/done.json\n       M .ralph/queue.json\n       M Makefile\n       M crates/tui/Cargo.toml\n       M crates/tui/src/action.rs\n       M crates/tui/src/app.rs\n       M crates/tui/src/lib.rs\n       M crates/tui/src/ui/popup.rs\n       M crates/tui/tests/app_tests.rs\n       M crates/tui/tests/snapshots/snapshot_tests__snapshot_help_popup.snap\n      ...and 2 more\n\n    Untracked files (suggest 'git clean -fd' or 'git add'):\n      ?? crates/tui/src/bin/\n      ?? crates/tui/src/input/\n\n    Use --force to bypass this check if you are sure.\n[2026-01-27T15:31:30Z ERROR ralph::commands::run] Task RQ-0108: error\n[2026-01-27T15:31:30Z ERROR ralph::commands::run::logging] RunLoop (todo=15, max_tasks=0): error: Phase 3 incomplete: task was not archived with a terminal status. Revert skipped (user chose to keep changes). Error: repo is dirty; commit/stash your changes before running Ralph.\n\n    Tracked changes (suggest 'git stash' or 'git commit'):\n       M .ralph/done.json\n       M .ralph/queue.json\n       M Makefile\n       M crates/tui/Cargo.toml\n       M crates/tui/src/action.rs\n       M crates/tui/src/app.rs\n       M crates/tui/src/lib.rs\n       M crates/tui/src/ui/popup.rs\n       M crates/tui/tests/app_tests.rs\n       M crates/tui/tests/snapshots/snapshot_tests__snapshot_help_popup.snap\n      ...and 2 more\n\n    Untracked files (suggest 'git clean -fd' or 'git add'):\n      ?? crates/tui/src/bin/\n      ?? crates/tui/src/input/\n\n    Use --force to bypass this check if you are sure.\nError: Phase 3 incomplete: task was not archived with a terminal status. Revert skipped (user chose to keep changes). Error: repo is dirty; commit/stash your changes before running Ralph.\n\nTracked changes (suggest 'git stash' or 'git commit'):\n   M .ralph/done.json\n   M .ralph/queue.json\n   M Makefile\n   M crates/tui/Cargo.toml\n   M crates/tui/src/action.rs\n   M crates/tui/src/app.rs\n   M crates/tui/src/lib.rs\n   M crates/tui/src/ui/popup.rs\n   M crates/tui/tests/app_tests.rs\n   M crates/tui/tests/snapshots/snapshot_tests__snapshot_help_popup.snap\n  ...and 2 more\n\nUntracked files (suggest 'git clean -fd' or 'git add'):\n  ?? crates/tui/src/bin/\n  ?? crates/tui/src/input/\n\nUse --force to bypass this check if you are sure.",
+      "created_at": "2026-01-27T16:36:30Z",
+      "updated_at": "2026-01-27T17:18:28.242223000Z",
+      "completed_at": "2026-01-27T17:18:28.242223000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

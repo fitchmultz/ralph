@@ -11,6 +11,7 @@ use crate::contracts::{
 };
 use crate::queue;
 use crate::runner;
+use crate::testsupport::git as git_test;
 use log::{LevelFilter, Log, Metadata, Record};
 use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
@@ -609,6 +610,44 @@ fn apply_phase3_completion_signal_moves_task_and_clears_signal() -> anyhow::Resu
 }
 
 #[test]
+fn apply_phase3_completion_signal_already_archived_clears_signal() -> anyhow::Result<()> {
+    let temp = TempDir::new()?;
+    let resolved = resolved_with_repo_root(temp.path().to_path_buf());
+
+    let queue_file = QueueFile {
+        version: 1,
+        tasks: vec![],
+    };
+    queue::save_queue(&resolved.queue_path, &queue_file)?;
+
+    let mut done_task = task_with_status(TaskStatus::Done);
+    done_task.completed_at = Some("2026-01-20T00:00:00Z".to_string());
+    let done_file = QueueFile {
+        version: 1,
+        tasks: vec![done_task],
+    };
+    queue::save_queue(&resolved.done_path, &done_file)?;
+
+    let signal = completions::CompletionSignal {
+        task_id: "RQ-0001".to_string(),
+        status: TaskStatus::Done,
+        notes: vec!["Reviewed".to_string()],
+    };
+    completions::write_completion_signal(&resolved.repo_root, &signal)?;
+
+    let status = super::apply_phase3_completion_signal(&resolved, "RQ-0001")?;
+    assert_eq!(status, Some(TaskStatus::Done));
+
+    let done = queue::load_queue(&resolved.done_path)?;
+    assert_eq!(done.tasks.len(), 1);
+    assert_eq!(done.tasks[0].id, "RQ-0001");
+
+    let signal_after = completions::read_completion_signal(&resolved.repo_root, "RQ-0001")?;
+    assert!(signal_after.is_none());
+    Ok(())
+}
+
+#[test]
 fn apply_phase3_completion_signal_missing_returns_none() -> anyhow::Result<()> {
     let temp = TempDir::new()?;
     let resolved = resolved_with_repo_root(temp.path().to_path_buf());
@@ -650,5 +689,43 @@ fn apply_phase3_completion_signal_keeps_signal_on_failure() -> anyhow::Result<()
 
     let signal_after = completions::read_completion_signal(&resolved.repo_root, "RQ-0001")?;
     assert!(signal_after.is_some());
+    Ok(())
+}
+
+#[test]
+fn finalize_phase3_if_done_runs_post_run_supervise_without_signal() -> anyhow::Result<()> {
+    let temp = TempDir::new()?;
+    git_test::init_repo(temp.path())?;
+    let mut resolved = resolved_with_repo_root(temp.path().to_path_buf());
+    resolved.config.agent.ci_gate_enabled = Some(false);
+
+    let queue_file = QueueFile {
+        version: 1,
+        tasks: vec![],
+    };
+    queue::save_queue(&resolved.queue_path, &queue_file)?;
+    let mut done_task = task_with_status(TaskStatus::Done);
+    done_task.completed_at = Some("2026-01-20T00:00:00Z".to_string());
+    let done_file = QueueFile {
+        version: 1,
+        tasks: vec![done_task],
+    };
+    queue::save_queue(&resolved.done_path, &done_file)?;
+    git_test::commit_all(temp.path(), "init")?;
+
+    std::fs::write(temp.path().join("work.txt"), "change")?;
+
+    let finalized = super::finalize_phase3_if_done(
+        &resolved,
+        "RQ-0001",
+        None,
+        GitRevertMode::Disabled,
+        true,
+        None,
+    )?;
+    assert!(finalized, "expected phase 3 finalization to run");
+
+    let status = git_test::git_output(temp.path(), &["status", "--porcelain"])?;
+    anyhow::ensure!(status.trim().is_empty(), "expected clean repo");
     Ok(())
 }
