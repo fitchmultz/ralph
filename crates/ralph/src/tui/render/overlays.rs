@@ -170,9 +170,20 @@ pub(super) fn draw_command_palette(
     f.render_widget(Paragraph::new(input), inner_chunks[0]);
 
     let list_height = inner_chunks[1].height as usize;
-    let visible_len = entries.len().min(list_height);
-    let visible_entries = &entries[..visible_len];
-    let selected_idx = selected.min(visible_entries.len().saturating_sub(1));
+    let entry_count = entries.len();
+    let selected = selected.min(entry_count.saturating_sub(1));
+    let (start, end) = if list_height == 0 || entry_count == 0 {
+        (0, 0)
+    } else {
+        let max_start = entry_count.saturating_sub(list_height);
+        let start = selected
+            .saturating_sub(list_height.saturating_sub(1))
+            .min(max_start);
+        let end = (start + list_height).min(entry_count);
+        (start, end)
+    };
+    let visible_entries = &entries[start..end];
+    let selected_idx = selected.saturating_sub(start);
 
     // Borrow entry titles instead of cloning them every draw.
     let items: Vec<ListItem<'_>> = if visible_entries.is_empty() {

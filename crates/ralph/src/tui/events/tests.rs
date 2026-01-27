@@ -542,6 +542,105 @@ fn command_palette_with_no_matches_sets_status_message() {
 }
 
 #[test]
+fn command_palette_typing_jk_appends_query_and_resets_selection() {
+    let mut app = App::new(QueueFile::default());
+    app.mode = AppMode::CommandPalette {
+        query: "ru".to_string(),
+        selected: 4,
+    };
+
+    let action = handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('j')),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("handle key");
+
+    assert_eq!(action, TuiAction::Continue);
+    match &app.mode {
+        AppMode::CommandPalette { query, selected } => {
+            assert_eq!(query, "ruj");
+            assert_eq!(*selected, 0);
+        }
+        other => panic!("expected command palette, got {:?}", other),
+    }
+
+    let action = handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('k')),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("handle key");
+
+    assert_eq!(action, TuiAction::Continue);
+    match &app.mode {
+        AppMode::CommandPalette { query, selected } => {
+            assert_eq!(query, "rujk");
+            assert_eq!(*selected, 0);
+        }
+        other => panic!("expected command palette, got {:?}", other),
+    }
+}
+
+#[test]
+fn command_palette_up_down_navigation_preserves_query() {
+    let mut app = App::new(QueueFile::default());
+    app.mode = AppMode::CommandPalette {
+        query: "run".to_string(),
+        selected: 1,
+    };
+
+    let action = handle_key_event(&mut app, key_event(KeyCode::Up), "2026-01-20T00:00:00Z")
+        .expect("handle key");
+
+    assert_eq!(action, TuiAction::Continue);
+    match &app.mode {
+        AppMode::CommandPalette { query, selected } => {
+            assert_eq!(query, "run");
+            assert_eq!(*selected, 0);
+        }
+        other => panic!("expected command palette, got {:?}", other),
+    }
+
+    let action = handle_key_event(&mut app, key_event(KeyCode::Down), "2026-01-20T00:00:00Z")
+        .expect("handle key");
+
+    assert_eq!(action, TuiAction::Continue);
+    match &app.mode {
+        AppMode::CommandPalette { query, selected } => {
+            assert_eq!(query, "run");
+            assert_eq!(*selected, 1);
+        }
+        other => panic!("expected command palette, got {:?}", other),
+    }
+}
+
+#[test]
+fn command_palette_ctrl_char_is_ignored_for_text_entry() {
+    let mut app = App::new(QueueFile::default());
+    app.mode = AppMode::CommandPalette {
+        query: "run".to_string(),
+        selected: 2,
+    };
+
+    let action = handle_key_event(
+        &mut app,
+        ctrl_key_event(KeyCode::Char('j')),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("handle key");
+
+    assert_eq!(action, TuiAction::Continue);
+    match &app.mode {
+        AppMode::CommandPalette { query, selected } => {
+            assert_eq!(query, "run");
+            assert_eq!(*selected, 2);
+        }
+        other => panic!("expected command palette, got {:?}", other),
+    }
+}
+
+#[test]
 fn c_enters_config_mode() {
     let queue = QueueFile {
         version: 1,

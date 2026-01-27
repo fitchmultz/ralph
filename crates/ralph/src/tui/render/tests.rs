@@ -1,6 +1,15 @@
 //! Unit tests for TUI rendering components.
 //!
-//! These are isolated unit tests for rendering utilities and helpers.
+//! Responsibilities:
+//! - Validate rendering helpers and overlays using `TestBackend`.
+//! - Confirm rendered output for key overlays and layout utilities.
+//!
+//! Not handled here:
+//! - Event handling or queue mutation logic.
+//! - Runner execution side effects or terminal IO integration.
+//!
+//! Invariants/assumptions:
+//! - Tests use deterministic buffers and ASCII-only assertions.
 
 use super::super::{App, AppMode};
 use super::utils::{priority_color, status_color, wrap_text};
@@ -128,6 +137,68 @@ fn executing_view_updates_visible_lines_cache() {
 fn wrap_text_handles_zero_width_without_panicking() {
     let lines = wrap_text("hello", 0);
     assert!(!lines.is_empty());
+}
+
+#[test]
+fn command_palette_scrolls_selected_entry_into_view() {
+    use ratatui::style::Color;
+    use ratatui::{backend::TestBackend, Terminal};
+
+    let backend = TestBackend::new(80, 8);
+    let mut terminal = Terminal::new(backend).expect("create terminal");
+    let mut app = App::new(QueueFile::default());
+    app.mode = AppMode::CommandPalette {
+        query: "".to_string(),
+        selected: 16,
+    };
+
+    terminal
+        .draw(|f| {
+            app.detail_width = f.area().width.saturating_sub(4);
+            tui::draw_ui(f, &mut app)
+        })
+        .expect("draw ui");
+
+    let buffer = terminal.backend().buffer();
+    let target = "Toggle regex search";
+    let target_chars: Vec<char> = target.chars().collect();
+    let target_len = target_chars.len() as u16;
+    let mut found = None;
+
+    assert!(
+        buffer.area.width >= target_len,
+        "terminal width too small for target"
+    );
+
+    for y in 0..buffer.area.height {
+        for x_start in 0..=buffer.area.width.saturating_sub(target_len) {
+            let mut matched = true;
+            for (offset, expected) in target_chars.iter().enumerate() {
+                let x = x_start + offset as u16;
+                let cell = buffer.cell((x, y)).expect("cell in buffer");
+                let mut symbol_iter = cell.symbol().chars();
+                if symbol_iter.next() != Some(*expected) || symbol_iter.next().is_some() {
+                    matched = false;
+                    break;
+                }
+            }
+            if matched {
+                found = Some((y, x_start));
+                break;
+            }
+        }
+        if found.is_some() {
+            break;
+        }
+    }
+
+    let (row, col) = found.expect("expected selected entry to be visible");
+    for offset in 0..target_chars.len() {
+        let cell = buffer
+            .cell((col + offset as u16, row))
+            .expect("cell in buffer");
+        assert_eq!(cell.bg, Color::Blue);
+    }
 }
 
 #[test]

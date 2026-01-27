@@ -6513,6 +6513,48 @@
       "completed_at": "2026-01-27T05:50:58.748524000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0315",
+      "status": "done",
+      "title": "TUI: command palette scroll + allow typing all characters (fix j/k capture)",
+      "priority": "high",
+      "tags": [
+        "tui",
+        "ux",
+        "palette",
+        "keybindings"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/events/palette.rs",
+        "crates/ralph/src/tui/render/overlays.rs",
+        "crates/ralph/src/tui/events/tests.rs",
+        "crates/ralph/src/tui/render/tests.rs",
+        "make ci"
+      ],
+      "evidence": [
+        "`crates/ralph/src/tui/events/palette.rs`: `KeyCode::Char('j')` and `KeyCode::Char('k')` are treated as navigation, so those letters never reach the palette query input.",
+        "`crates/ralph/src/tui/render/overlays.rs`: `draw_command_palette` renders `entries[..visible_len]` and clamps `selected` to the visible slice, so entries beyond the first page are never shown and the highlight can desync from the actual selection."
+      ],
+      "plan": [
+        "Update command palette key handling to reserve navigation for non-character keys and allow all plain characters (including j/k) to edit the query.",
+        "Compute a scroll window for the palette list based on `selected` and available height, then render the window with the correct highlight offset.",
+        "Add/extend tests for palette text entry (j/k typed) and for rendering the selected entry when it falls beyond the first page.",
+        "Run `make ci`."
+      ],
+      "notes": [
+        "Allow command palette text entry for all plain characters (j/k no longer captured as nav).",
+        "Render palette list with scroll window based on selection so off-page entries display and highlight correctly.",
+        "Added palette event tests for j/k input, arrow navigation, and ctrl-char ignore.",
+        "Added render test ensuring scrolled selection is visible and highlighted.",
+        "make ci"
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-27T04:35:15Z",
+      "updated_at": "2026-01-27T06:14:46.296600000Z",
+      "completed_at": "2026-01-27T06:14:46.296600000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

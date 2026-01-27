@@ -11,7 +11,7 @@
 //! Invariants/assumptions:
 //! - Input uses plain characters (Ctrl/Alt modifiers are ignored).
 
-use super::{is_plain_char, text_char, App, AppMode, TuiAction};
+use super::{text_char, App, AppMode, TuiAction};
 use crossterm::event::{KeyCode, KeyEvent};
 
 /// High-level commands available in the command palette.
@@ -82,23 +82,7 @@ pub(super) fn handle_command_palette_key(
             };
             Ok(TuiAction::Continue)
         }
-        KeyCode::Char('k') if is_plain_char(&key, 'k') => {
-            let next_selected = selected.saturating_sub(1);
-            app.mode = AppMode::CommandPalette {
-                query: query.to_string(),
-                selected: next_selected,
-            };
-            Ok(TuiAction::Continue)
-        }
         KeyCode::Down => {
-            let next_selected = (selected + 1).min(max_index);
-            app.mode = AppMode::CommandPalette {
-                query: query.to_string(),
-                selected: next_selected,
-            };
-            Ok(TuiAction::Continue)
-        }
-        KeyCode::Char('j') if is_plain_char(&key, 'j') => {
             let next_selected = (selected + 1).min(max_index);
             app.mode = AppMode::CommandPalette {
                 query: query.to_string(),

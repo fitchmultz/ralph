@@ -2,43 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0315",
-      "status": "todo",
-      "title": "TUI: command palette scroll + allow typing all characters (fix j/k capture)",
-      "priority": "high",
-      "tags": [
-        "tui",
-        "ux",
-        "palette",
-        "keybindings"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/events/palette.rs",
-        "crates/ralph/src/tui/render/overlays.rs",
-        "crates/ralph/src/tui/events/types.rs",
-        "crates/ralph/src/tui/events/tests.rs",
-        "make ci"
-      ],
-      "evidence": [
-        "`crates/ralph/src/tui/events/palette.rs`: `KeyCode::Char('j')`/`'k'` are used for navigation, preventing typing those letters into the palette query.",
-        "`crates/ralph/src/tui/render/overlays.rs`: `draw_command_palette` renders `entries[..visible_len]` with no scroll offset; items beyond the viewport are not visible.",
-        "`crates/ralph/src/tui/render/overlays.rs`: selection highlight clamps to the visible subset (`selected.min(visible_entries.len()-1)`), so the UI can misrepresent the real selection."
-      ],
-      "plan": [
-        "Change palette state to track both selection and scroll offset.",
-        "Update palette key handling so characters always edit the query; move navigation to arrows and/or modifier-based keys.",
-        "Update palette rendering to show the correct window into entries and keep selected entry visible.",
-        "Add tests covering: typing `j`/`k` in the query, selecting entries beyond the first page, and correct highlight behavior.",
-        "Run `make ci`."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-27T04:35:15Z",
-      "updated_at": "2026-01-27T04:35:15Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0316",
       "status": "todo",
       "title": "TUI: single source-of-truth keymap; sync footer + help overlay + docs",
