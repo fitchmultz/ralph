@@ -6927,6 +6927,51 @@
       "completed_at": "2026-01-27T14:20:37.941812000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0324",
+      "status": "done",
+      "title": "TUI: implement mouse scrolling/click selection",
+      "priority": "medium",
+      "tags": [
+        "tui",
+        "ux",
+        "input",
+        "mouse"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/app.rs",
+        "crates/ralph/src/tui/events/mod.rs",
+        "crates/ralph/src/tui/render/panels.rs",
+        "crates/ralph/src/tui/events/tests.rs",
+        "make ci"
+      ],
+      "evidence": [
+        "`crates/ralph/src/tui/app.rs`: terminal setup enables `EnableMouseCapture` (cleanup disables it).",
+        "`crates/ralph/src/tui/app.rs`: input loop only matches `Event::Key`, so mouse events are ignored.",
+        "`crates/ralph/src/tui/events/mod.rs`: `handle_key_event` only accepts `KeyEvent`; no mouse handler exists.",
+        "`crates/ralph/src/tui/render/panels.rs`: `draw_task_list` only records `app.list_height`, so list panel bounds aren't available for click hit-testing."
+      ],
+      "plan": [
+        "Store the task list panel bounds on `App` during render so mouse clicks can be mapped to list rows.",
+        "Handle `Event::Mouse` in the main input loop and translate wheel up/down into list or details scrolling based on the focused panel.",
+        "On left-click inside the list bounds, update focus and selection and clamp scroll via existing helpers.",
+        "Add tests for wheel scrolling and click selection (including clicks outside the list and empty lists) in `crates/ralph/src/tui/events/tests.rs`.",
+        "Run `make ci`."
+      ],
+      "notes": [
+        "Mouse hit-testing needs list bounds; only `list_height` is stored today.",
+        "Added mouse scroll-up coverage for list/details.",
+        "Mouse wheel and click selection behavior validated by tests.",
+        "Updated RQ-0330 stale note about mouse events.",
+        "CI: make ci"
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-27T04:35:15Z",
+      "updated_at": "2026-01-27T14:52:37.146419000Z",
+      "completed_at": "2026-01-27T14:52:37.146419000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

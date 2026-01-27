@@ -28,6 +28,7 @@ use ratatui::{
 
 /// Draw the execution view (full-screen output during task execution).
 pub(super) fn draw_execution_view(f: &mut Frame<'_>, app: &mut App, area: Rect) {
+    app.clear_list_area();
     let task_id = app.running_task_id.as_deref().unwrap_or("Unknown");
 
     // Create a block with title
@@ -174,8 +175,17 @@ pub(super) fn draw_task_list(f: &mut Frame<'_>, app: &mut App, area: Rect) {
 
     let title = Line::from(title_spans);
 
-    let list_height = area.height.saturating_sub(2) as usize; // Subtract borders
+    let inner = area.inner(Margin {
+        horizontal: 1,
+        vertical: 1,
+    });
+    let list_height = inner.height as usize;
     app.list_height = list_height;
+    if inner.width == 0 || inner.height == 0 {
+        app.clear_list_area();
+    } else {
+        app.set_list_area(inner);
+    }
 
     let items: Vec<ListItem> = app
         .filtered_indices

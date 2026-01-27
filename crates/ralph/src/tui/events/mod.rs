@@ -1,7 +1,7 @@
 //! TUI event handling extracted from `crate::tui`.
 //!
 //! Responsibilities:
-//! - Dispatch key events to the active `AppMode` handlers.
+//! - Dispatch key and mouse events to the active `AppMode` handlers.
 //! - Expose `handle_key_event` and shared helpers for input parsing.
 //! - Centralize mode-aware keybinding behavior.
 //!
@@ -14,7 +14,7 @@
 //! - Keybinding behavior remains consistent across handlers.
 //! - User-centric shortcuts remain discoverable (e.g. `:` palette, `?`/`h` help).
 
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 
 use super::input::{apply_text_input_key, TextInputEdit};
 use super::{App, TextInput};
@@ -100,6 +100,59 @@ pub fn handle_key_event(
         }
         AppMode::Executing { .. } => run::handle_executing_mode_key(app, key),
     }
+}
+
+/// Handle a mouse event and return the resulting action.
+pub fn handle_mouse_event(app: &mut App, event: MouseEvent) -> anyhow::Result<TuiAction> {
+    if app.mode != AppMode::Normal {
+        return Ok(TuiAction::Continue);
+    }
+
+    match event.kind {
+        MouseEventKind::ScrollUp => {
+            if app.details_focused() {
+                app.scroll_details_up(1);
+            } else {
+                app.move_up();
+            }
+        }
+        MouseEventKind::ScrollDown => {
+            if app.details_focused() {
+                let total_lines = app.details_total_lines;
+                app.scroll_details_down(1, total_lines);
+            } else {
+                let list_height = app.list_height;
+                if list_height > 0 {
+                    app.move_down(list_height);
+                }
+            }
+        }
+        MouseEventKind::Down(MouseButton::Left) => {
+            let Some(area) = app.list_area() else {
+                return Ok(TuiAction::Continue);
+            };
+            if app.filtered_len() == 0 || area.width == 0 || area.height == 0 {
+                return Ok(TuiAction::Continue);
+            }
+            if event.column < area.x
+                || event.column >= area.x.saturating_add(area.width)
+                || event.row < area.y
+                || event.row >= area.y.saturating_add(area.height)
+            {
+                return Ok(TuiAction::Continue);
+            }
+
+            let row_offset = event.row.saturating_sub(area.y) as usize;
+            let selected = app.scroll.saturating_add(row_offset);
+            if selected < app.filtered_len() {
+                app.focus_list_panel();
+                app.set_selected(selected);
+            }
+        }
+        _ => {}
+    }
+
+    Ok(TuiAction::Continue)
 }
 
 pub(super) fn text_char(key: &KeyEvent) -> Option<char> {

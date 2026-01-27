@@ -1,4 +1,4 @@
-//! Event-handling tests for TUI keyboard interactions.
+//! Event-handling tests for TUI keyboard and mouse interactions.
 //!
 //! Responsibilities:
 //! - Validate that key events mutate App state and queue order correctly.
@@ -16,7 +16,8 @@ use super::types::ConfirmDiscardAction;
 use super::*;
 use crate::contracts::{QueueFile, Task, TaskPriority, TaskStatus};
 use crate::tui::TextInput;
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+use ratatui::layout::Rect;
 
 fn key_event(code: KeyCode) -> KeyEvent {
     KeyEvent::new(code, KeyModifiers::NONE)
@@ -24,6 +25,15 @@ fn key_event(code: KeyCode) -> KeyEvent {
 
 fn ctrl_key_event(code: KeyCode) -> KeyEvent {
     KeyEvent::new(code, KeyModifiers::CONTROL)
+}
+
+fn mouse_event(kind: MouseEventKind, column: u16, row: u16) -> MouseEvent {
+    MouseEvent {
+        kind,
+        column,
+        row,
+        modifiers: KeyModifiers::NONE,
+    }
 }
 
 fn input(value: &str) -> TextInput {
@@ -1747,4 +1757,157 @@ fn command_palette_move_task_up_executes() {
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.queue.tasks[0].id, "RQ-0002");
     assert!(app.dirty);
+}
+
+#[test]
+fn mouse_scroll_down_moves_selection_in_list() {
+    let queue = QueueFile {
+        version: 1,
+        tasks: vec![
+            make_test_task("RQ-0001"),
+            make_test_task("RQ-0002"),
+            make_test_task("RQ-0003"),
+        ],
+    };
+    let mut app = App::new(queue);
+    app.list_height = 1;
+
+    let action = handle_mouse_event(&mut app, mouse_event(MouseEventKind::ScrollDown, 1, 1))
+        .expect("handle mouse");
+
+    assert_eq!(action, TuiAction::Continue);
+    assert_eq!(app.selected, 1);
+    assert_eq!(app.scroll, 1);
+}
+
+#[test]
+fn mouse_scroll_down_moves_details_when_focused() {
+    let queue = QueueFile {
+        version: 1,
+        tasks: vec![make_test_task("RQ-0001")],
+    };
+    let mut app = App::new(queue);
+    app.focus_next_panel();
+    app.details_visible_lines = 2;
+    app.details_total_lines = 5;
+    app.details_scroll = 0;
+
+    let action = handle_mouse_event(&mut app, mouse_event(MouseEventKind::ScrollDown, 1, 1))
+        .expect("handle mouse");
+
+    assert_eq!(action, TuiAction::Continue);
+    assert_eq!(app.details_scroll, 1);
+    assert_eq!(app.selected, 0);
+}
+
+#[test]
+fn mouse_scroll_up_moves_selection_in_list() {
+    let queue = QueueFile {
+        version: 1,
+        tasks: vec![
+            make_test_task("RQ-0001"),
+            make_test_task("RQ-0002"),
+            make_test_task("RQ-0003"),
+        ],
+    };
+    let mut app = App::new(queue);
+    app.list_height = 1;
+    app.selected = 1;
+    app.scroll = 1;
+
+    let action = handle_mouse_event(&mut app, mouse_event(MouseEventKind::ScrollUp, 1, 1))
+        .expect("handle mouse");
+
+    assert_eq!(action, TuiAction::Continue);
+    assert_eq!(app.selected, 0);
+    assert_eq!(app.scroll, 0);
+}
+
+#[test]
+fn mouse_scroll_up_moves_details_when_focused() {
+    let queue = QueueFile {
+        version: 1,
+        tasks: vec![make_test_task("RQ-0001")],
+    };
+    let mut app = App::new(queue);
+    app.focus_next_panel();
+    app.details_visible_lines = 2;
+    app.details_total_lines = 5;
+    app.details_scroll = 2;
+
+    let action = handle_mouse_event(&mut app, mouse_event(MouseEventKind::ScrollUp, 1, 1))
+        .expect("handle mouse");
+
+    assert_eq!(action, TuiAction::Continue);
+    assert_eq!(app.details_scroll, 1);
+    assert_eq!(app.selected, 0);
+}
+
+#[test]
+fn mouse_left_click_selects_row_and_focuses_list() {
+    let queue = QueueFile {
+        version: 1,
+        tasks: vec![
+            make_test_task("RQ-0001"),
+            make_test_task("RQ-0002"),
+            make_test_task("RQ-0003"),
+            make_test_task("RQ-0004"),
+            make_test_task("RQ-0005"),
+        ],
+    };
+    let mut app = App::new(queue);
+    app.focus_next_panel();
+    app.list_height = 3;
+    app.scroll = 1;
+    app.set_list_area(Rect::new(0, 2, 20, 3));
+    let row = app.list_area().expect("list area").y + 1;
+
+    let action = handle_mouse_event(
+        &mut app,
+        mouse_event(MouseEventKind::Down(MouseButton::Left), 1, row),
+    )
+    .expect("handle mouse");
+
+    assert_eq!(action, TuiAction::Continue);
+    assert_eq!(app.selected, 2);
+    assert!(!app.details_focused());
+}
+
+#[test]
+fn mouse_left_click_outside_list_does_not_change_selection() {
+    let queue = QueueFile {
+        version: 1,
+        tasks: vec![make_test_task("RQ-0001"), make_test_task("RQ-0002")],
+    };
+    let mut app = App::new(queue);
+    app.focus_next_panel();
+    app.selected = 1;
+    app.set_list_area(Rect::new(0, 1, 10, 2));
+
+    let action = handle_mouse_event(
+        &mut app,
+        mouse_event(MouseEventKind::Down(MouseButton::Left), 20, 20),
+    )
+    .expect("handle mouse");
+
+    assert_eq!(action, TuiAction::Continue);
+    assert_eq!(app.selected, 1);
+    assert!(app.details_focused());
+}
+
+#[test]
+fn mouse_left_click_on_empty_list_is_noop() {
+    let mut app = App::new(QueueFile::default());
+    app.focus_next_panel();
+    app.set_list_area(Rect::new(0, 0, 10, 2));
+
+    let action = handle_mouse_event(
+        &mut app,
+        mouse_event(MouseEventKind::Down(MouseButton::Left), 1, 1),
+    )
+    .expect("handle mouse");
+
+    assert_eq!(action, TuiAction::Continue);
+    assert_eq!(app.selected, 0);
+    assert!(app.details_focused());
 }

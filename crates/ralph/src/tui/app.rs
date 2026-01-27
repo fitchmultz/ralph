@@ -23,7 +23,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use ratatui::{backend::CrosstermBackend, Terminal};
+use ratatui::{backend::CrosstermBackend, layout::Rect, Terminal};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{mpsc, Arc};
@@ -31,7 +31,8 @@ use std::thread;
 use std::time::Duration;
 
 use super::events::{
-    handle_key_event, AppMode, ConfirmDiscardAction, PaletteCommand, PaletteEntry, TuiAction,
+    handle_key_event, handle_mouse_event, AppMode, ConfirmDiscardAction, PaletteCommand,
+    PaletteEntry, TuiAction,
 };
 use super::render::draw_ui;
 use super::TextInput;
@@ -222,6 +223,8 @@ pub struct App {
     help_previous_mode: Option<AppMode>,
     /// Height of the task list (for scrolling calculation).
     pub list_height: usize,
+    /// Last known list panel area (inner rect, without borders) for hit-testing.
+    list_area: Option<Rect>,
     /// Whether a runner thread is currently executing a task.
     pub runner_active: bool,
     /// Task ID currently running, if any.
@@ -297,6 +300,7 @@ impl App {
             help_total_lines: 0,
             help_previous_mode: None,
             list_height: 20,
+            list_area: None,
             runner_active: false,
             running_task_id: None,
             running_kind: None,
@@ -337,8 +341,24 @@ impl App {
         self.focused_panel = self.focused_panel.previous();
     }
 
+    pub(crate) fn focus_list_panel(&mut self) {
+        self.focused_panel = FocusedPanel::List;
+    }
+
     pub(crate) fn details_focused(&self) -> bool {
         self.focused_panel == FocusedPanel::Details
+    }
+
+    pub(crate) fn set_list_area(&mut self, area: Rect) {
+        self.list_area = Some(area);
+    }
+
+    pub(crate) fn clear_list_area(&mut self) {
+        self.list_area = None;
+    }
+
+    pub(crate) fn list_area(&self) -> Option<Rect> {
+        self.list_area
     }
 
     pub(crate) fn unsafe_to_discard(&self) -> bool {
@@ -548,6 +568,11 @@ impl App {
     /// Get the currently selected task index in the queue, if any.
     pub fn selected_task_index(&self) -> Option<usize> {
         self.filtered_indices.get(self.selected).copied()
+    }
+
+    pub(crate) fn set_selected(&mut self, selected: usize) {
+        self.selected = selected;
+        self.clamp_selection_and_scroll();
     }
 
     /// Get the currently selected task mutably, if any.
@@ -1782,6 +1807,38 @@ where
             spawn_task(id, tx.clone());
         }
 
+        let handle_action = |action: TuiAction, app_ref: &mut App| -> Result<bool> {
+            match action {
+                TuiAction::Quit => Ok(true),
+                TuiAction::Continue => Ok(false),
+                TuiAction::ReloadQueue => {
+                    app_ref.reload_queues_from_disk(queue_path, done_path);
+                    Ok(false)
+                }
+                TuiAction::RunTask(task_id) => {
+                    let tx_clone = tx.clone();
+                    spawn_task(task_id, tx_clone);
+                    Ok(false)
+                }
+                TuiAction::RunScan(focus) => {
+                    app_ref.start_scan_execution(focus.clone(), true, false);
+                    let tx_clone = tx.clone();
+                    spawn_scan(focus, tx_clone);
+                    Ok(false)
+                }
+                TuiAction::BuildTask(request) => {
+                    if app_ref.runner_active {
+                        app_ref.set_status_message("Runner already active");
+                    } else {
+                        app_ref.start_task_builder_execution(request.clone());
+                        let tx_clone = tx.clone();
+                        spawn_task_builder(request, tx_clone);
+                    }
+                    Ok(false)
+                }
+            }
+        };
+
         // Main event loop.
         loop {
             terminal
@@ -1923,38 +1980,28 @@ where
 
             // Handle input events.
             if event::poll(Duration::from_millis(100)).context("poll event")? {
-                if let Event::Key(key) = event::read().context("read event")? {
-                    if key.kind == KeyEventKind::Release {
-                        continue;
-                    }
+                let event = event::read().context("read event")?;
+                let mut should_quit = false;
+                match event {
+                    Event::Key(key) => {
+                        if key.kind == KeyEventKind::Release {
+                            continue;
+                        }
 
-                    let mut app_ref = app.borrow_mut();
-                    let now = timeutil::now_utc_rfc3339()?;
-                    match handle_key_event(&mut app_ref, key, &now)? {
-                        TuiAction::Quit => break,
-                        TuiAction::Continue => {}
-                        TuiAction::ReloadQueue => {
-                            app_ref.reload_queues_from_disk(queue_path, done_path);
-                        }
-                        TuiAction::RunTask(task_id) => {
-                            let tx_clone = tx.clone();
-                            spawn_task(task_id, tx_clone);
-                        }
-                        TuiAction::RunScan(focus) => {
-                            app_ref.start_scan_execution(focus.clone(), true, false);
-                            let tx_clone = tx.clone();
-                            spawn_scan(focus, tx_clone);
-                        }
-                        TuiAction::BuildTask(request) => {
-                            if app_ref.runner_active {
-                                app_ref.set_status_message("Runner already active");
-                            } else {
-                                app_ref.start_task_builder_execution(request.clone());
-                                let tx_clone = tx.clone();
-                                spawn_task_builder(request, tx_clone);
-                            }
-                        }
+                        let mut app_ref = app.borrow_mut();
+                        let now = timeutil::now_utc_rfc3339()?;
+                        let action = handle_key_event(&mut app_ref, key, &now)?;
+                        should_quit = handle_action(action, &mut app_ref)?;
                     }
+                    Event::Mouse(mouse) => {
+                        let mut app_ref = app.borrow_mut();
+                        let action = handle_mouse_event(&mut app_ref, mouse)?;
+                        should_quit = handle_action(action, &mut app_ref)?;
+                    }
+                    _ => {}
+                }
+                if should_quit {
+                    break;
                 }
             }
         }

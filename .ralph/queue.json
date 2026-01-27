@@ -2,39 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0324",
-      "status": "todo",
-      "title": "TUI: implement mouse scrolling/click selection",
-      "priority": "medium",
-      "tags": [
-        "tui",
-        "ux",
-        "input"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/app.rs",
-        "crates/ralph/src/tui/events/mod.rs",
-        "make ci"
-      ],
-      "evidence": [
-        "`crates/ralph/src/tui/app.rs`: terminal setup enables `EnableMouseCapture`.",
-        "`crates/ralph/src/tui/app.rs`: input loop only handles `Event::Key` and ignores non-key events (no `Event::Mouse` handling)."
-      ],
-      "plan": [
-        "Decide whether the TUI should support mouse interactions; prefer the simplest correct path.",
-        "Handle mouse wheel/click events in the input loop.",
-        "Map wheel to scrolling for the focused panel and click to selection.",
-        "Add tests where feasible and include manual QA steps for mouse behavior.",
-        "Run `make ci`."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-27T04:35:15Z",
-      "updated_at": "2026-01-27T04:35:15Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0325",
       "status": "todo",
       "title": "TUI: standardize confirm dialog keybindings (j/k, arrows, sensible defaults)",
@@ -242,9 +209,11 @@
       "notes": [],
       "request": "scan finding",
       "created_at": "2026-01-27T04:35:15Z",
-      "updated_at": "2026-01-27T04:35:15Z",
+      "updated_at": "2026-01-27T14:51:00.505336000Z",
       "depends_on": [],
-      "custom_fields": {}
+      "custom_fields": {
+        "stale_note": "Mouse events now handled (RQ-0324); evidence about mouse being ignored is no longer accurate. Resize/paste still unhandled."
+      }
     }
   ]
 }
