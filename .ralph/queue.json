@@ -2,6 +2,82 @@
   "version": 1,
   "tasks": [
     {
+      "id": "RQ-0334",
+      "status": "todo",
+      "title": "Fix Phase 3 completion race: ensure terminal archive + completion artifact despite dirty repo",
+      "priority": "high",
+      "tags": [
+        "phase-3",
+        "supervisor",
+        "race-condition",
+        "queue",
+        "completion"
+      ],
+      "scope": [
+        "crates/ralph/src/",
+        ".ralph/queue.json",
+        ".ralph/done.json",
+        ".ralph/cache/completions",
+        "docs/cli.md",
+        "make ci"
+      ],
+      "evidence": [
+        "User report: Phase 3 completion intermittently fails with supervisor error claiming task not archived even though status is done and moved to done.json.",
+        "User report: supervisor also reports missing completion artifact in .ralph/cache/completions for the task ID.",
+        "User report: error mentions dirty repo and lists modified queue/done.json alongside other files, suggesting ordering or race in Phase 3 checks."
+      ],
+      "plan": [
+        "Locate Phase 3 completion flow and its checks for archive status, completion artifact, and dirty repo state.",
+        "Reproduce or simulate the reported sequence to understand why the archive check fails when done.json is updated.",
+        "Fix ordering/race so terminal archive status is verified after persisting queue/done changes, and ensure completion artifacts are created reliably.",
+        "Clarify dirty-repo handling to avoid misclassifying queue/done updates as incomplete completion (or explicitly document/handle this case).",
+        "Add tests for success and failure modes, including dirty repo with updated queue/done.json and missing completion artifact.",
+        "Update CLI docs/help if Phase 3 flow or requirements change.",
+        "Run `make ci`."
+      ],
+      "notes": [],
+      "request": "There is a bug and/or race condition intermittently happening upon phase 3 agent completion which causes the superviosr to engage and interrupt and nothing can be done to get it to finish properly and cleanly. Supervisor claimed \"Error: Phase 3 incomplete: task was not archived with a terminal status. Revert skipped (user chose to keep changes). Error: repo is dirty; commit/stash your changes before running Ralph.\" but the task had properly been moved from queue.json to done.json with a status of 'done'. See interaction with an agent below.\n---\nPhase 3 completion check: action? [1=keep (default), 2=revert, 3=other]: is 'make ci' clean?\n[Reasoning] **Confirming CI run with live tests skipped**\n\nYes, I ran 'make ci SKIP_LIVE_TESTS=1' and all tests passed with live tests skipped as requested.\nYes. 'make ci' completed cleanly with 'SKIP_LIVE_TESTS=1' (live tests were skipped by that flag).\n\nPhase 3 completion check: action? [1=keep (default), 2=revert, 3=other]: the completion file in .ralph/cache/completions is not present for this task ID\n[Reasoning] **Checking file presence**\n[Command] /bin/zsh -lc 'ls -la /Users/mitchfultz/Projects/splunk-tui/.ralph/cache/completions' (in_progress)\n[Command] /bin/zsh -lc 'ls -la /Users/mitchfultz/Projects/splunk-tui/.ralph/cache/completions' (completed) (exit 0)\n[Reasoning] **Confirming empty directory and suggesting next steps**\n\nThe target directory is empty, likely because the ralph completion file wasn't generated or created. I'll confirm this status and ask if the user wants to regenerate it by rerunning the ralph task, noting it might duplicate work.\nConfirmed: '.ralph/cache/completions/' is empty in this repo (no completion file for any task IDs right now).\n\nIf you want me to regenerate the completion artifact for 'RQ-0108', say the word and I’ll investigate the right 'ralph' command to do so (without changing task state).\n\nPhase 3 completion check: action? [1=keep (default), 2=revert, 3=other]: what command did your instructions/prompt tell you to do?\nRun 'ralph task done --note \"<note>\" RQ-0108' after completing checks.\nPhase 3 completion check: action? [1=keep (default), 2=revert, 3=other]: ^[1\n1\n[Reasoning] **Requesting clarification on unclear input**\nI’m not sure what '' refers to here. Can you clarify what you want me to do or check?\n\nPhase 3 completion check: action? [1=keep (default), 2=revert, 3=other]: [2026-01-27T15:31:30Z ERROR ralph::commands::run::logging] Phase 3/3 (Review) for RQ-0108: error: Phase 3 incomplete: task was not archived with a terminal status. Revert skipped (user chose to keep changes). Error: repo is dirty; commit/stash your changes before running Ralph.\n\n    Tracked changes (suggest 'git stash' or 'git commit'):\n       M .ralph/done.json\n       M .ralph/queue.json\n       M Makefile\n       M crates/tui/Cargo.toml\n       M crates/tui/src/action.rs\n       M crates/tui/src/app.rs\n       M crates/tui/src/lib.rs\n       M crates/tui/src/ui/popup.rs\n       M crates/tui/tests/app_tests.rs\n       M crates/tui/tests/snapshots/snapshot_tests__snapshot_help_popup.snap\n      ...and 2 more\n\n    Untracked files (suggest 'git clean -fd' or 'git add'):\n      ?? crates/tui/src/bin/\n      ?? crates/tui/src/input/\n\n    Use --force to bypass this check if you are sure.\n[2026-01-27T15:31:30Z ERROR ralph::commands::run] Task RQ-0108: error\n[2026-01-27T15:31:30Z ERROR ralph::commands::run::logging] RunLoop (todo=15, max_tasks=0): error: Phase 3 incomplete: task was not archived with a terminal status. Revert skipped (user chose to keep changes). Error: repo is dirty; commit/stash your changes before running Ralph.\n\n    Tracked changes (suggest 'git stash' or 'git commit'):\n       M .ralph/done.json\n       M .ralph/queue.json\n       M Makefile\n       M crates/tui/Cargo.toml\n       M crates/tui/src/action.rs\n       M crates/tui/src/app.rs\n       M crates/tui/src/lib.rs\n       M crates/tui/src/ui/popup.rs\n       M crates/tui/tests/app_tests.rs\n       M crates/tui/tests/snapshots/snapshot_tests__snapshot_help_popup.snap\n      ...and 2 more\n\n    Untracked files (suggest 'git clean -fd' or 'git add'):\n      ?? crates/tui/src/bin/\n      ?? crates/tui/src/input/\n\n    Use --force to bypass this check if you are sure.\nError: Phase 3 incomplete: task was not archived with a terminal status. Revert skipped (user chose to keep changes). Error: repo is dirty; commit/stash your changes before running Ralph.\n\nTracked changes (suggest 'git stash' or 'git commit'):\n   M .ralph/done.json\n   M .ralph/queue.json\n   M Makefile\n   M crates/tui/Cargo.toml\n   M crates/tui/src/action.rs\n   M crates/tui/src/app.rs\n   M crates/tui/src/lib.rs\n   M crates/tui/src/ui/popup.rs\n   M crates/tui/tests/app_tests.rs\n   M crates/tui/tests/snapshots/snapshot_tests__snapshot_help_popup.snap\n  ...and 2 more\n\nUntracked files (suggest 'git clean -fd' or 'git add'):\n  ?? crates/tui/src/bin/\n  ?? crates/tui/src/input/\n\nUse --force to bypass this check if you are sure.",
+      "created_at": "2026-01-27T16:36:30Z",
+      "updated_at": "2026-01-27T16:36:30Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0333",
+      "status": "todo",
+      "title": "Scan: show validation error details before prompting for post-run action",
+      "priority": "high",
+      "tags": [
+        "cli",
+        "scan",
+        "validation",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/src/",
+        "docs/cli.md",
+        "make ci"
+      ],
+      "evidence": [
+        "User report: when `ralph scan` finishes with an invalid queue, the validation error is only shown after the user selects a post-run action prompt.",
+        "User report example shows the error message printing after the prompt line, obscuring the reason until after selection."
+      ],
+      "plan": [
+        "Locate the scan post-run validation flow and the prompt that asks how to proceed on validation failure.",
+        "Reorder output so validation failure details are printed before prompting for the post-run action.",
+        "Ensure raw stdout error file path (if any) is still surfaced alongside the failure details.",
+        "Add tests that cover success and failure modes, asserting the error appears before the prompt text.",
+        "Update CLI docs/help examples if the user-visible flow changed.",
+        "Run `make ci`."
+      ],
+      "notes": [],
+      "request": "There is a bug. When 'ralph scan' finishes with an invalid queue the user is not shown the reason until after selecting an option of what to do. See below:\n\"\"\"\nScan validation failure (post-run): action? [1=keep (default), 2=revert, 3=other]: 1Error: Scan validation failed after run. (raw stdout saved to /var/folders/rf/t1b4c_cn7sgc_f6tkyg0wsk00000gn/T/ralph/ralph_scan_validation_error_bRLFdT/output.txt) Revert skipped (user chose to keep changes).: validate queue set after scan: task[0] created_at must be a valid RFC3339 UTC timestamp (got: 2026-01-27T16:03:39.3NZ, id=RQ-0146). Example: '2026-01-19T05:23:13.000000000Z'.: parse RFC3339 timestamp '2026-01-27T16:03:39.3NZ': the 'offset hour' component could not be parsed: the 'offset hour' component could not be parsed\n\"\"\"",
+      "created_at": "2026-01-27T16:34:33Z",
+      "updated_at": "2026-01-27T16:34:33Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
       "id": "RQ-0325",
       "status": "todo",
       "title": "TUI: standardize confirm dialog keybindings (j/k, arrows, sensible defaults)",
