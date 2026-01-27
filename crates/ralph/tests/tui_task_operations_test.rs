@@ -5,11 +5,15 @@
 
 mod test_support;
 
-use crossterm::event::KeyCode;
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ralph::contracts::{QueueFile, TaskStatus};
 use ralph::timeutil;
 use ralph::tui::{self, App, AppMode, TuiAction};
 use test_support::{make_test_queue, make_test_task};
+
+fn key_event(code: KeyCode) -> KeyEvent {
+    KeyEvent::new(code, KeyModifiers::NONE)
+}
 
 fn canonical_rfc3339(ts: &str) -> String {
     let dt = timeutil::parse_rfc3339(ts).expect("valid RFC3339 timestamp");
@@ -133,7 +137,8 @@ fn test_editing_task_updates_title() {
         editing_value: Some("New Title".to_string()),
     };
 
-    let action = tui::handle_key_event(&mut app, KeyCode::Enter, "2026-01-20T12:00:00Z").unwrap();
+    let action =
+        tui::handle_key_event(&mut app, key_event(KeyCode::Enter), "2026-01-20T12:00:00Z").unwrap();
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.queue.tasks[0].title, "New Title");
@@ -152,7 +157,8 @@ fn test_editing_task_rejects_empty_title() {
         editing_value: Some("".to_string()),
     };
 
-    let action = tui::handle_key_event(&mut app, KeyCode::Enter, "2026-01-20T12:00:00Z").unwrap();
+    let action =
+        tui::handle_key_event(&mut app, key_event(KeyCode::Enter), "2026-01-20T12:00:00Z").unwrap();
 
     assert_eq!(action, TuiAction::Continue);
     assert!(matches!(
@@ -173,8 +179,12 @@ fn test_editing_task_fails_with_no_selection() {
     };
     let mut app = App::new(queue);
 
-    let action =
-        tui::handle_key_event(&mut app, KeyCode::Char('e'), "2026-01-20T12:00:00Z").unwrap();
+    let action = tui::handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('e')),
+        "2026-01-20T12:00:00Z",
+    )
+    .unwrap();
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.mode, AppMode::Normal);

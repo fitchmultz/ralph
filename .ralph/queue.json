@@ -2,44 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0314",
-      "status": "todo",
-      "title": "TUI: pass KeyEvent (modifiers) through event pipeline + Ctrl shortcuts",
-      "priority": "high",
-      "tags": [
-        "tui",
-        "ux",
-        "keybindings"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/app.rs",
-        "crates/ralph/src/tui/events/mod.rs",
-        "crates/ralph/src/tui/events/*",
-        "crates/ralph/src/tui/events/tests.rs",
-        "docs/tui-task-management.md",
-        "make ci"
-      ],
-      "evidence": [
-        "`crates/ralph/src/tui/app.rs`: input loop calls `handle_key_event(&mut app_ref, key.code, ...)`, dropping modifiers.",
-        "`crates/ralph/src/tui/events/mod.rs`: `handle_key_event` accepts `KeyCode`, so mode handlers cannot distinguish Ctrl/Alt/Shift.",
-        "`crates/ralph/src/tui/events/normal.rs`: `KeyCode::Char('c')` enters config edit; with modifiers dropped, Ctrl+C cannot be safely bound to quit and may be misinterpreted."
-      ],
-      "plan": [
-        "Change event dispatch to pass `crossterm::event::KeyEvent` (or an internal key type) instead of `KeyCode`.",
-        "Update all mode handlers to use the richer key type while preserving existing bindings.",
-        "Add canonical shortcuts (e.g., Ctrl+C/Ctrl+Q quit, Ctrl+P palette, Ctrl+F search) without breaking existing keys.",
-        "Update tests to cover modifier-aware behavior (including Ctrl+C not triggering config edit).",
-        "Update `docs/tui-task-management.md` key reference for new shortcuts.",
-        "Run `make ci`."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-27T04:35:15Z",
-      "updated_at": "2026-01-27T04:35:15Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0315",
       "status": "todo",
       "title": "TUI: command palette scroll + allow typing all characters (fix j/k capture)",

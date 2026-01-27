@@ -5,18 +5,26 @@
 
 mod test_support;
 
-use crossterm::event::KeyCode;
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ralph::contracts::{TaskPriority, TaskStatus};
 use ralph::runutil::RevertDecision;
 use ralph::tui::{self, App, AppMode, TuiAction};
 use std::sync::mpsc;
 use test_support::make_test_queue;
 
+fn key_event(code: KeyCode) -> KeyEvent {
+    KeyEvent::new(code, KeyModifiers::NONE)
+}
+
 #[test]
 fn test_handle_key_event_quit_with_q() {
     let mut app = App::new(make_test_queue());
-    let action =
-        tui::handle_key_event(&mut app, KeyCode::Char('q'), "2026-01-19T00:00:00Z").unwrap();
+    let action = tui::handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('q')),
+        "2026-01-19T00:00:00Z",
+    )
+    .unwrap();
 
     assert_eq!(action, TuiAction::Quit);
 }
@@ -24,7 +32,8 @@ fn test_handle_key_event_quit_with_q() {
 #[test]
 fn test_handle_key_event_quit_with_esc() {
     let mut app = App::new(make_test_queue());
-    let action = tui::handle_key_event(&mut app, KeyCode::Esc, "2026-01-19T00:00:00Z").unwrap();
+    let action =
+        tui::handle_key_event(&mut app, key_event(KeyCode::Esc), "2026-01-19T00:00:00Z").unwrap();
 
     assert_eq!(action, TuiAction::Quit);
 }
@@ -34,12 +43,17 @@ fn test_handle_key_event_navigation_up() {
     let mut app = App::new(make_test_queue());
     app.selected = 1;
 
-    let action = tui::handle_key_event(&mut app, KeyCode::Up, "2026-01-19T00:00:00Z").unwrap();
+    let action =
+        tui::handle_key_event(&mut app, key_event(KeyCode::Up), "2026-01-19T00:00:00Z").unwrap();
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.selected, 0);
 
-    let action =
-        tui::handle_key_event(&mut app, KeyCode::Char('k'), "2026-01-19T00:00:00Z").unwrap();
+    let action = tui::handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('k')),
+        "2026-01-19T00:00:00Z",
+    )
+    .unwrap();
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.selected, 0); // Should not go below 0
 }
@@ -48,12 +62,17 @@ fn test_handle_key_event_navigation_up() {
 fn test_handle_key_event_navigation_down() {
     let mut app = App::new(make_test_queue());
 
-    let action = tui::handle_key_event(&mut app, KeyCode::Down, "2026-01-19T00:00:00Z").unwrap();
+    let action =
+        tui::handle_key_event(&mut app, key_event(KeyCode::Down), "2026-01-19T00:00:00Z").unwrap();
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.selected, 1);
 
-    let action =
-        tui::handle_key_event(&mut app, KeyCode::Char('j'), "2026-01-19T00:00:00Z").unwrap();
+    let action = tui::handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('j')),
+        "2026-01-19T00:00:00Z",
+    )
+    .unwrap();
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.selected, 2);
 }
@@ -62,7 +81,8 @@ fn test_handle_key_event_navigation_down() {
 fn test_handle_key_event_enter_runs_task() {
     let mut app = App::new(make_test_queue());
 
-    let action = tui::handle_key_event(&mut app, KeyCode::Enter, "2026-01-19T00:00:00Z").unwrap();
+    let action =
+        tui::handle_key_event(&mut app, key_event(KeyCode::Enter), "2026-01-19T00:00:00Z").unwrap();
 
     match action {
         TuiAction::RunTask(task_id) => assert_eq!(task_id, "RQ-0001"),
@@ -82,8 +102,12 @@ fn test_handle_key_event_enter_runs_task() {
 fn test_handle_key_event_d_enters_delete_mode() {
     let mut app = App::new(make_test_queue());
 
-    let action =
-        tui::handle_key_event(&mut app, KeyCode::Char('d'), "2026-01-19T00:00:00Z").unwrap();
+    let action = tui::handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('d')),
+        "2026-01-19T00:00:00Z",
+    )
+    .unwrap();
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.mode, AppMode::ConfirmDelete);
@@ -93,8 +117,12 @@ fn test_handle_key_event_d_enters_delete_mode() {
 fn test_handle_key_event_e_enters_edit_mode() {
     let mut app = App::new(make_test_queue());
 
-    let action =
-        tui::handle_key_event(&mut app, KeyCode::Char('e'), "2026-01-19T00:00:00Z").unwrap();
+    let action = tui::handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('e')),
+        "2026-01-19T00:00:00Z",
+    )
+    .unwrap();
 
     assert_eq!(action, TuiAction::Continue);
     assert!(matches!(
@@ -111,8 +139,12 @@ fn test_handle_key_event_s_cycles_status() {
     let mut app = App::new(make_test_queue());
     assert_eq!(app.queue.tasks[0].status, TaskStatus::Todo);
 
-    let action =
-        tui::handle_key_event(&mut app, KeyCode::Char('s'), "2026-01-19T00:00:00Z").unwrap();
+    let action = tui::handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('s')),
+        "2026-01-19T00:00:00Z",
+    )
+    .unwrap();
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.queue.tasks[0].status, TaskStatus::Doing);
@@ -127,8 +159,12 @@ fn test_handle_key_event_in_editing_mode_char() {
         editing_value: Some("Test".to_string()),
     };
 
-    let action =
-        tui::handle_key_event(&mut app, KeyCode::Char('X'), "2026-01-19T00:00:00Z").unwrap();
+    let action = tui::handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('X')),
+        "2026-01-19T00:00:00Z",
+    )
+    .unwrap();
 
     assert_eq!(action, TuiAction::Continue);
     match &app.mode {
@@ -151,8 +187,12 @@ fn test_handle_key_event_in_editing_mode_backspace() {
         editing_value: Some("Test".to_string()),
     };
 
-    let action =
-        tui::handle_key_event(&mut app, KeyCode::Backspace, "2026-01-19T00:00:00Z").unwrap();
+    let action = tui::handle_key_event(
+        &mut app,
+        key_event(KeyCode::Backspace),
+        "2026-01-19T00:00:00Z",
+    )
+    .unwrap();
 
     assert_eq!(action, TuiAction::Continue);
     match &app.mode {
@@ -175,7 +215,8 @@ fn test_handle_key_event_in_editing_mode_enter_saves() {
         editing_value: Some("New Title".to_string()),
     };
 
-    let action = tui::handle_key_event(&mut app, KeyCode::Enter, "2026-01-19T00:00:00Z").unwrap();
+    let action =
+        tui::handle_key_event(&mut app, key_event(KeyCode::Enter), "2026-01-19T00:00:00Z").unwrap();
 
     assert_eq!(action, TuiAction::Continue);
     assert!(matches!(
@@ -197,7 +238,8 @@ fn test_handle_key_event_in_editing_mode_esc_cancels() {
         editing_value: Some("Modified Title".to_string()),
     };
 
-    let action = tui::handle_key_event(&mut app, KeyCode::Esc, "2026-01-19T00:00:00Z").unwrap();
+    let action =
+        tui::handle_key_event(&mut app, key_event(KeyCode::Esc), "2026-01-19T00:00:00Z").unwrap();
 
     assert_eq!(action, TuiAction::Continue);
     assert!(matches!(
@@ -217,7 +259,8 @@ fn test_handle_key_event_editing_task_cycles_status() {
         editing_value: None,
     };
 
-    let action = tui::handle_key_event(&mut app, KeyCode::Enter, "2026-01-20T12:00:00Z").unwrap();
+    let action =
+        tui::handle_key_event(&mut app, key_event(KeyCode::Enter), "2026-01-20T12:00:00Z").unwrap();
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.queue.tasks[0].status, TaskStatus::Doing);
@@ -239,7 +282,8 @@ fn test_handle_key_event_editing_task_cycles_priority() {
         editing_value: None,
     };
 
-    let action = tui::handle_key_event(&mut app, KeyCode::Enter, "2026-01-20T12:00:00Z").unwrap();
+    let action =
+        tui::handle_key_event(&mut app, key_event(KeyCode::Enter), "2026-01-20T12:00:00Z").unwrap();
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.queue.tasks[0].priority, TaskPriority::High);
@@ -261,8 +305,12 @@ fn test_handle_key_event_editing_task_clears_list() {
         editing_value: None,
     };
 
-    let action =
-        tui::handle_key_event(&mut app, KeyCode::Char('x'), "2026-01-20T12:00:00Z").unwrap();
+    let action = tui::handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('x')),
+        "2026-01-20T12:00:00Z",
+    )
+    .unwrap();
 
     assert_eq!(action, TuiAction::Continue);
     assert!(app.queue.tasks[0].tags.is_empty());
@@ -280,8 +328,12 @@ fn test_handle_key_event_editing_task_clears_custom_fields() {
         editing_value: None,
     };
 
-    let action =
-        tui::handle_key_event(&mut app, KeyCode::Char('x'), "2026-01-20T12:00:00Z").unwrap();
+    let action = tui::handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('x')),
+        "2026-01-20T12:00:00Z",
+    )
+    .unwrap();
 
     assert_eq!(action, TuiAction::Continue);
     assert!(app.queue.tasks[0].custom_fields.is_empty());
@@ -296,7 +348,8 @@ fn test_handle_key_event_editing_task_validation_error_keeps_editing() {
         editing_value: Some("".to_string()),
     };
 
-    let action = tui::handle_key_event(&mut app, KeyCode::Enter, "2026-01-20T12:00:00Z").unwrap();
+    let action =
+        tui::handle_key_event(&mut app, key_event(KeyCode::Enter), "2026-01-20T12:00:00Z").unwrap();
 
     assert_eq!(action, TuiAction::Continue);
     assert!(matches!(
@@ -319,8 +372,12 @@ fn test_handle_key_event_in_confirm_delete_y_deletes() {
     let mut app = App::new(make_test_queue());
     app.mode = AppMode::ConfirmDelete;
 
-    let action =
-        tui::handle_key_event(&mut app, KeyCode::Char('y'), "2026-01-19T00:00:00Z").unwrap();
+    let action = tui::handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('y')),
+        "2026-01-19T00:00:00Z",
+    )
+    .unwrap();
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.mode, AppMode::Normal);
@@ -333,8 +390,12 @@ fn test_handle_key_event_in_confirm_delete_n_cancels() {
     let original_len = app.queue.tasks.len();
     app.mode = AppMode::ConfirmDelete;
 
-    let action =
-        tui::handle_key_event(&mut app, KeyCode::Char('n'), "2026-01-19T00:00:00Z").unwrap();
+    let action = tui::handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('n')),
+        "2026-01-19T00:00:00Z",
+    )
+    .unwrap();
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.mode, AppMode::Normal);
@@ -347,7 +408,8 @@ fn test_handle_key_event_in_confirm_delete_esc_cancels() {
     let original_len = app.queue.tasks.len();
     app.mode = AppMode::ConfirmDelete;
 
-    let action = tui::handle_key_event(&mut app, KeyCode::Esc, "2026-01-19T00:00:00Z").unwrap();
+    let action =
+        tui::handle_key_event(&mut app, key_event(KeyCode::Esc), "2026-01-19T00:00:00Z").unwrap();
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.mode, AppMode::Normal);
@@ -367,7 +429,8 @@ fn test_handle_key_event_in_confirm_revert_reverts() {
         previous_mode: Box::new(AppMode::Normal),
     };
 
-    let action = tui::handle_key_event(&mut app, KeyCode::Enter, "2026-01-19T00:00:00Z").unwrap();
+    let action =
+        tui::handle_key_event(&mut app, key_event(KeyCode::Enter), "2026-01-19T00:00:00Z").unwrap();
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.mode, AppMode::Normal);
@@ -387,7 +450,8 @@ fn test_handle_key_event_in_confirm_revert_keeps() {
         previous_mode: Box::new(AppMode::Normal),
     };
 
-    let action = tui::handle_key_event(&mut app, KeyCode::Enter, "2026-01-19T00:00:00Z").unwrap();
+    let action =
+        tui::handle_key_event(&mut app, key_event(KeyCode::Enter), "2026-01-19T00:00:00Z").unwrap();
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.mode, AppMode::Normal);
@@ -407,7 +471,8 @@ fn test_handle_key_event_in_confirm_revert_continues_with_message() {
         previous_mode: Box::new(AppMode::Normal),
     };
 
-    let action = tui::handle_key_event(&mut app, KeyCode::Enter, "2026-01-19T00:00:00Z").unwrap();
+    let action =
+        tui::handle_key_event(&mut app, key_event(KeyCode::Enter), "2026-01-19T00:00:00Z").unwrap();
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.mode, AppMode::Normal);
@@ -432,7 +497,8 @@ fn test_handle_key_event_in_confirm_revert_requires_message() {
         previous_mode: Box::new(AppMode::Normal),
     };
 
-    let action = tui::handle_key_event(&mut app, KeyCode::Enter, "2026-01-19T00:00:00Z").unwrap();
+    let action =
+        tui::handle_key_event(&mut app, key_event(KeyCode::Enter), "2026-01-19T00:00:00Z").unwrap();
 
     assert_eq!(action, TuiAction::Continue);
     assert!(matches!(app.mode, AppMode::ConfirmRevert { .. }));
@@ -452,7 +518,8 @@ fn test_handle_key_event_in_confirm_revert_enter_defaults_keep() {
         previous_mode: Box::new(AppMode::Normal),
     };
 
-    let action = tui::handle_key_event(&mut app, KeyCode::Enter, "2026-01-19T00:00:00Z").unwrap();
+    let action =
+        tui::handle_key_event(&mut app, key_event(KeyCode::Enter), "2026-01-19T00:00:00Z").unwrap();
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.mode, AppMode::Normal);
@@ -468,7 +535,8 @@ fn test_handle_key_event_in_executing_mode_esc_returns() {
     app.logs.push("Log line 1".to_string());
     app.logs.push("Log line 2".to_string());
 
-    let action = tui::handle_key_event(&mut app, KeyCode::Esc, "2026-01-19T00:00:00Z").unwrap();
+    let action =
+        tui::handle_key_event(&mut app, key_event(KeyCode::Esc), "2026-01-19T00:00:00Z").unwrap();
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.mode, AppMode::Normal);
@@ -482,7 +550,8 @@ fn test_handle_key_event_unknown_key_continues() {
     let original_selected = app.selected;
 
     // Unknown key in normal mode
-    let action = tui::handle_key_event(&mut app, KeyCode::Tab, "2026-01-19T00:00:00Z").unwrap();
+    let action =
+        tui::handle_key_event(&mut app, key_event(KeyCode::Tab), "2026-01-19T00:00:00Z").unwrap();
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.selected, original_selected);

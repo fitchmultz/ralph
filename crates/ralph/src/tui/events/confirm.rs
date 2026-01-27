@@ -14,23 +14,38 @@
 
 use super::super::AppMode;
 use super::types::{ConfirmDiscardAction, TuiAction};
-use super::App;
+use super::{is_plain_char, text_char, App};
 use crate::runutil::RevertDecision;
 use anyhow::Result;
-use crossterm::event::KeyCode;
+use crossterm::event::{KeyCode, KeyEvent};
 use std::sync::mpsc;
 
 /// Handle key events in ConfirmDelete mode.
-pub(super) fn handle_confirm_delete_key(app: &mut App, key: KeyCode) -> Result<TuiAction> {
-    match key {
-        KeyCode::Char('y') | KeyCode::Char('Y') => {
+pub(super) fn handle_confirm_delete_key(app: &mut App, key: KeyEvent) -> Result<TuiAction> {
+    match key.code {
+        KeyCode::Char('y') if is_plain_char(&key, 'y') => {
             if let Err(e) = app.delete_selected_task() {
                 app.set_status_message(format!("Error: {}", e));
             }
             app.mode = AppMode::Normal;
             Ok(TuiAction::Continue)
         }
-        KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
+        KeyCode::Char('Y') if is_plain_char(&key, 'Y') => {
+            if let Err(e) = app.delete_selected_task() {
+                app.set_status_message(format!("Error: {}", e));
+            }
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Char('n') if is_plain_char(&key, 'n') => {
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Char('N') if is_plain_char(&key, 'N') => {
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Esc => {
             app.mode = AppMode::Normal;
             Ok(TuiAction::Continue)
         }
@@ -41,18 +56,33 @@ pub(super) fn handle_confirm_delete_key(app: &mut App, key: KeyCode) -> Result<T
 /// Handle key events in ConfirmArchive mode.
 pub(super) fn handle_confirm_archive_key(
     app: &mut App,
-    key: KeyCode,
+    key: KeyEvent,
     now_rfc3339: &str,
 ) -> Result<TuiAction> {
-    match key {
-        KeyCode::Char('y') | KeyCode::Char('Y') => {
+    match key.code {
+        KeyCode::Char('y') if is_plain_char(&key, 'y') => {
             if let Err(e) = app.archive_terminal_tasks(now_rfc3339) {
                 app.set_status_message(format!("Error: {}", e));
             }
             app.mode = AppMode::Normal;
             Ok(TuiAction::Continue)
         }
-        KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
+        KeyCode::Char('Y') if is_plain_char(&key, 'Y') => {
+            if let Err(e) = app.archive_terminal_tasks(now_rfc3339) {
+                app.set_status_message(format!("Error: {}", e));
+            }
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Char('n') if is_plain_char(&key, 'n') => {
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Char('N') if is_plain_char(&key, 'N') => {
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Esc => {
             app.mode = AppMode::Normal;
             Ok(TuiAction::Continue)
         }
@@ -61,10 +91,19 @@ pub(super) fn handle_confirm_archive_key(
 }
 
 /// Handle key events in ConfirmQuit mode.
-pub(super) fn handle_confirm_quit_key(app: &mut App, key: KeyCode) -> Result<TuiAction> {
-    match key {
-        KeyCode::Char('y') | KeyCode::Char('Y') => Ok(TuiAction::Quit),
-        KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
+pub(super) fn handle_confirm_quit_key(app: &mut App, key: KeyEvent) -> Result<TuiAction> {
+    match key.code {
+        KeyCode::Char('y') if is_plain_char(&key, 'y') => Ok(TuiAction::Quit),
+        KeyCode::Char('Y') if is_plain_char(&key, 'Y') => Ok(TuiAction::Quit),
+        KeyCode::Char('n') if is_plain_char(&key, 'n') => {
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Char('N') if is_plain_char(&key, 'N') => {
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Esc => {
             app.mode = AppMode::Normal;
             Ok(TuiAction::Continue)
         }
@@ -75,18 +114,33 @@ pub(super) fn handle_confirm_quit_key(app: &mut App, key: KeyCode) -> Result<Tui
 /// Handle key events in ConfirmDiscard mode.
 pub(super) fn handle_confirm_discard_key(
     app: &mut App,
-    key: KeyCode,
+    key: KeyEvent,
     action: ConfirmDiscardAction,
 ) -> Result<TuiAction> {
-    match key {
-        KeyCode::Char('y') | KeyCode::Char('Y') => {
+    match key.code {
+        KeyCode::Char('y') if is_plain_char(&key, 'y') => {
             app.mode = AppMode::Normal;
             Ok(match action {
                 ConfirmDiscardAction::ReloadQueue => TuiAction::ReloadQueue,
                 ConfirmDiscardAction::Quit => TuiAction::Quit,
             })
         }
-        KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
+        KeyCode::Char('Y') if is_plain_char(&key, 'Y') => {
+            app.mode = AppMode::Normal;
+            Ok(match action {
+                ConfirmDiscardAction::ReloadQueue => TuiAction::ReloadQueue,
+                ConfirmDiscardAction::Quit => TuiAction::Quit,
+            })
+        }
+        KeyCode::Char('n') if is_plain_char(&key, 'n') => {
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Char('N') if is_plain_char(&key, 'N') => {
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Esc => {
             app.mode = AppMode::Normal;
             Ok(TuiAction::Continue)
         }
@@ -155,49 +209,55 @@ fn status_message_for_revert_decision(label: &str, decision: &RevertDecision) ->
 /// Handle key events in ConfirmRevert mode.
 pub(super) fn handle_confirm_revert_key(
     app: &mut App,
-    key: KeyCode,
+    key: KeyEvent,
     state: ConfirmRevertState,
 ) -> Result<TuiAction> {
     let mut state = state;
 
-    match key {
+    match key.code {
         KeyCode::Up => {
             state.selected = state.selected.saturating_sub(1);
         }
         KeyCode::Down => {
             state.selected = (state.selected + 1).min(state.max_index());
         }
-        KeyCode::Char('1') => {
-            if state.selected == 2 {
-                state.input.push('1');
-            } else {
-                state.selected = 0;
-            }
-        }
-        KeyCode::Char('2') => {
-            if state.selected == 2 {
-                state.input.push('2');
-            } else {
-                state.selected = 1;
-            }
-        }
-        KeyCode::Char('3') => {
-            if state.selected == 2 {
-                state.input.push('3');
-            } else {
-                state.selected = 2;
-            }
-        }
-        KeyCode::Char('4') => {
-            if state.selected == 2 {
-                state.input.push('4');
-            } else if state.allow_proceed {
-                state.selected = 3;
-            }
-        }
-        KeyCode::Char(ch) => {
-            if state.selected == 2 {
-                state.input.push(ch);
+        KeyCode::Char(_) => {
+            if let Some(ch) = text_char(&key) {
+                match ch {
+                    '1' => {
+                        if state.selected == 2 {
+                            state.input.push('1');
+                        } else {
+                            state.selected = 0;
+                        }
+                    }
+                    '2' => {
+                        if state.selected == 2 {
+                            state.input.push('2');
+                        } else {
+                            state.selected = 1;
+                        }
+                    }
+                    '3' => {
+                        if state.selected == 2 {
+                            state.input.push('3');
+                        } else {
+                            state.selected = 2;
+                        }
+                    }
+                    '4' => {
+                        if state.selected == 2 {
+                            state.input.push('4');
+                        } else if state.allow_proceed {
+                            state.selected = 3;
+                        }
+                    }
+                    _ => {
+                        if state.selected == 2 {
+                            state.input.push(ch);
+                        }
+                    }
+                }
             }
         }
         KeyCode::Backspace => {

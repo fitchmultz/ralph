@@ -1,8 +1,22 @@
+//! Field editing key handling for the TUI.
+//!
+//! Responsibilities:
+//! - Handle navigation and text edits for task and config editing modes.
+//! - Apply edits or cancel based on user input.
+//!
+//! Not handled here:
+//! - Rendering edit UIs or validating field schemas.
+//! - Persistence of edits beyond updating `App` state.
+//!
+//! Invariants/assumptions:
+//! - Text input ignores Ctrl/Alt modified characters.
+//! - Editing modes remain consistent with the selected entry index.
+
 use super::super::AppMode;
 use super::types::TuiAction;
-use super::App;
+use super::{is_plain_char, text_char, App};
 use anyhow::Result;
-use crossterm::event::KeyCode;
+use crossterm::event::{KeyCode, KeyEvent};
 
 /// Result of handling a text-edit key.
 enum TextEditKeyResult {
@@ -12,28 +26,30 @@ enum TextEditKeyResult {
     Noop,
 }
 
-fn handle_text_edit_key(key: KeyCode, value: String) -> TextEditKeyResult {
-    match key {
+fn handle_text_edit_key(key: KeyEvent, value: String) -> TextEditKeyResult {
+    match key.code {
         KeyCode::Enter => TextEditKeyResult::Commit(value),
         KeyCode::Esc => TextEditKeyResult::Cancel,
-        KeyCode::Char(c) => {
-            let mut updated = value;
-            updated.push(c);
-            TextEditKeyResult::Update(updated)
-        }
         KeyCode::Backspace => {
             let mut updated = value;
             updated.pop();
             TextEditKeyResult::Update(updated)
         }
-        _ => TextEditKeyResult::Noop,
+        _ => match text_char(&key) {
+            Some(ch) => {
+                let mut updated = value;
+                updated.push(ch);
+                TextEditKeyResult::Update(updated)
+            }
+            None => TextEditKeyResult::Noop,
+        },
     }
 }
 
 /// Handle key events in EditingTask mode.
 pub(super) fn handle_editing_task_key(
     app: &mut App,
-    key: KeyCode,
+    key: KeyEvent,
     selected: usize,
     editing_value: Option<String>,
     now_rfc3339: &str,
@@ -86,12 +102,12 @@ pub(super) fn handle_editing_task_key(
             TextEditKeyResult::Noop => Ok(TuiAction::Continue),
         }
     } else {
-        match key {
+        match key.code {
             KeyCode::Esc => {
                 app.mode = AppMode::Normal;
                 Ok(TuiAction::Continue)
             }
-            KeyCode::Up | KeyCode::Char('k') => {
+            KeyCode::Up => {
                 let next_selected = selected.saturating_sub(1);
                 app.mode = AppMode::EditingTask {
                     selected: next_selected,
@@ -99,7 +115,15 @@ pub(super) fn handle_editing_task_key(
                 };
                 Ok(TuiAction::Continue)
             }
-            KeyCode::Down | KeyCode::Char('j') => {
+            KeyCode::Char('k') if is_plain_char(&key, 'k') => {
+                let next_selected = selected.saturating_sub(1);
+                app.mode = AppMode::EditingTask {
+                    selected: next_selected,
+                    editing_value: None,
+                };
+                Ok(TuiAction::Continue)
+            }
+            KeyCode::Down => {
                 let next_selected = (selected + 1).min(max_index);
                 app.mode = AppMode::EditingTask {
                     selected: next_selected,
@@ -107,7 +131,15 @@ pub(super) fn handle_editing_task_key(
                 };
                 Ok(TuiAction::Continue)
             }
-            KeyCode::Enter | KeyCode::Char(' ') => {
+            KeyCode::Char('j') if is_plain_char(&key, 'j') => {
+                let next_selected = (selected + 1).min(max_index);
+                app.mode = AppMode::EditingTask {
+                    selected: next_selected,
+                    editing_value: None,
+                };
+                Ok(TuiAction::Continue)
+            }
+            KeyCode::Enter => {
                 match entry.kind {
                     crate::tui::TaskEditKind::Cycle => {
                         if let Err(e) = app.apply_task_edit(entry.key, "", now_rfc3339) {
@@ -131,7 +163,31 @@ pub(super) fn handle_editing_task_key(
                 }
                 Ok(TuiAction::Continue)
             }
-            KeyCode::Char('x') => {
+            KeyCode::Char(' ') if is_plain_char(&key, ' ') => {
+                match entry.kind {
+                    crate::tui::TaskEditKind::Cycle => {
+                        if let Err(e) = app.apply_task_edit(entry.key, "", now_rfc3339) {
+                            app.set_status_message(format!("Error: {}", e));
+                        }
+                        app.mode = AppMode::EditingTask {
+                            selected,
+                            editing_value: None,
+                        };
+                    }
+                    crate::tui::TaskEditKind::Text
+                    | crate::tui::TaskEditKind::List
+                    | crate::tui::TaskEditKind::Map
+                    | crate::tui::TaskEditKind::OptionalText => {
+                        let current = app.task_value_for_edit(entry.key);
+                        app.mode = AppMode::EditingTask {
+                            selected,
+                            editing_value: Some(current),
+                        };
+                    }
+                }
+                Ok(TuiAction::Continue)
+            }
+            KeyCode::Char('x') if is_plain_char(&key, 'x') => {
                 match entry.kind {
                     crate::tui::TaskEditKind::Cycle => {}
                     crate::tui::TaskEditKind::Text
@@ -145,18 +201,20 @@ pub(super) fn handle_editing_task_key(
                 }
                 Ok(TuiAction::Continue)
             }
-            KeyCode::Char(c) => {
+            KeyCode::Char(_) => {
                 match entry.kind {
                     crate::tui::TaskEditKind::Text
                     | crate::tui::TaskEditKind::List
                     | crate::tui::TaskEditKind::Map
                     | crate::tui::TaskEditKind::OptionalText => {
-                        let mut current = app.task_value_for_edit(entry.key);
-                        current.push(c);
-                        app.mode = AppMode::EditingTask {
-                            selected,
-                            editing_value: Some(current),
-                        };
+                        if let Some(ch) = text_char(&key) {
+                            let mut current = app.task_value_for_edit(entry.key);
+                            current.push(ch);
+                            app.mode = AppMode::EditingTask {
+                                selected,
+                                editing_value: Some(current),
+                            };
+                        }
                     }
                     crate::tui::TaskEditKind::Cycle => {}
                 }
@@ -169,7 +227,7 @@ pub(super) fn handle_editing_task_key(
 
 pub(super) fn handle_editing_config_key(
     app: &mut App,
-    key: KeyCode,
+    key: KeyEvent,
     selected: usize,
     editing_value: Option<String>,
 ) -> Result<TuiAction> {
@@ -222,12 +280,12 @@ pub(super) fn handle_editing_config_key(
             TextEditKeyResult::Noop => Ok(TuiAction::Continue),
         }
     } else {
-        match key {
+        match key.code {
             KeyCode::Esc => {
                 app.mode = AppMode::Normal;
                 Ok(TuiAction::Continue)
             }
-            KeyCode::Up | KeyCode::Char('k') => {
+            KeyCode::Up => {
                 let next_selected = selected.saturating_sub(1);
                 app.mode = AppMode::EditingConfig {
                     selected: next_selected,
@@ -235,7 +293,15 @@ pub(super) fn handle_editing_config_key(
                 };
                 Ok(TuiAction::Continue)
             }
-            KeyCode::Down | KeyCode::Char('j') => {
+            KeyCode::Char('k') if is_plain_char(&key, 'k') => {
+                let next_selected = selected.saturating_sub(1);
+                app.mode = AppMode::EditingConfig {
+                    selected: next_selected,
+                    editing_value: None,
+                };
+                Ok(TuiAction::Continue)
+            }
+            KeyCode::Down => {
                 let next_selected = (selected + 1).min(max_index);
                 app.mode = AppMode::EditingConfig {
                     selected: next_selected,
@@ -243,7 +309,15 @@ pub(super) fn handle_editing_config_key(
                 };
                 Ok(TuiAction::Continue)
             }
-            KeyCode::Enter | KeyCode::Char(' ') => {
+            KeyCode::Char('j') if is_plain_char(&key, 'j') => {
+                let next_selected = (selected + 1).min(max_index);
+                app.mode = AppMode::EditingConfig {
+                    selected: next_selected,
+                    editing_value: None,
+                };
+                Ok(TuiAction::Continue)
+            }
+            KeyCode::Enter => {
                 if entry.kind == crate::tui::ConfigFieldKind::Text {
                     let current = app.config_value_for_edit(entry.key);
                     app.mode = AppMode::EditingConfig {
@@ -260,19 +334,38 @@ pub(super) fn handle_editing_config_key(
                 }
                 Ok(TuiAction::Continue)
             }
-            KeyCode::Char('x') => {
-                app.clear_config_value(entry.key);
-                app.set_status_message("Config cleared");
-                Ok(TuiAction::Continue)
-            }
-            KeyCode::Char(c) => {
+            KeyCode::Char(' ') if is_plain_char(&key, ' ') => {
                 if entry.kind == crate::tui::ConfigFieldKind::Text {
-                    let mut current = app.config_value_for_edit(entry.key);
-                    current.push(c);
+                    let current = app.config_value_for_edit(entry.key);
                     app.mode = AppMode::EditingConfig {
                         selected,
                         editing_value: Some(current),
                     };
+                } else {
+                    app.cycle_config_value(entry.key);
+                    app.set_status_message("Config updated");
+                    app.mode = AppMode::EditingConfig {
+                        selected,
+                        editing_value: None,
+                    };
+                }
+                Ok(TuiAction::Continue)
+            }
+            KeyCode::Char('x') if is_plain_char(&key, 'x') => {
+                app.clear_config_value(entry.key);
+                app.set_status_message("Config cleared");
+                Ok(TuiAction::Continue)
+            }
+            KeyCode::Char(_) => {
+                if entry.kind == crate::tui::ConfigFieldKind::Text {
+                    if let Some(ch) = text_char(&key) {
+                        let mut current = app.config_value_for_edit(entry.key);
+                        current.push(ch);
+                        app.mode = AppMode::EditingConfig {
+                            selected,
+                            editing_value: Some(current),
+                        };
+                    }
                 }
                 Ok(TuiAction::Continue)
             }

@@ -1636,7 +1636,7 @@ where
 
                     let mut app_ref = app.borrow_mut();
                     let now = timeutil::now_utc_rfc3339()?;
-                    match handle_key_event(&mut app_ref, key.code, &now)? {
+                    match handle_key_event(&mut app_ref, key, &now)? {
                         TuiAction::Quit => break,
                         TuiAction::Continue => {}
                         TuiAction::ReloadQueue => {

@@ -12,7 +12,7 @@
 //! - `a` archives terminal tasks (done/rejected) with confirmation
 //! - `?`/`h` shows the help overlay
 
-use crossterm::event::KeyCode;
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use super::App;
 
@@ -40,7 +40,7 @@ mod tests;
 /// to allow testing without a full terminal setup.
 pub fn handle_key_event(
     app: &mut App,
-    key: KeyCode,
+    key: KeyEvent,
     now_rfc3339: &str,
 ) -> anyhow::Result<TuiAction> {
     match app.mode.clone() {
@@ -93,4 +93,25 @@ pub fn handle_key_event(
         }
         AppMode::Executing { .. } => run::handle_executing_mode_key(app, key),
     }
+}
+
+pub(super) fn text_char(key: &KeyEvent) -> Option<char> {
+    if key.modifiers.contains(KeyModifiers::CONTROL) || key.modifiers.contains(KeyModifiers::ALT) {
+        return None;
+    }
+    match key.code {
+        KeyCode::Char(ch) => Some(ch),
+        _ => None,
+    }
+}
+
+pub(super) fn is_ctrl_char(key: &KeyEvent, expected: char) -> bool {
+    key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char(expected)
+}
+
+pub(super) fn is_plain_char(key: &KeyEvent, expected: char) -> bool {
+    if key.modifiers.contains(KeyModifiers::CONTROL) || key.modifiers.contains(KeyModifiers::ALT) {
+        return false;
+    }
+    key.code == KeyCode::Char(expected)
 }

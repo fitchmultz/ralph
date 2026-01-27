@@ -1,22 +1,42 @@
-use super::types::TuiAction;
-use super::App;
+//! Executing-mode key handling for the TUI.
+//!
+//! Responsibilities:
+//! - Navigate and control the live execution log view.
+//! - Exit back to Normal mode when requested.
+//!
+//! Not handled here:
+//! - Rendering execution output.
+//! - Runner lifecycle management beyond local state toggles.
+//!
+//! Invariants/assumptions:
+//! - Key handling is stateless and uses current `App` log metadata.
+
+use super::{is_plain_char, types::TuiAction, App};
 use anyhow::Result;
-use crossterm::event::KeyCode;
+use crossterm::event::{KeyCode, KeyEvent};
 
 /// Handle key events in Executing mode.
-pub(super) fn handle_executing_mode_key(app: &mut App, key: KeyCode) -> Result<TuiAction> {
+pub(super) fn handle_executing_mode_key(app: &mut App, key: KeyEvent) -> Result<TuiAction> {
     let visible_lines = app.log_visible_lines();
     let page_lines = visible_lines.saturating_sub(1).max(1);
-    match key {
+    match key.code {
         KeyCode::Esc => {
             app.mode = super::super::AppMode::Normal;
             Ok(TuiAction::Continue)
         }
-        KeyCode::Up | KeyCode::Char('k') => {
+        KeyCode::Up => {
             app.scroll_logs_up(1);
             Ok(TuiAction::Continue)
         }
-        KeyCode::Down | KeyCode::Char('j') => {
+        KeyCode::Char('k') if is_plain_char(&key, 'k') => {
+            app.scroll_logs_up(1);
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Down => {
+            app.scroll_logs_down(1, visible_lines);
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Char('j') if is_plain_char(&key, 'j') => {
             app.scroll_logs_down(1, visible_lines);
             Ok(TuiAction::Continue)
         }
@@ -28,7 +48,7 @@ pub(super) fn handle_executing_mode_key(app: &mut App, key: KeyCode) -> Result<T
             app.scroll_logs_down(page_lines, visible_lines);
             Ok(TuiAction::Continue)
         }
-        KeyCode::Char('a') => {
+        KeyCode::Char('a') if is_plain_char(&key, 'a') => {
             if app.autoscroll {
                 app.autoscroll = false;
             } else {
@@ -36,7 +56,7 @@ pub(super) fn handle_executing_mode_key(app: &mut App, key: KeyCode) -> Result<T
             }
             Ok(TuiAction::Continue)
         }
-        KeyCode::Char('l') => {
+        KeyCode::Char('l') if is_plain_char(&key, 'l') => {
             if app.loop_active {
                 app.loop_active = false;
                 app.loop_arm_after_current = false;

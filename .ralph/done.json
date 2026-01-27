@@ -6467,6 +6467,52 @@
       "completed_at": "2026-01-27T05:19:53.947706000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0314",
+      "status": "done",
+      "title": "TUI: pass KeyEvent (modifiers) through event pipeline + Ctrl shortcuts",
+      "priority": "high",
+      "tags": [
+        "tui",
+        "ux",
+        "keybindings"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/app.rs",
+        "crates/ralph/src/tui/events/mod.rs",
+        "crates/ralph/src/tui/events/*",
+        "crates/ralph/src/tui/events/tests.rs",
+        "docs/tui-task-management.md",
+        "make ci"
+      ],
+      "evidence": [
+        "`crates/ralph/src/tui/app.rs`: input loop calls `handle_key_event(&mut app_ref, key.code, ...)`, so modifiers are dropped before dispatch.",
+        "`crates/ralph/src/tui/events/mod.rs`: `handle_key_event` accepts `KeyCode` and dispatches by key code only; handlers cannot distinguish Ctrl/Alt/Shift.",
+        "`crates/ralph/src/tui/events/tests.rs`: tests call `handle_key_event` with `KeyCode` only, so there is no modifier-aware coverage.",
+        "`crates/ralph/src/tui/events/normal.rs`: `KeyCode::Char('c')` enters config edit, so Ctrl+C is currently indistinguishable and triggers config edit."
+      ],
+      "plan": [
+        "Change event dispatch to pass `crossterm::event::KeyEvent` (or an internal key type) instead of `KeyCode`, and update `handle_key_event` signature accordingly.",
+        "Update all mode handlers to accept the richer key type while preserving existing bindings for unmodified keys.",
+        "Refactor tests to construct key events with modifiers (add a helper for readable KeyEvent creation).",
+        "Add modifier-aware shortcuts (e.g., Ctrl+C/Ctrl+Q quit, Ctrl+P palette, Ctrl+F search) without breaking existing keys.",
+        "Add tests that verify modifier-specific behavior (Ctrl+C does not open config edit; Ctrl+P opens palette; plain `c` still edits config).",
+        "Update `docs/tui-task-management.md` key reference for new shortcuts.",
+        "Run `make ci`."
+      ],
+      "notes": [
+        "Key handling tests currently depend on `KeyCode` only; introducing `KeyEvent` will need a small test helper to keep cases readable.",
+        "Pass KeyEvent through TUI handlers, add modifier helpers and Ctrl shortcuts.",
+        "Refresh event tests for KeyEvent + modifiers (including text_char ctrl/alt coverage).",
+        "Update TUI key reference and verify with make ci."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-27T04:35:15Z",
+      "updated_at": "2026-01-27T05:50:58.748524000Z",
+      "completed_at": "2026-01-27T05:50:58.748524000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

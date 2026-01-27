@@ -23,7 +23,9 @@ In **Normal mode**:
 - `d`: delete selected task (confirmation)
 - `a`: archive terminal tasks (Done/Rejected) into done archive (confirmation)
 - `:`: command palette (discoverable commands)
+- `Ctrl+P`: command palette (shortcut)
 - `/`: search (free-text)
+- `Ctrl+F`: search (shortcut)
 - `t`: filter by tags
 - `o`: filter by scope
 - `f`: cycle status filter
@@ -31,6 +33,7 @@ In **Normal mode**:
 - `r`: reload queue from disk
 - `?` / `h`: help overlay
 - `q` / `Esc`: quit (may prompt if runner active)
+- `Ctrl+C` / `Ctrl+Q`: quit (same as `q`/`Esc`)
 
 ---
 

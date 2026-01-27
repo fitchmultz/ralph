@@ -15,6 +15,30 @@
 use super::types::ConfirmDiscardAction;
 use super::*;
 use crate::contracts::{QueueFile, Task, TaskPriority, TaskStatus};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+fn key_event(code: KeyCode) -> KeyEvent {
+    KeyEvent::new(code, KeyModifiers::NONE)
+}
+
+fn ctrl_key_event(code: KeyCode) -> KeyEvent {
+    KeyEvent::new(code, KeyModifiers::CONTROL)
+}
+
+#[test]
+fn text_char_ignores_ctrl_and_alt_modifiers() {
+    let plain = KeyEvent::new(KeyCode::Char('a'), KeyModifiers::NONE);
+    assert_eq!(text_char(&plain), Some('a'));
+
+    let shifted = KeyEvent::new(KeyCode::Char('A'), KeyModifiers::SHIFT);
+    assert_eq!(text_char(&shifted), Some('A'));
+
+    let ctrl = KeyEvent::new(KeyCode::Char('a'), KeyModifiers::CONTROL);
+    assert_eq!(text_char(&ctrl), None);
+
+    let alt = KeyEvent::new(KeyCode::Char('a'), KeyModifiers::ALT);
+    assert_eq!(text_char(&alt), None);
+}
 
 fn make_test_task(id: &str) -> Task {
     Task {
@@ -45,8 +69,12 @@ fn quit_when_not_running_exits_immediately() {
     };
     let mut app = App::new(queue);
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Char('q'), "2026-01-19T00:00:00Z").expect("handle key");
+    let action = handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('q')),
+        "2026-01-19T00:00:00Z",
+    )
+    .expect("handle key");
 
     assert_eq!(action, TuiAction::Quit);
     assert_eq!(app.mode, AppMode::Normal);
@@ -61,8 +89,12 @@ fn quit_when_running_requires_confirmation() {
     let mut app = App::new(queue);
     app.runner_active = true;
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Char('q'), "2026-01-19T00:00:00Z").expect("handle key");
+    let action = handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('q')),
+        "2026-01-19T00:00:00Z",
+    )
+    .expect("handle key");
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.mode, AppMode::ConfirmQuit);
@@ -77,8 +109,12 @@ fn confirm_quit_accepts_yes() {
     let mut app = App::new(queue);
     app.mode = AppMode::ConfirmQuit;
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Char('y'), "2026-01-19T00:00:00Z").expect("handle key");
+    let action = handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('y')),
+        "2026-01-19T00:00:00Z",
+    )
+    .expect("handle key");
 
     assert_eq!(action, TuiAction::Quit);
 }
@@ -118,8 +154,12 @@ fn reload_when_dirty_requires_confirm_discard() {
     let mut app = App::new(queue);
     app.dirty = true;
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Char('r'), "2026-01-19T00:00:00Z").expect("handle key");
+    let action = handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('r')),
+        "2026-01-19T00:00:00Z",
+    )
+    .expect("handle key");
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(
@@ -141,8 +181,12 @@ fn confirm_discard_reload_yes_triggers_reload() {
         action: ConfirmDiscardAction::ReloadQueue,
     };
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Char('y'), "2026-01-19T00:00:00Z").expect("handle key");
+    let action = handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('y')),
+        "2026-01-19T00:00:00Z",
+    )
+    .expect("handle key");
 
     assert_eq!(action, TuiAction::ReloadQueue);
     assert_eq!(app.mode, AppMode::Normal);
@@ -159,8 +203,8 @@ fn confirm_discard_cancel_returns_to_normal() {
         action: ConfirmDiscardAction::Quit,
     };
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Esc, "2026-01-19T00:00:00Z").expect("handle key");
+    let action = handle_key_event(&mut app, key_event(KeyCode::Esc), "2026-01-19T00:00:00Z")
+        .expect("handle key");
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.mode, AppMode::Normal);
@@ -175,8 +219,12 @@ fn quit_when_dirty_requires_confirm_discard() {
     let mut app = App::new(queue);
     app.dirty = true;
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Char('q'), "2026-01-19T00:00:00Z").expect("handle key");
+    let action = handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('q')),
+        "2026-01-19T00:00:00Z",
+    )
+    .expect("handle key");
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(
@@ -217,8 +265,12 @@ fn loop_key_starts_loop_and_runs_next_runnable() {
     };
     let mut app = App::new(queue);
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Char('l'), "2026-01-20T00:00:00Z").expect("handle key");
+    let action = handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('l')),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("handle key");
 
     assert_eq!(action, TuiAction::RunTask("RQ-0001".to_string()));
     assert!(app.loop_active);
@@ -229,8 +281,12 @@ fn loop_key_starts_loop_and_runs_next_runnable() {
 fn delete_key_without_selection_sets_status_message() {
     let mut app = App::new(QueueFile::default());
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Char('d'), "2026-01-20T00:00:00Z").expect("handle key");
+    let action = handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('d')),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("handle key");
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.mode, AppMode::Normal);
@@ -250,14 +306,22 @@ fn archive_flow_enters_confirm_mode_then_moves_tasks() {
     let mut app = App::new(queue);
 
     // Enter confirm archive.
-    let action =
-        handle_key_event(&mut app, KeyCode::Char('a'), "2026-01-20T00:00:00Z").expect("handle key");
+    let action = handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('a')),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("handle key");
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.mode, AppMode::ConfirmArchive);
 
     // Confirm.
-    let action =
-        handle_key_event(&mut app, KeyCode::Char('y'), "2026-01-20T00:00:00Z").expect("handle key");
+    let action = handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('y')),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("handle key");
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.mode, AppMode::Normal);
 
@@ -277,8 +341,12 @@ fn colon_enters_command_palette() {
     };
     let mut app = App::new(queue);
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Char(':'), "2026-01-20T00:00:00Z").expect("handle key");
+    let action = handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char(':')),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("handle key");
 
     assert_eq!(action, TuiAction::Continue);
     match app.mode {
@@ -291,8 +359,12 @@ fn colon_enters_command_palette() {
 fn colon_enters_command_palette_with_empty_queue() {
     let mut app = App::new(QueueFile::default());
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Char(':'), "2026-01-20T00:00:00Z").expect("handle key");
+    let action = handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char(':')),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("handle key");
 
     assert_eq!(action, TuiAction::Continue);
     match app.mode {
@@ -305,8 +377,12 @@ fn colon_enters_command_palette_with_empty_queue() {
 fn n_enters_create_mode_with_empty_queue() {
     let mut app = App::new(QueueFile::default());
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Char('n'), "2026-01-20T00:00:00Z").expect("handle key");
+    let action = handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('n')),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("handle key");
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.mode, AppMode::CreatingTask(String::new()));
@@ -320,8 +396,12 @@ fn help_key_enters_help_mode() {
     };
     let mut app = App::new(queue);
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Char('?'), "2026-01-20T00:00:00Z").expect("handle key");
+    let action = handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('?')),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("handle key");
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.mode, AppMode::Help);
@@ -335,8 +415,12 @@ fn help_key_enters_help_mode_with_h() {
     };
     let mut app = App::new(queue);
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Char('h'), "2026-01-20T00:00:00Z").expect("handle key");
+    let action = handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('h')),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("handle key");
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.mode, AppMode::Help);
@@ -351,8 +435,8 @@ fn help_mode_closes_on_escape() {
     let mut app = App::new(queue);
     app.mode = AppMode::Help;
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Esc, "2026-01-20T00:00:00Z").expect("handle key");
+    let action = handle_key_event(&mut app, key_event(KeyCode::Esc), "2026-01-20T00:00:00Z")
+        .expect("handle key");
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.mode, AppMode::Normal);
@@ -367,8 +451,12 @@ fn help_mode_closes_on_h() {
     let mut app = App::new(queue);
     app.mode = AppMode::Help;
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Char('h'), "2026-01-20T00:00:00Z").expect("handle key");
+    let action = handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('h')),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("handle key");
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.mode, AppMode::Normal);
@@ -383,8 +471,12 @@ fn help_mode_closes_on_question_mark() {
     let mut app = App::new(queue);
     app.mode = AppMode::Help;
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Char('?'), "2026-01-20T00:00:00Z").expect("handle key");
+    let action = handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('?')),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("handle key");
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.mode, AppMode::Normal);
@@ -399,8 +491,12 @@ fn help_mode_ignores_unrelated_keys() {
     let mut app = App::new(queue);
     app.mode = AppMode::Help;
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Char('x'), "2026-01-20T00:00:00Z").expect("handle key");
+    let action = handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('x')),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("handle key");
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.mode, AppMode::Help);
@@ -418,8 +514,8 @@ fn command_palette_runs_selected_command() {
         selected: 0,
     };
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Enter, "2026-01-20T00:00:00Z").expect("handle key");
+    let action = handle_key_event(&mut app, key_event(KeyCode::Enter), "2026-01-20T00:00:00Z")
+        .expect("handle key");
 
     assert_eq!(action, TuiAction::RunTask("RQ-0001".to_string()));
     assert!(app.runner_active);
@@ -437,8 +533,8 @@ fn command_palette_with_no_matches_sets_status_message() {
         selected: 0,
     };
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Enter, "2026-01-20T00:00:00Z").expect("handle key");
+    let action = handle_key_event(&mut app, key_event(KeyCode::Enter), "2026-01-20T00:00:00Z")
+        .expect("handle key");
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.mode, AppMode::Normal);
@@ -453,14 +549,98 @@ fn c_enters_config_mode() {
     };
     let mut app = App::new(queue);
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Char('c'), "2026-01-20T00:00:00Z").expect("key");
+    let action = handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('c')),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("key");
 
     assert_eq!(action, TuiAction::Continue);
     match app.mode {
         AppMode::EditingConfig { .. } => {}
         other => panic!("expected config mode, got {:?}", other),
     }
+}
+
+#[test]
+fn ctrl_c_quits_in_normal_mode() {
+    let queue = QueueFile {
+        version: 1,
+        tasks: vec![make_test_task("RQ-0001")],
+    };
+    let mut app = App::new(queue);
+
+    let action = handle_key_event(
+        &mut app,
+        ctrl_key_event(KeyCode::Char('c')),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("key");
+
+    assert_eq!(action, TuiAction::Quit);
+    assert_eq!(app.mode, AppMode::Normal);
+}
+
+#[test]
+fn ctrl_q_quits_in_normal_mode() {
+    let queue = QueueFile {
+        version: 1,
+        tasks: vec![make_test_task("RQ-0001")],
+    };
+    let mut app = App::new(queue);
+
+    let action = handle_key_event(
+        &mut app,
+        ctrl_key_event(KeyCode::Char('q')),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("key");
+
+    assert_eq!(action, TuiAction::Quit);
+    assert_eq!(app.mode, AppMode::Normal);
+}
+
+#[test]
+fn ctrl_p_enters_command_palette() {
+    let queue = QueueFile {
+        version: 1,
+        tasks: vec![make_test_task("RQ-0001")],
+    };
+    let mut app = App::new(queue);
+
+    let action = handle_key_event(
+        &mut app,
+        ctrl_key_event(KeyCode::Char('p')),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("key");
+
+    assert_eq!(action, TuiAction::Continue);
+    match app.mode {
+        AppMode::CommandPalette { .. } => {}
+        other => panic!("expected command palette, got {:?}", other),
+    }
+}
+
+#[test]
+fn ctrl_f_enters_search_mode() {
+    let queue = QueueFile {
+        version: 1,
+        tasks: vec![make_test_task("RQ-0001")],
+    };
+    let mut app = App::new(queue);
+    app.filters.query = "needle".to_string();
+
+    let action = handle_key_event(
+        &mut app,
+        ctrl_key_event(KeyCode::Char('f')),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("key");
+
+    assert_eq!(action, TuiAction::Continue);
+    assert_eq!(app.mode, AppMode::Searching("needle".to_string()));
 }
 
 #[test]
@@ -471,8 +651,12 @@ fn g_enters_scan_mode() {
     };
     let mut app = App::new(queue);
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Char('g'), "2026-01-20T00:00:00Z").expect("key");
+    let action = handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('g')),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("key");
 
     assert_eq!(action, TuiAction::Continue);
     match app.mode {
@@ -490,7 +674,8 @@ fn scan_mode_enter_runs_scan() {
     let mut app = App::new(queue);
     app.mode = AppMode::Scanning("focus".to_string());
 
-    let action = handle_key_event(&mut app, KeyCode::Enter, "2026-01-20T00:00:00Z").expect("key");
+    let action =
+        handle_key_event(&mut app, key_event(KeyCode::Enter), "2026-01-20T00:00:00Z").expect("key");
 
     assert_eq!(action, TuiAction::RunScan("focus".to_string()));
     assert_eq!(app.mode, AppMode::Normal);
@@ -505,7 +690,8 @@ fn scan_mode_escape_cancels() {
     let mut app = App::new(queue);
     app.mode = AppMode::Scanning("focus".to_string());
 
-    let action = handle_key_event(&mut app, KeyCode::Esc, "2026-01-20T00:00:00Z").expect("key");
+    let action =
+        handle_key_event(&mut app, key_event(KeyCode::Esc), "2026-01-20T00:00:00Z").expect("key");
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.mode, AppMode::Normal);
@@ -523,7 +709,8 @@ fn scan_palette_command_enters_scan_mode() {
         selected: 0,
     };
 
-    let action = handle_key_event(&mut app, KeyCode::Enter, "2026-01-20T00:00:00Z").expect("key");
+    let action =
+        handle_key_event(&mut app, key_event(KeyCode::Enter), "2026-01-20T00:00:00Z").expect("key");
 
     assert_eq!(action, TuiAction::Continue);
     match app.mode {
@@ -542,7 +729,8 @@ fn scan_rejected_when_runner_active() {
     app.runner_active = true;
     app.mode = AppMode::Scanning("focus".to_string());
 
-    let action = handle_key_event(&mut app, KeyCode::Enter, "2026-01-20T00:00:00Z").expect("key");
+    let action =
+        handle_key_event(&mut app, key_event(KeyCode::Enter), "2026-01-20T00:00:00Z").expect("key");
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.status_message.as_deref(), Some("Runner already active"));
@@ -560,7 +748,8 @@ fn config_mode_cycles_project_type() {
         editing_value: None,
     };
 
-    let action = handle_key_event(&mut app, KeyCode::Enter, "2026-01-20T00:00:00Z").expect("key");
+    let action =
+        handle_key_event(&mut app, key_event(KeyCode::Enter), "2026-01-20T00:00:00Z").expect("key");
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(
@@ -587,8 +776,14 @@ fn config_text_entry_updates_value() {
         editing_value: None,
     };
 
-    let _ = handle_key_event(&mut app, KeyCode::Char('X'), "2026-01-20T00:00:00Z").expect("key");
-    let _ = handle_key_event(&mut app, KeyCode::Enter, "2026-01-20T00:00:00Z").expect("key");
+    let _ = handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('X')),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("key");
+    let _ =
+        handle_key_event(&mut app, key_event(KeyCode::Enter), "2026-01-20T00:00:00Z").expect("key");
 
     assert_eq!(app.project_config.queue.id_prefix.as_deref(), Some("X"));
 }
@@ -601,8 +796,12 @@ fn uppercase_c_toggles_case_sensitive() {
     };
     let mut app = App::new(queue);
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Char('C'), "2026-01-20T00:00:00Z").expect("handle key");
+    let action = handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('C')),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("handle key");
 
     assert_eq!(action, TuiAction::Continue);
     assert!(app.filters.search_options.case_sensitive);
@@ -620,8 +819,12 @@ fn uppercase_r_toggles_regex() {
     };
     let mut app = App::new(queue);
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Char('R'), "2026-01-20T00:00:00Z").expect("handle key");
+    let action = handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('R')),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("handle key");
 
     assert_eq!(action, TuiAction::Continue);
     assert!(app.filters.search_options.use_regex);
@@ -636,10 +839,20 @@ fn toggle_case_sensitive_twice_restores_default() {
     };
     let mut app = App::new(queue);
 
-    handle_key_event(&mut app, KeyCode::Char('C'), "2026-01-20T00:00:00Z").expect("handle key");
+    handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('C')),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("handle key");
     assert!(app.filters.search_options.case_sensitive);
 
-    handle_key_event(&mut app, KeyCode::Char('C'), "2026-01-20T00:00:00Z").expect("handle key");
+    handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('C')),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("handle key");
     assert!(!app.filters.search_options.case_sensitive);
     assert_eq!(
         app.status_message.as_deref(),
@@ -655,10 +868,20 @@ fn toggle_regex_twice_restores_default() {
     };
     let mut app = App::new(queue);
 
-    handle_key_event(&mut app, KeyCode::Char('R'), "2026-01-20T00:00:00Z").expect("handle key");
+    handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('R')),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("handle key");
     assert!(app.filters.search_options.use_regex);
 
-    handle_key_event(&mut app, KeyCode::Char('R'), "2026-01-20T00:00:00Z").expect("handle key");
+    handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('R')),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("handle key");
     assert!(!app.filters.search_options.use_regex);
     assert_eq!(app.status_message.as_deref(), Some("Regex search disabled"));
 }
@@ -704,8 +927,12 @@ fn uppercase_o_enters_scope_filter_mode() {
     };
     let mut app = App::new(queue);
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Char('o'), "2026-01-20T00:00:00Z").expect("handle key");
+    let action = handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('o')),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("handle key");
 
     assert_eq!(action, TuiAction::Continue);
     assert!(matches!(app.mode, AppMode::FilteringScopes(_)));
@@ -734,8 +961,8 @@ fn enter_applies_scope_filter() {
     let mut app = App::new(queue);
     app.mode = AppMode::FilteringScopes("crates/ralph".to_string());
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Enter, "2026-01-20T00:00:00Z").expect("handle key");
+    let action = handle_key_event(&mut app, key_event(KeyCode::Enter), "2026-01-20T00:00:00Z")
+        .expect("handle key");
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.mode, AppMode::Normal, "mode should return to Normal");
@@ -754,8 +981,12 @@ fn uppercase_n_enters_task_builder_mode() {
     };
     let mut app = App::new(queue);
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Char('N'), "2026-01-20T00:00:00Z").expect("handle key");
+    let action = handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('N')),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("handle key");
 
     assert_eq!(action, TuiAction::Continue);
     assert!(matches!(app.mode, AppMode::CreatingTaskDescription(_)));
@@ -766,8 +997,12 @@ fn task_builder_mode_handles_character_input() {
     let mut app = App::new(QueueFile::default());
     app.mode = AppMode::CreatingTaskDescription(String::new());
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Char('a'), "2026-01-20T00:00:00Z").expect("handle key");
+    let action = handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('a')),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("handle key");
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.mode, AppMode::CreatingTaskDescription("a".to_string()));
@@ -778,8 +1013,12 @@ fn task_builder_mode_handles_backspace() {
     let mut app = App::new(QueueFile::default());
     app.mode = AppMode::CreatingTaskDescription("ab".to_string());
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Backspace, "2026-01-20T00:00:00Z").expect("handle key");
+    let action = handle_key_event(
+        &mut app,
+        key_event(KeyCode::Backspace),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("handle key");
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.mode, AppMode::CreatingTaskDescription("a".to_string()));
@@ -790,8 +1029,8 @@ fn task_builder_mode_escape_cancels() {
     let mut app = App::new(QueueFile::default());
     app.mode = AppMode::CreatingTaskDescription("test description".to_string());
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Esc, "2026-01-20T00:00:00Z").expect("handle key");
+    let action = handle_key_event(&mut app, key_event(KeyCode::Esc), "2026-01-20T00:00:00Z")
+        .expect("handle key");
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.mode, AppMode::Normal);
@@ -802,8 +1041,8 @@ fn task_builder_mode_empty_description_returns_to_normal() {
     let mut app = App::new(QueueFile::default());
     app.mode = AppMode::CreatingTaskDescription(String::new());
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Enter, "2026-01-20T00:00:00Z").expect("handle key");
+    let action = handle_key_event(&mut app, key_event(KeyCode::Enter), "2026-01-20T00:00:00Z")
+        .expect("handle key");
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.mode, AppMode::Normal);
@@ -818,8 +1057,8 @@ fn task_builder_mode_whitespace_only_returns_to_normal() {
     let mut app = App::new(QueueFile::default());
     app.mode = AppMode::CreatingTaskDescription("   ".to_string());
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Enter, "2026-01-20T00:00:00Z").expect("handle key");
+    let action = handle_key_event(&mut app, key_event(KeyCode::Enter), "2026-01-20T00:00:00Z")
+        .expect("handle key");
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.mode, AppMode::Normal);
@@ -834,8 +1073,8 @@ fn task_builder_mode_valid_description_builds_task() {
     let mut app = App::new(QueueFile::default());
     app.mode = AppMode::CreatingTaskDescription("Add a new feature".to_string());
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Enter, "2026-01-20T00:00:00Z").expect("handle key");
+    let action = handle_key_event(&mut app, key_event(KeyCode::Enter), "2026-01-20T00:00:00Z")
+        .expect("handle key");
 
     assert_eq!(
         action,
@@ -867,8 +1106,12 @@ fn uppercase_n_rejected_when_runner_active() {
     let mut app = App::new(queue);
     app.runner_active = true;
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Char('N'), "2026-01-20T00:00:00Z").expect("handle key");
+    let action = handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('N')),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("handle key");
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.status_message.as_deref(), Some("Runner already active"));
@@ -884,8 +1127,12 @@ fn uppercase_k_moves_selected_task_up_in_queue() {
     let mut app = App::new(queue);
     app.selected = 1; // Select RQ-0002
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Char('K'), "2026-01-20T00:00:00Z").expect("handle key");
+    let action = handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('K')),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("handle key");
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.queue.tasks[0].id, "RQ-0002");
@@ -902,8 +1149,12 @@ fn uppercase_j_moves_selected_task_down_in_queue() {
     let mut app = App::new(queue);
     app.selected = 0; // Select RQ-0001
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Char('J'), "2026-01-20T00:00:00Z").expect("handle key");
+    let action = handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('J')),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("handle key");
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.queue.tasks[0].id, "RQ-0002");
@@ -920,8 +1171,12 @@ fn move_task_up_at_top_does_not_mutate_queue() {
     let mut app = App::new(queue);
     app.selected = 0; // Select RQ-0001
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Char('K'), "2026-01-20T00:00:00Z").expect("handle key");
+    let action = handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('K')),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("handle key");
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.queue.tasks[0].id, "RQ-0001");
@@ -938,8 +1193,12 @@ fn move_task_down_at_bottom_does_not_mutate_queue() {
     let mut app = App::new(queue);
     app.selected = 1; // Select RQ-0002
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Char('J'), "2026-01-20T00:00:00Z").expect("handle key");
+    let action = handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('J')),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("handle key");
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.queue.tasks[0].id, "RQ-0001");
@@ -967,8 +1226,12 @@ fn move_task_with_filters_swaps_underlying_queue_indices() {
     assert_eq!(app.filtered_indices, vec![0, 2]);
     app.selected = 1; // Select RQ-0003
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Char('K'), "2026-01-20T00:00:00Z").expect("handle key");
+    let action = handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('K')),
+        "2026-01-20T00:00:00Z",
+    )
+    .expect("handle key");
 
     assert_eq!(action, TuiAction::Continue);
     // Should swap RQ-0001 and RQ-0003 (indices 0 and 2)
@@ -996,8 +1259,8 @@ fn command_palette_move_task_up_executes() {
     };
     app.selected = 1; // Select RQ-0002
 
-    let action =
-        handle_key_event(&mut app, KeyCode::Enter, "2026-01-20T00:00:00Z").expect("handle key");
+    let action = handle_key_event(&mut app, key_event(KeyCode::Enter), "2026-01-20T00:00:00Z")
+        .expect("handle key");
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.queue.tasks[0].id, "RQ-0002");
