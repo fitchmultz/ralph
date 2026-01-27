@@ -23,6 +23,52 @@ ralph --force queue archive
 * `ralph scan`: generate new tasks via scanning.
 * `ralph doctor`: verify environment readiness.
 
+## `ralph doctor`
+
+Verify environment readiness by checking Git, queue, runner binaries, and project configuration.
+
+### Runner Binary Detection
+
+`ralph doctor` detects runner binaries by trying multiple common flags in order:
+1. `--version`
+2. `-V`
+3. `--help`
+4. `help`
+
+The check passes if any of these invocations succeed. This allows `ralph doctor` to work with runner CLIs that may not support `--version` but do support `--help` or `-V`.
+
+### Actionable Error Guidance
+
+When a runner binary check fails, `ralph doctor` provides actionable guidance:
+
+```
+FAIL: runner binary 'codex' (Codex) check failed: tried: --version, -V, --help, help
+
+To fix this issue:
+  1. Install the runner binary, or
+  2. Configure a custom path in .ralph/config.json:
+     {
+       "agent": {
+         "codex_bin": "/path/to/codex"
+       }
+     }
+  3. Run 'ralph doctor' to verify the fix
+```
+
+Config keys for each runner:
+- Codex: `codex_bin`
+- OpenCode: `opencode_bin`
+- Gemini: `gemini_bin`
+- Claude: `claude_bin`
+- Cursor: `cursor_bin`
+
+Examples:
+
+```bash
+ralph doctor
+ralph --verbose doctor
+```
+
 ## `ralph tui`
 
 Launch the interactive TUI. This is the primary user-facing entry point.

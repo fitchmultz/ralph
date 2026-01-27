@@ -152,16 +152,37 @@ pub fn run_doctor(resolved: &config::Resolved) -> Result<()> {
             .unwrap_or("agent"),
     };
 
-    if let Err(e) = check_command(bin_name, &["--version"]) {
+    if let Err(e) = check_runner_binary(bin_name) {
+        let config_key = get_runner_config_key(runner);
         let message = format!(
             "runner binary '{}' ({:?}) check failed: {}",
             bin_name, runner, e
         );
         if runner_configured {
             outpututil::log_error(&message);
+            log::error!("");
+            log::error!("To fix this issue:");
+            log::error!("  1. Install the runner binary, or");
+            log::error!("  2. Configure a custom path in .ralph/config.json:");
+            log::error!("     {{");
+            log::error!("       \"agent\": {{");
+            log::error!("         \"{}\": \"/path/to/{}\"", config_key, bin_name);
+            log::error!("       }}");
+            log::error!("     }}");
+            log::error!("  3. Run 'ralph doctor' to verify the fix");
             failures.push("runner binary missing");
         } else {
             outpututil::log_warn(&message);
+            log::warn!("");
+            log::warn!("To fix this issue:");
+            log::warn!("  1. Install the runner binary, or");
+            log::warn!("  2. Configure a custom path in .ralph/config.json:");
+            log::warn!("     {{");
+            log::warn!("       \"agent\": {{");
+            log::warn!("         \"{}\": \"/path/to/{}\"", config_key, bin_name);
+            log::warn!("       }}");
+            log::warn!("     }}");
+            log::warn!("  3. Run 'ralph doctor' to verify the fix");
         }
     } else {
         outpututil::log_success(&format!(
@@ -307,5 +328,45 @@ fn check_command(bin: &str, args: &[&str]) -> Result<()> {
             )
         };
         Err(anyhow::anyhow!(stderr_msg))
+    }
+}
+
+/// Check if a runner binary is executable by trying multiple common flags.
+///
+/// Tries the following in order:
+/// 1. `--version`
+/// 2. `-V`
+/// 3. `--help`
+/// 4. `help`
+///
+/// Returns Ok if any invocation succeeds.
+fn check_runner_binary(bin: &str) -> Result<()> {
+    let fallbacks: &[&[&str]] = &[&["--version"], &["-V"], &["--help"], &["help"]];
+
+    for args in fallbacks {
+        match check_command(bin, args) {
+            Ok(()) => return Ok(()),
+            Err(_) => continue,
+        }
+    }
+
+    Err(anyhow::anyhow!(
+        "tried: {}",
+        fallbacks
+            .iter()
+            .map(|a| a.join(" "))
+            .collect::<Vec<_>>()
+            .join(", ")
+    ))
+}
+
+/// Get the config key for a runner's binary path override.
+fn get_runner_config_key(runner: Runner) -> &'static str {
+    match runner {
+        Runner::Codex => "codex_bin",
+        Runner::Opencode => "opencode_bin",
+        Runner::Gemini => "gemini_bin",
+        Runner::Claude => "claude_bin",
+        Runner::Cursor => "cursor_bin",
     }
 }

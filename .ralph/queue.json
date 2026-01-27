@@ -2,44 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0338",
-      "status": "todo",
-      "title": "Doctor: improve runner binary detection (version/help fallback + actionable guidance)",
-      "priority": "high",
-      "tags": [
-        "ux",
-        "doctor",
-        "runner"
-      ],
-      "scope": [
-        "crates/ralph/src/commands/doctor.rs",
-        "scripts/runner_cli_inventory.sh",
-        "docs/cli.md",
-        "crates/ralph/tests/doctor_contract_test.rs",
-        "make ci"
-      ],
-      "evidence": [
-        "`crates/ralph/src/commands/doctor.rs`: runner check uses `check_command(bin_name, [\"--version\"])` only.",
-        "`scripts/runner_cli_inventory.sh`: version capture is best-effort and tries `--version`, `version`, and `-V`, falling back to help capture."
-      ],
-      "plan": [
-        "Refactor doctor runner checks to try multiple version invocations (and/or fall back to `--help`) to avoid false negatives.",
-        "Improve output to suggest next actions (which config keys to set for bin paths, which command to run to confirm).",
-        "Add tests with stub binaries/scripts that lack `--version` but do support `--help`.",
-        "Ensure `ralph doctor` still fails when a configured runner binary is truly missing/unexecutable.",
-        "Run `make ci`."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "agent": {
-        "model_effort": "medium"
-      },
-      "created_at": "2026-01-27T18:17:26Z",
-      "updated_at": "2026-01-27T18:17:26Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0339",
       "status": "todo",
       "title": "CLI help/docs: include Cursor runner in supported runners and examples",

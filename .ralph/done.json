@@ -7383,6 +7383,55 @@
       "completed_at": "2026-01-27T20:35:00.292513000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0338",
+      "status": "done",
+      "title": "Doctor: improve runner binary detection (version/help fallback + actionable guidance)",
+      "priority": "high",
+      "tags": [
+        "ux",
+        "doctor",
+        "runner"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/doctor.rs",
+        "scripts/runner_cli_inventory.sh",
+        "docs/cli.md",
+        "crates/ralph/tests/doctor_contract_test.rs",
+        "make ci"
+      ],
+      "evidence": [
+        "`crates/ralph/src/commands/doctor.rs`: runner check at line 155 uses `check_command(bin_name, &[\"--version\"])` only - no fallback.",
+        "`scripts/runner_cli_inventory.sh`: `capture_version_best_effort()` tries `--version`, `version`, `-V` flags (lines 148-152) as fallback.",
+        "`crates/ralph/src/commands/doctor.rs`: `check_command()` function (lines 284-311) only accepts a single args slice - needs refactoring for multiple attempts.",
+        "`crates/ralph/tests/doctor_contract_test.rs`: existing tests verify failure on missing binaries but do not cover version-flag fallback scenarios."
+      ],
+      "plan": [
+        "Refactor `check_command()` in doctor.rs to support multiple fallback invocations (try `--version`, then `-V`, then `--help`).",
+        "Add actionable guidance to runner check failures: suggest config keys (`codex_bin`, `opencode_bin`, etc.) and verification command (`ralph doctor`).",
+        "Add tests with stub binaries/scripts that lack `--version` but do support `--help` to verify fallback behavior.",
+        "Ensure `ralph doctor` still fails when a configured runner binary is truly missing/unexecutable (no false positives).",
+        "Run `make ci`."
+      ],
+      "notes": [
+        "Verified: All scope paths exist and are current as of 2026-01-27.",
+        "The inventory script demonstrates the desired fallback pattern that doctor.rs should adopt.",
+        "Refactored check_command() to support multiple fallback invocations",
+        "Added actionable guidance to runner check failures with config keys",
+        "Added 4 new tests covering fallback behavior (--help, -V, no flags)",
+        "Updated docs/cli.md with ralph doctor section",
+        "All 12 doctor contract tests pass; make ci passes"
+      ],
+      "request": "scan finding",
+      "agent": {
+        "model_effort": "medium"
+      },
+      "created_at": "2026-01-27T18:17:26Z",
+      "updated_at": "2026-01-27T20:47:05.190470000Z",
+      "completed_at": "2026-01-27T20:47:05.190470000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }
