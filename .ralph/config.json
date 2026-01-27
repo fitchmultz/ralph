@@ -25,6 +25,6 @@
     "ci_gate_enabled": true,
     "git_commit_push_enabled": true,
     "git_revert_mode": "ask",
-    "update_task_before_run": false
+    "update_task_before_run": true
   }
 }
