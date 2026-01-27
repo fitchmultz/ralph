@@ -6555,6 +6555,57 @@
       "completed_at": "2026-01-27T06:14:46.296600000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0316",
+      "status": "done",
+      "title": "TUI: single source-of-truth keymap; sync footer + help overlay + docs",
+      "priority": "high",
+      "tags": [
+        "tui",
+        "ux",
+        "keybindings",
+        "docs"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/events/normal.rs",
+        "crates/ralph/src/tui/events/run.rs",
+        "crates/ralph/src/tui/events/help.rs",
+        "crates/ralph/src/tui/events/tests.rs",
+        "crates/ralph/src/tui/render/footer.rs",
+        "crates/ralph/src/tui/render/overlays.rs",
+        "docs/tui-task-management.md",
+        "crates/ralph/src/tui/render/tests.rs",
+        "make ci"
+      ],
+      "evidence": [
+        "`crates/ralph/src/tui/events/normal.rs`: Normal mode binds `o` (scope filter), `C`/`R` (case/regex toggles), `K/J` (move task up/down), and `Ctrl+P`/`Ctrl+F` shortcuts.",
+        "`crates/ralph/src/tui/render/footer.rs`: Normal mode footer hints omit `o`, `C`, `R`, `K/J`, and the Ctrl shortcuts even though those bindings are active.",
+        "`crates/ralph/src/tui/render/overlays.rs`: help overlay key list is hardcoded separately from the event handlers, including an Execution View section that mirrors `events/run.rs`.",
+        "`docs/tui-task-management.md`: Quick Key Reference omits active bindings like `K/J`, `C`, `R`, `g`, `c`, and `l`."
+      ],
+      "plan": [
+        "Inventory keybindings in `events/normal.rs`, `events/run.rs`, and `events/help.rs`, then define a shared keymap model (mode -> actions -> bindings + labels).",
+        "Render Normal-mode footer hints from the keymap with width-aware truncation.",
+        "Render the help overlay from the same keymap, including Execution View and Help close keys.",
+        "Update `docs/tui-task-management.md` key reference to match the shared keymap.",
+        "Add tests that lock keymap/footer/help/docs consistency (including `o`/`C`/`R`, `K/J`, and Ctrl shortcuts).",
+        "Run `make ci`."
+      ],
+      "notes": [
+        "Help overlay, footer, and docs each maintain their own key lists today; consolidating should include Normal + Executing + Help modes to prevent drift.",
+        "Centralized TUI keymap for Normal/Executing/Help modes.",
+        "Footer and help overlay now render from shared keymap with truncation.",
+        "Docs quick key reference synced to keymap.",
+        "Added keymap/footer/help/docs consistency tests and docstring compliance.",
+        "make ci passed."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-27T04:35:15Z",
+      "updated_at": "2026-01-27T06:49:22.969891000Z",
+      "completed_at": "2026-01-27T06:49:22.969891000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

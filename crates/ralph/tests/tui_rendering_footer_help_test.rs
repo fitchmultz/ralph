@@ -1,6 +1,16 @@
 //! Rendering tests for the footer help and help overlay.
 //!
-//! These tests validate mode-specific help footer hints as well as the help overlay.
+//! Responsibilities:
+//! - Validate footer hints and help overlay text for keymap-driven content.
+//! - Exercise mode-specific footer rendering output.
+//!
+//! Not handled here:
+//! - Event handling behavior or keymap definitions.
+//! - Visual styling correctness beyond text presence.
+//!
+//! Invariants/assumptions:
+//! - Tests operate on deterministic TestBackend output.
+//! - Assertions rely on ASCII text in the rendered buffer.
 
 mod test_support;
 mod tui_rendering_support;
@@ -14,7 +24,7 @@ use tui_rendering_support::{get_rendered_output, setup_test_terminal};
 fn test_render_help_footer_normal_mode() {
     let queue = make_test_queue();
     let mut app = App::new(queue);
-    let mut terminal = setup_test_terminal(80, 24);
+    let mut terminal = setup_test_terminal(160, 24);
 
     let output = get_rendered_output(&mut terminal, &mut app);
     // Check for keybinding hints (help footer may be truncated on narrow terminals)

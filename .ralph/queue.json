@@ -2,45 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0316",
-      "status": "todo",
-      "title": "TUI: single source-of-truth keymap; sync footer + help overlay + docs",
-      "priority": "high",
-      "tags": [
-        "tui",
-        "ux",
-        "keybindings",
-        "docs"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/events/*",
-        "crates/ralph/src/tui/render/footer.rs",
-        "crates/ralph/src/tui/render/overlays.rs",
-        "docs/tui-task-management.md",
-        "crates/ralph/src/tui/render/tests.rs",
-        "make ci"
-      ],
-      "evidence": [
-        "`crates/ralph/src/tui/events/normal.rs`: Normal mode binds `o` (scope filter) and `C`/`R` (case/regex toggles).",
-        "`crates/ralph/src/tui/render/footer.rs`: Normal mode footer hints omit `o`, `C`, and `R` and do not mention `K/J` (move task up/down).",
-        "`crates/ralph/src/tui/render/overlays.rs`: help overlay key list is separately hardcoded, creating drift risk vs actual handlers."
-      ],
-      "plan": [
-        "Define a keymap table (mode -> actions -> bindings) as the single source of truth.",
-        "Generate footer hints from the keymap (and make them width-aware so they do not overflow small terminals).",
-        "Generate the help overlay from the same keymap.",
-        "Update `docs/tui-task-management.md` key reference to match the keymap.",
-        "Add tests that lock keymap/footer/help consistency (and prevent missing `o`/`C`/`R` regressions).",
-        "Run `make ci`."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-27T04:35:15Z",
-      "updated_at": "2026-01-27T04:35:15Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0317",
       "status": "todo",
       "title": "TUI: make help overlay scrollable + openable from any mode",

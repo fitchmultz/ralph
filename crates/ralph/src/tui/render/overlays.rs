@@ -12,7 +12,7 @@
 //! - Callers provide terminal areas sized for the current frame.
 //! - Overlay drawing clears the underlying area before rendering content.
 
-use super::super::{App, ConfigFieldKind, TaskEditKind};
+use super::super::{keymap, App, ConfigFieldKind, TaskEditKind};
 use crate::outpututil::truncate_chars;
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Margin, Rect},
@@ -21,6 +21,14 @@ use ratatui::{
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap},
     Frame,
 };
+
+#[derive(Debug, Clone)]
+enum HelpLine {
+    Title(&'static str),
+    Section(&'static str),
+    Text(String),
+    Blank,
+}
 
 /// Draw of full-screen help overlay with keybindings.
 pub(super) fn draw_help_overlay(f: &mut Frame<'_>, area: Rect) {
@@ -43,74 +51,91 @@ pub(super) fn draw_help_overlay(f: &mut Frame<'_>, area: Rect) {
         vertical: 1,
     });
 
-    let lines: Vec<Line<'static>> = vec![
-        Line::from(Span::styled(
-            "Keybindings",
-            Style::default().add_modifier(Modifier::BOLD),
-        )),
-        Line::from("Press Esc or ?/h to close."),
-        Line::from(""),
-        Line::from(Span::styled(
-            "Navigation",
-            Style::default().add_modifier(Modifier::BOLD),
-        )),
-        Line::from("Up/Down or j/k: move selection"),
-        Line::from("K/J: move selected task up/down"),
-        Line::from("Enter: run selected task"),
-        Line::from(""),
-        Line::from(Span::styled(
-            "Actions",
-            Style::default().add_modifier(Modifier::BOLD),
-        )),
-        Line::from("l: toggle loop mode"),
-        Line::from("a: archive done/rejected tasks"),
-        Line::from("d: delete selected task"),
-        Line::from("e: edit task fields"),
-        Line::from("n: create a new task (title only)"),
-        Line::from("N: build task with agent (full structure)"),
-        Line::from("c: edit project config"),
-        Line::from("g: scan repository"),
-        Line::from("r: reload queue from disk"),
-        Line::from("q: quit"),
-        Line::from(""),
-        Line::from(Span::styled(
-            "Filters & Search",
-            Style::default().add_modifier(Modifier::BOLD),
-        )),
-        Line::from("/: search tasks"),
-        Line::from("t: filter by tags"),
-        Line::from("o: filter by scope"),
-        Line::from("f: cycle status filter"),
-        Line::from("x: clear filters"),
-        Line::from("C: toggle case-sensitive search"),
-        Line::from("R: toggle regex search"),
-        Line::from(""),
-        Line::from(Span::styled(
-            "Quick Changes",
-            Style::default().add_modifier(Modifier::BOLD),
-        )),
-        Line::from("s: cycle task status"),
-        Line::from("p: cycle priority"),
-        Line::from(""),
-        Line::from(Span::styled(
-            "Command Palette",
-            Style::default().add_modifier(Modifier::BOLD),
-        )),
-        Line::from(": open palette (type to filter, Enter to run, Esc to cancel)"),
-        Line::from(""),
-        Line::from(Span::styled(
-            "Execution View",
-            Style::default().add_modifier(Modifier::BOLD),
-        )),
-        Line::from("Esc: return to task list"),
-        Line::from("Up/Down or j/k: scroll logs"),
-        Line::from("PgUp/PgDn: page logs"),
-        Line::from("a: toggle auto-scroll"),
-        Line::from("l: stop loop mode"),
-    ];
+    let lines = help_overlay_lines();
 
     let paragraph = Paragraph::new(Text::from(lines)).wrap(Wrap { trim: false });
     f.render_widget(paragraph, inner);
+}
+
+fn help_overlay_lines() -> Vec<Line<'static>> {
+    build_help_overlay_lines()
+        .into_iter()
+        .map(|line| match line {
+            HelpLine::Title(text) | HelpLine::Section(text) => Line::from(Span::styled(
+                text,
+                Style::default().add_modifier(Modifier::BOLD),
+            )),
+            HelpLine::Text(text) => Line::from(text),
+            HelpLine::Blank => Line::from(""),
+        })
+        .collect()
+}
+
+#[cfg(test)]
+pub(super) fn help_overlay_plain_lines() -> Vec<String> {
+    build_help_overlay_lines()
+        .into_iter()
+        .map(|line| match line {
+            HelpLine::Title(text) | HelpLine::Section(text) => text.to_string(),
+            HelpLine::Text(text) => text,
+            HelpLine::Blank => String::new(),
+        })
+        .collect()
+}
+
+fn build_help_overlay_lines() -> Vec<HelpLine> {
+    let mut lines = Vec::new();
+    lines.push(HelpLine::Title("Keybindings"));
+    let close_keys = join_keys(keymap::help_close_keys());
+    lines.push(HelpLine::Text(format!("Press {close_keys} to close.")));
+    lines.push(HelpLine::Blank);
+
+    for section in keymap::normal_sections() {
+        push_section_lines(&mut lines, section);
+    }
+
+    for section in keymap::executing_sections() {
+        push_section_lines(&mut lines, section);
+    }
+
+    while matches!(lines.last(), Some(HelpLine::Blank)) {
+        lines.pop();
+    }
+
+    lines
+}
+
+fn push_section_lines(lines: &mut Vec<HelpLine>, section: &keymap::KeymapSection) {
+    lines.push(HelpLine::Section(section.title));
+    for binding in section.bindings {
+        lines.push(HelpLine::Text(format!(
+            "{}: {}",
+            binding.keys_display, binding.description
+        )));
+    }
+    lines.push(HelpLine::Blank);
+}
+
+fn join_keys(keys: &[&str]) -> String {
+    match keys.len() {
+        0 => String::new(),
+        1 => keys[0].to_string(),
+        2 => format!("{} or {}", keys[0], keys[1]),
+        _ => {
+            let mut out = String::new();
+            for (idx, key) in keys.iter().enumerate() {
+                if idx > 0 {
+                    if idx == keys.len() - 1 {
+                        out.push_str(" or ");
+                    } else {
+                        out.push_str(", ");
+                    }
+                }
+                out.push_str(key);
+            }
+            out
+        }
+    }
 }
 
 /// Draw command palette overlay.

@@ -15,6 +15,15 @@ use super::super::{App, AppMode};
 use super::utils::{priority_color, status_color, wrap_text};
 use crate::contracts::{QueueFile, TaskPriority, TaskStatus};
 use crate::tui;
+use ratatui::text::Span;
+
+fn spans_to_string(spans: &[Span<'static>]) -> String {
+    spans.iter().map(|span| span.content.as_ref()).collect()
+}
+
+fn footer_text(app: &App, width: usize) -> String {
+    spans_to_string(&super::footer::help_footer_spans(app, width))
+}
 
 #[test]
 fn wrap_text_returns_nonempty_for_nonempty_input() {
@@ -77,8 +86,7 @@ fn help_footer_includes_save_error_indicator() {
     let mut app = App::new(QueueFile::default());
     app.save_error = Some("failed to save".to_string());
 
-    let help_text = super::footer::help_footer_spans(&app);
-    let rendered = format!("{:?}", help_text);
+    let rendered = footer_text(&app, 160);
 
     assert!(rendered.contains("SAVE ERROR"));
 }
@@ -86,8 +94,7 @@ fn help_footer_includes_save_error_indicator() {
 #[test]
 fn help_footer_includes_config_hint() {
     let app = App::new(QueueFile::default());
-    let help_text = super::footer::help_footer_spans(&app);
-    let rendered = format!("{:?}", help_text);
+    let rendered = footer_text(&app, 160);
 
     assert!(rendered.contains(":config"));
 }
@@ -95,8 +102,7 @@ fn help_footer_includes_config_hint() {
 #[test]
 fn help_footer_includes_scan_hint() {
     let app = App::new(QueueFile::default());
-    let help_text = super::footer::help_footer_spans(&app);
-    let rendered = format!("{:?}", help_text);
+    let rendered = footer_text(&app, 160);
 
     assert!(rendered.contains(":scan"));
 }
@@ -106,10 +112,50 @@ fn help_footer_excludes_save_error_when_none() {
     let mut app = App::new(QueueFile::default());
     app.save_error = None;
 
-    let help_text = super::footer::help_footer_spans(&app);
-    let rendered = format!("{:?}", help_text);
+    let rendered = footer_text(&app, 160);
 
     assert!(!rendered.contains("SAVE ERROR"));
+}
+
+#[test]
+fn help_footer_includes_keymap_shortcuts_in_normal_mode() {
+    let app = App::new(QueueFile::default());
+    let rendered = footer_text(&app, 240);
+
+    for expected in ["K/J", "Ctrl+P", "Ctrl+F", ":scope", ":case", ":regex"] {
+        assert!(
+            rendered.contains(expected),
+            "missing footer hint: {expected}"
+        );
+    }
+}
+
+#[test]
+fn help_footer_truncates_with_ellipsis_on_small_width() {
+    let app = App::new(QueueFile::default());
+    let rendered = footer_text(&app, 12);
+
+    assert!(rendered.contains("..."));
+}
+
+#[test]
+fn help_overlay_includes_keymap_shortcuts() {
+    let lines = super::overlays::help_overlay_plain_lines();
+    let rendered = lines.join("\n");
+
+    for expected in [
+        "K/J: move selected task up/down",
+        "C: toggle case-sensitive search",
+        "R: toggle regex search",
+        "Ctrl+P: command palette (shortcut)",
+        "Ctrl+F: search tasks (shortcut)",
+        "o: filter by scope",
+    ] {
+        assert!(
+            rendered.contains(expected),
+            "help overlay missing: {expected}"
+        );
+    }
 }
 
 #[test]

@@ -13,27 +13,49 @@ This guide maps **CLI task commands** (`ralph task ...`) to equivalent **TUI wor
 
 In **Normal mode**:
 
+Navigation:
 - `j` / `k` or `↓` / `↑`: move selection
+- `K/J`: move selected task up/down
 - `Enter`: run selected task
+
+Actions:
+- `l`: toggle loop mode
+- `a`: archive terminal tasks (Done/Rejected) into done archive (confirmation)
+- `d`: delete selected task (confirmation)
+- `e`: edit selected task fields
 - `n`: create new task (manual title)
 - `N`: build a task using the task builder agent (prompt for description)
-- `e`: edit selected task fields
-- `s`: cycle selected task status
-- `p`: cycle selected task priority
-- `d`: delete selected task (confirmation)
-- `a`: archive terminal tasks (Done/Rejected) into done archive (confirmation)
-- `:`: command palette (discoverable commands)
-- `Ctrl+P`: command palette (shortcut)
-- `/`: search (free-text)
-- `Ctrl+F`: search (shortcut)
-- `t`: filter by tags
-- `o`: filter by scope
-- `f`: cycle status filter
-- `x`: clear filters
+- `c`: edit project config
+- `g`: scan repository
 - `r`: reload queue from disk
 - `?` / `h`: help overlay
 - `q` / `Esc`: quit (may prompt if runner active)
 - `Ctrl+C` / `Ctrl+Q`: quit (same as `q`/`Esc`)
+
+Command Palette:
+- `:`: open command palette (type to filter, Enter to run, Esc to cancel)
+- `Ctrl+P`: command palette (shortcut)
+
+Filters & Search:
+- `/`: search (free-text)
+- `Ctrl+F`: search tasks (shortcut)
+- `t`: filter by tags
+- `o`: filter by scope
+- `f`: cycle status filter
+- `x`: clear filters
+- `C`: toggle case-sensitive search
+- `R`: toggle regex search
+
+Quick Changes:
+- `s`: cycle selected task status
+- `p`: cycle selected task priority
+
+In **Execution view** (while a task is running):
+- `Esc`: return to task list
+- `j` / `k` or `↓` / `↑`: scroll logs
+- `PgUp/PgDn`: page logs
+- `a`: toggle auto-scroll
+- `l`: stop loop mode
 
 ---
 

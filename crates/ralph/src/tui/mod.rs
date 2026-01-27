@@ -3,6 +3,7 @@
 mod app;
 mod config_edit;
 mod events;
+mod keymap;
 mod render;
 mod task_edit;
 
