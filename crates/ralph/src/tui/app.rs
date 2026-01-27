@@ -58,6 +58,60 @@ pub struct FilterState {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+struct FilterKey {
+    query: String,
+    statuses: Vec<TaskStatus>,
+    tags: Vec<String>,
+    scopes: Vec<String>,
+    use_regex: bool,
+    case_sensitive: bool,
+}
+
+impl FilterKey {
+    fn from_filters(filters: &FilterState) -> Self {
+        let mut statuses = filters.statuses.clone();
+        statuses.sort_by_key(|status| status.as_str());
+
+        let mut tags: Vec<String> = filters
+            .tags
+            .iter()
+            .map(|tag| normalize_filter_token(tag))
+            .filter(|tag| !tag.is_empty())
+            .collect();
+        tags.sort();
+
+        let mut scopes: Vec<String> = filters
+            .search_options
+            .scopes
+            .iter()
+            .map(|scope| normalize_filter_token(scope))
+            .filter(|scope| !scope.is_empty())
+            .collect();
+        scopes.sort();
+
+        Self {
+            query: filters.query.trim().to_string(),
+            statuses,
+            tags,
+            scopes,
+            use_regex: filters.search_options.use_regex,
+            case_sensitive: filters.search_options.case_sensitive,
+        }
+    }
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FilterCacheStats {
+    pub id_index_rebuilds: usize,
+    pub filtered_rebuilds: usize,
+}
+
+fn normalize_filter_token(value: &str) -> String {
+    value.trim().to_lowercase()
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RunningKind {
     Task,
     Scan { focus: String },
@@ -128,6 +182,20 @@ pub struct App {
     pub filters: FilterState,
     /// Cached filtered task indices into `queue.tasks`.
     pub filtered_indices: Vec<usize>,
+    /// Queue revision that changes whenever tasks are reordered or mutated.
+    queue_rev: u64,
+    /// Cached task-id to queue index mapping.
+    id_to_index: HashMap<String, usize>,
+    /// Revision that the cached id->index map was built from.
+    id_to_index_rev: u64,
+    /// Revision that the cached filtered indices were built from.
+    filtered_indices_rev: u64,
+    /// Filter key used for the cached filtered indices.
+    last_filter_key: Option<FilterKey>,
+    #[cfg(test)]
+    id_index_rebuilds: usize,
+    #[cfg(test)]
+    filtered_rebuilds: usize,
 }
 
 impl App {
@@ -165,6 +233,15 @@ impl App {
             done_path: None,
             filters: FilterState::default(),
             filtered_indices: Vec::new(),
+            queue_rev: 0,
+            id_to_index: HashMap::new(),
+            id_to_index_rev: u64::MAX,
+            filtered_indices_rev: u64::MAX,
+            last_filter_key: None,
+            #[cfg(test)]
+            id_index_rebuilds: 0,
+            #[cfg(test)]
+            filtered_rebuilds: 0,
         };
         app.rebuild_filtered_view();
         app
@@ -172,6 +249,78 @@ impl App {
 
     pub fn set_status_message(&mut self, message: impl Into<String>) {
         self.status_message = Some(message.into());
+    }
+
+    pub(crate) fn bump_queue_rev(&mut self) {
+        self.queue_rev = self.queue_rev.wrapping_add(1);
+    }
+
+    fn ensure_id_index_map(&mut self) {
+        if self.id_to_index_rev == self.queue_rev {
+            return;
+        }
+
+        self.id_to_index.clear();
+        for (idx, task) in self.queue.tasks.iter().enumerate() {
+            self.id_to_index.insert(task.id.clone(), idx);
+        }
+        self.id_to_index_rev = self.queue_rev;
+
+        #[cfg(test)]
+        {
+            self.id_index_rebuilds += 1;
+        }
+    }
+
+    fn ensure_filtered_indices(&mut self) {
+        let filter_key = FilterKey::from_filters(&self.filters);
+        if self.filtered_indices_rev == self.queue_rev
+            && self.last_filter_key.as_ref() == Some(&filter_key)
+        {
+            return;
+        }
+
+        let filtered_ids: Vec<String> = {
+            let mut filtered = queue::filter_tasks(
+                &self.queue,
+                &self.filters.statuses,
+                &self.filters.tags,
+                &self.filters.search_options.scopes,
+                None,
+            );
+
+            if !self.filters.query.trim().is_empty() {
+                match queue::search_tasks(
+                    filtered,
+                    &self.filters.query,
+                    self.filters.search_options.use_regex,
+                    self.filters.search_options.case_sensitive,
+                ) {
+                    Ok(results) => {
+                        filtered = results;
+                    }
+                    Err(err) => {
+                        self.set_status_message(format!("Search error: {}", err));
+                        filtered = Vec::new();
+                    }
+                }
+            }
+
+            filtered.into_iter().map(|task| task.id.clone()).collect()
+        };
+
+        self.ensure_id_index_map();
+        self.filtered_indices = filtered_ids
+            .iter()
+            .filter_map(|id| self.id_to_index.get(id).copied())
+            .collect();
+        self.last_filter_key = Some(filter_key);
+        self.filtered_indices_rev = self.queue_rev;
+
+        #[cfg(test)]
+        {
+            self.filtered_rebuilds += 1;
+        }
     }
 
     pub(crate) fn append_log_lines<I>(&mut self, lines: I)
@@ -220,6 +369,14 @@ impl App {
     /// Return the number of tasks in the filtered view.
     pub fn filtered_len(&self) -> usize {
         self.filtered_indices.len()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn filter_cache_stats(&self) -> FilterCacheStats {
+        FilterCacheStats {
+            id_index_rebuilds: self.id_index_rebuilds,
+            filtered_rebuilds: self.filtered_rebuilds,
+        }
     }
 
     /// Return true if any filters are active.
@@ -335,6 +492,7 @@ impl App {
 
         self.queue.tasks.swap(current_idx, prev_idx);
         self.dirty = true;
+        self.bump_queue_rev();
 
         let task_id = self.queue.tasks[prev_idx].id.clone();
         self.rebuild_filtered_view_with_preferred(Some(&task_id));
@@ -357,6 +515,7 @@ impl App {
 
         self.queue.tasks.swap(current_idx, next_idx);
         self.dirty = true;
+        self.bump_queue_rev();
 
         let task_id = self.queue.tasks[next_idx].id.clone();
         self.rebuild_filtered_view_with_preferred(Some(&task_id));
@@ -394,6 +553,7 @@ impl App {
         self.queue.tasks.remove(selected_index);
 
         self.dirty = true;
+        self.bump_queue_rev();
         self.set_status_message(format!("Deleted {}", task.id));
         self.rebuild_filtered_view_with_preferred(preferred_id.as_deref());
         Ok(task)
@@ -436,6 +596,7 @@ impl App {
 
         self.queue.tasks.push(task);
         let new_index = self.queue.tasks.len().saturating_sub(1);
+        self.bump_queue_rev();
         self.rebuild_filtered_view();
 
         if let Some(filtered_pos) = self
@@ -471,6 +632,7 @@ impl App {
         self.dirty = true;
         self.dirty_done = true;
 
+        self.bump_queue_rev();
         self.rebuild_filtered_view();
         self.set_status_message(format!("Archived {} task(s)", moved_count));
         Ok(moved_count)
@@ -955,40 +1117,7 @@ impl App {
     }
 
     pub(crate) fn rebuild_filtered_view_with_preferred(&mut self, preferred_id: Option<&str>) {
-        let mut filtered = queue::filter_tasks(
-            &self.queue,
-            &self.filters.statuses,
-            &self.filters.tags,
-            &self.filters.search_options.scopes,
-            None,
-        );
-
-        if !self.filters.query.trim().is_empty() {
-            match queue::search_tasks(
-                filtered,
-                &self.filters.query,
-                self.filters.search_options.use_regex,
-                self.filters.search_options.case_sensitive,
-            ) {
-                Ok(results) => {
-                    filtered = results;
-                }
-                Err(err) => {
-                    self.set_status_message(format!("Search error: {}", err));
-                    filtered = Vec::new();
-                }
-            }
-        }
-
-        let mut index_by_id = std::collections::HashMap::new();
-        for (idx, task) in self.queue.tasks.iter().enumerate() {
-            index_by_id.insert(task.id.as_str(), idx);
-        }
-
-        self.filtered_indices = filtered
-            .iter()
-            .filter_map(|task| index_by_id.get(task.id.as_str()).copied())
-            .collect();
+        self.ensure_filtered_indices();
 
         if let Some(preferred_id) = preferred_id {
             if let Some(new_pos) =
@@ -996,13 +1125,10 @@ impl App {
                     .iter()
                     .enumerate()
                     .find_map(|(pos, &idx)| {
-                        self.queue.tasks.get(idx).and_then(|task| {
-                            if task.id == preferred_id {
-                                Some(pos)
-                            } else {
-                                None
-                            }
-                        })
+                        self.queue
+                            .tasks
+                            .get(idx)
+                            .and_then(|task| (task.id == preferred_id).then_some(pos))
                     })
             {
                 self.selected = new_pos;
@@ -1060,6 +1186,7 @@ impl App {
             }
         }
 
+        self.bump_queue_rev();
         self.rebuild_filtered_view_with_preferred(preferred_id.as_deref());
         self.dirty = false;
         self.dirty_done = false;

@@ -1,3 +1,17 @@
+//! TUI task editing helpers and entry definitions.
+//!
+//! Responsibilities:
+//! - Define the editable task fields and how they are presented in the TUI.
+//! - Apply edits to the in-memory queue and refresh selection state.
+//!
+//! Not handled here:
+//! - Queue persistence, locking, or filesystem IO.
+//! - Input handling or terminal rendering.
+//!
+//! Invariants/assumptions:
+//! - A queue lock is held by callers when mutating tasks.
+//! - App selection points at a valid task when edits are applied.
+
 use super::app::App;
 use crate::outpututil::format_custom_fields;
 use crate::queue::{self, TaskEditKey};
@@ -158,6 +172,7 @@ impl App {
         )?;
 
         self.dirty = true;
+        self.bump_queue_rev();
         self.set_status_message(format!("Updated {}", task_id));
         self.rebuild_filtered_view_with_preferred(Some(&task_id));
         Ok(())

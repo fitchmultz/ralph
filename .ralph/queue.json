@@ -46,44 +46,6 @@
       "custom_fields": {}
     },
     {
-      "id": "RQ-0307",
-      "status": "todo",
-      "title": "Optimize TUI filtering and indexing",
-      "priority": "low",
-      "tags": [
-        "performance",
-        "tui",
-        "refactor"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/mod.rs",
-        "crates/ralph/src/queue/search.rs"
-      ],
-      "evidence": [
-        "rebuild_filtered_view_with_preferred in crates/ralph/src/tui/app.rs (moved from mod.rs by RQ-0292) reconstructs an O(N) HashMap of all tasks on every call to resolve indices.",
-        "rebuild_filtered_view is called on nearly every TUI event (18 call sites in mod.rs), even when filter state hasn't changed (e.g., status message updates).",
-        "Queue filtering logic in crates/ralph/src/queue/search.rs returns Vec<&Task>, which is efficient for references but the TUI then performs redundant work to map these back to indices."
-      ],
-      "plan": [
-        "Cache the task ID to index mapping in the App struct and only update it when the queue is reloaded or mutated.",
-        "Introduce a filters_dirty flag to the App struct to skip redundant re-filtering when the filter parameters (query, status, tags, scopes) remain unchanged.",
-        "Refactor rebuild_filtered_view to leverage the cached mapping and avoid rebuilding the HashMap.",
-        "Profile TUI performance with a synthetic queue of 1,000+ tasks to identify further latency sources in the render/update loop.",
-        "Run `make ci` to ensure no regressions in TUI behavior or filtering logic."
-      ],
-      "notes": [
-        "This optimization is crucial for maintaining TUI responsiveness as project history grows.",
-        "Consider if filter_tasks should return indices directly to further simplify the TUI's responsibilities."
-      ],
-      "request": "scan finding",
-      "created_at": "2026-01-26T15:35:00Z",
-      "updated_at": "2026-01-27T00:30:00Z",
-      "depends_on": [
-        "RQ-0292"
-      ],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0308",
       "status": "todo",
       "title": "Standardize timestamp handling",

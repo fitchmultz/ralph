@@ -1,3 +1,17 @@
+//! Event-handling tests for TUI keyboard interactions.
+//!
+//! Responsibilities:
+//! - Validate that key events mutate App state and queue order correctly.
+//! - Cover command palette behavior and guardrails around actions.
+//!
+//! Not handled here:
+//! - Rendering correctness or terminal backend integration.
+//! - Runner execution side effects.
+//!
+//! Invariants/assumptions:
+//! - Tests use deterministic in-memory queues and timestamps.
+//! - Input events are synthetic and scoped to App state changes.
+
 use super::*;
 use crate::contracts::{QueueFile, Task, TaskPriority, TaskStatus};
 
@@ -835,6 +849,11 @@ fn move_task_with_filters_swaps_underlying_queue_indices() {
     assert_eq!(app.queue.tasks[1].id, "RQ-0002"); // Unchanged
     assert_eq!(app.queue.tasks[2].id, "RQ-0001");
     assert!(app.dirty);
+    assert_eq!(app.filtered_indices, vec![0, 2]);
+    assert_eq!(
+        app.selected_task().map(|task| task.id.as_str()),
+        Some("RQ-0003")
+    );
 }
 
 #[test]

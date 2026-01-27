@@ -1,3 +1,17 @@
+//! Unit tests for the TUI application state.
+//!
+//! Responsibilities:
+//! - Validate App behavior around queue edits, filtering, and status updates.
+//! - Exercise filter summaries and in-memory state transitions.
+//!
+//! Not handled here:
+//! - Terminal rendering, input polling, or cross-process execution.
+//! - Persistence/locking integration beyond in-memory helpers.
+//!
+//! Invariants/assumptions:
+//! - Tests operate on in-memory queues with deterministic timestamps.
+//! - File IO uses temporary directories for isolation.
+
 use super::app::*;
 use super::config_edit::*;
 use super::events::{AppMode, PaletteCommand};
@@ -352,6 +366,115 @@ fn app_filters_by_tags() {
     assert_eq!(
         app.selected_task().map(|task| task.id.as_str()),
         Some("RQ-0001")
+    );
+}
+
+#[test]
+fn rebuild_filtered_view_cache_hits_without_changes() {
+    let queue = QueueFile {
+        version: 1,
+        tasks: vec![make_test_task("RQ-0001", "Task 1", TaskStatus::Todo)],
+    };
+    let mut app = App::new(queue);
+    let baseline = app.filter_cache_stats();
+
+    app.rebuild_filtered_view();
+
+    let after = app.filter_cache_stats();
+    assert_eq!(after.id_index_rebuilds, baseline.id_index_rebuilds);
+    assert_eq!(after.filtered_rebuilds, baseline.filtered_rebuilds);
+}
+
+#[test]
+fn rebuild_filtered_view_rebuilds_on_filter_change() {
+    let queue = QueueFile {
+        version: 1,
+        tasks: vec![make_test_task("RQ-0001", "Task 1", TaskStatus::Todo)],
+    };
+    let mut app = App::new(queue);
+    let baseline = app.filter_cache_stats();
+
+    app.set_search_query("task".to_string());
+
+    let after = app.filter_cache_stats();
+    assert_eq!(after.filtered_rebuilds, baseline.filtered_rebuilds + 1);
+}
+
+#[test]
+fn rebuild_filtered_view_rebuilds_on_queue_mutation() -> Result<()> {
+    let queue = QueueFile {
+        version: 1,
+        tasks: vec![make_test_task("RQ-0001", "Task 1", TaskStatus::Todo)],
+    };
+    let mut app = App::new(queue);
+    let baseline = app.filter_cache_stats();
+
+    app.create_task_from_title("New Task", "2026-01-20T12:00:00Z")?;
+
+    let after = app.filter_cache_stats();
+    assert_eq!(after.id_index_rebuilds, baseline.id_index_rebuilds + 1);
+    assert_eq!(after.filtered_rebuilds, baseline.filtered_rebuilds + 1);
+    Ok(())
+}
+
+#[test]
+fn rebuild_filtered_view_reuses_cache_for_normalized_tags() {
+    let queue = QueueFile {
+        version: 1,
+        tasks: vec![make_test_task_with_tags("RQ-0001", "Task 1", vec!["alpha"])],
+    };
+    let mut app = App::new(queue);
+    app.set_tag_filters(vec!["beta".to_string(), "alpha".to_string()]);
+    let baseline = app.filter_cache_stats();
+
+    app.set_tag_filters(vec!["alpha".to_string(), "beta".to_string()]);
+
+    let after = app.filter_cache_stats();
+    assert_eq!(after.filtered_rebuilds, baseline.filtered_rebuilds);
+}
+
+#[test]
+fn rebuild_filtered_view_invalid_regex_is_cached() {
+    let queue = QueueFile {
+        version: 1,
+        tasks: vec![make_test_task("RQ-0001", "Task 1", TaskStatus::Todo)],
+    };
+    let mut app = App::new(queue);
+    app.filters.search_options.use_regex = true;
+
+    app.set_search_query("[".to_string());
+    assert!(app.filtered_indices.is_empty());
+    let baseline = app.filter_cache_stats();
+
+    app.rebuild_filtered_view();
+
+    let after = app.filter_cache_stats();
+    assert_eq!(after.filtered_rebuilds, baseline.filtered_rebuilds);
+    assert!(app.filtered_indices.is_empty());
+    assert!(app
+        .status_message
+        .as_deref()
+        .is_some_and(|message| message.contains("Search error")));
+}
+
+#[test]
+fn rebuild_filtered_view_prefers_selected_task_when_present() {
+    let t1 = make_test_task_with_tags("RQ-0001", "Task 1", vec!["tui"]);
+    let t2 = make_test_task_with_tags("RQ-0002", "Task 2", vec!["tui"]);
+    let queue = QueueFile {
+        version: 1,
+        tasks: vec![t1, t2],
+    };
+    let mut app = App::new(queue);
+    app.filters.tags = vec!["tui".to_string()];
+    app.rebuild_filtered_view();
+
+    app.rebuild_filtered_view_with_preferred(Some("RQ-0002"));
+
+    assert_eq!(app.selected, 1);
+    assert_eq!(
+        app.selected_task().map(|task| task.id.as_str()),
+        Some("RQ-0002")
     );
 }
 

@@ -6220,6 +6220,53 @@
       "completed_at": "2026-01-27T00:11:07.570049000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0307",
+      "status": "done",
+      "title": "Optimize TUI filtering and indexing",
+      "priority": "low",
+      "tags": [
+        "performance",
+        "tui",
+        "filtering",
+        "refactor"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/app.rs",
+        "crates/ralph/src/tui/task_edit.rs",
+        "crates/ralph/src/tui/tests.rs",
+        "crates/ralph/src/queue/search.rs",
+        "make ci"
+      ],
+      "evidence": [
+        "rebuild_filtered_view_with_preferred in crates/ralph/src/tui/app.rs rebuilds a task-id to index HashMap on every call before recomputing filtered_indices.",
+        "Multiple TUI mutations and filter actions in crates/ralph/src/tui/app.rs and crates/ralph/src/tui/task_edit.rs call rebuild_filtered_view or rebuild_filtered_view_with_preferred to refresh selection.",
+        "Queue filtering/search in crates/ralph/src/queue/search.rs returns Vec<&Task>, so the TUI maps those references back to indices before it can maintain selection and scrolling."
+      ],
+      "plan": [
+        "Audit rebuild_filtered_view* call sites in crates/ralph/src/tui/app.rs and crates/ralph/src/tui/task_edit.rs to distinguish queue mutations from filter-only updates.",
+        "Add a cached task-id to index mapping in App and refresh it only when queue contents or ordering change.",
+        "Track filter parameter changes (query, statuses, tags, scopes, search options) so filters are only recomputed when inputs change.",
+        "Refactor rebuild_filtered_view_with_preferred to reuse cached indices and avoid rebuilding the HashMap each call while preserving selection/scroll invariants.",
+        "Evaluate whether queue::filter_tasks should optionally return indices to remove redundant mapping without widening the public API unnecessarily.",
+        "Update crates/ralph/src/tui/tests.rs to cover cached indexing, filter-change detection, and selection stability.",
+        "Run make ci."
+      ],
+      "notes": [
+        "Filtering and selection maintenance now live in crates/ralph/src/tui/app.rs; crates/ralph/src/tui/mod.rs is only a thin re-export.",
+        "Task edits in crates/ralph/src/tui/task_edit.rs always rebuild the filtered view to keep the edited task selected.",
+        "Cache id->index map and filtered indices using queue revision + normalized filter key.",
+        "Queue mutations and task edits now bump queue revision to invalidate caches.",
+        "Added TUI tests for cache hits/misses, invalid regex caching, and selection stability.",
+        "make ci passed."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-26T15:35:00Z",
+      "updated_at": "2026-01-27T00:33:16.926671000Z",
+      "completed_at": "2026-01-27T00:33:16.926671000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }
