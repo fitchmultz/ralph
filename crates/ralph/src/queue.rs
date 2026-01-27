@@ -54,6 +54,98 @@ pub fn load_queue(path: &Path) -> Result<QueueFile> {
     Ok(queue)
 }
 
+/// Load queue with automatic repair for common JSON errors.
+/// Attempts to fix trailing commas and other common agent-induced mistakes.
+pub fn load_queue_with_repair(path: &Path) -> Result<QueueFile> {
+    let raw = std::fs::read_to_string(path)
+        .with_context(|| format!("read queue file {}", path.display()))?;
+
+    match serde_json::from_str::<QueueFile>(&raw) {
+        Ok(queue) => Ok(queue),
+        Err(parse_err) => {
+            // Attempt to repair common JSON errors
+            log::warn!("Queue JSON parse error, attempting repair: {}", parse_err);
+
+            if let Some(repaired) = attempt_json_repair(&raw) {
+                match serde_json::from_str::<QueueFile>(&repaired) {
+                    Ok(queue) => {
+                        log::info!("Successfully repaired queue JSON");
+                        Ok(queue)
+                    }
+                    Err(repair_err) => {
+                        // Repair failed, return original error with context
+                        Err(parse_err).with_context(|| {
+                            format!(
+                                "parse queue {} as JSON (repair also failed: {})",
+                                path.display(),
+                                repair_err
+                            )
+                        })?
+                    }
+                }
+            } else {
+                // No repair possible, return original error
+                Err(parse_err).with_context(|| format!("parse queue {} as JSON", path.display()))?
+            }
+        }
+    }
+}
+
+/// Attempt to repair common JSON errors induced by agents.
+/// Returns Some(repaired_json) if repairs were made, None if no repairs possible.
+pub fn attempt_json_repair(raw: &str) -> Option<String> {
+    let mut repaired = raw.to_string();
+    let original = raw.to_string();
+
+    // Repair 1: Remove trailing commas before ] or }
+    // Pattern: ,\s*] or ,\s*}
+    repaired = regex::Regex::new(r",(\s*[}\]])")
+        .ok()?
+        .replace_all(&repaired, "$1")
+        .to_string();
+
+    // Repair 2: Remove trailing commas at end of arrays/objects (more aggressive)
+    // This handles cases where there might be newlines between comma and bracket
+    // Pattern: ,(\s*)\n(\s*[}\]])
+    repaired = regex::Regex::new(r",(\s*)\n(\s*[}\]])")
+        .ok()?
+        .replace_all(&repaired, "$1\n$2")
+        .to_string();
+
+    // Repair 3: Fix missing closing bracket at end of file
+    let open_brackets = repaired.matches('[').count();
+    let close_brackets = repaired.matches(']').count();
+    let open_braces = repaired.matches('{').count();
+    let close_braces = repaired.matches('}').count();
+
+    if open_brackets > close_brackets {
+        repaired.push_str(&"]".repeat(open_brackets - close_brackets));
+    }
+    if open_braces > close_braces {
+        repaired.push_str(&"}".repeat(open_braces - close_braces));
+    }
+
+    if repaired != original {
+        Some(repaired)
+    } else {
+        None
+    }
+}
+
+/// Create a backup of the queue file before modification.
+/// Returns the path to the backup file.
+pub fn backup_queue(path: &Path, backup_dir: &Path) -> Result<std::path::PathBuf> {
+    std::fs::create_dir_all(backup_dir)?;
+    let timestamp = crate::timeutil::now_utc_rfc3339_or_fallback().replace([':', '.'], "-");
+    let backup_name = format!("queue.json.backup.{}", timestamp);
+    let backup_path = backup_dir.join(backup_name);
+
+    std::fs::copy(path, &backup_path)
+        .with_context(|| format!("backup queue to {}", backup_path.display()))?;
+
+    Ok(backup_path)
+}
+
 /// Load the active queue and optionally the done queue, validating both.
 pub fn load_and_validate_queues(
     resolved: &Resolved,
@@ -316,4 +408,81 @@ mod tests {
     }
 
     // Pruning tests moved to `queue/prune.rs`.
+
+    #[test]
+    fn attempt_json_repair_fixes_trailing_comma_in_array() {
+        let input = r#"{"tasks": [{"id": "RQ-0001", "tags": ["a", "b",]}]}"#;
+        let repaired = attempt_json_repair(input).expect("should repair");
+        assert!(repaired.contains("\"tags\": [\"a\", \"b\"]"));
+        assert!(!repaired.contains("\"b\","));
+    }
+
+    #[test]
+    fn attempt_json_repair_fixes_trailing_comma_in_object() {
+        let input = r#"{"tasks": [{"id": "RQ-0001", "title": "Test",}]}"#;
+        let repaired = attempt_json_repair(input).expect("should repair");
+        assert!(repaired.contains("\"title\": \"Test\"}"));
+        assert!(!repaired.contains("\"Test\","));
+    }
+
+    #[test]
+    fn attempt_json_repair_returns_none_for_valid_json() {
+        let input = r#"{"tasks": [{"id": "RQ-0001", "title": "Test"}]}"#;
+        assert!(attempt_json_repair(input).is_none());
+    }
+
+    #[test]
+    fn attempt_json_repair_fixes_multiple_trailing_commas() {
+        // Test with a complete valid task structure that includes all required fields
+        let input = r#"{"version": 1, "tasks": [{"id": "RQ-0001", "title": "Test", "status": "todo", "tags": ["a", "b",], "scope": ["file",],}]}"#;
+        let repaired = attempt_json_repair(input).expect("should repair");
+        // Verify it's valid JSON
+        let _: QueueFile = serde_json::from_str(&repaired).expect("repaired should be valid JSON");
+    }
+
+    #[test]
+    fn load_queue_with_repair_fixes_malformed_json() -> Result<()> {
+        let temp = TempDir::new()?;
+        let queue_path = temp.path().join("queue.json");
+
+        // Write malformed JSON with trailing comma
+        let malformed = r#"{"version": 1, "tasks": [{"id": "RQ-0001", "title": "Test", "status": "todo", "tags": ["bug",],}]}"#;
+        std::fs::write(&queue_path, malformed)?;
+
+        // Should load with repair
+        let queue = load_queue_with_repair(&queue_path)?;
+        assert_eq!(queue.tasks.len(), 1);
+        assert_eq!(queue.tasks[0].id, "RQ-0001");
+        assert_eq!(queue.tasks[0].tags, vec!["bug"]);
+
+        Ok(())
+    }
+
+    #[test]
+    fn backup_queue_creates_backup_file() -> Result<()> {
+        let temp = TempDir::new()?;
+        let queue_path = temp.path().join("queue.json");
+        let backup_dir = temp.path().join("backups");
+
+        // Create initial queue
+        save_queue(
+            &queue_path,
+            &QueueFile {
+                version: 1,
+                tasks: vec![task("RQ-0001")],
+            },
+        )?;
+
+        // Create backup
+        let backup_path = backup_queue(&queue_path, &backup_dir)?;
+
+        // Verify backup exists and contains valid JSON
+        assert!(backup_path.exists());
+        let backup_queue: QueueFile =
+            serde_json::from_str(&std::fs::read_to_string(&backup_path)?)?;
+        assert_eq!(backup_queue.tasks.len(), 1);
+        assert_eq!(backup_queue.tasks[0].id, "RQ-0001");
+
+        Ok(())
+    }
 }

@@ -349,6 +349,12 @@ fn update_task_impl(
         None
     };
 
+    // Create backup before running task updater
+    let cache_dir = resolved.repo_root.join(".ralph/cache");
+    let backup_path = queue::backup_queue(&resolved.queue_path, &cache_dir)
+        .with_context(|| "failed to create queue backup before task update")?;
+    log::debug!("Created queue backup at: {}", backup_path.display());
+
     let before = queue::load_queue(&resolved.queue_path)
         .with_context(|| format!("read queue {}", resolved.queue_path.display()))?;
 
@@ -433,12 +439,25 @@ fn update_task_impl(
         },
     )?;
 
-    let after = match queue::load_queue(&resolved.queue_path)
-        .with_context(|| format!("read queue {}", resolved.queue_path.display()))
-    {
+    // Load queue after update, with repair for common JSON errors
+    let after = match queue::load_queue_with_repair(&resolved.queue_path) {
         Ok(queue) => queue,
         Err(err) => {
-            return Err(err);
+            log::error!(
+                "Failed to parse queue after task update. Backup available at: {}",
+                backup_path.display()
+            );
+            log::error!(
+                "To restore from backup, copy the backup file to: {}",
+                resolved.queue_path.display()
+            );
+            return Err(err).with_context(|| {
+                format!(
+                    "task update for {}: queue file may be corrupted. Backup: {}",
+                    task_id,
+                    backup_path.display()
+                )
+            });
         }
     };
 

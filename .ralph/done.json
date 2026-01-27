@@ -7432,6 +7432,58 @@
       "completed_at": "2026-01-27T20:47:05.190470000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0353",
+      "status": "done",
+      "title": "Fix JSON parsing error in queue update when setting updated_at timestamp",
+      "priority": "high",
+      "tags": [
+        "bug",
+        "queue",
+        "json",
+        "task-updater"
+      ],
+      "scope": [
+        "crates/ralph/src/queue.rs",
+        "crates/ralph/src/commands/task.rs",
+        "crates/ralph/src/prompts_internal/task_updater.rs",
+        "crates/ralph/assets/prompts/task_updater.md",
+        "crates/ralph/assets/prompts/task_builder.md",
+        "make ci"
+      ],
+      "evidence": [
+        "Error log: 'parse queue /Users/mitchfultz/Projects/AI/ralph/.ralph/queue.json as JSON: expected `,` or `]` at line 21 column 75' when updating updated_at to '2026-01-27T19:22:00Z'",
+        "The JSON parsing failure occurs in `crates/ralph/src/queue.rs:52-53` when `load_queue` calls `serde_json::from_str`",
+        "The error happens during pre-run task update (`commands/run/mod.rs:307-308`) when task updater agent modifies queue.json",
+        "Task updater prompt at `assets/prompts/task_updater.md` instructs setting `updated_at` but may not sufficiently emphasize JSON escaping",
+        "Queue save logic in `queue.rs:83-88` uses `serde_json::to_string_pretty` which should produce valid JSON - the issue is likely agent-produced JSON edits"
+      ],
+      "plan": [
+        "Review task updater prompt in `assets/prompts/task_updater.md` to add stronger JSON safety warnings and escaping examples",
+        "Add JSON validation before/after task updater runs to detect and report malformed JSON with better context",
+        "Consider adding a safeguard/backup mechanism before task updater modifies queue.json to enable recovery",
+        "Refine error handling in `commands/task.rs:update_task_impl` to provide more context when JSON parsing fails",
+        "Add tests for malformed JSON recovery and validation in queue operations",
+        "Run `make ci`"
+      ],
+      "notes": [
+        "Scope paths corrected: queue module is `queue.rs` not `queue/mod.rs`, task builder/updater logic is in `commands/task.rs`, prompts are in `assets/prompts/` not `prompts_internal/`",
+        "Tag changed from `task-builder` to `task-updater` since the issue occurs during pre-run task updates, not initial task creation",
+        "Phase 3 review complete: JSON repair mechanism and improved error handling verified",
+        "All 6 new tests pass: attempt_json_repair*, load_queue_with_repair*, backup_queue*",
+        "Task updater prompt enhanced with JSON Safety Checklist and validation steps",
+        "make ci passes with all 641 tests"
+      ],
+      "request": "There is a bug. Update the prompting verbiage to ensure this error is not made by the agents going forward and refine the logic that causes the stoppage to be more lax: **updated_at** set to current UTC time (`2026-01-27T19:22:00Z`). [2026-01-27T20:48:17Z ERROR ralph::commands::run::logging] RunLoop (todo=19, max_tasks=0): error: pre-run task update for RQ-0339Error: pre-run task update for RQ-0339: read queue /Users/mitchfultz/Projects/AI/ralph/.ralph/queue.json: parse queue /Users/mitchfultz/Projects/AI/ralph/.ralph/queue.json as JSON: expected `,` or `]` at line 21 column 75",
+      "agent": {
+        "model_effort": "medium"
+      },
+      "created_at": "2026-01-27T20:50:00Z",
+      "updated_at": "2026-01-27T21:13:51.567545000Z",
+      "completed_at": "2026-01-27T21:13:51.567545000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

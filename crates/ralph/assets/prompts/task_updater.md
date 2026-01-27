@@ -52,11 +52,48 @@ For the specified task:
 
 ## UPDATED_AT TIMESTAMP
 - Always set `updated_at` to current UTC RFC3339 time when modifying the task.
+- Format: `YYYY-MM-DDTHH:MM:SSZ` (e.g., `2026-01-27T19:22:00Z`)
+- Use UTC timezone (suffix `Z`, not `+00:00`)
 
-## JSON SAFETY
-- JSON strings use double quotes; escape double quotes with backslash (`\"`).
-- Use proper JSON arrays (`[...]`) for lists.
-- Use proper JSON objects (`{...}`) for nested structures.
+## JSON SAFETY - CRITICAL
+You are editing a JSON file. Malformed JSON will cause system failures. Follow these rules exactly:
+
+### JSON Safety Checklist (verify before saving)
+1. **No trailing commas** - The last item in arrays `[...]` and objects `{...}` must NOT have a comma
+2. **All strings use double quotes** - Use `"key"` not `'key'`
+3. **Escape internal quotes** - Use `\\\"` for quotes inside strings
+4. **Matching brackets/braces** - Every `[` needs `]`, every `{` needs `}`
+5. **Valid RFC3339 timestamps** - Use format like `2026-01-27T19:22:00Z` (UTC, no fractional seconds)
+
+### Common Mistakes to Avoid
+```json
+// WRONG - trailing comma in array
+"tags": ["bug", "json",]
+
+// RIGHT
+"tags": ["bug", "json"]
+
+// WRONG - trailing comma in object
+{"id": "RQ-0001", "title": "Fix bug",}
+
+// RIGHT
+{"id": "RQ-0001", "title": "Fix bug"}
+
+// WRONG - unescaped quote in string
+"notes": ["He said "stop" immediately"]
+
+// RIGHT
+"notes": ["He said \\\"stop\\\" immediately"]
+```
+
+### Validation Step
+Before finishing, verify your JSON is valid:
+1. Check that `updated_at` is set to current UTC time in RFC3339 format
+2. Ensure no trailing commas before `]` or `}`
+3. Verify all quotes inside strings are escaped with `\\`
+4. Confirm brackets and braces are balanced
 
 # OUTPUT
 After editing `.ralph/queue.json`, provide a brief summary of updates made (task ID + which fields were updated).
+
+**Important:** If you made any JSON errors, the system will fail to parse the queue. Double-check your edits before completing.

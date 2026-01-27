@@ -304,11 +304,23 @@ fn run_one_impl(
             repoprompt_tool_injection: policy.repoprompt_tool_injection,
         };
 
-        task_cmd::update_task_without_lock(resolved, &task_id, &update_settings)
-            .with_context(|| format!("pre-run task update for {}", task_id))?;
+        // Run pre-run task update, but don't fail if it errors - log warning and continue
+        match task_cmd::update_task_without_lock(resolved, &task_id, &update_settings) {
+            Ok(()) => {
+                log::info!("Task {task_id}: pre-run update completed successfully");
+            }
+            Err(err) => {
+                log::warn!(
+                    "Task {task_id}: pre-run update failed (continuing with original task): {:#}",
+                    err
+                );
+                // Continue with original task - don't fail the run
+            }
+        }
 
         // Reload the task so the execution prompt includes updated fields.
-        let updated_queue_file = queue::load_queue(&resolved.queue_path)?;
+        // Use repair mechanism in case the update left malformed JSON.
+        let updated_queue_file = queue::load_queue_with_repair(&resolved.queue_path)?;
         task = updated_queue_file
             .tasks
             .into_iter()
