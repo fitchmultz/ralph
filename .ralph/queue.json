@@ -413,7 +413,7 @@
     {
       "id": "RQ-0324",
       "status": "todo",
-      "title": "TUI: remove unused mouse capture or implement mouse scrolling/click selection",
+      "title": "TUI: implement mouse scrolling/click selection",
       "priority": "medium",
       "tags": [
         "tui",
@@ -431,8 +431,8 @@
       ],
       "plan": [
         "Decide whether the TUI should support mouse interactions; prefer the simplest correct path.",
-        "Either remove mouse capture entirely, or handle mouse wheel/click events in the input loop.",
-        "If adding mouse support, map wheel to scrolling for the focused panel and click to selection.",
+        "Handle mouse wheel/click events in the input loop.",
+        "Map wheel to scrolling for the focused panel and click to selection.",
         "Add tests where feasible and include manual QA steps for mouse behavior.",
         "Run `make ci`."
       ],
