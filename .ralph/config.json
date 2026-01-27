@@ -36,9 +36,6 @@
         }
       }
     },
-    "instruction_files": [
-      "~/.codex/AGENTS.md"
-    ],
     "repoprompt_plan_required": false,
     "repoprompt_tool_injection": true,
     "ci_gate_command": "make ci",
