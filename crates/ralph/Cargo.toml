@@ -2,7 +2,13 @@
 name = "ralph"
 version = "0.1.0"
 edition = "2021"
-publish = false
+license = "MIT"
+description = "A Rust CLI for managing AI agent loops with a structured JSON task queue"
+repository = "https://github.com/mitchfultz/ralph"
+homepage = "https://github.com/mitchfultz/ralph"
+readme = "../../README.md"
+keywords = ["ai", "agent", "cli", "task-queue", "workflow"]
+categories = ["command-line-utilities", "development-tools"]
 
 [dependencies]
 anyhow = "1.0.100"

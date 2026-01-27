@@ -17,6 +17,25 @@ The Ralph CLI is in `crates/ralph/`.
 
 Start with `docs/index.md` for configuration, queue/task schema, CLI usage, workflow, and environment variables.
 
+## Installation
+
+### From crates.io (recommended)
+
+```bash
+cargo install ralph
+```
+
+### From source
+
+```bash
+# Clone the repository
+git clone https://github.com/mitchfultz/ralph
+cd ralph
+
+# Install locally
+make install
+```
+
 ## Quick Start (Rust)
 
 - Install the `ralph` binary to `~/.local/bin`:

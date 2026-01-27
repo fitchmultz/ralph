@@ -7539,6 +7539,52 @@
       "completed_at": "2026-01-27T21:21:43.490101000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0340",
+      "status": "done",
+      "title": "Open-source readiness: add LICENSE + crate metadata and enable publishing",
+      "priority": "high",
+      "tags": [
+        "release",
+        "crates.io",
+        "docs"
+      ],
+      "scope": [
+        "crates/ralph/Cargo.toml",
+        "Cargo.toml",
+        "README.md",
+        "LICENSE",
+        "make ci"
+      ],
+      "evidence": [
+        "`crates/ralph/Cargo.toml`: package has `publish = false` and lacks typical publish metadata (license/repository/description).",
+        "Repo root: no `LICENSE` file is present (only build artifacts in target/doc/static.files).",
+        "`README.md`: currently documents local install via `make install` but not crates.io install path."
+      ],
+      "plan": [
+        "Choose an open-source license and add `LICENSE` (and, if needed, `NOTICE`).",
+        "Update `crates/ralph/Cargo.toml` with publish-ready metadata (license, description, repository, homepage, readme, keywords/categories).",
+        "Flip `publish = false` to the intended public posture (or document why it must remain false).",
+        "Update `README.md` with a public install path (e.g., `cargo install ralph` or `cargo install --path crates/ralph`).",
+        "Run `make ci`."
+      ],
+      "notes": [
+        "Added MIT LICENSE file with 2026 copyright",
+        "Updated crates/ralph/Cargo.toml with publish-ready metadata (license, description, repository, homepage, readme, keywords, categories)",
+        "Removed publish = false from Cargo.toml to enable publishing",
+        "Updated README.md with Installation section covering both crates.io and source install paths",
+        "make ci passed: 641 tests, clippy clean, format clean, install successful"
+      ],
+      "request": "scan finding",
+      "agent": {
+        "model_effort": "medium"
+      },
+      "created_at": "2026-01-27T18:17:26Z",
+      "updated_at": "2026-01-27T21:28:17.207661000Z",
+      "completed_at": "2026-01-27T21:28:17.207661000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }
