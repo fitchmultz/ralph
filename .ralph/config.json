@@ -12,7 +12,7 @@
     "model": "gpt-5.2-codex",
     "phases": 3,
     "iterations": 1,
-    "reasoning_effort": "high",
+    "reasoning_effort": "medium",
     "codex_bin": "codex",
     "opencode_bin": "opencode",
     "gemini_bin": "gemini",
