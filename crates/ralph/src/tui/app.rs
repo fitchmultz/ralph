@@ -594,6 +594,29 @@ impl App {
         }
     }
 
+    /// Jump selection to the top of the filtered list.
+    pub fn jump_to_top(&mut self) {
+        if self.filtered_len() == 0 {
+            self.selected = 0;
+            self.scroll = 0;
+            return;
+        }
+        self.selected = 0;
+        self.scroll = 0;
+    }
+
+    /// Jump selection to the bottom of the filtered list.
+    pub fn jump_to_bottom(&mut self, list_height: usize) {
+        if self.filtered_len() == 0 {
+            self.selected = 0;
+            self.scroll = 0;
+            return;
+        }
+        self.selected = self.filtered_len().saturating_sub(1);
+        let list_height = list_height.max(1);
+        self.scroll = self.selected.saturating_sub(list_height.saturating_sub(1));
+    }
+
     /// Move the selected task up in the queue.
     pub fn move_task_up(&mut self, now_rfc3339: &str) -> Result<()> {
         if self.selected == 0 || self.filtered_indices.is_empty() {
@@ -894,6 +917,14 @@ impl App {
         }
         let max_scroll = self.max_details_scroll(total_lines);
         self.details_scroll = (self.details_scroll + lines).min(max_scroll);
+    }
+
+    pub fn scroll_details_top(&mut self) {
+        self.details_scroll = 0;
+    }
+
+    pub fn scroll_details_bottom(&mut self, total_lines: usize) {
+        self.details_scroll = self.max_details_scroll(total_lines);
     }
 
     pub(crate) fn help_visible_lines(&self) -> usize {

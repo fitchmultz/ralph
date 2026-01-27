@@ -2,43 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0320",
-      "status": "todo",
-      "title": "TUI: fast task list navigation (PgUp/PgDn/Home/End)",
-      "priority": "medium",
-      "tags": [
-        "tui",
-        "ux",
-        "navigation",
-        "keybindings"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/app.rs",
-        "crates/ralph/src/tui/events/normal.rs",
-        "crates/ralph/src/tui/events/tests.rs",
-        "docs/tui-task-management.md",
-        "make ci"
-      ],
-      "evidence": [
-        "`crates/ralph/src/tui/events/normal.rs`: Normal mode only supports Up/Down and j/k for navigation (no page or jump keys).",
-        "`crates/ralph/src/tui/app.rs`: selection and scroll logic exists, but there are no helpers for page/jump navigation."
-      ],
-      "plan": [
-        "Add page/jump helpers on `App` (page up/down, jump to top/bottom) that respect filtered view.",
-        "Bind keys in Normal mode (PageUp/PageDown/Home/End) and document them.",
-        "Add tests for page navigation behavior (including edge clamping).",
-        "Run `make ci`."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-27T04:35:15Z",
-      "updated_at": "2026-01-27T08:31:09.065498000Z",
-      "depends_on": [],
-      "custom_fields": {
-        "stale_evidence": "PageUp/PageDown now move the list selection in Normal mode when the list is focused (added in RQ-0318); remaining work is Home/End or additional navigation enhancements."
-      }
-    },
-    {
       "id": "RQ-0321",
       "status": "todo",
       "title": "TUI: replace manual list highlight overlay with ListState highlight_style",

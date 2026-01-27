@@ -120,6 +120,24 @@ pub(super) fn handle_normal_mode_key(
             }
             Ok(TuiAction::Continue)
         }
+        KeyCode::Home => {
+            if app.details_focused() {
+                app.scroll_details_top();
+            } else {
+                app.jump_to_top();
+            }
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::End => {
+            if app.details_focused() {
+                let total_lines = app.details_total_lines;
+                app.scroll_details_bottom(total_lines);
+            } else {
+                let list_height = app.list_height;
+                app.jump_to_bottom(list_height);
+            }
+            Ok(TuiAction::Continue)
+        }
         KeyCode::Char('J') if is_plain_char(&key, 'J') => {
             app.execute_palette_command(PaletteCommand::MoveTaskDown, now_rfc3339)
         }

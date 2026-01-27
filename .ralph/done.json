@@ -6757,6 +6757,53 @@
       "completed_at": "2026-01-27T12:46:58.976535000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0320",
+      "status": "done",
+      "title": "TUI: fast task list navigation (PgUp/PgDn/Home/End)",
+      "priority": "medium",
+      "tags": [
+        "tui",
+        "ux",
+        "navigation",
+        "keybindings"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/app.rs",
+        "crates/ralph/src/tui/events/normal.rs",
+        "crates/ralph/src/tui/events/tests.rs",
+        "crates/ralph/src/tui/keymap.rs",
+        "docs/tui-task-management.md",
+        "make ci"
+      ],
+      "evidence": [
+        "`crates/ralph/src/tui/events/normal.rs`: Normal mode handles PageUp/PageDown paging for list/details, but there is no Home/End handling to jump to top/bottom of the task list.",
+        "`crates/ralph/src/tui/app.rs`: navigation helpers include move_up/down and move_page_up/down, but there are no jump-to-top/bottom helpers for list selection.",
+        "`crates/ralph/src/tui/keymap.rs` and `docs/tui-task-management.md`: Normal navigation lists PgUp/PgDn but does not document Home/End for list jumps."
+      ],
+      "plan": [
+        "Add App helpers to jump to the first/last filtered task (and adjust scroll); decide whether details focus should scroll to top/bottom too.",
+        "Wire Home/End in Normal mode to the new jump behavior (list focus) and any details-focus handling decided above.",
+        "Update keymap entries and `docs/tui-task-management.md` to document Home/End navigation.",
+        "Add tests covering Home/End jumps and edge clamping with filtered lists (and details focus if supported).",
+        "Run `make ci`."
+      ],
+      "notes": [
+        "PageUp/PageDown paging is already implemented in Normal mode; remaining gap is Home/End jump-to-top/bottom for the task list.",
+        "Add Home/End handling to jump list selection or scroll details.",
+        "Add App helpers for top/bottom jumps and details scroll.",
+        "Update keymap/docs and add normal-mode Home/End tests.",
+        "CI: make ci"
+      ],
+      "request": "scan finding",
+      "created_at": "2026-01-27T04:35:15Z",
+      "updated_at": "2026-01-27T13:06:26.643120000Z",
+      "completed_at": "2026-01-27T13:06:26.643120000Z",
+      "depends_on": [],
+      "custom_fields": {
+        "stale_evidence": "PageUp/PageDown now move the list selection in Normal mode when the list is focused (added in RQ-0318); remaining work is Home/End or additional navigation enhancements."
+      }
     }
   ]
 }

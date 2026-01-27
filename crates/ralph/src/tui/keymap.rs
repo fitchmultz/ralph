@@ -80,6 +80,12 @@ const NORMAL_NAV_BINDINGS: &[KeyBinding] = &[
         footer_hint: None,
     },
     KeyBinding {
+        keys: &["Home/End"],
+        keys_display: "Home/End",
+        description: "jump to top/bottom (focused panel)",
+        footer_hint: None,
+    },
+    KeyBinding {
         keys: &["Tab", "Shift+Tab"],
         keys_display: "Tab/Shift+Tab",
         description: "switch focus between list/details",
@@ -478,6 +484,7 @@ mod tests {
             "Ctrl+F",
             "Tab",
             "PgUp/PgDn",
+            "Home/End",
         ] {
             assert!(
                 keys.contains(expected),
@@ -507,6 +514,7 @@ mod tests {
             "`K/J`: move selected task up/down",
             "`Tab/Shift+Tab`: switch focus between list/details",
             "`PgUp/PgDn`: page list/details (focused panel)",
+            "`Home/End`: jump to top/bottom (focused panel)",
             "`C`: toggle case-sensitive search",
             "`R`: toggle regex search",
             "`Ctrl+P`: command palette (shortcut)",

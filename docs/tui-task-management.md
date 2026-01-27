@@ -17,6 +17,7 @@ Navigation:
 - `Tab/Shift+Tab`: switch focus between list/details
 - `j` / `k` or `↓` / `↑`: move selection (list focus) / scroll details (details focus)
 - `PgUp/PgDn`: page list/details (focused panel)
+- `Home/End`: jump to top/bottom (focused panel)
 - `K/J`: move selected task up/down
 - `Enter`: run selected task
 

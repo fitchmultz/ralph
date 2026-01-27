@@ -611,6 +611,106 @@ fn help_mode_scrolls_and_clamps() {
 }
 
 #[test]
+fn normal_mode_home_end_jumps_list_selection_and_scroll() {
+    let queue = QueueFile {
+        version: 1,
+        tasks: vec![
+            make_test_task("RQ-0001"),
+            make_test_task("RQ-0002"),
+            make_test_task("RQ-0003"),
+            make_test_task("RQ-0004"),
+            make_test_task("RQ-0005"),
+        ],
+    };
+    let mut app = App::new(queue);
+    app.list_height = 2;
+
+    handle_key_event(&mut app, key_event(KeyCode::End), "2026-01-20T00:00:00Z")
+        .expect("handle key");
+    assert_eq!(app.selected, 4);
+    assert_eq!(app.scroll, 3);
+
+    handle_key_event(&mut app, key_event(KeyCode::Home), "2026-01-20T00:00:00Z")
+        .expect("handle key");
+    assert_eq!(app.selected, 0);
+    assert_eq!(app.scroll, 0);
+}
+
+#[test]
+fn normal_mode_home_end_respects_filtered_list() {
+    let mut task1 = make_test_task("RQ-0001");
+    task1.tags = vec!["alpha".to_string()];
+    let mut task2 = make_test_task("RQ-0002");
+    task2.tags = vec!["beta".to_string()];
+    let mut task3 = make_test_task("RQ-0003");
+    task3.tags = vec!["alpha".to_string()];
+
+    let queue = QueueFile {
+        version: 1,
+        tasks: vec![task1, task2, task3],
+    };
+    let mut app = App::new(queue);
+    app.list_height = 1;
+    app.set_tag_filters(vec!["alpha".to_string()]);
+
+    handle_key_event(&mut app, key_event(KeyCode::End), "2026-01-20T00:00:00Z")
+        .expect("handle key");
+    assert_eq!(app.selected, 1);
+    assert_eq!(app.scroll, 1);
+    assert_eq!(
+        app.selected_task().map(|task| task.id.as_str()),
+        Some("RQ-0003")
+    );
+
+    handle_key_event(&mut app, key_event(KeyCode::Home), "2026-01-20T00:00:00Z")
+        .expect("handle key");
+    assert_eq!(app.selected, 0);
+    assert_eq!(app.scroll, 0);
+    assert_eq!(
+        app.selected_task().map(|task| task.id.as_str()),
+        Some("RQ-0001")
+    );
+}
+
+#[test]
+fn normal_mode_home_end_scrolls_details_when_focused() {
+    let queue = QueueFile {
+        version: 1,
+        tasks: vec![make_test_task("RQ-0001")],
+    };
+    let mut app = App::new(queue);
+    app.focus_next_panel();
+    app.details_visible_lines = 3;
+    app.details_total_lines = 10;
+    app.details_scroll = 2;
+    let selected_before = app.selected;
+
+    handle_key_event(&mut app, key_event(KeyCode::End), "2026-01-20T00:00:00Z")
+        .expect("handle key");
+    assert_eq!(app.details_scroll, 7);
+    assert_eq!(app.selected, selected_before);
+
+    handle_key_event(&mut app, key_event(KeyCode::Home), "2026-01-20T00:00:00Z")
+        .expect("handle key");
+    assert_eq!(app.details_scroll, 0);
+    assert_eq!(app.selected, selected_before);
+}
+
+#[test]
+fn normal_mode_home_end_safe_with_empty_list() {
+    let mut app = App::new(QueueFile::default());
+    app.list_height = 3;
+
+    handle_key_event(&mut app, key_event(KeyCode::Home), "2026-01-20T00:00:00Z")
+        .expect("handle key");
+    handle_key_event(&mut app, key_event(KeyCode::End), "2026-01-20T00:00:00Z")
+        .expect("handle key");
+
+    assert_eq!(app.selected, 0);
+    assert_eq!(app.scroll, 0);
+}
+
+#[test]
 fn help_mode_closes_on_h() {
     let queue = QueueFile {
         version: 1,
