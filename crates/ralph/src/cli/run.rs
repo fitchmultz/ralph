@@ -32,8 +32,7 @@ pub fn handle_run(cmd: RunCommand, force: bool) -> Result<()> {
                 let factories = interactive::build_interactive_factories(
                     &resolved,
                     &overrides,
-                    args.agent.rp_on,
-                    args.agent.rp_off,
+                    args.agent.repo_prompt,
                     force,
                 )?;
 
@@ -65,8 +64,7 @@ pub fn handle_run(cmd: RunCommand, force: bool) -> Result<()> {
                 let factories = interactive::build_interactive_factories(
                     &resolved,
                     &overrides,
-                    args.agent.rp_on,
-                    args.agent.rp_off,
+                    args.agent.repo_prompt,
                     force,
                 )?;
 
@@ -199,8 +197,8 @@ Examples:\n\
  ralph run one --git-revert-mode enabled\n\
  ralph run one --git-commit-push-off\n\
  ralph run one --update-task\n\
- ralph run one --rp-on\n\
- ralph run one --rp-off\n\
+ ralph run one --repo-prompt plan\n\
+ ralph run one --repo-prompt off\n\
  ralph tui"
     )]
     One(RunOneArgs),
@@ -218,8 +216,8 @@ Examples:\n\
  ralph run loop --git-revert-mode disabled --max-tasks 1\n\
  ralph run loop --git-commit-push-off --max-tasks 1\n\
  ralph run loop --update-task --max-tasks 1\n\
- ralph run loop --rp-on --max-tasks 1\n\
- ralph run loop --rp-off --max-tasks 1\n\
+ ralph run loop --repo-prompt tools --max-tasks 1\n\
+ ralph run loop --repo-prompt off --max-tasks 1\n\
  ralph run loop -i\n\
  ralph tui"
     )]
@@ -290,7 +288,7 @@ mod tests {
     }
 
     #[test]
-    fn run_loop_help_mentions_rp_examples() {
+    fn run_loop_help_mentions_repo_prompt_examples() {
         let mut cmd = Cli::command();
         let run = cmd.find_subcommand_mut("run").expect("run subcommand");
         let run_loop = run
@@ -299,12 +297,12 @@ mod tests {
         let help = run_loop.render_long_help().to_string();
 
         assert!(
-            help.contains("ralph run loop --rp-on --max-tasks 1"),
-            "missing rp-on example: {help}"
+            help.contains("ralph run loop --repo-prompt tools --max-tasks 1"),
+            "missing repo-prompt tools example: {help}"
         );
         assert!(
-            help.contains("ralph run loop --rp-off --max-tasks 1"),
-            "missing rp-off example: {help}"
+            help.contains("ralph run loop --repo-prompt off --max-tasks 1"),
+            "missing repo-prompt off example: {help}"
         );
     }
 }

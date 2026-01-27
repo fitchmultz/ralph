@@ -151,7 +151,7 @@ Purpose: Capture repo-wide operating expectations for contributors and agents wo
 **Common Gaps to Watch For:**
 - Missing `--phases` examples
 - `--interactive` (`-i`) flag documentation
-- `--rp-on`/`--rp-off` RepoPrompt flags
+- `--repo-prompt <tools|plan|off>` (alias: `-rp`) RepoPrompt mode
 - Runner/model override examples
 - Git behavior flags (`--git-commit-push-on`, `--git-revert-mode`)
 
@@ -182,7 +182,7 @@ Purpose: Capture repo-wide operating expectations for contributors and agents wo
 **RepoPrompt Integration:**
 - When `repoprompt_plan_required: true`, agents MUST use RepoPrompt tools during planning (use `context_builder`)
 - When `repoprompt_tool_injection: true`, prompts include RepoPrompt tooling reminders; follow them
-- CLI `--rp-on/--rp-off` toggles both flags together
+- CLI `--repo-prompt <tools|plan|off>` (alias: `-rp`) controls both flags together
 - RepoPrompt produces plans, but agent owns correctness—fix conflicts before writing
 - Preflight: Validate task assumptions and identify relevant files before invoking `context_builder`
 - Selection hygiene: If `context_builder` misses files, append them (don't replace selection)
@@ -257,5 +257,5 @@ See `docs/configuration.md` for complete configuration documentation.
 
 **RepoPrompt Issues:**
 - Ensure RepoPrompt is installed and configured
-- Check `repoprompt_plan_required` and/or `repoprompt_tool_injection` in config (or use `--rp-on`)
+- Check `repoprompt_plan_required` and/or `repoprompt_tool_injection` in config (or use `--repo-prompt plan`)
 - Verify selection includes relevant files before invoking `context_builder`

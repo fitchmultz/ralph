@@ -66,7 +66,7 @@ One-off usage:
 - `ralph scan --runner opencode --model gpt-5.2 --focus "CI gaps"`
 - `ralph scan --runner gemini --model gemini-3-flash-preview --focus "risk audit"`
 - `ralph scan --runner claude --model sonnet --focus "risk audit"`
-- `ralph task --runner claude --model opus --rp-on "Add tests for X"`
+- `ralph task --runner claude --model opus --repo-prompt plan "Add tests for X"`
 - `ralph run one --phases 3` (3-phase: plan, implement+CI, review+complete, default)
 - `ralph run one --phases 2` (2-phase: plan then implement)
 - `ralph run one --phases 1` (single-pass execution)
@@ -93,6 +93,8 @@ Defaults via config (`.ralph/config.json` or `~/.config/ralph/config.json`):
 - **Claude**: `sonnet` (default), `opus`, or arbitrary model IDs
 
 ### RepoPrompt Integration
-Ralph can explicitly require the usage of RepoPrompt tools. When enabled via config (`repoprompt_plan_required: true` and/or `repoprompt_tool_injection: true`) or CLI (`--rp-on`), Ralph will:
+Ralph can explicitly require the usage of RepoPrompt tools. When enabled via config (`repoprompt_plan_required: true` and/or `repoprompt_tool_injection: true`) or CLI (`--repo-prompt plan`), Ralph will:
 1. Instruct the agent to use RepoPrompt tools for exploration (tooling reminders when `repoprompt_tool_injection` is true).
 2. During planning, require the agent to use the `context_builder` tool to gather context AND generate the plan in a single step (when `repoprompt_plan_required` is true).
+
+Breaking change: `--rp-on/--rp-off` were removed in favor of `--repo-prompt <tools|plan|off>`.

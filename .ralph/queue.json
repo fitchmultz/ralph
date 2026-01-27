@@ -2,39 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0332",
-      "status": "todo",
-      "title": "Standardize CLI flag aliases and allowed values",
-      "priority": "medium",
-      "tags": [
-        "cli",
-        "flags",
-        "consistency"
-      ],
-      "scope": [
-        "crates/ralph/src/",
-        "docs/cli.md",
-        "crates/ralph/tests/",
-        "make ci"
-      ],
-      "evidence": [
-        "User request: make CLI flags consistent (e.g., -e/--effort values low|medium|high|xhigh and -rp/--repo-prompt values tools|plan|off)."
-      ],
-      "plan": [
-        "Inventory existing CLI flags/aliases and allowed values; identify inconsistencies across commands and docs.",
-        "Define a consistent short/long flag scheme and canonical value sets (including effort and repo-prompt) and update CLI arg parsing accordingly.",
-        "Update CLI help text and examples, plus docs/cli.md, to reflect the standardized flags.",
-        "Add or update tests covering success and failure modes for the standardized flags and values.",
-        "Run make ci."
-      ],
-      "notes": [],
-      "request": "Make CLI flags consistent. e.g. Effort: -e,--effort (low|medium|high|xhigh). RepoPrompt: -rp,--repo-prompt (tools|plan|off) (plan automatically injects both like the current behavior), and so on.",
-      "created_at": "2026-01-27T15:18:20Z",
-      "updated_at": "2026-01-27T15:18:20Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0331",
       "status": "todo",
       "title": "Align RepoPrompt tool injection text with MCP inventory details",

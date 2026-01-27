@@ -1,8 +1,18 @@
 //! Agent argument resolution and configuration.
 //!
-//! This module provides a unified API for resolving agent settings across
-//! the Ralph codebase. It consolidates CLI argument parsing, override resolution,
-//! and agent settings configuration.
+//! Responsibilities:
+//! - Parse and validate agent-related CLI inputs into structured overrides.
+//! - Resolve RepoPrompt requirements from CLI selections and config defaults.
+//! - Provide helpers for runner/model/effort parsing shared across commands.
+//!
+//! Not handled here:
+//! - CLI definitions outside agent-related flags.
+//! - Runner execution, prompt rendering, or queue mutations.
+//! - Persisting configuration changes.
+//!
+//! Invariants/assumptions:
+//! - Callers pass normalized CLI arguments (including any short-flag aliases).
+//! - RepoPrompt mode selections map to both plan/tool flags consistently.
 
 use crate::config;
 use crate::contracts::{
@@ -11,7 +21,17 @@ use crate::contracts::{
     UnsupportedOptionPolicy,
 };
 use anyhow::{anyhow, bail, Result};
-use clap::Args;
+use clap::{Args, ValueEnum};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
+pub enum RepoPromptMode {
+    #[value(name = "tools")]
+    Tools,
+    #[value(name = "plan")]
+    Plan,
+    #[value(name = "off")]
+    Off,
+}
 
 /// CLI arguments for agent configuration.
 ///
@@ -31,16 +51,12 @@ pub struct AgentArgs {
 
     /// Codex reasoning effort override (low, medium, high, xhigh).
     /// Ignored for other runners.
-    #[arg(long)]
+    #[arg(short = 'e', long)]
     pub effort: Option<String>,
 
-    /// Force RepoPrompt flags on (planning requirement + tooling reminders).
-    #[arg(long, conflicts_with = "rp_off")]
-    pub rp_on: bool,
-
-    /// Force RepoPrompt flags off (planning requirement + tooling reminders).
-    #[arg(long, conflicts_with = "rp_on")]
-    pub rp_off: bool,
+    /// RepoPrompt mode (tools, plan, off). Alias: -rp.
+    #[arg(long = "repo-prompt", value_enum, value_name = "MODE")]
+    pub repo_prompt: Option<RepoPromptMode>,
 }
 
 /// Extended agent arguments for run commands (includes phases).
@@ -59,7 +75,7 @@ pub struct RunAgentArgs {
 
     /// Codex reasoning effort override (low, medium, high, xhigh).
     /// Ignored for other runners.
-    #[arg(long)]
+    #[arg(short = 'e', long)]
     pub effort: Option<String>,
 
     /// Desired runner output format (stream-json, json, text). Ralph execution requires stream-json.
@@ -95,13 +111,9 @@ pub struct RunAgentArgs {
     #[arg(long, value_parser = clap::value_parser!(u8).range(1..=3))]
     pub phases: Option<u8>,
 
-    /// Force RepoPrompt flags on (planning requirement + tooling reminders).
-    #[arg(long, conflicts_with = "rp_off")]
-    pub rp_on: bool,
-
-    /// Force RepoPrompt flags off (planning requirement + tooling reminders).
-    #[arg(long, conflicts_with = "rp_on")]
-    pub rp_off: bool,
+    /// RepoPrompt mode (tools, plan, off). Alias: -rp.
+    #[arg(long = "repo-prompt", value_enum, value_name = "MODE")]
+    pub repo_prompt: Option<RepoPromptMode>,
 
     /// Git revert mode for automatic error handling (ask, enabled, disabled).
     #[arg(long, value_parser = ["ask", "enabled", "disabled"])]
@@ -156,6 +168,23 @@ pub struct AgentOverrides {
 pub struct RepopromptFlags {
     pub plan_required: bool,
     pub tool_injection: bool,
+}
+
+fn repoprompt_flags_from_mode(mode: RepoPromptMode) -> RepopromptFlags {
+    match mode {
+        RepoPromptMode::Tools => RepopromptFlags {
+            plan_required: false,
+            tool_injection: true,
+        },
+        RepoPromptMode::Plan => RepopromptFlags {
+            plan_required: true,
+            tool_injection: true,
+        },
+        RepoPromptMode::Off => RepopromptFlags {
+            plan_required: false,
+            tool_injection: false,
+        },
+    }
 }
 
 /// Parse a runner string into a Runner enum.
@@ -253,13 +282,7 @@ pub fn resolve_run_agent_overrides(args: &RunAgentArgs) -> Result<AgentOverrides
         runner::validate_model_for_runner(runner_kind, model)?;
     }
 
-    let repoprompt_override = if args.rp_on {
-        Some(true)
-    } else if args.rp_off {
-        Some(false)
-    } else {
-        None
-    };
+    let repoprompt_override = args.repo_prompt.map(repoprompt_flags_from_mode);
 
     let git_revert_mode = match args.git_revert_mode.as_deref() {
         Some(value) => Some(parse_git_revert_mode(value)?),
@@ -298,8 +321,8 @@ pub fn resolve_run_agent_overrides(args: &RunAgentArgs) -> Result<AgentOverrides
         },
         phases: args.phases,
         update_task_before_run,
-        repoprompt_plan_required: repoprompt_override,
-        repoprompt_tool_injection: repoprompt_override,
+        repoprompt_plan_required: repoprompt_override.map(|flags| flags.plan_required),
+        repoprompt_tool_injection: repoprompt_override.map(|flags| flags.tool_injection),
         git_revert_mode,
         git_commit_push_enabled,
         include_draft,
@@ -331,13 +354,7 @@ pub fn resolve_agent_overrides(args: &AgentArgs) -> Result<AgentOverrides> {
         runner::validate_model_for_runner(runner_kind, model)?;
     }
 
-    let repoprompt_override = if args.rp_on {
-        Some(true)
-    } else if args.rp_off {
-        Some(false)
-    } else {
-        None
-    };
+    let repoprompt_override = args.repo_prompt.map(repoprompt_flags_from_mode);
 
     Ok(AgentOverrides {
         runner,
@@ -346,8 +363,8 @@ pub fn resolve_agent_overrides(args: &AgentArgs) -> Result<AgentOverrides> {
         runner_cli: RunnerCliOptionsPatch::default(),
         phases: None,
         update_task_before_run: None,
-        repoprompt_plan_required: repoprompt_override,
-        repoprompt_tool_injection: repoprompt_override,
+        repoprompt_plan_required: repoprompt_override.map(|flags| flags.plan_required),
+        repoprompt_tool_injection: repoprompt_override.map(|flags| flags.tool_injection),
         git_revert_mode: None,
         git_commit_push_enabled: None,
         include_draft: None,
@@ -364,21 +381,11 @@ fn resolve_repoprompt_flags_from_agent_config(agent: &AgentConfig) -> Repoprompt
 }
 
 pub fn resolve_repoprompt_flags(
-    rp_on: bool,
-    rp_off: bool,
+    repo_prompt: Option<RepoPromptMode>,
     resolved: &config::Resolved,
 ) -> RepopromptFlags {
-    if rp_on {
-        return RepopromptFlags {
-            plan_required: true,
-            tool_injection: true,
-        };
-    }
-    if rp_off {
-        return RepopromptFlags {
-            plan_required: false,
-            tool_injection: false,
-        };
+    if let Some(mode) = repo_prompt {
+        return repoprompt_flags_from_mode(mode);
     }
     resolve_repoprompt_flags_from_agent_config(&resolved.config.agent)
 }
@@ -401,8 +408,11 @@ pub fn resolve_repoprompt_flags_from_overrides(
 }
 
 /// Resolve whether RepoPrompt tooling reminder injection is required based on CLI flags and config.
-pub fn resolve_rp_required(rp_on: bool, rp_off: bool, resolved: &config::Resolved) -> bool {
-    resolve_repoprompt_flags(rp_on, rp_off, resolved).tool_injection
+pub fn resolve_rp_required(
+    repo_prompt: Option<RepoPromptMode>,
+    resolved: &config::Resolved,
+) -> bool {
+    resolve_repoprompt_flags(repo_prompt, resolved).tool_injection
 }
 
 #[cfg(test)]
@@ -471,31 +481,31 @@ mod tests {
     }
 
     #[test]
-    fn resolve_rp_required_cli_on_overrides_config() {
+    fn resolve_rp_required_cli_plan_overrides_config() {
         let resolved = resolved_with_defaults();
-        assert!(resolve_rp_required(true, false, &resolved));
+        assert!(resolve_rp_required(Some(RepoPromptMode::Plan), &resolved));
     }
 
     #[test]
     fn resolve_rp_required_cli_off_overrides_config() {
         let resolved = resolved_with_defaults();
-        assert!(!resolve_rp_required(false, true, &resolved));
+        assert!(!resolve_rp_required(Some(RepoPromptMode::Off), &resolved));
     }
 
     #[test]
     fn resolve_rp_required_uses_config_when_cli_not_set() {
         let mut resolved = resolved_with_defaults();
         resolved.config.agent.repoprompt_tool_injection = Some(true);
-        assert!(resolve_rp_required(false, false, &resolved));
+        assert!(resolve_rp_required(None, &resolved));
 
         resolved.config.agent.repoprompt_tool_injection = Some(false);
-        assert!(!resolve_rp_required(false, false, &resolved));
+        assert!(!resolve_rp_required(None, &resolved));
     }
 
     #[test]
     fn resolve_repoprompt_flags_defaults_false_when_unset() {
         let resolved = resolved_with_defaults();
-        let flags = resolve_repoprompt_flags(false, false, &resolved);
+        let flags = resolve_repoprompt_flags(None, &resolved);
         assert!(!flags.plan_required);
         assert!(!flags.tool_injection);
     }
@@ -506,7 +516,7 @@ mod tests {
         resolved.config.agent.repoprompt_plan_required = Some(true);
         resolved.config.agent.repoprompt_tool_injection = Some(false);
 
-        let flags = resolve_repoprompt_flags(false, false, &resolved);
+        let flags = resolve_repoprompt_flags(None, &resolved);
         assert!(flags.plan_required);
         assert!(!flags.tool_injection);
     }
@@ -539,8 +549,7 @@ mod tests {
             runner: Some("opencode".to_string()),
             model: Some("gpt-5.2".to_string()),
             effort: None,
-            rp_on: false,
-            rp_off: false,
+            repo_prompt: None,
         };
 
         let overrides = resolve_agent_overrides(&args).unwrap();
@@ -560,8 +569,7 @@ mod tests {
             runner: None,
             model: None,
             effort: None,
-            rp_on: true,
-            rp_off: false,
+            repo_prompt: Some(RepoPromptMode::Plan),
         };
 
         let overrides = resolve_agent_overrides(&args).unwrap();
@@ -570,6 +578,29 @@ mod tests {
         assert_eq!(overrides.git_revert_mode, None);
         assert_eq!(overrides.git_commit_push_enabled, None);
         assert_eq!(overrides.include_draft, None);
+    }
+
+    #[test]
+    fn resolve_agent_overrides_maps_repo_prompt_modes() {
+        let tools_args = AgentArgs {
+            runner: None,
+            model: None,
+            effort: None,
+            repo_prompt: Some(RepoPromptMode::Tools),
+        };
+        let tools_overrides = resolve_agent_overrides(&tools_args).unwrap();
+        assert_eq!(tools_overrides.repoprompt_plan_required, Some(false));
+        assert_eq!(tools_overrides.repoprompt_tool_injection, Some(true));
+
+        let off_args = AgentArgs {
+            runner: None,
+            model: None,
+            effort: None,
+            repo_prompt: Some(RepoPromptMode::Off),
+        };
+        let off_overrides = resolve_agent_overrides(&off_args).unwrap();
+        assert_eq!(off_overrides.repoprompt_plan_required, Some(false));
+        assert_eq!(off_overrides.repoprompt_tool_injection, Some(false));
     }
 
     #[test]
@@ -585,8 +616,7 @@ mod tests {
             plan_mode: None,
             unsupported_option_policy: None,
             phases: Some(2),
-            rp_on: false,
-            rp_off: false,
+            repo_prompt: None,
             git_revert_mode: Some("enabled".to_string()),
             git_commit_push_on: false,
             git_commit_push_off: true,
@@ -619,8 +649,7 @@ mod tests {
             plan_mode: None,
             unsupported_option_policy: None,
             phases: None,
-            rp_on: false,
-            rp_off: false,
+            repo_prompt: None,
             git_revert_mode: None,
             git_commit_push_on: false,
             git_commit_push_off: false,

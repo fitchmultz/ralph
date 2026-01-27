@@ -137,8 +137,8 @@ ralph run loop --max-tasks 0
 ralph run loop --phases 3 --max-tasks 0
 ralph run loop --include-draft --max-tasks 1
 ralph run loop --update-task --max-tasks 1
-ralph run loop --rp-on --max-tasks 1
-ralph run loop --rp-off --max-tasks 1
+ralph run loop --repo-prompt tools --max-tasks 1
+ralph run loop --repo-prompt off --max-tasks 1
 ralph run loop -i --max-tasks 3
 ralph run loop --max-tasks 1 --debug
 ralph run one --git-commit-push-off
@@ -157,8 +157,8 @@ Generate new tasks by scanning the repository.
 Key flags:
 
 * `--focus <TEXT>`: Optional focus prompt to guide the scan.
-* `--runner <codex|opencode|gemini|claude|cursor>`, `--model <model-id>`, `--effort <low|medium|high|xhigh>`: Override runner/model/effort for this invocation.
-* `--rp-on` / `--rp-off`: Force RepoPrompt tooling reminders on/off for this invocation.
+* `--runner <codex|opencode|gemini|claude|cursor>`, `--model <model-id>`, `--effort <low|medium|high|xhigh>` (alias: `-e`): Override runner/model/effort for this invocation.
+* `--repo-prompt <tools|plan|off>` (alias: `-rp`): `tools` = tooling reminders only, `plan` = planning requirement + tooling reminders, `off` = disable both.
 
 Clean-repo checks for `scan` allow changes to `.ralph/queue.json` and `.ralph/done.json`
 only (unlike `run`, changes to `.ralph/config.json` are *not* allowed). Use `--force` to
@@ -171,8 +171,8 @@ ralph scan
 ralph scan --focus "production readiness gaps"
 ralph scan --runner opencode --model gpt-5.2 --focus "CI and safety gaps"
 ralph scan --force --focus "scan even with uncommitted changes"
-ralph scan --rp-on --focus "Deep codebase analysis"
-ralph scan --rp-off --focus "Quick surface scan"
+ralph scan --repo-prompt plan --focus "Deep codebase analysis"
+ralph scan --repo-prompt off --focus "Quick surface scan"
 ```
 
 ## `ralph queue`
@@ -514,8 +514,8 @@ Fields preserved (not changed):
 
 Flags:
 - `--fields <FIELD_NAMES>` - specific fields to update (comma-separated, default: all)
-- `--runner/--model/--effort` - runner override for this invocation
-- `--rp-on`/`--rp-off` - force RepoPrompt requirement
+- `--runner/--model/--effort` (`-e`) - runner override for this invocation
+- `--repo-prompt <tools|plan|off>` (alias: `-rp`) - RepoPrompt planning/tooling mode
 
 Examples:
 ```bash
@@ -523,8 +523,8 @@ ralph task update
 ralph task update RQ-0001
 ralph task update --fields scope,evidence,plan RQ-0001
 ralph task update --runner opencode --model gpt-5.2 RQ-0001
-ralph task update --rp-on RQ-0001
-ralph task update --rp-off --fields scope,evidence RQ-0001
+ralph task update --repo-prompt plan RQ-0001
+ralph task update --repo-prompt off --fields scope,evidence RQ-0001
 ralph task update --fields tags RQ-0042
 ```
 
@@ -536,12 +536,12 @@ Key flags:
 - `ralph prompt worker --phase <1|2|3>`: choose phase prompt.
 - `--iterations` / `--iteration-index`: simulate follow-up iteration context.
 - `--plan-text` / `--plan-file`: embed phase 2 plan text for previewing.
-- `--rp-on` / `--rp-off`: force RepoPrompt requirement.
+- `--repo-prompt <tools|plan|off>` (alias: `-rp`): RepoPrompt planning/tooling mode.
 
 Examples:
 
 ```bash
-ralph prompt worker --phase 1 --rp-on
+ralph prompt worker --phase 1 --repo-prompt plan
 ralph prompt worker --phase 2 --plan-text "Plan body"
 ralph prompt worker --phase 2 --iteration-index 2 --iterations 3
 ralph prompt worker --phase 3 --task-id RQ-0001
@@ -553,8 +553,10 @@ These flags are supported on `task`, `scan`, `run one`, `run loop`, and `tui`:
 
 * `--runner <codex|opencode|gemini|claude|cursor>`
 * `--model <model-id>`
-* `--effort <low|medium|high|xhigh>` (codex only)
-* `--rp-on` / `--rp-off`
+* `--effort <low|medium|high|xhigh>` (codex only; alias: `-e`)
+* `--repo-prompt <tools|plan|off>` (alias: `-rp`) — `tools` = tooling reminders only, `plan` = planning requirement + tooling reminders, `off` = disable both.
+
+Note: `--rp-on`/`--rp-off` were removed in favor of `--repo-prompt <tools|plan|off>`.
 
 Examples:
 

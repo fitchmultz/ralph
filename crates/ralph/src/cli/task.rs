@@ -160,8 +160,7 @@ pub fn handle_task(args: TaskArgs, force: bool) -> Result<()> {
                 runner: args.runner.clone(),
                 model: args.model.clone(),
                 effort: args.effort.clone(),
-                rp_on: args.rp_on,
-                rp_off: args.rp_off,
+                repo_prompt: args.repo_prompt,
             })?;
             let settings = runner::resolve_agent_settings(
                 overrides.runner,
@@ -178,11 +177,7 @@ pub fn handle_task(args: TaskArgs, force: bool) -> Result<()> {
                 model: settings.model,
                 reasoning_effort: settings.reasoning_effort,
                 force,
-                repoprompt_tool_injection: agent::resolve_rp_required(
-                    args.rp_on,
-                    args.rp_off,
-                    &resolved,
-                ),
+                repoprompt_tool_injection: agent::resolve_rp_required(args.repo_prompt, &resolved),
             };
 
             match args.task_id.as_deref() {
@@ -197,8 +192,7 @@ pub fn handle_task(args: TaskArgs, force: bool) -> Result<()> {
                 runner: args.runner.clone(),
                 model: args.model.clone(),
                 effort: args.effort.clone(),
-                rp_on: args.rp_on,
-                rp_off: args.rp_off,
+                repo_prompt: args.repo_prompt,
             })?;
             let settings = runner::resolve_agent_settings(
                 overrides.runner,
@@ -220,8 +214,7 @@ pub fn handle_task(args: TaskArgs, force: bool) -> Result<()> {
                     reasoning_effort: settings.reasoning_effort,
                     force,
                     repoprompt_tool_injection: agent::resolve_rp_required(
-                        args.rp_on,
-                        args.rp_off,
+                        args.repo_prompt,
                         &resolved,
                     ),
                 },
@@ -237,8 +230,7 @@ pub fn handle_task(args: TaskArgs, force: bool) -> Result<()> {
                 runner: args.runner.clone(),
                 model: args.model.clone(),
                 effort: args.effort.clone(),
-                rp_on: args.rp_on,
-                rp_off: args.rp_off,
+                repo_prompt: args.repo_prompt,
             })?;
             let settings = runner::resolve_agent_settings(
                 overrides.runner,
@@ -260,8 +252,7 @@ pub fn handle_task(args: TaskArgs, force: bool) -> Result<()> {
                     reasoning_effort: settings.reasoning_effort,
                     force,
                     repoprompt_tool_injection: agent::resolve_rp_required(
-                        args.rp_on,
-                        args.rp_off,
+                        args.repo_prompt,
                         &resolved,
                     ),
                 },
@@ -331,7 +322,7 @@ pub struct TaskArgs {
 pub enum TaskCommand {
     /// Build a new task from a natural language request.
     #[command(
-        after_long_help = "Runner selection:\n - Override runner/model/effort for this invocation using flags.\n - Defaults come from config when flags are omitted.\n\nExamples:\n ralph task \"Add integration tests for run one\"\n ralph task --tags cli,rust \"Refactor queue parsing\"\n ralph task --scope crates/ralph \"Fix TUI rendering bug\"\n ralph task --runner opencode --model gpt-5.2 \"Add docs for OpenCode setup\"\n ralph task --runner gemini --model gemini-3-flash-preview \"Draft risk checklist\"\n ralph task --runner codex --model gpt-5.2-codex --effort high \"Fix queue validation\"\n ralph task --rp-on \"Audit error handling\"\n ralph task --rp-off \"Quick typo fix\"\n echo \"Triage flaky CI\" | ralph task --runner codex --model gpt-5.2-codex --effort medium\n\nExplicit subcommand:\n ralph task build \"Add integration tests for run one\""
+        after_long_help = "Runner selection:\n - Override runner/model/effort for this invocation using flags.\n - Defaults come from config when flags are omitted.\n\nExamples:\n ralph task \"Add integration tests for run one\"\n ralph task --tags cli,rust \"Refactor queue parsing\"\n ralph task --scope crates/ralph \"Fix TUI rendering bug\"\n ralph task --runner opencode --model gpt-5.2 \"Add docs for OpenCode setup\"\n ralph task --runner gemini --model gemini-3-flash-preview \"Draft risk checklist\"\n ralph task --runner codex --model gpt-5.2-codex --effort high \"Fix queue validation\"\n ralph task --repo-prompt plan \"Audit error handling\"\n ralph task --repo-prompt off \"Quick typo fix\"\n echo \"Triage flaky CI\" | ralph task --runner codex --model gpt-5.2-codex --effort medium\n\nExplicit subcommand:\n ralph task build \"Add integration tests for run one\""
     )]
     Build(TaskBuildArgs),
 
@@ -383,7 +374,7 @@ pub enum TaskCommand {
 
     /// Update existing task fields based on current repository state.
     #[command(
-        after_long_help = "Runner selection:\n - Override runner/model/effort for this invocation using flags.\n - Defaults come from config when flags are omitted.\n\nField selection:\n - By default, all updatable fields are refreshed: scope, evidence, plan, notes, tags, depends_on.\n - Use --fields to specify which fields to update.\n\nTask selection:\n - Omit TASK_ID to update every task in the active queue.\n\nExamples:\n ralph task update\n ralph task update RQ-0001\n ralph task update --fields scope,evidence,plan RQ-0001\n ralph task update --runner opencode --model gpt-5.2 RQ-0001\n ralph task update --rp-on RQ-0001\n ralph task update --rp-off --fields scope,evidence RQ-0001\n ralph task update --fields tags RQ-0042"
+        after_long_help = "Runner selection:\n - Override runner/model/effort for this invocation using flags.\n - Defaults come from config when flags are omitted.\n\nField selection:\n - By default, all updatable fields are refreshed: scope, evidence, plan, notes, tags, depends_on.\n - Use --fields to specify which fields to update.\n\nTask selection:\n - Omit TASK_ID to update every task in the active queue.\n\nExamples:\n ralph task update\n ralph task update RQ-0001\n ralph task update --fields scope,evidence,plan RQ-0001\n ralph task update --runner opencode --model gpt-5.2 RQ-0001\n ralph task update --repo-prompt plan RQ-0001\n ralph task update --repo-prompt off --fields scope,evidence RQ-0001\n ralph task update --fields tags RQ-0042"
     )]
     Update(TaskUpdateArgs),
 }
@@ -412,16 +403,12 @@ pub struct TaskBuildArgs {
 
     /// Codex reasoning effort. CLI flag overrides config defaults (project > global > built-in).
     /// Ignored for opencode and gemini.
-    #[arg(long)]
+    #[arg(short = 'e', long)]
     pub effort: Option<String>,
 
-    /// Force RepoPrompt flags on (planning requirement + tooling reminders).
-    #[arg(long, conflicts_with = "rp_off")]
-    pub rp_on: bool,
-
-    /// Force RepoPrompt flags off (planning requirement + tooling reminders).
-    #[arg(long, conflicts_with = "rp_on")]
-    pub rp_off: bool,
+    /// RepoPrompt mode (tools, plan, off). Alias: -rp.
+    #[arg(long = "repo-prompt", value_enum, value_name = "MODE")]
+    pub repo_prompt: Option<agent::RepoPromptMode>,
 }
 
 #[derive(Args)]
@@ -558,16 +545,12 @@ pub struct TaskUpdateArgs {
 
     /// Codex reasoning effort. CLI flag overrides config defaults (project > global > built-in).
     /// Ignored for opencode and gemini.
-    #[arg(long)]
+    #[arg(short = 'e', long)]
     pub effort: Option<String>,
 
-    /// Force RepoPrompt flags on (planning requirement + tooling reminders).
-    #[arg(long, conflicts_with = "rp_off")]
-    pub rp_on: bool,
-
-    /// Force RepoPrompt flags off (planning requirement + tooling reminders).
-    #[arg(long, conflicts_with = "rp_on")]
-    pub rp_off: bool,
+    /// RepoPrompt mode (tools, plan, off). Alias: -rp.
+    #[arg(long = "repo-prompt", value_enum, value_name = "MODE")]
+    pub repo_prompt: Option<agent::RepoPromptMode>,
 
     /// Task ID to update (omit to update all tasks).
     #[arg(value_name = "TASK_ID")]
@@ -652,12 +635,12 @@ mod tests {
         let help = update.render_long_help().to_string();
 
         assert!(
-            help.contains("ralph task update --rp-on RQ-0001"),
-            "missing rp-on example: {help}"
+            help.contains("ralph task update --repo-prompt plan RQ-0001"),
+            "missing repo-prompt plan example: {help}"
         );
         assert!(
-            help.contains("ralph task update --rp-off --fields scope,evidence RQ-0001"),
-            "missing rp-off example: {help}"
+            help.contains("ralph task update --repo-prompt off --fields scope,evidence RQ-0001"),
+            "missing repo-prompt off example: {help}"
         );
     }
 
@@ -694,6 +677,63 @@ mod tests {
                         assert_eq!(args.format, QueueShowFormat::Compact);
                     }
                     _ => panic!("expected task show command"),
+                }
+            }
+            _ => panic!("expected task command"),
+        }
+    }
+
+    #[test]
+    fn task_build_parses_repo_prompt_and_effort_alias() {
+        let cli = Cli::try_parse_from([
+            "ralph",
+            "task",
+            "build",
+            "--repo-prompt",
+            "plan",
+            "-e",
+            "high",
+            "Add tests",
+        ])
+        .expect("parse");
+
+        match cli.command {
+            crate::cli::Command::Task(crate::cli::task::TaskArgs { command, .. }) => {
+                match command {
+                    Some(crate::cli::task::TaskCommand::Build(args)) => {
+                        assert_eq!(args.repo_prompt, Some(crate::agent::RepoPromptMode::Plan));
+                        assert_eq!(args.effort.as_deref(), Some("high"));
+                    }
+                    _ => panic!("expected task build command"),
+                }
+            }
+            _ => panic!("expected task command"),
+        }
+    }
+
+    #[test]
+    fn task_update_parses_repo_prompt_and_effort_alias() {
+        let cli = Cli::try_parse_from([
+            "ralph",
+            "task",
+            "update",
+            "--repo-prompt",
+            "off",
+            "-e",
+            "low",
+            "RQ-0001",
+        ])
+        .expect("parse");
+
+        match cli.command {
+            crate::cli::Command::Task(crate::cli::task::TaskArgs { command, .. }) => {
+                match command {
+                    Some(crate::cli::task::TaskCommand::Update(args)) => {
+                        assert_eq!(args.repo_prompt, Some(crate::agent::RepoPromptMode::Off));
+                        assert_eq!(args.effort.as_deref(), Some("low"));
+                        assert_eq!(args.task_id.as_deref(), Some("RQ-0001"));
+                    }
+                    _ => panic!("expected task update command"),
                 }
             }
             _ => panic!("expected task command"),

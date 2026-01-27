@@ -1754,7 +1754,7 @@ where
                     .unwrap_or_default();
                 let reasoning_effort = resolved.config.agent.reasoning_effort;
                 let repoprompt_tool_injection =
-                    crate::agent::resolve_repoprompt_flags(false, false, &resolved).tool_injection;
+                    crate::agent::resolve_repoprompt_flags(None, &resolved).tool_injection;
                 let opts = crate::commands::task::TaskBuildOptions {
                     request,
                     hint_tags: String::new(),

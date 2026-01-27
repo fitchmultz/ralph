@@ -1,8 +1,18 @@
 //! Ralph CLI surface (Clap types) and shared CLI helpers.
 //!
-//! This module centralizes the Clap-derived `Cli` and `Command` definitions while
-//! delegating command-group logic to submodules (e.g. `queue`, `run`, `prompt`).
-//! Keeping `main.rs` thin reduces churn and improves testability.
+//! Responsibilities:
+//! - Centralize the top-level `Cli` and `Command` definitions for Clap.
+//! - Delegate command-group logic to submodules (queue/run/task/scan/etc.).
+//! - Provide small shared CLI helpers used across command groups.
+//!
+//! Not handled here:
+//! - Command execution logic (see submodules).
+//! - Queue persistence or lock management.
+//! - Prompt rendering or runner execution.
+//!
+//! Invariants/assumptions:
+//! - Subcommands validate their own inputs and config dependencies.
+//! - CLI parsing happens after argument normalization in `main`.
 
 pub mod config;
 pub mod doctor;
@@ -51,7 +61,7 @@ pub enum Command {
     Tui(tui::TuiArgs),
     /// Render and print the final compiled prompts used by Ralph (for debugging/auditing).
     #[command(
-        after_long_help = "Examples:\n  ralph prompt worker --phase 1 --rp-on\n  ralph prompt worker --phase 2 --task-id RQ-0001 --plan-file .ralph/cache/plans/RQ-0001.md\n  ralph prompt scan --focus \"CI gaps\" --rp-off\n  ralph prompt task-builder --request \"Add tests\" --tags rust,tests --scope crates/ralph --rp-on\n"
+        after_long_help = "Examples:\n  ralph prompt worker --phase 1 --repo-prompt plan\n  ralph prompt worker --phase 2 --task-id RQ-0001 --plan-file .ralph/cache/plans/RQ-0001.md\n  ralph prompt scan --focus \"CI gaps\" --repo-prompt off\n  ralph prompt task-builder --request \"Add tests\" --tags rust,tests --scope crates/ralph --repo-prompt tools\n"
     )]
     Prompt(prompt::PromptArgs),
     /// Verify environment readiness and configuration.
@@ -485,24 +495,22 @@ mod tests {
     }
 
     #[test]
-    fn cli_parses_tui_with_rp_on() {
-        let cli = Cli::try_parse_from(["ralph", "tui", "--rp-on"]).expect("parse");
+    fn cli_parses_tui_with_repo_prompt_plan() {
+        let cli = Cli::try_parse_from(["ralph", "tui", "--repo-prompt", "plan"]).expect("parse");
         match cli.command {
             Command::Tui(tui::TuiArgs { agent, .. }) => {
-                assert!(agent.rp_on);
-                assert!(!agent.rp_off);
+                assert_eq!(agent.repo_prompt, Some(crate::agent::RepoPromptMode::Plan));
             }
             _ => panic!("expected tui command"),
         }
     }
 
     #[test]
-    fn cli_parses_tui_with_rp_off() {
-        let cli = Cli::try_parse_from(["ralph", "tui", "--rp-off"]).expect("parse");
+    fn cli_parses_tui_with_repo_prompt_off() {
+        let cli = Cli::try_parse_from(["ralph", "tui", "--repo-prompt", "off"]).expect("parse");
         match cli.command {
             Command::Tui(tui::TuiArgs { agent, .. }) => {
-                assert!(!agent.rp_on);
-                assert!(agent.rp_off);
+                assert_eq!(agent.repo_prompt, Some(crate::agent::RepoPromptMode::Off));
             }
             _ => panic!("expected tui command"),
         }

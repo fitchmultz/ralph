@@ -1,4 +1,15 @@
 //! Contract tests for `ralph run` CLI override behavior.
+//!
+//! Responsibilities:
+//! - Validate CLI override parsing for runner/model/effort and repo-prompt flags.
+//! - Guard against regressions in accepted values and aliases.
+//!
+//! Not handled here:
+//! - Full command execution semantics (NoTodo behavior is enough for parsing).
+//! - Prompt rendering or RepoPrompt injection behavior.
+//!
+//! Invariants/assumptions:
+//! - The Ralph binary is runnable in a temporary initialized repo.
 
 use anyhow::Result;
 
@@ -47,6 +58,24 @@ fn run_one_accepts_runner_and_model_overrides_without_todo_tasks() -> Result<()>
         "expected success (NoTodo) with valid codex overrides\nstdout:\n{stdout}\nstderr:\n{stderr}"
     );
 
+    let (status, stdout, stderr) = test_support::run_in_dir(
+        dir.path(),
+        &[
+            "run",
+            "one",
+            "--runner",
+            "codex",
+            "--model",
+            "gpt-5.2-codex",
+            "-e",
+            "high",
+        ],
+    );
+    anyhow::ensure!(
+        status.success(),
+        "expected success (NoTodo) with -e effort override\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
     // `--effort` is accepted even when runner is opencode (codex-only semantics),
     // and is expected to be ignored at execution time.
     let (status, stdout, stderr) = test_support::run_in_dir(
@@ -91,6 +120,60 @@ fn run_one_accepts_runner_and_model_overrides_without_todo_tasks() -> Result<()>
     anyhow::ensure!(
         stdout.contains("No todo tasks found") || stderr.contains("No todo tasks found"),
         "expected NoTodo message\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn run_one_accepts_repo_prompt_mode_and_alias() -> Result<()> {
+    let dir = test_support::temp_dir_outside_repo();
+    test_support::git_init(dir.path())?;
+
+    let (status, stdout, stderr) = test_support::run_in_dir(dir.path(), &["init", "--force"]);
+    anyhow::ensure!(
+        status.success(),
+        "ralph init failed\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    let (status, stdout, stderr) =
+        test_support::run_in_dir(dir.path(), &["run", "one", "--repo-prompt", "plan"]);
+    anyhow::ensure!(
+        status.success(),
+        "expected success (NoTodo) with --repo-prompt plan\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    let (status, stdout, stderr) =
+        test_support::run_in_dir(dir.path(), &["run", "one", "-rp", "tools"]);
+    anyhow::ensure!(
+        status.success(),
+        "expected success (NoTodo) with -rp tools alias\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn run_one_rejects_invalid_repo_prompt_value() -> Result<()> {
+    let dir = test_support::temp_dir_outside_repo();
+    test_support::git_init(dir.path())?;
+
+    let (status, stdout, stderr) = test_support::run_in_dir(dir.path(), &["init", "--force"]);
+    anyhow::ensure!(
+        status.success(),
+        "ralph init failed\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    let (status, stdout, stderr) =
+        test_support::run_in_dir(dir.path(), &["run", "one", "--repo-prompt", "nope"]);
+    anyhow::ensure!(
+        !status.success(),
+        "expected failure for invalid repo-prompt\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+    let combined = format!("{stdout}{stderr}");
+    anyhow::ensure!(
+        combined.contains("possible values") && combined.contains("tools"),
+        "expected helpful repo-prompt error\nstdout:\n{stdout}\nstderr:\n{stderr}"
     );
 
     Ok(())

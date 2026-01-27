@@ -1,4 +1,17 @@
 //! `ralph prompt ...` command group: Clap types and handler.
+//!
+//! Responsibilities:
+//! - Define clap arguments for prompt preview commands.
+//! - Render worker/scan/task-builder prompts for debugging or inspection.
+//!
+//! Not handled here:
+//! - Queue persistence or task status updates.
+//! - Runner execution or model invocation.
+//! - Config file parsing beyond resolved config access.
+//!
+//! Invariants/assumptions:
+//! - Configuration is resolved from the current working directory.
+//! - RepoPrompt selection maps to plan/tool injection consistently.
 
 use anyhow::Result;
 use clap::{Args, Subcommand};
@@ -12,7 +25,7 @@ pub fn handle_prompt(args: PromptArgs) -> Result<()> {
 
     match args.command {
         PromptCommand::Worker(p) => {
-            let repoprompt_flags = agent::resolve_repoprompt_flags(p.rp_on, p.rp_off, &resolved);
+            let repoprompt_flags = agent::resolve_repoprompt_flags(p.repo_prompt, &resolved);
 
             let mode = if p.single {
                 prompt_cmd::WorkerMode::Single
@@ -50,7 +63,7 @@ pub fn handle_prompt(args: PromptArgs) -> Result<()> {
             print!("{prompt}");
         }
         PromptCommand::Scan(p) => {
-            let rp_required = agent::resolve_rp_required(p.rp_on, p.rp_off, &resolved);
+            let rp_required = agent::resolve_rp_required(p.repo_prompt, &resolved);
             let prompt = prompt_cmd::build_scan_prompt(
                 &resolved,
                 prompt_cmd::ScanPromptOptions {
@@ -62,7 +75,7 @@ pub fn handle_prompt(args: PromptArgs) -> Result<()> {
             print!("{prompt}");
         }
         PromptCommand::TaskBuilder(p) => {
-            let rp_required = agent::resolve_rp_required(p.rp_on, p.rp_off, &resolved);
+            let rp_required = agent::resolve_rp_required(p.repo_prompt, &resolved);
 
             // For convenience, allow stdin usage like `task` does.
             let request = if let Some(r) = p.request {
@@ -101,7 +114,7 @@ fn parse_phase(s: &str) -> Result<promptflow::RunPhase, String> {
 #[derive(Args)]
 #[command(
     about = "Render and print compiled prompts (preview what the agent will see)",
-    after_long_help = "This command prints the final compiled prompt after:\n  - loading embedded or overridden templates\n  - expanding config/env variables\n  - injecting project-type guidance\n  - applying phase wrappers and RepoPrompt requirements\n\nExamples:\n  ralph prompt worker --phase 1 --rp-on\n  ralph prompt worker --single\n  ralph prompt worker --phase 2 --iteration-index 2 --iterations 3\n  ralph prompt scan --focus \"risk audit\" --rp-off\n  ralph prompt task-builder --request \"Add tests\" --tags rust --scope crates/ralph\n"
+    after_long_help = "This command prints the final compiled prompt after:\n  - loading embedded or overridden templates\n  - expanding config/env variables\n  - injecting project-type guidance\n  - applying phase wrappers and RepoPrompt requirements\n\nExamples:\n  ralph prompt worker --phase 1 --repo-prompt plan\n  ralph prompt worker --single\n  ralph prompt worker --phase 2 --iteration-index 2 --iterations 3\n  ralph prompt scan --focus \"risk audit\" --repo-prompt off\n  ralph prompt task-builder --request \"Add tests\" --tags rust --scope crates/ralph\n"
 )]
 pub struct PromptArgs {
     #[command(subcommand)]
@@ -148,13 +161,9 @@ pub struct PromptWorkerArgs {
     #[arg(long, default_value_t = 1)]
     pub iteration_index: u8,
 
-    /// Force RepoPrompt flags on (planning requirement + tooling reminders).
-    #[arg(long, conflicts_with = "rp_off")]
-    pub rp_on: bool,
-
-    /// Force RepoPrompt flags off (planning requirement + tooling reminders).
-    #[arg(long, conflicts_with = "rp_on")]
-    pub rp_off: bool,
+    /// RepoPrompt mode (tools, plan, off). Alias: -rp.
+    #[arg(long = "repo-prompt", value_enum, value_name = "MODE")]
+    pub repo_prompt: Option<agent::RepoPromptMode>,
 
     /// Print a header explaining what was selected (mode, sources, flags).
     #[arg(long)]
@@ -167,13 +176,9 @@ pub struct PromptScanArgs {
     #[arg(long, default_value = "")]
     pub focus: String,
 
-    /// Force RepoPrompt flags on (planning requirement + tooling reminders).
-    #[arg(long, conflicts_with = "rp_off")]
-    pub rp_on: bool,
-
-    /// Force RepoPrompt flags off (planning requirement + tooling reminders).
-    #[arg(long, conflicts_with = "rp_on")]
-    pub rp_off: bool,
+    /// RepoPrompt mode (tools, plan, off). Alias: -rp.
+    #[arg(long = "repo-prompt", value_enum, value_name = "MODE")]
+    pub repo_prompt: Option<agent::RepoPromptMode>,
 
     /// Print a header explaining what was selected (sources, flags).
     #[arg(long)]
@@ -194,13 +199,9 @@ pub struct PromptTaskBuilderArgs {
     #[arg(long, default_value = "")]
     pub scope: String,
 
-    /// Force RepoPrompt flags on (planning requirement + tooling reminders).
-    #[arg(long, conflicts_with = "rp_off")]
-    pub rp_on: bool,
-
-    /// Force RepoPrompt flags off (planning requirement + tooling reminders).
-    #[arg(long, conflicts_with = "rp_on")]
-    pub rp_off: bool,
+    /// RepoPrompt mode (tools, plan, off). Alias: -rp.
+    #[arg(long = "repo-prompt", value_enum, value_name = "MODE")]
+    pub repo_prompt: Option<agent::RepoPromptMode>,
 
     /// Print a header explaining what was selected (sources, flags).
     #[arg(long)]

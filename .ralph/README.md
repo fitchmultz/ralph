@@ -80,7 +80,7 @@ One-off usage:
 - `ralph scan --runner opencode --model gpt-5.2 --focus "CI gaps"`
 - `ralph scan --runner gemini --model gemini-3-flash-preview --focus "risk audit"`
 - `ralph scan --runner claude --model sonnet --focus "risk audit"`
-- `ralph task --runner claude --model opus --rp-on "Add tests for X"`
+- `ralph task --runner claude --model opus --repo-prompt plan "Add tests for X"`
 - `ralph run one --phases 3` (3-phase: plan, implement+CI, review+complete, default)
 - `ralph run one --phases 2` (2-phase: plan then implement, default)
 - `ralph run one --phases 1` (single-pass execution)
@@ -117,7 +117,7 @@ Ralph can independently control RepoPrompt planning and tooling reminders:
 1. `repoprompt_plan_required`: injects the Phase 1 planning instructions, including the `context_builder` requirement.
 2. `repoprompt_tool_injection`: injects RepoPrompt tooling reminders into prompts.
 
-CLI `--rp-on/--rp-off` toggles both flags.
+CLI `--repo-prompt <tools|plan|off>` (alias: `-rp`) controls both flags together. Breaking change: `--rp-on/--rp-off` were removed.
 
 ### Three-phase Workflow (Default)
 Ralph supports a 3-phase workflow by default (configured via `agent.phases: 3`):

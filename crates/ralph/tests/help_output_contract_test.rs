@@ -127,8 +127,7 @@ fn run_one_help_mentions_flags_and_examples() {
     assert_contains(&combined, "--model");
     assert_contains(&combined, "--effort");
     assert_contains(&combined, "--phases");
-    assert_contains(&combined, "--rp-on");
-    assert_contains(&combined, "--rp-off");
+    assert_contains(&combined, "--repo-prompt");
     assert_contains(&combined, "--id");
 
     // Examples should demonstrate explicit selection.
@@ -138,7 +137,7 @@ fn run_one_help_mentions_flags_and_examples() {
 }
 
 #[test]
-fn task_build_help_mentions_rp_flags() {
+fn task_build_help_mentions_repo_prompt_flag() {
     let (status, stdout, stderr) = run(&["task", "build", "--help"]);
     assert!(
         status.success(),
@@ -147,8 +146,7 @@ fn task_build_help_mentions_rp_flags() {
 
     let combined = format!("{stdout}\n{stderr}");
 
-    assert_contains(&combined, "--rp-on");
-    assert_contains(&combined, "--rp-off");
+    assert_contains(&combined, "--repo-prompt");
 }
 
 #[test]
@@ -181,7 +179,7 @@ fn task_show_help_mentions_examples() {
 }
 
 #[test]
-fn scan_help_mentions_rp_flags() {
+fn scan_help_mentions_repo_prompt_flag() {
     let (status, stdout, stderr) = run(&["scan", "--help"]);
     assert!(
         status.success(),
@@ -190,6 +188,5 @@ fn scan_help_mentions_rp_flags() {
 
     let combined = format!("{stdout}\n{stderr}");
 
-    assert_contains(&combined, "--rp-on");
-    assert_contains(&combined, "--rp-off");
+    assert_contains(&combined, "--repo-prompt");
 }

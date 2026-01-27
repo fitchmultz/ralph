@@ -1,8 +1,21 @@
 //! Ralph CLI entrypoint and command routing.
+//!
+//! Responsibilities:
+//! - Load environment defaults, parse CLI args, and dispatch to command handlers.
+//! - Initialize logging/redaction and apply CLI-level behavior toggles.
+//!
+//! Not handled here:
+//! - CLI flag definitions (see `crate::cli`).
+//! - Queue persistence, prompt rendering, or runner execution.
+//!
+//! Invariants/assumptions:
+//! - CLI arguments are normalized before Clap parsing.
+//! - Command handlers enforce their own safety checks and validation.
 
 use anyhow::{Context, Result};
 use clap::Parser;
 use ralph::{cli, redaction};
+use std::ffi::OsString;
 
 fn main() {
     if let Err(err) = run() {
@@ -16,7 +29,8 @@ fn main() {
 
 fn run() -> Result<()> {
     dotenvy::dotenv().ok();
-    let cli = cli::Cli::parse();
+    let args = normalize_repo_prompt_args(std::env::args_os());
+    let cli = cli::Cli::parse_from(args);
 
     let mut builder = env_logger::Builder::from_default_env();
     if suppress_terminal_logs(&cli.command) {
@@ -50,6 +64,43 @@ fn run() -> Result<()> {
         cli::Command::Doctor => cli::doctor::handle_doctor(),
         cli::Command::Tui(args) => cli::tui::handle_tui(args, cli.force),
     }
+}
+
+fn normalize_repo_prompt_args<I>(args: I) -> Vec<OsString>
+where
+    I: IntoIterator<Item = OsString>,
+{
+    let mut normalized = Vec::new();
+    let mut passthrough = false;
+
+    for arg in args {
+        if passthrough {
+            normalized.push(arg);
+            continue;
+        }
+
+        if arg == std::ffi::OsStr::new("--") {
+            passthrough = true;
+            normalized.push(arg);
+            continue;
+        }
+
+        let as_str = arg.to_str();
+        if as_str == Some("-rp") {
+            normalized.push(OsString::from("--repo-prompt"));
+            continue;
+        }
+        if let Some(value) = as_str.and_then(|s| s.strip_prefix("-rp=")) {
+            let mut rewritten = OsString::from("--repo-prompt=");
+            rewritten.push(value);
+            normalized.push(rewritten);
+            continue;
+        }
+
+        normalized.push(arg);
+    }
+
+    normalized
 }
 
 fn suppress_terminal_logs(command: &cli::Command) -> bool {
@@ -113,5 +164,56 @@ mod tests {
             }),
         });
         assert!(!suppress_terminal_logs(&cmd));
+    }
+
+    #[test]
+    fn normalize_repo_prompt_args_rewrites_short_flag() {
+        let args = vec![
+            OsString::from("ralph"),
+            OsString::from("-rp"),
+            OsString::from("plan"),
+        ];
+        let normalized = normalize_repo_prompt_args(args);
+        assert_eq!(
+            normalized,
+            vec![
+                OsString::from("ralph"),
+                OsString::from("--repo-prompt"),
+                OsString::from("plan")
+            ]
+        );
+    }
+
+    #[test]
+    fn normalize_repo_prompt_args_rewrites_equals_form() {
+        let args = vec![OsString::from("ralph"), OsString::from("-rp=tools")];
+        let normalized = normalize_repo_prompt_args(args);
+        assert_eq!(
+            normalized,
+            vec![
+                OsString::from("ralph"),
+                OsString::from("--repo-prompt=tools")
+            ]
+        );
+    }
+
+    #[test]
+    fn normalize_repo_prompt_args_respects_double_dash() {
+        let args = vec![
+            OsString::from("ralph"),
+            OsString::from("--"),
+            OsString::from("-rp"),
+            OsString::from("plan"),
+        ];
+        let normalized = normalize_repo_prompt_args(args);
+        assert_eq!(
+            normalized,
+            vec![
+                OsString::from("ralph"),
+                OsString::from("--"),
+                OsString::from("-rp"),
+                OsString::from("plan")
+            ]
+        );
     }
 }

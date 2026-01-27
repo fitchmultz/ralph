@@ -1,4 +1,17 @@
 //! `ralph tui` command group: Clap types and handler.
+//!
+//! Responsibilities:
+//! - Define clap arguments for launching the TUI.
+//! - Route to TUI setup with resolved agent overrides.
+//!
+//! Not handled here:
+//! - TUI rendering/event loops (see `crate::tui`).
+//! - Queue persistence or locking semantics.
+//! - Runner execution details.
+//!
+//! Invariants/assumptions:
+//! - Configuration is resolved from the current working directory.
+//! - RepoPrompt mode selection (if any) is already normalized.
 
 use anyhow::{anyhow, Result};
 use clap::Args;
@@ -51,8 +64,7 @@ pub fn handle_tui(args: TuiArgs, force_lock: bool) -> Result<()> {
     let factories = interactive::build_interactive_factories(
         &resolved,
         &overrides,
-        args.agent.rp_on,
-        args.agent.rp_off,
+        args.agent.repo_prompt,
         force_lock,
     )?;
 

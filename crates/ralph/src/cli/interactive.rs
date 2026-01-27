@@ -1,4 +1,17 @@
 //! Shared helpers for interactive runner/scan factory setup.
+//!
+//! Responsibilities:
+//! - Build runner/scan factory closures for interactive execution paths.
+//! - Resolve RepoPrompt tooling injection for scans in interactive flows.
+//!
+//! Not handled here:
+//! - CLI argument parsing or command dispatch.
+//! - Queue persistence or task status updates.
+//! - Runner process execution details.
+//!
+//! Invariants/assumptions:
+//! - Callers provide resolved config and validated agent overrides.
+//! - RepoPrompt mode selections already passed through CLI normalization.
 
 use anyhow::Result;
 use std::sync::Arc;
@@ -56,15 +69,13 @@ pub struct InteractiveFactories {
 pub fn build_interactive_factories(
     resolved: &config::Resolved,
     overrides: &agent::AgentOverrides,
-    rp_on: bool,
-    rp_off: bool,
+    repo_prompt: Option<agent::RepoPromptMode>,
     force: bool,
 ) -> Result<InteractiveFactories> {
     build_interactive_factories_with_invokers(
         resolved,
         overrides,
-        rp_on,
-        rp_off,
+        repo_prompt,
         force,
         Arc::new(run_cmd::run_one_with_id_locked),
         Arc::new(scan_cmd::run_scan),
@@ -75,8 +86,7 @@ pub fn build_interactive_factories(
 pub fn build_interactive_factories_with_invokers(
     resolved: &config::Resolved,
     overrides: &agent::AgentOverrides,
-    rp_on: bool,
-    rp_off: bool,
+    repo_prompt: Option<agent::RepoPromptMode>,
     force: bool,
     run_invoker: Arc<RunInvoker>,
     scan_invoker: Arc<ScanInvoker>,
@@ -89,7 +99,7 @@ pub fn build_interactive_factories_with_invokers(
         None,
         &resolved.config.agent,
     )?;
-    let scan_repoprompt_tool_injection = agent::resolve_rp_required(rp_on, rp_off, resolved);
+    let scan_repoprompt_tool_injection = agent::resolve_rp_required(repo_prompt, resolved);
     let scan_git_revert_mode = overrides
         .git_revert_mode
         .or(resolved.config.agent.git_revert_mode)
@@ -275,8 +285,7 @@ mod tests {
         let factories = build_interactive_factories_with_invokers(
             &resolved,
             &overrides,
-            false,
-            true,
+            Some(agent::RepoPromptMode::Off),
             true,
             run_invoker,
             scan_invoker,
@@ -355,8 +364,7 @@ mod tests {
         let factories = build_interactive_factories_with_invokers(
             &resolved,
             &overrides,
-            false,
-            false,
+            None,
             false,
             run_invoker,
             scan_invoker,

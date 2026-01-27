@@ -68,7 +68,7 @@ In **Execution view** (while a task is running):
 
 **CLI behavior**
 - Builds a new task using the task builder prompt/agent.
-- Supports flags like `--runner`, `--model`, `--effort`, `--tags`, `--scope`, `--rp-on/--rp-off`.
+- Supports flags like `--runner`, `--model`, `--effort`, `--tags`, `--scope`, `--repo-prompt`.
 
 **TUI equivalent**
 - Press `N` in Normal mode
@@ -87,7 +87,7 @@ In **Execution view** (while a task is running):
 - TUI currently does **not** expose:
   - `--runner`, `--model`, `--effort` overrides
   - `--tags`, `--scope` hinting
-  - `--rp-on/--rp-off` overrides
+  - `--repo-prompt` overrides
 
 If you need those controls, use the CLI `ralph task build ...`.
 
