@@ -190,7 +190,7 @@ impl ConfirmRevertState {
         }
     }
 
-    fn into_mode(self) -> AppMode {
+    pub(super) fn into_mode(self) -> AppMode {
         AppMode::ConfirmRevert {
             label: self.label,
             preface: self.preface,
@@ -267,6 +267,12 @@ pub(super) fn handle_confirm_revert_key(
             state.selected = state.selected.saturating_sub(1);
         }
         KeyCode::Down => {
+            state.selected = (state.selected + 1).min(state.max_index());
+        }
+        KeyCode::Char('k') if is_plain_char(&key, 'k') => {
+            state.selected = state.selected.saturating_sub(1);
+        }
+        KeyCode::Char('j') if is_plain_char(&key, 'j') => {
             state.selected = (state.selected + 1).min(state.max_index());
         }
         KeyCode::Char(_) => {

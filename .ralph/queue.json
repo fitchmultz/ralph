@@ -2,44 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0325",
-      "status": "todo",
-      "title": "TUI: standardize confirm dialog keybindings (j/k, arrows, sensible defaults)",
-      "priority": "medium",
-      "tags": [
-        "tui",
-        "ux",
-        "keybindings"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/events/confirm.rs",
-        "crates/ralph/src/tui/render/overlays.rs",
-        "crates/ralph/src/tui/render/footer.rs",
-        "crates/ralph/src/tui/events/tests.rs",
-        "make ci"
-      ],
-      "evidence": [
-        "`crates/ralph/src/tui/events/confirm.rs`: `ConfirmRevert` navigation uses Up/Down only (no j/k), unlike other TUI navigation modes.",
-        "`crates/ralph/src/tui/render/overlays.rs`: revert dialog instructs “Up/Down: select”, reinforcing the inconsistency."
-      ],
-      "plan": [
-        "Standardize confirm dialog navigation keys across confirm modes (arrows + vim keys).",
-        "Ensure Enter activates the currently selected option and Esc maps to a clear default.",
-        "Update overlay/footer hints to match behavior.",
-        "Add tests for confirm revert navigation via both arrows and j/k.",
-        "Run `make ci`."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "agent": {
-        "model_effort": "medium"
-      },
-      "created_at": "2026-01-27T04:35:15Z",
-      "updated_at": "2026-01-27T04:35:15Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0326",
       "status": "todo",
       "title": "TUI: add “jump to task by ID” command (palette + input)",

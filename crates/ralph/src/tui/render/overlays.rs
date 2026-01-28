@@ -328,7 +328,7 @@ pub(super) fn draw_revert_dialog(
     )));
     lines.push(Line::from(""));
     lines.push(Line::from(vec![
-        Span::styled("Up/Down", Style::default().add_modifier(Modifier::BOLD)),
+        Span::styled("↑↓/jk", Style::default().add_modifier(Modifier::BOLD)),
         Span::raw(":select "),
         Span::styled("Enter", Style::default().add_modifier(Modifier::BOLD)),
         Span::raw(":confirm "),

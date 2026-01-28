@@ -8071,6 +8071,51 @@
       "completed_at": "2026-01-28T00:11:36.962250000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0325",
+      "status": "done",
+      "title": "TUI: standardize confirm dialog keybindings (j/k, arrows, sensible defaults)",
+      "priority": "medium",
+      "tags": [
+        "tui",
+        "ux",
+        "keybindings"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/events/confirm.rs",
+        "crates/ralph/src/tui/render/overlays.rs",
+        "crates/ralph/src/tui/render/footer.rs",
+        "crates/ralph/src/tui/events/tests.rs",
+        "make ci"
+      ],
+      "evidence": [
+        "`crates/ralph/src/tui/events/confirm.rs`: `ConfirmRevert` navigation uses Up/Down only (lines 266-271), no j/k vim keys unlike other TUI navigation modes.",
+        "`crates/ralph/src/tui/render/overlays.rs`: revert dialog footer shows 'Up/Down:select' (lines 330-337), inconsistent with vim-style navigation used elsewhere.",
+        "Other confirm modes (ConfirmDelete, ConfirmArchive, ConfirmQuit, ConfirmDiscard, ConfirmRiskyConfig) use y/n keys consistently - only ConfirmRevert needs navigation standardization."
+      ],
+      "plan": [
+        "Add j/k vim key support to `handle_confirm_revert_key` in confirm.rs alongside existing Up/Down arrows.",
+        "Update revert dialog hint in overlays.rs to show '↑↓/jk:select' instead of just 'Up/Down:select'.",
+        "Ensure Enter activates the currently selected option and Esc defaults to 'Keep' (index 0).",
+        "Add unit tests in events/tests.rs for confirm revert navigation via both arrows and j/k keys.",
+        "Run `make ci` to validate changes."
+      ],
+      "notes": [
+        "Added j/k vim key support to ConfirmRevert dialog alongside Up/Down arrows",
+        "Updated footer hints to show ↑↓/jk for selection",
+        "Added 12 comprehensive unit tests covering navigation, modifiers, boundaries, and selection",
+        "Full make ci passes (672+ tests)"
+      ],
+      "request": "scan finding",
+      "agent": {
+        "model_effort": "medium"
+      },
+      "created_at": "2026-01-27T04:35:15Z",
+      "updated_at": "2026-01-28T00:25:28.151762000Z",
+      "completed_at": "2026-01-28T00:25:28.151762000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

@@ -154,7 +154,7 @@ pub(super) fn help_footer_spans(app: &App, max_width: usize) -> Vec<Span<'static
             ]
         }
         AppMode::ConfirmRevert { .. } => vec![
-            Span::styled("↑↓", Style::default().add_modifier(Modifier::BOLD)),
+            Span::styled("↑↓/jk", Style::default().add_modifier(Modifier::BOLD)),
             Span::raw(":select "),
             Span::styled("Enter", Style::default().add_modifier(Modifier::BOLD)),
             Span::raw(":confirm "),
