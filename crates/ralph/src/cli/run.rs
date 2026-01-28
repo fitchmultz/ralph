@@ -37,10 +37,16 @@ pub fn handle_run(cmd: RunCommand, force: bool) -> Result<()> {
                 )?;
 
                 // Interactive one: open the TUI (no auto-loop).
+                let options = tui::TuiOptions {
+                    start_loop: false,
+                    loop_max_tasks: None,
+                    loop_include_draft: args.agent.include_draft,
+                    show_flowchart: args.visualize,
+                };
                 let _ = tui::run_tui(
                     &resolved,
                     force,
-                    tui::TuiOptions::default(),
+                    options,
                     factories.runner_factory,
                     factories.scan_factory,
                 )?;
@@ -79,6 +85,7 @@ pub fn handle_run(cmd: RunCommand, force: bool) -> Result<()> {
                     start_loop: true,
                     loop_max_tasks: max,
                     loop_include_draft: args.agent.include_draft,
+                    show_flowchart: args.visualize,
                 };
 
                 let _ = tui::run_tui(
@@ -240,6 +247,10 @@ pub struct RunOneArgs {
     #[arg(long, value_name = "TASK_ID", conflicts_with = "interactive")]
     pub id: Option<String>,
 
+    /// Show workflow flowchart visualization on start (interactive only).
+    #[arg(long, default_value_t = false)]
+    pub visualize: bool,
+
     #[command(flatten)]
     pub agent: crate::agent::RunAgentArgs,
 }
@@ -257,6 +268,10 @@ pub struct RunLoopArgs {
     /// Capture raw supervisor + runner output to .ralph/logs/debug.log.
     #[arg(long)]
     pub debug: bool,
+
+    /// Show workflow flowchart visualization on start (interactive only).
+    #[arg(long, default_value_t = false)]
+    pub visualize: bool,
 
     #[command(flatten)]
     pub agent: crate::agent::RunAgentArgs,

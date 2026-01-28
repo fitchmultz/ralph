@@ -49,6 +49,8 @@ pub struct TuiOptions {
     pub loop_max_tasks: Option<u32>,
     /// If true, draft tasks are eligible for loop selection.
     pub loop_include_draft: bool,
+    /// If true, show flowchart visualization on start.
+    pub show_flowchart: bool,
 }
 
 /// Active filters applied to the task list.
@@ -2123,6 +2125,13 @@ where
     // Apply boot options.
     app.loop_max_tasks = options.loop_max_tasks;
     app.loop_include_draft = options.loop_include_draft;
+
+    // Show flowchart on start if requested.
+    if options.show_flowchart {
+        app.mode = AppMode::FlowchartOverlay {
+            previous_mode: Box::new(AppMode::Normal),
+        };
+    }
 
     // Setup terminal.
     enable_raw_mode().context("enable raw mode")?;

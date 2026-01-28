@@ -2,50 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0376",
-      "status": "todo",
-      "title": "Add interactive flowchart for terminal-based 3-phase workflow visualization",
-      "priority": "medium",
-      "tags": [
-        "enhancement",
-        "visualization",
-        "tui",
-        "cli",
-        "workflow"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/",
-        "crates/ralph/src/commands/run/mod.rs",
-        "docs/cli.md"
-      ],
-      "evidence": [
-        "User request: Interactive Flowchart - Terminal-based workflow visualization showing current position in the 3-phase flow",
-        "Ralph uses a 3-phase workflow: Planning -> Implementation + CI -> Review + Completion (configurable to 1-3 phases)",
-        "No current visualization exists showing user's position within the workflow phases",
-        "TUI already has visualization components that could be extended for flowchart display",
-        "CLI 'run' command could benefit from a --visualize flag showing workflow progress"
-      ],
-      "plan": [
-        "Design ASCII/Unicode flowchart representation of the 3-phase workflow",
-        "Create FlowchartWidget component in TUI showing current phase with visual indicators",
-        "Highlight current phase with distinct colors/styles (completed, active, pending)",
-        "Add phase transition animations or visual cues in TUI",
-        "Implement 'ralph run --visualize' CLI flag to show flowchart before execution",
-        "Show phase-specific context: task title, phase number, completion status",
-        "Add keyboard shortcut in TUI to toggle flowchart overlay (e.g., 'f' key)",
-        "Support both horizontal and vertical flowchart layouts based on terminal size",
-        "Include phase descriptions and hints for what happens in each phase",
-        "Update docs/cli.md with flowchart visualization examples and key bindings",
-        "Run 'make ci' to verify all changes"
-      ],
-      "notes": [],
-      "request": "Interactive Flowchart - Terminal-based workflow visualization showing current position in the 3-phase flow.",
-      "created_at": "2026-01-28T16:13:33Z",
-      "updated_at": "2026-01-28T16:13:33Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0375",
       "status": "todo",
       "title": "Add task dependencies visualization with graph view and critical path highlighting",

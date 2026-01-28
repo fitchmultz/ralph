@@ -257,6 +257,32 @@ Keybindings (task list unless noted otherwise):
   * `a`: toggle auto-scroll
   * `l`: stop loop mode
   * `p`: toggle progress panel visibility
+  * `f`: toggle flowchart overlay
+
+### TUI Execution View Flowchart Overlay
+
+When running a task in the TUI, press `f` to open the workflow flowchart overlay. This provides a visual representation of the current position in the 3-phase workflow:
+
+* **Phase visualization**: Shows the workflow topology with connected phase nodes
+  * `>` (yellow): Currently active phase
+  * `+` (green): Completed phase
+  * `o` (gray): Pending phase
+* **Phase descriptions**: Brief explanation of what each phase does
+* **Phase timing**: Elapsed time per phase (if started)
+
+The flowchart adapts to the configured workflow:
+* **1-phase**: Shows "Single Phase" (Execute task)
+* **2-phase**: Shows Planning → Implementation
+* **3-phase** (default): Shows Planning → Implementation → Review
+
+Press `f`, `Esc`, `h`, or `?` to close the flowchart overlay.
+
+Use `--visualize` flag with `ralph run one -i` or `ralph run loop -i` to show the flowchart immediately on TUI start:
+
+```bash
+ralph run one -i --visualize
+ralph run loop -i --visualize
+```
 
 ### TUI Execution View Progress Panel
 
@@ -312,6 +338,10 @@ Use `--quick` as a shorthand for `--phases 1` to skip the planning phase and run
 * `ralph run one -i` launches the same TUI as `ralph tui`.
 * `ralph run loop -i` launches the same TUI and auto-starts loop mode.
 
+### Workflow visualization
+
+* `--visualize`: Show the workflow flowchart overlay immediately on TUI start (interactive mode only). Useful for understanding the current position in the 3-phase workflow before execution begins.
+
 ### Draft tasks
 
 By default, draft tasks (`status: draft`) are skipped during task selection (so they won't be auto-selected for execution).
@@ -344,6 +374,7 @@ ralph run one --phases 1
 ralph run one --quick
 ralph run one --include-draft
 ralph run one -i
+ralph run one -i --visualize
 ralph run one --update-task
 ralph run loop --max-tasks 0
 ralph run loop --phases 3 --max-tasks 0
@@ -353,6 +384,7 @@ ralph run loop --update-task --max-tasks 1
 ralph run loop --repo-prompt tools --max-tasks 1
 ralph run loop --repo-prompt off --max-tasks 1
 ralph run loop -i --max-tasks 3
+ralph run loop -i --visualize --max-tasks 1
 ralph run loop --max-tasks 1 --debug
 ralph run one --git-commit-push-off
 ralph run one --approval-mode yolo --sandbox disabled

@@ -112,6 +112,11 @@ pub enum AppMode {
     BuildingTaskOptions(TaskBuilderState),
     /// Jumping to a task by ID (input mode)
     JumpingToTask(TextInput),
+    /// Workflow flowchart overlay
+    FlowchartOverlay {
+        /// Previous mode to return to when closing
+        previous_mode: Box<AppMode>,
+    },
 }
 
 /// State for the advanced task builder flow with override options.
@@ -278,6 +283,14 @@ impl PartialEq for AppMode {
                     && left.error_message == right.error_message
             }
             (JumpingToTask(left), JumpingToTask(right)) => left == right,
+            (
+                FlowchartOverlay {
+                    previous_mode: left_previous,
+                },
+                FlowchartOverlay {
+                    previous_mode: right_previous,
+                },
+            ) => left_previous == right_previous,
             _ => false,
         }
     }

@@ -136,6 +136,7 @@ mod tests {
                 interactive: true,
                 debug: false,
                 id: None,
+                visualize: false,
                 agent: ralph::agent::RunAgentArgs::default(),
             }),
         });
@@ -149,6 +150,7 @@ mod tests {
                 max_tasks: 0,
                 interactive: true,
                 debug: false,
+                visualize: false,
                 agent: ralph::agent::RunAgentArgs::default(),
             }),
         });
@@ -162,6 +164,7 @@ mod tests {
                 interactive: false,
                 debug: false,
                 id: Some("RQ-0001".to_string()),
+                visualize: false,
                 agent: ralph::agent::RunAgentArgs::default(),
             }),
         });

@@ -402,6 +402,15 @@ const EXECUTING_BINDINGS: &[KeyBinding] = &[
             label: "stop loop",
         }),
     },
+    KeyBinding {
+        keys: &["f"],
+        keys_display: "f",
+        description: "toggle flowchart overlay",
+        footer_hint: Some(FooterHint {
+            keys: "f",
+            label: "flowchart",
+        }),
+    },
 ];
 
 const EXECUTING_SECTIONS: &[KeymapSection] = &[KeymapSection {
@@ -441,6 +450,10 @@ pub(crate) fn footer_hints_for_mode(mode: &AppMode) -> Vec<FooterHint> {
                 label: "close",
             })
             .collect(),
+        AppMode::FlowchartOverlay { .. } => vec![FooterHint {
+            keys: "f/Esc",
+            label: "close",
+        }],
         _ => Vec::new(),
     }
 }

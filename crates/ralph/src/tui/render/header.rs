@@ -150,6 +150,9 @@ fn mode_span(mode: &AppMode, running_task_id: Option<&String>) -> Span<'static> 
         AppMode::ConfirmRiskyConfig { .. } => {
             Span::styled("[Confirm Config]", Style::default().fg(Color::Red))
         }
+        AppMode::FlowchartOverlay { .. } => {
+            Span::styled("[Flowchart]", Style::default().fg(Color::Blue))
+        }
     }
 }
 

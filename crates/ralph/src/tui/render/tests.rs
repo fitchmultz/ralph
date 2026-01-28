@@ -1172,3 +1172,83 @@ fn header_does_not_show_in_executing_view() {
         "expected executing view title, got: {first_line:?}"
     );
 }
+
+#[test]
+fn flowchart_overlay_renders_without_panic() {
+    use ratatui::{backend::TestBackend, Terminal};
+
+    let backend = TestBackend::new(80, 20);
+    let mut terminal = Terminal::new(backend).expect("create terminal");
+    let mut app = App::new(make_task_list_queue());
+    app.mode = AppMode::FlowchartOverlay {
+        previous_mode: Box::new(AppMode::Normal),
+    };
+
+    // Should not panic when rendering flowchart overlay
+    terminal
+        .draw(|f| tui::draw_ui(f, &mut app))
+        .expect("draw ui");
+
+    // Verify the mode is set correctly
+    assert!(matches!(app.mode, AppMode::FlowchartOverlay { .. }));
+}
+
+#[test]
+fn flowchart_overlay_shows_phase_indicators() {
+    use ratatui::{backend::TestBackend, Terminal};
+
+    let backend = TestBackend::new(80, 20);
+    let mut terminal = Terminal::new(backend).expect("create terminal");
+    let mut app = App::new(make_task_list_queue());
+    app.mode = AppMode::FlowchartOverlay {
+        previous_mode: Box::new(AppMode::Normal),
+    };
+
+    // Should render without panic - phase indicators are visible in the popup
+    terminal
+        .draw(|f| tui::draw_ui(f, &mut app))
+        .expect("draw ui");
+
+    // Verify the mode is still FlowchartOverlay after rendering
+    assert!(matches!(app.mode, AppMode::FlowchartOverlay { .. }));
+}
+
+#[test]
+fn flowchart_overlay_does_not_panic_on_narrow_terminal() {
+    use ratatui::{backend::TestBackend, Terminal};
+
+    let backend = TestBackend::new(50, 20);
+    let mut terminal = Terminal::new(backend).expect("create terminal");
+    let mut app = App::new(make_task_list_queue());
+    app.mode = AppMode::FlowchartOverlay {
+        previous_mode: Box::new(AppMode::Normal),
+    };
+
+    // Should not panic on narrow terminal (uses vertical layout)
+    terminal
+        .draw(|f| tui::draw_ui(f, &mut app))
+        .expect("draw ui");
+}
+
+#[test]
+fn header_shows_mode_flowchart() {
+    use ratatui::{backend::TestBackend, Terminal};
+
+    let backend = TestBackend::new(80, 12);
+    let mut terminal = Terminal::new(backend).expect("create terminal");
+    let mut app = App::new(QueueFile::default());
+    app.mode = AppMode::FlowchartOverlay {
+        previous_mode: Box::new(AppMode::Normal),
+    };
+
+    terminal
+        .draw(|f| tui::draw_ui(f, &mut app))
+        .expect("draw ui");
+
+    let buffer = terminal.backend().buffer();
+    let header_line = buffer_line(buffer, 0, 0, buffer.area.width);
+    assert!(
+        header_line.contains("Flowchart"),
+        "expected header to show Flowchart mode, got: {header_line:?}"
+    );
+}

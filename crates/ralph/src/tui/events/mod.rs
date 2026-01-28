@@ -23,6 +23,7 @@ pub mod confirm;
 pub mod create;
 pub mod editing;
 pub mod filter;
+pub mod flowchart;
 pub mod help;
 pub mod normal;
 pub mod palette;
@@ -114,6 +115,7 @@ pub fn handle_key_event(
             task_builder::handle_building_task_options_key(app, key, state)
         }
         AppMode::JumpingToTask(input) => handle_jumping_to_task_key(app, key, input),
+        AppMode::FlowchartOverlay { .. } => flowchart::handle_flowchart_mode_key(app, key),
     }
 }
 
@@ -224,7 +226,7 @@ pub(super) fn handle_filter_input_key(
 }
 
 fn should_open_help(app: &App, key: &KeyEvent) -> bool {
-    if app.mode == AppMode::Help {
+    if matches!(app.mode, AppMode::Help | AppMode::FlowchartOverlay { .. }) {
         return false;
     }
     if is_plain_char(key, '?') {

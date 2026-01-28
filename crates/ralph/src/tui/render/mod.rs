@@ -177,6 +177,11 @@ pub fn draw_ui(f: &mut Frame<'_>, app: &mut App) {
             overlays::draw_jump_to_task_input(f, size, input);
         }
 
+        // Workflow flowchart overlay.
+        AppMode::FlowchartOverlay { .. } => {
+            overlays::draw_flowchart_overlay(f, app, size);
+        }
+
         _ => {}
     }
 }

@@ -74,6 +74,13 @@ pub(super) fn handle_executing_mode_key(app: &mut App, key: KeyEvent) -> Result<
             app.set_status_message(format!("Progress panel {}", status));
             Ok(TuiAction::Continue)
         }
+        KeyCode::Char('f') if is_plain_char(&key, 'f') => {
+            let previous = app.mode.clone();
+            app.mode = super::super::AppMode::FlowchartOverlay {
+                previous_mode: Box::new(previous),
+            };
+            Ok(TuiAction::Continue)
+        }
         _ => Ok(TuiAction::Continue),
     }
 }

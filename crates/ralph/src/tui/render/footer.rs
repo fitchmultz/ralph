@@ -201,6 +201,10 @@ pub(super) fn help_footer_spans(app: &App, max_width: usize) -> Vec<Span<'static
             Span::styled("Esc", Style::default().add_modifier(Modifier::BOLD)),
             Span::raw(":cancel"),
         ],
+        AppMode::FlowchartOverlay { .. } => vec![
+            Span::styled("f/Esc", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(":close"),
+        ],
     };
 
     let tail_spans = build_tail_spans(app, max_width, !help_text.is_empty());
