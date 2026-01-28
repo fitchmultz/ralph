@@ -39,6 +39,7 @@ pub enum PaletteCommand {
     ReloadQueue,
     MoveTaskUp,
     MoveTaskDown,
+    JumpToTask,
     Quit,
 }
 

@@ -185,6 +185,10 @@ pub(super) fn handle_normal_mode_key(
             }
             Ok(TuiAction::Continue)
         }
+        KeyCode::Char('G') if is_plain_char(&key, 'G') => {
+            app.mode = AppMode::JumpingToTask(TextInput::new(""));
+            Ok(TuiAction::Continue)
+        }
         KeyCode::Char('n') if is_plain_char(&key, 'n') => {
             app.mode = AppMode::CreatingTask(TextInput::new(""));
             Ok(TuiAction::Continue)

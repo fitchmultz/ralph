@@ -110,6 +110,7 @@ pub fn handle_key_event(
         AppMode::BuildingTaskOptions(state) => {
             task_builder::handle_building_task_options_key(app, key, state)
         }
+        AppMode::JumpingToTask(input) => handle_jumping_to_task_key(app, key, input),
     }
 }
 
@@ -240,7 +241,8 @@ fn mode_accepts_text_input(mode: &AppMode) -> bool {
         | AppMode::FilteringTags(_)
         | AppMode::FilteringScopes(_)
         | AppMode::Scanning(_)
-        | AppMode::CommandPalette { .. } => true,
+        | AppMode::CommandPalette { .. }
+        | AppMode::JumpingToTask(_) => true,
         AppMode::EditingTask { editing_value, .. } => editing_value.is_some(),
         AppMode::EditingConfig { editing_value, .. } => editing_value.is_some(),
         AppMode::ConfirmRevert { selected, .. } => *selected == 2,
@@ -251,5 +253,31 @@ fn mode_accepts_text_input(mode: &AppMode) -> bool {
             )
         }
         _ => false,
+    }
+}
+
+/// Handle key events when in JumpingToTask mode.
+fn handle_jumping_to_task_key(
+    app: &mut App,
+    key: KeyEvent,
+    mut input: TextInput,
+) -> anyhow::Result<TuiAction> {
+    match key.code {
+        KeyCode::Enter => {
+            let id = input.value().to_string();
+            app.jump_to_task_by_id(&id);
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Esc => {
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        _ => {
+            if apply_text_input_key(&mut input, &key) == TextInputEdit::Changed {
+                app.mode = AppMode::JumpingToTask(input);
+            }
+            Ok(TuiAction::Continue)
+        }
     }
 }

@@ -156,6 +156,11 @@ pub fn draw_ui(f: &mut Frame<'_>, app: &mut App) {
             overlays::draw_task_builder(f, size, state);
         }
 
+        // Jump to task by ID overlay.
+        AppMode::JumpingToTask(input) => {
+            overlays::draw_jump_to_task_input(f, size, input);
+        }
+
         _ => {}
     }
 }

@@ -2,48 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0326",
-      "status": "todo",
-      "title": "TUI: add “jump to task by ID” command (palette + input)",
-      "priority": "medium",
-      "tags": [
-        "tui",
-        "ux",
-        "navigation",
-        "palette"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/events/palette.rs",
-        "crates/ralph/src/tui/app.rs",
-        "crates/ralph/src/tui/render/overlays.rs",
-        "crates/ralph/src/tui/events/tests.rs",
-        "docs/tui-task-management.md",
-        "make ci"
-      ],
-      "evidence": [
-        "`crates/ralph/src/tui/events/palette.rs`: `PaletteCommand` enum has no “select task by ID” command.",
-        "`crates/ralph/src/tui/app.rs`: app tracks an `id_to_index` map and can rebuild it (`ensure_id_index_map`), which can back a jump-to-ID feature.",
-        "`docs/tui-task-management.md`: “Jump-to-ID” is listed as a suggested enhancement but is not implemented."
-      ],
-      "plan": [
-        "Add a palette command and an input mode/overlay for entering a task ID (e.g., RQ-####).",
-        "Use the id->index cache to select the task and adjust scroll to keep it visible.",
-        "Handle missing/invalid IDs with a clear status message.",
-        "Add tests for successful jumps and failure modes.",
-        "Update `docs/tui-task-management.md` to document the new workflow.",
-        "Run `make ci`."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "agent": {
-        "model_effort": "medium"
-      },
-      "created_at": "2026-01-27T04:35:15Z",
-      "updated_at": "2026-01-27T04:35:15Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0327",
       "status": "todo",
       "title": "TUI: direct set-status/set-priority commands + optional auto-archive on terminal",

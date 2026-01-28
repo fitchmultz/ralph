@@ -668,6 +668,66 @@ impl App {
         self.scroll = 0;
     }
 
+    /// Jump to a task by its ID.
+    ///
+    /// The ID is matched case-insensitively. If the task is found but not visible
+    /// due to active filters, filters are cleared first.
+    ///
+    /// Returns `true` if the task was found and selected, `false` otherwise.
+    pub fn jump_to_task_by_id(&mut self, id: &str) -> bool {
+        let normalized_id = id.trim().to_uppercase();
+        if normalized_id.is_empty() {
+            self.set_status_message("No task ID entered");
+            return false;
+        }
+
+        // Ensure the id_to_index map is up to date
+        self.ensure_id_index_map();
+
+        // Find the task by ID (case-insensitive)
+        let queue_index = self
+            .id_to_index
+            .iter()
+            .find(|(k, _)| k.to_uppercase() == normalized_id)
+            .map(|(_, &idx)| idx);
+
+        let Some(queue_index) = queue_index else {
+            self.set_status_message(format!("Task not found: {}", id));
+            return false;
+        };
+
+        // Check if the task is visible in the filtered view
+        if let Some(filtered_pos) = self
+            .filtered_indices
+            .iter()
+            .position(|&idx| idx == queue_index)
+        {
+            // Task is visible - select it
+            self.set_selected(filtered_pos);
+            self.set_status_message(format!("Jumped to task {}", id));
+            true
+        } else {
+            // Task exists but is filtered out - clear filters and try again
+            self.clear_filters();
+            self.rebuild_filtered_view();
+
+            // Find the position in the new filtered view
+            if let Some(filtered_pos) = self
+                .filtered_indices
+                .iter()
+                .position(|&idx| idx == queue_index)
+            {
+                self.set_selected(filtered_pos);
+                self.set_status_message(format!("Jumped to task {} (filters cleared)", id));
+                true
+            } else {
+                // Shouldn't happen unless task was deleted between checks
+                self.set_status_message(format!("Task not found: {}", id));
+                false
+            }
+        }
+    }
+
     /// Jump selection to the bottom of the filtered list.
     pub fn jump_to_bottom(&mut self, list_height: usize) {
         if self.filtered_len() == 0 {
@@ -1182,6 +1242,10 @@ impl App {
                 title: "Move selected task down".to_string(),
             },
             PaletteEntry {
+                cmd: PaletteCommand::JumpToTask,
+                title: "Jump to task by ID".to_string(),
+            },
+            PaletteEntry {
                 cmd: PaletteCommand::Quit,
                 title: "Quit".to_string(),
             },
@@ -1372,6 +1436,10 @@ impl App {
                 if let Err(e) = self.move_task_down(now_rfc3339) {
                     self.set_status_message(format!("Error: {}", e));
                 }
+                Ok(TuiAction::Continue)
+            }
+            PaletteCommand::JumpToTask => {
+                self.mode = AppMode::JumpingToTask(TextInput::new(""));
                 Ok(TuiAction::Continue)
             }
             PaletteCommand::Quit => {

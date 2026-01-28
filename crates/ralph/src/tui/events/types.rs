@@ -108,6 +108,8 @@ pub enum AppMode {
     },
     /// Building a task with agent overrides (advanced task builder)
     BuildingTaskOptions(TaskBuilderState),
+    /// Jumping to a task by ID (input mode)
+    JumpingToTask(TextInput),
 }
 
 /// State for the advanced task builder flow with override options.
@@ -272,6 +274,7 @@ impl PartialEq for AppMode {
                     && left.selected_field == right.selected_field
                     && left.error_message == right.error_message
             }
+            (JumpingToTask(left), JumpingToTask(right)) => left == right,
             _ => false,
         }
     }

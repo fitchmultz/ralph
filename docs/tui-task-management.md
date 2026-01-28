@@ -19,6 +19,7 @@ Navigation:
 - `PgUp/PgDn`: page list/details (focused panel)
 - `Home/End`: jump to top/bottom (focused panel)
 - `K/J`: move selected task up/down
+- `G`: jump to task by ID (prompts for task ID)
 - `Enter`: run selected task
 
 Actions:
@@ -307,9 +308,10 @@ If you want the TUI to mirror the CLI UX more closely, consider:
    - TUI now has a two-step task builder flow with override options.
    - Supports tags/scope hints, runner/model/effort overrides, and RepoPrompt mode.
 
-4. **Jump-to-ID**
-   - Add command palette action: "Select task by ID"
-   - Input `RQ-####` and focus selection.
+4. ~~**Jump-to-ID**~~ ✅ **IMPLEMENTED**
+   - Press `G` (uppercase) or use the "Jump to task by ID" palette command.
+   - Input `RQ-####` (case-insensitive) and press Enter to jump to that task.
+   - If the task is filtered out, filters are automatically cleared.
 
 These are optional; core task management is already present in the TUI today.
 

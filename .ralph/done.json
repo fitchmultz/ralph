@@ -8116,6 +8116,67 @@
       "completed_at": "2026-01-28T00:25:28.151762000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0326",
+      "status": "done",
+      "title": "TUI: add 'jump to task by ID' command (palette + input)",
+      "priority": "medium",
+      "tags": [
+        "tui",
+        "ux",
+        "navigation",
+        "palette"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/events/palette.rs",
+        "crates/ralph/src/tui/events/types.rs",
+        "crates/ralph/src/tui/events/mod.rs",
+        "crates/ralph/src/tui/app.rs",
+        "crates/ralph/src/tui/render/overlays.rs",
+        "crates/ralph/src/tui/events/tests.rs",
+        "docs/tui-task-management.md",
+        "make ci"
+      ],
+      "evidence": [
+        "`crates/ralph/src/tui/events/palette.rs`: `PaletteCommand` enum (lines 21-43) has no 'select task by ID' command.",
+        "`crates/ralph/src/tui/app.rs`: app tracks an `id_to_index` map (line 259) and can rebuild it via `ensure_id_index_map()` (lines 405-420), which can back a jump-to-ID feature.",
+        "`crates/ralph/src/tui/app.rs`: `palette_entries()` (lines 1096-1197) builds palette commands - needs new entry for jump-to-ID.",
+        "`docs/tui-task-management.md`: 'Jump-to-ID' is listed as a suggested enhancement (lines 310-312) but is not implemented.",
+        "`crates/ralph/src/tui/events/mod.rs`: Contains mode handling and key event routing - will need to handle new JumpToId input mode."
+      ],
+      "plan": [
+        "Add `JumpToTask` variant to `PaletteCommand` enum in `palette.rs`.",
+        "Add `JumpingToTask(TextInput)` variant to `AppMode` in `types.rs`.",
+        "Add palette entry for 'Jump to task by ID' in `app.rs` `palette_entries()`.",
+        "Implement `execute_palette_command()` handler for `JumpToTask` that enters input mode.",
+        "Add input mode handler in `mod.rs` for entering task ID (e.g., RQ-####).",
+        "Implement jump logic: parse ID, use `id_to_index` cache to find task, update selection and scroll.",
+        "Handle missing/invalid IDs with a clear status message.",
+        "Add rendering for jump-to-ID input overlay in `overlays.rs`.",
+        "Add tests for successful jumps and failure modes in `tests.rs`.",
+        "Update `docs/tui-task-management.md` to document the new workflow.",
+        "Run `make ci`."
+      ],
+      "notes": [
+        "The `id_to_index` map is already maintained and provides O(1) lookup for task IDs.",
+        "Consider adding fuzzy/prefix matching for partial ID input (e.g., '326' matches 'RQ-0326').",
+        "May want to integrate with existing filter system to show only matching task.",
+        "Implemented TUI 'jump to task by ID' feature with G keybind and palette command",
+        "Added 12 comprehensive tests covering success/failure modes",
+        "Case-insensitive ID matching with automatic filter clearing",
+        "Updated documentation in docs/tui-task-management.md",
+        "All 684 tests pass, make ci successful"
+      ],
+      "request": "scan finding",
+      "agent": {
+        "model_effort": "medium"
+      },
+      "created_at": "2026-01-27T04:35:15Z",
+      "updated_at": "2026-01-28T01:23:10.088001000Z",
+      "completed_at": "2026-01-28T01:23:10.088001000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }
