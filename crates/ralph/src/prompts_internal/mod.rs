@@ -7,6 +7,7 @@
 //! may be absent.
 
 pub(crate) mod iteration;
+pub(crate) mod management;
 mod registry;
 pub(crate) mod review;
 pub(crate) mod scan;
@@ -18,7 +19,6 @@ pub(crate) mod worker_phases;
 
 #[cfg(test)]
 mod tests;
-
 use review::{
     load_code_review_prompt, load_completion_checklist, load_iteration_checklist,
     load_phase2_handoff_checklist,

@@ -19,3 +19,4 @@ ralph_tui/ralph
 .ralph/done.json
 .ralph/config.json
 .ralph/README.md
+.ralph/cache/prompt_versions.json

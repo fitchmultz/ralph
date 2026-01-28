@@ -8,14 +8,247 @@
 //!
 //! The logic intentionally re-uses existing prompt rendering + wrappers so that
 //! previews stay accurate as runtime behavior evolves.
+//!
+//! Also provides prompt management commands (list, show, export, sync, diff) for
+//! viewing and managing embedded prompt templates.
 
 use crate::config;
 use crate::contracts::ProjectType;
 use crate::promptflow::{self, PromptPolicy};
+use crate::prompts_internal::management as prompt_mgmt;
 use crate::{prompts, queue};
 use anyhow::{bail, Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
+
+/// List all available prompt templates.
+pub fn list_prompts(repo_root: &Path) -> Result<()> {
+    let templates = prompt_mgmt::list_templates(repo_root);
+
+    println!("Available prompt templates ({} total):\n", templates.len());
+
+    // Find max name length for alignment
+    let max_name_len = templates.iter().map(|t| t.name.len()).max().unwrap_or(0);
+
+    for t in templates {
+        let status = if t.has_override { " [override]" } else { "" };
+        println!(
+            "  {:width$}  {}{}",
+            t.name,
+            t.description,
+            status,
+            width = max_name_len
+        );
+    }
+
+    println!("\nOverride paths: .ralph/prompts/<name>.md");
+    println!("Use 'ralph prompt show <name> --raw' to view raw embedded content");
+
+    Ok(())
+}
+
+/// Show a specific prompt template.
+pub fn show_prompt(repo_root: &Path, name: &str, raw: bool) -> Result<()> {
+    let id = prompt_mgmt::parse_template_name(name)
+        .ok_or_else(|| anyhow::anyhow!("Unknown template name: '{}'", name))?;
+
+    let content = if raw {
+        prompt_mgmt::get_embedded_content(id).to_string()
+    } else {
+        prompt_mgmt::get_effective_content(repo_root, id)?
+    };
+
+    print!("{}", content);
+    Ok(())
+}
+
+/// Export prompt(s) to .ralph/prompts/.
+pub fn export_prompts(repo_root: &Path, name: Option<&str>, force: bool) -> Result<()> {
+    let ralph_version = env!("CARGO_PKG_VERSION");
+
+    if let Some(n) = name {
+        // Export single template
+        let id = prompt_mgmt::parse_template_name(n)
+            .ok_or_else(|| anyhow::anyhow!("Unknown template name: '{}'", n))?;
+
+        let file_name = prompt_mgmt::template_file_name(id);
+        let written = prompt_mgmt::export_template(repo_root, id, force, ralph_version)?;
+
+        if written {
+            println!("Exported {} to .ralph/prompts/{}.md", file_name, file_name);
+        } else {
+            println!(
+                "Skipped {}: file already exists (use --force to overwrite)",
+                file_name
+            );
+        }
+    } else {
+        // Export all templates
+        let templates = prompt_mgmt::all_template_ids();
+        let mut exported = 0;
+        let mut skipped = 0;
+
+        for id in templates {
+            let file_name = prompt_mgmt::template_file_name(id);
+            match prompt_mgmt::export_template(repo_root, id, force, ralph_version) {
+                Ok(written) => {
+                    if written {
+                        exported += 1;
+                        println!("Exported {}", file_name);
+                    } else {
+                        skipped += 1;
+                        println!("Skipped {}: already exists", file_name);
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Error exporting {}: {}", file_name, e);
+                }
+            }
+        }
+
+        println!("\nExported {} templates, skipped {}", exported, skipped);
+        if skipped > 0 && !force {
+            println!("Use --force to overwrite existing files");
+        }
+    }
+
+    Ok(())
+}
+
+/// Sync prompts with embedded defaults.
+pub fn sync_prompts(repo_root: &Path, dry_run: bool, force: bool) -> Result<()> {
+    let ralph_version = env!("CARGO_PKG_VERSION");
+    let templates = prompt_mgmt::all_template_ids();
+
+    let mut up_to_date = Vec::new();
+    let mut outdated = Vec::new();
+    let mut user_modified = Vec::new();
+    let mut missing = Vec::new();
+
+    // Categorize all templates
+    for id in &templates {
+        let file_name = prompt_mgmt::template_file_name(*id);
+        let status = prompt_mgmt::check_sync_status(repo_root, *id)?;
+
+        match status {
+            prompt_mgmt::SyncStatus::UpToDate => up_to_date.push(file_name),
+            prompt_mgmt::SyncStatus::Outdated => outdated.push((file_name, *id)),
+            prompt_mgmt::SyncStatus::UserModified => user_modified.push((file_name, *id)),
+            prompt_mgmt::SyncStatus::Unknown => user_modified.push((file_name, *id)),
+            prompt_mgmt::SyncStatus::Missing => missing.push((file_name, *id)),
+        }
+    }
+
+    if dry_run {
+        println!("Dry run - no changes will be made:\n");
+
+        if !outdated.is_empty() {
+            println!("Would update ({}):", outdated.len());
+            for (name, _) in &outdated {
+                println!("  {}", name);
+            }
+        }
+
+        if !missing.is_empty() {
+            println!("Would create ({}):", missing.len());
+            for (name, _) in &missing {
+                println!("  {}", name);
+            }
+        }
+
+        if !user_modified.is_empty() {
+            println!("Would skip (user modified) ({}):", user_modified.len());
+            for (name, _) in &user_modified {
+                println!("  {}", name);
+            }
+        }
+
+        if !up_to_date.is_empty() {
+            println!("Up to date ({}):", up_to_date.len());
+            for name in &up_to_date {
+                println!("  {}", name);
+            }
+        }
+
+        return Ok(());
+    }
+
+    // Perform sync
+    let mut updated = 0;
+    let mut skipped = 0;
+    let mut created = 0;
+
+    // Update outdated
+    for (name, id) in outdated {
+        match prompt_mgmt::export_template(repo_root, id, true, ralph_version) {
+            Ok(_) => {
+                println!("Updated {} (outdated)", name);
+                updated += 1;
+            }
+            Err(e) => {
+                eprintln!("Error updating {}: {}", name, e);
+                skipped += 1;
+            }
+        }
+    }
+
+    // Create missing
+    for (name, id) in missing {
+        match prompt_mgmt::export_template(repo_root, id, false, ralph_version) {
+            Ok(_) => {
+                println!("Created {}", name);
+                created += 1;
+            }
+            Err(e) => {
+                eprintln!("Error creating {}: {}", name, e);
+                skipped += 1;
+            }
+        }
+    }
+
+    // Handle user modified
+    for (name, id) in user_modified {
+        if force {
+            match prompt_mgmt::export_template(repo_root, id, true, ralph_version) {
+                Ok(_) => {
+                    println!("Overwrote {} (user modified, --force)", name);
+                    updated += 1;
+                }
+                Err(e) => {
+                    eprintln!("Error overwriting {}: {}", name, e);
+                    skipped += 1;
+                }
+            }
+        } else {
+            println!("Skipped {} (user modified, use --force to overwrite)", name);
+            skipped += 1;
+        }
+    }
+
+    println!(
+        "\nSync complete: {} updated, {} created, {} skipped",
+        updated, created, skipped
+    );
+
+    Ok(())
+}
+
+/// Show diff between user override and embedded default.
+pub fn diff_prompt(repo_root: &Path, name: &str) -> Result<()> {
+    let id = prompt_mgmt::parse_template_name(name)
+        .ok_or_else(|| anyhow::anyhow!("Unknown template name: '{}'", name))?;
+
+    match prompt_mgmt::generate_diff(repo_root, id)? {
+        Some(diff) => {
+            print!("{}", diff);
+        }
+        None => {
+            println!("No local override for '{}' - using embedded default", name);
+        }
+    }
+
+    Ok(())
+}
 
 const WORKER_OVERRIDE_PATH: &str = ".ralph/prompts/worker.md";
 const SCAN_OVERRIDE_PATH: &str = ".ralph/prompts/scan.md";

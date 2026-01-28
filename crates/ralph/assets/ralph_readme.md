@@ -157,6 +157,17 @@ To preview the composed prompts that will be sent to the runner:
 - `ralph prompt worker --phase 2` — Preview the Phase 2 implementation prompt
 - `ralph prompt worker --phase 3` — Preview the Phase 3 review prompt
 
+To view raw embedded default prompts (useful as a base for customization):
+- `ralph prompt list` — List all available templates
+- `ralph prompt show worker --raw` — View raw embedded default
+- `ralph prompt diff worker` — Show differences between override and embedded
+
+To export and customize prompts:
+- `ralph prompt export --all` — Export all templates to `.ralph/prompts/`
+- `ralph prompt export worker` — Export single template
+- `ralph prompt sync --dry-run` — Preview what would change
+- `ralph prompt sync` — Sync with embedded defaults (preserves your modifications)
+
 ## Runners (Codex + OpenCode + Gemini + Claude + Cursor)
 
 Ralph can use Codex, OpenCode, Gemini, Claude, or Cursor CLI as a runner.

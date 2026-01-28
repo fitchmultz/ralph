@@ -893,7 +893,12 @@ ralph prd create docs/prd/new-feature.md --multi --priority medium --tag user-st
 
 ## `ralph prompt`
 
-Render prompt previews to inspect the exact text sent to runners.
+Manage and inspect prompt templates. This command provides:
+
+1. **Prompt previews** - See the exact compiled prompt sent to runners
+2. **Template management** - List, view, export, and sync embedded prompt templates
+
+### Preview Compiled Prompts
 
 Key flags:
 - `ralph prompt worker --phase <1|2|3>`: choose phase prompt.
@@ -909,6 +914,92 @@ ralph prompt worker --phase 2 --plan-text "Plan body"
 ralph prompt worker --phase 2 --iteration-index 2 --iterations 3
 ralph prompt worker --phase 3 --task-id RQ-0001
 ```
+
+### List Available Templates
+
+List all available embedded prompt templates with descriptions:
+
+```bash
+ralph prompt list
+```
+
+Output shows:
+- Template name (e.g., `worker`, `worker_phase1`, `scan`)
+- Description of each template's purpose
+- `[override]` indicator if a custom version exists in `.ralph/prompts/`
+
+### Show Raw Templates
+
+View raw embedded prompt content or the effective prompt (with user overrides applied):
+
+```bash
+# View raw embedded default (what ships with Ralph)
+ralph prompt show worker --raw
+
+# View effective prompt (user override if exists, else embedded)
+ralph prompt show worker
+```
+
+Template names accept:
+- Snake_case: `worker_phase1`, `task_builder`
+- Kebab-case: `worker-phase1`, `task-builder`
+- Case-insensitive: `WORKER`, `Worker_Phase1`
+
+### Export Templates
+
+Export embedded prompts to `.ralph/prompts/` for customization:
+
+```bash
+# Export all templates
+ralph prompt export --all
+
+# Export single template
+ralph prompt export worker
+
+# Overwrite existing files
+ralph prompt export worker --force
+```
+
+Exported files include a header with version information:
+```markdown
+<!-- Exported from Ralph embedded defaults -->
+<!-- Template: worker -->
+<!-- Version: 0.5.0 -->
+<!-- Hash: hash:abc123... -->
+<!-- Exported at: 2026-01-28T22:30:00Z -->
+<!-- WARNING: This file may be overwritten by 'ralph prompt sync' unless you rename it -->
+```
+
+### Sync Templates
+
+Check for outdated prompts and sync with embedded defaults:
+
+```bash
+# Preview changes without applying
+ralph prompt sync --dry-run
+
+# Sync (updates outdated, creates missing, preserves user modified)
+ralph prompt sync
+
+# Force overwrite of user modifications
+ralph prompt sync --force
+```
+
+Sync categories:
+- **Up to date**: File matches embedded default (no action)
+- **Outdated**: File was exported but embedded default has changed (safe to update)
+- **User modified**: File differs from both embedded and exported version (preserved by default)
+- **Missing**: Not yet exported (will be created)
+
+### Diff Templates
+
+Show differences between user override and embedded default:
+
+```bash
+ralph prompt diff worker
+```
+
+Shows unified diff format. If no local override exists, reports that the embedded default is being used.
 
 ## Runner and Model Overrides
 

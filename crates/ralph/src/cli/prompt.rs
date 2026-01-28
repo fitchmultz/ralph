@@ -3,6 +3,7 @@
 //! Responsibilities:
 //! - Define clap arguments for prompt preview commands.
 //! - Render worker/scan/task-builder prompts for debugging or inspection.
+//! - List, show, export, and sync prompt templates.
 //!
 //! Not handled here:
 //! - Queue persistence or task status updates.
@@ -12,6 +13,7 @@
 //! Invariants/assumptions:
 //! - Configuration is resolved from the current working directory.
 //! - RepoPrompt selection maps to plan/tool injection consistently.
+//! - Prompt templates are managed via the prompts_internal module.
 
 use anyhow::Result;
 use clap::{Args, Subcommand};
@@ -97,6 +99,21 @@ pub fn handle_prompt(args: PromptArgs) -> Result<()> {
             )?;
             print!("{prompt}");
         }
+        PromptCommand::List => {
+            prompt_cmd::list_prompts(&resolved.repo_root)?;
+        }
+        PromptCommand::Show(p) => {
+            prompt_cmd::show_prompt(&resolved.repo_root, &p.name, p.raw)?;
+        }
+        PromptCommand::Export(p) => {
+            prompt_cmd::export_prompts(&resolved.repo_root, p.name.as_deref(), p.force)?;
+        }
+        PromptCommand::Sync(p) => {
+            prompt_cmd::sync_prompts(&resolved.repo_root, p.dry_run, p.force)?;
+        }
+        PromptCommand::Diff(p) => {
+            prompt_cmd::diff_prompt(&resolved.repo_root, &p.name)?;
+        }
     }
 
     Ok(())
@@ -113,8 +130,8 @@ fn parse_phase(s: &str) -> Result<promptflow::RunPhase, String> {
 
 #[derive(Args)]
 #[command(
-    about = "Render and print compiled prompts (preview what the agent will see)",
-    after_long_help = "This command prints the final compiled prompt after:\n  - loading embedded or overridden templates\n  - expanding config/env variables\n  - injecting project-type guidance\n  - applying phase wrappers and RepoPrompt requirements\n\nExamples:\n  ralph prompt worker --phase 1 --repo-prompt plan\n  ralph prompt worker --single\n  ralph prompt worker --phase 2 --iteration-index 2 --iterations 3\n  ralph prompt scan --focus \"risk audit\" --repo-prompt off\n  ralph prompt task-builder --request \"Add tests\" --tags rust --scope crates/ralph\n"
+    about = "Manage and inspect prompt templates",
+    after_long_help = "Commands to view, export, and sync prompt templates.\n\nPreview compiled prompts (what the agent sees):\n  ralph prompt worker --phase 1 --repo-prompt plan\n  ralph prompt worker --single\n  ralph prompt scan --focus \"risk audit\" --repo-prompt off\n  ralph prompt task-builder --request \"Add tests\"\n\nList and view raw templates:\n  ralph prompt list\n  ralph prompt show worker --raw\n  ralph prompt diff worker\n\nExport and sync templates:\n  ralph prompt export --all\n  ralph prompt export worker\n  ralph prompt sync --dry-run\n  ralph prompt sync --force\n"
 )]
 pub struct PromptArgs {
     #[command(subcommand)]
@@ -123,12 +140,22 @@ pub struct PromptArgs {
 
 #[derive(Subcommand)]
 pub enum PromptCommand {
-    /// Render the worker prompt (single-phase or phase 1/2).
+    /// Render the worker prompt (single-phase or phase 1/2/3).
     Worker(PromptWorkerArgs),
     /// Render the scan prompt.
     Scan(PromptScanArgs),
     /// Render the task-builder prompt.
     TaskBuilder(PromptTaskBuilderArgs),
+    /// List all available prompt templates.
+    List,
+    /// Show a specific prompt template (raw embedded or effective).
+    Show(PromptShowArgs),
+    /// Export embedded prompts to .ralph/prompts/ for customization.
+    Export(PromptExportArgs),
+    /// Sync exported prompts with embedded defaults.
+    Sync(PromptSyncArgs),
+    /// Show diff between user override and embedded default.
+    Diff(PromptDiffArgs),
 }
 
 #[derive(Args)]
@@ -206,4 +233,45 @@ pub struct PromptTaskBuilderArgs {
     /// Print a header explaining what was selected (sources, flags).
     #[arg(long)]
     pub explain: bool,
+}
+
+#[derive(Args)]
+pub struct PromptShowArgs {
+    /// Template name (e.g., worker, worker_phase1, scan).
+    pub name: String,
+
+    /// Show raw embedded content instead of effective (with override).
+    #[arg(long)]
+    pub raw: bool,
+}
+
+#[derive(Args)]
+pub struct PromptExportArgs {
+    /// Template name to export (e.g., worker). If omitted and --all not set, errors.
+    pub name: Option<String>,
+
+    /// Export all templates.
+    #[arg(long)]
+    pub all: bool,
+
+    /// Overwrite existing files.
+    #[arg(long)]
+    pub force: bool,
+}
+
+#[derive(Args)]
+pub struct PromptSyncArgs {
+    /// Preview changes without applying.
+    #[arg(long)]
+    pub dry_run: bool,
+
+    /// Overwrite user modifications without prompting.
+    #[arg(long)]
+    pub force: bool,
+}
+
+#[derive(Args)]
+pub struct PromptDiffArgs {
+    /// Template name to diff (e.g., worker).
+    pub name: String,
 }
