@@ -47,7 +47,7 @@ fn doctor_passes_in_clean_env() -> Result<()> {
     // Setup ralph
     Command::new(ralph_bin())
         .current_dir(dir.path())
-        .args(["init", "--force"])
+        .args(["init", "--force", "--non-interactive"])
         .status()?;
 
     // Setup Makefile
@@ -110,7 +110,7 @@ fn doctor_warns_on_missing_upstream() -> Result<()> {
     // Setup ralph
     Command::new(ralph_bin())
         .current_dir(dir.path())
-        .args(["init", "--force"])
+        .args(["init", "--force", "--non-interactive"])
         .status()?;
 
     // Setup Makefile
@@ -148,7 +148,7 @@ fn doctor_fails_with_nonexistent_runner_binary() -> Result<()> {
     // Setup ralph
     Command::new(ralph_bin())
         .current_dir(dir.path())
-        .args(["init", "--force"])
+        .args(["init", "--force", "--non-interactive"])
         .status()?;
 
     // Setup Makefile
@@ -186,7 +186,7 @@ fn doctor_fails_with_nonexistent_gemini_binary() -> Result<()> {
 
     Command::new(ralph_bin())
         .current_dir(dir.path())
-        .args(["init", "--force"])
+        .args(["init", "--force", "--non-interactive"])
         .status()?;
 
     // Setup Makefile
@@ -221,7 +221,7 @@ fn doctor_fails_with_nonexistent_claude_binary() -> Result<()> {
 
     Command::new(ralph_bin())
         .current_dir(dir.path())
-        .args(["init", "--force"])
+        .args(["init", "--force", "--non-interactive"])
         .status()?;
 
     // Setup Makefile
@@ -256,7 +256,7 @@ fn doctor_fails_with_invalid_done_archive() -> Result<()> {
 
     Command::new(ralph_bin())
         .current_dir(dir.path())
-        .args(["init", "--force"])
+        .args(["init", "--force", "--non-interactive"])
         .status()?;
 
     // Setup Makefile
@@ -295,7 +295,7 @@ fn doctor_warns_when_instruction_files_missing() -> Result<()> {
     // Setup ralph
     Command::new(ralph_bin())
         .current_dir(dir.path())
-        .args(["init", "--force"])
+        .args(["init", "--force", "--non-interactive"])
         .status()?;
 
     // Setup Makefile
@@ -331,7 +331,7 @@ fn doctor_passes_with_runner_that_only_supports_help() -> Result<()> {
 
     Command::new(ralph_bin())
         .current_dir(dir.path())
-        .args(["init", "--force"])
+        .args(["init", "--force", "--non-interactive"])
         .status()?;
 
     // Setup Makefile
@@ -400,7 +400,7 @@ fn doctor_passes_with_runner_that_only_supports_v_flag() -> Result<()> {
 
     Command::new(ralph_bin())
         .current_dir(dir.path())
-        .args(["init", "--force"])
+        .args(["init", "--force", "--non-interactive"])
         .status()?;
 
     // Setup Makefile
@@ -471,7 +471,7 @@ fn doctor_fails_with_runner_that_has_no_valid_flags() -> Result<()> {
 
     Command::new(ralph_bin())
         .current_dir(dir.path())
-        .args(["init", "--force"])
+        .args(["init", "--force", "--non-interactive"])
         .status()?;
 
     // Setup Makefile
@@ -533,7 +533,7 @@ fn doctor_error_includes_config_key_hint() -> Result<()> {
 
     Command::new(ralph_bin())
         .current_dir(dir.path())
-        .args(["init", "--force"])
+        .args(["init", "--force", "--non-interactive"])
         .status()?;
 
     // Setup Makefile
