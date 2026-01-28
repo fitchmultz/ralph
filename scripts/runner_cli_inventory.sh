@@ -2,14 +2,19 @@
 # runner_cli_inventory.sh
 #
 # Responsible for capturing `--help` (and best-effort `--version`) output for the
-# runner CLIs Ralph uses: `codex`, `opencode`, `gemini`, `claude`, and Cursor's
+# runner CLIs Ralph uses: `codex`, `opencode`, `gemini`, `claude`, `kimi`, `pi`, and Cursor's
 # `agent`. Outputs are written into a stable directory structure to support
 # Phase 2 discovery and later Phase 3 runner unification work.
+#
+# Subcommand discovery:
+# - After capturing base `--help`, the script attempts to parse subcommands from the output
+# - It then runs `<runner> <subcommand> --help` for each discovered subcommand
+# - This process is generic and works for all runners without hardcoded lists
 #
 # Does NOT:
 # - Validate that a runner is correctly configured/authenticated
 # - Execute any runner workloads beyond help/version commands
-# - Parse or interpret help text (that belongs in docs/runner_cli_inventory.md)
+# - Parse or interpret help text beyond extracting subcommand names
 #
 # Assumptions / invariants:
 # - Runner binaries are either on PATH or provided via `--bin NAME=PATH`
@@ -24,6 +29,7 @@ usage() {
 runner_cli_inventory.sh
 
 Capture `--help` (and best-effort `--version`) outputs for runner binaries used by Ralph.
+Automatically discovers and captures subcommand help as well.
 
 USAGE:
   scripts/runner_cli_inventory.sh [--out DIR] [--bin NAME=PATH]...
@@ -37,7 +43,7 @@ OPTIONS:
       Override a runner binary name/path.
       May be provided multiple times.
 
-      NAME must be one of: codex, opencode, gemini, claude, agent
+      NAME must be one of: codex, opencode, gemini, claude, kimi, pi, agent
 
   -h, --help
       Print this help.
@@ -49,7 +55,9 @@ OUTPUT:
   Including:
     resolved_path.txt
     version.txt (best effort)
-    help.*.txt (one per captured help command)
+    help.base.txt (main --help output)
+    help.<subcommand>.txt (one per discovered subcommand)
+    <runner>.md (consolidated file with all of the above)
 
 EXAMPLES:
   scripts/runner_cli_inventory.sh
@@ -65,6 +73,8 @@ BIN_OVERRIDE_OPENCODE=""
 BIN_OVERRIDE_GEMINI=""
 BIN_OVERRIDE_CLAUDE=""
 BIN_OVERRIDE_AGENT=""
+BIN_OVERRIDE_KIMI=""
+BIN_OVERRIDE_PI=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -81,9 +91,9 @@ while [[ $# -gt 0 ]]; do
       name="${kv%%=*}"
       path="${kv#*=}"
       case "$name" in
-        codex|opencode|gemini|claude|agent) ;;
+        codex|opencode|gemini|claude|kimi|pi|agent) ;;
         *)
-          echo "ERROR: --bin NAME must be one of: codex, opencode, gemini, claude, agent (got: '$name')" >&2
+          echo "ERROR: --bin NAME must be one of: codex, opencode, gemini, claude, kimi, agent (got: '$name')" >&2
           exit 2
           ;;
       esac
@@ -93,6 +103,8 @@ while [[ $# -gt 0 ]]; do
         gemini) BIN_OVERRIDE_GEMINI="$path" ;;
         claude) BIN_OVERRIDE_CLAUDE="$path" ;;
         agent) BIN_OVERRIDE_AGENT="$path" ;;
+        kimi) BIN_OVERRIDE_KIMI="$path" ;;
+        pi) BIN_OVERRIDE_PI="$path" ;;
       esac
       shift 2
       ;;
@@ -127,7 +139,7 @@ run_and_capture() {
     echo "=== cmd: $*"
     echo "=== captured_at: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
     echo
-    "$@" 2>&1
+    "$@" < /dev/null 2>&1
     cmd_status=$?
     echo
     if [[ "$cmd_status" -ne 0 ]]; then
@@ -208,6 +220,12 @@ resolve_bin() {
         return 0
       fi
       ;;
+    kimi)
+      if [[ -n "$BIN_OVERRIDE_KIMI" ]]; then
+        echo "$BIN_OVERRIDE_KIMI"
+        return 0
+      fi
+      ;;
   esac
   if command -v "$runner" >/dev/null 2>&1; then
     command -v "$runner"
@@ -229,10 +247,204 @@ write_resolved_path() {
   } > "$dir/resolved_path.txt"
 }
 
-# We intentionally include subcommand helps relevant to Ralph’s current usage:
-# - codex: `exec`, `exec resume`
-# - opencode: `run`
-declare -a RUNNERS=("codex" "opencode" "gemini" "claude" "agent")
+# Extract subcommands from help output.
+# Reads from stdin (help text) and outputs one subcommand per line.
+# Handles multiple common CLI help formats.
+extract_subcommands() {
+  local in_commands_section=0
+  local line
+
+  while IFS= read -r line; do
+    # Skip metadata lines (lines starting with === which we add to captured output)
+    if [[ "$line" =~ ^=== ]]; then
+      continue
+    fi
+
+    # Check for section headers that indicate command listings
+    # Patterns: "Commands:", "Commands ─", "COMMANDS", "Subcommands:"
+    if [[ "$line" =~ ^([Cc]ommands?|COMMANDS|SUBCOMMANDS?)[[:space:]:─] ]]; then
+      in_commands_section=1
+      continue
+    fi
+
+    # Rich TUI format section header (╭─ Commands ───╮)
+    if [[ "$line" =~ ^╭.*[Cc]ommands?.*─*╮ ]]; then
+      in_commands_section=1
+      continue
+    fi
+
+    # Check for section enders
+    if [[ $in_commands_section -eq 1 ]]; then
+      # End of commands section detection - these headers indicate end of commands
+      if [[ "$line" =~ ^([Oo]ptions?|OPTIONS|ARGUMENTS|Positionals|POSITIONALS|Global[[:space:]]options|GLOBAL[[:space:]]OPTIONS|Flags?): ]]; then
+        # Next section started
+        in_commands_section=0
+        continue
+      elif [[ "$line" =~ ^╭.* ]]; then
+        # Any new rich TUI box section ends the commands section
+        in_commands_section=0
+        continue
+      fi
+    fi
+
+    if [[ $in_commands_section -eq 1 ]]; then
+      local cmd=""
+
+      # Pattern 1: Rich TUI format like "│ login    Description... │"
+      # Skip header/footer lines
+      if [[ "$line" =~ ^[[:space:]]*╭ ]] || [[ "$line" =~ ^[[:space:]]*╰ ]]; then
+        continue
+      fi
+      # Match lines with box drawing characters
+      if [[ "$line" =~ [│┃] ]]; then
+        # Extract content between vertical bars
+        local content
+        content=$(echo "$line" | sed -E 's/^[[:space:]]*[│┃][[:space:]]*//; s/[[:space:]]*[│┃][[:space:]]*$//')
+        # First word is the command
+        cmd=$(echo "$content" | awk '{print $1}')
+      fi
+
+      # Pattern 2: Standard format like "  command    description"
+      # or "  opencode command    description" (where command is the actual subcommand)
+      # Only match lines starting with exactly 2 spaces (not more, which indicates wrapped text)
+      if [[ -z "$cmd" ]]; then
+        # First, try to match "  toolname command  description" format
+        # The command is followed by either: space(s) then description, bracket/angle bracket (for args), or end of line
+        if [[ "$line" =~ ^[[:space:]]{2}(opencode|gemini|codex|claude|kimi|pi|agent)[[:space:]]+([a-z][a-z0-9_-]*)[[:space:]]+ ]]; then
+          # Second word is the actual command (extract before any brackets)
+          local second_word="${BASH_REMATCH[2]}"
+          cmd="${second_word%%[\[\<\|]*}"
+        # Then try "  command    description" format (at least 2 spaces before description)
+        elif [[ "$line" =~ ^[[:space:]]{2}([a-z][a-z0-9_-]*)[[:space:]]{2,} ]]; then
+          cmd="${BASH_REMATCH[1]}"
+        fi
+      fi
+
+      # Validate the command looks reasonable
+      if [[ -n "$cmd" ]]; then
+        # Skip common false positives and metadata patterns
+        case "$cmd" in
+          -h|--help|--version|-V|Usage|usage|Options|options|Commands|commands|Arguments|arguments)
+            continue
+            ;;
+        esac
+        # Skip lines that look like timestamps or metadata
+        if [[ "$cmd" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T ]]; then
+          continue
+        fi
+        # Only output valid-looking commands (lowercase, hyphens, numbers)
+        if [[ "$cmd" =~ ^[a-z][a-z0-9_-]*$ ]]; then
+          echo "$cmd"
+        fi
+      fi
+    fi
+  done | sort -u
+}
+
+# Capture help for all discovered subcommands
+capture_subcommand_helps() {
+  local runner="$1"
+  local bin="$2"
+  local help_file="$OUT_DIR/$runner/help.base.txt"
+
+  if [[ ! -f "$help_file" ]]; then
+    return 0
+  fi
+
+  echo "    discovering subcommands from help.base.txt..."
+
+  # Extract subcommands from the captured help, filtering out the runner name
+  local subcommands
+  subcommands=$(extract_subcommands < "$help_file" | grep -v "^${runner}$" || true)
+
+  if [[ -z "$subcommands" ]]; then
+    echo "    no subcommands discovered"
+    return 0
+  fi
+
+  local count=0
+  while IFS= read -r subcmd; do
+    # Skip empty lines
+    [[ -z "$subcmd" ]] && continue
+
+    echo "    capturing: $subcmd --help"
+    run_and_capture "$runner" "$subcmd" "$bin" "$subcmd" "--help" || true
+    count=$((count + 1))
+  done < <(echo "$subcommands")
+
+  echo "    captured $count subcommand(s)"
+}
+
+# Create a consolidated markdown file with all captured info for a runner
+create_consolidated_file() {
+  local runner="$1"
+  local runner_dir="$OUT_DIR/$runner"
+  local consolidated_file="$runner_dir/${runner}.md"
+
+  if [[ ! -d "$runner_dir" ]]; then
+    return 0
+  fi
+
+  {
+    echo "# ${runner} CLI Inventory"
+    echo ""
+    echo "Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+    echo ""
+
+    # Section 1: Resolved path
+    if [[ -f "$runner_dir/resolved_path.txt" ]]; then
+      echo "## Binary Path"
+      echo ""
+      echo "\`\`\`"
+      cat "$runner_dir/resolved_path.txt"
+      echo "\`\`\`"
+      echo ""
+    fi
+
+    # Section 2: Version
+    if [[ -f "$runner_dir/version.txt" ]]; then
+      echo "## Version"
+      echo ""
+      echo "\`\`\`"
+      cat "$runner_dir/version.txt"
+      echo "\`\`\`"
+      echo ""
+    fi
+
+    # Section 3: Base help
+    if [[ -f "$runner_dir/help.base.txt" ]]; then
+      echo "## Base Help (--help)"
+      echo ""
+      echo "\`\`\`"
+      cat "$runner_dir/help.base.txt"
+      echo "\`\`\`"
+      echo ""
+    fi
+
+    # Section 4: Subcommand helps
+    local subcmd_files
+    subcmd_files=$(find "$runner_dir" -name 'help.*.txt' ! -name 'help.base.txt' | sort)
+    if [[ -n "$subcmd_files" ]]; then
+      echo "## Subcommand Helps"
+      echo ""
+      while IFS= read -r subcmd_file; do
+        local subcmd_name
+        subcmd_name=$(basename "$subcmd_file" .txt | sed 's/help\.//')
+        echo "### ${subcmd_name}"
+        echo ""
+        echo "\`\`\`"
+        cat "$subcmd_file"
+        echo "\`\`\`"
+        echo ""
+      done <<< "$subcmd_files"
+    fi
+
+  } > "$consolidated_file"
+
+  echo "    consolidated: ${runner}.md"
+}
+
+declare -a RUNNERS=("codex" "opencode" "gemini" "claude" "kimi" "pi" "agent")
 
 echo "Runner CLI inventory: start"
 echo "Output dir: $OUT_DIR"
@@ -258,25 +470,11 @@ for runner in "${RUNNERS[@]}"; do
     continue
   fi
 
-  # Runner-specific subcommand help captures (non-fatal if unsupported).
-  case "$runner" in
-    codex)
-      run_and_capture "$runner" "exec" "$bin" "exec" "--help" || true
-      run_and_capture "$runner" "exec_resume" "$bin" "exec" "resume" "--help" || true
-      ;;
-    opencode)
-      run_and_capture "$runner" "run" "$bin" "run" "--help" || true
-      ;;
-    agent)
-      # Cursor `agent` CLI may have subcommands; try common ones non-fatally.
-      run_and_capture "$runner" "run" "$bin" "run" "--help" || true
-      run_and_capture "$runner" "resume" "$bin" "resume" "--help" || true
-      ;;
-    gemini|claude)
-      # Some CLIs expose subcommands; harmless to attempt non-fatally.
-      run_and_capture "$runner" "resume" "$bin" "resume" "--help" || true
-      ;;
-  esac
+  # Discover and capture subcommand helps from the base help output
+  capture_subcommand_helps "$runner" "$bin"
+
+  # Create consolidated file
+  create_consolidated_file "$runner"
 
   echo "    captured: $OUT_DIR/$runner/"
   echo

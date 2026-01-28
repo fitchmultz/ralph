@@ -31,6 +31,20 @@ fn inventory_script_path(repo_root: &Path) -> PathBuf {
 }
 
 fn fake_runner_script(runner: &str) -> String {
+    // Define runner-specific subcommands for help discovery
+    let commands_section = match runner {
+        "codex" => r#"Commands:
+  exec        Run Codex non-interactively
+  exec resume Resume a previous session
+  help        Print help
+"#,
+        "opencode" => r#"Commands:
+  run         Run with a message
+  help        Show help
+"#,
+        _ => "", // Other runners have no subcommands
+    };
+
     format!(
         r#"#!/usr/bin/env bash
 set -euo pipefail
@@ -54,11 +68,16 @@ fi
 
 if [[ "${{*: -1}}" == "--help" ]]; then
   echo "${{runner}} help: $*"
+  if [[ -n "{commands}" ]]; then
+    echo ""
+    echo "{commands}"
+  fi
   exit 0
 fi
 
 echo "${{runner}} invoked: $*"
-"#
+"#,
+        commands = commands_section
     )
 }
 
@@ -106,17 +125,23 @@ fn inventory_succeeds_with_fake_runners() -> Result<()> {
         );
     }
 
+    // Subcommands are auto-discovered from the help output
     anyhow::ensure!(
         out_dir.join("codex/help.exec.txt").exists(),
         "missing codex exec help capture"
     );
     anyhow::ensure!(
-        out_dir.join("codex/help.exec_resume.txt").exists(),
-        "missing codex exec resume help capture"
-    );
-    anyhow::ensure!(
         out_dir.join("opencode/help.run.txt").exists(),
         "missing opencode run help capture"
+    );
+    // Check for consolidated files (new output format)
+    anyhow::ensure!(
+        out_dir.join("codex/codex.md").exists(),
+        "missing codex consolidated markdown file"
+    );
+    anyhow::ensure!(
+        out_dir.join("opencode/opencode.md").exists(),
+        "missing opencode consolidated markdown file"
     );
 
     Ok(())
