@@ -2,48 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0327",
-      "status": "todo",
-      "title": "TUI: direct set-status/set-priority commands + optional auto-archive on terminal",
-      "priority": "medium",
-      "tags": [
-        "tui",
-        "ux",
-        "queue",
-        "palette"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/events/palette.rs",
-        "crates/ralph/src/tui/app.rs",
-        "crates/ralph/src/tui/task_edit.rs",
-        "docs/tui-task-management.md",
-        "crates/ralph/src/tui/events/tests.rs",
-        "make ci"
-      ],
-      "evidence": [
-        "`crates/ralph/src/tui/task_edit.rs`: task status and priority updates are currently “cycle” only (`cycle_status` / `cycle_priority`).",
-        "`crates/ralph/src/tui/app.rs`: archiving terminal tasks is a separate explicit command (`archive_terminal_tasks`).",
-        "`docs/tui-task-management.md`: notes the TUI requires a 2-step “set terminal status then archive” workflow and suggests auto-archive / direct set-status as improvements."
-      ],
-      "plan": [
-        "Add palette commands for setting an explicit status (Draft/Todo/Doing/Done/Rejected) and priority (Critical/High/Medium/Low).",
-        "Implement explicit set operations (not cycling) using the queue edit APIs.",
-        "Add an optional prompt (or config toggle) to archive immediately when setting Done/Rejected.",
-        "Add tests for explicit set-status/set-priority and the auto-archive/prompt flow.",
-        "Update docs and help key reference accordingly.",
-        "Run `make ci`."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "agent": {
-        "model_effort": "medium"
-      },
-      "created_at": "2026-01-27T04:35:15Z",
-      "updated_at": "2026-01-27T04:35:15Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0329",
       "status": "todo",
       "title": "TUI: add a mode/status bar for discoverability (mode, dirty/save, filters)",

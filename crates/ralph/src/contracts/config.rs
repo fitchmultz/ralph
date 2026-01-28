@@ -40,6 +40,9 @@ pub struct Config {
 
     /// Agent runner defaults (Claude, Codex, OpenCode, Gemini, or Cursor).
     pub agent: AgentConfig,
+
+    /// TUI-specific configuration.
+    pub tui: TuiConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
@@ -494,6 +497,48 @@ impl std::str::FromStr for GitRevertMode {
     }
 }
 
+/// Behavior for auto-archiving terminal tasks (Done/Rejected) when set via TUI.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum AutoArchiveBehavior {
+    /// Never auto-archive (current behavior).
+    #[default]
+    Never,
+    /// Ask before archiving.
+    Prompt,
+    /// Archive immediately without prompt.
+    Always,
+}
+
+impl std::str::FromStr for AutoArchiveBehavior {
+    type Err = &'static str;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value.trim().to_lowercase().as_str() {
+            "never" => Ok(AutoArchiveBehavior::Never),
+            "prompt" => Ok(AutoArchiveBehavior::Prompt),
+            "always" => Ok(AutoArchiveBehavior::Always),
+            _ => Err("auto_archive_behavior must be 'never', 'prompt', or 'always'"),
+        }
+    }
+}
+
+/// TUI-specific configuration.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
+#[serde(default, deny_unknown_fields)]
+pub struct TuiConfig {
+    /// Auto-archive behavior for terminal tasks (Done/Rejected) when set via TUI.
+    pub auto_archive_terminal: Option<AutoArchiveBehavior>,
+}
+
+impl TuiConfig {
+    pub fn merge_from(&mut self, other: Self) {
+        if other.auto_archive_terminal.is_some() {
+            self.auto_archive_terminal = other.auto_archive_terminal;
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum Model {
     #[default]
@@ -663,6 +708,7 @@ impl Default for Config {
                 git_commit_push_enabled: Some(true),
                 update_task_before_run: Some(false),
             },
+            tui: TuiConfig::default(),
         }
     }
 }

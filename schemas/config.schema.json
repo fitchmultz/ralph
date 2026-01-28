@@ -87,6 +87,17 @@
         }
       ]
     },
+    "tui": {
+      "description": "TUI-specific configuration.",
+      "default": {
+        "auto_archive_terminal": null
+      },
+      "allOf": [
+        {
+          "$ref": "#/definitions/TuiConfig"
+        }
+      ]
+    },
     "version": {
       "description": "Schema version for config.",
       "default": 1,
@@ -306,6 +317,32 @@
         }
       },
       "additionalProperties": false
+    },
+    "AutoArchiveBehavior": {
+      "description": "Behavior for auto-archiving terminal tasks (Done/Rejected) when set via TUI.",
+      "oneOf": [
+        {
+          "description": "Never auto-archive (current behavior).",
+          "type": "string",
+          "enum": [
+            "never"
+          ]
+        },
+        {
+          "description": "Ask before archiving.",
+          "type": "string",
+          "enum": [
+            "prompt"
+          ]
+        },
+        {
+          "description": "Archive immediately without prompt.",
+          "type": "string",
+          "enum": [
+            "always"
+          ]
+        }
+      ]
     },
     "ClaudePermissionMode": {
       "type": "string",
@@ -579,6 +616,25 @@
         "normal",
         "verbose"
       ]
+    },
+    "TuiConfig": {
+      "description": "TUI-specific configuration.",
+      "type": "object",
+      "properties": {
+        "auto_archive_terminal": {
+          "description": "Auto-archive behavior for terminal tasks (Done/Rejected) when set via TUI.",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/AutoArchiveBehavior"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
     },
     "UnsupportedOptionPolicy": {
       "type": "string",

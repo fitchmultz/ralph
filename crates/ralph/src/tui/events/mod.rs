@@ -79,6 +79,9 @@ pub fn handle_key_event(
         }
         AppMode::ConfirmDelete => confirm::handle_confirm_delete_key(app, key),
         AppMode::ConfirmArchive => confirm::handle_confirm_archive_key(app, key, now_rfc3339),
+        AppMode::ConfirmAutoArchive(task_id) => {
+            confirm::handle_confirm_auto_archive_key(app, key, &task_id, now_rfc3339)
+        }
         AppMode::ConfirmQuit => confirm::handle_confirm_quit_key(app, key),
         AppMode::ConfirmDiscard { action } => confirm::handle_confirm_discard_key(app, key, action),
         AppMode::ConfirmRevert {

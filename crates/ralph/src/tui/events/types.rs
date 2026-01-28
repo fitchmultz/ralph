@@ -83,6 +83,8 @@ pub enum AppMode {
     ConfirmDelete,
     /// Confirming archive of done/rejected tasks
     ConfirmArchive,
+    /// Confirming auto-archive of a single terminal task
+    ConfirmAutoArchive(String),
     /// Confirming quit while a task is running
     ConfirmQuit,
     /// Confirming discard of unsaved changes before reload/quit.
@@ -211,6 +213,7 @@ impl PartialEq for AppMode {
             ) => left_query == right_query && left_selected == right_selected,
             (ConfirmDelete, ConfirmDelete) => true,
             (ConfirmArchive, ConfirmArchive) => true,
+            (ConfirmAutoArchive(left), ConfirmAutoArchive(right)) => left == right,
             (ConfirmQuit, ConfirmQuit) => true,
             (ConfirmDiscard { action: left }, ConfirmDiscard { action: right }) => left == right,
             (

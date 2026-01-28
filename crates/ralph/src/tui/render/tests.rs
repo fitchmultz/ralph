@@ -632,7 +632,7 @@ fn command_palette_scrolls_selected_entry_into_view() {
     let mut app = App::new(QueueFile::default());
     app.mode = AppMode::CommandPalette {
         query: TextInput::new(""),
-        selected: 16,
+        selected: 25,
     };
 
     terminal

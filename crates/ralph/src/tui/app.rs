@@ -16,6 +16,7 @@
 
 use crate::config::ConfigLayer;
 use crate::contracts::{QueueFile, Task, TaskPriority, TaskStatus};
+use crate::queue::TaskEditKey;
 use crate::{config as crate_config, lock, queue, runutil, timeutil};
 use anyhow::{anyhow, bail, Context, Result};
 use crossterm::{
@@ -900,6 +901,95 @@ impl App {
         Ok(moved_count)
     }
 
+    /// Archive a single terminal task (Done/Rejected) into the done queue.
+    pub fn archive_single_task(&mut self, task_id: &str, now_rfc3339: &str) -> Result<()> {
+        let idx = self
+            .queue
+            .tasks
+            .iter()
+            .position(|t| t.id == task_id)
+            .ok_or_else(|| anyhow!("Task not found: {}", task_id))?;
+
+        let task = &self.queue.tasks[idx];
+        if !matches!(task.status, TaskStatus::Done | TaskStatus::Rejected) {
+            return Err(anyhow!(
+                "Task {} is not in a terminal status (Done/Rejected)",
+                task_id
+            ));
+        }
+
+        let mut task = self.queue.tasks.remove(idx);
+        task.updated_at = Some(now_rfc3339.to_string());
+        self.done.tasks.push(task);
+
+        self.dirty = true;
+        self.dirty_done = true;
+        self.bump_queue_rev();
+        self.rebuild_filtered_view();
+
+        Ok(())
+    }
+
+    /// Set the status of the selected task to a specific value.
+    fn set_task_status(&mut self, status: &str, now_rfc3339: &str) {
+        let Some(task_id) = self.selected_task().map(|t| t.id.clone()) else {
+            self.set_status_message("No task selected");
+            return;
+        };
+
+        if let Err(e) = self.apply_task_edit(TaskEditKey::Status, status, now_rfc3339) {
+            self.set_status_message(format!("Error: {}", e));
+            return;
+        }
+
+        self.set_status_message(format!("Set status to {}", status));
+
+        // Check for auto-archive if terminal status
+        if status == "done" || status == "rejected" {
+            if let Err(e) = self.maybe_auto_archive(&task_id, now_rfc3339) {
+                self.set_status_message(format!("Error: {}", e));
+            }
+        }
+    }
+
+    /// Set the priority of the selected task to a specific value.
+    fn set_task_priority(&mut self, priority: &str, now_rfc3339: &str) {
+        if self.selected_task().is_none() {
+            self.set_status_message("No task selected");
+            return;
+        }
+
+        if let Err(e) = self.apply_task_edit(TaskEditKey::Priority, priority, now_rfc3339) {
+            self.set_status_message(format!("Error: {}", e));
+        } else {
+            self.set_status_message(format!("Set priority to {}", priority));
+        }
+    }
+
+    /// Check if auto-archive should be triggered and handle it based on config.
+    fn maybe_auto_archive(&mut self, task_id: &str, now_rfc3339: &str) -> Result<()> {
+        use crate::contracts::AutoArchiveBehavior;
+
+        let behavior = self
+            .project_config
+            .tui
+            .auto_archive_terminal
+            .unwrap_or_default();
+
+        match behavior {
+            AutoArchiveBehavior::Never => Ok(()),
+            AutoArchiveBehavior::Always => {
+                self.archive_single_task(task_id, now_rfc3339)?;
+                self.set_status_message(format!("Archived {}", task_id));
+                Ok(())
+            }
+            AutoArchiveBehavior::Prompt => {
+                self.mode = AppMode::ConfirmAutoArchive(task_id.to_string());
+                Ok(())
+            }
+        }
+    }
+
     /// Cycle the active status filter.
     pub fn cycle_status_filter(&mut self) {
         let preferred_id = self.selected_task().map(|t| t.id.clone());
@@ -1222,6 +1312,42 @@ impl App {
                 title: "Cycle selected task priority".to_string(),
             },
             PaletteEntry {
+                cmd: PaletteCommand::SetStatusDraft,
+                title: "Set status: Draft".to_string(),
+            },
+            PaletteEntry {
+                cmd: PaletteCommand::SetStatusTodo,
+                title: "Set status: Todo".to_string(),
+            },
+            PaletteEntry {
+                cmd: PaletteCommand::SetStatusDoing,
+                title: "Set status: Doing".to_string(),
+            },
+            PaletteEntry {
+                cmd: PaletteCommand::SetStatusDone,
+                title: "Set status: Done".to_string(),
+            },
+            PaletteEntry {
+                cmd: PaletteCommand::SetStatusRejected,
+                title: "Set status: Rejected".to_string(),
+            },
+            PaletteEntry {
+                cmd: PaletteCommand::SetPriorityCritical,
+                title: "Set priority: Critical".to_string(),
+            },
+            PaletteEntry {
+                cmd: PaletteCommand::SetPriorityHigh,
+                title: "Set priority: High".to_string(),
+            },
+            PaletteEntry {
+                cmd: PaletteCommand::SetPriorityMedium,
+                title: "Set priority: Medium".to_string(),
+            },
+            PaletteEntry {
+                cmd: PaletteCommand::SetPriorityLow,
+                title: "Set priority: Low".to_string(),
+            },
+            PaletteEntry {
                 cmd: PaletteCommand::ToggleCaseSensitive,
                 title: "Toggle case-sensitive search".to_string(),
             },
@@ -1406,6 +1532,42 @@ impl App {
                 } else {
                     self.set_status_message("Priority updated");
                 }
+                Ok(TuiAction::Continue)
+            }
+            PaletteCommand::SetStatusDraft => {
+                self.set_task_status("draft", now_rfc3339);
+                Ok(TuiAction::Continue)
+            }
+            PaletteCommand::SetStatusTodo => {
+                self.set_task_status("todo", now_rfc3339);
+                Ok(TuiAction::Continue)
+            }
+            PaletteCommand::SetStatusDoing => {
+                self.set_task_status("doing", now_rfc3339);
+                Ok(TuiAction::Continue)
+            }
+            PaletteCommand::SetStatusDone => {
+                self.set_task_status("done", now_rfc3339);
+                Ok(TuiAction::Continue)
+            }
+            PaletteCommand::SetStatusRejected => {
+                self.set_task_status("rejected", now_rfc3339);
+                Ok(TuiAction::Continue)
+            }
+            PaletteCommand::SetPriorityCritical => {
+                self.set_task_priority("critical", now_rfc3339);
+                Ok(TuiAction::Continue)
+            }
+            PaletteCommand::SetPriorityHigh => {
+                self.set_task_priority("high", now_rfc3339);
+                Ok(TuiAction::Continue)
+            }
+            PaletteCommand::SetPriorityMedium => {
+                self.set_task_priority("medium", now_rfc3339);
+                Ok(TuiAction::Continue)
+            }
+            PaletteCommand::SetPriorityLow => {
+                self.set_task_priority("low", now_rfc3339);
                 Ok(TuiAction::Continue)
             }
             PaletteCommand::ToggleCaseSensitive => {

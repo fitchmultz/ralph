@@ -53,6 +53,8 @@ Filters & Search:
 Quick Changes:
 - `s`: cycle selected task status
 - `p`: cycle selected task priority
+- `S`: set selected task status (via palette)
+- `P`: set selected task priority (via palette)
 
 In **Execution view** (while a task is running):
 - `Esc`: return to task list
@@ -251,6 +253,42 @@ estimate=2h
 - `a` → confirm `y`
 Moves all terminal tasks from active queue into done archive.
 
+### Set status directly (without cycling)
+- Press `:` and type "set status"
+- Choose from: Draft, Todo, Doing, Done, Rejected
+- Or use palette commands directly:
+  - "Set status: Draft"
+  - "Set status: Todo"
+  - "Set status: Doing"
+  - "Set status: Done"
+  - "Set status: Rejected"
+
+### Set priority directly (without cycling)
+- Press `:` and type "set priority"
+- Choose from: Critical, High, Medium, Low
+- Or use palette commands directly:
+  - "Set priority: Critical"
+  - "Set priority: High"
+  - "Set priority: Medium"
+  - "Set priority: Low"
+
+### Auto-archive configuration
+The TUI supports optional auto-archive behavior when setting tasks to Done/Rejected.
+Configure via `.ralph/config.json`:
+
+```json
+{
+  "tui": {
+    "auto_archive_terminal": "never"
+  }
+}
+```
+
+Values:
+- `"never"` (default): No auto-archive; tasks remain in queue until you press `a`.
+- `"prompt"`: Ask for confirmation before archiving when setting Done/Rejected.
+- `"always"`: Archive immediately when setting Done/Rejected (no confirmation).
+
 ### Edit any task field
 - Select task → `e`
 - Navigate with `j/k` (or arrows)
@@ -284,9 +322,12 @@ Editable fields include (at least):
    - TUI now supports runner/model/effort/tags/scope/repo-prompt overrides.
    - Press `N`, enter description, then configure advanced options.
 
-4. **Done/Rejected are not auto-archived**
-   - CLI `done/reject` immediately moves tasks to `done.json`.
-   - TUI requires explicit archive (`a`) after setting terminal status.
+4. ~~**Done/Rejected are not auto-archived**~~ ✅ **RESOLVED**
+   - TUI now supports direct set-status commands via palette (`:` → "Set status: ...").
+   - Config option `tui.auto_archive_terminal` controls auto-archive behavior:
+     - `"never"` (default): No auto-archive; use `a` to archive manually.
+     - `"prompt"`: Ask before archiving when setting Done/Rejected.
+     - `"always"`: Archive immediately when setting Done/Rejected.
 
 ---
 
@@ -294,15 +335,14 @@ Editable fields include (at least):
 
 If you want the TUI to mirror the CLI UX more closely, consider:
 
-1. **Auto-archive on terminal status**
-   - When cycling status into Done/Rejected, optionally prompt:
-     - "Archive now? (y/n)"
-   - Or add a config toggle: `tui.auto_archive_terminal=true`.
+1. ~~**Auto-archive on terminal status**~~ ✅ **IMPLEMENTED**
+   - Config `tui.auto_archive_terminal` controls behavior: `never`, `prompt`, or `always`.
+   - When set to `prompt` or `always`, setting status to Done/Rejected triggers auto-archive.
 
-2. **"Set status to …" palette commands**
-   - Add palette commands:
-     - "Set status: Draft/Todo/Doing/Done/Rejected"
-   - Avoid multi-step cycling when you know the target.
+2. ~~**"Set status to …" palette commands**~~ ✅ **IMPLEMENTED**
+   - Palette commands available: "Set status: Draft/Todo/Doing/Done/Rejected".
+   - Also available: "Set priority: Critical/High/Medium/Low".
+   - Access via `:` and type "set status" or "set priority".
 
 3. ~~**Task builder "advanced" input**~~ ✅ **IMPLEMENTED**
    - TUI now has a two-step task builder flow with override options.

@@ -92,6 +92,48 @@ pub(super) fn handle_confirm_archive_key(
     }
 }
 
+/// Handle key events in ConfirmAutoArchive mode.
+pub(super) fn handle_confirm_auto_archive_key(
+    app: &mut App,
+    key: KeyEvent,
+    task_id: &str,
+    now_rfc3339: &str,
+) -> Result<TuiAction> {
+    match key.code {
+        KeyCode::Char('y') if is_plain_char(&key, 'y') => {
+            if let Err(e) = app.archive_single_task(task_id, now_rfc3339) {
+                app.set_status_message(format!("Error: {}", e));
+            } else {
+                app.set_status_message(format!("Archived {}", task_id));
+            }
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Char('Y') if is_plain_char(&key, 'Y') => {
+            if let Err(e) = app.archive_single_task(task_id, now_rfc3339) {
+                app.set_status_message(format!("Error: {}", e));
+            } else {
+                app.set_status_message(format!("Archived {}", task_id));
+            }
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Char('n') if is_plain_char(&key, 'n') => {
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Char('N') if is_plain_char(&key, 'N') => {
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Esc => {
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        _ => Ok(TuiAction::Continue),
+    }
+}
+
 /// Handle key events in ConfirmQuit mode.
 pub(super) fn handle_confirm_quit_key(app: &mut App, key: KeyEvent) -> Result<TuiAction> {
     match key.code {

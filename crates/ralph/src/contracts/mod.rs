@@ -19,10 +19,10 @@ mod queue;
 mod task;
 
 pub use config::{
-    AgentConfig, ClaudePermissionMode, Config, GitRevertMode, Model, ModelEffort, ProjectType,
-    QueueConfig, ReasoningEffort, Runner, RunnerApprovalMode, RunnerCliConfigRoot,
-    RunnerCliOptionsPatch, RunnerOutputFormat, RunnerPlanMode, RunnerSandboxMode, RunnerVerbosity,
-    UnsupportedOptionPolicy,
+    AgentConfig, AutoArchiveBehavior, ClaudePermissionMode, Config, GitRevertMode, Model,
+    ModelEffort, ProjectType, QueueConfig, ReasoningEffort, Runner, RunnerApprovalMode,
+    RunnerCliConfigRoot, RunnerCliOptionsPatch, RunnerOutputFormat, RunnerPlanMode,
+    RunnerSandboxMode, RunnerVerbosity, TuiConfig, UnsupportedOptionPolicy,
 };
 pub use queue::QueueFile;
 pub use task::{Task, TaskAgent, TaskPriority, TaskStatus};

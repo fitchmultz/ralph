@@ -1,6 +1,6 @@
 //! Configuration resolution for Ralph, including global and project layers.
 
-use crate::contracts::{AgentConfig, Config, ProjectType, QueueConfig};
+use crate::contracts::{AgentConfig, Config, ProjectType, QueueConfig, TuiConfig};
 use crate::fsutil;
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
@@ -27,6 +27,7 @@ pub struct ConfigLayer {
     pub project_type: Option<ProjectType>,
     pub queue: QueueConfig,
     pub agent: AgentConfig,
+    pub tui: TuiConfig,
 }
 
 pub fn resolve_from_cwd() -> Result<Resolved> {
@@ -118,6 +119,7 @@ pub fn apply_layer(mut base: Config, layer: ConfigLayer) -> Result<Config> {
 
     base.queue.merge_from(layer.queue);
     base.agent.merge_from(layer.agent);
+    base.tui.merge_from(layer.tui);
 
     Ok(base)
 }
