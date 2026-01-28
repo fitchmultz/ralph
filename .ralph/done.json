@@ -8323,6 +8323,56 @@
       "completed_at": "2026-01-28T02:24:15.709309000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0348",
+      "status": "done",
+      "title": "Community: add `CONTRIBUTING.md` and `CODE_OF_CONDUCT.md` for public release",
+      "priority": "low",
+      "tags": [
+        "docs",
+        "community"
+      ],
+      "scope": [
+        "CONTRIBUTING.md",
+        "CODE_OF_CONDUCT.md",
+        "README.md",
+        "SECURITY.md",
+        "AGENTS.md",
+        "docs/index.md",
+        "docs/workflow.md",
+        "make ci"
+      ],
+      "evidence": [
+        "Repo root: `CONTRIBUTING.md` is missing.",
+        "Repo root: `CODE_OF_CONDUCT.md` is missing.",
+        "Repo root: `SECURITY.md` exists (reference for contact points and responsible disclosure).",
+        "Repo root: `AGENTS.md` exists (reference for contributor workflow expectations).",
+        "README.md references `docs/index.md` for detailed contribution guidance."
+      ],
+      "plan": [
+        "Add `CONTRIBUTING.md` covering: local workflow (`make ci`), issue triage, PR expectations, and links to AGENTS.md/docs.",
+        "Add `CODE_OF_CONDUCT.md` using a standard template (e.g., Contributor Covenant) with contact from SECURITY.md.",
+        "Update `README.md` to link to new CONTRIBUTING.md and CODE_OF_CONDUCT.md.",
+        "Run `make ci` to validate."
+      ],
+      "notes": [
+        "SECURITY.md already contains vulnerability reporting contact info - reuse for CoC enforcement contact.",
+        "AGENTS.md and docs/workflow.md contain detailed contributor guidance that CONTRIBUTING.md should reference.",
+        "Created CONTRIBUTING.md with development workflow, standards, and submission guidelines",
+        "Created CODE_OF_CONDUCT.md using Contributor Covenant 2.1 template",
+        "Updated README.md to link to new community files",
+        "make ci passes with all 746+ tests green"
+      ],
+      "request": "scan finding",
+      "agent": {
+        "model_effort": "medium"
+      },
+      "created_at": "2026-01-27T18:17:26Z",
+      "updated_at": "2026-01-28T02:32:07.237465000Z",
+      "completed_at": "2026-01-28T02:32:07.237465000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }
