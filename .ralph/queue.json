@@ -510,6 +510,309 @@
       "updated_at": "2026-01-28T04:11:49Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0387",
+      "status": "todo",
+      "title": "Fix duplicate help text in CLI run command",
+      "priority": "medium",
+      "tags": [
+        "bug",
+        "cli",
+        "documentation",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/run.rs"
+      ],
+      "evidence": [
+        "run.rs:119-183 after_long_help contains duplicated content",
+        "Notes section appears twice (lines 128-136 and 145-153)",
+        "To change defaults section appears twice (lines 138-144 and 155-161)",
+        "Creates confusing help output for users"
+      ],
+      "plan": [
+        "Remove duplicate Notes section from after_long_help",
+        "Remove duplicate To change defaults section",
+        "Verify help text renders correctly with 'ralph run --help'",
+        "Check other CLI commands for similar duplication issues",
+        "Run 'make ci' to verify changes"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-28T05:30:00Z",
+      "updated_at": "2026-01-28T05:30:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0388",
+      "status": "todo",
+      "title": "Implement Windows custom sound support in notifications",
+      "priority": "low",
+      "tags": [
+        "enhancement",
+        "windows",
+        "notification",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/src/notification.rs"
+      ],
+      "evidence": [
+        "notification.rs:182-191 play_windows_sound() has unused _custom_path parameter",
+        "Comment acknowledges: 'Custom sounds not yet supported on Windows via this API'",
+        "macOS and Linux have custom sound support; Windows parity is missing"
+      ],
+      "plan": [
+        "Research Windows sound APIs for custom notification sounds",
+        "Implement play_windows_sound() to support custom sound files",
+        "Use Windows API or external tool (afplay equivalent on Windows)",
+        "Test on Windows with various sound file formats",
+        "Update documentation to reflect Windows sound support"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-28T05:30:00Z",
+      "updated_at": "2026-01-28T05:30:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0389",
+      "status": "todo",
+      "title": "Reduce unwrap/expect usage in production code",
+      "priority": "medium",
+      "tags": [
+        "code-quality",
+        "robustness",
+        "refactoring"
+      ],
+      "scope": [
+        "crates/ralph/src/"
+      ],
+      "evidence": [
+        "Found 794 occurrences of unwrap/expect/panic/unreachable across 52 files",
+        "Many are in tests but some in production code could be proper error handling",
+        "Examples: runner/execution/process.rs uses .expect() on mutex locks",
+        "Examples: queue.rs has unwrap_or in format_id for number parsing"
+      ],
+      "plan": [
+        "Audit all unwrap/expect in production code (non-test)",
+        "Replace with proper Result propagation where possible",
+        "Use unwrap_or/unwrap_or_default for cases with sensible defaults",
+        "Add defensive error handling for edge cases",
+        "Run 'make ci' to verify no behavior changes"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-28T05:30:00Z",
+      "updated_at": "2026-01-28T05:30:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0390",
+      "status": "todo",
+      "title": "Add queue file size warning for large task lists",
+      "priority": "low",
+      "tags": [
+        "performance",
+        "ux",
+        "enhancement"
+      ],
+      "scope": [
+        "crates/ralph/src/queue.rs",
+        "crates/ralph/src/commands/queue.rs"
+      ],
+      "evidence": [
+        "Queue loads entire JSON file into memory on every operation",
+        "No warning when queue grows beyond reasonable size",
+        "Large queues (thousands of tasks) may impact performance",
+        "No guidance for users on queue maintenance (pruning/archiving)"
+      ],
+      "plan": [
+        "Add size check when loading queue file",
+        "Warn user if queue.json exceeds threshold (e.g., 1000 tasks or 1MB)",
+        "Suggest running 'ralph queue archive' or 'ralph queue prune'",
+        "Add --quiet flag to suppress warning if desired",
+        "Document queue maintenance best practices"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-28T05:30:00Z",
+      "updated_at": "2026-01-28T05:30:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0391",
+      "status": "todo",
+      "title": "Add validation for task dependency edge cases",
+      "priority": "medium",
+      "tags": [
+        "validation",
+        "queue",
+        "robustness"
+      ],
+      "scope": [
+        "crates/ralph/src/queue/validation.rs"
+      ],
+      "evidence": [
+        "validation.rs:268-385 validates dependencies but has edge case gaps",
+        "No validation that dependencies are not in 'rejected' status",
+        "No warning for deeply nested dependency chains (performance risk)",
+        "No check for dependencies on tasks that will never complete (blocked)"
+      ],
+      "plan": [
+        "Add validation for rejected task dependencies",
+        "Add configurable max dependency depth check",
+        "Warn about dependencies on tasks with no execution path",
+        "Add tests for edge case dependency validations",
+        "Document dependency validation rules"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-28T05:30:00Z",
+      "updated_at": "2026-01-28T05:30:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0392",
+      "status": "todo",
+      "title": "Add export command for task data",
+      "priority": "low",
+      "tags": [
+        "enhancement",
+        "cli",
+        "data-export"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/",
+        "crates/ralph/src/commands/"
+      ],
+      "evidence": [
+        "No way to export task data for external analysis or reporting",
+        "Users may want to export to CSV, JSON, or other formats",
+        "Queue data is JSON but not easily consumable by spreadsheet tools",
+        "Useful for project retrospectives and metrics analysis"
+      ],
+      "plan": [
+        "Create 'ralph export' command with format options",
+        "Support CSV, TSV, and JSON output formats",
+        "Allow filtering by status, tags, date range",
+        "Include all task fields in export",
+        "Add examples to docs/cli.md"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-28T05:30:00Z",
+      "updated_at": "2026-01-28T05:30:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0393",
+      "status": "todo",
+      "title": "Fix TUI app state being too large and unfocused",
+      "priority": "medium",
+      "tags": [
+        "refactoring",
+        "tui",
+        "code-quality"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/app.rs"
+      ],
+      "evidence": [
+        "app.rs is very large (exceeds 110KB, truncated in output)",
+        "App struct handles too many responsibilities",
+        "File size heuristic suggests it should be split (~400 LOC guideline)",
+        "Complexity makes testing and maintenance difficult"
+      ],
+      "plan": [
+        "Extract filter state management to separate module",
+        "Extract palette/command palette logic to separate module",
+        "Extract task builder state to separate module",
+        "Keep app.rs focused on coordination only",
+        "Run 'make ci' to verify no behavior changes"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-28T05:30:00Z",
+      "updated_at": "2026-01-28T05:30:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0394",
+      "status": "todo",
+      "title": "Add dry-run mode for task operations",
+      "priority": "low",
+      "tags": [
+        "enhancement",
+        "cli",
+        "ux",
+        "safety"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/task.rs",
+        "crates/ralph/src/queue/operations/"
+      ],
+      "evidence": [
+        "No way to preview task operations before applying them",
+        "Users may want to see what 'ralph task update' would change",
+        "Risk of unintended modifications to task queue",
+        "Other CLI tools commonly provide --dry-run for safety"
+      ],
+      "plan": [
+        "Add --dry-run flag to task update command",
+        "Add --dry-run flag to task edit command",
+        "Show proposed changes without modifying queue.json",
+        "Use diff-like output to highlight changes",
+        "Document dry-run usage in docs/cli.md"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-28T05:30:00Z",
+      "updated_at": "2026-01-28T05:30:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0395",
+      "status": "todo",
+      "title": "Add task templates for common task types",
+      "priority": "low",
+      "tags": [
+        "enhancement",
+        "ux",
+        "productivity"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/task.rs",
+        "crates/ralph/src/prompts_internal/"
+      ],
+      "evidence": [
+        "Creating tasks from scratch is repetitive",
+        "Common patterns: bug fix, feature, refactor, test, documentation",
+        "Users may want pre-filled templates with appropriate tags/scope",
+        "Would speed up task creation and ensure consistency"
+      ],
+      "plan": [
+        "Create 'ralph task template' subcommand",
+        "Define built-in templates for common task types",
+        "Allow custom templates in .ralph/templates/",
+        "Support template variables (date, user, etc.)",
+        "Add template listing and preview commands"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-28T05:30:00Z",
+      "updated_at": "2026-01-28T05:30:00Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }
