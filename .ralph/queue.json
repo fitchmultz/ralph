@@ -2,39 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0359",
-      "status": "todo",
-      "title": "Fix TUI filter cache not detecting external queue modifications",
-      "priority": "medium",
-      "tags": [
-        "bug",
-        "tui",
-        "cache",
-        "consistency"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/app.rs"
-      ],
-      "evidence": [
-        "app.rs:258-264 filter cache uses queue_rev for invalidation",
-        "No mechanism to detect external queue.json modifications (another process editing)",
-        "TUI may display stale data if queue is modified externally while TUI is running"
-      ],
-      "plan": [
-        "Add file modification time (mtime) check for queue.json",
-        "Compare current mtime with cached mtime on each refresh",
-        "Invalidate filter cache when mtime changes",
-        "Add visual indicator in TUI when external changes detected",
-        "Consider file hash for additional consistency check if needed"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-28T04:11:49Z",
-      "updated_at": "2026-01-28T04:11:49Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0360",
       "status": "todo",
       "title": "Fix Cursor runner phase detection fragility",

@@ -331,6 +331,10 @@ pub struct App {
     pub color_support: Option<ColorSupport>,
     /// Border style for rendering (Unicode or ASCII).
     pub border_style: BorderStyle,
+    /// Cached modification time for queue.json (for detecting external changes).
+    queue_mtime: Option<std::time::SystemTime>,
+    /// Cached modification time for done.json (for detecting external changes).
+    done_mtime: Option<std::time::SystemTime>,
 }
 
 impl App {
@@ -397,6 +401,8 @@ impl App {
             terminal_capabilities: None,
             color_support: None,
             border_style: BorderStyle::Unicode,
+            queue_mtime: None,
+            done_mtime: None,
         };
         app.rebuild_filtered_view();
         app
@@ -2012,6 +2018,45 @@ impl App {
         self.save_error = None;
     }
 
+    /// Check if queue files have been modified externally and reload if necessary.
+    ///
+    /// Returns true if external changes were detected and reloaded.
+    pub(crate) fn check_external_changes_and_reload(
+        &mut self,
+        queue_path: &Path,
+        done_path: &Path,
+    ) -> bool {
+        let queue_current = std::fs::metadata(queue_path)
+            .ok()
+            .and_then(|m| m.modified().ok());
+        let done_current = std::fs::metadata(done_path)
+            .ok()
+            .and_then(|m| m.modified().ok());
+
+        let queue_changed = queue_current != self.queue_mtime;
+        let done_changed = done_current != self.done_mtime;
+
+        if queue_changed || done_changed {
+            self.reload_queues_from_disk(queue_path, done_path);
+            self.queue_mtime = queue_current;
+            self.done_mtime = done_current;
+            self.set_status_message("External changes detected - reloaded".to_string());
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Update cached mtimes after save operations.
+    pub(crate) fn update_cached_mtimes(&mut self, queue_path: &Path, done_path: &Path) {
+        self.queue_mtime = std::fs::metadata(queue_path)
+            .ok()
+            .and_then(|m| m.modified().ok());
+        self.done_mtime = std::fs::metadata(done_path)
+            .ok()
+            .and_then(|m| m.modified().ok());
+    }
+
     /// Handle scan completion: reload queue, set status, and return to normal mode.
     pub(crate) fn on_scan_finished(&mut self, queue_path: &Path, done_path: &Path) {
         self.reload_queues_from_disk(queue_path, done_path);
@@ -2095,6 +2140,9 @@ pub(crate) fn auto_save_if_dirty(
 
     if errors.is_empty() {
         app.save_error = None;
+        // Update cached mtimes to avoid triggering external change detection
+        // for our own saves
+        app.update_cached_mtimes(queue_path, done_path);
         return;
     }
 
@@ -2372,6 +2420,12 @@ where
 
         // Main event loop.
         loop {
+            // Check for external changes before drawing
+            {
+                let mut app_ref = app.borrow_mut();
+                let _ = app_ref.check_external_changes_and_reload(queue_path, done_path);
+            }
+
             terminal
                 .draw(|f| {
                     let mut app_ref = app.borrow_mut();
@@ -2604,6 +2658,14 @@ pub fn prepare_tui_session(
     }
     app.project_config = project_config;
     app.project_config_path = project_config_path;
+
+    // Initialize cached mtimes for external change detection
+    app.queue_mtime = std::fs::metadata(&resolved.queue_path)
+        .ok()
+        .and_then(|m| m.modified().ok());
+    app.done_mtime = std::fs::metadata(&resolved.done_path)
+        .ok()
+        .and_then(|m| m.modified().ok());
 
     Ok((app, lock))
 }
