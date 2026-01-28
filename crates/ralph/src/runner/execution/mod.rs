@@ -19,7 +19,8 @@ mod tests;
 pub(super) use response::extract_final_assistant_response;
 pub(super) use runners::{
     run_claude, run_claude_resume, run_codex, run_codex_resume, run_cursor, run_cursor_resume,
-    run_gemini, run_gemini_resume, run_opencode, run_opencode_resume,
+    run_gemini, run_gemini_resume, run_kimi, run_kimi_resume, run_opencode, run_opencode_resume,
+    run_pi, run_pi_resume,
 };
 
 pub(crate) use cli_options::{resolve_runner_cli_options, ResolvedRunnerCliOptions};

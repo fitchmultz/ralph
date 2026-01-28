@@ -208,6 +208,8 @@ echo '{{"sessionID":"sess-123"}}'
         gemini: "gemini",
         claude: "claude",
         cursor: "agent",
+        kimi: "kimi",
+        pi: "pi",
     };
     let policy = promptflow::PromptPolicy {
         repoprompt_plan_required: false,
@@ -298,6 +300,8 @@ echo '{{"sessionID":"sess-123"}}'
         gemini: "gemini",
         claude: "claude",
         cursor: "agent",
+        kimi: "kimi",
+        pi: "pi",
     };
     let policy = promptflow::PromptPolicy {
         repoprompt_plan_required: false,
@@ -378,6 +382,8 @@ echo '{{"sessionID":"sess-123"}}'
         gemini: "gemini",
         claude: "claude",
         cursor: "agent",
+        kimi: "kimi",
+        pi: "pi",
     };
     let policy = promptflow::PromptPolicy {
         repoprompt_plan_required: false,
@@ -511,6 +517,8 @@ echo '{"sessionID":"sess-123"}'
         gemini: "gemini",
         claude: "claude",
         cursor: "agent",
+        kimi: "kimi",
+        pi: "pi",
     };
     let policy = promptflow::PromptPolicy {
         repoprompt_plan_required: false,
@@ -578,6 +586,8 @@ echo '{"sessionID":"sess-123"}'
         gemini: "gemini",
         claude: "claude",
         cursor: "agent",
+        kimi: "kimi",
+        pi: "pi",
     };
     let policy = promptflow::PromptPolicy {
         repoprompt_plan_required: false,
@@ -649,6 +659,8 @@ echo '{{"sessionID":"sess-123"}}'
         gemini: "gemini",
         claude: "claude",
         cursor: "agent",
+        kimi: "kimi",
+        pi: "pi",
     };
     let policy = promptflow::PromptPolicy {
         repoprompt_plan_required: false,

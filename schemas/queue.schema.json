@@ -40,7 +40,9 @@
         "opencode",
         "gemini",
         "cursor",
-        "claude"
+        "claude",
+        "kimi",
+        "pi"
       ]
     },
     "RunnerApprovalMode": {

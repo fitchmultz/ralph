@@ -18,6 +18,7 @@
         "git_revert_mode": "ask",
         "instruction_files": null,
         "iterations": 1,
+        "kimi_bin": "kimi",
         "model": "sonnet",
         "notification": {
           "enabled": true,
@@ -27,6 +28,7 @@
         },
         "opencode_bin": "opencode",
         "phases": 3,
+        "pi_bin": "pi",
         "reasoning_effort": "medium",
         "repoprompt_plan_required": false,
         "repoprompt_tool_injection": false,
@@ -54,6 +56,22 @@
               "output_format": null,
               "plan_mode": null,
               "sandbox": "disabled",
+              "unsupported_option_policy": null,
+              "verbosity": null
+            },
+            "kimi": {
+              "approval_mode": "yolo",
+              "output_format": null,
+              "plan_mode": null,
+              "sandbox": null,
+              "unsupported_option_policy": null,
+              "verbosity": null
+            },
+            "pi": {
+              "approval_mode": "yolo",
+              "output_format": null,
+              "plan_mode": null,
+              "sandbox": null,
               "unsupported_option_policy": null,
               "verbosity": null
             }
@@ -230,6 +248,14 @@
           "format": "uint8",
           "minimum": 1.0
         },
+        "kimi_bin": {
+          "description": "Override the kimi executable name/path (default is \"kimi\" if None).",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "model": {
           "description": "Default model.",
           "default": null,
@@ -274,6 +300,14 @@
           "format": "uint8",
           "maximum": 3.0,
           "minimum": 1.0
+        },
+        "pi_bin": {
+          "description": "Override the pi executable name/path (default is \"pi\" if None).",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "reasoning_effort": {
           "description": "Default reasoning effort (only meaningful for Codex models).",
@@ -487,7 +521,9 @@
         "opencode",
         "gemini",
         "cursor",
-        "claude"
+        "claude",
+        "kimi",
+        "pi"
       ]
     },
     "RunnerApprovalMode": {

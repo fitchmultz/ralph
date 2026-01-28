@@ -297,6 +297,132 @@ pub(crate) fn run_claude_resume(
     )
 }
 
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn run_kimi(
+    work_dir: &Path,
+    bin: &str,
+    runner_cli: ResolvedRunnerCliOptions,
+    model: Model,
+    prompt: &str,
+    timeout: Option<Duration>,
+    output_handler: Option<OutputHandler>,
+    output_stream: OutputStream,
+) -> Result<RunnerOutput, RunnerError> {
+    let builder = RunnerCommandBuilder::new(bin, work_dir);
+    let builder = cli_spec::apply_kimi_options(builder, runner_cli);
+    let (cmd, payload, _guards) = builder
+        .model(&model)
+        .output_format("stream-json")
+        .stdin_payload(Some(prompt.as_bytes().to_vec()))
+        .build();
+
+    run_with_streaming_json(
+        cmd,
+        payload.as_deref(),
+        Runner::Kimi,
+        bin,
+        timeout,
+        output_handler,
+        output_stream,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn run_kimi_resume(
+    work_dir: &Path,
+    bin: &str,
+    runner_cli: ResolvedRunnerCliOptions,
+    model: Model,
+    session_id: &str,
+    message: &str,
+    timeout: Option<Duration>,
+    output_handler: Option<OutputHandler>,
+    output_stream: OutputStream,
+) -> Result<RunnerOutput, RunnerError> {
+    let builder = RunnerCommandBuilder::new(bin, work_dir);
+    let builder = cli_spec::apply_kimi_options(builder, runner_cli);
+    let (cmd, payload, _guards) = builder
+        .arg("--resume")
+        .arg(session_id)
+        .model(&model)
+        .output_format("stream-json")
+        .arg(message)
+        .build();
+
+    run_with_streaming_json(
+        cmd,
+        payload.as_deref(),
+        Runner::Kimi,
+        bin,
+        timeout,
+        output_handler,
+        output_stream,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn run_pi(
+    work_dir: &Path,
+    bin: &str,
+    runner_cli: ResolvedRunnerCliOptions,
+    model: Model,
+    prompt: &str,
+    timeout: Option<Duration>,
+    output_handler: Option<OutputHandler>,
+    output_stream: OutputStream,
+) -> Result<RunnerOutput, RunnerError> {
+    let builder = RunnerCommandBuilder::new(bin, work_dir);
+    let builder = cli_spec::apply_pi_options(builder, runner_cli);
+    let (cmd, payload, _guards) = builder
+        .model(&model)
+        .output_format("stream-json")
+        .stdin_payload(Some(prompt.as_bytes().to_vec()))
+        .build();
+
+    run_with_streaming_json(
+        cmd,
+        payload.as_deref(),
+        Runner::Pi,
+        bin,
+        timeout,
+        output_handler,
+        output_stream,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn run_pi_resume(
+    work_dir: &Path,
+    bin: &str,
+    runner_cli: ResolvedRunnerCliOptions,
+    model: Model,
+    session_id: &str,
+    message: &str,
+    timeout: Option<Duration>,
+    output_handler: Option<OutputHandler>,
+    output_stream: OutputStream,
+) -> Result<RunnerOutput, RunnerError> {
+    let builder = RunnerCommandBuilder::new(bin, work_dir);
+    let builder = cli_spec::apply_pi_options(builder, runner_cli);
+    let (cmd, payload, _guards) = builder
+        .arg("--resume")
+        .arg(session_id)
+        .model(&model)
+        .output_format("stream-json")
+        .arg(message)
+        .build();
+
+    run_with_streaming_json(
+        cmd,
+        payload.as_deref(),
+        Runner::Pi,
+        bin,
+        timeout,
+        output_handler,
+        output_stream,
+    )
+}
+
 fn cursor_is_planning(text: &str) -> bool {
     text.contains("# PLANNING MODE")
 }

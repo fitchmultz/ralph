@@ -99,6 +99,8 @@ fn runner_label(runner: Runner) -> &'static str {
         Runner::Gemini => "gemini",
         Runner::Cursor => "cursor",
         Runner::Claude => "claude",
+        Runner::Kimi => "kimi",
+        Runner::Pi => "pi",
     }
 }
 
@@ -243,6 +245,8 @@ pub struct RunnerBinaries<'a> {
     pub gemini: &'a str,
     pub claude: &'a str,
     pub cursor: &'a str,
+    pub kimi: &'a str,
+    pub pi: &'a str,
 }
 
 pub(crate) fn resolve_binaries(agent: &AgentConfig) -> RunnerBinaries<'_> {
@@ -251,12 +255,16 @@ pub(crate) fn resolve_binaries(agent: &AgentConfig) -> RunnerBinaries<'_> {
     let gemini = agent.gemini_bin.as_deref().unwrap_or("gemini");
     let claude = agent.claude_bin.as_deref().unwrap_or("claude");
     let cursor = agent.cursor_bin.as_deref().unwrap_or("agent");
+    let kimi = agent.kimi_bin.as_deref().unwrap_or("kimi");
+    let pi = agent.pi_bin.as_deref().unwrap_or("pi");
     RunnerBinaries {
         codex,
         opencode,
         gemini,
         claude,
         cursor,
+        kimi,
+        pi,
     }
 }
 
@@ -267,6 +275,8 @@ pub(crate) fn default_model_for_runner(runner: Runner) -> Model {
         Runner::Gemini => Model::Custom(DEFAULT_GEMINI_MODEL.to_string()),
         Runner::Cursor => Model::Custom(DEFAULT_CURSOR_MODEL.to_string()),
         Runner::Claude => Model::Custom(DEFAULT_CLAUDE_MODEL.to_string()),
+        Runner::Kimi => Model::Custom("kimi-k2".to_string()),
+        Runner::Pi => Model::Custom("pi-default".to_string()),
     }
 }
 
@@ -331,6 +341,8 @@ pub(crate) fn run_prompt(
         Runner::Gemini => bins.gemini,
         Runner::Cursor => bins.cursor,
         Runner::Claude => bins.claude,
+        Runner::Kimi => bins.kimi,
+        Runner::Pi => bins.pi,
     };
     validate_model_for_runner(runner, &model).map_err(|err| {
         RunnerError::Other(anyhow!(
@@ -393,6 +405,26 @@ pub(crate) fn run_prompt(
             output_handler,
             output_stream,
         )?,
+        Runner::Kimi => execution::run_kimi(
+            work_dir,
+            bins.kimi,
+            runner_cli,
+            model,
+            prompt,
+            timeout,
+            output_handler.clone(),
+            output_stream,
+        )?,
+        Runner::Pi => execution::run_pi(
+            work_dir,
+            bins.pi,
+            runner_cli,
+            model,
+            prompt,
+            timeout,
+            output_handler.clone(),
+            output_stream,
+        )?,
     };
 
     if !output.status.success() {
@@ -441,6 +473,8 @@ pub(crate) fn resume_session(
         Runner::Gemini => bins.gemini,
         Runner::Cursor => bins.cursor,
         Runner::Claude => bins.claude,
+        Runner::Kimi => bins.kimi,
+        Runner::Pi => bins.pi,
     };
     validate_model_for_runner(runner, &model).map_err(|err| {
         RunnerError::Other(anyhow!(
@@ -522,6 +556,28 @@ pub(crate) fn resume_session(
             message,
             timeout,
             runner_cli.effective_claude_permission_mode(permission_mode),
+            output_handler,
+            output_stream,
+        ),
+        Runner::Kimi => execution::run_kimi_resume(
+            work_dir,
+            bins.kimi,
+            runner_cli,
+            model,
+            session_id,
+            message,
+            timeout,
+            output_handler,
+            output_stream,
+        ),
+        Runner::Pi => execution::run_pi_resume(
+            work_dir,
+            bins.pi,
+            runner_cli,
+            model,
+            session_id,
+            message,
+            timeout,
             output_handler,
             output_stream,
         ),
@@ -756,6 +812,8 @@ mod tests {
             gemini: "gemini",
             claude: "claude",
             cursor: "agent",
+            kimi: "kimi",
+            pi: "pi",
         };
 
         let err = resume_session(
@@ -790,6 +848,8 @@ mod tests {
             gemini: "gemini",
             claude: "claude",
             cursor: "agent",
+            kimi: "kimi",
+            pi: "pi",
         };
 
         let err = run_prompt(

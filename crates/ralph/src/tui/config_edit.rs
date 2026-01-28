@@ -690,6 +690,8 @@ fn display_runner(value: Option<Runner>) -> String {
         Some(Runner::Gemini) => "gemini".to_string(),
         Some(Runner::Claude) => "claude".to_string(),
         Some(Runner::Cursor) => "cursor".to_string(),
+        Some(Runner::Kimi) => "kimi".to_string(),
+        Some(Runner::Pi) => "pi".to_string(),
         None => default_config_value(),
     }
 }
@@ -827,7 +829,9 @@ fn cycle_runner(value: Option<Runner>) -> Option<Runner> {
         Some(Runner::Opencode) => Some(Runner::Gemini),
         Some(Runner::Gemini) => Some(Runner::Claude),
         Some(Runner::Claude) => Some(Runner::Cursor),
-        Some(Runner::Cursor) => None,
+        Some(Runner::Cursor) => Some(Runner::Kimi),
+        Some(Runner::Kimi) => Some(Runner::Pi),
+        Some(Runner::Pi) => None,
     }
 }
 

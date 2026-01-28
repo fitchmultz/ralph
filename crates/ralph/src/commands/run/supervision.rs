@@ -564,6 +564,8 @@ mod tests {
                 gemini_bin: Some("gemini".to_string()),
                 claude_bin: Some("claude".to_string()),
                 cursor_bin: Some("agent".to_string()),
+                kimi_bin: Some("kimi".to_string()),
+                pi_bin: Some("pi".to_string()),
                 claude_permission_mode: Some(
                     crate::contracts::ClaudePermissionMode::BypassPermissions,
                 ),

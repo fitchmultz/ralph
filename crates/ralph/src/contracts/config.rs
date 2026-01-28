@@ -115,6 +115,12 @@ pub struct AgentConfig {
     /// NOTE: Cursor's runner binary name is `agent` (not `cursor`).
     pub cursor_bin: Option<String>,
 
+    /// Override the kimi executable name/path (default is "kimi" if None).
+    pub kimi_bin: Option<String>,
+
+    /// Override the pi executable name/path (default is "pi" if None).
+    pub pi_bin: Option<String>,
+
     /// Claude permission mode for tool and edit approval.
     /// AcceptEdits: auto-approves file edits only
     /// BypassPermissions: skip all permission prompts (YOLO mode)
@@ -197,6 +203,12 @@ impl AgentConfig {
         }
         if other.cursor_bin.is_some() {
             self.cursor_bin = other.cursor_bin;
+        }
+        if other.kimi_bin.is_some() {
+            self.kimi_bin = other.kimi_bin;
+        }
+        if other.pi_bin.is_some() {
+            self.pi_bin = other.pi_bin;
         }
         if other.phases.is_some() {
             self.phases = other.phases;
@@ -324,6 +336,8 @@ pub enum Runner {
     Cursor,
     #[default]
     Claude,
+    Kimi,
+    Pi,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, JsonSchema)]
@@ -711,6 +725,8 @@ impl Default for Config {
                 gemini_bin: Some("gemini".to_string()),
                 claude_bin: Some("claude".to_string()),
                 cursor_bin: Some("agent".to_string()),
+                kimi_bin: Some("kimi".to_string()),
+                pi_bin: Some("pi".to_string()),
                 phases: Some(3),
                 claude_permission_mode: Some(ClaudePermissionMode::BypassPermissions),
                 runner_cli: Some(RunnerCliConfigRoot {
@@ -734,6 +750,20 @@ impl Default for Config {
                             Runner::Claude,
                             RunnerCliOptionsPatch {
                                 verbosity: Some(RunnerVerbosity::Verbose),
+                                ..RunnerCliOptionsPatch::default()
+                            },
+                        ),
+                        (
+                            Runner::Kimi,
+                            RunnerCliOptionsPatch {
+                                approval_mode: Some(RunnerApprovalMode::Yolo),
+                                ..RunnerCliOptionsPatch::default()
+                            },
+                        ),
+                        (
+                            Runner::Pi,
+                            RunnerCliOptionsPatch {
+                                approval_mode: Some(RunnerApprovalMode::Yolo),
                                 ..RunnerCliOptionsPatch::default()
                             },
                         ),

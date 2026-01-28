@@ -150,6 +150,8 @@ pub fn run_doctor(resolved: &config::Resolved) -> Result<()> {
             .cursor_bin
             .as_deref()
             .unwrap_or("agent"),
+        Runner::Kimi => resolved.config.agent.kimi_bin.as_deref().unwrap_or("kimi"),
+        Runner::Pi => resolved.config.agent.pi_bin.as_deref().unwrap_or("pi"),
     };
 
     if let Err(e) = check_runner_binary(bin_name) {
@@ -368,5 +370,7 @@ fn get_runner_config_key(runner: Runner) -> &'static str {
         Runner::Gemini => "gemini_bin",
         Runner::Claude => "claude_bin",
         Runner::Cursor => "cursor_bin",
+        Runner::Kimi => "kimi_bin",
+        Runner::Pi => "pi_bin",
     }
 }

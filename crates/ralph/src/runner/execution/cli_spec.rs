@@ -101,6 +101,38 @@ pub(super) fn apply_cursor_options(
     builder
 }
 
+pub(super) fn apply_kimi_options(
+    builder: RunnerCommandBuilder,
+    opts: ResolvedRunnerCliOptions,
+) -> RunnerCommandBuilder {
+    let builder = match opts.approval_mode {
+        RunnerApprovalMode::Yolo => builder.args(["--approval-mode", "yolo"]),
+        RunnerApprovalMode::AutoEdits => builder.args(["--approval-mode", "auto_edit"]),
+        RunnerApprovalMode::Default | RunnerApprovalMode::Safe => builder,
+    };
+
+    match opts.sandbox {
+        RunnerSandboxMode::Enabled => builder.arg("--sandbox"),
+        RunnerSandboxMode::Disabled | RunnerSandboxMode::Default => builder,
+    }
+}
+
+pub(super) fn apply_pi_options(
+    builder: RunnerCommandBuilder,
+    opts: ResolvedRunnerCliOptions,
+) -> RunnerCommandBuilder {
+    let builder = match opts.approval_mode {
+        RunnerApprovalMode::Yolo => builder.args(["--approval-mode", "yolo"]),
+        RunnerApprovalMode::AutoEdits => builder.args(["--approval-mode", "auto_edit"]),
+        RunnerApprovalMode::Default | RunnerApprovalMode::Safe => builder,
+    };
+
+    match opts.sandbox {
+        RunnerSandboxMode::Enabled => builder.arg("--sandbox"),
+        RunnerSandboxMode::Disabled | RunnerSandboxMode::Default => builder,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::cli_options::ResolvedRunnerCliOptions;

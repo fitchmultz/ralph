@@ -248,7 +248,9 @@ fn cycle_runner(current: Option<Runner>) -> Option<Runner> {
         Some(Runner::Codex) => Some(Runner::Opencode),
         Some(Runner::Opencode) => Some(Runner::Gemini),
         Some(Runner::Gemini) => Some(Runner::Cursor),
-        Some(Runner::Cursor) => None,
+        Some(Runner::Cursor) => Some(Runner::Kimi),
+        Some(Runner::Kimi) => Some(Runner::Pi),
+        Some(Runner::Pi) => None,
     }
 }
 
@@ -321,7 +323,9 @@ mod tests {
         assert_eq!(cycle_runner(Some(Runner::Codex)), Some(Runner::Opencode));
         assert_eq!(cycle_runner(Some(Runner::Opencode)), Some(Runner::Gemini));
         assert_eq!(cycle_runner(Some(Runner::Gemini)), Some(Runner::Cursor));
-        assert_eq!(cycle_runner(Some(Runner::Cursor)), None);
+        assert_eq!(cycle_runner(Some(Runner::Cursor)), Some(Runner::Kimi));
+        assert_eq!(cycle_runner(Some(Runner::Kimi)), Some(Runner::Pi));
+        assert_eq!(cycle_runner(Some(Runner::Pi)), None);
     }
 
     #[test]
