@@ -21,6 +21,7 @@ use super::{App, TextInput};
 
 pub mod confirm;
 pub mod create;
+pub mod dependency_graph;
 pub mod editing;
 pub mod filter;
 pub mod flowchart;
@@ -116,6 +117,9 @@ pub fn handle_key_event(
         }
         AppMode::JumpingToTask(input) => handle_jumping_to_task_key(app, key, input),
         AppMode::FlowchartOverlay { .. } => flowchart::handle_flowchart_mode_key(app, key),
+        AppMode::DependencyGraphOverlay { .. } => {
+            dependency_graph::handle_dependency_graph_mode_key(app, key)
+        }
     }
 }
 

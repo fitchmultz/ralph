@@ -20,12 +20,14 @@ use crate::{fsutil, lock};
 use anyhow::{Context, Result};
 use std::path::Path;
 
+pub mod graph;
 pub mod operations;
 pub mod prune;
 pub mod repair;
 pub mod search;
 pub mod validation;
 
+pub use graph::*;
 pub use operations::*;
 pub use prune::{prune_done_tasks, PruneOptions, PruneReport};
 pub use repair::*;

@@ -748,6 +748,44 @@ Print the JSON schema for the queue file.
 ralph queue schema
 ```
 
+### `ralph queue graph`
+
+Visualize task dependencies as a graph with critical path highlighting.
+
+Flags:
+
+* `--task <TASK_ID>`: Focus on a specific task (show its dependency tree).
+* `--format <tree|dot|json|list>`: Output format (default: `tree`).
+* `--include-done`: Include completed tasks in output.
+* `--critical`: Show only critical path.
+* `--reverse`: Show reverse dependencies (what this task blocks).
+
+Examples:
+
+```bash
+# Show full dependency graph as ASCII tree
+ralph queue graph
+
+# Show dependency tree for specific task
+ralph queue graph --task RQ-0001
+
+# Export to Graphviz DOT format for external rendering
+ralph queue graph --format dot > deps.dot
+dot -Tpng deps.dot -o deps.png
+
+# Show what tasks are blocked by a specific task
+ralph queue graph --task RQ-0001 --reverse
+
+# Show only critical path
+ralph queue graph --critical
+
+# Include completed tasks
+ralph queue graph --include-done
+
+# JSON output for programmatic use
+ralph queue graph --format json
+```
+
 ## `ralph task`
 
 Create tasks and edit task fields from CLI.

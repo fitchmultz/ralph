@@ -234,6 +234,10 @@ pub(super) fn handle_normal_mode_key(
         KeyCode::Char('R') if is_plain_char(&key, 'R') => {
             app.execute_palette_command(PaletteCommand::ToggleRegex, now_rfc3339)
         }
+        KeyCode::Char('v') if is_plain_char(&key, 'v') => {
+            app.enter_dependency_graph_mode();
+            Ok(TuiAction::Continue)
+        }
         _ => Ok(TuiAction::Continue),
     }
 }

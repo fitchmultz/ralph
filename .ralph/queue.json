@@ -2,53 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0375",
-      "status": "todo",
-      "title": "Add task dependencies visualization with graph view and critical path highlighting",
-      "priority": "medium",
-      "tags": [
-        "enhancement",
-        "visualization",
-        "dependencies",
-        "graph",
-        "cli",
-        "tui"
-      ],
-      "scope": [
-        "crates/ralph/src/commands/queue/",
-        "crates/ralph/src/tui/",
-        "crates/ralph/src/queue.rs",
-        "docs/cli.md"
-      ],
-      "evidence": [
-        "User request: Task Dependencies Visualization - Graph view of task dependencies showing blocking/blocked relationships with critical path highlighting",
-        "Queue already supports depends_on field for task dependencies (docs/queue-and-tasks.md)",
-        "No current visualization of dependency chains exists in CLI or TUI",
-        "Critical path analysis would help users identify which tasks are blocking the most work"
-      ],
-      "plan": [
-        "Research Rust graph visualization libraries (petgraph for analysis, text-based rendering or ASCII art for CLI)",
-        "Add 'ralph queue graph' subcommand for CLI dependency visualization",
-        "Implement dependency graph builder from queue.json tasks and depends_on relationships",
-        "Create graph layout algorithm for task nodes (topological sort for ordering)",
-        "Add blocking/blocked relationship display (which tasks block this task, which are blocked by it)",
-        "Implement critical path detection (longest dependency chain affecting completion)",
-        "Add highlighting for critical path tasks in graph output",
-        "Support multiple output formats: ASCII art tree, DOT format for Graphviz, JSON for external tools",
-        "Add graph view to TUI as new mode or overlay showing dependency visualization",
-        "Add filtering options: show only blocking chain for a specific task, hide completed tasks",
-        "Add cycle detection and warning for circular dependencies",
-        "Update docs/cli.md with graph command examples and output format options",
-        "Run 'make ci' to verify all changes"
-      ],
-      "notes": [],
-      "request": "Task Dependencies Visualization - Graph view of task dependencies showing blocking/blocked relationships with critical path highlighting.",
-      "created_at": "2026-01-28T16:12:36Z",
-      "updated_at": "2026-01-28T16:12:36Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0374",
       "status": "todo",
       "title": "Add desktop notifications on task completion with optional sound alerts",

@@ -182,6 +182,21 @@ pub fn draw_ui(f: &mut Frame<'_>, app: &mut App) {
             overlays::draw_flowchart_overlay(f, app, size);
         }
 
+        // Dependency graph overlay.
+        AppMode::DependencyGraphOverlay {
+            show_dependents,
+            highlight_critical,
+            ..
+        } => {
+            overlays::draw_dependency_graph_overlay(
+                f,
+                app,
+                size,
+                *show_dependents,
+                *highlight_critical,
+            );
+        }
+
         _ => {}
     }
 }

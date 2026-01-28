@@ -117,6 +117,15 @@ pub enum AppMode {
         /// Previous mode to return to when closing
         previous_mode: Box<AppMode>,
     },
+    /// Dependency graph overlay
+    DependencyGraphOverlay {
+        /// Previous mode to return to when closing
+        previous_mode: Box<AppMode>,
+        /// View mode: true = show what this task blocks (dependents), false = show dependencies
+        show_dependents: bool,
+        /// Whether to highlight critical path
+        highlight_critical: bool,
+    },
 }
 
 /// State for the advanced task builder flow with override options.
@@ -291,6 +300,22 @@ impl PartialEq for AppMode {
                     previous_mode: right_previous,
                 },
             ) => left_previous == right_previous,
+            (
+                DependencyGraphOverlay {
+                    previous_mode: left_previous,
+                    show_dependents: left_show_deps,
+                    highlight_critical: left_critical,
+                },
+                DependencyGraphOverlay {
+                    previous_mode: right_previous,
+                    show_dependents: right_show_deps,
+                    highlight_critical: right_critical,
+                },
+            ) => {
+                left_previous == right_previous
+                    && left_show_deps == right_show_deps
+                    && left_critical == right_critical
+            }
             _ => false,
         }
     }

@@ -80,6 +80,42 @@ Notes:
 - Completed tasks are removed from `.ralph/queue.json` and appended to `.ralph/done.json`.
 - Dependencies: A task is blocked until all IDs in its `depends_on` list have status `done` or `rejected`.
 - Draft tasks (`status: draft`) are skipped by `run one` and `run loop` unless `--include-draft` is set.
+
+## Dependency Visualization
+
+Ralph provides multiple ways to visualize task dependencies:
+
+### CLI Graph Command
+
+The `ralph queue graph` command displays dependency relationships:
+
+```bash
+# ASCII tree view of dependencies
+ralph queue graph --task RQ-0001
+
+# Graphviz DOT format for external rendering
+ralph queue graph --format dot > deps.dot
+dot -Tpng deps.dot -o deps.png
+
+# Show what tasks are blocked by a specific task
+ralph queue graph --task RQ-0001 --reverse
+
+# Highlight critical path (longest dependency chain)
+ralph queue graph --critical
+```
+
+### TUI Dependency Overlay
+
+In the TUI, press `v` to open the dependency graph overlay for the selected task:
+
+- Shows upstream dependencies (what this task depends on) by default
+- Press `t` or `Tab` to toggle to downstream view (what this task blocks)
+- Press `c` to toggle critical path highlighting
+- Press `d`, `v`, `Esc`, or `q` to close the overlay
+
+### Critical Path
+
+The critical path is the longest dependency chain in the graph. Tasks on the critical path are highlighted with `*` in tree/list output and in red in the TUI overlay. Completing critical path tasks unblocks the most downstream work.
 - `ralph task` inserts new tasks near the top of the queue:
   - Default: insert at position 0 (top).
   - If the first task is already `doing`, insert at position 1 (immediately below the in-progress task).

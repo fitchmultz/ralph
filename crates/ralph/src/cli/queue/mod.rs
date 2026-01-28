@@ -15,6 +15,7 @@
 
 mod archive;
 mod burndown;
+mod graph;
 mod history;
 mod list;
 mod next;
@@ -36,6 +37,7 @@ use clap::{Args, Subcommand};
 use crate::config;
 
 pub use burndown::QueueBurndownArgs;
+pub use graph::QueueGraphArgs;
 pub use history::QueueHistoryArgs;
 pub use list::QueueListArgs;
 pub use next::QueueNextArgs;
@@ -69,6 +71,7 @@ pub fn handle_queue(cmd: QueueCommand, force: bool) -> Result<()> {
         QueueCommand::Burndown(args) => burndown::handle(&resolved, args),
         QueueCommand::Schema => schema::handle(),
         QueueCommand::Prune(args) => prune::handle(&resolved, force, args),
+        QueueCommand::Graph(args) => graph::handle(&resolved, args),
     }
 }
 
@@ -155,6 +158,12 @@ pub enum QueueCommand {
     /// Print the JSON schema for the queue file.
     #[command(after_long_help = "Example:\n ralph queue schema")]
     Schema,
+
+    /// Visualize task dependencies as a graph.
+    #[command(
+        after_long_help = "Examples:\n ralph queue graph\n ralph queue graph --task RQ-0001\n ralph queue graph --format dot\n ralph queue graph --critical\n ralph queue graph --reverse --task RQ-0001"
+    )]
+    Graph(QueueGraphArgs),
 }
 
 #[cfg(test)]

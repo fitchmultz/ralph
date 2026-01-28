@@ -153,6 +153,16 @@ fn mode_span(mode: &AppMode, running_task_id: Option<&String>) -> Span<'static> 
         AppMode::FlowchartOverlay { .. } => {
             Span::styled("[Flowchart]", Style::default().fg(Color::Blue))
         }
+        AppMode::DependencyGraphOverlay {
+            show_dependents, ..
+        } => {
+            let label = if *show_dependents {
+                "[Deps: Blocked By]"
+            } else {
+                "[Deps: Depends On]"
+            };
+            Span::styled(label, Style::default().fg(Color::Magenta))
+        }
     }
 }
 

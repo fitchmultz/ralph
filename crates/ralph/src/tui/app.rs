@@ -1408,6 +1408,15 @@ impl App {
         self.help_previous_mode.as_ref()
     }
 
+    /// Enter dependency graph overlay mode.
+    pub(crate) fn enter_dependency_graph_mode(&mut self) {
+        self.mode = AppMode::DependencyGraphOverlay {
+            previous_mode: Box::new(self.mode.clone()),
+            show_dependents: false,
+            highlight_critical: false,
+        };
+    }
+
     /// Build the palette entries for a given query.
     pub fn palette_entries(&self, query: &str) -> Vec<PaletteEntry> {
         let toggle_label = if self.loop_active {

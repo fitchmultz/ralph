@@ -205,6 +205,14 @@ pub(super) fn help_footer_spans(app: &App, max_width: usize) -> Vec<Span<'static
             Span::styled("f/Esc", Style::default().add_modifier(Modifier::BOLD)),
             Span::raw(":close"),
         ],
+        AppMode::DependencyGraphOverlay { .. } => vec![
+            Span::styled("t/Tab", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(":toggle "),
+            Span::styled("c", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(":critical "),
+            Span::styled("d/Esc", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(":close"),
+        ],
     };
 
     let tail_spans = build_tail_spans(app, max_width, !help_text.is_empty());
