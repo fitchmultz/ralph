@@ -8226,6 +8226,56 @@
       "completed_at": "2026-01-28T01:47:47.436985000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0329",
+      "status": "done",
+      "title": "TUI: add a mode/status bar for discoverability (mode, dirty/save, filters)",
+      "priority": "low",
+      "tags": [
+        "tui",
+        "ux",
+        "rendering"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/render/mod.rs",
+        "crates/ralph/src/tui/render/panels.rs",
+        "crates/ralph/src/tui/render/footer.rs",
+        "crates/ralph/src/tui/render/tests.rs",
+        "make ci"
+      ],
+      "evidence": [
+        "`crates/ralph/src/tui/render/mod.rs`: base UI renders list+details plus a footer, but there is no dedicated header/status bar for current mode or save state.",
+        "`crates/ralph/src/tui/app.rs`: app tracks status like `dirty`, `dirty_done`, `dirty_config`, `save_error`, `runner_active`, `loop_active`, and `loop_ran`, but most of it is not surfaced persistently in the UI.",
+        "`crates/ralph/src/tui/render/panels.rs`: task list title shows filter summary and RUNNING/LOOP indicators, but this is not a persistent status bar.",
+        "`crates/ralph/src/tui/render/footer.rs`: footer shows mode-specific key hints and save errors, but lacks persistent mode/dirty state visibility."
+      ],
+      "plan": [
+        "Add a compact header/status bar that shows current mode, dirty state (queue/done/config), filters, and save/runner state.",
+        "Integrate header into `draw_ui` in `mod.rs` by reserving a top row (similar to footer).",
+        "Make the header responsive to terminal width (truncate long fields, prioritize critical info).",
+        "Add rendering tests for small and normal terminal widths in `tests.rs`.",
+        "Run `make ci`."
+      ],
+      "notes": [
+        "Current footer already shows save errors and status messages - header should complement not duplicate this.",
+        "App state has `dirty`, `dirty_done`, `dirty_config` flags for different save states.",
+        "Consider showing: mode (Normal/Executing/etc), dirty indicators, runner/loop status, active filters.",
+        "Added compact header/status bar showing mode, dirty state (*queue/*done/*cfg), filters, runner/loop status, and task count",
+        "Header is responsive and truncates gracefully on narrow terminals",
+        "Added 10 rendering tests for header functionality",
+        "Removed duplicate span_width function (cleanup)",
+        "All 743 tests pass, make ci clean"
+      ],
+      "request": "scan finding",
+      "agent": {
+        "model_effort": "medium"
+      },
+      "created_at": "2026-01-27T04:35:15Z",
+      "updated_at": "2026-01-28T02:08:01.520344000Z",
+      "completed_at": "2026-01-28T02:08:01.520344000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }

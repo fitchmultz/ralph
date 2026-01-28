@@ -24,6 +24,7 @@ use ratatui::{
 const NARROW_LAYOUT_WIDTH: u16 = 90;
 
 mod footer;
+mod header;
 mod overlays;
 mod panels;
 mod utils;
@@ -52,13 +53,24 @@ pub fn draw_ui(f: &mut Frame<'_>, app: &mut App) {
     if show_execution {
         panels::draw_execution_view(f, app, size);
     } else {
-        // Reserve a footer row for help + status.
+        // Three-row layout: header, main content, footer
         let outer = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Min(2), Constraint::Length(1)].as_ref())
+            .constraints(
+                [
+                    Constraint::Length(1), // header
+                    Constraint::Min(2),    // main content
+                    Constraint::Length(1), // footer
+                ]
+                .as_ref(),
+            )
             .split(size);
-        let main = outer[0];
-        let footer_area = outer[1];
+        let header_area = outer[0];
+        let main = outer[1];
+        let footer_area = outer[2];
+
+        // Draw header (mode, dirty state, filters, runner status)
+        header::draw_header(f, app, header_area);
 
         // Responsive main layout:
         // - If narrow, stack list and details vertically.

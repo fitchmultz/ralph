@@ -2,43 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0329",
-      "status": "todo",
-      "title": "TUI: add a mode/status bar for discoverability (mode, dirty/save, filters)",
-      "priority": "low",
-      "tags": [
-        "tui",
-        "ux",
-        "rendering"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/render/mod.rs",
-        "crates/ralph/src/tui/render/panels.rs",
-        "crates/ralph/src/tui/render/footer.rs",
-        "crates/ralph/src/tui/render/tests.rs",
-        "make ci"
-      ],
-      "evidence": [
-        "`crates/ralph/src/tui/render/mod.rs`: base UI renders list+details plus a footer, but there is no dedicated header/status bar for current mode or save state.",
-        "`crates/ralph/src/tui/app.rs`: app tracks status like `dirty`, `save_error`, and `runner_active`, but most of it is not surfaced persistently in the UI."
-      ],
-      "plan": [
-        "Add a compact header/status bar that shows current mode, selection, filters, and save/runner state.",
-        "Make the header responsive to terminal width (truncate long fields).",
-        "Add rendering tests for small and normal terminal widths.",
-        "Run `make ci`."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "agent": {
-        "model_effort": "medium"
-      },
-      "created_at": "2026-01-27T04:35:15Z",
-      "updated_at": "2026-01-27T04:35:15Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0328",
       "status": "todo",
       "title": "TUI: improve command palette matching (fuzzy scoring + better ordering)",

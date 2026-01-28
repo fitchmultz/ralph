@@ -437,11 +437,19 @@ fn task_details_scroll_offsets_visible_content() {
         width: buffer.area.width,
         height: buffer.area.height,
     };
+    // Updated for 3-row layout: header + main + footer
     let outer = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Min(2), Constraint::Length(1)].as_ref())
+        .constraints(
+            [
+                Constraint::Length(1), // header
+                Constraint::Min(2),    // main
+                Constraint::Length(1), // footer
+            ]
+            .as_ref(),
+        )
         .split(area);
-    let main = outer[0];
+    let main = outer[1];
     let chunks = if main.width < 90 {
         Layout::default()
             .direction(Direction::Vertical)
@@ -500,11 +508,19 @@ fn task_list_title_truncates_filter_summary_on_narrow_width() {
         width: buffer.area.width,
         height: buffer.area.height,
     };
+    // Updated for 3-row layout: header + main + footer
     let outer = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Min(2), Constraint::Length(1)].as_ref())
+        .constraints(
+            [
+                Constraint::Length(1), // header
+                Constraint::Min(2),    // main
+                Constraint::Length(1), // footer
+            ]
+            .as_ref(),
+        )
         .split(area);
-    let main = outer[0];
+    let main = outer[1];
     let chunks = if main.width < 90 {
         Layout::default()
             .direction(Direction::Vertical)
@@ -563,11 +579,19 @@ fn filtered_empty_hint_uses_compact_filter_summary() {
         width: buffer.area.width,
         height: buffer.area.height,
     };
+    // Updated for 3-row layout: header + main + footer
     let outer = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Min(2), Constraint::Length(1)].as_ref())
+        .constraints(
+            [
+                Constraint::Length(1), // header
+                Constraint::Min(2),    // main
+                Constraint::Length(1), // footer
+            ]
+            .as_ref(),
+        )
         .split(area);
-    let main = outer[0];
+    let main = outer[1];
     let chunks = if main.width < 90 {
         Layout::default()
             .direction(Direction::Vertical)
@@ -918,5 +942,233 @@ fn confirm_revert_overlay_renders_preface_before_prompt() {
     assert!(
         preface_row < prompt_row,
         "expected preface above prompt, got: {output:?}"
+    );
+}
+
+// Header/status bar rendering tests
+
+#[test]
+fn header_shows_mode_normal() {
+    use ratatui::{backend::TestBackend, Terminal};
+
+    let backend = TestBackend::new(80, 10);
+    let mut terminal = Terminal::new(backend).expect("create terminal");
+    let mut app = App::new(QueueFile::default());
+
+    terminal
+        .draw(|f| tui::draw_ui(f, &mut app))
+        .expect("draw ui");
+
+    let buffer = terminal.backend().buffer();
+    let header_line = buffer_line(buffer, 0, 0, buffer.area.width);
+    assert!(
+        header_line.contains("Normal"),
+        "expected header to show Normal mode, got: {header_line:?}"
+    );
+}
+
+#[test]
+fn header_shows_dirty_indicators() {
+    use ratatui::{backend::TestBackend, Terminal};
+
+    let backend = TestBackend::new(80, 10);
+    let mut terminal = Terminal::new(backend).expect("create terminal");
+    let mut app = App::new(QueueFile::default());
+    app.dirty = true;
+    app.dirty_done = true;
+
+    terminal
+        .draw(|f| tui::draw_ui(f, &mut app))
+        .expect("draw ui");
+
+    let buffer = terminal.backend().buffer();
+    let header_line = buffer_line(buffer, 0, 0, buffer.area.width);
+    assert!(
+        header_line.contains("*queue"),
+        "expected header to show *queue dirty indicator, got: {header_line:?}"
+    );
+    assert!(
+        header_line.contains("*done"),
+        "expected header to show *done dirty indicator, got: {header_line:?}"
+    );
+}
+
+#[test]
+fn header_shows_runner_status() {
+    use ratatui::{backend::TestBackend, Terminal};
+
+    let backend = TestBackend::new(80, 10);
+    let mut terminal = Terminal::new(backend).expect("create terminal");
+    let mut app = App::new(QueueFile::default());
+    app.runner_active = true;
+    app.running_task_id = Some("RQ-0001".to_string());
+
+    terminal
+        .draw(|f| tui::draw_ui(f, &mut app))
+        .expect("draw ui");
+
+    let buffer = terminal.backend().buffer();
+    let header_line = buffer_line(buffer, 0, 0, buffer.area.width);
+    assert!(
+        header_line.contains("RQ-0001"),
+        "expected header to show running task ID, got: {header_line:?}"
+    );
+}
+
+#[test]
+fn header_shows_loop_status() {
+    use ratatui::{backend::TestBackend, Terminal};
+
+    let backend = TestBackend::new(80, 10);
+    let mut terminal = Terminal::new(backend).expect("create terminal");
+    let mut app = App::new(QueueFile::default());
+    app.loop_active = true;
+    app.loop_ran = 3;
+    app.loop_max_tasks = Some(10);
+
+    terminal
+        .draw(|f| tui::draw_ui(f, &mut app))
+        .expect("draw ui");
+
+    let buffer = terminal.backend().buffer();
+    let header_line = buffer_line(buffer, 0, 0, buffer.area.width);
+    assert!(
+        header_line.contains("3/10"),
+        "expected header to show loop progress, got: {header_line:?}"
+    );
+}
+
+#[test]
+fn header_shows_task_count() {
+    use ratatui::{backend::TestBackend, Terminal};
+
+    let backend = TestBackend::new(80, 10);
+    let mut terminal = Terminal::new(backend).expect("create terminal");
+    let mut app = App::new(make_task_list_queue());
+
+    terminal
+        .draw(|f| tui::draw_ui(f, &mut app))
+        .expect("draw ui");
+
+    let buffer = terminal.backend().buffer();
+    let header_line = buffer_line(buffer, 0, 0, buffer.area.width);
+    // Should show task count (3 tasks in make_task_list_queue)
+    assert!(
+        header_line.contains("3"),
+        "expected header to show task count, got: {header_line:?}"
+    );
+}
+
+#[test]
+fn header_truncates_narrow_terminal() {
+    use ratatui::{backend::TestBackend, Terminal};
+
+    let backend = TestBackend::new(30, 10);
+    let mut terminal = Terminal::new(backend).expect("create terminal");
+    let mut app = App::new(make_task_list_queue());
+    app.dirty = true;
+    app.runner_active = true;
+    app.running_task_id = Some("RQ-0001".to_string());
+
+    // Should not panic on narrow terminal
+    terminal
+        .draw(|f| tui::draw_ui(f, &mut app))
+        .expect("draw ui");
+
+    let buffer = terminal.backend().buffer();
+    let header_line = buffer_line(buffer, 0, 0, buffer.area.width);
+    // Mode should still be visible
+    assert!(
+        header_line.contains("Normal"),
+        "expected mode to be visible even on narrow terminal, got: {header_line:?}"
+    );
+}
+
+#[test]
+fn header_shows_filter_summary() {
+    use ratatui::{backend::TestBackend, Terminal};
+
+    let backend = TestBackend::new(80, 10);
+    let mut terminal = Terminal::new(backend).expect("create terminal");
+    let mut app = App::new(make_task_list_queue());
+    app.filters.statuses = vec![TaskStatus::Todo, TaskStatus::Doing];
+    app.rebuild_filtered_view();
+
+    terminal
+        .draw(|f| tui::draw_ui(f, &mut app))
+        .expect("draw ui");
+
+    let buffer = terminal.backend().buffer();
+    let header_line = buffer_line(buffer, 0, 0, buffer.area.width);
+    assert!(
+        header_line.contains("status=2"),
+        "expected header to show filter summary, got: {header_line:?}"
+    );
+}
+
+#[test]
+fn header_shows_mode_creating_task() {
+    use ratatui::{backend::TestBackend, Terminal};
+
+    let backend = TestBackend::new(80, 10);
+    let mut terminal = Terminal::new(backend).expect("create terminal");
+    let mut app = App::new(QueueFile::default());
+    app.mode = AppMode::CreatingTask(TextInput::new(""));
+
+    terminal
+        .draw(|f| tui::draw_ui(f, &mut app))
+        .expect("draw ui");
+
+    let buffer = terminal.backend().buffer();
+    let header_line = buffer_line(buffer, 0, 0, buffer.area.width);
+    assert!(
+        header_line.contains("Creating Task"),
+        "expected header to show Creating Task mode, got: {header_line:?}"
+    );
+}
+
+#[test]
+fn header_shows_mode_help() {
+    use ratatui::{backend::TestBackend, Terminal};
+
+    let backend = TestBackend::new(80, 10);
+    let mut terminal = Terminal::new(backend).expect("create terminal");
+    let mut app = App::new(QueueFile::default());
+    app.mode = AppMode::Help;
+
+    terminal
+        .draw(|f| tui::draw_ui(f, &mut app))
+        .expect("draw ui");
+
+    let buffer = terminal.backend().buffer();
+    let header_line = buffer_line(buffer, 0, 0, buffer.area.width);
+    assert!(
+        header_line.contains("Help"),
+        "expected header to show Help mode, got: {header_line:?}"
+    );
+}
+
+#[test]
+fn header_does_not_show_in_executing_view() {
+    use ratatui::{backend::TestBackend, Terminal};
+
+    let backend = TestBackend::new(80, 10);
+    let mut terminal = Terminal::new(backend).expect("create terminal");
+    let mut app = App::new(QueueFile::default());
+    app.mode = AppMode::Executing {
+        task_id: "RQ-0001".to_string(),
+    };
+    app.running_task_id = Some("RQ-0001".to_string());
+
+    terminal
+        .draw(|f| tui::draw_ui(f, &mut app))
+        .expect("draw ui");
+
+    let buffer = terminal.backend().buffer();
+    // In executing view, the first line should show "Executing:" not "[Normal]"
+    let first_line = buffer_line(buffer, 0, 0, buffer.area.width);
+    assert!(
+        first_line.contains("Executing"),
+        "expected executing view title, got: {first_line:?}"
     );
 }
