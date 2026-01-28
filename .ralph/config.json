@@ -40,7 +40,7 @@
       "~/.codex/AGENTS.md"
     ],
     "repoprompt_plan_required": false,
-    "repoprompt_tool_injection": true,
+    "repoprompt_tool_injection": false,
     "ci_gate_command": "make ci",
     "ci_gate_enabled": true,
     "git_commit_push_enabled": true,
