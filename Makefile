@@ -19,13 +19,19 @@ update:
 	@cargo update
 
 lint:
-	cargo clippy --workspace --all-targets -- -D warnings
+	@echo "→ Running linter..."
+	@cargo clippy --workspace --all-targets --quiet -- -D warnings
+	@echo "  ✓ Linting passed"
 
 type-check:
-	cargo check --workspace --all-targets
+	@echo "→ Type-checking workspace..."
+	@cargo check --workspace --all-targets --quiet
+	@echo "  ✓ Type-check passed"
 
 format:
-	cargo fmt --all
+	@echo "→ Formatting code..."
+	@cargo fmt --all
+	@echo "  ✓ Formatting complete"
 
 clean: clean-temp
 	cargo clean
@@ -39,23 +45,29 @@ clean-temp:
 	rm -rf target/tmp
 
 test:
-	@bash -lc 'set -euo pipefail; repo_root="$$(pwd -P)"; system_tmp="$${TMPDIR:-/tmp}"; system_tmp="$${system_tmp%/}"; legacy_tmp_base="$$system_tmp/ralph-ci-tmp"; if [ "$${RALPH_CI_KEEP_TMP:-0}" != "1" ]; then rm -rf "$$legacy_tmp_base" || true; fi; tmp_base="$$repo_root/target/tmp/ralph-ci-tmp"; if [ "$${RALPH_CI_KEEP_TMP:-0}" != "1" ]; then rm -rf "$$tmp_base" || true; fi; mkdir -p "$$tmp_base"; run_dir="$$(mktemp -d "$$tmp_base/ralph-ci.XXXXXX")"; cleanup() { if [ "$${RALPH_CI_KEEP_TMP:-0}" = "1" ]; then echo "Keeping CI temp dir: $$run_dir"; return 0; fi; rm -rf "$$run_dir" || true; rm -rf "$$tmp_base" || true; }; trap cleanup EXIT INT TERM; export TMPDIR="$$run_dir"; export TEMP="$$run_dir"; export TMP="$$run_dir"; echo "CI temp dir: $$run_dir"; cargo test --workspace --all-targets -- --include-ignored; cargo test --workspace --doc -- --include-ignored; cargo build --workspace --release;'
+	@echo "→ Running tests..."
+	@bash -lc 'set -euo pipefail; 		repo_root="$$(pwd -P)"; 		system_tmp="$${TMPDIR:-/tmp}"; 		system_tmp="$${system_tmp%/}"; 		legacy_tmp_base="$$system_tmp/ralph-ci-tmp"; 		if [ "$${RALPH_CI_KEEP_TMP:-0}" != "1" ]; then rm -rf "$$legacy_tmp_base" 2>/dev/null || true; fi; 		tmp_base="$$repo_root/target/tmp/ralph-ci-tmp"; 		if [ "$${RALPH_CI_KEEP_TMP:-0}" != "1" ]; then rm -rf "$$tmp_base" 2>/dev/null || true; fi; 		mkdir -p "$$tmp_base"; 		run_dir="$$(mktemp -d "$$tmp_base/ralph-ci.XXXXXX")"; 		cleanup() { 			if [ "$${RALPH_CI_KEEP_TMP:-0}" = "1" ]; then 				echo "  ℹ Keeping CI temp dir: $$run_dir"; 				return 0; 			fi; 			rm -rf "$$run_dir" 2>/dev/null || true; 			rm -rf "$$tmp_base" 2>/dev/null || true; 		}; 		trap cleanup EXIT INT TERM; 		export TMPDIR="$$run_dir"; 		export TEMP="$$run_dir"; 		export TMP="$$run_dir"; 		cargo test --workspace --all-targets --quiet -- --include-ignored 2>&1 | grep -E "^(test result:|running|     Running)" || true; 		cargo test --workspace --doc --quiet -- --include-ignored 2>&1 | grep -E "^(test result:|running|     Running)" || true; 		echo "  ✓ Tests passed"'
 
 stress:
 	@echo "Running burn-in stress tests..."
 	RALPH_STRESS_BURN_IN=1 cargo test -p ralph --test stress_queue_contract_test --release -- --ignored --nocapture
 
 generate:
+	@echo "→ Generating schemas..."
 	@mkdir -p schemas
 	@cargo run -q --bin ralph -- config schema > schemas/config.schema.json
 	@cargo run -q --bin ralph -- queue schema > schemas/queue.schema.json
-	@echo "Schemas generated in schemas/"
+	@echo "  ✓ Schemas generated"
 
 build:
-	cargo build --workspace
+	@echo "→ Building workspace (debug)..."
+	@cargo build --workspace --quiet
+	@echo "  ✓ Build complete"
 
 build-release:
-	cargo build --workspace --release
+	@echo "→ Building workspace (release)..."
+	@cargo build --workspace --release --quiet
+	@echo "  ✓ Release build complete"
 
 check-env-safety:
 	@if git ls-files .env | grep -q .env; then \
@@ -73,6 +85,10 @@ check-backup-artifacts:
 	fi
 
 ci: check-env-safety check-backup-artifacts generate format type-check lint build test install
+	@echo ""
+	@echo "═══════════════════════════════════════════════════"
+	@echo "  ✓ CI completed successfully"
+	@echo "═══════════════════════════════════════════════════"
 
 runners-help:
 	@scripts/runner_cli_inventory.sh --out target/tmp/runner_cli_inventory

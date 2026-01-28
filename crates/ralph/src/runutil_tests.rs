@@ -28,7 +28,7 @@ use tempfile::TempDir;
 
 fn init_git_repo(dir: &TempDir) {
     Command::new("git")
-        .arg("init")
+        .args(["init", "--quiet"])
         .current_dir(dir.path())
         .output()
         .expect("git init failed");
@@ -57,7 +57,7 @@ fn commit_file(dir: &TempDir, filename: &str, content: &str, message: &str) {
         .expect("git add failed");
 
     Command::new("git")
-        .args(["commit", "-m", message])
+        .args(["commit", "--quiet", "-m", message])
         .current_dir(dir.path())
         .output()
         .expect("git commit failed");

@@ -13,7 +13,7 @@ fn revert_uncommitted_preserves_untracked_env_files_and_completions() -> Result<
     // 1. Init git repo
     Command::new("git")
         .current_dir(root)
-        .arg("init")
+        .args(["init", "--quiet"])
         .output()
         .context("git init")?;
 

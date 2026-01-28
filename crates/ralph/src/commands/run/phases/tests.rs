@@ -22,7 +22,7 @@ use tempfile::TempDir;
 fn git_init(dir: &Path) -> Result<()> {
     let status = Command::new("git")
         .current_dir(dir)
-        .args(["init"])
+        .args(["init", "--quiet"])
         .status()?;
     anyhow::ensure!(status.success(), "git init failed");
 
@@ -34,7 +34,7 @@ fn git_init(dir: &Path) -> Result<()> {
         .status()?;
     Command::new("git")
         .current_dir(dir)
-        .args(["commit", "-m", "add gitignore"])
+        .args(["commit", "--quiet", "-m", "add gitignore"])
         .status()?;
 
     Ok(())
@@ -438,7 +438,7 @@ fn ensure_phase3_completion_allows_config_changes_when_enabled() -> Result<()> {
     write_queue_and_done(temp.path(), TaskStatus::Done)?;
     let status = Command::new("git")
         .current_dir(temp.path())
-        .args(["commit", "-m", "queue and done"])
+        .args(["commit", "--quiet", "-m", "queue and done"])
         .status()?;
     anyhow::ensure!(status.success(), "git commit failed");
 
@@ -450,7 +450,7 @@ fn ensure_phase3_completion_allows_config_changes_when_enabled() -> Result<()> {
     anyhow::ensure!(status.success(), "git add failed");
     let status = Command::new("git")
         .current_dir(temp.path())
-        .args(["commit", "-m", "add config"])
+        .args(["commit", "--quiet", "-m", "add config"])
         .status()?;
     anyhow::ensure!(status.success(), "git commit failed");
 

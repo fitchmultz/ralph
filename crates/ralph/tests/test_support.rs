@@ -172,7 +172,7 @@ pub fn run_in_dir(dir: &Path, args: &[&str]) -> (ExitStatus, String, String) {
 pub fn git_init(dir: &Path) -> Result<()> {
     let status = Command::new("git")
         .current_dir(dir)
-        .args(["init"])
+        .args(["init", "--quiet"])
         .status()
         .context("run git init")?;
     anyhow::ensure!(status.success(), "git init failed");
@@ -185,7 +185,7 @@ pub fn git_init(dir: &Path) -> Result<()> {
         .status()?;
     Command::new("git")
         .current_dir(dir)
-        .args(["commit", "-m", "add gitignore"])
+        .args(["commit", "--quiet", "-m", "add gitignore"])
         .status()?;
 
     Ok(())
@@ -347,7 +347,7 @@ pub fn git_add_all_commit(dir: &Path, message: &str) -> Result<()> {
 
     let status = Command::new("git")
         .current_dir(dir)
-        .args(["commit", "-m", message])
+        .args(["commit", "--quiet", "-m", message])
         .status()
         .context("git commit")?;
     anyhow::ensure!(status.success(), "git commit failed");

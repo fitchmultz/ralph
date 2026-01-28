@@ -51,7 +51,7 @@ fn run_in_dir(dir: &Path, args: &[&str]) -> (ExitStatus, String, String) {
 fn git_init(dir: &Path) -> Result<()> {
     let status = Command::new("git")
         .current_dir(dir)
-        .args(["init"])
+        .args(["init", "--quiet"])
         .status()
         .context("run git init")?;
     anyhow::ensure!(status.success(), "git init failed");
