@@ -2,53 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0378",
-      "status": "todo",
-      "title": "Add iteration progress visualization to TUI execution view with phase indicators and time tracking",
-      "priority": "medium",
-      "tags": [
-        "enhancement",
-        "tui",
-        "visualization",
-        "progress",
-        "execution"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/render/panels.rs",
-        "crates/ralph/src/tui/app.rs",
-        "crates/ralph/src/tui/events/run.rs",
-        "docs/cli.md"
-      ],
-      "evidence": [
-        "User request: Progress Visualization - Show iteration progress in TUI execution view with visual indicators of phase completion and time tracking per phase",
-        "TUI execution view in panels.rs:30-143 currently only shows logs and basic status (lines, scroll, auto-scroll)",
-        "No current visualization of which phase (1-3) is active or completed during task execution",
-        "events/run.rs handles executing mode keys but has no phase awareness",
-        "Ralph supports 1-3 phase workflows (Planning -> Implementation + CI -> Review + Completion)",
-        "Phase information is available during execution but not displayed in TUI"
-      ],
-      "plan": [
-        "Add phase tracking state to App struct (current_phase, phase_start_times, phase_completion_status)",
-        "Design visual progress indicator showing 1-3 phases with completion state (Planning, Implementation, Review)",
-        "Create phase progress bar widget with color-coded states (pending, active, completed)",
-        "Add elapsed time display per phase (format: MM:SS)",
-        "Render progress indicator in execution view header area (panels.rs)",
-        "Update phase state transitions when runner output indicates phase changes",
-        "Add total execution time tracking from task start to completion",
-        "Include phase-specific icons (e.g., 📋 Planning, 🔨 Implementation, ✅ Review)",
-        "Add keyboard shortcut to toggle progress display visibility in execution view",
-        "Ensure progress display works for all phase modes (1-phase, 2-phase, 3-phase)",
-        "Update docs/cli.md with progress visualization features and key bindings",
-        "Run 'make ci' to verify all changes"
-      ],
-      "notes": [],
-      "request": "Progress Visualization - Show iteration progress in TUI execution view with visual indicators of phase completion and time tracking per phase.",
-      "created_at": "2026-01-28T17:00:00Z",
-      "updated_at": "2026-01-28T17:00:00Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0377",
       "status": "todo",
       "title": "Add ralph prd create command to convert PRD markdown to tasks",

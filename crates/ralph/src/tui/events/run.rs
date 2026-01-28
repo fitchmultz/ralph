@@ -64,6 +64,16 @@ pub(super) fn handle_executing_mode_key(app: &mut App, key: KeyEvent) -> Result<
             }
             Ok(TuiAction::Continue)
         }
+        KeyCode::Char('p') if is_plain_char(&key, 'p') => {
+            app.show_progress_panel = !app.show_progress_panel;
+            let status = if app.show_progress_panel {
+                "shown"
+            } else {
+                "hidden"
+            };
+            app.set_status_message(format!("Progress panel {}", status));
+            Ok(TuiAction::Continue)
+        }
         _ => Ok(TuiAction::Continue),
     }
 }

@@ -255,6 +255,27 @@ Keybindings (task list unless noted otherwise):
   * `PgUp`/`PgDn`: page logs
   * `a`: toggle auto-scroll
   * `l`: stop loop mode
+  * `p`: toggle progress panel visibility
+
+### TUI Execution View Progress Panel
+
+When running a task in the TUI, the execution view displays a progress panel showing:
+
+* **Phase indicators**: Visual indicators for each phase (Planning → Implementation → Review)
+  * `▶` (yellow): Currently active phase
+  * `✓` (green): Completed phase
+  * `○` (gray): Pending phase
+* **Phase timing**: Elapsed time per phase in MM:SS format
+* **Total execution time**: Overall duration since task start
+
+The progress panel automatically appears when a task starts and adapts to the configured workflow:
+* **1-phase**: Shows "Single Phase" indicator
+* **2-phase**: Shows Planning → Implementation
+* **3-phase** (default): Shows Planning → Implementation → Review
+
+Press `p` in the execution view to toggle the progress panel visibility. This is useful when you need more screen space for log output.
+
+Phase transitions are detected automatically from runner output (e.g., "# IMPLEMENTATION MODE" header).
 
 Examples:
 

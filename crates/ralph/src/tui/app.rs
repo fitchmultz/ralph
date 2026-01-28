@@ -127,6 +127,44 @@ pub enum RunningKind {
     TaskBuilder,
 }
 
+/// Execution phase for multi-phase task workflows.
+///
+/// Tracks which phase of a 1-3 phase workflow is currently active.
+/// Used for progress visualization in the TUI execution view.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ExecutionPhase {
+    /// Phase 1: Planning and analysis
+    Planning,
+    /// Phase 2: Implementation and CI
+    Implementation,
+    /// Phase 3: Review and completion
+    Review,
+    /// Execution completed
+    Complete,
+}
+
+impl ExecutionPhase {
+    /// Returns the human-readable name for this phase.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ExecutionPhase::Planning => "Planning",
+            ExecutionPhase::Implementation => "Implementation",
+            ExecutionPhase::Review => "Review",
+            ExecutionPhase::Complete => "Complete",
+        }
+    }
+
+    /// Returns the phase number (1-3) or 0 for Complete.
+    pub fn phase_number(&self) -> u8 {
+        match self {
+            ExecutionPhase::Planning => 1,
+            ExecutionPhase::Implementation => 2,
+            ExecutionPhase::Review => 3,
+            ExecutionPhase::Complete => 0,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum FocusedPanel {
     List,
@@ -230,6 +268,18 @@ pub struct App {
     pub running_task_id: Option<String>,
     /// Kind of runner currently executing (task vs scan).
     pub running_kind: Option<RunningKind>,
+    /// Current execution phase for multi-phase workflows.
+    pub execution_phase: ExecutionPhase,
+    /// Start times for each phase (used for elapsed time tracking).
+    pub phase_start_times: HashMap<ExecutionPhase, std::time::Instant>,
+    /// Completed phase durations (captured when transitioning to next phase).
+    pub phase_completion_times: HashMap<ExecutionPhase, std::time::Duration>,
+    /// When the overall execution started (for total time tracking).
+    pub total_execution_start: Option<std::time::Instant>,
+    /// Whether to show the progress panel in execution view.
+    pub show_progress_panel: bool,
+    /// Number of configured phases (1, 2, or 3) for the current workflow.
+    pub configured_phases: u8,
     /// Whether loop mode is active.
     pub loop_active: bool,
     /// When loop is enabled while a task is already running, do not count that finishing task.
@@ -303,6 +353,12 @@ impl App {
             runner_active: false,
             running_task_id: None,
             running_kind: None,
+            execution_phase: ExecutionPhase::Planning,
+            phase_start_times: HashMap::new(),
+            phase_completion_times: HashMap::new(),
+            total_execution_start: None,
+            show_progress_panel: true,
+            configured_phases: 3,
             loop_active: false,
             loop_arm_after_current: false,
             loop_ran: 0,
@@ -330,6 +386,100 @@ impl App {
 
     pub fn set_status_message(&mut self, message: impl Into<String>) {
         self.status_message = Some(message.into());
+    }
+
+    // Phase tracking methods
+
+    /// Reset phase tracking for a new execution.
+    ///
+    /// Clears previous phase data and initializes tracking for the given
+    /// number of phases (1, 2, or 3).
+    pub fn reset_phase_tracking(&mut self, total_phases: u8) {
+        self.execution_phase = ExecutionPhase::Planning;
+        self.phase_start_times.clear();
+        self.phase_completion_times.clear();
+        self.total_execution_start = Some(std::time::Instant::now());
+        self.configured_phases = total_phases.clamp(1, 3);
+        self.show_progress_panel = true;
+        self.phase_start_times
+            .insert(ExecutionPhase::Planning, std::time::Instant::now());
+    }
+
+    /// Transition to a new execution phase.
+    ///
+    /// Records the completion time for the current phase and starts
+    /// tracking the new phase.
+    pub fn transition_to_phase(&mut self, new_phase: ExecutionPhase) {
+        // Record completion time for current phase
+        if let Some(start) = self.phase_start_times.get(&self.execution_phase) {
+            let elapsed = start.elapsed();
+            self.phase_completion_times
+                .insert(self.execution_phase, elapsed);
+        }
+
+        // Start new phase
+        self.execution_phase = new_phase;
+        if new_phase != ExecutionPhase::Complete {
+            self.phase_start_times
+                .insert(new_phase, std::time::Instant::now());
+        }
+    }
+
+    /// Get elapsed time for a specific phase.
+    ///
+    /// Returns the completed duration if the phase is finished,
+    /// or the current elapsed time if it's active or pending.
+    pub fn phase_elapsed(&self, phase: ExecutionPhase) -> std::time::Duration {
+        if let Some(completed) = self.phase_completion_times.get(&phase) {
+            *completed
+        } else if let Some(start) = self.phase_start_times.get(&phase) {
+            start.elapsed()
+        } else {
+            std::time::Duration::ZERO
+        }
+    }
+
+    /// Get total execution time.
+    ///
+    /// Returns the elapsed time since execution started, or ZERO
+    /// if execution hasn't started.
+    pub fn total_execution_time(&self) -> std::time::Duration {
+        self.total_execution_start
+            .map(|start| start.elapsed())
+            .unwrap_or(std::time::Duration::ZERO)
+    }
+
+    /// Format a duration as MM:SS.
+    pub fn format_duration(duration: std::time::Duration) -> String {
+        let total_secs = duration.as_secs();
+        let mins = total_secs / 60;
+        let secs = total_secs % 60;
+        format!("{:02}:{:02}", mins, secs)
+    }
+
+    /// Check if a phase is completed.
+    pub fn is_phase_completed(&self, phase: ExecutionPhase) -> bool {
+        self.phase_completion_times.contains_key(&phase)
+            || phase.phase_number() < self.execution_phase.phase_number()
+    }
+
+    /// Check if a phase is currently active.
+    pub fn is_phase_active(&self, phase: ExecutionPhase) -> bool {
+        self.execution_phase == phase
+    }
+
+    /// Process a log line for phase detection.
+    ///
+    /// Parses runner output to detect phase transitions based on
+    /// phase header markers in the output.
+    pub fn process_log_line_for_phase(&mut self, line: &str) {
+        if line.contains("# PLANNING MODE") {
+            self.transition_to_phase(ExecutionPhase::Planning);
+        } else if line.contains("# IMPLEMENTATION MODE") {
+            self.transition_to_phase(ExecutionPhase::Implementation);
+        } else if line.contains("# CODE REVIEW MODE") {
+            self.transition_to_phase(ExecutionPhase::Review);
+        }
     }
 
     pub(crate) fn focus_next_panel(&mut self) {
@@ -1663,6 +1813,10 @@ impl App {
         self.running_task_id = Some(task_id.clone());
         self.running_kind = Some(RunningKind::Task);
 
+        // Initialize phase tracking for task execution
+        let phases = self.project_config.agent.phases.unwrap_or(3);
+        self.reset_phase_tracking(phases);
+
         if focus_logs {
             self.mode = AppMode::Executing { task_id };
         }
@@ -2183,11 +2337,23 @@ where
                 let mut app_ref = app.borrow_mut();
                 match event {
                     RunnerEvent::Output(text) => {
-                        app_ref.append_log_lines(text.lines().map(|line| line.to_string()));
+                        let lines: Vec<String> =
+                            text.lines().map(|line| line.to_string()).collect();
+                        // Process each line for phase detection
+                        if app_ref.running_kind == Some(RunningKind::Task) {
+                            for line in &lines {
+                                app_ref.process_log_line_for_phase(line);
+                            }
+                        }
+                        app_ref.append_log_lines(lines);
                     }
                     RunnerEvent::Finished => {
                         app_ref.runner_active = false;
                         app_ref.running_task_id = None;
+                        // Mark execution as complete for phase tracking
+                        if app_ref.running_kind == Some(RunningKind::Task) {
+                            app_ref.transition_to_phase(ExecutionPhase::Complete);
+                        }
                         let running_kind = app_ref.running_kind.take();
 
                         match running_kind {

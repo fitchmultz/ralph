@@ -15,7 +15,7 @@ use super::super::{App, AppMode};
 use super::utils::{priority_color, scroll_indicator, spans_width, status_color, wrap_text};
 use crate::contracts::{TaskPriority, TaskStatus};
 use crate::outpututil::truncate_chars;
-use crate::tui::app::{DetailsContext, DetailsContextMode};
+use crate::tui::app::{DetailsContext, DetailsContextMode, ExecutionPhase};
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Margin, Rect},
     style::{Color, Modifier, Style},
@@ -25,6 +25,7 @@ use ratatui::{
     },
     Frame,
 };
+use std::time::Duration;
 
 /// Draw the execution view (full-screen output during task execution).
 pub(super) fn draw_execution_view(f: &mut Frame<'_>, app: &mut App, area: Rect) {
@@ -57,12 +58,49 @@ pub(super) fn draw_execution_view(f: &mut Frame<'_>, app: &mut App, area: Rect) 
     let inner = block.inner(area);
     f.render_widget(block, area);
 
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Min(1), Constraint::Length(1)].as_ref())
-        .split(inner);
-    let log_area = chunks[0];
-    let status_area = chunks[1];
+    // Split area: progress panel (optional) + logs + status bar
+    let main_chunks = if app.show_progress_panel && app.runner_active {
+        Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(3), // Progress panel height
+                Constraint::Min(1),    // Log area
+                Constraint::Length(1), // Status bar
+            ])
+            .split(inner)
+    } else {
+        Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Min(1),    // Log area (full height)
+                Constraint::Length(1), // Status bar
+            ])
+            .split(inner)
+    };
+
+    let progress_area = if app.show_progress_panel && app.runner_active {
+        Some(main_chunks[0])
+    } else {
+        None
+    };
+    let log_idx = if app.show_progress_panel && app.runner_active {
+        1
+    } else {
+        0
+    };
+    let status_idx = if app.show_progress_panel && app.runner_active {
+        2
+    } else {
+        1
+    };
+
+    // Render progress panel if visible
+    if let Some(area) = progress_area {
+        draw_progress_panel(f, app, area);
+    }
+
+    let log_area = main_chunks[log_idx];
+    let status_area = main_chunks[status_idx];
 
     f.render_widget(Clear, log_area);
     f.render_widget(Clear, status_area);
@@ -140,6 +178,81 @@ pub(super) fn draw_execution_view(f: &mut Frame<'_>, app: &mut App, area: Rect) 
 
     let status_paragraph = Paragraph::new(status_line);
     f.render_widget(status_paragraph, status_area);
+}
+
+/// Draw the progress panel showing phase indicators and timing.
+fn draw_progress_panel(f: &mut Frame<'_>, app: &App, area: Rect) {
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title("Progress")
+        .title_alignment(Alignment::Left);
+
+    let inner = block.inner(area);
+    f.render_widget(block, area);
+
+    // Create phase indicators based on configured phases
+    let phases: Vec<(&str, ExecutionPhase)> = match app.configured_phases {
+        1 => vec![("Single Phase", ExecutionPhase::Planning)],
+        2 => vec![
+            ("Planning", ExecutionPhase::Planning),
+            ("Implementation", ExecutionPhase::Implementation),
+        ],
+        _ => vec![
+            ("Planning", ExecutionPhase::Planning),
+            ("Implementation", ExecutionPhase::Implementation),
+            ("Review", ExecutionPhase::Review),
+        ],
+    };
+
+    let mut spans = vec![Span::raw(" ")];
+
+    for (i, (name, phase)) in phases.iter().enumerate() {
+        let (icon, style) = if app.is_phase_active(*phase) {
+            // Active phase: yellow with play indicator
+            (
+                "▶",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            )
+        } else if app.is_phase_completed(*phase) {
+            // Completed: green checkmark
+            ("✓", Style::default().fg(Color::Green))
+        } else {
+            // Pending: gray circle
+            ("○", Style::default().fg(Color::DarkGray))
+        };
+
+        let elapsed = app.phase_elapsed(*phase);
+        let time_str = if elapsed > Duration::ZERO {
+            format!(" {}", App::format_duration(elapsed))
+        } else {
+            String::new()
+        };
+
+        spans.push(Span::styled(
+            format!("{} {}{}", icon, name, time_str),
+            style,
+        ));
+
+        // Add separator between phases
+        if i < phases.len() - 1 {
+            spans.push(Span::styled(" → ", Style::default().fg(Color::DarkGray)));
+        }
+    }
+
+    // Add total time
+    let total = app.total_execution_time();
+    if total > Duration::ZERO {
+        spans.push(Span::styled(
+            format!(" | Total: {}", App::format_duration(total)),
+            Style::default().fg(Color::Cyan),
+        ));
+    }
+
+    let line = Line::from(spans);
+    let paragraph = Paragraph::new(line).alignment(Alignment::Center);
+    f.render_widget(paragraph, inner);
 }
 
 /// Draw the task list panel.
