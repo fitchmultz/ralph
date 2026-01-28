@@ -33,15 +33,19 @@ fn inventory_script_path(repo_root: &Path) -> PathBuf {
 fn fake_runner_script(runner: &str) -> String {
     // Define runner-specific subcommands for help discovery
     let commands_section = match runner {
-        "codex" => r#"Commands:
+        "codex" => {
+            r#"Commands:
   exec        Run Codex non-interactively
   exec resume Resume a previous session
   help        Print help
-"#,
-        "opencode" => r#"Commands:
+"#
+        }
+        "opencode" => {
+            r#"Commands:
   run         Run with a message
   help        Show help
-"#,
+"#
+        }
         _ => "", // Other runners have no subcommands
     };
 
