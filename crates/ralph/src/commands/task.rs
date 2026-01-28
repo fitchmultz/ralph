@@ -106,7 +106,7 @@ fn resolve_task_update_settings(
     )
 }
 
-fn read_request_from_args_or_reader(
+pub fn read_request_from_args_or_reader(
     args: &[String],
     stdin_is_terminal: bool,
     mut reader: impl Read,

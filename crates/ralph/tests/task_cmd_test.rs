@@ -10,9 +10,13 @@
 //!
 //! Invariants/assumptions:
 //! - Runner/model fields on options represent overrides, not resolved defaults.
+//!
+//! Note: Tests use `read_request_from_args_or_reader` instead of `read_request_from_args_or_stdin`
+//! to avoid hanging when stdin is not a terminal (e.g., in CI environments).
 
 use ralph::commands::task as task_cmd;
 use ralph::contracts::{Model, Runner, RunnerCliOptionsPatch};
+use std::io::Cursor;
 
 #[test]
 fn test_read_request_from_args_or_stdin_with_args() {
@@ -23,15 +27,19 @@ fn test_read_request_from_args_or_stdin_with_args() {
         "task".to_string(),
     ];
 
-    let result = task_cmd::read_request_from_args_or_stdin(&args);
+    // Use the internal testable function with a mock reader
+    let reader = Cursor::new("");
+    let result = task_cmd::read_request_from_args_or_reader(&args, true, reader);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), "create a new task");
 }
 
 #[test]
 fn test_read_request_from_args_or_stdin_empty_args_fails() {
-    let args = vec![];
-    let result = task_cmd::read_request_from_args_or_stdin(&args);
+    let args: Vec<String> = vec![];
+    // Use the internal testable function with a mock reader (simulating terminal)
+    let reader = Cursor::new("");
+    let result = task_cmd::read_request_from_args_or_reader(&args, true, reader);
     assert!(result.is_err());
     let err_msg = result.unwrap_err().to_string();
     assert!(err_msg.contains("Missing request"));
@@ -39,15 +47,17 @@ fn test_read_request_from_args_or_stdin_empty_args_fails() {
 
 #[test]
 fn test_read_request_from_args_or_stdin_whitespace_args_fails() {
-    let args = vec!["   ".to_string(), "  ".to_string()];
-    let result = task_cmd::read_request_from_args_or_stdin(&args);
+    let args: Vec<String> = vec!["   ".to_string(), "  ".to_string()];
+    let reader = Cursor::new("");
+    let result = task_cmd::read_request_from_args_or_reader(&args, true, reader);
     assert!(result.is_err());
 }
 
 #[test]
 fn test_read_request_from_args_or_stdin_trims_whitespace() {
-    let args = vec!["  hello  ".to_string(), "  world  ".to_string()];
-    let result = task_cmd::read_request_from_args_or_stdin(&args);
+    let args: Vec<String> = vec!["  hello  ".to_string(), "  world  ".to_string()];
+    let reader = Cursor::new("");
+    let result = task_cmd::read_request_from_args_or_reader(&args, true, reader);
     assert!(result.is_ok());
     // join(" ") adds space between args, then outer trim is applied
     // "  hello  " + " " + "  world  " = "  hello    world  " -> trimmed -> "hello    world"
@@ -56,16 +66,18 @@ fn test_read_request_from_args_or_stdin_trims_whitespace() {
 
 #[test]
 fn test_read_request_from_args_or_stdin_special_characters() {
-    let args = vec!["test: fix bug #123".to_string()];
-    let result = task_cmd::read_request_from_args_or_stdin(&args);
+    let args: Vec<String> = vec!["test: fix bug #123".to_string()];
+    let reader = Cursor::new("");
+    let result = task_cmd::read_request_from_args_or_reader(&args, true, reader);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), "test: fix bug #123");
 }
 
 #[test]
 fn test_read_request_from_args_or_stdin_multilingual() {
-    let args = vec!["Hello 世界 🎉".to_string()];
-    let result = task_cmd::read_request_from_args_or_stdin(&args);
+    let args: Vec<String> = vec!["Hello 世界 🎉".to_string()];
+    let reader = Cursor::new("");
+    let result = task_cmd::read_request_from_args_or_reader(&args, true, reader);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), "Hello 世界 🎉");
 }
@@ -231,7 +243,8 @@ fn test_task_build_options_all_reasoning_efforts() {
 #[test]
 fn test_read_request_single_arg() {
     let args = vec!["single".to_string()];
-    let result = task_cmd::read_request_from_args_or_stdin(&args);
+    let reader = Cursor::new("");
+    let result = task_cmd::read_request_from_args_or_reader(&args, true, reader);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), "single");
 }
@@ -239,7 +252,8 @@ fn test_read_request_single_arg() {
 #[test]
 fn test_read_request_with_newlines() {
     let args = vec!["line1\nline2".to_string()];
-    let result = task_cmd::read_request_from_args_or_stdin(&args);
+    let reader = Cursor::new("");
+    let result = task_cmd::read_request_from_args_or_reader(&args, true, reader);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), "line1\nline2");
 }
@@ -247,7 +261,8 @@ fn test_read_request_with_newlines() {
 #[test]
 fn test_read_request_with_tabs() {
     let args = vec!["line1\tline2".to_string()];
-    let result = task_cmd::read_request_from_args_or_stdin(&args);
+    let reader = Cursor::new("");
+    let result = task_cmd::read_request_from_args_or_reader(&args, true, reader);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), "line1\tline2");
 }
@@ -259,7 +274,8 @@ fn test_read_request_preserves_internal_whitespace() {
         "word3".to_string(),
         "   word4   word5".to_string(),
     ];
-    let result = task_cmd::read_request_from_args_or_stdin(&args);
+    let reader = Cursor::new("");
+    let result = task_cmd::read_request_from_args_or_reader(&args, true, reader);
     assert!(result.is_ok());
     // Internal whitespace within args is preserved
     assert!(result.unwrap().starts_with("word1   word2"));
