@@ -2,6 +2,89 @@
   "version": 1,
   "tasks": [
     {
+      "id": "RQ-0372",
+      "status": "todo",
+      "title": "Analyze competing 'ralph' repo and generate UX improvement report",
+      "priority": "medium",
+      "tags": [
+        "research",
+        "analysis",
+        "ux",
+        "competitive-analysis"
+      ],
+      "scope": [
+        "docs/",
+        "README.md",
+        "https://github.com/snarktank/ralph"
+      ],
+      "evidence": [
+        "User request: Fetch and analyze https://github.com/snarktank/ralph",
+        "Compare features, pros/cons between snarktank/ralph and this repo",
+        "Generate report with suggestions for UX improvements"
+      ],
+      "plan": [
+        "Fetch and review the snarktank/ralph repository README and documentation",
+        "Identify core features and capabilities of the competing implementation",
+        "Compare against this repo's feature set (CLI, TUI, runners, queue management, etc.)",
+        "Document pros and cons of each implementation",
+        "Generate actionable suggestions for UX improvements to this repo",
+        "Write findings to a report (no code changes required)"
+      ],
+      "notes": [],
+      "request": "Fetch this public and popular 'ralph' repo and do an analysis of what it provides vs what we provide. Provide pros and cons of each and generate a report with suggesstions of what we could add to improve our user experience. No code changes. https://github.com/snarktank/ralph",
+      "created_at": "2026-01-28T15:37:25Z",
+      "updated_at": "2026-01-28T15:37:25Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0371",
+      "status": "todo",
+      "title": "Add support for 'kimi' and 'pi' runners",
+      "priority": "medium",
+      "tags": [
+        "enhancement",
+        "runner",
+        "kimi",
+        "pi"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts/config.rs",
+        "crates/ralph/src/runner.rs",
+        "crates/ralph/src/runner/execution/runners.rs",
+        "crates/ralph/src/runner/execution/cli_spec.rs",
+        "scripts/runner_cli_inventory.sh"
+      ],
+      "evidence": [
+        "User request: Add support for runner 'kimi' and runner 'pi'",
+        "runner_cli_inventory.sh:5 already includes kimi and pi in runner list",
+        "runner_cli_inventory.sh:447 declares RUNNERS array with kimi and pi",
+        "Existing Runner enum in config.rs:316-323 has Codex, Opencode, Gemini, Cursor, Claude",
+        "Runner binaries resolved in runner.rs:248-261",
+        "Default models defined in runner.rs:263-271",
+        "Execution functions in runners.rs implement run_<runner> and run_<runner>_resume for each runner"
+      ],
+      "plan": [
+        "Add Kimi and Pi variants to Runner enum in contracts/config.rs",
+        "Add kimi_bin and pi_bin fields to AgentConfig in contracts/config.rs",
+        "Update runner_label function in runner.rs to handle Kimi and Pi",
+        "Add kimi and pi binary resolution in resolve_binaries function in runner.rs",
+        "Add default models for Kimi and Pi in default_model_for_runner function",
+        "Add binary selection in run_prompt and resume_session match statements in runner.rs",
+        "Implement run_kimi, run_kimi_resume, run_pi, run_pi_resume functions in execution/runners.rs",
+        "Update CLI spec in cli_spec.rs if runner-specific options are needed",
+        "Add config defaults for kimi_bin and pi_bin in AgentConfig default",
+        "Set default approval_mode to Yolo for both runners per user request",
+        "Run 'make ci' to verify all changes compile and tests pass"
+      ],
+      "notes": [],
+      "request": "Need a task to add support for runner 'kimi' and runner 'pi'. The runner inventory script has already been updated to output these tool inventories. Use the information from that output to onboard these runners properly. Kimi should use 'yolo' mode by default, same for pi, whatever that mode is called.",
+      "created_at": "2026-01-28T04:13:00Z",
+      "updated_at": "2026-01-28T04:13:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
       "id": "RQ-0358",
       "status": "todo",
       "title": "Optimize redaction performance - cache sensitive env vars",
