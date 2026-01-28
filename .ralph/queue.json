@@ -1,0 +1,842 @@
+{
+  "version": 1,
+  "tasks": [
+    {
+      "id": "RQ-0380",
+      "status": "doing",
+      "title": "Make ralph init interactive with onboarding wizard for new users",
+      "priority": "high",
+      "tags": [
+        "enhancement",
+        "cli",
+        "onboarding",
+        "ux",
+        "init"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/init.rs",
+        "crates/ralph/src/cli/init.rs",
+        "docs/cli.md",
+        "docs/quick-start.md (to be created)"
+      ],
+      "evidence": [
+        "Current init command (crates/ralph/src/commands/init.rs) creates skeleton files without user guidance - just writes default queue.json, done.json, config.json, and README.md",
+        "InitArgs in cli/init.rs only supports --force flag; no interactive options exist",
+        "Supported runners (crates/ralph/src/contracts/config.rs:316): Codex, Opencode, Gemini, Cursor, Claude (5 runners) - no Kimi/Pi support yet (separate task RQ-0371)",
+        "Config supports phases setting (1, 2, or 3) for controlling workflow depth",
+        "New users lack understanding of: 3-phase workflow, runner differences, config options, task structure",
+        "Interactive wizard would reduce onboarding friction significantly"
+      ],
+      "plan": [
+        "Add dialoguer or inquire dependency to Cargo.toml for interactive prompts",
+        "Extend InitArgs in cli/init.rs with --interactive (-i) and --non-interactive flags",
+        "Design wizard flow: welcome -> runner selection -> phase mode -> first task -> confirm",
+        "Create welcome screen with ASCII art explaining ralph's purpose",
+        "Implement runner selection prompt with descriptions of each supported runner",
+        "Add phase mode explanation (1-phase=quick fixes, 2-phase=plan+implement, 3-phase=full review)",
+        "Prompt for first task title and description with examples",
+        "Generate config.json with user-selected runner and phase defaults",
+        "Generate queue.json with user's first task pre-populated",
+        "Add --non-interactive flag for CI/scripts using defaults",
+        "Update docs/cli.md with init --interactive examples and wizard documentation",
+        "Create docs/quick-start.md referencing the new onboarding wizard",
+        "Add unit tests for wizard state machine and non-interactive flow",
+        "Run 'make ci' to verify all changes"
+      ],
+      "notes": [
+        "Kimi and Pi runners are NOT yet supported (tracked in RQ-0371) - wizard should only offer Codex, OpenCode, Gemini, Claude, Cursor",
+        "Consider using existing inquire crate if already in dependency tree, otherwise dialoguer is popular",
+        "Wizard should detect TTY and auto-enable interactive mode unless --non-interactive is passed"
+      ],
+      "request": "Onboarding Wizard - Make ralph init interactive, guiding new users through first task creation, explaining the 3-phase workflow with examples, and setting up default config with explanations.",
+      "created_at": "2026-01-28T20:00:00Z",
+      "updated_at": "2026-01-28T17:02:44.157734000Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0379",
+      "status": "todo",
+      "title": "Add --quick flag to run one for immediate execution without planning phase",
+      "priority": "medium",
+      "tags": [
+        "enhancement",
+        "cli",
+        "quick-start",
+        "workflow"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/run.rs",
+        "crates/ralph/src/agent.rs",
+        "crates/ralph/src/commands/run/mod.rs",
+        "docs/cli.md"
+      ],
+      "evidence": [
+        "User request: Quick Start Mode - Add --quick flag to run one that skips the planning phase for users who want immediate execution",
+        "Reference: snarktank/ralph approach for immediate execution workflow",
+        "Current Ralph has 3-phase workflow: Planning (phase 1) -> Implementation (phase 2) -> Review (phase 3)",
+        "Phase count controlled by --phases flag (1, 2, or 3) in RunAgentArgs (agent.rs:122)",
+        "Phase execution dispatched in commands/run/mod.rs:417-431",
+        "execute_phase1_planning in phases/phase1.rs runs the dedicated planning phase",
+        "Single-phase mode (phases=1) uses execute_single_phase which skips separate planning",
+        "--quick should effectively bypass phase 1 planning and jump to immediate implementation"
+      ],
+      "plan": [
+        "Add --quick flag to RunOneArgs in cli/run.rs (conflicts with --phases)",
+        "Update RunAgentArgs in agent.rs to include quick_mode field",
+        "Update AgentOverrides to include quick_mode flag",
+        "Modify resolve_run_agent_overrides to handle --quick flag",
+        "Update run_one_impl in commands/run/mod.rs to detect quick mode",
+        "When quick mode is enabled: override phases to skip planning (treat as phases=1 or skip phase1)",
+        "Add --quick examples to run one help text",
+        "Update docs/cli.md with --quick flag documentation and examples",
+        "Add tests for --quick flag parsing and phase override behavior",
+        "Run 'make ci' to verify all changes"
+      ],
+      "notes": [],
+      "request": "Quick Start Mode - Add --quick flag to run one that skips the planning phase for users who want immediate execution (similar to snarktank/ralph's approach)",
+      "created_at": "2026-01-28T18:00:00Z",
+      "updated_at": "2026-01-28T18:00:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0378",
+      "status": "todo",
+      "title": "Add iteration progress visualization to TUI execution view with phase indicators and time tracking",
+      "priority": "medium",
+      "tags": [
+        "enhancement",
+        "tui",
+        "visualization",
+        "progress",
+        "execution"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/render/panels.rs",
+        "crates/ralph/src/tui/app.rs",
+        "crates/ralph/src/tui/events/run.rs",
+        "docs/cli.md"
+      ],
+      "evidence": [
+        "User request: Progress Visualization - Show iteration progress in TUI execution view with visual indicators of phase completion and time tracking per phase",
+        "TUI execution view in panels.rs:30-143 currently only shows logs and basic status (lines, scroll, auto-scroll)",
+        "No current visualization of which phase (1-3) is active or completed during task execution",
+        "events/run.rs handles executing mode keys but has no phase awareness",
+        "Ralph supports 1-3 phase workflows (Planning -> Implementation + CI -> Review + Completion)",
+        "Phase information is available during execution but not displayed in TUI"
+      ],
+      "plan": [
+        "Add phase tracking state to App struct (current_phase, phase_start_times, phase_completion_status)",
+        "Design visual progress indicator showing 1-3 phases with completion state (Planning, Implementation, Review)",
+        "Create phase progress bar widget with color-coded states (pending, active, completed)",
+        "Add elapsed time display per phase (format: MM:SS)",
+        "Render progress indicator in execution view header area (panels.rs)",
+        "Update phase state transitions when runner output indicates phase changes",
+        "Add total execution time tracking from task start to completion",
+        "Include phase-specific icons (e.g., 📋 Planning, 🔨 Implementation, ✅ Review)",
+        "Add keyboard shortcut to toggle progress display visibility in execution view",
+        "Ensure progress display works for all phase modes (1-phase, 2-phase, 3-phase)",
+        "Update docs/cli.md with progress visualization features and key bindings",
+        "Run 'make ci' to verify all changes"
+      ],
+      "notes": [],
+      "request": "Progress Visualization - Show iteration progress in TUI execution view with visual indicators of phase completion and time tracking per phase.",
+      "created_at": "2026-01-28T17:00:00Z",
+      "updated_at": "2026-01-28T17:00:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0377",
+      "status": "todo",
+      "title": "Add ralph prd create command to convert PRD markdown to tasks",
+      "priority": "medium",
+      "tags": [
+        "enhancement",
+        "cli",
+        "prd",
+        "workflow"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/prd.rs",
+        "crates/ralph/src/commands/mod.rs",
+        "crates/ralph/src/cli.rs",
+        "docs/cli.md"
+      ],
+      "evidence": [
+        "User request: Simplified PRD Workflow - Add ralph prd create command to convert PRD markdown to task(s) automatically",
+        "Reference implementation: https://github.com/snarktank/ralph has PRD -> JSON flow",
+        "Ralph already has task creation via 'ralph task' command that could be extended",
+        "Queue format is well-defined in docs/queue-and-tasks.md with required fields",
+        "PRD documents typically contain: title, description, requirements, acceptance criteria, scope"
+      ],
+      "plan": [
+        "Research snarktank's PRD -> JSON flow for implementation patterns",
+        "Design PRD markdown parsing strategy (headers, sections, bullet points)",
+        "Create 'ralph prd create <path>' subcommand in new prd.rs module",
+        "Parse PRD markdown to extract: title, description, requirements, acceptance criteria",
+        "Map PRD sections to task fields: title -> task.title, description -> task.request, requirements -> task.plan",
+        "Support multiple task generation from PRD sections (e.g., one task per requirement)",
+        "Add --single flag to create one consolidated task vs --multi for multiple tasks",
+        "Add --dry-run flag to preview generated tasks without inserting",
+        "Add --priority flag to set default priority for generated tasks",
+        "Add --tag flag to add tags to all generated tasks",
+        "Generate proper task IDs using queue next-id logic",
+        "Insert generated tasks at correct position in queue (respecting doing task)",
+        "Add validation: ensure PRD file exists, is readable, contains parseable content",
+        "Add helpful error messages for malformed PRD files",
+        "Update docs/cli.md with prd command examples and workflow documentation",
+        "Add tests for PRD parsing with various markdown formats",
+        "Run 'make ci' to verify all changes"
+      ],
+      "notes": [],
+      "request": "Simplified PRD Workflow - Add ralph prd create command to convert PRD markdown to task(s) automatically (similar to snarktank's PRD -> JSON flow). https://github.com/snarktank/ralph",
+      "created_at": "2026-01-28T16:14:13Z",
+      "updated_at": "2026-01-28T16:14:13Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0376",
+      "status": "todo",
+      "title": "Add interactive flowchart for terminal-based 3-phase workflow visualization",
+      "priority": "medium",
+      "tags": [
+        "enhancement",
+        "visualization",
+        "tui",
+        "cli",
+        "workflow"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/",
+        "crates/ralph/src/commands/run/mod.rs",
+        "docs/cli.md"
+      ],
+      "evidence": [
+        "User request: Interactive Flowchart - Terminal-based workflow visualization showing current position in the 3-phase flow",
+        "Ralph uses a 3-phase workflow: Planning -> Implementation + CI -> Review + Completion (configurable to 1-3 phases)",
+        "No current visualization exists showing user's position within the workflow phases",
+        "TUI already has visualization components that could be extended for flowchart display",
+        "CLI 'run' command could benefit from a --visualize flag showing workflow progress"
+      ],
+      "plan": [
+        "Design ASCII/Unicode flowchart representation of the 3-phase workflow",
+        "Create FlowchartWidget component in TUI showing current phase with visual indicators",
+        "Highlight current phase with distinct colors/styles (completed, active, pending)",
+        "Add phase transition animations or visual cues in TUI",
+        "Implement 'ralph run --visualize' CLI flag to show flowchart before execution",
+        "Show phase-specific context: task title, phase number, completion status",
+        "Add keyboard shortcut in TUI to toggle flowchart overlay (e.g., 'f' key)",
+        "Support both horizontal and vertical flowchart layouts based on terminal size",
+        "Include phase descriptions and hints for what happens in each phase",
+        "Update docs/cli.md with flowchart visualization examples and key bindings",
+        "Run 'make ci' to verify all changes"
+      ],
+      "notes": [],
+      "request": "Interactive Flowchart - Terminal-based workflow visualization showing current position in the 3-phase flow.",
+      "created_at": "2026-01-28T16:13:33Z",
+      "updated_at": "2026-01-28T16:13:33Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0375",
+      "status": "todo",
+      "title": "Add task dependencies visualization with graph view and critical path highlighting",
+      "priority": "medium",
+      "tags": [
+        "enhancement",
+        "visualization",
+        "dependencies",
+        "graph",
+        "cli",
+        "tui"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/queue/",
+        "crates/ralph/src/tui/",
+        "crates/ralph/src/queue.rs",
+        "docs/cli.md"
+      ],
+      "evidence": [
+        "User request: Task Dependencies Visualization - Graph view of task dependencies showing blocking/blocked relationships with critical path highlighting",
+        "Queue already supports depends_on field for task dependencies (docs/queue-and-tasks.md)",
+        "No current visualization of dependency chains exists in CLI or TUI",
+        "Critical path analysis would help users identify which tasks are blocking the most work"
+      ],
+      "plan": [
+        "Research Rust graph visualization libraries (petgraph for analysis, text-based rendering or ASCII art for CLI)",
+        "Add 'ralph queue graph' subcommand for CLI dependency visualization",
+        "Implement dependency graph builder from queue.json tasks and depends_on relationships",
+        "Create graph layout algorithm for task nodes (topological sort for ordering)",
+        "Add blocking/blocked relationship display (which tasks block this task, which are blocked by it)",
+        "Implement critical path detection (longest dependency chain affecting completion)",
+        "Add highlighting for critical path tasks in graph output",
+        "Support multiple output formats: ASCII art tree, DOT format for Graphviz, JSON for external tools",
+        "Add graph view to TUI as new mode or overlay showing dependency visualization",
+        "Add filtering options: show only blocking chain for a specific task, hide completed tasks",
+        "Add cycle detection and warning for circular dependencies",
+        "Update docs/cli.md with graph command examples and output format options",
+        "Run 'make ci' to verify all changes"
+      ],
+      "notes": [],
+      "request": "Task Dependencies Visualization - Graph view of task dependencies showing blocking/blocked relationships with critical path highlighting.",
+      "created_at": "2026-01-28T16:12:36Z",
+      "updated_at": "2026-01-28T16:12:36Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0374",
+      "status": "todo",
+      "title": "Add desktop notifications on task completion with optional sound alerts",
+      "priority": "medium",
+      "tags": [
+        "enhancement",
+        "notifications",
+        "ux",
+        "desktop"
+      ],
+      "scope": [
+        "crates/ralph/src/",
+        "docs/configuration.md"
+      ],
+      "evidence": [
+        "User request: Notification Integration - Desktop notifications on task completion with optional sound alerts",
+        "Long-running tasks require users to monitor terminal; notifications improve UX",
+        "Cross-platform notification support needed (macOS, Linux, Windows)",
+        "Sound alerts should be optional and configurable"
+      ],
+      "plan": [
+        "Research Rust notification crates (notify-rust, tauri-notification, or platform-specific APIs)",
+        "Add notification config section to AgentConfig (enable/disable, sound on/off, sound file path)",
+        "Implement notify_task_complete() function in runner module",
+        "Trigger notification after successful task completion in supervise flow",
+        "Add sound alert support with platform-appropriate default sounds",
+        "Ensure notifications work on macOS (NotificationCenter), Linux (notify-send/dbus), Windows (toast)",
+        "Add CLI flag --notify/--no-notify to override config",
+        "Update docs/configuration.md with notification settings",
+        "Add tests for notification configuration parsing",
+        "Run 'make ci' to verify all changes"
+      ],
+      "notes": [],
+      "request": "Notification Integration - Desktop notifications on task completion with optional sound alerts.",
+      "created_at": "2026-01-28T16:11:57Z",
+      "updated_at": "2026-01-28T16:11:57Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0373",
+      "status": "todo",
+      "title": "Create Quick Start Guide with common workflows and comparisons",
+      "priority": "medium",
+      "tags": [
+        "documentation",
+        "quick-start",
+        "ux"
+      ],
+      "scope": [
+        "docs/quick-start.md",
+        "docs/index.md",
+        "README.md"
+      ],
+      "evidence": [
+        "User request: Quick Start Guide - Single-page getting started doc with common workflows and comparisons",
+        "Existing docs are comprehensive but scattered across multiple files: configuration.md, cli.md, workflow.md, queue-and-tasks.md",
+        "New users need a single entry point covering installation, first task, common workflows, and runner comparisons",
+        "docs/index.md currently just lists other docs without onboarding guidance",
+        "README.md has setup info but lacks workflow examples and runner comparisons"
+      ],
+      "plan": [
+        "Create docs/quick-start.md as a single-page guide",
+        "Include installation section (cargo install, binary download, build from source)",
+        "Cover 'ralph init' for bootstrapping a new project",
+        "Document first task workflow: ralph task -> ralph run one",
+        "Add common workflow examples: quick fix, multi-phase task, scan mode, TUI usage",
+        "Include runner comparison table (Codex, OpenCode, Gemini, Claude, Cursor) with use cases",
+        "Add phase mode comparison (1-phase vs 2-phase vs 3-phase) with when to use each",
+        "Include minimal config example to get started",
+        "Add troubleshooting section for common first-time issues",
+        "Update docs/index.md to list quick-start.md as the entry point",
+        "Update README.md to reference the Quick Start Guide",
+        "Run 'make ci' to verify docs build and links are valid"
+      ],
+      "notes": [],
+      "request": "Quick Start Guide - Single-page getting started doc with common workflows and comparisons.",
+      "created_at": "2026-01-28T05:00:00Z",
+      "updated_at": "2026-01-28T05:00:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0371",
+      "status": "todo",
+      "title": "Add support for 'kimi' and 'pi' runners",
+      "priority": "medium",
+      "tags": [
+        "enhancement",
+        "runner",
+        "kimi",
+        "pi"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts/config.rs",
+        "crates/ralph/src/runner.rs",
+        "crates/ralph/src/runner/execution/runners.rs",
+        "crates/ralph/src/runner/execution/cli_spec.rs",
+        "scripts/runner_cli_inventory.sh"
+      ],
+      "evidence": [
+        "User request: Add support for runner 'kimi' and runner 'pi'",
+        "runner_cli_inventory.sh:5 already includes kimi and pi in runner list",
+        "runner_cli_inventory.sh:447 declares RUNNERS array with kimi and pi",
+        "Existing Runner enum in config.rs:316-323 has Codex, Opencode, Gemini, Cursor, Claude",
+        "Runner binaries resolved in runner.rs:248-261",
+        "Default models defined in runner.rs:263-271",
+        "Execution functions in runners.rs implement run_<runner> and run_<runner>_resume for each runner"
+      ],
+      "plan": [
+        "Add Kimi and Pi variants to Runner enum in contracts/config.rs",
+        "Add kimi_bin and pi_bin fields to AgentConfig in contracts/config.rs",
+        "Update runner_label function in runner.rs to handle Kimi and Pi",
+        "Add kimi and pi binary resolution in resolve_binaries function in runner.rs",
+        "Add default models for Kimi and Pi in default_model_for_runner function",
+        "Add binary selection in run_prompt and resume_session match statements in runner.rs",
+        "Implement run_kimi, run_kimi_resume, run_pi, run_pi_resume functions in execution/runners.rs",
+        "Update CLI spec in cli_spec.rs if runner-specific options are needed",
+        "Add config defaults for kimi_bin and pi_bin in AgentConfig default",
+        "Set default approval_mode to Yolo for both runners per user request",
+        "Run 'make ci' to verify all changes compile and tests pass"
+      ],
+      "notes": [],
+      "request": "Need a task to add support for runner 'kimi' and runner 'pi'. The runner inventory script has already been updated to output these tool inventories. Use the information from that output to onboard these runners properly. Kimi should use 'yolo' mode by default, same for pi, whatever that mode is called.",
+      "created_at": "2026-01-28T04:13:00Z",
+      "updated_at": "2026-01-28T04:13:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0358",
+      "status": "todo",
+      "title": "Optimize redaction performance - cache sensitive env vars",
+      "priority": "medium",
+      "tags": [
+        "performance",
+        "redaction",
+        "optimization"
+      ],
+      "scope": [
+        "crates/ralph/src/redaction.rs"
+      ],
+      "evidence": [
+        "redaction.rs:379-395 redact_sensitive_env_values() iterates ALL env vars on every call",
+        "This is O(n*m) where n = env vars and m = redaction calls",
+        "High-output scenarios (long runner sessions) suffer performance degradation"
+      ],
+      "plan": [
+        "Use lazy_static or OnceLock to cache sensitive env var values at startup",
+        "Filter env vars once and store matching keys/values in static cache",
+        "Update redact_sensitive_env_values() to use cached values only",
+        "Add benchmark to measure redaction performance before/after",
+        "Ensure cache is refreshed on SIGUSR1 or similar if needed"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-28T04:11:49Z",
+      "updated_at": "2026-01-28T04:11:49Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0359",
+      "status": "todo",
+      "title": "Fix TUI filter cache not detecting external queue modifications",
+      "priority": "medium",
+      "tags": [
+        "bug",
+        "tui",
+        "cache",
+        "consistency"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/app.rs"
+      ],
+      "evidence": [
+        "app.rs:258-264 filter cache uses queue_rev for invalidation",
+        "No mechanism to detect external queue.json modifications (another process editing)",
+        "TUI may display stale data if queue is modified externally while TUI is running"
+      ],
+      "plan": [
+        "Add file modification time (mtime) check for queue.json",
+        "Compare current mtime with cached mtime on each refresh",
+        "Invalidate filter cache when mtime changes",
+        "Add visual indicator in TUI when external changes detected",
+        "Consider file hash for additional consistency check if needed"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-28T04:11:49Z",
+      "updated_at": "2026-01-28T04:11:49Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0360",
+      "status": "todo",
+      "title": "Fix Cursor runner phase detection fragility",
+      "priority": "medium",
+      "tags": [
+        "bug",
+        "runner",
+        "cursor",
+        "robustness"
+      ],
+      "scope": [
+        "crates/ralph/src/runner/execution/runners.rs"
+      ],
+      "evidence": [
+        "runners.rs:300-302 cursor_is_planning() uses string matching on '# PLANNING MODE'",
+        "Phase detection relies on prompt template content which may change",
+        "If prompt template changes, Cursor receives incorrect CLI options silently"
+      ],
+      "plan": [
+        "Add explicit phase metadata to PhaseInvocation struct",
+        "Pass phase information through runner execution context",
+        "Use structured phase enum (Planning/Implementation/Review) instead of string detection",
+        "Update cursor_is_planning() to use context instead of text search",
+        "Add test to ensure phase detection works correctly"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-28T04:11:49Z",
+      "updated_at": "2026-01-28T04:11:49Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0361",
+      "status": "todo",
+      "title": "Fix lock cleanup race condition in DirLock Drop",
+      "priority": "medium",
+      "tags": [
+        "bug",
+        "lock",
+        "race-condition"
+      ],
+      "scope": [
+        "crates/ralph/src/lock.rs"
+      ],
+      "evidence": [
+        "lock.rs:34-44 Drop impl ignores errors from remove_file and remove_dir",
+        "If lock directory contains files (race with another process), remove_dir fails silently",
+        "Orphaned lock directories may accumulate over time"
+      ],
+      "plan": [
+        "Add retry logic with exponential backoff for lock cleanup",
+        "Log warnings when cleanup fails for debugging",
+        "Consider using fs::remove_dir_all for force cleanup on stale locks",
+        "Add diagnostic command 'ralph doctor' to detect orphaned locks",
+        "Add test simulating concurrent lock acquisition/release"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-28T04:11:49Z",
+      "updated_at": "2026-01-28T04:11:49Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0362",
+      "status": "todo",
+      "title": "Enhance JSON repair for more agent-induced errors",
+      "priority": "medium",
+      "tags": [
+        "enhancement",
+        "queue",
+        "robustness"
+      ],
+      "scope": [
+        "crates/ralph/src/queue.rs"
+      ],
+      "evidence": [
+        "queue.rs:96-133 attempt_json_repair only handles trailing commas and missing brackets",
+        "Cannot fix: malformed JSON strings, invalid escape sequences, type mismatches",
+        "Agents may still produce unrecoverable JSON that causes queue load failures"
+      ],
+      "plan": [
+        "Add repair for common string escaping errors (unescaped quotes, newlines)",
+        "Add repair for missing quotes around object keys",
+        "Add repair for single-quoted strings (convert to double-quoted)",
+        "Add logging of repair attempts for debugging",
+        "Consider using a more robust JSON repair library if available"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-28T04:11:49Z",
+      "updated_at": "2026-01-28T04:11:49Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0363",
+      "status": "todo",
+      "title": "Fix pre-run task update failures being silently ignored",
+      "priority": "medium",
+      "tags": [
+        "bug",
+        "workflow",
+        "error-handling"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/mod.rs"
+      ],
+      "evidence": [
+        "mod.rs:307-319 pre-run update failure is logged as warning but execution continues",
+        "If update fails due to persistent issue (runner misconfiguration), task runs with stale data",
+        "User may not notice the warning in log output"
+      ],
+      "plan": [
+        "Add config option 'fail_on_prerun_update_error' (default: false for compatibility)",
+        "When enabled, fail fast with clear error message on pre-run update failure",
+        "Add retry logic with exponential backoff for transient failures",
+        "Improve error message to include troubleshooting steps",
+        "Log the full error to debug log for investigation"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-28T04:11:49Z",
+      "updated_at": "2026-01-28T04:11:49Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0364",
+      "status": "todo",
+      "title": "Fix atomic write temp file leak on persist failure",
+      "priority": "low",
+      "tags": [
+        "bug",
+        "fs",
+        "cleanup"
+      ],
+      "scope": [
+        "crates/ralph/src/fsutil.rs"
+      ],
+      "evidence": [
+        "fsutil.rs:192-211 write_atomic() may leak temp file if persist() fails after write",
+        "NamedTempFile::persist() error path doesn't explicitly clean up",
+        "Temp file accumulation in target directory over time"
+      ],
+      "plan": [
+        "Use NamedTempFile::close() or let it drop to auto-cleanup on error",
+        "Wrap persist in match statement with explicit cleanup on Err",
+        "Add periodic cleanup of orphaned temp files in ralph_temp_root()",
+        "Add test verifying no temp files remain after failed writes"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-28T04:11:49Z",
+      "updated_at": "2026-01-28T04:11:49Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0365",
+      "status": "todo",
+      "title": "Add config validation for instruction_files existence",
+      "priority": "low",
+      "tags": [
+        "enhancement",
+        "config",
+        "validation"
+      ],
+      "scope": [
+        "crates/ralph/src/config.rs"
+      ],
+      "evidence": [
+        "config.rs:127-204 validate_config() doesn't check instruction_files paths exist",
+        "Missing instruction files only discovered at runtime during prompt rendering",
+        "User gets late error instead of early validation feedback"
+      ],
+      "plan": [
+        "Add validation loop for instruction_files in validate_config()",
+        "Check each path exists and is readable",
+        "Return helpful error with file path and suggestion to create or fix path",
+        "Add --validate-config flag to ralph config command for early checking",
+        "Add test for missing instruction file detection"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-28T04:11:49Z",
+      "updated_at": "2026-01-28T04:11:49Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0366",
+      "status": "todo",
+      "title": "Improve runner process timeout handling race condition",
+      "priority": "low",
+      "tags": [
+        "bug",
+        "runner",
+        "race-condition"
+      ],
+      "scope": [
+        "crates/ralph/src/runner/execution/process.rs"
+      ],
+      "evidence": [
+        "process.rs:86-170 wait_for_child() has race between timeout detection and process exit",
+        "Process exiting between interrupt and kill may have exit status misinterpreted",
+        "Lines 155-162: status checked after timeout but timeout error takes precedence"
+      ],
+      "plan": [
+        "Refactor to use select/poll for proper timeout handling",
+        "Check exit status immediately after interrupt before timeout error",
+        "Add state machine for process lifecycle (Running -> Interrupting -> Killed)",
+        "Add test with simulated slow-exiting process",
+        "Log process state transitions for debugging"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-28T04:11:49Z",
+      "updated_at": "2026-01-28T04:11:49Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0367",
+      "status": "todo",
+      "title": "Add TUI help text for all key bindings and commands",
+      "priority": "low",
+      "tags": [
+        "ux",
+        "tui",
+        "documentation"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/",
+        "docs/cli.md"
+      ],
+      "evidence": [
+        "TUI has many key bindings but no built-in help overlay showing all options",
+        "Users must refer to external docs or discover keys by trial",
+        "Help overlay exists but may not cover all available actions"
+      ],
+      "plan": [
+        "Audit all key bindings in tui/events/ module",
+        "Create comprehensive help overlay showing all bindings by category",
+        "Add '?' key to toggle help overlay from any mode",
+        "Include command palette shortcuts in help",
+        "Update docs/cli.md with TUI key reference"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-28T04:11:49Z",
+      "updated_at": "2026-01-28T04:11:49Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0368",
+      "status": "todo",
+      "title": "Add LFS smudge/clean filter validation before commit",
+      "priority": "low",
+      "tags": [
+        "enhancement",
+        "git",
+        "lfs",
+        "data-integrity"
+      ],
+      "scope": [
+        "crates/ralph/src/gitutil.rs"
+      ],
+      "evidence": [
+        "gitutil.rs:250-274 LFS detection only checks tracking files, not filter health",
+        "Doesn't handle LFS pointer file corruption or smudge/clean filter failures",
+        "Potential data loss if LFS files committed as pointers due to filter misconfiguration"
+      ],
+      "plan": [
+        "Add pre-commit LFS filter validation check",
+        "Run 'git lfs status' to detect files that should be LFS but aren't",
+        "Warn user if LFS filters are not properly configured",
+        "Add option to abort commit on LFS misconfiguration",
+        "Add test with mock LFS repository"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-28T04:11:49Z",
+      "updated_at": "2026-01-28T04:11:49Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0369",
+      "status": "todo",
+      "title": "Fix debug log test interference from concurrent access",
+      "priority": "low",
+      "tags": [
+        "bug",
+        "testing",
+        "concurrency"
+      ],
+      "scope": [
+        "crates/ralph/src/debuglog.rs"
+      ],
+      "evidence": [
+        "debuglog.rs:55-70 enable() silently succeeds if already enabled",
+        "reset_for_tests() requires test lock but tests may not always acquire it",
+        "If tests run concurrently without lock, they may interfere with debug log state"
+      ],
+      "plan": [
+        "Add test-only mutex guard around all debug log operations",
+        "Use thread-local storage for test isolation where possible",
+        "Add panic if debug log state changes unexpectedly during tests",
+        "Document test concurrency requirements in module docs",
+        "Add test verifying concurrent debug log access is safe"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-28T04:11:49Z",
+      "updated_at": "2026-01-28T04:11:49Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0370",
+      "status": "todo",
+      "title": "Add CLI completion scripts for bash/zsh/fish",
+      "priority": "low",
+      "tags": [
+        "enhancement",
+        "cli",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/",
+        "completions/"
+      ],
+      "evidence": [
+        "Ralph has many CLI commands and flags but no shell completion support",
+        "Users must type full command names and remember all flags",
+        "Clap supports generating completion scripts via clap_complete crate"
+      ],
+      "plan": [
+        "Add clap_complete dependency",
+        "Create 'ralph completions <shell>' command",
+        "Generate completions for bash, zsh, fish, and PowerShell",
+        "Add installation instructions to README and docs/cli.md",
+        "Consider including pre-generated scripts in repo"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-28T04:11:49Z",
+      "updated_at": "2026-01-28T04:11:49Z",
+      "depends_on": [],
+      "custom_fields": {}
+    }
+  ]
+}

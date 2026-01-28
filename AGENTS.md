@@ -61,6 +61,7 @@ Useful iteration commands (not a substitute for `make ci`):
 - Integration tests: use `crates/ralph/tests/` when cross-module behavior is the subject.
 - Temp dirs: CI tests run in `target/tmp/ralph-ci-tmp/` (set `RALPH_CI_KEEP_TMP=1` to keep).
 - Stress tests: `make stress` runs burn-in queue-contract validation.
+- **Init tests**: when calling `ralph init` in integration tests, always use `--non-interactive` (e.g., `ralph init --force --non-interactive`). Without this flag, TTY detection may trigger the interactive wizard in test environments, breaking the CI gate.
 
 ## Queue, Prompts, and Workflow Contracts
 
