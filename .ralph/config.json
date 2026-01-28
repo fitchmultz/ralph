@@ -8,11 +8,11 @@
     "id_width": 4
   },
   "agent": {
-    "runner": "claude",
-    "model": "opus",
+    "runner": "codex",
+    "model": "gpt-5.2-codex",
     "phases": 3,
     "iterations": 1,
-    "reasoning_effort": "medium",
+    "reasoning_effort": "high",
     "codex_bin": "codex",
     "opencode_bin": "opencode",
     "gemini_bin": "gemini",
