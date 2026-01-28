@@ -2,44 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0330",
-      "status": "todo",
-      "title": "TUI: handle resize and other non-key events explicitly",
-      "priority": "medium",
-      "tags": [
-        "tui",
-        "ux",
-        "stability"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/app.rs",
-        "crates/ralph/src/tui/events/mod.rs",
-        "crates/ralph/src/tui/tests.rs",
-        "make ci"
-      ],
-      "evidence": [
-        "`crates/ralph/src/tui/app.rs`: input loop only processes events matching `Event::Key`; `Event::Resize` is ignored.",
-        "`crates/ralph/src/tui/app.rs`: the same pattern implies other event types (mouse/paste) are ignored unless added explicitly."
-      ],
-      "plan": [
-        "Handle `Event::Resize` to avoid stale cached layout state and to prevent rendering artifacts on terminal resize.",
-        "Ensure non-key events are either ignored intentionally (without side-effects) or handled (mouse support task covers mouse).",
-        "Add a focused test (or a small harness) to ensure resize events do not panic and update cached dimensions appropriately.",
-        "Run `make ci`."
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "agent": {
-        "model_effort": "medium"
-      },
-      "created_at": "2026-01-27T04:35:15Z",
-      "updated_at": "2026-01-27T14:51:00.505336000Z",
-      "depends_on": [],
-      "custom_fields": {
-        "stale_note": "Mouse events now handled (RQ-0324); evidence about mouse being ignored is no longer accurate. Resize/paste still unhandled."
-      }
-    },
-    {
       "id": "RQ-0325",
       "status": "todo",
       "title": "TUI: standardize confirm dialog keybindings (j/k, arrows, sensible defaults)",

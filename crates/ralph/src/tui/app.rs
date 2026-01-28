@@ -361,6 +361,35 @@ impl App {
         self.list_area
     }
 
+    /// Handle terminal resize events.
+    ///
+    /// Responsibilities:
+    /// - Clear cached list_area to force recalculation on next render.
+    /// - Clamp scroll positions to ensure they remain valid after terminal resize.
+    ///
+    /// Not handled here:
+    /// - Layout computation (handled fresh each frame in render loop).
+    /// - Widget positioning (ratatui handles this via `f.area()`).
+    pub fn handle_resize(&mut self, _width: u16, _height: u16) {
+        // Clear cached list_area to force recalculation
+        self.clear_list_area();
+
+        // Clamp selection and scroll to valid range for the filtered list
+        self.clamp_selection_and_scroll();
+
+        // Clamp details scroll to valid range
+        let details_max = self.max_details_scroll(self.details_total_lines);
+        if self.details_scroll > details_max {
+            self.details_scroll = details_max;
+        }
+
+        // Clamp help scroll to valid range
+        let help_max = self.max_help_scroll(self.help_total_lines);
+        if self.help_scroll > help_max {
+            self.help_scroll = help_max;
+        }
+    }
+
     pub(crate) fn unsafe_to_discard(&self) -> bool {
         self.dirty || self.dirty_done || self.dirty_config || self.save_error.is_some()
     }
@@ -2046,7 +2075,17 @@ where
                         let action = handle_mouse_event(&mut app_ref, mouse)?;
                         should_quit = handle_action(action, &mut app_ref)?;
                     }
-                    _ => {}
+                    Event::Resize(width, height) => {
+                        let mut app_ref = app.borrow_mut();
+                        app_ref.handle_resize(width, height);
+                    }
+                    Event::Paste(_) => {
+                        // Explicitly ignore paste events for now.
+                        // Future enhancement: support paste in text input modes.
+                    }
+                    Event::FocusGained | Event::FocusLost => {
+                        // Explicitly ignore focus events.
+                    }
                 }
                 if should_quit {
                     break;

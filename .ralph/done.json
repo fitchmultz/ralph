@@ -8027,6 +8027,50 @@
       "completed_at": "2026-01-27T23:48:34.033236000Z",
       "depends_on": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0330",
+      "status": "done",
+      "title": "TUI: handle resize and other non-key events explicitly",
+      "priority": "medium",
+      "tags": [
+        "tui",
+        "ux",
+        "stability"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/app.rs",
+        "crates/ralph/src/tui/events/mod.rs",
+        "crates/ralph/src/tui/events/tests.rs",
+        "make ci"
+      ],
+      "evidence": [
+        "`crates/ralph/src/tui/app.rs`: input loop at lines 2030-2054 only processes `Event::Key` and `Event::Mouse`; `Event::Resize` falls through to the `_ => {}` wildcard and is silently ignored.",
+        "`crates/ralph/src/tui/app.rs`: App struct caches layout state including `list_height`, `list_area`, `details_visible_lines`, `log_visible_lines` that could become stale on resize.",
+        "`crates/ralph/src/tui/render/mod.rs`: layout is computed fresh each frame via `f.area()`, so resize artifacts are mostly mitigated, but cached scroll positions may be out of bounds after resize.",
+        "Mouse events are now handled (see `handle_mouse_event` in `crates/ralph/src/tui/events/mod.rs`); only resize and paste events remain unhandled.",
+        "`Event::Paste` is not handled and could be explicitly ignored or supported for better text input UX."
+      ],
+      "plan": [
+        "Handle `Event::Resize` in the main event loop to trigger any necessary cache invalidation or bounds checking on cached dimensions.",
+        "Add explicit handling for `Event::Paste` - either ignore it intentionally or add paste support for text input fields.",
+        "Add tests in `crates/ralph/src/tui/events/tests.rs` to verify resize events are handled without panic.",
+        "Run `make ci`."
+      ],
+      "notes": [
+        "Mouse support was implemented in RQ-0324; the custom_fields stale_note has been incorporated into evidence.",
+        "The wildcard pattern `_ => {}` at line 2052 silently ignores resize events without side effects, which is acceptable but explicit handling is preferred.",
+        "Phase 3 review complete. handle_resize clears list_area cache and clamps scroll positions. Event loop handles Resize/Paste/Focus explicitly. 6 resize tests added. make ci passes."
+      ],
+      "request": "scan finding",
+      "agent": {
+        "model_effort": "medium"
+      },
+      "created_at": "2026-01-27T04:35:15Z",
+      "updated_at": "2026-01-28T00:11:36.962250000Z",
+      "completed_at": "2026-01-28T00:11:36.962250000Z",
+      "depends_on": [],
+      "custom_fields": {}
     }
   ]
 }
