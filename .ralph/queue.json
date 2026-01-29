@@ -1,4 +1,120 @@
 {
   "version": 1,
-  "tasks": []
+  "tasks": [
+    {
+      "id": "RQ-0396",
+      "status": "todo",
+      "title": "Unify CLI argument patterns: make 'ralph scan' accept positional prompt like 'ralph task'",
+      "priority": "medium",
+      "tags": [
+        "cli",
+        "ux",
+        "consistency"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/scan.rs",
+        "crates/ralph/src/cli/task.rs",
+        "docs/cli.md"
+      ],
+      "evidence": [
+        "User reports: 'ralph task' works by appending prompt without a flag, but 'ralph scan' requires '--focus' flag",
+        "This creates inconsistent UX between two similar commands",
+        "Both commands support '--runner' and '--effort' flags, so the prompt syntax should align"
+      ],
+      "plan": [
+        "Review current 'ralph task' argument parsing to understand how it accepts positional prompt",
+        "Review current 'ralph scan' argument parsing and '--focus' flag implementation",
+        "Modify 'ralph scan' to accept an optional positional prompt argument (in addition to --focus for backward compatibility)",
+        "Update help text and examples for 'ralph scan' to show both usage patterns",
+        "Update docs/cli.md to reflect the unified syntax",
+        "Run 'make ci' to validate changes"
+      ],
+      "notes": [],
+      "request": "'ralph task' works by just appending the prompt to the 'ralph task' command without a flag. 'ralph scan' requires the prompt to follow after '--focus'. this seems like an inconsistent user experience. i do use both with different '--runner' and '--effort' flags but it seems odd to have to specify '--focus' for the 'scan' command.",
+      "created_at": "2026-01-29T14:26:40Z",
+      "updated_at": "2026-01-29T14:26:40Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0397",
+      "status": "todo",
+      "title": "Add scan mode for feature discovery/innovation vs code hygiene",
+      "priority": "medium",
+      "tags": [
+        "cli",
+        "scan",
+        "feature-discovery"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/scan.rs",
+        "crates/ralph/assets/prompts/scan.md",
+        "docs/cli.md"
+      ],
+      "evidence": [
+        "User reports: 'ralph scan' defaults to looking for repo rules violations, inconsistent/incomplete code (break-fix maintenance)",
+        "User wants ability to scan for new features to add, feature completeness for specific use-cases",
+        "Current behavior stays focused on code hygiene even when directed toward innovation",
+        "Need to balance without overcorrecting away from the useful maintenance mode"
+      ],
+      "plan": [
+        "Review current scan prompt template to understand how it guides the model",
+        "Review existing scan flags to see if there's already a mode toggle",
+        "Design a '--mode' or similar flag with values like 'maintenance' (default) and 'innovation'",
+        "Create separate prompt paths or conditional prompt sections for each mode",
+        "Ensure 'maintenance' mode preserves current break-fix behavior",
+        "Ensure 'innovation' mode guides model toward feature gaps, use-case completeness, and enhancement opportunities",
+        "Update CLI help text with examples for both modes",
+        "Update docs/cli.md with mode descriptions",
+        "Run 'make ci' to validate changes"
+      ],
+      "notes": [],
+      "request": "right now when 'ralph scan' is run i think it defaults to looking for repo rules violations, inconsistent or incomplete code, etc. More of a break-fix maintenance order. This works well. But it would be nice to be able to have it look for new features to add. maybe the prompt already has this verbiage for innovation in it, or maybe there is already a flag for it that i have forgotten about, but even when i use the '--focus' and direct the model to look for feature completeness, adding new features for a specific use-case or in general, it seems to stay focused on the code hygiene as aspect much more. Not sure how to handle this without overcorrecting.",
+      "created_at": "2026-01-29T14:26:40Z",
+      "updated_at": "2026-01-29T14:26:40Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0398",
+      "status": "todo",
+      "title": "Fix TUI terminal resize handling and visual glitches",
+      "priority": "high",
+      "tags": [
+        "tui",
+        "ux",
+        "resize",
+        "rendering"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/",
+        "crates/ralph/src/tui/app.rs",
+        "crates/ralph/src/tui/ui.rs",
+        "crates/ralph/src/tui/events.rs"
+      ],
+      "evidence": [
+        "User reports: TUI formatting breaks on terminal resize until next update",
+        "In some cases formatting remains broken even after updates",
+        "Logs need to stream and display properly",
+        "User has 'GREAT success with the CLI and barely touch the TUI due to poor user experience'",
+        "This is a polish issue that affects user adoption"
+      ],
+      "plan": [
+        "Review current TUI event handling to understand resize signal processing",
+        "Review current rendering logic to identify why redraw doesn't happen immediately on resize",
+        "Implement proper terminal resize event handling that triggers immediate full redraw",
+        "Ensure layout calculations use current terminal dimensions after resize",
+        "Test log streaming display during and after resize operations",
+        "Review and fix any remaining visual glitches (flickering, misalignment, truncation)",
+        "Test across common terminal emulators (iTerm2, Terminal.app, Alacritty, etc.)",
+        "Run 'make ci' to validate changes"
+      ],
+      "notes": [],
+      "request": "we must review the TUI resizing to ensure that when a user resizes their terminal that the screen is redrawn. currently i see a whole lot of formatting break and look like crap until the next update is sent to the screen, and in some cases it still is busted. this is a tough problem to solve, tuis are hard. but we must make sure we have a tui that is performant and without visual glitches. logs need to stream and be displayed properly. user flows and experience need to be polished otherwise it looks like amateur work and users wont want to use it. personally, i have had GREAT success with the CLI and barely touch the TUI due to poor user experience. The CLI version of the 'ralph task', 'ralph scan', and 'ralph run' commands have been excellent.",
+      "created_at": "2026-01-29T14:26:40Z",
+      "updated_at": "2026-01-29T14:26:40Z",
+      "depends_on": [],
+      "custom_fields": {}
+    }
+  ]
 }
