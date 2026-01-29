@@ -9,6 +9,12 @@
 //! - CLI argument parsing or command dispatch.
 //! - Queue persistence details (see `crate::queue`).
 //! - Lock ownership metadata (see `crate::lock`).
+//! - Filter state management (see `app_filters` module).
+//! - Execution phase tracking (see `app_execution` module).
+//! - Log management (see `app_logs` module).
+//! - Help overlay state (see `app_help` module).
+//! - Loop mode state (see `app_loop` module).
+//! - ID-to-index caching (see `app_id_index` module).
 //!
 //! Invariants/assumptions:
 //! - Callers acquire the queue lock before mutating state.
@@ -58,6 +64,13 @@ pub struct TuiOptions {
     pub color: ColorOption,
     /// If true, use ASCII borders instead of Unicode.
     pub ascii_borders: bool,
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FilterCacheStats {
+    pub id_index_rebuilds: usize,
+    pub filtered_rebuilds: usize,
 }
 
 /// Active filters applied to the task list.
@@ -120,13 +133,6 @@ impl FilterKey {
             case_sensitive: filters.search_options.case_sensitive,
         }
     }
-}
-
-#[cfg(test)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct FilterCacheStats {
-    pub id_index_rebuilds: usize,
-    pub filtered_rebuilds: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

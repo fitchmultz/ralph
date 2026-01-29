@@ -2,39 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0393",
-      "status": "todo",
-      "title": "Fix TUI app state being too large and unfocused",
-      "priority": "medium",
-      "tags": [
-        "refactoring",
-        "tui",
-        "code-quality"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/app.rs"
-      ],
-      "evidence": [
-        "app.rs is very large (exceeds 110KB, truncated in output)",
-        "App struct handles too many responsibilities",
-        "File size heuristic suggests it should be split (~400 LOC guideline)",
-        "Complexity makes testing and maintenance difficult"
-      ],
-      "plan": [
-        "Extract filter state management to separate module",
-        "Extract palette/command palette logic to separate module",
-        "Extract task builder state to separate module",
-        "Keep app.rs focused on coordination only",
-        "Run 'make ci' to verify no behavior changes"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-28T05:30:00Z",
-      "updated_at": "2026-01-28T05:30:00Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0394",
       "status": "todo",
       "title": "Add dry-run mode for task operations",

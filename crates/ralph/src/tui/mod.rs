@@ -13,7 +13,12 @@
 //! - Public exports remain cohesive to the TUI surface area.
 
 mod app;
+mod app_execution;
 mod app_filters;
+mod app_help;
+mod app_id_index;
+mod app_logs;
+mod app_loop;
 mod app_palette;
 mod config_edit;
 mod events;
@@ -27,7 +32,11 @@ pub mod terminal;
 #[cfg(test)]
 mod tests;
 
-pub use app::{prepare_tui_session, run_tui, App, FilterState, RunningKind, TuiOptions};
+pub use app::{
+    prepare_tui_session, run_tui, App, ExecutionPhase, FilterState, RunningKind, TuiOptions,
+};
+pub use app_execution::ExecutionState;
+pub use app_filters::FilterManager;
 pub use config_edit::{ConfigEntry, ConfigFieldKind, ConfigKey};
 pub use events::{
     handle_key_event, AppMode, ConfirmDiscardAction, PaletteCommand, PaletteEntry, TuiAction,
