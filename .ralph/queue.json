@@ -2,6 +2,171 @@
   "version": 1,
   "tasks": [
     {
+      "id": "RQ-0402",
+      "status": "todo",
+      "title": "Add JSONC support for config, queue, and done files",
+      "priority": "medium",
+      "tags": [
+        "config",
+        "jsonc",
+        "parser",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/src/config/",
+        "crates/ralph/src/queue/",
+        "schemas/",
+        "docs/configuration.md"
+      ],
+      "evidence": [
+        "User request: 'Ralph should support .json and .jsonc for its config, queue, done and any other json files'",
+        "User request: 'Default can remain .json for now but user should be able to switch to .jsonc and make comments if desired'",
+        "Current state: All JSON files use strict JSON parser which rejects comments",
+        "Files affected: .ralph/config.json, .ralph/queue.json, .ralph/done.json, schemas/*.json"
+      ],
+      "plan": [
+        "Add JSONC parsing dependency (e.g., serde_jsonc or similar crate)",
+        "Update config loading to accept both .json and .jsonc extensions",
+        "Update queue file reading/writing to support JSONC with comments",
+        "Update done file reading/writing to support JSONC with comments",
+        "Ensure backward compatibility: existing .json files continue to work",
+        "Add config option to specify preferred file extension (json vs jsonc)",
+        "Update schema validation to handle JSONC (strip comments before validation)",
+        "Update docs/configuration.md with JSONC usage instructions",
+        "Run 'make ci' to validate changes"
+      ],
+      "notes": [],
+      "request": "Ralph should support .json and .jsonc for its config, queue, done and any other json files. Default can remain .json for now but user should be able to switch to .jsonc and make comments if desired.",
+      "created_at": "2026-01-29T14:40:58Z",
+      "updated_at": "2026-01-29T14:40:58Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0399",
+      "status": "todo",
+      "title": "Design and implement local release workflow without GitHub Actions",
+      "priority": "high",
+      "tags": [
+        "release",
+        "versioning",
+        "local-ci",
+        "github"
+      ],
+      "scope": [
+        "Makefile",
+        "scripts/",
+        "docs/releasing.md",
+        "crates/ralph/Cargo.toml",
+        "CHANGELOG.md"
+      ],
+      "evidence": [
+        "User request: 'We require proper versioning and changelog generation'",
+        "User request: 'Figure out a way to properly bump versions'",
+        "User concern: Project synced with private git repo, hesitant to go public",
+        "User concern: Missing mechanisms to build and publish releases to GitHub with proper version control, changelogs",
+        "User constraint: No GitHub Actions are enabled or allowed on this project",
+        "Current state: Makefile has 'make release VERSION=x.y.z' target but may need enhancement",
+        "Current state: CHANGELOG.md exists with Keep a Changelog format",
+        "Current state: Version is 0.1.0 in crates/ralph/Cargo.toml"
+      ],
+      "plan": [
+        "Audit current 'make release' target and identify gaps for local-only release workflow",
+        "Design local release script that: validates version, updates Cargo.toml, updates CHANGELOG, creates git tag, builds release binary",
+        "Add GitHub CLI (gh) integration for creating releases locally without Actions",
+        "Ensure release artifacts (binary, checksums) are generated and attached to GitHub release",
+        "Add pre-release validation: ensure 'make ci' passes, ensure working directory is clean, ensure on main branch",
+        "Add support for generating release notes from CHANGELOG section",
+        "Create docs/releasing.md documenting the complete local release workflow",
+        "Test the workflow with a patch version bump (0.1.1) to verify end-to-end",
+        "Update README.md with release/versioning information if needed"
+      ],
+      "notes": [],
+      "request": "We require proper versioning and changelog generation. Figure out a way to properly bump versions. Project is still synced with a private git repo. user has hesitancy to go public due to missing mechanisms to build and publish releases to his github with proper version control, changelogs, etc. no github actions are enabled or allowed on this project.",
+      "created_at": "2026-01-29T14:36:08Z",
+      "updated_at": "2026-01-29T14:36:08Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0400",
+      "status": "todo",
+      "title": "Add version command and runtime version reporting to CLI",
+      "priority": "medium",
+      "tags": [
+        "cli",
+        "version",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/mod.rs",
+        "crates/ralph/src/main.rs",
+        "crates/ralph/Cargo.toml"
+      ],
+      "evidence": [
+        "User request: 'proper versioning' implies version should be visible to users",
+        "Current state: No explicit 'version' subcommand exists (only --version via clap)",
+        "Best practice: CLI tools should report their version clearly"
+      ],
+      "plan": [
+        "Verify 'ralph --version' works via clap derive",
+        "Add 'ralph version' subcommand that prints version, build info, and git commit hash",
+        "Consider adding version to TUI header if not already present",
+        "Ensure version is embedded at compile time via CARGO_PKG_VERSION",
+        "Run 'make ci' to validate changes"
+      ],
+      "notes": [],
+      "request": "We require proper versioning and changelog generation. Figure out a way to properly bump versions. Project is still synced with a private git repo. user has hesitancy to go public due to missing mechanisms to build and publish releases to his github with proper version control, changelogs, etc. no github actions are enabled or allowed on this project.",
+      "created_at": "2026-01-29T14:36:08Z",
+      "updated_at": "2026-01-29T14:36:08Z",
+      "depends_on": [
+        "RQ-0399"
+      ],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0401",
+      "status": "todo",
+      "title": "Create automated changelog generation from conventional commits",
+      "priority": "medium",
+      "tags": [
+        "changelog",
+        "automation",
+        "git",
+        "local-ci"
+      ],
+      "scope": [
+        "scripts/",
+        "Makefile",
+        "CHANGELOG.md",
+        "docs/releasing.md"
+      ],
+      "evidence": [
+        "User request: 'proper versioning and changelog generation'",
+        "Current state: CHANGELOG.md is manually maintained with Keep a Changelog format",
+        "Current state: Commit messages follow 'RQ-####: <summary>' pattern",
+        "Constraint: No GitHub Actions allowed, must be local tooling"
+      ],
+      "plan": [
+        "Evaluate options: git-cliff, conventional-changelog, or custom script",
+        "Choose tool that works locally without CI/CD infrastructure",
+        "Configure changelog generator to recognize 'RQ-####:' commit pattern",
+        "Add 'make changelog' target to generate/update CHANGELOG.md",
+        "Integrate changelog generation into release workflow",
+        "Ensure generated changelog follows Keep a Changelog format",
+        "Document changelog workflow in docs/releasing.md",
+        "Run 'make ci' to validate changes"
+      ],
+      "notes": [],
+      "request": "We require proper versioning and changelog generation. Figure out a way to properly bump versions. Project is still synced with a private git repo. user has hesitancy to go public due to missing mechanisms to build and publish releases to his github with proper version control, changelogs, etc. no github actions are enabled or allowed on this project.",
+      "created_at": "2026-01-29T14:36:08Z",
+      "updated_at": "2026-01-29T14:36:08Z",
+      "depends_on": [
+        "RQ-0399"
+      ],
+      "custom_fields": {}
+    },
+    {
       "id": "RQ-0396",
       "status": "todo",
       "title": "Unify CLI argument patterns: make 'ralph scan' accept positional prompt like 'ralph task'",
