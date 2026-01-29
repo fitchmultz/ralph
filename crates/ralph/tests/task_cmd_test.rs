@@ -94,6 +94,7 @@ fn test_task_build_options_default_values() {
         runner_cli_overrides: RunnerCliOptionsPatch::default(),
         force: false,
         repoprompt_tool_injection: false,
+        template_hint: None,
     };
 
     assert_eq!(opts.request, "test request");
@@ -117,6 +118,7 @@ fn test_task_build_options_with_values() {
         runner_cli_overrides: RunnerCliOptionsPatch::default(),
         force: true,
         repoprompt_tool_injection: false,
+        template_hint: None,
     };
 
     assert_eq!(opts.request, "implement feature");
@@ -141,6 +143,7 @@ fn test_task_build_options_empty_request_validation() {
         runner_cli_overrides: RunnerCliOptionsPatch::default(),
         force: false,
         repoprompt_tool_injection: false,
+        template_hint: None,
     };
 
     assert!(opts.request.trim().is_empty());
@@ -158,6 +161,7 @@ fn test_task_build_options_whitespace_request_validation() {
         runner_cli_overrides: RunnerCliOptionsPatch::default(),
         force: false,
         repoprompt_tool_injection: false,
+        template_hint: None,
     };
 
     assert!(opts.request.trim().is_empty());
@@ -183,6 +187,7 @@ fn test_task_build_options_all_runners() {
             runner_cli_overrides: RunnerCliOptionsPatch::default(),
             force: false,
             repoprompt_tool_injection: false,
+            template_hint: None,
         };
         assert_eq!(opts.request, "test");
     }
@@ -208,6 +213,7 @@ fn test_task_build_options_all_models() {
             runner_cli_overrides: RunnerCliOptionsPatch::default(),
             force: false,
             repoprompt_tool_injection: false,
+            template_hint: None,
         };
         assert_eq!(opts.request, "test");
     }
@@ -234,6 +240,7 @@ fn test_task_build_options_all_reasoning_efforts() {
             runner_cli_overrides: RunnerCliOptionsPatch::default(),
             force: false,
             repoprompt_tool_injection: false,
+            template_hint: None,
         };
         // Just verify we can create options with each effort level
         assert_eq!(opts.request, "test");

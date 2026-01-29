@@ -2398,6 +2398,7 @@ where
                             ),
                             force: false,
                             repoprompt_tool_injection: false,
+                            template_hint: None,
                         };
                         spawn_task_builder(opts, None, tx_clone);
                     }
@@ -2420,6 +2421,7 @@ where
                             ),
                             force: false,
                             repoprompt_tool_injection: false,
+                            template_hint: None,
                         };
                         spawn_task_builder(opts, options.repoprompt_mode, tx_clone);
                     }

@@ -34,6 +34,8 @@ pub struct TaskBuildOptions {
     pub runner_cli_overrides: RunnerCliOptionsPatch,
     pub force: bool,
     pub repoprompt_tool_injection: bool,
+    /// Optional template name to use as a base for task fields
+    pub template_hint: Option<String>,
 }
 
 // TaskUpdateSettings controls runner-driven task updates via .ralph/prompts/task_updater.md.
@@ -153,7 +155,7 @@ pub fn build_task_without_lock(resolved: &config::Resolved, opts: TaskBuildOptio
 
 fn build_task_impl(
     resolved: &config::Resolved,
-    opts: TaskBuildOptions,
+    mut opts: TaskBuildOptions,
     acquire_lock: bool,
 ) -> Result<()> {
     let _queue_lock = if acquire_lock {
@@ -168,6 +170,21 @@ fn build_task_impl(
 
     if opts.request.trim().is_empty() {
         bail!("Missing request: task requires a request description. Provide a non-empty request.");
+    }
+
+    // Apply template if specified
+    let mut template_context = String::new();
+    if let Some(template_name) = opts.template_hint.clone() {
+        match crate::template::load_template(&template_name, &resolved.repo_root) {
+            Ok((template, _)) => {
+                crate::template::merge_template_with_options(&template, &mut opts);
+                template_context = crate::template::format_template_context(&template);
+                log::info!("Using template '{}' for task creation", template_name);
+            }
+            Err(e) => {
+                log::warn!("Failed to load template '{}': {}", template_name, e);
+            }
+        }
     }
 
     let before = queue::load_queue(&resolved.queue_path)
@@ -204,6 +221,12 @@ fn build_task_impl(
         project_type,
         &resolved.config,
     )?;
+
+    // Append template context to prompt if available
+    if !template_context.is_empty() {
+        prompt.push_str("\n\n--- Template Suggestions ---\n");
+        prompt.push_str(&template_context);
+    }
 
     prompt = prompts::wrap_with_repoprompt_requirement(&prompt, opts.repoprompt_tool_injection);
     prompt = prompts::wrap_with_instruction_files(&resolved.repo_root, &prompt, &resolved.config)?;
@@ -635,6 +658,7 @@ mod tests {
             runner_cli_overrides: RunnerCliOptionsPatch::default(),
             force: false,
             repoprompt_tool_injection: false,
+            template_hint: None,
         }
     }
 
