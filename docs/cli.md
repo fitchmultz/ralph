@@ -967,6 +967,36 @@ ralph task show RQ-0001 --format compact
 ralph task details RQ-0001 --format compact
 ```
 
+### ralph task edit
+
+Edit any task field directly. Supports all task fields including custom fields.
+
+Fields that can be edited:
+- `title` - task title (cannot be empty)
+- `status` - draft, todo, doing, done, rejected (empty value cycles to next status)
+- `priority` - critical, high, medium, low (empty value cycles to next priority)
+- `tags`, `scope`, `evidence`, `plan`, `notes`, `depends_on` - comma/newline-separated lists
+- `request` - task request description (empty value clears the field)
+- `custom_fields` - key=value pairs, comma/newline-separated
+- `created_at`, `updated_at`, `completed_at` - RFC3339 timestamps
+
+Flags:
+- `--dry-run` - preview changes without modifying the queue
+
+Examples:
+```bash
+# Edit task fields
+ralph task edit title "New title" RQ-0001
+ralph task edit status doing RQ-0001
+ralph task edit priority high RQ-0001
+ralph task edit tags "cli, rust" RQ-0001
+ralph task edit custom_fields "severity=high, owner=ralph" RQ-0001
+ralph task edit request "" RQ-0001
+
+# Preview changes without applying
+ralph task edit --dry-run title "Preview title" RQ-0001
+```
+
 ### ralph task update
 
 Update existing task fields based on current repository state.
@@ -994,6 +1024,7 @@ Flags:
 - `--fields <FIELD_NAMES>` - specific fields to update (comma-separated, default: all)
 - `--runner/--model/--effort` (`-e`) - runner override for this invocation
 - `--repo-prompt <tools|plan|off>` (alias: `-rp`) - RepoPrompt planning/tooling mode
+- `--dry-run` - preview the prompt that would be sent to the runner (actual changes depend on runner analysis)
 - Runner CLI overrides: `--approval-mode <default|auto-edits|yolo|safe>`, `--sandbox <default|enabled|disabled>`, `--verbosity <quiet|normal|verbose>`, `--plan-mode <default|enabled|disabled>`, `--output-format <stream-json|json|text>`, `--unsupported-option-policy <ignore|warn|error>`.
 
 Examples:
@@ -1006,6 +1037,9 @@ ralph task update --approval-mode auto-edits --runner claude RQ-0001
 ralph task update --repo-prompt plan RQ-0001
 ralph task update --repo-prompt off --fields scope,evidence RQ-0001
 ralph task update --fields tags RQ-0042
+
+# Preview what would be updated (shows prompt preview)
+ralph task update --dry-run RQ-0001
 ```
 
 ## `ralph prd`

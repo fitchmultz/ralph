@@ -2,41 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0394",
-      "status": "todo",
-      "title": "Add dry-run mode for task operations",
-      "priority": "low",
-      "tags": [
-        "enhancement",
-        "cli",
-        "ux",
-        "safety"
-      ],
-      "scope": [
-        "crates/ralph/src/commands/task.rs",
-        "crates/ralph/src/queue/operations/"
-      ],
-      "evidence": [
-        "No way to preview task operations before applying them",
-        "Users may want to see what 'ralph task update' would change",
-        "Risk of unintended modifications to task queue",
-        "Other CLI tools commonly provide --dry-run for safety"
-      ],
-      "plan": [
-        "Add --dry-run flag to task update command",
-        "Add --dry-run flag to task edit command",
-        "Show proposed changes without modifying queue.json",
-        "Use diff-like output to highlight changes",
-        "Document dry-run usage in docs/cli.md"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-28T05:30:00Z",
-      "updated_at": "2026-01-28T05:30:00Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0395",
       "status": "todo",
       "title": "Add task templates for common task types",

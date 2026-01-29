@@ -109,8 +109,7 @@ pub fn handle_task(args: TaskArgs, force: bool) -> Result<()> {
         }
 
         Some(TaskCommand::Edit(args)) => {
-            let _queue_lock = queue::acquire_queue_lock(&resolved.repo_root, "task edit", force)?;
-            let mut queue_file = queue::load_queue(&resolved.queue_path)?;
+            let queue_file = queue::load_queue(&resolved.queue_path)?;
             let done_file = queue::load_queue_or_default(&resolved.done_path)?;
             let done_ref = if done_file.tasks.is_empty() && !resolved.done_path.exists() {
                 None
@@ -119,6 +118,36 @@ pub fn handle_task(args: TaskArgs, force: bool) -> Result<()> {
             };
             let now = timeutil::now_utc_rfc3339()?;
             let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
+
+            if args.dry_run {
+                // Preview mode: show diff without saving
+                let preview = queue::preview_task_edit(
+                    &queue_file,
+                    done_ref,
+                    &args.task_id,
+                    args.field.into(),
+                    &args.value,
+                    &now,
+                    &resolved.id_prefix,
+                    resolved.id_width,
+                    max_depth,
+                )?;
+                println!("Dry run - would update task {}:", preview.task_id);
+                println!("  Field: {}", preview.field);
+                println!("  Old: {}", preview.old_value);
+                println!("  New: {}", preview.new_value);
+                if !preview.warnings.is_empty() {
+                    println!("  Warnings:");
+                    for warning in &preview.warnings {
+                        println!("    - [{}] {}", warning.task_id, warning.message);
+                    }
+                }
+                return Ok(());
+            }
+
+            // Normal mode: acquire lock and apply
+            let _queue_lock = queue::acquire_queue_lock(&resolved.repo_root, "task edit", force)?;
+            let mut queue_file = queue::load_queue(&resolved.queue_path)?;
             queue::apply_task_edit(
                 &mut queue_file,
                 done_ref,
@@ -172,6 +201,7 @@ pub fn handle_task(args: TaskArgs, force: bool) -> Result<()> {
                 runner_cli_overrides: overrides.runner_cli,
                 force,
                 repoprompt_tool_injection: agent::resolve_rp_required(args.repo_prompt, &resolved),
+                dry_run: args.dry_run,
             };
 
             match args.task_id.as_deref() {
@@ -352,13 +382,13 @@ pub enum TaskCommand {
 
     /// Edit any task field (default or custom).
     #[command(
-        after_long_help = "Examples:\n ralph task edit title \"Clarify CLI edit\" RQ-0001\n ralph task edit status doing RQ-0001\n ralph task edit priority high RQ-0001\n ralph task edit tags \"cli, rust\" RQ-0001\n ralph task edit custom_fields \"severity=high, owner=ralph\" RQ-0001\n ralph task edit request \"\" RQ-0001\n ralph task edit completed_at \"2026-01-20T12:00:00Z\" RQ-0001"
+        after_long_help = "Examples:\n ralph task edit title \"Clarify CLI edit\" RQ-0001\n ralph task edit status doing RQ-0001\n ralph task edit priority high RQ-0001\n ralph task edit tags \"cli, rust\" RQ-0001\n ralph task edit custom_fields \"severity=high, owner=ralph\" RQ-0001\n ralph task edit request \"\" RQ-0001\n ralph task edit completed_at \"2026-01-20T12:00:00Z\" RQ-0001\n ralph task edit --dry-run title \"Preview change\" RQ-0001"
     )]
     Edit(TaskEditArgs),
 
     /// Update existing task fields based on current repository state.
     #[command(
-        after_long_help = "Runner selection:\n - Override runner/model/effort for this invocation using flags.\n - Defaults come from config when flags are omitted.\n\nRunner CLI options:\n - Override approval/sandbox/verbosity/plan-mode via flags.\n - Unsupported options follow --unsupported-option-policy.\n\nField selection:\n - By default, all updatable fields are refreshed: scope, evidence, plan, notes, tags, depends_on.\n - Use --fields to specify which fields to update.\n\nTask selection:\n - Omit TASK_ID to update every task in the active queue.\n\nExamples:\n ralph task update\n ralph task update RQ-0001\n ralph task update --fields scope,evidence,plan RQ-0001\n ralph task update --runner opencode --model gpt-5.2 RQ-0001\n ralph task update --approval-mode auto-edits --runner claude RQ-0001\n ralph task update --repo-prompt plan RQ-0001\n ralph task update --repo-prompt off --fields scope,evidence RQ-0001\n ralph task update --fields tags RQ-0042"
+        after_long_help = "Runner selection:\n - Override runner/model/effort for this invocation using flags.\n - Defaults come from config when flags are omitted.\n\nRunner CLI options:\n - Override approval/sandbox/verbosity/plan-mode via flags.\n - Unsupported options follow --unsupported-option-policy.\n\nField selection:\n - By default, all updatable fields are refreshed: scope, evidence, plan, notes, tags, depends_on.\n - Use --fields to specify which fields to update.\n\nTask selection:\n - Omit TASK_ID to update every task in the active queue.\n\nExamples:\n ralph task update\n ralph task update RQ-0001\n ralph task update --fields scope,evidence,plan RQ-0001\n ralph task update --runner opencode --model gpt-5.2 RQ-0001\n ralph task update --approval-mode auto-edits --runner claude RQ-0001\n ralph task update --repo-prompt plan RQ-0001\n ralph task update --repo-prompt off --fields scope,evidence RQ-0001\n ralph task update --fields tags RQ-0042\n ralph task update --dry-run RQ-0001"
     )]
     Update(TaskUpdateArgs),
 }
@@ -512,6 +542,10 @@ pub struct TaskEditArgs {
     /// Task ID to update.
     #[arg(value_name = "TASK_ID")]
     pub task_id: String,
+
+    /// Preview changes without modifying the queue.
+    #[arg(long)]
+    pub dry_run: bool,
 }
 
 #[derive(Args)]
@@ -545,6 +579,13 @@ pub struct TaskUpdateArgs {
     /// Task ID to update (omit to update all tasks).
     #[arg(value_name = "TASK_ID")]
     pub task_id: Option<String>,
+
+    /// Preview changes without modifying the queue.
+    ///
+    /// For task update, this shows the prompt that would be sent to the runner.
+    /// Actual changes depend on runner analysis of repository state.
+    #[arg(long)]
+    pub dry_run: bool,
 }
 
 #[derive(ValueEnum, Clone, Copy, Debug)]
@@ -774,6 +815,80 @@ mod tests {
                     assert_eq!(args.runner_cli.approval_mode.as_deref(), Some("auto-edits"));
                     assert_eq!(args.runner_cli.sandbox.as_deref(), Some("disabled"));
                     assert_eq!(args.task_id.as_deref(), Some("RQ-0001"));
+                }
+                _ => panic!("expected task update command"),
+            },
+            _ => panic!("expected task command"),
+        }
+    }
+
+    #[test]
+    fn task_edit_parses_dry_run_flag() {
+        let cli = Cli::try_parse_from([
+            "ralph",
+            "task",
+            "edit",
+            "--dry-run",
+            "title",
+            "New title",
+            "RQ-0001",
+        ])
+        .expect("parse");
+
+        match cli.command {
+            crate::cli::Command::Task(args) => match args.command {
+                Some(crate::cli::task::TaskCommand::Edit(args)) => {
+                    assert!(args.dry_run);
+                    assert_eq!(args.task_id, "RQ-0001");
+                    assert_eq!(args.value, "New title");
+                }
+                _ => panic!("expected task edit command"),
+            },
+            _ => panic!("expected task command"),
+        }
+    }
+
+    #[test]
+    fn task_edit_without_dry_run_defaults_to_false() {
+        let cli = Cli::try_parse_from(["ralph", "task", "edit", "title", "New title", "RQ-0001"])
+            .expect("parse");
+
+        match cli.command {
+            crate::cli::Command::Task(args) => match args.command {
+                Some(crate::cli::task::TaskCommand::Edit(args)) => {
+                    assert!(!args.dry_run);
+                }
+                _ => panic!("expected task edit command"),
+            },
+            _ => panic!("expected task command"),
+        }
+    }
+
+    #[test]
+    fn task_update_parses_dry_run_flag() {
+        let cli = Cli::try_parse_from(["ralph", "task", "update", "--dry-run", "RQ-0001"])
+            .expect("parse");
+
+        match cli.command {
+            crate::cli::Command::Task(args) => match args.command {
+                Some(crate::cli::task::TaskCommand::Update(args)) => {
+                    assert!(args.dry_run);
+                    assert_eq!(args.task_id.as_deref(), Some("RQ-0001"));
+                }
+                _ => panic!("expected task update command"),
+            },
+            _ => panic!("expected task command"),
+        }
+    }
+
+    #[test]
+    fn task_update_without_dry_run_defaults_to_false() {
+        let cli = Cli::try_parse_from(["ralph", "task", "update", "RQ-0001"]).expect("parse");
+
+        match cli.command {
+            crate::cli::Command::Task(args) => match args.command {
+                Some(crate::cli::task::TaskCommand::Update(args)) => {
+                    assert!(!args.dry_run);
                 }
                 _ => panic!("expected task update command"),
             },

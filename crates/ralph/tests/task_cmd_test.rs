@@ -291,6 +291,7 @@ fn test_task_update_settings_default_values() {
         runner_cli_overrides: RunnerCliOptionsPatch::default(),
         force: false,
         repoprompt_tool_injection: false,
+        dry_run: false,
     };
 
     assert!(settings.fields.is_empty());
@@ -298,6 +299,7 @@ fn test_task_update_settings_default_values() {
     assert_eq!(settings.model_override, Some(Model::Gpt52Codex));
     assert!(settings.reasoning_effort_override.is_none());
     assert!(!settings.force);
+    assert!(!settings.dry_run);
 }
 
 #[test]
@@ -310,6 +312,7 @@ fn test_task_update_settings_with_values() {
         runner_cli_overrides: RunnerCliOptionsPatch::default(),
         force: true,
         repoprompt_tool_injection: true,
+        dry_run: true,
     };
 
     assert_eq!(settings.fields, "scope,evidence,plan");
@@ -318,6 +321,7 @@ fn test_task_update_settings_with_values() {
     assert!(settings.reasoning_effort_override.is_some());
     assert!(settings.force);
     assert!(settings.repoprompt_tool_injection);
+    assert!(settings.dry_run);
 }
 
 #[test]
@@ -370,6 +374,7 @@ fn test_task_update_settings_all_runners() {
             runner_cli_overrides: RunnerCliOptionsPatch::default(),
             force: false,
             repoprompt_tool_injection: false,
+            dry_run: false,
         };
         assert!(settings.fields.is_empty());
     }
@@ -393,6 +398,7 @@ fn test_task_update_settings_all_models() {
             runner_cli_overrides: RunnerCliOptionsPatch::default(),
             force: false,
             repoprompt_tool_injection: false,
+            dry_run: false,
         };
         assert!(settings.fields.is_empty());
     }
@@ -417,6 +423,7 @@ fn test_task_update_settings_all_reasoning_efforts() {
             runner_cli_overrides: RunnerCliOptionsPatch::default(),
             force: false,
             repoprompt_tool_injection: false,
+            dry_run: false,
         };
         assert!(settings.fields.is_empty());
     }

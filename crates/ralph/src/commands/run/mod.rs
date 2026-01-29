@@ -313,6 +313,7 @@ fn run_one_impl(
             runner_cli_overrides,
             force,
             repoprompt_tool_injection: policy.repoprompt_tool_injection,
+            dry_run: false,
         };
 
         // Run pre-run task update, but don't fail if it errors - log warning and continue

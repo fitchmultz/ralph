@@ -20,7 +20,7 @@ use crate::contracts::{
     ClaudePermissionMode, Model, ProjectType, ReasoningEffort, Runner, RunnerCliOptionsPatch,
 };
 use crate::{config, prompts, queue, runner, runutil, timeutil};
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use std::io::{IsTerminal, Read};
 
 // TaskBuildOptions controls runner-driven task creation via .ralph/prompts/task_builder.md.
@@ -45,6 +45,7 @@ pub struct TaskUpdateSettings {
     pub runner_cli_overrides: RunnerCliOptionsPatch,
     pub force: bool,
     pub repoprompt_tool_injection: bool,
+    pub dry_run: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -349,6 +350,41 @@ fn update_task_impl(
     settings: &TaskUpdateSettings,
     acquire_lock: bool,
 ) -> Result<()> {
+    // Handle dry-run mode early (before any mutations)
+    if settings.dry_run {
+        let before = queue::load_queue(&resolved.queue_path)
+            .with_context(|| format!("read queue {}", resolved.queue_path.display()))?;
+
+        let task_id = task_id.trim();
+        let task = before
+            .tasks
+            .iter()
+            .find(|t| t.id.trim() == task_id)
+            .ok_or_else(|| anyhow!("Task not found: {}", task_id))?;
+
+        let template = prompts::load_task_updater_prompt(&resolved.repo_root)?;
+        let project_type = resolved.config.project_type.unwrap_or(ProjectType::Code);
+        let prompt = prompts::render_task_updater_prompt(
+            &template,
+            task_id,
+            &settings.fields,
+            project_type,
+            &resolved.config,
+        )?;
+
+        println!("Dry run - would update task {}:", task_id);
+        println!("  Fields to update: {}", settings.fields);
+        println!("  Current title: {}", task.title);
+        println!("\n  Prompt preview (first 800 chars):");
+        let preview_len = prompt.len().min(800);
+        println!("{}", &prompt[..preview_len]);
+        if prompt.len() > 800 {
+            println!("\n  ... ({} more characters)", prompt.len() - 800);
+        }
+        println!("\n  Note: Actual changes depend on runner analysis of repository state.");
+        return Ok(());
+    }
+
     let _queue_lock = if acquire_lock {
         Some(queue::acquire_queue_lock(
             &resolved.repo_root,
@@ -611,6 +647,7 @@ mod tests {
             runner_cli_overrides: RunnerCliOptionsPatch::default(),
             force: false,
             repoprompt_tool_injection: false,
+            dry_run: false,
         }
     }
 
