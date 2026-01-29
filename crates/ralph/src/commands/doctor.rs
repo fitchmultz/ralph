@@ -1,8 +1,25 @@
 //! Doctor checks for Git, queue, and runner configuration health.
+//!
+//! Responsibilities:
+//! - Verify Git environment and repository health
+//! - Validate queue and done archive files
+//! - Check runner binary availability and configuration
+//! - Detect orphaned lock directories that may accumulate over time
+//!
+//! Not handled here:
+//! - Automatic repair of detected issues (doctor is read-only)
+//! - Performance benchmarking or stress testing
+//! - Network connectivity checks
+//!
+//! Invariants/assumptions:
+//! - All checks are independent; failures in one don't prevent others
+//! - Output uses outpututil for consistent formatting
+//! - Returns Ok only when all critical checks pass
 
 use crate::config;
 use crate::contracts::Runner;
 use crate::gitutil;
+use crate::lock::{pid_is_running, queue_lock_dir};
 use crate::outpututil;
 use crate::prompts;
 use crate::queue;
@@ -113,6 +130,33 @@ pub fn run_doctor(resolved: &config::Resolved) -> Result<()> {
         }
     } else {
         log::info!("done archive missing (optional)");
+    }
+
+    // 2c. Lock Health Checks
+    log::info!("Checking Ralph lock health...");
+    match check_lock_health(&resolved.repo_root) {
+        Ok((orphaned_count, total_count)) => {
+            if orphaned_count > 0 {
+                outpututil::log_warn(&format!(
+                    "found {} orphaned lock director{} (out of {} total)",
+                    orphaned_count,
+                    if orphaned_count == 1 { "y" } else { "ies" },
+                    total_count
+                ));
+                failures.push("orphaned lock directories detected");
+            } else if total_count > 0 {
+                outpututil::log_success(&format!(
+                    "all {} lock director{} healthy",
+                    total_count,
+                    if total_count == 1 { "y" } else { "ies" }
+                ));
+            } else {
+                log::info!("no lock directories found");
+            }
+        }
+        Err(e) => {
+            outpututil::log_warn(&format!("lock health check failed: {}", e));
+        }
     }
 
     // 3. Runner Checks
@@ -373,4 +417,75 @@ fn get_runner_config_key(runner: Runner) -> &'static str {
         Runner::Kimi => "kimi_bin",
         Runner::Pi => "pi_bin",
     }
+}
+
+/// Check the health of lock directories in .ralph/lock/
+///
+/// Returns a tuple of (orphaned_count, total_count) where:
+/// - orphaned_count: Number of lock directories that appear to be orphaned
+/// - total_count: Total number of lock directories found
+fn check_lock_health(repo_root: &std::path::Path) -> Result<(usize, usize)> {
+    let lock_dir = queue_lock_dir(repo_root);
+
+    if !lock_dir.exists() {
+        return Ok((0, 0));
+    }
+
+    let mut total_count = 0;
+    let mut orphaned_count = 0;
+
+    for entry in fs::read_dir(&lock_dir)? {
+        let entry = entry?;
+        let path = entry.path();
+
+        // Only consider directories
+        if !path.is_dir() {
+            continue;
+        }
+
+        total_count += 1;
+
+        // Check if this lock directory has a valid owner file
+        let owner_path = path.join("owner");
+        let has_valid_owner = if owner_path.exists() {
+            // Check if the owner file has a valid, running PID
+            match fs::read_to_string(&owner_path) {
+                Ok(content) => {
+                    // Parse PID from owner file
+                    content
+                        .lines()
+                        .find(|line| line.starts_with("pid:"))
+                        .and_then(|line| line.split(':').nth(1))
+                        .and_then(|pid_str| pid_str.trim().parse::<u32>().ok())
+                        .and_then(pid_is_running)
+                        .unwrap_or(true) // Assume running if we can't determine status
+                }
+                Err(_) => false,
+            }
+        } else {
+            // Check for task owner files (shared locks)
+            let has_task_owner = fs::read_dir(&path)?.any(|e| {
+                e.ok()
+                    .map(|entry| {
+                        entry
+                            .file_name()
+                            .to_str()
+                            .map(|name| name.starts_with("owner_task_"))
+                            .unwrap_or(false)
+                    })
+                    .unwrap_or(false)
+            });
+            has_task_owner
+        };
+
+        if !has_valid_owner {
+            orphaned_count += 1;
+            log::warn!(
+                "Orphaned lock directory detected: {} (no valid owner)",
+                path.display()
+            );
+        }
+    }
+
+    Ok((orphaned_count, total_count))
 }

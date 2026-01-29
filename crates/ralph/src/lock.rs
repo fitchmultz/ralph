@@ -23,6 +23,8 @@ use anyhow::{anyhow, Context, Result};
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::thread;
+use std::time::Duration;
 
 #[derive(Debug)]
 pub struct DirLock {
@@ -32,14 +34,96 @@ pub struct DirLock {
 
 impl Drop for DirLock {
     fn drop(&mut self) {
-        let _ = fs::remove_file(&self.owner_path);
-
-        // Best-effort: remove the lock directory if it's empty.
-        // - For standard locks, removing the owner file above should leave the directory empty.
-        // - For shared "task" locks under supervision, the directory still contains the supervisor's
-        //   `owner` file, so this removal fails and the supervisor cleans up when it exits.
-        let _ = fs::remove_dir(&self.lock_dir);
+        // Attempt to clean up the lock with retry logic to handle race conditions.
+        // This prevents orphaned lock directories when another process creates
+        // a file in the lock directory between removing the owner file and removing the directory.
+        if let Err(e) = cleanup_lock_dir(&self.lock_dir, &self.owner_path, false) {
+            log::warn!("Failed to clean up lock directory after retries: {}", e);
+        }
     }
+}
+
+/// Cleanup the lock directory with retry logic and exponential backoff.
+///
+/// This function handles the race condition where another process may create
+/// a file in the lock directory between removing the owner file and removing
+/// the directory itself.
+///
+/// # Arguments
+/// * `lock_dir` - The lock directory path
+/// * `owner_path` - The owner file path to remove first
+/// * `force` - If true, use `remove_dir_all` for aggressive cleanup on final attempt
+///
+/// # Returns
+/// * `Ok(())` if cleanup succeeded
+/// * `Err` if cleanup failed after all retries
+fn cleanup_lock_dir(lock_dir: &Path, owner_path: &Path, force: bool) -> Result<()> {
+    const MAX_RETRIES: u32 = 3;
+    const DELAYS_MS: [u64; 3] = [10, 50, 100]; // Exponential backoff delays
+
+    // First, remove the owner file
+    if let Err(e) = fs::remove_file(owner_path) {
+        // If the file doesn't exist, that's fine - continue to try cleaning the directory
+        if e.kind() != std::io::ErrorKind::NotFound {
+            log::debug!(
+                "Failed to remove owner file {}: {}",
+                owner_path.display(),
+                e
+            );
+        }
+    }
+
+    // Attempt to remove the directory with retries
+    for attempt in 0..MAX_RETRIES {
+        // Try removing the directory (only succeeds if empty)
+        match fs::remove_dir(lock_dir) {
+            Ok(()) => return Ok(()),
+            Err(e) => {
+                // If directory doesn't exist, we're done
+                if e.kind() == std::io::ErrorKind::NotFound {
+                    return Ok(());
+                }
+
+                // On final attempt, try force cleanup if requested
+                if attempt == MAX_RETRIES - 1 && force {
+                    log::debug!(
+                        "Attempting force cleanup of lock directory {}",
+                        lock_dir.display()
+                    );
+                    match fs::remove_dir_all(lock_dir) {
+                        Ok(()) => return Ok(()),
+                        Err(force_err) => {
+                            return Err(anyhow::anyhow!(
+                                "Failed to force remove lock directory {}: {} (original error: {})",
+                                lock_dir.display(),
+                                force_err,
+                                e
+                            ));
+                        }
+                    }
+                }
+
+                // Log warning and retry with backoff
+                log::warn!(
+                    "Lock directory cleanup attempt {}/{} failed for {}: {}. Retrying...",
+                    attempt + 1,
+                    MAX_RETRIES,
+                    lock_dir.display(),
+                    e
+                );
+
+                if attempt < MAX_RETRIES - 1 {
+                    thread::sleep(Duration::from_millis(DELAYS_MS[attempt as usize]));
+                }
+            }
+        }
+    }
+
+    Err(anyhow::anyhow!(
+        "Failed to remove lock directory {} after {} attempts",
+        lock_dir.display(),
+        MAX_RETRIES
+    ))
 }
 
 struct LockOwner {
@@ -280,7 +364,13 @@ fn parse_lock_owner(raw: &str) -> Option<LockOwner> {
     })
 }
 
-fn pid_is_running(pid: u32) -> Option<bool> {
+/// Check if a process with the given PID is currently running.
+///
+/// Returns:
+/// - `Some(true)` if the process exists
+/// - `Some(false)` if the process definitely does not exist
+/// - `None` if the status cannot be determined (platform unsupported or permission error)
+pub fn pid_is_running(pid: u32) -> Option<bool> {
     #[cfg(unix)]
     {
         let result = unsafe { libc::kill(pid as i32, 0) };

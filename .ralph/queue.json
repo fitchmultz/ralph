@@ -2,38 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0361",
-      "status": "todo",
-      "title": "Fix lock cleanup race condition in DirLock Drop",
-      "priority": "medium",
-      "tags": [
-        "bug",
-        "lock",
-        "race-condition"
-      ],
-      "scope": [
-        "crates/ralph/src/lock.rs"
-      ],
-      "evidence": [
-        "lock.rs:34-44 Drop impl ignores errors from remove_file and remove_dir",
-        "If lock directory contains files (race with another process), remove_dir fails silently",
-        "Orphaned lock directories may accumulate over time"
-      ],
-      "plan": [
-        "Add retry logic with exponential backoff for lock cleanup",
-        "Log warnings when cleanup fails for debugging",
-        "Consider using fs::remove_dir_all for force cleanup on stale locks",
-        "Add diagnostic command 'ralph doctor' to detect orphaned locks",
-        "Add test simulating concurrent lock acquisition/release"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-28T04:11:49Z",
-      "updated_at": "2026-01-28T04:11:49Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0362",
       "status": "todo",
       "title": "Enhance JSON repair for more agent-induced errors",
