@@ -2,39 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0368",
-      "status": "todo",
-      "title": "Add LFS smudge/clean filter validation before commit",
-      "priority": "low",
-      "tags": [
-        "enhancement",
-        "git",
-        "lfs",
-        "data-integrity"
-      ],
-      "scope": [
-        "crates/ralph/src/gitutil.rs"
-      ],
-      "evidence": [
-        "gitutil.rs:250-274 LFS detection only checks tracking files, not filter health",
-        "Doesn't handle LFS pointer file corruption or smudge/clean filter failures",
-        "Potential data loss if LFS files committed as pointers due to filter misconfiguration"
-      ],
-      "plan": [
-        "Add pre-commit LFS filter validation check",
-        "Run 'git lfs status' to detect files that should be LFS but aren't",
-        "Warn user if LFS filters are not properly configured",
-        "Add option to abort commit on LFS misconfiguration",
-        "Add test with mock LFS repository"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-28T04:11:49Z",
-      "updated_at": "2026-01-28T04:11:49Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0369",
       "status": "todo",
       "title": "Fix debug log test interference from concurrent access",

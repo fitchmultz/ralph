@@ -168,6 +168,10 @@ pub struct RunAgentArgs {
     /// Enable sound alert with notification (requires --notify or config enabled).
     #[arg(long)]
     pub notify_sound: bool,
+
+    /// Enable strict LFS validation before commit (fail if filters misconfigured).
+    #[arg(long)]
+    pub lfs_check: bool,
 }
 
 /// Agent overrides from CLI arguments.
@@ -195,6 +199,8 @@ pub struct AgentOverrides {
     pub notify_on_complete: Option<bool>,
     /// Enable sound alert with notification.
     pub notify_sound: Option<bool>,
+    /// Enable strict LFS validation before commit.
+    pub lfs_check: Option<bool>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -365,6 +371,7 @@ pub fn resolve_run_agent_overrides(args: &RunAgentArgs) -> Result<AgentOverrides
     };
 
     let notify_sound = if args.notify_sound { Some(true) } else { None };
+    let lfs_check = if args.lfs_check { Some(true) } else { None };
 
     Ok(AgentOverrides {
         runner,
@@ -381,6 +388,7 @@ pub fn resolve_run_agent_overrides(args: &RunAgentArgs) -> Result<AgentOverrides
         include_draft,
         notify_on_complete,
         notify_sound,
+        lfs_check,
     })
 }
 
@@ -427,6 +435,7 @@ pub fn resolve_agent_overrides(args: &AgentArgs) -> Result<AgentOverrides> {
         include_draft: None,
         notify_on_complete: None,
         notify_sound: None,
+        lfs_check: None,
     })
 }
 
@@ -605,6 +614,7 @@ mod tests {
             include_draft: None,
             notify_on_complete: None,
             notify_sound: None,
+            lfs_check: None,
         };
 
         let flags = resolve_repoprompt_flags_from_overrides(&overrides, &resolved);
@@ -720,6 +730,7 @@ mod tests {
             notify: false,
             no_notify: false,
             notify_sound: false,
+            lfs_check: false,
         };
 
         let overrides = resolve_run_agent_overrides(&args).unwrap();
@@ -756,6 +767,7 @@ mod tests {
             notify: false,
             no_notify: false,
             notify_sound: false,
+            lfs_check: false,
         };
 
         let overrides = resolve_run_agent_overrides(&args).unwrap();
@@ -788,6 +800,7 @@ mod tests {
             notify: false,
             no_notify: false,
             notify_sound: false,
+            lfs_check: false,
         };
 
         let overrides = resolve_run_agent_overrides(&args).unwrap();
@@ -813,6 +826,7 @@ mod tests {
             notify: false,
             no_notify: false,
             notify_sound: false,
+            lfs_check: false,
         };
 
         let overrides = resolve_run_agent_overrides(&args).unwrap();
@@ -838,6 +852,7 @@ mod tests {
             notify: false,
             no_notify: false,
             notify_sound: false,
+            lfs_check: false,
         };
 
         let overrides = resolve_run_agent_overrides(&args).unwrap();

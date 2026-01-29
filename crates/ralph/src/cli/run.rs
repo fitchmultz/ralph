@@ -170,12 +170,14 @@ Examples:\n\
  ralph run one --git-revert-mode disabled\n\
  ralph run one --git-commit-push-off\n\
  ralph run one --update-task\n\
+ ralph run one --lfs-check\n\
  ralph run loop --max-tasks 0\n\
  ralph run loop --max-tasks 1 --runner opencode --model gpt-5.2\n\
  ralph run loop --include-draft --max-tasks 1\n\
  ralph run loop --update-task --max-tasks 1\n\
  ralph run loop --git-revert-mode ask --max-tasks 1\n\
  ralph run loop --git-commit-push-on --max-tasks 1\n\
+ ralph run loop --lfs-check --max-tasks 1\n\
  ralph tui\n\
  ralph tui --read-only\n\
  ralph run one -i\n\
@@ -211,6 +213,7 @@ Examples:\n\
  ralph run one --git-revert-mode enabled\n\
  ralph run one --git-commit-push-off\n\
  ralph run one --update-task\n\
+ ralph run one --lfs-check\n\
  ralph run one --repo-prompt plan\n\
  ralph run one --repo-prompt off\n\
  ralph tui"
@@ -233,6 +236,7 @@ Examples:\n\
  ralph run loop --update-task --max-tasks 1\n\
  ralph run loop --repo-prompt tools --max-tasks 1\n\
  ralph run loop --repo-prompt off --max-tasks 1\n\
+ ralph run loop --lfs-check --max-tasks 1\n\
  ralph run loop -i\n\
  ralph tui"
     )]

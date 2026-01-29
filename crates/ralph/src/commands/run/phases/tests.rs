@@ -250,6 +250,7 @@ echo '{{"sessionID":"sess-123"}}'
         allow_dirty_repo: true,
         notify_on_complete: None,
         notify_sound: None,
+        lfs_check: false,
     };
 
     let plan_text = execute_phase1_planning(&invocation, 2)?;
@@ -331,6 +332,7 @@ echo '{{"sessionID":"sess-123"}}'
         allow_dirty_repo: true,
         notify_on_complete: None,
         notify_sound: None,
+        lfs_check: false,
     };
 
     let plan_text = execute_phase1_planning(&invocation, 2)?;
@@ -410,6 +412,7 @@ echo '{{"sessionID":"sess-123"}}'
         allow_dirty_repo: true,
         notify_on_complete: None,
         notify_sound: None,
+        lfs_check: false,
     };
 
     let err = execute_phase1_planning(&invocation, 2).expect_err("expected baseline violation");
@@ -552,6 +555,7 @@ echo '{"sessionID":"sess-123"}'
         allow_dirty_repo: true,
         notify_on_complete: None,
         notify_sound: None,
+        lfs_check: false,
     };
 
     execute_phase3_review(&invocation)?;
@@ -614,6 +618,7 @@ echo '{"sessionID":"sess-123"}'
         allow_dirty_repo: true,
         notify_on_complete: None,
         notify_sound: None,
+        lfs_check: false,
     };
 
     execute_phase3_review(&invocation)?;
@@ -696,6 +701,7 @@ echo '{{"sessionID":"sess-123"}}'
         allow_dirty_repo: true,
         notify_on_complete: None,
         notify_sound: None,
+        lfs_check: false,
     };
 
     let continue_session = ContinueSession {

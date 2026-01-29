@@ -435,6 +435,7 @@ fn run_one_impl(
                 allow_dirty_repo: is_followup || preexisting_dirty_allowed,
                 notify_on_complete: agent_overrides.notify_on_complete,
                 notify_sound: agent_overrides.notify_sound,
+                lfs_check: agent_overrides.lfs_check.unwrap_or(false),
             };
 
             match phases {

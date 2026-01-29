@@ -72,6 +72,7 @@ enum QueueMaintenanceSaveMode {
     SaveEachIfRepaired,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn post_run_supervise(
     resolved: &crate::config::Resolved,
     task_id: &str,
@@ -80,6 +81,7 @@ pub(crate) fn post_run_supervise(
     revert_prompt: Option<runutil::RevertPromptHandler>,
     notify_on_complete: Option<bool>,
     notify_sound: Option<bool>,
+    lfs_check: bool,
 ) -> Result<()> {
     let label = format!("PostRunSupervise for {}", task_id.trim());
     logging::with_scope(&label, || {
@@ -94,7 +96,12 @@ pub(crate) fn post_run_supervise(
             require_task_status(&queue_file, &done_file, task_id)?;
 
         if is_dirty {
-            warn_if_modified_lfs(&resolved.repo_root);
+            if let Err(err) = warn_if_modified_lfs(&resolved.repo_root, lfs_check) {
+                return Err(anyhow!(
+                    "LFS validation failed: {}. Use --lfs-check to enable strict validation or fix the LFS issues.",
+                    err
+                ));
+            }
             if let Err(err) = run_ci_gate(resolved) {
                 let outcome = runutil::apply_git_revert_mode(
                     &resolved.repo_root,
@@ -372,33 +379,94 @@ fn finalize_git_state(
     Ok(())
 }
 
-fn warn_if_modified_lfs(repo_root: &Path) {
+/// Validates LFS configuration and warns about potential issues.
+///
+/// When `strict` is true, returns an error if LFS filters are misconfigured
+/// or if there are files that should be LFS but aren't tracked properly.
+fn warn_if_modified_lfs(repo_root: &Path, strict: bool) -> Result<()> {
     match gitutil::has_lfs(repo_root) {
         Ok(true) => {}
-        Ok(false) => return,
+        Ok(false) => return Ok(()),
         Err(err) => {
             log::warn!("Git LFS detection failed: {:#}", err);
-            return;
+            return Ok(());
         }
     }
 
+    // Perform comprehensive LFS health check
+    let health_report = match gitutil::check_lfs_health(repo_root) {
+        Ok(report) => report,
+        Err(err) => {
+            log::warn!("Git LFS health check failed: {:#}", err);
+            return Ok(());
+        }
+    };
+
+    if !health_report.lfs_initialized {
+        return Ok(());
+    }
+
+    // Check filter configuration
+    if let Some(ref filter_status) = health_report.filter_status {
+        if !filter_status.is_healthy() {
+            let issues = filter_status.issues();
+            if strict {
+                return Err(anyhow!(
+                    "Git LFS filters misconfigured: {}. Run 'git lfs install' to fix.",
+                    issues.join("; ")
+                ));
+            } else {
+                log::error!(
+                    "Git LFS filters misconfigured: {}. Run 'git lfs install' to fix. This may cause data loss if LFS files are committed as pointers!",
+                    issues.join("; ")
+                );
+            }
+        }
+    }
+
+    // Check LFS status for untracked files
+    if let Some(ref status_summary) = health_report.status_summary {
+        if !status_summary.is_clean() {
+            let issues = status_summary.issue_descriptions();
+            if strict {
+                return Err(anyhow!("Git LFS issues detected: {}", issues.join("; ")));
+            } else {
+                for issue in issues {
+                    log::warn!("LFS issue: {}", issue);
+                }
+            }
+        }
+    }
+
+    // Check for pointer file issues
+    if !health_report.pointer_issues.is_empty() {
+        for issue in &health_report.pointer_issues {
+            if strict {
+                return Err(anyhow!("LFS pointer issue: {}", issue.description()));
+            } else {
+                log::warn!("LFS pointer issue: {}", issue.description());
+            }
+        }
+    }
+
+    // Original modified files check
     let status_paths = match gitutil::status_paths(repo_root) {
         Ok(paths) => paths,
         Err(err) => {
             log::warn!("Unable to read git status for LFS warning: {:#}", err);
-            return;
+            return Ok(());
         }
     };
 
     if status_paths.is_empty() {
-        return;
+        return Ok(());
     }
 
     let lfs_files = match gitutil::list_lfs_files(repo_root) {
         Ok(files) => files,
         Err(err) => {
             log::warn!("Unable to list LFS files: {:#}", err);
-            return;
+            return Ok(());
         }
     };
 
@@ -406,15 +474,15 @@ fn warn_if_modified_lfs(repo_root: &Path) {
         log::warn!(
             "Git LFS detected but no tracked files were listed; review LFS changes manually."
         );
-        return;
+        return Ok(());
     }
 
     let modified = gitutil::filter_modified_lfs_files(&status_paths, &lfs_files);
-    if modified.is_empty() {
-        return;
+    if !modified.is_empty() {
+        log::warn!("Modified Git LFS files detected: {}", modified.join(", "));
     }
 
-    log::warn!("Modified Git LFS files detected: {}", modified.join(", "));
+    Ok(())
 }
 
 fn push_if_ahead(repo_root: &Path) -> Result<()> {
@@ -655,6 +723,7 @@ mod tests {
             None,
             None,
             None,
+            false,
         )?;
 
         let status = git_test::git_output(temp.path(), &["status", "--porcelain"])?;
@@ -686,6 +755,7 @@ mod tests {
             None,
             None,
             None,
+            false,
         )?;
 
         let status = git_test::git_output(temp.path(), &["status", "--porcelain"])?;
@@ -709,6 +779,7 @@ mod tests {
             None,
             None,
             None,
+            false,
         )?;
 
         let done_file = queue::load_queue_or_default(&resolved.done_path)?;
@@ -764,6 +835,7 @@ mod tests {
             None,
             None,
             None,
+            false,
         )
         .expect_err("expected push failure");
         assert!(format!("{err:#}").contains("Git push failed"));
@@ -807,6 +879,7 @@ mod tests {
             None,
             None,
             None,
+            false,
         )?;
         Ok(())
     }

@@ -130,6 +130,7 @@ pub fn execute_phase2_implementation(
                 ctx.revert_prompt.clone(),
                 ctx.notify_on_complete,
                 ctx.notify_sound,
+                ctx.lfs_check,
             )?;
         } else {
             let continue_session = supervision::ContinueSession {

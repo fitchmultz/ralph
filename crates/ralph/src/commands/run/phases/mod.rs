@@ -67,4 +67,6 @@ pub struct PhaseInvocation<'a> {
     pub notify_on_complete: Option<bool>,
     /// Sound notification override from CLI (--notify-sound).
     pub notify_sound: Option<bool>,
+    /// Enable strict LFS validation before commit.
+    pub lfs_check: bool,
 }
