@@ -2,44 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0412",
-      "status": "todo",
-      "title": "Refactor tui/render/tests.rs: split 1,254 LOC render test file",
-      "priority": "medium",
-      "tags": [
-        "refactor",
-        "tui",
-        "render",
-        "tests",
-        "code-quality",
-        "module-boundaries"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/render/tests.rs",
-        "crates/ralph/src/tui/render/"
-      ],
-      "evidence": [
-        "User request: 'Identify large files with large LOC and create a task to have each file refactored into smaller files'",
-        "CLAUDE.md guideline: Files exceeding ~1,000 LOC are presumed to be mis-scoped and MUST be split",
-        "File stats: tui/render/tests.rs has 1,254 LOC - exceeds 1,000 LOC threshold"
-      ],
-      "plan": [
-        "Analyze tui/render/tests.rs to identify logical test groupings (panel tests, overlay tests, header tests, footer tests, etc.)",
-        "Design module structure: split into focused test modules by component",
-        "Ensure each new module has a single cohesive responsibility under ~400 LOC",
-        "Move tests to new modules preserving all test coverage",
-        "Update module declarations and imports",
-        "Run 'make ci' to validate all tests still pass",
-        "Verify no regression in test coverage"
-      ],
-      "notes": [],
-      "request": "Identify large files with large LOC and create a task to have each file refactored into smaller files.",
-      "created_at": "2026-01-29T15:29:58Z",
-      "updated_at": "2026-01-29T15:29:58Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0414",
       "status": "todo",
       "title": "Assess ratatui-ecosystem crates for TUI enhancement opportunities",
