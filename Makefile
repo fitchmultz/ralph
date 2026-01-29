@@ -3,7 +3,7 @@ PREFIX ?= $(HOME)/.local
 BIN_DIR ?= $(PREFIX)/bin
 BIN_NAME ?= ralph
 
-.PHONY: install update lint type-check format clean clean-temp test generate build build-release ci runners-help release
+.PHONY: install update lint type-check format clean clean-temp test generate build build-release ci runners-help release release-dry-run release-artifacts release-artifacts-all release-legacy
 
 install: build-release
 	@bin_dir="$(BIN_DIR)"; \
@@ -145,14 +145,36 @@ runners-help:
 	@echo "Runner CLI help captured under: target/tmp/runner_cli_inventory"
 	@echo "Next: update docs/runner_cli_inventory.md with findings for approval."
 
-# Release process: bump version, update changelog, tag, and publish
+# Release process: bump version, update changelog, build artifacts, create GitHub release
 # Usage: make release VERSION=0.2.0
+# For dry run: make release-dry-run VERSION=0.2.0
 release:
+	@scripts/release.sh $(VERSION)
+
+# Release with dry-run mode (no side effects)
+# Usage: make release-dry-run VERSION=0.2.0
+release-dry-run:
+	@RELEASE_DRY_RUN=1 scripts/release.sh $(VERSION)
+
+# Build release artifacts for current platform
+# Usage: make release-artifacts [VERSION=0.2.0]
+release-artifacts:
+	@scripts/build-release-artifacts.sh $(VERSION)
+
+# Build release artifacts for all platforms (requires cross-compilation targets)
+# Usage: make release-artifacts-all [VERSION=0.2.0]
+release-artifacts-all:
+	@scripts/build-release-artifacts.sh --all $(VERSION)
+
+# Legacy release target (kept for compatibility)
+# Creates local tag only, no GitHub release
+# Usage: make release-legacy VERSION=0.2.0
+release-legacy:
 	@if [ -z "$(VERSION)" ]; then \
-		echo "Error: VERSION is required. Usage: make release VERSION=0.2.0"; \
+		echo "Error: VERSION is required. Usage: make release-legacy VERSION=0.2.0"; \
 		exit 1; \
 	fi
-	@echo "Starting release process for v$(VERSION)..."
+	@echo "Starting legacy release process for v$(VERSION)..."
 	@# Validate version format (semver)
 	@echo "$(VERSION)" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$$' > /dev/null || \
 		{ echo "Error: VERSION must be in semver format (e.g., 0.2.0)"; exit 1; }
@@ -179,4 +201,4 @@ release:
 	@echo "Next steps:"
 	@echo "  1. Review the commit and tag: git log --oneline -3 && git show v$(VERSION)"
 	@echo "  2. Push to remote: git push origin main && git push origin v$(VERSION)"
-	@echo "  3. Publish to crates.io: cd crates/ralph && cargo publish"
+	@echo "  3. Create GitHub release: gh release create v$(VERSION) --verify-tag --notes-from-tag"

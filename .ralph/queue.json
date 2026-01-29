@@ -2,52 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0399",
-      "status": "todo",
-      "title": "Design and implement local release workflow without GitHub Actions",
-      "priority": "high",
-      "tags": [
-        "release",
-        "versioning",
-        "local-ci",
-        "github"
-      ],
-      "scope": [
-        "Makefile",
-        "scripts/",
-        "docs/releasing.md",
-        "crates/ralph/Cargo.toml",
-        "CHANGELOG.md"
-      ],
-      "evidence": [
-        "User request: 'We require proper versioning and changelog generation'",
-        "User request: 'Figure out a way to properly bump versions'",
-        "User concern: Project synced with private git repo, hesitant to go public",
-        "User concern: Missing mechanisms to build and publish releases to GitHub with proper version control, changelogs",
-        "User constraint: No GitHub Actions are enabled or allowed on this project",
-        "Current state: Makefile has 'make release VERSION=x.y.z' target but may need enhancement",
-        "Current state: CHANGELOG.md exists with Keep a Changelog format",
-        "Current state: Version is 0.1.0 in crates/ralph/Cargo.toml"
-      ],
-      "plan": [
-        "Audit current 'make release' target and identify gaps for local-only release workflow",
-        "Design local release script that: validates version, updates Cargo.toml, updates CHANGELOG, creates git tag, builds release binary",
-        "Add GitHub CLI (gh) integration for creating releases locally without Actions",
-        "Ensure release artifacts (binary, checksums) are generated and attached to GitHub release",
-        "Add pre-release validation: ensure 'make ci' passes, ensure working directory is clean, ensure on main branch",
-        "Add support for generating release notes from CHANGELOG section",
-        "Create docs/releasing.md documenting the complete local release workflow",
-        "Test the workflow with a patch version bump (0.1.1) to verify end-to-end",
-        "Update README.md with release/versioning information if needed"
-      ],
-      "notes": [],
-      "request": "We require proper versioning and changelog generation. Figure out a way to properly bump versions. Project is still synced with a private git repo. user has hesitancy to go public due to missing mechanisms to build and publish releases to his github with proper version control, changelogs, etc. no github actions are enabled or allowed on this project.",
-      "created_at": "2026-01-29T14:36:08Z",
-      "updated_at": "2026-01-29T14:36:08Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0400",
       "status": "todo",
       "title": "Add version command and runtime version reporting to CLI",

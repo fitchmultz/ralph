@@ -10,6 +10,7 @@ Purpose: Provide a concise, navigable reference for Ralph configuration, CLI usa
 - Workflow and Architecture: `docs/workflow.md`
 - Environment Variables: `docs/environment.md`
 - Security: `SECURITY.md`
+- **Releasing: `docs/releasing.md`** — How to create releases (local workflow without GitHub Actions)
 
 ## Source of Truth
 - Config schema: `schemas/config.schema.json`
