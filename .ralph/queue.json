@@ -2,47 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0402",
-      "status": "todo",
-      "title": "Add JSONC support for config, queue, and done files",
-      "priority": "medium",
-      "tags": [
-        "config",
-        "jsonc",
-        "parser",
-        "ux"
-      ],
-      "scope": [
-        "crates/ralph/src/config/",
-        "crates/ralph/src/queue/",
-        "schemas/",
-        "docs/configuration.md"
-      ],
-      "evidence": [
-        "User request: 'Ralph should support .json and .jsonc for its config, queue, done and any other json files'",
-        "User request: 'Default can remain .json for now but user should be able to switch to .jsonc and make comments if desired'",
-        "Current state: All JSON files use strict JSON parser which rejects comments",
-        "Files affected: .ralph/config.json, .ralph/queue.json, .ralph/done.json, schemas/*.json"
-      ],
-      "plan": [
-        "Add JSONC parsing dependency (e.g., serde_jsonc or similar crate)",
-        "Update config loading to accept both .json and .jsonc extensions",
-        "Update queue file reading/writing to support JSONC with comments",
-        "Update done file reading/writing to support JSONC with comments",
-        "Ensure backward compatibility: existing .json files continue to work",
-        "Add config option to specify preferred file extension (json vs jsonc)",
-        "Update schema validation to handle JSONC (strip comments before validation)",
-        "Update docs/configuration.md with JSONC usage instructions",
-        "Run 'make ci' to validate changes"
-      ],
-      "notes": [],
-      "request": "Ralph should support .json and .jsonc for its config, queue, done and any other json files. Default can remain .json for now but user should be able to switch to .jsonc and make comments if desired.",
-      "created_at": "2026-01-29T14:40:58Z",
-      "updated_at": "2026-01-29T14:40:58Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0399",
       "status": "todo",
       "title": "Design and implement local release workflow without GitHub Actions",

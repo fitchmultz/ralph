@@ -102,8 +102,8 @@ fn resolve_from_cwd_internal(validate_instruction_files: bool) -> Result<Resolve
 
 pub fn load_layer(path: &Path) -> Result<ConfigLayer> {
     let raw = fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
-    let layer = serde_json::from_str::<ConfigLayer>(&raw)
-        .with_context(|| format!("parse config {} as JSON", path.display()))?;
+    let layer =
+        crate::jsonc::parse_jsonc::<ConfigLayer>(&raw, &format!("config {}", path.display()))?;
     Ok(layer)
 }
 

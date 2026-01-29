@@ -9,6 +9,39 @@ Ralph reads JSON configuration from two locations, with project config taking pr
 
 CLI flags override both for a single run. Defaults are defined by `schemas/config.schema.json`.
 
+## JSONC Support (JSON with Comments)
+
+Ralph supports JSONC (JSON with Comments) for configuration and queue files. This allows you to add comments to your config and task files for better documentation.
+
+### Supported Comment Styles
+- Single-line comments: `// This is a comment`
+- Multi-line comments: `/* This is a multi-line comment */`
+- Trailing commas in objects and arrays
+
+### File Extensions
+- `.json` - Standard JSON (default, backward compatible)
+- `.jsonc` - JSON with Comments support
+
+Ralph can read both `.json` and `.jsonc` files regardless of extension. When writing files, Ralph always outputs standard JSON format (comments are not preserved on rewrite).
+
+### Example JSONC Config
+```jsonc
+{
+  // Schema version - must be 1
+  "version": 1,
+  "agent": {
+    /* Runner configuration
+       Choose from: codex, opencode, gemini, claude, cursor */
+    "runner": "claude",
+    "phases": 3, // 1 = single-pass, 2 = plan+implement, 3 = plan+implement+review
+  }
+}
+```
+
+### Notes
+- Schema files (`schemas/*.schema.json`) remain strict JSON for validator compatibility
+- Comments are for human editing only; Ralph outputs standard JSON when saving
+
 ## Top-Level Fields
 - `version` (number): Config schema version. Default: `1`.
 - `project_type` (string or null): `code` or `docs`. Default: `code`.

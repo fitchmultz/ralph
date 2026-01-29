@@ -853,6 +853,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "jsonc-parser"
+version = "0.29.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9eb0774546269185d38da823d8583e94448ba0e158e3f50759d9c79aba946ca5"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1181,6 +1190,7 @@ dependencies = [
  "dialoguer",
  "dotenvy",
  "env_logger",
+ "jsonc-parser",
  "libc",
  "log",
  "notify-rust",

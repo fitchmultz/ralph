@@ -56,8 +56,7 @@ pub fn load_queue_or_default(path: &Path) -> Result<QueueFile> {
 pub fn load_queue(path: &Path) -> Result<QueueFile> {
     let raw = std::fs::read_to_string(path)
         .with_context(|| format!("read queue file {}", path.display()))?;
-    let queue = serde_json::from_str::<QueueFile>(&raw)
-        .with_context(|| format!("parse queue {} as JSON", path.display()))?;
+    let queue = crate::jsonc::parse_jsonc::<QueueFile>(&raw, &format!("queue {}", path.display()))?;
     Ok(queue)
 }
 
@@ -67,14 +66,18 @@ pub fn load_queue_with_repair(path: &Path) -> Result<QueueFile> {
     let raw = std::fs::read_to_string(path)
         .with_context(|| format!("read queue file {}", path.display()))?;
 
-    match serde_json::from_str::<QueueFile>(&raw) {
+    // Try JSONC parsing first (handles both valid JSON and JSONC with comments)
+    match crate::jsonc::parse_jsonc::<QueueFile>(&raw, &format!("queue {}", path.display())) {
         Ok(queue) => Ok(queue),
         Err(parse_err) => {
             // Attempt to repair common JSON errors
             log::warn!("Queue JSON parse error, attempting repair: {}", parse_err);
 
             if let Some(repaired) = attempt_json_repair(&raw) {
-                match serde_json::from_str::<QueueFile>(&repaired) {
+                match crate::jsonc::parse_jsonc::<QueueFile>(
+                    &repaired,
+                    &format!("repaired queue {}", path.display()),
+                ) {
                     Ok(queue) => {
                         log::info!("Successfully repaired queue JSON");
                         Ok(queue)
@@ -83,7 +86,7 @@ pub fn load_queue_with_repair(path: &Path) -> Result<QueueFile> {
                         // Repair failed, return original error with context
                         Err(parse_err).with_context(|| {
                             format!(
-                                "parse queue {} as JSON (repair also failed: {})",
+                                "parse queue {} as JSON/JSONC (repair also failed: {})",
                                 path.display(),
                                 repair_err
                             )
@@ -92,7 +95,7 @@ pub fn load_queue_with_repair(path: &Path) -> Result<QueueFile> {
                 }
             } else {
                 // No repair possible, return original error
-                Err(parse_err).with_context(|| format!("parse queue {} as JSON", path.display()))?
+                Err(parse_err)
             }
         }
     }

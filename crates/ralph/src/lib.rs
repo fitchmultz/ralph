@@ -34,6 +34,7 @@ pub mod tui;
 
 pub mod fsutil;
 pub mod gitutil;
+pub mod jsonc;
 pub mod lock;
 pub mod notification;
 pub mod outpututil;
