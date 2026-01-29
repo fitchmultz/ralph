@@ -59,6 +59,10 @@ pub struct QueueListArgs {
     /// Sort order (default: descending).
     #[arg(long, value_enum, default_value_t = QueueSortOrder::Descending)]
     pub order: QueueSortOrder,
+
+    /// Suppress size warning output.
+    #[arg(long, short)]
+    pub quiet: bool,
 }
 
 pub(crate) fn handle(resolved: &Resolved, args: QueueListArgs) -> Result<()> {
@@ -68,6 +72,22 @@ pub(crate) fn handle(resolved: &Resolved, args: QueueListArgs) -> Result<()> {
 
     let (queue_file, done_file) =
         load_and_validate_queues(resolved, args.include_done || args.only_done)?;
+
+    // Check queue size and print warning if needed
+    if !args.quiet {
+        let size_threshold =
+            queue::size_threshold_or_default(resolved.config.queue.size_warning_threshold_kb);
+        let count_threshold =
+            queue::count_threshold_or_default(resolved.config.queue.task_count_warning_threshold);
+        if let Ok(result) = queue::check_queue_size(
+            &resolved.queue_path,
+            queue_file.tasks.len(),
+            size_threshold,
+            count_threshold,
+        ) {
+            queue::print_size_warning_if_needed(&result, args.quiet);
+        }
+    }
     let done_ref = done_file
         .as_ref()
         .filter(|d| !d.tasks.is_empty() || resolved.done_path.exists());

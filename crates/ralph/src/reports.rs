@@ -389,11 +389,14 @@ fn print_json<T: Serialize>(report: &T) -> Result<()> {
 /// * `queue` - Active queue tasks
 /// * `done` - Completed tasks (optional)
 /// * `tags` - Optional tag filter (case-insensitive)
+/// * `format` - Output format (text or json)
+/// * `queue_file_size_kb` - Size of the queue file in KB for display
 pub(crate) fn print_stats(
     queue: &QueueFile,
     done: Option<&QueueFile>,
     tags: &[String],
     format: ReportFormat,
+    queue_file_size_kb: u64,
 ) -> Result<()> {
     let report = build_stats_report(queue, done, tags);
 
@@ -419,6 +422,7 @@ pub(crate) fn print_stats(
             println!("Done: {}", report.summary.done);
             println!("Rejected: {}", report.summary.rejected);
             println!("Active: {}", report.summary.active);
+            println!("Queue file size: {}KB", queue_file_size_kb);
             println!();
 
             if let Some(durations) = &report.durations {

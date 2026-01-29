@@ -523,6 +523,8 @@ fn test_queue_config_merge_from_partial() {
         done_file: Some(PathBuf::from("base-done.json")),
         id_prefix: Some("BASE".to_string()),
         id_width: Some(4),
+        size_warning_threshold_kb: Some(500),
+        task_count_warning_threshold: Some(500),
     };
 
     let override_config = QueueConfig {
@@ -530,6 +532,8 @@ fn test_queue_config_merge_from_partial() {
         done_file: None,
         id_prefix: None,
         id_width: None,
+        size_warning_threshold_kb: None,
+        task_count_warning_threshold: None,
     };
 
     base.merge_from(override_config);

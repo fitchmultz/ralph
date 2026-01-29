@@ -25,6 +25,7 @@ pub mod operations;
 pub mod prune;
 pub mod repair;
 pub mod search;
+pub mod size_check;
 pub mod validation;
 
 pub use graph::*;
@@ -32,6 +33,10 @@ pub use operations::*;
 pub use prune::{prune_done_tasks, PruneOptions, PruneReport};
 pub use repair::*;
 pub use search::{filter_tasks, search_tasks, SearchOptions};
+pub use size_check::{
+    check_queue_size, count_threshold_or_default, print_size_warning_if_needed,
+    size_threshold_or_default, SizeCheckResult,
+};
 pub use validation::{validate_queue, validate_queue_set};
 
 // Pruning types live in `queue::prune` (re-exported from this module).

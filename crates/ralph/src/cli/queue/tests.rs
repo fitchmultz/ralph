@@ -76,6 +76,7 @@ fn base_list_args() -> QueueListArgs {
         all: false,
         sort_by: None,
         order: QueueSortOrder::Descending,
+        quiet: false,
     }
 }
 

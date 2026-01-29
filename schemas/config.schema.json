@@ -104,7 +104,9 @@
         "done_file": ".ralph/done.json",
         "file": ".ralph/queue.json",
         "id_prefix": "RQ",
-        "id_width": 4
+        "id_width": 4,
+        "size_warning_threshold_kb": 500,
+        "task_count_warning_threshold": 500
       },
       "allOf": [
         {
@@ -510,6 +512,28 @@
           ],
           "format": "uint8",
           "minimum": 0.0
+        },
+        "size_warning_threshold_kb": {
+          "description": "Warning threshold for queue file size in KB (default: 500).",
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "maximum": 10000.0,
+          "minimum": 100.0
+        },
+        "task_count_warning_threshold": {
+          "description": "Warning threshold for number of tasks in queue (default: 500).",
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "maximum": 5000.0,
+          "minimum": 50.0
         }
       },
       "additionalProperties": false

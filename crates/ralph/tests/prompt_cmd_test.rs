@@ -22,6 +22,8 @@ fn make_resolved(temp: &TempDir) -> ralph::config::Resolved {
             done_file: Some(PathBuf::from(".ralph/done.json")),
             id_prefix: Some("RQ".to_string()),
             id_width: Some(4),
+            size_warning_threshold_kb: Some(500),
+            task_count_warning_threshold: Some(500),
         },
         agent: AgentConfig {
             phases: Some(3),

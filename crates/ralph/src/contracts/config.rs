@@ -59,6 +59,14 @@ pub struct QueueConfig {
 
     /// Zero pad width for the numeric suffix (default: 4 -> RQ-0001).
     pub id_width: Option<u8>,
+
+    /// Warning threshold for queue file size in KB (default: 500).
+    #[schemars(range(min = 100, max = 10000))]
+    pub size_warning_threshold_kb: Option<u32>,
+
+    /// Warning threshold for number of tasks in queue (default: 500).
+    #[schemars(range(min = 50, max = 5000))]
+    pub task_count_warning_threshold: Option<u32>,
 }
 
 impl QueueConfig {
@@ -74,6 +82,12 @@ impl QueueConfig {
         }
         if other.id_width.is_some() {
             self.id_width = other.id_width;
+        }
+        if other.size_warning_threshold_kb.is_some() {
+            self.size_warning_threshold_kb = other.size_warning_threshold_kb;
+        }
+        if other.task_count_warning_threshold.is_some() {
+            self.task_count_warning_threshold = other.task_count_warning_threshold;
         }
     }
 }
@@ -720,6 +734,8 @@ impl Default for Config {
                 done_file: Some(PathBuf::from(".ralph/done.json")),
                 id_prefix: Some("RQ".to_string()),
                 id_width: Some(4),
+                size_warning_threshold_kb: Some(500),
+                task_count_warning_threshold: Some(500),
             },
             agent: AgentConfig {
                 runner: Some(Runner::Claude),

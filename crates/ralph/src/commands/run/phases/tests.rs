@@ -100,6 +100,8 @@ fn resolved_for_repo(repo_root: PathBuf, opencode_bin: &Path) -> crate::config::
         done_file: Some(PathBuf::from(".ralph/done.json")),
         id_prefix: Some("RQ".to_string()),
         id_width: Some(4),
+        size_warning_threshold_kb: Some(500),
+        task_count_warning_threshold: Some(500),
     };
 
     crate::config::Resolved {

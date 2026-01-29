@@ -2,40 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0390",
-      "status": "todo",
-      "title": "Add queue file size warning for large task lists",
-      "priority": "low",
-      "tags": [
-        "performance",
-        "ux",
-        "enhancement"
-      ],
-      "scope": [
-        "crates/ralph/src/queue.rs",
-        "crates/ralph/src/commands/queue.rs"
-      ],
-      "evidence": [
-        "Queue loads entire JSON file into memory on every operation",
-        "No warning when queue grows beyond reasonable size",
-        "Large queues (thousands of tasks) may impact performance",
-        "No guidance for users on queue maintenance (pruning/archiving)"
-      ],
-      "plan": [
-        "Add size check when loading queue file",
-        "Warn user if queue.json exceeds threshold (e.g., 1000 tasks or 1MB)",
-        "Suggest running 'ralph queue archive' or 'ralph queue prune'",
-        "Add --quiet flag to suppress warning if desired",
-        "Document queue maintenance best practices"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-28T05:30:00Z",
-      "updated_at": "2026-01-28T05:30:00Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0391",
       "status": "todo",
       "title": "Add validation for task dependency edge cases",
