@@ -2,63 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0414",
-      "status": "todo",
-      "title": "Assess ratatui-ecosystem crates for TUI enhancement opportunities",
-      "priority": "medium",
-      "tags": [
-        "assessment",
-        "tui",
-        "ratatui",
-        "ecosystem",
-        "research",
-        "architecture"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/",
-        "crates/ralph/Cargo.toml",
-        "https://docs.rs/tui-widgets",
-        "https://docs.rs/ratatui-explorer",
-        "https://docs.rs/ratatui-image",
-        "https://docs.rs/ratatui-textarea",
-        "/tmp/ratatui-ecosystem-assessment.md"
-      ],
-      "evidence": [
-        "User request: 'Create a task or series of tasks to have the project integrate with well-known ratatui crates that could enhance our TUI'",
-        "User goal: Improve user experience, reduce development responsibilities to maintain custom code",
-        "User constraint: Do not integrate crates that are no longer maintained",
-        "Candidate crates: tui-widgets, ratatui-explorer, ratatui-image, ratatui-textarea",
-        "Related task RQ-0406: OpenTUI assessment - this assessment should consider compatibility with that decision",
-        "Related task RQ-0398: TUI resize handling issues indicate current TUI has maintenance burden",
-        "Related task RQ-0405: Color support improvements planned - ecosystem crates may provide better theming"
-      ],
-      "plan": [
-        "Research each candidate crate on crates.io and docs.rs for maintenance status and activity",
-        "Check GitHub repositories for commit activity, open issues, and maintenance indicators",
-        "Inventory current custom TUI code that could be replaced by ecosystem crates",
-        "Assess tui-widgets: additional widgets that could replace custom implementations",
-        "Assess ratatui-explorer: file explorer widget for potential file browsing features",
-        "Assess ratatui-image: image support for potential logo/screenshot display",
-        "Assess ratatui-textarea: better text input for task editing, search, or configuration",
-        "Document maintenance status: last commit, release cadence, issue response time",
-        "Document integration effort: API compatibility, breaking changes, dependency overhead",
-        "Document benefits: reduced LOC, improved UX, community-tested code",
-        "Provide prioritized recommendations: which crates to adopt, in what order",
-        "Generate assessment report at /tmp/ratatui-ecosystem-assessment.md"
-      ],
-      "notes": [
-        "Assessment is research-only; no code changes required",
-        "Consider overlap with OpenTUI assessment (RQ-0406) - if OpenTUI is adopted, some ecosystem crates may be redundant",
-        "Focus on crates that solve real pain points in current TUI implementation",
-        "ratatui-textarea may be most immediately useful for text input improvements"
-      ],
-      "request": "Create a task or series of tasks to have the project integrate with well-known ralph crates that could enhance our TUI and eliminate some of our custom code overhead. This will improve user experience, reduce development responsibilities to maintain lots of custom code, and overall improve the TUI part of the app. Below is a starter list of crates to assess. Do Not integrate crates that are no longer maintained. Adopt ratatui Ecosystem Crates: tui-widgets, ratatui-explorer, ratatui-image, ratatui-textarea",
-      "created_at": "2026-01-29T15:36:01Z",
-      "updated_at": "2026-01-29T15:36:01Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0403",
       "status": "todo",
       "title": "Implement migration system for config and README changes",
