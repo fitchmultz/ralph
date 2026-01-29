@@ -6,7 +6,7 @@ use crate::commands::run::{logging, supervision};
 use crate::completions;
 use crate::config;
 use crate::contracts::{GitRevertMode, TaskStatus};
-use crate::{gitutil, promptflow, prompts, queue, runutil, timeutil};
+use crate::{git, promptflow, prompts, queue, runutil, timeutil};
 use anyhow::{anyhow, bail, Result};
 
 pub fn execute_phase3_review(ctx: &PhaseInvocation<'_>) -> Result<()> {
@@ -352,13 +352,13 @@ pub fn ensure_phase3_completion(
 
     if git_commit_push_enabled {
         if status == TaskStatus::Rejected {
-            gitutil::require_clean_repo_ignoring_paths(
+            git::require_clean_repo_ignoring_paths(
                 &resolved.repo_root,
                 false,
-                gitutil::RALPH_RUN_CLEAN_ALLOWED_PATHS,
+                git::RALPH_RUN_CLEAN_ALLOWED_PATHS,
             )?;
         } else {
-            gitutil::require_clean_repo_ignoring_paths(
+            git::require_clean_repo_ignoring_paths(
                 &resolved.repo_root,
                 false,
                 &[".ralph/config.json"],

@@ -11,7 +11,7 @@ use crate::contracts::{
     Runner, Task, TaskPriority, TaskStatus,
 };
 use crate::queue;
-use crate::{gitutil, promptflow, runner, runutil};
+use crate::{git, promptflow, runner, runutil};
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -259,7 +259,7 @@ echo '{{"sessionID":"sess-123"}}'
     let plan_text = execute_phase1_planning(&invocation, 2)?;
     assert_eq!(plan_text.trim(), "plan content");
 
-    let mut paths = gitutil::status_paths(temp.path())?;
+    let mut paths = git::status_paths(temp.path())?;
     paths.sort();
 
     anyhow::ensure!(
@@ -341,7 +341,7 @@ echo '{{"sessionID":"sess-123"}}'
     let plan_text = execute_phase1_planning(&invocation, 2)?;
     assert_eq!(plan_text.trim(), "plan content");
 
-    let mut paths = gitutil::status_paths(temp.path())?;
+    let mut paths = git::status_paths(temp.path())?;
     paths.sort();
 
     anyhow::ensure!(

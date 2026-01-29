@@ -3,7 +3,8 @@
 use super::shared::execute_runner_pass;
 use super::{PhaseInvocation, PhaseType};
 use crate::commands::run::{logging, supervision};
-use crate::{gitutil, promptflow, prompts, runutil};
+use crate::git::GitError;
+use crate::{git, promptflow, prompts, runutil};
 use anyhow::{bail, Result};
 
 pub fn execute_phase1_planning(ctx: &PhaseInvocation<'_>, total_phases: u8) -> Result<String> {
@@ -11,12 +12,12 @@ pub fn execute_phase1_planning(ctx: &PhaseInvocation<'_>, total_phases: u8) -> R
 
     logging::with_scope(&label, || {
         let baseline_paths = if ctx.allow_dirty_repo {
-            gitutil::status_paths(&ctx.resolved.repo_root)?
+            git::status_paths(&ctx.resolved.repo_root)?
         } else {
             Vec::new()
         };
         let baseline_snapshots = if ctx.allow_dirty_repo {
-            gitutil::snapshot_paths(&ctx.resolved.repo_root, &baseline_paths)?
+            git::snapshot_paths(&ctx.resolved.repo_root, &baseline_paths)?
         } else {
             Vec::new()
         };
@@ -73,18 +74,14 @@ pub fn execute_phase1_planning(ctx: &PhaseInvocation<'_>, total_phases: u8) -> R
             allowed.extend(baseline_paths.iter().cloned());
             let allowed_refs: Vec<&str> = allowed.iter().map(String::as_str).collect();
 
-            let status = gitutil::require_clean_repo_ignoring_paths(
+            let status = git::require_clean_repo_ignoring_paths(
                 &ctx.resolved.repo_root,
                 false,
                 &allowed_refs,
             );
             let snapshot_check = match status {
-                Ok(()) => {
-                    gitutil::ensure_paths_unchanged(&ctx.resolved.repo_root, &baseline_snapshots)
-                        .map_err(|err| {
-                            gitutil::GitError::Other(err.context("baseline dirty path changed"))
-                        })
-                }
+                Ok(()) => git::ensure_paths_unchanged(&ctx.resolved.repo_root, &baseline_snapshots)
+                    .map_err(|err| GitError::Other(err.context("baseline dirty path changed"))),
                 Err(err) => Err(err),
             };
 

@@ -21,7 +21,7 @@ use crate::contracts::{
     AgentConfig, GitRevertMode, ProjectType, ReasoningEffort, RunnerCliOptionsPatch, TaskStatus,
 };
 use crate::promptflow;
-use crate::{gitutil, prompts, queue, runner, runutil, timeutil};
+use crate::{git, prompts, queue, runner, runutil, timeutil};
 use anyhow::{bail, Context, Result};
 
 mod logging;
@@ -274,14 +274,14 @@ fn run_one_impl(
     let base_settings = resolve_run_agent_settings(resolved, &task, agent_overrides)?;
 
     // Require clean repo before the first iteration starts.
-    let preexisting_dirty_allowed = gitutil::repo_dirty_only_allowed_paths(
+    let preexisting_dirty_allowed = git::repo_dirty_only_allowed_paths(
         &resolved.repo_root,
-        gitutil::RALPH_RUN_CLEAN_ALLOWED_PATHS,
+        git::RALPH_RUN_CLEAN_ALLOWED_PATHS,
     )?;
-    gitutil::require_clean_repo_ignoring_paths(
+    git::require_clean_repo_ignoring_paths(
         &resolved.repo_root,
         force,
-        gitutil::RALPH_RUN_CLEAN_ALLOWED_PATHS,
+        git::RALPH_RUN_CLEAN_ALLOWED_PATHS,
     )?;
 
     // Optional pre-run task update: run once per task ID, immediately before we mark the task as doing.

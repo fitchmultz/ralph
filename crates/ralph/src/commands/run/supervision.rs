@@ -5,9 +5,9 @@
 use super::logging;
 use super::PhaseType;
 use crate::contracts::{GitRevertMode, QueueFile, TaskStatus};
-use crate::gitutil::GitError;
+use crate::git::GitError;
 use crate::notification;
-use crate::{gitutil, outpututil, queue, runutil, timeutil};
+use crate::{git, outpututil, queue, runutil, timeutil};
 use anyhow::{anyhow, bail, Context, Result};
 use std::path::Path;
 use std::process::Stdio;
@@ -85,7 +85,7 @@ pub(crate) fn post_run_supervise(
 ) -> Result<()> {
     let label = format!("PostRunSupervise for {}", task_id.trim());
     logging::with_scope(&label, || {
-        let status = gitutil::status_porcelain(&resolved.repo_root)?;
+        let status = git::status_porcelain(&resolved.repo_root)?;
         let is_dirty = !status.trim().is_empty();
 
         let (mut queue_file, mut done_file) =
@@ -372,12 +372,12 @@ fn finalize_git_state(
 ) -> Result<()> {
     if git_commit_push_enabled {
         let commit_message = outpututil::format_task_commit_message(task_id, task_title);
-        gitutil::commit_all(&resolved.repo_root, &commit_message)?;
+        git::commit_all(&resolved.repo_root, &commit_message)?;
         push_if_ahead(&resolved.repo_root)?;
-        gitutil::require_clean_repo_ignoring_paths(
+        git::require_clean_repo_ignoring_paths(
             &resolved.repo_root,
             false,
-            gitutil::RALPH_RUN_CLEAN_ALLOWED_PATHS,
+            git::RALPH_RUN_CLEAN_ALLOWED_PATHS,
         )?;
     } else {
         log::info!("Auto git commit/push disabled; leaving repo dirty after queue updates.");
@@ -390,7 +390,7 @@ fn finalize_git_state(
 /// When `strict` is true, returns an error if LFS filters are misconfigured
 /// or if there are files that should be LFS but aren't tracked properly.
 fn warn_if_modified_lfs(repo_root: &Path, strict: bool) -> Result<()> {
-    match gitutil::has_lfs(repo_root) {
+    match git::has_lfs(repo_root) {
         Ok(true) => {}
         Ok(false) => return Ok(()),
         Err(err) => {
@@ -400,7 +400,7 @@ fn warn_if_modified_lfs(repo_root: &Path, strict: bool) -> Result<()> {
     }
 
     // Perform comprehensive LFS health check
-    let health_report = match gitutil::check_lfs_health(repo_root) {
+    let health_report = match git::check_lfs_health(repo_root) {
         Ok(report) => report,
         Err(err) => {
             log::warn!("Git LFS health check failed: {:#}", err);
@@ -456,7 +456,7 @@ fn warn_if_modified_lfs(repo_root: &Path, strict: bool) -> Result<()> {
     }
 
     // Original modified files check
-    let status_paths = match gitutil::status_paths(repo_root) {
+    let status_paths = match git::status_paths(repo_root) {
         Ok(paths) => paths,
         Err(err) => {
             log::warn!("Unable to read git status for LFS warning: {:#}", err);
@@ -468,7 +468,7 @@ fn warn_if_modified_lfs(repo_root: &Path, strict: bool) -> Result<()> {
         return Ok(());
     }
 
-    let lfs_files = match gitutil::list_lfs_files(repo_root) {
+    let lfs_files = match git::list_lfs_files(repo_root) {
         Ok(files) => files,
         Err(err) => {
             log::warn!("Unable to list LFS files: {:#}", err);
@@ -483,7 +483,7 @@ fn warn_if_modified_lfs(repo_root: &Path, strict: bool) -> Result<()> {
         return Ok(());
     }
 
-    let modified = gitutil::filter_modified_lfs_files(&status_paths, &lfs_files);
+    let modified = git::filter_modified_lfs_files(&status_paths, &lfs_files);
     if !modified.is_empty() {
         log::warn!("Modified Git LFS files detected: {}", modified.join(", "));
     }
@@ -492,7 +492,7 @@ fn warn_if_modified_lfs(repo_root: &Path, strict: bool) -> Result<()> {
 }
 
 fn push_if_ahead(repo_root: &Path) -> Result<()> {
-    match gitutil::is_ahead_of_upstream(repo_root) {
+    match git::is_ahead_of_upstream(repo_root) {
         Ok(ahead) => {
             if !ahead {
                 return Ok(());
@@ -506,7 +506,7 @@ fn push_if_ahead(repo_root: &Path) -> Result<()> {
             return Err(anyhow!("upstream check failed: {:#}", err));
         }
     }
-    if let Err(err) = gitutil::push_upstream(repo_root) {
+    if let Err(err) = git::push_upstream(repo_root) {
         bail!("Git push failed: the repository has unpushed commits but the push operation failed. Push manually to sync with upstream. Error: {:#}", err);
     }
     Ok(())

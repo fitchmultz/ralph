@@ -2,43 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0409",
-      "status": "todo",
-      "title": "Refactor gitutil.rs: split 1,611 LOC utility module into focused submodules",
-      "priority": "medium",
-      "tags": [
-        "refactor",
-        "git",
-        "utilities",
-        "code-quality",
-        "module-boundaries"
-      ],
-      "scope": [
-        "crates/ralph/src/gitutil.rs",
-        "crates/ralph/src/"
-      ],
-      "evidence": [
-        "User request: 'Identify large files with large LOC and create a task to have each file refactored into smaller files'",
-        "CLAUDE.md guideline: Files exceeding ~1,000 LOC are presumed to be mis-scoped and MUST be split",
-        "File stats: gitutil.rs has 1,611 LOC - more than 1.5x the 1,000 LOC threshold"
-      ],
-      "plan": [
-        "Analyze gitutil.rs to identify distinct git operations (status, diff, commit, branch, etc.)",
-        "Design module structure: create git/ subdirectory with focused modules (git/status.rs, git/diff.rs, git/commit.rs, etc.)",
-        "Ensure each new module has a single cohesive responsibility under ~400 LOC",
-        "Refactor gitutil.rs to re-export public API or become a module index",
-        "Update all imports across the codebase",
-        "Run 'make ci' to validate changes",
-        "Verify git operations remain functional"
-      ],
-      "notes": [],
-      "request": "Identify large files with large LOC and create a task to have each file refactored into smaller files.",
-      "created_at": "2026-01-29T15:29:58Z",
-      "updated_at": "2026-01-29T15:29:58Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0410",
       "status": "todo",
       "title": "Refactor commands/init.rs: split 1,335 LOC init command into smaller modules",

@@ -33,6 +33,7 @@ pub mod tui;
 // --- Utils -------------------------------------------------------------------
 
 pub mod fsutil;
+pub mod git;
 pub mod gitutil;
 pub mod jsonc;
 pub mod lock;

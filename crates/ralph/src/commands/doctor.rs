@@ -18,7 +18,7 @@
 
 use crate::config;
 use crate::contracts::Runner;
-use crate::gitutil;
+use crate::git;
 use crate::lock::{pid_is_running, queue_lock_dir};
 use crate::outpututil;
 use crate::prompts;
@@ -41,7 +41,7 @@ pub fn run_doctor(resolved: &config::Resolved) -> Result<()> {
         outpututil::log_success("git binary found");
     }
 
-    match gitutil::status_porcelain(&resolved.repo_root) {
+    match git::status_porcelain(&resolved.repo_root) {
         Ok(_) => outpututil::log_success(&format!(
             "valid git repo at {}",
             resolved.repo_root.display()
@@ -52,7 +52,7 @@ pub fn run_doctor(resolved: &config::Resolved) -> Result<()> {
         }
     }
 
-    match gitutil::upstream_ref(&resolved.repo_root) {
+    match git::upstream_ref(&resolved.repo_root) {
         Ok(u) => outpututil::log_success(&format!("upstream configured: {}", u)),
         Err(e) => {
             outpututil::log_warn(&format!("no upstream configured: {}", e));
@@ -61,10 +61,10 @@ pub fn run_doctor(resolved: &config::Resolved) -> Result<()> {
 
     // Git LFS Checks
     log::info!("Checking Git LFS...");
-    match gitutil::has_lfs(&resolved.repo_root) {
+    match git::has_lfs(&resolved.repo_root) {
         Ok(true) => {
             outpututil::log_success("Git LFS detected");
-            match gitutil::list_lfs_files(&resolved.repo_root) {
+            match git::list_lfs_files(&resolved.repo_root) {
                 Ok(files) => {
                     if files.is_empty() {
                         log::info!("LFS initialized but no files tracked");

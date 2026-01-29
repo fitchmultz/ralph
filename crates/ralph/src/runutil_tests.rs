@@ -14,12 +14,13 @@
 
 use crate::commands::run::PhaseType;
 use crate::contracts::{ClaudePermissionMode, GitRevertMode, Model, ReasoningEffort, Runner};
+use crate::git;
+use crate::runner;
 use crate::runutil::{
     apply_git_revert_mode, apply_git_revert_mode_with_context, parse_revert_response,
     prompt_revert_choice_with_io, run_prompt_with_handling_backend, RevertDecision, RevertOutcome,
     RevertPromptContext, RevertPromptHandler, RunnerBackend, RunnerErrorMessages, RunnerInvocation,
 };
-use crate::{gitutil, runner};
 use std::fs;
 use std::path::Path;
 use std::process::Command;
@@ -370,7 +371,7 @@ fn timeout_applies_git_revert_mode_and_saves_safeguard_dump_when_stdout_is_avail
     let reverted = fs::read_to_string(&file_path).expect("read file after revert");
     assert_eq!(reverted, "original");
 
-    let status = gitutil::status_porcelain(dir.path()).expect("git status --porcelain -z");
+    let status = git::status_porcelain(dir.path()).expect("git status --porcelain -z");
     assert!(
         status.trim().is_empty(),
         "expected clean repo after timeout revert"

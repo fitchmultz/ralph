@@ -6,7 +6,7 @@
 
 use crate::commands::run::PhaseType;
 use crate::contracts::{ClaudePermissionMode, GitRevertMode, Model, ReasoningEffort, Runner};
-use crate::{fsutil, gitutil, outpututil, runner};
+use crate::{fsutil, git, outpututil, runner};
 use anyhow::{bail, Result};
 use std::io::{BufRead, BufReader, IsTerminal, Write};
 use std::path::Path;
@@ -516,7 +516,7 @@ pub fn apply_git_revert_mode_with_context(
 ) -> Result<RevertOutcome> {
     match mode {
         GitRevertMode::Enabled => {
-            gitutil::revert_uncommitted(repo_root)?;
+            git::revert_uncommitted(repo_root)?;
             Ok(RevertOutcome::Reverted)
         }
         GitRevertMode::Disabled => Ok(RevertOutcome::Skipped {
@@ -549,7 +549,7 @@ fn apply_revert_decision(
 ) -> Result<RevertOutcome> {
     match decision {
         RevertDecision::Revert => {
-            gitutil::revert_uncommitted(repo_root)?;
+            git::revert_uncommitted(repo_root)?;
             Ok(RevertOutcome::Reverted)
         }
         RevertDecision::Keep => Ok(RevertOutcome::Skipped {

@@ -20,7 +20,7 @@ use crate::contracts::{
     ClaudePermissionMode, GitRevertMode, Model, ProjectType, ReasoningEffort, Runner,
     RunnerCliOptionsPatch,
 };
-use crate::{config, fsutil, gitutil, prompts, queue, runner, runutil, timeutil};
+use crate::{config, fsutil, git, prompts, queue, runner, runutil, timeutil};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Global flag indicating if debug mode is enabled.
@@ -94,7 +94,7 @@ fn resolve_scan_runner_settings(
 
 pub fn run_scan(resolved: &config::Resolved, opts: ScanOptions) -> Result<()> {
     // Prevents catastrophic data loss if scan fails and reverts uncommitted changes.
-    gitutil::require_clean_repo_ignoring_paths(
+    git::require_clean_repo_ignoring_paths(
         &resolved.repo_root,
         opts.force,
         &[".ralph/queue.json", ".ralph/done.json"],
