@@ -32,6 +32,7 @@ fn apply_task_edit_sets_status_from_input() -> anyhow::Result<()> {
         now,
         "RQ",
         4,
+        10,
     )?;
 
     let t = &queue.tasks[0];
@@ -58,6 +59,7 @@ fn apply_task_edit_rejects_invalid_status_input() {
         "2026-01-19T00:00:00Z",
         "RQ",
         4,
+        10,
     )
     .unwrap_err();
     let msg = format!("{err}");
@@ -82,6 +84,7 @@ fn apply_task_edit_rejects_empty_title_with_context() {
         "2026-01-19T00:00:00Z",
         "RQ",
         4,
+        10,
     )
     .unwrap_err();
 
@@ -107,6 +110,7 @@ fn apply_task_edit_rejects_custom_field_entries_without_equals() {
         "2026-01-19T00:00:00Z",
         "RQ",
         4,
+        10,
     )
     .unwrap_err();
 

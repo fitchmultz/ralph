@@ -303,6 +303,8 @@ pub struct App {
     pub id_prefix: String,
     /// Task ID width used for new task creation.
     pub id_width: usize,
+    /// Maximum allowed dependency chain depth before warning.
+    pub max_dependency_depth: u8,
     /// Optional path to the done queue (kept for future integrations/UI).
     pub done_path: Option<PathBuf>,
     /// Active filters applied to the task list.
@@ -385,6 +387,7 @@ impl App {
             loop_include_draft: false,
             id_prefix: "RQ".to_string(),
             id_width: 4,
+            max_dependency_depth: 10,
             done_path: None,
             filters: FilterState::default(),
             filter_snapshot: None,
@@ -1008,6 +1011,7 @@ impl App {
             Some(&self.done),
             &self.id_prefix,
             self.id_width,
+            self.max_dependency_depth,
         )?;
 
         let task = Task {

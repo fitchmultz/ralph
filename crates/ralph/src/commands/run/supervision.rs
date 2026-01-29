@@ -146,11 +146,13 @@ pub(crate) fn post_run_supervise(
             )
             .context("Ensuring task is marked Done (dirty repo) failed")?;
 
+            let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
             queue::archive_terminal_tasks(
                 &resolved.queue_path,
                 &resolved.done_path,
                 &resolved.id_prefix,
                 resolved.id_width,
+                max_depth,
             )
             .context("Queue archiving failed")?;
 
@@ -189,11 +191,13 @@ pub(crate) fn post_run_supervise(
         )
         .context("Ensuring task is marked Done (clean repo) failed")?;
 
+        let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
         let report = queue::archive_terminal_tasks(
             &resolved.queue_path,
             &resolved.done_path,
             &resolved.id_prefix,
             resolved.id_width,
+            max_depth,
         )
         .context("Queue archiving failed")?;
         if !report.moved_ids.is_empty() {
@@ -281,11 +285,13 @@ fn maintain_and_validate_queues(
     } else {
         Some(&done_file)
     };
+    let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
     queue::validate_queue_set(
         &queue_file,
         done_ref,
         &resolved.id_prefix,
         resolved.id_width,
+        max_depth,
     )?;
 
     Ok((queue_file, done_file))
@@ -662,6 +668,7 @@ mod tests {
                 id_width: Some(4),
                 size_warning_threshold_kb: Some(500),
                 task_count_warning_threshold: Some(500),
+                max_dependency_depth: Some(10),
             },
             ..Config::default()
         };

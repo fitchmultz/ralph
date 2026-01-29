@@ -118,22 +118,33 @@ pub fn run_scan(resolved: &config::Resolved, opts: ScanOptions) -> Result<()> {
     } else {
         Some(&done)
     };
-    if let Err(err) =
-        queue::validate_queue_set(&before, done_ref, &resolved.id_prefix, resolved.id_width)
-            .context("validate queue set before scan")
+    let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
+    match queue::validate_queue_set(
+        &before,
+        done_ref,
+        &resolved.id_prefix,
+        resolved.id_width,
+        max_depth,
+    )
+    .context("validate queue set before scan")
     {
-        let preface = format!("Scan validation failed before run.\n{err:#}");
-        let outcome = runutil::apply_git_revert_mode_with_context(
-            &resolved.repo_root,
-            opts.git_revert_mode,
-            runutil::RevertPromptContext::new("Scan validation failure (pre-run)", false)
-                .with_preface(preface),
-            opts.revert_prompt.as_ref(),
-        )?;
-        return Err(err).context(runutil::format_revert_failure_message(
-            "Scan validation failed before run.",
-            outcome,
-        ));
+        Ok(warnings) => {
+            queue::log_warnings(&warnings);
+        }
+        Err(err) => {
+            let preface = format!("Scan validation failed before run.\n{err:#}");
+            let outcome = runutil::apply_git_revert_mode_with_context(
+                &resolved.repo_root,
+                opts.git_revert_mode,
+                runutil::RevertPromptContext::new("Scan validation failure (pre-run)", false)
+                    .with_preface(preface),
+                opts.revert_prompt.as_ref(),
+            )?;
+            return Err(err).context(runutil::format_revert_failure_message(
+                "Scan validation failed before run.",
+                outcome,
+            ));
+        }
     }
     let before_ids = queue::task_id_set(&before);
 
@@ -228,34 +239,40 @@ pub fn run_scan(resolved: &config::Resolved, opts: ScanOptions) -> Result<()> {
     } else {
         Some(&done_after)
     };
-    if let Err(err) = queue::validate_queue_set(
+    match queue::validate_queue_set(
         &after,
         done_after_ref,
         &resolved.id_prefix,
         resolved.id_width,
+        max_depth,
     )
     .context("validate queue set after scan")
     {
-        let mut safeguard_msg = String::new();
-        match fsutil::safeguard_text_dump_redacted("scan_validation_error", &output.stdout) {
-            Ok(path) => {
-                let dump_type = if is_debug_mode() { "raw" } else { "redacted" };
-                safeguard_msg = format!("\n({dump_type} stdout saved to {})", path.display());
-            }
-            Err(e) => {
-                log::warn!("failed to save safeguard dump: {}", e);
-            }
+        Ok(warnings) => {
+            queue::log_warnings(&warnings);
         }
-        let context = format!("{}{}", "Scan validation failed after run.", safeguard_msg);
-        let preface = format!("{context}\n{err:#}");
-        let outcome = runutil::apply_git_revert_mode_with_context(
-            &resolved.repo_root,
-            opts.git_revert_mode,
-            runutil::RevertPromptContext::new("Scan validation failure (post-run)", false)
-                .with_preface(preface),
-            opts.revert_prompt.as_ref(),
-        )?;
-        return Err(err).context(runutil::format_revert_failure_message(&context, outcome));
+        Err(err) => {
+            let mut safeguard_msg = String::new();
+            match fsutil::safeguard_text_dump_redacted("scan_validation_error", &output.stdout) {
+                Ok(path) => {
+                    let dump_type = if is_debug_mode() { "raw" } else { "redacted" };
+                    safeguard_msg = format!("\n({dump_type} stdout saved to {})", path.display());
+                }
+                Err(e) => {
+                    log::warn!("failed to save safeguard dump: {}", e);
+                }
+            }
+            let context = format!("{}{}", "Scan validation failed after run.", safeguard_msg);
+            let preface = format!("{context}\n{err:#}");
+            let outcome = runutil::apply_git_revert_mode_with_context(
+                &resolved.repo_root,
+                opts.git_revert_mode,
+                runutil::RevertPromptContext::new("Scan validation failure (post-run)", false)
+                    .with_preface(preface),
+                opts.revert_prompt.as_ref(),
+            )?;
+            return Err(err).context(runutil::format_revert_failure_message(&context, outcome));
+        }
     }
 
     let added = queue::added_tasks(&before_ids, &after);

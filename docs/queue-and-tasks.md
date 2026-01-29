@@ -81,6 +81,39 @@ Notes:
 - Dependencies: A task is blocked until all IDs in its `depends_on` list have status `done` or `rejected`.
 - Draft tasks (`status: draft`) are skipped by `run one` and `run loop` unless `--include-draft` is set.
 
+## Dependency Validation
+
+Ralph validates task dependencies on queue operations to ensure correctness and prevent issues:
+
+### Hard Errors (blocking)
+These validation failures prevent queue operations and must be fixed:
+
+- **Self-dependency**: A task cannot depend on itself.
+- **Missing dependency**: Referenced task ID must exist in `queue.json` or `done.json`.
+- **Circular dependency**: Dependency graph must be acyclic (DAG).
+- **Invalid terminal status**: `done.json` must only contain tasks with `done` or `rejected` status.
+
+### Warnings (non-blocking)
+These issues are reported but do not prevent queue operations:
+
+- **Dependency on rejected task**: Task depends on a rejected task that will never complete. The dependency will never be satisfied.
+- **Deep dependency chain**: Dependency chain exceeds `queue.max_dependency_depth` (default: 10). This may indicate overly complex dependencies.
+- **Blocked execution path**: All dependency paths from this task lead to incomplete or rejected tasks. The task cannot make progress until blocking dependencies are resolved.
+
+### Configuration
+
+Set `queue.max_dependency_depth` in `.ralph/config.json` to adjust the depth warning threshold:
+
+```json
+{
+  "queue": {
+    "max_dependency_depth": 15
+  }
+}
+```
+
+Validation warnings are logged during queue operations. Review them with `ralph queue validate` or by checking the queue after operations.
+
 ## Dependency Visualization
 
 Ralph provides multiple ways to visualize task dependencies:

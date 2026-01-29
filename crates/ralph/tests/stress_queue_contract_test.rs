@@ -101,10 +101,10 @@ fn stress_queue_ops_large_scale() -> Result<()> {
     };
     let (active, done) = build_queue(&profile, ID_PREFIX, ID_WIDTH);
 
-    queue::validate_queue_set(&active, Some(&done), ID_PREFIX, ID_WIDTH)
+    queue::validate_queue_set(&active, Some(&done), ID_PREFIX, ID_WIDTH, 10)
         .context("validate queue set")?;
 
-    let next = queue::next_id_across(&active, Some(&done), ID_PREFIX, ID_WIDTH)
+    let next = queue::next_id_across(&active, Some(&done), ID_PREFIX, ID_WIDTH, 10)
         .context("next id across")?;
     anyhow::ensure!(next == "RQ-10001", "unexpected next id: {next}");
 
@@ -138,8 +138,14 @@ fn stress_queue_ops_large_scale() -> Result<()> {
     let reloaded_active = queue::load_queue(&queue_path).context("load active")?;
     let reloaded_done = queue::load_queue(&done_path).context("load done")?;
 
-    queue::validate_queue_set(&reloaded_active, Some(&reloaded_done), ID_PREFIX, ID_WIDTH)
-        .context("validate reloaded queue set")?;
+    queue::validate_queue_set(
+        &reloaded_active,
+        Some(&reloaded_done),
+        ID_PREFIX,
+        ID_WIDTH,
+        10,
+    )
+    .context("validate reloaded queue set")?;
 
     Ok(())
 }
@@ -155,8 +161,8 @@ fn stress_queue_ops_runtime_bounds() -> Result<()> {
     let (active, done) = build_queue(&profile, ID_PREFIX, ID_WIDTH);
 
     let start = Instant::now();
-    queue::validate_queue_set(&active, Some(&done), ID_PREFIX, ID_WIDTH)?;
-    let _ = queue::next_id_across(&active, Some(&done), ID_PREFIX, ID_WIDTH)?;
+    queue::validate_queue_set(&active, Some(&done), ID_PREFIX, ID_WIDTH, 10)?;
+    let _ = queue::next_id_across(&active, Some(&done), ID_PREFIX, ID_WIDTH, 10)?;
     let _ = queue::filter_tasks(&active, &[], &[], &[], Some(50));
     let elapsed = start.elapsed();
 
@@ -199,13 +205,20 @@ fn stress_queue_archive_and_mutate_cycles() -> Result<()> {
         }
 
         queue::save_queue(&queue_path, &current).context("save active")?;
-        let _report = queue::archive_terminal_tasks(&queue_path, &done_path, ID_PREFIX, ID_WIDTH)
-            .with_context(|| format!("archive iteration {iter}"))?;
+        let _report =
+            queue::archive_terminal_tasks(&queue_path, &done_path, ID_PREFIX, ID_WIDTH, 10)
+                .with_context(|| format!("archive iteration {iter}"))?;
 
         let active_reloaded = queue::load_queue(&queue_path).context("reload active")?;
         let done_reloaded = queue::load_queue(&done_path).context("reload done")?;
-        queue::validate_queue_set(&active_reloaded, Some(&done_reloaded), ID_PREFIX, ID_WIDTH)
-            .context("validate after iteration")?;
+        queue::validate_queue_set(
+            &active_reloaded,
+            Some(&done_reloaded),
+            ID_PREFIX,
+            ID_WIDTH,
+            10,
+        )
+        .context("validate after iteration")?;
     }
 
     Ok(())
@@ -272,8 +285,9 @@ fn stress_queue_ops_burn_in_long() -> Result<()> {
 
     // Run a bounded number of iterations; each iteration archives done tasks and marks a few todo as done.
     for iter in 0..200u32 {
-        let report = queue::archive_terminal_tasks(&queue_path, &done_path, ID_PREFIX, ID_WIDTH)
-            .with_context(|| format!("archive iteration {iter}"))?;
+        let report =
+            queue::archive_terminal_tasks(&queue_path, &done_path, ID_PREFIX, ID_WIDTH, 10)
+                .with_context(|| format!("archive iteration {iter}"))?;
         let _ = report;
 
         let mut current = queue::load_queue(&queue_path).context("load active")?;
@@ -291,8 +305,14 @@ fn stress_queue_ops_burn_in_long() -> Result<()> {
         // Reload both and validate invariants.
         let active_reloaded = queue::load_queue(&queue_path).context("reload active")?;
         let done_reloaded = queue::load_queue(&done_path).context("reload done")?;
-        queue::validate_queue_set(&active_reloaded, Some(&done_reloaded), ID_PREFIX, ID_WIDTH)
-            .context("validate after iteration")?;
+        queue::validate_queue_set(
+            &active_reloaded,
+            Some(&done_reloaded),
+            ID_PREFIX,
+            ID_WIDTH,
+            10,
+        )
+        .context("validate after iteration")?;
     }
 
     Ok(())

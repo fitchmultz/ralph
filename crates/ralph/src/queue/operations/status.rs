@@ -93,6 +93,7 @@ pub fn complete_task(
     notes: &[String],
     id_prefix: &str,
     id_width: usize,
+    max_dependency_depth: u8,
 ) -> Result<()> {
     match status {
         TaskStatus::Done | TaskStatus::Rejected => {}
@@ -150,7 +151,14 @@ pub fn complete_task(
 
     let mut done_with_completed = done.clone();
     done_with_completed.tasks.push(completed_task.clone());
-    validation::validate_queue_set(&active, Some(&done_with_completed), id_prefix, id_width)?;
+    let warnings = validation::validate_queue_set(
+        &active,
+        Some(&done_with_completed),
+        id_prefix,
+        id_width,
+        max_dependency_depth,
+    )?;
+    validation::log_warnings(&warnings);
 
     done.tasks.push(completed_task);
 

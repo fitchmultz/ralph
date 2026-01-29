@@ -73,6 +73,7 @@ fn setup_test_queue() -> Result<(TempDir, config::Resolved)> {
             id_width: Some(4),
             size_warning_threshold_kb: Some(500),
             task_count_warning_threshold: Some(500),
+            max_dependency_depth: Some(10),
         },
         ..Default::default()
     };

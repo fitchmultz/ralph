@@ -49,11 +49,13 @@ pub(crate) fn handle(resolved: &Resolved, args: QueueNextIdArgs) -> Result<()> {
         .filter(|d| !d.tasks.is_empty() || resolved.done_path.exists());
 
     // Get the first ID using next_id_across
+    let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
     let first_id = queue::next_id_across(
         &queue_file,
         done_ref,
         &resolved.id_prefix,
         resolved.id_width,
+        max_depth,
     )?;
 
     // Parse the numeric portion from the first ID

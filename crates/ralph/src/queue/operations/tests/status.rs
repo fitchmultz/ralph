@@ -244,6 +244,7 @@ fn complete_task_moves_task_from_queue_to_done() -> anyhow::Result<()> {
         &["Test note".to_string()],
         "RQ",
         4,
+        10,
     )?;
 
     let queue_content = std::fs::read_to_string(&queue_path)?;
@@ -325,6 +326,7 @@ fn complete_task_allows_dependents_in_active_queue() -> anyhow::Result<()> {
         &[],
         "RQ",
         4,
+        10,
     )?;
 
     let queue_content = std::fs::read_to_string(&queue_path)?;
@@ -382,6 +384,7 @@ fn complete_task_rejects_non_terminal_status() -> anyhow::Result<()> {
         &[],
         "RQ",
         4,
+        10,
     )
     .unwrap_err();
     assert!(format!("{err}")
@@ -434,6 +437,7 @@ fn complete_task_rejects_task_already_terminal() -> anyhow::Result<()> {
         &[],
         "RQ",
         4,
+        10,
     )
     .unwrap_err();
     assert!(format!("{err}")
@@ -485,6 +489,7 @@ fn complete_task_rejects_nonexistent_task() -> anyhow::Result<()> {
         &[],
         "RQ",
         4,
+        10,
     )
     .unwrap_err();
     assert!(format!("{err}").to_lowercase().contains("task not found"));

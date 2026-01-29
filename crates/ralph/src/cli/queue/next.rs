@@ -34,11 +34,13 @@ pub(crate) fn handle(resolved: &Resolved, args: QueueNextArgs) -> Result<()> {
         return Ok(());
     }
 
+    let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
     let next_id = queue::next_id_across(
         &queue_file,
         done_ref,
         &resolved.id_prefix,
         resolved.id_width,
+        max_depth,
     )?;
     println!("{next_id}");
     Ok(())

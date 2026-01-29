@@ -127,6 +127,7 @@ pub fn create_from_prd(
         TaskStatus::Todo
     };
 
+    let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
     let tasks = if opts.multi {
         generate_multi_tasks(
             &parsed,
@@ -138,6 +139,7 @@ pub fn create_from_prd(
             done_ref,
             &resolved.id_prefix,
             resolved.id_width,
+            max_depth,
         )?
     } else {
         vec![generate_single_task(
@@ -150,6 +152,7 @@ pub fn create_from_prd(
             done_ref,
             &resolved.id_prefix,
             resolved.id_width,
+            max_depth,
         )?]
     };
 
@@ -367,8 +370,9 @@ fn generate_single_task(
     done: Option<&QueueFile>,
     id_prefix: &str,
     id_width: usize,
+    max_dependency_depth: u8,
 ) -> Result<Task> {
-    let id = queue::next_id_across(queue, done, id_prefix, id_width)?;
+    let id = queue::next_id_across(queue, done, id_prefix, id_width, max_dependency_depth)?;
 
     // Build plan from functional requirements and user story acceptance criteria
     let mut plan: Vec<String> = parsed.functional_requirements.clone();
@@ -435,6 +439,7 @@ fn generate_multi_tasks(
     done: Option<&QueueFile>,
     id_prefix: &str,
     id_width: usize,
+    max_dependency_depth: u8,
 ) -> Result<Vec<Task>> {
     let mut tasks: Vec<Task> = Vec::new();
     let mut prev_ids: Vec<String> = Vec::new();
@@ -442,7 +447,16 @@ fn generate_multi_tasks(
     // If no user stories, fall back to single task
     if parsed.user_stories.is_empty() {
         return Ok(vec![generate_single_task(
-            parsed, now, priority, status, extra_tags, queue, done, id_prefix, id_width,
+            parsed,
+            now,
+            priority,
+            status,
+            extra_tags,
+            queue,
+            done,
+            id_prefix,
+            id_width,
+            max_dependency_depth,
         )?]);
     }
 
@@ -454,7 +468,8 @@ fn generate_multi_tasks(
             temp_queue.tasks.push(task.clone());
         }
 
-        let id = queue::next_id_across(&temp_queue, done, id_prefix, id_width)?;
+        let id =
+            queue::next_id_across(&temp_queue, done, id_prefix, id_width, max_dependency_depth)?;
 
         let title = if parsed.title.is_empty() {
             story.title.clone()
@@ -708,6 +723,7 @@ Just some content.
             None,
             "RQ",
             4,
+            10,
         )
         .unwrap();
 
@@ -757,6 +773,7 @@ Just some content.
             None,
             "RQ",
             4,
+            10,
         )
         .unwrap();
 
@@ -791,6 +808,7 @@ Just some content.
             None,
             "RQ",
             4,
+            10,
         )
         .unwrap();
 

@@ -169,6 +169,7 @@ impl App {
             now_rfc3339,
             &self.id_prefix,
             self.id_width,
+            self.max_dependency_depth,
         )?;
 
         self.dirty = true;

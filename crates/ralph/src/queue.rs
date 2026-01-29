@@ -37,7 +37,7 @@ pub use size_check::{
     check_queue_size, count_threshold_or_default, print_size_warning_if_needed,
     size_threshold_or_default, SizeCheckResult,
 };
-pub use validation::{validate_queue, validate_queue_set};
+pub use validation::{log_warnings, validate_queue, validate_queue_set, ValidationWarning};
 
 // Pruning types live in `queue::prune` (re-exported from this module).
 
@@ -284,8 +284,16 @@ pub fn load_and_validate_queues(
         .as_ref()
         .filter(|d| !d.tasks.is_empty() || resolved.done_path.exists());
 
+    let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
     if let Some(d) = done_ref {
-        validate_queue_set(&queue_file, Some(d), &resolved.id_prefix, resolved.id_width)?;
+        let warnings = validate_queue_set(
+            &queue_file,
+            Some(d),
+            &resolved.id_prefix,
+            resolved.id_width,
+            max_depth,
+        )?;
+        log_warnings(&warnings);
     } else {
         validate_queue(&queue_file, &resolved.id_prefix, resolved.id_width)?;
     }
@@ -305,8 +313,10 @@ pub fn next_id_across(
     done: Option<&QueueFile>,
     id_prefix: &str,
     id_width: usize,
+    max_dependency_depth: u8,
 ) -> Result<String> {
-    validate_queue_set(active, done, id_prefix, id_width)?;
+    let warnings = validate_queue_set(active, done, id_prefix, id_width, max_dependency_depth)?;
+    log_warnings(&warnings);
     let expected_prefix = normalize_prefix(id_prefix);
 
     let mut max_value: u32 = 0;
@@ -391,7 +401,7 @@ mod tests {
             version: 1,
             tasks: vec![done_task],
         };
-        let next = next_id_across(&active, Some(&done), "RQ", 4)?;
+        let next = next_id_across(&active, Some(&done), "RQ", 4, 10)?;
         assert_eq!(next, "RQ-0010");
         Ok(())
     }
@@ -500,7 +510,7 @@ mod tests {
                 t_rejected,
             ],
         };
-        let next = next_id_across(&active, None, "RQ", 4)?;
+        let next = next_id_across(&active, None, "RQ", 4, 10)?;
         assert_eq!(next, "RQ-0002");
         Ok(())
     }
@@ -523,7 +533,7 @@ mod tests {
             version: 1,
             tasks: vec![t_done, t_rejected],
         };
-        let next = next_id_across(&active, Some(&done), "RQ", 4)?;
+        let next = next_id_across(&active, Some(&done), "RQ", 4, 10)?;
         assert_eq!(next, "RQ-0006");
         Ok(())
     }

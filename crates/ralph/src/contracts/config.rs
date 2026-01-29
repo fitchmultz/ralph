@@ -67,6 +67,10 @@ pub struct QueueConfig {
     /// Warning threshold for number of tasks in queue (default: 500).
     #[schemars(range(min = 50, max = 5000))]
     pub task_count_warning_threshold: Option<u32>,
+
+    /// Maximum allowed dependency chain depth before warning (default: 10).
+    #[schemars(range(min = 1, max = 100))]
+    pub max_dependency_depth: Option<u8>,
 }
 
 impl QueueConfig {
@@ -88,6 +92,9 @@ impl QueueConfig {
         }
         if other.task_count_warning_threshold.is_some() {
             self.task_count_warning_threshold = other.task_count_warning_threshold;
+        }
+        if other.max_dependency_depth.is_some() {
+            self.max_dependency_depth = other.max_dependency_depth;
         }
     }
 }
@@ -736,6 +743,7 @@ impl Default for Config {
                 id_width: Some(4),
                 size_warning_threshold_kb: Some(500),
                 task_count_warning_threshold: Some(500),
+                max_dependency_depth: Some(10),
             },
             agent: AgentConfig {
                 runner: Some(Runner::Claude),

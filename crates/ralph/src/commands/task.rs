@@ -182,8 +182,15 @@ fn build_task_impl(
     } else {
         Some(&done)
     };
-    queue::validate_queue_set(&before, done_ref, &resolved.id_prefix, resolved.id_width)
-        .context("validate queue set before task")?;
+    let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
+    queue::validate_queue_set(
+        &before,
+        done_ref,
+        &resolved.id_prefix,
+        resolved.id_width,
+        max_depth,
+    )
+    .context("validate queue set before task")?;
     let before_ids = queue::task_id_set(&before);
 
     let template = prompts::load_task_builder_prompt(&resolved.repo_root)?;
@@ -266,6 +273,7 @@ fn build_task_impl(
         done_after_ref,
         &resolved.id_prefix,
         resolved.id_width,
+        max_depth,
     )
     .context("validate queue set after task")?;
 
@@ -379,8 +387,15 @@ fn update_task_impl(
     } else {
         Some(&done)
     };
-    queue::validate_queue_set(&before, done_ref, &resolved.id_prefix, resolved.id_width)
-        .context("validate queue set before task update")?;
+    let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
+    queue::validate_queue_set(
+        &before,
+        done_ref,
+        &resolved.id_prefix,
+        resolved.id_width,
+        max_depth,
+    )
+    .context("validate queue set before task update")?;
 
     let template = prompts::load_task_updater_prompt(&resolved.repo_root)?;
     let project_type = resolved.config.project_type.unwrap_or(ProjectType::Code);
@@ -476,6 +491,7 @@ fn update_task_impl(
         done_after_ref,
         &resolved.id_prefix,
         resolved.id_width,
+        max_depth,
     )
     .context("validate queue set after task update")?;
 

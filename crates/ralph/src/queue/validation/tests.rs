@@ -135,7 +135,7 @@ fn validate_queue_set_rejects_cross_file_duplicates() {
         version: 1,
         tasks: vec![done_task],
     };
-    let err = validate_queue_set(&active, Some(&done), "RQ", 4).unwrap_err();
+    let err = validate_queue_set(&active, Some(&done), "RQ", 4, 10).unwrap_err();
     assert!(format!("{err}").contains("Duplicate task ID detected across queue and done"));
 }
 
@@ -182,7 +182,7 @@ fn validate_queue_set_allows_duplicate_across_files_if_rejected() {
         version: 1,
         tasks: vec![t_rejected],
     };
-    assert!(validate_queue_set(&active, Some(&done), "RQ", 4).is_ok());
+    assert!(validate_queue_set(&active, Some(&done), "RQ", 4, 10).is_ok());
 
     let mut t_rejected2 = task_with("RQ-0001", TaskStatus::Rejected, vec!["tag".to_string()]);
     t_rejected2.completed_at = Some("2026-01-18T00:00:00Z".to_string());
@@ -196,7 +196,7 @@ fn validate_queue_set_allows_duplicate_across_files_if_rejected() {
         version: 1,
         tasks: vec![t_done],
     };
-    assert!(validate_queue_set(&active2, Some(&done2), "RQ", 4).is_ok());
+    assert!(validate_queue_set(&active2, Some(&done2), "RQ", 4, 10).is_ok());
 }
 
 #[test]
@@ -213,7 +213,7 @@ fn validate_queue_set_rejects_todo_in_done() {
             vec!["tag".to_string()],
         )],
     };
-    let err = validate_queue_set(&active, Some(&done), "RQ", 4).unwrap_err();
+    let err = validate_queue_set(&active, Some(&done), "RQ", 4, 10).unwrap_err();
     let msg = format!("{err:#}");
     assert!(
         msg.contains("done.json") && msg.contains("RQ-0001") && msg.contains("Todo"),
@@ -235,7 +235,7 @@ fn validate_queue_set_rejects_doing_in_done() {
             vec!["tag".to_string()],
         )],
     };
-    let err = validate_queue_set(&active, Some(&done), "RQ", 4).unwrap_err();
+    let err = validate_queue_set(&active, Some(&done), "RQ", 4, 10).unwrap_err();
     let msg = format!("{err:#}");
     assert!(
         msg.contains("done.json") && msg.contains("RQ-0001") && msg.contains("Doing"),
@@ -257,7 +257,7 @@ fn validate_queue_set_rejects_draft_in_done() {
             vec!["tag".to_string()],
         )],
     };
-    let err = validate_queue_set(&active, Some(&done), "RQ", 4).unwrap_err();
+    let err = validate_queue_set(&active, Some(&done), "RQ", 4, 10).unwrap_err();
     let msg = format!("{err:#}");
     assert!(
         msg.contains("done.json") && msg.contains("RQ-0001") && msg.contains("Draft"),
@@ -279,5 +279,222 @@ fn validate_queue_set_allows_terminal_statuses_in_done() {
         version: 1,
         tasks: vec![done_task, rejected_task],
     };
-    assert!(validate_queue_set(&active, Some(&done), "RQ", 4).is_ok());
+    assert!(validate_queue_set(&active, Some(&done), "RQ", 4, 10).is_ok());
+}
+
+// Tests for dependency edge case validations (RQ-0391)
+
+fn task_with_deps(id: &str, status: TaskStatus, deps: Vec<String>) -> Task {
+    Task {
+        id: id.to_string(),
+        status,
+        title: "Test task".to_string(),
+        priority: Default::default(),
+        tags: vec![],
+        scope: vec![],
+        evidence: vec![],
+        plan: vec![],
+        notes: vec![],
+        request: None,
+        agent: None,
+        created_at: Some("2026-01-18T00:00:00Z".to_string()),
+        updated_at: Some("2026-01-18T00:00:00Z".to_string()),
+        completed_at: None,
+        depends_on: deps,
+        custom_fields: HashMap::new(),
+    }
+}
+
+#[test]
+fn validate_warns_on_dependency_to_rejected_task() {
+    // Task A depends on rejected Task B
+    // Should produce warning but not error
+    let mut rejected = task_with("RQ-0002", TaskStatus::Rejected, vec![]);
+    rejected.completed_at = Some("2026-01-18T00:00:00Z".to_string());
+
+    let active = QueueFile {
+        version: 1,
+        tasks: vec![
+            task_with_deps("RQ-0001", TaskStatus::Todo, vec!["RQ-0002".to_string()]),
+            rejected.clone(),
+        ],
+    };
+    let done = QueueFile {
+        version: 1,
+        tasks: vec![],
+    };
+
+    let result = validate_queue_set(&active, Some(&done), "RQ", 4, 10);
+    assert!(result.is_ok(), "Should not error on rejected dependency");
+    let warnings = result.unwrap();
+    assert!(
+        warnings
+            .iter()
+            .any(|w| w.task_id == "RQ-0001" && w.message.contains("rejected")),
+        "Should warn about dependency on rejected task"
+    );
+}
+
+#[test]
+fn validate_warns_on_deep_dependency_chain() {
+    // Create chain: A -> B -> C -> D -> E -> F -> G -> H -> I -> J -> K -> L (depth 11)
+    // With max_depth=10, this should trigger a depth warning
+    let active = QueueFile {
+        version: 1,
+        tasks: vec![
+            task_with_deps("RQ-0001", TaskStatus::Todo, vec!["RQ-0002".to_string()]),
+            task_with_deps("RQ-0002", TaskStatus::Todo, vec!["RQ-0003".to_string()]),
+            task_with_deps("RQ-0003", TaskStatus::Todo, vec!["RQ-0004".to_string()]),
+            task_with_deps("RQ-0004", TaskStatus::Todo, vec!["RQ-0005".to_string()]),
+            task_with_deps("RQ-0005", TaskStatus::Todo, vec!["RQ-0006".to_string()]),
+            task_with_deps("RQ-0006", TaskStatus::Todo, vec!["RQ-0007".to_string()]),
+            task_with_deps("RQ-0007", TaskStatus::Todo, vec!["RQ-0008".to_string()]),
+            task_with_deps("RQ-0008", TaskStatus::Todo, vec!["RQ-0009".to_string()]),
+            task_with_deps("RQ-0009", TaskStatus::Todo, vec!["RQ-0010".to_string()]),
+            task_with_deps("RQ-0010", TaskStatus::Todo, vec!["RQ-0011".to_string()]),
+            task_with_deps("RQ-0011", TaskStatus::Todo, vec!["RQ-0012".to_string()]),
+            task_with_deps("RQ-0012", TaskStatus::Todo, vec![]),
+        ],
+    };
+
+    let result = validate_queue_set(&active, None, "RQ", 4, 10);
+    assert!(result.is_ok(), "Should not error on deep chain");
+    let warnings = result.unwrap();
+    assert!(
+        warnings.iter().any(|w| w.message.contains("depth")),
+        "Should warn about deep dependency chain: {:?}",
+        warnings
+    );
+}
+
+#[test]
+fn validate_allows_shallow_dependency_chain() {
+    // Chain within limit: A -> B -> C (depth 2)
+    let active = QueueFile {
+        version: 1,
+        tasks: vec![
+            task_with_deps("RQ-0001", TaskStatus::Todo, vec!["RQ-0002".to_string()]),
+            task_with_deps("RQ-0002", TaskStatus::Todo, vec!["RQ-0003".to_string()]),
+            task_with_deps("RQ-0003", TaskStatus::Todo, vec![]),
+        ],
+    };
+
+    let result = validate_queue_set(&active, None, "RQ", 4, 10);
+    assert!(result.is_ok(), "Should not error on shallow chain");
+    let warnings = result.unwrap();
+    assert!(
+        !warnings.iter().any(|w| w.message.contains("depth")),
+        "Should not warn about shallow dependency chain"
+    );
+}
+
+#[test]
+fn validate_warns_on_blocked_dependency_chain() {
+    // A -> B -> C (C is todo with no dependencies - will never complete)
+    // C will never complete (not done/rejected), so A and B are blocked
+    let active = QueueFile {
+        version: 1,
+        tasks: vec![
+            task_with_deps("RQ-0001", TaskStatus::Todo, vec!["RQ-0002".to_string()]),
+            task_with_deps("RQ-0002", TaskStatus::Todo, vec!["RQ-0003".to_string()]),
+            task_with_deps("RQ-0003", TaskStatus::Todo, vec![]),
+        ],
+    };
+
+    let result = validate_queue_set(&active, None, "RQ", 4, 10);
+    assert!(result.is_ok(), "Should not error on blocked chain");
+    let warnings = result.unwrap();
+    assert!(
+        warnings.iter().any(|w| w.message.contains("blocked")),
+        "Should warn about blocked dependency chain: {:?}",
+        warnings
+    );
+}
+
+#[test]
+fn validate_allows_unblocked_chain_with_done_task() {
+    // A -> B -> C (C is done)
+    // Should be valid, no warning
+    let mut done_c = task_with("RQ-0003", TaskStatus::Done, vec![]);
+    done_c.completed_at = Some("2026-01-18T00:00:00Z".to_string());
+
+    let active = QueueFile {
+        version: 1,
+        tasks: vec![
+            task_with_deps("RQ-0001", TaskStatus::Todo, vec!["RQ-0002".to_string()]),
+            task_with_deps("RQ-0002", TaskStatus::Todo, vec!["RQ-0003".to_string()]),
+        ],
+    };
+    let done = QueueFile {
+        version: 1,
+        tasks: vec![done_c],
+    };
+
+    let result = validate_queue_set(&active, Some(&done), "RQ", 4, 10);
+    assert!(result.is_ok(), "Should not error on unblocked chain");
+    let warnings = result.unwrap();
+    assert!(
+        !warnings.iter().any(|w| w.message.contains("blocked")),
+        "Should not warn about unblocked dependency chain: {:?}",
+        warnings
+    );
+}
+
+#[test]
+fn validate_detects_transitive_rejected_dependency() {
+    // A -> B -> C (C is rejected)
+    // A and B should both warn about blocked paths
+    let mut rejected_c = task_with("RQ-0003", TaskStatus::Rejected, vec![]);
+    rejected_c.completed_at = Some("2026-01-18T00:00:00Z".to_string());
+
+    let active = QueueFile {
+        version: 1,
+        tasks: vec![
+            task_with_deps("RQ-0001", TaskStatus::Todo, vec!["RQ-0002".to_string()]),
+            task_with_deps("RQ-0002", TaskStatus::Todo, vec!["RQ-0003".to_string()]),
+            rejected_c,
+        ],
+    };
+
+    let result = validate_queue_set(&active, None, "RQ", 4, 10);
+    assert!(result.is_ok(), "Should not error on rejected dependency");
+    let warnings = result.unwrap();
+
+    // Should have warnings for both rejected dependency and blocked chain
+    let has_rejected_warning = warnings.iter().any(|w| w.message.contains("rejected"));
+    let has_blocked_warning = warnings.iter().any(|w| w.message.contains("blocked"));
+    assert!(
+        has_rejected_warning || has_blocked_warning,
+        "Should warn about rejected or blocked dependency: {:?}",
+        warnings
+    );
+}
+
+#[test]
+fn validate_no_warnings_for_valid_dependencies() {
+    // Simple valid dependency chain with done task
+    let mut done_b = task_with("RQ-0002", TaskStatus::Done, vec![]);
+    done_b.completed_at = Some("2026-01-18T00:00:00Z".to_string());
+
+    let active = QueueFile {
+        version: 1,
+        tasks: vec![task_with_deps(
+            "RQ-0001",
+            TaskStatus::Todo,
+            vec!["RQ-0002".to_string()],
+        )],
+    };
+    let done = QueueFile {
+        version: 1,
+        tasks: vec![done_b],
+    };
+
+    let result = validate_queue_set(&active, Some(&done), "RQ", 4, 10);
+    assert!(result.is_ok(), "Should not error on valid dependencies");
+    let warnings = result.unwrap();
+    assert!(
+        warnings.is_empty(),
+        "Should have no warnings for valid dependencies: {:?}",
+        warnings
+    );
 }

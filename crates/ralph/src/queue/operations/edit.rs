@@ -96,6 +96,7 @@ pub fn apply_task_edit(
     now_rfc3339: &str,
     id_prefix: &str,
     id_width: usize,
+    max_dependency_depth: u8,
 ) -> Result<()> {
     let operation = "edit";
     let needle = ensure_task_id(task_id, operation)?;
@@ -211,9 +212,14 @@ pub fn apply_task_edit(
         task.updated_at = Some(now.to_string());
     }
 
-    if let Err(err) = queue::validate_queue_set(queue, done, id_prefix, id_width) {
-        queue.tasks[index] = previous;
-        return Err(err);
+    match queue::validate_queue_set(queue, done, id_prefix, id_width, max_dependency_depth) {
+        Ok(warnings) => {
+            queue::log_warnings(&warnings);
+        }
+        Err(err) => {
+            queue.tasks[index] = previous;
+            return Err(err);
+        }
     }
 
     Ok(())

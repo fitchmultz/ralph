@@ -118,6 +118,7 @@ pub fn handle_task(args: TaskArgs, force: bool) -> Result<()> {
                 Some(&done_file)
             };
             let now = timeutil::now_utc_rfc3339()?;
+            let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
             queue::apply_task_edit(
                 &mut queue_file,
                 done_ref,
@@ -127,6 +128,7 @@ pub fn handle_task(args: TaskArgs, force: bool) -> Result<()> {
                 &now,
                 &resolved.id_prefix,
                 resolved.id_width,
+                max_depth,
             )?;
             queue::save_queue(&resolved.queue_path, &queue_file)?;
             log::info!(
@@ -266,6 +268,7 @@ fn complete_task_or_signal(
 
     let _queue_lock = queue::acquire_queue_lock(&resolved.repo_root, lock_label, force)?;
     let now = timeutil::now_utc_rfc3339()?;
+    let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
     queue::complete_task(
         &resolved.queue_path,
         &resolved.done_path,
@@ -275,6 +278,7 @@ fn complete_task_or_signal(
         notes,
         &resolved.id_prefix,
         resolved.id_width,
+        max_depth,
     )?;
     log::info!(
         "Task {} completed (status: {}) and moved to done archive.",

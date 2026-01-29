@@ -12,25 +12,33 @@
         "robustness"
       ],
       "scope": [
-        "crates/ralph/src/queue/validation.rs"
+        "crates/ralph/src/queue/validation.rs",
+        "crates/ralph/src/queue/validation/tests.rs",
+        "crates/ralph/src/contracts/config.rs"
       ],
       "evidence": [
-        "validation.rs:268-385 validates dependencies but has edge case gaps",
+        "validation.rs:268-359 validates dependencies (existence, self-reference, cycles)",
         "No validation that dependencies are not in 'rejected' status",
         "No warning for deeply nested dependency chains (performance risk)",
-        "No check for dependencies on tasks that will never complete (blocked)"
+        "No check for dependencies on tasks that will never complete (blocked)",
+        "TaskStatus enum in contracts/task.rs has Rejected variant to check against",
+        "Config contracts support adding new queue validation thresholds"
       ],
       "plan": [
-        "Add validation for rejected task dependencies",
-        "Add configurable max dependency depth check",
-        "Warn about dependencies on tasks with no execution path",
-        "Add tests for edge case dependency validations",
-        "Document dependency validation rules"
+        "Add validation to warn when tasks depend on rejected tasks",
+        "Add configurable max dependency depth check to QueueConfig",
+        "Add validation for dependencies on tasks with no execution path (blocked chains)",
+        "Add unit tests in validation/tests.rs for edge case dependency validations",
+        "Update docs/queue-and-tasks.md with dependency validation rules"
       ],
-      "notes": [],
+      "notes": [
+        "Current validation at lines 268-359 checks: self-reference, existence, cycles via DFS",
+        "Rejected tasks are currently allowed as dependencies - may want to warn instead of error",
+        "Consider adding queue.max_dependency_depth config option (default: 10)"
+      ],
       "request": "scan finding",
       "created_at": "2026-01-28T05:30:00Z",
-      "updated_at": "2026-01-28T05:30:00Z",
+      "updated_at": "2026-01-29T04:17:49.575212000Z",
       "depends_on": [],
       "custom_fields": {}
     },

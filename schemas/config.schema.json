@@ -105,6 +105,7 @@
         "file": ".ralph/queue.json",
         "id_prefix": "RQ",
         "id_width": 4,
+        "max_dependency_depth": 10,
         "size_warning_threshold_kb": 500,
         "task_count_warning_threshold": 500
       },
@@ -512,6 +513,17 @@
           ],
           "format": "uint8",
           "minimum": 0.0
+        },
+        "max_dependency_depth": {
+          "description": "Maximum allowed dependency chain depth before warning (default: 10).",
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint8",
+          "maximum": 100.0,
+          "minimum": 1.0
         },
         "size_warning_threshold_kb": {
           "description": "Warning threshold for queue file size in KB (default: 500).",

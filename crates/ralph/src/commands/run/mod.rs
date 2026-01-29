@@ -203,12 +203,15 @@ fn run_one_impl(
     } else {
         Some(&done)
     };
-    queue::validate_queue_set(
+    let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
+    let warnings = queue::validate_queue_set(
         &queue_file,
         done_ref,
         &resolved.id_prefix,
         resolved.id_width,
+        max_depth,
     )?;
+    queue::log_warnings(&warnings);
 
     // Determine execution shape and policy
     let phases: u8 = agent_overrides

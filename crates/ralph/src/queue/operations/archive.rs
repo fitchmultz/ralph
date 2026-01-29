@@ -50,6 +50,7 @@ pub fn archive_terminal_tasks(
     done_path: &Path,
     id_prefix: &str,
     id_width: usize,
+    max_dependency_depth: u8,
 ) -> Result<ArchiveReport> {
     let mut active = load_queue(queue_path)?;
     let mut done = load_queue_or_default(done_path)?;
@@ -59,7 +60,14 @@ pub fn archive_terminal_tasks(
     let backfilled_done = backfill_terminal_completed_at(&mut done, &now) > 0;
 
     // Validate after stamping/moving so missing completed_at on terminal tasks can be repaired.
-    validation::validate_queue_set(&active, Some(&done), id_prefix, id_width)?;
+    let warnings = validation::validate_queue_set(
+        &active,
+        Some(&done),
+        id_prefix,
+        id_width,
+        max_dependency_depth,
+    )?;
+    validation::log_warnings(&warnings);
 
     if report.moved_ids.is_empty() && !backfilled_done {
         return Ok(report);

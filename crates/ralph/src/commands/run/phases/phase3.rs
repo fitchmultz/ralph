@@ -207,11 +207,13 @@ fn load_phase3_task_snapshot(
     } else {
         Some(&done_file)
     };
+    let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
     queue::validate_queue_set(
         &queue_file,
         done_ref,
         &resolved.id_prefix,
         resolved.id_width,
+        max_depth,
     )?;
     Ok(
         crate::commands::run::find_task_status(&queue_file, &done_file, task_id)
@@ -286,6 +288,7 @@ pub fn apply_phase3_completion_signal(
     }
 
     let now = timeutil::now_utc_rfc3339()?;
+    let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
     queue::complete_task(
         &resolved.queue_path,
         &resolved.done_path,
@@ -295,6 +298,7 @@ pub fn apply_phase3_completion_signal(
         &signal.notes,
         &resolved.id_prefix,
         resolved.id_width,
+        max_depth,
     )?;
     remove_completion_signal(resolved, task_id)?;
     log::info!(
@@ -327,11 +331,13 @@ pub fn ensure_phase3_completion(
     } else {
         Some(&done_file)
     };
+    let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
     queue::validate_queue_set(
         &queue_file,
         done_ref,
         &resolved.id_prefix,
         resolved.id_width,
+        max_depth,
     )?;
 
     let (status, _title, in_done) =
