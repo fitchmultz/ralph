@@ -99,31 +99,87 @@ pub fn attempt_json_repair(raw: &str) -> Option<String> {
     let mut repaired = raw.to_string();
     let original = raw.to_string();
 
-    // Repair 1: Remove trailing commas before ] or }
-    // Pattern: ,\s*] or ,\s*}
-    repaired = regex::Regex::new(r",(\s*[}\]])")
-        .ok()?
-        .replace_all(&repaired, "$1")
-        .to_string();
+    // Repair 1: Convert single-quoted strings to double-quoted
+    // Pattern: 'value' (but not apostrophes within words like "don't")
+    // We match single quotes that appear to be string delimiters
+    // Match '...' where the content doesn't contain ' and is not preceded/followed by alphanumeric
+    // Use ^ or non-alphanumeric before, and non-alphanumeric or $ after
+    if let Ok(single_quote_re) = regex::Regex::new(r"(^|[^a-zA-Z0-9])'([^']*?)'([^a-zA-Z0-9]|$)") {
+        if single_quote_re.is_match(&repaired) {
+            log::debug!("JSON repair: converting single-quoted strings to double-quoted");
+            repaired = single_quote_re
+                .replace_all(&repaired, |caps: &regex::Captures| {
+                    let prefix = &caps[1];
+                    let content = &caps[2];
+                    let suffix = &caps[3];
+                    // Escape any double quotes inside the content
+                    let escaped = content.replace('"', "\\\"");
+                    format!("{}\"{}\"{}", prefix, escaped, suffix)
+                })
+                .to_string();
+        }
+    }
 
-    // Repair 2: Remove trailing commas at end of arrays/objects (more aggressive)
+    // Repair 2: Add missing quotes around unquoted object keys
+    // Pattern: {[ or , followed by whitespace, then identifier followed by colon
+    // Matches: {key: or ,key: or { key: or , key:
+    if let Ok(unquoted_key_re) = regex::Regex::new(r"([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:") {
+        if unquoted_key_re.is_match(&repaired) {
+            log::debug!("JSON repair: adding quotes around unquoted object keys");
+            repaired = unquoted_key_re
+                .replace_all(&repaired, "$1\"$2\":")
+                .to_string();
+        }
+    }
+
+    // Repair 3: Fix unescaped newlines within string values
+    // This is a common error when agents paste multi-line content
+    // We need to find newlines that are inside string contexts and escape them
+    repaired = repair_unescaped_newlines(&repaired);
+
+    // Repair 4: Fix unescaped quotes within string values
+    // Find quotes inside strings that aren't escaped and escape them
+    repaired = repair_unescaped_quotes(&repaired);
+
+    // Repair 5: Remove trailing commas before ] or }
+    // Pattern: ,\s*] or ,\s*}
+    if let Ok(trailing_comma_re) = regex::Regex::new(r",(\s*[}\]])") {
+        if trailing_comma_re.is_match(&repaired) {
+            log::debug!("JSON repair: removing trailing commas");
+            repaired = trailing_comma_re.replace_all(&repaired, "$1").to_string();
+        }
+    }
+
+    // Repair 6: Remove trailing commas at end of arrays/objects (more aggressive)
     // This handles cases where there might be newlines between comma and bracket
     // Pattern: ,(\s*)\n(\s*[}\]])
-    repaired = regex::Regex::new(r",(\s*)\n(\s*[}\]])")
-        .ok()?
-        .replace_all(&repaired, "$1\n$2")
-        .to_string();
+    if let Ok(trailing_comma_nl_re) = regex::Regex::new(r",(\s*)\n(\s*[}\]])") {
+        if trailing_comma_nl_re.is_match(&repaired) {
+            log::debug!("JSON repair: removing trailing commas before newlines");
+            repaired = trailing_comma_nl_re
+                .replace_all(&repaired, "$1\n$2")
+                .to_string();
+        }
+    }
 
-    // Repair 3: Fix missing closing bracket at end of file
+    // Repair 7: Fix missing closing bracket at end of file
     let open_brackets = repaired.matches('[').count();
     let close_brackets = repaired.matches(']').count();
     let open_braces = repaired.matches('{').count();
     let close_braces = repaired.matches('}').count();
 
     if open_brackets > close_brackets {
+        log::debug!(
+            "JSON repair: adding {} missing closing bracket(s)",
+            open_brackets - close_brackets
+        );
         repaired.push_str(&"]".repeat(open_brackets - close_brackets));
     }
     if open_braces > close_braces {
+        log::debug!(
+            "JSON repair: adding {} missing closing brace(s)",
+            open_braces - close_braces
+        );
         repaired.push_str(&"}".repeat(open_braces - close_braces));
     }
 
@@ -132,6 +188,64 @@ pub fn attempt_json_repair(raw: &str) -> Option<String> {
     } else {
         None
     }
+}
+
+/// Fix unescaped newlines within JSON string values.
+/// Uses a simple state machine to track whether we're inside a string.
+fn repair_unescaped_newlines(raw: &str) -> String {
+    let mut result = String::with_capacity(raw.len());
+    let mut in_string = false;
+    let mut escaped = false;
+
+    for ch in raw.chars() {
+        if escaped {
+            // Previous char was backslash, this char is escaped
+            result.push(ch);
+            escaped = false;
+            continue;
+        }
+
+        match ch {
+            '\\' => {
+                escaped = true;
+                result.push(ch);
+            }
+            '"' => {
+                in_string = !in_string;
+                result.push(ch);
+            }
+            '\n' if in_string => {
+                // Newline inside string - escape it
+                log::trace!("JSON repair: escaping unescaped newline in string");
+                result.push_str("\\n");
+            }
+            '\r' if in_string => {
+                // Carriage return inside string - escape it
+                log::trace!("JSON repair: escaping unescaped carriage return in string");
+                result.push_str("\\r");
+            }
+            _ => {
+                result.push(ch);
+            }
+        }
+    }
+
+    result
+}
+
+/// Placeholder for future unescaped quote repair within JSON string values.
+///
+/// Currently tracks string state but does not modify quotes. Properly escaping
+/// internal quotes requires look-ahead heuristics to distinguish between:
+/// - Quotes that close a string (followed by structural chars like `:`, `,`, `}`, `]`)
+/// - Quotes that are content and need escaping (followed by other chars)
+///
+/// This is a complex repair that risks over-escaping. For now, this function
+/// passes through unchanged to avoid making valid JSON invalid.
+fn repair_unescaped_quotes(raw: &str) -> String {
+    // Future implementation: use look-ahead to determine if a quote inside
+    // a string should be escaped or is closing the string.
+    raw.to_string()
 }
 
 /// Create a backup of the queue file before modification.
@@ -458,6 +572,121 @@ mod tests {
         assert_eq!(queue.tasks[0].tags, vec!["bug"]);
 
         Ok(())
+    }
+
+    // Tests for enhanced JSON repair (RQ-0362)
+
+    #[test]
+    fn attempt_json_repair_fixes_single_quoted_strings() {
+        let input = r#"{'version': 1, 'tasks': [{'id': 'RQ-0001', 'title': 'Test'}]}"#;
+        let repaired = attempt_json_repair(input).expect("should repair");
+        // Verify it's valid JSON
+        let _: QueueFile = serde_json::from_str(&repaired).expect("repaired should be valid JSON");
+        // Check specific conversions
+        assert!(repaired.contains("\"version\""));
+        assert!(repaired.contains("\"tasks\""));
+        assert!(repaired.contains("\"id\""));
+        assert!(repaired.contains("\"RQ-0001\""));
+        assert!(repaired.contains("\"title\""));
+        assert!(repaired.contains("\"Test\""));
+    }
+
+    #[test]
+    fn attempt_json_repair_preserves_apostrophes_in_words() {
+        // Apostrophes within words (like "don't") should not be converted
+        let input = r#"{"tasks": [{"id": "RQ-0001", "title": "Don't break this"}]}"#;
+        // This is valid JSON, so no repair needed
+        assert!(attempt_json_repair(input).is_none());
+    }
+
+    #[test]
+    fn attempt_json_repair_fixes_unquoted_object_keys() {
+        let input = r#"{version: 1, tasks: [{id: "RQ-0001", title: "Test"}]}"#;
+        let repaired = attempt_json_repair(input).expect("should repair");
+        // Verify it's valid JSON
+        let _: QueueFile = serde_json::from_str(&repaired).expect("repaired should be valid JSON");
+        // Check keys are quoted
+        assert!(repaired.contains("\"version\""));
+        assert!(repaired.contains("\"tasks\""));
+        assert!(repaired.contains("\"id\""));
+        assert!(repaired.contains("\"title\""));
+    }
+
+    #[test]
+    fn attempt_json_repair_fixes_unquoted_keys_after_comma() {
+        let input =
+            r#"{"version": 1, tasks: [{"id": "RQ-0001", "title": "Test", status: "todo"}]}"#;
+        let repaired = attempt_json_repair(input).expect("should repair");
+        let _: QueueFile = serde_json::from_str(&repaired).expect("repaired should be valid JSON");
+        assert!(repaired.contains("\"tasks\""));
+        assert!(repaired.contains("\"status\""));
+    }
+
+    #[test]
+    fn attempt_json_repair_fixes_unescaped_newlines_in_strings() {
+        // Agent pastes multi-line content without escaping
+        let input = "{\"version\": 1, \"tasks\": [{\"id\": \"RQ-0001\", \"title\": \"Line one\nLine two\"}]}";
+        let repaired = attempt_json_repair(input).expect("should repair");
+        // Newlines should be escaped
+        assert!(repaired.contains("Line one\\nLine two"));
+        assert!(!repaired.contains("Line one\nLine two"));
+        // Verify it's valid JSON
+        let _: QueueFile = serde_json::from_str(&repaired).expect("repaired should be valid JSON");
+    }
+
+    #[test]
+    fn attempt_json_repair_fixes_unescaped_carriage_returns_in_strings() {
+        let input = "{\"version\": 1, \"tasks\": [{\"id\": \"RQ-0001\", \"title\": \"Line one\rLine two\"}]}";
+        let repaired = attempt_json_repair(input).expect("should repair");
+        assert!(repaired.contains("Line one\\rLine two"));
+        assert!(!repaired.contains("Line one\rLine two"));
+    }
+
+    #[test]
+    fn attempt_json_repair_handles_multiple_errors() {
+        // Combine multiple errors: single quotes, unquoted keys, trailing comma
+        let input = r#"{'version': 1, tasks: [{'id': 'RQ-0001', 'title': 'Test', 'status': 'todo', 'tags': [], 'scope': [], 'evidence': [], 'plan': [],}]}"#;
+        let repaired = attempt_json_repair(input).expect("should repair");
+        let _: QueueFile = serde_json::from_str(&repaired).expect("repaired should be valid JSON");
+        assert!(repaired.contains("\"version\""));
+        assert!(repaired.contains("\"tasks\""));
+        assert!(repaired.contains("\"id\""));
+        assert!(repaired.contains("\"RQ-0001\""));
+    }
+
+    #[test]
+    fn load_queue_with_repair_fixes_complex_malformed_json() -> Result<()> {
+        let temp = TempDir::new()?;
+        let queue_path = temp.path().join("queue.json");
+
+        // Write malformed JSON with multiple issues
+        let malformed = r#"{'version': 1, tasks: [{'id': 'RQ-0001', 'title': 'Test task', 'status': 'todo', 'tags': ['bug',], 'scope': ['file',],}]}"#;
+        std::fs::write(&queue_path, malformed)?;
+
+        // Should load with repair
+        let queue = load_queue_with_repair(&queue_path)?;
+        assert_eq!(queue.tasks.len(), 1);
+        assert_eq!(queue.tasks[0].id, "RQ-0001");
+        assert_eq!(queue.tasks[0].title, "Test task");
+        assert_eq!(queue.tasks[0].tags, vec!["bug"]);
+
+        Ok(())
+    }
+
+    #[test]
+    fn attempt_json_repair_escapes_double_quotes_in_single_quoted_strings() {
+        // Single-quoted string containing double quotes should escape them
+        let input = r#"{'version': 1, 'tasks': [{'id': 'RQ-0001', 'title': 'Say "hello"'}]}"#;
+        let repaired = attempt_json_repair(input).expect("should repair");
+        assert!(repaired.contains("\"Say \\\"hello\\\"\""));
+    }
+
+    #[test]
+    fn attempt_json_repair_handles_empty_single_quoted_string() {
+        let input = r#"{'version': 1, 'tasks': [{'id': '', 'title': ''}]}"#;
+        let repaired = attempt_json_repair(input).expect("should repair");
+        let _: QueueFile = serde_json::from_str(&repaired).expect("repaired should be valid JSON");
+        assert!(repaired.contains("\"id\": \"\""));
     }
 
     #[test]

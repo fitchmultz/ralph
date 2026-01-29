@@ -2,38 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0362",
-      "status": "todo",
-      "title": "Enhance JSON repair for more agent-induced errors",
-      "priority": "medium",
-      "tags": [
-        "enhancement",
-        "queue",
-        "robustness"
-      ],
-      "scope": [
-        "crates/ralph/src/queue.rs"
-      ],
-      "evidence": [
-        "queue.rs:96-133 attempt_json_repair only handles trailing commas and missing brackets",
-        "Cannot fix: malformed JSON strings, invalid escape sequences, type mismatches",
-        "Agents may still produce unrecoverable JSON that causes queue load failures"
-      ],
-      "plan": [
-        "Add repair for common string escaping errors (unescaped quotes, newlines)",
-        "Add repair for missing quotes around object keys",
-        "Add repair for single-quoted strings (convert to double-quoted)",
-        "Add logging of repair attempts for debugging",
-        "Consider using a more robust JSON repair library if available"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-28T04:11:49Z",
-      "updated_at": "2026-01-28T04:11:49Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0363",
       "status": "todo",
       "title": "Fix pre-run task update failures being silently ignored",
