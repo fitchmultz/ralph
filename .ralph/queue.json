@@ -2,38 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0365",
-      "status": "todo",
-      "title": "Add config validation for instruction_files existence",
-      "priority": "low",
-      "tags": [
-        "enhancement",
-        "config",
-        "validation"
-      ],
-      "scope": [
-        "crates/ralph/src/config.rs"
-      ],
-      "evidence": [
-        "config.rs:127-204 validate_config() doesn't check instruction_files paths exist",
-        "Missing instruction files only discovered at runtime during prompt rendering",
-        "User gets late error instead of early validation feedback"
-      ],
-      "plan": [
-        "Add validation loop for instruction_files in validate_config()",
-        "Check each path exists and is readable",
-        "Return helpful error with file path and suggestion to create or fix path",
-        "Add --validate-config flag to ralph config command for early checking",
-        "Add test for missing instruction file detection"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-28T04:11:49Z",
-      "updated_at": "2026-01-28T04:11:49Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0366",
       "status": "todo",
       "title": "Improve runner process timeout handling race condition",

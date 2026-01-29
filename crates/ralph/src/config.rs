@@ -2,6 +2,7 @@
 
 use crate::contracts::{AgentConfig, Config, ProjectType, QueueConfig, TuiConfig};
 use crate::fsutil;
+use crate::prompts_internal::util::validate_instruction_file_paths;
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -31,6 +32,16 @@ pub struct ConfigLayer {
 }
 
 pub fn resolve_from_cwd() -> Result<Resolved> {
+    resolve_from_cwd_internal(true)
+}
+
+/// Resolve config for the doctor command, skipping instruction_files validation.
+/// This allows doctor to diagnose and warn about missing files without failing early.
+pub fn resolve_from_cwd_for_doctor() -> Result<Resolved> {
+    resolve_from_cwd_internal(false)
+}
+
+fn resolve_from_cwd_internal(validate_instruction_files: bool) -> Result<Resolved> {
     let cwd = env::current_dir().context("resolve current working directory")?;
     log::debug!("resolving configuration from cwd: {}", cwd.display());
     let repo_root = find_repo_root(&cwd);
@@ -61,6 +72,12 @@ pub fn resolve_from_cwd() -> Result<Resolved> {
     }
 
     validate_config(&cfg)?;
+
+    // Validate instruction_files early for fast feedback (before runtime prompt rendering)
+    if validate_instruction_files {
+        validate_instruction_file_paths(&repo_root, &cfg)
+            .with_context(|| "validate instruction_files from config")?;
+    }
 
     let id_prefix = resolve_id_prefix(&cfg)?;
     let id_width = resolve_id_width(&cfg)?;
@@ -370,5 +387,126 @@ mod tests {
 
         let err = validate_config(&cfg).expect_err("expected validation to fail");
         assert!(err.to_string().contains("agent.cursor_bin"));
+    }
+
+    // Tests for instruction_files validation (validate_instruction_file_paths)
+
+    #[test]
+    fn validate_instruction_file_paths_rejects_missing_file() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let mut cfg = Config::default();
+        cfg.agent.instruction_files = Some(vec![PathBuf::from("nonexistent.md")]);
+
+        let err = validate_instruction_file_paths(temp.path(), &cfg).expect_err("should fail");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("nonexistent.md"),
+            "Error should mention the file: {}",
+            msg
+        );
+        assert!(
+            msg.contains("read bytes from") || msg.contains("No such file"),
+            "Error should indicate file not found: {}",
+            msg
+        );
+    }
+
+    #[test]
+    fn validate_instruction_file_paths_accepts_valid_file() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let file_path = temp.path().join("valid.md");
+        std::fs::write(&file_path, "Valid instruction content").unwrap();
+
+        let mut cfg = Config::default();
+        cfg.agent.instruction_files = Some(vec![file_path]);
+
+        validate_instruction_file_paths(temp.path(), &cfg).expect("should pass");
+    }
+
+    #[test]
+    fn validate_instruction_file_paths_rejects_empty_file() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let file_path = temp.path().join("empty.md");
+        std::fs::write(&file_path, "").unwrap();
+
+        let mut cfg = Config::default();
+        cfg.agent.instruction_files = Some(vec![file_path]);
+
+        let err = validate_instruction_file_paths(temp.path(), &cfg).expect_err("should fail");
+        assert!(
+            err.to_string().contains("empty"),
+            "Error should indicate file is empty"
+        );
+    }
+
+    #[test]
+    fn validate_instruction_file_paths_rejects_non_utf8_file() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let file_path = temp.path().join("invalid.md");
+        // Write invalid UTF-8 bytes
+        std::fs::write(&file_path, vec![0x80, 0x81, 0x82]).unwrap();
+
+        let mut cfg = Config::default();
+        cfg.agent.instruction_files = Some(vec![file_path]);
+
+        let err = validate_instruction_file_paths(temp.path(), &cfg).expect_err("should fail");
+        assert!(
+            err.to_string().contains("UTF-8"),
+            "Error should indicate invalid UTF-8: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn validate_instruction_file_paths_resolves_relative_paths() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let file_path = temp.path().join("instructions.md");
+        std::fs::write(&file_path, "Content").unwrap();
+
+        let mut cfg = Config::default();
+        // Use relative path
+        cfg.agent.instruction_files = Some(vec![PathBuf::from("instructions.md")]);
+
+        validate_instruction_file_paths(temp.path(), &cfg).expect("should pass");
+    }
+
+    #[test]
+    fn validate_instruction_file_paths_resolves_absolute_paths() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let file_path = temp.path().join("absolute.md");
+        std::fs::write(&file_path, "Absolute path content").unwrap();
+
+        let mut cfg = Config::default();
+        // Use absolute path
+        cfg.agent.instruction_files = Some(vec![file_path.clone()]);
+
+        validate_instruction_file_paths(temp.path(), &cfg).expect("should pass");
+    }
+
+    #[test]
+    fn validate_instruction_file_paths_is_noop_when_none_configured() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let cfg = Config::default();
+
+        // Should not fail when instruction_files is None
+        validate_instruction_file_paths(temp.path(), &cfg).expect("should pass with no files");
+    }
+
+    #[test]
+    fn validate_instruction_file_paths_validates_all_files_and_fails_on_first_error() {
+        let temp = tempfile::TempDir::new().unwrap();
+
+        // Create one valid file and one missing file
+        let valid_path = temp.path().join("valid.md");
+        std::fs::write(&valid_path, "Valid content").unwrap();
+
+        let mut cfg = Config::default();
+        cfg.agent.instruction_files = Some(vec![PathBuf::from("missing.md"), valid_path]);
+
+        let err = validate_instruction_file_paths(temp.path(), &cfg).expect_err("should fail");
+        assert!(
+            err.to_string().contains("missing.md"),
+            "Error should mention the first missing file"
+        );
     }
 }

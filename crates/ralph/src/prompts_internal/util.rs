@@ -147,7 +147,29 @@ pub(crate) fn instruction_file_warnings(repo_root: &Path, config: &Config) -> Ve
     warnings
 }
 
-fn resolve_instruction_path(repo_root: &Path, raw: &Path) -> std::path::PathBuf {
+/// Validates all instruction files in config and returns first error encountered.
+/// Used for early config validation (fails fast) during config resolution.
+pub(crate) fn validate_instruction_file_paths(repo_root: &Path, config: &Config) -> Result<()> {
+    const MAX_INSTRUCTION_BYTES: usize = 128 * 1024;
+
+    if let Some(paths) = config.agent.instruction_files.as_ref() {
+        for raw in paths {
+            let resolved = resolve_instruction_path(repo_root, raw);
+            // read_instruction_file returns Err if file doesn't exist, isn't UTF-8, or is empty
+            if let Err(err) = read_instruction_file(&resolved, MAX_INSTRUCTION_BYTES) {
+                bail!(
+                    "Invalid instruction_files entry '{}': {}. \
+                     Ensure the file exists, is readable, and contains valid UTF-8 content.",
+                    raw.display(),
+                    err
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn resolve_instruction_path(repo_root: &Path, raw: &Path) -> std::path::PathBuf {
     let as_string = raw.to_string_lossy();
     if let Some(rest) = as_string.strip_prefix("~/") {
         if let Ok(home) = std::env::var("HOME") {
@@ -162,7 +184,7 @@ fn resolve_instruction_path(repo_root: &Path, raw: &Path) -> std::path::PathBuf 
     }
 }
 
-fn read_instruction_file(path: &Path, max_bytes: usize) -> Result<String> {
+pub(crate) fn read_instruction_file(path: &Path, max_bytes: usize) -> Result<String> {
     let data = fs::read(path).with_context(|| format!("read bytes from {}", path.display()))?;
     if data.len() > max_bytes {
         bail!(
