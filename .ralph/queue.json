@@ -2,39 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0370",
-      "status": "todo",
-      "title": "Add CLI completion scripts for bash/zsh/fish",
-      "priority": "low",
-      "tags": [
-        "enhancement",
-        "cli",
-        "ux"
-      ],
-      "scope": [
-        "crates/ralph/src/cli/",
-        "completions/"
-      ],
-      "evidence": [
-        "Ralph has many CLI commands and flags but no shell completion support",
-        "Users must type full command names and remember all flags",
-        "Clap supports generating completion scripts via clap_complete crate"
-      ],
-      "plan": [
-        "Add clap_complete dependency",
-        "Create 'ralph completions <shell>' command",
-        "Generate completions for bash, zsh, fish, and PowerShell",
-        "Add installation instructions to README and docs/cli.md",
-        "Consider including pre-generated scripts in repo"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-28T04:11:49Z",
-      "updated_at": "2026-01-28T04:11:49Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0387",
       "status": "todo",
       "title": "Fix duplicate help text in CLI run command",

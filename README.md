@@ -42,6 +42,43 @@ cd ralph
 make install
 ```
 
+## Shell Completions
+
+Ralph can generate shell completion scripts for bash, zsh, fish, PowerShell, and Elvish.
+
+### Quick Install
+
+**Bash:**
+```bash
+ralph completions bash > ~/.local/share/bash-completion/completions/ralph
+```
+
+**Zsh:**
+```bash
+ralph completions zsh > ~/.zfunc/_ralph
+# Add to ~/.zshrc if not already present:
+# fpath+=~/.zfunc
+```
+
+**Fish:**
+```bash
+ralph completions fish > ~/.config/fish/completions/ralph.fish
+```
+
+**PowerShell:**
+```powershell
+ralph completions powershell > $PROFILE.CurrentUserAllHosts
+```
+
+### Generate Without Installing
+
+To see the completion script without installing:
+```bash
+ralph completions <shell>
+```
+
+Supported shells: `bash`, `zsh`, `fish`, `powershell`, `elvish`
+
 ## Platform Support
 
 Ralph is developed and tested on **Unix-like systems** (Linux, macOS). Windows support is limited:

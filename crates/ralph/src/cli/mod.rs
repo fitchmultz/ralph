@@ -14,6 +14,7 @@
 //! - Subcommands validate their own inputs and config dependencies.
 //! - CLI parsing happens after argument normalization in `main`.
 
+pub mod completions;
 pub mod config;
 pub mod context;
 pub mod doctor;
@@ -79,6 +80,11 @@ pub enum Command {
         after_long_help = "Examples:\n  ralph prd create docs/prd/new-feature.md\n  ralph prd create docs/prd/new-feature.md --multi\n  ralph prd create docs/prd/new-feature.md --dry-run\n  ralph prd create docs/prd/new-feature.md --priority high --tag feature\n  ralph prd create docs/prd/new-feature.md --draft"
     )]
     Prd(prd::PrdArgs),
+    /// Generate shell completion scripts.
+    #[command(
+        after_long_help = "Examples:\n  ralph completions bash\n  ralph completions bash > ~/.local/share/bash-completion/completions/ralph\n  ralph completions zsh > ~/.zfunc/_ralph\n  ralph completions fish > ~/.config/fish/completions/ralph.fish\n  ralph completions powershell\n\nInstallation locations by shell:\n  Bash:   ~/.local/share/bash-completion/completions/ralph\n  Zsh:    ~/.zfunc/_ralph (and add 'fpath+=~/.zfunc' to ~/.zshrc)\n  Fish:   ~/.config/fish/completions/ralph.fish\n  PowerShell: Add to $PROFILE (see: $PROFILE | Get-Member -Type NoteProperty)"
+    )]
+    Completions(completions::CompletionsArgs),
 }
 
 pub(crate) fn load_and_validate_queues(

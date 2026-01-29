@@ -38,6 +38,92 @@ ralph --force queue archive
 * `ralph prd <subcommand>`: convert PRD (Product Requirements Document) markdown to tasks.
 * `ralph scan`: generate new tasks via scanning.
 * `ralph doctor`: verify environment readiness.
+* `ralph completions <shell>`: generate shell completion scripts.
+
+## `ralph completions`
+
+Generate shell completion scripts for bash, zsh, fish, PowerShell, and Elvish.
+
+The completion script is written to stdout. Redirect to the appropriate location for your shell.
+
+### Supported Shells
+
+* `bash` - Bash shell completions
+* `zsh` - Zsh shell completions
+* `fish` - Fish shell completions
+* `powershell` - PowerShell completions
+* `elvish` - Elvish shell completions
+
+### Installation Examples
+
+**Bash:**
+```bash
+# Generate and install
+ralph completions bash > ~/.local/share/bash-completion/completions/ralph
+
+# Or system-wide (may require sudo)
+ralph completions bash > /etc/bash_completion.d/ralph
+```
+
+**Zsh:**
+```bash
+# Generate and install
+ralph completions zsh > ~/.zfunc/_ralph
+
+# Add to ~/.zshrc if not already present:
+fpath+=~/.zfunc
+```
+
+**Fish:**
+```bash
+# Generate and install
+ralph completions fish > ~/.config/fish/completions/ralph.fish
+```
+
+**PowerShell:**
+```powershell
+# Generate and install to current user's profile
+ralph completions powershell > $PROFILE.CurrentUserAllHosts
+
+# Or view the completions without installing
+ralph completions powershell
+```
+
+**Elvish:**
+```bash
+# Generate and install
+ralph completions elvish > ~/.local/share/elvish/lib/ralph.elv
+```
+
+### Usage
+
+Once installed, completions work automatically:
+
+```bash
+# Type 'ralph ' then press Tab to see subcommands
+ralph <TAB>
+# queue   run   task   scan   tui   ...
+
+# Type 'ralph queue ' then press Tab to see queue subcommands
+ralph queue <TAB>
+# list   show   validate   archive   ...
+
+# Flags also complete
+ralph queue list --<TAB>
+# --all   --format   --limit   --status   ...
+```
+
+### Generating Without Installing
+
+To preview the completion script without installing:
+
+```bash
+ralph completions bash
+ralph completions zsh
+ralph completions fish
+ralph completions powershell
+ralph completions elvish
+```
 
 ## `ralph init`
 

@@ -65,6 +65,7 @@ fn run() -> Result<()> {
         cli::Command::Tui(args) => cli::tui::handle_tui(args, cli.force),
         cli::Command::Context(args) => cli::context::handle_context(args),
         cli::Command::Prd(args) => cli::prd::handle_prd(args, cli.force),
+        cli::Command::Completions(args) => cli::completions::handle_completions(args),
     }
 }
 
