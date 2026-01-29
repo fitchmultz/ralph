@@ -3,12 +3,14 @@
 use super::super::stream::{spawn_reader, StreamSink};
 use crate::debuglog::{enable, reset_for_tests, test_lock};
 use crate::runner::OutputStream;
+use serial_test::serial;
 use std::fs;
 use std::io::Cursor;
 use std::sync::{Arc, Mutex};
 use tempfile::tempdir;
 
 #[test]
+#[serial]
 fn spawn_reader_writes_raw_chunks_to_debug_log() {
     let _guard = test_lock().lock().expect("debug log lock");
     reset_for_tests();

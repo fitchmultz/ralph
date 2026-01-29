@@ -2,38 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0369",
-      "status": "todo",
-      "title": "Fix debug log test interference from concurrent access",
-      "priority": "low",
-      "tags": [
-        "bug",
-        "testing",
-        "concurrency"
-      ],
-      "scope": [
-        "crates/ralph/src/debuglog.rs"
-      ],
-      "evidence": [
-        "debuglog.rs:55-70 enable() silently succeeds if already enabled",
-        "reset_for_tests() requires test lock but tests may not always acquire it",
-        "If tests run concurrently without lock, they may interfere with debug log state"
-      ],
-      "plan": [
-        "Add test-only mutex guard around all debug log operations",
-        "Use thread-local storage for test isolation where possible",
-        "Add panic if debug log state changes unexpectedly during tests",
-        "Document test concurrency requirements in module docs",
-        "Add test verifying concurrent debug log access is safe"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-28T04:11:49Z",
-      "updated_at": "2026-01-28T04:11:49Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0370",
       "status": "todo",
       "title": "Add CLI completion scripts for bash/zsh/fish",

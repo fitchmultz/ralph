@@ -132,10 +132,12 @@ mod tests {
         enable, reset_for_tests, test_lock, write_log_record, write_runner_chunk, DebugStream,
     };
     use log::Record;
+    use serial_test::serial;
     use std::fs;
     use tempfile::tempdir;
 
     #[test]
+    #[serial]
     fn enable_creates_log_file_and_writes() {
         let _guard = test_lock().lock().expect("debug log lock");
         reset_for_tests();
@@ -168,6 +170,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn enable_errors_when_logs_path_is_file() {
         let _guard = test_lock().lock().expect("debug log lock");
         reset_for_tests();
@@ -183,6 +186,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn write_noop_when_disabled() {
         let _guard = test_lock().lock().expect("debug log lock");
         reset_for_tests();
