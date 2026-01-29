@@ -261,7 +261,10 @@ fn parse_prd(content: &str) -> ParsedPrd {
             in_user_story = true;
             in_acceptance_criteria = false;
         } else if in_user_story {
-            let story = current_story.as_mut().unwrap();
+            let Some(story) = current_story.as_mut() else {
+                i += 1;
+                continue;
+            };
 
             if let Some(desc) = trimmed.strip_prefix("**Description:**") {
                 in_acceptance_criteria = false;
@@ -321,7 +324,7 @@ fn parse_prd(content: &str) -> ParsedPrd {
                     parsed.functional_requirements.push(req);
                 }
             } else if trimmed.len() > 2
-                && trimmed.chars().next().unwrap().is_ascii_digit()
+                && trimmed.starts_with(|c: char| c.is_ascii_digit())
                 && trimmed.chars().nth(1) == Some('.')
             {
                 // Numbered list: "1. Requirement text"
@@ -475,8 +478,8 @@ fn generate_multi_tasks(
         }
 
         // Build depends_on from previous story IDs for sequential dependency
-        let depends_on = if idx > 0 && !prev_ids.is_empty() {
-            vec![prev_ids.last().unwrap().clone()]
+        let depends_on = if idx > 0 {
+            prev_ids.last().cloned().into_iter().collect()
         } else {
             Vec::new()
         };

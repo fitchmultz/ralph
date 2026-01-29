@@ -292,10 +292,11 @@ pub fn topological_sort(graph: &DependencyGraph) -> Result<Vec<String>> {
 
         if let Some(neighbors) = adjacency.get(&current) {
             for neighbor in neighbors {
-                let deg = in_degree.get_mut(neighbor).unwrap();
-                *deg -= 1;
-                if *deg == 0 {
-                    queue.push_back(neighbor.clone());
+                if let Some(deg) = in_degree.get_mut(neighbor) {
+                    *deg -= 1;
+                    if *deg == 0 {
+                        queue.push_back(neighbor.clone());
+                    }
                 }
             }
         }

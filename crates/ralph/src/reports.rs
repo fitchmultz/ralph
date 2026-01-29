@@ -234,15 +234,17 @@ fn build_stats_report(queue: &QueueFile, done: Option<&QueueFile>, tags: &[Strin
 }
 
 fn start_of_window(now: OffsetDateTime, days_to_show: i64) -> OffsetDateTime {
+    // These time component replacements (0 hour, minute, second, nanosecond) are always valid
+    // for any valid OffsetDateTime. The expect calls document this invariant.
     (now - Duration::days(days_to_show - 1))
         .replace_hour(0)
-        .unwrap()
+        .expect("hour 0 is always valid")
         .replace_minute(0)
-        .unwrap()
+        .expect("minute 0 is always valid")
         .replace_second(0)
-        .unwrap()
+        .expect("second 0 is always valid")
         .replace_nanosecond(0)
-        .unwrap()
+        .expect("nanosecond 0 is always valid")
 }
 
 fn build_history_report(queue: &QueueFile, done: Option<&QueueFile>, days: u32) -> HistoryReport {

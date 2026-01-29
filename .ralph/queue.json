@@ -2,39 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0389",
-      "status": "todo",
-      "title": "Reduce unwrap/expect usage in production code",
-      "priority": "medium",
-      "tags": [
-        "code-quality",
-        "robustness",
-        "refactoring"
-      ],
-      "scope": [
-        "crates/ralph/src/"
-      ],
-      "evidence": [
-        "Found 794 occurrences of unwrap/expect/panic/unreachable across 52 files",
-        "Many are in tests but some in production code could be proper error handling",
-        "Examples: runner/execution/process.rs uses .expect() on mutex locks",
-        "Examples: queue.rs has unwrap_or in format_id for number parsing"
-      ],
-      "plan": [
-        "Audit all unwrap/expect in production code (non-test)",
-        "Replace with proper Result propagation where possible",
-        "Use unwrap_or/unwrap_or_default for cases with sensible defaults",
-        "Add defensive error handling for edge cases",
-        "Run 'make ci' to verify no behavior changes"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-28T05:30:00Z",
-      "updated_at": "2026-01-28T05:30:00Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0390",
       "status": "todo",
       "title": "Add queue file size warning for large task lists",

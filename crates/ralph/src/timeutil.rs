@@ -24,10 +24,12 @@ fn fixed_rfc3339_format() -> &'static [FormatItem<'static>] {
     static FORMAT: OnceLock<Vec<FormatItem<'static>>> = OnceLock::new();
     FORMAT
         .get_or_init(|| {
+            // This format string is a compile-time constant that is always valid.
+            // The expect documents this invariant and ensures we fail fast if it changes.
             time::format_description::parse(
                 "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:9]Z",
             )
-            .expect("valid RFC3339 format")
+            .expect("compile-time RFC3339 format string is valid")
         })
         .as_slice()
 }

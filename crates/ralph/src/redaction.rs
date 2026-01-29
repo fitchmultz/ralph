@@ -64,7 +64,8 @@ fn get_sensitive_env_values() -> HashSet<String> {
         if guard.is_none() {
             *guard = Some(init_sensitive_env_cache());
         }
-        guard.as_ref().unwrap().clone()
+        // Return cached values or empty set if somehow still None after initialization
+        guard.as_ref().cloned().unwrap_or_default()
     } else {
         // Fallback if lock fails: compute on the fly
         init_sensitive_env_cache()
@@ -240,9 +241,15 @@ pub fn is_path_like_env_key(key: &str) -> bool {
 
 fn push_next_char(out: &mut String, text: &str, index: &mut usize) {
     debug_assert!(text.is_char_boundary(*index));
-    let ch = text[*index..].chars().next().unwrap();
-    out.push(ch);
-    *index += ch.len_utf8();
+    // SAFETY: We only call this when index is at a valid UTF-8 char boundary.
+    // If chars().next() returns None (empty string), we just advance the index.
+    if let Some(ch) = text[*index..].chars().next() {
+        out.push(ch);
+        *index += ch.len_utf8();
+    } else {
+        // Should not happen if called correctly, but avoid infinite loop
+        *index += 1;
+    }
 }
 
 fn redact_aws_keys(text: &str) -> String {
