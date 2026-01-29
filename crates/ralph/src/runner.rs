@@ -16,6 +16,7 @@ mod execution;
 
 pub(crate) use execution::ResolvedRunnerCliOptions;
 
+use crate::commands::run::PhaseType;
 use crate::contracts::{
     AgentConfig, ClaudePermissionMode, Model, ReasoningEffort, Runner, RunnerCliOptionsPatch,
     TaskAgent,
@@ -334,6 +335,7 @@ pub(crate) fn run_prompt(
     permission_mode: Option<ClaudePermissionMode>,
     output_handler: Option<OutputHandler>,
     output_stream: OutputStream,
+    phase_type: PhaseType,
 ) -> Result<RunnerOutput, RunnerError> {
     let bin = match runner {
         Runner::Codex => bins.codex,
@@ -393,6 +395,7 @@ pub(crate) fn run_prompt(
             timeout,
             output_handler.clone(),
             output_stream,
+            phase_type,
         )?,
         Runner::Claude => execution::run_claude(
             work_dir,
@@ -461,6 +464,7 @@ pub(crate) fn resume_session(
     timeout: Option<Duration>,
     output_handler: Option<OutputHandler>,
     output_stream: OutputStream,
+    phase_type: PhaseType,
 ) -> Result<RunnerOutput, RunnerError> {
     let reasoning_effort = if runner == Runner::Codex {
         reasoning_effort
@@ -546,6 +550,7 @@ pub(crate) fn resume_session(
             timeout,
             output_handler,
             output_stream,
+            phase_type,
         ),
         Runner::Claude => execution::run_claude_resume(
             work_dir,
@@ -829,6 +834,7 @@ mod tests {
             None,
             None,
             OutputStream::HandlerOnly,
+            PhaseType::Implementation,
         )
         .unwrap_err();
 
@@ -864,6 +870,7 @@ mod tests {
             None,
             None,
             OutputStream::HandlerOnly,
+            PhaseType::Implementation,
         )
         .unwrap_err();
 

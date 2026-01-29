@@ -23,6 +23,7 @@ use super::cli_options::ResolvedRunnerCliOptions;
 use super::cli_spec;
 use super::command::RunnerCommandBuilder;
 use super::process::run_with_streaming_json;
+use crate::commands::run::PhaseType;
 use crate::contracts::Runner;
 
 #[allow(clippy::too_many_arguments)]
@@ -423,10 +424,6 @@ pub(crate) fn run_pi_resume(
     )
 }
 
-fn cursor_is_planning(text: &str) -> bool {
-    text.contains("# PLANNING MODE")
-}
-
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn run_cursor(
     work_dir: &Path,
@@ -437,13 +434,10 @@ pub(crate) fn run_cursor(
     timeout: Option<Duration>,
     output_handler: Option<OutputHandler>,
     output_stream: OutputStream,
+    phase_type: PhaseType,
 ) -> Result<RunnerOutput, RunnerError> {
-    // Phase detection is intentionally string-based to avoid refactors:
-    // Phase 1 prompts include "# PLANNING MODE" (from worker_phase1.md).
-    let is_planning = cursor_is_planning(prompt);
-
     let builder = RunnerCommandBuilder::new(bin, work_dir).model(&model);
-    let builder = cli_spec::apply_cursor_options(builder, runner_cli, is_planning);
+    let builder = cli_spec::apply_cursor_options(builder, runner_cli, phase_type);
 
     let (cmd, payload, _guards) = builder
         .arg("--print")
@@ -474,15 +468,13 @@ pub(crate) fn run_cursor_resume(
     timeout: Option<Duration>,
     output_handler: Option<OutputHandler>,
     output_stream: OutputStream,
+    phase_type: PhaseType,
 ) -> Result<RunnerOutput, RunnerError> {
-    // We only receive `message` for resume calls; use the same heuristic.
-    let is_planning = cursor_is_planning(message);
-
     let builder = RunnerCommandBuilder::new(bin, work_dir)
         .arg("--resume")
         .arg(session_id)
         .model(&model);
-    let builder = cli_spec::apply_cursor_options(builder, runner_cli, is_planning);
+    let builder = cli_spec::apply_cursor_options(builder, runner_cli, phase_type);
 
     let (cmd, payload, _guards) = builder
         .arg("--print")

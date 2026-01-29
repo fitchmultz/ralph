@@ -15,6 +15,7 @@
 //! - Runner execution requires stream-json output for parsing.
 //! - Permission/approval defaults come from config unless overridden at CLI.
 
+use crate::commands::run::PhaseType;
 use crate::contracts::{
     ClaudePermissionMode, Model, ProjectType, ReasoningEffort, Runner, RunnerCliOptionsPatch,
 };
@@ -223,6 +224,7 @@ fn build_task_impl(
             output_handler: None,
             output_stream: runner::OutputStream::Terminal,
             revert_prompt: None,
+            phase_type: PhaseType::SinglePhase,
         },
         runutil::RunnerErrorMessages {
             log_label: "task builder",
@@ -418,6 +420,7 @@ fn update_task_impl(
             output_handler: None,
             output_stream: runner::OutputStream::Terminal,
             revert_prompt: None,
+            phase_type: PhaseType::SinglePhase,
         },
         runutil::RunnerErrorMessages {
             log_label: "task updater",

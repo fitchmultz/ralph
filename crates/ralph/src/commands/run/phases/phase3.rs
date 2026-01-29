@@ -1,7 +1,7 @@
 //! Phase 3 (review) execution and completion checks.
 
 use super::shared::run_ci_gate_with_continue;
-use super::PhaseInvocation;
+use super::{PhaseInvocation, PhaseType};
 use crate::commands::run::{logging, supervision};
 use crate::completions;
 use crate::config;
@@ -82,6 +82,7 @@ pub fn execute_phase3_review(ctx: &PhaseInvocation<'_>) -> Result<()> {
                 output_handler: ctx.output_handler.clone(),
                 output_stream: ctx.output_stream,
                 revert_prompt: ctx.revert_prompt.clone(),
+                phase_type: PhaseType::Review,
             },
             runutil::RunnerErrorMessages {
             log_label: "Code review",

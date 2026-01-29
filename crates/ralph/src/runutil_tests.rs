@@ -12,6 +12,7 @@
 //! - Tests run against isolated temp git repos.
 //! - Prompt IO is deterministic for provided inputs.
 
+use crate::commands::run::PhaseType;
 use crate::contracts::{ClaudePermissionMode, GitRevertMode, Model, ReasoningEffort, Runner};
 use crate::runutil::{
     apply_git_revert_mode, apply_git_revert_mode_with_context, parse_revert_response,
@@ -282,6 +283,7 @@ impl RunnerBackend for TimeoutBackend {
         _permission_mode: Option<ClaudePermissionMode>,
         output_handler: Option<runner::OutputHandler>,
         _output_stream: runner::OutputStream,
+        _phase_type: PhaseType,
     ) -> Result<runner::RunnerOutput, runner::RunnerError> {
         if let Some(handler) = output_handler {
             (handler)(&self.emitted);
@@ -303,6 +305,7 @@ impl RunnerBackend for TimeoutBackend {
         _timeout: Option<Duration>,
         _output_handler: Option<runner::OutputHandler>,
         _output_stream: runner::OutputStream,
+        _phase_type: PhaseType,
     ) -> Result<runner::RunnerOutput, runner::RunnerError> {
         unreachable!("resume_session should not be called for a timeout-only test backend");
     }
@@ -340,6 +343,7 @@ fn timeout_applies_git_revert_mode_and_saves_safeguard_dump_when_stdout_is_avail
         output_handler: None,
         output_stream: runner::OutputStream::Terminal,
         revert_prompt: None,
+        phase_type: PhaseType::Implementation,
     };
 
     let messages = RunnerErrorMessages {
@@ -409,6 +413,7 @@ impl RunnerBackend for CaptureBackend {
         _permission_mode: Option<ClaudePermissionMode>,
         _output_handler: Option<runner::OutputHandler>,
         output_stream: runner::OutputStream,
+        _phase_type: PhaseType,
     ) -> Result<runner::RunnerOutput, runner::RunnerError> {
         self.seen_output_stream = Some(output_stream);
         Err(runner::RunnerError::Interrupted)
@@ -428,6 +433,7 @@ impl RunnerBackend for CaptureBackend {
         _timeout: Option<Duration>,
         _output_handler: Option<runner::OutputHandler>,
         _output_stream: runner::OutputStream,
+        _phase_type: PhaseType,
     ) -> Result<runner::RunnerOutput, runner::RunnerError> {
         unreachable!("resume_session should not be called for output-stream capture test");
     }
@@ -459,6 +465,7 @@ fn run_prompt_passes_output_stream_to_backend() {
         output_handler: None,
         output_stream: runner::OutputStream::HandlerOnly,
         revert_prompt: None,
+        phase_type: PhaseType::Implementation,
     };
 
     let messages = RunnerErrorMessages {

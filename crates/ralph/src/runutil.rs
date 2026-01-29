@@ -4,6 +4,7 @@
 //! Not handled: prompt template rendering, queue/task persistence, or runner selection logic.
 //! Invariants/assumptions: caller supplies validated runner settings and respects revert policies.
 
+use crate::commands::run::PhaseType;
 use crate::contracts::{ClaudePermissionMode, GitRevertMode, Model, ReasoningEffort, Runner};
 use crate::{fsutil, gitutil, outpututil, runner};
 use anyhow::{bail, Result};
@@ -34,6 +35,8 @@ pub(crate) struct RunnerInvocation<'a> {
     pub output_stream: runner::OutputStream,
     /// Optional handler for revert prompts (interactive UIs).
     pub revert_prompt: Option<RevertPromptHandler>,
+    /// The type of phase being executed (for runner-specific behavior).
+    pub phase_type: PhaseType,
 }
 
 pub struct RunnerErrorMessages<'a, FNonZero, FOther>
@@ -110,6 +113,7 @@ pub(crate) trait RunnerBackend {
         permission_mode: Option<ClaudePermissionMode>,
         output_handler: Option<runner::OutputHandler>,
         output_stream: runner::OutputStream,
+        phase_type: PhaseType,
     ) -> Result<runner::RunnerOutput, runner::RunnerError>;
 
     #[allow(clippy::too_many_arguments)]
@@ -127,6 +131,7 @@ pub(crate) trait RunnerBackend {
         timeout: Option<Duration>,
         output_handler: Option<runner::OutputHandler>,
         output_stream: runner::OutputStream,
+        phase_type: PhaseType,
     ) -> Result<runner::RunnerOutput, runner::RunnerError>;
 }
 
@@ -146,6 +151,7 @@ impl RunnerBackend for RealRunnerBackend {
         permission_mode: Option<ClaudePermissionMode>,
         output_handler: Option<runner::OutputHandler>,
         output_stream: runner::OutputStream,
+        phase_type: PhaseType,
     ) -> Result<runner::RunnerOutput, runner::RunnerError> {
         runner::run_prompt(
             runner_kind,
@@ -159,6 +165,7 @@ impl RunnerBackend for RealRunnerBackend {
             permission_mode,
             output_handler,
             output_stream,
+            phase_type,
         )
     }
 
@@ -176,6 +183,7 @@ impl RunnerBackend for RealRunnerBackend {
         timeout: Option<Duration>,
         output_handler: Option<runner::OutputHandler>,
         output_stream: runner::OutputStream,
+        phase_type: PhaseType,
     ) -> Result<runner::RunnerOutput, runner::RunnerError> {
         runner::resume_session(
             runner_kind,
@@ -190,6 +198,7 @@ impl RunnerBackend for RealRunnerBackend {
             timeout,
             output_handler,
             output_stream,
+            phase_type,
         )
     }
 }
@@ -242,6 +251,7 @@ where
         output_handler,
         output_stream,
         revert_prompt,
+        phase_type,
     } = invocation;
     let RunnerErrorMessages {
         log_label,
@@ -275,6 +285,7 @@ where
         permission_mode,
         effective_output_handler.clone(),
         output_stream,
+        phase_type,
     );
 
     loop {
@@ -377,6 +388,7 @@ where
                                 timeout,
                                 effective_output_handler.clone(),
                                 output_stream,
+                                phase_type,
                             );
                             continue;
                         }
@@ -440,6 +452,7 @@ where
                                 timeout,
                                 effective_output_handler.clone(),
                                 output_stream,
+                                phase_type,
                             );
                             continue;
                         }

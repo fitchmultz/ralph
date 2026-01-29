@@ -3,6 +3,7 @@
 //! Handles post-run CI gating, queue/done updates, and git push/commit logic.
 
 use super::logging;
+use super::PhaseType;
 use crate::contracts::{GitRevertMode, QueueFile, TaskStatus};
 use crate::gitutil::GitError;
 use crate::notification;
@@ -55,6 +56,7 @@ pub(crate) fn resume_continue_session(
         None,
         session.output_handler.clone(),
         session.output_stream,
+        PhaseType::Implementation,
     )?;
     if let Some(new_id) = output.session_id.as_ref() {
         session.session_id = Some(new_id.clone());

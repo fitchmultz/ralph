@@ -22,6 +22,23 @@ pub(crate) use phase3::finalize_phase3_if_done;
 pub use phase3::{apply_phase3_completion_signal, execute_phase3_review};
 pub use single::execute_single_phase;
 
+/// Represents the type of phase being executed.
+///
+/// This enum provides explicit phase metadata to runners that need
+/// phase-aware behavior (e.g., Cursor uses different sandbox/plan
+/// settings for planning vs implementation phases).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PhaseType {
+    /// Phase 1: Planning - agent produces implementation plan
+    Planning,
+    /// Phase 2: Implementation - agent implements the plan
+    Implementation,
+    /// Phase 3: Review - agent reviews completed work
+    Review,
+    /// Single phase execution (combines planning and implementation)
+    SinglePhase,
+}
+
 /// Shared inputs for executing a run phase workflow.
 ///
 /// This struct intentionally groups parameters to keep function signatures small and

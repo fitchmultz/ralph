@@ -2,39 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0360",
-      "status": "todo",
-      "title": "Fix Cursor runner phase detection fragility",
-      "priority": "medium",
-      "tags": [
-        "bug",
-        "runner",
-        "cursor",
-        "robustness"
-      ],
-      "scope": [
-        "crates/ralph/src/runner/execution/runners.rs"
-      ],
-      "evidence": [
-        "runners.rs:300-302 cursor_is_planning() uses string matching on '# PLANNING MODE'",
-        "Phase detection relies on prompt template content which may change",
-        "If prompt template changes, Cursor receives incorrect CLI options silently"
-      ],
-      "plan": [
-        "Add explicit phase metadata to PhaseInvocation struct",
-        "Pass phase information through runner execution context",
-        "Use structured phase enum (Planning/Implementation/Review) instead of string detection",
-        "Update cursor_is_planning() to use context instead of text search",
-        "Add test to ensure phase detection works correctly"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-28T04:11:49Z",
-      "updated_at": "2026-01-28T04:11:49Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0361",
       "status": "todo",
       "title": "Fix lock cleanup race condition in DirLock Drop",

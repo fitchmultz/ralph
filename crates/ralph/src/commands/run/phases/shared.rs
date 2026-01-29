@@ -1,6 +1,6 @@
 //! Shared helpers for run phase execution.
 
-use super::PhaseInvocation;
+use super::{PhaseInvocation, PhaseType};
 use crate::commands::run::supervision;
 use crate::config;
 use crate::{runner, runutil};
@@ -101,6 +101,7 @@ pub(super) fn execute_runner_pass(
     git_revert_mode: crate::contracts::GitRevertMode,
     revert_prompt: Option<runutil::RevertPromptHandler>,
     log_label: &str,
+    phase_type: PhaseType,
 ) -> Result<runner::RunnerOutput> {
     let permission_mode = resolved.config.agent.claude_permission_mode;
 
@@ -120,6 +121,7 @@ pub(super) fn execute_runner_pass(
                 output_handler,
                 output_stream,
                 revert_prompt,
+                phase_type,
             },
         runutil::RunnerErrorMessages {
             log_label,

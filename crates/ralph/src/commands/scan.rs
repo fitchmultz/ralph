@@ -15,6 +15,7 @@
 //! - Runner execution requires stream-json output for parsing.
 //! - Permission/approval defaults come from config unless overridden at CLI.
 
+use crate::commands::run::PhaseType;
 use crate::contracts::{
     ClaudePermissionMode, GitRevertMode, Model, ProjectType, ReasoningEffort, Runner,
     RunnerCliOptionsPatch,
@@ -168,6 +169,7 @@ pub fn run_scan(resolved: &config::Resolved, opts: ScanOptions) -> Result<()> {
                 runner::OutputStream::Terminal
             },
             revert_prompt: opts.revert_prompt.clone(),
+            phase_type: PhaseType::SinglePhase,
         },
         runutil::RunnerErrorMessages {
             log_label: "scan runner",

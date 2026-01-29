@@ -1,7 +1,7 @@
 //! Single-phase execution.
 
 use super::shared::{execute_runner_pass, run_ci_gate_with_continue};
-use super::PhaseInvocation;
+use super::{PhaseInvocation, PhaseType};
 use crate::commands::run::{logging, supervision};
 use crate::{promptflow, prompts};
 use anyhow::Result;
@@ -48,6 +48,7 @@ pub fn execute_single_phase(ctx: &PhaseInvocation<'_>) -> Result<()> {
             ctx.git_revert_mode,
             ctx.revert_prompt.clone(),
             "Execution",
+            PhaseType::SinglePhase,
         )?;
 
         if ctx.is_final_iteration {

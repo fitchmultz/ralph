@@ -12,6 +12,7 @@
 //! - Output format is validated upstream to be newline-delimited JSON (`stream_json`).
 //! - Unsupported options are validated upstream; mapping generally performs no-op for them.
 
+use crate::commands::run::PhaseType;
 use crate::contracts::{RunnerApprovalMode, RunnerPlanMode, RunnerSandboxMode, RunnerVerbosity};
 
 use super::cli_options::ResolvedRunnerCliOptions;
@@ -70,8 +71,10 @@ pub(super) fn apply_claude_options(
 pub(super) fn apply_cursor_options(
     mut builder: RunnerCommandBuilder,
     opts: ResolvedRunnerCliOptions,
-    is_planning: bool,
+    phase_type: PhaseType,
 ) -> RunnerCommandBuilder {
+    let is_planning = phase_type == PhaseType::Planning;
+
     if opts.approval_mode == RunnerApprovalMode::Yolo {
         builder = builder.arg("--force");
     }

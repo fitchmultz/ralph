@@ -1,7 +1,7 @@
 //! Phase 2 (implementation) execution.
 
 use super::shared::{execute_runner_pass, run_ci_gate_with_continue};
-use super::PhaseInvocation;
+use super::{PhaseInvocation, PhaseType};
 use crate::commands::run::{logging, supervision};
 use crate::{promptflow, prompts, runner};
 use anyhow::Result;
@@ -56,6 +56,7 @@ pub fn execute_phase2_implementation(
                 ctx.git_revert_mode,
                 ctx.revert_prompt.clone(),
                 "Implementation",
+                PhaseType::Implementation,
             )?;
 
             cache_phase2_final_response(&ctx.resolved.repo_root, ctx.task_id, &output.stdout)?;
@@ -117,6 +118,7 @@ pub fn execute_phase2_implementation(
             ctx.git_revert_mode,
             ctx.revert_prompt.clone(),
             "Implementation",
+            PhaseType::Implementation,
         )?;
 
         if ctx.is_final_iteration {

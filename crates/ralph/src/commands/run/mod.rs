@@ -36,6 +36,9 @@ use supervision::{find_task_status, post_run_supervise};
 #[allow(unused_imports)]
 pub(crate) use phases::{apply_phase3_completion_signal, finalize_phase3_if_done};
 
+// Re-export PhaseType for use by runner module.
+pub(crate) use phases::PhaseType;
+
 pub use crate::agent::AgentOverrides;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

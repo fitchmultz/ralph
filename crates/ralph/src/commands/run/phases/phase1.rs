@@ -1,7 +1,7 @@
 //! Phase 1 (planning) execution.
 
 use super::shared::execute_runner_pass;
-use super::PhaseInvocation;
+use super::{PhaseInvocation, PhaseType};
 use crate::commands::run::{logging, supervision};
 use crate::{gitutil, promptflow, prompts, runutil};
 use anyhow::{bail, Result};
@@ -41,6 +41,7 @@ pub fn execute_phase1_planning(ctx: &PhaseInvocation<'_>, total_phases: u8) -> R
             ctx.git_revert_mode,
             ctx.revert_prompt.clone(),
             "Planning",
+            PhaseType::Planning,
         )?;
 
         let mut continue_session = supervision::ContinueSession {
