@@ -643,16 +643,11 @@ pub fn build_refactor_tasks(
     resolved: &config::Resolved,
     opts: TaskBuildRefactorOptions,
 ) -> Result<()> {
-    // Determine scan path (default to crates/ralph/src if in ralph repo)
+    // Determine scan path (default to repo root for generic usage)
     let scan_path = opts
         .path
         .clone()
-        .unwrap_or_else(|| resolved.repo_root.join("crates/ralph/src"));
-
-    // Validate scan path exists
-    if !scan_path.exists() {
-        bail!("Scan path does not exist: {}", scan_path.display());
-    }
+        .unwrap_or_else(|| resolved.repo_root.clone());
 
     // Scan for large .rs files
     let large_files = scan_for_large_files(&scan_path, opts.threshold)?;

@@ -515,7 +515,7 @@ pub struct TaskBuildRefactorArgs {
     #[arg(long, default_value = "1000")]
     pub threshold: usize,
 
-    /// Directory to scan for Rust files (default: crates/ralph/src).
+    /// Directory to scan for Rust files (default: current directory / repo root).
     #[arg(long)]
     pub path: Option<std::path::PathBuf>,
 
