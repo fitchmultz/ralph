@@ -2,40 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0418",
-      "status": "todo",
-      "title": "Refactor: identify and execute codebase improvements",
-      "priority": "medium",
-      "tags": [
-        "refactor",
-        "code-quality",
-        "assessment"
-      ],
-      "scope": [
-        "crates/ralph/src/",
-        "make ci"
-      ],
-      "evidence": [
-        "User request: 'refactor'",
-        "No specific scope provided - requires assessment to identify refactoring opportunities",
-        "Existing large file refactor tasks in queue: RQ-0408 (app.rs), RQ-0409 (gitutil.rs), RQ-0410 (init.rs), RQ-0411 (overlays.rs), RQ-0412 (render/tests.rs)",
-        "CLAUDE.md guideline: Files exceeding ~1,000 LOC are presumed to be mis-scoped and MUST be split"
-      ],
-      "plan": [
-        "Assess current codebase for refactoring opportunities (large files, code duplication, module boundaries)",
-        "Review existing refactor tasks in queue to avoid duplication",
-        "Identify highest-impact refactoring target",
-        "Execute refactoring with tests and validation",
-        "Run 'make ci' to validate changes"
-      ],
-      "notes": [],
-      "request": "refactor",
-      "created_at": "2026-01-29T17:49:10Z",
-      "updated_at": "2026-01-29T17:49:10Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0417",
       "status": "todo",
       "title": "Add --dry-run flag to 'ralph task refactor' command",

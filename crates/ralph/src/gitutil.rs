@@ -1309,7 +1309,7 @@ mod clean_repo_tests {
         std::fs::create_dir_all(temp.path().join(".ralph"))?;
         let config_path = temp.path().join(".ralph/config.json");
         std::fs::write(&config_path, "{ \"version\": 1 }")?;
-        git_test::git_run(temp.path(), &["add", ".ralph/config.json"])?;
+        git_test::git_run(temp.path(), &["add", "-f", ".ralph/config.json"])?;
         git_test::git_run(temp.path(), &["commit", "-m", "init config"])?;
 
         std::fs::write(&config_path, "{ \"version\": 2 }")?;

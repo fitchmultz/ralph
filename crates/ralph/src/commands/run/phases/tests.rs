@@ -463,7 +463,7 @@ fn ensure_phase3_completion_allows_config_changes_when_enabled() -> Result<()> {
     std::fs::write(temp.path().join(".ralph/config.json"), "{ \"version\": 1 }")?;
     let status = Command::new("git")
         .current_dir(temp.path())
-        .args(["add", ".ralph/config.json"])
+        .args(["add", "-f", ".ralph/config.json"])
         .status()?;
     anyhow::ensure!(status.success(), "git add failed");
     let status = Command::new("git")
