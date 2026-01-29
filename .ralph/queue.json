@@ -2,43 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0417",
-      "status": "todo",
-      "title": "Add --dry-run flag to 'ralph task refactor' command",
-      "priority": "medium",
-      "tags": [
-        "cli",
-        "refactor",
-        "dry-run",
-        "ux"
-      ],
-      "scope": [
-        "crates/ralph/src/cli/task.rs",
-        "crates/ralph/src/commands/task.rs"
-      ],
-      "evidence": [
-        "User request: 'refactor --dry-run'",
-        "Dry-run mode allows users to preview what tasks would be created without actually modifying the queue",
-        "Useful for validating scan results and task generation before committing changes",
-        "Follows common CLI pattern for destructive/modifying operations"
-      ],
-      "plan": [
-        "Add --dry-run flag to the 'ralph task refactor' CLI arguments in cli/task.rs",
-        "Modify the refactor command implementation in commands/task.rs to check --dry-run flag",
-        "When --dry-run is set: scan for large files and print what tasks would be created without writing to queue.json",
-        "When --dry-run is not set: proceed with normal task creation behavior",
-        "Include summary output showing: number of files found, proposed task titles, file paths that would be affected",
-        "Update CLI help text with --dry-run example",
-        "Run 'make ci' to validate changes"
-      ],
-      "notes": [],
-      "request": "refactor --dry-run",
-      "created_at": "2026-01-29T17:45:24Z",
-      "updated_at": "2026-01-29T17:45:24Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0408",
       "status": "todo",
       "title": "Refactor tui/app.rs: split 2,683 LOC app module into smaller cohesive files",
