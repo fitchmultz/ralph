@@ -202,9 +202,17 @@ pub fn write_atomic(path: &Path, contents: &[u8]) -> Result<()> {
     tmp.flush().context("flush temp file")?;
     tmp.as_file().sync_all().context("sync temp file")?;
 
-    tmp.persist(path)
-        .map_err(|err| err.error)
-        .with_context(|| format!("persist {}", path.display()))?;
+    match tmp.persist(path) {
+        Ok(_) => {}
+        Err(err) => {
+            // Explicitly drop the temp file to ensure cleanup on persist failure.
+            // PersistError contains both the error and the NamedTempFile handle;
+            // we must extract and drop the file handle to prevent temp file leaks.
+            let _temp_file = err.file;
+            drop(_temp_file);
+            return Err(err.error).with_context(|| format!("persist {}", path.display()));
+        }
+    }
 
     sync_dir_best_effort(dir);
     Ok(())
@@ -383,5 +391,55 @@ mod tests {
         if let Some(parent) = path.parent() {
             let _ = fs::remove_dir(parent);
         }
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn write_atomic_cleans_up_temp_file_on_persist_failure() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let target_dir = temp_dir.path().join("readonly");
+        fs::create_dir(&target_dir).unwrap();
+
+        // Create a file inside the directory first (so we have something to "persist to")
+        // then make the directory read-only. This prevents new file creation/replacement.
+        let existing_file = target_dir.join("existing.txt");
+        fs::write(&existing_file, "existing content").unwrap();
+
+        // Make directory read-only (removes write permission)
+        let mut perms = fs::metadata(&target_dir).unwrap().permissions();
+        perms.set_mode(0o555); // read + execute only
+        fs::set_permissions(&target_dir, perms).unwrap();
+
+        // Attempt to write to a new file in the read-only directory
+        let target_file = target_dir.join("test.txt");
+        let result = write_atomic(&target_file, b"test content");
+
+        // Should fail due to permission denied
+        assert!(
+            result.is_err(),
+            "write_atomic should fail in read-only directory"
+        );
+
+        // Should not leave temp files behind in the target directory
+        let entries: Vec<_> = fs::read_dir(&target_dir)
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .filter(|e| {
+                let name = e.file_name().to_string_lossy().to_string();
+                name.starts_with(".") || name.starts_with("tmp") || name.starts_with("ralph")
+            })
+            .collect();
+        assert!(
+            entries.is_empty(),
+            "Temp files should be cleaned up, found: {:?}",
+            entries.iter().map(|e| e.file_name()).collect::<Vec<_>>()
+        );
+
+        // Restore permissions for cleanup
+        let mut perms = fs::metadata(&target_dir).unwrap().permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(&target_dir, perms).unwrap();
     }
 }

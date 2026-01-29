@@ -2,37 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0364",
-      "status": "todo",
-      "title": "Fix atomic write temp file leak on persist failure",
-      "priority": "low",
-      "tags": [
-        "bug",
-        "fs",
-        "cleanup"
-      ],
-      "scope": [
-        "crates/ralph/src/fsutil.rs"
-      ],
-      "evidence": [
-        "fsutil.rs:192-211 write_atomic() may leak temp file if persist() fails after write",
-        "NamedTempFile::persist() error path doesn't explicitly clean up",
-        "Temp file accumulation in target directory over time"
-      ],
-      "plan": [
-        "Use NamedTempFile::close() or let it drop to auto-cleanup on error",
-        "Wrap persist in match statement with explicit cleanup on Err",
-        "Add periodic cleanup of orphaned temp files in ralph_temp_root()",
-        "Add test verifying no temp files remain after failed writes"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-28T04:11:49Z",
-      "updated_at": "2026-01-28T04:11:49Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0365",
       "status": "todo",
       "title": "Add config validation for instruction_files existence",
