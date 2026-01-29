@@ -206,6 +206,13 @@ pub(crate) fn resolve_agent_settings(
         None
     };
 
+    // Warn about xhigh usage due to high consumption of usage limits
+    if reasoning_effort == Some(ReasoningEffort::XHigh) {
+        log::warn!(
+            "Using xhigh reasoning effort. This consumes usage limits extremely fast and should only be used rarely."
+        );
+    }
+
     validate_model_for_runner(runner, &model)?;
 
     let runner_cli = execution::resolve_runner_cli_options(

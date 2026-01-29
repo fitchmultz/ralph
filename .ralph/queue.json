@@ -2,46 +2,124 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0404",
+      "id": "RQ-0418",
       "status": "todo",
-      "title": "Verify and document reasoning_effort field support in task queue",
-      "priority": "medium",
+      "title": "Integrate tui-textarea for multi-line task editing",
+      "priority": "high",
       "tags": [
-        "config",
-        "documentation",
-        "codex",
-        "task-queue"
+        "tui",
+        "ratatui-ecosystem",
+        "textarea",
+        "ux"
       ],
       "scope": [
-        "crates/ralph/src/queue/task.rs",
-        "crates/ralph/src/cli/task.rs",
-        "crates/ralph/src/cli/scan.rs",
-        "docs/cli.md",
-        "docs/queue-and-tasks.md"
+        "crates/ralph/Cargo.toml",
+        "crates/ralph/src/tui/input.rs",
+        "crates/ralph/src/tui/task_edit.rs",
+        "crates/ralph/src/tui/render/overlays/editors.rs",
+        "crates/ralph/src/tui/events/editing.rs"
       ],
       "evidence": [
-        "User request: 'verify we have support for model_effort in the task queue'",
-        "User context: reasoning_effort is primarily beneficial for Codex runner with GPT models",
-        "User context: Acceptable values are low, medium, high, xhigh (xhigh should be used rarely)",
-        "User context: Purpose is to dynamically override model reasoning effort without changing config",
-        "User context: Other models may not support reasoning effort like Codex does"
+        "Assessment: tui-textarea 0.7.0 is compatible with ratatui 0.29 and actively maintained",
+        "Current pain point: TextInput is single-line only with basic cursor rendering (underscore marker)",
+        "Current pain point: Multi-line fields edited as comma-separated single lines in task_edit.rs",
+        "Expected outcome: Remove ~100 LOC of custom input handling, enable proper multi-line editing for scope/evidence/plan/notes",
+        "tui-textarea features: Emacs shortcuts, undo/redo, line numbers, text selection, mouse scrolling"
       ],
       "plan": [
-        "Verify reasoning_effort field exists in Task struct and is optional",
-        "Verify task builder supports --effort flag with low/medium/high/xhigh values",
-        "Verify scan command supports --effort flag",
-        "Verify effort value is passed through to Codex runner correctly",
-        "Verify unsupported runners gracefully ignore the field",
-        "Add/update documentation in docs/cli.md for --effort flag",
-        "Add/update documentation in docs/queue-and-tasks.md for reasoning_effort field",
-        "Add warning when xhigh is used (consumes limits extremely fast)",
+        "Add dependency: tui-textarea = \"0.7\" to Cargo.toml",
+        "Replace TextInput with TextArea in task editing overlays",
+        "Update task_edit.rs to use textarea for: title, scope, evidence, notes, plan, request fields",
+        "Update editors.rs rendering to use textarea widget instead of custom cursor marker",
+        "Update events/editing.rs to handle textarea input (Emacs shortcuts, selection, etc.)",
+        "Test multi-line editing for all task fields",
         "Run 'make ci' to validate changes"
       ],
       "notes": [],
-      "request": "I believe we added support for model_effort in the task queue. this is primarily only beneficial for the codex runner with GPT models but just wanted to make sure we have support for that and it is documented. If it is added during task creation and an unsupported runner/model is used it is just ignored (intended) but it doesn't hurt to have it added. Acceptable values are (low, medium, high, xhigh). xhigh should only be used very rarely as it consumes usage limits extremely fast. both task builder and scan can utilize this field as long as we clarify its purpose. the purpose is to dynamically override the model reasoning effort via this optional field so users can run loops without having to stop and change their config as varying levels of tasks are in progress.",
-      "created_at": "2026-01-29T19:50:00Z",
-      "updated_at": "2026-01-29T19:50:00Z",
+      "request": "Read /tmp/ratatui-ecosystem-assessment.md and create tasks to have the recommended crates onboarded and put in place to replace all parts of the codebase that can eliminate complex custom code.",
+      "created_at": "2026-01-29T21:55:00Z",
+      "updated_at": "2026-01-29T21:55:00Z",
       "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0419",
+      "status": "todo",
+      "title": "Integrate tui-term for ANSI-aware execution log display",
+      "priority": "high",
+      "tags": [
+        "tui",
+        "ratatui-ecosystem",
+        "terminal",
+        "ansi",
+        "logs"
+      ],
+      "scope": [
+        "crates/ralph/Cargo.toml",
+        "crates/ralph/src/tui/render/panels.rs",
+        "crates/ralph/src/tui/app_logs.rs"
+      ],
+      "evidence": [
+        "Assessment: tui-term 0.3.1 provides pseudoterminal widget for ANSI escape sequence parsing",
+        "Current pain point: ANSI escape sequences shown as raw text in runner output (not rendered)",
+        "Current pain point: No terminal emulation for runner output colors/formatting",
+        "Expected outcome: Runner output displays with proper colors/formatting, progress bars/spinners work",
+        "Risk: Need to verify ratatui 0.29 compatibility (depends on ratatui-core ^0.3.0)"
+      ],
+      "plan": [
+        "Verify ratatui 0.29 compatibility first (check dependency resolution with tui-term)",
+        "Add dependency: tui-term = \"0.3\" to Cargo.toml",
+        "Replace Paragraph widget in execution view with PseudoTerminal",
+        "Update app_logs.rs to integrate with terminal widget for ANSI rendering",
+        "Test with cargo build output, test output, and various runner outputs",
+        "Verify colors and formatting display correctly in execution view",
+        "Run 'make ci' to validate changes"
+      ],
+      "notes": [],
+      "request": "Read /tmp/ratatui-ecosystem-assessment.md and create tasks to have the recommended crates onboarded and put in place to replace all parts of the codebase that can eliminate complex custom code.",
+      "created_at": "2026-01-29T21:55:00Z",
+      "updated_at": "2026-01-29T21:55:00Z",
+      "depends_on": [
+        "RQ-0418"
+      ],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0420",
+      "status": "todo",
+      "title": "Integrate tui-widgets scrollview for better details panel scrolling",
+      "priority": "medium",
+      "tags": [
+        "tui",
+        "ratatui-ecosystem",
+        "scrollview",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/Cargo.toml",
+        "crates/ralph/src/tui/app_details.rs",
+        "crates/ralph/src/tui/render/panels.rs"
+      ],
+      "evidence": [
+        "Assessment: tui-widgets 0.7.0 provides scrollview feature for smoother fractional scrolling",
+        "Current pain point: Custom scroll handling code in details panel with manual viewport tracking",
+        "Expected outcome: Smoother scrolling in task details, ~30 LOC reduction",
+        "Recommended feature: scrollview only via tui-widgets = { version = \"0.7\", features = [\"scrollview\"] }"
+      ],
+      "plan": [
+        "Add dependency with scrollview feature only: tui-widgets = { version = \"0.7\", features = [\"scrollview\"] }",
+        "Replace custom scroll handling in app_details.rs with ScrollView widget",
+        "Update panels.rs details rendering to use ScrollView",
+        "Test with long task descriptions to verify smooth scrolling",
+        "Run 'make ci' to validate changes"
+      ],
+      "notes": [],
+      "request": "Read /tmp/ratatui-ecosystem-assessment.md and create tasks to have the recommended crates onboarded and put in place to replace all parts of the codebase that can eliminate complex custom code.",
+      "created_at": "2026-01-29T21:55:00Z",
+      "updated_at": "2026-01-29T21:55:00Z",
+      "depends_on": [
+        "RQ-0418"
+      ],
       "custom_fields": {}
     },
     {
