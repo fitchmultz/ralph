@@ -2,53 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0408",
-      "status": "todo",
-      "title": "Refactor tui/app.rs: split 2,683 LOC app module into smaller cohesive files",
-      "priority": "medium",
-      "tags": [
-        "refactor",
-        "tui",
-        "app",
-        "code-quality",
-        "module-boundaries"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/app.rs",
-        "crates/ralph/src/tui/mod.rs",
-        "crates/ralph/src/tui/app_*.rs"
-      ],
-      "evidence": [
-        "User request: 'Identify large files with large LOC and create a task to have each file refactored into smaller files'",
-        "CLAUDE.md guideline: Files exceeding ~1,000 LOC are presumed to be mis-scoped and MUST be split",
-        "File stats: tui/app.rs has 2,683 LOC (verified 2026-01-29) - more than 2.5x the 1,000 LOC threshold",
-        "File stats: Second largest source file in the codebase after tui/events/tests.rs",
-        "Existing partial refactor: app_execution.rs (14KB), app_filters.rs (14KB), app_help.rs (5.9KB), app_id_index.rs (5.5KB), app_logs.rs (6.8KB), app_loop.rs (8.7KB), app_palette.rs (3.0KB) already extracted",
-        "Remaining in app.rs: Core App struct, state management, main event loop coordination, rendering orchestration"
-      ],
-      "plan": [
-        "Analyze tui/app.rs remaining content to identify distinct responsibilities still in the main file",
-        "Design module structure for remaining logic: extract state management, lifecycle management, and coordination logic",
-        "Consider extracting: app/state.rs (App state and core data structures), app/lifecycle.rs (init/shutdown), app/coordinator.rs (event loop orchestration)",
-        "Ensure each new module has a single cohesive responsibility under ~400 LOC",
-        "Refactor app.rs to be a thin coordinator module re-exporting public API",
-        "Update mod.rs declarations if new modules are added",
-        "Update all imports across the codebase",
-        "Run 'make ci' to validate changes",
-        "Verify TUI functionality remains intact"
-      ],
-      "notes": [
-        "Task refreshed 2026-01-29: File still has 2,683 LOC, confirming refactor is still needed",
-        "Partial extraction already done - focus on remaining core logic in app.rs",
-        "Related tasks: RQ-0407 (events/tests.rs refactor completed), RQ-0411 (render/overlays.rs), RQ-0412 (render/tests.rs)"
-      ],
-      "request": "Identify large files with large LOC and create a task to have each file refactored into smaller files.",
-      "created_at": "2026-01-29T15:29:58Z",
-      "updated_at": "2026-01-29T17:13:17.978792000Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0409",
       "status": "todo",
       "title": "Refactor gitutil.rs: split 1,611 LOC utility module into focused submodules",
