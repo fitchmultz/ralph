@@ -46,7 +46,45 @@ clean-temp:
 
 test:
 	@echo "→ Running tests..."
-	@bash -lc 'set -euo pipefail; 		repo_root="$$(pwd -P)"; 		system_tmp="$${TMPDIR:-/tmp}"; 		system_tmp="$${system_tmp%/}"; 		legacy_tmp_base="$$system_tmp/ralph-ci-tmp"; 		if [ "$${RALPH_CI_KEEP_TMP:-0}" != "1" ]; then rm -rf "$$legacy_tmp_base" 2>/dev/null || true; fi; 		tmp_base="$$repo_root/target/tmp/ralph-ci-tmp"; 		if [ "$${RALPH_CI_KEEP_TMP:-0}" != "1" ]; then rm -rf "$$tmp_base" 2>/dev/null || true; fi; 		mkdir -p "$$tmp_base"; 		run_dir="$$(mktemp -d "$$tmp_base/ralph-ci.XXXXXX")"; 		cleanup() { 			if [ "$${RALPH_CI_KEEP_TMP:-0}" = "1" ]; then 				echo "  ℹ Keeping CI temp dir: $$run_dir"; 				return 0; 			fi; 			rm -rf "$$run_dir" 2>/dev/null || true; 			rm -rf "$$tmp_base" 2>/dev/null || true; 		}; 		trap cleanup EXIT INT TERM; 		export TMPDIR="$$run_dir"; 		export TEMP="$$run_dir"; 		export TMP="$$run_dir"; 		cargo test --workspace --all-targets --quiet -- --include-ignored 2>&1 | grep -E "^(test result:|running|     Running)" || true; 		cargo test --workspace --doc --quiet -- --include-ignored 2>&1 | grep -E "^(test result:|running|     Running)" || true; 		echo "  ✓ Tests passed"'
+	@bash -lc 'set -euo pipefail; \
+		repo_root="$$(pwd -P)"; \
+		system_tmp="$${TMPDIR:-/tmp}"; \
+		system_tmp="$${system_tmp%/}"; \
+		legacy_tmp_base="$$system_tmp/ralph-ci-tmp"; \
+		if [ "$${RALPH_CI_KEEP_TMP:-0}" != "1" ]; then rm -rf "$$legacy_tmp_base" 2>/dev/null || true; fi; \
+		tmp_base="$$repo_root/target/tmp/ralph-ci-tmp"; \
+		if [ "$${RALPH_CI_KEEP_TMP:-0}" != "1" ]; then rm -rf "$$tmp_base" 2>/dev/null || true; fi; \
+		mkdir -p "$$tmp_base"; \
+		run_dir="$$(mktemp -d "$$tmp_base/ralph-ci.XXXXXX")"; \
+		cleanup() { \
+			if [ "$${RALPH_CI_KEEP_TMP:-0}" = "1" ]; then \
+				echo "  ℹ Keeping CI temp dir: $$run_dir"; \
+				return 0; \
+			fi; \
+			rm -rf "$$run_dir" 2>/dev/null || true; \
+			rm -rf "$$tmp_base" 2>/dev/null || true; \
+		}; \
+		trap cleanup EXIT INT TERM; \
+		export TMPDIR="$$run_dir"; \
+		export TEMP="$$run_dir"; \
+		export TMP="$$run_dir"; \
+		unit_test_output=$$(cargo test --workspace --all-targets --quiet -- --include-ignored 2>&1) || { \
+			echo "  ✗ Unit tests failed!"; \
+			echo ""; \
+			echo "=== Full test output ==="; \
+			echo "$$unit_test_output"; \
+			exit 1; \
+		}; \
+		echo "$$unit_test_output" | grep -E "^(test result:|running|     Running)" || true; \
+		doc_test_output=$$(cargo test --workspace --doc --quiet -- --include-ignored 2>&1) || { \
+			echo "  ✗ Doc tests failed!"; \
+			echo ""; \
+			echo "=== Full test output ==="; \
+			echo "$$doc_test_output"; \
+			exit 1; \
+		}; \
+		echo "$$doc_test_output" | grep -E "^(test result:|running|     Running)" || true; \
+		echo "  ✓ Tests passed"'
 
 stress:
 	@echo "Running burn-in stress tests..."
@@ -84,7 +122,18 @@ check-backup-artifacts:
 		exit 1; \
 	fi
 
-ci: check-env-safety check-backup-artifacts generate format type-check lint build test install
+ci:
+	@echo "→ Starting CI pipeline..."
+	@echo ""
+	@$(MAKE) check-env-safety || { echo ""; echo "✗ CI failed at: check-env-safety"; exit 1; }
+	@$(MAKE) check-backup-artifacts || { echo ""; echo "✗ CI failed at: check-backup-artifacts"; exit 1; }
+	@$(MAKE) generate || { echo ""; echo "✗ CI failed at: generate"; exit 1; }
+	@$(MAKE) format || { echo ""; echo "✗ CI failed at: format"; exit 1; }
+	@$(MAKE) type-check || { echo ""; echo "✗ CI failed at: type-check"; exit 1; }
+	@$(MAKE) lint || { echo ""; echo "✗ CI failed at: lint"; exit 1; }
+	@$(MAKE) build || { echo ""; echo "✗ CI failed at: build"; exit 1; }
+	@$(MAKE) test || { echo ""; echo "✗ CI failed at: test"; exit 1; }
+	@$(MAKE) install || { echo ""; echo "✗ CI failed at: install"; exit 1; }
 	@echo ""
 	@echo "═══════════════════════════════════════════════════"
 	@echo "  ✓ CI completed successfully"
