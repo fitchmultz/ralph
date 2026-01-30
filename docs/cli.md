@@ -31,7 +31,7 @@ ralph --force queue archive
 * `ralph init`: bootstrap `.ralph/queue.json`, `.ralph/done.json`, and `.ralph/config.json` with optional interactive wizard.
 * `ralph context <subcommand>`: manage project context (AGENTS.md) for AI agents.
 * `ralph queue <subcommand>`: inspect, search, validate, and maintain `.ralph/queue.json` + `.ralph/done.json`.
-* `ralph run <subcommand>`: run tasks via a runner (codex/opencode/gemini/claude/cursor).
+* `ralph run <subcommand>`: run tasks via a runner (codex/opencode/gemini/claude/cursor/kimi).
 * `ralph tui`: launch the interactive UI (queue + execution + loop).
 * `ralph prompt <subcommand>`: render compiled prompts for inspection.
 * `ralph task`: create a task from a request.
@@ -308,6 +308,7 @@ Config keys for each runner:
 - Gemini: `gemini_bin`
 - Claude: `claude_bin`
 - Cursor: `cursor_bin`
+- Kimi: `kimi_bin`
 
 Examples:
 
@@ -512,7 +513,7 @@ By default, draft tasks (`status: draft`) are skipped during task selection (so 
 
 ### Normalized runner CLI options
 
-These flags configure a normalized runner CLI behavior surface across Codex/OpenCode/Gemini/Claude/Cursor. Unsupported options are dropped by default with a warning (see `--unsupported-option-policy`).
+These flags configure a normalized runner CLI behavior surface across Codex/OpenCode/Gemini/Claude/Cursor/Kimi. Unsupported options are dropped by default with a warning (see `--unsupported-option-policy`).
 
 * `--approval-mode <default|auto-edits|yolo|safe>`: approval/permission behavior (default: `yolo`).
 * `--sandbox <default|enabled|disabled>`: runner sandbox behavior when supported.
@@ -559,7 +560,7 @@ Generate new tasks by scanning the repository.
 Key flags:
 
 * `--focus <TEXT>`: Optional focus prompt to guide the scan.
-* `--runner <codex|opencode|gemini|claude|cursor>`, `--model <model-id>`, `--effort <low|medium|high|xhigh>` (alias: `-e`): Override runner/model/effort for this invocation.
+* `--runner <codex|opencode|gemini|claude|cursor|kimi>`, `--model <model-id>`, `--effort <low|medium|high|xhigh>` (alias: `-e`): Override runner/model/effort for this invocation.
 * `--repo-prompt <tools|plan|off>` (alias: `-rp`): `tools` = tooling reminders only, `plan` = planning requirement + tooling reminders, `off` = disable both.
 * Runner CLI overrides: `--approval-mode <default|auto-edits|yolo|safe>`, `--sandbox <default|enabled|disabled>`, `--verbosity <quiet|normal|verbose>`, `--plan-mode <default|enabled|disabled>`, `--output-format <stream-json|json|text>`, `--unsupported-option-policy <ignore|warn|error>`.
 
@@ -1335,7 +1336,7 @@ Shows unified diff format. If no local override exists, reports that the embedde
 
 These flags are supported on `task`, `scan`, `run one`, `run loop`, and `tui`:
 
-* `--runner <codex|opencode|gemini|claude|cursor>`
+* `--runner <codex|opencode|gemini|claude|cursor|kimi>`
 * `--model <model-id>`
 * `--effort <low|medium|high|xhigh>` (codex only; alias: `-e`)
 * `--repo-prompt <tools|plan|off>` (alias: `-rp`) — `tools` = tooling reminders only, `plan` = planning requirement + tooling reminders, `off` = disable both.

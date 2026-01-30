@@ -108,15 +108,11 @@ pub(super) fn apply_kimi_options(
     builder: RunnerCommandBuilder,
     opts: ResolvedRunnerCliOptions,
 ) -> RunnerCommandBuilder {
-    let builder = match opts.approval_mode {
-        RunnerApprovalMode::Yolo => builder.args(["--approval-mode", "yolo"]),
-        RunnerApprovalMode::AutoEdits => builder.args(["--approval-mode", "auto_edit"]),
+    // Kimi uses --yolo or -y for auto-approval, NOT --approval-mode yolo
+    match opts.approval_mode {
+        RunnerApprovalMode::Yolo => builder.arg("--yolo"),
+        RunnerApprovalMode::AutoEdits => builder.arg("--yolo"), // Kimi doesn't have auto-edits mode, use yolo
         RunnerApprovalMode::Default | RunnerApprovalMode::Safe => builder,
-    };
-
-    match opts.sandbox {
-        RunnerSandboxMode::Enabled => builder.arg("--sandbox"),
-        RunnerSandboxMode::Disabled | RunnerSandboxMode::Default => builder,
     }
 }
 

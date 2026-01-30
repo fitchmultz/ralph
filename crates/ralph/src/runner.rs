@@ -283,7 +283,7 @@ pub(crate) fn default_model_for_runner(runner: Runner) -> Model {
         Runner::Gemini => Model::Custom(DEFAULT_GEMINI_MODEL.to_string()),
         Runner::Cursor => Model::Custom(DEFAULT_CURSOR_MODEL.to_string()),
         Runner::Claude => Model::Custom(DEFAULT_CLAUDE_MODEL.to_string()),
-        Runner::Kimi => Model::Custom("kimi-k2".to_string()),
+        Runner::Kimi => Model::Custom("kimi-for-coding".to_string()),
         Runner::Pi => Model::Custom("pi-default".to_string()),
     }
 }
@@ -711,6 +711,12 @@ mod tests {
     fn resolve_model_for_runner_defaults_for_cursor() {
         let model = resolve_model_for_runner(Runner::Cursor, None, None, None, false);
         assert_eq!(model.as_str(), DEFAULT_CURSOR_MODEL);
+    }
+
+    #[test]
+    fn resolve_model_for_runner_defaults_for_kimi() {
+        let model = resolve_model_for_runner(Runner::Kimi, None, None, None, false);
+        assert_eq!(model.as_str(), "kimi-for-coding");
     }
 
     #[test]

@@ -2,63 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0432",
-      "status": "todo",
-      "title": "Add runner support for 'kimi' CLI",
-      "priority": "high",
-      "tags": [
-        "runner",
-        "kimi",
-        "cli",
-        "integration"
-      ],
-      "scope": [
-        "crates/ralph/src/cli/mod.rs",
-        "crates/ralph/src/cli/run.rs",
-        "crates/ralph/src/cli/task.rs",
-        "crates/ralph/src/cli/scan.rs",
-        "crates/ralph/src/runner.rs",
-        "crates/ralph/src/runner/execution/cli_spec.rs",
-        "crates/ralph/src/commands/doctor.rs",
-        "README.md",
-        "docs/cli.md"
-      ],
-      "evidence": [
-        "Kimi CLI binary 'kimi' exists and is being used by the user right now",
-        "Runner enum in contracts/config.rs already has Kimi variant defined",
-        "Basic implementation exists in runner.rs and execution/runners.rs",
-        "CLI help text does not list 'kimi' as an allowed runner: 'Allowed runners: codex, opencode, gemini, claude, cursor'",
-        "runner_cli_inventory.sh already includes 'kimi' in its inventory list",
-        "Kimi does not need a model passed by default - it uses the latest model automatically",
-        "Missing: CLI argument parsing, help text updates, documentation updates"
-      ],
-      "plan": [
-        "Update CLI help text in cli/mod.rs to include 'kimi' in allowed runners list",
-        "Update CLI help text in cli/run.rs to include 'kimi' in allowed runners list",
-        "Update CLI help text in cli/task.rs to include 'kimi' examples",
-        "Update CLI help text in cli/scan.rs to include 'kimi' examples",
-        "Ensure --runner kimi is accepted by argument parser (Runner enum value)",
-        "Update runner.rs default_model_for_runner to return Model::Custom('kimi-for-coding') for Kimi",
-        "Update cli_spec.rs apply_kimi_options to handle kimi-for-coding model",
-        "Update doctor.rs to ensure kimi binary detection works correctly",
-        "Update README.md 'Runners' section to include Kimi with usage examples",
-        "Update docs/cli.md to include Kimi runner documentation",
-        "Run 'make ci' to validate changes"
-      ],
-      "notes": [
-        "Default model for Kimi should be 'kimi-for-coding' (Kimi 2.5 coding model)",
-        "Kimi CLI uses '--yolo' or '-y' flag for auto-approval mode (NOT --approval-mode yolo),",
-        "Kimi also has '--print' mode which implicitly adds '--yolo'",
-        "Test with: ralph run one --runner kimi",
-        "'kimi-for-coding' is the recommended model for code generation tasks"
-      ],
-      "request": "Add runner support for 'kimi' CLI. Kimi default model should be 'kimi-for-coding' (Kimi 2.5 coding model) - not 'kimi-k2'. Kimi uses '--yolo' or '-y' flag for auto-approval (current code incorrectly uses --approval-mode yolo). I am using kimi right now to have you do this. The runner infrastructure exists but needs to be fully exposed in CLI arguments, help text, and documentation.",
-      "created_at": "2026-01-30T00:05:00Z",
-      "updated_at": "2026-01-30T00:05:00Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0433",
       "status": "todo",
       "title": "Add runner support for 'pi' CLI",
