@@ -85,16 +85,22 @@ impl DetailsState {
     /// Update the viewport and context, resetting scroll if context changed.
     ///
     /// If the context has changed, scroll is reset to top.
+    /// If the context is the same, scroll is clamped to ensure it stays within
+    /// visible bounds (called on resize to prevent scroll from exceeding content).
     pub fn set_viewport(
         &mut self,
-        _visible_lines: usize,
-        _total_lines: usize,
+        visible_lines: usize,
+        total_lines: usize,
         context: DetailsContext,
     ) {
         // Reset scroll if context changed
         if self.context.as_ref() != Some(&context) {
             self.scroll_state.scroll_to_top();
             self.context = Some(context);
+        } else {
+            // Same context - clamp scroll to ensure it stays within bounds
+            // This handles terminal resize where visible_lines may have changed
+            self.clamp_scroll(visible_lines, total_lines);
         }
     }
 
@@ -145,6 +151,26 @@ impl DetailsState {
         self.context
             .as_ref()
             .is_some_and(|ctx| ctx.mode == *mode && ctx.selected_id.as_deref() == selected_id)
+    }
+
+    /// Clamp scroll position to ensure it stays within visible bounds.
+    ///
+    /// This should be called after a terminal resize to prevent the scroll
+    /// position from being outside the visible content area.
+    pub fn clamp_scroll(&mut self, visible_lines: usize, total_lines: usize) {
+        if total_lines == 0 || visible_lines == 0 {
+            self.scroll_state.scroll_to_top();
+            return;
+        }
+
+        let max_scroll = total_lines.saturating_sub(visible_lines);
+        let current = self.scroll_state.offset().y as usize;
+
+        if current > max_scroll {
+            let new_y = max_scroll.min(u16::MAX as usize) as u16;
+            self.scroll_state
+                .set_offset(ratatui::layout::Position::new(0, new_y));
+        }
     }
 
     /// Update context from current app state.
@@ -316,5 +342,105 @@ mod tests {
         scroll_state.scroll_down();
 
         assert_eq!(state.scroll(), 1);
+    }
+
+    #[test]
+    fn test_clamp_scroll_when_beyond_bounds() {
+        let mut state = DetailsState::new();
+        state.set_viewport(
+            10,
+            100,
+            DetailsContext {
+                mode: DetailsContextMode::TaskDetails,
+                selected_id: Some("RQ-0001".to_string()),
+                queue_rev: 1,
+                detail_width: 60,
+            },
+        );
+
+        // Scroll down significantly
+        state.scroll_down(80);
+        assert_eq!(state.scroll(), 80);
+
+        // Simulate resize that reduces visible lines, clamping scroll
+        state.clamp_scroll(10, 50); // Now only 50 total lines, 10 visible
+
+        // Scroll should be clamped to max_scroll (50 - 10 = 40)
+        assert_eq!(state.scroll(), 40);
+    }
+
+    #[test]
+    fn test_clamp_scroll_when_within_bounds() {
+        let mut state = DetailsState::new();
+        state.set_viewport(
+            10,
+            100,
+            DetailsContext {
+                mode: DetailsContextMode::TaskDetails,
+                selected_id: Some("RQ-0001".to_string()),
+                queue_rev: 1,
+                detail_width: 60,
+            },
+        );
+
+        // Scroll to a reasonable position
+        state.scroll_down(20);
+        assert_eq!(state.scroll(), 20);
+
+        // Clamp with larger bounds - should not change
+        state.clamp_scroll(10, 100);
+
+        // Scroll should remain unchanged
+        assert_eq!(state.scroll(), 20);
+    }
+
+    #[test]
+    fn test_clamp_scroll_empty_content() {
+        let mut state = DetailsState::new();
+        state.set_viewport(
+            10,
+            100,
+            DetailsContext {
+                mode: DetailsContextMode::TaskDetails,
+                selected_id: Some("RQ-0001".to_string()),
+                queue_rev: 1,
+                detail_width: 60,
+            },
+        );
+
+        // Scroll down
+        state.scroll_down(50);
+        assert_eq!(state.scroll(), 50);
+
+        // Clamp with zero total lines - should reset to top
+        state.clamp_scroll(10, 0);
+
+        // Scroll should be reset to 0
+        assert_eq!(state.scroll(), 0);
+    }
+
+    #[test]
+    fn test_clamp_scroll_zero_visible() {
+        let mut state = DetailsState::new();
+        state.set_viewport(
+            10,
+            100,
+            DetailsContext {
+                mode: DetailsContextMode::TaskDetails,
+                selected_id: Some("RQ-0001".to_string()),
+                queue_rev: 1,
+                detail_width: 60,
+            },
+        );
+
+        // Scroll down
+        state.scroll_down(50);
+        assert_eq!(state.scroll(), 50);
+
+        // Clamp with zero visible lines - should reset to top
+        state.clamp_scroll(0, 100);
+
+        // Scroll should be reset to 0
+        assert_eq!(state.scroll(), 0);
     }
 }

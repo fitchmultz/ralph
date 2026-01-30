@@ -322,6 +322,9 @@ pub struct App {
     queue_mtime: Option<std::time::SystemTime>,
     /// Cached modification time for done.json (for detecting external changes).
     done_mtime: Option<std::time::SystemTime>,
+    /// Flag set when terminal was resized, cleared after redraw.
+    /// Used to trigger layout recalculation and prevent visual glitches.
+    resized: bool,
 }
 
 impl App {
@@ -390,6 +393,7 @@ impl App {
             border_style: BorderStyle::Unicode,
             queue_mtime: None,
             done_mtime: None,
+            resized: false,
         };
         app.rebuild_filtered_view();
         app
@@ -530,7 +534,10 @@ impl App {
     /// Not handled here:
     /// - Layout computation (handled fresh each frame in render loop).
     /// - Widget positioning (ratatui handles this via `f.area()`).
-    pub fn handle_resize(&mut self, _width: u16, _height: u16) {
+    pub fn handle_resize(&mut self, width: u16, height: u16) {
+        // Set flag to trigger immediate redraw and layout recalculation
+        self.resized = true;
+
         // Clear cached list_area to force recalculation
         self.clear_list_area();
 
@@ -544,6 +551,29 @@ impl App {
         if self.help_scroll > help_max {
             self.help_scroll = help_max;
         }
+
+        // Update detail width for text wrapping calculations
+        self.detail_width = width.saturating_sub(4);
+
+        // Clamp log scroll to ensure it stays within bounds after resize
+        let log_count = self.logs.len();
+        if self.log_scroll > log_count {
+            self.log_scroll = log_count;
+        }
+
+        // Reset ANSI buffer visible lines to trigger recalculation
+        if height > 0 {
+            self.log_visible_lines = height.saturating_sub(4) as usize;
+        }
+    }
+
+    /// Check if the terminal was resized since the last redraw.
+    ///
+    /// Returns true if a resize occurred and clears the flag.
+    pub(crate) fn take_resized(&mut self) -> bool {
+        let was_resized = self.resized;
+        self.resized = false;
+        was_resized
     }
 
     pub(crate) fn unsafe_to_discard(&self) -> bool {
@@ -2579,10 +2609,11 @@ where
                 auto_save_if_dirty(&mut app_ref, queue_path, done_path, config_path.as_deref());
             }
 
-            // Handle input events.
-            if event::poll(Duration::from_millis(100)).context("poll event")? {
+            // Handle input events with reduced timeout for more responsive resize.
+            if event::poll(Duration::from_millis(50)).context("poll event")? {
                 let event = event::read().context("read event")?;
                 let mut should_quit = false;
+                let mut should_redraw = false;
                 match event {
                     Event::Key(key) => {
                         if key.kind == KeyEventKind::Release {
@@ -2602,6 +2633,8 @@ where
                     Event::Resize(width, height) => {
                         let mut app_ref = app.borrow_mut();
                         app_ref.handle_resize(width, height);
+                        // Trigger immediate redraw to prevent visual glitches
+                        should_redraw = true;
                     }
                     Event::Paste(_) => {
                         // Explicitly ignore paste events for now.
@@ -2613,6 +2646,17 @@ where
                 }
                 if should_quit {
                     break;
+                }
+                // Force immediate redraw on resize to prevent visual artifacts
+                if should_redraw {
+                    terminal
+                        .draw(|f| {
+                            let mut app_ref = app.borrow_mut();
+                            // Update detail width from current frame area
+                            app_ref.detail_width = f.area().width.saturating_sub(4);
+                            draw_ui(f, &mut app_ref)
+                        })
+                        .context("draw UI on resize")?;
                 }
             }
         }

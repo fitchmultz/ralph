@@ -2,47 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0398",
-      "status": "todo",
-      "title": "Fix TUI terminal resize handling and visual glitches",
-      "priority": "high",
-      "tags": [
-        "tui",
-        "ux",
-        "resize",
-        "rendering"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/",
-        "crates/ralph/src/tui/app.rs",
-        "crates/ralph/src/tui/ui.rs",
-        "crates/ralph/src/tui/events.rs"
-      ],
-      "evidence": [
-        "User reports: TUI formatting breaks on terminal resize until next update",
-        "In some cases formatting remains broken even after updates",
-        "Logs need to stream and display properly",
-        "User has 'GREAT success with the CLI and barely touch the TUI due to poor user experience'",
-        "This is a polish issue that affects user adoption"
-      ],
-      "plan": [
-        "Review current TUI event handling to understand resize signal processing",
-        "Review current rendering logic to identify why redraw doesn't happen immediately on resize",
-        "Implement proper terminal resize event handling that triggers immediate full redraw",
-        "Ensure layout calculations use current terminal dimensions after resize",
-        "Test log streaming display during and after resize operations",
-        "Review and fix any remaining visual glitches (flickering, misalignment, truncation)",
-        "Test across common terminal emulators (iTerm2, Terminal.app, Alacritty, etc.)",
-        "Run 'make ci' to validate changes"
-      ],
-      "notes": [],
-      "request": "we must review the TUI resizing to ensure that when a user resizes their terminal that the screen is redrawn. currently i see a whole lot of formatting break and look like crap until the next update is sent to the screen, and in some cases it still is busted. this is a tough problem to solve, tuis are hard. but we must make sure we have a tui that is performant and without visual glitches. logs need to stream and be displayed properly. user flows and experience need to be polished otherwise it looks like amateur work and users wont want to use it. personally, i have had GREAT success with the CLI and barely touch the TUI due to poor user experience. The CLI version of the 'ralph task', 'ralph scan', and 'ralph run' commands have been excellent.",
-      "created_at": "2026-01-29T14:26:40Z",
-      "updated_at": "2026-01-29T14:26:40Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0422",
       "status": "todo",
       "title": "Add progress indicators and spinners for long-running operations",

@@ -107,6 +107,7 @@ pub(super) fn draw_execution_view(f: &mut Frame<'_>, app: &mut App, area: Rect) 
     let log_area = main_chunks[log_idx];
     let status_area = main_chunks[status_idx];
 
+    // Clear areas first to prevent artifacts from previous renders
     f.render_widget(Clear, log_area);
     f.render_widget(Clear, status_area);
 
@@ -116,8 +117,12 @@ pub(super) fn draw_execution_view(f: &mut Frame<'_>, app: &mut App, area: Rect) 
     let log_count = app.logs.len();
 
     // Render logs using tui-term's PseudoTerminal for ANSI-aware display
-    if !app.log_ansi_buffer.is_empty() {
-        // Create vt100 parser and process ANSI buffer
+    // Handle edge cases for very small terminal sizes
+    if log_area.width == 0 || log_area.height == 0 {
+        // Terminal too small, render nothing in log area
+    } else if !app.log_ansi_buffer.is_empty() {
+        // Create vt100 parser with current dimensions
+        // Note: vt100 parser uses (rows, cols) order
         let mut parser = vt100::Parser::new(log_area.height, log_area.width, 0);
         parser.process(&app.log_ansi_buffer);
 
@@ -125,9 +130,11 @@ pub(super) fn draw_execution_view(f: &mut Frame<'_>, app: &mut App, area: Rect) 
         let pseudo_term = PseudoTerminal::new(parser.screen()).block(Block::default());
         f.render_widget(pseudo_term, log_area);
     } else {
-        // No ANSI buffer yet, render empty block
-        let block = Block::default();
-        f.render_widget(block, log_area);
+        // No ANSI buffer yet, render a placeholder
+        let placeholder = Paragraph::new("Waiting for output...")
+            .style(Style::default().fg(Color::DarkGray))
+            .alignment(Alignment::Center);
+        f.render_widget(placeholder, log_area);
     }
 
     // Draw status indicator at bottom

@@ -39,6 +39,12 @@ mod tests;
 pub fn draw_ui(f: &mut Frame<'_>, app: &mut App) {
     let size = f.area();
 
+    // Handle resize flag: clear it and ensure fresh layout calculations
+    if app.take_resized() {
+        // Force recalculation of layout-dependent state
+        app.detail_width = size.width.saturating_sub(4);
+    }
+
     // Handle Executing mode (full-screen output view), including modal prompts layered on top.
     // Avoid cloning `app.mode` on every frame; we only need to inspect it.
     let show_execution = match &app.mode {
