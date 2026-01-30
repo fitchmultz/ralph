@@ -2,45 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0397",
-      "status": "todo",
-      "title": "Add scan mode for feature discovery/innovation vs code hygiene",
-      "priority": "medium",
-      "tags": [
-        "cli",
-        "scan",
-        "feature-discovery"
-      ],
-      "scope": [
-        "crates/ralph/src/cli/scan.rs",
-        "crates/ralph/assets/prompts/scan.md",
-        "docs/cli.md"
-      ],
-      "evidence": [
-        "User reports: 'ralph scan' defaults to looking for repo rules violations, inconsistent/incomplete code (break-fix maintenance)",
-        "User wants ability to scan for new features to add, feature completeness for specific use-cases",
-        "Current behavior stays focused on code hygiene even when directed toward innovation",
-        "Need to balance without overcorrecting away from the useful maintenance mode"
-      ],
-      "plan": [
-        "Review current scan prompt template to understand how it guides the model",
-        "Review existing scan flags to see if there's already a mode toggle",
-        "Design a '--mode' or similar flag with values like 'maintenance' (default) and 'innovation'",
-        "Create separate prompt paths or conditional prompt sections for each mode",
-        "Ensure 'maintenance' mode preserves current break-fix behavior",
-        "Ensure 'innovation' mode guides model toward feature gaps, use-case completeness, and enhancement opportunities",
-        "Update CLI help text with examples for both modes",
-        "Update docs/cli.md with mode descriptions",
-        "Run 'make ci' to validate changes"
-      ],
-      "notes": [],
-      "request": "right now when 'ralph scan' is run i think it defaults to looking for repo rules violations, inconsistent or incomplete code, etc. More of a break-fix maintenance order. This works well. But it would be nice to be able to have it look for new features to add. maybe the prompt already has this verbiage for innovation in it, or maybe there is already a flag for it that i have forgotten about, but even when i use the '--focus' and direct the model to look for feature completeness, adding new features for a specific use-case or in general, it seems to stay focused on the code hygiene as aspect much more. Not sure how to handle this without overcorrecting.",
-      "created_at": "2026-01-29T14:26:40Z",
-      "updated_at": "2026-01-29T14:26:40Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0398",
       "status": "todo",
       "title": "Fix TUI terminal resize handling and visual glitches",

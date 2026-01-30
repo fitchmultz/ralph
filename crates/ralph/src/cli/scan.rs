@@ -14,9 +14,21 @@
 //! - Runner overrides are validated by the agent resolution helpers.
 
 use anyhow::Result;
-use clap::Args;
+use clap::{Args, ValueEnum};
 
 use crate::{agent, commands::scan as scan_cmd, config};
+
+/// Scan mode determining the focus of the repository scan.
+#[derive(Clone, Copy, Debug, Default, ValueEnum, PartialEq, Eq)]
+pub enum ScanMode {
+    /// Maintenance mode: find bugs, workflow gaps, design flaws, repo rules violations.
+    /// This is the default mode focused on break-fix maintenance and code hygiene.
+    #[default]
+    Maintenance,
+    /// Innovation mode: find feature gaps, use-case completeness issues, enhancement opportunities.
+    /// Focus on new features and strategic additions.
+    Innovation,
+}
 
 pub fn handle_scan(args: ScanArgs, force: bool) -> Result<()> {
     let resolved = config::resolve_from_cwd()?;
@@ -39,6 +51,7 @@ pub fn handle_scan(args: ScanArgs, force: bool) -> Result<()> {
         &resolved,
         scan_cmd::ScanOptions {
             focus,
+            mode: args.mode,
             runner_override: overrides.runner,
             model_override: overrides.model,
             reasoning_effort_override: overrides.reasoning_effort,
@@ -60,7 +73,7 @@ pub fn handle_scan(args: ScanArgs, force: bool) -> Result<()> {
 #[derive(Args)]
 #[command(
     about = "Scan repository for new tasks and focus areas",
-    after_long_help = "Runner selection:\n  - Override runner/model/effort for this invocation using flags.\n  - Defaults come from config when flags are omitted.\n\nRunner CLI options:\n  - Override approval/sandbox/verbosity/plan-mode via flags.\n  - Unsupported options follow --unsupported-option-policy.\n\nSafety:\n  - Clean-repo checks allow changes to `.ralph/queue.json` and `.ralph/done.json` only (not `.ralph/config.json`).\n  - Use `--force` to bypass the clean-repo check (and stale queue locks) entirely if needed.\n\nExamples:\n  ralph scan\n  ralph scan \"production readiness gaps\"                              # Positional prompt\n  ralph scan --focus \"production readiness gaps\"                     # Flag-based prompt (backward compatible)\n  ralph scan --runner opencode --model gpt-5.2 \"CI and safety gaps\"  # With runner overrides\n  ralph scan --runner gemini --model gemini-3-flash-preview \"risk audit\"\n  ralph scan --runner codex --model gpt-5.2-codex --effort high \"queue correctness\"\n  ralph scan --approval-mode auto-edits --runner claude \"auto edits review\"\n  ralph scan --sandbox disabled --runner codex \"sandbox audit\"\n  ralph scan --repo-prompt plan \"Deep codebase analysis\"\n  ralph scan --repo-prompt off \"Quick surface scan\"\n  ralph scan --runner kimi \"risk audit\"\n  ralph scan --runner pi \"risk audit\""
+    after_long_help = "Runner selection:\n  - Override runner/model/effort for this invocation using flags.\n  - Defaults come from config when flags are omitted.\n\nRunner CLI options:\n  - Override approval/sandbox/verbosity/plan-mode via flags.\n  - Unsupported options follow --unsupported-option-policy.\n\nSafety:\n  - Clean-repo checks allow changes to `.ralph/queue.json` and `.ralph/done.json` only (not `.ralph/config.json`).\n  - Use `--force` to bypass the clean-repo check (and stale queue locks) entirely if needed.\n\nExamples:\n  ralph scan\n  ralph scan \"production readiness gaps\"                              # Positional prompt\n  ralph scan --focus \"production readiness gaps\"                     # Flag-based prompt (backward compatible)\n  ralph scan --mode maintenance \"security audit\"                     # Maintenance mode (default)\n  ralph scan --mode innovation \"feature gaps for CLI\"                # Innovation mode\n  ralph scan -m innovation \"enhancement opportunities\"               # Short flag for mode\n  ralph scan --runner opencode --model gpt-5.2 \"CI and safety gaps\"  # With runner overrides\n  ralph scan --runner gemini --model gemini-3-flash-preview \"risk audit\"\n  ralph scan --runner codex --model gpt-5.2-codex --effort high \"queue correctness\"\n  ralph scan --approval-mode auto-edits --runner claude \"auto edits review\"\n  ralph scan --sandbox disabled --runner codex \"sandbox audit\"\n  ralph scan --repo-prompt plan \"Deep codebase analysis\"\n  ralph scan --repo-prompt off \"Quick surface scan\"\n  ralph scan --runner kimi \"risk audit\"\n  ralph scan --runner pi \"risk audit\""
 )]
 pub struct ScanArgs {
     /// Optional focus prompt as positional argument (alternative to --focus).
@@ -70,6 +83,11 @@ pub struct ScanArgs {
     /// Optional focus prompt to guide the scan.
     #[arg(long, default_value = "")]
     pub focus: String,
+
+    /// Scan mode: maintenance (default) for code hygiene and bug finding,
+    /// innovation for feature discovery and enhancement opportunities.
+    #[arg(short = 'm', long, value_enum, default_value_t = ScanMode::Maintenance)]
+    pub mode: ScanMode,
 
     /// Runner to use. CLI flag overrides config defaults (project > global > built-in).
     #[arg(long)]
@@ -96,6 +114,7 @@ pub struct ScanArgs {
 mod tests {
     use clap::{CommandFactory, Parser};
 
+    use crate::cli::scan::ScanMode;
     use crate::cli::Cli;
 
     #[test]
@@ -249,6 +268,69 @@ mod tests {
                 // Both should be parsed correctly
                 assert_eq!(args.focus, "flag-based focus");
                 assert_eq!(args.prompt, vec!["positional", "focus"]);
+            }
+            _ => panic!("expected scan command"),
+        }
+    }
+
+    #[test]
+    fn scan_parses_mode_maintenance() {
+        let cli = Cli::try_parse_from(["ralph", "scan", "--mode", "maintenance"]).expect("parse");
+
+        match cli.command {
+            crate::cli::Command::Scan(args) => {
+                assert_eq!(args.mode, ScanMode::Maintenance);
+            }
+            _ => panic!("expected scan command"),
+        }
+    }
+
+    #[test]
+    fn scan_parses_mode_innovation() {
+        let cli = Cli::try_parse_from(["ralph", "scan", "--mode", "innovation"]).expect("parse");
+
+        match cli.command {
+            crate::cli::Command::Scan(args) => {
+                assert_eq!(args.mode, ScanMode::Innovation);
+            }
+            _ => panic!("expected scan command"),
+        }
+    }
+
+    #[test]
+    fn scan_parses_mode_short_flag() {
+        let cli = Cli::try_parse_from(["ralph", "scan", "-m", "innovation"]).expect("parse");
+
+        match cli.command {
+            crate::cli::Command::Scan(args) => {
+                assert_eq!(args.mode, ScanMode::Innovation);
+            }
+            _ => panic!("expected scan command"),
+        }
+    }
+
+    #[test]
+    fn scan_default_mode_is_maintenance() {
+        // When no --mode flag is provided, default should be maintenance
+        let cli = Cli::try_parse_from(["ralph", "scan"]).expect("parse");
+
+        match cli.command {
+            crate::cli::Command::Scan(args) => {
+                assert_eq!(args.mode, ScanMode::Maintenance);
+            }
+            _ => panic!("expected scan command"),
+        }
+    }
+
+    #[test]
+    fn scan_mode_with_positional_prompt() {
+        let cli = Cli::try_parse_from(["ralph", "scan", "--mode", "innovation", "feature gaps"])
+            .expect("parse");
+
+        match cli.command {
+            crate::cli::Command::Scan(args) => {
+                assert_eq!(args.mode, ScanMode::Innovation);
+                assert_eq!(args.prompt, vec!["feature gaps"]);
             }
             _ => panic!("expected scan command"),
         }

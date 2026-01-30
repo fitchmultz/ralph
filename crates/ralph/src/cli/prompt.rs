@@ -70,6 +70,7 @@ pub fn handle_prompt(args: PromptArgs) -> Result<()> {
                 &resolved,
                 prompt_cmd::ScanPromptOptions {
                     focus: p.focus,
+                    mode: p.mode,
                     repoprompt_tool_injection: rp_required,
                     explain: p.explain,
                 },
@@ -202,6 +203,11 @@ pub struct PromptScanArgs {
     /// Optional scan focus prompt.
     #[arg(long, default_value = "")]
     pub focus: String,
+
+    /// Scan mode: maintenance (default) for code hygiene and bug finding,
+    /// innovation for feature discovery and enhancement opportunities.
+    #[arg(short = 'm', long, value_enum, default_value_t = super::scan::ScanMode::Maintenance)]
+    pub mode: super::scan::ScanMode,
 
     /// RepoPrompt mode (tools, plan, off). Alias: -rp.
     #[arg(long = "repo-prompt", value_enum, value_name = "MODE")]

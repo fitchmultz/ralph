@@ -18,6 +18,7 @@ use std::sync::Arc;
 
 use crate::{
     agent,
+    cli::scan::ScanMode,
     commands::{run as run_cmd, scan as scan_cmd},
     config, runner, runutil,
 };
@@ -134,6 +135,7 @@ pub fn build_interactive_factories_with_invokers(
                 &resolved,
                 scan_cmd::ScanOptions {
                     focus,
+                    mode: ScanMode::Maintenance,
                     runner_override: overrides.runner,
                     model_override: overrides.model,
                     reasoning_effort_override: overrides.reasoning_effort,

@@ -15,6 +15,7 @@
 //! - Runner execution requires stream-json output for parsing.
 //! - Permission/approval defaults come from config unless overridden at CLI.
 
+use crate::cli::scan::ScanMode;
 use crate::commands::run::PhaseType;
 use crate::contracts::{
     ClaudePermissionMode, GitRevertMode, Model, ProjectType, ReasoningEffort, Runner,
@@ -40,6 +41,7 @@ use anyhow::{Context, Result};
 
 pub struct ScanOptions {
     pub focus: String,
+    pub mode: ScanMode,
     pub runner_override: Option<Runner>,
     pub model_override: Option<Model>,
     pub reasoning_effort_override: Option<ReasoningEffort>,
@@ -150,8 +152,13 @@ pub fn run_scan(resolved: &config::Resolved, opts: ScanOptions) -> Result<()> {
 
     let template = prompts::load_scan_prompt(&resolved.repo_root)?;
     let project_type = resolved.config.project_type.unwrap_or(ProjectType::Code);
-    let mut prompt =
-        prompts::render_scan_prompt(&template, &opts.focus, project_type, &resolved.config)?;
+    let mut prompt = prompts::render_scan_prompt(
+        &template,
+        &opts.focus,
+        opts.mode,
+        project_type,
+        &resolved.config,
+    )?;
 
     prompt = prompts::wrap_with_repoprompt_requirement(&prompt, opts.repoprompt_tool_injection);
     prompt = prompts::wrap_with_instruction_files(&resolved.repo_root, &prompt, &resolved.config)?;
@@ -348,6 +355,7 @@ mod tests {
     fn scan_opts() -> ScanOptions {
         ScanOptions {
             focus: "scan".to_string(),
+            mode: ScanMode::Maintenance,
             runner_override: None,
             model_override: None,
             reasoning_effort_override: None,

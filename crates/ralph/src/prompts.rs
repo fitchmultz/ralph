@@ -11,6 +11,7 @@
 //! Invariants/assumptions:
 //! - Public exports here are intentional and minimal.
 
+use crate::cli::scan::ScanMode;
 use crate::contracts::{Config, ProjectType};
 use crate::prompts_internal;
 use anyhow::Result;
@@ -41,10 +42,11 @@ pub(crate) fn load_scan_prompt(repo_root: &Path) -> Result<String> {
 pub(crate) fn render_scan_prompt(
     template: &str,
     focus: &str,
+    mode: ScanMode,
     project_type: ProjectType,
     config: &Config,
 ) -> Result<String> {
-    prompts_internal::scan::render_scan_prompt(template, focus, project_type, config)
+    prompts_internal::scan::render_scan_prompt(template, focus, mode, project_type, config)
 }
 
 pub(crate) fn load_task_builder_prompt(repo_root: &Path) -> Result<String> {

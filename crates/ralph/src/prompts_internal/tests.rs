@@ -8,6 +8,7 @@
 
 use super::registry::{prompt_template, PromptTemplateId};
 use super::{review::*, scan::*, task_builder::*, util::*, worker::*, worker_phases::*};
+use crate::cli::scan::ScanMode;
 use crate::contracts::{Config, ProjectType};
 use anyhow::Result;
 use std::fs;
@@ -144,7 +145,7 @@ fn required_placeholders_fail_when_missing() {
 
 #[test]
 fn required_placeholders_pass_when_present() -> Result<()> {
-    let template = "FOCUS={{USER_FOCUS}}";
+    let template = "FOCUS={{USER_FOCUS}}\nMODE={{MODE_GUIDANCE}}";
     let meta = prompt_template(PromptTemplateId::Scan);
     ensure_required_placeholders(template, meta.required_placeholders)?;
     Ok(())
@@ -161,21 +162,68 @@ fn render_worker_prompt_replaces_interactive_instructions() -> Result<()> {
 
 #[test]
 fn render_scan_prompt_replaces_focus_placeholder() -> Result<()> {
-    let template = "FOCUS:\n{{USER_FOCUS}}\n";
+    let template = "FOCUS:\n{{USER_FOCUS}}\nMODE:\n{{MODE_GUIDANCE}}\n";
     let config = default_config();
-    let rendered = render_scan_prompt(template, "hello world", ProjectType::Code, &config)?;
+    let rendered = render_scan_prompt(
+        template,
+        "hello world",
+        ScanMode::Maintenance,
+        ProjectType::Code,
+        &config,
+    )?;
     assert!(rendered.contains("hello world"));
     assert!(!rendered.contains("{{USER_FOCUS}}"));
+    assert!(!rendered.contains("{{MODE_GUIDANCE}}"));
     Ok(())
 }
 
 #[test]
 fn render_scan_prompt_allows_placeholder_like_focus() -> Result<()> {
-    let template = "FOCUS:\n{{USER_FOCUS}}\n";
+    let template = "FOCUS:\n{{USER_FOCUS}}\nMODE:\n{{MODE_GUIDANCE}}\n";
     let config = default_config();
     let focus = "see {{config.agent.model}} here";
-    let rendered = render_scan_prompt(template, focus, ProjectType::Code, &config)?;
+    let rendered = render_scan_prompt(
+        template,
+        focus,
+        ScanMode::Maintenance,
+        ProjectType::Code,
+        &config,
+    )?;
     assert!(rendered.contains(focus));
+    Ok(())
+}
+
+#[test]
+fn render_scan_prompt_innovation_mode_includes_innovation_guidance() -> Result<()> {
+    let template = "FOCUS:\n{{USER_FOCUS}}\nMODE:\n{{MODE_GUIDANCE}}\n";
+    let config = default_config();
+    let rendered = render_scan_prompt(
+        template,
+        "",
+        ScanMode::Innovation,
+        ProjectType::Code,
+        &config,
+    )?;
+    assert!(rendered.contains("feature discovery"));
+    assert!(rendered.contains("enhancement opportunities"));
+    assert!(!rendered.contains("{{MODE_GUIDANCE}}"));
+    Ok(())
+}
+
+#[test]
+fn render_scan_prompt_maintenance_mode_includes_maintenance_guidance() -> Result<()> {
+    let template = "FOCUS:\n{{USER_FOCUS}}\nMODE:\n{{MODE_GUIDANCE}}\n";
+    let config = default_config();
+    let rendered = render_scan_prompt(
+        template,
+        "",
+        ScanMode::Maintenance,
+        ProjectType::Code,
+        &config,
+    )?;
+    assert!(rendered.contains("code review"));
+    assert!(rendered.contains("code hygiene"));
+    assert!(!rendered.contains("{{MODE_GUIDANCE}}"));
     Ok(())
 }
 

@@ -11,12 +11,14 @@
 //! Invariants/assumptions:
 //! - ScanOptions runner/model fields represent overrides, not resolved defaults.
 
+use ralph::cli::scan::ScanMode;
 use ralph::commands::scan as scan_cmd;
 use ralph::contracts::{GitRevertMode, Model, Runner, RunnerCliOptionsPatch};
 
 fn base_scan_options() -> scan_cmd::ScanOptions {
     scan_cmd::ScanOptions {
         focus: String::new(),
+        mode: ScanMode::Maintenance,
         runner_override: Some(Runner::Codex),
         model_override: Some(Model::Gpt52Codex),
         reasoning_effort_override: None,

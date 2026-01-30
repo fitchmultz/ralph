@@ -39,10 +39,16 @@ pub(crate) struct PromptTemplate {
 
 const EMPTY_REQUIRED: &[RequiredPlaceholder] = &[];
 
-const SCAN_REQUIRED: &[RequiredPlaceholder] = &[RequiredPlaceholder {
-    token: "{{USER_FOCUS}}",
-    error_message: "Template error: scan prompt template is missing the required '{{USER_FOCUS}}' placeholder. Ensure the template in .ralph/prompts/scan.md includes this placeholder.",
-}];
+const SCAN_REQUIRED: &[RequiredPlaceholder] = &[
+    RequiredPlaceholder {
+        token: "{{USER_FOCUS}}",
+        error_message: "Template error: scan prompt template is missing the required '{{USER_FOCUS}}' placeholder. Ensure the template in .ralph/prompts/scan.md includes this placeholder.",
+    },
+    RequiredPlaceholder {
+        token: "{{MODE_GUIDANCE}}",
+        error_message: "Template error: scan prompt template is missing the required '{{MODE_GUIDANCE}}' placeholder. Ensure the template in .ralph/prompts/scan.md includes this placeholder.",
+    },
+];
 
 const TASK_BUILDER_REQUIRED: &[RequiredPlaceholder] = &[
     RequiredPlaceholder {

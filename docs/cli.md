@@ -569,6 +569,9 @@ Key flags:
 
 * `[PROMPT]`: Optional focus prompt as a positional argument (alternative to `--focus`).
 * `--focus <TEXT>`: Optional focus prompt to guide the scan (backward compatible).
+* `--mode <maintenance|innovation>` (alias: `-m`): Scan mode determining the focus of the repository scan.
+  * `maintenance` (default): Find bugs, workflow gaps, design flaws, repo rules violations. Focus on code hygiene and break-fix maintenance.
+  * `innovation`: Find feature gaps, use-case completeness issues, enhancement opportunities. Focus on new features and strategic additions.
 * `--runner <codex|opencode|gemini|claude|cursor|kimi|pi>`, `--model <model-id>`, `--effort <low|medium|high|xhigh>` (alias: `-e`): Override runner/model/effort for this invocation.
 * `--repo-prompt <tools|plan|off>` (alias: `-rp`): `tools` = tooling reminders only, `plan` = planning requirement + tooling reminders, `off` = disable both.
 * Runner CLI overrides: `--approval-mode <default|auto-edits|yolo|safe>`, `--sandbox <default|enabled|disabled>`, `--verbosity <quiet|normal|verbose>`, `--plan-mode <default|enabled|disabled>`, `--output-format <stream-json|json|text>`, `--unsupported-option-policy <ignore|warn|error>`.
@@ -583,6 +586,9 @@ Examples:
 ralph scan
 ralph scan "production readiness gaps"                              # Positional prompt
 ralph scan --focus "production readiness gaps"                        # Flag-based prompt
+ralph scan --mode maintenance "security audit"                        # Maintenance mode (default)
+ralph scan --mode innovation "feature gaps for CLI"                   # Innovation mode
+ralph scan -m innovation "enhancement opportunities"                  # Short flag for mode
 ralph scan --runner opencode --model gpt-5.2 "CI and safety gaps"     # With runner overrides
 ralph scan --force "scan even with uncommitted changes"
 ralph scan --approval-mode auto-edits --runner claude "auto edits review"

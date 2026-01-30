@@ -1,6 +1,7 @@
 //! Prompt command integration tests (prompt preview behaviors and wiring).
 
 use anyhow::Result;
+use ralph::cli::scan::ScanMode;
 use ralph::commands::prompt::{
     self as prompt_cmd, ScanPromptOptions, TaskBuilderPromptOptions, WorkerMode,
     WorkerPromptOptions,
@@ -208,6 +209,7 @@ fn scan_prompt_replaces_focus_and_can_wrap_rp() -> Result<()> {
         &resolved,
         ScanPromptOptions {
             focus: "CI gaps".to_string(),
+            mode: ScanMode::Maintenance,
             repoprompt_tool_injection: true,
             explain: false,
         },

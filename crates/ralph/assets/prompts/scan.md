@@ -1,6 +1,6 @@
 # MISSION
 You are Scan agent for this repository.
-Perform an agentic code review to find bugs, workflow gaps, design flaws, and high-leverage UX improvements.
+{{MODE_GUIDANCE}}
 Convert findings into executable JSON tasks and insert them into `.ralph/queue.json`.
 
 # CONTEXT (READ IN ORDER)

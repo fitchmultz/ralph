@@ -293,6 +293,7 @@ pub struct WorkerPromptOptions {
 #[derive(Debug, Clone)]
 pub struct ScanPromptOptions {
     pub focus: String,
+    pub mode: crate::cli::scan::ScanMode,
     pub repoprompt_tool_injection: bool,
     pub explain: bool,
 }
@@ -629,8 +630,13 @@ pub fn build_worker_prompt(
 pub fn build_scan_prompt(resolved: &config::Resolved, opts: ScanPromptOptions) -> Result<String> {
     let template = prompts::load_scan_prompt(&resolved.repo_root)?;
     let project_type = resolved.config.project_type.unwrap_or(ProjectType::Code);
-    let rendered =
-        prompts::render_scan_prompt(&template, &opts.focus, project_type, &resolved.config)?;
+    let rendered = prompts::render_scan_prompt(
+        &template,
+        &opts.focus,
+        opts.mode,
+        project_type,
+        &resolved.config,
+    )?;
     let prompt =
         prompts::wrap_with_repoprompt_requirement(&rendered, opts.repoprompt_tool_injection);
     let prompt =
