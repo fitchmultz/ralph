@@ -2,6 +2,48 @@
   "version": 1,
   "tasks": [
     {
+      "id": "RQ-0457",
+      "status": "todo",
+      "title": "Fix kimi runner reasoning block color bleeding",
+      "priority": "high",
+      "tags": [
+        "runner",
+        "kimi",
+        "bug",
+        "ui"
+      ],
+      "scope": [
+        "crates/ralph/src/output/theme.rs",
+        "crates/ralph/src/runner/execution/stream.rs",
+        "crates/ralph/src/runner/execution/tests/stream.rs"
+      ],
+      "evidence": [
+        "User request: The kimi runner is working now but the color coding is wrong - only the '{Reasoning]' block should be colored purple but the block and all of its text is purple",
+        "RQ-0456 fixed kimi runner output parsing and session ID capture; this is a follow-up UI issue",
+        "theme.rs format_reasoning() applies .bright_blue() to both prefix [Reasoning] and content",
+        "Other runners (Codex, Claude) use format_reasoning() which colors the entire content bright_blue",
+        "Color bleeding suggests missing ANSI reset code at end of formatted reasoning line"
+      ],
+      "plan": [
+        "Compare kimi runner reasoning display with other runners (codex, claude, opencode)",
+        "Investigate ANSI color reset behavior in format_reasoning() - may need explicit reset code",
+        "Check if kimi output format causes different display path that doesn't properly close color codes",
+        "Fix color bleeding by ensuring proper ANSI reset sequence after reasoning content",
+        "Test fix with kimi runner to verify only [Reasoning] prefix is colored, content is normal",
+        "Run make ci to ensure tests pass and no regressions in other runners"
+      ],
+      "notes": [],
+      "request": "The kimi runner is working now but the color coding is wrong. Only the '{Reasoning]' block should be colored purple but the block and all of its text is purple. See what is different with these. Read RQ-0456 from the done.json queue file to see original context.",
+      "created_at": "2026-01-30T20:10:40Z",
+      "updated_at": "2026-01-30T20:10:40Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [
+        "RQ-0456"
+      ],
+      "custom_fields": {}
+    },
+    {
       "id": "RQ-0439",
       "status": "todo",
       "title": "Implement subtask support for hierarchical task breakdown",
