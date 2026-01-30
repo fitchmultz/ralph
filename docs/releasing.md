@@ -31,6 +31,59 @@ Before creating a release, ensure you have:
    - On `main` branch
    - Remote is accessible
 
+## Changelog Generation
+
+Ralph uses [git-cliff](https://git-cliff.org/) to automatically generate changelog entries from commits following the `RQ-####: <summary>` pattern.
+
+### Install git-cliff
+
+```bash
+cargo install git-cliff
+```
+
+### Preview Changes
+
+Before releasing, preview what entries will be generated:
+
+```bash
+make changelog-preview
+```
+
+### Generate Changelog
+
+To update the `CHANGELOG.md` Unreleased section with entries from commits:
+
+```bash
+make changelog
+```
+
+This will:
+- Parse commits since the last tag
+- Categorize them into Added/Changed/Fixed/Removed/Security sections
+- Insert them into the `## [Unreleased]` section
+- Preserve any existing manual entries
+
+### Commit Message Patterns
+
+The changelog generator categorizes commits based on the first word after `RQ-####:`:
+
+| Pattern | Section | Examples |
+|---------|---------|----------|
+| `Add`, `Implement`, `Create`, `Introduce`, `Enable` | **Added** | `RQ-0042: Add new command` |
+| `Fix`, `Bugfix`, `Resolve`, `Correct` | **Fixed** | `RQ-0043: Fix race condition` |
+| `Update`, `Change`, `Refactor`, `Modify`, `Enhance`, `Improve`, `Redesign`, `Rework`, `Assess`, `Verify`, `Design`, `Integrate` | **Changed** | `RQ-0044: Refactor module` |
+| `Remove`, `Delete`, `Deprecate` | **Removed** | `RQ-0045: Remove deprecated API` |
+| `Security` | **Security** | `RQ-0046: Security patch` |
+
+### Manual Editing
+
+After running `make changelog`, you can manually edit `CHANGELOG.md` to:
+- Add high-level descriptions of features
+- Reorganize entries between sections
+- Add context or migration notes
+
+The release script will preserve these manual edits when versioning the changelog.
+
 ## Release Process
 
 ### 1. Prepare for Release
@@ -42,7 +95,20 @@ git checkout main
 git pull origin main
 ```
 
-### 2. Run the Release Script
+### 2. Generate Changelog (Optional)
+
+The release script automatically generates changelog entries, but you can preview or manually update:
+
+```bash
+# Preview what will be added
+make changelog-preview
+
+# Or manually generate entries
+make changelog
+# Then edit CHANGELOG.md as needed
+```
+
+### 3. Run the Release Script
 
 The release script handles the entire process:
 
@@ -54,7 +120,7 @@ scripts/release.sh 0.2.0
 RELEASE_DRY_RUN=1 scripts/release.sh 0.2.0
 ```
 
-### 3. What the Script Does
+### 4. What the Script Does
 
 The release script performs these steps:
 
@@ -87,7 +153,7 @@ The release script performs these steps:
    - Uploads release artifacts (binaries + checksums)
    - Uses template from `.github/release-notes-template.md`
 
-### 4. Verify the Release
+### 5. Verify the Release
 
 After the script completes:
 
@@ -294,7 +360,8 @@ Before running the release script:
 
 - [ ] All changes for this release are merged to `main`
 - [ ] `make ci` passes locally
-- [ ] `CHANGELOG.md` has content under `## [Unreleased]`
+- [ ] `CHANGELOG.md` has content under `## [Unreleased]` (run `make changelog` to generate)
+- [ ] Changelog entries are categorized correctly (Added/Changed/Fixed/etc.)
 - [ ] Version follows semver (e.g., `0.2.0`)
 - [ ] `gh auth status` shows you're authenticated
 - [ ] Working directory is clean (`git status`)
@@ -315,11 +382,16 @@ After the release:
 | `make release-dry-run VERSION=0.2.0` | Test release without side effects |
 | `make release-artifacts` | Build release artifacts only |
 | `make build-release` | Build release binary |
+| `make changelog` | Generate changelog entries from commits |
+| `make changelog-preview` | Preview changelog changes without modifying files |
+| `make changelog-check` | Check if changelog is up to date (CI) |
 
 ## Related Files
 
 - `scripts/release.sh` - Main release orchestration script
 - `scripts/build-release-artifacts.sh` - Multi-platform build script
+- `scripts/generate-changelog.sh` - Changelog generation from commits
+- `cliff.toml` - git-cliff configuration for RQ-#### pattern
 - `.github/release-notes-template.md` - Release notes template
 - `CHANGELOG.md` - Version history
 - `crates/ralph/Cargo.toml` - Package manifest

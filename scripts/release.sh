@@ -182,7 +182,24 @@ update_cargo_version() {
     fi
 }
 
-# Update CHANGELOG.md
+# Generate changelog entries from commits
+generate_changelog_entries() {
+    log_step "Generating changelog entries from commits"
+
+    if [ "$DRY_RUN" = "1" ]; then
+        echo "    [DRY RUN] Would run: scripts/generate-changelog.sh"
+        echo "    [DRY RUN]   - Generate entries from RQ-#### commits since last tag"
+        echo "    [DRY RUN]   - Update CHANGELOG.md Unreleased section"
+    else
+        if ! "$SCRIPT_DIR/generate-changelog.sh"; then
+            log_warn "Changelog generation had issues, continuing with manual update"
+        else
+            log_success "Generated changelog entries"
+        fi
+    fi
+}
+
+# Update CHANGELOG.md with version section
 update_changelog() {
     log_step "Updating CHANGELOG.md"
 
@@ -191,25 +208,99 @@ update_changelog() {
 
     if [ "$DRY_RUN" = "1" ]; then
         echo "    [DRY RUN] Would update $CHANGELOG"
-        echo "    [DRY RUN]   - Add version $VERSION section with date $today"
+        echo "    [DRY RUN]   - Move Unreleased content to version $VERSION section"
         echo "    [DRY RUN]   - Update comparison links"
     else
-        # Add new version section after Unreleased
-        sed -i.bak -E \
-            -e "s/(## \[Unreleased\])/
-\1\n\n## [$VERSION] - $today/" \
-            "$CHANGELOG"
+        # Move Unreleased content to new version section
+        # This preserves the generated entries and creates a new empty Unreleased section
 
-        # Update comparison links
+        # Create temp file for processing
+        local temp_file
+        temp_file=$(mktemp)
+
+        # Read current changelog and transform it
+        local in_unreleased=0
+        local found_unreleased=0
+        local unreleased_content=""
+        local before_unreleased=""
+        local after_unreleased=""
+
+        while IFS= read -r line || [ -n "$line" ]; do
+            if [ "$found_unreleased" -eq 0 ]; then
+                # Looking for ## [Unreleased]
+                if [[ "$line" =~ ^##\ \[Unreleased\] ]]; then
+                    found_unreleased=1
+                    in_unreleased=1
+                    # Don't include the Unreleased header in before
+                else
+                    before_unreleased="$before_unreleased$line"$'\n'
+                fi
+            elif [ "$in_unreleased" -eq 1 ]; then
+                # Inside Unreleased section, looking for next ##
+                if [[ "$line" =~ ^##\ \[ ]]; then
+                    in_unreleased=0
+                    after_unreleased="$line"$'\n'
+                else
+                    unreleased_content="$unreleased_content$line"$'\n'
+                fi
+            else
+                # After Unreleased section
+                after_unreleased="$after_unreleased$line"$'\n'
+            fi
+        done < "$CHANGELOG"
+
+        if [ "$found_unreleased" -eq 0 ]; then
+            log_error "Could not find ## [Unreleased] section in CHANGELOG.md"
+            rm -f "$temp_file"
+            exit 1
+        fi
+
+        # Clean up unreleased content (remove leading/trailing blank lines)
+        unreleased_content=$(echo "$unreleased_content" | sed -e '/./,$!d' -e :a -e '/^\n*$/{$d;N;};/\n$/ba')
+
+        # Get current base version from comparison link
         local current_base
-        current_base=$(grep '^\[Unreleased\]:' "$CHANGELOG" | sed 's/.*compare\/v\([0-9.]*\)\.\.\.HEAD.*/\1/')
-        sed -i.bak -E \
+        current_base=$(echo "$before_unreleased" | grep '^\[Unreleased\]:' | sed 's/.*compare\/v\([0-9.]*\)\.\.\.HEAD.*/\1/' || echo "0.1.0")
+
+        # Write new changelog
+        {
+            # Header and everything before Unreleased
+            echo -n "$before_unreleased"
+
+            # New empty Unreleased section
+            echo "## [Unreleased]"
+            echo ""
+
+            # New version section with the content
+            echo "## [$VERSION] - $today"
+            echo ""
+
+            # Add the content from Unreleased (only if there's actual content)
+            if [ -n "$unreleased_content" ]; then
+                echo "$unreleased_content"
+                echo ""
+            fi
+
+            # Everything after the old Unreleased section
+            echo -n "$after_unreleased"
+
+            # Update comparison links at the end
+            # First, update the Unreleased link to point to new version
+            # Then add the new version link
+        } > "$temp_file"
+
+        # Update the comparison links
+        sed -i.bak \
             -e "s|^\[Unreleased\]: .*|[Unreleased]: https://github.com/mitchfultz/ralph/compare/v$VERSION...HEAD|" \
             -e "/^\[$current_base\]: /a\\
 [$VERSION]: https://github.com/mitchfultz/ralph/releases/tag/v$VERSION" \
-            "$CHANGELOG"
+            "$temp_file"
 
-        rm -f "$CHANGELOG.bak"
+        rm -f "$temp_file.bak"
+
+        # Replace original with updated
+        mv "$temp_file" "$CHANGELOG"
+
         log_success "Updated CHANGELOG.md"
     fi
 }
@@ -521,6 +612,7 @@ main() {
     check_prerequisites
     validate_repo_state
     update_cargo_version
+    generate_changelog_entries
     update_changelog
     run_ci
     build_release_artifacts

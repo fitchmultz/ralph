@@ -2,45 +2,119 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0401",
+      "id": "RQ-0430",
       "status": "todo",
-      "title": "Create automated changelog generation from conventional commits",
-      "priority": "medium",
+      "title": "Add runner support for 'kimi' CLI",
+      "priority": "high",
       "tags": [
-        "changelog",
-        "automation",
-        "git",
-        "local-ci"
+        "runner",
+        "kimi",
+        "cli",
+        "integration"
       ],
       "scope": [
-        "scripts/",
-        "Makefile",
-        "CHANGELOG.md",
-        "docs/releasing.md"
+        "crates/ralph/src/cli/mod.rs",
+        "crates/ralph/src/cli/run.rs",
+        "crates/ralph/src/cli/task.rs",
+        "crates/ralph/src/cli/scan.rs",
+        "crates/ralph/src/runner.rs",
+        "crates/ralph/src/runner/execution/cli_spec.rs",
+        "crates/ralph/src/commands/doctor.rs",
+        "README.md",
+        "docs/cli.md"
       ],
       "evidence": [
-        "User request: 'proper versioning and changelog generation'",
-        "Current state: CHANGELOG.md is manually maintained with Keep a Changelog format",
-        "Current state: Commit messages follow 'RQ-####: <summary>' pattern",
-        "Constraint: No GitHub Actions allowed, must be local tooling"
+        "Kimi CLI binary 'kimi' exists and is being used by the user right now",
+        "Runner enum in contracts/config.rs already has Kimi variant defined",
+        "Basic implementation exists in runner.rs and execution/runners.rs",
+        "CLI help text does not list 'kimi' as an allowed runner: 'Allowed runners: codex, opencode, gemini, claude, cursor'",
+        "runner_cli_inventory.sh already includes 'kimi' in its inventory list",
+        "Kimi does not need a model passed by default - it uses the latest model automatically",
+        "Missing: CLI argument parsing, help text updates, documentation updates"
       ],
       "plan": [
-        "Evaluate options: git-cliff, conventional-changelog, or custom script",
-        "Choose tool that works locally without CI/CD infrastructure",
-        "Configure changelog generator to recognize 'RQ-####:' commit pattern",
-        "Add 'make changelog' target to generate/update CHANGELOG.md",
-        "Integrate changelog generation into release workflow",
-        "Ensure generated changelog follows Keep a Changelog format",
-        "Document changelog workflow in docs/releasing.md",
+        "Update CLI help text in cli/mod.rs to include 'kimi' in allowed runners list",
+        "Update CLI help text in cli/run.rs to include 'kimi' in allowed runners list",
+        "Update CLI help text in cli/task.rs to include 'kimi' examples",
+        "Update CLI help text in cli/scan.rs to include 'kimi' examples",
+        "Ensure --runner kimi is accepted by argument parser (Runner enum value)",
+        "Update runner.rs default_model_for_runner to return Model::Custom('kimi-for-coding') for Kimi",
+        "Update cli_spec.rs apply_kimi_options to handle kimi-for-coding model",
+        "Update doctor.rs to ensure kimi binary detection works correctly",
+        "Update README.md 'Runners' section to include Kimi with usage examples",
+        "Update docs/cli.md to include Kimi runner documentation",
         "Run 'make ci' to validate changes"
       ],
-      "notes": [],
-      "request": "We require proper versioning and changelog generation. Figure out a way to properly bump versions. Project is still synced with a private git repo. user has hesitancy to go public due to missing mechanisms to build and publish releases to his github with proper version control, changelogs, etc. no github actions are enabled or allowed on this project.",
-      "created_at": "2026-01-29T14:36:08Z",
-      "updated_at": "2026-01-29T14:36:08Z",
-      "depends_on": [
-        "RQ-0399"
+      "notes": [
+        "Default model for Kimi should be 'kimi-for-coding' (Kimi 2.5 coding model)",
+        "Kimi CLI uses '--yolo' or '-y' flag for auto-approval mode (NOT --approval-mode yolo),",
+        "Kimi also has '--print' mode which implicitly adds '--yolo'",
+        "Test with: ralph run one --runner kimi",
+        "'kimi-for-coding' is the recommended model for code generation tasks"
       ],
+      "request": "Add runner support for 'kimi' CLI. Kimi default model should be 'kimi-for-coding' (Kimi 2.5 coding model) - not 'kimi-k2'. Kimi uses '--yolo' or '-y' flag for auto-approval (current code incorrectly uses --approval-mode yolo). I am using kimi right now to have you do this. The runner infrastructure exists but needs to be fully exposed in CLI arguments, help text, and documentation.",
+      "created_at": "2026-01-30T00:05:00Z",
+      "updated_at": "2026-01-30T00:05:00Z",
+      "depends_on": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0431",
+      "status": "todo",
+      "title": "Add runner support for 'pi' CLI",
+      "priority": "high",
+      "tags": [
+        "runner",
+        "pi",
+        "cli",
+        "integration"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/mod.rs",
+        "crates/ralph/src/cli/run.rs",
+        "crates/ralph/src/cli/task.rs",
+        "crates/ralph/src/cli/scan.rs",
+        "crates/ralph/src/runner.rs",
+        "crates/ralph/src/runner/execution/cli_spec.rs",
+        "crates/ralph/src/commands/doctor.rs",
+        "README.md",
+        "docs/cli.md"
+      ],
+      "evidence": [
+        "Pi CLI binary 'pi' is mentioned in runner_cli_inventory.sh",
+        "Runner enum in contracts/config.rs already has Pi variant defined",
+        "Basic implementation exists in runner.rs and execution/runners.rs",
+        "CLI help text does not list 'pi' as an allowed runner: 'Allowed runners: codex, opencode, gemini, claude, cursor'",
+        "runner_cli_inventory.sh already includes 'pi' in its inventory list",
+        "User has not used pi before - behavior with --model flag is unknown",
+        "Missing: CLI argument parsing, help text updates, documentation updates, model handling verification"
+      ],
+      "plan": [
+        "Update CLI help text in cli/mod.rs to include 'pi' in allowed runners list",
+        "Update CLI help text in cli/run.rs to include 'pi' in allowed runners list",
+        "Update CLI help text in cli/task.rs to include 'pi' examples",
+        "Update CLI help text in cli/scan.rs to include 'pi' examples",
+        "Ensure --runner pi is accepted by argument parser (Runner enum value)",
+        "Set default model to 'gpt-5.2' for Pi runner in default_model_for_runner",
+        "Update runner.rs default_model_for_runner to return Model::Custom('gpt-5.2') for Pi",
+        "Update cli_spec.rs apply_pi_options to pass --model gpt-5.2 by default",
+        "Note: Pi does NOT have --yolo flag - use --print (-p) for non-interactive mode",
+        "Update doctor.rs to ensure pi binary detection works correctly",
+        "Update README.md 'Runners' section to include Pi with usage examples",
+        "Update docs/cli.md to include Pi runner documentation",
+        "Run 'make ci' to validate changes"
+      ],
+      "notes": [
+        "Default model for Pi should be 'gpt-5.2' (user specified this as default)",
+        "Pi does NOT have --yolo equivalent - it uses --print (-p) for non-interactive mode which auto-approves actions",
+        "Pi default model is 'gemini-2.5-flash' per its help - we override to gpt-5.2",
+        "Test with: ralph run one --runner pi after implementation",
+        "runner_cli_inventory.sh output can help determine pi's CLI interface"
+      ],
+      "request": "Add runner support for 'pi' CLI. Default model should be 'gpt-5.2'. Note: Pi does NOT have a --yolo flag - it uses --print (-p) for non-interactive mode. The runner infrastructure exists but needs to be fully exposed in CLI arguments, help text, and documentation.",
+      "created_at": "2026-01-30T00:06:00Z",
+      "updated_at": "2026-01-30T00:06:00Z",
+      "depends_on": [],
       "custom_fields": {}
     },
     {

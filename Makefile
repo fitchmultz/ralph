@@ -3,7 +3,7 @@ PREFIX ?= $(HOME)/.local
 BIN_DIR ?= $(PREFIX)/bin
 BIN_NAME ?= ralph
 
-.PHONY: install update lint type-check format clean clean-temp test generate build build-release ci runners-help release release-dry-run release-artifacts release-artifacts-all release-legacy
+.PHONY: install update lint type-check format clean clean-temp test generate build build-release ci runners-help release release-dry-run release-artifacts release-artifacts-all release-legacy changelog changelog-preview changelog-check
 
 install: build-release
 	@bin_dir="$(BIN_DIR)"; \
@@ -165,6 +165,21 @@ release-artifacts:
 # Usage: make release-artifacts-all [VERSION=0.2.0]
 release-artifacts-all:
 	@scripts/build-release-artifacts.sh --all $(VERSION)
+
+# Generate changelog entries from commits since last tag
+# Usage: make changelog
+changelog:
+	@scripts/generate-changelog.sh
+
+# Preview changelog changes without modifying files
+# Usage: make changelog-preview
+changelog-preview:
+	@scripts/generate-changelog.sh --dry-run
+
+# Check if changelog is up to date (CI)
+# Usage: make changelog-check
+changelog-check:
+	@scripts/generate-changelog.sh --check
 
 # Legacy release target (kept for compatibility)
 # Creates local tag only, no GitHub release
