@@ -24,3 +24,4 @@ pub(super) use runners::{
 };
 
 pub(crate) use cli_options::{resolve_runner_cli_options, ResolvedRunnerCliOptions};
+pub(crate) use process::ctrlc_state;

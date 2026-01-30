@@ -41,7 +41,7 @@ pub(crate) struct CtrlCState {
     pub(crate) interrupted: AtomicBool,
 }
 
-pub(super) fn ctrlc_state() -> &'static Arc<CtrlCState> {
+pub(crate) fn ctrlc_state() -> &'static Arc<CtrlCState> {
     static STATE: OnceLock<Arc<CtrlCState>> = OnceLock::new();
     STATE.get_or_init(|| {
         let state = Arc::new(CtrlCState {

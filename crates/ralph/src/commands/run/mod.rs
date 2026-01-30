@@ -141,6 +141,10 @@ pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()>
     let mut tasks_succeeded: usize = 0;
     let mut tasks_failed: usize = 0;
 
+    // Track consecutive failures to prevent infinite loops
+    let mut consecutive_failures: u32 = 0;
+    const MAX_CONSECUTIVE_FAILURES: u32 = 5;
+
     // Use a mutable reference to allow modification inside the closure
     let mut completed = completed_count;
 
@@ -160,13 +164,27 @@ pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()>
                     completed += 1;
                     tasks_attempted += 1;
                     tasks_succeeded += 1;
+                    consecutive_failures = 0; // Reset on success
                     log::info!("RunLoop: task-complete ({completed}/{initial_todo_count})");
                 }
                 Err(err) => {
                     completed += 1;
                     tasks_attempted += 1;
                     tasks_failed += 1;
+                    consecutive_failures += 1;
                     log::error!("RunLoop: task failed: {:#}", err);
+
+                    // Safety check: prevent infinite loops from rapid consecutive failures
+                    if consecutive_failures >= MAX_CONSECUTIVE_FAILURES {
+                        log::error!("RunLoop: aborting after {MAX_CONSECUTIVE_FAILURES} consecutive failures");
+                        return Err(anyhow::anyhow!(
+                            "Run loop aborted after {} consecutive task failures. \
+                             This usually indicates a systemic issue (e.g., repo dirty, \
+                             runner misconfiguration, or interrupt flag stuck). \
+                             Check logs above for root cause.",
+                            MAX_CONSECUTIVE_FAILURES
+                        ));
+                    }
                     // Continue with next task even if one failed
                 }
             }
@@ -305,6 +323,15 @@ fn run_one_impl(
     output_handler: Option<runner::OutputHandler>,
     revert_prompt: Option<runutil::RevertPromptHandler>,
 ) -> Result<RunOutcome> {
+    // Reset the Ctrl+C interrupt flag at the start of each task.
+    // This prevents the infinite loop bug where the interrupted flag persists
+    // across task attempts when the user cancels during pre-run updates or phases.
+    // The flag must be reset before any runner invocation (including task updater).
+    let ctrlc = crate::runner::ctrlc_state();
+    ctrlc
+        .interrupted
+        .store(false, std::sync::atomic::Ordering::SeqCst);
+
     let _queue_lock = match lock_mode {
         QueueLockMode::Acquire => Some(queue::acquire_queue_lock(
             &resolved.repo_root,

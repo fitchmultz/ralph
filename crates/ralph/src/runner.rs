@@ -14,7 +14,7 @@
 
 mod execution;
 
-pub(crate) use execution::ResolvedRunnerCliOptions;
+pub(crate) use execution::{ctrlc_state, ResolvedRunnerCliOptions};
 
 use crate::commands::run::PhaseType;
 use crate::contracts::{
