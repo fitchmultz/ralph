@@ -313,6 +313,7 @@ pub(crate) fn run_kimi(
     let builder = cli_spec::apply_kimi_options(builder, runner_cli);
     let (cmd, payload, _guards) = builder
         .model(&model)
+        .arg("--print")
         .output_format("stream-json")
         .stdin_payload(Some(prompt.as_bytes().to_vec()))
         .build();
@@ -346,6 +347,7 @@ pub(crate) fn run_kimi_resume(
         .arg("--resume")
         .arg(session_id)
         .model(&model)
+        .arg("--print")
         .output_format("stream-json")
         .arg(message)
         .build();
