@@ -165,6 +165,14 @@ pub struct RunAgentArgs {
     #[arg(long, conflicts_with = "notify")]
     pub no_notify: bool,
 
+    /// Enable desktop notification on task failure (overrides config).
+    #[arg(long, conflicts_with = "no_notify_fail")]
+    pub notify_fail: bool,
+
+    /// Disable desktop notification on task failure (overrides config).
+    #[arg(long, conflicts_with = "notify_fail")]
+    pub no_notify_fail: bool,
+
     /// Enable sound alert with notification (requires --notify or config enabled).
     #[arg(long)]
     pub notify_sound: bool,
@@ -197,6 +205,10 @@ pub struct AgentOverrides {
     pub include_draft: Option<bool>,
     /// Enable/disable desktop notification on task completion.
     pub notify_on_complete: Option<bool>,
+    /// Enable/disable desktop notification on task failure.
+    pub notify_on_fail: Option<bool>,
+    /// Enable/disable desktop notification when loop completes.
+    pub notify_on_loop_complete: Option<bool>,
     /// Enable sound alert with notification.
     pub notify_sound: Option<bool>,
     /// Enable strict LFS validation before commit.
@@ -372,6 +384,14 @@ pub fn resolve_run_agent_overrides(args: &RunAgentArgs) -> Result<AgentOverrides
         None
     };
 
+    let notify_on_fail = if args.notify_fail {
+        Some(true)
+    } else if args.no_notify_fail {
+        Some(false)
+    } else {
+        None
+    };
+
     let notify_sound = if args.notify_sound { Some(true) } else { None };
     let lfs_check = if args.lfs_check { Some(true) } else { None };
 
@@ -389,6 +409,8 @@ pub fn resolve_run_agent_overrides(args: &RunAgentArgs) -> Result<AgentOverrides
         git_commit_push_enabled,
         include_draft,
         notify_on_complete,
+        notify_on_fail,
+        notify_on_loop_complete: None,
         notify_sound,
         lfs_check,
     })
@@ -436,6 +458,8 @@ pub fn resolve_agent_overrides(args: &AgentArgs) -> Result<AgentOverrides> {
         git_commit_push_enabled: None,
         include_draft: None,
         notify_on_complete: None,
+        notify_on_fail: None,
+        notify_on_loop_complete: None,
         notify_sound: None,
         lfs_check: None,
     })
@@ -618,6 +642,8 @@ mod tests {
             git_commit_push_enabled: None,
             include_draft: None,
             notify_on_complete: None,
+            notify_on_fail: None,
+            notify_on_loop_complete: None,
             notify_sound: None,
             lfs_check: None,
         };
@@ -734,6 +760,8 @@ mod tests {
             no_update_task: false,
             notify: false,
             no_notify: false,
+            notify_fail: false,
+            no_notify_fail: false,
             notify_sound: false,
             lfs_check: false,
         };
@@ -771,6 +799,8 @@ mod tests {
             no_update_task: false,
             notify: false,
             no_notify: false,
+            notify_fail: false,
+            no_notify_fail: false,
             notify_sound: false,
             lfs_check: false,
         };
@@ -804,6 +834,8 @@ mod tests {
             no_update_task: true,
             notify: false,
             no_notify: false,
+            notify_fail: false,
+            no_notify_fail: false,
             notify_sound: false,
             lfs_check: false,
         };
@@ -830,6 +862,8 @@ mod tests {
             no_update_task: false,
             notify: false,
             no_notify: false,
+            notify_fail: false,
+            no_notify_fail: false,
             notify_sound: false,
             lfs_check: false,
         };
@@ -856,6 +890,8 @@ mod tests {
             no_update_task: false,
             notify: false,
             no_notify: false,
+            notify_fail: false,
+            no_notify_fail: false,
             notify_sound: false,
             lfs_check: false,
         };

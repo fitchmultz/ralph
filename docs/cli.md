@@ -1386,7 +1386,9 @@ The `run one` and `run loop` commands also support:
 * `--no-update-task`: Disable automatic pre-run task update for this invocation (overrides config).
 * `--notify`: Enable desktop notification on task completion (overrides config).
 * `--no-notify`: Disable desktop notification on task completion (overrides config).
-* `--notify-sound`: Enable sound alert with notification (works with `--notify` or when enabled in config).
+* `--notify-fail`: Enable desktop notification on task failure (overrides config).
+* `--no-notify-fail`: Disable desktop notification on task failure (overrides config).
+* `--notify-sound`: Enable sound alert with notification (works with notification flags or when enabled in config).
 * `--git-revert-mode <ask|enabled|disabled>`
 * `--git-commit-push-on` / `--git-commit-push-off`
 * `--debug` (capture raw supervisor + runner output to `.ralph/logs/debug.log`)
@@ -1400,6 +1402,8 @@ ralph run one --no-update-task
 ralph run one --notify
 ralph run one --notify --notify-sound
 ralph run one --no-notify
+ralph run one --notify-fail
+ralph run one --no-notify-fail
 ralph run one --git-revert-mode disabled
 ralph run one --git-commit-push-off
 ralph run loop --include-draft --max-tasks 1

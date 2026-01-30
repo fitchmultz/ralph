@@ -590,7 +590,20 @@ impl TuiConfig {
 #[serde(default, deny_unknown_fields)]
 pub struct NotificationConfig {
     /// Enable desktop notifications on task completion (default: true).
+    /// This is the legacy/compatibility field; prefer `notify_on_complete`.
     pub enabled: Option<bool>,
+
+    /// Enable desktop notifications on task completion (default: true).
+    pub notify_on_complete: Option<bool>,
+
+    /// Enable desktop notifications on task failure (default: true).
+    pub notify_on_fail: Option<bool>,
+
+    /// Enable desktop notifications when loop mode completes (default: true).
+    pub notify_on_loop_complete: Option<bool>,
+
+    /// Suppress notifications when TUI is active (default: true).
+    pub suppress_when_active: Option<bool>,
 
     /// Enable sound alerts with notifications (default: false).
     pub sound_enabled: Option<bool>,
@@ -608,6 +621,18 @@ impl NotificationConfig {
     pub fn merge_from(&mut self, other: Self) {
         if other.enabled.is_some() {
             self.enabled = other.enabled;
+        }
+        if other.notify_on_complete.is_some() {
+            self.notify_on_complete = other.notify_on_complete;
+        }
+        if other.notify_on_fail.is_some() {
+            self.notify_on_fail = other.notify_on_fail;
+        }
+        if other.notify_on_loop_complete.is_some() {
+            self.notify_on_loop_complete = other.notify_on_loop_complete;
+        }
+        if other.suppress_when_active.is_some() {
+            self.suppress_when_active = other.suppress_when_active;
         }
         if other.sound_enabled.is_some() {
             self.sound_enabled = other.sound_enabled;
@@ -811,6 +836,10 @@ impl Default for Config {
                 fail_on_prerun_update_error: Some(false),
                 notification: NotificationConfig {
                     enabled: Some(true),
+                    notify_on_complete: Some(true),
+                    notify_on_fail: Some(true),
+                    notify_on_loop_complete: Some(true),
+                    suppress_when_active: Some(true),
                     sound_enabled: Some(false),
                     sound_path: None,
                     timeout_ms: Some(8000),

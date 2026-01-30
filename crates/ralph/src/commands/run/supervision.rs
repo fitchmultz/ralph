@@ -229,11 +229,36 @@ fn build_notification_config(
     let enabled = notify_on_complete
         .or(resolved.config.agent.notification.enabled)
         .unwrap_or(true);
+    let notify_on_complete = notify_on_complete
+        .or(resolved.config.agent.notification.notify_on_complete)
+        .unwrap_or(true);
+    let notify_on_fail = resolved
+        .config
+        .agent
+        .notification
+        .notify_on_fail
+        .unwrap_or(true);
+    let notify_on_loop_complete = resolved
+        .config
+        .agent
+        .notification
+        .notify_on_loop_complete
+        .unwrap_or(true);
+    let suppress_when_active = resolved
+        .config
+        .agent
+        .notification
+        .suppress_when_active
+        .unwrap_or(true);
     let sound_enabled = notify_sound
         .or(resolved.config.agent.notification.sound_enabled)
         .unwrap_or(false);
     notification::NotificationConfig {
         enabled,
+        notify_on_complete,
+        notify_on_fail,
+        notify_on_loop_complete,
+        suppress_when_active,
         sound_enabled,
         sound_path: resolved.config.agent.notification.sound_path.clone(),
         timeout_ms: resolved

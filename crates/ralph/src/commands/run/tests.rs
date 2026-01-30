@@ -332,6 +332,8 @@ fn resolve_run_agent_settings_cli_overrides_task_agent_and_config() -> anyhow::R
         git_commit_push_enabled: None,
         include_draft: None,
         notify_on_complete: None,
+        notify_on_fail: None,
+        notify_on_loop_complete: None,
         notify_sound: None,
         lfs_check: None,
     };
@@ -367,6 +369,8 @@ fn resolve_run_agent_settings_defaults_to_glm47_for_opencode_runner() -> anyhow:
         git_commit_push_enabled: None,
         include_draft: None,
         notify_on_complete: None,
+        notify_on_fail: None,
+        notify_on_loop_complete: None,
         notify_sound: None,
         lfs_check: None,
     };
@@ -402,6 +406,8 @@ fn resolve_run_agent_settings_defaults_to_gemini_flash_for_gemini_runner() -> an
         git_commit_push_enabled: None,
         include_draft: None,
         notify_on_complete: None,
+        notify_on_fail: None,
+        notify_on_loop_complete: None,
         notify_sound: None,
         lfs_check: None,
     };
@@ -507,6 +513,8 @@ fn resolve_run_agent_settings_effort_is_ignored_for_opencode() -> anyhow::Result
         git_commit_push_enabled: None,
         include_draft: None,
         notify_on_complete: None,
+        notify_on_fail: None,
+        notify_on_loop_complete: None,
         notify_sound: None,
         lfs_check: None,
     };

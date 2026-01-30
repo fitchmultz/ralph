@@ -92,7 +92,12 @@ pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()>
         opts.max_tasks
     );
 
-    logging::with_scope(&label, || {
+    // Track loop completion stats for notification
+    let mut tasks_attempted: usize = 0;
+    let mut tasks_succeeded: usize = 0;
+    let mut tasks_failed: usize = 0;
+
+    let result = logging::with_scope(&label, || {
         let mut completed = 0u32;
 
         loop {
@@ -101,20 +106,80 @@ pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()>
                 return Ok(());
             }
 
-            match run_one(resolved, &opts.agent_overrides, opts.force)? {
-                RunOutcome::NoTodo => {
+            match run_one(resolved, &opts.agent_overrides, opts.force) {
+                Ok(RunOutcome::NoTodo) => {
                     log::info!("RunLoop: end (no more todo tasks remaining)");
                     return Ok(());
                 }
-                RunOutcome::Ran { task_id } => {
+                Ok(RunOutcome::Ran { task_id: _ }) => {
                     completed += 1;
-                    log::info!(
-                        "RunLoop: task-complete {task_id} ({completed}/{initial_todo_count})"
-                    );
+                    tasks_attempted += 1;
+                    tasks_succeeded += 1;
+                    log::info!("RunLoop: task-complete ({completed}/{initial_todo_count})");
+                }
+                Err(err) => {
+                    completed += 1;
+                    tasks_attempted += 1;
+                    tasks_failed += 1;
+                    log::error!("RunLoop: task failed: {:#}", err);
+                    // Continue with next task even if one failed
                 }
             }
         }
-    })
+    });
+
+    // Send loop completion notification
+    if tasks_attempted > 0 {
+        let notify_config = crate::notification::NotificationConfig {
+            enabled: opts
+                .agent_overrides
+                .notify_on_complete
+                .or(resolved.config.agent.notification.enabled)
+                .unwrap_or(true),
+            notify_on_complete: opts
+                .agent_overrides
+                .notify_on_complete
+                .or(resolved.config.agent.notification.notify_on_complete)
+                .unwrap_or(true),
+            notify_on_fail: opts
+                .agent_overrides
+                .notify_on_fail
+                .or(resolved.config.agent.notification.notify_on_fail)
+                .unwrap_or(true),
+            notify_on_loop_complete: resolved
+                .config
+                .agent
+                .notification
+                .notify_on_loop_complete
+                .unwrap_or(true),
+            suppress_when_active: resolved
+                .config
+                .agent
+                .notification
+                .suppress_when_active
+                .unwrap_or(true),
+            sound_enabled: opts
+                .agent_overrides
+                .notify_sound
+                .or(resolved.config.agent.notification.sound_enabled)
+                .unwrap_or(false),
+            sound_path: resolved.config.agent.notification.sound_path.clone(),
+            timeout_ms: resolved
+                .config
+                .agent
+                .notification
+                .timeout_ms
+                .unwrap_or(8000),
+        };
+        crate::notification::notify_loop_complete(
+            tasks_attempted,
+            tasks_succeeded,
+            tasks_failed,
+            &notify_config,
+        );
+    }
+
+    result
 }
 
 pub fn run_one_with_id(
@@ -470,6 +535,53 @@ fn run_one_impl(
         Err(err) => {
             // Keep task-level error concise; phase scopes will log detailed boundaries.
             log::error!("Task {task_id}: error");
+
+            // Send failure notification
+            let notify_config = crate::notification::NotificationConfig {
+                enabled: agent_overrides
+                    .notify_on_complete
+                    .or(resolved.config.agent.notification.enabled)
+                    .unwrap_or(true),
+                notify_on_complete: agent_overrides
+                    .notify_on_complete
+                    .or(resolved.config.agent.notification.notify_on_complete)
+                    .unwrap_or(true),
+                notify_on_fail: agent_overrides
+                    .notify_on_fail
+                    .or(resolved.config.agent.notification.notify_on_fail)
+                    .unwrap_or(true),
+                notify_on_loop_complete: resolved
+                    .config
+                    .agent
+                    .notification
+                    .notify_on_loop_complete
+                    .unwrap_or(true),
+                suppress_when_active: resolved
+                    .config
+                    .agent
+                    .notification
+                    .suppress_when_active
+                    .unwrap_or(true),
+                sound_enabled: agent_overrides
+                    .notify_sound
+                    .or(resolved.config.agent.notification.sound_enabled)
+                    .unwrap_or(false),
+                sound_path: resolved.config.agent.notification.sound_path.clone(),
+                timeout_ms: resolved
+                    .config
+                    .agent
+                    .notification
+                    .timeout_ms
+                    .unwrap_or(8000),
+            };
+            let error_summary = format!("{:#}", err);
+            crate::notification::notify_task_failed(
+                &task_id,
+                &task.title,
+                &error_summary,
+                &notify_config,
+            );
+
             Err(err)
         }
     }

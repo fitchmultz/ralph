@@ -2,52 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0424",
-      "status": "todo",
-      "title": "Add desktop notifications for task completion and failures",
-      "priority": "high",
-      "tags": [
-        "notifications",
-        "ux",
-        "desktop",
-        "async"
-      ],
-      "scope": [
-        "crates/ralph/src/notification.rs",
-        "crates/ralph/src/run_cmd.rs",
-        "crates/ralph/src/contracts.rs"
-      ],
-      "evidence": [
-        "Long-running 'ralph run loop' tasks can take minutes or hours",
-        "Users switch contexts during long operations and miss completion",
-        "No current mechanism to alert user when work is done",
-        "Modern developer tools (Slack, Discord, Docker Desktop) use native notifications",
-        "macOS: Notification Center, Windows: Action Center, Linux: D-Bus notifications"
-      ],
-      "plan": [
-        "Research cross-platform notification libraries (notify-rust for Linux, mac-notification-sys for macOS, windows-notification for Windows)",
-        "Add notification configuration to AgentConfig: notifications_enabled, notify_on_complete, notify_on_fail",
-        "Implement notification dispatcher with platform detection",
-        "Send notification on: task completion (success), task failure, loop completion",
-        "Include task ID, title, and status in notification",
-        "Add notification grouping to prevent spam during loop mode",
-        "Add --notify flag and --no-notify flag for CLI control",
-        "Respect system Do Not Disturb settings where possible",
-        "Add notification permission handling (graceful degradation if denied)",
-        "Run 'make ci' to validate changes"
-      ],
-      "notes": [
-        "Notification should only trigger when user is not actively viewing the TUI",
-        "Consider adding sound notifications as optional enhancement",
-        "Batch notifications for multiple task completions in loop mode"
-      ],
-      "request": "Add cross-platform desktop notifications that alert users when tasks complete or fail. This is essential for long-running 'ralph run loop' operations where users may switch to other work. Notifications should work on macOS (Notification Center), Windows (Action Center), and Linux (D-Bus). Include task ID, title, and completion status. Add configuration options to enable/disable notifications and control when they fire.",
-      "created_at": "2026-01-29T23:57:00Z",
-      "updated_at": "2026-01-29T23:57:00Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0425",
       "status": "todo",
       "title": "Implement smart task templates for common development patterns",

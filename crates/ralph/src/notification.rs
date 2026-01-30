@@ -1,14 +1,16 @@
-//! Desktop notification system for task completion.
+//! Desktop notification system for task completion and failures.
 //!
 //! Responsibilities:
 //! - Send cross-platform desktop notifications via notify-rust.
 //! - Play optional sound alerts using platform-specific mechanisms.
 //! - Provide graceful degradation when notification systems are unavailable.
+//! - Support different notification types: task success, task failure, loop completion.
 //!
 //! Does NOT handle:
 //! - Notification scheduling or queuing (callers trigger explicitly).
 //! - Persistent notification history or logging.
 //! - TUI mode detection (callers should suppress if desired).
+//! - Do Not Disturb detection (handled at call site if needed).
 //!
 //! Invariants:
 //! - Sound playback failures don't fail the notification.
@@ -20,8 +22,16 @@ use std::path::Path;
 /// Configuration for desktop notifications.
 #[derive(Debug, Clone, Default)]
 pub struct NotificationConfig {
-    /// Enable desktop notifications on task completion.
+    /// Enable desktop notifications on task completion (legacy field).
     pub enabled: bool,
+    /// Enable desktop notifications on task completion.
+    pub notify_on_complete: bool,
+    /// Enable desktop notifications on task failure.
+    pub notify_on_fail: bool,
+    /// Enable desktop notifications when loop mode completes.
+    pub notify_on_loop_complete: bool,
+    /// Suppress notifications when TUI is active.
+    pub suppress_when_active: bool,
     /// Enable sound alerts with notifications.
     pub sound_enabled: bool,
     /// Custom sound file path (platform-specific format).
@@ -36,23 +46,83 @@ impl NotificationConfig {
     pub fn new() -> Self {
         Self {
             enabled: true,
+            notify_on_complete: true,
+            notify_on_fail: true,
+            notify_on_loop_complete: true,
+            suppress_when_active: true,
             sound_enabled: false,
             sound_path: None,
             timeout_ms: 8000,
         }
     }
+
+    /// Check if notifications should be suppressed based on TUI state.
+    pub fn should_suppress(&self, tui_active: bool) -> bool {
+        if !self.enabled {
+            return true;
+        }
+        if tui_active && self.suppress_when_active {
+            return true;
+        }
+        false
+    }
 }
 
-/// Send task completion notification.
+/// Types of notifications that can be sent.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NotificationType {
+    /// Task completed successfully.
+    TaskComplete,
+    /// Task failed.
+    TaskFailed,
+    /// Loop mode completed with summary.
+    LoopComplete {
+        tasks_total: usize,
+        tasks_succeeded: usize,
+        tasks_failed: usize,
+    },
+}
+
+/// Send a notification based on the notification type.
 /// Silently logs errors but never fails the calling operation.
-pub fn notify_task_complete(task_id: &str, task_title: &str, config: &NotificationConfig) {
-    if !config.enabled {
-        log::debug!("Notification disabled; skipping completion notification");
+///
+/// # Arguments
+/// * `notification_type` - The type of notification to send
+/// * `task_id` - The task identifier (for task-specific notifications)
+/// * `task_title` - The task title (for task-specific notifications)
+/// * `config` - Notification configuration
+/// * `tui_active` - Whether the TUI is currently active (for suppression)
+pub fn send_notification(
+    notification_type: NotificationType,
+    task_id: &str,
+    task_title: &str,
+    config: &NotificationConfig,
+    tui_active: bool,
+) {
+    // Check if this notification type is enabled
+    let type_enabled = match notification_type {
+        NotificationType::TaskComplete => config.notify_on_complete,
+        NotificationType::TaskFailed => config.notify_on_fail,
+        NotificationType::LoopComplete { .. } => config.notify_on_loop_complete,
+    };
+
+    if !type_enabled {
+        log::debug!(
+            "Notification type {:?} disabled; skipping",
+            notification_type
+        );
+        return;
+    }
+
+    if config.should_suppress(tui_active) {
+        log::debug!("Notifications suppressed (TUI active or globally disabled)");
         return;
     }
 
     // Build and show notification
-    if let Err(e) = show_notification(task_id, task_title, config.timeout_ms) {
+    if let Err(e) =
+        show_notification_typed(notification_type, task_id, task_title, config.timeout_ms)
+    {
         log::debug!("Failed to show notification: {}", e);
     }
 
@@ -64,13 +134,136 @@ pub fn notify_task_complete(task_id: &str, task_title: &str, config: &Notificati
     }
 }
 
+/// Send task completion notification.
+/// Silently logs errors but never fails the calling operation.
+pub fn notify_task_complete(task_id: &str, task_title: &str, config: &NotificationConfig) {
+    send_notification(
+        NotificationType::TaskComplete,
+        task_id,
+        task_title,
+        config,
+        false,
+    );
+}
+
+/// Send task completion notification with TUI awareness.
+/// Silently logs errors but never fails the calling operation.
+pub fn notify_task_complete_with_context(
+    task_id: &str,
+    task_title: &str,
+    config: &NotificationConfig,
+    tui_active: bool,
+) {
+    send_notification(
+        NotificationType::TaskComplete,
+        task_id,
+        task_title,
+        config,
+        tui_active,
+    );
+}
+
+/// Send task failure notification.
+/// Silently logs errors but never fails the calling operation.
+pub fn notify_task_failed(
+    task_id: &str,
+    task_title: &str,
+    error: &str,
+    config: &NotificationConfig,
+) {
+    if !config.notify_on_fail {
+        log::debug!("Failure notifications disabled; skipping");
+        return;
+    }
+
+    if config.should_suppress(false) {
+        log::debug!("Notifications suppressed (globally disabled)");
+        return;
+    }
+
+    // Build and show notification
+    if let Err(e) = show_notification_failure(task_id, task_title, error, config.timeout_ms) {
+        log::debug!("Failed to show failure notification: {}", e);
+    }
+
+    // Play sound if enabled
+    if config.sound_enabled {
+        if let Err(e) = play_completion_sound(config.sound_path.as_deref()) {
+            log::debug!("Failed to play sound: {}", e);
+        }
+    }
+}
+
+/// Send loop completion notification.
+/// Silently logs errors but never fails the calling operation.
+pub fn notify_loop_complete(
+    tasks_total: usize,
+    tasks_succeeded: usize,
+    tasks_failed: usize,
+    config: &NotificationConfig,
+) {
+    if !config.notify_on_loop_complete {
+        log::debug!("Loop completion notifications disabled; skipping");
+        return;
+    }
+
+    if config.should_suppress(false) {
+        log::debug!("Notifications suppressed (globally disabled)");
+        return;
+    }
+
+    // Build and show notification
+    if let Err(e) = show_notification_loop(
+        tasks_total,
+        tasks_succeeded,
+        tasks_failed,
+        config.timeout_ms,
+    ) {
+        log::debug!("Failed to show loop notification: {}", e);
+    }
+
+    // Play sound if enabled
+    if config.sound_enabled {
+        if let Err(e) = play_completion_sound(config.sound_path.as_deref()) {
+            log::debug!("Failed to play sound: {}", e);
+        }
+    }
+}
+
 #[cfg(feature = "notifications")]
-fn show_notification(task_id: &str, task_title: &str, timeout_ms: u32) -> anyhow::Result<()> {
+fn show_notification_typed(
+    notification_type: NotificationType,
+    task_id: &str,
+    task_title: &str,
+    timeout_ms: u32,
+) -> anyhow::Result<()> {
     use notify_rust::{Notification, Timeout};
 
+    let (summary, body) = match notification_type {
+        NotificationType::TaskComplete => (
+            "Ralph: Task Complete",
+            format!("{} - {}", task_id, task_title),
+        ),
+        NotificationType::TaskFailed => (
+            "Ralph: Task Failed",
+            format!("{} - {}", task_id, task_title),
+        ),
+        NotificationType::LoopComplete {
+            tasks_total,
+            tasks_succeeded,
+            tasks_failed,
+        } => (
+            "Ralph: Loop Complete",
+            format!(
+                "{} tasks completed ({} succeeded, {} failed)",
+                tasks_total, tasks_succeeded, tasks_failed
+            ),
+        ),
+    };
+
     Notification::new()
-        .summary("Ralph: Task Complete")
-        .body(&format!("{} - {}", task_id, task_title))
+        .summary(summary)
+        .body(&body)
         .timeout(Timeout::Milliseconds(timeout_ms))
         .show()
         .map_err(|e| anyhow::anyhow!("Failed to show notification: {}", e))?;
@@ -79,7 +272,85 @@ fn show_notification(task_id: &str, task_title: &str, timeout_ms: u32) -> anyhow
 }
 
 #[cfg(not(feature = "notifications"))]
-fn show_notification(_task_id: &str, _task_title: &str, _timeout_ms: u32) -> anyhow::Result<()> {
+fn show_notification_typed(
+    _notification_type: NotificationType,
+    _task_id: &str,
+    _task_title: &str,
+    _timeout_ms: u32,
+) -> anyhow::Result<()> {
+    log::debug!("Notifications feature not compiled in; skipping notification display");
+    Ok(())
+}
+
+#[cfg(feature = "notifications")]
+fn show_notification_failure(
+    task_id: &str,
+    task_title: &str,
+    error: &str,
+    timeout_ms: u32,
+) -> anyhow::Result<()> {
+    use notify_rust::{Notification, Timeout};
+
+    // Truncate error message to fit notification display
+    let error_summary = if error.len() > 100 {
+        format!("{}...", &error[..97])
+    } else {
+        error.to_string()
+    };
+
+    Notification::new()
+        .summary("Ralph: Task Failed")
+        .body(&format!(
+            "{} - {}\nError: {}",
+            task_id, task_title, error_summary
+        ))
+        .timeout(Timeout::Milliseconds(timeout_ms))
+        .show()
+        .map_err(|e| anyhow::anyhow!("Failed to show notification: {}", e))?;
+
+    Ok(())
+}
+
+#[cfg(not(feature = "notifications"))]
+fn show_notification_failure(
+    _task_id: &str,
+    _task_title: &str,
+    _error: &str,
+    _timeout_ms: u32,
+) -> anyhow::Result<()> {
+    log::debug!("Notifications feature not compiled in; skipping notification display");
+    Ok(())
+}
+
+#[cfg(feature = "notifications")]
+fn show_notification_loop(
+    tasks_total: usize,
+    tasks_succeeded: usize,
+    tasks_failed: usize,
+    timeout_ms: u32,
+) -> anyhow::Result<()> {
+    use notify_rust::{Notification, Timeout};
+
+    Notification::new()
+        .summary("Ralph: Loop Complete")
+        .body(&format!(
+            "{} tasks completed ({} succeeded, {} failed)",
+            tasks_total, tasks_succeeded, tasks_failed
+        ))
+        .timeout(Timeout::Milliseconds(timeout_ms))
+        .show()
+        .map_err(|e| anyhow::anyhow!("Failed to show notification: {}", e))?;
+
+    Ok(())
+}
+
+#[cfg(not(feature = "notifications"))]
+fn show_notification_loop(
+    _tasks_total: usize,
+    _tasks_succeeded: usize,
+    _tasks_failed: usize,
+    _timeout_ms: u32,
+) -> anyhow::Result<()> {
     log::debug!("Notifications feature not compiled in; skipping notification display");
     Ok(())
 }
@@ -262,6 +533,10 @@ mod tests {
     fn notification_config_default_values() {
         let config = NotificationConfig::new();
         assert!(config.enabled);
+        assert!(config.notify_on_complete);
+        assert!(config.notify_on_fail);
+        assert!(config.notify_on_loop_complete);
+        assert!(config.suppress_when_active);
         assert!(!config.sound_enabled);
         assert!(config.sound_path.is_none());
         assert_eq!(config.timeout_ms, 8000);
@@ -271,8 +546,13 @@ mod tests {
     fn notify_task_complete_disabled_does_nothing() {
         let config = NotificationConfig {
             enabled: false,
+            notify_on_complete: false,
+            notify_on_fail: false,
+            notify_on_loop_complete: false,
+            suppress_when_active: true,
             sound_enabled: true,
-            ..Default::default()
+            sound_path: None,
+            timeout_ms: 8000,
         };
         // Should not panic or fail
         notify_task_complete("RQ-0001", "Test task", &config);
@@ -282,11 +562,19 @@ mod tests {
     fn notification_config_can_be_customized() {
         let config = NotificationConfig {
             enabled: true,
+            notify_on_complete: true,
+            notify_on_fail: false,
+            notify_on_loop_complete: true,
+            suppress_when_active: false,
             sound_enabled: true,
             sound_path: Some("/path/to/sound.wav".to_string()),
             timeout_ms: 5000,
         };
         assert!(config.enabled);
+        assert!(config.notify_on_complete);
+        assert!(!config.notify_on_fail);
+        assert!(config.notify_on_loop_complete);
+        assert!(!config.suppress_when_active);
         assert!(config.sound_enabled);
         assert_eq!(config.sound_path, Some("/path/to/sound.wav".to_string()));
         assert_eq!(config.timeout_ms, 5000);

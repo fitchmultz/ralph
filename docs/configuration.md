@@ -182,10 +182,14 @@ The confirmation dialog for Danger-level settings explains the risk and requires
 
 ## Notification Configuration
 
-`agent.notification` controls desktop notifications when tasks complete successfully.
+`agent.notification` controls desktop notifications for task completion and failures.
 
 Supported fields:
-- `enabled`: enable/disable notifications (default: `true`).
+- `enabled`: legacy field, enable/disable all notifications (default: `true`).
+- `notify_on_complete`: enable notifications on task completion (default: `true`).
+- `notify_on_fail`: enable notifications on task failure (default: `true`).
+- `notify_on_loop_complete`: enable notifications when loop mode finishes (default: `true`).
+- `suppress_when_active`: suppress notifications when TUI is active (default: `true`).
 - `sound_enabled`: play sound with notification (default: `false`).
 - `sound_path`: custom sound file path (optional, platform-specific).
 - `timeout_ms`: notification display duration in milliseconds (default: `8000`, range: `1000-60000`).
@@ -202,6 +206,10 @@ Example:
   "agent": {
     "notification": {
       "enabled": true,
+      "notify_on_complete": true,
+      "notify_on_fail": true,
+      "notify_on_loop_complete": true,
+      "suppress_when_active": true,
       "sound_enabled": true,
       "timeout_ms": 10000
     }
@@ -210,6 +218,8 @@ Example:
 ```
 
 CLI overrides:
-- `--notify`: Enable notification for this run (overrides config).
-- `--no-notify`: Disable notification for this run (overrides config).
-- `--notify-sound`: Enable sound for this run (works with `--notify` or when enabled in config).
+- `--notify`: Enable notification on task completion (overrides config).
+- `--no-notify`: Disable notification on task completion (overrides config).
+- `--notify-fail`: Enable notification on task failure (overrides config).
+- `--no-notify-fail`: Disable notification on task failure (overrides config).
+- `--notify-sound`: Enable sound for this run (works with notification flags or when enabled in config).

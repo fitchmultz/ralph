@@ -23,8 +23,12 @@
         "model": "sonnet",
         "notification": {
           "enabled": true,
+          "notify_on_complete": true,
+          "notify_on_fail": true,
+          "notify_on_loop_complete": true,
           "sound_enabled": false,
           "sound_path": null,
+          "suppress_when_active": true,
           "timeout_ms": 8000
         },
         "opencode_bin": "opencode",
@@ -284,8 +288,12 @@
           "description": "Desktop notification configuration for task completion.",
           "default": {
             "enabled": null,
+            "notify_on_complete": null,
+            "notify_on_fail": null,
+            "notify_on_loop_complete": null,
             "sound_enabled": null,
             "sound_path": null,
+            "suppress_when_active": null,
             "timeout_ms": null
           },
           "allOf": [
@@ -433,7 +441,31 @@
       "type": "object",
       "properties": {
         "enabled": {
+          "description": "Enable desktop notifications on task completion (default: true). This is the legacy/compatibility field; prefer `notify_on_complete`.",
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "notify_on_complete": {
           "description": "Enable desktop notifications on task completion (default: true).",
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "notify_on_fail": {
+          "description": "Enable desktop notifications on task failure (default: true).",
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "notify_on_loop_complete": {
+          "description": "Enable desktop notifications when loop mode completes (default: true).",
           "default": null,
           "type": [
             "boolean",
@@ -453,6 +485,14 @@
           "default": null,
           "type": [
             "string",
+            "null"
+          ]
+        },
+        "suppress_when_active": {
+          "description": "Suppress notifications when TUI is active (default: true).",
+          "default": null,
+          "type": [
+            "boolean",
             "null"
           ]
         },
