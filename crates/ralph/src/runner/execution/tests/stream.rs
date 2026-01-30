@@ -26,10 +26,14 @@ fn extract_display_lines_codex_reasoning() {
         "type": "item.completed",
         "item": {"type": "reasoning", "text": "Working it out"}
     });
-    assert_eq!(
-        extract_display_lines(&payload),
-        vec!["[Reasoning] Working it out"]
-    );
+    let lines = extract_display_lines(&payload);
+    assert_eq!(lines.len(), 1);
+
+    // Line should contain [Reasoning] prefix and the content text
+    // Note: format_reasoning() adds ANSI color codes to the prefix only
+    let reasoning_line = &lines[0];
+    assert!(reasoning_line.contains("[Reasoning]"));
+    assert!(reasoning_line.contains("Working it out"));
 }
 
 #[test]
@@ -209,13 +213,17 @@ fn extract_display_lines_kimi_assistant_with_think() {
             {"type": "text", "text": "Hello! How can I help?"}
         ]
     });
-    assert_eq!(
-        extract_display_lines(&payload),
-        vec![
-            "[Reasoning] Analyzing the request",
-            "Hello! How can I help?"
-        ]
-    );
+    let lines = extract_display_lines(&payload);
+    assert_eq!(lines.len(), 2);
+
+    // First line should contain [Reasoning] prefix and the reasoning content
+    // Note: format_reasoning() adds ANSI color codes to the prefix only
+    let reasoning_line = &lines[0];
+    assert!(reasoning_line.contains("[Reasoning]"));
+    assert!(reasoning_line.contains("Analyzing the request"));
+
+    // Second line is plain text content
+    assert_eq!(lines[1], "Hello! How can I help?");
 }
 
 #[test]

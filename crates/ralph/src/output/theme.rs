@@ -120,11 +120,7 @@ pub mod cli {
 
     /// Format a reasoning line with colored prefix
     pub fn format_reasoning(content: &str) -> String {
-        format!(
-            "{} {}",
-            "[Reasoning]".bright_blue().bold(),
-            content.bright_blue()
-        )
+        format!("{} {}", "[Reasoning]".bright_blue().bold(), content)
     }
 
     /// Format a tool call line with colored prefix and optional details
@@ -224,6 +220,7 @@ pub mod tui {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use colored::Colorize;
 
     #[test]
     fn theme_colors_are_defined() {
@@ -243,6 +240,41 @@ mod tests {
         let formatted = cli::format_reasoning("test reasoning");
         assert!(formatted.contains("[Reasoning]"));
         assert!(formatted.contains("test reasoning"));
+    }
+
+    #[test]
+    fn cli_format_reasoning_only_prefix_colored() {
+        // Force colors on for consistent testing
+        colored::control::set_override(true);
+
+        let formatted = cli::format_reasoning("test reasoning");
+        // The colored prefix should emit ANSI codes (1m = bold, 94m = bright blue, 0m = reset)
+        let prefix_colored = "[Reasoning]".bright_blue().bold().to_string();
+        assert!(formatted.starts_with(&prefix_colored));
+
+        // Content should be plain (no ANSI codes after the reset)
+        // The format is: "\x1B[1;94m[Reasoning]\x1B[0m test reasoning"
+        assert!(
+            formatted.contains("\x1B[0m test reasoning"),
+            "reset code should be followed by plain content"
+        );
+
+        // Content portion (after the last reset) should not contain any ANSI codes
+        let after_last_reset = formatted.rfind("\x1B[0m").map(|i| i + 4).unwrap_or(0);
+        let content_part = &formatted[after_last_reset..];
+        assert!(
+            !content_part.contains("\x1B["),
+            "content should not contain any ANSI codes"
+        );
+        assert_eq!(content_part, " test reasoning");
+
+        // The content "test reasoning" appears only once and is plain
+        assert!(formatted.contains("test reasoning"));
+        // Verify the string ends with plain content (not colored)
+        assert!(formatted.ends_with("test reasoning"));
+
+        // Reset color override
+        colored::control::unset_override();
     }
 
     #[test]

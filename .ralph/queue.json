@@ -2,45 +2,44 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0457",
+      "id": "RQ-0458",
       "status": "todo",
-      "title": "Fix kimi runner reasoning block color bleeding",
-      "priority": "high",
+      "title": "Audit and fix runner coverage in tests for all 7 supported runners",
+      "priority": "medium",
       "tags": [
+        "testing",
         "runner",
-        "kimi",
-        "bug",
-        "ui"
+        "coverage",
+        "qa"
       ],
       "scope": [
-        "crates/ralph/src/output/theme.rs",
-        "crates/ralph/src/runner/execution/stream.rs",
-        "crates/ralph/src/runner/execution/tests/stream.rs"
+        "crates/ralph/tests/task_cmd_test.rs",
+        "crates/ralph/tests/scan_cmd_test.rs",
+        "crates/ralph/tests/runner_cli_inventory_script_test.rs"
       ],
       "evidence": [
-        "User request: The kimi runner is working now but the color coding is wrong - only the '{Reasoning]' block should be colored purple but the block and all of its text is purple",
-        "RQ-0456 fixed kimi runner output parsing and session ID capture; this is a follow-up UI issue",
-        "theme.rs format_reasoning() applies .bright_blue() to both prefix [Reasoning] and content",
-        "Other runners (Codex, Claude) use format_reasoning() which colors the entire content bright_blue",
-        "Color bleeding suggests missing ANSI reset code at end of formatted reasoning line"
+        "User request: Check all runner associated tests and ensure all supported runners are being included in the tests",
+        "Supported runners: codex, opencode, gemini, claude, cursor, kimi, pi (7 total)",
+        "task_cmd_test.rs test_task_build_options_all_runners() only covers 4 runners (Codex, Opencode, Gemini, Claude) - missing cursor, kimi, pi",
+        "task_cmd_test.rs lines 376-379 test only covers 4 runners - missing cursor, kimi, pi",
+        "scan_cmd_test.rs lines 59-62 only covers 4 runners (Codex, Opencode, Gemini, Claude) - missing cursor, kimi, pi",
+        "runner_cli_inventory_script_test.rs lines 103, 161 only tests 5 runners (codex, opencode, gemini, claude, agent) - missing kimi, pi",
+        "Runner enum defined in contracts/config.rs includes all 7 variants"
       ],
       "plan": [
-        "Compare kimi runner reasoning display with other runners (codex, claude, opencode)",
-        "Investigate ANSI color reset behavior in format_reasoning() - may need explicit reset code",
-        "Check if kimi output format causes different display path that doesn't properly close color codes",
-        "Fix color bleeding by ensuring proper ANSI reset sequence after reasoning content",
-        "Test fix with kimi runner to verify only [Reasoning] prefix is colored, content is normal",
-        "Run make ci to ensure tests pass and no regressions in other runners"
+        "Update test_task_build_options_all_runners() in task_cmd_test.rs to include all 7 runners (add Cursor, Kimi, Pi)",
+        "Update second runner test in task_cmd_test.rs (lines 376-379) to include all 7 runners",
+        "Update scan_cmd_test.rs runner test to include all 7 runners (add Cursor, Kimi, Pi)",
+        "Update runner_cli_inventory_script_test.rs to include kimi and pi fake runners in both test cases",
+        "Run make ci to verify all tests pass with expanded runner coverage"
       ],
       "notes": [],
-      "request": "The kimi runner is working now but the color coding is wrong. Only the '{Reasoning]' block should be colored purple but the block and all of its text is purple. See what is different with these. Read RQ-0456 from the done.json queue file to see original context.",
-      "created_at": "2026-01-30T20:10:40Z",
-      "updated_at": "2026-01-30T20:10:40Z",
+      "request": "Check all runner associated tests and ensure all supported runners are being included in the tests. codex, claude, opencode, gemini, kimi, pi.",
+      "created_at": "2026-01-30T20:24:54Z",
+      "updated_at": "2026-01-30T20:24:54Z",
       "depends_on": [],
       "blocks": [],
-      "relates_to": [
-        "RQ-0456"
-      ],
+      "relates_to": [],
       "custom_fields": {}
     },
     {
