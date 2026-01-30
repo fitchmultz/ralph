@@ -75,6 +75,8 @@ pub struct TaskBuildOptions {
     pub repoprompt_tool_injection: bool,
     /// Optional template name to use as a base for task fields
     pub template_hint: Option<String>,
+    /// Optional target path for template variable substitution
+    pub template_target: Option<String>,
 }
 
 // TaskUpdateSettings controls runner-driven task updates via .ralph/prompts/task_updater.md.
@@ -214,7 +216,18 @@ fn build_task_impl(
     // Apply template if specified
     let mut template_context = String::new();
     if let Some(template_name) = opts.template_hint.clone() {
-        match crate::template::load_template(&template_name, &resolved.repo_root) {
+        // Use context-aware loading if target is provided
+        let load_result = if let Some(ref target) = opts.template_target {
+            crate::template::load_template_with_context(
+                &template_name,
+                &resolved.repo_root,
+                Some(target),
+            )
+        } else {
+            crate::template::load_template(&template_name, &resolved.repo_root)
+        };
+
+        match load_result {
             Ok((template, _)) => {
                 crate::template::merge_template_with_options(&template, &mut opts);
                 template_context = crate::template::format_template_context(&template);
@@ -722,6 +735,7 @@ pub fn build_refactor_tasks(
                 force: opts.force,
                 repoprompt_tool_injection: opts.repoprompt_tool_injection,
                 template_hint: Some("refactor".to_string()),
+                template_target: None,
             },
         )?;
         created_count += 1;
@@ -999,6 +1013,7 @@ mod tests {
             force: false,
             repoprompt_tool_injection: false,
             template_hint: None,
+            template_target: None,
         }
     }
 

@@ -95,6 +95,7 @@ fn test_task_build_options_default_values() {
         force: false,
         repoprompt_tool_injection: false,
         template_hint: None,
+        template_target: None,
     };
 
     assert_eq!(opts.request, "test request");
@@ -119,6 +120,7 @@ fn test_task_build_options_with_values() {
         force: true,
         repoprompt_tool_injection: false,
         template_hint: None,
+        template_target: None,
     };
 
     assert_eq!(opts.request, "implement feature");
@@ -144,6 +146,7 @@ fn test_task_build_options_empty_request_validation() {
         force: false,
         repoprompt_tool_injection: false,
         template_hint: None,
+        template_target: None,
     };
 
     assert!(opts.request.trim().is_empty());
@@ -162,6 +165,7 @@ fn test_task_build_options_whitespace_request_validation() {
         force: false,
         repoprompt_tool_injection: false,
         template_hint: None,
+        template_target: None,
     };
 
     assert!(opts.request.trim().is_empty());
@@ -188,6 +192,7 @@ fn test_task_build_options_all_runners() {
             force: false,
             repoprompt_tool_injection: false,
             template_hint: None,
+            template_target: None,
         };
         assert_eq!(opts.request, "test");
     }
@@ -214,6 +219,7 @@ fn test_task_build_options_all_models() {
             force: false,
             repoprompt_tool_injection: false,
             template_hint: None,
+            template_target: None,
         };
         assert_eq!(opts.request, "test");
     }
@@ -241,6 +247,7 @@ fn test_task_build_options_all_reasoning_efforts() {
             force: false,
             repoprompt_tool_injection: false,
             template_hint: None,
+            template_target: None,
         };
         // Just verify we can create options with each effort level
         assert_eq!(opts.request, "test");

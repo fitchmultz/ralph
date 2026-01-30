@@ -13,6 +13,8 @@
 //! - Callers resolve configuration before executing commands.
 //! - Queue mutations are protected by locks when required.
 
+use std::io::IsTerminal;
+
 use anyhow::{bail, Result};
 use clap::{Args, Subcommand, ValueEnum};
 
@@ -236,6 +238,7 @@ pub fn handle_task(args: TaskArgs, force: bool) -> Result<()> {
                         &resolved,
                     ),
                     template_hint: args.template,
+                    template_target: args.target,
                 },
             )
         }
@@ -279,6 +282,18 @@ pub fn handle_task(args: TaskArgs, force: bool) -> Result<()> {
         None => {
             let args = args.build;
             let request = task_cmd::read_request_from_args_or_stdin(&args.request)?;
+
+            // Interactive template selection if no template specified and running in TTY
+            let (template_hint, template_target) =
+                if args.template.is_none() && std::io::stdin().is_terminal() {
+                    match prompt_template_selection(&resolved.repo_root)? {
+                        Some((name, target)) => (Some(name), target),
+                        None => (None, args.target),
+                    }
+                } else {
+                    (args.template, args.target)
+                };
+
             let overrides = agent::resolve_agent_overrides(&agent::AgentArgs {
                 runner: args.runner.clone(),
                 model: args.model.clone(),
@@ -302,9 +317,91 @@ pub fn handle_task(args: TaskArgs, force: bool) -> Result<()> {
                         args.repo_prompt,
                         &resolved,
                     ),
-                    template_hint: args.template,
+                    template_hint,
+                    template_target,
                 },
             )
+        }
+    }
+}
+
+/// Prompt user to select a template interactively
+///
+/// Returns Some((template_name, target_path)) if a template was selected,
+/// None if the user chose to skip.
+fn prompt_template_selection(
+    repo_root: &std::path::Path,
+) -> Result<Option<(String, Option<String>)>> {
+    use std::io::Write;
+
+    let templates = crate::template::list_templates(repo_root);
+
+    println!("\nAvailable templates:");
+    println!();
+    for (i, template) in templates.iter().enumerate() {
+        let source_label = match template.source {
+            crate::template::TemplateSource::Custom(_) => "(custom)",
+            crate::template::TemplateSource::Builtin(_) => "(built-in)",
+        };
+        println!(
+            "  {}. {:12} {:10} {}",
+            i + 1,
+            template.name,
+            source_label,
+            template.description
+        );
+    }
+    println!();
+    println!("Enter number to select a template, or press Enter to skip:");
+    print!("> ");
+    std::io::stdout().flush()?;
+
+    let mut input = String::new();
+    std::io::stdin().read_line(&mut input)?;
+    let input = input.trim();
+
+    if input.is_empty() {
+        return Ok(None);
+    }
+
+    // Parse selection
+    match input.parse::<usize>() {
+        Ok(num) if num > 0 && num <= templates.len() => {
+            let selected = &templates[num - 1];
+            let template_name = selected.name.clone();
+
+            // Ask for target if template supports variables
+            let needs_target = matches!(
+                template_name.as_str(),
+                "add-tests"
+                    | "refactor-performance"
+                    | "fix-error-handling"
+                    | "add-docs"
+                    | "security-audit"
+            );
+
+            if needs_target {
+                println!();
+                println!("Enter target file/path for template variables (or press Enter to skip):");
+                print!("> ");
+                std::io::stdout().flush()?;
+
+                let mut target_input = String::new();
+                std::io::stdin().read_line(&mut target_input)?;
+                let target = target_input.trim();
+
+                if target.is_empty() {
+                    Ok(Some((template_name, None)))
+                } else {
+                    Ok(Some((template_name, Some(target.to_string()))))
+                }
+            } else {
+                Ok(Some((template_name, None)))
+            }
+        }
+        _ => {
+            println!("Invalid selection, skipping template.");
+            Ok(None)
         }
     }
 }
@@ -358,7 +455,7 @@ fn complete_task_or_signal(
 #[command(
     about = "Create and build tasks from freeform requests",
     subcommand_required = false,
-    after_long_help = "Examples:\n ralph task \"Add tests for the new queue logic\"\n ralph task --runner opencode --model gpt-5.2 \"Fix CLI help strings\"\n ralph task --runner kimi --model kimi-for-coding \"Add tests for X\"\n ralph task --runner pi --model gpt-5.2 \"Add tests for X\"\n ralph task show RQ-0001\n ralph task show RQ-0001 --format compact\n ralph task ready RQ-0005\n ralph task status doing --note \"Starting work\" RQ-0001\n ralph task update\n ralph task update RQ-0001\n ralph task update --fields scope,evidence RQ-0001\n ralph task edit title \"Refine queue edit\" RQ-0001\n ralph task field severity high RQ-0003\n ralph task done --note \"Finished work\" RQ-0001\n ralph task reject --note \"No longer needed\" RQ-0002\n ralph task build \"(explicit build subcommand still works)\""
+    after_long_help = "Examples:\n ralph task \"Add tests for the new queue logic\"\n ralph task --runner opencode --model gpt-5.2 \"Fix CLI help strings\"\n ralph task --runner kimi --model kimi-for-coding \"Add tests for X\"\n ralph task --runner pi --model gpt-5.2 \"Add tests for X\"\n ralph task --template add-tests src/cli/task.rs \"Add unit tests for task module\"\n ralph task --template refactor-performance src/bottleneck.rs \"Optimize hot path\"\n ralph task --template fix-error-handling src/api.rs \"Fix error handling\"\n ralph task template list\n ralph task template show add-tests\n ralph task template build add-tests src/module.rs \"Add tests\"\n ralph task show RQ-0001\n ralph task show RQ-0001 --format compact\n ralph task ready RQ-0005\n ralph task status doing --note \"Starting work\" RQ-0001\n ralph task update\n ralph task update RQ-0001\n ralph task update --fields scope,evidence RQ-0001\n ralph task edit title \"Refine queue edit\" RQ-0001\n ralph task field severity high RQ-0003\n ralph task done --note \"Finished work\" RQ-0001\n ralph task reject --note \"No longer needed\" RQ-0002\n ralph task build \"(explicit build subcommand still works)\""
 )]
 pub struct TaskArgs {
     #[command(subcommand)]
@@ -444,7 +541,7 @@ pub enum TaskCommand {
 
     /// Manage task templates for common task types.
     #[command(
-        after_long_help = "Examples:\n ralph task template list\n ralph task template show bug\n ralph task template build bug \"Fix login timeout\""
+        after_long_help = "Examples:\n ralph task template list\n ralph task template show bug\n ralph task template show add-tests\n ralph task template build bug \"Fix login timeout\"\n ralph task template build add-tests src/module.rs \"Add tests for module\"\n ralph task template build refactor-performance src/bottleneck.rs \"Optimize performance\"\n\nAvailable templates:\n - bug: Bug fix with reproduction steps and regression tests\n - feature: New feature with design, implementation, and documentation\n - refactor: Code refactoring with behavior preservation\n - test: Test addition or improvement\n - docs: Documentation update or creation\n - add-tests: Add tests for existing code with coverage verification\n - refactor-performance: Optimize performance with profiling and benchmarking\n - fix-error-handling: Fix error handling with proper types and context\n - add-docs: Add documentation for a specific file or module\n - security-audit: Security audit with vulnerability checks"
     )]
     Template(TaskTemplateArgs),
 }
@@ -483,9 +580,15 @@ pub struct TaskBuildArgs {
     #[command(flatten)]
     pub runner_cli: agent::RunnerCliArgs,
 
-    /// Template to use for pre-filling task fields (bug, feature, refactor, test, docs).
+    /// Template to use for pre-filling task fields (bug, feature, refactor, test, docs,
+    /// add-tests, refactor-performance, fix-error-handling, add-docs, security-audit).
     #[arg(short = 't', long, value_name = "TEMPLATE")]
     pub template: Option<String>,
+
+    /// Target file/path for template variable substitution ({{target}}, {{module}}, {{file}}).
+    /// Used with --template to auto-fill template variables.
+    #[arg(long, value_name = "PATH")]
+    pub target: Option<String>,
 }
 
 /// Batching mode for grouping related files in build-refactor.
@@ -806,6 +909,11 @@ pub struct TaskTemplateBuildArgs {
     /// Template name
     pub template: String,
 
+    /// Target file/path for template variable substitution ({{target}}, {{module}}, {{file}}).
+    /// Used to auto-fill template variables with context from the specified path.
+    #[arg(value_name = "TARGET")]
+    pub target: Option<String>,
+
     /// Task title/request
     pub request: Vec<String>,
 
@@ -929,6 +1037,7 @@ fn handle_template_command(resolved: &config::Resolved, args: TaskTemplateArgs) 
                         resolved,
                     ),
                     template_hint: Some(build_args.template),
+                    template_target: build_args.target,
                 },
             )
         }

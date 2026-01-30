@@ -20,6 +20,7 @@ use anyhow::Result;
 
 use crate::contracts::Task;
 use crate::template::builtin::{get_builtin_template, get_template_description};
+use crate::template::variables::{detect_context, substitute_variables_in_task, TemplateContext};
 
 /// Source of a loaded template
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -142,6 +143,32 @@ pub fn template_exists(name: &str, project_root: &Path) -> bool {
     custom_path.exists() || get_builtin_template(name).is_some()
 }
 
+/// Load a template by name with variable substitution
+///
+/// Checks `.ralph/templates/{name}.json` first, then falls back to built-in templates.
+/// Substitutes template variables ({{target}}, {{module}}, {{file}}, {{branch}}) with
+/// context-aware values.
+pub fn load_template_with_context(
+    name: &str,
+    project_root: &Path,
+    target: Option<&str>,
+) -> Result<(Task, TemplateSource)> {
+    let context = detect_context(target, project_root);
+
+    // Load the base template
+    let (mut task, source) = load_template(name, project_root)?;
+
+    // Substitute variables in all string fields
+    substitute_variables_in_task(&mut task, &context);
+
+    Ok((task, source))
+}
+
+/// Get the template context for inspection
+pub fn get_template_context(target: Option<&str>, project_root: &Path) -> TemplateContext {
+    detect_context(target, project_root)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -237,8 +264,8 @@ mod tests {
 
         let templates = list_templates(temp_dir.path());
 
-        // Should have 5 built-ins + 1 custom = 6 total
-        assert_eq!(templates.len(), 6);
+        // Should have 10 built-ins + 1 custom = 11 total
+        assert_eq!(templates.len(), 11);
 
         // Custom should be in the list
         assert!(templates.iter().any(|t| t.name == "custom"));
@@ -266,5 +293,53 @@ mod tests {
         file.write_all(b"{}").unwrap();
 
         assert!(template_exists("custom", temp_dir.path()));
+    }
+
+    #[test]
+    fn test_load_template_with_context_substitutes_variables() {
+        let temp_dir = create_test_project();
+
+        // Create a custom template with variables
+        let templates_dir = temp_dir.path().join(".ralph/templates");
+        std::fs::create_dir_all(&templates_dir).unwrap();
+
+        let custom_template = r#"{
+            "id": "",
+            "title": "Fix {{target}}",
+            "status": "todo",
+            "priority": "high",
+            "tags": ["bug", "{{module}}"],
+            "scope": ["{{target}}"],
+            "plan": ["Analyze {{file}}"],
+            "evidence": ["Issue in {{target}}"]
+        }"#;
+
+        let mut file = std::fs::File::create(templates_dir.join("bug.json")).unwrap();
+        file.write_all(custom_template.as_bytes()).unwrap();
+
+        let result = load_template_with_context("bug", temp_dir.path(), Some("src/cli/task.rs"));
+        assert!(result.is_ok());
+
+        let (task, _) = result.unwrap();
+        assert_eq!(task.title, "Fix src/cli/task.rs");
+        assert!(task.tags.contains(&"bug".to_string()));
+        assert!(task.tags.contains(&"cli::task".to_string()));
+        assert!(task.scope.contains(&"src/cli/task.rs".to_string()));
+        assert!(task.plan.contains(&"Analyze task.rs".to_string()));
+        assert!(task
+            .evidence
+            .contains(&"Issue in src/cli/task.rs".to_string()));
+    }
+
+    #[test]
+    fn test_load_template_with_context_no_target() {
+        let temp_dir = create_test_project();
+
+        let result = load_template_with_context("bug", temp_dir.path(), None);
+        assert!(result.is_ok());
+
+        let (task, _) = result.unwrap();
+        // Variables should be left as-is when no target is provided
+        assert!(task.title.contains("{{target}}") || task.title.is_empty());
     }
 }

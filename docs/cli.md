@@ -960,11 +960,15 @@ Create tasks and edit task fields from CLI.
 
 Common subcommands:
 - `ralph task <request>`: create a task from a freeform request.
+- `ralph task --template <name> [target] <request>`: create a task from a template with optional target.
 - `ralph task show <TASK_ID>`: show task details (queue + done). Alias: `details`.
 - `ralph task status <draft|todo|doing|done|rejected> <TASK_ID>`: update status.
 - `ralph task edit <FIELD> <VALUE> <TASK_ID>`: edit any task field (default + custom).
 - `ralph task field <KEY> <VALUE> <TASK_ID>`: set one custom field.
 - `ralph task update [TASK_ID]`: refresh task fields based on current repo state (omit `TASK_ID` to update all tasks).
+- `ralph task template list`: list available templates.
+- `ralph task template show <name>`: show template details.
+- `ralph task template build <name> [target] <request>`: build a task from a template.
 
 Field formats (for `ralph task edit`):
 - Lists (`tags`, `scope`, `evidence`, `plan`, `notes`, `depends_on`): comma/newline-separated.
@@ -1076,6 +1080,80 @@ ralph task update --fields tags RQ-0042
 
 # Preview what would be updated (shows prompt preview)
 ralph task update --dry-run RQ-0001
+```
+
+### ralph task template
+
+Use task templates to quickly create well-structured tasks for common development patterns. Templates pre-fill task fields like tags, scope, priority, and plan structure.
+
+**Built-in Templates:**
+
+| Template | Description | Priority | Tags |
+|----------|-------------|----------|------|
+| `bug` | Bug fix with reproduction steps | high | bug, fix |
+| `feature` | New feature with design and docs | medium | feature, enhancement |
+| `refactor` | Code refactoring | medium | refactor, cleanup |
+| `test` | Test addition or improvement | high | test, coverage |
+| `docs` | Documentation update | low | docs, documentation |
+| `add-tests` | Add tests for existing code | high | test, coverage, quality |
+| `refactor-performance` | Performance optimization | medium | refactor, performance |
+| `fix-error-handling` | Fix error handling | high | bug, error-handling |
+| `add-docs` | Add documentation for a file | low | docs, documentation |
+| `security-audit` | Security audit | critical | security, audit |
+
+**Template Variables:**
+
+Templates support variable substitution using `{{variable}}` syntax:
+- `{{target}}` - The target file/path you specify
+- `{{module}}` - Module name derived from target (e.g., `src/cli/task.rs` → `cli::task`)
+- `{{file}}` - Filename only (e.g., `task.rs`)
+- `{{branch}}` - Current git branch name
+
+**Subcommands:**
+
+- `ralph task template list` - List all available templates
+- `ralph task template show <name>` - Show template details
+- `ralph task template build <name> [target] <request>` - Build task from template
+
+**Examples:**
+
+```bash
+# List available templates
+ralph task template list
+
+# Show template details
+ralph task template show add-tests
+
+# Create task from template (with target for variable substitution)
+ralph task template build add-tests src/module.rs "Add unit tests for module"
+
+# Create task from template (shorthand)
+ralph task --template add-tests src/module.rs "Add unit tests"
+
+# Interactive template selection (when running in TTY without --template)
+ralph task "Add tests for the module"
+# (prompts to select template and enter target)
+```
+
+**Custom Templates:**
+
+Create custom templates in `.ralph/templates/<name>.json`. Custom templates override built-in templates with the same name.
+
+Example custom template (`.ralph/templates/api-test.json`):
+```json
+{
+  "title": "Add API tests for {{target}}",
+  "status": "todo",
+  "priority": "high",
+  "tags": ["test", "api", "{{module}}"],
+  "scope": ["{{target}}"],
+  "plan": [
+    "Identify API endpoints in {{target}}",
+    "Write integration tests",
+    "Add edge case coverage",
+    "Run make ci"
+  ]
+}
 ```
 
 ### ralph task build refactor

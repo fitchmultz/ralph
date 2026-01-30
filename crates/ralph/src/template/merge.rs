@@ -123,6 +123,7 @@ mod tests {
             force: false,
             repoprompt_tool_injection: false,
             template_hint: None,
+            template_target: None,
         };
 
         merge_template_with_options(&template, &mut options);
@@ -144,6 +145,7 @@ mod tests {
             force: false,
             repoprompt_tool_injection: false,
             template_hint: None,
+            template_target: None,
         };
 
         merge_template_with_options(&template, &mut options);
@@ -167,6 +169,7 @@ mod tests {
             force: false,
             repoprompt_tool_injection: false,
             template_hint: None,
+            template_target: None,
         };
 
         merge_template_with_options(&template, &mut options);
@@ -206,6 +209,7 @@ mod tests {
             force: false,
             repoprompt_tool_injection: false,
             template_hint: None,
+            template_target: None,
         };
 
         merge_template_with_options(&template, &mut options);

@@ -2,52 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0425",
-      "status": "todo",
-      "title": "Implement smart task templates for common development patterns",
-      "priority": "medium",
-      "tags": [
-        "cli",
-        "ux",
-        "templates",
-        "productivity"
-      ],
-      "scope": [
-        "crates/ralph/src/cli/task.rs",
-        "crates/ralph/src/template/",
-        "crates/ralph/src/contracts.rs"
-      ],
-      "evidence": [
-        "Common patterns recur: 'Add tests for X', 'Refactor Y for performance', 'Fix error handling in Z'",
-        "Current workflow requires typing full request every time",
-        "No way to quickly create tasks with pre-filled scope, tags, and plan structure",
-        "Templates would speed up task creation significantly",
-        "Similar to GitHub issue templates or IDE snippets"
-      ],
-      "plan": [
-        "Define built-in template library: add-tests, refactor-performance, fix-error-handling, add-docs, security-audit",
-        "Add TaskTemplate struct with title pattern, default tags, default scope patterns, plan template",
-        "Create templates.json or embed templates in binary",
-        "Add ralph task --template <name> <target> command",
-        "Support template variables: {{target}}, {{module}}, {{file}}",
-        "Add ralph task list-templates command to show available templates",
-        "Allow custom templates in .ralph/templates/ directory",
-        "Auto-detect context (current file, git branch) to pre-fill template variables",
-        "Update task builder prompts to understand template context",
-        "Run 'make ci' to validate changes"
-      ],
-      "notes": [
-        "Templates should integrate with existing ralph task command seamlessly",
-        "Consider interactive template selection when --template not specified but templates available",
-        "Template system should be extensible for user-defined templates"
-      ],
-      "request": "Implement a smart task template system for common development patterns. Built-in templates like 'add-tests', 'refactor-performance', 'fix-error-handling' should pre-fill task fields (tags, scope, plan structure). Users can run 'ralph task --template add-tests src/module.rs' to quickly create well-structured tasks. This dramatically speeds up task creation and ensures consistency in task structure.",
-      "created_at": "2026-01-29T23:58:00Z",
-      "updated_at": "2026-01-29T23:58:00Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0426",
       "status": "todo",
       "title": "Add task completion celebration and productivity stats",
