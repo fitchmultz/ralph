@@ -75,6 +75,11 @@ fn build_help_overlay_lines() -> Vec<HelpLine> {
         push_section_lines(&mut lines, section);
     }
 
+    // Add board navigation section
+    for section in keymap::board_sections() {
+        push_section_lines(&mut lines, section);
+    }
+
     for section in keymap::executing_sections() {
         push_section_lines(&mut lines, section);
     }

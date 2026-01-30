@@ -13,7 +13,7 @@
 //! - Rendering operates on the current `App` state without mutating it.
 //! - Layout components remain consistent with TUI styling conventions.
 
-use super::events::types::ConfirmDiscardAction;
+use super::events::types::{ConfirmDiscardAction, ViewMode};
 use super::{App, AppMode};
 use ratatui::{
     layout::{Constraint, Direction, Layout},
@@ -23,6 +23,7 @@ use ratatui::{
 /// Width threshold (in terminal cells) below which the main layout stacks vertically.
 const NARROW_LAYOUT_WIDTH: u16 = 90;
 
+mod board;
 mod footer;
 mod header;
 mod overlays;
@@ -78,26 +79,57 @@ pub fn draw_ui(f: &mut Frame<'_>, app: &mut App) {
         // Draw header (mode, dirty state, filters, runner status)
         header::draw_header(f, app, header_area);
 
-        // Responsive main layout:
-        // - If narrow, stack list and details vertically.
-        // - If wide, split horizontally.
-        let chunks = if main.width < NARROW_LAYOUT_WIDTH {
-            Layout::default()
-                .direction(Direction::Vertical)
-                .constraints([Constraint::Percentage(45), Constraint::Percentage(55)].as_ref())
-                .split(main)
-        } else {
-            Layout::default()
-                .direction(Direction::Horizontal)
-                .constraints([Constraint::Percentage(45), Constraint::Percentage(55)].as_ref())
-                .split(main)
-        };
+        // Branch based on view mode: list or board
+        match app.view_mode {
+            ViewMode::List => {
+                // Responsive main layout:
+                // - If narrow, stack list and details vertically.
+                // - If wide, split horizontally.
+                let chunks = if main.width < NARROW_LAYOUT_WIDTH {
+                    Layout::default()
+                        .direction(Direction::Vertical)
+                        .constraints(
+                            [Constraint::Percentage(45), Constraint::Percentage(55)].as_ref(),
+                        )
+                        .split(main)
+                } else {
+                    Layout::default()
+                        .direction(Direction::Horizontal)
+                        .constraints(
+                            [Constraint::Percentage(45), Constraint::Percentage(55)].as_ref(),
+                        )
+                        .split(main)
+                };
 
-        // Left/top panel: task list
-        panels::draw_task_list(f, app, chunks[0]);
+                // Left/top panel: task list
+                panels::draw_task_list(f, app, chunks[0]);
 
-        // Right/bottom panel: task details
-        panels::draw_task_details(f, app, chunks[1]);
+                // Right/bottom panel: task details
+                panels::draw_task_details(f, app, chunks[1]);
+            }
+            ViewMode::Board => {
+                // Board view: Kanban columns with optional details panel
+                // If wide enough, show board + details side by side
+                // If narrow, show only board
+                if main.width >= 140 {
+                    let chunks = Layout::default()
+                        .direction(Direction::Horizontal)
+                        .constraints(
+                            [Constraint::Percentage(70), Constraint::Percentage(30)].as_ref(),
+                        )
+                        .split(main);
+
+                    // Left panel: Kanban board
+                    board::draw_kanban_board(f, app, chunks[0]);
+
+                    // Right panel: task details
+                    panels::draw_task_details(f, app, chunks[1]);
+                } else {
+                    // Full-width board view
+                    board::draw_kanban_board(f, app, main);
+                }
+            }
+        }
 
         // Footer (help + status).
         footer::draw_footer(f, app, footer_area);

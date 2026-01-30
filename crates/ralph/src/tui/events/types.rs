@@ -20,6 +20,16 @@ use crate::runutil::RevertDecision;
 use crate::tui::config_edit::ConfigKey;
 use crate::tui::{MultiLineInput, TextInput};
 
+/// View mode for the TUI - list or kanban board.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ViewMode {
+    /// Traditional list view with task details panel
+    #[default]
+    List,
+    /// Kanban board view with status columns
+    Board,
+}
+
 /// Actions that can result from handling a key event.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TuiAction {

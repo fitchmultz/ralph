@@ -13,7 +13,7 @@
 //! - Shared commands should use `execute_palette_command` for unified gating.
 
 use super::super::{AppMode, TextInput};
-use super::types::TuiAction;
+use super::types::{TuiAction, ViewMode};
 use super::{is_ctrl_char, is_plain_char, App};
 use crate::tui::PaletteCommand;
 use anyhow::Result;
@@ -91,9 +91,35 @@ pub(super) fn handle_normal_mode_key(
         KeyCode::Char('j') if is_plain_char(&key, 'j') => {
             if app.details_focused() {
                 app.scroll_details_down(1);
+            } else if app.view_mode == ViewMode::Board {
+                app.board_nav.move_down();
+                app.sync_board_selection_to_list();
             } else {
                 let list_height = app.list_height;
                 app.move_down(list_height);
+            }
+            Ok(TuiAction::Continue)
+        }
+        // Board view navigation: Left/Right for columns
+        KeyCode::Left => {
+            if app.view_mode == ViewMode::Board {
+                app.board_nav.move_left();
+                app.sync_board_selection_to_list();
+            }
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Char('h') if is_plain_char(&key, 'h') => {
+            if app.details_focused() {
+                app.scroll_details_up(1);
+            } else {
+                app.move_up();
+            }
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Right => {
+            if app.view_mode == ViewMode::Board {
+                app.board_nav.move_right();
+                app.sync_board_selection_to_list();
             }
             Ok(TuiAction::Continue)
         }
@@ -139,7 +165,17 @@ pub(super) fn handle_normal_mode_key(
             app.execute_palette_command(PaletteCommand::MoveTaskDown, now_rfc3339)
         }
         KeyCode::Enter => app.execute_palette_command(PaletteCommand::RunSelected, now_rfc3339),
+        // View mode toggles: 'l' for list view, 'b' for board view
         KeyCode::Char('l') if is_plain_char(&key, 'l') => {
+            app.switch_to_list_view();
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Char('b') if is_plain_char(&key, 'b') => {
+            app.switch_to_board_view();
+            Ok(TuiAction::Continue)
+        }
+        // Loop toggle moved to 'L' (capital) to free up 'l' for list view
+        KeyCode::Char('L') if is_plain_char(&key, 'L') => {
             app.execute_palette_command(PaletteCommand::ToggleLoop, now_rfc3339)
         }
         KeyCode::Char('a') if is_plain_char(&key, 'a') => {

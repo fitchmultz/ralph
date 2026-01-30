@@ -24,7 +24,7 @@ fn loop_key_starts_loop_and_runs_next_runnable() {
 
     let action = handle_key_event(
         &mut app,
-        key_event(KeyCode::Char('l')),
+        key_event(KeyCode::Char('L')),
         "2026-01-20T00:00:00Z",
     )
     .expect("handle key");

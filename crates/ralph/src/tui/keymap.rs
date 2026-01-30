@@ -133,9 +133,21 @@ const NORMAL_ACTION_BINDINGS: &[KeyBinding] = &[
     KeyBinding {
         keys: &["l"],
         keys_display: "l",
+        description: "switch to list view",
+        footer_hint: None,
+    },
+    KeyBinding {
+        keys: &["b"],
+        keys_display: "b",
+        description: "switch to board view",
+        footer_hint: None,
+    },
+    KeyBinding {
+        keys: &["L"],
+        keys_display: "L",
         description: "toggle loop mode",
         footer_hint: Some(FooterHint {
-            keys: "l",
+            keys: "L",
             label: "loop",
         }),
     },
@@ -412,11 +424,11 @@ const EXECUTING_BINDINGS: &[KeyBinding] = &[
         }),
     },
     KeyBinding {
-        keys: &["l"],
-        keys_display: "l",
+        keys: &["L"],
+        keys_display: "L",
         description: "stop loop mode",
         footer_hint: Some(FooterHint {
-            keys: "l",
+            keys: "L",
             label: "stop loop",
         }),
     },
@@ -436,6 +448,32 @@ const EXECUTING_SECTIONS: &[KeymapSection] = &[KeymapSection {
     bindings: EXECUTING_BINDINGS,
 }];
 
+const BOARD_NAV_BINDINGS: &[KeyBinding] = &[
+    KeyBinding {
+        keys: &["Left", "Right"],
+        keys_display: "Left/Right",
+        description: "move between columns (board view)",
+        footer_hint: Some(FooterHint {
+            keys: "←→",
+            label: "column",
+        }),
+    },
+    KeyBinding {
+        keys: &["Up", "Down", "j", "k"],
+        keys_display: "Up/Down or j/k",
+        description: "navigate tasks in column (board view)",
+        footer_hint: Some(FooterHint {
+            keys: "↑↓",
+            label: "task",
+        }),
+    },
+];
+
+const BOARD_SECTIONS: &[KeymapSection] = &[KeymapSection {
+    title: "Board Navigation",
+    bindings: BOARD_NAV_BINDINGS,
+}];
+
 const HELP_SECTIONS: &[KeymapSection] = &[KeymapSection {
     title: "Help Overlay",
     bindings: HELP_BINDINGS,
@@ -451,6 +489,10 @@ pub(crate) fn executing_sections() -> &'static [KeymapSection] {
 
 pub(crate) fn help_sections() -> &'static [KeymapSection] {
     HELP_SECTIONS
+}
+
+pub(crate) fn board_sections() -> &'static [KeymapSection] {
+    BOARD_SECTIONS
 }
 
 pub(crate) fn help_close_keys() -> &'static [&'static str] {

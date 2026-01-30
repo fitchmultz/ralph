@@ -16,7 +16,7 @@
 //! - Selection is always clamped to valid range after navigation.
 //! - Scroll position follows selection to keep selected task visible.
 
-use crate::contracts::{QueueFile, Task};
+use crate::contracts::{QueueFile, Task, TaskStatus};
 
 /// Trait for task navigation operations.
 ///
@@ -241,6 +241,178 @@ impl NavigationState {
         self.filtered_indices
             .iter()
             .position(|&idx| idx == queue_index)
+    }
+}
+
+/// Navigation state for the Kanban board view.
+///
+/// Tracks which column is selected and which task within that column.
+/// Columns map to task statuses in order: Draft, Todo, Doing, Done, Rejected.
+#[derive(Debug, Clone)]
+pub struct BoardNavigationState {
+    /// Current column index (0-4 mapping to Draft, Todo, Doing, Done, Rejected)
+    pub selected_column: usize,
+    /// Selected task index within the current column
+    pub selected_task_in_column: usize,
+    /// Cached task indices per column (updated when filters/queue change)
+    pub column_tasks: Vec<Vec<usize>>,
+    /// Number of columns (fixed at 5 for the status types)
+    pub num_columns: usize,
+}
+
+impl Default for BoardNavigationState {
+    fn default() -> Self {
+        Self {
+            selected_column: 1, // Default to Todo column
+            selected_task_in_column: 0,
+            column_tasks: vec![Vec::new(); 5],
+            num_columns: 5,
+        }
+    }
+}
+
+impl BoardNavigationState {
+    /// Create a new board navigation state with default values.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Get the status corresponding to a column index.
+    pub fn column_to_status(column: usize) -> Option<TaskStatus> {
+        match column {
+            0 => Some(TaskStatus::Draft),
+            1 => Some(TaskStatus::Todo),
+            2 => Some(TaskStatus::Doing),
+            3 => Some(TaskStatus::Done),
+            4 => Some(TaskStatus::Rejected),
+            _ => None,
+        }
+    }
+
+    /// Get the column index for a given status.
+    pub fn status_to_column(status: TaskStatus) -> usize {
+        match status {
+            TaskStatus::Draft => 0,
+            TaskStatus::Todo => 1,
+            TaskStatus::Doing => 2,
+            TaskStatus::Done => 3,
+            TaskStatus::Rejected => 4,
+        }
+    }
+
+    /// Get the currently selected status.
+    pub fn selected_status(&self) -> Option<TaskStatus> {
+        Self::column_to_status(self.selected_column)
+    }
+
+    /// Move selection to the next column (right).
+    pub fn move_right(&mut self) {
+        if self.selected_column + 1 < self.num_columns {
+            self.selected_column += 1;
+            self.selected_task_in_column = 0;
+        }
+    }
+
+    /// Move selection to the previous column (left).
+    pub fn move_left(&mut self) {
+        if self.selected_column > 0 {
+            self.selected_column -= 1;
+            self.selected_task_in_column = 0;
+        }
+    }
+
+    /// Move selection up within the current column.
+    pub fn move_up(&mut self) {
+        if self.selected_task_in_column > 0 {
+            self.selected_task_in_column -= 1;
+        }
+    }
+
+    /// Move selection down within the current column.
+    pub fn move_down(&mut self) {
+        if let Some(column) = self.column_tasks.get(self.selected_column) {
+            if self.selected_task_in_column + 1 < column.len() {
+                self.selected_task_in_column += 1;
+            }
+        }
+    }
+
+    /// Get the currently selected task index in the queue, if any.
+    pub fn selected_task_index(&self) -> Option<usize> {
+        self.column_tasks
+            .get(self.selected_column)
+            .and_then(|column| column.get(self.selected_task_in_column).copied())
+    }
+
+    /// Update column tasks from filtered indices and queue.
+    ///
+    /// This rebuilds the column task mapping based on current filters.
+    pub fn update_columns(&mut self, filtered_indices: &[usize], queue: &QueueFile) {
+        // Clear all columns
+        for column in &mut self.column_tasks {
+            column.clear();
+        }
+
+        // Distribute tasks into columns based on status
+        for &idx in filtered_indices {
+            if let Some(task) = queue.tasks.get(idx) {
+                let column = Self::status_to_column(task.status);
+                if column < self.num_columns {
+                    self.column_tasks[column].push(idx);
+                }
+            }
+        }
+
+        // Clamp selection to valid ranges
+        self.clamp_selection();
+    }
+
+    /// Clamp selection to valid ranges after data changes.
+    pub fn clamp_selection(&mut self) {
+        // Ensure column is valid
+        if self.selected_column >= self.num_columns {
+            self.selected_column = self.num_columns.saturating_sub(1);
+            self.selected_task_in_column = 0;
+        }
+
+        // Ensure task index is valid for current column
+        if let Some(column) = self.column_tasks.get(self.selected_column) {
+            if self.selected_task_in_column >= column.len() {
+                self.selected_task_in_column = column.len().saturating_sub(1);
+            }
+        } else {
+            self.selected_task_in_column = 0;
+        }
+    }
+
+    /// Set selection to a specific task by its queue index.
+    ///
+    /// Returns true if the task was found and selection updated.
+    pub fn select_task(&mut self, queue_index: usize, queue: &QueueFile) -> bool {
+        if let Some(task) = queue.tasks.get(queue_index) {
+            let column = Self::status_to_column(task.status);
+            if let Some(column_tasks) = self.column_tasks.get(column) {
+                if let Some(pos) = column_tasks.iter().position(|&idx| idx == queue_index) {
+                    self.selected_column = column;
+                    self.selected_task_in_column = pos;
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    /// Get the count of tasks in a specific column.
+    pub fn column_count(&self, column: usize) -> usize {
+        self.column_tasks
+            .get(column)
+            .map(|col| col.len())
+            .unwrap_or(0)
+    }
+
+    /// Get the total count of visible tasks across all columns.
+    pub fn total_visible(&self) -> usize {
+        self.column_tasks.iter().map(|col| col.len()).sum()
     }
 }
 

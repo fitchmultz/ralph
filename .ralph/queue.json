@@ -2,56 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0423",
-      "status": "todo",
-      "title": "Add Kanban board view to TUI for modern task visualization",
-      "priority": "high",
-      "tags": [
-        "tui",
-        "ux",
-        "kanban",
-        "visualization"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/app.rs",
-        "crates/ralph/src/tui/render/",
-        "crates/ralph/src/tui/events/"
-      ],
-      "evidence": [
-        "Current TUI is list-only which feels dated compared to modern tools",
-        "User feedback: TUI has poor user experience compared to CLI commands",
-        "Modern expectation: Tools like Linear, GitHub Projects, Jira use Kanban boards",
-        "Visual columns provide better task status overview than lists",
-        "Blocker: RQ-0398 (TUI resize handling) should be fixed first for good Kanban experience"
-      ],
-      "plan": [
-        "Design Kanban board layout with columns: Backlog (draft/todo), In Progress (doing), Review (optional), Done",
-        "Add view toggle: 'l' for list view (current), 'b' for board view (new)",
-        "Implement horizontal column layout with vertical task lists",
-        "Add keyboard navigation: Left/Right to switch columns, Up/Down to navigate tasks within column",
-        "Show task count badge on each column header",
-        "Implement drag-and-drop preparation (visual feedback for move operations)",
-        "Ensure board view handles terminal resize gracefully (depends on RQ-0398)",
-        "Add color-coded cards based on priority (critical=red, high=orange, medium=yellow, low=green)",
-        "Show task ID and truncated title on cards",
-        "Update help overlay with board view shortcuts",
-        "Run 'make ci' to validate changes"
-      ],
-      "notes": [
-        "Board view should respect terminal width - fall back to list on narrow terminals",
-        "Consider async loading if many tasks affect rendering performance",
-        "Future enhancement: Custom column configuration"
-      ],
-      "request": "Add a modern Kanban board view to the TUI alongside the current list view. Users should be able to toggle between list view ('l') and board view ('b'). The board should show columns for different task statuses (Backlog, In Progress, Done) with color-coded cards by priority. This brings Ralph in line with modern project management tools like Linear, GitHub Projects, and Jira, making task visualization much more intuitive.",
-      "created_at": "2026-01-29T23:56:00Z",
-      "updated_at": "2026-01-29T23:56:00Z",
-      "depends_on": [
-        "RQ-0398",
-        "RQ-0405"
-      ],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0424",
       "status": "todo",
       "title": "Add desktop notifications for task completion and failures",

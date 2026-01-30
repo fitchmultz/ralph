@@ -40,13 +40,14 @@ use std::time::Duration;
 
 use super::events::{
     handle_key_event, handle_mouse_event, AppMode, ConfirmDiscardAction, PaletteCommand,
-    PaletteEntry, ScoredPaletteEntry, TaskBuilderState, TaskBuilderStep, TuiAction,
+    PaletteEntry, ScoredPaletteEntry, TaskBuilderState, TaskBuilderStep, TuiAction, ViewMode,
 };
 use super::render::draw_ui;
 use super::terminal::{BorderStyle, ColorOption, ColorSupport, TerminalCapabilities};
 use super::TextInput;
 use super::{DetailsContext, DetailsState};
 use crate::tui::app_filters::normalize_filter_token;
+use crate::tui::app_navigation::BoardNavigationState;
 use crate::tui::app_palette::{scan_label, score_palette_entry};
 
 /// Options that control how the TUI boots.
@@ -300,6 +301,10 @@ pub struct App {
     /// Flag set when terminal was resized, cleared after redraw.
     /// Used to trigger layout recalculation and prevent visual glitches.
     resized: bool,
+    /// Current view mode (list or kanban board).
+    pub view_mode: ViewMode,
+    /// Board-specific navigation state (only meaningful when view_mode == Board).
+    pub board_nav: BoardNavigationState,
 }
 
 impl App {
@@ -373,6 +378,8 @@ impl App {
             queue_mtime: None,
             done_mtime: None,
             resized: false,
+            view_mode: ViewMode::default(),
+            board_nav: BoardNavigationState::new(),
         };
         app.rebuild_filtered_view();
         app
@@ -2009,6 +2016,9 @@ impl App {
         }
 
         self.clamp_selection_and_scroll();
+
+        // Update board columns if in board view
+        self.update_board_columns();
     }
 
     fn clamp_selection_and_scroll(&mut self) {
@@ -2133,6 +2143,78 @@ impl App {
         self.set_status_message(format!("Task builder error: {}", msg));
         if matches!(self.mode, AppMode::Executing { .. } | AppMode::ConfirmQuit) {
             self.mode = AppMode::Normal;
+        }
+    }
+
+    // View mode switching methods
+
+    /// Switch to list view.
+    ///
+    /// Updates the view mode and syncs the list selection to match
+    /// the currently selected board task (if any).
+    pub(crate) fn switch_to_list_view(&mut self) {
+        if self.view_mode == ViewMode::List {
+            return;
+        }
+        self.view_mode = ViewMode::List;
+        // Sync board selection back to list
+        self.sync_board_selection_to_list();
+        self.set_status_message("Switched to list view (l)");
+    }
+
+    /// Switch to board (Kanban) view.
+    ///
+    /// Updates the view mode, rebuilds the column task mapping,
+    /// and syncs the board selection to match the current list selection.
+    pub(crate) fn switch_to_board_view(&mut self) {
+        if self.view_mode == ViewMode::Board {
+            return;
+        }
+        self.view_mode = ViewMode::Board;
+        // Rebuild column mapping from current filtered view
+        self.board_nav
+            .update_columns(&self.filtered_indices, &self.queue);
+        // Sync list selection to board
+        self.sync_list_selection_to_board();
+        self.set_status_message("Switched to board view (b)");
+    }
+
+    /// Sync board navigation selection to list selection.
+    ///
+    /// Updates the list view's selected index to match the currently
+    /// selected task in the board view.
+    pub(crate) fn sync_board_selection_to_list(&mut self) {
+        if let Some(queue_index) = self.board_nav.selected_task_index() {
+            // Find the position of this task in the filtered indices
+            if let Some(filtered_pos) = self
+                .filtered_indices
+                .iter()
+                .position(|&idx| idx == queue_index)
+            {
+                self.selected = filtered_pos;
+                self.clamp_selection_and_scroll();
+            }
+        }
+    }
+
+    /// Sync list selection to board navigation.
+    ///
+    /// Updates the board view's selected column and task to match
+    /// the currently selected task in the list view.
+    pub(crate) fn sync_list_selection_to_board(&mut self) {
+        if let Some(queue_index) = self.filtered_indices.get(self.selected).copied() {
+            self.board_nav.select_task(queue_index, &self.queue);
+        }
+    }
+
+    /// Update board column tasks when filters change.
+    ///
+    /// Should be called after rebuild_filtered_view to keep the board
+    /// in sync with the current filter state.
+    pub(crate) fn update_board_columns(&mut self) {
+        if self.view_mode == ViewMode::Board {
+            self.board_nav
+                .update_columns(&self.filtered_indices, &self.queue);
         }
     }
 }

@@ -35,7 +35,9 @@ pub mod task_builder;
 pub mod types;
 
 pub use palette::{PaletteCommand, PaletteEntry, ScoredPaletteEntry};
-pub use types::{AppMode, ConfirmDiscardAction, TaskBuilderState, TaskBuilderStep, TuiAction};
+pub use types::{
+    AppMode, ConfirmDiscardAction, TaskBuilderState, TaskBuilderStep, TuiAction, ViewMode,
+};
 
 #[cfg(test)]
 mod tests;
