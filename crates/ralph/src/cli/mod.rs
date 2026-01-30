@@ -70,6 +70,15 @@ pub struct Cli {
     /// Useful for CI/scripting environments or when piping output.
     #[arg(long, global = true)]
     pub no_progress: bool,
+
+    /// Automatically approve all migrations and fixes without prompting.
+    /// Useful for CI/scripting environments.
+    #[arg(long, global = true, conflicts_with = "no_sanity_checks")]
+    pub auto_fix: bool,
+
+    /// Skip all startup sanity checks.
+    #[arg(long, global = true, conflicts_with = "auto_fix")]
+    pub no_sanity_checks: bool,
 }
 
 #[derive(Subcommand)]
@@ -88,8 +97,10 @@ pub enum Command {
     )]
     Prompt(prompt::PromptArgs),
     /// Verify environment readiness and configuration.
-    #[command(after_long_help = "Example:\n  ralph doctor")]
-    Doctor,
+    #[command(
+        after_long_help = "Examples:\n  ralph doctor\n  ralph doctor --auto-fix\n  ralph doctor --no-sanity-checks"
+    )]
+    Doctor(doctor::DoctorArgs),
     /// Manage project context (AGENTS.md) for AI agents.
     #[command(
         after_long_help = "Examples:\n  ralph context init\n  ralph context init --project-type rust\n  ralph context update --section troubleshooting\n  ralph context validate\n  ralph context update --dry-run"

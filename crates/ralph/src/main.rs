@@ -14,7 +14,7 @@
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use ralph::{cli, redaction};
+use ralph::{cli, redaction, sanity};
 use std::ffi::OsString;
 
 fn main() {
@@ -56,6 +56,25 @@ fn run() -> Result<()> {
     redaction::RedactedLogger::init(Box::new(logger), max_level)
         .context("initialize redacted logger")?;
 
+    // Run sanity checks before commands that need them
+    let should_run_sanity = sanity::should_run_sanity_checks(&cli.command);
+    if should_run_sanity && !cli.no_sanity_checks {
+        let resolved = ralph::config::resolve_from_cwd_for_doctor()?;
+        let options = sanity::SanityOptions {
+            auto_fix: cli.auto_fix,
+            skip: false,
+        };
+        let sanity_result = sanity::run_sanity_checks(&resolved, &options)?;
+
+        // If there are issues that need attention and we're not in auto-fix mode,
+        // we might want to warn the user
+        if !sanity::report_sanity_results(&sanity_result, cli.auto_fix) {
+            anyhow::bail!(
+                "Sanity checks failed. Please resolve the issues above or run with --auto-fix."
+            );
+        }
+    }
+
     match cli.command {
         cli::Command::Queue(args) => cli::queue::handle_queue(args.command, cli.force),
         cli::Command::Config(args) => cli::config::handle_config(args.command),
@@ -64,7 +83,7 @@ fn run() -> Result<()> {
         cli::Command::Scan(args) => cli::scan::handle_scan(args, cli.force),
         cli::Command::Init(args) => cli::init::handle_init(args, cli.force),
         cli::Command::Prompt(args) => cli::prompt::handle_prompt(args),
-        cli::Command::Doctor => cli::doctor::handle_doctor(),
+        cli::Command::Doctor(args) => cli::doctor::handle_doctor(args),
         cli::Command::Tui(args) => {
             cli::tui::handle_tui(args, cli.color, cli.force, cli.no_progress)
         }
@@ -122,6 +141,7 @@ fn suppress_terminal_logs(command: &cli::Command) -> bool {
             cli::run::RunCommand::Loop(run_args) => run_args.interactive,
             cli::run::RunCommand::Resume(_) => false,
         },
+        cli::Command::Doctor(_) => false,
         _ => false,
     }
 }

@@ -17,12 +17,25 @@ Ralph is developed and tested on **Unix-like systems** (Linux, macOS). Windows s
 For Windows users, we recommend using WSL2 for full functionality.
 
 ## Global Flags
+
 - `--force`: force operations (bypass stale queue locks; bypass clean-repo safety checks for commands that enforce them, e.g. `run one`, `run loop`, and `scan`).
 - `-v`, `--verbose`: increase output verbosity.
 - `--color <auto|always|never>`: control color output (default: `auto`).
 - `--no-color`: disable colored output (alias for `--color never`).
+- `--auto-fix`: automatically approve all migrations and fixes without prompting (useful for CI/scripting).
+- `--no-sanity-checks`: skip all startup sanity checks.
 
 Color output is automatically enabled when stdout is a TTY and disabled when piped or redirected. The `NO_COLOR` environment variable is also respected.
+
+### Sanity Checks
+
+Ralph runs automatic startup health checks on certain commands (`run one`, `run loop`, `queue validate`) to catch common configuration issues:
+
+1. **README Auto-Update**: If the embedded README template is newer than `.ralph/README.md`, it is automatically updated (no prompt - users should not edit this file manually).
+2. **Config Migrations**: Detects deprecated/renamed config keys and prompts for migration.
+3. **Unknown Config Keys**: Detects unknown config keys and prompts to remove, keep, or rename them.
+
+Use `--auto-fix` to automatically apply all fixes without prompting (useful for CI). Use `--no-sanity-checks` to skip all health checks entirely.
 
 Examples:
 ```bash
@@ -31,6 +44,12 @@ ralph --force queue archive
 ralph --color never queue list
 ralph --no-color queue list
 NO_COLOR=1 ralph queue list
+
+# Auto-approve all migrations without prompting
+ralph --auto-fix run one
+
+# Skip sanity checks entirely
+ralph --no-sanity-checks run loop
 ```
 
 ## Core Commands
@@ -281,6 +300,11 @@ The generated AGENTS.md includes these sections:
 
 Verify environment readiness by checking Git, queue, runner binaries, and project configuration.
 
+### Flags
+
+- `--auto-fix`: Automatically apply all migrations and fixes without prompting.
+- `--no-sanity-checks`: Skip sanity checks and only run doctor diagnostics.
+
 ### Runner Binary Detection
 
 `ralph doctor` detects runner binaries by trying multiple common flags in order:
@@ -323,6 +347,8 @@ Examples:
 ```bash
 ralph doctor
 ralph --verbose doctor
+ralph doctor --auto-fix
+ralph doctor --no-sanity-checks
 ```
 
 ## `ralph tui`

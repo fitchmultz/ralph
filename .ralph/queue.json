@@ -2,68 +2,52 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0454",
+      "id": "RQ-0455",
       "status": "todo",
-      "title": "Add automatic startup health checks with auto-fix and migration prompts",
+      "title": "Verify and align sanity check command triggers with user expectations. Sanity-check the sanity-check implementation to avoid wasted time and resources",
       "priority": "high",
       "tags": [
         "cli",
         "health-check",
         "config",
-        "migration",
         "ux"
       ],
       "scope": [
-        "crates/ralph/src/sanity/ (new module)",
-        "crates/ralph/src/cli/mod.rs",
-        "crates/ralph/src/cli/doctor.rs",
-        "crates/ralph/src/commands/doctor.rs",
-        "crates/ralph/src/migration/mod.rs",
-        "crates/ralph/src/config/mod.rs",
+        "crates/ralph/src/sanity/mod.rs",
+        "crates/ralph/src/main.rs",
         "docs/cli.md"
       ],
       "evidence": [
-        "User request: Add automatic startup health checks that run when Ralph starts",
-        "README auto-update: If embedded template is newer than .ralph/README.md, auto-overwrite",
-        "Config migration: Detect deprecated/renamed keys and prompt user for migration",
-        "Invalid config keys: Point out unknown keys and ask for removal or typo fix",
-        "Run automatically on Ralph startup and key commands (not just ralph doctor)",
-        "Add --yes/--auto-fix flag to auto-approve all migrations without prompting",
-        "Add --no-sanity-checks to skip entirely",
-        "ralph doctor already checks git, queue, runners, locks - should stay manual for now",
-        "Migration system already exists in crates/ralph/src/migration/ with ConfigKeyRename, FileRename, ReadmeUpdate types",
-        "README version marker: RALPH_README_VERSION comment in .ralph/README.md",
-        "Current migration registry is empty (no migrations defined yet)"
+        "User request: Sanity checks should run automatically on ralph run, ralph doctor, ralph task, ralph queue commands",
+        "User request: Sanity checks should run ONCE at startup, not repeatedly during ralph run loop",
+        "User request: Sanity checks should NOT run during queue validation within the loop",
+        "Current implementation: sanity checks run in main.rs before command dispatch via should_run_sanity_checks()",
+        "Current implementation: run_loop in commands/run/mod.rs does NOT call sanity checks again",
+        "Current behavior: sanity checks only trigger for Command::Run and Command::Queue(Validate)",
+        "Gap: ralph task commands do not currently trigger sanity checks",
+        "Gap: docs/cli.md may need updating to document which commands trigger sanity checks"
       ],
       "plan": [
-        "Create new sanity check module at crates/ralph/src/sanity/mod.rs",
-        "Implement README version check: compare embedded template version with .ralph/README.md",
-        "Implement README auto-update (no prompt) when embedded is newer - log the update",
-        "Implement config validation for deprecated/unknown keys using existing config schema",
-        "Implement migration prompt system for deprecated keys with Y/n prompt",
-        "Implement unknown key detection with option to remove or keep",
-        "Add --yes/--auto-fix CLI flag to auto-approve all migrations",
-        "Add --no-sanity-checks CLI flag to skip all health checks",
-        "Integrate sanity checks into main CLI entry point (before command execution)",
-        "Integrate sanity checks into key commands: run one, run loop, queue validate",
-        "Update ralph doctor to also run sanity checks for full report",
-        "Add tests for README version detection and auto-update",
-        "Add tests for config migration prompting logic",
-        "Update docs/cli.md with new flags and behavior",
+        "Verify current sanity check behavior runs only once per ralph invocation (confirmed in main.rs)",
+        "Verify run_loop does not re-trigger sanity checks during task iteration (confirmed in commands/run/mod.rs)",
+        "Review should_run_sanity_checks() to add ralph task commands if not present",
+        "Review should_run_sanity_checks() to add all ralph queue commands (not just validate)",
+        "Test ralph run loop --max-tasks 5 to confirm sanity check only appears once",
+        "Update docs/cli.md to document which commands trigger automatic sanity checks",
         "Run make ci to verify all tests pass"
       ],
       "notes": [
-        "README auto-update is automatic (no prompt) - users should not edit this file manually",
-        "Config migrations require user confirmation unless --yes flag is set",
-        "Unknown config keys should prompt with options: remove, keep as-is, or rename if typo",
-        "Sanity checks should be fast and not block CLI usage when --no-sanity-checks is set",
-        "Consider adding 'silent unless broken' mode in future if noise becomes issue",
-        "Existing doctor checks (git, queue, runners, locks) stay manual - only new checks run automatically"
+        "Current implementation already satisfies 'run once per session' requirement",
+        "Sanity checks run in main.rs:59-74 before command routing, not during loop execution",
+        "The loop in run_loop() calls run_one() repeatedly but sanity checks are not in that path",
+        "If implementation is already correct, task is to verify and document only"
       ],
-      "request": "Add automatic startup health checks that run when Ralph starts (or on key commands) to catch common configuration issues. The system should automatically fix what it can and prompt on what needs user decision. Automatic Fixes (No Prompting): README updates - If the embedded template is newer than .ralph/README.md, automatically overwrite it with the latest version. Log that it happened (\"Updated README to version 4\"). Nobody should be editing this file manually. User-Prompted Fixes: Config migration - Detect deprecated/renamed keys and ask: \"Config uses deprecated key 'old_key', migrate to 'new_key'? [Y/n]\" Invalid config keys - Point out unknown keys and ask if they want them removed or if it's a typo. How It Runs: Automatically on Ralph startup and key commands (not hidden behind ralph doctor which nobody runs). Also available via ralph doctor for a full report/re-check. Add --yes or --auto-fix flag to auto-approve all migrations without prompting (for CI/scripting). Add --no-sanity-checks to skip entirely.",
-      "created_at": "2026-01-30T18:30:00Z",
-      "updated_at": "2026-01-30T18:30:00Z",
-      "depends_on": [],
+      "request": "Read the plan at this file .ralph/cache/plans/RQ-0454.md. Under key design decisions, number four, it says run automatically on Ralph's startup before command execution, and I agree with that. I want that. That is the intended behavior I want. Like, if someone runs Ralph, whether they run any command for the first time, like they open a command prompt in a project and they run Ralph. With the exception of Ralph in it to initialize. If they run Ralph run, for example, it should do the automatic check. If they run Ralph run one, it should do the automatic check. I want to make sure that it doesn't rerun that check again and again and again in the same session though. So it does it once at startup. But as the loop continues, it shouldn't be rechecking during the loop. And it shouldn't be checking during the queue validation. It should really only be run like the execution of the checks should really only be run when it's used with 'ralph run' 'ralph doctor' 'ralph task' 'ralph queue'. What I dont want to happen is I run 'ralph run loop --max-tasks 5' and see the validation snanity check happening several times. It should do the sanity check once initially and then not again until 'ralph run loop --max-tasks5' terminates and the user invokes another 'ralph' command. Otherwise it just adds meaningless overhead. Maybe this is how it is already implemented, or there's no reason for concern due to how the workflows and code works, but I wanted to call this out and have a task built to have this clarified, and fixed if it doesnt align with my expectations. If the current implementation is valid then no changes are required.",
+      "created_at": "2026-01-30T17:26:49Z",
+      "updated_at": "2026-01-30T17:26:49Z",
+      "depends_on": [
+        "RQ-0454"
+      ],
       "custom_fields": {}
     },
     {
