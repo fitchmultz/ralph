@@ -361,6 +361,9 @@ mod tests {
             completed_at: None,
             scheduled_start: None,
             depends_on: vec!["RQ-0001".to_string()],
+            blocks: vec![],
+            relates_to: vec![],
+            duplicates: None,
             custom_fields: HashMap::new(),
         }
     }

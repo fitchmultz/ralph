@@ -144,6 +144,9 @@ fn base_task() -> Task {
         completed_at: None,
         scheduled_start: None,
         depends_on: vec![],
+        blocks: vec![],
+        relates_to: vec![],
+        duplicates: None,
         custom_fields: std::collections::HashMap::new(),
     }
 }
@@ -227,6 +230,9 @@ fn task_with_status(status: TaskStatus) -> Task {
         completed_at: None,
         scheduled_start: None,
         depends_on: vec![],
+        blocks: vec![],
+        relates_to: vec![],
+        duplicates: None,
         custom_fields: std::collections::HashMap::new(),
     }
 }
@@ -255,6 +261,9 @@ fn run_one_with_id_locked_skips_reacquiring_queue_lock() -> anyhow::Result<()> {
         completed_at: Some("2026-01-18T01:00:00Z".to_string()),
         scheduled_start: None,
         depends_on: vec![],
+        blocks: vec![],
+        relates_to: vec![],
+        duplicates: None,
         custom_fields: std::collections::HashMap::new(),
     };
     queue::save_queue(

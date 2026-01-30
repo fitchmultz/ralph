@@ -442,6 +442,9 @@ fn validate_dependencies(
         }
     }
 
+    // Validate new relationship fields (blocks, relates_to, duplicates)
+    validate_relationships(&all_tasks_iter, &all_task_ids, &all_tasks, &mut result)?;
+
     Ok(result)
 }
 
@@ -559,6 +562,127 @@ fn find_blocking_dependencies(
     }
 
     blocking
+}
+
+/// Validate task relationships (blocks, relates_to, duplicates).
+/// Checks that all relationship targets exist and that blocks relationships don't form cycles.
+fn validate_relationships(
+    tasks: &[&Task],
+    all_task_ids: &HashSet<&str>,
+    all_tasks: &HashMap<&str, &Task>,
+    result: &mut DependencyValidationResult,
+) -> Result<()> {
+    // Build adjacency list for blocks cycle detection
+    let mut blocks_graph: HashMap<&str, Vec<&str>> = HashMap::new();
+
+    for task in tasks {
+        let task_id = task.id.trim();
+
+        // Validate blocks relationships
+        for blocked_id in &task.blocks {
+            let blocked_id = blocked_id.trim();
+            if blocked_id.is_empty() {
+                continue;
+            }
+
+            // Check for self-reference (hard error)
+            if blocked_id == task_id {
+                bail!(
+                    "Self-blocking detected: task {} blocks itself. Remove the self-reference from the blocks field.",
+                    task_id
+                );
+            }
+
+            // Check that blocked task exists (hard error)
+            if !all_task_ids.contains(blocked_id) {
+                bail!(
+                    "Invalid blocks relationship: task {} blocks non-existent task {}. Ensure the blocked task ID exists in .ralph/queue.json or .ralph/done.json.",
+                    task_id,
+                    blocked_id
+                );
+            }
+
+            // Build graph for cycle detection
+            blocks_graph.entry(task_id).or_default().push(blocked_id);
+        }
+
+        // Validate relates_to relationships
+        for related_id in &task.relates_to {
+            let related_id = related_id.trim();
+            if related_id.is_empty() {
+                continue;
+            }
+
+            // Check for self-reference (hard error)
+            if related_id == task_id {
+                bail!(
+                    "Self-reference in relates_to: task {} relates to itself. Remove the self-reference from the relates_to field.",
+                    task_id
+                );
+            }
+
+            // Check that related task exists (hard error)
+            if !all_task_ids.contains(related_id) {
+                bail!(
+                    "Invalid relates_to relationship: task {} relates to non-existent task {}. Ensure the related task ID exists in .ralph/queue.json or .ralph/done.json.",
+                    task_id,
+                    related_id
+                );
+            }
+        }
+
+        // Validate duplicates relationship
+        if let Some(duplicates_id) = &task.duplicates {
+            let duplicates_id = duplicates_id.trim();
+
+            // Check for self-reference (hard error)
+            if duplicates_id == task_id {
+                bail!(
+                    "Self-duplication detected: task {} duplicates itself. Remove the self-reference from the duplicates field.",
+                    task_id
+                );
+            }
+
+            // Check that duplicated task exists (hard error)
+            if !all_task_ids.contains(duplicates_id) {
+                bail!(
+                    "Invalid duplicates relationship: task {} duplicates non-existent task {}. Ensure the duplicated task ID exists in .ralph/queue.json or .ralph/done.json.",
+                    task_id,
+                    duplicates_id
+                );
+            }
+
+            // Warn if duplicating a done/rejected task
+            if let Some(dupe_task) = all_tasks.get(duplicates_id) {
+                if matches!(dupe_task.status, TaskStatus::Done | TaskStatus::Rejected) {
+                    result.warnings.push(ValidationWarning {
+                        task_id: task_id.to_string(),
+                        message: format!(
+                            "Task {} duplicates {} which is already {}. Consider if this duplicate is still needed.",
+                            task_id,
+                            duplicates_id,
+                            if dupe_task.status == TaskStatus::Done { "done" } else { "rejected" }
+                        ),
+                    });
+                }
+            }
+        }
+    }
+
+    // Detect cycles in blocks relationships using DFS (hard error)
+    let mut visited = std::collections::HashSet::new();
+    let mut rec_stack = std::collections::HashSet::new();
+
+    for node in blocks_graph.keys() {
+        if has_cycle(node, &blocks_graph, &mut visited, &mut rec_stack) {
+            bail!(
+                "Circular blocking detected involving task {}. Task blocking relationships must form a DAG (no cycles). Review the blocks fields to break the cycle.",
+                node
+            );
+        }
+    }
+
+    Ok(())
 }
 
 fn has_cycle(

@@ -32,6 +32,18 @@ pub struct TaskNode {
     pub dependencies: Vec<String>,
     /// IDs of tasks that depend on this task (downstream dependents)
     pub dependents: Vec<String>,
+    /// IDs of tasks this task blocks (must complete before blocked tasks can run)
+    pub blocks: Vec<String>,
+    /// IDs of tasks that block this task (reverse of blocks)
+    pub blocked_by: Vec<String>,
+    /// IDs of tasks this task relates to (loose coupling)
+    pub relates_to: Vec<String>,
+    /// IDs of tasks that relate to this task (reverse of relates_to)
+    pub related_by: Vec<String>,
+    /// Task ID that this task duplicates (if any)
+    pub duplicates: Option<String>,
+    /// IDs of tasks that duplicate this task
+    pub duplicated_by: Vec<String>,
 }
 
 /// Dependency graph containing all tasks and their relationships.
@@ -186,14 +198,165 @@ impl DependencyGraph {
             .map(|n| matches!(n.task.status, TaskStatus::Done | TaskStatus::Rejected))
             .unwrap_or(true) // Treat missing as completed (no blocker)
     }
+
+    /// Get all tasks that this task blocks (transitive closure of blocks).
+    pub fn get_blocks_chain(&self, task_id: &str) -> Vec<String> {
+        let mut chain = Vec::new();
+        let mut visited = HashSet::new();
+        let mut stack = vec![task_id.to_string()];
+
+        while let Some(current_id) = stack.pop() {
+            if visited.contains(&current_id) {
+                continue;
+            }
+            visited.insert(current_id.clone());
+
+            if let Some(node) = self.get(&current_id) {
+                for blocked_id in &node.blocks {
+                    if !visited.contains(blocked_id) {
+                        chain.push(blocked_id.clone());
+                        stack.push(blocked_id.clone());
+                    }
+                }
+            }
+        }
+
+        chain
+    }
+
+    /// Get all tasks that block this task (transitive closure of blocked_by).
+    pub fn get_blocked_by_chain(&self, task_id: &str) -> Vec<String> {
+        let mut chain = Vec::new();
+        let mut visited = HashSet::new();
+        let mut stack = vec![task_id.to_string()];
+
+        while let Some(current_id) = stack.pop() {
+            if visited.contains(&current_id) {
+                continue;
+            }
+            visited.insert(current_id.clone());
+
+            if let Some(node) = self.get(&current_id) {
+                for blocker_id in &node.blocked_by {
+                    if !visited.contains(blocker_id) {
+                        chain.push(blocker_id.clone());
+                        stack.push(blocker_id.clone());
+                    }
+                }
+            }
+        }
+
+        chain
+    }
+
+    /// Get related tasks (transitive closure of relates_to).
+    pub fn get_related_chain(&self, task_id: &str) -> Vec<String> {
+        let mut chain = Vec::new();
+        let mut visited = HashSet::new();
+        let mut stack = vec![task_id.to_string()];
+
+        while let Some(current_id) = stack.pop() {
+            if visited.contains(&current_id) {
+                continue;
+            }
+            visited.insert(current_id.clone());
+
+            if let Some(node) = self.get(&current_id) {
+                // Follow relates_to
+                for related_id in &node.relates_to {
+                    if !visited.contains(related_id) {
+                        chain.push(related_id.clone());
+                        stack.push(related_id.clone());
+                    }
+                }
+                // Follow related_by (reverse direction)
+                for related_id in &node.related_by {
+                    if !visited.contains(related_id) {
+                        chain.push(related_id.clone());
+                        stack.push(related_id.clone());
+                    }
+                }
+            }
+        }
+
+        chain
+    }
+
+    /// Get duplicate chain (follows duplicates links).
+    pub fn get_duplicate_chain(&self, task_id: &str) -> Vec<String> {
+        let mut chain = Vec::new();
+        let mut visited = HashSet::new();
+        let mut current = task_id.to_string();
+
+        // Follow duplicates forward
+        loop {
+            if visited.contains(&current) {
+                break;
+            }
+            visited.insert(current.clone());
+
+            if let Some(node) = self.get(&current) {
+                if let Some(duplicates) = &node.duplicates {
+                    if !visited.contains(duplicates) {
+                        chain.push(duplicates.clone());
+                        current = duplicates.clone();
+                        continue;
+                    }
+                }
+            }
+            break;
+        }
+
+        // Follow duplicated_by backward
+        if let Some(node) = self.get(task_id) {
+            for dupe_id in &node.duplicated_by {
+                if !visited.contains(dupe_id) {
+                    chain.push(dupe_id.clone());
+                }
+            }
+        }
+
+        chain
+    }
+
+    /// Get immediate blocks (tasks this task directly blocks).
+    pub fn get_immediate_blocks(&self, task_id: &str) -> Vec<String> {
+        self.get(task_id)
+            .map(|n| n.blocks.clone())
+            .unwrap_or_default()
+    }
+
+    /// Get immediate blocked_by (tasks that directly block this task).
+    pub fn get_immediate_blocked_by(&self, task_id: &str) -> Vec<String> {
+        self.get(task_id)
+            .map(|n| n.blocked_by.clone())
+            .unwrap_or_default()
+    }
+
+    /// Get immediate relates_to (tasks this task directly relates to).
+    pub fn get_immediate_relates_to(&self, task_id: &str) -> Vec<String> {
+        self.get(task_id)
+            .map(|n| n.relates_to.clone())
+            .unwrap_or_default()
+    }
+
+    /// Get immediate duplicated_by (tasks that duplicate this task).
+    pub fn get_immediate_duplicated_by(&self, task_id: &str) -> Vec<String> {
+        self.get(task_id)
+            .map(|n| n.duplicated_by.clone())
+            .unwrap_or_default()
+    }
 }
 
 /// Build a dependency graph from active and optional done queues.
 pub fn build_graph(active: &QueueFile, done: Option<&QueueFile>) -> DependencyGraph {
     let mut nodes = HashMap::new();
     let mut dependents_map: HashMap<String, Vec<String>> = HashMap::new();
+    let mut blocked_by_map: HashMap<String, Vec<String>> = HashMap::new();
+    let mut related_by_map: HashMap<String, Vec<String>> = HashMap::new();
+    let mut duplicated_by_map: HashMap<String, Vec<String>> = HashMap::new();
 
-    // First pass: collect all tasks and build dependents map
+    // First pass: collect all tasks and build reverse relationship maps
     let all_tasks = active
         .tasks
         .iter()
@@ -202,7 +365,7 @@ pub fn build_graph(active: &QueueFile, done: Option<&QueueFile>) -> DependencyGr
     for task in all_tasks {
         let task_id = task.id.trim().to_string();
 
-        // Track which tasks depend on this task
+        // Track which tasks depend on this task (reverse of depends_on)
         for dep_id in &task.depends_on {
             let dep_id = dep_id.trim().to_string();
             dependents_map
@@ -210,9 +373,36 @@ pub fn build_graph(active: &QueueFile, done: Option<&QueueFile>) -> DependencyGr
                 .or_default()
                 .push(task_id.clone());
         }
+
+        // Track which tasks are blocked by this task (reverse of blocks)
+        for blocked_id in &task.blocks {
+            let blocked_id = blocked_id.trim().to_string();
+            blocked_by_map
+                .entry(blocked_id)
+                .or_default()
+                .push(task_id.clone());
+        }
+
+        // Track which tasks relate to this task (reverse of relates_to)
+        for related_id in &task.relates_to {
+            let related_id = related_id.trim().to_string();
+            related_by_map
+                .entry(related_id)
+                .or_default()
+                .push(task_id.clone());
+        }
+
+        // Track which tasks duplicate this task (reverse of duplicates)
+        if let Some(duplicates_id) = &task.duplicates {
+            let duplicates_id = duplicates_id.trim().to_string();
+            duplicated_by_map
+                .entry(duplicates_id)
+                .or_default()
+                .push(task_id.clone());
+        }
     }
 
-    // Second pass: create nodes with both dependencies and dependents
+    // Second pass: create nodes with all relationships
     let all_tasks = active
         .tasks
         .iter()
@@ -220,6 +410,7 @@ pub fn build_graph(active: &QueueFile, done: Option<&QueueFile>) -> DependencyGr
 
     for task in all_tasks {
         let task_id = task.id.trim().to_string();
+
         let dependencies: Vec<String> = task
             .depends_on
             .iter()
@@ -227,14 +418,34 @@ pub fn build_graph(active: &QueueFile, done: Option<&QueueFile>) -> DependencyGr
             .filter(|s| !s.is_empty())
             .collect();
 
-        let dependents = dependents_map.get(&task_id).cloned().unwrap_or_default();
+        let blocks: Vec<String> = task
+            .blocks
+            .iter()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+
+        let relates_to: Vec<String> = task
+            .relates_to
+            .iter()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+
+        let duplicates = task.duplicates.as_ref().map(|s| s.trim().to_string());
 
         nodes.insert(
-            task_id,
+            task_id.clone(),
             TaskNode {
                 task: task.clone(),
                 dependencies,
-                dependents,
+                dependents: dependents_map.get(&task_id).cloned().unwrap_or_default(),
+                blocks,
+                blocked_by: blocked_by_map.get(&task_id).cloned().unwrap_or_default(),
+                relates_to,
+                related_by: related_by_map.get(&task_id).cloned().unwrap_or_default(),
+                duplicates,
+                duplicated_by: duplicated_by_map.get(&task_id).cloned().unwrap_or_default(),
             },
         );
     }
@@ -511,6 +722,9 @@ mod tests {
             completed_at: None,
             scheduled_start: None,
             depends_on: depends_on.into_iter().map(|s| s.to_string()).collect(),
+            blocks: vec![],
+            relates_to: vec![],
+            duplicates: None,
             custom_fields: HashMap::new(),
         }
     }

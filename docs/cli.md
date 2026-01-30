@@ -1034,6 +1034,9 @@ Common subcommands:
 - `ralph task status <draft|todo|doing|done|rejected> <TASK_ID>...`: update status for one or more tasks.
 - `ralph task edit <FIELD> <VALUE> <TASK_ID>...`: edit any task field (default + custom) for one or more tasks.
 - `ralph task field <KEY> <VALUE> <TASK_ID>...`: set one custom field on one or more tasks.
+- `ralph task relate <TASK_ID> <RELATION> <OTHER_TASK_ID>`: add a relationship between tasks (blocks, relates_to, duplicates).
+- `ralph task blocks <TASK_ID> <BLOCKED_TASK_ID>...`: mark a task as blocking other tasks (shorthand for relate).
+- `ralph task mark-duplicate <TASK_ID> <ORIGINAL_TASK_ID>`: mark a task as duplicate of another (shorthand for relate).
 - `ralph task batch <operation>`: perform batch operations on multiple tasks efficiently.
 - `ralph task update [TASK_ID]`: refresh task fields based on current repo state (omit `TASK_ID` to update all tasks).
 - `ralph task template list`: list available templates.
@@ -1150,6 +1153,9 @@ Fields that can be edited:
 - `status` - draft, todo, doing, done, rejected (empty value cycles to next status)
 - `priority` - critical, high, medium, low (empty value cycles to next priority)
 - `tags`, `scope`, `evidence`, `plan`, `notes`, `depends_on` - comma/newline-separated lists
+- `blocks` - comma/newline-separated list of task IDs this task blocks
+- `relates_to` - comma/newline-separated list of related task IDs
+- `duplicates` - single task ID this task duplicates (empty value clears)
 - `request` - task request description (empty value clears the field)
 - `custom_fields` - key=value pairs, comma/newline-separated
 - `created_at`, `updated_at`, `completed_at` - RFC3339 timestamps
@@ -1178,7 +1184,70 @@ ralph task edit tags "urgent, reviewed" --tag-filter rust
 ralph task edit --dry-run title "Preview title" RQ-0001
 ```
 
-### ralph task batch
+### ralph task relate
+
+Add a relationship between two tasks. Relationships provide additional semantic connections beyond dependencies.
+
+**Relationship Types:**
+- `blocks` - This task prevents the other task from running until completed. Semantically: "I prevent X" (vs `depends_on`: "I need X").
+- `relates_to` - Loose coupling between related tasks. No execution constraint, just semantic association.
+- `duplicates` - This task is a duplicate of another task. Singular reference (not a list).
+
+**Arguments:**
+- `TASK_ID` - Source task ID (the one establishing the relationship)
+- `RELATION` - Relationship type: `blocks`, `relates_to` (or `relates`), `duplicates` (or `duplicate`)
+- `OTHER_TASK_ID` - Target task ID
+
+**Examples:**
+```bash
+# Mark RQ-0001 as blocking RQ-0002
+ralph task relate RQ-0001 blocks RQ-0002
+
+# Mark RQ-0001 as related to RQ-0003
+ralph task relate RQ-0001 relates_to RQ-0003
+
+# Mark RQ-0001 as duplicate of RQ-0004
+ralph task relate RQ-0001 duplicates RQ-0004
+```
+
+**Validation:**
+- Self-references are rejected (a task cannot block/relate-to/duplicate itself)
+- Target tasks must exist in queue or done
+- Circular blocking relationships are rejected
+- Duplicating a done/rejected task produces a warning
+
+### ralph task blocks
+
+Mark a task as blocking one or more other tasks. This is a shorthand for `ralph task relate <task> blocks <blocked>`.
+
+**Arguments:**
+- `TASK_ID` - Task that does the blocking
+- `BLOCKED_TASK_ID...` - One or more tasks being blocked
+
+**Examples:**
+```bash
+# Mark RQ-0001 as blocking RQ-0002
+ralph task blocks RQ-0001 RQ-0002
+
+# Mark RQ-0001 as blocking multiple tasks
+ralph task blocks RQ-0001 RQ-0002 RQ-0003
+```
+
+### ralph task mark-duplicate
+
+Mark a task as a duplicate of another task. This is a shorthand for `ralph task relate <task> duplicates <original>`.
+
+**Arguments:**
+- `TASK_ID` - Task to mark as duplicate
+- `ORIGINAL_TASK_ID` - Original task this duplicates
+
+**Examples:**
+```bash
+# Mark RQ-0001 as duplicate of RQ-0002
+ralph task mark-duplicate RQ-0001 RQ-0002
+```
+
+**Note:** Marking a task as duplicate does not automatically reject or archive it. Use `ralph task reject` if the duplicate should not be worked on.
 
 Perform batch operations on multiple tasks efficiently.
 

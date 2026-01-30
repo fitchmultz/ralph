@@ -54,6 +54,9 @@ fn test_render_scrolling_hides_top_tasks() {
             completed_at: None,
             scheduled_start: None,
             depends_on: vec![],
+            blocks: vec![],
+            relates_to: vec![],
+            duplicates: None,
             custom_fields: std::collections::HashMap::new(),
         })
         .collect();
@@ -94,6 +97,9 @@ fn test_render_scrolling_shows_bottom_tasks() {
             completed_at: None,
             scheduled_start: None,
             depends_on: vec![],
+            blocks: vec![],
+            relates_to: vec![],
+            duplicates: None,
             custom_fields: std::collections::HashMap::new(),
         })
         .collect();

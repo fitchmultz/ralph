@@ -46,6 +46,9 @@ fn setup_test_queue() -> Result<(TempDir, config::Resolved)> {
             completed_at: None,
             scheduled_start: None,
             depends_on: vec![],
+            blocks: vec![],
+            relates_to: vec![],
+            duplicates: None,
             custom_fields: HashMap::new(),
         }],
     };
@@ -208,6 +211,9 @@ fn test_queue_validate_rejects_empty_custom_field_key() -> Result<()> {
             completed_at: None,
             scheduled_start: None,
             depends_on: vec![],
+            blocks: vec![],
+            relates_to: vec![],
+            duplicates: None,
             custom_fields,
         }],
     };
@@ -256,6 +262,9 @@ fn test_queue_validate_rejects_whitespace_in_custom_field_key() -> Result<()> {
             completed_at: None,
             scheduled_start: None,
             depends_on: vec![],
+            blocks: vec![],
+            relates_to: vec![],
+            duplicates: None,
             custom_fields,
         }],
     };
@@ -320,6 +329,9 @@ fn test_custom_fields_serialization_roundtrip() -> Result<()> {
         completed_at: None,
         scheduled_start: None,
         depends_on: vec![],
+        blocks: vec![],
+        relates_to: vec![],
+        duplicates: None,
         custom_fields: custom_fields.clone(),
     };
 

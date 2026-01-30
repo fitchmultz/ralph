@@ -41,6 +41,9 @@ fn make_test_task(id: &str, title: &str, status: TaskStatus) -> Task {
         completed_at: None,
         scheduled_start: None,
         depends_on: vec![],
+        blocks: vec![],
+        relates_to: vec![],
+        duplicates: None,
         custom_fields: std::collections::HashMap::new(),
     }
 }

@@ -76,6 +76,21 @@ pub struct Task {
     #[serde(default)]
     pub depends_on: Vec<String>,
 
+    /// Task IDs that this task blocks (must be Done/Rejected before blocked tasks can run).
+    /// Semantically different from depends_on: blocks is "I prevent X" vs depends_on "I need X".
+    #[serde(default)]
+    pub blocks: Vec<String>,
+
+    /// Task IDs that this task relates to (loose coupling, no execution constraint).
+    /// Bidirectional awareness but no execution constraint.
+    #[serde(default)]
+    pub relates_to: Vec<String>,
+
+    /// Task ID that this task duplicates (if any).
+    /// Singular reference, not a list.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub duplicates: Option<String>,
+
     /// Custom user-defined fields (key-value pairs for extensibility).
     #[serde(default)]
     pub custom_fields: HashMap<String, String>,

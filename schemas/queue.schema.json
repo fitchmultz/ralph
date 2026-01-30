@@ -224,6 +224,14 @@
             }
           ]
         },
+        "blocks": {
+          "description": "Task IDs that this task blocks (must be Done/Rejected before blocked tasks can run). Semantically different from depends_on: blocks is \"I prevent X\" vs depends_on \"I need X\".",
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "completed_at": {
           "type": [
             "string",
@@ -249,6 +257,13 @@
           "items": {
             "type": "string"
           }
+        },
+        "duplicates": {
+          "description": "Task ID that this task duplicates (if any). Singular reference, not a list.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "evidence": {
           "default": [],
@@ -281,6 +296,14 @@
               "$ref": "#/definitions/TaskPriority"
             }
           ]
+        },
+        "relates_to": {
+          "description": "Task IDs that this task relates to (loose coupling, no execution constraint). Bidirectional awareness but no execution constraint.",
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         },
         "request": {
           "description": "Original human request that created the task (Task Builder / Scan).",

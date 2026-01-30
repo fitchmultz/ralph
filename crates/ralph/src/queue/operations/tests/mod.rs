@@ -30,6 +30,9 @@ pub(crate) fn task_with(id: &str, status: TaskStatus, tags: Vec<String>) -> Task
         completed_at: None,
         scheduled_start: None,
         depends_on: vec![],
+        blocks: vec![],
+        relates_to: vec![],
+        duplicates: None,
         custom_fields: HashMap::new(),
     }
 }

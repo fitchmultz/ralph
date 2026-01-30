@@ -297,6 +297,9 @@ fn test_render_with_multiple_tasks_in_list() {
             completed_at: None,
             scheduled_start: None,
             depends_on: vec![],
+            blocks: vec![],
+            relates_to: vec![],
+            duplicates: None,
             custom_fields: std::collections::HashMap::new(),
         })
         .collect();

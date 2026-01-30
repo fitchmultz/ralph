@@ -148,6 +148,9 @@ impl App {
             TaskEditKey::Notes => task.notes.join("\n"),
             TaskEditKey::Request => task.request.clone().unwrap_or_default(),
             TaskEditKey::DependsOn => task.depends_on.join("\n"),
+            TaskEditKey::Blocks => task.blocks.join("\n"),
+            TaskEditKey::RelatesTo => task.relates_to.join("\n"),
+            TaskEditKey::Duplicates => task.duplicates.clone().unwrap_or_default(),
             TaskEditKey::CustomFields => format_custom_fields(&task.custom_fields, ""),
             TaskEditKey::CreatedAt => task.created_at.clone().unwrap_or_default(),
             TaskEditKey::UpdatedAt => task.updated_at.clone().unwrap_or_default(),
@@ -167,6 +170,8 @@ impl App {
                 | TaskEditKey::Plan
                 | TaskEditKey::Notes
                 | TaskEditKey::DependsOn
+                | TaskEditKey::Blocks
+                | TaskEditKey::RelatesTo
         )
     }
 

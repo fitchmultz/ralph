@@ -80,6 +80,9 @@ pub fn make_long_details_queue() -> QueueFile {
             completed_at: None,
             scheduled_start: None,
             depends_on: vec![],
+            blocks: vec![],
+            relates_to: vec![],
+            duplicates: None,
             custom_fields: HashMap::new(),
         }],
     }
@@ -107,6 +110,9 @@ pub fn make_long_tags_queue() -> QueueFile {
             completed_at: None,
             scheduled_start: None,
             depends_on: vec![],
+            blocks: vec![],
+            relates_to: vec![],
+            duplicates: None,
             custom_fields: HashMap::new(),
         }],
     }
@@ -131,6 +137,9 @@ pub fn make_task_list_queue() -> QueueFile {
         completed_at: None,
         scheduled_start: None,
         depends_on: vec![],
+        blocks: vec![],
+        relates_to: vec![],
+        duplicates: None,
         custom_fields: HashMap::new(),
     };
 

@@ -452,7 +452,7 @@ fn render_task_dot(
 
     println!();
 
-    // Define edges
+    // Define edges for depends_on relationships (solid)
     for task_id in &included_tasks {
         if let Some(node) = graph.get(task_id) {
             for dep_id in &node.dependencies {
@@ -465,6 +465,51 @@ fn render_task_dot(
                         ""
                     };
                     println!("  \"{}\" -> \"{}\"{};", task_id, dep_id, edge_style);
+                }
+            }
+        }
+    }
+
+    // Define edges for blocks relationships (dashed)
+    for task_id in &included_tasks {
+        if let Some(node) = graph.get(task_id) {
+            for blocked_id in &node.blocks {
+                if included_tasks.contains(blocked_id) {
+                    println!(
+                        "  \"{}\" -> \"{}\" [style=dashed, color=orange, label=\"blocks\"];",
+                        task_id, blocked_id
+                    );
+                }
+            }
+        }
+    }
+
+    // Define edges for relates_to relationships (dotted)
+    for task_id in &included_tasks {
+        if let Some(node) = graph.get(task_id) {
+            for related_id in &node.relates_to {
+                if included_tasks.contains(related_id) {
+                    // Only draw one direction to avoid duplicate edges
+                    if task_id < related_id {
+                        println!(
+                            "  \"{}\" -> \"{}\" [style=dotted, color=blue, label=\"relates\"];",
+                            task_id, related_id
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    // Define edges for duplicates relationships (bold, red)
+    for task_id in &included_tasks {
+        if let Some(node) = graph.get(task_id) {
+            if let Some(duplicates_id) = &node.duplicates {
+                if included_tasks.contains(duplicates_id) {
+                    println!(
+                        "  \"{}\" -> \"{}\" [style=bold, color=red, label=\"duplicates\"];",
+                        task_id, duplicates_id
+                    );
                 }
             }
         }

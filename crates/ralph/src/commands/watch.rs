@@ -564,6 +564,9 @@ fn create_task_from_comment(comment: &DetectedComment, resolved: &Resolved) -> R
         completed_at: None,
         scheduled_start: None,
         depends_on: Vec::new(),
+        blocks: Vec::new(),
+        relates_to: Vec::new(),
+        duplicates: None,
         custom_fields: HashMap::new(),
     })
 }

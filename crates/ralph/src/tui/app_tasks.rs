@@ -280,6 +280,9 @@ impl TaskOperations {
             completed_at: None,
             scheduled_start: None,
             depends_on: vec![],
+            blocks: vec![],
+            relates_to: vec![],
+            duplicates: None,
             custom_fields: HashMap::new(),
         };
 

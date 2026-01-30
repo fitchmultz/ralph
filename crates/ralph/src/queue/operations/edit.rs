@@ -32,6 +32,9 @@ pub enum TaskEditKey {
     Notes,
     Request,
     DependsOn,
+    Blocks,
+    RelatesTo,
+    Duplicates,
     CustomFields,
     CreatedAt,
     UpdatedAt,
@@ -52,6 +55,9 @@ impl TaskEditKey {
             TaskEditKey::Notes => "notes",
             TaskEditKey::Request => "request",
             TaskEditKey::DependsOn => "depends_on",
+            TaskEditKey::Blocks => "blocks",
+            TaskEditKey::RelatesTo => "relates_to",
+            TaskEditKey::Duplicates => "duplicates",
             TaskEditKey::CustomFields => "custom_fields",
             TaskEditKey::CreatedAt => "created_at",
             TaskEditKey::UpdatedAt => "updated_at",
@@ -77,13 +83,16 @@ impl std::str::FromStr for TaskEditKey {
             "notes" => Ok(TaskEditKey::Notes),
             "request" => Ok(TaskEditKey::Request),
             "depends_on" => Ok(TaskEditKey::DependsOn),
+            "blocks" => Ok(TaskEditKey::Blocks),
+            "relates_to" => Ok(TaskEditKey::RelatesTo),
+            "duplicates" => Ok(TaskEditKey::Duplicates),
             "custom_fields" => Ok(TaskEditKey::CustomFields),
             "created_at" => Ok(TaskEditKey::CreatedAt),
             "updated_at" => Ok(TaskEditKey::UpdatedAt),
             "completed_at" => Ok(TaskEditKey::CompletedAt),
             "scheduled_start" => Ok(TaskEditKey::ScheduledStart),
             _ => bail!(
-                "Unknown task field: '{}'. Expected one of: title, status, priority, tags, scope, evidence, plan, notes, request, depends_on, custom_fields, created_at, updated_at, completed_at, scheduled_start.",
+                "Unknown task field: '{}'. Expected one of: title, status, priority, tags, scope, evidence, plan, notes, request, depends_on, blocks, relates_to, duplicates, custom_fields, created_at, updated_at, completed_at, scheduled_start.",
                 value
             ),
         }
@@ -186,6 +195,19 @@ pub fn apply_task_edit(
         }
         TaskEditKey::DependsOn => {
             task.depends_on = parse_list(trimmed);
+        }
+        TaskEditKey::Blocks => {
+            task.blocks = parse_list(trimmed);
+        }
+        TaskEditKey::RelatesTo => {
+            task.relates_to = parse_list(trimmed);
+        }
+        TaskEditKey::Duplicates => {
+            task.duplicates = if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed.to_string())
+            };
         }
         TaskEditKey::CustomFields => {
             task.custom_fields = parse_custom_fields_with_context(needle, trimmed, operation)?;
@@ -430,6 +452,19 @@ pub fn preview_task_edit(
         TaskEditKey::DependsOn => {
             preview_task.depends_on = parse_list(trimmed);
         }
+        TaskEditKey::Blocks => {
+            preview_task.blocks = parse_list(trimmed);
+        }
+        TaskEditKey::RelatesTo => {
+            preview_task.relates_to = parse_list(trimmed);
+        }
+        TaskEditKey::Duplicates => {
+            preview_task.duplicates = if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed.to_string())
+            };
+        }
         TaskEditKey::CustomFields => {
             preview_task.custom_fields =
                 parse_custom_fields_with_context(needle, trimmed, operation)?;
@@ -585,6 +620,9 @@ fn format_field_value(task: &Task, key: TaskEditKey) -> String {
         TaskEditKey::Notes => task.notes.join("; "),
         TaskEditKey::Request => task.request.clone().unwrap_or_default(),
         TaskEditKey::DependsOn => task.depends_on.join(", "),
+        TaskEditKey::Blocks => task.blocks.join(", "),
+        TaskEditKey::RelatesTo => task.relates_to.join(", "),
+        TaskEditKey::Duplicates => task.duplicates.clone().unwrap_or_default(),
         TaskEditKey::CustomFields => {
             let pairs: Vec<String> = task
                 .custom_fields
@@ -623,6 +661,9 @@ mod tests {
             completed_at: None,
             scheduled_start: None,
             depends_on: vec![],
+            blocks: vec![],
+            relates_to: vec![],
+            duplicates: None,
             custom_fields: HashMap::new(),
             agent: None,
         }

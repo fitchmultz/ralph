@@ -81,6 +81,9 @@ fn make_task(id: &str, status: TaskStatus, title: &str) -> Task {
         scheduled_start: None,
         completed_at,
         depends_on: vec![],
+        blocks: vec![],
+        relates_to: vec![],
+        duplicates: None,
         custom_fields: HashMap::new(),
     }
 }

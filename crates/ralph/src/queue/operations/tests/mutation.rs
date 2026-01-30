@@ -77,6 +77,9 @@ fn backfill_missing_fields_applies_defaults() {
             completed_at: None,
             scheduled_start: None,
             depends_on: vec![],
+            blocks: vec![],
+            relates_to: vec![],
+            duplicates: None,
             custom_fields: HashMap::new(),
         }],
     };
@@ -282,6 +285,9 @@ fn sort_tasks_by_priority_descending_orders_high_first() {
                 completed_at: None,
                 scheduled_start: None,
                 depends_on: vec![],
+                blocks: vec![],
+                relates_to: vec![],
+                duplicates: None,
                 custom_fields: HashMap::new(),
             },
             Task {
@@ -301,6 +307,9 @@ fn sort_tasks_by_priority_descending_orders_high_first() {
                 completed_at: None,
                 scheduled_start: None,
                 depends_on: vec![],
+                blocks: vec![],
+                relates_to: vec![],
+                duplicates: None,
                 custom_fields: HashMap::new(),
             },
         ],
@@ -356,6 +365,9 @@ fn task_id_set_ignores_empty_ids() {
         completed_at: None,
         scheduled_start: None,
         depends_on: vec![],
+        blocks: vec![],
+        relates_to: vec![],
+        duplicates: None,
         custom_fields: HashMap::new(),
     });
 

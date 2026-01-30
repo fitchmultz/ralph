@@ -519,6 +519,167 @@ pub fn handle_task(args: TaskArgs, force: bool) -> Result<()> {
             Ok(())
         }
 
+        Some(TaskCommand::Relate(args)) => {
+            let _queue_lock = queue::acquire_queue_lock(&resolved.repo_root, "task relate", force)?;
+            let mut queue_file = queue::load_queue(&resolved.queue_path)?;
+            let now = timeutil::now_utc_rfc3339()?;
+            let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
+
+            let relation = args.relation.trim().to_lowercase();
+            let edit_key = match relation.as_str() {
+                "blocks" => TaskEditKey::Blocks,
+                "relates_to" | "relates" => TaskEditKey::RelatesTo,
+                "duplicates" | "duplicate" => TaskEditKey::Duplicates,
+                _ => bail!(
+                    "Invalid relationship type: '{}'. Expected one of: blocks, relates_to, duplicates.",
+                    args.relation
+                ),
+            };
+
+            // For blocks and relates_to, append to the list
+            // For duplicates, set the value directly
+            let value = if matches!(edit_key, TaskEditKey::Duplicates) {
+                args.other_task_id.clone()
+            } else {
+                // Get existing values and append
+                let task = queue_file
+                    .tasks
+                    .iter()
+                    .find(|t| t.id.trim() == args.task_id.trim())
+                    .ok_or_else(|| anyhow::anyhow!("Task not found: {}", args.task_id))?;
+
+                let existing: Vec<String> = match edit_key {
+                    TaskEditKey::Blocks => task.blocks.clone(),
+                    TaskEditKey::RelatesTo => task.relates_to.clone(),
+                    _ => vec![],
+                };
+
+                let mut new_list = existing;
+                if !new_list.contains(&args.other_task_id) {
+                    new_list.push(args.other_task_id.clone());
+                }
+                new_list.join(", ")
+            };
+
+            queue::apply_task_edit(
+                &mut queue_file,
+                None,
+                &args.task_id,
+                edit_key,
+                &value,
+                &now,
+                &resolved.id_prefix,
+                resolved.id_width,
+                max_depth,
+            )?;
+
+            queue::save_queue(&resolved.queue_path, &queue_file)?;
+
+            let relation_desc = match edit_key {
+                TaskEditKey::Blocks => "blocks",
+                TaskEditKey::RelatesTo => "relates to",
+                TaskEditKey::Duplicates => "duplicates",
+                _ => &args.relation,
+            };
+
+            log::info!(
+                "Task {} now {} {}.",
+                args.task_id,
+                relation_desc,
+                args.other_task_id
+            );
+            println!(
+                "Task {} now {} {}.",
+                args.task_id, relation_desc, args.other_task_id
+            );
+
+            Ok(())
+        }
+
+        Some(TaskCommand::Blocks(args)) => {
+            let _queue_lock = queue::acquire_queue_lock(&resolved.repo_root, "task blocks", force)?;
+            let mut queue_file = queue::load_queue(&resolved.queue_path)?;
+            let now = timeutil::now_utc_rfc3339()?;
+            let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
+
+            // Get existing blocks
+            let task = queue_file
+                .tasks
+                .iter()
+                .find(|t| t.id.trim() == args.task_id.trim())
+                .ok_or_else(|| anyhow::anyhow!("Task not found: {}", args.task_id))?;
+
+            let mut new_blocks = task.blocks.clone();
+            for blocked_id in &args.blocked_task_ids {
+                if !new_blocks.contains(blocked_id) {
+                    new_blocks.push(blocked_id.clone());
+                }
+            }
+
+            let value = new_blocks.join(", ");
+
+            queue::apply_task_edit(
+                &mut queue_file,
+                None,
+                &args.task_id,
+                TaskEditKey::Blocks,
+                &value,
+                &now,
+                &resolved.id_prefix,
+                resolved.id_width,
+                max_depth,
+            )?;
+
+            queue::save_queue(&resolved.queue_path, &queue_file)?;
+
+            log::info!(
+                "Task {} now blocks: {}.",
+                args.task_id,
+                args.blocked_task_ids.join(", ")
+            );
+            println!(
+                "Task {} now blocks: {}.",
+                args.task_id,
+                args.blocked_task_ids.join(", ")
+            );
+
+            Ok(())
+        }
+
+        Some(TaskCommand::MarkDuplicate(args)) => {
+            let _queue_lock =
+                queue::acquire_queue_lock(&resolved.repo_root, "task duplicate", force)?;
+            let mut queue_file = queue::load_queue(&resolved.queue_path)?;
+            let now = timeutil::now_utc_rfc3339()?;
+            let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
+
+            queue::apply_task_edit(
+                &mut queue_file,
+                None,
+                &args.task_id,
+                TaskEditKey::Duplicates,
+                &args.original_task_id,
+                &now,
+                &resolved.id_prefix,
+                resolved.id_width,
+                max_depth,
+            )?;
+
+            queue::save_queue(&resolved.queue_path, &queue_file)?;
+
+            log::info!(
+                "Task {} marked as duplicate of {}.",
+                args.task_id,
+                args.original_task_id
+            );
+            println!(
+                "Task {} marked as duplicate of {}.",
+                args.task_id, args.original_task_id
+            );
+
+            Ok(())
+        }
+
         None => {
             let args = args.build;
             let request = task_cmd::read_request_from_args_or_stdin(&args.request)?;
@@ -1081,6 +1242,25 @@ pub enum TaskCommand {
         after_long_help = "Examples:\n ralph task schedule RQ-0001 '2026-02-01T09:00:00Z'\n ralph task schedule RQ-0001 'tomorrow 9am'\n ralph task schedule RQ-0001 'in 2 hours'\n ralph task schedule RQ-0001 'next monday'\n ralph task schedule RQ-0001 --clear"
     )]
     Schedule(TaskScheduleArgs),
+
+    /// Add a relationship between tasks.
+    #[command(
+        after_long_help = "Examples:\n ralph task relate RQ-0001 blocks RQ-0002\n ralph task relate RQ-0001 relates_to RQ-0003\n ralph task relate RQ-0001 duplicates RQ-0004"
+    )]
+    Relate(TaskRelateArgs),
+
+    /// Mark a task as blocking another task (shorthand for 'relate <task> blocks <blocked>').
+    #[command(
+        after_long_help = "Examples:\n ralph task blocks RQ-0001 RQ-0002\n ralph task blocks RQ-0001 RQ-0002 RQ-0003"
+    )]
+    Blocks(TaskBlocksArgs),
+
+    /// Mark a task as a duplicate of another task (shorthand for 'relate <task> duplicates <original>').
+    #[command(
+        name = "mark-duplicate",
+        after_long_help = "Examples:\n ralph task mark-duplicate RQ-0001 RQ-0002"
+    )]
+    MarkDuplicate(TaskMarkDuplicateArgs),
 }
 
 #[derive(Args)]
@@ -1483,6 +1663,9 @@ pub enum TaskEditFieldArg {
     Notes,
     Request,
     DependsOn,
+    Blocks,
+    RelatesTo,
+    Duplicates,
     CustomFields,
     CreatedAt,
     UpdatedAt,
@@ -1502,6 +1685,9 @@ impl TaskEditFieldArg {
             TaskEditFieldArg::Notes => "notes",
             TaskEditFieldArg::Request => "request",
             TaskEditFieldArg::DependsOn => "depends_on",
+            TaskEditFieldArg::Blocks => "blocks",
+            TaskEditFieldArg::RelatesTo => "relates_to",
+            TaskEditFieldArg::Duplicates => "duplicates",
             TaskEditFieldArg::CustomFields => "custom_fields",
             TaskEditFieldArg::CreatedAt => "created_at",
             TaskEditFieldArg::UpdatedAt => "updated_at",
@@ -1523,6 +1709,9 @@ impl From<TaskEditFieldArg> for TaskEditKey {
             TaskEditFieldArg::Notes => TaskEditKey::Notes,
             TaskEditFieldArg::Request => TaskEditKey::Request,
             TaskEditFieldArg::DependsOn => TaskEditKey::DependsOn,
+            TaskEditFieldArg::Blocks => TaskEditKey::Blocks,
+            TaskEditFieldArg::RelatesTo => TaskEditKey::RelatesTo,
+            TaskEditFieldArg::Duplicates => TaskEditKey::Duplicates,
             TaskEditFieldArg::CustomFields => TaskEditKey::CustomFields,
             TaskEditFieldArg::CreatedAt => TaskEditKey::CreatedAt,
             TaskEditFieldArg::UpdatedAt => TaskEditKey::UpdatedAt,
@@ -1547,6 +1736,50 @@ pub struct TaskScheduleArgs {
     /// Clear the scheduled start time.
     #[arg(long, conflicts_with = "when")]
     pub clear: bool,
+}
+
+#[derive(Args)]
+#[command(
+    after_long_help = "Examples:\n  ralph task relate RQ-0001 blocks RQ-0002\n  ralph task relate RQ-0001 relates_to RQ-0003\n  ralph task relate RQ-0001 duplicates RQ-0004"
+)]
+pub struct TaskRelateArgs {
+    /// Source task ID.
+    #[arg(value_name = "TASK_ID")]
+    pub task_id: String,
+
+    /// Relationship type (blocks, relates_to, duplicates).
+    #[arg(value_name = "RELATION")]
+    pub relation: String,
+
+    /// Target task ID.
+    #[arg(value_name = "OTHER_TASK_ID")]
+    pub other_task_id: String,
+}
+
+#[derive(Args)]
+#[command(
+    after_long_help = "Examples:\n  ralph task blocks RQ-0001 RQ-0002\n  ralph task blocks RQ-0001 RQ-0002 RQ-0003"
+)]
+pub struct TaskBlocksArgs {
+    /// Task that does the blocking.
+    #[arg(value_name = "TASK_ID")]
+    pub task_id: String,
+
+    /// Task(s) being blocked.
+    #[arg(value_name = "BLOCKED_TASK_ID...")]
+    pub blocked_task_ids: Vec<String>,
+}
+
+#[derive(Args)]
+#[command(after_long_help = "Examples:\n  ralph task mark-duplicate RQ-0001 RQ-0002")]
+pub struct TaskMarkDuplicateArgs {
+    /// Task to mark as duplicate.
+    #[arg(value_name = "TASK_ID")]
+    pub task_id: String,
+
+    /// Original task this duplicates.
+    #[arg(value_name = "ORIGINAL_TASK_ID")]
+    pub original_task_id: String,
 }
 
 // Task template subcommands

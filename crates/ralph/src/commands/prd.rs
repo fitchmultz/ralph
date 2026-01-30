@@ -424,6 +424,9 @@ fn generate_single_task(
         completed_at: None,
         scheduled_start: None,
         depends_on: Vec::new(),
+        blocks: Vec::new(),
+        relates_to: Vec::new(),
+        duplicates: None,
         custom_fields: HashMap::new(),
     })
 }
@@ -519,6 +522,9 @@ fn generate_multi_tasks(
             completed_at: None,
             scheduled_start: None,
             depends_on,
+            blocks: Vec::new(),
+            relates_to: Vec::new(),
+            duplicates: None,
             custom_fields: HashMap::new(),
         });
     }

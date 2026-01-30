@@ -2,44 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0438",
-      "status": "todo",
-      "title": "Add task relationships beyond dependencies (blocks, relates_to, duplicates)",
-      "priority": "medium",
-      "tags": [
-        "cli",
-        "queue",
-        "feature",
-        "task-management"
-      ],
-      "scope": [
-        "crates/ralph/src/contracts/task.rs",
-        "crates/ralph/src/queue/graph.rs",
-        "crates/ralph/src/cli/task.rs",
-        "schemas/queue.schema.json"
-      ],
-      "evidence": [
-        "Task only has depends_on for dependency relationships",
-        "No way to mark tasks as blocking others, related, or duplicates",
-        "Queue graph only shows dependency tree, not other relationships"
-      ],
-      "plan": [
-        "Add `blocks` field to Task (array of task IDs this task blocks)",
-        "Add `relates_to` field for loose coupling between related tasks",
-        "Add `duplicates` field for marking tasks as duplicates of others",
-        "Add `ralph task relate <TASK_ID> <RELATION> <OTHER_TASK_ID>` command",
-        "Update queue graph to show different relationship types with different edge styles",
-        "Add validation to prevent circular blocking relationships",
-        "Add tests for relationship validation and graph rendering"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-30T00:00:00Z",
-      "updated_at": "2026-01-30T00:00:00Z",
-      "depends_on": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0439",
       "status": "todo",
       "title": "Implement subtask support for hierarchical task breakdown",
@@ -77,6 +39,8 @@
       "created_at": "2026-01-30T00:00:00Z",
       "updated_at": "2026-01-30T00:00:00Z",
       "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
       "custom_fields": {}
     },
     {
@@ -115,6 +79,8 @@
       "created_at": "2026-01-30T00:00:00Z",
       "updated_at": "2026-01-30T00:00:00Z",
       "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
       "custom_fields": {}
     },
     {
@@ -154,6 +120,8 @@
       "created_at": "2026-01-30T00:00:00Z",
       "updated_at": "2026-01-30T00:00:00Z",
       "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
       "custom_fields": {}
     },
     {
@@ -192,6 +160,8 @@
       "created_at": "2026-01-30T00:00:00Z",
       "updated_at": "2026-01-30T00:00:00Z",
       "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
       "custom_fields": {}
     },
     {
@@ -229,6 +199,8 @@
       "created_at": "2026-01-30T00:00:00Z",
       "updated_at": "2026-01-30T00:00:00Z",
       "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
       "custom_fields": {}
     },
     {
@@ -267,6 +239,8 @@
       "created_at": "2026-01-30T00:00:00Z",
       "updated_at": "2026-01-30T00:00:00Z",
       "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
       "custom_fields": {}
     },
     {
@@ -304,6 +278,8 @@
       "created_at": "2026-01-30T00:00:00Z",
       "updated_at": "2026-01-30T00:00:00Z",
       "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
       "custom_fields": {}
     },
     {
@@ -342,6 +318,8 @@
       "created_at": "2026-01-30T00:00:00Z",
       "updated_at": "2026-01-30T00:00:00Z",
       "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
       "custom_fields": {}
     },
     {
@@ -381,6 +359,8 @@
       "created_at": "2026-01-30T00:00:00Z",
       "updated_at": "2026-01-30T00:00:00Z",
       "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
       "custom_fields": {}
     },
     {
@@ -419,6 +399,8 @@
       "created_at": "2026-01-30T00:00:00Z",
       "updated_at": "2026-01-30T00:00:00Z",
       "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
       "custom_fields": {}
     },
     {
@@ -457,6 +439,8 @@
       "created_at": "2026-01-30T00:00:00Z",
       "updated_at": "2026-01-30T00:00:00Z",
       "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
       "custom_fields": {}
     },
     {
@@ -495,6 +479,8 @@
       "created_at": "2026-01-30T00:00:00Z",
       "updated_at": "2026-01-30T00:00:00Z",
       "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
       "custom_fields": {}
     },
     {
@@ -533,6 +519,8 @@
       "created_at": "2026-01-30T00:00:00Z",
       "updated_at": "2026-01-30T00:00:00Z",
       "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
       "custom_fields": {}
     }
   ]

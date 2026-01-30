@@ -34,6 +34,9 @@ Common optional fields:
 - `completed_at`: RFC3339 UTC timestamp (required if status is `done` or `rejected`, otherwise optional).
 - `agent`: per-task runner override (see below).
 - `depends_on` (list of task IDs, defaults to empty).
+- `blocks` (list of task IDs, defaults to empty): Tasks that this task blocks. Semantically different from `depends_on`: blocks is "I prevent X" vs depends_on "I need X".
+- `relates_to` (list of task IDs, defaults to empty): Tasks that this task relates to (loose coupling, no execution constraint).
+- `duplicates` (string or null): Task ID that this task duplicates.
 - `custom_fields` (map of strings, defaults to empty).
 
 Per-task agent overrides:
@@ -93,12 +96,31 @@ These validation failures prevent queue operations and must be fixed:
 - **Circular dependency**: Dependency graph must be acyclic (DAG).
 - **Invalid terminal status**: `done.json` must only contain tasks with `done` or `rejected` status.
 
+### Relationship Validation
+
+Ralph also validates task relationships (`blocks`, `relates_to`, `duplicates`) to ensure correctness:
+
+**Hard Errors (blocking):**
+- **Self-reference**: A task cannot block, relate to, or duplicate itself.
+- **Missing target**: Referenced task ID must exist in `queue.json` or `done.json`.
+- **Circular blocking**: Blocking relationships must form a DAG (no cycles).
+
+**Warnings (non-blocking):**
+- **Duplicate of done/rejected task**: Task duplicates a completed or rejected task.
+
+Relationships are distinct from dependencies:
+- `depends_on`: "I need X" (execution constraint - task waits for dependencies)
+- `blocks`: "I prevent X" (execution constraint - blocked tasks wait for this task)
+- `relates_to`: Loose coupling (no execution constraint, just semantic association)
+- `duplicates`: Marks redundancy (no execution constraint, informational only)
+
 ### Warnings (non-blocking)
 These issues are reported but do not prevent queue operations:
 
 - **Dependency on rejected task**: Task depends on a rejected task that will never complete. The dependency will never be satisfied.
 - **Deep dependency chain**: Dependency chain exceeds `queue.max_dependency_depth` (default: 10). This may indicate overly complex dependencies.
 - **Blocked execution path**: All dependency paths from this task lead to incomplete or rejected tasks. The task cannot make progress until blocking dependencies are resolved.
+- **Duplicate of done/rejected task**: Task marked as duplicate of a completed or rejected task. Consider if the duplicate is still needed.
 
 ### Configuration
 

@@ -26,6 +26,9 @@ fn task_with(id: &str, status: TaskStatus, tags: Vec<String>) -> Task {
         completed_at: None,
         scheduled_start: None,
         depends_on: vec![],
+        blocks: vec![],
+        relates_to: vec![],
+        duplicates: None,
         custom_fields: HashMap::new(),
     }
 }
@@ -303,6 +306,9 @@ fn task_with_deps(id: &str, status: TaskStatus, deps: Vec<String>) -> Task {
         completed_at: None,
         scheduled_start: None,
         depends_on: deps,
+        blocks: vec![],
+        relates_to: vec![],
+        duplicates: None,
         custom_fields: HashMap::new(),
     }
 }
@@ -497,6 +503,285 @@ fn validate_no_warnings_for_valid_dependencies() {
     assert!(
         warnings.is_empty(),
         "Should have no warnings for valid dependencies: {:?}",
+        warnings
+    );
+}
+
+// Tests for relationship validation (RQ-0438)
+
+fn task_with_relationships(
+    id: &str,
+    status: TaskStatus,
+    blocks: Vec<String>,
+    relates_to: Vec<String>,
+    duplicates: Option<String>,
+) -> Task {
+    Task {
+        id: id.to_string(),
+        status,
+        title: "Test task".to_string(),
+        priority: Default::default(),
+        tags: vec![],
+        scope: vec![],
+        evidence: vec![],
+        plan: vec![],
+        notes: vec![],
+        request: None,
+        agent: None,
+        created_at: Some("2026-01-18T00:00:00Z".to_string()),
+        updated_at: Some("2026-01-18T00:00:00Z".to_string()),
+        completed_at: None,
+        scheduled_start: None,
+        depends_on: vec![],
+        blocks,
+        relates_to,
+        duplicates,
+        custom_fields: HashMap::new(),
+    }
+}
+
+#[test]
+fn validate_rejects_self_blocking() {
+    let active = QueueFile {
+        version: 1,
+        tasks: vec![task_with_relationships(
+            "RQ-0001",
+            TaskStatus::Todo,
+            vec!["RQ-0001".to_string()], // Self-blocking
+            vec![],
+            None,
+        )],
+    };
+
+    let result = validate_queue_set(&active, None, "RQ", 4, 10);
+    assert!(result.is_err(), "Should error on self-blocking");
+    let err = format!("{:#}", result.unwrap_err());
+    assert!(
+        err.contains("Self-blocking"),
+        "Error should mention self-blocking: {}",
+        err
+    );
+}
+
+#[test]
+fn validate_rejects_self_relates_to() {
+    let active = QueueFile {
+        version: 1,
+        tasks: vec![task_with_relationships(
+            "RQ-0001",
+            TaskStatus::Todo,
+            vec![],
+            vec!["RQ-0001".to_string()], // Self-relates
+            None,
+        )],
+    };
+
+    let result = validate_queue_set(&active, None, "RQ", 4, 10);
+    assert!(result.is_err(), "Should error on self-relates_to");
+    let err = format!("{:#}", result.unwrap_err());
+    assert!(
+        err.contains("Self-reference"),
+        "Error should mention self-reference: {}",
+        err
+    );
+}
+
+#[test]
+fn validate_rejects_self_duplication() {
+    let active = QueueFile {
+        version: 1,
+        tasks: vec![task_with_relationships(
+            "RQ-0001",
+            TaskStatus::Todo,
+            vec![],
+            vec![],
+            Some("RQ-0001".to_string()), // Self-duplicates
+        )],
+    };
+
+    let result = validate_queue_set(&active, None, "RQ", 4, 10);
+    assert!(result.is_err(), "Should error on self-duplication");
+    let err = format!("{:#}", result.unwrap_err());
+    assert!(
+        err.contains("Self-duplication"),
+        "Error should mention self-duplication: {}",
+        err
+    );
+}
+
+#[test]
+fn validate_rejects_blocks_to_nonexistent_task() {
+    let active = QueueFile {
+        version: 1,
+        tasks: vec![
+            task_with_relationships(
+                "RQ-0001",
+                TaskStatus::Todo,
+                vec!["RQ-9999".to_string()],
+                vec![],
+                None,
+            ),
+            task_with_relationships("RQ-0002", TaskStatus::Todo, vec![], vec![], None),
+        ],
+    };
+
+    let result = validate_queue_set(&active, None, "RQ", 4, 10);
+    assert!(
+        result.is_err(),
+        "Should error on blocks to non-existent task"
+    );
+    let err = format!("{:#}", result.unwrap_err());
+    assert!(
+        err.contains("non-existent"),
+        "Error should mention non-existent task: {}",
+        err
+    );
+}
+
+#[test]
+fn validate_rejects_relates_to_nonexistent_task() {
+    let active = QueueFile {
+        version: 1,
+        tasks: vec![
+            task_with_relationships(
+                "RQ-0001",
+                TaskStatus::Todo,
+                vec![],
+                vec!["RQ-9999".to_string()],
+                None,
+            ),
+            task_with_relationships("RQ-0002", TaskStatus::Todo, vec![], vec![], None),
+        ],
+    };
+
+    let result = validate_queue_set(&active, None, "RQ", 4, 10);
+    assert!(
+        result.is_err(),
+        "Should error on relates_to non-existent task"
+    );
+    let err = format!("{:#}", result.unwrap_err());
+    assert!(
+        err.contains("non-existent"),
+        "Error should mention non-existent task: {}",
+        err
+    );
+}
+
+#[test]
+fn validate_rejects_duplicates_nonexistent_task() {
+    let active = QueueFile {
+        version: 1,
+        tasks: vec![
+            task_with_relationships(
+                "RQ-0001",
+                TaskStatus::Todo,
+                vec![],
+                vec![],
+                Some("RQ-9999".to_string()),
+            ),
+            task_with_relationships("RQ-0002", TaskStatus::Todo, vec![], vec![], None),
+        ],
+    };
+
+    let result = validate_queue_set(&active, None, "RQ", 4, 10);
+    assert!(
+        result.is_err(),
+        "Should error on duplicates non-existent task"
+    );
+    let err = format!("{:#}", result.unwrap_err());
+    assert!(
+        err.contains("non-existent"),
+        "Error should mention non-existent task: {}",
+        err
+    );
+}
+
+#[test]
+fn validate_rejects_circular_blocking() {
+    // RQ-0001 blocks RQ-0002, RQ-0002 blocks RQ-0001 (circular)
+    let active = QueueFile {
+        version: 1,
+        tasks: vec![
+            task_with_relationships(
+                "RQ-0001",
+                TaskStatus::Todo,
+                vec!["RQ-0002".to_string()],
+                vec![],
+                None,
+            ),
+            task_with_relationships(
+                "RQ-0002",
+                TaskStatus::Todo,
+                vec!["RQ-0001".to_string()],
+                vec![],
+                None,
+            ),
+        ],
+    };
+
+    let result = validate_queue_set(&active, None, "RQ", 4, 10);
+    assert!(result.is_err(), "Should error on circular blocking");
+    let err = format!("{:#}", result.unwrap_err());
+    assert!(
+        err.contains("Circular blocking"),
+        "Error should mention circular blocking: {}",
+        err
+    );
+}
+
+#[test]
+fn validate_warns_on_duplicate_of_done_task() {
+    let mut done_task = task_with("RQ-0002", TaskStatus::Done, vec![]);
+    done_task.completed_at = Some("2026-01-18T00:00:00Z".to_string());
+
+    let active = QueueFile {
+        version: 1,
+        tasks: vec![task_with_relationships(
+            "RQ-0001",
+            TaskStatus::Todo,
+            vec![],
+            vec![],
+            Some("RQ-0002".to_string()),
+        )],
+    };
+    let done = QueueFile {
+        version: 1,
+        tasks: vec![done_task],
+    };
+
+    let result = validate_queue_set(&active, Some(&done), "RQ", 4, 10);
+    assert!(result.is_ok(), "Should not error on duplicate of done task");
+    let warnings = result.unwrap();
+    assert!(
+        warnings.iter().any(|w| w.message.contains("done")),
+        "Should warn about duplicate of done task: {:?}",
+        warnings
+    );
+}
+
+#[test]
+fn validate_allows_valid_relationships() {
+    let active = QueueFile {
+        version: 1,
+        tasks: vec![
+            task_with_relationships(
+                "RQ-0001",
+                TaskStatus::Todo,
+                vec!["RQ-0002".to_string()],
+                vec!["RQ-0003".to_string()],
+                None,
+            ),
+            task_with_relationships("RQ-0002", TaskStatus::Todo, vec![], vec![], None),
+            task_with_relationships("RQ-0003", TaskStatus::Todo, vec![], vec![], None),
+        ],
+    };
+
+    let result = validate_queue_set(&active, None, "RQ", 4, 10);
+    assert!(result.is_ok(), "Should not error on valid relationships");
+    let warnings = result.unwrap();
+    assert!(
+        warnings.is_empty(),
+        "Should have no warnings for valid relationships: {:?}",
         warnings
     );
 }
