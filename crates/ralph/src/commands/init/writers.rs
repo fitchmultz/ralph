@@ -74,6 +74,7 @@ pub fn write_queue(
                     created_at: Some(timestamp.clone()),
                     updated_at: Some(timestamp),
                     completed_at: None,
+                    scheduled_start: None,
                     depends_on: vec![],
                     custom_fields: std::collections::HashMap::new(),
                 };

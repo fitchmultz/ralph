@@ -147,6 +147,7 @@ fn write_queue_and_done(repo_root: &Path, status: TaskStatus) -> Result<()> {
         created_at: Some("2026-01-18T00:00:00Z".to_string()),
         updated_at: Some("2026-01-18T00:00:00Z".to_string()),
         completed_at: Some("2026-01-18T00:00:00Z".to_string()),
+        scheduled_start: None,
         depends_on: vec![],
         custom_fields: std::collections::HashMap::new(),
     };

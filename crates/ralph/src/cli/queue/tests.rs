@@ -54,6 +54,7 @@ fn write_queue(path: &Path) -> Result<()> {
         created_at: Some("2026-01-18T00:00:00Z".to_string()),
         updated_at: Some("2026-01-18T00:00:00Z".to_string()),
         completed_at: None,
+        scheduled_start: None,
         depends_on: vec![],
         custom_fields: HashMap::new(),
     };
@@ -80,6 +81,9 @@ fn base_list_args() -> QueueListArgs {
         sort_by: None,
         order: QueueSortOrder::Descending,
         quiet: false,
+        scheduled: false,
+        scheduled_after: None,
+        scheduled_before: None,
     }
 }
 
@@ -97,6 +101,7 @@ fn base_search_args() -> QueueSearchArgs {
         format: QueueListFormat::Compact,
         limit: 50,
         all: false,
+        scheduled: false,
     }
 }
 

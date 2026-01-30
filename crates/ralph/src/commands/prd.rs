@@ -422,6 +422,7 @@ fn generate_single_task(
         created_at: Some(now.to_string()),
         updated_at: Some(now.to_string()),
         completed_at: None,
+        scheduled_start: None,
         depends_on: Vec::new(),
         custom_fields: HashMap::new(),
     })
@@ -516,6 +517,7 @@ fn generate_multi_tasks(
             created_at: Some(now.to_string()),
             updated_at: Some(now.to_string()),
             completed_at: None,
+            scheduled_start: None,
             depends_on,
             custom_fields: HashMap::new(),
         });

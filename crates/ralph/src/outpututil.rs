@@ -277,6 +277,7 @@ mod tests {
             tags: vec!["t1".into(), "t2".into()],
             scope: vec!["s1".into()],
             completed_at: Some("2026-01-01".into()),
+            scheduled_start: None,
             ..Default::default()
         };
         let out = format_task_detailed(&task);

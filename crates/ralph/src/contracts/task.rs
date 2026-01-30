@@ -68,6 +68,10 @@ pub struct Task {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub completed_at: Option<String>,
 
+    /// RFC3339 timestamp when the task should become runnable (optional scheduling).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scheduled_start: Option<String>,
+
     /// Task IDs that this task depends on (must be Done or Rejected before this task can run).
     #[serde(default)]
     pub depends_on: Vec<String>,

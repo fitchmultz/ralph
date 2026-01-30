@@ -104,6 +104,7 @@ mod tests {
             created_at: None,
             updated_at: None,
             completed_at: None,
+            scheduled_start: None,
             depends_on: vec![],
             custom_fields: std::collections::HashMap::new(),
         }
@@ -194,6 +195,7 @@ mod tests {
             created_at: None,
             updated_at: None,
             completed_at: None,
+            scheduled_start: None,
             depends_on: vec![],
             custom_fields: std::collections::HashMap::new(),
         };
@@ -253,6 +255,7 @@ mod tests {
             created_at: None,
             updated_at: None,
             completed_at: None,
+            scheduled_start: None,
             depends_on: vec![],
             custom_fields: std::collections::HashMap::new(),
         };

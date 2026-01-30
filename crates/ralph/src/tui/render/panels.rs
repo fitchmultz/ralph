@@ -32,6 +32,20 @@ use std::time::Duration;
 use tui_scrollview::{ScrollView, ScrollbarVisibility};
 use tui_term::widget::PseudoTerminal;
 
+/// Format a duration as a compact string (e.g., "2h", "30m", "45s").
+fn format_duration_compact(duration: time::Duration) -> String {
+    let secs = duration.whole_seconds();
+    if secs < 60 {
+        format!("{}s", secs)
+    } else if secs < 3600 {
+        format!("{}m", secs / 60)
+    } else if secs < 86400 {
+        format!("{}h", secs / 3600)
+    } else {
+        format!("{}d", secs / 86400)
+    }
+}
+
 /// Draw the execution view (full-screen output during task execution).
 pub(super) fn draw_execution_view(f: &mut Frame<'_>, app: &mut App, area: Rect) {
     app.clear_list_area();
@@ -340,8 +354,27 @@ pub(super) fn draw_task_list(f: &mut Frame<'_>, app: &mut App, area: Rect) {
             let is_selected = i == app.selected;
             let status_style = Style::default().fg(status_color(task.status));
 
+            // Check if task is scheduled for future and build clock indicator
+            let scheduled_indicator = task.scheduled_start.as_ref().and_then(|scheduled| {
+                crate::timeutil::parse_rfc3339(scheduled)
+                    .ok()
+                    .and_then(|scheduled_dt| {
+                        crate::timeutil::now_utc_rfc3339()
+                            .ok()
+                            .and_then(|now| crate::timeutil::parse_rfc3339(&now).ok())
+                            .map(|now_dt| {
+                                if scheduled_dt > now_dt {
+                                    let duration = scheduled_dt - now_dt;
+                                    format!("⏰ {} ", format_duration_compact(duration))
+                                } else {
+                                    String::new()
+                                }
+                            })
+                    })
+            });
+
             let line = if is_selected {
-                Line::from(vec![
+                let mut spans = vec![
                     Span::styled(&task.id, Style::default().add_modifier(Modifier::BOLD)),
                     Span::raw(" "),
                     Span::styled(
@@ -351,18 +384,41 @@ pub(super) fn draw_task_list(f: &mut Frame<'_>, app: &mut App, area: Rect) {
                     Span::raw(" "),
                     Span::styled(task.priority.as_str(), Style::default().fg(Color::DarkGray)),
                     Span::raw(" "),
-                    Span::styled(&task.title, Style::default().add_modifier(Modifier::BOLD)),
-                ])
+                ];
+                // Add clock indicator if scheduled
+                if let Some(ref indicator) = scheduled_indicator {
+                    if !indicator.is_empty() {
+                        spans.push(Span::styled(
+                            indicator.clone(),
+                            Style::default().fg(Color::Yellow),
+                        ));
+                    }
+                }
+                spans.push(Span::styled(
+                    &task.title,
+                    Style::default().add_modifier(Modifier::BOLD),
+                ));
+                Line::from(spans)
             } else {
-                Line::from(vec![
+                let mut spans = vec![
                     Span::styled(&task.id, Style::default().fg(Color::DarkGray)),
                     Span::raw(" "),
                     Span::styled(task.status.as_str(), status_style),
                     Span::raw(" "),
                     Span::styled(task.priority.as_str(), Style::default().fg(Color::DarkGray)),
                     Span::raw(" "),
-                    Span::styled(&task.title, Style::default()),
-                ])
+                ];
+                // Add clock indicator if scheduled
+                if let Some(ref indicator) = scheduled_indicator {
+                    if !indicator.is_empty() {
+                        spans.push(Span::styled(
+                            indicator.clone(),
+                            Style::default().fg(Color::Yellow),
+                        ));
+                    }
+                }
+                spans.push(Span::styled(&task.title, Style::default()));
+                Line::from(spans)
             };
 
             Some(ListItem::new(line))

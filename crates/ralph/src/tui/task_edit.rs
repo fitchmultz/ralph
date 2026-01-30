@@ -125,6 +125,12 @@ impl App {
                 value: display_optional(task.completed_at.as_deref()),
                 kind: TaskEditKind::OptionalText,
             },
+            TaskEditEntry {
+                key: TaskEditKey::ScheduledStart,
+                label: "scheduled_start",
+                value: display_optional(task.scheduled_start.as_deref()),
+                kind: TaskEditKind::OptionalText,
+            },
         ]
     }
 
@@ -146,6 +152,7 @@ impl App {
             TaskEditKey::CreatedAt => task.created_at.clone().unwrap_or_default(),
             TaskEditKey::UpdatedAt => task.updated_at.clone().unwrap_or_default(),
             TaskEditKey::CompletedAt => task.completed_at.clone().unwrap_or_default(),
+            TaskEditKey::ScheduledStart => task.scheduled_start.clone().unwrap_or_default(),
             TaskEditKey::Status | TaskEditKey::Priority => String::new(),
         }
     }

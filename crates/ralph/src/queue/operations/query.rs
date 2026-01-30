@@ -13,6 +13,7 @@
 //! - Task IDs are matched after trimming and are case-sensitive.
 
 use crate::contracts::{QueueFile, Task, TaskStatus};
+use crate::timeutil;
 use anyhow::{anyhow, bail, Result};
 
 pub fn find_task<'a>(queue: &'a QueueFile, task_id: &str) -> Option<&'a Task> {
@@ -77,6 +78,32 @@ pub fn are_dependencies_met(task: &Task, active: &QueueFile, done: Option<&Queue
     true
 }
 
+/// Check if a task's scheduled_start is in the future.
+///
+/// Returns true if the task has a scheduled_start timestamp that is
+/// in the future relative to the current time.
+pub fn is_task_scheduled_for_future(task: &Task) -> bool {
+    if let Some(ref scheduled) = task.scheduled_start {
+        if let Ok(scheduled_dt) = timeutil::parse_rfc3339(scheduled) {
+            if let Ok(now) = timeutil::now_utc_rfc3339() {
+                if let Ok(now_dt) = timeutil::parse_rfc3339(&now) {
+                    return scheduled_dt > now_dt;
+                }
+            }
+        }
+    }
+    false
+}
+
+/// Check if a task is runnable (dependencies met and scheduling satisfied).
+///
+/// A task is runnable if:
+/// - All dependencies are met (depends_on tasks are Done or Rejected)
+/// - The scheduled_start time has passed (or is not set)
+pub fn is_task_runnable(task: &Task, active: &QueueFile, done: Option<&QueueFile>) -> bool {
+    are_dependencies_met(task, active, done) && !is_task_scheduled_for_future(task)
+}
+
 /// Return the first runnable task (Todo and dependencies met).
 pub fn next_runnable_task<'a>(
     active: &'a QueueFile,
@@ -107,9 +134,11 @@ pub fn select_runnable_task_index(
         }
     }
 
-    if let Some(idx) = active.tasks.iter().position(|task| {
-        task.status == TaskStatus::Todo && are_dependencies_met(task, active, done)
-    }) {
+    if let Some(idx) = active
+        .tasks
+        .iter()
+        .position(|task| task.status == TaskStatus::Todo && is_task_runnable(task, active, done))
+    {
         return Some(idx);
     }
 
@@ -187,4 +216,123 @@ pub fn select_runnable_task_index_with_target(
     }
 
     Ok(idx)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::contracts::{QueueFile, Task, TaskStatus};
+    use std::collections::HashMap;
+    use time::OffsetDateTime;
+
+    fn make_task(id: &str, status: TaskStatus, scheduled_start: Option<&str>) -> Task {
+        Task {
+            id: id.to_string(),
+            status,
+            title: format!("Task {}", id),
+            priority: Default::default(),
+            tags: vec![],
+            scope: vec![],
+            evidence: vec![],
+            plan: vec![],
+            notes: vec![],
+            request: None,
+            agent: None,
+            created_at: Some("2026-01-18T00:00:00Z".to_string()),
+            updated_at: Some("2026-01-18T00:00:00Z".to_string()),
+            completed_at: None,
+            scheduled_start: scheduled_start.map(|s| s.to_string()),
+            depends_on: vec![],
+            custom_fields: HashMap::new(),
+        }
+    }
+
+    #[test]
+    fn test_is_task_scheduled_for_future_with_future_date() {
+        let future = (OffsetDateTime::now_utc() + time::Duration::hours(24))
+            .format(&time::format_description::well_known::Rfc3339)
+            .unwrap();
+        let task = make_task("RQ-0001", TaskStatus::Todo, Some(&future));
+        assert!(is_task_scheduled_for_future(&task));
+    }
+
+    #[test]
+    fn test_is_task_scheduled_for_future_with_past_date() {
+        let past = (OffsetDateTime::now_utc() - time::Duration::hours(24))
+            .format(&time::format_description::well_known::Rfc3339)
+            .unwrap();
+        let task = make_task("RQ-0001", TaskStatus::Todo, Some(&past));
+        assert!(!is_task_scheduled_for_future(&task));
+    }
+
+    #[test]
+    fn test_is_task_scheduled_for_future_with_no_schedule() {
+        let task = make_task("RQ-0001", TaskStatus::Todo, None);
+        assert!(!is_task_scheduled_for_future(&task));
+    }
+
+    #[test]
+    fn test_is_task_runnable_with_schedule_and_dependencies() {
+        let past = (OffsetDateTime::now_utc() - time::Duration::hours(24))
+            .format(&time::format_description::well_known::Rfc3339)
+            .unwrap();
+        let task = make_task("RQ-0001", TaskStatus::Todo, Some(&past));
+        let active = QueueFile {
+            version: 1,
+            tasks: vec![task.clone()],
+        };
+        assert!(is_task_runnable(&task, &active, None));
+    }
+
+    #[test]
+    fn test_is_task_not_runnable_with_future_schedule() {
+        let future = (OffsetDateTime::now_utc() + time::Duration::hours(24))
+            .format(&time::format_description::well_known::Rfc3339)
+            .unwrap();
+        let task = make_task("RQ-0001", TaskStatus::Todo, Some(&future));
+        let active = QueueFile {
+            version: 1,
+            tasks: vec![task.clone()],
+        };
+        assert!(!is_task_runnable(&task, &active, None));
+    }
+
+    #[test]
+    fn test_select_runnable_task_index_skips_future_scheduled() {
+        let future = (OffsetDateTime::now_utc() + time::Duration::hours(24))
+            .format(&time::format_description::well_known::Rfc3339)
+            .unwrap();
+        let past = (OffsetDateTime::now_utc() - time::Duration::hours(24))
+            .format(&time::format_description::well_known::Rfc3339)
+            .unwrap();
+
+        let tasks = vec![
+            make_task("RQ-0001", TaskStatus::Todo, Some(&future)), // scheduled future
+            make_task("RQ-0002", TaskStatus::Todo, Some(&past)),   // scheduled past (runnable)
+        ];
+        let active = QueueFile { version: 1, tasks };
+
+        // Should select RQ-0002 (index 1) since RQ-0001 is scheduled for future
+        let idx =
+            select_runnable_task_index(&active, None, RunnableSelectionOptions::new(false, false));
+        assert_eq!(idx, Some(1));
+    }
+
+    #[test]
+    fn test_select_runnable_task_index_all_future_scheduled() {
+        let future = (OffsetDateTime::now_utc() + time::Duration::hours(24))
+            .format(&time::format_description::well_known::Rfc3339)
+            .unwrap();
+
+        let tasks = vec![
+            make_task("RQ-0001", TaskStatus::Todo, Some(&future)),
+            make_task("RQ-0002", TaskStatus::Todo, Some(&future)),
+        ];
+        let active = QueueFile { version: 1, tasks };
+
+        // No runnable tasks
+        let idx =
+            select_runnable_task_index(&active, None, RunnableSelectionOptions::new(false, false));
+        assert_eq!(idx, None);
+    }
 }

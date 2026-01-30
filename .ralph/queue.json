@@ -2,40 +2,56 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0436",
+      "id": "RQ-0452",
       "status": "todo",
-      "title": "Add task scheduling with 'start after' date/time support",
+      "title": "Fix Kimi runner integration - CLI command structure is incorrect",
       "priority": "high",
       "tags": [
-        "cli",
-        "queue",
-        "feature",
-        "scheduling"
+        "runner",
+        "kimi",
+        "bug",
+        "cli"
       ],
       "scope": [
-        "crates/ralph/src/contracts/task.rs",
-        "crates/ralph/src/queue/operations/query.rs",
-        "crates/ralph/src/cli/task.rs",
-        "schemas/queue.schema.json"
+        "crates/ralph/src/runner/execution/runners.rs",
+        "crates/ralph/src/runner/execution/cli_spec.rs",
+        "crates/ralph/src/runner/execution/command.rs",
+        "scripts/runner_cli_inventory.sh"
       ],
       "evidence": [
-        "Task schema has no scheduled_start or start_after field",
-        "Queue selection in run one/loop always picks first todo task regardless of timing",
-        "No way to defer work to a specific time or date"
+        "Kimi runner fails with exit code 2 - the agent exits immediately",
+        "Current implementation tries to run: kimi --model <model> --output-format stream-json with stdin payload",
+        "Kimi CLI requires --print flag for non-interactive mode (per kimi --help: 'Note: print mode implicitly adds --yolo')",
+        "Kimi CLI structure is: kimi [OPTIONS] COMMAND [ARGS]... - no 'run' or 'exec' subcommand like other runners",
+        "Kimi expects prompts via --prompt/-p flag or stdin with --print mode",
+        "Print mode docs: https://moonshotai.github.io/kimi-cli/en/customization/print-mode.html",
+        "Wire mode docs: https://moonshotai.github.io/kimi-cli/en/customization/wire-mode.html",
+        "User config: 'runner': 'kimi', 'model': 'kimi-code/kimi-for-coding' (from ~/.kimi/config.toml)",
+        "AGENT DECISION NEEDED: Compare wire mode vs print mode for Ralph's use case - wire mode may be more appropriate than print mode"
       ],
       "plan": [
-        "Add optional `scheduled_start` field to Task schema (RFC3339 timestamp)",
-        "Update queue query logic to skip tasks whose scheduled_start is in the future",
-        "Add `ralph task schedule <TASK_ID> <TIMESTAMP>` command",
-        "Support relative scheduling: `ralph task schedule RQ-0001 'tomorrow 9am'`",
-        "Add `--scheduled` filter to `ralph queue list` and `ralph queue search`",
-        "Update TUI to show scheduled tasks with clock icon and countdown",
-        "Add tests for scheduling edge cases (timezone, past dates, invalid formats)"
+        "Run scripts/runner_cli_inventory.sh to capture full kimi CLI help and verify command structure",
+        "Read kimi print-mode documentation at https://moonshotai.github.io/kimi-cli/en/customization/print-mode.html",
+        "Read kimi wire-mode documentation at https://moonshotai.github.io/kimi-cli/en/customization/wire-mode.html",
+        "DECIDE: Compare wire mode vs print mode for Ralph's runner integration - wire mode may provide better streaming/tool support",
+        "Analyze current run_kimi() implementation in runners.rs - it builds: kimi --model <m> --output-format stream-json (no --print or --wire flag)",
+        "Fix run_kimi() to use correct CLI based on chosen mode: kimi --print|--wire --output-format stream-json --model <model> --prompt <prompt>",
+        "Update cli_spec.rs apply_kimi_options() if needed for --print/--wire flag handling",
+        "Test the fix by running a simple task with kimi runner",
+        "Update runner_cli_inventory.sh if kimi has unique patterns to capture"
       ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-30T00:00:00Z",
-      "updated_at": "2026-01-30T00:00:00Z",
+      "notes": [
+        "Kimi CLI has commands: login, logout, term, acp, info, mcp, web - but NO run/exec command",
+        "The --print flag is a global option, not a subcommand",
+        "Kimi's --print mode implicitly adds --yolo (auto-approve)",
+        "Compare with working runners: codex uses 'exec', opencode uses 'run', gemini/claude use direct execution",
+        "WIRE MODE vs PRINT MODE: Wire mode may be better for Ralph's streaming/tool-use needs - agent should evaluate both",
+        "Print mode: https://moonshotai.github.io/kimi-cli/en/customization/print-mode.html",
+        "Wire mode: https://moonshotai.github.io/kimi-cli/en/customization/wire-mode.html"
+      ],
+      "request": "Investigate the kimi runner integration. It does not work. 'kimi' is available via the CLI e.g. 'kimi --help'. Check the outputput of the scripts/runner_cli_inventory.sh script. Check the docs at https://moonshotai.github.io/kimi-cli/en/customization/print-mode.html and https://moonshotai.github.io/kimi-cli/en/customization/. I tried using kimi as the runner in a different project and it failed. config.json had \"runner\": \"kimi\", \"model\": \"kimi-code/kimi-for-coding\", which is what the default kimi config.toml file at '/Users/mitchfultz/.kimi/config.toml' shows.",
+      "created_at": "2026-01-30T16:11:09Z",
+      "updated_at": "2026-01-30T17:45:00Z",
       "depends_on": [],
       "custom_fields": {}
     },

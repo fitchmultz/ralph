@@ -78,6 +78,7 @@ pub fn make_long_details_queue() -> QueueFile {
             created_at: Some("2026-01-19T00:00:00Z".to_string()),
             updated_at: Some("2026-01-19T00:00:00Z".to_string()),
             completed_at: None,
+            scheduled_start: None,
             depends_on: vec![],
             custom_fields: HashMap::new(),
         }],
@@ -104,6 +105,7 @@ pub fn make_long_tags_queue() -> QueueFile {
             created_at: Some("2026-01-19T00:00:00Z".to_string()),
             updated_at: Some("2026-01-19T00:00:00Z".to_string()),
             completed_at: None,
+            scheduled_start: None,
             depends_on: vec![],
             custom_fields: HashMap::new(),
         }],
@@ -127,6 +129,7 @@ pub fn make_task_list_queue() -> QueueFile {
         created_at: Some("2026-01-19T00:00:00Z".to_string()),
         updated_at: Some("2026-01-19T00:00:00Z".to_string()),
         completed_at: None,
+        scheduled_start: None,
         depends_on: vec![],
         custom_fields: HashMap::new(),
     };

@@ -1094,6 +1094,7 @@ impl App {
             created_at: Some(now_rfc3339.to_string()),
             updated_at: Some(now_rfc3339.to_string()),
             completed_at: None,
+            scheduled_start: None,
             depends_on: vec![],
             custom_fields: HashMap::new(),
         };

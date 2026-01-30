@@ -477,6 +477,48 @@ pub fn handle_task(args: TaskArgs, force: bool) -> Result<()> {
 
         Some(TaskCommand::Batch(args)) => handle_batch_command(&resolved, args, force),
 
+        Some(TaskCommand::Schedule(args)) => {
+            let _queue_lock =
+                queue::acquire_queue_lock(&resolved.repo_root, "task schedule", force)?;
+            let mut queue_file = queue::load_queue(&resolved.queue_path)?;
+            let now = timeutil::now_utc_rfc3339()?;
+            let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
+
+            // Handle clear operation
+            let value = if args.clear {
+                String::new()
+            } else if let Some(when) = args.when {
+                // Parse relative time or RFC3339
+                timeutil::parse_relative_time(&when)?
+            } else {
+                bail!("Either provide a timestamp/expression or use --clear to remove scheduling.");
+            };
+
+            queue::apply_task_edit(
+                &mut queue_file,
+                None,
+                &args.task_id,
+                TaskEditKey::ScheduledStart,
+                &value,
+                &now,
+                &resolved.id_prefix,
+                resolved.id_width,
+                max_depth,
+            )?;
+
+            queue::save_queue(&resolved.queue_path, &queue_file)?;
+
+            if args.clear {
+                log::info!("Task {} scheduling cleared.", args.task_id);
+                println!("Task {} scheduling cleared.", args.task_id);
+            } else {
+                log::info!("Task {} scheduled for {}.", args.task_id, value);
+                println!("Task {} scheduled for {}.", args.task_id, value);
+            }
+
+            Ok(())
+        }
+
         None => {
             let args = args.build;
             let request = task_cmd::read_request_from_args_or_stdin(&args.request)?;
@@ -1026,6 +1068,12 @@ pub enum TaskCommand {
         after_long_help = "Examples:\n ralph task batch status doing RQ-0001 RQ-0002 RQ-0003\n ralph task batch status done --tag-filter ready\n ralph task batch field priority high --tag-filter urgent\n ralph task batch edit tags \"reviewed\" --tag-filter rust\n ralph task batch --dry-run status doing --tag-filter cli\n ralph task batch --continue-on-error status doing RQ-0001 RQ-0002 RQ-9999"
     )]
     Batch(TaskBatchArgs),
+
+    /// Schedule a task to start after a specific time.
+    #[command(
+        after_long_help = "Examples:\n ralph task schedule RQ-0001 '2026-02-01T09:00:00Z'\n ralph task schedule RQ-0001 'tomorrow 9am'\n ralph task schedule RQ-0001 'in 2 hours'\n ralph task schedule RQ-0001 'next monday'\n ralph task schedule RQ-0001 --clear"
+    )]
+    Schedule(TaskScheduleArgs),
 }
 
 #[derive(Args)]
@@ -1474,6 +1522,24 @@ impl From<TaskEditFieldArg> for TaskEditKey {
             TaskEditFieldArg::CompletedAt => TaskEditKey::CompletedAt,
         }
     }
+}
+
+#[derive(Args)]
+#[command(
+    after_long_help = "Examples:\n  ralph task schedule RQ-0001 '2026-02-01T09:00:00Z'\n  ralph task schedule RQ-0001 'tomorrow 9am'\n  ralph task schedule RQ-0001 'in 2 hours'\n  ralph task schedule RQ-0001 'next monday'\n  ralph task schedule RQ-0001 --clear"
+)]
+pub struct TaskScheduleArgs {
+    /// Task ID to schedule.
+    #[arg(value_name = "TASK_ID")]
+    pub task_id: String,
+
+    /// Timestamp or relative time expression (e.g., 'tomorrow 9am', 'in 2 hours').
+    #[arg(value_name = "WHEN")]
+    pub when: Option<String>,
+
+    /// Clear the scheduled start time.
+    #[arg(long, conflicts_with = "when")]
+    pub clear: bool,
 }
 
 // Task template subcommands

@@ -562,6 +562,7 @@ fn create_task_from_comment(comment: &DetectedComment, resolved: &Resolved) -> R
         created_at: Some(now.clone()),
         updated_at: Some(now),
         completed_at: None,
+        scheduled_start: None,
         depends_on: Vec::new(),
         custom_fields: HashMap::new(),
     })

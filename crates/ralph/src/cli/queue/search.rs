@@ -64,6 +64,10 @@ pub struct QueueSearchArgs {
     /// Show all results (ignores --limit).
     #[arg(long)]
     pub all: bool,
+
+    /// Filter to only show scheduled tasks (have scheduled_start set).
+    #[arg(long)]
+    pub scheduled: bool,
 }
 
 pub(crate) fn handle(resolved: &Resolved, args: QueueSearchArgs) -> Result<()> {
@@ -104,6 +108,11 @@ pub(crate) fn handle(resolved: &Resolved, args: QueueSearchArgs) -> Result<()> {
                 None,
             ));
         }
+    }
+
+    // Apply scheduled filter if requested
+    if args.scheduled {
+        prefiltered.retain(|task| task.scheduled_start.is_some());
     }
 
     // Build search options

@@ -24,6 +24,7 @@ fn task_with(id: &str, status: TaskStatus, tags: Vec<String>) -> Task {
         created_at: Some("2026-01-18T00:00:00Z".to_string()),
         updated_at: Some("2026-01-18T00:00:00Z".to_string()),
         completed_at: None,
+        scheduled_start: None,
         depends_on: vec![],
         custom_fields: HashMap::new(),
     }
@@ -300,6 +301,7 @@ fn task_with_deps(id: &str, status: TaskStatus, deps: Vec<String>) -> Task {
         created_at: Some("2026-01-18T00:00:00Z".to_string()),
         updated_at: Some("2026-01-18T00:00:00Z".to_string()),
         completed_at: None,
+        scheduled_start: None,
         depends_on: deps,
         custom_fields: HashMap::new(),
     }

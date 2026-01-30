@@ -52,6 +52,7 @@ fn test_render_scrolling_hides_top_tasks() {
             created_at: None,
             updated_at: None,
             completed_at: None,
+            scheduled_start: None,
             depends_on: vec![],
             custom_fields: std::collections::HashMap::new(),
         })
@@ -91,6 +92,7 @@ fn test_render_scrolling_shows_bottom_tasks() {
             created_at: None,
             updated_at: None,
             completed_at: None,
+            scheduled_start: None,
             depends_on: vec![],
             custom_fields: std::collections::HashMap::new(),
         })

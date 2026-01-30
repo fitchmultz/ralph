@@ -63,6 +63,18 @@ pub struct QueueListArgs {
     /// Suppress size warning output.
     #[arg(long, short)]
     pub quiet: bool,
+
+    /// Filter to only show scheduled tasks (have scheduled_start set).
+    #[arg(long)]
+    pub scheduled: bool,
+
+    /// Filter tasks scheduled after this time (RFC3339 or relative expression).
+    #[arg(long, value_name = "TIMESTAMP")]
+    pub scheduled_after: Option<String>,
+
+    /// Filter tasks scheduled before this time (RFC3339 or relative expression).
+    #[arg(long, value_name = "TIMESTAMP")]
+    pub scheduled_before: Option<String>,
 }
 
 pub(crate) fn handle(resolved: &Resolved, args: QueueListArgs) -> Result<()> {
@@ -129,6 +141,55 @@ pub(crate) fn handle(resolved: &Resolved, args: QueueListArgs) -> Result<()> {
     } else {
         tasks
     };
+
+    // Apply scheduling filters
+    let tasks: Vec<&Task> = tasks
+        .into_iter()
+        .filter(|t| {
+            // --scheduled flag: only show tasks with scheduled_start set
+            if args.scheduled && t.scheduled_start.is_none() {
+                return false;
+            }
+
+            // --scheduled-after filter
+            if let Some(ref after) = args.scheduled_after {
+                if let Some(ref scheduled) = t.scheduled_start {
+                    if let Ok(scheduled_dt) = crate::timeutil::parse_rfc3339(scheduled) {
+                        if let Ok(after_dt) = crate::timeutil::parse_relative_time(after)
+                            .and_then(|s| crate::timeutil::parse_rfc3339(&s))
+                        {
+                            if scheduled_dt <= after_dt {
+                                return false;
+                            }
+                        }
+                    }
+                } else {
+                    // Task has no scheduled_start, so it doesn't satisfy "after" filter
+                    return false;
+                }
+            }
+
+            // --scheduled-before filter
+            if let Some(ref before) = args.scheduled_before {
+                if let Some(ref scheduled) = t.scheduled_start {
+                    if let Ok(scheduled_dt) = crate::timeutil::parse_rfc3339(scheduled) {
+                        if let Ok(before_dt) = crate::timeutil::parse_relative_time(before)
+                            .and_then(|s| crate::timeutil::parse_rfc3339(&s))
+                        {
+                            if scheduled_dt >= before_dt {
+                                return false;
+                            }
+                        }
+                    }
+                } else {
+                    // Task has no scheduled_start, so it doesn't satisfy "before" filter
+                    return false;
+                }
+            }
+
+            true
+        })
+        .collect();
 
     // Apply sort if specified
     let tasks = if let Some(sort_by) = args.sort_by {

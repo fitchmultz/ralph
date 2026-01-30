@@ -78,6 +78,7 @@ fn make_task(id: &str, status: TaskStatus, title: &str) -> Task {
         agent: None,
         created_at: Some("2026-01-18T00:00:00Z".to_string()),
         updated_at: Some("2026-01-18T00:00:00Z".to_string()),
+        scheduled_start: None,
         completed_at,
         depends_on: vec![],
         custom_fields: HashMap::new(),

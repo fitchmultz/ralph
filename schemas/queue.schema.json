@@ -289,6 +289,13 @@
             "null"
           ]
         },
+        "scheduled_start": {
+          "description": "RFC3339 timestamp when the task should become runnable (optional scheduling).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "scope": {
           "default": [],
           "type": "array",
