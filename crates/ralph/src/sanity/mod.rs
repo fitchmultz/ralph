@@ -453,24 +453,11 @@ fn get_known_config_keys() -> std::collections::HashSet<String> {
     let schema: RootSchema = schemars::schema_for!(crate::contracts::Config);
     let mut keys = HashSet::new();
 
-    // Map from root property names to their definition names in the schema
-    let def_mappings: &[(&str, &str)] = &[
-        ("agent", "AgentConfig"),
-        ("queue", "QueueConfig"),
-        ("tui", "TuiConfig"),
-    ];
-
-    // Add top-level keys
+    // Add top-level keys and recurse into their schemas to resolve refs.
     if let Some(object) = &schema.schema.object {
-        for key in object.properties.keys() {
+        for (key, subschema) in &object.properties {
             keys.insert(key.clone());
-        }
-    }
-
-    // Add keys from nested definitions
-    for (prefix, def_name) in def_mappings {
-        if let Some(def_schema) = schema.definitions.get(*def_name) {
-            extract_keys_from_schema(def_schema, prefix, &mut keys, &schema.definitions);
+            extract_keys_from_schema(subschema, key, &mut keys, &schema.definitions);
         }
     }
 
