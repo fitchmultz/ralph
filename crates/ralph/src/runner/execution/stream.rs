@@ -449,6 +449,36 @@ pub(super) fn extract_display_lines(json: &JsonValue) -> Vec<String> {
         }
     }
 
+    // Handle kimi format: top-level role="assistant" with content array
+    // Kimi uses this format instead of type="message" wrapper
+    if let Some(role) = json.get("role").and_then(|r| r.as_str()) {
+        if role == "assistant" {
+            if let Some(content) = json.get("content").and_then(|c| c.as_array()) {
+                for item in content {
+                    if let Some(item_type) = item.get("type").and_then(|t| t.as_str()) {
+                        match item_type {
+                            "text" => {
+                                if let Some(text) = item.get("text").and_then(|t| t.as_str()) {
+                                    if !text.is_empty() {
+                                        lines.push(text.to_string());
+                                    }
+                                }
+                            }
+                            "think" => {
+                                if let Some(think) = item.get("think").and_then(|t| t.as_str()) {
+                                    if !think.is_empty() {
+                                        lines.push(outpututil::format_reasoning(think));
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     lines
 }
 

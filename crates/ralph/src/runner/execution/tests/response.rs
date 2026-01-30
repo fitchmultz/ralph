@@ -59,3 +59,49 @@ fn extract_final_assistant_response_none_when_missing() {
     let stdout = concat!(r#"{"type":"tool_use","tool_name":"read"}"#, "\n");
     assert_eq!(extract_final_assistant_response(stdout), None);
 }
+
+#[test]
+fn extract_final_assistant_response_kimi_assistant() {
+    let stdout = concat!(
+        r#"{"role":"assistant","content":[{"type":"think","think":"Reasoning"},{"type":"text","text":"Final response"}]}"#,
+        "\n"
+    );
+    assert_eq!(
+        extract_final_assistant_response(stdout),
+        Some("Final response".to_string())
+    );
+}
+
+#[test]
+fn extract_final_assistant_response_kimi_multiple_text() {
+    let stdout = concat!(
+        r#"{"role":"assistant","content":[{"type":"text","text":"Line 1"},{"type":"text","text":"Line 2"}]}"#,
+        "\n"
+    );
+    assert_eq!(
+        extract_final_assistant_response(stdout),
+        Some("Line 1\nLine 2".to_string())
+    );
+}
+
+#[test]
+fn extract_final_assistant_response_kimi_no_text_content() {
+    let stdout = concat!(
+        r#"{"role":"assistant","content":[{"type":"think","think":"Just thinking"}]}"#,
+        "\n"
+    );
+    assert_eq!(extract_final_assistant_response(stdout), None);
+}
+
+#[test]
+fn extract_final_assistant_response_kimi_no_role() {
+    // Without role="assistant", should not match kimi format
+    let stdout = concat!(r#"{"content":[{"type":"text","text":"Some text"}]}"#, "\n");
+    assert_eq!(extract_final_assistant_response(stdout), None);
+}
+
+#[test]
+fn extract_final_assistant_response_kimi_empty_content() {
+    let stdout = concat!(r#"{"role":"assistant","content":[]}"#, "\n");
+    assert_eq!(extract_final_assistant_response(stdout), None);
+}

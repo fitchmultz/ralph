@@ -21,42 +21,76 @@ pub(crate) fn extract_final_assistant_response(stdout: &str) -> Option<String> {
             continue;
         };
 
-        let Some(event_type) = json.get("type").and_then(|t| t.as_str()) else {
-            continue;
-        };
-
-        match event_type {
-            "item.completed" => {
-                if let Some(text) = extract_codex_agent_message(&json) {
-                    final_message = Some(text);
-                    streaming_buffer.clear();
-                }
-            }
-            "assistant" => {
-                if let Some(text) = extract_claude_assistant_text(&json) {
-                    final_message = Some(text);
-                    streaming_buffer.clear();
-                }
-            }
-            "message" => {
-                if let Some(text) = extract_gemini_assistant_text(&json) {
-                    final_message = Some(text);
-                    streaming_buffer.clear();
-                }
-            }
-            "text" => {
-                if let Some(text) = extract_opencode_text(&json) {
-                    if !text.is_empty() {
-                        streaming_buffer.push_str(text);
-                        final_message = Some(streaming_buffer.clone());
+        if let Some(event_type) = json.get("type").and_then(|t| t.as_str()) {
+            match event_type {
+                "item.completed" => {
+                    if let Some(text) = extract_codex_agent_message(&json) {
+                        final_message = Some(text);
+                        streaming_buffer.clear();
                     }
                 }
+                "assistant" => {
+                    if let Some(text) = extract_claude_assistant_text(&json) {
+                        final_message = Some(text);
+                        streaming_buffer.clear();
+                    }
+                }
+                "message" => {
+                    if let Some(text) = extract_gemini_assistant_text(&json) {
+                        final_message = Some(text);
+                        streaming_buffer.clear();
+                    }
+                }
+                "text" => {
+                    if let Some(text) = extract_opencode_text(&json) {
+                        if !text.is_empty() {
+                            streaming_buffer.push_str(text);
+                            final_message = Some(streaming_buffer.clone());
+                        }
+                    }
+                }
+                _ => {}
             }
-            _ => {}
+        } else {
+            // Check for kimi format: top-level role="assistant" without type field
+            if let Some(text) = extract_kimi_assistant_text(&json) {
+                final_message = Some(text);
+                streaming_buffer.clear();
+            }
         }
     }
 
     final_message
+}
+
+fn extract_kimi_assistant_text(json: &JsonValue) -> Option<String> {
+    // Kimi format has role="assistant" at top level with content array
+    if json.get("role").and_then(|r| r.as_str()) != Some("assistant") {
+        return None;
+    }
+
+    let content = json.get("content")?;
+    let items = content.as_array()?;
+
+    let mut parts = Vec::new();
+    for item in items {
+        // Only extract text type content (not think/reasoning)
+        if item.get("type").and_then(|t| t.as_str()) != Some("text") {
+            continue;
+        }
+        if let Some(text) = item.get("text").and_then(|t| t.as_str()) {
+            let trimmed = text.trim();
+            if !trimmed.is_empty() {
+                parts.push(trimmed.to_string());
+            }
+        }
+    }
+
+    if parts.is_empty() {
+        None
+    } else {
+        Some(parts.join("\n"))
+    }
 }
 
 fn extract_codex_agent_message(json: &JsonValue) -> Option<String> {

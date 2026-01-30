@@ -201,6 +201,64 @@ fn extract_display_lines_unknown_event_is_noop() {
 }
 
 #[test]
+fn extract_display_lines_kimi_assistant_with_think() {
+    let payload = json!({
+        "role": "assistant",
+        "content": [
+            {"type": "think", "think": "Analyzing the request"},
+            {"type": "text", "text": "Hello! How can I help?"}
+        ]
+    });
+    assert_eq!(
+        extract_display_lines(&payload),
+        vec![
+            "[Reasoning] Analyzing the request",
+            "Hello! How can I help?"
+        ]
+    );
+}
+
+#[test]
+fn extract_display_lines_kimi_assistant_text_only() {
+    let payload = json!({
+        "role": "assistant",
+        "content": [
+            {"type": "text", "text": "Response text"}
+        ]
+    });
+    assert_eq!(extract_display_lines(&payload), vec!["Response text"]);
+}
+
+#[test]
+fn extract_display_lines_kimi_with_tool_calls() {
+    let payload = json!({
+        "role": "assistant",
+        "content": [{"type": "text", "text": "Using tool"}],
+        "tool_calls": [{"id": "tool_abc123", "type": "function"}]
+    });
+    // Should extract text content, ignore tool_calls for display
+    assert_eq!(extract_display_lines(&payload), vec!["Using tool"]);
+}
+
+#[test]
+fn extract_display_lines_kimi_empty_content() {
+    let payload = json!({
+        "role": "assistant",
+        "content": []
+    });
+    assert!(extract_display_lines(&payload).is_empty());
+}
+
+#[test]
+fn extract_display_lines_kimi_no_role_field() {
+    // Without role="assistant", should not be treated as kimi format
+    let payload = json!({
+        "content": [{"type": "text", "text": "Some text"}]
+    });
+    assert!(extract_display_lines(&payload).is_empty());
+}
+
+#[test]
 fn max_line_length_constant_is_10mb() {
     // Verify the constant is set to expected 10MB value
     assert_eq!(MAX_LINE_LENGTH, 10 * 1024 * 1024);

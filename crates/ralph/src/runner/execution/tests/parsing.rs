@@ -137,3 +137,56 @@ fn extract_session_id_nested_fields_ignored() {
     let stdout = "{\"data\": {\"session_id\":\"nested-id\"}}\n";
     assert_eq!(extract_session_id_from_text(stdout), None);
 }
+
+#[test]
+fn extract_session_id_from_json_kimi_tool_calls() {
+    let payload = json!({
+        "role": "assistant",
+        "content": [{"type": "text", "text": "Hello"}],
+        "tool_calls": [
+            {"type": "function", "id": "tool_bUJW2GCXzg65VTa72XV9YhNn", "function": {"name": "test"}}
+        ]
+    });
+    assert_eq!(
+        extract_session_id_from_json(&payload),
+        Some("tool_bUJW2GCXzg65VTa72XV9YhNn".to_string())
+    );
+}
+
+#[test]
+fn extract_session_id_from_json_kimi_no_tool_calls() {
+    let payload = json!({
+        "role": "assistant",
+        "content": [{"type": "text", "text": "Hello"}]
+    });
+    assert_eq!(extract_session_id_from_json(&payload), None);
+}
+
+#[test]
+fn extract_session_id_from_json_kimi_empty_tool_calls() {
+    let payload = json!({
+        "role": "assistant",
+        "tool_calls": []
+    });
+    assert_eq!(extract_session_id_from_json(&payload), None);
+}
+
+#[test]
+fn extract_session_id_from_json_kimi_tool_without_id() {
+    let payload = json!({
+        "role": "assistant",
+        "tool_calls": [
+            {"type": "function", "function": {"name": "test"}}
+        ]
+    });
+    assert_eq!(extract_session_id_from_json(&payload), None);
+}
+
+#[test]
+fn extract_session_id_from_text_kimi_format() {
+    let stdout = r#"{"role":"assistant","content":[{"type":"text","text":"Hello"}],"tool_calls":[{"id":"tool_xyz789","type":"function"}]}"#;
+    assert_eq!(
+        extract_session_id_from_text(stdout),
+        Some("tool_xyz789".to_string())
+    );
+}
