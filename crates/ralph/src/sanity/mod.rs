@@ -442,50 +442,93 @@ fn check_unknown_keys(resolved: &Resolved, auto_fix: bool) -> Result<Vec<String>
     Ok(actions)
 }
 
-/// Get the set of known config keys from the schema.
+/// Get the set of known config keys from the Config schema.
+///
+/// This extracts keys dynamically from the schemars-generated schema,
+/// ensuring the key list stays in sync with the actual Config struct.
 fn get_known_config_keys() -> std::collections::HashSet<String> {
-    let mut keys = std::collections::HashSet::new();
+    use schemars::schema::RootSchema;
+    use std::collections::HashSet;
 
-    // Top-level keys
-    keys.insert("version".to_string());
-    keys.insert("project_type".to_string());
-    keys.insert("queue".to_string());
-    keys.insert("agent".to_string());
-    keys.insert("tui".to_string());
+    let schema: RootSchema = schemars::schema_for!(crate::contracts::Config);
+    let mut keys = HashSet::new();
 
-    // Queue config keys
-    keys.insert("queue.file".to_string());
-    keys.insert("queue.done_file".to_string());
-    keys.insert("queue.id_prefix".to_string());
-    keys.insert("queue.id_width".to_string());
+    // Map from root property names to their definition names in the schema
+    let def_mappings: &[(&str, &str)] = &[
+        ("agent", "AgentConfig"),
+        ("queue", "QueueConfig"),
+        ("tui", "TuiConfig"),
+    ];
 
-    // Agent config keys
-    keys.insert("agent.runner".to_string());
-    keys.insert("agent.model".to_string());
-    keys.insert("agent.phases".to_string());
-    keys.insert("agent.iterations".to_string());
-    keys.insert("agent.reasoning_effort".to_string());
-    keys.insert("agent.repoprompt_plan_required".to_string());
-    keys.insert("agent.repoprompt_tool_injection".to_string());
-    keys.insert("agent.ci_gate_enabled".to_string());
-    keys.insert("agent.ci_gate_command".to_string());
-    keys.insert("agent.git_commit_push_enabled".to_string());
-    keys.insert("agent.git_revert_mode".to_string());
-    keys.insert("agent.instruction_files".to_string());
-    keys.insert("agent.codex_bin".to_string());
-    keys.insert("agent.opencode_bin".to_string());
-    keys.insert("agent.gemini_bin".to_string());
-    keys.insert("agent.claude_bin".to_string());
-    keys.insert("agent.cursor_bin".to_string());
-    keys.insert("agent.kimi_bin".to_string());
-    keys.insert("agent.pi_bin".to_string());
+    // Add top-level keys
+    if let Some(object) = &schema.schema.object {
+        for key in object.properties.keys() {
+            keys.insert(key.clone());
+        }
+    }
 
-    // TUI config keys
-    keys.insert("tui.auto_start".to_string());
-    keys.insert("tui.mouse".to_string());
-    keys.insert("tui.ascii_borders".to_string());
+    // Add keys from nested definitions
+    for (prefix, def_name) in def_mappings {
+        if let Some(def_schema) = schema.definitions.get(*def_name) {
+            extract_keys_from_schema(def_schema, prefix, &mut keys, &schema.definitions);
+        }
+    }
 
     keys
+}
+
+/// Recursively extract dot-notation keys from a schema.
+fn extract_keys_from_schema(
+    schema: &schemars::schema::Schema,
+    prefix: &str,
+    keys: &mut std::collections::HashSet<String>,
+    definitions: &schemars::Map<String, schemars::schema::Schema>,
+) {
+    use schemars::schema::Schema;
+
+    // Unwrap the schema object (skip boolean schemas)
+    let obj = match schema {
+        Schema::Object(obj) => obj,
+        Schema::Bool(_) => return,
+    };
+
+    // Follow references to definitions (e.g., "#/definitions/NotificationConfig")
+    if let Some(ref_path) = &obj.reference {
+        if let Some(def_name) = ref_path.strip_prefix("#/definitions/") {
+            if let Some(def_schema) = definitions.get(def_name) {
+                extract_keys_from_schema(def_schema, prefix, keys, definitions);
+            }
+        }
+        return;
+    }
+
+    // Process object properties
+    if let Some(object) = &obj.object {
+        for (key, subschema) in &object.properties {
+            let full_key = format!("{}.{}", prefix, key);
+            keys.insert(full_key.clone());
+            extract_keys_from_schema(subschema, &full_key, keys, definitions);
+        }
+    }
+
+    // Process subschemas (allOf, anyOf, oneOf)
+    if let Some(subschemas) = &obj.subschemas {
+        if let Some(all_of) = &subschemas.all_of {
+            for sub in all_of {
+                extract_keys_from_schema(sub, prefix, keys, definitions);
+            }
+        }
+        if let Some(any_of) = &subschemas.any_of {
+            for sub in any_of {
+                extract_keys_from_schema(sub, prefix, keys, definitions);
+            }
+        }
+        if let Some(one_of) = &subschemas.one_of {
+            for sub in one_of {
+                extract_keys_from_schema(sub, prefix, keys, definitions);
+            }
+        }
+    }
 }
 
 /// Check a config file for unknown keys.
@@ -795,6 +838,25 @@ mod tests {
         assert!(keys.contains("agent.model"));
         assert!(keys.contains("agent.phases"));
         assert!(keys.contains("agent.codex_bin"));
+        // Extended agent keys that were previously missing
+        assert!(keys.contains("agent.update_task_before_run"));
+        assert!(keys.contains("agent.fail_on_prerun_update_error"));
+        assert!(keys.contains("agent.followup_reasoning_effort"));
+        assert!(keys.contains("agent.claude_permission_mode"));
+        assert!(keys.contains("agent.runner_cli"));
+        // Notification keys
+        assert!(keys.contains("agent.notification"));
+        assert!(keys.contains("agent.notification.enabled"));
+        assert!(keys.contains("agent.notification.notify_on_complete"));
+    }
+
+    #[test]
+    fn get_known_config_keys_extracts_runner_cli_keys() {
+        let keys = get_known_config_keys();
+        // runner_cli is a nested config with its own definition
+        assert!(keys.contains("agent.runner_cli"));
+        assert!(keys.contains("agent.runner_cli.defaults"));
+        assert!(keys.contains("agent.runner_cli.runners"));
     }
 
     #[test]
