@@ -2,7 +2,7 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0430",
+      "id": "RQ-0432",
       "status": "todo",
       "title": "Add runner support for 'kimi' CLI",
       "priority": "high",
@@ -59,7 +59,7 @@
       "custom_fields": {}
     },
     {
-      "id": "RQ-0431",
+      "id": "RQ-0433",
       "status": "todo",
       "title": "Add runner support for 'pi' CLI",
       "priority": "high",
