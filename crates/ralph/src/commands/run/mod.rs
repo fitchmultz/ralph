@@ -143,7 +143,7 @@ pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()>
 
     // Track consecutive failures to prevent infinite loops
     let mut consecutive_failures: u32 = 0;
-    const MAX_CONSECUTIVE_FAILURES: u32 = 15;
+    const MAX_CONSECUTIVE_FAILURES: u32 = 50;
 
     // Use a mutable reference to allow modification inside the closure
     let mut completed = completed_count;
