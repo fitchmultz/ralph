@@ -23,14 +23,36 @@ use crate::contracts::TaskStatus;
 use crate::lock;
 use crate::queue;
 use crate::timeutil;
+use crate::webhook;
 
 /// Handle the `ready` command (promote draft to todo).
 pub fn handle_ready(args: &TaskReadyArgs, force: bool, resolved: &config::Resolved) -> Result<()> {
     let _queue_lock = queue::acquire_queue_lock(&resolved.repo_root, "task ready", force)?;
     let mut queue_file = queue::load_queue(&resolved.queue_path)?;
     let now = timeutil::now_utc_rfc3339()?;
+
+    // Get task info before modification for webhook
+    let task_info = queue_file
+        .tasks
+        .iter()
+        .find(|t| t.id == args.task_id)
+        .map(|t| (t.id.clone(), t.title.clone()));
+
     queue::promote_draft_to_todo(&mut queue_file, &args.task_id, &now, args.note.as_deref())?;
     queue::save_queue(&resolved.queue_path, &queue_file)?;
+
+    // Trigger webhook for status change
+    if let Some((task_id, task_title)) = task_info {
+        webhook::notify_status_changed(
+            &task_id,
+            &task_title,
+            "draft",
+            "todo",
+            &resolved.config.agent.webhook,
+            &now,
+        );
+    }
+
     log::info!("Task {} marked ready (draft -> todo).", args.task_id);
     Ok(())
 }
@@ -156,6 +178,15 @@ pub fn handle_status(
 
 /// Handle the `done` command.
 pub fn handle_done(args: &TaskDoneArgs, force: bool, resolved: &config::Resolved) -> Result<()> {
+    // Get task info before completion for webhook
+    let queue_file = queue::load_queue(&resolved.queue_path)?;
+    let task_title = queue_file
+        .tasks
+        .iter()
+        .find(|t| t.id == args.task_id)
+        .map(|t| t.title.clone())
+        .unwrap_or_default();
+
     complete_task_or_signal(
         resolved,
         &args.task_id,
@@ -163,7 +194,18 @@ pub fn handle_done(args: &TaskDoneArgs, force: bool, resolved: &config::Resolved
         &args.note,
         force,
         "task done",
-    )
+    )?;
+
+    // Trigger webhook after successful completion
+    let now = timeutil::now_utc_rfc3339()?;
+    webhook::notify_task_completed(
+        &args.task_id,
+        &task_title,
+        &resolved.config.agent.webhook,
+        &now,
+    );
+
+    Ok(())
 }
 
 /// Handle the `reject` command.
@@ -172,6 +214,16 @@ pub fn handle_reject(
     force: bool,
     resolved: &config::Resolved,
 ) -> Result<()> {
+    // Get task info before completion for webhook
+    let queue_file = queue::load_queue(&resolved.queue_path)?;
+    let task_title = queue_file
+        .tasks
+        .iter()
+        .find(|t| t.id == args.task_id)
+        .map(|t| t.title.clone())
+        .unwrap_or_default();
+
+    let note_str = args.note.first().map(|s| s.as_str()).unwrap_or("");
     complete_task_or_signal(
         resolved,
         &args.task_id,
@@ -179,7 +231,19 @@ pub fn handle_reject(
         &args.note,
         force,
         "task reject",
-    )
+    )?;
+
+    // Trigger webhook after successful rejection
+    let now = timeutil::now_utc_rfc3339()?;
+    webhook::notify_task_failed(
+        &args.task_id,
+        &task_title,
+        Some(note_str),
+        &resolved.config.agent.webhook,
+        &now,
+    );
+
+    Ok(())
 }
 
 /// Complete a task or write a completion signal if under supervision.

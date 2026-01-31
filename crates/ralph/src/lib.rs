@@ -42,6 +42,7 @@ pub(crate) mod gitutil;
 pub mod jsonc;
 pub mod lock;
 pub mod notification;
+pub mod webhook;
 // Internal-only output modules
 pub(crate) mod output;
 pub(crate) mod outpututil;

@@ -558,6 +558,7 @@ mod tests {
                 git_revert_mode: Some(GitRevertMode::Ask),
                 git_commit_push_enabled: Some(true),
                 notification: NotificationConfig::default(),
+                webhook: crate::contracts::WebhookConfig::default(),
             },
             queue: QueueConfig::default(),
             ..Config::default()

@@ -31,6 +31,7 @@ pub mod task;
 pub mod tui;
 pub mod version;
 pub mod watch;
+pub mod webhook;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -129,6 +130,11 @@ pub enum Command {
         after_long_help = "Examples:\n  ralph watch\n  ralph watch src/\n  ralph watch --patterns \"*.rs,*.toml\"\n  ralph watch --auto-queue\n  ralph watch --notify\n  ralph watch --comments todo,fixme\n  ralph watch --debounce-ms 1000\n  ralph watch --ignore-patterns \"vendor/,target/,node_modules/\""
     )]
     Watch(watch::WatchArgs),
+    /// Webhook management commands.
+    #[command(
+        after_long_help = "Examples:\n  ralph webhook test\n  ralph webhook test --event task_completed\n  ralph webhook test --url https://example.com/webhook"
+    )]
+    Webhook(webhook::WebhookArgs),
 }
 
 pub(crate) fn load_and_validate_queues(

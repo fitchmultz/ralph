@@ -44,6 +44,10 @@ indicatif = { version = "0.17", features = ["rayon"] }
 notify = "6.1"
 nucleo-matcher = "0.3"
 globset = "0.4"
+ureq = { version = "2.12", features = ["json"] }
+hmac = "0.12"
+sha2 = "0.10"
+hex = "0.4"
 
 # libc is only used on Unix platforms for process group control and PID liveness detection
 [target.'cfg(unix)'.dependencies]

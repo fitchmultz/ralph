@@ -24,6 +24,7 @@ pub use config::{
     ModelEffort, NotificationConfig, ProjectType, QueueConfig, ReasoningEffort, Runner,
     RunnerApprovalMode, RunnerCliConfigRoot, RunnerCliOptionsPatch, RunnerOutputFormat,
     RunnerPlanMode, RunnerSandboxMode, RunnerVerbosity, TuiConfig, UnsupportedOptionPolicy,
+    WebhookConfig,
 };
 pub use queue::QueueFile;
 pub use session::{SessionState, SESSION_STATE_VERSION};

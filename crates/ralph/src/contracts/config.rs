@@ -195,6 +195,9 @@ pub struct AgentConfig {
 
     /// Desktop notification configuration for task completion.
     pub notification: NotificationConfig,
+
+    /// Webhook configuration for HTTP task event notifications.
+    pub webhook: WebhookConfig,
 }
 
 impl AgentConfig {
@@ -275,6 +278,7 @@ impl AgentConfig {
             self.fail_on_prerun_update_error = other.fail_on_prerun_update_error;
         }
         self.notification.merge_from(other.notification);
+        self.webhook.merge_from(other.webhook);
     }
 }
 
@@ -656,6 +660,74 @@ impl NotificationConfig {
     }
 }
 
+/// Webhook configuration for HTTP task event notifications.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
+#[serde(default, deny_unknown_fields)]
+pub struct WebhookConfig {
+    /// Enable webhook notifications (default: false).
+    pub enabled: Option<bool>,
+
+    /// Webhook endpoint URL (required when enabled).
+    pub url: Option<String>,
+
+    /// Secret key for HMAC-SHA256 signature generation.
+    /// When set, webhooks include an X-Ralph-Signature header.
+    pub secret: Option<String>,
+
+    /// Events to subscribe to (default: all).
+    /// Supported: task_created, task_started, task_completed, task_failed, task_status_changed
+    pub events: Option<Vec<String>>,
+
+    /// Request timeout in seconds (default: 30, max: 300).
+    #[schemars(range(min = 1, max = 300))]
+    pub timeout_secs: Option<u32>,
+
+    /// Number of retry attempts for failed deliveries (default: 3, max: 10).
+    #[schemars(range(min = 0, max = 10))]
+    pub retry_count: Option<u32>,
+
+    /// Retry backoff base in milliseconds (default: 1000, max: 30000).
+    #[schemars(range(min = 100, max = 30000))]
+    pub retry_backoff_ms: Option<u32>,
+}
+
+impl WebhookConfig {
+    pub fn merge_from(&mut self, other: Self) {
+        if other.enabled.is_some() {
+            self.enabled = other.enabled;
+        }
+        if other.url.is_some() {
+            self.url = other.url;
+        }
+        if other.secret.is_some() {
+            self.secret = other.secret;
+        }
+        if other.events.is_some() {
+            self.events = other.events;
+        }
+        if other.timeout_secs.is_some() {
+            self.timeout_secs = other.timeout_secs;
+        }
+        if other.retry_count.is_some() {
+            self.retry_count = other.retry_count;
+        }
+        if other.retry_backoff_ms.is_some() {
+            self.retry_backoff_ms = other.retry_backoff_ms;
+        }
+    }
+
+    /// Check if a specific event type is enabled.
+    pub fn is_event_enabled(&self, event: &str) -> bool {
+        if !self.enabled.unwrap_or(false) {
+            return false;
+        }
+        match &self.events {
+            None => true, // All events enabled by default
+            Some(events) => events.iter().any(|e| e == event || e == "*"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum Model {
     #[default]
@@ -854,6 +926,7 @@ impl Default for Config {
                     sound_path: None,
                     timeout_ms: Some(8000),
                 },
+                webhook: WebhookConfig::default(),
             },
             tui: TuiConfig::default(),
         }

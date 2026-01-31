@@ -44,46 +44,6 @@
       "custom_fields": {}
     },
     {
-      "id": "RQ-0440",
-      "status": "todo",
-      "title": "Add webhook support for task event notifications",
-      "priority": "medium",
-      "tags": [
-        "cli",
-        "integrations",
-        "feature",
-        "automation"
-      ],
-      "scope": [
-        "crates/ralph/src/config/",
-        "crates/ralph/src/queue/operations/",
-        "crates/ralph/src/webhook.rs (new)",
-        "schemas/config.schema.json"
-      ],
-      "evidence": [
-        "No webhook configuration in config schema",
-        "No outgoing notification system for task events",
-        "Only desktop notifications are supported (local machine only)"
-      ],
-      "plan": [
-        "Add webhook configuration to config schema (URL, events, secret)",
-        "Create webhook module for async HTTP POST delivery",
-        "Support events: task_created, task_started, task_completed, task_failed",
-        "Add retry logic with exponential backoff for failed deliveries",
-        "Add webhook signature verification using configured secret",
-        "Add `ralph webhook test` command to verify configuration",
-        "Document webhook payload format and retry behavior"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-30T00:00:00Z",
-      "updated_at": "2026-01-30T00:00:00Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0442",
       "status": "todo",
       "title": "Add multi-select support to TUI for batch operations",

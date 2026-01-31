@@ -197,6 +197,100 @@ Supported fields:
 Platform notes:
 - **macOS**: Uses NotificationCenter; sound plays via `afplay` (default: `/System/Library/Sounds/Glass.aiff`).
 - **Linux**: Uses D-Bus/notify-send; sound plays via `paplay`/`aplay` or `canberra-gtk-play` for default sounds.
+
+## Webhook Configuration
+
+`agent.webhook` controls HTTP webhook notifications for task events. Webhooks complement desktop notifications by enabling external integrations (Slack, Discord, CI systems, etc.) to receive real-time task events.
+
+Supported fields:
+- `enabled`: enable webhook notifications (default: `false`).
+- `url`: webhook endpoint URL (required when enabled).
+- `secret`: secret key for HMAC-SHA256 signature generation (optional).
+  When set, webhooks include an `X-Ralph-Signature` header for verification.
+- `events`: list of events to subscribe to (default: all events).
+  - Supported: `task_created`, `task_started`, `task_completed`, `task_failed`, `task_status_changed`
+  - Use `["*"]` to subscribe to all events
+- `timeout_secs`: request timeout in seconds (default: `30`, max: `300`).
+- `retry_count`: number of retry attempts for failed deliveries (default: `3`, max: `10`).
+- `retry_backoff_ms`: retry backoff base in milliseconds (default: `1000`, max: `30000`).
+
+Example:
+```json
+{
+  "version": 1,
+  "agent": {
+    "webhook": {
+      "enabled": true,
+      "url": "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX",
+      "secret": "my-webhook-secret",
+      "events": ["task_completed", "task_failed"],
+      "timeout_secs": 30,
+      "retry_count": 3,
+      "retry_backoff_ms": 1000
+    }
+  }
+}
+```
+
+### Webhook Payload Format
+
+Webhooks are sent as HTTP POST requests with JSON payloads:
+
+```json
+{
+  "event": "task_completed",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "task_id": "RQ-0001",
+  "task_title": "Add webhook support",
+  "previous_status": "doing",
+  "current_status": "done",
+  "note": null
+}
+```
+
+### Webhook Security
+
+When a `secret` is configured, webhooks include an `X-Ralph-Signature` header:
+
+```
+X-Ralph-Signature: sha256=abc123...
+```
+
+The signature is computed as HMAC-SHA256 of the request body using the configured secret.
+
+To verify in Python:
+```python
+import hmac
+import hashlib
+
+secret = b'my-webhook-secret'
+body = request.body
+
+expected_signature = 'sha256=' + hmac.new(
+    secret, body, hashlib.sha256
+).hexdigest()
+
+if not hmac.compare_digest(
+    expected_signature,
+    request.headers.get('X-Ralph-Signature', '')
+):
+    raise ValueError("Invalid signature")
+```
+
+### Testing Webhooks
+
+Use the CLI to test your webhook configuration:
+
+```bash
+# Test with configured URL
+ralph webhook test
+
+# Test with specific event type
+ralph webhook test --event task_completed
+
+# Test with custom URL
+ralph webhook test --url https://example.com/webhook
+```
 - **Windows**: Uses toast notifications; custom sounds play via `winmm.dll` PlaySound for `.wav` files, PowerShell MediaPlayer fallback for other formats.
 
 Example:

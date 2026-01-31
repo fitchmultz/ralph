@@ -82,7 +82,16 @@
             }
           }
         },
-        "update_task_before_run": false
+        "update_task_before_run": false,
+        "webhook": {
+          "enabled": null,
+          "events": null,
+          "retry_backoff_ms": null,
+          "retry_count": null,
+          "secret": null,
+          "timeout_secs": null,
+          "url": null
+        }
       },
       "allOf": [
         {
@@ -389,6 +398,23 @@
           "type": [
             "boolean",
             "null"
+          ]
+        },
+        "webhook": {
+          "description": "Webhook configuration for HTTP task event notifications.",
+          "default": {
+            "enabled": null,
+            "events": null,
+            "retry_backoff_ms": null,
+            "retry_count": null,
+            "secret": null,
+            "timeout_secs": null,
+            "url": null
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/WebhookConfig"
+            }
           ]
         }
       },
@@ -844,6 +870,81 @@
         "warn",
         "error"
       ]
+    },
+    "WebhookConfig": {
+      "description": "Webhook configuration for HTTP task event notifications.",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Enable webhook notifications (default: false).",
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "events": {
+          "description": "Events to subscribe to (default: all). Supported: task_created, task_started, task_completed, task_failed, task_status_changed",
+          "default": null,
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "retry_backoff_ms": {
+          "description": "Retry backoff base in milliseconds (default: 1000, max: 30000).",
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "maximum": 30000.0,
+          "minimum": 100.0
+        },
+        "retry_count": {
+          "description": "Number of retry attempts for failed deliveries (default: 3, max: 10).",
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "maximum": 10.0,
+          "minimum": 0.0
+        },
+        "secret": {
+          "description": "Secret key for HMAC-SHA256 signature generation. When set, webhooks include an X-Ralph-Signature header.",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "timeout_secs": {
+          "description": "Request timeout in seconds (default: 30, max: 300).",
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "maximum": 300.0,
+          "minimum": 1.0
+        },
+        "url": {
+          "description": "Webhook endpoint URL (required when enabled).",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
     }
   }
 }

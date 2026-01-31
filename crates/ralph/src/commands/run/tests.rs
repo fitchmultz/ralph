@@ -101,6 +101,7 @@ fn resolved_with_agent_defaults(
                 enabled: Some(false),
                 ..NotificationConfig::default()
             },
+            webhook: crate::contracts::WebhookConfig::default(),
         },
         queue: QueueConfig {
             file: Some(PathBuf::from(".ralph/queue.json")),
@@ -182,6 +183,7 @@ fn resolved_with_repo_root(repo_root: PathBuf) -> crate::config::Resolved {
                 enabled: Some(false),
                 ..NotificationConfig::default()
             },
+            webhook: crate::contracts::WebhookConfig::default(),
         },
         queue: QueueConfig {
             file: Some(PathBuf::from(".ralph/queue.json")),
@@ -1048,6 +1050,7 @@ fn resolved_with_notification_config(
                 sound_path: None,
                 timeout_ms: Some(8000),
             },
+            webhook: crate::contracts::WebhookConfig::default(),
         },
         queue: QueueConfig {
             file: Some(PathBuf::from(".ralph/queue.json")),

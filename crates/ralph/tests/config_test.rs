@@ -3,7 +3,7 @@
 use ralph::config;
 use ralph::contracts::{
     AgentConfig, Config, GitRevertMode, Model, NotificationConfig, ProjectType, QueueConfig,
-    ReasoningEffort, Runner,
+    ReasoningEffort, Runner, WebhookConfig,
 };
 use std::env;
 use std::fs;
@@ -574,6 +574,7 @@ fn test_agent_config_merge_from_partial() {
         update_task_before_run: None,
         fail_on_prerun_update_error: None,
         notification: NotificationConfig::default(),
+        webhook: WebhookConfig::default(),
     };
 
     let override_config = AgentConfig {
@@ -602,6 +603,7 @@ fn test_agent_config_merge_from_partial() {
         update_task_before_run: None,
         fail_on_prerun_update_error: None,
         notification: NotificationConfig::default(),
+        webhook: WebhookConfig::default(),
     };
 
     base.merge_from(override_config);

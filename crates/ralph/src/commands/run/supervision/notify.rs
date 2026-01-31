@@ -104,6 +104,7 @@ mod tests {
                 git_commit_push_enabled: Some(true),
                 phases: Some(2),
                 notification,
+                webhook: crate::contracts::WebhookConfig::default(),
             },
             queue: QueueConfig {
                 file: Some(PathBuf::from(".ralph/queue.json")),

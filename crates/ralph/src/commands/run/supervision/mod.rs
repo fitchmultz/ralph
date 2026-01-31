@@ -390,6 +390,7 @@ mod tests {
                     enabled: Some(false),
                     ..NotificationConfig::default()
                 },
+                webhook: crate::contracts::WebhookConfig::default(),
             },
             queue: QueueConfig {
                 file: Some(PathBuf::from(".ralph/queue.json")),

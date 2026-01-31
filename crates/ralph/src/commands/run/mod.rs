@@ -34,6 +34,7 @@ use crate::contracts::{
 use crate::promptflow;
 use crate::session::{self, SessionValidationResult};
 use crate::signal;
+use crate::webhook;
 use crate::{git, prompts, queue, runner, runutil, timeutil};
 use anyhow::{bail, Context, Result};
 
@@ -853,9 +854,22 @@ Raw task JSON (source of truth):
 
 fn mark_task_doing(resolved: &config::Resolved, task_id: &str) -> Result<()> {
     let mut queue_file = queue::load_queue(&resolved.queue_path)?;
+
+    // Get task title before modification for webhook
+    let task_title = queue_file
+        .tasks
+        .iter()
+        .find(|t| t.id == task_id)
+        .map(|t| t.title.clone())
+        .unwrap_or_default();
+
     let now = timeutil::now_utc_rfc3339()?;
     queue::set_status(&mut queue_file, task_id, TaskStatus::Doing, &now, None)?;
     queue::save_queue(&resolved.queue_path, &queue_file)?;
+
+    // Trigger webhook for task started
+    webhook::notify_task_started(task_id, &task_title, &resolved.config.agent.webhook, &now);
+
     Ok(())
 }
 

@@ -93,6 +93,10 @@ fn run() -> Result<()> {
         cli::Command::Migrate(args) => cli::migrate::handle_migrate(args),
         cli::Command::Version(args) => cli::version::handle_version(args),
         cli::Command::Watch(args) => cli::watch::handle_watch(args, cli.force),
+        cli::Command::Webhook(args) => {
+            let resolved = ralph::config::resolve_from_cwd()?;
+            cli::webhook::handle_webhook(&args, &resolved)
+        }
     }
 }
 
