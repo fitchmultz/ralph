@@ -211,28 +211,30 @@ pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()>
 
     // Send loop completion notification
     if tasks_attempted > 0 {
+        let notify_on_complete = opts
+            .agent_overrides
+            .notify_on_complete
+            .or(resolved.config.agent.notification.notify_on_complete)
+            .unwrap_or(true);
+        let notify_on_fail = opts
+            .agent_overrides
+            .notify_on_fail
+            .or(resolved.config.agent.notification.notify_on_fail)
+            .unwrap_or(true);
+        let notify_on_loop_complete = resolved
+            .config
+            .agent
+            .notification
+            .notify_on_loop_complete
+            .unwrap_or(true);
+        // enabled acts as a global on/off switch - true if ANY notification type is enabled
+        let enabled = notify_on_complete || notify_on_fail || notify_on_loop_complete;
+
         let notify_config = crate::notification::NotificationConfig {
-            enabled: opts
-                .agent_overrides
-                .notify_on_complete
-                .or(resolved.config.agent.notification.enabled)
-                .unwrap_or(true),
-            notify_on_complete: opts
-                .agent_overrides
-                .notify_on_complete
-                .or(resolved.config.agent.notification.notify_on_complete)
-                .unwrap_or(true),
-            notify_on_fail: opts
-                .agent_overrides
-                .notify_on_fail
-                .or(resolved.config.agent.notification.notify_on_fail)
-                .unwrap_or(true),
-            notify_on_loop_complete: resolved
-                .config
-                .agent
-                .notification
-                .notify_on_loop_complete
-                .unwrap_or(true),
+            enabled,
+            notify_on_complete,
+            notify_on_fail,
+            notify_on_loop_complete,
             suppress_when_active: resolved
                 .config
                 .agent
@@ -679,25 +681,28 @@ fn run_one_impl(
             log::error!("Task {task_id}: error");
 
             // Send failure notification
+            let notify_on_complete = agent_overrides
+                .notify_on_complete
+                .or(resolved.config.agent.notification.notify_on_complete)
+                .unwrap_or(true);
+            let notify_on_fail = agent_overrides
+                .notify_on_fail
+                .or(resolved.config.agent.notification.notify_on_fail)
+                .unwrap_or(true);
+            let notify_on_loop_complete = resolved
+                .config
+                .agent
+                .notification
+                .notify_on_loop_complete
+                .unwrap_or(true);
+            // enabled acts as a global on/off switch - true if ANY notification type is enabled
+            let enabled = notify_on_complete || notify_on_fail || notify_on_loop_complete;
+
             let notify_config = crate::notification::NotificationConfig {
-                enabled: agent_overrides
-                    .notify_on_complete
-                    .or(resolved.config.agent.notification.enabled)
-                    .unwrap_or(true),
-                notify_on_complete: agent_overrides
-                    .notify_on_complete
-                    .or(resolved.config.agent.notification.notify_on_complete)
-                    .unwrap_or(true),
-                notify_on_fail: agent_overrides
-                    .notify_on_fail
-                    .or(resolved.config.agent.notification.notify_on_fail)
-                    .unwrap_or(true),
-                notify_on_loop_complete: resolved
-                    .config
-                    .agent
-                    .notification
-                    .notify_on_loop_complete
-                    .unwrap_or(true),
+                enabled,
+                notify_on_complete,
+                notify_on_fail,
+                notify_on_loop_complete,
                 suppress_when_active: resolved
                     .config
                     .agent

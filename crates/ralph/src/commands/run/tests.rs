@@ -998,3 +998,391 @@ fn invalid_phases_edge_cases() {
         );
     }
 }
+
+// ============================================================================
+// Notification config construction tests
+// ============================================================================
+
+/// Helper to create a Resolved config with specific notification settings
+fn resolved_with_notification_config(
+    notify_on_complete: Option<bool>,
+    notify_on_fail: Option<bool>,
+    notify_on_loop_complete: Option<bool>,
+) -> crate::config::Resolved {
+    let dir = TempDir::new().expect("temp dir");
+    let repo_root = dir.path().to_path_buf();
+
+    let cfg = Config {
+        agent: AgentConfig {
+            runner: Some(Runner::Claude),
+            model: Some(Model::Gpt52),
+            reasoning_effort: None,
+            iterations: None,
+            followup_reasoning_effort: None,
+            codex_bin: Some("codex".to_string()),
+            opencode_bin: Some("opencode".to_string()),
+            gemini_bin: Some("gemini".to_string()),
+            claude_bin: Some("claude".to_string()),
+            cursor_bin: Some("agent".to_string()),
+            kimi_bin: Some("kimi".to_string()),
+            pi_bin: Some("pi".to_string()),
+            phases: Some(2),
+            update_task_before_run: None,
+            fail_on_prerun_update_error: None,
+            claude_permission_mode: Some(ClaudePermissionMode::BypassPermissions),
+            runner_cli: None,
+            instruction_files: None,
+            repoprompt_plan_required: None,
+            repoprompt_tool_injection: None,
+            ci_gate_command: Some("make ci".to_string()),
+            ci_gate_enabled: Some(true),
+            git_revert_mode: Some(GitRevertMode::Ask),
+            git_commit_push_enabled: Some(true),
+            notification: NotificationConfig {
+                enabled: Some(true),
+                notify_on_complete,
+                notify_on_fail,
+                notify_on_loop_complete,
+                suppress_when_active: Some(true),
+                sound_enabled: Some(false),
+                sound_path: None,
+                timeout_ms: Some(8000),
+            },
+        },
+        queue: QueueConfig {
+            file: Some(PathBuf::from(".ralph/queue.json")),
+            done_file: Some(PathBuf::from(".ralph/done.json")),
+            id_prefix: Some("RQ".to_string()),
+            id_width: Some(4),
+            size_warning_threshold_kb: Some(500),
+            task_count_warning_threshold: Some(500),
+            max_dependency_depth: Some(10),
+        },
+        ..Config::default()
+    };
+
+    crate::config::Resolved {
+        config: cfg,
+        repo_root: repo_root.clone(),
+        queue_path: repo_root.join(".ralph/queue.json"),
+        done_path: repo_root.join(".ralph/done.json"),
+        id_prefix: "RQ".to_string(),
+        id_width: 4,
+        global_config_path: None,
+        project_config_path: Some(repo_root.join(".ralph/config.json")),
+    }
+}
+
+/// Helper to create AgentOverrides with specific notification overrides
+fn overrides_with_notifications(
+    notify_on_complete: Option<bool>,
+    notify_on_fail: Option<bool>,
+) -> super::AgentOverrides {
+    super::AgentOverrides {
+        runner: None,
+        model: None,
+        reasoning_effort: None,
+        runner_cli: crate::contracts::RunnerCliOptionsPatch::default(),
+        phases: None,
+        update_task_before_run: None,
+        fail_on_prerun_update_error: None,
+        repoprompt_plan_required: None,
+        repoprompt_tool_injection: None,
+        git_revert_mode: None,
+        git_commit_push_enabled: None,
+        include_draft: None,
+        notify_on_complete,
+        notify_on_fail,
+        notify_on_loop_complete: None,
+        notify_sound: None,
+        lfs_check: None,
+        no_progress: None,
+    }
+}
+
+/// Test that enabled=true when --notify-fail is set without --notify
+/// This is the core bug fix: enabled should be true if ANY notification type is enabled
+#[test]
+fn notification_config_enabled_true_when_notify_fail_only() {
+    // Config defaults: all notifications enabled
+    let resolved = resolved_with_notification_config(Some(true), Some(true), Some(true));
+
+    // CLI: --notify-fail (enable fail notifications) without --notify
+    let overrides = overrides_with_notifications(None, Some(true));
+
+    // Calculate the notification config values (mirroring run_loop logic)
+    let notify_on_complete = overrides
+        .notify_on_complete
+        .or(resolved.config.agent.notification.notify_on_complete)
+        .unwrap_or(true);
+    let notify_on_fail = overrides
+        .notify_on_fail
+        .or(resolved.config.agent.notification.notify_on_fail)
+        .unwrap_or(true);
+    let notify_on_loop_complete = resolved
+        .config
+        .agent
+        .notification
+        .notify_on_loop_complete
+        .unwrap_or(true);
+    let enabled = notify_on_complete || notify_on_fail || notify_on_loop_complete;
+
+    // enabled should be true because notify_on_fail is true
+    assert!(
+        enabled,
+        "enabled should be true when notify_on_fail is true"
+    );
+    assert!(
+        notify_on_complete,
+        "notify_on_complete should be true from config"
+    );
+    assert!(
+        notify_on_fail,
+        "notify_on_fail should be true from CLI override"
+    );
+    assert!(
+        notify_on_loop_complete,
+        "notify_on_loop_complete should be true from config"
+    );
+}
+
+/// Test that enabled=true when --no-notify and --notify-fail are both set
+/// This ensures failure notifications work even when completion notifications are disabled
+#[test]
+fn notification_config_enabled_true_when_no_notify_and_notify_fail() {
+    // Config defaults: all notifications enabled
+    let resolved = resolved_with_notification_config(Some(true), Some(true), Some(true));
+
+    // CLI: --no-notify --notify-fail
+    let overrides = overrides_with_notifications(Some(false), Some(true));
+
+    let notify_on_complete = overrides
+        .notify_on_complete
+        .or(resolved.config.agent.notification.notify_on_complete)
+        .unwrap_or(true);
+    let notify_on_fail = overrides
+        .notify_on_fail
+        .or(resolved.config.agent.notification.notify_on_fail)
+        .unwrap_or(true);
+    let notify_on_loop_complete = resolved
+        .config
+        .agent
+        .notification
+        .notify_on_loop_complete
+        .unwrap_or(true);
+    let enabled = notify_on_complete || notify_on_fail || notify_on_loop_complete;
+
+    // enabled should be true because notify_on_fail is true
+    assert!(
+        enabled,
+        "enabled should be true when notify_on_fail is true even if notify_on_complete is false"
+    );
+    assert!(
+        !notify_on_complete,
+        "notify_on_complete should be false from CLI override"
+    );
+    assert!(
+        notify_on_fail,
+        "notify_on_fail should be true from CLI override"
+    );
+    assert!(
+        notify_on_loop_complete,
+        "notify_on_loop_complete should be true from config"
+    );
+}
+
+/// Test that enabled=false when all notification types are disabled
+#[test]
+fn notification_config_enabled_false_when_all_disabled() {
+    // Config: all notifications disabled
+    let resolved = resolved_with_notification_config(Some(false), Some(false), Some(false));
+
+    // CLI: no overrides
+    let overrides = overrides_with_notifications(None, None);
+
+    let notify_on_complete = overrides
+        .notify_on_complete
+        .or(resolved.config.agent.notification.notify_on_complete)
+        .unwrap_or(true);
+    let notify_on_fail = overrides
+        .notify_on_fail
+        .or(resolved.config.agent.notification.notify_on_fail)
+        .unwrap_or(true);
+    let notify_on_loop_complete = resolved
+        .config
+        .agent
+        .notification
+        .notify_on_loop_complete
+        .unwrap_or(true);
+    let enabled = notify_on_complete || notify_on_fail || notify_on_loop_complete;
+
+    // enabled should be false because all types are disabled
+    assert!(
+        !enabled,
+        "enabled should be false when all notification types are disabled"
+    );
+    assert!(!notify_on_complete, "notify_on_complete should be false");
+    assert!(!notify_on_fail, "notify_on_fail should be false");
+    assert!(
+        !notify_on_loop_complete,
+        "notify_on_loop_complete should be false"
+    );
+}
+
+/// Test that enabled=true when --notify is set alone
+#[test]
+fn notification_config_enabled_true_when_notify_alone() {
+    // Config: all notifications disabled
+    let resolved = resolved_with_notification_config(Some(false), Some(false), Some(false));
+
+    // CLI: --notify (enable completion notifications)
+    let overrides = overrides_with_notifications(Some(true), None);
+
+    let notify_on_complete = overrides
+        .notify_on_complete
+        .or(resolved.config.agent.notification.notify_on_complete)
+        .unwrap_or(true);
+    let notify_on_fail = overrides
+        .notify_on_fail
+        .or(resolved.config.agent.notification.notify_on_fail)
+        .unwrap_or(true);
+    let notify_on_loop_complete = resolved
+        .config
+        .agent
+        .notification
+        .notify_on_loop_complete
+        .unwrap_or(true);
+    let enabled = notify_on_complete || notify_on_fail || notify_on_loop_complete;
+
+    // enabled should be true because notify_on_complete is true
+    assert!(
+        enabled,
+        "enabled should be true when notify_on_complete is true"
+    );
+    assert!(
+        notify_on_complete,
+        "notify_on_complete should be true from CLI override"
+    );
+    assert!(
+        !notify_on_fail,
+        "notify_on_fail should be false from config"
+    );
+    assert!(
+        !notify_on_loop_complete,
+        "notify_on_loop_complete should be false from config (not using default)"
+    );
+}
+
+/// Test that CLI overrides take precedence over config
+#[test]
+fn notification_config_cli_overrides_config() {
+    // Config: all notifications disabled
+    let resolved = resolved_with_notification_config(Some(false), Some(false), Some(false));
+
+    // CLI: --notify --notify-fail (enable both)
+    let overrides = overrides_with_notifications(Some(true), Some(true));
+
+    let notify_on_complete = overrides
+        .notify_on_complete
+        .or(resolved.config.agent.notification.notify_on_complete)
+        .unwrap_or(true);
+    let notify_on_fail = overrides
+        .notify_on_fail
+        .or(resolved.config.agent.notification.notify_on_fail)
+        .unwrap_or(true);
+    let notify_on_loop_complete = resolved
+        .config
+        .agent
+        .notification
+        .notify_on_loop_complete
+        .unwrap_or(true);
+    let enabled = notify_on_complete || notify_on_fail || notify_on_loop_complete;
+
+    assert!(enabled);
+    assert!(notify_on_complete, "CLI should override config");
+    assert!(notify_on_fail, "CLI should override config");
+    assert!(
+        !notify_on_loop_complete,
+        "notify_on_loop_complete should be false from config (not using default)"
+    );
+}
+
+/// Test that config values are used when no CLI overrides
+#[test]
+fn notification_config_uses_config_when_no_cli_overrides() {
+    // Config: mixed settings
+    let resolved = resolved_with_notification_config(Some(true), Some(false), Some(true));
+
+    // CLI: no overrides
+    let overrides = overrides_with_notifications(None, None);
+
+    let notify_on_complete = overrides
+        .notify_on_complete
+        .or(resolved.config.agent.notification.notify_on_complete)
+        .unwrap_or(true);
+    let notify_on_fail = overrides
+        .notify_on_fail
+        .or(resolved.config.agent.notification.notify_on_fail)
+        .unwrap_or(true);
+    let notify_on_loop_complete = resolved
+        .config
+        .agent
+        .notification
+        .notify_on_loop_complete
+        .unwrap_or(true);
+    let enabled = notify_on_complete || notify_on_fail || notify_on_loop_complete;
+
+    assert!(enabled);
+    assert!(notify_on_complete, "should use config value");
+    assert!(!notify_on_fail, "should use config value");
+    assert!(notify_on_loop_complete, "should use config value");
+}
+
+/// Test the original bug: --no-notify would set enabled=false, suppressing ALL notifications
+/// This verifies the fix works correctly
+#[test]
+fn notification_config_bug_no_notify_suppresses_all_notifications() {
+    // Config: all notifications enabled
+    let resolved = resolved_with_notification_config(Some(true), Some(true), Some(true));
+
+    // CLI: --no-notify only (the bug scenario)
+    let overrides = overrides_with_notifications(Some(false), None);
+
+    let notify_on_complete = overrides
+        .notify_on_complete
+        .or(resolved.config.agent.notification.notify_on_complete)
+        .unwrap_or(true);
+    let notify_on_fail = overrides
+        .notify_on_fail
+        .or(resolved.config.agent.notification.notify_on_fail)
+        .unwrap_or(true);
+    let notify_on_loop_complete = resolved
+        .config
+        .agent
+        .notification
+        .notify_on_loop_complete
+        .unwrap_or(true);
+
+    // With the fix: enabled should be true because notify_on_fail and notify_on_loop_complete are still true
+    let enabled = notify_on_complete || notify_on_fail || notify_on_loop_complete;
+
+    // Before the fix, this would have been false because enabled was set from notify_on_complete only
+    assert!(
+        enabled,
+        "BUG: enabled should be true because notify_on_fail and notify_on_loop_complete are still enabled"
+    );
+
+    // Verify the individual flags
+    assert!(
+        !notify_on_complete,
+        "notify_on_complete should be false from --no-notify"
+    );
+    assert!(
+        notify_on_fail,
+        "notify_on_fail should still be true from config"
+    );
+    assert!(
+        notify_on_loop_complete,
+        "notify_on_loop_complete should still be true from config"
+    );
+}

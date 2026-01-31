@@ -2,43 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0485",
-      "status": "todo",
-      "title": "Fix notification enabled semantics across CLI overrides",
-      "priority": "medium",
-      "tags": [
-        "notifications",
-        "config",
-        "bug"
-      ],
-      "scope": [
-        "crates/ralph/src/commands/run/mod.rs",
-        "crates/ralph/src/agent.rs",
-        "crates/ralph/src/contracts/config.rs",
-        "docs/configuration.md",
-        "docs/cli.md"
-      ],
-      "evidence": [
-        "contracts/config.rs documents notification.enabled as a legacy completion field while notify_on_complete/notify_on_fail are distinct",
-        "commands/run/mod.rs sets NotificationConfig.enabled from notify_on_complete or config.enabled, so --no-notify suppresses failure notifications even if --notify-fail is set"
-      ],
-      "plan": [
-        "Define the intended semantics for notification.enabled vs per-type flags (document if needed)",
-        "Update run/mod.rs to compute enabled based on explicit overrides or any enabled notification type",
-        "Add tests for --no-notify + --notify-fail and config combinations",
-        "Update docs/configuration.md and docs/cli.md if semantics change",
-        "Run make ci"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-31T02:22:24Z",
-      "updated_at": "2026-01-31T02:22:24Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0487",
       "status": "todo",
       "title": "Add --help output with examples to release.sh",

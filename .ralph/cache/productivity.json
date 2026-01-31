@@ -1,7 +1,7 @@
 {
   "version": 1,
   "first_task_completed_at": "2026-01-30T12:31:17.161199000Z",
-  "last_updated_at": "2026-01-31T16:41:14.744786000Z",
+  "last_updated_at": "2026-01-31T16:54:14.222256000Z",
   "daily": {
     "2026-01-30": {
       "date": "2026-01-30",
@@ -46,7 +46,7 @@
     },
     "2026-01-31": {
       "date": "2026-01-31",
-      "completed_count": 10,
+      "completed_count": 11,
       "tasks": [
         {
           "id": "RQ-0475",
@@ -97,6 +97,11 @@
           "id": "RQ-0486",
           "title": "Make session recovery prompts safe for non-interactive runs",
           "completed_at": "2026-01-31T16:41:14.744783000Z"
+        },
+        {
+          "id": "RQ-0485",
+          "title": "Fix notification enabled semantics across CLI overrides",
+          "completed_at": "2026-01-31T16:54:14.222254000Z"
         }
       ]
     }
@@ -106,7 +111,7 @@
     "longest_streak": 2,
     "last_completed_date": "2026-01-31"
   },
-  "total_completed": 17,
+  "total_completed": 18,
   "milestones": [
     {
       "threshold": 10,
