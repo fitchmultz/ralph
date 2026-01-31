@@ -799,3 +799,155 @@ fn finalize_phase3_if_done_runs_post_run_supervise_without_signal() -> anyhow::R
     anyhow::ensure!(status.trim().is_empty(), "expected clean repo");
     Ok(())
 }
+
+// ============================================================================
+// Auto-resume session tests
+// ============================================================================
+
+use crate::session;
+
+fn task_with_id_and_status(id: &str, status: TaskStatus) -> Task {
+    Task {
+        id: id.to_string(),
+        status,
+        title: "Test task".to_string(),
+        priority: Default::default(),
+        tags: vec!["rust".to_string()],
+        scope: vec!["crates/ralph".to_string()],
+        evidence: vec!["observed".to_string()],
+        plan: vec!["do thing".to_string()],
+        notes: vec![],
+        request: Some("test request".to_string()),
+        agent: None,
+        created_at: Some("2026-01-18T00:00:00Z".to_string()),
+        updated_at: Some("2026-01-18T00:00:00Z".to_string()),
+        completed_at: None,
+        scheduled_start: None,
+        depends_on: vec![],
+        blocks: vec![],
+        relates_to: vec![],
+        duplicates: None,
+        custom_fields: std::collections::HashMap::new(),
+    }
+}
+
+#[test]
+fn validate_resumed_task_succeeds_when_task_exists_and_doing() -> anyhow::Result<()> {
+    let temp = TempDir::new()?;
+    let repo_root = temp.path().to_path_buf();
+
+    let queue_file = QueueFile {
+        version: 1,
+        tasks: vec![task_with_id_and_status("RQ-0001", TaskStatus::Doing)],
+    };
+
+    // Should succeed when task exists and is Doing
+    super::validate_resumed_task(&queue_file, "RQ-0001", &repo_root)?;
+
+    Ok(())
+}
+
+#[test]
+fn validate_resumed_task_fails_when_task_missing() -> anyhow::Result<()> {
+    let temp = TempDir::new()?;
+    let repo_root = temp.path().to_path_buf();
+
+    let queue_file = QueueFile {
+        version: 1,
+        tasks: vec![task_with_id_and_status("RQ-0001", TaskStatus::Doing)],
+    };
+
+    // Should fail when task doesn't exist
+    let err = super::validate_resumed_task(&queue_file, "RQ-9999", &repo_root).unwrap_err();
+    assert!(err.to_string().contains("no longer exists"));
+
+    Ok(())
+}
+
+#[test]
+fn validate_resumed_task_fails_when_task_not_doing() -> anyhow::Result<()> {
+    let temp = TempDir::new()?;
+    let repo_root = temp.path().to_path_buf();
+
+    let queue_file = QueueFile {
+        version: 1,
+        tasks: vec![task_with_id_and_status("RQ-0001", TaskStatus::Todo)],
+    };
+
+    // Should fail when task exists but is not Doing
+    let err = super::validate_resumed_task(&queue_file, "RQ-0001", &repo_root).unwrap_err();
+    assert!(err.to_string().contains("not in Doing status"));
+
+    Ok(())
+}
+
+#[test]
+fn validate_resumed_task_clears_session_when_invalid() -> anyhow::Result<()> {
+    let temp = TempDir::new()?;
+    let repo_root = temp.path().to_path_buf();
+    let cache_dir = repo_root.join(".ralph/cache");
+    std::fs::create_dir_all(&cache_dir)?;
+
+    // Create a session for a task
+    let session = crate::contracts::SessionState::new(
+        "test-session".to_string(),
+        "RQ-9999".to_string(),
+        crate::timeutil::now_utc_rfc3339_or_fallback(),
+        1,
+        Runner::Claude,
+        "sonnet".to_string(),
+        0,
+        None,
+    );
+    session::save_session(&cache_dir, &session)?;
+    assert!(session::session_exists(&cache_dir));
+
+    let queue_file = QueueFile {
+        version: 1,
+        tasks: vec![task_with_id_and_status("RQ-0001", TaskStatus::Doing)],
+    };
+
+    // Validation should fail and clear the session
+    let _ = super::validate_resumed_task(&queue_file, "RQ-9999", &repo_root);
+
+    // Session should be cleared
+    assert!(!session::session_exists(&cache_dir));
+
+    Ok(())
+}
+
+#[test]
+fn validate_resumed_task_clears_session_when_terminal() -> anyhow::Result<()> {
+    let temp = TempDir::new()?;
+    let repo_root = temp.path().to_path_buf();
+    let cache_dir = repo_root.join(".ralph/cache");
+    std::fs::create_dir_all(&cache_dir)?;
+
+    // Create a session for a done task
+    let session = crate::contracts::SessionState::new(
+        "test-session".to_string(),
+        "RQ-0001".to_string(),
+        crate::timeutil::now_utc_rfc3339_or_fallback(),
+        1,
+        Runner::Claude,
+        "sonnet".to_string(),
+        0,
+        None,
+    );
+    session::save_session(&cache_dir, &session)?;
+    assert!(session::session_exists(&cache_dir));
+
+    // Task is done (terminal status)
+    let queue_file = QueueFile {
+        version: 1,
+        tasks: vec![task_with_id_and_status("RQ-0001", TaskStatus::Done)],
+    };
+
+    // Validation should fail and clear the session
+    let _ = super::validate_resumed_task(&queue_file, "RQ-0001", &repo_root);
+
+    // Session should be cleared
+    assert!(!session::session_exists(&cache_dir));
+
+    Ok(())
+}

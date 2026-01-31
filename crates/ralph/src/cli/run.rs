@@ -77,7 +77,7 @@ pub fn handle_run(cmd: RunCommand, force: bool, no_progress: bool) -> Result<()>
                 if let Some(task_id) = args.id.as_deref() {
                     run_cmd::run_one_with_id(&resolved, &overrides, force, task_id, None, None)?;
                 } else {
-                    let _ = run_cmd::run_one(&resolved, &overrides, force)?;
+                    let _ = run_cmd::run_one(&resolved, &overrides, force, None)?;
                 }
                 Ok(())
             }

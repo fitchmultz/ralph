@@ -2,42 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0476",
-      "status": "todo",
-      "title": "Use resume task ID when auto-resuming sessions",
-      "priority": "high",
-      "tags": [
-        "run",
-        "session",
-        "bug",
-        "reliability"
-      ],
-      "scope": [
-        "crates/ralph/src/commands/run/mod.rs",
-        "crates/ralph/src/commands/run/selection.rs",
-        "crates/ralph/src/session/mod.rs",
-        "crates/ralph/src/commands/run/tests.rs"
-      ],
-      "evidence": [
-        "commands/run/mod.rs computes resume_task_id from session::check_session and logs 'Auto-resuming session for task ...'",
-        "resume_task_id is only used to bypass the empty-queue check; task selection calls select_run_one_task_index with target_task_id only"
-      ],
-      "plan": [
-        "Thread resume_task_id into run one task selection (treat as a target when present)",
-        "If the resumed task no longer exists or is terminal, clear the session and fall back to normal selection",
-        "Add tests covering auto-resume for valid sessions and missing/terminal tasks",
-        "Run make ci"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-31T02:22:24Z",
-      "updated_at": "2026-01-31T02:22:24Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0477",
       "status": "todo",
       "title": "Handle missing session file on timeout without panicking",

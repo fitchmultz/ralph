@@ -155,7 +155,12 @@ pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()>
                 return Ok(());
             }
 
-            match run_one(resolved, &opts.agent_overrides, opts.force) {
+            match run_one(
+                resolved,
+                &opts.agent_overrides,
+                opts.force,
+                resume_task_id.as_deref(),
+            ) {
                 Ok(RunOutcome::NoTodo) => {
                     log::info!("RunLoop: end (no more todo tasks remaining)");
                     return Ok(());
@@ -282,6 +287,7 @@ pub fn run_one_with_id(
         force,
         QueueLockMode::Acquire,
         Some(task_id),
+        None,
         output_handler,
         revert_prompt,
     )
@@ -303,6 +309,7 @@ pub fn run_one_with_id_locked(
         force,
         QueueLockMode::Held,
         Some(task_id),
+        None,
         output_handler,
         revert_prompt,
     )
@@ -313,6 +320,7 @@ pub fn run_one(
     resolved: &config::Resolved,
     agent_overrides: &AgentOverrides,
     force: bool,
+    resume_task_id: Option<&str>,
 ) -> Result<RunOutcome> {
     run_one_impl(
         resolved,
@@ -320,17 +328,20 @@ pub fn run_one(
         force,
         QueueLockMode::Acquire,
         None,
+        resume_task_id,
         None,
         None,
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn run_one_impl(
     resolved: &config::Resolved,
     agent_overrides: &AgentOverrides,
     force: bool,
     lock_mode: QueueLockMode,
     target_task_id: Option<&str>,
+    resume_task_id: Option<&str>,
     output_handler: Option<runner::OutputHandler>,
     revert_prompt: Option<runutil::RevertPromptHandler>,
 ) -> Result<RunOutcome> {
@@ -398,8 +409,25 @@ fn run_one_impl(
     // --- Task Selection ---
     // Prefer resuming a `doing` task (crash recovery), otherwise take first runnable `todo`.
     let include_draft = agent_overrides.include_draft.unwrap_or(false);
+
+    // Determine effective target: explicit target > resume_task_id > normal selection
+    let effective_target = if target_task_id.is_some() {
+        target_task_id
+    } else if let Some(resume_id) = resume_task_id {
+        // Validate the resumed task before using it
+        match validate_resumed_task(&queue_file, resume_id, &resolved.repo_root) {
+            Ok(()) => Some(resume_id),
+            Err(e) => {
+                log::info!("Session resume failed: {e}");
+                None
+            }
+        }
+    } else {
+        None
+    };
+
     let task_idx =
-        match select_run_one_task_index(&queue_file, done_ref, target_task_id, include_draft)? {
+        match select_run_one_task_index(&queue_file, done_ref, effective_target, include_draft)? {
             Some(idx) => idx,
             None => {
                 let has_runnable = queue_file.tasks.iter().any(|t| {
@@ -838,6 +866,41 @@ fn create_session_for_task(
         0, // max_tasks - not tracked at this level
         git_commit,
     )
+}
+
+/// Validate that a resumed task exists and is in a runnable state.
+/// Returns Ok(()) if valid, Err with message if not.
+/// On validation failure, clears the session file.
+fn validate_resumed_task(
+    queue_file: &crate::contracts::QueueFile,
+    task_id: &str,
+    repo_root: &std::path::Path,
+) -> Result<()> {
+    let task = queue_file
+        .tasks
+        .iter()
+        .find(|t| t.id.trim() == task_id)
+        .ok_or_else(|| {
+            let cache_dir = repo_root.join(".ralph/cache");
+            if let Err(e) = session::clear_session(&cache_dir) {
+                log::debug!("Failed to clear invalid session: {}", e);
+            }
+            anyhow::anyhow!("Task {} no longer exists in queue", task_id)
+        })?;
+
+    if task.status != TaskStatus::Doing {
+        let cache_dir = repo_root.join(".ralph/cache");
+        if let Err(e) = session::clear_session(&cache_dir) {
+            log::debug!("Failed to clear invalid session: {}", e);
+        }
+        return Err(anyhow::anyhow!(
+            "Task {} is not in Doing status (current: {})",
+            task_id,
+            task.status
+        ));
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
