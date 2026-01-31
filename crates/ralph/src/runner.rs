@@ -3,14 +3,50 @@
 //! Responsibilities:
 //! - Resolve runner binaries, validate model compatibility, and dispatch execution.
 //! - Normalize runner output and surface runner-specific errors with context.
+//! - Provide dual APIs: `run_prompt` (new sessions) and `resume_session` (continue existing).
+//! - Centralize model resolution with cascade: override → task → config → default.
+//! - Manage `AgentSettings` aggregation from multiple config sources.
 //!
 //! Does not handle:
 //! - CLI argument parsing or queue/task selection.
 //! - Persisting queue data or managing task state transitions.
+//! - Actual runner CLI implementation details (delegated to `execution/` submodules).
+//! - Prompt templating or composition.
 //!
 //! Assumptions/invariants:
 //! - Runner binaries are available on PATH or configured explicitly.
 //! - Model validation rules are enforced before execution starts.
+//! - Session IDs are non-empty for runners that require them (all except Kimi).
+//! - Messages are non-empty for resume operations.
+//!
+//! Size Justification (947 lines, exceeds 700 LOC heuristic):
+//! This file is intentionally larger than the typical 700 LOC limit because it serves as the
+//! cohesive runner orchestration module with shared concerns that would fragment if split:
+//!
+//! - `RunnerError` enum: 8 variants with rich error context and redaction support (42 lines).
+//! - Dual APIs (`run_prompt` + `resume_session`): ~282 lines across both functions, each
+//!   dispatching to 7 different runner implementations with similar but not identical signatures.
+//! - 7 runner type dispatch: Codex, Opencode, Gemini, Cursor, Claude, Kimi, Pi - each needs
+//!   handling in both APIs with runner-specific parameter mapping.
+//! - 24 unit tests: 270 lines with comprehensive coverage of model validation, resolution,
+//!   error redaction, and edge cases (tests must colocate with implementation per project rules).
+//! - Model resolution logic: Complex cascade with per-runner normalization (e.g., Codex
+//!   requires specific models; others use custom strings).
+//!
+//! Refactoring already completed: Execution logic moved to `runner/execution/` submodules.
+//! What remains here: Public API surface, error types, model resolution, and tests.
+//! Why not split further: Error types and model resolution are shared across all runner
+//! operations; splitting would fragment cohesive logic and reduce maintainability.
+//!
+//! Architecture Notes:
+//! - Delegation pattern: This module defines the public API and delegates to
+//!   `runner/execution/` submodules for actual execution details.
+//! - Runner dispatch: Large match statements in `run_prompt` and `resume_session` dispatch
+//!   to runner-specific implementations in the execution submodule.
+//! - Model normalization: Codex requires specific models (gpt-5.2-codex, gpt-5.2); other
+//!   runners use custom model strings with defaults per runner.
+//! - Test coverage: Extensive tests covering model validation, resolution, error redaction,
+//!   and edge cases for all 7 supported runners.
 
 mod execution;
 

@@ -2,41 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0467",
-      "status": "todo",
-      "title": "Add comprehensive module documentation to runner.rs",
-      "priority": "medium",
-      "tags": [
-        "documentation",
-        "code-quality",
-        "ag-md-compliance"
-      ],
-      "scope": [
-        "crates/ralph/src/runner.rs"
-      ],
-      "evidence": [
-        "runner.rs has good module doc but at 901 lines needs justification for size",
-        "Contains runner orchestration for 7 different CLI runners (codex, opencode, gemini, claude, cursor, kimi, pi)",
-        "Model resolution, binary resolution, and prompt execution are mixed",
-        "File is critical infrastructure with extensive test coverage"
-      ],
-      "plan": [
-        "Enhance module doc to explicitly document why file exceeds 700 LOC",
-        "Document the 7 runner types supported and why they're colocated",
-        "Add 'Not handled here:' section (CLI parsing, queue management, git operations)",
-        "Add 'Invariants/assumptions:' section (binaries on PATH, model validation)",
-        "Consider if runner-specific code could move to runner/execution/ submodules"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-30T17:40:48Z",
-      "updated_at": "2026-01-30T17:40:48Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0468",
       "status": "todo",
       "title": "Fix prompts_internal/tests.rs exceeding 1000 LOC",
