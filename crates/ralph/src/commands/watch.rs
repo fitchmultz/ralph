@@ -168,11 +168,20 @@ pub fn run_watch(resolved: &Resolved, opts: WatchOptions) -> Result<()> {
 
     ctrlc::set_handler(move || {
         log::info!("Received interrupt signal, shutting down...");
-        let mut r = running_for_signal.lock().unwrap();
-        *r = false;
+        match running_for_signal.lock() {
+            Ok(mut r) => *r = false,
+            Err(e) => {
+                log::error!("Watch 'running' mutex poisoned in signal handler: {}", e);
+                // Cannot recover; exit will happen via main loop detection
+            }
+        }
         // Trigger processing of any pending files
-        let mut s = state_for_signal.lock().unwrap();
-        s.last_event = Instant::now() - Duration::from_secs(1);
+        match state_for_signal.lock() {
+            Ok(mut s) => s.last_event = Instant::now() - Duration::from_secs(1),
+            Err(e) => {
+                log::error!("Watch 'state' mutex poisoned in signal handler: {}", e);
+            }
+        }
     })
     .context("Failed to set Ctrl+C handler")?;
 
@@ -209,21 +218,40 @@ fn run_watch_loop(
     opts: &WatchOptions,
     last_processed: &mut HashMap<PathBuf, Instant>,
 ) -> Result<()> {
-    while *running.lock().unwrap() {
+    loop {
+        // Check running state with poison handling
+        let should_continue = match running.lock() {
+            Ok(guard) => *guard,
+            Err(e) => {
+                log::error!("Watch 'running' mutex poisoned, exiting: {}", e);
+                break;
+            }
+        };
+        if !should_continue {
+            break;
+        }
         // Check for events with timeout
         match rx.recv_timeout(Duration::from_millis(100)) {
             Ok(Ok(event)) => {
                 if let Some(paths) = get_relevant_paths(&event, opts) {
                     let debounce = opts.debounce_ms;
                     let mut should_process = false;
-                    {
-                        let mut state = state.lock().unwrap();
-                        for path in paths {
-                            if can_reprocess(&path, last_processed, Duration::from_millis(debounce))
-                                && state.add_file(path.clone())
-                            {
-                                should_process = true;
+                    match state.lock() {
+                        Ok(mut guard) => {
+                            for path in paths {
+                                if can_reprocess(
+                                    &path,
+                                    last_processed,
+                                    Duration::from_millis(debounce),
+                                ) && guard.add_file(path.clone())
+                                {
+                                    should_process = true;
+                                }
                             }
+                        }
+                        Err(e) => {
+                            log::error!("Watch 'state' mutex poisoned, skipping event: {}", e);
+                            continue;
                         }
                     }
                     if should_process {
@@ -246,11 +274,16 @@ fn run_watch_loop(
             }
             Err(RecvTimeoutError::Timeout) => {
                 // Timeout - check if we should process pending files
-                let should_process = {
-                    let state = state.lock().unwrap();
-                    !state.pending_files.is_empty()
-                        && Instant::now().duration_since(state.last_event)
-                            >= state.debounce_duration
+                let should_process = match state.lock() {
+                    Ok(state) => {
+                        !state.pending_files.is_empty()
+                            && Instant::now().duration_since(state.last_event)
+                                >= state.debounce_duration
+                    }
+                    Err(e) => {
+                        log::error!("Watch 'state' mutex poisoned during timeout check: {}", e);
+                        false
+                    }
                 };
                 if should_process {
                     process_pending_files(resolved, state, comment_regex, opts, last_processed)?;
@@ -366,9 +399,12 @@ fn process_pending_files(
     opts: &WatchOptions,
     last_processed: &mut HashMap<PathBuf, Instant>,
 ) -> Result<()> {
-    let files: Vec<PathBuf> = {
-        let mut state = state.lock().unwrap();
-        state.take_pending()
+    let files: Vec<PathBuf> = match state.lock() {
+        Ok(mut guard) => guard.take_pending(),
+        Err(e) => {
+            log::error!("Watch 'state' mutex poisoned, cannot process files: {}", e);
+            return Ok(());
+        }
     };
 
     if files.is_empty() {
@@ -858,6 +894,139 @@ mod tests {
         assert!(
             result.is_ok(),
             "Watch loop should exit cleanly on channel disconnect"
+        );
+    }
+
+    #[test]
+    fn watch_loop_exits_on_running_mutex_poison() {
+        use std::sync::mpsc::channel;
+
+        let (tx, rx) = channel::<notify::Result<Event>>();
+        let running = Arc::new(Mutex::new(true));
+        let state = Arc::new(Mutex::new(WatchState::new(100)));
+
+        // Create minimal Resolved for testing
+        let resolved = crate::config::Resolved {
+            config: crate::contracts::Config::default(),
+            repo_root: PathBuf::from("."),
+            queue_path: PathBuf::from(".ralph/queue.json"),
+            done_path: PathBuf::from(".ralph/done.json"),
+            id_prefix: "RQ-".to_string(),
+            id_width: 4,
+            global_config_path: None,
+            project_config_path: None,
+        };
+
+        let opts = WatchOptions {
+            patterns: vec!["*.rs".to_string()],
+            debounce_ms: 100,
+            auto_queue: false,
+            notify: false,
+            ignore_patterns: vec![],
+            comment_types: vec![CommentType::Todo],
+            paths: vec![PathBuf::from(".")],
+            force: false,
+        };
+
+        let comment_regex = build_comment_regex(&opts.comment_types).unwrap();
+        let mut last_processed: HashMap<PathBuf, Instant> = HashMap::new();
+
+        // Clone for the poisoning thread
+        let running_clone = running.clone();
+
+        // Spawn a thread that will panic while holding the running mutex
+        let poison_handle = std::thread::spawn(move || {
+            let _guard = running_clone.lock().unwrap();
+            panic!("Intentional panic to poison running mutex");
+        });
+
+        // Wait for the panic
+        let _ = poison_handle.join();
+
+        // Now the running mutex is poisoned - verify the watch loop handles it gracefully
+        let running_clone2 = running.clone();
+        let state_clone = state.clone();
+        let handle = std::thread::spawn(move || {
+            run_watch_loop(
+                &rx,
+                &running_clone2,
+                &state_clone,
+                &resolved,
+                &comment_regex,
+                &opts,
+                &mut last_processed,
+            )
+        });
+
+        // Give the loop a moment to start and hit the poisoned mutex
+        std::thread::sleep(Duration::from_millis(100));
+
+        // Drop the sender to ensure clean exit
+        drop(tx);
+
+        // The loop should exit cleanly (not panic)
+        let result = handle.join();
+        assert!(
+            result.is_ok(),
+            "Watch loop should exit cleanly on running mutex poison"
+        );
+    }
+
+    #[test]
+    fn process_pending_files_handles_state_mutex_poison() {
+        let state = Arc::new(Mutex::new(WatchState::new(100)));
+
+        // Create minimal Resolved for testing
+        let resolved = crate::config::Resolved {
+            config: crate::contracts::Config::default(),
+            repo_root: PathBuf::from("."),
+            queue_path: PathBuf::from(".ralph/queue.json"),
+            done_path: PathBuf::from(".ralph/done.json"),
+            id_prefix: "RQ-".to_string(),
+            id_width: 4,
+            global_config_path: None,
+            project_config_path: None,
+        };
+
+        let opts = WatchOptions {
+            patterns: vec!["*.rs".to_string()],
+            debounce_ms: 100,
+            auto_queue: false,
+            notify: false,
+            ignore_patterns: vec![],
+            comment_types: vec![CommentType::Todo],
+            paths: vec![PathBuf::from(".")],
+            force: false,
+        };
+
+        let comment_regex = build_comment_regex(&opts.comment_types).unwrap();
+        let mut last_processed: HashMap<PathBuf, Instant> = HashMap::new();
+
+        // Clone for the poisoning thread
+        let state_clone = state.clone();
+
+        // Spawn a thread that will panic while holding the state mutex
+        let poison_handle = std::thread::spawn(move || {
+            let _guard = state_clone.lock().unwrap();
+            panic!("Intentional panic to poison state mutex");
+        });
+
+        // Wait for the panic
+        let _ = poison_handle.join();
+
+        // Now the state mutex is poisoned - verify process_pending_files handles it gracefully
+        let result = process_pending_files(
+            &resolved,
+            &state,
+            &comment_regex,
+            &opts,
+            &mut last_processed,
+        );
+
+        // Should return Ok, not panic
+        assert!(
+            result.is_ok(),
+            "process_pending_files should handle state mutex poison gracefully"
         );
     }
 }

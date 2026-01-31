@@ -2,38 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0482",
-      "status": "todo",
-      "title": "Handle watch mutex poisoning without panicking",
-      "priority": "medium",
-      "tags": [
-        "watch",
-        "concurrency",
-        "reliability"
-      ],
-      "scope": [
-        "crates/ralph/src/commands/watch.rs",
-        "crates/ralph/src/commands/watch.rs tests"
-      ],
-      "evidence": [
-        "commands/watch.rs uses lock().unwrap() on running/state in both the Ctrl+C handler and main loop",
-        "A poisoned mutex will panic and crash watch mode"
-      ],
-      "plan": [
-        "Replace lock().unwrap() with graceful handling (log + recover or exit) for poisoned mutexes",
-        "Add a test or simulation to verify watch exits cleanly when the mutex is poisoned",
-        "Run make ci"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-31T02:22:24Z",
-      "updated_at": "2026-01-31T02:22:24Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0483",
       "status": "todo",
       "title": "Use proper glob matching for watch patterns",
