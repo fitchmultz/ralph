@@ -2,37 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0481",
-      "status": "todo",
-      "title": "Exit watch loop cleanly on channel disconnect",
-      "priority": "medium",
-      "tags": [
-        "watch",
-        "reliability"
-      ],
-      "scope": [
-        "crates/ralph/src/commands/watch.rs",
-        "crates/ralph/src/commands/watch.rs tests"
-      ],
-      "evidence": [
-        "commands/watch.rs treats rx.recv_timeout Err(_) as a timeout and keeps looping",
-        "RecvTimeoutError::Disconnected is not handled, so a closed channel can spin forever"
-      ],
-      "plan": [
-        "Handle RecvTimeoutError::Disconnected explicitly and break the loop",
-        "Add a test that closes the channel and asserts the watch loop exits",
-        "Run make ci"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-31T02:22:24Z",
-      "updated_at": "2026-01-31T02:22:24Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0482",
       "status": "todo",
       "title": "Handle watch mutex poisoning without panicking",

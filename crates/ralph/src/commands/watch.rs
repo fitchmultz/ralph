@@ -30,7 +30,7 @@ use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use regex::Regex;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
-use std::sync::mpsc::channel;
+use std::sync::mpsc::{channel, RecvTimeoutError};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -180,21 +180,47 @@ pub fn run_watch(resolved: &Resolved, opts: WatchOptions) -> Result<()> {
     let comment_regex = build_comment_regex(&opts.comment_types)?;
     let mut last_processed: HashMap<PathBuf, Instant> = HashMap::new();
 
+    run_watch_loop(
+        &rx,
+        &running,
+        &state,
+        resolved,
+        &comment_regex,
+        &opts,
+        &mut last_processed,
+    )?;
+
+    // Process any remaining files before exit
+    process_pending_files(resolved, &state, &comment_regex, &opts, &mut last_processed)?;
+
+    log::info!("Watch mode stopped.");
+    Ok(())
+}
+
+/// Run the watch event loop until stopped or channel disconnects.
+///
+/// This is extracted as a separate function for testability.
+fn run_watch_loop(
+    rx: &std::sync::mpsc::Receiver<notify::Result<Event>>,
+    running: &Arc<Mutex<bool>>,
+    state: &Arc<Mutex<WatchState>>,
+    resolved: &Resolved,
+    comment_regex: &Regex,
+    opts: &WatchOptions,
+    last_processed: &mut HashMap<PathBuf, Instant>,
+) -> Result<()> {
     while *running.lock().unwrap() {
         // Check for events with timeout
         match rx.recv_timeout(Duration::from_millis(100)) {
             Ok(Ok(event)) => {
-                if let Some(paths) = get_relevant_paths(&event, &opts) {
+                if let Some(paths) = get_relevant_paths(&event, opts) {
                     let debounce = opts.debounce_ms;
                     let mut should_process = false;
                     {
                         let mut state = state.lock().unwrap();
                         for path in paths {
-                            if can_reprocess(
-                                &path,
-                                &last_processed,
-                                Duration::from_millis(debounce),
-                            ) && state.add_file(path.clone())
+                            if can_reprocess(&path, last_processed, Duration::from_millis(debounce))
+                                && state.add_file(path.clone())
                             {
                                 should_process = true;
                             }
@@ -203,10 +229,10 @@ pub fn run_watch(resolved: &Resolved, opts: WatchOptions) -> Result<()> {
                     if should_process {
                         process_pending_files(
                             resolved,
-                            &state,
-                            &comment_regex,
-                            &opts,
-                            &mut last_processed,
+                            state,
+                            comment_regex,
+                            opts,
+                            last_processed,
                         )?;
                     }
                 }
@@ -214,7 +240,11 @@ pub fn run_watch(resolved: &Resolved, opts: WatchOptions) -> Result<()> {
             Ok(Err(e)) => {
                 log::warn!("Watch error: {}", e);
             }
-            Err(_) => {
+            Err(RecvTimeoutError::Disconnected) => {
+                log::info!("Watch channel disconnected, shutting down...");
+                break;
+            }
+            Err(RecvTimeoutError::Timeout) => {
                 // Timeout - check if we should process pending files
                 let should_process = {
                     let state = state.lock().unwrap();
@@ -223,22 +253,11 @@ pub fn run_watch(resolved: &Resolved, opts: WatchOptions) -> Result<()> {
                             >= state.debounce_duration
                 };
                 if should_process {
-                    process_pending_files(
-                        resolved,
-                        &state,
-                        &comment_regex,
-                        &opts,
-                        &mut last_processed,
-                    )?;
+                    process_pending_files(resolved, state, comment_regex, opts, last_processed)?;
                 }
             }
         }
     }
-
-    // Process any remaining files before exit
-    process_pending_files(resolved, &state, &comment_regex, &opts, &mut last_processed)?;
-
-    log::info!("Watch mode stopped.");
     Ok(())
 }
 
@@ -776,5 +795,69 @@ mod tests {
         // Both entries should remain (both within 10x debounce = 1000ms)
         assert!(last_processed.contains_key(&path1));
         assert!(last_processed.contains_key(&path2));
+    }
+
+    #[test]
+    fn watch_loop_exits_on_channel_disconnect() {
+        use std::sync::mpsc::channel;
+
+        let (tx, rx) = channel::<notify::Result<Event>>();
+        let running = Arc::new(Mutex::new(true));
+        let state = Arc::new(Mutex::new(WatchState::new(100)));
+
+        // Create minimal Resolved for testing
+        let resolved = crate::config::Resolved {
+            config: crate::contracts::Config::default(),
+            repo_root: PathBuf::from("."),
+            queue_path: PathBuf::from(".ralph/queue.json"),
+            done_path: PathBuf::from(".ralph/done.json"),
+            id_prefix: "RQ-".to_string(),
+            id_width: 4,
+            global_config_path: None,
+            project_config_path: None,
+        };
+
+        let opts = WatchOptions {
+            patterns: vec!["*.rs".to_string()],
+            debounce_ms: 100,
+            auto_queue: false,
+            notify: false,
+            ignore_patterns: vec![],
+            comment_types: vec![CommentType::Todo],
+            paths: vec![PathBuf::from(".")],
+            force: false,
+        };
+
+        let comment_regex = build_comment_regex(&opts.comment_types).unwrap();
+        let mut last_processed: HashMap<PathBuf, Instant> = HashMap::new();
+
+        // Spawn the watch loop in a separate thread
+        let running_clone = running.clone();
+        let state_clone = state.clone();
+        let handle = std::thread::spawn(move || {
+            run_watch_loop(
+                &rx,
+                &running_clone,
+                &state_clone,
+                &resolved,
+                &comment_regex,
+                &opts,
+                &mut last_processed,
+            )
+            .unwrap();
+        });
+
+        // Give the loop a moment to start
+        std::thread::sleep(Duration::from_millis(50));
+
+        // Drop the sender to simulate channel disconnect
+        drop(tx);
+
+        // The loop should exit within a reasonable time (timeout to prevent hanging)
+        let result = handle.join();
+        assert!(
+            result.is_ok(),
+            "Watch loop should exit cleanly on channel disconnect"
+        );
     }
 }

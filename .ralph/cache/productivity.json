@@ -1,7 +1,7 @@
 {
   "version": 1,
   "first_task_completed_at": "2026-01-30T12:31:17.161199000Z",
-  "last_updated_at": "2026-01-31T17:02:41.393681000Z",
+  "last_updated_at": "2026-01-31T17:10:57.263400000Z",
   "daily": {
     "2026-01-30": {
       "date": "2026-01-30",
@@ -46,7 +46,7 @@
     },
     "2026-01-31": {
       "date": "2026-01-31",
-      "completed_count": 12,
+      "completed_count": 13,
       "tasks": [
         {
           "id": "RQ-0475",
@@ -107,6 +107,11 @@
           "id": "RQ-0487",
           "title": "Add --help output with examples to release.sh",
           "completed_at": "2026-01-31T17:02:41.393679000Z"
+        },
+        {
+          "id": "RQ-0481",
+          "title": "Exit watch loop cleanly on channel disconnect",
+          "completed_at": "2026-01-31T17:10:57.263398000Z"
         }
       ]
     }
@@ -116,7 +121,7 @@
     "longest_streak": 2,
     "last_completed_date": "2026-01-31"
   },
-  "total_completed": 19,
+  "total_completed": 20,
   "milestones": [
     {
       "threshold": 10,
