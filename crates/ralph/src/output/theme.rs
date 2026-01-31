@@ -36,14 +36,14 @@ impl Theme {
     // Runner output colors
     /// Agent reasoning/thinking blocks - subtle blue that works on both backgrounds
     pub const REASONING: Color = Color::LightBlue;
-    /// Tool calls - distinct cyan for visibility
-    pub const TOOL_CALL: Color = Color::Cyan;
+    /// Tool calls - bright cyan for visibility
+    pub const TOOL_CALL: Color = Color::LightCyan;
     /// Successful tool results
     pub const TOOL_RESULT_SUCCESS: Color = Color::Green;
     /// Failed tool results
     pub const TOOL_RESULT_ERROR: Color = Color::Red;
-    /// Command execution - magenta for distinction
-    pub const COMMAND: Color = Color::Magenta;
+    /// Command execution - bright magenta for distinction
+    pub const COMMAND: Color = Color::LightMagenta;
     /// Supervisor/system messages - bright magenta for visibility
     pub const SUPERVISOR: Color = Color::LightMagenta;
 }
@@ -95,7 +95,7 @@ pub mod cli {
 
     /// Style tool call prefix and name
     pub fn tool_call(text: &str) -> ColoredString {
-        text.cyan()
+        text.bright_cyan()
     }
 
     /// Style successful tool result
@@ -110,7 +110,7 @@ pub mod cli {
 
     /// Style command execution
     pub fn command(text: &str) -> ColoredString {
-        text.magenta()
+        text.bright_magenta()
     }
 
     /// Style supervisor/system message
@@ -125,20 +125,30 @@ pub mod cli {
 
     /// Format a tool call line with colored prefix and optional details
     pub fn format_tool_call(name: &str, details: Option<&str>) -> String {
-        let prefix = "[Tool]".cyan().bold();
-        let name = name.cyan();
+        let prefix = "[Tool]".bright_cyan().bold();
+        let name = name.bright_cyan();
         match details {
-            Some(d) => format!("{} {} {}", prefix, name, d.dimmed()),
+            Some(d) => match split_status_details(d) {
+                Some((status, rest)) => {
+                    let status = format_status_paren(&status);
+                    if rest.is_empty() {
+                        format!("{} {} {}", prefix, name, status)
+                    } else {
+                        format!("{} {} {} {}", prefix, name, status, rest.dimmed())
+                    }
+                }
+                None => format!("{} {} {}", prefix, name, d.dimmed()),
+            },
             None => format!("{} {}", prefix, name),
         }
     }
 
     /// Format a command line with colored prefix and optional status
     pub fn format_command(name: &str, status: Option<&str>) -> String {
-        let prefix = "[Command]".magenta().bold();
-        let name = name.magenta();
+        let prefix = "[Command]".bright_magenta().bold();
+        let name = name.bright_magenta();
         match status {
-            Some(s) => format!("{} {} {}", prefix, name, format!("({})", s).dimmed()),
+            Some(s) => format!("{} {} {}", prefix, name, format_status_paren(s)),
             None => format!("{} {}", prefix, name),
         }
     }
@@ -146,6 +156,103 @@ pub mod cli {
     /// Format a permission denied message
     pub fn format_permission_denied(tool_name: &str) -> String {
         format!("[Permission denied: {}]", tool_name.red())
+    }
+
+    #[derive(Clone, Copy, Debug)]
+    enum StatusTone {
+        Success,
+        Warning,
+        Error,
+        Neutral,
+    }
+
+    fn format_status_paren(status: &str) -> ColoredString {
+        let display = format!("({})", status);
+        match classify_status(status) {
+            StatusTone::Success => display.green(),
+            StatusTone::Warning => display.yellow(),
+            StatusTone::Error => display.red(),
+            StatusTone::Neutral => display.dimmed(),
+        }
+    }
+
+    fn classify_status(status: &str) -> StatusTone {
+        if let Some(code) = extract_exit_code(status) {
+            return if code == 0 {
+                StatusTone::Success
+            } else {
+                StatusTone::Error
+            };
+        }
+
+        let status_lower = status.to_ascii_lowercase();
+        if contains_any(
+            &status_lower,
+            &[
+                "error", "fail", "failed", "denied", "timeout", "cancel", "canceled",
+            ],
+        ) {
+            return StatusTone::Error;
+        }
+        if contains_any(
+            &status_lower,
+            &[
+                "running",
+                "started",
+                "pending",
+                "queued",
+                "in_progress",
+                "working",
+            ],
+        ) {
+            return StatusTone::Warning;
+        }
+        if contains_any(
+            &status_lower,
+            &[
+                "completed",
+                "success",
+                "succeeded",
+                "ok",
+                "done",
+                "finished",
+            ],
+        ) {
+            return StatusTone::Success;
+        }
+
+        StatusTone::Neutral
+    }
+
+    fn contains_any(haystack: &str, needles: &[&str]) -> bool {
+        needles.iter().any(|needle| haystack.contains(needle))
+    }
+
+    fn extract_exit_code(status: &str) -> Option<i32> {
+        let tokens: Vec<&str> = status
+            .split(|ch: char| !ch.is_ascii_alphanumeric())
+            .filter(|token| !token.is_empty())
+            .collect();
+        for pair in tokens.windows(2) {
+            if pair[0].eq_ignore_ascii_case("exit") {
+                if let Ok(code) = pair[1].parse::<i32>() {
+                    return Some(code);
+                }
+            }
+        }
+        None
+    }
+
+    fn split_status_details(details: &str) -> Option<(String, String)> {
+        let trimmed = details.trim_start();
+        let inner = trimmed.strip_prefix('(')?;
+        let end = inner.find(')')?;
+        let status = inner[..end].trim();
+        if status.is_empty() {
+            return None;
+        }
+        let remainder = inner[end + 1..].trim_start();
+        Some((status.to_string(), remainder.to_string()))
     }
 }
 
@@ -308,6 +415,37 @@ mod tests {
     }
 
     #[test]
+    fn cli_format_tool_call_colors_status() {
+        colored::control::set_override(true);
+
+        let formatted = cli::format_tool_call("read_file", Some("(completed) path=foo.rs"));
+        let expected_status = "(completed)".green().to_string();
+        assert!(formatted.contains(&expected_status));
+        assert!(formatted.contains("path=foo.rs"));
+
+        let error_formatted = cli::format_tool_call("read_file", Some("(error)"));
+        let expected_error = "(error)".red().to_string();
+        assert!(error_formatted.contains(&expected_error));
+
+        colored::control::unset_override();
+    }
+
+    #[test]
+    fn cli_format_command_colors_status() {
+        colored::control::set_override(true);
+
+        let formatted = cli::format_command("cargo test", Some("running"));
+        let expected_status = "(running)".yellow().to_string();
+        assert!(formatted.contains(&expected_status));
+
+        let failed = cli::format_command("cargo test", Some("exit 2"));
+        let expected_failed = "(exit 2)".red().to_string();
+        assert!(failed.contains(&expected_failed));
+
+        colored::control::unset_override();
+    }
+
+    #[test]
     fn cli_format_permission_denied() {
         let formatted = cli::format_permission_denied("bash");
         assert!(formatted.contains("Permission denied"));
@@ -321,8 +459,8 @@ mod tests {
         assert_eq!(tui::warning(), Color::Yellow);
         assert_eq!(tui::info(), Color::Blue);
         assert_eq!(tui::reasoning(), Color::LightBlue);
-        assert_eq!(tui::tool_call(), Color::Cyan);
-        assert_eq!(tui::command(), Color::Magenta);
+        assert_eq!(tui::tool_call(), Color::LightCyan);
+        assert_eq!(tui::command(), Color::LightMagenta);
         assert_eq!(tui::supervisor(), Color::LightMagenta);
     }
 }

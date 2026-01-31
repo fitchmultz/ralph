@@ -2,6 +2,636 @@
   "version": 1,
   "tasks": [
     {
+      "id": "RQ-0459",
+      "status": "todo",
+      "title": "Split tui/app.rs (2856 lines) into cohesive submodules",
+      "priority": "high",
+      "tags": [
+        "refactoring",
+        "code-quality",
+        "file-size",
+        "tui"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/app.rs",
+        "crates/ralph/src/tui/app_state.rs (new)",
+        "crates/ralph/src/tui/app_navigation.rs",
+        "crates/ralph/src/tui/app_filters.rs",
+        "crates/ralph/src/tui/mod.rs"
+      ],
+      "evidence": [
+        "crates/ralph/src/tui/app.rs has 2856 lines, exceeding AGENTS.md 1000 LOC limit",
+        "AGENTS.md states: Files exceeding ~1000 LOC are presumed mis-scoped and MUST be split",
+        "App struct has 50+ fields mixing concerns: filters, execution, navigation, UI state",
+        "File contains phase tracking, spinner management, filter caching, and TUI lifecycle"
+      ],
+      "plan": [
+        "Extract AppState struct and methods to app_state.rs (filter, selection, scroll state)",
+        "Extract phase tracking and execution state to app_execution.rs",
+        "Keep only TUI lifecycle (run_tui, prepare_tui_session) in app.rs",
+        "Update mod.rs to re-export from new submodules",
+        "Ensure no public API breakage - maintain backward compatibility",
+        "Run make ci to verify no regressions"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-30T17:40:48Z",
+      "updated_at": "2026-01-30T17:40:48Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0460",
+      "status": "todo",
+      "title": "Split cli/task.rs (2599 lines) into command-specific modules",
+      "priority": "high",
+      "tags": [
+        "refactoring",
+        "code-quality",
+        "file-size",
+        "cli"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/task.rs",
+        "crates/ralph/src/cli/task/build.rs (new)",
+        "crates/ralph/src/cli/task/status.rs (new)",
+        "crates/ralph/src/cli/task/batch.rs (new)",
+        "crates/ralph/src/cli/task/edit.rs (new)",
+        "crates/ralph/src/cli/task/mod.rs (new)"
+      ],
+      "evidence": [
+        "crates/ralph/src/cli/task.rs has 2599 lines, exceeding AGENTS.md 1000 LOC limit",
+        "AGENTS.md states: Files exceeding ~1000 LOC are presumed mis-scoped and MUST be split",
+        "Single file handles: build, status, edit, update, clone, batch, schedule, relate commands",
+        "Template selection logic and batch operations are distinct responsibilities"
+      ],
+      "plan": [
+        "Create cli/task/ subdirectory with mod.rs as public interface",
+        "Move TaskCommand dispatch logic to mod.rs",
+        "Extract handle_task_build and template selection to task/build.rs",
+        "Extract status/done/reject handling to task/status.rs",
+        "Extract batch operations to task/batch.rs",
+        "Extract edit/update/field operations to task/edit.rs",
+        "Keep cli/task.rs as thin wrapper or remove after migration",
+        "Update imports in cli/mod.rs",
+        "Run make ci to verify no regressions"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-30T17:40:48Z",
+      "updated_at": "2026-01-30T17:40:48Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0461",
+      "status": "todo",
+      "title": "Split commands/task.rs (1229 lines) into focused submodules",
+      "priority": "high",
+      "tags": [
+        "refactoring",
+        "code-quality",
+        "file-size",
+        "commands"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/task.rs",
+        "crates/ralph/src/commands/task/build.rs (new)",
+        "crates/ralph/src/commands/task/update.rs (new)",
+        "crates/ralph/src/commands/task/refactor.rs (new)",
+        "crates/ralph/src/commands/task/mod.rs (new)"
+      ],
+      "evidence": [
+        "crates/ralph/src/commands/task.rs has 1229 lines, exceeding AGENTS.md 1000 LOC limit",
+        "Contains TaskBuilder, TaskUpdater, build_task, update_task, build_refactor_tasks",
+        "Task building and task updating are separate responsibilities",
+        "Refactor task generation is distinct from standard task building"
+      ],
+      "plan": [
+        "Create commands/task/ subdirectory",
+        "Move TaskBuilder and build_task logic to task/build.rs",
+        "Move TaskUpdater and update_task logic to task/update.rs",
+        "Move build_refactor_tasks to task/refactor.rs",
+        "Keep public exports in mod.rs",
+        "Update callers to use new module paths",
+        "Run make ci to verify no regressions"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-30T17:40:48Z",
+      "updated_at": "2026-01-30T17:40:48Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0462",
+      "status": "todo",
+      "title": "Split tui/render/panels.rs (1209 lines) into panel modules",
+      "priority": "medium",
+      "tags": [
+        "refactoring",
+        "code-quality",
+        "file-size",
+        "tui"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/render/panels.rs",
+        "crates/ralph/src/tui/render/panels/list.rs (new)",
+        "crates/ralph/src/tui/render/panels/details.rs (new)",
+        "crates/ralph/src/tui/render/panels/progress.rs (new)",
+        "crates/ralph/src/tui/render/panels/mod.rs (new)"
+      ],
+      "evidence": [
+        "crates/ralph/src/tui/render/panels.rs has 1209 lines, exceeding AGENTS.md 1000 LOC limit",
+        "Renders list panel, details panel, progress panel, and kanban board in one file",
+        "Each panel could be self-contained for better testability",
+        "Panel rendering logic changes independently"
+      ],
+      "plan": [
+        "Create tui/render/panels/ subdirectory",
+        "Extract list panel rendering to panels/list.rs",
+        "Extract details panel rendering to panels/details.rs",
+        "Extract progress panel rendering to panels/progress.rs",
+        "Extract kanban board rendering to panels/kanban.rs",
+        "Keep common panel utilities in mod.rs",
+        "Update draw_ui to call new panel modules",
+        "Run make ci to verify no regressions"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-30T17:40:48Z",
+      "updated_at": "2026-01-30T17:40:48Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0463",
+      "status": "todo",
+      "title": "Split tui/tests.rs (1209 lines) into focused test modules",
+      "priority": "medium",
+      "tags": [
+        "refactoring",
+        "code-quality",
+        "file-size",
+        "testing"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/tests.rs",
+        "crates/ralph/src/tui/tests/app_state.rs (new)",
+        "crates/ralph/src/tui/tests/filters.rs (new)",
+        "crates/ralph/src/tui/tests/navigation.rs (new)",
+        "crates/ralph/src/tui/tests/mod.rs"
+      ],
+      "evidence": [
+        "crates/ralph/src/tui/tests.rs has 1209 lines, exceeding AGENTS.md 1000 LOC limit",
+        "AGENTS.md states: Tests should live close to the code they validate",
+        "Contains tests for app state, filters, navigation, task operations",
+        "Test file size makes it hard to locate specific test cases"
+      ],
+      "plan": [
+        "Create tui/tests/ as directory module",
+        "Move app state tests to tests/app_state.rs",
+        "Move filter tests to tests/filters.rs",
+        "Move navigation tests to tests/navigation.rs",
+        "Keep test helpers and common fixtures in tests/mod.rs",
+        "Ensure all tests still run with cargo test -p ralph",
+        "Run make ci to verify no regressions"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-30T17:40:48Z",
+      "updated_at": "2026-01-30T17:40:48Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0464",
+      "status": "todo",
+      "title": "Split commands/run/supervision.rs (1042 lines) into focused modules",
+      "priority": "medium",
+      "tags": [
+        "refactoring",
+        "code-quality",
+        "file-size",
+        "commands"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/supervision.rs",
+        "crates/ralph/src/commands/run/supervision/queue.rs (new)",
+        "crates/ralph/src/commands/run/supervision/git.rs (new)",
+        "crates/ralph/src/commands/run/supervision/ci.rs (new)",
+        "crates/ralph/src/commands/run/supervision/mod.rs"
+      ],
+      "evidence": [
+        "crates/ralph/src/commands/run/supervision.rs has 1042 lines, exceeding AGENTS.md limit",
+        "Mixes queue maintenance, git operations, CI gate, and completion celebrations",
+        "post_run_supervise function is too long with multiple responsibilities",
+        "LFS checking and git finalization are separate concerns"
+      ],
+      "plan": [
+        "Create commands/run/supervision/ subdirectory",
+        "Extract queue maintenance functions to supervision/queue.rs",
+        "Extract git operations (finalize_git_state, push_if_ahead) to supervision/git.rs",
+        "Extract CI gate logic to supervision/ci.rs",
+        "Keep main post_run_supervise orchestration in mod.rs",
+        "Update run/mod.rs to use new module structure",
+        "Run make ci to verify no regressions"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-30T17:40:48Z",
+      "updated_at": "2026-01-30T17:40:48Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0465",
+      "status": "todo",
+      "title": "Fix config.rs module documentation completeness",
+      "priority": "medium",
+      "tags": [
+        "documentation",
+        "code-quality",
+        "ag-md-compliance"
+      ],
+      "scope": [
+        "crates/ralph/src/config.rs"
+      ],
+      "evidence": [
+        "crates/ralph/src/config.rs line 1 has brief doc: '//! Configuration resolution for Ralph...'",
+        "AGENTS.md requires module docs to state: what file is responsible for, what it does NOT handle, invariants/assumptions",
+        "Only has 'Responsibilities' section, missing 'Not handled here' and 'Invariants/assumptions'",
+        "Compare with tui/app.rs which has complete module documentation"
+      ],
+      "plan": [
+        "Add 'Not handled here:' section to module doc",
+        "Add 'Invariants/assumptions:' section to module doc",
+        "Document that this file does not handle: CLI parsing, prompt rendering, runner execution",
+        "Document invariants: config version must be 1, paths must be non-empty when specified",
+        "Run make ci to verify no regressions"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-30T17:40:48Z",
+      "updated_at": "2026-01-30T17:40:48Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0466",
+      "status": "todo",
+      "title": "Review and justify files exceeding 700 LOC limit",
+      "priority": "medium",
+      "tags": [
+        "code-quality",
+        "documentation",
+        "file-size"
+      ],
+      "scope": [
+        "crates/ralph/src/queue/search.rs (979 lines)",
+        "crates/ralph/src/tui/config_edit.rs (968 lines)",
+        "crates/ralph/src/contracts/config.rs (953 lines)",
+        "crates/ralph/src/sanity/mod.rs (918 lines)",
+        "crates/ralph/src/agent.rs (917 lines)",
+        "crates/ralph/src/queue/graph.rs (916 lines)",
+        "crates/ralph/src/runner.rs (901 lines)",
+        "crates/ralph/src/commands/run/mod.rs (899 lines)",
+        "crates/ralph/src/queue/operations/edit.rs (898 lines)",
+        "crates/ralph/src/git/lfs.rs (842 lines)",
+        "crates/ralph/src/commands/prompt.rs (829 lines)",
+        "crates/ralph/src/commands/prd.rs (826 lines)",
+        "crates/ralph/src/commands/context.rs (804 lines)"
+      ],
+      "evidence": [
+        "AGENTS.md: Files exceeding ~700 LOC REQUIRE explicit justification",
+        "Found 12 files between 700-1000 LOC without documented justification",
+        "queue/search.rs: 979 lines - complex search algorithm with scoring",
+        "sanity/mod.rs: 918 lines - health checks, migrations, unknown key handling",
+        "runner.rs: 901 lines - runner orchestration for 7 different CLIs"
+      ],
+      "plan": [
+        "Review each file for cohesion - does it represent a single responsibility?",
+        "For files that should stay as-is, add module doc comment explaining why",
+        "Identify files that could benefit from splitting (create follow-up tasks)",
+        "Document justification inline for each file kept at >700 LOC",
+        "Focus on high-impact files: runner.rs, sanity/mod.rs, queue/search.rs"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-30T17:40:48Z",
+      "updated_at": "2026-01-30T17:40:48Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0467",
+      "status": "todo",
+      "title": "Add comprehensive module documentation to runner.rs",
+      "priority": "medium",
+      "tags": [
+        "documentation",
+        "code-quality",
+        "ag-md-compliance"
+      ],
+      "scope": [
+        "crates/ralph/src/runner.rs"
+      ],
+      "evidence": [
+        "runner.rs has good module doc but at 901 lines needs justification for size",
+        "Contains runner orchestration for 7 different CLI runners (codex, opencode, gemini, claude, cursor, kimi, pi)",
+        "Model resolution, binary resolution, and prompt execution are mixed",
+        "File is critical infrastructure with extensive test coverage"
+      ],
+      "plan": [
+        "Enhance module doc to explicitly document why file exceeds 700 LOC",
+        "Document the 7 runner types supported and why they're colocated",
+        "Add 'Not handled here:' section (CLI parsing, queue management, git operations)",
+        "Add 'Invariants/assumptions:' section (binaries on PATH, model validation)",
+        "Consider if runner-specific code could move to runner/execution/ submodules"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-30T17:40:48Z",
+      "updated_at": "2026-01-30T17:40:48Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0468",
+      "status": "todo",
+      "title": "Fix prompts_internal/tests.rs exceeding 1000 LOC",
+      "priority": "medium",
+      "tags": [
+        "refactoring",
+        "code-quality",
+        "file-size",
+        "testing"
+      ],
+      "scope": [
+        "crates/ralph/src/prompts_internal/tests.rs (1072 lines)"
+      ],
+      "evidence": [
+        "prompts_internal/tests.rs has 1072 lines, exceeding AGENTS.md 1000 LOC limit",
+        "Contains tests for worker prompts, task builder, scan prompts, iteration",
+        "Different prompt types should be tested in separate modules"
+      ],
+      "plan": [
+        "Split into prompts_internal/tests/worker.rs",
+        "Split into prompts_internal/tests/task_builder.rs",
+        "Split into prompts_internal/tests/scan.rs",
+        "Split into prompts_internal/tests/iteration.rs",
+        "Update prompts_internal/tests/mod.rs to import submodules",
+        "Run make ci to verify all tests pass"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-30T17:40:48Z",
+      "updated_at": "2026-01-30T17:40:48Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0469",
+      "status": "todo",
+      "title": "Audit error handling patterns for consistency",
+      "priority": "medium",
+      "tags": [
+        "code-quality",
+        "error-handling",
+        "patterns"
+      ],
+      "scope": [
+        "crates/ralph/src/",
+        "schemas/",
+        "docs/error-handling.md (new)"
+      ],
+      "evidence": [
+        "Mixed error handling patterns observed: anyhow::Result, thiserror enums, String errors",
+        "runner.rs uses RunnerError enum with thiserror",
+        "Some functions return Result<T, String> instead of proper error types",
+        "No documented error handling strategy in AGENTS.md or docs"
+      ],
+      "plan": [
+        "Survey current error handling patterns across the codebase",
+        "Identify inconsistencies: Result<T, String> vs anyhow::Result vs custom enums",
+        "Document preferred patterns for different scenarios",
+        "Create error handling style guide in docs/ or AGENTS.md",
+        "Create follow-up tasks to refactor inconsistent error handling",
+        "Focus on high-impact areas: queue operations, runner execution, git operations"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-30T17:40:48Z",
+      "updated_at": "2026-01-30T17:40:48Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0470",
+      "status": "todo",
+      "title": "Review public API surface for minimalism",
+      "priority": "medium",
+      "tags": [
+        "api-design",
+        "code-quality",
+        "visibility"
+      ],
+      "scope": [
+        "crates/ralph/src/lib.rs",
+        "crates/ralph/src/**/*.rs"
+      ],
+      "evidence": [
+        "AGENTS.md: Default visibility is private; pub must be intentional",
+        "AGENTS.md: Prefer pub(crate) over pub unless cross-crate use required",
+        "Many items marked pub that may only be used within crate",
+        "No audit has been done of public API surface area"
+      ],
+      "plan": [
+        "Analyze all pub items to determine actual usage scope",
+        "Identify items that can be pub(crate) instead of pub",
+        "Identify items that can be private (module-only)",
+        "Check if lib.rs exports are minimal and intentional",
+        "Create task list for visibility reductions",
+        "Ensure no breaking changes to legitimate external consumers"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-30T17:40:48Z",
+      "updated_at": "2026-01-30T17:40:48Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0471",
+      "status": "todo",
+      "title": "Centralize magic numbers and constants",
+      "priority": "low",
+      "tags": [
+        "code-quality",
+        "maintainability",
+        "constants"
+      ],
+      "scope": [
+        "crates/ralph/src/"
+      ],
+      "evidence": [
+        "Hardcoded values found: 10MB ANSI buffer (app.rs:682)",
+        "10k log line limit (app.rs:696)",
+        "4-digit task ID width default",
+        "Retry count of 2 for CI failures",
+        "No centralized constants module for shared values"
+      ],
+      "plan": [
+        "Search for hardcoded numeric literals with grep",
+        "Identify magic numbers that appear multiple times",
+        "Create constants module or add to existing config/contracts",
+        "Document what each constant controls",
+        "Refactor to use named constants",
+        "Run make ci to verify no regressions"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-30T17:40:48Z",
+      "updated_at": "2026-01-30T17:40:48Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0472",
+      "status": "todo",
+      "title": "Add completion tracking for long-running operations",
+      "priority": "low",
+      "tags": [
+        "ux",
+        "feature",
+        "tui"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/",
+        "crates/ralph/src/progress.rs"
+      ],
+      "evidence": [
+        "TUI has spinner but no progress percentage for long operations",
+        "No ETA calculation for multi-step workflows",
+        "Phase tracking exists but no overall completion percentage",
+        "Users cannot estimate remaining time for task execution"
+      ],
+      "plan": [
+        "Add progress percentage to ExecutionPhase tracking",
+        "Calculate ETA based on historical phase durations",
+        "Show progress bar in TUI when phases are configured",
+        "Update spinner to include percentage when available",
+        "Add tests for progress calculation accuracy"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-30T17:40:48Z",
+      "updated_at": "2026-01-30T17:40:48Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0473",
+      "status": "todo",
+      "title": "Improve test coverage for edge cases in queue operations",
+      "priority": "low",
+      "tags": [
+        "testing",
+        "coverage",
+        "queue"
+      ],
+      "scope": [
+        "crates/ralph/src/queue/operations/tests/"
+      ],
+      "evidence": [
+        "Batch operations have tests but edge cases may be missing",
+        "No tests for concurrent queue modifications",
+        "Limited tests for validation edge cases (circular deps, max depth)",
+        "Archive operations need more failure mode coverage"
+      ],
+      "plan": [
+        "Review current test coverage for queue operations",
+        "Add tests for: circular dependency detection, max depth exceeded",
+        "Add tests for: concurrent modification scenarios",
+        "Add tests for: invalid UTF-8 in task fields",
+        "Add tests for: queue file corruption handling",
+        "Ensure all failure modes have test coverage"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-30T17:40:48Z",
+      "updated_at": "2026-01-30T17:40:48Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0474",
+      "status": "todo",
+      "title": "Document security considerations for runner execution",
+      "priority": "low",
+      "tags": [
+        "documentation",
+        "security",
+        "runner"
+      ],
+      "scope": [
+        "docs/security.md (new)",
+        "crates/ralph/src/runner/"
+      ],
+      "evidence": [
+        "No centralized security documentation for runner execution",
+        "Redaction exists but not documented for developers",
+        "Safeguard dumps behavior described in README but not in dev docs",
+        "No guidance on handling secrets in runner output"
+      ],
+      "plan": [
+        "Create docs/security.md with runner security considerations",
+        "Document redaction behavior and patterns",
+        "Document safeguard dumps and when they are created",
+        "Add security section to runner module docs",
+        "Document best practices for handling sensitive data",
+        "Review AGENTS.md security section for completeness"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-30T17:40:48Z",
+      "updated_at": "2026-01-30T17:40:48Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
       "id": "RQ-0439",
       "status": "todo",
       "title": "Implement subtask support for hierarchical task breakdown",
