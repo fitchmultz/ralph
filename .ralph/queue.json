@@ -2,40 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0487",
-      "status": "todo",
-      "title": "Add --help output with examples to release.sh",
-      "priority": "medium",
-      "tags": [
-        "release",
-        "scripts",
-        "documentation"
-      ],
-      "scope": [
-        "scripts/release.sh",
-        "docs/releasing.md"
-      ],
-      "evidence": [
-        "scripts/release.sh has usage comments but no --help flag handling or usage function",
-        "Repo guidelines require executable scripts to provide a useful --help menu with examples"
-      ],
-      "plan": [
-        "Add a usage function and --help/-h flag handling to scripts/release.sh",
-        "Include examples and mention RELEASE_DRY_RUN in help output",
-        "Add a lightweight test or check that scripts/release.sh --help exits 0 and contains examples",
-        "Update docs/releasing.md if needed",
-        "Run make ci"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-31T02:22:24Z",
-      "updated_at": "2026-01-31T02:22:24Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0481",
       "status": "todo",
       "title": "Exit watch loop cleanly on channel disconnect",

@@ -37,6 +37,46 @@ CHANGELOG="$REPO_ROOT/CHANGELOG.md"
 RELEASE_NOTES_TEMPLATE="$REPO_ROOT/.github/release-notes-template.md"
 RELEASE_ARTIFACTS_DIR="$REPO_ROOT/target/release-artifacts"
 
+# Show usage information
+usage() {
+    echo "Release script for Ralph - Local release workflow without GitHub Actions"
+    echo ""
+    echo "Usage:"
+    echo "  scripts/release.sh <version>              # Full release"
+    echo "  scripts/release.sh --help                 # Show this help"
+    echo ""
+    echo "Arguments:"
+    echo "  <version>   Version number in semver format (e.g., 0.2.0, 1.0.0)"
+    echo ""
+    echo "Environment Variables:"
+    echo "  RELEASE_DRY_RUN    Set to 1 for dry run mode (no side effects)"
+    echo ""
+    echo "Examples:"
+    echo "  # Full release"
+    echo "  scripts/release.sh 0.2.0"
+    echo ""
+    echo "  # Dry run mode (preview without making changes)"
+    echo "  RELEASE_DRY_RUN=1 scripts/release.sh 0.2.0"
+    echo ""
+    echo "  # Show this help"
+    echo "  scripts/release.sh --help"
+    echo "  scripts/release.sh -h"
+    echo ""
+    echo "Prerequisites:"
+    echo "  - gh CLI installed and authenticated"
+    echo "  - cargo and Rust toolchain"
+    echo "  - git with access to the repository"
+    echo ""
+    echo "Release Process:"
+    echo "  1. Pre-release validation (clean working dir, main branch, CI passes)"
+    echo "  2. Version bumping in Cargo.toml"
+    echo "  3. CHANGELOG.md updates"
+    echo "  4. Multi-platform release artifact builds"
+    echo "  5. Checksum generation (SHA256)"
+    echo "  6. Git commit and annotated tag creation"
+    echo "  7. GitHub release creation with asset upload via gh CLI"
+}
+
 # Dry run mode
 DRY_RUN="${RELEASE_DRY_RUN:-0}"
 
@@ -577,6 +617,12 @@ print_summary() {
 
 # Main function
 main() {
+    # Handle --help/-h before processing VERSION
+    if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+        usage
+        exit 0
+    fi
+
     echo "═══════════════════════════════════════════════════"
     if [ "$DRY_RUN" = "1" ]; then
         echo -e "  ${YELLOW}RALPH RELEASE (DRY RUN)${NC}"
@@ -589,10 +635,8 @@ main() {
     # Validate arguments
     if [ -z "$VERSION" ]; then
         log_error "VERSION is required"
-        echo "  Usage: scripts/release.sh <version>"
-        echo "  Example: scripts/release.sh 0.2.0"
         echo ""
-        echo "  Dry run mode: RELEASE_DRY_RUN=1 scripts/release.sh <version>"
+        usage
         exit 1
     fi
 
