@@ -2,6 +2,302 @@
   "version": 1,
   "tasks": [
     {
+      "id": "RQ-0493",
+      "status": "todo",
+      "title": "Prereq: Make Continue phase-correct and preserve runner_cli options",
+      "priority": "high",
+      "tags": [
+        "run",
+        "supervision",
+        "runner",
+        "bugfix",
+        "prereq"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/supervision/mod.rs",
+        "crates/ralph/src/commands/run/phases/phase1.rs",
+        "crates/ralph/src/commands/run/phases/phase2.rs",
+        "crates/ralph/src/commands/run/phases/phase3.rs",
+        "crates/ralph/src/commands/run/phases/single.rs",
+        "crates/ralph/src/commands/run/phases/shared.rs",
+        "crates/ralph/src/commands/run/phases/tests.rs"
+      ],
+      "evidence": [
+        "Ralph has two different resume concepts: `ralph run resume` (crash recovery) vs Continue (resume an existing runner session via session_id)",
+        "Current Continue plumbing hardcodes PhaseType::Implementation for all continues, which is incorrect for Phase 1 (planning), Phase 3 (review), and single-pass",
+        "Current Continue plumbing re-resolves runner_cli from config using an empty patch, dropping CLI runner_cli overrides and potentially changing runner behavior mid-session",
+        "Phase-specific runner/model/effort depends on Continue being correct and stable, otherwise per-phase behavior is unreliable"
+      ],
+      "plan": [
+        "Update ContinueSession to include the correct phase metadata needed to resume (PhaseType)",
+        "Update ContinueSession to carry the resolved normalized runner_cli options used to create the session (do not recompute from config on resume)",
+        "Update all Continue call sites to set the correct PhaseType (Planning/Implementation/Review/SinglePhase) and to pass/capture runner_cli",
+        "Add/extend tests proving: Continue uses the correct PhaseType per phase; Continue preserves runner_cli options; CI auto-retry continue uses same semantics",
+        "Run `make ci` and ensure no regressions"
+      ],
+      "notes": [
+        "Overall spec: /private/tmp/ralph-phase-specific-runner-model-spec.md (see: Prerequisite correctness fixes; Resume vs Continue)"
+      ],
+      "request": "Break phase-specific runner/model/effort work into safe prereq tasks",
+      "created_at": "2026-01-31T12:00:00Z",
+      "updated_at": "2026-01-31T12:00:00Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0494",
+      "status": "todo",
+      "title": "Add config contract: agent.phase_overrides (phase1/phase2/phase3 runner/model/reasoning_effort)",
+      "priority": "medium",
+      "tags": [
+        "config",
+        "schema",
+        "docs",
+        "run"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts/config.rs",
+        "schemas/config.schema.json",
+        "docs/configuration.md",
+        "docs/cli.md"
+      ],
+      "evidence": [
+        "Spec adds `agent.phase_overrides` with per-phase runner/model/effort settings",
+        "Config layering requires leaf-wise merge: global config loads first, project config overrides second",
+        "Docs and generated schema must match the config contract"
+      ],
+      "plan": [
+        "Introduce config structs for phase overrides (phase1/phase2/phase3) with optional runner/model/reasoning_effort fields",
+        "Implement merge behavior consistent with existing AgentConfig merge semantics (leaf-wise)",
+        "Regenerate schema via `make generate` and verify `schemas/config.schema.json` includes the new fields",
+        "Update docs (`docs/configuration.md`) to document `agent.phase_overrides` and precedence",
+        "Add unit tests for merge semantics (global vs project override)",
+        "Run `make ci`"
+      ],
+      "notes": [
+        "Overall spec: /private/tmp/ralph-phase-specific-runner-model-spec.md (see: User-Facing Interface → Config; Resolution & Precedence)"
+      ],
+      "request": "Prepare config surface for per-phase runner/model selection",
+      "created_at": "2026-01-31T12:01:00Z",
+      "updated_at": "2026-01-31T12:01:00Z",
+      "depends_on": [
+        "RQ-0475"
+      ],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0495",
+      "status": "todo",
+      "title": "Add CLI surface: --runner-phaseN/--model-phaseN/--effort-phaseN for ralph run",
+      "priority": "medium",
+      "tags": [
+        "cli",
+        "run",
+        "runner",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/src/agent.rs",
+        "crates/ralph/src/cli/run.rs",
+        "docs/cli.md"
+      ],
+      "evidence": [
+        "Spec introduces phase-specific run flags with per-field precedence over global flags",
+        "Single-pass (`--phases 1`) maps to Phase 2 overrides (phase2 flags/config)",
+        "Spec requires warnings for unused phase overrides and for effort specified on non-Codex phases",
+        "CLI help must include examples and precedence explanation"
+      ],
+      "plan": [
+        "Extend RunAgentArgs with phase-specific runner/model/effort flags for phase1/phase2/phase3",
+        "Extend override parsing to capture per-phase overrides without changing run behavior yet (wiring happens later)",
+        "Update `ralph run ... --help` text and examples to include at least one per-phase example",
+        "Update `docs/cli.md` to document the new flags and precedence",
+        "Add tests for clap parsing and the phases=1 mapping rule",
+        "Run `make ci`"
+      ],
+      "notes": [
+        "Overall spec: /private/tmp/ralph-phase-specific-runner-model-spec.md (see: User-Facing Interface → CLI flags; Warnings & Errors)"
+      ],
+      "request": "Expose per-phase runner/model flags in CLI",
+      "created_at": "2026-01-31T12:02:00Z",
+      "updated_at": "2026-01-31T12:02:00Z",
+      "depends_on": [
+        "RQ-0476"
+      ],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0491",
+      "status": "todo",
+      "title": "Implement per-phase runner/model/effort resolution matrix (pure helper + tests)",
+      "priority": "high",
+      "tags": [
+        "run",
+        "runner",
+        "logic",
+        "testing"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/",
+        "crates/ralph/src/runner.rs",
+        "crates/ralph/src/commands/run/tests.rs"
+      ],
+      "evidence": [
+        "Today Ralph resolves a single AgentSettings and reuses it across all phases",
+        "Spec requires per-phase precedence: CLI phase > config phase > existing global/task/config/default",
+        "Spec requires runner->model defaulting when runner is explicitly overridden for a phase and model is not",
+        "Spec requires effort to be ignored for non-Codex runners and to be phase-specific for Codex"
+      ],
+      "plan": [
+        "Introduce a small internal data model representing a per-phase override (runner/model/effort) and a resolved per-phase settings matrix",
+        "Implement a resolution function that returns resolved settings per executed phase, honoring baseline compatibility when no phase overrides are present",
+        "Ensure errors mention which phase failed validation (invalid model for codex, empty model, etc.)",
+        "Implement warning hooks/return values for: unused phase overrides; effort ignored for non-Codex",
+        "Add thorough unit tests covering precedence, model defaulting, single-pass mapping to phase2 overrides, and failure modes",
+        "Run `make ci`"
+      ],
+      "notes": [
+        "Overall spec: /private/tmp/ralph-phase-specific-runner-model-spec.md (see: Resolution & Precedence; Warnings & Errors; Tests)"
+      ],
+      "request": "Centralize phase-specific settings resolution",
+      "created_at": "2026-01-31T12:03:00Z",
+      "updated_at": "2026-01-31T12:03:00Z",
+      "depends_on": [
+        "RQ-0477"
+      ],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0496",
+      "status": "todo",
+      "title": "Wire per-phase settings into run orchestration (phases + pre-run update + logging)",
+      "priority": "high",
+      "tags": [
+        "run",
+        "orchestration",
+        "ci",
+        "testing"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/mod.rs",
+        "crates/ralph/src/commands/run/phases/",
+        "crates/ralph/src/commands/run/tests.rs",
+        "docs/cli.md"
+      ],
+      "evidence": [
+        "Spec changes behavior: each phase can run with different runner/model/effort",
+        "Spec changes pre-run task update runner selection: phases>=2 uses Phase 1 settings; phases=1 uses single-pass settings",
+        "Spec recommends logging the resolved per-phase matrix once per task iteration"
+      ],
+      "plan": [
+        "Replace the single shared AgentSettings with a resolved-per-phase settings matrix per task iteration",
+        "Update phase execution so each phase runs with its own resolved settings",
+        "Update pre-run task update selection per spec (Phase 1 settings for phases>=2; single-pass settings for phases=1)",
+        "Implement warnings surfaced by the resolution helper (unused overrides; effort ignored) exactly once per run invocation",
+        "Add/extend tests for end-to-end selection across phases and for updater runner selection",
+        "Run `make ci`"
+      ],
+      "notes": [
+        "Overall spec: /private/tmp/ralph-phase-specific-runner-model-spec.md (see: Behavioral Interactions; Continue/CI retry; Optional logging UX)"
+      ],
+      "request": "Apply per-phase settings in actual run execution",
+      "created_at": "2026-01-31T12:04:00Z",
+      "updated_at": "2026-01-31T12:04:00Z",
+      "depends_on": [
+        "RQ-0478"
+      ],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0492",
+      "status": "todo",
+      "title": "TUI parity: expose phase overrides or explicitly document the divergence",
+      "priority": "medium",
+      "tags": [
+        "tui",
+        "docs",
+        "ux",
+        "run"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/",
+        "docs/cli.md",
+        "docs/workflow.md",
+        "docs/configuration.md"
+      ],
+      "evidence": [
+        "Repo guidelines require parity between CLI and TUI for user-visible workflow changes, or explicit documented divergence",
+        "Phase-specific runner/model/effort is a user-visible workflow change for `ralph run`"
+      ],
+      "plan": [
+        "Audit TUI entrypoints that run tasks (e.g., `ralph tui`, `ralph run one -i`, `ralph run loop -i`) to determine how runner/model/effort are selected",
+        "Either: (A) add per-phase controls in the TUI and ensure they map to the same resolution logic as CLI, or (B) document that TUI currently uses global runner/model only and does not support per-phase overrides",
+        "Ensure whichever path is chosen has docs updates and test coverage where applicable",
+        "Run `make ci`"
+      ],
+      "notes": [
+        "Overall spec: /private/tmp/ralph-phase-specific-runner-model-spec.md (see: Background; User-Facing Interface)"
+      ],
+      "request": "Keep CLI/TUI workflow parity (or document divergence)",
+      "created_at": "2026-01-31T12:05:00Z",
+      "updated_at": "2026-01-31T12:05:00Z",
+      "depends_on": [
+        "RQ-0479"
+      ],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0497",
+      "status": "todo",
+      "title": "Nice-to-have: persist resolved per-phase settings in session state for UI/logging",
+      "priority": "low",
+      "tags": [
+        "session",
+        "ux",
+        "nice-to-have"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts/session.rs",
+        "crates/ralph/src/session/mod.rs",
+        "docs/workflow.md"
+      ],
+      "evidence": [
+        "Spec calls this out as nice-to-have to make resume/logging accurately reflect per-phase runner/model settings",
+        "Without this, session.json may display a single runner/model that does not represent the phase matrix"
+      ],
+      "plan": [
+        "Define a minimal schema addition for per-phase resolved settings (or a compact rendered string) that is safe to persist",
+        "Ensure crash recovery (`ralph run resume`) still recomputes behavior from CLI+config+task and does not depend on session fields",
+        "Update any UI/session display to use the persisted matrix when present",
+        "Add tests for serialization/backcompat (older session.json files still load)",
+        "Run `make ci`"
+      ],
+      "notes": [
+        "Overall spec: /private/tmp/ralph-phase-specific-runner-model-spec.md (see: Session recovery; Nice-to-have)"
+      ],
+      "request": "Optional UX improvement for phase-aware sessions",
+      "created_at": "2026-01-31T12:06:00Z",
+      "updated_at": "2026-01-31T12:06:00Z",
+      "depends_on": [
+        "RQ-0479"
+      ],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
       "id": "RQ-0439",
       "status": "draft",
       "title": "Implement subtask support for hierarchical task breakdown",
