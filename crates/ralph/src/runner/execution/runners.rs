@@ -352,14 +352,14 @@ pub(crate) fn run_kimi_resume(
     bin: &str,
     runner_cli: ResolvedRunnerCliOptions,
     model: Model,
-    session_id: &str,
+    _session_id: &str,
     message: &str,
     timeout: Option<Duration>,
     output_handler: Option<OutputHandler>,
     output_stream: OutputStream,
 ) -> Result<RunnerOutput, RunnerError> {
     let (cmd, payload, _guards) =
-        build_kimi_command(work_dir, bin, runner_cli, model, message, Some(session_id));
+        build_kimi_continue_command(work_dir, bin, runner_cli, model, message);
 
     run_with_streaming_json(
         cmd,
@@ -515,6 +515,25 @@ fn build_kimi_command(
         builder
     };
     builder
+        .model(&model)
+        .arg("--print")
+        .arg("--prompt")
+        .arg(prompt)
+        .output_format("stream-json")
+        .build()
+}
+
+fn build_kimi_continue_command(
+    work_dir: &Path,
+    bin: &str,
+    runner_cli: ResolvedRunnerCliOptions,
+    model: Model,
+    prompt: &str,
+) -> RunnerCommandParts {
+    let builder = RunnerCommandBuilder::new(bin, work_dir);
+    let builder = cli_spec::apply_kimi_options(builder, runner_cli);
+    builder
+        .arg("--continue")
         .model(&model)
         .arg("--print")
         .arg("--prompt")
@@ -688,6 +707,21 @@ mod tests {
             .collect::<Vec<_>>();
         assert!(args.contains(&"--mode".to_string()));
         assert!(args.contains(&"json".to_string()));
+        assert!(args.contains(&"hello".to_string()));
+        assert!(payload.is_none());
+    }
+
+    #[test]
+    fn build_kimi_continue_command_includes_continue_flag() {
+        let opts = ResolvedRunnerCliOptions::default();
+        let (cmd, payload, _guards) =
+            build_kimi_continue_command(Path::new("."), "kimi", opts, Model::Glm47, "hello");
+        let args = cmd
+            .get_args()
+            .map(|arg| arg.to_string_lossy().to_string())
+            .collect::<Vec<_>>();
+        assert!(args.contains(&"--continue".to_string()));
+        assert!(args.contains(&"--prompt".to_string()));
         assert!(args.contains(&"hello".to_string()));
         assert!(payload.is_none());
     }
