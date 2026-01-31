@@ -64,6 +64,20 @@ Useful iteration commands (not a substitute for `make ci`):
 - Errors: prefer descriptive error types (`thiserror`) and `Result<T, E>` over panics.
 - Cohesion: keep modules/files focused; split large files rather than growing grab-bags.
 
+## Error Handling
+
+Ralph uses a two-tier error handling strategy: `anyhow` for general propagation, `thiserror` for domain-specific matchable errors.
+
+| Scenario | Pattern | Example |
+|----------|---------|---------|
+| Propagating errors | `anyhow::Result<T>` | `fn foo() -> Result<T>` |
+| Quick error return | `bail!` | `bail!("invalid input")` |
+| Adding context | `.context()` | `.context("read config")` |
+| Matchable domain errors | `thiserror` | `RunnerError`, `GitError` |
+| CLI value parsers | `anyhow::Result` | `parse_phase()` |
+
+See `docs/error-handling.md` for full guidelines.
+
 ## Testing
 
 - Unit tests: colocate with implementation via `#[cfg(test)]`.

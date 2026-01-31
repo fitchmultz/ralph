@@ -2,44 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0469",
-      "status": "todo",
-      "title": "Audit error handling patterns for consistency",
-      "priority": "medium",
-      "tags": [
-        "code-quality",
-        "error-handling",
-        "patterns"
-      ],
-      "scope": [
-        "crates/ralph/src/",
-        "schemas/",
-        "docs/error-handling.md (new)"
-      ],
-      "evidence": [
-        "Mixed error handling patterns observed: anyhow::Result, thiserror enums, String errors",
-        "runner.rs uses RunnerError enum with thiserror",
-        "Some functions return Result<T, String> instead of proper error types",
-        "No documented error handling strategy in AGENTS.md or docs"
-      ],
-      "plan": [
-        "Survey current error handling patterns across the codebase",
-        "Identify inconsistencies: Result<T, String> vs anyhow::Result vs custom enums",
-        "Document preferred patterns for different scenarios",
-        "Create error handling style guide in docs/ or AGENTS.md",
-        "Create follow-up tasks to refactor inconsistent error handling",
-        "Focus on high-impact areas: queue operations, runner execution, git operations"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-30T17:40:48Z",
-      "updated_at": "2026-01-30T17:40:48Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0470",
       "status": "todo",
       "title": "Review public API surface for minimalism",

@@ -120,12 +120,12 @@ pub fn handle_prompt(args: PromptArgs) -> Result<()> {
     Ok(())
 }
 
-fn parse_phase(s: &str) -> Result<promptflow::RunPhase, String> {
+fn parse_phase(s: &str) -> anyhow::Result<promptflow::RunPhase> {
     match s {
         "1" => Ok(promptflow::RunPhase::Phase1),
         "2" => Ok(promptflow::RunPhase::Phase2),
         "3" => Ok(promptflow::RunPhase::Phase3),
-        _ => Err(format!("invalid phase '{}', expected 1, 2, or 3", s)),
+        _ => anyhow::bail!("invalid phase '{s}', expected 1, 2, or 3"),
     }
 }
 
