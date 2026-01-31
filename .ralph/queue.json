@@ -2,41 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0465",
-      "status": "todo",
-      "title": "Fix config.rs module documentation completeness",
-      "priority": "medium",
-      "tags": [
-        "documentation",
-        "code-quality",
-        "ag-md-compliance"
-      ],
-      "scope": [
-        "crates/ralph/src/config.rs"
-      ],
-      "evidence": [
-        "crates/ralph/src/config.rs line 1 has brief doc: '//! Configuration resolution for Ralph...'",
-        "AGENTS.md requires module docs to state: what file is responsible for, what it does NOT handle, invariants/assumptions",
-        "Only has 'Responsibilities' section, missing 'Not handled here' and 'Invariants/assumptions'",
-        "Compare with tui/app.rs which has complete module documentation"
-      ],
-      "plan": [
-        "Add 'Not handled here:' section to module doc",
-        "Add 'Invariants/assumptions:' section to module doc",
-        "Document that this file does not handle: CLI parsing, prompt rendering, runner execution",
-        "Document invariants: config version must be 1, paths must be non-empty when specified",
-        "Run make ci to verify no regressions"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-30T17:40:48Z",
-      "updated_at": "2026-01-30T17:40:48Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0467",
       "status": "todo",
       "title": "Add comprehensive module documentation to runner.rs",

@@ -1,4 +1,27 @@
 //! Configuration resolution for Ralph, including global and project layers.
+//!
+//! Responsibilities:
+//! - Resolve configuration from multiple layers: global config, project config, and defaults.
+//! - Load and parse config files (JSON with JSONC comment support via `load_layer`).
+//! - Merge configuration layers via `ConfigLayer` and `apply_layer`.
+//! - Validate configuration values (version, paths, numeric ranges, runner binaries).
+//! - Resolve queue/done file paths and ID generation settings (prefix, width).
+//! - Discover repository root via `.ralph/` directory or `.git/`.
+//!
+//! Not handled here:
+//! - CLI argument parsing (see `crate::cli`).
+//! - Queue operations like task CRUD (see `crate::queue`).
+//! - Runner execution or agent invocation (see `crate::runner`).
+//! - Prompt rendering or template processing (see `crate::prompts_internal`).
+//! - Lock management (see `crate::lock`).
+//!
+//! Invariants/assumptions:
+//! - Config version must be 1; unsupported versions are rejected.
+//! - Paths are resolved relative to repo root unless absolute.
+//! - Global config lives at `~/.config/ralph/config.json` (or `$XDG_CONFIG_HOME/ralph/config.json`).
+//! - Project config lives at `.ralph/config.json` relative to repo root.
+//! - Config merging follows precedence: global → project → defaults.
+//! - `save_layer` creates parent directories automatically if needed.
 
 use crate::contracts::{AgentConfig, Config, ProjectType, QueueConfig, TuiConfig};
 use crate::fsutil;
