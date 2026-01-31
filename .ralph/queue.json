@@ -44,39 +44,6 @@
       "custom_fields": {}
     },
     {
-      "id": "RQ-0488",
-      "status": "todo",
-      "title": "Cache prompt expansion regexes",
-      "priority": "low",
-      "tags": [
-        "prompts",
-        "performance",
-        "regex"
-      ],
-      "scope": [
-        "crates/ralph/src/prompts_internal/util.rs",
-        "crates/ralph/src/prompts_internal/tests.rs"
-      ],
-      "evidence": [
-        "prompts_internal/util.rs expand_variables constructs Regex::new three times per call",
-        "These regexes are static and could be cached to avoid repeated compilation"
-      ],
-      "plan": [
-        "Move regex construction to static LazyLock/OnceCell values",
-        "Update expand_variables to reuse the cached regexes",
-        "Add/adjust tests to ensure behavior is unchanged",
-        "Run make ci"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-31T02:22:24Z",
-      "updated_at": "2026-01-31T02:22:24Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0471",
       "status": "todo",
       "title": "Centralize magic numbers and constants",

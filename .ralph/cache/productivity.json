@@ -1,7 +1,7 @@
 {
   "version": 1,
   "first_task_completed_at": "2026-01-30T12:31:17.161199000Z",
-  "last_updated_at": "2026-01-31T21:39:23.414955000Z",
+  "last_updated_at": "2026-01-31T21:48:08.625741000Z",
   "daily": {
     "2026-01-30": {
       "date": "2026-01-30",
@@ -46,7 +46,7 @@
     },
     "2026-01-31": {
       "date": "2026-01-31",
-      "completed_count": 28,
+      "completed_count": 29,
       "tasks": [
         {
           "id": "RQ-0475",
@@ -187,6 +187,11 @@
           "id": "RQ-0442",
           "title": "Add multi-select support to TUI for batch operations",
           "completed_at": "2026-01-31T21:39:23.414954000Z"
+        },
+        {
+          "id": "RQ-0488",
+          "title": "Cache prompt expansion regexes",
+          "completed_at": "2026-01-31T21:48:08.625740000Z"
         }
       ]
     }
@@ -196,7 +201,7 @@
     "longest_streak": 2,
     "last_completed_date": "2026-01-31"
   },
-  "total_completed": 35,
+  "total_completed": 36,
   "milestones": [
     {
       "threshold": 10,

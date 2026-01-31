@@ -13,6 +13,21 @@ use std::env;
 use std::fs;
 use std::io;
 use std::path::Path;
+use std::sync::LazyLock;
+
+/// Regex for matching escaped variable sequences (`$${` or `\${`).
+/// Used to replace escaped sequences with literal `${`.
+static ESCAPE_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\$\$\{|\\\$\{").unwrap());
+
+/// Regex for matching environment variable references (`${VAR}` or `${VAR:-default}`).
+/// Captures the variable name and optional default value.
+static ENV_VAR_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\$\{([A-Za-z_][A-Za-z0-9_]*)(:-([^}]*))?\}").unwrap());
+
+/// Regex for matching config value references (`{{config.section.key}}`).
+/// Captures the config path for lookup.
+static CONFIG_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\{\{config\.([^}]+)\}\}").unwrap());
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct RequiredPlaceholder {
@@ -220,11 +235,9 @@ pub(crate) fn read_instruction_file(path: &Path, max_bytes: usize) -> Result<Str
 pub(crate) fn expand_variables(template: &str, config: &Config) -> Result<String> {
     let mut result = template.to_string();
 
-    let escape_regex = Regex::new(r"\$\$\{|\\\$\{").unwrap();
-    result = escape_regex.replace_all(&result, "${").to_string();
+    result = ESCAPE_REGEX.replace_all(&result, "${").to_string();
 
-    let env_regex = Regex::new(r"\$\{([A-Za-z_][A-Za-z0-9_]*)(:-([^}]*))?\}").unwrap();
-    result = env_regex
+    result = ENV_VAR_REGEX
         .replace_all(&result, |caps: &regex::Captures| {
             let var_name = &caps[1];
             let default = caps.get(3).map(|m| m.as_str());
@@ -244,8 +257,7 @@ pub(crate) fn expand_variables(template: &str, config: &Config) -> Result<String
         })
         .to_string();
 
-    let config_regex = Regex::new(r"\{\{config\.([^}]+)\}\}").unwrap();
-    result = config_regex
+    result = CONFIG_REGEX
         .replace_all(&result, |caps: &regex::Captures| {
             let path = &caps[1];
             match get_config_value(config, path) {
