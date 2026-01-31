@@ -654,7 +654,13 @@ fn run_one_impl(
                 1 => {
                     phases::execute_single_phase(&invocation)?;
                 }
-                _ => unreachable!("phases must be validated to 1..=3"),
+                _ => {
+                    bail!(
+                        "Invalid phases value: {} (expected 1, 2, or 3). \
+                         This indicates a configuration error or internal inconsistency.",
+                        phases
+                    );
+                }
             }
         }
 

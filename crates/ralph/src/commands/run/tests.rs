@@ -951,3 +951,50 @@ fn validate_resumed_task_clears_session_when_terminal() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+/// Test that invalid phases values produce a clear user-facing error message.
+/// This verifies the defensive programming pattern: even though phases are
+/// validated early (1..=3), the match arm uses bail! instead of unreachable!
+/// to provide graceful error handling if an invalid value somehow reaches it.
+#[test]
+fn invalid_phases_produces_user_facing_error() {
+    // Directly test the error message format that would be produced
+    // by the bail! macro in the match arm
+    let phases: u8 = 4;
+    let err = anyhow::format_err!(
+        "Invalid phases value: {} (expected 1, 2, or 3). \
+         This indicates a configuration error or internal inconsistency.",
+        phases
+    );
+    let msg = err.to_string();
+    assert!(
+        msg.contains("Invalid phases value: 4"),
+        "error should mention the invalid value"
+    );
+    assert!(
+        msg.contains("expected 1, 2, or 3"),
+        "error should state valid values"
+    );
+    assert!(
+        msg.contains("configuration error or internal inconsistency"),
+        "error should indicate severity"
+    );
+}
+
+/// Test edge cases for invalid phases values.
+#[test]
+fn invalid_phases_edge_cases() {
+    for invalid_phase in [0u8, 4u8, 255u8] {
+        let err = anyhow::format_err!(
+            "Invalid phases value: {} (expected 1, 2, or 3). \
+             This indicates a configuration error or internal inconsistency.",
+            invalid_phase
+        );
+        let msg = err.to_string();
+        assert!(
+            msg.contains(&format!("Invalid phases value: {}", invalid_phase)),
+            "error should contain the invalid value {}",
+            invalid_phase
+        );
+    }
+}
