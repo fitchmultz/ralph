@@ -722,6 +722,8 @@ echo '{{"sessionID":"sess-123"}}'
         runner: Runner::Opencode,
         model: settings.model.clone(),
         reasoning_effort: None,
+        runner_cli: settings.runner_cli,
+        phase_type: super::PhaseType::Implementation,
         session_id: Some("sess-123".to_string()),
         output_handler: None,
         output_stream: runner::OutputStream::Terminal,

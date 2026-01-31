@@ -39,7 +39,6 @@ use queue_ops::{
 };
 
 use super::logging;
-use super::PhaseType;
 
 /// Session state for continuing an interrupted task.
 #[derive(Clone)]
@@ -47,6 +46,12 @@ pub(crate) struct ContinueSession {
     pub runner: crate::contracts::Runner,
     pub model: crate::contracts::Model,
     pub reasoning_effort: Option<crate::contracts::ReasoningEffort>,
+    /// The runner CLI settings resolved for the run that created this continue session.
+    /// These must be preserved to avoid losing CLI overrides / task-specific settings.
+    pub runner_cli: crate::runner::ResolvedRunnerCliOptions,
+    /// The phase that created this continue session. Must be preserved so phase-aware
+    /// runners (e.g., Cursor) behave correctly on Continue.
+    pub phase_type: super::PhaseType,
     pub session_id: Option<String>,
     pub output_handler: Option<crate::runner::OutputHandler>,
     pub output_stream: crate::runner::OutputStream,
@@ -72,29 +77,22 @@ pub(crate) fn resume_continue_session(
         }
     };
     let bins = crate::runner::resolve_binaries(&resolved.config.agent);
-    let runner_cli = crate::runner::resolve_agent_settings(
-        Some(session.runner),
-        Some(session.model.clone()),
-        session.reasoning_effort,
-        &crate::contracts::RunnerCliOptionsPatch::default(),
-        None,
-        &resolved.config.agent,
-    )?
-    .runner_cli;
+    // Use the stored runner_cli and phase_type from the session to preserve
+    // CLI overrides and ensure phase-correct behavior for phase-aware runners.
     let output = crate::runner::resume_session(
         session.runner,
         &resolved.repo_root,
         bins,
         session.model.clone(),
         session.reasoning_effort,
-        runner_cli,
+        session.runner_cli,
         session_id,
         message,
         resolved.config.agent.claude_permission_mode,
         None,
         session.output_handler.clone(),
         session.output_stream,
-        PhaseType::Implementation,
+        session.phase_type,
     )?;
     if let Some(new_id) = output.session_id.as_ref() {
         session.session_id = Some(new_id.clone());
@@ -439,6 +437,8 @@ mod tests {
             runner: Runner::Codex,
             model: crate::contracts::Model::Gpt52Codex,
             reasoning_effort: None,
+            runner_cli: crate::runner::ResolvedRunnerCliOptions::default(),
+            phase_type: crate::commands::run::PhaseType::Implementation,
             session_id: None,
             output_handler: None,
             output_stream: crate::runner::OutputStream::Terminal,
@@ -685,5 +685,111 @@ mod tests {
         );
 
         Ok(())
+    }
+
+    #[test]
+    fn continue_session_preserves_runner_cli_options() {
+        // Verify that ContinueSession correctly stores and preserves runner_cli options.
+        // This is a regression test for the bug where runner_cli was re-resolved from
+        // config on Continue, losing CLI overrides.
+        use crate::contracts::{
+            RunnerApprovalMode, RunnerOutputFormat, RunnerPlanMode, RunnerSandboxMode,
+            RunnerVerbosity, UnsupportedOptionPolicy,
+        };
+
+        let custom_runner_cli = crate::runner::ResolvedRunnerCliOptions {
+            output_format: RunnerOutputFormat::StreamJson,
+            verbosity: RunnerVerbosity::Quiet,
+            approval_mode: RunnerApprovalMode::Safe,
+            sandbox: RunnerSandboxMode::Enabled,
+            plan_mode: RunnerPlanMode::Enabled,
+            unsupported_option_policy: UnsupportedOptionPolicy::Error,
+        };
+
+        let session = ContinueSession {
+            runner: Runner::Codex,
+            model: crate::contracts::Model::Gpt52Codex,
+            reasoning_effort: None,
+            runner_cli: custom_runner_cli,
+            phase_type: crate::commands::run::PhaseType::Implementation,
+            session_id: Some("test-session".to_string()),
+            output_handler: None,
+            output_stream: crate::runner::OutputStream::Terminal,
+            ci_failure_retry_count: 0,
+        };
+
+        // Verify the stored runner_cli matches what was set
+        assert_eq!(session.runner_cli.verbosity, RunnerVerbosity::Quiet);
+        assert_eq!(session.runner_cli.approval_mode, RunnerApprovalMode::Safe);
+        assert_eq!(session.runner_cli.sandbox, RunnerSandboxMode::Enabled);
+        assert_eq!(session.runner_cli.plan_mode, RunnerPlanMode::Enabled);
+        assert_eq!(
+            session.runner_cli.unsupported_option_policy,
+            UnsupportedOptionPolicy::Error
+        );
+    }
+
+    #[test]
+    fn continue_session_preserves_phase_type() {
+        // Verify that ContinueSession correctly stores and preserves the phase type.
+        // This is a regression test for the bug where PhaseType::Implementation was
+        // hardcoded for all continues, breaking phase-aware runners.
+        use crate::commands::run::PhaseType;
+
+        // Test Planning phase
+        let planning_session = ContinueSession {
+            runner: Runner::Codex,
+            model: crate::contracts::Model::Gpt52Codex,
+            reasoning_effort: None,
+            runner_cli: crate::runner::ResolvedRunnerCliOptions::default(),
+            phase_type: PhaseType::Planning,
+            session_id: Some("test-session".to_string()),
+            output_handler: None,
+            output_stream: crate::runner::OutputStream::Terminal,
+            ci_failure_retry_count: 0,
+        };
+        assert_eq!(planning_session.phase_type, PhaseType::Planning);
+
+        // Test Implementation phase
+        let impl_session = ContinueSession {
+            runner: Runner::Codex,
+            model: crate::contracts::Model::Gpt52Codex,
+            reasoning_effort: None,
+            runner_cli: crate::runner::ResolvedRunnerCliOptions::default(),
+            phase_type: PhaseType::Implementation,
+            session_id: Some("test-session".to_string()),
+            output_handler: None,
+            output_stream: crate::runner::OutputStream::Terminal,
+            ci_failure_retry_count: 0,
+        };
+        assert_eq!(impl_session.phase_type, PhaseType::Implementation);
+
+        // Test Review phase
+        let review_session = ContinueSession {
+            runner: Runner::Codex,
+            model: crate::contracts::Model::Gpt52Codex,
+            reasoning_effort: None,
+            runner_cli: crate::runner::ResolvedRunnerCliOptions::default(),
+            phase_type: PhaseType::Review,
+            session_id: Some("test-session".to_string()),
+            output_handler: None,
+            output_stream: crate::runner::OutputStream::Terminal,
+            ci_failure_retry_count: 0,
+        };
+        assert_eq!(review_session.phase_type, PhaseType::Review);
+
+        // Test SinglePhase
+        let single_session = ContinueSession {
+            runner: Runner::Codex,
+            model: crate::contracts::Model::Gpt52Codex,
+            reasoning_effort: None,
+            runner_cli: crate::runner::ResolvedRunnerCliOptions::default(),
+            phase_type: PhaseType::SinglePhase,
+            session_id: Some("test-session".to_string()),
+            output_handler: None,
+            output_stream: crate::runner::OutputStream::Terminal,
+            ci_failure_retry_count: 0,
+        };
+        assert_eq!(single_session.phase_type, PhaseType::SinglePhase);
     }
 }

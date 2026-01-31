@@ -2,51 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0493",
-      "status": "todo",
-      "title": "Prereq: Make Continue phase-correct and preserve runner_cli options",
-      "priority": "high",
-      "tags": [
-        "run",
-        "supervision",
-        "runner",
-        "bugfix",
-        "prereq"
-      ],
-      "scope": [
-        "crates/ralph/src/commands/run/supervision/mod.rs",
-        "crates/ralph/src/commands/run/phases/phase1.rs",
-        "crates/ralph/src/commands/run/phases/phase2.rs",
-        "crates/ralph/src/commands/run/phases/phase3.rs",
-        "crates/ralph/src/commands/run/phases/single.rs",
-        "crates/ralph/src/commands/run/phases/shared.rs",
-        "crates/ralph/src/commands/run/phases/tests.rs"
-      ],
-      "evidence": [
-        "Ralph has two different resume concepts: `ralph run resume` (crash recovery) vs Continue (resume an existing runner session via session_id)",
-        "Current Continue plumbing hardcodes PhaseType::Implementation for all continues, which is incorrect for Phase 1 (planning), Phase 3 (review), and single-pass",
-        "Current Continue plumbing re-resolves runner_cli from config using an empty patch, dropping CLI runner_cli overrides and potentially changing runner behavior mid-session",
-        "Phase-specific runner/model/effort depends on Continue being correct and stable, otherwise per-phase behavior is unreliable"
-      ],
-      "plan": [
-        "Update ContinueSession to include the correct phase metadata needed to resume (PhaseType)",
-        "Update ContinueSession to carry the resolved normalized runner_cli options used to create the session (do not recompute from config on resume)",
-        "Update all Continue call sites to set the correct PhaseType (Planning/Implementation/Review/SinglePhase) and to pass/capture runner_cli",
-        "Add/extend tests proving: Continue uses the correct PhaseType per phase; Continue preserves runner_cli options; CI auto-retry continue uses same semantics",
-        "Run `make ci` and ensure no regressions"
-      ],
-      "notes": [
-        "Overall spec: /private/tmp/ralph-phase-specific-runner-model-spec.md (see: Prerequisite correctness fixes; Resume vs Continue)"
-      ],
-      "request": "Break phase-specific runner/model/effort work into safe prereq tasks",
-      "created_at": "2026-01-31T12:00:00Z",
-      "updated_at": "2026-01-31T12:00:00Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0494",
       "status": "todo",
       "title": "Add config contract: agent.phase_overrides (phase1/phase2/phase3 runner/model/reasoning_effort)",

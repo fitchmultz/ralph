@@ -68,6 +68,8 @@ pub fn execute_single_phase(ctx: &PhaseInvocation<'_>) -> Result<()> {
                 runner: ctx.settings.runner,
                 model: ctx.settings.model.clone(),
                 reasoning_effort: ctx.settings.reasoning_effort,
+                runner_cli: ctx.settings.runner_cli,
+                phase_type: super::PhaseType::SinglePhase,
                 session_id: output.session_id.clone(),
                 output_handler: ctx.output_handler.clone(),
                 output_stream: ctx.output_stream,

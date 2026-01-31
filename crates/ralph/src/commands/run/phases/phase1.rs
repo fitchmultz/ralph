@@ -49,6 +49,8 @@ pub fn execute_phase1_planning(ctx: &PhaseInvocation<'_>, total_phases: u8) -> R
             runner: ctx.settings.runner,
             model: ctx.settings.model.clone(),
             reasoning_effort: ctx.settings.reasoning_effort,
+            runner_cli: ctx.settings.runner_cli,
+            phase_type: super::PhaseType::Planning,
             session_id: output.session_id.clone(),
             output_handler: ctx.output_handler.clone(),
             output_stream: ctx.output_stream,
