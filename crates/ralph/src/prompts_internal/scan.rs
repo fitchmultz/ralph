@@ -15,13 +15,13 @@ use crate::contracts::{Config, ProjectType};
 use anyhow::Result;
 
 /// Mode-specific guidance for maintenance scan mode (default).
-const MAINTENANCE_MODE_GUIDANCE: &str = r#"Perform an agentic code review to find bugs, workflow gaps, design flaws, and high-leverage UX improvements.
-Focus on: code hygiene, repo rules violations, inconsistent or incomplete code, break-fix maintenance items,
+const MAINTENANCE_MODE_GUIDANCE: &str = r#"Perform an agentic code review to find bugs, workflow gaps, design flaws, high-leverage UX improvements, and any bugs or flaky behavior.
+Focus on: code hygiene (DRY, YAGNI, SOLID, KISS, etc.), repo rules violations, inconsistent or incomplete code, break-fix maintenance items,
 security vulnerabilities, performance regressions, and reliability issues.
 Prioritize correctness and safety over new features."#;
 
 /// Mode-specific guidance for innovation scan mode.
-const INNOVATION_MODE_GUIDANCE: &str = r#"Perform a feature discovery scan to identify enhancement opportunities, feature gaps, and use-case completeness issues.
+const INNOVATION_MODE_GUIDANCE: &str = r#"Perform a feature discovery scan to identify enhancement opportunities, feature gaps, use-case completeness issues, and opportunties for innovative new features.
 Focus on: missing features for specific use-cases, user workflow improvements, competitive gaps, feature completeness,
 enhancement opportunities, and strategic additions that would increase value.
 Prioritize new capabilities and user value over maintenance tasks."#;
