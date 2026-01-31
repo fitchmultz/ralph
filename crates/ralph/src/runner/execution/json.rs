@@ -21,6 +21,11 @@ pub(super) fn parse_json_line(line: &str) -> Option<JsonValue> {
 }
 
 pub(super) fn extract_session_id_from_json(json: &JsonValue) -> Option<String> {
+    if json.get("type").and_then(|t| t.as_str()) == Some("session") {
+        if let Some(id) = json.get("id").and_then(|v| v.as_str()) {
+            return Some(id.to_string());
+        }
+    }
     if let Some(id) = json.get("thread_id").and_then(|v| v.as_str()) {
         return Some(id.to_string());
     }
@@ -30,7 +35,8 @@ pub(super) fn extract_session_id_from_json(json: &JsonValue) -> Option<String> {
     if let Some(id) = json.get("sessionID").and_then(|v| v.as_str()) {
         return Some(id.to_string());
     }
-    // Kimi uses tool_calls[].id for session tracking (e.g., "tool_bUJW2GCXzg65VTa72XV9YhNn")
+    // Kimi stream-json lines sometimes include tool_calls[].id; capture as a fallback when no
+    // explicit session id is present in the output.
     if let Some(tool_calls) = json.get("tool_calls").and_then(|v| v.as_array()) {
         if let Some(first_tool) = tool_calls.first() {
             if let Some(id) = first_tool.get("id").and_then(|v| v.as_str()) {

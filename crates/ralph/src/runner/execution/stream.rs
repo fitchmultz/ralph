@@ -420,6 +420,85 @@ pub(super) fn extract_display_lines(json: &JsonValue) -> Vec<String> {
             }
         }
 
+        if event_type == "message_end" {
+            if let Some(message) = json.get("message") {
+                let role = message.get("role").and_then(|r| r.as_str());
+                match role {
+                    Some("assistant") => {
+                        if let Some(content) = message.get("content") {
+                            match content {
+                                JsonValue::String(text) => {
+                                    if !text.is_empty() {
+                                        lines.push(text.clone());
+                                    }
+                                }
+                                JsonValue::Array(items) => {
+                                    for item in items {
+                                        if let Some(text) =
+                                            item.get("text").and_then(|t| t.as_str())
+                                        {
+                                            if !text.is_empty() {
+                                                lines.push(text.to_string());
+                                            }
+                                        }
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                    Some("toolResult") => {
+                        let tool = message
+                            .get("toolName")
+                            .and_then(|t| t.as_str())
+                            .unwrap_or("tool");
+                        let is_error = message
+                            .get("isError")
+                            .and_then(|v| v.as_bool())
+                            .unwrap_or(false);
+                        let status = if is_error { "error" } else { "completed" };
+                        lines.push(outpututil::format_tool_call(
+                            tool,
+                            Some(&format!("({status})")),
+                        ));
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        if event_type == "tool_call" {
+            if let Some(tool_call) = json.get("tool_call") {
+                if let Some(mcp) = tool_call.get("mcpToolCall") {
+                    if let Some(args) = mcp.get("args") {
+                        let tool_name = args
+                            .get("providerIdentifier")
+                            .and_then(|v| v.as_str())
+                            .and_then(|provider| {
+                                args.get("toolName")
+                                    .and_then(|v| v.as_str())
+                                    .map(|name| format!("{provider}.{name}"))
+                            })
+                            .or_else(|| {
+                                args.get("name")
+                                    .and_then(|v| v.as_str())
+                                    .map(|name| name.to_string())
+                            });
+                        if let Some(tool_name) = tool_name {
+                            let details = args.get("args").and_then(format_tool_details);
+                            lines
+                                .push(outpututil::format_tool_call(&tool_name, details.as_deref()));
+                        }
+                    }
+                } else if let Some(shell) = tool_call.get("shellToolCall") {
+                    if let Some(args) = shell.get("args") {
+                        let details = format_tool_details(args);
+                        lines.push(outpututil::format_tool_call("shell", details.as_deref()));
+                    }
+                }
+            }
+        }
+
         if event_type == "tool_use" {
             if let Some(tool) = json.get("tool_name").and_then(|t| t.as_str()) {
                 let details = json.get("parameters").and_then(format_tool_details);

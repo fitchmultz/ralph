@@ -87,6 +87,18 @@ fn extract_session_id_from_json_opencode_session_id() {
 }
 
 #[test]
+fn extract_session_id_from_json_pi_session_event() {
+    let payload = json!({
+        "type": "session",
+        "id": "pi-123"
+    });
+    assert_eq!(
+        extract_session_id_from_json(&payload),
+        Some("pi-123".to_string())
+    );
+}
+
+#[test]
 fn extract_session_id_from_text_reads_json_lines() {
     let stdout = "{\"session_id\":\"sess-001\"}\n{\"result\":\"ok\"}\n";
     assert_eq!(

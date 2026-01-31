@@ -105,3 +105,24 @@ fn extract_final_assistant_response_kimi_empty_content() {
     let stdout = concat!(r#"{"role":"assistant","content":[]}"#, "\n");
     assert_eq!(extract_final_assistant_response(stdout), None);
 }
+
+#[test]
+fn extract_final_assistant_response_cursor_result() {
+    let stdout = concat!(r#"{"type":"result","result":"Final cursor output"}"#, "\n");
+    assert_eq!(
+        extract_final_assistant_response(stdout),
+        Some("Final cursor output".to_string())
+    );
+}
+
+#[test]
+fn extract_final_assistant_response_pi_message_end() {
+    let stdout = concat!(
+        r#"{"type":"message_end","message":{"role":"assistant","content":[{"type":"text","text":"Key findings cited in evidence: Alpha"}]}}"#,
+        "\n"
+    );
+    assert_eq!(
+        extract_final_assistant_response(stdout),
+        Some("Key findings cited in evidence: Alpha".to_string())
+    );
+}

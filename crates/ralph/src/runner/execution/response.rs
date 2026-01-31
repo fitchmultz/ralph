@@ -23,6 +23,15 @@ pub(crate) fn extract_final_assistant_response(stdout: &str) -> Option<String> {
 
         if let Some(event_type) = json.get("type").and_then(|t| t.as_str()) {
             match event_type {
+                "result" => {
+                    if let Some(text) = json.get("result").and_then(|r| r.as_str()) {
+                        let trimmed = text.trim();
+                        if !trimmed.is_empty() {
+                            final_message = Some(trimmed.to_string());
+                            streaming_buffer.clear();
+                        }
+                    }
+                }
                 "item.completed" => {
                     if let Some(text) = extract_codex_agent_message(&json) {
                         final_message = Some(text);
@@ -37,6 +46,12 @@ pub(crate) fn extract_final_assistant_response(stdout: &str) -> Option<String> {
                 }
                 "message" => {
                     if let Some(text) = extract_gemini_assistant_text(&json) {
+                        final_message = Some(text);
+                        streaming_buffer.clear();
+                    }
+                }
+                "message_end" => {
+                    if let Some(text) = extract_message_end_assistant_text(&json) {
                         final_message = Some(text);
                         streaming_buffer.clear();
                     }
@@ -141,6 +156,15 @@ fn extract_opencode_text(json: &JsonValue) -> Option<&str> {
     json.get("part")
         .and_then(|p| p.get("text"))
         .and_then(|t| t.as_str())
+}
+
+fn extract_message_end_assistant_text(json: &JsonValue) -> Option<String> {
+    let message = json.get("message")?;
+    if message.get("role").and_then(|r| r.as_str()) != Some("assistant") {
+        return None;
+    }
+    let content = message.get("content")?;
+    extract_text_content(content)
 }
 
 fn extract_text_content(content: &JsonValue) -> Option<String> {

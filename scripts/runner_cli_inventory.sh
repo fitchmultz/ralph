@@ -93,7 +93,7 @@ while [[ $# -gt 0 ]]; do
       case "$name" in
         codex|opencode|gemini|claude|kimi|pi|agent) ;;
         *)
-          echo "ERROR: --bin NAME must be one of: codex, opencode, gemini, claude, kimi, agent (got: '$name')" >&2
+          echo "ERROR: --bin NAME must be one of: codex, opencode, gemini, claude, kimi, pi, agent (got: '$name')" >&2
           exit 2
           ;;
       esac
@@ -223,6 +223,12 @@ resolve_bin() {
     kimi)
       if [[ -n "$BIN_OVERRIDE_KIMI" ]]; then
         echo "$BIN_OVERRIDE_KIMI"
+        return 0
+      fi
+      ;;
+    pi)
+      if [[ -n "$BIN_OVERRIDE_PI" ]]; then
+        echo "$BIN_OVERRIDE_PI"
         return 0
       fi
       ;;

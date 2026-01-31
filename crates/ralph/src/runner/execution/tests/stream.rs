@@ -267,6 +267,77 @@ fn extract_display_lines_kimi_no_role_field() {
 }
 
 #[test]
+fn extract_display_lines_pi_message_end_assistant() {
+    let payload = json!({
+        "type": "message_end",
+        "message": {
+            "role": "assistant",
+            "content": [
+                {"type": "text", "text": "Key findings cited in evidence: Alpha"}
+            ]
+        }
+    });
+    assert_eq!(
+        extract_display_lines(&payload),
+        vec!["Key findings cited in evidence: Alpha"]
+    );
+}
+
+#[test]
+fn extract_display_lines_pi_message_end_tool_result() {
+    let payload = json!({
+        "type": "message_end",
+        "message": {
+            "role": "toolResult",
+            "toolName": "bash",
+            "isError": false
+        }
+    });
+    assert_eq!(
+        extract_display_lines(&payload),
+        vec!["[Tool] bash (completed)"]
+    );
+}
+
+#[test]
+fn extract_display_lines_cursor_tool_call_mcp() {
+    let payload = json!({
+        "type": "tool_call",
+        "tool_call": {
+            "mcpToolCall": {
+                "args": {
+                    "providerIdentifier": "RepoPrompt",
+                    "toolName": "list_windows",
+                    "args": {}
+                }
+            }
+        }
+    });
+    assert_eq!(
+        extract_display_lines(&payload),
+        vec!["[Tool] RepoPrompt.list_windows"]
+    );
+}
+
+#[test]
+fn extract_display_lines_cursor_tool_call_shell() {
+    let payload = json!({
+        "type": "tool_call",
+        "tool_call": {
+            "shellToolCall": {
+                "args": {
+                    "command": "ls -la"
+                }
+            }
+        }
+    });
+    assert_eq!(
+        extract_display_lines(&payload),
+        vec!["[Tool] shell cmd=ls -la"]
+    );
+}
+
+#[test]
 fn max_line_length_constant_is_10mb() {
     // Verify the constant is set to expected 10MB value
     assert_eq!(MAX_LINE_LENGTH, 10 * 1024 * 1024);

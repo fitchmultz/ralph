@@ -178,6 +178,9 @@ fn test_task_build_options_all_runners() {
         Runner::Opencode,
         Runner::Gemini,
         Runner::Claude,
+        Runner::Cursor,
+        Runner::Kimi,
+        Runner::Pi,
     ];
 
     for runner in runners {
@@ -377,6 +380,9 @@ fn test_task_update_settings_all_runners() {
         Runner::Opencode,
         Runner::Gemini,
         Runner::Claude,
+        Runner::Cursor,
+        Runner::Kimi,
+        Runner::Pi,
     ];
 
     for runner in runners {
