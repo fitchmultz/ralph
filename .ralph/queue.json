@@ -2,41 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0475",
-      "status": "todo",
-      "title": "Redact runner stderr tail logs",
-      "priority": "high",
-      "tags": [
-        "security",
-        "logging",
-        "runner",
-        "redaction"
-      ],
-      "scope": [
-        "crates/ralph/src/runutil.rs",
-        "crates/ralph/src/redaction.rs",
-        "crates/ralph/src/outpututil.rs"
-      ],
-      "evidence": [
-        "crates/ralph/src/runutil.rs log_stderr_tail logs raw stderr lines via log::info without any redaction",
-        "runutil.rs calls log_stderr_tail when handling RunnerError::NonZeroExit, so secrets in stderr are currently logged verbatim"
-      ],
-      "plan": [
-        "Redact stderr tails in log_stderr_tail using the existing redaction utilities",
-        "Keep the tail length/line limits but ensure log output is masked consistently with stdout handling",
-        "Add/extend tests to assert redaction is applied to stderr tails",
-        "Run make ci"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-31T02:22:24Z",
-      "updated_at": "2026-01-31T02:22:24Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0476",
       "status": "todo",
       "title": "Use resume task ID when auto-resuming sessions",
