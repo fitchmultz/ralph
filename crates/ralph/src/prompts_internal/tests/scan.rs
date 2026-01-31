@@ -53,6 +53,8 @@ fn render_scan_prompt_innovation_mode_includes_innovation_guidance() -> Result<(
     )?;
     assert!(rendered.contains("feature discovery"));
     assert!(rendered.contains("enhancement opportunities"));
+    assert!(rendered.contains(r#"custom_fields: {"scan_agent": "scan-innovation"}"#));
+    assert!(!rendered.contains(r#"agent: "scan-innovation""#));
     assert!(!rendered.contains("{{MODE_GUIDANCE}}"));
     Ok(())
 }
@@ -70,6 +72,8 @@ fn render_scan_prompt_maintenance_mode_includes_maintenance_guidance() -> Result
     )?;
     assert!(rendered.contains("code review"));
     assert!(rendered.contains("MAINTENANCE TASK FILTER"));
+    assert!(rendered.contains(r#"custom_fields: {"scan_agent": "scan-maintenance"}"#));
+    assert!(!rendered.contains(r#"agent: "scan-maintenance""#));
     assert!(!rendered.contains("{{MODE_GUIDANCE}}"));
     Ok(())
 }

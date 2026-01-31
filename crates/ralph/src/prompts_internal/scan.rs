@@ -85,20 +85,23 @@ If a duplicate exists, do not add another.
 - Do not renumber existing task IDs.
 
 # TASK SHAPE (REQUIRED KEYS)
-Each new task must include:
-- id
+Queue schema requires: id, title, created_at, updated_at.
+For scan-created tasks, include:
+- id (string)
 - status: "todo"
 - priority: one of "critical" | "high" | "medium" | "low"
-- title: short, outcome-sized
-- tags: array (include "maintenance")
-- scope: array of paths and/or commands
-- evidence: array (use strict formats above)
-- plan: array (specific sequential steps)
+- title (string; short, outcome-sized)
+- tags: array of strings (include "maintenance")
+- scope: array of strings (paths and/or commands)
+- evidence: array of strings (use strict formats above)
+- plan: array of strings (specific sequential steps)
 - request: "maintenance scan finding"
-- agent: "scan-maintenance"
+- custom_fields: {"scan_agent": "scan-maintenance"}
 - created_at and updated_at: current UTC RFC3339 time
 
-Optional keys: notes, completed_at, depends_on
+Optional keys: notes (array of strings), completed_at, depends_on (array of strings)
+
+Do NOT set `agent` to a string. `agent` is an optional object used only for runner/model overrides.
 
 # PRIORITY ASSIGNMENT GUIDANCE
 - critical: security vulnerabilities, data loss risks, blocking CI, production outage class issues
@@ -196,20 +199,23 @@ If a duplicate exists, do not add another. Prefer skipping, or create a single r
 - Do not renumber existing task IDs.
 
 # TASK SHAPE (REQUIRED KEYS)
-Each new task must include:
-- id
+Queue schema requires: id, title, created_at, updated_at.
+For scan-created tasks, include:
+- id (string)
 - status: "todo"
 - priority: one of "critical" | "high" | "medium" | "low"
-- title: short, outcome-sized
-- tags: array (include "innovation")
-- scope: array of paths and/or commands
-- evidence: array (use strict formats above)
-- plan: array (specific sequential steps)
+- title (string; short, outcome-sized)
+- tags: array of strings (include "innovation")
+- scope: array of strings (paths and/or commands)
+- evidence: array of strings (use strict formats above)
+- plan: array of strings (specific sequential steps)
 - request: "innovation scan finding"
-- agent: "scan-innovation"
+- custom_fields: {"scan_agent": "scan-innovation"}
 - created_at and updated_at: current UTC RFC3339 time
 
-Optional keys: notes, completed_at, depends_on
+Optional keys: notes (array of strings), completed_at, depends_on (array of strings)
+
+Do NOT set `agent` to a string. `agent` is an optional object used only for runner/model overrides.
 
 # PRIORITY ASSIGNMENT GUIDANCE
 - critical: security, data loss, breaks core workflows
