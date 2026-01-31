@@ -16,6 +16,7 @@ use ratatui::style::Color;
 /// These constants define the semantic meaning of colors used throughout Ralph.
 /// The actual color values are chosen to work well on both light and dark
 /// terminal backgrounds while maintaining sufficient contrast.
+#[allow(dead_code)]
 pub struct Theme;
 
 impl Theme {
@@ -53,6 +54,7 @@ impl Theme {
 /// These functions provide styled strings for CLI output.
 /// They automatically respect the NO_COLOR environment variable
 /// and any --color flag settings via colored::control.
+#[allow(dead_code)]
 pub mod cli {
     use colored::{ColoredString, Colorize};
 
@@ -259,6 +261,7 @@ pub mod cli {
 /// TUI color helpers for ratatui.
 ///
 /// These functions provide ratatui Color values for TUI rendering.
+#[allow(dead_code)]
 pub mod tui {
     use super::Theme;
     use ratatui::style::Color;

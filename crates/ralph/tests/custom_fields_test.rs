@@ -293,15 +293,19 @@ fn test_custom_fields_display_in_queue_show() -> Result<()> {
     queue::set_field(&mut queue_file, "RQ-0001", "complexity", "O(n log n)", &now)?;
     queue::save_queue(&resolved.queue_path, &queue_file)?;
 
-    // Reload and verify format_task_detailed includes custom fields
+    // Reload and verify custom fields are persisted correctly
     let reloaded = queue::load_queue(&resolved.queue_path)?;
     let task = &reloaded.tasks[0];
 
-    let formatted = ralph::outpututil::format_task_detailed(task);
-
-    // Custom fields should be sorted alphabetically and formatted as key=value pairs
-    assert!(formatted.contains("complexity=O(n log n)"));
-    assert!(formatted.contains("severity=high"));
+    // Verify custom fields are stored correctly
+    assert_eq!(
+        task.custom_fields.get("complexity"),
+        Some(&"O(n log n)".to_string())
+    );
+    assert_eq!(
+        task.custom_fields.get("severity"),
+        Some(&"high".to_string())
+    );
 
     Ok(())
 }

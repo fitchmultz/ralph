@@ -42,7 +42,7 @@ fn revert_uncommitted_preserves_untracked_env_files_and_completions() -> Result<
     fs::write(&completion_signal, "{}")?;
 
     // 4. Run revert_uncommitted
-    ralph::gitutil::revert_uncommitted(root)?;
+    ralph::git::revert_uncommitted(root)?;
 
     // 5. Verify assertions
     assert!(env_file.exists(), ".env should be preserved");

@@ -4,5 +4,6 @@
 //! These re-exports are maintained for backward compatibility.
 
 #![deprecated(since = "0.1.0", note = "Use crate::git instead")]
+#![allow(unused_imports)]
 
 pub use crate::git::*;

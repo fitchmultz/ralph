@@ -2,43 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0470",
-      "status": "todo",
-      "title": "Review public API surface for minimalism",
-      "priority": "medium",
-      "tags": [
-        "api-design",
-        "code-quality",
-        "visibility"
-      ],
-      "scope": [
-        "crates/ralph/src/lib.rs",
-        "crates/ralph/src/**/*.rs"
-      ],
-      "evidence": [
-        "AGENTS.md: Default visibility is private; pub must be intentional",
-        "AGENTS.md: Prefer pub(crate) over pub unless cross-crate use required",
-        "Many items marked pub that may only be used within crate",
-        "No audit has been done of public API surface area"
-      ],
-      "plan": [
-        "Analyze all pub items to determine actual usage scope",
-        "Identify items that can be pub(crate) instead of pub",
-        "Identify items that can be private (module-only)",
-        "Check if lib.rs exports are minimal and intentional",
-        "Create task list for visibility reductions",
-        "Ensure no breaking changes to legitimate external consumers"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-30T17:40:48Z",
-      "updated_at": "2026-01-30T17:40:48Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0439",
       "status": "draft",
       "title": "Implement subtask support for hierarchical task breakdown",

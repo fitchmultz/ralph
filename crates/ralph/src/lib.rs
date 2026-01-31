@@ -37,12 +37,14 @@ pub mod tui;
 pub mod celebrations;
 pub mod fsutil;
 pub mod git;
-pub mod gitutil;
+// DEPRECATED: gitutil is deprecated and will be removed. Use `git` instead.
+pub(crate) mod gitutil;
 pub mod jsonc;
 pub mod lock;
 pub mod notification;
-pub mod output;
-pub mod outpututil;
+// Internal-only output modules
+pub(crate) mod output;
+pub(crate) mod outpututil;
 pub mod productivity;
 pub mod progress;
 pub mod promptflow;
