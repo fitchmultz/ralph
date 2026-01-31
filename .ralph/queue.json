@@ -2,51 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0460",
-      "status": "todo",
-      "title": "Split cli/task.rs (2599 lines) into command-specific modules",
-      "priority": "high",
-      "tags": [
-        "refactoring",
-        "code-quality",
-        "file-size",
-        "cli"
-      ],
-      "scope": [
-        "crates/ralph/src/cli/task.rs",
-        "crates/ralph/src/cli/task/build.rs (new)",
-        "crates/ralph/src/cli/task/status.rs (new)",
-        "crates/ralph/src/cli/task/batch.rs (new)",
-        "crates/ralph/src/cli/task/edit.rs (new)",
-        "crates/ralph/src/cli/task/mod.rs (new)"
-      ],
-      "evidence": [
-        "crates/ralph/src/cli/task.rs has 2599 lines, exceeding AGENTS.md 1000 LOC limit",
-        "AGENTS.md states: Files exceeding ~1000 LOC are presumed mis-scoped and MUST be split",
-        "Single file handles: build, status, edit, update, clone, batch, schedule, relate commands",
-        "Template selection logic and batch operations are distinct responsibilities"
-      ],
-      "plan": [
-        "Create cli/task/ subdirectory with mod.rs as public interface",
-        "Move TaskCommand dispatch logic to mod.rs",
-        "Extract handle_task_build and template selection to task/build.rs",
-        "Extract status/done/reject handling to task/status.rs",
-        "Extract batch operations to task/batch.rs",
-        "Extract edit/update/field operations to task/edit.rs",
-        "Keep cli/task.rs as thin wrapper or remove after migration",
-        "Update imports in cli/mod.rs",
-        "Run make ci to verify no regressions"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-30T17:40:48Z",
-      "updated_at": "2026-01-30T17:40:48Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0461",
       "status": "todo",
       "title": "Split commands/task.rs (1229 lines) into focused submodules",
