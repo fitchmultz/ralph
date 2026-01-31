@@ -2,48 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0463",
-      "status": "todo",
-      "title": "Split tui/tests.rs (1209 lines) into focused test modules",
-      "priority": "medium",
-      "tags": [
-        "refactoring",
-        "code-quality",
-        "file-size",
-        "testing"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/tests.rs",
-        "crates/ralph/src/tui/tests/app_state.rs (new)",
-        "crates/ralph/src/tui/tests/filters.rs (new)",
-        "crates/ralph/src/tui/tests/navigation.rs (new)",
-        "crates/ralph/src/tui/tests/mod.rs"
-      ],
-      "evidence": [
-        "crates/ralph/src/tui/tests.rs has 1209 lines, exceeding AGENTS.md 1000 LOC limit",
-        "AGENTS.md states: Tests should live close to the code they validate",
-        "Contains tests for app state, filters, navigation, task operations",
-        "Test file size makes it hard to locate specific test cases"
-      ],
-      "plan": [
-        "Create tui/tests/ as directory module",
-        "Move app state tests to tests/app_state.rs",
-        "Move filter tests to tests/filters.rs",
-        "Move navigation tests to tests/navigation.rs",
-        "Keep test helpers and common fixtures in tests/mod.rs",
-        "Ensure all tests still run with cargo test -p ralph",
-        "Run make ci to verify no regressions"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-30T17:40:48Z",
-      "updated_at": "2026-01-30T17:40:48Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0464",
       "status": "todo",
       "title": "Split commands/run/supervision.rs (1042 lines) into focused modules",
