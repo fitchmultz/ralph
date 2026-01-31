@@ -2,49 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0462",
-      "status": "todo",
-      "title": "Split tui/render/panels.rs (1209 lines) into panel modules",
-      "priority": "medium",
-      "tags": [
-        "refactoring",
-        "code-quality",
-        "file-size",
-        "tui"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/render/panels.rs",
-        "crates/ralph/src/tui/render/panels/list.rs (new)",
-        "crates/ralph/src/tui/render/panels/details.rs (new)",
-        "crates/ralph/src/tui/render/panels/progress.rs (new)",
-        "crates/ralph/src/tui/render/panels/mod.rs (new)"
-      ],
-      "evidence": [
-        "crates/ralph/src/tui/render/panels.rs has 1209 lines, exceeding AGENTS.md 1000 LOC limit",
-        "Renders list panel, details panel, progress panel, and kanban board in one file",
-        "Each panel could be self-contained for better testability",
-        "Panel rendering logic changes independently"
-      ],
-      "plan": [
-        "Create tui/render/panels/ subdirectory",
-        "Extract list panel rendering to panels/list.rs",
-        "Extract details panel rendering to panels/details.rs",
-        "Extract progress panel rendering to panels/progress.rs",
-        "Extract kanban board rendering to panels/kanban.rs",
-        "Keep common panel utilities in mod.rs",
-        "Update draw_ui to call new panel modules",
-        "Run make ci to verify no regressions"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-30T17:40:48Z",
-      "updated_at": "2026-01-30T17:40:48Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0463",
       "status": "todo",
       "title": "Split tui/tests.rs (1209 lines) into focused test modules",
