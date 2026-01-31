@@ -346,19 +346,17 @@ fn should_process_file(path: &Path, patterns: &[String], ignore_patterns: &[Stri
     patterns.iter().any(|p| matches_pattern(file_name, p))
 }
 
-/// Simple pattern matching (supports * and ? wildcards).
+/// Match a filename against a glob pattern using globset.
+///
+/// Supports standard glob syntax:
+/// - `*` matches any sequence of characters (except `/`)
+/// - `?` matches any single character
+/// - `[abc]` matches any character in the set
+/// - `[a-z]` matches any character in the range
 fn matches_pattern(name: &str, pattern: &str) -> bool {
-    // Simple glob matching - convert pattern to regex
-    let regex_pattern = pattern
-        .replace('.', r"\.")
-        .replace('*', ".*")
-        .replace('?', ".");
-
-    if let Ok(re) = Regex::new(&format!("^{}$", regex_pattern)) {
-        re.is_match(name)
-    } else {
-        name.contains(pattern.trim_matches('*'))
-    }
+    globset::Glob::new(pattern)
+        .map(|g| g.compile_matcher().is_match(name))
+        .unwrap_or(false)
 }
 
 /// Build regex for detecting comments based on comment types.
@@ -701,6 +699,62 @@ mod tests {
     fn matches_pattern_question() {
         assert!(matches_pattern("test.rs", "t??t.rs"));
         assert!(!matches_pattern("test.rs", "t?t.rs"));
+    }
+
+    #[test]
+    fn matches_pattern_regex_metacharacters() {
+        // Character class patterns - these would break with the old regex-based implementation
+        // Note: *.[rs] matches files ending in .r or .s (single char), not .rs
+        assert!(matches_pattern("test.r", "*.[rs]"));
+        assert!(matches_pattern("test.s", "*.[rs]"));
+        assert!(!matches_pattern("test.rs", "*.[rs]"));
+        assert!(!matches_pattern("test.py", "*.[rs]"));
+
+        // Plus sign in filename - + is literal in glob, not a regex quantifier
+        assert!(matches_pattern("file+1.txt", "file+*.txt"));
+        assert!(matches_pattern("file+123.txt", "file+*.txt"));
+
+        // Parentheses in filename - () are literal in glob, not regex groups
+        assert!(matches_pattern("test(1).rs", "test(*).rs"));
+        assert!(matches_pattern("test(backup).rs", "test(*).rs"));
+
+        // Dollar signs in filename - $ is literal in glob, not regex anchor
+        assert!(matches_pattern("test.$$$", "test.*"));
+        assert!(matches_pattern("file.$$$.txt", "file.*.txt"));
+
+        // Caret in filename - ^ is literal in glob, not regex anchor
+        assert!(matches_pattern("file^name.txt", "file^name.txt"));
+        assert!(matches_pattern("file^name.txt", "file*.txt"));
+    }
+
+    #[test]
+    fn matches_pattern_character_classes() {
+        // Range patterns
+        assert!(matches_pattern("file1.txt", "file[0-9].txt"));
+        assert!(matches_pattern("file5.txt", "file[0-9].txt"));
+        assert!(matches_pattern("file9.txt", "file[0-9].txt"));
+        assert!(!matches_pattern("filea.txt", "file[0-9].txt"));
+
+        // Multiple character classes
+        assert!(matches_pattern("test_a.rs", "test_[a-z].rs"));
+        assert!(matches_pattern("test_z.rs", "test_[a-z].rs"));
+        assert!(!matches_pattern("test_1.rs", "test_[a-z].rs"));
+    }
+
+    #[test]
+    fn matches_pattern_edge_cases() {
+        // Empty pattern should only match empty string
+        assert!(matches_pattern("", ""));
+        assert!(!matches_pattern("test.rs", ""));
+
+        // Invalid glob patterns should return false (not panic)
+        // Unclosed character class is invalid in globset
+        assert!(!matches_pattern("test.rs", "*.[rs"));
+
+        // Just wildcards
+        assert!(matches_pattern("anything", "*"));
+        assert!(matches_pattern("a", "?"));
+        assert!(!matches_pattern("ab", "?"));
     }
 
     #[test]

@@ -2,38 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0483",
-      "status": "todo",
-      "title": "Use proper glob matching for watch patterns",
-      "priority": "medium",
-      "tags": [
-        "watch",
-        "patterns",
-        "bug"
-      ],
-      "scope": [
-        "crates/ralph/src/commands/watch.rs",
-        "crates/ralph/src/commands/watch.rs tests"
-      ],
-      "evidence": [
-        "commands/watch.rs matches_pattern escapes only '.' then replaces '*' and '?' with regex wildcards",
-        "Other regex metacharacters are not escaped, so patterns like [a-z] or + are treated as regex or fail"
-      ],
-      "plan": [
-        "Replace ad-hoc regex conversion with globset or regex::escape to correctly handle literals",
-        "Add tests for patterns containing regex metacharacters and expected wildcard behavior",
-        "Run make ci"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-31T02:22:24Z",
-      "updated_at": "2026-01-31T02:22:24Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0489",
       "status": "todo",
       "title": "Restore CLI/TUI parity for queue repair/unlock or document divergence",
