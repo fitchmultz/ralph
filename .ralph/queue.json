@@ -2,42 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0468",
-      "status": "todo",
-      "title": "Fix prompts_internal/tests.rs exceeding 1000 LOC",
-      "priority": "medium",
-      "tags": [
-        "refactoring",
-        "code-quality",
-        "file-size",
-        "testing"
-      ],
-      "scope": [
-        "crates/ralph/src/prompts_internal/tests.rs (1072 lines)"
-      ],
-      "evidence": [
-        "prompts_internal/tests.rs has 1072 lines, exceeding AGENTS.md 1000 LOC limit",
-        "Contains tests for worker prompts, task builder, scan prompts, iteration",
-        "Different prompt types should be tested in separate modules"
-      ],
-      "plan": [
-        "Split into prompts_internal/tests/worker.rs",
-        "Split into prompts_internal/tests/task_builder.rs",
-        "Split into prompts_internal/tests/scan.rs",
-        "Split into prompts_internal/tests/iteration.rs",
-        "Update prompts_internal/tests/mod.rs to import submodules",
-        "Run make ci to verify all tests pass"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-30T17:40:48Z",
-      "updated_at": "2026-01-30T17:40:48Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0469",
       "status": "todo",
       "title": "Audit error handling patterns for consistency",
