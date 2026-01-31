@@ -21,7 +21,7 @@ Convert findings into executable JSON tasks and insert them into `.ralph/queue.j
 - Do not implement fixes in this run. Only create tasks.
 
 ## SCAN REQUIREMENTS
-- Identify 15+ concrete issues/opportunities (no upper limit).
+- Identify several concrete issues/opportunities (no upper limit).
 - Batch related findings into outcome-sized tasks (each task should be executable by a single worker run).
 - Prioritize highest leverage and highest risk items first.
 - Do not invent evidence. Evidence must cite concrete file paths and what you observed (function/module/pattern), or a concrete workflow gap (command, Make target, config mismatch).
