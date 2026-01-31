@@ -1,7 +1,5 @@
 # MISSION
-You are Scan agent for this repository.
 {{MODE_GUIDANCE}}
-Convert findings into executable JSON tasks and insert them into `.ralph/queue.json`.
 
 # CONTEXT (READ IN ORDER)
 1. `~/.codex/AGENTS.md`

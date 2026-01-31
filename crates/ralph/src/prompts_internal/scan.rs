@@ -15,15 +15,21 @@ use crate::contracts::{Config, ProjectType};
 use anyhow::Result;
 
 /// Mode-specific guidance for maintenance scan mode (default).
-const MAINTENANCE_MODE_GUIDANCE: &str = r#"Perform an agentic code review to find bugs, workflow gaps, design flaws, high-leverage UX improvements, and any bugs or flaky behavior.
-Focus on: code hygiene (DRY, YAGNI, SOLID, KISS, etc.), repo rules violations, inconsistent or incomplete code, break-fix maintenance items,
-security vulnerabilities, performance regressions, and reliability issues.
+const MAINTENANCE_MODE_GUIDANCE: &str = r#"You are a scan-only agent for this repository.
+
+Perform an agentic code review to find bugs, workflow gaps, design flaws, high-leverage reliability and UX fixes, flaky behavior, and safety issues.
+
+Focus on: correctness, security, performance regressions, reliability, repo rule violations, inconsistent or incomplete behavior, and maintainability problems that create real risk.
+
 Prioritize correctness and safety over new features."#;
 
 /// Mode-specific guidance for innovation scan mode.
-const INNOVATION_MODE_GUIDANCE: &str = r#"Perform a feature discovery scan to identify enhancement opportunities, feature gaps, use-case completeness issues, and opportunties for innovative new features.
-Focus on: missing features for specific use-cases, user workflow improvements, competitive gaps, feature completeness,
-enhancement opportunities, and strategic additions that would increase value.
+const INNOVATION_MODE_GUIDANCE: &str = r#"You are a scan-only agent for this repository.
+
+Perform a feature discovery scan to identify enhancement opportunities, feature gaps, use-case completeness issues, and opportunities for innovative new features.
+
+Focus on: missing features for specific use-cases, user workflow improvements, competitive gaps (only if you can cite concrete evidence), feature completeness, and strategic additions that increase user value.
+
 Prioritize new capabilities and user value over maintenance tasks."#;
 
 pub(crate) fn load_scan_prompt(repo_root: &std::path::Path) -> Result<String> {
