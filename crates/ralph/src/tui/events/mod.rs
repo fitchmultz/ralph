@@ -83,6 +83,8 @@ pub fn handle_key_event(
         }
         AppMode::ConfirmDelete => confirm::handle_confirm_delete_key(app, key),
         AppMode::ConfirmArchive => confirm::handle_confirm_archive_key(app, key, now_rfc3339),
+        AppMode::ConfirmRepair { dry_run } => confirm::handle_confirm_repair_key(app, key, dry_run),
+        AppMode::ConfirmUnlock => confirm::handle_confirm_unlock_key(app, key),
         AppMode::ConfirmAutoArchive(task_id) => {
             confirm::handle_confirm_auto_archive_key(app, key, &task_id, now_rfc3339)
         }

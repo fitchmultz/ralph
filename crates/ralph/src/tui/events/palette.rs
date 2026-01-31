@@ -50,6 +50,9 @@ pub enum PaletteCommand {
     MoveTaskUp,
     MoveTaskDown,
     JumpToTask,
+    RepairQueue,
+    RepairQueueDryRun,
+    UnlockQueue,
     Quit,
 }
 

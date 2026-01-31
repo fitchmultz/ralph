@@ -159,3 +159,130 @@ fn test_enter_key_in_executing_mode_does_not_quit() {
     assert_eq!(action, TuiAction::Continue);
     assert!(matches!(app.mode, AppMode::Executing { .. }));
 }
+
+// Tests for Repair/Unlock palette commands (RQ-0489)
+
+#[test]
+fn test_mode_transition_palette_to_confirm_repair() {
+    use ralph::tui::PaletteCommand;
+
+    let mut app = App::new(make_test_queue());
+    app.queue_path = Some(std::path::PathBuf::from("/tmp/.ralph/queue.json"));
+    app.done_path = Some(std::path::PathBuf::from("/tmp/.ralph/done.json"));
+
+    // Execute RepairQueue palette command
+    let _ = app.execute_palette_command(PaletteCommand::RepairQueue, "2026-01-19T00:00:00Z");
+
+    assert!(matches!(
+        app.mode,
+        AppMode::ConfirmRepair { dry_run: false }
+    ));
+}
+
+#[test]
+fn test_mode_transition_palette_to_confirm_repair_dry_run() {
+    use ralph::tui::PaletteCommand;
+
+    let mut app = App::new(make_test_queue());
+    app.queue_path = Some(std::path::PathBuf::from("/tmp/.ralph/queue.json"));
+    app.done_path = Some(std::path::PathBuf::from("/tmp/.ralph/done.json"));
+
+    // Execute RepairQueueDryRun palette command
+    let _ = app.execute_palette_command(PaletteCommand::RepairQueueDryRun, "2026-01-19T00:00:00Z");
+
+    assert!(matches!(app.mode, AppMode::ConfirmRepair { dry_run: true }));
+}
+
+#[test]
+fn test_mode_transition_palette_to_confirm_unlock() {
+    use ralph::tui::PaletteCommand;
+
+    let mut app = App::new(make_test_queue());
+    app.queue_path = Some(std::path::PathBuf::from("/tmp/.ralph/queue.json"));
+    app.done_path = Some(std::path::PathBuf::from("/tmp/.ralph/done.json"));
+
+    // Execute UnlockQueue palette command
+    let _ = app.execute_palette_command(PaletteCommand::UnlockQueue, "2026-01-19T00:00:00Z");
+
+    assert_eq!(app.mode, AppMode::ConfirmUnlock);
+}
+
+#[test]
+fn test_mode_transition_confirm_repair_to_normal_on_confirm() {
+    let mut app = App::new(make_test_queue());
+    app.queue_path = Some(std::path::PathBuf::from("/tmp/.ralph/queue.json"));
+    app.done_path = Some(std::path::PathBuf::from("/tmp/.ralph/done.json"));
+    app.mode = AppMode::ConfirmRepair { dry_run: true };
+
+    let _ = tui::handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('y')),
+        "2026-01-19T00:00:00Z",
+    )
+    .unwrap();
+
+    assert_eq!(app.mode, AppMode::Normal);
+}
+
+#[test]
+fn test_mode_transition_confirm_repair_to_normal_on_cancel() {
+    let mut app = App::new(make_test_queue());
+    app.mode = AppMode::ConfirmRepair { dry_run: false };
+
+    let _ = tui::handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('n')),
+        "2026-01-19T00:00:00Z",
+    )
+    .unwrap();
+
+    assert_eq!(app.mode, AppMode::Normal);
+}
+
+#[test]
+fn test_mode_transition_confirm_unlock_to_normal_on_confirm() {
+    let mut app = App::new(make_test_queue());
+    app.queue_path = Some(std::path::PathBuf::from("/tmp/.ralph/queue.json"));
+    app.mode = AppMode::ConfirmUnlock;
+
+    let _ = tui::handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('y')),
+        "2026-01-19T00:00:00Z",
+    )
+    .unwrap();
+
+    assert_eq!(app.mode, AppMode::Normal);
+}
+
+#[test]
+fn test_mode_transition_confirm_unlock_to_normal_on_cancel() {
+    let mut app = App::new(make_test_queue());
+    app.mode = AppMode::ConfirmUnlock;
+
+    let _ = tui::handle_key_event(
+        &mut app,
+        key_event(KeyCode::Char('n')),
+        "2026-01-19T00:00:00Z",
+    )
+    .unwrap();
+
+    assert_eq!(app.mode, AppMode::Normal);
+}
+
+#[test]
+fn test_palette_entries_include_repair_and_unlock() {
+    let app = App::new(make_test_queue());
+    let entries = app.palette_entries("");
+
+    let has_repair = entries.iter().any(|e| e.title == "Repair queue");
+    let has_repair_dry_run = entries.iter().any(|e| e.title == "Repair queue (dry run)");
+    let has_unlock = entries.iter().any(|e| e.title == "Unlock queue");
+
+    assert!(has_repair, "Palette should include 'Repair queue'");
+    assert!(
+        has_repair_dry_run,
+        "Palette should include 'Repair queue (dry run)'"
+    );
+    assert!(has_unlock, "Palette should include 'Unlock queue'");
+}

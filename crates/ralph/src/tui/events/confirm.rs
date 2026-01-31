@@ -254,6 +254,76 @@ fn status_message_for_revert_decision(label: &str, decision: &RevertDecision) ->
     }
 }
 
+/// Handle key events in ConfirmRepair mode.
+pub(super) fn handle_confirm_repair_key(
+    app: &mut App,
+    key: KeyEvent,
+    dry_run: bool,
+) -> Result<TuiAction> {
+    match key.code {
+        KeyCode::Char('y') if is_plain_char(&key, 'y') => {
+            if let Err(e) = app.repair_queue(dry_run) {
+                app.set_status_message(format!("Error: {}", e));
+            }
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Char('Y') if is_plain_char(&key, 'Y') => {
+            if let Err(e) = app.repair_queue(dry_run) {
+                app.set_status_message(format!("Error: {}", e));
+            }
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Char('n') if is_plain_char(&key, 'n') => {
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Char('N') if is_plain_char(&key, 'N') => {
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Esc => {
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        _ => Ok(TuiAction::Continue),
+    }
+}
+
+/// Handle key events in ConfirmUnlock mode.
+pub(super) fn handle_confirm_unlock_key(app: &mut App, key: KeyEvent) -> Result<TuiAction> {
+    match key.code {
+        KeyCode::Char('y') if is_plain_char(&key, 'y') => {
+            if let Err(e) = app.unlock_queue() {
+                app.set_status_message(format!("Error: {}", e));
+            }
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Char('Y') if is_plain_char(&key, 'Y') => {
+            if let Err(e) = app.unlock_queue() {
+                app.set_status_message(format!("Error: {}", e));
+            }
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Char('n') if is_plain_char(&key, 'n') => {
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Char('N') if is_plain_char(&key, 'N') => {
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        KeyCode::Esc => {
+            app.mode = AppMode::Normal;
+            Ok(TuiAction::Continue)
+        }
+        _ => Ok(TuiAction::Continue),
+    }
+}
+
 /// Handle key events in ConfirmRiskyConfig mode.
 pub(super) fn handle_confirm_risky_config_key(
     app: &mut App,

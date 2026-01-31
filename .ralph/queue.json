@@ -2,37 +2,40 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0489",
+      "id": "RQ-0490",
       "status": "todo",
-      "title": "Restore CLI/TUI parity for queue repair/unlock or document divergence",
+      "title": "Add graceful stop signal for ralph run loop",
       "priority": "medium",
       "tags": [
-        "tui",
+        "feature",
+        "enhancement",
         "cli",
-        "parity",
-        "ux"
+        "runner"
       ],
       "scope": [
-        "crates/ralph/src/cli/queue/mod.rs",
-        "crates/ralph/src/tui/",
-        "docs/tui-task-management.md",
+        "crates/ralph/src/commands/run/mod.rs",
+        "crates/ralph/src/commands/run/loop.rs",
+        "crates/ralph/src/runner.rs",
         "docs/cli.md"
       ],
       "evidence": [
-        "cli/queue/mod.rs defines QueueCommand::Repair and QueueCommand::Unlock",
-        "Search in crates/ralph/src/tui has no references to repair/unlock actions, indicating missing TUI parity"
+        "User request: Users often start loops via 'ralph run loop --max-tasks 0' but may want to stop before all tasks are completed",
+        "Need ability to signal STOP after the active in-flight task is complete and pushed",
+        "All phases must complete, but next task loop should not begin"
       ],
       "plan": [
-        "Audit TUI command palette/keymap for queue maintenance actions",
-        "Add TUI actions for queue repair/unlock or document the intentional divergence",
-        "Update docs/tui-task-management.md and docs/cli.md accordingly",
-        "Add TUI tests if new actions are added",
+        "Design signal mechanism (e.g., touch file, signal handler, or flag file in .ralph/cache/)",
+        "Add check in run loop between tasks for stop signal",
+        "Ensure stop signal is checked after task completion but before starting next task",
+        "Add CLI flag --stop-on-signal or use existing pattern",
+        "Document the graceful stop mechanism in docs/cli.md",
+        "Add tests for stop signal behavior",
         "Run make ci"
       ],
       "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-31T02:22:24Z",
-      "updated_at": "2026-01-31T02:22:24Z",
+      "request": "Users often start loops via 'ralph run loop --max-tasks 0' but may want to stop before all tasks are completed. New feature: Ability to signal to STOP after the active in-flight task is complete and pushed (all phases completed, the next task loop just doesn't begin).",
+      "created_at": "2026-01-31T17:40:00Z",
+      "updated_at": "2026-01-31T17:40:00Z",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],
@@ -396,7 +399,7 @@
     },
     {
       "id": "RQ-0439",
-      "status": "todo",
+      "status": "draft",
       "title": "Implement subtask support for hierarchical task breakdown",
       "priority": "medium",
       "tags": [
@@ -477,47 +480,6 @@
       "custom_fields": {}
     },
     {
-      "id": "RQ-0441",
-      "status": "todo",
-      "title": "Implement GitHub Issues bidirectional sync integration",
-      "priority": "medium",
-      "tags": [
-        "cli",
-        "integrations",
-        "feature",
-        "github"
-      ],
-      "scope": [
-        "crates/ralph/src/commands/sync.rs (new)",
-        "crates/ralph/src/cli/sync.rs (new)",
-        "crates/ralph/src/config/",
-        "docs/cli.md"
-      ],
-      "evidence": [
-        "No GitHub integration commands exist in the CLI",
-        "Manual task creation from issues is repetitive",
-        "No way to sync task status back to GitHub issues"
-      ],
-      "plan": [
-        "Add `ralph sync github import` to create tasks from GitHub issues",
-        "Support filtering by labels, milestones, assignees",
-        "Add `ralph sync github export` to create GitHub issues from tasks",
-        "Add `ralph sync github bidirectional` for two-way sync",
-        "Store GitHub issue URL in task custom_fields for tracking",
-        "Add config for GitHub token and default repository",
-        "Handle rate limiting and pagination for large issue sets",
-        "Add tests with mock GitHub API responses"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-30T00:00:00Z",
-      "updated_at": "2026-01-30T00:00:00Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0442",
       "status": "todo",
       "title": "Add multi-select support to TUI for batch operations",
@@ -547,85 +509,6 @@
         "Show selection count in footer when tasks are selected",
         "Add Esc key to clear selection",
         "Update help overlay with multi-select keybindings"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-30T00:00:00Z",
-      "updated_at": "2026-01-30T00:00:00Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
-      "id": "RQ-0443",
-      "status": "todo",
-      "title": "Implement task queue import/export for backup and migration",
-      "priority": "medium",
-      "tags": [
-        "cli",
-        "queue",
-        "feature",
-        "data-management"
-      ],
-      "scope": [
-        "crates/ralph/src/cli/queue/export.rs",
-        "crates/ralph/src/cli/queue/import.rs (new)",
-        "docs/cli.md"
-      ],
-      "evidence": [
-        "Export exists but only for CSV/TSV/JSON formats without full task data",
-        "No import command to restore queue from backup",
-        "No migration path between different queue formats or versions"
-      ],
-      "plan": [
-        "Add `ralph queue import <FILE>` command supporting JSON and CSV",
-        "Support import with ID remapping to avoid conflicts",
-        "Add `--dry-run` flag to preview import without changes",
-        "Support merging imported tasks with existing queue",
-        "Add validation of imported tasks against schema",
-        "Create backup of existing queue before import",
-        "Add tests for import with various edge cases (duplicates, invalid data)"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-30T00:00:00Z",
-      "updated_at": "2026-01-30T00:00:00Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
-      "id": "RQ-0444",
-      "status": "todo",
-      "title": "Add task comments/audit trail for collaboration",
-      "priority": "medium",
-      "tags": [
-        "cli",
-        "queue",
-        "feature",
-        "collaboration"
-      ],
-      "scope": [
-        "crates/ralph/src/contracts/task.rs",
-        "crates/ralph/src/cli/task.rs",
-        "crates/ralph/src/tui/",
-        "schemas/queue.schema.json"
-      ],
-      "evidence": [
-        "Task has notes field but no structured comment history",
-        "No way to track who made changes and when (for multi-user scenarios)",
-        "Notes field is just strings, no timestamp or author attribution"
-      ],
-      "plan": [
-        "Add `comments` array field to Task with timestamp, author, text",
-        "Add `ralph task comment <TASK_ID> <TEXT>` command",
-        "Auto-append comments on status changes with optional note",
-        "Show comments in `ralph task show` output with newest first",
-        "Add comments view to TUI task detail panel",
-        "Add `--comments` flag to include comments in queue export",
-        "Add tests for comment CRUD operations"
       ],
       "notes": [],
       "request": "scan finding",
@@ -817,7 +700,7 @@
     },
     {
       "id": "RQ-0445",
-      "status": "todo",
+      "status": "draft",
       "title": "Add conditional task execution based on custom conditions",
       "priority": "low",
       "tags": [
@@ -844,127 +727,6 @@
         "Skip task with log message if condition not met",
         "Add `--skip-conditions` flag to bypass condition checks",
         "Add tests for each condition type"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-30T00:00:00Z",
-      "updated_at": "2026-01-30T00:00:00Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
-      "id": "RQ-0446",
-      "status": "todo",
-      "title": "Implement local LLM runner support (Ollama, llama.cpp)",
-      "priority": "low",
-      "tags": [
-        "cli",
-        "runner",
-        "feature",
-        "local-llm"
-      ],
-      "scope": [
-        "crates/ralph/src/runner/",
-        "crates/ralph/src/config/",
-        "docs/configuration.md"
-      ],
-      "evidence": [
-        "Only cloud runners supported: codex, opencode, gemini, claude, cursor, kimi, pi",
-        "No local LLM option for offline or privacy-sensitive work",
-        "Runner architecture appears extensible for new runner types"
-      ],
-      "plan": [
-        "Add `ollama` runner type with HTTP API integration",
-        "Add `llamacpp` runner type for llama.cpp server",
-        "Support local model selection (e.g., codellama, mistral)",
-        "Add config options for local LLM endpoint URLs",
-        "Implement streaming response handling for local runners",
-        "Add timeout and retry logic appropriate for local inference",
-        "Document setup instructions for Ollama and llama.cpp",
-        "Add tests with mock local LLM servers"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-30T00:00:00Z",
-      "updated_at": "2026-01-30T00:00:00Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
-      "id": "RQ-0447",
-      "status": "todo",
-      "title": "Add task automation rules and triggers",
-      "priority": "low",
-      "tags": [
-        "cli",
-        "automation",
-        "feature",
-        "workflow"
-      ],
-      "scope": [
-        "crates/ralph/src/automation.rs (new)",
-        "crates/ralph/src/config/",
-        "crates/ralph/src/queue/operations/",
-        "schemas/config.schema.json"
-      ],
-      "evidence": [
-        "No automation system for trigger-based actions",
-        "Manual intervention required for common workflows (status changes, tagging)",
-        "No way to auto-assign tags based on task title patterns"
-      ],
-      "plan": [
-        "Add automation rules to config schema (trigger, condition, action)",
-        "Support triggers: on_task_created, on_status_change, on_tag_added",
-        "Support actions: add_tag, set_priority, set_status, add_comment",
-        "Add pattern matching for titles (regex support)",
-        "Implement automation engine that evaluates rules on queue mutations",
-        "Add `ralph automation test` to preview rule matches without applying",
-        "Add automation execution log for debugging",
-        "Document automation rule examples"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-30T00:00:00Z",
-      "updated_at": "2026-01-30T00:00:00Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
-      "id": "RQ-0448",
-      "status": "todo",
-      "title": "Implement velocity tracking and sprint planning features",
-      "priority": "low",
-      "tags": [
-        "cli",
-        "reports",
-        "feature",
-        "analytics"
-      ],
-      "scope": [
-        "crates/ralph/src/reports.rs",
-        "crates/ralph/src/cli/queue/",
-        "docs/cli.md"
-      ],
-      "evidence": [
-        "reports.rs has burndown but no velocity metrics",
-        "No sprint/iteration concept in task schema",
-        "No way to track team capacity or predict completion dates"
-      ],
-      "plan": [
-        "Add `sprint` field to Task for iteration grouping",
-        "Add `ralph sprint create <NAME> --start <DATE> --end <DATE>`",
-        "Add `ralph sprint list` showing active and past sprints",
-        "Calculate velocity as tasks/points completed per sprint",
-        "Add velocity chart showing trend over sprints",
-        "Add sprint burndown separate from overall burndown",
-        "Add capacity planning based on historical velocity",
-        "Add tests for sprint calculations and velocity metrics"
       ],
       "notes": [],
       "request": "scan finding",
@@ -1057,7 +819,7 @@
     },
     {
       "id": "RQ-0451",
-      "status": "todo",
+      "status": "draft",
       "title": "Implement IDE extensions for VS Code and JetBrains",
       "priority": "low",
       "tags": [

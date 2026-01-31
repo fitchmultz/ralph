@@ -131,6 +131,22 @@ pub(super) fn help_footer_spans(app: &App, max_width: usize) -> Vec<Span<'static
             Span::styled("Esc", Style::default().add_modifier(Modifier::BOLD)),
             Span::raw(":cancel"),
         ],
+        AppMode::ConfirmRepair { .. } => vec![
+            Span::styled("y", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(":repair "),
+            Span::styled("n", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(":cancel "),
+            Span::styled("Esc", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(":cancel"),
+        ],
+        AppMode::ConfirmUnlock => vec![
+            Span::styled("y", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(":unlock "),
+            Span::styled("n", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(":cancel "),
+            Span::styled("Esc", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw(":cancel"),
+        ],
         AppMode::ConfirmAutoArchive(_) => vec![
             Span::styled("y", Style::default().add_modifier(Modifier::BOLD)),
             Span::raw(":archive "),

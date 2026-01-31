@@ -93,6 +93,10 @@ pub enum AppMode {
     ConfirmDelete,
     /// Confirming archive of done/rejected tasks
     ConfirmArchive,
+    /// Confirming queue repair (with dry-run flag)
+    ConfirmRepair { dry_run: bool },
+    /// Confirming queue unlock
+    ConfirmUnlock,
     /// Confirming auto-archive of a single terminal task
     ConfirmAutoArchive(String),
     /// Confirming quit while a task is running
@@ -237,6 +241,8 @@ impl PartialEq for AppMode {
             ) => left_query == right_query && left_selected == right_selected,
             (ConfirmDelete, ConfirmDelete) => true,
             (ConfirmArchive, ConfirmArchive) => true,
+            (ConfirmRepair { dry_run: left }, ConfirmRepair { dry_run: right }) => left == right,
+            (ConfirmUnlock, ConfirmUnlock) => true,
             (ConfirmAutoArchive(left), ConfirmAutoArchive(right)) => left == right,
             (ConfirmQuit, ConfirmQuit) => true,
             (ConfirmDiscard { action: left }, ConfirmDiscard { action: right }) => left == right,

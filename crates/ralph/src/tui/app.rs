@@ -171,7 +171,9 @@ pub struct App {
     pub id_width: usize,
     /// Maximum allowed dependency chain depth before warning.
     pub max_dependency_depth: u8,
-    /// Optional path to the done queue (kept for future integrations/UI).
+    /// Optional path to the queue file.
+    pub queue_path: Option<PathBuf>,
+    /// Optional path to the done queue.
     pub done_path: Option<PathBuf>,
     /// Active filters applied to the task list.
     pub filters: FilterState,
@@ -264,6 +266,7 @@ impl App {
             id_prefix: "RQ".to_string(),
             id_width: 4,
             max_dependency_depth: 10,
+            queue_path: None,
             done_path: None,
             filters: FilterState::default(),
             filter_snapshot: None,
@@ -1080,6 +1083,77 @@ impl App {
         Ok(())
     }
 
+    /// Repair the queue file, optionally in dry-run mode.
+    pub fn repair_queue(&mut self, dry_run: bool) -> Result<()> {
+        let queue_path = self.queue_path.clone();
+        let done_path = self.done_path.clone();
+        let queue_path = queue_path
+            .as_ref()
+            .ok_or_else(|| anyhow!("queue path not resolved"))?;
+        let done_path = done_path
+            .as_ref()
+            .ok_or_else(|| anyhow!("done path not resolved"))?;
+        let id_prefix = self.id_prefix.clone();
+        let id_width = self.id_width;
+
+        let report = queue::repair_queue(queue_path, done_path, &id_prefix, id_width, dry_run)?;
+
+        if report.is_empty() {
+            self.set_status_message("No issues found. Queue is healthy.");
+        } else {
+            let mut parts = Vec::new();
+            if report.fixed_tasks > 0 {
+                parts.push(format!("{} tasks fixed", report.fixed_tasks));
+            }
+            if report.fixed_timestamps > 0 {
+                parts.push(format!("{} timestamps fixed", report.fixed_timestamps));
+            }
+            if !report.remapped_ids.is_empty() {
+                parts.push(format!("{} IDs remapped", report.remapped_ids.len()));
+            }
+            let msg = if dry_run {
+                format!("Dry run: {}", parts.join(", "))
+            } else {
+                format!("Repaired: {}", parts.join(", "))
+            };
+            self.set_status_message(msg);
+
+            // Reload queue if changes were made
+            if !dry_run {
+                self.queue = queue::load_queue_or_default(queue_path)?;
+                self.done = queue::load_queue_or_default(done_path)?;
+                self.dirty = false;
+                self.dirty_done = false;
+                self.bump_queue_rev();
+                self.rebuild_filtered_view();
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Unlock the queue by removing the lock directory.
+    pub fn unlock_queue(&mut self) -> Result<()> {
+        // Derive repo root from queue_path
+        let queue_path = self.queue_path.clone();
+        let repo_root = queue_path
+            .as_ref()
+            .and_then(|p| p.parent())
+            .and_then(|p| p.parent())
+            .ok_or_else(|| anyhow!("cannot determine repo root from queue path"))?;
+        let lock_dir = lock::queue_lock_dir(repo_root);
+
+        if lock_dir.exists() {
+            std::fs::remove_dir_all(&lock_dir)
+                .with_context(|| format!("remove lock dir {}", lock_dir.display()))?;
+            self.set_status_message(format!("Queue unlocked (removed {})", lock_dir.display()));
+        } else {
+            self.set_status_message("Queue is not locked.");
+        }
+
+        Ok(())
+    }
+
     /// Set the status of the selected task to a specific value.
     fn set_task_status(&mut self, status: &str, now_rfc3339: &str) {
         let Some(task_id) = self.selected_task().map(|t| t.id.clone()) else {
@@ -1523,6 +1597,18 @@ impl App {
                 title: "Jump to task by ID".to_string(),
             },
             PaletteEntry {
+                cmd: PaletteCommand::RepairQueue,
+                title: "Repair queue".to_string(),
+            },
+            PaletteEntry {
+                cmd: PaletteCommand::RepairQueueDryRun,
+                title: "Repair queue (dry run)".to_string(),
+            },
+            PaletteEntry {
+                cmd: PaletteCommand::UnlockQueue,
+                title: "Unlock queue".to_string(),
+            },
+            PaletteEntry {
                 cmd: PaletteCommand::Quit,
                 title: "Quit".to_string(),
             },
@@ -1781,6 +1867,18 @@ impl App {
             }
             PaletteCommand::JumpToTask => {
                 self.mode = AppMode::JumpingToTask(TextInput::new(""));
+                Ok(TuiAction::Continue)
+            }
+            PaletteCommand::RepairQueue => {
+                self.mode = AppMode::ConfirmRepair { dry_run: false };
+                Ok(TuiAction::Continue)
+            }
+            PaletteCommand::RepairQueueDryRun => {
+                self.mode = AppMode::ConfirmRepair { dry_run: true };
+                Ok(TuiAction::Continue)
+            }
+            PaletteCommand::UnlockQueue => {
+                self.mode = AppMode::ConfirmUnlock;
                 Ok(TuiAction::Continue)
             }
             PaletteCommand::Quit => {
@@ -2735,6 +2833,7 @@ pub fn prepare_tui_session(
     app.done = done.unwrap_or_default();
     app.id_prefix = resolved.id_prefix.clone();
     app.id_width = resolved.id_width;
+    app.queue_path = Some(resolved.queue_path.clone());
     app.done_path = Some(resolved.done_path.clone());
 
     let mut project_config = ConfigLayer::default();

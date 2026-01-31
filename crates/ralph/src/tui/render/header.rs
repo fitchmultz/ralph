@@ -137,6 +137,17 @@ fn mode_span(mode: &AppMode, running_task_id: Option<&String>) -> Span<'static> 
         AppMode::ConfirmArchive => {
             Span::styled("[Confirm Archive]", Style::default().fg(Color::Yellow))
         }
+        AppMode::ConfirmRepair { dry_run } => {
+            let label = if *dry_run {
+                "[Repair Queue (dry run)]"
+            } else {
+                "[Repair Queue]"
+            };
+            Span::styled(label, Style::default().fg(Color::Yellow))
+        }
+        AppMode::ConfirmUnlock => {
+            Span::styled("[Confirm Unlock]", Style::default().fg(Color::Yellow))
+        }
         AppMode::ConfirmAutoArchive(_) => {
             Span::styled("[Confirm Archive]", Style::default().fg(Color::Yellow))
         }

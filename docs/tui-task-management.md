@@ -252,6 +252,25 @@ estimate=2h
 - `a` → confirm `y`
 Moves all terminal tasks from active queue into done archive.
 
+### Repair queue
+- Press `:` and type "repair"
+- Choose from:
+  - **"Repair queue"** - Validates and fixes queue issues (confirmation required)
+  - **"Repair queue (dry run)"** - Validates without modifying files
+
+Repairs include:
+- Fixing missing fields (title, tags, scope, evidence, plan, request)
+- Normalizing timestamps to UTC
+- Backfilling completed_at for done/rejected tasks
+- Remapping duplicate or invalid IDs
+- Updating dependencies after ID remapping
+
+### Unlock queue
+- Press `:` and type "unlock"
+- Choose **"Unlock queue"** (confirmation required)
+
+Removes the queue lock file (`.ralph/lock/`). Use this when the queue is stuck due to a stale lock.
+
 ### Set status directly (without cycling)
 - Press `:` and type "set status"
 - Choose from: Draft, Todo, Doing, Done, Rejected

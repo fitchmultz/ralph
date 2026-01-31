@@ -148,6 +148,25 @@ pub fn draw_ui(f: &mut Frame<'_>, app: &mut App) {
         AppMode::ConfirmArchive => {
             overlays::draw_confirm_dialog(f, size, "Archive done/rejected tasks?", "(y/n)");
         }
+        AppMode::ConfirmRepair { dry_run: true } => {
+            overlays::draw_confirm_dialog(f, size, "Repair queue (dry run)?", "(y/n)");
+        }
+        AppMode::ConfirmRepair { dry_run: false } => {
+            overlays::draw_confirm_dialog(
+                f,
+                size,
+                "Repair queue? This will modify files.",
+                "(y/n)",
+            );
+        }
+        AppMode::ConfirmUnlock => {
+            overlays::draw_confirm_dialog(
+                f,
+                size,
+                "Unlock queue? This removes the lock file.",
+                "(y/n)",
+            );
+        }
         AppMode::ConfirmAutoArchive(task_id) => {
             let message = format!("Archive task {}?", task_id);
             overlays::draw_confirm_dialog(f, size, &message, "(y/n)");
