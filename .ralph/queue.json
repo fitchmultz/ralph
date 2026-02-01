@@ -44,42 +44,6 @@
       "custom_fields": {}
     },
     {
-      "id": "RQ-0473",
-      "status": "todo",
-      "title": "Improve test coverage for edge cases in queue operations",
-      "priority": "low",
-      "tags": [
-        "testing",
-        "coverage",
-        "queue"
-      ],
-      "scope": [
-        "crates/ralph/src/queue/operations/tests/"
-      ],
-      "evidence": [
-        "Batch operations have tests but edge cases may be missing",
-        "No tests for concurrent queue modifications",
-        "Limited tests for validation edge cases (circular deps, max depth)",
-        "Archive operations need more failure mode coverage"
-      ],
-      "plan": [
-        "Review current test coverage for queue operations",
-        "Add tests for: circular dependency detection, max depth exceeded",
-        "Add tests for: concurrent modification scenarios",
-        "Add tests for: invalid UTF-8 in task fields",
-        "Add tests for: queue file corruption handling",
-        "Ensure all failure modes have test coverage"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-30T17:40:48Z",
-      "updated_at": "2026-01-30T17:40:48Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0474",
       "status": "todo",
       "title": "Document security considerations for runner execution",

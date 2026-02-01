@@ -43,6 +43,7 @@ pub(crate) fn canonical_rfc3339(ts: &str) -> String {
 }
 
 mod archive;
+mod batch;
 mod edit;
 mod fields;
 mod mutation;
