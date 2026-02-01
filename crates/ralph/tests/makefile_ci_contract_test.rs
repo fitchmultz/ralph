@@ -125,3 +125,35 @@ members = []
 
     Ok(())
 }
+
+#[test]
+fn test_makefile_ci_includes_type_check_in_order() -> Result<()> {
+    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let repo_root = manifest_dir
+        .parent()
+        .and_then(|p| p.parent())
+        .context("resolve repo root")?;
+    let makefile = std::fs::read_to_string(repo_root.join("Makefile")).context("read Makefile")?;
+
+    assert!(
+        makefile.contains("type-check:"),
+        "Makefile should define a type-check target"
+    );
+
+    let format_idx = makefile
+        .find("$(MAKE) format")
+        .context("find format step in ci target")?;
+    let type_check_idx = makefile
+        .find("$(MAKE) type-check")
+        .context("find type-check step in ci target")?;
+    let lint_idx = makefile
+        .find("$(MAKE) lint")
+        .context("find lint step in ci target")?;
+
+    assert!(
+        format_idx < type_check_idx && type_check_idx < lint_idx,
+        "type-check should run after format and before lint in ci target"
+    );
+
+    Ok(())
+}

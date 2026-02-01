@@ -1,7 +1,7 @@
 {
   "version": 1,
   "first_task_completed_at": "2026-01-30T12:31:17.161199000Z",
-  "last_updated_at": "2026-02-01T12:57:32.863328000Z",
+  "last_updated_at": "2026-02-01T18:53:16.713065000Z",
   "daily": {
     "2026-01-30": {
       "date": "2026-01-30",
@@ -207,7 +207,7 @@
     },
     "2026-02-01": {
       "date": "2026-02-01",
-      "completed_count": 23,
+      "completed_count": 24,
       "tasks": [
         {
           "id": "RQ-0494",
@@ -323,6 +323,11 @@
           "id": "RQ-0450",
           "title": "Add task splitting command to break down large tasks",
           "completed_at": "2026-02-01T12:57:32.863327000Z"
+        },
+        {
+          "id": "RQ-0512",
+          "title": "Add make type-check target and run it in make ci",
+          "completed_at": "2026-02-01T18:53:16.713063000Z"
         }
       ]
     }
@@ -332,7 +337,7 @@
     "longest_streak": 3,
     "last_completed_date": "2026-02-01"
   },
-  "total_completed": 61,
+  "total_completed": 62,
   "milestones": [
     {
       "threshold": 10,

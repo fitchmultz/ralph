@@ -2,48 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0512",
-      "status": "todo",
-      "title": "Add make type-check target and run it in make ci",
-      "priority": "high",
-      "tags": [
-        "maintenance",
-        "makefile",
-        "ci"
-      ],
-      "scope": [
-        "Makefile",
-        "make ci",
-        "make type-check"
-      ],
-      "evidence": [
-        "Makefile has no type-check target: `rg -n \"^type-check:\" Makefile` returned no matches.",
-        "AGENTS.md requires `make type-check` and lists it in make ci order (AGENTS.md lines 9-10, 49).",
-        "`make ci` output on 2026-02-01 ran deps → format → lint → test → build → generate → install with no type-check step."
-      ],
-      "plan": [
-        "Add a `type-check` target in Makefile that runs `cargo check --workspace --all-targets`.",
-        "Insert `type-check` into the `ci` target sequence in the appropriate order.",
-        "Ensure any related tests/docs that assert CI steps are updated if needed.",
-        "Verify by running `make type-check` and `make ci` and confirming the step appears in output."
-      ],
-      "notes": [
-        "Principles: Operational hygiene, Fail fast, Least astonishment.",
-        "Why it matters: missing type-check can defer type errors to later steps and breaks the documented Makefile contract.",
-        "Minimal fix: add the target and wire it into `ci` without changing other steps.",
-        "Acceptance: `make type-check` succeeds and `make ci` shows type-check in the sequence."
-      ],
-      "request": "maintenance scan finding",
-      "created_at": "2026-02-01T17:19:30Z",
-      "updated_at": "2026-02-01T17:19:30Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0513",
       "status": "todo",
       "title": "Reconcile AGENTS.md make ci order with Makefile implementation",

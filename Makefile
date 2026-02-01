@@ -3,7 +3,7 @@ PREFIX ?= $(HOME)/.local
 BIN_DIR ?= $(PREFIX)/bin
 BIN_NAME ?= ralph
 
-.PHONY: install update lint format clean clean-temp test generate build ci deps \
+.PHONY: install update lint format type-check clean clean-temp test generate build ci deps \
 	check-env-safety check-backup-artifacts
 
 # Optional but cheap: fail fast if lockfile or network access is busted
@@ -29,6 +29,11 @@ format:
 	@echo "→ Formatting code..."
 	@cargo fmt --all
 	@echo "  ✓ Formatting complete"
+
+type-check:
+	@echo "→ Type-checking..."
+	@cargo check --workspace --all-targets
+	@echo "  ✓ Type-checking complete"
 
 lint:
 	@echo "→ Clippy autofix (mutates code)..."
@@ -126,6 +131,7 @@ ci:
 	$(MAKE) check-backup-artifacts  || { echo ""; echo "✗ CI failed at: check-backup-artifacts"; exit 1; }; \
 	$(MAKE) deps                   || { echo ""; echo "✗ CI failed at: deps"; exit 1; }; \
 	$(MAKE) format                 || { echo ""; echo "✗ CI failed at: format"; exit 1; }; \
+	$(MAKE) type-check             || { echo ""; echo "✗ CI failed at: type-check"; exit 1; }; \
 	$(MAKE) lint                   || { echo ""; echo "✗ CI failed at: lint"; exit 1; }; \
 	$(MAKE) test                   || { echo ""; echo "✗ CI failed at: test"; exit 1; }; \
 	$(MAKE) build                  || { echo ""; echo "✗ CI failed at: build"; exit 1; }; \
