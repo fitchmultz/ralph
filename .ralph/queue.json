@@ -2,45 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0500",
-      "status": "todo",
-      "title": "Harden Ctrl+C handling in runner execution to prevent stuck processes",
-      "priority": "high",
-      "tags": [
-        "maintenance",
-        "reliability",
-        "runner",
-        "signal-handling"
-      ],
-      "scope": [
-        "crates/ralph/src/runner/execution/process.rs",
-        "crates/ralph/src/commands/run/mod.rs"
-      ],
-      "evidence": [
-        "path: crates/ralph/src/runner/execution/process.rs :: fn wait_for_child :: Ctrl-C handling relies on external flag state",
-        "path: crates/ralph/src/runner/execution/process.rs :: lines 387-389 :: interrupted flag checked but may miss rapid signals",
-        "path: crates/ralph/src/commands/run/mod.rs :: lines 383-386 :: Ctrl+C state reset but not validated",
-        "repro: Send multiple rapid Ctrl+C during runner execution :: expected clean termination :: actual may leave orphan processes or hang"
-      ],
-      "plan": [
-        "Add timeout to Ctrl+C grace period to prevent infinite waits",
-        "Ensure process group is killed even if individual process detach",
-        "Add validation that Ctrl+C state was properly initialized before use",
-        "Add integration test for signal handling during runner execution",
-        "Verify by running runner and sending signals with kill command"
-      ],
-      "notes": [],
-      "request": "maintenance scan finding",
-      "created_at": "2026-02-01T05:14:31Z",
-      "updated_at": "2026-02-01T05:14:31Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0501",
       "status": "todo",
       "title": "Document error handling strategy and patterns for contributors",

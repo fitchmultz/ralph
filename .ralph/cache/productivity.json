@@ -1,7 +1,7 @@
 {
   "version": 1,
   "first_task_completed_at": "2026-01-30T12:31:17.161199000Z",
-  "last_updated_at": "2026-02-01T07:07:27.696417000Z",
+  "last_updated_at": "2026-02-01T07:37:10.625984000Z",
   "daily": {
     "2026-01-30": {
       "date": "2026-01-30",
@@ -207,7 +207,7 @@
     },
     "2026-02-01": {
       "date": "2026-02-01",
-      "completed_count": 10,
+      "completed_count": 11,
       "tasks": [
         {
           "id": "RQ-0494",
@@ -258,6 +258,11 @@
           "id": "RQ-0499",
           "title": "Fix non-interactive mode handling in sanity checks and init",
           "completed_at": "2026-02-01T07:07:27.696417000Z"
+        },
+        {
+          "id": "RQ-0500",
+          "title": "Harden Ctrl+C handling in runner execution to prevent stuck processes",
+          "completed_at": "2026-02-01T07:37:10.625983000Z"
         }
       ]
     }
@@ -267,7 +272,7 @@
     "longest_streak": 3,
     "last_completed_date": "2026-02-01"
   },
-  "total_completed": 48,
+  "total_completed": 49,
   "milestones": [
     {
       "threshold": 10,

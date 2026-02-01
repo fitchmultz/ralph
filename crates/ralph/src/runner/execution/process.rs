@@ -34,36 +34,158 @@ use super::super::{
 };
 use super::json::extract_session_id_from_text;
 use super::stream::{StreamSink, spawn_json_reader, spawn_reader};
+
+/// Type alias for reader thread join handle results.
+type ReaderResult = anyhow::Result<()>;
 use crate::contracts::Runner;
+
+/// Guard that ensures cleanup runs on all exit paths from process execution.
+///
+/// This guard manages:
+/// - Clearing `ctrlc.active_pgid` to prevent stale process group references
+/// - Joining stdout/stderr reader threads to prevent output loss
+///
+/// Cleanup runs regardless of whether execution succeeded, timed out, or failed.
+struct ProcessCleanupGuard<'a> {
+    ctrlc: &'a CtrlCState,
+    stdout_handle: Option<thread::JoinHandle<ReaderResult>>,
+    stderr_handle: Option<thread::JoinHandle<ReaderResult>>,
+    completed: bool,
+}
+
+impl<'a> ProcessCleanupGuard<'a> {
+    fn new(
+        ctrlc: &'a CtrlCState,
+        stdout_handle: thread::JoinHandle<ReaderResult>,
+        stderr_handle: thread::JoinHandle<ReaderResult>,
+    ) -> Self {
+        Self {
+            ctrlc,
+            stdout_handle: Some(stdout_handle),
+            stderr_handle: Some(stderr_handle),
+            completed: false,
+        }
+    }
+
+    #[allow(dead_code)]
+    /// Mark cleanup as completed successfully (no error to report).
+    fn mark_completed(&mut self) {
+        self.completed = true;
+    }
+
+    /// Run cleanup and return any error encountered.
+    /// This is idempotent - safe to call multiple times.
+    fn cleanup(&mut self) {
+        if self.completed {
+            return;
+        }
+
+        // Clear active_pgid first (most critical to prevent sending signals to wrong process)
+        #[cfg(unix)]
+        {
+            if let Ok(mut guard) = self.ctrlc.active_pgid.lock() {
+                *guard = None;
+            }
+            // If lock fails, log but don't fail - we still need to join threads
+        }
+
+        // Join stdout reader if still pending
+        if let Some(handle) = self.stdout_handle.take() {
+            let _ = handle.join();
+        }
+
+        // Join stderr reader if still pending
+        if let Some(handle) = self.stderr_handle.take() {
+            let _ = handle.join();
+        }
+
+        self.completed = true;
+    }
+}
+
+impl<'a> Drop for ProcessCleanupGuard<'a> {
+    fn drop(&mut self) {
+        // Ensure cleanup runs even if the guard is dropped without explicit cleanup call
+        self.cleanup();
+    }
+}
 
 pub(crate) struct CtrlCState {
     pub(crate) active_pgid: Mutex<Option<i32>>,
     pub(crate) interrupted: AtomicBool,
 }
 
-pub(crate) fn ctrlc_state() -> &'static Arc<CtrlCState> {
+/// Error type for Ctrl-C handler initialization failures.
+#[derive(Debug)]
+pub(crate) struct CtrlCInitError {
+    pub message: String,
+}
+
+impl std::fmt::Display for CtrlCInitError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.message)
+    }
+}
+
+impl std::error::Error for CtrlCInitError {}
+
+/// Initialize the global Ctrl-C handler and return the shared state.
+///
+/// This function is idempotent - it returns the existing state on subsequent calls
+/// after the first successful initialization.
+///
+/// # Errors
+/// Returns an error if the ctrlc handler cannot be installed (e.g., if another
+/// handler is already registered).
+pub(crate) fn ctrlc_state() -> Result<&'static Arc<CtrlCState>, CtrlCInitError> {
     static STATE: OnceLock<Arc<CtrlCState>> = OnceLock::new();
-    STATE.get_or_init(|| {
-        let state = Arc::new(CtrlCState {
-            active_pgid: Mutex::new(None),
-            interrupted: AtomicBool::new(false),
-        });
-        let handler_state = Arc::clone(&state);
-        let _ = ctrlc::set_handler(move || {
-            handler_state.interrupted.store(true, Ordering::SeqCst);
-            let pgid = handler_state
-                .active_pgid
-                .lock()
-                .ok()
-                .and_then(|guard| *guard);
-            if let Some(pgid) = pgid {
-                #[cfg(unix)]
-                unsafe {
-                    libc::kill(-pgid, libc::SIGINT);
-                }
+
+    // Fast path: already initialized
+    if let Some(state) = STATE.get() {
+        return Ok(state);
+    }
+
+    // Slow path: need to initialize
+    let state = Arc::new(CtrlCState {
+        active_pgid: Mutex::new(None),
+        interrupted: AtomicBool::new(false),
+    });
+
+    let handler_state = Arc::clone(&state);
+    match ctrlc::set_handler(move || {
+        handler_state.interrupted.store(true, Ordering::SeqCst);
+        let pgid = handler_state
+            .active_pgid
+            .lock()
+            .ok()
+            .and_then(|guard| *guard);
+        if let Some(pgid) = pgid {
+            #[cfg(unix)]
+            unsafe {
+                libc::kill(-pgid, libc::SIGINT);
             }
-        });
-        state
+        }
+    }) {
+        Ok(()) => {
+            // Only set in OnceLock on success
+            let state_ref = STATE.get_or_init(|| state);
+            Ok(state_ref)
+        }
+        Err(e) => Err(CtrlCInitError {
+            message: format!("Failed to install Ctrl-C handler: {}", e),
+        }),
+    }
+}
+
+/// Test-only helper to create a CtrlCState without registering a global handler.
+///
+/// This allows tests to have isolated Ctrl-C state without interfering with
+/// the global handler registration.
+#[cfg(test)]
+pub(crate) fn test_ctrlc_state() -> Arc<CtrlCState> {
+    Arc::new(CtrlCState {
+        active_pgid: Mutex::new(None),
+        interrupted: AtomicBool::new(false),
     })
 }
 
@@ -263,6 +385,26 @@ pub(crate) fn wait_for_child(
 
 /// Stream JSON output with visual filtering.
 pub(super) fn run_with_streaming_json(
+    cmd: Command,
+    stdin_payload: Option<&[u8]>,
+    runner: Runner,
+    bin: &str,
+    timeout: Option<Duration>,
+    output_handler: Option<OutputHandler>,
+    output_stream: OutputStream,
+) -> Result<RunnerOutput, RunnerError> {
+    run_with_streaming_json_inner(
+        cmd,
+        stdin_payload,
+        runner,
+        bin,
+        timeout,
+        output_handler,
+        output_stream,
+    )
+}
+
+fn run_with_streaming_json_inner(
     mut cmd: Command,
     stdin_payload: Option<&[u8]>,
     runner: Runner,
@@ -284,7 +426,15 @@ pub(super) fn run_with_streaming_json(
         });
     }
 
-    let ctrlc = ctrlc_state();
+    let ctrlc = ctrlc_state().map_err(|e| RunnerError::Other(anyhow::anyhow!(e)))?;
+
+    // Check for pre-run interrupt BEFORE resetting the flag.
+    // If an interrupt was already pending, we should not proceed.
+    if ctrlc.interrupted.load(Ordering::SeqCst) {
+        return Err(RunnerError::Interrupted);
+    }
+
+    // Now safe to reset for this run
     ctrlc.interrupted.store(false, Ordering::SeqCst);
 
     let mut child = cmd.spawn().map_err(|e| {
@@ -348,29 +498,17 @@ pub(super) fn run_with_streaming_json(
         output_stream,
     );
 
-    let status = wait_for_child(&mut child, ctrlc, timeout)?;
+    // Create cleanup guard to ensure cleanup runs on ALL exit paths
+    let mut guard = ProcessCleanupGuard::new(ctrlc, stdout_handle, stderr_handle);
 
-    #[cfg(unix)]
-    {
-        let mut guard = ctrlc.active_pgid.lock().map_err(|err| {
-            runner_execution_error_with_source(runner, bin, "lock ctrl-c state", err)
-        })?;
-        *guard = None;
-    }
+    // Wait for child - this may return Ok, Timeout, Io, or other errors
+    let status_result = wait_for_child(&mut child, ctrlc, timeout);
 
-    stdout_handle
-        .join()
-        .map_err(|_| runner_execution_error(runner, bin, "stdout reader panicked"))?
-        .map_err(|err| {
-            runner_execution_error_with_source(runner, bin, "read stdout stream", err)
-        })?;
-    stderr_handle
-        .join()
-        .map_err(|_| runner_execution_error(runner, bin, "stderr reader panicked"))?
-        .map_err(|err| {
-            runner_execution_error_with_source(runner, bin, "read stderr stream", err)
-        })?;
+    // Extract buffers before cleanup (cleanup joins threads which completes the buffers)
+    // We need to join the threads to get the full output
+    guard.cleanup();
 
+    // Now safe to extract buffers after threads are joined
     let stdout = {
         let mut guard = stdout_buf.lock().map_err(|err| {
             runner_execution_error_with_source(runner, bin, "lock stdout buffer", err)
@@ -384,9 +522,13 @@ pub(super) fn run_with_streaming_json(
         std::mem::take(&mut *guard)
     };
 
+    // Check if we were interrupted (after cleanup is done)
     if ctrlc.interrupted.load(Ordering::SeqCst) {
         return Err(RunnerError::Interrupted);
     }
+
+    // Now handle the wait_for_child result
+    let status = status_result?;
 
     let session_id = session_id_buf
         .lock()

@@ -376,11 +376,24 @@ fn run_one_impl(
     output_handler: Option<runner::OutputHandler>,
     revert_prompt: Option<runutil::RevertPromptHandler>,
 ) -> Result<RunOutcome> {
-    // Reset the Ctrl+C interrupt flag at the start of each task.
-    // This prevents the infinite loop bug where the interrupted flag persists
-    // across task attempts when the user cancels during pre-run updates or phases.
-    // The flag must be reset before any runner invocation (including task updater).
-    let ctrlc = crate::runner::ctrlc_state();
+    // Handle Ctrl+C state initialization and pre-run interrupt detection.
+    // If the handler setup fails, surface it as an error so Ctrl+C issues are visible.
+    let ctrlc = crate::runner::ctrlc_state()
+        .map_err(|e| anyhow::anyhow!("Ctrl-C handler initialization failed: {}", e))?;
+
+    // Check for pre-run interrupt BEFORE resetting the flag.
+    // If an interrupt was already pending (e.g., from a previous run or user pressed Ctrl+C
+    // before we got here), we should abort without clearing the flag.
+    if ctrlc.interrupted.load(std::sync::atomic::Ordering::SeqCst) {
+        return Err(runutil::RunAbort::new(
+            runutil::RunAbortReason::Interrupted,
+            "Ctrl+C was pressed before task execution started",
+        )
+        .into());
+    }
+
+    // Now safe to reset the flag for this run.
+    // This prevents stale interrupts from previous runs affecting this one.
     ctrlc
         .interrupted
         .store(false, std::sync::atomic::Ordering::SeqCst);
