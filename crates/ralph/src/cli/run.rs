@@ -252,6 +252,7 @@ Examples:\n\
  ralph run one --lfs-check\n\
  ralph run one --repo-prompt plan\n\
  ralph run one --repo-prompt off\n\
+ ralph run one --non-interactive\n\
  ralph tui"
     )]
     One(RunOneArgs),
@@ -317,6 +318,10 @@ pub struct RunOneArgs {
     #[arg(long, default_value_t = false)]
     pub visualize: bool,
 
+    /// Skip interactive prompts (for CI/non-interactive environments).
+    #[arg(long, conflicts_with = "interactive")]
+    pub non_interactive: bool,
+
     #[command(flatten)]
     pub agent: crate::agent::RunAgentArgs,
 }
@@ -353,9 +358,9 @@ pub struct RunLoopArgs {
 
 #[cfg(test)]
 mod tests {
-    use clap::CommandFactory;
+    use clap::{CommandFactory, Parser};
 
-    use crate::cli::Cli;
+    use crate::cli::{Cli, run::RunCommand};
 
     #[test]
     fn run_one_help_includes_phase_semantics() {
@@ -399,5 +404,54 @@ mod tests {
             help.contains("ralph run loop --repo-prompt off --max-tasks 1"),
             "missing repo-prompt off example: {help}"
         );
+    }
+
+    #[test]
+    fn run_one_non_interactive_parses() {
+        let args = vec!["ralph", "run", "one", "--non-interactive"];
+        let cli = Cli::parse_from(args);
+        match cli.command {
+            crate::cli::Command::Run(run_args) => match run_args.command {
+                RunCommand::One(one_args) => {
+                    assert!(one_args.non_interactive);
+                    assert!(!one_args.interactive);
+                }
+                _ => panic!("expected RunCommand::One"),
+            },
+            _ => panic!("expected Command::Run"),
+        }
+    }
+
+    #[test]
+    fn run_one_interactive_and_non_interactive_conflicts() {
+        let args = vec!["ralph", "run", "one", "--interactive", "--non-interactive"];
+        let result = Cli::try_parse_from(args);
+        assert!(
+            result.is_err(),
+            "--interactive and --non-interactive should conflict"
+        );
+    }
+
+    #[test]
+    fn run_one_non_interactive_with_id_parses() {
+        let args = vec![
+            "ralph",
+            "run",
+            "one",
+            "--non-interactive",
+            "--id",
+            "RQ-0001",
+        ];
+        let cli = Cli::parse_from(args);
+        match cli.command {
+            crate::cli::Command::Run(run_args) => match run_args.command {
+                RunCommand::One(one_args) => {
+                    assert!(one_args.non_interactive);
+                    assert_eq!(one_args.id, Some("RQ-0001".to_string()));
+                }
+                _ => panic!("expected RunCommand::One"),
+            },
+            _ => panic!("expected Command::Run"),
+        }
     }
 }

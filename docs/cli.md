@@ -35,7 +35,7 @@ Ralph runs automatic startup health checks on certain commands (`run one`, `run 
 2. **Config Migrations**: Detects deprecated/renamed config keys and prompts for migration.
 3. **Unknown Config Keys**: Detects unknown config keys and prompts to remove, keep, or rename them.
 
-Use `--auto-fix` to automatically apply all fixes without prompting (useful for CI). Use `--no-sanity-checks` to skip all health checks entirely.
+Use `--auto-fix` to automatically apply all fixes without prompting (useful for CI). Use `--no-sanity-checks` to skip all health checks entirely. For `run one`, use `--non-interactive` to skip prompts even in a TTY environment.
 
 Examples:
 ```bash
@@ -176,7 +176,7 @@ Bootstrap Ralph files in the current repository with an optional interactive onb
 
 ### Interactive Wizard
 
-When running in a TTY (or with `--interactive`), the wizard guides new users through:
+When running with both stdin and stdout as TTYs (or with `--interactive`), the wizard guides new users through:
 
 1. **Runner Selection**: Choose from Claude, Codex, OpenCode, Gemini, or Cursor
 2. **Model Selection**: Pick the appropriate model for your chosen runner
@@ -188,7 +188,7 @@ The wizard explains each option and generates a properly configured `.ralph/conf
 ### Flags
 
 * `--force`: Overwrite existing files if they already exist.
-* `--interactive` (`-i`): Force interactive wizard mode (even if not a TTY).
+* `--interactive` (`-i`): Force interactive wizard mode (requires both stdin and stdout to be TTYs). Fails if TTY is not available.
 * `--non-interactive`: Skip interactive prompts even if running in a TTY (use defaults).
 
 ### Workflow Modes
@@ -200,10 +200,10 @@ The wizard explains each option and generates a properly configured `.ralph/conf
 ### Examples
 
 ```bash
-# Auto-detect TTY and run wizard if interactive
+# Auto-detect TTY (requires both stdin and stdout TTYs) and run wizard if interactive
 ralph init
 
-# Force wizard mode
+# Force wizard mode (fails without TTY)
 ralph init --interactive
 
 # Skip wizard, use defaults (good for CI/scripts)
@@ -211,6 +211,9 @@ ralph init --non-interactive
 
 # Overwrite existing files with wizard
 ralph init --force --interactive
+
+# Check README without interactive prompts (works in non-TTY)
+ralph init --check
 ```
 
 ## `ralph context`
@@ -545,11 +548,14 @@ By default, draft tasks (`status: draft`) are skipped during task selection (so 
 When a previous run was interrupted, Ralph detects the stale session on the next run and prompts whether to resume. In non-interactive environments (CI, scripts), these prompts can block indefinitely.
 
 * `--resume`: Automatically resume an interrupted session without prompting (for `run loop`).
-* `--non-interactive`: Skip interactive prompts for session recovery (for `run loop` and `run resume`). When a stale session is detected in non-interactive mode, it is cleared and execution continues with the next task instead of blocking.
+* `--non-interactive`: Skip interactive prompts for sanity checks and session recovery (for `run one`, `run loop`, and `run resume`). When a stale session is detected in non-interactive mode, it is cleared and execution continues with the next task instead of blocking.
 
 Examples:
 
 ```bash
+# Non-interactive single task (skips sanity check prompts)
+ralph run one --non-interactive
+
 # Non-interactive loop (safe for CI)
 ralph run loop --non-interactive --max-tasks 5
 
@@ -1812,6 +1818,7 @@ ralph run one --runner codex --model gpt-5.2-codex --effort high
 The `run one` and `run loop` commands also support:
 
 * `--include-draft`: Include draft tasks (`status: draft`) when selecting what to run.
+* `--non-interactive`: Skip interactive prompts for sanity checks and session recovery (conflicts with `--interactive`). Useful for CI environments where TTY is not available.
 * `--update-task`: Automatically run `ralph task update <TASK_ID>` once per task immediately before the supervisor marks the task as `doing` and starts execution. This updates task fields (scope, evidence, plan, notes, tags, depends_on) based on current repository state, priming agents with better task information. Runs only once per task, before the first iteration (not before subsequent iterations if `iterations > 1`). Can also be enabled via config: `agent.update_task_before_run: true`.
 * `--no-update-task`: Disable automatic pre-run task update for this invocation (overrides config).
 * `--notify`: Enable desktop notification on task completion (overrides config).

@@ -60,9 +60,19 @@ fn run() -> Result<()> {
     let should_run_sanity = sanity::should_run_sanity_checks(&cli.command);
     if should_run_sanity && !cli.no_sanity_checks {
         let resolved = ralph::config::resolve_from_cwd_for_doctor()?;
+        // Extract non_interactive flag from run commands
+        let non_interactive = match &cli.command {
+            cli::Command::Run(run_args) => match &run_args.command {
+                cli::run::RunCommand::One(one_args) => one_args.non_interactive,
+                cli::run::RunCommand::Loop(loop_args) => loop_args.non_interactive,
+                cli::run::RunCommand::Resume(resume_args) => resume_args.non_interactive,
+            },
+            _ => false,
+        };
         let options = sanity::SanityOptions {
             auto_fix: cli.auto_fix,
             skip: false,
+            non_interactive,
         };
         let sanity_result = sanity::run_sanity_checks(&resolved, &options)?;
 
@@ -173,6 +183,7 @@ mod tests {
                 debug: false,
                 id: None,
                 visualize: false,
+                non_interactive: false,
                 agent: ralph::agent::RunAgentArgs::default(),
             }),
         });
@@ -203,6 +214,7 @@ mod tests {
                 debug: false,
                 id: Some("RQ-0001".to_string()),
                 visualize: false,
+                non_interactive: false,
                 agent: ralph::agent::RunAgentArgs::default(),
             }),
         });

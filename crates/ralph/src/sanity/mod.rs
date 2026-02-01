@@ -6,6 +6,7 @@
 //! - Detect and prompt for config migrations (deprecated keys, unknown keys).
 //! - Support --auto-fix flag to auto-approve all migrations without prompting.
 //! - Support --no-sanity-checks flag to skip all health checks.
+//! - Support non-interactive mode to skip all prompts (for CI/piped runs).
 //!
 //! Not handled here:
 //! - Deep validation (git, runners, queue structure) - that's `ralph doctor`.
@@ -17,7 +18,8 @@
 //! - README auto-update is automatic (users shouldn't edit this file manually).
 //! - Config migrations require user confirmation unless --auto-fix is set.
 //! - Unknown config keys prompt for remove/keep/rename action.
-//! - If stdin is not a TTY and --auto-fix is not set, warn and skip interactive prompts.
+//! - Prompts require both stdin and stdout to be TTYs.
+//! - If non_interactive is true, all prompts are skipped (use --auto-fix to apply changes).
 
 use crate::config::Resolved;
 use crate::migration::MigrationContext;
@@ -32,6 +34,20 @@ pub struct SanityOptions {
     pub auto_fix: bool,
     /// Skip all sanity checks.
     pub skip: bool,
+    /// Skip interactive prompts even if running in a TTY.
+    pub non_interactive: bool,
+}
+
+impl SanityOptions {
+    /// Check if we can prompt the user for input.
+    ///
+    /// Returns true only when:
+    /// - non_interactive is false, and
+    /// - stdin is a TTY, and
+    /// - stdout is a TTY.
+    pub fn can_prompt(&self) -> bool {
+        !self.non_interactive && is_tty()
+    }
 }
 
 /// Result of running sanity checks.
@@ -112,7 +128,7 @@ pub fn run_sanity_checks(resolved: &Resolved, options: &SanityOptions) -> Result
         }
     };
 
-    match check_and_handle_migrations(&mut ctx, options.auto_fix) {
+    match check_and_handle_migrations(&mut ctx, options.auto_fix, options.non_interactive) {
         Ok(migration_fixes) => {
             result.auto_fixes.extend(migration_fixes);
         }
@@ -127,7 +143,7 @@ pub fn run_sanity_checks(resolved: &Resolved, options: &SanityOptions) -> Result
     }
 
     // Check 3: Unknown config keys
-    match check_unknown_keys(resolved, options.auto_fix) {
+    match check_unknown_keys(resolved, options.auto_fix, options.non_interactive) {
         Ok(unknown_fixes) => {
             result.auto_fixes.extend(unknown_fixes);
         }
@@ -219,7 +235,11 @@ fn check_and_update_readme(resolved: &Resolved) -> Result<Option<String>> {
 /// Check for pending config migrations and prompt/apply them.
 ///
 /// Returns a list of migration descriptions that were applied.
-fn check_and_handle_migrations(ctx: &mut MigrationContext, auto_fix: bool) -> Result<Vec<String>> {
+fn check_and_handle_migrations(
+    ctx: &mut MigrationContext,
+    auto_fix: bool,
+    non_interactive: bool,
+) -> Result<Vec<String>> {
     use crate::migration::{
         MigrationCheckResult, MigrationType, apply_migration, check_migrations,
     };
@@ -257,11 +277,11 @@ fn check_and_handle_migrations(ctx: &mut MigrationContext, auto_fix: bool) -> Re
 
                 let should_apply = if auto_fix {
                     true
-                } else if is_tty() {
+                } else if !non_interactive && is_tty() {
                     // Prompt user
                     prompt_yes_no(&description, true)?
                 } else {
-                    // Not a TTY, can't prompt
+                    // Non-interactive or no TTY, can't prompt
                     log::warn!("{} (use --auto-fix to apply)", description);
                     false
                 };
@@ -287,7 +307,11 @@ fn check_and_handle_migrations(ctx: &mut MigrationContext, auto_fix: bool) -> Re
 /// or kept based on user input (or auto-fix setting).
 ///
 /// Returns a list of actions taken.
-fn check_unknown_keys(resolved: &Resolved, auto_fix: bool) -> Result<Vec<String>> {
+fn check_unknown_keys(
+    resolved: &Resolved,
+    auto_fix: bool,
+    non_interactive: bool,
+) -> Result<Vec<String>> {
     let mut actions = Vec::new();
 
     // Get known keys from the ConfigLayer struct
@@ -315,11 +339,11 @@ fn check_unknown_keys(resolved: &Resolved, auto_fix: bool) -> Result<Vec<String>
                                 UnknownKeyAction::Keep
                             }
                         }
-                    } else if is_tty() {
+                    } else if !non_interactive && is_tty() {
                         // Interactive: prompt user
                         prompt_unknown_key(&key, "project config")?
                     } else {
-                        // Not a TTY: warn and keep
+                        // Non-interactive or no TTY: warn and keep
                         log::warn!(
                             "Unknown config key '{}' in project config (use --auto-fix to remove)",
                             key
@@ -388,11 +412,11 @@ fn check_unknown_keys(resolved: &Resolved, auto_fix: bool) -> Result<Vec<String>
                                 UnknownKeyAction::Keep
                             }
                         }
-                    } else if is_tty() {
+                    } else if !non_interactive && is_tty() {
                         // Interactive: prompt user
                         prompt_unknown_key(&key, "global config")?
                     } else {
-                        // Not a TTY: warn and keep
+                        // Non-interactive or no TTY: warn and keep
                         log::warn!(
                             "Unknown config key '{}' in global config (use --auto-fix to remove)",
                             key
@@ -754,9 +778,11 @@ fn prompt_yes_no(message: &str, default_yes: bool) -> Result<bool> {
     }
 }
 
-/// Check if stdin is a TTY (interactive terminal).
+/// Check if both stdin and stdout are TTYs (interactive terminal).
+///
+/// Both streams must be TTYs for interactive prompting to work correctly.
 fn is_tty() -> bool {
-    atty::is(atty::Stream::Stdin)
+    atty::is(atty::Stream::Stdin) && atty::is(atty::Stream::Stdout)
 }
 
 /// Check if sanity checks should run for a given command.
@@ -808,6 +834,37 @@ pub fn report_sanity_results(result: &SanityResult, auto_fix: bool) -> bool {
 mod tests {
     use super::*;
     use tempfile::TempDir;
+
+    #[test]
+    fn sanity_options_can_prompt_non_interactive_disables_prompts() {
+        // Non-interactive mode should always disable prompting
+        let opts = SanityOptions {
+            non_interactive: true,
+            ..Default::default()
+        };
+        assert!(!opts.can_prompt());
+    }
+
+    #[test]
+    fn sanity_options_can_prompt_defaults_false() {
+        // Default options should be non-interactive when not in a TTY
+        // (We can't test the TTY case in a unit test, but we can verify the flag behavior)
+        let opts = SanityOptions::default();
+        // In test environment (non-TTY), can_prompt should return false
+        assert!(!opts.can_prompt());
+    }
+
+    #[test]
+    fn sanity_options_explicit_non_interactive_overrides() {
+        // Explicit non_interactive=true should disable prompts even if we were in a TTY
+        let opts = SanityOptions {
+            non_interactive: true,
+            auto_fix: false,
+            skip: false,
+        };
+        // Even if we were in a TTY, non_interactive should prevent prompting
+        assert!(!opts.can_prompt());
+    }
 
     #[test]
     fn get_known_config_keys_includes_top_level() {

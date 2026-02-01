@@ -2,45 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0499",
-      "status": "todo",
-      "title": "Fix non-interactive mode handling in sanity checks and init",
-      "priority": "high",
-      "tags": [
-        "maintenance",
-        "ux",
-        "reliability",
-        "sanity"
-      ],
-      "scope": [
-        "crates/ralph/src/sanity/mod.rs",
-        "crates/ralph/src/commands/init.rs"
-      ],
-      "evidence": [
-        "path: crates/ralph/src/sanity/mod.rs :: fn is_tty :: atty check returns false in non-interactive environments causing issues",
-        "path: crates/ralph/src/sanity/mod.rs :: lines 758-760 :: is_tty() only checks stdin, not appropriate for all commands",
-        "workflow: ralph init --non-interactive :: documented as required in AGENTS.md tests but UX is inconsistent",
-        "repro: Run ralph init in non-interactive shell without --non-interactive flag :: expected graceful fallback or clear error :: actual may hang or fail unexpectedly"
-      ],
-      "plan": [
-        "Review all interactive prompts in sanity/ and init/ modules",
-        "Add consistent --non-interactive flag support to all commands that may prompt",
-        "Improve error messages when TTY is required but not available",
-        "Add tests for non-interactive mode behavior",
-        "Verify by running commands in subshell with stdin redirected from /dev/null"
-      ],
-      "notes": [],
-      "request": "maintenance scan finding",
-      "created_at": "2026-02-01T05:14:31Z",
-      "updated_at": "2026-02-01T05:14:31Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0500",
       "status": "todo",
       "title": "Harden Ctrl+C handling in runner execution to prevent stuck processes",
