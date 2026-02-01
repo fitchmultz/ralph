@@ -2,6 +2,50 @@
   "version": 1,
   "tasks": [
     {
+      "id": "RQ-0498",
+      "status": "todo",
+      "title": "Investigate and fix slow/flaky CI gate causing multi-minute test execution",
+      "priority": "critical",
+      "tags": [
+        "bug",
+        "fix",
+        "ci",
+        "performance"
+      ],
+      "scope": [
+        "Makefile",
+        "crates/ralph/tests/",
+        "crates/ralph/src/",
+        "Cargo.toml"
+      ],
+      "evidence": [
+        "User reports: 'TESTS take WAY TOO LONG to execute'",
+        "User reports: 'SOMETHING IN THE CI GATE IS SUPER FLAKY'",
+        "User reports: 'CAUSE THE GATE TO TAKE DOZENS OF MINUTES TO COMPLETE AT TIMES'",
+        "User explicitly states: 'SOMETHING IS BROKEN AND IT IS NOT BECAUSE OF THE NUMBER OF TESTS'",
+        "CI gate runs: check-env-safety → check-backup-artifacts → generate → format → type-check → lint → build → test → install",
+        "CLI output calims all 1476 tests pass in a mere 4 seconds but THIS IS NOT TRUE. IT TAKES MUCH LONGER. IT IS A LIE."
+      ],
+      "plan": [
+        "Profile each step of `make ci` to identify the bottleneck(s)",
+        "Check for test timeouts, infinite loops, or race conditions in test code",
+        "Investigate any network-dependent tests that may hang or retry excessively",
+        "Look for file system polling loops or busy-waits in test utilities",
+        "Check for unbounded retries or exponential backoff without caps",
+        "Examine temp directory creation/cleanup for leaks or contention",
+        "Identify and fix the root cause (not a band-aid workaround)",
+        "Verify fix with multiple `make ci` runs to confirm stability"
+      ],
+      "notes": [],
+      "request": "The TESTS take WAY TOO LONG to execute. SOMETHING IN THE CI GATE IS SUPER FLAKY AND CAUSE THE GATE TO TAKE DOZENS OF MINUTES TO COMPLETE AT TIMES. SOMETHING IS BROKEN AND IT IS NOT BECAUSE OF THE NUMBER OF TESTS. SOMETHING IS DONE WRONG OR POORLY AND YOU MUST ROOT IT OUT.",
+      "created_at": "2026-01-31T00:00:00Z",
+      "updated_at": "2026-01-31T00:00:00Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
       "id": "RQ-0439",
       "status": "draft",
       "title": "Implement subtask support for hierarchical task breakdown",

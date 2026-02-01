@@ -159,7 +159,6 @@ To disable CI gating entirely (skip running any command), set:
 Optional. Per-phase overrides for runner, model, and reasoning effort. Allows using different runners or models for different phases of task execution.
 
 **Structure:**
-- `defaults` - Applied to all phases unless overridden
 - `phase1` - Overrides for phase 1 (planning)
 - `phase2` - Overrides for phase 2 (implementation)
 - `phase3` - Overrides for phase 3 (review)
@@ -175,22 +174,20 @@ Each phase config can specify:
 {
   "agent": {
     "runner": "codex",
-    "model": "gpt-5.2-codex,
+    "model": "gpt-5.2-codex",
     "reasoning_effort": "medium",
     "phase_overrides": {
-      "defaults": {
-        "runner": "kimi"
-      },
       "phase1": {
         "model": "gpt-5.2",
         "reasoning_effort": "high"
       },
       "phase2": {
-        "model": "kimi"
+        "runner": "kimi",
+        "model": "kimi-code/kimi-for-coding"
       },
       "phase3": {
         "runner": "codex",
-        "model": "gpt-5.2",
+        "model": "gpt-5.2-codex",
         "reasoning_effort": "high"
       }
     }
@@ -198,7 +195,7 @@ Each phase config can specify:
 }
 ```
 
-**Precedence:** CLI phase flags > config phase_overrides > global agent settings > defaults
+**Precedence (per phase):** CLI phase flags > config phase override (`agent.phase_overrides.phaseN.*`) > CLI global overrides > task overrides (`task.agent.*`) > config defaults (`agent.*`) > code defaults
 
 ## Queue Configuration
 `queue` controls file locations and task ID formatting.

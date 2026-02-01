@@ -590,20 +590,9 @@
       "additionalProperties": false
     },
     "PhaseOverrides": {
-      "description": "Phase overrides container with defaults and per-phase configuration.\n\nFollows the same pattern as RunnerCliConfigRoot: - `defaults` applies to all phases unless overridden - `phase1`, `phase2`, `phase3` are specific overrides for each phase",
+      "description": "Phase overrides container for Phase 1/2/3 execution.\n\nPer-phase configuration for Phase 1/2/3 execution.\n\nInvariants/assumptions: - Overrides are defined per phase only; there is no shared `defaults` layer inside `agent.phase_overrides`. Use global `agent.runner` / `agent.model` / `agent.reasoning_effort` for shared defaults. - Merging is leaf-wise: `Some(value)` overrides, `None` inherits.",
       "type": "object",
       "properties": {
-        "defaults": {
-          "description": "Default values applied to all phases unless overridden",
-          "anyOf": [
-            {
-              "$ref": "#/definitions/PhaseOverrideConfig"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
         "phase1": {
           "description": "Phase 1 specific overrides",
           "anyOf": [

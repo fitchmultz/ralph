@@ -401,18 +401,18 @@ impl PhaseOverrideConfig {
     }
 }
 
-/// Phase overrides container with defaults and per-phase configuration.
+/// Phase overrides container for Phase 1/2/3 execution.
 ///
-/// Follows the same pattern as RunnerCliConfigRoot:
-/// - `defaults` applies to all phases unless overridden
-/// - `phase1`, `phase2`, `phase3` are specific overrides for each phase
+/// Per-phase configuration for Phase 1/2/3 execution.
+///
+/// Invariants/assumptions:
+/// - Overrides are defined per phase only; there is no shared `defaults` layer inside
+///   `agent.phase_overrides`. Use global `agent.runner` / `agent.model` /
+///   `agent.reasoning_effort` for shared defaults.
+/// - Merging is leaf-wise: `Some(value)` overrides, `None` inherits.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(default, deny_unknown_fields)]
 pub struct PhaseOverrides {
-    /// Default values applied to all phases unless overridden
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub defaults: Option<PhaseOverrideConfig>,
-
     /// Phase 1 specific overrides
     #[serde(skip_serializing_if = "Option::is_none")]
     pub phase1: Option<PhaseOverrideConfig>,
@@ -428,16 +428,8 @@ pub struct PhaseOverrides {
 
 impl PhaseOverrides {
     /// Merge other into self following leaf-wise semantics:
-    /// 1. Merge defaults
-    /// 2. Merge each specific phase override
+    /// Merge each specific phase override
     pub fn merge_from(&mut self, other: Self) {
-        // Merge defaults
-        match (&mut self.defaults, other.defaults) {
-            (Some(existing), Some(new)) => existing.merge_from(new),
-            (None, Some(new)) => self.defaults = Some(new),
-            _ => {}
-        }
-
         // Merge phase1
         match (&mut self.phase1, other.phase1) {
             (Some(existing), Some(new)) => existing.merge_from(new),
@@ -1177,11 +1169,6 @@ mod tests {
     #[test]
     fn test_phase_overrides_merge_from() {
         let mut base = PhaseOverrides {
-            defaults: Some(PhaseOverrideConfig {
-                runner: Some(Runner::Codex),
-                model: None,
-                reasoning_effort: Some(ReasoningEffort::Low),
-            }),
             phase1: Some(PhaseOverrideConfig {
                 runner: Some(Runner::Codex),
                 model: Some(Model::Custom("o3-mini".to_string())),
@@ -1192,11 +1179,6 @@ mod tests {
         };
 
         let override_config = PhaseOverrides {
-            defaults: Some(PhaseOverrideConfig {
-                runner: Some(Runner::Claude),
-                model: None,
-                reasoning_effort: None,
-            }),
             phase1: Some(PhaseOverrideConfig {
                 runner: None,
                 model: Some(Model::Custom("claude-sonnet".to_string())),
@@ -1211,13 +1193,6 @@ mod tests {
         };
 
         base.merge_from(override_config);
-
-        // defaults merged
-        assert_eq!(base.defaults.as_ref().unwrap().runner, Some(Runner::Claude));
-        assert_eq!(
-            base.defaults.as_ref().unwrap().reasoning_effort,
-            Some(ReasoningEffort::Low)
-        );
 
         // phase1 merged
         assert_eq!(base.phase1.as_ref().unwrap().runner, Some(Runner::Codex)); // preserved
@@ -1256,11 +1231,6 @@ mod tests {
             claude_permission_mode: None,
             runner_cli: None,
             phase_overrides: Some(PhaseOverrides {
-                defaults: Some(PhaseOverrideConfig {
-                    runner: Some(Runner::Codex),
-                    model: None,
-                    reasoning_effort: Some(ReasoningEffort::Low),
-                }),
                 phase1: None,
                 phase2: None,
                 phase3: None,
@@ -1295,7 +1265,6 @@ mod tests {
             claude_permission_mode: None,
             runner_cli: None,
             phase_overrides: Some(PhaseOverrides {
-                defaults: None,
                 phase1: Some(PhaseOverrideConfig {
                     runner: Some(Runner::Gemini),
                     model: Some(Model::Custom("gemini-2.5".to_string())),
@@ -1326,7 +1295,6 @@ mod tests {
         // phase_overrides merged
         assert!(base.phase_overrides.is_some());
         let po = base.phase_overrides.unwrap();
-        assert_eq!(po.defaults.as_ref().unwrap().runner, Some(Runner::Codex));
         assert_eq!(po.phase1.as_ref().unwrap().runner, Some(Runner::Gemini));
     }
 }

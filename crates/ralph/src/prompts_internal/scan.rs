@@ -90,7 +90,6 @@ If a duplicate exists, do not add another.
     read the queue state.
 - Do not renumber existing task IDs.
 - Note: `ralph queue next` (without `-id`) returns the next queued task, not a new ID.
-- Note: `ralph queue next` (without `-id`) returns the next queued task, not a new ID.
 
 # TASK SHAPE (REQUIRED KEYS)
 Queue schema requires: id, title, created_at, updated_at.
@@ -211,6 +210,7 @@ If a duplicate exists, do not add another. Prefer skipping, or create a single r
     the same IDs. Generate IDs once, then insert all tasks before doing anything else that might
     read the queue state.
 - Do not renumber existing task IDs.
+- Note: `ralph queue next` (without `-id`) returns the next queued task, not a new ID.
 
 # TASK SHAPE (REQUIRED KEYS)
 Queue schema requires: id, title, created_at, updated_at.

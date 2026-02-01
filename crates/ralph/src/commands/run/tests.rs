@@ -1792,16 +1792,11 @@ fn resolve_phase_settings_effort_none_for_non_codex() {
 
     let overrides = test_overrides_with_phases(None, None, Some(ReasoningEffort::High), None);
 
-    let (matrix, warnings) =
+    let (matrix, _warnings) =
         resolve_phase_settings_matrix(&overrides, &config_agent, None, 3).unwrap();
 
     assert_eq!(matrix.phase1.reasoning_effort, None);
     assert_eq!(matrix.phase2.reasoning_effort, None);
-
-    // Should record warning
-    assert!(warnings.effort_ignored_non_codex.contains(&1));
-    assert!(warnings.effort_ignored_non_codex.contains(&2));
-    assert!(warnings.effort_ignored_non_codex.contains(&3));
 }
 
 #[test]
@@ -1843,7 +1838,6 @@ fn resolve_phase_settings_single_pass_uses_phase2_overrides() {
     let config_agent = test_config_agent(Some(Runner::Claude), Some(Model::Gpt52), None);
 
     let phase_overrides = PhaseOverrides {
-        defaults: None,
         phase1: Some(PhaseOverrideConfig {
             runner: Some(Runner::Opencode),
             model: Some(Model::Glm47),
@@ -2004,26 +1998,6 @@ fn resolve_phase_settings_warns_unused_phase1_and_phase3_when_phases_is_1() {
     assert!(warnings.unused_phase3);
 }
 
-#[test]
-fn resolve_phase_settings_records_effort_ignored_for_non_codex() {
-    let phase_overrides = PhaseOverrides {
-        phase1: Some(PhaseOverrideConfig {
-            runner: Some(Runner::Opencode), // Non-Codex
-            model: None,
-            reasoning_effort: Some(ReasoningEffort::High), // Effort specified
-        }),
-        ..Default::default()
-    };
-
-    let overrides = test_overrides_with_phases(None, None, None, Some(phase_overrides));
-    let config_agent = test_config_agent(Some(Runner::Claude), None, None);
-
-    let (_matrix, warnings) =
-        resolve_phase_settings_matrix(&overrides, &config_agent, None, 3).unwrap();
-
-    assert!(warnings.effort_ignored_non_codex.contains(&1));
-}
-
 // ============================================================================
 // Complex integration tests
 // ============================================================================
@@ -2038,7 +2012,6 @@ fn resolve_phase_settings_full_matrix_resolution() {
     );
 
     let phase_overrides = PhaseOverrides {
-        defaults: None,
         phase1: Some(PhaseOverrideConfig {
             runner: Some(Runner::Codex),
             model: Some(Model::Gpt52Codex),
@@ -2058,7 +2031,7 @@ fn resolve_phase_settings_full_matrix_resolution() {
 
     let overrides = test_overrides_with_phases(None, None, None, Some(phase_overrides));
 
-    let (matrix, warnings) =
+    let (matrix, _warnings) =
         resolve_phase_settings_matrix(&overrides, &config_agent, None, 3).unwrap();
 
     // Phase 1: Codex with high effort
@@ -2075,11 +2048,6 @@ fn resolve_phase_settings_full_matrix_resolution() {
     assert_eq!(matrix.phase3.runner, Runner::Gemini);
     assert_eq!(matrix.phase3.model.as_str(), "gemini-pro");
     assert_eq!(matrix.phase3.reasoning_effort, None);
-
-    // Should have warnings for ignored effort in phases 2 and 3
-    assert!(warnings.effort_ignored_non_codex.contains(&2));
-    assert!(warnings.effort_ignored_non_codex.contains(&3));
-    assert!(!warnings.effort_ignored_non_codex.contains(&1));
 }
 
 #[test]
@@ -2087,7 +2055,6 @@ fn resolve_phase_settings_config_phase_overrides_only() {
     // Test config-based phase overrides (not CLI)
     let mut config_agent = test_config_agent(Some(Runner::Claude), None, None);
     config_agent.phase_overrides = Some(PhaseOverrides {
-        defaults: None,
         phase1: Some(PhaseOverrideConfig {
             runner: Some(Runner::Codex),
             model: Some(Model::Gpt52Codex),
@@ -2195,7 +2162,6 @@ fn per_phase_settings_different_runners_per_phase() {
             model: Some(Model::Custom("gemini-pro".to_string())),
             reasoning_effort: None,
         }),
-        ..Default::default()
     };
 
     let overrides = test_overrides_with_phases(None, None, None, Some(phase_overrides));
@@ -2240,7 +2206,6 @@ fn single_pass_uses_phase2_settings() {
             model: None,
             reasoning_effort: None,
         }),
-        ..Default::default()
     };
 
     let overrides = test_overrides_with_phases(None, None, None, Some(phase_overrides));
@@ -2296,7 +2261,6 @@ fn resolution_warnings_collected_correctly() {
             model: None,
             reasoning_effort: None,
         }),
-        ..Default::default()
     };
 
     let overrides = test_overrides_with_phases(None, None, None, Some(phase_overrides));
@@ -2319,45 +2283,4 @@ fn resolution_warnings_collected_correctly() {
     assert!(!warnings.unused_phase1);
     assert!(!warnings.unused_phase2);
     assert!(!warnings.unused_phase3);
-}
-
-/// Test that effort_ignored_non_codex warnings are collected per phase
-#[test]
-fn effort_ignored_warnings_collected_per_phase() {
-    let phase_overrides = PhaseOverrides {
-        phase1: Some(PhaseOverrideConfig {
-            runner: Some(Runner::Codex),
-            model: Some(Model::Gpt52Codex),
-            reasoning_effort: Some(ReasoningEffort::High),
-        }),
-        phase2: Some(PhaseOverrideConfig {
-            runner: Some(Runner::Opencode), // Non-Codex
-            model: Some(Model::Glm47),
-            reasoning_effort: Some(ReasoningEffort::Medium), // Will be ignored
-        }),
-        phase3: Some(PhaseOverrideConfig {
-            runner: Some(Runner::Gemini), // Non-Codex
-            model: None,
-            reasoning_effort: Some(ReasoningEffort::Low), // Will be ignored
-        }),
-        ..Default::default()
-    };
-
-    let overrides = test_overrides_with_phases(None, None, None, Some(phase_overrides));
-    let config_agent = test_config_agent(Some(Runner::Claude), None, None);
-
-    let (matrix, warnings) =
-        resolve_phase_settings_matrix(&overrides, &config_agent, None, 3).unwrap();
-
-    // Phase 1: Codex with effort - effort should be preserved
-    assert_eq!(matrix.phase1.reasoning_effort, Some(ReasoningEffort::High));
-    assert!(!warnings.effort_ignored_non_codex.contains(&1));
-
-    // Phase 2: Opencode with effort - effort should be ignored
-    assert_eq!(matrix.phase2.reasoning_effort, None);
-    assert!(warnings.effort_ignored_non_codex.contains(&2));
-
-    // Phase 3: Gemini with effort - effort should be ignored
-    assert_eq!(matrix.phase3.reasoning_effort, None);
-    assert!(warnings.effort_ignored_non_codex.contains(&3));
 }

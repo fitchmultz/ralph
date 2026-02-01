@@ -502,13 +502,6 @@ fn run_one_impl(
     if phase_warnings.unused_phase3 {
         log::warn!("Task {task_id}: Phase 3 overrides specified but will not be used (phases < 3)");
     }
-    if !phase_warnings.effort_ignored_non_codex.is_empty() {
-        for phase in &phase_warnings.effort_ignored_non_codex {
-            log::warn!(
-                "Task {task_id}: Phase {phase} reasoning effort specified but ignored for non-Codex runner"
-            );
-        }
-    }
 
     // Log resolved per-phase matrix for visibility.
     log::info!("Task {task_id}: Resolved phase settings:");

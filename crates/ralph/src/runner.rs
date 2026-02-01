@@ -309,8 +309,6 @@ pub(crate) struct ResolutionWarnings {
     pub unused_phase2: bool,
     /// Phase 3 overrides were specified but will not be used
     pub unused_phase3: bool,
-    /// Phases where effort was specified but ignored (non-Codex runner)
-    pub effort_ignored_non_codex: Vec<u8>,
 }
 
 /// Resolve per-phase settings matrix from all configuration sources.
@@ -327,7 +325,7 @@ pub(crate) struct ResolutionWarnings {
 /// Special rules:
 /// - When runner is overridden at phase level without explicit model, uses runner's default model
 /// - Single-pass (--phases 1) uses Phase 2 overrides
-/// - Effort is only valid for Codex runners; ignored with warning for others
+/// - Effort is only valid for Codex runners; ignored for others
 ///
 /// # Arguments
 /// * `overrides` - CLI overrides from `AgentOverrides` (includes global and phase-specific)
@@ -390,7 +388,6 @@ pub(crate) fn resolve_phase_settings_matrix(
         overrides,
         task_agent,
         config_agent,
-        &mut warnings,
     )
     .map_err(|e| anyhow!("Phase 1: {}", e))?;
 
@@ -401,7 +398,6 @@ pub(crate) fn resolve_phase_settings_matrix(
         overrides,
         task_agent,
         config_agent,
-        &mut warnings,
     )
     .map_err(|e| anyhow!("Phase 2: {}", e))?;
 
@@ -412,7 +408,6 @@ pub(crate) fn resolve_phase_settings_matrix(
         overrides,
         task_agent,
         config_agent,
-        &mut warnings,
     )
     .map_err(|e| anyhow!("Phase 3: {}", e))?;
 
@@ -442,7 +437,6 @@ fn resolve_single_phase(
     global_overrides: &crate::agent::AgentOverrides,
     task_agent: Option<&TaskAgent>,
     config_agent: &AgentConfig,
-    warnings: &mut ResolutionWarnings,
 ) -> Result<ResolvedPhaseSettings> {
     // Determine if runner was overridden at phase level
     let runner_overridden_at_phase = cli_phase_override.and_then(|p| p.runner).is_some()
@@ -480,14 +474,12 @@ fn resolve_single_phase(
 
     // Resolve reasoning effort (only for Codex)
     let reasoning_effort = resolve_phase_reasoning_effort(
-        phase,
         runner,
         cli_phase_override.and_then(|p| p.reasoning_effort),
         config_phase_override.and_then(|p| p.reasoning_effort),
         global_overrides.reasoning_effort,
         task_agent,
         config_agent.reasoning_effort,
-        warnings,
     );
 
     // Warn about xhigh usage
@@ -570,32 +562,16 @@ fn normalize_model_for_runner(runner: Runner, model: Model) -> Model {
 /// Resolve reasoning effort for a phase.
 ///
 /// Returns Some(effort) for Codex runners, None for others.
-/// Records warnings when effort is specified but ignored.
-#[allow(clippy::too_many_arguments)]
 fn resolve_phase_reasoning_effort(
-    phase: u8,
     runner: Runner,
     cli_phase_effort: Option<ReasoningEffort>,
     config_phase_effort: Option<ReasoningEffort>,
     cli_global_effort: Option<ReasoningEffort>,
     task_agent: Option<&TaskAgent>,
     config_effort: Option<ReasoningEffort>,
-    warnings: &mut ResolutionWarnings,
 ) -> Option<ReasoningEffort> {
-    // Collect effort from all sources to detect if it was explicitly specified
-    let effort_specified = cli_phase_effort.is_some()
-        || config_phase_effort.is_some()
-        || cli_global_effort.is_some()
-        || task_agent
-            .and_then(|a| a.model_effort.as_reasoning_effort())
-            .is_some()
-        || config_effort.is_some();
-
-    // If not Codex, effort is always None (but record warning if specified)
+    // If not Codex, effort is always None.
     if runner != Runner::Codex {
-        if effort_specified {
-            warnings.effort_ignored_non_codex.push(phase);
-        }
         return None;
     }
 
