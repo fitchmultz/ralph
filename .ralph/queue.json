@@ -2,46 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0501",
-      "status": "todo",
-      "title": "Document error handling strategy and patterns for contributors",
-      "priority": "medium",
-      "tags": [
-        "maintenance",
-        "documentation",
-        "error-handling"
-      ],
-      "scope": [
-        "docs/error-handling.md",
-        "crates/ralph/src/run/mod.rs",
-        "crates/ralph/src/runutil.rs"
-      ],
-      "evidence": [
-        "path: AGENTS.md :: Error handling section exists but lacks concrete examples",
-        "path: crates/ralph/src/run/mod.rs :: Uses RunnerError, anyhow, and custom errors inconsistently",
-        "path: crates/ralph/src/runutil.rs :: abort_reason() pattern not documented for new contributors",
-        "config: docs/ :: No error-handling.md file exists despite being referenced"
-      ],
-      "plan": [
-        "Create docs/error-handling.md with comprehensive error handling guide",
-        "Document when to use anyhow vs thiserror vs custom enums",
-        "Add examples for each error handling pattern used in codebase",
-        "Document the abort_reason() pattern for run loop error classification",
-        "Add section on runner error redaction and safeguarding",
-        "Verify by reviewing new doc with make ci and ensuring clarity"
-      ],
-      "notes": [],
-      "request": "maintenance scan finding",
-      "created_at": "2026-02-01T05:14:31Z",
-      "updated_at": "2026-02-01T05:14:31Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0502",
       "status": "todo",
       "title": "Add validation step after JSON repair in queue loading",

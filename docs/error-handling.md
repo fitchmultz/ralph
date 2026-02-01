@@ -70,9 +70,20 @@ pub enum GitError {
 
 Runner-specific failures with redaction support for sensitive output.
 
-- 8 variants covering binary missing, spawn failed, non-zero exit, etc.
+- 8 variants covering binary missing, spawn failed, non-zero exit, signal termination, timeout, interruption, and I/O errors
 - Uses `RedactedString` for stdout/stderr to prevent secret leakage
+- `NonZeroExit` and `TerminatedBySignal` include optional `session_id` for resumption
 - Implements `thiserror::Error` for structured matching
+
+**Variants:**
+- `BinaryMissing` - Runner binary not found on PATH
+- `SpawnFailed` - Failed to spawn runner process
+- `NonZeroExit { code, stdout, stderr, session_id }` - Process exited with error code
+- `TerminatedBySignal { stdout, stderr, session_id }` - Process killed by signal
+- `Interrupted` - Execution was interrupted (Ctrl+C)
+- `Timeout` - Runner exceeded timeout limit
+- `Io` - General I/O error
+- `Other` - Any other error (from anyhow::Error)
 
 ### GitError (`crates/ralph/src/git/error.rs`)
 
@@ -91,11 +102,53 @@ Template loading and parsing failures.
 
 ### RunAbort (`crates/ralph/src/runutil.rs`)
 
-Flow control errors for runner interruptions.
+Flow control errors for runner interruptions. These are not failures but intentional control-flow signals.
 
 - Manual `std::error::Error` impl (justified for control flow semantics)
-- Used for interrupted execution and user-initiated reverts
-- Has `RunAbortReason` enum for classification
+- Used for interrupted execution (`Ctrl+C`) and user-initiated reverts
+- `RunAbortReason` enum classifies: `Interrupted` | `UserRevert`
+
+**Detecting RunAbort in error chains:**
+
+Use `abort_reason()` to detect if an error originated from a `RunAbort`:
+
+```rust
+use crate::runutil::{abort_reason, RunAbortReason};
+
+// In the run loop, handle control-flow errors differently
+match run_result {
+    Ok(output) => output,
+    Err(err) => {
+        // Check if this is a control-flow abort (not a failure)
+        if let Some(reason) = abort_reason(&err) {
+            match reason {
+                RunAbortReason::Interrupted => {
+                    // User pressed Ctrl+C - exit cleanly
+                    return Err(anyhow!("Run interrupted"));
+                }
+                RunAbortReason::UserRevert => {
+                    // User chose to revert - this is expected behavior
+                    return Err(anyhow!("Run aborted by user revert"));
+                }
+            }
+        }
+        // Otherwise, it's an actual error
+        return Err(err);
+    }
+}
+```
+
+**Creating a RunAbort:**
+
+```rust
+use crate::runutil::{RunAbort, RunAbortReason};
+
+// When the user chooses to revert during error recovery
+return Err(anyhow::Error::new(RunAbort::new(
+    RunAbortReason::UserRevert,
+    "User chose to revert uncommitted changes",
+)));
+```
 
 ## Best Practices
 
