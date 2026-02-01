@@ -428,6 +428,7 @@ fn generate_single_task(
         relates_to: Vec::new(),
         duplicates: None,
         custom_fields: HashMap::new(),
+        parent_id: None,
     })
 }
 
@@ -526,6 +527,7 @@ fn generate_multi_tasks(
             relates_to: Vec::new(),
             duplicates: None,
             custom_fields: HashMap::new(),
+            parent_id: None,
         });
     }
 

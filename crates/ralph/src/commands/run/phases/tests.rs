@@ -154,6 +154,7 @@ fn write_queue_and_done(repo_root: &Path, status: TaskStatus) -> Result<()> {
         relates_to: vec![],
         duplicates: None,
         custom_fields: std::collections::HashMap::new(),
+        parent_id: None,
     };
 
     queue::save_queue(

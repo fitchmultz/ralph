@@ -282,6 +282,13 @@
             "type": "string"
           }
         },
+        "parent_id": {
+          "description": "Parent task ID if this is a subtask (child-to-parent reference).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "plan": {
           "default": [],
           "type": "array",

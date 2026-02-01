@@ -85,6 +85,7 @@ fn make_task(id: &str, status: TaskStatus, title: &str) -> Task {
         relates_to: vec![],
         duplicates: None,
         custom_fields: HashMap::new(),
+        parent_id: None,
     }
 }
 

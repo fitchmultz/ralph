@@ -666,6 +666,7 @@ mod tests {
             duplicates: None,
             custom_fields: HashMap::new(),
             agent: None,
+            parent_id: None,
         }
     }
 

@@ -30,6 +30,7 @@ fn task_with(id: &str, status: TaskStatus, tags: Vec<String>) -> Task {
         relates_to: vec![],
         duplicates: None,
         custom_fields: HashMap::new(),
+        parent_id: None,
     }
 }
 
@@ -310,6 +311,7 @@ fn task_with_deps(id: &str, status: TaskStatus, deps: Vec<String>) -> Task {
         relates_to: vec![],
         duplicates: None,
         custom_fields: HashMap::new(),
+        parent_id: None,
     }
 }
 
@@ -537,6 +539,7 @@ fn task_with_relationships(
         relates_to,
         duplicates,
         custom_fields: HashMap::new(),
+        parent_id: None,
     }
 }
 

@@ -533,6 +533,7 @@ mod tests {
             relates_to: vec![],
             duplicates: None,
             custom_fields: std::collections::HashMap::new(),
+            parent_id: None,
         };
 
         let context = TemplateContext {
@@ -593,6 +594,7 @@ mod tests {
             relates_to: vec![],
             duplicates: None,
             custom_fields: std::collections::HashMap::new(),
+            parent_id: None,
         };
 
         let validation = validate_task_template(&task);
@@ -627,6 +629,7 @@ mod tests {
             relates_to: vec![],
             duplicates: None,
             custom_fields: std::collections::HashMap::new(),
+            parent_id: None,
         };
 
         let validation = validate_task_template(&task);
@@ -656,6 +659,7 @@ mod tests {
             relates_to: vec![],
             duplicates: None,
             custom_fields: std::collections::HashMap::new(),
+            parent_id: None,
         };
 
         let validation = validate_task_template(&task);

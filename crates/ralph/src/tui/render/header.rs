@@ -342,6 +342,7 @@ mod tests {
                     relates_to: vec![],
                     duplicates: None,
                     custom_fields: HashMap::new(),
+                    parent_id: None,
                 },
                 Task {
                     id: "RQ-0002".to_string(),
@@ -364,6 +365,7 @@ mod tests {
                     relates_to: vec![],
                     duplicates: None,
                     custom_fields: HashMap::new(),
+                    parent_id: None,
                 },
             ],
         };

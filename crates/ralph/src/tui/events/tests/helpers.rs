@@ -66,6 +66,7 @@ pub fn make_test_task(id: &str) -> Task {
         relates_to: vec![],
         duplicates: None,
         custom_fields: std::collections::HashMap::new(),
+        parent_id: None,
     }
 }
 

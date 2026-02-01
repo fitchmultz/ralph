@@ -469,6 +469,7 @@ mod tests {
             relates_to: vec![],
             duplicates: None,
             custom_fields: std::collections::HashMap::new(),
+            parent_id: None,
         }
     }
 

@@ -151,6 +151,7 @@ fn base_task() -> Task {
         relates_to: vec![],
         duplicates: None,
         custom_fields: std::collections::HashMap::new(),
+        parent_id: None,
     }
 }
 
@@ -240,6 +241,7 @@ fn task_with_status(status: TaskStatus) -> Task {
         relates_to: vec![],
         duplicates: None,
         custom_fields: std::collections::HashMap::new(),
+        parent_id: None,
     }
 }
 
@@ -271,6 +273,7 @@ fn run_one_with_id_locked_skips_reacquiring_queue_lock() -> anyhow::Result<()> {
         relates_to: vec![],
         duplicates: None,
         custom_fields: std::collections::HashMap::new(),
+        parent_id: None,
     };
     queue::save_queue(
         &resolved.queue_path,
@@ -838,6 +841,7 @@ fn task_with_id_and_status(id: &str, status: TaskStatus) -> Task {
         relates_to: vec![],
         duplicates: None,
         custom_fields: std::collections::HashMap::new(),
+        parent_id: None,
     }
 }
 

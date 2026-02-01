@@ -1133,6 +1133,66 @@ ralph task clone RQ-0001 --dry-run
 ralph task duplicate RQ-0001
 ```
 
+### ralph task split
+
+Split a task into multiple child tasks for better granularity. This is useful when a task grows too large and needs to be broken down into smaller, trackable pieces.
+
+The original task will be:
+- Marked with custom field `split: "true"` for tracking
+- Status changed to `rejected` (terminal state)
+- Original scope, evidence, and plan preserved for reference
+
+Child tasks will have:
+- New task IDs with `parent_id` set to the original task
+- Titles derived from the original (with optional prefix and index)
+- Scope and evidence copied from the original
+- Plan items distributed across children if `--distribute-plan` is used
+- Status set to `draft` by default (or specified via `--status`)
+
+**Flags:**
+
+- `--number <N>` (`-n`) - Number of child tasks to create (default: 2, minimum: 2).
+- `--status <draft|todo|doing>` - Status for child tasks (default: `draft`).
+- `--title-prefix <PREFIX>` - Prefix to add to child task titles.
+- `--distribute-plan` - Distribute plan items evenly across child tasks.
+- `--dry-run` - Preview the split without modifying the queue.
+
+**Examples:**
+
+```bash
+# Basic split (creates 2 draft child tasks)
+ralph task split RQ-0001
+
+# Split into 3 child tasks
+ralph task split --number 3 RQ-0001
+
+# Child tasks with specific status
+ralph task split --status todo --number 2 RQ-0001
+
+# Add prefix to child titles for visibility
+ralph task split --title-prefix "[Part] " RQ-0001
+
+# Distribute plan items across children
+ralph task split --distribute-plan RQ-0001
+
+# Preview without creating
+ralph task split --dry-run RQ-0001
+
+# Combined options
+ralph task split --number 3 --status todo --distribute-plan RQ-0001
+```
+
+**Child Task Title Format:**
+
+Without prefix: `"Original Title (1/3)"`, `"Original Title (2/3)"`, etc.
+With prefix: `"[Part] Original Title (1/3)"`, etc.
+
+**Plan Distribution:**
+
+When `--distribute-plan` is used, plan items are distributed round-robin across child tasks:
+- Parent plan: `["Step A", "Step B", "Step C", "Step D"]`
+- With 2 children: Child 1 gets `["Step A", "Step C"]`, Child 2 gets `["Step B", "Step D"]`
+
 ## `ralph task`
 
 Create tasks and edit task fields from CLI.
@@ -1153,6 +1213,7 @@ Common subcommands:
 - `ralph task template show <name>`: show template details.
 - `ralph task template build <name> [target] <request>`: build a task from a template.
 - `ralph task clone <TASK_ID>`: clone an existing task to create a new task from it. Alias: `duplicate`.
+- `ralph task split <TASK_ID>`: split a task into multiple child tasks for better granularity.
 
 Field formats (for `ralph task edit`):
 - Lists (`tags`, `scope`, `evidence`, `plan`, `notes`, `depends_on`): comma/newline-separated.

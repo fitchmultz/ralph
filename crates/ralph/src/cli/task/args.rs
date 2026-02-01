@@ -373,6 +373,36 @@ pub struct TaskCloneArgs {
 }
 
 #[derive(Args)]
+#[command(
+    after_long_help = "Examples:\n  ralph task split RQ-0001\n  ralph task split --number 3 RQ-0001\n  ralph task split --status todo --number 2 RQ-0001\n  ralph task split --distribute-plan RQ-0001"
+)]
+pub struct TaskSplitArgs {
+    /// Task ID to split.
+    #[arg(value_name = "TASK_ID")]
+    pub task_id: String,
+
+    /// Number of child tasks to create (default: 2, minimum: 2).
+    #[arg(short = 'n', long, default_value = "2")]
+    pub number: usize,
+
+    /// Status for child tasks (default: draft).
+    #[arg(long, value_enum)]
+    pub status: Option<TaskStatusArg>,
+
+    /// Prefix to add to child task titles.
+    #[arg(long)]
+    pub title_prefix: Option<String>,
+
+    /// Distribute plan items across child tasks.
+    #[arg(long)]
+    pub distribute_plan: bool,
+
+    /// Preview the split without modifying the queue.
+    #[arg(long)]
+    pub dry_run: bool,
+}
+
+#[derive(Args)]
 pub struct TaskEditArgs {
     /// Task field to update.
     #[arg(value_enum)]
@@ -754,4 +784,10 @@ pub enum TaskCommand {
         after_long_help = "Examples:\n ralph task mark-duplicate RQ-0001 RQ-0002"
     )]
     MarkDuplicate(TaskMarkDuplicateArgs),
+
+    /// Split a task into multiple child tasks for better granularity.
+    #[command(
+        after_long_help = "Examples:\n ralph task split RQ-0001\n ralph task split --number 3 RQ-0001\n ralph task split --status todo --number 2 RQ-0001\n ralph task split --distribute-plan RQ-0001"
+    )]
+    Split(TaskSplitArgs),
 }

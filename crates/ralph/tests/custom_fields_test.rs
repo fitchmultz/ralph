@@ -50,6 +50,7 @@ fn setup_test_queue() -> Result<(TempDir, config::Resolved)> {
             relates_to: vec![],
             duplicates: None,
             custom_fields: HashMap::new(),
+            parent_id: None,
         }],
     };
 
@@ -215,6 +216,7 @@ fn test_queue_validate_rejects_empty_custom_field_key() -> Result<()> {
             relates_to: vec![],
             duplicates: None,
             custom_fields,
+            parent_id: None,
         }],
     };
 
@@ -266,6 +268,7 @@ fn test_queue_validate_rejects_whitespace_in_custom_field_key() -> Result<()> {
             relates_to: vec![],
             duplicates: None,
             custom_fields,
+            parent_id: None,
         }],
     };
 
@@ -337,6 +340,7 @@ fn test_custom_fields_serialization_roundtrip() -> Result<()> {
         relates_to: vec![],
         duplicates: None,
         custom_fields: custom_fields.clone(),
+        parent_id: None,
     };
 
     // Serialize and deserialize

@@ -81,6 +81,7 @@ fn backfill_missing_fields_applies_defaults() {
             relates_to: vec![],
             duplicates: None,
             custom_fields: HashMap::new(),
+            parent_id: None,
         }],
     };
     let now_canon = canonical_rfc3339("2026-01-18T00:00:00Z");
@@ -289,6 +290,7 @@ fn sort_tasks_by_priority_descending_orders_high_first() {
                 relates_to: vec![],
                 duplicates: None,
                 custom_fields: HashMap::new(),
+                parent_id: None,
             },
             Task {
                 id: "RQ-0001".to_string(),
@@ -311,6 +313,7 @@ fn sort_tasks_by_priority_descending_orders_high_first() {
                 relates_to: vec![],
                 duplicates: None,
                 custom_fields: HashMap::new(),
+                parent_id: None,
             },
         ],
     };
@@ -362,6 +365,7 @@ fn task_id_set_ignores_empty_ids() {
         agent: None,
         created_at: None,
         updated_at: None,
+        parent_id: None,
         completed_at: None,
         scheduled_start: None,
         depends_on: vec![],

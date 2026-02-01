@@ -94,6 +94,10 @@ pub struct Task {
     /// Custom user-defined fields (key-value pairs for extensibility).
     #[serde(default)]
     pub custom_fields: HashMap<String, String>,
+
+    /// Parent task ID if this is a subtask (child-to-parent reference).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, Default, JsonSchema)]

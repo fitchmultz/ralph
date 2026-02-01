@@ -84,6 +84,7 @@ pub fn make_long_details_queue() -> QueueFile {
             relates_to: vec![],
             duplicates: None,
             custom_fields: HashMap::new(),
+            parent_id: None,
         }],
     }
 }
@@ -114,6 +115,7 @@ pub fn make_long_tags_queue() -> QueueFile {
             relates_to: vec![],
             duplicates: None,
             custom_fields: HashMap::new(),
+            parent_id: None,
         }],
     }
 }
@@ -141,6 +143,7 @@ pub fn make_task_list_queue() -> QueueFile {
         relates_to: vec![],
         duplicates: None,
         custom_fields: HashMap::new(),
+        parent_id: None,
     };
 
     QueueFile {

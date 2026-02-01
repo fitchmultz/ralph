@@ -301,6 +301,7 @@ fn test_render_with_multiple_tasks_in_list() {
             relates_to: vec![],
             duplicates: None,
             custom_fields: std::collections::HashMap::new(),
+            parent_id: None,
         })
         .collect();
 

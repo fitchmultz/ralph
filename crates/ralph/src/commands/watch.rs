@@ -649,6 +649,7 @@ fn create_task_from_comment(comment: &DetectedComment, resolved: &Resolved) -> R
         relates_to: Vec::new(),
         duplicates: None,
         custom_fields: HashMap::new(),
+        parent_id: None,
     })
 }
 

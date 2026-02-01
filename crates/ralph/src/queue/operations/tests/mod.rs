@@ -34,6 +34,7 @@ pub(crate) fn task_with(id: &str, status: TaskStatus, tags: Vec<String>) -> Task
         relates_to: vec![],
         duplicates: None,
         custom_fields: HashMap::new(),
+        parent_id: None,
     }
 }
 

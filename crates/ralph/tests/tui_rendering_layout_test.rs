@@ -58,6 +58,7 @@ fn test_render_scrolling_hides_top_tasks() {
             relates_to: vec![],
             duplicates: None,
             custom_fields: std::collections::HashMap::new(),
+            parent_id: None,
         })
         .collect();
 
@@ -101,6 +102,7 @@ fn test_render_scrolling_shows_bottom_tasks() {
             relates_to: vec![],
             duplicates: None,
             custom_fields: std::collections::HashMap::new(),
+            parent_id: None,
         })
         .collect();
 

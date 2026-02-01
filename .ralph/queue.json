@@ -83,46 +83,6 @@
       "custom_fields": {}
     },
     {
-      "id": "RQ-0450",
-      "status": "todo",
-      "title": "Add task splitting command to break down large tasks",
-      "priority": "low",
-      "tags": [
-        "cli",
-        "task",
-        "ux",
-        "task-management"
-      ],
-      "scope": [
-        "crates/ralph/src/cli/task.rs",
-        "crates/ralph/src/queue/operations/mutation.rs",
-        "docs/cli.md"
-      ],
-      "evidence": [
-        "No command to split a task into subtasks",
-        "Large tasks require manual creation of replacement tasks",
-        "No preservation of original task context when breaking down"
-      ],
-      "plan": [
-        "Add `ralph task split <TASK_ID>` command",
-        "Mark original task as split (new status or custom field)",
-        "Create child tasks linked via parent_id (depends on subtask feature)",
-        "Preserve original scope, evidence, plan in parent task",
-        "Distribute plan items across child tasks",
-        "Add `--interactive` mode to guide splitting process",
-        "Add `--number <N>` to create N empty child tasks",
-        "Update docs/cli.md with split examples"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-30T00:00:00Z",
-      "updated_at": "2026-01-30T00:00:00Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0451",
       "status": "draft",
       "title": "Implement IDE extensions for VS Code and JetBrains",

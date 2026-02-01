@@ -367,6 +367,7 @@ mod tests {
             relates_to: vec![],
             duplicates: None,
             custom_fields: HashMap::new(),
+            parent_id: None,
         }
     }
 

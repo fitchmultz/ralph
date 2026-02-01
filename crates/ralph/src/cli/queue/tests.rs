@@ -61,6 +61,7 @@ fn write_queue(path: &Path) -> Result<()> {
         relates_to: vec![],
         duplicates: None,
         custom_fields: HashMap::new(),
+        parent_id: None,
     };
     let queue = QueueFile {
         version: 1,
@@ -301,6 +302,7 @@ fn queue_list_scheduled_filter_excludes_unscheduled() -> Result<()> {
             relates_to: vec![],
             duplicates: None,
             custom_fields: HashMap::new(),
+            parent_id: None,
         },
         Task {
             id: "RQ-0002".to_string(),
@@ -323,6 +325,7 @@ fn queue_list_scheduled_filter_excludes_unscheduled() -> Result<()> {
             relates_to: vec![],
             duplicates: None,
             custom_fields: HashMap::new(),
+            parent_id: None,
         },
     ];
     let queue = QueueFile { version: 1, tasks };
@@ -367,6 +370,7 @@ fn queue_list_include_done_outputs_done_tasks() -> Result<()> {
         relates_to: vec![],
         duplicates: None,
         custom_fields: HashMap::new(),
+        parent_id: None,
     };
     let queue = QueueFile {
         version: 1,
@@ -396,6 +400,7 @@ fn queue_list_include_done_outputs_done_tasks() -> Result<()> {
         relates_to: vec![],
         duplicates: None,
         custom_fields: HashMap::new(),
+        parent_id: None,
     };
     let done = QueueFile {
         version: 1,

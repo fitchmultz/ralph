@@ -376,6 +376,7 @@ mod tests {
             relates_to: vec![],
             duplicates: None,
             custom_fields: Default::default(),
+            parent_id: None,
         }
     }
 

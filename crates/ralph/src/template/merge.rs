@@ -110,6 +110,7 @@ mod tests {
             relates_to: vec![],
             duplicates: None,
             custom_fields: std::collections::HashMap::new(),
+            parent_id: None,
         }
     }
 
@@ -207,6 +208,7 @@ mod tests {
             relates_to: vec![],
             duplicates: None,
             custom_fields: std::collections::HashMap::new(),
+            parent_id: None,
         };
 
         let mut options = TaskBuildOptions {
@@ -271,6 +273,7 @@ mod tests {
             relates_to: vec![],
             duplicates: None,
             custom_fields: std::collections::HashMap::new(),
+            parent_id: None,
         };
 
         let context = format_template_context(&template);
