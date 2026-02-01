@@ -49,7 +49,7 @@ pub mod buffers {
 /// Operational limits and thresholds.
 pub mod limits {
     /// Auto-retry limit for CI gate failures.
-    pub const CI_GATE_AUTO_RETRY_LIMIT: u8 = 2;
+    pub const CI_GATE_AUTO_RETRY_LIMIT: u8 = 5;
 
     /// Maximum consecutive failures before aborting run loop.
     pub const MAX_CONSECUTIVE_FAILURES: u32 = 50;
