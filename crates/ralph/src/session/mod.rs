@@ -230,9 +230,16 @@ pub fn prompt_session_recovery(session: &SessionState, non_interactive: bool) ->
 ///
 /// When `non_interactive` is true or stdin is not a TTY, returns `Ok(false)`
 /// without prompting, choosing the safe default of not resuming.
+///
+/// # Arguments
+/// * `session` - The session state to potentially resume
+/// * `hours` - The actual age of the session in hours
+/// * `threshold_hours` - The configured timeout threshold that was exceeded
+/// * `non_interactive` - Whether to skip interactive prompting
 pub fn prompt_session_recovery_timeout(
     session: &SessionState,
     hours: u64,
+    threshold_hours: u64,
     non_interactive: bool,
 ) -> Result<bool> {
     if non_interactive || !std::io::stdin().is_terminal() {
@@ -300,7 +307,11 @@ pub fn prompt_session_recovery_timeout(
 
     println!("╚══════════════════════════════════════════════════════════════╝");
     println!();
-    println!("Warning: This session is older than 24 hours.");
+    println!(
+        "Warning: This session is older than {} hour{}.",
+        threshold_hours,
+        if threshold_hours == 1 { "" } else { "s" }
+    );
     print!("Resume anyway? [y/N]: ");
     io::stdout().flush().context("flush stdout")?;
 
@@ -341,6 +352,7 @@ mod tests {
     use super::*;
     use crate::contracts::{Task, TaskPriority};
     use tempfile::TempDir;
+    use time::Duration;
 
     fn test_task(id: &str, status: TaskStatus) -> Task {
         Task {
@@ -476,10 +488,125 @@ mod tests {
     fn prompt_session_recovery_timeout_returns_false_when_non_interactive() {
         let session = test_session("RQ-0001");
         // When non_interactive=true, should return false without prompting
-        let result = prompt_session_recovery_timeout(&session, 48, true).unwrap();
+        let result = prompt_session_recovery_timeout(&session, 48, 24, true).unwrap();
         assert!(
             !result,
             "non_interactive=true should return false (do not resume)"
+        );
+    }
+
+    #[test]
+    fn validate_session_returns_timeout_when_older_than_threshold() {
+        // Create a session that is 48 hours old
+        let old_timestamp = timeutil::format_rfc3339(
+            timeutil::parse_rfc3339(&timeutil::now_utc_rfc3339_or_fallback())
+                .unwrap()
+                .saturating_sub(Duration::hours(48)),
+        )
+        .unwrap();
+        let session = SessionState::new(
+            "test-session-id".to_string(),
+            "RQ-0001".to_string(),
+            old_timestamp,
+            1,
+            crate::contracts::Runner::Claude,
+            "sonnet".to_string(),
+            0,
+            None,
+            None,
+        );
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![test_task("RQ-0001", TaskStatus::Doing)],
+        };
+
+        // With 24-hour threshold, should timeout
+        let result = validate_session(&session, &queue, Some(24));
+        assert!(
+            matches!(result, SessionValidationResult::Timeout { hours } if hours >= 48),
+            "Session older than threshold should return Timeout"
+        );
+    }
+
+    #[test]
+    fn validate_session_returns_valid_when_within_custom_threshold() {
+        // Create a session that is 12 hours old
+        let old_timestamp = timeutil::format_rfc3339(
+            timeutil::parse_rfc3339(&timeutil::now_utc_rfc3339_or_fallback())
+                .unwrap()
+                .saturating_sub(Duration::hours(12)),
+        )
+        .unwrap();
+        let session = SessionState::new(
+            "test-session-id".to_string(),
+            "RQ-0001".to_string(),
+            old_timestamp,
+            1,
+            crate::contracts::Runner::Claude,
+            "sonnet".to_string(),
+            0,
+            None,
+            None,
+        );
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![test_task("RQ-0001", TaskStatus::Doing)],
+        };
+
+        // With 48-hour threshold, 12-hour session should be valid
+        let result = validate_session(&session, &queue, Some(48));
+        assert!(
+            matches!(result, SessionValidationResult::Valid(_)),
+            "Session within custom threshold should return Valid"
+        );
+    }
+
+    #[test]
+    fn validate_session_returns_valid_when_within_default_threshold() {
+        // Create a session that is just 1 hour old
+        let old_timestamp = timeutil::format_rfc3339(
+            timeutil::parse_rfc3339(&timeutil::now_utc_rfc3339_or_fallback())
+                .unwrap()
+                .saturating_sub(Duration::hours(1)),
+        )
+        .unwrap();
+        let session = SessionState::new(
+            "test-session-id".to_string(),
+            "RQ-0001".to_string(),
+            old_timestamp,
+            1,
+            crate::contracts::Runner::Claude,
+            "sonnet".to_string(),
+            0,
+            None,
+            None,
+        );
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![test_task("RQ-0001", TaskStatus::Doing)],
+        };
+
+        // With default 24-hour threshold, 1-hour session should be valid
+        let result = validate_session(&session, &queue, Some(24));
+        assert!(
+            matches!(result, SessionValidationResult::Valid(_)),
+            "Session within default threshold should return Valid"
+        );
+    }
+
+    #[test]
+    fn validate_session_returns_valid_when_no_timeout_configured() {
+        let session = test_session("RQ-0001");
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![test_task("RQ-0001", TaskStatus::Doing)],
+        };
+
+        // With no timeout configured (None), session should always be valid
+        let result = validate_session(&session, &queue, None);
+        assert!(
+            matches!(result, SessionValidationResult::Valid(_)),
+            "Session should be Valid when no timeout is configured"
         );
     }
 }

@@ -124,6 +124,7 @@ mod tests {
                     ..NotificationConfig::default()
                 },
                 webhook: crate::contracts::WebhookConfig::default(),
+                session_timeout_hours: None,
             },
             queue: QueueConfig {
                 file: Some(PathBuf::from(".ralph/queue.json")),

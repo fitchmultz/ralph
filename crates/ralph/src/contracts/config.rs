@@ -16,6 +16,7 @@ use crate::constants::defaults::DEFAULT_ID_WIDTH;
 use crate::constants::limits::{
     DEFAULT_SIZE_WARNING_THRESHOLD_KB, DEFAULT_TASK_COUNT_WARNING_THRESHOLD,
 };
+use crate::constants::timeouts::DEFAULT_SESSION_TIMEOUT_HOURS;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -207,6 +208,12 @@ pub struct AgentConfig {
 
     /// Webhook configuration for HTTP task event notifications.
     pub webhook: WebhookConfig,
+
+    /// Session timeout in hours for crash recovery (default: 24).
+    /// Sessions older than this threshold are considered stale and require
+    /// explicit user confirmation to resume.
+    #[schemars(range(min = 1))]
+    pub session_timeout_hours: Option<u64>,
 }
 
 impl AgentConfig {
@@ -295,6 +302,9 @@ impl AgentConfig {
         }
         self.notification.merge_from(other.notification);
         self.webhook.merge_from(other.webhook);
+        if other.session_timeout_hours.is_some() {
+            self.session_timeout_hours = other.session_timeout_hours;
+        }
     }
 }
 
@@ -1047,6 +1057,7 @@ impl Default for Config {
                     timeout_ms: Some(8000),
                 },
                 webhook: WebhookConfig::default(),
+                session_timeout_hours: Some(DEFAULT_SESSION_TIMEOUT_HOURS),
             },
             tui: TuiConfig::default(),
         }
@@ -1246,6 +1257,7 @@ mod tests {
             fail_on_prerun_update_error: None,
             notification: NotificationConfig::default(),
             webhook: WebhookConfig::default(),
+            session_timeout_hours: None,
         };
 
         let other = AgentConfig {
@@ -1284,6 +1296,7 @@ mod tests {
             fail_on_prerun_update_error: None,
             notification: NotificationConfig::default(),
             webhook: WebhookConfig::default(),
+            session_timeout_hours: None,
         };
 
         base.merge_from(other);

@@ -65,6 +65,7 @@ Supported fields:
 - `git_revert_mode`: `ask`, `enabled`, or `disabled`.
 - `git_commit_push_enabled`: enable or disable automatic git commit/push after successful runs (default: `true`).
   **Safety warning:** When enabled, Ralph will automatically push changes to the remote repository. This action is irreversible. The TUI will prompt for confirmation when enabling this setting.
+- `session_timeout_hours`: session timeout in hours for crash recovery (default: `24`). Sessions older than this threshold are considered stale and require explicit user confirmation to resume. Set to a higher value if you want to allow resuming sessions after longer periods.
 - `ci_gate_command`: command to run for the CI gate (default: `make ci`).
 - `ci_gate_enabled`: enable or disable the CI gate (default: `true`).
   **Safety warning:** Disabling the CI gate skips validation before commit/push, which may allow broken code to be pushed.
@@ -153,6 +154,16 @@ To disable CI gating entirely (skip running any command), set:
 {
   "agent": {
     "ci_gate_enabled": false
+  }
+}
+```
+
+To configure a longer session timeout for crash recovery (e.g., 72 hours for weekend-long tasks):
+
+```json
+{
+  "agent": {
+    "session_timeout_hours": 72
   }
 }
 ```

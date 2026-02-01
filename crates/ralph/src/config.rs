@@ -226,6 +226,15 @@ pub fn validate_config(cfg: &Config) -> Result<()> {
         );
     }
 
+    if let Some(timeout) = cfg.agent.session_timeout_hours
+        && timeout == 0
+    {
+        bail!(
+            "Invalid agent.session_timeout_hours: {}. Session timeout must be greater than 0. Update .ralph/config.json.",
+            timeout
+        );
+    }
+
     if let Some(bin) = &cfg.agent.codex_bin
         && bin.trim().is_empty()
     {
@@ -441,6 +450,15 @@ mod tests {
 
         let err = validate_config(&cfg).expect_err("expected validation to fail");
         assert!(err.to_string().contains("agent.iterations"));
+    }
+
+    #[test]
+    fn validate_config_rejects_zero_session_timeout_hours() {
+        let mut cfg = Config::default();
+        cfg.agent.session_timeout_hours = Some(0);
+
+        let err = validate_config(&cfg).expect_err("expected validation to fail");
+        assert!(err.to_string().contains("agent.session_timeout_hours"));
     }
 
     #[test]

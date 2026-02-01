@@ -679,6 +679,7 @@ mod tests {
                 git_commit_push_enabled: Some(true),
                 notification: NotificationConfig::default(),
                 webhook: crate::contracts::WebhookConfig::default(),
+                session_timeout_hours: None,
             },
             queue: QueueConfig::default(),
             ..Config::default()

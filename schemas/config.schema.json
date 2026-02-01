@@ -82,6 +82,7 @@
             }
           }
         },
+        "session_timeout_hours": 24,
         "update_task_before_run": false,
         "webhook": {
           "enabled": null,
@@ -402,6 +403,16 @@
               "type": "null"
             }
           ]
+        },
+        "session_timeout_hours": {
+          "description": "Session timeout in hours for crash recovery (default: 24). Sessions older than this threshold are considered stale and require explicit user confirmation to resume.",
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 1.0
         },
         "update_task_before_run": {
           "description": "If true, automatically run `ralph task update <TASK_ID>` once per task immediately before the supervisor marks the task as `doing` and starts execution.\n\nDefault: false (opt-in).",

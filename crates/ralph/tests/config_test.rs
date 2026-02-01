@@ -576,6 +576,7 @@ fn test_agent_config_merge_from_partial() {
         fail_on_prerun_update_error: None,
         notification: NotificationConfig::default(),
         webhook: WebhookConfig::default(),
+        session_timeout_hours: None,
     };
 
     let override_config = AgentConfig {
@@ -606,6 +607,7 @@ fn test_agent_config_merge_from_partial() {
         fail_on_prerun_update_error: None,
         notification: NotificationConfig::default(),
         webhook: WebhookConfig::default(),
+        session_timeout_hours: Some(48),
     };
 
     base.merge_from(override_config);

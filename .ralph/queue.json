@@ -2,46 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0506",
-      "status": "todo",
-      "title": "Unify and document session timeout configuration",
-      "priority": "low",
-      "tags": [
-        "maintenance",
-        "configuration",
-        "session"
-      ],
-      "scope": [
-        "crates/ralph/src/session/mod.rs",
-        "crates/ralph/src/contracts/session.rs",
-        "schemas/config.schema.json"
-      ],
-      "evidence": [
-        "path: crates/ralph/src/session/mod.rs :: lines 121-134 :: session timeout hardcoded via parameter, not configurable",
-        "path: crates/ralph/src/constants/timeouts.rs :: DEFAULT_SESSION_TIMEOUT_HOURS exists but not exposed in config",
-        "path: schemas/config.schema.json :: No session.timeout_hours or similar configuration option",
-        "config: crates/ralph/src/config.rs :: Session timeout not part of Resolved config"
-      ],
-      "plan": [
-        "Add session.timeout_hours to Config contract",
-        "Update session validation to use config value instead of hardcoded parameter",
-        "Add session configuration section to docs/configuration.md",
-        "Ensure default matches current behavior (24 hours)",
-        "Add test for custom session timeout configuration",
-        "Verify by setting custom timeout and checking session behavior"
-      ],
-      "notes": [],
-      "request": "maintenance scan finding",
-      "created_at": "2026-02-01T05:14:31Z",
-      "updated_at": "2026-02-01T05:14:31Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0507",
       "status": "todo",
       "title": "Improve template variable error reporting and validation",

@@ -90,19 +90,40 @@ pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()>
     let cache_dir = resolved.repo_root.join(".ralph/cache");
     let queue_file = queue::load_queue(&resolved.queue_path)?;
 
-    // Handle session recovery
-    let (resume_task_id, completed_count) = match session::check_session(
-        &cache_dir,
-        &queue_file,
-        Some(crate::constants::timeouts::DEFAULT_SESSION_TIMEOUT_HOURS),
-    )? {
-        SessionValidationResult::NoSession => (None, opts.starting_completed),
-        SessionValidationResult::Valid(session) => {
-            if opts.auto_resume {
-                log::info!("Auto-resuming session for task {}", session.task_id);
-                (Some(session.task_id), session.tasks_completed_in_loop)
-            } else {
-                match session::prompt_session_recovery(&session, opts.non_interactive)? {
+    // Handle session recovery (use configured timeout, defaulting to 24 hours)
+    let session_timeout_hours = resolved.config.agent.session_timeout_hours;
+    let (resume_task_id, completed_count) =
+        match session::check_session(&cache_dir, &queue_file, session_timeout_hours)? {
+            SessionValidationResult::NoSession => (None, opts.starting_completed),
+            SessionValidationResult::Valid(session) => {
+                if opts.auto_resume {
+                    log::info!("Auto-resuming session for task {}", session.task_id);
+                    (Some(session.task_id), session.tasks_completed_in_loop)
+                } else {
+                    match session::prompt_session_recovery(&session, opts.non_interactive)? {
+                        true => (Some(session.task_id), session.tasks_completed_in_loop),
+                        false => {
+                            session::clear_session(&cache_dir)?;
+                            (None, opts.starting_completed)
+                        }
+                    }
+                }
+            }
+            SessionValidationResult::Stale { reason } => {
+                log::info!("Stale session cleared: {}", reason);
+                session::clear_session(&cache_dir)?;
+                (None, opts.starting_completed)
+            }
+            SessionValidationResult::Timeout { hours } => {
+                let session = session::load_session(&cache_dir)?.unwrap();
+                let threshold = session_timeout_hours
+                    .unwrap_or(crate::constants::timeouts::DEFAULT_SESSION_TIMEOUT_HOURS);
+                match session::prompt_session_recovery_timeout(
+                    &session,
+                    hours,
+                    threshold,
+                    opts.non_interactive,
+                )? {
                     true => (Some(session.task_id), session.tasks_completed_in_loop),
                     false => {
                         session::clear_session(&cache_dir)?;
@@ -110,23 +131,7 @@ pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()>
                     }
                 }
             }
-        }
-        SessionValidationResult::Stale { reason } => {
-            log::info!("Stale session cleared: {}", reason);
-            session::clear_session(&cache_dir)?;
-            (None, opts.starting_completed)
-        }
-        SessionValidationResult::Timeout { hours } => {
-            let session = session::load_session(&cache_dir)?.unwrap();
-            match session::prompt_session_recovery_timeout(&session, hours, opts.non_interactive)? {
-                true => (Some(session.task_id), session.tasks_completed_in_loop),
-                false => {
-                    session::clear_session(&cache_dir)?;
-                    (None, opts.starting_completed)
-                }
-            }
-        }
-    };
+        };
 
     let include_draft = opts.agent_overrides.include_draft.unwrap_or(false);
     let initial_todo_count = queue_file
