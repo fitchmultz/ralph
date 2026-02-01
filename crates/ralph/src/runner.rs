@@ -264,6 +264,348 @@ pub(crate) fn resolve_agent_settings(
     })
 }
 
+/// Resolved settings for a single phase.
+///
+/// This struct holds the final resolved runner, model, reasoning effort, and CLI options
+/// for a specific phase of execution.
+#[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
+pub(crate) struct ResolvedPhaseSettings {
+    pub runner: Runner,
+    pub model: Model,
+    pub reasoning_effort: Option<ReasoningEffort>,
+    pub runner_cli: execution::ResolvedRunnerCliOptions,
+}
+
+/// Resolved settings for all phases (1-3).
+///
+/// Contains per-phase resolved settings for multi-phase task execution.
+#[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
+pub(crate) struct PhaseSettingsMatrix {
+    pub phase1: ResolvedPhaseSettings,
+    pub phase2: ResolvedPhaseSettings,
+    pub phase3: ResolvedPhaseSettings,
+}
+
+/// Warnings collected during phase settings resolution.
+///
+/// Tracks unused phase overrides and effort warnings for user feedback.
+#[derive(Debug, Default, PartialEq)]
+#[allow(dead_code)]
+pub(crate) struct ResolutionWarnings {
+    /// Phase 1 overrides were specified but will not be used
+    pub unused_phase1: bool,
+    /// Phase 2 overrides were specified but will not be used
+    pub unused_phase2: bool,
+    /// Phase 3 overrides were specified but will not be used
+    pub unused_phase3: bool,
+    /// Phases where effort was specified but ignored (non-Codex runner)
+    pub effort_ignored_non_codex: Vec<u8>,
+}
+
+/// Resolve per-phase settings matrix from all configuration sources.
+///
+/// This function is pure (no side effects) and testable with minimal fixtures.
+/// It resolves settings for all three phases following the precedence rules:
+/// 1. CLI phase override (--runner-phaseN, --model-phaseN, --effort-phaseN)
+/// 2. Config phase override (agent.phase_overrides.phaseN.*)
+/// 3. CLI global overrides (--runner, --model, --effort)
+/// 4. Task overrides (task.agent.*)
+/// 5. Config defaults (agent.*)
+/// 6. Code defaults
+///
+/// Special rules:
+/// - When runner is overridden at phase level without explicit model, uses runner's default model
+/// - Single-pass (--phases 1) uses Phase 2 overrides
+/// - Effort is only valid for Codex runners; ignored with warning for others
+///
+/// # Arguments
+/// * `overrides` - CLI overrides from `AgentOverrides` (includes global and phase-specific)
+/// * `config_agent` - Resolved agent configuration
+/// * `task_agent` - Optional task-level agent configuration
+/// * `phases` - Number of phases that will execute (1, 2, or 3)
+///
+/// # Returns
+/// * `Ok((PhaseSettingsMatrix, ResolutionWarnings))` - Resolved settings and any warnings
+/// * `Err(...)` - Validation errors (e.g., invalid model for runner in a specific phase)
+#[allow(dead_code)]
+pub(crate) fn resolve_phase_settings_matrix(
+    overrides: &crate::agent::AgentOverrides,
+    config_agent: &AgentConfig,
+    task_agent: Option<&TaskAgent>,
+    phases: u8,
+) -> Result<(PhaseSettingsMatrix, ResolutionWarnings)> {
+    let cli_phase_overrides = overrides.phase_overrides.as_ref();
+    let config_phase_overrides = config_agent.phase_overrides.as_ref();
+
+    let mut warnings = ResolutionWarnings::default();
+
+    // Collect warnings for unused phase overrides
+    // Phase usage by execution mode:
+    // - phases=1 (single-pass): uses Phase 2 settings
+    // - phases=2: uses Phase 1 (plan) and Phase 2 (implement)
+    // - phases=3: uses all phases
+    if phases < 3 {
+        // Phase 3 overrides are unused when running less than 3 phases
+        if let Some(cli) = cli_phase_overrides {
+            if cli.phase3.is_some() {
+                warnings.unused_phase3 = true;
+            }
+        }
+        if let Some(config) = config_phase_overrides {
+            if config.phase3.is_some() {
+                warnings.unused_phase3 = true;
+            }
+        }
+    }
+    if phases < 2 {
+        // Phase 1 overrides are unused in single-pass (uses Phase 2 instead)
+        if let Some(cli) = cli_phase_overrides {
+            if cli.phase1.is_some() {
+                warnings.unused_phase1 = true;
+            }
+        }
+        if let Some(config) = config_phase_overrides {
+            if config.phase1.is_some() {
+                warnings.unused_phase1 = true;
+            }
+        }
+    }
+    // Note: Phase 2 is always used (single-pass uses Phase 2, 2-phase uses Phase 2, 3-phase uses Phase 2)
+
+    // Resolve each phase
+    let phase1 = resolve_single_phase(
+        1,
+        cli_phase_overrides.and_then(|p| p.phase1.as_ref()),
+        config_phase_overrides.and_then(|p| p.phase1.as_ref()),
+        overrides,
+        task_agent,
+        config_agent,
+        &mut warnings,
+    )
+    .map_err(|e| anyhow!("Phase 1: {}", e))?;
+
+    let phase2 = resolve_single_phase(
+        2,
+        cli_phase_overrides.and_then(|p| p.phase2.as_ref()),
+        config_phase_overrides.and_then(|p| p.phase2.as_ref()),
+        overrides,
+        task_agent,
+        config_agent,
+        &mut warnings,
+    )
+    .map_err(|e| anyhow!("Phase 2: {}", e))?;
+
+    let phase3 = resolve_single_phase(
+        3,
+        cli_phase_overrides.and_then(|p| p.phase3.as_ref()),
+        config_phase_overrides.and_then(|p| p.phase3.as_ref()),
+        overrides,
+        task_agent,
+        config_agent,
+        &mut warnings,
+    )
+    .map_err(|e| anyhow!("Phase 3: {}", e))?;
+
+    Ok((
+        PhaseSettingsMatrix {
+            phase1,
+            phase2,
+            phase3,
+        },
+        warnings,
+    ))
+}
+
+/// Resolve settings for a single phase following precedence rules.
+///
+/// Precedence (highest to lowest):
+/// 1. CLI phase override
+/// 2. Config phase override
+/// 3. CLI global override
+/// 4. Task override
+/// 5. Config default
+/// 6. Code default
+#[allow(dead_code)]
+fn resolve_single_phase(
+    phase: u8,
+    cli_phase_override: Option<&crate::contracts::PhaseOverrideConfig>,
+    config_phase_override: Option<&crate::contracts::PhaseOverrideConfig>,
+    global_overrides: &crate::agent::AgentOverrides,
+    task_agent: Option<&TaskAgent>,
+    config_agent: &AgentConfig,
+    warnings: &mut ResolutionWarnings,
+) -> Result<ResolvedPhaseSettings> {
+    // Determine if runner was overridden at phase level
+    let runner_overridden_at_phase = cli_phase_override.and_then(|p| p.runner).is_some()
+        || config_phase_override.and_then(|p| p.runner).is_some();
+
+    // Resolve runner with precedence: CLI phase > config phase > CLI global > task > config > default
+    let runner = cli_phase_override
+        .and_then(|p| p.runner)
+        .or(config_phase_override.and_then(|p| p.runner))
+        .or(global_overrides.runner)
+        .or(task_agent.and_then(|a| a.runner))
+        .or(config_agent.runner)
+        .unwrap_or_default();
+
+    // Resolve model with precedence: CLI phase > config phase > CLI global > task > config (with defaulting)
+    let model = resolve_model_for_phase(
+        runner,
+        cli_phase_override.and_then(|p| p.model.clone()),
+        config_phase_override.and_then(|p| p.model.clone()),
+        global_overrides.model.clone(),
+        task_agent.and_then(|a| a.model.clone()),
+        config_agent.model.clone(),
+        runner_overridden_at_phase || global_overrides.runner.is_some(),
+    );
+
+    // Validate model for runner
+    validate_model_for_runner(runner, &model).map_err(|e| {
+        anyhow!(
+            "invalid model {} for {} runner: {}",
+            model.as_str(),
+            runner_label(runner),
+            e
+        )
+    })?;
+
+    // Resolve reasoning effort (only for Codex)
+    let reasoning_effort = resolve_phase_reasoning_effort(
+        phase,
+        runner,
+        cli_phase_override.and_then(|p| p.reasoning_effort),
+        config_phase_override.and_then(|p| p.reasoning_effort),
+        global_overrides.reasoning_effort,
+        task_agent,
+        config_agent.reasoning_effort,
+        warnings,
+    );
+
+    // Warn about xhigh usage
+    if reasoning_effort == Some(ReasoningEffort::XHigh) {
+        log::warn!(
+            "Phase {}: Using xhigh reasoning effort. This consumes usage limits extremely fast and should only be used rarely.",
+            phase
+        );
+    }
+
+    // Resolve runner CLI options (use global overrides for now; phase-specific CLI overrides not yet implemented)
+    let runner_cli = execution::resolve_runner_cli_options(
+        runner,
+        &global_overrides.runner_cli,
+        task_agent.and_then(|a| a.runner_cli.as_ref()),
+        config_agent,
+    )?;
+
+    Ok(ResolvedPhaseSettings {
+        runner,
+        model,
+        reasoning_effort,
+        runner_cli,
+    })
+}
+
+/// Resolve model for a phase with proper precedence and defaulting.
+///
+/// When runner is overridden at phase level or globally, and no model is explicitly
+/// set at an equal-or-higher precedence, the model becomes the runner's default.
+#[allow(dead_code)]
+fn resolve_model_for_phase(
+    runner: Runner,
+    cli_phase_model: Option<Model>,
+    config_phase_model: Option<Model>,
+    cli_global_model: Option<Model>,
+    task_model: Option<Model>,
+    config_model: Option<Model>,
+    runner_was_overridden: bool,
+) -> Model {
+    // Check for explicit model at each precedence level
+    if let Some(model) = cli_phase_model {
+        return model;
+    }
+    if let Some(model) = config_phase_model {
+        return normalize_model_for_runner(runner, model);
+    }
+    if let Some(model) = cli_global_model {
+        return model;
+    }
+    if let Some(model) = task_model {
+        return normalize_model_for_runner(runner, model);
+    }
+
+    // If runner was overridden but no explicit model, use runner's default
+    if runner_was_overridden {
+        return default_model_for_runner(runner);
+    }
+
+    // Fall back to config model with normalization
+    match config_model {
+        None => default_model_for_runner(runner),
+        Some(model) => normalize_model_for_runner(runner, model),
+    }
+}
+
+/// Normalize a model for a specific runner.
+#[allow(dead_code)]
+fn normalize_model_for_runner(runner: Runner, model: Model) -> Model {
+    if runner == Runner::Codex {
+        match model {
+            Model::Gpt52Codex | Model::Gpt52 => model,
+            _ => default_model_for_runner(runner),
+        }
+    } else if model == Model::Gpt52Codex {
+        default_model_for_runner(runner)
+    } else {
+        model
+    }
+}
+
+/// Resolve reasoning effort for a phase.
+///
+/// Returns Some(effort) for Codex runners, None for others.
+/// Records warnings when effort is specified but ignored.
+#[allow(clippy::too_many_arguments)]
+#[allow(dead_code)]
+fn resolve_phase_reasoning_effort(
+    phase: u8,
+    runner: Runner,
+    cli_phase_effort: Option<ReasoningEffort>,
+    config_phase_effort: Option<ReasoningEffort>,
+    cli_global_effort: Option<ReasoningEffort>,
+    task_agent: Option<&TaskAgent>,
+    config_effort: Option<ReasoningEffort>,
+    warnings: &mut ResolutionWarnings,
+) -> Option<ReasoningEffort> {
+    // Collect effort from all sources to detect if it was explicitly specified
+    let effort_specified = cli_phase_effort.is_some()
+        || config_phase_effort.is_some()
+        || cli_global_effort.is_some()
+        || task_agent
+            .and_then(|a| a.model_effort.as_reasoning_effort())
+            .is_some()
+        || config_effort.is_some();
+
+    // If not Codex, effort is always None (but record warning if specified)
+    if runner != Runner::Codex {
+        if effort_specified {
+            warnings.effort_ignored_non_codex.push(phase);
+        }
+        return None;
+    }
+
+    // For Codex, resolve with precedence
+    let effort = cli_phase_effort
+        .or(config_phase_effort)
+        .or(cli_global_effort)
+        .or(task_agent.and_then(|a| a.model_effort.as_reasoning_effort()))
+        .or(config_effort)
+        .unwrap_or_default();
+
+    Some(effort)
+}
+
 pub(crate) fn validate_model_for_runner(runner: Runner, model: &Model) -> Result<()> {
     if runner == Runner::Codex {
         match model {

@@ -2,51 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0491",
-      "status": "todo",
-      "title": "Implement per-phase runner/model/effort resolution matrix (pure helper + tests)",
-      "priority": "high",
-      "tags": [
-        "run",
-        "runner",
-        "logic",
-        "testing"
-      ],
-      "scope": [
-        "crates/ralph/src/commands/run/",
-        "crates/ralph/src/runner.rs",
-        "crates/ralph/src/commands/run/tests.rs"
-      ],
-      "evidence": [
-        "Today Ralph resolves a single AgentSettings and reuses it across all phases",
-        "Spec requires per-phase precedence: CLI phase > config phase > existing global/task/config/default",
-        "Spec requires runner->model defaulting when runner is explicitly overridden for a phase and model is not",
-        "Spec requires effort to be ignored for non-Codex runners and to be phase-specific for Codex"
-      ],
-      "plan": [
-        "Introduce a small internal data model representing a per-phase override (runner/model/effort) and a resolved per-phase settings matrix",
-        "Implement a resolution function that returns resolved settings per executed phase, honoring baseline compatibility when no phase overrides are present",
-        "Ensure errors mention which phase failed validation (invalid model for codex, empty model, etc.)",
-        "Implement warning hooks/return values for: unused phase overrides; effort ignored for non-Codex",
-        "Add thorough unit tests covering precedence, model defaulting, single-pass mapping to phase2 overrides, and failure modes",
-        "Run `make ci`"
-      ],
-      "notes": [
-        "Overall spec: /private/tmp/ralph-phase-specific-runner-model-spec.md (see: Resolution & Precedence; Warnings & Errors; Tests)"
-      ],
-      "request": "Centralize phase-specific settings resolution",
-      "created_at": "2026-01-31T12:03:00Z",
-      "updated_at": "2026-02-01T00:29:14.603910000Z",
-      "depends_on": [
-        "RQ-0477"
-      ],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "notes": "Overall spec: /private/tmp/ralph-phase-specific-runner-model-spec.md (see: Resolution & Precedence; Warnings & Errors; Tests). CLI surface (--runner-phaseN, etc.) implemented in RQ-0495."
-      }
-    },
-    {
       "id": "RQ-0496",
       "status": "todo",
       "title": "Wire per-phase settings into run orchestration (phases + pre-run update + logging)",
