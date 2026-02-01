@@ -19,7 +19,7 @@
 use crate::config;
 use crate::contracts::Runner;
 use crate::git;
-use crate::lock::{pid_is_running, queue_lock_dir};
+use crate::lock::{is_task_owner_file, pid_is_running, queue_lock_dir};
 use crate::outpututil;
 use crate::prompts;
 use crate::queue;
@@ -488,14 +488,14 @@ fn check_lock_health(repo_root: &std::path::Path) -> Result<(usize, usize)> {
             }
         } else {
             // Check for task owner files (shared locks)
-
+            // Use the shared helper from lock module to detect task sidecar files
             fs::read_dir(&path)?.any(|e| {
                 e.ok()
                     .map(|entry| {
                         entry
                             .file_name()
                             .to_str()
-                            .map(|name| name.starts_with("owner_task_"))
+                            .map(is_task_owner_file)
                             .unwrap_or(false)
                     })
                     .unwrap_or(false)

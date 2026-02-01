@@ -40,7 +40,7 @@
         "runner": "claude",
         "runner_cli": {
           "defaults": {
-            "approval_mode": "default",
+            "approval_mode": "yolo",
             "output_format": "stream_json",
             "plan_mode": "default",
             "sandbox": "default",

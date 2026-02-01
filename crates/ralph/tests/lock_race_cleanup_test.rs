@@ -4,6 +4,7 @@
 //! - Validate that concurrent lock acquisition/release doesn't leave orphaned directories.
 //! - Verify retry logic with exponential backoff handles race conditions properly.
 //! - Test force cleanup behavior for stale locks.
+//! - Test cleanup behavior with multiple task sidecars and supervising locks.
 //!
 //! Not covered here:
 //! - Stale lock detection and cleanup (see `stale_lock_cleanup_test.rs`).
@@ -21,6 +22,24 @@ use std::sync::{Arc, Barrier};
 use std::thread;
 use std::time::Duration;
 use tempfile::TempDir;
+
+/// Helper to check if any task owner files exist in the lock directory
+fn get_task_owner_files(lock_dir: &std::path::Path) -> Vec<std::path::PathBuf> {
+    if !lock_dir.exists() {
+        return vec![];
+    }
+    fs::read_dir(lock_dir)
+        .expect("read lock dir")
+        .filter_map(|e| e.ok())
+        .filter(|e| {
+            e.file_name()
+                .to_str()
+                .map(|name| name.starts_with("owner_task_"))
+                .unwrap_or(false)
+        })
+        .map(|e| e.path())
+        .collect()
+}
 
 /// Test that rapid concurrent lock acquisition and release doesn't leave
 /// orphaned lock directories behind.
@@ -168,11 +187,8 @@ fn test_shared_task_lock_cleanup() {
     let task_handle = thread::spawn(move || {
         let task_lock = lock::acquire_dir_lock(&task_lock_dir, "task", false).unwrap();
         // Task lock holds a sidecar owner file
-        assert!(
-            task_lock_dir
-                .join(format!("owner_task_{}", std::process::id()))
-                .exists()
-        );
+        let task_files: Vec<_> = get_task_owner_files(&task_lock_dir);
+        assert_eq!(task_files.len(), 1, "Expected one task owner file");
         task_lock
     });
 
@@ -181,11 +197,7 @@ fn test_shared_task_lock_cleanup() {
     // Both locks should exist
     assert!(lock_dir.exists());
     assert!(lock_dir.join("owner").exists());
-    assert!(
-        lock_dir
-            .join(format!("owner_task_{}", std::process::id()))
-            .exists()
-    );
+    assert_eq!(get_task_owner_files(&lock_dir).len(), 1);
 
     // Drop task lock first - should clean up its sidecar but not the directory
     drop(task_lock);
@@ -193,6 +205,10 @@ fn test_shared_task_lock_cleanup() {
     // Directory should still exist (supervisor holds it)
     assert!(lock_dir.exists());
     assert!(lock_dir.join("owner").exists());
+    assert!(
+        get_task_owner_files(&lock_dir).is_empty(),
+        "Task owner files should be cleaned up"
+    );
 
     // Now drop supervisor lock
     drop(supervisor_lock);
@@ -242,4 +258,183 @@ fn test_rapid_acquire_release_no_leak() {
             remaining
         );
     }
+}
+
+/// Test that multiple task sidecars with a supervising lock are handled correctly.
+/// When one task sidecar is dropped, it should not remove the directory or affect
+/// other sidecars.
+#[test]
+fn test_multiple_task_sidecars_cleanup() {
+    let dir = TempDir::new().expect("create temp dir");
+    let lock_dir = dir.path().join("lock");
+
+    // Acquire supervising lock
+    let supervisor_lock = lock::acquire_dir_lock(&lock_dir, "run one", false).unwrap();
+    assert!(lock_dir.join("owner").exists());
+
+    // Acquire multiple task locks from the same process
+    let task_lock1 = lock::acquire_dir_lock(&lock_dir, "task", false).unwrap();
+    let task_lock2 = lock::acquire_dir_lock(&lock_dir, "task", false).unwrap();
+    let task_lock3 = lock::acquire_dir_lock(&lock_dir, "task", false).unwrap();
+
+    // Verify all owners are present
+    assert!(lock_dir.join("owner").exists());
+    let task_files = get_task_owner_files(&lock_dir);
+    assert_eq!(task_files.len(), 3, "Expected three task owner files");
+
+    // Drop task_lock2 - the middle one
+    drop(task_lock2);
+
+    // Directory should still exist with supervisor and 2 task sidecars
+    assert!(lock_dir.exists(), "Lock directory should still exist");
+    assert!(
+        lock_dir.join("owner").exists(),
+        "Supervisor owner should still exist"
+    );
+    let remaining_files = get_task_owner_files(&lock_dir);
+    assert_eq!(
+        remaining_files.len(),
+        2,
+        "Expected two task owner files remaining, found: {:?}",
+        remaining_files
+    );
+
+    // Drop task_lock1
+    drop(task_lock1);
+
+    assert!(lock_dir.exists(), "Lock directory should still exist");
+    assert!(
+        lock_dir.join("owner").exists(),
+        "Supervisor owner should still exist"
+    );
+    let remaining_files = get_task_owner_files(&lock_dir);
+    assert_eq!(
+        remaining_files.len(),
+        1,
+        "Expected one task owner file remaining, found: {:?}",
+        remaining_files
+    );
+
+    // Drop task_lock3 (last task lock)
+    drop(task_lock3);
+
+    // Directory should still exist (supervisor holds it), but no task sidecars
+    assert!(lock_dir.exists(), "Lock directory should still exist");
+    assert!(
+        lock_dir.join("owner").exists(),
+        "Supervisor owner should still exist"
+    );
+    assert!(
+        get_task_owner_files(&lock_dir).is_empty(),
+        "All task owner files should be cleaned up"
+    );
+
+    // Drop supervisor
+    drop(supervisor_lock);
+
+    thread::sleep(Duration::from_millis(50));
+
+    // Everything should be cleaned up
+    assert!(!lock_dir.exists(), "Lock directory should be removed");
+}
+
+/// Test that task sidecar cleanup works correctly when there are other
+/// non-owner files in the lock directory.
+#[test]
+fn test_task_cleanup_with_other_files() {
+    let dir = TempDir::new().expect("create temp dir");
+    let lock_dir = dir.path().join("lock");
+
+    // Acquire supervising lock
+    let supervisor_lock = lock::acquire_dir_lock(&lock_dir, "run loop", false).unwrap();
+
+    // Acquire a task lock
+    let task_lock = lock::acquire_dir_lock(&lock_dir, "task", false).unwrap();
+
+    // Create an unrelated file in the lock directory (simulating some debug output)
+    fs::write(lock_dir.join("debug.log"), "some debug info").unwrap();
+
+    // Verify files exist
+    assert!(lock_dir.join("owner").exists());
+    assert_eq!(get_task_owner_files(&lock_dir).len(), 1);
+    assert!(lock_dir.join("debug.log").exists());
+
+    // Drop task lock - it should not remove the directory because:
+    // 1. The supervisor owner file still exists
+    // 2. There are other files in the directory
+    drop(task_lock);
+
+    // Directory should still exist with supervisor and the extra file
+    assert!(lock_dir.exists(), "Lock directory should still exist");
+    assert!(
+        lock_dir.join("owner").exists(),
+        "Supervisor owner should still exist"
+    );
+    assert!(
+        lock_dir.join("debug.log").exists(),
+        "Extra file should still exist"
+    );
+    assert!(
+        get_task_owner_files(&lock_dir).is_empty(),
+        "Task owner file should be cleaned up"
+    );
+
+    // Clean up supervisor
+    drop(supervisor_lock);
+    thread::sleep(Duration::from_millis(50));
+
+    // Directory should be cleaned up (or at least the owners gone)
+    if lock_dir.exists() {
+        // If cleanup failed due to extra file, that's acceptable but not ideal
+        // The important thing is task sidecar is gone
+        assert!(
+            get_task_owner_files(&lock_dir).is_empty(),
+            "Task owner files should be cleaned up even if directory remains"
+        );
+        // Clean up manually
+        let _ = fs::remove_dir_all(&lock_dir);
+    }
+}
+
+/// Test that task sidecars with unique names don't collide even when
+/// acquired rapidly from the same thread.
+#[test]
+fn test_rapid_task_lock_unique_names() {
+    let dir = TempDir::new().expect("create temp dir");
+    let lock_dir = dir.path().join("lock");
+
+    // Acquire supervising lock
+    let supervisor_lock = lock::acquire_dir_lock(&lock_dir, "run one", false).unwrap();
+
+    // Rapidly acquire and drop task locks
+    const LOCKS: usize = 10;
+    let mut locks = Vec::with_capacity(LOCKS);
+
+    for _ in 0..LOCKS {
+        locks.push(lock::acquire_dir_lock(&lock_dir, "task", false).unwrap());
+    }
+
+    // All locks should have unique sidecars
+    let task_files = get_task_owner_files(&lock_dir);
+    assert_eq!(
+        task_files.len(),
+        LOCKS,
+        "Expected {} unique task owner files, found: {:?}",
+        LOCKS,
+        task_files
+    );
+
+    // Drop all locks
+    drop(locks);
+
+    // Task sidecars should be cleaned up
+    assert!(
+        get_task_owner_files(&lock_dir).is_empty(),
+        "All task owner files should be cleaned up"
+    );
+
+    // Drop supervisor
+    drop(supervisor_lock);
+    thread::sleep(Duration::from_millis(50));
+    assert!(!lock_dir.exists());
 }

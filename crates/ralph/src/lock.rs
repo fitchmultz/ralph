@@ -16,6 +16,8 @@
 //! - The lock directory path is stable for the resource being protected.
 //! - The "task" label is reserved for shared lock semantics.
 //! - Labels are informational and should be trimmed before evaluation.
+//! - Task lock sidecar files use unique names (owner_task_<pid>_<counter>) to prevent
+//!   collisions when multiple task locks are acquired from the same process.
 
 use crate::constants::limits::MAX_RETRIES;
 use crate::constants::timeouts::DELAYS_MS;
@@ -25,8 +27,16 @@ use anyhow::{Context, Result, anyhow};
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
 use std::time::Duration;
+
+/// Prefix for task owner sidecar files (shared lock mode).
+pub(crate) const TASK_OWNER_PREFIX: &str = "owner_task_";
+
+/// Per-process counter for generating unique task owner file names.
+/// This ensures multiple task locks from the same process don't collide.
+static TASK_OWNER_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 #[derive(Debug)]
 pub struct DirLock {
@@ -45,11 +55,66 @@ impl Drop for DirLock {
     }
 }
 
+/// Check if a filename is a task owner sidecar file.
+///
+/// Task owner files follow the pattern: owner_task_<pid>_<counter>
+/// or the legacy pattern: owner_task_<pid>
+pub(crate) fn is_task_owner_file(name: &str) -> bool {
+    name.starts_with(TASK_OWNER_PREFIX)
+}
+
+/// Check if the current owner is a task sidecar file.
+fn is_task_sidecar_owner(owner_path: &Path) -> bool {
+    owner_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .map(is_task_owner_file)
+        .unwrap_or(false)
+}
+
+/// Check if any owner files remain in the lock directory after removing the current owner.
+///
+/// Returns true if there are other owner files present (either "owner" or other task sidecars).
+fn has_other_owner_files(lock_dir: &Path, removed_owner_path: &Path) -> Result<bool> {
+    if !lock_dir.exists() {
+        return Ok(false);
+    }
+
+    for entry in fs::read_dir(lock_dir)? {
+        let entry = entry?;
+        let path = entry.path();
+
+        // Skip non-files
+        if !path.is_file() {
+            continue;
+        }
+
+        // Skip the owner file we just removed
+        if path == removed_owner_path {
+            continue;
+        }
+
+        let file_name = entry.file_name();
+        let name = file_name.to_str().unwrap_or("");
+
+        // Check if this is an owner file (either "owner" or task sidecar)
+        if name == "owner" || is_task_owner_file(name) {
+            return Ok(true);
+        }
+    }
+
+    Ok(false)
+}
+
 /// Cleanup the lock directory with retry logic and exponential backoff.
 ///
 /// This function handles the race condition where another process may create
 /// a file in the lock directory between removing the owner file and removing
 /// the directory itself.
+///
+/// For task sidecar owners, it also checks if other owner files remain in the
+/// directory and skips directory removal to avoid interfering with supervising
+/// locks or other task sidecars.
 ///
 /// # Arguments
 /// * `lock_dir` - The lock directory path
@@ -60,6 +125,9 @@ impl Drop for DirLock {
 /// * `Ok(())` if cleanup succeeded
 /// * `Err` if cleanup failed after all retries
 fn cleanup_lock_dir(lock_dir: &Path, owner_path: &Path, force: bool) -> Result<()> {
+    // Determine if this is a task sidecar owner before removing it
+    let is_task_sidecar = is_task_sidecar_owner(owner_path);
+
     // First, remove the owner file
     if let Err(e) = fs::remove_file(owner_path) {
         // If the file doesn't exist, that's fine - continue to try cleaning the directory
@@ -69,6 +137,31 @@ fn cleanup_lock_dir(lock_dir: &Path, owner_path: &Path, force: bool) -> Result<(
                 owner_path.display(),
                 e
             );
+        }
+    }
+
+    // For task sidecars, check if other owners remain and skip directory removal if so.
+    // This prevents a task lock from removing the lock directory while a supervisor
+    // or other task sidecars still hold the lock.
+    if is_task_sidecar {
+        match has_other_owner_files(lock_dir, owner_path) {
+            Ok(true) => {
+                log::debug!(
+                    "Skipping directory cleanup for task lock {} - other owners remain",
+                    lock_dir.display()
+                );
+                return Ok(());
+            }
+            Ok(false) => {
+                // No other owners, proceed with directory removal
+            }
+            Err(e) => {
+                log::debug!(
+                    "Failed to check for other owner files in {}: {}. Proceeding with cleanup...",
+                    lock_dir.display(),
+                    e
+                );
+            }
         }
     }
 
@@ -303,9 +396,12 @@ pub fn acquire_dir_lock(lock_dir: &Path, label: &str, force: bool) -> Result<Dir
         label: effective_label.to_string(),
     };
 
-    // For "task" label in shared lock mode, create sidecar owner file
+    // For "task" label in shared lock mode, create sidecar owner file with unique name.
+    // Use a per-process counter to ensure uniqueness when multiple task locks
+    // are acquired from the same process.
     let owner_path = if is_task_label && lock_dir.exists() {
-        lock_dir.join(format!("owner_task_{}", std::process::id()))
+        let counter = TASK_OWNER_COUNTER.fetch_add(1, Ordering::SeqCst);
+        lock_dir.join(format!("owner_task_{}_{}", std::process::id(), counter))
     } else {
         lock_dir.join("owner")
     };
@@ -343,12 +439,8 @@ fn format_lock_error(
     msg.push_str("\n\nLock Holder:");
     if let Some(owner) = owner {
         msg.push_str(&format!(
-            "\n  PID: {}{}\n  Label: {}\n  Started At: {}\n  Command: {}",
-            owner.pid,
-            if is_stale { " (not running)" } else { "" },
-            owner.label,
-            owner.started_at,
-            owner.command
+            "\n  PID: {}\n  Label: {}\n  Started At: {}\n  Command: {}",
+            owner.pid, owner.label, owner.started_at, owner.command
         ));
     } else {
         msg.push_str("\n  (owner metadata missing)");
@@ -535,5 +627,18 @@ mod tests {
         if result == Some(false) {
             panic!("PID 0 should not be reported as not running");
         }
+    }
+
+    /// Test that the task owner file detection works correctly.
+    #[test]
+    fn test_is_task_owner_file() {
+        assert!(is_task_owner_file("owner_task_1234"));
+        assert!(is_task_owner_file("owner_task_1234_0"));
+        assert!(is_task_owner_file("owner_task_1234_42"));
+        assert!(!is_task_owner_file("owner"));
+        assert!(!is_task_owner_file("owner_other"));
+        assert!(!is_task_owner_file("owner_task"));
+        assert!(!is_task_owner_file(""));
+        assert!(!is_task_owner_file("task_owner_1234"));
     }
 }
