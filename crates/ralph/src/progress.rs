@@ -18,6 +18,7 @@
 
 use crate::constants::spinners::DEFAULT_SPINNER_FRAMES;
 use crate::constants::timeouts::SPINNER_UPDATE_INTERVAL_MS;
+use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
 
 /// Trait for progress indication across TUI and CLI modes.
@@ -42,7 +43,8 @@ pub trait ProgressIndicator: Send + Sync {
 }
 
 /// Execution phases for multi-phase task workflows.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ExecutionPhase {
     /// Phase 1: Planning and analysis
     Planning,
@@ -180,11 +182,20 @@ pub struct CliProgressIndicator {
     spinner: SpinnerState,
     /// Whether colors are enabled.
     color_enabled: bool,
+    /// Current completion percentage (0-100).
+    completion_percentage: u8,
+    /// Whether to show the progress bar.
+    show_progress_bar: bool,
 }
 
 impl CliProgressIndicator {
     /// Create a new CLI progress indicator.
     pub fn new(color_enabled: bool) -> Self {
+        Self::with_progress_bar(color_enabled, false)
+    }
+
+    /// Create a new CLI progress indicator with optional progress bar.
+    pub fn with_progress_bar(color_enabled: bool, show_progress_bar: bool) -> Self {
         let multi_progress = indicatif::MultiProgress::new();
 
         // Create the main phase bar with a spinner style
@@ -197,6 +208,8 @@ impl CliProgressIndicator {
             ExecutionPhase::Planning,
             "Starting...",
             color_enabled,
+            0,
+            show_progress_bar,
         );
 
         Self {
@@ -206,6 +219,8 @@ impl CliProgressIndicator {
             operation: "Starting...".to_string(),
             spinner: SpinnerState::default(),
             color_enabled,
+            completion_percentage: 0,
+            show_progress_bar,
         }
     }
 
@@ -215,32 +230,85 @@ impl CliProgressIndicator {
         phase: ExecutionPhase,
         operation: &str,
         color_enabled: bool,
+        completion_percentage: u8,
+        show_progress_bar: bool,
     ) {
         let phase_name = phase.as_str();
         let icon = phase.icon();
 
-        let style = if color_enabled {
-            indicatif::ProgressStyle::default_spinner()
-                .template("{spinner:.green} {prefix:.bold.cyan} {msg:.white} ({elapsed})")
-                .unwrap()
-                .tick_strings(DEFAULT_SPINNER_FRAMES)
+        let style = if show_progress_bar {
+            // Style with progress bar and percentage
+            if color_enabled {
+                indicatif::ProgressStyle::default_spinner()
+                    .template("{spinner:.green} {prefix:.bold.cyan} {msg:.white} [{bar:20.cyan/blue}] {pos}% ({elapsed})")
+                    .unwrap()
+                    .tick_strings(DEFAULT_SPINNER_FRAMES)
+                    .progress_chars("█░")
+            } else {
+                indicatif::ProgressStyle::default_spinner()
+                    .template("{spinner} {prefix} {msg} [{bar:20}] {pos}% ({elapsed})")
+                    .unwrap()
+                    .tick_strings(DEFAULT_SPINNER_FRAMES)
+                    .progress_chars("#-")
+            }
         } else {
-            indicatif::ProgressStyle::default_spinner()
-                .template("{spinner} {prefix} {msg} ({elapsed})")
-                .unwrap()
-                .tick_strings(DEFAULT_SPINNER_FRAMES)
+            // Original spinner-only style
+            if color_enabled {
+                indicatif::ProgressStyle::default_spinner()
+                    .template("{spinner:.green} {prefix:.bold.cyan} {msg:.white} ({elapsed})")
+                    .unwrap()
+                    .tick_strings(DEFAULT_SPINNER_FRAMES)
+            } else {
+                indicatif::ProgressStyle::default_spinner()
+                    .template("{spinner} {prefix} {msg} ({elapsed})")
+                    .unwrap()
+                    .tick_strings(DEFAULT_SPINNER_FRAMES)
+            }
         };
 
         bar.set_style(style);
         bar.set_prefix(format!("{} {}", icon, phase_name));
         bar.set_message(operation.to_string());
+        if show_progress_bar {
+            bar.set_position(completion_percentage as u64);
+        }
+    }
+
+    /// Update the completion percentage display.
+    pub fn set_completion(&mut self, percentage: u8) {
+        self.completion_percentage = percentage.min(100);
+        if self.show_progress_bar {
+            self.phase_bar
+                .set_position(self.completion_percentage as u64);
+        }
+    }
+
+    /// Enable or disable the progress bar display.
+    pub fn set_show_progress_bar(&mut self, show: bool) {
+        self.show_progress_bar = show;
+        // Update style to reflect the change
+        Self::update_style(
+            &self.phase_bar,
+            self.current_phase,
+            &self.operation,
+            self.color_enabled,
+            self.completion_percentage,
+            self.show_progress_bar,
+        );
     }
 }
 
 impl ProgressIndicator for CliProgressIndicator {
     fn set_phase(&mut self, phase: ExecutionPhase) {
         self.current_phase = phase;
-        Self::update_style(&self.phase_bar, phase, &self.operation, self.color_enabled);
+        Self::update_style(
+            &self.phase_bar,
+            phase,
+            &self.operation,
+            self.color_enabled,
+            self.completion_percentage,
+            self.show_progress_bar,
+        );
     }
 
     fn set_operation(&mut self, operation: &str) {

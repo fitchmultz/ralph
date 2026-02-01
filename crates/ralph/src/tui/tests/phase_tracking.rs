@@ -206,3 +206,115 @@ fn execution_phase_number_returns_correct_values() {
     assert_eq!(ExecutionPhase::Review.phase_number(), 3);
     assert_eq!(ExecutionPhase::Complete.phase_number(), 0);
 }
+
+// Completion percentage tests
+
+#[test]
+fn completion_percentage_zero_at_start() {
+    let mut app = App::new(QueueFile::default());
+    app.reset_phase_tracking(3);
+
+    assert_eq!(app.completion_percentage(), 0);
+}
+
+#[test]
+fn completion_percentage_after_first_phase() {
+    let mut app = App::new(QueueFile::default());
+    app.reset_phase_tracking(3);
+
+    app.transition_to_phase(ExecutionPhase::Implementation);
+
+    // 1/3 complete = 33%
+    assert_eq!(app.completion_percentage(), 33);
+}
+
+#[test]
+fn completion_percentage_after_second_phase() {
+    let mut app = App::new(QueueFile::default());
+    app.reset_phase_tracking(3);
+
+    app.transition_to_phase(ExecutionPhase::Implementation);
+    app.transition_to_phase(ExecutionPhase::Review);
+
+    // 2/3 complete = 66.67%, truncated to 66
+    assert_eq!(app.completion_percentage(), 66);
+}
+
+#[test]
+fn completion_percentage_at_completion() {
+    let mut app = App::new(QueueFile::default());
+    app.reset_phase_tracking(3);
+
+    app.transition_to_phase(ExecutionPhase::Implementation);
+    app.transition_to_phase(ExecutionPhase::Review);
+    app.transition_to_phase(ExecutionPhase::Complete);
+
+    // 3/3 complete = 100%
+    assert_eq!(app.completion_percentage(), 100);
+}
+
+#[test]
+fn completion_percentage_single_phase() {
+    let mut app = App::new(QueueFile::default());
+    app.reset_phase_tracking(1);
+
+    assert_eq!(app.completion_percentage(), 0);
+
+    app.transition_to_phase(ExecutionPhase::Complete);
+
+    // 1/1 complete = 100%
+    assert_eq!(app.completion_percentage(), 100);
+}
+
+#[test]
+fn completion_percentage_two_phases() {
+    let mut app = App::new(QueueFile::default());
+    app.reset_phase_tracking(2);
+
+    assert_eq!(app.completion_percentage(), 0);
+
+    app.transition_to_phase(ExecutionPhase::Implementation);
+
+    // 1/2 complete = 50%
+    assert_eq!(app.completion_percentage(), 50);
+
+    app.transition_to_phase(ExecutionPhase::Complete);
+
+    // 2/2 complete = 100%
+    assert_eq!(app.completion_percentage(), 100);
+}
+
+#[test]
+fn completion_percentage_clamps_to_100() {
+    let mut app = App::new(QueueFile::default());
+    app.reset_phase_tracking(3);
+
+    // Complete all phases
+    app.transition_to_phase(ExecutionPhase::Implementation);
+    app.transition_to_phase(ExecutionPhase::Review);
+    app.transition_to_phase(ExecutionPhase::Complete);
+
+    // Should be exactly 100, not more
+    assert_eq!(app.completion_percentage(), 100);
+}
+
+#[test]
+fn phase_elapsed_map_returns_all_phases() {
+    let mut app = App::new(QueueFile::default());
+    app.reset_phase_tracking(3);
+
+    // Transition through phases
+    app.transition_to_phase(ExecutionPhase::Implementation);
+    app.transition_to_phase(ExecutionPhase::Review);
+
+    let elapsed_map = app.phase_elapsed_map();
+
+    // Should have entries for all three phases
+    assert!(elapsed_map.contains_key(&ExecutionPhase::Planning));
+    assert!(elapsed_map.contains_key(&ExecutionPhase::Implementation));
+    assert!(elapsed_map.contains_key(&ExecutionPhase::Review));
+
+    // Planning and Implementation should have completed durations
+    assert!(elapsed_map[&ExecutionPhase::Planning] > Duration::ZERO);
+    assert!(elapsed_map[&ExecutionPhase::Implementation] > Duration::ZERO);
+}

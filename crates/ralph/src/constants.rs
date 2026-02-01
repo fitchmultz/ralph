@@ -155,6 +155,9 @@ pub mod versions {
     /// Productivity stats schema version.
     pub const STATS_SCHEMA_VERSION: u32 = 1;
 
+    /// Execution history schema version.
+    pub const EXECUTION_HISTORY_VERSION: u32 = 1;
+
     /// Template version string.
     pub const TEMPLATE_VERSION: &str = "1.0.0";
 }

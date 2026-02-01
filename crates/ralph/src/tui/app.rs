@@ -218,6 +218,8 @@ pub struct App {
     pub multi_select_mode: bool,
     /// Set of selected task indices (positions in filtered_indices, not queue indices).
     pub selected_indices: HashSet<usize>,
+    /// Current ETA estimate for the running task.
+    pub current_eta: Option<crate::eta_calculator::EtaEstimate>,
 }
 
 impl App {
@@ -296,6 +298,7 @@ impl App {
             board_nav: BoardNavigationState::new(),
             multi_select_mode: false,
             selected_indices: HashSet::new(),
+            current_eta: None,
         };
         app.rebuild_filtered_view();
         app
@@ -367,7 +370,8 @@ impl App {
     /// Transition to a new execution phase.
     ///
     /// Records the completion time for the current phase and starts
-    /// tracking the new phase.
+    /// tracking the new phase. Also updates ETA estimate if historical
+    /// data is available.
     pub fn transition_to_phase(&mut self, new_phase: ExecutionPhase) {
         // Record completion time for current phase
         if let Some(start) = self.phase_start_times.get(&self.execution_phase) {
@@ -382,6 +386,103 @@ impl App {
             self.phase_start_times
                 .insert(new_phase, std::time::Instant::now());
         }
+
+        // Update ETA estimate
+        self.update_eta_estimate();
+    }
+
+    /// Get the cache directory path derived from queue_path.
+    fn cache_dir(&self) -> Option<std::path::PathBuf> {
+        self.queue_path.as_ref().map(|p| {
+            p.parent()
+                .map(|parent| parent.join("cache"))
+                .unwrap_or_else(|| p.join(".ralph").join("cache"))
+        })
+    }
+
+    /// Update the ETA estimate based on current progress and historical data.
+    fn update_eta_estimate(&mut self) {
+        // Only calculate ETA for task executions
+        if self.running_kind != Some(RunningKind::Task) {
+            return;
+        }
+
+        let Some(cache_dir) = self.cache_dir() else {
+            return;
+        };
+
+        // Get runner and model from config
+        let runner = self
+            .project_config
+            .agent
+            .runner
+            .as_ref()
+            .map(|r| r.as_str().to_string())
+            .unwrap_or_else(|| "claude".to_string());
+        let model = self
+            .project_config
+            .agent
+            .model
+            .as_ref()
+            .map(|m| m.as_str().to_string())
+            .unwrap_or_else(|| "default".to_string());
+
+        // Load ETA calculator
+        let calculator = crate::eta_calculator::EtaCalculator::load(&cache_dir);
+
+        // Calculate ETA
+        let phase_elapsed = self.phase_elapsed_map();
+        self.current_eta = calculator.calculate_eta(
+            runner.as_str(),
+            model.as_str(),
+            self.configured_phases,
+            self.execution_phase,
+            &phase_elapsed,
+        );
+    }
+
+    /// Record execution history for the completed task.
+    fn record_execution_history(&self) {
+        let Some(ref task_id) = self.running_task_id else {
+            return;
+        };
+
+        let Some(cache_dir) = self.cache_dir() else {
+            return;
+        };
+
+        // Get runner and model from config
+        let runner = self
+            .project_config
+            .agent
+            .runner
+            .as_ref()
+            .map(|r| r.as_str().to_string())
+            .unwrap_or_else(|| "claude".to_string());
+        let model = self
+            .project_config
+            .agent
+            .model
+            .as_ref()
+            .map(|m| m.as_str().to_string())
+            .unwrap_or_else(|| "default".to_string());
+
+        // Get phase durations
+        let phase_durations = self.phase_completion_times.clone();
+
+        // Get total duration
+        let total_duration = self.total_execution_time();
+
+        // Record execution (ignore errors - this is best-effort)
+        let _ = crate::execution_history::record_execution(
+            task_id,
+            &runner,
+            &model,
+            self.configured_phases,
+            phase_durations,
+            total_duration,
+            &cache_dir,
+        );
     }
 
     /// Get elapsed time for a specific phase.
@@ -425,6 +526,54 @@ impl App {
     /// Check if a phase is currently active.
     pub fn is_phase_active(&self, phase: ExecutionPhase) -> bool {
         self.execution_phase == phase
+    }
+
+    /// Calculate overall completion percentage (0-100).
+    ///
+    /// Based on completed phases. Each completed phase contributes equally
+    /// to the percentage (e.g., 1/3 = 33%, 2/3 = 67%, 3/3 = 100%).
+    pub fn completion_percentage(&self) -> u8 {
+        if self.configured_phases == 0 {
+            return 0;
+        }
+
+        let completed_phases = self.completed_phase_count();
+
+        // Calculate percentage based on completed phases
+        let percentage = (completed_phases as f32 / self.configured_phases as f32) * 100.0;
+        percentage.clamp(0.0, 100.0) as u8
+    }
+
+    /// Count completed phases.
+    fn completed_phase_count(&self) -> u8 {
+        // Count phases that have been completed (have a completion time recorded)
+        // or phases that are before the current phase
+        let mut count = 0u8;
+
+        for phase in [
+            ExecutionPhase::Planning,
+            ExecutionPhase::Implementation,
+            ExecutionPhase::Review,
+        ] {
+            if self.is_phase_completed(phase) {
+                count += 1;
+            }
+        }
+
+        count
+    }
+
+    /// Get elapsed time for all phases as a map.
+    pub fn phase_elapsed_map(&self) -> HashMap<ExecutionPhase, std::time::Duration> {
+        let mut map = HashMap::new();
+        for phase in [
+            ExecutionPhase::Planning,
+            ExecutionPhase::Implementation,
+            ExecutionPhase::Review,
+        ] {
+            map.insert(phase, self.phase_elapsed(phase));
+        }
+        map
     }
 
     /// Process a log line for phase detection.
@@ -2144,6 +2293,9 @@ impl App {
         let phases = self.project_config.agent.phases.unwrap_or(3);
         self.reset_phase_tracking(phases);
 
+        // Initialize ETA calculator
+        self.current_eta = None;
+
         if focus_logs {
             self.mode = AppMode::Executing { task_id };
         }
@@ -2850,6 +3002,9 @@ where
                                 app_ref.on_task_builder_finished(queue_path, done_path);
                             }
                             Some(RunningKind::Task) | None => {
+                                // Record execution history for completed task
+                                app_ref.record_execution_history();
+
                                 app_ref.reload_queues_from_disk(queue_path, done_path);
 
                                 if app_ref.mode == AppMode::ConfirmQuit {

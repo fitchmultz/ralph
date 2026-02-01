@@ -36,6 +36,8 @@ pub mod tui;
 // --- Utils -------------------------------------------------------------------
 
 pub mod celebrations;
+pub mod eta_calculator;
+pub mod execution_history;
 pub mod fsutil;
 pub mod git;
 // DEPRECATED: gitutil is deprecated and will be removed. Use `git` instead.

@@ -252,6 +252,54 @@ impl ExecutionState {
         self.runner_active && matches!(self.running_kind, Some(RunningKind::TaskBuilder))
     }
 
+    /// Calculate overall completion percentage (0-100).
+    ///
+    /// Based on completed phases. Each completed phase contributes equally
+    /// to the percentage (e.g., 1/3 = 33%, 2/3 = 67%, 3/3 = 100%).
+    pub fn completion_percentage(&self) -> u8 {
+        if self.configured_phases == 0 {
+            return 0;
+        }
+
+        let completed_phases = self.completed_phase_count();
+
+        // Calculate percentage based on completed phases
+        let percentage = (completed_phases as f32 / self.configured_phases as f32) * 100.0;
+        percentage.clamp(0.0, 100.0) as u8
+    }
+
+    /// Count completed phases.
+    fn completed_phase_count(&self) -> u8 {
+        // Count phases that have been completed (have a completion time recorded)
+        // or phases that are before the current phase
+        let mut count = 0u8;
+
+        for phase in [
+            ExecutionPhase::Planning,
+            ExecutionPhase::Implementation,
+            ExecutionPhase::Review,
+        ] {
+            if self.is_phase_completed(phase) {
+                count += 1;
+            }
+        }
+
+        count
+    }
+
+    /// Get elapsed time for all phases as a map.
+    pub fn phase_elapsed_map(&self) -> HashMap<ExecutionPhase, Duration> {
+        let mut map = HashMap::new();
+        for phase in [
+            ExecutionPhase::Planning,
+            ExecutionPhase::Implementation,
+            ExecutionPhase::Review,
+        ] {
+            map.insert(phase, self.phase_elapsed(phase));
+        }
+        map
+    }
+
     /// Reset the execution state to idle.
     pub fn reset(&mut self) {
         self.runner_active = false;

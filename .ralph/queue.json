@@ -44,42 +44,6 @@
       "custom_fields": {}
     },
     {
-      "id": "RQ-0472",
-      "status": "todo",
-      "title": "Add completion tracking for long-running operations",
-      "priority": "low",
-      "tags": [
-        "ux",
-        "feature",
-        "tui"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/",
-        "crates/ralph/src/progress.rs"
-      ],
-      "evidence": [
-        "TUI has spinner but no progress percentage for long operations",
-        "No ETA calculation for multi-step workflows",
-        "Phase tracking exists but no overall completion percentage",
-        "Users cannot estimate remaining time for task execution"
-      ],
-      "plan": [
-        "Add progress percentage to ExecutionPhase tracking",
-        "Calculate ETA based on historical phase durations",
-        "Show progress bar in TUI when phases are configured",
-        "Update spinner to include percentage when available",
-        "Add tests for progress calculation accuracy"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-30T17:40:48Z",
-      "updated_at": "2026-01-30T17:40:48Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0473",
       "status": "todo",
       "title": "Improve test coverage for edge cases in queue operations",

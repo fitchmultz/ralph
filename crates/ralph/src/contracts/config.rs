@@ -484,6 +484,21 @@ pub enum Runner {
     Pi,
 }
 
+impl Runner {
+    /// Returns the snake_case string representation of the runner.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Runner::Codex => "codex",
+            Runner::Opencode => "opencode",
+            Runner::Gemini => "gemini",
+            Runner::Cursor => "cursor",
+            Runner::Claude => "claude",
+            Runner::Kimi => "kimi",
+            Runner::Pi => "pi",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ClaudePermissionMode {
