@@ -221,7 +221,7 @@ fn check_and_update_readme(resolved: &Resolved) -> Result<Option<String>> {
 /// Returns a list of migration descriptions that were applied.
 fn check_and_handle_migrations(ctx: &mut MigrationContext, auto_fix: bool) -> Result<Vec<String>> {
     use crate::migration::{
-        apply_migration, check_migrations, MigrationCheckResult, MigrationType,
+        MigrationCheckResult, MigrationType, apply_migration, check_migrations,
     };
 
     let mut applied = Vec::new();
@@ -294,147 +294,147 @@ fn check_unknown_keys(resolved: &Resolved, auto_fix: bool) -> Result<Vec<String>
     let known_keys = get_known_config_keys();
 
     // Check project config
-    if let Some(ref project_path) = resolved.project_config_path {
-        if project_path.exists() {
-            match check_config_file_unknown_keys(project_path, &known_keys) {
-                Ok(unknown_keys) => {
-                    for key in unknown_keys {
-                        let action = if auto_fix {
-                            // Auto-fix: remove unknown keys
+    if let Some(ref project_path) = resolved.project_config_path
+        && project_path.exists()
+    {
+        match check_config_file_unknown_keys(project_path, &known_keys) {
+            Ok(unknown_keys) => {
+                for key in unknown_keys {
+                    let action = if auto_fix {
+                        // Auto-fix: remove unknown keys
+                        match remove_key_from_config_file(project_path, &key) {
+                            Ok(()) => {
+                                actions.push(format!(
+                                    "Removed unknown key '{}' from project config",
+                                    key
+                                ));
+                                continue;
+                            }
+                            Err(e) => {
+                                log::warn!("Failed to remove key '{}': {}", key, e);
+                                UnknownKeyAction::Keep
+                            }
+                        }
+                    } else if is_tty() {
+                        // Interactive: prompt user
+                        prompt_unknown_key(&key, "project config")?
+                    } else {
+                        // Not a TTY: warn and keep
+                        log::warn!(
+                            "Unknown config key '{}' in project config (use --auto-fix to remove)",
+                            key
+                        );
+                        UnknownKeyAction::Keep
+                    };
+
+                    match action {
+                        UnknownKeyAction::Remove => {
                             match remove_key_from_config_file(project_path, &key) {
                                 Ok(()) => {
                                     actions.push(format!(
                                         "Removed unknown key '{}' from project config",
                                         key
                                     ));
-                                    continue;
                                 }
                                 Err(e) => {
                                     log::warn!("Failed to remove key '{}': {}", key, e);
-                                    UnknownKeyAction::Keep
                                 }
                             }
-                        } else if is_tty() {
-                            // Interactive: prompt user
-                            prompt_unknown_key(&key, "project config")?
-                        } else {
-                            // Not a TTY: warn and keep
-                            log::warn!(
-                                "Unknown config key '{}' in project config (use --auto-fix to remove)",
-                                key
-                            );
-                            UnknownKeyAction::Keep
-                        };
-
-                        match action {
-                            UnknownKeyAction::Remove => {
-                                match remove_key_from_config_file(project_path, &key) {
-                                    Ok(()) => {
-                                        actions.push(format!(
-                                            "Removed unknown key '{}' from project config",
-                                            key
-                                        ));
-                                    }
-                                    Err(e) => {
-                                        log::warn!("Failed to remove key '{}': {}", key, e);
-                                    }
+                        }
+                        UnknownKeyAction::Keep => {
+                            log::info!("Kept unknown key '{}' in project config", key);
+                        }
+                        UnknownKeyAction::Rename(new_key) => {
+                            match rename_key_in_config_file(project_path, &key, &new_key) {
+                                Ok(()) => {
+                                    actions.push(format!(
+                                        "Renamed key '{}' to '{}' in project config",
+                                        key, new_key
+                                    ));
                                 }
-                            }
-                            UnknownKeyAction::Keep => {
-                                log::info!("Kept unknown key '{}' in project config", key);
-                            }
-                            UnknownKeyAction::Rename(new_key) => {
-                                match rename_key_in_config_file(project_path, &key, &new_key) {
-                                    Ok(()) => {
-                                        actions.push(format!(
-                                            "Renamed key '{}' to '{}' in project config",
-                                            key, new_key
-                                        ));
-                                    }
-                                    Err(e) => {
-                                        log::warn!("Failed to rename key '{}': {}", key, e);
-                                    }
+                                Err(e) => {
+                                    log::warn!("Failed to rename key '{}': {}", key, e);
                                 }
                             }
                         }
                     }
                 }
-                Err(e) => {
-                    log::warn!("Failed to check project config for unknown keys: {}", e);
-                }
+            }
+            Err(e) => {
+                log::warn!("Failed to check project config for unknown keys: {}", e);
             }
         }
     }
 
     // Check global config
-    if let Some(ref global_path) = resolved.global_config_path {
-        if global_path.exists() {
-            match check_config_file_unknown_keys(global_path, &known_keys) {
-                Ok(unknown_keys) => {
-                    for key in unknown_keys {
-                        let action = if auto_fix {
-                            // Auto-fix: remove unknown keys
+    if let Some(ref global_path) = resolved.global_config_path
+        && global_path.exists()
+    {
+        match check_config_file_unknown_keys(global_path, &known_keys) {
+            Ok(unknown_keys) => {
+                for key in unknown_keys {
+                    let action = if auto_fix {
+                        // Auto-fix: remove unknown keys
+                        match remove_key_from_config_file(global_path, &key) {
+                            Ok(()) => {
+                                actions.push(format!(
+                                    "Removed unknown key '{}' from global config",
+                                    key
+                                ));
+                                continue;
+                            }
+                            Err(e) => {
+                                log::warn!("Failed to remove key '{}': {}", key, e);
+                                UnknownKeyAction::Keep
+                            }
+                        }
+                    } else if is_tty() {
+                        // Interactive: prompt user
+                        prompt_unknown_key(&key, "global config")?
+                    } else {
+                        // Not a TTY: warn and keep
+                        log::warn!(
+                            "Unknown config key '{}' in global config (use --auto-fix to remove)",
+                            key
+                        );
+                        UnknownKeyAction::Keep
+                    };
+
+                    match action {
+                        UnknownKeyAction::Remove => {
                             match remove_key_from_config_file(global_path, &key) {
                                 Ok(()) => {
                                     actions.push(format!(
                                         "Removed unknown key '{}' from global config",
                                         key
                                     ));
-                                    continue;
                                 }
                                 Err(e) => {
                                     log::warn!("Failed to remove key '{}': {}", key, e);
-                                    UnknownKeyAction::Keep
                                 }
                             }
-                        } else if is_tty() {
-                            // Interactive: prompt user
-                            prompt_unknown_key(&key, "global config")?
-                        } else {
-                            // Not a TTY: warn and keep
-                            log::warn!(
-                                "Unknown config key '{}' in global config (use --auto-fix to remove)",
-                                key
-                            );
-                            UnknownKeyAction::Keep
-                        };
-
-                        match action {
-                            UnknownKeyAction::Remove => {
-                                match remove_key_from_config_file(global_path, &key) {
-                                    Ok(()) => {
-                                        actions.push(format!(
-                                            "Removed unknown key '{}' from global config",
-                                            key
-                                        ));
-                                    }
-                                    Err(e) => {
-                                        log::warn!("Failed to remove key '{}': {}", key, e);
-                                    }
+                        }
+                        UnknownKeyAction::Keep => {
+                            log::info!("Kept unknown key '{}' in global config", key);
+                        }
+                        UnknownKeyAction::Rename(new_key) => {
+                            match rename_key_in_config_file(global_path, &key, &new_key) {
+                                Ok(()) => {
+                                    actions.push(format!(
+                                        "Renamed key '{}' to '{}' in global config",
+                                        key, new_key
+                                    ));
                                 }
-                            }
-                            UnknownKeyAction::Keep => {
-                                log::info!("Kept unknown key '{}' in global config", key);
-                            }
-                            UnknownKeyAction::Rename(new_key) => {
-                                match rename_key_in_config_file(global_path, &key, &new_key) {
-                                    Ok(()) => {
-                                        actions.push(format!(
-                                            "Renamed key '{}' to '{}' in global config",
-                                            key, new_key
-                                        ));
-                                    }
-                                    Err(e) => {
-                                        log::warn!("Failed to rename key '{}': {}", key, e);
-                                    }
+                                Err(e) => {
+                                    log::warn!("Failed to rename key '{}': {}", key, e);
                                 }
                             }
                         }
                     }
                 }
-                Err(e) => {
-                    log::warn!("Failed to check global config for unknown keys: {}", e);
-                }
+            }
+            Err(e) => {
+                log::warn!("Failed to check global config for unknown keys: {}", e);
             }
         }
     }
@@ -481,10 +481,10 @@ fn extract_keys_from_schema(
 
     // Follow references to definitions (e.g., "#/definitions/NotificationConfig")
     if let Some(ref_path) = &obj.reference {
-        if let Some(def_name) = ref_path.strip_prefix("#/definitions/") {
-            if let Some(def_schema) = definitions.get(def_name) {
-                extract_keys_from_schema(def_schema, prefix, keys, definitions);
-            }
+        if let Some(def_name) = ref_path.strip_prefix("#/definitions/")
+            && let Some(def_schema) = definitions.get(def_name)
+        {
+            extract_keys_from_schema(def_schema, prefix, keys, definitions);
         }
         return;
     }
@@ -716,10 +716,10 @@ fn rename_key_in_value(value: &mut serde_json::Value, old_key: &str, new_key: &s
 
     if parts.len() == 1 {
         // Direct rename
-        if let serde_json::Value::Object(map) = value {
-            if let Some(v) = map.remove(parts[0]) {
-                map.insert(new_key.to_string(), v);
-            }
+        if let serde_json::Value::Object(map) = value
+            && let Some(v) = map.remove(parts[0])
+        {
+            map.insert(new_key.to_string(), v);
         }
     } else {
         // Navigate to parent and rename
@@ -729,10 +729,10 @@ fn rename_key_in_value(value: &mut serde_json::Value, old_key: &str, new_key: &s
         // Get just the last part of new_key for the insertion
         let new_key_name = new_key.split('.').next_back().unwrap_or(new_key);
 
-        if let Some(serde_json::Value::Object(map)) = get_nested_value_mut(value, &parent_key) {
-            if let Some(v) = map.remove(child_key) {
-                map.insert(new_key_name.to_string(), v);
-            }
+        if let Some(serde_json::Value::Object(map)) = get_nested_value_mut(value, &parent_key)
+            && let Some(v) = map.remove(child_key)
+        {
+            map.insert(new_key_name.to_string(), v);
         }
     }
 }

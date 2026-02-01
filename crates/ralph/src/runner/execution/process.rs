@@ -29,11 +29,11 @@ use std::time::{Duration, Instant};
 use std::os::unix::process::CommandExt;
 
 use super::super::{
-    runner_execution_error, runner_execution_error_with_source, OutputHandler, OutputStream,
-    RunnerError, RunnerOutput,
+    OutputHandler, OutputStream, RunnerError, RunnerOutput, runner_execution_error,
+    runner_execution_error_with_source,
 };
 use super::json::extract_session_id_from_text;
-use super::stream::{spawn_json_reader, spawn_reader, StreamSink};
+use super::stream::{StreamSink, spawn_json_reader, spawn_reader};
 use crate::contracts::Runner;
 
 pub(crate) struct CtrlCState {
@@ -134,23 +134,24 @@ pub(crate) fn wait_for_child(
         let now = Instant::now();
 
         // Check for timeout and send interrupt if needed
-        if let Some(timeout) = timeout {
-            if now.duration_since(start) > timeout && state == ProcessState::Running {
-                log::warn!("Runner timed out after {:?}; sending interrupt", timeout);
-                state = ProcessState::TimeoutInterrupt(now);
-                #[cfg(unix)]
-                {
-                    let pgid = ctrlc.active_pgid.lock().ok().and_then(|guard| *guard);
-                    if let Some(pgid) = pgid {
-                        unsafe {
-                            libc::kill(-pgid, libc::SIGINT);
-                        }
+        if let Some(timeout) = timeout
+            && now.duration_since(start) > timeout
+            && state == ProcessState::Running
+        {
+            log::warn!("Runner timed out after {:?}; sending interrupt", timeout);
+            state = ProcessState::TimeoutInterrupt(now);
+            #[cfg(unix)]
+            {
+                let pgid = ctrlc.active_pgid.lock().ok().and_then(|guard| *guard);
+                if let Some(pgid) = pgid {
+                    unsafe {
+                        libc::kill(-pgid, libc::SIGINT);
                     }
                 }
-                #[cfg(not(unix))]
-                {
-                    let _ = child.kill();
-                }
+            }
+            #[cfg(not(unix))]
+            {
+                let _ = child.kill();
             }
         }
 

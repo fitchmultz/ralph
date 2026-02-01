@@ -15,19 +15,19 @@
 //! - Minimum column width is enforced; board falls back to list view if too narrow.
 //! - Task cards show truncated title and ID with priority-colored borders.
 
-use super::super::events::types::ViewMode;
 use super::super::App;
+use super::super::events::types::ViewMode;
 use super::utils::{priority_color, status_color};
 use crate::constants::ui::{BOARD_MIN_WIDTH, COLUMN_GUTTER};
 use crate::contracts::TaskStatus;
 use crate::outpututil::truncate_chars;
 use crate::tui::app_navigation::BoardNavigationState;
 use ratatui::{
+    Frame,
     layout::{Constraint, Direction, Layout, Margin, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Wrap},
-    Frame,
 };
 
 /// Draw the Kanban board view.

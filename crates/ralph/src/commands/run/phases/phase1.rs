@@ -5,7 +5,7 @@ use super::{PhaseInvocation, PhaseType};
 use crate::commands::run::{logging, supervision};
 use crate::git::GitError;
 use crate::{git, promptflow, prompts, runutil};
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 
 pub fn execute_phase1_planning(ctx: &PhaseInvocation<'_>, total_phases: u8) -> Result<String> {
     let label = logging::phase_label(1, total_phases, "Planning", ctx.task_id);

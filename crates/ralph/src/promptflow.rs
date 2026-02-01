@@ -3,7 +3,7 @@
 use crate::contracts::Config;
 use crate::fsutil;
 use crate::prompts;
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -243,9 +243,10 @@ mod tests {
     fn phase2_final_response_cache_missing_is_error() -> Result<()> {
         let dir = TempDir::new()?;
         let err = read_phase2_final_response_cache(dir.path(), "RQ-0001").unwrap_err();
-        assert!(err
-            .to_string()
-            .contains("Phase 2 final response cache not found"));
+        assert!(
+            err.to_string()
+                .contains("Phase 2 final response cache not found")
+        );
         Ok(())
     }
 
@@ -258,9 +259,10 @@ mod tests {
         }
         std::fs::write(&path, "")?;
         let err = read_phase2_final_response_cache(dir.path(), "RQ-0001").unwrap_err();
-        assert!(err
-            .to_string()
-            .contains("Phase 2 final response cache is empty"));
+        assert!(
+            err.to_string()
+                .contains("Phase 2 final response cache is empty")
+        );
         Ok(())
     }
 }

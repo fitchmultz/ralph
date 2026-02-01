@@ -13,11 +13,11 @@
 //! - Version tracking is stored in `.ralph/cache/prompt_versions.json`.
 //! - Hash computation uses a simple hash of normalized content (trimmed trailing whitespace).
 
-use crate::prompts_internal::registry::{prompt_template, PromptTemplateId};
+use crate::prompts_internal::registry::{PromptTemplateId, prompt_template};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
+use std::collections::hash_map::DefaultHasher;
 use std::fs;
 use std::hash::{Hash, Hasher};
 use std::path::Path;

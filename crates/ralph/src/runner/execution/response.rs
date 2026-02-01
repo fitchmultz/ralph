@@ -57,11 +57,11 @@ pub(crate) fn extract_final_assistant_response(stdout: &str) -> Option<String> {
                     }
                 }
                 "text" => {
-                    if let Some(text) = extract_opencode_text(&json) {
-                        if !text.is_empty() {
-                            streaming_buffer.push_str(text);
-                            final_message = Some(streaming_buffer.clone());
-                        }
+                    if let Some(text) = extract_opencode_text(&json)
+                        && !text.is_empty()
+                    {
+                        streaming_buffer.push_str(text);
+                        final_message = Some(streaming_buffer.clone());
                     }
                 }
                 _ => {}

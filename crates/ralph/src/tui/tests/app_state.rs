@@ -12,7 +12,7 @@
 use super::super::app::*;
 use super::super::config_edit::*;
 use super::super::events::AppMode;
-use super::{canonical_rfc3339, make_test_task, QueueFile, Result};
+use super::{QueueFile, Result, canonical_rfc3339, make_test_task};
 use crate::contracts::TaskStatus;
 use crate::queue::TaskEditKey;
 use tempfile::TempDir;

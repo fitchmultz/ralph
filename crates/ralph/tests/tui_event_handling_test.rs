@@ -372,11 +372,12 @@ fn test_handle_key_event_editing_task_validation_error_keeps_editing() {
             editing_value: Some(_)
         }
     ));
-    assert!(app
-        .status_message
-        .as_deref()
-        .unwrap_or_default()
-        .contains("Error"));
+    assert!(
+        app.status_message
+            .as_deref()
+            .unwrap_or_default()
+            .contains("Error")
+    );
     assert_eq!(app.queue.tasks[0].title, "First Task");
 }
 

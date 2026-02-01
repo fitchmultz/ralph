@@ -20,7 +20,7 @@ use anyhow::Result;
 
 use crate::contracts::Task;
 use crate::template::builtin::{get_builtin_template, get_template_description};
-use crate::template::variables::{detect_context, substitute_variables_in_task, TemplateContext};
+use crate::template::variables::{TemplateContext, detect_context, substitute_variables_in_task};
 
 /// Source of a loaded template
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -88,32 +88,32 @@ pub fn list_templates(project_root: &Path) -> Vec<TemplateInfo> {
     if let Ok(entries) = std::fs::read_dir(&custom_dir) {
         for entry in entries.flatten() {
             let path = entry.path();
-            if path.extension().is_some_and(|ext| ext == "json") {
-                if let Some(name) = path.file_stem() {
-                    let name = name.to_string_lossy().to_string();
-                    seen_names.insert(name.clone());
+            if path.extension().is_some_and(|ext| ext == "json")
+                && let Some(name) = path.file_stem()
+            {
+                let name = name.to_string_lossy().to_string();
+                seen_names.insert(name.clone());
 
-                    // Try to read description from template if possible
-                    let description = if let Ok(content) = std::fs::read_to_string(&path) {
-                        if let Ok(task) = serde_json::from_str::<Task>(&content) {
-                            // Use first plan item as description if available
-                            task.plan
-                                .first()
-                                .cloned()
-                                .unwrap_or_else(|| "Custom template".to_string())
-                        } else {
-                            "Custom template".to_string()
-                        }
+                // Try to read description from template if possible
+                let description = if let Ok(content) = std::fs::read_to_string(&path) {
+                    if let Ok(task) = serde_json::from_str::<Task>(&content) {
+                        // Use first plan item as description if available
+                        task.plan
+                            .first()
+                            .cloned()
+                            .unwrap_or_else(|| "Custom template".to_string())
                     } else {
                         "Custom template".to_string()
-                    };
+                    }
+                } else {
+                    "Custom template".to_string()
+                };
 
-                    templates.push(TemplateInfo {
-                        name,
-                        source: TemplateSource::Custom(path),
-                        description,
-                    });
-                }
+                templates.push(TemplateInfo {
+                    name,
+                    source: TemplateSource::Custom(path),
+                    description,
+                });
             }
         }
     }
@@ -326,9 +326,10 @@ mod tests {
         assert!(task.tags.contains(&"cli::task".to_string()));
         assert!(task.scope.contains(&"src/cli/task.rs".to_string()));
         assert!(task.plan.contains(&"Analyze task.rs".to_string()));
-        assert!(task
-            .evidence
-            .contains(&"Issue in src/cli/task.rs".to_string()));
+        assert!(
+            task.evidence
+                .contains(&"Issue in src/cli/task.rs".to_string())
+        );
     }
 
     #[test]

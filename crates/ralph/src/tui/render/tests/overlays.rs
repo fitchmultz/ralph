@@ -9,9 +9,9 @@
 
 use super::common::*;
 use crate::contracts::QueueFile;
-use crate::tui::{help, App, AppMode, TextInput};
+use crate::tui::{App, AppMode, TextInput, help};
 use ratatui::layout::Margin;
-use ratatui::{backend::TestBackend, layout::Rect, Terminal};
+use ratatui::{Terminal, backend::TestBackend, layout::Rect};
 use std::sync::mpsc;
 
 #[test]

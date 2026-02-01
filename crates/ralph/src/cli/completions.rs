@@ -14,7 +14,7 @@
 
 use anyhow::Result;
 use clap::{CommandFactory, ValueEnum};
-use clap_complete::{generate, Shell as ClapShell};
+use clap_complete::{Shell as ClapShell, generate};
 
 /// Arguments for the completions command.
 #[derive(clap::Args, Debug)]

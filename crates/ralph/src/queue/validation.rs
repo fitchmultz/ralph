@@ -23,7 +23,7 @@
 
 use crate::contracts::{QueueFile, Task, TaskStatus};
 use crate::timeutil;
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use std::collections::{HashMap, HashSet};
 use time::UtcOffset;
 
@@ -56,15 +56,22 @@ pub struct DependencyValidationResult {
 
 pub fn validate_queue(queue: &QueueFile, id_prefix: &str, id_width: usize) -> Result<()> {
     if queue.version != 1 {
-        bail!("Unsupported queue.json version: {}. Ralph requires version 1. Update the 'version' field in .ralph/queue.json.", queue.version);
+        bail!(
+            "Unsupported queue.json version: {}. Ralph requires version 1. Update the 'version' field in .ralph/queue.json.",
+            queue.version
+        );
     }
     if id_width == 0 {
-        bail!("Invalid id_width: width must be greater than 0. Set a valid width (e.g., 4) in .ralph/config.json or via --id-width.");
+        bail!(
+            "Invalid id_width: width must be greater than 0. Set a valid width (e.g., 4) in .ralph/config.json or via --id-width."
+        );
     }
 
     let expected_prefix = super::normalize_prefix(id_prefix);
     if expected_prefix.is_empty() {
-        bail!("Empty id_prefix: prefix is required. Set a non-empty prefix (e.g., 'RQ') in .ralph/config.json or via --id-prefix.");
+        bail!(
+            "Empty id_prefix: prefix is required. Set a non-empty prefix (e.g., 'RQ') in .ralph/config.json or via --id-prefix."
+        );
     }
 
     let mut seen = HashSet::new();
@@ -79,7 +86,10 @@ pub fn validate_queue(queue: &QueueFile, id_prefix: &str, id_width: usize) -> Re
 
         let key = task.id.trim().to_string();
         if !seen.insert(key.clone()) {
-            bail!("Duplicate task ID detected: {}. Ensure each task in .ralph/queue.json has a unique ID.", key);
+            bail!(
+                "Duplicate task ID detected: {}. Ensure each task in .ralph/queue.json has a unique ID.",
+                key
+            );
         }
     }
 
@@ -87,16 +97,15 @@ pub fn validate_queue(queue: &QueueFile, id_prefix: &str, id_width: usize) -> Re
 }
 
 fn validate_task_agent_fields(index: usize, task: &Task) -> Result<()> {
-    if let Some(agent) = task.agent.as_ref() {
-        if let Some(iterations) = agent.iterations {
-            if iterations == 0 {
-                bail!(
-                    "Invalid agent.iterations: task {} (index {}) must specify iterations >= 1.",
-                    task.id,
-                    index
-                );
-            }
-        }
+    if let Some(agent) = task.agent.as_ref()
+        && let Some(iterations) = agent.iterations
+        && iterations == 0
+    {
+        bail!(
+            "Invalid agent.iterations: task {} (index {}) must specify iterations >= 1.",
+            task.id,
+            index
+        );
     }
     Ok(())
 }
@@ -129,7 +138,10 @@ pub fn validate_queue_set(
             }
             let id = task.id.trim();
             if active_ids.contains(id) {
-                bail!("Duplicate task ID detected across queue and done: {}. Ensure task IDs are unique across .ralph/queue.json and .ralph/done.json.", id);
+                bail!(
+                    "Duplicate task ID detected across queue and done: {}. Ensure task IDs are unique across .ralph/queue.json and .ralph/done.json.",
+                    id
+                );
             }
         }
     }
@@ -156,10 +168,17 @@ fn validate_done_terminal_status(done: &QueueFile) -> Result<()> {
 
 fn validate_task_required_fields(index: usize, task: &Task) -> Result<()> {
     if task.id.trim().is_empty() {
-        bail!("Missing task ID: task at index {} is missing an 'id' field. Add a valid ID (e.g., 'RQ-0001') to the task.", index);
+        bail!(
+            "Missing task ID: task at index {} is missing an 'id' field. Add a valid ID (e.g., 'RQ-0001') to the task.",
+            index
+        );
     }
     if task.title.trim().is_empty() {
-        bail!("Missing task title: task {} (index {}) is missing a 'title' field. Add a descriptive title (e.g., 'Fix login bug').", task.id, index);
+        bail!(
+            "Missing task title: task {} (index {}) is missing a 'title' field. Add a descriptive title (e.g., 'Fix login bug').",
+            task.id,
+            index
+        );
     }
     ensure_list_valid("tags", index, &task.id, &task.tags)?;
     ensure_list_valid("scope", index, &task.id, &task.scope)?;
@@ -174,13 +193,18 @@ fn validate_task_required_fields(index: usize, task: &Task) -> Result<()> {
         if key_trimmed.is_empty() {
             bail!(
                 "Empty custom field key: task {} (index {}) has an empty key at custom_fields[{}]. Remove the empty key or provide a valid key.",
-                task.id, index, key_idx
+                task.id,
+                index,
+                key_idx
             );
         }
         if key_trimmed.chars().any(|c| c.is_whitespace()) {
             bail!(
                 "Invalid custom field key: task {} (index {}) has a key with whitespace at custom_fields[{}]: '{}'. Custom field keys must not contain whitespace.",
-                task.id, index, key_idx, key_trimmed
+                task.id,
+                index,
+                key_idx,
+                key_trimmed
             );
         }
     }
@@ -188,13 +212,21 @@ fn validate_task_required_fields(index: usize, task: &Task) -> Result<()> {
     if let Some(ts) = task.created_at.as_deref() {
         validate_rfc3339("created_at", index, &task.id, ts)?;
     } else {
-        bail!("Missing created_at: task {} (index {}) is missing the 'created_at' timestamp. Add a valid RFC3339 timestamp (e.g., '2026-01-19T05:23:13.000000000Z').", task.id, index);
+        bail!(
+            "Missing created_at: task {} (index {}) is missing the 'created_at' timestamp. Add a valid RFC3339 timestamp (e.g., '2026-01-19T05:23:13.000000000Z').",
+            task.id,
+            index
+        );
     }
 
     if let Some(ts) = task.updated_at.as_deref() {
         validate_rfc3339("updated_at", index, &task.id, ts)?;
     } else {
-        bail!("Missing updated_at: task {} (index {}) is missing the 'updated_at' timestamp. Add a valid RFC3339 timestamp (e.g., '2026-01-19T05:23:13.000000000Z').", task.id, index);
+        bail!(
+            "Missing updated_at: task {} (index {}) is missing the 'updated_at' timestamp. Add a valid RFC3339 timestamp (e.g., '2026-01-19T05:23:13.000000000Z').",
+            task.id,
+            index
+        );
     }
 
     if let Some(ts) = task.completed_at.as_deref() {
@@ -365,16 +397,16 @@ fn validate_dependencies(
             }
 
             // Check if dependency is rejected (warning)
-            if let Some(dep_task) = all_tasks.get(dep_id) {
-                if dep_task.status == TaskStatus::Rejected {
-                    result.warnings.push(ValidationWarning {
+            if let Some(dep_task) = all_tasks.get(dep_id)
+                && dep_task.status == TaskStatus::Rejected
+            {
+                result.warnings.push(ValidationWarning {
                         task_id: task_id.to_string(),
                         message: format!(
                             "Task {} depends on rejected task {}. This dependency will never be satisfied.",
                             task_id, dep_id
                         ),
                     });
-                }
             }
 
             // Build graph for cycle detection
@@ -653,9 +685,10 @@ fn validate_relationships(
             }
 
             // Warn if duplicating a done/rejected task
-            if let Some(dupe_task) = all_tasks.get(duplicates_id) {
-                if matches!(dupe_task.status, TaskStatus::Done | TaskStatus::Rejected) {
-                    result.warnings.push(ValidationWarning {
+            if let Some(dupe_task) = all_tasks.get(duplicates_id)
+                && matches!(dupe_task.status, TaskStatus::Done | TaskStatus::Rejected)
+            {
+                result.warnings.push(ValidationWarning {
                         task_id: task_id.to_string(),
                         message: format!(
                             "Task {} duplicates {} which is already {}. Consider if this duplicate is still needed.",
@@ -664,7 +697,6 @@ fn validate_relationships(
                             if dupe_task.status == TaskStatus::Done { "done" } else { "rejected" }
                         ),
                     });
-                }
             }
         }
     }

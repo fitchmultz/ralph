@@ -4,13 +4,13 @@
 //! Not handled: task persistence, queue mutations, or phase-specific prompt composition.
 //! Invariants/assumptions: required placeholders exist and task IDs are non-empty.
 
-use super::registry::{load_prompt_template, prompt_template, PromptTemplateId};
+use super::registry::{PromptTemplateId, load_prompt_template, prompt_template};
 use super::util::{
     apply_project_type_guidance_if_needed, ensure_no_unresolved_placeholders,
     ensure_required_placeholders, escape_placeholder_like_text,
 };
 use crate::contracts::{Config, ProjectType};
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 
 pub(crate) fn load_task_updater_prompt(repo_root: &std::path::Path) -> Result<String> {
     load_prompt_template(repo_root, PromptTemplateId::TaskUpdater)
@@ -27,7 +27,9 @@ pub(crate) fn render_task_updater_prompt(
     ensure_required_placeholders(template, template_meta.required_placeholders)?;
 
     if task_id.trim().is_empty() {
-        bail!("Missing task ID: task ID must be non-empty. Provide a valid task ID for the task updater.");
+        bail!(
+            "Missing task ID: task ID must be non-empty. Provide a valid task ID for the task updater."
+        );
     }
 
     let expanded = super::util::expand_variables(template, config)?;

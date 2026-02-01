@@ -447,8 +447,8 @@ fn resolve_run_agent_settings_defaults_to_gemini_flash_for_gemini_runner() -> an
 }
 
 #[test]
-fn resolve_run_agent_settings_effort_defaults_to_medium_for_codex_when_unspecified(
-) -> anyhow::Result<()> {
+fn resolve_run_agent_settings_effort_defaults_to_medium_for_codex_when_unspecified()
+-> anyhow::Result<()> {
     let resolved = resolved_with_agent_defaults(Some(Runner::Codex), Some(Model::Gpt52Codex), None);
 
     let task = base_task();

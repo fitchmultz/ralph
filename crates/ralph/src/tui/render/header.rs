@@ -16,11 +16,11 @@
 use super::super::{App, AppMode};
 use super::utils::{span_width, spans_width, truncate_spans_with_ellipsis};
 use ratatui::{
+    Frame,
     layout::{Alignment, Rect},
     style::{Color, Style},
     text::{Line, Span},
     widgets::Paragraph,
-    Frame,
 };
 
 /// Draw the header/status bar.
@@ -53,14 +53,14 @@ fn build_header_spans(app: &App, max_width: usize) -> Vec<Span<'static>> {
     }
 
     // Filter summary (if active)
-    if app.has_active_filters() {
-        if let Some(filter_str) = filter_summary_compact(app) {
-            spans.push(Span::raw(" "));
-            spans.push(Span::styled(
-                format!("| {}", filter_str),
-                Style::default().fg(Color::Magenta),
-            ));
-        }
+    if app.has_active_filters()
+        && let Some(filter_str) = filter_summary_compact(app)
+    {
+        spans.push(Span::raw(" "));
+        spans.push(Span::styled(
+            format!("| {}", filter_str),
+            Style::default().fg(Color::Magenta),
+        ));
     }
 
     // Runner/loop status

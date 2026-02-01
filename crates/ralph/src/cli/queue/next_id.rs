@@ -13,7 +13,7 @@
 //! - Generated IDs are sequential and unique within the current queue state.
 //! - Output format: one ID per line for easy shell scripting.
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use clap::Args;
 
 use crate::cli::load_and_validate_queues;

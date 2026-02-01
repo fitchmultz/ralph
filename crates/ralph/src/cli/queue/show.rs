@@ -13,7 +13,7 @@
 //! - Queue files are valid and already validated by the loader.
 //! - Task IDs are matched after trimming whitespace.
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::Args;
 
 use crate::cli::load_and_validate_queues;

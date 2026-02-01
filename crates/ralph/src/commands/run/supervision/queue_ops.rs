@@ -18,7 +18,7 @@
 use crate::contracts::{QueueFile, TaskStatus};
 use crate::runutil;
 use crate::{queue, timeutil};
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 
 /// Strategy for saving queue files after maintenance operations.
 #[derive(Debug, Clone, Copy)]
@@ -152,7 +152,9 @@ pub(crate) fn ensure_task_done_clean_or_bail(
 ) -> Result<bool> {
     if task_status != TaskStatus::Done {
         if in_done {
-            bail!("Task inconsistency: task {task_id} is archived in .ralph/done.json but its status is not 'done'. Review the task state in .ralph/done.json.");
+            bail!(
+                "Task inconsistency: task {task_id} is archived in .ralph/done.json but its status is not 'done'. Review the task state in .ralph/done.json."
+            );
         }
         let now = timeutil::now_utc_rfc3339()?;
         queue::set_status(queue_file, task_id, TaskStatus::Done, &now, None)?;

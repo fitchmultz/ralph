@@ -14,7 +14,7 @@
 //! - Relative times are parsed via `timeutil::parse_relative_time`.
 //! - Clear operation sets an empty string to remove the scheduled start.
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 
 use crate::cli::task::args::TaskScheduleArgs;
 use crate::config;

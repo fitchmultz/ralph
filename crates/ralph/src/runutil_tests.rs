@@ -17,10 +17,10 @@ use crate::contracts::{ClaudePermissionMode, GitRevertMode, Model, ReasoningEffo
 use crate::git;
 use crate::runner;
 use crate::runutil::{
-    abort_reason, apply_git_revert_mode, apply_git_revert_mode_with_context, parse_revert_response,
-    prompt_revert_choice_with_io, run_prompt_with_handling_backend, RevertDecision, RevertOutcome,
-    RevertPromptContext, RevertPromptHandler, RevertSource, RunAbortReason, RunnerBackend,
-    RunnerErrorMessages, RunnerInvocation,
+    RevertDecision, RevertOutcome, RevertPromptContext, RevertPromptHandler, RevertSource,
+    RunAbortReason, RunnerBackend, RunnerErrorMessages, RunnerInvocation, abort_reason,
+    apply_git_revert_mode, apply_git_revert_mode_with_context, parse_revert_response,
+    prompt_revert_choice_with_io, run_prompt_with_handling_backend,
 };
 use std::fs;
 use std::path::Path;

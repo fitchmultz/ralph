@@ -12,9 +12,9 @@ use crate::contracts::{QueueFile, TaskStatus};
 use crate::tui::{App, AppMode, TextInput};
 use ratatui::style::Color;
 use ratatui::{
+    Terminal,
     backend::TestBackend,
     layout::{Constraint, Direction, Layout, Margin, Rect},
-    Terminal,
 };
 
 #[test]

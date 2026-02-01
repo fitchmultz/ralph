@@ -44,7 +44,7 @@ fn unresolved_placeholders_returns_sorted_unique() {
 #[test]
 fn expand_variables_expands_env_var_with_default() -> Result<()> {
     let var_name = "RALPH_TEST_DEFAULT_VAR";
-    std::env::remove_var(var_name);
+    unsafe { std::env::remove_var(var_name) };
     let template = format!("Value: ${{{}:-default_value}}", var_name);
     let config = default_config();
     let result = expand_variables(&template, &config)?;
@@ -57,9 +57,9 @@ fn expand_variables_expands_env_var_when_set() -> Result<()> {
     let var_name = "RALPH_TEST_SET_VAR";
     let template = format!("Value: ${{{}:-default}}", var_name);
     let config = default_config();
-    std::env::set_var(var_name, "actual_value");
+    unsafe { std::env::set_var(var_name, "actual_value") };
     let result = expand_variables(&template, &config)?;
-    std::env::remove_var(var_name);
+    unsafe { std::env::remove_var(var_name) };
     assert_eq!(result, "Value: actual_value");
     Ok(())
 }

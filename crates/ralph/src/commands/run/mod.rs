@@ -37,7 +37,7 @@ use crate::session::{self, SessionValidationResult};
 use crate::signal;
 use crate::webhook;
 use crate::{git, prompts, queue, runner, runutil, timeutil};
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 
 mod logging;
 mod phases;
@@ -219,7 +219,9 @@ pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()>
 
                     // Safety check: prevent infinite loops from rapid consecutive failures
                     if consecutive_failures >= MAX_CONSECUTIVE_FAILURES {
-                        log::error!("RunLoop: aborting after {MAX_CONSECUTIVE_FAILURES} consecutive failures");
+                        log::error!(
+                            "RunLoop: aborting after {MAX_CONSECUTIVE_FAILURES} consecutive failures"
+                        );
                         return Err(anyhow::anyhow!(
                             "Run loop aborted after {} consecutive task failures. \
                              This usually indicates a systemic issue (e.g., repo dirty, \
@@ -288,10 +290,10 @@ pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()>
     }
 
     // Clear session on successful completion
-    if result.is_ok() {
-        if let Err(e) = session::clear_session(&cache_dir) {
-            log::warn!("Failed to clear session on loop completion: {}", e);
-        }
+    if result.is_ok()
+        && let Err(e) = session::clear_session(&cache_dir)
+    {
+        log::warn!("Failed to clear session on loop completion: {}", e);
     }
 
     result

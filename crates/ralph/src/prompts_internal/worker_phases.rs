@@ -7,10 +7,10 @@
 //! Invariants/assumptions: phase templates include expected placeholders and rendering inputs are
 //! pre-trimmed by callers.
 
-use super::registry::{load_prompt_template, prompt_template, PromptTemplateId};
+use super::registry::{PromptTemplateId, load_prompt_template, prompt_template};
 use super::util::{ensure_no_unresolved_placeholders, escape_placeholder_like_text};
 use crate::contracts::Config;
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 
 pub(crate) fn load_worker_phase1_prompt(repo_root: &std::path::Path) -> Result<String> {
     load_prompt_template(repo_root, PromptTemplateId::WorkerPhase1)

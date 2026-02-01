@@ -27,26 +27,26 @@ use crate::contracts::{QueueFile, Task, TaskPriority, TaskStatus};
 use crate::progress::{ExecutionPhase, SpinnerState};
 use crate::queue::TaskEditKey;
 use crate::{config as crate_config, lock, queue, runutil, timeutil};
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyEventKind},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
-use ratatui::{backend::CrosstermBackend, layout::Rect, Terminal};
+use ratatui::{Terminal, backend::CrosstermBackend, layout::Rect};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
-use std::sync::{mpsc, Arc};
+use std::sync::{Arc, mpsc};
 use std::thread;
 use std::time::Duration;
 
+use super::TextInput;
 use super::events::{
-    handle_key_event, handle_mouse_event, AppMode, ConfirmDiscardAction, PaletteCommand,
-    PaletteEntry, ScoredPaletteEntry, TaskBuilderState, TaskBuilderStep, TuiAction, ViewMode,
+    AppMode, ConfirmDiscardAction, PaletteCommand, PaletteEntry, ScoredPaletteEntry,
+    TaskBuilderState, TaskBuilderStep, TuiAction, ViewMode, handle_key_event, handle_mouse_event,
 };
 use super::render::draw_ui;
 use super::terminal::{BorderStyle, ColorSupport, TerminalCapabilities};
-use super::TextInput;
 use super::{DetailsContext, DetailsState};
 use crate::tui::app_execution::RunningKind;
 use crate::tui::app_filters::{FilterKey, FilterSnapshot, FilterState};
@@ -1466,10 +1466,10 @@ impl App {
         self.set_status_message(format!("Set status to {}", status));
 
         // Check for auto-archive if terminal status
-        if status == "done" || status == "rejected" {
-            if let Err(e) = self.maybe_auto_archive(&task_id, now_rfc3339) {
-                self.set_status_message(format!("Error: {}", e));
-            }
+        if (status == "done" || status == "rejected")
+            && let Err(e) = self.maybe_auto_archive(&task_id, now_rfc3339)
+        {
+            self.set_status_message(format!("Error: {}", e));
         }
     }
 
@@ -3018,15 +3018,15 @@ where
                                         app_ref.loop_ran = app_ref.loop_ran.saturating_add(1);
                                     }
 
-                                    if let Some(max) = app_ref.loop_max_tasks {
-                                        if app_ref.loop_ran >= max {
-                                            let loop_ran = app_ref.loop_ran;
-                                            app_ref.loop_active = false;
-                                            app_ref.set_status_message(format!(
-                                                "Loop finished (ran {}/{})",
-                                                loop_ran, max
-                                            ));
-                                        }
+                                    if let Some(max) = app_ref.loop_max_tasks
+                                        && app_ref.loop_ran >= max
+                                    {
+                                        let loop_ran = app_ref.loop_ran;
+                                        app_ref.loop_active = false;
+                                        app_ref.set_status_message(format!(
+                                            "Loop finished (ran {}/{})",
+                                            loop_ran, max
+                                        ));
                                     }
 
                                     if app_ref.loop_active {

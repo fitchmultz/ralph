@@ -1,7 +1,7 @@
 //! Collection/mutation helpers for queue tasks.
 
 use crate::contracts::{QueueFile, Task, TaskStatus};
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use std::collections::HashSet;
 
 /// Suggests the insertion index for new tasks based on the first task's status.
@@ -267,10 +267,10 @@ pub fn clone_task(
     cloned.id = new_id.clone();
 
     // Apply title prefix if provided
-    if let Some(prefix) = opts.title_prefix {
-        if !prefix.is_empty() {
-            cloned.title = format!("{}{}", prefix, cloned.title);
-        }
+    if let Some(prefix) = opts.title_prefix
+        && !prefix.is_empty()
+    {
+        cloned.title = format!("{}{}", prefix, cloned.title);
     }
 
     // Set status

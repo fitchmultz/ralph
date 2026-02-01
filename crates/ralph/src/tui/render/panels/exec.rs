@@ -16,11 +16,11 @@
 use super::super::App;
 use super::progress::draw_progress_panel;
 use ratatui::{
+    Frame,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, Paragraph},
-    Frame,
 };
 use tui_term::widget::PseudoTerminal;
 

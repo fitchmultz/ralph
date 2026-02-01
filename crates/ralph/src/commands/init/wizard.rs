@@ -334,11 +334,11 @@ pub fn print_completion_message(answers: Option<&WizardAnswers>, _queue_path: &P
     println!("  2. Run 'ralph run one' to execute your first task");
     println!("  3. Edit .ralph/config.json to customize settings");
 
-    if let Some(answers) = answers {
-        if answers.create_first_task {
-            println!();
-            println!("Your first task is ready to go!");
-        }
+    if let Some(answers) = answers
+        && answers.create_first_task
+    {
+        println!();
+        println!("Your first task is ready to go!");
     }
 
     println!();

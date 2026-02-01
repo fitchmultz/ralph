@@ -9,7 +9,7 @@
 
 use super::common::*;
 use crate::tui::{App, AppMode};
-use ratatui::{backend::TestBackend, Terminal};
+use ratatui::{Terminal, backend::TestBackend};
 
 #[test]
 fn flowchart_overlay_renders_without_panic() {

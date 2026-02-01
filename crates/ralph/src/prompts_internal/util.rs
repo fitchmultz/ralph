@@ -8,7 +8,7 @@
 
 use crate::constants::buffers::MAX_INSTRUCTION_BYTES;
 use crate::contracts::{Config, ProjectType};
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use regex::Regex;
 use std::env;
 use std::fs;
@@ -164,10 +164,10 @@ pub(crate) fn validate_instruction_file_paths(repo_root: &Path, config: &Config)
 
 pub(crate) fn resolve_instruction_path(repo_root: &Path, raw: &Path) -> std::path::PathBuf {
     let as_string = raw.to_string_lossy();
-    if let Some(rest) = as_string.strip_prefix("~/") {
-        if let Ok(home) = std::env::var("HOME") {
-            return std::path::PathBuf::from(home).join(rest);
-        }
+    if let Some(rest) = as_string.strip_prefix("~/")
+        && let Ok(home) = std::env::var("HOME")
+    {
+        return std::path::PathBuf::from(home).join(rest);
     }
 
     if raw.is_absolute() {
@@ -329,18 +329,19 @@ pub(crate) fn unresolved_placeholders(rendered: &str) -> Vec<String> {
     let mut i = 0;
 
     while i < bytes.len().saturating_sub(3) {
-        if bytes[i] == b'{' && bytes[i + 1] == b'{' {
-            if let Some(end) = bytes[i..].iter().position(|&b| b == b'}') {
-                let end_idx = i + end;
-                if end_idx < bytes.len().saturating_sub(1) && bytes[end_idx + 1] == b'}' {
-                    let placeholder = &rendered[i..end_idx + 2];
-                    let trimmed = placeholder.trim_matches(|c| c == '{' || c == '}');
-                    if !trimmed.is_empty() {
-                        placeholders.push(trimmed.to_uppercase());
-                    }
-                    i = end_idx + 2;
-                    continue;
+        if bytes[i] == b'{'
+            && bytes[i + 1] == b'{'
+            && let Some(end) = bytes[i..].iter().position(|&b| b == b'}')
+        {
+            let end_idx = i + end;
+            if end_idx < bytes.len().saturating_sub(1) && bytes[end_idx + 1] == b'}' {
+                let placeholder = &rendered[i..end_idx + 2];
+                let trimmed = placeholder.trim_matches(|c| c == '{' || c == '}');
+                if !trimmed.is_empty() {
+                    placeholders.push(trimmed.to_uppercase());
                 }
+                i = end_idx + 2;
+                continue;
             }
         }
         i += 1;

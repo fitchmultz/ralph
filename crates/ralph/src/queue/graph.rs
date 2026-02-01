@@ -20,7 +20,7 @@
 //! - All dependencies referenced exist in the graph
 
 use crate::contracts::{QueueFile, Task, TaskStatus};
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use std::collections::{HashMap, HashSet, VecDeque};
 
 /// A node in the dependency graph representing a task and its relationships.
@@ -295,14 +295,13 @@ impl DependencyGraph {
             }
             visited.insert(current.clone());
 
-            if let Some(node) = self.get(&current) {
-                if let Some(duplicates) = &node.duplicates {
-                    if !visited.contains(duplicates) {
-                        chain.push(duplicates.clone());
-                        current = duplicates.clone();
-                        continue;
-                    }
-                }
+            if let Some(node) = self.get(&current)
+                && let Some(duplicates) = &node.duplicates
+                && !visited.contains(duplicates)
+            {
+                chain.push(duplicates.clone());
+                current = duplicates.clone();
+                continue;
             }
             break;
         }
@@ -492,7 +491,7 @@ pub fn topological_sort(graph: &DependencyGraph) -> Result<Vec<String>> {
     // Start with nodes having in-degree 0
     let mut queue: VecDeque<String> = in_degree
         .iter()
-        .filter(|(_, &deg)| deg == 0)
+        .filter(|&(_, &deg)| deg == 0)
         .map(|(id, _)| id.clone())
         .collect();
 

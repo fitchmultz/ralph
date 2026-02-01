@@ -50,7 +50,7 @@
 
 mod execution;
 
-pub(crate) use execution::{ctrlc_state, ResolvedRunnerCliOptions};
+pub(crate) use execution::{ResolvedRunnerCliOptions, ctrlc_state};
 
 use crate::commands::run::PhaseType;
 use crate::constants::defaults::{
@@ -61,8 +61,8 @@ use crate::contracts::{
     AgentConfig, ClaudePermissionMode, Model, ReasoningEffort, Runner, RunnerCliOptionsPatch,
     TaskAgent,
 };
-use crate::redaction::{redact_text, RedactedString};
-use anyhow::{anyhow, bail, Result};
+use crate::redaction::{RedactedString, redact_text};
+use anyhow::{Result, anyhow, bail};
 use std::fmt;
 use std::path::Path;
 use std::process::ExitStatus;
@@ -354,28 +354,28 @@ pub(crate) fn resolve_phase_settings_matrix(
     // - phases=3: uses all phases
     if phases < 3 {
         // Phase 3 overrides are unused when running less than 3 phases
-        if let Some(cli) = cli_phase_overrides {
-            if cli.phase3.is_some() {
-                warnings.unused_phase3 = true;
-            }
+        if let Some(cli) = cli_phase_overrides
+            && cli.phase3.is_some()
+        {
+            warnings.unused_phase3 = true;
         }
-        if let Some(config) = config_phase_overrides {
-            if config.phase3.is_some() {
-                warnings.unused_phase3 = true;
-            }
+        if let Some(config) = config_phase_overrides
+            && config.phase3.is_some()
+        {
+            warnings.unused_phase3 = true;
         }
     }
     if phases < 2 {
         // Phase 1 overrides are unused in single-pass (uses Phase 2 instead)
-        if let Some(cli) = cli_phase_overrides {
-            if cli.phase1.is_some() {
-                warnings.unused_phase1 = true;
-            }
+        if let Some(cli) = cli_phase_overrides
+            && cli.phase1.is_some()
+        {
+            warnings.unused_phase1 = true;
         }
-        if let Some(config) = config_phase_overrides {
-            if config.phase1.is_some() {
-                warnings.unused_phase1 = true;
-            }
+        if let Some(config) = config_phase_overrides
+            && config.phase1.is_some()
+        {
+            warnings.unused_phase1 = true;
         }
     }
     // Note: Phase 2 is always used (single-pass uses Phase 2, 2-phase uses Phase 2, 3-phase uses Phase 2)

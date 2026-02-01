@@ -1,6 +1,6 @@
 //! Debug log tests for runner stream readers.
 
-use super::super::stream::{spawn_reader, StreamSink};
+use super::super::stream::{StreamSink, spawn_reader};
 use crate::debuglog::{enable, reset_for_tests, test_lock};
 use crate::runner::OutputStream;
 use serial_test::serial;

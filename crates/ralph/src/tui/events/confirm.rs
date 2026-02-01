@@ -15,7 +15,7 @@
 use super::super::input::apply_text_input_key;
 use super::super::{AppMode, TextInput};
 use super::types::{ConfirmDiscardAction, TuiAction};
-use super::{is_plain_char, text_char, App};
+use super::{App, is_plain_char, text_char};
 use crate::runutil::RevertDecision;
 use crate::tui::config_edit::ConfigKey;
 use anyhow::Result;
@@ -225,11 +225,7 @@ impl ConfirmRevertState {
     }
 
     fn max_index(&self) -> usize {
-        if self.allow_proceed {
-            3
-        } else {
-            2
-        }
+        if self.allow_proceed { 3 } else { 2 }
     }
 
     pub(super) fn into_mode(self) -> AppMode {
@@ -372,7 +368,7 @@ pub(super) fn handle_confirm_batch_delete_key(
     key: KeyEvent,
     _count: usize,
 ) -> Result<TuiAction> {
-    use super::{is_plain_char, AppMode};
+    use super::{AppMode, is_plain_char};
 
     match key.code {
         KeyCode::Char('y') if is_plain_char(&key, 'y') => {
@@ -427,7 +423,7 @@ pub(super) fn handle_confirm_batch_archive_key(
     _count: usize,
     now_rfc3339: &str,
 ) -> Result<TuiAction> {
-    use super::{is_plain_char, AppMode};
+    use super::{AppMode, is_plain_char};
 
     match key.code {
         KeyCode::Char('y') if is_plain_char(&key, 'y') => {

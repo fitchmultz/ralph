@@ -222,8 +222,10 @@ fn model_effort_is_default(value: &ModelEffort) -> bool {
     matches!(value, ModelEffort::Default)
 }
 
-fn model_effort_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-    let mut schema = <ModelEffort as JsonSchema>::json_schema(gen);
+fn model_effort_schema(
+    generator: &mut schemars::r#gen::SchemaGenerator,
+) -> schemars::schema::Schema {
+    let mut schema = <ModelEffort as JsonSchema>::json_schema(generator);
     if let schemars::schema::Schema::Object(ref mut schema_object) = schema {
         schema_object.metadata().default = Some(json!("default"));
     }

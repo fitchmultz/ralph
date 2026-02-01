@@ -23,7 +23,7 @@ use crate::contracts::{
     ClaudePermissionMode, Model, ReasoningEffort, Runner, RunnerCliOptionsPatch,
 };
 use crate::{config, runner};
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use std::io::{IsTerminal, Read};
 use std::path::PathBuf;
 
@@ -165,20 +165,26 @@ pub fn read_request_from_args_or_reader(
         let joined = args.join(" ");
         let trimmed = joined.trim();
         if trimmed.is_empty() {
-            bail!("Missing request: task requires a request description. Pass arguments or pipe input to the command.");
+            bail!(
+                "Missing request: task requires a request description. Pass arguments or pipe input to the command."
+            );
         }
         return Ok(trimmed.to_string());
     }
 
     if stdin_is_terminal {
-        bail!("Missing request: task requires a request description. Pass arguments or pipe input to the command.");
+        bail!(
+            "Missing request: task requires a request description. Pass arguments or pipe input to the command."
+        );
     }
 
     let mut buf = String::new();
     reader.read_to_string(&mut buf).context("read stdin")?;
     let trimmed = buf.trim();
     if trimmed.is_empty() {
-        bail!("Missing request: task requires a request description (pass arguments or pipe input to the command).");
+        bail!(
+            "Missing request: task requires a request description (pass arguments or pipe input to the command)."
+        );
     }
     Ok(trimmed.to_string())
 }
@@ -221,8 +227,8 @@ pub use update::{update_all_tasks, update_task, update_task_without_lock};
 #[cfg(test)]
 mod tests {
     use super::{
-        read_request_from_args_or_reader, resolve_task_build_settings,
-        resolve_task_update_settings, TaskBuildOptions, TaskUpdateSettings,
+        TaskBuildOptions, TaskUpdateSettings, read_request_from_args_or_reader,
+        resolve_task_build_settings, resolve_task_update_settings,
     };
     use crate::config;
     use crate::contracts::{

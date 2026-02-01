@@ -39,7 +39,7 @@ mod textarea_input;
 mod tests;
 
 pub use crate::progress::ExecutionPhase;
-pub use app::{prepare_tui_session, run_tui, App};
+pub use app::{App, prepare_tui_session, run_tui};
 pub use app_details::{DetailsContext, DetailsContextMode, DetailsState};
 pub use app_execution::{ExecutionState, RunningKind};
 pub use app_filters::{FilterKey, FilterManager, FilterSnapshot, FilterState};
@@ -51,7 +51,7 @@ pub use app_session::{SessionManager, SessionState};
 pub use app_tasks::{AppTasks, AutoArchiveAction, MoveResult, TaskOperations};
 pub use config_edit::{ConfigEntry, ConfigFieldKind, ConfigKey};
 pub use events::{
-    handle_key_event, AppMode, ConfirmDiscardAction, PaletteCommand, PaletteEntry, TuiAction,
+    AppMode, ConfirmDiscardAction, PaletteCommand, PaletteEntry, TuiAction, handle_key_event,
 };
 pub use input::TextInput;
 pub use render::draw_ui;

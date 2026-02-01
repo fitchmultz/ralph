@@ -4,13 +4,13 @@
 //! Not handled: task creation, queue mutations, or phase-specific prompt composition.
 //! Invariants/assumptions: required placeholders exist and user request is non-empty.
 
-use super::registry::{load_prompt_template, prompt_template, PromptTemplateId};
+use super::registry::{PromptTemplateId, load_prompt_template, prompt_template};
 use super::util::{
     apply_project_type_guidance_if_needed, ensure_no_unresolved_placeholders,
     ensure_required_placeholders, escape_placeholder_like_text,
 };
 use crate::contracts::{Config, ProjectType};
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 
 pub(crate) fn load_task_builder_prompt(repo_root: &std::path::Path) -> Result<String> {
     load_prompt_template(repo_root, PromptTemplateId::TaskBuilder)
@@ -29,7 +29,9 @@ pub(crate) fn render_task_builder_prompt(
 
     let request = user_request.trim();
     if request.is_empty() {
-        bail!("Missing request: user request must be non-empty. Provide a descriptive request for the task builder.");
+        bail!(
+            "Missing request: user request must be non-empty. Provide a descriptive request for the task builder."
+        );
     }
 
     let expanded = super::util::expand_variables(template, config)?;

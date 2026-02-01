@@ -4,7 +4,7 @@
 //! Not handled: actual test implementations (see submodules).
 //! Invariants/assumptions: tests run in isolated temp directories; Config::default() is valid.
 
-pub(crate) use super::registry::{prompt_template, PromptTemplateId};
+pub(crate) use super::registry::{PromptTemplateId, prompt_template};
 pub(crate) use super::{review::*, scan::*, task_builder::*, util::*, worker::*, worker_phases::*};
 pub(crate) use crate::cli::scan::ScanMode;
 pub(crate) use crate::contracts::{Config, ProjectType};

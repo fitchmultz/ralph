@@ -13,7 +13,7 @@ use super::super::app::*;
 use super::super::app_execution::RunningKind;
 use super::super::app_palette::scan_label;
 use super::super::events::PaletteCommand;
-use super::{canonical_rfc3339, make_test_task, make_test_task_with_tags, QueueFile, Result};
+use super::{QueueFile, Result, canonical_rfc3339, make_test_task, make_test_task_with_tags};
 use crate::contracts::TaskStatus;
 
 #[test]
@@ -117,10 +117,11 @@ fn rebuild_filtered_view_invalid_regex_is_cached() {
     let after = app.filter_cache_stats();
     assert_eq!(after.filtered_rebuilds, baseline.filtered_rebuilds);
     assert!(app.filtered_indices.is_empty());
-    assert!(app
-        .status_message
-        .as_deref()
-        .is_some_and(|message| message.contains("Search error")));
+    assert!(
+        app.status_message
+            .as_deref()
+            .is_some_and(|message| message.contains("Search error"))
+    );
 }
 
 #[test]
@@ -227,9 +228,11 @@ fn archive_terminal_tasks_stamps_timestamps() -> Result<()> {
 fn palette_entries_include_scan_command() {
     let app = App::new(QueueFile::default());
     let entries = app.palette_entries("");
-    assert!(entries
-        .iter()
-        .any(|entry| matches!(entry.cmd, PaletteCommand::ScanRepo)));
+    assert!(
+        entries
+            .iter()
+            .any(|entry| matches!(entry.cmd, PaletteCommand::ScanRepo))
+    );
 }
 
 #[test]

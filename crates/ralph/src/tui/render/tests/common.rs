@@ -9,8 +9,8 @@
 //! - Test setup for specific components.
 
 use crate::contracts::{QueueFile, Task, TaskPriority, TaskStatus};
-use crate::tui::render::footer;
 use crate::tui::App;
+use crate::tui::render::footer;
 use ratatui::buffer::Buffer;
 use ratatui::text::Span;
 use std::collections::HashMap;

@@ -11,7 +11,7 @@
 //! Invariants/assumptions:
 //! - Key handling is stateless and uses current `App` log metadata.
 
-use super::{is_plain_char, types::TuiAction, App};
+use super::{App, is_plain_char, types::TuiAction};
 use anyhow::Result;
 use crossterm::event::{KeyCode, KeyEvent};
 

@@ -14,7 +14,7 @@
 
 use super::validate::{ensure_task_id, parse_rfc3339_utc, validate_custom_field_key};
 use crate::contracts::QueueFile;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 
 pub fn set_field(
     queue: &mut QueueFile,

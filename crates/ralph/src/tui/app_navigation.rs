@@ -330,10 +330,10 @@ impl BoardNavigationState {
 
     /// Move selection down within the current column.
     pub fn move_down(&mut self) {
-        if let Some(column) = self.column_tasks.get(self.selected_column) {
-            if self.selected_task_in_column + 1 < column.len() {
-                self.selected_task_in_column += 1;
-            }
+        if let Some(column) = self.column_tasks.get(self.selected_column)
+            && self.selected_task_in_column + 1 < column.len()
+        {
+            self.selected_task_in_column += 1;
         }
     }
 
@@ -391,12 +391,12 @@ impl BoardNavigationState {
     pub fn select_task(&mut self, queue_index: usize, queue: &QueueFile) -> bool {
         if let Some(task) = queue.tasks.get(queue_index) {
             let column = Self::status_to_column(task.status);
-            if let Some(column_tasks) = self.column_tasks.get(column) {
-                if let Some(pos) = column_tasks.iter().position(|&idx| idx == queue_index) {
-                    self.selected_column = column;
-                    self.selected_task_in_column = pos;
-                    return true;
-                }
+            if let Some(column_tasks) = self.column_tasks.get(column)
+                && let Some(pos) = column_tasks.iter().position(|&idx| idx == queue_index)
+            {
+                self.selected_column = column;
+                self.selected_task_in_column = pos;
+                return true;
             }
         }
         false

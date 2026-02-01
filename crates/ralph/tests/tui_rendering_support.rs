@@ -7,7 +7,7 @@
 #![allow(dead_code)]
 
 use ralph::tui::{self, App};
-use ratatui::{backend::TestBackend, Terminal};
+use ratatui::{Terminal, backend::TestBackend};
 
 /// Setup a `ratatui` test terminal with given dimensions.
 pub(crate) fn setup_test_terminal(width: u16, height: u16) -> Terminal<TestBackend> {

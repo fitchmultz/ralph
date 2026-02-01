@@ -242,7 +242,7 @@ pub(crate) fn apply_text_input_key(input: &mut TextInput, key: &KeyEvent) -> Tex
 
 #[cfg(test)]
 mod tests {
-    use super::{apply_text_input_key, TextInput, TextInputEdit};
+    use super::{TextInput, TextInputEdit, apply_text_input_key};
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
     fn key(code: KeyCode) -> KeyEvent {

@@ -14,7 +14,7 @@
 
 use crate::constants::defaults::LFS_POINTER_PREFIX;
 use crate::constants::limits::MAX_POINTER_SIZE;
-use crate::git::error::{git_base_command, GitError};
+use crate::git::error::{GitError, git_base_command};
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
@@ -170,16 +170,16 @@ impl LfsHealthReport {
             return true; // No LFS is also "healthy" (nothing to check)
         }
 
-        if let Some(ref filter) = self.filter_status {
-            if !filter.is_healthy() {
-                return false;
-            }
+        if let Some(ref filter) = self.filter_status
+            && !filter.is_healthy()
+        {
+            return false;
         }
 
-        if let Some(ref status) = self.status_summary {
-            if !status.is_clean() {
-                return false;
-            }
+        if let Some(ref status) = self.status_summary
+            && !status.is_clean()
+        {
+            return false;
         }
 
         self.pointer_issues.is_empty()

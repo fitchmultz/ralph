@@ -130,11 +130,12 @@ fn jump_to_task_by_id_with_active_filters() {
 
     assert!(result);
     assert_eq!(app.selected, 1); // RQ-0002 is now selected
-    assert!(app
-        .status_message
-        .as_deref()
-        .unwrap()
-        .contains("filters cleared"));
+    assert!(
+        app.status_message
+            .as_deref()
+            .unwrap()
+            .contains("filters cleared")
+    );
 }
 
 #[test]

@@ -6,10 +6,10 @@
 
 use crate::commands::run::PhaseType;
 use crate::constants::buffers::TIMEOUT_STDOUT_CAPTURE_MAX_BYTES;
-use crate::constants::buffers::{OUTPUT_TAIL_LINES, OUTPUT_TAIL_LINE_MAX_CHARS};
+use crate::constants::buffers::{OUTPUT_TAIL_LINE_MAX_CHARS, OUTPUT_TAIL_LINES};
 use crate::contracts::{ClaudePermissionMode, GitRevertMode, Model, ReasoningEffort, Runner};
 use crate::{fsutil, git, outpututil, runner};
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use std::fmt;
 use std::io::{BufRead, BufReader, IsTerminal, Write};
 use std::path::Path;
@@ -448,10 +448,10 @@ where
                             let Some(session_id) = session_id.as_deref() else {
                                 bail!("Catastrophic: no session id captured; cannot Continue.");
                             };
-                            if let Some(capture) = timeout_stdout_capture.as_ref() {
-                                if let Ok(mut buf) = capture.lock() {
-                                    buf.clear();
-                                }
+                            if let Some(capture) = timeout_stdout_capture.as_ref()
+                                && let Ok(mut buf) = capture.lock()
+                            {
+                                buf.clear();
                             }
                             result = backend.resume_session(
                                 runner_kind,
@@ -538,10 +538,10 @@ where
                             let Some(session_id) = session_id.as_deref() else {
                                 bail!("Catastrophic: no session id captured; cannot Continue.");
                             };
-                            if let Some(capture) = timeout_stdout_capture.as_ref() {
-                                if let Ok(mut buf) = capture.lock() {
-                                    buf.clear();
-                                }
+                            if let Some(capture) = timeout_stdout_capture.as_ref()
+                                && let Ok(mut buf) = capture.lock()
+                            {
+                                buf.clear();
                             }
                             result = backend.resume_session(
                                 runner_kind,
@@ -741,14 +741,14 @@ pub(crate) fn prompt_revert_choice_with_io<R: BufRead, W: Write>(
     reader: &mut R,
     writer: &mut W,
 ) -> Result<RevertDecision> {
-    if let Some(preface) = prompt_context.preface.as_ref() {
-        if !preface.trim().is_empty() {
-            write!(writer, "{preface}")?;
-            if !preface.ends_with('\n') {
-                writeln!(writer)?;
-            }
-            writer.flush().ok();
+    if let Some(preface) = prompt_context.preface.as_ref()
+        && !preface.trim().is_empty()
+    {
+        write!(writer, "{preface}")?;
+        if !preface.ends_with('\n') {
+            writeln!(writer)?;
         }
+        writer.flush().ok();
     }
 
     let mut prompt = format!(
@@ -823,7 +823,7 @@ fn log_stderr_tail(label: &str, stderr: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::constants::buffers::{OUTPUT_TAIL_LINES, OUTPUT_TAIL_LINE_MAX_CHARS};
+    use crate::constants::buffers::{OUTPUT_TAIL_LINE_MAX_CHARS, OUTPUT_TAIL_LINES};
 
     /// Test that redaction is applied to stderr content by verifying the
     /// redact_text function works correctly on typical stderr patterns.

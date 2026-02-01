@@ -16,7 +16,7 @@
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 
-use super::input::{apply_text_input_key, TextInputEdit};
+use super::input::{TextInputEdit, apply_text_input_key};
 use super::{App, TextInput};
 
 pub mod confirm;

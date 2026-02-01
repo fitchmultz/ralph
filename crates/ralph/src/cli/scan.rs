@@ -114,8 +114,8 @@ pub struct ScanArgs {
 mod tests {
     use clap::{CommandFactory, Parser};
 
-    use crate::cli::scan::ScanMode;
     use crate::cli::Cli;
+    use crate::cli::scan::ScanMode;
 
     #[test]
     fn scan_help_examples_include_repo_prompt_focus() {

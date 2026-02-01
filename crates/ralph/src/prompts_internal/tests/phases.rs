@@ -8,8 +8,7 @@ use super::*;
 
 #[test]
 fn render_worker_phase1_prompt_replaces_placeholders() -> Result<()> {
-    let template =
-        "ID={{TASK_ID}}\nPHASE={{TOTAL_PHASES}}\n{{ITERATION_CONTEXT}}\nPLAN={{PLAN_PATH}}\n{{BASE_WORKER_PROMPT}}\n{{REPOPROMPT_BLOCK}}\n";
+    let template = "ID={{TASK_ID}}\nPHASE={{TOTAL_PHASES}}\n{{ITERATION_CONTEXT}}\nPLAN={{PLAN_PATH}}\n{{BASE_WORKER_PROMPT}}\n{{REPOPROMPT_BLOCK}}\n";
     let config = default_config();
     let rendered = render_worker_phase1_prompt(
         template,
@@ -104,8 +103,7 @@ fn render_worker_phase1_prompt_allows_placeholder_like_base_prompt() -> Result<(
 
 #[test]
 fn render_worker_phase1_prompt_allows_placeholder_like_iteration_context() -> Result<()> {
-    let template =
-        "ID={{TASK_ID}}\nPHASE={{TOTAL_PHASES}}\n{{ITERATION_CONTEXT}}\nPLAN={{PLAN_PATH}}\n{{BASE_WORKER_PROMPT}}\n";
+    let template = "ID={{TASK_ID}}\nPHASE={{TOTAL_PHASES}}\n{{ITERATION_CONTEXT}}\nPLAN={{PLAN_PATH}}\n{{BASE_WORKER_PROMPT}}\n";
     let config = default_config();
     let iteration_context = "ITERATION {{PLACEHOLDER}}";
     let rendered = render_worker_phase1_prompt(
@@ -125,8 +123,7 @@ fn render_worker_phase1_prompt_allows_placeholder_like_iteration_context() -> Re
 
 #[test]
 fn render_worker_phase2_prompt_skips_repoprompt_when_not_required() -> Result<()> {
-    let template =
-        "PHASE={{TOTAL_PHASES}}\nID={{TASK_ID}}\n{{ITERATION_CONTEXT}}\n{{PLAN_TEXT}}\n{{ITERATION_COMPLETION_BLOCK}}\n{{CHECKLIST}}\n{{BASE_WORKER_PROMPT}}\n{{REPOPROMPT_BLOCK}}\n";
+    let template = "PHASE={{TOTAL_PHASES}}\nID={{TASK_ID}}\n{{ITERATION_CONTEXT}}\n{{PLAN_TEXT}}\n{{ITERATION_COMPLETION_BLOCK}}\n{{CHECKLIST}}\n{{BASE_WORKER_PROMPT}}\n{{REPOPROMPT_BLOCK}}\n";
     let config = default_config();
     let rendered = render_worker_phase2_prompt(
         template,
@@ -152,8 +149,7 @@ fn render_worker_phase2_prompt_skips_repoprompt_when_not_required() -> Result<()
 
 #[test]
 fn render_worker_phase2_prompt_allows_placeholder_like_base_prompt() -> Result<()> {
-    let template =
-        "PHASE={{TOTAL_PHASES}}\nID={{TASK_ID}}\n{{PLAN_TEXT}}\n{{ITERATION_COMPLETION_BLOCK}}\n{{CHECKLIST}}\n{{BASE_WORKER_PROMPT}}\n";
+    let template = "PHASE={{TOTAL_PHASES}}\nID={{TASK_ID}}\n{{PLAN_TEXT}}\n{{ITERATION_COMPLETION_BLOCK}}\n{{CHECKLIST}}\n{{BASE_WORKER_PROMPT}}\n";
     let config = default_config();
     let base_prompt = "BASE {{ITERATION_COMPLETION_BLOCK}}";
     let rendered = render_worker_phase2_prompt(
@@ -174,8 +170,7 @@ fn render_worker_phase2_prompt_allows_placeholder_like_base_prompt() -> Result<(
 
 #[test]
 fn render_worker_phase2_handoff_prompt_allows_placeholder_like_base_prompt() -> Result<()> {
-    let template =
-        "PHASE={{TOTAL_PHASES}}\nID={{TASK_ID}}\n{{PLAN_TEXT}}\n{{ITERATION_COMPLETION_BLOCK}}\n{{CHECKLIST}}\n{{BASE_WORKER_PROMPT}}\n";
+    let template = "PHASE={{TOTAL_PHASES}}\nID={{TASK_ID}}\n{{PLAN_TEXT}}\n{{ITERATION_COMPLETION_BLOCK}}\n{{CHECKLIST}}\n{{BASE_WORKER_PROMPT}}\n";
     let config = default_config();
     let base_prompt = "BASE {{ITERATION_COMPLETION_BLOCK}}";
     let rendered = render_worker_phase2_handoff_prompt(
@@ -196,8 +191,7 @@ fn render_worker_phase2_handoff_prompt_allows_placeholder_like_base_prompt() -> 
 
 #[test]
 fn render_worker_phase2_handoff_prompt_allows_placeholder_like_iteration_context() -> Result<()> {
-    let template =
-        "PHASE={{TOTAL_PHASES}}\nID={{TASK_ID}}\n{{ITERATION_CONTEXT}}\n{{PLAN_TEXT}}\n{{ITERATION_COMPLETION_BLOCK}}\n{{CHECKLIST}}\n{{BASE_WORKER_PROMPT}}\n";
+    let template = "PHASE={{TOTAL_PHASES}}\nID={{TASK_ID}}\n{{ITERATION_CONTEXT}}\n{{PLAN_TEXT}}\n{{ITERATION_COMPLETION_BLOCK}}\n{{CHECKLIST}}\n{{BASE_WORKER_PROMPT}}\n";
     let config = default_config();
     let iteration_context = "ITERATION {{PLACEHOLDER}}";
     let rendered = render_worker_phase2_handoff_prompt(
@@ -218,8 +212,7 @@ fn render_worker_phase2_handoff_prompt_allows_placeholder_like_iteration_context
 
 #[test]
 fn render_worker_phase2_prompt_allows_placeholder_like_plan_text() -> Result<()> {
-    let template =
-        "PHASE={{TOTAL_PHASES}}\nID={{TASK_ID}}\n{{ITERATION_CONTEXT}}\n{{PLAN_TEXT}}\n{{ITERATION_COMPLETION_BLOCK}}\n{{CHECKLIST}}\n{{BASE_WORKER_PROMPT}}\n{{REPOPROMPT_BLOCK}}\n";
+    let template = "PHASE={{TOTAL_PHASES}}\nID={{TASK_ID}}\n{{ITERATION_CONTEXT}}\n{{PLAN_TEXT}}\n{{ITERATION_COMPLETION_BLOCK}}\n{{CHECKLIST}}\n{{BASE_WORKER_PROMPT}}\n{{REPOPROMPT_BLOCK}}\n";
     let config = default_config();
     let plan_text = "Use {{config.agent.git_commit_push_enabled}} to toggle behavior.";
     let rendered = render_worker_phase2_prompt(
@@ -240,8 +233,7 @@ fn render_worker_phase2_prompt_allows_placeholder_like_plan_text() -> Result<()>
 
 #[test]
 fn render_worker_phase2_prompt_allows_placeholder_like_iteration_context() -> Result<()> {
-    let template =
-        "PHASE={{TOTAL_PHASES}}\nID={{TASK_ID}}\n{{ITERATION_CONTEXT}}\n{{PLAN_TEXT}}\n{{ITERATION_COMPLETION_BLOCK}}\n{{CHECKLIST}}\n{{BASE_WORKER_PROMPT}}\n";
+    let template = "PHASE={{TOTAL_PHASES}}\nID={{TASK_ID}}\n{{ITERATION_CONTEXT}}\n{{PLAN_TEXT}}\n{{ITERATION_COMPLETION_BLOCK}}\n{{CHECKLIST}}\n{{BASE_WORKER_PROMPT}}\n";
     let config = default_config();
     let iteration_context = "ITERATION {{PLACEHOLDER}}";
     let rendered = render_worker_phase2_prompt(
@@ -362,8 +354,7 @@ fn render_worker_phase3_prompt_allows_placeholder_like_iteration_context() -> Re
 
 #[test]
 fn render_worker_single_phase_prompt_requires_task_id() -> Result<()> {
-    let template =
-        "{{TASK_ID}}\n{{ITERATION_CONTEXT}}\n{{ITERATION_COMPLETION_BLOCK}}\n{{CHECKLIST}}\n{{BASE_WORKER_PROMPT}}\n";
+    let template = "{{TASK_ID}}\n{{ITERATION_CONTEXT}}\n{{ITERATION_COMPLETION_BLOCK}}\n{{CHECKLIST}}\n{{BASE_WORKER_PROMPT}}\n";
     let config = default_config();
     let result = render_worker_single_phase_prompt(
         template,
@@ -381,8 +372,7 @@ fn render_worker_single_phase_prompt_requires_task_id() -> Result<()> {
 
 #[test]
 fn render_worker_single_phase_prompt_allows_placeholder_like_base_prompt() -> Result<()> {
-    let template =
-        "{{TASK_ID}}\n{{ITERATION_CONTEXT}}\n{{ITERATION_COMPLETION_BLOCK}}\n{{CHECKLIST}}\n{{BASE_WORKER_PROMPT}}\n";
+    let template = "{{TASK_ID}}\n{{ITERATION_CONTEXT}}\n{{ITERATION_COMPLETION_BLOCK}}\n{{CHECKLIST}}\n{{BASE_WORKER_PROMPT}}\n";
     let config = default_config();
     let base_prompt = "BASE {{ITERATION_COMPLETION_BLOCK}}";
     let rendered = render_worker_single_phase_prompt(
@@ -401,8 +391,7 @@ fn render_worker_single_phase_prompt_allows_placeholder_like_base_prompt() -> Re
 
 #[test]
 fn render_worker_single_phase_prompt_allows_placeholder_like_iteration_context() -> Result<()> {
-    let template =
-        "{{TASK_ID}}\n{{ITERATION_CONTEXT}}\n{{ITERATION_COMPLETION_BLOCK}}\n{{CHECKLIST}}\n{{BASE_WORKER_PROMPT}}\n";
+    let template = "{{TASK_ID}}\n{{ITERATION_CONTEXT}}\n{{ITERATION_COMPLETION_BLOCK}}\n{{CHECKLIST}}\n{{BASE_WORKER_PROMPT}}\n";
     let config = default_config();
     let iteration_context = "ITERATION {{PLACEHOLDER}}";
     let rendered = render_worker_single_phase_prompt(

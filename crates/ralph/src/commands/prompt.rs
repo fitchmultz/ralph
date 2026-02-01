@@ -31,7 +31,7 @@ use crate::contracts::ProjectType;
 use crate::promptflow::{self, PromptPolicy};
 use crate::prompts_internal::management as prompt_mgmt;
 use crate::{prompts, queue};
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -372,10 +372,9 @@ fn resolve_worker_task_id(resolved: &config::Resolved, task_id: Option<String>) 
         let options = queue::operations::RunnableSelectionOptions::new(false, true);
         if let Some(idx) =
             queue::operations::select_runnable_task_index(&queue_file, done_file.as_ref(), options)
+            && let Some(task) = queue_file.tasks.get(idx)
         {
-            if let Some(task) = queue_file.tasks.get(idx) {
-                return Ok(task.id.trim().to_string());
-            }
+            return Ok(task.id.trim().to_string());
         }
     }
 

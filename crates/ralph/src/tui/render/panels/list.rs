@@ -16,11 +16,11 @@ use super::super::App;
 use super::{filter_summary_for_width, format_duration_compact, task_list_suffix_spans};
 use crate::tui::render::utils::status_color;
 use ratatui::{
+    Frame,
     layout::{Margin, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, HighlightSpacing, List, ListItem, ListState},
-    Frame,
 };
 
 /// Draw the task list panel.
@@ -45,11 +45,11 @@ pub fn draw_task_list(f: &mut Frame<'_>, app: &mut App, area: Rect) {
     let suffix_width = spans_width(&suffix_spans);
     let available = title_width.saturating_sub(base_width.saturating_add(suffix_width));
 
-    if available > 1 {
-        if let Some(summary) = filter_summary_for_width(app, available.saturating_sub(1)) {
-            title_spans.push(Span::raw(" "));
-            title_spans.push(Span::styled(summary, Style::default().fg(Color::DarkGray)));
-        }
+    if available > 1
+        && let Some(summary) = filter_summary_for_width(app, available.saturating_sub(1))
+    {
+        title_spans.push(Span::raw(" "));
+        title_spans.push(Span::styled(summary, Style::default().fg(Color::DarkGray)));
     }
 
     title_spans.extend(suffix_spans);
@@ -132,13 +132,13 @@ pub fn draw_task_list(f: &mut Frame<'_>, app: &mut App, area: Rect) {
                 ));
                 spans.push(Span::raw(" "));
                 // Add clock indicator if scheduled
-                if let Some(ref indicator) = scheduled_indicator {
-                    if !indicator.is_empty() {
-                        spans.push(Span::styled(
-                            indicator.clone(),
-                            Style::default().fg(Color::Yellow),
-                        ));
-                    }
+                if let Some(ref indicator) = scheduled_indicator
+                    && !indicator.is_empty()
+                {
+                    spans.push(Span::styled(
+                        indicator.clone(),
+                        Style::default().fg(Color::Yellow),
+                    ));
                 }
                 spans.push(Span::styled(
                     &task.title,
@@ -155,13 +155,13 @@ pub fn draw_task_list(f: &mut Frame<'_>, app: &mut App, area: Rect) {
                 ));
                 spans.push(Span::raw(" "));
                 // Add clock indicator if scheduled
-                if let Some(ref indicator) = scheduled_indicator {
-                    if !indicator.is_empty() {
-                        spans.push(Span::styled(
-                            indicator.clone(),
-                            Style::default().fg(Color::Yellow),
-                        ));
-                    }
+                if let Some(ref indicator) = scheduled_indicator
+                    && !indicator.is_empty()
+                {
+                    spans.push(Span::styled(
+                        indicator.clone(),
+                        Style::default().fg(Color::Yellow),
+                    ));
                 }
                 spans.push(Span::styled(&task.title, Style::default()));
             }

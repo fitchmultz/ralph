@@ -22,7 +22,7 @@
 
 use crate::config::Resolved;
 use crate::contracts::{QueueFile, Task, TaskPriority, TaskStatus};
-use crate::notification::{notify_watch_new_task, NotificationConfig};
+use crate::notification::{NotificationConfig, notify_watch_new_task};
 use crate::queue::{load_queue, save_queue, suggest_new_task_insert_index};
 use crate::timeutil;
 use anyhow::{Context, Result};
@@ -30,7 +30,7 @@ use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use regex::Regex;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
-use std::sync::mpsc::{channel, RecvTimeoutError};
+use std::sync::mpsc::{RecvTimeoutError, channel};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -303,11 +303,7 @@ fn get_relevant_paths(event: &Event, opts: &WatchOptions) -> Option<Vec<PathBuf>
         .cloned()
         .collect();
 
-    if paths.is_empty() {
-        None
-    } else {
-        Some(paths)
-    }
+    if paths.is_empty() { None } else { Some(paths) }
 }
 
 /// Check if a file should be processed based on patterns and ignore rules.
@@ -663,12 +659,11 @@ fn generate_task_id(prefix: &str, width: usize, queue_path: &Path) -> Result<Str
     // Find the highest existing ID number
     let mut max_num = 0;
     for task in &queue.tasks {
-        if let Some(num_str) = task.id.strip_prefix(prefix) {
-            if let Ok(num) = num_str.parse::<u32>() {
-                if num > max_num {
-                    max_num = num;
-                }
-            }
+        if let Some(num_str) = task.id.strip_prefix(prefix)
+            && let Ok(num) = num_str.parse::<u32>()
+            && num > max_num
+        {
+            max_num = num;
         }
     }
 

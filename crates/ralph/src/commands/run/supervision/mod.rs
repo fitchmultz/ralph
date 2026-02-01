@@ -21,7 +21,7 @@ use crate::notification;
 use crate::productivity;
 use crate::queue;
 use crate::runutil;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 
 mod ci;
 mod git_ops;
@@ -34,8 +34,8 @@ use git_ops::{finalize_git_state, push_if_ahead, warn_if_modified_lfs};
 use notify::build_notification_config;
 pub(crate) use queue_ops::find_task_status;
 use queue_ops::{
-    ensure_task_done_clean_or_bail, ensure_task_done_dirty_or_revert, maintain_and_validate_queues,
-    require_task_status, QueueMaintenanceSaveMode,
+    QueueMaintenanceSaveMode, ensure_task_done_clean_or_bail, ensure_task_done_dirty_or_revert,
+    maintain_and_validate_queues, require_task_status,
 };
 
 use super::logging;
@@ -290,11 +290,10 @@ fn trigger_celebration(
                 }
 
                 // Mark milestone as celebrated if one was achieved
-                if let Some(threshold) = result.milestone_achieved {
-                    if let Err(err) = productivity::mark_milestone_celebrated(&cache_dir, threshold)
-                    {
-                        log::debug!("Failed to mark milestone as celebrated: {}", err);
-                    }
+                if let Some(threshold) = result.milestone_achieved
+                    && let Err(err) = productivity::mark_milestone_celebrated(&cache_dir, threshold)
+                {
+                    log::debug!("Failed to mark milestone as celebrated: {}", err);
                 }
             }
             Err(err) => {

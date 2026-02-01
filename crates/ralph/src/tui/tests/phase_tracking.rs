@@ -23,9 +23,10 @@ fn phase_tracking_reset_initializes_defaults() {
     assert_eq!(app.configured_phases, 3);
     assert!(app.show_progress_panel);
     assert!(app.total_execution_start.is_some());
-    assert!(app
-        .phase_start_times
-        .contains_key(&ExecutionPhase::Planning));
+    assert!(
+        app.phase_start_times
+            .contains_key(&ExecutionPhase::Planning)
+    );
 }
 
 #[test]
@@ -50,12 +51,14 @@ fn phase_transition_records_completion_time() {
     app.transition_to_phase(ExecutionPhase::Implementation);
 
     assert_eq!(app.execution_phase, ExecutionPhase::Implementation);
-    assert!(app
-        .phase_completion_times
-        .contains_key(&ExecutionPhase::Planning));
-    assert!(app
-        .phase_start_times
-        .contains_key(&ExecutionPhase::Implementation));
+    assert!(
+        app.phase_completion_times
+            .contains_key(&ExecutionPhase::Planning)
+    );
+    assert!(
+        app.phase_start_times
+            .contains_key(&ExecutionPhase::Implementation)
+    );
 }
 
 #[test]
@@ -66,9 +69,10 @@ fn phase_transition_to_complete_does_not_start_timer() {
     app.transition_to_phase(ExecutionPhase::Complete);
 
     assert_eq!(app.execution_phase, ExecutionPhase::Complete);
-    assert!(!app
-        .phase_start_times
-        .contains_key(&ExecutionPhase::Complete));
+    assert!(
+        !app.phase_start_times
+            .contains_key(&ExecutionPhase::Complete)
+    );
 }
 
 #[test]

@@ -93,10 +93,10 @@ pub fn filter_tasks<'a>(
         }
 
         out.push(task);
-        if let Some(limit) = limit {
-            if out.len() >= limit {
-                break;
-            }
+        if let Some(limit) = limit
+            && out.len() >= limit
+        {
+            break;
         }
     }
     out
@@ -196,10 +196,10 @@ pub fn fuzzy_search_tasks<'a>(
                 return;
             }
             let haystack: Utf32String = text.into();
-            if let Some(score) = pattern.score(haystack.slice(..), &mut matcher) {
-                if score > best_score {
-                    best_score = score;
-                }
+            if let Some(score) = pattern.score(haystack.slice(..), &mut matcher)
+                && score > best_score
+            {
+                best_score = score;
             }
         };
 

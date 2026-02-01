@@ -31,10 +31,10 @@ pub fn should_celebrate(config: Option<&Config>, no_progress: bool) -> bool {
     }
 
     // Check config setting (default to true)
-    if let Some(config) = config {
-        if let Some(enabled) = config.tui.celebrations_enabled {
-            return enabled;
-        }
+    if let Some(config) = config
+        && let Some(enabled) = config.tui.celebrations_enabled
+    {
+        return enabled;
     }
 
     true

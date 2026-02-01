@@ -14,9 +14,11 @@ use crate::tui::render::utils::{priority_color, status_color, wrap_text};
 fn wrap_text_returns_nonempty_for_nonempty_input() {
     let lines = wrap_text("hello world", 5);
     assert!(!lines.is_empty());
-    assert!(lines
-        .iter()
-        .any(|l| l.contains("hello") || l.contains("world")));
+    assert!(
+        lines
+            .iter()
+            .any(|l| l.contains("hello") || l.contains("world"))
+    );
 }
 
 #[test]

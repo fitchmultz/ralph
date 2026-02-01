@@ -14,7 +14,7 @@
 
 use super::logging;
 use crate::runutil;
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use std::process::Stdio;
 
 /// Executes the CI gate command if enabled.
@@ -34,7 +34,9 @@ pub(crate) fn run_ci_gate(resolved: &crate::config::Resolved) -> Result<()> {
     }
 
     if command.is_empty() {
-        bail!("CI gate command is empty but CI gate is enabled. Set agent.ci_gate_command or disable the gate with agent.ci_gate_enabled=false.");
+        bail!(
+            "CI gate command is empty but CI gate is enabled. Set agent.ci_gate_command or disable the gate with agent.ci_gate_enabled=false."
+        );
     }
 
     logging::with_scope(&format!("CI gate ({command})"), || {

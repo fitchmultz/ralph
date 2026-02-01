@@ -127,10 +127,10 @@ pub fn send_notification(
     }
 
     // Play sound if enabled
-    if config.sound_enabled {
-        if let Err(e) = play_completion_sound(config.sound_path.as_deref()) {
-            log::debug!("Failed to play sound: {}", e);
-        }
+    if config.sound_enabled
+        && let Err(e) = play_completion_sound(config.sound_path.as_deref())
+    {
+        log::debug!("Failed to play sound: {}", e);
     }
 }
 
@@ -187,10 +187,10 @@ pub fn notify_task_failed(
     }
 
     // Play sound if enabled
-    if config.sound_enabled {
-        if let Err(e) = play_completion_sound(config.sound_path.as_deref()) {
-            log::debug!("Failed to play sound: {}", e);
-        }
+    if config.sound_enabled
+        && let Err(e) = play_completion_sound(config.sound_path.as_deref())
+    {
+        log::debug!("Failed to play sound: {}", e);
     }
 }
 
@@ -223,10 +223,10 @@ pub fn notify_loop_complete(
     }
 
     // Play sound if enabled
-    if config.sound_enabled {
-        if let Err(e) = play_completion_sound(config.sound_path.as_deref()) {
-            log::debug!("Failed to play sound: {}", e);
-        }
+    if config.sound_enabled
+        && let Err(e) = play_completion_sound(config.sound_path.as_deref())
+    {
+        log::debug!("Failed to play sound: {}", e);
     }
 }
 
@@ -249,10 +249,10 @@ pub fn notify_watch_new_task(count: usize, config: &NotificationConfig) {
     }
 
     // Play sound if enabled
-    if config.sound_enabled {
-        if let Err(e) = play_completion_sound(config.sound_path.as_deref()) {
-            log::debug!("Failed to play sound: {}", e);
-        }
+    if config.sound_enabled
+        && let Err(e) = play_completion_sound(config.sound_path.as_deref())
+    {
+        log::debug!("Failed to play sound: {}", e);
     }
 }
 

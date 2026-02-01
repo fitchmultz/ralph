@@ -76,9 +76,9 @@ pub fn handle_task(args: TaskArgs, force: bool) -> Result<()> {
 mod tests {
     use clap::{CommandFactory, Parser};
 
+    use crate::cli::Cli;
     use crate::cli::queue::QueueShowFormat;
     use crate::cli::task::args::{TaskEditFieldArg, TaskStatusArg};
-    use crate::cli::Cli;
 
     #[test]
     fn task_update_help_mentions_rp_examples() {

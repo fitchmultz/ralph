@@ -16,7 +16,7 @@
 use crate::git;
 use crate::git::GitError;
 use crate::outpututil;
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use std::path::Path;
 
 /// Handles the final git commit and push if enabled, and verifies the repo is clean.
@@ -58,7 +58,10 @@ pub(crate) fn push_if_ahead(repo_root: &Path) -> Result<()> {
         }
     }
     if let Err(err) = git::push_upstream(repo_root) {
-        bail!("Git push failed: the repository has unpushed commits but the push operation failed. Push manually to sync with upstream. Error: {:#}", err);
+        bail!(
+            "Git push failed: the repository has unpushed commits but the push operation failed. Push manually to sync with upstream. Error: {:#}",
+            err
+        );
     }
     Ok(())
 }
@@ -91,33 +94,33 @@ pub(crate) fn warn_if_modified_lfs(repo_root: &Path, strict: bool) -> Result<()>
     }
 
     // Check filter configuration
-    if let Some(ref filter_status) = health_report.filter_status {
-        if !filter_status.is_healthy() {
-            let issues = filter_status.issues();
-            if strict {
-                return Err(anyhow!(
-                    "Git LFS filters misconfigured: {}. Run 'git lfs install' to fix.",
-                    issues.join("; ")
-                ));
-            } else {
-                log::error!(
-                    "Git LFS filters misconfigured: {}. Run 'git lfs install' to fix. This may cause data loss if LFS files are committed as pointers!",
-                    issues.join("; ")
-                );
-            }
+    if let Some(ref filter_status) = health_report.filter_status
+        && !filter_status.is_healthy()
+    {
+        let issues = filter_status.issues();
+        if strict {
+            return Err(anyhow!(
+                "Git LFS filters misconfigured: {}. Run 'git lfs install' to fix.",
+                issues.join("; ")
+            ));
+        } else {
+            log::error!(
+                "Git LFS filters misconfigured: {}. Run 'git lfs install' to fix. This may cause data loss if LFS files are committed as pointers!",
+                issues.join("; ")
+            );
         }
     }
 
     // Check LFS status for untracked files
-    if let Some(ref status_summary) = health_report.status_summary {
-        if !status_summary.is_clean() {
-            let issues = status_summary.issue_descriptions();
-            if strict {
-                return Err(anyhow!("Git LFS issues detected: {}", issues.join("; ")));
-            } else {
-                for issue in issues {
-                    log::warn!("LFS issue: {}", issue);
-                }
+    if let Some(ref status_summary) = health_report.status_summary
+        && !status_summary.is_clean()
+    {
+        let issues = status_summary.issue_descriptions();
+        if strict {
+            return Err(anyhow!("Git LFS issues detected: {}", issues.join("; ")));
+        } else {
+            for issue in issues {
+                log::warn!("LFS issue: {}", issue);
             }
         }
     }

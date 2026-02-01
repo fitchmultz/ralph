@@ -15,10 +15,10 @@
 // Re-export for backward compatibility
 pub use crate::constants::defaults::FALLBACK_RFC3339;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use std::sync::OnceLock;
-use time::format_description::well_known::Rfc3339;
 use time::format_description::FormatItem;
+use time::format_description::well_known::Rfc3339;
 use time::{OffsetDateTime, UtcOffset};
 
 fn fixed_rfc3339_format() -> &'static [FormatItem<'static>] {

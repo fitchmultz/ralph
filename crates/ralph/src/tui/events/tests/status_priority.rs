@@ -11,8 +11,8 @@
 
 use super::helpers::{make_queue, make_test_task};
 use crate::contracts::{TaskPriority, TaskStatus};
-use crate::tui::events::PaletteCommand;
 use crate::tui::App;
+use crate::tui::events::PaletteCommand;
 
 #[test]
 fn palette_set_status_draft_updates_task() {

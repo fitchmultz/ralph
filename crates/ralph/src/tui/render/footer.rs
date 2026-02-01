@@ -13,15 +13,15 @@
 //! - Caller supplies the footer area row.
 
 use super::super::events::types::ConfirmDiscardAction;
-use super::super::{keymap, App, AppMode};
+use super::super::{App, AppMode, keymap};
 use super::utils::{spans_width, truncate_spans_with_ellipsis};
 use crate::outpututil::truncate_chars;
 use ratatui::{
+    Frame,
     layout::{Alignment, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::Paragraph,
-    Frame,
 };
 
 /// Draw the footer area.

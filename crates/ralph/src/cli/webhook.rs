@@ -7,7 +7,7 @@
 //! - Webhook configuration management (use config files).
 //! - Persistent webhook state.
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
 
 #[derive(Args)]
@@ -52,7 +52,7 @@ pub fn handle_webhook(args: &WebhookArgs, resolved: &crate::config::Resolved) ->
 
 fn handle_test(args: &TestArgs, resolved: &crate::config::Resolved) -> Result<()> {
     use crate::timeutil;
-    use crate::webhook::{send_webhook, WebhookEventType};
+    use crate::webhook::{WebhookEventType, send_webhook};
 
     let mut config = resolved.config.agent.webhook.clone();
 
@@ -76,7 +76,10 @@ fn handle_test(args: &TestArgs, resolved: &crate::config::Resolved) -> Result<()
         "task_completed" => WebhookEventType::TaskCompleted,
         "task_failed" => WebhookEventType::TaskFailed,
         "task_status_changed" => WebhookEventType::TaskStatusChanged,
-        _ => bail!("Unknown event type: {}. Supported: task_created, task_started, task_completed, task_failed, task_status_changed", args.event),
+        _ => bail!(
+            "Unknown event type: {}. Supported: task_created, task_started, task_completed, task_failed, task_status_changed",
+            args.event
+        ),
     };
 
     println!("Sending test webhook...");

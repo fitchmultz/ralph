@@ -122,11 +122,11 @@ fn update_config_file_references(
     }
 
     // Check global config
-    if let Some(global_path) = &ctx.global_config_path {
-        if global_path.exists() {
-            update_config_file_if_needed(global_path, old_path, new_path)
-                .context("update global config file references")?;
-        }
+    if let Some(global_path) = &ctx.global_config_path
+        && global_path.exists()
+    {
+        update_config_file_if_needed(global_path, old_path, new_path)
+            .context("update global config file references")?;
     }
 
     Ok(())
@@ -144,16 +144,16 @@ fn update_config_file_if_needed(config_path: &Path, old_path: &str, new_path: &s
     // Check if any file references need updating
     let mut needs_update = false;
 
-    if let Some(ref file) = layer.queue.file {
-        if file == &old_path_buf {
-            needs_update = true;
-        }
+    if let Some(ref file) = layer.queue.file
+        && file == &old_path_buf
+    {
+        needs_update = true;
     }
 
-    if let Some(ref done_file) = layer.queue.done_file {
-        if done_file == &old_path_buf {
-            needs_update = true;
-        }
+    if let Some(ref done_file) = layer.queue.done_file
+        && done_file == &old_path_buf
+    {
+        needs_update = true;
     }
 
     if !needs_update {

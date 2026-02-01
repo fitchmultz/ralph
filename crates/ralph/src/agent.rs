@@ -20,7 +20,7 @@ use crate::contracts::{
     Runner, RunnerApprovalMode, RunnerCliOptionsPatch, RunnerOutputFormat, RunnerPlanMode,
     RunnerSandboxMode, RunnerVerbosity, UnsupportedOptionPolicy,
 };
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use clap::{Args, ValueEnum};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]

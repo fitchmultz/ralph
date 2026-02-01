@@ -1,6 +1,6 @@
 //! Queue list subcommand.
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use clap::Args;
 
 use crate::cli::{load_and_validate_queues, resolve_list_limit};
@@ -79,7 +79,9 @@ pub struct QueueListArgs {
 
 pub(crate) fn handle(resolved: &Resolved, args: QueueListArgs) -> Result<()> {
     if args.include_done && args.only_done {
-        bail!("Conflicting flags: --include-done and --only-done are mutually exclusive. Choose either to include done tasks or to only show done tasks.");
+        bail!(
+            "Conflicting flags: --include-done and --only-done are mutually exclusive. Choose either to include done tasks or to only show done tasks."
+        );
     }
 
     let (queue_file, done_file) =
@@ -117,16 +119,16 @@ pub(crate) fn handle(resolved: &Resolved, args: QueueListArgs) -> Result<()> {
             None,
         ));
     }
-    if args.include_done || args.only_done {
-        if let Some(done_ref) = done_ref {
-            tasks.extend(queue::filter_tasks(
-                done_ref,
-                &statuses,
-                &args.tag,
-                &args.scope,
-                None,
-            ));
-        }
+    if (args.include_done || args.only_done)
+        && let Some(done_ref) = done_ref
+    {
+        tasks.extend(queue::filter_tasks(
+            done_ref,
+            &statuses,
+            &args.tag,
+            &args.scope,
+            None,
+        ));
     }
 
     // Apply dependency filter if specified
@@ -154,14 +156,12 @@ pub(crate) fn handle(resolved: &Resolved, args: QueueListArgs) -> Result<()> {
             // --scheduled-after filter
             if let Some(ref after) = args.scheduled_after {
                 if let Some(ref scheduled) = t.scheduled_start {
-                    if let Ok(scheduled_dt) = crate::timeutil::parse_rfc3339(scheduled) {
-                        if let Ok(after_dt) = crate::timeutil::parse_relative_time(after)
+                    if let Ok(scheduled_dt) = crate::timeutil::parse_rfc3339(scheduled)
+                        && let Ok(after_dt) = crate::timeutil::parse_relative_time(after)
                             .and_then(|s| crate::timeutil::parse_rfc3339(&s))
-                        {
-                            if scheduled_dt <= after_dt {
-                                return false;
-                            }
-                        }
+                        && scheduled_dt <= after_dt
+                    {
+                        return false;
                     }
                 } else {
                     // Task has no scheduled_start, so it doesn't satisfy "after" filter
@@ -172,14 +172,12 @@ pub(crate) fn handle(resolved: &Resolved, args: QueueListArgs) -> Result<()> {
             // --scheduled-before filter
             if let Some(ref before) = args.scheduled_before {
                 if let Some(ref scheduled) = t.scheduled_start {
-                    if let Ok(scheduled_dt) = crate::timeutil::parse_rfc3339(scheduled) {
-                        if let Ok(before_dt) = crate::timeutil::parse_relative_time(before)
+                    if let Ok(scheduled_dt) = crate::timeutil::parse_rfc3339(scheduled)
+                        && let Ok(before_dt) = crate::timeutil::parse_relative_time(before)
                             .and_then(|s| crate::timeutil::parse_rfc3339(&s))
-                        {
-                            if scheduled_dt >= before_dt {
-                                return false;
-                            }
-                        }
+                        && scheduled_dt >= before_dt
+                    {
+                        return false;
                     }
                 } else {
                     // Task has no scheduled_start, so it doesn't satisfy "before" filter

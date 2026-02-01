@@ -13,7 +13,7 @@
 //! - LFS validation (see git/lfs.rs)
 //! - Repository cleanliness (see git/clean.rs)
 
-use crate::git::error::{classify_push_error, git_base_command, git_run, GitError};
+use crate::git::error::{GitError, classify_push_error, git_base_command, git_run};
 use anyhow::Context;
 use std::path::Path;
 

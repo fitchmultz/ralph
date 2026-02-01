@@ -254,11 +254,11 @@ fn group_files(files: &[(PathBuf, usize)], mode: BatchMode) -> Vec<Vec<(PathBuf,
                     let other_stem = other_path.file_stem().and_then(|s| s.to_str());
 
                     // Check for test file relationships
-                    if let (Some(s), Some(os)) = (stem, other_stem) {
-                        if is_related_file(s, os) {
-                            group.push((other_path.clone(), *other_loc));
-                            used.insert(j);
-                        }
+                    if let (Some(s), Some(os)) = (stem, other_stem)
+                        && is_related_file(s, os)
+                    {
+                        group.push((other_path.clone(), *other_loc));
+                        used.insert(j);
                     }
                 }
 

@@ -22,11 +22,11 @@
 //! - Lock acquisition is optional (controlled by acquire_lock parameter).
 //! - Tasks may be moved to done.json during updates (not an error).
 
-use super::{compare_task_fields, resolve_task_update_settings, TaskUpdateSettings};
+use super::{TaskUpdateSettings, compare_task_fields, resolve_task_update_settings};
 use crate::commands::run::PhaseType;
 use crate::contracts::ProjectType;
 use crate::{config, prompts, queue, runner, runutil};
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 
 pub fn update_task(
     resolved: &config::Resolved,

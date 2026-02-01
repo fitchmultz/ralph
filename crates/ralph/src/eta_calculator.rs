@@ -13,7 +13,7 @@
 //! - ETA estimates are based on historical phase durations for the same (runner, model, phase_count) combination.
 //! - Confidence levels are determined by the amount of historical data available.
 
-use crate::execution_history::{get_phase_averages, load_execution_history, ExecutionHistory};
+use crate::execution_history::{ExecutionHistory, get_phase_averages, load_execution_history};
 use crate::progress::ExecutionPhase;
 use std::collections::HashMap;
 use std::path::Path;

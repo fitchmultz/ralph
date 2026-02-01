@@ -7,7 +7,7 @@ use crate::completions;
 use crate::config;
 use crate::contracts::{GitRevertMode, TaskStatus};
 use crate::{git, promptflow, prompts, queue, runutil, timeutil};
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 
 pub fn execute_phase3_review(ctx: &PhaseInvocation<'_>) -> Result<()> {
     let label = logging::phase_label(3, 3, "Review", ctx.task_id);
@@ -85,10 +85,10 @@ pub fn execute_phase3_review(ctx: &PhaseInvocation<'_>) -> Result<()> {
                 phase_type: PhaseType::Review,
             },
             runutil::RunnerErrorMessages {
-            log_label: "Code review",
-            interrupted_msg: "Code review interrupted: the agent run was canceled. Review the working tree and rerun Phase 3 to complete the task.",
-            timeout_msg: "Code review timed out: the agent run exceeded the time limit. Review the working tree and rerun Phase 3 to complete the task.",
-            terminated_msg: "Code review terminated: the agent was stopped by a signal. Review the working tree and rerun Phase 3 to complete the task.",
+                log_label: "Code review",
+                interrupted_msg: "Code review interrupted: the agent run was canceled. Review the working tree and rerun Phase 3 to complete the task.",
+                timeout_msg: "Code review timed out: the agent run exceeded the time limit. Review the working tree and rerun Phase 3 to complete the task.",
+                terminated_msg: "Code review terminated: the agent was stopped by a signal. Review the working tree and rerun Phase 3 to complete the task.",
                 non_zero_msg: |code| {
                     format!(
                         "Code review failed: the agent exited with a non-zero code ({code}). Review the working tree and rerun Phase 3 to complete the task."
@@ -274,24 +274,24 @@ pub fn apply_phase3_completion_signal(
     };
 
     let status = signal.status;
-    if let Some(snapshot) = load_phase3_task_snapshot(resolved, task_id)? {
-        if snapshot.in_done {
-            if snapshot.status != status {
-                bail!(
-                    "Completion signal status {:?} does not match archived task status {:?} for {}.",
-                    status,
-                    snapshot.status,
-                    task_id
-                );
-            }
-            remove_completion_signal(resolved, task_id)?;
-            log::info!(
-                "Completion signal for {} already applied (status {:?}); removing signal.",
-                task_id,
-                status
+    if let Some(snapshot) = load_phase3_task_snapshot(resolved, task_id)?
+        && snapshot.in_done
+    {
+        if snapshot.status != status {
+            bail!(
+                "Completion signal status {:?} does not match archived task status {:?} for {}.",
+                status,
+                snapshot.status,
+                task_id
             );
-            return Ok(Some(status));
         }
+        remove_completion_signal(resolved, task_id)?;
+        log::info!(
+            "Completion signal for {} already applied (status {:?}); removing signal.",
+            task_id,
+            status
+        );
+        return Ok(Some(status));
     }
 
     let now = timeutil::now_utc_rfc3339()?;
@@ -318,10 +318,10 @@ pub fn apply_phase3_completion_signal(
 
 fn remove_completion_signal(resolved: &config::Resolved, task_id: &str) -> Result<()> {
     let signal_path = completions::completion_signal_path(&resolved.repo_root, task_id)?;
-    if let Err(err) = std::fs::remove_file(&signal_path) {
-        if err.kind() != std::io::ErrorKind::NotFound {
-            return Err(err.into());
-        }
+    if let Err(err) = std::fs::remove_file(&signal_path)
+        && err.kind() != std::io::ErrorKind::NotFound
+    {
+        return Err(err.into());
     }
     Ok(())
 }

@@ -7,7 +7,7 @@
 //! Invariants/assumptions: templates live under `.ralph/prompts/`, embedded defaults are compile-time
 //! `include_str!` values, and required placeholder tokens include braces (e.g., `{{TASK_ID}}`).
 
-use super::util::{load_prompt_with_fallback, RequiredPlaceholder};
+use super::util::{RequiredPlaceholder, load_prompt_with_fallback};
 use anyhow::Result;
 use std::path::Path;
 
@@ -72,8 +72,7 @@ const TASK_UPDATER_REQUIRED: &[RequiredPlaceholder] = &[
 
 const CODE_REVIEW_REQUIRED: &[RequiredPlaceholder] = &[RequiredPlaceholder {
     token: "{{TASK_ID}}",
-    error_message:
-        "Template error: code review prompt template is missing the required '{{TASK_ID}}' placeholder.",
+    error_message: "Template error: code review prompt template is missing the required '{{TASK_ID}}' placeholder.",
 }];
 
 pub(crate) fn prompt_template(id: PromptTemplateId) -> PromptTemplate {

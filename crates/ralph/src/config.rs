@@ -27,7 +27,7 @@ use crate::constants::defaults::DEFAULT_ID_WIDTH;
 use crate::contracts::{AgentConfig, Config, ProjectType, QueueConfig, TuiConfig};
 use crate::fsutil;
 use crate::prompts_internal::util::validate_instruction_file_paths;
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs;
@@ -149,7 +149,10 @@ pub fn save_layer(path: &Path, layer: &ConfigLayer) -> Result<()> {
 pub fn apply_layer(mut base: Config, layer: ConfigLayer) -> Result<Config> {
     if let Some(version) = layer.version {
         if version != 1 {
-            bail!("Unsupported config version: {}. Ralph requires version 1. Update the 'version' field in your config file.", version);
+            bail!(
+                "Unsupported config version: {}. Ralph requires version 1. Update the 'version' field in your config file.",
+                version
+            );
         }
         base.version = version;
     }
@@ -167,78 +170,106 @@ pub fn apply_layer(mut base: Config, layer: ConfigLayer) -> Result<Config> {
 
 pub fn validate_config(cfg: &Config) -> Result<()> {
     if cfg.version != 1 {
-        bail!("Unsupported config version: {}. Ralph requires version 1. Update the 'version' field in your config file.", cfg.version);
+        bail!(
+            "Unsupported config version: {}. Ralph requires version 1. Update the 'version' field in your config file.",
+            cfg.version
+        );
     }
 
-    if let Some(prefix) = &cfg.queue.id_prefix {
-        if prefix.trim().is_empty() {
-            bail!("Empty queue.id_prefix: prefix is required if specified. Set a non-empty prefix (e.g., 'RQ') in .ralph/config.json or via --id-prefix.");
-        }
+    if let Some(prefix) = &cfg.queue.id_prefix
+        && prefix.trim().is_empty()
+    {
+        bail!(
+            "Empty queue.id_prefix: prefix is required if specified. Set a non-empty prefix (e.g., 'RQ') in .ralph/config.json or via --id-prefix."
+        );
     }
 
-    if let Some(width) = cfg.queue.id_width {
-        if width == 0 {
-            bail!("Invalid queue.id_width: width must be greater than 0. Set a valid width (e.g., 4) in .ralph/config.json or via --id-width.");
-        }
+    if let Some(width) = cfg.queue.id_width
+        && width == 0
+    {
+        bail!(
+            "Invalid queue.id_width: width must be greater than 0. Set a valid width (e.g., 4) in .ralph/config.json or via --id-width."
+        );
     }
 
-    if let Some(file) = &cfg.queue.file {
-        if file.as_os_str().is_empty() {
-            bail!("Empty queue.file: path is required if specified. Specify a valid path (e.g., '.ralph/queue.json') in .ralph/config.json or via --queue-file.");
-        }
+    if let Some(file) = &cfg.queue.file
+        && file.as_os_str().is_empty()
+    {
+        bail!(
+            "Empty queue.file: path is required if specified. Specify a valid path (e.g., '.ralph/queue.json') in .ralph/config.json or via --queue-file."
+        );
     }
 
-    if let Some(done_file) = &cfg.queue.done_file {
-        if done_file.as_os_str().is_empty() {
-            bail!("Empty queue.done_file: path is required if specified. Specify a valid path (e.g., '.ralph/done.json') in .ralph/config.json or via --done-file.");
-        }
+    if let Some(done_file) = &cfg.queue.done_file
+        && done_file.as_os_str().is_empty()
+    {
+        bail!(
+            "Empty queue.done_file: path is required if specified. Specify a valid path (e.g., '.ralph/done.json') in .ralph/config.json or via --done-file."
+        );
     }
 
-    if let Some(phases) = cfg.agent.phases {
-        if !(1..=3).contains(&phases) {
-            bail!("Invalid agent.phases: {}. Supported values are 1, 2, or 3. Update .ralph/config.json or CLI flags.", phases);
-        }
+    if let Some(phases) = cfg.agent.phases
+        && !(1..=3).contains(&phases)
+    {
+        bail!(
+            "Invalid agent.phases: {}. Supported values are 1, 2, or 3. Update .ralph/config.json or CLI flags.",
+            phases
+        );
     }
 
-    if let Some(iterations) = cfg.agent.iterations {
-        if iterations == 0 {
-            bail!("Invalid agent.iterations: {}. Iterations must be greater than 0. Update .ralph/config.json.", iterations);
-        }
+    if let Some(iterations) = cfg.agent.iterations
+        && iterations == 0
+    {
+        bail!(
+            "Invalid agent.iterations: {}. Iterations must be greater than 0. Update .ralph/config.json.",
+            iterations
+        );
     }
 
-    if let Some(bin) = &cfg.agent.codex_bin {
-        if bin.trim().is_empty() {
-            bail!("Empty agent.codex_bin: binary path is required if specified. Set the path to the codex binary in your config.");
-        }
+    if let Some(bin) = &cfg.agent.codex_bin
+        && bin.trim().is_empty()
+    {
+        bail!(
+            "Empty agent.codex_bin: binary path is required if specified. Set the path to the codex binary in your config."
+        );
     }
-    if let Some(bin) = &cfg.agent.opencode_bin {
-        if bin.trim().is_empty() {
-            bail!("Empty agent.opencode_bin: binary path is required if specified. Set the path to the opencode binary in your config.");
-        }
+    if let Some(bin) = &cfg.agent.opencode_bin
+        && bin.trim().is_empty()
+    {
+        bail!(
+            "Empty agent.opencode_bin: binary path is required if specified. Set the path to the opencode binary in your config."
+        );
     }
-    if let Some(bin) = &cfg.agent.gemini_bin {
-        if bin.trim().is_empty() {
-            bail!("Empty agent.gemini_bin: binary path is required if specified. Set the path to the gemini binary in your config.");
-        }
+    if let Some(bin) = &cfg.agent.gemini_bin
+        && bin.trim().is_empty()
+    {
+        bail!(
+            "Empty agent.gemini_bin: binary path is required if specified. Set the path to the gemini binary in your config."
+        );
     }
-    if let Some(bin) = &cfg.agent.claude_bin {
-        if bin.trim().is_empty() {
-            bail!("Empty agent.claude_bin: binary path is required if specified. Set the path to the claude binary in your config.");
-        }
+    if let Some(bin) = &cfg.agent.claude_bin
+        && bin.trim().is_empty()
+    {
+        bail!(
+            "Empty agent.claude_bin: binary path is required if specified. Set the path to the claude binary in your config."
+        );
     }
-    if let Some(bin) = &cfg.agent.cursor_bin {
-        if bin.trim().is_empty() {
-            bail!("Empty agent.cursor_bin: binary path is required if specified. Set the path to the Cursor agent binary (`agent`) in your config.");
-        }
+    if let Some(bin) = &cfg.agent.cursor_bin
+        && bin.trim().is_empty()
+    {
+        bail!(
+            "Empty agent.cursor_bin: binary path is required if specified. Set the path to the Cursor agent binary (`agent`) in your config."
+        );
     }
 
     let ci_gate_enabled = cfg.agent.ci_gate_enabled.unwrap_or(true);
-    if ci_gate_enabled {
-        if let Some(command) = &cfg.agent.ci_gate_command {
-            if command.trim().is_empty() {
-                bail!("Empty agent.ci_gate_command: CI gate command must be non-empty when enabled. Set a command (e.g., 'make ci') or disable the gate with agent.ci_gate_enabled=false.");
-            }
-        }
+    if ci_gate_enabled
+        && let Some(command) = &cfg.agent.ci_gate_command
+        && command.trim().is_empty()
+    {
+        bail!(
+            "Empty agent.ci_gate_command: CI gate command must be non-empty when enabled. Set a command (e.g., 'make ci') or disable the gate with agent.ci_gate_enabled=false."
+        );
     }
 
     Ok(())
@@ -248,7 +279,9 @@ pub fn resolve_id_prefix(cfg: &Config) -> Result<String> {
     let raw = cfg.queue.id_prefix.as_deref().unwrap_or("RQ");
     let trimmed = raw.trim();
     if trimmed.is_empty() {
-        bail!("Empty queue.id_prefix: prefix is required. Set a non-empty prefix (e.g., 'RQ') in .ralph/config.json or via --id-prefix.");
+        bail!(
+            "Empty queue.id_prefix: prefix is required. Set a non-empty prefix (e.g., 'RQ') in .ralph/config.json or via --id-prefix."
+        );
     }
     Ok(trimmed.to_uppercase())
 }
@@ -256,7 +289,9 @@ pub fn resolve_id_prefix(cfg: &Config) -> Result<String> {
 pub fn resolve_id_width(cfg: &Config) -> Result<usize> {
     let width = cfg.queue.id_width.unwrap_or(DEFAULT_ID_WIDTH as u8) as usize;
     if width == 0 {
-        bail!("Invalid_queue.id_width: width must be greater than 0. Set a valid width (e.g., 4) in .ralph/config.json or via --id-width.");
+        bail!(
+            "Invalid_queue.id_width: width must be greater than 0. Set a valid width (e.g., 4) in .ralph/config.json or via --id-width."
+        );
     }
     Ok(width)
 }
@@ -268,7 +303,9 @@ pub fn resolve_queue_path(repo_root: &Path, cfg: &Config) -> Result<PathBuf> {
         .clone()
         .unwrap_or_else(|| PathBuf::from(".ralph/queue.json"));
     if value.as_os_str().is_empty() {
-        bail!("Empty queue.file: path is required. Specify a valid path (e.g., '.ralph/queue.json') in .ralph/config.json or via --queue-file.");
+        bail!(
+            "Empty queue.file: path is required. Specify a valid path (e.g., '.ralph/queue.json') in .ralph/config.json or via --queue-file."
+        );
     }
     if value.is_absolute() {
         return Ok(value);
@@ -283,7 +320,9 @@ pub fn resolve_done_path(repo_root: &Path, cfg: &Config) -> Result<PathBuf> {
         .clone()
         .unwrap_or_else(|| PathBuf::from(".ralph/done.json"));
     if value.as_os_str().is_empty() {
-        bail!("Empty queue.done_file: path is required. Specify a valid path (e.g., '.ralph/done.json') in .ralph/config.json or via --done-file.");
+        bail!(
+            "Empty queue.done_file: path is required. Specify a valid path (e.g., '.ralph/done.json') in .ralph/config.json or via --done-file."
+        );
     }
     if value.is_absolute() {
         return Ok(value);

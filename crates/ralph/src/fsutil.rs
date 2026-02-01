@@ -274,7 +274,7 @@ mod tests {
         let _guard = env_lock().lock().expect("env lock");
 
         // Ensure env var is not set
-        std::env::remove_var(ENV_RAW_DUMP);
+        unsafe { std::env::remove_var(ENV_RAW_DUMP) }
 
         let content = "sensitive data";
         let result = safeguard_text_dump("test_raw", content, false);
@@ -291,7 +291,7 @@ mod tests {
     fn safeguard_text_dump_allows_raw_with_env_var() {
         let _guard = env_lock().lock().expect("env lock");
 
-        std::env::set_var(ENV_RAW_DUMP, "1");
+        unsafe { std::env::set_var(ENV_RAW_DUMP, "1") };
 
         let content = "raw secret data";
         let path = safeguard_text_dump("test_raw_env", content, false).unwrap();
@@ -300,7 +300,7 @@ mod tests {
         assert_eq!(written, content, "Raw content should be written unchanged");
 
         // Cleanup
-        std::env::remove_var(ENV_RAW_DUMP);
+        unsafe { std::env::remove_var(ENV_RAW_DUMP) }
         let _ = fs::remove_file(&path);
         if let Some(parent) = path.parent() {
             let _ = fs::remove_dir(parent);
@@ -312,7 +312,7 @@ mod tests {
         let _guard = env_lock().lock().expect("env lock");
 
         // Ensure env var is not set
-        std::env::remove_var(ENV_RAW_DUMP);
+        unsafe { std::env::remove_var(ENV_RAW_DUMP) }
 
         let content = "debug mode secret";
         let path = safeguard_text_dump("test_raw_debug", content, true).unwrap();

@@ -116,9 +116,11 @@ fn registry_maps_prompt_metadata() {
         assert_eq!(template.rel_path, expectation.rel_path);
         assert_eq!(template.label, expectation.label);
         assert_eq!(template.project_type_guidance, expectation.project_guidance);
-        assert!(template
-            .embedded_default
-            .contains(expectation.embedded_marker));
+        assert!(
+            template
+                .embedded_default
+                .contains(expectation.embedded_marker)
+        );
     }
 }
 
@@ -151,9 +153,10 @@ fn required_placeholders_fail_when_missing() {
     let template = "no placeholders here";
     let meta = prompt_template(PromptTemplateId::Scan);
     let err = ensure_required_placeholders(template, meta.required_placeholders).unwrap_err();
-    assert!(err
-        .to_string()
-        .contains("scan prompt template is missing the required"));
+    assert!(
+        err.to_string()
+            .contains("scan prompt template is missing the required")
+    );
 }
 
 #[test]

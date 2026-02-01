@@ -14,7 +14,7 @@
 //! - RepoPrompt mode selection (if any) is already normalized.
 //! - Color option is passed from the global CLI flag.
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::Args;
 
 use crate::cli::color::ColorArg;
@@ -145,9 +145,10 @@ mod tests {
             Arc::new(|_context: &runutil::RevertPromptContext| runutil::RevertDecision::Keep);
         let runner = browse_only_runner("RQ-0001".to_string(), handler, revert_prompt);
         let err = runner().expect_err("expected browse-only error");
-        assert!(err
-            .to_string()
-            .contains("Task execution is disabled in read-only mode"));
+        assert!(
+            err.to_string()
+                .contains("Task execution is disabled in read-only mode")
+        );
     }
 
     #[test]
@@ -157,8 +158,9 @@ mod tests {
             Arc::new(|_context: &runutil::RevertPromptContext| runutil::RevertDecision::Keep);
         let runner = browse_only_scan_runner("".to_string(), handler, revert_prompt);
         let err = runner().expect_err("expected browse-only scan error");
-        assert!(err
-            .to_string()
-            .contains("Scan is disabled in read-only mode"));
+        assert!(
+            err.to_string()
+                .contains("Scan is disabled in read-only mode")
+        );
     }
 }

@@ -12,7 +12,7 @@
 //! - Callers keep temp guards alive until command execution completes.
 //! - Provided binaries and working directories are valid and accessible.
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use std::fmt;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -21,7 +21,7 @@ use std::process::{Command, Stdio};
 use crate::fsutil;
 
 use super::super::{
-    ClaudePermissionMode, Model, ReasoningEffort, OPENCODE_PROMPT_FILE_MESSAGE, TEMP_RETENTION,
+    ClaudePermissionMode, Model, OPENCODE_PROMPT_FILE_MESSAGE, ReasoningEffort, TEMP_RETENTION,
 };
 use super::process::ensure_self_on_path;
 
@@ -211,7 +211,7 @@ pub(super) fn permission_mode_to_arg(mode: ClaudePermissionMode) -> &'static str
 
 #[cfg(test)]
 mod tests {
-    use super::{temp_prompt_file_error, RunnerCommandBuilder};
+    use super::{RunnerCommandBuilder, temp_prompt_file_error};
     use std::path::Path;
 
     #[test]

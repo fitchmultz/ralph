@@ -18,8 +18,8 @@ use crate::constants::ui::NARROW_LAYOUT_WIDTH;
 use super::events::types::{ConfirmDiscardAction, ViewMode};
 use super::{App, AppMode};
 use ratatui::{
-    layout::{Constraint, Direction, Layout},
     Frame,
+    layout::{Constraint, Direction, Layout},
 };
 
 mod board;

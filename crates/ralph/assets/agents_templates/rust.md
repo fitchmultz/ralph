@@ -54,7 +54,6 @@ Useful iteration commands (not a substitute for `make ci`):
 - Unit tests: colocate with implementation via `#[cfg(test)]`.
 - Integration tests: use `tests/` directory when cross-module behavior is the subject.
 - Temp dirs: CI tests run in isolated temp directories (set `RALPH_CI_KEEP_TMP=1` to keep).
-- Stress tests: run burn-in validation for queue-contract or other critical paths.
 
 ## Workflow Contracts
 

@@ -378,9 +378,11 @@ mod tests {
         assert_eq!(state.execution_phase, ExecutionPhase::Planning);
         assert_eq!(state.configured_phases, 2);
         assert!(state.total_execution_start.is_some());
-        assert!(state
-            .phase_start_times
-            .contains_key(&ExecutionPhase::Planning));
+        assert!(
+            state
+                .phase_start_times
+                .contains_key(&ExecutionPhase::Planning)
+        );
     }
 
     #[test]
@@ -391,16 +393,20 @@ mod tests {
         // Transition to implementation
         state.transition_to_phase(ExecutionPhase::Implementation);
         assert_eq!(state.execution_phase, ExecutionPhase::Implementation);
-        assert!(state
-            .phase_completion_times
-            .contains_key(&ExecutionPhase::Planning));
+        assert!(
+            state
+                .phase_completion_times
+                .contains_key(&ExecutionPhase::Planning)
+        );
 
         // Transition to review
         state.transition_to_phase(ExecutionPhase::Review);
         assert_eq!(state.execution_phase, ExecutionPhase::Review);
-        assert!(state
-            .phase_completion_times
-            .contains_key(&ExecutionPhase::Implementation));
+        assert!(
+            state
+                .phase_completion_times
+                .contains_key(&ExecutionPhase::Implementation)
+        );
     }
 
     #[test]

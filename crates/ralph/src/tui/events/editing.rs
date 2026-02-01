@@ -15,7 +15,7 @@
 use super::super::config_edit::{ConfigKey, RiskLevel};
 use super::super::{AppMode, MultiLineInput};
 use super::types::TuiAction;
-use super::{is_plain_char, text_char, App};
+use super::{App, is_plain_char, text_char};
 use anyhow::Result;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
@@ -429,17 +429,17 @@ pub(super) fn handle_editing_config_key(
                 Ok(TuiAction::Continue)
             }
             KeyCode::Char(_) => {
-                if entry.kind == crate::tui::ConfigFieldKind::Text {
-                    if let Some(ch) = text_char(&key) {
-                        let current = app.config_value_for_edit(entry.key);
-                        let mut input = MultiLineInput::new(current, false);
-                        // Simulate typing the character
-                        input.textarea_mut().insert_char(ch);
-                        app.mode = AppMode::EditingConfig {
-                            selected,
-                            editing_value: Some(input),
-                        };
-                    }
+                if entry.kind == crate::tui::ConfigFieldKind::Text
+                    && let Some(ch) = text_char(&key)
+                {
+                    let current = app.config_value_for_edit(entry.key);
+                    let mut input = MultiLineInput::new(current, false);
+                    // Simulate typing the character
+                    input.textarea_mut().insert_char(ch);
+                    app.mode = AppMode::EditingConfig {
+                        selected,
+                        editing_value: Some(input),
+                    };
                 }
                 Ok(TuiAction::Continue)
             }

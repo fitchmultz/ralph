@@ -18,7 +18,7 @@
 use crate::contracts::{QueueFile, Task, TaskStatus};
 use crate::queue;
 use crate::queue::TaskEditKey;
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 
 /// Result of a batch operation on a single task.
 #[derive(Debug, Clone)]

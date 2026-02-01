@@ -15,7 +15,7 @@
 use super::app::App;
 use crate::outpututil::format_custom_fields;
 use crate::queue::{self, TaskEditKey};
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TaskEditKind {

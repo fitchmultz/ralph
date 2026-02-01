@@ -14,15 +14,15 @@
 //! - `app.detail_width` is updated before text wrapping operations.
 
 use super::super::{App, AppMode};
-use super::{filter_summary_for_width, render_details_panel, DetailsPanelContent};
+use super::{DetailsPanelContent, filter_summary_for_width, render_details_panel};
 use crate::contracts::{TaskPriority, TaskStatus};
-use crate::tui::render::utils::{priority_color, status_color, wrap_text};
 use crate::tui::DetailsContextMode;
+use crate::tui::render::utils::{priority_color, status_color, wrap_text};
 use ratatui::{
+    Frame,
     layout::{Margin, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    Frame,
 };
 
 /// Draw the task details panel.

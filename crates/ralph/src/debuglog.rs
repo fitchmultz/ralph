@@ -1,6 +1,6 @@
 //! Debug logging for raw, unredacted supervisor and runner output.
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::Path;
@@ -113,10 +113,10 @@ pub fn write_runner_chunk(stream: DebugStream, chunk: &str) {
 
 #[cfg(test)]
 pub(crate) fn reset_for_tests() {
-    if let Some(state) = DEBUG_LOG.get() {
-        if let Ok(mut guard) = state.lock() {
-            *guard = None;
-        }
+    if let Some(state) = DEBUG_LOG.get()
+        && let Ok(mut guard) = state.lock()
+    {
+        *guard = None;
     }
 }
 
@@ -129,7 +129,7 @@ pub(crate) fn test_lock() -> &'static Mutex<()> {
 #[cfg(test)]
 mod tests {
     use super::{
-        enable, reset_for_tests, test_lock, write_log_record, write_runner_chunk, DebugStream,
+        DebugStream, enable, reset_for_tests, test_lock, write_log_record, write_runner_chunk,
     };
     use log::Record;
     use serial_test::serial;

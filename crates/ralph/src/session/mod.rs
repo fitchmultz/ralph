@@ -118,17 +118,17 @@ pub fn validate_session(
     }
 
     // Check session timeout
-    if let Some(timeout) = timeout_hours {
-        if let Ok(session_time) = timeutil::parse_rfc3339(&session.last_updated_at) {
-            let now = timeutil::parse_rfc3339(&timeutil::now_utc_rfc3339_or_fallback())
-                .unwrap_or(session_time);
-            // Calculate duration by subtracting earlier from later
-            if now > session_time {
-                let elapsed = now - session_time;
-                let hours = elapsed.whole_hours() as u64;
-                if hours >= timeout {
-                    return SessionValidationResult::Timeout { hours };
-                }
+    if let Some(timeout) = timeout_hours
+        && let Ok(session_time) = timeutil::parse_rfc3339(&session.last_updated_at)
+    {
+        let now = timeutil::parse_rfc3339(&timeutil::now_utc_rfc3339_or_fallback())
+            .unwrap_or(session_time);
+        // Calculate duration by subtracting earlier from later
+        if now > session_time {
+            let elapsed = now - session_time;
+            let hours = elapsed.whole_hours() as u64;
+            if hours >= timeout {
+                return SessionValidationResult::Timeout { hours };
             }
         }
     }
@@ -238,7 +238,8 @@ pub fn prompt_session_recovery_timeout(
     if non_interactive || !std::io::stdin().is_terminal() {
         log::info!(
             "Non-interactive environment detected; skipping stale session resume for {} ({} hours old)",
-            session.task_id, hours
+            session.task_id,
+            hours
         );
         return Ok(false); // Safe default: don't resume
     }

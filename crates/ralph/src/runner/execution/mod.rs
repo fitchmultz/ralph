@@ -50,5 +50,5 @@ pub(super) use runners::{
     run_pi, run_pi_resume,
 };
 
-pub(crate) use cli_options::{resolve_runner_cli_options, ResolvedRunnerCliOptions};
+pub(crate) use cli_options::{ResolvedRunnerCliOptions, resolve_runner_cli_options};
 pub(crate) use process::ctrlc_state;

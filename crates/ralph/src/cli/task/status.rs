@@ -14,7 +14,7 @@
 //! - Non-terminal statuses update in-place in queue.json.
 //! - Uses completion signal pattern when running under supervision.
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 
 use crate::cli::task::args::{TaskDoneArgs, TaskReadyArgs, TaskRejectArgs, TaskStatusArgs};
 use crate::completions;

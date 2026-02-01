@@ -8,7 +8,7 @@
 //!
 //! Not handled here:
 //! - Automatic repair of detected issues (doctor is read-only)
-//! - Performance benchmarking or stress testing
+//! - Performance benchmarking
 //! - Network connectivity checks
 //!
 //! Invariants/assumptions:
@@ -278,13 +278,13 @@ pub fn run_doctor(resolved: &config::Resolved) -> Result<()> {
     let repo_agents_exists = repo_agents_path.exists();
 
     if instruction_warnings.is_empty() {
-        if let Some(files) = resolved.config.agent.instruction_files.as_ref() {
-            if !files.is_empty() {
-                outpututil::log_success(&format!(
-                    "instruction_files valid ({} configured file(s))",
-                    files.len()
-                ));
-            }
+        if let Some(files) = resolved.config.agent.instruction_files.as_ref()
+            && !files.is_empty()
+        {
+            outpututil::log_success(&format!(
+                "instruction_files valid ({} configured file(s))",
+                files.len()
+            ));
         }
         // Report status of repo AGENTS.md based on configuration
         if repo_agents_configured && repo_agents_exists {
@@ -332,7 +332,9 @@ pub fn run_doctor(resolved: &config::Resolved) -> Result<()> {
         for fail in &failures {
             log::error!("  - {}", fail);
         }
-        anyhow::bail!("Doctor check failed: one or more critical components are missing or misconfigured. Review the error logs above and fix the reported issues before running Ralph.");
+        anyhow::bail!(
+            "Doctor check failed: one or more critical components are missing or misconfigured. Review the error logs above and fix the reported issues before running Ralph."
+        );
     }
 }
 
@@ -356,15 +358,15 @@ fn runner_configured(resolved: &config::Resolved) -> bool {
             || layer.agent.claude_bin.is_some();
     };
 
-    if let Some(path) = resolved.global_config_path.as_ref() {
-        if path.exists() {
-            consider_layer(path);
-        }
+    if let Some(path) = resolved.global_config_path.as_ref()
+        && path.exists()
+    {
+        consider_layer(path);
     }
-    if let Some(path) = resolved.project_config_path.as_ref() {
-        if path.exists() {
-            consider_layer(path);
-        }
+    if let Some(path) = resolved.project_config_path.as_ref()
+        && path.exists()
+    {
+        consider_layer(path);
     }
 
     configured
@@ -486,7 +488,8 @@ fn check_lock_health(repo_root: &std::path::Path) -> Result<(usize, usize)> {
             }
         } else {
             // Check for task owner files (shared locks)
-            let has_task_owner = fs::read_dir(&path)?.any(|e| {
+
+            fs::read_dir(&path)?.any(|e| {
                 e.ok()
                     .map(|entry| {
                         entry
@@ -496,8 +499,7 @@ fn check_lock_health(repo_root: &std::path::Path) -> Result<(usize, usize)> {
                             .unwrap_or(false)
                     })
                     .unwrap_or(false)
-            });
-            has_task_owner
+            })
         };
 
         if !has_valid_owner {

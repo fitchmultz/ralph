@@ -6,13 +6,13 @@
 //! Not handled: worker phase prompt composition, queue updates, or RepoPrompt instruction injection.
 //! Invariants/assumptions: required placeholders are present and task IDs are non-empty where needed.
 
-use super::registry::{load_prompt_template, prompt_template, PromptTemplateId};
+use super::registry::{PromptTemplateId, load_prompt_template, prompt_template};
 use super::util::{
     apply_project_type_guidance_if_needed, ensure_no_unresolved_placeholders,
     ensure_required_placeholders,
 };
 use crate::contracts::{Config, ProjectType};
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 
 pub(crate) fn load_completion_checklist(repo_root: &std::path::Path) -> Result<String> {
     load_prompt_template(repo_root, PromptTemplateId::CompletionChecklist)

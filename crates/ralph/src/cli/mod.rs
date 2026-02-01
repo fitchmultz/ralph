@@ -154,7 +154,7 @@ pub(crate) fn resolve_list_limit(limit: u32, all: bool) -> Option<usize> {
 
 #[cfg(test)]
 mod tests {
-    use super::{run, tui, Cli, Command};
+    use super::{Cli, Command, run, tui};
     use crate::cli::{queue, task};
     use clap::Parser;
 

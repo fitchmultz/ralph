@@ -14,7 +14,7 @@
 //! - Enum fields cycle through variants with Space/Enter keys.
 //! - Validation happens on submit, not during editing.
 
-use super::super::input::{apply_text_input_key, TextInputEdit};
+use super::super::input::{TextInputEdit, apply_text_input_key};
 use super::super::{App, AppMode, TextInput};
 use super::types::{TaskBuilderOptions, TaskBuilderState, TaskBuilderStep, TuiAction};
 use super::{is_plain_char, text_char};

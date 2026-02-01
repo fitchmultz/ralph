@@ -198,22 +198,21 @@ pub(super) fn spawn_json_reader<R: Read + Send + 'static>(
                                 }
                             } else if event_type == "tool_result" {
                                 let tool_id = json.get("tool_id").and_then(|v| v.as_str());
-                                if let Some(tool_id) = tool_id {
-                                    if let Some(tool_name) = tool_name_by_id.remove(tool_id) {
-                                        if let Some(obj) = json.as_object_mut() {
-                                            obj.insert(
-                                                "tool_name".to_string(),
-                                                JsonValue::String(tool_name),
-                                            );
-                                        }
-                                    }
+                                if let Some(tool_id) = tool_id
+                                    && let Some(tool_name) = tool_name_by_id.remove(tool_id)
+                                    && let Some(obj) = json.as_object_mut()
+                                {
+                                    obj.insert(
+                                        "tool_name".to_string(),
+                                        JsonValue::String(tool_name),
+                                    );
                                 }
                             }
                         }
-                        if let Some(id) = extract_session_id_from_json(&json) {
-                            if let Ok(mut guard) = session_id_buf.lock() {
-                                *guard = Some(id);
-                            }
+                        if let Some(id) = extract_session_id_from_json(&json)
+                            && let Ok(mut guard) = session_id_buf.lock()
+                        {
+                            *guard = Some(id);
                         }
                         display_filtered_json(
                             &json,
@@ -268,76 +267,36 @@ pub(super) fn spawn_json_reader<R: Read + Send + 'static>(
 pub(super) fn extract_display_lines(json: &JsonValue) -> Vec<String> {
     let mut lines = Vec::new();
 
-    if let Some(result) = json.get("result").and_then(|r| r.as_str()) {
-        if !result.is_empty() {
-            lines.push(result.to_string());
-        }
+    if let Some(result) = json.get("result").and_then(|r| r.as_str())
+        && !result.is_empty()
+    {
+        lines.push(result.to_string());
     }
 
     if let Some(event_type) = json.get("type").and_then(|t| t.as_str()) {
-        if event_type == "assistant" {
-            if let Some(message) = json.get("message") {
-                if let Some(content) = message.get("content").and_then(|c| c.as_array()) {
-                    for item in content {
-                        if let Some(item_type) = item.get("type").and_then(|t| t.as_str()) {
-                            match item_type {
-                                "text" => {
-                                    if let Some(text) = item.get("text").and_then(|t| t.as_str()) {
-                                        lines.push(text.to_string());
-                                    }
-                                }
-                                "thinking" | "analysis" | "reasoning" => {
-                                    if let Some(text) = item.get("text").and_then(|t| t.as_str()) {
-                                        if !text.is_empty() {
-                                            lines.push(outpututil::format_reasoning(text));
-                                        }
-                                    }
-                                }
-                                "tool_use" => {
-                                    if let Some(name) = item.get("name").and_then(|n| n.as_str()) {
-                                        let details =
-                                            item.get("input").and_then(format_tool_details);
-                                        lines.push(outpututil::format_tool_call(
-                                            name,
-                                            details.as_deref(),
-                                        ));
-                                    }
-                                }
-                                _ => {}
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        if event_type == "item.completed" || event_type == "item.started" {
-            if let Some(item) = json.get("item") {
+        if event_type == "assistant"
+            && let Some(message) = json.get("message")
+            && let Some(content) = message.get("content").and_then(|c| c.as_array())
+        {
+            for item in content {
                 if let Some(item_type) = item.get("type").and_then(|t| t.as_str()) {
                     match item_type {
-                        "agent_message" => {
+                        "text" => {
                             if let Some(text) = item.get("text").and_then(|t| t.as_str()) {
-                                if !text.is_empty() {
-                                    lines.push(text.to_string());
-                                    lines.push(String::new());
-                                }
+                                lines.push(text.to_string());
                             }
                         }
-                        "reasoning" => {
-                            if let Some(text) = item.get("text").and_then(|t| t.as_str()) {
-                                if !text.is_empty() {
-                                    lines.push(outpututil::format_reasoning(text));
-                                }
+                        "thinking" | "analysis" | "reasoning" => {
+                            if let Some(text) = item.get("text").and_then(|t| t.as_str())
+                                && !text.is_empty()
+                            {
+                                lines.push(outpututil::format_reasoning(text));
                             }
                         }
-                        "mcp_tool_call" => {
-                            if let Some(line) = format_codex_tool_line(item) {
-                                lines.push(line);
-                            }
-                        }
-                        "command_execution" => {
-                            if let Some(line) = format_codex_command_line(item) {
-                                lines.push(line);
+                        "tool_use" => {
+                            if let Some(name) = item.get("name").and_then(|n| n.as_str()) {
+                                let details = item.get("input").and_then(format_tool_details);
+                                lines.push(outpututil::format_tool_call(name, details.as_deref()));
                             }
                         }
                         _ => {}
@@ -346,168 +305,197 @@ pub(super) fn extract_display_lines(json: &JsonValue) -> Vec<String> {
             }
         }
 
-        if event_type == "text" {
-            if let Some(text) = json
-                .get("part")
-                .and_then(|p| p.get("text"))
-                .and_then(|t| t.as_str())
-            {
-                lines.push(text.to_string());
+        if (event_type == "item.completed" || event_type == "item.started")
+            && let Some(item) = json.get("item")
+            && let Some(item_type) = item.get("type").and_then(|t| t.as_str())
+        {
+            match item_type {
+                "agent_message" => {
+                    if let Some(text) = item.get("text").and_then(|t| t.as_str())
+                        && !text.is_empty()
+                    {
+                        lines.push(text.to_string());
+                        lines.push(String::new());
+                    }
+                }
+                "reasoning" => {
+                    if let Some(text) = item.get("text").and_then(|t| t.as_str())
+                        && !text.is_empty()
+                    {
+                        lines.push(outpututil::format_reasoning(text));
+                    }
+                }
+                "mcp_tool_call" => {
+                    if let Some(line) = format_codex_tool_line(item) {
+                        lines.push(line);
+                    }
+                }
+                "command_execution" => {
+                    if let Some(line) = format_codex_command_line(item) {
+                        lines.push(line);
+                    }
+                }
+                _ => {}
             }
         }
 
-        if event_type == "tool_use" {
-            if let Some(tool) = json
+        if event_type == "text"
+            && let Some(text) = json
+                .get("part")
+                .and_then(|p| p.get("text"))
+                .and_then(|t| t.as_str())
+        {
+            lines.push(text.to_string());
+        }
+
+        if event_type == "tool_use"
+            && let Some(tool) = json
                 .get("part")
                 .and_then(|p| p.get("tool"))
                 .and_then(|t| t.as_str())
-            {
-                let status = json
-                    .get("part")
-                    .and_then(|p| p.get("state"))
-                    .and_then(|s| s.get("status"))
-                    .and_then(|s| s.as_str());
-                let status_suffix = status.map(|value| format!("({value})"));
-                let details = json
-                    .get("part")
-                    .and_then(|p| {
-                        p.get("state")
-                            .and_then(|s| s.get("input"))
-                            .or_else(|| p.get("input"))
-                    })
-                    .and_then(format_tool_details);
-                let full_details = match (status_suffix.as_deref(), details.as_deref()) {
-                    (None, None) => None,
-                    (None, Some(d)) => Some(d.to_string()),
-                    (Some(s), None) => Some(s.to_string()),
-                    (Some(s), Some(d)) => Some(format!("{} {}", s, d)),
-                };
-                lines.push(outpututil::format_tool_call(tool, full_details.as_deref()));
-            }
+        {
+            let status = json
+                .get("part")
+                .and_then(|p| p.get("state"))
+                .and_then(|s| s.get("status"))
+                .and_then(|s| s.as_str());
+            let status_suffix = status.map(|value| format!("({value})"));
+            let details = json
+                .get("part")
+                .and_then(|p| {
+                    p.get("state")
+                        .and_then(|s| s.get("input"))
+                        .or_else(|| p.get("input"))
+                })
+                .and_then(format_tool_details);
+            let full_details = match (status_suffix.as_deref(), details.as_deref()) {
+                (None, None) => None,
+                (None, Some(d)) => Some(d.to_string()),
+                (Some(s), None) => Some(s.to_string()),
+                (Some(s), Some(d)) => Some(format!("{} {}", s, d)),
+            };
+            lines.push(outpututil::format_tool_call(tool, full_details.as_deref()));
         }
 
         if event_type == "message" {
             let role = json.get("role").and_then(|r| r.as_str());
-            if role == Some("assistant") {
-                if let Some(content) = json.get("content") {
-                    match content {
-                        JsonValue::String(text) => {
-                            if !text.is_empty() {
-                                lines.push(text.clone());
-                            }
-                        }
-                        JsonValue::Array(items) => {
-                            for item in items {
-                                if let Some(text) = item.get("text").and_then(|t| t.as_str()) {
-                                    if !text.is_empty() {
-                                        lines.push(text.to_string());
-                                    }
-                                }
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-            }
-        }
-
-        if event_type == "message_end" {
-            if let Some(message) = json.get("message") {
-                let role = message.get("role").and_then(|r| r.as_str());
-                match role {
-                    Some("assistant") => {
-                        if let Some(content) = message.get("content") {
-                            match content {
-                                JsonValue::String(text) => {
-                                    if !text.is_empty() {
-                                        lines.push(text.clone());
-                                    }
-                                }
-                                JsonValue::Array(items) => {
-                                    for item in items {
-                                        if let Some(text) =
-                                            item.get("text").and_then(|t| t.as_str())
-                                        {
-                                            if !text.is_empty() {
-                                                lines.push(text.to_string());
-                                            }
-                                        }
-                                    }
-                                }
-                                _ => {}
-                            }
+            if role == Some("assistant")
+                && let Some(content) = json.get("content")
+            {
+                match content {
+                    JsonValue::String(text) => {
+                        if !text.is_empty() {
+                            lines.push(text.clone());
                         }
                     }
-                    Some("toolResult") => {
-                        let tool = message
-                            .get("toolName")
-                            .and_then(|t| t.as_str())
-                            .unwrap_or("tool");
-                        let is_error = message
-                            .get("isError")
-                            .and_then(|v| v.as_bool())
-                            .unwrap_or(false);
-                        let status = if is_error { "error" } else { "completed" };
-                        lines.push(outpututil::format_tool_call(
-                            tool,
-                            Some(&format!("({status})")),
-                        ));
+                    JsonValue::Array(items) => {
+                        for item in items {
+                            if let Some(text) = item.get("text").and_then(|t| t.as_str())
+                                && !text.is_empty()
+                            {
+                                lines.push(text.to_string());
+                            }
+                        }
                     }
                     _ => {}
                 }
             }
         }
 
-        if event_type == "tool_call" {
-            if let Some(tool_call) = json.get("tool_call") {
-                if let Some(mcp) = tool_call.get("mcpToolCall") {
-                    if let Some(args) = mcp.get("args") {
-                        let tool_name = args
-                            .get("providerIdentifier")
-                            .and_then(|v| v.as_str())
-                            .and_then(|provider| {
-                                args.get("toolName")
-                                    .and_then(|v| v.as_str())
-                                    .map(|name| format!("{provider}.{name}"))
-                            })
-                            .or_else(|| {
-                                args.get("name")
-                                    .and_then(|v| v.as_str())
-                                    .map(|name| name.to_string())
-                            });
-                        if let Some(tool_name) = tool_name {
-                            let details = args.get("args").and_then(format_tool_details);
-                            lines
-                                .push(outpututil::format_tool_call(&tool_name, details.as_deref()));
+        if event_type == "message_end"
+            && let Some(message) = json.get("message")
+        {
+            let role = message.get("role").and_then(|r| r.as_str());
+            match role {
+                Some("assistant") => {
+                    if let Some(content) = message.get("content") {
+                        match content {
+                            JsonValue::String(text) => {
+                                if !text.is_empty() {
+                                    lines.push(text.clone());
+                                }
+                            }
+                            JsonValue::Array(items) => {
+                                for item in items {
+                                    if let Some(text) = item.get("text").and_then(|t| t.as_str())
+                                        && !text.is_empty()
+                                    {
+                                        lines.push(text.to_string());
+                                    }
+                                }
+                            }
+                            _ => {}
                         }
                     }
-                } else if let Some(shell) = tool_call.get("shellToolCall") {
-                    if let Some(args) = shell.get("args") {
-                        let details = format_tool_details(args);
-                        lines.push(outpututil::format_tool_call("shell", details.as_deref()));
+                }
+                Some("toolResult") => {
+                    let tool = message
+                        .get("toolName")
+                        .and_then(|t| t.as_str())
+                        .unwrap_or("tool");
+                    let is_error = message
+                        .get("isError")
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(false);
+                    let status = if is_error { "error" } else { "completed" };
+                    lines.push(outpututil::format_tool_call(
+                        tool,
+                        Some(&format!("({status})")),
+                    ));
+                }
+                _ => {}
+            }
+        }
+
+        if event_type == "tool_call"
+            && let Some(tool_call) = json.get("tool_call")
+        {
+            if let Some(mcp) = tool_call.get("mcpToolCall") {
+                if let Some(args) = mcp.get("args") {
+                    let tool_name = args
+                        .get("providerIdentifier")
+                        .and_then(|v| v.as_str())
+                        .and_then(|provider| {
+                            args.get("toolName")
+                                .and_then(|v| v.as_str())
+                                .map(|name| format!("{provider}.{name}"))
+                        })
+                        .or_else(|| {
+                            args.get("name")
+                                .and_then(|v| v.as_str())
+                                .map(|name| name.to_string())
+                        });
+                    if let Some(tool_name) = tool_name {
+                        let details = args.get("args").and_then(format_tool_details);
+                        lines.push(outpututil::format_tool_call(&tool_name, details.as_deref()));
                     }
                 }
+            } else if let Some(shell) = tool_call.get("shellToolCall")
+                && let Some(args) = shell.get("args")
+            {
+                let details = format_tool_details(args);
+                lines.push(outpututil::format_tool_call("shell", details.as_deref()));
             }
         }
 
-        if event_type == "tool_use" {
-            if let Some(tool) = json.get("tool_name").and_then(|t| t.as_str()) {
-                let details = json.get("parameters").and_then(format_tool_details);
-                lines.push(outpututil::format_tool_call(tool, details.as_deref()));
-            }
+        if event_type == "tool_use"
+            && let Some(tool) = json.get("tool_name").and_then(|t| t.as_str())
+        {
+            let details = json.get("parameters").and_then(format_tool_details);
+            lines.push(outpututil::format_tool_call(tool, details.as_deref()));
         }
 
-        if event_type == "tool_result" {
-            if let Some(tool) = json.get("tool_name").and_then(|t| t.as_str()) {
-                let status = json
-                    .get("status")
-                    .and_then(|s| s.as_str())
-                    .unwrap_or("completed");
-                lines.push(outpututil::format_tool_call(
-                    tool,
-                    Some(&format!("({status})")),
-                ));
-            }
+        if event_type == "tool_result"
+            && let Some(tool) = json.get("tool_name").and_then(|t| t.as_str())
+        {
+            let status = json
+                .get("status")
+                .and_then(|s| s.as_str())
+                .unwrap_or("completed");
+            lines.push(outpututil::format_tool_call(
+                tool,
+                Some(&format!("({status})")),
+            ));
         }
     }
 
@@ -521,29 +509,28 @@ pub(super) fn extract_display_lines(json: &JsonValue) -> Vec<String> {
 
     // Handle kimi format: top-level role="assistant" with content array
     // Kimi uses this format instead of type="message" wrapper
-    if let Some(role) = json.get("role").and_then(|r| r.as_str()) {
-        if role == "assistant" {
-            if let Some(content) = json.get("content").and_then(|c| c.as_array()) {
-                for item in content {
-                    if let Some(item_type) = item.get("type").and_then(|t| t.as_str()) {
-                        match item_type {
-                            "text" => {
-                                if let Some(text) = item.get("text").and_then(|t| t.as_str()) {
-                                    if !text.is_empty() {
-                                        lines.push(text.to_string());
-                                    }
-                                }
-                            }
-                            "think" => {
-                                if let Some(think) = item.get("think").and_then(|t| t.as_str()) {
-                                    if !think.is_empty() {
-                                        lines.push(outpututil::format_reasoning(think));
-                                    }
-                                }
-                            }
-                            _ => {}
+    if let Some(role) = json.get("role").and_then(|r| r.as_str())
+        && role == "assistant"
+        && let Some(content) = json.get("content").and_then(|c| c.as_array())
+    {
+        for item in content {
+            if let Some(item_type) = item.get("type").and_then(|t| t.as_str()) {
+                match item_type {
+                    "text" => {
+                        if let Some(text) = item.get("text").and_then(|t| t.as_str())
+                            && !text.is_empty()
+                        {
+                            lines.push(text.to_string());
                         }
                     }
+                    "think" => {
+                        if let Some(think) = item.get("think").and_then(|t| t.as_str())
+                            && !think.is_empty()
+                        {
+                            lines.push(outpututil::format_reasoning(think));
+                        }
+                    }
+                    _ => {}
                 }
             }
         }
@@ -654,10 +641,10 @@ fn lookup_string(object: &serde_json::Map<String, JsonValue>, keys: &[&str]) -> 
 
 fn lookup_array_len(object: &serde_json::Map<String, JsonValue>, keys: &[&str]) -> Option<usize> {
     for key in keys {
-        if let Some(value) = object.get(*key) {
-            if let Some(array) = value.as_array() {
-                return Some(array.len());
-            }
+        if let Some(value) = object.get(*key)
+            && let Some(array) = value.as_array()
+        {
+            return Some(array.len());
         }
     }
     None

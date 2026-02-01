@@ -12,10 +12,10 @@
 //! - LFS validation (see git/lfs.rs)
 //! - Repository cleanliness enforcement (see git/clean.rs)
 
-use crate::git::error::{git_base_command, GitError};
-use anyhow::{anyhow, bail, Context, Result};
-use std::collections::hash_map::DefaultHasher;
+use crate::git::error::{GitError, git_base_command};
+use anyhow::{Context, Result, anyhow, bail};
 use std::collections::HashSet;
+use std::collections::hash_map::DefaultHasher;
 use std::fs;
 use std::hash::Hasher;
 use std::io::Read;

@@ -12,15 +12,15 @@
 //! - Callers provide a properly sized terminal area.
 //! - App state tracks help scroll position via `set_help_visible_lines`.
 
+use crate::tui::App;
 use crate::tui::help;
 use crate::tui::render::utils::scroll_indicator;
-use crate::tui::App;
 use ratatui::{
+    Frame,
     layout::{Margin, Rect},
     style::{Modifier, Style},
     text::{Line, Span, Text},
     widgets::{Block, Borders, Clear, Paragraph},
-    Frame,
 };
 
 /// Draw full-screen help overlay with keybindings.

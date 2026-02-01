@@ -11,13 +11,12 @@ Purpose: List environment variables recognized by Ralph and how they affect beha
 
 ## Variables
 
-- `RALPH_STRESS_BURN_IN`: `0` or `1`. Enables burn-in stress tests when set to `1`.
-
 - `RALPH_RAW_DUMP`: `1` or `true`. Opt-in to raw (non-redacted) safeguard dumps when set to `1` or `true`.
 
   **Security Warning**: Raw dumps may contain secrets (API keys, tokens, credentials). Only enable when necessary for debugging. Prefer redacted dumps (the default) for sharing error reports.
 
   Example:
+
   ```bash
   RALPH_RAW_DUMP=1 ralph run one
   ```
@@ -25,9 +24,6 @@ Purpose: List environment variables recognized by Ralph and how they affect beha
 ## Examples
 
 ```bash
-# Enable stress testing
-RALPH_STRESS_BURN_IN=1
-
 # Enable raw safeguard dumps (use with caution)
 RALPH_RAW_DUMP=1
 ```

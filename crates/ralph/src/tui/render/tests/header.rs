@@ -10,7 +10,7 @@
 use super::common::*;
 use crate::contracts::{QueueFile, TaskStatus};
 use crate::tui::{App, AppMode, TextInput};
-use ratatui::{backend::TestBackend, Terminal};
+use ratatui::{Terminal, backend::TestBackend};
 
 #[test]
 fn header_shows_mode_normal() {

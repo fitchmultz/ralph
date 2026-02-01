@@ -12,7 +12,7 @@
 //! - Callers pass raw user input that may need trimming.
 //! - Errors are surfaced directly to CLI/TUI callers.
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use std::collections::HashMap;
 use time::UtcOffset;
 
@@ -21,7 +21,9 @@ use crate::timeutil;
 pub(crate) fn parse_rfc3339_utc(now_rfc3339: &str) -> Result<String> {
     let now = now_rfc3339.trim();
     if now.is_empty() {
-        bail!("Missing timestamp: current time is required for this operation. Ensure a valid RFC3339 timestamp is provided.");
+        bail!(
+            "Missing timestamp: current time is required for this operation. Ensure a valid RFC3339 timestamp is provided."
+        );
     }
     let dt = timeutil::parse_rfc3339(now).with_context(|| {
         format!(

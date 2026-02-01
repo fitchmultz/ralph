@@ -10,9 +10,9 @@
 
 use super::helpers::{ctrl_key_event, key_event, make_queue, make_test_task};
 use crate::runutil::RevertDecision;
+use crate::tui::TextInput;
 use crate::tui::events::confirm::ConfirmRevertState;
 use crate::tui::events::handle_key_event;
-use crate::tui::TextInput;
 use crate::tui::{App, AppMode, TuiAction};
 use crossterm::event::KeyCode;
 use std::sync::mpsc;

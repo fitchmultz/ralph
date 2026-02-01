@@ -779,9 +779,11 @@ Content two.
         )?;
 
         assert!(report.dry_run);
-        assert!(report
-            .sections_updated
-            .contains(&"troubleshooting".to_string()));
+        assert!(
+            report
+                .sections_updated
+                .contains(&"troubleshooting".to_string())
+        );
 
         Ok(())
     }

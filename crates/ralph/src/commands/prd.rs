@@ -18,7 +18,7 @@
 
 use crate::contracts::{QueueFile, Task, TaskPriority, TaskStatus};
 use crate::{config, queue, timeutil};
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use std::collections::HashMap;
 
 /// Options for creating tasks from a PRD file.
@@ -233,20 +233,20 @@ fn parse_prd(content: &str) -> ParsedPrd {
         // Check for section headers
         if let Some(section) = trimmed.strip_prefix("## ") {
             // Save current user story before switching sections
-            if let Some(story) = current_story.take() {
-                if !story.title.is_empty() {
-                    parsed.user_stories.push(story);
-                }
+            if let Some(story) = current_story.take()
+                && !story.title.is_empty()
+            {
+                parsed.user_stories.push(story);
             }
             current_section = section.trim().to_lowercase();
             in_user_story = false;
             in_acceptance_criteria = false;
         } else if trimmed.starts_with("### ") && current_section == "user stories" {
             // Save previous story if exists
-            if let Some(story) = current_story.take() {
-                if !story.title.is_empty() {
-                    parsed.user_stories.push(story);
-                }
+            if let Some(story) = current_story.take()
+                && !story.title.is_empty()
+            {
+                parsed.user_stories.push(story);
             }
 
             // Parse user story header: "### US-001: Story Title"
@@ -349,10 +349,10 @@ fn parse_prd(content: &str) -> ParsedPrd {
     }
 
     // Save last user story if exists
-    if let Some(story) = current_story {
-        if !story.title.is_empty() {
-            parsed.user_stories.push(story);
-        }
+    if let Some(story) = current_story
+        && !story.title.is_empty()
+    {
+        parsed.user_stories.push(story);
     }
 
     parsed
@@ -565,9 +565,11 @@ It continues on the next line.
 - [ ] Criterion 2
 "#;
         let parsed = parse_prd(content);
-        assert!(parsed
-            .introduction
-            .contains("This is the introduction paragraph"));
+        assert!(
+            parsed
+                .introduction
+                .contains("This is the introduction paragraph")
+        );
     }
 
     #[test]

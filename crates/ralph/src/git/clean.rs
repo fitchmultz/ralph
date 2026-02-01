@@ -228,8 +228,8 @@ mod clean_repo_tests {
     }
 
     #[test]
-    fn repo_dirty_only_allowed_paths_accepts_directory_prefix_with_trailing_slash(
-    ) -> anyhow::Result<()> {
+    fn repo_dirty_only_allowed_paths_accepts_directory_prefix_with_trailing_slash()
+    -> anyhow::Result<()> {
         let temp = TempDir::new()?;
         git_test::init_repo(temp.path())?;
         std::fs::create_dir_all(temp.path().join("cache/plans"))?;
@@ -242,8 +242,8 @@ mod clean_repo_tests {
     }
 
     #[test]
-    fn repo_dirty_only_allowed_paths_accepts_existing_directory_prefix_without_slash(
-    ) -> anyhow::Result<()> {
+    fn repo_dirty_only_allowed_paths_accepts_existing_directory_prefix_without_slash()
+    -> anyhow::Result<()> {
         let temp = TempDir::new()?;
         git_test::init_repo(temp.path())?;
         std::fs::create_dir_all(temp.path().join("cache"))?;

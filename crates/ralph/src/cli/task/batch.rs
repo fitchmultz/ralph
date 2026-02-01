@@ -14,7 +14,7 @@
 //! - Supports continue-on-error mode for partial success.
 //! - Task IDs can be specified explicitly or via tag filter.
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 
 use crate::cli::task::args::{BatchOperation, TaskBatchArgs};
 use crate::config;

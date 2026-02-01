@@ -23,9 +23,9 @@ pub mod merge;
 pub mod variables;
 
 pub use loader::{
-    list_templates, load_template, load_template_with_context, TemplateInfo, TemplateSource,
+    TemplateInfo, TemplateSource, list_templates, load_template, load_template_with_context,
 };
 pub use merge::{format_template_context, merge_template_with_options};
 pub use variables::{
-    detect_context, substitute_variables, substitute_variables_in_task, TemplateContext,
+    TemplateContext, detect_context, substitute_variables, substitute_variables_in_task,
 };

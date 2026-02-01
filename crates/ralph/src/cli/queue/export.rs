@@ -17,7 +17,7 @@
 use std::io::Write;
 use std::path::PathBuf;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::Args;
 
 use crate::cli::load_and_validate_queues;
@@ -81,7 +81,9 @@ pub struct QueueExportArgs {
 pub(crate) fn handle(resolved: &Resolved, args: QueueExportArgs) -> Result<()> {
     // Validate conflicting flags
     if args.include_archive && args.only_archive {
-        bail!("Conflicting flags: --include-archive and --only-archive are mutually exclusive. Choose either to include archive tasks or to only show archive tasks.");
+        bail!(
+            "Conflicting flags: --include-archive and --only-archive are mutually exclusive. Choose either to include archive tasks or to only show archive tasks."
+        );
     }
 
     // Parse date filters
@@ -134,16 +136,16 @@ pub(crate) fn handle(resolved: &Resolved, args: QueueExportArgs) -> Result<()> {
         ));
     }
 
-    if args.include_archive || args.only_archive {
-        if let Some(done_ref) = done_ref {
-            tasks.extend(queue::filter_tasks(
-                done_ref,
-                &statuses,
-                &args.tag,
-                &args.scope,
-                None,
-            ));
-        }
+    if (args.include_archive || args.only_archive)
+        && let Some(done_ref) = done_ref
+    {
+        tasks.extend(queue::filter_tasks(
+            done_ref,
+            &statuses,
+            &args.tag,
+            &args.scope,
+            None,
+        ));
     }
 
     // Apply ID pattern filter if specified
@@ -163,10 +165,10 @@ pub(crate) fn handle(resolved: &Resolved, args: QueueExportArgs) -> Result<()> {
         .filter(|t| {
             if let Some(ref after_date) = created_after {
                 if let Some(ref created) = t.created_at {
-                    if let Ok(created_ts) = parse_timestamp(created) {
-                        if created_ts < *after_date {
-                            return false;
-                        }
+                    if let Ok(created_ts) = parse_timestamp(created)
+                        && created_ts < *after_date
+                    {
+                        return false;
                     }
                 } else {
                     // Tasks without created_at are excluded when date filter is active
@@ -175,10 +177,10 @@ pub(crate) fn handle(resolved: &Resolved, args: QueueExportArgs) -> Result<()> {
             }
             if let Some(ref before_date) = created_before {
                 if let Some(ref created) = t.created_at {
-                    if let Ok(created_ts) = parse_timestamp(created) {
-                        if created_ts > *before_date {
-                            return false;
-                        }
+                    if let Ok(created_ts) = parse_timestamp(created)
+                        && created_ts > *before_date
+                    {
+                        return false;
                     }
                 } else {
                     return false;

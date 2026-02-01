@@ -17,7 +17,7 @@ use crate::contracts::{QueueFile, Task, TaskPriority, TaskStatus};
 use crate::queue;
 use crate::queue::ValidationWarning;
 use crate::timeutil;
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use time::UtcOffset;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -14,7 +14,7 @@
 
 use crate::contracts::QueueFile;
 use crate::queue::operations::{
-    select_runnable_task_index, select_runnable_task_index_with_target, RunnableSelectionOptions,
+    RunnableSelectionOptions, select_runnable_task_index, select_runnable_task_index_with_target,
 };
 use anyhow::Result;
 

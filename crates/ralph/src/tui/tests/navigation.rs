@@ -9,7 +9,7 @@
 
 use super::super::app::*;
 use super::super::events::AppMode;
-use super::{make_test_task, QueueFile};
+use super::{QueueFile, make_test_task};
 use crate::contracts::TaskStatus;
 use crate::queue;
 use tempfile::TempDir;

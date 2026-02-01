@@ -21,7 +21,7 @@ use crate::constants::limits::MAX_RETRIES;
 use crate::constants::timeouts::DELAYS_MS;
 use crate::fsutil::sync_dir_best_effort;
 use crate::timeutil;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -160,7 +160,7 @@ pub fn is_supervising_process(lock_dir: &Path) -> Result<bool> {
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(false),
         Err(err) => {
             return Err(anyhow!(err))
-                .with_context(|| format!("read lock owner {}", owner_path.display()))
+                .with_context(|| format!("read lock owner {}", owner_path.display()));
         }
     };
 
@@ -188,7 +188,7 @@ pub fn is_current_process_supervised(lock_dir: &Path) -> Result<bool> {
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(false),
         Err(err) => {
             return Err(anyhow!(err))
-                .with_context(|| format!("read lock owner {}", owner_path.display()))
+                .with_context(|| format!("read lock owner {}", owner_path.display()));
         }
     };
 
@@ -390,7 +390,7 @@ fn read_lock_owner(lock_dir: &Path) -> Result<Option<LockOwner>> {
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(err) => {
             return Err(anyhow!(err))
-                .with_context(|| format!("read lock owner {}", owner_path.display()))
+                .with_context(|| format!("read lock owner {}", owner_path.display()));
         }
     };
     Ok(parse_lock_owner(&raw))

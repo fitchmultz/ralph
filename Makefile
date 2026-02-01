@@ -3,9 +3,9 @@ PREFIX ?= $(HOME)/.local
 BIN_DIR ?= $(PREFIX)/bin
 BIN_NAME ?= ralph
 
-.PHONY: install update lint type-check format clean clean-temp test generate build build-release ci runners-help release release-dry-run release-artifacts release-artifacts-all release-legacy changelog changelog-preview changelog-check
+.PHONY: install update lint type-check format clean clean-temp test generate build ci runners-help release release-dry-run release-artifacts release-artifacts-all release-legacy changelog changelog-preview changelog-check
 
-install: build-release
+install: build
 	@bin_dir="$(BIN_DIR)"; \
 	if [ ! -w "$$bin_dir" ]; then \
 		bin_dir="$(HOME)/.local/bin"; \
@@ -20,12 +20,12 @@ update:
 
 lint:
 	@echo "→ Running linter..."
-	@cargo clippy --workspace --all-targets --quiet -- -D warnings --fix
+	@cargo clippy --fix --allow-dirty --workspace --all-targets -- -D warnings 
 	@echo "  ✓ Linting passed"
 
 type-check:
 	@echo "→ Type-checking workspace..."
-	@cargo check --workspace --all-targets --quiet
+	@cargo check --workspace --all-targets
 	@echo "  ✓ Type-check passed"
 
 format:
@@ -68,7 +68,7 @@ test:
 		export TMPDIR="$$run_dir"; \
 		export TEMP="$$run_dir"; \
 		export TMP="$$run_dir"; \
-		unit_test_output=$$(cargo test --workspace --all-targets --quiet -- --include-ignored 2>&1) || { \
+		unit_test_output=$$(cargo test --workspace --all-targets -- --include-ignored 2>&1) || { \
 			echo "  ✗ Unit tests failed!"; \
 			echo ""; \
 			echo "=== Full test output ==="; \
@@ -76,7 +76,7 @@ test:
 			exit 1; \
 		}; \
 		echo "$$unit_test_output" | grep -E "^(test result:|running|     Running)" || true; \
-		doc_test_output=$$(cargo test --workspace --doc --quiet -- --include-ignored 2>&1) || { \
+		doc_test_output=$$(cargo test --workspace --doc -- --include-ignored 2>&1) || { \
 			echo "  ✗ Doc tests failed!"; \
 			echo ""; \
 			echo "=== Full test output ==="; \
@@ -86,10 +86,6 @@ test:
 		echo "$$doc_test_output" | grep -E "^(test result:|running|     Running)" || true; \
 		echo "  ✓ Tests passed"'
 
-stress:
-	@echo "Running burn-in stress tests..."
-	RALPH_STRESS_BURN_IN=1 cargo test -p ralph --test stress_queue_contract_test --release -- --ignored --nocapture
-
 generate:
 	@echo "→ Generating schemas..."
 	@mkdir -p schemas
@@ -98,14 +94,9 @@ generate:
 	@echo "  ✓ Schemas generated"
 
 build:
-	@echo "→ Building workspace (debug)..."
-	@cargo build --workspace --quiet
+	@echo "→ Building workspace..."
+	@cargo build --workspace --release
 	@echo "  ✓ Build complete"
-
-build-release:
-	@echo "→ Building workspace (release)..."
-	@cargo build --workspace --release --quiet
-	@echo "  ✓ Release build complete"
 
 check-env-safety:
 	@if git ls-files .env | grep -q .env; then \
@@ -127,11 +118,11 @@ ci:
 	@echo ""
 	@$(MAKE) check-env-safety || { echo ""; echo "✗ CI failed at: check-env-safety"; exit 1; }
 	@$(MAKE) check-backup-artifacts || { echo ""; echo "✗ CI failed at: check-backup-artifacts"; exit 1; }
+	@$(MAKE) build || { echo ""; echo "✗ CI failed at: build"; exit 1; }
 	@$(MAKE) generate || { echo ""; echo "✗ CI failed at: generate"; exit 1; }
 	@$(MAKE) format || { echo ""; echo "✗ CI failed at: format"; exit 1; }
 	@$(MAKE) type-check || { echo ""; echo "✗ CI failed at: type-check"; exit 1; }
 	@$(MAKE) lint || { echo ""; echo "✗ CI failed at: lint"; exit 1; }
-	@$(MAKE) build || { echo ""; echo "✗ CI failed at: build"; exit 1; }
 	@$(MAKE) test || { echo ""; echo "✗ CI failed at: test"; exit 1; }
 	@$(MAKE) install || { echo ""; echo "✗ CI failed at: install"; exit 1; }
 	@echo ""
@@ -180,40 +171,3 @@ changelog-preview:
 # Usage: make changelog-check
 changelog-check:
 	@scripts/generate-changelog.sh --check
-
-# Legacy release target (kept for compatibility)
-# Creates local tag only, no GitHub release
-# Usage: make release-legacy VERSION=0.2.0
-release-legacy:
-	@if [ -z "$(VERSION)" ]; then \
-		echo "Error: VERSION is required. Usage: make release-legacy VERSION=0.2.0"; \
-		exit 1; \
-	fi
-	@echo "Starting legacy release process for v$(VERSION)..."
-	@# Validate version format (semver)
-	@echo "$(VERSION)" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$$' > /dev/null || \
-		{ echo "Error: VERSION must be in semver format (e.g., 0.2.0)"; exit 1; }
-	@# Update version in Cargo.toml
-	@sed -i.bak -E 's/^version = "[0-9]+\.[0-9]+\.[0-9]+"/version = "$(VERSION)"/' crates/ralph/Cargo.toml && rm -f crates/ralph/Cargo.toml.bak
-	@echo "Updated version in crates/ralph/Cargo.toml to $(VERSION)"
-	@# Update CHANGELOG.md: move Unreleased section to new version
-	@today=$$(date +%Y-%m-%d); \
-	sed -i.bak -E \
-		-e "s/## \[Unreleased\]/## [Unreleased]\n\n## [$(VERSION)] - $$today/" \
-		-e "s/\[Unreleased\]: https:\/\/github.com\/mitchfultz\/ralph\/compare\/v[0-9]+\.[0-9]+\.[0-9]+\.\.\.HEAD/[Unreleased]: https:\/\/github.com\/mitchfultz\/ralph\/compare\/v$(VERSION)...HEAD\n[$(VERSION)]: https:\/\/github.com\/mitchfultz\/ralph\/releases\/tag\/v$(VERSION)/" \
-		CHANGELOG.md && rm -f CHANGELOG.md.bak
-	@echo "Updated CHANGELOG.md with version $(VERSION)"
-	@# Run CI to validate changes
-	@echo "Running CI validation..."
-	$(MAKE) ci
-	@# Create git tag
-	@git add crates/ralph/Cargo.toml CHANGELOG.md
-	@git commit -m "Release v$(VERSION)"
-	@git tag -a "v$(VERSION)" -m "Release v$(VERSION)"
-	@echo "Created git tag v$(VERSION)"
-	@echo ""
-	@echo "Release v$(VERSION) prepared successfully!"
-	@echo "Next steps:"
-	@echo "  1. Review the commit and tag: git log --oneline -3 && git show v$(VERSION)"
-	@echo "  2. Push to remote: git push origin main && git push origin v$(VERSION)"
-	@echo "  3. Create GitHub release: gh release create v$(VERSION) --verify-tag --notes-from-tag"

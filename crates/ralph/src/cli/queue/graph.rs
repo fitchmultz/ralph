@@ -15,7 +15,7 @@
 //! - Task IDs are matched after trimming whitespace
 //! - Output is written to stdout
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::{Args, ValueEnum};
 
 use crate::cli::load_and_validate_queues;
@@ -23,8 +23,8 @@ use crate::config::Resolved;
 use crate::contracts::TaskStatus;
 use crate::queue::find_task_across;
 use crate::queue::graph::{
-    build_graph, find_critical_path_from, find_critical_paths, get_blocked_tasks,
-    get_runnable_tasks, GraphFormat,
+    GraphFormat, build_graph, find_critical_path_from, find_critical_paths, get_blocked_tasks,
+    get_runnable_tasks,
 };
 
 /// Arguments for `ralph queue graph`.
@@ -182,14 +182,14 @@ fn render_task_tree(
     }
 
     // Show critical path info
-    if let Some(cp) = find_critical_path_from(graph, task_id) {
-        if cp.length > 1 {
-            println!("\nCritical path from this task: {} tasks", cp.length);
-            if cp.is_blocked {
-                println!("  Status: BLOCKED (incomplete dependencies)");
-            } else {
-                println!("  Status: Unblocked");
-            }
+    if let Some(cp) = find_critical_path_from(graph, task_id)
+        && cp.length > 1
+    {
+        println!("\nCritical path from this task: {} tasks", cp.length);
+        if cp.is_blocked {
+            println!("  Status: BLOCKED (incomplete dependencies)");
+        } else {
+            println!("  Status: Unblocked");
         }
     }
 
@@ -503,15 +503,14 @@ fn render_task_dot(
 
     // Define edges for duplicates relationships (bold, red)
     for task_id in &included_tasks {
-        if let Some(node) = graph.get(task_id) {
-            if let Some(duplicates_id) = &node.duplicates {
-                if included_tasks.contains(duplicates_id) {
-                    println!(
-                        "  \"{}\" -> \"{}\" [style=bold, color=red, label=\"duplicates\"];",
-                        task_id, duplicates_id
-                    );
-                }
-            }
+        if let Some(node) = graph.get(task_id)
+            && let Some(duplicates_id) = &node.duplicates
+            && included_tasks.contains(duplicates_id)
+        {
+            println!(
+                "  \"{}\" -> \"{}\" [style=bold, color=red, label=\"duplicates\"];",
+                task_id, duplicates_id
+            );
         }
     }
 

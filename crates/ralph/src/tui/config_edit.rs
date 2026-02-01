@@ -18,7 +18,7 @@ use crate::contracts::{
     RunnerApprovalMode, RunnerCliConfigRoot, RunnerCliOptionsPatch, RunnerOutputFormat,
     RunnerPlanMode, RunnerSandboxMode, RunnerVerbosity, UnsupportedOptionPolicy,
 };
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

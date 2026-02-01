@@ -168,9 +168,11 @@ fn test_shared_task_lock_cleanup() {
     let task_handle = thread::spawn(move || {
         let task_lock = lock::acquire_dir_lock(&task_lock_dir, "task", false).unwrap();
         // Task lock holds a sidecar owner file
-        assert!(task_lock_dir
-            .join(format!("owner_task_{}", std::process::id()))
-            .exists());
+        assert!(
+            task_lock_dir
+                .join(format!("owner_task_{}", std::process::id()))
+                .exists()
+        );
         task_lock
     });
 
@@ -179,9 +181,11 @@ fn test_shared_task_lock_cleanup() {
     // Both locks should exist
     assert!(lock_dir.exists());
     assert!(lock_dir.join("owner").exists());
-    assert!(lock_dir
-        .join(format!("owner_task_{}", std::process::id()))
-        .exists());
+    assert!(
+        lock_dir
+            .join(format!("owner_task_{}", std::process::id()))
+            .exists()
+    );
 
     // Drop task lock first - should clean up its sidecar but not the directory
     drop(task_lock);

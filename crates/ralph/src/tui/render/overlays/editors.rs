@@ -16,11 +16,11 @@ use crate::outpututil::truncate_chars;
 use crate::tui::config_edit::RiskLevel;
 use crate::tui::{App, MultiLineInput};
 use ratatui::{
+    Frame,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
-    Frame,
 };
 
 /// Draw config editor overlay.

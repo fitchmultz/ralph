@@ -5,7 +5,7 @@
 //! Not handled: phase-specific prompts, checklist prompts, or RepoPrompt block assembly.
 //! Invariants/assumptions: task IDs are non-empty when rendering and templates use `{{...}}` tokens.
 
-use super::registry::{load_prompt_template, prompt_template, PromptTemplateId};
+use super::registry::{PromptTemplateId, load_prompt_template, prompt_template};
 use super::util::{
     apply_project_type_guidance_if_needed, ensure_no_unresolved_placeholders,
     ensure_required_placeholders,

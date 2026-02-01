@@ -11,8 +11,8 @@
 //! Invariants/assumptions:
 //! - Input uses cursor-aware `TextInput` edits.
 
-use super::super::input::{apply_text_input_key, TextInputEdit};
 use super::super::TextInput;
+use super::super::input::{TextInputEdit, apply_text_input_key};
 use super::{App, AppMode, TuiAction};
 use crossterm::event::{KeyCode, KeyEvent};
 

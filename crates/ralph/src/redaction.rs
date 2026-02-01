@@ -52,10 +52,10 @@ fn init_sensitive_env_cache() -> HashSet<String> {
 /// Initializes the cache on first call if not already populated.
 fn get_sensitive_env_values() -> HashSet<String> {
     // Fast path: check if cache is already populated
-    if let Ok(guard) = SENSITIVE_ENV_CACHE.read() {
-        if let Some(ref values) = *guard {
-            return values.clone();
-        }
+    if let Ok(guard) = SENSITIVE_ENV_CACHE.read()
+        && let Some(ref values) = *guard
+    {
+        return values.clone();
     }
 
     // Slow path: initialize cache
@@ -316,15 +316,14 @@ fn redact_ssh_keys(text: &str) -> String {
     let mut i = 0;
 
     while i < text.len() {
-        if text[i..].starts_with("-----BEGIN") {
-            if let Some(end_marker_pos) = text[i..].find("-----END") {
-                if let Some(final_dash_pos) = text[i + end_marker_pos + 8..].find("-----") {
-                    let total_end = i + end_marker_pos + 8 + final_dash_pos + 5;
-                    out.push_str(REDACTED);
-                    i = total_end;
-                    continue;
-                }
-            }
+        if text[i..].starts_with("-----BEGIN")
+            && let Some(end_marker_pos) = text[i..].find("-----END")
+            && let Some(final_dash_pos) = text[i + end_marker_pos + 8..].find("-----")
+        {
+            let total_end = i + end_marker_pos + 8 + final_dash_pos + 5;
+            out.push_str(REDACTED);
+            i = total_end;
+            continue;
         }
         push_next_char(&mut out, text, &mut i);
     }
@@ -496,10 +495,11 @@ fn is_sensitive_token(token: &str) -> bool {
         if token_upper == base {
             return true;
         }
-        if let Some(suffix) = token_upper.strip_prefix(base) {
-            if !suffix.is_empty() && suffix.chars().all(|c| c.is_ascii_digit()) {
-                return true;
-            }
+        if let Some(suffix) = token_upper.strip_prefix(base)
+            && !suffix.is_empty()
+            && suffix.chars().all(|c| c.is_ascii_digit())
+        {
+            return true;
         }
     }
     false
@@ -595,12 +595,12 @@ mod tests {
     fn redact_text_masks_sensitive_env_values() {
         let _guard = env_lock().lock().expect("env lock");
         clear_sensitive_env_cache();
-        std::env::set_var("API_TOKEN", "supersecretvalue");
+        unsafe { std::env::set_var("API_TOKEN", "supersecretvalue") };
 
         let input = "token is supersecretvalue";
         let output = redact_text(input);
 
-        std::env::remove_var("API_TOKEN");
+        unsafe { std::env::remove_var("API_TOKEN") };
 
         assert!(!output.contains("supersecretvalue"));
         assert!(output.contains(REDACTED));
@@ -610,12 +610,12 @@ mod tests {
     fn redact_text_leaves_non_sensitive_env_values() {
         let _guard = env_lock().lock().expect("env lock");
         clear_sensitive_env_cache();
-        std::env::set_var("PATH", "/usr/bin");
+        unsafe { std::env::set_var("PATH", "/usr/bin") };
 
         let input = "PATH=/usr/bin";
         let output = redact_text(input);
 
-        std::env::remove_var("PATH");
+        unsafe { std::env::remove_var("PATH") };
 
         assert!(output.contains("/usr/bin"));
     }
@@ -624,12 +624,12 @@ mod tests {
     fn redact_text_masks_privatekey_env_value() {
         let _guard = env_lock().lock().expect("env lock");
         clear_sensitive_env_cache();
-        std::env::set_var("PRIVATEKEY", "supersecretkeyvalue");
+        unsafe { std::env::set_var("PRIVATEKEY", "supersecretkeyvalue") };
 
         let input = "key is supersecretkeyvalue";
         let output = redact_text(input);
 
-        std::env::remove_var("PRIVATEKEY");
+        unsafe { std::env::remove_var("PRIVATEKEY") };
 
         assert!(!output.contains("supersecretkeyvalue"));
         assert!(output.contains(REDACTED));

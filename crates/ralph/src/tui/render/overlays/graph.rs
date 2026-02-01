@@ -18,11 +18,11 @@ use super::super::App;
 use crate::contracts::TaskStatus;
 use crate::queue::graph;
 use ratatui::{
+    Frame,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, Paragraph},
-    Frame,
 };
 
 /// Draw the dependency graph overlay.

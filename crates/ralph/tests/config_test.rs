@@ -101,9 +101,9 @@ fn test_global_config_path_xdg() {
     let xdg_config = dir.path().join(".config");
     fs::create_dir_all(xdg_config.join("ralph")).expect("create xdg config dir");
 
-    env::set_var("XDG_CONFIG_HOME", &xdg_config);
+    unsafe { env::set_var("XDG_CONFIG_HOME", &xdg_config) };
     let config_path = config::global_config_path();
-    env::remove_var("XDG_CONFIG_HOME");
+    unsafe { env::remove_var("XDG_CONFIG_HOME") };
 
     assert!(config_path.is_some());
     assert_eq!(
@@ -119,10 +119,10 @@ fn test_global_config_path_home() {
     let home_config = dir.path().join(".config").join("ralph");
     fs::create_dir_all(&home_config).expect("create home config dir");
 
-    env::set_var("HOME", dir.path());
-    env::remove_var("XDG_CONFIG_HOME");
+    unsafe { env::set_var("HOME", dir.path()) };
+    unsafe { env::remove_var("XDG_CONFIG_HOME") };
     let config_path = config::global_config_path();
-    env::remove_var("HOME");
+    unsafe { env::remove_var("HOME") };
 
     assert!(config_path.is_some());
     assert_eq!(
@@ -134,8 +134,8 @@ fn test_global_config_path_home() {
 #[test]
 fn test_global_config_path_none_if_no_home() {
     let _guard = env_lock().lock().expect("env lock");
-    env::remove_var("XDG_CONFIG_HOME");
-    env::remove_var("HOME");
+    unsafe { env::remove_var("XDG_CONFIG_HOME") };
+    unsafe { env::remove_var("HOME") };
     let config_path = config::global_config_path();
     assert!(config_path.is_none());
 }

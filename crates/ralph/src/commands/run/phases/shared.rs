@@ -5,7 +5,7 @@ use crate::commands::run::supervision;
 use crate::config;
 use crate::constants::limits::CI_GATE_AUTO_RETRY_LIMIT;
 use crate::{runner, runutil};
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 
 fn strict_ci_gate_compliance_message(
     resolved: &config::Resolved,
@@ -105,23 +105,23 @@ pub(super) fn execute_runner_pass(
     let permission_mode = resolved.config.agent.claude_permission_mode;
 
     runutil::run_prompt_with_handling(
-            runutil::RunnerInvocation {
-                repo_root: &resolved.repo_root,
-                runner_kind: settings.runner,
-                bins,
-                model: settings.model.clone(),
-                reasoning_effort: settings.reasoning_effort,
-                runner_cli: settings.runner_cli,
-                prompt,
-                timeout: None,
-                permission_mode,
-                revert_on_error,
-                git_revert_mode,
-                output_handler,
-                output_stream,
-                revert_prompt,
-                phase_type,
-            },
+        runutil::RunnerInvocation {
+            repo_root: &resolved.repo_root,
+            runner_kind: settings.runner,
+            bins,
+            model: settings.model.clone(),
+            reasoning_effort: settings.reasoning_effort,
+            runner_cli: settings.runner_cli,
+            prompt,
+            timeout: None,
+            permission_mode,
+            revert_on_error,
+            git_revert_mode,
+            output_handler,
+            output_stream,
+            revert_prompt,
+            phase_type,
+        },
         runutil::RunnerErrorMessages {
             log_label,
             interrupted_msg: "Runner interrupted: the execution was canceled by the user or system.",

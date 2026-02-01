@@ -29,10 +29,10 @@ pub fn config_has_key(ctx: &MigrationContext, key: &str) -> bool {
     }
 
     // Check global config if available
-    if let Some(global_path) = &ctx.global_config_path {
-        if let Ok(true) = config_file_has_key(global_path, key) {
-            return true;
-        }
+    if let Some(global_path) = &ctx.global_config_path
+        && let Ok(true) = config_file_has_key(global_path, key)
+    {
+        return true;
     }
 
     false
@@ -80,11 +80,11 @@ pub fn apply_key_rename(ctx: &MigrationContext, old_key: &str, new_key: &str) ->
     }
 
     // Update global config if it has the key
-    if let Some(global_path) = &ctx.global_config_path {
-        if config_file_has_key(global_path, old_key)? {
-            rename_key_in_file(global_path, old_key, new_key)
-                .with_context(|| "rename key in global config".to_string())?;
-        }
+    if let Some(global_path) = &ctx.global_config_path
+        && config_file_has_key(global_path, old_key)?
+    {
+        rename_key_in_file(global_path, old_key, new_key)
+            .with_context(|| "rename key in global config".to_string())?;
     }
 
     Ok(())

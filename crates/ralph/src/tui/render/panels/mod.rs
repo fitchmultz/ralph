@@ -16,12 +16,12 @@ use super::super::{App, DetailsContext, DetailsContextMode};
 use super::utils::{scroll_indicator, wrap_text};
 use crate::outpututil::truncate_chars;
 use ratatui::{
+    Frame,
     layout::{Rect, Size},
     prelude::StatefulWidget,
     style::{Color, Style},
     text::{Line, Span, Text},
     widgets::{Block, Borders, Paragraph, Wrap},
-    Frame,
 };
 use tui_scrollview::{ScrollView, ScrollbarVisibility};
 

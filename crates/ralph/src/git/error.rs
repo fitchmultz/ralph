@@ -30,10 +30,14 @@ pub enum GitError {
         stderr: String,
     },
 
-    #[error("git push failed: no upstream configured for current branch. Set it with: git push -u origin <branch> OR git branch --set-upstream-to origin/<branch>.")]
+    #[error(
+        "git push failed: no upstream configured for current branch. Set it with: git push -u origin <branch> OR git branch --set-upstream-to origin/<branch>."
+    )]
     NoUpstream,
 
-    #[error("git push failed: authentication/permission denied. Verify the remote URL, credentials, and that you have push access.")]
+    #[error(
+        "git push failed: authentication/permission denied. Verify the remote URL, credentials, and that you have push access."
+    )]
     AuthFailed,
 
     #[error("git push failed: {0}")]

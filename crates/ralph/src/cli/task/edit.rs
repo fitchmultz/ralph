@@ -14,7 +14,7 @@
 //! - Dry-run mode previews changes without saving.
 //! - Update command uses AI runner to analyze repository state.
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 
 use crate::agent;
 use crate::cli::task::args::{TaskEditArgs, TaskFieldArgs, TaskUpdateArgs};

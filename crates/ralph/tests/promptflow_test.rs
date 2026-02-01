@@ -227,8 +227,10 @@ fn iteration_checklist_requires_closing_flagged_issues() {
     let template = prompts::load_iteration_checklist(repo_root.path()).unwrap();
     let rendered = prompts::render_iteration_checklist(&template, "RQ-0002", &config).unwrap();
 
-    assert!(rendered
-        .contains("Investigate and resolve any risks, bugs, or suspicious leads you identify"));
+    assert!(
+        rendered
+            .contains("Investigate and resolve any risks, bugs, or suspicious leads you identify")
+    );
 }
 
 #[test]
@@ -238,8 +240,10 @@ fn completion_checklist_requires_closing_flagged_issues() {
     let template = prompts::load_completion_checklist(repo_root.path()).unwrap();
     let rendered = prompts::render_completion_checklist(&template, "RQ-0003", &config).unwrap();
 
-    assert!(rendered
-        .contains("Investigate and resolve any risks, bugs, or suspicious leads you flagged"));
+    assert!(
+        rendered
+            .contains("Investigate and resolve any risks, bugs, or suspicious leads you flagged")
+    );
 }
 
 #[test]

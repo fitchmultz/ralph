@@ -387,9 +387,11 @@ fn complete_task_rejects_non_terminal_status() -> anyhow::Result<()> {
         10,
     )
     .unwrap_err();
-    assert!(format!("{err}")
-        .to_lowercase()
-        .contains("invalid completion status"));
+    assert!(
+        format!("{err}")
+            .to_lowercase()
+            .contains("invalid completion status")
+    );
 
     Ok(())
 }
@@ -440,9 +442,11 @@ fn complete_task_rejects_task_already_terminal() -> anyhow::Result<()> {
         10,
     )
     .unwrap_err();
-    assert!(format!("{err}")
-        .to_lowercase()
-        .contains("already in a terminal state"));
+    assert!(
+        format!("{err}")
+            .to_lowercase()
+            .contains("already in a terminal state")
+    );
 
     Ok(())
 }

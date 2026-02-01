@@ -1,6 +1,6 @@
 //! Queue search subcommand.
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use clap::Args;
 
 use crate::cli::{load_and_validate_queues, resolve_list_limit};
@@ -72,11 +72,15 @@ pub struct QueueSearchArgs {
 
 pub(crate) fn handle(resolved: &Resolved, args: QueueSearchArgs) -> Result<()> {
     if args.include_done && args.only_done {
-        bail!("Conflicting flags: --include-done and --only-done are mutually exclusive. Choose either to include done tasks or to only search done tasks.");
+        bail!(
+            "Conflicting flags: --include-done and --only-done are mutually exclusive. Choose either to include done tasks or to only search done tasks."
+        );
     }
 
     if args.fuzzy && args.regex {
-        bail!("Conflicting flags: --fuzzy and --regex are mutually exclusive. Choose either fuzzy matching or regex matching.");
+        bail!(
+            "Conflicting flags: --fuzzy and --regex are mutually exclusive. Choose either fuzzy matching or regex matching."
+        );
     }
 
     let (queue_file, done_file) =
@@ -98,16 +102,16 @@ pub(crate) fn handle(resolved: &Resolved, args: QueueSearchArgs) -> Result<()> {
             None,
         ));
     }
-    if args.include_done || args.only_done {
-        if let Some(done_ref) = done_ref {
-            prefiltered.extend(queue::filter_tasks(
-                done_ref,
-                &statuses,
-                &args.tag,
-                &args.scope,
-                None,
-            ));
-        }
+    if (args.include_done || args.only_done)
+        && let Some(done_ref) = done_ref
+    {
+        prefiltered.extend(queue::filter_tasks(
+            done_ref,
+            &statuses,
+            &args.tag,
+            &args.scope,
+            None,
+        ));
     }
 
     // Apply scheduled filter if requested

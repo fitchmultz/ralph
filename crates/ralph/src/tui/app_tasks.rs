@@ -18,7 +18,7 @@
 
 use crate::contracts::{AutoArchiveBehavior, QueueFile, Task, TaskPriority, TaskStatus};
 use crate::queue;
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use std::collections::HashMap;
 
 /// Result of a task move operation.

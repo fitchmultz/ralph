@@ -11,10 +11,10 @@
 //! Invariants/assumptions:
 //! - Scan input uses cursor-aware `TextInput` edits.
 
-use super::super::input::{apply_text_input_key, TextInputEdit};
+use super::super::input::{TextInputEdit, apply_text_input_key};
 use super::super::{AppMode, TextInput};
-use super::types::TuiAction;
 use super::App;
+use super::types::TuiAction;
 use anyhow::Result;
 use crossterm::event::{KeyCode, KeyEvent};
 

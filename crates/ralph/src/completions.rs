@@ -2,7 +2,7 @@
 
 use crate::contracts::TaskStatus;
 use crate::fsutil;
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 

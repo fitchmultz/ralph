@@ -11,6 +11,7 @@ Ralph uses a local-only release process that leverages the GitHub CLI (`gh`) for
 Before creating a release, ensure you have:
 
 1. **GitHub CLI (`gh`) installed and authenticated**
+
    ```bash
    # Install gh CLI
    brew install gh  # macOS
@@ -21,6 +22,7 @@ Before creating a release, ensure you have:
    ```
 
 2. **Rust toolchain installed**
+
    ```bash
    # Verify cargo is available
    cargo --version
@@ -381,7 +383,7 @@ After the release:
 | `make release VERSION=0.2.0` | Run full release process |
 | `make release-dry-run VERSION=0.2.0` | Test release without side effects |
 | `make release-artifacts` | Build release artifacts only |
-| `make build-release` | Build release binary |
+| `make build` | Build release binary |
 | `make changelog` | Generate changelog entries from commits |
 | `make changelog-preview` | Preview changelog changes without modifying files |
 | `make changelog-check` | Check if changelog is up to date (CI) |

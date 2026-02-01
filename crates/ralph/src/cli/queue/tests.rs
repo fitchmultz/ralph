@@ -17,8 +17,8 @@ use clap::CommandFactory;
 use tempfile::TempDir;
 
 use super::{
-    export, list, search, QueueExportArgs, QueueExportFormat, QueueListArgs, QueueListFormat,
-    QueueSearchArgs, QueueSortOrder,
+    QueueExportArgs, QueueExportFormat, QueueListArgs, QueueListFormat, QueueSearchArgs,
+    QueueSortOrder, export, list, search,
 };
 use crate::config;
 use crate::contracts::{Config, QueueFile, Task, TaskStatus};

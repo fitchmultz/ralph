@@ -20,11 +20,11 @@ use super::super::App;
 use crate::eta_calculator::format_eta;
 use crate::progress::ExecutionPhase;
 use ratatui::{
+    Frame,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
-    Frame,
 };
 use std::time::Duration;
 

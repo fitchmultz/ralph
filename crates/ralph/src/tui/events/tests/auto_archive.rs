@@ -11,8 +11,8 @@
 
 use super::helpers::{key_event, make_queue, make_test_task};
 use crate::contracts::{AutoArchiveBehavior, TaskStatus};
-use crate::tui::events::handle_key_event;
 use crate::tui::events::PaletteCommand;
+use crate::tui::events::handle_key_event;
 use crate::tui::{App, AppMode, TuiAction};
 use crossterm::event::KeyCode;
 

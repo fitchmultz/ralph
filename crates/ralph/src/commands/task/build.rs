@@ -19,11 +19,11 @@
 //! - Template loading and merging happens before prompt rendering.
 //! - Lock acquisition is optional (controlled by acquire_lock parameter).
 
-use super::{resolve_task_build_settings, TaskBuildOptions};
+use super::{TaskBuildOptions, resolve_task_build_settings};
 use crate::commands::run::PhaseType;
 use crate::contracts::ProjectType;
 use crate::{config, prompts, queue, runner, runutil, timeutil};
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 
 pub fn build_task(resolved: &config::Resolved, opts: TaskBuildOptions) -> Result<()> {
     build_task_impl(resolved, opts, true)

@@ -14,7 +14,7 @@
 
 use crate::contracts::{QueueFile, Task, TaskStatus};
 use crate::timeutil;
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 
 pub fn find_task<'a>(queue: &'a QueueFile, task_id: &str) -> Option<&'a Task> {
     let needle = task_id.trim();
@@ -83,14 +83,12 @@ pub fn are_dependencies_met(task: &Task, active: &QueueFile, done: Option<&Queue
 /// Returns true if the task has a scheduled_start timestamp that is
 /// in the future relative to the current time.
 pub fn is_task_scheduled_for_future(task: &Task) -> bool {
-    if let Some(ref scheduled) = task.scheduled_start {
-        if let Ok(scheduled_dt) = timeutil::parse_rfc3339(scheduled) {
-            if let Ok(now) = timeutil::now_utc_rfc3339() {
-                if let Ok(now_dt) = timeutil::parse_rfc3339(&now) {
-                    return scheduled_dt > now_dt;
-                }
-            }
-        }
+    if let Some(ref scheduled) = task.scheduled_start
+        && let Ok(scheduled_dt) = timeutil::parse_rfc3339(scheduled)
+        && let Ok(now) = timeutil::now_utc_rfc3339()
+        && let Ok(now_dt) = timeutil::parse_rfc3339(&now)
+    {
+        return scheduled_dt > now_dt;
     }
     false
 }
@@ -124,14 +122,13 @@ pub fn select_runnable_task_index(
     done: Option<&QueueFile>,
     options: RunnableSelectionOptions,
 ) -> Option<usize> {
-    if options.prefer_doing {
-        if let Some(idx) = active
+    if options.prefer_doing
+        && let Some(idx) = active
             .tasks
             .iter()
             .position(|task| task.status == TaskStatus::Doing)
-        {
-            return Some(idx);
-        }
+    {
+        return Some(idx);
     }
 
     if let Some(idx) = active

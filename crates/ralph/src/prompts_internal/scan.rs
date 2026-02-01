@@ -5,7 +5,7 @@
 //! Not handled: task creation logic, queue mutations, or phase-specific prompt composition.
 //! Invariants/assumptions: required placeholders exist and empty user focus normalizes to "(none)".
 
-use super::registry::{load_prompt_template, prompt_template, PromptTemplateId};
+use super::registry::{PromptTemplateId, load_prompt_template, prompt_template};
 use super::util::{
     apply_project_type_guidance_if_needed, ensure_no_unresolved_placeholders,
     ensure_required_placeholders, escape_placeholder_like_text,

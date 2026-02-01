@@ -170,15 +170,14 @@ fn build_stats_report(queue: &QueueFile, done: Option<&QueueFile>, tags: &[Strin
         .iter()
         .filter(|t| t.status == TaskStatus::Done || t.status == TaskStatus::Rejected)
     {
-        if let (Some(created), Some(completed)) = (&task.created_at, &task.completed_at) {
-            if let (Ok(start), Ok(end)) = (
+        if let (Some(created), Some(completed)) = (&task.created_at, &task.completed_at)
+            && let (Ok(start), Ok(end)) = (
                 timeutil::parse_rfc3339(created),
                 timeutil::parse_rfc3339(completed),
-            ) {
-                if end > start {
-                    durations.push(end - start);
-                }
-            }
+            )
+            && end > start
+        {
+            durations.push(end - start);
         }
     }
 
@@ -258,28 +257,26 @@ fn build_history_report(queue: &QueueFile, done: Option<&QueueFile>, days: u32) 
     let mut completed_by_day: BTreeMap<String, Vec<String>> = BTreeMap::new();
 
     for task in all_tasks {
-        if let Some(created_ts) = &task.created_at {
-            if let Ok(dt) = timeutil::parse_rfc3339(created_ts) {
-                if dt >= start_of_day {
-                    let day_key = format_date_key(dt);
-                    created_by_day
-                        .entry(day_key)
-                        .or_default()
-                        .push(task.id.clone());
-                }
-            }
+        if let Some(created_ts) = &task.created_at
+            && let Ok(dt) = timeutil::parse_rfc3339(created_ts)
+            && dt >= start_of_day
+        {
+            let day_key = format_date_key(dt);
+            created_by_day
+                .entry(day_key)
+                .or_default()
+                .push(task.id.clone());
         }
 
-        if let Some(completed_ts) = &task.completed_at {
-            if let Ok(dt) = timeutil::parse_rfc3339(completed_ts) {
-                if dt >= start_of_day {
-                    let day_key = format_date_key(dt);
-                    completed_by_day
-                        .entry(day_key)
-                        .or_default()
-                        .push(task.id.clone());
-                }
-            }
+        if let Some(completed_ts) = &task.completed_at
+            && let Ok(dt) = timeutil::parse_rfc3339(completed_ts)
+            && dt >= start_of_day
+        {
+            let day_key = format_date_key(dt);
+            completed_by_day
+                .entry(day_key)
+                .or_default()
+                .push(task.id.clone());
         }
     }
 

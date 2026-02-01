@@ -27,8 +27,7 @@ Purpose: Capture repo-wide operating expectations for contributors and agents wo
 **REQUIRED CI GATE**: `make ci` — Agents MUST run this before claiming task completion, committing, or merging PRs. This intentionally installs the binary and is a hard requirement. Under no circumstances can the CI gate be changed to exclude the install step.
 
 **Core Make Targets:**
-- `make build`: Build all crates (debug)
-- `make build-release`: Build release binary (for installation)
+- `make build`: Build all crates
 - `make install`: Build and install binary to `~/.local/bin/ralph` (or fallback path)
 - `make test`: Run all tests (unit + doc) in temp directories
 - `make lint`: Run Clippy with `-D warnings`
@@ -90,10 +89,6 @@ Purpose: Capture repo-wide operating expectations for contributors and agents wo
 - Queue operations (read/write/move) must be covered
 - Prompt template rendering should be tested
 - Critical paths (CI gate, git operations, runner integration) require tests
-
-**Stress Testing:**
-- `make stress`: Runs burn-in stress tests for queue contract validation
-- Use `RALPH_STRESS_BURN_IN=1` to enable stress test mode
 
 ## Queue & Prompt Contract
 

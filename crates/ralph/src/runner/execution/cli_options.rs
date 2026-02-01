@@ -12,7 +12,7 @@
 //! - Ralph execution requires newline-delimited JSON objects; non-stream formats are rejected.
 //! - Defaults are intentionally permissive (YOLO) unless overridden.
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 
 use crate::contracts::{
     AgentConfig, ClaudePermissionMode, Runner, RunnerApprovalMode, RunnerCliOptionsPatch,

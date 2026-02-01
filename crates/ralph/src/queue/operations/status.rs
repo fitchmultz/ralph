@@ -4,7 +4,7 @@ use super::validate::parse_rfc3339_utc;
 use crate::contracts::{QueueFile, Task, TaskStatus};
 use crate::queue::{load_queue, load_queue_or_default, save_queue, validation};
 use crate::redaction;
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use std::path::Path;
 
 /// Apply the shared status-transition policy to a task.
@@ -99,9 +99,11 @@ pub fn complete_task(
         TaskStatus::Done | TaskStatus::Rejected => {}
         TaskStatus::Draft | TaskStatus::Todo | TaskStatus::Doing => {
             bail!(
-            "Invalid completion status: only 'done' or 'rejected' are allowed. Got: {:?}. Use 'ralph task done {}' or 'ralph task reject {}'.",
-            status, task_id, task_id
-        );
+                "Invalid completion status: only 'done' or 'rejected' are allowed. Got: {:?}. Use 'ralph task done {}' or 'ralph task reject {}'.",
+                status,
+                task_id,
+                task_id
+            );
         }
     }
 
@@ -110,7 +112,9 @@ pub fn complete_task(
 
     let needle = task_id.trim();
     if needle.is_empty() {
-        bail!("Missing task_id: a task ID is required for this operation. Provide a valid ID (e.g., 'RQ-0001').");
+        bail!(
+            "Missing task_id: a task ID is required for this operation. Provide a valid ID (e.g., 'RQ-0001')."
+        );
     }
 
     let task_idx = active
@@ -137,7 +141,8 @@ pub fn complete_task(
         TaskStatus::Done | TaskStatus::Rejected => {
             bail!(
                 "task {} is already in a terminal state: {:?}. Cannot complete a task that is already done or rejected.",
-                needle, task.status
+                needle,
+                task.status
             );
         }
     }
@@ -177,7 +182,9 @@ pub fn set_status(
 ) -> Result<()> {
     let needle = task_id.trim();
     if needle.is_empty() {
-        bail!("Missing task_id: a task ID is required for this operation. Provide a valid ID (e.g., 'RQ-0001').");
+        bail!(
+            "Missing task_id: a task ID is required for this operation. Provide a valid ID (e.g., 'RQ-0001')."
+        );
     }
 
     let task = queue
@@ -199,7 +206,9 @@ pub fn promote_draft_to_todo(
 ) -> Result<()> {
     let needle = task_id.trim();
     if needle.is_empty() {
-        bail!("Missing task_id: a task ID is required for this operation. Provide a valid ID (e.g., 'RQ-0001').");
+        bail!(
+            "Missing task_id: a task ID is required for this operation. Provide a valid ID (e.g., 'RQ-0001')."
+        );
     }
 
     let task = queue

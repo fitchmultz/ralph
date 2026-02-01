@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use crate::runner::execution::process::{wait_for_child, CtrlCState};
+use crate::runner::execution::process::{CtrlCState, wait_for_child};
 
 /// Creates a shell command that simulates a slow-exiting process.
 /// The process will sleep for `exit_delay_ms` after receiving SIGINT,

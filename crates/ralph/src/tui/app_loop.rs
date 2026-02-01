@@ -87,11 +87,11 @@ impl LoopState {
         self.ran = self.ran.saturating_add(1);
 
         // Check if we've reached the max
-        if let Some(max) = self.max_tasks {
-            if self.ran >= max {
-                self.active = false;
-                return false;
-            }
+        if let Some(max) = self.max_tasks
+            && self.ran >= max
+        {
+            self.active = false;
+            return false;
         }
 
         self.active

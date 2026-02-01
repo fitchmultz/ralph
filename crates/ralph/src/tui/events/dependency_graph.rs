@@ -14,7 +14,7 @@
 //! - Only plain (non-Ctrl/Alt) characters should trigger view toggles.
 
 use super::types::{AppMode, TuiAction};
-use super::{is_plain_char, App};
+use super::{App, is_plain_char};
 use anyhow::Result;
 use crossterm::event::{KeyCode, KeyEvent};
 

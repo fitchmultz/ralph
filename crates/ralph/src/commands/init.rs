@@ -29,11 +29,11 @@ pub mod wizard;
 pub mod writers;
 
 // Re-export public items from submodules
-pub use readme::{check_readme_current, ReadmeCheckResult};
+pub use readme::{ReadmeCheckResult, check_readme_current};
 
 // Re-export README_VERSION from constants for backward compatibility
 pub use crate::constants::versions::README_VERSION;
-pub use wizard::{print_completion_message, run_wizard, WizardAnswers};
+pub use wizard::{WizardAnswers, print_completion_message, run_wizard};
 pub use writers::{write_config, write_done, write_queue};
 
 /// Options for initializing Ralph files.

@@ -15,11 +15,11 @@
 
 use crate::tui::TextInput;
 use ratatui::{
+    Frame,
     layout::{Alignment, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
     widgets::{Block, Borders, Clear, Paragraph, Wrap},
-    Frame,
 };
 
 /// Draw confirmation dialog for a destructive action.
@@ -205,9 +205,5 @@ pub fn draw_revert_dialog(
 }
 
 fn options_len(allow_proceed: bool) -> usize {
-    if allow_proceed {
-        4
-    } else {
-        3
-    }
+    if allow_proceed { 4 } else { 3 }
 }

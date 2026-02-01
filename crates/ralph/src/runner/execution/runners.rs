@@ -18,8 +18,8 @@ use std::time::Duration;
 use serde_json::Value as JsonValue;
 
 use super::super::{
-    runner_execution_error, runner_execution_error_with_source, ClaudePermissionMode, Model,
-    OutputHandler, OutputStream, ReasoningEffort, RunnerError, RunnerOutput,
+    ClaudePermissionMode, Model, OutputHandler, OutputStream, ReasoningEffort, RunnerError,
+    RunnerOutput, runner_execution_error, runner_execution_error_with_source,
 };
 use super::cli_options::ResolvedRunnerCliOptions;
 use super::cli_spec;
@@ -337,10 +337,9 @@ pub(crate) fn run_kimi(
         .as_deref()
         .map(|id| id.starts_with("tool_"))
         .unwrap_or(true)
+        && let Some(session_id) = resolve_kimi_session_id(work_dir)
     {
-        if let Some(session_id) = resolve_kimi_session_id(work_dir) {
-            output.session_id = Some(session_id);
-        }
+        output.session_id = Some(session_id);
     }
 
     Ok(output)
@@ -737,11 +736,11 @@ mod tests {
         let session_file = workspace_dir.join(format!("2026-01-01T00-00-00Z_{session_id}.jsonl"));
         fs::write(&session_file, "{}").expect("write session file");
 
-        std::env::set_var("PI_CODING_AGENT_DIR", temp_dir.path());
+        unsafe { std::env::set_var("PI_CODING_AGENT_DIR", temp_dir.path()) };
         let resolved = resolve_pi_session_path(Path::new("/tmp/project"), session_id)
             .expect("resolve session path");
         assert_eq!(resolved, session_file);
-        std::env::remove_var("PI_CODING_AGENT_DIR");
+        unsafe { std::env::remove_var("PI_CODING_AGENT_DIR") };
     }
 
     #[test]

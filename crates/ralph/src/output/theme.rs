@@ -236,10 +236,10 @@ pub mod cli {
             .filter(|token| !token.is_empty())
             .collect();
         for pair in tokens.windows(2) {
-            if pair[0].eq_ignore_ascii_case("exit") {
-                if let Ok(code) = pair[1].parse::<i32>() {
-                    return Some(code);
-                }
+            if pair[0].eq_ignore_ascii_case("exit")
+                && let Ok(code) = pair[1].parse::<i32>()
+            {
+                return Some(code);
             }
         }
         None

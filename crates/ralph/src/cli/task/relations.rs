@@ -14,7 +14,7 @@
 //! - For blocks and relates_to, values are appended to existing lists.
 //! - For duplicates, the value is set directly (single value).
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 
 use crate::cli::task::args::{TaskBlocksArgs, TaskMarkDuplicateArgs, TaskRelateArgs};
 use crate::config;

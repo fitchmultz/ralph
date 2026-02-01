@@ -35,17 +35,21 @@ fn task_lock_can_be_acquired_when_supervisor_holds_lock() {
 
     // Verify both owner files exist
     assert!(lock_dir.join("owner").exists());
-    assert!(lock_dir
-        .join(format!("owner_task_{}", std::process::id()))
-        .exists());
+    assert!(
+        lock_dir
+            .join(format!("owner_task_{}", std::process::id()))
+            .exists()
+    );
 
     // Drop task lock - verify sidecar removed, supervisor lock remains
     drop(task_lock);
     assert!(lock_dir.exists());
     assert!(lock_dir.join("owner").exists());
-    assert!(!lock_dir
-        .join(format!("owner_task_{}", std::process::id()))
-        .exists());
+    assert!(
+        !lock_dir
+            .join(format!("owner_task_{}", std::process::id()))
+            .exists()
+    );
 
     // Drop supervisor lock - verify directory removed
     drop(supervisor_lock);

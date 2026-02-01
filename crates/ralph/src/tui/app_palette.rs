@@ -67,10 +67,11 @@ pub fn score_palette_entry(title: &str, query: &str) -> i32 {
                 score += 5;
 
                 // Bonus for consecutive matches
-                if let Some(last) = last_match_pos {
-                    if current_pos == last + 1 && q_idx > 0 {
-                        consecutive_bonus += 10;
-                    }
+                if let Some(last) = last_match_pos
+                    && current_pos == last + 1
+                    && q_idx > 0
+                {
+                    consecutive_bonus += 10;
                 }
 
                 last_match_pos = Some(current_pos);

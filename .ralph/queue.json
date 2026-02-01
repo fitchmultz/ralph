@@ -2,56 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0498",
-      "status": "todo",
-      "title": "Investigate and fix slow/flaky CI gate causing multi-minute test execution",
-      "priority": "critical",
-      "tags": [
-        "bug",
-        "fix",
-        "ci",
-        "performance",
-        "tests",
-        "flaky"
-      ],
-      "scope": [
-        "Makefile",
-        "crates/ralph/tests/",
-        "crates/ralph/tests/stress_queue_contract_test.rs",
-        "make ci",
-        "make test",
-        "cargo test --workspace --all-targets -- --include-ignored",
-        "cargo test --workspace --doc -- --include-ignored"
-      ],
-      "evidence": [
-        "CLI OUTPUT CLAIMS ALL TESTS COMPLETE IN 4 SECONDS BUT THIS IS NOT TRUE.",
-        "Makefile `ci` target runs: check-env-safety → check-backup-artifacts → generate → format → type-check → lint → build → test → install.",
-        "Makefile `test` target executes `cargo test --workspace --all-targets --quiet -- --include-ignored`.",
-        "Makefile `test` target executes `cargo test --workspace --doc --quiet -- --include-ignored` after unit/integration tests.",
-        "Makefile `test` sets TMPDIR/TEMP/TMP to a per-run directory under `target/tmp/ralph-ci-tmp` and deletes it unless `RALPH_CI_KEEP_TMP=1`.",
-        "`crates/ralph/tests/stress_queue_contract_test.rs` defines `stress_queue_ops_burn_in_long` as `#[ignore]` with a comment noting it is intentionally long-running and gated by `RALPH_STRESS_BURN_IN=1`."
-      ],
-      "plan": [
-        "Time each `make ci` step (run targets individually or add timestamps) to pinpoint the slow or flaky stage",
-        "If `make test` dominates, run the two cargo commands from the Makefile separately to see whether unit/integration or doc tests are slow",
-        "Enumerate ignored/long-running tests and confirm whether CI sets `RALPH_STRESS_BURN_IN` or other env vars that activate them",
-        "Reproduce flakiness by repeatedly running the slowest test(s) with `cargo test <name> -- --nocapture` and capture failures",
-        "Fix the root cause (e.g., move stress-only tests to `make stress`, remove `--include-ignored` from `make test`, or stabilize racey tests with deterministic temp dirs/timeouts)",
-        "Update any impacted docs/tests (e.g., Makefile contract coverage) to match the adjusted CI behavior",
-        "Verify with multiple `make ci` runs and record runtime variance"
-      ],
-      "notes": [
-        "CI `make test` currently runs ignored tests and includes a stress burn-in test that can become long-running when `RALPH_STRESS_BURN_IN=1`."
-      ],
-      "request": "The TESTS take WAY TOO LONG to execute. SOMETHING IN THE CI GATE IS SUPER FLAKY AND CAUSE THE GATE TO TAKE DOZENS OF MINUTES TO COMPLETE AT TIMES. SOMETHING IS BROKEN AND IT IS NOT BECAUSE OF THE NUMBER OF TESTS. SOMETHING IS DONE WRONG OR POORLY AND YOU MUST ROOT IT OUT. CLI OUTPUT CLAIMS ALL TESTS COMPLETE IN 4 SECONDS BUT THIS IS NOT TRUE.",
-      "created_at": "2026-01-31T00:00:00Z",
-      "updated_at": "2026-02-01T04:35:54.371026000Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0439",
       "status": "draft",
       "title": "Implement subtask support for hierarchical task breakdown",

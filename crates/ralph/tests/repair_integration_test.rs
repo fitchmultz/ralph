@@ -192,7 +192,12 @@ fn repair_queue_fixes_missing_fields_and_duplicates() -> Result<()> {
         queue_str.contains("RQ-0003"),
         "Queue should contain RQ-0003"
     );
-    assert!(!queue_str.contains("\"id\": \"RQ-0001\",\n      \"status\": \"todo\",\n      \"title\": \"Duplicate task\""), "Duplicate task should be renamed");
+    assert!(
+        !queue_str.contains(
+            "\"id\": \"RQ-0001\",\n      \"status\": \"todo\",\n      \"title\": \"Duplicate task\""
+        ),
+        "Duplicate task should be renamed"
+    );
 
     assert!(done_str.contains("RQ-0002"), "Done should contain RQ-0002");
     assert!(

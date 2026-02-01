@@ -197,11 +197,12 @@ fn test_editing_task_fails_with_no_selection() {
 
     assert_eq!(action, TuiAction::Continue);
     assert_eq!(app.mode, AppMode::Normal);
-    assert!(app
-        .status_message
-        .as_deref()
-        .unwrap_or_default()
-        .contains("No task"));
+    assert!(
+        app.status_message
+            .as_deref()
+            .unwrap_or_default()
+            .contains("No task")
+    );
 }
 
 #[test]

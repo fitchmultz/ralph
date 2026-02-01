@@ -30,16 +30,16 @@ pub mod validation;
 
 pub use graph::*;
 pub use operations::*;
-pub use prune::{prune_done_tasks, PruneOptions, PruneReport};
+pub use prune::{PruneOptions, PruneReport, prune_done_tasks};
 pub use repair::*;
 pub use search::{
-    filter_tasks, fuzzy_search_tasks, search_tasks, search_tasks_with_options, SearchOptions,
+    SearchOptions, filter_tasks, fuzzy_search_tasks, search_tasks, search_tasks_with_options,
 };
 pub use size_check::{
-    check_queue_size, count_threshold_or_default, print_size_warning_if_needed,
-    size_threshold_or_default, SizeCheckResult,
+    SizeCheckResult, check_queue_size, count_threshold_or_default, print_size_warning_if_needed,
+    size_threshold_or_default,
 };
-pub use validation::{log_warnings, validate_queue, validate_queue_set, ValidationWarning};
+pub use validation::{ValidationWarning, log_warnings, validate_queue, validate_queue_set};
 
 // Pruning types live in `queue::prune` (re-exported from this module).
 
@@ -114,32 +114,32 @@ pub fn attempt_json_repair(raw: &str) -> Option<String> {
     // We match single quotes that appear to be string delimiters
     // Match '...' where the content doesn't contain ' and is not preceded/followed by alphanumeric
     // Use ^ or non-alphanumeric before, and non-alphanumeric or $ after
-    if let Ok(single_quote_re) = regex::Regex::new(r"(^|[^a-zA-Z0-9])'([^']*?)'([^a-zA-Z0-9]|$)") {
-        if single_quote_re.is_match(&repaired) {
-            log::debug!("JSON repair: converting single-quoted strings to double-quoted");
-            repaired = single_quote_re
-                .replace_all(&repaired, |caps: &regex::Captures| {
-                    let prefix = &caps[1];
-                    let content = &caps[2];
-                    let suffix = &caps[3];
-                    // Escape any double quotes inside the content
-                    let escaped = content.replace('"', "\\\"");
-                    format!("{}\"{}\"{}", prefix, escaped, suffix)
-                })
-                .to_string();
-        }
+    if let Ok(single_quote_re) = regex::Regex::new(r"(^|[^a-zA-Z0-9])'([^']*?)'([^a-zA-Z0-9]|$)")
+        && single_quote_re.is_match(&repaired)
+    {
+        log::debug!("JSON repair: converting single-quoted strings to double-quoted");
+        repaired = single_quote_re
+            .replace_all(&repaired, |caps: &regex::Captures| {
+                let prefix = &caps[1];
+                let content = &caps[2];
+                let suffix = &caps[3];
+                // Escape any double quotes inside the content
+                let escaped = content.replace('"', "\\\"");
+                format!("{}\"{}\"{}", prefix, escaped, suffix)
+            })
+            .to_string();
     }
 
     // Repair 2: Add missing quotes around unquoted object keys
     // Pattern: {[ or , followed by whitespace, then identifier followed by colon
     // Matches: {key: or ,key: or { key: or , key:
-    if let Ok(unquoted_key_re) = regex::Regex::new(r"([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:") {
-        if unquoted_key_re.is_match(&repaired) {
-            log::debug!("JSON repair: adding quotes around unquoted object keys");
-            repaired = unquoted_key_re
-                .replace_all(&repaired, "$1\"$2\":")
-                .to_string();
-        }
+    if let Ok(unquoted_key_re) = regex::Regex::new(r"([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:")
+        && unquoted_key_re.is_match(&repaired)
+    {
+        log::debug!("JSON repair: adding quotes around unquoted object keys");
+        repaired = unquoted_key_re
+            .replace_all(&repaired, "$1\"$2\":")
+            .to_string();
     }
 
     // Repair 3: Fix unescaped newlines within string values
@@ -153,23 +153,23 @@ pub fn attempt_json_repair(raw: &str) -> Option<String> {
 
     // Repair 5: Remove trailing commas before ] or }
     // Pattern: ,\s*] or ,\s*}
-    if let Ok(trailing_comma_re) = regex::Regex::new(r",(\s*[}\]])") {
-        if trailing_comma_re.is_match(&repaired) {
-            log::debug!("JSON repair: removing trailing commas");
-            repaired = trailing_comma_re.replace_all(&repaired, "$1").to_string();
-        }
+    if let Ok(trailing_comma_re) = regex::Regex::new(r",(\s*[}\]])")
+        && trailing_comma_re.is_match(&repaired)
+    {
+        log::debug!("JSON repair: removing trailing commas");
+        repaired = trailing_comma_re.replace_all(&repaired, "$1").to_string();
     }
 
     // Repair 6: Remove trailing commas at end of arrays/objects (more aggressive)
     // This handles cases where there might be newlines between comma and bracket
     // Pattern: ,(\s*)\n(\s*[}\]])
-    if let Ok(trailing_comma_nl_re) = regex::Regex::new(r",(\s*)\n(\s*[}\]])") {
-        if trailing_comma_nl_re.is_match(&repaired) {
-            log::debug!("JSON repair: removing trailing commas before newlines");
-            repaired = trailing_comma_nl_re
-                .replace_all(&repaired, "$1\n$2")
-                .to_string();
-        }
+    if let Ok(trailing_comma_nl_re) = regex::Regex::new(r",(\s*)\n(\s*[}\]])")
+        && trailing_comma_nl_re.is_match(&repaired)
+    {
+        log::debug!("JSON repair: removing trailing commas before newlines");
+        repaired = trailing_comma_nl_re
+            .replace_all(&repaired, "$1\n$2")
+            .to_string();
     }
 
     // Repair 7: Fix missing closing bracket at end of file
@@ -487,9 +487,10 @@ mod tests {
 
         let err =
             load_and_validate_queues(&resolved, true).expect_err("expected duplicate id error");
-        assert!(err
-            .to_string()
-            .contains("Duplicate task ID detected across queue and done"));
+        assert!(
+            err.to_string()
+                .contains("Duplicate task ID detected across queue and done")
+        );
         Ok(())
     }
 

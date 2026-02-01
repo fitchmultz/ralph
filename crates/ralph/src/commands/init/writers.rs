@@ -21,8 +21,8 @@ use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
 
-use super::wizard::WizardAnswers;
 use super::FileInitStatus;
+use super::wizard::WizardAnswers;
 
 /// Write queue file, optionally including a first task from wizard answers.
 pub fn write_queue(
@@ -46,45 +46,44 @@ pub fn write_queue(
     let mut queue = QueueFile::default();
 
     // Add first task if wizard provided one
-    if let Some(answers) = wizard_answers {
-        if answers.create_first_task {
-            if let (Some(title), Some(description)) = (
-                answers.first_task_title.clone(),
-                answers.first_task_description.clone(),
-            ) {
-                let now = time::OffsetDateTime::now_utc();
-                let timestamp = now
-                    .format(&time::format_description::well_known::Rfc3339)
-                    .unwrap_or_else(|_| now.to_string());
+    if let Some(answers) = wizard_answers
+        && answers.create_first_task
+        && let (Some(title), Some(description)) = (
+            answers.first_task_title.clone(),
+            answers.first_task_description.clone(),
+        )
+    {
+        let now = time::OffsetDateTime::now_utc();
+        let timestamp = now
+            .format(&time::format_description::well_known::Rfc3339)
+            .unwrap_or_else(|_| now.to_string());
 
-                let task_id = format!("{}-{:0>width$}", id_prefix, 1, width = id_width);
+        let task_id = format!("{}-{:0>width$}", id_prefix, 1, width = id_width);
 
-                let task = Task {
-                    id: task_id,
-                    status: TaskStatus::Todo,
-                    title,
-                    priority: answers.first_task_priority,
-                    tags: vec!["onboarding".to_string()],
-                    scope: vec![],
-                    evidence: vec![],
-                    plan: vec![],
-                    notes: vec![],
-                    request: Some(description),
-                    agent: None,
-                    created_at: Some(timestamp.clone()),
-                    updated_at: Some(timestamp),
-                    completed_at: None,
-                    scheduled_start: None,
-                    depends_on: vec![],
-                    blocks: vec![],
-                    relates_to: vec![],
-                    duplicates: None,
-                    custom_fields: std::collections::HashMap::new(),
-                };
+        let task = Task {
+            id: task_id,
+            status: TaskStatus::Todo,
+            title,
+            priority: answers.first_task_priority,
+            tags: vec!["onboarding".to_string()],
+            scope: vec![],
+            evidence: vec![],
+            plan: vec![],
+            notes: vec![],
+            request: Some(description),
+            agent: None,
+            created_at: Some(timestamp.clone()),
+            updated_at: Some(timestamp),
+            completed_at: None,
+            scheduled_start: None,
+            depends_on: vec![],
+            blocks: vec![],
+            relates_to: vec![],
+            duplicates: None,
+            custom_fields: std::collections::HashMap::new(),
+        };
 
-                queue.tasks.push(task);
-            }
-        }
+        queue.tasks.push(task);
     }
 
     let rendered = serde_json::to_string_pretty(&queue).context("serialize queue JSON")?;
