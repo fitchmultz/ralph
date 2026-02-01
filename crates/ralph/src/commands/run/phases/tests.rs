@@ -3,7 +3,9 @@
 use super::phase2::cache_phase2_final_response;
 use super::phase3::ensure_phase3_completion;
 use super::shared::run_ci_gate_with_continue;
-use super::{PhaseInvocation, execute_phase1_planning, execute_phase3_review};
+use super::{
+    PhaseInvocation, execute_phase1_planning, execute_phase3_review, generate_phase_session_id,
+};
 use crate::commands::run::supervision::ContinueSession;
 use crate::completions;
 use crate::constants::defaults::PHASE2_FINAL_RESPONSE_FALLBACK;
@@ -81,6 +83,27 @@ fn cache_phase2_final_response_writes_fallback_when_missing() -> Result<()> {
     let cached = promptflow::read_phase2_final_response_cache(temp.path(), "RQ-0001")?;
     assert_eq!(cached, PHASE2_FINAL_RESPONSE_FALLBACK);
     Ok(())
+}
+
+#[test]
+fn generate_phase_session_id_uses_task_phase_and_timestamp_format() {
+    let task_id = "RQ-0001";
+    let session_id = generate_phase_session_id(task_id, 2);
+    let prefix = format!("{task_id}-p2-");
+    assert!(
+        session_id.starts_with(&prefix),
+        "expected prefix {prefix}, got {session_id}"
+    );
+    assert!(!session_id.starts_with("ralph-"));
+    let suffix = session_id.strip_prefix(&prefix).expect("session id prefix");
+    assert!(
+        !suffix.is_empty(),
+        "expected timestamp suffix, got empty string"
+    );
+    assert!(
+        suffix.chars().all(|c| c.is_ascii_digit()),
+        "timestamp suffix should be digits, got {suffix}"
+    );
 }
 
 fn resolved_for_repo(repo_root: PathBuf, opencode_bin: &Path) -> crate::config::Resolved {

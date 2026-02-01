@@ -16,7 +16,7 @@
 //! Assumptions/invariants:
 //! - Runner binaries are available on PATH or configured explicitly.
 //! - Model validation rules are enforced before execution starts.
-//! - Session IDs are non-empty for runners that require them (all except Kimi).
+//! - Session IDs are non-empty for resume operations.
 //! - Messages are non-empty for resume operations.
 //!
 //! Size Justification (947 lines, exceeds 700 LOC heuristic):
@@ -929,16 +929,16 @@ pub(crate) fn resume_session(
             output_handler,
             output_stream,
         ),
-        Runner::Kimi => execution::run_kimi_resume(
+        Runner::Kimi => execution::run_kimi(
             work_dir,
             bins.kimi,
             runner_cli,
             model,
-            session_id,
             message,
             timeout,
             output_handler,
             output_stream,
+            Some(session_id),
         ),
         Runner::Pi => execution::run_pi_resume(
             work_dir,

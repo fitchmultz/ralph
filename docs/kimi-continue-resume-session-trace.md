@@ -1,4 +1,13 @@
-# Proper way to invoke a coherent non-interactive conversation with the kimi runner.
+# Proper way to invoke a coherent non-interactive conversation with the kimi runner
+
+Phase 1 invocation of kimi: `kimi --print --output-format stream-json --debug --session RQ-0000-p1-1769972400 --prompt "Phase 1 prompt instructions"`
+Generalized version: `kimi --print --output-format stream-json --debug --session <TASK_ID>-p<PHASE_NUMBER>-<CURRENT_TIME_SECS> --prompt "<PROMPT>"`
+
+The same `session` value (e.g. `RQ-0000-p1-1769972400`) is used for ALL kimi interaction in this run/loop for this SPECIFIC TASK_ID, PHASE (1,2,3), and time in secs is added to guarantee uniqueness per run in case a task is aborted mis run and started from scratch. e.g. if there is a dirty repo supervisor break that needs resolved, a custom user message (if provided) would get sent to `session` RQ-0000-p1-1769972400.
+
+When Phase 1 is 100% complete and supervisor agrees, we invoke a NEW kimi session for Phase 2 using a new ID: `kimi --print --output-format stream-json --debug --session RQ-0000-p2-1769973184 --prompt "Phase 2 prompt instructions"`. If Phase 2 ends its turn in error, e.g. CI gate error, we send the CI automated response to session ID 'RQ-0000-p2-1769973184'.
+
+And so on. Each unique phase/step, task update, phase1, phase2, and phase 3, all have their own unique sessions.
 
 ~/Pr/AI/ralph 02012026 +2 !1 ❯ kimi --print --output-format stream-json --debug --session RQ-0000-p1-1769972400 --prompt "List files. List RepoPrompt (RP) windows, select the proper RP window, get the file tree from RP, then return the file tree in some colorful output."
 {"role":"assistant","content":[{"type":"think","think":"The user wants me to:\n1. List files (in the current directory)\n2. List RepoPrompt (RP) windows\n3. Select the proper RP window\n4. Get the file tree from RP\n5. Return the file tree in some colorful output\n\nLet me start by listing the files in the current directory and listing the RP windows. These are independent operations so I can do them in parallel.","encrypted":null},{"type":"text","text":"I'll help you list files, work with RepoPrompt windows, and get a colorful file tree. Let me start with the independent operations."}],"tool_calls":[{"type":"function","id":"tool_NMg22SPqLeZRxCfykWUGe4JJ","function":{"name":"Shell","arguments":"{\"command\": \"ls -la\"}"}},{"type":"function","id":"tool_A3tEoEkeqlRNdTZNwiYpKrlG","function":{"name":"list_windows","arguments":"{}"}}]}

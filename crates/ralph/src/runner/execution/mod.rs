@@ -27,7 +27,7 @@
 //! - `json.rs`: JSON handling for runner input/output.
 //! - `process.rs`: Process management and execution.
 //! - `response.rs`: Response extraction (session IDs, assistant messages).
-//! - `runners.rs`: Individual runner implementations (run + resume for each of 7 runners).
+//! - `runners.rs`: Individual runner implementations (run + resume; Kimi reuses run for resume).
 //! - `stream.rs`: Output streaming to handlers and terminals.
 //! - `tests.rs`: Execution-specific integration tests.
 
@@ -46,8 +46,8 @@ mod tests;
 pub(super) use response::extract_final_assistant_response;
 pub(super) use runners::{
     run_claude, run_claude_resume, run_codex, run_codex_resume, run_cursor, run_cursor_resume,
-    run_gemini, run_gemini_resume, run_kimi, run_kimi_resume, run_opencode, run_opencode_resume,
-    run_pi, run_pi_resume,
+    run_gemini, run_gemini_resume, run_kimi, run_opencode, run_opencode_resume, run_pi,
+    run_pi_resume,
 };
 
 pub(crate) use cli_options::{ResolvedRunnerCliOptions, resolve_runner_cli_options};

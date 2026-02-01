@@ -75,14 +75,13 @@ pub struct PhaseInvocation<'a> {
 
 /// Generate a unique session ID for runner session resumption.
 ///
-/// Format: ralph-<task_id>-p<phase>-<timestamp>-<pid>
-/// Example: ralph-RQ-0001-p2-1704153600-12345
+/// Format: <task_id>-p<phase>-<timestamp>
+/// Example: RQ-0001-p2-1704153600
 pub(crate) fn generate_phase_session_id(task_id: &str, phase: u8) -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs();
-    let pid = std::process::id();
-    format!("ralph-{}-p{}-{}-{}", task_id, phase, timestamp, pid)
+    format!("{}-p{}-{}", task_id, phase, timestamp)
 }

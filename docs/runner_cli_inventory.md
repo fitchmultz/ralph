@@ -171,7 +171,7 @@ Key observations (from `claude --help`):
 
 **Observed resume command shape**:
 - `kimi --print --output-format stream-json --model <MODEL> --session <SESSION_ID> --prompt "<MESSAGE>"`
-- Note: Ralph generates unique session IDs per phase (format: `ralph-{task_id}-p{phase}-{timestamp}-{pid}`) rather than using `--continue` for deterministic session management.
+- Note: Ralph generates unique session IDs per phase (format: `{task_id}-p{phase}-{timestamp}`) rather than using `--continue` for deterministic session management.
 
 **Approval / permission / safety mode**
 - `--yolo/--yes` auto-approves; `--print` implies `--yolo`.
@@ -183,7 +183,7 @@ Key observations (from `claude --help`):
 - `--output-format stream-json` for JSONL events; default is text.
 
 **Session handling**
-- Ralph generates explicit session IDs (format: `ralph-{task_id}-p{phase}-{timestamp}-{pid}`) and passes them via `--session`.
+- Ralph generates explicit session IDs (format: `{task_id}-p{phase}-{timestamp}`) and passes them via `--session`.
 - This approach is more reliable than `--continue` which depends on Kimi's internal `last_session_id` tracking.
 - Each phase gets its own session ID, ensuring isolation between planning, implementation, and review phases.
 - Session IDs are deterministic and traceable for debugging purposes.

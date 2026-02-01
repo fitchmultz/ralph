@@ -82,8 +82,8 @@ Note: Per-phase settings are informational only. Crash recovery recomputes setti
 Ralph uses explicit session management for runners that support it (notably **Kimi**):
 
 **Session ID Generation**
-- Format: `ralph-{task_id}-p{phase}-{timestamp}-{pid}`
-- Example: `ralph-RQ-0001-p2-1704153600-12345`
+- Format: `{task_id}-p{phase}-{timestamp}`
+- Example: `RQ-0001-p2-1704153600`
 - Each phase (1, 2, 3) gets its own unique session ID
 
 **Why Explicit Sessions?**
@@ -96,12 +96,12 @@ Ralph uses explicit session management for runners that support it (notably **Ki
 ```bash
 # Phase 2 initial invocation
 kimi --print --output-format stream-json --model kimi-for-coding \
-  --session ralph-RQ-0001-p2-1704153600-12345 \
+  --session RQ-0001-p2-1704153600 \
   --prompt "Implement the plan..."
 
 # Phase 2 continue (CI failure retry)
 kimi --print --output-format stream-json --model kimi-for-coding \
-  --session ralph-RQ-0001-p2-1704153600-12345 \
+  --session RQ-0001-p2-1704153600 \
   --prompt "Fix the CI errors..."
 ```
 
