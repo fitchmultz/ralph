@@ -584,6 +584,67 @@ impl TaskOperations {
     }
 }
 
+// ============================================================================
+// TaskMovementOperations trait for App
+// ============================================================================
+
+use crate::tui::App;
+
+/// Trait for task movement operations.
+pub trait TaskMovementOperations {
+    /// Move the selected task up in the queue.
+    fn move_task_up(&mut self, now_rfc3339: &str) -> anyhow::Result<()>;
+
+    /// Move the selected task down in the queue.
+    fn move_task_down(&mut self, now_rfc3339: &str) -> anyhow::Result<()>;
+}
+
+impl TaskMovementOperations for App {
+    fn move_task_up(&mut self, now_rfc3339: &str) -> anyhow::Result<()> {
+        if self.selected == 0 || self.filtered_indices.is_empty() {
+            return Ok(());
+        }
+
+        let current_idx = self.filtered_indices[self.selected];
+        let prev_idx = self.filtered_indices[self.selected - 1];
+
+        self.queue.tasks[current_idx].updated_at = Some(now_rfc3339.to_string());
+        self.queue.tasks[prev_idx].updated_at = Some(now_rfc3339.to_string());
+
+        self.queue.tasks.swap(current_idx, prev_idx);
+        self.dirty = true;
+        self.bump_queue_rev();
+
+        let task_id = self.queue.tasks[prev_idx].id.clone();
+        self.rebuild_filtered_view_with_preferred(Some(&task_id));
+        self.set_status_message(format!("Moved {} up", task_id));
+
+        Ok(())
+    }
+
+    fn move_task_down(&mut self, now_rfc3339: &str) -> anyhow::Result<()> {
+        if self.selected + 1 >= self.filtered_indices.len() || self.filtered_indices.is_empty() {
+            return Ok(());
+        }
+
+        let current_idx = self.filtered_indices[self.selected];
+        let next_idx = self.filtered_indices[self.selected + 1];
+
+        self.queue.tasks[current_idx].updated_at = Some(now_rfc3339.to_string());
+        self.queue.tasks[next_idx].updated_at = Some(now_rfc3339.to_string());
+
+        self.queue.tasks.swap(current_idx, next_idx);
+        self.dirty = true;
+        self.bump_queue_rev();
+
+        let task_id = self.queue.tasks[next_idx].id.clone();
+        self.rebuild_filtered_view_with_preferred(Some(&task_id));
+        self.set_status_message(format!("Moved {} down", task_id));
+
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

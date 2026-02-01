@@ -19,7 +19,9 @@ mod app_filters;
 mod app_help;
 mod app_id_index;
 mod app_logs;
+pub use app_logs::LogOperations;
 mod app_loop;
+mod app_multi_select;
 mod app_navigation;
 mod app_options;
 mod app_palette;
@@ -42,18 +44,29 @@ mod tests;
 pub use crate::progress::ExecutionPhase;
 pub use app::{App, prepare_tui_session, run_tui};
 pub use app_details::{DetailsContext, DetailsContextMode, DetailsState};
-pub use app_execution::{ExecutionState, RunningKind};
-pub use app_filters::{FilterKey, FilterManager, FilterSnapshot, FilterState};
-pub use app_navigation::{AppNavigation, NavigationState};
+pub use app_execution::{
+    ExecutionState, RunningKind, calculate_completion_percentage, count_completed_phases,
+    get_phase_elapsed,
+};
+pub use app_filters::{
+    FilterKey, FilterManagementOperations, FilterManager, FilterOperations, FilterSnapshot,
+    FilterState,
+};
+pub use app_multi_select::{MultiSelectOperations, MultiSelectState};
+pub use app_navigation::{AppNavigation, NavigationOperations, NavigationState};
 #[cfg(test)]
 pub use app_options::FilterCacheStats;
 pub use app_options::TuiOptions;
+pub use app_palette::{build_palette_entries, filter_and_score_entries, scan_label};
 pub use app_session::{SessionManager, SessionState};
-pub use app_tasks::{AppTasks, AutoArchiveAction, MoveResult, TaskOperations};
+pub use app_tasks::{
+    AppTasks, AutoArchiveAction, MoveResult, TaskMovementOperations, TaskOperations,
+};
 pub use config_edit::{ConfigEntry, ConfigFieldKind, ConfigKey};
 pub use dependency_graph_cache::DependencyGraphCache;
 pub use events::{
-    AppMode, ConfirmDiscardAction, PaletteCommand, PaletteEntry, TuiAction, handle_key_event,
+    AppMode, ConfirmDiscardAction, PaletteCommand, PaletteEntry, ScoredPaletteEntry, TuiAction,
+    handle_key_event,
 };
 pub use input::TextInput;
 pub use render::draw_ui;

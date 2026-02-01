@@ -385,6 +385,67 @@ pub fn parse_tags(input: &str) -> Vec<String> {
         .collect()
 }
 
+// ============================================================================
+// FilterOperations trait for App
+// ============================================================================
+
+use crate::tui::App;
+
+/// Trait for filter-related operations on the App.
+pub trait FilterOperations {
+    /// Toggle case-sensitive search.
+    fn toggle_case_sensitive(&mut self);
+
+    /// Toggle regex search.
+    fn toggle_regex(&mut self);
+
+    /// Toggle fuzzy search.
+    fn toggle_fuzzy(&mut self);
+}
+
+impl FilterOperations for App {
+    fn toggle_case_sensitive(&mut self) {
+        self.filters.search_options.case_sensitive = !self.filters.search_options.case_sensitive;
+        let state = if self.filters.search_options.case_sensitive {
+            "enabled"
+        } else {
+            "disabled"
+        };
+        self.set_status_message(format!("Case-sensitive search {}", state));
+        self.rebuild_filtered_view();
+    }
+
+    fn toggle_regex(&mut self) {
+        self.filters.search_options.use_regex = !self.filters.search_options.use_regex;
+        // Regex and fuzzy are mutually exclusive
+        if self.filters.search_options.use_regex && self.filters.search_options.use_fuzzy {
+            self.filters.search_options.use_fuzzy = false;
+        }
+        let state = if self.filters.search_options.use_regex {
+            "enabled (fuzzy disabled)"
+        } else {
+            "disabled"
+        };
+        self.set_status_message(format!("Regex search {}", state));
+        self.rebuild_filtered_view();
+    }
+
+    fn toggle_fuzzy(&mut self) {
+        self.filters.search_options.use_fuzzy = !self.filters.search_options.use_fuzzy;
+        // Fuzzy and regex are mutually exclusive
+        if self.filters.search_options.use_fuzzy && self.filters.search_options.use_regex {
+            self.filters.search_options.use_regex = false;
+        }
+        let state = if self.filters.search_options.use_fuzzy {
+            "enabled (regex disabled)"
+        } else {
+            "disabled"
+        };
+        self.set_status_message(format!("Fuzzy search {}", state));
+        self.rebuild_filtered_view();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -475,5 +536,69 @@ mod tests {
     fn test_parse_tags() {
         let result = parse_tags("tag1, tag2 tag3");
         assert_eq!(result, vec!["tag1", "tag2", "tag3"]);
+    }
+}
+
+// ============================================================================
+// FilterManagementOperations trait for App
+// ============================================================================
+
+/// Trait for filter management operations.
+pub trait FilterManagementOperations {
+    /// Cycle the active status filter.
+    fn cycle_status_filter(&mut self);
+
+    /// Set the tag filter list (empty to clear).
+    fn set_tag_filters(&mut self, tags: Vec<String>);
+
+    /// Set the scope filter list (empty to clear).
+    fn set_scope_filters(&mut self, scopes: Vec<String>);
+
+    /// Set the search query (empty to clear).
+    fn set_search_query(&mut self, query: String);
+
+    /// Clear all active filters.
+    fn clear_filters(&mut self);
+}
+
+impl FilterManagementOperations for App {
+    fn cycle_status_filter(&mut self) {
+        let preferred_id = self.selected_task().map(|t| t.id.clone());
+        let next = match self.filters.statuses.as_slice() {
+            [] => Some(TaskStatus::Todo),
+            [TaskStatus::Todo] => Some(TaskStatus::Doing),
+            [TaskStatus::Doing] => Some(TaskStatus::Done),
+            [TaskStatus::Done] => Some(TaskStatus::Draft),
+            [TaskStatus::Draft] => Some(TaskStatus::Rejected),
+            [TaskStatus::Rejected] => None,
+            _ => None,
+        };
+
+        self.filters.statuses = next.map(|status| vec![status]).unwrap_or_default();
+        self.rebuild_filtered_view_with_preferred(preferred_id.as_deref());
+    }
+
+    fn set_tag_filters(&mut self, tags: Vec<String>) {
+        let preferred_id = self.selected_task().map(|t| t.id.clone());
+        self.filters.tags = tags;
+        self.rebuild_filtered_view_with_preferred(preferred_id.as_deref());
+    }
+
+    fn set_scope_filters(&mut self, scopes: Vec<String>) {
+        let preferred_id = self.selected_task().map(|t| t.id.clone());
+        self.filters.search_options.scopes = scopes;
+        self.rebuild_filtered_view_with_preferred(preferred_id.as_deref());
+    }
+
+    fn set_search_query(&mut self, query: String) {
+        let preferred_id = self.selected_task().map(|t| t.id.clone());
+        self.filters.query = query;
+        self.rebuild_filtered_view_with_preferred(preferred_id.as_deref());
+    }
+
+    fn clear_filters(&mut self) {
+        let preferred_id = self.selected_task().map(|t| t.id.clone());
+        self.filters = FilterState::default();
+        self.rebuild_filtered_view_with_preferred(preferred_id.as_deref());
     }
 }

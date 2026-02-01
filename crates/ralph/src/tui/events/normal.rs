@@ -16,6 +16,9 @@ use super::super::{AppMode, TextInput};
 use super::types::{TuiAction, ViewMode};
 use super::{App, is_ctrl_char, is_plain_char};
 use crate::tui::PaletteCommand;
+use crate::tui::app_filters::FilterManagementOperations;
+use crate::tui::app_multi_select::MultiSelectOperations;
+use crate::tui::app_navigation::NavigationOperations;
 use anyhow::Result;
 use crossterm::event::{KeyCode, KeyEvent};
 

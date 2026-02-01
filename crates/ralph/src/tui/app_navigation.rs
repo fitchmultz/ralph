@@ -416,6 +416,99 @@ impl BoardNavigationState {
     }
 }
 
+// ============================================================================
+// NavigationOperations trait for App
+// ============================================================================
+
+use crate::tui::App;
+
+/// Trait for navigation operations on the App.
+pub trait NavigationOperations {
+    /// Move selection up by one.
+    fn move_up(&mut self);
+
+    /// Move selection down by one.
+    fn move_down(&mut self, list_height: usize);
+
+    /// Move selection up by a page.
+    fn move_page_up(&mut self, list_height: usize);
+
+    /// Move selection down by a page.
+    fn move_page_down(&mut self, list_height: usize);
+
+    /// Jump selection to the top.
+    fn jump_to_top(&mut self);
+
+    /// Jump selection to the bottom.
+    fn jump_to_bottom(&mut self, list_height: usize);
+}
+
+impl NavigationOperations for App {
+    fn move_up(&mut self) {
+        if self.filtered_len() > 0 && self.selected > 0 {
+            self.selected -= 1;
+            if self.selected < self.scroll {
+                self.scroll = self.selected;
+            }
+        }
+    }
+
+    fn move_down(&mut self, list_height: usize) {
+        if self.selected + 1 < self.filtered_len() {
+            self.selected += 1;
+            if self.selected >= self.scroll + list_height {
+                self.scroll = self.selected - list_height + 1;
+            }
+        }
+    }
+
+    fn move_page_up(&mut self, list_height: usize) {
+        if self.filtered_len() == 0 {
+            return;
+        }
+        let list_height = list_height.max(1);
+        let step = list_height.saturating_sub(1).max(1);
+        self.selected = self.selected.saturating_sub(step);
+        if self.selected < self.scroll {
+            self.scroll = self.selected;
+        }
+    }
+
+    fn move_page_down(&mut self, list_height: usize) {
+        if self.filtered_len() == 0 {
+            return;
+        }
+        let list_height = list_height.max(1);
+        let step = list_height.saturating_sub(1).max(1);
+        let max_index = self.filtered_len().saturating_sub(1);
+        self.selected = (self.selected + step).min(max_index);
+        if self.selected >= self.scroll + list_height {
+            self.scroll = self.selected.saturating_sub(list_height.saturating_sub(1));
+        }
+    }
+
+    fn jump_to_top(&mut self) {
+        if self.filtered_len() == 0 {
+            self.selected = 0;
+            self.scroll = 0;
+            return;
+        }
+        self.selected = 0;
+        self.scroll = 0;
+    }
+
+    fn jump_to_bottom(&mut self, list_height: usize) {
+        if self.filtered_len() == 0 {
+            self.selected = 0;
+            self.scroll = 0;
+            return;
+        }
+        self.selected = self.filtered_len().saturating_sub(1);
+        let list_height = list_height.max(1);
+        self.scroll = self.selected.saturating_sub(list_height.saturating_sub(1));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -14,6 +14,7 @@
 use super::super::{AppMode, TextInput};
 use super::types::TuiAction;
 use super::{App, handle_filter_input_key};
+use crate::tui::app_filters::FilterManagementOperations;
 use anyhow::Result;
 use crossterm::event::KeyEvent;
 

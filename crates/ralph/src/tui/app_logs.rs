@@ -195,6 +195,49 @@ impl LogState {
     }
 }
 
+// ============================================================================
+// LogOperations trait for App
+// ============================================================================
+
+use crate::tui::App;
+
+/// Trait for log scrolling operations.
+pub trait LogOperations {
+    /// Get the maximum log scroll position.
+    fn max_log_scroll(&self, visible_lines: usize) -> usize;
+
+    /// Scroll logs up by a number of lines.
+    fn scroll_logs_up(&mut self, lines: usize);
+
+    /// Scroll logs down by a number of lines.
+    fn scroll_logs_down(&mut self, lines: usize, visible_lines: usize);
+
+    /// Enable autoscroll.
+    fn enable_autoscroll(&mut self, visible_lines: usize);
+}
+
+impl LogOperations for App {
+    fn max_log_scroll(&self, visible_lines: usize) -> usize {
+        self.logs.len().saturating_sub(visible_lines)
+    }
+
+    fn scroll_logs_up(&mut self, lines: usize) {
+        self.autoscroll = false;
+        self.log_scroll = self.log_scroll.saturating_sub(lines);
+    }
+
+    fn scroll_logs_down(&mut self, lines: usize, visible_lines: usize) {
+        self.autoscroll = false;
+        let max_scroll = self.max_log_scroll(visible_lines);
+        self.log_scroll = (self.log_scroll + lines).min(max_scroll);
+    }
+
+    fn enable_autoscroll(&mut self, visible_lines: usize) {
+        self.autoscroll = true;
+        self.log_scroll = self.max_log_scroll(visible_lines);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

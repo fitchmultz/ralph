@@ -350,6 +350,50 @@ impl ExecutionState {
     }
 }
 
+/// Calculate completion percentage from completed phases and total phases.
+pub fn calculate_completion_percentage(completed_phases: u8, total_phases: u8) -> u8 {
+    if total_phases == 0 {
+        return 0;
+    }
+    let percentage = (completed_phases as f32 / total_phases as f32) * 100.0;
+    percentage.clamp(0.0, 100.0) as u8
+}
+
+/// Count completed phases based on current phase and completion times.
+pub fn count_completed_phases(
+    phase_completion_times: &std::collections::HashMap<ExecutionPhase, std::time::Duration>,
+    current_phase: ExecutionPhase,
+) -> u8 {
+    let mut count = 0u8;
+    for phase in [
+        ExecutionPhase::Planning,
+        ExecutionPhase::Implementation,
+        ExecutionPhase::Review,
+    ] {
+        if phase_completion_times.contains_key(&phase)
+            || phase.phase_number() < current_phase.phase_number()
+        {
+            count += 1;
+        }
+    }
+    count
+}
+
+/// Get elapsed time for a specific phase.
+pub fn get_phase_elapsed(
+    phase: ExecutionPhase,
+    phase_completion_times: &std::collections::HashMap<ExecutionPhase, std::time::Duration>,
+    phase_start_times: &std::collections::HashMap<ExecutionPhase, std::time::Instant>,
+) -> std::time::Duration {
+    if let Some(completed) = phase_completion_times.get(&phase) {
+        *completed
+    } else if let Some(start) = phase_start_times.get(&phase) {
+        start.elapsed()
+    } else {
+        std::time::Duration::ZERO
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

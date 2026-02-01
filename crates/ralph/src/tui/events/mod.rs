@@ -18,6 +18,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent,
 
 use super::input::{TextInputEdit, apply_text_input_key};
 use super::{App, TextInput};
+use crate::tui::app_navigation::NavigationOperations;
 
 pub mod confirm;
 pub mod create;

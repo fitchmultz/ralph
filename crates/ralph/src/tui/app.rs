@@ -42,19 +42,24 @@ use std::time::Duration;
 
 use super::TextInput;
 use super::events::{
-    AppMode, ConfirmDiscardAction, PaletteCommand, PaletteEntry, ScoredPaletteEntry,
-    TaskBuilderState, TaskBuilderStep, TuiAction, ViewMode, handle_key_event, handle_mouse_event,
+    AppMode, ConfirmDiscardAction, PaletteCommand, PaletteEntry, TaskBuilderState, TaskBuilderStep,
+    TuiAction, ViewMode, handle_key_event, handle_mouse_event,
 };
 use super::render::draw_ui;
 use super::terminal::{BorderStyle, ColorSupport, TerminalCapabilities};
 use super::{DetailsContext, DetailsState};
 use crate::tui::app_execution::RunningKind;
+use crate::tui::app_filters::FilterManagementOperations;
+use crate::tui::app_filters::FilterOperations;
 use crate::tui::app_filters::{FilterKey, FilterSnapshot, FilterState};
+use crate::tui::app_logs::LogOperations;
+use crate::tui::app_multi_select::MultiSelectOperations;
 use crate::tui::app_navigation::BoardNavigationState;
 #[cfg(test)]
 use crate::tui::app_options::FilterCacheStats;
 use crate::tui::app_options::TuiOptions;
-use crate::tui::app_palette::{scan_label, score_palette_entry};
+use crate::tui::app_palette::scan_label;
+use crate::tui::app_tasks::TaskMovementOperations;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum FocusedPanel {
@@ -316,48 +321,6 @@ impl App {
 
     // Multi-select methods
 
-    /// Toggle multi-select mode on/off.
-    ///
-    /// When exiting multi-select mode, clears all selections.
-    pub fn toggle_multi_select_mode(&mut self) {
-        self.multi_select_mode = !self.multi_select_mode;
-        if !self.multi_select_mode {
-            self.selected_indices.clear();
-        }
-    }
-
-    /// Toggle selection of the current task.
-    ///
-    /// Only has effect when in multi-select mode.
-    pub fn toggle_current_selection(&mut self) {
-        if self.multi_select_mode {
-            let idx = self.selected;
-            if self.selected_indices.contains(&idx) {
-                self.selected_indices.remove(&idx);
-            } else {
-                self.selected_indices.insert(idx);
-            }
-        }
-    }
-
-    /// Clear all selections and exit multi-select mode.
-    pub fn clear_selection(&mut self) {
-        self.selected_indices.clear();
-        self.multi_select_mode = false;
-    }
-
-    /// Get the count of selected tasks.
-    pub fn selection_count(&self) -> usize {
-        self.selected_indices.len()
-    }
-
-    /// Check if a filtered position is selected.
-    pub fn is_selected(&self, filtered_idx: usize) -> bool {
-        self.selected_indices.contains(&filtered_idx)
-    }
-
-    // Phase tracking methods
-
     /// Reset phase tracking for a new execution.
     ///
     /// Clears previous phase data and initializes tracking for the given
@@ -492,17 +455,9 @@ impl App {
     }
 
     /// Get elapsed time for a specific phase.
-    ///
-    /// Returns the completed duration if the phase is finished,
-    /// or the current elapsed time if it's active or pending.
     pub fn phase_elapsed(&self, phase: ExecutionPhase) -> std::time::Duration {
-        if let Some(completed) = self.phase_completion_times.get(&phase) {
-            *completed
-        } else if let Some(start) = self.phase_start_times.get(&phase) {
-            start.elapsed()
-        } else {
-            std::time::Duration::ZERO
-        }
+        use crate::tui::get_phase_elapsed;
+        get_phase_elapsed(phase, &self.phase_completion_times, &self.phase_start_times)
     }
 
     /// Get total execution time.
@@ -525,8 +480,10 @@ impl App {
 
     /// Check if a phase is completed.
     pub fn is_phase_completed(&self, phase: ExecutionPhase) -> bool {
-        self.phase_completion_times.contains_key(&phase)
-            || phase.phase_number() < self.execution_phase.phase_number()
+        use crate::tui::count_completed_phases;
+        count_completed_phases(&self.phase_completion_times, self.execution_phase) > 0
+            && (self.phase_completion_times.contains_key(&phase)
+                || phase.phase_number() < self.execution_phase.phase_number())
     }
 
     /// Check if a phase is currently active.
@@ -535,38 +492,10 @@ impl App {
     }
 
     /// Calculate overall completion percentage (0-100).
-    ///
-    /// Based on completed phases. Each completed phase contributes equally
-    /// to the percentage (e.g., 1/3 = 33%, 2/3 = 67%, 3/3 = 100%).
     pub fn completion_percentage(&self) -> u8 {
-        if self.configured_phases == 0 {
-            return 0;
-        }
-
-        let completed_phases = self.completed_phase_count();
-
-        // Calculate percentage based on completed phases
-        let percentage = (completed_phases as f32 / self.configured_phases as f32) * 100.0;
-        percentage.clamp(0.0, 100.0) as u8
-    }
-
-    /// Count completed phases.
-    fn completed_phase_count(&self) -> u8 {
-        // Count phases that have been completed (have a completion time recorded)
-        // or phases that are before the current phase
-        let mut count = 0u8;
-
-        for phase in [
-            ExecutionPhase::Planning,
-            ExecutionPhase::Implementation,
-            ExecutionPhase::Review,
-        ] {
-            if self.is_phase_completed(phase) {
-                count += 1;
-            }
-        }
-
-        count
+        use crate::tui::{calculate_completion_percentage, count_completed_phases};
+        let completed = count_completed_phases(&self.phase_completion_times, self.execution_phase);
+        calculate_completion_percentage(completed, self.configured_phases)
     }
 
     /// Get elapsed time for all phases as a map.
@@ -909,50 +838,6 @@ impl App {
         Some(format!("filters: {}", parts.join(" ")))
     }
 
-    /// Toggle case-sensitive search.
-    pub fn toggle_case_sensitive(&mut self) {
-        self.filters.search_options.case_sensitive = !self.filters.search_options.case_sensitive;
-        let state = if self.filters.search_options.case_sensitive {
-            "enabled"
-        } else {
-            "disabled"
-        };
-        self.set_status_message(format!("Case-sensitive search {}", state));
-        self.rebuild_filtered_view();
-    }
-
-    /// Toggle regex search.
-    pub fn toggle_regex(&mut self) {
-        self.filters.search_options.use_regex = !self.filters.search_options.use_regex;
-        // Regex and fuzzy are mutually exclusive
-        if self.filters.search_options.use_regex && self.filters.search_options.use_fuzzy {
-            self.filters.search_options.use_fuzzy = false;
-        }
-        let state = if self.filters.search_options.use_regex {
-            "enabled (fuzzy disabled)"
-        } else {
-            "disabled"
-        };
-        self.set_status_message(format!("Regex search {}", state));
-        self.rebuild_filtered_view();
-    }
-
-    /// Toggle fuzzy search.
-    pub fn toggle_fuzzy(&mut self) {
-        self.filters.search_options.use_fuzzy = !self.filters.search_options.use_fuzzy;
-        // Fuzzy and regex are mutually exclusive
-        if self.filters.search_options.use_fuzzy && self.filters.search_options.use_regex {
-            self.filters.search_options.use_regex = false;
-        }
-        let state = if self.filters.search_options.use_fuzzy {
-            "enabled (regex disabled)"
-        } else {
-            "disabled"
-        };
-        self.set_status_message(format!("Fuzzy search {}", state));
-        self.rebuild_filtered_view();
-    }
-
     /// Get the currently selected task, if any.
     pub fn selected_task(&self) -> Option<&Task> {
         self.selected_task_index()
@@ -973,64 +858,6 @@ impl App {
     pub fn selected_task_mut(&mut self) -> Option<&mut Task> {
         let idx = self.selected_task_index()?;
         self.queue.tasks.get_mut(idx)
-    }
-
-    /// Move selection up.
-    pub fn move_up(&mut self) {
-        if self.filtered_len() > 0 && self.selected > 0 {
-            self.selected -= 1;
-            if self.selected < self.scroll {
-                self.scroll = self.selected;
-            }
-        }
-    }
-
-    /// Move selection down.
-    pub fn move_down(&mut self, list_height: usize) {
-        if self.selected + 1 < self.filtered_len() {
-            self.selected += 1;
-            if self.selected >= self.scroll + list_height {
-                self.scroll = self.selected - list_height + 1;
-            }
-        }
-    }
-
-    /// Move selection up by a page.
-    pub fn move_page_up(&mut self, list_height: usize) {
-        if self.filtered_len() == 0 {
-            return;
-        }
-        let list_height = list_height.max(1);
-        let step = list_height.saturating_sub(1).max(1);
-        self.selected = self.selected.saturating_sub(step);
-        if self.selected < self.scroll {
-            self.scroll = self.selected;
-        }
-    }
-
-    /// Move selection down by a page.
-    pub fn move_page_down(&mut self, list_height: usize) {
-        if self.filtered_len() == 0 {
-            return;
-        }
-        let list_height = list_height.max(1);
-        let step = list_height.saturating_sub(1).max(1);
-        let max_index = self.filtered_len().saturating_sub(1);
-        self.selected = (self.selected + step).min(max_index);
-        if self.selected >= self.scroll + list_height {
-            self.scroll = self.selected.saturating_sub(list_height.saturating_sub(1));
-        }
-    }
-
-    /// Jump selection to the top of the filtered list.
-    pub fn jump_to_top(&mut self) {
-        if self.filtered_len() == 0 {
-            self.selected = 0;
-            self.scroll = 0;
-            return;
-        }
-        self.selected = 0;
-        self.scroll = 0;
     }
 
     /// Jump to a task by its ID.
@@ -1091,64 +918,6 @@ impl App {
                 false
             }
         }
-    }
-
-    /// Jump selection to the bottom of the filtered list.
-    pub fn jump_to_bottom(&mut self, list_height: usize) {
-        if self.filtered_len() == 0 {
-            self.selected = 0;
-            self.scroll = 0;
-            return;
-        }
-        self.selected = self.filtered_len().saturating_sub(1);
-        let list_height = list_height.max(1);
-        self.scroll = self.selected.saturating_sub(list_height.saturating_sub(1));
-    }
-
-    /// Move the selected task up in the queue.
-    pub fn move_task_up(&mut self, now_rfc3339: &str) -> Result<()> {
-        if self.selected == 0 || self.filtered_indices.is_empty() {
-            return Ok(());
-        }
-
-        let current_idx = self.filtered_indices[self.selected];
-        let prev_idx = self.filtered_indices[self.selected - 1];
-
-        self.queue.tasks[current_idx].updated_at = Some(now_rfc3339.to_string());
-        self.queue.tasks[prev_idx].updated_at = Some(now_rfc3339.to_string());
-
-        self.queue.tasks.swap(current_idx, prev_idx);
-        self.dirty = true;
-        self.bump_queue_rev();
-
-        let task_id = self.queue.tasks[prev_idx].id.clone();
-        self.rebuild_filtered_view_with_preferred(Some(&task_id));
-        self.set_status_message(format!("Moved {} up", task_id));
-
-        Ok(())
-    }
-
-    /// Move the selected task down in the queue.
-    pub fn move_task_down(&mut self, now_rfc3339: &str) -> Result<()> {
-        if self.selected + 1 >= self.filtered_indices.len() || self.filtered_indices.is_empty() {
-            return Ok(());
-        }
-
-        let current_idx = self.filtered_indices[self.selected];
-        let next_idx = self.filtered_indices[self.selected + 1];
-
-        self.queue.tasks[current_idx].updated_at = Some(now_rfc3339.to_string());
-        self.queue.tasks[next_idx].updated_at = Some(now_rfc3339.to_string());
-
-        self.queue.tasks.swap(current_idx, next_idx);
-        self.dirty = true;
-        self.bump_queue_rev();
-
-        let task_id = self.queue.tasks[next_idx].id.clone();
-        self.rebuild_filtered_view_with_preferred(Some(&task_id));
-        self.set_status_message(format!("Moved {} down", task_id));
-
-        Ok(())
     }
 
     /// Delete the selected task.
@@ -1532,43 +1301,6 @@ impl App {
         }
     }
 
-    /// Cycle the active status filter.
-    pub fn cycle_status_filter(&mut self) {
-        let preferred_id = self.selected_task().map(|t| t.id.clone());
-        let next = match self.filters.statuses.as_slice() {
-            [] => Some(TaskStatus::Todo),
-            [TaskStatus::Todo] => Some(TaskStatus::Doing),
-            [TaskStatus::Doing] => Some(TaskStatus::Done),
-            [TaskStatus::Done] => Some(TaskStatus::Draft),
-            [TaskStatus::Draft] => Some(TaskStatus::Rejected),
-            [TaskStatus::Rejected] => None,
-            _ => None,
-        };
-
-        self.filters.statuses = next.map(|status| vec![status]).unwrap_or_default();
-        self.rebuild_filtered_view_with_preferred(preferred_id.as_deref());
-    }
-
-    /// Set the tag filter list (empty to clear).
-    pub fn set_tag_filters(&mut self, tags: Vec<String>) {
-        let preferred_id = self.selected_task().map(|t| t.id.clone());
-        self.filters.tags = tags;
-        self.rebuild_filtered_view_with_preferred(preferred_id.as_deref());
-    }
-
-    pub fn set_scope_filters(&mut self, scopes: Vec<String>) {
-        let preferred_id = self.selected_task().map(|t| t.id.clone());
-        self.filters.search_options.scopes = scopes;
-        self.rebuild_filtered_view_with_preferred(preferred_id.as_deref());
-    }
-
-    /// Set the search query (empty to clear).
-    pub fn set_search_query(&mut self, query: String) {
-        let preferred_id = self.selected_task().map(|t| t.id.clone());
-        self.filters.query = query;
-        self.rebuild_filtered_view_with_preferred(preferred_id.as_deref());
-    }
-
     pub(crate) fn begin_filter_input(&mut self) {
         if self.filter_snapshot.is_some() {
             return;
@@ -1607,13 +1339,6 @@ impl App {
             AppMode::FilteringScopes(TextInput::new(self.filters.search_options.scopes.join(",")));
     }
 
-    /// Clear all active filters (query, tags, status).
-    pub fn clear_filters(&mut self) {
-        let preferred_id = self.selected_task().map(|t| t.id.clone());
-        self.filters = FilterState::default();
-        self.rebuild_filtered_view_with_preferred(preferred_id.as_deref());
-    }
-
     pub(crate) fn parse_list(input: &str) -> Vec<String> {
         input
             .split([',', '\n'])
@@ -1642,32 +1367,6 @@ impl App {
         if self.autoscroll || self.log_scroll > max_scroll {
             self.log_scroll = max_scroll;
         }
-    }
-
-    pub fn max_log_scroll(&self, visible_lines: usize) -> usize {
-        self.logs.len().saturating_sub(visible_lines)
-    }
-
-    pub fn scroll_logs_up(&mut self, lines: usize) {
-        if lines == 0 {
-            return;
-        }
-        self.autoscroll = false;
-        self.log_scroll = self.log_scroll.saturating_sub(lines);
-    }
-
-    pub fn scroll_logs_down(&mut self, lines: usize, visible_lines: usize) {
-        if lines == 0 {
-            return;
-        }
-        self.autoscroll = false;
-        let max_scroll = self.max_log_scroll(visible_lines);
-        self.log_scroll = (self.log_scroll + lines).min(max_scroll);
-    }
-
-    pub fn enable_autoscroll(&mut self, visible_lines: usize) {
-        self.autoscroll = true;
-        self.log_scroll = self.max_log_scroll(visible_lines);
     }
 
     /// Get the current details scroll position.
@@ -1783,186 +1482,9 @@ impl App {
 
     /// Build the palette entries for a given query.
     pub fn palette_entries(&self, query: &str) -> Vec<PaletteEntry> {
-        let toggle_label = if self.loop_active {
-            "Stop loop"
-        } else {
-            "Start loop"
-        };
-
-        let entries = vec![
-            PaletteEntry {
-                cmd: PaletteCommand::RunSelected,
-                title: "Run selected task".to_string(),
-            },
-            PaletteEntry {
-                cmd: PaletteCommand::RunNextRunnable,
-                title: "Run next runnable task".to_string(),
-            },
-            PaletteEntry {
-                cmd: PaletteCommand::ToggleLoop,
-                title: toggle_label.to_string(),
-            },
-            PaletteEntry {
-                cmd: PaletteCommand::ArchiveTerminal,
-                title: "Archive done/rejected tasks".to_string(),
-            },
-            PaletteEntry {
-                cmd: PaletteCommand::NewTask,
-                title: "Create new task".to_string(),
-            },
-            PaletteEntry {
-                cmd: PaletteCommand::BuildTaskAgent,
-                title: "Build task with agent".to_string(),
-            },
-            PaletteEntry {
-                cmd: PaletteCommand::EditTask,
-                title: "Edit selected task".to_string(),
-            },
-            PaletteEntry {
-                cmd: PaletteCommand::EditConfig,
-                title: "Edit project config".to_string(),
-            },
-            PaletteEntry {
-                cmd: PaletteCommand::ScanRepo,
-                title: "Scan repository for tasks".to_string(),
-            },
-            PaletteEntry {
-                cmd: PaletteCommand::Search,
-                title: "Search tasks".to_string(),
-            },
-            PaletteEntry {
-                cmd: PaletteCommand::FilterTags,
-                title: "Filter by tags".to_string(),
-            },
-            PaletteEntry {
-                cmd: PaletteCommand::FilterScopes,
-                title: "Filter by scope".to_string(),
-            },
-            PaletteEntry {
-                cmd: PaletteCommand::ClearFilters,
-                title: "Clear filters".to_string(),
-            },
-            PaletteEntry {
-                cmd: PaletteCommand::CycleStatus,
-                title: "Cycle selected task status".to_string(),
-            },
-            PaletteEntry {
-                cmd: PaletteCommand::CyclePriority,
-                title: "Cycle selected task priority".to_string(),
-            },
-            PaletteEntry {
-                cmd: PaletteCommand::SetStatusDraft,
-                title: "Set status: Draft".to_string(),
-            },
-            PaletteEntry {
-                cmd: PaletteCommand::SetStatusTodo,
-                title: "Set status: Todo".to_string(),
-            },
-            PaletteEntry {
-                cmd: PaletteCommand::SetStatusDoing,
-                title: "Set status: Doing".to_string(),
-            },
-            PaletteEntry {
-                cmd: PaletteCommand::SetStatusDone,
-                title: "Set status: Done".to_string(),
-            },
-            PaletteEntry {
-                cmd: PaletteCommand::SetStatusRejected,
-                title: "Set status: Rejected".to_string(),
-            },
-            PaletteEntry {
-                cmd: PaletteCommand::SetPriorityCritical,
-                title: "Set priority: Critical".to_string(),
-            },
-            PaletteEntry {
-                cmd: PaletteCommand::SetPriorityHigh,
-                title: "Set priority: High".to_string(),
-            },
-            PaletteEntry {
-                cmd: PaletteCommand::SetPriorityMedium,
-                title: "Set priority: Medium".to_string(),
-            },
-            PaletteEntry {
-                cmd: PaletteCommand::SetPriorityLow,
-                title: "Set priority: Low".to_string(),
-            },
-            PaletteEntry {
-                cmd: PaletteCommand::ToggleCaseSensitive,
-                title: "Toggle case-sensitive search".to_string(),
-            },
-            PaletteEntry {
-                cmd: PaletteCommand::ToggleRegex,
-                title: "Toggle regex search".to_string(),
-            },
-            PaletteEntry {
-                cmd: PaletteCommand::ToggleFuzzy,
-                title: "Toggle fuzzy search".to_string(),
-            },
-            PaletteEntry {
-                cmd: PaletteCommand::ReloadQueue,
-                title: "Reload queue from disk".to_string(),
-            },
-            PaletteEntry {
-                cmd: PaletteCommand::MoveTaskUp,
-                title: "Move selected task up".to_string(),
-            },
-            PaletteEntry {
-                cmd: PaletteCommand::MoveTaskDown,
-                title: "Move selected task down".to_string(),
-            },
-            PaletteEntry {
-                cmd: PaletteCommand::JumpToTask,
-                title: "Jump to task by ID".to_string(),
-            },
-            PaletteEntry {
-                cmd: PaletteCommand::RepairQueue,
-                title: "Repair queue".to_string(),
-            },
-            PaletteEntry {
-                cmd: PaletteCommand::RepairQueueDryRun,
-                title: "Repair queue (dry run)".to_string(),
-            },
-            PaletteEntry {
-                cmd: PaletteCommand::UnlockQueue,
-                title: "Unlock queue".to_string(),
-            },
-            PaletteEntry {
-                cmd: PaletteCommand::Quit,
-                title: "Quit".to_string(),
-            },
-        ];
-
-        let q = query.trim();
-        if q.is_empty() {
-            return entries;
-        }
-
-        let q_lower = q.to_lowercase();
-
-        // Score and filter entries using fuzzy matching
-        let mut scored: Vec<ScoredPaletteEntry> = entries
-            .into_iter()
-            .enumerate()
-            .map(|(idx, entry)| {
-                let score = score_palette_entry(&entry.title, &q_lower);
-                ScoredPaletteEntry {
-                    entry,
-                    score,
-                    original_index: idx,
-                }
-            })
-            .filter(|s| s.score > 0)
-            .collect();
-
-        // Sort by score (desc), then title length (asc), then original index (asc)
-        scored.sort_by(|a, b| {
-            b.score
-                .cmp(&a.score)
-                .then_with(|| a.entry.title.len().cmp(&b.entry.title.len()))
-                .then_with(|| a.original_index.cmp(&b.original_index))
-        });
-
-        scored.into_iter().map(|s| s.entry).collect()
+        use crate::tui::app_palette::{build_palette_entries, filter_and_score_entries};
+        let entries = build_palette_entries(self.loop_active);
+        filter_and_score_entries(entries, query)
     }
 
     /// Execute a palette command (also used by direct keybinds for consistency).

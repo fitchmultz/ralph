@@ -7,6 +7,7 @@ mod test_support;
 
 use ralph::contracts::{QueueFile, Task, TaskStatus};
 use ralph::tui::App;
+use ralph::tui::NavigationOperations;
 use test_support::{make_test_queue, make_test_task};
 
 #[test]

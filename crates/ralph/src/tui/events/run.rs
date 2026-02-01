@@ -12,6 +12,7 @@
 //! - Key handling is stateless and uses current `App` log metadata.
 
 use super::{App, is_plain_char, types::TuiAction};
+use crate::tui::app_logs::LogOperations;
 use anyhow::Result;
 use crossterm::event::{KeyCode, KeyEvent};
 

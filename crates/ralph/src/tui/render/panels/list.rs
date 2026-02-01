@@ -14,6 +14,7 @@
 
 use super::super::App;
 use super::{filter_summary_for_width, format_duration_compact, task_list_suffix_spans};
+use crate::tui::app_multi_select::MultiSelectOperations;
 use crate::tui::render::utils::status_color;
 use ratatui::{
     Frame,
