@@ -2,6 +2,51 @@
   "version": 1,
   "tasks": [
     {
+      "id": "RQ-0510",
+      "status": "todo",
+      "title": "Add versioning support for scan prompts (v1/v2) with v2 as default",
+      "priority": "medium",
+      "tags": [
+        "feature",
+        "enhancement",
+        "prompts",
+        "scan"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts/config.rs",
+        "crates/ralph/src/prompts_internal/scan.rs",
+        "crates/ralph/assets/prompts/",
+        "schemas/config.schema.json"
+      ],
+      "evidence": [
+        "Current scan prompts are hardcoded in scan.rs as MAINTENANCE_MODE_GUIDANCE and INNOVATION_MODE_GUIDANCE constants (v1)",
+        "User has v2 prompts ready at /tmp/scan-maintenance-v2.md and /tmp/scan-innovation-v2.md",
+        "Need config-controlled version selection with v2 as the new default",
+        "V2 prompts need alterations for JSON schema requirements and project type/user focus injection points"
+      ],
+      "plan": [
+        "Add ScanPromptVersion enum (v1, v2) and scan_prompt_version field to AgentConfig in contracts/config.rs",
+        "Add merge_from support for the new config field",
+        "Create versioned prompt asset files: scan_maintenance_v1.md, scan_maintenance_v2.md, scan_innovation_v1.md, scan_innovation_v2.md",
+        "Extract existing v1 content from scan.rs constants to scan_*_v1.md files",
+        "Process v2 prompts from /tmp/ paths: add JSON schema requirements for queue tasks, add {{PROJECT_TYPE_GUIDANCE}} and {{USER_FOCUS}} injection points",
+        "Update scan.md template to support versioned {{MODE_GUIDANCE}} substitution",
+        "Update scan.rs render_scan_prompt() to load versioned prompts based on config.scan_prompt_version",
+        "Update registry.rs to register new prompt template IDs for versioned scan prompts",
+        "Run make generate to update schemas/config.schema.json with new field",
+        "Add tests for versioned prompt loading and rendering",
+        "Run make ci to verify all checks pass"
+      ],
+      "notes": [],
+      "request": "Let's add a versioning tag for the 'scan' prompts for maintenance mode and innovation mode. The current prompts we can label 'v1' and we control which prompt versions are used based on a default config variable and a key in the config json schema. I have the v2 prompts ready and they are in the files at the paths below. These will be 'v2'. I want v2 to be the new default. Maintenance v2: /tmp/scan-maintenance-v2.md, /tmp/scan-innovation-v2.md. The prompts in these paths will need some slight alterations to ENSURE the scan agents are provided the proper JSON schema requirements for adding to the queue, and to allow the project type injection, and user focus injection, and the mandate of at least 10 new tasks with no upper limit.",
+      "created_at": "2026-02-01T15:38:50Z",
+      "updated_at": "2026-02-01T15:38:50Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
       "id": "RQ-0439",
       "status": "draft",
       "title": "Implement subtask support for hierarchical task breakdown",
