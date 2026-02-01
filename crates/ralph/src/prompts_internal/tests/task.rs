@@ -47,7 +47,16 @@ fn default_task_builder_prompt_mentions_next_id_command() -> Result<()> {
     let dir = TempDir::new()?;
     let prompt = load_task_builder_prompt(dir.path())?;
     assert!(prompt.contains("ralph queue next-id"));
-    assert!(!prompt.contains("ralph queue next` for each new task ID"));
+    // Should mention --count for multi-task cases
+    assert!(
+        prompt.contains("next-id --count"),
+        "prompt should mention next-id --count for multi-task creation"
+    );
+    // Should warn that next-id does not reserve IDs
+    assert!(
+        prompt.contains("does NOT reserve IDs") || prompt.contains("does not reserve IDs"),
+        "prompt should warn that next-id does not reserve IDs"
+    );
     Ok(())
 }
 

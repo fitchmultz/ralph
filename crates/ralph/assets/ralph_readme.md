@@ -1,4 +1,4 @@
-<!-- RALPH_README_VERSION: 4 -->
+<!-- RALPH_README_VERSION: 5 -->
 # Ralph runtime files
 
 This repo is using Ralph. The `.ralph/` directory holds repo-local state.
@@ -22,6 +22,21 @@ If `ralph queue validate` reports a duplicate task ID (e.g., `RQ-XXXX exists in 
 
 Task IDs must be unique across both `queue.json` (active tasks) and `done.json` (completed tasks).
 
+### Generating Multiple Task IDs
+
+When adding multiple tasks at once, use the `--count` flag to generate all IDs in one call:
+
+```bash
+# Generate 7 sequential IDs
+ralph queue next-id --count 7
+```
+
+**Important:** `next-id` does NOT reserve IDs. It simply shows the next available ID(s) based on the current queue state. Re-running the command without modifying the queue will return the same IDs. To avoid duplicates:
+
+1. Generate all IDs you need in one call using `--count N`
+2. Assign the printed IDs to your tasks in order (first ID = highest priority task)
+3. Insert all tasks into `.ralph/queue.json` before running any other queue commands
+
 ## Core Commands
 
 ### Queue Management
@@ -35,6 +50,7 @@ Task IDs must be unique across both `queue.json` (active tasks) and `done.json` 
   - `ralph queue next --with-title`
 - Next task ID:
   - `ralph queue next-id`
+  - `ralph queue next-id --count 7` (generate 7 sequential IDs for batch task creation)
 - Show task details:
   - `ralph queue show RQ-0001`
 - Archive completed tasks:

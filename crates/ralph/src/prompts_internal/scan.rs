@@ -82,8 +82,15 @@ If a duplicate exists, do not add another.
 - Avoid reversed ordering when using ralph queue next-id:
   - Insert the first new task at the top.
   - Insert each subsequent new task immediately BELOW the previously inserted new tasks.
-- Use ralph queue next-id for each new task ID.
+- Generating task IDs:
+  - When adding N tasks in one edit, run `ralph queue next-id --count N` once and assign IDs in order
+    (first printed ID = highest-priority task at the top).
+  - IMPORTANT: `next-id` does NOT reserve IDs. Re-running it without changing the queue will return
+    the same IDs. Generate IDs once, then insert all tasks before doing anything else that might
+    read the queue state.
 - Do not renumber existing task IDs.
+- Note: `ralph queue next` (without `-id`) returns the next queued task, not a new ID.
+- Note: `ralph queue next` (without `-id`) returns the next queued task, not a new ID.
 
 # TASK SHAPE (REQUIRED KEYS)
 Queue schema requires: id, title, created_at, updated_at.
@@ -197,7 +204,12 @@ If a duplicate exists, do not add another. Prefer skipping, or create a single r
 - Avoid reversed ordering when using ralph queue next-id:
   - Insert the first new task at the top.
   - Insert each subsequent new task immediately BELOW the previously inserted new tasks.
-- Use ralph queue next-id for each new task ID (ralph queue next is NOT an ID generator).
+- Generating task IDs:
+  - When adding N tasks in one edit, run `ralph queue next-id --count N` once and assign IDs in order
+    (first printed ID = highest-priority task at the top).
+  - IMPORTANT: `next-id` does NOT reserve IDs. Re-running it without changing the queue will return
+    the same IDs. Generate IDs once, then insert all tasks before doing anything else that might
+    read the queue state.
 - Do not renumber existing task IDs.
 
 # TASK SHAPE (REQUIRED KEYS)

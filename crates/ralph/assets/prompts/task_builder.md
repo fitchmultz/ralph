@@ -58,13 +58,19 @@ Optional hint scope (may be empty):
 - If the request is clearly multiple independent deliverables, split into multiple tasks in priority order.
 - Do not invent evidence. If you cannot cite repo specifics, use evidence from the user request as evidence.
 - Scope is a starting point, not a restriction. Include other relevant paths/commands when needed to ensure correct task execution.
-- Use `ralph queue next-id` for each new task ID (note: `ralph queue next` returns the next queued task, not a new ID).
+- Generating task IDs:
+  - When adding N tasks in one edit, run `ralph queue next-id --count N` once and assign IDs in order
+    (first printed ID = highest-priority task at the top).
+  - IMPORTANT: `next-id` does NOT reserve IDs. Re-running it without changing the queue will return
+    the same IDs. Generate IDs once, then insert all tasks before doing anything else that might
+    read the queue state.
+  - Note: `ralph queue next` (without `-id`) returns the next queued task, not a new ID.
 - Smart insertion positioning:
   - If the queue is empty: insert new task(s) at position 0.
   - Otherwise, check the FIRST task in `.ralph/queue.json`:
     - If its `status` is `doing`, insert new task(s) at position 1 (immediately below the in-progress task).
     - Otherwise, insert at position 0 (top of the queue).
-- IMPORTANT (avoid reversed ordering): if you add multiple tasks and are using `ralph queue next-id` repeatedly, do NOT insert each newly created task at the absolute top of the file. That reverses the intended priority order. Instead, insert the first new task at the chosen insertion position, then insert subsequent new tasks immediately BELOW the previously inserted new tasks.
+- IMPORTANT (avoid reversed ordering): When inserting multiple tasks, do NOT insert each newly created task at the absolute top of the file. That reverses the intended priority order. Instead, insert the first new task at the chosen insertion position, then insert subsequent new tasks immediately BELOW the previously inserted new tasks.
 - CRITICAL (dependency ordering): If a task has `depends_on` pointing to another task ID, the dependency MUST appear BEFORE the dependent task in the queue file (execution is top-to-bottom). When adding related tasks, insert dependencies first, then insert dependent tasks BELOW them. Run `ralph queue validate` after editing to verify the queue is valid.
 - Set `request` on each task to the original user request.
 - Set `created_at` and `updated_at` to current UTC RFC3339 time.
