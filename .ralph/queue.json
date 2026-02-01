@@ -2,43 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0505",
-      "status": "todo",
-      "title": "Add module-level documentation for complex TUI components",
-      "priority": "low",
-      "tags": [
-        "maintenance",
-        "documentation",
-        "tui"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/app.rs",
-        "crates/ralph/src/tui/events/mod.rs"
-      ],
-      "evidence": [
-        "path: crates/ralph/src/tui/app.rs :: Lines 1-59 :: Missing module-level doc explaining App state machine",
-        "path: crates/ralph/src/tui/events/mod.rs :: No documentation for event routing architecture",
-        "path: crates/ralph/src/tui/events/dependency_graph.rs :: Complex graph rendering lacks high-level overview"
-      ],
-      "plan": [
-        "Add //! module docs to tui/app.rs explaining App struct responsibilities",
-        "Document the event routing pattern (handle_key_event -> mode dispatch)",
-        "Add architecture overview for TUI state management",
-        "Document the filter/sort/search state interactions",
-        "Verify by reading docs and confirming understanding of TUI architecture"
-      ],
-      "notes": [],
-      "request": "maintenance scan finding",
-      "created_at": "2026-02-01T05:14:31Z",
-      "updated_at": "2026-02-01T05:14:31Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0506",
       "status": "todo",
       "title": "Unify and document session timeout configuration",
