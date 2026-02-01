@@ -724,7 +724,7 @@ Common flag families across `ralph queue` subcommands:
   * `--only-done`: only use `.ralph/done.json` (ignore active queue)
   * `--include-done` and `--only-done` are mutually exclusive.
 * Output format:
-  * `list`, `search`: `--format <compact|long>` (default: `compact`)
+  * `list`, `search`: `--format <compact|long|json>` (default: `compact`)
   * `show`: `--format <json|compact>` (default: `json`)
   * `stats`, `history`, `burndown`: `--format <text|json>` (default: `text`)
 * Limits (`list`, `search`):
@@ -733,6 +733,10 @@ Common flag families across `ralph queue` subcommands:
 * Sorting:
   * `list`: `--sort-by priority` and `--order <ascending|descending>` (sorts output only)
   * `sort`: `--sort-by priority` and `--order <ascending|descending>` (reorders queue file)
+* Scheduled filters (`list`, `search`):
+  * `--scheduled`: only show tasks with `scheduled_start` set
+  * `--scheduled-after <TIMESTAMP>`: filter tasks scheduled after this time (RFC3339 or relative)
+  * `--scheduled-before <TIMESTAMP>`: filter tasks scheduled before this time (RFC3339 or relative)
 
 ### `ralph queue validate`
 
@@ -823,11 +827,14 @@ Flags:
 * `--filter-deps <TASK_ID>`: filter by tasks that depend on the given task ID (recursively).
 * `--include-done`: include tasks from `.ralph/done.json` after active queue output.
 * `--only-done`: only list tasks from `.ralph/done.json` (ignores active queue).
-* `--format <compact|long>`: output format (default: `compact`).
+* `--format <compact|long|json>`: output format (default: `compact`). JSON outputs an array of task objects (same shape as queue export).
 * `--limit <N>`: maximum tasks to show (default: 50; `0` = no limit).
 * `--all`: show all tasks (ignores `--limit`).
 * `--sort-by <priority>`: sort output by field.
 * `--order <ascending|descending>`: sort order (default: `descending`).
+* `--scheduled`: filter to only show tasks with `scheduled_start` set.
+* `--scheduled-after <TIMESTAMP>`: filter tasks scheduled after this time (RFC3339 or relative expression like `+7d`).
+* `--scheduled-before <TIMESTAMP>`: filter tasks scheduled before this time (RFC3339 or relative expression).
 
 ```bash
 ralph queue list
@@ -836,6 +843,11 @@ ralph queue list --status doing --scope crates/ralph
 ralph queue list --include-done --limit 20
 ralph queue list --only-done --all
 ralph queue list --filter-deps=RQ-0100
+ralph queue list --format json
+ralph queue list --format json | jq '.[] | select(.status == "todo")'
+ralph queue list --scheduled
+ralph queue list --scheduled-after '2026-01-01T00:00:00Z'
+ralph queue list --scheduled-before '+7d'
 ```
 
 ### `ralph queue search`
@@ -846,14 +858,16 @@ Flags:
 
 * `--regex`: interpret query as a regular expression.
 * `--match-case`: case-sensitive search (default: case-insensitive).
+* `--fuzzy`: use fuzzy matching for search (default: substring).
 * `--status <draft|todo|doing|done|rejected>`: filter by status (repeatable).
 * `--tag <TAG>`: filter by tag (repeatable, case-insensitive).
 * `--scope <TOKEN>`: filter by scope token (repeatable, case-insensitive; substring match).
 * `--include-done`: include tasks from `.ralph/done.json` in search.
 * `--only-done`: only search tasks in `.ralph/done.json` (ignores active queue).
-* `--format <compact|long>`: output format (default: `compact`).
+* `--format <compact|long|json>`: output format (default: `compact`). JSON outputs an array of task objects (same shape as queue export).
 * `--limit <N>`: maximum results to show (default: 50; `0` = no limit).
 * `--all`: show all results (ignores `--limit`).
+* `--scheduled`: filter to only show tasks with `scheduled_start` set.
 
 ```bash
 ralph queue search "authentication"
@@ -861,6 +875,9 @@ ralph queue search "RQ-\d{4}" --regex
 ralph queue search "TODO" --match-case
 ralph queue search "fix" --status todo --tag rust
 ralph queue search "refactor" --scope crates/ralph --tag rust
+ralph queue search "auth bug" --fuzzy
+ralph queue search "fuzzy search" --fuzzy --match-case
+ralph queue search "api" --format json
 ```
 
 ### `ralph queue archive`

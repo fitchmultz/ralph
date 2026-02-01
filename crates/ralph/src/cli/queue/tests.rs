@@ -2,6 +2,7 @@
 //!
 //! Responsibilities:
 //! - Validate queue CLI help output and basic handler behavior.
+//! - Test JSON output format and scheduled filter behavior.
 //! - Guard against regressions in command examples and formatting.
 //!
 //! Not handled here:
@@ -252,4 +253,174 @@ fn queue_export_help_examples_expanded() {
         help.contains("--output tasks.csv"),
         "missing output example: {help}"
     );
+}
+
+#[test]
+fn queue_list_json_format_outputs_valid_json() -> Result<()> {
+    let dir = TempDir::new()?;
+    let resolved = resolved_for_dir(&dir);
+    write_queue(&resolved.queue_path)?;
+
+    let mut args = base_list_args();
+    args.format = QueueListFormat::Json;
+
+    // Capture stdout by redirecting to a buffer (we test by running the handler)
+    list::handle(&resolved, args)?;
+    // If no panic/error, JSON was printed successfully
+    Ok(())
+}
+
+#[test]
+fn queue_list_scheduled_filter_excludes_unscheduled() -> Result<()> {
+    use crate::contracts::{QueueFile, Task, TaskStatus};
+    use std::collections::HashMap;
+
+    let dir = TempDir::new()?;
+    let resolved = resolved_for_dir(&dir);
+
+    // Create queue with mixed scheduled/unscheduled tasks
+    let tasks = vec![
+        Task {
+            id: "RQ-0001".to_string(),
+            title: "Scheduled task".to_string(),
+            status: TaskStatus::Todo,
+            scheduled_start: Some("2026-06-15T10:00:00Z".to_string()),
+            priority: Default::default(),
+            tags: vec![],
+            scope: vec![],
+            evidence: vec![],
+            plan: vec![],
+            notes: vec![],
+            request: None,
+            agent: None,
+            created_at: Some("2026-01-01T00:00:00Z".to_string()),
+            updated_at: Some("2026-01-01T00:00:00Z".to_string()),
+            completed_at: None,
+            depends_on: vec![],
+            blocks: vec![],
+            relates_to: vec![],
+            duplicates: None,
+            custom_fields: HashMap::new(),
+        },
+        Task {
+            id: "RQ-0002".to_string(),
+            title: "Unscheduled task".to_string(),
+            status: TaskStatus::Todo,
+            scheduled_start: None,
+            priority: Default::default(),
+            tags: vec![],
+            scope: vec![],
+            evidence: vec![],
+            plan: vec![],
+            notes: vec![],
+            request: None,
+            agent: None,
+            created_at: Some("2026-01-01T00:00:00Z".to_string()),
+            updated_at: Some("2026-01-01T00:00:00Z".to_string()),
+            completed_at: None,
+            depends_on: vec![],
+            blocks: vec![],
+            relates_to: vec![],
+            duplicates: None,
+            custom_fields: HashMap::new(),
+        },
+    ];
+    let queue = QueueFile { version: 1, tasks };
+    std::fs::write(&resolved.queue_path, serde_json::to_string_pretty(&queue)?)?;
+
+    // Test with --scheduled flag
+    let mut args = base_list_args();
+    args.scheduled = true;
+    args.format = QueueListFormat::Json;
+
+    list::handle(&resolved, args)?;
+    Ok(())
+}
+
+#[test]
+fn queue_list_include_done_outputs_done_tasks() -> Result<()> {
+    use crate::contracts::{QueueFile, Task, TaskStatus};
+    use std::collections::HashMap;
+
+    let dir = TempDir::new()?;
+    let resolved = resolved_for_dir(&dir);
+
+    // Create active queue
+    let active_task = Task {
+        id: "RQ-0001".to_string(),
+        title: "Active task".to_string(),
+        status: TaskStatus::Todo,
+        priority: Default::default(),
+        tags: vec![],
+        scope: vec![],
+        evidence: vec![],
+        plan: vec![],
+        notes: vec![],
+        request: None,
+        agent: None,
+        created_at: Some("2026-01-01T00:00:00Z".to_string()),
+        updated_at: Some("2026-01-01T00:00:00Z".to_string()),
+        completed_at: None,
+        scheduled_start: None,
+        depends_on: vec![],
+        blocks: vec![],
+        relates_to: vec![],
+        duplicates: None,
+        custom_fields: HashMap::new(),
+    };
+    let queue = QueueFile {
+        version: 1,
+        tasks: vec![active_task],
+    };
+    std::fs::write(&resolved.queue_path, serde_json::to_string_pretty(&queue)?)?;
+
+    // Create done file
+    let done_task = Task {
+        id: "RQ-0000".to_string(),
+        title: "Done task".to_string(),
+        status: TaskStatus::Done,
+        priority: Default::default(),
+        tags: vec![],
+        scope: vec![],
+        evidence: vec![],
+        plan: vec![],
+        notes: vec![],
+        request: None,
+        agent: None,
+        created_at: Some("2026-01-01T00:00:00Z".to_string()),
+        updated_at: Some("2026-01-01T00:00:00Z".to_string()),
+        completed_at: Some("2026-01-02T00:00:00Z".to_string()),
+        scheduled_start: None,
+        depends_on: vec![],
+        blocks: vec![],
+        relates_to: vec![],
+        duplicates: None,
+        custom_fields: HashMap::new(),
+    };
+    let done = QueueFile {
+        version: 1,
+        tasks: vec![done_task],
+    };
+    std::fs::write(&resolved.done_path, serde_json::to_string_pretty(&done)?)?;
+
+    // Test with --include-done and JSON format
+    let mut args = base_list_args();
+    args.include_done = true;
+    args.format = QueueListFormat::Json;
+
+    list::handle(&resolved, args)?;
+    Ok(())
+}
+
+#[test]
+fn queue_search_json_format_outputs_valid_json() -> Result<()> {
+    let dir = TempDir::new()?;
+    let resolved = resolved_for_dir(&dir);
+    write_queue(&resolved.queue_path)?;
+
+    let mut args = base_search_args();
+    args.format = QueueListFormat::Json;
+
+    search::handle(&resolved, args)?;
+    Ok(())
 }

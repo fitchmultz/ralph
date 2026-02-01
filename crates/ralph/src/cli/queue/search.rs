@@ -1,4 +1,19 @@
 //! Queue search subcommand.
+//!
+//! Responsibilities:
+//! - Search tasks by content (title, evidence, plan, notes, request, tags, scope, custom fields).
+//! - Support regex, fuzzy, and case-sensitive matching modes.
+//! - Apply status, tag, scope, and scheduled filters alongside content search.
+//! - Output in compact, long, or JSON formats.
+//!
+//! Not handled here:
+//! - Task listing without content search (see `list.rs`).
+//! - Task creation, modification, or deletion.
+//!
+//! Invariants/assumptions:
+//! - Queue files are loaded and validated before searching.
+//! - Search is performed after pre-filtering by status/tag/scope.
+//! - JSON output uses the same task shape as queue export/show.
 
 use anyhow::{Result, bail};
 use clap::Args;
@@ -133,10 +148,23 @@ pub(crate) fn handle(resolved: &Resolved, args: QueueSearchArgs) -> Result<()> {
 
     let limit = resolve_list_limit(args.limit, args.all);
     let max = limit.unwrap_or(usize::MAX);
-    for task in results.into_iter().take(max) {
-        match args.format {
-            QueueListFormat::Compact => println!("{}", outpututil::format_task_compact(task)),
-            QueueListFormat::Long => println!("{}", outpututil::format_task_detailed(task)),
+    let results: Vec<&Task> = results.into_iter().take(max).collect();
+
+    match args.format {
+        QueueListFormat::Compact => {
+            for task in results {
+                println!("{}", outpututil::format_task_compact(task));
+            }
+        }
+        QueueListFormat::Long => {
+            for task in results {
+                println!("{}", outpututil::format_task_detailed(task));
+            }
+        }
+        QueueListFormat::Json => {
+            let owned_tasks: Vec<Task> = results.into_iter().cloned().collect();
+            let json = serde_json::to_string_pretty(&owned_tasks)?;
+            println!("{json}");
         }
     }
 

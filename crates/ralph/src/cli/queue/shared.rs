@@ -47,6 +47,8 @@ pub enum QueueListFormat {
     Compact,
     /// Detailed tab-separated format including tags, scope, and timestamps.
     Long,
+    /// JSON array of task objects (same shape as queue export).
+    Json,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]

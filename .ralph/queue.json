@@ -2,47 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0509",
-      "status": "todo",
-      "title": "Add enhanced filtering and output options to queue list command",
-      "priority": "medium",
-      "tags": [
-        "cli",
-        "queue",
-        "feature",
-        "ux"
-      ],
-      "scope": [
-        "crates/ralph/src/cli/queue.rs",
-        "crates/ralph/src/commands/queue/list.rs",
-        "docs/cli.md"
-      ],
-      "evidence": [
-        "User request: 'list' - enhance queue listing capabilities",
-        "path: .ralph/README.md :: ralph queue list exists but lacks filtering options",
-        "Current list shows all tasks without status/priority/tag filtering",
-        "No JSON or formatted output options for scripting/integration"
-      ],
-      "plan": [
-        "Add --status filter to list only tasks with specific status (todo/doing/draft)",
-        "Add --priority filter to list tasks by priority level",
-        "Add --tag filter to list tasks matching specific tags",
-        "Add --format option supporting: table (default), json, compact",
-        "Add --limit option to cap number of results",
-        "Add --sort option for sorting by created_at, priority, or status",
-        "Update docs/cli.md with new list command options and examples",
-        "Add tests for filtering and formatting logic"
-      ],
-      "notes": [],
-      "request": "list",
-      "created_at": "2026-02-01T08:52:10Z",
-      "updated_at": "2026-02-01T08:52:10Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0505",
       "status": "todo",
       "title": "Add module-level documentation for complex TUI components",

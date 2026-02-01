@@ -1,4 +1,19 @@
 //! Queue list subcommand.
+//!
+//! Responsibilities:
+//! - List tasks from queue and done archive with various filters.
+//! - Support status, tag, scope, dependency, and scheduled time filters.
+//! - Output in compact, long, or JSON formats.
+//!
+//! Not handled here:
+//! - Task creation, modification, or deletion (see other queue subcommands).
+//! - Content-based search (see `search.rs`).
+//! - Complex reporting or aggregation (see `reports` module).
+//!
+//! Invariants/assumptions:
+//! - Queue files are loaded and validated before filtering.
+//! - Output ordering: active queue tasks first, done tasks appended when --include-done.
+//! - Scheduled filters use RFC3339 or relative time expressions.
 
 use anyhow::{Result, bail};
 use clap::Args;
@@ -13,7 +28,7 @@ use super::{QueueListFormat, QueueSortBy, QueueSortOrder, StatusArg};
 /// Arguments for `ralph queue list`.
 #[derive(Args)]
 #[command(
-    after_long_help = "Examples:\n  ralph queue list\n  ralph queue list --status todo --tag rust\n  ralph queue list --status doing --scope crates/ralph\n  ralph queue list --include-done --limit 20\n  ralph queue list --only-done --all\n  ralph queue list --filter-deps=RQ-0100"
+    after_long_help = "Examples:\n  ralph queue list\n  ralph queue list --status todo --tag rust\n  ralph queue list --status doing --scope crates/ralph\n  ralph queue list --include-done --limit 20\n  ralph queue list --only-done --all\n  ralph queue list --filter-deps=RQ-0100\n  ralph queue list --format json\n  ralph queue list --format json | jq '.[] | select(.status == \"todo\")'\n  ralph queue list --scheduled\n  ralph queue list --scheduled-after '2026-01-01T00:00:00Z'\n  ralph queue list --scheduled-before '+7d'"
 )]
 pub struct QueueListArgs {
     /// Filter by status (repeatable).
@@ -215,10 +230,23 @@ pub(crate) fn handle(resolved: &Resolved, args: QueueListArgs) -> Result<()> {
     };
 
     let max = limit.unwrap_or(usize::MAX);
-    for task in tasks.into_iter().take(max) {
-        match args.format {
-            QueueListFormat::Compact => println!("{}", outpututil::format_task_compact(task)),
-            QueueListFormat::Long => println!("{}", outpututil::format_task_detailed(task)),
+    let tasks: Vec<&Task> = tasks.into_iter().take(max).collect();
+
+    match args.format {
+        QueueListFormat::Compact => {
+            for task in tasks {
+                println!("{}", outpututil::format_task_compact(task));
+            }
+        }
+        QueueListFormat::Long => {
+            for task in tasks {
+                println!("{}", outpututil::format_task_detailed(task));
+            }
+        }
+        QueueListFormat::Json => {
+            let owned_tasks: Vec<Task> = tasks.into_iter().cloned().collect();
+            let json = serde_json::to_string_pretty(&owned_tasks)?;
+            println!("{json}");
         }
     }
 

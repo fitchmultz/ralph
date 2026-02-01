@@ -1,7 +1,7 @@
 {
   "version": 1,
   "first_task_completed_at": "2026-01-30T12:31:17.161199000Z",
-  "last_updated_at": "2026-02-01T08:53:38.962513000Z",
+  "last_updated_at": "2026-02-01T09:14:15.844479000Z",
   "daily": {
     "2026-01-30": {
       "date": "2026-01-30",
@@ -207,7 +207,7 @@
     },
     "2026-02-01": {
       "date": "2026-02-01",
-      "completed_count": 15,
+      "completed_count": 16,
       "tasks": [
         {
           "id": "RQ-0494",
@@ -283,6 +283,11 @@
           "id": "RQ-0504",
           "title": "Fix runner timeout handling for graceful shutdown edge cases",
           "completed_at": "2026-02-01T08:53:38.962512000Z"
+        },
+        {
+          "id": "RQ-0509",
+          "title": "Add enhanced filtering and output options to queue list command",
+          "completed_at": "2026-02-01T09:14:15.844478000Z"
         }
       ]
     }
@@ -292,7 +297,7 @@
     "longest_streak": 3,
     "last_completed_date": "2026-02-01"
   },
-  "total_completed": 53,
+  "total_completed": 54,
   "milestones": [
     {
       "threshold": 10,
