@@ -154,6 +154,53 @@ To disable CI gating entirely (skip running any command), set:
 }
 ```
 
+### `agent.phase_overrides`
+
+Optional. Per-phase overrides for runner, model, and reasoning effort. Allows using different runners or models for different phases of task execution.
+
+**Structure:**
+- `defaults` - Applied to all phases unless overridden
+- `phase1` - Overrides for phase 1 (planning)
+- `phase2` - Overrides for phase 2 (implementation)
+- `phase3` - Overrides for phase 3 (review)
+
+Each phase config can specify:
+- `runner` - Override the runner (e.g., "codex", "claude")
+- `model` - Override the model (e.g., "o3-mini", "claude-opus-4")
+- `reasoning_effort` - Override reasoning effort ("low", "medium", "high", "xhigh")
+
+**Example:**
+
+```json
+{
+  "agent": {
+    "runner": "codex",
+    "model": "o3-mini",
+    "reasoning_effort": "medium",
+    "phase_overrides": {
+      "defaults": {
+        "runner": "codex"
+      },
+      "phase1": {
+        "model": "o3-mini",
+        "reasoning_effort": "high"
+      },
+      "phase2": {
+        "model": "gpt-4o",
+        "reasoning_effort": "medium"
+      },
+      "phase3": {
+        "runner": "claude",
+        "model": "claude-opus-4",
+        "reasoning_effort": "high"
+      }
+    }
+  }
+}
+```
+
+**Precedence:** CLI phase flags > config phase_overrides > global agent settings > defaults
+
 ## Queue Configuration
 `queue` controls file locations and task ID formatting.
 

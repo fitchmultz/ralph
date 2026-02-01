@@ -156,6 +156,13 @@ pub struct AgentConfig {
     /// This is additive: existing runner-specific fields remain supported.
     pub runner_cli: Option<RunnerCliConfigRoot>,
 
+    /// Per-phase overrides for runner, model, and reasoning effort.
+    ///
+    /// Allows specifying different settings for each phase (1, 2, 3).
+    /// Phase-specific values override the global agent settings.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phase_overrides: Option<PhaseOverrides>,
+
     /// Additional instruction files to inject at the top of every prompt sent to runner CLIs.
     ///
     /// Paths may be absolute, `~/`-prefixed, or repo-root relative. Missing files are treated as
@@ -250,6 +257,13 @@ impl AgentConfig {
             match &mut self.runner_cli {
                 Some(existing) => existing.merge_from(other_runner_cli),
                 None => self.runner_cli = Some(other_runner_cli),
+            }
+        }
+        // Merge phase_overrides
+        if let Some(other_phase_overrides) = other.phase_overrides {
+            match &mut self.phase_overrides {
+                Some(existing) => existing.merge_from(other_phase_overrides),
+                None => self.phase_overrides = Some(other_phase_overrides),
             }
         }
         if other.instruction_files.is_some() {
@@ -347,6 +361,102 @@ impl RunnerCliOptionsPatch {
         }
         if other.unsupported_option_policy.is_some() {
             self.unsupported_option_policy = other.unsupported_option_policy;
+        }
+    }
+}
+
+/// Per-phase configuration overrides for runner, model, and reasoning effort.
+///
+/// All fields are optional to support leaf-wise merging:
+/// - `Some(value)` overrides the parent config
+/// - `None` means "inherit from parent"
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[serde(default, deny_unknown_fields)]
+pub struct PhaseOverrideConfig {
+    /// Runner to use for this phase (overrides global agent.runner)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub runner: Option<Runner>,
+
+    /// Model to use for this phase (overrides global agent.model)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<Model>,
+
+    /// Reasoning effort for this phase (overrides global agent.reasoning_effort)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reasoning_effort: Option<ReasoningEffort>,
+}
+
+impl PhaseOverrideConfig {
+    /// Leaf-wise merge: other.Some overrides self, other.None preserves self
+    pub fn merge_from(&mut self, other: Self) {
+        if other.runner.is_some() {
+            self.runner = other.runner;
+        }
+        if other.model.is_some() {
+            self.model = other.model;
+        }
+        if other.reasoning_effort.is_some() {
+            self.reasoning_effort = other.reasoning_effort;
+        }
+    }
+}
+
+/// Phase overrides container with defaults and per-phase configuration.
+///
+/// Follows the same pattern as RunnerCliConfigRoot:
+/// - `defaults` applies to all phases unless overridden
+/// - `phase1`, `phase2`, `phase3` are specific overrides for each phase
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[serde(default, deny_unknown_fields)]
+pub struct PhaseOverrides {
+    /// Default values applied to all phases unless overridden
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub defaults: Option<PhaseOverrideConfig>,
+
+    /// Phase 1 specific overrides
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phase1: Option<PhaseOverrideConfig>,
+
+    /// Phase 2 specific overrides
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phase2: Option<PhaseOverrideConfig>,
+
+    /// Phase 3 specific overrides
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phase3: Option<PhaseOverrideConfig>,
+}
+
+impl PhaseOverrides {
+    /// Merge other into self following leaf-wise semantics:
+    /// 1. Merge defaults
+    /// 2. Merge each specific phase override
+    pub fn merge_from(&mut self, other: Self) {
+        // Merge defaults
+        match (&mut self.defaults, other.defaults) {
+            (Some(existing), Some(new)) => existing.merge_from(new),
+            (None, Some(new)) => self.defaults = Some(new),
+            _ => {}
+        }
+
+        // Merge phase1
+        match (&mut self.phase1, other.phase1) {
+            (Some(existing), Some(new)) => existing.merge_from(new),
+            (None, Some(new)) => self.phase1 = Some(new),
+            _ => {}
+        }
+
+        // Merge phase2
+        match (&mut self.phase2, other.phase2) {
+            (Some(existing), Some(new)) => existing.merge_from(new),
+            (None, Some(new)) => self.phase2 = Some(new),
+            _ => {}
+        }
+
+        // Merge phase3
+        match (&mut self.phase3, other.phase3) {
+            (Some(existing), Some(new)) => existing.merge_from(new),
+            (None, Some(new)) => self.phase3 = Some(new),
+            _ => {}
         }
     }
 }
@@ -909,6 +1019,7 @@ impl Default for Config {
                         ),
                     ]),
                 }),
+                phase_overrides: None,
                 instruction_files: None,
                 repoprompt_plan_required: Some(false),
                 repoprompt_tool_injection: Some(false),
@@ -938,8 +1049,9 @@ impl Default for Config {
 #[cfg(test)]
 mod tests {
     use super::{
-        AgentConfig, GitRevertMode, RunnerApprovalMode, RunnerOutputFormat, RunnerPlanMode,
-        RunnerSandboxMode, RunnerVerbosity, UnsupportedOptionPolicy,
+        AgentConfig, GitRevertMode, Model, NotificationConfig, PhaseOverrideConfig, PhaseOverrides,
+        ReasoningEffort, Runner, RunnerApprovalMode, RunnerOutputFormat, RunnerPlanMode,
+        RunnerSandboxMode, RunnerVerbosity, UnsupportedOptionPolicy, WebhookConfig,
     };
 
     #[test]
@@ -1024,5 +1136,182 @@ mod tests {
             "error".parse::<UnsupportedOptionPolicy>().unwrap(),
             UnsupportedOptionPolicy::Error
         );
+    }
+
+    #[test]
+    fn test_phase_override_config_merge_from() {
+        let mut base = PhaseOverrideConfig {
+            runner: Some(Runner::Codex),
+            model: None,
+            reasoning_effort: Some(ReasoningEffort::Medium),
+        };
+
+        let override_config = PhaseOverrideConfig {
+            runner: Some(Runner::Claude),
+            model: Some(Model::Custom("claude-opus-4".to_string())),
+            reasoning_effort: None,
+        };
+
+        base.merge_from(override_config);
+
+        assert_eq!(base.runner, Some(Runner::Claude)); // overridden
+        assert_eq!(base.model, Some(Model::Custom("claude-opus-4".to_string()))); // set
+        assert_eq!(base.reasoning_effort, Some(ReasoningEffort::Medium)); // preserved
+    }
+
+    #[test]
+    fn test_phase_overrides_merge_from() {
+        let mut base = PhaseOverrides {
+            defaults: Some(PhaseOverrideConfig {
+                runner: Some(Runner::Codex),
+                model: None,
+                reasoning_effort: Some(ReasoningEffort::Low),
+            }),
+            phase1: Some(PhaseOverrideConfig {
+                runner: Some(Runner::Codex),
+                model: Some(Model::Custom("o3-mini".to_string())),
+                reasoning_effort: None,
+            }),
+            phase2: None,
+            phase3: None,
+        };
+
+        let override_config = PhaseOverrides {
+            defaults: Some(PhaseOverrideConfig {
+                runner: Some(Runner::Claude),
+                model: None,
+                reasoning_effort: None,
+            }),
+            phase1: Some(PhaseOverrideConfig {
+                runner: None,
+                model: Some(Model::Custom("claude-sonnet".to_string())),
+                reasoning_effort: Some(ReasoningEffort::High),
+            }),
+            phase2: Some(PhaseOverrideConfig {
+                runner: Some(Runner::Gemini),
+                model: None,
+                reasoning_effort: None,
+            }),
+            phase3: None,
+        };
+
+        base.merge_from(override_config);
+
+        // defaults merged
+        assert_eq!(base.defaults.as_ref().unwrap().runner, Some(Runner::Claude));
+        assert_eq!(
+            base.defaults.as_ref().unwrap().reasoning_effort,
+            Some(ReasoningEffort::Low)
+        );
+
+        // phase1 merged
+        assert_eq!(base.phase1.as_ref().unwrap().runner, Some(Runner::Codex)); // preserved
+        assert_eq!(
+            base.phase1.as_ref().unwrap().model,
+            Some(Model::Custom("claude-sonnet".to_string()))
+        ); // overridden
+        assert_eq!(
+            base.phase1.as_ref().unwrap().reasoning_effort,
+            Some(ReasoningEffort::High)
+        ); // set
+
+        // phase2 set from override
+        assert_eq!(base.phase2.as_ref().unwrap().runner, Some(Runner::Gemini));
+
+        // phase3 still None
+        assert!(base.phase3.is_none());
+    }
+
+    #[test]
+    fn test_agent_config_phase_overrides_merge() {
+        let mut base = AgentConfig {
+            runner: Some(Runner::Codex),
+            model: Some(Model::Custom("o3-mini".to_string())),
+            reasoning_effort: Some(ReasoningEffort::Medium),
+            phases: Some(3),
+            iterations: None,
+            followup_reasoning_effort: None,
+            codex_bin: None,
+            opencode_bin: None,
+            gemini_bin: None,
+            claude_bin: None,
+            cursor_bin: None,
+            kimi_bin: None,
+            pi_bin: None,
+            claude_permission_mode: None,
+            runner_cli: None,
+            phase_overrides: Some(PhaseOverrides {
+                defaults: Some(PhaseOverrideConfig {
+                    runner: Some(Runner::Codex),
+                    model: None,
+                    reasoning_effort: Some(ReasoningEffort::Low),
+                }),
+                phase1: None,
+                phase2: None,
+                phase3: None,
+            }),
+            instruction_files: None,
+            repoprompt_plan_required: None,
+            repoprompt_tool_injection: None,
+            ci_gate_command: None,
+            ci_gate_enabled: None,
+            git_revert_mode: None,
+            git_commit_push_enabled: None,
+            update_task_before_run: None,
+            fail_on_prerun_update_error: None,
+            notification: NotificationConfig::default(),
+            webhook: WebhookConfig::default(),
+        };
+
+        let other = AgentConfig {
+            runner: Some(Runner::Claude),
+            model: Some(Model::Custom("claude-opus".to_string())),
+            reasoning_effort: Some(ReasoningEffort::High),
+            phases: Some(3),
+            iterations: None,
+            followup_reasoning_effort: None,
+            codex_bin: None,
+            opencode_bin: None,
+            gemini_bin: None,
+            claude_bin: None,
+            cursor_bin: None,
+            kimi_bin: None,
+            pi_bin: None,
+            claude_permission_mode: None,
+            runner_cli: None,
+            phase_overrides: Some(PhaseOverrides {
+                defaults: None,
+                phase1: Some(PhaseOverrideConfig {
+                    runner: Some(Runner::Gemini),
+                    model: Some(Model::Custom("gemini-2.5".to_string())),
+                    reasoning_effort: None,
+                }),
+                phase2: None,
+                phase3: None,
+            }),
+            instruction_files: None,
+            repoprompt_plan_required: None,
+            repoprompt_tool_injection: None,
+            ci_gate_command: None,
+            ci_gate_enabled: None,
+            git_revert_mode: None,
+            git_commit_push_enabled: None,
+            update_task_before_run: None,
+            fail_on_prerun_update_error: None,
+            notification: NotificationConfig::default(),
+            webhook: WebhookConfig::default(),
+        };
+
+        base.merge_from(other);
+
+        // Global settings overridden
+        assert_eq!(base.runner, Some(Runner::Claude));
+        assert_eq!(base.model, Some(Model::Custom("claude-opus".to_string())));
+
+        // phase_overrides merged
+        assert!(base.phase_overrides.is_some());
+        let po = base.phase_overrides.unwrap();
+        assert_eq!(po.defaults.as_ref().unwrap().runner, Some(Runner::Codex));
+        assert_eq!(po.phase1.as_ref().unwrap().runner, Some(Runner::Gemini));
     }
 }

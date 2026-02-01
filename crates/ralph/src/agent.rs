@@ -550,6 +550,7 @@ mod tests {
                 fail_on_prerun_update_error: None,
                 claude_permission_mode: Some(ClaudePermissionMode::BypassPermissions),
                 runner_cli: None,
+                phase_overrides: None,
                 instruction_files: None,
                 repoprompt_plan_required: None,
                 repoprompt_tool_injection: None,

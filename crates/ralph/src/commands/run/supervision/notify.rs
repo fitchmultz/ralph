@@ -95,6 +95,7 @@ mod tests {
                 update_task_before_run: None,
                 fail_on_prerun_update_error: None,
                 runner_cli: None,
+                phase_overrides: None,
                 instruction_files: None,
                 repoprompt_plan_required: Some(false),
                 repoprompt_tool_injection: Some(false),

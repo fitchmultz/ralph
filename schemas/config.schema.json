@@ -321,6 +321,17 @@
             "null"
           ]
         },
+        "phase_overrides": {
+          "description": "Per-phase overrides for runner, model, and reasoning effort.\n\nAllows specifying different settings for each phase (1, 2, 3). Phase-specific values override the global agent settings.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/PhaseOverrides"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "phases": {
           "description": "Number of execution phases (1, 2, or 3). 1 = single-pass, 2 = plan+implement, 3 = plan+implement+review.",
           "default": null,
@@ -534,6 +545,97 @@
           "format": "uint32",
           "maximum": 60000.0,
           "minimum": 1000.0
+        }
+      },
+      "additionalProperties": false
+    },
+    "PhaseOverrideConfig": {
+      "description": "Per-phase configuration overrides for runner, model, and reasoning effort.\n\nAll fields are optional to support leaf-wise merging: - `Some(value)` overrides the parent config - `None` means \"inherit from parent\"",
+      "type": "object",
+      "properties": {
+        "model": {
+          "description": "Model to use for this phase (overrides global agent.model)",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Model"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reasoning_effort": {
+          "description": "Reasoning effort for this phase (overrides global agent.reasoning_effort)",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ReasoningEffort"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "runner": {
+          "description": "Runner to use for this phase (overrides global agent.runner)",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Runner"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "PhaseOverrides": {
+      "description": "Phase overrides container with defaults and per-phase configuration.\n\nFollows the same pattern as RunnerCliConfigRoot: - `defaults` applies to all phases unless overridden - `phase1`, `phase2`, `phase3` are specific overrides for each phase",
+      "type": "object",
+      "properties": {
+        "defaults": {
+          "description": "Default values applied to all phases unless overridden",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/PhaseOverrideConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "phase1": {
+          "description": "Phase 1 specific overrides",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/PhaseOverrideConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "phase2": {
+          "description": "Phase 2 specific overrides",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/PhaseOverrideConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "phase3": {
+          "description": "Phase 3 specific overrides",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/PhaseOverrideConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false

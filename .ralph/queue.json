@@ -2,49 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0494",
-      "status": "todo",
-      "title": "Add config contract: agent.phase_overrides (phase1/phase2/phase3 runner/model/reasoning_effort)",
-      "priority": "medium",
-      "tags": [
-        "config",
-        "schema",
-        "docs",
-        "run"
-      ],
-      "scope": [
-        "crates/ralph/src/contracts/config.rs",
-        "schemas/config.schema.json",
-        "docs/configuration.md",
-        "docs/cli.md"
-      ],
-      "evidence": [
-        "Spec adds `agent.phase_overrides` with per-phase runner/model/effort settings",
-        "Config layering requires leaf-wise merge: global config loads first, project config overrides second",
-        "Docs and generated schema must match the config contract"
-      ],
-      "plan": [
-        "Introduce config structs for phase overrides (phase1/phase2/phase3) with optional runner/model/reasoning_effort fields",
-        "Implement merge behavior consistent with existing AgentConfig merge semantics (leaf-wise)",
-        "Regenerate schema via `make generate` and verify `schemas/config.schema.json` includes the new fields",
-        "Update docs (`docs/configuration.md`) to document `agent.phase_overrides` and precedence",
-        "Add unit tests for merge semantics (global vs project override)",
-        "Run `make ci`"
-      ],
-      "notes": [
-        "Overall spec: /private/tmp/ralph-phase-specific-runner-model-spec.md (see: User-Facing Interface → Config; Resolution & Precedence)"
-      ],
-      "request": "Prepare config surface for per-phase runner/model selection",
-      "created_at": "2026-01-31T12:01:00Z",
-      "updated_at": "2026-01-31T12:01:00Z",
-      "depends_on": [
-        "RQ-0475"
-      ],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0495",
       "status": "todo",
       "title": "Add CLI surface: --runner-phaseN/--model-phaseN/--effort-phaseN for ralph run",
