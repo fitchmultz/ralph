@@ -11,12 +11,28 @@
 //! Invariants/assumptions:
 //! - Session state is written atomically to prevent corruption.
 //! - Timestamps are RFC3339 UTC format.
+//! - Per-phase settings are display-only; crash recovery recomputes from CLI+config+task.
 
 use crate::constants::versions::SESSION_STATE_VERSION;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use super::Runner;
+use super::{ReasoningEffort, Runner};
+
+/// Per-phase settings persisted for display/logging purposes.
+///
+/// These fields are informational only - crash recovery recomputes settings
+/// from CLI flags, config, and task overrides to ensure consistency.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct PhaseSettingsSnapshot {
+    /// Runner for this phase
+    pub runner: Runner,
+    /// Model for this phase
+    pub model: String,
+    /// Reasoning effort for this phase (if applicable)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reasoning_effort: Option<ReasoningEffort>,
+}
 
 /// Session state persisted to enable crash recovery.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -61,6 +77,21 @@ pub struct SessionState {
     /// Git HEAD commit at session start (for advanced recovery validation).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub git_head_commit: Option<String>,
+
+    /// Phase 1 settings (planning) - display/logging only.
+    /// Crash recovery recomputes from CLI+config+task.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phase1_settings: Option<PhaseSettingsSnapshot>,
+
+    /// Phase 2 settings (implementation) - display/logging only.
+    /// Crash recovery recomputes from CLI+config+task.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phase2_settings: Option<PhaseSettingsSnapshot>,
+
+    /// Phase 3 settings (review) - display/logging only.
+    /// Crash recovery recomputes from CLI+config+task.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phase3_settings: Option<PhaseSettingsSnapshot>,
 }
 
 impl SessionState {
@@ -75,7 +106,16 @@ impl SessionState {
         model: String,
         max_tasks: u32,
         git_head_commit: Option<String>,
+        phase_settings: Option<(
+            PhaseSettingsSnapshot,
+            PhaseSettingsSnapshot,
+            PhaseSettingsSnapshot,
+        )>,
     ) -> Self {
+        let (phase1_settings, phase2_settings, phase3_settings) = phase_settings
+            .map(|(p1, p2, p3)| (Some(p1), Some(p2), Some(p3)))
+            .unwrap_or((None, None, None));
+
         Self {
             version: SESSION_STATE_VERSION,
             session_id,
@@ -90,6 +130,9 @@ impl SessionState {
             tasks_completed_in_loop: 0,
             max_tasks,
             git_head_commit,
+            phase1_settings,
+            phase2_settings,
+            phase3_settings,
         }
     }
 
@@ -126,6 +169,7 @@ mod tests {
             "sonnet".to_string(),
             10,
             Some("abc123".to_string()),
+            None, // phase_settings
         )
     }
 
@@ -199,6 +243,7 @@ mod tests {
             "sonnet".to_string(),
             0,
             None,
+            None, // phase_settings
         );
 
         let json = serde_json::to_string(&session).expect("serialize");
@@ -206,5 +251,143 @@ mod tests {
 
         let deserialized: SessionState = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(deserialized.git_head_commit, None);
+    }
+
+    #[test]
+    fn session_new_with_phase_settings() {
+        let phase_settings = (
+            PhaseSettingsSnapshot {
+                runner: Runner::Claude,
+                model: "sonnet".to_string(),
+                reasoning_effort: None,
+            },
+            PhaseSettingsSnapshot {
+                runner: Runner::Codex,
+                model: "o3-mini".to_string(),
+                reasoning_effort: Some(ReasoningEffort::High),
+            },
+            PhaseSettingsSnapshot {
+                runner: Runner::Claude,
+                model: "haiku".to_string(),
+                reasoning_effort: None,
+            },
+        );
+
+        let session = SessionState::new(
+            "test-id".to_string(),
+            "RQ-0001".to_string(),
+            "2026-01-30T00:00:00.000000000Z".to_string(),
+            1,
+            Runner::Claude,
+            "sonnet".to_string(),
+            0,
+            None,
+            Some(phase_settings),
+        );
+
+        assert!(session.phase1_settings.is_some());
+        assert!(session.phase2_settings.is_some());
+        assert!(session.phase3_settings.is_some());
+
+        let p1 = session.phase1_settings.unwrap();
+        assert_eq!(p1.runner, Runner::Claude);
+        assert_eq!(p1.model, "sonnet");
+        assert_eq!(p1.reasoning_effort, None);
+
+        let p2 = session.phase2_settings.unwrap();
+        assert_eq!(p2.runner, Runner::Codex);
+        assert_eq!(p2.model, "o3-mini");
+        assert_eq!(p2.reasoning_effort, Some(ReasoningEffort::High));
+
+        let p3 = session.phase3_settings.unwrap();
+        assert_eq!(p3.runner, Runner::Claude);
+        assert_eq!(p3.model, "haiku");
+        assert_eq!(p3.reasoning_effort, None);
+    }
+
+    #[test]
+    fn session_serialization_with_phase_settings() {
+        let phase_settings = (
+            PhaseSettingsSnapshot {
+                runner: Runner::Claude,
+                model: "sonnet".to_string(),
+                reasoning_effort: None,
+            },
+            PhaseSettingsSnapshot {
+                runner: Runner::Codex,
+                model: "o3-mini".to_string(),
+                reasoning_effort: Some(ReasoningEffort::Medium),
+            },
+            PhaseSettingsSnapshot {
+                runner: Runner::Claude,
+                model: "haiku".to_string(),
+                reasoning_effort: None,
+            },
+        );
+
+        let session = SessionState::new(
+            "test-id".to_string(),
+            "RQ-0001".to_string(),
+            "2026-01-30T00:00:00.000000000Z".to_string(),
+            1,
+            Runner::Claude,
+            "sonnet".to_string(),
+            0,
+            None,
+            Some(phase_settings),
+        );
+
+        let json = serde_json::to_string(&session).expect("serialize");
+        let deserialized: SessionState = serde_json::from_str(&json).expect("deserialize");
+
+        assert_eq!(deserialized.phase1_settings, session.phase1_settings);
+        assert_eq!(deserialized.phase2_settings, session.phase2_settings);
+        assert_eq!(deserialized.phase3_settings, session.phase3_settings);
+    }
+
+    #[test]
+    fn session_deserialization_backward_compatible_without_phase_settings() {
+        // Simulate old session JSON without phase settings
+        // Note: runner uses kebab-case serialization
+        let json = r#"{
+            "version": 1,
+            "session_id": "test-id",
+            "task_id": "RQ-0001",
+            "run_started_at": "2026-01-30T00:00:00.000000000Z",
+            "last_updated_at": "2026-01-30T00:00:00.000000000Z",
+            "iterations_planned": 1,
+            "iterations_completed": 0,
+            "current_phase": 1,
+            "runner": "claude",
+            "model": "sonnet",
+            "tasks_completed_in_loop": 0,
+            "max_tasks": 0
+        }"#;
+
+        let session: SessionState = serde_json::from_str(json).expect("deserialize old format");
+        assert_eq!(session.phase1_settings, None);
+        assert_eq!(session.phase2_settings, None);
+        assert_eq!(session.phase3_settings, None);
+    }
+
+    #[test]
+    fn session_serialization_skips_none_phase_settings() {
+        let session = SessionState::new(
+            "test-id".to_string(),
+            "RQ-0001".to_string(),
+            "2026-01-30T00:00:00.000000000Z".to_string(),
+            1,
+            Runner::Claude,
+            "sonnet".to_string(),
+            0,
+            None,
+            None, // no phase settings
+        );
+
+        let json = serde_json::to_string(&session).expect("serialize");
+        // Phase settings fields should not be present when None
+        assert!(!json.contains("phase1_settings"));
+        assert!(!json.contains("phase2_settings"));
+        assert!(!json.contains("phase3_settings"));
     }
 }

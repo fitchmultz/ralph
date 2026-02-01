@@ -2,45 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0497",
-      "status": "todo",
-      "title": "Nice-to-have: persist resolved per-phase settings in session state for UI/logging",
-      "priority": "low",
-      "tags": [
-        "session",
-        "ux",
-        "nice-to-have"
-      ],
-      "scope": [
-        "crates/ralph/src/contracts/session.rs",
-        "crates/ralph/src/session/mod.rs",
-        "docs/workflow.md"
-      ],
-      "evidence": [
-        "Spec calls this out as nice-to-have to make resume/logging accurately reflect per-phase runner/model settings",
-        "Without this, session.json may display a single runner/model that does not represent the phase matrix"
-      ],
-      "plan": [
-        "Define a minimal schema addition for per-phase resolved settings (or a compact rendered string) that is safe to persist",
-        "Ensure crash recovery (`ralph run resume`) still recomputes behavior from CLI+config+task and does not depend on session fields",
-        "Update any UI/session display to use the persisted matrix when present",
-        "Add tests for serialization/backcompat (older session.json files still load)",
-        "Run `make ci`"
-      ],
-      "notes": [
-        "Overall spec: /private/tmp/ralph-phase-specific-runner-model-spec.md (see: Session recovery; Nice-to-have)"
-      ],
-      "request": "Optional UX improvement for phase-aware sessions",
-      "created_at": "2026-01-31T12:06:00Z",
-      "updated_at": "2026-01-31T12:06:00Z",
-      "depends_on": [
-        "RQ-0479"
-      ],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0439",
       "status": "draft",
       "title": "Implement subtask support for hierarchical task breakdown",

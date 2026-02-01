@@ -635,6 +635,7 @@ fn run_one_impl(
         resolved,
         agent_overrides,
         iteration_settings.count,
+        Some(&phase_matrix),
     );
     if let Err(e) = session::save_session(&cache_dir, &session) {
         log::warn!("Failed to save session state: {}", e);
@@ -1058,6 +1059,7 @@ fn create_session_for_task(
     resolved: &config::Resolved,
     agent_overrides: &AgentOverrides,
     iterations_planned: u8,
+    phase_matrix: Option<&runner::PhaseSettingsMatrix>,
 ) -> crate::contracts::SessionState {
     let now = timeutil::now_utc_rfc3339_or_fallback();
     let git_commit = session::get_git_head_commit(&resolved.repo_root);
@@ -1086,6 +1088,27 @@ fn create_session_for_task(
     // Generate a simple session ID using timestamp and task ID
     let session_id = format!("{}-{}", now.replace([':', '.', '-'], ""), task_id);
 
+    // Build phase settings snapshot from resolved matrix
+    let phase_settings = phase_matrix.map(|matrix| {
+        (
+            crate::contracts::PhaseSettingsSnapshot {
+                runner: matrix.phase1.runner,
+                model: matrix.phase1.model.as_str().to_string(),
+                reasoning_effort: matrix.phase1.reasoning_effort,
+            },
+            crate::contracts::PhaseSettingsSnapshot {
+                runner: matrix.phase2.runner,
+                model: matrix.phase2.model.as_str().to_string(),
+                reasoning_effort: matrix.phase2.reasoning_effort,
+            },
+            crate::contracts::PhaseSettingsSnapshot {
+                runner: matrix.phase3.runner,
+                model: matrix.phase3.model.as_str().to_string(),
+                reasoning_effort: matrix.phase3.reasoning_effort,
+            },
+        )
+    });
+
     crate::contracts::SessionState::new(
         session_id,
         task_id.to_string(),
@@ -1095,6 +1118,7 @@ fn create_session_for_task(
         model,
         0, // max_tasks - not tracked at this level
         git_commit,
+        phase_settings,
     )
 }
 

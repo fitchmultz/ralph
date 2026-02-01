@@ -906,6 +906,7 @@ fn validate_resumed_task_clears_session_when_invalid() -> anyhow::Result<()> {
         "sonnet".to_string(),
         0,
         None,
+        None, // phase_settings
     );
     session::save_session(&cache_dir, &session)?;
     assert!(session::session_exists(&cache_dir));
@@ -941,6 +942,7 @@ fn validate_resumed_task_clears_session_when_terminal() -> anyhow::Result<()> {
         "sonnet".to_string(),
         0,
         None,
+        None, // phase_settings
     );
     session::save_session(&cache_dir, &session)?;
     assert!(session::session_exists(&cache_dir));

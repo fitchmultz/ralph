@@ -27,7 +27,7 @@ pub use config::{
     UnsupportedOptionPolicy, WebhookConfig,
 };
 pub use queue::QueueFile;
-pub use session::SessionState;
+pub use session::{PhaseSettingsSnapshot, SessionState};
 
 // Re-export SESSION_STATE_VERSION from constants for backward compatibility
 pub use crate::constants::versions::SESSION_STATE_VERSION;

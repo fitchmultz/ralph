@@ -77,6 +77,9 @@ pub fn clear_session(cache_dir: &Path) -> Result<()> {
 }
 
 /// Result of session validation.
+// Allow large enum variant because SessionState is naturally large (contains strings and phase
+// settings) and boxing would add complexity to all usage sites without meaningful benefit.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SessionValidationResult {
     /// Session is valid and can be resumed.
@@ -174,6 +177,43 @@ pub fn prompt_session_recovery(session: &SessionState, non_interactive: bool) ->
         "║  Phase:       {}",
         pad_right(&format!("{}", session.current_phase), 45)
     );
+
+    // Display per-phase settings if available
+    if session.phase1_settings.is_some()
+        || session.phase2_settings.is_some()
+        || session.phase3_settings.is_some()
+    {
+        println!("╠══════════════════════════════════════════════════════════════╣");
+        println!("║  Phase Settings:                                             ║");
+
+        if let Some(ref p1) = session.phase1_settings {
+            let effort_str = p1
+                .reasoning_effort
+                .map(|e| format!(", effort={:?}", e))
+                .unwrap_or_default();
+            let settings_str = format!("{:?}/{}{}", p1.runner, p1.model, effort_str);
+            println!("║    Phase 1:   {}", pad_right(&settings_str, 41));
+        }
+
+        if let Some(ref p2) = session.phase2_settings {
+            let effort_str = p2
+                .reasoning_effort
+                .map(|e| format!(", effort={:?}", e))
+                .unwrap_or_default();
+            let settings_str = format!("{:?}/{}{}", p2.runner, p2.model, effort_str);
+            println!("║    Phase 2:   {}", pad_right(&settings_str, 41));
+        }
+
+        if let Some(ref p3) = session.phase3_settings {
+            let effort_str = p3
+                .reasoning_effort
+                .map(|e| format!(", effort={:?}", e))
+                .unwrap_or_default();
+            let settings_str = format!("{:?}/{}{}", p3.runner, p3.model, effort_str);
+            println!("║    Phase 3:   {}", pad_right(&settings_str, 41));
+        }
+    }
+
     println!("╚══════════════════════════════════════════════════════════════╝");
     println!();
     print!("Resume this session? [Y/n]: ");
@@ -220,6 +260,43 @@ pub fn prompt_session_recovery_timeout(
         "║  Iterations:  {}/{}",
         session.iterations_completed, session.iterations_planned
     );
+
+    // Display per-phase settings if available
+    if session.phase1_settings.is_some()
+        || session.phase2_settings.is_some()
+        || session.phase3_settings.is_some()
+    {
+        println!("╠══════════════════════════════════════════════════════════════╣");
+        println!("║  Phase Settings:                                             ║");
+
+        if let Some(ref p1) = session.phase1_settings {
+            let effort_str = p1
+                .reasoning_effort
+                .map(|e| format!(", effort={:?}", e))
+                .unwrap_or_default();
+            let settings_str = format!("{:?}/{}{}", p1.runner, p1.model, effort_str);
+            println!("║    Phase 1:   {}", pad_right(&settings_str, 41));
+        }
+
+        if let Some(ref p2) = session.phase2_settings {
+            let effort_str = p2
+                .reasoning_effort
+                .map(|e| format!(", effort={:?}", e))
+                .unwrap_or_default();
+            let settings_str = format!("{:?}/{}{}", p2.runner, p2.model, effort_str);
+            println!("║    Phase 2:   {}", pad_right(&settings_str, 41));
+        }
+
+        if let Some(ref p3) = session.phase3_settings {
+            let effort_str = p3
+                .reasoning_effort
+                .map(|e| format!(", effort={:?}", e))
+                .unwrap_or_default();
+            let settings_str = format!("{:?}/{}{}", p3.runner, p3.model, effort_str);
+            println!("║    Phase 3:   {}", pad_right(&settings_str, 41));
+        }
+    }
+
     println!("╚══════════════════════════════════════════════════════════════╝");
     println!();
     println!("Warning: This session is older than 24 hours.");
@@ -299,6 +376,7 @@ mod tests {
             "sonnet".to_string(),
             0,
             None,
+            None, // phase_settings
         )
     }
 

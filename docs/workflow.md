@@ -55,3 +55,12 @@ When `--debug` is enabled, raw runner output is written to `.ralph/logs/debug.lo
 
 ## Runner Model Control
 Runner and model selection are driven by a combination of CLI flags, task overrides, and config. The CLI has the highest priority for a single run.
+
+## Session State
+
+Session state is persisted to `.ralph/cache/session.json` for crash recovery. It includes:
+- Task ID and session metadata
+- Iteration and phase progress
+- **Per-phase runner/model settings** (for display in recovery prompts)
+
+Note: Per-phase settings are informational only. Crash recovery recomputes settings from CLI flags, config, and task overrides to ensure consistency.
