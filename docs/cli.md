@@ -607,6 +607,11 @@ ralph run one --phases 3 \
               --runner-phase3 codex --model-phase3 gpt-5.2-codex --effort-phase3 high
 ```
 
+**TUI Limitation**: The TUI task builder (press `N` in the TUI) only supports global
+runner/model/effort overrides, not per-phase overrides. To use phase-specific overrides,
+either configure them in `.ralph/config.json` under `agent.phase_overrides`, or use the
+CLI `ralph run` commands with the phase-specific flags above.
+
 Examples:
 
 ```bash

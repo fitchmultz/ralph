@@ -1,7 +1,7 @@
 {
   "version": 1,
   "first_task_completed_at": "2026-01-30T12:31:17.161199000Z",
-  "last_updated_at": "2026-02-01T01:25:05.092429000Z",
+  "last_updated_at": "2026-02-01T01:37:34.706805000Z",
   "daily": {
     "2026-01-30": {
       "date": "2026-01-30",
@@ -207,7 +207,7 @@
     },
     "2026-02-01": {
       "date": "2026-02-01",
-      "completed_count": 4,
+      "completed_count": 5,
       "tasks": [
         {
           "id": "RQ-0494",
@@ -228,6 +228,11 @@
           "id": "RQ-0496",
           "title": "Wire per-phase settings into run orchestration (phases + pre-run update + logging)",
           "completed_at": "2026-02-01T01:25:05.092429000Z"
+        },
+        {
+          "id": "RQ-0492",
+          "title": "TUI parity: expose phase overrides or explicitly document the divergence",
+          "completed_at": "2026-02-01T01:37:34.706803000Z"
         }
       ]
     }
@@ -237,7 +242,7 @@
     "longest_streak": 3,
     "last_completed_date": "2026-02-01"
   },
-  "total_completed": 42,
+  "total_completed": 43,
   "milestones": [
     {
       "threshold": 10,

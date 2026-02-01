@@ -347,6 +347,12 @@ Editable fields include (at least):
      - `"prompt"`: Ask before archiving when setting Done/Rejected.
      - `"always"`: Archive immediately when setting Done/Rejected.
 
+5. **No phase-specific runner/model/effort overrides in TUI task builder**
+   - CLI: Supports `--runner-phaseN`, `--model-phaseN`, `--effort-phaseN` flags for per-phase overrides
+   - TUI: Task builder (`N` key) only supports global runner/model/effort overrides
+   - Workaround: Use config `agent.phase_overrides.phase1/phase2/phase3` for per-phase defaults,
+     or use CLI `ralph run` commands with phase-specific flags instead of TUI
+
 ---
 
 ## Suggested Enhancement Plan (If You Want Closer CLI Parity)

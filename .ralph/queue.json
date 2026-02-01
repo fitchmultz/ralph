@@ -2,46 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0492",
-      "status": "todo",
-      "title": "TUI parity: expose phase overrides or explicitly document the divergence",
-      "priority": "medium",
-      "tags": [
-        "tui",
-        "docs",
-        "ux",
-        "run"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/",
-        "docs/cli.md",
-        "docs/workflow.md",
-        "docs/configuration.md"
-      ],
-      "evidence": [
-        "Repo guidelines require parity between CLI and TUI for user-visible workflow changes, or explicit documented divergence",
-        "Phase-specific runner/model/effort is a user-visible workflow change for `ralph run`"
-      ],
-      "plan": [
-        "Audit TUI entrypoints that run tasks (e.g., `ralph tui`, `ralph run one -i`, `ralph run loop -i`) to determine how runner/model/effort are selected",
-        "Either: (A) add per-phase controls in the TUI and ensure they map to the same resolution logic as CLI, or (B) document that TUI currently uses global runner/model only and does not support per-phase overrides",
-        "Ensure whichever path is chosen has docs updates and test coverage where applicable",
-        "Run `make ci`"
-      ],
-      "notes": [
-        "Overall spec: /private/tmp/ralph-phase-specific-runner-model-spec.md (see: Background; User-Facing Interface)"
-      ],
-      "request": "Keep CLI/TUI workflow parity (or document divergence)",
-      "created_at": "2026-01-31T12:05:00Z",
-      "updated_at": "2026-01-31T12:05:00Z",
-      "depends_on": [
-        "RQ-0479"
-      ],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0497",
       "status": "todo",
       "title": "Nice-to-have: persist resolved per-phase settings in session state for UI/logging",
