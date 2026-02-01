@@ -180,6 +180,8 @@ NonZeroExit {
 },
 ```
 
+**Security note**: While `RedactedString` ensures redacted output in console/logs, the `--debug` flag enables raw debug logging to `.ralph/logs/debug.log` that captures unredacted output before redaction is applied. Debug logs should be treated as sensitive and never committed to version control.
+
 ### 3. Implement `Send + Sync`
 
 All error types must be thread-safe for anyhow compatibility. `thiserror::Error` derives these automatically.

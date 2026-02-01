@@ -39,6 +39,8 @@ Phases can be set via `--phases` or `agent.phases` in config.
 ### Safeguard Dumps
 When operations fail (runner errors, scan validation failures), Ralph writes safeguard dumps to temp directories for troubleshooting. These dumps are **redacted by default** to prevent secrets from being written to disk.
 
+**Important**: Redaction is pattern-based and best-effort. It may miss secrets in unexpected formats, encoded data, or novel patterns. Always review dumps before sharing.
+
 **Redaction applies to:**
 - API keys and bearer tokens
 - AWS access keys (AKIA...)
@@ -47,11 +49,21 @@ When operations fail (runner errors, scan validation failures), Ralph writes saf
 - Sensitive environment variable values
 
 **Raw dumps** are only written when explicitly opted in via:
-- `RALPH_RAW_DUMP=1` environment variable
-- `--debug` flag (implies verbose output desired)
+- `RALPH_RAW_DUMP=1` or `RALPH_RAW_DUMP=true` environment variable
+- `--debug` flag (implies verbose output desired; also enables raw debug logs)
+
+**Never commit safeguard dumps** to version control, even when redacted.
 
 ### Debug Logging
-When `--debug` is enabled, raw runner output is written to `.ralph/logs/debug.log`. This is intentional for troubleshooting but may contain unredacted secrets. Debug logs should be treated as sensitive and never committed.
+When `--debug` is enabled, raw runner output is written to `.ralph/logs/debug.log`. This is intentional for troubleshooting but may contain unredacted secrets captured before redaction is applied. 
+
+**Important:** Console output is redacted via `RedactedLogger`, but debug logs capture raw log records and runner streams before redaction. Debug logs should be treated as highly sensitive and never committed.
+
+**Best practices:**
+- Only use `--debug` when necessary for troubleshooting
+- Treat `.ralph/logs/debug.log` as sensitive data
+- Add `.ralph/logs/` to `.gitignore`
+- Clean up debug logs after use: `rm -rf .ralph/logs/`
 
 ## Runner Model Control
 Runner and model selection are driven by a combination of CLI flags, task overrides, and config. The CLI has the highest priority for a single run.

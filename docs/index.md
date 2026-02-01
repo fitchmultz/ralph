@@ -10,7 +10,7 @@ Purpose: Provide a concise, navigable reference for Ralph configuration, CLI usa
 - Workflow and Architecture: `docs/workflow.md`
 - Error Handling: `docs/error-handling.md` — Patterns and best practices for contributors
 - Environment Variables: `docs/environment.md`
-- Security: `SECURITY.md`
+- **Security: `SECURITY.md`** — Runner output sensitivity, redaction behavior, safeguard dumps, and debug log handling (see also Security sections in `docs/cli.md` and `docs/workflow.md`)
 - **Releasing: `docs/releasing.md`** — How to create releases (local workflow without GitHub Actions)
 
 ## Source of Truth

@@ -1861,7 +1861,7 @@ The `run one` and `run loop` commands also support:
 * `--notify-sound`: Enable sound alert with notification (works with notification flags or when enabled in config).
 * `--git-revert-mode <ask|enabled|disabled>`
 * `--git-commit-push-on` / `--git-commit-push-off`
-* `--debug` (capture raw supervisor + runner output to `.ralph/logs/debug.log`)
+* `--debug` (capture raw supervisor + runner output to `.ralph/logs/debug.log`; also enables raw safeguard dumps)
 
 Examples:
 
@@ -1894,7 +1894,7 @@ When runner operations fail (timeouts, non-zero exits, scan validation errors), 
 
 Raw (non-redacted) safeguard dumps require explicit opt-in via one of:
 
-1. **Environment variable**: `RALPH_RAW_DUMP=1`
+1. **Environment variable**: `RALPH_RAW_DUMP=1` or `RALPH_RAW_DUMP=true`
 2. **Debug mode**: `--debug` flag (implies you want verbose/raw output)
 
 ```bash
@@ -1903,6 +1903,7 @@ ralph run one
 
 # Raw dumps with env var - secrets written to disk
 RALPH_RAW_DUMP=1 ralph run one
+RALPH_RAW_DUMP=true ralph run one
 
 # Raw dumps via debug mode - secrets in debug.log and dumps
 ralph run one --debug
@@ -1910,9 +1911,11 @@ ralph run one --debug
 
 ### Security Considerations
 
+- **Redaction is best-effort**: Pattern-based redaction may miss secrets in unexpected formats, encoded data, or novel patterns. Always review output before sharing.
 - **Never commit safeguard dumps** to version control. They may contain sensitive data even when redacted.
-- **Debug mode (`--debug`)** writes raw runner output to `.ralph/logs/debug.log`. This is intentional for troubleshooting but may contain secrets.
-- Temp directories for safeguard dumps are created under `/tmp/ralph/` (or platform equivalent) with `ralph_` prefixes.
+- **Debug mode (`--debug`)** writes raw runner output to `.ralph/logs/debug.log`. This is intentional for troubleshooting but may contain secrets. Debug logs capture raw output before redaction is applied.
+- **Never commit debug logs** to version control (add `.ralph/logs/` to `.gitignore`).
+- Temp directories for safeguard dumps are created under `/tmp/ralph/` (or platform equivalent) with `ralph_` prefixes. Clean these up periodically as they persist until manually removed.
 
 ## Help Output
 

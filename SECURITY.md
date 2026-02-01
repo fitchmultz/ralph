@@ -32,6 +32,8 @@ When sharing logs, error reports, or debugging output from Ralph, be aware that 
 
 Ralph includes built-in redaction for sensitive data. The following patterns are masked with `[REDACTED]`:
 
+**Important**: Redaction is pattern-based and best-effort. It may miss secrets in unexpected formats, encoded data, or novel patterns. Always review output before sharing, even when redaction is applied.
+
 ### Redacted Patterns
 
 - **API keys**: Values matching `API_KEY`, `api_key`, `APIKEY`, `apikey`, `PRIVATE_KEY`, `private_key`, `PRIVATEKEY`, `privatekey` patterns.
@@ -65,27 +67,32 @@ The `safeguard_text_dump()` function writes raw, unredacted content. This requir
 ```bash
 # Enable raw dumps via environment variable
 RALPH_RAW_DUMP=1 ralph run one
+RALPH_RAW_DUMP=true ralph run one
 
-# Or use --debug flag (also enables raw dumps)
+# Or use --debug flag (also enables raw dumps and raw debug logs)
 ralph run one --debug
 ```
 
-**Security Warning**: Raw dumps may contain secrets. Only use raw dumps when necessary for debugging and keep them secure.
+**Security Warning**: Raw dumps may contain secrets. Only use raw dumps when necessary for debugging and keep them secure. Never commit raw dumps to version control.
 
 ## Debug Logging
 
 When the `--debug` flag is used, Ralph writes detailed logs to `.ralph/logs/debug.log`:
 
-- Log records (redacted in console output, raw in debug log)
+- Log records (redacted in console output, **raw in debug log**)
 - Raw runner stdout/stderr streams
 
-**Important**: Debug logs contain raw, unredacted runner output. Do not share debug logs publicly without reviewing them for secrets.
+**Important**: Debug logs contain raw, unredacted runner output captured before redaction is applied. Even when console output is redacted, debug logs may contain secrets. Do not share debug logs publicly without reviewing them for secrets.
 
-To clean up debug logs:
+**Best practices for debug logs:**
+- Only use `--debug` when necessary for troubleshooting
+- Treat `.ralph/logs/debug.log` as sensitive data
+- Clean up debug logs after use:
 
 ```bash
 rm -rf .ralph/logs/
 ```
+- Never commit debug logs to version control (add `.ralph/logs/` to `.gitignore`)
 
 ## Supported Versions
 
@@ -98,10 +105,11 @@ cargo install ralph --force
 ## Security Best Practices
 
 1. **Review runner output**: AI runners may echo environment variables or file contents that contain secrets. Review before copying into task notes.
-2. **Use redacted dumps**: When reporting issues, use the default redacted safeguard dumps.
-3. **Limit debug mode**: Only use `--debug` when necessary and clean up `.ralph/logs/` afterward.
-4. **Sanitize queue files**: Before committing `.ralph/queue.json` or `.ralph/done.json` to version control, ensure no secrets are present in task notes or evidence fields.
-5. **Environment variable hygiene**: Be cautious about what environment variables are set when running AI agents, as runners may have access to the full environment.
+2. **Use redacted dumps**: When reporting issues, use the default redacted safeguard dumps. Remember that redaction is best-effort and may miss secrets.
+3. **Limit debug mode**: Only use `--debug` when necessary and clean up `.ralph/logs/` afterward. Debug logs contain raw, unredacted output.
+4. **Safeguard dump locations**: Redacted dumps are written to temporary directories (e.g., `/tmp/ralph/`). Clean these up periodically as they persist via `TempDir::keep()`.
+5. **Sanitize queue files**: Before committing `.ralph/queue.json` or `.ralph/done.json` to version control, ensure no secrets are present in task notes or evidence fields.
+6. **Environment variable hygiene**: Be cautious about what environment variables are set when running AI agents, as runners may have access to the full environment.
 
 ## Implementation Details
 

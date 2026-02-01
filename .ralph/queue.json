@@ -44,43 +44,6 @@
       "custom_fields": {}
     },
     {
-      "id": "RQ-0474",
-      "status": "todo",
-      "title": "Document security considerations for runner execution",
-      "priority": "low",
-      "tags": [
-        "documentation",
-        "security",
-        "runner"
-      ],
-      "scope": [
-        "docs/security.md (new)",
-        "crates/ralph/src/runner/"
-      ],
-      "evidence": [
-        "No centralized security documentation for runner execution",
-        "Redaction exists but not documented for developers",
-        "Safeguard dumps behavior described in README but not in dev docs",
-        "No guidance on handling secrets in runner output"
-      ],
-      "plan": [
-        "Create docs/security.md with runner security considerations",
-        "Document redaction behavior and patterns",
-        "Document safeguard dumps and when they are created",
-        "Add security section to runner module docs",
-        "Document best practices for handling sensitive data",
-        "Review AGENTS.md security section for completeness"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-01-30T17:40:48Z",
-      "updated_at": "2026-01-30T17:40:48Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0445",
       "status": "draft",
       "title": "Add conditional task execution based on custom conditions",
