@@ -83,7 +83,7 @@
     },
     {
       "id": "RQ-0515",
-      "status": "todo",
+      "status": "doing",
       "title": "Split crates/ralph/src/commands/run/tests.rs into cohesive modules",
       "priority": "medium",
       "tags": [
@@ -113,7 +113,7 @@
       ],
       "request": "maintenance scan finding",
       "created_at": "2026-02-01T17:19:30Z",
-      "updated_at": "2026-02-01T17:19:30Z",
+      "updated_at": "2026-02-02T00:29:59.593720000Z",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],
