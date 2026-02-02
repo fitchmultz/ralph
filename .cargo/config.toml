@@ -1,0 +1,18 @@
+[build]
+rustc-wrapper = "sccache"
+jobs = 4
+
+[target.aarch64-apple-darwin]
+linker = "clang"
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+
+# Faster dev builds
+[profile.dev]
+opt-level = 0
+debug = true
+codegen-units = 256
+
+# Optimized release builds
+[profile.release]
+codegen-units = 1
+lto = "thin"

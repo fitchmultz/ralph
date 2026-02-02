@@ -1,5 +1,3 @@
-ralph_tui/ralph
-.ralph/cache/
-ralph_legacy/
-.ralph/logs/ralph.log
-.ralph/pin/implementation_done.md
+!**
+.DS_Store
+target/

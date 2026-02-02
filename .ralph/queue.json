@@ -1,0 +1,566 @@
+{
+  "version": 1,
+  "tasks": [
+    {
+      "id": "RQ-0524",
+      "status": "todo",
+      "title": "Auto-respond to 401/429 errors with 'Proceed as you were' for transient provider issues",
+      "priority": "high",
+      "tags": [
+        "supervisor",
+        "automation",
+        "error-handling",
+        "resilience"
+      ],
+      "scope": [
+        "crates/ralph/src/supervisor/",
+        "crates/ralph/src/runner.rs",
+        "crates/ralph/src/commands/run/",
+        "docs/workflow.md"
+      ],
+      "evidence": [
+        "User request: When supervisor encounters 401 error with 'invalid_authentication_error' type and message 'The API Key appears to be invalid or may have expired', it should auto-respond 'Proceed as you were'",
+        "User request: Also handle 429 rate_limit_reached_error with message 'We're receiving too many requests at the moment. Please wait a moment and try again.'",
+        "Both errors are transient (provider overwhelmed), not actual invalid/expired key or true rate limits",
+        "Similar functionality exists for CI gate failure automatic response",
+        "Should apply to all phases (1, 2, 3) where these errors may occur"
+      ],
+      "plan": [
+        "Locate existing CI gate auto-response logic in supervisor/runner code",
+        "Identify where 401 invalid_authentication_error and 429 rate_limit_reached_error are currently detected and prompt user",
+        "Implement automatic 'Proceed as you were' response when either error pattern is detected",
+        "Ensure auto-response works across all phases (1, 2, 3)",
+        "Add tests for both 401 and 429 auto-response behaviors (success and failure modes)",
+        "Update documentation if user-facing behavior changes",
+        "Verify by running `make ci`"
+      ],
+      "notes": [],
+      "request": "When the supervisor encounters either of the situations below:\n1) Error code: 401 - {'error': {'message': 'The API Key appears to be invalid or may have expired. Please verify your credentials and try again.', 'type': 'invalid_authentication_error'}}\n2) Error code: 429 - {'error': {'message': \"We're receiving too many requests at the moment. Please wait a moment and try again.\", 'type': 'rate_limit_reached_error'}}\nPhase 3 completion check: action? [1=keep (default), 2=revert, 3=other]:\nIt should automatically respond with \"Proceed as you were\" using similar functionality to how we automatically respond to the runner session when a CI gate failure is observed. This automatic response should happen regardless of when (e.g. all phases) this \"error\" occurs.",
+      "created_at": "2026-02-01T21:52:37Z",
+      "updated_at": "2026-02-01T21:55:41Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0523",
+      "status": "todo",
+      "title": "Fix phase_overrides missing from config schema default value",
+      "priority": "high",
+      "tags": [
+        "bug",
+        "fix",
+        "schema"
+      ],
+      "scope": [
+        "schemas/config.schema.json",
+        "crates/ralph/src/contracts/config.rs",
+        "crates/ralph/src/cli/config.rs",
+        "Makefile"
+      ],
+      "evidence": [
+        "User request: 'Validate how schemas/config.schema.json is generated. The phase_overrides section is not being shown in the schema'",
+        "Verified: phase_overrides IS present in AgentConfig definition properties",
+        "Verified: phase_overrides IS MISSING from agent.default in schema (where default values are shown)",
+        "Root cause: phase_overrides uses #[serde(skip_serializing_if = 'Option::is_none')] which skips it during default serialization for schema"
+      ],
+      "plan": [
+        "Investigate how schema default values are generated (schemars behavior with Option fields)",
+        "Identify all config keys that may be missing from schema defaults (audit other Option<T> fields with skip_serializing_if)",
+        "Implement fix to ensure phase_overrides and other missing keys appear in schema default section",
+        "Add or update test to ensure schema completeness/correctness",
+        "Verify fix by running `make generate` and checking phase_overrides appears in agent.default"
+      ],
+      "notes": [],
+      "request": "Validate how schemas/config.schema.json is generated. The phase_overrides section is not being shown in the schema and a file likely needs updated to ensure this and all config keys are properly captured.",
+      "created_at": "2026-02-01T19:58:45Z",
+      "updated_at": "2026-02-01T19:58:45Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0515",
+      "status": "todo",
+      "title": "Split crates/ralph/src/commands/run/tests.rs into cohesive modules",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "refactor",
+        "cohesion"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/tests.rs"
+      ],
+      "evidence": [
+        "`rg --files -g '*.rs' crates/ralph/src | xargs wc -l | sort -nr | head -n 15` shows `2298 crates/ralph/src/commands/run/tests.rs`.",
+        "AGENTS.md states files over 1,000 LOC must be split unless explicitly justified in the thread."
+      ],
+      "plan": [
+        "Identify distinct responsibilities inside the file and define a small module breakdown.",
+        "Move related types/functions into new module files under the same directory and wire them through a `mod` or `pub(crate)` exports.",
+        "Update imports and call sites to use the new module paths.",
+        "Add or adjust tests if behavior changes or if the split exposes missing coverage.",
+        "Verify by running `make ci` and confirming all tests and linting still pass."
+      ],
+      "notes": [
+        "Principles: Localize change (SoC/SRP), KISS.",
+        "Why it matters: oversized files reduce cohesion, slow reviews, and increase the risk of unrelated changes interacting.",
+        "Minimal fix: split into focused modules without changing external behavior or public APIs.",
+        "Acceptance: file is reduced below 1,000 LOC, responsibilities are separated, and `make ci` passes."
+      ],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-01T17:19:30Z",
+      "updated_at": "2026-02-01T17:19:30Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0516",
+      "status": "todo",
+      "title": "Split crates/ralph/src/contracts/config.rs into cohesive modules",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "refactor",
+        "cohesion"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts/config.rs"
+      ],
+      "evidence": [
+        "`rg --files -g '*.rs' crates/ralph/src | xargs wc -l | sort -nr | head -n 15` shows `1333 crates/ralph/src/contracts/config.rs`.",
+        "AGENTS.md states files over 1,000 LOC must be split unless explicitly justified in the thread."
+      ],
+      "plan": [
+        "Identify distinct responsibilities inside the file and define a small module breakdown.",
+        "Move related types/functions into new module files under the same directory and wire them through a `mod` or `pub(crate)` exports.",
+        "Update imports and call sites to use the new module paths.",
+        "Add or adjust tests if behavior changes or if the split exposes missing coverage.",
+        "Verify by running `make ci` and confirming all tests and linting still pass."
+      ],
+      "notes": [
+        "Principles: Localize change (SoC/SRP), KISS.",
+        "Why it matters: oversized files reduce cohesion, slow reviews, and increase the risk of unrelated changes interacting.",
+        "Minimal fix: split into focused modules without changing external behavior or public APIs.",
+        "Acceptance: file is reduced below 1,000 LOC, responsibilities are separated, and `make ci` passes."
+      ],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-01T17:19:30Z",
+      "updated_at": "2026-02-01T17:19:30Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0517",
+      "status": "todo",
+      "title": "Split crates/ralph/src/queue/graph.rs into cohesive modules",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "refactor",
+        "cohesion"
+      ],
+      "scope": [
+        "crates/ralph/src/queue/graph.rs"
+      ],
+      "evidence": [
+        "`rg --files -g '*.rs' crates/ralph/src | xargs wc -l | sort -nr | head -n 15` shows `1287 crates/ralph/src/queue/graph.rs`.",
+        "AGENTS.md states files over 1,000 LOC must be split unless explicitly justified in the thread."
+      ],
+      "plan": [
+        "Identify distinct responsibilities inside the file and define a small module breakdown.",
+        "Move related types/functions into new module files under the same directory and wire them through a `mod` or `pub(crate)` exports.",
+        "Update imports and call sites to use the new module paths.",
+        "Add or adjust tests if behavior changes or if the split exposes missing coverage.",
+        "Verify by running `make ci` and confirming all tests and linting still pass."
+      ],
+      "notes": [
+        "Principles: Localize change (SoC/SRP), KISS.",
+        "Why it matters: oversized files reduce cohesion, slow reviews, and increase the risk of unrelated changes interacting.",
+        "Minimal fix: split into focused modules without changing external behavior or public APIs.",
+        "Acceptance: file is reduced below 1,000 LOC, responsibilities are separated, and `make ci` passes."
+      ],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-01T17:19:30Z",
+      "updated_at": "2026-02-01T17:19:30Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0518",
+      "status": "todo",
+      "title": "Split crates/ralph/src/agent.rs into cohesive modules",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "refactor",
+        "cohesion"
+      ],
+      "scope": [
+        "crates/ralph/src/agent.rs"
+      ],
+      "evidence": [
+        "`rg --files -g '*.rs' crates/ralph/src | xargs wc -l | sort -nr | head -n 15` shows `1282 crates/ralph/src/agent.rs`.",
+        "AGENTS.md states files over 1,000 LOC must be split unless explicitly justified in the thread."
+      ],
+      "plan": [
+        "Identify distinct responsibilities inside the file and define a small module breakdown.",
+        "Move related types/functions into new module files under the same directory and wire them through a `mod` or `pub(crate)` exports.",
+        "Update imports and call sites to use the new module paths.",
+        "Add or adjust tests if behavior changes or if the split exposes missing coverage.",
+        "Verify by running `make ci` and confirming all tests and linting still pass."
+      ],
+      "notes": [
+        "Principles: Localize change (SoC/SRP), KISS.",
+        "Why it matters: oversized files reduce cohesion, slow reviews, and increase the risk of unrelated changes interacting.",
+        "Minimal fix: split into focused modules without changing external behavior or public APIs.",
+        "Acceptance: file is reduced below 1,000 LOC, responsibilities are separated, and `make ci` passes."
+      ],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-01T17:19:30Z",
+      "updated_at": "2026-02-01T17:19:30Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0519",
+      "status": "todo",
+      "title": "Split crates/ralph/src/runner.rs into cohesive modules",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "refactor",
+        "cohesion"
+      ],
+      "scope": [
+        "crates/ralph/src/runner.rs"
+      ],
+      "evidence": [
+        "`rg --files -g '*.rs' crates/ralph/src | xargs wc -l | sort -nr | head -n 15` shows `1279 crates/ralph/src/runner.rs`.",
+        "AGENTS.md states files over 1,000 LOC must be split unless explicitly justified in the thread."
+      ],
+      "plan": [
+        "Identify distinct responsibilities inside the file and define a small module breakdown.",
+        "Move related types/functions into new module files under the same directory and wire them through a `mod` or `pub(crate)` exports.",
+        "Update imports and call sites to use the new module paths.",
+        "Add or adjust tests if behavior changes or if the split exposes missing coverage.",
+        "Verify by running `make ci` and confirming all tests and linting still pass."
+      ],
+      "notes": [
+        "Principles: Localize change (SoC/SRP), KISS.",
+        "Why it matters: oversized files reduce cohesion, slow reviews, and increase the risk of unrelated changes interacting.",
+        "Minimal fix: split into focused modules without changing external behavior or public APIs.",
+        "Acceptance: file is reduced below 1,000 LOC, responsibilities are separated, and `make ci` passes."
+      ],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-01T17:19:30Z",
+      "updated_at": "2026-02-01T17:19:30Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0520",
+      "status": "todo",
+      "title": "Split crates/ralph/src/runutil.rs into cohesive modules",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "refactor",
+        "cohesion"
+      ],
+      "scope": [
+        "crates/ralph/src/runutil.rs"
+      ],
+      "evidence": [
+        "`rg --files -g '*.rs' crates/ralph/src | xargs wc -l | sort -nr | head -n 15` shows `1270 crates/ralph/src/runutil.rs`.",
+        "AGENTS.md states files over 1,000 LOC must be split unless explicitly justified in the thread."
+      ],
+      "plan": [
+        "Identify distinct responsibilities inside the file and define a small module breakdown.",
+        "Move related types/functions into new module files under the same directory and wire them through a `mod` or `pub(crate)` exports.",
+        "Update imports and call sites to use the new module paths.",
+        "Add or adjust tests if behavior changes or if the split exposes missing coverage.",
+        "Verify by running `make ci` and confirming all tests and linting still pass."
+      ],
+      "notes": [
+        "Principles: Localize change (SoC/SRP), KISS.",
+        "Why it matters: oversized files reduce cohesion, slow reviews, and increase the risk of unrelated changes interacting.",
+        "Minimal fix: split into focused modules without changing external behavior or public APIs.",
+        "Acceptance: file is reduced below 1,000 LOC, responsibilities are separated, and `make ci` passes."
+      ],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-01T17:19:30Z",
+      "updated_at": "2026-02-01T17:19:30Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0521",
+      "status": "todo",
+      "title": "Split crates/ralph/src/commands/run/mod.rs into cohesive modules",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "refactor",
+        "cohesion"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/mod.rs"
+      ],
+      "evidence": [
+        "`rg --files -g '*.rs' crates/ralph/src | xargs wc -l | sort -nr | head -n 15` shows `1252 crates/ralph/src/commands/run/mod.rs`.",
+        "AGENTS.md states files over 1,000 LOC must be split unless explicitly justified in the thread."
+      ],
+      "plan": [
+        "Identify distinct responsibilities inside the file and define a small module breakdown.",
+        "Move related types/functions into new module files under the same directory and wire them through a `mod` or `pub(crate)` exports.",
+        "Update imports and call sites to use the new module paths.",
+        "Add or adjust tests if behavior changes or if the split exposes missing coverage.",
+        "Verify by running `make ci` and confirming all tests and linting still pass."
+      ],
+      "notes": [
+        "Principles: Localize change (SoC/SRP), KISS.",
+        "Why it matters: oversized files reduce cohesion, slow reviews, and increase the risk of unrelated changes interacting.",
+        "Minimal fix: split into focused modules without changing external behavior or public APIs.",
+        "Acceptance: file is reduced below 1,000 LOC, responsibilities are separated, and `make ci` passes."
+      ],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-01T17:19:30Z",
+      "updated_at": "2026-02-01T17:19:30Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0522",
+      "status": "todo",
+      "title": "Split crates/ralph/src/commands/watch.rs into cohesive modules",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "refactor",
+        "cohesion"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/watch.rs"
+      ],
+      "evidence": [
+        "`rg --files -g '*.rs' crates/ralph/src | xargs wc -l | sort -nr | head -n 15` shows `1082 crates/ralph/src/commands/watch.rs`.",
+        "AGENTS.md states files over 1,000 LOC must be split unless explicitly justified in the thread."
+      ],
+      "plan": [
+        "Identify distinct responsibilities inside the file and define a small module breakdown.",
+        "Move related types/functions into new module files under the same directory and wire them through a `mod` or `pub(crate)` exports.",
+        "Update imports and call sites to use the new module paths.",
+        "Add or adjust tests if behavior changes or if the split exposes missing coverage.",
+        "Verify by running `make ci` and confirming all tests and linting still pass."
+      ],
+      "notes": [
+        "Principles: Localize change (SoC/SRP), KISS.",
+        "Why it matters: oversized files reduce cohesion, slow reviews, and increase the risk of unrelated changes interacting.",
+        "Minimal fix: split into focused modules without changing external behavior or public APIs.",
+        "Acceptance: file is reduced below 1,000 LOC, responsibilities are separated, and `make ci` passes."
+      ],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-01T17:19:30Z",
+      "updated_at": "2026-02-01T17:19:30Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0439",
+      "status": "draft",
+      "title": "Implement subtask support for hierarchical task breakdown",
+      "priority": "medium",
+      "tags": [
+        "cli",
+        "queue",
+        "feature",
+        "task-management"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts/task.rs",
+        "crates/ralph/src/queue/operations/",
+        "crates/ralph/src/cli/task.rs",
+        "crates/ralph/src/tui/",
+        "schemas/queue.schema.json"
+      ],
+      "evidence": [
+        "No parent/child relationship fields in Task schema",
+        "Large tasks cannot be broken down into trackable subtasks",
+        "PRD multi-task mode creates sequential dependencies but not true subtasks"
+      ],
+      "plan": [
+        "Add `parent_id` field to Task for child-to-parent reference",
+        "Add `subtasks` array field or compute dynamically from parent_id",
+        "Add `ralph task subtask create <PARENT_ID> <REQUEST>` command",
+        "Update parent task progress based on subtask completion percentage",
+        "Block parent task completion until all subtasks are done",
+        "Update TUI to show collapsible subtask hierarchies",
+        "Update queue graph to show parent-child relationships",
+        "Add tests for subtask lifecycle and parent completion blocking"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-30T00:00:00Z",
+      "updated_at": "2026-01-30T00:00:00Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0445",
+      "status": "draft",
+      "title": "Add conditional task execution based on custom conditions",
+      "priority": "low",
+      "tags": [
+        "cli",
+        "runner",
+        "feature",
+        "automation"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts/task.rs",
+        "crates/ralph/src/commands/run/",
+        "crates/ralph/src/cli/task.rs"
+      ],
+      "evidence": [
+        "No conditional execution support in task schema",
+        "Cannot skip tasks based on file existence, env vars, or command output",
+        "All tasks in queue are attempted regardless of context"
+      ],
+      "plan": [
+        "Add `condition` field to Task with type and parameters",
+        "Support condition types: file_exists, env_set, command_success, task_status",
+        "Add `ralph task condition <TASK_ID> <TYPE> <PARAM>` command",
+        "Evaluate condition before task execution in run one/loop",
+        "Skip task with log message if condition not met",
+        "Add `--skip-conditions` flag to bypass condition checks",
+        "Add tests for each condition type"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-30T00:00:00Z",
+      "updated_at": "2026-01-30T00:00:00Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0451",
+      "status": "draft",
+      "title": "Implement IDE extensions for VS Code and JetBrains",
+      "priority": "low",
+      "tags": [
+        "integrations",
+        "ide",
+        "feature",
+        "ecosystem"
+      ],
+      "scope": [
+        "editors/vscode/ (new)",
+        "editors/jetbrains/ (new)",
+        "docs/ide-integration.md (new)"
+      ],
+      "evidence": [
+        "No IDE extensions exist for Ralph",
+        "Users must switch between terminal and editor to check task status",
+        "No inline task creation from TODO comments in code"
+      ],
+      "plan": [
+        "Create VS Code extension with task tree view",
+        "Show current task, queue, and done tasks in sidebar",
+        "Add commands: run task, mark done, create task from selection",
+        "Highlight TODO/FIXME comments with quick-create task actions",
+        "Create JetBrains plugin with equivalent functionality",
+        "Support task status indicators in editor gutter",
+        "Add configuration for ralph binary path",
+        "Document installation and usage for both extensions"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-01-30T00:00:00Z",
+      "updated_at": "2026-01-30T00:00:00Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0514",
+      "status": "todo",
+      "title": "Split crates/ralph/src/tui/app.rs into cohesive modules",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "refactor",
+        "cohesion"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/app.rs"
+      ],
+      "evidence": [
+        "`rg --files -g '*.rs' crates/ralph/src | xargs wc -l | sort -nr | head -n 15` shows `3450 crates/ralph/src/tui/app.rs`.",
+        "AGENTS.md states files over 1,000 LOC must be split unless explicitly justified in the thread."
+      ],
+      "plan": [
+        "Identify distinct responsibilities inside the file and define a small module breakdown.",
+        "Move related types/functions into new module files under the same directory and wire them through a `mod` or `pub(crate)` exports.",
+        "Update imports and call sites to use the new module paths.",
+        "Add or adjust tests if behavior changes or if the split exposes missing coverage.",
+        "Verify by running `make ci` and confirming all tests and linting still pass."
+      ],
+      "notes": [
+        "Principles: Localize change (SoC/SRP), KISS.",
+        "Why it matters: oversized files reduce cohesion, slow reviews, and increase the risk of unrelated changes interacting.",
+        "Minimal fix: split into focused modules without changing external behavior or public APIs.",
+        "Acceptance: file is reduced below 1,000 LOC, responsibilities are separated, and `make ci` passes."
+      ],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-01T17:19:30Z",
+      "updated_at": "2026-02-01T17:19:30Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    }
+  ]
+}

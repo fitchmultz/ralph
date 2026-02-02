@@ -1,0 +1,1292 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Config",
+  "type": "object",
+  "properties": {
+    "agent": {
+      "description": "Agent runner defaults (Claude, Codex, OpenCode, Gemini, or Cursor).",
+      "default": {
+        "ci_gate_command": "make ci",
+        "ci_gate_enabled": true,
+        "claude_bin": "claude",
+        "claude_permission_mode": "bypass_permissions",
+        "codex_bin": "codex",
+        "cursor_bin": "agent",
+        "fail_on_prerun_update_error": false,
+        "followup_reasoning_effort": null,
+        "gemini_bin": "gemini",
+        "git_commit_push_enabled": true,
+        "git_revert_mode": "ask",
+        "instruction_files": null,
+        "iterations": 1,
+        "kimi_bin": "kimi",
+        "model": "sonnet",
+        "notification": {
+          "enabled": true,
+          "notify_on_complete": true,
+          "notify_on_fail": true,
+          "notify_on_loop_complete": true,
+          "sound_enabled": false,
+          "sound_path": null,
+          "suppress_when_active": true,
+          "timeout_ms": 8000
+        },
+        "opencode_bin": "opencode",
+        "phase_overrides": null,
+        "phases": 3,
+        "pi_bin": "pi",
+        "reasoning_effort": "medium",
+        "repoprompt_plan_required": false,
+        "repoprompt_tool_injection": false,
+        "runner": "claude",
+        "runner_cli": {
+          "defaults": {
+            "approval_mode": "yolo",
+            "output_format": "stream_json",
+            "plan_mode": "default",
+            "sandbox": "default",
+            "unsupported_option_policy": "warn",
+            "verbosity": "normal"
+          },
+          "runners": {
+            "claude": {
+              "approval_mode": null,
+              "output_format": null,
+              "plan_mode": null,
+              "sandbox": null,
+              "unsupported_option_policy": null,
+              "verbosity": "verbose"
+            },
+            "codex": {
+              "approval_mode": null,
+              "output_format": null,
+              "plan_mode": null,
+              "sandbox": "disabled",
+              "unsupported_option_policy": null,
+              "verbosity": null
+            },
+            "kimi": {
+              "approval_mode": "yolo",
+              "output_format": null,
+              "plan_mode": null,
+              "sandbox": null,
+              "unsupported_option_policy": null,
+              "verbosity": null
+            },
+            "pi": {
+              "approval_mode": "yolo",
+              "output_format": null,
+              "plan_mode": null,
+              "sandbox": null,
+              "unsupported_option_policy": null,
+              "verbosity": null
+            }
+          }
+        },
+        "scan_prompt_version": "v2",
+        "session_timeout_hours": 24,
+        "update_task_before_run": false,
+        "webhook": {
+          "enabled": null,
+          "events": null,
+          "retry_backoff_ms": null,
+          "retry_count": null,
+          "secret": null,
+          "timeout_secs": null,
+          "url": null
+        }
+      },
+      "allOf": [
+        {
+          "$ref": "#/definitions/AgentConfig"
+        }
+      ]
+    },
+    "parallel": {
+      "description": "Parallel run-loop configuration.",
+      "default": {
+        "auto_merge": true,
+        "auto_pr": true,
+        "branch_prefix": "ralph/",
+        "conflict_policy": "auto_resolve",
+        "delete_branch_on_merge": true,
+        "draft_on_failure": true,
+        "merge_method": "squash",
+        "merge_retries": 5,
+        "merge_runner": null,
+        "merge_when": "as_created",
+        "workers": null,
+        "worktree_root": null
+      },
+      "allOf": [
+        {
+          "$ref": "#/definitions/ParallelConfig"
+        }
+      ]
+    },
+    "project_type": {
+      "description": "\"code\" or \"docs\". Drives prompt defaults and small workflow decisions.",
+      "default": "code",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/ProjectType"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "queue": {
+      "description": "Queue-related configuration.",
+      "default": {
+        "done_file": ".ralph/done.json",
+        "file": ".ralph/queue.json",
+        "id_prefix": "RQ",
+        "id_width": 4,
+        "max_dependency_depth": 10,
+        "size_warning_threshold_kb": 500,
+        "task_count_warning_threshold": 500
+      },
+      "allOf": [
+        {
+          "$ref": "#/definitions/QueueConfig"
+        }
+      ]
+    },
+    "tui": {
+      "description": "TUI-specific configuration.",
+      "default": {
+        "auto_archive_terminal": null,
+        "celebrations_enabled": null,
+        "stats_enabled": null
+      },
+      "allOf": [
+        {
+          "$ref": "#/definitions/TuiConfig"
+        }
+      ]
+    },
+    "version": {
+      "description": "Schema version for config.",
+      "default": 1,
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "AgentConfig": {
+      "type": "object",
+      "properties": {
+        "ci_gate_command": {
+          "description": "CI gate command to run (default: \"make ci\").",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ci_gate_enabled": {
+          "description": "Enable or disable the CI gate entirely (default: true).",
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "claude_bin": {
+          "description": "Override the claude executable name/path (default is \"claude\" if None).",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "claude_permission_mode": {
+          "description": "Claude permission mode for tool and edit approval. AcceptEdits: auto-approves file edits only BypassPermissions: skip all permission prompts (YOLO mode)",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ClaudePermissionMode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "codex_bin": {
+          "description": "Override the codex executable name/path (default is \"codex\" if None).",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "cursor_bin": {
+          "description": "Override the cursor agent executable name/path (default is \"agent\" if None).\n\nNOTE: Cursor's runner binary name is `agent` (not `cursor`).",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "fail_on_prerun_update_error": {
+          "description": "If true, fail the run when pre-run task update fails. If false (default), log a warning and continue with original task data.",
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "followup_reasoning_effort": {
+          "description": "Reasoning effort override for follow-up iterations (iterations > 1). Only meaningful for Codex models.",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ReasoningEffort"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "gemini_bin": {
+          "description": "Override the gemini executable name/path (default is \"gemini\" if None).",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "git_commit_push_enabled": {
+          "description": "Enable automatic git commit and push after successful runs (default: true).",
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "git_revert_mode": {
+          "description": "Controls automatic git revert behavior when runner or supervision errors occur.",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/GitRevertMode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "instruction_files": {
+          "description": "Additional instruction files to inject at the top of every prompt sent to runner CLIs.\n\nPaths may be absolute, `~/`-prefixed, or repo-root relative. Missing files are treated as configuration errors. To include repo-local AGENTS.md, add `\"AGENTS.md\"` to this list.",
+          "default": null,
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "iterations": {
+          "description": "Number of iterations to run for each task (default: 1).",
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint8",
+          "minimum": 1.0
+        },
+        "kimi_bin": {
+          "description": "Override the kimi executable name/path (default is \"kimi\" if None).",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "model": {
+          "description": "Default model.",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Model"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "notification": {
+          "description": "Desktop notification configuration for task completion.",
+          "default": {
+            "enabled": null,
+            "notify_on_complete": null,
+            "notify_on_fail": null,
+            "notify_on_loop_complete": null,
+            "sound_enabled": null,
+            "sound_path": null,
+            "suppress_when_active": null,
+            "timeout_ms": null
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/NotificationConfig"
+            }
+          ]
+        },
+        "opencode_bin": {
+          "description": "Override the opencode executable name/path (default is \"opencode\" if None).",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "phase_overrides": {
+          "description": "Per-phase overrides for runner, model, and reasoning effort.\n\nAllows specifying different settings for each phase (1, 2, 3). Phase-specific values override the global agent settings.",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/PhaseOverrides"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "phases": {
+          "description": "Number of execution phases (1, 2, or 3). 1 = single-pass, 2 = plan+implement, 3 = plan+implement+review.",
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint8",
+          "maximum": 3.0,
+          "minimum": 1.0
+        },
+        "pi_bin": {
+          "description": "Override the pi executable name/path (default is \"pi\" if None).",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reasoning_effort": {
+          "description": "Default reasoning effort (only meaningful for Codex models).",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ReasoningEffort"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "repoprompt_plan_required": {
+          "description": "Require RepoPrompt usage during planning (inject context_builder instructions).",
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "repoprompt_tool_injection": {
+          "description": "Inject RepoPrompt tooling reminder block into prompts.",
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "runner": {
+          "description": "Which harness to use by default.",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Runner"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "runner_cli": {
+          "description": "Normalized runner CLI behavior overrides (output/approval/sandbox/etc).\n\nThis is additive: existing runner-specific fields remain supported.",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RunnerCliConfigRoot"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "scan_prompt_version": {
+          "description": "Scan prompt version to use (v1 or v2, default: v2).",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ScanPromptVersion"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "session_timeout_hours": {
+          "description": "Session timeout in hours for crash recovery (default: 24). Sessions older than this threshold are considered stale and require explicit user confirmation to resume.",
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 1.0
+        },
+        "update_task_before_run": {
+          "description": "If true, automatically run `ralph task update <TASK_ID>` once per task immediately before the supervisor marks the task as `doing` and starts execution.\n\nDefault: false (opt-in).",
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "webhook": {
+          "description": "Webhook configuration for HTTP task event notifications.",
+          "default": {
+            "enabled": null,
+            "events": null,
+            "retry_backoff_ms": null,
+            "retry_count": null,
+            "secret": null,
+            "timeout_secs": null,
+            "url": null
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/WebhookConfig"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "AutoArchiveBehavior": {
+      "description": "Behavior for auto-archiving terminal tasks (Done/Rejected) when set via TUI.",
+      "oneOf": [
+        {
+          "description": "Never auto-archive (current behavior).",
+          "type": "string",
+          "enum": [
+            "never"
+          ]
+        },
+        {
+          "description": "Ask before archiving.",
+          "type": "string",
+          "enum": [
+            "prompt"
+          ]
+        },
+        {
+          "description": "Archive immediately without prompt.",
+          "type": "string",
+          "enum": [
+            "always"
+          ]
+        }
+      ]
+    },
+    "ClaudePermissionMode": {
+      "type": "string",
+      "enum": [
+        "accept_edits",
+        "bypass_permissions"
+      ]
+    },
+    "ConflictPolicy": {
+      "type": "string",
+      "enum": [
+        "auto_resolve",
+        "retry_later",
+        "reject"
+      ]
+    },
+    "GitRevertMode": {
+      "type": "string",
+      "enum": [
+        "ask",
+        "enabled",
+        "disabled"
+      ]
+    },
+    "MergeRunnerConfig": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Model"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reasoning_effort": {
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ReasoningEffort"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "runner": {
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Runner"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "Model": {
+      "type": "string"
+    },
+    "NotificationConfig": {
+      "description": "Desktop notification configuration.",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Enable desktop notifications on task completion (default: true). This is the legacy/compatibility field; prefer `notify_on_complete`.",
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "notify_on_complete": {
+          "description": "Enable desktop notifications on task completion (default: true).",
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "notify_on_fail": {
+          "description": "Enable desktop notifications on task failure (default: true).",
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "notify_on_loop_complete": {
+          "description": "Enable desktop notifications when loop mode completes (default: true).",
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "sound_enabled": {
+          "description": "Enable sound alerts with notifications (default: false).",
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "sound_path": {
+          "description": "Custom sound file path (platform-specific format). If not set, uses platform default sounds.",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "suppress_when_active": {
+          "description": "Suppress notifications when TUI is active (default: true).",
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "timeout_ms": {
+          "description": "Notification timeout in milliseconds (default: 8000).",
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "maximum": 60000.0,
+          "minimum": 1000.0
+        }
+      },
+      "additionalProperties": false
+    },
+    "ParallelConfig": {
+      "type": "object",
+      "properties": {
+        "auto_merge": {
+          "description": "Automatically merge PRs when eligible.",
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "auto_pr": {
+          "description": "Automatically create PRs for completed tasks.",
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "branch_prefix": {
+          "description": "Branch name prefix for parallel workers (e.g., \"ralph/\").",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "conflict_policy": {
+          "description": "Policy for handling merge conflicts.",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ConflictPolicy"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "delete_branch_on_merge": {
+          "description": "Delete branches after merge.",
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "draft_on_failure": {
+          "description": "Create draft PRs when a worker fails.",
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "merge_method": {
+          "description": "Merge method to use for PRs.",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ParallelMergeMethod"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "merge_retries": {
+          "description": "Number of merge retries before giving up.",
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint8",
+          "minimum": 1.0
+        },
+        "merge_runner": {
+          "description": "Runner overrides for merge conflict resolution.",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/MergeRunnerConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "merge_when": {
+          "description": "When to merge PRs (as created or after all tasks complete).",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ParallelMergeWhen"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "workers": {
+          "description": "Number of workers to run concurrently when parallel mode is enabled.",
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint8",
+          "minimum": 2.0
+        },
+        "worktree_root": {
+          "description": "Root directory for parallel worktrees (relative to repo root if not absolute).",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "ParallelMergeMethod": {
+      "type": "string",
+      "enum": [
+        "squash",
+        "merge",
+        "rebase"
+      ]
+    },
+    "ParallelMergeWhen": {
+      "type": "string",
+      "enum": [
+        "as_created",
+        "after_all"
+      ]
+    },
+    "PhaseOverrideConfig": {
+      "description": "Per-phase configuration overrides for runner, model, and reasoning effort.\n\nAll fields are optional to support leaf-wise merging: - `Some(value)` overrides the parent config - `None` means \"inherit from parent\"",
+      "type": "object",
+      "properties": {
+        "model": {
+          "description": "Model to use for this phase (overrides global agent.model)",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Model"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reasoning_effort": {
+          "description": "Reasoning effort for this phase (overrides global agent.reasoning_effort)",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ReasoningEffort"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "runner": {
+          "description": "Runner to use for this phase (overrides global agent.runner)",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Runner"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "PhaseOverrides": {
+      "description": "Phase overrides container for Phase 1/2/3 execution.\n\nPer-phase configuration for Phase 1/2/3 execution.\n\nInvariants/assumptions: - Overrides are defined per phase only; there is no shared `defaults` layer inside `agent.phase_overrides`. Use global `agent.runner` / `agent.model` / `agent.reasoning_effort` for shared defaults. - Merging is leaf-wise: `Some(value)` overrides, `None` inherits.",
+      "type": "object",
+      "properties": {
+        "phase1": {
+          "description": "Phase 1 specific overrides",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/PhaseOverrideConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "phase2": {
+          "description": "Phase 2 specific overrides",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/PhaseOverrideConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "phase3": {
+          "description": "Phase 3 specific overrides",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/PhaseOverrideConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "ProjectType": {
+      "type": "string",
+      "enum": [
+        "code",
+        "docs"
+      ]
+    },
+    "QueueConfig": {
+      "type": "object",
+      "properties": {
+        "done_file": {
+          "description": "Path to the JSON done archive file, relative to repo root.",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "file": {
+          "description": "Path to the JSON queue file, relative to repo root.",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id_prefix": {
+          "description": "ID prefix (default: \"RQ\").",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id_width": {
+          "description": "Zero pad width for the numeric suffix (default: 4 -> RQ-0001).",
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint8",
+          "minimum": 0.0
+        },
+        "max_dependency_depth": {
+          "description": "Maximum allowed dependency chain depth before warning (default: 10).",
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint8",
+          "maximum": 100.0,
+          "minimum": 1.0
+        },
+        "size_warning_threshold_kb": {
+          "description": "Warning threshold for queue file size in KB (default: 500).",
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "maximum": 10000.0,
+          "minimum": 100.0
+        },
+        "task_count_warning_threshold": {
+          "description": "Warning threshold for number of tasks in queue (default: 500).",
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "maximum": 5000.0,
+          "minimum": 50.0
+        }
+      },
+      "additionalProperties": false
+    },
+    "ReasoningEffort": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "xhigh"
+      ]
+    },
+    "Runner": {
+      "type": "string",
+      "enum": [
+        "codex",
+        "opencode",
+        "gemini",
+        "cursor",
+        "claude",
+        "kimi",
+        "pi"
+      ]
+    },
+    "RunnerApprovalMode": {
+      "oneOf": [
+        {
+          "description": "Do not apply any approval flags; runner defaults apply.",
+          "type": "string",
+          "enum": [
+            "default"
+          ]
+        },
+        {
+          "description": "Attempt to auto-approve edits but not all tool actions (runner-specific).",
+          "type": "string",
+          "enum": [
+            "auto_edits"
+          ]
+        },
+        {
+          "description": "Bypass approvals / run headless (runner-specific).",
+          "type": "string",
+          "enum": [
+            "yolo"
+          ]
+        },
+        {
+          "description": "Strict safety mode. Warning: some runners may become interactive and hang.",
+          "type": "string",
+          "enum": [
+            "safe"
+          ]
+        }
+      ]
+    },
+    "RunnerCliConfigRoot": {
+      "type": "object",
+      "properties": {
+        "defaults": {
+          "description": "Default normalized runner CLI options applied to all runners (unless overridden).",
+          "default": {
+            "approval_mode": null,
+            "output_format": null,
+            "plan_mode": null,
+            "sandbox": null,
+            "unsupported_option_policy": null,
+            "verbosity": null
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/RunnerCliOptionsPatch"
+            }
+          ]
+        },
+        "runners": {
+          "description": "Optional per-runner overrides, merged leaf-wise over `defaults`.",
+          "default": {},
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/RunnerCliOptionsPatch"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "RunnerCliOptionsPatch": {
+      "type": "object",
+      "properties": {
+        "approval_mode": {
+          "description": "Desired approval/permission behavior.",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RunnerApprovalMode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "output_format": {
+          "description": "Desired output format for runner execution.",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RunnerOutputFormat"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "plan_mode": {
+          "description": "Desired plan/read-only behavior (when supported by the runner).",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RunnerPlanMode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sandbox": {
+          "description": "Desired sandbox behavior (when supported by the runner).",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RunnerSandboxMode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unsupported_option_policy": {
+          "description": "Policy for unsupported options (warn/error/ignore).",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/UnsupportedOptionPolicy"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "verbosity": {
+          "description": "Desired verbosity (when supported by the runner).",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RunnerVerbosity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "RunnerOutputFormat": {
+      "oneOf": [
+        {
+          "description": "Newline-delimited JSON objects (required for Ralph's streaming parser).",
+          "type": "string",
+          "enum": [
+            "stream_json"
+          ]
+        },
+        {
+          "description": "JSON output (may not be streaming; currently treated as unsupported by Ralph execution).",
+          "type": "string",
+          "enum": [
+            "json"
+          ]
+        },
+        {
+          "description": "Plain text output (currently treated as unsupported by Ralph execution).",
+          "type": "string",
+          "enum": [
+            "text"
+          ]
+        }
+      ]
+    },
+    "RunnerPlanMode": {
+      "type": "string",
+      "enum": [
+        "default",
+        "enabled",
+        "disabled"
+      ]
+    },
+    "RunnerSandboxMode": {
+      "type": "string",
+      "enum": [
+        "default",
+        "enabled",
+        "disabled"
+      ]
+    },
+    "RunnerVerbosity": {
+      "type": "string",
+      "enum": [
+        "quiet",
+        "normal",
+        "verbose"
+      ]
+    },
+    "ScanPromptVersion": {
+      "description": "Scan prompt version to use for scan operations.",
+      "oneOf": [
+        {
+          "description": "Version 1: Original rule-based scan prompts with fixed minimum task counts.",
+          "type": "string",
+          "enum": [
+            "v1"
+          ]
+        },
+        {
+          "description": "Version 2: Rubric-based scan prompts with quality-focused STOP CONDITION (default).",
+          "type": "string",
+          "enum": [
+            "v2"
+          ]
+        }
+      ]
+    },
+    "TuiConfig": {
+      "description": "TUI-specific configuration.",
+      "type": "object",
+      "properties": {
+        "auto_archive_terminal": {
+          "description": "Auto-archive behavior for terminal tasks (Done/Rejected) when set via TUI.",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/AutoArchiveBehavior"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "celebrations_enabled": {
+          "description": "Enable celebration animations on task completion (default: true).",
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "stats_enabled": {
+          "description": "Enable productivity stats tracking (default: true).",
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "UnsupportedOptionPolicy": {
+      "type": "string",
+      "enum": [
+        "ignore",
+        "warn",
+        "error"
+      ]
+    },
+    "WebhookConfig": {
+      "description": "Webhook configuration for HTTP task event notifications.",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Enable webhook notifications (default: false).",
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "events": {
+          "description": "Events to subscribe to (default: all). Supported: task_created, task_started, task_completed, task_failed, task_status_changed",
+          "default": null,
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "retry_backoff_ms": {
+          "description": "Retry backoff base in milliseconds (default: 1000, max: 30000).",
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "maximum": 30000.0,
+          "minimum": 100.0
+        },
+        "retry_count": {
+          "description": "Number of retry attempts for failed deliveries (default: 3, max: 10).",
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "maximum": 10.0,
+          "minimum": 0.0
+        },
+        "secret": {
+          "description": "Secret key for HMAC-SHA256 signature generation. When set, webhooks include an X-Ralph-Signature header.",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "timeout_secs": {
+          "description": "Request timeout in seconds (default: 30, max: 300).",
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "maximum": 300.0,
+          "minimum": 1.0
+        },
+        "url": {
+          "description": "Webhook endpoint URL (required when enabled).",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

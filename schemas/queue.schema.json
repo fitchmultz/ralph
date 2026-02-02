@@ -1,0 +1,457 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "QueueFile",
+  "type": "object",
+  "required": [
+    "version"
+  ],
+  "properties": {
+    "tasks": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Task"
+      }
+    },
+    "version": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "Model": {
+      "type": "string"
+    },
+    "ReasoningEffort": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "xhigh"
+      ]
+    },
+    "Runner": {
+      "type": "string",
+      "enum": [
+        "codex",
+        "opencode",
+        "gemini",
+        "cursor",
+        "claude",
+        "kimi",
+        "pi"
+      ]
+    },
+    "RunnerApprovalMode": {
+      "oneOf": [
+        {
+          "description": "Do not apply any approval flags; runner defaults apply.",
+          "type": "string",
+          "enum": [
+            "default"
+          ]
+        },
+        {
+          "description": "Attempt to auto-approve edits but not all tool actions (runner-specific).",
+          "type": "string",
+          "enum": [
+            "auto_edits"
+          ]
+        },
+        {
+          "description": "Bypass approvals / run headless (runner-specific).",
+          "type": "string",
+          "enum": [
+            "yolo"
+          ]
+        },
+        {
+          "description": "Strict safety mode. Warning: some runners may become interactive and hang.",
+          "type": "string",
+          "enum": [
+            "safe"
+          ]
+        }
+      ]
+    },
+    "RunnerCliOptionsPatch": {
+      "type": "object",
+      "properties": {
+        "approval_mode": {
+          "description": "Desired approval/permission behavior.",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RunnerApprovalMode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "output_format": {
+          "description": "Desired output format for runner execution.",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RunnerOutputFormat"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "plan_mode": {
+          "description": "Desired plan/read-only behavior (when supported by the runner).",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RunnerPlanMode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sandbox": {
+          "description": "Desired sandbox behavior (when supported by the runner).",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RunnerSandboxMode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unsupported_option_policy": {
+          "description": "Policy for unsupported options (warn/error/ignore).",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/UnsupportedOptionPolicy"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "verbosity": {
+          "description": "Desired verbosity (when supported by the runner).",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RunnerVerbosity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "RunnerOutputFormat": {
+      "oneOf": [
+        {
+          "description": "Newline-delimited JSON objects (required for Ralph's streaming parser).",
+          "type": "string",
+          "enum": [
+            "stream_json"
+          ]
+        },
+        {
+          "description": "JSON output (may not be streaming; currently treated as unsupported by Ralph execution).",
+          "type": "string",
+          "enum": [
+            "json"
+          ]
+        },
+        {
+          "description": "Plain text output (currently treated as unsupported by Ralph execution).",
+          "type": "string",
+          "enum": [
+            "text"
+          ]
+        }
+      ]
+    },
+    "RunnerPlanMode": {
+      "type": "string",
+      "enum": [
+        "default",
+        "enabled",
+        "disabled"
+      ]
+    },
+    "RunnerSandboxMode": {
+      "type": "string",
+      "enum": [
+        "default",
+        "enabled",
+        "disabled"
+      ]
+    },
+    "RunnerVerbosity": {
+      "type": "string",
+      "enum": [
+        "quiet",
+        "normal",
+        "verbose"
+      ]
+    },
+    "Task": {
+      "type": "object",
+      "required": [
+        "created_at",
+        "id",
+        "title",
+        "updated_at"
+      ],
+      "properties": {
+        "agent": {
+          "description": "Optional per-task agent override (runner/model/model_effort/iterations).",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/TaskAgent"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "blocks": {
+          "description": "Task IDs that this task blocks (must be Done/Rejected before blocked tasks can run). Semantically different from depends_on: blocks is \"I prevent X\" vs depends_on \"I need X\".",
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "completed_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "created_at": {
+          "description": "RFC3339 UTC timestamps as strings to keep the contract tool-agnostic.",
+          "type": "string"
+        },
+        "custom_fields": {
+          "description": "Custom user-defined fields (key-value pairs for extensibility).",
+          "default": {},
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "depends_on": {
+          "description": "Task IDs that this task depends on (must be Done or Rejected before this task can run).",
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "duplicates": {
+          "description": "Task ID that this task duplicates (if any). Singular reference, not a list.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "evidence": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "id": {
+          "type": "string"
+        },
+        "notes": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "parent_id": {
+          "description": "Parent task ID if this is a subtask (child-to-parent reference).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "plan": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "priority": {
+          "default": "medium",
+          "allOf": [
+            {
+              "$ref": "#/definitions/TaskPriority"
+            }
+          ]
+        },
+        "relates_to": {
+          "description": "Task IDs that this task relates to (loose coupling, no execution constraint). Bidirectional awareness but no execution constraint.",
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "request": {
+          "description": "Original human request that created the task (Task Builder / Scan).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "scheduled_start": {
+          "description": "RFC3339 timestamp when the task should become runnable (optional scheduling).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "scope": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "status": {
+          "default": "todo",
+          "allOf": [
+            {
+              "$ref": "#/definitions/TaskStatus"
+            }
+          ]
+        },
+        "tags": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "title": {
+          "type": "string"
+        },
+        "updated_at": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "TaskAgent": {
+      "type": "object",
+      "properties": {
+        "followup_reasoning_effort": {
+          "description": "Reasoning effort override for follow-up iterations (iterations > 1).",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ReasoningEffort"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "iterations": {
+          "description": "Number of iterations to run for this task (overrides config).",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint8",
+          "minimum": 1.0
+        },
+        "model": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Model"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "model_effort": {
+          "description": "Per-task reasoning effort override for Codex models. Default falls back to config.",
+          "default": "default",
+          "type": "string",
+          "enum": [
+            "default",
+            "low",
+            "medium",
+            "high",
+            "xhigh"
+          ]
+        },
+        "runner": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Runner"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "runner_cli": {
+          "description": "Optional normalized runner CLI overrides for this task.\n\nThis is intended to express runner behavior intent (output/approval/sandbox/etc) without embedding runner-specific flag syntax into the queue.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RunnerCliOptionsPatch"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "TaskPriority": {
+      "type": "string",
+      "enum": [
+        "critical",
+        "high",
+        "medium",
+        "low"
+      ]
+    },
+    "TaskStatus": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "todo",
+        "doing",
+        "done",
+        "rejected"
+      ]
+    },
+    "UnsupportedOptionPolicy": {
+      "type": "string",
+      "enum": [
+        "ignore",
+        "warn",
+        "error"
+      ]
+    }
+  }
+}

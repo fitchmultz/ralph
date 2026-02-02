@@ -1,0 +1,350 @@
+//! Output formatting helpers for Ralph CLI and TUI surfaces.
+
+use crate::contracts::{Task, TaskPriority, TaskStatus};
+use colored::Colorize;
+
+pub fn truncate_chars(value: &str, max_chars: usize) -> String {
+    if max_chars == 0 {
+        return String::new();
+    }
+    let mut chars = value.chars();
+    let mut out = String::new();
+    for _ in 0..max_chars {
+        match chars.next() {
+            Some(ch) => out.push(ch),
+            None => return out,
+        }
+    }
+    if chars.next().is_none() {
+        return out;
+    }
+    if max_chars <= 3 {
+        return out;
+    }
+    out.truncate(max_chars - 3);
+    out.push_str("...");
+    out
+}
+
+pub fn tail_lines(text: &str, max_lines: usize, max_chars: usize) -> Vec<String> {
+    if max_lines == 0 || text.trim().is_empty() {
+        return Vec::new();
+    }
+    let mut lines: Vec<&str> = text
+        .lines()
+        .map(|l| l.trim_end())
+        .filter(|l| !l.trim().is_empty())
+        .collect();
+
+    if lines.len() > max_lines {
+        lines = lines[lines.len() - max_lines..].to_vec();
+    }
+
+    lines
+        .into_iter()
+        .map(|line| truncate_chars(line.trim(), max_chars))
+        .collect()
+}
+
+pub fn style_status(status: TaskStatus) -> colored::ColoredString {
+    match status {
+        TaskStatus::Draft => "draft".dimmed(),
+        TaskStatus::Todo => "todo".blue(),
+        TaskStatus::Doing => "doing".yellow().bold(),
+        TaskStatus::Done => "done".green(),
+        TaskStatus::Rejected => "rejected".red(),
+    }
+}
+
+pub fn style_priority(priority: TaskPriority) -> colored::ColoredString {
+    match priority {
+        TaskPriority::Critical => "critical".red().bold(),
+        TaskPriority::High => "high".yellow().bold(),
+        TaskPriority::Medium => "medium".blue(),
+        TaskPriority::Low => "low".dimmed(),
+    }
+}
+
+pub fn join_csv_trimmed(values: &[String]) -> String {
+    values
+        .iter()
+        .map(|v| v.trim())
+        .filter(|v| !v.is_empty())
+        .collect::<Vec<&str>>()
+        .join(",")
+}
+
+pub fn format_task_id(id: &str) -> String {
+    id.trim().to_string()
+}
+
+pub fn format_task_id_title(id: &str, title: &str) -> String {
+    format!("{}\t{}", id.trim(), title.trim())
+}
+
+pub fn format_task_commit_message(task_id: &str, title: &str) -> String {
+    let mut raw = format!("{}: {}", task_id.trim(), title.trim());
+    raw = raw.replace(['\n', '\r', '\t'], " ");
+    let squashed = raw.split_whitespace().collect::<Vec<&str>>().join(" ");
+    truncate_chars(&squashed, 100)
+}
+
+pub fn format_task_compact(task: &Task) -> String {
+    format!(
+        "{}\t{}\t{}\t{}",
+        task.id.trim(),
+        style_status(task.status),
+        style_priority(task.priority),
+        task.title.trim()
+    )
+}
+
+/// Format custom fields as "key=value" pairs, comma-separated and sorted.
+///
+/// # Arguments
+/// * `values` - The custom fields HashMap
+/// * `empty_placeholder` - String to return when HashMap is empty (e.g., "(empty)" or "")
+///
+/// # Returns
+/// Comma-separated "key=value" pairs, or the empty_placeholder if no fields exist.
+pub fn format_custom_fields(
+    values: &std::collections::HashMap<String, String>,
+    empty_placeholder: &str,
+) -> String {
+    if values.is_empty() {
+        return empty_placeholder.to_string();
+    }
+    let mut fields: Vec<String> = values.iter().map(|(k, v)| format!("{}={}", k, v)).collect();
+    fields.sort();
+    fields.join(",")
+}
+
+pub fn format_task_detailed(task: &Task) -> String {
+    let tags = join_csv_trimmed(&task.tags);
+    let scope = join_csv_trimmed(&task.scope);
+    let updated_at = task.updated_at.as_deref().unwrap_or("").trim();
+    let completed_at = task.completed_at.as_deref().unwrap_or("").trim();
+    let custom_fields_str = format_custom_fields(&task.custom_fields, "");
+
+    format!(
+        "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+        task.id.trim(),
+        style_status(task.status),
+        style_priority(task.priority),
+        task.title.trim(),
+        tags,
+        scope,
+        updated_at,
+        completed_at,
+        custom_fields_str
+    )
+}
+
+pub fn log_success(msg: &str) {
+    log::info!("{} {}", "OK".green().bold(), msg);
+}
+
+pub fn log_warn(msg: &str) {
+    log::warn!("{} {}", "WARN".yellow().bold(), msg);
+}
+
+pub fn log_error(msg: &str) {
+    log::error!("{} {}", "FAIL".red().bold(), msg);
+}
+
+// Runner output styling functions
+
+/// Format a reasoning/thinking block with color
+pub fn format_reasoning(text: &str) -> String {
+    crate::output::theme::cli::format_reasoning(text)
+}
+
+/// Format a tool call with color
+pub fn format_tool_call(name: &str, details: Option<&str>) -> String {
+    crate::output::theme::cli::format_tool_call(name, details)
+}
+
+/// Format a command execution with color
+pub fn format_command(name: &str, status: Option<&str>) -> String {
+    crate::output::theme::cli::format_command(name, status)
+}
+
+/// Format a permission denied message with color
+pub fn format_permission_denied(tool_name: &str) -> String {
+    crate::output::theme::cli::format_permission_denied(tool_name)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn truncate_chars_adds_ellipsis() {
+        let value = "abcdefghijklmnopqrstuvwxyz";
+        let truncated = truncate_chars(value, 10);
+        assert_eq!(truncated, "abcdefg...");
+    }
+
+    #[test]
+    fn truncate_chars_returns_full_when_short() {
+        let value = "hello";
+        let truncated = truncate_chars(value, 10);
+        assert_eq!(truncated, "hello");
+    }
+
+    #[test]
+    fn truncate_chars_empty_when_max_zero() {
+        let value = "hello";
+        let truncated = truncate_chars(value, 0);
+        assert_eq!(truncated, "");
+    }
+
+    #[test]
+    fn truncate_chars_no_ellipsis_for_small_max() {
+        let value = "hello";
+        let truncated = truncate_chars(value, 2);
+        assert_eq!(truncated, "he");
+    }
+
+    #[test]
+    fn tail_lines_returns_empty_for_zero_max() {
+        let text = "line1\nline2\nline3";
+        let tail = tail_lines(text, 0, 100);
+        assert!(tail.is_empty());
+    }
+
+    #[test]
+    fn tail_lines_returns_empty_for_empty_text() {
+        let tail = tail_lines("", 5, 100);
+        assert!(tail.is_empty());
+    }
+
+    #[test]
+    fn tail_lines_filters_empty_lines() {
+        let text = "line1\n\nline2\n\nline3";
+        let tail = tail_lines(text, 10, 100);
+        assert_eq!(tail.len(), 3);
+        assert_eq!(tail, vec!["line1", "line2", "line3"]);
+    }
+
+    #[test]
+    fn tail_lines_takes_last_n() {
+        let text = "line1\nline2\nline3\nline4\nline5";
+        let tail = tail_lines(text, 3, 100);
+        assert_eq!(tail, vec!["line3", "line4", "line5"]);
+    }
+
+    #[test]
+    fn tail_lines_truncates_each_line() {
+        let text = "very long line 1\nvery long line 2";
+        let tail = tail_lines(text, 10, 5);
+        assert_eq!(tail, vec!["ve...", "ve..."]);
+    }
+
+    #[test]
+    fn tail_lines_returns_all_when_fewer_than_max() {
+        let text = "line1\nline2";
+        let tail = tail_lines(text, 10, 100);
+        assert_eq!(tail, vec!["line1", "line2"]);
+    }
+
+    #[test]
+    fn format_task_compact_contains_styled_status() {
+        // We can't easily assert exact ANSI codes without being brittle,
+        // but we can check the plain text parts are there.
+        let task = Task {
+            id: "RQ-123".into(),
+            status: TaskStatus::Todo,
+            title: "My Task".into(),
+            ..Default::default()
+        };
+        let out = format_task_compact(&task);
+        assert!(out.contains("RQ-123"));
+        assert!(out.contains("My Task"));
+        assert!(out.contains("todo")); // ANSI codes surround "todo"
+    }
+
+    #[test]
+    fn format_task_detailed_formatting() {
+        let task = Task {
+            id: "RQ-123".into(),
+            status: TaskStatus::Done,
+            title: "My Task".into(),
+            tags: vec!["t1".into(), "t2".into()],
+            scope: vec!["s1".into()],
+            completed_at: Some("2026-01-01".into()),
+            scheduled_start: None,
+            ..Default::default()
+        };
+        let out = format_task_detailed(&task);
+        assert!(out.contains("RQ-123"));
+        assert!(out.contains("done"));
+        assert!(out.contains("t1,t2"));
+        assert!(out.contains("s1"));
+        assert!(out.contains("2026-01-01"));
+    }
+
+    #[test]
+    fn format_task_compact_includes_priority() {
+        use crate::contracts::TaskPriority;
+        let task = Task {
+            id: "RQ-123".into(),
+            status: TaskStatus::Todo,
+            priority: TaskPriority::High,
+            title: "My Task".into(),
+            ..Default::default()
+        };
+        let out = format_task_compact(&task);
+        assert!(out.contains("RQ-123"));
+        assert!(out.contains("high")); // Priority is shown
+        assert!(out.contains("todo"));
+        assert!(out.contains("My Task"));
+    }
+
+    #[test]
+    fn style_priority_returns_correct_styles() {
+        use crate::contracts::TaskPriority;
+        let critical = style_priority(TaskPriority::Critical);
+        let high = style_priority(TaskPriority::High);
+        let medium = style_priority(TaskPriority::Medium);
+        let low = style_priority(TaskPriority::Low);
+
+        // Check that each contains the expected text (we can't easily test ANSI codes)
+        assert!(critical.to_string().contains("critical"));
+        assert!(high.to_string().contains("high"));
+        assert!(medium.to_string().contains("medium"));
+        assert!(low.to_string().contains("low"));
+    }
+
+    #[test]
+    fn format_custom_fields_with_placeholder_returns_placeholder_when_empty() {
+        let fields = std::collections::HashMap::new();
+        assert_eq!(format_custom_fields(&fields, "(empty)"), "(empty)");
+    }
+
+    #[test]
+    fn format_custom_fields_with_empty_string_returns_empty_when_empty() {
+        let fields = std::collections::HashMap::new();
+        assert_eq!(format_custom_fields(&fields, ""), "");
+    }
+
+    #[test]
+    fn format_custom_fields_sorts_and_formats_key_value_pairs() {
+        let mut fields = std::collections::HashMap::new();
+        fields.insert("zebra".to_string(), "last".to_string());
+        fields.insert("apple".to_string(), "first".to_string());
+        fields.insert("banana".to_string(), "middle".to_string());
+
+        let result = format_custom_fields(&fields, "(empty)");
+        assert_eq!(result, "apple=first,banana=middle,zebra=last");
+    }
+
+    #[test]
+    fn format_custom_fields_handles_single_field() {
+        let mut fields = std::collections::HashMap::new();
+        fields.insert("key".to_string(), "value".to_string());
+
+        let result = format_custom_fields(&fields, "");
+        assert_eq!(result, "key=value");
+    }
+}
