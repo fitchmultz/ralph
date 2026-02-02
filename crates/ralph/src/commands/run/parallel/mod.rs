@@ -587,6 +587,24 @@ fn spawn_worker(
     overrides: &AgentOverrides,
     force: bool,
 ) -> Result<Child> {
+    let (mut cmd, args) = build_worker_command(worktree_path, task_id, overrides, force)?;
+    log::debug!(
+        "Spawning parallel worker {} in {} with args: {:?}",
+        task_id,
+        worktree_path.display(),
+        args
+    );
+    cmd.args(args);
+    let child = cmd.spawn().context("spawn parallel worker")?;
+    Ok(child)
+}
+
+fn build_worker_command(
+    worktree_path: &Path,
+    task_id: &str,
+    overrides: &AgentOverrides,
+    force: bool,
+) -> Result<(Command, Vec<String>)> {
     let exe = std::env::current_exe().context("resolve current executable")?;
     let mut cmd = Command::new(exe);
     cmd.current_dir(worktree_path);
@@ -607,9 +625,7 @@ fn spawn_worker(
 
     args.extend(build_override_args(overrides));
 
-    cmd.args(args);
-    let child = cmd.spawn().context("spawn parallel worker")?;
-    Ok(child)
+    Ok((cmd, args))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -747,11 +763,12 @@ fn sync_prompts_dir(source: &Path, target: &Path) -> Result<()> {
         let entry = entry.with_context(|| format!("read prompts entry in {}", source.display()))?;
         let path = entry.path();
         if entry.file_type().map(|t| t.is_file()).unwrap_or(false)
-            && let Some(name) = path.file_name() {
-                let dest = target.join(name);
-                fs::copy(&path, &dest)
-                    .with_context(|| format!("sync {} to {}", path.display(), dest.display()))?;
-            }
+            && let Some(name) = path.file_name()
+        {
+            let dest = target.join(name);
+            fs::copy(&path, &dest)
+                .with_context(|| format!("sync {} to {}", path.display(), dest.display()))?;
+        }
     }
     Ok(())
 }
@@ -1057,6 +1074,7 @@ mod tests {
         Runner, RunnerApprovalMode, RunnerOutputFormat, RunnerPlanMode, RunnerSandboxMode,
         RunnerVerbosity, UnsupportedOptionPolicy,
     };
+    use std::ffi::OsStr;
     use std::path::PathBuf;
     use tempfile::TempDir;
 
@@ -1104,6 +1122,40 @@ mod tests {
         .map(String::from)
         .collect::<Vec<_>>();
         assert_eq!(args, expected);
+    }
+
+    #[test]
+    fn build_worker_command_sets_cwd_and_args() -> Result<()> {
+        let temp = TempDir::new()?;
+        let worktree_path = temp.path().join("worktree");
+        fs::create_dir_all(&worktree_path)?;
+
+        let overrides = AgentOverrides::default();
+        let (cmd, args) = build_worker_command(&worktree_path, "RQ-1234", &overrides, true)?;
+
+        assert_eq!(cmd.get_current_dir(), Some(worktree_path.as_path()));
+
+        let mut pwd_seen = false;
+        for (key, value) in cmd.get_envs() {
+            if key == OsStr::new("PWD") {
+                pwd_seen = true;
+                assert_eq!(value, Some(worktree_path.as_os_str()));
+            }
+        }
+        assert!(pwd_seen, "PWD env should be set for worktree execution");
+
+        assert!(args.contains(&"--force".to_string()));
+        assert!(args.contains(&"--no-progress".to_string()));
+        assert!(args.contains(&"run".to_string()));
+        assert!(args.contains(&"one".to_string()));
+        assert!(args.contains(&"--parallel-worker".to_string()));
+        assert!(args.contains(&"--non-interactive".to_string()));
+        assert!(args.contains(&"--git-commit-push-on".to_string()));
+
+        let id_pos = args.iter().position(|arg| arg == "--id").expect("--id");
+        assert_eq!(args.get(id_pos + 1), Some(&"RQ-1234".to_string()));
+
+        Ok(())
     }
 
     #[test]

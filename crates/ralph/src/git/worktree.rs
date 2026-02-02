@@ -72,16 +72,35 @@ pub(crate) fn create_worktree_at(
     if let Some(existing_path) = existing_worktree_for_branch(repo_root, &branch)?
         && existing_path.exists()
     {
-        log::info!(
-            "Reusing existing worktree for {} at {}",
-            branch,
-            existing_path.display()
-        );
-        return Ok(WorktreeSpec {
-            task_id: trimmed_id.to_string(),
-            path: existing_path,
-            branch,
-        });
+        if !existing_path.starts_with(worktree_root) {
+            log::warn!(
+                "Existing worktree for {} at {} is outside configured root {}; removing.",
+                branch,
+                existing_path.display(),
+                worktree_root.display()
+            );
+            remove_worktree(
+                repo_root,
+                &WorktreeSpec {
+                    task_id: trimmed_id.to_string(),
+                    path: existing_path.clone(),
+                    branch: branch.clone(),
+                },
+                true,
+            )?;
+        } else {
+            ensure_clean_worktree(&existing_path, base_branch)?;
+            log::info!(
+                "Reusing existing worktree for {} at {}",
+                branch,
+                existing_path.display()
+            );
+            return Ok(WorktreeSpec {
+                task_id: trimmed_id.to_string(),
+                path: existing_path,
+                branch,
+            });
+        }
     }
 
     if path.exists() {
@@ -93,6 +112,7 @@ pub(crate) fn create_worktree_at(
     }
 
     let output = if branch_exists(repo_root, &branch)? {
+        reset_branch_to_base(repo_root, &branch, base_branch)?;
         git_base_command(repo_root)
             .arg("worktree")
             .arg("add")
@@ -212,6 +232,45 @@ fn existing_worktree_for_branch(repo_root: &Path, branch: &str) -> Result<Option
     Ok(None)
 }
 
+fn reset_branch_to_base(repo_root: &Path, branch: &str, base_branch: &str) -> Result<()> {
+    let output = git_base_command(repo_root)
+        .arg("branch")
+        .arg("-f")
+        .arg(branch)
+        .arg(base_branch)
+        .output()
+        .with_context(|| format!("run git branch -f in {}", repo_root.display()))?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        bail!("git branch -f failed: {}", stderr.trim());
+    }
+    Ok(())
+}
+
+fn ensure_clean_worktree(worktree_path: &Path, base_branch: &str) -> Result<()> {
+    let output = git_base_command(worktree_path)
+        .arg("reset")
+        .arg("--hard")
+        .arg(base_branch)
+        .output()
+        .with_context(|| format!("run git reset in {}", worktree_path.display()))?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        bail!("git reset --hard failed: {}", stderr.trim());
+    }
+
+    let output = git_base_command(worktree_path)
+        .arg("clean")
+        .arg("-fd")
+        .output()
+        .with_context(|| format!("run git clean in {}", worktree_path.display()))?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        bail!("git clean failed: {}", stderr.trim());
+    }
+    Ok(())
+}
+
 pub(crate) fn remove_worktree(repo_root: &Path, spec: &WorktreeSpec, force: bool) -> Result<()> {
     let mut cmd = git_base_command(repo_root);
     cmd.arg("worktree").arg("remove");
@@ -315,10 +374,12 @@ mod tests {
         let root = temp.path().join(".worktrees");
 
         let first = create_worktree_at(temp.path(), &root, "RQ-0001", &base_branch, "ralph/")?;
+        std::fs::write(first.path.join("dirty.txt"), "dirty")?;
         let second = create_worktree_at(temp.path(), &root, "RQ-0001", &base_branch, "ralph/")?;
 
         assert_eq!(first.path, second.path);
         assert!(second.path.exists());
+        assert!(!second.path.join("dirty.txt").exists());
 
         remove_worktree(temp.path(), &first, true)?;
         Ok(())
