@@ -32,6 +32,7 @@
           "timeout_ms": 8000
         },
         "opencode_bin": "opencode",
+        "phase_overrides": null,
         "phases": 3,
         "pi_bin": "pi",
         "reasoning_effort": "medium",
@@ -347,6 +348,7 @@
         },
         "phase_overrides": {
           "description": "Per-phase overrides for runner, model, and reasoning effort.\n\nAllows specifying different settings for each phase (1, 2, 3). Phase-specific values override the global agent settings.",
+          "default": null,
           "anyOf": [
             {
               "$ref": "#/definitions/PhaseOverrides"

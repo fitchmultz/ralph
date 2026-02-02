@@ -588,6 +588,7 @@ fn spawn_worker(
     let exe = std::env::current_exe().context("resolve current executable")?;
     let mut cmd = Command::new(exe);
     cmd.current_dir(worktree_path);
+    cmd.env("PWD", worktree_path);
 
     let mut args: Vec<String> = Vec::new();
     if force {

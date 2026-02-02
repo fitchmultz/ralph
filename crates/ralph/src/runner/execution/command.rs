@@ -41,6 +41,7 @@ impl RunnerCommandBuilder {
     pub fn new(bin: &str, work_dir: &Path) -> Self {
         let mut cmd = Command::new(bin);
         cmd.current_dir(work_dir);
+        cmd.env("PWD", work_dir);
         ensure_self_on_path(&mut cmd);
 
         Self {
@@ -242,5 +243,22 @@ mod tests {
             .build();
         let args = cmd.get_args().collect::<Vec<_>>();
         assert!(args.is_empty());
+    }
+
+    #[test]
+    fn builder_sets_pwd_env() {
+        let work_dir = Path::new("/tmp/ralph-worktree");
+        let (cmd, _payload, _guards) = RunnerCommandBuilder::new("echo", work_dir).build();
+        let pwd = cmd
+            .get_envs()
+            .find_map(|(key, value)| {
+                if key == "PWD" {
+                    value.map(|value| value.to_string_lossy().to_string())
+                } else {
+                    None
+                }
+            })
+            .expect("PWD env missing");
+        assert_eq!(pwd, work_dir.to_string_lossy());
     }
 }

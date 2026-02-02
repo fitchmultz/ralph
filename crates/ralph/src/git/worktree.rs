@@ -70,18 +70,19 @@ pub(crate) fn create_worktree_at(
     }
 
     if let Some(existing_path) = existing_worktree_for_branch(repo_root, &branch)?
-        && existing_path.exists() {
-            log::info!(
-                "Reusing existing worktree for {} at {}",
-                branch,
-                existing_path.display()
-            );
-            return Ok(WorktreeSpec {
-                task_id: trimmed_id.to_string(),
-                path: existing_path,
-                branch,
-            });
-        }
+        && existing_path.exists()
+    {
+        log::info!(
+            "Reusing existing worktree for {} at {}",
+            branch,
+            existing_path.display()
+        );
+        return Ok(WorktreeSpec {
+            task_id: trimmed_id.to_string(),
+            path: existing_path,
+            branch,
+        });
+    }
 
     if path.exists() {
         bail!(
@@ -179,9 +180,10 @@ fn existing_worktree_for_branch(repo_root: &Path, branch: &str) -> Result<Option
 
     let maybe_match = |path: Option<PathBuf>, branch_name: Option<String>| {
         if let (Some(path), Some(branch_name)) = (path, branch_name)
-            && branch_name == branch {
-                return Some(path);
-            }
+            && branch_name == branch
+        {
+            return Some(path);
+        }
         None
     };
 

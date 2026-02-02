@@ -164,7 +164,6 @@ pub struct AgentConfig {
     ///
     /// Allows specifying different settings for each phase (1, 2, 3).
     /// Phase-specific values override the global agent settings.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub phase_overrides: Option<PhaseOverrides>,
 
     /// Additional instruction files to inject at the top of every prompt sent to runner CLIs.
