@@ -22,6 +22,7 @@ use crate::contracts::{ConflictPolicy, MergeRunnerConfig, ParallelMergeMethod, P
 use crate::{git, promptflow, queue, runutil, signal, timeutil};
 use anyhow::{Context, Result, bail};
 use std::collections::{HashMap, HashSet};
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -254,6 +255,7 @@ pub(crate) fn run_loop_parallel(
                 &base_branch,
                 &settings.branch_prefix,
             )?;
+            sync_ralph_state(&resolved.repo_root, &worktree.path)?;
 
             let child = spawn_worker(
                 resolved,
@@ -706,6 +708,54 @@ fn handle_worker_failure(
     Ok(())
 }
 
+fn sync_ralph_state(repo_root: &Path, worktree_path: &Path) -> Result<()> {
+    let source = repo_root.join(".ralph");
+    let target = worktree_path.join(".ralph");
+    fs::create_dir_all(&target)
+        .with_context(|| format!("create worktree ralph dir {}", target.display()))?;
+
+    sync_file_if_exists(&source.join("queue.json"), &target.join("queue.json"))?;
+    sync_file_if_exists(&source.join("done.json"), &target.join("done.json"))?;
+    sync_file_if_exists(&source.join("config.json"), &target.join("config.json"))?;
+    sync_prompts_dir(&source.join("prompts"), &target.join("prompts"))?;
+
+    Ok(())
+}
+
+fn sync_file_if_exists(source: &Path, target: &Path) -> Result<()> {
+    if !source.exists() {
+        return Ok(());
+    }
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("create worktree dir {}", parent.display()))?;
+    }
+    fs::copy(source, target)
+        .with_context(|| format!("sync {} to {}", source.display(), target.display()))?;
+    Ok(())
+}
+
+fn sync_prompts_dir(source: &Path, target: &Path) -> Result<()> {
+    if !source.is_dir() {
+        return Ok(());
+    }
+    fs::create_dir_all(target)
+        .with_context(|| format!("create worktree prompts dir {}", target.display()))?;
+    for entry in
+        fs::read_dir(source).with_context(|| format!("read prompts dir {}", source.display()))?
+    {
+        let entry = entry.with_context(|| format!("read prompts entry in {}", source.display()))?;
+        let path = entry.path();
+        if entry.file_type().map(|t| t.is_file()).unwrap_or(false)
+            && let Some(name) = path.file_name() {
+                let dest = target.join(name);
+                fs::copy(&path, &dest)
+                    .with_context(|| format!("sync {} to {}", path.display(), dest.display()))?;
+            }
+    }
+    Ok(())
+}
+
 fn commit_failure_changes(worktree_path: &Path, task_id: &str) -> Result<bool> {
     let status = git::status_porcelain(worktree_path)?;
     if status.trim().is_empty() {
@@ -1008,6 +1058,7 @@ mod tests {
         RunnerVerbosity, UnsupportedOptionPolicy,
     };
     use std::path::PathBuf;
+    use tempfile::TempDir;
 
     #[test]
     fn build_override_args_emits_expected_flags() {
@@ -1269,6 +1320,39 @@ mod tests {
             let _ = worker.child.wait();
         }
 
+        Ok(())
+    }
+
+    #[test]
+    fn sync_ralph_state_copies_queue_and_prompts() -> Result<()> {
+        let temp = TempDir::new()?;
+        let repo_root = temp.path().join("repo");
+        let worktree_root = temp.path().join("worktree");
+        fs::create_dir_all(repo_root.join(".ralph/prompts"))?;
+        fs::create_dir_all(&worktree_root)?;
+        fs::write(repo_root.join(".ralph/queue.json"), "{queue}")?;
+        fs::write(repo_root.join(".ralph/done.json"), "{done}")?;
+        fs::write(repo_root.join(".ralph/config.json"), "{config}")?;
+        fs::write(repo_root.join(".ralph/prompts/override.md"), "prompt")?;
+
+        sync_ralph_state(&repo_root, &worktree_root)?;
+
+        assert_eq!(
+            fs::read_to_string(worktree_root.join(".ralph/queue.json"))?,
+            "{queue}"
+        );
+        assert_eq!(
+            fs::read_to_string(worktree_root.join(".ralph/done.json"))?,
+            "{done}"
+        );
+        assert_eq!(
+            fs::read_to_string(worktree_root.join(".ralph/config.json"))?,
+            "{config}"
+        );
+        assert_eq!(
+            fs::read_to_string(worktree_root.join(".ralph/prompts/override.md"))?,
+            "prompt"
+        );
         Ok(())
     }
 }
