@@ -247,7 +247,7 @@ mod tests {
 
     #[test]
     fn builder_sets_pwd_env() {
-        let work_dir = Path::new("/tmp/ralph-worktree");
+        let work_dir = Path::new("/tmp/ralph-workspace");
         let (cmd, _payload, _guards) = RunnerCommandBuilder::new("echo", work_dir).build();
         let pwd = cmd
             .get_envs()

@@ -264,7 +264,7 @@ fn resolve_conflicts(
 fn run_merge_runner_prompt(
     resolved: &config::Resolved,
     merge_runner: &MergeRunnerConfig,
-    worktree_path: &Path,
+    workspace_path: &Path,
     prompt: &str,
 ) -> Result<()> {
     let settings = runner::resolve_agent_settings(
@@ -279,7 +279,7 @@ fn run_merge_runner_prompt(
 
     runner::run_prompt(
         settings.runner,
-        worktree_path,
+        workspace_path,
         bins,
         settings.model.clone(),
         settings.reasoning_effort,

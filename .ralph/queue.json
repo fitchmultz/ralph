@@ -2,49 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0551",
-      "status": "todo",
-      "title": "Sweep worktree references and run CI + parallel smoke test (no compat)",
-      "priority": "medium",
-      "tags": [
-        "parallel",
-        "verification",
-        "ci"
-      ],
-      "scope": [
-        "crates/ralph/src/",
-        "docs/",
-        ".ralph/queue.json"
-      ],
-      "evidence": [
-        "Parallel mode must no longer rely on any worktree helpers or fields",
-        "Completion requires `make ci` and a manual parallel smoke test"
-      ],
-      "plan": [
-        "Search repo for remaining `worktree` references and ensure parallel mode contains none",
-        "Run `make ci` and address any failures",
-        "Run a smoke test: `ralph run loop --parallel 2 --max-tasks 2` in a test repo with `gh` configured"
-      ],
-      "notes": [
-        "Manual smoke test may require a dedicated test repo and GitHub auth",
-        "Breaking change: replace worktree-based parallel isolation; remove legacy worktree_* compatibility."
-      ],
-      "request": "plan: replace parallel worktrees with clone-based workspaces",
-      "created_at": "2026-02-02T14:39:46Z",
-      "updated_at": "2026-02-02T14:39:46Z",
-      "depends_on": [
-        "RQ-0547",
-        "RQ-0548",
-        "RQ-0549",
-        "RQ-0550"
-      ],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "plan_source": "./docs/parallel-plan.md"
-      }
-    },
-    {
       "id": "RQ-0525",
       "status": "todo",
       "title": "Redact webhook URL logging to avoid leaking secrets",

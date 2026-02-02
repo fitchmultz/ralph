@@ -146,7 +146,7 @@ pub(crate) fn run_loop_parallel(
     });
     if !dropped_tasks.is_empty() {
         log::warn!(
-            "Dropping stale in-flight tasks with missing worktrees: {}",
+            "Dropping stale in-flight tasks with missing workspaces: {}",
             dropped_tasks.join(", ")
         );
         state::save_state(&state_path, &state_file)?;
@@ -587,16 +587,16 @@ fn collect_workspaces_for_cleanup(
 
 fn spawn_worker(
     _resolved: &config::Resolved,
-    worktree_path: &Path,
+    workspace_path: &Path,
     task_id: &str,
     overrides: &AgentOverrides,
     force: bool,
 ) -> Result<Child> {
-    let (mut cmd, args) = build_worker_command(worktree_path, task_id, overrides, force)?;
+    let (mut cmd, args) = build_worker_command(workspace_path, task_id, overrides, force)?;
     log::debug!(
         "Spawning parallel worker {} in {} with args: {:?}",
         task_id,
-        worktree_path.display(),
+        workspace_path.display(),
         args
     );
     cmd.args(args);
@@ -605,15 +605,15 @@ fn spawn_worker(
 }
 
 fn build_worker_command(
-    worktree_path: &Path,
+    workspace_path: &Path,
     task_id: &str,
     overrides: &AgentOverrides,
     force: bool,
 ) -> Result<(Command, Vec<String>)> {
     let exe = std::env::current_exe().context("resolve current executable")?;
     let mut cmd = Command::new(exe);
-    cmd.current_dir(worktree_path);
-    cmd.env("PWD", worktree_path);
+    cmd.current_dir(workspace_path);
+    cmd.env("PWD", workspace_path);
     cmd.stdin(Stdio::null());
 
     let mut args: Vec<String> = Vec::new();
@@ -731,11 +731,11 @@ fn handle_worker_failure(
     Ok(())
 }
 
-fn sync_ralph_state(repo_root: &Path, worktree_path: &Path) -> Result<()> {
+fn sync_ralph_state(repo_root: &Path, workspace_path: &Path) -> Result<()> {
     let source = repo_root.join(".ralph");
-    let target = worktree_path.join(".ralph");
+    let target = workspace_path.join(".ralph");
     fs::create_dir_all(&target)
-        .with_context(|| format!("create worktree ralph dir {}", target.display()))?;
+        .with_context(|| format!("create workspace ralph dir {}", target.display()))?;
 
     sync_file_if_exists(&source.join("queue.json"), &target.join("queue.json"))?;
     sync_file_if_exists(&source.join("done.json"), &target.join("done.json"))?;
@@ -751,7 +751,7 @@ fn sync_file_if_exists(source: &Path, target: &Path) -> Result<()> {
     }
     if let Some(parent) = target.parent() {
         fs::create_dir_all(parent)
-            .with_context(|| format!("create worktree dir {}", parent.display()))?;
+            .with_context(|| format!("create workspace dir {}", parent.display()))?;
     }
     fs::copy(source, target)
         .with_context(|| format!("sync {} to {}", source.display(), target.display()))?;
@@ -763,7 +763,7 @@ fn sync_prompts_dir(source: &Path, target: &Path) -> Result<()> {
         return Ok(());
     }
     fs::create_dir_all(target)
-        .with_context(|| format!("create worktree prompts dir {}", target.display()))?;
+        .with_context(|| format!("create workspace prompts dir {}", target.display()))?;
     for entry in
         fs::read_dir(source).with_context(|| format!("read prompts dir {}", source.display()))?
     {
@@ -780,14 +780,14 @@ fn sync_prompts_dir(source: &Path, target: &Path) -> Result<()> {
     Ok(())
 }
 
-fn commit_failure_changes(worktree_path: &Path, task_id: &str) -> Result<bool> {
-    let status = git::status_porcelain(worktree_path)?;
+fn commit_failure_changes(workspace_path: &Path, task_id: &str) -> Result<bool> {
+    let status = git::status_porcelain(workspace_path)?;
     if status.trim().is_empty() {
         return Ok(false);
     }
 
     let message = format!("WIP: {} (failed run)", task_id);
-    match git::commit_all(worktree_path, &message) {
+    match git::commit_all(workspace_path, &message) {
         Ok(()) => Ok(true),
         Err(err) => match err {
             git::GitError::NoChangesToCommit => Ok(false),
@@ -796,17 +796,17 @@ fn commit_failure_changes(worktree_path: &Path, task_id: &str) -> Result<bool> {
     }
 }
 
-fn ensure_branch_pushed(worktree_path: &Path) -> Result<()> {
-    match git::is_ahead_of_upstream(worktree_path) {
+fn ensure_branch_pushed(workspace_path: &Path) -> Result<()> {
+    match git::is_ahead_of_upstream(workspace_path) {
         Ok(ahead) => {
             if !ahead {
                 return Ok(());
             }
-            git::push_upstream(worktree_path).with_context(|| "push branch to upstream")?;
+            git::push_upstream(workspace_path).with_context(|| "push branch to upstream")?;
             Ok(())
         }
         Err(git::GitError::NoUpstream) | Err(git::GitError::NoUpstreamConfigured) => {
-            git::push_upstream_allow_create(worktree_path)
+            git::push_upstream_allow_create(workspace_path)
                 .with_context(|| "push branch and create upstream")?;
             Ok(())
         }
@@ -1390,30 +1390,30 @@ mod tests {
     fn sync_ralph_state_copies_queue_and_prompts() -> Result<()> {
         let temp = TempDir::new()?;
         let repo_root = temp.path().join("repo");
-        let worktree_root = temp.path().join("worktree");
+        let workspace_root = temp.path().join("workspace");
         fs::create_dir_all(repo_root.join(".ralph/prompts"))?;
-        fs::create_dir_all(&worktree_root)?;
+        fs::create_dir_all(&workspace_root)?;
         fs::write(repo_root.join(".ralph/queue.json"), "{queue}")?;
         fs::write(repo_root.join(".ralph/done.json"), "{done}")?;
         fs::write(repo_root.join(".ralph/config.json"), "{config}")?;
         fs::write(repo_root.join(".ralph/prompts/override.md"), "prompt")?;
 
-        sync_ralph_state(&repo_root, &worktree_root)?;
+        sync_ralph_state(&repo_root, &workspace_root)?;
 
         assert_eq!(
-            fs::read_to_string(worktree_root.join(".ralph/queue.json"))?,
+            fs::read_to_string(workspace_root.join(".ralph/queue.json"))?,
             "{queue}"
         );
         assert_eq!(
-            fs::read_to_string(worktree_root.join(".ralph/done.json"))?,
+            fs::read_to_string(workspace_root.join(".ralph/done.json"))?,
             "{done}"
         );
         assert_eq!(
-            fs::read_to_string(worktree_root.join(".ralph/config.json"))?,
+            fs::read_to_string(workspace_root.join(".ralph/config.json"))?,
             "{config}"
         );
         assert_eq!(
-            fs::read_to_string(worktree_root.join(".ralph/prompts/override.md"))?,
+            fs::read_to_string(workspace_root.join(".ralph/prompts/override.md"))?,
             "prompt"
         );
         Ok(())

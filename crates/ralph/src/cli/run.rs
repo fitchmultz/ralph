@@ -165,7 +165,7 @@ pub fn handle_run(cmd: RunCommand, force: bool, no_progress: bool) -> Result<()>
   - `--effort` is codex-only and is ignored for other runners.\n\
   - `--git-revert-mode` controls whether Ralph reverts uncommitted changes on errors (ask, enabled, disabled).\n\
   - `--git-commit-push-on` / `--git-commit-push-off` control automatic git commit/push after successful runs.\n\
-  - `--parallel` runs loop tasks concurrently in worktrees (CLI-only; conflicts with `--interactive`).\n\
+     - `--parallel` runs loop tasks concurrently in workspaces (clone-based) (CLI-only; conflicts with `--interactive`).\n\
   - `--update-task` runs `ralph task update <TASK_ID>` once per task immediately before task is marked `doing`.\n\
   - Clean-repo checks allow changes to `.ralph/config.json` (plus `.ralph/queue.json` and `.ralph/done.json`); use `--force` to bypass entirely.\n\
   - TUI entrypoints: `ralph tui`, `ralph run one -i`, `ralph run loop -i`.\n\
