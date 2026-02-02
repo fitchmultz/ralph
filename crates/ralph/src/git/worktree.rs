@@ -65,15 +65,51 @@ pub(crate) fn create_worktree_at(
     fs::create_dir_all(worktree_root)
         .with_context(|| format!("create worktree root directory {}", worktree_root.display()))?;
 
-    let output = git_base_command(repo_root)
-        .arg("worktree")
-        .arg("add")
-        .arg("-b")
-        .arg(&branch)
-        .arg(&path)
-        .arg(base_branch)
-        .output()
-        .with_context(|| format!("run git worktree add in {}", repo_root.display()))?;
+    if let Err(err) = prune_worktrees(repo_root) {
+        log::warn!("Failed to prune worktrees: {:#}", err);
+    }
+
+    if let Some(existing_path) = existing_worktree_for_branch(repo_root, &branch)?
+        && existing_path.exists() {
+            log::info!(
+                "Reusing existing worktree for {} at {}",
+                branch,
+                existing_path.display()
+            );
+            return Ok(WorktreeSpec {
+                task_id: trimmed_id.to_string(),
+                path: existing_path,
+                branch,
+            });
+        }
+
+    if path.exists() {
+        bail!(
+            "worktree path already exists for task {}: {}",
+            trimmed_id,
+            path.display()
+        );
+    }
+
+    let output = if branch_exists(repo_root, &branch)? {
+        git_base_command(repo_root)
+            .arg("worktree")
+            .arg("add")
+            .arg(&path)
+            .arg(&branch)
+            .output()
+            .with_context(|| format!("run git worktree add in {}", repo_root.display()))?
+    } else {
+        git_base_command(repo_root)
+            .arg("worktree")
+            .arg("add")
+            .arg("-b")
+            .arg(&branch)
+            .arg(&path)
+            .arg(base_branch)
+            .output()
+            .with_context(|| format!("run git worktree add in {}", repo_root.display()))?
+    };
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -89,6 +125,89 @@ pub(crate) fn create_worktree_at(
         path,
         branch,
     })
+}
+
+fn branch_exists(repo_root: &Path, branch: &str) -> Result<bool> {
+    let output = git_base_command(repo_root)
+        .arg("show-ref")
+        .arg("--verify")
+        .arg("--quiet")
+        .arg(format!("refs/heads/{}", branch))
+        .output()
+        .with_context(|| format!("run git show-ref in {}", repo_root.display()))?;
+
+    if output.status.success() {
+        return Ok(true);
+    }
+    match output.status.code() {
+        Some(1) => Ok(false),
+        _ => {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            bail!("git show-ref failed: {}", stderr.trim())
+        }
+    }
+}
+
+fn prune_worktrees(repo_root: &Path) -> Result<()> {
+    let output = git_base_command(repo_root)
+        .arg("worktree")
+        .arg("prune")
+        .output()
+        .with_context(|| format!("run git worktree prune in {}", repo_root.display()))?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        bail!("git worktree prune failed: {}", stderr.trim());
+    }
+    Ok(())
+}
+
+fn existing_worktree_for_branch(repo_root: &Path, branch: &str) -> Result<Option<PathBuf>> {
+    let output = git_base_command(repo_root)
+        .arg("worktree")
+        .arg("list")
+        .arg("--porcelain")
+        .output()
+        .with_context(|| format!("run git worktree list in {}", repo_root.display()))?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        bail!("git worktree list failed: {}", stderr.trim());
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut current_path: Option<PathBuf> = None;
+    let mut current_branch: Option<String> = None;
+
+    let maybe_match = |path: Option<PathBuf>, branch_name: Option<String>| {
+        if let (Some(path), Some(branch_name)) = (path, branch_name)
+            && branch_name == branch {
+                return Some(path);
+            }
+        None
+    };
+
+    for line in stdout.lines() {
+        if let Some(rest) = line.strip_prefix("worktree ") {
+            if let Some(found) = maybe_match(current_path.take(), current_branch.take()) {
+                return Ok(Some(found));
+            }
+            current_path = Some(PathBuf::from(rest.trim()));
+        } else if let Some(rest) = line.strip_prefix("branch ") {
+            let value = rest.trim();
+            if value != "(detached)" {
+                let name = value
+                    .strip_prefix("refs/heads/")
+                    .unwrap_or(value)
+                    .to_string();
+                current_branch = Some(name);
+            }
+        }
+    }
+
+    if let Some(found) = maybe_match(current_path, current_branch) {
+        return Ok(Some(found));
+    }
+
+    Ok(None)
 }
 
 pub(crate) fn remove_worktree(repo_root: &Path, spec: &WorktreeSpec, force: bool) -> Result<()> {
@@ -177,6 +296,47 @@ mod tests {
         let spec = create_worktree_at(temp.path(), &root, "RQ-0001", &base_branch, "ralph/")?;
 
         assert!(spec.path.exists(), "worktree path should exist");
+
+        remove_worktree(temp.path(), &spec, true)?;
+        Ok(())
+    }
+
+    #[test]
+    fn create_worktree_reuses_existing_branch_worktree() -> Result<()> {
+        let temp = TempDir::new()?;
+        git_test::init_repo(temp.path())?;
+        std::fs::write(temp.path().join("init.txt"), "init")?;
+        git_test::commit_all(temp.path(), "init")?;
+
+        let base_branch =
+            git_test::git_output(temp.path(), &["rev-parse", "--abbrev-ref", "HEAD"])?;
+        let root = temp.path().join(".worktrees");
+
+        let first = create_worktree_at(temp.path(), &root, "RQ-0001", &base_branch, "ralph/")?;
+        let second = create_worktree_at(temp.path(), &root, "RQ-0001", &base_branch, "ralph/")?;
+
+        assert_eq!(first.path, second.path);
+        assert!(second.path.exists());
+
+        remove_worktree(temp.path(), &first, true)?;
+        Ok(())
+    }
+
+    #[test]
+    fn create_worktree_with_existing_branch() -> Result<()> {
+        let temp = TempDir::new()?;
+        git_test::init_repo(temp.path())?;
+        std::fs::write(temp.path().join("init.txt"), "init")?;
+        git_test::commit_all(temp.path(), "init")?;
+
+        let base_branch =
+            git_test::git_output(temp.path(), &["rev-parse", "--abbrev-ref", "HEAD"])?;
+        git_test::git_run(temp.path(), &["branch", "ralph/RQ-0002"])?;
+        let root = temp.path().join(".worktrees");
+
+        let spec = create_worktree_at(temp.path(), &root, "RQ-0002", &base_branch, "ralph/")?;
+
+        assert!(spec.path.exists());
 
         remove_worktree(temp.path(), &spec, true)?;
         Ok(())
