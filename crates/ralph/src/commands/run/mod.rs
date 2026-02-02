@@ -30,7 +30,8 @@ use crate::commands::task as task_cmd;
 use crate::config;
 use crate::constants::limits::MAX_CONSECUTIVE_FAILURES;
 use crate::contracts::{
-    AgentConfig, GitRevertMode, ProjectType, ReasoningEffort, RunnerCliOptionsPatch, TaskStatus,
+    AgentConfig, GitRevertMode, ParallelMergeWhen, ProjectType, ReasoningEffort,
+    RunnerCliOptionsPatch, TaskStatus,
 };
 use crate::promptflow;
 use crate::session::{self, SessionValidationResult};
@@ -40,12 +41,13 @@ use crate::{git, prompts, queue, runner, runutil, timeutil};
 use anyhow::{Context, Result, bail};
 
 mod logging;
+mod parallel;
 mod phases;
 mod selection;
 mod supervision;
 
 use selection::select_run_one_task_index;
-use supervision::post_run_supervise;
+use supervision::{PushPolicy, post_run_supervise};
 
 // Preserve existing `commands::run` unit tests which call phase 3 helpers directly.
 #[allow(unused_imports)]
@@ -60,6 +62,7 @@ pub use crate::agent::AgentOverrides;
 enum QueueLockMode {
     Acquire,
     Held,
+    Skip,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -84,9 +87,38 @@ pub struct RunLoopOptions {
     pub starting_completed: u32,
     /// Skip interactive prompts (for CI/non-interactive runs)
     pub non_interactive: bool,
+    /// Number of parallel workers to use when parallel mode is enabled.
+    pub parallel_workers: Option<u8>,
 }
 
 pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()> {
+    let parallel_workers = opts.parallel_workers.or(resolved.config.parallel.workers);
+    if let Some(workers) = parallel_workers
+        && workers >= 2
+    {
+        if opts.auto_resume {
+            log::warn!("Parallel run ignores --resume; starting a fresh parallel loop.");
+        }
+        if opts.starting_completed != 0 {
+            log::warn!("Parallel run ignores starting_completed; counters will start at zero.");
+        }
+        let merge_when = resolved
+            .config
+            .parallel
+            .merge_when
+            .unwrap_or(ParallelMergeWhen::AsCreated);
+        return parallel::run_loop_parallel(
+            resolved,
+            parallel::ParallelRunOptions {
+                max_tasks: opts.max_tasks,
+                workers,
+                agent_overrides: opts.agent_overrides,
+                force: opts.force,
+                merge_when,
+            },
+        );
+    }
+
     let cache_dir = resolved.repo_root.join(".ralph/cache");
     let queue_file = queue::load_queue(&resolved.queue_path)?;
 
@@ -330,6 +362,26 @@ pub fn run_one_with_id(
     .map(|_| ())
 }
 
+/// Run a specific task as a parallel worker (skips queue lock, allows upstream creation).
+pub fn run_one_parallel_worker(
+    resolved: &config::Resolved,
+    agent_overrides: &AgentOverrides,
+    force: bool,
+    task_id: &str,
+) -> Result<()> {
+    run_one_impl(
+        resolved,
+        agent_overrides,
+        force,
+        QueueLockMode::Skip,
+        Some(task_id),
+        None,
+        None,
+        None,
+    )
+    .map(|_| ())
+}
+
 /// Run a specific task when the queue lock is already held by the caller.
 pub fn run_one_with_id_locked(
     resolved: &config::Resolved,
@@ -409,7 +461,7 @@ fn run_one_impl(
             "run one",
             force,
         )?),
-        QueueLockMode::Held => None,
+        QueueLockMode::Held | QueueLockMode::Skip => None,
     };
     let queue_file = queue::load_queue(&resolved.queue_path)?;
     let done = queue::load_queue_or_default(&resolved.done_path)?;
@@ -449,6 +501,11 @@ fn run_one_impl(
         .git_commit_push_enabled
         .or(resolved.config.agent.git_commit_push_enabled)
         .unwrap_or(true);
+
+    let push_policy = match lock_mode {
+        QueueLockMode::Skip => PushPolicy::AllowCreateUpstream,
+        QueueLockMode::Acquire | QueueLockMode::Held => PushPolicy::RequireUpstream,
+    };
 
     let policy = promptflow::PromptPolicy {
         repoprompt_plan_required: repoprompt_flags.plan_required,
@@ -739,6 +796,7 @@ fn run_one_impl(
                         project_type,
                         git_revert_mode,
                         git_commit_push_enabled,
+                        push_policy,
                         revert_prompt: revert_prompt.clone(),
                         iteration_context,
                         iteration_completion_block,
@@ -765,6 +823,7 @@ fn run_one_impl(
                         project_type,
                         git_revert_mode,
                         git_commit_push_enabled,
+                        push_policy,
                         revert_prompt: revert_prompt.clone(),
                         iteration_context,
                         iteration_completion_block,
@@ -792,6 +851,7 @@ fn run_one_impl(
                         project_type,
                         git_revert_mode,
                         git_commit_push_enabled,
+                        push_policy,
                         revert_prompt: revert_prompt.clone(),
                         iteration_context,
                         iteration_completion_block,
@@ -818,6 +878,7 @@ fn run_one_impl(
                         project_type,
                         git_revert_mode,
                         git_commit_push_enabled,
+                        push_policy,
                         revert_prompt: revert_prompt.clone(),
                         iteration_context,
                         iteration_completion_block,
@@ -844,6 +905,7 @@ fn run_one_impl(
                         project_type,
                         git_revert_mode,
                         git_commit_push_enabled,
+                        push_policy,
                         revert_prompt: revert_prompt.clone(),
                         iteration_context,
                         iteration_completion_block,
@@ -871,6 +933,7 @@ fn run_one_impl(
                         project_type,
                         git_revert_mode,
                         git_commit_push_enabled,
+                        push_policy,
                         revert_prompt: revert_prompt.clone(),
                         iteration_context,
                         iteration_completion_block,

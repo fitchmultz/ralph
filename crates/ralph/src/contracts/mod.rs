@@ -20,8 +20,9 @@ mod session;
 mod task;
 
 pub use config::{
-    AgentConfig, AutoArchiveBehavior, ClaudePermissionMode, Config, GitRevertMode, Model,
-    ModelEffort, NotificationConfig, PhaseOverrideConfig, PhaseOverrides, ProjectType, QueueConfig,
+    AgentConfig, AutoArchiveBehavior, ClaudePermissionMode, Config, ConflictPolicy, GitRevertMode,
+    MergeRunnerConfig, Model, ModelEffort, NotificationConfig, ParallelConfig, ParallelMergeMethod,
+    ParallelMergeWhen, PhaseOverrideConfig, PhaseOverrides, ProjectType, QueueConfig,
     ReasoningEffort, Runner, RunnerApprovalMode, RunnerCliConfigRoot, RunnerCliOptionsPatch,
     RunnerOutputFormat, RunnerPlanMode, RunnerSandboxMode, RunnerVerbosity, ScanPromptVersion,
     TuiConfig, UnsupportedOptionPolicy, WebhookConfig,

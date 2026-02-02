@@ -184,6 +184,7 @@ mod tests {
                 id: None,
                 visualize: false,
                 non_interactive: false,
+                parallel_worker: false,
                 agent: ralph::agent::RunAgentArgs::default(),
             }),
         });
@@ -200,6 +201,7 @@ mod tests {
                 visualize: false,
                 resume: false,
                 non_interactive: false,
+                parallel: None,
                 agent: ralph::agent::RunAgentArgs::default(),
             }),
         });
@@ -215,6 +217,7 @@ mod tests {
                 id: Some("RQ-0001".to_string()),
                 visualize: false,
                 non_interactive: false,
+                parallel_worker: false,
                 agent: ralph::agent::RunAgentArgs::default(),
             }),
         });

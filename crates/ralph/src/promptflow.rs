@@ -225,6 +225,15 @@ pub fn build_single_phase_prompt(
     )
 }
 
+/// Build the prompt for merge conflict resolution.
+pub fn build_merge_conflict_prompt(
+    template: &str,
+    conflict_files: &[String],
+    config: &Config,
+) -> Result<String> {
+    prompts::render_merge_conflict_prompt(template, conflict_files, config)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -263,6 +272,17 @@ mod tests {
             err.to_string()
                 .contains("Phase 2 final response cache is empty")
         );
+        Ok(())
+    }
+
+    #[test]
+    fn build_merge_conflict_prompt_replaces_conflicts() -> Result<()> {
+        let template = "Conflicts:\n{{CONFLICT_FILES}}\n";
+        let config = Config::default();
+        let files = vec!["src/lib.rs".to_string()];
+        let prompt = build_merge_conflict_prompt(template, &files, &config)?;
+        assert!(prompt.contains("- src/lib.rs"));
+        assert!(!prompt.contains("{{CONFLICT_FILES}}"));
         Ok(())
     }
 }

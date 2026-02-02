@@ -25,6 +25,7 @@ pub(crate) enum PromptTemplateId {
     ScanMaintenanceV2,
     ScanInnovationV1,
     ScanInnovationV2,
+    MergeConflicts,
     CodeReview,
     CompletionChecklist,
     Phase2HandoffChecklist,
@@ -93,6 +94,11 @@ const TASK_UPDATER_REQUIRED: &[RequiredPlaceholder] = &[
 const CODE_REVIEW_REQUIRED: &[RequiredPlaceholder] = &[RequiredPlaceholder {
     token: "{{TASK_ID}}",
     error_message: "Template error: code review prompt template is missing the required '{{TASK_ID}}' placeholder.",
+}];
+
+const MERGE_CONFLICT_REQUIRED: &[RequiredPlaceholder] = &[RequiredPlaceholder {
+    token: "{{CONFLICT_FILES}}",
+    error_message: "Template error: merge conflict prompt template is missing the required '{{CONFLICT_FILES}}' placeholder.",
 }];
 
 pub(crate) fn prompt_template(id: PromptTemplateId) -> PromptTemplate {
@@ -216,6 +222,16 @@ pub(crate) fn prompt_template(id: PromptTemplateId) -> PromptTemplate {
             label: "scan innovation v2",
             required_placeholders: SCAN_V2_REQUIRED,
             project_type_guidance: true,
+        },
+        PromptTemplateId::MergeConflicts => PromptTemplate {
+            rel_path: ".ralph/prompts/merge_conflicts.md",
+            embedded_default: include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/assets/prompts/merge_conflicts.md"
+            )),
+            label: "merge conflicts",
+            required_placeholders: MERGE_CONFLICT_REQUIRED,
+            project_type_guidance: false,
         },
         PromptTemplateId::CodeReview => PromptTemplate {
             rel_path: ".ralph/prompts/code_review.md",

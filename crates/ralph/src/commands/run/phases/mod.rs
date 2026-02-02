@@ -3,6 +3,7 @@
 //! This module isolates multi-phase runner workflows (planning, implementation,
 //! code review) from higher-level orchestration in `crate::commands::run`.
 
+use crate::commands::run::supervision::PushPolicy;
 use crate::config;
 use crate::contracts::{GitRevertMode, ProjectType};
 use crate::{promptflow, runner, runutil};
@@ -57,6 +58,7 @@ pub struct PhaseInvocation<'a> {
     pub project_type: ProjectType,
     pub git_revert_mode: GitRevertMode,
     pub git_commit_push_enabled: bool,
+    pub push_policy: PushPolicy,
     pub revert_prompt: Option<runutil::RevertPromptHandler>,
     pub iteration_context: &'a str,
     pub iteration_completion_block: &'a str,

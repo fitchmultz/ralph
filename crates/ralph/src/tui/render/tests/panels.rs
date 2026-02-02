@@ -9,6 +9,7 @@
 
 use super::common::*;
 use crate::contracts::{QueueFile, TaskStatus};
+use crate::tui::app_filters::FilterManagementOperations;
 use crate::tui::{App, AppMode, TextInput};
 use ratatui::style::Color;
 use ratatui::{

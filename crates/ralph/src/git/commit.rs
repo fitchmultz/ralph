@@ -154,3 +154,23 @@ pub fn push_upstream(repo_root: &Path) -> Result<(), GitError> {
     let stderr = String::from_utf8_lossy(&output.stderr);
     Err(classify_push_error(&stderr))
 }
+
+/// Push HEAD to origin and create upstream tracking.
+///
+/// Intended for new branches that do not have an upstream configured yet.
+pub fn push_upstream_allow_create(repo_root: &Path) -> Result<(), GitError> {
+    let output = git_base_command(repo_root)
+        .arg("push")
+        .arg("-u")
+        .arg("origin")
+        .arg("HEAD")
+        .output()
+        .with_context(|| format!("run git push -u origin HEAD in {}", repo_root.display()))?;
+
+    if output.status.success() {
+        return Ok(());
+    }
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    Err(classify_push_error(&stderr))
+}

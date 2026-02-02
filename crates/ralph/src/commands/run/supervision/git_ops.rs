@@ -13,6 +13,7 @@
 //! - Git repo is initialized and accessible.
 //! - LFS validation respects the strict flag for error vs warn behavior.
 
+use super::PushPolicy;
 use crate::git;
 use crate::git::GitError;
 use crate::outpututil;
@@ -25,11 +26,12 @@ pub(crate) fn finalize_git_state(
     task_id: &str,
     task_title: &str,
     git_commit_push_enabled: bool,
+    push_policy: PushPolicy,
 ) -> Result<()> {
     if git_commit_push_enabled {
         let commit_message = outpututil::format_task_commit_message(task_id, task_title);
         git::commit_all(&resolved.repo_root, &commit_message)?;
-        push_if_ahead(&resolved.repo_root)?;
+        push_if_ahead(&resolved.repo_root, push_policy)?;
         git::require_clean_repo_ignoring_paths(
             &resolved.repo_root,
             false,
@@ -42,28 +44,37 @@ pub(crate) fn finalize_git_state(
 }
 
 /// Pushes to upstream if the local branch is ahead.
-pub(crate) fn push_if_ahead(repo_root: &Path) -> Result<()> {
+pub(crate) fn push_if_ahead(repo_root: &Path, push_policy: PushPolicy) -> Result<()> {
     match git::is_ahead_of_upstream(repo_root) {
         Ok(ahead) => {
             if !ahead {
                 return Ok(());
             }
+            if let Err(err) = git::push_upstream(repo_root) {
+                bail!(
+                    "Git push failed: the repository has unpushed commits but the push operation failed. Push manually to sync with upstream. Error: {:#}",
+                    err
+                );
+            }
+            Ok(())
         }
-        Err(GitError::NoUpstream) | Err(GitError::NoUpstreamConfigured) => {
-            log::warn!("skipping push (no upstream configured)");
-            return Ok(());
-        }
-        Err(err) => {
-            return Err(anyhow!("upstream check failed: {:#}", err));
-        }
+        Err(GitError::NoUpstream) | Err(GitError::NoUpstreamConfigured) => match push_policy {
+            PushPolicy::RequireUpstream => {
+                log::warn!("skipping push (no upstream configured)");
+                Ok(())
+            }
+            PushPolicy::AllowCreateUpstream => {
+                if let Err(err) = git::push_upstream_allow_create(repo_root) {
+                    bail!(
+                        "Git push failed: unable to create upstream for this branch. Push manually to sync with upstream. Error: {:#}",
+                        err
+                    );
+                }
+                Ok(())
+            }
+        },
+        Err(err) => Err(anyhow!("upstream check failed: {:#}", err)),
     }
-    if let Err(err) = git::push_upstream(repo_root) {
-        bail!(
-            "Git push failed: the repository has unpushed commits but the push operation failed. Push manually to sync with upstream. Error: {:#}",
-            err
-        );
-    }
-    Ok(())
 }
 
 /// Validates LFS configuration and warns about potential issues.
@@ -187,7 +198,7 @@ mod tests {
         git_test::commit_all(temp.path(), "init")?;
 
         // No upstream configured, so should skip without error
-        push_if_ahead(temp.path())?;
+        push_if_ahead(temp.path(), PushPolicy::RequireUpstream)?;
 
         Ok(())
     }
@@ -227,8 +238,36 @@ mod tests {
         git_test::commit_all(temp.path(), "work")?;
 
         // Should error on push failure
-        let err = push_if_ahead(temp.path()).unwrap_err();
+        let err = push_if_ahead(temp.path(), PushPolicy::RequireUpstream).unwrap_err();
         assert!(format!("{err:#}").contains("Git push failed"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn push_if_ahead_creates_upstream_when_allowed() -> Result<()> {
+        let temp = TempDir::new()?;
+        git_test::init_repo(temp.path())?;
+        std::fs::write(temp.path().join("init.txt"), "init")?;
+        git_test::commit_all(temp.path(), "init")?;
+
+        let remote = TempDir::new()?;
+        git_test::git_run(remote.path(), &["init", "--bare"])?;
+        git_test::git_run(
+            temp.path(),
+            &["remote", "add", "origin", remote.path().to_str().unwrap()],
+        )?;
+
+        std::fs::write(temp.path().join("work.txt"), "change")?;
+        git_test::commit_all(temp.path(), "work")?;
+
+        push_if_ahead(temp.path(), PushPolicy::AllowCreateUpstream)?;
+
+        let upstream = git_test::git_output(
+            temp.path(),
+            &["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
+        )?;
+        assert!(upstream.starts_with("origin/"));
 
         Ok(())
     }

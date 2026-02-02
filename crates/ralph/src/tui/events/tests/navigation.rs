@@ -11,6 +11,7 @@
 //! - Filter behavior (see filters.rs).
 
 use super::helpers::{key_event, make_queue, make_test_task, mouse_event};
+use crate::tui::app_filters::FilterManagementOperations;
 use crate::tui::events::{handle_key_event, handle_mouse_event};
 use crate::tui::{App, AppMode, TuiAction};
 use crossterm::event::{KeyCode, MouseButton, MouseEventKind};

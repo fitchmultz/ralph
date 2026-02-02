@@ -96,6 +96,22 @@ pub(crate) fn render_task_updater_prompt(
     )
 }
 
+pub(crate) fn load_merge_conflict_prompt(repo_root: &Path) -> Result<String> {
+    prompts_internal::merge_conflicts::load_merge_conflict_prompt(repo_root)
+}
+
+pub(crate) fn render_merge_conflict_prompt(
+    template: &str,
+    conflict_files: &[String],
+    config: &Config,
+) -> Result<String> {
+    prompts_internal::merge_conflicts::render_merge_conflict_prompt(
+        template,
+        conflict_files,
+        config,
+    )
+}
+
 pub(crate) fn wrap_with_repoprompt_requirement(prompt: &str, required: bool) -> String {
     prompts_internal::util::wrap_with_repoprompt_requirement(prompt, required)
 }

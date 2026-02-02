@@ -24,7 +24,7 @@
 //! - `save_layer` creates parent directories automatically if needed.
 
 use crate::constants::defaults::DEFAULT_ID_WIDTH;
-use crate::contracts::{AgentConfig, Config, ProjectType, QueueConfig, TuiConfig};
+use crate::contracts::{AgentConfig, Config, ParallelConfig, ProjectType, QueueConfig, TuiConfig};
 use crate::fsutil;
 use crate::prompts_internal::util::validate_instruction_file_paths;
 use anyhow::{Context, Result, bail};
@@ -52,6 +52,7 @@ pub struct ConfigLayer {
     pub project_type: Option<ProjectType>,
     pub queue: QueueConfig,
     pub agent: AgentConfig,
+    pub parallel: ParallelConfig,
     pub tui: TuiConfig,
 }
 
@@ -163,6 +164,7 @@ pub fn apply_layer(mut base: Config, layer: ConfigLayer) -> Result<Config> {
 
     base.queue.merge_from(layer.queue);
     base.agent.merge_from(layer.agent);
+    base.parallel.merge_from(layer.parallel);
     base.tui.merge_from(layer.tui);
 
     Ok(base)
@@ -223,6 +225,32 @@ pub fn validate_config(cfg: &Config) -> Result<()> {
         bail!(
             "Invalid agent.iterations: {}. Iterations must be greater than 0. Update .ralph/config.json.",
             iterations
+        );
+    }
+
+    if let Some(workers) = cfg.parallel.workers
+        && workers < 2
+    {
+        bail!(
+            "Invalid parallel.workers: {}. Parallel workers must be >= 2. Update .ralph/config.json or CLI flags.",
+            workers
+        );
+    }
+
+    if let Some(retries) = cfg.parallel.merge_retries
+        && retries == 0
+    {
+        bail!(
+            "Invalid parallel.merge_retries: {}. merge_retries must be >= 1. Update .ralph/config.json.",
+            retries
+        );
+    }
+
+    if let Some(prefix) = &cfg.parallel.branch_prefix
+        && prefix.trim().is_empty()
+    {
+        bail!(
+            "Invalid parallel.branch_prefix: prefix must be non-empty. Update .ralph/config.json."
         );
     }
 
@@ -450,6 +478,33 @@ mod tests {
 
         let err = validate_config(&cfg).expect_err("expected validation to fail");
         assert!(err.to_string().contains("agent.iterations"));
+    }
+
+    #[test]
+    fn validate_config_rejects_parallel_workers_lt_two() {
+        let mut cfg = Config::default();
+        cfg.parallel.workers = Some(1);
+
+        let err = validate_config(&cfg).expect_err("expected validation to fail");
+        assert!(err.to_string().contains("parallel.workers"));
+    }
+
+    #[test]
+    fn validate_config_rejects_parallel_merge_retries_zero() {
+        let mut cfg = Config::default();
+        cfg.parallel.merge_retries = Some(0);
+
+        let err = validate_config(&cfg).expect_err("expected validation to fail");
+        assert!(err.to_string().contains("parallel.merge_retries"));
+    }
+
+    #[test]
+    fn validate_config_rejects_parallel_branch_prefix_empty() {
+        let mut cfg = Config::default();
+        cfg.parallel.branch_prefix = Some("   ".to_string());
+
+        let err = validate_config(&cfg).expect_err("expected validation to fail");
+        assert!(err.to_string().contains("parallel.branch_prefix"));
     }
 
     #[test]

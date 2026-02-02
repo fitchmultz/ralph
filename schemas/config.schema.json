@@ -101,6 +101,28 @@
         }
       ]
     },
+    "parallel": {
+      "description": "Parallel run-loop configuration.",
+      "default": {
+        "auto_merge": true,
+        "auto_pr": true,
+        "branch_prefix": "ralph/",
+        "conflict_policy": "auto_resolve",
+        "delete_branch_on_merge": true,
+        "draft_on_failure": true,
+        "merge_method": "squash",
+        "merge_retries": 5,
+        "merge_runner": null,
+        "merge_when": "as_created",
+        "workers": null,
+        "worktree_root": ".ralph/worktrees/parallel"
+      },
+      "allOf": [
+        {
+          "$ref": "#/definitions/ParallelConfig"
+        }
+      ]
+    },
     "project_type": {
       "description": "\"code\" or \"docs\". Drives prompt defaults and small workflow decisions.",
       "default": "code",
@@ -488,6 +510,14 @@
         "bypass_permissions"
       ]
     },
+    "ConflictPolicy": {
+      "type": "string",
+      "enum": [
+        "auto_resolve",
+        "retry_later",
+        "reject"
+      ]
+    },
     "GitRevertMode": {
       "type": "string",
       "enum": [
@@ -495,6 +525,45 @@
         "enabled",
         "disabled"
       ]
+    },
+    "MergeRunnerConfig": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Model"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reasoning_effort": {
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ReasoningEffort"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "runner": {
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Runner"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
     },
     "Model": {
       "type": "string"
@@ -572,6 +641,143 @@
         }
       },
       "additionalProperties": false
+    },
+    "ParallelConfig": {
+      "type": "object",
+      "properties": {
+        "auto_merge": {
+          "description": "Automatically merge PRs when eligible.",
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "auto_pr": {
+          "description": "Automatically create PRs for completed tasks.",
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "branch_prefix": {
+          "description": "Branch name prefix for parallel workers (e.g., \"ralph/\").",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "conflict_policy": {
+          "description": "Policy for handling merge conflicts.",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ConflictPolicy"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "delete_branch_on_merge": {
+          "description": "Delete branches after merge.",
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "draft_on_failure": {
+          "description": "Create draft PRs when a worker fails.",
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "merge_method": {
+          "description": "Merge method to use for PRs.",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ParallelMergeMethod"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "merge_retries": {
+          "description": "Number of merge retries before giving up.",
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint8",
+          "minimum": 1.0
+        },
+        "merge_runner": {
+          "description": "Runner overrides for merge conflict resolution.",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/MergeRunnerConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "merge_when": {
+          "description": "When to merge PRs (as created or after all tasks complete).",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ParallelMergeWhen"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "workers": {
+          "description": "Number of workers to run concurrently when parallel mode is enabled.",
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint8",
+          "minimum": 2.0
+        },
+        "worktree_root": {
+          "description": "Root directory for parallel worktrees (relative to repo root if not absolute).",
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "ParallelMergeMethod": {
+      "type": "string",
+      "enum": [
+        "squash",
+        "merge",
+        "rebase"
+      ]
+    },
+    "ParallelMergeWhen": {
+      "type": "string",
+      "enum": [
+        "as_created",
+        "after_all"
+      ]
     },
     "PhaseOverrideConfig": {
       "description": "Per-phase configuration overrides for runner, model, and reasoning effort.\n\nAll fields are optional to support leaf-wise merging: - `Some(value)` overrides the parent config - `None` means \"inherit from parent\"",

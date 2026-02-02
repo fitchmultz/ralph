@@ -47,6 +47,7 @@ Ralph can read both `.json` and `.jsonc` files regardless of extension. When wri
 - `version` (number): Config schema version. Default: `1`.
 - `project_type` (string or null): `code` or `docs`. Default: `code`.
 - `agent` (object): Runner defaults (CLI binaries, runner, model, phases, and prompt enforcement).
+- `parallel` (object): Parallel run-loop configuration for `ralph run loop` (CLI only).
 - `queue` (object): Queue file locations and task ID formatting.
 
 ## Agent Configuration
@@ -210,6 +211,51 @@ Each phase config can specify:
 ```
 
 **Precedence (per phase):** CLI phase flags > config phase override (`agent.phase_overrides.phaseN.*`) > CLI global overrides > task overrides (`task.agent.*`) > config defaults (`agent.*`) > code defaults
+
+## Parallel Configuration
+
+`parallel` controls the CLI-only parallel execution mode for `ralph run loop`. The TUI does not
+support parallel runs.
+
+Key fields:
+- `workers`: number of concurrent workers (must be `>= 2`). Default: `null` (disabled unless CLI
+  `--parallel` is used).
+- `merge_when`: `as_created` (default) or `after_all` to merge PRs as they are created or only after
+  all tasks finish.
+- `merge_method`: `squash` (default), `merge`, or `rebase`.
+- `auto_pr`: automatically create PRs for completed tasks (default: `true`).
+- `auto_merge`: automatically merge PRs when eligible (default: `true`).
+- `draft_on_failure`: create draft PRs when a worker fails (default: `true`).
+- `conflict_policy`: `auto_resolve` (default), `retry_later`, or `reject`.
+- `merge_retries`: number of merge retries before giving up (default: `5`).
+- `worktree_root`: root directory for parallel worktrees (default: `.ralph/worktrees/parallel`).
+- `branch_prefix`: prefix for worker branches (default: `ralph/`).
+- `delete_branch_on_merge`: delete branches after merge (default: `true`).
+- `merge_runner`: runner overrides for merge conflict resolution (defaults to `agent` settings).
+
+Notes:
+- CLI flag `--parallel` overrides `parallel.workers` for a single run.
+- If `auto_pr` is `false`, PR creation and merge automation are skipped.
+
+Example:
+
+```json
+{
+  "parallel": {
+    "workers": 3,
+    "merge_when": "as_created",
+    "merge_method": "squash",
+    "conflict_policy": "auto_resolve",
+    "merge_retries": 5,
+    "branch_prefix": "ralph/",
+    "merge_runner": {
+      "runner": "claude",
+      "model": "sonnet",
+      "reasoning_effort": "medium"
+    }
+  }
+}
+```
 
 ## Queue Configuration
 `queue` controls file locations and task ID formatting.

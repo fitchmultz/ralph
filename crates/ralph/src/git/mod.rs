@@ -18,25 +18,26 @@
 //! - General file system operations (use std::fs or anyhow)
 //! - Non-git version control systems
 
+pub mod branch;
 pub mod clean;
 pub mod commit;
 pub mod error;
 pub mod lfs;
+pub mod pr;
 pub mod status;
+pub mod worktree;
 
-// Re-export commonly used items for convenience
+// Re-export commonly used items for convenience within the crate.
+pub(crate) use branch::current_branch;
 pub use clean::{
     RALPH_RUN_CLEAN_ALLOWED_PATHS, repo_dirty_only_allowed_paths, require_clean_repo_ignoring_paths,
 };
 pub use commit::{
-    commit_all, is_ahead_of_upstream, push_upstream, revert_uncommitted, upstream_ref,
+    commit_all, is_ahead_of_upstream, push_upstream, push_upstream_allow_create,
+    revert_uncommitted, upstream_ref,
 };
-pub use error::{GitError, classify_push_error};
-pub use lfs::{
-    LfsFilterStatus, LfsHealthReport, LfsPointerIssue, LfsStatusSummary, check_lfs_health,
-    check_lfs_status, filter_modified_lfs_files, has_lfs, list_lfs_files, validate_lfs_filters,
-    validate_lfs_pointers,
-};
-pub use status::{
-    PathSnapshot, ensure_paths_unchanged, snapshot_paths, status_paths, status_porcelain,
-};
+pub use error::GitError;
+pub use lfs::{check_lfs_health, filter_modified_lfs_files, has_lfs, list_lfs_files};
+pub(crate) use pr::{MergeState, PrInfo, create_pr, merge_pr, pr_merge_state};
+pub use status::{ensure_paths_unchanged, snapshot_paths, status_paths, status_porcelain};
+pub(crate) use worktree::{WorktreeSpec, create_worktree_at, remove_worktree, worktree_root};

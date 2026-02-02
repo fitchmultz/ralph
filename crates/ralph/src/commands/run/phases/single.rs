@@ -61,6 +61,7 @@ pub fn execute_single_phase(ctx: &PhaseInvocation<'_>) -> Result<()> {
                 ctx.task_id,
                 ctx.git_revert_mode,
                 ctx.git_commit_push_enabled,
+                ctx.push_policy,
                 ctx.revert_prompt.clone(),
                 ctx.notify_on_complete,
                 ctx.notify_sound,

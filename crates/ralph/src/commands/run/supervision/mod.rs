@@ -60,6 +60,15 @@ pub(crate) struct ContinueSession {
     pub ci_failure_retry_count: u8,
 }
 
+/// Policy for pushing git commits after a run completes.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum PushPolicy {
+    /// Require an existing upstream; skip push if none is configured.
+    RequireUpstream,
+    /// Allow creating an upstream (e.g., `git push -u origin HEAD`) when missing.
+    AllowCreateUpstream,
+}
+
 /// Resume a continue session with a message.
 pub(crate) fn resume_continue_session(
     resolved: &crate::config::Resolved,
@@ -108,6 +117,7 @@ pub(crate) fn post_run_supervise(
     task_id: &str,
     git_revert_mode: GitRevertMode,
     git_commit_push_enabled: bool,
+    push_policy: PushPolicy,
     revert_prompt: Option<runutil::RevertPromptHandler>,
     notify_on_complete: Option<bool>,
     notify_sound: Option<bool>,
@@ -191,8 +201,14 @@ pub(crate) fn post_run_supervise(
             // so productivity.json gets committed along with other changes
             trigger_celebration(resolved, task_id, &task_title, no_progress);
 
-            finalize_git_state(resolved, task_id, &task_title, git_commit_push_enabled)
-                .context("Git finalization failed")?;
+            finalize_git_state(
+                resolved,
+                task_id,
+                &task_title,
+                git_commit_push_enabled,
+                push_policy,
+            )
+            .context("Git finalization failed")?;
 
             // Trigger completion notification on successful completion
             let notify_config =
@@ -204,7 +220,7 @@ pub(crate) fn post_run_supervise(
 
         if task_status == crate::contracts::TaskStatus::Done && in_done {
             if git_commit_push_enabled {
-                push_if_ahead(&resolved.repo_root).context("Git push failed")?;
+                push_if_ahead(&resolved.repo_root, push_policy).context("Git push failed")?;
             } else {
                 log::info!("Auto git commit/push disabled; skipping push.");
             }
@@ -250,8 +266,14 @@ pub(crate) fn post_run_supervise(
         // so productivity.json gets committed along with other changes
         trigger_celebration(resolved, task_id, &task_title, no_progress);
 
-        finalize_git_state(resolved, task_id, &task_title, git_commit_push_enabled)
-            .context("Git finalization failed")?;
+        finalize_git_state(
+            resolved,
+            task_id,
+            &task_title,
+            git_commit_push_enabled,
+            push_policy,
+        )
+        .context("Git finalization failed")?;
 
         // Trigger completion notification on successful completion
         let notify_config = build_notification_config(resolved, notify_on_complete, notify_sound);
@@ -462,6 +484,7 @@ mod tests {
             "RQ-0001",
             GitRevertMode::Disabled,
             true,
+            PushPolicy::RequireUpstream,
             None,
             None,
             None,
@@ -495,6 +518,7 @@ mod tests {
             "RQ-0001",
             GitRevertMode::Disabled,
             false,
+            PushPolicy::RequireUpstream,
             None,
             None,
             None,
@@ -520,6 +544,7 @@ mod tests {
             "RQ-0001",
             GitRevertMode::Disabled,
             false,
+            PushPolicy::RequireUpstream,
             None,
             None,
             None,
@@ -577,6 +602,7 @@ mod tests {
             "RQ-0001",
             GitRevertMode::Disabled,
             true,
+            PushPolicy::RequireUpstream,
             None,
             None,
             None,
@@ -622,6 +648,7 @@ mod tests {
             "RQ-0001",
             GitRevertMode::Disabled,
             false,
+            PushPolicy::RequireUpstream,
             None,
             None,
             None,
@@ -659,6 +686,7 @@ mod tests {
             "RQ-0001",
             GitRevertMode::Disabled,
             true, // git_commit_push_enabled = true
+            PushPolicy::RequireUpstream,
             None,
             None,
             None,

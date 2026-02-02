@@ -572,6 +572,27 @@ ralph run resume --non-interactive
 ralph run loop --resume --max-tasks 5
 ```
 
+### Parallel loop (CLI-only)
+
+`--parallel [N]` runs multiple tasks concurrently in separate git worktrees. The default is `2`
+when `--parallel` is provided without a value. This mode is CLI-only and conflicts with
+interactive/TUI workflows.
+
+Notes:
+- `--parallel` conflicts with `--interactive` and ignores `--resume`.
+- Each task runs in its own worktree and branch; PRs are created/merged automatically when enabled.
+- You can set a default worker count with `parallel.workers` in `.ralph/config.json`.
+
+Examples:
+
+```bash
+# Run with the default of 2 workers
+ralph run loop --parallel --max-tasks 4
+
+# Run with 4 workers
+ralph run loop --parallel 4 --max-tasks 8
+```
+
 ### Pre-run task update
 
 * `--update-task`: Automatically run `ralph task update <TASK_ID>` once per task immediately before the supervisor marks the task as `doing` and starts execution. This updates task fields (scope, evidence, plan, notes, tags, depends_on) based on current repository state, priming agents with better task information. This runs only once per task, before the first iteration (not before subsequent iterations if `iterations > 1`). Can also be enabled via config: `agent.update_task_before_run: true`.
@@ -643,6 +664,8 @@ ralph run loop --include-draft --max-tasks 1
 ralph run loop --update-task --max-tasks 1
 ralph run loop --repo-prompt tools --max-tasks 1
 ralph run loop --repo-prompt off --max-tasks 1
+ralph run loop --parallel --max-tasks 4
+ralph run loop --parallel 4 --max-tasks 8
 ralph run loop -i --max-tasks 3
 ralph run loop -i --visualize --max-tasks 1
 ralph run loop --max-tasks 1 --debug
@@ -1919,6 +1942,7 @@ The `run one` and `run loop` commands also support:
 
 * `--include-draft`: Include draft tasks (`status: draft`) when selecting what to run.
 * `--non-interactive`: Skip interactive prompts for sanity checks and session recovery (conflicts with `--interactive`). Useful for CI environments where TTY is not available.
+* `--parallel [N]` (run loop only): Run tasks concurrently in git worktrees. Defaults to `2` when provided without a value. Conflicts with `--interactive` and is CLI-only (not supported in the TUI).
 * `--update-task`: Automatically run `ralph task update <TASK_ID>` once per task immediately before the supervisor marks the task as `doing` and starts execution. This updates task fields (scope, evidence, plan, notes, tags, depends_on) based on current repository state, priming agents with better task information. Runs only once per task, before the first iteration (not before subsequent iterations if `iterations > 1`). Can also be enabled via config: `agent.update_task_before_run: true`.
 * `--no-update-task`: Disable automatic pre-run task update for this invocation (overrides config).
 * `--notify`: Enable desktop notification on task completion (overrides config).
@@ -1944,6 +1968,8 @@ ralph run one --no-notify-fail
 ralph run one --git-revert-mode disabled
 ralph run one --git-commit-push-off
 ralph run loop --include-draft --max-tasks 1
+ralph run loop --parallel --max-tasks 4
+ralph run loop --parallel 4 --max-tasks 8
 ralph run loop --update-task --max-tasks 1
 ralph run loop --max-tasks 1 --debug
 ```

@@ -38,6 +38,7 @@ pub fn handle_run(cmd: RunCommand, force: bool, no_progress: bool) -> Result<()>
                     auto_resume: true,
                     starting_completed: 0,
                     non_interactive: args.non_interactive,
+                    parallel_workers: None,
                 },
             )
         }
@@ -75,6 +76,14 @@ pub fn handle_run(cmd: RunCommand, force: bool, no_progress: bool) -> Result<()>
                 )?;
                 Ok(())
             } else {
+                if args.parallel_worker {
+                    let task_id = args.id.as_deref().ok_or_else(|| {
+                        anyhow::anyhow!("--parallel-worker requires --id <TASK_ID>")
+                    })?;
+                    run_cmd::run_one_parallel_worker(&resolved, &overrides, force, task_id)?;
+                    return Ok(());
+                }
+
                 if let Some(task_id) = args.id.as_deref() {
                     run_cmd::run_one_with_id(&resolved, &overrides, force, task_id, None, None)?;
                 } else {
@@ -133,6 +142,7 @@ pub fn handle_run(cmd: RunCommand, force: bool, no_progress: bool) -> Result<()>
                         auto_resume: args.resume,
                         starting_completed: 0,
                         non_interactive: args.non_interactive,
+                        parallel_workers: args.parallel,
                     },
                 )
             }
@@ -155,6 +165,7 @@ pub fn handle_run(cmd: RunCommand, force: bool, no_progress: bool) -> Result<()>
   - `--effort` is codex-only and is ignored for other runners.\n\
   - `--git-revert-mode` controls whether Ralph reverts uncommitted changes on errors (ask, enabled, disabled).\n\
   - `--git-commit-push-on` / `--git-commit-push-off` control automatic git commit/push after successful runs.\n\
+  - `--parallel` runs loop tasks concurrently in worktrees (CLI-only; conflicts with `--interactive`).\n\
   - `--update-task` runs `ralph task update <TASK_ID>` once per task immediately before task is marked `doing`.\n\
   - Clean-repo checks allow changes to `.ralph/config.json` (plus `.ralph/queue.json` and `.ralph/done.json`); use `--force` to bypass entirely.\n\
   - TUI entrypoints: `ralph tui`, `ralph run one -i`, `ralph run loop -i`.\n\
@@ -200,6 +211,8 @@ Examples:\n\
  ralph run loop --git-revert-mode ask --max-tasks 1\n\
  ralph run loop --git-commit-push-on --max-tasks 1\n\
  ralph run loop --lfs-check --max-tasks 1\n\
+ ralph run loop --parallel --max-tasks 4\n\
+ ralph run loop --parallel 4 --max-tasks 8\n\
  ralph run resume\n\
  ralph run resume --force\n\
  ralph run loop --resume --max-tasks 5\n\
@@ -322,6 +335,10 @@ pub struct RunOneArgs {
     #[arg(long, conflicts_with = "interactive")]
     pub non_interactive: bool,
 
+    /// Internal: run as a parallel worker (skips queue lock, allows upstream creation).
+    #[arg(long, hide = true)]
+    pub parallel_worker: bool,
+
     #[command(flatten)]
     pub agent: crate::agent::RunAgentArgs,
 }
@@ -351,6 +368,17 @@ pub struct RunLoopArgs {
     /// Skip interactive prompts (for CI/non-interactive environments).
     #[arg(long)]
     pub non_interactive: bool,
+
+    /// Run tasks in parallel using N workers (default when flag present: 2).
+    #[arg(
+        long,
+        value_parser = clap::value_parser!(u8).range(2..),
+        num_args = 0..=1,
+        default_missing_value = "2",
+        value_name = "N",
+        conflicts_with = "interactive"
+    )]
+    pub parallel: Option<u8>,
 
     #[command(flatten)]
     pub agent: crate::agent::RunAgentArgs,

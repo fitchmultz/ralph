@@ -14,9 +14,11 @@
 
 use crate::contracts::QueueFile;
 use crate::queue::operations::{
-    RunnableSelectionOptions, select_runnable_task_index, select_runnable_task_index_with_target,
+    RunnableSelectionOptions, are_dependencies_met, is_task_runnable, select_runnable_task_index,
+    select_runnable_task_index_with_target,
 };
 use anyhow::Result;
+use std::collections::HashSet;
 
 pub(crate) fn select_run_one_task_index(
     queue_file: &QueueFile,
@@ -39,10 +41,47 @@ pub(crate) fn select_run_one_task_index(
     Ok(select_runnable_task_index(queue_file, done_ref, options))
 }
 
+pub(crate) fn select_run_one_task_index_excluding(
+    queue_file: &QueueFile,
+    done_ref: Option<&QueueFile>,
+    include_draft: bool,
+    in_flight: &HashSet<String>,
+) -> Result<Option<usize>> {
+    let options = RunnableSelectionOptions::new(include_draft, true);
+    let is_in_flight = |id: &str| in_flight.contains(id.trim());
+
+    if options.prefer_doing
+        && let Some(idx) = queue_file.tasks.iter().position(|task| {
+            task.status == crate::contracts::TaskStatus::Doing && !is_in_flight(&task.id)
+        })
+    {
+        return Ok(Some(idx));
+    }
+
+    if let Some(idx) = queue_file.tasks.iter().position(|task| {
+        task.status == crate::contracts::TaskStatus::Todo
+            && !is_in_flight(&task.id)
+            && is_task_runnable(task, queue_file, done_ref)
+    }) {
+        return Ok(Some(idx));
+    }
+
+    if options.include_draft {
+        return Ok(queue_file.tasks.iter().position(|task| {
+            task.status == crate::contracts::TaskStatus::Draft
+                && !is_in_flight(&task.id)
+                && are_dependencies_met(task, queue_file, done_ref)
+        }));
+    }
+
+    Ok(None)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::select_run_one_task_index;
+    use super::{select_run_one_task_index, select_run_one_task_index_excluding};
     use crate::contracts::{QueueFile, Task, TaskStatus};
+    use std::collections::HashSet;
 
     fn task_with_status(status: TaskStatus) -> Task {
         Task {
@@ -218,6 +257,20 @@ mod tests {
             task_with_id_status("RQ-0002", TaskStatus::Todo),
         ]);
         let idx = select_run_one_task_index(&queue_file, None, None, true)?;
+        assert_eq!(idx, Some(1));
+        Ok(())
+    }
+
+    #[test]
+    fn select_run_one_task_index_excluding_skips_in_flight() -> anyhow::Result<()> {
+        let queue_file = queue_with_tasks(vec![
+            task_with_id_status("RQ-0001", TaskStatus::Todo),
+            task_with_id_status("RQ-0002", TaskStatus::Todo),
+        ]);
+        let mut in_flight = HashSet::new();
+        in_flight.insert("RQ-0001".to_string());
+
+        let idx = select_run_one_task_index_excluding(&queue_file, None, false, &in_flight)?;
         assert_eq!(idx, Some(1));
         Ok(())
     }

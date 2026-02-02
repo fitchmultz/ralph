@@ -103,6 +103,13 @@ fn registry_maps_prompt_metadata() {
             project_guidance: true,
         },
         Expectation {
+            id: PromptTemplateId::MergeConflicts,
+            rel_path: ".ralph/prompts/merge_conflicts.md",
+            label: "merge conflicts",
+            embedded_marker: "Merge Conflict Resolution",
+            project_guidance: false,
+        },
+        Expectation {
             id: PromptTemplateId::CodeReview,
             rel_path: ".ralph/prompts/code_review.md",
             label: "code review",
@@ -183,6 +190,12 @@ fn scan_innovation_v2_prompt_contains_required_placeholders() {
     let template = prompt_template(PromptTemplateId::ScanInnovationV2).embedded_default;
     assert!(template.contains("{{USER_FOCUS}}"));
     assert!(template.contains("{{PROJECT_TYPE_GUIDANCE}}"));
+}
+
+#[test]
+fn merge_conflict_prompt_contains_required_placeholders() {
+    let template = prompt_template(PromptTemplateId::MergeConflicts).embedded_default;
+    assert!(template.contains("{{CONFLICT_FILES}}"));
 }
 
 #[test]

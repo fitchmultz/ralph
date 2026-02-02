@@ -122,6 +122,7 @@ pub(crate) fn all_template_ids() -> Vec<PromptTemplateId> {
         PromptTemplateId::ScanMaintenanceV2,
         PromptTemplateId::ScanInnovationV1,
         PromptTemplateId::ScanInnovationV2,
+        PromptTemplateId::MergeConflicts,
         PromptTemplateId::CodeReview,
         PromptTemplateId::CompletionChecklist,
         PromptTemplateId::Phase2HandoffChecklist,
@@ -158,6 +159,9 @@ pub(crate) fn template_description(id: PromptTemplateId) -> &'static str {
         PromptTemplateId::ScanInnovationV2 => {
             "Repository scan prompt for innovation mode - v2 (rubric-based, default)"
         }
+        PromptTemplateId::MergeConflicts => {
+            "Merge conflict resolution prompt (used by parallel merge runner)"
+        }
         PromptTemplateId::CodeReview => "Code review body content (used in Phase 3)",
         PromptTemplateId::CompletionChecklist => {
             "Implementation completion checklist (validates done criteria)"
@@ -189,6 +193,7 @@ pub(crate) fn parse_template_name(name: &str) -> Option<PromptTemplateId> {
         "scan_maintenance_v2" => Some(PromptTemplateId::ScanMaintenanceV2),
         "scan_innovation_v1" => Some(PromptTemplateId::ScanInnovationV1),
         "scan_innovation_v2" => Some(PromptTemplateId::ScanInnovationV2),
+        "merge_conflicts" | "merge_conflict" => Some(PromptTemplateId::MergeConflicts),
         "code_review" => Some(PromptTemplateId::CodeReview),
         "completion_checklist" => Some(PromptTemplateId::CompletionChecklist),
         "phase2_handoff_checklist" | "phase_2_handoff_checklist" => {
@@ -214,6 +219,7 @@ pub(crate) fn template_file_name(id: PromptTemplateId) -> &'static str {
         PromptTemplateId::ScanMaintenanceV2 => "scan_maintenance_v2",
         PromptTemplateId::ScanInnovationV1 => "scan_innovation_v1",
         PromptTemplateId::ScanInnovationV2 => "scan_innovation_v2",
+        PromptTemplateId::MergeConflicts => "merge_conflicts",
         PromptTemplateId::CodeReview => "code_review",
         PromptTemplateId::CompletionChecklist => "completion_checklist",
         PromptTemplateId::Phase2HandoffChecklist => "phase2_handoff_checklist",
@@ -601,7 +607,7 @@ mod tests {
     #[test]
     fn all_template_ids_count() {
         let ids = all_template_ids();
-        assert_eq!(ids.len(), 16);
+        assert_eq!(ids.len(), 17);
     }
 
     #[test]
@@ -691,7 +697,7 @@ mod tests {
     fn list_templates_shows_all() {
         let temp = TempDir::new().unwrap();
         let templates = list_templates(temp.path());
-        assert_eq!(templates.len(), 16);
+        assert_eq!(templates.len(), 17);
 
         // Check that worker is in the list
         let worker = templates.iter().find(|t| t.name == "worker").unwrap();

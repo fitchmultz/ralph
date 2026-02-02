@@ -6,7 +6,7 @@ use ralph::commands::prompt::{
     self as prompt_cmd, ScanPromptOptions, TaskBuilderPromptOptions, WorkerMode,
     WorkerPromptOptions,
 };
-use ralph::contracts::{AgentConfig, Config, ProjectType, QueueConfig, TuiConfig};
+use ralph::contracts::{AgentConfig, Config, ParallelConfig, ProjectType, QueueConfig, TuiConfig};
 use std::path::PathBuf;
 use tempfile::TempDir;
 
@@ -36,6 +36,7 @@ fn make_resolved(temp: &TempDir) -> ralph::config::Resolved {
             git_commit_push_enabled: Some(true),
             ..Default::default()
         },
+        parallel: ParallelConfig::default(),
         tui: TuiConfig::default(),
     };
 

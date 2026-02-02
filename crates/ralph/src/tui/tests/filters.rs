@@ -15,6 +15,7 @@ use super::super::app_palette::scan_label;
 use super::super::events::PaletteCommand;
 use super::{QueueFile, Result, canonical_rfc3339, make_test_task, make_test_task_with_tags};
 use crate::contracts::TaskStatus;
+use crate::tui::app_filters::FilterManagementOperations;
 
 #[test]
 fn app_filters_by_tags() {

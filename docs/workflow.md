@@ -7,6 +7,7 @@ Purpose: Explain Ralph's high-level runtime layout, phases, and prompt override 
 - `.ralph/done.json`: archive of completed tasks.
 - `.ralph/config.json`: project-level configuration.
 - `.ralph/prompts/*.md`: optional prompt overrides (defaults are embedded in the Rust CLI under `crates/ralph/assets/prompts/`).
+- `.ralph/cache/parallel/state.json`: parallel run state (in-flight tasks and PRs).
 
 ## Prompt Overrides
 Ralph embeds default prompts in the Rust binary. To override prompts per repo, add:
@@ -20,6 +21,7 @@ Ralph embeds default prompts in the Rust binary. To override prompts per repo, a
 - `.ralph/prompts/phase2_handoff_checklist.md`
 - `.ralph/prompts/code_review.md`
 - `.ralph/prompts/task_builder.md`
+- `.ralph/prompts/merge_conflicts.md`
 - `.ralph/prompts/scan.md`
 
 Overrides must preserve required placeholders (for example `{{USER_REQUEST}}` in task builder prompts).
@@ -33,6 +35,19 @@ Default execution uses three phases:
    - With auto git commit/push enabled, Phase 3 requires a clean repo to finish; for rejected tasks, the only allowed dirty files are `.ralph/queue.json` and `.ralph/done.json` (queue bookkeeping).
 
 Phases can be set via `--phases` or `agent.phases` in config.
+
+## Parallel Run Loop (CLI Only)
+
+Parallel execution is available only via the CLI (`ralph run loop --parallel [N]`). The TUI does
+not support parallel runs.
+
+High-level behavior:
+- Each task runs in its own git worktree under `.ralph/worktrees/parallel/<TASK_ID>` on a branch
+  named `ralph/<TASK_ID>`.
+- The supervisor creates PRs on success (draft PRs on failure when enabled).
+- The merge runner merges PRs as they are created (or after all tasks), and can auto-resolve
+  conflicts using the `merge_conflicts` prompt and `parallel.merge_runner` overrides.
+- State is persisted to `.ralph/cache/parallel/state.json` for crash recovery and coordination.
 
 ## Security and Redaction
 

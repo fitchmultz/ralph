@@ -12,6 +12,7 @@
 //! - Mode transitions (see modes.rs).
 
 use super::helpers::{ctrl_key_event, input, input_with_cursor, key_event, make_queue};
+use crate::tui::app_filters::FilterManagementOperations;
 use crate::tui::events::handle_key_event;
 use crate::tui::{App, AppMode, TuiAction};
 use crossterm::event::KeyCode;
