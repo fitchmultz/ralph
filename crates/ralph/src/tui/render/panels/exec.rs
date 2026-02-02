@@ -15,6 +15,8 @@
 
 use super::super::App;
 use super::progress::draw_progress_panel;
+use crate::tui::app_panel::PanelOperations;
+use crate::tui::app_scroll::ScrollOperations;
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, Direction, Layout, Rect},

@@ -19,6 +19,10 @@ use crate::tui::PaletteCommand;
 use crate::tui::app_filters::FilterManagementOperations;
 use crate::tui::app_multi_select::MultiSelectOperations;
 use crate::tui::app_navigation::NavigationOperations;
+use crate::tui::app_palette_ops::PaletteOperations;
+use crate::tui::app_panel::PanelOperations;
+use crate::tui::app_scroll::ScrollOperations;
+use crate::tui::app_view::ViewOperations;
 use anyhow::Result;
 use crossterm::event::{KeyCode, KeyEvent};
 

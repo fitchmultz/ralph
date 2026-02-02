@@ -7,6 +7,8 @@
 //! Not handled here:
 //! - Individual test implementations (see submodules).
 
+// Import traits needed for test compilation
+
 pub mod common;
 mod flowchart;
 mod footer;

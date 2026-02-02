@@ -15,21 +15,37 @@
 #![allow(clippy::struct_excessive_bools)]
 
 mod config;
+mod model;
 mod queue;
+mod runner;
 mod session;
 mod task;
 
+// Re-exports from config module (core config types)
 pub use config::{
-    AgentConfig, AutoArchiveBehavior, ClaudePermissionMode, Config, ConflictPolicy, GitRevertMode,
-    MergeRunnerConfig, Model, ModelEffort, NotificationConfig, ParallelConfig, ParallelMergeMethod,
-    ParallelMergeWhen, PhaseOverrideConfig, PhaseOverrides, ProjectType, QueueConfig,
-    ReasoningEffort, Runner, RunnerApprovalMode, RunnerCliConfigRoot, RunnerCliOptionsPatch,
-    RunnerOutputFormat, RunnerPlanMode, RunnerSandboxMode, RunnerVerbosity, ScanPromptVersion,
-    TuiConfig, UnsupportedOptionPolicy, WebhookConfig,
+    AgentConfig, AutoArchiveBehavior, Config, ConflictPolicy, GitRevertMode, NotificationConfig,
+    ParallelConfig, ParallelMergeMethod, ParallelMergeWhen, PhaseOverrideConfig, PhaseOverrides,
+    ProjectType, QueueConfig, ScanPromptVersion, TuiConfig, WebhookConfig,
 };
+
+// Re-exports from model module (model types)
+pub use model::{Model, ModelEffort, ReasoningEffort};
+
+// Re-exports from queue module
 pub use queue::QueueFile;
+
+// Re-exports from runner module (runner types)
+pub use runner::{
+    ClaudePermissionMode, MergeRunnerConfig, Runner, RunnerApprovalMode, RunnerCliConfigRoot,
+    RunnerCliOptionsPatch, RunnerOutputFormat, RunnerPlanMode, RunnerSandboxMode, RunnerVerbosity,
+    UnsupportedOptionPolicy,
+};
+
+// Re-exports from session module
 pub use session::{PhaseSettingsSnapshot, SessionState};
 
 // Re-export SESSION_STATE_VERSION from constants for backward compatibility
 pub use crate::constants::versions::SESSION_STATE_VERSION;
+
+// Re-exports from task module
 pub use task::{Task, TaskAgent, TaskPriority, TaskStatus};

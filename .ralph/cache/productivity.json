@@ -1,7 +1,7 @@
 {
   "version": 1,
   "first_task_completed_at": "2026-01-30T12:31:17.161199000Z",
-  "last_updated_at": "2026-02-01T19:09:32.385277000Z",
+  "last_updated_at": "2026-02-02T20:28:45.477799000Z",
   "daily": {
     "2026-01-30": {
       "date": "2026-01-30",
@@ -335,14 +335,95 @@
           "completed_at": "2026-02-01T19:09:32.385277000Z"
         }
       ]
+    },
+    "2026-02-02": {
+      "date": "2026-02-02",
+      "completed_count": 15,
+      "tasks": [
+        {
+          "id": "RQ-0545",
+          "title": "Add clone-based git workspace helpers for parallel runs (no worktree compat)",
+          "completed_at": "2026-02-02T15:03:35.091099000Z"
+        },
+        {
+          "id": "RQ-0546",
+          "title": "Replace parallel config/state to use workspace_* only (breaking change)",
+          "completed_at": "2026-02-02T15:40:31.899279000Z"
+        },
+        {
+          "id": "RQ-0547",
+          "title": "Swap parallel supervisor to workspace clones (remove worktree paths)",
+          "completed_at": "2026-02-02T16:00:15.278978000Z"
+        },
+        {
+          "id": "RQ-0548",
+          "title": "Harden merge runner with workspace clones only",
+          "completed_at": "2026-02-02T16:17:49.694200000Z"
+        },
+        {
+          "id": "RQ-0549",
+          "title": "Update docs/gitignore for workspace clone parallel mode (breaking change)",
+          "completed_at": "2026-02-02T16:35:08.710864000Z"
+        },
+        {
+          "id": "RQ-0550",
+          "title": "Regenerate config schema after removing worktree_* keys",
+          "completed_at": "2026-02-02T16:46:37.288172000Z"
+        },
+        {
+          "id": "RQ-0551",
+          "title": "Sweep worktree references and run CI + parallel smoke test (no compat)",
+          "completed_at": "2026-02-02T17:02:53.099575000Z"
+        },
+        {
+          "id": "RQ-0552",
+          "title": "Split oversized TUI app module into cohesive submodules",
+          "completed_at": "2026-02-02T17:50:31.493106000Z"
+        },
+        {
+          "id": "RQ-0553",
+          "title": "Modularize config contracts to keep config parsing cohesive",
+          "completed_at": "2026-02-02T18:06:37.442072000Z"
+        },
+        {
+          "id": "RQ-0554",
+          "title": "Split parallel run command into focused modules",
+          "completed_at": "2026-02-02T18:22:20.888074000Z"
+        },
+        {
+          "id": "RQ-0555",
+          "title": "Refactor run command module into smaller cohesive units",
+          "completed_at": "2026-02-02T18:36:45.236306000Z"
+        },
+        {
+          "id": "RQ-0556",
+          "title": "Split queue graph logic into focused components",
+          "completed_at": "2026-02-02T19:07:14.342970000Z"
+        },
+        {
+          "id": "RQ-0557",
+          "title": "Break agent module into smaller responsibilities",
+          "completed_at": "2026-02-02T19:35:01.211622000Z"
+        },
+        {
+          "id": "RQ-0558",
+          "title": "Split runner module to isolate runner responsibilities",
+          "completed_at": "2026-02-02T20:02:01.626421000Z"
+        },
+        {
+          "id": "RQ-0559",
+          "title": "Reduce runutil module size by extracting focused helpers",
+          "completed_at": "2026-02-02T20:28:45.477796000Z"
+        }
+      ]
     }
   },
   "streak": {
-    "current_streak": 3,
-    "longest_streak": 3,
-    "last_completed_date": "2026-02-01"
+    "current_streak": 4,
+    "longest_streak": 4,
+    "last_completed_date": "2026-02-02"
   },
-  "total_completed": 63,
+  "total_completed": 78,
   "milestones": [
     {
       "threshold": 10,

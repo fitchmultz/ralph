@@ -25,8 +25,13 @@ mod app_multi_select;
 mod app_navigation;
 mod app_options;
 mod app_palette;
+mod app_palette_ops;
+mod app_panel;
+mod app_reload;
+mod app_scroll;
 mod app_session;
 mod app_tasks;
+mod app_view;
 mod config_edit;
 mod dependency_graph_cache;
 mod events;
@@ -58,10 +63,15 @@ pub use app_navigation::{AppNavigation, NavigationOperations, NavigationState};
 pub use app_options::FilterCacheStats;
 pub use app_options::TuiOptions;
 pub use app_palette::{build_palette_entries, filter_and_score_entries, scan_label};
+pub use app_palette_ops::PaletteOperations;
+pub use app_panel::{FocusedPanel, PanelOperations};
+pub use app_reload::ReloadOperations;
+pub use app_scroll::ScrollOperations;
 pub use app_session::{SessionManager, SessionState};
 pub use app_tasks::{
     AppTasks, AutoArchiveAction, MoveResult, TaskMovementOperations, TaskOperations,
 };
+pub use app_view::ViewOperations;
 pub use config_edit::{ConfigEntry, ConfigFieldKind, ConfigKey};
 pub use dependency_graph_cache::DependencyGraphCache;
 pub use events::{

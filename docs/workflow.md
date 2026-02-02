@@ -42,12 +42,19 @@ Parallel execution is available only via the CLI (`ralph run loop --parallel [N]
 not support parallel runs.
 
 High-level behavior:
-- Each task runs in its own git worktree under `<repo-parent>/.worktrees/<repo-name>/parallel/<TASK_ID>`
-  on a branch named `ralph/<TASK_ID>`.
+- Each task runs in its own isolated git workspace clone under
+  `<repo-parent>/.workspaces/<repo-name>/parallel/<TASK_ID>` by default
+  (configurable via `parallel.workspace_root`).
+  Each workspace checks out a branch named `ralph/<TASK_ID>`.
 - The supervisor creates PRs on success (draft PRs on failure when enabled).
 - The merge runner merges PRs as they are created (or after all tasks), and can auto-resolve
   conflicts using the `merge_conflicts` prompt and `parallel.merge_runner` overrides.
 - State is persisted to `.ralph/cache/parallel/state.json` for crash recovery and coordination.
+
+**Breaking change (2026-02):** The default directory for parallel workspaces changed from
+`.worktrees/` to `.workspaces/`. The config key `parallel.worktree_root` has been renamed to
+`parallel.workspace_root` and is no longer accepted. Run `ralph migrate` to update existing
+configs if you have custom `worktree_root` settings.
 
 ## Security and Redaction
 

@@ -45,6 +45,9 @@ pub struct Resolved {
     pub project_config_path: Option<PathBuf>,
 }
 
+/// Environment variable for overriding repo root resolution.
+pub(crate) const REPO_ROOT_OVERRIDE_ENV: &str = "RALPH_REPO_ROOT_OVERRIDE";
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ConfigLayer {
@@ -69,7 +72,27 @@ pub fn resolve_from_cwd_for_doctor() -> Result<Resolved> {
 fn resolve_from_cwd_internal(validate_instruction_files: bool) -> Result<Resolved> {
     let cwd = env::current_dir().context("resolve current working directory")?;
     log::debug!("resolving configuration from cwd: {}", cwd.display());
-    let repo_root = find_repo_root(&cwd);
+    let repo_root = if let Some(raw_override) = env::var_os(REPO_ROOT_OVERRIDE_ENV) {
+        let mut override_path = PathBuf::from(raw_override);
+        if override_path.is_relative() {
+            override_path = cwd.join(override_path);
+        }
+        if !override_path.exists() {
+            bail!(
+                "{} points to missing path: {}",
+                REPO_ROOT_OVERRIDE_ENV,
+                override_path.display()
+            );
+        }
+        log::debug!(
+            "using {} override for repo root: {}",
+            REPO_ROOT_OVERRIDE_ENV,
+            override_path.display()
+        );
+        find_repo_root(&override_path)
+    } else {
+        find_repo_root(&cwd)
+    };
 
     let global_path = global_config_path();
     let project_path = project_config_path(&repo_root);
@@ -413,6 +436,9 @@ pub fn find_repo_root(start: &Path) -> PathBuf {
 mod tests {
     use super::*;
     use crate::contracts::GitRevertMode;
+    use serial_test::serial;
+    use std::env;
+    use std::fs;
 
     #[test]
     fn apply_layer_overrides_git_revert_mode() -> Result<()> {
@@ -644,5 +670,62 @@ mod tests {
             err.to_string().contains("missing.md"),
             "Error should mention the first missing file"
         );
+    }
+
+    #[test]
+    #[serial]
+    fn resolve_from_cwd_uses_repo_root_override_when_set() -> Result<()> {
+        let temp = tempfile::TempDir::new()?;
+        let repo_root = temp.path().join("repo");
+        let workspace = repo_root.join("workspace");
+        let workspace_rel = PathBuf::from("repo/workspace");
+
+        fs::create_dir_all(workspace.join(".git"))?;
+        fs::create_dir_all(workspace.join(".ralph"))?;
+        fs::write(workspace.join(".ralph/queue.json"), "{}")?;
+
+        let original_dir = env::current_dir()?;
+        let prior_override = env::var_os(REPO_ROOT_OVERRIDE_ENV);
+
+        env::set_current_dir(temp.path())?;
+        unsafe { env::set_var(REPO_ROOT_OVERRIDE_ENV, &workspace_rel) };
+
+        let resolved = resolve_from_cwd()?;
+        assert_eq!(resolved.repo_root, workspace);
+
+        match prior_override {
+            Some(value) => unsafe { env::set_var(REPO_ROOT_OVERRIDE_ENV, value) },
+            None => unsafe { env::remove_var(REPO_ROOT_OVERRIDE_ENV) },
+        };
+        env::set_current_dir(original_dir)?;
+
+        Ok(())
+    }
+
+    #[test]
+    #[serial]
+    fn resolve_from_cwd_rejects_missing_repo_root_override() {
+        let temp = tempfile::TempDir::new().expect("tempdir");
+        let missing = temp.path().join("missing");
+
+        let original_dir = env::current_dir().expect("cwd");
+        let prior_override = env::var_os(REPO_ROOT_OVERRIDE_ENV);
+
+        env::set_current_dir(temp.path()).expect("chdir");
+        unsafe { env::set_var(REPO_ROOT_OVERRIDE_ENV, &missing) };
+
+        let err = resolve_from_cwd().expect_err("missing override should fail");
+        assert!(
+            err.to_string().contains(REPO_ROOT_OVERRIDE_ENV),
+            "error should mention {}: {}",
+            REPO_ROOT_OVERRIDE_ENV,
+            err
+        );
+
+        match prior_override {
+            Some(value) => unsafe { env::set_var(REPO_ROOT_OVERRIDE_ENV, value) },
+            None => unsafe { env::remove_var(REPO_ROOT_OVERRIDE_ENV) },
+        };
+        env::set_current_dir(original_dir).expect("restore cwd");
     }
 }

@@ -10,6 +10,8 @@
 
 use super::helpers::{make_queue, make_test_task};
 use crate::tui::App;
+use crate::tui::app_panel::PanelOperations;
+use crate::tui::app_scroll::ScrollOperations;
 
 #[test]
 fn resize_event_clamps_selected_to_filtered_len() {

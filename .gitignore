@@ -9,6 +9,8 @@ target/
 ralph_tui/ralph
 !.ralph/queue.json
 .ralph/cache/completions
+.ralph/cache/parallel/
+.ralph/workspaces/
 .ralph/cache/phase2_final
 .ralph/cache/plans
 .ralph/logs/

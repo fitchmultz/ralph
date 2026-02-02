@@ -15,6 +15,7 @@
 use super::super::{App, DetailsContext, DetailsContextMode};
 use super::utils::{scroll_indicator, wrap_text};
 use crate::outpututil::truncate_chars;
+use crate::tui::app_scroll::ScrollOperations;
 use ratatui::{
     Frame,
     layout::{Rect, Size},

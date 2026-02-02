@@ -1,7 +1,7 @@
 //! Parallel run loop supervisor and worker orchestration.
 //!
 //! Responsibilities:
-//! - Select runnable tasks and spawn parallel workers in git worktrees.
+//! - Select runnable tasks and spawn parallel workers in git workspaces (clone-based).
 //! - Create PRs on success/failure and optionally dispatch merge runner work.
 //! - Track in-flight workers and coordinate cleanup after merges.
 //!
@@ -9,31 +9,38 @@
 //! - CLI parsing (see `crate::cli::run`).
 //! - Task execution details (delegated to `ralph run one` workers).
 //! - Merge conflict resolution logic (see `merge_runner`).
+//! - Worker lifecycle management (see `worker`).
+//! - State synchronization (see `sync`).
+//! - CLI argument builders (see `args`).
 //!
 //! Invariants/assumptions:
 //! - Queue order is authoritative for task selection.
-//! - Workers run in isolated worktrees with dedicated branches.
+//! - Workers run in isolated workspaces with dedicated branches.
 //! - PR creation relies on authenticated `gh` CLI access.
 
 use crate::agent::AgentOverrides;
-use crate::commands::run::selection::select_run_one_task_index_excluding;
 use crate::config;
 use crate::contracts::{ConflictPolicy, MergeRunnerConfig, ParallelMergeMethod, ParallelMergeWhen};
-use crate::{git, promptflow, queue, runutil, signal, timeutil};
-use anyhow::{Context, Result, bail};
+use crate::{git, promptflow, runutil, signal, timeutil};
+use anyhow::{Result, bail};
 use std::collections::{HashMap, HashSet};
-use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, mpsc};
 use std::thread;
 use std::time::Duration;
 
+mod args;
 mod merge_runner;
 mod state;
+mod sync;
+mod worker;
 
 use merge_runner::{MergeQueueSource, MergeResult};
+use sync::{commit_failure_changes, ensure_branch_pushed, sync_ralph_state};
+use worker::{
+    WorkerState, collect_excluded_ids, select_next_task, spawn_worker, terminate_workers,
+};
 
 pub(crate) struct ParallelRunOptions {
     pub max_tasks: u32,
@@ -41,13 +48,6 @@ pub(crate) struct ParallelRunOptions {
     pub agent_overrides: AgentOverrides,
     pub force: bool,
     pub merge_when: ParallelMergeWhen,
-}
-
-struct WorkerState {
-    task_id: String,
-    task_title: String,
-    worktree: git::WorktreeSpec,
-    child: Child,
 }
 
 struct ParallelSettings {
@@ -59,7 +59,7 @@ struct ParallelSettings {
     draft_on_failure: bool,
     conflict_policy: ConflictPolicy,
     merge_retries: u8,
-    worktree_root: PathBuf,
+    workspace_root: PathBuf,
     branch_prefix: String,
     delete_branch_on_merge: bool,
     merge_runner: MergeRunnerConfig,
@@ -136,7 +136,7 @@ pub(crate) fn run_loop_parallel(
     let merge_stop = Arc::new(AtomicBool::new(false));
     let mut dropped_tasks = Vec::new();
     state_file.tasks_in_flight.retain(|record| {
-        let path = Path::new(&record.worktree_path);
+        let path = Path::new(&record.workspace_path);
         if path.exists() {
             true
         } else {
@@ -146,7 +146,7 @@ pub(crate) fn run_loop_parallel(
     });
     if !dropped_tasks.is_empty() {
         log::warn!(
-            "Dropping stale in-flight tasks with missing worktrees: {}",
+            "Dropping stale in-flight tasks with missing workspaces: {}",
             dropped_tasks.join(", ")
         );
         state::save_state(&state_path, &state_file)?;
@@ -171,7 +171,7 @@ pub(crate) fn run_loop_parallel(
         let conflict_policy = settings.conflict_policy;
         let merge_runner_cfg = settings.merge_runner.clone();
         let retries = settings.merge_retries;
-        let worktree_root = settings.worktree_root.clone();
+        let workspace_root = settings.workspace_root.clone();
         let delete_branch = settings.delete_branch_on_merge;
         let merge_result_tx_for_thread = merge_result_tx.clone();
         let merge_stop_for_thread = Arc::clone(&merge_stop);
@@ -184,7 +184,7 @@ pub(crate) fn run_loop_parallel(
                 merge_runner_cfg,
                 retries,
                 MergeQueueSource::AsCreated(pr_rx),
-                &worktree_root,
+                &workspace_root,
                 delete_branch,
                 merge_result_tx_for_thread,
                 merge_stop_for_thread,
@@ -193,17 +193,17 @@ pub(crate) fn run_loop_parallel(
     }
 
     let mut in_flight: HashMap<String, WorkerState> = HashMap::new();
-    let mut completed_worktrees: HashMap<String, git::WorktreeSpec> = HashMap::new();
+    let mut completed_workspaces: HashMap<String, git::WorkspaceSpec> = HashMap::new();
     let mut created_prs: Vec<git::PrInfo> = existing_prs.clone();
 
     for record in state_file.prs.iter().filter(|record| !record.merged) {
         let path = record
-            .worktree_path()
-            .unwrap_or_else(|| settings.worktree_root.join(&record.task_id));
+            .workspace_path()
+            .unwrap_or_else(|| settings.workspace_root.join(&record.task_id));
         if path.exists() {
-            completed_worktrees.insert(
+            completed_workspaces.insert(
                 record.task_id.clone(),
-                git::WorktreeSpec {
+                git::WorkspaceSpec {
                     task_id: record.task_id.clone(),
                     path,
                     branch: format!("{}{}", settings.branch_prefix, record.task_id),
@@ -219,6 +219,7 @@ pub(crate) fn run_loop_parallel(
     }
 
     let include_draft = opts.agent_overrides.include_draft.unwrap_or(false);
+    let worker_overrides = overrides_for_parallel_workers(resolved, &opts.agent_overrides);
     let mut tasks_started: u32 = 0;
     let mut tasks_attempted: usize = 0;
     let mut tasks_succeeded: usize = 0;
@@ -248,24 +249,24 @@ pub(crate) fn run_loop_parallel(
                     None => break,
                 };
 
-            let worktree = git::create_worktree_at(
+            let workspace = git::create_workspace_at(
                 &resolved.repo_root,
-                &settings.worktree_root,
+                &settings.workspace_root,
                 &task_id,
                 &base_branch,
                 &settings.branch_prefix,
             )?;
-            sync_ralph_state(&resolved.repo_root, &worktree.path)?;
+            sync_ralph_state(&resolved.repo_root, &workspace.path)?;
 
             let child = spawn_worker(
                 resolved,
-                &worktree.path,
+                &workspace.path,
                 &task_id,
-                &opts.agent_overrides,
+                &worker_overrides,
                 opts.force,
             )?;
 
-            let record = state::ParallelTaskRecord::new(&task_id, &worktree, child.id());
+            let record = state::ParallelTaskRecord::new(&task_id, &workspace, child.id());
             state_file.upsert_task(record);
             state::save_state(&state_path, &state_file)?;
 
@@ -274,7 +275,7 @@ pub(crate) fn run_loop_parallel(
                 WorkerState {
                     task_id,
                     task_title,
-                    worktree,
+                    workspace,
                     child,
                 },
             );
@@ -284,11 +285,12 @@ pub(crate) fn run_loop_parallel(
         // Drain merge results for cleanup.
         while let Ok(result) = merge_result_rx.try_recv() {
             if result.merged {
-                if let Some(worktree) = completed_worktrees.remove(&result.task_id)
-                    && let Err(err) = git::remove_worktree(&resolved.repo_root, &worktree, true)
+                if let Some(workspace) = completed_workspaces.remove(&result.task_id)
+                    && let Err(err) =
+                        git::remove_workspace(&settings.workspace_root, &workspace, true)
                 {
                     log::warn!(
-                        "Failed to remove worktree for {}: {:#}",
+                        "Failed to remove workspace for {}: {:#}",
                         result.task_id,
                         err
                     );
@@ -327,7 +329,7 @@ pub(crate) fn run_loop_parallel(
                     )?;
                 }
 
-                completed_worktrees.insert(task_id.clone(), worker.worktree.clone());
+                completed_workspaces.insert(task_id.clone(), worker.workspace.clone());
                 state_file.remove_task(task_id);
                 state::save_state(&state_path, &state_file)?;
                 finished.push(task_id.clone());
@@ -360,13 +362,17 @@ pub(crate) fn run_loop_parallel(
         }
 
         terminate_workers(&mut in_flight);
-        let cleanup_worktrees =
-            collect_worktrees_for_cleanup(&settings, &in_flight, &completed_worktrees, &state_file);
-        for spec in cleanup_worktrees {
+        let cleanup_workspaces = collect_workspaces_for_cleanup(
+            &settings,
+            &in_flight,
+            &completed_workspaces,
+            &state_file,
+        );
+        for spec in cleanup_workspaces {
             if spec.path.exists()
-                && let Err(err) = git::remove_worktree(&resolved.repo_root, &spec, true)
+                && let Err(err) = git::remove_workspace(&settings.workspace_root, &spec, true)
             {
-                log::warn!("Failed to remove worktree for {}: {:#}", spec.task_id, err);
+                log::warn!("Failed to remove workspace for {}: {:#}", spec.task_id, err);
             }
         }
         state_file.tasks_in_flight.clear();
@@ -389,7 +395,7 @@ pub(crate) fn run_loop_parallel(
             settings.merge_runner.clone(),
             settings.merge_retries,
             MergeQueueSource::AfterAll(created_prs.clone()),
-            &settings.worktree_root,
+            &settings.workspace_root,
             settings.delete_branch_on_merge,
             merge_result_tx,
             Arc::clone(&merge_stop),
@@ -407,11 +413,11 @@ pub(crate) fn run_loop_parallel(
     // Drain any remaining merge results for cleanup.
     while let Ok(result) = merge_result_rx.try_recv() {
         if result.merged {
-            if let Some(worktree) = completed_worktrees.remove(&result.task_id)
-                && let Err(err) = git::remove_worktree(&resolved.repo_root, &worktree, true)
+            if let Some(workspace) = completed_workspaces.remove(&result.task_id)
+                && let Err(err) = git::remove_workspace(&settings.workspace_root, &workspace, true)
             {
                 log::warn!(
-                    "Failed to remove worktree for {}: {:#}",
+                    "Failed to remove workspace for {}: {:#}",
                     result.task_id,
                     err
                 );
@@ -475,102 +481,43 @@ pub(crate) fn run_loop_parallel(
     Ok(())
 }
 
-fn select_next_task(
-    resolved: &config::Resolved,
-    include_draft: bool,
-    excluded_ids: &HashSet<String>,
-    force: bool,
-) -> Result<Option<(String, String)>> {
-    let _lock = queue::acquire_queue_lock(&resolved.repo_root, "parallel selection", force)?;
-    let queue_file = queue::load_queue(&resolved.queue_path)?;
-    let done = queue::load_queue_or_default(&resolved.done_path)?;
-    let done_ref = if done.tasks.is_empty() && !resolved.done_path.exists() {
-        None
-    } else {
-        Some(&done)
-    };
-
-    let idx =
-        select_run_one_task_index_excluding(&queue_file, done_ref, include_draft, excluded_ids)?;
-    let idx = match idx {
-        Some(idx) => idx,
-        None => return Ok(None),
-    };
-    let task = &queue_file.tasks[idx];
-    Ok(Some((
-        task.id.trim().to_string(),
-        task.title.trim().to_string(),
-    )))
-}
-
-fn collect_excluded_ids(
-    state_file: &state::ParallelStateFile,
-    in_flight: &HashMap<String, WorkerState>,
-) -> HashSet<String> {
-    let mut excluded = HashSet::new();
-    for key in in_flight.keys() {
-        excluded.insert(key.trim().to_string());
-    }
-    for record in &state_file.tasks_in_flight {
-        excluded.insert(record.task_id.trim().to_string());
-    }
-    for record in &state_file.prs {
-        if !record.merged {
-            excluded.insert(record.task_id.trim().to_string());
-        }
-    }
-    excluded
-}
-
-fn terminate_workers(in_flight: &mut HashMap<String, WorkerState>) {
-    for worker in in_flight.values_mut() {
-        if let Err(err) = worker.child.kill() {
-            log::warn!("Failed to terminate worker {}: {}", worker.task_id, err);
-        }
-    }
-
-    for worker in in_flight.values_mut() {
-        let _ = worker.child.wait();
-    }
-}
-
-fn collect_worktrees_for_cleanup(
+fn collect_workspaces_for_cleanup(
     settings: &ParallelSettings,
     in_flight: &HashMap<String, WorkerState>,
-    completed_worktrees: &HashMap<String, git::WorktreeSpec>,
+    completed_workspaces: &HashMap<String, git::WorkspaceSpec>,
     state_file: &state::ParallelStateFile,
-) -> Vec<git::WorktreeSpec> {
+) -> Vec<git::WorkspaceSpec> {
     let mut seen = HashSet::new();
     let mut collected = Vec::new();
 
-    let mut push_unique = |spec: git::WorktreeSpec| {
+    let mut push_unique = |spec: git::WorkspaceSpec| {
         if seen.insert(spec.path.clone()) {
             collected.push(spec);
         }
     };
 
     for worker in in_flight.values() {
-        push_unique(worker.worktree.clone());
+        push_unique(worker.workspace.clone());
     }
 
-    for spec in completed_worktrees.values() {
+    for spec in completed_workspaces.values() {
         push_unique(spec.clone());
     }
 
     for record in &state_file.tasks_in_flight {
-        push_unique(git::WorktreeSpec {
+        push_unique(git::WorkspaceSpec {
             task_id: record.task_id.clone(),
-            path: PathBuf::from(&record.worktree_path),
+            path: PathBuf::from(&record.workspace_path),
             branch: record.branch.clone(),
         });
     }
 
     for record in state_file.prs.iter().filter(|record| !record.merged) {
         let path = record
-            .worktree_path()
-            .unwrap_or_else(|| settings.worktree_root.join(&record.task_id));
+            .workspace_path()
+            .unwrap_or_else(|| settings.workspace_root.join(&record.task_id));
         let branch = format!("{}{}", settings.branch_prefix, record.task_id);
-        push_unique(git::WorktreeSpec {
+        push_unique(git::WorkspaceSpec {
             task_id: record.task_id.clone(),
             path,
             branch,
@@ -578,55 +525,6 @@ fn collect_worktrees_for_cleanup(
     }
 
     collected
-}
-
-fn spawn_worker(
-    _resolved: &config::Resolved,
-    worktree_path: &Path,
-    task_id: &str,
-    overrides: &AgentOverrides,
-    force: bool,
-) -> Result<Child> {
-    let (mut cmd, args) = build_worker_command(worktree_path, task_id, overrides, force)?;
-    log::debug!(
-        "Spawning parallel worker {} in {} with args: {:?}",
-        task_id,
-        worktree_path.display(),
-        args
-    );
-    cmd.args(args);
-    let child = cmd.spawn().context("spawn parallel worker")?;
-    Ok(child)
-}
-
-fn build_worker_command(
-    worktree_path: &Path,
-    task_id: &str,
-    overrides: &AgentOverrides,
-    force: bool,
-) -> Result<(Command, Vec<String>)> {
-    let exe = std::env::current_exe().context("resolve current executable")?;
-    let mut cmd = Command::new(exe);
-    cmd.current_dir(worktree_path);
-    cmd.env("PWD", worktree_path);
-    cmd.stdin(Stdio::null());
-
-    let mut args: Vec<String> = Vec::new();
-    if force {
-        args.push("--force".to_string());
-    }
-    args.push("--no-progress".to_string());
-    args.push("run".to_string());
-    args.push("one".to_string());
-    args.push("--id".to_string());
-    args.push(task_id.to_string());
-    args.push("--parallel-worker".to_string());
-    args.push("--non-interactive".to_string());
-    args.push("--git-commit-push-on".to_string());
-
-    args.extend(build_override_args(overrides));
-
-    Ok((cmd, args))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -644,16 +542,17 @@ fn handle_worker_success(
         return Ok(());
     }
 
-    ensure_branch_pushed(&worker.worktree.path)?;
+    ensure_branch_pushed(&worker.workspace.path)?;
 
-    let body = promptflow::read_phase2_final_response_cache(&worker.worktree.path, &worker.task_id)
-        .unwrap_or_default();
+    let body =
+        promptflow::read_phase2_final_response_cache(&worker.workspace.path, &worker.task_id)
+            .unwrap_or_default();
     let title = format!("{}: {}", worker.task_id, worker.task_title);
     let pr = git::create_pr(
         &resolved.repo_root,
         &title,
         &body,
-        &worker.worktree.branch,
+        &worker.workspace.branch,
         base_branch,
         false,
     )?;
@@ -661,7 +560,7 @@ fn handle_worker_success(
     state_file.upsert_pr(state::ParallelPrRecord::new(
         &worker.task_id,
         &pr,
-        Some(&worker.worktree.path),
+        Some(&worker.workspace.path),
     ));
     state::save_state(state_path, state_file)?;
 
@@ -686,7 +585,7 @@ fn handle_worker_failure(
         return Ok(());
     }
 
-    if !commit_failure_changes(&worker.worktree.path, &worker.task_id)? {
+    if !commit_failure_changes(&worker.workspace.path, &worker.task_id)? {
         log::warn!(
             "Worker {} failed with no changes; skipping draft PR.",
             worker.task_id
@@ -694,7 +593,7 @@ fn handle_worker_failure(
         return Ok(());
     }
 
-    ensure_branch_pushed(&worker.worktree.path)?;
+    ensure_branch_pushed(&worker.workspace.path)?;
 
     let body = format!(
         "Failed run for {}. Draft PR generated by Ralph.",
@@ -705,7 +604,7 @@ fn handle_worker_failure(
         &resolved.repo_root,
         &title,
         &body,
-        &worker.worktree.branch,
+        &worker.workspace.branch,
         base_branch,
         true,
     )?;
@@ -713,7 +612,7 @@ fn handle_worker_failure(
     state_file.upsert_pr(state::ParallelPrRecord::new(
         &worker.task_id,
         &pr,
-        Some(&worker.worktree.path),
+        Some(&worker.workspace.path),
     ));
     state::save_state(state_path, state_file)?;
     log::info!(
@@ -725,87 +624,22 @@ fn handle_worker_failure(
     Ok(())
 }
 
-fn sync_ralph_state(repo_root: &Path, worktree_path: &Path) -> Result<()> {
-    let source = repo_root.join(".ralph");
-    let target = worktree_path.join(".ralph");
-    fs::create_dir_all(&target)
-        .with_context(|| format!("create worktree ralph dir {}", target.display()))?;
-
-    sync_file_if_exists(&source.join("queue.json"), &target.join("queue.json"))?;
-    sync_file_if_exists(&source.join("done.json"), &target.join("done.json"))?;
-    sync_file_if_exists(&source.join("config.json"), &target.join("config.json"))?;
-    sync_prompts_dir(&source.join("prompts"), &target.join("prompts"))?;
-
-    Ok(())
-}
-
-fn sync_file_if_exists(source: &Path, target: &Path) -> Result<()> {
-    if !source.exists() {
-        return Ok(());
-    }
-    if let Some(parent) = target.parent() {
-        fs::create_dir_all(parent)
-            .with_context(|| format!("create worktree dir {}", parent.display()))?;
-    }
-    fs::copy(source, target)
-        .with_context(|| format!("sync {} to {}", source.display(), target.display()))?;
-    Ok(())
-}
-
-fn sync_prompts_dir(source: &Path, target: &Path) -> Result<()> {
-    if !source.is_dir() {
-        return Ok(());
-    }
-    fs::create_dir_all(target)
-        .with_context(|| format!("create worktree prompts dir {}", target.display()))?;
-    for entry in
-        fs::read_dir(source).with_context(|| format!("read prompts dir {}", source.display()))?
-    {
-        let entry = entry.with_context(|| format!("read prompts entry in {}", source.display()))?;
-        let path = entry.path();
-        if entry.file_type().map(|t| t.is_file()).unwrap_or(false)
-            && let Some(name) = path.file_name()
-        {
-            let dest = target.join(name);
-            fs::copy(&path, &dest)
-                .with_context(|| format!("sync {} to {}", path.display(), dest.display()))?;
-        }
-    }
-    Ok(())
-}
-
-fn commit_failure_changes(worktree_path: &Path, task_id: &str) -> Result<bool> {
-    let status = git::status_porcelain(worktree_path)?;
-    if status.trim().is_empty() {
-        return Ok(false);
+fn overrides_for_parallel_workers(
+    resolved: &config::Resolved,
+    overrides: &AgentOverrides,
+) -> AgentOverrides {
+    let repoprompt_flags =
+        crate::agent::resolve_repoprompt_flags_from_overrides(overrides, resolved);
+    if repoprompt_flags.plan_required || repoprompt_flags.tool_injection {
+        log::warn!(
+            "Parallel workers disable RepoPrompt plan/tooling instructions to keep edits in workspace clones."
+        );
     }
 
-    let message = format!("WIP: {} (failed run)", task_id);
-    match git::commit_all(worktree_path, &message) {
-        Ok(()) => Ok(true),
-        Err(err) => match err {
-            git::GitError::NoChangesToCommit => Ok(false),
-            _ => Err(err.into()),
-        },
-    }
-}
-
-fn ensure_branch_pushed(worktree_path: &Path) -> Result<()> {
-    match git::is_ahead_of_upstream(worktree_path) {
-        Ok(ahead) => {
-            if !ahead {
-                return Ok(());
-            }
-            git::push_upstream(worktree_path).with_context(|| "push branch to upstream")?;
-            Ok(())
-        }
-        Err(git::GitError::NoUpstream) | Err(git::GitError::NoUpstreamConfigured) => {
-            git::push_upstream_allow_create(worktree_path)
-                .with_context(|| "push branch and create upstream")?;
-            Ok(())
-        }
-        Err(err) => Err(err.into()),
-    }
+    let mut worker_overrides = overrides.clone();
+    worker_overrides.repoprompt_plan_required = Some(false);
+    worker_overrides.repoprompt_tool_injection = Some(false);
+    worker_overrides
 }
 
 fn resolve_parallel_settings(
@@ -822,7 +656,7 @@ fn resolve_parallel_settings(
         draft_on_failure: cfg.draft_on_failure.unwrap_or(true),
         conflict_policy: cfg.conflict_policy.unwrap_or(ConflictPolicy::AutoResolve),
         merge_retries: cfg.merge_retries.unwrap_or(5),
-        worktree_root: git::worktree_root(&resolved.repo_root, &resolved.config),
+        workspace_root: git::workspace_root(&resolved.repo_root, &resolved.config),
         branch_prefix: cfg
             .branch_prefix
             .clone()
@@ -832,469 +666,17 @@ fn resolve_parallel_settings(
     })
 }
 
-fn build_override_args(overrides: &AgentOverrides) -> Vec<String> {
-    let mut args = Vec::new();
-
-    if let Some(runner) = overrides.runner {
-        args.push("--runner".to_string());
-        args.push(runner.as_str().to_string());
-    }
-    if let Some(model) = overrides.model.clone() {
-        args.push("--model".to_string());
-        args.push(model.as_str().to_string());
-    }
-    if let Some(effort) = overrides.reasoning_effort {
-        args.push("--effort".to_string());
-        args.push(reasoning_effort_arg(effort).to_string());
-    }
-    if let Some(phases) = overrides.phases {
-        args.push("--phases".to_string());
-        args.push(phases.to_string());
-    }
-    if let Some(repo_prompt) = repo_prompt_arg(overrides) {
-        args.push("--repo-prompt".to_string());
-        args.push(repo_prompt.to_string());
-    }
-    if let Some(mode) = overrides.git_revert_mode {
-        args.push("--git-revert-mode".to_string());
-        args.push(git_revert_mode_arg(mode).to_string());
-    }
-
-    if overrides.include_draft.unwrap_or(false) {
-        args.push("--include-draft".to_string());
-    }
-
-    if let Some(update) = overrides.update_task_before_run {
-        if update {
-            args.push("--update-task".to_string());
-        } else {
-            args.push("--no-update-task".to_string());
-        }
-    }
-
-    if let Some(value) = overrides.notify_on_complete {
-        args.push(if value {
-            "--notify".to_string()
-        } else {
-            "--no-notify".to_string()
-        });
-    }
-
-    if let Some(value) = overrides.notify_on_fail {
-        args.push(if value {
-            "--notify-fail".to_string()
-        } else {
-            "--no-notify-fail".to_string()
-        });
-    }
-
-    if overrides.notify_sound.unwrap_or(false) {
-        args.push("--notify-sound".to_string());
-    }
-
-    if overrides.lfs_check.unwrap_or(false) {
-        args.push("--lfs-check".to_string());
-    }
-
-    if let Some(cli) = build_runner_cli_args(&overrides.runner_cli) {
-        args.extend(cli);
-    }
-
-    if let Some(phase_args) = build_phase_override_args(overrides) {
-        args.extend(phase_args);
-    }
-
-    args
-}
-
-fn build_runner_cli_args(cli: &crate::contracts::RunnerCliOptionsPatch) -> Option<Vec<String>> {
-    let mut args = Vec::new();
-    if let Some(value) = cli.output_format {
-        args.push("--output-format".to_string());
-        args.push(output_format_arg(value).to_string());
-    }
-    if let Some(value) = cli.verbosity {
-        args.push("--verbosity".to_string());
-        args.push(verbosity_arg(value).to_string());
-    }
-    if let Some(value) = cli.approval_mode {
-        args.push("--approval-mode".to_string());
-        args.push(approval_mode_arg(value).to_string());
-    }
-    if let Some(value) = cli.sandbox {
-        args.push("--sandbox".to_string());
-        args.push(sandbox_mode_arg(value).to_string());
-    }
-    if let Some(value) = cli.plan_mode {
-        args.push("--plan-mode".to_string());
-        args.push(plan_mode_arg(value).to_string());
-    }
-    if let Some(value) = cli.unsupported_option_policy {
-        args.push("--unsupported-option-policy".to_string());
-        args.push(unsupported_option_policy_arg(value).to_string());
-    }
-
-    if args.is_empty() { None } else { Some(args) }
-}
-
-fn build_phase_override_args(overrides: &AgentOverrides) -> Option<Vec<String>> {
-    let overrides = overrides.phase_overrides.as_ref()?;
-    let mut args = Vec::new();
-
-    if let Some(phase1) = overrides.phase1.as_ref() {
-        if let Some(runner) = phase1.runner {
-            args.push("--runner-phase1".to_string());
-            args.push(runner.as_str().to_string());
-        }
-        if let Some(model) = phase1.model.clone() {
-            args.push("--model-phase1".to_string());
-            args.push(model.as_str().to_string());
-        }
-        if let Some(effort) = phase1.reasoning_effort {
-            args.push("--effort-phase1".to_string());
-            args.push(reasoning_effort_arg(effort).to_string());
-        }
-    }
-
-    if let Some(phase2) = overrides.phase2.as_ref() {
-        if let Some(runner) = phase2.runner {
-            args.push("--runner-phase2".to_string());
-            args.push(runner.as_str().to_string());
-        }
-        if let Some(model) = phase2.model.clone() {
-            args.push("--model-phase2".to_string());
-            args.push(model.as_str().to_string());
-        }
-        if let Some(effort) = phase2.reasoning_effort {
-            args.push("--effort-phase2".to_string());
-            args.push(reasoning_effort_arg(effort).to_string());
-        }
-    }
-
-    if let Some(phase3) = overrides.phase3.as_ref() {
-        if let Some(runner) = phase3.runner {
-            args.push("--runner-phase3".to_string());
-            args.push(runner.as_str().to_string());
-        }
-        if let Some(model) = phase3.model.clone() {
-            args.push("--model-phase3".to_string());
-            args.push(model.as_str().to_string());
-        }
-        if let Some(effort) = phase3.reasoning_effort {
-            args.push("--effort-phase3".to_string());
-            args.push(reasoning_effort_arg(effort).to_string());
-        }
-    }
-
-    if args.is_empty() { None } else { Some(args) }
-}
-
-fn repo_prompt_arg(overrides: &AgentOverrides) -> Option<&'static str> {
-    match (
-        overrides.repoprompt_plan_required,
-        overrides.repoprompt_tool_injection,
-    ) {
-        (Some(true), Some(true)) => Some("plan"),
-        (Some(false), Some(true)) => Some("tools"),
-        (Some(false), Some(false)) => Some("off"),
-        _ => None,
-    }
-}
-
-fn reasoning_effort_arg(effort: crate::contracts::ReasoningEffort) -> &'static str {
-    match effort {
-        crate::contracts::ReasoningEffort::Low => "low",
-        crate::contracts::ReasoningEffort::Medium => "medium",
-        crate::contracts::ReasoningEffort::High => "high",
-        crate::contracts::ReasoningEffort::XHigh => "xhigh",
-    }
-}
-
-fn git_revert_mode_arg(mode: crate::contracts::GitRevertMode) -> &'static str {
-    match mode {
-        crate::contracts::GitRevertMode::Ask => "ask",
-        crate::contracts::GitRevertMode::Enabled => "enabled",
-        crate::contracts::GitRevertMode::Disabled => "disabled",
-    }
-}
-
-fn output_format_arg(mode: crate::contracts::RunnerOutputFormat) -> &'static str {
-    match mode {
-        crate::contracts::RunnerOutputFormat::StreamJson => "stream-json",
-        crate::contracts::RunnerOutputFormat::Json => "json",
-        crate::contracts::RunnerOutputFormat::Text => "text",
-    }
-}
-
-fn verbosity_arg(mode: crate::contracts::RunnerVerbosity) -> &'static str {
-    match mode {
-        crate::contracts::RunnerVerbosity::Quiet => "quiet",
-        crate::contracts::RunnerVerbosity::Normal => "normal",
-        crate::contracts::RunnerVerbosity::Verbose => "verbose",
-    }
-}
-
-fn approval_mode_arg(mode: crate::contracts::RunnerApprovalMode) -> &'static str {
-    match mode {
-        crate::contracts::RunnerApprovalMode::Default => "default",
-        crate::contracts::RunnerApprovalMode::AutoEdits => "auto-edits",
-        crate::contracts::RunnerApprovalMode::Yolo => "yolo",
-        crate::contracts::RunnerApprovalMode::Safe => "safe",
-    }
-}
-
-fn sandbox_mode_arg(mode: crate::contracts::RunnerSandboxMode) -> &'static str {
-    match mode {
-        crate::contracts::RunnerSandboxMode::Default => "default",
-        crate::contracts::RunnerSandboxMode::Enabled => "enabled",
-        crate::contracts::RunnerSandboxMode::Disabled => "disabled",
-    }
-}
-
-fn plan_mode_arg(mode: crate::contracts::RunnerPlanMode) -> &'static str {
-    match mode {
-        crate::contracts::RunnerPlanMode::Default => "default",
-        crate::contracts::RunnerPlanMode::Enabled => "enabled",
-        crate::contracts::RunnerPlanMode::Disabled => "disabled",
-    }
-}
-
-fn unsupported_option_policy_arg(mode: crate::contracts::UnsupportedOptionPolicy) -> &'static str {
-    match mode {
-        crate::contracts::UnsupportedOptionPolicy::Ignore => "ignore",
-        crate::contracts::UnsupportedOptionPolicy::Warn => "warn",
-        crate::contracts::UnsupportedOptionPolicy::Error => "error",
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::contracts::{
-        ConflictPolicy, MergeRunnerConfig, PhaseOverrideConfig, PhaseOverrides, ReasoningEffort,
-        Runner, RunnerApprovalMode, RunnerOutputFormat, RunnerPlanMode, RunnerSandboxMode,
-        RunnerVerbosity, UnsupportedOptionPolicy,
-    };
-    use std::ffi::OsStr;
+    use crate::contracts::{Config, ConflictPolicy, MergeRunnerConfig};
+    use std::collections::HashMap;
     use std::path::PathBuf;
+    use std::process::Child;
     use tempfile::TempDir;
 
     #[test]
-    fn build_override_args_emits_expected_flags() {
-        let overrides = AgentOverrides {
-            runner: Some(Runner::Codex),
-            model: Some(crate::contracts::Model::Gpt52),
-            reasoning_effort: Some(ReasoningEffort::High),
-            phases: Some(2),
-            repoprompt_plan_required: Some(true),
-            repoprompt_tool_injection: Some(true),
-            git_revert_mode: Some(crate::contracts::GitRevertMode::Disabled),
-            include_draft: Some(true),
-            update_task_before_run: Some(false),
-            notify_on_complete: Some(true),
-            notify_on_fail: Some(false),
-            notify_sound: Some(true),
-            lfs_check: Some(true),
-            ..Default::default()
-        };
-
-        let args = build_override_args(&overrides);
-        let expected = vec![
-            "--runner",
-            "codex",
-            "--model",
-            "gpt-5.2",
-            "--effort",
-            "high",
-            "--phases",
-            "2",
-            "--repo-prompt",
-            "plan",
-            "--git-revert-mode",
-            "disabled",
-            "--include-draft",
-            "--no-update-task",
-            "--notify",
-            "--no-notify-fail",
-            "--notify-sound",
-            "--lfs-check",
-        ]
-        .into_iter()
-        .map(String::from)
-        .collect::<Vec<_>>();
-        assert_eq!(args, expected);
-    }
-
-    #[test]
-    fn build_worker_command_sets_cwd_and_args() -> Result<()> {
-        let temp = TempDir::new()?;
-        let worktree_path = temp.path().join("worktree");
-        fs::create_dir_all(&worktree_path)?;
-
-        let overrides = AgentOverrides::default();
-        let (cmd, args) = build_worker_command(&worktree_path, "RQ-1234", &overrides, true)?;
-
-        assert_eq!(cmd.get_current_dir(), Some(worktree_path.as_path()));
-
-        let mut pwd_seen = false;
-        for (key, value) in cmd.get_envs() {
-            if key == OsStr::new("PWD") {
-                pwd_seen = true;
-                assert_eq!(value, Some(worktree_path.as_os_str()));
-            }
-        }
-        assert!(pwd_seen, "PWD env should be set for worktree execution");
-
-        assert!(args.contains(&"--force".to_string()));
-        assert!(args.contains(&"--no-progress".to_string()));
-        assert!(args.contains(&"run".to_string()));
-        assert!(args.contains(&"one".to_string()));
-        assert!(args.contains(&"--parallel-worker".to_string()));
-        assert!(args.contains(&"--non-interactive".to_string()));
-        assert!(args.contains(&"--git-commit-push-on".to_string()));
-
-        let id_pos = args.iter().position(|arg| arg == "--id").expect("--id");
-        assert_eq!(args.get(id_pos + 1), Some(&"RQ-1234".to_string()));
-
-        Ok(())
-    }
-
-    #[test]
-    fn build_runner_cli_args_serializes_patch() {
-        let patch = crate::contracts::RunnerCliOptionsPatch {
-            output_format: Some(RunnerOutputFormat::Json),
-            verbosity: Some(RunnerVerbosity::Verbose),
-            approval_mode: Some(RunnerApprovalMode::AutoEdits),
-            sandbox: Some(RunnerSandboxMode::Disabled),
-            plan_mode: Some(RunnerPlanMode::Enabled),
-            unsupported_option_policy: Some(UnsupportedOptionPolicy::Error),
-        };
-        let args = build_runner_cli_args(&patch).expect("args");
-        let expected = vec![
-            "--output-format",
-            "json",
-            "--verbosity",
-            "verbose",
-            "--approval-mode",
-            "auto-edits",
-            "--sandbox",
-            "disabled",
-            "--plan-mode",
-            "enabled",
-            "--unsupported-option-policy",
-            "error",
-        ]
-        .into_iter()
-        .map(String::from)
-        .collect::<Vec<_>>();
-        assert_eq!(args, expected);
-    }
-
-    #[test]
-    fn build_phase_override_args_serializes_phase_flags() {
-        let overrides = PhaseOverrides {
-            phase1: Some(PhaseOverrideConfig {
-                runner: Some(Runner::Codex),
-                model: Some(crate::contracts::Model::Gpt52Codex),
-                reasoning_effort: Some(ReasoningEffort::Low),
-            }),
-            phase2: Some(PhaseOverrideConfig {
-                runner: Some(Runner::Claude),
-                model: Some(crate::contracts::Model::Gpt52),
-                reasoning_effort: Some(ReasoningEffort::Medium),
-            }),
-            phase3: Some(PhaseOverrideConfig {
-                runner: Some(Runner::Kimi),
-                model: Some(crate::contracts::Model::Glm47),
-                reasoning_effort: Some(ReasoningEffort::High),
-            }),
-        };
-        let agent_overrides = AgentOverrides {
-            phase_overrides: Some(overrides),
-            ..Default::default()
-        };
-
-        let args = build_phase_override_args(&agent_overrides).expect("args");
-        let expected = vec![
-            "--runner-phase1",
-            "codex",
-            "--model-phase1",
-            "gpt-5.2-codex",
-            "--effort-phase1",
-            "low",
-            "--runner-phase2",
-            "claude",
-            "--model-phase2",
-            "gpt-5.2",
-            "--effort-phase2",
-            "medium",
-            "--runner-phase3",
-            "kimi",
-            "--model-phase3",
-            "zai-coding-plan/glm-4.7",
-            "--effort-phase3",
-            "high",
-        ]
-        .into_iter()
-        .map(String::from)
-        .collect::<Vec<_>>();
-        assert_eq!(args, expected);
-    }
-
-    #[test]
-    fn collect_excluded_ids_includes_state_and_in_flight() -> Result<()> {
-        let mut state_file = state::ParallelStateFile::new(
-            "2026-02-01T00:00:00Z".to_string(),
-            "main".to_string(),
-            ParallelMergeMethod::Squash,
-            ParallelMergeWhen::AsCreated,
-        );
-        state_file.tasks_in_flight.push(state::ParallelTaskRecord {
-            task_id: "RQ-0002".to_string(),
-            worktree_path: "/tmp/worktree/RQ-0002".to_string(),
-            branch: "ralph/RQ-0002".to_string(),
-            pid: Some(123),
-        });
-        state_file.prs.push(state::ParallelPrRecord {
-            task_id: "RQ-0003".to_string(),
-            pr_number: 7,
-            pr_url: "https://example.com/pr/7".to_string(),
-            head: Some("ralph/RQ-0003".to_string()),
-            base: Some("main".to_string()),
-            worktree_path: None,
-            merged: false,
-        });
-
-        let mut in_flight = HashMap::new();
-        let child = std::process::Command::new("true").spawn()?;
-        in_flight.insert(
-            "RQ-0004".to_string(),
-            WorkerState {
-                task_id: "RQ-0004".to_string(),
-                task_title: "title".to_string(),
-                worktree: git::WorktreeSpec {
-                    task_id: "RQ-0004".to_string(),
-                    path: PathBuf::from("/tmp/worktree/RQ-0004"),
-                    branch: "ralph/RQ-0004".to_string(),
-                },
-                child,
-            },
-        );
-
-        let excluded = collect_excluded_ids(&state_file, &in_flight);
-        assert!(excluded.contains("RQ-0002"));
-        assert!(excluded.contains("RQ-0003"));
-        assert!(excluded.contains("RQ-0004"));
-
-        for worker in in_flight.values_mut() {
-            let _ = worker.child.wait();
-        }
-
-        Ok(())
-    }
-
-    #[test]
-    fn collect_worktrees_for_cleanup_dedupes_sources() -> Result<()> {
+    fn collect_workspaces_for_cleanup_dedupes_sources() -> Result<()> {
         let settings = ParallelSettings {
             workers: 2,
             merge_when: ParallelMergeWhen::AsCreated,
@@ -1304,7 +686,7 @@ mod tests {
             draft_on_failure: true,
             conflict_policy: ConflictPolicy::AutoResolve,
             merge_retries: 3,
-            worktree_root: PathBuf::from("/tmp/worktrees"),
+            workspace_root: PathBuf::from("/tmp/workspaces"),
             branch_prefix: "ralph/".to_string(),
             delete_branch_on_merge: true,
             merge_runner: MergeRunnerConfig::default(),
@@ -1318,7 +700,7 @@ mod tests {
         );
         state_file.tasks_in_flight.push(state::ParallelTaskRecord {
             task_id: "RQ-0002".to_string(),
-            worktree_path: "/tmp/worktrees/RQ-0002".to_string(),
+            workspace_path: "/tmp/workspaces/RQ-0002".to_string(),
             branch: "ralph/RQ-0002".to_string(),
             pid: Some(123),
         });
@@ -1328,46 +710,50 @@ mod tests {
             pr_url: "https://example.com/pr/9".to_string(),
             head: Some("ralph/RQ-0003".to_string()),
             base: Some("main".to_string()),
-            worktree_path: None,
+            workspace_path: None,
             merged: false,
         });
 
         let mut in_flight = HashMap::new();
-        let child = std::process::Command::new("true").spawn()?;
+        let child: Child = std::process::Command::new("true").spawn()?;
         in_flight.insert(
             "RQ-0001".to_string(),
             WorkerState {
                 task_id: "RQ-0001".to_string(),
                 task_title: "title".to_string(),
-                worktree: git::WorktreeSpec {
+                workspace: git::WorkspaceSpec {
                     task_id: "RQ-0001".to_string(),
-                    path: PathBuf::from("/tmp/worktrees/RQ-0001"),
+                    path: PathBuf::from("/tmp/workspaces/RQ-0001"),
                     branch: "ralph/RQ-0001".to_string(),
                 },
                 child,
             },
         );
 
-        let mut completed_worktrees = HashMap::new();
-        completed_worktrees.insert(
+        let mut completed_workspaces = HashMap::new();
+        completed_workspaces.insert(
             "RQ-0001".to_string(),
-            git::WorktreeSpec {
+            git::WorkspaceSpec {
                 task_id: "RQ-0001".to_string(),
-                path: PathBuf::from("/tmp/worktrees/RQ-0001"),
+                path: PathBuf::from("/tmp/workspaces/RQ-0001"),
                 branch: "ralph/RQ-0001".to_string(),
             },
         );
 
-        let collected =
-            collect_worktrees_for_cleanup(&settings, &in_flight, &completed_worktrees, &state_file);
+        let collected = collect_workspaces_for_cleanup(
+            &settings,
+            &in_flight,
+            &completed_workspaces,
+            &state_file,
+        );
         let paths = collected
             .iter()
             .map(|spec| spec.path.clone())
             .collect::<HashSet<_>>();
         assert_eq!(paths.len(), 3);
-        assert!(paths.contains(&PathBuf::from("/tmp/worktrees/RQ-0001")));
-        assert!(paths.contains(&PathBuf::from("/tmp/worktrees/RQ-0002")));
-        assert!(paths.contains(&PathBuf::from("/tmp/worktrees/RQ-0003")));
+        assert!(paths.contains(&PathBuf::from("/tmp/workspaces/RQ-0001")));
+        assert!(paths.contains(&PathBuf::from("/tmp/workspaces/RQ-0002")));
+        assert!(paths.contains(&PathBuf::from("/tmp/workspaces/RQ-0003")));
 
         for worker in in_flight.values_mut() {
             let _ = worker.child.wait();
@@ -1377,35 +763,36 @@ mod tests {
     }
 
     #[test]
-    fn sync_ralph_state_copies_queue_and_prompts() -> Result<()> {
+    fn overrides_for_parallel_workers_forces_repoprompt_off() -> Result<()> {
         let temp = TempDir::new()?;
-        let repo_root = temp.path().join("repo");
-        let worktree_root = temp.path().join("worktree");
-        fs::create_dir_all(repo_root.join(".ralph/prompts"))?;
-        fs::create_dir_all(&worktree_root)?;
-        fs::write(repo_root.join(".ralph/queue.json"), "{queue}")?;
-        fs::write(repo_root.join(".ralph/done.json"), "{done}")?;
-        fs::write(repo_root.join(".ralph/config.json"), "{config}")?;
-        fs::write(repo_root.join(".ralph/prompts/override.md"), "prompt")?;
+        let repo_root = temp.path().to_path_buf();
+        let mut cfg = Config::default();
+        cfg.agent.repoprompt_plan_required = Some(true);
+        cfg.agent.repoprompt_tool_injection = Some(true);
 
-        sync_ralph_state(&repo_root, &worktree_root)?;
+        let resolved = config::Resolved {
+            config: cfg,
+            repo_root: repo_root.clone(),
+            queue_path: repo_root.join(".ralph/queue.json"),
+            done_path: repo_root.join(".ralph/done.json"),
+            id_prefix: "RQ".to_string(),
+            id_width: 4,
+            global_config_path: None,
+            project_config_path: Some(repo_root.join(".ralph/config.json")),
+        };
 
-        assert_eq!(
-            fs::read_to_string(worktree_root.join(".ralph/queue.json"))?,
-            "{queue}"
-        );
-        assert_eq!(
-            fs::read_to_string(worktree_root.join(".ralph/done.json"))?,
-            "{done}"
-        );
-        assert_eq!(
-            fs::read_to_string(worktree_root.join(".ralph/config.json"))?,
-            "{config}"
-        );
-        assert_eq!(
-            fs::read_to_string(worktree_root.join(".ralph/prompts/override.md"))?,
-            "prompt"
-        );
+        let overrides = AgentOverrides {
+            include_draft: Some(true),
+            repoprompt_plan_required: Some(true),
+            repoprompt_tool_injection: Some(true),
+            ..AgentOverrides::default()
+        };
+
+        let worker_overrides = overrides_for_parallel_workers(&resolved, &overrides);
+
+        assert_eq!(worker_overrides.include_draft, Some(true));
+        assert_eq!(worker_overrides.repoprompt_plan_required, Some(false));
+        assert_eq!(worker_overrides.repoprompt_tool_injection, Some(false));
         Ok(())
     }
 }

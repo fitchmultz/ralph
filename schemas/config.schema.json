@@ -116,7 +116,7 @@
         "merge_runner": null,
         "merge_when": "as_created",
         "workers": null,
-        "worktree_root": null
+        "workspace_root": null
       },
       "allOf": [
         {
@@ -755,8 +755,8 @@
           "format": "uint8",
           "minimum": 2.0
         },
-        "worktree_root": {
-          "description": "Root directory for parallel worktrees (relative to repo root if not absolute).",
+        "workspace_root": {
+          "description": "Root directory for parallel workspaces (relative to repo root if not absolute).",
           "default": null,
           "type": [
             "string",

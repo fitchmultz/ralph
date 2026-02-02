@@ -20,6 +20,8 @@
 //! - `auto_archive`: Auto-archive behavior
 //! - `resize`: Resize event handling
 
+// Import traits needed for test compilation
+
 mod auto_archive;
 mod config;
 mod confirm_revert;

@@ -11,7 +11,7 @@
 //!
 //! Invariants/assumptions:
 //! - PRs originate from branches named with the configured prefix.
-//! - Worktrees remain available until merge completion or failure.
+//! - Workspaces remain available until merge completion or failure.
 
 use crate::commands::run::PhaseType;
 use crate::config;
@@ -45,7 +45,7 @@ pub(crate) fn run_merge_runner(
     merge_runner: MergeRunnerConfig,
     retries: u8,
     pr_queue: MergeQueueSource,
-    worktree_root: &Path,
+    workspace_root: &Path,
     delete_branch: bool,
     merge_result_tx: mpsc::Sender<MergeResult>,
     merge_stop: Arc<AtomicBool>,
@@ -63,7 +63,7 @@ pub(crate) fn run_merge_runner(
                     conflict_policy,
                     merge_runner.clone(),
                     retries,
-                    worktree_root,
+                    workspace_root,
                     delete_branch,
                     &merge_result_tx,
                     &merge_stop,
@@ -82,7 +82,7 @@ pub(crate) fn run_merge_runner(
                     conflict_policy,
                     merge_runner.clone(),
                     retries,
-                    worktree_root,
+                    workspace_root,
                     delete_branch,
                     &merge_result_tx,
                     &merge_stop,
@@ -102,7 +102,7 @@ fn handle_pr(
     conflict_policy: ConflictPolicy,
     merge_runner: MergeRunnerConfig,
     retries: u8,
-    worktree_root: &Path,
+    workspace_root: &Path,
     delete_branch: bool,
     merge_result_tx: &mpsc::Sender<MergeResult>,
     merge_stop: &AtomicBool,
@@ -126,7 +126,7 @@ fn handle_pr(
         conflict_policy,
         merge_runner,
         retries,
-        worktree_root,
+        workspace_root,
         &task_id,
         delete_branch,
         merge_stop,
@@ -150,7 +150,7 @@ fn merge_pr_with_retries(
     conflict_policy: ConflictPolicy,
     merge_runner: MergeRunnerConfig,
     retries: u8,
-    worktree_root: &Path,
+    workspace_root: &Path,
     task_id: &str,
     delete_branch: bool,
     merge_stop: &AtomicBool,
@@ -178,7 +178,7 @@ fn merge_pr_with_retries(
             }
             git::MergeState::Dirty => match conflict_policy {
                 ConflictPolicy::AutoResolve => {
-                    resolve_conflicts(resolved, pr, worktree_root, task_id, &merge_runner)?;
+                    resolve_conflicts(resolved, pr, workspace_root, task_id, &merge_runner)?;
                 }
                 ConflictPolicy::RetryLater => {
                     if attempts >= retries {
@@ -213,35 +213,36 @@ fn merge_pr_with_retries(
 fn resolve_conflicts(
     resolved: &config::Resolved,
     pr: &git::PrInfo,
-    worktree_root: &Path,
+    workspace_root: &Path,
     task_id: &str,
     merge_runner: &MergeRunnerConfig,
 ) -> Result<()> {
-    let worktree_path = worktree_root.join(task_id);
-    if !worktree_path.exists() {
-        bail!(
-            "Merge conflict resolution failed: worktree not found at {}",
-            worktree_path.display()
-        );
-    }
+    let workspace_path = workspace_root.join(task_id);
 
-    git_run(&worktree_path, &["checkout", &pr.head])?;
-    git_run(&worktree_path, &["fetch", "origin"])?;
-    let base_ref = format!("origin/{}", pr.base);
-    git_run(&worktree_path, &["merge", &base_ref])?;
+    // Ensure workspace exists (clone on demand if missing)
+    git::ensure_workspace_exists(&resolved.repo_root, &workspace_path, &pr.head)
+        .with_context(|| format!("ensure workspace exists at {}", workspace_path.display()))?;
 
-    let conflicts = conflict_files(&worktree_path)?;
+    // Fresh-clone-safe checkout/merge flow
+    git_run(&workspace_path, &["fetch", "origin", "--prune"])?;
+    git_run(
+        &workspace_path,
+        &["checkout", "-B", &pr.head, &format!("origin/{}", pr.head)],
+    )?;
+    git_run(&workspace_path, &["merge", &format!("origin/{}", pr.base)])?;
+
+    let conflicts = conflict_files(&workspace_path)?;
     if conflicts.is_empty() {
         return Ok(());
     }
 
-    let template = prompts::load_merge_conflict_prompt(&worktree_path)?;
+    let template = prompts::load_merge_conflict_prompt(&workspace_path)?;
     let prompt = promptflow::build_merge_conflict_prompt(&template, &conflicts, &resolved.config)?;
-    let prompt = prompts::wrap_with_instruction_files(&worktree_path, &prompt, &resolved.config)?;
+    let prompt = prompts::wrap_with_instruction_files(&workspace_path, &prompt, &resolved.config)?;
 
-    run_merge_runner_prompt(resolved, merge_runner, &worktree_path, &prompt)?;
+    run_merge_runner_prompt(resolved, merge_runner, &workspace_path, &prompt)?;
 
-    let remaining = conflict_files(&worktree_path)?;
+    let remaining = conflict_files(&workspace_path)?;
     if !remaining.is_empty() {
         bail!(
             "Merge conflicts remain after AI resolution: {}",
@@ -249,21 +250,21 @@ fn resolve_conflicts(
         );
     }
 
-    git_run(&worktree_path, &["add", "-A"])?;
-    let status = git_status(&worktree_path)?;
+    git_run(&workspace_path, &["add", "-A"])?;
+    let status = git_status(&workspace_path)?;
     if status.trim().is_empty() {
         bail!("No changes staged after conflict resolution.");
     }
     let message = format!("Resolve merge conflicts for {}", task_id);
-    git_run(&worktree_path, &["commit", "-m", &message])?;
-    push_branch(&worktree_path)?;
+    git_run(&workspace_path, &["commit", "-m", &message])?;
+    push_branch(&workspace_path)?;
     Ok(())
 }
 
 fn run_merge_runner_prompt(
     resolved: &config::Resolved,
     merge_runner: &MergeRunnerConfig,
-    worktree_path: &Path,
+    workspace_path: &Path,
     prompt: &str,
 ) -> Result<()> {
     let settings = runner::resolve_agent_settings(
@@ -278,7 +279,7 @@ fn run_merge_runner_prompt(
 
     runner::run_prompt(
         settings.runner,
-        worktree_path,
+        workspace_path,
         bins,
         settings.model.clone(),
         settings.reasoning_effort,

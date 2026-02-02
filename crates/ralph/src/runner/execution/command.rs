@@ -20,10 +20,10 @@ use std::process::{Command, Stdio};
 
 use crate::fsutil;
 
-use super::super::{
-    ClaudePermissionMode, Model, OPENCODE_PROMPT_FILE_MESSAGE, ReasoningEffort, TEMP_RETENTION,
-};
 use super::process::ensure_self_on_path;
+use crate::constants::defaults::OPENCODE_PROMPT_FILE_MESSAGE;
+use crate::constants::timeouts::TEMP_RETENTION;
+use crate::contracts::{ClaudePermissionMode, Model, ReasoningEffort};
 
 /// Builds `std::process::Command` instances with standardized configuration for runners.
 #[allow(dead_code)]
@@ -247,7 +247,7 @@ mod tests {
 
     #[test]
     fn builder_sets_pwd_env() {
-        let work_dir = Path::new("/tmp/ralph-worktree");
+        let work_dir = Path::new("/tmp/ralph-workspace");
         let (cmd, _payload, _guards) = RunnerCommandBuilder::new("echo", work_dir).build();
         let pwd = cmd
             .get_envs()

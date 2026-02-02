@@ -12,6 +12,7 @@
 use super::helpers::{make_queue, make_test_task};
 use crate::contracts::{TaskPriority, TaskStatus};
 use crate::tui::App;
+use crate::tui::app_palette_ops::PaletteOperations;
 use crate::tui::events::PaletteCommand;
 
 #[test]

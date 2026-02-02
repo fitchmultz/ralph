@@ -9,6 +9,7 @@
 
 use super::common::*;
 use crate::contracts::QueueFile;
+use crate::tui::app_scroll::ScrollOperations;
 use crate::tui::{App, AppMode, TextInput, help};
 use ratatui::layout::Margin;
 use ratatui::{Terminal, backend::TestBackend, layout::Rect};

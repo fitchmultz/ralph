@@ -14,7 +14,7 @@
 mod test_support;
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use ralph::tui::{self, App, AppMode, MultiLineInput, TuiAction};
+use ralph::tui::{self, App, AppMode, MultiLineInput, PaletteOperations, TuiAction};
 use test_support::make_test_queue;
 
 fn key_event(code: KeyCode) -> KeyEvent {

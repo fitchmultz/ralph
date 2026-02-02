@@ -12,6 +12,7 @@ use super::super::events::AppMode;
 use super::{QueueFile, make_test_task};
 use crate::contracts::TaskStatus;
 use crate::queue;
+use crate::tui::app_reload::ReloadOperations;
 use tempfile::TempDir;
 
 #[test]

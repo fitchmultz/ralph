@@ -77,6 +77,45 @@ pub fn status_paths(repo_root: &Path) -> Result<Vec<String>, GitError> {
     Ok(paths)
 }
 
+/// Returns a list of gitignored paths (tracked ignore + local excludes).
+///
+/// Uses `git ls-files -i -o --exclude-standard -z --directory` to get
+/// NUL-delimited paths relative to the repo root.
+pub fn ignored_paths(repo_root: &Path) -> Result<Vec<String>, GitError> {
+    let output = git_base_command(repo_root)
+        .arg("ls-files")
+        .arg("-i")
+        .arg("-o")
+        .arg("--exclude-standard")
+        .arg("-z")
+        .arg("--directory")
+        .output()
+        .with_context(|| format!("run git ls-files -i -o in {}", repo_root.display()))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        return Err(GitError::CommandFailed {
+            args: "ls-files -i -o --exclude-standard -z --directory".to_string(),
+            code: output.status.code(),
+            stderr: stderr.trim().to_string(),
+        });
+    }
+
+    let raw = String::from_utf8_lossy(&output.stdout);
+    if raw.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let mut paths = Vec::new();
+    for entry in raw.split('\0') {
+        if entry.is_empty() {
+            continue;
+        }
+        paths.push(entry.to_string());
+    }
+    Ok(paths)
+}
+
 /// Create deterministic fingerprints for a list of baseline dirty paths.
 ///
 /// This is used to ensure Phase 1 plan-only runs do not mutate pre-existing
@@ -350,5 +389,40 @@ mod porcelain_parser_tests {
             }]
         );
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod ignored_paths_tests {
+    use super::*;
+    use crate::testsupport::git as git_test;
+    use tempfile::TempDir;
+
+    #[test]
+    fn ignored_paths_lists_gitignored_entries() -> Result<()> {
+        let temp = TempDir::new()?;
+        let repo_root = temp.path().join("repo");
+        std::fs::create_dir_all(&repo_root)?;
+        git_test::init_repo(&repo_root)?;
+        std::fs::write(repo_root.join(".gitignore"), ".env\nignored_dir/\n")?;
+        std::fs::write(repo_root.join(".env"), "secret")?;
+        std::fs::create_dir_all(repo_root.join("ignored_dir"))?;
+        std::fs::write(repo_root.join("ignored_dir/file.txt"), "ignored content")?;
+
+        let ignored = ignored_paths(&repo_root)?;
+
+        assert!(ignored.contains(&".env".to_string()));
+        assert!(ignored.contains(&"ignored_dir/".to_string()));
+        Ok(())
+    }
+
+    #[test]
+    fn ignored_paths_errors_outside_repo() {
+        let temp = TempDir::new().expect("temp dir");
+        let repo_root = temp.path().join("repo");
+        std::fs::create_dir_all(&repo_root).expect("create dir");
+
+        let err = ignored_paths(&repo_root).expect_err("should fail outside repo");
+        assert!(matches!(err, GitError::CommandFailed { .. }));
     }
 }

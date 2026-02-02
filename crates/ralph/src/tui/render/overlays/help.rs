@@ -13,6 +13,7 @@
 //! - App state tracks help scroll position via `set_help_visible_lines`.
 
 use crate::tui::App;
+use crate::tui::app_scroll::ScrollOperations;
 use crate::tui::help;
 use crate::tui::render::utils::scroll_indicator;
 use ratatui::{

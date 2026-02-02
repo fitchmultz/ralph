@@ -59,26 +59,12 @@ use crate::tui::app_navigation::BoardNavigationState;
 use crate::tui::app_options::FilterCacheStats;
 use crate::tui::app_options::TuiOptions;
 use crate::tui::app_palette::scan_label;
+use crate::tui::app_palette_ops::PaletteOperations;
+use crate::tui::app_panel::{FocusedPanel, PanelOperations};
+use crate::tui::app_reload::ReloadOperations;
+use crate::tui::app_scroll::ScrollOperations;
 use crate::tui::app_tasks::TaskMovementOperations;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum FocusedPanel {
-    List,
-    Details,
-}
-
-impl FocusedPanel {
-    fn next(self) -> Self {
-        match self {
-            Self::List => Self::Details,
-            Self::Details => Self::List,
-        }
-    }
-
-    fn previous(self) -> Self {
-        self.next()
-    }
-}
+use crate::tui::app_view::ViewOperations;
 
 /// Application state for the TUI.
 pub struct App {
@@ -559,34 +545,6 @@ impl App {
     pub fn reset_spinner(&mut self) {
         self.spinner.reset();
         self.spinner_last_update = std::time::Instant::now();
-    }
-
-    pub(crate) fn focus_next_panel(&mut self) {
-        self.focused_panel = self.focused_panel.next();
-    }
-
-    pub(crate) fn focus_previous_panel(&mut self) {
-        self.focused_panel = self.focused_panel.previous();
-    }
-
-    pub(crate) fn focus_list_panel(&mut self) {
-        self.focused_panel = FocusedPanel::List;
-    }
-
-    pub(crate) fn details_focused(&self) -> bool {
-        self.focused_panel == FocusedPanel::Details
-    }
-
-    pub(crate) fn set_list_area(&mut self, area: Rect) {
-        self.list_area = Some(area);
-    }
-
-    pub(crate) fn clear_list_area(&mut self) {
-        self.list_area = None;
-    }
-
-    pub(crate) fn list_area(&self) -> Option<Rect> {
-        self.list_area
     }
 
     /// Handle terminal resize events.
@@ -1356,106 +1314,6 @@ impl App {
             .collect()
     }
 
-    pub fn log_visible_lines(&self) -> usize {
-        self.log_visible_lines.max(1)
-    }
-
-    pub fn set_log_visible_lines(&mut self, visible_lines: usize) {
-        let visible_lines = visible_lines.max(1);
-        self.log_visible_lines = visible_lines;
-        let max_scroll = self.max_log_scroll(visible_lines);
-        if self.autoscroll || self.log_scroll > max_scroll {
-            self.log_scroll = max_scroll;
-        }
-    }
-
-    /// Get the current details scroll position.
-    pub fn details_scroll(&self) -> usize {
-        self.details.scroll()
-    }
-
-    /// Get mutable access to the details scroll state for rendering.
-    pub fn details_scroll_state(&mut self) -> &mut tui_scrollview::ScrollViewState {
-        self.details.scroll_state()
-    }
-
-    pub(crate) fn set_details_viewport(
-        &mut self,
-        visible_lines: usize,
-        total_lines: usize,
-        context: DetailsContext,
-    ) {
-        // Delegate to DetailsState which handles scroll reset on context change
-        self.details
-            .set_viewport(visible_lines, total_lines, context.clone());
-        self.details_context = Some(context);
-    }
-
-    pub fn scroll_details_up(&mut self, lines: usize) {
-        self.details.scroll_up(lines);
-    }
-
-    pub fn scroll_details_down(&mut self, lines: usize) {
-        self.details.scroll_down(lines);
-    }
-
-    pub fn scroll_details_top(&mut self) {
-        self.details.scroll_top();
-    }
-
-    pub fn scroll_details_bottom(&mut self) {
-        self.details.scroll_bottom();
-    }
-
-    pub(crate) fn help_visible_lines(&self) -> usize {
-        self.help_visible_lines.max(1)
-    }
-
-    pub(crate) fn help_total_lines(&self) -> usize {
-        self.help_total_lines
-    }
-
-    pub(crate) fn help_scroll(&self) -> usize {
-        self.help_scroll
-    }
-
-    pub(crate) fn set_help_visible_lines(&mut self, visible_lines: usize, total_lines: usize) {
-        let visible_lines = visible_lines.max(1);
-        self.help_visible_lines = visible_lines;
-        self.help_total_lines = total_lines;
-        let max_scroll = total_lines.saturating_sub(visible_lines);
-        if self.help_scroll > max_scroll {
-            self.help_scroll = max_scroll;
-        }
-    }
-
-    pub(crate) fn max_help_scroll(&self, total_lines: usize) -> usize {
-        total_lines.saturating_sub(self.help_visible_lines())
-    }
-
-    pub(crate) fn scroll_help_up(&mut self, lines: usize) {
-        if lines == 0 {
-            return;
-        }
-        self.help_scroll = self.help_scroll.saturating_sub(lines);
-    }
-
-    pub(crate) fn scroll_help_down(&mut self, lines: usize, total_lines: usize) {
-        if lines == 0 {
-            return;
-        }
-        let max_scroll = self.max_help_scroll(total_lines);
-        self.help_scroll = (self.help_scroll + lines).min(max_scroll);
-    }
-
-    pub(crate) fn scroll_help_top(&mut self) {
-        self.help_scroll = 0;
-    }
-
-    pub(crate) fn scroll_help_bottom(&mut self, total_lines: usize) {
-        self.help_scroll = self.max_help_scroll(total_lines);
-    }
-
     pub(crate) fn enter_help_mode(&mut self, previous_mode: AppMode) {
         self.help_previous_mode = Some(previous_mode);
         self.help_scroll = 0;
@@ -1487,8 +1345,466 @@ impl App {
         filter_and_score_entries(entries, query)
     }
 
-    /// Execute a palette command (also used by direct keybinds for consistency).
-    pub fn execute_palette_command(
+    /// Start execution of a specific task.
+    pub(crate) fn start_task_execution(
+        &mut self,
+        task_id: String,
+        focus_logs: bool,
+        append_logs: bool,
+    ) {
+        if append_logs && !self.logs.is_empty() {
+            self.logs.push(String::new());
+            self.logs.push(format!("=== Executing {} ===", task_id));
+            // Also add to ANSI buffer for terminal emulation
+            self.log_ansi_buffer.push(b'\n');
+            self.log_ansi_buffer
+                .extend_from_slice(format!("=== Executing {} ===", task_id).as_bytes());
+            self.log_ansi_buffer.push(b'\n');
+        } else {
+            self.logs.clear();
+            self.log_ansi_buffer.clear();
+        }
+
+        self.log_scroll = 0;
+        self.autoscroll = true;
+
+        self.runner_active = true;
+        self.running_task_id = Some(task_id.clone());
+        self.running_kind = Some(RunningKind::Task);
+
+        // Initialize phase tracking for task execution
+        let phases = self.project_config.agent.phases.unwrap_or(3);
+        self.reset_phase_tracking(phases);
+
+        // Initialize ETA calculator
+        self.current_eta = None;
+
+        if focus_logs {
+            self.mode = AppMode::Executing { task_id };
+        }
+    }
+
+    /// Start execution of a scan.
+    pub(crate) fn start_scan_execution(
+        &mut self,
+        focus: String,
+        focus_logs: bool,
+        append_logs: bool,
+    ) {
+        let label = scan_label(&focus);
+        if append_logs && !self.logs.is_empty() {
+            self.logs.push(String::new());
+            self.logs.push(format!("=== {} ===", label));
+            // Also add to ANSI buffer for terminal emulation
+            self.log_ansi_buffer.push(b'\n');
+            self.log_ansi_buffer
+                .extend_from_slice(format!("=== {} ===", label).as_bytes());
+            self.log_ansi_buffer.push(b'\n');
+        } else {
+            self.logs.clear();
+            self.log_ansi_buffer.clear();
+        }
+
+        self.log_scroll = 0;
+        self.autoscroll = true;
+
+        self.runner_active = true;
+        self.running_task_id = Some(label);
+        self.running_kind = Some(RunningKind::Scan {
+            focus: focus.clone(),
+        });
+
+        if self.loop_active {
+            self.loop_active = false;
+            self.loop_arm_after_current = false;
+            self.set_status_message("Loop stopped (scan run)");
+        }
+
+        if focus_logs {
+            self.mode = AppMode::Executing { task_id: focus };
+        }
+    }
+
+    /// Start execution of the task builder agent.
+    pub(crate) fn start_task_builder_execution(&mut self, request: String) {
+        self.logs.clear();
+        self.log_ansi_buffer.clear();
+        let header = format!("=== Building task from: {} ===", request);
+        self.logs.push(header.clone());
+        self.log_ansi_buffer.extend_from_slice(header.as_bytes());
+        self.log_ansi_buffer.push(b'\n');
+        self.log_scroll = 0;
+        self.autoscroll = true;
+        self.set_status_message("Starting task builder...");
+
+        self.runner_active = true;
+        self.running_task_id = Some("Task Builder".to_string());
+        self.running_kind = Some(RunningKind::TaskBuilder);
+        self.mode = AppMode::Executing {
+            task_id: "Task Builder".to_string(),
+        };
+    }
+
+    /// Start the advanced task builder flow with override options.
+    pub(crate) fn start_task_builder_options_flow(&mut self) {
+        let state = TaskBuilderState {
+            step: TaskBuilderStep::Description,
+            description: String::new(),
+            description_input: TextInput::new(""),
+            tags_hint: String::new(),
+            scope_hint: String::new(),
+            runner_override: None,
+            model_override_input: String::new(),
+            effort_override: None,
+            repoprompt_mode: None,
+            selected_field: 0,
+            error_message: None,
+        };
+        self.mode = AppMode::BuildingTaskOptions(state);
+    }
+
+    /// Select the next runnable task for loop mode.
+    ///
+    /// This prefers resuming `doing` tasks, then the first runnable `todo`, then `draft` (when
+    /// enabled), while skipping tasks whose dependencies are not met.
+    pub fn next_loop_task_id(&self) -> Option<String> {
+        let options =
+            queue::operations::RunnableSelectionOptions::new(self.loop_include_draft, true);
+        queue::operations::select_runnable_task_index(&self.queue, Some(&self.done), options)
+            .and_then(|idx| self.queue.tasks.get(idx).map(|task| task.id.clone()))
+    }
+
+    /// Rebuild the filtered view.
+    pub(crate) fn rebuild_filtered_view(&mut self) {
+        self.rebuild_filtered_view_with_preferred(None);
+    }
+
+    pub(crate) fn rebuild_filtered_view_with_preferred(&mut self, preferred_id: Option<&str>) {
+        self.ensure_filtered_indices();
+
+        if let Some(preferred_id) = preferred_id {
+            if let Some(new_pos) =
+                self.filtered_indices
+                    .iter()
+                    .enumerate()
+                    .find_map(|(pos, &idx)| {
+                        self.queue
+                            .tasks
+                            .get(idx)
+                            .and_then(|task| (task.id == preferred_id).then_some(pos))
+                    })
+            {
+                self.selected = new_pos;
+                self.clamp_selection_and_scroll();
+                return;
+            }
+            self.selected = 0;
+        }
+
+        self.clamp_selection_and_scroll();
+
+        // Update board columns if in board view
+        self.update_board_columns();
+    }
+
+    /// Clamp selection and scroll to valid range after filter or resize changes.
+    fn clamp_selection_and_scroll(&mut self) {
+        if self.filtered_indices.is_empty() {
+            self.selected = 0;
+            self.scroll = 0;
+            return;
+        }
+
+        if self.selected >= self.filtered_indices.len() {
+            self.selected = self.filtered_indices.len().saturating_sub(1);
+        }
+
+        if self.scroll > self.selected {
+            self.scroll = self.selected;
+        }
+
+        let list_height = self.list_height.max(1);
+        if self.selected >= self.scroll + list_height {
+            self.scroll = self.selected.saturating_sub(list_height.saturating_sub(1));
+        }
+    }
+}
+
+// ============================================================================
+// Trait implementations for extracted modules
+// ============================================================================
+
+impl PanelOperations for App {
+    fn focus_next_panel(&mut self) {
+        self.focused_panel = self.focused_panel.next();
+    }
+
+    fn focus_previous_panel(&mut self) {
+        self.focused_panel = self.focused_panel.previous();
+    }
+
+    fn focus_list_panel(&mut self) {
+        self.focused_panel = FocusedPanel::List;
+    }
+
+    fn details_focused(&self) -> bool {
+        self.focused_panel == FocusedPanel::Details
+    }
+
+    fn set_list_area(&mut self, area: Rect) {
+        self.list_area = Some(area);
+    }
+
+    fn clear_list_area(&mut self) {
+        self.list_area = None;
+    }
+
+    fn list_area(&self) -> Option<Rect> {
+        self.list_area
+    }
+}
+
+impl ScrollOperations for App {
+    fn scroll_details_up(&mut self, lines: usize) {
+        self.details.scroll_up(lines);
+    }
+
+    fn scroll_details_down(&mut self, lines: usize) {
+        self.details.scroll_down(lines);
+    }
+
+    fn scroll_details_top(&mut self) {
+        self.details.scroll_top();
+    }
+
+    fn scroll_details_bottom(&mut self) {
+        self.details.scroll_bottom();
+    }
+
+    fn details_scroll(&self) -> usize {
+        self.details.scroll()
+    }
+
+    fn details_scroll_state(&mut self) -> &mut tui_scrollview::ScrollViewState {
+        self.details.scroll_state()
+    }
+
+    fn set_details_viewport(
+        &mut self,
+        visible_lines: usize,
+        total_lines: usize,
+        context: DetailsContext,
+    ) {
+        self.details
+            .set_viewport(visible_lines, total_lines, context.clone());
+        self.details_context = Some(context);
+    }
+
+    fn scroll_help_up(&mut self, lines: usize) {
+        if lines == 0 {
+            return;
+        }
+        self.help_scroll = self.help_scroll.saturating_sub(lines);
+    }
+
+    fn scroll_help_down(&mut self, lines: usize, total_lines: usize) {
+        if lines == 0 {
+            return;
+        }
+        let max_scroll = self.max_help_scroll(total_lines);
+        self.help_scroll = (self.help_scroll + lines).min(max_scroll);
+    }
+
+    fn scroll_help_top(&mut self) {
+        self.help_scroll = 0;
+    }
+
+    fn scroll_help_bottom(&mut self, total_lines: usize) {
+        self.help_scroll = self.max_help_scroll(total_lines);
+    }
+
+    fn help_visible_lines(&self) -> usize {
+        self.help_visible_lines.max(1)
+    }
+
+    fn help_total_lines(&self) -> usize {
+        self.help_total_lines
+    }
+
+    fn help_scroll(&self) -> usize {
+        self.help_scroll
+    }
+
+    fn set_help_visible_lines(&mut self, visible_lines: usize, total_lines: usize) {
+        let visible_lines = visible_lines.max(1);
+        self.help_visible_lines = visible_lines;
+        self.help_total_lines = total_lines;
+        let max_scroll = total_lines.saturating_sub(visible_lines);
+        if self.help_scroll > max_scroll {
+            self.help_scroll = max_scroll;
+        }
+    }
+
+    fn max_help_scroll(&self, total_lines: usize) -> usize {
+        total_lines.saturating_sub(self.help_visible_lines())
+    }
+
+    fn log_visible_lines(&self) -> usize {
+        self.log_visible_lines.max(1)
+    }
+
+    fn set_log_visible_lines(&mut self, lines: usize) {
+        let visible_lines = lines.max(1);
+        self.log_visible_lines = visible_lines;
+        let max_scroll = self.max_log_scroll(visible_lines);
+        if self.autoscroll || self.log_scroll > max_scroll {
+            self.log_scroll = max_scroll;
+        }
+    }
+}
+
+impl ViewOperations for App {
+    fn switch_to_list_view(&mut self) {
+        if self.view_mode == ViewMode::List {
+            return;
+        }
+        self.view_mode = ViewMode::List;
+        self.sync_board_selection_to_list();
+        self.set_status_message("Switched to list view (l)");
+    }
+
+    fn switch_to_board_view(&mut self) {
+        if self.view_mode == ViewMode::Board {
+            return;
+        }
+        self.view_mode = ViewMode::Board;
+        self.board_nav
+            .update_columns(&self.filtered_indices, &self.queue);
+        self.sync_list_selection_to_board();
+        self.set_status_message("Switched to board view (b)");
+    }
+
+    fn sync_board_selection_to_list(&mut self) {
+        if let Some(queue_index) = self.board_nav.selected_task_index()
+            && let Some(filtered_pos) = self
+                .filtered_indices
+                .iter()
+                .position(|&idx| idx == queue_index)
+        {
+            self.selected = filtered_pos;
+            self.clamp_selection_and_scroll();
+        }
+    }
+
+    fn sync_list_selection_to_board(&mut self) {
+        if let Some(queue_index) = self.filtered_indices.get(self.selected).copied() {
+            self.board_nav.select_task(queue_index, &self.queue);
+        }
+    }
+
+    fn update_board_columns(&mut self) {
+        if self.view_mode == ViewMode::Board {
+            self.board_nav
+                .update_columns(&self.filtered_indices, &self.queue);
+        }
+    }
+}
+
+impl ReloadOperations for App {
+    fn reload_queues_from_disk(&mut self, queue_path: &Path, done_path: &Path) {
+        let preferred_id = self.selected_task().map(|t| t.id.clone());
+
+        match queue::load_queue(queue_path) {
+            Ok(new_queue) => {
+                self.queue = new_queue;
+            }
+            Err(e) => {
+                self.set_status_message(format!("Reload error: {}", e));
+                return;
+            }
+        }
+
+        match queue::load_queue_or_default(done_path) {
+            Ok(new_done) => {
+                self.done = new_done;
+            }
+            Err(e) => {
+                self.set_status_message(format!("Reload error (done): {}", e));
+                return;
+            }
+        }
+
+        self.bump_queue_rev();
+        self.rebuild_filtered_view_with_preferred(preferred_id.as_deref());
+        self.dirty = false;
+        self.dirty_done = false;
+        self.save_error = None;
+    }
+
+    fn check_external_changes_and_reload(&mut self, queue_path: &Path, done_path: &Path) -> bool {
+        let queue_current = std::fs::metadata(queue_path)
+            .ok()
+            .and_then(|m| m.modified().ok());
+        let done_current = std::fs::metadata(done_path)
+            .ok()
+            .and_then(|m| m.modified().ok());
+
+        let queue_changed = queue_current != self.queue_mtime;
+        let done_changed = done_current != self.done_mtime;
+
+        if queue_changed || done_changed {
+            self.reload_queues_from_disk(queue_path, done_path);
+            self.queue_mtime = queue_current;
+            self.done_mtime = done_current;
+            self.set_status_message("External changes detected - reloaded".to_string());
+            true
+        } else {
+            false
+        }
+    }
+
+    fn update_cached_mtimes(&mut self, queue_path: &Path, done_path: &Path) {
+        self.queue_mtime = std::fs::metadata(queue_path)
+            .ok()
+            .and_then(|m| m.modified().ok());
+        self.done_mtime = std::fs::metadata(done_path)
+            .ok()
+            .and_then(|m| m.modified().ok());
+    }
+
+    fn on_scan_finished(&mut self, queue_path: &Path, done_path: &Path) {
+        self.reload_queues_from_disk(queue_path, done_path);
+        self.set_status_message("Scan completed");
+        if matches!(self.mode, AppMode::Executing { .. } | AppMode::ConfirmQuit) {
+            self.mode = AppMode::Normal;
+        }
+    }
+
+    fn on_task_builder_finished(&mut self, queue_path: &Path, done_path: &Path) {
+        self.reload_queues_from_disk(queue_path, done_path);
+        self.set_status_message("Task builder completed");
+        if matches!(self.mode, AppMode::Executing { .. } | AppMode::ConfirmQuit) {
+            self.mode = AppMode::Normal;
+        }
+    }
+
+    fn on_scan_error(&mut self, msg: &str) {
+        self.set_status_message(format!("Scan error: {}", msg));
+        if matches!(self.mode, AppMode::Executing { .. } | AppMode::ConfirmQuit) {
+            self.mode = AppMode::Normal;
+        }
+    }
+
+    fn on_task_builder_error(&mut self, msg: &str) {
+        self.set_status_message(format!("Task builder error: {}", msg));
+        if matches!(self.mode, AppMode::Executing { .. } | AppMode::ConfirmQuit) {
+            self.mode = AppMode::Normal;
+        }
+    }
+}
+
+impl PaletteOperations for App {
+    fn execute_palette_command(
         &mut self,
         cmd: PaletteCommand,
         now_rfc3339: &str,
@@ -1775,7 +2091,6 @@ impl App {
                 if count == 0 {
                     self.set_status_message("No tasks selected");
                 } else {
-                    // Convert filtered indices to queue indices and set status
                     let queue_indices: Vec<usize> = indices
                         .iter()
                         .filter_map(|&filtered_idx| {
@@ -1802,365 +2117,6 @@ impl App {
                 self.set_status_message("Selection cleared");
                 Ok(TuiAction::Continue)
             }
-        }
-    }
-
-    /// Start execution of a specific task.
-    pub(crate) fn start_task_execution(
-        &mut self,
-        task_id: String,
-        focus_logs: bool,
-        append_logs: bool,
-    ) {
-        if append_logs && !self.logs.is_empty() {
-            self.logs.push(String::new());
-            self.logs.push(format!("=== Executing {} ===", task_id));
-            // Also add to ANSI buffer for terminal emulation
-            self.log_ansi_buffer.push(b'\n');
-            self.log_ansi_buffer
-                .extend_from_slice(format!("=== Executing {} ===", task_id).as_bytes());
-            self.log_ansi_buffer.push(b'\n');
-        } else {
-            self.logs.clear();
-            self.log_ansi_buffer.clear();
-        }
-
-        self.log_scroll = 0;
-        self.autoscroll = true;
-
-        self.runner_active = true;
-        self.running_task_id = Some(task_id.clone());
-        self.running_kind = Some(RunningKind::Task);
-
-        // Initialize phase tracking for task execution
-        let phases = self.project_config.agent.phases.unwrap_or(3);
-        self.reset_phase_tracking(phases);
-
-        // Initialize ETA calculator
-        self.current_eta = None;
-
-        if focus_logs {
-            self.mode = AppMode::Executing { task_id };
-        }
-    }
-
-    /// Start execution of a scan.
-    pub(crate) fn start_scan_execution(
-        &mut self,
-        focus: String,
-        focus_logs: bool,
-        append_logs: bool,
-    ) {
-        let label = scan_label(&focus);
-        if append_logs && !self.logs.is_empty() {
-            self.logs.push(String::new());
-            self.logs.push(format!("=== {} ===", label));
-            // Also add to ANSI buffer for terminal emulation
-            self.log_ansi_buffer.push(b'\n');
-            self.log_ansi_buffer
-                .extend_from_slice(format!("=== {} ===", label).as_bytes());
-            self.log_ansi_buffer.push(b'\n');
-        } else {
-            self.logs.clear();
-            self.log_ansi_buffer.clear();
-        }
-
-        self.log_scroll = 0;
-        self.autoscroll = true;
-
-        self.runner_active = true;
-        self.running_task_id = Some(label);
-        self.running_kind = Some(RunningKind::Scan {
-            focus: focus.clone(),
-        });
-
-        if self.loop_active {
-            self.loop_active = false;
-            self.loop_arm_after_current = false;
-            self.set_status_message("Loop stopped (scan run)");
-        }
-
-        if focus_logs {
-            self.mode = AppMode::Executing { task_id: focus };
-        }
-    }
-
-    /// Start execution of the task builder agent.
-    pub(crate) fn start_task_builder_execution(&mut self, request: String) {
-        self.logs.clear();
-        self.log_ansi_buffer.clear();
-        let header = format!("=== Building task from: {} ===", request);
-        self.logs.push(header.clone());
-        self.log_ansi_buffer.extend_from_slice(header.as_bytes());
-        self.log_ansi_buffer.push(b'\n');
-        self.log_scroll = 0;
-        self.autoscroll = true;
-        self.set_status_message("Starting task builder...");
-
-        self.runner_active = true;
-        self.running_task_id = Some("Task Builder".to_string());
-        self.running_kind = Some(RunningKind::TaskBuilder);
-        self.mode = AppMode::Executing {
-            task_id: "Task Builder".to_string(),
-        };
-    }
-
-    /// Start the advanced task builder flow with override options.
-    pub(crate) fn start_task_builder_options_flow(&mut self) {
-        let state = TaskBuilderState {
-            step: TaskBuilderStep::Description,
-            description: String::new(),
-            description_input: TextInput::new(""),
-            tags_hint: String::new(),
-            scope_hint: String::new(),
-            runner_override: None,
-            model_override_input: String::new(),
-            effort_override: None,
-            repoprompt_mode: None,
-            selected_field: 0,
-            error_message: None,
-        };
-        self.mode = AppMode::BuildingTaskOptions(state);
-    }
-
-    /// Select the next runnable task for loop mode.
-    ///
-    /// This prefers resuming `doing` tasks, then the first runnable `todo`, then `draft` (when
-    /// enabled), while skipping tasks whose dependencies are not met.
-    pub fn next_loop_task_id(&self) -> Option<String> {
-        let options =
-            queue::operations::RunnableSelectionOptions::new(self.loop_include_draft, true);
-        queue::operations::select_runnable_task_index(&self.queue, Some(&self.done), options)
-            .and_then(|idx| self.queue.tasks.get(idx).map(|task| task.id.clone()))
-    }
-
-    /// Rebuild the filtered view.
-    pub(crate) fn rebuild_filtered_view(&mut self) {
-        self.rebuild_filtered_view_with_preferred(None);
-    }
-
-    pub(crate) fn rebuild_filtered_view_with_preferred(&mut self, preferred_id: Option<&str>) {
-        self.ensure_filtered_indices();
-
-        if let Some(preferred_id) = preferred_id {
-            if let Some(new_pos) =
-                self.filtered_indices
-                    .iter()
-                    .enumerate()
-                    .find_map(|(pos, &idx)| {
-                        self.queue
-                            .tasks
-                            .get(idx)
-                            .and_then(|task| (task.id == preferred_id).then_some(pos))
-                    })
-            {
-                self.selected = new_pos;
-                self.clamp_selection_and_scroll();
-                return;
-            }
-            self.selected = 0;
-        }
-
-        self.clamp_selection_and_scroll();
-
-        // Update board columns if in board view
-        self.update_board_columns();
-    }
-
-    fn clamp_selection_and_scroll(&mut self) {
-        if self.filtered_indices.is_empty() {
-            self.selected = 0;
-            self.scroll = 0;
-            return;
-        }
-
-        if self.selected >= self.filtered_indices.len() {
-            self.selected = self.filtered_indices.len().saturating_sub(1);
-        }
-
-        if self.scroll > self.selected {
-            self.scroll = self.selected;
-        }
-
-        let list_height = self.list_height.max(1);
-        if self.selected >= self.scroll + list_height {
-            self.scroll = self.selected.saturating_sub(list_height.saturating_sub(1));
-        }
-    }
-
-    /// Reload the queue + done archive from disk.
-    pub(crate) fn reload_queues_from_disk(&mut self, queue_path: &Path, done_path: &Path) {
-        let preferred_id = self.selected_task().map(|t| t.id.clone());
-
-        match queue::load_queue(queue_path) {
-            Ok(new_queue) => {
-                self.queue = new_queue;
-            }
-            Err(e) => {
-                self.set_status_message(format!("Reload error: {}", e));
-                return;
-            }
-        }
-
-        match queue::load_queue_or_default(done_path) {
-            Ok(new_done) => {
-                self.done = new_done;
-            }
-            Err(e) => {
-                self.set_status_message(format!("Reload error (done): {}", e));
-                return;
-            }
-        }
-
-        self.bump_queue_rev();
-        self.rebuild_filtered_view_with_preferred(preferred_id.as_deref());
-        self.dirty = false;
-        self.dirty_done = false;
-        self.save_error = None;
-    }
-
-    /// Check if queue files have been modified externally and reload if necessary.
-    ///
-    /// Returns true if external changes were detected and reloaded.
-    pub(crate) fn check_external_changes_and_reload(
-        &mut self,
-        queue_path: &Path,
-        done_path: &Path,
-    ) -> bool {
-        let queue_current = std::fs::metadata(queue_path)
-            .ok()
-            .and_then(|m| m.modified().ok());
-        let done_current = std::fs::metadata(done_path)
-            .ok()
-            .and_then(|m| m.modified().ok());
-
-        let queue_changed = queue_current != self.queue_mtime;
-        let done_changed = done_current != self.done_mtime;
-
-        if queue_changed || done_changed {
-            self.reload_queues_from_disk(queue_path, done_path);
-            self.queue_mtime = queue_current;
-            self.done_mtime = done_current;
-            self.set_status_message("External changes detected - reloaded".to_string());
-            true
-        } else {
-            false
-        }
-    }
-
-    /// Update cached mtimes after save operations.
-    pub(crate) fn update_cached_mtimes(&mut self, queue_path: &Path, done_path: &Path) {
-        self.queue_mtime = std::fs::metadata(queue_path)
-            .ok()
-            .and_then(|m| m.modified().ok());
-        self.done_mtime = std::fs::metadata(done_path)
-            .ok()
-            .and_then(|m| m.modified().ok());
-    }
-
-    /// Handle scan completion: reload queue, set status, and return to normal mode.
-    pub(crate) fn on_scan_finished(&mut self, queue_path: &Path, done_path: &Path) {
-        self.reload_queues_from_disk(queue_path, done_path);
-        self.set_status_message("Scan completed");
-        if matches!(self.mode, AppMode::Executing { .. } | AppMode::ConfirmQuit) {
-            self.mode = AppMode::Normal;
-        }
-    }
-
-    /// Handle task builder completion: reload queue, set status, and return to normal mode.
-    pub(crate) fn on_task_builder_finished(&mut self, queue_path: &Path, done_path: &Path) {
-        self.reload_queues_from_disk(queue_path, done_path);
-        self.set_status_message("Task builder completed");
-        if matches!(self.mode, AppMode::Executing { .. } | AppMode::ConfirmQuit) {
-            self.mode = AppMode::Normal;
-        }
-    }
-
-    /// Handle scan error: set error message and return to normal mode.
-    pub(crate) fn on_scan_error(&mut self, msg: &str) {
-        self.set_status_message(format!("Scan error: {}", msg));
-        if matches!(self.mode, AppMode::Executing { .. } | AppMode::ConfirmQuit) {
-            self.mode = AppMode::Normal;
-        }
-    }
-
-    /// Handle task builder error: set error message and return to normal mode.
-    pub(crate) fn on_task_builder_error(&mut self, msg: &str) {
-        self.set_status_message(format!("Task builder error: {}", msg));
-        if matches!(self.mode, AppMode::Executing { .. } | AppMode::ConfirmQuit) {
-            self.mode = AppMode::Normal;
-        }
-    }
-
-    // View mode switching methods
-
-    /// Switch to list view.
-    ///
-    /// Updates the view mode and syncs the list selection to match
-    /// the currently selected board task (if any).
-    pub(crate) fn switch_to_list_view(&mut self) {
-        if self.view_mode == ViewMode::List {
-            return;
-        }
-        self.view_mode = ViewMode::List;
-        // Sync board selection back to list
-        self.sync_board_selection_to_list();
-        self.set_status_message("Switched to list view (l)");
-    }
-
-    /// Switch to board (Kanban) view.
-    ///
-    /// Updates the view mode, rebuilds the column task mapping,
-    /// and syncs the board selection to match the current list selection.
-    pub(crate) fn switch_to_board_view(&mut self) {
-        if self.view_mode == ViewMode::Board {
-            return;
-        }
-        self.view_mode = ViewMode::Board;
-        // Rebuild column mapping from current filtered view
-        self.board_nav
-            .update_columns(&self.filtered_indices, &self.queue);
-        // Sync list selection to board
-        self.sync_list_selection_to_board();
-        self.set_status_message("Switched to board view (b)");
-    }
-
-    /// Sync board navigation selection to list selection.
-    ///
-    /// Updates the list view's selected index to match the currently
-    /// selected task in the board view.
-    pub(crate) fn sync_board_selection_to_list(&mut self) {
-        if let Some(queue_index) = self.board_nav.selected_task_index() {
-            // Find the position of this task in the filtered indices
-            if let Some(filtered_pos) = self
-                .filtered_indices
-                .iter()
-                .position(|&idx| idx == queue_index)
-            {
-                self.selected = filtered_pos;
-                self.clamp_selection_and_scroll();
-            }
-        }
-    }
-
-    /// Sync list selection to board navigation.
-    ///
-    /// Updates the board view's selected column and task to match
-    /// the currently selected task in the list view.
-    pub(crate) fn sync_list_selection_to_board(&mut self) {
-        if let Some(queue_index) = self.filtered_indices.get(self.selected).copied() {
-            self.board_nav.select_task(queue_index, &self.queue);
-        }
-    }
-
-    /// Update board column tasks when filters change.
-    ///
-    /// Should be called after rebuild_filtered_view to keep the board
-    /// in sync with the current filter state.
-    pub(crate) fn update_board_columns(&mut self) {
-        if self.view_mode == ViewMode::Board {
-            self.board_nav
-                .update_columns(&self.filtered_indices, &self.queue);
         }
     }
 }

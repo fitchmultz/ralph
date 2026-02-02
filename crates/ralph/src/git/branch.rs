@@ -5,7 +5,7 @@
 //! - Fail fast on detached HEAD states to avoid ambiguous base branches.
 //!
 //! Not handled here:
-//! - Branch creation or deletion (see `git/worktree.rs`).
+//! - Branch creation or deletion (see `git/workspace.rs`).
 //! - Push/pull operations (see `git/commit.rs`).
 //!
 //! Invariants/assumptions:

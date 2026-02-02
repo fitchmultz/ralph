@@ -13,6 +13,7 @@
 
 use super::types::TuiAction;
 use super::{App, is_plain_char};
+use crate::tui::app_scroll::ScrollOperations;
 use anyhow::Result;
 use crossterm::event::{KeyCode, KeyEvent};
 

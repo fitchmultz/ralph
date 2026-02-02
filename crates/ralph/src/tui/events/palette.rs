@@ -14,6 +14,7 @@
 use super::super::TextInput;
 use super::super::input::{TextInputEdit, apply_text_input_key};
 use super::{App, AppMode, TuiAction};
+use crate::tui::app_palette_ops::PaletteOperations;
 use crossterm::event::{KeyCode, KeyEvent};
 
 /// High-level commands available in the command palette.

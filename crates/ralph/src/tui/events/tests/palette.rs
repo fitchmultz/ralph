@@ -12,6 +12,7 @@
 //! - Specific command implementations (see task_ops.rs, config.rs, etc.).
 
 use super::helpers::{ctrl_key_event, input, key_event, make_queue, make_test_task};
+use crate::tui::app_palette_ops::PaletteOperations;
 use crate::tui::events::handle_key_event;
 use crate::tui::{App, AppMode, PaletteCommand, TuiAction};
 use crossterm::event::KeyCode;

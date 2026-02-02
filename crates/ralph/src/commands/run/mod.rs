@@ -15,39 +15,39 @@
 //! - Pre-run updates and CI gates honor config defaults unless overridden.
 //! - Phase runners expect stream-json output for execution.
 //!
-//! Size justification (1002 LOC):
-//! This module coordinates the entire run workflow and requires:
-//! - Multiple run modes (loop, one, force) with shared orchestration logic
-//! - Queue locking, session validation, and signal handling integration
-//! - Pre-run CI gate execution and result handling
-//! - Post-run supervision with task status transitions
-//! - Submodules for phases, selection, logging, and supervision (see mod declarations)
-//!
-//! While large, all logic is tightly coupled to the single responsibility of
-//! run orchestration. Further splitting would fragment the workflow coordination.
+//! Size: ~1100 LOC (reduced from 1315 after extracting session, iteration, context).
+//! Remaining bloat: `run_one_impl` (~550 LOC) contains tightly-coupled phase execution
+//! logic (Phase 1/2/3 orchestration) that resists further splitting without fragmenting
+//! the execution flow. Submodules handle: phases/, parallel/, supervision/, selection/,
+//! logging/, plus new session/, iteration/, and context/ modules.
 
 use crate::commands::task as task_cmd;
 use crate::config;
 use crate::constants::limits::MAX_CONSECUTIVE_FAILURES;
 use crate::contracts::{
-    AgentConfig, GitRevertMode, ParallelMergeWhen, ProjectType, ReasoningEffort,
-    RunnerCliOptionsPatch, TaskStatus,
+    GitRevertMode, ParallelMergeWhen, ProjectType, RunnerCliOptionsPatch, TaskStatus,
 };
 use crate::promptflow;
 use crate::session::{self, SessionValidationResult};
 use crate::signal;
-use crate::webhook;
-use crate::{git, prompts, queue, runner, runutil, timeutil};
+
+use crate::{git, prompts, queue, runner, runutil};
 use anyhow::{Context, Result, bail};
 
+mod context;
+mod iteration;
 mod logging;
 mod parallel;
 mod phases;
+mod run_session;
 mod selection;
 mod supervision;
 
-use selection::select_run_one_task_index;
-use supervision::{PushPolicy, post_run_supervise};
+pub(crate) use context::{mark_task_doing, task_context_for_prompt};
+pub(crate) use iteration::{apply_followup_reasoning_effort, resolve_iteration_settings};
+pub(crate) use run_session::{create_session_for_task, validate_resumed_task};
+pub(crate) use selection::select_run_one_task_index;
+pub(crate) use supervision::{PushPolicy, post_run_supervise};
 
 // Preserve existing `commands::run` unit tests which call phase 3 helpers directly.
 #[allow(unused_imports)]
@@ -63,12 +63,6 @@ enum QueueLockMode {
     Acquire,
     Held,
     Skip,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct IterationSettings {
-    count: u8,
-    followup_reasoning_effort: Option<ReasoningEffort>,
 }
 
 pub enum RunOutcome {
@@ -1037,209 +1031,6 @@ fn resolve_run_agent_settings(
         task.agent.as_ref(),
         &resolved.config.agent,
     )
-}
-
-fn resolve_iteration_settings(
-    task: &crate::contracts::Task,
-    config_agent: &AgentConfig,
-) -> Result<IterationSettings> {
-    let count = task
-        .agent
-        .as_ref()
-        .and_then(|agent| agent.iterations)
-        .or(config_agent.iterations)
-        .unwrap_or(1);
-
-    if count == 0 {
-        bail!(
-            "Invalid iterations for task {}: iterations must be >= 1.",
-            task.id.trim()
-        );
-    }
-
-    let followup_reasoning_effort = task
-        .agent
-        .as_ref()
-        .and_then(|agent| agent.followup_reasoning_effort)
-        .or(config_agent.followup_reasoning_effort);
-
-    Ok(IterationSettings {
-        count,
-        followup_reasoning_effort,
-    })
-}
-
-fn apply_followup_reasoning_effort(
-    base_settings: &runner::AgentSettings,
-    followup_reasoning_effort: Option<ReasoningEffort>,
-    is_followup: bool,
-) -> runner::AgentSettings {
-    if !is_followup {
-        return base_settings.clone();
-    }
-
-    let mut settings = base_settings.clone();
-    if let Some(effort) = followup_reasoning_effort {
-        if settings.runner == crate::contracts::Runner::Codex {
-            settings.reasoning_effort = Some(effort);
-        } else {
-            log::warn!(
-                "Follow-up reasoning_effort configured, but runner {:?} does not support it; ignoring override.",
-                settings.runner
-            );
-        }
-    }
-    settings
-}
-
-fn task_context_for_prompt(task: &crate::contracts::Task) -> Result<String> {
-    let id = task.id.trim();
-    let title = task.title.trim();
-    let rendered =
-        serde_json::to_string_pretty(task).context("serialize task JSON for prompt context")?;
-
-    Ok(format!(
-        r#"# CURRENT TASK (AUTHORITATIVE)
-
-You MUST work on this exact task and no other task.
-- Do NOT switch tasks based on queue order, "first todo", or "lowest ID".
-- Ignore `.ralph/done.json` except as historical reference if explicitly needed.
-- Do NOT change task status manually.
-
-Task ID: {id}
-Title: {title}
-
-Raw task JSON (source of truth):
-```json
-{rendered}
-```
-"#,
-    ))
-}
-
-fn mark_task_doing(resolved: &config::Resolved, task_id: &str) -> Result<()> {
-    let mut queue_file = queue::load_queue(&resolved.queue_path)?;
-
-    // Get task title before modification for webhook
-    let task_title = queue_file
-        .tasks
-        .iter()
-        .find(|t| t.id == task_id)
-        .map(|t| t.title.clone())
-        .unwrap_or_default();
-
-    let now = timeutil::now_utc_rfc3339()?;
-    queue::set_status(&mut queue_file, task_id, TaskStatus::Doing, &now, None)?;
-    queue::save_queue(&resolved.queue_path, &queue_file)?;
-
-    // Trigger webhook for task started
-    webhook::notify_task_started(task_id, &task_title, &resolved.config.agent.webhook, &now);
-
-    Ok(())
-}
-
-/// Create a session state for the current task.
-fn create_session_for_task(
-    task_id: &str,
-    resolved: &config::Resolved,
-    agent_overrides: &AgentOverrides,
-    iterations_planned: u8,
-    phase_matrix: Option<&runner::PhaseSettingsMatrix>,
-) -> crate::contracts::SessionState {
-    let now = timeutil::now_utc_rfc3339_or_fallback();
-    let git_commit = session::get_git_head_commit(&resolved.repo_root);
-
-    // Resolve runner from overrides or config
-    let runner = agent_overrides
-        .runner
-        .or(resolved.config.agent.runner)
-        .unwrap_or(crate::contracts::Runner::Claude);
-
-    // Resolve model string from overrides or config
-    let model = agent_overrides
-        .model
-        .as_ref()
-        .map(|m| m.as_str().to_string())
-        .or_else(|| {
-            resolved
-                .config
-                .agent
-                .model
-                .as_ref()
-                .map(|m| m.as_str().to_string())
-        })
-        .unwrap_or_else(|| "sonnet".to_string());
-
-    // Generate a simple session ID using timestamp and task ID
-    let session_id = format!("{}-{}", now.replace([':', '.', '-'], ""), task_id);
-
-    // Build phase settings snapshot from resolved matrix
-    let phase_settings = phase_matrix.map(|matrix| {
-        (
-            crate::contracts::PhaseSettingsSnapshot {
-                runner: matrix.phase1.runner,
-                model: matrix.phase1.model.as_str().to_string(),
-                reasoning_effort: matrix.phase1.reasoning_effort,
-            },
-            crate::contracts::PhaseSettingsSnapshot {
-                runner: matrix.phase2.runner,
-                model: matrix.phase2.model.as_str().to_string(),
-                reasoning_effort: matrix.phase2.reasoning_effort,
-            },
-            crate::contracts::PhaseSettingsSnapshot {
-                runner: matrix.phase3.runner,
-                model: matrix.phase3.model.as_str().to_string(),
-                reasoning_effort: matrix.phase3.reasoning_effort,
-            },
-        )
-    });
-
-    crate::contracts::SessionState::new(
-        session_id,
-        task_id.to_string(),
-        now,
-        iterations_planned,
-        runner,
-        model,
-        0, // max_tasks - not tracked at this level
-        git_commit,
-        phase_settings,
-    )
-}
-
-/// Validate that a resumed task exists and is in a runnable state.
-/// Returns Ok(()) if valid, Err with message if not.
-/// On validation failure, clears the session file.
-fn validate_resumed_task(
-    queue_file: &crate::contracts::QueueFile,
-    task_id: &str,
-    repo_root: &std::path::Path,
-) -> Result<()> {
-    let task = queue_file
-        .tasks
-        .iter()
-        .find(|t| t.id.trim() == task_id)
-        .ok_or_else(|| {
-            let cache_dir = repo_root.join(".ralph/cache");
-            if let Err(e) = session::clear_session(&cache_dir) {
-                log::debug!("Failed to clear invalid session: {}", e);
-            }
-            anyhow::anyhow!("Task {} no longer exists in queue", task_id)
-        })?;
-
-    if task.status != TaskStatus::Doing {
-        let cache_dir = repo_root.join(".ralph/cache");
-        if let Err(e) = session::clear_session(&cache_dir) {
-            log::debug!("Failed to clear invalid session: {}", e);
-        }
-        return Err(anyhow::anyhow!(
-            "Task {} is not in Doing status (current: {})",
-            task_id,
-            task.status
-        ));
-    }
-
-    Ok(())
 }
 
 #[cfg(test)]

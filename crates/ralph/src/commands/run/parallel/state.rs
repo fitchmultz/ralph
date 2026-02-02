@@ -14,12 +14,13 @@
 
 use crate::contracts::{ParallelMergeMethod, ParallelMergeWhen};
 use crate::fsutil;
-use crate::git::WorktreeSpec;
+use crate::git::WorkspaceSpec;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct ParallelStateFile {
     pub started_at: String,
     pub base_branch: String,
@@ -82,25 +83,27 @@ impl ParallelStateFile {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct ParallelTaskRecord {
     pub task_id: String,
-    pub worktree_path: String,
+    pub workspace_path: String,
     pub branch: String,
     pub pid: Option<u32>,
 }
 
 impl ParallelTaskRecord {
-    pub fn new(task_id: &str, worktree: &WorktreeSpec, pid: u32) -> Self {
+    pub fn new(task_id: &str, workspace: &WorkspaceSpec, pid: u32) -> Self {
         Self {
             task_id: task_id.to_string(),
-            worktree_path: worktree.path.to_string_lossy().to_string(),
-            branch: worktree.branch.clone(),
+            workspace_path: workspace.path.to_string_lossy().to_string(),
+            branch: workspace.branch.clone(),
             pid: Some(pid),
         }
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct ParallelPrRecord {
     pub task_id: String,
     pub pr_number: u32,
@@ -110,19 +113,19 @@ pub(crate) struct ParallelPrRecord {
     #[serde(default)]
     pub base: Option<String>,
     #[serde(default)]
-    pub worktree_path: Option<String>,
+    pub workspace_path: Option<String>,
     pub merged: bool,
 }
 
 impl ParallelPrRecord {
-    pub fn new(task_id: &str, pr: &crate::git::PrInfo, worktree_path: Option<&Path>) -> Self {
+    pub fn new(task_id: &str, pr: &crate::git::PrInfo, workspace_path: Option<&Path>) -> Self {
         Self {
             task_id: task_id.to_string(),
             pr_number: pr.number,
             pr_url: pr.url.clone(),
             head: Some(pr.head.clone()),
             base: Some(pr.base.clone()),
-            worktree_path: worktree_path.map(|path| path.to_string_lossy().to_string()),
+            workspace_path: workspace_path.map(|p| p.to_string_lossy().to_string()),
             merged: false,
         }
     }
@@ -150,8 +153,8 @@ impl ParallelPrRecord {
         }
     }
 
-    pub fn worktree_path(&self) -> Option<PathBuf> {
-        self.worktree_path.as_ref().map(PathBuf::from)
+    pub fn workspace_path(&self) -> Option<PathBuf> {
+        self.workspace_path.as_ref().map(PathBuf::from)
     }
 }
 
@@ -202,7 +205,7 @@ mod tests {
             pr_url: "https://example.com/pr/5".to_string(),
             head: Some("ralph/RQ-0001".to_string()),
             base: Some("main".to_string()),
-            worktree_path: Some("/tmp/worktree".to_string()),
+            workspace_path: Some("/tmp/workspace".to_string()),
             merged: false,
         });
 
@@ -214,6 +217,34 @@ mod tests {
     }
 
     #[test]
+    fn state_deserialization_rejects_legacy_worktree_path_in_tasks() {
+        let raw = r#"{
+            "started_at":"2026-02-01T00:00:00Z",
+            "base_branch":"main",
+            "merge_method":"squash",
+            "merge_when":"as_created",
+            "tasks_in_flight":[{"task_id":"RQ-0001","worktree_path":"/tmp/wt","branch":"b","pid":1}],
+            "prs":[]
+        }"#;
+        let err = serde_json::from_str::<ParallelStateFile>(raw).unwrap_err();
+        assert!(err.to_string().contains("worktree_path"));
+    }
+
+    #[test]
+    fn state_deserialization_rejects_legacy_worktree_path_in_prs() {
+        let raw = r#"{
+            "started_at":"2026-02-01T00:00:00Z",
+            "base_branch":"main",
+            "merge_method":"squash",
+            "merge_when":"as_created",
+            "tasks_in_flight":[],
+            "prs":[{"task_id":"RQ-0001","pr_number":5,"pr_url":"https://example.com/pr/5","worktree_path":"/tmp/wt","merged":false}]
+        }"#;
+        let err = serde_json::from_str::<ParallelStateFile>(raw).unwrap_err();
+        assert!(err.to_string().contains("worktree_path"));
+    }
+
+    #[test]
     fn pr_record_uses_fallbacks_when_missing() {
         let record = ParallelPrRecord {
             task_id: "RQ-0002".to_string(),
@@ -221,7 +252,7 @@ mod tests {
             pr_url: "https://example.com/pr/9".to_string(),
             head: None,
             base: None,
-            worktree_path: None,
+            workspace_path: None,
             merged: false,
         };
         let info = record.pr_info("ralph/RQ-0002", "main");
