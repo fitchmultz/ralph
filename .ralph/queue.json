@@ -2,43 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0550",
-      "status": "todo",
-      "title": "Regenerate config schema after removing worktree_* keys",
-      "priority": "medium",
-      "tags": [
-        "schema",
-        "config",
-        "parallel"
-      ],
-      "scope": [
-        "schemas/config.schema.json"
-      ],
-      "evidence": [
-        "Schema must reflect `parallel.workspace_root` only",
-        "Legacy `worktree_root` should not appear in schema"
-      ],
-      "plan": [
-        "Run `make generate` after config updates",
-        "Confirm schema exposes `workspace_root` and does not include `worktree_root`",
-        "Ensure schema changes are committed"
-      ],
-      "notes": [
-        "Breaking change: replace worktree-based parallel isolation; remove legacy worktree_* compatibility."
-      ],
-      "request": "plan: replace parallel worktrees with clone-based workspaces",
-      "created_at": "2026-02-02T14:39:46Z",
-      "updated_at": "2026-02-02T14:39:46Z",
-      "depends_on": [
-        "RQ-0546"
-      ],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "plan_source": "./docs/parallel-plan.md"
-      }
-    },
-    {
       "id": "RQ-0551",
       "status": "todo",
       "title": "Sweep worktree references and run CI + parallel smoke test (no compat)",
