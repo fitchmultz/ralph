@@ -129,9 +129,9 @@ fn sync_gitignored(repo_root: &Path, workspace_path: &Path) -> Result<()> {
             && (rel_trimmed == prefix
                 || rel_trimmed.starts_with(&format!("{}/", prefix))
                 || prefix.starts_with(&format!("{}/", rel_trimmed)))
-            {
-                continue;
-            }
+        {
+            continue;
+        }
 
         let source = repo_root.join(rel_trimmed);
         let target = workspace_path.join(rel_trimmed);
