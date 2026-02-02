@@ -2,44 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0546",
-      "status": "todo",
-      "title": "Replace parallel config/state to use workspace_* only (breaking change)",
-      "priority": "high",
-      "tags": [
-        "parallel",
-        "config",
-        "state"
-      ],
-      "scope": [
-        "crates/ralph/src/contracts/config.rs",
-        "crates/ralph/src/commands/run/parallel/state.rs"
-      ],
-      "evidence": [
-        "Config/state currently reference worktree_* fields that must be removed",
-        "Explicit requirement: no backward compatibility for legacy worktree_* keys"
-      ],
-      "plan": [
-        "Rename ParallelConfig field to `workspace_root` without serde alias for `worktree_root`",
-        "Rename parallel state record fields to `workspace_path` without `worktree_path` alias",
-        "Add a migration entry for worktree_* removal and document the breaking change",
-        "Update unit tests to assert the new JSON shape and failure on legacy keys"
-      ],
-      "notes": [
-        "Back-compat via serde alias is required",
-        "Breaking change: replace worktree-based parallel isolation; remove legacy worktree_* compatibility."
-      ],
-      "request": "plan: replace parallel worktrees with clone-based workspaces",
-      "created_at": "2026-02-02T14:39:46Z",
-      "updated_at": "2026-02-02T14:39:46Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "plan_source": "./docs/parallel-plan.md"
-      }
-    },
-    {
       "id": "RQ-0547",
       "status": "todo",
       "title": "Swap parallel supervisor to workspace clones (remove worktree paths)",

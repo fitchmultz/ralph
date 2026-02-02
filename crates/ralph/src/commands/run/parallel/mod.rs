@@ -59,7 +59,7 @@ struct ParallelSettings {
     draft_on_failure: bool,
     conflict_policy: ConflictPolicy,
     merge_retries: u8,
-    worktree_root: PathBuf,
+    workspace_root: PathBuf,
     branch_prefix: String,
     delete_branch_on_merge: bool,
     merge_runner: MergeRunnerConfig,
@@ -136,7 +136,7 @@ pub(crate) fn run_loop_parallel(
     let merge_stop = Arc::new(AtomicBool::new(false));
     let mut dropped_tasks = Vec::new();
     state_file.tasks_in_flight.retain(|record| {
-        let path = Path::new(&record.worktree_path);
+        let path = Path::new(&record.workspace_path);
         if path.exists() {
             true
         } else {
@@ -171,7 +171,7 @@ pub(crate) fn run_loop_parallel(
         let conflict_policy = settings.conflict_policy;
         let merge_runner_cfg = settings.merge_runner.clone();
         let retries = settings.merge_retries;
-        let worktree_root = settings.worktree_root.clone();
+        let workspace_root = settings.workspace_root.clone();
         let delete_branch = settings.delete_branch_on_merge;
         let merge_result_tx_for_thread = merge_result_tx.clone();
         let merge_stop_for_thread = Arc::clone(&merge_stop);
@@ -184,7 +184,7 @@ pub(crate) fn run_loop_parallel(
                 merge_runner_cfg,
                 retries,
                 MergeQueueSource::AsCreated(pr_rx),
-                &worktree_root,
+                &workspace_root,
                 delete_branch,
                 merge_result_tx_for_thread,
                 merge_stop_for_thread,
@@ -198,8 +198,8 @@ pub(crate) fn run_loop_parallel(
 
     for record in state_file.prs.iter().filter(|record| !record.merged) {
         let path = record
-            .worktree_path()
-            .unwrap_or_else(|| settings.worktree_root.join(&record.task_id));
+            .workspace_path()
+            .unwrap_or_else(|| settings.workspace_root.join(&record.task_id));
         if path.exists() {
             completed_worktrees.insert(
                 record.task_id.clone(),
@@ -250,7 +250,7 @@ pub(crate) fn run_loop_parallel(
 
             let worktree = git::create_worktree_at(
                 &resolved.repo_root,
-                &settings.worktree_root,
+                &settings.workspace_root,
                 &task_id,
                 &base_branch,
                 &settings.branch_prefix,
@@ -389,7 +389,7 @@ pub(crate) fn run_loop_parallel(
             settings.merge_runner.clone(),
             settings.merge_retries,
             MergeQueueSource::AfterAll(created_prs.clone()),
-            &settings.worktree_root,
+            &settings.workspace_root,
             settings.delete_branch_on_merge,
             merge_result_tx,
             Arc::clone(&merge_stop),
@@ -560,15 +560,15 @@ fn collect_worktrees_for_cleanup(
     for record in &state_file.tasks_in_flight {
         push_unique(git::WorktreeSpec {
             task_id: record.task_id.clone(),
-            path: PathBuf::from(&record.worktree_path),
+            path: PathBuf::from(&record.workspace_path),
             branch: record.branch.clone(),
         });
     }
 
     for record in state_file.prs.iter().filter(|record| !record.merged) {
         let path = record
-            .worktree_path()
-            .unwrap_or_else(|| settings.worktree_root.join(&record.task_id));
+            .workspace_path()
+            .unwrap_or_else(|| settings.workspace_root.join(&record.task_id));
         let branch = format!("{}{}", settings.branch_prefix, record.task_id);
         push_unique(git::WorktreeSpec {
             task_id: record.task_id.clone(),
@@ -822,7 +822,7 @@ fn resolve_parallel_settings(
         draft_on_failure: cfg.draft_on_failure.unwrap_or(true),
         conflict_policy: cfg.conflict_policy.unwrap_or(ConflictPolicy::AutoResolve),
         merge_retries: cfg.merge_retries.unwrap_or(5),
-        worktree_root: git::worktree_root(&resolved.repo_root, &resolved.config),
+        workspace_root: git::worktree_root(&resolved.repo_root, &resolved.config),
         branch_prefix: cfg
             .branch_prefix
             .clone()
@@ -1251,7 +1251,7 @@ mod tests {
         );
         state_file.tasks_in_flight.push(state::ParallelTaskRecord {
             task_id: "RQ-0002".to_string(),
-            worktree_path: "/tmp/worktree/RQ-0002".to_string(),
+            workspace_path: "/tmp/workspace/RQ-0002".to_string(),
             branch: "ralph/RQ-0002".to_string(),
             pid: Some(123),
         });
@@ -1261,7 +1261,7 @@ mod tests {
             pr_url: "https://example.com/pr/7".to_string(),
             head: Some("ralph/RQ-0003".to_string()),
             base: Some("main".to_string()),
-            worktree_path: None,
+            workspace_path: None,
             merged: false,
         });
 
@@ -1274,7 +1274,7 @@ mod tests {
                 task_title: "title".to_string(),
                 worktree: git::WorktreeSpec {
                     task_id: "RQ-0004".to_string(),
-                    path: PathBuf::from("/tmp/worktree/RQ-0004"),
+                    path: PathBuf::from("/tmp/workspaces/RQ-0004"),
                     branch: "ralph/RQ-0004".to_string(),
                 },
                 child,
@@ -1304,7 +1304,7 @@ mod tests {
             draft_on_failure: true,
             conflict_policy: ConflictPolicy::AutoResolve,
             merge_retries: 3,
-            worktree_root: PathBuf::from("/tmp/worktrees"),
+            workspace_root: PathBuf::from("/tmp/workspaces"),
             branch_prefix: "ralph/".to_string(),
             delete_branch_on_merge: true,
             merge_runner: MergeRunnerConfig::default(),
@@ -1318,7 +1318,7 @@ mod tests {
         );
         state_file.tasks_in_flight.push(state::ParallelTaskRecord {
             task_id: "RQ-0002".to_string(),
-            worktree_path: "/tmp/worktrees/RQ-0002".to_string(),
+            workspace_path: "/tmp/workspaces/RQ-0002".to_string(),
             branch: "ralph/RQ-0002".to_string(),
             pid: Some(123),
         });
@@ -1328,7 +1328,7 @@ mod tests {
             pr_url: "https://example.com/pr/9".to_string(),
             head: Some("ralph/RQ-0003".to_string()),
             base: Some("main".to_string()),
-            worktree_path: None,
+            workspace_path: None,
             merged: false,
         });
 
@@ -1341,7 +1341,7 @@ mod tests {
                 task_title: "title".to_string(),
                 worktree: git::WorktreeSpec {
                     task_id: "RQ-0001".to_string(),
-                    path: PathBuf::from("/tmp/worktrees/RQ-0001"),
+                    path: PathBuf::from("/tmp/workspaces/RQ-0001"),
                     branch: "ralph/RQ-0001".to_string(),
                 },
                 child,
@@ -1353,7 +1353,7 @@ mod tests {
             "RQ-0001".to_string(),
             git::WorktreeSpec {
                 task_id: "RQ-0001".to_string(),
-                path: PathBuf::from("/tmp/worktrees/RQ-0001"),
+                path: PathBuf::from("/tmp/workspaces/RQ-0001"),
                 branch: "ralph/RQ-0001".to_string(),
             },
         );
@@ -1365,9 +1365,9 @@ mod tests {
             .map(|spec| spec.path.clone())
             .collect::<HashSet<_>>();
         assert_eq!(paths.len(), 3);
-        assert!(paths.contains(&PathBuf::from("/tmp/worktrees/RQ-0001")));
-        assert!(paths.contains(&PathBuf::from("/tmp/worktrees/RQ-0002")));
-        assert!(paths.contains(&PathBuf::from("/tmp/worktrees/RQ-0003")));
+        assert!(paths.contains(&PathBuf::from("/tmp/workspaces/RQ-0001")));
+        assert!(paths.contains(&PathBuf::from("/tmp/workspaces/RQ-0002")));
+        assert!(paths.contains(&PathBuf::from("/tmp/workspaces/RQ-0003")));
 
         for worker in in_flight.values_mut() {
             let _ = worker.child.wait();

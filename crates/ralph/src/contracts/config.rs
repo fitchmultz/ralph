@@ -250,8 +250,8 @@ pub struct ParallelConfig {
     #[schemars(range(min = 1))]
     pub merge_retries: Option<u8>,
 
-    /// Root directory for parallel worktrees (relative to repo root if not absolute).
-    pub worktree_root: Option<PathBuf>,
+    /// Root directory for parallel workspaces (relative to repo root if not absolute).
+    pub workspace_root: Option<PathBuf>,
 
     /// Branch name prefix for parallel workers (e.g., "ralph/").
     pub branch_prefix: Option<String>,
@@ -289,8 +289,8 @@ impl ParallelConfig {
         if other.merge_retries.is_some() {
             self.merge_retries = other.merge_retries;
         }
-        if other.worktree_root.is_some() {
-            self.worktree_root = other.worktree_root;
+        if other.workspace_root.is_some() {
+            self.workspace_root = other.workspace_root;
         }
         if other.branch_prefix.is_some() {
             self.branch_prefix = other.branch_prefix;
@@ -1225,7 +1225,7 @@ impl Default for Config {
                 draft_on_failure: Some(true),
                 conflict_policy: Some(ConflictPolicy::AutoResolve),
                 merge_retries: Some(5),
-                worktree_root: None,
+                workspace_root: None,
                 branch_prefix: Some("ralph/".to_string()),
                 delete_branch_on_merge: Some(true),
                 merge_runner: None,
@@ -1242,6 +1242,16 @@ mod tests {
         ReasoningEffort, Runner, RunnerApprovalMode, RunnerOutputFormat, RunnerPlanMode,
         RunnerSandboxMode, RunnerVerbosity, UnsupportedOptionPolicy, WebhookConfig,
     };
+
+    #[test]
+    fn parallel_config_rejects_legacy_worktree_root_key() {
+        let raw = r#"{
+            "version": 1,
+            "parallel": { "worktree_root": ".ralph/worktrees/custom" }
+        }"#;
+        let err = serde_json::from_str::<super::Config>(raw).unwrap_err();
+        assert!(err.to_string().contains("worktree_root"));
+    }
 
     #[test]
     fn git_revert_mode_parses_snake_case() {

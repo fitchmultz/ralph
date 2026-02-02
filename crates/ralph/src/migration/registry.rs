@@ -13,7 +13,7 @@
 //! - Each migration has a unique ID that never changes.
 //! - New migrations are appended to the end of the list.
 
-use super::Migration;
+use super::{Migration, MigrationType};
 
 /// The static registry of all migrations.
 ///
@@ -37,39 +37,14 @@ use super::Migration;
 ///     },
 /// ];
 /// ```
-pub static MIGRATIONS: &[Migration] = &[
-    // No migrations defined yet.
-    // Future migrations will be added here as needed.
-    //
-    // Example migrations (commented out until needed):
-    //
-    // Migration {
-    //     id: "config_key_rename_runner_cli_2026_01",
-    //     description: "Rename agent.runner_cli to agent.runner_options",
-    //     migration_type: MigrationType::ConfigKeyRename {
-    //         old_key: "agent.runner_cli",
-    //         new_key: "agent.runner_options",
-    //     },
-    // },
-    //
-    // Migration {
-    //     id: "queue_json_to_jsonc_2026_01",
-    //     description: "Migrate queue.json to queue.jsonc for comment support",
-    //     migration_type: MigrationType::FileRename {
-    //         old_path: ".ralph/queue.json",
-    //         new_path: ".ralph/queue.jsonc",
-    //     },
-    // },
-    //
-    // Migration {
-    //     id: "readme_update_v4_2026_02",
-    //     description: "Update README to version 4 with new documentation",
-    //     migration_type: MigrationType::ReadmeUpdate {
-    //         from_version: 3,
-    //         to_version: 4,
-    //     },
-    // },
-];
+pub static MIGRATIONS: &[Migration] = &[Migration {
+    id: "config_key_rename_parallel_worktree_root_2026_02",
+    description: "Rename parallel.worktree_root to parallel.workspace_root",
+    migration_type: MigrationType::ConfigKeyRename {
+        old_key: "parallel.worktree_root",
+        new_key: "parallel.workspace_root",
+    },
+}];
 
 /// Get a migration by its ID.
 pub fn get_migration_by_id(id: &str) -> Option<&'static Migration> {
@@ -95,8 +70,7 @@ mod tests {
 
     #[test]
     fn get_migration_by_id_finds_existing() {
-        // Since we have no migrations defined yet, this test verifies the function works
-        // When migrations are added, update this test
+        assert!(get_migration_by_id("config_key_rename_parallel_worktree_root_2026_02").is_some());
         assert!(get_migration_by_id("nonexistent").is_none());
     }
 

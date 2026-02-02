@@ -10,9 +10,11 @@
 //! - File-level migrations like queue.json to queue.jsonc (see `file_migrations.rs`).
 //!
 //! Invariants/assumptions:
-//! - Uses simple text replacement that preserves JSONC comments.
-//! - Nested keys use dot notation (e.g., "agent.runner_cli").
+//! - Uses scoped text replacement that preserves JSONC comments.
+//! - Nested keys use dot notation (e.g. "agent.runner_cli").
 //! - Both project and global configs are checked/updated.
+//! - Key renames are scoped to their parent object (e.g., "parallel.worktree_root"
+//!   only renames "worktree_root" keys that appear within a "parallel" object).
 
 use anyhow::{Context, Result};
 use std::fs;
@@ -91,20 +93,40 @@ pub fn apply_key_rename(ctx: &MigrationContext, old_key: &str, new_key: &str) ->
 }
 
 /// Rename a key in a specific config file while preserving comments.
-/// Uses text-based replacement for simplicity and reliability.
+/// Uses scoped text-based replacement to only rename within the specified parent object.
+/// For "parallel.worktree_root", only renames "worktree_root" inside "parallel" objects.
 fn rename_key_in_file(path: &Path, old_key: &str, new_key: &str) -> Result<()> {
     let raw =
         fs::read_to_string(path).with_context(|| format!("read config file {}", path.display()))?;
 
-    // Get the simple key name (last part of dot notation)
-    let key_parts: Vec<&str> = old_key.split('.').collect();
-    let target_key = key_parts
-        .last()
-        .ok_or_else(|| anyhow::anyhow!("Empty key"))?;
+    // Parse the dot-notation keys to extract parent path and leaf names
+    let old_parts: Vec<&str> = old_key.split('.').collect();
+    let new_parts: Vec<&str> = new_key.split('.').collect();
 
-    // Perform the rename using text replacement
-    let modified = rename_key_in_text(&raw, target_key, new_key)
-        .with_context(|| format!("rename key {} to {} in text", old_key, new_key))?;
+    if old_parts.is_empty() || new_parts.is_empty() {
+        return Err(anyhow::anyhow!("Empty key"));
+    }
+
+    // Extract leaf key names (last segment)
+    let old_leaf = old_parts[old_parts.len() - 1];
+    let new_leaf = new_parts[new_parts.len() - 1];
+
+    // Extract parent path (all segments except last) for scoping
+    let parent_path = if old_parts.len() > 1 {
+        old_parts[..old_parts.len() - 1].to_vec()
+    } else {
+        Vec::new()
+    };
+
+    // Perform the scoped rename
+    let modified = if parent_path.is_empty() {
+        // No parent scope - rename all occurrences of the leaf key
+        rename_key_in_text(&raw, old_leaf, new_leaf)
+    } else {
+        // Scoped rename - only rename within the specified parent object
+        rename_key_in_text_scoped(&raw, &parent_path, old_leaf, new_leaf)
+    }
+    .with_context(|| format!("rename key {} to {} in text", old_key, new_key))?;
 
     // Write back the modified content
     crate::fsutil::write_atomic(path, modified.as_bytes())
@@ -168,6 +190,150 @@ fn replace_key_pattern(text: &str, pattern: &str, old_key: &str, new_key: &str) 
     result.push_str(&text[last_end..]);
 
     result
+}
+
+/// Rename a key within a scoped parent object path.
+/// For example, with parent_path=["parallel"], old_key="worktree_root",
+/// only renames "worktree_root" keys that appear inside "parallel" objects.
+fn rename_key_in_text_scoped(
+    raw: &str,
+    parent_path: &[&str],
+    old_key: &str,
+    new_key: &str,
+) -> Result<String> {
+    // Parse the JSONC to understand structure
+    let value = match jsonc_parser::parse_to_serde_value(raw, &Default::default()) {
+        Ok(Some(v)) => v,
+        _ => {
+            // If we can't parse, fall back to global rename
+            return rename_key_in_text(raw, old_key, new_key);
+        }
+    };
+
+    // Check if the key exists at the specified path
+    if !key_exists_at_path(&value, parent_path, old_key) {
+        // Key doesn't exist at this path, return unchanged
+        return Ok(raw.to_string());
+    }
+
+    // Find the parent object in the raw text and rename only within its scope
+    let parent_key = parent_path[0]; // We only support single-level nesting for now
+    rename_key_in_object_scope(raw, parent_key, old_key, new_key)
+}
+
+/// Check if a key exists at a specific nested path in the JSON value.
+fn key_exists_at_path(value: &serde_json::Value, path: &[&str], key: &str) -> bool {
+    let mut current = value;
+
+    for part in path {
+        match current {
+            serde_json::Value::Object(map) => {
+                if let Some(v) = map.get(*part) {
+                    current = v;
+                } else {
+                    return false;
+                }
+            }
+            _ => return false,
+        }
+    }
+
+    match current {
+        serde_json::Value::Object(map) => map.contains_key(key),
+        _ => false,
+    }
+}
+
+/// Rename a key within a specific object scope in the raw text.
+/// Finds the object by its key and renames the target key only within that object's scope.
+fn rename_key_in_object_scope(
+    raw: &str,
+    object_key: &str,
+    old_key: &str,
+    new_key: &str,
+) -> Result<String> {
+    // Pattern to find the object: "object_key" followed by optional whitespace, :, optional whitespace, and {
+    let object_pattern = format!(r#""{}""#, object_key);
+
+    let mut result = String::with_capacity(raw.len());
+    let mut last_end = 0;
+
+    // Find all occurrences of the object key
+    for (start, _) in raw.match_indices(&object_pattern) {
+        // Check if this looks like an object key (followed by optional whitespace, :, optional whitespace, and {)
+        let after_pattern = start + object_pattern.len();
+        let rest = &raw[after_pattern..];
+
+        // Skip whitespace
+        let rest_trimmed = rest.trim_start();
+        let whitespace_before_colon = rest.len() - rest_trimmed.len();
+
+        // Check for colon
+        if !rest_trimmed.starts_with(':') {
+            continue;
+        }
+
+        // Skip colon and whitespace after it
+        let after_colon = &rest_trimmed[1..];
+        let after_colon_trimmed = after_colon.trim_start();
+        let whitespace_after_colon = after_colon.len() - after_colon_trimmed.len();
+
+        // Check for opening brace
+        if !after_colon_trimmed.starts_with('{') {
+            continue;
+        }
+
+        // Found the target object - calculate positions
+        // object_content_start points to the '{'
+        let object_content_start =
+            after_pattern + whitespace_before_colon + 1 + whitespace_after_colon;
+
+        // Find the end of this object by tracking brace depth
+        let after_brace = object_content_start + 1;
+        let mut pos = after_brace;
+        let mut depth = 1;
+
+        while pos < raw.len() && depth > 0 {
+            match raw.as_bytes().get(pos) {
+                Some(b'{') => depth += 1,
+                Some(b'}') => depth -= 1,
+                Some(b'"') => {
+                    // Skip string literals
+                    pos += 1;
+                    while pos < raw.len() {
+                        match raw.as_bytes().get(pos) {
+                            Some(b'\\') => pos += 2,
+                            Some(b'"') => {
+                                pos += 1;
+                                break;
+                            }
+                            _ => pos += 1,
+                        }
+                    }
+                    continue;
+                }
+                _ => {}
+            }
+            pos += 1;
+        }
+
+        let object_content_end = pos; // Position after closing '}'
+
+        // Add text before the object content (including the key, colon, and opening brace)
+        result.push_str(&raw[last_end..object_content_start]);
+
+        // Process only the content inside the braces to rename the key
+        let inner_content = &raw[object_content_start..object_content_end];
+        let modified_inner = rename_key_in_text(inner_content, old_key, new_key)?;
+        result.push_str(&modified_inner);
+
+        last_end = object_content_end;
+    }
+
+    // Append remaining text
+    result.push_str(&raw[last_end..]);
+
+    Ok(result)
 }
 
 /// Get the value of a config key from the context's resolved config.
@@ -316,5 +482,94 @@ mod tests {
         let result = rename_key_in_text(raw, "old_key", "new_key").unwrap();
         assert!(result.contains("\"new_key\""));
         assert!(!result.contains("\"old_key\""));
+    }
+
+    #[test]
+    fn rename_key_in_file_uses_leaf_of_dot_path_keys() {
+        let dir = TempDir::new().unwrap();
+        let config_path = dir.path().join("config.json");
+
+        fs::write(&config_path, r#"{"parallel":{"worktree_root":"x"}}"#).unwrap();
+
+        rename_key_in_file(
+            &config_path,
+            "parallel.worktree_root",
+            "parallel.workspace_root",
+        )
+        .unwrap();
+
+        let content = fs::read_to_string(&config_path).unwrap();
+        assert!(content.contains("\"workspace_root\""));
+        assert!(!content.contains("\"worktree_root\""));
+        assert!(!content.contains("\"parallel.workspace_root\""));
+    }
+
+    #[test]
+    fn rename_key_scoped_to_parent_object() {
+        let dir = TempDir::new().unwrap();
+        let config_path = dir.path().join("config.json");
+
+        // Config with worktree_root in both "parallel" and "other" objects
+        fs::write(
+            &config_path,
+            r#"{
+                "parallel": {
+                    "worktree_root": "/tmp/parallel"
+                },
+                "other": {
+                    "worktree_root": "/tmp/other"
+                }
+            }"#,
+        )
+        .unwrap();
+
+        rename_key_in_file(
+            &config_path,
+            "parallel.worktree_root",
+            "parallel.workspace_root",
+        )
+        .unwrap();
+
+        let content = fs::read_to_string(&config_path).unwrap();
+        // parallel.worktree_root should be renamed
+        assert!(content.contains(
+            "\"parallel\": {\n                    \"workspace_root\": \"/tmp/parallel\""
+        ));
+        // other.worktree_root should NOT be renamed
+        assert!(
+            content.contains("\"other\": {\n                    \"worktree_root\": \"/tmp/other\"")
+        );
+    }
+
+    #[test]
+    fn rename_key_scoped_with_comments() {
+        let dir = TempDir::new().unwrap();
+        let config_path = dir.path().join("config.json");
+
+        fs::write(
+            &config_path,
+            r#"{
+                // Parallel execution settings
+                "parallel": {
+                    /* old setting name */
+                    "worktree_root": "/tmp/worktrees"
+                }
+            }"#,
+        )
+        .unwrap();
+
+        rename_key_in_file(
+            &config_path,
+            "parallel.worktree_root",
+            "parallel.workspace_root",
+        )
+        .unwrap();
+
+        let content = fs::read_to_string(&config_path).unwrap();
+        assert!(content.contains("\"workspace_root\": \"/tmp/worktrees\""));
+        assert!(!content.contains("\"worktree_root\""));
+        // Comments should be preserved
+        assert!(content.contains("// Parallel execution settings"));
+        assert!(content.contains("/* old setting name */"));
     }
 }

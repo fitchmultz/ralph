@@ -28,7 +28,7 @@ pub(crate) struct WorktreeSpec {
 pub(crate) fn worktree_root(repo_root: &Path, cfg: &Config) -> PathBuf {
     let root = cfg
         .parallel
-        .worktree_root
+        .workspace_root
         .clone()
         .unwrap_or_else(|| default_worktree_root(repo_root));
     if root.is_absolute() {
@@ -305,7 +305,7 @@ mod tests {
     fn worktree_root_uses_repo_root_for_relative_path() {
         let cfg = Config {
             parallel: ParallelConfig {
-                worktree_root: Some(PathBuf::from(".ralph/worktrees/custom")),
+                workspace_root: Some(PathBuf::from(".ralph/workspaces/custom")),
                 ..ParallelConfig::default()
             },
             ..Config::default()
@@ -314,7 +314,7 @@ mod tests {
         let root = worktree_root(&repo_root, &cfg);
         assert_eq!(
             root,
-            PathBuf::from("/tmp/ralph-test/.ralph/worktrees/custom")
+            PathBuf::from("/tmp/ralph-test/.ralph/workspaces/custom")
         );
     }
 
@@ -322,14 +322,14 @@ mod tests {
     fn worktree_root_accepts_absolute_path() {
         let cfg = Config {
             parallel: ParallelConfig {
-                worktree_root: Some(PathBuf::from("/tmp/ralph-worktrees")),
+                workspace_root: Some(PathBuf::from("/tmp/ralph-workspaces")),
                 ..ParallelConfig::default()
             },
             ..Config::default()
         };
         let repo_root = PathBuf::from("/tmp/ralph-test");
         let root = worktree_root(&repo_root, &cfg);
-        assert_eq!(root, PathBuf::from("/tmp/ralph-worktrees"));
+        assert_eq!(root, PathBuf::from("/tmp/ralph-workspaces"));
     }
 
     #[test]

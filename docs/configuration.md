@@ -228,7 +228,7 @@ Key fields:
 - `draft_on_failure`: create draft PRs when a worker fails (default: `true`).
 - `conflict_policy`: `auto_resolve` (default), `retry_later`, or `reject`.
 - `merge_retries`: number of merge retries before giving up (default: `5`).
-- `worktree_root`: root directory for parallel worktrees (default: `<repo-parent>/.worktrees/<repo-name>/parallel`).
+- `workspace_root`: root directory for parallel workspaces (default: `<repo-parent>/.workspaces/<repo-name>/parallel`).
 - `branch_prefix`: prefix for worker branches (default: `ralph/`).
 - `delete_branch_on_merge`: delete branches after merge (default: `true`).
 - `merge_runner`: runner overrides for merge conflict resolution (defaults to `agent` settings).
@@ -236,6 +236,10 @@ Key fields:
 Notes:
 - CLI flag `--parallel` overrides `parallel.workers` for a single run.
 - If `auto_pr` is `false`, PR creation and merge automation are skipped.
+- **Breaking change (2026-02):** The `parallel.worktree_root` config key has been renamed to
+  `parallel.workspace_root`. Config files using the old key will fail to load. Run
+  `ralph migrate` to update existing configs. State files are not migrated and may need
+  to be deleted if incompatible.
 
 Example:
 

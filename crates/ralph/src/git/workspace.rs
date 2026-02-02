@@ -31,7 +31,7 @@ pub(crate) struct WorkspaceSpec {
 pub(crate) fn workspace_root(repo_root: &Path, cfg: &Config) -> PathBuf {
     let root = cfg
         .parallel
-        .worktree_root
+        .workspace_root
         .clone()
         .unwrap_or_else(|| default_workspace_root(repo_root));
     if root.is_absolute() {
@@ -305,7 +305,7 @@ mod tests {
     fn workspace_root_uses_repo_root_for_relative_path() {
         let cfg = Config {
             parallel: ParallelConfig {
-                worktree_root: Some(PathBuf::from(".ralph/workspaces/custom")),
+                workspace_root: Some(PathBuf::from(".ralph/workspaces/custom")),
                 ..ParallelConfig::default()
             },
             ..Config::default()
@@ -322,7 +322,7 @@ mod tests {
     fn workspace_root_accepts_absolute_path() {
         let cfg = Config {
             parallel: ParallelConfig {
-                worktree_root: Some(PathBuf::from("/tmp/ralph-workspaces")),
+                workspace_root: Some(PathBuf::from("/tmp/ralph-workspaces")),
                 ..ParallelConfig::default()
             },
             ..Config::default()
