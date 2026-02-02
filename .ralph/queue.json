@@ -2,47 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0559",
-      "status": "todo",
-      "title": "Reduce runutil module size by extracting focused helpers",
-      "priority": "medium",
-      "tags": [
-        "maintenance",
-        "run",
-        "utilities"
-      ],
-      "scope": [
-        "crates/ralph/src/runutil.rs"
-      ],
-      "evidence": [
-        "find crates/ralph/src -name '*.rs' ! -path '*/tests/*' ! -name '*tests.rs' -print0 | xargs -0 wc -l | sort -nr | head -n 15",
-        "crates/ralph/src/runutil.rs: 1270 lines (wc -l).",
-        "AGENTS.md: files should stay ~400 LOC; >700 LOC requires explicit justification."
-      ],
-      "plan": [
-        "Identify cohesive responsibilities within the module and define new submodule boundaries.",
-        "Extract grouped functionality into new submodules with clear interfaces and minimal pub surface.",
-        "Update imports/exports and module docs so callers use the new structure.",
-        "Adjust or add tests around the extracted units to cover success and failure modes.",
-        "Verify by running `make ci` and confirm the file(s) are <= 700 LOC."
-      ],
-      "notes": [
-        "Principles: A (KISS), D (Localize change / SRP).",
-        "Why it matters: oversized modules make changes risky, increase merge conflicts, and obscure invariants.",
-        "Minimal fix: split into cohesive submodules without expanding public API.",
-        "Acceptance: new modules keep responsibilities focused, tests pass, and no file exceeds ~700 LOC without justification."
-      ],
-      "request": "maintenance scan finding",
-      "created_at": "2026-02-02T17:11:27Z",
-      "updated_at": "2026-02-02T17:11:27Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0560",
       "status": "todo",
       "title": "Split watch command implementation into submodules",
