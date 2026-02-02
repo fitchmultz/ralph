@@ -7,6 +7,8 @@
 //! Not handled here:
 //! - Reading/writing config files or CLI parsing (see `crate::config`).
 //! - Queue/task contract definitions (see `super::queue` and `super::task`).
+//! - Runner definitions (see `super::runner`).
+//! - Model definitions (see `super::model`).
 //!
 //! Invariants/assumptions:
 //! - Config merge is leaf-wise: `Some` values override, `None` does not.
@@ -19,8 +21,15 @@ use crate::constants::limits::{
 use crate::constants::timeouts::DEFAULT_SESSION_TIMEOUT_HOURS;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 use std::path::PathBuf;
+
+// Re-export types moved to runner.rs and model.rs for backward compatibility
+pub use crate::contracts::model::{Model, ReasoningEffort};
+pub use crate::contracts::runner::{
+    ClaudePermissionMode, MergeRunnerConfig, Runner, RunnerApprovalMode, RunnerCliConfigRoot,
+    RunnerCliOptionsPatch, RunnerOutputFormat, RunnerPlanMode, RunnerSandboxMode, RunnerVerbosity,
+    UnsupportedOptionPolicy,
+};
 
 /* ----------------------------- Config (JSON) ----------------------------- */
 /*
@@ -336,28 +345,6 @@ pub enum ConflictPolicy {
     Reject,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
-#[serde(default, deny_unknown_fields)]
-pub struct MergeRunnerConfig {
-    pub runner: Option<Runner>,
-    pub model: Option<Model>,
-    pub reasoning_effort: Option<ReasoningEffort>,
-}
-
-impl MergeRunnerConfig {
-    pub fn merge_from(&mut self, other: Self) {
-        if other.runner.is_some() {
-            self.runner = other.runner;
-        }
-        if other.model.is_some() {
-            self.model = other.model;
-        }
-        if other.reasoning_effort.is_some() {
-            self.reasoning_effort = other.reasoning_effort;
-        }
-    }
-}
-
 impl AgentConfig {
     pub fn merge_from(&mut self, other: Self) {
         if other.runner.is_some() {
@@ -449,73 +436,6 @@ impl AgentConfig {
         }
         if other.scan_prompt_version.is_some() {
             self.scan_prompt_version = other.scan_prompt_version;
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
-#[serde(default, deny_unknown_fields)]
-pub struct RunnerCliConfigRoot {
-    /// Default normalized runner CLI options applied to all runners (unless overridden).
-    pub defaults: RunnerCliOptionsPatch,
-
-    /// Optional per-runner overrides, merged leaf-wise over `defaults`.
-    pub runners: BTreeMap<Runner, RunnerCliOptionsPatch>,
-}
-
-impl RunnerCliConfigRoot {
-    pub fn merge_from(&mut self, other: Self) {
-        self.defaults.merge_from(other.defaults);
-        for (runner, patch) in other.runners {
-            self.runners
-                .entry(runner)
-                .and_modify(|existing| existing.merge_from(patch.clone()))
-                .or_insert(patch);
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
-#[serde(default, deny_unknown_fields)]
-pub struct RunnerCliOptionsPatch {
-    /// Desired output format for runner execution.
-    pub output_format: Option<RunnerOutputFormat>,
-
-    /// Desired verbosity (when supported by the runner).
-    pub verbosity: Option<RunnerVerbosity>,
-
-    /// Desired approval/permission behavior.
-    pub approval_mode: Option<RunnerApprovalMode>,
-
-    /// Desired sandbox behavior (when supported by the runner).
-    pub sandbox: Option<RunnerSandboxMode>,
-
-    /// Desired plan/read-only behavior (when supported by the runner).
-    pub plan_mode: Option<RunnerPlanMode>,
-
-    /// Policy for unsupported options (warn/error/ignore).
-    pub unsupported_option_policy: Option<UnsupportedOptionPolicy>,
-}
-
-impl RunnerCliOptionsPatch {
-    pub fn merge_from(&mut self, other: Self) {
-        if other.output_format.is_some() {
-            self.output_format = other.output_format;
-        }
-        if other.verbosity.is_some() {
-            self.verbosity = other.verbosity;
-        }
-        if other.approval_mode.is_some() {
-            self.approval_mode = other.approval_mode;
-        }
-        if other.sandbox.is_some() {
-            self.sandbox = other.sandbox;
-        }
-        if other.plan_mode.is_some() {
-            self.plan_mode = other.plan_mode;
-        }
-        if other.unsupported_option_policy.is_some() {
-            self.unsupported_option_policy = other.unsupported_option_policy;
         }
     }
 }
@@ -616,189 +536,6 @@ pub enum ProjectType {
     Docs,
 }
 
-#[derive(
-    Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Default, JsonSchema,
-)]
-#[serde(rename_all = "snake_case")]
-pub enum Runner {
-    Codex,
-    Opencode,
-    Gemini,
-    Cursor,
-    #[default]
-    Claude,
-    Kimi,
-    Pi,
-}
-
-impl Runner {
-    /// Returns the snake_case string representation of the runner.
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Runner::Codex => "codex",
-            Runner::Opencode => "opencode",
-            Runner::Gemini => "gemini",
-            Runner::Cursor => "cursor",
-            Runner::Claude => "claude",
-            Runner::Kimi => "kimi",
-            Runner::Pi => "pi",
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum ClaudePermissionMode {
-    #[default]
-    AcceptEdits,
-    BypassPermissions,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum RunnerOutputFormat {
-    /// Newline-delimited JSON objects (required for Ralph's streaming parser).
-    #[default]
-    StreamJson,
-    /// JSON output (may not be streaming; currently treated as unsupported by Ralph execution).
-    Json,
-    /// Plain text output (currently treated as unsupported by Ralph execution).
-    Text,
-}
-
-impl std::str::FromStr for RunnerOutputFormat {
-    type Err = &'static str;
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match normalize_enum_token(value).as_str() {
-            "stream_json" => Ok(RunnerOutputFormat::StreamJson),
-            "json" => Ok(RunnerOutputFormat::Json),
-            "text" => Ok(RunnerOutputFormat::Text),
-            _ => Err("output_format must be 'stream_json', 'json', or 'text'"),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum RunnerVerbosity {
-    Quiet,
-    #[default]
-    Normal,
-    Verbose,
-}
-
-impl std::str::FromStr for RunnerVerbosity {
-    type Err = &'static str;
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match normalize_enum_token(value).as_str() {
-            "quiet" => Ok(RunnerVerbosity::Quiet),
-            "normal" => Ok(RunnerVerbosity::Normal),
-            "verbose" => Ok(RunnerVerbosity::Verbose),
-            _ => Err("verbosity must be 'quiet', 'normal', or 'verbose'"),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum RunnerApprovalMode {
-    /// Do not apply any approval flags; runner defaults apply.
-    Default,
-    /// Attempt to auto-approve edits but not all tool actions (runner-specific).
-    AutoEdits,
-    /// Bypass approvals / run headless (runner-specific).
-    #[default]
-    Yolo,
-    /// Strict safety mode. Warning: some runners may become interactive and hang.
-    Safe,
-}
-
-impl std::str::FromStr for RunnerApprovalMode {
-    type Err = &'static str;
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match normalize_enum_token(value).as_str() {
-            "default" => Ok(RunnerApprovalMode::Default),
-            "auto_edits" => Ok(RunnerApprovalMode::AutoEdits),
-            "yolo" => Ok(RunnerApprovalMode::Yolo),
-            "safe" => Ok(RunnerApprovalMode::Safe),
-            _ => Err("approval_mode must be 'default', 'auto_edits', 'yolo', or 'safe'"),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum RunnerSandboxMode {
-    #[default]
-    Default,
-    Enabled,
-    Disabled,
-}
-
-impl std::str::FromStr for RunnerSandboxMode {
-    type Err = &'static str;
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match normalize_enum_token(value).as_str() {
-            "default" => Ok(RunnerSandboxMode::Default),
-            "enabled" => Ok(RunnerSandboxMode::Enabled),
-            "disabled" => Ok(RunnerSandboxMode::Disabled),
-            _ => Err("sandbox must be 'default', 'enabled', or 'disabled'"),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum RunnerPlanMode {
-    #[default]
-    Default,
-    Enabled,
-    Disabled,
-}
-
-impl std::str::FromStr for RunnerPlanMode {
-    type Err = &'static str;
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match normalize_enum_token(value).as_str() {
-            "default" => Ok(RunnerPlanMode::Default),
-            "enabled" => Ok(RunnerPlanMode::Enabled),
-            "disabled" => Ok(RunnerPlanMode::Disabled),
-            _ => Err("plan_mode must be 'default', 'enabled', or 'disabled'"),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum UnsupportedOptionPolicy {
-    Ignore,
-    #[default]
-    Warn,
-    Error,
-}
-
-impl std::str::FromStr for UnsupportedOptionPolicy {
-    type Err = &'static str;
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match normalize_enum_token(value).as_str() {
-            "ignore" => Ok(UnsupportedOptionPolicy::Ignore),
-            "warn" => Ok(UnsupportedOptionPolicy::Warn),
-            "error" => Ok(UnsupportedOptionPolicy::Error),
-            _ => Err("unsupported_option_policy must be 'ignore', 'warn', or 'error'"),
-        }
-    }
-}
-
-fn normalize_enum_token(value: &str) -> String {
-    value.trim().to_lowercase().replace('-', "_")
-}
-
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum GitRevertMode {
@@ -834,17 +571,6 @@ pub enum AutoArchiveBehavior {
     Always,
 }
 
-/// Scan prompt version to use for scan operations.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum ScanPromptVersion {
-    /// Version 1: Original rule-based scan prompts with fixed minimum task counts.
-    V1,
-    /// Version 2: Rubric-based scan prompts with quality-focused STOP CONDITION (default).
-    #[default]
-    V2,
-}
-
 impl std::str::FromStr for AutoArchiveBehavior {
     type Err = &'static str;
 
@@ -856,6 +582,17 @@ impl std::str::FromStr for AutoArchiveBehavior {
             _ => Err("auto_archive_behavior must be 'never', 'prompt', or 'always'"),
         }
     }
+}
+
+/// Scan prompt version to use for scan operations.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ScanPromptVersion {
+    /// Version 1: Original rule-based scan prompts with fixed minimum task counts.
+    V1,
+    /// Version 2: Rubric-based scan prompts with quality-focused STOP CONDITION (default).
+    #[default]
+    V2,
 }
 
 /// TUI-specific configuration.
@@ -1013,118 +750,11 @@ impl WebhookConfig {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub enum Model {
-    #[default]
-    Gpt52Codex,
-    Gpt52,
-    Glm47,
-    Custom(String),
-}
-
-impl Serialize for Model {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(self.as_str())
-    }
-}
-
-impl<'de> Deserialize<'de> for Model {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value = String::deserialize(deserializer)?;
-        value.parse().map_err(serde::de::Error::custom)
-    }
-}
-
-impl Model {
-    pub fn as_str(&self) -> &str {
-        match self {
-            Model::Gpt52Codex => "gpt-5.2-codex",
-            Model::Gpt52 => "gpt-5.2",
-            Model::Glm47 => "zai-coding-plan/glm-4.7",
-            Model::Custom(value) => value.as_str(),
-        }
-    }
-}
-
-impl std::str::FromStr for Model {
-    type Err = &'static str;
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        let trimmed = value.trim();
-        if trimmed.is_empty() {
-            return Err("model cannot be empty");
-        }
-        Ok(match trimmed {
-            "gpt-5.2-codex" => Model::Gpt52Codex,
-            "gpt-5.2" => Model::Gpt52,
-            "zai-coding-plan/glm-4.7" => Model::Glm47,
-            other => Model::Custom(other.to_string()),
-        })
-    }
-}
-
-// Manual JsonSchema implementation for Model since it has custom Serialize/Deserialize
-impl schemars::JsonSchema for Model {
-    fn schema_name() -> String {
-        "Model".to_string()
-    }
-
-    fn json_schema(_: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
-        schemars::schema::SchemaObject {
-            instance_type: Some(schemars::schema::InstanceType::String.into()),
-            ..Default::default()
-        }
-        .into()
-    }
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum ReasoningEffort {
-    Low,
-    #[default]
-    Medium,
-    High,
-    #[serde(rename = "xhigh")]
-    #[schemars(rename = "xhigh")]
-    XHigh,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum ModelEffort {
-    #[default]
-    Default,
-    Low,
-    Medium,
-    High,
-    #[serde(rename = "xhigh")]
-    #[schemars(rename = "xhigh")]
-    XHigh,
-}
-
-impl ModelEffort {
-    pub fn as_reasoning_effort(self) -> Option<ReasoningEffort> {
-        match self {
-            ModelEffort::Default => None,
-            ModelEffort::Low => Some(ReasoningEffort::Low),
-            ModelEffort::Medium => Some(ReasoningEffort::Medium),
-            ModelEffort::High => Some(ReasoningEffort::High),
-            ModelEffort::XHigh => Some(ReasoningEffort::XHigh),
-        }
-    }
-}
-
 /* ------------------------------ Defaults -------------------------------- */
 
 impl Default for Config {
     fn default() -> Self {
+        use std::collections::BTreeMap;
         Self {
             version: 1,
             project_type: Some(ProjectType::Code),
@@ -1239,8 +869,7 @@ impl Default for Config {
 mod tests {
     use super::{
         AgentConfig, GitRevertMode, Model, NotificationConfig, PhaseOverrideConfig, PhaseOverrides,
-        ReasoningEffort, Runner, RunnerApprovalMode, RunnerOutputFormat, RunnerPlanMode,
-        RunnerSandboxMode, RunnerVerbosity, UnsupportedOptionPolicy, WebhookConfig,
+        ReasoningEffort, Runner, WebhookConfig,
     };
 
     #[test]
@@ -1307,34 +936,6 @@ mod tests {
         // None should not override an already-set value.
         base.merge_from(AgentConfig::default());
         assert_eq!(base.fail_on_prerun_update_error, Some(true));
-    }
-
-    #[test]
-    fn runner_cli_enums_from_str_accept_hyphenated_tokens() {
-        assert_eq!(
-            "stream-json".parse::<RunnerOutputFormat>().unwrap(),
-            RunnerOutputFormat::StreamJson
-        );
-        assert_eq!(
-            "auto-edits".parse::<RunnerApprovalMode>().unwrap(),
-            RunnerApprovalMode::AutoEdits
-        );
-        assert_eq!(
-            "verbose".parse::<RunnerVerbosity>().unwrap(),
-            RunnerVerbosity::Verbose
-        );
-        assert_eq!(
-            "disabled".parse::<RunnerSandboxMode>().unwrap(),
-            RunnerSandboxMode::Disabled
-        );
-        assert_eq!(
-            "enabled".parse::<RunnerPlanMode>().unwrap(),
-            RunnerPlanMode::Enabled
-        );
-        assert_eq!(
-            "error".parse::<UnsupportedOptionPolicy>().unwrap(),
-            UnsupportedOptionPolicy::Error
-        );
     }
 
     #[test]
@@ -1442,11 +1043,11 @@ mod tests {
             scan_prompt_version: None,
         };
 
-        let other = AgentConfig {
+        let override_config = AgentConfig {
             runner: Some(Runner::Claude),
-            model: Some(Model::Custom("claude-opus".to_string())),
+            model: Some(Model::Custom("claude-sonnet".to_string())),
             reasoning_effort: Some(ReasoningEffort::High),
-            phases: Some(3),
+            phases: None,
             iterations: None,
             followup_reasoning_effort: None,
             codex_bin: None,
@@ -1460,9 +1061,9 @@ mod tests {
             runner_cli: None,
             phase_overrides: Some(PhaseOverrides {
                 phase1: Some(PhaseOverrideConfig {
-                    runner: Some(Runner::Gemini),
-                    model: Some(Model::Custom("gemini-2.5".to_string())),
-                    reasoning_effort: None,
+                    runner: None,
+                    model: Some(Model::Custom("claude-opus-4".to_string())),
+                    reasoning_effort: Some(ReasoningEffort::XHigh),
                 }),
                 phase2: None,
                 phase3: None,
@@ -1482,15 +1083,27 @@ mod tests {
             scan_prompt_version: None,
         };
 
-        base.merge_from(other);
+        base.merge_from(override_config);
 
-        // Global settings overridden
+        // Verify global settings merged
         assert_eq!(base.runner, Some(Runner::Claude));
-        assert_eq!(base.model, Some(Model::Custom("claude-opus".to_string())));
+        assert_eq!(base.model, Some(Model::Custom("claude-sonnet".to_string())));
+        assert_eq!(base.reasoning_effort, Some(ReasoningEffort::High));
+        assert_eq!(base.phases, Some(3)); // preserved
 
-        // phase_overrides merged
-        assert!(base.phase_overrides.is_some());
-        let po = base.phase_overrides.unwrap();
-        assert_eq!(po.phase1.as_ref().unwrap().runner, Some(Runner::Gemini));
+        // Verify phase_overrides merged
+        let phase1 = base
+            .phase_overrides
+            .as_ref()
+            .unwrap()
+            .phase1
+            .as_ref()
+            .unwrap();
+        assert_eq!(phase1.runner, None); // preserved (None in override)
+        assert_eq!(
+            phase1.model,
+            Some(Model::Custom("claude-opus-4".to_string()))
+        );
+        assert_eq!(phase1.reasoning_effort, Some(ReasoningEffort::XHigh));
     }
 }
