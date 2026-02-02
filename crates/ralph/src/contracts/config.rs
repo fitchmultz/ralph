@@ -1193,7 +1193,7 @@ impl Default for Config {
                         ),
                     ]),
                 }),
-                phase_overrides: None,
+                phase_overrides: Some(PhaseOverrides::default()),
                 instruction_files: None,
                 repoprompt_plan_required: Some(false),
                 repoprompt_tool_injection: Some(false),

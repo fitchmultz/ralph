@@ -44,44 +44,6 @@
       "custom_fields": {}
     },
     {
-      "id": "RQ-0523",
-      "status": "doing",
-      "title": "Fix phase_overrides missing from config schema default value",
-      "priority": "high",
-      "tags": [
-        "bug",
-        "fix",
-        "schema"
-      ],
-      "scope": [
-        "schemas/config.schema.json",
-        "crates/ralph/src/contracts/config.rs",
-        "crates/ralph/src/cli/config.rs",
-        "Makefile"
-      ],
-      "evidence": [
-        "User request: 'Validate how schemas/config.schema.json is generated. The phase_overrides section is not being shown in the schema'",
-        "Verified: phase_overrides IS present in AgentConfig definition properties",
-        "Verified: phase_overrides IS MISSING from agent.default in schema (where default values are shown)",
-        "Root cause: phase_overrides uses #[serde(skip_serializing_if = 'Option::is_none')] which skips it during default serialization for schema"
-      ],
-      "plan": [
-        "Investigate how schema default values are generated (schemars behavior with Option fields)",
-        "Identify all config keys that may be missing from schema defaults (audit other Option<T> fields with skip_serializing_if)",
-        "Implement fix to ensure phase_overrides and other missing keys appear in schema default section",
-        "Add or update test to ensure schema completeness/correctness",
-        "Verify fix by running `make generate` and checking phase_overrides appears in agent.default"
-      ],
-      "notes": [],
-      "request": "Validate how schemas/config.schema.json is generated. The phase_overrides section is not being shown in the schema and a file likely needs updated to ensure this and all config keys are properly captured.",
-      "created_at": "2026-02-01T19:58:45Z",
-      "updated_at": "2026-02-02T00:29:59.408076000Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0515",
       "status": "todo",
       "title": "Split crates/ralph/src/commands/run/tests.rs into cohesive modules",
