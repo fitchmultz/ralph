@@ -2,6 +2,282 @@
   "version": 1,
   "tasks": [
     {
+      "id": "RQ-0545",
+      "status": "todo",
+      "title": "Add clone-based git workspace helpers for parallel runs (no worktree compat)",
+      "priority": "high",
+      "tags": [
+        "parallel",
+        "git",
+        "workspace"
+      ],
+      "scope": [
+        "crates/ralph/src/git/workspace.rs",
+        "crates/ralph/src/git/mod.rs"
+      ],
+      "evidence": [
+        "Parallel isolation is moving from worktrees to per-task clone workspaces",
+        "Legacy worktree helpers are being retired as part of the replacement"
+      ],
+      "plan": [
+        "Add `crates/ralph/src/git/workspace.rs` with module docs, workspace root helpers, clone creation, and cleanup",
+        "Add tests for workspace root resolution and create/remove workspace lifecycle",
+        "Wire the module into `crates/ralph/src/git/mod.rs` and remove parallel dependencies on worktree helpers"
+      ],
+      "notes": [
+        "Requires git origin resolution for pushable clones",
+        "Breaking change: replace worktree-based parallel isolation; remove legacy worktree_* compatibility."
+      ],
+      "request": "plan: replace parallel worktrees with clone-based workspaces",
+      "created_at": "2026-02-02T14:39:46Z",
+      "updated_at": "2026-02-02T14:39:46Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "plan_source": "./docs/parallel-plan.md"
+      }
+    },
+    {
+      "id": "RQ-0546",
+      "status": "todo",
+      "title": "Replace parallel config/state to use workspace_* only (breaking change)",
+      "priority": "high",
+      "tags": [
+        "parallel",
+        "config",
+        "state"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts/config.rs",
+        "crates/ralph/src/commands/run/parallel/state.rs"
+      ],
+      "evidence": [
+        "Config/state currently reference worktree_* fields that must be removed",
+        "Explicit requirement: no backward compatibility for legacy worktree_* keys"
+      ],
+      "plan": [
+        "Rename ParallelConfig field to `workspace_root` without serde alias for `worktree_root`",
+        "Rename parallel state record fields to `workspace_path` without `worktree_path` alias",
+        "Add a migration entry for worktree_* removal and document the breaking change",
+        "Update unit tests to assert the new JSON shape and failure on legacy keys"
+      ],
+      "notes": [
+        "Back-compat via serde alias is required",
+        "Breaking change: replace worktree-based parallel isolation; remove legacy worktree_* compatibility."
+      ],
+      "request": "plan: replace parallel worktrees with clone-based workspaces",
+      "created_at": "2026-02-02T14:39:46Z",
+      "updated_at": "2026-02-02T14:39:46Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "plan_source": "./docs/parallel-plan.md"
+      }
+    },
+    {
+      "id": "RQ-0547",
+      "status": "todo",
+      "title": "Swap parallel supervisor to workspace clones (remove worktree paths)",
+      "priority": "high",
+      "tags": [
+        "parallel",
+        "run",
+        "workspace"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/parallel/mod.rs"
+      ],
+      "evidence": [
+        "Parallel supervisor currently relies on worktree paths and helpers",
+        "Replacement requires workspace clones with no worktree fallback"
+      ],
+      "plan": [
+        "Replace worktree creation/removal calls with workspace clone helpers",
+        "Update settings/state usage to `workspace_root`/`workspace_path` terminology with no worktree alias",
+        "Adjust tests to expect workspace paths and ensure cleanup removes clones"
+      ],
+      "notes": [
+        "Keep user-facing parallel behavior unchanged",
+        "Breaking change: replace worktree-based parallel isolation; remove legacy worktree_* compatibility."
+      ],
+      "request": "plan: replace parallel worktrees with clone-based workspaces",
+      "created_at": "2026-02-02T14:39:46Z",
+      "updated_at": "2026-02-02T14:39:46Z",
+      "depends_on": [
+        "RQ-0545",
+        "RQ-0546"
+      ],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "plan_source": "./docs/parallel-plan.md"
+      }
+    },
+    {
+      "id": "RQ-0548",
+      "status": "todo",
+      "title": "Harden merge runner with workspace clones only",
+      "priority": "high",
+      "tags": [
+        "parallel",
+        "merge",
+        "workspace"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/parallel/merge_runner.rs"
+      ],
+      "evidence": [
+        "Merge runner assumes worktree paths exist; this must be replaced",
+        "Fresh clone merge behavior must work without any worktree usage"
+      ],
+      "plan": [
+        "Ensure merge runner calls `ensure_workspace_exists` for missing workspaces",
+        "Update checkout/merge flow to fetch origin and checkout `origin/<branch>` in fresh clones",
+        "Add or update tests for missing workspace and fresh clone merge behavior"
+      ],
+      "notes": [
+        "Must preserve conflict resolution and push workflow",
+        "Breaking change: replace worktree-based parallel isolation; remove legacy worktree_* compatibility."
+      ],
+      "request": "plan: replace parallel worktrees with clone-based workspaces",
+      "created_at": "2026-02-02T14:39:46Z",
+      "updated_at": "2026-02-02T14:39:46Z",
+      "depends_on": [
+        "RQ-0545",
+        "RQ-0546"
+      ],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "plan_source": "./docs/parallel-plan.md"
+      }
+    },
+    {
+      "id": "RQ-0549",
+      "status": "todo",
+      "title": "Update docs/gitignore for workspace clone parallel mode (breaking change)",
+      "priority": "medium",
+      "tags": [
+        "docs",
+        "parallel",
+        "config"
+      ],
+      "scope": [
+        "docs/workflow.md",
+        "docs/cli.md",
+        "docs/configuration.md",
+        ".gitignore"
+      ],
+      "evidence": [
+        "Docs currently describe worktrees for parallel mode",
+        "Breaking change must be documented (worktree_* removal)"
+      ],
+      "plan": [
+        "Update docs to describe clone-based workspaces and the default workspace root",
+        "Document that `parallel.worktree_root` / `worktree_path` are removed (breaking change) and note migration",
+        "Add `.ralph/cache/parallel/` to `.gitignore`"
+      ],
+      "notes": [
+        "Keep CLI help and docs aligned",
+        "Breaking change: replace worktree-based parallel isolation; remove legacy worktree_* compatibility."
+      ],
+      "request": "plan: replace parallel worktrees with clone-based workspaces",
+      "created_at": "2026-02-02T14:39:46Z",
+      "updated_at": "2026-02-02T14:39:46Z",
+      "depends_on": [
+        "RQ-0546",
+        "RQ-0547",
+        "RQ-0548"
+      ],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "plan_source": "./docs/parallel-plan.md"
+      }
+    },
+    {
+      "id": "RQ-0550",
+      "status": "todo",
+      "title": "Regenerate config schema after removing worktree_* keys",
+      "priority": "medium",
+      "tags": [
+        "schema",
+        "config",
+        "parallel"
+      ],
+      "scope": [
+        "schemas/config.schema.json"
+      ],
+      "evidence": [
+        "Schema must reflect `parallel.workspace_root` only",
+        "Legacy `worktree_root` should not appear in schema"
+      ],
+      "plan": [
+        "Run `make generate` after config updates",
+        "Confirm schema exposes `workspace_root` and does not include `worktree_root`",
+        "Ensure schema changes are committed"
+      ],
+      "notes": [
+        "Breaking change: replace worktree-based parallel isolation; remove legacy worktree_* compatibility."
+      ],
+      "request": "plan: replace parallel worktrees with clone-based workspaces",
+      "created_at": "2026-02-02T14:39:46Z",
+      "updated_at": "2026-02-02T14:39:46Z",
+      "depends_on": [
+        "RQ-0546"
+      ],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "plan_source": "./docs/parallel-plan.md"
+      }
+    },
+    {
+      "id": "RQ-0551",
+      "status": "todo",
+      "title": "Sweep worktree references and run CI + parallel smoke test (no compat)",
+      "priority": "medium",
+      "tags": [
+        "parallel",
+        "verification",
+        "ci"
+      ],
+      "scope": [
+        "crates/ralph/src/",
+        "docs/",
+        ".ralph/queue.json"
+      ],
+      "evidence": [
+        "Parallel mode must no longer rely on any worktree helpers or fields",
+        "Completion requires `make ci` and a manual parallel smoke test"
+      ],
+      "plan": [
+        "Search repo for remaining `worktree` references and ensure parallel mode contains none",
+        "Run `make ci` and address any failures",
+        "Run a smoke test: `ralph run loop --parallel 2 --max-tasks 2` in a test repo with `gh` configured"
+      ],
+      "notes": [
+        "Manual smoke test may require a dedicated test repo and GitHub auth",
+        "Breaking change: replace worktree-based parallel isolation; remove legacy worktree_* compatibility."
+      ],
+      "request": "plan: replace parallel worktrees with clone-based workspaces",
+      "created_at": "2026-02-02T14:39:46Z",
+      "updated_at": "2026-02-02T14:39:46Z",
+      "depends_on": [
+        "RQ-0547",
+        "RQ-0548",
+        "RQ-0549",
+        "RQ-0550"
+      ],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "plan_source": "./docs/parallel-plan.md"
+      }
+    },
+    {
       "id": "RQ-0525",
       "status": "todo",
       "title": "Redact webhook URL logging to avoid leaking secrets",
