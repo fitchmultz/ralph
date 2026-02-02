@@ -1,4 +1,349 @@
 {
   "version": 1,
-  "tasks": []
+  "tasks": [
+    {
+      "id": "RQ-0560",
+      "status": "todo",
+      "title": "Allow auto-resolve to proceed when git merge reports conflicts",
+      "priority": "high",
+      "tags": [
+        "maintenance",
+        "parallel",
+        "merge"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/parallel/merge_runner.rs"
+      ],
+      "evidence": [
+        "crates/ralph/src/commands/run/parallel/merge_runner.rs:226-233 shows resolve_conflicts calling `git merge` via `git_run` before checking conflicts.",
+        "crates/ralph/src/commands/run/parallel/merge_runner.rs:331-339 shows `git_run` bailing on any non-zero exit code, which aborts before AI resolution when `git merge` exits with conflicts.",
+        "crates/ralph/src/commands/run/parallel/merge_runner.rs:179-182 routes `ConflictPolicy::AutoResolve` into resolve_conflicts, so the non-zero merge exit blocks the intended path."
+      ],
+      "plan": [
+        "Add a merge helper that treats `git merge` exit code 1 as ‘conflicts present’ and continues to conflict detection (while still erroring on other non-zero exits).",
+        "Add a test that creates a repo with a known conflict and asserts the auto-resolve path does not fail at the merge step.",
+        "Verify by running `cargo test -p ralph merge_runner` and confirming the new test passes."
+      ],
+      "notes": [],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-02T22:35:14Z",
+      "updated_at": "2026-02-02T22:35:14Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0561",
+      "status": "todo",
+      "title": "Validate queue/done JSON after AI conflict resolution before commit",
+      "priority": "high",
+      "tags": [
+        "maintenance",
+        "parallel",
+        "queue"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/parallel/merge_runner.rs",
+        "crates/ralph/src/queue.rs"
+      ],
+      "evidence": [
+        "crates/ralph/src/commands/run/parallel/merge_runner.rs:239-260 runs the merge-conflict prompt and then stages/commits without validating `.ralph/queue.json` or `.ralph/done.json`.",
+        "crates/ralph/src/queue.rs:106-131 provides `load_queue_with_repair_and_validate`, but it is not invoked in the merge conflict flow."
+      ],
+      "plan": [
+        "After AI conflict resolution (and before `git add -A`), validate `.ralph/queue.json` and `.ralph/done.json` when present using `queue::load_queue_with_repair_and_validate` (or `validate_queue_set`).",
+        "Return a clear error if validation fails so bad queue merges never get committed; add tests covering invalid JSON and invalid task semantics.",
+        "Verify by running `cargo test -p ralph merge_runner` and confirming validation failures are caught."
+      ],
+      "notes": [],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-02T22:35:14Z",
+      "updated_at": "2026-02-02T22:35:14Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0562",
+      "status": "todo",
+      "title": "Sync parallel workspaces using configured queue/done paths",
+      "priority": "high",
+      "tags": [
+        "maintenance",
+        "parallel",
+        "queue"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/parallel/sync.rs",
+        "crates/ralph/src/contracts/config.rs",
+        "crates/ralph/src/commands/run/parallel/mod.rs"
+      ],
+      "evidence": [
+        "crates/ralph/src/commands/run/parallel/sync.rs:21-31 hard-codes `.ralph/queue.json` and `.ralph/done.json` for workspace sync.",
+        "crates/ralph/src/contracts/config.rs:67-72 documents configurable `queue.file` and `queue.done_file`, which are ignored by the sync implementation."
+      ],
+      "plan": [
+        "Update `sync_ralph_state` to accept resolved queue/done paths (or a `Resolved` reference) and sync those files instead of hard-coded paths.",
+        "Update `run_loop_parallel` call sites and extend sync tests to cover custom queue/done paths from config.",
+        "Verify by running `cargo test -p ralph sync_ralph_state` and confirming the custom-path test passes."
+      ],
+      "notes": [],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-02T22:35:14Z",
+      "updated_at": "2026-02-02T22:35:14Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0563",
+      "status": "todo",
+      "title": "Prune stale parallel tasks when stored PID is no longer running",
+      "priority": "high",
+      "tags": [
+        "maintenance",
+        "parallel",
+        "reliability"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/parallel/mod.rs",
+        "crates/ralph/src/commands/run/parallel/state.rs"
+      ],
+      "evidence": [
+        "crates/ralph/src/commands/run/parallel/mod.rs:136-145 only drops tasks_in_flight when the workspace path is missing; PID liveness is not checked.",
+        "crates/ralph/src/commands/run/parallel/state.rs:87-101 stores `pid` in `ParallelTaskRecord`, but it is never used to detect dead workers."
+      ],
+      "plan": [
+        "Add a cross-platform PID liveness check and use it when retaining `tasks_in_flight` so dead workers are pruned even if the workspace still exists.",
+        "Add tests that create a task record with a finished child PID and confirm it is dropped on startup.",
+        "Verify by running `cargo test -p ralph parallel` and confirming the new test passes."
+      ],
+      "notes": [],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-02T22:35:14Z",
+      "updated_at": "2026-02-02T22:35:14Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0564",
+      "status": "todo",
+      "title": "Ensure parallel loop cleans up workers on non-interrupt errors",
+      "priority": "high",
+      "tags": [
+        "maintenance",
+        "parallel",
+        "reliability"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/parallel/mod.rs"
+      ],
+      "evidence": [
+        "crates/ralph/src/commands/run/parallel/mod.rs:252-271 and 310-329 use `?` inside the main loop, so any error exits immediately.",
+        "crates/ralph/src/commands/run/parallel/mod.rs:355-380 shows cleanup (terminate_workers, workspace removal) only occurs when `interrupted` is true."
+      ],
+      "plan": [
+        "Introduce a guard (e.g., scopeguard) that terminates workers, stops the merge runner, and persists state on any early return/error.",
+        "Add a test that injects a failure (e.g., force `sync_ralph_state` to fail) and asserts workers are terminated and state is cleaned.",
+        "Verify by running `cargo test -p ralph parallel` and confirming the cleanup-on-error test passes."
+      ],
+      "notes": [],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-02T22:35:14Z",
+      "updated_at": "2026-02-02T22:35:14Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0565",
+      "status": "todo",
+      "title": "Prevent duplicate task selection across concurrent run loops",
+      "priority": "high",
+      "tags": [
+        "maintenance",
+        "parallel",
+        "queue"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/mod.rs",
+        "crates/ralph/src/commands/run/parallel/worker.rs",
+        "crates/ralph/src/commands/run/parallel/mod.rs"
+      ],
+      "evidence": [
+        "crates/ralph/src/commands/run/mod.rs:359-371 runs parallel workers with `QueueLockMode::Skip`, so they do not hold the queue lock.",
+        "crates/ralph/src/commands/run/parallel/worker.rs:46-65 selects tasks under a short-lived lock but never marks them `Doing` in the main queue.",
+        "crates/ralph/src/commands/run/parallel/mod.rs:240-272 shows tasks are spawned without updating the main queue, so a concurrent run can reselect the same task."
+      ],
+      "plan": [
+        "Add a parallel run lock (dir lock) held for the duration of the parallel loop OR mark selected tasks as `Doing` in the main queue before spawning workers.",
+        "Add a test that starts a second run while a parallel loop is active and verifies it either fails fast or skips in-flight tasks.",
+        "Verify by running `cargo test -p ralph parallel` and confirming concurrency protection works."
+      ],
+      "notes": [],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-02T22:35:14Z",
+      "updated_at": "2026-02-02T22:35:14Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0566",
+      "status": "todo",
+      "title": "Avoid copying heavy gitignored directories into each workspace",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "parallel",
+        "performance"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/parallel/sync.rs",
+        "crates/ralph/src/git/status.rs"
+      ],
+      "evidence": [
+        "crates/ralph/src/commands/run/parallel/sync.rs:109-170 copies every gitignored path recursively into each workspace (no size or allow/deny filtering).",
+        "crates/ralph/src/git/status.rs:80-104 shows ignored paths are sourced from `git ls-files -i -o --exclude-standard`, which includes large directories like `target/` or `node_modules/` if ignored."
+      ],
+      "plan": [
+        "Add a denylist or size threshold for ignored paths (default-skip `target/`, `node_modules/`, `.cache/`), while still copying critical files like `.env`.",
+        "Add tests to ensure `.env` is synced but heavy ignored directories are skipped by default.",
+        "Verify by running `cargo test -p ralph sync_ralph_state` and confirming the new skip behavior."
+      ],
+      "notes": [],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-02T22:35:14Z",
+      "updated_at": "2026-02-02T22:35:14Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0567",
+      "status": "todo",
+      "title": "Add queue-aware guidance to merge conflict prompt",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "parallel",
+        "docs"
+      ],
+      "scope": [
+        "crates/ralph/assets/prompts/merge_conflicts.md",
+        "crates/ralph/src/promptflow.rs",
+        "crates/ralph/src/commands/run/parallel/merge_runner.rs"
+      ],
+      "evidence": [
+        "crates/ralph/assets/prompts/merge_conflicts.md:1-13 contains only generic merge instructions and does not mention preserving queue ordering or validating `.ralph/queue.json`/`.ralph/done.json`."
+      ],
+      "plan": [
+        "Extend merge-conflict prompt generation to append queue-specific instructions when conflict files include `.ralph/queue.json` or `.ralph/done.json`.",
+        "Add a test that verifies the prompt includes queue-preservation guidance when those files are conflicted.",
+        "Verify by running `cargo test -p ralph promptflow` and confirming the prompt test passes."
+      ],
+      "notes": [],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-02T22:35:14Z",
+      "updated_at": "2026-02-02T22:35:14Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0568",
+      "status": "todo",
+      "title": "Respect max_tasks when resuming with in-flight parallel state",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "parallel"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/parallel/mod.rs",
+        "crates/ralph/src/commands/run/parallel/state.rs"
+      ],
+      "evidence": [
+        "crates/ralph/src/commands/run/parallel/mod.rs:223-224 initializes `tasks_started` to 0 regardless of existing `state_file.tasks_in_flight`.",
+        "crates/ralph/src/commands/run/parallel/mod.rs:241-243 uses `tasks_started < opts.max_tasks` to decide whether to spawn new workers, which can exceed the intended cap after resume."
+      ],
+      "plan": [
+        "Initialize `tasks_started` from the number of existing in-flight tasks in `state_file` so the max-tasks cap accounts for resumed work.",
+        "Add a test that loads a state file with in-flight tasks and asserts no additional tasks are spawned when `max_tasks` would be exceeded.",
+        "Verify by running `cargo test -p ralph parallel` and confirming the max_tasks test passes."
+      ],
+      "notes": [],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-02T22:35:14Z",
+      "updated_at": "2026-02-02T22:35:14Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0569",
+      "status": "todo",
+      "title": "Reconcile PR status to avoid permanently excluded tasks",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "parallel",
+        "reliability"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/parallel/mod.rs",
+        "crates/ralph/src/commands/run/parallel/worker.rs",
+        "crates/ralph/src/commands/run/parallel/state.rs",
+        "crates/ralph/src/git/pr.rs"
+      ],
+      "evidence": [
+        "crates/ralph/src/commands/run/parallel/worker.rs:80-82 excludes any task with a PR record where `merged` is false.",
+        "crates/ralph/src/commands/run/parallel/mod.rs:298 and 425 are the only call sites for `mark_pr_merged`, so manual merges/closures never update state.",
+        "crates/ralph/src/commands/run/parallel/state.rs:78-81 only flips `merged` when invoked; there is no PR status refresh on startup."
+      ],
+      "plan": [
+        "On parallel loop start, refresh PR status for unmerged records (via `gh pr view` or `pr_merge_status`) and mark merged/closed PRs in `state.json`.",
+        "Add tests using a stubbed `gh` CLI to simulate merged/closed PRs and assert tasks are no longer excluded.",
+        "Verify by running `cargo test -p ralph parallel` and confirming PR reconciliation tests pass."
+      ],
+      "notes": [],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-02T22:35:14Z",
+      "updated_at": "2026-02-02T22:35:14Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    }
+  ]
 }
