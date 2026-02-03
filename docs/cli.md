@@ -589,6 +589,7 @@ Notes:
 - You can set a default worker count with `parallel.workers` in `.ralph/config.json`.
 - The default workspace location is `<repo-parent>/.workspaces/<repo-name>/parallel/<TASK_ID>` (configurable via `parallel.workspace_root`).
 - State is persisted to `.ralph/cache/parallel/state.json` for crash recovery and coordination.
+- On startup, Ralph prunes stale in-flight task records and reconciles PR records before checking the state file's base branch. If the base branch is missing or mismatched and there are no in-flight tasks or open PRs, Ralph auto-heals the state file to the current branch. Otherwise it errors with recovery guidance.
 
 Examples:
 

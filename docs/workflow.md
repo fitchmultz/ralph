@@ -50,6 +50,10 @@ High-level behavior:
 - The merge runner merges PRs as they are created (or after all tasks), and can auto-resolve
   conflicts using the `merge_conflicts` prompt and `parallel.merge_runner` overrides.
 - State is persisted to `.ralph/cache/parallel/state.json` for crash recovery and coordination.
+- On startup, Ralph prunes stale in-flight task records and reconciles PR records before
+  evaluating the state file's base branch. If the base branch is missing or mismatched and there
+  are no in-flight tasks or open PRs, Ralph auto-heals the state file to the current branch.
+  Otherwise it fails with recovery guidance to avoid mixing active parallel runs across branches.
 
 **Breaking change (2026-02):** The default directory for parallel workspaces changed from
 `.worktrees/` to `.workspaces/`. The config key `parallel.worktree_root` has been renamed to

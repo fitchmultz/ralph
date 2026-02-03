@@ -11,6 +11,7 @@
 //! Invariants/assumptions:
 //! - State file lives at `.ralph/cache/parallel/state.json`.
 //! - Callers update and persist state after each significant transition.
+//! - Deserialization is tolerant of missing/unknown fields; callers normalize and persist the canonical shape.
 
 use crate::contracts::{ParallelMergeMethod, ParallelMergeWhen};
 use crate::fsutil;
@@ -20,13 +21,18 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub(crate) struct ParallelStateFile {
+    #[serde(default)]
     pub started_at: String,
+    #[serde(default)]
     pub base_branch: String,
+    #[serde(default)]
     pub merge_method: ParallelMergeMethod,
+    #[serde(default)]
     pub merge_when: ParallelMergeWhen,
+    #[serde(default)]
     pub tasks_in_flight: Vec<ParallelTaskRecord>,
+    #[serde(default)]
     pub prs: Vec<ParallelPrRecord>,
 }
 
@@ -84,9 +90,9 @@ impl ParallelStateFile {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub(crate) struct ParallelTaskRecord {
     pub task_id: String,
+    #[serde(alias = "worktree_path")]
     pub workspace_path: String,
     pub branch: String,
     pub pid: Option<u32>,
@@ -115,7 +121,6 @@ pub(crate) enum ParallelPrLifecycle {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub(crate) struct ParallelPrRecord {
     pub task_id: String,
     pub pr_number: u32,
@@ -124,7 +129,7 @@ pub(crate) struct ParallelPrRecord {
     pub head: Option<String>,
     #[serde(default)]
     pub base: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "worktree_path")]
     pub workspace_path: Option<String>,
     pub merged: bool,
     #[serde(default)]
@@ -324,7 +329,7 @@ mod tests {
     }
 
     #[test]
-    fn state_deserialization_rejects_legacy_worktree_path_in_tasks() {
+    fn state_deserialization_accepts_legacy_worktree_path_in_tasks() -> Result<()> {
         let raw = r#"{
             "started_at":"2026-02-01T00:00:00Z",
             "base_branch":"main",
@@ -333,12 +338,14 @@ mod tests {
             "tasks_in_flight":[{"task_id":"RQ-0001","worktree_path":"/tmp/wt","branch":"b","pid":1}],
             "prs":[]
         }"#;
-        let err = serde_json::from_str::<ParallelStateFile>(raw).unwrap_err();
-        assert!(err.to_string().contains("worktree_path"));
+        let state: ParallelStateFile = serde_json::from_str(raw)?;
+        assert_eq!(state.tasks_in_flight.len(), 1);
+        assert_eq!(state.tasks_in_flight[0].workspace_path, "/tmp/wt");
+        Ok(())
     }
 
     #[test]
-    fn state_deserialization_rejects_legacy_worktree_path_in_prs() {
+    fn state_deserialization_accepts_legacy_worktree_path_in_prs() -> Result<()> {
         let raw = r#"{
             "started_at":"2026-02-01T00:00:00Z",
             "base_branch":"main",
@@ -347,8 +354,41 @@ mod tests {
             "tasks_in_flight":[],
             "prs":[{"task_id":"RQ-0001","pr_number":5,"pr_url":"https://example.com/pr/5","worktree_path":"/tmp/wt","merged":false}]
         }"#;
-        let err = serde_json::from_str::<ParallelStateFile>(raw).unwrap_err();
-        assert!(err.to_string().contains("worktree_path"));
+        let state: ParallelStateFile = serde_json::from_str(raw)?;
+        assert_eq!(state.prs.len(), 1);
+        assert_eq!(state.prs[0].workspace_path.as_deref(), Some("/tmp/wt"));
+        Ok(())
+    }
+
+    #[test]
+    fn state_deserialization_ignores_unknown_fields() -> Result<()> {
+        let raw = r#"{
+            "started_at":"2026-02-01T00:00:00Z",
+            "base_branch":"main",
+            "merge_method":"squash",
+            "merge_when":"as_created",
+            "extra_top":"ignored",
+            "tasks_in_flight":[{"task_id":"RQ-0001","workspace_path":"/tmp/wt","branch":"b","pid":1,"extra_task":true}],
+            "prs":[{"task_id":"RQ-0002","pr_number":5,"pr_url":"https://example.com/pr/5","merged":false,"extra_pr":"ignored"}]
+        }"#;
+        let state: ParallelStateFile = serde_json::from_str(raw)?;
+        assert_eq!(state.tasks_in_flight.len(), 1);
+        assert_eq!(state.prs.len(), 1);
+        Ok(())
+    }
+
+    #[test]
+    fn state_deserialization_allows_missing_base_branch() -> Result<()> {
+        let raw = r#"{
+            "merge_method":"squash",
+            "merge_when":"as_created",
+            "tasks_in_flight":[],
+            "prs":[]
+        }"#;
+        let state: ParallelStateFile = serde_json::from_str(raw)?;
+        assert!(state.base_branch.is_empty());
+        assert!(state.started_at.is_empty());
+        Ok(())
     }
 
     #[test]

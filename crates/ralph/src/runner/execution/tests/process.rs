@@ -58,8 +58,9 @@ fn test_process_exits_cleanly_after_timeout_interrupt() {
         *guard = Some(child.id() as i32);
     }
 
-    // Set a very short timeout (50ms) to trigger the interrupt quickly
-    let timeout = Some(Duration::from_millis(50));
+    // Set a short timeout to trigger the interrupt quickly while allowing
+    // the child process to initialize its SIGINT handler reliably.
+    let timeout = Some(Duration::from_millis(200));
 
     // Wait for the process - it should exit cleanly despite the timeout
     let result = wait_for_child(&mut child, &ctrlc, timeout);

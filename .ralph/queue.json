@@ -2,44 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0575",
-      "status": "todo",
-      "title": "Fix parallel state.json to auto-correct and auto-populate git branch",
-      "priority": "high",
-      "tags": [
-        "bug",
-        "parallel",
-        "state",
-        "git",
-        "branch"
-      ],
-      "scope": [
-        "crates/ralph/src/commands/run/parallel/state.rs",
-        "crates/ralph/src/commands/run/parallel/mod.rs",
-        "crates/ralph/src/git.rs"
-      ],
-      "evidence": [
-        "User request: 'Fix the state.json file to auto-correct and auto-populate and set the git branch properly. User previously ran a parallel run on branch '02022026' but has since changed to 'main' and this fails unless user manually clears .ralph/cache/parallel/state.json.'",
-        "Error: 'Parallel state base branch '02022026' does not match current branch 'main'.'"
-      ],
-      "plan": [
-        "Read the parallel state.rs implementation to understand how state.json is loaded and validated.",
-        "Identify where the base branch mismatch error is raised and how state.json is populated.",
-        "Implement auto-correction logic: when state.json exists but base_branch does not match current git branch, either update the state or clear it and regenerate.",
-        "Ensure state.json is auto-populated with correct current git branch when missing or stale.",
-        "Add tests covering branch mismatch auto-correction and auto-population scenarios.",
-        "Run make ci to verify changes."
-      ],
-      "notes": [],
-      "request": "Fix the state.json file to auto-correct and auto-populate and set the git branch properly. User previously ran a parallel run on branch '02022026' but has since changed to 'main' and this fails unless user manually clears .ralph/cache/parallel/state.json.",
-      "created_at": "2026-02-03T15:43:00Z",
-      "updated_at": "2026-02-03T15:43:00Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0571",
       "status": "todo",
       "title": "Prevent parallel loop from re-running tasks when no PR record exists",

@@ -173,6 +173,62 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0575",
+      "status": "done",
+      "title": "Fix parallel state.json to auto-correct and auto-populate git branch",
+      "priority": "high",
+      "tags": [
+        "bug",
+        "parallel",
+        "state",
+        "git",
+        "branch",
+        "recovery"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/parallel/mod.rs",
+        "crates/ralph/src/commands/run/parallel/state.rs",
+        "crates/ralph/src/commands/run/mod.rs",
+        "crates/ralph/src/git/mod.rs",
+        "crates/ralph/src/git/branch.rs",
+        "docs/cli.md",
+        "docs/workflow.md",
+        "cargo test -p ralph parallel",
+        "make ci"
+      ],
+      "evidence": [
+        "User request: parallel run previously wrote `.ralph/cache/parallel/state.json` with base_branch='02022026'; later running on base_branch='main' fails unless the user manually clears the state file.",
+        "crates/ralph/src/commands/run/parallel/mod.rs bails early when `existing.base_branch != current_branch` with: \"Parallel state base branch '{}' does not match current branch '{}'\" (no auto-correction path).",
+        "crates/ralph/src/commands/run/parallel/mod.rs checks base_branch mismatch before pruning stale `tasks_in_flight`, so a stale state file can block cleanup/recovery.",
+        "crates/ralph/src/commands/run/parallel/state.rs hardcodes the state path to `.ralph/cache/parallel/state.json` and uses `serde(deny_unknown_fields)` + JSONC parsing, so legacy/unknown fields will fail deserialization.",
+        "crates/ralph/src/git/branch.rs resolves current branch via `git rev-parse --abbrev-ref HEAD` and errors on detached HEAD, so parallel runs require a named branch.",
+        "Current repo state: `.ralph/cache/parallel/state.json` exists and currently has base_branch='main' with empty `tasks_in_flight`/`prs`, which is a safe shape for an auto-heal rewrite on mismatch."
+      ],
+      "plan": [
+        "Read `crates/ralph/src/commands/run/parallel/mod.rs` state bootstrap flow (load/save, base_branch validation, stale task pruning) and map the exact failure paths.",
+        "Define conservative auto-heal rules for base_branch mismatch (e.g., after pruning stale tasks and reconciling PR records, allow rewrite only when there are no in-flight tasks and no blocking/open PR records).",
+        "Implement base_branch auto-correction in the parallel startup path: if mismatch and state is safe-to-reset, rewrite state.base_branch to the current branch and persist; otherwise fail with an actionable error that references the state file path and recovery options.",
+        "Add unit tests that cover: mismatch + empty state auto-heals; mismatch + active tasks/prs stays a hard error; mismatch + stale PID/workspace is pruned then auto-heals.",
+        "Update `docs/cli.md` and `docs/workflow.md` to document the new behavior and the expected recovery workflow for parallel state files.",
+        "Run `make ci`."
+      ],
+      "notes": [
+        "The current mismatch check runs before stale `tasks_in_flight` pruning; moving or augmenting this logic is likely required so crash-recovery can self-heal instead of hard-failing.",
+        "Auto-correction should avoid rewriting state when it could belong to an active parallel run (in-flight tasks or open PRs).",
+        "Guard missing base_branch by requiring safe state before auto-populating or retargeting.",
+        "Added tests for missing base_branch auto-heal and unsafe in-flight cases; kept mismatch coverage.",
+        "make ci passes."
+      ],
+      "request": "Fix the state.json file to auto-correct and auto-populate and set the git branch properly. User previously ran a parallel run on branch '02022026' but has since changed to 'main' and this fails unless user manually clears .ralph/cache/parallel/state.json.",
+      "created_at": "2026-02-03T15:43:00Z",
+      "updated_at": "2026-02-03T18:34:37.061667000Z",
+      "completed_at": "2026-02-03T18:34:37.061667000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
     }
   ]
 }
