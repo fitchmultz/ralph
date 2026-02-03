@@ -1,61 +1,15 @@
 //! Integration tests for `ralph queue repair`.
 
 use anyhow::Result;
-use std::path::{Path, PathBuf};
-use std::process::{Command, ExitStatus};
 
 mod test_support;
-
-fn ralph_bin() -> PathBuf {
-    if let Some(path) = std::env::var_os("CARGO_BIN_EXE_ralph") {
-        return PathBuf::from(path);
-    }
-
-    let exe = std::env::current_exe().expect("resolve current test executable path");
-    let exe_dir = exe
-        .parent()
-        .expect("test executable should have a parent directory");
-    let profile_dir = if exe_dir.file_name() == Some(std::ffi::OsStr::new("deps")) {
-        exe_dir
-            .parent()
-            .expect("deps directory should have a parent directory")
-    } else {
-        exe_dir
-    };
-
-    let bin_name = if cfg!(windows) { "ralph.exe" } else { "ralph" };
-    let candidate = profile_dir.join(bin_name);
-    if candidate.exists() {
-        return candidate;
-    }
-
-    panic!(
-        "CARGO_BIN_EXE_ralph was not set and fallback binary path does not exist: {}",
-        candidate.display()
-    );
-}
-
-fn run_in_dir(dir: &Path, args: &[&str]) -> (ExitStatus, String, String) {
-    let output = Command::new(ralph_bin())
-        .current_dir(dir)
-        .env_remove("RALPH_REPO_ROOT_OVERRIDE")
-        .env_remove("RUST_LOG")
-        .args(args)
-        .output()
-        .expect("failed to execute ralph binary");
-    (
-        output.status,
-        String::from_utf8_lossy(&output.stdout).to_string(),
-        String::from_utf8_lossy(&output.stderr).to_string(),
-    )
-}
 
 #[test]
 fn repair_queue_fixes_missing_fields_and_duplicates() -> Result<()> {
     let dir = test_support::temp_dir_outside_repo();
 
     let (status, stdout, stderr) =
-        run_in_dir(dir.path(), &["init", "--force", "--non-interactive"]);
+        test_support::run_in_dir(dir.path(), &["init", "--force", "--non-interactive"]);
     anyhow::ensure!(
         status.success(),
         "ralph init failed\nstdout:\n{stdout}\nstderr:\n{stderr}"
@@ -143,7 +97,7 @@ fn repair_queue_fixes_missing_fields_and_duplicates() -> Result<()> {
     std::fs::write(dir.path().join(".ralph/done.json"), broken_done)?;
 
     // Run repair
-    let (status, stdout, stderr) = run_in_dir(dir.path(), &["queue", "repair"]);
+    let (status, stdout, stderr) = test_support::run_in_dir(dir.path(), &["queue", "repair"]);
     anyhow::ensure!(
         status.success(),
         "ralph queue repair failed\nstdout:\n{stdout}\nstderr:\n{stderr}"
@@ -229,7 +183,7 @@ fn repair_remaps_dependencies_for_invalid_ids() -> Result<()> {
     let dir = test_support::temp_dir_outside_repo();
 
     let (status, stdout, stderr) =
-        run_in_dir(dir.path(), &["init", "--force", "--non-interactive"]);
+        test_support::run_in_dir(dir.path(), &["init", "--force", "--non-interactive"]);
     anyhow::ensure!(
         status.success(),
         "ralph init failed\nstdout:\n{stdout}\nstderr:\n{stderr}"
@@ -279,7 +233,7 @@ fn repair_remaps_dependencies_for_invalid_ids() -> Result<()> {
     std::fs::write(dir.path().join(".ralph/queue.json"), broken_queue)?;
 
     // Run repair
-    let (status, stdout, stderr) = run_in_dir(dir.path(), &["queue", "repair"]);
+    let (status, stdout, stderr) = test_support::run_in_dir(dir.path(), &["queue", "repair"]);
     anyhow::ensure!(
         status.success(),
         "ralph queue repair failed\nstdout:\n{stdout}\nstderr:\n{stderr}"

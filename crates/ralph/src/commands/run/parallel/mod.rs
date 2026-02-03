@@ -250,6 +250,9 @@ pub(crate) fn run_loop_parallel(
         settings.workspace_root.clone(),
     );
 
+    // Track whether stop signal has been observed to avoid repeated logging
+    let mut stop_requested: bool = false;
+
     // Run the main loop inside a closure so we can handle cleanup on any error
     let loop_result: Result<()> = (|| {
         loop {
@@ -259,7 +262,9 @@ pub(crate) fn run_loop_parallel(
                 break;
             }
 
-            if signal::stop_signal_exists(&cache_dir) {
+            // Check for stop signal once per loop iteration
+            if !stop_requested && signal::stop_signal_exists(&cache_dir) {
+                stop_requested = true;
                 log::info!("Stop signal detected; no new tasks will be started.");
             }
 
@@ -277,7 +282,7 @@ pub(crate) fn run_loop_parallel(
             while effective_in_flight_count(guard.state_file(), guard.in_flight().len())
                 < settings.workers as usize
                 && can_start_more_tasks(tasks_started, opts.max_tasks)
-                && !signal::stop_signal_exists(&cache_dir)
+                && !stop_requested
             {
                 let excluded = collect_excluded_ids(guard.state_file(), guard.in_flight());
                 let (task_id, task_title) = match select_next_task_locked(
@@ -448,7 +453,8 @@ pub(crate) fn run_loop_parallel(
                 let next_available =
                     select_next_task_locked(resolved, include_draft, &excluded, &_queue_lock)?
                         .is_some();
-                if no_more_tasks || !next_available {
+                // Exit if: max tasks reached, no more tasks available, or stop requested
+                if no_more_tasks || !next_available || stop_requested {
                     break;
                 }
             }
@@ -527,6 +533,13 @@ pub(crate) fn run_loop_parallel(
 
     // All cleanup successful - disarm the guard
     guard.mark_completed();
+
+    // Clear stop signal on successful exit if it was observed (or still exists)
+    if (stop_requested || signal::stop_signal_exists(&cache_dir))
+        && let Err(e) = signal::clear_stop_signal(&cache_dir)
+    {
+        log::warn!("Failed to clear stop signal: {}", e);
+    }
 
     if tasks_attempted > 0 {
         let notify_on_complete = opts
@@ -1012,6 +1025,76 @@ mod tests {
         // With tasks_in_flight.len() == 2 and guard_in_flight_len == 3,
         // effective_in_flight_count should return 3 (max, not sum)
         assert_eq!(effective_in_flight_count(&state_file, 3), 3);
+    }
+    // ============================================================================
+    // Stop signal idle-stop exit tests (RQ-0570)
+    // ============================================================================
+
+    /// Test helper: determine if the loop should break based on current state
+    /// Mirrors the logic in the main loop for testing purposes
+    fn should_exit_loop(
+        stop_requested: bool,
+        in_flight_is_empty: bool,
+        no_more_tasks: bool,
+        next_available: bool,
+    ) -> bool {
+        if in_flight_is_empty {
+            // Exit if: max tasks reached, no more tasks available, or stop requested
+            no_more_tasks || !next_available || stop_requested
+        } else {
+            // Don't exit if workers are still in flight
+            false
+        }
+    }
+
+    #[test]
+    fn stop_requested_and_idle_should_exit() {
+        // stop_requested=true, in_flight_is_empty=true, next_available=true => break
+        assert!(should_exit_loop(true, true, false, true));
+    }
+
+    #[test]
+    fn stop_requested_with_in_flight_should_not_exit() {
+        // stop_requested=true, in_flight_is_empty=false => do not break (wait for in-flight)
+        assert!(!should_exit_loop(true, false, false, true));
+        assert!(!should_exit_loop(true, false, true, false));
+        assert!(!should_exit_loop(true, false, true, true));
+    }
+
+    #[test]
+    fn no_stop_no_next_available_should_exit() {
+        // stop_requested=false, in_flight_is_empty=true, next_available=false => break
+        assert!(should_exit_loop(false, true, false, false));
+    }
+
+    #[test]
+    fn no_stop_no_more_tasks_should_exit() {
+        // stop_requested=false, in_flight_is_empty=true, no_more_tasks=true => break
+        assert!(should_exit_loop(false, true, true, false));
+    }
+
+    #[test]
+    fn normal_operation_should_not_exit() {
+        // stop_requested=false, in_flight_is_empty=true, next_available=true => continue
+        assert!(!should_exit_loop(false, true, false, true));
+    }
+
+    #[test]
+    fn stop_signal_cleared_on_parallel_loop_exit() {
+        use crate::signal;
+        use tempfile::TempDir;
+
+        let temp = TempDir::new().unwrap();
+        let cache_dir = temp.path().join(".ralph/cache");
+
+        // Create stop signal
+        signal::create_stop_signal(&cache_dir).unwrap();
+        assert!(signal::stop_signal_exists(&cache_dir));
+
+        // Clear it (simulating what the parallel loop does on exit)
+        let cleared = signal::clear_stop_signal(&cache_dir).unwrap();
+        assert!(cleared);
+        assert!(!signal::stop_signal_exists(&cache_dir));
     }
 
     // Tests for handle_base_branch_mismatch

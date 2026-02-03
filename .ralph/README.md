@@ -129,19 +129,6 @@ ralph queue next-id --count 7
 - Render prompt previews:
   - `ralph prompt worker --phase 1`
   - `ralph prompt worker --phase 2 --plan-text "Plan body"`
-- List available prompt templates:
-  - `ralph prompt list`
-- View raw embedded prompts:
-  - `ralph prompt show worker --raw`
-  - `ralph prompt show worker_phase1 --raw`
-- Export prompts for customization:
-  - `ralph prompt export --all`
-  - `ralph prompt export worker`
-- Sync prompts with embedded defaults:
-  - `ralph prompt sync --dry-run`
-  - `ralph prompt sync`
-- Show diff between override and embedded:
-  - `ralph prompt diff worker`
 
 ### Scanning
 
@@ -176,7 +163,11 @@ Note: Standard placeholders like `{{USER_REQUEST}}` are still processed after va
 
 ## Prompt Organization
 
-Worker prompts are composed from a base prompt plus phase-specific wrappers:
+Worker prompts are composed from a base prompt plus phase-specific wrappers. All
+default prompts are embedded in the Ralph binary. You can create override files
+in `.ralph/prompts/` to customize behavior for this project.
+
+Optional override locations:
 - Base: `.ralph/prompts/worker.md`
 - Phase wrappers: `.ralph/prompts/worker_phase1.md`, `.ralph/prompts/worker_phase2.md`,
   `.ralph/prompts/worker_phase2_handoff.md`, `.ralph/prompts/worker_phase3.md`,
@@ -187,46 +178,23 @@ Worker prompts are composed from a base prompt plus phase-specific wrappers:
 
 If a repo-local override is missing, Ralph falls back to the embedded defaults.
 
-## Viewing Default Prompts
+### Viewing Default Prompts
 
-You can view the raw embedded default prompts without accessing source code:
+To preview the composed prompts that will be sent to the runner:
+- `ralph prompt worker --phase 1` — Preview the Phase 1 planning prompt
+- `ralph prompt worker --phase 2` — Preview the Phase 2 implementation prompt
+- `ralph prompt worker --phase 3` — Preview the Phase 3 review prompt
 
-```bash
-# List all available templates
-ralph prompt list
+To view raw embedded default prompts (useful as a base for customization):
+- `ralph prompt list` — List all available templates
+- `ralph prompt show worker --raw` — View raw embedded default
+- `ralph prompt diff worker` — Show differences between override and embedded
 
-# View raw embedded default
-ralph prompt show worker --raw
-
-# View effective prompt (with override if exists)
-ralph prompt show worker
-```
-
-To customize prompts, export them first:
-
-```bash
-# Export all templates to .ralph/prompts/
-ralph prompt export --all
-
-# Export single template
-ralph prompt export worker
-
-# Edit the exported file
-# .ralph/prompts/worker.md
-```
-
-To keep custom prompts up to date when Ralph updates:
-
-```bash
-# Preview what would change
-ralph prompt sync --dry-run
-
-# Sync (updates outdated, preserves your modifications)
-ralph prompt sync
-
-# Force overwrite of your modifications
-ralph prompt sync --force
-```
+To export and customize prompts:
+- `ralph prompt export --all` — Export all templates to `.ralph/prompts/`
+- `ralph prompt export worker` — Export single template
+- `ralph prompt sync --dry-run` — Preview what would change
+- `ralph prompt sync` — Sync with embedded defaults (preserves your modifications)
 
 ## Runners (Codex + OpenCode + Gemini + Claude + Cursor)
 

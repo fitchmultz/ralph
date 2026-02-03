@@ -1106,13 +1106,22 @@ Request graceful stop of a running `ralph run loop` after the current task compl
 
 This command creates a stop signal file that the run loop checks between tasks. When detected:
 - The current in-flight task completes normally (all phases finish)
-- The loop exits cleanly without starting the next task
+- The loop stops starting new tasks and exits cleanly when safe
 - The stop signal is automatically cleared
 
 This is useful when you start a long-running loop with `--max-tasks 0` but want to stop after the current work finishes, without interrupting active task execution.
 
+**Sequential mode** (`ralph run loop`):
+- The loop exits between tasks (current task completes, then exits)
+- Stop signal is honored after both successful and failed task attempts
+
+**Parallel mode** (`ralph run loop --parallel-workers N`):
+- The loop stops scheduling new tasks immediately
+- Waits for all in-flight tasks to complete
+- Exits once no workers are running
+
 Notes:
-- The stop signal does NOT interrupt an active task - it only prevents the next task from starting
+- The stop signal does NOT interrupt an active task - it only prevents new tasks from starting
 - To force immediate termination, press Ctrl+C in the running loop
 - Multiple `ralph queue stop` commands are idempotent (subsequent calls are no-ops)
 

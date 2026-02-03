@@ -43,6 +43,15 @@ fn ralph_cmd() -> Command {
     cmd
 }
 
+/// Create a ralph command with repo root override set to the given directory.
+/// This ensures proper isolation when running in temp directories that may be
+/// nested within the actual repo tree.
+fn ralph_cmd_in_dir(dir: &std::path::Path) -> Command {
+    let mut cmd = ralph_cmd();
+    cmd.env("RALPH_REPO_ROOT_OVERRIDE", dir);
+    cmd
+}
+
 #[test]
 fn doctor_passes_in_clean_env() -> Result<()> {
     let dir = test_support::temp_dir_outside_repo();
@@ -53,7 +62,7 @@ fn doctor_passes_in_clean_env() -> Result<()> {
         .status()?;
 
     // Setup ralph
-    ralph_cmd()
+    ralph_cmd_in_dir(dir.path())
         .current_dir(dir.path())
         .args(["init", "--force", "--non-interactive"])
         .status()?;
@@ -61,7 +70,7 @@ fn doctor_passes_in_clean_env() -> Result<()> {
     // Setup Makefile
     std::fs::write(dir.path().join("Makefile"), "ci:\n\tcargo test\n")?;
 
-    let output = ralph_cmd().current_dir(dir.path()).arg("doctor").output()?;
+    let output = ralph_cmd_in_dir(dir.path()).arg("doctor").output()?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -90,7 +99,7 @@ fn doctor_fails_when_queue_missing() -> Result<()> {
 
     // No ralph init
 
-    let output = ralph_cmd().current_dir(dir.path()).arg("doctor").output()?;
+    let output = ralph_cmd_in_dir(dir.path()).arg("doctor").output()?;
 
     assert!(!output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -110,7 +119,7 @@ fn doctor_warns_on_missing_upstream() -> Result<()> {
         .status()?;
 
     // Setup ralph
-    ralph_cmd()
+    ralph_cmd_in_dir(dir.path())
         .current_dir(dir.path())
         .args(["init", "--force", "--non-interactive"])
         .status()?;
@@ -118,7 +127,7 @@ fn doctor_warns_on_missing_upstream() -> Result<()> {
     // Setup Makefile
     std::fs::write(dir.path().join("Makefile"), "ci:\n\tcargo test\n")?;
 
-    let output = ralph_cmd().current_dir(dir.path()).arg("doctor").output()?;
+    let output = ralph_cmd_in_dir(dir.path()).arg("doctor").output()?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -145,7 +154,7 @@ fn doctor_fails_with_nonexistent_runner_binary() -> Result<()> {
         .status()?;
 
     // Setup ralph
-    ralph_cmd()
+    ralph_cmd_in_dir(dir.path())
         .current_dir(dir.path())
         .args(["init", "--force", "--non-interactive"])
         .status()?;
@@ -158,7 +167,7 @@ fn doctor_fails_with_nonexistent_runner_binary() -> Result<()> {
     let config_content = r#"{"version":1,"agent":{"runner":"opencode","opencode_bin":"this-binary-does-not-exist-xyz123"}}"#;
     std::fs::write(&config_path, config_content)?;
 
-    let output = ralph_cmd().current_dir(dir.path()).arg("doctor").output()?;
+    let output = ralph_cmd_in_dir(dir.path()).arg("doctor").output()?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -180,7 +189,7 @@ fn doctor_fails_with_nonexistent_gemini_binary() -> Result<()> {
         .arg("init")
         .status()?;
 
-    ralph_cmd()
+    ralph_cmd_in_dir(dir.path())
         .current_dir(dir.path())
         .args(["init", "--force", "--non-interactive"])
         .status()?;
@@ -192,7 +201,7 @@ fn doctor_fails_with_nonexistent_gemini_binary() -> Result<()> {
     let config_content = r#"{"version":1,"agent":{"runner":"gemini","gemini_bin":"this-gemini-does-not-exist-xyz123"}}"#;
     std::fs::write(&config_path, config_content)?;
 
-    let output = ralph_cmd().current_dir(dir.path()).arg("doctor").output()?;
+    let output = ralph_cmd_in_dir(dir.path()).arg("doctor").output()?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -212,7 +221,7 @@ fn doctor_fails_with_nonexistent_claude_binary() -> Result<()> {
         .arg("init")
         .status()?;
 
-    ralph_cmd()
+    ralph_cmd_in_dir(dir.path())
         .current_dir(dir.path())
         .args(["init", "--force", "--non-interactive"])
         .status()?;
@@ -224,7 +233,7 @@ fn doctor_fails_with_nonexistent_claude_binary() -> Result<()> {
     let config_content = r#"{"version":1,"agent":{"runner":"claude","claude_bin":"this-claude-does-not-exist-xyz123"}}"#;
     std::fs::write(&config_path, config_content)?;
 
-    let output = ralph_cmd().current_dir(dir.path()).arg("doctor").output()?;
+    let output = ralph_cmd_in_dir(dir.path()).arg("doctor").output()?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -244,7 +253,7 @@ fn doctor_fails_with_invalid_done_archive() -> Result<()> {
         .arg("init")
         .status()?;
 
-    ralph_cmd()
+    ralph_cmd_in_dir(dir.path())
         .current_dir(dir.path())
         .args(["init", "--force", "--non-interactive"])
         .status()?;
@@ -256,7 +265,7 @@ fn doctor_fails_with_invalid_done_archive() -> Result<()> {
     let done_path = dir.path().join(".ralph/done.json");
     std::fs::write(&done_path, "invalid json: { [")?;
 
-    let output = ralph_cmd().current_dir(dir.path()).arg("doctor").output()?;
+    let output = ralph_cmd_in_dir(dir.path()).arg("doctor").output()?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -280,7 +289,7 @@ fn doctor_warns_when_instruction_files_missing() -> Result<()> {
         .status()?;
 
     // Setup ralph
-    ralph_cmd()
+    ralph_cmd_in_dir(dir.path())
         .current_dir(dir.path())
         .args(["init", "--force", "--non-interactive"])
         .status()?;
@@ -294,7 +303,7 @@ fn doctor_warns_when_instruction_files_missing() -> Result<()> {
         r#"{"version":1,"agent":{"instruction_files":["missing-global-agents.md"]}}"#;
     std::fs::write(&config_path, config_content)?;
 
-    let output = ralph_cmd().current_dir(dir.path()).arg("doctor").output()?;
+    let output = ralph_cmd_in_dir(dir.path()).arg("doctor").output()?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -313,7 +322,7 @@ fn doctor_passes_with_runner_that_only_supports_help() -> Result<()> {
         .arg("init")
         .status()?;
 
-    ralph_cmd()
+    ralph_cmd_in_dir(dir.path())
         .current_dir(dir.path())
         .args(["init", "--force", "--non-interactive"])
         .status()?;
@@ -348,7 +357,7 @@ esac
     );
     std::fs::write(&config_path, config_content)?;
 
-    let output = ralph_cmd().current_dir(dir.path()).arg("doctor").output()?;
+    let output = ralph_cmd_in_dir(dir.path()).arg("doctor").output()?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -379,7 +388,7 @@ fn doctor_passes_with_runner_that_only_supports_v_flag() -> Result<()> {
         .arg("init")
         .status()?;
 
-    ralph_cmd()
+    ralph_cmd_in_dir(dir.path())
         .current_dir(dir.path())
         .args(["init", "--force", "--non-interactive"])
         .status()?;
@@ -416,7 +425,7 @@ esac
     );
     std::fs::write(&config_path, config_content)?;
 
-    let output = ralph_cmd().current_dir(dir.path()).arg("doctor").output()?;
+    let output = ralph_cmd_in_dir(dir.path()).arg("doctor").output()?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -447,7 +456,7 @@ fn doctor_fails_with_runner_that_has_no_valid_flags() -> Result<()> {
         .arg("init")
         .status()?;
 
-    ralph_cmd()
+    ralph_cmd_in_dir(dir.path())
         .current_dir(dir.path())
         .args(["init", "--force", "--non-interactive"])
         .status()?;
@@ -479,7 +488,7 @@ exit 1
     );
     std::fs::write(&config_path, config_content)?;
 
-    let output = ralph_cmd().current_dir(dir.path()).arg("doctor").output()?;
+    let output = ralph_cmd_in_dir(dir.path()).arg("doctor").output()?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -506,7 +515,7 @@ fn doctor_error_includes_config_key_hint() -> Result<()> {
         .arg("init")
         .status()?;
 
-    ralph_cmd()
+    ralph_cmd_in_dir(dir.path())
         .current_dir(dir.path())
         .args(["init", "--force", "--non-interactive"])
         .status()?;
@@ -520,7 +529,7 @@ fn doctor_error_includes_config_key_hint() -> Result<()> {
         r#"{"version":1,"agent":{"runner":"codex","codex_bin":"/nonexistent/path/codex"}}"#;
     std::fs::write(&config_path, config_content)?;
 
-    let output = ralph_cmd().current_dir(dir.path()).arg("doctor").output()?;
+    let output = ralph_cmd_in_dir(dir.path()).arg("doctor").output()?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);

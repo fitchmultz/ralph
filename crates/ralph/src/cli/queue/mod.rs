@@ -179,7 +179,7 @@ pub enum QueueCommand {
 
     /// Request graceful stop of a running loop after current task completes.
     #[command(
-        after_long_help = "Examples:\n ralph queue stop\n\nNotes:\n - This creates a stop signal file that the run loop checks between tasks.\n - The current in-flight task will complete normally.\n - To force immediate termination, use Ctrl+C in the running loop."
+        after_long_help = "Examples:\n ralph queue stop\n\nNotes:\n - This creates a stop signal file that the run loop checks between tasks.\n - Sequential mode: exits between tasks (current task completes, then exits).\n - Parallel mode: stops scheduling new tasks; waits for in-flight tasks to complete.\n - The stop signal is automatically cleared when the loop honors the request.\n - To force immediate termination, use Ctrl+C in the running loop."
     )]
     Stop,
 }

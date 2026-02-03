@@ -2,52 +2,8 @@
 
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
-use std::process::{Command, ExitStatus};
 
 mod test_support;
-
-fn ralph_bin() -> PathBuf {
-    if let Some(path) = std::env::var_os("CARGO_BIN_EXE_ralph") {
-        return PathBuf::from(path);
-    }
-
-    let exe = std::env::current_exe().expect("resolve current test executable path");
-    let exe_dir = exe
-        .parent()
-        .expect("test executable should have a parent directory");
-    let profile_dir = if exe_dir.file_name() == Some(std::ffi::OsStr::new("deps")) {
-        exe_dir
-            .parent()
-            .expect("deps directory should have a parent directory")
-    } else {
-        exe_dir
-    };
-
-    let bin_name = if cfg!(windows) { "ralph.exe" } else { "ralph" };
-    let candidate = profile_dir.join(bin_name);
-    if candidate.exists() {
-        return candidate;
-    }
-
-    panic!(
-        "CARGO_BIN_EXE_ralph was not set and fallback binary path does not exist: {}",
-        candidate.display()
-    );
-}
-
-fn run_in_dir(dir: &Path, args: &[&str]) -> (ExitStatus, String, String) {
-    let output = Command::new(ralph_bin())
-        .current_dir(dir)
-        .env_remove("RALPH_REPO_ROOT_OVERRIDE")
-        .args(args)
-        .output()
-        .expect("failed to execute ralph binary");
-    (
-        output.status,
-        String::from_utf8_lossy(&output.stdout).to_string(),
-        String::from_utf8_lossy(&output.stderr).to_string(),
-    )
-}
 
 fn configure_runner(dir: &Path, runner: &str, model: &str, bin_path: Option<&Path>) -> Result<()> {
     let config_path = dir.join(".ralph/config.json");
@@ -193,7 +149,7 @@ fn task_update_without_id_updates_all_tasks() -> Result<()> {
     let dir = test_support::temp_dir_outside_repo();
 
     let (status, stdout, stderr) =
-        run_in_dir(dir.path(), &["init", "--force", "--non-interactive"]);
+        test_support::run_in_dir(dir.path(), &["init", "--force", "--non-interactive"]);
     anyhow::ensure!(
         status.success(),
         "ralph init failed\nstdout:\n{stdout}\nstderr:\n{stderr}"
@@ -205,7 +161,7 @@ fn task_update_without_id_updates_all_tasks() -> Result<()> {
     let runner_path = create_fake_runner(dir.path(), "codex", script)?;
     configure_runner(dir.path(), "codex", "gpt-5.2-codex", Some(&runner_path))?;
 
-    let (status, stdout, stderr) = run_in_dir(dir.path(), &["task", "update"]);
+    let (status, stdout, stderr) = test_support::run_in_dir(dir.path(), &["task", "update"]);
     anyhow::ensure!(
         status.success(),
         "expected task update to succeed\nstdout:\n{stdout}\nstderr:\n{stderr}"
@@ -227,7 +183,7 @@ fn task_update_without_id_fails_on_empty_queue() -> Result<()> {
     let dir = test_support::temp_dir_outside_repo();
 
     let (status, stdout, stderr) =
-        run_in_dir(dir.path(), &["init", "--force", "--non-interactive"]);
+        test_support::run_in_dir(dir.path(), &["init", "--force", "--non-interactive"]);
     anyhow::ensure!(
         status.success(),
         "ralph init failed\nstdout:\n{stdout}\nstderr:\n{stderr}"
@@ -235,7 +191,7 @@ fn task_update_without_id_fails_on_empty_queue() -> Result<()> {
 
     write_empty_queue(dir.path())?;
 
-    let (status, _stdout, stderr) = run_in_dir(dir.path(), &["task", "update"]);
+    let (status, _stdout, stderr) = test_support::run_in_dir(dir.path(), &["task", "update"]);
     anyhow::ensure!(!status.success(), "expected task update to fail");
     anyhow::ensure!(
         stderr.contains("No tasks in queue to update"),
@@ -285,7 +241,7 @@ fn task_update_single_task_moved_to_done_during_update() -> Result<()> {
     let dir = test_support::temp_dir_outside_repo();
 
     let (status, stdout, stderr) =
-        run_in_dir(dir.path(), &["init", "--force", "--non-interactive"]);
+        test_support::run_in_dir(dir.path(), &["init", "--force", "--non-interactive"]);
     anyhow::ensure!(
         status.success(),
         "ralph init failed\nstdout:\n{stdout}\nstderr:\n{stderr}"
@@ -331,7 +287,7 @@ exit 0
     let runner_path = create_fake_runner(dir.path(), "codex", script)?;
     configure_runner(dir.path(), "codex", "gpt-5.2-codex", Some(&runner_path))?;
 
-    let (status, stdout, stderr) = run_in_dir(dir.path(), &["task", "update", "RQ-0001"]);
+    let (status, stdout, stderr) = test_support::run_in_dir(dir.path(), &["task", "update", "RQ-0001"]);
     anyhow::ensure!(
         status.success(),
         "expected task update to succeed\nstdout:\n{stdout}\nstderr:\n{stderr}"
@@ -357,7 +313,7 @@ fn task_update_single_task_removed_during_update() -> Result<()> {
     let dir = test_support::temp_dir_outside_repo();
 
     let (status, stdout, stderr) =
-        run_in_dir(dir.path(), &["init", "--force", "--non-interactive"]);
+        test_support::run_in_dir(dir.path(), &["init", "--force", "--non-interactive"]);
     anyhow::ensure!(
         status.success(),
         "ralph init failed\nstdout:\n{stdout}\nstderr:\n{stderr}"
@@ -380,7 +336,7 @@ exit 0
     let runner_path = create_fake_runner(dir.path(), "codex", script)?;
     configure_runner(dir.path(), "codex", "gpt-5.2-codex", Some(&runner_path))?;
 
-    let (status, stdout, stderr) = run_in_dir(dir.path(), &["task", "update", "RQ-0001"]);
+    let (status, stdout, stderr) = test_support::run_in_dir(dir.path(), &["task", "update", "RQ-0001"]);
     anyhow::ensure!(
         status.success(),
         "expected task update to succeed\nstdout:\n{stdout}\nstderr:\n{stderr}"
@@ -400,7 +356,7 @@ fn task_update_single_task_moved_to_done_no_changes() -> Result<()> {
     let dir = test_support::temp_dir_outside_repo();
 
     let (status, stdout, stderr) =
-        run_in_dir(dir.path(), &["init", "--force", "--non-interactive"]);
+        test_support::run_in_dir(dir.path(), &["init", "--force", "--non-interactive"]);
     anyhow::ensure!(
         status.success(),
         "ralph init failed\nstdout:\n{stdout}\nstderr:\n{stderr}"
@@ -446,7 +402,7 @@ exit 0
     let runner_path = create_fake_runner(dir.path(), "codex", script)?;
     configure_runner(dir.path(), "codex", "gpt-5.2-codex", Some(&runner_path))?;
 
-    let (status, stdout, stderr) = run_in_dir(dir.path(), &["task", "update", "RQ-0001"]);
+    let (status, stdout, stderr) = test_support::run_in_dir(dir.path(), &["task", "update", "RQ-0001"]);
     anyhow::ensure!(
         status.success(),
         "expected task update to succeed\nstdout:\n{stdout}\nstderr:\n{stderr}"

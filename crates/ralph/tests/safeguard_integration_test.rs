@@ -1,53 +1,10 @@
 //! Integration tests for LLM output safeguarding.
 
 use anyhow::{Context, Result};
-use std::path::{Path, PathBuf};
-use std::process::{Command, ExitStatus};
+use std::path::Path;
+use std::process::Command;
 
 mod test_support;
-
-fn ralph_bin() -> PathBuf {
-    if let Some(path) = std::env::var_os("CARGO_BIN_EXE_ralph") {
-        return PathBuf::from(path);
-    }
-
-    let exe = std::env::current_exe().expect("resolve current test executable path");
-    let exe_dir = exe
-        .parent()
-        .expect("test executable should have a parent directory");
-    let profile_dir = if exe_dir.file_name() == Some(std::ffi::OsStr::new("deps")) {
-        exe_dir
-            .parent()
-            .expect("deps directory should have a parent directory")
-    } else {
-        exe_dir
-    };
-
-    let bin_name = if cfg!(windows) { "ralph.exe" } else { "ralph" };
-    let candidate = profile_dir.join(bin_name);
-    if candidate.exists() {
-        return candidate;
-    }
-
-    panic!(
-        "CARGO_BIN_EXE_ralph was not set and fallback binary path does not exist: {}",
-        candidate.display()
-    );
-}
-
-fn run_in_dir(dir: &Path, args: &[&str]) -> (ExitStatus, String, String) {
-    let output = Command::new(ralph_bin())
-        .current_dir(dir)
-        .env_remove("RALPH_REPO_ROOT_OVERRIDE")
-        .args(args)
-        .output()
-        .expect("failed to execute ralph binary");
-    (
-        output.status,
-        String::from_utf8_lossy(&output.stdout).to_string(),
-        String::from_utf8_lossy(&output.stderr).to_string(),
-    )
-}
 
 fn git_init(dir: &Path) -> Result<()> {
     let status = Command::new("git")
@@ -185,7 +142,7 @@ fn runner_fails_and_safeguards_stdout() -> Result<()> {
 
     // 1. Setup Ralph
     let (status, _stdout, _stderr) =
-        run_in_dir(dir.path(), &["init", "--force", "--non-interactive"]);
+        test_support::run_in_dir(dir.path(), &["init", "--force", "--non-interactive"]);
     anyhow::ensure!(status.success(), "ralph init failed");
 
     // 2. Add a task
@@ -207,7 +164,7 @@ fn runner_fails_and_safeguards_stdout() -> Result<()> {
         .status()?;
 
     // 5. Run ralph
-    let (status, _stdout, stderr) = run_in_dir(dir.path(), &["run", "one"]);
+    let (status, _stdout, stderr) = test_support::run_in_dir(dir.path(), &["run", "one"]);
     anyhow::ensure!(!status.success(), "expected run one to fail");
 
     // 6. Check for safeguard message in stderr
@@ -249,7 +206,7 @@ fn scan_fails_validation_and_safeguards_stdout() -> Result<()> {
 
     // 1. Setup Ralph
     let (status, _stdout, _stderr) =
-        run_in_dir(dir.path(), &["init", "--force", "--non-interactive"]);
+        test_support::run_in_dir(dir.path(), &["init", "--force", "--non-interactive"]);
     anyhow::ensure!(status.success(), "ralph init failed");
 
     // 2. Create a runner that produces INVALID queue.json (corrupts it)
@@ -270,7 +227,7 @@ fn scan_fails_validation_and_safeguards_stdout() -> Result<()> {
         .status()?;
 
     // 4. Run ralph scan
-    let (status, _stdout, stderr) = run_in_dir(dir.path(), &["scan", "--focus", "test"]);
+    let (status, _stdout, stderr) = test_support::run_in_dir(dir.path(), &["scan", "--focus", "test"]);
     anyhow::ensure!(!status.success(), "expected scan to fail due to validation");
 
     // 5. Check for safeguard message in stderr

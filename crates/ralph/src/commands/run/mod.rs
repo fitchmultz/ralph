@@ -206,6 +206,15 @@ pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()>
                 return Ok(());
             }
 
+            // Check for graceful stop signal before starting next task
+            if signal::stop_signal_exists(&cache_dir) {
+                log::info!("Stop signal detected; no new tasks will be started.");
+                if let Err(e) = signal::clear_stop_signal(&cache_dir) {
+                    log::warn!("Failed to clear stop signal: {}", e);
+                }
+                return Ok(());
+            }
+
             match run_one(
                 resolved,
                 &opts.agent_overrides,
@@ -222,15 +231,6 @@ pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()>
                     tasks_succeeded += 1;
                     consecutive_failures = 0; // Reset on success
                     log::info!("RunLoop: task-complete ({completed}/{initial_todo_count})");
-
-                    // Check for graceful stop signal after task completion
-                    if signal::stop_signal_exists(&cache_dir) {
-                        log::info!("Stop signal detected, completing loop after current task");
-                        if let Err(e) = signal::clear_stop_signal(&cache_dir) {
-                            log::warn!("Failed to clear stop signal: {}", e);
-                        }
-                        return Ok(());
-                    }
                 }
                 Err(err) => {
                     if let Some(reason) = runutil::abort_reason(&err) {

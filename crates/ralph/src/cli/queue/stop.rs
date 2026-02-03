@@ -22,7 +22,12 @@ pub(crate) fn handle(resolved: &Resolved) -> Result<()> {
 
     signal::create_stop_signal(&cache_dir)?;
 
-    log::info!("Stop signal created. The run loop will exit after the current task completes.");
+    log::info!(
+        "Stop signal created. The loop will stop starting new tasks and exit when current in-flight work completes."
+    );
+    log::info!(
+        "Sequential mode: exits between tasks. Parallel mode: stops scheduling new tasks and waits for in-flight tasks."
+    );
     log::info!("To force immediate termination, press Ctrl+C in the running loop.");
 
     Ok(())

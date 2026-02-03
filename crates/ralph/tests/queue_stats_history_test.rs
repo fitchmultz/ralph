@@ -3,57 +3,14 @@
 use anyhow::{Context, Result};
 use ralph::timeutil;
 use serde_json::Value;
-use std::path::{Path, PathBuf};
-use std::process::{Command, ExitStatus};
+use std::path::Path;
 use time::{Duration, OffsetDateTime};
 
 mod test_support;
 
-fn ralph_bin() -> PathBuf {
-    if let Some(path) = std::env::var_os("CARGO_BIN_EXE_ralph") {
-        return PathBuf::from(path);
-    }
-
-    let exe = std::env::current_exe().expect("resolve current test executable path");
-    let exe_dir = exe
-        .parent()
-        .expect("test executable should have a parent directory");
-    let profile_dir = if exe_dir.file_name() == Some(std::ffi::OsStr::new("deps")) {
-        exe_dir
-            .parent()
-            .expect("deps directory should have a parent directory")
-    } else {
-        exe_dir
-    };
-
-    let bin_name = if cfg!(windows) { "ralph.exe" } else { "ralph" };
-    let candidate = profile_dir.join(bin_name);
-    if candidate.exists() {
-        return candidate;
-    }
-
-    panic!(
-        "CARGO_BIN_EXE_ralph was not set and fallback binary path does not exist: {}",
-        candidate.display()
-    );
-}
-
-fn run_in_dir(dir: &Path, args: &[&str]) -> (ExitStatus, String, String) {
-    let output = Command::new(ralph_bin())
-        .current_dir(dir)
-        .env_remove("RALPH_REPO_ROOT_OVERRIDE")
-        .args(args)
-        .output()
-        .expect("failed to execute ralph binary");
-    (
-        output.status,
-        String::from_utf8_lossy(&output.stdout).to_string(),
-        String::from_utf8_lossy(&output.stderr).to_string(),
-    )
-}
-
 fn init_repo(dir: &Path) -> Result<()> {
-    let (status, stdout, stderr) = run_in_dir(dir, &["init", "--force", "--non-interactive"]);
+    let (status, stdout, stderr) =
+        test_support::run_in_dir(dir, &["init", "--force", "--non-interactive"]);
     anyhow::ensure!(
         status.success(),
         "ralph init failed\nstdout:\n{stdout}\nstderr:\n{stderr}"
@@ -135,7 +92,8 @@ fn stats_json_includes_summary_and_durations() -> Result<()> {
     std::fs::write(dir.path().join(".ralph/queue.json"), queue).context("write queue.json")?;
     std::fs::write(dir.path().join(".ralph/done.json"), done).context("write done.json")?;
 
-    let (status, stdout, stderr) = run_in_dir(dir.path(), &["queue", "stats", "--format", "json"]);
+    let (status, stdout, stderr) =
+        test_support::run_in_dir(dir.path(), &["queue", "stats", "--format", "json"]);
     anyhow::ensure!(
         status.success(),
         "expected stats to succeed\nstdout:\n{stdout}\nstderr:\n{stderr}"
@@ -240,7 +198,7 @@ fn history_json_returns_window_and_days() -> Result<()> {
     std::fs::write(dir.path().join(".ralph/queue.json"), queue).context("write queue.json")?;
     std::fs::write(dir.path().join(".ralph/done.json"), done).context("write done.json")?;
 
-    let (status, stdout, stderr) = run_in_dir(
+    let (status, stdout, stderr) = test_support::run_in_dir(
         dir.path(),
         &["queue", "history", "--days", "3", "--format", "json"],
     );
@@ -315,7 +273,7 @@ fn burndown_json_empty_window_returns_zero_counts() -> Result<()> {
     init_repo(dir.path())?;
     write_empty_queue(dir.path())?;
 
-    let (status, stdout, stderr) = run_in_dir(
+    let (status, stdout, stderr) = test_support::run_in_dir(
         dir.path(),
         &["queue", "burndown", "--days", "2", "--format", "json"],
     );
@@ -350,7 +308,8 @@ fn burndown_empty_window_reports_no_remaining_tasks() -> Result<()> {
     init_repo(dir.path())?;
     write_empty_queue(dir.path())?;
 
-    let (status, stdout, stderr) = run_in_dir(dir.path(), &["queue", "burndown", "--days", "2"]);
+    let (status, stdout, stderr) =
+        test_support::run_in_dir(dir.path(), &["queue", "burndown", "--days", "2"]);
     anyhow::ensure!(
         status.success(),
         "expected burndown to succeed\nstdout:\n{stdout}\nstderr:\n{stderr}"
@@ -406,7 +365,8 @@ fn burndown_zero_count_day_renders_empty_bar() -> Result<()> {
     std::fs::write(dir.path().join(".ralph/queue.json"), queue).context("write queue.json")?;
     std::fs::write(dir.path().join(".ralph/done.json"), done).context("write done.json")?;
 
-    let (status, stdout, stderr) = run_in_dir(dir.path(), &["queue", "burndown", "--days", "2"]);
+    let (status, stdout, stderr) =
+        test_support::run_in_dir(dir.path(), &["queue", "burndown", "--days", "2"]);
     anyhow::ensure!(
         status.success(),
         "expected burndown to succeed\nstdout:\n{stdout}\nstderr:\n{stderr}"

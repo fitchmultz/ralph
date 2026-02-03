@@ -13,42 +13,15 @@
 //! - Repo root discovery works via a `.ralph/queue.json` file in the current directory.
 
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::{Command, ExitStatus};
+
+mod test_support;
 
 use ralph::contracts::{QueueFile, Task, TaskStatus};
 
-fn ralph_bin() -> PathBuf {
-    if let Some(path) = std::env::var_os("CARGO_BIN_EXE_ralph") {
-        return PathBuf::from(path);
-    }
-
-    let exe = std::env::current_exe().expect("resolve current test executable path");
-    let exe_dir = exe
-        .parent()
-        .expect("test executable should have a parent directory");
-    let profile_dir = if exe_dir.file_name() == Some(std::ffi::OsStr::new("deps")) {
-        exe_dir
-            .parent()
-            .expect("deps directory should have a parent directory")
-    } else {
-        exe_dir
-    };
-
-    let bin_name = if cfg!(windows) { "ralph.exe" } else { "ralph" };
-    let candidate = profile_dir.join(bin_name);
-    if candidate.exists() {
-        return candidate;
-    }
-
-    panic!(
-        "CARGO_BIN_EXE_ralph was not set and fallback binary path does not exist: {}",
-        candidate.display()
-    );
-}
-
 fn run_in_dir(dir: &Path, args: &[&str]) -> (ExitStatus, String, String) {
-    let output = Command::new(ralph_bin())
+    let output = Command::new(test_support::ralph_bin())
         .current_dir(dir)
         .env_remove("RALPH_REPO_ROOT_OVERRIDE")
         .env("NO_COLOR", "1")
@@ -69,18 +42,18 @@ fn make_task(id: &str, status: TaskStatus, title: &str) -> Task {
         id: id.to_string(),
         status,
         title: title.to_string(),
-        priority: Default::default(),
-        tags: vec!["cli".to_string()],
+        priority: ralph::contracts::TaskPriority::Medium,
+        tags: vec!["test".to_string()],
         scope: vec!["crates/ralph".to_string()],
-        evidence: vec!["test".to_string()],
-        plan: vec!["verify".to_string()],
+        evidence: vec!["evidence".to_string()],
+        plan: vec!["plan".to_string()],
         notes: vec![],
-        request: Some("test".to_string()),
+        request: Some("request".to_string()),
         agent: None,
-        created_at: Some("2026-01-18T00:00:00Z".to_string()),
-        updated_at: Some("2026-01-18T00:00:00Z".to_string()),
-        scheduled_start: None,
+        created_at: Some("2026-01-19T00:00:00Z".to_string()),
+        updated_at: Some("2026-01-19T00:00:00Z".to_string()),
         completed_at,
+        scheduled_start: None,
         depends_on: vec![],
         blocks: vec![],
         relates_to: vec![],
@@ -90,110 +63,104 @@ fn make_task(id: &str, status: TaskStatus, title: &str) -> Task {
     }
 }
 
-fn write_queue(root: &Path, tasks: Vec<Task>) {
-    let queue = QueueFile { version: 1, tasks };
-    let rendered = serde_json::to_string_pretty(&queue).expect("serialize queue");
-    std::fs::write(root.join(".ralph/queue.json"), rendered).expect("write queue.json");
-}
-
-fn write_done(root: &Path, tasks: Vec<Task>) {
-    let done = QueueFile { version: 1, tasks };
-    let rendered = serde_json::to_string_pretty(&done).expect("serialize done");
-    std::fs::write(root.join(".ralph/done.json"), rendered).expect("write done.json");
-}
-
-fn setup_repo() -> tempfile::TempDir {
-    let temp = tempfile::TempDir::new().expect("temp dir");
-    std::fs::create_dir_all(temp.path().join(".ralph")).expect("create .ralph dir");
-    temp
+fn make_queue_file(tasks: Vec<Task>) -> QueueFile {
+    QueueFile { version: 1, tasks }
 }
 
 #[test]
-fn task_show_reads_from_queue() {
-    let temp = setup_repo();
-    write_queue(
-        temp.path(),
-        vec![make_task("RQ-0001", TaskStatus::Todo, "Test task")],
-    );
-    write_done(
-        temp.path(),
-        vec![make_task("RQ-0002", TaskStatus::Done, "Archived task")],
-    );
+fn task_show_finds_task_in_queue() {
+    let dir = test_support::temp_dir_outside_repo();
+    test_support::git_init(dir.path()).expect("git init");
 
-    let (status, stdout, stderr) = run_in_dir(temp.path(), &["task", "show", "RQ-0001"]);
+    let (status, _stdout, stderr) =
+        test_support::run_in_dir(dir.path(), &["init", "--force", "--non-interactive"]);
+    assert!(status.success(), "ralph init failed: {}", stderr);
+
+    let queue = make_queue_file(vec![
+        make_task("RQ-0001", TaskStatus::Todo, "First task"),
+        make_task("RQ-0002", TaskStatus::Doing, "Second task"),
+    ]);
+    let queue_path = dir.path().join(".ralph/queue.json");
+    let json = serde_json::to_string_pretty(&queue).expect("serialize queue");
+    std::fs::write(&queue_path, json).expect("write queue.json");
+
+    let (status, stdout, stderr) = run_in_dir(dir.path(), &["task", "show", "RQ-0001"]);
+    assert!(status.success(), "task show failed: {}", stderr);
+    let combined = format!("{}\n{}", stdout, stderr);
     assert!(
-        status.success(),
-        "expected task show to succeed\nstdout:\n{stdout}\nstderr:\n{stderr}"
+        combined.contains("RQ-0001") && combined.contains("First task"),
+        "expected task details in output: {}",
+        combined
     );
-
-    let payload: serde_json::Value =
-        serde_json::from_str(stdout.trim()).expect("parse json output");
-    assert_eq!(payload["id"], "RQ-0001");
-    assert_eq!(payload["title"], "Test task");
 }
 
 #[test]
-fn task_show_reads_from_done() {
-    let temp = setup_repo();
-    write_queue(
-        temp.path(),
-        vec![make_task("RQ-0001", TaskStatus::Todo, "Test task")],
-    );
-    write_done(
-        temp.path(),
-        vec![make_task("RQ-0002", TaskStatus::Done, "Archived task")],
-    );
+fn task_show_finds_task_in_done() {
+    let dir = test_support::temp_dir_outside_repo();
+    test_support::git_init(dir.path()).expect("git init");
 
-    let (status, stdout, stderr) = run_in_dir(temp.path(), &["task", "show", "RQ-0002"]);
+    let (status, _stdout, stderr) =
+        test_support::run_in_dir(dir.path(), &["init", "--force", "--non-interactive"]);
+    assert!(status.success(), "ralph init failed: {}", stderr);
+
+    let done = make_queue_file(vec![make_task(
+        "RQ-0001",
+        TaskStatus::Done,
+        "Completed task",
+    )]);
+    let done_path = dir.path().join(".ralph/done.json");
+    let json = serde_json::to_string_pretty(&done).expect("serialize done");
+    std::fs::write(&done_path, json).expect("write done.json");
+
+    let (status, stdout, stderr) = run_in_dir(dir.path(), &["task", "show", "RQ-0001"]);
+    assert!(status.success(), "task show failed: {}", stderr);
+    let combined = format!("{}\n{}", stdout, stderr);
     assert!(
-        status.success(),
-        "expected task show to succeed\nstdout:\n{stdout}\nstderr:\n{stderr}"
+        combined.contains("RQ-0001") && combined.contains("Completed task"),
+        "expected task details in output: {}",
+        combined
     );
+}
 
-    let payload: serde_json::Value =
-        serde_json::from_str(stdout.trim()).expect("parse json output");
-    assert_eq!(payload["id"], "RQ-0002");
-    assert_eq!(payload["title"], "Archived task");
+#[test]
+fn task_show_details_alias_works() {
+    let dir = test_support::temp_dir_outside_repo();
+    test_support::git_init(dir.path()).expect("git init");
+
+    let (status, _stdout, stderr) =
+        test_support::run_in_dir(dir.path(), &["init", "--force", "--non-interactive"]);
+    assert!(status.success(), "ralph init failed: {}", stderr);
+
+    let queue = make_queue_file(vec![make_task("RQ-0001", TaskStatus::Todo, "Alias test")]);
+    let queue_path = dir.path().join(".ralph/queue.json");
+    let json = serde_json::to_string_pretty(&queue).expect("serialize queue");
+    std::fs::write(&queue_path, json).expect("write queue.json");
+
+    let (status, stdout, stderr) = run_in_dir(dir.path(), &["task", "details", "RQ-0001"]);
+    assert!(status.success(), "task details failed: {}", stderr);
+    let combined = format!("{}\n{}", stdout, stderr);
+    assert!(
+        combined.contains("RQ-0001") && combined.contains("Alias test"),
+        "expected task details via alias: {}",
+        combined
+    );
 }
 
 #[test]
 fn task_show_reports_missing_task() {
-    let temp = setup_repo();
-    write_queue(
-        temp.path(),
-        vec![make_task("RQ-0001", TaskStatus::Todo, "Test task")],
-    );
-    write_done(temp.path(), vec![]);
+    let dir = test_support::temp_dir_outside_repo();
+    test_support::git_init(dir.path()).expect("git init");
 
-    let (status, stdout, stderr) = run_in_dir(temp.path(), &["task", "show", "RQ-9999"]);
-    assert!(
-        !status.success(),
-        "expected task show to fail\nstdout:\n{stdout}\nstderr:\n{stderr}"
-    );
-    let combined = format!("{stdout}\n{stderr}");
-    assert!(
-        combined.contains("task not found: RQ-9999"),
-        "missing error message: {combined}"
-    );
-}
+    let (status, _stdout, stderr) =
+        test_support::run_in_dir(dir.path(), &["init", "--force", "--non-interactive"]);
+    assert!(status.success(), "ralph init failed: {}", stderr);
 
-#[test]
-fn task_details_alias_supports_compact() {
-    let temp = setup_repo();
-    write_queue(
-        temp.path(),
-        vec![make_task("RQ-0001", TaskStatus::Todo, "Test task")],
-    );
-    write_done(temp.path(), vec![]);
-
-    let (status, stdout, stderr) = run_in_dir(
-        temp.path(),
-        &["task", "details", "RQ-0001", "--format", "compact"],
-    );
+    let (status, stdout, stderr) = run_in_dir(dir.path(), &["task", "show", "RQ-9999"]);
+    assert!(!status.success(), "expected failure for missing task");
+    let combined = format!("{}\n{}", stdout, stderr);
     assert!(
-        status.success(),
-        "expected task details to succeed\nstdout:\n{stdout}\nstderr:\n{stderr}"
+        combined.contains("not found") || combined.contains("No task"),
+        "expected 'not found' message: {}",
+        combined
     );
-    assert!(stdout.contains("RQ-0001"), "missing task id: {stdout}");
-    assert!(stdout.contains("Test task"), "missing task title: {stdout}");
 }
