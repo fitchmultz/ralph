@@ -2,41 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0562",
-      "status": "todo",
-      "title": "Sync parallel workspaces using configured queue/done paths",
-      "priority": "high",
-      "tags": [
-        "maintenance",
-        "parallel",
-        "queue"
-      ],
-      "scope": [
-        "crates/ralph/src/commands/run/parallel/sync.rs",
-        "crates/ralph/src/contracts/config.rs",
-        "crates/ralph/src/commands/run/parallel/mod.rs"
-      ],
-      "evidence": [
-        "crates/ralph/src/commands/run/parallel/sync.rs:21-31 hard-codes `.ralph/queue.json` and `.ralph/done.json` for workspace sync.",
-        "crates/ralph/src/contracts/config.rs:67-72 documents configurable `queue.file` and `queue.done_file`, which are ignored by the sync implementation."
-      ],
-      "plan": [
-        "Update `sync_ralph_state` to accept resolved queue/done paths (or a `Resolved` reference) and sync those files instead of hard-coded paths.",
-        "Update `run_loop_parallel` call sites and extend sync tests to cover custom queue/done paths from config.",
-        "Verify by running `cargo test -p ralph sync_ralph_state` and confirming the custom-path test passes."
-      ],
-      "notes": [],
-      "request": "maintenance scan finding",
-      "created_at": "2026-02-02T22:35:14Z",
-      "updated_at": "2026-02-02T22:35:14Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0563",
       "status": "todo",
       "title": "Prune stale parallel tasks when stored PID is no longer running",

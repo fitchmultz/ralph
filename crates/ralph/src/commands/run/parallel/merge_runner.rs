@@ -14,13 +14,14 @@
 //! - Workspaces remain available until merge completion or failure.
 
 use crate::commands::run::PhaseType;
+use crate::commands::run::parallel::path_map::map_resolved_path_into_workspace;
 use crate::config;
 use crate::contracts::{
     ConflictPolicy, MergeRunnerConfig, ParallelMergeMethod, QueueFile, RunnerCliOptionsPatch,
 };
 use crate::{git, promptflow, prompts, queue, runner};
 use anyhow::{Context, Result, bail};
-use std::path::{Component, Path, PathBuf};
+use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, mpsc};
 use std::thread;
@@ -332,41 +333,6 @@ fn validate_queue_done_in_workspace(
     Ok(())
 }
 
-/// Map a resolved path from the original repo into the workspace clone.
-///
-/// The resolved path is expected to be under `repo_root`. This strips the
-/// repo_root prefix to get a repo-relative path, validates it doesn't contain
-/// `..` components (path traversal protection), and joins it onto the workspace root.
-fn map_resolved_path_into_workspace(
-    repo_root: &Path,
-    workspace_repo_root: &Path,
-    resolved_path: &Path,
-    label: &str,
-) -> Result<PathBuf> {
-    // Get the repo-relative path
-    let relative = resolved_path.strip_prefix(repo_root).with_context(|| {
-        format!(
-            "{} path {} is not under repo root {}",
-            label,
-            resolved_path.display(),
-            repo_root.display()
-        )
-    })?;
-
-    // Security: reject paths containing ".." components
-    for component in relative.components() {
-        if component == Component::ParentDir {
-            bail!(
-                "{} path contains '..' component: {}",
-                label,
-                relative.display()
-            );
-        }
-    }
-
-    Ok(workspace_repo_root.join(relative))
-}
-
 fn run_merge_runner_prompt(
     resolved: &config::Resolved,
     merge_runner: &MergeRunnerConfig,
@@ -500,6 +466,7 @@ mod tests {
     use super::*;
     use crate::testsupport::git as git_test;
     use std::fs;
+    use std::path::PathBuf;
     use tempfile::TempDir;
 
     #[test]
@@ -855,39 +822,6 @@ mod tests {
             full_error.contains("Duplicate task ID detected across queue and done"),
             "Error chain should mention duplicate ID: {}",
             full_error
-        );
-    }
-
-    #[test]
-    fn map_resolved_path_into_workspace_rejects_traversal() {
-        let repo_root = PathBuf::from("/repo");
-        let workspace_root = PathBuf::from("/workspace");
-
-        // Path containing .. should be rejected
-        let bad_path = PathBuf::from("/repo/../etc/passwd");
-        let result =
-            map_resolved_path_into_workspace(&repo_root, &workspace_root, &bad_path, "test");
-        assert!(result.is_err(), "Path with .. should be rejected");
-
-        // Path outside repo root should be rejected
-        let outside_path = PathBuf::from("/other/file.json");
-        let result =
-            map_resolved_path_into_workspace(&repo_root, &workspace_root, &outside_path, "test");
-        assert!(result.is_err(), "Path outside repo root should be rejected");
-    }
-
-    #[test]
-    fn map_resolved_path_into_workspace_accepts_valid_path() {
-        let repo_root = PathBuf::from("/repo");
-        let workspace_root = PathBuf::from("/workspace");
-        let resolved_path = PathBuf::from("/repo/.ralph/queue.json");
-
-        let result =
-            map_resolved_path_into_workspace(&repo_root, &workspace_root, &resolved_path, "queue");
-        assert!(result.is_ok());
-        assert_eq!(
-            result.unwrap(),
-            PathBuf::from("/workspace/.ralph/queue.json")
         );
     }
 }

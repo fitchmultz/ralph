@@ -66,9 +66,17 @@ pub struct Config {
 #[serde(default, deny_unknown_fields)]
 pub struct QueueConfig {
     /// Path to the JSON queue file, relative to repo root.
+    ///
+    /// Paths are intended to be repo-root relative. Parallel mode requires the
+    /// resolved path to be under the repo root (no `..`) so it can be copied
+    /// into workspace clones.
     pub file: Option<PathBuf>,
 
     /// Path to the JSON done archive file, relative to repo root.
+    ///
+    /// Paths are intended to be repo-root relative. Parallel mode requires the
+    /// resolved path to be under the repo root (no `..`) so it can be copied
+    /// into workspace clones.
     pub done_file: Option<PathBuf>,
 
     /// ID prefix (default: "RQ").

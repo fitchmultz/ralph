@@ -1,7 +1,7 @@
 {
   "version": 1,
   "first_task_completed_at": "2026-01-30T12:31:17.161199000Z",
-  "last_updated_at": "2026-02-03T01:05:03.614199000Z",
+  "last_updated_at": "2026-02-03T01:33:19.626829000Z",
   "daily": {
     "2026-01-30": {
       "date": "2026-01-30",
@@ -419,7 +419,7 @@
     },
     "2026-02-03": {
       "date": "2026-02-03",
-      "completed_count": 2,
+      "completed_count": 3,
       "tasks": [
         {
           "id": "RQ-0560",
@@ -430,6 +430,11 @@
           "id": "RQ-0561",
           "title": "Validate queue/done JSON after AI conflict resolution before commit",
           "completed_at": "2026-02-03T01:05:03.614198000Z"
+        },
+        {
+          "id": "RQ-0562",
+          "title": "Sync parallel workspaces using configured queue/done paths",
+          "completed_at": "2026-02-03T01:33:19.626827000Z"
         }
       ]
     }
@@ -439,7 +444,7 @@
     "longest_streak": 5,
     "last_completed_date": "2026-02-03"
   },
-  "total_completed": 80,
+  "total_completed": 81,
   "milestones": [
     {
       "threshold": 10,

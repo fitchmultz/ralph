@@ -872,7 +872,7 @@
       "type": "object",
       "properties": {
         "done_file": {
-          "description": "Path to the JSON done archive file, relative to repo root.",
+          "description": "Path to the JSON done archive file, relative to repo root.\n\nPaths are intended to be repo-root relative. Parallel mode requires the resolved path to be under the repo root (no `..`) so it can be copied into workspace clones.",
           "default": null,
           "type": [
             "string",
@@ -880,7 +880,7 @@
           ]
         },
         "file": {
-          "description": "Path to the JSON queue file, relative to repo root.",
+          "description": "Path to the JSON queue file, relative to repo root.\n\nPaths are intended to be repo-root relative. Parallel mode requires the resolved path to be under the repo root (no `..`) so it can be copied into workspace clones.",
           "default": null,
           "type": [
             "string",

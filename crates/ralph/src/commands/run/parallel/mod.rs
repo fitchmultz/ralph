@@ -32,6 +32,7 @@ use std::time::Duration;
 
 mod args;
 mod merge_runner;
+mod path_map;
 mod state;
 mod sync;
 mod worker;
@@ -256,7 +257,7 @@ pub(crate) fn run_loop_parallel(
                 &base_branch,
                 &settings.branch_prefix,
             )?;
-            sync_ralph_state(&resolved.repo_root, &workspace.path)?;
+            sync_ralph_state(resolved, &workspace.path)?;
 
             let child = spawn_worker(
                 resolved,
