@@ -135,19 +135,10 @@ pub(crate) fn run_loop_parallel(
     let base_branch = state_file.base_branch.clone();
 
     let merge_stop = Arc::new(AtomicBool::new(false));
-    let mut dropped_tasks = Vec::new();
-    state_file.tasks_in_flight.retain(|record| {
-        let path = Path::new(&record.workspace_path);
-        if path.exists() {
-            true
-        } else {
-            dropped_tasks.push(record.task_id.clone());
-            false
-        }
-    });
+    let dropped_tasks = prune_stale_tasks_in_flight(&mut state_file);
     if !dropped_tasks.is_empty() {
         log::warn!(
-            "Dropping stale in-flight tasks with missing workspaces: {}",
+            "Dropping stale in-flight tasks: {}",
             dropped_tasks.join(", ")
         );
         state::save_state(&state_path, &state_file)?;
@@ -482,6 +473,36 @@ pub(crate) fn run_loop_parallel(
     Ok(())
 }
 
+/// Prune stale in-flight tasks from the parallel state file.
+///
+/// Drops records when:
+/// - The workspace path no longer exists, OR
+/// - The recorded PID exists and is no longer running (pid_is_running returns Some(false))
+///
+/// Retains records when:
+/// - PID is missing (None), OR
+/// - pid_is_running returns None (indeterminate status)
+///
+/// Returns the list of dropped task IDs for logging.
+fn prune_stale_tasks_in_flight(state_file: &mut state::ParallelStateFile) -> Vec<String> {
+    let mut dropped = Vec::new();
+    state_file.tasks_in_flight.retain(|record| {
+        let path = Path::new(&record.workspace_path);
+        if !path.exists() {
+            dropped.push(record.task_id.clone());
+            return false;
+        }
+        if let Some(pid) = record.pid
+            && crate::lock::pid_is_running(pid) == Some(false)
+        {
+            dropped.push(record.task_id.clone());
+            return false;
+        }
+        true
+    });
+    dropped
+}
+
 fn collect_workspaces_for_cleanup(
     settings: &ParallelSettings,
     in_flight: &HashMap<String, WorkerState>,
@@ -794,6 +815,122 @@ mod tests {
         assert_eq!(worker_overrides.include_draft, Some(true));
         assert_eq!(worker_overrides.repoprompt_plan_required, Some(false));
         assert_eq!(worker_overrides.repoprompt_tool_injection, Some(false));
+        Ok(())
+    }
+
+    #[test]
+    fn prune_stale_tasks_drops_missing_workspace() -> Result<()> {
+        let mut state_file = state::ParallelStateFile::new(
+            "2026-02-01T00:00:00Z".to_string(),
+            "main".to_string(),
+            ParallelMergeMethod::Squash,
+            ParallelMergeWhen::AsCreated,
+        );
+        state_file.tasks_in_flight.push(state::ParallelTaskRecord {
+            task_id: "RQ-0001".to_string(),
+            workspace_path: "/nonexistent/path/RQ-0001".to_string(),
+            branch: "ralph/RQ-0001".to_string(),
+            pid: Some(12345),
+        });
+
+        let dropped = prune_stale_tasks_in_flight(&mut state_file);
+
+        assert_eq!(dropped, vec!["RQ-0001"]);
+        assert!(state_file.tasks_in_flight.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn prune_stale_tasks_drops_dead_pid_with_existing_workspace() -> Result<()> {
+        let temp = TempDir::new()?;
+        let workspace_path = temp.path().join("RQ-0002");
+        std::fs::create_dir_all(&workspace_path)?;
+
+        // Spawn a short-lived process and wait for it to exit
+        let mut child = std::process::Command::new("true").spawn()?;
+        let pid = child.id();
+        child.wait()?;
+
+        let mut state_file = state::ParallelStateFile::new(
+            "2026-02-01T00:00:00Z".to_string(),
+            "main".to_string(),
+            ParallelMergeMethod::Squash,
+            ParallelMergeWhen::AsCreated,
+        );
+        state_file.tasks_in_flight.push(state::ParallelTaskRecord {
+            task_id: "RQ-0002".to_string(),
+            workspace_path: workspace_path.to_string_lossy().to_string(),
+            branch: "ralph/RQ-0002".to_string(),
+            pid: Some(pid),
+        });
+
+        let dropped = prune_stale_tasks_in_flight(&mut state_file);
+
+        assert_eq!(dropped, vec!["RQ-0002"]);
+        assert!(state_file.tasks_in_flight.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn prune_stale_tasks_retains_missing_pid_with_existing_workspace() -> Result<()> {
+        let temp = TempDir::new()?;
+        let workspace_path = temp.path().join("RQ-0003");
+        std::fs::create_dir_all(&workspace_path)?;
+
+        let mut state_file = state::ParallelStateFile::new(
+            "2026-02-01T00:00:00Z".to_string(),
+            "main".to_string(),
+            ParallelMergeMethod::Squash,
+            ParallelMergeWhen::AsCreated,
+        );
+        state_file.tasks_in_flight.push(state::ParallelTaskRecord {
+            task_id: "RQ-0003".to_string(),
+            workspace_path: workspace_path.to_string_lossy().to_string(),
+            branch: "ralph/RQ-0003".to_string(),
+            pid: None,
+        });
+
+        let dropped = prune_stale_tasks_in_flight(&mut state_file);
+
+        assert!(dropped.is_empty());
+        assert_eq!(state_file.tasks_in_flight.len(), 1);
+        assert_eq!(state_file.tasks_in_flight[0].task_id, "RQ-0003");
+        Ok(())
+    }
+
+    #[test]
+    fn prune_stale_tasks_retains_running_pid_with_existing_workspace() -> Result<()> {
+        let temp = TempDir::new()?;
+        let workspace_path = temp.path().join("RQ-0004");
+        std::fs::create_dir_all(&workspace_path)?;
+
+        // Spawn a long-running process (sleep) that will still be running
+        let child = std::process::Command::new("sleep").arg("10").spawn()?;
+        let pid = child.id();
+
+        let mut state_file = state::ParallelStateFile::new(
+            "2026-02-01T00:00:00Z".to_string(),
+            "main".to_string(),
+            ParallelMergeMethod::Squash,
+            ParallelMergeWhen::AsCreated,
+        );
+        state_file.tasks_in_flight.push(state::ParallelTaskRecord {
+            task_id: "RQ-0004".to_string(),
+            workspace_path: workspace_path.to_string_lossy().to_string(),
+            branch: "ralph/RQ-0004".to_string(),
+            pid: Some(pid),
+        });
+
+        let dropped = prune_stale_tasks_in_flight(&mut state_file);
+
+        // Clean up the child process
+        let mut child = child;
+        let _ = child.kill();
+        let _ = child.wait();
+
+        assert!(dropped.is_empty());
+        assert_eq!(state_file.tasks_in_flight.len(), 1);
+        assert_eq!(state_file.tasks_in_flight[0].task_id, "RQ-0004");
         Ok(())
     }
 }
