@@ -38,6 +38,7 @@ fn ralph_bin() -> PathBuf {
 fn run_in_dir(dir: &Path, args: &[&str]) -> (ExitStatus, String, String) {
     let output = Command::new(ralph_bin())
         .current_dir(dir)
+        .env_remove("RALPH_REPO_ROOT_OVERRIDE")
         .args(args)
         .output()
         .expect("failed to execute ralph binary");
@@ -51,6 +52,7 @@ fn run_in_dir(dir: &Path, args: &[&str]) -> (ExitStatus, String, String) {
 fn git_init(dir: &Path) -> Result<()> {
     let status = Command::new("git")
         .current_dir(dir)
+        .env_remove("RALPH_REPO_ROOT_OVERRIDE")
         .args(["init", "--quiet"])
         .status()
         .context("run git init")?;
@@ -60,10 +62,12 @@ fn git_init(dir: &Path) -> Result<()> {
     std::fs::write(&gitignore_path, ".ralph/lock\n")?;
     Command::new("git")
         .current_dir(dir)
+        .env_remove("RALPH_REPO_ROOT_OVERRIDE")
         .args(["add", ".gitignore"])
         .status()?;
     Command::new("git")
         .current_dir(dir)
+        .env_remove("RALPH_REPO_ROOT_OVERRIDE")
         .args(["commit", "-m", "add gitignore"])
         .status()?;
 

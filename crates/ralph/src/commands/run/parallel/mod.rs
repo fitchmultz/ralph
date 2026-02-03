@@ -102,13 +102,7 @@ pub(crate) fn run_loop_parallel(
     let state_path = state::state_file_path(&resolved.repo_root);
     let started_at = timeutil::now_utc_rfc3339_or_fallback();
     let mut state_file = if let Some(existing) = state::load_state(&state_path)? {
-        if existing.base_branch != current_branch {
-            bail!(
-                "Parallel state base branch '{}' does not match current branch '{}'.",
-                existing.base_branch,
-                current_branch
-            );
-        }
+        // Apply persisted merge settings before any potential branch correction
         if existing.merge_method != settings.merge_method {
             log::warn!(
                 "Parallel state merge_method {:?} overrides current settings {:?}.",
@@ -137,8 +131,6 @@ pub(crate) fn run_loop_parallel(
         state
     };
 
-    let base_branch = state_file.base_branch.clone();
-
     let merge_stop = Arc::new(AtomicBool::new(false));
     let dropped_tasks = prune_stale_tasks_in_flight(&mut state_file);
     if !dropped_tasks.is_empty() {
@@ -160,6 +152,13 @@ pub(crate) fn run_loop_parallel(
         );
         state::save_state(&state_path, &state_file)?;
     }
+
+    // Handle base branch mismatch after state hygiene (prune + reconcile)
+    if state_file.base_branch != current_branch {
+        handle_base_branch_mismatch(&mut state_file, &current_branch, &state_path)?;
+    }
+
+    let base_branch = state_file.base_branch.clone();
 
     let (pr_tx, pr_rx) = mpsc::channel::<git::PrInfo>();
     let (merge_result_tx, merge_result_rx) = mpsc::channel::<MergeResult>();
@@ -638,6 +637,80 @@ fn can_start_more_tasks(tasks_started: u32, max_tasks: u32) -> bool {
     max_tasks == 0 || tasks_started < max_tasks
 }
 
+/// Handle base branch mismatch with safe auto-correction.
+///
+/// Auto-corrects `state_file.base_branch` to `current_branch` only when safe:
+/// - No in-flight tasks remain after pruning
+/// - No open/unmerged PR records remain after reconciliation
+///
+/// If blockers exist, returns an actionable error with resolution guidance.
+fn handle_base_branch_mismatch(
+    state_file: &mut state::ParallelStateFile,
+    current_branch: &str,
+    state_path: &Path,
+) -> Result<()> {
+    let persisted_branch = &state_file.base_branch;
+
+    // Identify blockers
+    let blocking_tasks: Vec<&str> = state_file
+        .tasks_in_flight
+        .iter()
+        .map(|r| r.task_id.as_str())
+        .collect();
+
+    let blocking_prs: Vec<(u32, &str)> = state_file
+        .prs
+        .iter()
+        .filter(|r| matches!(r.lifecycle, state::ParallelPrLifecycle::Open) && !r.merged)
+        .map(|r| (r.pr_number, r.task_id.as_str()))
+        .collect();
+
+    // Safe to auto-correct only if no blockers
+    if blocking_tasks.is_empty() && blocking_prs.is_empty() {
+        log::info!(
+            "Auto-correcting parallel state base branch from '{}' to '{}' (no active work)",
+            persisted_branch,
+            current_branch
+        );
+        state_file.base_branch = current_branch.to_string();
+        state::save_state(state_path, state_file)?;
+        return Ok(());
+    }
+
+    // Build actionable error message
+    let mut msg = format!(
+        "Parallel state base branch '{}' does not match current branch '{}'.\n\n",
+        persisted_branch, current_branch
+    );
+    msg.push_str(&format!("State file: {}\n\n", state_path.display()));
+
+    if !blocking_tasks.is_empty() {
+        msg.push_str("Blocking in-flight tasks:\n");
+        for task_id in &blocking_tasks {
+            msg.push_str(&format!("  - {}\n", task_id));
+        }
+        msg.push('\n');
+    }
+
+    if !blocking_prs.is_empty() {
+        msg.push_str("Blocking open/unmerged PRs:\n");
+        for (pr_num, task_id) in &blocking_prs {
+            msg.push_str(&format!("  - PR #{} (task {})\n", pr_num, task_id));
+        }
+        msg.push('\n');
+    }
+
+    msg.push_str("Resolution options:\n");
+    msg.push_str(&format!(
+        "  1. Switch back to '{}' and let the parallel run finish/merge/cleanup\n",
+        persisted_branch
+    ));
+    msg.push_str("  2. If you understand the risk, delete the state file to reset:\n");
+    msg.push_str(&format!("     rm {}\n", state_path.display()));
+
+    bail!("{}", msg)
+}
+
 fn overrides_for_parallel_workers(
     resolved: &config::Resolved,
     overrides: &AgentOverrides,
@@ -939,5 +1012,138 @@ mod tests {
         // With tasks_in_flight.len() == 2 and guard_in_flight_len == 3,
         // effective_in_flight_count should return 3 (max, not sum)
         assert_eq!(effective_in_flight_count(&state_file, 3), 3);
+    }
+
+    // Tests for handle_base_branch_mismatch
+
+    #[test]
+    fn base_branch_mismatch_auto_corrects_when_safe() -> Result<()> {
+        let temp = TempDir::new()?;
+        let state_path = temp.path().join("state.json");
+
+        // Create state with mismatched base_branch but no in-flight tasks or open PRs
+        let mut state_file = state::ParallelStateFile::new(
+            "2026-02-01T00:00:00Z".to_string(),
+            "old-branch".to_string(),
+            ParallelMergeMethod::Squash,
+            ParallelMergeWhen::AsCreated,
+        );
+        // Add a closed PR (not blocking)
+        state_file.upsert_pr(state::ParallelPrRecord {
+            task_id: "RQ-0001".to_string(),
+            pr_number: 1,
+            pr_url: "https://example.com/pr/1".to_string(),
+            head: Some("ralph/RQ-0001".to_string()),
+            base: Some("old-branch".to_string()),
+            workspace_path: None,
+            merged: false,
+            lifecycle: state::ParallelPrLifecycle::Closed,
+        });
+        state::save_state(&state_path, &state_file)?;
+
+        // Should auto-correct to "main"
+        handle_base_branch_mismatch(&mut state_file, "main", &state_path)?;
+
+        // Verify state was updated and persisted
+        assert_eq!(state_file.base_branch, "main");
+        let loaded = state::load_state(&state_path)?.expect("state");
+        assert_eq!(loaded.base_branch, "main");
+        Ok(())
+    }
+
+    #[test]
+    fn base_branch_mismatch_errors_when_in_flight_tasks_exist() {
+        let temp = TempDir::new().unwrap();
+        let state_path = temp.path().join("state.json");
+
+        // Create state with mismatched base_branch and in-flight tasks
+        let mut state_file = state::ParallelStateFile::new(
+            "2026-02-01T00:00:00Z".to_string(),
+            "old-branch".to_string(),
+            ParallelMergeMethod::Squash,
+            ParallelMergeWhen::AsCreated,
+        );
+        state_file.tasks_in_flight.push(state::ParallelTaskRecord {
+            task_id: "RQ-0001".to_string(),
+            workspace_path: "/tmp/ws/RQ-0001".to_string(),
+            branch: "ralph/RQ-0001".to_string(),
+            pid: Some(12345),
+        });
+
+        let result = handle_base_branch_mismatch(&mut state_file, "main", &state_path);
+
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("old-branch"));
+        assert!(err.contains("main"));
+        assert!(err.contains("RQ-0001"));
+        assert!(err.contains("in-flight"));
+    }
+
+    #[test]
+    fn base_branch_mismatch_errors_when_open_unmerged_prs_exist() {
+        let temp = TempDir::new().unwrap();
+        let state_path = temp.path().join("state.json");
+
+        // Create state with mismatched base_branch and open PR
+        let mut state_file = state::ParallelStateFile::new(
+            "2026-02-01T00:00:00Z".to_string(),
+            "old-branch".to_string(),
+            ParallelMergeMethod::Squash,
+            ParallelMergeWhen::AsCreated,
+        );
+        state_file.upsert_pr(state::ParallelPrRecord {
+            task_id: "RQ-0001".to_string(),
+            pr_number: 42,
+            pr_url: "https://example.com/pr/42".to_string(),
+            head: Some("ralph/RQ-0001".to_string()),
+            base: Some("old-branch".to_string()),
+            workspace_path: None,
+            merged: false,
+            lifecycle: state::ParallelPrLifecycle::Open,
+        });
+
+        let result = handle_base_branch_mismatch(&mut state_file, "main", &state_path);
+
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("old-branch"));
+        assert!(err.contains("main"));
+        assert!(err.contains("#42"));
+        assert!(err.contains("open/unmerged"));
+    }
+
+    #[test]
+    fn base_branch_mismatch_auto_corrects_after_reconcile_closes_prs() -> Result<()> {
+        let temp = TempDir::new()?;
+        let state_path = temp.path().join("state.json");
+
+        // Create state with mismatched base_branch and a PR that appears open locally
+        // but will be reconciled as closed
+        let mut state_file = state::ParallelStateFile::new(
+            "2026-02-01T00:00:00Z".to_string(),
+            "old-branch".to_string(),
+            ParallelMergeMethod::Squash,
+            ParallelMergeWhen::AsCreated,
+        );
+        state_file.upsert_pr(state::ParallelPrRecord {
+            task_id: "RQ-0001".to_string(),
+            pr_number: 1,
+            pr_url: "https://example.com/pr/1".to_string(),
+            head: Some("ralph/RQ-0001".to_string()),
+            base: Some("old-branch".to_string()),
+            workspace_path: None,
+            merged: false,
+            lifecycle: state::ParallelPrLifecycle::Open,
+        });
+
+        // Simulate reconciliation marking PR as closed
+        state_file.prs[0].lifecycle = state::ParallelPrLifecycle::Closed;
+
+        // Now auto-correction should succeed
+        handle_base_branch_mismatch(&mut state_file, "main", &state_path)?;
+
+        assert_eq!(state_file.base_branch, "main");
+        Ok(())
     }
 }

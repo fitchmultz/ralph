@@ -586,6 +586,12 @@ Notes:
 - The default workspace location is `<repo-parent>/.workspaces/<repo-name>/parallel/<TASK_ID>` (configurable via `parallel.workspace_root`).
 - State is persisted to `.ralph/cache/parallel/state.json` for crash recovery and coordination.
 
+**Branch switching behavior:**
+The parallel state file tracks the `base_branch` used for creating workspaces and PRs. When resuming:
+- If no active work exists (no in-flight tasks, no open/unmerged PRs), the state auto-corrects to the current branch.
+- If active work exists, the command fails with an error listing blockers and resolution options.
+- To force a reset when switching branches, delete the state file: `rm .ralph/cache/parallel/state.json`
+
 Examples:
 
 ```bash

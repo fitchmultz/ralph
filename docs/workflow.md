@@ -51,6 +51,28 @@ High-level behavior:
   conflicts using the `merge_conflicts` prompt and `parallel.merge_runner` overrides.
 - State is persisted to `.ralph/cache/parallel/state.json` for crash recovery and coordination.
 
+### Base Branch Handling
+
+The parallel state file (`.ralph/cache/parallel/state.json`) persists the `base_branch` used for
+workspace creation and PR bases. When resuming a parallel run, the current git branch is compared
+to the persisted `base_branch`:
+
+**Auto-correction (safe cases):**
+If the branches differ but there is **no active work** (no in-flight tasks and no open/unmerged
+PRs), the state file is automatically updated to use the current branch. This allows seamless
+branch switching between parallel runs when all previous work has completed.
+
+**Error with guidance (unsafe cases):**
+If the branches differ and there **is active work** (in-flight tasks or open/unmerged PRs), the
+command fails with an actionable error that includes:
+- The state file path
+- The persisted vs current branch names
+- A list of blocking tasks and/or PRs
+- Resolution options (switch back to the original branch, or manually delete the state file)
+
+This safety policy prevents corrupting the supervisor's understanding of active work when the
+base branch changes mid-run.
+
 **Breaking change (2026-02):** The default directory for parallel workspaces changed from
 `.worktrees/` to `.workspaces/`. The config key `parallel.worktree_root` has been renamed to
 `parallel.workspace_root` and is no longer accepted. Run `ralph migrate` to update existing

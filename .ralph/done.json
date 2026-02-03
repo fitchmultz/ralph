@@ -18563,6 +18563,57 @@
       "custom_fields": {
         "scan_agent": "scan-maintenance"
       }
+    },
+    {
+      "id": "RQ-0575",
+      "status": "done",
+      "title": "Fix parallel state.json to auto-correct and auto-populate git branch",
+      "priority": "high",
+      "tags": [
+        "bug",
+        "parallel",
+        "state",
+        "git",
+        "branch",
+        "reliability"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/parallel/mod.rs",
+        "crates/ralph/src/commands/run/parallel/state.rs",
+        "crates/ralph/src/commands/run/parallel/cleanup_guard.rs",
+        "crates/ralph/src/commands/run/parallel/sync.rs",
+        "crates/ralph/src/git/mod.rs",
+        "crates/ralph/src/git/branch.rs",
+        "docs/workflow.md",
+        "docs/cli.md",
+        "make ci"
+      ],
+      "evidence": [
+        "User request: Fix parallel state to auto-correct/auto-populate the git base branch so switching branches doesn't require manually deleting `.ralph/cache/parallel/state.json`.",
+        "crates/ralph/src/commands/run/parallel/mod.rs loads `.ralph/cache/parallel/state.json` and hard-fails when `existing.base_branch != current_branch` (error: \"Parallel state base branch '{}' does not match current branch '{}'\"), preventing any automatic recovery.",
+        "crates/ralph/src/commands/run/parallel/state.rs persists `base_branch` as a required field in `ParallelStateFile` and uses it as the fallback base for PR info when persisted PR records are missing fields.",
+        "crates/ralph/src/git/branch.rs rejects detached HEAD (\"Parallel run requires a named branch\"), so base branch auto-population must use the named branch string returned by `git rev-parse --abbrev-ref HEAD`."
+      ],
+      "plan": [
+        "Reproduce the failure by running a parallel loop on one branch, switching branches, and re-running parallel to hit the base_branch mismatch error.",
+        "Design a safe recovery policy for base branch mismatch: only auto-correct when the persisted state has no active in-flight tasks and no open/unmerged PR records; otherwise keep failing fast with an actionable message.",
+        "Implement recovery in `run_loop_parallel`: on mismatch, load state, prune/reconcile, then either (a) update `state_file.base_branch` to the current branch and persist, or (b) bail with guidance that includes the state file path and why it's unsafe to auto-correct.",
+        "Ensure new state files are created with the current branch and that recovery preserves merge settings overrides (merge_method/merge_when) when appropriate.",
+        "Add unit/integration tests covering: (1) mismatch + no in-flight work => base_branch auto-updated, (2) mismatch + in-flight tasks/open PRs => still errors, (3) state file missing => created with current branch.",
+        "Update docs (`docs/cli.md`, `docs/workflow.md`) to document base-branch mismatch behavior and the new auto-correction rules.",
+        "Run `make ci`."
+      ],
+      "notes": [
+        "The current failure happens before stale task/PR reconciliation, so moving or augmenting the mismatch handling may be necessary to determine whether auto-correction is safe."
+      ],
+      "request": "Fix the state.json file to auto-correct and auto-populate and set the git branch properly. User previously ran a parallel run on branch '02022026' but has since changed to 'main' and this fails unless user manually clears .ralph/cache/parallel/state.json.",
+      "created_at": "2026-02-03T15:43:00Z",
+      "updated_at": "2026-02-03T15:27:20.524615000Z",
+      "completed_at": "2026-02-03T15:27:20.524615000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
     }
   ]
 }

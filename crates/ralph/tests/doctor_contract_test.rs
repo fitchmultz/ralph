@@ -38,6 +38,8 @@ fn ralph_bin() -> PathBuf {
 fn ralph_cmd() -> Command {
     let mut cmd = Command::new(ralph_bin());
     cmd.env_remove("RUST_LOG");
+    // Remove repo root override so child processes don't inherit the parent's repo
+    cmd.env_remove("RALPH_REPO_ROOT_OVERRIDE");
     cmd
 }
 

@@ -165,6 +165,8 @@ pub fn run_in_dir(dir: &Path, args: &[&str]) -> (ExitStatus, String, String) {
     let output = Command::new(ralph_bin())
         .current_dir(dir)
         .env_remove("RUST_LOG")
+        // Remove repo root override so child processes don't inherit the parent's repo
+        .env_remove("RALPH_REPO_ROOT_OVERRIDE")
         .args(args)
         .output()
         .expect("failed to execute ralph binary");
