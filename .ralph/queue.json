@@ -2,40 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0567",
-      "status": "todo",
-      "title": "Add queue-aware guidance to merge conflict prompt",
-      "priority": "medium",
-      "tags": [
-        "maintenance",
-        "parallel",
-        "docs"
-      ],
-      "scope": [
-        "crates/ralph/assets/prompts/merge_conflicts.md",
-        "crates/ralph/src/promptflow.rs",
-        "crates/ralph/src/commands/run/parallel/merge_runner.rs"
-      ],
-      "evidence": [
-        "crates/ralph/assets/prompts/merge_conflicts.md:1-13 contains only generic merge instructions and does not mention preserving queue ordering or validating `.ralph/queue.json`/`.ralph/done.json`."
-      ],
-      "plan": [
-        "Extend merge-conflict prompt generation to append queue-specific instructions when conflict files include `.ralph/queue.json` or `.ralph/done.json`.",
-        "Add a test that verifies the prompt includes queue-preservation guidance when those files are conflicted.",
-        "Verify by running `cargo test -p ralph promptflow` and confirming the prompt test passes."
-      ],
-      "notes": [],
-      "request": "maintenance scan finding",
-      "created_at": "2026-02-02T22:35:14Z",
-      "updated_at": "2026-02-02T22:35:14Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0568",
       "status": "todo",
       "title": "Respect max_tasks when resuming with in-flight parallel state",
