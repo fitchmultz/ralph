@@ -2,39 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0564",
-      "status": "todo",
-      "title": "Ensure parallel loop cleans up workers on non-interrupt errors",
-      "priority": "high",
-      "tags": [
-        "maintenance",
-        "parallel",
-        "reliability"
-      ],
-      "scope": [
-        "crates/ralph/src/commands/run/parallel/mod.rs"
-      ],
-      "evidence": [
-        "crates/ralph/src/commands/run/parallel/mod.rs:252-271 and 310-329 use `?` inside the main loop, so any error exits immediately.",
-        "crates/ralph/src/commands/run/parallel/mod.rs:355-380 shows cleanup (terminate_workers, workspace removal) only occurs when `interrupted` is true."
-      ],
-      "plan": [
-        "Introduce a guard (e.g., scopeguard) that terminates workers, stops the merge runner, and persists state on any early return/error.",
-        "Add a test that injects a failure (e.g., force `sync_ralph_state` to fail) and asserts workers are terminated and state is cleaned.",
-        "Verify by running `cargo test -p ralph parallel` and confirming the cleanup-on-error test passes."
-      ],
-      "notes": [],
-      "request": "maintenance scan finding",
-      "created_at": "2026-02-02T22:35:14Z",
-      "updated_at": "2026-02-02T22:35:14Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0565",
       "status": "todo",
       "title": "Prevent duplicate task selection across concurrent run loops",

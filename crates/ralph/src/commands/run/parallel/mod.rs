@@ -23,7 +23,7 @@ use crate::config;
 use crate::contracts::{ConflictPolicy, MergeRunnerConfig, ParallelMergeMethod, ParallelMergeWhen};
 use crate::{git, promptflow, runutil, signal, timeutil};
 use anyhow::{Result, bail};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, mpsc};
@@ -31,17 +31,17 @@ use std::thread;
 use std::time::Duration;
 
 mod args;
+mod cleanup_guard;
 mod merge_runner;
 mod path_map;
 mod state;
 mod sync;
 mod worker;
 
+use cleanup_guard::ParallelCleanupGuard;
 use merge_runner::{MergeQueueSource, MergeResult};
 use sync::{commit_failure_changes, ensure_branch_pushed, sync_ralph_state};
-use worker::{
-    WorkerState, collect_excluded_ids, select_next_task, spawn_worker, terminate_workers,
-};
+use worker::{WorkerState, collect_excluded_ids, select_next_task, spawn_worker};
 
 pub(crate) struct ParallelRunOptions {
     pub max_tasks: u32,
@@ -184,7 +184,7 @@ pub(crate) fn run_loop_parallel(
         }));
     }
 
-    let mut in_flight: HashMap<String, WorkerState> = HashMap::new();
+    // Track completed workspaces separately (not owned by guard, cleaned up after merge)
     let mut completed_workspaces: HashMap<String, git::WorkspaceSpec> = HashMap::new();
     let mut created_prs: Vec<git::PrInfo> = existing_prs.clone();
 
@@ -218,165 +218,233 @@ pub(crate) fn run_loop_parallel(
     let mut tasks_failed: usize = 0;
     let mut interrupted = false;
 
-    loop {
-        if ctrlc.interrupted.load(Ordering::SeqCst) {
-            interrupted = true;
-            log::info!("Ctrl+C detected; stopping parallel run and cleaning up.");
-            break;
-        }
+    // Create cleanup guard to ensure resources are cleaned up on any exit path
+    let mut guard = ParallelCleanupGuard::new(
+        Arc::clone(&merge_stop),
+        pr_tx,
+        merge_handle,
+        state_path.clone(),
+        state_file,
+        settings.workspace_root.clone(),
+    );
 
-        if signal::stop_signal_exists(&cache_dir) {
-            log::info!("Stop signal detected; no new tasks will be started.");
-        }
-
-        // Spawn new workers until capacity or max-tasks reached.
-        while in_flight.len() < settings.workers as usize
-            && (opts.max_tasks == 0 || tasks_started < opts.max_tasks)
-            && !signal::stop_signal_exists(&cache_dir)
-        {
-            let excluded = collect_excluded_ids(&state_file, &in_flight);
-            let (task_id, task_title) =
-                match select_next_task(resolved, include_draft, &excluded, opts.force)? {
-                    Some(task) => task,
-                    None => break,
-                };
-
-            let workspace = git::create_workspace_at(
-                &resolved.repo_root,
-                &settings.workspace_root,
-                &task_id,
-                &base_branch,
-                &settings.branch_prefix,
-            )?;
-            sync_ralph_state(resolved, &workspace.path)?;
-
-            let child = spawn_worker(
-                resolved,
-                &workspace.path,
-                &task_id,
-                &worker_overrides,
-                opts.force,
-            )?;
-
-            let record = state::ParallelTaskRecord::new(&task_id, &workspace, child.id());
-            state_file.upsert_task(record);
-            state::save_state(&state_path, &state_file)?;
-
-            in_flight.insert(
-                task_id.clone(),
-                WorkerState {
-                    task_id,
-                    task_title,
-                    workspace,
-                    child,
-                },
-            );
-            tasks_started += 1;
-        }
-
-        // Drain merge results for cleanup.
-        while let Ok(result) = merge_result_rx.try_recv() {
-            if result.merged {
-                if let Some(workspace) = completed_workspaces.remove(&result.task_id)
-                    && let Err(err) =
-                        git::remove_workspace(&settings.workspace_root, &workspace, true)
-                {
-                    log::warn!(
-                        "Failed to remove workspace for {}: {:#}",
-                        result.task_id,
-                        err
-                    );
-                }
-                state_file.mark_pr_merged(&result.task_id);
-                state::save_state(&state_path, &state_file)?;
+    // Run the main loop inside a closure so we can handle cleanup on any error
+    let loop_result: Result<()> = (|| {
+        loop {
+            if ctrlc.interrupted.load(Ordering::SeqCst) {
+                interrupted = true;
+                log::info!("Ctrl+C detected; stopping parallel run and cleaning up.");
+                break;
             }
-        }
 
-        // Poll workers.
-        let mut finished: Vec<String> = Vec::new();
-        for (task_id, worker) in in_flight.iter_mut() {
-            if let Some(status) = worker.child.try_wait()? {
+            if signal::stop_signal_exists(&cache_dir) {
+                log::info!("Stop signal detected; no new tasks will be started.");
+            }
+
+            // Spawn new workers until capacity or max-tasks reached.
+            while guard.in_flight().len() < settings.workers as usize
+                && (opts.max_tasks == 0 || tasks_started < opts.max_tasks)
+                && !signal::stop_signal_exists(&cache_dir)
+            {
+                let excluded = collect_excluded_ids(guard.state_file(), guard.in_flight());
+                let (task_id, task_title) =
+                    match select_next_task(resolved, include_draft, &excluded, opts.force)? {
+                        Some(task) => task,
+                        None => break,
+                    };
+
+                let workspace = git::create_workspace_at(
+                    &resolved.repo_root,
+                    &settings.workspace_root,
+                    &task_id,
+                    &base_branch,
+                    &settings.branch_prefix,
+                )?;
+                sync_ralph_state(resolved, &workspace.path)?;
+
+                let child = spawn_worker(
+                    resolved,
+                    &workspace.path,
+                    &task_id,
+                    &worker_overrides,
+                    opts.force,
+                )?;
+
+                let record = state::ParallelTaskRecord::new(&task_id, &workspace, child.id());
+                guard.state_file_mut().upsert_task(record);
+                state::save_state(&state_path, guard.state_file())?;
+
+                // Register worker with the guard for cleanup tracking
+                guard.register_worker(
+                    task_id.clone(),
+                    WorkerState {
+                        task_id: task_id.clone(),
+                        task_title: task_title.clone(),
+                        workspace: workspace.clone(),
+                        child,
+                    },
+                );
+                // Also register the workspace for cleanup
+                guard.register_workspace(task_id.clone(), workspace);
+
+                tasks_started += 1;
+            }
+
+            // Drain merge results for cleanup.
+            while let Ok(result) = merge_result_rx.try_recv() {
+                if result.merged {
+                    if let Some(workspace) = completed_workspaces.remove(&result.task_id)
+                        && let Err(err) =
+                            git::remove_workspace(&settings.workspace_root, &workspace, true)
+                    {
+                        log::warn!(
+                            "Failed to remove workspace for {}: {:#}",
+                            result.task_id,
+                            err
+                        );
+                    }
+                    guard.state_file_mut().mark_pr_merged(&result.task_id);
+                    state::save_state(&state_path, guard.state_file())?;
+                }
+            }
+
+            // Poll workers using the guard's poll_workers method
+            let finished = guard.poll_workers();
+
+            for (task_id, task_title, workspace, status) in finished {
                 tasks_attempted += 1;
                 if status.success() {
                     tasks_succeeded += 1;
-                    handle_worker_success(
-                        resolved,
-                        worker,
-                        &settings,
-                        &base_branch,
-                        &mut created_prs,
-                        &pr_tx,
-                        &mut state_file,
-                        &state_path,
-                    )?;
+                    // Handle success
+                    if settings.auto_pr
+                        && let Err(e) = (|| -> Result<()> {
+                            ensure_branch_pushed(&workspace.path)?;
+                            let body = promptflow::read_phase2_final_response_cache(
+                                &workspace.path,
+                                &task_id,
+                            )
+                            .unwrap_or_default();
+                            let title = format!("{}: {}", task_id, task_title);
+                            let pr = git::create_pr(
+                                &resolved.repo_root,
+                                &title,
+                                &body,
+                                &workspace.branch,
+                                &base_branch,
+                                false,
+                            )?;
+                            guard
+                                .state_file_mut()
+                                .upsert_pr(state::ParallelPrRecord::new(
+                                    &task_id,
+                                    &pr,
+                                    Some(&workspace.path),
+                                ));
+                            state::save_state(&state_path, guard.state_file())?;
+                            created_prs.push(pr.clone());
+                            if settings.auto_merge
+                                && settings.merge_when == ParallelMergeWhen::AsCreated
+                                && let Some(tx) = guard.pr_tx()
+                            {
+                                let _ = tx.send(pr);
+                            }
+                            Ok(())
+                        })()
+                    {
+                        log::warn!("Failed to create PR for {}: {}", task_id, e);
+                    }
                 } else {
                     tasks_failed += 1;
-                    handle_worker_failure(
-                        resolved,
-                        worker,
-                        &settings,
-                        &base_branch,
-                        &mut state_file,
-                        &state_path,
-                    )?;
+                    // Handle failure
+                    if settings.auto_pr
+                        && settings.draft_on_failure
+                        && let Err(e) = (|| -> Result<()> {
+                            if !commit_failure_changes(&workspace.path, &task_id)? {
+                                log::warn!(
+                                    "Worker {} failed with no changes; skipping draft PR.",
+                                    task_id
+                                );
+                                return Ok(());
+                            }
+                            ensure_branch_pushed(&workspace.path)?;
+                            let body =
+                                format!("Failed run for {}. Draft PR generated by Ralph.", task_id);
+                            let title = format!("{}: {}", task_id, task_title);
+                            let pr = git::create_pr(
+                                &resolved.repo_root,
+                                &title,
+                                &body,
+                                &workspace.branch,
+                                &base_branch,
+                                true,
+                            )?;
+                            guard
+                                .state_file_mut()
+                                .upsert_pr(state::ParallelPrRecord::new(
+                                    &task_id,
+                                    &pr,
+                                    Some(&workspace.path),
+                                ));
+                            state::save_state(&state_path, guard.state_file())?;
+                            log::info!(
+                                "Draft PR {} created for {}; skipping auto-merge.",
+                                pr.number,
+                                task_id
+                            );
+                            Ok(())
+                        })()
+                    {
+                        log::warn!("Failed to create draft PR for {}: {}", task_id, e);
+                    }
                 }
 
-                completed_workspaces.insert(task_id.clone(), worker.workspace.clone());
-                state_file.remove_task(task_id);
-                state::save_state(&state_path, &state_file)?;
-                finished.push(task_id.clone());
+                // Move workspace to completed_workspaces for potential merge cleanup
+                completed_workspaces.insert(task_id.clone(), workspace.clone());
+                guard.state_file_mut().remove_task(&task_id);
+                state::save_state(&state_path, guard.state_file())?;
+                guard.remove_worker(&task_id);
             }
-        }
-        for task_id in finished {
-            in_flight.remove(&task_id);
+
+            if guard.in_flight().is_empty() {
+                let no_more_tasks = opts.max_tasks != 0 && tasks_started >= opts.max_tasks;
+                let excluded = collect_excluded_ids(guard.state_file(), guard.in_flight());
+                let next_available =
+                    select_next_task(resolved, include_draft, &excluded, opts.force)?.is_some();
+                if no_more_tasks || !next_available {
+                    break;
+                }
+            }
+
+            thread::sleep(Duration::from_millis(500));
         }
 
-        if in_flight.is_empty() {
-            let no_more_tasks = opts.max_tasks != 0 && tasks_started >= opts.max_tasks;
-            let excluded = collect_excluded_ids(&state_file, &in_flight);
-            let next_available =
-                select_next_task(resolved, include_draft, &excluded, opts.force)?.is_some();
-            if no_more_tasks || !next_available {
-                break;
-            }
-        }
+        Ok(())
+    })();
 
-        thread::sleep(Duration::from_millis(500));
+    // Handle cleanup on any exit path (success, error, or interrupt)
+    if interrupted || loop_result.is_err() {
+        // Cleanup will be performed by the guard's Drop implementation
+        // The guard owns the merge_stop signal, pr_tx, merge_handle, and state
+        // When it drops, it will:
+        // 1. Signal merge runner to stop
+        // 2. Drop pr_tx to unblock receiver
+        // 3. Join merge runner thread
+        // 4. Terminate in-flight workers
+        // 5. Clear and persist state
+
+        if interrupted {
+            return Err(runutil::RunAbort::new(
+                runutil::RunAbortReason::Interrupted,
+                "Parallel run interrupted by Ctrl+C",
+            )
+            .into());
+        }
+        return loop_result;
     }
 
-    if interrupted {
-        merge_stop.store(true, Ordering::SeqCst);
-        drop(pr_tx);
-        if let Some(handle) = merge_handle.take()
-            && let Err(err) = handle.join()
-        {
-            log::warn!("Merge runner thread panicked during shutdown: {:?}", err);
-        }
-
-        terminate_workers(&mut in_flight);
-        let cleanup_workspaces = collect_workspaces_for_cleanup(
-            &settings,
-            &in_flight,
-            &completed_workspaces,
-            &state_file,
-        );
-        for spec in cleanup_workspaces {
-            if spec.path.exists()
-                && let Err(err) = git::remove_workspace(&settings.workspace_root, &spec, true)
-            {
-                log::warn!("Failed to remove workspace for {}: {:#}", spec.task_id, err);
-            }
-        }
-        state_file.tasks_in_flight.clear();
-        state::save_state(&state_path, &state_file)?;
-        return Err(runutil::RunAbort::new(
-            runutil::RunAbortReason::Interrupted,
-            "Parallel run interrupted by Ctrl+C",
-        )
-        .into());
-    }
-
-    drop(pr_tx);
+    // Success path - perform normal cleanup, then disarm guard
+    // Drop pr_tx to signal merge runner to stop
+    drop(guard.take_pr_tx());
 
     if settings.auto_merge && settings.merge_when == ParallelMergeWhen::AfterAll {
         let merge_result_tx = merge_result_tx.clone();
@@ -394,7 +462,7 @@ pub(crate) fn run_loop_parallel(
         )?;
     }
 
-    if let Some(handle) = merge_handle {
+    if let Some(handle) = guard.take_merge_handle() {
         match handle.join() {
             Ok(Ok(())) => {}
             Ok(Err(err)) => return Err(err),
@@ -414,10 +482,13 @@ pub(crate) fn run_loop_parallel(
                     err
                 );
             }
-            state_file.mark_pr_merged(&result.task_id);
-            state::save_state(&state_path, &state_file)?;
+            guard.state_file_mut().mark_pr_merged(&result.task_id);
+            state::save_state(&state_path, guard.state_file())?;
         }
     }
+
+    // All cleanup successful - disarm the guard
+    guard.mark_completed();
 
     if tasks_attempted > 0 {
         let notify_on_complete = opts
@@ -503,149 +574,6 @@ fn prune_stale_tasks_in_flight(state_file: &mut state::ParallelStateFile) -> Vec
     dropped
 }
 
-fn collect_workspaces_for_cleanup(
-    settings: &ParallelSettings,
-    in_flight: &HashMap<String, WorkerState>,
-    completed_workspaces: &HashMap<String, git::WorkspaceSpec>,
-    state_file: &state::ParallelStateFile,
-) -> Vec<git::WorkspaceSpec> {
-    let mut seen = HashSet::new();
-    let mut collected = Vec::new();
-
-    let mut push_unique = |spec: git::WorkspaceSpec| {
-        if seen.insert(spec.path.clone()) {
-            collected.push(spec);
-        }
-    };
-
-    for worker in in_flight.values() {
-        push_unique(worker.workspace.clone());
-    }
-
-    for spec in completed_workspaces.values() {
-        push_unique(spec.clone());
-    }
-
-    for record in &state_file.tasks_in_flight {
-        push_unique(git::WorkspaceSpec {
-            task_id: record.task_id.clone(),
-            path: PathBuf::from(&record.workspace_path),
-            branch: record.branch.clone(),
-        });
-    }
-
-    for record in state_file.prs.iter().filter(|record| !record.merged) {
-        let path = record
-            .workspace_path()
-            .unwrap_or_else(|| settings.workspace_root.join(&record.task_id));
-        let branch = format!("{}{}", settings.branch_prefix, record.task_id);
-        push_unique(git::WorkspaceSpec {
-            task_id: record.task_id.clone(),
-            path,
-            branch,
-        });
-    }
-
-    collected
-}
-
-#[allow(clippy::too_many_arguments)]
-fn handle_worker_success(
-    resolved: &config::Resolved,
-    worker: &WorkerState,
-    settings: &ParallelSettings,
-    base_branch: &str,
-    created_prs: &mut Vec<git::PrInfo>,
-    pr_tx: &mpsc::Sender<git::PrInfo>,
-    state_file: &mut state::ParallelStateFile,
-    state_path: &Path,
-) -> Result<()> {
-    if !settings.auto_pr {
-        return Ok(());
-    }
-
-    ensure_branch_pushed(&worker.workspace.path)?;
-
-    let body =
-        promptflow::read_phase2_final_response_cache(&worker.workspace.path, &worker.task_id)
-            .unwrap_or_default();
-    let title = format!("{}: {}", worker.task_id, worker.task_title);
-    let pr = git::create_pr(
-        &resolved.repo_root,
-        &title,
-        &body,
-        &worker.workspace.branch,
-        base_branch,
-        false,
-    )?;
-
-    state_file.upsert_pr(state::ParallelPrRecord::new(
-        &worker.task_id,
-        &pr,
-        Some(&worker.workspace.path),
-    ));
-    state::save_state(state_path, state_file)?;
-
-    created_prs.push(pr.clone());
-    if settings.auto_merge && settings.merge_when == ParallelMergeWhen::AsCreated {
-        let _ = pr_tx.send(pr);
-    }
-
-    Ok(())
-}
-
-#[allow(clippy::too_many_arguments)]
-fn handle_worker_failure(
-    resolved: &config::Resolved,
-    worker: &WorkerState,
-    settings: &ParallelSettings,
-    base_branch: &str,
-    state_file: &mut state::ParallelStateFile,
-    state_path: &Path,
-) -> Result<()> {
-    if !settings.auto_pr || !settings.draft_on_failure {
-        return Ok(());
-    }
-
-    if !commit_failure_changes(&worker.workspace.path, &worker.task_id)? {
-        log::warn!(
-            "Worker {} failed with no changes; skipping draft PR.",
-            worker.task_id
-        );
-        return Ok(());
-    }
-
-    ensure_branch_pushed(&worker.workspace.path)?;
-
-    let body = format!(
-        "Failed run for {}. Draft PR generated by Ralph.",
-        worker.task_id
-    );
-    let title = format!("{}: {}", worker.task_id, worker.task_title);
-    let pr = git::create_pr(
-        &resolved.repo_root,
-        &title,
-        &body,
-        &worker.workspace.branch,
-        base_branch,
-        true,
-    )?;
-
-    state_file.upsert_pr(state::ParallelPrRecord::new(
-        &worker.task_id,
-        &pr,
-        Some(&worker.workspace.path),
-    ));
-    state::save_state(state_path, state_file)?;
-    log::info!(
-        "Draft PR {} created for {}; skipping auto-merge.",
-        pr.number,
-        worker.task_id
-    );
-
-    Ok(())
-}
-
 fn overrides_for_parallel_workers(
     resolved: &config::Resolved,
     overrides: &AgentOverrides,
@@ -691,98 +619,9 @@ fn resolve_parallel_settings(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::contracts::{Config, ConflictPolicy, MergeRunnerConfig};
-    use std::collections::HashMap;
-    use std::path::PathBuf;
-    use std::process::Child;
+    use crate::contracts::Config;
+
     use tempfile::TempDir;
-
-    #[test]
-    fn collect_workspaces_for_cleanup_dedupes_sources() -> Result<()> {
-        let settings = ParallelSettings {
-            workers: 2,
-            merge_when: ParallelMergeWhen::AsCreated,
-            merge_method: ParallelMergeMethod::Squash,
-            auto_pr: true,
-            auto_merge: true,
-            draft_on_failure: true,
-            conflict_policy: ConflictPolicy::AutoResolve,
-            merge_retries: 3,
-            workspace_root: PathBuf::from("/tmp/workspaces"),
-            branch_prefix: "ralph/".to_string(),
-            delete_branch_on_merge: true,
-            merge_runner: MergeRunnerConfig::default(),
-        };
-
-        let mut state_file = state::ParallelStateFile::new(
-            "2026-02-01T00:00:00Z".to_string(),
-            "main".to_string(),
-            ParallelMergeMethod::Squash,
-            ParallelMergeWhen::AsCreated,
-        );
-        state_file.tasks_in_flight.push(state::ParallelTaskRecord {
-            task_id: "RQ-0002".to_string(),
-            workspace_path: "/tmp/workspaces/RQ-0002".to_string(),
-            branch: "ralph/RQ-0002".to_string(),
-            pid: Some(123),
-        });
-        state_file.prs.push(state::ParallelPrRecord {
-            task_id: "RQ-0003".to_string(),
-            pr_number: 9,
-            pr_url: "https://example.com/pr/9".to_string(),
-            head: Some("ralph/RQ-0003".to_string()),
-            base: Some("main".to_string()),
-            workspace_path: None,
-            merged: false,
-        });
-
-        let mut in_flight = HashMap::new();
-        let child: Child = std::process::Command::new("true").spawn()?;
-        in_flight.insert(
-            "RQ-0001".to_string(),
-            WorkerState {
-                task_id: "RQ-0001".to_string(),
-                task_title: "title".to_string(),
-                workspace: git::WorkspaceSpec {
-                    task_id: "RQ-0001".to_string(),
-                    path: PathBuf::from("/tmp/workspaces/RQ-0001"),
-                    branch: "ralph/RQ-0001".to_string(),
-                },
-                child,
-            },
-        );
-
-        let mut completed_workspaces = HashMap::new();
-        completed_workspaces.insert(
-            "RQ-0001".to_string(),
-            git::WorkspaceSpec {
-                task_id: "RQ-0001".to_string(),
-                path: PathBuf::from("/tmp/workspaces/RQ-0001"),
-                branch: "ralph/RQ-0001".to_string(),
-            },
-        );
-
-        let collected = collect_workspaces_for_cleanup(
-            &settings,
-            &in_flight,
-            &completed_workspaces,
-            &state_file,
-        );
-        let paths = collected
-            .iter()
-            .map(|spec| spec.path.clone())
-            .collect::<HashSet<_>>();
-        assert_eq!(paths.len(), 3);
-        assert!(paths.contains(&PathBuf::from("/tmp/workspaces/RQ-0001")));
-        assert!(paths.contains(&PathBuf::from("/tmp/workspaces/RQ-0002")));
-        assert!(paths.contains(&PathBuf::from("/tmp/workspaces/RQ-0003")));
-
-        for worker in in_flight.values_mut() {
-            let _ = worker.child.wait();
-        }
-
-        Ok(())
-    }
 
     #[test]
     fn overrides_for_parallel_workers_forces_repoprompt_off() -> Result<()> {
