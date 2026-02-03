@@ -13,6 +13,7 @@
 //! - Command execution inherits stdin/stdout/stderr.
 
 use super::logging;
+use crate::constants::limits::CI_GATE_AUTO_RETRY_LIMIT;
 use crate::runutil;
 use anyhow::{Context, Result, bail};
 use std::process::Stdio;
@@ -64,6 +65,78 @@ pub(crate) fn run_ci_gate(resolved: &crate::config::Resolved) -> Result<()> {
             status.code()
         )
     })
+}
+
+fn strict_ci_gate_compliance_message(resolved: &crate::config::Resolved) -> String {
+    let cmd = ci_gate_command_label(resolved);
+    format!(
+        r#"CI gate ({}): error: CI failed: '{}' exited with an error code. Fix the linting, type-checking, or test failures before proceeding. Compliance is mandatory. No hacky fixes allowed e.g. skipping tests, half-assed patches, etc. Implement fixes your mother would be proud of."#,
+        cmd, cmd
+    )
+}
+
+/// Executes CI gate with auto-retry and Continue support via a runner session.
+pub(crate) fn run_ci_gate_with_continue_session<F>(
+    resolved: &crate::config::Resolved,
+    git_revert_mode: crate::contracts::GitRevertMode,
+    revert_prompt: Option<&runutil::RevertPromptHandler>,
+    continue_session: &mut super::ContinueSession,
+    mut on_resume: F,
+) -> Result<()>
+where
+    F: FnMut(&crate::runner::RunnerOutput) -> Result<()>,
+{
+    loop {
+        match run_ci_gate(resolved) {
+            Ok(()) => break,
+            Err(err) => {
+                if continue_session.ci_failure_retry_count < CI_GATE_AUTO_RETRY_LIMIT {
+                    continue_session.ci_failure_retry_count =
+                        continue_session.ci_failure_retry_count.saturating_add(1);
+                    let attempt = continue_session.ci_failure_retry_count;
+
+                    log::warn!(
+                        "CI gate failed; auto-sending strict compliance Continue message to agent (attempt {}/{})",
+                        attempt,
+                        CI_GATE_AUTO_RETRY_LIMIT
+                    );
+
+                    let message = strict_ci_gate_compliance_message(resolved);
+                    let output =
+                        super::resume_continue_session(resolved, continue_session, &message)?;
+                    on_resume(&output)?;
+                    continue;
+                }
+
+                let outcome = runutil::apply_git_revert_mode(
+                    &resolved.repo_root,
+                    git_revert_mode,
+                    "CI failure",
+                    revert_prompt,
+                )?;
+
+                match outcome {
+                    runutil::RevertOutcome::Continue { message } => {
+                        let output =
+                            super::resume_continue_session(resolved, continue_session, &message)?;
+                        on_resume(&output)?;
+                        continue;
+                    }
+                    _ => {
+                        bail!(
+                            "{} Error: {:#}",
+                            runutil::format_revert_failure_message(
+                                "CI gate failed after changes. Fix issues reported by CI and rerun.",
+                                outcome,
+                            ),
+                            err
+                        );
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 /// Returns the CI gate command label for display purposes.

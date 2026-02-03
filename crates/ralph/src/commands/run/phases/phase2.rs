@@ -127,6 +127,24 @@ pub fn execute_phase2_implementation(
         )?;
 
         if ctx.is_final_iteration {
+            let mut continue_session = supervision::ContinueSession {
+                runner: ctx.settings.runner,
+                model: ctx.settings.model.clone(),
+                reasoning_effort: ctx.settings.reasoning_effort,
+                runner_cli: ctx.settings.runner_cli,
+                phase_type: super::PhaseType::Implementation,
+                session_id: output.session_id.clone(),
+                output_handler: ctx.output_handler.clone(),
+                output_stream: ctx.output_stream,
+                ci_failure_retry_count: 0,
+            };
+            let mut on_resume = |resume_output: &runner::RunnerOutput| -> Result<()> {
+                cache_phase2_final_response(
+                    &ctx.resolved.repo_root,
+                    ctx.task_id,
+                    &resume_output.stdout,
+                )
+            };
             crate::commands::run::post_run_supervise(
                 ctx.resolved,
                 ctx.task_id,
@@ -134,6 +152,10 @@ pub fn execute_phase2_implementation(
                 ctx.git_commit_push_enabled,
                 ctx.push_policy,
                 ctx.revert_prompt.clone(),
+                Some(supervision::CiContinueContext {
+                    continue_session: &mut continue_session,
+                    on_resume: &mut on_resume,
+                }),
                 ctx.notify_on_complete,
                 ctx.notify_sound,
                 ctx.lfs_check,

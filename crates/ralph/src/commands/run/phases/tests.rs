@@ -15,6 +15,7 @@ use crate::contracts::{
     Runner, Task, TaskPriority, TaskStatus,
 };
 use crate::queue;
+use crate::testsupport::runner::create_fake_runner;
 use crate::{git, promptflow, runner, runutil};
 use anyhow::Result;
 use std::path::{Path, PathBuf};
@@ -42,23 +43,6 @@ fn git_init(dir: &Path) -> Result<()> {
         .status()?;
 
     Ok(())
-}
-
-fn create_fake_runner(dir: &Path, name: &str, script: &str) -> Result<PathBuf> {
-    let bin_dir = dir.join("bin");
-    std::fs::create_dir(&bin_dir)?;
-    let runner_path = bin_dir.join(name);
-    std::fs::write(&runner_path, script)?;
-
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let mut perms = std::fs::metadata(&runner_path)?.permissions();
-        perms.set_mode(0o755);
-        std::fs::set_permissions(&runner_path, perms)?;
-    }
-
-    Ok(runner_path)
 }
 
 #[test]

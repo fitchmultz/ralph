@@ -6,7 +6,7 @@ use crate::commands::run::{logging, supervision};
 use crate::completions;
 use crate::config;
 use crate::contracts::{GitRevertMode, TaskStatus};
-use crate::{git, promptflow, prompts, queue, runutil, timeutil};
+use crate::{git, promptflow, prompts, queue, runner, runutil, timeutil};
 use anyhow::{Result, anyhow, bail};
 
 pub fn execute_phase3_review(ctx: &PhaseInvocation<'_>) -> Result<()> {
@@ -141,6 +141,7 @@ pub fn execute_phase3_review(ctx: &PhaseInvocation<'_>) -> Result<()> {
         };
 
         let mut finalized = false;
+        let mut on_resume = |_resume_output: &runner::RunnerOutput| Ok(());
 
         loop {
             let applied_status = apply_phase3_completion_signal(ctx.resolved, ctx.task_id)?;
@@ -153,6 +154,10 @@ pub fn execute_phase3_review(ctx: &PhaseInvocation<'_>) -> Result<()> {
                     ctx.git_commit_push_enabled,
                     ctx.push_policy,
                     ctx.revert_prompt.clone(),
+                    Some(supervision::CiContinueContext {
+                        continue_session: &mut continue_session,
+                        on_resume: &mut on_resume,
+                    }),
                     ctx.notify_on_complete,
                     ctx.notify_sound,
                     ctx.lfs_check,
@@ -238,6 +243,7 @@ pub(crate) fn finalize_phase3_if_done(
     git_commit_push_enabled: bool,
     push_policy: crate::commands::run::supervision::PushPolicy,
     revert_prompt: Option<runutil::RevertPromptHandler>,
+    ci_continue: Option<supervision::CiContinueContext<'_>>,
     notify_on_complete: Option<bool>,
     notify_sound: Option<bool>,
     lfs_check: bool,
@@ -262,6 +268,7 @@ pub(crate) fn finalize_phase3_if_done(
         git_commit_push_enabled,
         push_policy,
         revert_prompt,
+        ci_continue,
         notify_on_complete,
         notify_sound,
         lfs_check,

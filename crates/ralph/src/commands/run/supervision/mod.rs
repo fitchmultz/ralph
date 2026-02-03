@@ -29,7 +29,7 @@ mod notify;
 mod queue_ops;
 
 // Re-export items needed by run/mod.rs and other modules
-pub(crate) use ci::{ci_gate_command_label, run_ci_gate};
+pub(crate) use ci::{ci_gate_command_label, run_ci_gate, run_ci_gate_with_continue_session};
 use git_ops::{finalize_git_state, push_if_ahead, warn_if_modified_lfs};
 use notify::build_notification_config;
 pub(crate) use queue_ops::find_task_status;
@@ -58,6 +58,12 @@ pub(crate) struct ContinueSession {
     /// Number of automatic "fix CI and rerun" retries already sent for the current CI gate loop.
     /// Used to auto-enforce CI compliance without prompting for the first N failures.
     pub ci_failure_retry_count: u8,
+}
+
+/// Context for resuming a runner session during a post-run CI gate failure.
+pub(crate) struct CiContinueContext<'a> {
+    pub continue_session: &'a mut ContinueSession,
+    pub on_resume: &'a mut dyn FnMut(&crate::runner::RunnerOutput) -> Result<()>,
 }
 
 /// Policy for pushing git commits after a run completes.
@@ -119,6 +125,7 @@ pub(crate) fn post_run_supervise(
     git_commit_push_enabled: bool,
     push_policy: PushPolicy,
     revert_prompt: Option<runutil::RevertPromptHandler>,
+    ci_continue: Option<CiContinueContext<'_>>,
     notify_on_complete: Option<bool>,
     notify_sound: Option<bool>,
     lfs_check: bool,
@@ -143,7 +150,64 @@ pub(crate) fn post_run_supervise(
                     err
                 ));
             }
-            if let Err(err) = run_ci_gate(resolved) {
+            let mut ci_continue = ci_continue;
+            if let Some(ci_continue) = ci_continue.as_mut() {
+                let continue_session = &mut *ci_continue.continue_session;
+                let on_resume = &mut *ci_continue.on_resume;
+                if continue_session
+                    .session_id
+                    .as_deref()
+                    .unwrap_or("")
+                    .is_empty()
+                {
+                    log::warn!(
+                        "CI gate continue requested but no session id; falling back to standard CI gate handling."
+                    );
+                    if let Err(err) = run_ci_gate(resolved) {
+                        let outcome = runutil::apply_git_revert_mode(
+                            &resolved.repo_root,
+                            git_revert_mode,
+                            "CI gate failure",
+                            revert_prompt.as_ref(),
+                        )?;
+                        anyhow::bail!(
+                            "{} Error: {:#}",
+                            runutil::format_revert_failure_message(
+                                &format!(
+                                    "CI gate failed: '{}' did not pass after the task completed.",
+                                    ci_gate_command_label(resolved)
+                                ),
+                                outcome,
+                            ),
+                            err
+                        );
+                    }
+                } else if let Err(err) = ci::run_ci_gate_with_continue_session(
+                    resolved,
+                    git_revert_mode,
+                    revert_prompt.as_ref(),
+                    continue_session,
+                    |output| on_resume(output),
+                ) {
+                    let outcome = runutil::apply_git_revert_mode(
+                        &resolved.repo_root,
+                        git_revert_mode,
+                        "CI gate failure",
+                        revert_prompt.as_ref(),
+                    )?;
+                    anyhow::bail!(
+                        "{} Error: {:#}",
+                        runutil::format_revert_failure_message(
+                            &format!(
+                                "CI gate failed: '{}' did not pass after the task completed.",
+                                ci_gate_command_label(resolved)
+                            ),
+                            outcome,
+                        ),
+                        err
+                    );
+                }
+            } else if let Err(err) = run_ci_gate(resolved) {
                 let outcome = runutil::apply_git_revert_mode(
                     &resolved.repo_root,
                     git_revert_mode,
@@ -326,14 +390,17 @@ fn trigger_celebration(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::constants::limits::CI_GATE_AUTO_RETRY_LIMIT;
     use crate::contracts::{
         AgentConfig, Config, NotificationConfig, QueueConfig, QueueFile, Runner, Task,
         TaskPriority, TaskStatus,
     };
     use crate::queue;
     use crate::testsupport::git as git_test;
+    use crate::testsupport::runner::create_fake_runner;
     use std::path::Path;
     use std::path::PathBuf;
+    use std::sync::Arc;
     use tempfile::TempDir;
 
     fn write_queue(repo_root: &Path, status: TaskStatus) -> Result<()> {
@@ -488,6 +555,7 @@ mod tests {
             None,
             None,
             None,
+            None,
             false,
             false,
         )?;
@@ -522,6 +590,7 @@ mod tests {
             None,
             None,
             None,
+            None,
             false,
             false,
         )?;
@@ -545,6 +614,7 @@ mod tests {
             GitRevertMode::Disabled,
             false,
             PushPolicy::RequireUpstream,
+            None,
             None,
             None,
             None,
@@ -606,6 +676,7 @@ mod tests {
             None,
             None,
             None,
+            None,
             false,
             false,
         )
@@ -652,6 +723,7 @@ mod tests {
             None,
             None,
             None,
+            None,
             false,
             false,
         )?;
@@ -690,6 +762,7 @@ mod tests {
             None,
             None,
             None,
+            None,
             false,
             false,
         )?;
@@ -707,6 +780,84 @@ mod tests {
             status.trim().is_empty(),
             "expected clean repo after commit, but found: {}",
             status
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn post_run_supervise_ci_gate_continue_resumes_session() -> Result<()> {
+        let temp = TempDir::new()?;
+        git_test::init_repo(temp.path())?;
+        write_queue(temp.path(), TaskStatus::Todo)?;
+        git_test::commit_all(temp.path(), "init")?;
+
+        std::fs::write(temp.path().join("work.txt"), "change")?;
+
+        let resume_args = temp.path().join("resume-args.txt");
+        let runner_script = format!(
+            r#"#!/bin/sh
+set -e
+echo "$@" > "{resume_args}"
+echo '{{"type":"text","part":{{"text":"resume"}}}}'
+echo '{{"sessionID":"sess-123"}}'
+"#,
+            resume_args = resume_args.display()
+        );
+        let runner_path = create_fake_runner(temp.path(), "opencode", &runner_script)?;
+
+        let ci_pass = temp.path().join("ci-pass.txt");
+        let ci_command = format!("test -f {}", ci_pass.display());
+
+        let mut resolved = resolved_for_repo(temp.path());
+        resolved.config.agent.ci_gate_enabled = Some(true);
+        resolved.config.agent.ci_gate_command = Some(ci_command);
+        resolved.config.agent.opencode_bin = Some(runner_path.to_str().unwrap().to_string());
+
+        let prompt_handler: runutil::RevertPromptHandler =
+            Arc::new(|_context| runutil::RevertDecision::Continue {
+                message: "fix the ci gate".to_string(),
+            });
+
+        let mut continue_session = ContinueSession {
+            runner: Runner::Opencode,
+            model: crate::contracts::Model::Custom("test-model".to_string()),
+            reasoning_effort: None,
+            runner_cli: crate::runner::ResolvedRunnerCliOptions::default(),
+            phase_type: crate::commands::run::PhaseType::Review,
+            session_id: Some("sess-123".to_string()),
+            output_handler: None,
+            output_stream: crate::runner::OutputStream::Terminal,
+            ci_failure_retry_count: CI_GATE_AUTO_RETRY_LIMIT,
+        };
+
+        let mut on_resume = |_output: &crate::runner::RunnerOutput| -> Result<()> {
+            std::fs::write(&ci_pass, "ok")?;
+            Ok(())
+        };
+
+        post_run_supervise(
+            &resolved,
+            "RQ-0001",
+            GitRevertMode::Ask,
+            false,
+            PushPolicy::RequireUpstream,
+            Some(prompt_handler),
+            Some(CiContinueContext {
+                continue_session: &mut continue_session,
+                on_resume: &mut on_resume,
+            }),
+            None,
+            None,
+            false,
+            false,
+        )?;
+
+        let args = std::fs::read_to_string(&resume_args)?;
+        anyhow::ensure!(
+            args.contains("fix the ci gate"),
+            "expected resume args to include continue message, got: {}",
+            args
         );
 
         Ok(())

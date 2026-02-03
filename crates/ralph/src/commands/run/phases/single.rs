@@ -3,7 +3,7 @@
 use super::shared::{execute_runner_pass, run_ci_gate_with_continue};
 use super::{PhaseInvocation, PhaseType, phase_session_id_for_runner};
 use crate::commands::run::{logging, supervision};
-use crate::{promptflow, prompts};
+use crate::{promptflow, prompts, runner};
 use anyhow::Result;
 
 pub fn execute_single_phase(ctx: &PhaseInvocation<'_>) -> Result<()> {
@@ -54,6 +54,18 @@ pub fn execute_single_phase(ctx: &PhaseInvocation<'_>) -> Result<()> {
         )?;
 
         if ctx.is_final_iteration {
+            let mut continue_session = supervision::ContinueSession {
+                runner: ctx.settings.runner,
+                model: ctx.settings.model.clone(),
+                reasoning_effort: ctx.settings.reasoning_effort,
+                runner_cli: ctx.settings.runner_cli,
+                phase_type: super::PhaseType::SinglePhase,
+                session_id: output.session_id.clone(),
+                output_handler: ctx.output_handler.clone(),
+                output_stream: ctx.output_stream,
+                ci_failure_retry_count: 0,
+            };
+            let mut on_resume = |_resume_output: &runner::RunnerOutput| Ok(());
             crate::commands::run::post_run_supervise(
                 ctx.resolved,
                 ctx.task_id,
@@ -61,6 +73,10 @@ pub fn execute_single_phase(ctx: &PhaseInvocation<'_>) -> Result<()> {
                 ctx.git_commit_push_enabled,
                 ctx.push_policy,
                 ctx.revert_prompt.clone(),
+                Some(supervision::CiContinueContext {
+                    continue_session: &mut continue_session,
+                    on_resume: &mut on_resume,
+                }),
                 ctx.notify_on_complete,
                 ctx.notify_sound,
                 ctx.lfs_check,

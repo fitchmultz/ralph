@@ -806,6 +806,7 @@ fn finalize_phase3_if_done_runs_post_run_supervise_without_signal() -> anyhow::R
         None,
         None,
         None,
+        None,
         false,
         false,
     )?;

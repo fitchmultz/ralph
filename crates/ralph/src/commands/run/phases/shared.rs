@@ -3,21 +3,8 @@
 use super::{PhaseInvocation, PhaseType};
 use crate::commands::run::supervision;
 use crate::config;
-use crate::constants::limits::CI_GATE_AUTO_RETRY_LIMIT;
 use crate::{runner, runutil};
-use anyhow::{Result, bail};
-
-fn strict_ci_gate_compliance_message(
-    resolved: &config::Resolved,
-    _attempt: u8,
-    _err: &anyhow::Error,
-) -> String {
-    let cmd = supervision::ci_gate_command_label(resolved);
-    format!(
-        r#"CI gate ({}): error: CI failed: '{}' exited with an error code. Fix the linting, type-checking, or test failures before proceeding. Compliance is mandatory. No hacky fixes allowed e.g. skipping tests, half-assed patches, etc. Implement fixes your mother would be proud of."#,
-        cmd, cmd
-    )
-}
+use anyhow::Result;
 
 pub(super) fn run_ci_gate_with_continue<F>(
     ctx: &PhaseInvocation<'_>,
@@ -27,65 +14,13 @@ pub(super) fn run_ci_gate_with_continue<F>(
 where
     F: FnMut(&runner::RunnerOutput) -> Result<()>,
 {
-    loop {
-        match supervision::run_ci_gate(ctx.resolved) {
-            Ok(()) => break,
-            Err(err) => {
-                // First two failures: bypass user prompting and auto-send a strict compliance message.
-                if continue_session.ci_failure_retry_count < CI_GATE_AUTO_RETRY_LIMIT {
-                    continue_session.ci_failure_retry_count =
-                        continue_session.ci_failure_retry_count.saturating_add(1);
-                    let attempt = continue_session.ci_failure_retry_count;
-
-                    log::warn!(
-                        "CI gate failed; auto-sending strict compliance Continue message to agent (attempt {}/{})",
-                        attempt,
-                        CI_GATE_AUTO_RETRY_LIMIT
-                    );
-
-                    let message = strict_ci_gate_compliance_message(ctx.resolved, attempt, &err);
-                    let output = supervision::resume_continue_session(
-                        ctx.resolved,
-                        &mut continue_session,
-                        &message,
-                    )?;
-                    on_resume(&output)?;
-                    continue;
-                }
-
-                // 3rd+ failure: fall back to the existing revert mode behavior.
-                let outcome = runutil::apply_git_revert_mode(
-                    &ctx.resolved.repo_root,
-                    ctx.git_revert_mode,
-                    "CI failure",
-                    ctx.revert_prompt.as_ref(),
-                )?;
-
-                match outcome {
-                    runutil::RevertOutcome::Continue { message } => {
-                        let output = supervision::resume_continue_session(
-                            ctx.resolved,
-                            &mut continue_session,
-                            &message,
-                        )?;
-                        on_resume(&output)?;
-                        continue;
-                    }
-                    _ => {
-                        bail!(
-                            "{} Error: {:#}",
-                            runutil::format_revert_failure_message(
-                                "CI gate failed after changes. Fix issues reported by CI and rerun.",
-                                outcome,
-                            ),
-                            err
-                        );
-                    }
-                }
-            }
-        }
-    }
-    Ok(())
+    supervision::run_ci_gate_with_continue_session(
+        ctx.resolved,
+        ctx.git_revert_mode,
+        ctx.revert_prompt.as_ref(),
+        &mut continue_session,
+        |output| on_resume(output),
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
