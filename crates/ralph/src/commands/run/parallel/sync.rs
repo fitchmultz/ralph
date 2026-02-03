@@ -162,6 +162,65 @@ fn sync_prompts_dir(source: &Path, target: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Decide whether a gitignored entry should be synced to workspaces.
+///
+/// Policy:
+/// - Ignore empty entries
+/// - Skip entries with trailing '/' (directories)
+/// - Skip entries under never-copy prefixes (target/, node_modules/, .ralph/cache/, etc.)
+/// - Allow only files whose basename is .env or starts with .env.
+fn should_sync_gitignored_entry(raw_git_entry: &str) -> bool {
+    // Never-copy directory prefixes/components
+    const NEVER_COPY_PREFIXES: &[&str] = &[
+        "target/",
+        "node_modules/",
+        ".venv/",
+        ".ralph/cache/",
+        ".ralph/workspaces/",
+        ".ralph/logs/",
+        ".ralph/lock/",
+        "__pycache__/",
+        ".ruff_cache/",
+        ".pytest_cache/",
+        ".ty_cache/",
+        ".git/",
+    ];
+
+    if raw_git_entry.is_empty() {
+        return false;
+    }
+
+    // Strip leading ./ if present
+    let normalized = raw_git_entry.strip_prefix("./").unwrap_or(raw_git_entry);
+
+    // Detect directory hint from git (trailing /)
+    let is_dir_hint = normalized.ends_with('/');
+    if is_dir_hint {
+        return false;
+    }
+
+    let rel_trimmed = normalized;
+
+    // Check never-copy prefixes
+    for prefix in NEVER_COPY_PREFIXES {
+        if rel_trimmed.starts_with(prefix) {
+            return false;
+        }
+        // Also check if any path component matches a never-copy prefix (without trailing /)
+        if rel_trimmed.contains(prefix) {
+            return false;
+        }
+    }
+
+    // Allow only .env files
+    let basename = Path::new(rel_trimmed)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("");
+
+    basename == ".env" || basename.starts_with(".env.")
+}
+
 fn sync_gitignored(repo_root: &Path, workspace_path: &Path) -> Result<()> {
     let ignored = git::ignored_paths(repo_root)
         .with_context(|| format!("list ignored paths in {}", repo_root.display()))?;
@@ -177,10 +236,17 @@ fn sync_gitignored(repo_root: &Path, workspace_path: &Path) -> Result<()> {
     });
 
     for rel in ignored {
+        // Apply allow/deny policy first, before any filesystem operations
+        if !should_sync_gitignored_entry(&rel) {
+            continue;
+        }
+
         let rel_trimmed = rel.trim_end_matches('/');
         if rel_trimmed.is_empty() {
             continue;
         }
+
+        // Skip workspace self-copy (existing behavior preserved)
         if let Some(prefix) = &workspace_rel
             && (rel_trimmed == prefix
                 || rel_trimmed.starts_with(&format!("{}/", prefix))
@@ -194,37 +260,11 @@ fn sync_gitignored(repo_root: &Path, workspace_path: &Path) -> Result<()> {
         if !source.exists() {
             continue;
         }
-        let metadata = fs::symlink_metadata(&source)
-            .with_context(|| format!("stat ignored path {}", source.display()))?;
-        if metadata.is_dir() {
-            sync_path_recursive(&source, &target)?;
-        } else {
-            sync_file_if_exists(&source, &target)?;
-        }
+
+        // Since we skip directories above, this should always be a file
+        sync_file_if_exists(&source, &target)?;
     }
 
-    Ok(())
-}
-
-fn sync_path_recursive(source: &Path, target: &Path) -> Result<()> {
-    fs::create_dir_all(target)
-        .with_context(|| format!("create ignored dir {}", target.display()))?;
-    for entry in
-        fs::read_dir(source).with_context(|| format!("read ignored dir {}", source.display()))?
-    {
-        let entry = entry.with_context(|| format!("read ignored entry in {}", source.display()))?;
-        let path = entry.path();
-        let name = entry.file_name();
-        let dest = target.join(name);
-        let metadata = entry
-            .metadata()
-            .with_context(|| format!("stat ignored entry {}", path.display()))?;
-        if metadata.is_dir() {
-            sync_path_recursive(&path, &dest)?;
-        } else {
-            sync_file_if_exists(&path, &dest)?;
-        }
-    }
     Ok(())
 }
 
@@ -292,34 +332,51 @@ mod tests {
     }
 
     #[test]
-    fn sync_ralph_state_copies_ignored_paths() -> Result<()> {
+    fn sync_ralph_state_copies_allowlisted_env_files_but_skips_ignored_dirs() -> Result<()> {
         let temp = TempDir::new()?;
         let repo_root = temp.path().join("repo");
         let workspace_root = temp.path().join("workspace");
         fs::create_dir_all(&repo_root)?;
         git_test::init_repo(&repo_root)?;
         fs::create_dir_all(&workspace_root)?;
+        // .gitignore ignores: .env files, target/ directory, .ralph/cache/parallel/
         fs::write(
             repo_root.join(".gitignore"),
-            ".env\n.ralph/README.md\nignored_dir/\n",
+            ".env\n.env.local\ntarget/\n.ralph/cache/parallel/\n",
         )?;
+        // Create allowlisted env files
         fs::write(repo_root.join(".env"), "secret")?;
-        fs::create_dir_all(repo_root.join(".ralph"))?;
-        fs::write(repo_root.join(".ralph/README.md"), "ralph readme")?;
-        fs::create_dir_all(repo_root.join("ignored_dir"))?;
-        fs::write(repo_root.join("ignored_dir/file.txt"), "ignored content")?;
+        fs::write(repo_root.join(".env.local"), "local_secret")?;
+        // Create ignored directory that should NOT be synced
+        fs::create_dir_all(repo_root.join("target"))?;
+        fs::write(
+            repo_root.join("target/very_large_file.txt"),
+            "heavy build output",
+        )?;
+        // Create .ralph/cache/parallel/ directory that should NOT be synced
+        fs::create_dir_all(repo_root.join(".ralph/cache/parallel"))?;
+        fs::write(
+            repo_root.join(".ralph/cache/parallel/state.json"),
+            "{\"cached\": true}",
+        )?;
 
         let resolved = build_test_resolved(&repo_root, None, None);
         sync_ralph_state(&resolved, &workspace_root)?;
 
+        // Env files should be synced (allowlisted)
         assert_eq!(fs::read_to_string(workspace_root.join(".env"))?, "secret");
         assert_eq!(
-            fs::read_to_string(workspace_root.join(".ralph/README.md"))?,
-            "ralph readme"
+            fs::read_to_string(workspace_root.join(".env.local"))?,
+            "local_secret"
         );
-        assert_eq!(
-            fs::read_to_string(workspace_root.join("ignored_dir/file.txt"))?,
-            "ignored content"
+        // Ignored directories should NOT be synced
+        assert!(
+            !workspace_root.join("target").exists(),
+            "target/ directory should not be synced"
+        );
+        assert!(
+            !workspace_root.join(".ralph/cache/parallel").exists(),
+            ".ralph/cache/parallel/ directory should not be synced"
         );
         Ok(())
     }
@@ -474,5 +531,95 @@ mod tests {
             "Error should indicate traversal issue: {}",
             err_msg
         );
+    }
+
+    // Unit tests for should_sync_gitignored_entry filter
+    #[test]
+    fn should_sync_gitignored_entry_skips_empty() {
+        assert!(!should_sync_gitignored_entry(""));
+    }
+
+    #[test]
+    fn should_sync_gitignored_entry_skips_directories() {
+        // Trailing / indicates directory from git
+        assert!(!should_sync_gitignored_entry("target/"));
+        assert!(!should_sync_gitignored_entry("ignored_dir/"));
+        assert!(!should_sync_gitignored_entry("node_modules/"));
+    }
+
+    #[test]
+    fn should_sync_gitignored_entry_allows_env_files() {
+        assert!(should_sync_gitignored_entry(".env"));
+        assert!(should_sync_gitignored_entry(".env.local"));
+        assert!(should_sync_gitignored_entry(".env.production"));
+        assert!(should_sync_gitignored_entry(".env.development"));
+    }
+
+    #[test]
+    fn should_sync_gitignored_entry_allows_nested_env_files() {
+        assert!(should_sync_gitignored_entry("nested/.env"));
+        assert!(should_sync_gitignored_entry("nested/.env.production"));
+        assert!(should_sync_gitignored_entry("config/.env.local"));
+    }
+
+    #[test]
+    fn should_sync_gitignored_entry_skips_non_env_files() {
+        assert!(!should_sync_gitignored_entry("not_env.txt"));
+        assert!(!should_sync_gitignored_entry("README.md"));
+        assert!(!should_sync_gitignored_entry("secret.key"));
+    }
+
+    #[test]
+    fn should_sync_gitignored_entry_skips_never_copy_prefixes() {
+        // target/
+        assert!(!should_sync_gitignored_entry("target/debug/app"));
+        assert!(!should_sync_gitignored_entry("target/release/lib.rlib"));
+        // node_modules/
+        assert!(!should_sync_gitignored_entry(
+            "node_modules/lodash/index.js"
+        ));
+        // .venv/
+        assert!(!should_sync_gitignored_entry(".venv/bin/python"));
+        // .ralph/cache/
+        assert!(!should_sync_gitignored_entry(
+            ".ralph/cache/parallel/state.json"
+        ));
+        assert!(!should_sync_gitignored_entry(
+            ".ralph/cache/plans/RQ-0001.md"
+        ));
+        // .ralph/workspaces/
+        assert!(!should_sync_gitignored_entry(
+            ".ralph/workspaces/RQ-0001/.env"
+        ));
+        // .ralph/logs/
+        assert!(!should_sync_gitignored_entry(".ralph/logs/run.log"));
+        // .ralph/lock/
+        assert!(!should_sync_gitignored_entry(".ralph/lock/sync.lock"));
+        // __pycache__/
+        assert!(!should_sync_gitignored_entry(
+            "__pycache__/module.cpython-311.pyc"
+        ));
+        // .ruff_cache/
+        assert!(!should_sync_gitignored_entry(".ruff_cache/0.1.0/content"));
+        // .pytest_cache/
+        assert!(!should_sync_gitignored_entry(
+            ".pytest_cache/v/cache/nodeids"
+        ));
+        // .ty_cache/
+        assert!(!should_sync_gitignored_entry(".ty_cache/some_file"));
+        // .git/
+        assert!(!should_sync_gitignored_entry(".git/config"));
+        assert!(!should_sync_gitignored_entry(".git/objects/abc"));
+    }
+
+    #[test]
+    fn should_sync_gitignored_entry_normalizes_leading_dot_slash() {
+        // ./.env should behave like .env
+        assert!(should_sync_gitignored_entry("./.env"));
+        assert!(should_sync_gitignored_entry("./.env.local"));
+        // ./target/ should still be skipped
+        assert!(!should_sync_gitignored_entry("./target/debug/app"));
+        // ./node_modules/ should still be skipped
+        assert!(!should_sync_gitignored_entry("./node_modules/lodash"));
     }
 }

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "first_task_completed_at": "2026-01-30T12:31:17.161199000Z",
-  "last_updated_at": "2026-02-03T03:51:49.274937000Z",
+  "last_updated_at": "2026-02-03T04:14:25.299844000Z",
   "daily": {
     "2026-01-30": {
       "date": "2026-01-30",
@@ -419,7 +419,7 @@
     },
     "2026-02-03": {
       "date": "2026-02-03",
-      "completed_count": 6,
+      "completed_count": 7,
       "tasks": [
         {
           "id": "RQ-0560",
@@ -450,6 +450,11 @@
           "id": "RQ-0565",
           "title": "Prevent duplicate task selection across concurrent run loops",
           "completed_at": "2026-02-03T03:51:49.274935000Z"
+        },
+        {
+          "id": "RQ-0566",
+          "title": "Avoid copying heavy gitignored directories into each workspace",
+          "completed_at": "2026-02-03T04:14:25.299843000Z"
         }
       ]
     }
@@ -459,7 +464,7 @@
     "longest_streak": 5,
     "last_completed_date": "2026-02-03"
   },
-  "total_completed": 84,
+  "total_completed": 85,
   "milestones": [
     {
       "threshold": 10,

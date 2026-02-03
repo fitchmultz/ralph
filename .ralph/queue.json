@@ -2,40 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0566",
-      "status": "todo",
-      "title": "Avoid copying heavy gitignored directories into each workspace",
-      "priority": "medium",
-      "tags": [
-        "maintenance",
-        "parallel",
-        "performance"
-      ],
-      "scope": [
-        "crates/ralph/src/commands/run/parallel/sync.rs",
-        "crates/ralph/src/git/status.rs"
-      ],
-      "evidence": [
-        "crates/ralph/src/commands/run/parallel/sync.rs:109-170 copies every gitignored path recursively into each workspace (no size or allow/deny filtering).",
-        "crates/ralph/src/git/status.rs:80-104 shows ignored paths are sourced from `git ls-files -i -o --exclude-standard`, which includes large directories like `target/` or `node_modules/` if ignored."
-      ],
-      "plan": [
-        "Add a denylist or size threshold for ignored paths (default-skip `target/`, `node_modules/`, `.cache/`), while still copying critical files like `.env`.",
-        "Add tests to ensure `.env` is synced but heavy ignored directories are skipped by default.",
-        "Verify by running `cargo test -p ralph sync_ralph_state` and confirming the new skip behavior."
-      ],
-      "notes": [],
-      "request": "maintenance scan finding",
-      "created_at": "2026-02-02T22:35:14Z",
-      "updated_at": "2026-02-02T22:35:14Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0567",
       "status": "todo",
       "title": "Add queue-aware guidance to merge conflict prompt",
