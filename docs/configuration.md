@@ -238,6 +238,7 @@ Notes:
 - CLI flag `--parallel` overrides `parallel.workers` for a single run.
 - If `auto_pr` is `false`, PR creation and merge automation are skipped.
 - `auto_pr`, `auto_merge`, and `draft_on_failure` require `agent.git_commit_push_enabled` (or CLI `--git-commit-push-on`) to be enabled, since PRs require pushed commits. When commit/push is disabled, these settings are automatically disabled for the invocation.
+- When PR automation is disabled or PR creation fails, the coordinator records the task as finished without a PR in `.ralph/cache/parallel/state.json` and will not re-run it in parallel mode until the entry is cleared. If the task already completed successfully, mark it done manually since no PR exists for the coordinator to apply.
 - **Breaking change (2026-02):** The `parallel.worktree_root` config key has been renamed to
   `parallel.workspace_root`. Config files using the old key will fail to load. Run
   `ralph migrate` to update existing configs. State files are not migrated and may need

@@ -586,10 +586,11 @@ Notes:
 - After a PR merge, the coordinator applies the completion signal to update queue/done (and stats). If a signal is missing, Ralph defaults the task to `done` and logs a warning.
 - Parallel workers force RepoPrompt mode to `off` (no tooling or planning requirement) to keep edits inside workspace clones.
 - Parallel workers honor `--git-commit-push-on/off` and `agent.git_commit_push_enabled` config. When commit/push is disabled, parallel PR automation (`auto_pr`, `auto_merge`, `draft_on_failure`) is skipped because PRs require pushed commits.
+- When PR automation is disabled or PR creation fails, Ralph records the task as finished without a PR in `.ralph/cache/parallel/state.json` and will not re-run it automatically. To retry, remove the finished-without-PR entry from the state file. If the task already completed successfully, mark it done manually (since no PR exists for the coordinator to apply).
 - You can set a default worker count with `parallel.workers` in `.ralph/config.json`.
 - The default workspace location is `<repo-parent>/.workspaces/<repo-name>/parallel/<TASK_ID>` (configurable via `parallel.workspace_root`).
 - State is persisted to `.ralph/cache/parallel/state.json` for crash recovery and coordination.
-- On startup, Ralph prunes stale in-flight task records and reconciles PR records before checking the state file's base branch. If the base branch is missing or mismatched and there are no in-flight tasks or open PRs, Ralph auto-heals the state file to the current branch. Otherwise it errors with recovery guidance.
+- On startup, Ralph prunes stale in-flight task records and reconciles PR records before checking the state file's base branch. If the base branch is missing or mismatched and there are no in-flight tasks, open PRs, or finished-without-PR blockers, Ralph auto-heals the state file to the current branch. Otherwise it errors with recovery guidance.
 
 Examples:
 

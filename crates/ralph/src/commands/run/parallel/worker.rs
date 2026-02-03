@@ -68,7 +68,7 @@ pub(crate) fn select_next_task_locked(
     )))
 }
 
-/// Collect IDs that should be excluded from task selection (in-flight, inflight in state, open PRs).
+/// Collect IDs that should be excluded from task selection (in-flight, open PRs, finished-without-PR).
 pub(crate) fn collect_excluded_ids(
     state_file: &state::ParallelStateFile,
     in_flight: &HashMap<String, WorkerState>,
@@ -85,6 +85,9 @@ pub(crate) fn collect_excluded_ids(
         if matches!(record.lifecycle, state::ParallelPrLifecycle::Open) && !record.merged {
             excluded.insert(record.task_id.trim().to_string());
         }
+    }
+    for record in &state_file.finished_without_pr {
+        excluded.insert(record.task_id.trim().to_string());
     }
     excluded
 }
@@ -289,6 +292,18 @@ mod tests {
             merged: true,
             lifecycle: state::ParallelPrLifecycle::Merged,
         });
+        // Finished without PR should be excluded
+        state_file
+            .finished_without_pr
+            .push(state::ParallelFinishedWithoutPrRecord {
+                task_id: "RQ-0007".to_string(),
+                workspace_path: "/tmp/workspace/RQ-0007".to_string(),
+                branch: "ralph/RQ-0007".to_string(),
+                success: true,
+                finished_at: "2026-02-02T00:00:00Z".to_string(),
+                reason: state::ParallelNoPrReason::AutoPrDisabled,
+                message: None,
+            });
 
         let mut in_flight = HashMap::new();
         let child = std::process::Command::new("true").spawn()?;
@@ -317,6 +332,10 @@ mod tests {
         assert!(
             excluded.contains("RQ-0004"),
             "in-flight worker should be excluded"
+        );
+        assert!(
+            excluded.contains("RQ-0007"),
+            "finished-without-PR task should be excluded"
         );
         assert!(
             !excluded.contains("RQ-0005"),

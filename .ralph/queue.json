@@ -2,43 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0571",
-      "status": "todo",
-      "title": "Prevent parallel loop from re-running tasks when no PR record exists",
-      "priority": "high",
-      "tags": [
-        "bug",
-        "parallel",
-        "run-loop",
-        "state"
-      ],
-      "scope": [
-        "crates/ralph/src/commands/run/parallel/mod.rs",
-        "crates/ralph/src/commands/run/parallel/worker.rs",
-        "crates/ralph/src/commands/run/parallel/state.rs",
-        "docs/configuration.md",
-        "docs/cli.md"
-      ],
-      "evidence": [
-        "crates/ralph/src/commands/run/parallel/worker.rs:71-88 excludes only in-flight tasks and open PRs; completed tasks without PRs are eligible again.",
-        "crates/ralph/src/commands/run/parallel/mod.rs:352-441 only records PRs when auto_pr/draft_on_failure is enabled; tasks without PRs are removed from tasks_in_flight and then become selectable again.",
-        "docs/configuration.md:236-238 notes auto_pr can be false (PR creation skipped), which currently allows repeated selection of the same task in parallel mode."
-      ],
-      "plan": [
-        "Decide the expected behavior when auto_pr is false or draft_on_failure is false (e.g., treat the task as completed, or block re-selection until user intervention).",
-        "Implement a durable state marker (e.g., completed_without_pr list in parallel state) and exclude those task IDs during selection, or enforce auto_pr for parallel runs.",
-        "Add tests covering auto_pr=false and draft_on_failure=false to ensure tasks are not re-selected indefinitely; update docs to describe the finalized behavior."
-      ],
-      "notes": [],
-      "request": "loop audit finding",
-      "created_at": "2026-02-03T14:36:05Z",
-      "updated_at": "2026-02-03T14:36:05Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0573",
       "status": "todo",
       "title": "Ensure workspace cleanup when parallel worker spawn fails",

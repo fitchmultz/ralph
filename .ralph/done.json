@@ -229,6 +229,58 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0571",
+      "status": "done",
+      "title": "Prevent parallel loop from re-running tasks when no PR record exists",
+      "priority": "high",
+      "tags": [
+        "bug",
+        "parallel",
+        "run-loop",
+        "state",
+        "pr-automation"
+      ],
+      "scope": [
+        ".ralph/cache/parallel/state.json",
+        "crates/ralph/src/commands/run/parallel/mod.rs",
+        "crates/ralph/src/commands/run/parallel/worker.rs",
+        "crates/ralph/src/commands/run/parallel/state.rs",
+        "crates/ralph/src/commands/run/selection.rs",
+        "docs/configuration.md",
+        "docs/cli.md"
+      ],
+      "evidence": [
+        "crates/ralph/src/commands/run/parallel/worker.rs:71-90 excludes in-flight tasks and only PRs with lifecycle==open && merged==false; tasks with no PR record are not excluded and can be selected again.",
+        "crates/ralph/src/commands/run/parallel/mod.rs:326-417 removes finished tasks from tasks_in_flight regardless of whether a PR record was created; PR records are only upserted inside the settings.auto_pr branches and PR creation failures only log warnings.",
+        "crates/ralph/src/commands/run/parallel/mod.rs:95-108 automatically disables auto_pr/auto_merge/draft_on_failure when git commit/push is disabled, making no-PR parallel runs possible even if config defaults enable PR automation.",
+        "docs/cli.md:581-591 states parallel workers do not modify .ralph/queue.json/.ralph/done.json and completion signals are applied only after a PR merge; if PR automation is skipped, the coordinator queue state stays unchanged and the same todo task remains runnable.",
+        "docs/configuration.md:216-240 documents that parallel.auto_pr can be set false (and is auto-disabled when commit/push is disabled), which currently allows repeated selection in parallel mode.",
+        "crates/ralph/src/commands/run/parallel/state.rs:11-14 and 24-37 define .ralph/cache/parallel/state.json with tasks_in_flight and prs only; there is no durable marker for finished tasks that have no PR record."
+      ],
+      "plan": [
+        "Reproduce: run `ralph run loop --parallel 2 --max-tasks 2` with `parallel.auto_pr=false` (or `--git-commit-push-off`) and confirm the same task ID is selected again after completion.",
+        "Decide and document the intended policy for parallel runs when PR automation is disabled or PR creation fails (recommended: treat finished tasks as blocked/pending PR and prevent re-selection until user action).",
+        "Implement the policy: either hard-error when auto_pr is effectively disabled in parallel mode, or persist a durable needs_pr/completed_without_pr marker in .ralph/cache/parallel/state.json and include it in the exclusion set during selection.",
+        "Add tests for auto_pr=false, git-commit-push-off, and PR creation failure; assert tasks are not re-selected indefinitely and the state persists across restarts.",
+        "Update docs/configuration.md and docs/cli.md to describe the new behavior/constraints and any recovery steps for clearing blocked state."
+      ],
+      "notes": [
+        "Today, selection can loop forever when a task finishes but no PR record exists (auto_pr disabled or gh PR creation failure), because queue/done remain unchanged and only open PRs are excluded.",
+        "Parallel already reconciles PR records on startup, but reconciliation does not update queue/done; consider whether merged PRs should remain blocking until the coordinator observes and applies completion updates.",
+        "Add finished-without-PR blockers to prevent parallel re-runs without PRs",
+        "Clarify recovery guidance for no-PR blockers in docs and logs",
+        "make ci"
+      ],
+      "request": "loop audit finding",
+      "created_at": "2026-02-03T14:36:05Z",
+      "updated_at": "2026-02-03T19:22:26.519382000Z",
+      "completed_at": "2026-02-03T19:22:26.519382000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
     }
   ]
 }

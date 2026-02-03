@@ -325,11 +325,13 @@ pub(crate) fn run_loop_parallel(
 
             for (task_id, task_title, workspace, status) in finished {
                 tasks_attempted += 1;
+                let mut no_pr_reason: Option<state::ParallelNoPrReason> = None;
+                let mut no_pr_message: Option<String> = None;
                 if status.success() {
                     tasks_succeeded += 1;
                     // Handle success
-                    if settings.auto_pr
-                        && let Err(e) = (|| -> Result<()> {
+                    if settings.auto_pr {
+                        match (|| -> Result<git::PrInfo> {
                             ensure_branch_pushed(&workspace.path)?;
                             let body = promptflow::read_phase2_final_response_cache(
                                 &workspace.path,
@@ -353,30 +355,33 @@ pub(crate) fn run_loop_parallel(
                                     Some(&workspace.path),
                                 ));
                             state::save_state(&state_path, guard.state_file())?;
-                            created_prs.push(pr.clone());
-                            if settings.auto_merge
-                                && settings.merge_when == ParallelMergeWhen::AsCreated
-                                && let Some(tx) = guard.pr_tx()
-                            {
-                                let _ = tx.send(pr);
+                            Ok(pr)
+                        })() {
+                            Ok(pr) => {
+                                created_prs.push(pr.clone());
+                                if settings.auto_merge
+                                    && settings.merge_when == ParallelMergeWhen::AsCreated
+                                    && let Some(tx) = guard.pr_tx()
+                                {
+                                    let _ = tx.send(pr);
+                                }
                             }
-                            Ok(())
-                        })()
-                    {
-                        log::warn!("Failed to create PR for {}: {}", task_id, e);
+                            Err(e) => {
+                                no_pr_reason = Some(state::ParallelNoPrReason::PrCreateFailed);
+                                no_pr_message = Some(e.to_string());
+                                log::warn!("Failed to create PR for {}: {}", task_id, e);
+                            }
+                        }
+                    } else {
+                        no_pr_reason = Some(state::ParallelNoPrReason::AutoPrDisabled);
                     }
                 } else {
                     tasks_failed += 1;
                     // Handle failure
-                    if settings.auto_pr
-                        && settings.draft_on_failure
-                        && let Err(e) = (|| -> Result<()> {
+                    if settings.auto_pr && settings.draft_on_failure {
+                        match (|| -> Result<Option<git::PrInfo>> {
                             if !commit_failure_changes(&workspace.path, &task_id)? {
-                                log::warn!(
-                                    "Worker {} failed with no changes; skipping draft PR.",
-                                    task_id
-                                );
-                                return Ok(());
+                                return Ok(None);
                             }
                             ensure_branch_pushed(&workspace.path)?;
                             let body =
@@ -398,16 +403,50 @@ pub(crate) fn run_loop_parallel(
                                     Some(&workspace.path),
                                 ));
                             state::save_state(&state_path, guard.state_file())?;
-                            log::info!(
-                                "Draft PR {} created for {}; skipping auto-merge.",
-                                pr.number,
-                                task_id
-                            );
-                            Ok(())
-                        })()
-                    {
-                        log::warn!("Failed to create draft PR for {}: {}", task_id, e);
+                            Ok(Some(pr))
+                        })() {
+                            Ok(Some(pr)) => {
+                                log::info!(
+                                    "Draft PR {} created for {}; skipping auto-merge.",
+                                    pr.number,
+                                    task_id
+                                );
+                            }
+                            Ok(None) => {
+                                no_pr_reason =
+                                    Some(state::ParallelNoPrReason::DraftPrSkippedNoChanges);
+                                no_pr_message = Some(
+                                    "worker failed with no changes; skipping draft PR".to_string(),
+                                );
+                            }
+                            Err(e) => {
+                                no_pr_reason = Some(state::ParallelNoPrReason::PrCreateFailed);
+                                no_pr_message = Some(e.to_string());
+                                log::warn!("Failed to create draft PR for {}: {}", task_id, e);
+                            }
+                        }
+                    } else if !settings.auto_pr {
+                        no_pr_reason = Some(state::ParallelNoPrReason::AutoPrDisabled);
+                    } else {
+                        no_pr_reason = Some(state::ParallelNoPrReason::DraftPrDisabled);
                     }
+                }
+
+                if guard.state_file().has_pr_record(&task_id) {
+                    if guard.state_file_mut().remove_finished_without_pr(&task_id) {
+                        state::save_state(&state_path, guard.state_file())?;
+                    }
+                } else {
+                    let reason = no_pr_reason.unwrap_or(state::ParallelNoPrReason::Unknown);
+                    record_finished_without_pr(
+                        &state_path,
+                        guard.state_file_mut(),
+                        &task_id,
+                        &workspace,
+                        status.success(),
+                        reason,
+                        no_pr_message,
+                    )?;
                 }
 
                 // Move workspace to completed_workspaces for potential merge cleanup
@@ -609,9 +648,10 @@ fn load_or_init_parallel_state(
 
         let in_flight = in_flight_task_ids(&existing);
         let blocking_prs = blocking_pr_task_ids(&existing);
+        let finished_without_pr = finished_without_pr_task_ids(&existing);
 
         if existing.base_branch.is_empty() {
-            if in_flight.is_empty() && blocking_prs.is_empty() {
+            if in_flight.is_empty() && blocking_prs.is_empty() && finished_without_pr.is_empty() {
                 log::warn!(
                     "Parallel state base branch missing; populating from current branch '{}'.",
                     current_branch
@@ -624,11 +664,12 @@ fn load_or_init_parallel_state(
                     state_path,
                     current_branch,
                     &in_flight,
-                    &blocking_prs
+                    &blocking_prs,
+                    &finished_without_pr
                 ));
             }
         } else if existing.base_branch != current_branch {
-            if in_flight.is_empty() && blocking_prs.is_empty() {
+            if in_flight.is_empty() && blocking_prs.is_empty() && finished_without_pr.is_empty() {
                 log::warn!(
                     "Parallel state base branch '{}' does not match current branch '{}'; retargeting state at {}.",
                     existing.base_branch,
@@ -644,7 +685,8 @@ fn load_or_init_parallel_state(
                     &existing.base_branch,
                     current_branch,
                     &in_flight,
-                    &blocking_prs
+                    &blocking_prs,
+                    &finished_without_pr
                 ));
             }
         }
@@ -702,12 +744,21 @@ fn blocking_pr_task_ids(state_file: &state::ParallelStateFile) -> Vec<String> {
         .collect()
 }
 
+fn finished_without_pr_task_ids(state_file: &state::ParallelStateFile) -> Vec<String> {
+    state_file
+        .finished_without_pr
+        .iter()
+        .map(|record| record.task_id.clone())
+        .collect()
+}
+
 fn format_base_branch_mismatch_error(
     state_path: &Path,
     recorded_branch: &str,
     current_branch: &str,
     in_flight: &[String],
     blocking_prs: &[String],
+    finished_without_pr: &[String],
 ) -> String {
     let mut blockers = Vec::new();
     if !in_flight.is_empty() {
@@ -722,6 +773,13 @@ fn format_base_branch_mismatch_error(
             "- {} open PR(s): {}",
             blocking_prs.len(),
             blocking_prs.join(", ")
+        ));
+    }
+    if !finished_without_pr.is_empty() {
+        blockers.push(format!(
+            "- {} finished-without-PR task(s): {}",
+            finished_without_pr.len(),
+            finished_without_pr.join(", ")
         ));
     }
     let blocker_text = if blockers.is_empty() {
@@ -746,6 +804,7 @@ fn format_base_branch_missing_error(
     current_branch: &str,
     in_flight: &[String],
     blocking_prs: &[String],
+    finished_without_pr: &[String],
 ) -> String {
     let mut blockers = Vec::new();
     if !in_flight.is_empty() {
@@ -762,6 +821,13 @@ fn format_base_branch_missing_error(
             blocking_prs.join(", ")
         ));
     }
+    if !finished_without_pr.is_empty() {
+        blockers.push(format!(
+            "- {} finished-without-PR task(s): {}",
+            finished_without_pr.len(),
+            finished_without_pr.join(", ")
+        ));
+    }
     let blocker_text = if blockers.is_empty() {
         "- none".to_string()
     } else {
@@ -775,6 +841,45 @@ fn format_base_branch_missing_error(
         blocker_text,
         state_path.display()
     )
+}
+
+fn record_finished_without_pr(
+    state_path: &Path,
+    state_file: &mut state::ParallelStateFile,
+    task_id: &str,
+    workspace: &git::WorkspaceSpec,
+    success: bool,
+    reason: state::ParallelNoPrReason,
+    message: Option<String>,
+) -> Result<()> {
+    let record = state::ParallelFinishedWithoutPrRecord::new(
+        task_id,
+        workspace,
+        success,
+        timeutil::now_utc_rfc3339_or_fallback(),
+        reason.clone(),
+        message.clone(),
+    );
+    state_file.upsert_finished_without_pr(record);
+    state::save_state(state_path, state_file)?;
+    let reason_label = reason.as_str();
+    if let Some(detail) = message {
+        log::warn!(
+            "Task {} finished without PR (reason: {}, detail: {}). Recorded blocker in {}. Recovery: remove the entry to allow re-run, or mark the task done manually if it already completed.",
+            task_id,
+            reason_label,
+            detail,
+            state_path.display()
+        );
+    } else {
+        log::warn!(
+            "Task {} finished without PR (reason: {}). Recorded blocker in {}. Recovery: remove the entry to allow re-run, or mark the task done manually if it already completed.",
+            task_id,
+            reason_label,
+            state_path.display()
+        );
+    }
+    Ok(())
 }
 
 fn apply_merge_queue_sync(resolved: &config::Resolved, result: &MergeResult) -> Result<()> {
@@ -857,9 +962,14 @@ fn effective_in_flight_count(
 
 /// Initialize the tasks_started counter from resumed state.
 ///
-/// Returns the number of tasks_in_flight records as u32, capping at u32::MAX.
+/// Returns the number of tasks_in_flight plus finished-without-PR records as u32,
+/// capping at u32::MAX.
 fn initial_tasks_started(state_file: &state::ParallelStateFile) -> u32 {
-    u32::try_from(state_file.tasks_in_flight.len()).unwrap_or(u32::MAX)
+    let total = state_file
+        .tasks_in_flight
+        .len()
+        .saturating_add(state_file.finished_without_pr.len());
+    u32::try_from(total).unwrap_or(u32::MAX)
 }
 
 /// Check if more tasks can be started given the max_tasks limit.
@@ -1304,6 +1414,88 @@ mod tests {
     }
 
     #[test]
+    fn base_branch_missing_errors_when_finished_without_pr_present() -> Result<()> {
+        let temp = TempDir::new()?;
+        let repo_root = temp.path();
+        let mut state = state::ParallelStateFile::new(
+            "2026-02-01T00:00:00Z".to_string(),
+            "".to_string(),
+            ParallelMergeMethod::Squash,
+            ParallelMergeWhen::AsCreated,
+        );
+        state
+            .finished_without_pr
+            .push(state::ParallelFinishedWithoutPrRecord {
+                task_id: "RQ-0008".to_string(),
+                workspace_path: repo_root
+                    .join("workspaces")
+                    .join("RQ-0008")
+                    .to_string_lossy()
+                    .to_string(),
+                branch: "ralph/RQ-0008".to_string(),
+                success: true,
+                finished_at: "2026-02-01T03:00:00Z".to_string(),
+                reason: state::ParallelNoPrReason::AutoPrDisabled,
+                message: None,
+            });
+        let state_path = state::state_file_path(repo_root);
+        state::save_state(&state_path, &state)?;
+
+        let started_at = "2026-02-03T00:00:00Z".to_string();
+        let mut settings = test_parallel_settings(repo_root);
+        let err =
+            load_or_init_parallel_state(repo_root, &state_path, "main", &started_at, &mut settings)
+                .unwrap_err();
+
+        let msg = err.to_string();
+        assert!(msg.contains("base branch is missing"));
+        assert!(msg.contains("finished-without-PR"));
+        assert!(msg.contains("state.json"));
+        Ok(())
+    }
+
+    #[test]
+    fn base_branch_mismatch_errors_when_finished_without_pr_present() -> Result<()> {
+        let temp = TempDir::new()?;
+        let repo_root = temp.path();
+        let mut state = state::ParallelStateFile::new(
+            "2026-02-01T00:00:00Z".to_string(),
+            "old".to_string(),
+            ParallelMergeMethod::Squash,
+            ParallelMergeWhen::AsCreated,
+        );
+        state
+            .finished_without_pr
+            .push(state::ParallelFinishedWithoutPrRecord {
+                task_id: "RQ-0009".to_string(),
+                workspace_path: repo_root
+                    .join("workspaces")
+                    .join("RQ-0009")
+                    .to_string_lossy()
+                    .to_string(),
+                branch: "ralph/RQ-0009".to_string(),
+                success: true,
+                finished_at: "2026-02-01T04:00:00Z".to_string(),
+                reason: state::ParallelNoPrReason::AutoPrDisabled,
+                message: None,
+            });
+        let state_path = state::state_file_path(repo_root);
+        state::save_state(&state_path, &state)?;
+
+        let started_at = "2026-02-03T00:00:00Z".to_string();
+        let mut settings = test_parallel_settings(repo_root);
+        let err =
+            load_or_init_parallel_state(repo_root, &state_path, "main", &started_at, &mut settings)
+                .unwrap_err();
+
+        let msg = err.to_string();
+        assert!(msg.contains("Parallel state base branch"));
+        assert!(msg.contains("finished-without-PR"));
+        assert!(msg.contains("state.json"));
+        Ok(())
+    }
+
+    #[test]
     fn resume_in_flight_counts_toward_max_tasks() {
         let mut state_file = state::ParallelStateFile::new(
             "2026-02-01T00:00:00Z".to_string(),
@@ -1324,15 +1516,29 @@ mod tests {
             branch: "ralph/RQ-0002".to_string(),
             pid: Some(12346),
         });
+        state_file
+            .finished_without_pr
+            .push(state::ParallelFinishedWithoutPrRecord {
+                task_id: "RQ-0003".to_string(),
+                workspace_path: "/tmp/ws/RQ-0003".to_string(),
+                branch: "ralph/RQ-0003".to_string(),
+                success: true,
+                finished_at: "2026-02-01T02:00:00Z".to_string(),
+                reason: state::ParallelNoPrReason::AutoPrDisabled,
+                message: None,
+            });
 
-        // Verify initial_tasks_started returns the count
-        assert_eq!(initial_tasks_started(&state_file), 2);
+        // Verify initial_tasks_started returns the count including finished-without-PR
+        assert_eq!(initial_tasks_started(&state_file), 3);
 
         // With max_tasks = 2, should not be able to start more
-        assert!(!can_start_more_tasks(2, 2));
+        assert!(!can_start_more_tasks(3, 2));
 
-        // With max_tasks = 3, should be able to start more
-        assert!(can_start_more_tasks(2, 3));
+        // With max_tasks = 3, should not be able to start more
+        assert!(!can_start_more_tasks(3, 3));
+
+        // With max_tasks = 4, should be able to start more
+        assert!(can_start_more_tasks(3, 4));
 
         // With max_tasks = 0 (unlimited), should be able to start more
         assert!(can_start_more_tasks(2, 0));

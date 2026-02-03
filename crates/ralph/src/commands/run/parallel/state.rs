@@ -2,7 +2,7 @@
 //!
 //! Responsibilities:
 //! - Define the parallel state file format and helpers.
-//! - Persist and reload state for in-flight tasks and PRs.
+//! - Persist and reload state for in-flight tasks, PRs, and finished-without-PR blockers.
 //!
 //! Not handled here:
 //! - Worker orchestration or process management (see `parallel/mod.rs`).
@@ -34,6 +34,8 @@ pub(crate) struct ParallelStateFile {
     pub tasks_in_flight: Vec<ParallelTaskRecord>,
     #[serde(default)]
     pub prs: Vec<ParallelPrRecord>,
+    #[serde(default)]
+    pub finished_without_pr: Vec<ParallelFinishedWithoutPrRecord>,
 }
 
 impl ParallelStateFile {
@@ -50,6 +52,7 @@ impl ParallelStateFile {
             merge_when,
             tasks_in_flight: Vec::new(),
             prs: Vec::new(),
+            finished_without_pr: Vec::new(),
         }
     }
 
@@ -70,6 +73,7 @@ impl ParallelStateFile {
     }
 
     pub fn upsert_pr(&mut self, record: ParallelPrRecord) {
+        self.remove_finished_without_pr(&record.task_id);
         if let Some(existing) = self
             .prs
             .iter_mut()
@@ -86,6 +90,29 @@ impl ParallelStateFile {
             existing.merged = true;
             existing.lifecycle = ParallelPrLifecycle::Merged;
         }
+    }
+
+    pub fn has_pr_record(&self, task_id: &str) -> bool {
+        self.prs.iter().any(|item| item.task_id == task_id)
+    }
+
+    pub fn upsert_finished_without_pr(&mut self, record: ParallelFinishedWithoutPrRecord) {
+        if let Some(existing) = self
+            .finished_without_pr
+            .iter_mut()
+            .find(|item| item.task_id == record.task_id)
+        {
+            *existing = record;
+        } else {
+            self.finished_without_pr.push(record);
+        }
+    }
+
+    pub fn remove_finished_without_pr(&mut self, task_id: &str) -> bool {
+        let before = self.finished_without_pr.len();
+        self.finished_without_pr
+            .retain(|item| item.task_id != task_id);
+        before != self.finished_without_pr.len()
     }
 }
 
@@ -118,6 +145,31 @@ pub(crate) enum ParallelPrLifecycle {
     Open,
     Closed,
     Merged,
+}
+
+/// Reason a parallel task finished without a PR record.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+#[derive(Default)]
+pub(crate) enum ParallelNoPrReason {
+    #[default]
+    Unknown,
+    AutoPrDisabled,
+    PrCreateFailed,
+    DraftPrDisabled,
+    DraftPrSkippedNoChanges,
+}
+
+impl ParallelNoPrReason {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ParallelNoPrReason::Unknown => "unknown",
+            ParallelNoPrReason::AutoPrDisabled => "auto_pr_disabled",
+            ParallelNoPrReason::PrCreateFailed => "pr_create_failed",
+            ParallelNoPrReason::DraftPrDisabled => "draft_pr_disabled",
+            ParallelNoPrReason::DraftPrSkippedNoChanges => "draft_pr_skipped_no_changes",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -175,6 +227,42 @@ impl ParallelPrRecord {
 
     pub fn workspace_path(&self) -> Option<PathBuf> {
         self.workspace_path.as_ref().map(PathBuf::from)
+    }
+}
+
+/// Record for a task that finished without a PR record.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct ParallelFinishedWithoutPrRecord {
+    pub task_id: String,
+    #[serde(alias = "worktree_path")]
+    pub workspace_path: String,
+    pub branch: String,
+    pub success: bool,
+    pub finished_at: String,
+    #[serde(default)]
+    pub reason: ParallelNoPrReason,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+}
+
+impl ParallelFinishedWithoutPrRecord {
+    pub fn new(
+        task_id: &str,
+        workspace: &WorkspaceSpec,
+        success: bool,
+        finished_at: String,
+        reason: ParallelNoPrReason,
+        message: Option<String>,
+    ) -> Self {
+        Self {
+            task_id: task_id.to_string(),
+            workspace_path: workspace.path.to_string_lossy().to_string(),
+            branch: workspace.branch.clone(),
+            success,
+            finished_at,
+            reason,
+            message,
+        }
     }
 }
 
@@ -310,6 +398,15 @@ mod tests {
             ParallelMergeMethod::Squash,
             ParallelMergeWhen::AsCreated,
         );
+        state.upsert_finished_without_pr(ParallelFinishedWithoutPrRecord {
+            task_id: "RQ-0009".to_string(),
+            workspace_path: "/tmp/workspace/RQ-0009".to_string(),
+            branch: "ralph/RQ-0009".to_string(),
+            success: true,
+            finished_at: "2026-02-01T01:00:00Z".to_string(),
+            reason: ParallelNoPrReason::AutoPrDisabled,
+            message: Some("auto_pr disabled".to_string()),
+        });
         state.upsert_pr(ParallelPrRecord {
             task_id: "RQ-0001".to_string(),
             pr_number: 5,
@@ -325,6 +422,7 @@ mod tests {
         let loaded = load_state(&path)?.expect("state");
         assert_eq!(loaded.base_branch, "main");
         assert_eq!(loaded.prs.len(), 1);
+        assert_eq!(loaded.finished_without_pr.len(), 1);
         Ok(())
     }
 
@@ -341,6 +439,7 @@ mod tests {
         let state: ParallelStateFile = serde_json::from_str(raw)?;
         assert_eq!(state.tasks_in_flight.len(), 1);
         assert_eq!(state.tasks_in_flight[0].workspace_path, "/tmp/wt");
+        assert!(state.finished_without_pr.is_empty());
         Ok(())
     }
 
@@ -369,11 +468,13 @@ mod tests {
             "merge_when":"as_created",
             "extra_top":"ignored",
             "tasks_in_flight":[{"task_id":"RQ-0001","workspace_path":"/tmp/wt","branch":"b","pid":1,"extra_task":true}],
-            "prs":[{"task_id":"RQ-0002","pr_number":5,"pr_url":"https://example.com/pr/5","merged":false,"extra_pr":"ignored"}]
+            "prs":[{"task_id":"RQ-0002","pr_number":5,"pr_url":"https://example.com/pr/5","merged":false,"extra_pr":"ignored"}],
+            "finished_without_pr":[{"task_id":"RQ-0003","workspace_path":"/tmp/wt","branch":"b","success":true,"finished_at":"2026-02-01T00:00:00Z","extra_blocker":"ignored"}]
         }"#;
         let state: ParallelStateFile = serde_json::from_str(raw)?;
         assert_eq!(state.tasks_in_flight.len(), 1);
         assert_eq!(state.prs.len(), 1);
+        assert_eq!(state.finished_without_pr.len(), 1);
         Ok(())
     }
 
@@ -388,7 +489,21 @@ mod tests {
         let state: ParallelStateFile = serde_json::from_str(raw)?;
         assert!(state.base_branch.is_empty());
         assert!(state.started_at.is_empty());
+        assert!(state.finished_without_pr.is_empty());
         Ok(())
+    }
+
+    #[test]
+    fn finished_without_pr_reason_defaults_to_unknown() {
+        let raw = r#"{
+            "task_id":"RQ-0010",
+            "workspace_path":"/tmp/ws/RQ-0010",
+            "branch":"ralph/RQ-0010",
+            "success":true,
+            "finished_at":"2026-02-01T02:00:00Z"
+        }"#;
+        let record: ParallelFinishedWithoutPrRecord = serde_json::from_str(raw).unwrap();
+        assert!(matches!(record.reason, ParallelNoPrReason::Unknown));
     }
 
     #[test]
