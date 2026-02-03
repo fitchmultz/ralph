@@ -223,17 +223,24 @@ fn resolve_conflicts(
     git::ensure_workspace_exists(&resolved.repo_root, &workspace_path, &pr.head)
         .with_context(|| format!("ensure workspace exists at {}", workspace_path.display()))?;
 
-    // Fresh-clone-safe checkout/merge flow
-    git_run(&workspace_path, &["fetch", "origin", "--prune"])?;
-    git_run(
-        &workspace_path,
-        &["checkout", "-B", &pr.head, &format!("origin/{}", pr.head)],
-    )?;
-    git_run(&workspace_path, &["merge", &format!("origin/{}", pr.base)])?;
+    // Run the checkout and merge preparation
+    let merge_outcome = prepare_and_merge(&workspace_path, &pr.head, &pr.base)?;
 
+    // Check for actual conflict files
     let conflicts = conflict_files(&workspace_path)?;
+
     if conflicts.is_empty() {
-        return Ok(());
+        // No conflicts detected - verify this matches the merge outcome
+        match merge_outcome {
+            git::error::GitMergeOutcome::Clean => return Ok(()),
+            git::error::GitMergeOutcome::Conflicts { stderr } => {
+                // Merge reported conflicts but no unmerged files found - this is suspicious
+                bail!(
+                    "Merge reported conflicts but no unmerged files detected. stderr: {}",
+                    stderr
+                );
+            }
+        }
     }
 
     let template = prompts::load_merge_conflict_prompt(&workspace_path)?;
@@ -307,6 +314,29 @@ fn conflict_files(repo_root: &Path) -> Result<Vec<String>> {
         .collect())
 }
 
+/// Prepare workspace for merge by fetching, checking out head branch, and merging base.
+/// Returns the merge outcome (clean or conflicts) so callers can decide how to proceed.
+fn prepare_and_merge(
+    workspace_path: &Path,
+    head_branch: &str,
+    base_branch: &str,
+) -> Result<git::error::GitMergeOutcome> {
+    git_run(workspace_path, &["fetch", "origin", "--prune"])?;
+    git_run(
+        workspace_path,
+        &[
+            "checkout",
+            "-B",
+            head_branch,
+            &format!("origin/{}", head_branch),
+        ],
+    )?;
+
+    let merge_target = format!("origin/{}", base_branch);
+    let outcome = git::error::git_merge_allow_conflicts(workspace_path, &merge_target)?;
+    Ok(outcome)
+}
+
 fn git_status(repo_root: &Path) -> Result<String> {
     git_output(repo_root, &["status", "--porcelain"])
 }
@@ -368,7 +398,10 @@ fn sleep_backoff(attempt: u8) {
 
 #[cfg(test)]
 mod tests {
-    use super::task_id_from_branch;
+    use super::*;
+    use crate::testsupport::git as git_test;
+    use std::fs;
+    use tempfile::TempDir;
 
     #[test]
     fn task_id_from_branch_strips_prefix() {
@@ -380,5 +413,146 @@ mod tests {
     fn task_id_from_branch_falls_back_to_head() {
         let task_id = task_id_from_branch("feature/RQ-0002", "ralph/");
         assert_eq!(task_id, "feature/RQ-0002");
+    }
+
+    /// Setup a test scenario with a bare remote and two branches that can be merged.
+    /// Returns (remote_dir, author_dir, workspace_dir) so the remote path stays alive.
+    fn setup_merge_test() -> (TempDir, TempDir, TempDir) {
+        // Create directories: remote (bare), author repo, workspace repo
+        let remote_dir = TempDir::new().unwrap();
+        let author_dir = TempDir::new().unwrap();
+        let workspace_dir = TempDir::new().unwrap();
+
+        // Initialize bare remote
+        git_test::init_bare_repo(remote_dir.path()).unwrap();
+
+        // Setup author repo with remote
+        git_test::init_repo(author_dir.path()).unwrap();
+        git_test::add_remote(author_dir.path(), "origin", remote_dir.path()).unwrap();
+
+        // Create initial commit and push to main
+        fs::write(author_dir.path().join("README.md"), "# Initial").unwrap();
+        git_test::commit_all(author_dir.path(), "Initial commit").unwrap();
+        git_test::git_run(author_dir.path(), &["push", "-u", "origin", "HEAD:main"]).unwrap();
+
+        (remote_dir, author_dir, workspace_dir)
+    }
+
+    /// Clone from the bare remote into the workspace directory.
+    fn clone_from_remote(remote_dir: &Path, workspace_dir: &Path) -> Result<()> {
+        git_test::clone_repo(remote_dir, workspace_dir)
+    }
+
+    #[test]
+    fn merge_runner_clean_merge_succeeds() {
+        let (remote_dir, author_dir, workspace_dir) = setup_merge_test();
+
+        // Create a feature branch from main
+        git_test::git_run(author_dir.path(), &["checkout", "-b", "feature"]).unwrap();
+        fs::write(author_dir.path().join("feature.txt"), "feature content").unwrap();
+        git_test::commit_all(author_dir.path(), "Add feature").unwrap();
+        git_test::push_branch(author_dir.path(), "feature").unwrap();
+
+        // Go back to main and add a non-conflicting commit
+        git_test::git_run(author_dir.path(), &["checkout", "main"]).unwrap();
+        fs::write(author_dir.path().join("main.txt"), "main content").unwrap();
+        git_test::commit_all(author_dir.path(), "Add main content").unwrap();
+        git_test::push_branch(author_dir.path(), "main").unwrap();
+
+        // Clone workspace from the bare remote
+        clone_from_remote(remote_dir.path(), workspace_dir.path()).unwrap();
+        git_test::configure_user(workspace_dir.path()).unwrap();
+
+        // Run prepare_and_merge
+        let outcome = prepare_and_merge(workspace_dir.path(), "feature", "main").unwrap();
+
+        // Should be clean merge
+        assert!(
+            matches!(outcome, git::error::GitMergeOutcome::Clean),
+            "Expected clean merge outcome"
+        );
+
+        // No conflicts should be detected
+        let conflicts = conflict_files(workspace_dir.path()).unwrap();
+        assert!(
+            conflicts.is_empty(),
+            "Expected no conflicts, got: {:?}",
+            conflicts
+        );
+    }
+
+    #[test]
+    fn merge_runner_conflicted_merge_continues() {
+        let (remote_dir, author_dir, workspace_dir) = setup_merge_test();
+
+        // Create a feature branch and modify a file
+        git_test::git_run(author_dir.path(), &["checkout", "-b", "feature"]).unwrap();
+        fs::write(author_dir.path().join("shared.txt"), "feature version").unwrap();
+        git_test::commit_all(author_dir.path(), "Feature change").unwrap();
+        git_test::push_branch(author_dir.path(), "feature").unwrap();
+
+        // Go back to main and modify the same file differently
+        git_test::git_run(author_dir.path(), &["checkout", "main"]).unwrap();
+        fs::write(author_dir.path().join("shared.txt"), "main version").unwrap();
+        git_test::commit_all(author_dir.path(), "Main change").unwrap();
+        git_test::push_branch(author_dir.path(), "main").unwrap();
+
+        // Clone workspace from the bare remote
+        clone_from_remote(remote_dir.path(), workspace_dir.path()).unwrap();
+        git_test::configure_user(workspace_dir.path()).unwrap();
+
+        // Run prepare_and_merge
+        let outcome = prepare_and_merge(workspace_dir.path(), "feature", "main").unwrap();
+
+        // Should report conflicts
+        assert!(
+            matches!(outcome, git::error::GitMergeOutcome::Conflicts { .. }),
+            "Expected conflict outcome"
+        );
+
+        // Conflicts should be detected
+        let conflicts = conflict_files(workspace_dir.path()).unwrap();
+        assert_eq!(
+            conflicts,
+            vec!["shared.txt"],
+            "Expected conflict in shared.txt"
+        );
+    }
+
+    #[test]
+    fn merge_runner_nonexistent_target_fails() {
+        let (remote_dir, author_dir, workspace_dir) = setup_merge_test();
+
+        // Create and push a feature branch
+        git_test::git_run(author_dir.path(), &["checkout", "-b", "feature"]).unwrap();
+        fs::write(author_dir.path().join("feature.txt"), "feature").unwrap();
+        git_test::commit_all(author_dir.path(), "Feature commit").unwrap();
+        git_test::push_branch(author_dir.path(), "feature").unwrap();
+
+        // Clone workspace from the bare remote
+        clone_from_remote(remote_dir.path(), workspace_dir.path()).unwrap();
+        git_test::configure_user(workspace_dir.path()).unwrap();
+
+        // Try to merge a non-existent branch (origin/nonexistent)
+        // This will produce exit code 1 with "not something we can merge" in stderr,
+        // which our helper treats as Conflicts. We then verify that conflict_files
+        // returns empty, which triggers the error path in resolve_conflicts.
+        let outcome = prepare_and_merge(workspace_dir.path(), "feature", "nonexistent").unwrap();
+
+        // The merge returns Conflicts outcome for exit code 1
+        assert!(
+            matches!(outcome, git::error::GitMergeOutcome::Conflicts { .. }),
+            "Expected conflict outcome for non-existent branch"
+        );
+
+        // But there are no actual conflict files
+        let conflicts = conflict_files(workspace_dir.path()).unwrap();
+        assert!(
+            conflicts.is_empty(),
+            "Non-existent branch should not produce conflict files"
+        );
+
+        // The resolve_conflicts function would detect this mismatch and error.
+        // This verifies we don't mask real merge failures.
     }
 }

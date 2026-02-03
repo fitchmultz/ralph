@@ -127,6 +127,54 @@ pub fn git_run(repo_root: &Path, args: &[&str]) -> Result<(), GitError> {
     })
 }
 
+/// Outcome of a git merge operation.
+#[derive(Debug, Clone)]
+pub(crate) enum GitMergeOutcome {
+    /// Merge completed cleanly with no conflicts.
+    Clean,
+    /// Merge has conflicts that need resolution.
+    Conflicts { stderr: String },
+}
+
+/// Run a git merge command and allow exit code 1 (conflicts present) to proceed.
+///
+/// This is specifically for merge operations where conflicts are expected and
+/// will be handled by the caller. Other non-zero exit codes are treated as errors.
+///
+/// # Returns
+/// - `Ok(GitMergeOutcome::Clean)` if merge succeeded (exit 0)
+/// - `Ok(GitMergeOutcome::Conflicts { stderr })` if merge has conflicts (exit 1)
+/// - `Err(GitError)` for any other failure
+pub(crate) fn git_merge_allow_conflicts(
+    repo_root: &Path,
+    merge_target: &str,
+) -> Result<GitMergeOutcome, GitError> {
+    let output = git_base_command(repo_root)
+        .args(["merge", merge_target])
+        .output()
+        .with_context(|| format!("run git merge {} in {}", merge_target, repo_root.display()))?;
+
+    if output.status.success() {
+        return Ok(GitMergeOutcome::Clean);
+    }
+
+    let code = output.status.code();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+    // Exit code 1 typically means conflicts are present
+    if code == Some(1) {
+        return Ok(GitMergeOutcome::Conflicts {
+            stderr: stderr.trim().to_string(),
+        });
+    }
+
+    Err(GitError::CommandFailed {
+        args: format!("merge {}", merge_target),
+        code,
+        stderr: stderr.trim().to_string(),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

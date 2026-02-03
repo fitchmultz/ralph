@@ -2,40 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0560",
-      "status": "todo",
-      "title": "Allow auto-resolve to proceed when git merge reports conflicts",
-      "priority": "high",
-      "tags": [
-        "maintenance",
-        "parallel",
-        "merge"
-      ],
-      "scope": [
-        "crates/ralph/src/commands/run/parallel/merge_runner.rs"
-      ],
-      "evidence": [
-        "crates/ralph/src/commands/run/parallel/merge_runner.rs:226-233 shows resolve_conflicts calling `git merge` via `git_run` before checking conflicts.",
-        "crates/ralph/src/commands/run/parallel/merge_runner.rs:331-339 shows `git_run` bailing on any non-zero exit code, which aborts before AI resolution when `git merge` exits with conflicts.",
-        "crates/ralph/src/commands/run/parallel/merge_runner.rs:179-182 routes `ConflictPolicy::AutoResolve` into resolve_conflicts, so the non-zero merge exit blocks the intended path."
-      ],
-      "plan": [
-        "Add a merge helper that treats `git merge` exit code 1 as ‘conflicts present’ and continues to conflict detection (while still erroring on other non-zero exits).",
-        "Add a test that creates a repo with a known conflict and asserts the auto-resolve path does not fail at the merge step.",
-        "Verify by running `cargo test -p ralph merge_runner` and confirming the new test passes."
-      ],
-      "notes": [],
-      "request": "maintenance scan finding",
-      "created_at": "2026-02-02T22:35:14Z",
-      "updated_at": "2026-02-02T22:35:14Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0561",
       "status": "todo",
       "title": "Validate queue/done JSON after AI conflict resolution before commit",
