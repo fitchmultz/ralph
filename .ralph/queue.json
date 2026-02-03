@@ -2,39 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0568",
-      "status": "todo",
-      "title": "Respect max_tasks when resuming with in-flight parallel state",
-      "priority": "medium",
-      "tags": [
-        "maintenance",
-        "parallel"
-      ],
-      "scope": [
-        "crates/ralph/src/commands/run/parallel/mod.rs",
-        "crates/ralph/src/commands/run/parallel/state.rs"
-      ],
-      "evidence": [
-        "crates/ralph/src/commands/run/parallel/mod.rs:223-224 initializes `tasks_started` to 0 regardless of existing `state_file.tasks_in_flight`.",
-        "crates/ralph/src/commands/run/parallel/mod.rs:241-243 uses `tasks_started < opts.max_tasks` to decide whether to spawn new workers, which can exceed the intended cap after resume."
-      ],
-      "plan": [
-        "Initialize `tasks_started` from the number of existing in-flight tasks in `state_file` so the max-tasks cap accounts for resumed work.",
-        "Add a test that loads a state file with in-flight tasks and asserts no additional tasks are spawned when `max_tasks` would be exceeded.",
-        "Verify by running `cargo test -p ralph parallel` and confirming the max_tasks test passes."
-      ],
-      "notes": [],
-      "request": "maintenance scan finding",
-      "created_at": "2026-02-02T22:35:14Z",
-      "updated_at": "2026-02-02T22:35:14Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0569",
       "status": "todo",
       "title": "Reconcile PR status to avoid permanently excluded tasks",

@@ -217,7 +217,8 @@ pub(crate) fn run_loop_parallel(
 
     let include_draft = opts.agent_overrides.include_draft.unwrap_or(false);
     let worker_overrides = overrides_for_parallel_workers(resolved, &opts.agent_overrides);
-    let mut tasks_started: u32 = 0;
+    // Count resumed in-flight tasks toward max_tasks to prevent over-starting on resume.
+    let mut tasks_started: u32 = initial_tasks_started(&state_file);
     let mut tasks_attempted: usize = 0;
     let mut tasks_succeeded: usize = 0;
     let mut tasks_failed: usize = 0;
@@ -246,9 +247,20 @@ pub(crate) fn run_loop_parallel(
                 log::info!("Stop signal detected; no new tasks will be started.");
             }
 
+            // Periodically prune stale records to free capacity on resumed work.
+            let pruned = prune_stale_tasks_in_flight(guard.state_file_mut());
+            if !pruned.is_empty() {
+                log::warn!(
+                    "Dropping stale in-flight tasks during loop: {}",
+                    pruned.join(", ")
+                );
+                state::save_state(&state_path, guard.state_file())?;
+            }
+
             // Spawn new workers until capacity or max-tasks reached.
-            while guard.in_flight().len() < settings.workers as usize
-                && (opts.max_tasks == 0 || tasks_started < opts.max_tasks)
+            while effective_in_flight_count(guard.state_file(), guard.in_flight().len())
+                < settings.workers as usize
+                && can_start_more_tasks(tasks_started, opts.max_tasks)
                 && !signal::stop_signal_exists(&cache_dir)
             {
                 let excluded = collect_excluded_ids(guard.state_file(), guard.in_flight());
@@ -584,6 +596,31 @@ fn prune_stale_tasks_in_flight(state_file: &mut state::ParallelStateFile) -> Vec
     dropped
 }
 
+/// Compute the effective number of tasks in flight for capacity checks.
+///
+/// Uses the maximum of the persisted state file count and the guard's in-flight
+/// count to avoid double-counting while ensuring resumed work is accounted for.
+fn effective_in_flight_count(
+    state_file: &state::ParallelStateFile,
+    guard_in_flight_len: usize,
+) -> usize {
+    state_file.tasks_in_flight.len().max(guard_in_flight_len)
+}
+
+/// Initialize the tasks_started counter from resumed state.
+///
+/// Returns the number of tasks_in_flight records as u32, capping at u32::MAX.
+fn initial_tasks_started(state_file: &state::ParallelStateFile) -> u32 {
+    u32::try_from(state_file.tasks_in_flight.len()).unwrap_or(u32::MAX)
+}
+
+/// Check if more tasks can be started given the max_tasks limit.
+///
+/// Returns true if max_tasks is 0 (unlimited) or tasks_started < max_tasks.
+fn can_start_more_tasks(tasks_started: u32, max_tasks: u32) -> bool {
+    max_tasks == 0 || tasks_started < max_tasks
+}
+
 fn overrides_for_parallel_workers(
     resolved: &config::Resolved,
     overrides: &AgentOverrides,
@@ -781,5 +818,109 @@ mod tests {
         assert_eq!(state_file.tasks_in_flight.len(), 1);
         assert_eq!(state_file.tasks_in_flight[0].task_id, "RQ-0004");
         Ok(())
+    }
+
+    #[test]
+    fn resume_in_flight_counts_toward_max_tasks() {
+        let mut state_file = state::ParallelStateFile::new(
+            "2026-02-01T00:00:00Z".to_string(),
+            "main".to_string(),
+            ParallelMergeMethod::Squash,
+            ParallelMergeWhen::AsCreated,
+        );
+        // Simulate 2 tasks in flight from resumed state
+        state_file.tasks_in_flight.push(state::ParallelTaskRecord {
+            task_id: "RQ-0001".to_string(),
+            workspace_path: "/tmp/ws/RQ-0001".to_string(),
+            branch: "ralph/RQ-0001".to_string(),
+            pid: Some(12345),
+        });
+        state_file.tasks_in_flight.push(state::ParallelTaskRecord {
+            task_id: "RQ-0002".to_string(),
+            workspace_path: "/tmp/ws/RQ-0002".to_string(),
+            branch: "ralph/RQ-0002".to_string(),
+            pid: Some(12346),
+        });
+
+        // Verify initial_tasks_started returns the count
+        assert_eq!(initial_tasks_started(&state_file), 2);
+
+        // With max_tasks = 2, should not be able to start more
+        assert!(!can_start_more_tasks(2, 2));
+
+        // With max_tasks = 3, should be able to start more
+        assert!(can_start_more_tasks(2, 3));
+
+        // With max_tasks = 0 (unlimited), should be able to start more
+        assert!(can_start_more_tasks(2, 0));
+    }
+
+    #[test]
+    fn resume_in_flight_counts_toward_worker_capacity() {
+        let state_file = state::ParallelStateFile::new(
+            "2026-02-01T00:00:00Z".to_string(),
+            "main".to_string(),
+            ParallelMergeMethod::Squash,
+            ParallelMergeWhen::AsCreated,
+        );
+
+        // Test with tasks_in_flight.len() == 2 and guard_in_flight_len == 0
+        let state_with_tasks = {
+            let mut s = state_file.clone();
+            s.tasks_in_flight.push(state::ParallelTaskRecord {
+                task_id: "RQ-0001".to_string(),
+                workspace_path: "/tmp/ws/RQ-0001".to_string(),
+                branch: "ralph/RQ-0001".to_string(),
+                pid: Some(12345),
+            });
+            s.tasks_in_flight.push(state::ParallelTaskRecord {
+                task_id: "RQ-0002".to_string(),
+                workspace_path: "/tmp/ws/RQ-0002".to_string(),
+                branch: "ralph/RQ-0002".to_string(),
+                pid: Some(12346),
+            });
+            s
+        };
+
+        // effective_in_flight_count should return 2 (from state file)
+        assert_eq!(effective_in_flight_count(&state_with_tasks, 0), 2);
+
+        // With workers_limit == 2, has_capacity should be false
+        let has_capacity = effective_in_flight_count(&state_with_tasks, 0) < 2;
+        assert!(!has_capacity);
+
+        // With workers_limit == 3, has_capacity should be true
+        let has_capacity = effective_in_flight_count(&state_with_tasks, 0) < 3;
+        assert!(has_capacity);
+    }
+
+    #[test]
+    fn capacity_does_not_double_count_guard_and_state() {
+        let mut state_file = state::ParallelStateFile::new(
+            "2026-02-01T00:00:00Z".to_string(),
+            "main".to_string(),
+            ParallelMergeMethod::Squash,
+            ParallelMergeWhen::AsCreated,
+        );
+        state_file.tasks_in_flight.push(state::ParallelTaskRecord {
+            task_id: "RQ-0001".to_string(),
+            workspace_path: "/tmp/ws/RQ-0001".to_string(),
+            branch: "ralph/RQ-0001".to_string(),
+            pid: Some(12345),
+        });
+        state_file.tasks_in_flight.push(state::ParallelTaskRecord {
+            task_id: "RQ-0002".to_string(),
+            workspace_path: "/tmp/ws/RQ-0002".to_string(),
+            branch: "ralph/RQ-0002".to_string(),
+            pid: Some(12346),
+        });
+
+        // With tasks_in_flight.len() == 2 and guard_in_flight_len == 1,
+        // effective_in_flight_count should return 2 (max, not sum)
+        assert_eq!(effective_in_flight_count(&state_file, 1), 2);
+
+        // With tasks_in_flight.len() == 2 and guard_in_flight_len == 3,
+        // effective_in_flight_count should return 3 (max, not sum)
+        assert_eq!(effective_in_flight_count(&state_file, 3), 3);
     }
 }
