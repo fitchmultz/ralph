@@ -91,6 +91,22 @@ pub(crate) fn run_loop_parallel(
     signal::clear_stop_signal_at_loop_start(&cache_dir);
 
     let mut settings = resolve_parallel_settings(resolved, &opts)?;
+
+    // Compute effective git_commit_push_enabled with same precedence as run_one_impl
+    let effective_git_commit_push = opts
+        .agent_overrides
+        .git_commit_push_enabled
+        .or(resolved.config.agent.git_commit_push_enabled)
+        .unwrap_or(true);
+
+    // Disable PR automation if commit/push is disabled (PRs require pushed commits)
+    if !effective_git_commit_push {
+        log::warn!(
+            "Parallel mode: git commit/push is disabled. Disabling PR automation (auto_pr, auto_merge, draft_on_failure) for this invocation."
+        );
+        apply_git_commit_push_policy_to_parallel_settings(&mut settings, false);
+    }
+
     if settings.workers < 2 {
         bail!(
             "Parallel run requires workers >= 2 (got {})",
@@ -693,6 +709,19 @@ fn resolve_parallel_settings(
     })
 }
 
+/// Apply git commit/push policy to parallel settings.
+/// When git_commit_push_enabled is false, disables PR automation since PRs require pushed commits.
+fn apply_git_commit_push_policy_to_parallel_settings(
+    settings: &mut ParallelSettings,
+    git_commit_push_enabled: bool,
+) {
+    if !git_commit_push_enabled {
+        settings.auto_pr = false;
+        settings.auto_merge = false;
+        settings.draft_on_failure = false;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -949,10 +978,11 @@ mod tests {
         // effective_in_flight_count should return 2 (max, not sum)
         assert_eq!(effective_in_flight_count(&state_file, 1), 2);
 
-        // With tasks_in_flight.len() == 2 and guard_in_flight_len == 3,
+        // With tasks_in_flight.len() == 2 and guard_in_flight_len() == 3,
         // effective_in_flight_count should return 3 (max, not sum)
         assert_eq!(effective_in_flight_count(&state_file, 3), 3);
     }
+<<<<<<< HEAD
 
     // ============================================================================
     // Stop signal idle-stop exit tests (RQ-0570)
@@ -1023,5 +1053,55 @@ mod tests {
         let cleared = signal::clear_stop_signal(&cache_dir).unwrap();
         assert!(cleared);
         assert!(!signal::stop_signal_exists(&cache_dir));
+    }
+
+    #[test]
+    fn apply_git_commit_push_policy_leaves_settings_unchanged_when_enabled() {
+        let mut settings = ParallelSettings {
+            workers: 2,
+            merge_when: ParallelMergeWhen::AsCreated,
+            merge_method: ParallelMergeMethod::Squash,
+            auto_pr: true,
+            auto_merge: true,
+            draft_on_failure: true,
+            conflict_policy: ConflictPolicy::AutoResolve,
+            merge_retries: 5,
+            workspace_root: PathBuf::from("/tmp/workspaces"),
+            branch_prefix: "ralph/".to_string(),
+            delete_branch_on_merge: true,
+            merge_runner: MergeRunnerConfig::default(),
+        };
+
+        // When git_commit_push_enabled is true, settings should remain unchanged
+        apply_git_commit_push_policy_to_parallel_settings(&mut settings, true);
+
+        assert!(settings.auto_pr);
+        assert!(settings.auto_merge);
+        assert!(settings.draft_on_failure);
+    }
+
+    #[test]
+    fn apply_git_commit_push_policy_disables_pr_automation_when_disabled() {
+        let mut settings = ParallelSettings {
+            workers: 2,
+            merge_when: ParallelMergeWhen::AsCreated,
+            merge_method: ParallelMergeMethod::Squash,
+            auto_pr: true,
+            auto_merge: true,
+            draft_on_failure: true,
+            conflict_policy: ConflictPolicy::AutoResolve,
+            merge_retries: 5,
+            workspace_root: PathBuf::from("/tmp/workspaces"),
+            branch_prefix: "ralph/".to_string(),
+            delete_branch_on_merge: true,
+            merge_runner: MergeRunnerConfig::default(),
+        };
+
+        // When git_commit_push_enabled is false, PR automation should be disabled
+        apply_git_commit_push_policy_to_parallel_settings(&mut settings, false);
+
+        assert!(!settings.auto_pr);
+        assert!(!settings.auto_merge);
+        assert!(!settings.draft_on_failure);
     }
 }

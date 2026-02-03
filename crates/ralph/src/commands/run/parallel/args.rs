@@ -44,6 +44,14 @@ pub(crate) fn build_override_args(overrides: &AgentOverrides) -> Vec<String> {
         args.push(git_revert_mode_arg(mode).to_string());
     }
 
+    if let Some(value) = overrides.git_commit_push_enabled {
+        args.push(if value {
+            "--git-commit-push-on".to_string()
+        } else {
+            "--git-commit-push-off".to_string()
+        });
+    }
+
     if overrides.include_draft.unwrap_or(false) {
         args.push("--include-draft".to_string());
     }
@@ -272,6 +280,7 @@ mod tests {
             repoprompt_plan_required: Some(true),
             repoprompt_tool_injection: Some(true),
             git_revert_mode: Some(crate::contracts::GitRevertMode::Disabled),
+            git_commit_push_enabled: Some(true),
             include_draft: Some(true),
             update_task_before_run: Some(false),
             notify_on_complete: Some(true),
@@ -295,6 +304,7 @@ mod tests {
             "plan",
             "--git-revert-mode",
             "disabled",
+            "--git-commit-push-on",
             "--include-draft",
             "--no-update-task",
             "--notify",
@@ -306,6 +316,30 @@ mod tests {
         .map(String::from)
         .collect::<Vec<_>>();
         assert_eq!(args, expected);
+    }
+
+    #[test]
+    fn build_override_args_emits_git_commit_push_off() {
+        let overrides = AgentOverrides {
+            git_commit_push_enabled: Some(false),
+            ..Default::default()
+        };
+
+        let args = build_override_args(&overrides);
+        assert!(args.contains(&"--git-commit-push-off".to_string()));
+        assert!(!args.contains(&"--git-commit-push-on".to_string()));
+    }
+
+    #[test]
+    fn build_override_args_no_git_commit_push_flag_when_none() {
+        let overrides = AgentOverrides {
+            git_commit_push_enabled: None,
+            ..Default::default()
+        };
+
+        let args = build_override_args(&overrides);
+        assert!(!args.contains(&"--git-commit-push-on".to_string()));
+        assert!(!args.contains(&"--git-commit-push-off".to_string()));
     }
 
     #[test]

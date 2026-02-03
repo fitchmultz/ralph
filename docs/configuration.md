@@ -66,6 +66,7 @@ Supported fields:
 - `git_revert_mode`: `ask`, `enabled`, or `disabled`.
 - `git_commit_push_enabled`: enable or disable automatic git commit/push after successful runs (default: `true`).
   **Safety warning:** When enabled, Ralph will automatically push changes to the remote repository. This action is irreversible. The TUI will prompt for confirmation when enabling this setting.
+  **Parallel workers:** This setting is inherited by parallel workers. When disabled, parallel PR automation (`auto_pr`, `auto_merge`, `draft_on_failure`) is skipped because PRs require pushed commits.
 - `session_timeout_hours`: session timeout in hours for crash recovery (default: `24`). Sessions older than this threshold are considered stale and require explicit user confirmation to resume. Set to a higher value if you want to allow resuming sessions after longer periods.
 - `ci_gate_command`: command to run for the CI gate (default: `make ci`).
 - `ci_gate_enabled`: enable or disable the CI gate (default: `true`).
@@ -236,6 +237,7 @@ Key fields:
 Notes:
 - CLI flag `--parallel` overrides `parallel.workers` for a single run.
 - If `auto_pr` is `false`, PR creation and merge automation are skipped.
+- `auto_pr`, `auto_merge`, and `draft_on_failure` require `agent.git_commit_push_enabled` (or CLI `--git-commit-push-on`) to be enabled, since PRs require pushed commits. When commit/push is disabled, these settings are automatically disabled for the invocation.
 - **Breaking change (2026-02):** The `parallel.worktree_root` config key has been renamed to
   `parallel.workspace_root`. Config files using the old key will fail to load. Run
   `ralph migrate` to update existing configs. State files are not migrated and may need
