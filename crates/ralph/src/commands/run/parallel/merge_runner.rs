@@ -16,11 +16,11 @@
 use crate::commands::run::PhaseType;
 use crate::config;
 use crate::contracts::{
-    ConflictPolicy, MergeRunnerConfig, ParallelMergeMethod, RunnerCliOptionsPatch,
+    ConflictPolicy, MergeRunnerConfig, ParallelMergeMethod, QueueFile, RunnerCliOptionsPatch,
 };
-use crate::{git, promptflow, prompts, runner};
+use crate::{git, promptflow, prompts, queue, runner};
 use anyhow::{Context, Result, bail};
-use std::path::Path;
+use std::path::{Component, Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, mpsc};
 use std::thread;
@@ -257,6 +257,10 @@ fn resolve_conflicts(
         );
     }
 
+    // Validate queue/done files in workspace before committing
+    validate_queue_done_in_workspace(resolved, &workspace_path)
+        .context("validate queue/done JSON in merge workspace before commit")?;
+
     git_run(&workspace_path, &["add", "-A"])?;
     let status = git_status(&workspace_path)?;
     if status.trim().is_empty() {
@@ -266,6 +270,101 @@ fn resolve_conflicts(
     git_run(&workspace_path, &["commit", "-m", &message])?;
     push_branch(&workspace_path)?;
     Ok(())
+}
+
+/// Validate queue and done files in the workspace clone before committing.
+///
+/// Maps the resolved queue/done paths into the workspace, then validates them
+/// using JSON repair + semantic validation. Missing done file is allowed.
+/// On validation failure, returns an error that prevents commit/push.
+fn validate_queue_done_in_workspace(
+    resolved: &config::Resolved,
+    workspace_repo_root: &Path,
+) -> Result<()> {
+    let workspace_queue_path = map_resolved_path_into_workspace(
+        &resolved.repo_root,
+        workspace_repo_root,
+        &resolved.queue_path,
+        "queue",
+    )?;
+
+    let workspace_done_path = map_resolved_path_into_workspace(
+        &resolved.repo_root,
+        workspace_repo_root,
+        &resolved.done_path,
+        "done",
+    )?;
+
+    // Queue must exist - we can't validate what we can't read
+    if !workspace_queue_path.exists() {
+        bail!(
+            "Queue file not found in workspace: {}",
+            workspace_queue_path.display()
+        );
+    }
+
+    let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
+
+    // Load done file if it exists
+    let done_file: Option<QueueFile> = if workspace_done_path.exists() {
+        Some(
+            queue::load_queue_with_repair(&workspace_done_path).with_context(|| {
+                format!("load done file from {}", workspace_done_path.display())
+            })?,
+        )
+    } else {
+        None
+    };
+
+    // Validate queue (with optional done file)
+    let (_queue, warnings) = queue::load_queue_with_repair_and_validate(
+        &workspace_queue_path,
+        done_file.as_ref(),
+        &resolved.id_prefix,
+        resolved.id_width,
+        max_depth,
+    )
+    .with_context(|| format!("validate queue file at {}", workspace_queue_path.display()))?;
+
+    // Log any non-blocking warnings
+    queue::log_warnings(&warnings);
+
+    Ok(())
+}
+
+/// Map a resolved path from the original repo into the workspace clone.
+///
+/// The resolved path is expected to be under `repo_root`. This strips the
+/// repo_root prefix to get a repo-relative path, validates it doesn't contain
+/// `..` components (path traversal protection), and joins it onto the workspace root.
+fn map_resolved_path_into_workspace(
+    repo_root: &Path,
+    workspace_repo_root: &Path,
+    resolved_path: &Path,
+    label: &str,
+) -> Result<PathBuf> {
+    // Get the repo-relative path
+    let relative = resolved_path.strip_prefix(repo_root).with_context(|| {
+        format!(
+            "{} path {} is not under repo root {}",
+            label,
+            resolved_path.display(),
+            repo_root.display()
+        )
+    })?;
+
+    // Security: reject paths containing ".." components
+    for component in relative.components() {
+        if component == Component::ParentDir {
+            bail!(
+                "{} path contains '..' component: {}",
+                label,
+                relative.display()
+            );
+        }
+    }
+
+    Ok(workspace_repo_root.join(relative))
 }
 
 fn run_merge_runner_prompt(
@@ -554,5 +653,241 @@ mod tests {
 
         // The resolve_conflicts function would detect this mismatch and error.
         // This verifies we don't mask real merge failures.
+    }
+
+    // Tests for workspace queue/done validation (RQ-0561)
+
+    use crate::contracts::{Config, Task, TaskStatus};
+    use std::collections::HashMap;
+
+    fn build_test_task(id: &str, status: TaskStatus) -> Task {
+        Task {
+            id: id.to_string(),
+            status,
+            title: "Test task".to_string(),
+            priority: Default::default(),
+            tags: vec!["test".to_string()],
+            scope: vec!["file.rs".to_string()],
+            evidence: vec!["observed".to_string()],
+            plan: vec!["do thing".to_string()],
+            notes: vec![],
+            request: Some("test request".to_string()),
+            agent: None,
+            created_at: Some("2026-01-18T00:00:00Z".to_string()),
+            updated_at: Some("2026-01-18T00:00:00Z".to_string()),
+            completed_at: if status == TaskStatus::Done {
+                Some("2026-01-18T00:00:00Z".to_string())
+            } else {
+                None
+            },
+            scheduled_start: None,
+            depends_on: vec![],
+            blocks: vec![],
+            relates_to: vec![],
+            duplicates: None,
+            custom_fields: HashMap::new(),
+            parent_id: None,
+        }
+    }
+
+    fn build_test_resolved(
+        original_repo_root: &Path,
+        queue_path: PathBuf,
+        done_path: PathBuf,
+    ) -> config::Resolved {
+        config::Resolved {
+            config: Config::default(),
+            repo_root: original_repo_root.to_path_buf(),
+            queue_path,
+            done_path,
+            id_prefix: "RQ".to_string(),
+            id_width: 4,
+            global_config_path: None,
+            project_config_path: None,
+        }
+    }
+
+    fn save_queue_file(path: &Path, queue: &QueueFile) {
+        let json = serde_json::to_string_pretty(queue).unwrap();
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, json).unwrap();
+    }
+
+    #[test]
+    fn validate_queue_done_missing_done_file_allowed() {
+        let original_repo = TempDir::new().unwrap();
+        let workspace_repo = TempDir::new().unwrap();
+
+        let ralph_dir = original_repo.path().join(".ralph");
+        fs::create_dir_all(&ralph_dir).unwrap();
+
+        let queue_path = ralph_dir.join("queue.json");
+        let done_path = ralph_dir.join("done.json");
+
+        // Create valid queue in workspace
+        let workspace_ralph = workspace_repo.path().join(".ralph");
+        fs::create_dir_all(&workspace_ralph).unwrap();
+        let workspace_queue = workspace_ralph.join("queue.json");
+
+        let valid_queue = QueueFile {
+            version: 1,
+            tasks: vec![build_test_task("RQ-0001", TaskStatus::Todo)],
+        };
+        save_queue_file(&workspace_queue, &valid_queue);
+        // Note: no done.json in workspace
+
+        let resolved = build_test_resolved(original_repo.path(), queue_path, done_path);
+
+        let result = validate_queue_done_in_workspace(&resolved, workspace_repo.path());
+        assert!(
+            result.is_ok(),
+            "Missing done file should be allowed: {:?}",
+            result
+        );
+    }
+
+    #[test]
+    fn validate_queue_done_invalid_json_in_queue_rejected() {
+        let original_repo = TempDir::new().unwrap();
+        let workspace_repo = TempDir::new().unwrap();
+
+        let ralph_dir = original_repo.path().join(".ralph");
+        fs::create_dir_all(&ralph_dir).unwrap();
+
+        let queue_path = ralph_dir.join("queue.json");
+        let done_path = ralph_dir.join("done.json");
+
+        // Create invalid JSON in workspace queue
+        let workspace_ralph = workspace_repo.path().join(".ralph");
+        fs::create_dir_all(&workspace_ralph).unwrap();
+        let workspace_queue = workspace_ralph.join("queue.json");
+        fs::write(&workspace_queue, "not valid json").unwrap();
+
+        let resolved = build_test_resolved(original_repo.path(), queue_path, done_path);
+
+        let result = validate_queue_done_in_workspace(&resolved, workspace_repo.path());
+        assert!(result.is_err(), "Invalid JSON in queue should be rejected");
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("validate queue file") || err_msg.contains("parse"),
+            "Error should indicate validation failure: {}",
+            err_msg
+        );
+    }
+
+    #[test]
+    fn validate_queue_done_invalid_json_in_done_rejected() {
+        let original_repo = TempDir::new().unwrap();
+        let workspace_repo = TempDir::new().unwrap();
+
+        let ralph_dir = original_repo.path().join(".ralph");
+        fs::create_dir_all(&ralph_dir).unwrap();
+
+        let queue_path = ralph_dir.join("queue.json");
+        let done_path = ralph_dir.join("done.json");
+
+        let workspace_ralph = workspace_repo.path().join(".ralph");
+        fs::create_dir_all(&workspace_ralph).unwrap();
+
+        // Valid queue
+        let workspace_queue = workspace_ralph.join("queue.json");
+        let valid_queue = QueueFile {
+            version: 1,
+            tasks: vec![build_test_task("RQ-0001", TaskStatus::Todo)],
+        };
+        save_queue_file(&workspace_queue, &valid_queue);
+
+        // Invalid done file
+        let workspace_done = workspace_ralph.join("done.json");
+        fs::write(&workspace_done, "not valid json").unwrap();
+
+        let resolved = build_test_resolved(original_repo.path(), queue_path, done_path);
+
+        let result = validate_queue_done_in_workspace(&resolved, workspace_repo.path());
+        assert!(result.is_err(), "Invalid JSON in done should be rejected");
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("load done file") || err_msg.contains("parse"),
+            "Error should indicate done file failure: {}",
+            err_msg
+        );
+    }
+
+    #[test]
+    fn validate_queue_done_duplicate_ids_rejected() {
+        let original_repo = TempDir::new().unwrap();
+        let workspace_repo = TempDir::new().unwrap();
+
+        let ralph_dir = original_repo.path().join(".ralph");
+        fs::create_dir_all(&ralph_dir).unwrap();
+
+        let queue_path = ralph_dir.join("queue.json");
+        let done_path = ralph_dir.join("done.json");
+
+        let workspace_ralph = workspace_repo.path().join(".ralph");
+        fs::create_dir_all(&workspace_ralph).unwrap();
+
+        // Queue with RQ-0001
+        let workspace_queue = workspace_ralph.join("queue.json");
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![build_test_task("RQ-0001", TaskStatus::Todo)],
+        };
+        save_queue_file(&workspace_queue, &queue);
+
+        // Done file also with RQ-0001 (duplicate!)
+        let workspace_done = workspace_ralph.join("done.json");
+        let done = QueueFile {
+            version: 1,
+            tasks: vec![build_test_task("RQ-0001", TaskStatus::Done)],
+        };
+        save_queue_file(&workspace_done, &done);
+
+        let resolved = build_test_resolved(original_repo.path(), queue_path, done_path);
+
+        let result = validate_queue_done_in_workspace(&resolved, workspace_repo.path());
+        assert!(result.is_err(), "Duplicate IDs should be rejected");
+        let err = result.unwrap_err();
+        // Check the full error chain since the message is in a context layer
+        let err_chain: Vec<String> = err.chain().map(|e| e.to_string()).collect();
+        let full_error = err_chain.join(" | ");
+        assert!(
+            full_error.contains("Duplicate task ID detected across queue and done"),
+            "Error chain should mention duplicate ID: {}",
+            full_error
+        );
+    }
+
+    #[test]
+    fn map_resolved_path_into_workspace_rejects_traversal() {
+        let repo_root = PathBuf::from("/repo");
+        let workspace_root = PathBuf::from("/workspace");
+
+        // Path containing .. should be rejected
+        let bad_path = PathBuf::from("/repo/../etc/passwd");
+        let result =
+            map_resolved_path_into_workspace(&repo_root, &workspace_root, &bad_path, "test");
+        assert!(result.is_err(), "Path with .. should be rejected");
+
+        // Path outside repo root should be rejected
+        let outside_path = PathBuf::from("/other/file.json");
+        let result =
+            map_resolved_path_into_workspace(&repo_root, &workspace_root, &outside_path, "test");
+        assert!(result.is_err(), "Path outside repo root should be rejected");
+    }
+
+    #[test]
+    fn map_resolved_path_into_workspace_accepts_valid_path() {
+        let repo_root = PathBuf::from("/repo");
+        let workspace_root = PathBuf::from("/workspace");
+        let resolved_path = PathBuf::from("/repo/.ralph/queue.json");
+
+        let result =
+            map_resolved_path_into_workspace(&repo_root, &workspace_root, &resolved_path, "queue");
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            PathBuf::from("/workspace/.ralph/queue.json")
+        );
     }
 }

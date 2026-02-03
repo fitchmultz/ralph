@@ -2,40 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0561",
-      "status": "todo",
-      "title": "Validate queue/done JSON after AI conflict resolution before commit",
-      "priority": "high",
-      "tags": [
-        "maintenance",
-        "parallel",
-        "queue"
-      ],
-      "scope": [
-        "crates/ralph/src/commands/run/parallel/merge_runner.rs",
-        "crates/ralph/src/queue.rs"
-      ],
-      "evidence": [
-        "crates/ralph/src/commands/run/parallel/merge_runner.rs:239-260 runs the merge-conflict prompt and then stages/commits without validating `.ralph/queue.json` or `.ralph/done.json`.",
-        "crates/ralph/src/queue.rs:106-131 provides `load_queue_with_repair_and_validate`, but it is not invoked in the merge conflict flow."
-      ],
-      "plan": [
-        "After AI conflict resolution (and before `git add -A`), validate `.ralph/queue.json` and `.ralph/done.json` when present using `queue::load_queue_with_repair_and_validate` (or `validate_queue_set`).",
-        "Return a clear error if validation fails so bad queue merges never get committed; add tests covering invalid JSON and invalid task semantics.",
-        "Verify by running `cargo test -p ralph merge_runner` and confirming validation failures are caught."
-      ],
-      "notes": [],
-      "request": "maintenance scan finding",
-      "created_at": "2026-02-02T22:35:14Z",
-      "updated_at": "2026-02-02T22:35:14Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0562",
       "status": "todo",
       "title": "Sync parallel workspaces using configured queue/done paths",
