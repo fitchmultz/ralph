@@ -147,7 +147,6 @@ fn build_worker_command(
     args.push(task_id.to_string());
     args.push("--parallel-worker".to_string());
     args.push("--non-interactive".to_string());
-    args.push("--git-commit-push-on".to_string());
 
     args.extend(build_override_args(overrides));
 
@@ -197,10 +196,48 @@ mod tests {
         assert!(args.contains(&"one".to_string()));
         assert!(args.contains(&"--parallel-worker".to_string()));
         assert!(args.contains(&"--non-interactive".to_string()));
-        assert!(args.contains(&"--git-commit-push-on".to_string()));
+        // Default overrides should not emit git-commit-push flags
+        assert!(!args.contains(&"--git-commit-push-on".to_string()));
+        assert!(!args.contains(&"--git-commit-push-off".to_string()));
 
         let id_pos = args.iter().position(|arg| arg == "--id").expect("--id");
         assert_eq!(args.get(id_pos + 1), Some(&"RQ-1234".to_string()));
+
+        Ok(())
+    }
+
+    #[test]
+    fn build_worker_command_emits_git_commit_push_on_when_overridden() -> Result<()> {
+        let temp = TempDir::new()?;
+        let workspace_path = temp.path().join("workspace");
+        std::fs::create_dir_all(&workspace_path)?;
+
+        let overrides = AgentOverrides {
+            git_commit_push_enabled: Some(true),
+            ..Default::default()
+        };
+        let (_cmd, args) = build_worker_command(&workspace_path, "RQ-1234", &overrides, false)?;
+
+        assert!(args.contains(&"--git-commit-push-on".to_string()));
+        assert!(!args.contains(&"--git-commit-push-off".to_string()));
+
+        Ok(())
+    }
+
+    #[test]
+    fn build_worker_command_emits_git_commit_push_off_when_overridden() -> Result<()> {
+        let temp = TempDir::new()?;
+        let workspace_path = temp.path().join("workspace");
+        std::fs::create_dir_all(&workspace_path)?;
+
+        let overrides = AgentOverrides {
+            git_commit_push_enabled: Some(false),
+            ..Default::default()
+        };
+        let (_cmd, args) = build_worker_command(&workspace_path, "RQ-1234", &overrides, false)?;
+
+        assert!(args.contains(&"--git-commit-push-off".to_string()));
+        assert!(!args.contains(&"--git-commit-push-on".to_string()));
 
         Ok(())
     }
