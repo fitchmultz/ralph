@@ -13,6 +13,7 @@ target/
 .ralph/cache/phase2_final
 .ralph/cache/queue.json.backup*
 .ralph/cache/parallel/state.json
+.ralph/cache/productivity.json
 .ralph/cache/session.json
 .learnings
 debug/
