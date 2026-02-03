@@ -2,6 +2,52 @@
   "version": 1,
   "tasks": [
     {
+      "id": "RQ-0576",
+      "status": "todo",
+      "title": "Make parallel loop avoid queue.json merge conflicts without losing task state",
+      "priority": "critical",
+      "tags": [
+        "bug",
+        "parallel",
+        "queue",
+        "merge-conflict",
+        "reliability"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/parallel/",
+        "crates/ralph/src/commands/run/loop/",
+        "crates/ralph/src/queue/",
+        ".ralph/queue.json",
+        ".ralph/done.json",
+        "docs/cli.md",
+        "make ci",
+        "ralph queue validate",
+        "ralph run loop --parallel 2"
+      ],
+      "evidence": [
+        "User request: \"When using 'ralph run loop --parallel 2' there are ALWAYS merge conflicts due to the queue.json changes.\"",
+        "User request: \"We need to make sure we don't wipe out the queue and we properly mark tasks complete and move the tasks to the done.json file too.\"",
+        "Repo fact: `.ralph/queue.json` is the source of truth for active work and `.ralph/done.json` is the archive of completed tasks."
+      ],
+      "plan": [
+        "Reproduce the issue by running `ralph run loop --parallel 2` on a small queue and observe how/when `.ralph/queue.json` is modified across workspaces/branches.",
+        "Trace the parallel run code paths that mutate queue state and identify the exact cause of persistent git merge conflicts (write location, timing, ordering, and concurrent edits).",
+        "Design a conflict-free workflow that preserves the single-worker semantics: ensure only one place is responsible for mutating `.ralph/queue.json`/`.ralph/done.json` and that workers cannot overwrite or drop tasks.",
+        "Implement the chosen approach (e.g., coordinator applies queued, per-task completion deltas to the canonical queue with atomic updates and deterministic ordering).",
+        "Add unit + integration tests that cover: successful completion, failures/retries, partial progress, concurrent worker finishes, and that `queue.json` is never wiped and completed tasks reliably move to `done.json`.",
+        "Update CLI help/docs as needed to document parallel queue semantics and any behavior changes; ensure parity with non-parallel `ralph run loop`.",
+        "Run `make ci` and `ralph queue validate` to confirm correctness and prevent regressions."
+      ],
+      "notes": [],
+      "request": "When using 'ralph run loop --parallel 2' there are ALWAYS merge conflicts due to the queue.json changes. We need to figure out a way to handle this to avoid merge conflicts. We need to make sure we don't wipe out the queue and we properly mark tasks complete and move the tasks to the done.json file too. We need to be able to reliably merge and mimic the currently reliable workflow of 'ralph run loop' when it runs without parallel workers.",
+      "created_at": "2026-02-03T15:53:33Z",
+      "updated_at": "2026-02-03T15:53:33Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
       "id": "RQ-0575",
       "status": "todo",
       "title": "Fix parallel state.json to auto-correct and auto-populate git branch",
