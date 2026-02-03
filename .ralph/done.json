@@ -326,6 +326,54 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0577",
+      "status": "done",
+      "title": "Stop defaulting missing parallel completion signals to Done",
+      "priority": "high",
+      "tags": [
+        "maintenance",
+        "parallel",
+        "reliability"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/parallel/merge_runner.rs",
+        "crates/ralph/src/completions.rs",
+        "crates/ralph/src/commands/run/phases/phase3.rs",
+        "cargo test -p ralph"
+      ],
+      "evidence": [
+        "Path: crates/ralph/src/commands/run/parallel/merge_runner.rs:448-458 (ensure_completion_signal_in_workspace writes a completion signal with status TaskStatus::Done when missing)",
+        "Path: crates/ralph/src/commands/run/parallel/merge_runner.rs:383-385 (apply_completion_and_collect_bytes calls ensure_completion_signal_in_workspace then apply_phase3_completion_signal, which can finalize the task)",
+        "Path: crates/ralph/src/commands/run/phases/phase3.rs:298-347 (apply_phase3_completion_signal completes the task from the completion signal, then removes the signal)",
+        "Path: crates/ralph/src/completions.rs:85-93 (completion signals only allow terminal statuses done/rejected; there is no \"unknown\" status)",
+        "Test: crates/ralph/src/commands/run/parallel/merge_runner.rs:970-1037 covers the happy-path (signal present); missing-signal behavior is currently untested",
+        "Repro: remove .ralph/cache/completions/<TASK_ID>.json on the base branch, then run parallel merge; merge runner synthesizes a Done completion signal and finalizes the task"
+      ],
+      "plan": [
+        "Change ensure_completion_signal_in_workspace to return an error when the completion signal is missing (do not synthesize TaskStatus::Done).",
+        "Update merge runner flow to surface the error and avoid mutating queue/done when the completion signal is missing.",
+        "Add a unit test in merge_runner.rs covering missing completion signal: expect an error and verify no queue/done mutations are applied.",
+        "Verify by running `cargo test -p ralph`."
+      ],
+      "notes": [
+        "Current merge runner behavior can incorrectly mark tasks Done during parallel merges when no completion signal exists; erroring is safer than guessing.",
+        "Completion signals only support done/rejected; representing an \"unknown\" status would be a larger contract change, so missing signals should be treated as a hard error here.",
+        "Stop treating missing parallel completion signals as Done; now errors if absent in base-sync.",
+        "Updated merge-runner tests and CLI/docs to reflect missing-signal error path.",
+        "CI: make ci"
+      ],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-03T20:11:25Z",
+      "updated_at": "2026-02-03T21:00:59.966688000Z",
+      "completed_at": "2026-02-03T21:00:59.966688000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
     }
   ]
 }

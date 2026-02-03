@@ -19,7 +19,6 @@ use crate::commands::run::parallel::path_map::map_resolved_path_into_workspace;
 use crate::config;
 use crate::contracts::{
     ConflictPolicy, MergeRunnerConfig, ParallelMergeMethod, QueueFile, RunnerCliOptionsPatch,
-    TaskStatus,
 };
 use crate::{completions, git, outpututil, productivity, promptflow, prompts, queue, runner};
 use anyhow::{Context, Result, bail};
@@ -343,6 +342,7 @@ fn validate_queue_done_in_workspace(
     Ok(())
 }
 
+#[derive(Debug)]
 struct QueueSyncBytes {
     queue_bytes: Vec<u8>,
     done_bytes: Option<Vec<u8>>,
@@ -380,8 +380,15 @@ fn apply_completion_and_collect_bytes(
         workspace_resolved.project_config_path = Some(base_sync_path.join(".ralph/config.json"));
     }
 
-    ensure_completion_signal_in_workspace(&workspace_resolved, task_id)?;
-    let _ = crate::commands::run::apply_phase3_completion_signal(&workspace_resolved, task_id)?;
+    ensure_completion_signal_in_workspace(&base_sync_path, task_id)?;
+    let applied =
+        crate::commands::run::apply_phase3_completion_signal(&workspace_resolved, task_id)?;
+    if applied.is_none() {
+        bail!(
+            "apply_phase3_completion_signal returned None for {} despite ensure succeeding; this is an unexpected state.",
+            task_id
+        );
+    }
 
     let task_title =
         task_title_from_queue_done_paths(&workspace_queue_path, &workspace_done_path, task_id)?
@@ -445,17 +452,24 @@ fn apply_completion_and_collect_bytes(
     })
 }
 
-fn ensure_completion_signal_in_workspace(resolved: &config::Resolved, task_id: &str) -> Result<()> {
-    if completions::read_completion_signal(&resolved.repo_root, task_id)?.is_some() {
+/// Ensures a completion signal exists in the workspace, erroring when missing.
+///
+/// Behavior:
+/// 1. If signal exists in workspace_repo_root, return Ok(())
+/// 2. Else return an error with actionable remediation steps
+fn ensure_completion_signal_in_workspace(workspace_repo_root: &Path, task_id: &str) -> Result<()> {
+    if completions::read_completion_signal(workspace_repo_root, task_id)?.is_some() {
         return Ok(());
     }
-    let signal = completions::CompletionSignal {
-        task_id: task_id.to_string(),
-        status: TaskStatus::Done,
-        notes: vec!["Missing completion signal on merge; defaulted to done.".to_string()],
-    };
-    completions::write_completion_signal(&resolved.repo_root, &signal)?;
-    Ok(())
+
+    let workspace_signal_path = completions::completion_signal_path(workspace_repo_root, task_id)?;
+    bail!(
+        "Completion signal for {} is missing at {}.\n\nRemediation options:\n  1. Re-run Phase 3 for the task to generate a completion signal (e.g., ralph run one --phases 3 --id {})\n  2. Manually finalize the task: ralph task done {} (or rejected)",
+        task_id,
+        workspace_signal_path.display(),
+        task_id,
+        task_id
+    )
 }
 
 fn task_title_from_queue_done_paths(
@@ -989,15 +1003,14 @@ mod tests {
         };
         save_queue_file(&queue_path, &queue);
         save_queue_file(&done_path, &done);
-        git_test::commit_all(author_dir.path(), "add queue files")?;
-        git_test::push_branch(author_dir.path(), "main")?;
 
-        // Add completion signal to main and push
+        // Create and commit a completion signal in the author repo so it lands on main.
         let signal = completions::CompletionSignal {
             task_id: "RQ-0001".to_string(),
             status: TaskStatus::Done,
             notes: vec!["Completed".to_string()],
         };
+        git_test::commit_all(author_dir.path(), "add queue files")?;
         let signal_path = completions::write_completion_signal(author_dir.path(), &signal)?;
         git_test::git_run(
             author_dir.path(),
@@ -1031,6 +1044,93 @@ mod tests {
         assert!(
             !signal_path.exists(),
             "completion signal should be removed after apply"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn apply_completion_and_collect_bytes_fails_when_signal_missing() -> Result<()> {
+        let (_remote_dir, author_dir, workspace_dir) = setup_merge_test();
+
+        // Ensure we are on main branch locally
+        git_test::git_run(author_dir.path(), &["checkout", "-B", "main"])?;
+
+        // Create queue/done files in the author repo
+        let ralph_dir = author_dir.path().join(".ralph");
+        fs::create_dir_all(&ralph_dir)?;
+        let queue_path = ralph_dir.join("queue.json");
+        let done_path = ralph_dir.join("done.json");
+
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![build_test_task("RQ-0001", TaskStatus::Todo)],
+        };
+        let done = QueueFile {
+            version: 1,
+            tasks: vec![],
+        };
+        save_queue_file(&queue_path, &queue);
+        save_queue_file(&done_path, &done);
+        git_test::commit_all(author_dir.path(), "add queue files")?;
+        git_test::push_branch(author_dir.path(), "main")?;
+
+        // NOTE: Intentionally NOT creating any completion signal
+        // This tests the failure mode when signal is missing from both original and workspace
+
+        let resolved =
+            build_test_resolved(author_dir.path(), queue_path.clone(), done_path.clone());
+
+        let result =
+            apply_completion_and_collect_bytes(&resolved, workspace_dir.path(), "main", "RQ-0001");
+
+        // Should return an error mentioning the missing completion signal
+        assert!(
+            result.is_err(),
+            "should fail when completion signal is missing"
+        );
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("Completion signal"),
+            "error should mention 'Completion signal': {}",
+            err_msg
+        );
+        assert!(
+            err_msg.contains("RQ-0001"),
+            "error should mention task ID: {}",
+            err_msg
+        );
+
+        // Verify no mutations occurred in .base-sync
+        let base_sync_path = workspace_dir.path().join(".base-sync");
+
+        // Queue should still contain the task (not removed)
+        let workspace_queue_path = base_sync_path.join(".ralph").join("queue.json");
+        if workspace_queue_path.exists() {
+            let workspace_queue: QueueFile =
+                serde_json::from_slice(&fs::read(&workspace_queue_path)?)?;
+            assert!(
+                workspace_queue.tasks.iter().any(|t| t.id == "RQ-0001"),
+                "queue in .base-sync should still contain the task (no mutation)"
+            );
+        }
+
+        // Done should not contain the task
+        let workspace_done_path = base_sync_path.join(".ralph").join("done.json");
+        if workspace_done_path.exists() {
+            let workspace_done: QueueFile =
+                serde_json::from_slice(&fs::read(&workspace_done_path)?)?;
+            assert!(
+                !workspace_done.tasks.iter().any(|t| t.id == "RQ-0001"),
+                "done in .base-sync should not contain the task"
+            );
+        }
+
+        // No signal should be synthesized in .base-sync
+        let signal_path = completions::completion_signal_path(&base_sync_path, "RQ-0001")?;
+        assert!(
+            !signal_path.exists(),
+            "completion signal should NOT be synthesized in .base-sync when missing"
         );
 
         Ok(())

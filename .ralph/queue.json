@@ -2,42 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0577",
-      "status": "todo",
-      "title": "Stop defaulting missing parallel completion signals to Done",
-      "priority": "high",
-      "tags": [
-        "maintenance",
-        "parallel",
-        "reliability"
-      ],
-      "scope": [
-        "crates/ralph/src/commands/run/parallel/merge_runner.rs",
-        "crates/ralph/src/commands/run/phases",
-        "cargo test -p ralph"
-      ],
-      "evidence": [
-        "Path: crates/ralph/src/commands/run/parallel/merge_runner.rs:383-385,448-456 (ensure_completion_signal_in_workspace writes TaskStatus::Done when missing)",
-        "Repro: delete .ralph/cache/completions/<TASK_ID>.json in a merge workspace then run parallel merge; completion defaults to done even if worker failed"
-      ],
-      "plan": [
-        "Change ensure_completion_signal_in_workspace to return an error (or create a non-Done status) when the completion signal is missing.",
-        "Update merge runner call sites to surface the error and keep the PR/task blocked until a real completion signal exists.",
-        "Add tests covering missing completion signals in parallel merge flow.",
-        "Verify by running `cargo test -p ralph` and confirming the new tests pass."
-      ],
-      "notes": [],
-      "request": "maintenance scan finding",
-      "created_at": "2026-02-03T20:11:25Z",
-      "updated_at": "2026-02-03T20:11:25Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0578",
       "status": "todo",
       "title": "Validate queue/done bytes before applying merge results",
