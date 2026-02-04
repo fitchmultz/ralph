@@ -230,6 +230,9 @@ Key fields:
 - `conflict_policy`: `auto_resolve` (default), `retry_later`, or `reject`.
 - `merge_retries`: number of merge retries before giving up (default: `5`).
 - `workspace_root`: root directory for parallel workspaces (default: `<repo-parent>/.workspaces/<repo-name>/parallel`).
+
+  **Git hygiene warning:** If you set `parallel.workspace_root` to a path **inside** the repository (for example `.ralph/workspaces`), you MUST gitignore it (or add it to `.git/info/exclude`). Otherwise Ralph will create workspace clone directories that appear as untracked files and the repo will look "dirty" across runs. Parallel mode will fail fast if the workspace root is inside the repo and not ignored.
+
 - `branch_prefix`: prefix for worker branches (default: `ralph/`).
 
   **Important:** The auto-merge feature expects PR head branch names to be exactly

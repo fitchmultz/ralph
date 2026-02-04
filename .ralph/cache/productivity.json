@@ -1,7 +1,7 @@
 {
   "version": 1,
   "first_task_completed_at": "2026-01-30T12:31:17.161199000Z",
-  "last_updated_at": "2026-02-04T06:39:14.879616000Z",
+  "last_updated_at": "2026-02-04T07:18:02.596356000Z",
   "daily": {
     "2026-01-30": {
       "date": "2026-01-30",
@@ -520,7 +520,7 @@
     },
     "2026-02-04": {
       "date": "2026-02-04",
-      "completed_count": 13,
+      "completed_count": 14,
       "tasks": [
         {
           "id": "RQ-0582",
@@ -586,6 +586,11 @@
           "id": "RQ-0594",
           "title": "Preflight origin-remote check before spawning parallel workers",
           "completed_at": "2026-02-04T06:39:14.879616000Z"
+        },
+        {
+          "id": "RQ-0595",
+          "title": "Prevent workspace_root-in-repo from leaving the repo dirty across runs",
+          "completed_at": "2026-02-04T07:18:02.596355000Z"
         }
       ]
     }
@@ -595,7 +600,7 @@
     "longest_streak": 6,
     "last_completed_date": "2026-02-04"
   },
-  "total_completed": 110,
+  "total_completed": 111,
   "milestones": [
     {
       "threshold": 10,

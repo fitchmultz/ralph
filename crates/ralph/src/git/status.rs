@@ -77,6 +77,39 @@ pub fn status_paths(repo_root: &Path) -> Result<Vec<String>, GitError> {
     Ok(paths)
 }
 
+/// Returns true if `rel_path` is ignored by git (respecting .gitignore, .git/info/exclude, and global excludes).
+///
+/// Uses `git check-ignore -q <path>`:
+/// - exit code 0 => ignored
+/// - exit code 1 => not ignored
+/// - otherwise => error
+pub fn is_path_ignored(repo_root: &Path, rel_path: &str) -> Result<bool, GitError> {
+    let rel = rel_path.trim();
+    if rel.is_empty() {
+        return Ok(false);
+    }
+
+    let output = git_base_command(repo_root)
+        .arg("check-ignore")
+        .arg("-q")
+        .arg(rel)
+        .output()
+        .with_context(|| format!("run git check-ignore -q {} in {}", rel, repo_root.display()))?;
+
+    match output.status.code() {
+        Some(0) => Ok(true),
+        Some(1) => Ok(false),
+        _ => {
+            let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+            Err(GitError::CommandFailed {
+                args: format!("check-ignore -q {}", rel),
+                code: output.status.code(),
+                stderr: stderr.trim().to_string(),
+            })
+        }
+    }
+}
+
 /// Returns a list of gitignored paths (tracked ignore + local excludes).
 ///
 /// Uses `git ls-files -i -o --exclude-standard -z --directory` to get

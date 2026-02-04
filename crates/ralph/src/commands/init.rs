@@ -4,11 +4,13 @@
 //! - Orchestrate initialization via `run_init()`.
 //! - Provide public types for initialization options and results.
 //! - Re-export submodule functionality for CLI layer.
+//! - Update `.gitignore` to include `.ralph/workspaces/` for parallel mode hygiene.
 //!
 //! Submodules:
 //! - `readme`: README version management and updates.
 //! - `wizard`: Interactive onboarding wizard UI.
 //! - `writers`: File creation for queue, done, and config.
+//! - `gitignore`: Gitignore update for Ralph workspace directories.
 //!
 //! Not handled here:
 //! - CLI argument parsing (see `crate::cli::init`).
@@ -17,6 +19,7 @@
 //! Invariants/assumptions:
 //! - Wizard answers are validated before file creation.
 //! - Non-interactive mode produces identical output to pre-wizard behavior.
+//! - Gitignore updates are idempotent (safe to run multiple times).
 
 use crate::config;
 use crate::queue;
@@ -24,6 +27,7 @@ use anyhow::{Context, Result};
 use colored::Colorize;
 use std::fs;
 
+pub mod gitignore;
 pub mod readme;
 pub mod wizard;
 pub mod writers;
@@ -101,6 +105,15 @@ pub fn run_init(resolved: &config::Resolved, opts: InitOptions) -> Result<InitRe
         let readme_path = resolved.repo_root.join(".ralph/README.md");
         let (status, version) = readme::write_readme(&readme_path, opts.force, opts.update_readme)?;
         readme_status = Some((status, version));
+    }
+
+    // Update .gitignore to include .ralph/workspaces/ for parallel mode hygiene
+    // This is idempotent - safe to run multiple times
+    if let Err(e) = gitignore::ensure_ralph_gitignore_entries(&resolved.repo_root) {
+        log::warn!(
+            "Failed to update .gitignore: {}. You may need to manually add '.ralph/workspaces/' to your .gitignore.",
+            e
+        );
     }
 
     // Check for pending migrations and warn if any exist

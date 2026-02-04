@@ -2,42 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0595",
-      "status": "todo",
-      "title": "Prevent workspace_root-in-repo from leaving the repo dirty across runs",
-      "priority": "medium",
-      "tags": [
-        "maintenance"
-      ],
-      "scope": [
-        "crates/ralph/src/git/workspace.rs",
-        "crates/ralph/src/git/clean.rs",
-        ".gitignore",
-        "docs/configuration.md"
-      ],
-      "evidence": [
-        "code: crates/ralph/src/git/workspace.rs:30-39 allows relative workspace_root inside repo_root",
-        "code: crates/ralph/src/git/clean.rs:25-30 allowed dirty paths exclude workspace directories",
-        "repo: .gitignore lacks .ralph/workspaces (lines 11-16)"
-      ],
-      "plan": [
-        "Add validation/warning when workspace_root is under repo_root and not gitignored, or auto-add a gitignore entry.",
-        "Update docs/configuration to discourage in-repo workspace roots unless ignored.",
-        "Add a test that sets workspace_root to .ralph/workspaces and asserts the preflight behavior (warning/error or gitignore update).",
-        "Verify by running `cargo test -p ralph parallel_*` (and checking .gitignore if modified)."
-      ],
-      "notes": [],
-      "request": "maintenance scan finding",
-      "created_at": "2026-02-04T02:49:30Z",
-      "updated_at": "2026-02-04T02:49:30Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0596",
       "status": "todo",
       "title": "Use queue repair for parallel task selection to avoid aborting on minor JSON errors",

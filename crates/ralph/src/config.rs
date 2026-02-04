@@ -31,7 +31,7 @@ use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 #[derive(Debug, Clone)]
 pub struct Resolved {
@@ -276,6 +276,21 @@ pub fn validate_config(cfg: &Config) -> Result<()> {
             );
         }
         validate_parallel_branch_prefix(prefix)?;
+    }
+
+    // Validate workspace_root does not contain '..' components for security/predictability
+    if let Some(root) = &cfg.parallel.workspace_root {
+        if root.as_os_str().is_empty() {
+            bail!(
+                "Empty parallel.workspace_root: path is required if specified. Set a valid path or remove the field."
+            );
+        }
+        if root.components().any(|c| matches!(c, Component::ParentDir)) {
+            bail!(
+                "Invalid parallel.workspace_root: path must not contain '..' components (got {}). Use a normalized path.",
+                root.display()
+            );
+        }
     }
 
     if let Some(timeout) = cfg.agent.session_timeout_hours
