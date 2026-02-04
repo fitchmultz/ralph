@@ -48,6 +48,7 @@ ureq = { version = "2.12", features = ["json"] }
 hmac = "0.12"
 sha2 = "0.10"
 hex = "0.4"
+crossbeam-channel = "0.5"
 
 # libc is only used on Unix platforms for process group control and PID liveness detection
 [target.'cfg(unix)'.dependencies]

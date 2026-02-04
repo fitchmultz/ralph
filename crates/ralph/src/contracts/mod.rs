@@ -25,7 +25,7 @@ mod task;
 pub use config::{
     AgentConfig, AutoArchiveBehavior, Config, ConflictPolicy, GitRevertMode, NotificationConfig,
     ParallelConfig, ParallelMergeMethod, ParallelMergeWhen, PhaseOverrideConfig, PhaseOverrides,
-    ProjectType, QueueConfig, ScanPromptVersion, TuiConfig, WebhookConfig,
+    ProjectType, QueueConfig, ScanPromptVersion, TuiConfig, WebhookConfig, WebhookQueuePolicy,
 };
 
 // Re-exports from model module (model types)

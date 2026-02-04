@@ -690,6 +690,20 @@ impl NotificationConfig {
     }
 }
 
+/// Backpressure policy for webhook delivery queue.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum WebhookQueuePolicy {
+    /// Drop new webhooks when queue is full, preserving existing queue contents.
+    /// This is functionally equivalent to `drop_new` due to channel constraints.
+    #[default]
+    DropOldest,
+    /// Drop the new webhook if queue is full.
+    DropNew,
+    /// Block sender briefly, then drop if queue is still full.
+    BlockWithTimeout,
+}
+
 /// Webhook configuration for HTTP task event notifications.
 #[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
 #[serde(default, deny_unknown_fields)]
@@ -719,6 +733,16 @@ pub struct WebhookConfig {
     /// Retry backoff base in milliseconds (default: 1000, max: 30000).
     #[schemars(range(min = 100, max = 30000))]
     pub retry_backoff_ms: Option<u32>,
+
+    /// Maximum number of pending webhooks in the delivery queue (default: 100, range: 10-10000).
+    #[schemars(range(min = 10, max = 10000))]
+    pub queue_capacity: Option<u32>,
+
+    /// Backpressure policy when queue is full (default: drop_oldest).
+    /// - drop_oldest: Drop new webhooks when full (preserves existing queue contents)
+    /// - drop_new: Drop the new webhook if queue is full
+    /// - block_with_timeout: Block sender briefly (100ms), then drop if still full
+    pub queue_policy: Option<WebhookQueuePolicy>,
 }
 
 impl WebhookConfig {
@@ -743,6 +767,12 @@ impl WebhookConfig {
         }
         if other.retry_backoff_ms.is_some() {
             self.retry_backoff_ms = other.retry_backoff_ms;
+        }
+        if other.queue_capacity.is_some() {
+            self.queue_capacity = other.queue_capacity;
+        }
+        if other.queue_policy.is_some() {
+            self.queue_policy = other.queue_policy;
         }
     }
 

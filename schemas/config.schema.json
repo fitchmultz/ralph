@@ -89,6 +89,8 @@
         "webhook": {
           "enabled": null,
           "events": null,
+          "queue_capacity": null,
+          "queue_policy": null,
           "retry_backoff_ms": null,
           "retry_count": null,
           "secret": null,
@@ -464,6 +466,8 @@
           "default": {
             "enabled": null,
             "events": null,
+            "queue_capacity": null,
+            "queue_policy": null,
             "retry_backoff_ms": null,
             "retry_count": null,
             "secret": null,
@@ -1236,6 +1240,29 @@
             "type": "string"
           }
         },
+        "queue_capacity": {
+          "description": "Maximum number of pending webhooks in the delivery queue (default: 100, range: 10-10000).",
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "maximum": 10000.0,
+          "minimum": 10.0
+        },
+        "queue_policy": {
+          "description": "Backpressure policy when queue is full (default: drop_oldest). - drop_oldest: Drop new webhooks when full (preserves existing queue contents) - drop_new: Drop the new webhook if queue is full - block_with_timeout: Block sender briefly (100ms), then drop if still full",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/WebhookQueuePolicy"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "retry_backoff_ms": {
           "description": "Retry backoff base in milliseconds (default: 1000, max: 30000).",
           "default": null,
@@ -1287,6 +1314,32 @@
         }
       },
       "additionalProperties": false
+    },
+    "WebhookQueuePolicy": {
+      "description": "Backpressure policy for webhook delivery queue.",
+      "oneOf": [
+        {
+          "description": "Drop new webhooks when queue is full, preserving existing queue contents. This is functionally equivalent to `drop_new` due to channel constraints.",
+          "type": "string",
+          "enum": [
+            "drop_oldest"
+          ]
+        },
+        {
+          "description": "Drop the new webhook if queue is full.",
+          "type": "string",
+          "enum": [
+            "drop_new"
+          ]
+        },
+        {
+          "description": "Block sender briefly, then drop if queue is still full.",
+          "type": "string",
+          "enum": [
+            "block_with_timeout"
+          ]
+        }
+      ]
     }
   }
 }

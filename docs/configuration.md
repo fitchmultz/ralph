@@ -355,6 +355,21 @@ Supported fields:
 - `timeout_secs`: request timeout in seconds (default: `30`, max: `300`).
 - `retry_count`: number of retry attempts for failed deliveries (default: `3`, max: `10`).
 - `retry_backoff_ms`: retry backoff base in milliseconds (default: `1000`, max: `30000`).
+- `queue_capacity`: maximum number of pending webhooks in the delivery queue (default: `100`, range: `10-10000`).
+- `queue_policy`: backpressure policy when queue is full (default: `drop_oldest`).
+  - `drop_oldest`: Drop new webhooks when queue is full (preserves existing queue contents).
+  - `drop_new`: Drop the new webhook if the queue is full.
+  - `block_with_timeout`: Briefly block the caller (100ms), then drop if queue is still full.
+
+### Delivery Semantics
+
+Webhooks are delivered **asynchronously** by a background worker thread:
+
+- **Best-effort delivery**: Webhooks may be dropped if the queue is full (per `queue_policy`).
+- **Non-blocking**: The `send_webhook` call returns immediately after enqueueing.
+- **Order preservation**: Webhooks are delivered in FIFO order within the constraints of the backpressure policy.
+- **Failure handling**: Failed deliveries are retried (per `retry_count` and `retry_backoff_ms`).
+- **Worker lifecycle**: The background worker starts on first webhook send and shuts down when the process exits.
 
 Example:
 
@@ -369,7 +384,9 @@ Example:
       "events": ["task_completed", "task_failed"],
       "timeout_secs": 30,
       "retry_count": 3,
-      "retry_backoff_ms": 1000
+      "retry_backoff_ms": 1000,
+      "queue_capacity": 100,
+      "queue_policy": "drop_oldest"
     }
   }
 }

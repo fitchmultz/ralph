@@ -1705,6 +1705,7 @@ dependencies = [
  "clap",
  "clap_complete",
  "colored",
+ "crossbeam-channel",
  "crossterm",
  "ctrlc",
  "dialoguer",
