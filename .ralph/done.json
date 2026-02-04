@@ -844,6 +844,52 @@
       "custom_fields": {
         "scan_agent": "scan-maintenance"
       }
+    },
+    {
+      "id": "RQ-0588",
+      "status": "done",
+      "title": "Fail fast in parallel mode when queue/done paths are outside repo root",
+      "priority": "high",
+      "tags": [
+        "maintenance"
+      ],
+      "scope": [
+        "crates/ralph/src/config.rs",
+        "crates/ralph/src/commands/run/parallel/path_map.rs",
+        "crates/ralph/src/commands/run/parallel/merge_runner.rs",
+        "cargo test -p ralph parallel_*"
+      ],
+      "evidence": [
+        "code: crates/ralph/src/config.rs:359-391 resolve_queue_path/resolve_done_path allow absolute paths outside repo root",
+        "code: crates/ralph/src/commands/run/parallel/path_map.rs:35-49 map_resolved_path_into_workspace rejects paths outside repo root with clear error",
+        "code: crates/ralph/src/commands/run/parallel/merge_runner.rs:451-474 apply_completion_and_collect_bytes maps queue/done into base-sync workspace",
+        "code: crates/ralph/src/commands/run/parallel/mod.rs:106-126 has preflight validation but only checks queue/done validity, not repo containment"
+      ],
+      "plan": [
+        "Add a parallel-mode preflight validation in parallel/mod.rs that rejects queue/done paths outside repo_root with an actionable error.",
+        "Add tests in parallel_gh_preflight_test.rs or new test file that configure absolute queue/done paths outside the repo and assert parallel preflight fails before any workers spawn.",
+        "Update docs/configuration.md to mention the parallel requirement (queue/done must be under repo root).",
+        "Verify by running `cargo test -p ralph parallel_*` and confirming the new test passes."
+      ],
+      "notes": [
+        "Path validation already exists in path_map.rs:35-49 but is only called during workspace mapping, not during preflight",
+        "Parallel preflight in parallel/mod.rs:106-126 loads queue/done but does not validate repo containment",
+        "The fix should add early validation using path_map logic before workers spawn",
+        "Added parallel-mode preflight validation to reject queue/done paths outside repo root",
+        "Reuses existing path_map::map_resolved_path_into_workspace for validation",
+        "Added 2 integration tests verifying fail-fast behavior before workers spawn",
+        "Updated docs/configuration.md with parallel mode path restriction"
+      ],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-04T02:49:30Z",
+      "updated_at": "2026-02-04T03:32:09.647436000Z",
+      "completed_at": "2026-02-04T03:32:09.647436000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
     }
   ]
 }

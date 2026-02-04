@@ -1,7 +1,7 @@
 {
   "version": 1,
   "first_task_completed_at": "2026-01-30T12:31:17.161199000Z",
-  "last_updated_at": "2026-02-04T03:08:43.567957000Z",
+  "last_updated_at": "2026-02-04T03:34:17.480594000Z",
   "daily": {
     "2026-01-30": {
       "date": "2026-01-30",
@@ -520,7 +520,7 @@
     },
     "2026-02-04": {
       "date": "2026-02-04",
-      "completed_count": 6,
+      "completed_count": 7,
       "tasks": [
         {
           "id": "RQ-0582",
@@ -551,6 +551,11 @@
           "id": "RQ-0587",
           "title": "Fix parallel gh preflight test to assert correct state file path",
           "completed_at": "2026-02-04T03:08:43.567946000Z"
+        },
+        {
+          "id": "RQ-0588",
+          "title": "Fail fast in parallel mode when queue/done paths are outside repo root",
+          "completed_at": "2026-02-04T03:34:17.480592000Z"
         }
       ]
     }
@@ -560,7 +565,7 @@
     "longest_streak": 6,
     "last_completed_date": "2026-02-04"
   },
-  "total_completed": 103,
+  "total_completed": 104,
   "milestones": [
     {
       "threshold": 10,

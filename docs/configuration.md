@@ -284,6 +284,12 @@ Supported fields:
 - `id_prefix`: task ID prefix (default: `RQ`).
 - `id_width`: zero padding width (default: `4`, e.g. `RQ-0001`).
 
+**Parallel mode restriction:** When running `ralph run loop --parallel ...`, `queue.file` and
+`queue.done_file` must resolve to paths **under the repository root**. Parallel mode maps these
+paths into per-worker workspace clones; paths outside the repo root cannot be mapped safely and are
+rejected during parallel preflight. Prefer repo-relative paths like `.ralph/queue.json` and
+`.ralph/done.json`.
+
 Example:
 
 ```json

@@ -126,6 +126,36 @@ pub(crate) fn run_loop_parallel(
     .context("Parallel preflight: validate queue/done set")?;
     queue::log_warnings(&warnings);
 
+    // Preflight: parallel workspace mapping requires queue/done to be repo-contained.
+    // Fail fast here (before state file creation / worker spawn) with an actionable error.
+    path_map::map_resolved_path_into_workspace(
+        &resolved.repo_root,
+        &resolved.repo_root, // validation-only: map into the same root
+        &resolved.queue_path,
+        "queue",
+    )
+    .with_context(|| {
+        format!(
+            "Parallel preflight: queue.file must be under repo root for workspace mapping (try a repo-relative path like '.ralph/queue.json'). repo_root={}, queue_path={}",
+            resolved.repo_root.display(),
+            resolved.queue_path.display()
+        )
+    })?;
+
+    path_map::map_resolved_path_into_workspace(
+        &resolved.repo_root,
+        &resolved.repo_root, // validation-only: map into the same root
+        &resolved.done_path,
+        "done",
+    )
+    .with_context(|| {
+        format!(
+            "Parallel preflight: queue.done_file must be under repo root for workspace mapping (try a repo-relative path like '.ralph/done.json'). repo_root={}, done_path={}",
+            resolved.repo_root.display(),
+            resolved.done_path.display()
+        )
+    })?;
+
     let mut settings = resolve_parallel_settings(resolved, &opts)?;
 
     // Compute effective git_commit_push_enabled with same precedence as run_one_impl

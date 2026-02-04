@@ -2,42 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0588",
-      "status": "todo",
-      "title": "Fail fast in parallel mode when queue/done paths are outside repo root",
-      "priority": "high",
-      "tags": [
-        "maintenance"
-      ],
-      "scope": [
-        "crates/ralph/src/config.rs",
-        "crates/ralph/src/commands/run/parallel/path_map.rs",
-        "crates/ralph/src/commands/run/parallel/merge_runner.rs",
-        "cargo test -p ralph parallel_*"
-      ],
-      "evidence": [
-        "code: crates/ralph/src/config.rs:359-390 allows absolute queue/done paths",
-        "code: crates/ralph/src/commands/run/parallel/path_map.rs:35-49 rejects paths outside repo root",
-        "code: crates/ralph/src/commands/run/parallel/merge_runner.rs:451-474 maps queue/done into base-sync workspace"
-      ],
-      "plan": [
-        "Add a parallel-mode preflight validation that rejects queue/done paths outside repo_root with an actionable error.",
-        "Add tests that configure absolute queue/done paths outside the repo and assert parallel preflight fails before any workers spawn.",
-        "Update docs/help to mention the parallel requirement (queue/done under repo root).",
-        "Verify by running `cargo test -p ralph parallel_*` and confirming the new test passes."
-      ],
-      "notes": [],
-      "request": "maintenance scan finding",
-      "created_at": "2026-02-04T02:49:30Z",
-      "updated_at": "2026-02-04T02:49:30Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0589",
       "status": "todo",
       "title": "Require explicit completion signals in parallel workers (avoid auto Done)",
