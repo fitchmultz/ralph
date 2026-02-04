@@ -1303,9 +1303,9 @@
       ],
       "custom_fields": {
         "opportunity_type": "reliability",
+        "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort.",
         "time_to_ship": "medium (concurrency + tests)",
-        "scan_agent": "scan-innovation",
-        "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort."
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -1349,10 +1349,10 @@
         "RQ-0608"
       ],
       "custom_fields": {
-        "time_to_ship": "medium (metadata + reconciliation + tests)",
-        "scan_agent": "scan-innovation",
+        "opportunity_type": "ux improvement",
         "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current.",
-        "opportunity_type": "ux improvement"
+        "scan_agent": "scan-innovation",
+        "time_to_ship": "medium (metadata + reconciliation + tests)"
       }
     },
     {
@@ -1398,9 +1398,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "opportunity_type": "ux improvement",
         "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics.",
         "time_to_ship": "medium (format + fixes + tests)",
-        "opportunity_type": "ux improvement",
         "scan_agent": "scan-innovation"
       }
     },
@@ -1450,6 +1450,71 @@
         "scan_agent": "scan-innovation",
         "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat)."
       }
+    },
+    {
+      "id": "RQ-0622",
+      "status": "done",
+      "title": "TUI foundation: component architecture, focus management, and layout primitives",
+      "priority": "high",
+      "tags": [
+        "tui",
+        "ratatui",
+        "opentui",
+        "architecture",
+        "focus",
+        "layout"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/",
+        "crates/ralph/src/tui/mod.rs",
+        "crates/ralph/src/tui/app.rs",
+        "crates/ralph/src/tui/app_panel.rs",
+        "crates/ralph/src/tui/events/",
+        "crates/ralph/src/tui/render/",
+        "crates/ralph/Cargo.toml",
+        "docs/tui-task-management.md",
+        "make ci"
+      ],
+      "evidence": [
+        "User request: implement core OpenTUI (TS + Bun) features in our Rust + Ratatui framework; details are in `/tmp/opentui-rust-features.md`.",
+        "`.ralph/README.md` documents that Ralph has a Ratatui-based TUI under `crates/ralph/src/tui/`.",
+        "`/tmp/opentui-rust-features.md` recommends a component-based architecture and calls out focus management and flexbox-like layout as core building blocks.",
+        "Current TUI already has `tui-textarea = 0.7` and `tui-scrollview = 0.5` in Cargo.toml, providing foundation for rich input and scrollable containers.",
+        "Current TUI has basic focus management via `FocusedPanel` enum in `app_panel.rs` with Tab/Shift-Tab navigation between list/details panels.",
+        "TUI code is organized into modular components: `app_*.rs` files for state management, `events/` for input handling, `render/` for drawing.",
+        "TUI has comprehensive event handling in `events/` with modes (normal, editing, command palette, etc.) and rendering in `render/` with panels and overlays.",
+        "Existing tests are in `crates/ralph/src/tui/tests/` and `crates/ralph/src/tui/events/tests/` demonstrating established testing patterns."
+      ],
+      "plan": [
+        "Read `/tmp/opentui-rust-features.md` and map the requested OpenTUI building blocks (component architecture, focus, flexbox-like layout) onto the current `crates/ralph/src/tui/` design.",
+        "Audit current TUI event handling in `crates/ralph/src/tui/events/` and rendering in `crates/ralph/src/tui/render/` to identify the smallest vertical slice to migrate first.",
+        "Introduce a small internal component model (e.g., a `Component` trait + message routing) with private defaults (prefer `pub(crate)` over `pub`) in `crates/ralph/src/tui/components.rs`.",
+        "Extend existing focus management in `app_panel.rs` to support deterministic focus order, per-component focused state that influences rendering and input routing, and focus wraparound.",
+        "Add shared layout helpers in `crates/ralph/src/tui/layout.rs` that express common OpenTUI flex patterns using Ratatui `Layout` constraints; explicitly document the decision and when (if ever) to adopt `taffy` from `/tmp/opentui-rust-features.md`.",
+        "Migrate the chosen minimal screen/flow (suggest: task list or details panel) to the new component + focus approach without broad churn.",
+        "Add unit tests in `crates/ralph/src/tui/tests/` covering expected behavior and failure modes (empty focus order, removed component, focus wraparound).",
+        "Update `docs/tui-task-management.md` with the new focus/navigation behavior and examples; ensure `make ci` passes."
+      ],
+      "notes": [
+        "Spec reference (must read before implementing): `/tmp/opentui-rust-features.md`.",
+        "Keep this refactor incremental: one migrated screen first, then expand in follow-up tasks.",
+        "Current TUI already uses `FocusedPanel` enum with Tab/Shift-Tab - extend this rather than replacing entirely.",
+        "Dependencies `tui-textarea` and `tui-scrollview` are already available - leverage these for rich input and scrollable containers.",
+        "The TUI has well-established patterns: event handlers in `events/`, renderers in `render/`, and state in `app_*.rs` modules - follow these conventions.",
+        "Existing tests demonstrate patterns for testing TUI behavior - use them as reference for new tests.",
+        "Implemented TUI foundation layer with component trait, focus management (deterministic ordering, wraparound, hit-testing), and layout primitives (row, col, pad, split, centered)",
+        "Added 49 foundation tests + 3 component tests, all passing",
+        "Added pilot TaskEditorOverlayComponent demonstrating the Component trait pattern",
+        "make ci passes; foundation is ready for incremental adoption in follow-up task RQ-0628"
+      ],
+      "request": "Series of tasks to implement these core features that are found in the TS + Bun framework opentui into our Rust based Ratatui framework. Read the file at /tmp/opentui-rust-features.md for the details. Include this file path in EACH new task evidence, plan, AND notes sections to ensure the execution agent reads this file. /tmp/opentui-rust-features.md",
+      "created_at": "2026-02-04T20:40:21Z",
+      "updated_at": "2026-02-04T22:06:55.275712000Z",
+      "completed_at": "2026-02-04T22:06:55.275712000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
     }
   ]
 }
