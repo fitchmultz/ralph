@@ -14,6 +14,7 @@
 //! - Dialogs are centered and sized appropriately for their content.
 
 use crate::tui::TextInput;
+use crate::tui::foundation::centered;
 use ratatui::{
     Frame,
     layout::{Alignment, Rect},
@@ -28,12 +29,7 @@ pub fn draw_confirm_dialog(f: &mut Frame<'_>, area: Rect, message: &str, hint: &
     // Clamp to available height to avoid drawing outside the frame on tiny terminals.
     let popup_height = 6.min(area.height);
 
-    let popup_area = Rect {
-        x: area.x + (area.width.saturating_sub(popup_width)) / 2,
-        y: area.y + (area.height.saturating_sub(popup_height)) / 2,
-        width: popup_width,
-        height: popup_height,
-    };
+    let popup_area = centered(area, popup_width, popup_height);
 
     f.render_widget(Clear, popup_area);
 
@@ -67,12 +63,7 @@ pub fn draw_risky_config_dialog(f: &mut Frame<'_>, area: Rect, warning: &str) {
         .max(44);
     let popup_height = (lines.len() as u16 + 6).min(area.height).max(6);
 
-    let popup_area = Rect {
-        x: area.x + (area.width.saturating_sub(popup_width)) / 2,
-        y: area.y + (area.height.saturating_sub(popup_height)) / 2,
-        width: popup_width,
-        height: popup_height,
-    };
+    let popup_area = centered(area, popup_width, popup_height);
 
     f.render_widget(Clear, popup_area);
 
@@ -126,12 +117,7 @@ pub fn draw_revert_dialog(
     // Clamp to available height to avoid drawing outside the frame on tiny terminals.
     let popup_height = (base_height as u16).min(area.height).max(8);
 
-    let popup_area = Rect {
-        x: area.x + (area.width.saturating_sub(popup_width)) / 2,
-        y: area.y + (area.height.saturating_sub(popup_height)) / 2,
-        width: popup_width,
-        height: popup_height,
-    };
+    let popup_area = centered(area, popup_width, popup_height);
 
     f.render_widget(Clear, popup_area);
 

@@ -16,6 +16,7 @@
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 
+use super::foundation::UiEvent;
 use super::input::{TextInputEdit, apply_text_input_key};
 use super::{App, TextInput};
 use crate::tui::app_navigation::NavigationOperations;
@@ -41,6 +42,29 @@ pub use palette::{PaletteCommand, PaletteEntry, ScoredPaletteEntry};
 pub use types::{
     AppMode, ConfirmDiscardAction, TaskBuilderState, TaskBuilderStep, TuiAction, ViewMode,
 };
+
+/// Handle a UI event and return the resulting action.
+///
+/// This is the foundation-aware entry point for event handling. It wraps
+/// crossterm events into `UiEvent` and dispatches to appropriate handlers.
+/// For now, this delegates to the existing key/mouse handlers while providing
+/// a migration path for components using the foundation layer.
+#[allow(dead_code)]
+pub fn handle_ui_event(
+    app: &mut App,
+    event: UiEvent,
+    now_rfc3339: &str,
+) -> anyhow::Result<TuiAction> {
+    match event {
+        UiEvent::Key(key) => handle_key_event(app, key, now_rfc3339),
+        UiEvent::Mouse(mouse) => handle_mouse_event(app, mouse),
+        UiEvent::Resize(w, h) => {
+            app.set_resized(w, h);
+            Ok(TuiAction::Continue)
+        }
+        _ => Ok(TuiAction::Continue),
+    }
+}
 
 #[cfg(test)]
 mod tests;

@@ -279,6 +279,20 @@ impl FocusManager {
     pub(crate) fn focus_count(&self) -> usize {
         self.order.len()
     }
+
+    /// Explicitly set focus to a specific node ID.
+    ///
+    /// Notes:
+    /// - Does not validate membership in the current ring until the next `rebuild()`.
+    /// - Safe to call even when order is empty.
+    pub(crate) fn focus(&mut self, id: FocusId) {
+        self.focused = Some(id);
+    }
+
+    /// Clear focus (next rebuild will pick first focusable if any).
+    pub(crate) fn clear_focus(&mut self) {
+        self.focused = None;
+    }
 }
 
 /// Check if a point is inside a rectangle.
@@ -586,5 +600,35 @@ mod tests {
         // Zero-sized rect
         let zero = test_rect(5, 5, 0, 0);
         assert!(!rect_contains(zero, 5, 5));
+    }
+
+    #[test]
+    fn test_focus_manager_set_focus_then_rebuild_keeps_if_present() {
+        let mut manager = FocusManager::default();
+        let mut registry = FocusRegistry::default();
+
+        let a = test_focus_id("a", 0, 0);
+        let b = test_focus_id("b", 0, 0);
+
+        registry.register(FocusNode::new(
+            a,
+            FocusScope::Base,
+            FocusTraversal::root(),
+            test_rect(0, 0, 1, 1),
+            true,
+        ));
+        registry.register(FocusNode::new(
+            b,
+            FocusScope::Base,
+            FocusTraversal::root().child(0),
+            test_rect(1, 0, 1, 1),
+            true,
+        ));
+
+        manager.rebuild(&registry);
+        manager.focus(b);
+        manager.rebuild(&registry);
+
+        assert_eq!(manager.focused(), Some(b));
     }
 }

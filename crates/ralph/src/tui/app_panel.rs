@@ -1,22 +1,33 @@
 //! Panel focus and layout management for the TUI.
 //!
 //! Responsibilities:
-//! - Track which panel is focused (List vs Details)
-//! - Manage list area for hit-testing mouse events
-//! - Handle terminal resize and coordinate layout recalculation
+//! - Define focus IDs for base panels (List/Details) and the operations for switching.
+//! - Provide list area caching for row hit-testing (selection logic remains separate).
 //!
 //! Not handled here:
-//! - Actual rendering (see render module)
-//! - Panel content/layout details (see render/panels)
-//! - Event handling (see events module)
+//! - Rendering (see `tui::render`).
+//! - Overlay focus (handled by foundation `FocusScope::Overlay`).
 //!
 //! Invariants/assumptions:
-//! - Panel focus cycles between List and Details only
-//! - List area is updated each render pass for accurate hit-testing
+//! - Base panel focus is driven by `FocusManager`.
+//! - Details focus may be disabled when the details panel is not visible.
 
+use crate::tui::foundation::{ComponentId, FocusId};
 use ratatui::layout::Rect;
 
+/// Component ID for the base panels component.
+pub(crate) const PANELS_COMPONENT: ComponentId = ComponentId::new("base_panels", 0);
+
+/// Focus ID for the list panel.
+pub(crate) const LIST_PANEL_FOCUS: FocusId = FocusId::new(PANELS_COMPONENT, 0);
+
+/// Focus ID for the details panel.
+pub(crate) const DETAILS_PANEL_FOCUS: FocusId = FocusId::new(PANELS_COMPONENT, 1);
+
 /// Which panel is currently focused for input.
+///
+/// Deprecated: Use foundation `FocusManager` with `LIST_PANEL_FOCUS` and
+/// `DETAILS_PANEL_FOCUS` instead. Kept for backward compatibility during migration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FocusedPanel {
     List,

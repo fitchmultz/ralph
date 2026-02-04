@@ -215,6 +215,8 @@ pub struct App {
     pub current_eta: Option<crate::eta_calculator::EtaEstimate>,
     /// Cached dependency graph and critical paths for overlay rendering.
     pub dependency_graph_cache: crate::tui::DependencyGraphCache,
+    /// Focus manager for deterministic focus handling across panels and overlays.
+    pub(crate) focus_manager: crate::tui::foundation::FocusManager,
 }
 
 impl App {
@@ -296,6 +298,7 @@ impl App {
             selected_indices: HashSet::new(),
             current_eta: None,
             dependency_graph_cache: crate::tui::DependencyGraphCache::new(),
+            focus_manager: crate::tui::foundation::FocusManager::default(),
         };
         app.rebuild_filtered_view();
         app
@@ -596,6 +599,12 @@ impl App {
         let was_resized = self.resized;
         self.resized = false;
         was_resized
+    }
+
+    /// Set the resized flag to trigger layout recalculation.
+    #[allow(dead_code)]
+    pub(crate) fn set_resized(&mut self, _width: u16, _height: u16) {
+        self.resized = true;
     }
 
     pub(crate) fn unsafe_to_discard(&self) -> bool {
@@ -1536,19 +1545,45 @@ impl App {
 
 impl PanelOperations for App {
     fn focus_next_panel(&mut self) {
-        self.focused_panel = self.focused_panel.next();
+        use crate::tui::app_panel::{DETAILS_PANEL_FOCUS, LIST_PANEL_FOCUS};
+
+        // Determine current focus from focus manager, falling back to legacy field
+        let current_focused = self.focus_manager.focused().or({
+            // Fallback to legacy focused_panel for backward compatibility during migration
+            match self.focused_panel {
+                FocusedPanel::List => Some(LIST_PANEL_FOCUS),
+                FocusedPanel::Details => Some(DETAILS_PANEL_FOCUS),
+            }
+        });
+
+        let next = match current_focused {
+            Some(id) if id == LIST_PANEL_FOCUS => DETAILS_PANEL_FOCUS,
+            _ => LIST_PANEL_FOCUS,
+        };
+        self.focus_manager.focus(next);
+        // Keep focused_panel in sync for backward compatibility during migration
+        self.focused_panel = if next == DETAILS_PANEL_FOCUS {
+            FocusedPanel::Details
+        } else {
+            FocusedPanel::List
+        };
     }
 
     fn focus_previous_panel(&mut self) {
-        self.focused_panel = self.focused_panel.previous();
+        // Same as next for 2 panels
+        self.focus_next_panel();
     }
 
     fn focus_list_panel(&mut self) {
+        use crate::tui::app_panel::LIST_PANEL_FOCUS;
+        self.focus_manager.focus(LIST_PANEL_FOCUS);
         self.focused_panel = FocusedPanel::List;
     }
 
     fn details_focused(&self) -> bool {
-        self.focused_panel == FocusedPanel::Details
+        use crate::tui::app_panel::DETAILS_PANEL_FOCUS;
+        self.focus_manager.is_focused(DETAILS_PANEL_FOCUS)
+            || self.focused_panel == FocusedPanel::Details
     }
 
     fn set_list_area(&mut self, area: Rect) {

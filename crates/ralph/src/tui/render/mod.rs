@@ -16,7 +16,9 @@
 
 use crate::constants::ui::NARROW_LAYOUT_WIDTH;
 
+use super::app_panel::{DETAILS_PANEL_FOCUS, LIST_PANEL_FOCUS};
 use super::events::types::{ConfirmDiscardAction, ViewMode};
+use super::foundation::{FocusRegistry, FocusScope, FocusTraversal, RenderCtx};
 use super::{App, AppMode};
 use ratatui::{
     Frame,
@@ -45,6 +47,38 @@ pub fn draw_ui(f: &mut Frame<'_>, app: &mut App) {
         // Force recalculation of layout-dependent state
         app.detail_width = size.width.saturating_sub(4);
     }
+
+    // Determine if an overlay is active for focus scope management
+    let overlay_active = matches!(
+        app.mode,
+        AppMode::Help
+            | AppMode::CommandPalette { .. }
+            | AppMode::EditingConfig { .. }
+            | AppMode::EditingTask { .. }
+            | AppMode::ConfirmDelete
+            | AppMode::ConfirmArchive
+            | AppMode::ConfirmRepair { .. }
+            | AppMode::ConfirmUnlock
+            | AppMode::ConfirmAutoArchive(_)
+            | AppMode::ConfirmQuit
+            | AppMode::ConfirmDiscard { .. }
+            | AppMode::ConfirmRevert { .. }
+            | AppMode::ConfirmRiskyConfig { .. }
+            | AppMode::BuildingTaskOptions(_)
+            | AppMode::JumpingToTask(_)
+            | AppMode::FlowchartOverlay { .. }
+            | AppMode::DependencyGraphOverlay { .. }
+    );
+
+    // Update focus scope based on overlay state
+    if overlay_active {
+        app.focus_manager.enter_overlay_scope();
+    } else {
+        app.focus_manager.exit_overlay_scope();
+    }
+
+    // Create focus registry for this frame
+    let mut focus_registry = FocusRegistry::default();
 
     // Handle Executing mode (full-screen output view), including modal prompts layered on top.
     // Avoid cloning `app.mode` on every frame; we only need to inspect it.
@@ -106,6 +140,24 @@ pub fn draw_ui(f: &mut Frame<'_>, app: &mut App) {
 
                 // Right/bottom panel: task details
                 panels::draw_task_details(f, app, chunks[1]);
+
+                // Register base panel focus nodes (only when not in overlay mode)
+                if !overlay_active {
+                    let mut ctx = RenderCtx::new(
+                        &mut focus_registry,
+                        FocusScope::Base,
+                        FocusTraversal::root(),
+                    );
+
+                    // Ensure deterministic order: list before details
+                    ctx.child(0)
+                        .register_focus(LIST_PANEL_FOCUS, chunks[0], true);
+
+                    let details_enabled =
+                        chunks.len() > 1 && chunks[1].width > 0 && chunks[1].height > 0;
+                    ctx.child(1)
+                        .register_focus(DETAILS_PANEL_FOCUS, chunks[1], details_enabled);
+                }
             }
             ViewMode::Board => {
                 // Board view: Kanban columns with optional details panel
@@ -256,4 +308,7 @@ pub fn draw_ui(f: &mut Frame<'_>, app: &mut App) {
 
         _ => {}
     }
+
+    // Rebuild focus order from registered nodes
+    app.focus_manager.rebuild(&focus_registry);
 }

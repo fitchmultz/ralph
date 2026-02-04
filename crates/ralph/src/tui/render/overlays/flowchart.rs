@@ -15,6 +15,7 @@
 
 use super::super::App;
 use crate::progress::ExecutionPhase;
+use crate::tui::foundation::centered;
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -31,12 +32,7 @@ pub fn draw_flowchart_overlay(f: &mut Frame<'_>, app: &App, area: Rect) {
     let popup_width = 80.min(area.width.saturating_sub(4)).max(50);
     let popup_height = 20.min(area.height.saturating_sub(4)).max(12);
 
-    let popup_area = Rect {
-        x: area.x + (area.width.saturating_sub(popup_width)) / 2,
-        y: area.y + (area.height.saturating_sub(popup_height)) / 2,
-        width: popup_width,
-        height: popup_height,
-    };
+    let popup_area = centered(area, popup_width, popup_height);
 
     f.render_widget(Clear, popup_area);
 

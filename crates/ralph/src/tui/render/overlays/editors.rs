@@ -14,10 +14,11 @@
 
 use crate::outpututil::truncate_chars;
 use crate::tui::config_edit::RiskLevel;
+use crate::tui::foundation::{Item, ItemSize, centered, col};
 use crate::tui::{App, MultiLineInput};
 use ratatui::{
     Frame,
-    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    layout::{Alignment, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
@@ -41,12 +42,7 @@ pub fn draw_config_editor(
         .min(area.height.saturating_sub(4))
         .max(8);
 
-    let popup_area = Rect {
-        x: area.x + (area.width.saturating_sub(popup_width)) / 2,
-        y: area.y + (area.height.saturating_sub(popup_height)) / 2,
-        width: popup_width,
-        height: popup_height,
-    };
+    let popup_area = centered(area, popup_width, popup_height);
 
     f.render_widget(Clear, popup_area);
 
@@ -63,10 +59,11 @@ pub fn draw_config_editor(
     f.render_widget(block.clone(), popup_area);
 
     let inner = block.inner(popup_area);
-    let layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Min(1), Constraint::Length(1)].as_ref())
-        .split(inner);
+    let layout = col(
+        inner,
+        0,
+        &[Item::new(ItemSize::Min(1)), Item::new(ItemSize::Fixed(1))],
+    );
 
     let list_area = layout[0];
     let hint_area = layout[1];
@@ -162,12 +159,7 @@ pub fn draw_task_editor(
         .min(area.height.saturating_sub(4))
         .max(9);
 
-    let popup_area = Rect {
-        x: area.x + (area.width.saturating_sub(popup_width)) / 2,
-        y: area.y + (area.height.saturating_sub(popup_height)) / 2,
-        width: popup_width,
-        height: popup_height,
-    };
+    let popup_area = centered(area, popup_width, popup_height);
 
     f.render_widget(Clear, popup_area);
 
@@ -180,10 +172,11 @@ pub fn draw_task_editor(
     f.render_widget(block.clone(), popup_area);
 
     let inner = block.inner(popup_area);
-    let layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Min(1), Constraint::Length(2)].as_ref())
-        .split(inner);
+    let layout = col(
+        inner,
+        0,
+        &[Item::new(ItemSize::Min(1)), Item::new(ItemSize::Fixed(2))],
+    );
 
     let list_area = layout[0];
     let hint_area = layout[1];

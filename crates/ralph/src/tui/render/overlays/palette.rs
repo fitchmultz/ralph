@@ -12,10 +12,11 @@
 //! - Callers provide a properly sized terminal area.
 //! - Selected index is clamped to valid range.
 
+use crate::tui::foundation::{Item, ItemSize, centered, col};
 use crate::tui::{App, TextInput};
 use ratatui::{
     Frame,
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
@@ -39,12 +40,7 @@ pub fn draw_command_palette(
         .min(area.height.saturating_sub(4));
     popup_height = popup_height.max(6).min(area.height);
 
-    let popup_area = Rect {
-        x: area.x + (area.width.saturating_sub(popup_width)) / 2,
-        y: area.y + (area.height.saturating_sub(popup_height)) / 2,
-        width: popup_width,
-        height: popup_height,
-    };
+    let popup_area = centered(area, popup_width, popup_height);
 
     f.render_widget(Clear, popup_area);
 
@@ -59,10 +55,12 @@ pub fn draw_command_palette(
     let inner = block.inner(popup_area);
     f.render_widget(block, popup_area);
 
-    let inner_chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Length(1), Constraint::Min(1)].as_ref())
-        .split(inner);
+    // Use foundation layout primitives instead of Ratatui Layout
+    let inner_chunks = col(
+        inner,
+        0,
+        &[Item::new(ItemSize::Fixed(1)), Item::new(ItemSize::Flex(1))],
+    );
 
     let input_text = query.with_cursor_marker('_');
     let input = Line::from(vec![

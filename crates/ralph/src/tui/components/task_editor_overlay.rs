@@ -26,7 +26,8 @@ use crate::outpututil::truncate_chars;
 use crate::tui::{
     App, MultiLineInput, TaskEditKind,
     foundation::{
-        Component, ComponentId, FocusId, FocusManager, Item, ItemSize, RenderCtx, UiEvent, col,
+        Component, ComponentId, FocusId, FocusManager, Item, ItemSize, RenderCtx, UiEvent,
+        centered, col,
     },
 };
 
@@ -426,21 +427,6 @@ impl TaskEditorOverlayComponent {
         let focused_id = focus.focused();
         self.textarea_focused = focused_id == Some(self.textarea_focus_id());
     }
-}
-
-/// Helper function to get centered rectangle.
-fn centered(area: Rect, width: u16, height: u16) -> Rect {
-    let width = width.min(area.width);
-    let height = height.min(area.height);
-
-    let x = area
-        .x
-        .saturating_add((area.width.saturating_sub(width)) / 2);
-    let y = area
-        .y
-        .saturating_add((area.height.saturating_sub(height)) / 2);
-
-    Rect::new(x, y, width, height)
 }
 
 #[cfg(test)]

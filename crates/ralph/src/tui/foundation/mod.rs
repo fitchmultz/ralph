@@ -27,8 +27,14 @@ mod layout;
 
 pub(crate) use component::{Component, RenderCtx};
 pub(crate) use event::UiEvent;
-pub(crate) use focus::{ComponentId, FocusId, FocusManager};
-pub(crate) use layout::{Item, ItemSize, col};
+
+// EXPAND: focus exports needed by non-component legacy layers
+pub(crate) use focus::{
+    ComponentId, FocusId, FocusManager, FocusRegistry, FocusScope, FocusTraversal,
+};
+
+// EXPAND: layout exports so callers stop re-implementing centered/pad/etc.
+pub(crate) use layout::{Item, ItemSize, centered, col};
 
 #[cfg(test)]
 mod tests;

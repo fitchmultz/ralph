@@ -17,6 +17,7 @@ use crate::agent::RepoPromptMode;
 use crate::contracts;
 use crate::outpututil::truncate_chars;
 use crate::tui::events::types::{TaskBuilderState, TaskBuilderStep};
+use crate::tui::foundation::centered;
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -38,12 +39,7 @@ fn draw_task_builder_description(f: &mut Frame<'_>, area: Rect, state: &TaskBuil
     let popup_width = 70.min(area.width.saturating_sub(4)).max(50);
     let popup_height = 10.min(area.height);
 
-    let popup_area = Rect {
-        x: area.x + (area.width.saturating_sub(popup_width)) / 2,
-        y: area.y + (area.height.saturating_sub(popup_height)) / 2,
-        width: popup_width,
-        height: popup_height,
-    };
+    let popup_area = centered(area, popup_width, popup_height);
 
     f.render_widget(Clear, popup_area);
 
@@ -102,12 +98,7 @@ fn draw_task_builder_advanced(f: &mut Frame<'_>, area: Rect, state: &TaskBuilder
     let popup_width = 86.min(area.width.saturating_sub(4)).max(60);
     let popup_height = 18.min(area.height);
 
-    let popup_area = Rect {
-        x: area.x + (area.width.saturating_sub(popup_width)) / 2,
-        y: area.y + (area.height.saturating_sub(popup_height)) / 2,
-        width: popup_width,
-        height: popup_height,
-    };
+    let popup_area = centered(area, popup_width, popup_height);
 
     f.render_widget(Clear, popup_area);
 

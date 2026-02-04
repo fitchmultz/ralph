@@ -1302,10 +1302,10 @@
         "RQ-0610"
       ],
       "custom_fields": {
-        "opportunity_type": "reliability",
+        "scan_agent": "scan-innovation",
         "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort.",
         "time_to_ship": "medium (concurrency + tests)",
-        "scan_agent": "scan-innovation"
+        "opportunity_type": "reliability"
       }
     },
     {
@@ -1349,10 +1349,10 @@
         "RQ-0608"
       ],
       "custom_fields": {
-        "opportunity_type": "ux improvement",
-        "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current.",
         "scan_agent": "scan-innovation",
-        "time_to_ship": "medium (metadata + reconciliation + tests)"
+        "time_to_ship": "medium (metadata + reconciliation + tests)",
+        "opportunity_type": "ux improvement",
+        "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current."
       }
     },
     {
@@ -1398,10 +1398,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "ux improvement",
         "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics.",
-        "time_to_ship": "medium (format + fixes + tests)",
-        "scan_agent": "scan-innovation"
+        "scan_agent": "scan-innovation",
+        "opportunity_type": "ux improvement",
+        "time_to_ship": "medium (format + fixes + tests)"
       }
     },
     {
@@ -1445,10 +1445,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "time_to_ship": "small/medium (formatters + tests)",
         "opportunity_type": "ux improvement",
         "scan_agent": "scan-innovation",
-        "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat)."
+        "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat).",
+        "time_to_ship": "small/medium (formatters + tests)"
       }
     },
     {
@@ -1511,6 +1511,68 @@
       "created_at": "2026-02-04T20:40:21Z",
       "updated_at": "2026-02-04T22:06:55.275712000Z",
       "completed_at": "2026-02-04T22:06:55.275712000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0628",
+      "status": "done",
+      "title": "Migrate existing TUI code to use new foundation files",
+      "priority": "high",
+      "tags": [
+        "tui",
+        "ratatui",
+        "refactor",
+        "foundation",
+        "architecture"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/",
+        "crates/ralph/src/tui/mod.rs",
+        "crates/ralph/src/tui/app.rs",
+        "crates/ralph/src/tui/app_panel.rs",
+        "crates/ralph/src/tui/components/",
+        "crates/ralph/src/tui/events/",
+        "crates/ralph/src/tui/render/",
+        "crates/ralph/src/tui/foundation/",
+        "make ci"
+      ],
+      "evidence": [
+        "User request: Update all TUI related files to utilize the new TUI foundation files for consistent approach.",
+        "RQ-0622 (TUI foundation) is complete - foundation files exist in `crates/ralph/src/tui/foundation/` with 49+ tests.",
+        "Foundation provides: Component trait with RenderCtx, FocusManager with deterministic ordering/wraparound/hit-testing, layout primitives (row, col, pad, split, centered), UiEvent wrapper, FocusScope (Base/Overlay).",
+        "`crates/ralph/src/tui/mod.rs` already includes `mod foundation` and re-exports types as `pub(crate)` (component::RenderCtx, event::UiEvent, focus::{ComponentId, FocusId, FocusManager}, layout::{Item, ItemSize, col}).",
+        "`crates/ralph/src/tui/components/mod.rs` exists with pilot `task_editor_overlay` component demonstrating Component trait usage.",
+        "Existing TUI code uses custom `FocusedPanel` enum in `app_panel.rs` for focus management and custom event handling in `events/` modules.",
+        "Foundation is designed to coexist with existing code - migration should be incremental, not wholesale replacement."
+      ],
+      "plan": [
+        "Audit existing TUI files to identify migration candidates: focus management in `app_panel.rs`, layout code in `render/panels/` and `render/overlays/`, event handling in `events/` modules.",
+        "Expand `crates/ralph/src/tui/components/` with additional components built on foundation (e.g., reusable list component, form fields) following the `task_editor_overlay` pattern.",
+        "Migrate one overlay or panel to use foundation Component trait as proof of concept (suggest: a simple overlay like help or a dialog).",
+        "Refactor `app_panel.rs` focus management to optionally use `FocusManager` from foundation while maintaining backward compatibility with existing `FocusedPanel` navigation.",
+        "Update render modules in `crates/ralph/src/tui/render/` to use layout primitives where they simplify existing Ratatui `Layout` usage.",
+        "Add integration tests for foundation usage in real TUI contexts.",
+        "Run `make ci` to verify the refactored TUI compiles, passes tests, and maintains functionality."
+      ],
+      "notes": [
+        "Foundation files at `crates/ralph/src/tui/foundation/`: component.rs (Component trait, RenderCtx), focus.rs (FocusManager, FocusScope, FocusId, ComponentId), layout.rs (row, col, pad, split, centered, Item, ItemSize), event.rs (UiEvent wrapper), tests.rs (49+ foundation tests).",
+        "Pilot component exists at `crates/ralph/src/tui/components/task_editor_overlay.rs` - use as reference for new components.",
+        "Migration should be incremental - one subsystem at a time. The foundation is designed to coexist with existing code.",
+        "Dependency RQ-0622 is complete (in done.json) - foundation is ready for adoption.",
+        "Migrated all TUI overlay rendering to use foundation::centered() for consistent centering calculations",
+        "Added FocusManager integration to App struct with backward compatibility for legacy focused_panel field",
+        "Updated foundation exports to include FocusRegistry, FocusScope, FocusTraversal, and centered",
+        "Added FocusManager.focus() and clear_focus() methods with unit test",
+        "Added handle_ui_event() wrapper in events/mod.rs for foundation-aware event dispatch",
+        "Migrated layout in editors.rs and palette.rs to use foundation::col() and Item/ItemSize"
+      ],
+      "request": "Update all TUI related files to utilize the new TUI foundation files for consistent approach",
+      "created_at": "2026-02-04T21:15:19Z",
+      "updated_at": "2026-02-04T23:24:47.461742000Z",
+      "completed_at": "2026-02-04T23:24:47.461742000Z",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],

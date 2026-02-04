@@ -17,6 +17,7 @@
 
 use super::super::App;
 use crate::contracts::TaskStatus;
+use crate::tui::foundation::centered;
 
 /// Data for a related task in the dependency graph overlay.
 ///
@@ -59,12 +60,7 @@ pub fn draw_dependency_graph_overlay(
     let popup_width = 90.min(area.width.saturating_sub(4)).max(60);
     let popup_height = 25.min(area.height.saturating_sub(4)).max(15);
 
-    let popup_area = Rect {
-        x: area.x + (area.width.saturating_sub(popup_width)) / 2,
-        y: area.y + (area.height.saturating_sub(popup_height)) / 2,
-        width: popup_width,
-        height: popup_height,
-    };
+    let popup_area = centered(area, popup_width, popup_height);
 
     f.render_widget(Clear, popup_area);
 

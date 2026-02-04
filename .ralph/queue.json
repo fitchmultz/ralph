@@ -2,57 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0628",
-      "status": "todo",
-      "title": "Migrate existing TUI code to use new foundation files",
-      "priority": "high",
-      "tags": [
-        "tui",
-        "ratatui",
-        "refactor",
-        "foundation",
-        "architecture"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/",
-        "crates/ralph/src/tui/app.rs",
-        "crates/ralph/src/tui/app_panel.rs",
-        "crates/ralph/src/tui/events/",
-        "crates/ralph/src/tui/render/",
-        "crates/ralph/src/tui/foundation/",
-        "make ci"
-      ],
-      "evidence": [
-        "User request: Update all TUI related files to utilize the new TUI foundation files for consistent approach.",
-        "TUI foundation files exist in `crates/ralph/src/tui/foundation/` providing: Component trait, FocusManager with deterministic ordering and wraparound, layout primitives (row, col, pad, split, centered), and UiEvent wrapper.",
-        "Existing TUI code has its own focus management via `FocusedPanel` enum in `app_panel.rs` and custom event handling throughout `events/` modules.",
-        "Foundation files provide `FocusScope` (Base/Overlay) for trapping focus in overlays, which aligns with existing overlay patterns in `render/overlays/`."
-      ],
-      "plan": [
-        "Audit existing TUI files to identify all locations that would benefit from foundation types: focus management in `app_panel.rs`, layout code in render modules, event handling patterns.",
-        "Update `crates/ralph/src/tui/mod.rs` to re-export foundation types for convenient access across the TUI module.",
-        "Refactor `app_panel.rs` to use `FocusManager` and `FocusScope` from foundation instead of custom `FocusedPanel` enum where appropriate; maintain backward compatibility for existing navigation.",
-        "Update render modules in `crates/ralph/src/tui/render/` to use layout primitives (`pad`, `row`, `col`, `centered`, `v_split`, `h_split`) from foundation where they simplify existing Ratatui `Layout` usage.",
-        "Update event handling in `crates/ralph/src/tui/events/` to use `UiEvent` wrapper from foundation for consistent event type checking.",
-        "Ensure all changes maintain existing behavior; add unit tests for any new foundation integration points.",
-        "Run `make ci` to verify the refactored TUI compiles, passes tests, and maintains functionality."
-      ],
-      "notes": [
-        "Foundation files are located at `crates/ralph/src/tui/foundation/` and provide: component.rs (Component trait, RenderCtx), focus.rs (FocusManager, FocusScope, FocusId), layout.rs (row, col, pad, split, centered), event.rs (UiEvent wrapper).",
-        "Keep changes incremental - migrate one subsystem at a time (focus → layout → events) rather than all at once.",
-        "The foundation is designed to coexist with existing code; don't force migration where it doesn't add value."
-      ],
-      "request": "Update all TUI related files to utilize the new TUI foundation files for consistent approach",
-      "created_at": "2026-02-04T21:15:19Z",
-      "updated_at": "2026-02-04T21:15:19Z",
-      "depends_on": [
-        "RQ-0622"
-      ],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0623",
       "status": "todo",
       "title": "TUI: rich text input and textarea editing (cursor, selection, placeholders)",
@@ -320,10 +269,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "ux improvement",
-        "time_to_ship": "medium (TUI wiring + tests)",
         "scan_agent": "scan-innovation",
-        "user_value": "Fewer context switches: jump from task → code in one keystroke."
+        "user_value": "Fewer context switches: jump from task → code in one keystroke.",
+        "opportunity_type": "ux improvement",
+        "time_to_ship": "medium (TUI wiring + tests)"
       }
     },
     {
@@ -363,9 +312,9 @@
       "relates_to": [],
       "custom_fields": {
         "opportunity_type": "ux improvement",
+        "time_to_ship": "medium (render-only UI + tests)",
         "scan_agent": "scan-innovation",
-        "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error.",
-        "time_to_ship": "medium (render-only UI + tests)"
+        "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error."
       }
     },
     {
@@ -409,10 +358,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types",
-        "opportunity_type": "feature gap",
         "measurable_impact": "Track 20%+ improvement in task completion velocity after adoption",
-        "scan_agent": "scan-innovation"
+        "scan_agent": "scan-innovation",
+        "opportunity_type": "feature gap",
+        "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types"
       }
     },
     {
@@ -455,9 +404,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "opportunity_type": "UX improvement",
         "scan_agent": "scan-innovation",
         "time_to_ship": "incremental - add one batch operation at a time",
-        "opportunity_type": "UX improvement",
         "user_value": "Reduces queue maintenance time by 80% for large projects"
       }
     },
@@ -503,9 +452,9 @@
       "relates_to": [],
       "custom_fields": {
         "opportunity_type": "reliability",
-        "user_value": "Reduces regression risk; enables confident refactoring",
+        "measurable_impact": "80%+ integration test coverage for CLI commands",
         "scan_agent": "scan-innovation",
-        "measurable_impact": "80%+ integration test coverage for CLI commands"
+        "user_value": "Reduces regression risk; enables confident refactoring"
       }
     },
     {
@@ -550,9 +499,9 @@
       "relates_to": [],
       "custom_fields": {
         "opportunity_type": "feature gap",
-        "user_value": "Enables ecosystem growth; custom integrations without forks",
         "scan_agent": "scan-innovation",
-        "differentiation": "Unique capability among AI task runners"
+        "differentiation": "Unique capability among AI task runners",
+        "user_value": "Enables ecosystem growth; custom integrations without forks"
       }
     },
     {
@@ -596,10 +545,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "measurable_impact": "Estimates within 25% of actual duration after 20 tasks",
-        "opportunity_type": "feature gap",
+        "user_value": "Improves planning accuracy; sets realistic expectations",
         "scan_agent": "scan-innovation",
-        "user_value": "Improves planning accuracy; sets realistic expectations"
+        "opportunity_type": "feature gap",
+        "measurable_impact": "Estimates within 25% of actual duration after 20 tasks"
       }
     },
     {
@@ -643,10 +592,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Reduces time-to-productivity from hours to minutes",
-        "scan_agent": "scan-innovation",
+        "measurable_impact": "New user success rate >90% within 30 minutes",
         "opportunity_type": "UX improvement",
-        "measurable_impact": "New user success rate >90% within 30 minutes"
+        "scan_agent": "scan-innovation",
+        "user_value": "Reduces time-to-productivity from hours to minutes"
       }
     },
     {
@@ -689,10 +638,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "measurable_impact": "Auto-detects 30%+ of maintenance tasks",
-        "opportunity_type": "feature gap",
         "scan_agent": "scan-innovation",
-        "user_value": "Proactively identifies improvement opportunities; reduces manual scanning"
+        "user_value": "Proactively identifies improvement opportunities; reduces manual scanning",
+        "measurable_impact": "Auto-detects 30%+ of maintenance tasks",
+        "opportunity_type": "feature gap"
       }
     },
     {
@@ -735,9 +684,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "opportunity_type": "integration",
         "time_to_ship": "incremental - add one channel at a time",
+        "opportunity_type": "integration",
+        "scan_agent": "scan-innovation",
         "user_value": "Enables remote monitoring; integrates with existing workflows"
       }
     },
@@ -782,9 +731,9 @@
       "relates_to": [],
       "custom_fields": {
         "user_value": "Identifies bottlenecks; improves Ralph responsiveness",
-        "scan_agent": "scan-innovation",
+        "opportunity_type": "performance",
         "measurable_impact": "50%+ improvement in queue operations for large projects",
-        "opportunity_type": "performance"
+        "scan_agent": "scan-innovation"
       }
     }
   ]

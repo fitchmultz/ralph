@@ -12,6 +12,7 @@
 //! - Input state is tracked via `TextInput`.
 
 use crate::tui::TextInput;
+use crate::tui::foundation::centered;
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -25,12 +26,7 @@ pub fn draw_jump_to_task_input(f: &mut Frame<'_>, area: Rect, input: &TextInput)
     let popup_width = 50.min(area.width.saturating_sub(4)).max(30);
     let popup_height = 5.min(area.height);
 
-    let popup_area = Rect {
-        x: area.x + (area.width.saturating_sub(popup_width)) / 2,
-        y: area.y + (area.height.saturating_sub(popup_height)) / 2,
-        width: popup_width,
-        height: popup_height,
-    };
+    let popup_area = centered(area, popup_width, popup_height);
 
     f.render_widget(Clear, popup_area);
 
