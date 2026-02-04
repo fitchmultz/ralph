@@ -47,4 +47,5 @@ pub struct WatchOptions {
     pub comment_types: Vec<CommentType>,
     pub paths: Vec<PathBuf>,
     pub force: bool,
+    pub close_removed: bool,
 }

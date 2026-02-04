@@ -1234,6 +1234,113 @@ When `--distribute-plan` is used, plan items are distributed round-robin across 
 - Parent plan: `["Step A", "Step B", "Step C", "Step D"]`
 - With 2 children: Child 1 gets `["Step A", "Step C"]`, Child 2 gets `["Step B", "Step D"]`
 
+## `ralph watch`
+
+Watch files for changes and auto-detect tasks from TODO/FIXME/HACK/XXX comments. This command monitors source files and automatically creates tasks when it finds actionable comments.
+
+### How It Works
+
+The watch command uses a fingerprint-based deduplication system to reliably track comments across file changes:
+
+- **Fingerprint Generation**: Each comment gets a stable fingerprint based on file path (relative), line number, and normalized content hash
+- **Structured Metadata**: Watch-created tasks store source information in `custom_fields`:
+  - `watch.file` - Absolute file path
+  - `watch.line` - Line number
+  - `watch.comment_type` - One of: `todo`, `fixme`, `hack`, `xxx`
+  - `watch.fingerprint` - Stable identifier for deduplication
+
+### Flags
+
+* `PATH...`: Directories or files to watch (defaults to current directory).
+* `--patterns <PATTERNS>`: File patterns to watch (comma-separated, default: `*.rs,*.ts,*.js,*.py,*.go,*.java,*.md,*.toml,*.json`).
+* `--debounce-ms <MS>`: Debounce duration in milliseconds (default: 500).
+* `--auto-queue`: Automatically create tasks without prompting.
+* `--notify`: Enable desktop notifications for new tasks.
+* `--ignore-patterns <PATTERNS>`: Additional gitignore-style exclusions (comma-separated).
+* `--comments <TYPES>`: Comment types to detect: `todo`, `fixme`, `hack`, `xxx`, `all` (default: `all`).
+* `--close-removed`: Mark watch-created tasks as done when their originating comments are removed from source.
+
+### Deduplication
+
+The watch command uses fingerprint-based deduplication to avoid creating duplicate tasks:
+
+1. **Primary**: Checks `watch.fingerprint` in task `custom_fields`
+2. **Fallback**: Legacy substring matching for backwards compatibility with tasks created before this feature
+
+Fingerprints are stable across:
+- Different machines (uses relative paths)
+- Whitespace changes (content is normalized)
+- Case changes (content is lowercased)
+
+### Comment Reconciliation (`--close-removed`)
+
+When `--close-removed` is enabled, the watch command will:
+
+1. Track all detected comments across watched files
+2. Compare against existing watch-tagged tasks in the queue
+3. Mark tasks as `done` when their originating comment is no longer present
+4. Add a note: `[timestamp] Auto-closed: originating comment was removed from source`
+
+Only tasks with the `watch` tag are affected. Tasks in terminal states (done, rejected) are skipped.
+
+### Examples
+
+```bash
+# Basic watch mode (suggests tasks, doesn't create)
+ralph watch
+
+# Watch specific directories
+ralph watch src/ tests/
+
+# Auto-create tasks without prompting
+ralph watch --auto-queue
+
+# Watch with custom patterns
+ralph watch --patterns "*.rs,*.toml"
+
+# Watch only TODO and FIXME comments
+ralph watch --comments todo,fixme
+
+# Enable desktop notifications
+ralph watch --auto-queue --notify
+
+# Ignore vendor and target directories
+ralph watch --ignore-patterns "vendor/,target/"
+
+# Auto-close tasks when comments are removed
+ralph watch --auto-queue --close-removed
+
+# Full workflow: auto-queue with reconciliation
+ralph watch --auto-queue --close-removed --notify
+```
+
+### Recommended Workflows
+
+**Development Workflow**:
+```bash
+# Terminal 1: Start watch with auto-queue
+ralph watch --auto-queue --close-removed
+
+# Terminal 2: Work on code, add TODO/FIXME comments as needed
+# Tasks are automatically created and cleaned up
+```
+
+**CI/Automation Workflow**:
+```bash
+# One-time scan for existing comments
+ralph watch --auto-queue --patterns "*.rs"
+
+# Or run continuously with reconciliation
+ralph watch --auto-queue --close-removed --patterns "*.rs"
+```
+
+### Task Lifecycle
+
+1. **Creation**: Comment detected → Task created with `watch` tag and fingerprint
+2. **Deduplication**: Same comment (by fingerprint) won't create duplicate tasks
+3. **Reconciliation** (with `--close-removed`): Comment removed → Task auto-closed
+4. **Manual Override**: Users can manually change task status; watch won't interfere
+
 ## `ralph task`
 
 Create tasks and edit task fields from CLI.
@@ -1924,6 +2031,97 @@ ralph prompt diff worker
 ```
 
 Shows unified diff format. If no local override exists, reports that the embedded default is being used.
+
+## `ralph watch`
+
+Watch files for changes and auto-detect tasks from TODO/FIXME/HACK/XXX comments.
+
+The watch command monitors source files and automatically creates tasks when it detects comment markers like `TODO`, `FIXME`, `HACK`, or `XXX`. It uses structured metadata (file path, line number, content fingerprint) for reliable deduplication and lifecycle tracking.
+
+### Key Features
+
+* **Structured Metadata**: Watch-created tasks include `custom_fields` with:
+  * `watch.file` - Absolute path to the source file
+  * `watch.line` - Line number of the comment
+  * `watch.comment_type` - Type of comment (todo, fixme, hack, xxx)
+  * `watch.fingerprint` - SHA256 hash of normalized comment content
+  * `watch.version` - Metadata format version
+
+* **Strong Deduplication**: Uses content fingerprinting to avoid creating duplicate tasks for the same comment, even if the file is moved or line numbers change.
+
+* **Auto-Close on Removal**: With `--close-removed`, tasks are automatically marked done when their originating comments are deleted from source files.
+
+### Flags
+
+* `--patterns <PATTERNS>` - File patterns to watch (comma-separated, default: `*.rs,*.ts,*.js,*.py,*.go,*.java,*.md,*.toml,*.json`)
+* `--debounce-ms <MS>` - Debounce duration in milliseconds (default: 500)
+* `--auto-queue` - Automatically create tasks without prompting
+* `--notify` - Enable desktop notifications for new tasks
+* `--comments <TYPES>` - Comment types to detect: `todo`, `fixme`, `hack`, `xxx`, `all` (default: `all`)
+* `--ignore-patterns <PATTERNS>` - Additional gitignore-style exclusions (comma-separated)
+* `--close-removed` - Automatically mark watch tasks as done when their originating comments are removed
+
+### Examples
+
+```bash
+# Basic watch mode (suggests tasks, doesn't auto-create)
+ralph watch
+
+# Watch specific directories
+ralph watch src/ tests/
+
+# Auto-queue tasks without prompting
+ralph watch --auto-queue
+
+# Watch with desktop notifications
+ralph watch --auto-queue --notify
+
+# Only detect TODO and FIXME comments
+ralph watch --comments todo,fixme
+
+# Auto-close tasks when comments are removed
+ralph watch --auto-queue --close-removed
+
+# Custom patterns and debounce
+ralph watch --patterns "*.rs,*.toml" --debounce-ms 1000
+
+# Ignore vendor directories
+ralph watch --ignore-patterns "vendor/,target/,node_modules/"
+```
+
+### Recommended Workflows
+
+**Development Workflow with Auto-Close:**
+```bash
+# Terminal 1: Start watch with auto-queue and auto-close
+ralph watch --auto-queue --close-removed
+
+# Terminal 2: Work on code - tasks auto-create from TODOs and auto-close when resolved
+```
+
+**Code Review Cleanup:**
+```bash
+# After refactoring, run with close-removed to clean up stale tasks
+ralph watch src/ --close-removed --auto-queue
+```
+
+### Task Lifecycle
+
+Watch-created tasks follow this lifecycle:
+
+1. **Detection**: File change triggers comment scanning
+2. **Deduplication**: Fingerprint check prevents duplicate tasks
+3. **Creation**: Task added to queue with `watch` tag and metadata
+4. **Execution**: Task worked on normally via `ralph run` or TUI
+5. **Reconciliation** (with `--close-removed`): If comment is deleted, task auto-completes
+
+### Notes
+
+* Watch tasks are tagged with `watch` and the comment type (e.g., `todo`, `fixme`)
+* Deduplication uses SHA256 fingerprint of normalized comment content
+* Legacy tasks without structured metadata fall back to file/line matching
+* The `--close-removed` flag only affects watch-created tasks (those with `watch` tag)
+* User-authored tasks without the `watch` tag are never modified by the reconciliation logic
 
 ## Runner and Model Overrides
 

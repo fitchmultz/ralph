@@ -88,6 +88,7 @@ pub fn handle_watch(args: WatchArgs, force: bool) -> Result<()> {
             comment_types,
             paths,
             force,
+            close_removed: args.close_removed,
         },
     )
 }
@@ -103,7 +104,8 @@ pub fn handle_watch(args: WatchArgs, force: bool) -> Result<()> {
   ralph watch --notify
   ralph watch --comments todo,fixme
   ralph watch --debounce-ms 1000
-  ralph watch --ignore-patterns \"vendor/,target/,node_modules/\""
+  ralph watch --ignore-patterns \"vendor/,target/,node_modules/\"
+  ralph watch --auto-queue --close-removed"
 )]
 pub struct WatchArgs {
     /// Directories or files to watch (defaults to current directory).
@@ -133,6 +135,10 @@ pub struct WatchArgs {
     /// Comment types to detect: todo,fixme,hack,xxx,all (default: all).
     #[arg(long, value_enum, value_delimiter = ',')]
     pub comments: Vec<WatchCommentType>,
+
+    /// Automatically close (mark done) watch tasks when their originating comments are removed.
+    #[arg(long)]
+    pub close_removed: bool,
 }
 
 #[cfg(test)]
@@ -260,6 +266,18 @@ mod tests {
         match cli.command {
             crate::cli::Command::Watch(args) => {
                 assert_eq!(args.ignore_patterns, vec!["vendor/", "target/"]);
+            }
+            _ => panic!("expected watch command"),
+        }
+    }
+
+    #[test]
+    fn watch_parses_close_removed() {
+        let cli = Cli::try_parse_from(["ralph", "watch", "--close-removed"]).expect("parse");
+
+        match cli.command {
+            crate::cli::Command::Watch(args) => {
+                assert!(args.close_removed);
             }
             _ => panic!("expected watch command"),
         }
