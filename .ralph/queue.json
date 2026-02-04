@@ -2,47 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0618",
-      "status": "todo",
-      "title": "Add Markdown and GitHub-issue friendly export formats to `ralph queue export`",
-      "priority": "medium",
-      "tags": [
-        "innovation",
-        "queue",
-        "ux",
-        "integration"
-      ],
-      "scope": [
-        "crates/ralph/src/cli/queue/",
-        "crates/ralph/src/queue/operations/",
-        "docs/cli.md"
-      ],
-      "evidence": [
-        "`./target/release/ralph queue export --help` only supports `csv|tsv|json`, which is awkward for sharing/reviewing backlogs in PRs, issues, or chat."
-      ],
-      "plan": [
-        "Extend `ralph queue export --format` to include `md` as a minimal slice (Markdown table with stable columns and proper escaping).",
-        "Add a `gh` (or `issue`) format that outputs one Markdown block per task optimized for GitHub issue bodies (title + bullets for plan/evidence/scope).",
-        "Ensure exported Markdown is deterministic (stable ordering, consistent field rendering) and supports `--include-archive`/filters.",
-        "Update `docs/cli.md` with examples for markdown exports and a recommended review workflow.",
-        "Add tests that snapshot the Markdown output for a small set of tasks and validate escaping/formatting.",
-        "Verify by running `make ci` and confirming export tests cover csv/tsv/json plus the new markdown formats."
-      ],
-      "notes": [],
-      "request": "innovation scan finding",
-      "created_at": "2026-02-04T14:58:48Z",
-      "updated_at": "2026-02-04T14:58:48Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat).",
-        "opportunity_type": "ux improvement",
-        "scan_agent": "scan-innovation",
-        "time_to_ship": "small/medium (formatters + tests)"
-      }
-    },
-    {
       "id": "RQ-0620",
       "status": "todo",
       "title": "TUI ergonomics: open task scope targets in $EDITOR and copy file:line references",
@@ -78,8 +37,8 @@
       "custom_fields": {
         "opportunity_type": "ux improvement",
         "time_to_ship": "medium (TUI wiring + tests)",
-        "user_value": "Fewer context switches: jump from task → code in one keystroke.",
-        "scan_agent": "scan-innovation"
+        "scan_agent": "scan-innovation",
+        "user_value": "Fewer context switches: jump from task → code in one keystroke."
       }
     },
     {
@@ -120,8 +79,8 @@
       "custom_fields": {
         "scan_agent": "scan-innovation",
         "opportunity_type": "ux improvement",
-        "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error.",
-        "time_to_ship": "medium (render-only UI + tests)"
+        "time_to_ship": "medium (render-only UI + tests)",
+        "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error."
       }
     },
     {
@@ -165,9 +124,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types",
         "measurable_impact": "Track 20%+ improvement in task completion velocity after adoption",
+        "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types",
+        "scan_agent": "scan-innovation",
         "opportunity_type": "feature gap"
       }
     },
@@ -211,10 +170,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "UX improvement",
         "scan_agent": "scan-innovation",
+        "time_to_ship": "incremental - add one batch operation at a time",
         "user_value": "Reduces queue maintenance time by 80% for large projects",
-        "time_to_ship": "incremental - add one batch operation at a time"
+        "opportunity_type": "UX improvement"
       }
     },
     {
@@ -258,10 +217,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "reliability",
         "scan_agent": "scan-innovation",
-        "measurable_impact": "80%+ integration test coverage for CLI commands",
-        "user_value": "Reduces regression risk; enables confident refactoring"
+        "user_value": "Reduces regression risk; enables confident refactoring",
+        "opportunity_type": "reliability",
+        "measurable_impact": "80%+ integration test coverage for CLI commands"
       }
     },
     {
@@ -305,10 +264,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
+        "opportunity_type": "feature gap",
         "user_value": "Enables ecosystem growth; custom integrations without forks",
         "differentiation": "Unique capability among AI task runners",
-        "opportunity_type": "feature gap"
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -352,10 +311,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "measurable_impact": "Estimates within 25% of actual duration after 20 tasks",
         "user_value": "Improves planning accuracy; sets realistic expectations",
-        "opportunity_type": "feature gap"
+        "opportunity_type": "feature gap",
+        "scan_agent": "scan-innovation",
+        "measurable_impact": "Estimates within 25% of actual duration after 20 tasks"
       }
     },
     {
@@ -399,8 +358,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "measurable_impact": "New user success rate >90% within 30 minutes",
         "scan_agent": "scan-innovation",
+        "measurable_impact": "New user success rate >90% within 30 minutes",
         "user_value": "Reduces time-to-productivity from hours to minutes",
         "opportunity_type": "UX improvement"
       }
@@ -445,10 +404,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Proactively identifies improvement opportunities; reduces manual scanning",
-        "opportunity_type": "feature gap",
+        "scan_agent": "scan-innovation",
         "measurable_impact": "Auto-detects 30%+ of maintenance tasks",
-        "scan_agent": "scan-innovation"
+        "opportunity_type": "feature gap",
+        "user_value": "Proactively identifies improvement opportunities; reduces manual scanning"
       }
     },
     {
@@ -491,10 +450,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
+        "user_value": "Enables remote monitoring; integrates with existing workflows",
         "time_to_ship": "incremental - add one channel at a time",
         "opportunity_type": "integration",
-        "user_value": "Enables remote monitoring; integrates with existing workflows"
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -537,10 +496,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "measurable_impact": "50%+ improvement in queue operations for large projects",
         "opportunity_type": "performance",
+        "user_value": "Identifies bottlenecks; improves Ralph responsiveness",
         "scan_agent": "scan-innovation",
-        "user_value": "Identifies bottlenecks; improves Ralph responsiveness"
+        "measurable_impact": "50%+ improvement in queue operations for large projects"
       }
     }
   ]

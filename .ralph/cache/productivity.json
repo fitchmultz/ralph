@@ -1,7 +1,7 @@
 {
   "version": 1,
   "first_task_completed_at": "2026-01-30T12:31:17.161199000Z",
-  "last_updated_at": "2026-02-04T19:50:24.103742000Z",
+  "last_updated_at": "2026-02-04T20:05:22.050204000Z",
   "daily": {
     "2026-01-30": {
       "date": "2026-01-30",
@@ -520,7 +520,7 @@
     },
     "2026-02-04": {
       "date": "2026-02-04",
-      "completed_count": 17,
+      "completed_count": 18,
       "tasks": [
         {
           "id": "RQ-0582",
@@ -606,6 +606,11 @@
           "id": "RQ-0617",
           "title": "Enhance `ralph doctor`: add `--format json` and make `--auto-fix` fix doctor-detected issues (not just sanity checks)",
           "completed_at": "2026-02-04T19:50:24.103739000Z"
+        },
+        {
+          "id": "RQ-0618",
+          "title": "Add Markdown and GitHub-issue friendly export formats to `ralph queue export`",
+          "completed_at": "2026-02-04T20:05:22.050202000Z"
         }
       ]
     }
@@ -615,7 +620,7 @@
     "longest_streak": 6,
     "last_completed_date": "2026-02-04"
   },
-  "total_completed": 114,
+  "total_completed": 115,
   "milestones": [
     {
       "threshold": 10,
