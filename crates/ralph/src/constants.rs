@@ -146,6 +146,9 @@ pub mod paths {
 
     /// Environment variable for raw dump mode.
     pub const ENV_RAW_DUMP: &str = "RALPH_RAW_DUMP";
+
+    /// Environment variable to force completion signal mode (used by parallel workers).
+    pub const ENV_FORCE_COMPLETION_SIGNAL: &str = "RALPH_FORCE_COMPLETION_SIGNAL";
 }
 
 /// Version constants for schemas and templates.
