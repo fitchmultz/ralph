@@ -2,40 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0592",
-      "status": "todo",
-      "title": "Persist merge blockers when merge runner detects PR head mismatch",
-      "priority": "medium",
-      "tags": [
-        "maintenance"
-      ],
-      "scope": [
-        "crates/ralph/src/commands/run/parallel/merge_runner.rs",
-        "crates/ralph/src/commands/run/parallel/mod.rs",
-        "crates/ralph/src/commands/run/parallel/state.rs"
-      ],
-      "evidence": [
-        "code: crates/ralph/src/commands/run/parallel/merge_runner.rs:210-219 logs head mismatch and returns without updating state",
-        "code: crates/ralph/src/commands/run/parallel/mod.rs:264-285 only skips PRs when merge_blocker is set"
-      ],
-      "plan": [
-        "Extend merge runner to report head mismatches back to the supervisor (e.g., new MergeResult field or callback).",
-        "Persist merge_blocker in state.json when a head mismatch is detected.",
-        "Add tests covering head mismatch -> merge_blocker set -> subsequent runs skip the PR without repeated warnings.",
-        "Verify by running `cargo test -p ralph parallel_*` and confirming the new test passes."
-      ],
-      "notes": [],
-      "request": "maintenance scan finding",
-      "created_at": "2026-02-04T02:49:30Z",
-      "updated_at": "2026-02-04T02:49:30Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0593",
       "status": "todo",
       "title": "Update docs to use --parallel (not --parallel-workers) for queue stop",

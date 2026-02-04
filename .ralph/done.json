@@ -1029,6 +1029,57 @@
       "custom_fields": {
         "scan_agent": "scan-maintenance"
       }
+    },
+    {
+      "id": "RQ-0592",
+      "status": "done",
+      "title": "Persist merge blockers when merge runner detects PR head mismatch",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "parallel",
+        "merge"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/parallel/merge_runner.rs",
+        "crates/ralph/src/commands/run/parallel/mod.rs",
+        "crates/ralph/src/commands/run/parallel/state.rs"
+      ],
+      "evidence": [
+        "code: crates/ralph/src/commands/run/parallel/merge_runner.rs:210-219 logs head mismatch warning and returns Ok(()) without updating state",
+        "code: crates/ralph/src/commands/run/parallel/merge_runner.rs:94-101 MergeResult struct lacks merge_blocker field to communicate blockers",
+        "code: crates/ralph/src/commands/run/parallel/mod.rs:214-226 filters out PRs with merge_blocker already set",
+        "code: crates/ralph/src/commands/run/parallel/mod.rs:496-521 already sets merge_blocker when PR head mismatch detected during PR creation",
+        "code: crates/ralph/src/commands/run/parallel/state.rs:220-222 ParallelPrRecord has merge_blocker field for persistence"
+      ],
+      "plan": [
+        "Add merge_blocker field to MergeResult struct in merge_runner.rs to communicate blockers back to supervisor",
+        "Update handle_work_item in merge_runner.rs to return MergeResult with merge_blocker when head mismatch detected",
+        "Update run_merge_runner in merge_runner.rs to send merge_blocker results through merge_result_tx",
+        "Update merge result handling in parallel/mod.rs to persist merge_blocker to state when received",
+        "Add tests covering head mismatch -> merge_blocker set -> subsequent runs skip the PR without repeated warnings",
+        "Verify by running `cargo test -p ralph parallel_*` and confirming the new test passes"
+      ],
+      "notes": [
+        "Partial implementation exists: parallel/mod.rs already sets merge_blocker during PR creation (lines 496-521)",
+        "Gap is in merge_runner.rs which handles PRs discovered from state file on resume, not newly created PRs",
+        "Need to extend MergeResult to include Option<String> merge_blocker field",
+        "Added merge_blocker field to MergeResult struct for communicating blockers to supervisor",
+        "Updated handle_work_item to return MergeResult with blocker on head mismatch",
+        "Updated run_merge_runner to emit blocker results through merge_result_tx",
+        "Added persist_merge_blocker_from_result helper in parallel/mod.rs",
+        "Fixed documentation: separated mixed-up doc comments for persist_merge_blocker_from_result and parse_bytes_to_queue_file"
+      ],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-04T02:49:30Z",
+      "updated_at": "2026-02-04T05:55:03.594537000Z",
+      "completed_at": "2026-02-04T05:55:03.594537000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
     }
   ]
 }

@@ -452,6 +452,12 @@ pub(crate) fn run_loop_parallel(
                     }
                     guard.state_file_mut().mark_pr_merged(&result.task_id);
                     state::save_state(&state_path, guard.state_file())?;
+                } else {
+                    persist_merge_blocker_from_result(
+                        &state_path,
+                        guard.state_file_mut(),
+                        &result,
+                    )?;
                 }
             }
 
@@ -712,6 +718,8 @@ pub(crate) fn run_loop_parallel(
             }
             guard.state_file_mut().mark_pr_merged(&result.task_id);
             state::save_state(&state_path, guard.state_file())?;
+        } else {
+            persist_merge_blocker_from_result(&state_path, guard.state_file_mut(), &result)?;
         }
     }
 
@@ -1110,6 +1118,39 @@ fn record_finished_without_pr(
     if let Some(detail) = message {
         log::info!("Detail for {}: {}", task_id, detail);
     }
+    Ok(())
+}
+
+/// Persists merge blocker from a MergeResult to the state file.
+///
+/// Updates the PR record's merge_blocker field when the merge runner
+/// detects a head mismatch or other blocking condition.
+fn persist_merge_blocker_from_result(
+    state_path: &Path,
+    state_file: &mut state::ParallelStateFile,
+    result: &MergeResult,
+) -> Result<()> {
+    let Some(ref blocker) = result.merge_blocker else {
+        return Ok(());
+    };
+
+    if let Some(record) = state_file
+        .prs
+        .iter_mut()
+        .find(|r| r.task_id == result.task_id)
+    {
+        if record.merge_blocker.as_deref() != Some(blocker.as_str()) {
+            record.merge_blocker = Some(blocker.clone());
+            state::save_state(state_path, state_file)?;
+        }
+    } else {
+        log::warn!(
+            "Received merge blocker for task {} but no PR record exists; ignoring blocker: {}",
+            result.task_id,
+            blocker
+        );
+    }
+
     Ok(())
 }
 
@@ -2487,6 +2528,7 @@ mod tests {
         let result = MergeResult {
             task_id: "RQ-0001".to_string(),
             merged: true,
+            merge_blocker: None,
             queue_bytes: Some(b"not valid json".to_vec()),
             done_bytes: Some(sentinel_done.as_bytes().to_vec()),
             productivity_bytes: Some(sentinel_productivity.as_bytes().to_vec()),
@@ -2538,6 +2580,7 @@ mod tests {
         let result = MergeResult {
             task_id: "RQ-0001".to_string(),
             merged: true,
+            merge_blocker: None,
             queue_bytes: Some(valid_queue.as_bytes().to_vec()),
             done_bytes: Some(b"not valid json".to_vec()),
             productivity_bytes: Some(sentinel_productivity.as_bytes().to_vec()),
@@ -2591,6 +2634,7 @@ mod tests {
         let result = MergeResult {
             task_id: "RQ-0001".to_string(),
             merged: true,
+            merge_blocker: None,
             queue_bytes: Some(invalid_utf8),
             done_bytes: Some(valid_done.as_bytes().to_vec()),
             productivity_bytes: Some(sentinel_productivity.as_bytes().to_vec()),
@@ -2644,6 +2688,7 @@ mod tests {
         let result = MergeResult {
             task_id: "RQ-0001".to_string(),
             merged: true,
+            merge_blocker: None,
             queue_bytes: Some(valid_queue.as_bytes().to_vec()),
             done_bytes: Some(valid_done.as_bytes().to_vec()),
             productivity_bytes: Some(sentinel_productivity.as_bytes().to_vec()),
@@ -2693,6 +2738,7 @@ mod tests {
         let result = MergeResult {
             task_id: "RQ-0001".to_string(),
             merged: true,
+            merge_blocker: None,
             queue_bytes: Some(valid_queue.as_bytes().to_vec()),
             done_bytes: None, // No done bytes - should remove done file
             productivity_bytes: Some(productivity.as_bytes().to_vec()),
@@ -2743,6 +2789,7 @@ mod tests {
         let result = MergeResult {
             task_id: "RQ-0001".to_string(),
             merged: true,
+            merge_blocker: None,
             queue_bytes: Some(jsonc_queue.as_bytes().to_vec()),
             done_bytes: None,
             productivity_bytes: None,
@@ -2790,6 +2837,7 @@ mod tests {
         let result = MergeResult {
             task_id: "RQ-0001".to_string(),
             merged: true,
+            merge_blocker: None,
             queue_bytes: Some(b"{ invalid json".to_vec()),
             done_bytes: Some(b"also invalid".to_vec()),
             productivity_bytes: Some(b"should not be written".to_vec()),

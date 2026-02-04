@@ -95,6 +95,9 @@ pub(crate) enum MergeQueueSource {
 pub(crate) struct MergeResult {
     pub task_id: String,
     pub merged: bool,
+    /// Human-readable reason this PR should be skipped by the supervisor.
+    /// When Some(_), merged must be false and queue/done/productivity bytes must be None.
+    pub merge_blocker: Option<String>,
     pub queue_bytes: Option<Vec<u8>>,
     pub done_bytes: Option<Vec<u8>>,
     pub productivity_bytes: Option<Vec<u8>>,
@@ -113,43 +116,37 @@ pub(crate) fn run_merge_runner(
     merge_result_tx: mpsc::Sender<MergeResult>,
     merge_stop: Arc<AtomicBool>,
 ) -> Result<()> {
+    let handle_one = |work_item: MergeWorkItem| -> Result<()> {
+        if merge_stop.load(Ordering::SeqCst) {
+            return Ok(());
+        }
+
+        if let Some(result) = handle_work_item(
+            resolved,
+            work_item,
+            merge_method,
+            conflict_policy,
+            merge_runner.clone(),
+            retries,
+            workspace_root,
+            delete_branch,
+            &merge_stop,
+        )? {
+            let _ = merge_result_tx.send(result);
+        }
+
+        Ok(())
+    };
+
     match pr_queue {
         MergeQueueSource::AsCreated(rx) => {
             for work_item in rx.iter() {
-                if merge_stop.load(Ordering::SeqCst) {
-                    break;
-                }
-                handle_work_item(
-                    resolved,
-                    work_item,
-                    merge_method,
-                    conflict_policy,
-                    merge_runner.clone(),
-                    retries,
-                    workspace_root,
-                    delete_branch,
-                    &merge_result_tx,
-                    &merge_stop,
-                )?;
+                handle_one(work_item)?;
             }
         }
         MergeQueueSource::AfterAll(work_items) => {
             for work_item in work_items {
-                if merge_stop.load(Ordering::SeqCst) {
-                    break;
-                }
-                handle_work_item(
-                    resolved,
-                    work_item,
-                    merge_method,
-                    conflict_policy,
-                    merge_runner.clone(),
-                    retries,
-                    workspace_root,
-                    delete_branch,
-                    &merge_result_tx,
-                    &merge_stop,
-                )?;
+                handle_one(work_item)?;
             }
         }
     }
@@ -193,11 +190,10 @@ fn handle_work_item(
     retries: u8,
     workspace_root: &Path,
     delete_branch: bool,
-    merge_result_tx: &mpsc::Sender<MergeResult>,
     merge_stop: &AtomicBool,
-) -> Result<()> {
+) -> Result<Option<MergeResult>> {
     if merge_stop.load(Ordering::SeqCst) {
-        return Ok(());
+        return Ok(None);
     }
 
     let branch_prefix = resolved
@@ -216,7 +212,14 @@ fn handle_work_item(
             work_item.task_id,
             reason
         );
-        return Ok(());
+        return Ok(Some(MergeResult {
+            task_id: work_item.task_id,
+            merged: false,
+            merge_blocker: Some(reason),
+            queue_bytes: None,
+            done_bytes: None,
+            productivity_bytes: None,
+        }));
     }
 
     let merged = merge_pr_with_retries(
@@ -239,16 +242,17 @@ fn handle_work_item(
             &work_item.pr.base,
             &work_item.task_id,
         )?;
-        let _ = merge_result_tx.send(MergeResult {
+        Ok(Some(MergeResult {
             task_id: work_item.task_id,
             merged: true,
+            merge_blocker: None,
             queue_bytes: Some(sync.queue_bytes),
             done_bytes: sync.done_bytes,
             productivity_bytes: sync.productivity_bytes,
-        });
+        }))
+    } else {
+        Ok(None)
     }
-
-    Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1239,5 +1243,78 @@ mod tests {
         );
 
         Ok(())
+    }
+
+    // Test for merge blocker on head mismatch (RQ-0592)
+    #[test]
+    fn handle_work_item_returns_blocker_on_head_mismatch() {
+        // Create a minimal resolved config with default branch prefix
+        let temp = TempDir::new().unwrap();
+        let repo_root = temp.path().join("repo");
+        fs::create_dir_all(&repo_root).unwrap();
+        let ralph_dir = repo_root.join(".ralph");
+        fs::create_dir_all(&ralph_dir).unwrap();
+
+        let queue_path = ralph_dir.join("queue.json");
+        let done_path = ralph_dir.join("done.json");
+
+        // Write minimal queue file
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![build_test_task("RQ-0001", TaskStatus::Doing)],
+        };
+        save_queue_file(&queue_path, &queue);
+
+        let resolved = build_test_resolved(&repo_root, queue_path, done_path);
+
+        // Create a work item with mismatched head (wrong prefix)
+        let work_item = MergeWorkItem {
+            task_id: "RQ-0001".to_string(),
+            pr: git::PrInfo {
+                number: 1,
+                url: "https://example.com/pr/1".to_string(),
+                head: "wrong-prefix/RQ-0001".to_string(), // Mismatched!
+                base: "main".to_string(),
+            },
+        };
+
+        // Stop signal (not stopped)
+        let merge_stop = AtomicBool::new(false);
+
+        // Call handle_work_item
+        let result = handle_work_item(
+            &resolved,
+            work_item,
+            ParallelMergeMethod::Squash,
+            ConflictPolicy::Reject,
+            MergeRunnerConfig::default(),
+            3,
+            &temp.path().join("workspaces"),
+            false,
+            &merge_stop,
+        );
+
+        // Should return Ok(Some(MergeResult { merged: false, merge_blocker: Some(...), ... }))
+        let result = result.expect("handle_work_item should not error");
+        assert!(result.is_some(), "should return a MergeResult for blocker");
+
+        let merge_result = result.unwrap();
+        assert!(!merge_result.merged, "merged should be false");
+        assert!(
+            merge_result.merge_blocker.is_some(),
+            "merge_blocker should be set"
+        );
+        assert!(
+            merge_result
+                .merge_blocker
+                .as_ref()
+                .unwrap()
+                .contains("head mismatch"),
+            "blocker should mention head mismatch: {}",
+            merge_result.merge_blocker.as_ref().unwrap()
+        );
+        assert!(merge_result.queue_bytes.is_none());
+        assert!(merge_result.done_bytes.is_none());
+        assert!(merge_result.productivity_bytes.is_none());
     }
 }
