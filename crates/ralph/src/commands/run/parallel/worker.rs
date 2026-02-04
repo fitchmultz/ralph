@@ -48,13 +48,27 @@ pub(crate) fn select_next_task_locked(
     excluded_ids: &HashSet<String>,
     _queue_lock: &DirLock,
 ) -> Result<Option<(String, String)>> {
-    let queue_file = queue::load_queue(&resolved.queue_path)?;
-    let done = queue::load_queue_or_default(&resolved.done_path)?;
-    let done_ref = if done.tasks.is_empty() && !resolved.done_path.exists() {
+    let done_path_exists = resolved.done_path.exists();
+    let done = if done_path_exists {
+        queue::load_queue_with_repair(&resolved.done_path)?
+    } else {
+        crate::contracts::QueueFile::default()
+    };
+    let done_ref = if done.tasks.is_empty() && !done_path_exists {
         None
     } else {
         Some(&done)
     };
+
+    let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
+    let (queue_file, warnings) = queue::load_queue_with_repair_and_validate(
+        &resolved.queue_path,
+        done_ref,
+        &resolved.id_prefix,
+        resolved.id_width,
+        max_depth,
+    )?;
+    queue::log_warnings(&warnings);
 
     let idx =
         select_run_one_task_index_excluding(&queue_file, done_ref, include_draft, excluded_ids)?;
@@ -568,6 +582,87 @@ mod tests {
 
         // Should return None since no tasks are available
         assert!(result.is_none());
+
+        Ok(())
+    }
+
+    #[test]
+    fn parallel_select_next_task_locked_repairs_trailing_commas() -> Result<()> {
+        use crate::config;
+        use tempfile::TempDir;
+
+        let temp = TempDir::new()?;
+        let repo_root = temp.path().to_path_buf();
+        let ralph_dir = repo_root.join(".ralph");
+        std::fs::create_dir_all(&ralph_dir)?;
+
+        let queue_path = ralph_dir.join("queue.json");
+        let malformed = r#"{"version": 1, "tasks": [{"id": "RQ-0001", "title": "Test task", "status": "todo", "tags": ["bug",], "scope": ["file",], "evidence": ["observed",], "plan": ["do thing",], "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z",}]}"#;
+        std::fs::write(&queue_path, malformed)?;
+
+        let resolved = config::Resolved {
+            config: crate::contracts::Config::default(),
+            repo_root: repo_root.clone(),
+            queue_path,
+            done_path: ralph_dir.join("done.json"),
+            id_prefix: "RQ".to_string(),
+            id_width: 4,
+            global_config_path: None,
+            project_config_path: None,
+        };
+
+        let queue_lock = queue::acquire_queue_lock(&repo_root, "test", false)?;
+        let excluded = HashSet::new();
+        let result = select_next_task_locked(&resolved, false, &excluded, &queue_lock)?;
+
+        assert!(result.is_some());
+        let (task_id, task_title) = result.unwrap();
+        assert_eq!(task_id, "RQ-0001");
+        assert_eq!(task_title, "Test task");
+
+        Ok(())
+    }
+
+    #[test]
+    fn parallel_select_next_task_locked_rejects_semantically_invalid_queue() -> Result<()> {
+        use crate::config;
+        use tempfile::TempDir;
+
+        let temp = TempDir::new()?;
+        let repo_root = temp.path().to_path_buf();
+        let ralph_dir = repo_root.join(".ralph");
+        std::fs::create_dir_all(&ralph_dir)?;
+
+        let queue_path = ralph_dir.join("queue.json");
+        // Intentionally missing created_at / updated_at (should fail semantic validation).
+        let invalid = r#"{"version": 1, "tasks": [{"id": "RQ-0001", "title": "Test task", "status": "todo", "tags": ["bug"], "scope": ["file"], "evidence": [], "plan": []}]}"#;
+        std::fs::write(&queue_path, invalid)?;
+
+        let resolved = config::Resolved {
+            config: crate::contracts::Config::default(),
+            repo_root: repo_root.clone(),
+            queue_path,
+            done_path: ralph_dir.join("done.json"),
+            id_prefix: "RQ".to_string(),
+            id_width: 4,
+            global_config_path: None,
+            project_config_path: None,
+        };
+
+        let queue_lock = queue::acquire_queue_lock(&repo_root, "test", false)?;
+        let excluded = HashSet::new();
+
+        let err = select_next_task_locked(&resolved, false, &excluded, &queue_lock)
+            .expect_err("expected semantic validation failure");
+        let err_msg = err
+            .chain()
+            .map(|e| e.to_string())
+            .collect::<Vec<_>>()
+            .join(" | ");
+        assert!(
+            err_msg.contains("created_at") || err_msg.contains("updated_at"),
+            "error should mention missing timestamps: {err_msg}"
+        );
 
         Ok(())
     }

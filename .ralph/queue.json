@@ -1,38 +1,4 @@
 {
   "version": 1,
-  "tasks": [
-    {
-      "id": "RQ-0596",
-      "status": "todo",
-      "title": "Use queue repair for parallel task selection to avoid aborting on minor JSON errors",
-      "priority": "medium",
-      "tags": [
-        "maintenance"
-      ],
-      "scope": [
-        "crates/ralph/src/commands/run/parallel/worker.rs",
-        "crates/ralph/src/queue.rs",
-        "cargo test -p ralph parallel_*"
-      ],
-      "evidence": [
-        "code: crates/ralph/src/commands/run/parallel/worker.rs:51-52 uses queue::load_queue without repair",
-        "code: crates/ralph/src/queue.rs:67-103 provides load_queue_with_repair"
-      ],
-      "plan": [
-        "Switch parallel task selection to load the queue with repair + validation (consistent with other repair-friendly paths).",
-        "Add a test where queue.json has trailing commas and parallel selection still succeeds.",
-        "Verify by running `cargo test -p ralph parallel_*` and confirming the new test passes."
-      ],
-      "notes": [],
-      "request": "maintenance scan finding",
-      "created_at": "2026-02-04T02:49:30Z",
-      "updated_at": "2026-02-04T02:49:30Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    }
-  ]
+  "tasks": []
 }
