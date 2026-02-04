@@ -18,3 +18,4 @@ target/
 .ralph/workspaces/
 .learnings
 debug/
+.ralph/cache/stop_requested
