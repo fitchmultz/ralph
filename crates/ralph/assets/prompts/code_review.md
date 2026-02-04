@@ -5,6 +5,8 @@ Task ID: {{TASK_ID}}
 
 ## PENDING GIT CHANGES (FROM PHASE 2)
 - Execute the git diff command of your choice to view all changed files
+- Ensure the changes are appropriately implemented in all applicable files for consistency. No loose ends.
+- Ensure the changes are not overengineered. If they are, simplify while achieving the same goal/outcome.
 
 ## CODING STANDARDS (HARD REQUIREMENTS)
 - Required CI Gate: if enabled ({{config.agent.ci_gate_enabled}}), `{{config.agent.ci_gate_command}}` must pass before completion.

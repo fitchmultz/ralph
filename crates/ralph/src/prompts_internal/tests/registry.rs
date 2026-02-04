@@ -71,7 +71,7 @@ fn registry_maps_prompt_metadata() {
             id: PromptTemplateId::TaskUpdater,
             rel_path: ".ralph/prompts/task_updater.md",
             label: "task updater",
-            embedded_marker: "{{FIELDS_TO_UPDATE}}",
+            embedded_marker: "{{TASK_ID}}",
             project_guidance: true,
         },
         Expectation {
@@ -147,7 +147,12 @@ fn registry_maps_prompt_metadata() {
         assert!(
             template
                 .embedded_default
-                .contains(expectation.embedded_marker)
+                .contains(expectation.embedded_marker),
+            "Prompt '{}' (id={:?}) is missing expected marker: {:?}\n\nActual content preview (first 500 chars):\n{}",
+            expectation.label,
+            expectation.id,
+            expectation.embedded_marker,
+            &template.embedded_default[..template.embedded_default.len().min(500)]
         );
     }
 }
