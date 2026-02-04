@@ -17,7 +17,7 @@
 use crate::commands::watch::comments::detect_comments;
 use crate::commands::watch::debounce::{can_reprocess, cleanup_old_entries};
 use crate::commands::watch::state::WatchState;
-use crate::commands::watch::tasks::handle_detected_comments;
+use crate::commands::watch::tasks::{handle_detected_comments, reconcile_removed_comments};
 use crate::commands::watch::types::{DetectedComment, WatchOptions};
 use crate::config::Resolved;
 use anyhow::Result;
@@ -82,6 +82,11 @@ pub fn process_pending_files(
         handle_detected_comments(resolved, &all_comments, opts)?;
     }
 
+    // Reconcile: close tasks for removed comments
+    if opts.close_removed {
+        reconcile_removed_comments(resolved, &all_comments, opts)?;
+    }
+
     Ok(())
 }
 
@@ -131,6 +136,7 @@ mod tests {
             comment_types: vec![CommentType::Todo],
             paths: vec![PathBuf::from(".")],
             force: false,
+            close_removed: false,
         };
 
         let comment_regex = build_comment_regex(&opts.comment_types).unwrap();
@@ -188,6 +194,7 @@ mod tests {
             comment_types: vec![CommentType::Todo],
             paths: vec![PathBuf::from(".")],
             force: false,
+            close_removed: false,
         };
 
         let comment_regex = build_comment_regex(&opts.comment_types).unwrap();

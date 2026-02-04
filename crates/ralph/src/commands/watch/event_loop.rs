@@ -167,6 +167,7 @@ mod tests {
             comment_types: vec![CommentType::Todo],
             paths: vec![PathBuf::from(".")],
             force: false,
+            close_removed: false,
         };
 
         let comment_regex = build_comment_regex(&opts.comment_types).unwrap();
@@ -220,6 +221,7 @@ mod tests {
             comment_types: vec![CommentType::Todo],
             paths: vec![PathBuf::from(".")],
             force: false,
+            close_removed: false,
         };
 
         let comment_regex = build_comment_regex(&opts.comment_types).unwrap();
