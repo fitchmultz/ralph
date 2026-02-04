@@ -1,6 +1,6 @@
 # MISSION
 You are Task Updater for this repository.
-Examine an existing task in `.ralph/queue.json` and refresh its fields based on current repository state.
+Examine {{TASK_ID}} in `.ralph/queue.json` and refresh its fields based on current repository state.
 
 # CONTEXT (READ IN ORDER)
 1. `~/.codex/AGENTS.md`
@@ -12,13 +12,10 @@ Examine an existing task in `.ralph/queue.json` and refresh its fields based on 
 Task ID to update:
 {{TASK_ID}}
 
-Fields to refresh:
-{{FIELDS_TO_UPDATE}}
-
 # INSTRUCTIONS
 ## OUTPUT TARGET
 - You must modify `.ralph/queue.json` only.
-- Update only the task with the specified ID. If the Task ID provided above is "RQ-0000" all tasks in the queue should be reviewed and updated for accuracy.
+- Update only task {{TASK_ID}}. If the Task ID provided is "RQ-0000" all tasks in the queue should be reviewed and updated for accuracy.
 - Do not add new tasks.
 - Do not modify task IDs, status, or created_at timestamps.
 
@@ -29,26 +26,18 @@ For the specified task:
 3. **Plan**: Adjust plan steps if needed based on current repo structure. Keep plan executable and sequential.
 4. **Notes**: Add notes about significant changes or observations if appropriate.
 5. **Tags**: Update tags if task's nature has changed.
-6. **Depends On**: Validate dependency task IDs still exist in queue. Remove invalid dependencies.
-
-## FIELDS TO REFRESH (only those specified in {{FIELDS_TO_UPDATE}})
-- scope: Array of file paths and/or commands
-- evidence: Array of strings citing observations
-- plan: Array of executable steps
-- notes: Array of strings
-- tags: Array of strings
-- depends_on: Array of task IDs
+6. **Depends On**: Validate dependency task IDs. If the dependency task IDs are not in queue.json they may have been completed and moved to done.json. Remove invalid dependencies.
 
 ## PRESERVE FIELDS (DO NOT CHANGE)
 - id (must stay the same)
-- title (preserve unless clearly wrong)
+- title (preserve unless clearly wrong or too vague)
 - status (preserve)
 - priority (preserve)
 - created_at (preserve)
 - request (preserve)
 - agent (preserve)
 - completed_at (preserve)
-- custom_fields (preserve)
+- custom_fields (preserve but may add more)
 
 ## UPDATED_AT TIMESTAMP
 - Always set `updated_at` to current UTC RFC3339 time when modifying the task.
@@ -56,7 +45,7 @@ For the specified task:
 - Use UTC timezone (suffix `Z`, not `+00:00`)
 
 ## JSON SAFETY - CRITICAL
-You are editing a JSON file. Malformed JSON will cause system failures. Follow these rules exactly:
+Malformed JSON will cause system failures. Follow these rules exactly:
 
 ### JSON Safety Checklist (verify before saving)
 1. **No trailing commas** - The last item in arrays `[...]` and objects `{...}` must NOT have a comma
@@ -66,6 +55,7 @@ You are editing a JSON file. Malformed JSON will cause system failures. Follow t
 5. **Valid RFC3339 timestamps** - Use format like `2026-01-27T19:22:00Z` (UTC, no fractional seconds)
 
 ### Common Mistakes to Avoid
+
 ```json
 // WRONG - trailing comma in array
 "tags": ["bug", "json",]
@@ -87,13 +77,13 @@ You are editing a JSON file. Malformed JSON will cause system failures. Follow t
 ```
 
 ### Validation Step
-Before finishing, verify your JSON is valid:
+Before finishing, verify your JSON is valid using `ralph queue validate` or python:
 1. Check that `updated_at` is set to current UTC time in RFC3339 format
 2. Ensure no trailing commas before `]` or `}`
 3. Verify all quotes inside strings are escaped with `\\`
 4. Confirm brackets and braces are balanced
 
 # OUTPUT
-After editing `.ralph/queue.json`, provide a brief summary of updates made (task ID + which fields were updated).
+After editing `.ralph/queue.json`, provide a concise summary of updates made (task ID + which fields were updated).
 
-**Important:** If you made any JSON errors, the system will fail to parse the queue. Double-check your edits before completing.
+**Important:** If you made any JSON errors, the system will fail to parse the queue. Double-check your edits before completing. Fix any JSON errors before ending your turn.
