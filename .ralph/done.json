@@ -1302,10 +1302,57 @@
         "RQ-0610"
       ],
       "custom_fields": {
+        "time_to_ship": "medium (concurrency + tests)",
         "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort.",
-        "scan_agent": "scan-innovation",
         "opportunity_type": "reliability",
-        "time_to_ship": "medium (concurrency + tests)"
+        "scan_agent": "scan-innovation"
+      }
+    },
+    {
+      "id": "RQ-0616",
+      "status": "done",
+      "title": "Improve `ralph watch`: structured source metadata, stronger dedupe, and optional auto-close when comments are removed",
+      "priority": "medium",
+      "tags": [
+        "innovation",
+        "watch",
+        "queue",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/watch/",
+        "crates/ralph/src/cli/watch.rs",
+        "docs/cli.md"
+      ],
+      "evidence": [
+        "`./target/release/ralph watch --help` describes auto-queueing tasks from TODO/FIXME/HACK/XXX comments.",
+        "`crates/ralph/src/commands/watch/tasks.rs` dedupes by substring matching file path/line in title/notes, which can false-positive and cannot support reconciliation when a comment moves or is deleted."
+      ],
+      "plan": [
+        "Add structured `custom_fields` on watch-created tasks (e.g., `watch.file`, `watch.line`, `watch.comment_type`, `watch.fingerprint`) and use these for dedupe instead of substring matching.",
+        "Add a new `ralph watch --close-removed` option: on each processing pass, reconcile existing watch tasks and mark them done/rejected (or append a note) when the originating comment is no longer present.",
+        "Keep the minimal slice strictly additive: only affect watch-created tasks (tag `watch`) and do not mutate user-authored tasks.",
+        "Update `docs/cli.md` with a `watch` section including examples and recommended workflows.",
+        "Add tests for dedupe correctness, fingerprint stability, and close-removed behavior using temp files and controlled edits.",
+        "Verify by running `make ci` and confirming watch tests cover creation, dedupe, and removal reconciliation."
+      ],
+      "notes": [
+        "Merged PR #16"
+      ],
+      "request": "innovation scan finding",
+      "created_at": "2026-02-04T14:58:48Z",
+      "updated_at": "2026-02-04T18:46:41.652951000Z",
+      "completed_at": "2026-02-04T18:46:41.652951000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [
+        "RQ-0608"
+      ],
+      "custom_fields": {
+        "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current.",
+        "time_to_ship": "medium (metadata + reconciliation + tests)",
+        "opportunity_type": "ux improvement",
+        "scan_agent": "scan-innovation"
       }
     }
   ]

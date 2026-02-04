@@ -485,7 +485,7 @@ fn apply_completion_and_collect_bytes(
         workspace_resolved.project_config_path = Some(base_sync_path.join(".ralph/config.json"));
     }
 
-    ensure_completion_signal_in_workspace(&base_sync_path, task_id)?;
+    ensure_completion_signal_in_workspace(&base_sync_path, workspace_root, task_id)?;
     let applied =
         crate::commands::run::apply_phase3_completion_signal(&workspace_resolved, task_id)?;
     if applied.is_none() {
@@ -562,19 +562,38 @@ fn apply_completion_and_collect_bytes(
 /// Behavior:
 /// 1. If signal exists in workspace_repo_root, return Ok(())
 /// 2. Else return an error with actionable remediation steps
-fn ensure_completion_signal_in_workspace(workspace_repo_root: &Path, task_id: &str) -> Result<()> {
-    if completions::read_completion_signal(workspace_repo_root, task_id)?.is_some() {
+fn ensure_completion_signal_in_workspace(
+    base_sync_root: &Path,
+    workspace_root: &Path,
+    task_id: &str,
+) -> Result<()> {
+    if completions::read_completion_signal(base_sync_root, task_id)?.is_some() {
         return Ok(());
     }
 
-    let workspace_signal_path = completions::completion_signal_path(workspace_repo_root, task_id)?;
-    bail!(
-        "Completion signal for {} is missing at {}.\n\nRemediation options:\n  1. Re-run Phase 3 for the task to generate a completion signal (e.g., ralph run one --phases 3 --id {})\n  2. Manually finalize the task: ralph task done {} (or rejected)",
-        task_id,
-        workspace_signal_path.display(),
-        task_id,
+    if let Some(signal) = completions::read_completion_signal(workspace_root, task_id)? {
+        completions::write_completion_signal(base_sync_root, &signal)?;
+        log::info!(
+            "Copied completion signal for {} from workspace into base-sync.",
+            task_id
+        );
+        return Ok(());
+    }
+
+    let fallback = completions::CompletionSignal {
+        task_id: task_id.to_string(),
+        status: crate::contracts::TaskStatus::Done,
+        notes: vec![format!(
+            "[ralph] Auto-finalized after merge: completion signal missing for {}.",
+            task_id
+        )],
+    };
+    completions::write_completion_signal(base_sync_root, &fallback)?;
+    log::warn!(
+        "Completion signal missing for {}; auto-finalizing as done.",
         task_id
-    )
+    );
+    Ok(())
 }
 
 fn task_title_from_queue_done_paths(
@@ -667,20 +686,8 @@ fn git_status(repo_root: &Path) -> Result<String> {
 }
 
 fn push_branch(repo_root: &Path) -> Result<()> {
-    match git::is_ahead_of_upstream(repo_root) {
-        Ok(ahead) => {
-            if !ahead {
-                return Ok(());
-            }
-            git::push_upstream(repo_root).context("push branch to upstream")?;
-        }
-        Err(git::GitError::NoUpstream) | Err(git::GitError::NoUpstreamConfigured) => {
-            git::push_upstream_allow_create(repo_root)
-                .context("push branch and create upstream")?;
-        }
-        Err(err) => return Err(err.into()),
-    }
-    Ok(())
+    git::push_upstream_with_rebase(repo_root)
+        .context("push branch to upstream (auto-rebase on rejection)")
 }
 
 fn git_run(repo_root: &Path, args: &[&str]) -> Result<()> {
@@ -1115,23 +1122,16 @@ mod tests {
         save_queue_file(&queue_path, &queue);
         save_queue_file(&done_path, &done);
 
-        // Create and commit a completion signal in the author repo so it lands on main.
+        git_test::commit_all(author_dir.path(), "add queue files")?;
+        git_test::push_branch(author_dir.path(), "main")?;
+
+        // Create completion signal in the workspace (not tracked by git).
         let signal = completions::CompletionSignal {
             task_id: "RQ-0001".to_string(),
             status: TaskStatus::Done,
             notes: vec!["Completed".to_string()],
         };
-        git_test::commit_all(author_dir.path(), "add queue files")?;
-        let signal_path = completions::write_completion_signal(author_dir.path(), &signal)?;
-        git_test::git_run(
-            author_dir.path(),
-            &["add", "-f", signal_path.to_string_lossy().as_ref()],
-        )?;
-        git_test::git_run(
-            author_dir.path(),
-            &["commit", "-m", "add completion signal"],
-        )?;
-        git_test::push_branch(author_dir.path(), "main")?;
+        completions::write_completion_signal(workspace_dir.path(), &signal)?;
 
         let resolved = build_test_resolved(author_dir.path(), queue_path, done_path);
 
@@ -1157,21 +1157,21 @@ mod tests {
             ".base-sync should be cleaned up after apply_completion_and_collect_bytes returns"
         );
 
-        // Verify the completion signal was removed on the base branch (origin/main).
+        // Verify the completion signal was not persisted on the base branch (origin/main).
         git_test::git_run(author_dir.path(), &["fetch", "origin", "main"])?;
         git_test::git_run(author_dir.path(), &["checkout", "main"])?;
         git_test::git_run(author_dir.path(), &["reset", "--hard", "origin/main"])?;
         let signal_path = completions::completion_signal_path(author_dir.path(), "RQ-0001")?;
         assert!(
             !signal_path.exists(),
-            "completion signal should be removed from base branch after apply"
+            "completion signal should not exist on base branch after apply"
         );
 
         Ok(())
     }
 
     #[test]
-    fn apply_completion_and_collect_bytes_fails_when_signal_missing() -> Result<()> {
+    fn apply_completion_and_collect_bytes_autofinalizes_when_signal_missing() -> Result<()> {
         let (_remote_dir, author_dir, workspace_dir) = setup_merge_test();
 
         // Ensure we are on main branch locally
@@ -1197,29 +1197,32 @@ mod tests {
         git_test::push_branch(author_dir.path(), "main")?;
 
         // NOTE: Intentionally NOT creating any completion signal
-        // This tests the failure mode when signal is missing from both original and workspace
+        // This tests the auto-finalize behavior when signal is missing from both base and workspace.
 
         let resolved =
             build_test_resolved(author_dir.path(), queue_path.clone(), done_path.clone());
 
         let result =
-            apply_completion_and_collect_bytes(&resolved, workspace_dir.path(), "main", "RQ-0001");
+            apply_completion_and_collect_bytes(&resolved, workspace_dir.path(), "main", "RQ-0001")?;
 
-        // Should return an error mentioning the missing completion signal
+        let updated_queue: QueueFile = serde_json::from_slice(&result.queue_bytes)?;
         assert!(
-            result.is_err(),
-            "should fail when completion signal is missing"
+            updated_queue.tasks.is_empty(),
+            "queue should be empty after auto-finalize"
         );
-        let err_msg = result.unwrap_err().to_string();
+        let done_bytes = result.done_bytes.expect("done bytes should be present");
+        let updated_done: QueueFile = serde_json::from_slice(&done_bytes)?;
+        let done_task = updated_done
+            .tasks
+            .iter()
+            .find(|t| t.id == "RQ-0001")
+            .expect("done should include completed task");
         assert!(
-            err_msg.contains("Completion signal"),
-            "error should mention 'Completion signal': {}",
-            err_msg
-        );
-        assert!(
-            err_msg.contains("RQ-0001"),
-            "error should mention task ID: {}",
-            err_msg
+            done_task
+                .notes
+                .iter()
+                .any(|note| note.contains("Auto-finalized")),
+            "done task should include auto-finalize note"
         );
 
         // Verify .base-sync directory is cleaned up even when the call errors
@@ -1229,17 +1232,20 @@ mod tests {
             ".base-sync should be cleaned up even when apply_completion_and_collect_bytes errors"
         );
 
-        // Verify original repo queue/done were not mutated by the failed attempt.
+        // Verify base branch queue/done were updated by the auto-finalize flow.
+        git_test::git_run(author_dir.path(), &["fetch", "origin", "main"])?;
+        git_test::git_run(author_dir.path(), &["checkout", "main"])?;
+        git_test::git_run(author_dir.path(), &["reset", "--hard", "origin/main"])?;
         let original_queue: QueueFile = serde_json::from_slice(&fs::read(&queue_path)?)?;
         assert!(
-            original_queue.tasks.iter().any(|t| t.id == "RQ-0001"),
-            "original queue should still contain the task on failure"
+            !original_queue.tasks.iter().any(|t| t.id == "RQ-0001"),
+            "original queue should not contain the task after auto-finalize"
         );
 
         let original_done: QueueFile = serde_json::from_slice(&fs::read(&done_path)?)?;
         assert!(
-            !original_done.tasks.iter().any(|t| t.id == "RQ-0001"),
-            "original done should not contain the task on failure"
+            original_done.tasks.iter().any(|t| t.id == "RQ-0001"),
+            "original done should contain the task after auto-finalize"
         );
 
         Ok(())

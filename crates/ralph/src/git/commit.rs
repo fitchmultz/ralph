@@ -15,6 +15,7 @@
 //! - LFS validation (see git/lfs.rs)
 //! - Repository cleanliness (see git/clean.rs)
 
+use crate::git::current_branch;
 use crate::git::error::{GitError, classify_push_error, git_base_command, git_run};
 use anyhow::Context;
 use std::path::{Path, PathBuf};
@@ -306,4 +307,109 @@ pub fn push_upstream_allow_create(repo_root: &Path) -> Result<(), GitError> {
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     Err(classify_push_error(&stderr))
+}
+
+fn is_non_fast_forward_error(err: &GitError) -> bool {
+    let GitError::PushFailed(detail) = err else {
+        return false;
+    };
+    let lower = detail.to_lowercase();
+    lower.contains("non-fast-forward")
+        || lower.contains("fetch first")
+        || lower.contains("rejected")
+}
+
+fn rebase_onto(repo_root: &Path, upstream: &str) -> Result<(), GitError> {
+    git_run(repo_root, &["fetch", "origin", "--prune"])?;
+    git_run(repo_root, &["rebase", upstream])?;
+    Ok(())
+}
+
+/// Push HEAD to upstream, rebasing on non-fast-forward rejections.
+///
+/// If the branch has no upstream yet, this will create one via `git push -u origin HEAD`.
+/// When the push is rejected because the remote has new commits, this will:
+/// - `git fetch origin --prune`
+/// - `git rebase <upstream>`
+/// - retry the push once
+pub fn push_upstream_with_rebase(repo_root: &Path) -> Result<(), GitError> {
+    let ahead = match is_ahead_of_upstream(repo_root) {
+        Ok(ahead) => ahead,
+        Err(GitError::NoUpstream) | Err(GitError::NoUpstreamConfigured) => true,
+        Err(err) => return Err(err),
+    };
+
+    if !ahead {
+        return Ok(());
+    }
+
+    let push_result = match push_upstream(repo_root) {
+        Ok(()) => return Ok(()),
+        Err(GitError::NoUpstream) | Err(GitError::NoUpstreamConfigured) => {
+            push_upstream_allow_create(repo_root)
+        }
+        Err(err) => Err(err),
+    };
+
+    match push_result {
+        Ok(()) => Ok(()),
+        Err(err) if is_non_fast_forward_error(&err) => {
+            let upstream = match upstream_ref(repo_root) {
+                Ok(upstream) => upstream,
+                Err(_) => {
+                    let branch = current_branch(repo_root).map_err(GitError::Other)?;
+                    format!("origin/{}", branch)
+                }
+            };
+            rebase_onto(repo_root, &upstream)?;
+            if upstream_ref(repo_root).is_ok() {
+                push_upstream(repo_root)
+            } else {
+                push_upstream_allow_create(repo_root)
+            }
+        }
+        Err(err) => Err(err),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::testsupport::git as git_test;
+    use tempfile::TempDir;
+
+    #[test]
+    fn push_upstream_with_rebase_recovers_from_non_fast_forward() -> anyhow::Result<()> {
+        let remote = TempDir::new()?;
+        git_test::init_bare_repo(remote.path())?;
+
+        let repo_a = TempDir::new()?;
+        git_test::init_repo(repo_a.path())?;
+        git_test::add_remote(repo_a.path(), "origin", remote.path())?;
+
+        std::fs::write(repo_a.path().join("base.txt"), "init\n")?;
+        git_test::commit_all(repo_a.path(), "init")?;
+        git_test::git_run(repo_a.path(), &["push", "-u", "origin", "HEAD"])?;
+
+        let repo_b = TempDir::new()?;
+        git_test::clone_repo(remote.path(), repo_b.path())?;
+        git_test::configure_user(repo_b.path())?;
+        std::fs::write(repo_b.path().join("remote.txt"), "remote\n")?;
+        git_test::commit_all(repo_b.path(), "remote update")?;
+        git_test::git_run(repo_b.path(), &["push"])?;
+
+        std::fs::write(repo_a.path().join("local.txt"), "local\n")?;
+        git_test::commit_all(repo_a.path(), "local update")?;
+
+        push_upstream_with_rebase(repo_a.path())?;
+
+        let counts = git_test::git_output(
+            repo_a.path(),
+            &["rev-list", "--left-right", "--count", "@{u}...HEAD"],
+        )?;
+        let parts: Vec<&str> = counts.split_whitespace().collect();
+        assert_eq!(parts, vec!["0", "0"]);
+
+        Ok(())
+    }
 }

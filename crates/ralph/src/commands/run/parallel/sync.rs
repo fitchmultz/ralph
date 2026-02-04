@@ -63,21 +63,8 @@ pub(crate) fn commit_failure_changes(workspace_path: &Path, task_id: &str) -> Re
 
 /// Ensure the current branch in the workspace is pushed to upstream.
 pub(crate) fn ensure_branch_pushed(workspace_path: &Path) -> Result<()> {
-    match git::is_ahead_of_upstream(workspace_path) {
-        Ok(ahead) => {
-            if !ahead {
-                return Ok(());
-            }
-            git::push_upstream(workspace_path).with_context(|| "push branch to upstream")?;
-            Ok(())
-        }
-        Err(git::GitError::NoUpstream) | Err(git::GitError::NoUpstreamConfigured) => {
-            git::push_upstream_allow_create(workspace_path)
-                .with_context(|| "push branch and create upstream")?;
-            Ok(())
-        }
-        Err(err) => Err(err.into()),
-    }
+    git::push_upstream_with_rebase(workspace_path)
+        .with_context(|| "push branch to upstream (auto-rebase on rejection)")
 }
 
 fn sync_file_if_exists(source: &Path, target: &Path) -> Result<()> {

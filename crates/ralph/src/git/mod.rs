@@ -34,7 +34,7 @@ pub use clean::{
 };
 pub use commit::{
     add_paths_force, commit_all, is_ahead_of_upstream, push_upstream, push_upstream_allow_create,
-    restore_tracked_paths_to_head, revert_uncommitted, upstream_ref,
+    push_upstream_with_rebase, restore_tracked_paths_to_head, revert_uncommitted, upstream_ref,
 };
 pub use error::GitError;
 pub use lfs::{check_lfs_health, filter_modified_lfs_files, has_lfs, list_lfs_files};

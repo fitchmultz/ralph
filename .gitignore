@@ -11,6 +11,7 @@ target/
 .ralph/lock
 .ralph/cache/plans
 .ralph/cache/phase2_final
+.ralph/cache/completions
 .ralph/cache/queue.json.backup*
 .ralph/cache/parallel/state.json
 .ralph/cache/session.json
