@@ -266,9 +266,69 @@ fn extract_pr_url(output: &str) -> Option<String> {
         .map(|line| line.to_string())
 }
 
+/// Run a gh command with GH_NO_UPDATE_NOTIFIER set to avoid noisy updater prompts.
+fn run_gh_with_no_update(args: &[&str]) -> Result<std::process::Output> {
+    std::process::Command::new("gh")
+        .args(args)
+        .env("GH_NO_UPDATE_NOTIFIER", "1")
+        .output()
+        .with_context(|| format!("run gh {}", args.join(" ")))
+}
+
+/// Check if the GitHub CLI (`gh`) is available and authenticated.
+///
+/// This is intended for preflight checks before operations that require gh,
+/// such as parallel mode with auto_pr or auto_merge enabled.
+///
+/// Returns Ok(()) if gh is on PATH and authenticated.
+/// Returns an error with a clear, actionable message if gh is missing or not authenticated.
+pub(crate) fn check_gh_available() -> Result<()> {
+    check_gh_available_with(run_gh_with_no_update)
+}
+
+/// Internal implementation that accepts a custom gh runner for testability.
+fn check_gh_available_with<F>(run_gh: F) -> Result<()>
+where
+    F: Fn(&[&str]) -> Result<std::process::Output>,
+{
+    // First, check if gh is on PATH by running --version
+    let version_output = run_gh(&["--version"]).with_context(|| {
+        "GitHub CLI (`gh`) not found on PATH. Install it from https://cli.github.com/ and re-run, or disable parallel auto_pr/auto_merge.".to_string()
+    })?;
+
+    if !version_output.status.success() {
+        let stderr = String::from_utf8_lossy(&version_output.stderr);
+        bail!(
+            "`gh --version` failed (gh is not usable). Details: {}. Install/repair `gh` from https://cli.github.com/ or disable parallel auto_pr/auto_merge.",
+            stderr.trim()
+        );
+    }
+
+    // Then, check authentication status
+    let auth_output = run_gh(&["auth", "status"]).with_context(|| {
+        "Failed to run `gh auth status`. Ensure `gh` is properly installed.".to_string()
+    })?;
+
+    if !auth_output.status.success() {
+        let stdout = String::from_utf8_lossy(&auth_output.stdout);
+        let stderr = String::from_utf8_lossy(&auth_output.stderr);
+        let details = if !stderr.is_empty() {
+            stderr.trim()
+        } else {
+            stdout.trim()
+        };
+        bail!(
+            "GitHub CLI (`gh`) is not authenticated. Run `gh auth login` and re-run, or disable parallel auto_pr/auto_merge. Details: {}",
+            details
+        );
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{MergeState, PrLifecycle, extract_pr_url};
+    use super::{MergeState, PrLifecycle, check_gh_available_with, extract_pr_url};
     use super::{PrViewJson, pr_lifecycle_status_from_view, pr_merge_status_from_view};
 
     #[test]
@@ -420,5 +480,119 @@ mod tests {
         let status = pr_lifecycle_status_from_view(&json);
         assert!(matches!(status.lifecycle, PrLifecycle::Unknown(s) if s == "WEIRD"));
         assert!(!status.is_merged);
+    }
+
+    #[test]
+    fn check_gh_available_fails_when_gh_not_found() {
+        // Simulate gh not being on PATH (io error)
+        let run_gh = |_args: &[&str]| -> anyhow::Result<std::process::Output> {
+            Err(anyhow::anyhow!(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "No such file or directory"
+            )))
+        };
+
+        let result = check_gh_available_with(run_gh);
+        assert!(result.is_err());
+        let msg = result.unwrap_err().to_string();
+        assert!(msg.contains("GitHub CLI (`gh`) not found on PATH"));
+        assert!(msg.contains("https://cli.github.com/"));
+    }
+
+    #[test]
+    fn check_gh_available_fails_when_version_fails() {
+        // Simulate gh --version returning non-success
+        // Get a failing exit status by running "false" command
+        let fail_status = std::process::Command::new("false")
+            .status()
+            .expect("'false' command should exist");
+
+        let run_gh = |args: &[&str]| -> anyhow::Result<std::process::Output> {
+            if args == ["--version"] {
+                Ok(std::process::Output {
+                    status: fail_status,
+                    stdout: vec![],
+                    stderr: b"gh: command not recognized".to_vec(),
+                })
+            } else {
+                Ok(std::process::Output {
+                    status: std::process::ExitStatus::default(),
+                    stdout: vec![],
+                    stderr: vec![],
+                })
+            }
+        };
+
+        let result = check_gh_available_with(run_gh);
+        assert!(result.is_err());
+        let msg = result.unwrap_err().to_string();
+        assert!(msg.contains("`gh --version` failed"));
+        assert!(msg.contains("gh is not usable"));
+    }
+
+    #[test]
+    fn check_gh_available_fails_when_auth_fails() {
+        // Simulate gh --version succeeding but auth status failing
+        // Get a failing exit status by running "false" command
+        let fail_status = std::process::Command::new("false")
+            .status()
+            .expect("'false' command should exist");
+
+        let run_gh = |args: &[&str]| -> anyhow::Result<std::process::Output> {
+            if args == ["--version"] {
+                Ok(std::process::Output {
+                    status: std::process::ExitStatus::default(),
+                    stdout: b"gh version 2.40.0".to_vec(),
+                    stderr: vec![],
+                })
+            } else if args == ["auth", "status"] {
+                Ok(std::process::Output {
+                    status: fail_status,
+                    stdout: vec![],
+                    stderr: b"You are not logged into any GitHub hosts".to_vec(),
+                })
+            } else {
+                Ok(std::process::Output {
+                    status: std::process::ExitStatus::default(),
+                    stdout: vec![],
+                    stderr: vec![],
+                })
+            }
+        };
+
+        let result = check_gh_available_with(run_gh);
+        assert!(result.is_err());
+        let msg = result.unwrap_err().to_string();
+        assert!(msg.contains("GitHub CLI (`gh`) is not authenticated"));
+        assert!(msg.contains("gh auth login"));
+    }
+
+    #[test]
+    fn check_gh_available_succeeds_when_both_checks_pass() {
+        // Simulate both gh --version and auth status succeeding
+        let run_gh = |args: &[&str]| -> anyhow::Result<std::process::Output> {
+            if args == ["--version"] {
+                Ok(std::process::Output {
+                    status: std::process::ExitStatus::default(),
+                    stdout: b"gh version 2.40.0".to_vec(),
+                    stderr: vec![],
+                })
+            } else if args == ["auth", "status"] {
+                Ok(std::process::Output {
+                    status: std::process::ExitStatus::default(),
+                    stdout: b"Logged in to github.com as user".to_vec(),
+                    stderr: vec![],
+                })
+            } else {
+                Ok(std::process::Output {
+                    status: std::process::ExitStatus::default(),
+                    stdout: vec![],
+                    stderr: vec![],
+                })
+            }
+        };
+
+        let result = check_gh_available_with(run_gh);
+        assert!(result.is_ok());
     }
 }

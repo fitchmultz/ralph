@@ -143,6 +143,14 @@ pub(crate) fn run_loop_parallel(
         apply_git_commit_push_policy_to_parallel_settings(&mut settings, false);
     }
 
+    // Preflight: if PR automation is enabled, verify gh CLI is available and authenticated.
+    // This fails fast with a clear error rather than running tasks and failing at PR creation.
+    if settings.auto_pr || settings.auto_merge {
+        git::check_gh_available().context(
+            "Parallel preflight: gh CLI check failed (auto_pr or auto_merge is enabled)",
+        )?;
+    }
+
     if settings.workers < 2 {
         bail!(
             "Parallel run requires workers >= 2 (got {})",

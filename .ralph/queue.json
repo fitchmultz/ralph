@@ -2,43 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0585",
-      "status": "todo",
-      "title": "Fail fast if gh CLI is missing when auto PR/merge is enabled",
-      "priority": "medium",
-      "tags": [
-        "maintenance",
-        "parallel",
-        "reliability"
-      ],
-      "scope": [
-        "crates/ralph/src/commands/run/parallel/mod.rs",
-        "crates/ralph/src/git/pr.rs",
-        "cargo test -p ralph"
-      ],
-      "evidence": [
-        "Path: crates/ralph/src/git/pr.rs:1-14 (module assumes gh is installed and authenticated)",
-        "Path: crates/ralph/src/commands/run/parallel/mod.rs:148-160 (merge runner starts without checking gh availability)",
-        "Repro: remove gh from PATH and run `ralph run loop --parallel 2`; tasks complete but PR creation fails and tasks end in finished_without_pr blockers"
-      ],
-      "plan": [
-        "Add a preflight check (gh --version and gh auth status) when auto_pr/auto_merge is enabled for parallel runs.",
-        "Fail early with a clear error if gh is unavailable or unauthenticated.",
-        "Add tests using the existing git test harness to simulate missing gh and assert a helpful error.",
-        "Verify by running `cargo test -p ralph` and confirming the new test passes."
-      ],
-      "notes": [],
-      "request": "maintenance scan finding",
-      "created_at": "2026-02-03T20:11:25Z",
-      "updated_at": "2026-02-03T20:11:25Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0586",
       "status": "todo",
       "title": "Clean up merge-runner base-sync workspace after use",

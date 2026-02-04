@@ -704,6 +704,57 @@
       "custom_fields": {
         "scan_agent": "scan-maintenance"
       }
+    },
+    {
+      "id": "RQ-0585",
+      "status": "done",
+      "title": "Fail fast if gh CLI is missing when auto PR/merge is enabled",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "parallel",
+        "reliability"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/parallel/mod.rs",
+        "crates/ralph/src/git/pr.rs",
+        "crates/ralph/src/git/mod.rs",
+        "cargo test -p ralph"
+      ],
+      "evidence": [
+        "Path: crates/ralph/src/git/pr.rs:1-14 (module docs state 'gh is installed and authenticated' but no runtime check)",
+        "Path: crates/ralph/src/git/pr.rs:95-118 (create_pr calls gh directly without availability check)",
+        "Path: crates/ralph/src/commands/run/parallel/mod.rs:72-163 (run_loop_parallel has preflight checks for queue but not for gh)",
+        "Path: crates/ralph/src/commands/run/parallel/mod.rs:1309-1310 (auto_pr and auto_merge settings loaded without validation)",
+        "Repro: remove gh from PATH and run `ralph run loop --parallel 2`; tasks complete but PR creation fails and tasks end in finished_without_pr blockers"
+      ],
+      "plan": [
+        "Add a gh availability check function in git/pr.rs (check for gh --version and gh auth status).",
+        "Add a preflight check in run_loop_parallel when settings.auto_pr || settings.auto_merge is true.",
+        "Fail early with a clear error if gh is unavailable or unauthenticated.",
+        "Add unit tests in git/pr.rs for the gh availability check.",
+        "Add integration test in tests/ to verify parallel run fails fast when gh is missing.",
+        "Verify by running `cargo test -p ralph` and confirming all tests pass."
+      ],
+      "notes": [
+        "Task is still relevant - no gh preflight check exists as of 2026-02-04",
+        "Scope expanded to include git/mod.rs for potential shared gh check utilities",
+        "Added check_gh_available() function in git/pr.rs with GH_NO_UPDATE_NOTIFIER support",
+        "Added preflight check in run_loop_parallel() when auto_pr or auto_merge is enabled",
+        "Added 4 unit tests and 3 integration tests covering all failure modes and success path",
+        "All 1751+ unit tests and 52+ integration tests pass",
+        "make ci passes completely"
+      ],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-03T20:11:25Z",
+      "updated_at": "2026-02-04T02:06:18.026057000Z",
+      "completed_at": "2026-02-04T02:06:18.026057000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
     }
   ]
 }
