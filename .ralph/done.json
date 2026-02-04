@@ -890,6 +890,53 @@
       "custom_fields": {
         "scan_agent": "scan-maintenance"
       }
+    },
+    {
+      "id": "RQ-0589",
+      "status": "done",
+      "title": "Require explicit completion signals in parallel workers (avoid auto Done)",
+      "priority": "high",
+      "tags": [
+        "maintenance",
+        "parallel",
+        "supervision"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/supervision/mod.rs",
+        "crates/ralph/src/commands/run/parallel/merge_runner.rs",
+        "cargo test -p ralph parallel_"
+      ],
+      "evidence": [
+        "code: crates/ralph/src/commands/run/supervision/mod.rs:485-501 ensure_completion_signal auto-creates Done when missing (used by post_run_supervise_parallel_worker)",
+        "code: crates/ralph/src/commands/run/parallel/merge_runner.rs:561-574 ensure_completion_signal_in_workspace correctly errors when signal is missing",
+        "code: crates/ralph/src/commands/run/supervision/mod.rs:358-483 post_run_supervise_parallel_worker calls ensure_completion_signal at line 458"
+      ],
+      "plan": [
+        "Modify post_run_supervise_parallel_worker in supervision/mod.rs to error when completion signal is missing instead of auto-creating Done.",
+        "Either: a) Add a new ensure_completion_signal_strict function that errors when missing, or b) Add a strict parameter to the existing function.",
+        "Ensure the error message includes remediation steps (rerun Phase 3 or manual task done/rejected).",
+        "Add tests ensuring missing signals in parallel mode fail fast without creating a Done signal.",
+        "Verify by running `cargo test -p ralph parallel_*` and confirming all tests pass."
+      ],
+      "notes": [
+        "merge_runner.rs already has correct behavior (errors on missing signal)",
+        "supervision/mod.rs post_run_supervise_parallel_worker still auto-creates Done signals - this needs to be fixed",
+        "Modified ensure_completion_signal in supervision/mod.rs to error instead of auto-creating Done signals",
+        "Error message includes remediation steps: re-run Phase 3 or manual task done/rejected",
+        "Updated call ordering to restore bookkeeping before checking signal (ensures cleanup on failure)",
+        "Added test: post_run_parallel_worker_errors_when_completion_signal_missing_and_does_not_create",
+        "All CI checks pass (1752+ tests)"
+      ],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-04T02:49:30Z",
+      "updated_at": "2026-02-04T04:00:57.950964000Z",
+      "completed_at": "2026-02-04T04:00:57.950964000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
     }
   ]
 }

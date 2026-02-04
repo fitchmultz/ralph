@@ -18,13 +18,13 @@
 use crate::celebrations;
 use crate::completions;
 use crate::contracts::GitRevertMode;
-use crate::contracts::TaskStatus;
+
 use crate::git;
 use crate::notification;
 use crate::productivity;
 use crate::queue;
 use crate::runutil;
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result, anyhow, bail};
 
 mod ci;
 mod git_ops;
@@ -455,8 +455,8 @@ pub(crate) fn post_run_supervise_parallel_worker(
             }
         }
 
-        ensure_completion_signal(resolved, task_id)?;
         restore_parallel_worker_bookkeeping(resolved)?;
+        ensure_completion_signal(resolved, task_id)?;
         stage_completion_signal(resolved, task_id)?;
 
         let status = git::status_porcelain(&resolved.repo_root)?;
@@ -487,17 +487,15 @@ fn ensure_completion_signal(resolved: &crate::config::Resolved, task_id: &str) -
         return Ok(());
     }
 
-    let signal = completions::CompletionSignal {
-        task_id: task_id.to_string(),
-        status: TaskStatus::Done,
-        notes: Vec::new(),
-    };
-    completions::write_completion_signal(&resolved.repo_root, &signal)?;
-    log::info!(
-        "Completion signal missing for {}; created default Done signal.",
+    let signal_path = completions::completion_signal_path(&resolved.repo_root, task_id)?;
+    bail!(
+        "Completion signal for {} is missing at {}.\n\nRemediation options:\n  1. Re-run Phase 3 for the task to generate a completion signal (e.g., ralph run one --phases 3 --id {})\n  2. Manually finalize the task: ralph task done {} (or ralph task rejected {})\n\nNote: Parallel workers require an explicit completion signal; Ralph will not infer Done.",
+        task_id,
+        signal_path.display(),
+        task_id,
+        task_id,
         task_id
-    );
-    Ok(())
+    )
 }
 
 fn stage_completion_signal(resolved: &crate::config::Resolved, task_id: &str) -> Result<()> {
@@ -1165,7 +1163,7 @@ echo '{{"sessionID":"sess-123"}}'
     }
 
     #[test]
-    fn post_run_parallel_worker_restores_bookkeeping_and_creates_signal() -> Result<()> {
+    fn post_run_parallel_worker_restores_bookkeeping_and_requires_signal() -> Result<()> {
         let temp_dir = TempDir::new()?;
         let repo_root = temp_dir.path();
         git_test::init_repo(repo_root)?;
@@ -1184,6 +1182,14 @@ echo '{{"sessionID":"sess-123"}}'
         let productivity_path = cache_dir.join("productivity.json");
         std::fs::write(&productivity_path, "{\"stats\":[]}")?;
         git_test::commit_all(repo_root, "init queue/done/productivity")?;
+
+        // Pre-create the completion signal (parallel workers now require explicit signals)
+        let signal = completions::CompletionSignal {
+            task_id: "RQ-0001".to_string(),
+            status: TaskStatus::Done,
+            notes: vec![],
+        };
+        completions::write_completion_signal(repo_root, &signal)?;
 
         let resolved = resolved_for_repo(repo_root);
         let queue_before = std::fs::read_to_string(&resolved.queue_path)?;
@@ -1272,6 +1278,14 @@ echo '{{"sessionID":"sess-123"}}'
         )?;
         git_test::commit_all(repo_root, "init queue/done")?;
 
+        // Pre-create the completion signal (parallel workers now require explicit signals)
+        let signal = completions::CompletionSignal {
+            task_id: "RQ-0001".to_string(),
+            status: TaskStatus::Done,
+            notes: vec![],
+        };
+        completions::write_completion_signal(repo_root, &signal)?;
+
         let resolved = resolved_for_repo(repo_root);
         post_run_supervise_parallel_worker(
             &resolved,
@@ -1296,6 +1310,78 @@ echo '{{"sessionID":"sess-123"}}'
         assert!(
             status_paths.contains(&signal_rel),
             "completion signal should be staged even if ignored"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn post_run_parallel_worker_errors_when_completion_signal_missing_and_does_not_create()
+    -> Result<()> {
+        let temp_dir = TempDir::new()?;
+        let repo_root = temp_dir.path();
+        git_test::init_repo(repo_root)?;
+
+        let cache_dir = repo_root.join(".ralph/cache");
+        std::fs::create_dir_all(&cache_dir)?;
+
+        write_queue(repo_root, TaskStatus::Todo)?;
+        queue::save_queue(
+            &repo_root.join(".ralph/done.json"),
+            &QueueFile {
+                version: 1,
+                tasks: vec![],
+            },
+        )?;
+
+        let productivity_path = cache_dir.join("productivity.json");
+        std::fs::write(&productivity_path, "{\"stats\":[]}")?;
+        git_test::commit_all(repo_root, "init queue/done/productivity")?;
+
+        // Dirty bookkeeping files to ensure we still restore them even on error.
+        let resolved = resolved_for_repo(repo_root);
+        let queue_before = std::fs::read_to_string(&resolved.queue_path)?;
+        let done_before = std::fs::read_to_string(&resolved.done_path)?;
+        let productivity_before = std::fs::read_to_string(&productivity_path)?;
+
+        std::fs::write(&resolved.queue_path, "{\"version\":1,\"tasks\":[]}")?;
+        std::fs::write(&resolved.done_path, "{\"version\":1,\"tasks\":[]}")?;
+        std::fs::write(&productivity_path, "{\"stats\":[\"changed\"]}")?;
+
+        // Intentionally do NOT create a completion signal.
+        let err = post_run_supervise_parallel_worker(
+            &resolved,
+            "RQ-0001",
+            GitRevertMode::Disabled,
+            false,
+            PushPolicy::RequireUpstream,
+            None,
+            None,
+            false,
+        )
+        .expect_err("expected missing completion signal error");
+
+        let msg = err.to_string();
+        assert!(msg.contains("Completion signal"), "unexpected error: {msg}");
+        assert!(
+            msg.contains("Remediation options"),
+            "unexpected error: {msg}"
+        );
+        assert!(msg.contains("ralph task done"), "unexpected error: {msg}");
+
+        // Ensure we did NOT create a default signal.
+        let signal_path = completions::completion_signal_path(repo_root, "RQ-0001")?;
+        assert!(
+            !signal_path.exists(),
+            "completion signal must not be created implicitly"
+        );
+
+        // Ensure bookkeeping restoration still happened.
+        assert_eq!(std::fs::read_to_string(&resolved.queue_path)?, queue_before);
+        assert_eq!(std::fs::read_to_string(&resolved.done_path)?, done_before);
+        assert_eq!(
+            std::fs::read_to_string(&productivity_path)?,
+            productivity_before
         );
 
         Ok(())

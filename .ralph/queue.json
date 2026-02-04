@@ -2,40 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0589",
-      "status": "todo",
-      "title": "Require explicit completion signals in parallel workers (avoid auto Done)",
-      "priority": "high",
-      "tags": [
-        "maintenance"
-      ],
-      "scope": [
-        "crates/ralph/src/commands/run/supervision/mod.rs",
-        "crates/ralph/src/commands/run/phases/phase3.rs",
-        "cargo test -p ralph supervision_*"
-      ],
-      "evidence": [
-        "code: crates/ralph/src/commands/run/supervision/mod.rs:458-499 auto-creates a Done completion signal when missing",
-        "code: crates/ralph/src/commands/run/parallel/merge_runner.rs:484-489 fails if completion signal is missing in base-sync"
-      ],
-      "plan": [
-        "Change parallel worker post-run supervision to error when the completion signal is missing (or gate auto-create behind explicit config).",
-        "Adjust the parallel worker flow to surface remediation steps (rerun Phase 3 or manual task done/rejected) instead of writing Done implicitly.",
-        "Add tests ensuring missing signals in parallel mode fail fast without creating a Done signal.",
-        "Verify by running `cargo test -p ralph supervision_*` (and any new parallel worker tests) and confirming they pass."
-      ],
-      "notes": [],
-      "request": "maintenance scan finding",
-      "created_at": "2026-02-04T02:49:30Z",
-      "updated_at": "2026-02-04T02:49:30Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0590",
       "status": "todo",
       "title": "Expand ~ in queue/done/workspace paths to avoid mislocated workspaces",
