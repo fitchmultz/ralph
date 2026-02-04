@@ -269,12 +269,13 @@ pub fn validate_config(cfg: &Config) -> Result<()> {
         );
     }
 
-    if let Some(prefix) = &cfg.parallel.branch_prefix
-        && prefix.trim().is_empty()
-    {
-        bail!(
-            "Invalid parallel.branch_prefix: prefix must be non-empty. Update .ralph/config.json."
-        );
+    if let Some(prefix) = &cfg.parallel.branch_prefix {
+        if prefix.trim().is_empty() {
+            bail!(
+                "Invalid parallel.branch_prefix: prefix must be non-empty. Update .ralph/config.json."
+            );
+        }
+        validate_parallel_branch_prefix(prefix)?;
     }
 
     if let Some(timeout) = cfg.agent.session_timeout_hours
@@ -333,6 +334,93 @@ pub fn validate_config(cfg: &Config) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn validate_parallel_branch_prefix(prefix: &str) -> Result<()> {
+    // Validate the *constructed* branch name (prefix + typical task id),
+    // since prefixes like "ralph/" are intended and only become valid with a suffix.
+    let sample_branch = format!("{}{}", prefix, "RQ-0001");
+
+    if let Some(reason) = git_ref_invalid_reason(&sample_branch) {
+        bail!(
+            "Invalid parallel.branch_prefix: {prefix:?}. When combined with a task id it must form a valid git branch name (e.g., {sample_branch:?}). {reason}. Update .ralph/config.json."
+        );
+    }
+
+    Ok(())
+}
+
+/// Check if a string is a valid git branch name.
+/// Returns None if valid, or Some(reason) if invalid.
+/// Based on git's check-ref-format rules:
+/// - Cannot contain spaces, tabs, or control characters
+/// - Cannot contain .. (dotdot)
+/// - Cannot contain @{ (at brace)
+/// - Cannot start with . or end with .lock
+/// - Cannot contain /./ or // or end with /
+/// - Cannot be @ or contain @{ (reflog syntax)
+fn git_ref_invalid_reason(branch: &str) -> Option<String> {
+    // Empty check
+    if branch.is_empty() {
+        return Some("branch name cannot be empty".to_string());
+    }
+
+    // Check for spaces and control characters
+    if branch.chars().any(|c| c.is_ascii_control() || c == ' ') {
+        return Some("branch name cannot contain spaces or control characters".to_string());
+    }
+
+    // Check for double dots
+    if branch.contains("..") {
+        return Some("branch name cannot contain '..'".to_string());
+    }
+
+    // Check for @{ (reflog syntax)
+    if branch.contains("@{") {
+        return Some("branch name cannot contain '@{{'".to_string());
+    }
+
+    // Check for invalid dot patterns
+    if branch.starts_with('.') {
+        return Some("branch name cannot start with '.'".to_string());
+    }
+
+    if branch.ends_with(".lock") {
+        return Some("branch name cannot end with '.lock'".to_string());
+    }
+
+    // Check for invalid slash patterns
+    if branch.contains("//") || branch.contains("/.") || branch.ends_with('/') {
+        return Some("branch name contains invalid slash/dot pattern".to_string());
+    }
+
+    // Check for @ as entire name or component
+    if branch == "@" || branch.starts_with("@/") || branch.contains("/@/") || branch.ends_with("/@")
+    {
+        return Some("branch name cannot be '@' or contain '@' as a path component".to_string());
+    }
+
+    // Check for tilde expansion issues (~ is special in git)
+    if branch.contains('~') {
+        return Some("branch name cannot contain '~'".to_string());
+    }
+
+    // Check for caret (revision suffix)
+    if branch.contains('^') {
+        return Some("branch name cannot contain '^'".to_string());
+    }
+
+    // Check for colon (used for object names)
+    if branch.contains(':') {
+        return Some("branch name cannot contain ':'".to_string());
+    }
+
+    // Check for backslash
+    if branch.contains('\\') {
+        return Some("branch name cannot contain '\\'".to_string());
+    }
+
+    None
 }
 
 pub fn resolve_id_prefix(cfg: &Config) -> Result<String> {

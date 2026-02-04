@@ -407,6 +407,33 @@ fn test_validate_config_valid_defaults() {
 }
 
 #[test]
+fn validate_config_rejects_parallel_branch_prefix_with_spaces() {
+    let mut cfg = Config::default();
+    cfg.parallel.branch_prefix = Some("bad prefix/".to_string());
+
+    let err = config::validate_config(&cfg).expect_err("expected validation to fail");
+    assert!(err.to_string().contains("parallel.branch_prefix"));
+}
+
+#[test]
+fn validate_config_rejects_parallel_branch_prefix_with_dotdot() {
+    let mut cfg = Config::default();
+    cfg.parallel.branch_prefix = Some("bad..prefix/".to_string());
+
+    let err = config::validate_config(&cfg).expect_err("expected validation to fail");
+    assert!(err.to_string().contains("parallel.branch_prefix"));
+}
+
+#[test]
+fn validate_config_rejects_parallel_branch_prefix_with_at_brace() {
+    let mut cfg = Config::default();
+    cfg.parallel.branch_prefix = Some("bad@{prefix}/".to_string());
+
+    let err = config::validate_config(&cfg).expect_err("expected validation to fail");
+    assert!(err.to_string().contains("parallel.branch_prefix"));
+}
+
+#[test]
 fn test_load_layer_valid_json() {
     let dir = TempDir::new().expect("create temp dir");
     let config_path = dir.path().join("config.json");

@@ -988,6 +988,47 @@
       "custom_fields": {
         "scan_agent": "scan-maintenance"
       }
+    },
+    {
+      "id": "RQ-0591",
+      "status": "done",
+      "title": "Validate parallel.branch_prefix with git ref rules",
+      "priority": "medium",
+      "tags": [
+        "maintenance"
+      ],
+      "scope": [
+        "crates/ralph/src/config.rs",
+        "crates/ralph/src/git/workspace.rs",
+        "cargo test -p ralph config_*"
+      ],
+      "evidence": [
+        "code: crates/ralph/src/config.rs:272-277 only rejects empty branch_prefix",
+        "code: crates/ralph/src/git/workspace.rs:64-89 uses branch_prefix in git checkout -B"
+      ],
+      "plan": [
+        "Add validation for branch_prefix using git ref rules (e.g., `git check-ref-format --branch`).",
+        "Provide a clear error message pointing to parallel.branch_prefix when invalid.",
+        "Add tests for invalid prefixes (spaces, '..', '@{').",
+        "Verify by running `cargo test -p ralph config_*` and confirming tests pass."
+      ],
+      "notes": [
+        "Added git_ref_invalid_reason() function implementing git ref format validation in pure Rust",
+        "Modified validate_parallel_branch_prefix() to validate constructed branch name (prefix + sample task ID)",
+        "Error message includes parallel.branch_prefix key, prefix value, sample branch, and actionable fix",
+        "Added 3 integration tests for spaces, double dots, and @{ patterns",
+        "All 57 config tests pass, CI gate passes"
+      ],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-04T02:49:30Z",
+      "updated_at": "2026-02-04T05:16:40.628279000Z",
+      "completed_at": "2026-02-04T05:16:40.628279000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
     }
   ]
 }
