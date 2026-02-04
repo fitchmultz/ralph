@@ -1,10 +1,20 @@
 //! `ralph doctor` command: handler.
 
 use anyhow::Result;
-use clap::Args;
+use clap::{Args, ValueEnum};
 
 use crate::sanity::{self, SanityOptions};
 use crate::{commands::doctor, config};
+
+/// Output format for doctor command.
+#[derive(Debug, Clone, Copy, Default, ValueEnum)]
+pub enum DoctorFormat {
+    /// Human-readable text output (default).
+    #[default]
+    Text,
+    /// Machine-readable JSON output for scripting/CI.
+    Json,
+}
 
 /// Arguments for the `ralph doctor` command.
 #[derive(Args)]
@@ -16,6 +26,10 @@ pub struct DoctorArgs {
     /// Skip sanity checks and only run doctor diagnostics.
     #[arg(long, conflicts_with = "auto_fix")]
     pub no_sanity_checks: bool,
+
+    /// Output format (text or json).
+    #[arg(long, value_enum, default_value = "text")]
+    pub format: DoctorFormat,
 }
 
 pub fn handle_doctor(args: DoctorArgs) -> Result<()> {
@@ -57,6 +71,23 @@ pub fn handle_doctor(args: DoctorArgs) -> Result<()> {
         }
     }
 
-    // Run existing doctor checks
-    doctor::run_doctor(&resolved)
+    // Run doctor checks with auto_fix flag and format
+    let report = doctor::run_doctor(&resolved, args.auto_fix)?;
+
+    // Output based on format
+    match args.format {
+        DoctorFormat::Text => {
+            doctor::print_doctor_report_text(&report);
+        }
+        DoctorFormat::Json => {
+            println!("{}", serde_json::to_string_pretty(&report)?);
+        }
+    }
+
+    // Return appropriate exit code based on report success
+    if report.success {
+        Ok(())
+    } else {
+        anyhow::bail!("Doctor check failed: one or more critical issues found")
+    }
 }

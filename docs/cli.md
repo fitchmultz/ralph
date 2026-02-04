@@ -311,8 +311,56 @@ Verify environment readiness by checking Git, queue, runner binaries, and projec
 
 ### Flags
 
-- `--auto-fix`: Automatically apply all migrations and fixes without prompting.
+- `--auto-fix`: Automatically apply safe fixes without prompting (queue repair, orphaned lock removal).
 - `--no-sanity-checks`: Skip sanity checks and only run doctor diagnostics.
+- `--format <text|json>`: Output format (default: `text`). Use JSON for scripting/CI integration.
+
+### Output Formats
+
+**Text format** (default): Human-readable output with colored status indicators.
+
+**JSON format**: Machine-readable structured output suitable for scripting and CI:
+
+```json
+{
+  "success": true,
+  "checks": [
+    {
+      "category": "git",
+      "check": "git_binary",
+      "severity": "Success",
+      "message": "git binary found",
+      "fix_available": false
+    },
+    {
+      "category": "queue",
+      "check": "queue_valid",
+      "severity": "Error",
+      "message": "queue validation failed: missing required field 'title'",
+      "fix_available": true,
+      "fix_applied": true,
+      "suggested_fix": "Run 'ralph queue repair' or use --auto-fix"
+    }
+  ],
+  "summary": {
+    "total": 12,
+    "passed": 9,
+    "warnings": 1,
+    "errors": 1,
+    "fixes_applied": 1,
+    "fixes_failed": 0
+  }
+}
+```
+
+### Auto-Fix Behavior
+
+When `--auto-fix` is passed, `ralph doctor` will attempt to fix the following issues:
+
+1. **Queue Repair**: Fix missing fields, invalid timestamps, duplicate IDs, and remapped dependencies in queue/done files.
+2. **Orphaned Lock Removal**: Remove stale lock directories where the owning PID is no longer running.
+
+Unsafe issues (missing runner binary, invalid git repo, missing Makefile) will still require manual intervention.
 
 ### Runner Binary Detection
 
@@ -351,13 +399,32 @@ Config keys for each runner:
 - Kimi: `kimi_bin`
 - Pi: `pi_bin`
 
-Examples:
+### Examples
 
 ```bash
+# Basic doctor check
 ralph doctor
+
+# Verbose output
 ralph --verbose doctor
+
+# Auto-fix issues (repair queue, remove orphaned locks)
 ralph doctor --auto-fix
+
+# Skip sanity checks, only run doctor diagnostics
 ralph doctor --no-sanity-checks
+
+# JSON output for scripting
+ralph doctor --format json
+
+# JSON output with auto-fix and parse result
+if ! ralph doctor --format json --auto-fix | jq -e '.success'; then
+  echo "Doctor checks failed"
+  exit 1
+fi
+
+# Check for specific issues in CI
+ralph doctor --format json | jq '.checks[] | select(.severity == "Error")'
 ```
 
 ## `ralph tui`

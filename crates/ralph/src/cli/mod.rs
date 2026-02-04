@@ -99,7 +99,7 @@ pub enum Command {
     Prompt(prompt::PromptArgs),
     /// Verify environment readiness and configuration.
     #[command(
-        after_long_help = "Examples:\n  ralph doctor\n  ralph doctor --auto-fix\n  ralph doctor --no-sanity-checks"
+        after_long_help = "Examples:\n  ralph doctor\n  ralph doctor --auto-fix\n  ralph doctor --no-sanity-checks\n  ralph doctor --format json\n  ralph doctor --format json --auto-fix"
     )]
     Doctor(doctor::DoctorArgs),
     /// Manage project context (AGENTS.md) for AI agents.

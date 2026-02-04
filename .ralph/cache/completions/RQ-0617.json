@@ -1,0 +1,11 @@
+{
+  "task_id": "RQ-0617",
+  "status": "done",
+  "notes": [
+    "Implemented --format json and --auto-fix for doctor command",
+    "Added 6 integration tests for JSON output and auto-fix behavior",
+    "Fixed re-validation after queue repair to properly report success",
+    "Updated docs/cli.md with JSON examples and auto-fix documentation",
+    "All 18 doctor tests pass, CI passes"
+  ]
+}
