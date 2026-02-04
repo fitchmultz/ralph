@@ -566,6 +566,52 @@
       "custom_fields": {
         "scan_agent": "scan-maintenance"
       }
+    },
+    {
+      "id": "RQ-0582",
+      "status": "done",
+      "title": "Avoid permanent blockers from finished_without_pr records",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "parallel",
+        "reliability"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/parallel/mod.rs",
+        "crates/ralph/src/commands/run/parallel/state.rs",
+        "crates/ralph/src/commands/run/parallel/worker.rs",
+        "cargo test -p ralph"
+      ],
+      "evidence": [
+        "Path: crates/ralph/src/commands/run/parallel/mod.rs:961-998 (record_finished_without_pr writes a blocker entry on PR creation failure or auto_pr disabled)",
+        "Path: crates/ralph/src/commands/run/parallel/worker.rs:89-91 (finished_without_pr entries are always excluded from selection via collect_excluded_ids)",
+        "Path: crates/ralph/src/commands/run/parallel/state.rs:246-279 (ParallelFinishedWithoutPrRecord struct with reason field - AutoPrDisabled, DraftPrDisabled, PrCreateFailed, etc.)",
+        "Repro: run parallel with auto_pr disabled; successful tasks are recorded as finished_without_pr and are blocked from rerun without manual state edits"
+      ],
+      "plan": [
+        "Define an expiration/rehydration policy for finished_without_pr records (e.g., TTL or allow rerun when reason is AutoPrDisabled/DraftPrDisabled).",
+        "Update collect_excluded_ids in worker.rs and state pruning to honor the policy.",
+        "Add tests covering both transient PR failures and auto_pr disabled scenarios.",
+        "Verify by running `cargo test -p ralph` and confirming the new tests pass."
+      ],
+      "notes": [
+        "Implemented TTL-based expiration and rehydration policy for finished_without_pr records",
+        "AutoPrDisabled/DraftPrDisabled records now rehydrate when settings change",
+        "PrCreateFailed records expire after 24h TTL (matches session timeout)",
+        "Added comprehensive tests for TTL, rehydration, and workspace existence checks",
+        "Updated existing tests to work with new conditional blocking behavior"
+      ],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-03T20:11:25Z",
+      "updated_at": "2026-02-04T00:13:46.547634000Z",
+      "completed_at": "2026-02-04T00:13:46.547634000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
     }
   ]
 }

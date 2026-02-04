@@ -230,7 +230,13 @@ pub(crate) fn run_loop_parallel(
     let include_draft = opts.agent_overrides.include_draft.unwrap_or(false);
     let worker_overrides = overrides_for_parallel_workers(resolved, &opts.agent_overrides);
     // Count resumed in-flight tasks toward max_tasks to prevent over-starting on resume.
-    let mut tasks_started: u32 = initial_tasks_started(&state_file);
+    let now = time::OffsetDateTime::now_utc();
+    let mut tasks_started: u32 = initial_tasks_started(
+        &state_file,
+        now,
+        settings.auto_pr,
+        settings.draft_on_failure,
+    );
     let mut tasks_attempted: usize = 0;
     let mut tasks_succeeded: usize = 0;
     let mut tasks_failed: usize = 0;
@@ -265,12 +271,28 @@ pub(crate) fn run_loop_parallel(
             }
 
             // Periodically prune stale records to free capacity on resumed work.
-            let pruned = prune_stale_tasks_in_flight(guard.state_file_mut());
-            if !pruned.is_empty() {
-                log::warn!(
-                    "Dropping stale in-flight tasks during loop: {}",
-                    pruned.join(", ")
-                );
+            let now = time::OffsetDateTime::now_utc();
+
+            let pruned_in_flight = prune_stale_tasks_in_flight(guard.state_file_mut());
+            let pruned_finished_without_pr = guard.state_file_mut().prune_finished_without_pr(
+                now,
+                settings.auto_pr,
+                settings.draft_on_failure,
+            );
+
+            if !pruned_in_flight.is_empty() || !pruned_finished_without_pr.is_empty() {
+                if !pruned_in_flight.is_empty() {
+                    log::warn!(
+                        "Dropping stale in-flight tasks during loop: {}",
+                        pruned_in_flight.join(", ")
+                    );
+                }
+                if !pruned_finished_without_pr.is_empty() {
+                    log::info!(
+                        "Dropping non-blocking finished-without-PR records during loop: {}",
+                        pruned_finished_without_pr.join(", ")
+                    );
+                }
                 state::save_state(&state_path, guard.state_file())?;
             }
 
@@ -280,7 +302,14 @@ pub(crate) fn run_loop_parallel(
                 && can_start_more_tasks(tasks_started, opts.max_tasks)
                 && !stop_requested
             {
-                let excluded = collect_excluded_ids(guard.state_file(), guard.in_flight());
+                let now = time::OffsetDateTime::now_utc();
+                let excluded = collect_excluded_ids(
+                    guard.state_file(),
+                    guard.in_flight(),
+                    now,
+                    settings.auto_pr,
+                    settings.draft_on_failure,
+                );
                 let (task_id, task_title) = match select_next_task_locked(
                     resolved,
                     include_draft,
@@ -522,7 +551,14 @@ pub(crate) fn run_loop_parallel(
 
             if guard.in_flight().is_empty() {
                 let no_more_tasks = opts.max_tasks != 0 && tasks_started >= opts.max_tasks;
-                let excluded = collect_excluded_ids(guard.state_file(), guard.in_flight());
+                let now = time::OffsetDateTime::now_utc();
+                let excluded = collect_excluded_ids(
+                    guard.state_file(),
+                    guard.in_flight(),
+                    now,
+                    settings.auto_pr,
+                    settings.draft_on_failure,
+                );
                 let next_available =
                     select_next_task_locked(resolved, include_draft, &excluded, &_queue_lock)?
                         .is_some();
@@ -695,6 +731,18 @@ fn load_or_init_parallel_state(
                 summary.closed_count,
                 summary.merged_count,
                 summary.error_count
+            );
+            state::save_state(state_path, &existing)?;
+        }
+
+        // Prune non-blocking finished-without-PR records on load
+        let now = time::OffsetDateTime::now_utc();
+        let dropped_finished_without_pr =
+            existing.prune_finished_without_pr(now, settings.auto_pr, settings.draft_on_failure);
+        if !dropped_finished_without_pr.is_empty() {
+            log::info!(
+                "Dropping non-blocking finished-without-PR records on load: {}",
+                dropped_finished_without_pr.join(", ")
             );
             state::save_state(state_path, &existing)?;
         }
@@ -978,21 +1026,15 @@ fn record_finished_without_pr(
     state_file.upsert_finished_without_pr(record);
     state::save_state(state_path, state_file)?;
     let reason_label = reason.as_str();
+    log::warn!(
+        "Task {} finished without PR (reason: {}). Recorded state in {}. \
+         This may temporarily block reruns; it automatically clears when PR settings allow reruns or when the TTL expires.",
+        task_id,
+        reason_label,
+        state_path.display()
+    );
     if let Some(detail) = message {
-        log::warn!(
-            "Task {} finished without PR (reason: {}, detail: {}). Recorded blocker in {}. Recovery: remove the entry to allow re-run, or mark the task done manually if it already completed.",
-            task_id,
-            reason_label,
-            detail,
-            state_path.display()
-        );
-    } else {
-        log::warn!(
-            "Task {} finished without PR (reason: {}). Recorded blocker in {}. Recovery: remove the entry to allow re-run, or mark the task done manually if it already completed.",
-            task_id,
-            reason_label,
-            state_path.display()
-        );
+        log::info!("Detail for {}: {}", task_id, detail);
     }
     Ok(())
 }
@@ -1128,20 +1170,31 @@ fn effective_in_flight_count(
 ///
 /// Returns the number of:
 /// - tasks_in_flight records, plus
-/// - finished-without-PR records, plus
+/// - blocking finished-without-PR records (based on current settings/TTL), plus
 /// - open/unmerged PR records (these represent prior completed work still in flight via PR),
 ///   as u32, capping at u32::MAX.
-fn initial_tasks_started(state_file: &state::ParallelStateFile) -> u32 {
+fn initial_tasks_started(
+    state_file: &state::ParallelStateFile,
+    now: time::OffsetDateTime,
+    auto_pr_enabled: bool,
+    draft_on_failure: bool,
+) -> u32 {
     let open_unmerged_prs = state_file
         .prs
         .iter()
         .filter(|record| record.is_open_unmerged())
         .count();
 
+    let blocking_finished_without_pr = state_file
+        .finished_without_pr
+        .iter()
+        .filter(|r| r.is_blocking(now, auto_pr_enabled, draft_on_failure))
+        .count();
+
     let total = state_file
         .tasks_in_flight
         .len()
-        .saturating_add(state_file.finished_without_pr.len())
+        .saturating_add(blocking_finished_without_pr)
         .saturating_add(open_unmerged_prs);
 
     u32::try_from(total).unwrap_or(u32::MAX)
@@ -1790,6 +1843,14 @@ mod tests {
     fn base_branch_missing_errors_when_finished_without_pr_present() -> Result<()> {
         let temp = TempDir::new()?;
         let repo_root = temp.path();
+
+        // Create the workspace directory so the record is considered blocking
+        let workspace_path = repo_root.join("workspaces").join("RQ-0008");
+        std::fs::create_dir_all(&workspace_path)?;
+
+        // Use a recent timestamp so the TTL check passes (within 24 hours)
+        let recent_timestamp = timeutil::now_utc_rfc3339_or_fallback();
+
         let mut state = state::ParallelStateFile::new(
             "2026-02-01T00:00:00Z".to_string(),
             "".to_string(),
@@ -1800,15 +1861,12 @@ mod tests {
             .finished_without_pr
             .push(state::ParallelFinishedWithoutPrRecord {
                 task_id: "RQ-0008".to_string(),
-                workspace_path: repo_root
-                    .join("workspaces")
-                    .join("RQ-0008")
-                    .to_string_lossy()
-                    .to_string(),
+                workspace_path: workspace_path.to_string_lossy().to_string(),
                 branch: "ralph/RQ-0008".to_string(),
                 success: true,
-                finished_at: "2026-02-01T03:00:00Z".to_string(),
-                reason: state::ParallelNoPrReason::AutoPrDisabled,
+                finished_at: recent_timestamp,
+                // Use PrCreateFailed so it blocks regardless of auto_pr setting (within TTL)
+                reason: state::ParallelNoPrReason::PrCreateFailed,
                 message: None,
             });
         let state_path = state::state_file_path(repo_root);
@@ -1831,6 +1889,14 @@ mod tests {
     fn base_branch_mismatch_errors_when_finished_without_pr_present() -> Result<()> {
         let temp = TempDir::new()?;
         let repo_root = temp.path();
+
+        // Create the workspace directory so the record is considered blocking
+        let workspace_path = repo_root.join("workspaces").join("RQ-0009");
+        std::fs::create_dir_all(&workspace_path)?;
+
+        // Use a recent timestamp so the TTL check passes (within 24 hours)
+        let recent_timestamp = timeutil::now_utc_rfc3339_or_fallback();
+
         let mut state = state::ParallelStateFile::new(
             "2026-02-01T00:00:00Z".to_string(),
             "old".to_string(),
@@ -1841,15 +1907,12 @@ mod tests {
             .finished_without_pr
             .push(state::ParallelFinishedWithoutPrRecord {
                 task_id: "RQ-0009".to_string(),
-                workspace_path: repo_root
-                    .join("workspaces")
-                    .join("RQ-0009")
-                    .to_string_lossy()
-                    .to_string(),
+                workspace_path: workspace_path.to_string_lossy().to_string(),
                 branch: "ralph/RQ-0009".to_string(),
                 success: true,
-                finished_at: "2026-02-01T04:00:00Z".to_string(),
-                reason: state::ParallelNoPrReason::AutoPrDisabled,
+                finished_at: recent_timestamp,
+                // Use PrCreateFailed so it blocks regardless of auto_pr setting (within TTL)
+                reason: state::ParallelNoPrReason::PrCreateFailed,
                 message: None,
             });
         let state_path = state::state_file_path(repo_root);
@@ -1869,7 +1932,23 @@ mod tests {
     }
 
     #[test]
-    fn resume_in_flight_counts_toward_max_tasks() {
+    fn resume_in_flight_counts_toward_max_tasks() -> Result<()> {
+        use crate::timeutil;
+
+        let temp = TempDir::new()?;
+        let ws_root = temp.path().join("workspaces");
+        std::fs::create_dir_all(&ws_root)?;
+
+        // Create workspace directories so records are considered blocking
+        let ws1 = ws_root.join("RQ-0001");
+        let ws2 = ws_root.join("RQ-0002");
+        let ws3 = ws_root.join("RQ-0003");
+        std::fs::create_dir_all(&ws1)?;
+        std::fs::create_dir_all(&ws2)?;
+        std::fs::create_dir_all(&ws3)?;
+
+        let now = timeutil::parse_rfc3339("2026-02-03T00:00:00Z")?;
+
         let mut state_file = state::ParallelStateFile::new(
             "2026-02-01T00:00:00Z".to_string(),
             "main".to_string(),
@@ -1879,21 +1958,22 @@ mod tests {
         // Simulate 2 tasks in flight from resumed state
         state_file.tasks_in_flight.push(state::ParallelTaskRecord {
             task_id: "RQ-0001".to_string(),
-            workspace_path: "/tmp/ws/RQ-0001".to_string(),
+            workspace_path: ws1.to_string_lossy().to_string(),
             branch: "ralph/RQ-0001".to_string(),
             pid: Some(12345),
         });
         state_file.tasks_in_flight.push(state::ParallelTaskRecord {
             task_id: "RQ-0002".to_string(),
-            workspace_path: "/tmp/ws/RQ-0002".to_string(),
+            workspace_path: ws2.to_string_lossy().to_string(),
             branch: "ralph/RQ-0002".to_string(),
             pid: Some(12346),
         });
+        // AutoPrDisabled only counts as started when auto_pr is still disabled
         state_file
             .finished_without_pr
             .push(state::ParallelFinishedWithoutPrRecord {
                 task_id: "RQ-0003".to_string(),
-                workspace_path: "/tmp/ws/RQ-0003".to_string(),
+                workspace_path: ws3.to_string_lossy().to_string(),
                 branch: "ralph/RQ-0003".to_string(),
                 success: true,
                 finished_at: "2026-02-01T02:00:00Z".to_string(),
@@ -1901,13 +1981,16 @@ mod tests {
                 message: None,
             });
 
-        // Verify initial_tasks_started returns the count including finished-without-PR
-        assert_eq!(initial_tasks_started(&state_file), 3);
+        // With auto_pr disabled, all 3 count as started
+        assert_eq!(initial_tasks_started(&state_file, now, false, true), 3);
 
-        // With max_tasks = 2, should not be able to start more
+        // With auto_pr enabled, AutoPrDisabled records don't block, so only 2 count
+        assert_eq!(initial_tasks_started(&state_file, now, true, true), 2);
+
+        // With max_tasks = 2, should not be able to start more (when auto_pr is disabled)
         assert!(!can_start_more_tasks(3, 2));
 
-        // With max_tasks = 3, should not be able to start more
+        // With max_tasks = 3, should not be able to start more (when auto_pr is disabled)
         assert!(!can_start_more_tasks(3, 3));
 
         // With max_tasks = 4, should be able to start more
@@ -1915,10 +1998,16 @@ mod tests {
 
         // With max_tasks = 0 (unlimited), should be able to start more
         assert!(can_start_more_tasks(2, 0));
+
+        Ok(())
     }
 
     #[test]
     fn resume_open_prs_count_toward_max_tasks() {
+        use crate::timeutil;
+
+        let now = timeutil::parse_rfc3339("2026-02-03T00:00:00Z").unwrap();
+
         let mut state_file = state::ParallelStateFile::new(
             "2026-02-01T00:00:00Z".to_string(),
             "main".to_string(),
@@ -1963,13 +2052,14 @@ mod tests {
             merge_blocker: None,
         });
 
-        assert_eq!(initial_tasks_started(&state_file), 1);
+        let started = initial_tasks_started(&state_file, now, true, true);
+        assert_eq!(started, 1);
 
         // With max_tasks=1, we should NOT be allowed to start any new tasks on resume.
-        assert!(!can_start_more_tasks(initial_tasks_started(&state_file), 1));
+        assert!(!can_start_more_tasks(started, 1));
 
         // With max_tasks=2, we can start one more.
-        assert!(can_start_more_tasks(initial_tasks_started(&state_file), 2));
+        assert!(can_start_more_tasks(started, 2));
     }
 
     #[test]

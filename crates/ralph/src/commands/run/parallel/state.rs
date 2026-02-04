@@ -19,6 +19,7 @@ use crate::git::WorkspaceSpec;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+use time::OffsetDateTime;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct ParallelStateFile {
@@ -113,6 +114,24 @@ impl ParallelStateFile {
         self.finished_without_pr
             .retain(|item| item.task_id != task_id);
         before != self.finished_without_pr.len()
+    }
+
+    /// Remove finished-without-PR records that are no longer blocking under the current policy.
+    pub(crate) fn prune_finished_without_pr(
+        &mut self,
+        now: OffsetDateTime,
+        auto_pr_enabled: bool,
+        draft_on_failure: bool,
+    ) -> Vec<String> {
+        let mut dropped = Vec::new();
+        self.finished_without_pr.retain(|record| {
+            let keep = record.is_blocking(now, auto_pr_enabled, draft_on_failure);
+            if !keep {
+                dropped.push(record.task_id.clone());
+            }
+            keep
+        });
+        dropped
     }
 }
 
@@ -276,6 +295,47 @@ impl ParallelFinishedWithoutPrRecord {
             message,
         }
     }
+
+    /// Returns true if this record should currently block task selection.
+    ///
+    /// Policy:
+    /// - Never block if the recorded workspace no longer exists (stale recovery state).
+    /// - AutoPrDisabled blocks only while auto_pr is still disabled.
+    /// - DraftPrDisabled blocks only while we still cannot create draft PRs on failure.
+    /// - PrCreateFailed / Unknown / DraftPrSkippedNoChanges block only within a TTL window.
+    pub(crate) fn is_blocking(
+        &self,
+        now: OffsetDateTime,
+        auto_pr_enabled: bool,
+        draft_on_failure: bool,
+    ) -> bool {
+        if !std::path::Path::new(self.workspace_path.trim()).exists() {
+            return false;
+        }
+
+        match &self.reason {
+            ParallelNoPrReason::AutoPrDisabled => !auto_pr_enabled,
+            ParallelNoPrReason::DraftPrDisabled => !(auto_pr_enabled && draft_on_failure),
+            ParallelNoPrReason::PrCreateFailed
+            | ParallelNoPrReason::Unknown
+            | ParallelNoPrReason::DraftPrSkippedNoChanges => {
+                let Some(finished_at) = crate::timeutil::parse_rfc3339_opt(&self.finished_at)
+                else {
+                    // Bad timestamp must not become a permanent blocker.
+                    return false;
+                };
+                now - finished_at < finished_without_pr_blocker_ttl()
+            }
+        }
+    }
+}
+
+fn finished_without_pr_blocker_ttl() -> time::Duration {
+    let secs: i64 = crate::constants::timeouts::PARALLEL_FINISHED_WITHOUT_PR_BLOCKER_TTL
+        .as_secs()
+        .try_into()
+        .unwrap_or(i64::MAX);
+    time::Duration::seconds(secs)
 }
 
 pub(crate) fn state_file_path(repo_root: &Path) -> PathBuf {
@@ -571,6 +631,105 @@ mod tests {
         let parsed: ParallelPrRecord = serde_json::from_str(&json).unwrap();
         assert!(matches!(parsed.lifecycle, ParallelPrLifecycle::Merged));
         assert!(parsed.merged);
+    }
+
+    #[test]
+    fn prune_finished_without_pr_drops_non_blocking_and_expired() -> Result<()> {
+        use crate::timeutil;
+
+        let temp = TempDir::new()?;
+        let ws_keep = temp.path().join("ws_keep");
+        let ws_drop = temp.path().join("ws_drop");
+        std::fs::create_dir_all(&ws_keep)?;
+        std::fs::create_dir_all(&ws_drop)?;
+
+        let now = timeutil::parse_rfc3339("2026-02-03T00:00:00Z")?;
+
+        let mut state = ParallelStateFile::new(
+            "2026-02-03T00:00:00Z".to_string(),
+            "main".to_string(),
+            ParallelMergeMethod::Squash,
+            ParallelMergeWhen::AsCreated,
+        );
+
+        // Should become non-blocking when auto_pr is enabled (rehydration).
+        state.upsert_finished_without_pr(ParallelFinishedWithoutPrRecord {
+            task_id: "RQ-AUTO".to_string(),
+            workspace_path: ws_drop.to_string_lossy().to_string(),
+            branch: "ralph/RQ-AUTO".to_string(),
+            success: true,
+            finished_at: "2026-02-02T00:00:00Z".to_string(),
+            reason: ParallelNoPrReason::AutoPrDisabled,
+            message: None,
+        });
+
+        // Should remain blocking (PrCreateFailed within TTL window).
+        state.upsert_finished_without_pr(ParallelFinishedWithoutPrRecord {
+            task_id: "RQ-KEEP".to_string(),
+            workspace_path: ws_keep.to_string_lossy().to_string(),
+            branch: "ralph/RQ-KEEP".to_string(),
+            success: true,
+            finished_at: "2026-02-02T23:30:00Z".to_string(),
+            reason: ParallelNoPrReason::PrCreateFailed,
+            message: Some("rate limited".to_string()),
+        });
+
+        // Should be expired (very old).
+        state.upsert_finished_without_pr(ParallelFinishedWithoutPrRecord {
+            task_id: "RQ-OLD".to_string(),
+            workspace_path: ws_drop.to_string_lossy().to_string(),
+            branch: "ralph/RQ-OLD".to_string(),
+            success: true,
+            finished_at: "2020-01-01T00:00:00Z".to_string(),
+            reason: ParallelNoPrReason::PrCreateFailed,
+            message: None,
+        });
+
+        let dropped = state.prune_finished_without_pr(now, true, true);
+
+        assert!(dropped.contains(&"RQ-AUTO".to_string()));
+        assert!(dropped.contains(&"RQ-OLD".to_string()));
+        assert!(!dropped.contains(&"RQ-KEEP".to_string()));
+
+        assert!(
+            state
+                .finished_without_pr
+                .iter()
+                .any(|r| r.task_id == "RQ-KEEP")
+        );
+        assert!(
+            !state
+                .finished_without_pr
+                .iter()
+                .any(|r| r.task_id == "RQ-AUTO")
+        );
+        assert!(
+            !state
+                .finished_without_pr
+                .iter()
+                .any(|r| r.task_id == "RQ-OLD")
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn finished_without_pr_never_blocks_when_workspace_missing() -> Result<()> {
+        use crate::timeutil;
+
+        let now = timeutil::parse_rfc3339("2026-02-03T00:00:00Z")?;
+        let record = ParallelFinishedWithoutPrRecord {
+            task_id: "RQ-MISSING".to_string(),
+            workspace_path: "/nonexistent/path".to_string(),
+            branch: "ralph/RQ-MISSING".to_string(),
+            success: true,
+            finished_at: "2026-02-02T23:30:00Z".to_string(),
+            reason: ParallelNoPrReason::AutoPrDisabled,
+            message: None,
+        };
+
+        assert!(!record.is_blocking(now, false, false));
+        Ok(())
     }
 
     // Tests for reconcile_pr_records with stubbed gh binary

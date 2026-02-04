@@ -26,6 +26,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
+use time::OffsetDateTime;
 
 use super::state;
 
@@ -68,10 +69,13 @@ pub(crate) fn select_next_task_locked(
     )))
 }
 
-/// Collect IDs that should be excluded from task selection (in-flight, open PRs, finished-without-PR).
+/// Collect IDs that should be excluded from task selection (in-flight, open PRs, blocking finished-without-PR).
 pub(crate) fn collect_excluded_ids(
     state_file: &state::ParallelStateFile,
     in_flight: &HashMap<String, WorkerState>,
+    now: OffsetDateTime,
+    auto_pr_enabled: bool,
+    draft_on_failure: bool,
 ) -> HashSet<String> {
     let mut excluded = HashSet::new();
     for key in in_flight.keys() {
@@ -86,8 +90,11 @@ pub(crate) fn collect_excluded_ids(
             excluded.insert(record.task_id.trim().to_string());
         }
     }
+    // Only exclude finished-without-PR records that are currently blocking
     for record in &state_file.finished_without_pr {
-        excluded.insert(record.task_id.trim().to_string());
+        if record.is_blocking(now, auto_pr_enabled, draft_on_failure) {
+            excluded.insert(record.task_id.trim().to_string());
+        }
     }
     excluded
 }
@@ -247,6 +254,12 @@ mod tests {
 
     #[test]
     fn collect_excluded_ids_includes_state_and_in_flight() -> Result<()> {
+        use crate::timeutil;
+
+        let temp = TempDir::new()?;
+        let ws_path = temp.path().join("workspace");
+        std::fs::create_dir_all(&ws_path)?;
+
         let mut state_file = state::ParallelStateFile::new(
             "2026-02-01T00:00:00Z".to_string(),
             "main".to_string(),
@@ -295,12 +308,12 @@ mod tests {
             lifecycle: state::ParallelPrLifecycle::Merged,
             merge_blocker: None,
         });
-        // Finished without PR should be excluded
+        // Finished without PR should be excluded (when auto_pr is disabled)
         state_file
             .finished_without_pr
             .push(state::ParallelFinishedWithoutPrRecord {
                 task_id: "RQ-0007".to_string(),
-                workspace_path: "/tmp/workspace/RQ-0007".to_string(),
+                workspace_path: ws_path.to_string_lossy().to_string(),
                 branch: "ralph/RQ-0007".to_string(),
                 success: true,
                 finished_at: "2026-02-02T00:00:00Z".to_string(),
@@ -323,7 +336,9 @@ mod tests {
             },
         );
 
-        let excluded = collect_excluded_ids(&state_file, &in_flight);
+        let now = timeutil::parse_rfc3339("2026-02-03T00:00:00Z")?;
+        // auto_pr_enabled=false, so AutoPrDisabled records should block
+        let excluded = collect_excluded_ids(&state_file, &in_flight, now, false, true);
         assert!(
             excluded.contains("RQ-0002"),
             "in-flight task should be excluded"
@@ -338,7 +353,7 @@ mod tests {
         );
         assert!(
             excluded.contains("RQ-0007"),
-            "finished-without-PR task should be excluded"
+            "finished-without-PR task should be excluded when auto_pr is disabled"
         );
         assert!(
             !excluded.contains("RQ-0005"),
@@ -349,9 +364,103 @@ mod tests {
             "merged PR task should NOT be excluded"
         );
 
+        // With auto_pr enabled, AutoPrDisabled records should NOT block
+        let excluded_enabled = collect_excluded_ids(&state_file, &in_flight, now, true, true);
+        assert!(
+            !excluded_enabled.contains("RQ-0007"),
+            "finished-without-PR task should NOT be excluded when auto_pr is enabled"
+        );
+
         for worker in in_flight.values_mut() {
             let _ = worker.child.wait();
         }
+
+        Ok(())
+    }
+
+    #[test]
+    fn collect_excluded_ids_finished_without_pr_is_conditional_on_settings() -> Result<()> {
+        use crate::timeutil;
+
+        let temp = TempDir::new()?;
+        let ws = temp.path().join("ws");
+        std::fs::create_dir_all(&ws)?;
+
+        let mut state_file = state::ParallelStateFile::new(
+            "2026-02-01T00:00:00Z".to_string(),
+            "main".to_string(),
+            ParallelMergeMethod::Squash,
+            ParallelMergeWhen::AsCreated,
+        );
+        state_file
+            .finished_without_pr
+            .push(state::ParallelFinishedWithoutPrRecord {
+                task_id: "RQ-0007".to_string(),
+                workspace_path: ws.to_string_lossy().to_string(),
+                branch: "ralph/RQ-0007".to_string(),
+                success: true,
+                finished_at: "2026-02-02T00:00:00Z".to_string(),
+                reason: state::ParallelNoPrReason::AutoPrDisabled,
+                message: None,
+            });
+
+        let in_flight = HashMap::new();
+        let now = timeutil::parse_rfc3339("2026-02-03T00:00:00Z")?;
+
+        let excluded_when_disabled =
+            collect_excluded_ids(&state_file, &in_flight, now, false, true);
+        assert!(excluded_when_disabled.contains("RQ-0007"));
+
+        let excluded_when_enabled = collect_excluded_ids(&state_file, &in_flight, now, true, true);
+        assert!(!excluded_when_enabled.contains("RQ-0007"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn collect_excluded_ids_pr_create_failed_expires() -> Result<()> {
+        use crate::timeutil;
+
+        let temp = TempDir::new()?;
+        let ws = temp.path().join("ws");
+        std::fs::create_dir_all(&ws)?;
+
+        let mut state_file = state::ParallelStateFile::new(
+            "2026-02-01T00:00:00Z".to_string(),
+            "main".to_string(),
+            ParallelMergeMethod::Squash,
+            ParallelMergeWhen::AsCreated,
+        );
+
+        state_file
+            .finished_without_pr
+            .push(state::ParallelFinishedWithoutPrRecord {
+                task_id: "RQ-FAIL-NEW".to_string(),
+                workspace_path: ws.to_string_lossy().to_string(),
+                branch: "ralph/RQ-FAIL-NEW".to_string(),
+                success: true,
+                finished_at: "2026-02-02T23:30:00Z".to_string(),
+                reason: state::ParallelNoPrReason::PrCreateFailed,
+                message: None,
+            });
+
+        state_file
+            .finished_without_pr
+            .push(state::ParallelFinishedWithoutPrRecord {
+                task_id: "RQ-FAIL-OLD".to_string(),
+                workspace_path: ws.to_string_lossy().to_string(),
+                branch: "ralph/RQ-FAIL-OLD".to_string(),
+                success: true,
+                finished_at: "2020-01-01T00:00:00Z".to_string(),
+                reason: state::ParallelNoPrReason::PrCreateFailed,
+                message: None,
+            });
+
+        let now = timeutil::parse_rfc3339("2026-02-03T00:00:00Z")?;
+        let excluded = collect_excluded_ids(&state_file, &HashMap::new(), now, true, true);
+
+        assert!(excluded.contains("RQ-FAIL-NEW"));
+        assert!(!excluded.contains("RQ-FAIL-OLD"));
 
         Ok(())
     }

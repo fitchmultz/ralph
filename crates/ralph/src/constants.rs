@@ -88,6 +88,13 @@ pub mod timeouts {
 
     /// Lock cleanup retry delays in milliseconds.
     pub const DELAYS_MS: [u64; 3] = [10, 50, 100];
+
+    /// How long a finished-without-PR record should block selection for transient failure reasons.
+    ///
+    /// This avoids permanent blockers while still preventing tight retry loops when PR creation
+    /// is temporarily failing (auth, rate limiting, GitHub outage, etc.).
+    pub const PARALLEL_FINISHED_WITHOUT_PR_BLOCKER_TTL: Duration =
+        Duration::from_secs(60 * 60 * DEFAULT_SESSION_TIMEOUT_HOURS);
 }
 
 /// UI layout and dimension constants.
