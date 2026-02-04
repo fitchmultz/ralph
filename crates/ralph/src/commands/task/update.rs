@@ -90,13 +90,11 @@ fn update_task_impl(
         let prompt = prompts::render_task_updater_prompt(
             &template,
             task_id,
-            &settings.fields,
             project_type,
             &resolved.config,
         )?;
 
         println!("Dry run - would update task {}:", task_id);
-        println!("  Fields to update: {}", settings.fields);
         println!("  Current title: {}", task.title);
         println!("\n  Prompt preview (first 800 chars):");
         let preview_len = prompt.len().min(800);
@@ -158,13 +156,8 @@ fn update_task_impl(
 
     let template = prompts::load_task_updater_prompt(&resolved.repo_root)?;
     let project_type = resolved.config.project_type.unwrap_or(ProjectType::Code);
-    let prompt = prompts::render_task_updater_prompt(
-        &template,
-        task_id,
-        &settings.fields,
-        project_type,
-        &resolved.config,
-    )?;
+    let prompt =
+        prompts::render_task_updater_prompt(&template, task_id, project_type, &resolved.config)?;
 
     let prompt =
         prompts::wrap_with_repoprompt_requirement(&prompt, settings.repoprompt_tool_injection);

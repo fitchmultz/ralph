@@ -19,7 +19,6 @@ pub(crate) fn load_task_updater_prompt(repo_root: &std::path::Path) -> Result<St
 pub(crate) fn render_task_updater_prompt(
     template: &str,
     task_id: &str,
-    fields: &str,
     project_type: ProjectType,
     config: &Config,
 ) -> Result<String> {
@@ -40,13 +39,9 @@ pub(crate) fn render_task_updater_prompt(
     );
     let mut rendered = base.clone();
     rendered = rendered.replace("{{TASK_ID}}", task_id.trim());
-    rendered = rendered.replace("{{FIELDS_TO_UPDATE}}", fields.trim());
     let safe_task_id = escape_placeholder_like_text(task_id.trim());
-    let safe_fields = escape_placeholder_like_text(fields.trim());
     let mut rendered_for_validation = base;
     rendered_for_validation = rendered_for_validation.replace("{{TASK_ID}}", safe_task_id.trim());
-    rendered_for_validation =
-        rendered_for_validation.replace("{{FIELDS_TO_UPDATE}}", safe_fields.trim());
     ensure_no_unresolved_placeholders(&rendered_for_validation, template_meta.label)?;
     Ok(rendered)
 }

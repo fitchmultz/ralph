@@ -83,14 +83,12 @@ pub(crate) fn load_task_updater_prompt(repo_root: &Path) -> Result<String> {
 pub(crate) fn render_task_updater_prompt(
     template: &str,
     task_id: &str,
-    fields: &str,
     project_type: ProjectType,
     config: &Config,
 ) -> Result<String> {
     prompts_internal::task_updater::render_task_updater_prompt(
         template,
         task_id,
-        fields,
         project_type,
         config,
     )

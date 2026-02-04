@@ -80,16 +80,10 @@ const TASK_BUILDER_REQUIRED: &[RequiredPlaceholder] = &[
     },
 ];
 
-const TASK_UPDATER_REQUIRED: &[RequiredPlaceholder] = &[
-    RequiredPlaceholder {
-        token: "{{TASK_ID}}",
-        error_message: "Template error: task updater prompt template is missing required '{{TASK_ID}}' placeholder. Ensure template in .ralph/prompts/task_updater.md includes this placeholder.",
-    },
-    RequiredPlaceholder {
-        token: "{{FIELDS_TO_UPDATE}}",
-        error_message: "Template error: task updater prompt template is missing required '{{FIELDS_TO_UPDATE}}' placeholder. Ensure template includes this placeholder.",
-    },
-];
+const TASK_UPDATER_REQUIRED: &[RequiredPlaceholder] = &[RequiredPlaceholder {
+    token: "{{TASK_ID}}",
+    error_message: "Template error: task updater prompt template is missing required '{{TASK_ID}}' placeholder. Ensure template in .ralph/prompts/task_updater.md includes this placeholder.",
+}];
 
 const CODE_REVIEW_REQUIRED: &[RequiredPlaceholder] = &[RequiredPlaceholder {
     token: "{{TASK_ID}}",

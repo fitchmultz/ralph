@@ -2,47 +2,255 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0597",
+      "id": "RQ-0615",
       "status": "todo",
-      "title": "Add task templates for common development patterns",
+      "title": "Make webhook delivery non-blocking (async worker + bounded queue) to avoid blocking task transitions",
       "priority": "high",
       "tags": [
         "innovation",
-        "cli",
-        "ux",
-        "productivity"
+        "reliability",
+        "webhook",
+        "performance"
       ],
       "scope": [
-        "crates/ralph/src/commands/task/",
-        "docs/cli.md"
+        "crates/ralph/src/webhook.rs",
+        "crates/ralph/src/contracts/config.rs",
+        "docs/configuration.md"
       ],
       "evidence": [
-        "Current `ralph task` creates generic tasks from natural language",
-        "Users repeatedly create similar task types: bug fixes, refactors, tests, docs",
-        "No pre-built templates for common patterns like 'Add tests for X', 'Refactor Y', 'Fix bug in Z'",
-        "CLI supports `--template` flag but templates are not documented or easily discoverable"
+        "`crates/ralph/src/webhook.rs` sends webhooks synchronously and retries with `std::thread::sleep`, which can block the caller path even though failures are non-fatal."
       ],
       "plan": [
-        "Define 5-10 common task templates (bug-fix, refactor, test, feature, docs, performance, security)",
-        "Create template definitions in `crates/ralph/assets/templates/` as JSON files",
-        "Add `ralph task template list` command to show available templates",
-        "Add `ralph task template show <name>` to preview template structure",
-        "Update `ralph task` to suggest templates when request matches patterns",
-        "Add TUI integration: show template picker when creating tasks",
-        "Verify by running `ralph task template list` and creating tasks from 3 different templates"
+        "Introduce a background delivery worker (single thread or small pool) and a bounded channel; `send_webhook` becomes enqueue-only and returns quickly.",
+        "Implement backpressure policy (`drop_oldest|drop_new|block_with_timeout`) with conservative defaults to protect interactive UX.",
+        "Keep current retry semantics but move sleeps/retries into the worker; ensure secrets remain redacted in logs.",
+        "Add tests using a local HTTP listener (or injectable transport) to validate retries, signature headers, and that the caller path does not block on backoff.",
+        "Document delivery semantics (best-effort, bounded queue, failure logging) in `docs/configuration.md`.",
+        "Verify by running `make ci` and confirming webhook tests cover success, non-2xx failure, and retry/backoff behavior."
       ],
       "notes": [],
       "request": "innovation scan finding",
-      "created_at": "2026-02-04T12:00:00Z",
-      "updated_at": "2026-02-04T12:00:00Z",
+      "created_at": "2026-02-04T14:58:48Z",
+      "updated_at": "2026-02-04T14:58:48Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [
+        "RQ-0610"
+      ],
+      "custom_fields": {
+        "scan_agent": "scan-innovation",
+        "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort.",
+        "time_to_ship": "medium (concurrency + tests)",
+        "opportunity_type": "reliability"
+      }
+    },
+    {
+      "id": "RQ-0616",
+      "status": "todo",
+      "title": "Improve `ralph watch`: structured source metadata, stronger dedupe, and optional auto-close when comments are removed",
+      "priority": "medium",
+      "tags": [
+        "innovation",
+        "watch",
+        "queue",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/watch/",
+        "crates/ralph/src/cli/watch.rs",
+        "docs/cli.md"
+      ],
+      "evidence": [
+        "`./target/release/ralph watch --help` describes auto-queueing tasks from TODO/FIXME/HACK/XXX comments.",
+        "`crates/ralph/src/commands/watch/tasks.rs` dedupes by substring matching file path/line in title/notes, which can false-positive and cannot support reconciliation when a comment moves or is deleted."
+      ],
+      "plan": [
+        "Add structured `custom_fields` on watch-created tasks (e.g., `watch.file`, `watch.line`, `watch.comment_type`, `watch.fingerprint`) and use these for dedupe instead of substring matching.",
+        "Add a new `ralph watch --close-removed` option: on each processing pass, reconcile existing watch tasks and mark them done/rejected (or append a note) when the originating comment is no longer present.",
+        "Keep the minimal slice strictly additive: only affect watch-created tasks (tag `watch`) and do not mutate user-authored tasks.",
+        "Update `docs/cli.md` with a `watch` section including examples and recommended workflows.",
+        "Add tests for dedupe correctness, fingerprint stability, and close-removed behavior using temp files and controlled edits.",
+        "Verify by running `make ci` and confirming watch tests cover creation, dedupe, and removal reconciliation."
+      ],
+      "notes": [],
+      "request": "innovation scan finding",
+      "created_at": "2026-02-04T14:58:48Z",
+      "updated_at": "2026-02-04T14:58:48Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [
+        "RQ-0608"
+      ],
+      "custom_fields": {
+        "time_to_ship": "medium (metadata + reconciliation + tests)",
+        "opportunity_type": "ux improvement",
+        "scan_agent": "scan-innovation",
+        "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current."
+      }
+    },
+    {
+      "id": "RQ-0617",
+      "status": "todo",
+      "title": "Enhance `ralph doctor`: add `--format json` and make `--auto-fix` fix doctor-detected issues (not just sanity checks)",
+      "priority": "medium",
+      "tags": [
+        "innovation",
+        "doctor",
+        "ux",
+        "reliability"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/doctor.rs",
+        "crates/ralph/src/cli/doctor.rs",
+        "docs/cli.md"
+      ],
+      "evidence": [
+        "`./target/release/ralph doctor --help` advertises `--auto-fix`, but `crates/ralph/src/commands/doctor.rs` documents doctor as read-only and currently only sanity checks can auto-fix (`crates/ralph/src/cli/doctor.rs`).",
+        "Doctor output is human-oriented; there is no machine-readable output mode for scripting or CI."
+      ],
+      "plan": [
+        "Add `ralph doctor --format text|json` (default: text) that returns structured results (checks, severity, message, suggested_fix).",
+        "Define a conservative set of auto-fixes that are safe and local (e.g., run config migrations, run `queue repair` on missing fields, remove stale lock dirs when PID is dead), gated behind `--auto-fix`.",
+        "Make the help text explicit about what `--auto-fix` does and does not do; ensure `--no-sanity-checks` behavior remains clear.",
+        "Add tests for JSON output stability and for each auto-fix path using temp dirs and synthetic lock dirs/queue files.",
+        "Update `docs/cli.md` doctor section with examples for scripting (`--format json`).",
+        "Verify by running `make ci` and confirming doctor tests cover both formats and safe auto-fix behavior."
+      ],
+      "notes": [],
+      "request": "innovation scan finding",
+      "created_at": "2026-02-04T14:58:48Z",
+      "updated_at": "2026-02-04T14:58:48Z",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "UX improvement",
-        "user_value": "Reduces task creation time by 50%+ for common patterns; improves consistency",
-        "time_to_ship": "incremental - templates can be added one at a time",
+        "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics.",
+        "time_to_ship": "medium (format + fixes + tests)",
+        "opportunity_type": "ux improvement",
         "scan_agent": "scan-innovation"
+      }
+    },
+    {
+      "id": "RQ-0618",
+      "status": "todo",
+      "title": "Add Markdown and GitHub-issue friendly export formats to `ralph queue export`",
+      "priority": "medium",
+      "tags": [
+        "innovation",
+        "queue",
+        "ux",
+        "integration"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/queue/",
+        "crates/ralph/src/queue/operations/",
+        "docs/cli.md"
+      ],
+      "evidence": [
+        "`./target/release/ralph queue export --help` only supports `csv|tsv|json`, which is awkward for sharing/reviewing backlogs in PRs, issues, or chat."
+      ],
+      "plan": [
+        "Extend `ralph queue export --format` to include `md` as a minimal slice (Markdown table with stable columns and proper escaping).",
+        "Add a `gh` (or `issue`) format that outputs one Markdown block per task optimized for GitHub issue bodies (title + bullets for plan/evidence/scope).",
+        "Ensure exported Markdown is deterministic (stable ordering, consistent field rendering) and supports `--include-archive`/filters.",
+        "Update `docs/cli.md` with examples for markdown exports and a recommended review workflow.",
+        "Add tests that snapshot the Markdown output for a small set of tasks and validate escaping/formatting.",
+        "Verify by running `make ci` and confirming export tests cover csv/tsv/json plus the new markdown formats."
+      ],
+      "notes": [],
+      "request": "innovation scan finding",
+      "created_at": "2026-02-04T14:58:48Z",
+      "updated_at": "2026-02-04T14:58:48Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "opportunity_type": "ux improvement",
+        "scan_agent": "scan-innovation",
+        "time_to_ship": "small/medium (formatters + tests)",
+        "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat)."
+      }
+    },
+    {
+      "id": "RQ-0620",
+      "status": "todo",
+      "title": "TUI ergonomics: open task scope targets in $EDITOR and copy file:line references",
+      "priority": "medium",
+      "tags": [
+        "innovation",
+        "tui",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/",
+        "docs/tui-task-management.md"
+      ],
+      "evidence": [
+        "`docs/tui-task-management.md` documents rich task navigation/editing, but there is no documented way to open a scoped file from the TUI in an external editor.",
+        "Tasks frequently include `scope` paths (and watch-mode includes `Detected in: file:line` notes), which are natural jump targets."
+      ],
+      "plan": [
+        "Add a TUI action (keybinding + command palette entry) to open the selected task's primary scope path in `$EDITOR` (or `open`/`xdg-open` fallback) without blocking the UI.",
+        "Parse common file:line patterns from `notes` (e.g., `Detected in: path:line`) and provide a 'copy reference' action that writes `path:line` to clipboard (platform-gated) or prints it for manual copy.",
+        "Keep the minimal slice to local execution only (no network, no PR automation).",
+        "Update `docs/tui-task-management.md` with the new keybindings and examples.",
+        "Add tests around path selection/parsing (unit tests) and ensure the feature is disabled gracefully when `$EDITOR` is unset.",
+        "Verify by running `make ci` and manually smoke-testing `ralph tui` to open a file from a seeded task scope."
+      ],
+      "notes": [],
+      "request": "innovation scan finding",
+      "created_at": "2026-02-04T14:58:48Z",
+      "updated_at": "2026-02-04T14:58:48Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-innovation",
+        "opportunity_type": "ux improvement",
+        "user_value": "Fewer context switches: jump from task → code in one keystroke.",
+        "time_to_ship": "medium (TUI wiring + tests)"
+      }
+    },
+    {
+      "id": "RQ-0621",
+      "status": "todo",
+      "title": "Add a read-only TUI view for parallel run-loop state (workers, PRs, merge blockers)",
+      "priority": "low",
+      "tags": [
+        "innovation",
+        "tui",
+        "parallel",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/",
+        "crates/ralph/src/commands/run/parallel/",
+        "docs/workflow.md"
+      ],
+      "evidence": [
+        "`docs/workflow.md` states parallel execution is CLI-only and persists state to `.ralph/cache/parallel/state.json`.",
+        "Operators running `ralph run loop --parallel` lack an interactive UI to inspect state, failures, and merge blockers without opening the state JSON manually."
+      ],
+      "plan": [
+        "Add a TUI screen/overlay to load and render `.ralph/cache/parallel/state.json` with a concise status table (in-flight tasks, PR URLs, merge blockers, last error).",
+        "Keep this view read-only as the minimal slice (no starting/stopping parallel runs from the TUI).",
+        "Add quick actions: open PR URL (shell) and copy PR URL; reload state from disk.",
+        "Add tests for state parsing/render model (unit tests) and ensure missing/invalid state files fail gracefully with guidance.",
+        "Update `docs/tui-task-management.md` with navigation to the parallel state view.",
+        "Verify by running `make ci` and manually simulating a state file to confirm rendering works end-to-end."
+      ],
+      "notes": [],
+      "request": "innovation scan finding",
+      "created_at": "2026-02-04T14:58:48Z",
+      "updated_at": "2026-02-04T14:58:48Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "opportunity_type": "ux improvement",
+        "time_to_ship": "medium (render-only UI + tests)",
+        "scan_agent": "scan-innovation",
+        "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error."
       }
     },
     {
@@ -86,10 +294,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "measurable_impact": "Track 20%+ improvement in task completion velocity after adoption",
-        "opportunity_type": "feature gap",
+        "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types",
         "scan_agent": "scan-innovation",
-        "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types"
+        "measurable_impact": "Track 20%+ improvement in task completion velocity after adoption",
+        "opportunity_type": "feature gap"
       }
     },
     {
@@ -132,57 +340,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Reduces queue maintenance time by 80% for large projects",
         "opportunity_type": "UX improvement",
         "time_to_ship": "incremental - add one batch operation at a time",
-        "scan_agent": "scan-innovation"
-      }
-    },
-    {
-      "id": "RQ-0600",
-      "status": "todo",
-      "title": "Implement intelligent task prioritization and auto-scheduling",
-      "priority": "high",
-      "tags": [
-        "innovation",
-        "ai",
-        "productivity",
-        "automation"
-      ],
-      "scope": [
-        "crates/ralph/src/commands/task/",
-        "crates/ralph/src/queue/",
-        "docs/workflow.md"
-      ],
-      "evidence": [
-        "Current priority system is manual: critical/high/medium/low",
-        "No automatic priority adjustment based on dependencies, deadlines, or workload",
-        "Tasks with `scheduled_start` exist but no auto-scheduling logic",
-        "Users must manually reorder queue to optimize execution order",
-        "No consideration of critical path or dependency chains in task ordering"
-      ],
-      "plan": [
-        "Add `deadline` field to task schema for time-sensitive tasks",
-        "Implement priority scoring algorithm considering: deadline, dependencies, blocked tasks, effort",
-        "Create `ralph queue optimize` command to auto-sort by priority score",
-        "Add auto-scheduling: suggest optimal start times based on estimated duration",
-        "Integrate with dependency graph to prioritize critical path tasks",
-        "Add workload balancing: suggest max concurrent tasks based on history",
-        "Create TUI view showing recommended task order with reasoning",
-        "Verify by running `ralph queue optimize --dry-run` and checking sort order"
-      ],
-      "notes": [],
-      "request": "innovation scan finding",
-      "created_at": "2026-02-04T12:00:00Z",
-      "updated_at": "2026-02-04T12:00:00Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
         "scan_agent": "scan-innovation",
-        "measurable_impact": "15-20% reduction in missed deadlines; improved throughput",
-        "opportunity_type": "feature gap",
-        "user_value": "Reduces manual queue management; ensures critical tasks run first"
+        "user_value": "Reduces queue maintenance time by 80% for large projects"
       }
     },
     {
@@ -227,8 +388,8 @@
       "relates_to": [],
       "custom_fields": {
         "user_value": "Reduces regression risk; enables confident refactoring",
-        "measurable_impact": "80%+ integration test coverage for CLI commands",
         "scan_agent": "scan-innovation",
+        "measurable_impact": "80%+ integration test coverage for CLI commands",
         "opportunity_type": "reliability"
       }
     },
@@ -273,62 +434,15 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Enables ecosystem growth; custom integrations without forks",
-        "scan_agent": "scan-innovation",
         "differentiation": "Unique capability among AI task runners",
+        "scan_agent": "scan-innovation",
+        "user_value": "Enables ecosystem growth; custom integrations without forks",
         "opportunity_type": "feature gap"
       }
     },
     {
-      "id": "RQ-0603",
-      "status": "todo",
-      "title": "Implement collaborative task sharing and team workflows",
-      "priority": "medium",
-      "tags": [
-        "innovation",
-        "collaboration",
-        "team",
-        "sync"
-      ],
-      "scope": [
-        "crates/ralph/src/sync/",
-        "docs/workflow.md",
-        "docs/configuration.md"
-      ],
-      "evidence": [
-        "Current queue.json is single-user local file only",
-        "No support for shared queues or team task assignment",
-        "Multiple developers cannot work from same task queue",
-        "No task ownership or assignment mechanism",
-        "Queue conflicts when multiple users modify simultaneously"
-      ],
-      "plan": [
-        "Add `owner` field to task schema for assignment",
-        "Implement remote queue backends: GitHub Issues, GitLab, Jira, custom API",
-        "Add `ralph sync push/pull` for two-way queue synchronization",
-        "Create conflict resolution for simultaneous edits",
-        "Add team member discovery from git contributors",
-        "Implement task claiming: `ralph task claim <TASK_ID>` with locking",
-        "Add shared comments/notes visible to team members",
-        "Verify by setting up shared queue with 2+ team members and testing sync"
-      ],
-      "notes": [],
-      "request": "innovation scan finding",
-      "created_at": "2026-02-04T12:00:00Z",
-      "updated_at": "2026-02-04T12:00:00Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "coverage": "Closes gap with project management tools",
-        "opportunity_type": "feature gap",
-        "user_value": "Enables team adoption; scales beyond individual use",
-        "scan_agent": "scan-innovation"
-      }
-    },
-    {
       "id": "RQ-0604",
-      "status": "todo",
+      "status": "draft",
       "title": "Add AI-powered task estimation and effort prediction",
       "priority": "medium",
       "tags": [
@@ -367,102 +481,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "measurable_impact": "Estimates within 25% of actual duration after 20 tasks",
         "user_value": "Improves planning accuracy; sets realistic expectations",
         "opportunity_type": "feature gap",
-        "measurable_impact": "Estimates within 25% of actual duration after 20 tasks",
         "scan_agent": "scan-innovation"
-      }
-    },
-    {
-      "id": "RQ-0605",
-      "status": "todo",
-      "title": "Implement automated code review and quality gates",
-      "priority": "medium",
-      "tags": [
-        "innovation",
-        "quality",
-        "automation",
-        "ci"
-      ],
-      "scope": [
-        "crates/ralph/src/commands/run/supervision/",
-        "docs/workflow.md"
-      ],
-      "evidence": [
-        "Current CI gate is `make ci` only - no code quality analysis",
-        "Phase 3 review is manual - no automated quality checks",
-        "No integration with linting, security scanning, or coverage tools",
-        "Users cannot define custom quality criteria per task",
-        "No automated feedback on code style, patterns, or best practices"
-      ],
-      "plan": [
-        "Add `quality_gates` config section for customizable checks",
-        "Integrate common tools: clippy, rustfmt, cargo-audit, cargo-deny",
-        "Add custom quality rules: file size limits, complexity thresholds",
-        "Implement AI-powered code review in Phase 3 with structured feedback",
-        "Add quality score to task completion criteria",
-        "Create quality reports: `ralph task quality <TASK_ID>`",
-        "Add pre-commit hooks for quality gate validation",
-        "Verify by running quality gates on sample task and checking all passes"
-      ],
-      "notes": [],
-      "request": "innovation scan finding",
-      "created_at": "2026-02-04T12:00:00Z",
-      "updated_at": "2026-02-04T12:00:00Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "measurable_impact": "50% reduction in post-completion bugs",
-        "scan_agent": "scan-innovation",
-        "user_value": "Reduces defects; enforces consistent code quality",
-        "opportunity_type": "reliability"
-      }
-    },
-    {
-      "id": "RQ-0606",
-      "status": "todo",
-      "title": "Add workspace and project switching with context preservation",
-      "priority": "medium",
-      "tags": [
-        "innovation",
-        "ux",
-        "productivity",
-        "cli"
-      ],
-      "scope": [
-        "crates/ralph/src/commands/context.rs",
-        "docs/cli.md"
-      ],
-      "evidence": [
-        "Current `ralph context` only manages AGENTS.md generation",
-        "No support for switching between multiple projects/repos",
-        "Users must cd to project directory and run ralph from there",
-        "No global queue view across multiple projects",
-        "Context is lost when switching directories"
-      ],
-      "plan": [
-        "Add `ralph workspace list` showing all known Ralph projects",
-        "Implement `ralph workspace add <path>` to register projects",
-        "Add `ralph workspace switch <name>` to change active project",
-        "Create global dashboard: `ralph workspace dashboard` showing all queues",
-        "Add workspace-specific config overrides",
-        "Implement session preservation: restore TUI state on switch",
-        "Add quick project navigation with fuzzy search",
-        "Verify by registering 3+ projects and switching between them"
-      ],
-      "notes": [],
-      "request": "innovation scan finding",
-      "created_at": "2026-02-04T12:00:00Z",
-      "updated_at": "2026-02-04T12:00:00Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "time_to_ship": "incremental - add list/switch first, dashboard later",
-        "opportunity_type": "UX improvement",
-        "scan_agent": "scan-innovation",
-        "user_value": "Reduces context switching overhead; improves multi-project workflow"
       }
     },
     {
@@ -506,10 +528,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "UX improvement",
         "measurable_impact": "New user success rate >90% within 30 minutes",
         "scan_agent": "scan-innovation",
-        "user_value": "Reduces time-to-productivity from hours to minutes"
+        "user_value": "Reduces time-to-productivity from hours to minutes",
+        "opportunity_type": "UX improvement"
       }
     },
     {
@@ -552,57 +574,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
         "opportunity_type": "feature gap",
+        "user_value": "Proactively identifies improvement opportunities; reduces manual scanning",
         "measurable_impact": "Auto-detects 30%+ of maintenance tasks",
-        "user_value": "Proactively identifies improvement opportunities; reduces manual scanning"
-      }
-    },
-    {
-      "id": "RQ-0609",
-      "status": "todo",
-      "title": "Add rollback and undo capabilities for task execution",
-      "priority": "medium",
-      "tags": [
-        "innovation",
-        "safety",
-        "reliability",
-        "git"
-      ],
-      "scope": [
-        "crates/ralph/src/runutil/revert.rs",
-        "crates/ralph/src/commands/run/",
-        "docs/workflow.md"
-      ],
-      "evidence": [
-        "Current `git_revert_mode` exists but is limited to asking on failure",
-        "No way to undo completed tasks after the fact",
-        "No snapshot/backup before task execution",
-        "Users must manually revert git changes if task goes wrong",
-        "No history of changes made by each task for selective rollback"
-      ],
-      "plan": [
-        "Add pre-task snapshot: create git stash or branch before execution",
-        "Implement `ralph task undo <TASK_ID>` to revert changes",
-        "Add selective rollback: choose which files to revert",
-        "Create task execution log: track all files modified by task",
-        "Add `ralph task history <TASK_ID>` showing all changes made",
-        "Implement checkpoint system for multi-phase tasks",
-        "Add auto-rollback on critical failures option",
-        "Verify by running task, then undoing and confirming clean state"
-      ],
-      "notes": [],
-      "request": "innovation scan finding",
-      "created_at": "2026-02-04T12:00:00Z",
-      "updated_at": "2026-02-04T12:00:00Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "measurable_impact": "Zero data loss from task execution",
-        "opportunity_type": "reliability",
-        "scan_agent": "scan-innovation",
-        "user_value": "Reduces risk of task execution; enables experimentation"
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -646,9 +621,9 @@
       "relates_to": [],
       "custom_fields": {
         "time_to_ship": "incremental - add one channel at a time",
-        "scan_agent": "scan-innovation",
         "user_value": "Enables remote monitoring; integrates with existing workflows",
-        "opportunity_type": "integration"
+        "opportunity_type": "integration",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -691,8 +666,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "performance",
         "measurable_impact": "50%+ improvement in queue operations for large projects",
+        "opportunity_type": "performance",
         "user_value": "Identifies bottlenecks; improves Ralph responsiveness",
         "scan_agent": "scan-innovation"
       }
