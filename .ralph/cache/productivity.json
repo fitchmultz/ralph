@@ -1,7 +1,7 @@
 {
   "version": 1,
   "first_task_completed_at": "2026-01-30T12:31:17.161199000Z",
-  "last_updated_at": "2026-02-04T07:39:02.858718000Z",
+  "last_updated_at": "2026-02-04T18:03:53.058261000Z",
   "daily": {
     "2026-01-30": {
       "date": "2026-01-30",
@@ -520,7 +520,7 @@
     },
     "2026-02-04": {
       "date": "2026-02-04",
-      "completed_count": 15,
+      "completed_count": 16,
       "tasks": [
         {
           "id": "RQ-0582",
@@ -596,6 +596,11 @@
           "id": "RQ-0596",
           "title": "Use queue repair for parallel task selection to avoid aborting on minor JSON errors",
           "completed_at": "2026-02-04T07:39:02.858717000Z"
+        },
+        {
+          "id": "RQ-0615",
+          "title": "Make webhook delivery non-blocking (async worker + bounded queue) to avoid blocking task transitions",
+          "completed_at": "2026-02-04T18:03:53.058259000Z"
         }
       ]
     }
@@ -605,7 +610,7 @@
     "longest_streak": 6,
     "last_completed_date": "2026-02-04"
   },
-  "total_completed": 112,
+  "total_completed": 113,
   "milestones": [
     {
       "threshold": 10,

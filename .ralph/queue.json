@@ -2,49 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0615",
-      "status": "todo",
-      "title": "Make webhook delivery non-blocking (async worker + bounded queue) to avoid blocking task transitions",
-      "priority": "high",
-      "tags": [
-        "innovation",
-        "reliability",
-        "webhook",
-        "performance"
-      ],
-      "scope": [
-        "crates/ralph/src/webhook.rs",
-        "crates/ralph/src/contracts/config.rs",
-        "docs/configuration.md"
-      ],
-      "evidence": [
-        "`crates/ralph/src/webhook.rs` sends webhooks synchronously and retries with `std::thread::sleep`, which can block the caller path even though failures are non-fatal."
-      ],
-      "plan": [
-        "Introduce a background delivery worker (single thread or small pool) and a bounded channel; `send_webhook` becomes enqueue-only and returns quickly.",
-        "Implement backpressure policy (`drop_oldest|drop_new|block_with_timeout`) with conservative defaults to protect interactive UX.",
-        "Keep current retry semantics but move sleeps/retries into the worker; ensure secrets remain redacted in logs.",
-        "Add tests using a local HTTP listener (or injectable transport) to validate retries, signature headers, and that the caller path does not block on backoff.",
-        "Document delivery semantics (best-effort, bounded queue, failure logging) in `docs/configuration.md`.",
-        "Verify by running `make ci` and confirming webhook tests cover success, non-2xx failure, and retry/backoff behavior."
-      ],
-      "notes": [],
-      "request": "innovation scan finding",
-      "created_at": "2026-02-04T14:58:48Z",
-      "updated_at": "2026-02-04T14:58:48Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [
-        "RQ-0610"
-      ],
-      "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort.",
-        "time_to_ship": "medium (concurrency + tests)",
-        "opportunity_type": "reliability"
-      }
-    },
-    {
       "id": "RQ-0616",
       "status": "todo",
       "title": "Improve `ralph watch`: structured source metadata, stronger dedupe, and optional auto-close when comments are removed",
@@ -82,10 +39,10 @@
         "RQ-0608"
       ],
       "custom_fields": {
-        "time_to_ship": "medium (metadata + reconciliation + tests)",
         "opportunity_type": "ux improvement",
-        "scan_agent": "scan-innovation",
-        "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current."
+        "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current.",
+        "time_to_ship": "medium (metadata + reconciliation + tests)",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -124,10 +81,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "scan_agent": "scan-innovation",
         "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics.",
         "time_to_ship": "medium (format + fixes + tests)",
-        "opportunity_type": "ux improvement",
-        "scan_agent": "scan-innovation"
+        "opportunity_type": "ux improvement"
       }
     },
     {
@@ -167,8 +124,8 @@
       "custom_fields": {
         "opportunity_type": "ux improvement",
         "scan_agent": "scan-innovation",
-        "time_to_ship": "small/medium (formatters + tests)",
-        "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat)."
+        "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat).",
+        "time_to_ship": "small/medium (formatters + tests)"
       }
     },
     {
@@ -205,9 +162,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "opportunity_type": "ux improvement",
         "user_value": "Fewer context switches: jump from task → code in one keystroke.",
+        "opportunity_type": "ux improvement",
+        "scan_agent": "scan-innovation",
         "time_to_ship": "medium (TUI wiring + tests)"
       }
     },
@@ -247,10 +204,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error.",
         "opportunity_type": "ux improvement",
         "time_to_ship": "medium (render-only UI + tests)",
-        "scan_agent": "scan-innovation",
-        "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error."
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -295,9 +252,9 @@
       "relates_to": [],
       "custom_fields": {
         "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types",
+        "opportunity_type": "feature gap",
         "scan_agent": "scan-innovation",
-        "measurable_impact": "Track 20%+ improvement in task completion velocity after adoption",
-        "opportunity_type": "feature gap"
+        "measurable_impact": "Track 20%+ improvement in task completion velocity after adoption"
       }
     },
     {
@@ -341,8 +298,8 @@
       "relates_to": [],
       "custom_fields": {
         "opportunity_type": "UX improvement",
-        "time_to_ship": "incremental - add one batch operation at a time",
         "scan_agent": "scan-innovation",
+        "time_to_ship": "incremental - add one batch operation at a time",
         "user_value": "Reduces queue maintenance time by 80% for large projects"
       }
     },
@@ -387,10 +344,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Reduces regression risk; enables confident refactoring",
+        "opportunity_type": "reliability",
         "scan_agent": "scan-innovation",
         "measurable_impact": "80%+ integration test coverage for CLI commands",
-        "opportunity_type": "reliability"
+        "user_value": "Reduces regression risk; enables confident refactoring"
       }
     },
     {
@@ -434,10 +391,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "differentiation": "Unique capability among AI task runners",
-        "scan_agent": "scan-innovation",
         "user_value": "Enables ecosystem growth; custom integrations without forks",
-        "opportunity_type": "feature gap"
+        "opportunity_type": "feature gap",
+        "differentiation": "Unique capability among AI task runners",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -482,8 +439,8 @@
       "relates_to": [],
       "custom_fields": {
         "measurable_impact": "Estimates within 25% of actual duration after 20 tasks",
-        "user_value": "Improves planning accuracy; sets realistic expectations",
         "opportunity_type": "feature gap",
+        "user_value": "Improves planning accuracy; sets realistic expectations",
         "scan_agent": "scan-innovation"
       }
     },
@@ -575,9 +532,9 @@
       "relates_to": [],
       "custom_fields": {
         "opportunity_type": "feature gap",
-        "user_value": "Proactively identifies improvement opportunities; reduces manual scanning",
         "measurable_impact": "Auto-detects 30%+ of maintenance tasks",
-        "scan_agent": "scan-innovation"
+        "scan_agent": "scan-innovation",
+        "user_value": "Proactively identifies improvement opportunities; reduces manual scanning"
       }
     },
     {
@@ -620,10 +577,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "time_to_ship": "incremental - add one channel at a time",
-        "user_value": "Enables remote monitoring; integrates with existing workflows",
         "opportunity_type": "integration",
-        "scan_agent": "scan-innovation"
+        "scan_agent": "scan-innovation",
+        "user_value": "Enables remote monitoring; integrates with existing workflows",
+        "time_to_ship": "incremental - add one channel at a time"
       }
     },
     {
@@ -666,8 +623,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "measurable_impact": "50%+ improvement in queue operations for large projects",
         "opportunity_type": "performance",
+        "measurable_impact": "50%+ improvement in queue operations for large projects",
         "user_value": "Identifies bottlenecks; improves Ralph responsiveness",
         "scan_agent": "scan-innovation"
       }

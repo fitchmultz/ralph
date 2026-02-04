@@ -1256,6 +1256,57 @@
       "custom_fields": {
         "scan_agent": "scan-maintenance"
       }
+    },
+    {
+      "id": "RQ-0615",
+      "status": "done",
+      "title": "Make webhook delivery non-blocking (async worker + bounded queue) to avoid blocking task transitions",
+      "priority": "high",
+      "tags": [
+        "innovation",
+        "reliability",
+        "webhook",
+        "performance"
+      ],
+      "scope": [
+        "crates/ralph/src/webhook.rs",
+        "crates/ralph/src/contracts/config.rs",
+        "docs/configuration.md"
+      ],
+      "evidence": [
+        "`crates/ralph/src/webhook.rs` sends webhooks synchronously and retries with `std::thread::sleep`, which can block the caller path even though failures are non-fatal."
+      ],
+      "plan": [
+        "Introduce a background delivery worker (single thread or small pool) and a bounded channel; `send_webhook` becomes enqueue-only and returns quickly.",
+        "Implement backpressure policy (`drop_oldest|drop_new|block_with_timeout`) with conservative defaults to protect interactive UX.",
+        "Keep current retry semantics but move sleeps/retries into the worker; ensure secrets remain redacted in logs.",
+        "Add tests using a local HTTP listener (or injectable transport) to validate retries, signature headers, and that the caller path does not block on backoff.",
+        "Document delivery semantics (best-effort, bounded queue, failure logging) in `docs/configuration.md`.",
+        "Verify by running `make ci` and confirming webhook tests cover success, non-2xx failure, and retry/backoff behavior."
+      ],
+      "notes": [
+        "Implemented async webhook worker with bounded crossbeam-channel queue",
+        "Added queue_capacity (1-10000) and queue_policy (drop_oldest|drop_new|block_with_timeout) config options",
+        "Fixed capacity bounds validation to prevent rendezvous channel issues",
+        "Added 13 unit tests and 8 integration tests covering non-blocking behavior, retries, signatures, event filtering, backpressure policies",
+        "Updated documentation in docs/configuration.md with delivery semantics",
+        "CI passes: all tests pass, schema regenerated, clippy clean"
+      ],
+      "request": "innovation scan finding",
+      "created_at": "2026-02-04T14:58:48Z",
+      "updated_at": "2026-02-04T18:03:53.010190000Z",
+      "completed_at": "2026-02-04T18:03:53.010190000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [
+        "RQ-0610"
+      ],
+      "custom_fields": {
+        "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort.",
+        "scan_agent": "scan-innovation",
+        "opportunity_type": "reliability",
+        "time_to_ship": "medium (concurrency + tests)"
+      }
     }
   ]
 }
