@@ -12,13 +12,14 @@
 //! Invariants/assumptions:
 //! - Terminal statuses (done, rejected) archive tasks to done.json.
 //! - Non-terminal statuses update in-place in queue.json.
-//! - Uses completion signal pattern when running under supervision.
+//! - Uses completion signal pattern when running under supervision or when forced via env.
 
 use anyhow::{Result, bail};
 
 use crate::cli::task::args::{TaskDoneArgs, TaskReadyArgs, TaskRejectArgs, TaskStatusArgs};
 use crate::completions;
 use crate::config;
+use crate::constants::paths::ENV_FORCE_COMPLETION_SIGNAL;
 use crate::contracts::TaskStatus;
 use crate::lock;
 use crate::queue;
@@ -256,19 +257,24 @@ fn complete_task_or_signal(
     _lock_label: &str,
 ) -> Result<()> {
     let lock_dir = lock::queue_lock_dir(&resolved.repo_root);
+    let force_signal = force_completion_signal_from_env();
     // Only use completion signal mode if the current process is actually being supervised
-    // (i.e., running as a descendant of the supervisor process). This distinguishes between:
+    // (i.e., running as a descendant of the supervisor process), or if forced via env.
+    // This distinguishes between:
     // - An agent running inside a supervised session (should use completion signals)
     // - A user manually running commands while a supervisor is active (should complete directly)
-    if lock::is_current_process_supervised(&lock_dir)? {
+    // - Parallel workers that must always emit completion signals regardless of process group
+    if force_signal || lock::is_current_process_supervised(&lock_dir)? {
         let signal = completions::CompletionSignal {
             task_id: task_id.to_string(),
             status,
             notes: notes.to_vec(),
         };
         let path = completions::write_completion_signal(&resolved.repo_root, &signal)?;
+        let label = if force_signal { "force" } else { "supervision" };
         log::info!(
-            "Running under supervision - wrote completion signal at {}",
+            "Completion signal mode ({}) - wrote completion signal at {}",
+            label,
             path.display()
         );
         return Ok(());
@@ -297,4 +303,16 @@ fn complete_task_or_signal(
         status
     );
     Ok(())
+}
+
+fn force_completion_signal_from_env() -> bool {
+    let value = match std::env::var(ENV_FORCE_COMPLETION_SIGNAL) {
+        Ok(value) => value,
+        Err(_) => return false,
+    };
+    let normalized = value.trim().to_ascii_lowercase();
+    if normalized.is_empty() {
+        return false;
+    }
+    !matches!(normalized.as_str(), "0" | "false" | "no" | "off")
 }

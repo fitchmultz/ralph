@@ -18,6 +18,7 @@ use crate::agent::AgentOverrides;
 use crate::commands::run::parallel::args::build_override_args;
 use crate::commands::run::selection::select_run_one_task_index_excluding;
 use crate::config;
+use crate::constants::paths::ENV_FORCE_COMPLETION_SIGNAL;
 use crate::git::WorkspaceSpec;
 use crate::lock::DirLock;
 use crate::queue;
@@ -158,6 +159,7 @@ fn build_worker_command(
     cmd.current_dir(workspace_path);
     cmd.env("PWD", workspace_path);
     cmd.env(crate::config::REPO_ROOT_OVERRIDE_ENV, workspace_path);
+    cmd.env(ENV_FORCE_COMPLETION_SIGNAL, "1");
     cmd.stdin(Stdio::null());
 
     let mut args: Vec<String> = Vec::new();
@@ -197,6 +199,7 @@ mod tests {
 
         let mut pwd_seen = false;
         let mut override_seen = false;
+        let mut force_seen = false;
         for (key, value) in cmd.get_envs() {
             if key == std::ffi::OsStr::new("PWD") {
                 pwd_seen = true;
@@ -206,12 +209,21 @@ mod tests {
                 override_seen = true;
                 assert_eq!(value, Some(workspace_path.as_os_str()));
             }
+            if key == std::ffi::OsStr::new(ENV_FORCE_COMPLETION_SIGNAL) {
+                force_seen = true;
+                assert_eq!(value, Some(std::ffi::OsStr::new("1")));
+            }
         }
         assert!(pwd_seen, "PWD env should be set for workspace execution");
         assert!(
             override_seen,
             "{} env should be set for workspace execution",
             crate::config::REPO_ROOT_OVERRIDE_ENV
+        );
+        assert!(
+            force_seen,
+            "{} env should be set for workspace execution",
+            ENV_FORCE_COMPLETION_SIGNAL
         );
 
         assert!(args.contains(&"--force".to_string()));

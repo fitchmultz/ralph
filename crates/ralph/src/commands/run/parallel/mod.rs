@@ -2094,7 +2094,7 @@ mod tests {
     }
 
     #[test]
-    fn base_branch_mismatch_errors_when_open_prs_present() -> Result<()> {
+    fn base_branch_mismatch_errors_when_blockers_present() -> Result<()> {
         let temp = TempDir::new()?;
         let repo_root = temp.path();
         let mut state = state::ParallelStateFile::new(
@@ -2103,16 +2103,14 @@ mod tests {
             ParallelMergeMethod::Squash,
             ParallelMergeWhen::AsCreated,
         );
-        state.prs.push(state::ParallelPrRecord {
+        let workspace_path = repo_root.join("workspaces").join("RQ-0003");
+        std::fs::create_dir_all(&workspace_path)?;
+        state.tasks_in_flight.push(state::ParallelTaskRecord {
             task_id: "RQ-0003".to_string(),
-            pr_number: 7,
-            pr_url: "https://example.com/pr/7".to_string(),
-            head: None,
-            base: None,
-            workspace_path: None,
-            merged: false,
-            lifecycle: state::ParallelPrLifecycle::Open,
-            merge_blocker: None,
+            workspace_path: workspace_path.to_string_lossy().to_string(),
+            branch: "ralph/RQ-0003".to_string(),
+            pid: Some(std::process::id()),
+            started_at: crate::timeutil::now_utc_rfc3339_or_fallback(),
         });
         let state_path = state::state_file_path(repo_root);
         state::save_state(&state_path, &state)?;
@@ -2124,7 +2122,7 @@ mod tests {
                 .unwrap_err();
 
         let msg = err.to_string();
-        assert!(msg.contains("open PR"));
+        assert!(msg.contains("in-flight task"));
         assert!(msg.contains("state.json"));
         Ok(())
     }
