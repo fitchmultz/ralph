@@ -171,9 +171,9 @@ pub enum QueueCommand {
     )]
     Graph(QueueGraphArgs),
 
-    /// Export task data to CSV, TSV, or JSON format.
+    /// Export task data to CSV, TSV, JSON, Markdown, or GitHub issue format.
     #[command(
-        after_long_help = "Examples:\n ralph queue export\n ralph queue export --format csv --output tasks.csv\n ralph queue export --format json --status done\n ralph queue export --format tsv --tag rust --tag cli\n ralph queue export --include-archive --format csv\n ralph queue export --format csv --created-after 2026-01-01"
+        after_long_help = "Examples:\n ralph queue export\n ralph queue export --format csv --output tasks.csv\n ralph queue export --format json --status done\n ralph queue export --format tsv --tag rust --tag cli\n ralph queue export --format md --status todo\n ralph queue export --format gh --id-pattern RQ-0001\n ralph queue export --include-archive --format csv\n ralph queue export --format csv --created-after 2026-01-01"
     )]
     Export(QueueExportArgs),
 

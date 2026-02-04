@@ -811,7 +811,7 @@ Inspect and manage the task queue (`.ralph/queue.json`) and done archive (`.ralp
 * `history`: show task history timeline (creation/completion events by day).
 * `burndown`: show burndown chart of remaining tasks over time.
 * `schema`: print the JSON schema for the queue file.
-* `export`: export task data to CSV, TSV, or JSON format.
+* `export`: export task data to CSV, TSV, JSON, Markdown, or GitHub issue format.
 * `stop`: request graceful stop of a running loop after current task completes.
 
 ### Queue Flags
@@ -1124,11 +1124,16 @@ ralph queue graph --format json
 
 ### `ralph queue export`
 
-Export task data to CSV, TSV, or JSON format for external analysis and reporting.
+Export task data to various formats for external analysis, reporting, and sharing.
 
 Flags:
 
-* `--format <csv|tsv|json>`: output format (default: `csv`).
+* `--format <csv|tsv|json|md|gh>`: output format (default: `csv`).
+  * `csv`: Comma-separated values, good for spreadsheets
+  * `tsv`: Tab-separated values, good for command-line processing
+  * `json`: JSON array of task objects, good for scripting
+  * `md`: Markdown table, good for human-readable summaries
+  * `gh`: GitHub issue format, good for pasting into GitHub issues/PRs
 * `--output <PATH>` (or `-o`): output file path (default: stdout).
 * `--status <draft|todo|doing|done|rejected>`: filter by status (repeatable).
 * `--tag <TAG>`: filter by tag (repeatable, case-insensitive).
@@ -1139,10 +1144,20 @@ Flags:
 * `--include-archive`: include tasks from `.ralph/done.json` archive.
 * `--only-archive`: only export tasks from `.ralph/done.json` (ignores active queue).
 
+Format-specific notes:
+
 CSV/TSV output includes all task fields with arrays flattened to delimited strings:
 * `tags`, `scope`, `depends_on`: comma-separated
 * `evidence`, `plan`, `notes`: semicolon-separated
 * `custom_fields`: key=value pairs, comma-separated
+
+Markdown (`md`) output produces a GitHub-flavored Markdown table with columns:
+ID, Status, Priority, Title, Tags, Scope, Created. Tasks are sorted by ID for
+stable output.
+
+GitHub (`gh`) output produces one Markdown block per task, formatted for optimal
+rendering in GitHub issue bodies. Includes clean formatting for plan, evidence,
+scope, and notes.
 
 ```bash
 # Export all tasks to CSV (default)
@@ -1165,6 +1180,35 @@ ralph queue export --only-archive --format csv --created-after 2026-01-01
 
 # Export tasks matching ID pattern
 ralph queue export --id-pattern RQ-01
+
+# Export todo tasks as Markdown table for sharing
+ralph queue export --format md --status todo
+
+# Export high-priority tasks as GitHub issue format
+ralph queue export --format gh --status todo --priority high > issue_body.md
+
+# Export all tasks for a GitHub milestone
+ralph queue export --format gh --tag milestone-v2 > milestone_tasks.md
+```
+
+#### Recommended Markdown Export Workflows
+
+**Share backlog in PR description:**
+```bash
+# Include todo and doing tasks in PR description
+ralph queue export --format md --status todo --status doing
+```
+
+**Create GitHub issue for a specific task:**
+```bash
+# Export single task in GitHub format
+ralph queue export --format gh --id-pattern RQ-0042
+```
+
+**Generate weekly status report:**
+```bash
+# Tasks completed this week in Markdown
+ralph queue export --format md --status done --created-after 2026-01-27
 ```
 
 ### `ralph queue stop`

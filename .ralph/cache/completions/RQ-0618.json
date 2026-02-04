@@ -1,0 +1,10 @@
+{
+  "task_id": "RQ-0618",
+  "status": "done",
+  "notes": [
+    "Implemented Markdown (md) and GitHub issue (gh) export formats",
+    "Added 6 new tests covering markdown escaping, determinism, and GitHub format output",
+    "Updated CLI help text and docs/cli.md with format descriptions and workflow examples",
+    "Phase 3 review: fixed documentation gaps in mod.rs and docs/cli.md"
+  ]
+}

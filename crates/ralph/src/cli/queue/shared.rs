@@ -69,6 +69,10 @@ pub enum QueueExportFormat {
     Tsv,
     /// JSON format (array of task objects).
     Json,
+    /// Markdown table format for human-readable output.
+    Md,
+    /// GitHub issue format optimized for issue bodies.
+    Gh,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]

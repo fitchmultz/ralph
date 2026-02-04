@@ -1,7 +1,7 @@
 //! Queue export subcommand for exporting task data to various formats.
 //!
 //! Responsibilities:
-//! - Export task data from queue and done archive to CSV, TSV, or JSON formats.
+//! - Export task data from queue and done archive to CSV, TSV, JSON, Markdown, or GitHub formats.
 //! - Support filtering by status, tags, scope, ID patterns, and date ranges.
 //! - Write output to file or stdout.
 //!
@@ -11,6 +11,8 @@
 //!
 //! Invariants/assumptions:
 //! - CSV/TSV output flattens arrays (tags, scope, etc.) into delimited strings.
+//! - Markdown output produces GitHub-flavored Markdown tables with stable column ordering.
+//! - GitHub format outputs one Markdown block per task optimized for issue bodies.
 //! - Date filters expect RFC3339 or YYYY-MM-DD format and compare against created_at.
 //! - Output encoding is UTF-8.
 
@@ -30,7 +32,7 @@ use super::{QueueExportFormat, StatusArg};
 /// Arguments for `ralph queue export`.
 #[derive(Args)]
 #[command(
-    after_long_help = "Examples:\n  ralph queue export\n  ralph queue export --format csv --output tasks.csv\n  ralph queue export --format json --status done\n  ralph queue export --format tsv --tag rust --tag cli\n  ralph queue export --include-archive --format csv\n  ralph queue export --format csv --created-after 2026-01-01"
+    after_long_help = "Examples:\n  ralph queue export\n  ralph queue export --format csv --output tasks.csv\n  ralph queue export --format json --status done\n  ralph queue export --format tsv --tag rust --tag cli\n  ralph queue export --include-archive --format csv\n  ralph queue export --format csv --created-after 2026-01-01\n  ralph queue export --format md --status todo\n  ralph queue export --format gh --status doing"
 )]
 pub struct QueueExportArgs {
     /// Output format.
@@ -195,6 +197,8 @@ pub(crate) fn handle(resolved: &Resolved, args: QueueExportArgs) -> Result<()> {
         QueueExportFormat::Csv => export_csv(&tasks, ',')?,
         QueueExportFormat::Tsv => export_csv(&tasks, '\t')?,
         QueueExportFormat::Json => export_json(&tasks)?,
+        QueueExportFormat::Md => export_markdown_table(&tasks)?,
+        QueueExportFormat::Gh => export_github_issue(&tasks)?,
     };
 
     // Write output
@@ -340,6 +344,151 @@ fn export_json(tasks: &[&Task]) -> Result<String> {
     Ok(output)
 }
 
+/// Export tasks to Markdown table format.
+fn export_markdown_table(tasks: &[&Task]) -> Result<String> {
+    // Sort tasks by ID for deterministic output
+    let mut sorted_tasks: Vec<&Task> = tasks.to_vec();
+    sorted_tasks.sort_by(|a, b| a.id.cmp(&b.id));
+
+    let mut output = String::new();
+
+    // Header
+    output.push_str("| ID | Status | Priority | Title | Tags | Scope | Created |\n");
+    output.push_str("|---|---|---|---|---|---|---|\n");
+
+    // Rows
+    for task in sorted_tasks {
+        let tags = if task.tags.is_empty() {
+            "".to_string()
+        } else {
+            format!("`{}`", task.tags.join("`, `"))
+        };
+
+        let scope = if task.scope.is_empty() {
+            "".to_string()
+        } else if task.scope.len() > 2 {
+            format!("`{}` (+{})", task.scope[0], task.scope.len() - 1)
+        } else {
+            format!("`{}`", task.scope.join("`, `"))
+        };
+
+        let title = escape_markdown_table_cell(&task.title);
+        let created = task.created_at.as_deref().unwrap_or("-");
+        let date_part = created.split('T').next().unwrap_or(created);
+
+        output.push_str(&format!(
+            "| {} | {} | {} | {} | {} | {} | {} |\n",
+            task.id,
+            task.status.as_str(),
+            task.priority.as_str(),
+            title,
+            tags,
+            scope,
+            date_part,
+        ));
+    }
+
+    Ok(output)
+}
+
+/// Export tasks to GitHub issue format.
+fn export_github_issue(tasks: &[&Task]) -> Result<String> {
+    // Sort tasks by ID for deterministic output
+    let mut sorted_tasks: Vec<&Task> = tasks.to_vec();
+    sorted_tasks.sort_by(|a, b| a.id.cmp(&b.id));
+
+    let mut output = String::new();
+
+    for (i, task) in sorted_tasks.iter().enumerate() {
+        if i > 0 {
+            output.push('\n');
+            output.push_str("---");
+            output.push('\n');
+            output.push('\n');
+        }
+
+        // Title as H2
+        output.push_str(&format!("## {}: {}\n\n", task.id, task.title));
+
+        // Metadata line
+        output.push_str(&format!(
+            "**Status:** `{}` | **Priority:** `{}`\n",
+            task.status.as_str(),
+            task.priority.as_str()
+        ));
+
+        if !task.tags.is_empty() {
+            output.push('\n');
+            output.push_str(&format!("**Tags:** `{}`\n", task.tags.join("`, `")));
+        }
+
+        // Plan section
+        if !task.plan.is_empty() {
+            output.push('\n');
+            output.push_str("### Plan\n\n");
+            for item in &task.plan {
+                output.push_str("- ");
+                output.push_str(item);
+                output.push('\n');
+            }
+        }
+
+        // Evidence section
+        if !task.evidence.is_empty() {
+            output.push('\n');
+            output.push_str("### Evidence\n\n");
+            for item in &task.evidence {
+                output.push_str("- ");
+                output.push_str(item);
+                output.push('\n');
+            }
+        }
+
+        // Scope section
+        if !task.scope.is_empty() {
+            output.push('\n');
+            output.push_str("### Scope\n\n");
+            for item in &task.scope {
+                output.push_str("- `");
+                output.push_str(item);
+                output.push_str("`\n");
+            }
+        }
+
+        // Notes section (if any)
+        if !task.notes.is_empty() {
+            output.push('\n');
+            output.push_str("### Notes\n\n");
+            for item in &task.notes {
+                output.push_str("- ");
+                output.push_str(item);
+                output.push('\n');
+            }
+        }
+
+        // Dependencies
+        if !task.depends_on.is_empty() {
+            output.push('\n');
+            output.push_str(&format!("**Depends on:** {}\n", task.depends_on.join(", ")));
+        }
+
+        // Request (if present)
+        if let Some(ref request) = task.request {
+            output.push('\n');
+            output.push_str("### Original Request\n\n");
+            output.push_str(request);
+            output.push('\n');
+        }
+    }
+
+    Ok(output)
+}
+
+/// Escape Markdown special characters for table cells.
+fn escape_markdown_table_cell(text: &str) -> String {
+    // In Markdown tables, pipes break the table, so we escape them
+    text.replace('|', "\\|")
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -449,5 +598,95 @@ mod tests {
     fn parse_date_filter_rejects_invalid() {
         let result = parse_date_filter("not-a-date");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn markdown_export_produces_valid_table() {
+        let task1 = create_test_task("RQ-0001", "First Task", TaskStatus::Todo);
+        let task2 = create_test_task("RQ-0002", "Second Task", TaskStatus::Doing);
+        let tasks = vec![&task1, &task2];
+
+        let md = export_markdown_table(&tasks).unwrap();
+
+        // Should have header row
+        assert!(md.contains("| ID | Status | Priority | Title |"));
+        // Should have separator row
+        assert!(md.contains("|---|---|---"));
+        // Should contain task data
+        assert!(md.contains("RQ-0001"));
+        assert!(md.contains("First Task"));
+        assert!(md.contains("todo"));
+        assert!(md.contains("RQ-0002"));
+    }
+
+    #[test]
+    fn markdown_export_escapes_pipes() {
+        let task = create_test_task("RQ-0001", "Task | With | Pipes", TaskStatus::Todo);
+        let tasks = vec![&task];
+
+        let md = export_markdown_table(&tasks).unwrap();
+
+        // Pipes should be escaped to not break table
+        assert!(md.contains("Task \\| With \\| Pipes"));
+    }
+
+    #[test]
+    fn markdown_export_is_deterministic() {
+        let task1 = create_test_task("RQ-0002", "Second", TaskStatus::Todo);
+        let task2 = create_test_task("RQ-0001", "First", TaskStatus::Todo);
+        let tasks = vec![&task1, &task2];
+
+        let md1 = export_markdown_table(&tasks).unwrap();
+        let md2 = export_markdown_table(&tasks).unwrap();
+
+        assert_eq!(md1, md2);
+        // Should be sorted by ID
+        assert!(md1.find("RQ-0001").unwrap() < md1.find("RQ-0002").unwrap());
+    }
+
+    #[test]
+    fn github_export_produces_valid_markdown() {
+        let task = create_test_task("RQ-0001", "Test Task", TaskStatus::Todo);
+        let tasks = vec![&task];
+
+        let gh = export_github_issue(&tasks).unwrap();
+
+        // Should have H2 title
+        assert!(gh.contains("## RQ-0001: Test Task"));
+        // Should have status
+        assert!(gh.contains("**Status:**"));
+        // Should have priority
+        assert!(gh.contains("**Priority:**"));
+        // Should have plan section
+        assert!(gh.contains("### Plan"));
+        // Should have evidence section
+        assert!(gh.contains("### Evidence"));
+    }
+
+    #[test]
+    fn github_export_omits_empty_sections() {
+        let mut task = create_test_task("RQ-0001", "Test", TaskStatus::Todo);
+        task.plan = vec![]; // Empty plan
+        task.evidence = vec!["Some evidence".to_string()];
+        let tasks = vec![&task];
+
+        let gh = export_github_issue(&tasks).unwrap();
+
+        // Should have evidence section
+        assert!(gh.contains("### Evidence"));
+        // Should NOT have plan section
+        assert!(!gh.contains("### Plan\n\n"));
+    }
+
+    #[test]
+    fn github_export_multiple_tasks_separates_with_hr() {
+        let task1 = create_test_task("RQ-0001", "First", TaskStatus::Todo);
+        let task2 = create_test_task("RQ-0002", "Second", TaskStatus::Todo);
+        let tasks = vec![&task1, &task2];
+
+        let gh = export_github_issue(&tasks).unwrap();
+
+        // Should have horizontal rule between tasks
+        assert!(gh.contains("\n---\n"));
     }
 }
