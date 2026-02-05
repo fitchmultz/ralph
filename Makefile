@@ -37,9 +37,7 @@ type-check:
 
 lint:
 	@echo "→ Clippy autofix (phase 1/2)..."
-	@cargo clippy --fix --allow-dirty --workspace --all-targets --all-features --locked
-	@echo "→ Clippy strict check (phase 2/2)..."
-	@cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+	@cargo clippy --fix --allow-dirty --workspace --all-targets --all-features --locked -- -D warnings
 	@echo "  ✓ Linting complete"
 
 test:
