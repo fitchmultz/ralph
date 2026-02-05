@@ -229,7 +229,7 @@ fn clear_field(state: &mut TaskBuilderState, field: TaskBuilderField) {
 fn cycle_field(state: &mut TaskBuilderState, field: TaskBuilderField) {
     match field {
         TaskBuilderField::Runner => {
-            state.runner_override = cycle_runner(state.runner_override);
+            state.runner_override = cycle_runner(state.runner_override.clone());
         }
         TaskBuilderField::Effort => {
             state.effort_override = cycle_effort(state.effort_override);
@@ -252,6 +252,7 @@ fn cycle_runner(current: Option<Runner>) -> Option<Runner> {
         Some(Runner::Cursor) => Some(Runner::Kimi),
         Some(Runner::Kimi) => Some(Runner::Pi),
         Some(Runner::Pi) => None,
+        Some(Runner::Plugin(_)) => None,
     }
 }
 
@@ -292,7 +293,7 @@ fn validate_and_build_options(state: &TaskBuilderState) -> anyhow::Result<TaskBu
         request: state.description.clone(),
         hint_tags: state.tags_hint.clone(),
         hint_scope: state.scope_hint.clone(),
-        runner_override: state.runner_override,
+        runner_override: state.runner_override.clone(),
         model_override,
         reasoning_effort_override: state.effort_override,
         repoprompt_mode: state.repoprompt_mode,

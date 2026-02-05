@@ -87,6 +87,7 @@ fn safeguard_dump_created_for_stderr_on_nonzero_exit() {
             _output_stream: crate::runner::OutputStream,
             _phase_type: crate::commands::run::PhaseType,
             _session_id: Option<String>,
+            _plugins: Option<&crate::plugins::registry::PluginRegistry>,
         ) -> anyhow::Result<crate::runner::RunnerOutput, crate::runner::RunnerError> {
             Err(crate::runner::RunnerError::NonZeroExit {
                 code: 1,
@@ -111,6 +112,7 @@ fn safeguard_dump_created_for_stderr_on_nonzero_exit() {
             _output_handler: Option<crate::runner::OutputHandler>,
             _output_stream: crate::runner::OutputStream,
             _phase_type: crate::commands::run::PhaseType,
+            _plugins: Option<&crate::plugins::registry::PluginRegistry>,
         ) -> anyhow::Result<crate::runner::RunnerOutput, crate::runner::RunnerError> {
             unreachable!("resume_session should not be called")
         }
@@ -189,6 +191,7 @@ fn safeguard_dump_created_for_stderr_on_terminated_by_signal() {
             _output_stream: crate::runner::OutputStream,
             _phase_type: crate::commands::run::PhaseType,
             _session_id: Option<String>,
+            _plugins: Option<&crate::plugins::registry::PluginRegistry>,
         ) -> anyhow::Result<crate::runner::RunnerOutput, crate::runner::RunnerError> {
             Err(crate::runner::RunnerError::TerminatedBySignal {
                 stdout: RedactedString::from("stdout content"),
@@ -212,6 +215,7 @@ fn safeguard_dump_created_for_stderr_on_terminated_by_signal() {
             _output_handler: Option<crate::runner::OutputHandler>,
             _output_stream: crate::runner::OutputStream,
             _phase_type: crate::commands::run::PhaseType,
+            _plugins: Option<&crate::plugins::registry::PluginRegistry>,
         ) -> anyhow::Result<crate::runner::RunnerOutput, crate::runner::RunnerError> {
             unreachable!("resume_session should not be called")
         }
@@ -324,6 +328,7 @@ fn no_safeguard_dump_for_empty_stderr() {
             _output_stream: crate::runner::OutputStream,
             _phase_type: crate::commands::run::PhaseType,
             _session_id: Option<String>,
+            _plugins: Option<&crate::plugins::registry::PluginRegistry>,
         ) -> anyhow::Result<crate::runner::RunnerOutput, crate::runner::RunnerError> {
             Err(crate::runner::RunnerError::NonZeroExit {
                 code: 1,
@@ -348,6 +353,7 @@ fn no_safeguard_dump_for_empty_stderr() {
             _output_handler: Option<crate::runner::OutputHandler>,
             _output_stream: crate::runner::OutputStream,
             _phase_type: crate::commands::run::PhaseType,
+            _plugins: Option<&crate::plugins::registry::PluginRegistry>,
         ) -> anyhow::Result<crate::runner::RunnerOutput, crate::runner::RunnerError> {
             unreachable!("resume_session should not be called")
         }

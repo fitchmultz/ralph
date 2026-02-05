@@ -129,7 +129,11 @@ fn draw_task_builder_advanced(f: &mut Frame<'_>, area: Rect, state: &TaskBuilder
     let fields = [
         ("Tags hint", format_field_value(&state.tags_hint), 0usize),
         ("Scope hint", format_field_value(&state.scope_hint), 1usize),
-        ("Runner", format_runner(state.runner_override), 2usize),
+        (
+            "Runner",
+            format_runner(state.runner_override.clone()),
+            2usize,
+        ),
         (
             "Model",
             format_field_value(&state.model_override_input),

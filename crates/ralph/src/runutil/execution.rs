@@ -90,6 +90,7 @@ pub(crate) trait RunnerBackend {
         output_stream: runner::OutputStream,
         phase_type: PhaseType,
         session_id: Option<String>,
+        plugins: Option<&crate::plugins::registry::PluginRegistry>,
     ) -> Result<runner::RunnerOutput, runner::RunnerError>;
 
     #[allow(clippy::too_many_arguments)]
@@ -108,6 +109,7 @@ pub(crate) trait RunnerBackend {
         output_handler: Option<runner::OutputHandler>,
         output_stream: runner::OutputStream,
         phase_type: PhaseType,
+        plugins: Option<&crate::plugins::registry::PluginRegistry>,
     ) -> Result<runner::RunnerOutput, runner::RunnerError>;
 }
 
@@ -129,6 +131,7 @@ impl RunnerBackend for RealRunnerBackend {
         output_stream: runner::OutputStream,
         phase_type: PhaseType,
         session_id: Option<String>,
+        plugins: Option<&crate::plugins::registry::PluginRegistry>,
     ) -> Result<runner::RunnerOutput, runner::RunnerError> {
         runner::run_prompt(
             runner_kind,
@@ -144,6 +147,7 @@ impl RunnerBackend for RealRunnerBackend {
             output_stream,
             phase_type,
             session_id,
+            plugins,
         )
     }
 
@@ -162,6 +166,7 @@ impl RunnerBackend for RealRunnerBackend {
         output_handler: Option<runner::OutputHandler>,
         output_stream: runner::OutputStream,
         phase_type: PhaseType,
+        plugins: Option<&crate::plugins::registry::PluginRegistry>,
     ) -> Result<runner::RunnerOutput, runner::RunnerError> {
         runner::resume_session(
             runner_kind,
@@ -177,6 +182,7 @@ impl RunnerBackend for RealRunnerBackend {
             output_handler,
             output_stream,
             phase_type,
+            plugins,
         )
     }
 }
@@ -251,7 +257,7 @@ where
     };
 
     let mut result = backend.run_prompt(
-        runner_kind,
+        runner_kind.clone(),
         repo_root,
         bins,
         model.clone(),
@@ -264,6 +270,7 @@ where
         output_stream,
         phase_type,
         session_id.clone(),
+        None,
     );
 
     loop {
@@ -385,7 +392,7 @@ where
                                 buf.clear();
                             }
                             result = backend.resume_session(
-                                runner_kind,
+                                runner_kind.clone(),
                                 repo_root,
                                 bins,
                                 model.clone(),
@@ -398,6 +405,7 @@ where
                                 effective_output_handler.clone(),
                                 output_stream,
                                 phase_type,
+                                None,
                             );
                             continue;
                         }
@@ -475,7 +483,7 @@ where
                                 buf.clear();
                             }
                             result = backend.resume_session(
-                                runner_kind,
+                                runner_kind.clone(),
                                 repo_root,
                                 bins,
                                 model.clone(),
@@ -488,6 +496,7 @@ where
                                 effective_output_handler.clone(),
                                 output_stream,
                                 phase_type,
+                                None,
                             );
                             continue;
                         }

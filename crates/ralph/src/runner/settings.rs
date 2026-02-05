@@ -39,15 +39,15 @@ pub(crate) fn resolve_agent_settings(
     task_agent: Option<&TaskAgent>,
     config_agent: &AgentConfig,
 ) -> Result<AgentSettings> {
-    let runner = runner_override
-        .or(task_agent.and_then(|a| a.runner))
-        .or(config_agent.runner)
-        .unwrap_or_default();
-
     let runner_was_overridden = runner_override.is_some();
 
+    let runner = runner_override
+        .or(task_agent.and_then(|a| a.runner.clone()))
+        .or(config_agent.runner.clone())
+        .unwrap_or_default();
+
     let model = model::resolve_model_for_runner(
-        runner,
+        &runner,
         model_override,
         task_agent.and_then(|a| a.model.clone()),
         config_agent.model.clone(),
@@ -70,17 +70,17 @@ pub(crate) fn resolve_agent_settings(
         );
     }
 
-    model::validate_model_for_runner(runner, &model)?;
+    model::validate_model_for_runner(&runner, &model)?;
 
     let runner_cli = execution::resolve_runner_cli_options(
-        runner,
+        &runner,
         runner_cli_override,
         task_agent.and_then(|a| a.runner_cli.as_ref()),
         config_agent,
     )?;
 
     Ok(AgentSettings {
-        runner,
+        runner: runner.clone(),
         model,
         reasoning_effort,
         runner_cli,
@@ -98,7 +98,7 @@ pub(crate) struct ResolvedPhaseSettings {
 impl ResolvedPhaseSettings {
     pub fn to_agent_settings(&self) -> AgentSettings {
         AgentSettings {
-            runner: self.runner,
+            runner: self.runner.clone(),
             model: self.model.clone(),
             reasoning_effort: self.reasoning_effort,
             runner_cli: self.runner_cli,
@@ -204,19 +204,21 @@ fn resolve_single_phase(
     task_agent: Option<&TaskAgent>,
     config_agent: &AgentConfig,
 ) -> Result<ResolvedPhaseSettings> {
-    let runner_overridden_at_phase = cli_phase_override.and_then(|p| p.runner).is_some()
-        || config_phase_override.and_then(|p| p.runner).is_some();
+    let runner_overridden_at_phase = cli_phase_override.and_then(|p| p.runner.clone()).is_some()
+        || config_phase_override
+            .and_then(|p| p.runner.clone())
+            .is_some();
 
     let runner = cli_phase_override
-        .and_then(|p| p.runner)
-        .or(config_phase_override.and_then(|p| p.runner))
-        .or(global_overrides.runner)
-        .or(task_agent.and_then(|a| a.runner))
-        .or(config_agent.runner)
+        .and_then(|p| p.runner.clone())
+        .or(config_phase_override.and_then(|p| p.runner.clone()))
+        .or(global_overrides.runner.clone())
+        .or(task_agent.and_then(|a| a.runner.clone()))
+        .or(config_agent.runner.clone())
         .unwrap_or_default();
 
     let model_value = model::resolve_model_for_phase(
-        runner,
+        &runner,
         cli_phase_override.and_then(|p| p.model.clone()),
         config_phase_override.and_then(|p| p.model.clone()),
         global_overrides.model.clone(),
@@ -225,7 +227,7 @@ fn resolve_single_phase(
         runner_overridden_at_phase || global_overrides.runner.is_some(),
     );
 
-    model::validate_model_for_runner(runner, &model_value).map_err(|e| {
+    model::validate_model_for_runner(&runner, &model_value).map_err(|e| {
         anyhow!(
             "invalid model {} for {} runner: {}",
             model_value.as_str(),
@@ -235,7 +237,7 @@ fn resolve_single_phase(
     })?;
 
     let reasoning_effort = resolve_phase_reasoning_effort(
-        runner,
+        &runner,
         cli_phase_override.and_then(|p| p.reasoning_effort),
         config_phase_override.and_then(|p| p.reasoning_effort),
         global_overrides.reasoning_effort,
@@ -251,14 +253,14 @@ fn resolve_single_phase(
     }
 
     let runner_cli = execution::resolve_runner_cli_options(
-        runner,
+        &runner,
         &global_overrides.runner_cli,
         task_agent.and_then(|a| a.runner_cli.as_ref()),
         config_agent,
     )?;
 
     Ok(ResolvedPhaseSettings {
-        runner,
+        runner: runner.clone(),
         model: model_value,
         reasoning_effort,
         runner_cli,
@@ -266,14 +268,14 @@ fn resolve_single_phase(
 }
 
 fn resolve_phase_reasoning_effort(
-    runner: Runner,
+    runner: &Runner,
     cli_phase_effort: Option<ReasoningEffort>,
     config_phase_effort: Option<ReasoningEffort>,
     cli_global_effort: Option<ReasoningEffort>,
     task_agent: Option<&TaskAgent>,
     config_effort: Option<ReasoningEffort>,
 ) -> Option<ReasoningEffort> {
-    if runner != Runner::Codex {
+    if runner != &Runner::Codex {
         return None;
     }
 

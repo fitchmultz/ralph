@@ -126,7 +126,7 @@ impl App {
             ConfigEntry {
                 key: ConfigKey::AgentRunner,
                 label: "agent.runner",
-                value: display_runner(self.project_config.agent.runner),
+                value: display_runner(self.project_config.agent.runner.clone()),
                 kind: ConfigFieldKind::Cycle,
                 risk_level: RiskLevel::None,
                 description: "",
@@ -528,7 +528,8 @@ impl App {
                     cycle_project_type(self.project_config.project_type);
             }
             ConfigKey::AgentRunner => {
-                self.project_config.agent.runner = cycle_runner(self.project_config.agent.runner);
+                self.project_config.agent.runner =
+                    cycle_runner(self.project_config.agent.runner.clone());
             }
             ConfigKey::AgentReasoningEffort => {
                 self.project_config.agent.reasoning_effort =
@@ -692,6 +693,7 @@ fn display_runner(value: Option<Runner>) -> String {
         Some(Runner::Cursor) => "cursor".to_string(),
         Some(Runner::Kimi) => "kimi".to_string(),
         Some(Runner::Pi) => "pi".to_string(),
+        Some(Runner::Plugin(id)) => format!("plugin:{}", id),
         None => default_config_value(),
     }
 }
@@ -832,6 +834,7 @@ fn cycle_runner(value: Option<Runner>) -> Option<Runner> {
         Some(Runner::Cursor) => Some(Runner::Kimi),
         Some(Runner::Kimi) => Some(Runner::Pi),
         Some(Runner::Pi) => None,
+        Some(Runner::Plugin(_)) => None,
     }
 }
 

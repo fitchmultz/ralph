@@ -44,7 +44,8 @@ pub fn execute_phase2_implementation(
                 &ctx.resolved.config,
             )?;
 
-            let phase_session_id = phase_session_id_for_runner(ctx.settings.runner, ctx.task_id, 2);
+            let phase_session_id =
+                phase_session_id_for_runner(ctx.settings.runner.clone(), ctx.task_id, 2);
             let output = execute_runner_pass(
                 ctx.resolved,
                 ctx.settings,
@@ -63,7 +64,7 @@ pub fn execute_phase2_implementation(
             cache_phase2_final_response(&ctx.resolved.repo_root, ctx.task_id, &output.stdout)?;
 
             let continue_session = supervision::ContinueSession {
-                runner: ctx.settings.runner,
+                runner: ctx.settings.runner.clone(),
                 model: ctx.settings.model.clone(),
                 reasoning_effort: ctx.settings.reasoning_effort,
                 runner_cli: ctx.settings.runner_cli,
@@ -110,7 +111,8 @@ pub fn execute_phase2_implementation(
             &ctx.resolved.config,
         )?;
 
-        let phase_session_id = phase_session_id_for_runner(ctx.settings.runner, ctx.task_id, 2);
+        let phase_session_id =
+            phase_session_id_for_runner(ctx.settings.runner.clone(), ctx.task_id, 2);
         let output = execute_runner_pass(
             ctx.resolved,
             ctx.settings,
@@ -128,7 +130,7 @@ pub fn execute_phase2_implementation(
 
         if ctx.is_final_iteration {
             let mut continue_session = supervision::ContinueSession {
-                runner: ctx.settings.runner,
+                runner: ctx.settings.runner.clone(),
                 model: ctx.settings.model.clone(),
                 reasoning_effort: ctx.settings.reasoning_effort,
                 runner_cli: ctx.settings.runner_cli,
@@ -180,7 +182,7 @@ pub fn execute_phase2_implementation(
             }
         } else {
             let continue_session = supervision::ContinueSession {
-                runner: ctx.settings.runner,
+                runner: ctx.settings.runner.clone(),
                 model: ctx.settings.model.clone(),
                 reasoning_effort: ctx.settings.reasoning_effort,
                 runner_cli: ctx.settings.runner_cli,

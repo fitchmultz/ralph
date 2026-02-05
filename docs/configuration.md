@@ -49,6 +49,7 @@ Ralph can read both `.json` and `.jsonc` files regardless of extension. When wri
 - `agent` (object): Runner defaults (CLI binaries, runner, model, phases, and prompt enforcement).
 - `parallel` (object): Parallel run-loop configuration for `ralph run loop` (CLI only).
 - `queue` (object): Queue file locations and task ID formatting.
+- `plugins` (object): Plugin configuration (enable/disable + per-plugin settings).
 
 ## Agent Configuration
 `agent` controls default execution settings. Defaults are schema-defined.
@@ -480,3 +481,49 @@ CLI overrides:
 - `--notify-fail`: Enable notification on task failure (overrides config).
 - `--no-notify-fail`: Disable notification on task failure (overrides config).
 - `--notify-sound`: Enable sound for this run (works with notification flags or when enabled in config).
+
+## Plugin Configuration
+
+`plugins` controls custom runner and processor plugins. Plugins enable extending Ralph with custom runners without modifying the core codebase.
+
+**Security warning:** Plugins are NOT sandboxed. Enabling a plugin is equivalent to trusting it with full system access. Only enable plugins from trusted sources.
+
+Supported fields:
+- `plugins.plugins.<id>.enabled`: enable/disable the plugin (default: `false`).
+- `plugins.plugins.<id>.runner.bin`: override the runner executable path.
+- `plugins.plugins.<id>.processor.bin`: override the processor executable path.
+- `plugins.plugins.<id>.config`: opaque configuration blob passed to the plugin.
+
+Plugin directories (searched in order, project overrides global):
+- Project: `.ralph/plugins/<plugin_id>/plugin.json`
+- Global: `~/.config/ralph/plugins/<plugin_id>/plugin.json`
+
+Example:
+
+```json
+{
+  "version": 1,
+  "plugins": {
+    "plugins": {
+      "my.custom-runner": {
+        "enabled": true,
+        "runner": {
+          "bin": "custom-runner"
+        },
+        "config": {
+          "api_key": "secret",
+          "endpoint": "https://api.example.com"
+        }
+      }
+    }
+  }
+}
+```
+
+Plugin management commands:
+- `ralph plugin list`: List discovered plugins
+- `ralph plugin validate`: Validate plugin manifests
+- `ralph plugin install <path> --scope project|global`: Install a plugin
+- `ralph plugin uninstall <id> --scope project|global`: Uninstall a plugin
+
+See [Plugin Development Guide](./plugin-development.md) for creating custom plugins.

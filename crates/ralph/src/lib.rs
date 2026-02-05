@@ -27,6 +27,7 @@ pub(crate) mod reports;
 pub mod cli;
 pub mod commands;
 pub mod migration;
+pub mod plugins;
 pub mod sanity;
 
 // --- UI ----------------------------------------------------------------------

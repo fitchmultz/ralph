@@ -10,6 +10,7 @@
 pub mod context;
 pub mod doctor;
 pub mod init;
+pub mod plugin;
 pub mod prd;
 pub mod prompt;
 pub mod run;

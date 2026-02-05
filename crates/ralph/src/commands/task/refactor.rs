@@ -105,7 +105,7 @@ pub fn build_refactor_tasks(
                 request,
                 hint_tags,
                 hint_scope: scope,
-                runner_override: opts.runner_override,
+                runner_override: opts.runner_override.clone(),
                 model_override: opts.model_override.clone(),
                 reasoning_effort_override: opts.reasoning_effort_override,
                 runner_cli_overrides: opts.runner_cli_overrides.clone(),

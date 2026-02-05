@@ -87,7 +87,7 @@ pub fn resolve_run_agent_overrides(args: &RunAgentArgs) -> Result<AgentOverrides
     };
     let runner_cli = parse_runner_cli_patch(&args.runner_cli)?;
 
-    if let (Some(runner_kind), Some(model)) = (runner, model.as_ref()) {
+    if let (Some(runner_kind), Some(model)) = (runner.as_ref(), model.as_ref()) {
         runner::validate_model_for_runner(runner_kind, model)?;
     }
 
@@ -260,7 +260,7 @@ pub fn resolve_agent_overrides(args: &AgentArgs) -> Result<AgentOverrides> {
         None => None,
     };
 
-    if let (Some(runner_kind), Some(model)) = (runner, model.as_ref()) {
+    if let (Some(runner_kind), Some(model)) = (runner.as_ref(), model.as_ref()) {
         runner::validate_model_for_runner(runner_kind, model)?;
     }
 

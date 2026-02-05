@@ -63,19 +63,20 @@ pub enum RunnerError {
     Other(#[from] anyhow::Error),
 }
 
-fn runner_label(runner: Runner) -> &'static str {
+fn runner_label(runner: &Runner) -> String {
     match runner {
-        Runner::Codex => "codex",
-        Runner::Opencode => "opencode",
-        Runner::Gemini => "gemini",
-        Runner::Cursor => "cursor",
-        Runner::Claude => "claude",
-        Runner::Kimi => "kimi",
-        Runner::Pi => "pi",
+        Runner::Codex => "codex".to_string(),
+        Runner::Opencode => "opencode".to_string(),
+        Runner::Gemini => "gemini".to_string(),
+        Runner::Cursor => "cursor".to_string(),
+        Runner::Claude => "claude".to_string(),
+        Runner::Kimi => "kimi".to_string(),
+        Runner::Pi => "pi".to_string(),
+        Runner::Plugin(id) => format!("plugin:{}", id),
     }
 }
 
-pub(crate) fn runner_execution_error(runner: Runner, bin: &str, step: &str) -> RunnerError {
+pub(crate) fn runner_execution_error(runner: &Runner, bin: &str, step: &str) -> RunnerError {
     RunnerError::Other(anyhow!(
         "Runner execution failed (runner={}, bin={}): {}.",
         runner_label(runner),
@@ -85,7 +86,7 @@ pub(crate) fn runner_execution_error(runner: Runner, bin: &str, step: &str) -> R
 }
 
 pub(crate) fn runner_execution_error_with_source(
-    runner: Runner,
+    runner: &Runner,
     bin: &str,
     step: &str,
     source: impl fmt::Display,
@@ -120,7 +121,7 @@ mod tests {
 
     #[test]
     fn runner_execution_error_includes_context() {
-        let err = runner_execution_error(Runner::Gemini, "gemini", "capture child stdout");
+        let err = runner_execution_error(&Runner::Gemini, "gemini", "capture child stdout");
         let msg = format!("{err}");
         assert!(msg.contains("runner=gemini"));
         assert!(msg.contains("bin=gemini"));

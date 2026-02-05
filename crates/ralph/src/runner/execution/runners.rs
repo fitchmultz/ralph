@@ -120,7 +120,7 @@ pub(crate) fn run_opencode(
         .with_temp_prompt_file(prompt)
         .map_err(|err| {
             runner_execution_error_with_source(
-                Runner::Opencode,
+                &Runner::Opencode,
                 bin,
                 "create temp prompt file",
                 err,
@@ -528,7 +528,7 @@ fn resolve_pi_session_path(
 
     let base = pi_agent_root().ok_or_else(|| {
         runner_execution_error(
-            Runner::Pi,
+            &Runner::Pi,
             "pi",
             "resolve PI_CODING_AGENT_DIR or HOME for session lookup",
         )
@@ -539,7 +539,7 @@ fn resolve_pi_session_path(
 
     let entries = std::fs::read_dir(&workspace_dir).map_err(|err| {
         runner_execution_error_with_source(
-            Runner::Pi,
+            &Runner::Pi,
             "pi",
             &format!("read pi session dir {}", workspace_dir.display()),
             err,
@@ -548,7 +548,7 @@ fn resolve_pi_session_path(
 
     for entry in entries {
         let entry = entry.map_err(|err| {
-            runner_execution_error_with_source(Runner::Pi, "pi", "read pi session entry", err)
+            runner_execution_error_with_source(&Runner::Pi, "pi", "read pi session entry", err)
         })?;
         let path = entry.path();
         if path
@@ -562,7 +562,7 @@ fn resolve_pi_session_path(
     }
 
     Err(runner_execution_error(
-        Runner::Pi,
+        &Runner::Pi,
         "pi",
         &format!("pi session file not found for id {session_id}"),
     ))

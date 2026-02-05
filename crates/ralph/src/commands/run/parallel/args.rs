@@ -19,7 +19,7 @@ use crate::contracts::RunnerCliOptionsPatch;
 pub(crate) fn build_override_args(overrides: &AgentOverrides) -> Vec<String> {
     let mut args = Vec::new();
 
-    if let Some(runner) = overrides.runner {
+    if let Some(runner) = overrides.runner.clone() {
         args.push("--runner".to_string());
         args.push(runner.as_str().to_string());
     }
@@ -136,7 +136,7 @@ pub(crate) fn build_phase_override_args(overrides: &AgentOverrides) -> Option<Ve
     let mut args = Vec::new();
 
     if let Some(phase1) = overrides.phase1.as_ref() {
-        if let Some(runner) = phase1.runner {
+        if let Some(runner) = phase1.runner.clone() {
             args.push("--runner-phase1".to_string());
             args.push(runner.as_str().to_string());
         }
@@ -151,7 +151,7 @@ pub(crate) fn build_phase_override_args(overrides: &AgentOverrides) -> Option<Ve
     }
 
     if let Some(phase2) = overrides.phase2.as_ref() {
-        if let Some(runner) = phase2.runner {
+        if let Some(runner) = phase2.runner.clone() {
             args.push("--runner-phase2".to_string());
             args.push(runner.as_str().to_string());
         }
@@ -166,7 +166,7 @@ pub(crate) fn build_phase_override_args(overrides: &AgentOverrides) -> Option<Ve
     }
 
     if let Some(phase3) = overrides.phase3.as_ref() {
-        if let Some(runner) = phase3.runner {
+        if let Some(runner) = phase3.runner.clone() {
             args.push("--runner-phase3".to_string());
             args.push(runner.as_str().to_string());
         }

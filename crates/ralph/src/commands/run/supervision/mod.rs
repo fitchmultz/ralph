@@ -92,7 +92,7 @@ pub(crate) fn resume_continue_session(
     // Use the stored runner_cli and phase_type from the session to preserve
     // CLI overrides and ensure phase-correct behavior for phase-aware runners.
     let output = crate::runner::resume_session(
-        session.runner,
+        session.runner.clone(),
         &resolved.repo_root,
         bins,
         session.model.clone(),
@@ -105,6 +105,7 @@ pub(crate) fn resume_continue_session(
         session.output_handler.clone(),
         session.output_stream,
         session.phase_type,
+        None,
     )?;
     if let Some(new_id) = output.session_id.as_ref() {
         session.session_id = Some(new_id.clone());

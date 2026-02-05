@@ -255,8 +255,8 @@ fn get_config_value(config: &Config, path: &str) -> Result<String> {
         ["agent", "runner"] => config
             .agent
             .runner
+            .as_ref()
             .map(|r| format!("{:?}", r))
-            .or_else(|| config.agent.runner.map(|r| format!("{:?}", r)))
             .ok_or_else(|| anyhow::anyhow!("agent.runner not set")),
         ["agent", "model"] => config
             .agent

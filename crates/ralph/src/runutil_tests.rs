@@ -292,6 +292,7 @@ impl RunnerBackend for TimeoutBackend {
         _output_stream: runner::OutputStream,
         _phase_type: PhaseType,
         _session_id: Option<String>,
+        _plugins: Option<&crate::plugins::registry::PluginRegistry>,
     ) -> Result<runner::RunnerOutput, runner::RunnerError> {
         if let Some(handler) = output_handler {
             (handler)(&self.emitted);
@@ -314,6 +315,7 @@ impl RunnerBackend for TimeoutBackend {
         _output_handler: Option<runner::OutputHandler>,
         _output_stream: runner::OutputStream,
         _phase_type: PhaseType,
+        _plugins: Option<&crate::plugins::registry::PluginRegistry>,
     ) -> Result<runner::RunnerOutput, runner::RunnerError> {
         unreachable!("resume_session should not be called for a timeout-only test backend");
     }
@@ -337,6 +339,7 @@ impl RunnerBackend for InterruptBackend {
         _output_stream: runner::OutputStream,
         _phase_type: PhaseType,
         _session_id: Option<String>,
+        _plugins: Option<&crate::plugins::registry::PluginRegistry>,
     ) -> Result<runner::RunnerOutput, runner::RunnerError> {
         Err(runner::RunnerError::Interrupted)
     }
@@ -356,6 +359,7 @@ impl RunnerBackend for InterruptBackend {
         _output_handler: Option<runner::OutputHandler>,
         _output_stream: runner::OutputStream,
         _phase_type: PhaseType,
+        _plugins: Option<&crate::plugins::registry::PluginRegistry>,
     ) -> Result<runner::RunnerOutput, runner::RunnerError> {
         unreachable!("resume_session should not be called for interrupt test");
     }
@@ -379,6 +383,7 @@ impl RunnerBackend for NonZeroBackend {
         _output_stream: runner::OutputStream,
         _phase_type: PhaseType,
         _session_id: Option<String>,
+        _plugins: Option<&crate::plugins::registry::PluginRegistry>,
     ) -> Result<runner::RunnerOutput, runner::RunnerError> {
         Err(runner::RunnerError::NonZeroExit {
             code: 1,
@@ -403,6 +408,7 @@ impl RunnerBackend for NonZeroBackend {
         _output_handler: Option<runner::OutputHandler>,
         _output_stream: runner::OutputStream,
         _phase_type: PhaseType,
+        _plugins: Option<&crate::plugins::registry::PluginRegistry>,
     ) -> Result<runner::RunnerOutput, runner::RunnerError> {
         unreachable!("resume_session should not be called for non-zero test");
     }
@@ -613,6 +619,7 @@ impl RunnerBackend for CaptureBackend {
         output_stream: runner::OutputStream,
         _phase_type: PhaseType,
         _session_id: Option<String>,
+        _plugins: Option<&crate::plugins::registry::PluginRegistry>,
     ) -> Result<runner::RunnerOutput, runner::RunnerError> {
         self.seen_output_stream = Some(output_stream);
         Err(runner::RunnerError::Interrupted)
@@ -633,6 +640,7 @@ impl RunnerBackend for CaptureBackend {
         _output_handler: Option<runner::OutputHandler>,
         _output_stream: runner::OutputStream,
         _phase_type: PhaseType,
+        _plugins: Option<&crate::plugins::registry::PluginRegistry>,
     ) -> Result<runner::RunnerOutput, runner::RunnerError> {
         unreachable!("resume_session should not be called for output-stream capture test");
     }

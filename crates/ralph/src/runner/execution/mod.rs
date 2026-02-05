@@ -35,6 +35,7 @@ mod cli_options;
 mod cli_spec;
 mod command;
 mod json;
+mod plugin;
 mod process;
 mod response;
 mod runners;
@@ -51,4 +52,5 @@ pub(super) use runners::{
 };
 
 pub(crate) use cli_options::{ResolvedRunnerCliOptions, resolve_runner_cli_options};
+pub(crate) use plugin::{run_plugin_runner, run_plugin_runner_resume};
 pub(crate) use process::ctrlc_state;

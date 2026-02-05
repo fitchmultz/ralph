@@ -21,7 +21,7 @@ use crate::constants::defaults::{
 };
 use crate::contracts::{Model, ReasoningEffort, Runner};
 
-pub(crate) fn default_model_for_runner(runner: Runner) -> Model {
+pub(crate) fn default_model_for_runner(runner: &Runner) -> Model {
     match runner {
         Runner::Codex => Model::Gpt52Codex,
         Runner::Opencode => Model::Glm47,
@@ -30,11 +30,12 @@ pub(crate) fn default_model_for_runner(runner: Runner) -> Model {
         Runner::Claude => Model::Custom(DEFAULT_CLAUDE_MODEL.to_string()),
         Runner::Kimi => Model::Custom("kimi-for-coding".to_string()),
         Runner::Pi => Model::Custom("gpt-5.2".to_string()),
+        Runner::Plugin(_) => Model::Custom("gpt-5.2".to_string()),
     }
 }
 
 pub(crate) fn resolve_model_for_runner(
-    runner: Runner,
+    runner: &Runner,
     override_model: Option<Model>,
     task_model: Option<Model>,
     config_model: Option<Model>,
@@ -58,7 +59,7 @@ pub(crate) fn resolve_model_for_runner(
 }
 
 pub(super) fn resolve_model_for_phase(
-    runner: Runner,
+    runner: &Runner,
     cli_phase_model: Option<Model>,
     config_phase_model: Option<Model>,
     cli_global_model: Option<Model>,
@@ -89,8 +90,8 @@ pub(super) fn resolve_model_for_phase(
     }
 }
 
-fn normalize_model_for_runner(runner: Runner, model: Model) -> Model {
-    if runner == Runner::Codex {
+fn normalize_model_for_runner(runner: &Runner, model: Model) -> Model {
+    if runner == &Runner::Codex {
         match model {
             Model::Gpt52Codex | Model::Gpt52 => model,
             _ => default_model_for_runner(runner),
@@ -102,8 +103,8 @@ fn normalize_model_for_runner(runner: Runner, model: Model) -> Model {
     }
 }
 
-pub(crate) fn validate_model_for_runner(runner: Runner, model: &Model) -> Result<()> {
-    if runner == Runner::Codex {
+pub(crate) fn validate_model_for_runner(runner: &Runner, model: &Model) -> Result<()> {
+    if runner == &Runner::Codex {
         match model {
             Model::Gpt52Codex | Model::Gpt52 => {}
             Model::Glm47 => {
@@ -144,7 +145,7 @@ mod tests {
 
     #[test]
     fn validate_model_for_runner_rejects_glm47_on_codex() {
-        let err = validate_model_for_runner(Runner::Codex, &Model::Glm47).unwrap_err();
+        let err = validate_model_for_runner(&Runner::Codex, &Model::Glm47).unwrap_err();
         let msg = format!("{err:#}");
         assert!(msg.contains("zai-coding-plan/glm-4.7"));
     }
@@ -152,7 +153,7 @@ mod tests {
     #[test]
     fn validate_model_for_runner_rejects_custom_on_codex() {
         let model = Model::Custom("gemini-3-pro-preview".to_string());
-        let err = validate_model_for_runner(Runner::Codex, &model).unwrap_err();
+        let err = validate_model_for_runner(&Runner::Codex, &model).unwrap_err();
         let msg = format!("{err:#}");
         assert!(msg.contains("gemini-3-pro-preview"));
         assert!(msg.contains("gpt-5.2-codex"));
@@ -160,21 +161,21 @@ mod tests {
 
     #[test]
     fn resolve_model_for_runner_defaults_for_gemini() {
-        let model = resolve_model_for_runner(Runner::Gemini, None, None, None, false);
+        let model = resolve_model_for_runner(&Runner::Gemini, None, None, None, false);
         assert_eq!(model.as_str(), DEFAULT_GEMINI_MODEL);
     }
 
     #[test]
     fn resolve_model_for_runner_replaces_codex_default_for_gemini() {
         let model =
-            resolve_model_for_runner(Runner::Gemini, None, None, Some(Model::Gpt52Codex), false);
+            resolve_model_for_runner(&Runner::Gemini, None, None, Some(Model::Gpt52Codex), false);
         assert_eq!(model.as_str(), DEFAULT_GEMINI_MODEL);
     }
 
     #[test]
     fn resolve_model_for_runner_defaults_for_codex_when_config_incompatible() {
         let model = resolve_model_for_runner(
-            Runner::Codex,
+            &Runner::Codex,
             None,
             None,
             Some(Model::Custom("sonnet".to_string())),
@@ -186,7 +187,7 @@ mod tests {
     #[test]
     fn resolve_model_for_runner_normalizes_task_model_for_codex() {
         let model = resolve_model_for_runner(
-            Runner::Codex,
+            &Runner::Codex,
             None,
             Some(Model::Custom("sonnet".to_string())),
             None,
@@ -197,32 +198,37 @@ mod tests {
 
     #[test]
     fn resolve_model_for_runner_normalizes_task_model_for_opencode() {
-        let model =
-            resolve_model_for_runner(Runner::Opencode, None, Some(Model::Gpt52Codex), None, false);
+        let model = resolve_model_for_runner(
+            &Runner::Opencode,
+            None,
+            Some(Model::Gpt52Codex),
+            None,
+            false,
+        );
         assert_eq!(model, Model::Glm47);
     }
 
     #[test]
     fn resolve_model_for_runner_defaults_for_claude() {
-        let model = resolve_model_for_runner(Runner::Claude, None, None, None, false);
+        let model = resolve_model_for_runner(&Runner::Claude, None, None, None, false);
         assert_eq!(model.as_str(), DEFAULT_CLAUDE_MODEL);
     }
 
     #[test]
     fn resolve_model_for_runner_defaults_for_cursor() {
-        let model = resolve_model_for_runner(Runner::Cursor, None, None, None, false);
+        let model = resolve_model_for_runner(&Runner::Cursor, None, None, None, false);
         assert_eq!(model.as_str(), DEFAULT_CURSOR_MODEL);
     }
 
     #[test]
     fn resolve_model_for_runner_defaults_for_kimi() {
-        let model = resolve_model_for_runner(Runner::Kimi, None, None, None, false);
+        let model = resolve_model_for_runner(&Runner::Kimi, None, None, None, false);
         assert_eq!(model.as_str(), "kimi-for-coding");
     }
 
     #[test]
     fn resolve_model_for_runner_defaults_for_pi() {
-        let model = resolve_model_for_runner(Runner::Pi, None, None, None, false);
+        let model = resolve_model_for_runner(&Runner::Pi, None, None, None, false);
         assert_eq!(model.as_str(), "gpt-5.2");
     }
 
@@ -242,7 +248,7 @@ mod tests {
     #[test]
     fn resolve_model_for_runner_override_uses_runner_default_when_no_model() {
         let model = resolve_model_for_runner(
-            Runner::Opencode,
+            &Runner::Opencode,
             None,
             None,
             Some(Model::Custom("sonnet".to_string())),
@@ -254,7 +260,7 @@ mod tests {
     #[test]
     fn resolve_model_for_runner_override_with_explicit_model() {
         let model = resolve_model_for_runner(
-            Runner::Opencode,
+            &Runner::Opencode,
             Some(Model::Gpt52),
             None,
             Some(Model::Custom("sonnet".to_string())),
@@ -266,7 +272,7 @@ mod tests {
     #[test]
     fn resolve_model_for_runner_no_override_uses_config_model() {
         let model =
-            resolve_model_for_runner(Runner::Codex, None, None, Some(Model::Gpt52Codex), false);
+            resolve_model_for_runner(&Runner::Codex, None, None, Some(Model::Gpt52Codex), false);
         assert_eq!(model, Model::Gpt52Codex);
     }
 }

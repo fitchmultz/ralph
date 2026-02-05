@@ -66,11 +66,12 @@ pub fn execute_phase3_review(ctx: &PhaseInvocation<'_>) -> Result<()> {
             &ctx.resolved.config,
         )?;
 
-        let phase_session_id = phase_session_id_for_runner(ctx.settings.runner, ctx.task_id, 3);
+        let phase_session_id =
+            phase_session_id_for_runner(ctx.settings.runner.clone(), ctx.task_id, 3);
         let output = runutil::run_prompt_with_handling(
             runutil::RunnerInvocation {
                 repo_root: &ctx.resolved.repo_root,
-                runner_kind: ctx.settings.runner,
+                runner_kind: ctx.settings.runner.clone(),
                 bins: ctx.bins,
                 model: ctx.settings.model.clone(),
                 reasoning_effort: ctx.settings.reasoning_effort,
@@ -107,7 +108,7 @@ pub fn execute_phase3_review(ctx: &PhaseInvocation<'_>) -> Result<()> {
 
         if !ctx.is_final_iteration {
             let continue_session = supervision::ContinueSession {
-                runner: ctx.settings.runner,
+                runner: ctx.settings.runner.clone(),
                 model: ctx.settings.model.clone(),
                 reasoning_effort: ctx.settings.reasoning_effort,
                 runner_cli: ctx.settings.runner_cli,
@@ -129,7 +130,7 @@ pub fn execute_phase3_review(ctx: &PhaseInvocation<'_>) -> Result<()> {
         }
 
         let mut continue_session = supervision::ContinueSession {
-            runner: ctx.settings.runner,
+            runner: ctx.settings.runner.clone(),
             model: ctx.settings.model.clone(),
             reasoning_effort: ctx.settings.reasoning_effort,
             runner_cli: ctx.settings.runner_cli,

@@ -34,16 +34,12 @@
       ]
     },
     "Runner": {
-      "type": "string",
-      "enum": [
-        "codex",
-        "opencode",
-        "gemini",
-        "cursor",
+      "description": "Runner id (built-ins: codex, opencode, gemini, cursor, claude, kimi, pi; plugin runners: any other non-empty string)",
+      "examples": [
         "claude",
-        "kimi",
-        "pi"
-      ]
+        "acme.super_runner"
+      ],
+      "type": "string"
     },
     "RunnerApprovalMode": {
       "oneOf": [

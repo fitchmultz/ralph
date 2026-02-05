@@ -77,7 +77,7 @@ fn resolve_scan_runner_settings(
     opts: &ScanOptions,
 ) -> Result<ScanRunnerSettings> {
     let settings = runner::resolve_agent_settings(
-        opts.runner_override,
+        opts.runner_override.clone(),
         opts.model_override.clone(),
         opts.reasoning_effort_override,
         &opts.runner_cli_overrides,

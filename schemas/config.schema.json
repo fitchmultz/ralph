@@ -126,6 +126,17 @@
         }
       ]
     },
+    "plugins": {
+      "description": "Plugin configuration (enable/disable + per-plugin settings).",
+      "default": {
+        "plugins": {}
+      },
+      "allOf": [
+        {
+          "$ref": "#/definitions/PluginsConfig"
+        }
+      ]
+    },
     "project_type": {
       "description": "\"code\" or \"docs\". Drives prompt defaults and small workflow decisions.",
       "default": "code",
@@ -865,6 +876,92 @@
       },
       "additionalProperties": false
     },
+    "PluginConfig": {
+      "description": "Per-plugin configuration.",
+      "type": "object",
+      "properties": {
+        "config": {
+          "description": "Opaque plugin configuration blob (passed through to the plugin).",
+          "default": null
+        },
+        "enabled": {
+          "description": "Enable/disable the plugin. If None, defaults to disabled.",
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "processor": {
+          "description": "Optional overrides for processor executable path/name for this plugin's task processors.",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/PluginProcessorConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "runner": {
+          "description": "Optional overrides for runner executable path/name for this plugin's runner. If not set, manifest runner.bin is used.",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/PluginRunnerConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "PluginProcessorConfig": {
+      "description": "Plugin processor executable configuration.",
+      "type": "object",
+      "properties": {
+        "bin": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "PluginRunnerConfig": {
+      "description": "Plugin runner executable configuration.",
+      "type": "object",
+      "properties": {
+        "bin": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "PluginsConfig": {
+      "description": "Plugin configuration container.",
+      "type": "object",
+      "properties": {
+        "plugins": {
+          "description": "Per-plugin configuration keyed by plugin id.",
+          "default": {},
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/PluginConfig"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
     "ProjectType": {
       "type": "string",
       "enum": [
@@ -955,16 +1052,12 @@
       ]
     },
     "Runner": {
-      "type": "string",
-      "enum": [
-        "codex",
-        "opencode",
-        "gemini",
-        "cursor",
+      "description": "Runner id (built-ins: codex, opencode, gemini, cursor, claude, kimi, pi; plugin runners: any other non-empty string)",
+      "examples": [
         "claude",
-        "kimi",
-        "pi"
-      ]
+        "acme.super_runner"
+      ],
+      "type": "string"
     },
     "RunnerApprovalMode": {
       "oneOf": [

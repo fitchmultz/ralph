@@ -138,7 +138,7 @@ pub(crate) fn resolve_task_build_settings(
 ) -> Result<TaskRunnerSettings> {
     resolve_task_runner_settings(
         resolved,
-        opts.runner_override,
+        opts.runner_override.clone(),
         opts.model_override.clone(),
         opts.reasoning_effort_override,
         &opts.runner_cli_overrides,
@@ -151,7 +151,7 @@ pub(crate) fn resolve_task_update_settings(
 ) -> Result<TaskRunnerSettings> {
     resolve_task_runner_settings(
         resolved,
-        settings.runner_override,
+        settings.runner_override.clone(),
         settings.model_override.clone(),
         settings.reasoning_effort_override,
         &settings.runner_cli_overrides,

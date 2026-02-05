@@ -37,7 +37,8 @@ pub fn execute_single_phase(ctx: &PhaseInvocation<'_>) -> Result<()> {
             &ctx.resolved.config,
         )?;
 
-        let phase_session_id = phase_session_id_for_runner(ctx.settings.runner, ctx.task_id, 0);
+        let phase_session_id =
+            phase_session_id_for_runner(ctx.settings.runner.clone(), ctx.task_id, 0);
         let output = execute_runner_pass(
             ctx.resolved,
             ctx.settings,
@@ -55,7 +56,7 @@ pub fn execute_single_phase(ctx: &PhaseInvocation<'_>) -> Result<()> {
 
         if ctx.is_final_iteration {
             let mut continue_session = supervision::ContinueSession {
-                runner: ctx.settings.runner,
+                runner: ctx.settings.runner.clone(),
                 model: ctx.settings.model.clone(),
                 reasoning_effort: ctx.settings.reasoning_effort,
                 runner_cli: ctx.settings.runner_cli,
@@ -101,7 +102,7 @@ pub fn execute_single_phase(ctx: &PhaseInvocation<'_>) -> Result<()> {
             }
         } else {
             let continue_session = supervision::ContinueSession {
-                runner: ctx.settings.runner,
+                runner: ctx.settings.runner.clone(),
                 model: ctx.settings.model.clone(),
                 reasoning_effort: ctx.settings.reasoning_effort,
                 runner_cli: ctx.settings.runner_cli,

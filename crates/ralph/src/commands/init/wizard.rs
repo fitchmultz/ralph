@@ -93,7 +93,7 @@ pub fn run_wizard() -> Result<WizardAnswers> {
     };
 
     // Model selection based on runner
-    let model = select_model(runner)?;
+    let model = select_model(&runner)?;
 
     // Phase selection
     let phases = select_phases()?;
@@ -198,7 +198,7 @@ fn print_welcome() {
 }
 
 /// Select model based on the chosen runner.
-fn select_model(runner: Runner) -> Result<String> {
+fn select_model(runner: &Runner) -> Result<String> {
     let models: Vec<(&str, &str)> = match runner {
         Runner::Claude => vec![
             ("sonnet", "Balanced speed and intelligence (recommended)"),

@@ -649,7 +649,7 @@ fn run_merge_runner_prompt(
     prompt: &str,
 ) -> Result<()> {
     let settings = runner::resolve_agent_settings(
-        merge_runner.runner,
+        merge_runner.runner.clone(),
         merge_runner.model.clone(),
         merge_runner.reasoning_effort,
         &RunnerCliOptionsPatch::default(),
@@ -659,7 +659,7 @@ fn run_merge_runner_prompt(
     let bins = runner::resolve_binaries(&resolved.config.agent);
 
     runner::run_prompt(
-        settings.runner,
+        settings.runner.clone(),
         workspace_path,
         bins,
         settings.model.clone(),
@@ -671,6 +671,7 @@ fn run_merge_runner_prompt(
         None,
         runner::OutputStream::Terminal,
         PhaseType::Implementation,
+        None,
         None,
     )
     .map_err(|err| anyhow::anyhow!("Merge runner failed: {:#}", err))?;

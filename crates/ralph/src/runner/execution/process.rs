@@ -486,7 +486,7 @@ fn run_with_streaming_json_inner(
         let mut stdin = child
             .stdin
             .take()
-            .ok_or_else(|| runner_execution_error(runner, bin, "open child stdin"))?;
+            .ok_or_else(|| runner_execution_error(&runner, bin, "open child stdin"))?;
         stdin.write_all(payload).map_err(RunnerError::Io)?;
         drop(stdin);
     }
@@ -494,7 +494,7 @@ fn run_with_streaming_json_inner(
     #[cfg(unix)]
     {
         let mut guard = ctrlc.active_pgid.lock().map_err(|err| {
-            runner_execution_error_with_source(runner, bin, "lock ctrl-c state", err)
+            runner_execution_error_with_source(&runner, bin, "lock ctrl-c state", err)
         })?;
         let pid = child.id() as i32;
         *guard = Some(pid);
@@ -503,11 +503,11 @@ fn run_with_streaming_json_inner(
     let stdout = child
         .stdout
         .take()
-        .ok_or_else(|| runner_execution_error(runner, bin, "capture child stdout"))?;
+        .ok_or_else(|| runner_execution_error(&runner, bin, "capture child stdout"))?;
     let stderr = child
         .stderr
         .take()
-        .ok_or_else(|| runner_execution_error(runner, bin, "capture child stderr"))?;
+        .ok_or_else(|| runner_execution_error(&runner, bin, "capture child stderr"))?;
 
     let stdout_buf = Arc::new(Mutex::new(String::new()));
     let stderr_buf = Arc::new(Mutex::new(String::new()));
@@ -542,13 +542,13 @@ fn run_with_streaming_json_inner(
     // Now safe to extract buffers after threads are joined
     let stdout = {
         let mut guard = stdout_buf.lock().map_err(|err| {
-            runner_execution_error_with_source(runner, bin, "lock stdout buffer", err)
+            runner_execution_error_with_source(&runner, bin, "lock stdout buffer", err)
         })?;
         std::mem::take(&mut *guard)
     };
     let stderr = {
         let mut guard = stderr_buf.lock().map_err(|err| {
-            runner_execution_error_with_source(runner, bin, "lock stderr buffer", err)
+            runner_execution_error_with_source(&runner, bin, "lock stderr buffer", err)
         })?;
         std::mem::take(&mut *guard)
     };

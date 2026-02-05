@@ -658,7 +658,7 @@ fn run_one_impl(
         };
         let update_settings = task_cmd::TaskUpdateSettings {
             fields: "scope,evidence,plan,notes,tags,depends_on".to_string(),
-            runner_override: Some(update_phase_settings.runner),
+            runner_override: Some(update_phase_settings.runner.clone()),
             model_override: Some(update_phase_settings.model.clone()),
             reasoning_effort_override: update_phase_settings.reasoning_effort,
             runner_cli_overrides,
@@ -1054,7 +1054,7 @@ fn resolve_run_agent_settings(
     overrides: &AgentOverrides,
 ) -> Result<runner::AgentSettings> {
     runner::resolve_agent_settings(
-        overrides.runner,
+        overrides.runner.clone(),
         overrides.model.clone(),
         overrides.reasoning_effort,
         &overrides.runner_cli,

@@ -22,6 +22,7 @@ pub mod doctor;
 pub mod init;
 pub mod interactive;
 pub mod migrate;
+pub mod plugin;
 pub mod prd;
 pub mod productivity;
 pub mod prompt;
@@ -142,6 +143,12 @@ pub enum Command {
         after_long_help = "Examples:\n  ralph productivity summary\n  ralph productivity velocity\n  ralph productivity streak"
     )]
     Productivity(productivity::ProductivityArgs),
+
+    /// Plugin management commands.
+    #[command(
+        after_long_help = "Examples:\n  ralph plugin list\n  ralph plugin validate\n  ralph plugin install ./my-plugin --scope project\n  ralph plugin uninstall my.plugin --scope project"
+    )]
+    Plugin(plugin::PluginArgs),
 }
 
 pub(crate) fn load_and_validate_queues(

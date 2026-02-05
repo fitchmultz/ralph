@@ -43,7 +43,7 @@ pub(super) fn execute_runner_pass(
     runutil::run_prompt_with_handling(
         runutil::RunnerInvocation {
             repo_root: &resolved.repo_root,
-            runner_kind: settings.runner,
+            runner_kind: settings.runner.clone(),
             bins,
             model: settings.model.clone(),
             reasoning_effort: settings.reasoning_effort,

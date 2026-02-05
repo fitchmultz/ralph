@@ -1302,9 +1302,9 @@
         "RQ-0610"
       ],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
         "time_to_ship": "medium (concurrency + tests)",
         "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort.",
+        "scan_agent": "scan-innovation",
         "opportunity_type": "reliability"
       }
     },
@@ -1349,8 +1349,8 @@
         "RQ-0608"
       ],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
         "opportunity_type": "ux improvement",
+        "scan_agent": "scan-innovation",
         "time_to_ship": "medium (metadata + reconciliation + tests)",
         "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current."
       }
@@ -1398,10 +1398,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "ux improvement",
         "scan_agent": "scan-innovation",
         "time_to_ship": "medium (format + fixes + tests)",
-        "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics."
+        "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics.",
+        "opportunity_type": "ux improvement"
       }
     },
     {
@@ -1447,8 +1447,8 @@
       "custom_fields": {
         "opportunity_type": "ux improvement",
         "scan_agent": "scan-innovation",
-        "time_to_ship": "small/medium (formatters + tests)",
-        "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat)."
+        "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat).",
+        "time_to_ship": "small/medium (formatters + tests)"
       }
     },
     {
@@ -1937,9 +1937,9 @@
       "relates_to": [],
       "custom_fields": {
         "scan_agent": "scan-innovation",
-        "time_to_ship": "medium (TUI wiring + tests)",
         "user_value": "Fewer context switches: jump from task → code in one keystroke.",
-        "opportunity_type": "ux improvement"
+        "opportunity_type": "ux improvement",
+        "time_to_ship": "medium (TUI wiring + tests)"
       }
     },
     {
@@ -2050,8 +2050,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
         "opportunity_type": "feature gap",
+        "scan_agent": "scan-innovation",
         "measurable_impact": "Track 20%+ improvement in task completion velocity after adoption",
         "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types"
       }
@@ -2111,9 +2111,9 @@
       "relates_to": [],
       "custom_fields": {
         "opportunity_type": "UX improvement",
-        "time_to_ship": "incremental - add one batch operation at a time",
+        "scan_agent": "scan-innovation",
         "user_value": "Reduces queue maintenance time by 80% for large projects",
-        "scan_agent": "scan-innovation"
+        "time_to_ship": "incremental - add one batch operation at a time"
       }
     },
     {
@@ -2169,10 +2169,76 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "opportunity_type": "reliability",
         "measurable_impact": "80%+ integration test coverage for CLI commands",
         "user_value": "Reduces regression risk; enables confident refactoring",
-        "opportunity_type": "reliability",
         "scan_agent": "scan-innovation"
+      }
+    },
+    {
+      "id": "RQ-0602",
+      "status": "done",
+      "title": "Create plugin system for custom task processors and runners",
+      "priority": "medium",
+      "tags": [
+        "innovation",
+        "extensibility",
+        "architecture",
+        "integration"
+      ],
+      "scope": [
+        "crates/ralph/src/runner.rs",
+        "crates/ralph/src/runner/",
+        "crates/ralph/src/contracts/runner.rs",
+        "crates/ralph/src/commands/run/",
+        "docs/configuration.md",
+        "docs/plugin-development.md"
+      ],
+      "evidence": [
+        "Runner enum hardcodes 7 runners: Codex, Opencode, Gemini, Cursor, Claude, Kimi, Pi (crates/ralph/src/contracts/runner.rs:21-30)",
+        "RunnerBinaries struct hardcodes binary paths for all 7 runners (crates/ralph/src/runner.rs:101-109)",
+        "run_prompt() and resume_session() use large match statements on Runner enum (crates/ralph/src/runner.rs:169-177, 304-312)",
+        "No plugin/ directory exists - plugin system does not exist yet",
+        "Task processing in commands/run/ is tightly coupled to internal runner implementation",
+        "No hooks exist for custom task validators, pre/post-processing, or completion criteria"
+      ],
+      "plan": [
+        "Design Plugin trait with methods for: runner execution, task validation, completion hooks",
+        "Create plugin module at crates/ralph/src/plugin/ with discovery and loading",
+        "Implement plugin discovery from ~/.config/ralph/plugins/ and .ralph/plugins/",
+        "Add PluginConfig to config.json schema with enable/disable toggles per plugin",
+        "Refactor runner.rs to support dynamic runner registration via plugin interface",
+        "Add ralph plugin list, install, uninstall, and validate commands",
+        "Create plugin development guide with example plugin project",
+        "Verify by creating sample plugin that adds a custom task completion logger"
+      ],
+      "notes": [
+        "Plugin directory does not exist yet - needs to be created",
+        "Consider WASM for sandboxed plugins or native dynamic libraries for performance",
+        "Runner trait should abstract: binary resolution, prompt execution, session resume",
+        "Breaking change: may need to modify Runner enum or replace with dynamic dispatch",
+        "Implemented plugin system with Plugin trait, discovery, registry, and CLI commands",
+        "Added Plugin(String) variant to Runner enum with manual Serialize/Deserialize",
+        "Created plugin module at crates/ralph/src/plugins/ with manifest, discovery, registry",
+        "Added plugin CLI: ralph plugin {list,validate,install,uninstall}",
+        "Refactored runner.rs to support plugin runner execution via dynamic dispatch",
+        "Added plugin configuration to config schema with enable/disable toggles",
+        "Created docs/plugin-development.md guide with example plugin",
+        "Updated docs/configuration.md with plugin configuration section",
+        "All CI checks pass: build, test, clippy, fmt, generate, install"
+      ],
+      "request": "innovation scan finding",
+      "created_at": "2026-02-04T12:00:00Z",
+      "updated_at": "2026-02-05T14:30:58.848781000Z",
+      "completed_at": "2026-02-05T14:30:58.848781000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "opportunity_type": "feature gap",
+        "scan_agent": "scan-innovation",
+        "differentiation": "Unique capability among AI task runners",
+        "user_value": "Enables ecosystem growth; custom integrations without forks"
       }
     }
   ]

@@ -2,53 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0602",
-      "status": "todo",
-      "title": "Create plugin system for custom task processors and runners",
-      "priority": "medium",
-      "tags": [
-        "innovation",
-        "extensibility",
-        "architecture",
-        "integration"
-      ],
-      "scope": [
-        "crates/ralph/src/runner.rs",
-        "crates/ralph/src/plugin/",
-        "docs/configuration.md"
-      ],
-      "evidence": [
-        "Current runners are hardcoded: codex, opencode, gemini, claude, cursor, kimi, pi",
-        "No way for users to add custom runners without modifying Ralph source",
-        "Task processing logic is tightly coupled to internal implementation",
-        "Users cannot add custom pre/post-processing hooks",
-        "No support for external task validators or custom completion criteria"
-      ],
-      "plan": [
-        "Design plugin trait interface for custom runners",
-        "Implement plugin discovery from `~/.config/ralph/plugins/` and `.ralph/plugins/`",
-        "Support WASM plugins for sandboxed custom processors",
-        "Add plugin configuration in config.json with enable/disable toggles",
-        "Create plugin API for: custom runners, task validators, completion hooks",
-        "Add `ralph plugin list` and `ralph plugin install <url>` commands",
-        "Document plugin development guide with examples",
-        "Verify by creating a sample plugin that logs task completions"
-      ],
-      "notes": [],
-      "request": "innovation scan finding",
-      "created_at": "2026-02-04T12:00:00Z",
-      "updated_at": "2026-02-04T12:00:00Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "opportunity_type": "feature gap",
-        "scan_agent": "scan-innovation",
-        "user_value": "Enables ecosystem growth; custom integrations without forks",
-        "differentiation": "Unique capability among AI task runners"
-      }
-    },
-    {
       "id": "RQ-0604",
       "status": "draft",
       "title": "Add AI-powered task estimation and effort prediction",
@@ -89,10 +42,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Improves planning accuracy; sets realistic expectations",
         "scan_agent": "scan-innovation",
         "opportunity_type": "feature gap",
-        "measurable_impact": "Estimates within 25% of actual duration after 20 tasks"
+        "measurable_impact": "Estimates within 25% of actual duration after 20 tasks",
+        "user_value": "Improves planning accuracy; sets realistic expectations"
       }
     },
     {
@@ -136,9 +89,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Reduces time-to-productivity from hours to minutes",
-        "opportunity_type": "UX improvement",
         "measurable_impact": "New user success rate >90% within 30 minutes",
+        "opportunity_type": "UX improvement",
+        "user_value": "Reduces time-to-productivity from hours to minutes",
         "scan_agent": "scan-innovation"
       }
     },
@@ -228,9 +181,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "opportunity_type": "integration",
         "user_value": "Enables remote monitoring; integrates with existing workflows",
         "time_to_ship": "incremental - add one channel at a time",
-        "opportunity_type": "integration",
         "scan_agent": "scan-innovation"
       }
     },
@@ -274,9 +227,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "opportunity_type": "performance",
         "user_value": "Identifies bottlenecks; improves Ralph responsiveness",
         "measurable_impact": "50%+ improvement in queue operations for large projects",
-        "opportunity_type": "performance",
         "scan_agent": "scan-innovation"
       }
     }

@@ -24,7 +24,9 @@
 //! - `save_layer` creates parent directories automatically if needed.
 
 use crate::constants::defaults::DEFAULT_ID_WIDTH;
-use crate::contracts::{AgentConfig, Config, ParallelConfig, ProjectType, QueueConfig, TuiConfig};
+use crate::contracts::{
+    AgentConfig, Config, ParallelConfig, PluginsConfig, ProjectType, QueueConfig, TuiConfig,
+};
 use crate::fsutil;
 use crate::prompts_internal::util::validate_instruction_file_paths;
 use anyhow::{Context, Result, bail};
@@ -57,6 +59,7 @@ pub struct ConfigLayer {
     pub agent: AgentConfig,
     pub parallel: ParallelConfig,
     pub tui: TuiConfig,
+    pub plugins: PluginsConfig,
 }
 
 pub fn resolve_from_cwd() -> Result<Resolved> {
@@ -189,6 +192,7 @@ pub fn apply_layer(mut base: Config, layer: ConfigLayer) -> Result<Config> {
     base.agent.merge_from(layer.agent);
     base.parallel.merge_from(layer.parallel);
     base.tui.merge_from(layer.tui);
+    base.plugins.merge_from(layer.plugins);
 
     Ok(base)
 }

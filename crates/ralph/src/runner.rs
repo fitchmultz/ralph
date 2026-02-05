@@ -39,6 +39,7 @@ const _: () = {
 
 use crate::commands::run::PhaseType;
 use crate::contracts::{ClaudePermissionMode, Model, ReasoningEffort, Runner};
+use crate::plugins::registry::PluginRegistry;
 use crate::redaction::redact_text;
 use anyhow::{Result, anyhow};
 use std::fmt;
@@ -131,19 +132,11 @@ pub(crate) fn extract_final_assistant_response(stdout: &str) -> Option<String> {
     execution::extract_final_assistant_response(stdout)
 }
 
-fn runner_label(runner: Runner) -> &'static str {
-    match runner {
-        Runner::Codex => "codex",
-        Runner::Opencode => "opencode",
-        Runner::Gemini => "gemini",
-        Runner::Cursor => "cursor",
-        Runner::Claude => "claude",
-        Runner::Kimi => "kimi",
-        Runner::Pi => "pi",
-    }
+fn runner_label(runner: Runner) -> String {
+    runner.id().to_string()
 }
 
-fn runner_requires_session_id(_runner: Runner) -> bool {
+fn runner_requires_session_id(_runner: &Runner) -> bool {
     // All runners require session_id for proper resume.
     // Kimi previously allowed empty session_id with --continue flag,
     // but now properly passes --session <id> for resumption.
@@ -165,7 +158,24 @@ pub(crate) fn run_prompt(
     output_stream: OutputStream,
     phase_type: PhaseType,
     session_id: Option<String>,
+    plugins: Option<&PluginRegistry>,
 ) -> Result<RunnerOutput, RunnerError> {
+    // Handle plugin runners
+    if let Runner::Plugin(plugin_id) = &runner {
+        return run_plugin_prompt(
+            plugin_id,
+            work_dir,
+            runner_cli,
+            model,
+            prompt,
+            timeout,
+            output_handler,
+            output_stream,
+            session_id,
+            plugins,
+        );
+    }
+
     let bin = match runner {
         Runner::Codex => bins.codex,
         Runner::Opencode => bins.opencode,
@@ -174,11 +184,12 @@ pub(crate) fn run_prompt(
         Runner::Claude => bins.claude,
         Runner::Kimi => bins.kimi,
         Runner::Pi => bins.pi,
+        Runner::Plugin(_) => unreachable!(),
     };
-    validate_model_for_runner(runner, &model).map_err(|err| {
+    validate_model_for_runner(&runner, &model).map_err(|err| {
         RunnerError::Other(anyhow!(
             "Runner configuration error (operation=run_prompt, runner={}, bin={}): {}",
-            runner_label(runner),
+            runner_label(runner.clone()),
             bin,
             err
         ))
@@ -258,6 +269,7 @@ pub(crate) fn run_prompt(
             output_handler.clone(),
             output_stream,
         )?,
+        Runner::Plugin(_) => unreachable!(),
     };
 
     if !output.status.success() {
@@ -295,7 +307,24 @@ pub(crate) fn resume_session(
     output_handler: Option<OutputHandler>,
     output_stream: OutputStream,
     phase_type: PhaseType,
+    plugins: Option<&PluginRegistry>,
 ) -> Result<RunnerOutput, RunnerError> {
+    // Handle plugin runners
+    if let Runner::Plugin(plugin_id) = &runner {
+        return run_plugin_resume(
+            plugin_id,
+            work_dir,
+            runner_cli,
+            model,
+            session_id,
+            message,
+            timeout,
+            output_handler,
+            output_stream,
+            plugins,
+        );
+    }
+
     let reasoning_effort = if runner == Runner::Codex {
         reasoning_effort
     } else {
@@ -309,20 +338,21 @@ pub(crate) fn resume_session(
         Runner::Claude => bins.claude,
         Runner::Kimi => bins.kimi,
         Runner::Pi => bins.pi,
+        Runner::Plugin(_) => unreachable!(),
     };
-    validate_model_for_runner(runner, &model).map_err(|err| {
+    validate_model_for_runner(&runner, &model).map_err(|err| {
         RunnerError::Other(anyhow!(
             "Runner configuration error (operation=resume_session, runner={}, bin={}): {}",
-            runner_label(runner),
+            runner_label(runner.clone()),
             bin,
             err
         ))
     })?;
     let session_id = session_id.trim();
-    if runner_requires_session_id(runner) && session_id.is_empty() {
+    if runner_requires_session_id(&runner) && session_id.is_empty() {
         return Err(RunnerError::Other(anyhow!(
             "Runner input error (operation=resume_session, runner={}, bin={}): session_id is required (non-empty). Example: --resume <SESSION_ID>.",
-            runner_label(runner),
+            runner_label(runner.clone()),
             bin
         )));
     }
@@ -330,7 +360,7 @@ pub(crate) fn resume_session(
     if message.is_empty() {
         return Err(RunnerError::Other(anyhow!(
             "Runner input error (operation=resume_session, runner={}, bin={}): message is required (non-empty).",
-            runner_label(runner),
+            runner_label(runner.clone()),
             bin
         )));
     }
@@ -416,6 +446,7 @@ pub(crate) fn resume_session(
             output_handler,
             output_stream,
         ),
+        Runner::Plugin(_) => unreachable!(),
     }?;
 
     if !output.status.success() {
@@ -436,6 +467,112 @@ pub(crate) fn resume_session(
     }
 
     Ok(output)
+}
+
+// Helper function to run plugin prompts
+#[allow(clippy::too_many_arguments)]
+fn run_plugin_prompt(
+    plugin_id: &str,
+    work_dir: &Path,
+    runner_cli: execution::ResolvedRunnerCliOptions,
+    model: Model,
+    prompt: &str,
+    timeout: Option<Duration>,
+    output_handler: Option<OutputHandler>,
+    output_stream: OutputStream,
+    session_id: Option<String>,
+    plugins: Option<&PluginRegistry>,
+) -> Result<RunnerOutput, RunnerError> {
+    let registry = plugins.ok_or_else(|| {
+        RunnerError::Other(anyhow!(
+            "Plugin registry unavailable for plugin runner: {}",
+            plugin_id
+        ))
+    })?;
+
+    if !registry.is_enabled(plugin_id) {
+        return Err(RunnerError::Other(anyhow!(
+            "Plugin runner is disabled: {}. Enable it under config.plugins.plugins.{}.enabled=true",
+            plugin_id,
+            plugin_id
+        )));
+    }
+
+    let bin_path = registry
+        .resolve_runner_bin(plugin_id)
+        .map_err(RunnerError::Other)?;
+    let bin = bin_path.to_string_lossy().to_string();
+
+    let plugin_cfg = registry
+        .plugin_config_blob(plugin_id)
+        .map(|v| serde_json::to_string(&v).unwrap_or_else(|_| "{}".to_string()));
+
+    execution::run_plugin_runner(
+        work_dir,
+        &bin,
+        plugin_id,
+        runner_cli,
+        model,
+        prompt,
+        timeout,
+        output_handler,
+        output_stream,
+        session_id.as_deref(),
+        plugin_cfg,
+    )
+}
+
+// Helper function to resume plugin sessions
+#[allow(clippy::too_many_arguments)]
+fn run_plugin_resume(
+    plugin_id: &str,
+    work_dir: &Path,
+    runner_cli: execution::ResolvedRunnerCliOptions,
+    model: Model,
+    session_id: &str,
+    message: &str,
+    timeout: Option<Duration>,
+    output_handler: Option<OutputHandler>,
+    output_stream: OutputStream,
+    plugins: Option<&PluginRegistry>,
+) -> Result<RunnerOutput, RunnerError> {
+    let registry = plugins.ok_or_else(|| {
+        RunnerError::Other(anyhow!(
+            "Plugin registry unavailable for plugin runner: {}",
+            plugin_id
+        ))
+    })?;
+
+    if !registry.is_enabled(plugin_id) {
+        return Err(RunnerError::Other(anyhow!(
+            "Plugin runner is disabled: {}. Enable it under config.plugins.plugins.{}.enabled=true",
+            plugin_id,
+            plugin_id
+        )));
+    }
+
+    let bin_path = registry
+        .resolve_runner_bin(plugin_id)
+        .map_err(RunnerError::Other)?;
+    let bin = bin_path.to_string_lossy().to_string();
+
+    let plugin_cfg = registry
+        .plugin_config_blob(plugin_id)
+        .map(|v| serde_json::to_string(&v).unwrap_or_else(|_| "{}".to_string()));
+
+    execution::run_plugin_runner_resume(
+        work_dir,
+        &bin,
+        plugin_id,
+        runner_cli,
+        model,
+        session_id,
+        message,
+        timeout,
+        output_handler,
+        output_stream,
+        plugin_cfg,
+    )
 }
 
 #[cfg(test)]
@@ -496,6 +633,7 @@ mod tests {
             None,
             OutputStream::HandlerOnly,
             PhaseType::Implementation,
+            None,
         )
         .unwrap_err();
 
@@ -509,13 +647,13 @@ mod tests {
     #[test]
     fn runner_requires_session_id_requires_for_all_runners() {
         // All runners including Kimi require session_id for proper resume
-        assert!(runner_requires_session_id(Runner::Kimi));
-        assert!(runner_requires_session_id(Runner::Codex));
-        assert!(runner_requires_session_id(Runner::Opencode));
-        assert!(runner_requires_session_id(Runner::Gemini));
-        assert!(runner_requires_session_id(Runner::Cursor));
-        assert!(runner_requires_session_id(Runner::Claude));
-        assert!(runner_requires_session_id(Runner::Pi));
+        assert!(runner_requires_session_id(&Runner::Kimi));
+        assert!(runner_requires_session_id(&Runner::Codex));
+        assert!(runner_requires_session_id(&Runner::Opencode));
+        assert!(runner_requires_session_id(&Runner::Gemini));
+        assert!(runner_requires_session_id(&Runner::Cursor));
+        assert!(runner_requires_session_id(&Runner::Claude));
+        assert!(runner_requires_session_id(&Runner::Pi));
     }
 
     #[test]
@@ -544,6 +682,7 @@ mod tests {
             None,
             OutputStream::HandlerOnly,
             PhaseType::Implementation,
+            None,
             None,
         )
         .unwrap_err();

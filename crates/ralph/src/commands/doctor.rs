@@ -618,7 +618,7 @@ fn check_lock_health(report: &mut DoctorReport, resolved: &config::Resolved, aut
 }
 
 fn check_runner(report: &mut DoctorReport, resolved: &config::Resolved) {
-    let runner = resolved.config.agent.runner.unwrap_or_default();
+    let runner = resolved.config.agent.runner.clone().unwrap_or_default();
     let runner_configured = runner_configured(resolved);
     let bin_name = match runner {
         Runner::Codex => resolved
@@ -653,10 +653,15 @@ fn check_runner(report: &mut DoctorReport, resolved: &config::Resolved) {
             .unwrap_or("agent"),
         Runner::Kimi => resolved.config.agent.kimi_bin.as_deref().unwrap_or("kimi"),
         Runner::Pi => resolved.config.agent.pi_bin.as_deref().unwrap_or("pi"),
+        Runner::Plugin(_plugin_id) => {
+            // For plugin runners, we can't determine the binary name from config
+            // The plugin registry would need to be consulted
+            return;
+        }
     };
 
     if let Err(e) = check_runner_binary(bin_name) {
-        let config_key = get_runner_config_key(runner);
+        let config_key = get_runner_config_key(&runner);
         let message = format!(
             "runner binary '{}' ({:?}) check failed: {}",
             bin_name, runner, e
@@ -714,13 +719,13 @@ fn check_runner(report: &mut DoctorReport, resolved: &config::Resolved) {
 
     // Model Compatibility Check
     let model = runner::resolve_model_for_runner(
-        runner,
+        &runner,
         None,
         None,
         resolved.config.agent.model.clone(),
         false,
     );
-    if let Err(e) = runner::validate_model_for_runner(runner, &model) {
+    if let Err(e) = runner::validate_model_for_runner(&runner, &model) {
         report.add(CheckResult::error(
             "runner",
             "model_compatibility",
@@ -943,7 +948,7 @@ fn check_runner_binary(bin: &str) -> Result<()> {
 }
 
 /// Get the config key for a runner's binary path override.
-fn get_runner_config_key(runner: Runner) -> &'static str {
+fn get_runner_config_key(runner: &Runner) -> &'static str {
     match runner {
         Runner::Codex => "codex_bin",
         Runner::Opencode => "opencode_bin",
@@ -952,6 +957,7 @@ fn get_runner_config_key(runner: Runner) -> &'static str {
         Runner::Cursor => "cursor_bin",
         Runner::Kimi => "kimi_bin",
         Runner::Pi => "pi_bin",
+        Runner::Plugin(_) => "plugin_bin",
     }
 }
 

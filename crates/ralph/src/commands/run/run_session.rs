@@ -34,7 +34,8 @@ pub(crate) fn create_session_for_task(
     // Resolve runner from overrides or config
     let runner = agent_overrides
         .runner
-        .or(resolved.config.agent.runner)
+        .clone()
+        .or(resolved.config.agent.runner.clone())
         .unwrap_or(crate::contracts::Runner::Claude);
 
     // Resolve model string from overrides or config
@@ -59,17 +60,17 @@ pub(crate) fn create_session_for_task(
     let phase_settings = phase_matrix.map(|matrix| {
         (
             PhaseSettingsSnapshot {
-                runner: matrix.phase1.runner,
+                runner: matrix.phase1.runner.clone(),
                 model: matrix.phase1.model.as_str().to_string(),
                 reasoning_effort: matrix.phase1.reasoning_effort,
             },
             PhaseSettingsSnapshot {
-                runner: matrix.phase2.runner,
+                runner: matrix.phase2.runner.clone(),
                 model: matrix.phase2.model.as_str().to_string(),
                 reasoning_effort: matrix.phase2.reasoning_effort,
             },
             PhaseSettingsSnapshot {
-                runner: matrix.phase3.runner,
+                runner: matrix.phase3.runner.clone(),
                 model: matrix.phase3.model.as_str().to_string(),
                 reasoning_effort: matrix.phase3.reasoning_effort,
             },

@@ -251,7 +251,7 @@ mod tests {
                 move |resolved, overrides, force, task_id, output_handler, revert_prompt| {
                     let call = RunCall {
                         repo_root: resolved.repo_root.clone(),
-                        runner: overrides.runner,
+                        runner: overrides.runner.clone(),
                         model: overrides.model.clone(),
                         reasoning_effort: overrides.reasoning_effort,
                         force,

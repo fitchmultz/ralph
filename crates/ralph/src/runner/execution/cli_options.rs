@@ -20,7 +20,7 @@ use crate::contracts::{
     UnsupportedOptionPolicy,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub(crate) struct ResolvedRunnerCliOptions {
     pub(crate) output_format: RunnerOutputFormat,
     pub(crate) verbosity: RunnerVerbosity,
@@ -44,7 +44,7 @@ impl Default for ResolvedRunnerCliOptions {
 }
 
 fn merged_patch_for_runner(
-    runner: Runner,
+    runner: &Runner,
     cli_patch: &RunnerCliOptionsPatch,
     task_patch: Option<&RunnerCliOptionsPatch>,
     agent: &AgentConfig,
@@ -53,7 +53,7 @@ fn merged_patch_for_runner(
 
     if let Some(root) = agent.runner_cli.as_ref() {
         merged.merge_from(root.defaults.clone());
-        if let Some(patch) = root.runners.get(&runner) {
+        if let Some(patch) = root.runners.get(runner) {
             merged.merge_from(patch.clone());
         }
     }
@@ -68,7 +68,7 @@ fn merged_patch_for_runner(
 }
 
 pub(crate) fn resolve_runner_cli_options(
-    runner: Runner,
+    runner: &Runner,
     cli_patch: &RunnerCliOptionsPatch,
     task_patch: Option<&RunnerCliOptionsPatch>,
     agent: &AgentConfig,
@@ -100,7 +100,7 @@ pub(crate) fn resolve_runner_cli_options(
 }
 
 impl ResolvedRunnerCliOptions {
-    pub(crate) fn validate_for_execution(self, runner: Runner) -> Result<()> {
+    pub(crate) fn validate_for_execution(self, runner: &Runner) -> Result<()> {
         if self.output_format != RunnerOutputFormat::StreamJson {
             bail!(
                 "runner_cli.output_format={:?} is not supported for execution. Ralph requires newline-delimited JSON objects; set runner_cli.output_format=stream_json.",
@@ -108,19 +108,22 @@ impl ResolvedRunnerCliOptions {
             );
         }
 
-        if self.plan_mode != RunnerPlanMode::Default && runner != Runner::Cursor {
+        if self.plan_mode != RunnerPlanMode::Default && runner != &Runner::Cursor {
             self.unsupported("plan_mode", runner)?;
         }
-        if self.verbosity == RunnerVerbosity::Verbose && runner != Runner::Claude {
+        if self.verbosity == RunnerVerbosity::Verbose && runner != &Runner::Claude {
             self.unsupported("verbosity=verbose", runner)?;
         }
         if self.sandbox != RunnerSandboxMode::Default
-            && !matches!(runner, Runner::Codex | Runner::Gemini | Runner::Cursor)
+            && !matches!(
+                runner,
+                Runner::Codex | Runner::Gemini | Runner::Cursor | Runner::Plugin(_)
+            )
         {
             self.unsupported("sandbox", runner)?;
         }
         if self.approval_mode == RunnerApprovalMode::AutoEdits
-            && !matches!(runner, Runner::Gemini | Runner::Claude)
+            && !matches!(runner, Runner::Gemini | Runner::Claude | Runner::Plugin(_))
         {
             self.unsupported("approval_mode=auto_edits", runner)?;
         }
@@ -144,7 +147,7 @@ impl ResolvedRunnerCliOptions {
         }
     }
 
-    fn unsupported(self, setting: &str, runner: Runner) -> Result<()> {
+    fn unsupported(self, setting: &str, runner: &Runner) -> Result<()> {
         match self.unsupported_option_policy {
             UnsupportedOptionPolicy::Ignore => Ok(()),
             UnsupportedOptionPolicy::Warn => {
@@ -182,7 +185,7 @@ mod tests {
         };
 
         let err = resolve_runner_cli_options(
-            Runner::Codex,
+            &Runner::Codex,
             &RunnerCliOptionsPatch::default(),
             None,
             &agent,
@@ -207,7 +210,7 @@ mod tests {
         };
 
         let err = resolve_runner_cli_options(
-            Runner::Claude,
+            &Runner::Claude,
             &RunnerCliOptionsPatch::default(),
             None,
             &agent,
@@ -232,7 +235,7 @@ mod tests {
         };
 
         let resolved = resolve_runner_cli_options(
-            Runner::Codex,
+            &Runner::Codex,
             &RunnerCliOptionsPatch::default(),
             None,
             &agent,
