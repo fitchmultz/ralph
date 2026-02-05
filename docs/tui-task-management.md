@@ -505,6 +505,43 @@ These are optional; core task management is already present in the TUI today.
 
 ---
 
+## Visual Polish Features
+
+### Big Text Headers
+
+The TUI displays large ASCII art headers in select screens when the terminal is wide enough:
+
+- **Help overlay**: Shows a big "RALPH" header at the top
+- **Empty queue welcome**: Shows a big "RALPH" header when no tasks exist
+
+These headers automatically:
+- Scale to fit the available terminal width (font size: Block → Shade → Slick → Tiny)
+- Fall back to plain text on narrow terminals (< 22 columns)
+- Gracefully handle very small terminals without errors
+
+### Animation System
+
+The TUI includes a minimal, deterministic animation system for subtle visual polish:
+
+- **Fade-in effect**: Overlays (like Help) fade in smoothly when opened
+- **Frame-based timing**: Animations use a frame counter for consistent timing across different terminal refresh rates
+- **Graceful degradation**: Animations are automatically disabled when:
+  - `NO_COLOR` environment variable is set
+  - `TERM=dumb` is detected
+  - `RALPH_TUI_NO_ANIM=1` or `true` is set
+
+To disable animations manually:
+```bash
+RALPH_TUI_NO_ANIM=1 ralph tui
+```
+
+Or permanently in your shell configuration:
+```bash
+export RALPH_TUI_NO_ANIM=1
+```
+
+---
+
 ## Markdown Rendering in Task Details
 
 The TUI now supports rich Markdown rendering for task content, providing better readability for structured text and code.

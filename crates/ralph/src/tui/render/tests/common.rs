@@ -49,14 +49,6 @@ pub fn buffer_line(buffer: &Buffer, x: u16, y: u16, width: u16) -> String {
     line.trim_end().to_string()
 }
 
-/// Convert a Line to a string.
-pub fn line_to_string(line: &ratatui::text::Line<'static>) -> String {
-    line.spans
-        .iter()
-        .map(|span| span.content.as_ref())
-        .collect()
-}
-
 /// Create a queue with long evidence and plan for scroll testing.
 pub fn make_long_details_queue() -> QueueFile {
     let evidence: Vec<String> = (0..20).map(|i| format!("Evidence line {i}")).collect();

@@ -40,6 +40,9 @@ mod tests;
 /// Public to allow testing with `TestBackend`.
 /// Re-exported from `crate::tui` as `tui::draw_ui`.
 pub fn draw_ui(f: &mut Frame<'_>, app: &mut App) {
+    // Increment frame counter for deterministic animation timing
+    app.bump_ui_frame();
+
     let size = f.area();
 
     // Handle resize flag: clear it and ensure fresh layout calculations

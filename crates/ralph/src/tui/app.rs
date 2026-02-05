@@ -217,6 +217,12 @@ pub struct App {
     pub dependency_graph_cache: crate::tui::DependencyGraphCache,
     /// Focus manager for deterministic focus handling across panels and overlays.
     pub(crate) focus_manager: crate::tui::foundation::FocusManager,
+    /// UI frame counter for animation timing.
+    /// Incremented once per draw cycle for deterministic animations.
+    ui_frame: u64,
+    /// Frame number when the help overlay was first shown (for animation).
+    /// None when help is not visible or animation has reset.
+    help_overlay_start_frame: Option<u64>,
 }
 
 impl App {
@@ -299,6 +305,8 @@ impl App {
             current_eta: None,
             dependency_graph_cache: crate::tui::DependencyGraphCache::new(),
             focus_manager: crate::tui::foundation::FocusManager::default(),
+            ui_frame: 0,
+            help_overlay_start_frame: None,
         };
         app.rebuild_filtered_view();
         app
@@ -605,6 +613,44 @@ impl App {
     #[allow(dead_code)]
     pub(crate) fn set_resized(&mut self, _width: u16, _height: u16) {
         self.resized = true;
+    }
+
+    // UI Frame counter methods for animation timing
+
+    /// Get the current UI frame number.
+    pub(crate) fn ui_frame(&self) -> u64 {
+        self.ui_frame
+    }
+
+    /// Increment the UI frame counter.
+    /// Should be called once per draw cycle.
+    pub(crate) fn bump_ui_frame(&mut self) {
+        self.ui_frame = self.ui_frame.wrapping_add(1);
+    }
+
+    /// Reset the UI frame counter to zero.
+    #[allow(dead_code)]
+    pub(crate) fn reset_ui_frame(&mut self) {
+        self.ui_frame = 0;
+    }
+
+    // Help overlay animation methods
+
+    /// Get or initialize the help overlay start frame.
+    /// Returns the stored start frame if set, otherwise stores and returns `now_frame`.
+    pub(crate) fn help_overlay_start_frame(&mut self, now_frame: u64) -> u64 {
+        *self.help_overlay_start_frame.get_or_insert(now_frame)
+    }
+
+    /// Get the help overlay start frame without initializing it.
+    #[allow(dead_code)]
+    pub(crate) fn get_help_overlay_start_frame(&self) -> Option<u64> {
+        self.help_overlay_start_frame
+    }
+
+    /// Clear the help overlay start frame (called when leaving help mode).
+    pub(crate) fn clear_help_overlay_start_frame(&mut self) {
+        self.help_overlay_start_frame = None;
     }
 
     pub(crate) fn unsafe_to_discard(&self) -> bool {
@@ -1332,6 +1378,8 @@ impl App {
     pub(crate) fn exit_help_mode(&mut self) {
         let previous_mode = self.help_previous_mode.take().unwrap_or(AppMode::Normal);
         self.mode = previous_mode;
+        // Clear the help overlay animation state when exiting
+        self.clear_help_overlay_start_frame();
     }
 
     pub(crate) fn help_previous_mode(&self) -> Option<&AppMode> {

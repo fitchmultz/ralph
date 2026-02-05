@@ -1302,10 +1302,10 @@
         "RQ-0610"
       ],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
         "time_to_ship": "medium (concurrency + tests)",
         "opportunity_type": "reliability",
-        "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort."
+        "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort.",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -1349,10 +1349,10 @@
         "RQ-0608"
       ],
       "custom_fields": {
+        "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current.",
         "scan_agent": "scan-innovation",
         "time_to_ship": "medium (metadata + reconciliation + tests)",
-        "opportunity_type": "ux improvement",
-        "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current."
+        "opportunity_type": "ux improvement"
       }
     },
     {
@@ -1398,10 +1398,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
+        "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics.",
         "time_to_ship": "medium (format + fixes + tests)",
-        "opportunity_type": "ux improvement",
-        "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics."
+        "scan_agent": "scan-innovation",
+        "opportunity_type": "ux improvement"
       }
     },
     {
@@ -1446,9 +1446,9 @@
       "relates_to": [],
       "custom_fields": {
         "time_to_ship": "small/medium (formatters + tests)",
-        "opportunity_type": "ux improvement",
         "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat).",
-        "scan_agent": "scan-innovation"
+        "scan_agent": "scan-innovation",
+        "opportunity_type": "ux improvement"
       }
     },
     {
@@ -1817,6 +1817,66 @@
       "created_at": "2026-02-04T20:40:21Z",
       "updated_at": "2026-02-05T03:59:08.111088000Z",
       "completed_at": "2026-02-05T03:59:08.111088000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0627",
+      "status": "done",
+      "title": "TUI polish: big-text/ASCII headers and timeline-style animations",
+      "priority": "low",
+      "tags": [
+        "tui",
+        "ratatui",
+        "opentui",
+        "big-text",
+        "animation",
+        "polish"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/",
+        "crates/ralph/src/tui/components/",
+        "crates/ralph/Cargo.toml",
+        "docs/tui-task-management.md",
+        "make ci"
+      ],
+      "evidence": [
+        "User request requires implementing the OpenTUI feature set described in `/tmp/opentui-rust-features.md`.",
+        "`/tmp/opentui-rust-features.md` section 9 (ASCII Font/Big Text) recommends `tui-big-text` crate for block/shade/slick/tiny fonts.",
+        "`/tmp/opentui-rust-features.md` section 11 (Animations/Timeline API) recommends `tachyonfx` crate for shader-like effects.",
+        "Ralph's Ratatui TUI lives under `crates/ralph/src/tui/` with foundation layer (RQ-0622) complete in `crates/ralph/src/tui/foundation/`.",
+        "TUI components module exists at `crates/ralph/src/tui/components/` with existing scroll containers, select lists, sliders, and markdown renderer.",
+        "Current Cargo.toml has ratatui=0.29.0, tui-input, tui-textarea, tui-scrollview, but lacks `tui-big-text` and `tachyonfx`.",
+        "Dependency RQ-0622 is complete (in done.json) - foundation layer with Component trait and FocusManager is ready for these polish features."
+      ],
+      "plan": [
+        "Read `/tmp/opentui-rust-features.md` sections 9 (ASCII Font/Big Text) and 11 (Animations) to understand implementation patterns.",
+        "Add `tui-big-text` crate to Cargo.toml and create a big-text header component in `crates/ralph/src/tui/components/` for TUI title screens.",
+        "Add `tachyonfx` crate to Cargo.toml and implement a minimal animation utility for subtle effects (e.g., fade-in for overlays) in `crates/ralph/src/tui/components/`.",
+        "Integrate big-text headers into 1-2 appropriate TUI screens (e.g., welcome/help) without distraction.",
+        "Ensure animations are optional, respect terminal capabilities, and fail-safe (no panics, graceful degradation in low-refresh terminals).",
+        "Add unit tests in `crates/ralph/src/tui/components/tests/` covering rendering invariants and failure modes (narrow widths, empty text, animation bounds).",
+        "Update `docs/tui-task-management.md` with documentation for new visual features and run `make ci`."
+      ],
+      "notes": [
+        "Spec reference (must read before implementing): `/tmp/opentui-rust-features.md`.",
+        "Keep polish minimal and intentional; prioritize readability and operator confidence over flashy effects.",
+        "Dependency RQ-0622 is complete (in done.json) - foundation is ready for building these polish components.",
+        "Consider using existing component patterns from `crates/ralph/src/tui/components/select_list.rs` or `crates/ralph/src/tui/components/slider.rs` as templates.",
+        "Added tui-big-text crate (0.7) for big-text/ASCII headers with auto-scaling fonts (Block/Shade/Slick/Tiny)",
+        "Added tachyonfx crate (0.23) for timeline-style animations",
+        "Created BigTextHeaderComponent with graceful fallback for narrow terminals",
+        "Created animation utilities with FadeIn, FrameAnimator, and AnimationPolicy respecting NO_COLOR/TERM=dumb/RALPH_TUI_NO_ANIM",
+        "Integrated big-text headers in empty queue view and help overlay with fade-in animations",
+        "Updated docs/tui-task-management.md with visual features documentation",
+        "All 1935 unit tests pass, all 29 integration tests pass, CI gate passed"
+      ],
+      "request": "Series of tasks to implement these core features that are found in the TS + Bun framework opentui into our Rust based Ratatui framework. Read the file at /tmp/opentui-rust-features.md for the details. Include this file path in EACH new task evidence, plan, AND notes sections to ensure the execution agent reads this file. /tmp/opentui-rust-features.md",
+      "created_at": "2026-02-04T20:40:21Z",
+      "updated_at": "2026-02-05T06:01:05.686268000Z",
+      "completed_at": "2026-02-05T06:01:05.686268000Z",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],

@@ -21,6 +21,9 @@ mod util;
 mod diff_viewer;
 mod line_number_gutter;
 
+pub(crate) mod animation;
+pub(crate) mod big_text_header;
+
 pub(crate) mod markdown_renderer;
 mod scroll_container;
 mod select_list;

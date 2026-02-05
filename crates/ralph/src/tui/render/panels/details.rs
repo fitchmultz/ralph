@@ -17,6 +17,9 @@ use super::super::{App, AppMode};
 use super::{DetailsPanelContent, filter_summary_for_width, render_details_panel};
 use crate::contracts::{TaskPriority, TaskStatus};
 use crate::tui::DetailsContextMode;
+use crate::tui::components::big_text_header::{
+    BigHeaderFont, BigTextHeaderComponent, BigTextHeaderConfig,
+};
 use crate::tui::components::markdown_renderer::{MarkdownRenderConfig, MarkdownRenderer};
 use crate::tui::render::utils::{priority_color, status_color, wrap_text};
 use ratatui::{
@@ -592,6 +595,38 @@ pub fn draw_task_details(f: &mut Frame<'_>, app: &mut App, area: Rect) {
     }
 
     if app.queue.tasks.is_empty() {
+        // Render big header at the top
+        let mut header = BigTextHeaderComponent::new("RALPH");
+        let hcfg = BigTextHeaderConfig {
+            text: "RALPH".to_string(),
+            font: BigHeaderFont::Auto,
+            fallback_text: Some("RALPH".to_string()),
+            min_width_for_big: 22,
+            ..Default::default()
+        };
+        header.set_config(hcfg);
+
+        // Limit header to at most 4 rows to ensure content is visible
+        let header_h = header.measured_height(inner.width).min(inner.height.min(4));
+        let header_area = Rect {
+            x: inner.x,
+            y: inner.y,
+            width: inner.width,
+            height: header_h,
+        };
+
+        if header_area.height > 0 {
+            header.render_into(f, header_area);
+        }
+
+        // Content goes below the header
+        let content_inner = Rect {
+            x: inner.x,
+            y: inner.y.saturating_add(header_h).saturating_add(1),
+            width: inner.width,
+            height: inner.height.saturating_sub(header_h).saturating_sub(1),
+        };
+
         let lines = vec![
             Line::from(""),
             Line::from("No tasks in queue."),
@@ -616,7 +651,7 @@ pub fn draw_task_details(f: &mut Frame<'_>, app: &mut App, area: Rect) {
             f,
             app,
             area,
-            inner,
+            content_inner,
             DetailsPanelContent {
                 title_spans: title_spans.clone(),
                 lines,
