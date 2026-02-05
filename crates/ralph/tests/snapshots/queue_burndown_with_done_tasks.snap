@@ -1,0 +1,25 @@
+---
+source: crates/ralph/tests/queue_burndown_snapshot_test.rs
+expression: "test_support::normalize_for_snapshot(&stdout)"
+---
+Task Burndown (last 14 days)
+============================
+
+Remaining Tasks
+
+  <DATE> | ████████████████████ 2
+  <DATE> | ████████████████████ 2
+  <DATE> | ████████████████████ 2
+  <DATE> | ████████████████████ 2
+  <DATE> | ████████████████████ 2
+  <DATE> | ████████████████████ 2
+  <DATE> | ████████████████████ 2
+  <DATE> | ████████████████████ 2
+  <DATE> | ████████████████████ 2
+  <DATE> | ████████████████████ 2
+  <DATE> | ████████████████████ 2
+  <DATE> | ████████████████████ 2
+  <DATE> | ████████████████████ 2
+  <DATE> | ████████████████████ 2
+
+█ = ~1 tasks

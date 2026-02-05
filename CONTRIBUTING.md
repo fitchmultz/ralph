@@ -112,6 +112,54 @@ make test
 cargo test -p ralph
 ```
 
+### Integration Testing (CLI)
+
+Ralph's CLI is a user-facing contract. For cross-module behaviors (argument parsing → filesystem IO → queue mutation → output),
+prefer integration tests in `crates/ralph/tests/`.
+
+#### Pattern: Isolated temp repo + CLI invocation
+
+Use `crates/ralph/tests/test_support.rs` helpers to avoid repeating boilerplate:
+
+- `temp_dir_outside_repo()` to isolate state
+- `git_init(dir)` and `ralph_init(dir)` to create a valid repo
+- `run_in_dir(dir, args)` to execute the compiled `ralph` binary
+- `write_queue(...)` / `write_done(...)` and `read_queue()` / `read_done()` to set fixtures and assert results
+
+Example skeleton:
+
+```rust
+let dir = test_support::temp_dir_outside_repo();
+test_support::git_init(dir.path())?;
+test_support::ralph_init(dir.path())?;
+
+test_support::write_queue(dir.path(), &tasks)?;
+let (status, stdout, stderr) = test_support::run_in_dir(dir.path(), &["queue", "archive"]);
+anyhow::ensure!(status.success(), "...\nstdout:\n{stdout}\nstderr:\n{stderr}");
+
+let queue = test_support::read_queue(dir.path())?;
+```
+
+#### Snapshot testing with `insta`
+
+For human-readable outputs that should remain stable (e.g., `queue graph`, `queue burndown`), we use `insta` snapshots.
+Tests bind stable settings via `test_support::with_insta_settings(...)`, which normalizes newlines, strips ANSI, and replaces
+date strings with `<DATE>` to prevent daily churn.
+
+To update snapshots after an intentional output change:
+
+```bash
+INSTA_UPDATE=always cargo test -p ralph
+```
+
+Commit the updated snapshot files under `crates/ralph/tests/snapshots/`.
+
+#### Isolation / flake prevention
+
+- Always run `ralph init` with `--non-interactive` in tests.
+- Prefer state assertions (queue/done JSON) for mutation commands.
+- If a CLI output order is nondeterministic, fix determinism in the renderer (preferred) or strengthen snapshot filters (fallback).
+
 ### Feature Parity
 
 When changing user-visible workflows, maintain parity between CLI and TUI, or document/justify the divergence explicitly.

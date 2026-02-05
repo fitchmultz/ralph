@@ -1,0 +1,13 @@
+---
+source: crates/ralph/tests/queue_graph_snapshot_test.rs
+expression: "test_support::normalize_for_snapshot(&stdout)"
+---
+digraph dependencies {
+  rankdir=TB;
+  node [shape=box, style=rounded];
+
+  "RQ-0002" [label="RQ-0002\nDepends on RQ-0001", color=red, style=filled, fillcolor=red, fontcolor=white];
+  "RQ-0001" [label="RQ-0001\nRoot", color=red, style=filled, fillcolor=red, fontcolor=white];
+
+  "RQ-0002" -> "RQ-0001" [color=red, penwidth=2];
+}

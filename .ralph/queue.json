@@ -2,53 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0601",
-      "status": "todo",
-      "title": "Add integration testing framework for Ralph CLI",
-      "priority": "high",
-      "tags": [
-        "innovation",
-        "testing",
-        "reliability",
-        "quality"
-      ],
-      "scope": [
-        "crates/ralph/tests/",
-        "Makefile",
-        "docs/CONTRIBUTING.md"
-      ],
-      "evidence": [
-        "Current tests are primarily unit tests colocated with implementation",
-        "Integration tests exist but coverage is limited",
-        "No end-to-end CLI testing framework for command workflows",
-        "Testing complex multi-command scenarios requires manual execution",
-        "AGENTS.md emphasizes `make ci` but lacks integration test documentation"
-      ],
-      "plan": [
-        "Create `crates/ralph/tests/integration/` directory structure",
-        "Implement CLI test harness using `assert_cmd` and `predicates` crates",
-        "Add test fixtures for queue files, config, and project structures",
-        "Create integration tests for: init, task creation, queue operations, run workflow",
-        "Add mock runner for testing without external AI dependencies",
-        "Implement snapshot testing for CLI output consistency",
-        "Add test for parallel execution with mocked git operations",
-        "Verify by running `cargo test --workspace` and seeing new integration tests pass"
-      ],
-      "notes": [],
-      "request": "innovation scan finding",
-      "created_at": "2026-02-04T12:00:00Z",
-      "updated_at": "2026-02-04T12:00:00Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "opportunity_type": "reliability",
-        "measurable_impact": "80%+ integration test coverage for CLI commands",
-        "scan_agent": "scan-innovation",
-        "user_value": "Reduces regression risk; enables confident refactoring"
-      }
-    },
-    {
       "id": "RQ-0602",
       "status": "todo",
       "title": "Create plugin system for custom task processors and runners",
@@ -89,10 +42,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Enables ecosystem growth; custom integrations without forks",
         "opportunity_type": "feature gap",
-        "differentiation": "Unique capability among AI task runners",
-        "scan_agent": "scan-innovation"
+        "scan_agent": "scan-innovation",
+        "user_value": "Enables ecosystem growth; custom integrations without forks",
+        "differentiation": "Unique capability among AI task runners"
       }
     },
     {
@@ -136,10 +89,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "feature gap",
+        "user_value": "Improves planning accuracy; sets realistic expectations",
         "scan_agent": "scan-innovation",
-        "measurable_impact": "Estimates within 25% of actual duration after 20 tasks",
-        "user_value": "Improves planning accuracy; sets realistic expectations"
+        "opportunity_type": "feature gap",
+        "measurable_impact": "Estimates within 25% of actual duration after 20 tasks"
       }
     },
     {
@@ -183,10 +136,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
         "user_value": "Reduces time-to-productivity from hours to minutes",
+        "opportunity_type": "UX improvement",
         "measurable_impact": "New user success rate >90% within 30 minutes",
-        "opportunity_type": "UX improvement"
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -229,10 +182,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Proactively identifies improvement opportunities; reduces manual scanning",
         "measurable_impact": "Auto-detects 30%+ of maintenance tasks",
         "opportunity_type": "feature gap",
-        "scan_agent": "scan-innovation"
+        "scan_agent": "scan-innovation",
+        "user_value": "Proactively identifies improvement opportunities; reduces manual scanning"
       }
     },
     {
@@ -275,10 +228,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "opportunity_type": "integration",
+        "user_value": "Enables remote monitoring; integrates with existing workflows",
         "time_to_ship": "incremental - add one channel at a time",
-        "user_value": "Enables remote monitoring; integrates with existing workflows"
+        "opportunity_type": "integration",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -321,10 +274,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "opportunity_type": "performance",
+        "user_value": "Identifies bottlenecks; improves Ralph responsiveness",
         "measurable_impact": "50%+ improvement in queue operations for large projects",
-        "user_value": "Identifies bottlenecks; improves Ralph responsiveness"
+        "opportunity_type": "performance",
+        "scan_agent": "scan-innovation"
       }
     }
   ]

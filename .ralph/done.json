@@ -1302,9 +1302,9 @@
         "RQ-0610"
       ],
       "custom_fields": {
+        "scan_agent": "scan-innovation",
         "time_to_ship": "medium (concurrency + tests)",
         "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort.",
-        "scan_agent": "scan-innovation",
         "opportunity_type": "reliability"
       }
     },
@@ -1349,10 +1349,10 @@
         "RQ-0608"
       ],
       "custom_fields": {
+        "scan_agent": "scan-innovation",
         "opportunity_type": "ux improvement",
-        "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current.",
         "time_to_ship": "medium (metadata + reconciliation + tests)",
-        "scan_agent": "scan-innovation"
+        "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current."
       }
     },
     {
@@ -1446,9 +1446,9 @@
       "relates_to": [],
       "custom_fields": {
         "opportunity_type": "ux improvement",
-        "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat).",
+        "scan_agent": "scan-innovation",
         "time_to_ship": "small/medium (formatters + tests)",
-        "scan_agent": "scan-innovation"
+        "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat)."
       }
     },
     {
@@ -1936,9 +1936,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "scan_agent": "scan-innovation",
         "time_to_ship": "medium (TUI wiring + tests)",
         "user_value": "Fewer context switches: jump from task → code in one keystroke.",
-        "scan_agent": "scan-innovation",
         "opportunity_type": "ux improvement"
       }
     },
@@ -1994,9 +1994,9 @@
       "relates_to": [],
       "custom_fields": {
         "opportunity_type": "ux improvement",
-        "time_to_ship": "medium (render-only UI + tests)",
+        "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error.",
         "scan_agent": "scan-innovation",
-        "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error."
+        "time_to_ship": "medium (render-only UI + tests)"
       }
     },
     {
@@ -2050,10 +2050,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types",
-        "opportunity_type": "feature gap",
         "scan_agent": "scan-innovation",
-        "measurable_impact": "Track 20%+ improvement in task completion velocity after adoption"
+        "opportunity_type": "feature gap",
+        "measurable_impact": "Track 20%+ improvement in task completion velocity after adoption",
+        "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types"
       }
     },
     {
@@ -2110,10 +2110,69 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "opportunity_type": "UX improvement",
         "time_to_ship": "incremental - add one batch operation at a time",
-        "scan_agent": "scan-innovation",
         "user_value": "Reduces queue maintenance time by 80% for large projects",
-        "opportunity_type": "UX improvement"
+        "scan_agent": "scan-innovation"
+      }
+    },
+    {
+      "id": "RQ-0601",
+      "status": "done",
+      "title": "Add integration testing framework for Ralph CLI",
+      "priority": "high",
+      "tags": [
+        "innovation",
+        "testing",
+        "reliability",
+        "quality"
+      ],
+      "scope": [
+        "crates/ralph/tests/",
+        "crates/ralph/Cargo.toml",
+        "Makefile",
+        "CONTRIBUTING.md"
+      ],
+      "evidence": [
+        "Integration test infrastructure exists with 60+ test files in `crates/ralph/tests/`",
+        "Shared test helpers in `test_support.rs` provide: `ralph_bin()`, `run_in_dir()`, `temp_dir_outside_repo()`, `create_fake_runner()`",
+        "Mock runner support exists via `create_fake_runner()` and `configure_runner()` helpers",
+        "Tests use `serial_test` dev dependency for isolation (already in Cargo.toml)",
+        "CI gate in Makefile runs tests in isolated temp dirs under `target/tmp/ralph-ci-tmp/`",
+        "CONTRIBUTING.md documents testing requirements but lacks integration test patterns",
+        "Coverage gaps: queue command tests, webhook integration, task relations, migration tests"
+      ],
+      "plan": [
+        "Audit existing integration tests and identify coverage gaps",
+        "Add integration tests for uncovered queue commands: archive, prune, burndown, graph",
+        "Add integration tests for task relations: `ralph task relate`, `ralph task clone`",
+        "Add integration tests for migration commands with temp config files",
+        "Add snapshot testing for CLI output consistency using `insta` crate",
+        "Document integration test patterns in CONTRIBUTING.md with examples",
+        "Verify by running `make ci` and ensuring all new tests pass"
+      ],
+      "notes": [
+        "Test infrastructure is mature - focus on expanding coverage rather than building from scratch",
+        "Use existing `test_support.rs` helpers for consistency with current tests",
+        "Added 30 new integration tests across 7 test files",
+        "Added insta 1.40 dev-dependency for snapshot testing",
+        "Extended test_support.rs with ralph_init, write_queue, write_done, read_queue, read_done, normalize_for_snapshot, with_insta_settings helpers",
+        "Added integration testing documentation to CONTRIBUTING.md",
+        "Created 3 snapshot files for burndown and graph output testing",
+        "All tests pass: 1986 unit tests + 32 integration tests"
+      ],
+      "request": "innovation scan finding",
+      "created_at": "2026-02-04T12:00:00Z",
+      "updated_at": "2026-02-05T12:17:36.936462000Z",
+      "completed_at": "2026-02-05T12:17:36.936462000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "measurable_impact": "80%+ integration test coverage for CLI commands",
+        "user_value": "Reduces regression risk; enables confident refactoring",
+        "opportunity_type": "reliability",
+        "scan_agent": "scan-innovation"
       }
     }
   ]

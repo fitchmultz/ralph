@@ -76,6 +76,7 @@ notifications = ["notify-rust"]
 
 [dev-dependencies]
 serial_test = "3.0"
+insta = "1.40"
 
 [build-dependencies]
 vergen = { version = "8.3", features = ["git", "gitcl", "build"] }

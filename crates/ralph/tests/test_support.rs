@@ -362,3 +362,87 @@ pub fn git_add_all_commit(dir: &Path, message: &str) -> Result<()> {
 
     Ok(())
 }
+
+/// Initialize a ralph project in the given directory.
+pub fn ralph_init(dir: &Path) -> Result<()> {
+    let (status, stdout, stderr) = run_in_dir(dir, &["init", "--force", "--non-interactive"]);
+    anyhow::ensure!(
+        status.success(),
+        "ralph init failed\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+    Ok(())
+}
+
+/// Write a queue file with the given tasks.
+pub fn write_queue(dir: &Path, tasks: &[Task]) -> Result<()> {
+    let queue = QueueFile {
+        version: 1,
+        tasks: tasks.to_vec(),
+    };
+    let ralph_dir = dir.join(".ralph");
+    std::fs::create_dir_all(&ralph_dir)?;
+    let queue_path = ralph_dir.join("queue.json");
+    let json = serde_json::to_string_pretty(&queue)?;
+    std::fs::write(&queue_path, json).with_context(|| "write queue.json".to_string())?;
+    Ok(())
+}
+
+/// Write a done file with the given tasks.
+pub fn write_done(dir: &Path, tasks: &[Task]) -> Result<()> {
+    let done = QueueFile {
+        version: 1,
+        tasks: tasks.to_vec(),
+    };
+    let ralph_dir = dir.join(".ralph");
+    std::fs::create_dir_all(&ralph_dir)?;
+    let done_path = ralph_dir.join("done.json");
+    let json = serde_json::to_string_pretty(&done)?;
+    std::fs::write(&done_path, json).with_context(|| "write done.json".to_string())?;
+    Ok(())
+}
+
+/// Read the queue file from the given directory.
+pub fn read_queue(dir: &Path) -> Result<QueueFile> {
+    let queue_path = dir.join(".ralph/queue.json");
+    let raw = std::fs::read_to_string(&queue_path).context("read queue.json")?;
+    serde_json::from_str(&raw).context("parse queue.json")
+}
+
+/// Read the done file from the given directory.
+pub fn read_done(dir: &Path) -> Result<QueueFile> {
+    let done_path = dir.join(".ralph/done.json");
+    let raw = std::fs::read_to_string(&done_path).context("read done.json")?;
+    serde_json::from_str(&raw).context("parse done.json")
+}
+
+/// Normalize CLI output for stable snapshots.
+///
+/// Applies filters to make output deterministic across runs:
+/// - Normalizes line endings (\r\n → \n)
+/// - Strips ANSI escape codes
+/// - Replaces dates with <DATE> placeholder
+pub fn normalize_for_snapshot(output: &str) -> String {
+    use regex::Regex;
+
+    let mut result = output.to_string();
+
+    // Normalize line endings
+    result = result.replace("\r\n", "\n");
+
+    // Strip ANSI escape codes
+    let ansi_regex = Regex::new(r"\x1b\[[0-9;]*m").expect("valid regex");
+    result = ansi_regex.replace_all(&result, "").to_string();
+
+    // Replace dates with placeholder
+    let date_regex = Regex::new(r"\b\d{4}-\d{2}-\d{2}\b").expect("valid regex");
+    result = date_regex.replace_all(&result, "<DATE>").to_string();
+
+    result
+}
+
+/// Bind `insta` settings suitable for CLI snapshots.
+pub fn with_insta_settings<T>(f: impl FnOnce() -> T) -> T {
+    let mut settings = insta::Settings::clone_current();
+    settings.set_prepend_module_to_snapshot(false);
+    settings.bind(f)
+}

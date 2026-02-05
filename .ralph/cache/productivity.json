@@ -1,7 +1,7 @@
 {
   "version": 1,
   "first_task_completed_at": "2026-01-30T12:31:17.161199000Z",
-  "last_updated_at": "2026-02-05T11:19:40.256823000Z",
+  "last_updated_at": "2026-02-05T12:28:07.280326000Z",
   "daily": {
     "2026-01-30": {
       "date": "2026-01-30",
@@ -626,7 +626,7 @@
     },
     "2026-02-05": {
       "date": "2026-02-05",
-      "completed_count": 9,
+      "completed_count": 10,
       "tasks": [
         {
           "id": "RQ-0623",
@@ -672,6 +672,11 @@
           "id": "RQ-0599",
           "title": "Add batch task operations for efficient queue management",
           "completed_at": "2026-02-05T11:19:40.256822000Z"
+        },
+        {
+          "id": "RQ-0601",
+          "title": "Add integration testing framework for Ralph CLI",
+          "completed_at": "2026-02-05T12:28:07.280326000Z"
         }
       ]
     }
@@ -681,7 +686,7 @@
     "longest_streak": 7,
     "last_completed_date": "2026-02-05"
   },
-  "total_completed": 126,
+  "total_completed": 127,
   "milestones": [
     {
       "threshold": 10,
