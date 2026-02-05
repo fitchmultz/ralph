@@ -1300,9 +1300,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "opportunity_type": "reliability",
         "scan_agent": "scan-innovation",
         "time_to_ship": "medium (concurrency + tests)",
-        "opportunity_type": "reliability",
         "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort."
       }
     },
@@ -1345,10 +1345,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "time_to_ship": "medium (metadata + reconciliation + tests)",
-        "opportunity_type": "ux improvement",
+        "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current.",
         "scan_agent": "scan-innovation",
-        "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current."
+        "opportunity_type": "ux improvement",
+        "time_to_ship": "medium (metadata + reconciliation + tests)"
       }
     },
     {
@@ -1394,10 +1394,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "opportunity_type": "ux improvement",
         "time_to_ship": "medium (format + fixes + tests)",
-        "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics.",
         "scan_agent": "scan-innovation",
-        "opportunity_type": "ux improvement"
+        "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics."
       }
     },
     {
@@ -1442,9 +1442,9 @@
       "relates_to": [],
       "custom_fields": {
         "opportunity_type": "ux improvement",
-        "time_to_ship": "small/medium (formatters + tests)",
+        "scan_agent": "scan-innovation",
         "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat).",
-        "scan_agent": "scan-innovation"
+        "time_to_ship": "small/medium (formatters + tests)"
       }
     },
     {
@@ -1932,10 +1932,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "time_to_ship": "medium (TUI wiring + tests)",
-        "scan_agent": "scan-innovation",
+        "opportunity_type": "ux improvement",
         "user_value": "Fewer context switches: jump from task → code in one keystroke.",
-        "opportunity_type": "ux improvement"
+        "scan_agent": "scan-innovation",
+        "time_to_ship": "medium (TUI wiring + tests)"
       }
     },
     {
@@ -1990,9 +1990,9 @@
       "relates_to": [],
       "custom_fields": {
         "opportunity_type": "ux improvement",
-        "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error.",
         "time_to_ship": "medium (render-only UI + tests)",
-        "scan_agent": "scan-innovation"
+        "scan_agent": "scan-innovation",
+        "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error."
       }
     },
     {
@@ -2046,10 +2046,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "scan_agent": "scan-innovation",
         "opportunity_type": "feature gap",
-        "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types",
         "measurable_impact": "Track 20%+ improvement in task completion velocity after adoption",
-        "scan_agent": "scan-innovation"
+        "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types"
       }
     },
     {
@@ -2106,9 +2106,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "time_to_ship": "incremental - add one batch operation at a time",
-        "scan_agent": "scan-innovation",
         "opportunity_type": "UX improvement",
+        "scan_agent": "scan-innovation",
+        "time_to_ship": "incremental - add one batch operation at a time",
         "user_value": "Reduces queue maintenance time by 80% for large projects"
       }
     },
@@ -2165,10 +2165,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "reliability",
         "user_value": "Reduces regression risk; enables confident refactoring",
-        "scan_agent": "scan-innovation",
-        "measurable_impact": "80%+ integration test coverage for CLI commands"
+        "measurable_impact": "80%+ integration test coverage for CLI commands",
+        "opportunity_type": "reliability",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -2231,10 +2231,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Enables ecosystem growth; custom integrations without forks",
-        "differentiation": "Unique capability among AI task runners",
         "scan_agent": "scan-innovation",
-        "opportunity_type": "feature gap"
+        "opportunity_type": "feature gap",
+        "differentiation": "Unique capability among AI task runners",
+        "user_value": "Enables ecosystem growth; custom integrations without forks"
       }
     },
     {
@@ -2364,6 +2364,54 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0632",
+      "status": "done",
+      "title": "Avoid panic when resuming timed-out sessions (remove unwrap in run loop)",
+      "priority": "high",
+      "tags": [
+        "maintenance",
+        "correctness",
+        "session",
+        "run"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/mod.rs",
+        "crates/ralph/src/session/mod.rs",
+        "cargo test -p ralph session",
+        "make ci"
+      ],
+      "evidence": [
+        "crates/ralph/src/commands/run/mod.rs:151-167: Timeout branch re-loads session and calls `.unwrap()` on Option (`session::load_session(&cache_dir)?.unwrap()`), which can panic if session.json disappears between the first load and the re-load.",
+        "crates/ralph/src/session/mod.rs:84-93 and :96-137: `SessionValidationResult::Timeout { hours }` does not carry `SessionState`; `validate_session` returns Timeout without session (crates/ralph/src/session/mod.rs:120-134), forcing callers to re-load if they need session details.",
+        "crates/ralph/src/session/mod.rs:140-151: `check_session` loads the session but returns only `SessionValidationResult`, so `run` cannot reuse the already-loaded `SessionState` on Timeout.",
+        "crates/ralph/src/session/mod.rs:500-531: unit test matches `SessionValidationResult::Timeout { hours }`; changing the enum shape will require updating this test (and any future match sites)."
+      ],
+      "plan": [
+        "Change `SessionValidationResult::Timeout` to carry the `SessionState` (e.g., `Timeout { hours, session }`) so `run` can prompt without re-loading session.json.",
+        "Update `validate_session` to return the new Timeout variant (including cloning the session, consistent with the existing `Valid(SessionState)` behavior).",
+        "Update `crates/ralph/src/commands/run/mod.rs` to use the `session` from the Timeout variant and delete the `load_session(...).unwrap()` re-load path entirely.",
+        "Update unit tests in `crates/ralph/src/session/mod.rs` to match the new Timeout variant shape and add a regression test that exercises `check_session` timeout behavior without requiring a second disk load (no unwrap/panic path).",
+        "Verify via `cargo test -p ralph session` and `make ci`."
+      ],
+      "notes": [
+        "Eliminated potential panic by removing session re-load + Option unwrap on timeout in run loop",
+        "Session timeout validation now returns Timeout { hours, session } so callers can reuse already-loaded SessionState",
+        "Updated session timeout tests and added regression test covering check_session timeout includes embedded SessionState",
+        "Verified: cargo test -p ralph session; make ci"
+      ],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-05T20:49:31Z",
+      "updated_at": "2026-02-05T21:37:04.055449000Z",
+      "completed_at": "2026-02-05T21:37:04.055449000Z",
+      "started_at": "2026-02-05T21:01:36.121922000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
     }
   ]
 }

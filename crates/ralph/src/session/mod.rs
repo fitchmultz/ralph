@@ -89,7 +89,7 @@ pub enum SessionValidationResult {
     /// Session is stale (task completed, rejected, or no longer exists).
     Stale { reason: String },
     /// Session has timed out (older than threshold).
-    Timeout { hours: u64 },
+    Timeout { hours: u64, session: SessionState },
 }
 
 /// Validate a session against the current queue state.
@@ -128,7 +128,10 @@ pub fn validate_session(
             let elapsed = now - session_time;
             let hours = elapsed.whole_hours() as u64;
             if hours >= timeout {
-                return SessionValidationResult::Timeout { hours };
+                return SessionValidationResult::Timeout {
+                    hours,
+                    session: session.clone(),
+                };
             }
         }
     }
@@ -524,10 +527,67 @@ mod tests {
 
         // With 24-hour threshold, should timeout
         let result = validate_session(&session, &queue, Some(24));
-        assert!(
-            matches!(result, SessionValidationResult::Timeout { hours } if hours >= 48),
-            "Session older than threshold should return Timeout"
+        match result {
+            SessionValidationResult::Timeout {
+                hours,
+                session: timed_out,
+            } => {
+                assert!(hours >= 48, "Expected at least 48 hours, got {hours}");
+                assert_eq!(timed_out.task_id, session.task_id);
+                assert_eq!(timed_out.session_id, session.session_id);
+            }
+            other => panic!("expected Timeout, got {other:?}"),
+        }
+    }
+
+    /// Regression test for RQ-0632: check_session must return Timeout with the embedded
+    /// session state so callers don't need to re-load (which could panic if session.json
+    /// disappears between the first load and the re-load).
+    #[test]
+    fn check_session_returns_timeout_and_includes_loaded_session() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // 48 hours old session
+        let old_timestamp = timeutil::format_rfc3339(
+            timeutil::parse_rfc3339(&timeutil::now_utc_rfc3339_or_fallback())
+                .unwrap()
+                .saturating_sub(Duration::hours(48)),
+        )
+        .unwrap();
+
+        let session = SessionState::new(
+            "test-session-id".to_string(),
+            "RQ-0001".to_string(),
+            old_timestamp,
+            1,
+            crate::contracts::Runner::Claude,
+            "sonnet".to_string(),
+            0,
+            None,
+            None,
         );
+
+        save_session(temp_dir.path(), &session).unwrap();
+
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![test_task("RQ-0001", TaskStatus::Doing)],
+        };
+
+        let result = check_session(temp_dir.path(), &queue, Some(24)).unwrap();
+
+        match result {
+            SessionValidationResult::Timeout {
+                hours,
+                session: timed_out,
+            } => {
+                assert!(hours >= 48, "Expected at least 48 hours, got {hours}");
+                assert_eq!(timed_out.task_id, session.task_id);
+                assert_eq!(timed_out.session_id, session.session_id);
+                assert_eq!(timed_out.last_updated_at, session.last_updated_at);
+            }
+            other => panic!("expected Timeout, got {other:?}"),
+        }
     }
 
     #[test]

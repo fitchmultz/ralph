@@ -40,6 +40,381 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0633",
+      "status": "todo",
+      "title": "Make LFS health checks fail loud (stop swallowing git/lfs errors)",
+      "priority": "high",
+      "tags": [
+        "maintenance",
+        "correctness",
+        "git",
+        "lfs"
+      ],
+      "scope": [
+        "crates/ralph/src/git/lfs.rs",
+        "make test",
+        "make ci"
+      ],
+      "evidence": [
+        "crates/ralph/src/git/lfs.rs:540-542: rustdoc says `Err(anyhow::Error) - If validation fails`.",
+        "crates/ralph/src/git/lfs.rs:565-572: `check_lfs_health` uses `.ok()` and `unwrap_or_default()` to discard validation errors (`list_lfs_files(...).unwrap_or_default()`, `validate_lfs_pointers(...).unwrap_or_default()`).",
+        "Failure mode: missing/broken `git lfs` commands or pointer validation errors can be reported as healthy with empty issues."
+      ],
+      "plan": [
+        "Decide contract: either propagate failures as `Err` (align with docs) or store errors in the report; default to returning `Err` for failed validations.",
+        "Replace `.ok()` / `unwrap_or_default()` with `?` or explicit error capture so failures surface to callers.",
+        "Add tests for failure modes (e.g., call `check_lfs_health` on a non-git directory or a repo missing LFS and assert it returns `Err` or reports explicit issues).",
+        "Update rustdoc comments/examples to match the final behavior.",
+        "Verify by running `make ci` and confirming it passes."
+      ],
+      "notes": [],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-05T20:49:31Z",
+      "updated_at": "2026-02-05T20:49:31Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0634",
+      "status": "todo",
+      "title": "Fix productivity streak/velocity date math (remove 30-day-month approximation)",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "correctness",
+        "productivity",
+        "time"
+      ],
+      "scope": [
+        "crates/ralph/src/productivity.rs",
+        "make test",
+        "make ci"
+      ],
+      "evidence": [
+        "crates/ralph/src/productivity.rs:294-326: get_previous_date uses approximate month lengths and hardcoded defaults; explicitly notes it doesn't account for leap years.",
+        "crates/ralph/src/productivity.rs:392-418: get_date_offset converts to days using `year*365 + month*30 + day` (incorrect calendar math).",
+        "User impact: streak and velocity calculations can be wrong around month/year boundaries."
+      ],
+      "plan": [
+        "Replace `get_previous_date` and `get_date_offset` with `time` crate date arithmetic (parse YYYY-MM-DD -> `time::Date`, add/subtract days).",
+        "Remove hardcoded fallback year/month/day defaults; handle invalid dates explicitly (error or safe no-op with warning).",
+        "Add unit tests for boundaries: 2024-03-01 previous day == 2024-02-29; 2026-03-01 previous day == 2026-02-28; offsets across year boundary.",
+        "Verify by running `make ci` and confirming it passes."
+      ],
+      "notes": [],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-05T20:49:31Z",
+      "updated_at": "2026-02-05T20:49:31Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0635",
+      "status": "todo",
+      "title": "Use real RFC3339 parsing for execution history weighting (fix inaccurate age_days)",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "correctness",
+        "eta",
+        "time"
+      ],
+      "scope": [
+        "crates/ralph/src/execution_history.rs",
+        "make test",
+        "make ci"
+      ],
+      "evidence": [
+        "crates/ralph/src/execution_history.rs:188-191: weight = 0.9^(age_in_days) uses `parse_timestamp_to_secs` output to compute `age_days`.",
+        "crates/ralph/src/execution_history.rs:229-263: parse_timestamp_to_secs does ad-hoc parsing and approximate `days_since_epoch = (year - 1970) * 365 + month * 30 + day`.",
+        "User impact: ETA weighting can skew significantly; older entries may be weighted incorrectly."
+      ],
+      "plan": [
+        "Replace `parse_timestamp_to_secs` with `timeutil::parse_rfc3339_opt(timestamp)` and compute age using real unix timestamps (or OffsetDateTime deltas).",
+        "Add unit tests comparing parsed seconds to `timeutil::parse_rfc3339(ts)?.unix_timestamp()` for timestamps with and without subseconds.",
+        "Add a regression test that entries further in the past get smaller weights (monotonic decay).",
+        "Verify by running `make ci` and confirming it passes."
+      ],
+      "notes": [],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-05T20:49:31Z",
+      "updated_at": "2026-02-05T20:49:31Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0636",
+      "status": "todo",
+      "title": "Stop writing empty timestamps (replace now_utc_rfc3339().unwrap_or_default)",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "correctness",
+        "time",
+        "persistence"
+      ],
+      "scope": [
+        "crates/ralph/src/execution_history.rs",
+        "crates/ralph/src/productivity.rs",
+        "crates/ralph/src/timeutil.rs",
+        "make ci"
+      ],
+      "evidence": [
+        "Command: rg -n \"now_utc_rfc3339\\(\\)\\.unwrap_or_default\\(\\)\" crates/ralph/src -> execution_history.rs:121; productivity.rs:53,205,334,366.",
+        "crates/ralph/src/timeutil.rs:67-69: `now_utc_rfc3339_or_fallback()` exists to avoid empty timestamps.",
+        "Failure mode: empty timestamps can be persisted into .ralph/cache files, breaking parsing/sorting and producing confusing UX."
+      ],
+      "plan": [
+        "Replace all `now_utc_rfc3339().unwrap_or_default()` call sites with `now_utc_rfc3339_or_fallback()` or propagate `Result` when the caller already returns `Result`.",
+        "Add/adjust tests to assert persisted timestamps are non-empty (e.g., ProductivityStats default/record paths and execution history record path).",
+        "Verify by running `make ci` and confirming it passes."
+      ],
+      "notes": [],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-05T20:49:31Z",
+      "updated_at": "2026-02-05T20:49:31Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0637",
+      "status": "todo",
+      "title": "Fail fast on malformed README version markers (don’t default to version 1)",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "correctness",
+        "docs",
+        "init"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/init/readme.rs",
+        "make test",
+        "make ci"
+      ],
+      "evidence": [
+        "crates/ralph/src/commands/init/readme.rs:48-60: extract_readme_version returns None for malformed marker values.",
+        "crates/ralph/src/commands/init/readme.rs:85 and :116: call sites use `.unwrap_or(1)`, treating malformed markers as legacy v1 silently.",
+        "Failure mode: README update logic can misclassify and hide a corrupted version marker."
+      ],
+      "plan": [
+        "Change `extract_readme_version` to return a richer type (e.g., `Result<u32>` or `(Option<u32>, bool marker_present)`) so callers can distinguish legacy/no-marker from malformed marker.",
+        "Update `check_readme_current_from_root` / `write_readme` to: treat 'no marker' as legacy v1; treat 'marker present but invalid' as `Err` with an actionable message.",
+        "Add tests: invalid marker yields `Err`; no marker yields v1; valid marker parses correctly.",
+        "Verify by running `make ci` and confirming it passes."
+      ],
+      "notes": [],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-05T20:49:31Z",
+      "updated_at": "2026-02-05T20:49:31Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0638",
+      "status": "todo",
+      "title": "Preserve timeout diagnostics when output-capture mutex is poisoned",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "operability",
+        "timeout",
+        "runutil"
+      ],
+      "scope": [
+        "crates/ralph/src/runutil/execution.rs",
+        "make test",
+        "make ci"
+      ],
+      "evidence": [
+        "crates/ralph/src/runutil/execution.rs:198-205: wrap_output_handler_with_capture drops capture writes if mutex lock fails (including PoisonError).",
+        "crates/ralph/src/runutil/execution.rs:299-311: timeout path reads capture via `capture.lock().map(...).unwrap_or_default()`, discarding PoisonError and losing captured output.",
+        "Operability impact: timeouts can lose diagnostic output, undermining safeguard dumps."
+      ],
+      "plan": [
+        "Handle PoisonError explicitly with `unwrap_or_else(|e| e.into_inner())` when locking capture for both writing and reading; log a warning when poison is detected.",
+        "Add a unit test that poisons the mutex (panic while holding lock), then invokes the handler and asserts capture still records output and does not panic.",
+        "Verify by running `make ci` and confirming it passes."
+      ],
+      "notes": [],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-05T20:49:31Z",
+      "updated_at": "2026-02-05T20:49:31Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0639",
+      "status": "todo",
+      "title": "Deduplicate TaskEditKey field formatting to prevent TUI/CLI drift",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "dry",
+        "tui",
+        "queue"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/task_edit.rs",
+        "crates/ralph/src/queue/operations/edit.rs",
+        "make ci"
+      ],
+      "evidence": [
+        "crates/ralph/src/tui/task_edit.rs:141-160: TaskEditKey -> value mapping for editing.",
+        "crates/ralph/src/queue/operations/edit.rs:630-658: TaskEditKey -> value mapping for preview formatting.",
+        "DRY risk: overlapping keys (Request/Duplicates/*At fields) are implemented twice and can drift."
+      ],
+      "plan": [
+        "Introduce a shared helper for TaskEditKey field extraction/formatting (in queue module or on Task) and use it from both the TUI editor and the preview code.",
+        "Update both call sites to use the shared helper.",
+        "Add tests covering a representative Task to ensure both paths render the same values for shared keys.",
+        "Verify by running `make ci` and confirming it passes."
+      ],
+      "notes": [],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-05T20:49:31Z",
+      "updated_at": "2026-02-05T20:49:31Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0640",
+      "status": "todo",
+      "title": "Split oversized TUI app module (3347 LOC) into cohesive submodules",
+      "priority": "low",
+      "tags": [
+        "maintenance",
+        "refactor",
+        "tui"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/app.rs",
+        "crates/ralph/src/tui/",
+        "make ci"
+      ],
+      "evidence": [
+        "Command: wc -l crates/ralph/src/tui/app.rs -> 3347 lines.",
+        "AGENTS.md guideline: files >1000 LOC should be split; >800 LOC requires explicit justification."
+      ],
+      "plan": [
+        "Identify cohesive responsibilities inside app.rs (state, actions, event handling, IO, rendering adapters).",
+        "Extract into new internal modules under crates/ralph/src/tui/ (e.g., app_state.rs, app_actions.rs, app_events.rs), keeping public surface minimal.",
+        "Keep behavior stable by wiring through existing entrypoints and updating imports.",
+        "Add/adjust tests for extracted modules where behavior is tricky or under-tested.",
+        "Verify by running `make ci` and confirming it passes."
+      ],
+      "notes": [],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-05T20:49:31Z",
+      "updated_at": "2026-02-05T20:49:31Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0641",
+      "status": "todo",
+      "title": "Split oversized parallel run module (3241 LOC) into cohesive submodules",
+      "priority": "low",
+      "tags": [
+        "maintenance",
+        "refactor",
+        "parallel"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/parallel/mod.rs",
+        "crates/ralph/src/commands/run/parallel/",
+        "make ci"
+      ],
+      "evidence": [
+        "Command: wc -l crates/ralph/src/commands/run/parallel/mod.rs -> 3241 lines.",
+        "AGENTS.md guideline: files >1000 LOC should be split; >800 LOC requires explicit justification."
+      ],
+      "plan": [
+        "Map responsibilities in parallel/mod.rs (scheduling, worker lifecycle, PR operations, merge policy, state persistence).",
+        "Extract cohesive internal modules (e.g., scheduler.rs, worker.rs, pr_ops.rs, state_io.rs) under crates/ralph/src/commands/run/parallel/.",
+        "Keep behavior stable by leaving public APIs in mod.rs and delegating to submodules.",
+        "Add/adjust tests covering critical paths (state file reading/writing, PR record reconciliation, merge policy decisions).",
+        "Verify by running `make ci` and confirming it passes."
+      ],
+      "notes": [],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-05T20:49:31Z",
+      "updated_at": "2026-02-05T20:49:31Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0642",
+      "status": "todo",
+      "title": "Warn on .env load errors (ignore NotFound only)",
+      "priority": "low",
+      "tags": [
+        "maintenance",
+        "operability",
+        "env"
+      ],
+      "scope": [
+        "crates/ralph/src/main.rs",
+        "crates/ralph/tests/help_output_contract_test.rs",
+        "make test"
+      ],
+      "evidence": [
+        "crates/ralph/src/main.rs:31: `dotenvy::dotenv().ok();` ignores parse/IO errors when a .env is present.",
+        "Repro: create an invalid .env in a temp dir and run `ralph --help` from that dir; current code emits no warning, making misconfiguration hard to diagnose."
+      ],
+      "plan": [
+        "Change dotenv loading to ignore only NotFound; capture other errors and surface them as a warning (e.g., log after logger init, or print a single redacted warning to stderr).",
+        "Add an integration test that runs the ralph binary from a temp dir containing an invalid .env and asserts stderr contains a warning while exit code remains success.",
+        "Verify by running `make ci` and confirming it passes."
+      ],
+      "notes": [],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-05T20:49:31Z",
+      "updated_at": "2026-02-05T20:49:31Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
     }
   ]
 }

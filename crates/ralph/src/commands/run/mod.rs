@@ -148,8 +148,7 @@ pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()>
                 session::clear_session(&cache_dir)?;
                 (None, opts.starting_completed)
             }
-            SessionValidationResult::Timeout { hours } => {
-                let session = session::load_session(&cache_dir)?.unwrap();
+            SessionValidationResult::Timeout { hours, session } => {
                 let threshold = session_timeout_hours
                     .unwrap_or(crate::constants::timeouts::DEFAULT_SESSION_TIMEOUT_HOURS);
                 match session::prompt_session_recovery_timeout(
