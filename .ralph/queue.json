@@ -2,48 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0621",
-      "status": "todo",
-      "title": "Add a read-only TUI view for parallel run-loop state (workers, PRs, merge blockers)",
-      "priority": "low",
-      "tags": [
-        "innovation",
-        "tui",
-        "parallel",
-        "ux"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/",
-        "crates/ralph/src/commands/run/parallel/",
-        "docs/workflow.md"
-      ],
-      "evidence": [
-        "`docs/workflow.md` states parallel execution is CLI-only and persists state to `.ralph/cache/parallel/state.json`.",
-        "Operators running `ralph run loop --parallel` lack an interactive UI to inspect state, failures, and merge blockers without opening the state JSON manually."
-      ],
-      "plan": [
-        "Add a TUI screen/overlay to load and render `.ralph/cache/parallel/state.json` with a concise status table (in-flight tasks, PR URLs, merge blockers, last error).",
-        "Keep this view read-only as the minimal slice (no starting/stopping parallel runs from the TUI).",
-        "Add quick actions: open PR URL (shell) and copy PR URL; reload state from disk.",
-        "Add tests for state parsing/render model (unit tests) and ensure missing/invalid state files fail gracefully with guidance.",
-        "Update `docs/tui-task-management.md` with navigation to the parallel state view.",
-        "Verify by running `make ci` and manually simulating a state file to confirm rendering works end-to-end."
-      ],
-      "notes": [],
-      "request": "innovation scan finding",
-      "created_at": "2026-02-04T14:58:48Z",
-      "updated_at": "2026-02-04T14:58:48Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "opportunity_type": "ux improvement",
-        "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error.",
-        "scan_agent": "scan-innovation",
-        "time_to_ship": "medium (render-only UI + tests)"
-      }
-    },
-    {
       "id": "RQ-0598",
       "status": "todo",
       "title": "Implement task time tracking and productivity analytics",
@@ -84,10 +42,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
         "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types",
-        "measurable_impact": "Track 20%+ improvement in task completion velocity after adoption",
-        "opportunity_type": "feature gap"
+        "scan_agent": "scan-innovation",
+        "opportunity_type": "feature gap",
+        "measurable_impact": "Track 20%+ improvement in task completion velocity after adoption"
       }
     },
     {
@@ -130,10 +88,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "time_to_ship": "incremental - add one batch operation at a time",
         "opportunity_type": "UX improvement",
         "scan_agent": "scan-innovation",
-        "user_value": "Reduces queue maintenance time by 80% for large projects"
+        "user_value": "Reduces queue maintenance time by 80% for large projects",
+        "time_to_ship": "incremental - add one batch operation at a time"
       }
     },
     {
@@ -177,10 +135,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "user_value": "Reduces regression risk; enables confident refactoring",
         "measurable_impact": "80%+ integration test coverage for CLI commands",
-        "opportunity_type": "reliability",
         "scan_agent": "scan-innovation",
-        "user_value": "Reduces regression risk; enables confident refactoring"
+        "opportunity_type": "reliability"
       }
     },
     {
@@ -224,9 +182,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
         "user_value": "Enables ecosystem growth; custom integrations without forks",
         "opportunity_type": "feature gap",
+        "scan_agent": "scan-innovation",
         "differentiation": "Unique capability among AI task runners"
       }
     },
@@ -271,10 +229,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "opportunity_type": "feature gap",
         "measurable_impact": "Estimates within 25% of actual duration after 20 tasks",
-        "user_value": "Improves planning accuracy; sets realistic expectations"
+        "user_value": "Improves planning accuracy; sets realistic expectations",
+        "opportunity_type": "feature gap",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -318,10 +276,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Reduces time-to-productivity from hours to minutes",
         "measurable_impact": "New user success rate >90% within 30 minutes",
         "opportunity_type": "UX improvement",
-        "scan_agent": "scan-innovation"
+        "scan_agent": "scan-innovation",
+        "user_value": "Reduces time-to-productivity from hours to minutes"
       }
     },
     {
@@ -364,10 +322,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "measurable_impact": "Auto-detects 30%+ of maintenance tasks",
-        "user_value": "Proactively identifies improvement opportunities; reduces manual scanning",
         "opportunity_type": "feature gap",
-        "scan_agent": "scan-innovation"
+        "measurable_impact": "Auto-detects 30%+ of maintenance tasks",
+        "scan_agent": "scan-innovation",
+        "user_value": "Proactively identifies improvement opportunities; reduces manual scanning"
       }
     },
     {
@@ -410,10 +368,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "time_to_ship": "incremental - add one channel at a time",
         "opportunity_type": "integration",
-        "user_value": "Enables remote monitoring; integrates with existing workflows"
+        "user_value": "Enables remote monitoring; integrates with existing workflows",
+        "time_to_ship": "incremental - add one channel at a time",
+        "scan_agent": "scan-innovation"
       }
     },
     {

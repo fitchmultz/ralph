@@ -275,6 +275,10 @@ pub(super) fn handle_normal_mode_key(
             app.enter_dependency_graph_mode();
             Ok(TuiAction::Continue)
         }
+        KeyCode::Char('P') if is_plain_char(&key, 'P') => {
+            app.enter_parallel_state_overlay();
+            Ok(TuiAction::Continue)
+        }
         KeyCode::Char(' ') if is_plain_char(&key, ' ') => {
             if app.multi_select_mode {
                 app.toggle_current_selection();

@@ -50,7 +50,8 @@ fn help_footer_excludes_save_error_when_none() {
 #[test]
 fn help_footer_includes_keymap_shortcuts_in_normal_mode() {
     let app = App::new(QueueFile::default());
-    let rendered = footer_text(&app, 240);
+    // Width increased to 280 to accommodate the new P (parallel) keybinding
+    let rendered = footer_text(&app, 280);
 
     for expected in ["K/J", "Ctrl+P", "Ctrl+F", ":scope", ":case", ":regex"] {
         assert!(

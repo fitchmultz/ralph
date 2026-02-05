@@ -20,6 +20,7 @@ pub mod graph;
 pub mod help;
 pub mod jump;
 pub mod palette;
+pub mod parallel_state;
 
 // Re-exports for backward compatibility
 pub use builder::draw_task_builder;
@@ -30,3 +31,4 @@ pub use graph::draw_dependency_graph_overlay;
 pub use help::draw_help_overlay;
 pub use jump::draw_jump_to_task_input;
 pub use palette::draw_command_palette;
+pub use parallel_state::draw_parallel_state_overlay;

@@ -19,6 +19,7 @@ mod app_filters;
 mod app_help;
 mod app_id_index;
 mod app_logs;
+mod app_parallel_state;
 pub use app_logs::LogOperations;
 mod app_loop;
 mod app_multi_select;
@@ -69,6 +70,9 @@ pub use app_options::TuiOptions;
 pub use app_palette::{build_palette_entries, filter_and_score_entries, scan_label};
 pub use app_palette_ops::PaletteOperations;
 pub use app_panel::{FocusedPanel, PanelOperations};
+pub use app_parallel_state::{
+    ParallelStateOverlaySnapshot, ParallelStateOverlayState, ParallelStateTab, TabCounts,
+};
 pub use app_reload::ReloadOperations;
 pub use app_scroll::ScrollOperations;
 pub use app_session::{SessionManager, SessionState};

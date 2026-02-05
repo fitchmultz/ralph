@@ -126,6 +126,62 @@ pub(crate) fn copy_text_to_clipboard(text: &str) -> Result<()> {
     }
 }
 
+/// Open a URL in the user's default browser.
+///
+/// Responsibilities:
+/// - Best-effort spawn of platform browser opener commands.
+///
+/// Does NOT handle:
+/// - Validating URL reachability.
+/// - Complex URL normalization (callers should provide a usable URL).
+///
+/// Invariants/assumptions:
+/// - Refuses empty/whitespace URLs.
+/// - Avoids invoking a shell except where required on Windows (`cmd /C start`).
+pub(crate) fn open_url_in_browser(url: &str) -> Result<()> {
+    let url = url.trim();
+    if url.is_empty() {
+        bail!("refusing to open empty url");
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open")
+            .arg(url)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .context("spawn `open`")?;
+        Ok(())
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        // `start` is a cmd builtin; the empty string is the window title.
+        Command::new("cmd")
+            .args(["/C", "start", "", url])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .context("spawn `cmd /C start`")?;
+        return Ok(());
+    }
+
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        Command::new("xdg-open")
+            .arg(url)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .context("spawn `xdg-open`")?;
+        return Ok(());
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -171,5 +227,11 @@ mod tests {
     fn refuses_empty_clipboard_text() {
         let err = copy_text_to_clipboard("   ").unwrap_err().to_string();
         assert!(err.contains("empty"));
+    }
+
+    #[test]
+    fn refuses_empty_url() {
+        let err = open_url_in_browser("   ").unwrap_err().to_string();
+        assert!(err.contains("empty url"));
     }
 }

@@ -32,6 +32,7 @@ Actions:
 - `c`: edit project config
 - `g`: scan repository
 - `v`: view dependency graph
+- `P`: view parallel run state (read-only)
 - `r`: reload queue from disk
 - `O`: open selected task scope in $EDITOR
 - `y`: copy file:line refs from notes/evidence
@@ -541,6 +542,60 @@ Or permanently in your shell configuration:
 ```bash
 export RALPH_TUI_NO_ANIM=1
 ```
+
+---
+
+## Parallel Run State Overlay
+
+The TUI includes a read-only overlay for monitoring parallel execution state without leaving the interface.
+
+### Opening the Overlay
+
+- Press `P` (uppercase) in Normal mode to view the parallel run state
+- This reads from `.ralph/cache/parallel/state.json`
+
+### What It Shows
+
+The overlay displays three tabs:
+
+1. **In-Flight Tasks** - Currently running worker tasks with:
+   - Task ID
+   - Workspace path
+   - Branch name
+   - Process ID (PID)
+
+2. **PRs** - Pull request records with:
+   - Task ID
+   - PR number
+   - State (open/closed/merged)
+   - Merge blockers (if any)
+   - PR URL
+
+3. **Finished Without PR** - Tasks that completed without creating a PR:
+   - Task ID
+   - Success/failure status
+   - Reason code
+   - Message (if any)
+
+### Controls
+
+When the overlay is open:
+
+- `Esc` or `P`: Close the overlay
+- `Tab` or `←/→`: Switch between tabs (In-Flight, PRs, No PR)
+- `r`: Reload state from disk
+- `↑/↓` or `j/k`: Navigate within the current tab
+- `PgUp/PgDn`: Page up/down
+- `Home/End` or `g/G`: Jump to top/bottom
+- `Enter` or `o`: Open selected PR URL in browser
+- `y`: Copy selected PR URL to clipboard
+
+### When No Parallel Run is Active
+
+If no state file exists (i.e., no `ralph run loop --parallel` is running), the overlay shows:
+- A message indicating no parallel run is in progress
+- The expected path to the state file
+- Instructions on how to start a parallel run
 
 ---
 

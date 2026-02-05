@@ -182,6 +182,9 @@ fn mode_span(mode: &AppMode, running_task_id: Option<&String>) -> Span<'static> 
             };
             Span::styled(label, Style::default().fg(Color::Magenta))
         }
+        AppMode::ParallelStateOverlay { .. } => {
+            Span::styled("[Parallel State]", Style::default().fg(Color::Cyan))
+        }
     }
 }
 

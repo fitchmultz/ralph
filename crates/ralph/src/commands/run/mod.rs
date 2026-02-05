@@ -37,7 +37,7 @@ use anyhow::{Context, Result, bail};
 mod context;
 mod iteration;
 mod logging;
-mod parallel;
+pub mod parallel;
 mod phases;
 mod run_session;
 mod selection;
@@ -57,6 +57,12 @@ pub(crate) use phases::{apply_phase3_completion_signal, finalize_phase3_if_done}
 pub(crate) use phases::PhaseType;
 
 pub use crate::agent::AgentOverrides;
+
+// Re-export parallel state types for TUI overlay
+pub use parallel::state::{
+    ParallelFinishedWithoutPrRecord, ParallelNoPrReason, ParallelPrLifecycle, ParallelPrRecord,
+    ParallelStateFile, load_state, state_file_path,
+};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum QueueLockMode {

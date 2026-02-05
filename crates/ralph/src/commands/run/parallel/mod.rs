@@ -36,7 +36,7 @@ mod args;
 mod cleanup_guard;
 mod merge_runner;
 mod path_map;
-mod state;
+pub mod state;
 mod sync;
 mod worker;
 

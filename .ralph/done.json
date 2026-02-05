@@ -1302,9 +1302,9 @@
         "RQ-0610"
       ],
       "custom_fields": {
+        "scan_agent": "scan-innovation",
         "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort.",
         "opportunity_type": "reliability",
-        "scan_agent": "scan-innovation",
         "time_to_ship": "medium (concurrency + tests)"
       }
     },
@@ -1349,10 +1349,10 @@
         "RQ-0608"
       ],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current.",
+        "time_to_ship": "medium (metadata + reconciliation + tests)",
         "opportunity_type": "ux improvement",
-        "time_to_ship": "medium (metadata + reconciliation + tests)"
+        "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current.",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -1398,10 +1398,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "time_to_ship": "medium (format + fixes + tests)",
-        "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics.",
         "opportunity_type": "ux improvement",
-        "scan_agent": "scan-innovation"
+        "scan_agent": "scan-innovation",
+        "time_to_ship": "medium (format + fixes + tests)",
+        "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics."
       }
     },
     {
@@ -1445,10 +1445,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "time_to_ship": "small/medium (formatters + tests)",
+        "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat).",
         "opportunity_type": "ux improvement",
-        "scan_agent": "scan-innovation",
-        "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat)."
+        "time_to_ship": "small/medium (formatters + tests)",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -1936,8 +1936,65 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "time_to_ship": "medium (TUI wiring + tests)",
         "user_value": "Fewer context switches: jump from task → code in one keystroke.",
+        "opportunity_type": "ux improvement",
+        "scan_agent": "scan-innovation",
+        "time_to_ship": "medium (TUI wiring + tests)"
+      }
+    },
+    {
+      "id": "RQ-0621",
+      "status": "done",
+      "title": "Add a read-only TUI view for parallel run-loop state (workers, PRs, merge blockers)",
+      "priority": "low",
+      "tags": [
+        "innovation",
+        "tui",
+        "parallel",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/src/tui/",
+        "crates/ralph/src/commands/run/parallel/",
+        "crates/ralph/src/commands/run/parallel/state.rs",
+        "docs/workflow.md",
+        "docs/tui-task-management.md"
+      ],
+      "evidence": [
+        "`docs/workflow.md` states parallel execution is CLI-only and persists state to `.ralph/cache/parallel/state.json` (lines 39-42, 52).",
+        "`crates/ralph/src/commands/run/parallel/state.rs` defines `ParallelStateFile` with `tasks_in_flight`, `prs`, and `finished_without_pr` vectors.",
+        "`ParallelPrRecord` contains `pr_url`, `merge_blocker`, and `lifecycle` fields suitable for TUI display.",
+        "Operators running `ralph run loop --parallel` lack an interactive UI to inspect state, failures, and merge blockers without opening the state JSON manually.",
+        "TUI has established patterns for overlays (see `crates/ralph/src/tui/render/overlays/`) and scrollable containers that can be leveraged."
+      ],
+      "plan": [
+        "Add a TUI screen/overlay to load and render `.ralph/cache/parallel/state.json` with a concise status table (in-flight tasks, PR URLs, merge blockers, last error).",
+        "Keep this view read-only as the minimal slice (no starting/stopping parallel runs from the TUI).",
+        "Add quick actions: open PR URL (shell) and copy PR URL; reload state from disk.",
+        "Add tests for state parsing/render model (unit tests) and ensure missing/invalid state files fail gracefully with guidance.",
+        "Update `docs/tui-task-management.md` with navigation to the parallel state view.",
+        "Verify by running `make ci` and manually simulating a state file to confirm rendering works end-to-end."
+      ],
+      "notes": [
+        "State file structure is well-defined in state.rs with `ParallelStateFile`, `ParallelTaskRecord`, `ParallelPrRecord`, and `ParallelFinishedWithoutPrRecord`.",
+        "TUI already has overlay system in `crates/ralph/src/tui/render/overlays/` that could host this view.",
+        "Consider adding a key binding (e.g., `P` for parallel) in the TUI to open this view when a parallel state file exists.",
+        "Implemented read-only TUI overlay for parallel run state (RQ-0621)",
+        "Added 3 new files: app_parallel_state.rs (576 lines, 23 tests), parallel_state.rs event handler, parallel_state.rs renderer",
+        "Modified 17 files to integrate overlay into TUI (keybindings, rendering, documentation)",
+        "Features: 3 tabs (In-Flight, PRs, Finished Without PR), reload (r), open PR (o/Enter), copy URL (y), graceful missing/invalid state handling",
+        "All 1977+ tests pass, clippy clean, documentation updated"
+      ],
+      "request": "innovation scan finding",
+      "created_at": "2026-02-04T14:58:48Z",
+      "updated_at": "2026-02-05T08:36:26.575212000Z",
+      "completed_at": "2026-02-05T08:36:26.575212000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "time_to_ship": "medium (render-only UI + tests)",
+        "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error.",
         "opportunity_type": "ux improvement",
         "scan_agent": "scan-innovation"
       }

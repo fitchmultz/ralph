@@ -239,6 +239,15 @@ const NORMAL_ACTION_BINDINGS: &[KeyBinding] = &[
         }),
     },
     KeyBinding {
+        keys: &["P"],
+        keys_display: "P",
+        description: "view parallel run state (read-only)",
+        footer_hint: Some(FooterHint {
+            keys: "P",
+            label: "parallel",
+        }),
+    },
+    KeyBinding {
         keys: &["r"],
         keys_display: "r",
         description: "reload queue from disk",
@@ -589,6 +598,28 @@ pub(crate) fn footer_hints_for_mode(mode: &AppMode) -> Vec<FooterHint> {
             keys: "f/Esc",
             label: "close",
         }],
+        AppMode::ParallelStateOverlay { .. } => vec![
+            FooterHint {
+                keys: "Esc/P",
+                label: "close",
+            },
+            FooterHint {
+                keys: "Tab",
+                label: "section",
+            },
+            FooterHint {
+                keys: "r",
+                label: "reload",
+            },
+            FooterHint {
+                keys: "o",
+                label: "open PR",
+            },
+            FooterHint {
+                keys: "y",
+                label: "copy PR",
+            },
+        ],
         _ => Vec::new(),
     }
 }

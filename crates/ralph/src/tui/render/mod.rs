@@ -71,6 +71,7 @@ pub fn draw_ui(f: &mut Frame<'_>, app: &mut App) {
             | AppMode::JumpingToTask(_)
             | AppMode::FlowchartOverlay { .. }
             | AppMode::DependencyGraphOverlay { .. }
+            | AppMode::ParallelStateOverlay { .. }
     );
 
     // Update focus scope based on overlay state
@@ -307,6 +308,11 @@ pub fn draw_ui(f: &mut Frame<'_>, app: &mut App) {
                 *show_dependents,
                 *highlight_critical,
             );
+        }
+
+        // Parallel state overlay.
+        AppMode::ParallelStateOverlay { .. } => {
+            overlays::draw_parallel_state_overlay(f, app, size);
         }
 
         _ => {}

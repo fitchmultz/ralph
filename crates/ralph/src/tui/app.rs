@@ -223,6 +223,8 @@ pub struct App {
     /// Frame number when the help overlay was first shown (for animation).
     /// None when help is not visible or animation has reset.
     help_overlay_start_frame: Option<u64>,
+    /// Parallel state overlay state (lazy-initialized on first use).
+    parallel_state_overlay: Option<crate::tui::app_parallel_state::ParallelStateOverlayState>,
 }
 
 impl App {
@@ -307,6 +309,7 @@ impl App {
             focus_manager: crate::tui::foundation::FocusManager::default(),
             ui_frame: 0,
             help_overlay_start_frame: None,
+            parallel_state_overlay: None,
         };
         app.rebuild_filtered_view();
         app
@@ -2600,6 +2603,13 @@ where
                     }
                     Ok(false)
                 }
+                TuiAction::OpenUrlInBrowser(url) => {
+                    match crate::tui::external_tools::open_url_in_browser(&url) {
+                        Ok(()) => app_ref.set_status_message(format!("Opening URL: {}", url)),
+                        Err(e) => app_ref.set_status_message(format!("Open URL failed: {}", e)),
+                    }
+                    Ok(false)
+                }
             }
         };
 
@@ -2879,6 +2889,263 @@ pub fn prepare_tui_session(
         .and_then(|m| m.modified().ok());
 
     Ok((app, lock))
+}
+
+// Parallel state overlay implementation
+impl App {
+    /// Get or initialize the parallel state overlay state.
+    fn parallel_state_overlay(
+        &mut self,
+    ) -> &mut crate::tui::app_parallel_state::ParallelStateOverlayState {
+        if self.parallel_state_overlay.is_none() {
+            self.parallel_state_overlay =
+                Some(crate::tui::app_parallel_state::ParallelStateOverlayState::new());
+        }
+        self.parallel_state_overlay.as_mut().unwrap()
+    }
+
+    /// Get a reference to the parallel state overlay state (may be None if not initialized).
+    fn parallel_state_overlay_ref(
+        &self,
+    ) -> Option<&crate::tui::app_parallel_state::ParallelStateOverlayState> {
+        self.parallel_state_overlay.as_ref()
+    }
+
+    /// Enter parallel state overlay mode.
+    pub fn enter_parallel_state_overlay(&mut self) {
+        let previous_mode = Box::new(self.mode.clone());
+        self.mode = crate::tui::events::AppMode::ParallelStateOverlay { previous_mode };
+
+        // Initialize overlay state and load from disk
+        self.parallel_state_overlay_reload_from_disk();
+    }
+
+    /// Reload state from disk.
+    pub fn parallel_state_overlay_reload_from_disk(&mut self) {
+        // Get queue_path first to avoid borrow issues
+        let Some(queue_path) = self.queue_path.clone() else {
+            if let Some(overlay) = self.parallel_state_overlay.as_mut() {
+                overlay.clear_snapshot();
+            }
+            return;
+        };
+
+        let Some(repo_root) = crate::tui::external_tools::repo_root_from_queue_path(&queue_path)
+        else {
+            if let Some(overlay) = self.parallel_state_overlay.as_mut() {
+                overlay.clear_snapshot();
+            }
+            return;
+        };
+
+        let overlay = self.parallel_state_overlay();
+
+        let state_path = crate::commands::run::state_file_path(&repo_root);
+
+        match crate::commands::run::load_state(&state_path) {
+            Ok(Some(state)) => {
+                overlay.set_snapshot(
+                    crate::tui::app_parallel_state::ParallelStateOverlaySnapshot::Loaded { state },
+                );
+            }
+            Ok(None) => {
+                overlay.set_snapshot(
+                    crate::tui::app_parallel_state::ParallelStateOverlaySnapshot::Missing {
+                        path: state_path.display().to_string(),
+                    },
+                );
+            }
+            Err(e) => {
+                let error_str = e.to_string();
+                overlay.set_snapshot(
+                    crate::tui::app_parallel_state::ParallelStateOverlaySnapshot::Invalid {
+                        path: state_path.display().to_string(),
+                        error: error_str,
+                    },
+                );
+            }
+        }
+    }
+
+    /// Get the current snapshot.
+    pub fn parallel_state_overlay_snapshot(
+        &self,
+    ) -> crate::tui::app_parallel_state::ParallelStateOverlaySnapshot {
+        match self.parallel_state_overlay_ref() {
+            Some(overlay) => overlay.snapshot().cloned().unwrap_or_else(|| {
+                crate::tui::app_parallel_state::ParallelStateOverlaySnapshot::Missing {
+                    path: "unknown".to_string(),
+                }
+            }),
+            None => crate::tui::app_parallel_state::ParallelStateOverlaySnapshot::Missing {
+                path: "unknown".to_string(),
+            },
+        }
+    }
+
+    /// Get the active tab.
+    pub fn parallel_state_overlay_active_tab(
+        &self,
+    ) -> crate::tui::app_parallel_state::ParallelStateTab {
+        self.parallel_state_overlay_ref()
+            .map(|o| o.active_tab())
+            .unwrap_or_default()
+    }
+
+    /// Get tab counts and active tab.
+    pub fn parallel_state_overlay_tab_counts_and_active(
+        &self,
+    ) -> (
+        crate::tui::app_parallel_state::TabCounts,
+        crate::tui::app_parallel_state::ParallelStateTab,
+    ) {
+        let active_tab = self.parallel_state_overlay_active_tab();
+
+        let mut counts = crate::tui::app_parallel_state::TabCounts::default();
+
+        if let Some(overlay) = self.parallel_state_overlay_ref()
+            && let Some(snapshot) = overlay.snapshot()
+            && let crate::tui::app_parallel_state::ParallelStateOverlaySnapshot::Loaded { state } =
+                snapshot
+        {
+            counts.in_flight = state.tasks_in_flight.len();
+            counts.prs = state.prs.len();
+            counts.finished_without_pr = state.finished_without_pr.len();
+        }
+
+        (counts, active_tab)
+    }
+
+    /// Move to the next tab.
+    pub fn parallel_state_overlay_next_tab(&mut self) {
+        self.parallel_state_overlay().next_tab();
+    }
+
+    /// Move to the previous tab.
+    pub fn parallel_state_overlay_prev_tab(&mut self) {
+        self.parallel_state_overlay().prev_tab();
+    }
+
+    /// Set the visible rows count.
+    pub fn parallel_state_overlay_set_visible_rows(&mut self, rows: usize) {
+        self.parallel_state_overlay().set_visible_rows(rows);
+    }
+
+    /// Scroll up in the content.
+    pub fn parallel_state_overlay_up(&mut self) {
+        let active_tab = self.parallel_state_overlay_active_tab();
+        let overlay = self.parallel_state_overlay();
+
+        match active_tab {
+            crate::tui::app_parallel_state::ParallelStateTab::Prs => {
+                overlay.select_pr_up();
+            }
+            _ => {
+                overlay.scroll_up(1);
+            }
+        }
+    }
+
+    /// Scroll down in the content.
+    pub fn parallel_state_overlay_down(&mut self) {
+        let active_tab = self.parallel_state_overlay_active_tab();
+        let total_items = self.parallel_state_overlay_total_items();
+        let overlay = self.parallel_state_overlay();
+
+        match active_tab {
+            crate::tui::app_parallel_state::ParallelStateTab::Prs => {
+                if let Some(snapshot) = overlay.snapshot()
+                    && let crate::tui::app_parallel_state::ParallelStateOverlaySnapshot::Loaded {
+                        state,
+                    } = snapshot
+                {
+                    overlay.select_pr_down(state.prs.len());
+                }
+            }
+            _ => {
+                overlay.scroll_down(1, total_items);
+            }
+        }
+    }
+
+    /// Page up in the content.
+    pub fn parallel_state_overlay_page_up(&mut self) {
+        self.parallel_state_overlay().page_up();
+    }
+
+    /// Page down in the content.
+    pub fn parallel_state_overlay_page_down(&mut self) {
+        let total_items = self.parallel_state_overlay_total_items();
+        self.parallel_state_overlay().page_down(total_items);
+    }
+
+    /// Scroll to the top.
+    pub fn parallel_state_overlay_top(&mut self) {
+        self.parallel_state_overlay().scroll_top();
+    }
+
+    /// Scroll to the bottom.
+    pub fn parallel_state_overlay_bottom(&mut self) {
+        let total_items = self.parallel_state_overlay_total_items();
+        self.parallel_state_overlay().scroll_bottom(total_items);
+    }
+
+    /// Get the selected PR index.
+    pub fn parallel_state_overlay_selected_pr_index(&self) -> usize {
+        self.parallel_state_overlay_ref()
+            .map(|o| o.selected_pr())
+            .unwrap_or(0)
+    }
+
+    /// Get the PR scroll offset.
+    pub fn parallel_state_overlay_pr_scroll(&self) -> usize {
+        self.parallel_state_overlay_ref()
+            .map(|o| o.scroll())
+            .unwrap_or(0)
+    }
+
+    /// Get the selected PR URL, if any.
+    pub fn parallel_state_overlay_selected_pr_url(&self) -> Option<String> {
+        let overlay = self.parallel_state_overlay_ref()?;
+        let snapshot = overlay.snapshot()?;
+
+        if let crate::tui::app_parallel_state::ParallelStateOverlaySnapshot::Loaded { state } =
+            snapshot
+        {
+            let selected_idx = overlay.selected_pr();
+            state.prs.get(selected_idx).map(|pr| pr.pr_url.clone())
+        } else {
+            None
+        }
+    }
+
+    /// Get the metadata line for display.
+    pub fn parallel_state_overlay_metadata_line(&self, _max_width: usize) -> String {
+        let (counts, _) = self.parallel_state_overlay_tab_counts_and_active();
+        format!(
+            "In-Flight: {} | PRs: {} | Finished w/o PR: {}",
+            counts.in_flight, counts.prs, counts.finished_without_pr
+        )
+    }
+
+    /// Get the footer hint for display.
+    pub fn parallel_state_overlay_footer_hint(&self) -> String {
+        "Esc/P: close | Tab: section | r: reload | ↑↓/j/k: nav | o/Enter: open | y: copy"
+            .to_string()
+    }
+
+    /// Helper to get total items for the active tab.
+    fn parallel_state_overlay_total_items(&self) -> usize {
+        let (counts, active_tab) = self.parallel_state_overlay_tab_counts_and_active();
+
+        match active_tab {
+            crate::tui::app_parallel_state::ParallelStateTab::InFlight => counts.in_flight,
+            crate::tui::app_parallel_state::ParallelStateTab::Prs => counts.prs,
+            crate::tui::app_parallel_state::ParallelStateTab::FinishedWithoutPr => {
+                counts.finished_without_pr
+            }
+        }
+    }
 }
 
 #[cfg(test)]

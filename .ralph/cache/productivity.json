@@ -1,7 +1,7 @@
 {
   "version": 1,
   "first_task_completed_at": "2026-01-30T12:31:17.161199000Z",
-  "last_updated_at": "2026-02-05T07:01:07.075431000Z",
+  "last_updated_at": "2026-02-05T08:42:33.880418000Z",
   "daily": {
     "2026-01-30": {
       "date": "2026-01-30",
@@ -626,7 +626,7 @@
     },
     "2026-02-05": {
       "date": "2026-02-05",
-      "completed_count": 6,
+      "completed_count": 7,
       "tasks": [
         {
           "id": "RQ-0623",
@@ -657,6 +657,11 @@
           "id": "RQ-0620",
           "title": "TUI ergonomics: open task scope targets in $EDITOR and copy file:line references",
           "completed_at": "2026-02-05T07:01:07.075431000Z"
+        },
+        {
+          "id": "RQ-0621",
+          "title": "Add a read-only TUI view for parallel run-loop state (workers, PRs, merge blockers)",
+          "completed_at": "2026-02-05T08:42:33.880418000Z"
         }
       ]
     }
@@ -666,7 +671,7 @@
     "longest_streak": 7,
     "last_completed_date": "2026-02-05"
   },
-  "total_completed": 123,
+  "total_completed": 124,
   "milestones": [
     {
       "threshold": 10,

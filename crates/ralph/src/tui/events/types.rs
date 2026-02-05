@@ -51,6 +51,8 @@ pub enum TuiAction {
     OpenScopeInEditor(Vec<String>),
     /// Copy the provided text to the system clipboard.
     CopyToClipboard(String),
+    /// Open the provided URL in the system browser.
+    OpenUrlInBrowser(String),
 }
 
 /// Actions that can discard unsaved changes.
@@ -147,6 +149,11 @@ pub enum AppMode {
         show_dependents: bool,
         /// Whether to highlight critical path
         highlight_critical: bool,
+    },
+    /// Parallel run state overlay (read-only)
+    ParallelStateOverlay {
+        /// Previous mode to return to when closing
+        previous_mode: Box<AppMode>,
     },
 }
 
@@ -346,6 +353,14 @@ impl PartialEq for AppMode {
                     && left_show_deps == right_show_deps
                     && left_critical == right_critical
             }
+            (
+                ParallelStateOverlay {
+                    previous_mode: left_previous,
+                },
+                ParallelStateOverlay {
+                    previous_mode: right_previous,
+                },
+            ) => left_previous == right_previous,
             _ => false,
         }
     }

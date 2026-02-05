@@ -22,7 +22,7 @@ use std::path::{Path, PathBuf};
 use time::OffsetDateTime;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct ParallelStateFile {
+pub struct ParallelStateFile {
     #[serde(default)]
     pub started_at: String,
     #[serde(default)]
@@ -136,7 +136,7 @@ impl ParallelStateFile {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct ParallelTaskRecord {
+pub struct ParallelTaskRecord {
     pub task_id: String,
     #[serde(alias = "worktree_path")]
     pub workspace_path: String,
@@ -150,7 +150,7 @@ pub(crate) struct ParallelTaskRecord {
 }
 
 impl ParallelTaskRecord {
-    pub fn new(
+    pub(crate) fn new(
         task_id: &str,
         workspace: &WorkspaceSpec,
         pid: u32,
@@ -170,7 +170,7 @@ impl ParallelTaskRecord {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 #[derive(Default)]
-pub(crate) enum ParallelPrLifecycle {
+pub enum ParallelPrLifecycle {
     #[default]
     Open,
     Closed,
@@ -181,7 +181,7 @@ pub(crate) enum ParallelPrLifecycle {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 #[derive(Default)]
-pub(crate) enum ParallelNoPrReason {
+pub enum ParallelNoPrReason {
     #[default]
     Unknown,
     AutoPrDisabled,
@@ -203,7 +203,7 @@ impl ParallelNoPrReason {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct ParallelPrRecord {
+pub struct ParallelPrRecord {
     pub task_id: String,
     pub pr_number: u32,
     pub pr_url: String,
@@ -223,7 +223,11 @@ pub(crate) struct ParallelPrRecord {
 }
 
 impl ParallelPrRecord {
-    pub fn new(task_id: &str, pr: &crate::git::PrInfo, workspace_path: Option<&Path>) -> Self {
+    pub(crate) fn new(
+        task_id: &str,
+        pr: &crate::git::PrInfo,
+        workspace_path: Option<&Path>,
+    ) -> Self {
         Self {
             task_id: task_id.to_string(),
             pr_number: pr.number,
@@ -240,11 +244,11 @@ impl ParallelPrRecord {
     /// Returns true if the PR is open (not merged/closed) and not yet merged.
     /// These represent work already in flight from a prior run that should
     /// count toward max_tasks limits on resume.
-    pub(crate) fn is_open_unmerged(&self) -> bool {
+    pub fn is_open_unmerged(&self) -> bool {
         matches!(self.lifecycle, ParallelPrLifecycle::Open) && !self.merged
     }
 
-    pub fn pr_info(&self, fallback_head: &str, fallback_base: &str) -> crate::git::PrInfo {
+    pub(crate) fn pr_info(&self, fallback_head: &str, fallback_base: &str) -> crate::git::PrInfo {
         let head = self
             .head
             .as_ref()
@@ -274,7 +278,7 @@ impl ParallelPrRecord {
 
 /// Record for a task that finished without a PR record.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct ParallelFinishedWithoutPrRecord {
+pub struct ParallelFinishedWithoutPrRecord {
     pub task_id: String,
     #[serde(alias = "worktree_path")]
     pub workspace_path: String,
@@ -288,7 +292,7 @@ pub(crate) struct ParallelFinishedWithoutPrRecord {
 }
 
 impl ParallelFinishedWithoutPrRecord {
-    pub fn new(
+    pub(crate) fn new(
         task_id: &str,
         workspace: &WorkspaceSpec,
         success: bool,
@@ -349,11 +353,11 @@ fn finished_without_pr_blocker_ttl() -> time::Duration {
     time::Duration::seconds(secs)
 }
 
-pub(crate) fn state_file_path(repo_root: &Path) -> PathBuf {
+pub fn state_file_path(repo_root: &Path) -> PathBuf {
     repo_root.join(".ralph/cache/parallel/state.json")
 }
 
-pub(crate) fn load_state(path: &Path) -> Result<Option<ParallelStateFile>> {
+pub fn load_state(path: &Path) -> Result<Option<ParallelStateFile>> {
     if !path.exists() {
         return Ok(None);
     }

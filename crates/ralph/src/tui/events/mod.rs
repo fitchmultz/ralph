@@ -32,6 +32,7 @@ pub mod flowchart;
 pub mod help;
 pub mod normal;
 pub mod palette;
+pub mod parallel_state;
 pub mod run;
 pub mod scan;
 pub mod search;
@@ -157,6 +158,9 @@ pub fn handle_key_event(
         AppMode::DependencyGraphOverlay { .. } => {
             dependency_graph::handle_dependency_graph_mode_key(app, key)
         }
+        AppMode::ParallelStateOverlay { .. } => {
+            parallel_state::handle_parallel_state_mode_key(app, key)
+        }
     }
 }
 
@@ -266,7 +270,10 @@ pub(super) fn handle_filter_input_key(
 }
 
 fn should_open_help(app: &App, key: &KeyEvent) -> bool {
-    if matches!(app.mode, AppMode::Help | AppMode::FlowchartOverlay { .. }) {
+    if matches!(
+        app.mode,
+        AppMode::Help | AppMode::FlowchartOverlay { .. } | AppMode::ParallelStateOverlay { .. }
+    ) {
         return false;
     }
     if is_plain_char(key, '?') {
