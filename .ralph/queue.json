@@ -2,6 +2,54 @@
   "version": 1,
   "tasks": [
     {
+      "id": "RQ-0630",
+      "status": "todo",
+      "title": "Add support for gpt-5.3-codex runner model as default",
+      "priority": "medium",
+      "tags": [
+        "runner",
+        "codex",
+        "model",
+        "configuration"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts/model.rs",
+        "crates/ralph/src/runner/model.rs",
+        "README.md",
+        "crates/ralph/assets/ralph_readme.md",
+        "docs/configuration.md"
+      ],
+      "evidence": [
+        "User request: Add support for codex runner model 'gpt-5.3-codex' and make it the default",
+        "Current Model enum in contracts/model.rs only defines Gpt52Codex and Gpt52 variants",
+        "Codex runner currently defaults to Model::Gpt52Codex in runner/model.rs",
+        "Validation in runner/model.rs only accepts Gpt52Codex and Gpt52 for codex runner",
+        "Documentation in README.md and .ralph/README.md lists only gpt-5.2-codex and gpt-5.2 as allowed models",
+        "Gpt52Codex is the #[default] variant for Model enum"
+      ],
+      "plan": [
+        "Add Gpt53Codex variant to Model enum in contracts/model.rs",
+        "Add 'gpt-5.3-codex' string parsing in Model::from_str implementation",
+        "Update Model::as_str to return 'gpt-5.3-codex' for the new variant",
+        "Change #[default] attribute from Gpt52Codex to Gpt53Codex",
+        "Update default_model_for_runner for Codex to return Model::Gpt53Codex",
+        "Update normalize_model_for_runner to accept Gpt53Codex for codex runner",
+        "Update validate_model_for_runner to accept Gpt53Codex and update error messages",
+        "Update README.md 'Allowed models by runner' section to include gpt-5.3-codex",
+        "Update crates/ralph/assets/ralph_readme.md to include gpt-5.3-codex",
+        "Update any tests that assert on default model or allowed models",
+        "Run make ci to verify all tests pass"
+      ],
+      "notes": [],
+      "request": "Add support for the codex runner model 'gpt-5.3-codex' and make this the default. Maintain support for 'gpt-5.2-codex' but the 5.3 version is now default. GPT-5.3 has not been released yet but we can also add support for gpt-5.3.",
+      "created_at": "2026-02-05T18:19:04Z",
+      "updated_at": "2026-02-05T18:19:04Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
       "id": "RQ-0604",
       "status": "draft",
       "title": "Add AI-powered task estimation and effort prediction",
@@ -42,10 +90,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
         "user_value": "Improves planning accuracy; sets realistic expectations",
-        "opportunity_type": "feature gap",
-        "measurable_impact": "Estimates within 25% of actual duration after 20 tasks"
+        "scan_agent": "scan-innovation",
+        "measurable_impact": "Estimates within 25% of actual duration after 20 tasks",
+        "opportunity_type": "feature gap"
       }
     },
     {
@@ -61,38 +109,47 @@
       ],
       "scope": [
         "crates/ralph/src/commands/init.rs",
-        "docs/quick-start.md",
-        "docs/tutorial.md"
+        "crates/ralph/src/commands/init/wizard.rs",
+        "crates/ralph/src/tui/app_help.rs",
+        "crates/ralph/src/tui/",
+        "docs/quick-start.md"
       ],
       "evidence": [
-        "Current `ralph init` has basic wizard but limited guidance",
-        "Quick start guide exists but is static documentation",
-        "No interactive tutorial for first-time users",
-        "Complex features (parallel runs, phase overrides) lack guided introduction",
-        "Users learn by trial and error rather than structured guidance"
+        "Current `ralph init` has interactive wizard in `init/wizard.rs` that collects runner, model, phase preferences",
+        "Quick start guide exists at `docs/quick-start.md` with installation and basic usage",
+        "No `docs/tutorial.md` exists - needs to be created for structured tutorial content",
+        "TUI has help system (`app_help.rs`) but no contextual tooltips for first-time users",
+        "Complex features (parallel runs, phase overrides, runner selection) lack guided hands-on introduction",
+        "No `ralph tutorial` command exists for interactive lessons",
+        "Wizard creates first task but doesn't provide structured learning path"
       ],
       "plan": [
-        "Create `ralph tutorial` command with interactive lessons",
-        "Design 5-7 tutorial modules: basics, task creation, running, TUI, advanced",
+        "Create `docs/tutorial.md` with structured tutorial content and modules",
+        "Create `ralph tutorial` command with interactive lessons in new `crates/ralph/src/commands/tutorial.rs`",
+        "Design 5-7 tutorial modules: basics, task creation, running, TUI, advanced features",
         "Add hands-on exercises that create real tasks and execute them",
-        "Implement progress tracking and completion badges",
-        "Add contextual help tooltips in TUI for first-time users",
+        "Implement progress tracking and completion badges in tutorial command",
+        "Add contextual help tooltips in TUI (`app_help.rs`) for first-time users",
         "Create video/gif demonstrations for complex workflows",
         "Add 'tip of the day' feature for discovering features",
         "Verify by running tutorial and completing all modules"
       ],
-      "notes": [],
+      "notes": [
+        "Existing wizard at `init/wizard.rs` provides basic onboarding - can be extended or referenced",
+        "TUI help system at `app_help.rs` provides foundation for contextual help overlays"
+      ],
       "request": "innovation scan finding",
       "created_at": "2026-02-04T12:00:00Z",
-      "updated_at": "2026-02-04T12:00:00Z",
+      "updated_at": "2026-02-05T18:17:24.710079000Z",
+      "started_at": "2026-02-05T18:17:24.710079000Z",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Reduces time-to-productivity from hours to minutes",
         "scan_agent": "scan-innovation",
-        "measurable_impact": "New user success rate >90% within 30 minutes",
-        "opportunity_type": "UX improvement"
+        "opportunity_type": "UX improvement",
+        "user_value": "Reduces time-to-productivity from hours to minutes",
+        "measurable_impact": "New user success rate >90% within 30 minutes"
       }
     },
     {
@@ -135,10 +192,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "feature gap",
-        "measurable_impact": "Auto-detects 30%+ of maintenance tasks",
         "scan_agent": "scan-innovation",
-        "user_value": "Proactively identifies improvement opportunities; reduces manual scanning"
+        "user_value": "Proactively identifies improvement opportunities; reduces manual scanning",
+        "opportunity_type": "feature gap",
+        "measurable_impact": "Auto-detects 30%+ of maintenance tasks"
       }
     },
     {
@@ -181,10 +238,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "user_value": "Enables remote monitoring; integrates with existing workflows",
         "opportunity_type": "integration",
-        "time_to_ship": "incremental - add one channel at a time"
+        "user_value": "Enables remote monitoring; integrates with existing workflows",
+        "time_to_ship": "incremental - add one channel at a time",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -227,10 +284,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "scan_agent": "scan-innovation",
         "user_value": "Identifies bottlenecks; improves Ralph responsiveness",
         "measurable_impact": "50%+ improvement in queue operations for large projects",
-        "opportunity_type": "performance",
-        "scan_agent": "scan-innovation"
+        "opportunity_type": "performance"
       }
     }
   ]
