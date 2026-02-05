@@ -345,6 +345,41 @@ While editing in **single-line inputs** or **textareas**:
 
 ---
 
+## Component Behaviors
+
+### Scrollable Containers (Log/Detail Panels)
+
+When focused:
+- `↑/↓`: scroll up/down by one line
+- `PgUp/PgDn`: scroll up/down by one viewport
+- `Home/End`: jump to top/bottom
+- Mouse wheel: scroll (3 lines per tick)
+- Sticky scroll: auto-follows new content until you scroll up manually
+
+### Select Lists / Dropdowns
+
+When a select list is open:
+- `↑/↓`: move highlight
+- `PgUp/PgDn`: page highlight
+- `Home/End`: jump to first/last item
+- `Enter`: select highlighted item
+- `Esc`: close (or clear filter first, if active)
+- Mouse: click to select, wheel to scroll
+
+If type-to-filter is enabled:
+- Type to filter (case-insensitive substring match)
+- `Backspace`: delete last filter character
+- `Ctrl+U`: clear filter
+
+### Sliders
+
+When focused:
+- `←/→`: adjust by step
+- `PgUp/PgDn`: adjust by page step
+- `Home/End`: jump to min/max
+
+---
+
 ## Known Gaps / Behavioral Differences vs CLI (Current State)
 
 1. **No direct "operate by TASK_ID" targeting**
