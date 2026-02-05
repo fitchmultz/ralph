@@ -149,7 +149,7 @@ Prompt templates support variable interpolation for environment variables and co
 - `{{config.section.key}}` — expand from config (supports nested paths)
 - Supported paths:
   - `{{config.agent.runner}}` — current runner (e.g., `Claude`)
-  - `{{config.agent.model}}` — current model (e.g., `gpt-5.2-codex`)
+  - `{{config.agent.model}}` — current model (e.g., `gpt-5.3-codex`)
   - `{{config.queue.id_prefix}}` — task ID prefix (e.g., `RQ`)
   - `{{config.queue.id_width}}` — task ID width (e.g., `4`)
   - `{{config.project_type}}` — project type (e.g., `Code`)
@@ -231,7 +231,7 @@ Defaults via config (`.ralph/config.json` or `~/.config/ralph/config.json`):
 ```
 
 **Allowed models by runner:**
-- **Codex**: `gpt-5.2-codex`, `gpt-5.2` (only these two)
+- **Codex**: `gpt-5.3-codex`, `gpt-5.3`, `gpt-5.2-codex`, `gpt-5.2` (only these four)
 - **OpenCode**: arbitrary model IDs (e.g., `zai-coding-plan/glm-4.7`)
 - **Gemini**: `gemini-3-pro-preview`, `gemini-3-flash-preview`, or arbitrary IDs
 - **Claude**: `sonnet` (default), `opus`, or arbitrary model IDs

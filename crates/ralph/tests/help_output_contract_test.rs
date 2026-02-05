@@ -52,6 +52,8 @@ fn root_help_mentions_runner_and_models_and_precedence() {
     assert_contains(&combined, "cursor");
 
     assert_contains(&combined, "Allowed models:");
+    assert_contains(&combined, "gpt-5.3-codex");
+    assert_contains(&combined, "gpt-5.3");
     assert_contains(&combined, "gpt-5.2-codex");
     assert_contains(&combined, "gpt-5.2");
     assert_contains(&combined, "zai-coding-plan/glm-4.7");

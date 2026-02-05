@@ -2,293 +2,44 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0630",
+      "id": "RQ-0631",
       "status": "todo",
-      "title": "Add support for gpt-5.3-codex runner model as default",
-      "priority": "medium",
+      "title": "Fix queue validation failure when custom_fields contains numeric values",
+      "priority": "high",
       "tags": [
-        "runner",
-        "codex",
-        "model",
-        "configuration"
+        "bug",
+        "queue",
+        "validation",
+        "custom_fields",
+        "json"
       ],
       "scope": [
-        "crates/ralph/src/contracts/model.rs",
-        "crates/ralph/src/runner/model.rs",
-        "README.md",
-        "crates/ralph/assets/ralph_readme.md",
-        "docs/configuration.md"
+        "crates/ralph/assets/prompts/task_builder.md",
+        "crates/ralph/src/contracts/task.rs",
+        "schemas/queue.schema.json",
+        "docs/queue-and-tasks.md"
       ],
       "evidence": [
-        "User request: Add support for codex runner model 'gpt-5.3-codex' and make it the default",
-        "Current Model enum in contracts/model.rs only defines Gpt52Codex and Gpt52 variants",
-        "Codex runner currently defaults to Model::Gpt52Codex in runner/model.rs",
-        "Validation in runner/model.rs only accepts Gpt52Codex and Gpt52 for codex runner",
-        "Documentation in README.md and .ralph/README.md lists only gpt-5.2-codex and gpt-5.2 as allowed models",
-        "Gpt52Codex is the #[default] variant for Model enum"
+        "Task struct custom_fields is defined as HashMap<String, String> in crates/ralph/src/contracts/task.rs, which only accepts string values.",
+        "Queue schema defines custom_fields with additionalProperties: { type: string } in schemas/queue.schema.json.",
+        "When custom_fields contains numeric values like \"guide_line_count\": 1411, queue validation fails and breaks the ralph run loop after task update phase.",
+        "Error message: 'Run loop aborted after 50 consecutive task failures' caused by systemic validation issue.",
+        "Task builder prompt at crates/ralph/assets/prompts/task_builder.md does not explicitly enforce string-only values for custom_fields."
       ],
       "plan": [
-        "Add Gpt53Codex variant to Model enum in contracts/model.rs",
-        "Add 'gpt-5.3-codex' string parsing in Model::from_str implementation",
-        "Update Model::as_str to return 'gpt-5.3-codex' for the new variant",
-        "Change #[default] attribute from Gpt52Codex to Gpt53Codex",
-        "Update default_model_for_runner for Codex to return Model::Gpt53Codex",
-        "Update normalize_model_for_runner to accept Gpt53Codex for codex runner",
-        "Update validate_model_for_runner to accept Gpt53Codex and update error messages",
-        "Update README.md 'Allowed models by runner' section to include gpt-5.3-codex",
-        "Update crates/ralph/assets/ralph_readme.md to include gpt-5.3-codex",
-        "Update any tests that assert on default model or allowed models",
-        "Run make ci to verify all tests pass"
+        "Update task_builder.md prompt to explicitly require all custom_fields values to be strings (not numbers, booleans, or other types).",
+        "Add JSON safety example in task_builder.md showing correct custom_fields format: all values must be quoted strings.",
+        "Verify the fix by checking that custom_fields with numeric values like 1411 are written as \"1411\" in queue.json.",
+        "Run 'make ci' to ensure all tests pass and queue validation works correctly with string-only custom_fields values."
       ],
       "notes": [],
-      "request": "Add support for the codex runner model 'gpt-5.3-codex' and make this the default. Maintain support for 'gpt-5.2-codex' but the 5.3 version is now default. GPT-5.3 has not been released yet but we can also add support for gpt-5.3.",
-      "created_at": "2026-02-05T18:19:04Z",
-      "updated_at": "2026-02-05T18:19:04Z",
+      "request": "If a task in queue.json has values for a key set as numbers, e.g. \"custom_fields.guide_line_count\": 1411, the queue does not pass validation and breaks the ralph run loop after the task update phase. Either allow numbers or update the task build prompt to enforce strings instead of numbers in the JSON. Error: Run loop aborted after 50 consecutive task failures. This usually indicates a systemic issue (e.g., repo dirty, runner misconfiguration, or interrupt flag stuck). Check logs above for root cause.",
+      "created_at": "2026-02-05T18:27:48Z",
+      "updated_at": "2026-02-05T18:27:48Z",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],
       "custom_fields": {}
-    },
-    {
-      "id": "RQ-0604",
-      "status": "draft",
-      "title": "Add AI-powered task estimation and effort prediction",
-      "priority": "medium",
-      "tags": [
-        "innovation",
-        "ai",
-        "productivity",
-        "estimation"
-      ],
-      "scope": [
-        "crates/ralph/src/eta_calculator.rs",
-        "crates/ralph/src/commands/task/",
-        "docs/workflow.md"
-      ],
-      "evidence": [
-        "Current `eta_calculator.rs` exists but implementation is basic",
-        "No AI-powered estimation based on task content and scope",
-        "Users cannot predict completion times for queue",
-        "Historical task data is not used to improve future estimates",
-        "No integration between estimated and actual duration"
-      ],
-      "plan": [
-        "Extend task schema with `estimated_duration` and `actual_duration` fields",
-        "Implement ML-based estimation using task title, scope, tags, and historical data",
-        "Add `ralph task estimate <TASK_ID>` command using AI runner",
-        "Create estimation model that learns from completed tasks",
-        "Add queue-level ETA: `ralph queue eta` showing predicted completion",
-        "Integrate estimates into TUI showing expected duration",
-        "Add confidence intervals and uncertainty indicators",
-        "Verify by estimating 5 tasks and comparing to actual completion times"
-      ],
-      "notes": [],
-      "request": "innovation scan finding",
-      "created_at": "2026-02-04T12:00:00Z",
-      "updated_at": "2026-02-04T12:00:00Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "user_value": "Improves planning accuracy; sets realistic expectations",
-        "scan_agent": "scan-innovation",
-        "measurable_impact": "Estimates within 25% of actual duration after 20 tasks",
-        "opportunity_type": "feature gap"
-      }
-    },
-    {
-      "id": "RQ-0607",
-      "status": "todo",
-      "title": "Create interactive onboarding tutorial and guided setup",
-      "priority": "medium",
-      "tags": [
-        "innovation",
-        "ux",
-        "onboarding",
-        "docs"
-      ],
-      "scope": [
-        "crates/ralph/src/commands/init.rs",
-        "crates/ralph/src/commands/init/wizard.rs",
-        "crates/ralph/src/tui/app_help.rs",
-        "crates/ralph/src/tui/",
-        "docs/quick-start.md"
-      ],
-      "evidence": [
-        "Current `ralph init` has interactive wizard in `init/wizard.rs` that collects runner, model, phase preferences",
-        "Quick start guide exists at `docs/quick-start.md` with installation and basic usage",
-        "No `docs/tutorial.md` exists - needs to be created for structured tutorial content",
-        "TUI has help system (`app_help.rs`) but no contextual tooltips for first-time users",
-        "Complex features (parallel runs, phase overrides, runner selection) lack guided hands-on introduction",
-        "No `ralph tutorial` command exists for interactive lessons",
-        "Wizard creates first task but doesn't provide structured learning path"
-      ],
-      "plan": [
-        "Create `docs/tutorial.md` with structured tutorial content and modules",
-        "Create `ralph tutorial` command with interactive lessons in new `crates/ralph/src/commands/tutorial.rs`",
-        "Design 5-7 tutorial modules: basics, task creation, running, TUI, advanced features",
-        "Add hands-on exercises that create real tasks and execute them",
-        "Implement progress tracking and completion badges in tutorial command",
-        "Add contextual help tooltips in TUI (`app_help.rs`) for first-time users",
-        "Create video/gif demonstrations for complex workflows",
-        "Add 'tip of the day' feature for discovering features",
-        "Verify by running tutorial and completing all modules"
-      ],
-      "notes": [
-        "Existing wizard at `init/wizard.rs` provides basic onboarding - can be extended or referenced",
-        "TUI help system at `app_help.rs` provides foundation for contextual help overlays"
-      ],
-      "request": "innovation scan finding",
-      "created_at": "2026-02-04T12:00:00Z",
-      "updated_at": "2026-02-05T18:17:24.710079000Z",
-      "started_at": "2026-02-05T18:17:24.710079000Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "opportunity_type": "UX improvement",
-        "user_value": "Reduces time-to-productivity from hours to minutes",
-        "measurable_impact": "New user success rate >90% within 30 minutes"
-      }
-    },
-    {
-      "id": "RQ-0608",
-      "status": "todo",
-      "title": "Implement smart task suggestions from code analysis",
-      "priority": "medium",
-      "tags": [
-        "innovation",
-        "ai",
-        "automation",
-        "code-analysis"
-      ],
-      "scope": [
-        "crates/ralph/src/commands/watch/",
-        "crates/ralph/src/commands/scan.rs"
-      ],
-      "evidence": [
-        "Current `ralph watch` detects TODO/FIXME comments and creates tasks",
-        "No analysis of actual code to suggest improvements",
-        "No detection of code smells, anti-patterns, or technical debt",
-        "Missing integration with static analysis tools (clippy, cargo-audit)",
-        "Users must manually identify refactoring opportunities"
-      ],
-      "plan": [
-        "Extend `ralph watch` with code analysis integration",
-        "Add detection patterns: dead code, complex functions, missing tests",
-        "Integrate with clippy, cargo-audit, cargo-outdated for actionable tasks",
-        "Create `ralph suggest` command for one-time codebase analysis",
-        "Add AI-powered code review suggestions as task candidates",
-        "Implement confidence scoring for suggestions (high/medium/low)",
-        "Add one-click task creation from suggestions in TUI",
-        "Verify by running `ralph suggest` and checking relevant tasks are proposed"
-      ],
-      "notes": [],
-      "request": "innovation scan finding",
-      "created_at": "2026-02-04T12:00:00Z",
-      "updated_at": "2026-02-04T12:00:00Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "user_value": "Proactively identifies improvement opportunities; reduces manual scanning",
-        "opportunity_type": "feature gap",
-        "measurable_impact": "Auto-detects 30%+ of maintenance tasks"
-      }
-    },
-    {
-      "id": "RQ-0610",
-      "status": "todo",
-      "title": "Implement configurable notification and webhook system",
-      "priority": "low",
-      "tags": [
-        "innovation",
-        "integration",
-        "notifications",
-        "automation"
-      ],
-      "scope": [
-        "crates/ralph/src/commands/run/supervision/notify.rs",
-        "docs/configuration.md"
-      ],
-      "evidence": [
-        "Current notification system is basic with desktop notifications only",
-        "`agent.notification` config exists but limited to on/off toggles",
-        "No webhook support for external integrations",
-        "Users cannot receive notifications on mobile or via Slack/Discord",
-        "No custom notification rules based on task properties"
-      ],
-      "plan": [
-        "Extend notification system with webhook support (Slack, Discord, Teams)",
-        "Add `ralph notify config` command for easy setup",
-        "Implement notification templates with variable substitution",
-        "Add conditional notifications: by priority, tag, or status",
-        "Create mobile push notification via webhook bridge",
-        "Add notification batching to reduce spam",
-        "Implement quiet hours and do-not-disturb mode",
-        "Verify by configuring Slack webhook and confirming notifications arrive"
-      ],
-      "notes": [],
-      "request": "innovation scan finding",
-      "created_at": "2026-02-04T12:00:00Z",
-      "updated_at": "2026-02-04T12:00:00Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "opportunity_type": "integration",
-        "user_value": "Enables remote monitoring; integrates with existing workflows",
-        "time_to_ship": "incremental - add one channel at a time",
-        "scan_agent": "scan-innovation"
-      }
-    },
-    {
-      "id": "RQ-0611",
-      "status": "todo",
-      "title": "Add performance profiling and optimization insights",
-      "priority": "low",
-      "tags": [
-        "innovation",
-        "performance",
-        "optimization",
-        "analytics"
-      ],
-      "scope": [
-        "crates/ralph/src/",
-        "docs/configuration.md"
-      ],
-      "evidence": [
-        "No performance profiling of Ralph itself",
-        "Users cannot identify slow operations or bottlenecks",
-        "No metrics on queue operations, git operations, or runner startup",
-        "Large queues may have unknown performance issues",
-        "No optimization suggestions based on usage patterns"
-      ],
-      "plan": [
-        "Add `--profile` flag to enable performance tracing",
-        "Implement timing instrumentation for all major operations",
-        "Create `ralph doctor --performance` to diagnose bottlenecks",
-        "Add queue performance metrics: load time, search speed, validation time",
-        "Generate performance reports: `ralph report performance`",
-        "Add optimization suggestions based on queue size and structure",
-        "Implement caching for expensive operations (dependency graph, validation)",
-        "Verify by running with --profile and checking performance data is collected"
-      ],
-      "notes": [],
-      "request": "innovation scan finding",
-      "created_at": "2026-02-04T12:00:00Z",
-      "updated_at": "2026-02-04T12:00:00Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "user_value": "Identifies bottlenecks; improves Ralph responsiveness",
-        "measurable_impact": "50%+ improvement in queue operations for large projects",
-        "opportunity_type": "performance"
-      }
     }
   ]
 }

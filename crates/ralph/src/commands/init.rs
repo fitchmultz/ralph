@@ -202,7 +202,7 @@ mod tests {
         assert_eq!(report.config_status, FileInitStatus::Created);
         assert!(matches!(
             report.readme_status,
-            Some((FileInitStatus::Created, Some(4)))
+            Some((FileInitStatus::Created, Some(5)))
         ));
         let queue = crate::queue::load_queue(&resolved.queue_path)?;
         assert_eq!(queue.version, 1);
@@ -309,7 +309,7 @@ mod tests {
         assert_eq!(report.config_status, FileInitStatus::Valid);
         assert!(matches!(
             report.readme_status,
-            Some((FileInitStatus::Created, Some(4)))
+            Some((FileInitStatus::Created, Some(5)))
         ));
         let raw = std::fs::read_to_string(&resolved.queue_path)?;
         assert!(raw.contains("Keep"));
@@ -343,7 +343,7 @@ mod tests {
         assert_eq!(report.config_status, FileInitStatus::Created);
         assert!(matches!(
             report.readme_status,
-            Some((FileInitStatus::Created, Some(4)))
+            Some((FileInitStatus::Created, Some(5)))
         ));
         let cfg_raw = std::fs::read_to_string(resolved.project_config_path.as_ref().unwrap())?;
         let cfg: Config = serde_json::from_str(&cfg_raw)?;
@@ -544,7 +544,7 @@ mod tests {
 
         let wizard_answers = WizardAnswers {
             runner: crate::contracts::Runner::Codex,
-            model: "gpt-5.2-codex".to_string(),
+            model: "gpt-5.3-codex".to_string(),
             phases: 2,
             create_first_task: true,
             first_task_title: Some("Test task".to_string()),
@@ -626,7 +626,7 @@ mod tests {
         // README should be updated
         assert!(matches!(
             report.readme_status,
-            Some((FileInitStatus::Updated, Some(4)))
+            Some((FileInitStatus::Updated, Some(5)))
         ));
 
         // Content should be new

@@ -44,7 +44,7 @@ impl From<ColorArg> for ColorOption {
 Examples:\n\
  ralph tui\n\
  ralph tui --read-only\n\
- ralph tui --runner codex --model gpt-5.2-codex --effort high\n\
+ ralph tui --runner codex --model gpt-5.3-codex --effort high\n\
  ralph tui --runner claude --model opus\n\
  ralph tui --runner opencode --model gpt-5.2\n\
  ralph tui --no-mouse\n\

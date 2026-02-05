@@ -1298,13 +1298,11 @@
       "completed_at": "2026-02-04T18:03:53.010190000Z",
       "depends_on": [],
       "blocks": [],
-      "relates_to": [
-        "RQ-0610"
-      ],
+      "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "reliability",
-        "time_to_ship": "medium (concurrency + tests)",
         "scan_agent": "scan-innovation",
+        "time_to_ship": "medium (concurrency + tests)",
+        "opportunity_type": "reliability",
         "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort."
       }
     },
@@ -1345,12 +1343,10 @@
       "completed_at": "2026-02-04T18:46:41.652951000Z",
       "depends_on": [],
       "blocks": [],
-      "relates_to": [
-        "RQ-0608"
-      ],
+      "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "ux improvement",
         "time_to_ship": "medium (metadata + reconciliation + tests)",
+        "opportunity_type": "ux improvement",
         "scan_agent": "scan-innovation",
         "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current."
       }
@@ -1399,8 +1395,8 @@
       "relates_to": [],
       "custom_fields": {
         "time_to_ship": "medium (format + fixes + tests)",
-        "scan_agent": "scan-innovation",
         "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics.",
+        "scan_agent": "scan-innovation",
         "opportunity_type": "ux improvement"
       }
     },
@@ -1445,10 +1441,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
         "opportunity_type": "ux improvement",
         "time_to_ship": "small/medium (formatters + tests)",
-        "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat)."
+        "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat).",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -1936,10 +1932,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Fewer context switches: jump from task → code in one keystroke.",
+        "time_to_ship": "medium (TUI wiring + tests)",
         "scan_agent": "scan-innovation",
-        "opportunity_type": "ux improvement",
-        "time_to_ship": "medium (TUI wiring + tests)"
+        "user_value": "Fewer context switches: jump from task → code in one keystroke.",
+        "opportunity_type": "ux improvement"
       }
     },
     {
@@ -1993,10 +1989,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "time_to_ship": "medium (render-only UI + tests)",
-        "scan_agent": "scan-innovation",
+        "opportunity_type": "ux improvement",
         "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error.",
-        "opportunity_type": "ux improvement"
+        "time_to_ship": "medium (render-only UI + tests)",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -2051,9 +2047,9 @@
       "relates_to": [],
       "custom_fields": {
         "opportunity_type": "feature gap",
-        "scan_agent": "scan-innovation",
+        "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types",
         "measurable_impact": "Track 20%+ improvement in task completion velocity after adoption",
-        "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types"
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -2110,10 +2106,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Reduces queue maintenance time by 80% for large projects",
-        "opportunity_type": "UX improvement",
         "time_to_ship": "incremental - add one batch operation at a time",
-        "scan_agent": "scan-innovation"
+        "scan_agent": "scan-innovation",
+        "opportunity_type": "UX improvement",
+        "user_value": "Reduces queue maintenance time by 80% for large projects"
       }
     },
     {
@@ -2170,8 +2166,8 @@
       "relates_to": [],
       "custom_fields": {
         "opportunity_type": "reliability",
-        "scan_agent": "scan-innovation",
         "user_value": "Reduces regression risk; enables confident refactoring",
+        "scan_agent": "scan-innovation",
         "measurable_impact": "80%+ integration test coverage for CLI commands"
       }
     },
@@ -2235,10 +2231,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
+        "user_value": "Enables ecosystem growth; custom integrations without forks",
         "differentiation": "Unique capability among AI task runners",
-        "opportunity_type": "feature gap",
-        "user_value": "Enables ecosystem growth; custom integrations without forks"
+        "scan_agent": "scan-innovation",
+        "opportunity_type": "feature gap"
       }
     },
     {
@@ -2289,6 +2285,81 @@
       "updated_at": "2026-02-05T17:59:05.196050000Z",
       "completed_at": "2026-02-05T17:59:05.196050000Z",
       "started_at": "2026-02-05T16:33:25.310218000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0630",
+      "status": "done",
+      "title": "Add support for gpt-5.3-codex runner model as default",
+      "priority": "medium",
+      "tags": [
+        "runner",
+        "codex",
+        "model",
+        "configuration",
+        "docs",
+        "cli",
+        "tests"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts/model.rs",
+        "crates/ralph/src/runner/model.rs",
+        "crates/ralph/src/agent/args.rs",
+        "crates/ralph/src/cli/mod.rs",
+        "crates/ralph/src/cli/run.rs",
+        "crates/ralph/src/cli/scan.rs",
+        "crates/ralph/src/cli/task/args.rs",
+        "crates/ralph/src/cli/tui.rs",
+        "crates/ralph/src/commands/init.rs",
+        "crates/ralph/src/commands/init/wizard.rs",
+        "crates/ralph/src/commands/init/writers.rs",
+        "crates/ralph/src/commands/run/parallel/args.rs",
+        "crates/ralph/src/tui/events/task_builder.rs",
+        "crates/ralph/tests/help_output_contract_test.rs",
+        "crates/ralph/tests/run_cli_overrides_contract_test.rs",
+        "README.md",
+        ".ralph/README.md",
+        "crates/ralph/assets/ralph_readme.md",
+        "docs/configuration.md",
+        "docs/cli.md",
+        "docs/quick-start.md",
+        "docs/queue-and-tasks.md",
+        "docs/tui-task-management.md"
+      ],
+      "evidence": [
+        "Model enum defaults to Gpt52Codex and only recognizes gpt-5.2-codex/gpt-5.2 (no gpt-5.3-codex) in crates/ralph/src/contracts/model.rs.",
+        "Codex runner defaults/normalization/validation are restricted to gpt-5.2-codex and gpt-5.2, with error messages listing only those models in crates/ralph/src/runner/model.rs.",
+        "Init wizard choices and config/test fixtures still use gpt-5.2-codex as the Codex model in crates/ralph/src/commands/init/wizard.rs, crates/ralph/src/commands/init.rs, and crates/ralph/src/commands/init/writers.rs.",
+        "CLI help text enumerates allowed models including only gpt-5.2-codex/gpt-5.2 in crates/ralph/src/agent/args.rs, crates/ralph/src/cli/mod.rs, crates/ralph/src/cli/run.rs, and crates/ralph/src/cli/scan.rs.",
+        "Docs and embedded READMEs list Codex models as gpt-5.2-codex/gpt-5.2 in README.md, .ralph/README.md, crates/ralph/assets/ralph_readme.md, docs/configuration.md, and docs/quick-start.md.",
+        "Help output contract test asserts gpt-5.2-codex and gpt-5.2 appear in CLI help in crates/ralph/tests/help_output_contract_test.rs."
+      ],
+      "plan": [
+        "Add a Gpt53Codex variant to Model in crates/ralph/src/contracts/model.rs, update parsing/serialization, and switch the default variant to Gpt53Codex with new unit tests.",
+        "Update Codex defaults/normalization/validation in crates/ralph/src/runner/model.rs to allow gpt-5.3-codex and make it the Codex default; refresh error messages and tests.",
+        "Update CLI help strings and allowed-model lists to include gpt-5.3-codex (while keeping gpt-5.2-codex) in crates/ralph/src/agent/args.rs, crates/ralph/src/cli/mod.rs, crates/ralph/src/cli/run.rs, crates/ralph/src/cli/scan.rs, crates/ralph/src/cli/task/args.rs, crates/ralph/src/cli/tui.rs, and crates/ralph/src/commands/run/parallel/args.rs.",
+        "Update init defaults and wizard model options to prefer gpt-5.3-codex in crates/ralph/src/commands/init.rs, crates/ralph/src/commands/init/wizard.rs, and crates/ralph/src/commands/init/writers.rs, with matching test updates.",
+        "Update TUI task builder model parsing/mapping to recognize gpt-5.3-codex in crates/ralph/src/tui/events/task_builder.rs.",
+        "Refresh documentation and embedded README content to list gpt-5.3-codex as the Codex default (and gpt-5.2-codex as supported) in README.md, .ralph/README.md, crates/ralph/assets/ralph_readme.md, docs/configuration.md, docs/cli.md, docs/quick-start.md, docs/queue-and-tasks.md, and docs/tui-task-management.md.",
+        "Update CLI/help contract tests to cover gpt-5.3-codex and keep gpt-5.2-codex coverage in crates/ralph/tests/help_output_contract_test.rs and crates/ralph/tests/run_cli_overrides_contract_test.rs.",
+        "Run make ci."
+      ],
+      "notes": [
+        "Model identifiers appear in both CLI/TUI help strings and docs; update those surfaces alongside code defaults to keep help output and examples aligned.",
+        "Added Gpt53Codex and Gpt53 variants to Model enum with Gpt53Codex as default",
+        "Updated Codex runner defaults, normalization, and validation to support all four models (gpt-5.3-codex, gpt-5.3, gpt-5.2-codex, gpt-5.2)",
+        "Updated CLI help text, init wizard, TUI task builder, and all documentation",
+        "Updated help output and CLI override contract tests",
+        "Fixed outdated Codex model list in .ralph/README.md and ralph_readme.md"
+      ],
+      "request": "Add support for the codex runner model 'gpt-5.3-codex' and make this the default. Maintain support for 'gpt-5.2-codex' but the 5.3 version is now default. GPT-5.3 has not been released yet but we can also add support for gpt-5.3.",
+      "created_at": "2026-02-05T18:19:04Z",
+      "updated_at": "2026-02-05T19:28:48.787396000Z",
+      "completed_at": "2026-02-05T19:28:48.787396000Z",
+      "started_at": "2026-02-05T18:24:38.857490000Z",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],

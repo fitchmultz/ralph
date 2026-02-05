@@ -526,7 +526,7 @@ Examples:
 ```bash
 ralph tui
 ralph tui --read-only
-ralph tui --runner codex --model gpt-5.2-codex --effort high
+ralph tui --runner codex --model gpt-5.3-codex --effort high
 ```
 
 ### Terminal Compatibility
@@ -2506,7 +2506,7 @@ Examples:
 
 ```bash
 ralph tui --runner claude --model opus
-ralph run one --runner codex --model gpt-5.2-codex --effort high
+ralph run one --runner codex --model gpt-5.3-codex --effort high
 ```
 
 ## Run-Specific Flags

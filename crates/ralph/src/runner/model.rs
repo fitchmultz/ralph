@@ -23,14 +23,14 @@ use crate::contracts::{Model, ReasoningEffort, Runner};
 
 pub(crate) fn default_model_for_runner(runner: &Runner) -> Model {
     match runner {
-        Runner::Codex => Model::Gpt52Codex,
+        Runner::Codex => Model::Gpt53Codex,
         Runner::Opencode => Model::Glm47,
         Runner::Gemini => Model::Custom(DEFAULT_GEMINI_MODEL.to_string()),
         Runner::Cursor => Model::Custom(DEFAULT_CURSOR_MODEL.to_string()),
         Runner::Claude => Model::Custom(DEFAULT_CLAUDE_MODEL.to_string()),
         Runner::Kimi => Model::Custom("kimi-for-coding".to_string()),
-        Runner::Pi => Model::Custom("gpt-5.2".to_string()),
-        Runner::Plugin(_) => Model::Custom("gpt-5.2".to_string()),
+        Runner::Pi => Model::Custom("gpt-5.3".to_string()),
+        Runner::Plugin(_) => Model::Custom("gpt-5.3".to_string()),
     }
 }
 
@@ -93,10 +93,10 @@ pub(super) fn resolve_model_for_phase(
 fn normalize_model_for_runner(runner: &Runner, model: Model) -> Model {
     if runner == &Runner::Codex {
         match model {
-            Model::Gpt52Codex | Model::Gpt52 => model,
+            Model::Gpt53Codex | Model::Gpt53 | Model::Gpt52Codex | Model::Gpt52 => model,
             _ => default_model_for_runner(runner),
         }
-    } else if model == Model::Gpt52Codex {
+    } else if matches!(model, Model::Gpt53Codex | Model::Gpt52Codex) {
         default_model_for_runner(runner)
     } else {
         model
@@ -106,12 +106,12 @@ fn normalize_model_for_runner(runner: &Runner, model: Model) -> Model {
 pub(crate) fn validate_model_for_runner(runner: &Runner, model: &Model) -> Result<()> {
     if runner == &Runner::Codex {
         match model {
-            Model::Gpt52Codex | Model::Gpt52 => {}
+            Model::Gpt53Codex | Model::Gpt53 | Model::Gpt52Codex | Model::Gpt52 => {}
             Model::Glm47 => {
                 bail!("model zai-coding-plan/glm-4.7 is not supported for codex runner")
             }
             Model::Custom(name) => bail!(
-                "model {} is not supported for codex runner (allowed: gpt-5.2-codex, gpt-5.2)",
+                "model {} is not supported for codex runner (allowed: gpt-5.3-codex, gpt-5.3, gpt-5.2-codex, gpt-5.2)",
                 name
             ),
         }
@@ -156,7 +156,7 @@ mod tests {
         let err = validate_model_for_runner(&Runner::Codex, &model).unwrap_err();
         let msg = format!("{err:#}");
         assert!(msg.contains("gemini-3-pro-preview"));
-        assert!(msg.contains("gpt-5.2-codex"));
+        assert!(msg.contains("gpt-5.3-codex"));
     }
 
     #[test]
@@ -181,7 +181,7 @@ mod tests {
             Some(Model::Custom("sonnet".to_string())),
             false,
         );
-        assert_eq!(model, Model::Gpt52Codex);
+        assert_eq!(model, Model::Gpt53Codex);
     }
 
     #[test]
@@ -193,7 +193,7 @@ mod tests {
             None,
             false,
         );
-        assert_eq!(model, Model::Gpt52Codex);
+        assert_eq!(model, Model::Gpt53Codex);
     }
 
     #[test]
@@ -229,7 +229,7 @@ mod tests {
     #[test]
     fn resolve_model_for_runner_defaults_for_pi() {
         let model = resolve_model_for_runner(&Runner::Pi, None, None, None, false);
-        assert_eq!(model.as_str(), "gpt-5.2");
+        assert_eq!(model.as_str(), "gpt-5.3");
     }
 
     #[test]
@@ -272,7 +272,20 @@ mod tests {
     #[test]
     fn resolve_model_for_runner_no_override_uses_config_model() {
         let model =
-            resolve_model_for_runner(&Runner::Codex, None, None, Some(Model::Gpt52Codex), false);
-        assert_eq!(model, Model::Gpt52Codex);
+            resolve_model_for_runner(&Runner::Codex, None, None, Some(Model::Gpt53Codex), false);
+        assert_eq!(model, Model::Gpt53Codex);
+    }
+
+    #[test]
+    fn validate_model_for_runner_accepts_gpt53_for_codex() {
+        assert!(validate_model_for_runner(&Runner::Codex, &Model::Gpt53Codex).is_ok());
+        assert!(validate_model_for_runner(&Runner::Codex, &Model::Gpt53).is_ok());
+    }
+
+    #[test]
+    fn validate_model_for_runner_accepts_gpt52_for_codex() {
+        // Keep compatibility test for GPT-5.2 models
+        assert!(validate_model_for_runner(&Runner::Codex, &Model::Gpt52Codex).is_ok());
+        assert!(validate_model_for_runner(&Runner::Codex, &Model::Gpt52).is_ok());
     }
 }

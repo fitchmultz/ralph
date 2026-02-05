@@ -70,7 +70,7 @@ Notes:
   },
   "agent": {
     "runner": "codex",
-    "model": "gpt-5.2-codex",
+    "model": "gpt-5.3-codex",
     "model_effort": "high",
     "iterations": 2,
     "followup_reasoning_effort": "low"

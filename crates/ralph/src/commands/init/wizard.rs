@@ -207,8 +207,10 @@ fn select_model(runner: &Runner) -> Result<String> {
             ("custom", "Other model (specify)"),
         ],
         Runner::Codex => vec![
-            ("gpt-5.2-codex", "Codex optimized for coding (recommended)"),
-            ("gpt-5.2", "General GPT-5.2"),
+            ("gpt-5.3-codex", "Codex optimized for coding (recommended)"),
+            ("gpt-5.3", "General GPT-5.3"),
+            ("gpt-5.2-codex", "Codex optimized for coding (legacy)"),
+            ("gpt-5.2", "General GPT-5.2 (legacy)"),
             ("custom", "Other model (specify)"),
         ],
         Runner::Gemini => vec![

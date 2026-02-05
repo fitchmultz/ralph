@@ -170,19 +170,19 @@ Defaults and config:
   "version": 1,
   "agent": {
     "runner": "pi",
-    "model": "gpt-5.2",
+    "model": "gpt-5.3",
     "phases": 3
   }
 }
 ```
 
 **Allowed models by runner:**
-- **Codex**: `gpt-5.2-codex`, `gpt-5.2` (only these two)
+- **Codex**: `gpt-5.3-codex`, `gpt-5.3`, `gpt-5.2-codex`, `gpt-5.2` (codex only supports these four)
 - **OpenCode**: arbitrary model IDs (e.g., `zai-coding-plan/glm-4.7`)
 - **Gemini**: `gemini-3-pro-preview`, `gemini-3-flash-preview`, or arbitrary IDs
 - **Claude**: `sonnet` (default), `opus`, or arbitrary model IDs
 - **Kimi**: `kimi-for-coding` (default, Kimi 2.5 coding model), or arbitrary model IDs
-- **Pi**: `gpt-5.2` (default), or arbitrary model IDs
+- **Pi**: `gpt-5.3` (default), or arbitrary model IDs
 
 ### RepoPrompt Integration
 Ralph can independently require RepoPrompt planning and tooling reminders. Configure `repoprompt_plan_required` to inject the Phase 1 planning instructions, and `repoprompt_tool_injection` to inject RepoPrompt tooling reminders in prompts. CLI `--repo-prompt <tools|plan|off>` (alias: `-rp`) controls both flags together. Breaking change: `--rp-on/--rp-off` were removed in favor of `--repo-prompt`.

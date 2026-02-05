@@ -154,7 +154,7 @@ pub mod paths {
 /// Version constants for schemas and templates.
 pub mod versions {
     /// README template version.
-    pub const README_VERSION: u32 = 4;
+    pub const README_VERSION: u32 = 5;
 
     /// Session state schema version.
     pub const SESSION_STATE_VERSION: u32 = 1;

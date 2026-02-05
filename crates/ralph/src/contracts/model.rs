@@ -14,6 +14,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum Model {
     #[default]
+    Gpt53Codex,
+    Gpt53,
     Gpt52Codex,
     Gpt52,
     Glm47,
@@ -42,6 +44,8 @@ impl<'de> Deserialize<'de> for Model {
 impl Model {
     pub fn as_str(&self) -> &str {
         match self {
+            Model::Gpt53Codex => "gpt-5.3-codex",
+            Model::Gpt53 => "gpt-5.3",
             Model::Gpt52Codex => "gpt-5.2-codex",
             Model::Gpt52 => "gpt-5.2",
             Model::Glm47 => "zai-coding-plan/glm-4.7",
@@ -59,6 +63,8 @@ impl std::str::FromStr for Model {
             return Err("model cannot be empty");
         }
         Ok(match trimmed {
+            "gpt-5.3-codex" => Model::Gpt53Codex,
+            "gpt-5.3" => Model::Gpt53,
             "gpt-5.2-codex" => Model::Gpt52Codex,
             "gpt-5.2" => Model::Gpt52,
             "zai-coding-plan/glm-4.7" => Model::Glm47,
@@ -125,6 +131,8 @@ mod tests {
 
     #[test]
     fn model_parses_known_variants() {
+        assert_eq!("gpt-5.3-codex".parse::<Model>().unwrap(), Model::Gpt53Codex);
+        assert_eq!("gpt-5.3".parse::<Model>().unwrap(), Model::Gpt53);
         assert_eq!("gpt-5.2-codex".parse::<Model>().unwrap(), Model::Gpt52Codex);
         assert_eq!("gpt-5.2".parse::<Model>().unwrap(), Model::Gpt52);
         assert_eq!(
@@ -149,6 +157,10 @@ mod tests {
 
     #[test]
     fn model_serializes_to_string() {
+        let model = Model::Gpt53Codex;
+        let json = serde_json::to_string(&model).unwrap();
+        assert_eq!(json, "\"gpt-5.3-codex\"");
+
         let model = Model::Gpt52Codex;
         let json = serde_json::to_string(&model).unwrap();
         assert_eq!(json, "\"gpt-5.2-codex\"");

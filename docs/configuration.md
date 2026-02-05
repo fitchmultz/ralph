@@ -124,7 +124,7 @@ Example:
   "version": 1,
   "agent": {
     "runner": "codex",
-    "model": "gpt-5.2-codex",
+    "model": "gpt-5.3-codex",
     "phases": 3,
     "iterations": 2,
     "reasoning_effort": "high",
@@ -191,7 +191,7 @@ Each phase config can specify:
 {
   "agent": {
     "runner": "codex",
-    "model": "gpt-5.2-codex",
+    "model": "gpt-5.3-codex",
     "reasoning_effort": "medium",
     "phase_overrides": {
       "phase1": {
@@ -204,7 +204,7 @@ Each phase config can specify:
       },
       "phase3": {
         "runner": "codex",
-        "model": "gpt-5.2-codex",
+        "model": "gpt-5.3-codex",
         "reasoning_effort": "high"
       }
     }

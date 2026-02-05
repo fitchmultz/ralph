@@ -306,12 +306,7 @@ fn parse_model(value: &str) -> anyhow::Result<Model> {
     if trimmed.is_empty() {
         anyhow::bail!("model cannot be empty");
     }
-    Ok(match trimmed {
-        "gpt-5.2-codex" => Model::Gpt52Codex,
-        "gpt-5.2" => Model::Gpt52,
-        "zai-coding-plan/glm-4.7" => Model::Glm47,
-        other => Model::Custom(other.to_string()),
-    })
+    trimmed.parse::<Model>().map_err(|err| anyhow::anyhow!(err))
 }
 
 #[cfg(test)]
@@ -364,6 +359,11 @@ mod tests {
 
     #[test]
     fn test_parse_model() {
+        assert!(matches!(
+            parse_model("gpt-5.3-codex").unwrap(),
+            Model::Gpt53Codex
+        ));
+        assert!(matches!(parse_model("gpt-5.3").unwrap(), Model::Gpt53));
         assert!(matches!(
             parse_model("gpt-5.2-codex").unwrap(),
             Model::Gpt52Codex

@@ -56,8 +56,8 @@ pub struct AgentArgs {
     pub runner: Option<String>,
 
     /// Model override for this invocation. Overrides task.agent and config.
-    /// Allowed: gpt-5.2-codex, gpt-5.2, zai-coding-plan/glm-4.7, gemini-3-pro-preview, gemini-3-flash-preview, sonnet, opus
-    /// (codex supports only gpt-5.2-codex/gpt-5.2; opencode/gemini/claude/cursor accept arbitrary model ids).
+    /// Allowed: gpt-5.3-codex, gpt-5.3, gpt-5.2-codex, gpt-5.2, zai-coding-plan/glm-4.7, gemini-3-pro-preview, gemini-3-flash-preview, sonnet, opus, kimi-for-coding
+    /// (codex supports only gpt-5.3-codex/gpt-5.3/gpt-5.2-codex/gpt-5.2; opencode/gemini/claude/cursor/kimi/pi accept arbitrary model ids).
     #[arg(long)]
     pub model: Option<String>,
 
@@ -83,8 +83,8 @@ pub struct RunAgentArgs {
     pub runner: Option<String>,
 
     /// Model override for this invocation. Overrides task.agent and config.
-    /// Allowed: gpt-5.2-codex, gpt-5.2, zai-coding-plan/glm-4.7, gemini-3-pro-preview, gemini-3-flash-preview, sonnet, opus
-    /// (codex supports only gpt-5.2-codex/gpt-5.2; opencode/gemini/claude/cursor accept arbitrary model ids).
+    /// Allowed: gpt-5.3-codex, gpt-5.3, gpt-5.2-codex, gpt-5.2, zai-coding-plan/glm-4.7, gemini-3-pro-preview, gemini-3-flash-preview, sonnet, opus, kimi-for-coding
+    /// (codex supports only gpt-5.3-codex/gpt-5.3/gpt-5.2-codex/gpt-5.2; opencode/gemini/claude/cursor/kimi/pi accept arbitrary model ids).
     #[arg(long)]
     pub model: Option<String>,
 

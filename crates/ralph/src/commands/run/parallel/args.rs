@@ -274,7 +274,7 @@ mod tests {
     fn build_override_args_emits_expected_flags() {
         let overrides = AgentOverrides {
             runner: Some(Runner::Codex),
-            model: Some(crate::contracts::Model::Gpt52),
+            model: Some(crate::contracts::Model::Gpt53),
             reasoning_effort: Some(ReasoningEffort::High),
             phases: Some(2),
             repoprompt_plan_required: Some(true),
@@ -295,7 +295,7 @@ mod tests {
             "--runner",
             "codex",
             "--model",
-            "gpt-5.2",
+            "gpt-5.3",
             "--effort",
             "high",
             "--phases",
@@ -378,12 +378,12 @@ mod tests {
         let overrides = PhaseOverrides {
             phase1: Some(PhaseOverrideConfig {
                 runner: Some(Runner::Codex),
-                model: Some(crate::contracts::Model::Gpt52Codex),
+                model: Some(crate::contracts::Model::Gpt53Codex),
                 reasoning_effort: Some(ReasoningEffort::Low),
             }),
             phase2: Some(PhaseOverrideConfig {
                 runner: Some(Runner::Claude),
-                model: Some(crate::contracts::Model::Gpt52),
+                model: Some(crate::contracts::Model::Gpt53),
                 reasoning_effort: Some(ReasoningEffort::Medium),
             }),
             phase3: Some(PhaseOverrideConfig {
@@ -402,13 +402,13 @@ mod tests {
             "--runner-phase1",
             "codex",
             "--model-phase1",
-            "gpt-5.2-codex",
+            "gpt-5.3-codex",
             "--effort-phase1",
             "low",
             "--runner-phase2",
             "claude",
             "--model-phase2",
-            "gpt-5.2",
+            "gpt-5.3",
             "--effort-phase2",
             "medium",
             "--runner-phase3",

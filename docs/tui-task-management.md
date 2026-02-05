@@ -88,7 +88,7 @@ In **Execution view** (while a task is running):
    - **Tags hint**: Comma-separated tags to suggest for the new task
    - **Scope hint**: Scope is a starting point, not a restriction; comma-separated scope paths to suggest
    - **Runner**: Override the agent runner (claude, codex, opencode, gemini, cursor)
-   - **Model**: Override the model (e.g., "sonnet", "gpt-5.2-codex")
+   - **Model**: Override the model (e.g., "sonnet", "gpt-5.3-codex")
    - **Reasoning effort**: Override effort level (low, medium, high, xhigh)
    - **RepoPrompt mode**: Override RepoPrompt behavior (tools, plan, off)
 5. Navigate to "[ Build Task ]" and press `Enter`

@@ -444,7 +444,7 @@ mod tests {
 
         let wizard_answers = WizardAnswers {
             runner: Runner::Codex,
-            model: "gpt-5.2-codex".to_string(),
+            model: "gpt-5.3-codex".to_string(),
             phases: 2,
             create_first_task: true,
             first_task_title: Some("Test task".to_string()),

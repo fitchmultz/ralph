@@ -105,7 +105,7 @@ Ralph supports multiple AI runners. Choose based on your needs:
 | Runner | Best For | Model Options | Notes |
 |--------|----------|---------------|-------|
 | **Claude** | General purpose, reasoning | `sonnet` (default), `opus`, or arbitrary IDs | Full tool use support, excellent for complex tasks |
-| **Codex** | Code generation, OpenAI ecosystem | `gpt-5.2-codex`, `gpt-5.2` only | Reasoning effort control (`low` to `xhigh`) |
+| **Codex** | Code generation, OpenAI ecosystem | `gpt-5.3-codex`, `gpt-5.3`, `gpt-5.2-codex`, `gpt-5.2` | Reasoning effort control (`low` to `xhigh`) |
 | **OpenCode** | Flexible model selection | Arbitrary model IDs (e.g., `zai-coding-plan/glm-4.7`) | Good for custom model endpoints |
 | **Gemini** | Google ecosystem, cost efficiency | `gemini-3-pro-preview`, `gemini-3-flash-preview`, or arbitrary IDs | Fast, good for quick iterations |
 | **Cursor** | Cursor IDE users | Uses Cursor's `agent` binary | Integrates with Cursor workflow |
