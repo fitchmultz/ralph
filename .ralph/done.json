@@ -1302,10 +1302,10 @@
         "RQ-0610"
       ],
       "custom_fields": {
+        "opportunity_type": "reliability",
         "time_to_ship": "medium (concurrency + tests)",
-        "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort.",
         "scan_agent": "scan-innovation",
-        "opportunity_type": "reliability"
+        "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort."
       }
     },
     {
@@ -1350,8 +1350,8 @@
       ],
       "custom_fields": {
         "opportunity_type": "ux improvement",
-        "scan_agent": "scan-innovation",
         "time_to_ship": "medium (metadata + reconciliation + tests)",
+        "scan_agent": "scan-innovation",
         "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current."
       }
     },
@@ -1398,8 +1398,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
         "time_to_ship": "medium (format + fixes + tests)",
+        "scan_agent": "scan-innovation",
         "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics.",
         "opportunity_type": "ux improvement"
       }
@@ -1445,10 +1445,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "ux improvement",
         "scan_agent": "scan-innovation",
-        "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat).",
-        "time_to_ship": "small/medium (formatters + tests)"
+        "opportunity_type": "ux improvement",
+        "time_to_ship": "small/medium (formatters + tests)",
+        "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat)."
       }
     },
     {
@@ -1936,8 +1936,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
         "user_value": "Fewer context switches: jump from task → code in one keystroke.",
+        "scan_agent": "scan-innovation",
         "opportunity_type": "ux improvement",
         "time_to_ship": "medium (TUI wiring + tests)"
       }
@@ -1993,10 +1993,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "ux improvement",
-        "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error.",
+        "time_to_ship": "medium (render-only UI + tests)",
         "scan_agent": "scan-innovation",
-        "time_to_ship": "medium (render-only UI + tests)"
+        "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error.",
+        "opportunity_type": "ux improvement"
       }
     },
     {
@@ -2110,10 +2110,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "UX improvement",
-        "scan_agent": "scan-innovation",
         "user_value": "Reduces queue maintenance time by 80% for large projects",
-        "time_to_ship": "incremental - add one batch operation at a time"
+        "opportunity_type": "UX improvement",
+        "time_to_ship": "incremental - add one batch operation at a time",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -2170,9 +2170,9 @@
       "relates_to": [],
       "custom_fields": {
         "opportunity_type": "reliability",
-        "measurable_impact": "80%+ integration test coverage for CLI commands",
+        "scan_agent": "scan-innovation",
         "user_value": "Reduces regression risk; enables confident refactoring",
-        "scan_agent": "scan-innovation"
+        "measurable_impact": "80%+ integration test coverage for CLI commands"
       }
     },
     {
@@ -2235,11 +2235,64 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "feature gap",
         "scan_agent": "scan-innovation",
         "differentiation": "Unique capability among AI task runners",
+        "opportunity_type": "feature gap",
         "user_value": "Enables ecosystem growth; custom integrations without forks"
       }
+    },
+    {
+      "id": "RQ-0629",
+      "status": "done",
+      "title": "Update RepoPrompt instructions to document rp-cli and rp wrapper fallback",
+      "priority": "medium",
+      "tags": [
+        "docs",
+        "repoprompt",
+        "tooling",
+        "cli"
+      ],
+      "scope": [
+        "crates/ralph/src/prompts_internal/util.rs",
+        "crates/ralph/src/prompts_internal/mod.rs"
+      ],
+      "evidence": [
+        "User request: Update the repo prompt instructions to specify the agent can choose to use the 'rp-cli' command, or the 'rp' wrapper",
+        "The 'rp' wrapper wraps the rp-cli command and makes using it easier but is NOT available in all environments",
+        "Agents should run 'rp-cli --help' and/or 'rp -h' to see how to use either tool",
+        "Current REPOPROMPT_REQUIRED_INSTRUCTION constant in util.rs only mentions MCP tools, not CLI fallback",
+        "Both rp-cli and rp binaries exist in ~/.local/bin/ and are available on PATH",
+        "rp-cli uses -e flag for commands: rp-cli -e 'tree' or rp-cli -e 'search TODO'",
+        "rp wrapper uses simpler syntax: rp 'tree' or rp 'search TODO'",
+        "The constant is located at lines 40-49 in crates/ralph/src/prompts_internal/util.rs"
+      ],
+      "plan": [
+        "Read the current REPOPROMPT_REQUIRED_INSTRUCTION constant in crates/ralph/src/prompts_internal/util.rs",
+        "Add a section documenting the CLI fallback options (rp-cli and rp wrapper)",
+        "Specify that rp-cli --help and rp -h should be run to learn usage",
+        "Clarify that rp wrapper is easier but not available in all environments",
+        "Document the syntax differences: rp-cli -e 'command' vs rp 'command'",
+        "Ensure the instructions flow naturally with the existing MCP tool documentation",
+        "Run make ci to verify the change compiles and passes tests"
+      ],
+      "notes": [
+        "Both rp-cli and rp are confirmed available in ~/.local/bin/",
+        "rp-cli requires -e flag before command; rp wrapper does not",
+        "Consider adding example commands showing both styles",
+        "Updated REPOPROMPT_REQUIRED_INSTRUCTION constant with CLI FALLBACK section",
+        "Documents rp-cli (preferred) and rp wrapper as fallback when MCP unavailable",
+        "Includes syntax differences, help commands, and PATH locations",
+        "All tests pass including repoprompt_required_instruction_mentions_tool_inventory"
+      ],
+      "request": "Update the repo prompt instructions to specify the agent can choose to use the 'rp-cli' command, or the 'rp' wrapper (wraps the rp-cli command and makes using it easier but is NOT available in all environments), if the Repo Prompt MCP server is unavailable. To see how to use either of them the agent should run 'rp-cli --help' and/or 'rp -h'.",
+      "created_at": "2026-02-05T00:00:00Z",
+      "updated_at": "2026-02-05T17:59:05.196050000Z",
+      "completed_at": "2026-02-05T17:59:05.196050000Z",
+      "started_at": "2026-02-05T16:33:25.310218000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
     }
   ]
 }

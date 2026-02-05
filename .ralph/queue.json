@@ -43,9 +43,9 @@
       "relates_to": [],
       "custom_fields": {
         "scan_agent": "scan-innovation",
+        "user_value": "Improves planning accuracy; sets realistic expectations",
         "opportunity_type": "feature gap",
-        "measurable_impact": "Estimates within 25% of actual duration after 20 tasks",
-        "user_value": "Improves planning accuracy; sets realistic expectations"
+        "measurable_impact": "Estimates within 25% of actual duration after 20 tasks"
       }
     },
     {
@@ -89,10 +89,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "measurable_impact": "New user success rate >90% within 30 minutes",
-        "opportunity_type": "UX improvement",
         "user_value": "Reduces time-to-productivity from hours to minutes",
-        "scan_agent": "scan-innovation"
+        "scan_agent": "scan-innovation",
+        "measurable_impact": "New user success rate >90% within 30 minutes",
+        "opportunity_type": "UX improvement"
       }
     },
     {
@@ -135,8 +135,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "measurable_impact": "Auto-detects 30%+ of maintenance tasks",
         "opportunity_type": "feature gap",
+        "measurable_impact": "Auto-detects 30%+ of maintenance tasks",
         "scan_agent": "scan-innovation",
         "user_value": "Proactively identifies improvement opportunities; reduces manual scanning"
       }
@@ -181,10 +181,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "integration",
+        "scan_agent": "scan-innovation",
         "user_value": "Enables remote monitoring; integrates with existing workflows",
-        "time_to_ship": "incremental - add one channel at a time",
-        "scan_agent": "scan-innovation"
+        "opportunity_type": "integration",
+        "time_to_ship": "incremental - add one channel at a time"
       }
     },
     {
@@ -227,9 +227,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "performance",
         "user_value": "Identifies bottlenecks; improves Ralph responsiveness",
         "measurable_impact": "50%+ improvement in queue operations for large projects",
+        "opportunity_type": "performance",
         "scan_agent": "scan-innovation"
       }
     }

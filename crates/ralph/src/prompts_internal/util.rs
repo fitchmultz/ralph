@@ -46,6 +46,16 @@ Discovery/context: `manage_selection`, `get_file_tree`, `file_search`, `read_fil
 Edits: `apply_edits`, `file_actions`.
 Read-only git: `git` (status/diff/log/show/blame).
 Planning/review: `context_builder`, `list_models`, `chat_send`, `chats` when needed.
+
+## CLI FALLBACK (when MCP tools are unavailable)
+If the RepoPrompt MCP server/tools are unavailable, use the RepoPrompt CLI instead:
+- Prefer `rp-cli` (always available); optionally use the `rp` wrapper if present (not available in all environments).
+- Check usage/examples first: run `rp-cli --help` and/or `rp -h`.
+- Syntax differs:
+  - `rp-cli` uses `-e` to execute an expression (example: `rp-cli -e 'tree'`)
+  - `rp` uses a simpler wrapper syntax (example: `rp 'tree'`)
+- `rp` is a convenience wrapper around `rp-cli`; if `rp` is missing, fall back to `rp-cli`.
+- Both `rp-cli` and `rp` are typically installed in `~/.local/bin/` and available on `PATH`.
 "#;
 
 pub(crate) const REPOPROMPT_CONTEXT_BUILDER_PLANNING_INSTRUCTION: &str = r#"
