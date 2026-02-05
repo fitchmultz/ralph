@@ -38,13 +38,47 @@ struct StatsFilters {
     tags: Vec<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 struct DurationStats {
     count: usize,
     average_seconds: i64,
     median_seconds: i64,
     average_human: String,
     median_human: String,
+}
+
+#[derive(Debug, Serialize)]
+struct TimeTrackingStats {
+    lead_time: Option<DurationStats>,
+    work_time: Option<DurationStats>,
+    start_lag: Option<DurationStats>,
+}
+
+#[derive(Debug, Serialize)]
+struct VelocityBreakdownEntry {
+    key: String,
+    last_7_days: u32,
+    last_30_days: u32,
+}
+
+#[derive(Debug, Serialize)]
+struct VelocityBreakdowns {
+    by_tag: Vec<VelocityBreakdownEntry>,
+    by_runner: Vec<VelocityBreakdownEntry>,
+}
+
+#[derive(Debug, Serialize)]
+struct SlowGroupEntry {
+    key: String,
+    count: usize,
+    median_seconds: i64,
+    median_human: String,
+}
+
+#[derive(Debug, Serialize)]
+struct SlowGroups {
+    by_tag: Vec<SlowGroupEntry>,
+    by_runner: Vec<SlowGroupEntry>,
 }
 
 #[derive(Debug, Serialize)]
@@ -58,6 +92,9 @@ struct TagBreakdown {
 struct StatsReport {
     summary: StatsSummary,
     durations: Option<DurationStats>,
+    time_tracking: TimeTrackingStats,
+    velocity: VelocityBreakdowns,
+    slow_groups: SlowGroups,
     tag_breakdown: Vec<TagBreakdown>,
     filters: StatsFilters,
 }
@@ -165,11 +202,18 @@ fn build_stats_report(queue: &QueueFile, done: Option<&QueueFile>, tags: &[Strin
 
     let summary = summarize_tasks(&filtered_tasks);
 
-    let mut durations: Vec<Duration> = Vec::new();
+    // Calculate lead times (created_at -> completed_at)
+    let mut lead_times: Vec<Duration> = Vec::new();
+    // Calculate work times (started_at -> completed_at)
+    let mut work_times: Vec<Duration> = Vec::new();
+    // Calculate start lag (created_at -> started_at)
+    let mut start_lags: Vec<Duration> = Vec::new();
+
     for task in filtered_tasks
         .iter()
         .filter(|t| t.status == TaskStatus::Done || t.status == TaskStatus::Rejected)
     {
+        // Lead time: created -> completed
         if let (Some(created), Some(completed)) = (&task.created_at, &task.completed_at)
             && let (Ok(start), Ok(end)) = (
                 timeutil::parse_rfc3339(created),
@@ -177,26 +221,45 @@ fn build_stats_report(queue: &QueueFile, done: Option<&QueueFile>, tags: &[Strin
             )
             && end > start
         {
-            durations.push(end - start);
+            lead_times.push(end - start);
+        }
+
+        // Work time: started -> completed
+        if let (Some(started), Some(completed)) = (&task.started_at, &task.completed_at)
+            && let (Ok(start), Ok(end)) = (
+                timeutil::parse_rfc3339(started),
+                timeutil::parse_rfc3339(completed),
+            )
+            && end > start
+        {
+            work_times.push(end - start);
+        }
+
+        // Start lag: created -> started
+        if let (Some(created), Some(started)) = (&task.created_at, &task.started_at)
+            && let (Ok(created_dt), Ok(started_dt)) = (
+                timeutil::parse_rfc3339(created),
+                timeutil::parse_rfc3339(started),
+            )
+            && started_dt > created_dt
+        {
+            start_lags.push(started_dt - created_dt);
         }
     }
 
-    let durations = if durations.is_empty() {
-        None
-    } else {
-        let avg_duration = avg_duration(&durations);
-        let mut sorted_durations = durations.clone();
-        sorted_durations.sort();
-        let median = sorted_durations[sorted_durations.len() / 2];
+    let durations = calc_duration_stats(&lead_times);
+    let work_time_stats = calc_duration_stats(&work_times);
+    let start_lag_stats = calc_duration_stats(&start_lags);
 
-        Some(DurationStats {
-            count: durations.len(),
-            average_seconds: avg_duration.whole_seconds(),
-            median_seconds: median.whole_seconds(),
-            average_human: format_duration(avg_duration),
-            median_human: format_duration(median),
-        })
+    let time_tracking = TimeTrackingStats {
+        lead_time: durations.clone(),
+        work_time: work_time_stats,
+        start_lag: start_lag_stats,
     };
+
+    // Calculate velocity breakdowns
+    let velocity = calc_velocity_breakdowns(&filtered_tasks);
+    let slow_groups = calc_slow_groups(&filtered_tasks);
 
     let mut tag_counts: HashMap<String, usize> = HashMap::new();
     for task in &filtered_tasks {
@@ -225,11 +288,177 @@ fn build_stats_report(queue: &QueueFile, done: Option<&QueueFile>, tags: &[Strin
     StatsReport {
         summary,
         durations,
+        time_tracking,
+        velocity,
+        slow_groups,
         tag_breakdown,
         filters: StatsFilters {
             tags: tags.to_vec(),
         },
     }
+}
+
+fn calc_duration_stats(durations: &[Duration]) -> Option<DurationStats> {
+    if durations.is_empty() {
+        return None;
+    }
+    let avg_duration = avg_duration(durations);
+    let mut sorted_durations = durations.to_vec();
+    sorted_durations.sort();
+    let median = sorted_durations[sorted_durations.len() / 2];
+
+    Some(DurationStats {
+        count: durations.len(),
+        average_seconds: avg_duration.whole_seconds(),
+        median_seconds: median.whole_seconds(),
+        average_human: format_duration(avg_duration),
+        median_human: format_duration(median),
+    })
+}
+
+fn calc_velocity_breakdowns(tasks: &[&Task]) -> VelocityBreakdowns {
+    use time::OffsetDateTime;
+
+    let now = OffsetDateTime::now_utc();
+    let seven_days_ago = now - Duration::days(7);
+    let thirty_days_ago = now - Duration::days(30);
+
+    let mut tag_counts_7: HashMap<String, u32> = HashMap::new();
+    let mut tag_counts_30: HashMap<String, u32> = HashMap::new();
+    let mut runner_counts_7: HashMap<String, u32> = HashMap::new();
+    let mut runner_counts_30: HashMap<String, u32> = HashMap::new();
+
+    for task in tasks
+        .iter()
+        .filter(|t| t.status == TaskStatus::Done || t.status == TaskStatus::Rejected)
+    {
+        if let Some(completed_at) = &task.completed_at
+            && let Ok(completed_dt) = timeutil::parse_rfc3339(completed_at)
+        {
+            // By tag
+            for tag in &task.tags {
+                let normalized = tag.to_lowercase();
+                if completed_dt >= seven_days_ago {
+                    *tag_counts_7.entry(normalized.clone()).or_insert(0) += 1;
+                }
+                if completed_dt >= thirty_days_ago {
+                    *tag_counts_30.entry(normalized).or_insert(0) += 1;
+                }
+            }
+
+            // By runner
+            if let Some(agent) = &task.agent
+                && let Some(runner) = &agent.runner
+            {
+                let runner_str = format!("{:?}", runner).to_lowercase();
+                if completed_dt >= seven_days_ago {
+                    *runner_counts_7.entry(runner_str.clone()).or_insert(0) += 1;
+                }
+                if completed_dt >= thirty_days_ago {
+                    *runner_counts_30.entry(runner_str).or_insert(0) += 1;
+                }
+            }
+        }
+    }
+
+    let mut by_tag: Vec<VelocityBreakdownEntry> = tag_counts_30
+        .keys()
+        .map(|k| VelocityBreakdownEntry {
+            key: k.clone(),
+            last_7_days: *tag_counts_7.get(k).unwrap_or(&0),
+            last_30_days: *tag_counts_30.get(k).unwrap_or(&0),
+        })
+        .collect();
+    by_tag.sort_by(|a, b| b.last_30_days.cmp(&a.last_30_days));
+
+    let mut by_runner: Vec<VelocityBreakdownEntry> = runner_counts_30
+        .keys()
+        .map(|k| VelocityBreakdownEntry {
+            key: k.clone(),
+            last_7_days: *runner_counts_7.get(k).unwrap_or(&0),
+            last_30_days: *runner_counts_30.get(k).unwrap_or(&0),
+        })
+        .collect();
+    by_runner.sort_by(|a, b| b.last_30_days.cmp(&a.last_30_days));
+
+    VelocityBreakdowns { by_tag, by_runner }
+}
+
+fn calc_slow_groups(tasks: &[&Task]) -> SlowGroups {
+    let mut by_tag_work_times: HashMap<String, Vec<Duration>> = HashMap::new();
+    let mut by_runner_work_times: HashMap<String, Vec<Duration>> = HashMap::new();
+
+    for task in tasks
+        .iter()
+        .filter(|t| t.status == TaskStatus::Done || t.status == TaskStatus::Rejected)
+    {
+        if let (Some(started), Some(completed)) = (&task.started_at, &task.completed_at)
+            && let (Ok(start), Ok(end)) = (
+                timeutil::parse_rfc3339(started),
+                timeutil::parse_rfc3339(completed),
+            )
+            && end > start
+        {
+            let work_time = end - start;
+
+            // By tag
+            for tag in &task.tags {
+                by_tag_work_times
+                    .entry(tag.to_lowercase())
+                    .or_default()
+                    .push(work_time);
+            }
+
+            // By runner
+            if let Some(agent) = &task.agent
+                && let Some(runner) = &agent.runner
+            {
+                let runner_str = format!("{:?}", runner).to_lowercase();
+                by_runner_work_times
+                    .entry(runner_str)
+                    .or_default()
+                    .push(work_time);
+            }
+        }
+    }
+
+    fn calc_median(durations: &[Duration]) -> Duration {
+        let mut sorted = durations.to_vec();
+        sorted.sort();
+        sorted[sorted.len() / 2]
+    }
+
+    let mut by_tag: Vec<SlowGroupEntry> = by_tag_work_times
+        .into_iter()
+        .filter(|(_, durations)| !durations.is_empty())
+        .map(|(key, durations)| {
+            let median = calc_median(&durations);
+            SlowGroupEntry {
+                key,
+                count: durations.len(),
+                median_seconds: median.whole_seconds(),
+                median_human: format_duration(median),
+            }
+        })
+        .collect();
+    by_tag.sort_by(|a, b| b.median_seconds.cmp(&a.median_seconds));
+
+    let mut by_runner: Vec<SlowGroupEntry> = by_runner_work_times
+        .into_iter()
+        .filter(|(_, durations)| !durations.is_empty())
+        .map(|(key, durations)| {
+            let median = calc_median(&durations);
+            SlowGroupEntry {
+                key,
+                count: durations.len(),
+                median_seconds: median.whole_seconds(),
+                median_human: format_duration(median),
+            }
+        })
+        .collect();
+    by_runner.sort_by(|a, b| b.median_seconds.cmp(&a.median_seconds));
+
+    SlowGroups { by_tag, by_runner }
 }
 
 fn start_of_window(now: OffsetDateTime, days_to_show: i64) -> OffsetDateTime {
@@ -424,12 +653,67 @@ pub(crate) fn print_stats(
 
             if let Some(durations) = &report.durations {
                 println!(
-                    "Duration Statistics (for {} terminal task{} with valid timestamps):",
+                    "Lead Time (created -> completed) for {} terminal task{}:",
                     durations.count,
                     if durations.count == 1 { "" } else { "s" }
                 );
                 println!("  Average: {}", durations.average_human);
                 println!("  Median:  {}", durations.median_human);
+                println!();
+            }
+
+            if let Some(work_time) = &report.time_tracking.work_time {
+                println!(
+                    "Work Time (started -> completed) for {} terminal task{}:",
+                    work_time.count,
+                    if work_time.count == 1 { "" } else { "s" }
+                );
+                println!("  Average: {}", work_time.average_human);
+                println!("  Median:  {}", work_time.median_human);
+                println!();
+            }
+
+            if let Some(start_lag) = &report.time_tracking.start_lag {
+                println!(
+                    "Start Lag (created -> started) for {} task{}:",
+                    start_lag.count,
+                    if start_lag.count == 1 { "" } else { "s" }
+                );
+                println!("  Average: {}", start_lag.average_human);
+                println!("  Median:  {}", start_lag.median_human);
+                println!();
+            }
+
+            if !report.velocity.by_tag.is_empty() {
+                println!("Velocity by Tag (7d / 30d):");
+                for entry in report.velocity.by_tag.iter().take(10) {
+                    println!(
+                        "  {}: {} / {}",
+                        entry.key, entry.last_7_days, entry.last_30_days
+                    );
+                }
+                println!();
+            }
+
+            if !report.velocity.by_runner.is_empty() {
+                println!("Velocity by Runner (7d / 30d):");
+                for entry in &report.velocity.by_runner {
+                    println!(
+                        "  {}: {} / {}",
+                        entry.key, entry.last_7_days, entry.last_30_days
+                    );
+                }
+                println!();
+            }
+
+            if !report.slow_groups.by_tag.is_empty() {
+                println!("Slow Task Types by Tag (median work time):");
+                for entry in report.slow_groups.by_tag.iter().take(5) {
+                    println!(
+                        "  {}: {} ({} tasks)",
+                        entry.key, entry.median_human, entry.count
+                    );
+                }
                 println!();
             }
 
@@ -693,7 +977,25 @@ mod tests {
             id: id.to_string(),
             status,
             title: "Test task".to_string(),
-            ..Default::default()
+            priority: crate::contracts::TaskPriority::Medium,
+            tags: vec![],
+            scope: vec![],
+            evidence: vec![],
+            plan: vec![],
+            notes: vec![],
+            request: None,
+            agent: None,
+            created_at: None,
+            updated_at: None,
+            completed_at: None,
+            started_at: None,
+            scheduled_start: None,
+            depends_on: vec![],
+            blocks: vec![],
+            relates_to: vec![],
+            duplicates: None,
+            custom_fields: std::collections::HashMap::new(),
+            parent_id: None,
         }
     }
 

@@ -65,6 +65,7 @@ ralph --no-sanity-checks run loop
 * `ralph scan`: generate new tasks via scanning.
 * `ralph doctor`: verify environment readiness.
 * `ralph completions <shell>`: generate shell completion scripts.
+* `ralph productivity <subcommand>`: view productivity analytics (streaks, velocity, milestones).
 * `ralph version`: display version information.
 
 ## `ralph completions`
@@ -1345,6 +1346,32 @@ When `--distribute-plan` is used, plan items are distributed round-robin across 
 - Parent plan: `["Step A", "Step B", "Step C", "Step D"]`
 - With 2 children: Child 1 gets `["Step A", "Step C"]`, Child 2 gets `["Step B", "Step D"]`
 
+### ralph task start
+
+Start work on a task by setting the `started_at` timestamp and transitioning status to `doing`.
+
+This command is useful for explicit time tracking - it records when you actually began working on a task, separate from when the task was created. The `started_at` field enables productivity analytics like work time calculation (started → completed) and start lag metrics (created → started).
+
+**Arguments:**
+- `TASK_ID` - Task ID to start
+
+**Flags:**
+- `--reset` - Reset `started_at` even if already set (useful for restarting work tracking)
+
+**Examples:**
+```bash
+# Start work on a task
+ralph task start RQ-0001
+
+# Restart tracking (reset existing started_at)
+ralph task start --reset RQ-0001
+```
+
+**Notes:**
+- Cannot start terminal tasks (done/rejected)
+- If task is already in `doing` status, only `started_at` is updated (unless `--reset` is used)
+- The `started_at` field can also be manually edited via `ralph task edit started_at <TIMESTAMP> <TASK_ID>`
+
 ## `ralph watch`
 
 Watch files for changes and auto-detect tasks from TODO/FIXME/HACK/XXX comments. This command monitors source files and automatically creates tasks when it finds actionable comments.
@@ -1473,6 +1500,7 @@ Common subcommands:
 - `ralph task template build <name> [target] <request>`: build a task from a template.
 - `ralph task clone <TASK_ID>`: clone an existing task to create a new task from it. Alias: `duplicate`.
 - `ralph task split <TASK_ID>`: split a task into multiple child tasks for better granularity.
+- `ralph task start <TASK_ID>`: start work on a task (sets `started_at` and moves to doing).
 
 Field formats (for `ralph task edit`):
 - Lists (`tags`, `scope`, `evidence`, `plan`, `notes`, `depends_on`): comma/newline-separated.
@@ -1588,7 +1616,7 @@ Fields that can be edited:
 - `duplicates` - single task ID this task duplicates (empty value clears)
 - `request` - task request description (empty value clears the field)
 - `custom_fields` - key=value pairs, comma/newline-separated
-- `created_at`, `updated_at`, `completed_at` - RFC3339 timestamps
+- `created_at`, `updated_at`, `completed_at`, `started_at` - RFC3339 timestamps
 
 Flags:
 - `--dry-run` - preview changes without modifying the queue
@@ -1920,6 +1948,45 @@ ralph task build refactor --tags urgent,technical-debt
 
 # Combine options
 ralph task build refactor --threshold 500 --path src --dry-run
+```
+
+## `ralph productivity`
+
+View productivity analytics including streaks, velocity metrics, and milestone achievements. Stats are persisted to `.ralph/cache/productivity.json`.
+
+### Subcommands
+
+* `summary`: show total completions, current streak, milestones, and recent completions.
+* `velocity`: show tasks per day over a configurable window.
+* `streak`: show current and longest streak details.
+
+### Flags
+
+All subcommands support:
+* `--format <text|json>`: output format (default: `text`).
+
+Subcommand-specific flags:
+* `summary`: `--recent <N>` - number of recent completions to show (default: 5).
+* `velocity`: `--days <N>` - window size in days (default: 7).
+
+### Examples
+
+```bash
+# Show productivity summary
+ralph productivity summary
+
+# Show summary with more recent completions
+ralph productivity summary --recent 10
+
+# Show velocity for last 14 days
+ralph productivity velocity --days 14
+
+# Show streak info
+ralph productivity streak
+
+# JSON output for scripting
+ralph productivity summary --format json
+ralph productivity velocity --format json
 ```
 
 ## `ralph prd`

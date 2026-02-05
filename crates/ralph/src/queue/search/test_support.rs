@@ -36,6 +36,7 @@ pub fn task_with(id: &str, status: TaskStatus, tags: Vec<String>) -> Task {
         created_at: Some("2026-01-18T00:00:00Z".to_string()),
         updated_at: Some("2026-01-18T00:00:00Z".to_string()),
         completed_at: None,
+        started_at: None,
         scheduled_start: None,
         depends_on: vec![],
         blocks: vec![],

@@ -950,6 +950,7 @@ mod tests {
             } else {
                 None
             },
+            started_at: None,
             scheduled_start: None,
             depends_on: vec![],
             blocks: vec![],

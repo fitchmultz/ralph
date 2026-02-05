@@ -323,6 +323,7 @@ impl TaskOperations {
             created_at: Some(now_rfc3339.to_string()),
             updated_at: Some(now_rfc3339.to_string()),
             completed_at: None,
+            started_at: None,
             scheduled_start: None,
             depends_on: vec![],
             blocks: vec![],

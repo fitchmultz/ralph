@@ -23,6 +23,7 @@ pub mod init;
 pub mod interactive;
 pub mod migrate;
 pub mod prd;
+pub mod productivity;
 pub mod prompt;
 pub mod queue;
 pub mod run;
@@ -135,6 +136,12 @@ pub enum Command {
         after_long_help = "Examples:\n  ralph webhook test\n  ralph webhook test --event task_completed\n  ralph webhook test --url https://example.com/webhook"
     )]
     Webhook(webhook::WebhookArgs),
+
+    /// Productivity analytics (streaks, velocity, milestones).
+    #[command(
+        after_long_help = "Examples:\n  ralph productivity summary\n  ralph productivity velocity\n  ralph productivity streak"
+    )]
+    Productivity(productivity::ProductivityArgs),
 }
 
 pub(crate) fn load_and_validate_queues(

@@ -68,6 +68,14 @@ pub struct Task {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub completed_at: Option<String>,
 
+    /// RFC3339 UTC timestamp when work on this task actually started.
+    ///
+    /// Invariants:
+    /// - Must be RFC3339 UTC (Z) if set.
+    /// - Should be set when transitioning into `doing` (see status policy).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub started_at: Option<String>,
+
     /// RFC3339 timestamp when the task should become runnable (optional scheduling).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scheduled_start: Option<String>,

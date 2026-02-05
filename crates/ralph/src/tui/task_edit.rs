@@ -155,6 +155,7 @@ impl App {
             TaskEditKey::CreatedAt => task.created_at.clone().unwrap_or_default(),
             TaskEditKey::UpdatedAt => task.updated_at.clone().unwrap_or_default(),
             TaskEditKey::CompletedAt => task.completed_at.clone().unwrap_or_default(),
+            TaskEditKey::StartedAt => task.started_at.clone().unwrap_or_default(),
             TaskEditKey::ScheduledStart => task.scheduled_start.clone().unwrap_or_default(),
             TaskEditKey::Status | TaskEditKey::Priority => String::new(),
         }

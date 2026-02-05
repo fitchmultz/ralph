@@ -426,6 +426,145 @@ pub fn next_milestone(current_total: u64) -> Option<u64> {
         .find(|&t| t > current_total)
 }
 
+/// Productivity summary report
+#[derive(Debug, Clone, Serialize)]
+pub struct ProductivitySummaryReport {
+    pub total_completed: u64,
+    pub current_streak: u32,
+    pub longest_streak: u32,
+    pub last_completed_date: Option<String>,
+    pub next_milestone: Option<u64>,
+    pub milestones: Vec<Milestone>,
+    pub recent_completions: Vec<CompletedTaskRef>,
+}
+
+/// Productivity streak report
+#[derive(Debug, Clone, Serialize)]
+pub struct ProductivityStreakReport {
+    pub current_streak: u32,
+    pub longest_streak: u32,
+    pub last_completed_date: Option<String>,
+}
+
+/// Productivity velocity report
+#[derive(Debug, Clone, Serialize)]
+pub struct ProductivityVelocityReport {
+    pub window_days: u32,
+    pub total_completed: u32,
+    pub average_per_day: f64,
+    pub best_day: Option<(String, u32)>,
+}
+
+/// Build a summary report
+pub fn build_summary_report(stats: &ProductivityStats, recent: usize) -> ProductivitySummaryReport {
+    let recent_completions = recent_completed_tasks(stats, recent);
+    ProductivitySummaryReport {
+        total_completed: stats.total_completed,
+        current_streak: stats.streak.current_streak,
+        longest_streak: stats.streak.longest_streak,
+        last_completed_date: stats.streak.last_completed_date.clone(),
+        next_milestone: next_milestone(stats.total_completed),
+        milestones: stats.milestones.clone(),
+        recent_completions,
+    }
+}
+
+/// Build a streak report
+pub fn build_streak_report(stats: &ProductivityStats) -> ProductivityStreakReport {
+    ProductivityStreakReport {
+        current_streak: stats.streak.current_streak,
+        longest_streak: stats.streak.longest_streak,
+        last_completed_date: stats.streak.last_completed_date.clone(),
+    }
+}
+
+/// Build a velocity report
+pub fn build_velocity_report(stats: &ProductivityStats, days: u32) -> ProductivityVelocityReport {
+    let metrics = calculate_velocity(stats, days);
+    ProductivityVelocityReport {
+        window_days: days.max(1),
+        total_completed: metrics.total_completed,
+        average_per_day: metrics.average_per_day,
+        best_day: metrics.best_day,
+    }
+}
+
+/// Get recent completed tasks
+fn recent_completed_tasks(stats: &ProductivityStats, limit: usize) -> Vec<CompletedTaskRef> {
+    let mut out = Vec::new();
+    for (_day, day_stats) in stats.daily.iter().rev() {
+        for task in day_stats.tasks.iter().rev() {
+            out.push(task.clone());
+            if out.len() >= limit {
+                return out;
+            }
+        }
+    }
+    out
+}
+
+/// Print summary report in text format
+pub fn print_summary_report_text(report: &ProductivitySummaryReport) {
+    println!("Productivity Summary");
+    println!("====================");
+    println!();
+    println!("Total completed: {}", report.total_completed);
+    println!(
+        "Streak: {} (longest: {})",
+        report.current_streak, report.longest_streak
+    );
+    if let Some(next) = report.next_milestone {
+        println!("Next milestone: {} tasks", next);
+    } else {
+        println!("Next milestone: (none)");
+    }
+    println!();
+
+    if !report.milestones.is_empty() {
+        println!("Milestones achieved:");
+        for m in &report.milestones {
+            let celebrated = if m.celebrated { "✓" } else { " " };
+            println!(
+                "  [{}] {} tasks at {}",
+                celebrated, m.threshold, m.achieved_at
+            );
+        }
+        println!();
+    }
+
+    if !report.recent_completions.is_empty() {
+        println!("Recent completions:");
+        for t in &report.recent_completions {
+            println!("  {} - {} ({})", t.id, t.title, t.completed_at);
+        }
+    }
+}
+
+/// Print velocity report in text format
+pub fn print_velocity_report_text(report: &ProductivityVelocityReport) {
+    println!("Productivity Velocity ({} days)", report.window_days);
+    println!("===============================");
+    println!();
+    println!("Total completed: {}", report.total_completed);
+    println!("Average/day: {:.2}", report.average_per_day);
+    if let Some((day, count)) = &report.best_day {
+        println!("Best day: {} ({} tasks)", day, count);
+    }
+}
+
+/// Print streak report in text format
+pub fn print_streak_report_text(report: &ProductivityStreakReport) {
+    println!("Productivity Streak");
+    println!("===================");
+    println!();
+    println!("Current streak: {}", report.current_streak);
+    println!("Longest streak: {}", report.longest_streak);
+    println!(
+        "Last completion: {}",
+        report.last_completed_date.as_deref().unwrap_or("(none)")
+    );
+}
+
 /// Format a duration in seconds to a human-readable string
 pub fn format_duration(seconds: i64) -> String {
     if seconds < 60 {
@@ -463,6 +602,7 @@ mod tests {
             created_at: Some("2026-01-01T00:00:00Z".to_string()),
             updated_at: Some("2026-01-01T00:00:00Z".to_string()),
             completed_at: Some("2026-01-01T12:00:00Z".to_string()),
+            started_at: None,
             scheduled_start: None,
             depends_on: vec![],
             blocks: vec![],

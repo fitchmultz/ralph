@@ -107,6 +107,7 @@ fn run() -> Result<()> {
             let resolved = ralph::config::resolve_from_cwd()?;
             cli::webhook::handle_webhook(&args, &resolved)
         }
+        cli::Command::Productivity(args) => cli::productivity::handle(args),
     }
 }
 

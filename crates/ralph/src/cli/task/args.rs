@@ -326,6 +326,21 @@ pub struct TaskDoneArgs {
 }
 
 #[derive(Args)]
+#[command(
+    about = "Mark a task as started (sets started_at and moves to doing)",
+    after_long_help = "Examples:\n ralph task start RQ-0001\n ralph task start --reset RQ-0001"
+)]
+pub struct TaskStartArgs {
+    /// Task ID to start.
+    #[arg(value_name = "TASK_ID")]
+    pub task_id: String,
+
+    /// Reset started_at even if already set.
+    #[arg(long)]
+    pub reset: bool,
+}
+
+#[derive(Args)]
 pub struct TaskRejectArgs {
     /// Notes to append (repeatable).
     #[arg(long)]
@@ -484,6 +499,7 @@ pub enum TaskEditFieldArg {
     CreatedAt,
     UpdatedAt,
     CompletedAt,
+    StartedAt,
 }
 
 impl TaskEditFieldArg {
@@ -506,6 +522,7 @@ impl TaskEditFieldArg {
             TaskEditFieldArg::CreatedAt => "created_at",
             TaskEditFieldArg::UpdatedAt => "updated_at",
             TaskEditFieldArg::CompletedAt => "completed_at",
+            TaskEditFieldArg::StartedAt => "started_at",
         }
     }
 }
@@ -530,6 +547,7 @@ impl From<TaskEditFieldArg> for TaskEditKey {
             TaskEditFieldArg::CreatedAt => TaskEditKey::CreatedAt,
             TaskEditFieldArg::UpdatedAt => TaskEditKey::UpdatedAt,
             TaskEditFieldArg::CompletedAt => TaskEditKey::CompletedAt,
+            TaskEditFieldArg::StartedAt => TaskEditKey::StartedAt,
         }
     }
 }
@@ -790,4 +808,10 @@ pub enum TaskCommand {
         after_long_help = "Examples:\n ralph task split RQ-0001\n ralph task split --number 3 RQ-0001\n ralph task split --status todo --number 2 RQ-0001\n ralph task split --distribute-plan RQ-0001"
     )]
     Split(TaskSplitArgs),
+
+    /// Start work on a task (sets started_at and moves it to doing).
+    #[command(
+        after_long_help = "Examples:\n ralph task start RQ-0001\n ralph task start --reset RQ-0001"
+    )]
+    Start(TaskStartArgs),
 }

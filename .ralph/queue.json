@@ -2,53 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0598",
-      "status": "todo",
-      "title": "Implement task time tracking and productivity analytics",
-      "priority": "high",
-      "tags": [
-        "innovation",
-        "analytics",
-        "productivity",
-        "cli"
-      ],
-      "scope": [
-        "crates/ralph/src/reports.rs",
-        "crates/ralph/src/productivity.rs",
-        "docs/cli.md"
-      ],
-      "evidence": [
-        "Current `ralph queue stats` shows basic completion rates and tag breakdowns",
-        "No per-task time tracking or velocity metrics",
-        "`docs/productivity.md` exists but is not referenced in main docs",
-        "Users cannot track how long tasks take or identify bottlenecks",
-        "No sprint/iteration tracking or burndown velocity over time"
-      ],
-      "plan": [
-        "Add `started_at` and `completed_at` timestamps to task schema (if not present)",
-        "Create `ralph task start <TASK_ID>` command to mark task start time",
-        "Extend `ralph queue stats` with time-based metrics: avg task duration, velocity by tag",
-        "Add `ralph productivity` command with subcommands: `summary`, `velocity`, `bottlenecks`",
-        "Implement sprint tracking: `ralph productivity sprint start/end` with configurable duration",
-        "Add per-runner performance metrics to help users optimize runner selection",
-        "Create productivity dashboard in TUI showing trends and insights",
-        "Verify by running `ralph productivity summary` and checking metrics appear"
-      ],
-      "notes": [],
-      "request": "innovation scan finding",
-      "created_at": "2026-02-04T12:00:00Z",
-      "updated_at": "2026-02-04T12:00:00Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types",
-        "scan_agent": "scan-innovation",
-        "opportunity_type": "feature gap",
-        "measurable_impact": "Track 20%+ improvement in task completion velocity after adoption"
-      }
-    },
-    {
       "id": "RQ-0599",
       "status": "todo",
       "title": "Add batch task operations for efficient queue management",
@@ -88,9 +41,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "user_value": "Reduces queue maintenance time by 80% for large projects",
         "opportunity_type": "UX improvement",
         "scan_agent": "scan-innovation",
-        "user_value": "Reduces queue maintenance time by 80% for large projects",
         "time_to_ship": "incremental - add one batch operation at a time"
       }
     },
@@ -136,8 +89,8 @@
       "relates_to": [],
       "custom_fields": {
         "user_value": "Reduces regression risk; enables confident refactoring",
-        "measurable_impact": "80%+ integration test coverage for CLI commands",
         "scan_agent": "scan-innovation",
+        "measurable_impact": "80%+ integration test coverage for CLI commands",
         "opportunity_type": "reliability"
       }
     },
@@ -182,10 +135,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Enables ecosystem growth; custom integrations without forks",
-        "opportunity_type": "feature gap",
         "scan_agent": "scan-innovation",
-        "differentiation": "Unique capability among AI task runners"
+        "opportunity_type": "feature gap",
+        "differentiation": "Unique capability among AI task runners",
+        "user_value": "Enables ecosystem growth; custom integrations without forks"
       }
     },
     {
@@ -229,10 +182,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "scan_agent": "scan-innovation",
         "measurable_impact": "Estimates within 25% of actual duration after 20 tasks",
-        "user_value": "Improves planning accuracy; sets realistic expectations",
         "opportunity_type": "feature gap",
-        "scan_agent": "scan-innovation"
+        "user_value": "Improves planning accuracy; sets realistic expectations"
       }
     },
     {
@@ -276,10 +229,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "measurable_impact": "New user success rate >90% within 30 minutes",
-        "opportunity_type": "UX improvement",
         "scan_agent": "scan-innovation",
-        "user_value": "Reduces time-to-productivity from hours to minutes"
+        "measurable_impact": "New user success rate >90% within 30 minutes",
+        "user_value": "Reduces time-to-productivity from hours to minutes",
+        "opportunity_type": "UX improvement"
       }
     },
     {
@@ -322,10 +275,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "user_value": "Proactively identifies improvement opportunities; reduces manual scanning",
         "opportunity_type": "feature gap",
         "measurable_impact": "Auto-detects 30%+ of maintenance tasks",
-        "scan_agent": "scan-innovation",
-        "user_value": "Proactively identifies improvement opportunities; reduces manual scanning"
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -368,10 +321,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "integration",
+        "scan_agent": "scan-innovation",
         "user_value": "Enables remote monitoring; integrates with existing workflows",
         "time_to_ship": "incremental - add one channel at a time",
-        "scan_agent": "scan-innovation"
+        "opportunity_type": "integration"
       }
     },
     {
@@ -414,10 +367,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Identifies bottlenecks; improves Ralph responsiveness",
         "measurable_impact": "50%+ improvement in queue operations for large projects",
         "opportunity_type": "performance",
-        "scan_agent": "scan-innovation"
+        "scan_agent": "scan-innovation",
+        "user_value": "Identifies bottlenecks; improves Ralph responsiveness"
       }
     }
   ]

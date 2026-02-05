@@ -333,6 +333,13 @@
             "type": "string"
           }
         },
+        "started_at": {
+          "description": "RFC3339 UTC timestamp when work on this task actually started.\n\nInvariants: - Must be RFC3339 UTC (Z) if set. - Should be set when transitioning into `doing` (see status policy).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "status": {
           "default": "todo",
           "allOf": [

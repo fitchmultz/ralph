@@ -1302,9 +1302,9 @@
         "RQ-0610"
       ],
       "custom_fields": {
+        "opportunity_type": "reliability",
         "scan_agent": "scan-innovation",
         "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort.",
-        "opportunity_type": "reliability",
         "time_to_ship": "medium (concurrency + tests)"
       }
     },
@@ -1349,10 +1349,10 @@
         "RQ-0608"
       ],
       "custom_fields": {
-        "time_to_ship": "medium (metadata + reconciliation + tests)",
         "opportunity_type": "ux improvement",
-        "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current.",
-        "scan_agent": "scan-innovation"
+        "time_to_ship": "medium (metadata + reconciliation + tests)",
+        "scan_agent": "scan-innovation",
+        "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current."
       }
     },
     {
@@ -1398,9 +1398,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "ux improvement",
-        "scan_agent": "scan-innovation",
         "time_to_ship": "medium (format + fixes + tests)",
+        "scan_agent": "scan-innovation",
+        "opportunity_type": "ux improvement",
         "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics."
       }
     },
@@ -1445,9 +1445,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat).",
-        "opportunity_type": "ux improvement",
         "time_to_ship": "small/medium (formatters + tests)",
+        "opportunity_type": "ux improvement",
+        "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat).",
         "scan_agent": "scan-innovation"
       }
     },
@@ -1936,10 +1936,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "time_to_ship": "medium (TUI wiring + tests)",
         "user_value": "Fewer context switches: jump from task → code in one keystroke.",
         "opportunity_type": "ux improvement",
-        "scan_agent": "scan-innovation",
-        "time_to_ship": "medium (TUI wiring + tests)"
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -1993,10 +1993,67 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "opportunity_type": "ux improvement",
         "time_to_ship": "medium (render-only UI + tests)",
         "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error.",
-        "opportunity_type": "ux improvement",
         "scan_agent": "scan-innovation"
+      }
+    },
+    {
+      "id": "RQ-0598",
+      "status": "done",
+      "title": "Implement task time tracking and productivity analytics",
+      "priority": "high",
+      "tags": [
+        "innovation",
+        "analytics",
+        "productivity",
+        "cli"
+      ],
+      "scope": [
+        "crates/ralph/src/reports.rs",
+        "crates/ralph/src/productivity.rs",
+        "crates/ralph/src/cli/queue/stats.rs",
+        "crates/ralph/src/cli/task/mod.rs",
+        "crates/ralph/src/contracts/task.rs",
+        "docs/cli.md"
+      ],
+      "evidence": [
+        "`ralph queue stats` already shows basic duration stats using created_at and completed_at timestamps",
+        "`productivity.rs` exists with streak tracking, milestones, and velocity metrics (tasks per day)",
+        "Task schema has created_at, updated_at, completed_at but no started_at for tracking work time",
+        "No `ralph productivity` CLI command exists to expose productivity stats to users",
+        "No per-task actual duration tracking (only calculated from created->completed)",
+        "TUI has phase timing but no productivity dashboard for trends/insights"
+      ],
+      "plan": [
+        "Add optional `started_at` field to Task schema for tracking when work began",
+        "Create `ralph task start <TASK_ID>` command to set started_at timestamp",
+        "Add `ralph productivity` command with subcommands: `summary`, `velocity`, `streak`",
+        "Expose existing productivity stats (streaks, milestones, daily completions) via CLI",
+        "Extend `ralph queue stats` with velocity by tag and per-runner metrics",
+        "Add actual vs estimated duration comparison to reports",
+        "Create productivity dashboard view in TUI showing trends and insights",
+        "Verify by running `ralph productivity summary` and seeing streak/milestone data"
+      ],
+      "notes": [
+        "Productivity stats are already persisted to .ralph/cache/productivity.json",
+        "Milestones trigger at 10, 50, 100, 250, 500, 1000, 2500, 5000 completions",
+        "Reports.rs already calculates duration from created_at to completed_at",
+        "Phase 3 review complete: All requirements met, CI passes, documentation updated"
+      ],
+      "request": "innovation scan finding",
+      "created_at": "2026-02-04T12:00:00Z",
+      "updated_at": "2026-02-05T10:01:33.838610000Z",
+      "completed_at": "2026-02-05T10:01:33.838610000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "opportunity_type": "feature gap",
+        "scan_agent": "scan-innovation",
+        "measurable_impact": "Track 20%+ improvement in task completion velocity after adoption",
+        "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types"
       }
     }
   ]

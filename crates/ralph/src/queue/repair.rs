@@ -252,6 +252,7 @@ mod tests {
             created_at: Some("2026-01-18T00:00:00Z".to_string()),
             updated_at: Some("2026-01-18T00:00:00Z".to_string()),
             completed_at: None,
+            started_at: None,
             scheduled_start: None,
             depends_on: depends_on.into_iter().map(|s| s.to_string()).collect(),
             blocks: vec![],

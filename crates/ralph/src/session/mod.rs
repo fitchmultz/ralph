@@ -370,6 +370,7 @@ mod tests {
             created_at: None,
             updated_at: None,
             completed_at: None,
+            started_at: None,
             scheduled_start: None,
             depends_on: vec![],
             blocks: vec![],

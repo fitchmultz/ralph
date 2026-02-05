@@ -50,6 +50,11 @@ fn apply_status_fields(task: &mut Task, status: TaskStatus, now_rfc3339: &str) -
         }
     }
 
+    // Set started_at when transitioning to Doing (only if not already set)
+    if status == TaskStatus::Doing && task.started_at.is_none() {
+        task.started_at = Some(now);
+    }
+
     Ok(())
 }
 

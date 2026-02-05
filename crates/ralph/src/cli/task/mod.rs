@@ -23,6 +23,7 @@ mod relations;
 mod schedule;
 mod show;
 mod split;
+mod start;
 mod status;
 mod template;
 
@@ -36,7 +37,7 @@ pub use args::{
     TaskBatchArgs, TaskBlocksArgs, TaskBuildArgs, TaskBuildRefactorArgs, TaskCloneArgs,
     TaskCommand, TaskDoneArgs, TaskEditArgs, TaskEditFieldArg, TaskFieldArgs,
     TaskMarkDuplicateArgs, TaskReadyArgs, TaskRejectArgs, TaskRelateArgs, TaskScheduleArgs,
-    TaskShowArgs, TaskSplitArgs, TaskStatusArg, TaskStatusArgs, TaskTemplateArgs,
+    TaskShowArgs, TaskSplitArgs, TaskStartArgs, TaskStatusArg, TaskStatusArgs, TaskTemplateArgs,
     TaskTemplateBuildArgs, TaskTemplateCommand, TaskTemplateShowArgs, TaskUpdateArgs,
 };
 
@@ -67,6 +68,7 @@ pub fn handle_task(args: TaskArgs, force: bool) -> Result<()> {
             relations::handle_mark_duplicate(&args, force, &resolved)
         }
         Some(TaskCommand::Split(args)) => split::handle(&args, force, &resolved),
+        Some(TaskCommand::Start(args)) => start::handle(&args, force, &resolved),
         None => {
             // Default command: build from request
             build::handle(&args.build, force, &resolved)

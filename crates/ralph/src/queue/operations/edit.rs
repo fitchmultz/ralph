@@ -39,6 +39,7 @@ pub enum TaskEditKey {
     CreatedAt,
     UpdatedAt,
     CompletedAt,
+    StartedAt,
     ScheduledStart,
 }
 
@@ -62,6 +63,7 @@ impl TaskEditKey {
             TaskEditKey::CreatedAt => "created_at",
             TaskEditKey::UpdatedAt => "updated_at",
             TaskEditKey::CompletedAt => "completed_at",
+            TaskEditKey::StartedAt => "started_at",
             TaskEditKey::ScheduledStart => "scheduled_start",
         }
     }
@@ -90,9 +92,10 @@ impl std::str::FromStr for TaskEditKey {
             "created_at" => Ok(TaskEditKey::CreatedAt),
             "updated_at" => Ok(TaskEditKey::UpdatedAt),
             "completed_at" => Ok(TaskEditKey::CompletedAt),
+            "started_at" => Ok(TaskEditKey::StartedAt),
             "scheduled_start" => Ok(TaskEditKey::ScheduledStart),
             _ => bail!(
-                "Unknown task field: '{}'. Expected one of: title, status, priority, tags, scope, evidence, plan, notes, request, depends_on, blocks, relates_to, duplicates, custom_fields, created_at, updated_at, completed_at, scheduled_start.",
+                "Unknown task field: '{}'. Expected one of: title, status, priority, tags, scope, evidence, plan, notes, request, depends_on, blocks, relates_to, duplicates, custom_fields, created_at, updated_at, completed_at, started_at, scheduled_start.",
                 value
             ),
         }
@@ -230,6 +233,12 @@ pub fn apply_task_edit(
                     format!("Queue edit failed (task_id={}, field=completed_at)", needle)
                 })?;
             task.completed_at = normalized;
+        }
+        TaskEditKey::StartedAt => {
+            let normalized = normalize_rfc3339_input("started_at", trimmed).with_context(|| {
+                format!("Queue edit failed (task_id={}, field=started_at)", needle)
+            })?;
+            task.started_at = normalized;
         }
         TaskEditKey::ScheduledStart => {
             let normalized =
@@ -499,6 +508,16 @@ pub fn preview_task_edit(
                 })?;
             preview_task.completed_at = normalized;
         }
+        TaskEditKey::StartedAt => {
+            let normalized = normalize_rfc3339_input_for_preview("started_at", trimmed)
+                .with_context(|| {
+                    format!(
+                        "Queue edit preview failed (task_id={}, field=started_at)",
+                        needle
+                    )
+                })?;
+            preview_task.started_at = normalized;
+        }
         TaskEditKey::ScheduledStart => {
             let normalized = normalize_rfc3339_input_for_preview("scheduled_start", trimmed)
                 .with_context(|| {
@@ -634,6 +653,7 @@ fn format_field_value(task: &Task, key: TaskEditKey) -> String {
         TaskEditKey::CreatedAt => task.created_at.clone().unwrap_or_default(),
         TaskEditKey::UpdatedAt => task.updated_at.clone().unwrap_or_default(),
         TaskEditKey::CompletedAt => task.completed_at.clone().unwrap_or_default(),
+        TaskEditKey::StartedAt => task.started_at.clone().unwrap_or_default(),
         TaskEditKey::ScheduledStart => task.scheduled_start.clone().unwrap_or_default(),
     }
 }
@@ -659,6 +679,7 @@ mod tests {
             created_at: Some("2026-01-20T12:00:00Z".to_string()),
             updated_at: Some("2026-01-20T12:00:00Z".to_string()),
             completed_at: None,
+            started_at: None,
             scheduled_start: None,
             depends_on: vec![],
             blocks: vec![],
