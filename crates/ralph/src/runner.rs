@@ -252,17 +252,25 @@ pub(crate) fn run_prompt(
                 plugins,
             )?
         }
-        Runner::Cursor => execution::run_cursor(
-            work_dir,
-            bins.cursor,
-            runner_cli,
-            model,
-            prompt,
-            timeout,
-            output_handler.clone(),
-            output_stream,
-            phase_type,
-        )?,
+        Runner::Cursor => {
+            let executor = execution::PluginExecutor::new();
+            executor.run(
+                Runner::Cursor,
+                work_dir,
+                bins.cursor,
+                model,
+                None, // reasoning_effort
+                runner_cli,
+                prompt,
+                timeout,
+                None, // permission_mode
+                output_handler.clone(),
+                output_stream,
+                phase_type,
+                session_id.clone(),
+                plugins,
+            )?
+        }
         Runner::Claude => {
             let executor = execution::PluginExecutor::new();
             executor.run(
@@ -462,18 +470,25 @@ pub(crate) fn resume_session(
                 plugins,
             )
         }
-        Runner::Cursor => execution::run_cursor_resume(
-            work_dir,
-            bins.cursor,
-            runner_cli,
-            model,
-            session_id,
-            message,
-            timeout,
-            output_handler,
-            output_stream,
-            phase_type,
-        ),
+        Runner::Cursor => {
+            let executor = execution::PluginExecutor::new();
+            executor.resume(
+                Runner::Cursor,
+                work_dir,
+                bins.cursor,
+                model,
+                None, // reasoning_effort
+                runner_cli,
+                session_id,
+                message,
+                timeout,
+                None, // permission_mode
+                output_handler,
+                output_stream,
+                phase_type,
+                plugins,
+            )
+        }
         Runner::Claude => {
             let executor = execution::PluginExecutor::new();
             executor.resume(

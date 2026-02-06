@@ -53,7 +53,7 @@ mod tests;
 
 // Legacy exports (maintained for backward compatibility during migration)
 pub(super) use response::extract_final_assistant_response;
-pub(super) use runners::{run_cursor, run_cursor_resume};
+// Cursor now uses plugin system - legacy functions removed
 
 // New plugin trait system exports
 // Note: These are exported for use by runner.rs and tests

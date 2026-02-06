@@ -10,7 +10,9 @@ use serde_json::Value as JsonValue;
 
 use crate::contracts::Runner;
 
-use super::builtin_plugins::{CodexResponseParser, KimiResponseParser, OpencodeResponseParser};
+use super::builtin_plugins::{
+    CodexResponseParser, CursorResponseParser, KimiResponseParser, OpencodeResponseParser,
+};
 use super::json::parse_json_line;
 use super::plugin_trait::ResponseParser;
 
@@ -153,27 +155,7 @@ impl ResponseParser for PiResponseParser {
     }
 }
 
-struct CursorResponseParser;
-
-impl ResponseParser for CursorResponseParser {
-    fn parse(&self, json: &JsonValue, _buffer: &mut String) -> Option<String> {
-        if json.get("type").and_then(|t| t.as_str()) != Some("message_end") {
-            return None;
-        }
-
-        let message = json.get("message")?;
-        if message.get("role").and_then(|r| r.as_str()) != Some("assistant") {
-            return None;
-        }
-
-        let content = message.get("content")?;
-        extract_text_content(content)
-    }
-
-    fn runner_id(&self) -> &str {
-        "cursor"
-    }
-}
+// CursorResponseParser is now imported from builtin_plugins.rs
 
 // =============================================================================
 // Legacy Compatibility

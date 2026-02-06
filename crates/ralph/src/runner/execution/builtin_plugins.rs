@@ -853,10 +853,8 @@ impl RunnerPlugin for CursorPlugin {
     }
 }
 
-#[allow(dead_code)]
-struct CursorResponseParser;
+pub struct CursorResponseParser;
 
-#[allow(dead_code)]
 impl CursorResponseParser {
     fn parse_json(&self, json: &JsonValue) -> Option<String> {
         // Cursor uses message_end format

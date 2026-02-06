@@ -4,50 +4,62 @@
     {
       "id": "RQ-0663",
       "status": "todo",
-      "title": "Isolate cursor runner into its own plugin for easier runner-specific customization",
+      "title": "Cleanup legacy cursor runner code after plugin migration",
       "priority": "medium",
       "tags": [
         "refactor",
         "runner",
         "cursor",
         "plugin",
-        "architecture"
+        "cleanup",
+        "tech-debt"
       ],
       "scope": [
         "crates/ralph/src/runner/execution/runners.rs",
-        "crates/ralph/src/runner/execution/cli_spec.rs",
-        "crates/ralph/src/plugins/",
+        "crates/ralph/src/runner/execution/mod.rs",
+        "crates/ralph/src/runner/execution/response.rs",
         "make ci"
       ],
       "evidence": [
-        "User request: Isolate all runners into plugins for easier runner-specific customization.",
-        "crates/ralph/src/runner/execution/runners.rs:421-491: Cursor has dedicated run_cursor() and run_cursor_resume() functions with phase-aware sandbox defaults.",
-        "crates/ralph/src/runner/execution/cli_spec.rs:75-109: Cursor has unique CLI option mapping (apply_cursor_options) with phase-aware sandbox and plan modes.",
-        "crates/ralph/src/runner/execution/runners.rs:430-442: Cursor uses --print flag and positional prompt argument.",
-        "crates/ralph/src/runner/execution/cli_spec.rs:82-108: Cursor has phase-aware defaults: sandbox enabled in planning, disabled otherwise; plan enabled in planning.",
-        "crates/ralph/src/commands/run/phases/mod.rs: Cursor PhaseType is passed to cursor execution functions."
+        "DEPENDENCY RQ-0657 COMPLETED: Foundational plugin trait framework is done (crates/ralph/src/runner/execution/plugin_trait.rs).",
+        "crates/ralph/src/runner/execution/builtin_plugins.rs:805-885: CursorPlugin struct fully implements RunnerPlugin trait with build_run_command, build_resume_command, parse_response_line.",
+        "crates/ralph/src/runner/execution/builtin_plugins.rs:856-885: CursorResponseParser implements ResponseParser trait for type=message_end format.",
+        "crates/ralph/src/runner/execution/cli_spec.rs:75-109: apply_cursor_options maps --force, --sandbox (phase-aware), and --plan (phase-aware) flags.",
+        "crates/ralph/src/runner/execution/runners.rs:39-70: Legacy run_cursor() function still exists but is redundant with CursorPlugin.",
+        "crates/ralph/src/runner/execution/runners.rs:72-108: Legacy run_cursor_resume() function still exists but is redundant with CursorPlugin.",
+        "crates/ralph/src/runner/execution/mod.rs:56: Legacy exports pub(super) use runners::{run_cursor, run_cursor_resume} still active.",
+        "CursorPlugin uses --print flag, stream-json output format, and positional prompt argument (same as legacy)."
       ],
       "plan": [
-        "Wait for RQ-0657 to complete (foundational plugin trait framework).",
-        "Create CursorPlugin struct implementing the RunnerPlugin trait, with PhaseType awareness.",
-        "Implement command building: extract cursor-specific logic from runners.rs:run_cursor and run_cursor_resume, preserving --print, --resume, --force flags.",
-        "Implement CLI option mapping: extract cursor-specific options from cli_spec.rs:apply_cursor_options with phase-aware sandbox and plan modes.",
-        "Ensure Plugin trait supports phase-aware option building or pass PhaseType through execution context.",
-        "Register CursorPlugin as a built-in plugin with appropriate default model.",
-        "Refactor main runner execution to delegate to cursor plugin when Runner::Cursor is selected.",
-        "Add comprehensive tests for the cursor plugin, including phase-aware option behavior.",
-        "Verify by running `make ci` and confirming all tests pass."
+        "Verify CursorPlugin implementation is complete and matches legacy behavior (phase-aware sandbox, plan modes, --print flag).",
+        "Remove legacy run_cursor() function from runners.rs (lines 39-70).",
+        "Remove legacy run_cursor_resume() function from runners.rs (lines 72-108).",
+        "Update mod.rs to remove the legacy exports for run_cursor and run_cursor_resume.",
+        "Check response.rs for any CursorResponseParser duplication and consolidate if needed.",
+        "Verify make ci passes after cleanup.",
+        "Update any tests that reference the legacy functions to use the plugin system."
       ],
-      "notes": [],
+      "notes": [
+        "MAJOR STATUS CHANGE: RQ-0657 (foundational plugin framework) is COMPLETED. The plugin system is operational.",
+        "CursorPlugin ALREADY EXISTS in builtin_plugins.rs:805-885 with full RunnerPlugin trait implementation.",
+        "This task changed from 'create plugin' to 'cleanup legacy code' - the plugin was implemented as part of RQ-0657.",
+        "The legacy functions in runners.rs:39-108 are now technical debt to be removed.",
+        "Cursor plugin features: --print flag, --sandbox/--plan phase-aware defaults, --force for yolo mode, stream-json output."
+      ],
       "request": "create tasks to have all runners isolated and integrated into the plugin system approach. We currently support codex, claude, pi, kimi, opencode, and cursor-agent.",
       "created_at": "2026-02-06T16:21:11Z",
-      "updated_at": "2026-02-06T16:21:11Z",
-      "depends_on": [
-        "RQ-0657"
-      ],
+      "updated_at": "2026-02-06T21:37:42.348561000Z",
+      "started_at": "2026-02-06T21:37:42.348561000Z",
+      "depends_on": [],
       "blocks": [],
       "relates_to": [],
-      "custom_fields": {}
+      "custom_fields": {
+        "legacy_code_location": "crates/ralph/src/runner/execution/runners.rs:39-108",
+        "cursor_plugin_location": "crates/ralph/src/runner/execution/builtin_plugins.rs:805-885",
+        "task_type": "cleanup",
+        "rq_0657_status": "completed",
+        "original_title": "Isolate cursor runner into its own plugin for easier runner-specific customization"
+      }
     },
     {
       "id": "RQ-0638",

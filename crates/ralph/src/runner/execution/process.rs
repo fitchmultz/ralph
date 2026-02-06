@@ -460,13 +460,11 @@ fn run_with_streaming_json_inner(
 
     let ctrlc = ctrlc_state().map_err(|e| RunnerError::Other(anyhow::anyhow!(e)))?;
 
-    // Check for pre-run interrupt BEFORE resetting the flag.
-    // If an interrupt was already pending, we should not proceed.
-    if ctrlc.interrupted.load(Ordering::SeqCst) {
-        return Err(RunnerError::Interrupted);
-    }
-
-    // Now safe to reset for this run
+    // Reset the interrupted flag at the start of each runner invocation.
+    // This is necessary because the flag may have been set during a previous
+    // phase of the same task (e.g., when `ralph queue stop` is called), but
+    // we should still allow subsequent phases to run to completion. The stop
+    // signal is checked between tasks, not between phases.
     ctrlc.interrupted.store(false, Ordering::SeqCst);
 
     let mut child = cmd.spawn().map_err(|e| {
