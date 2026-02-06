@@ -35,6 +35,53 @@ use crate::signal;
 use crate::{git, prompts, queue, runner, runutil};
 use anyhow::{Context, Result, bail};
 use std::cell::RefCell;
+use std::path::Path;
+
+const QUEUE_LOCK_ALREADY_HELD_PREFIX: &str = "Queue lock already held at:";
+
+/// Clear stale queue lock when resuming a session.
+///
+/// This helper is called during resume to preemptively clean up stale locks
+/// left behind by a crashed or killed ralph process. It uses `force=true`
+/// which only clears the lock if the owning PID is confirmed dead (see lock.rs).
+///
+/// Returns Ok(()) if no lock exists, lock was cleared, or lock is held by
+/// a live process/unreadable metadata (those cases are handled later during
+/// normal acquisition with a single actionable error).
+fn clear_stale_queue_lock_for_resume(repo_root: &Path) -> Result<()> {
+    let lock_dir = crate::lock::queue_lock_dir(repo_root);
+    if !lock_dir.exists() {
+        return Ok(());
+    }
+
+    // `force=true` only clears when the PID is confirmed stale (see lock.rs).
+    // We acquire+drop immediately: this performs stale cleanup without holding the lock.
+    let lock = match crate::queue::acquire_queue_lock(repo_root, "run loop resume", true) {
+        Ok(lock) => lock,
+        Err(err) => {
+            // If the lock is held by a live process, or the owner metadata is missing/unreadable,
+            // we cannot safely clear it here. Let normal acquisition report the actionable error.
+            if is_queue_lock_already_held_error(&err) {
+                return Ok(());
+            }
+            return Err(err);
+        }
+    };
+    drop(lock);
+    Ok(())
+}
+
+/// Check if an error is a "Queue lock already held" error.
+///
+/// This is used to detect lock contention errors that should not be retried
+/// in the run loop, preventing the 50-failure abort loop.
+fn is_queue_lock_already_held_error(err: &anyhow::Error) -> bool {
+    err.chain().any(|cause| {
+        cause
+            .to_string()
+            .starts_with(QUEUE_LOCK_ALREADY_HELD_PREFIX)
+    })
+}
 
 mod context;
 mod execution_history_cli;
@@ -171,6 +218,17 @@ pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()>
             }
         };
 
+    // Preemptively clear stale queue lock when resuming a session.
+    // This handles the case where a previous ralph process crashed/killed
+    // and left behind a stale lock file.
+    if resume_task_id.is_some()
+        && let Err(err) = clear_stale_queue_lock_for_resume(&resolved.repo_root)
+    {
+        log::warn!("Failed to clear stale queue lock for resume: {}", err);
+        // Continue anyway - the lock acquisition in run_one will fail
+        // with a more specific error if the lock is still held.
+    }
+
     let include_draft = opts.agent_overrides.include_draft.unwrap_or(false);
     let initial_todo_count = queue_file
         .tasks
@@ -269,6 +327,14 @@ pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()>
                         }
                         return Err(err);
                     }
+
+                    // Queue lock errors are non-retriable - return immediately
+                    // to prevent the 50-failure abort loop on deterministic lock errors.
+                    if is_queue_lock_already_held_error(&err) {
+                        log::error!("RunLoop: aborting due to queue lock contention");
+                        return Err(err);
+                    }
+
                     completed += 1;
                     tasks_attempted += 1;
                     tasks_failed += 1;

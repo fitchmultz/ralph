@@ -737,6 +737,29 @@ When a previous run was interrupted, Ralph detects the stale session on the next
 * `--resume`: Automatically resume an interrupted session without prompting (for `run loop`).
 * `--non-interactive`: Skip interactive prompts for sanity checks and session recovery (for `run one`, `run loop`, and `run resume`). When a stale session is detected in non-interactive mode, it is cleared and execution continues with the next task instead of blocking.
 
+#### Lock interaction during resume
+
+When resuming (`--resume`, `run resume`, or answering "yes" to the resume prompt), Ralph attempts to clear stale queue locks automatically:
+
+* If the queue lock is held by a **dead process** (stale PID), it is automatically cleared before resuming.
+* If the queue lock is held by a **live process**, Ralph aborts immediately with recovery guidance.
+* If lock metadata is **missing or unreadable**, Ralph aborts with an actionable error.
+
+This prevents the "50 consecutive failures" abort loop that could occur when resuming with a stale lock.
+
+**Manual recovery** (if automatic cleanup fails):
+
+```bash
+# Preferred: use the built-in unlock command (unsafe if another ralph is running)
+ralph queue unlock
+
+# Alternative: use --force to bypass the lock (also clears stale locks)
+ralph run loop --force --resume
+
+# Last resort: manually remove the lock directory
+rm -rf .ralph/lock
+```
+
 Examples:
 
 ```bash
@@ -751,6 +774,9 @@ ralph run resume --non-interactive
 
 # Auto-resume without prompting (interactive environments)
 ralph run loop --resume --max-tasks 5
+
+# Resume with force (clears stale locks if any)
+ralph run loop --resume --force --max-tasks 5
 ```
 
 ### Dry-run mode
@@ -1201,8 +1227,14 @@ ralph queue repair --dry-run
 
 Remove the queue lock file/directory.
 
+**Warning**: Only use this when you are sure no other Ralph process is running. Using this while another ralph is active can cause queue corruption.
+
 ```bash
+# Safe to use when no other ralph is running
 ralph queue unlock
+
+# Check if another ralph is running before unlocking
+pgrep -f "ralph run" && echo "Another ralph is running - do not unlock!"
 ```
 
 ### `ralph queue sort`

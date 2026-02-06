@@ -208,15 +208,31 @@ fn webhook_includes_signature_header() {
 
     thread::spawn(move || {
         if let Ok((mut stream, _)) = listener.accept() {
-            // Read the request headers
-            let mut buf = [0u8; 2048];
-            let n = stream.read(&mut buf).unwrap_or(0);
-            let request = String::from_utf8_lossy(&buf[..n]);
+            // Read until end of headers. This avoids flakiness from assuming a single read
+            // returns all headers, and it tolerates minor formatting differences around `:`.
+            let mut raw = Vec::with_capacity(4096);
+            let mut buf = [0u8; 1024];
+            while raw.len() < 16 * 1024 {
+                let n = stream.read(&mut buf).unwrap_or(0);
+                if n == 0 {
+                    break;
+                }
+                raw.extend_from_slice(&buf[..n]);
+                if raw.windows(4).any(|w| w == b"\r\n\r\n") {
+                    break;
+                }
+            }
 
-            // Check for signature header in the request
+            let request = String::from_utf8_lossy(&raw);
+
+            // Check for signature header in the request.
             for line in request.lines() {
-                if line.to_lowercase().starts_with("x-ralph-signature: ") {
-                    *sig_clone.lock().unwrap() = Some(line.to_string());
+                let line = line.trim_end_matches('\r');
+                let Some((key, value)) = line.split_once(':') else {
+                    continue;
+                };
+                if key.trim().eq_ignore_ascii_case("x-ralph-signature") {
+                    *sig_clone.lock().unwrap() = Some(value.trim().to_string());
                     break;
                 }
             }

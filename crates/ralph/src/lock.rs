@@ -449,12 +449,12 @@ fn format_lock_error(
     msg.push_str("\n\nSuggested Action:");
     if is_stale {
         msg.push_str(&format!(
-            "\n  The process that held this lock is no longer running.\n  Use --force to automatically clear it, or remove the directory manually:\n  rm -rf {}",
+            "\n  The process that held this lock is no longer running.\n  Use --force to automatically clear it, or use the built-in unlock command (unsafe if another ralph is running):\n  ralph queue unlock\n  Or remove the directory manually:\n  rm -rf {}",
             lock_dir.display()
         ));
     } else {
         msg.push_str(&format!(
-            "\n  If you are sure no other ralph process is running, remove the lock directory:\n  rm -rf {}",
+            "\n  If you are sure no other ralph process is running, use the built-in unlock command:\n  ralph queue unlock\n  Or remove the lock directory manually:\n  rm -rf {}",
             lock_dir.display()
         ));
     }

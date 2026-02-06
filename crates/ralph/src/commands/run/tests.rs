@@ -305,6 +305,150 @@ fn run_one_with_id_locked_skips_reacquiring_queue_lock() -> anyhow::Result<()> {
     Ok(())
 }
 
+fn find_definitely_dead_pid() -> u32 {
+    // `pid_is_running` is best-effort; pick a PID that we can confirm is not running.
+    // Prefer very large values to avoid colliding with real processes.
+    for pid in [0xFFFFFFFE, 999_999, 500_000, 250_000, 100_000] {
+        if crate::lock::pid_is_running(pid) == Some(false) {
+            return pid;
+        }
+    }
+    panic!("Could not find a definitely-dead PID on this system");
+}
+
+#[test]
+fn clear_stale_queue_lock_for_resume_removes_stale_lock() -> anyhow::Result<()> {
+    let temp = TempDir::new()?;
+    let repo_root = temp.path().to_path_buf();
+    std::fs::create_dir_all(repo_root.join(".ralph"))?;
+
+    let lock_dir = crate::lock::queue_lock_dir(&repo_root);
+    std::fs::create_dir_all(&lock_dir)?;
+    let owner_path = lock_dir.join("owner");
+
+    let stale_pid = find_definitely_dead_pid();
+    std::fs::write(
+        &owner_path,
+        format!(
+            "pid: {stale_pid}\nstarted_at: 2026-02-06T00:56:29Z\ncommand: ralph run loop --max-tasks 0\nlabel: run one\n"
+        ),
+    )?;
+
+    super::clear_stale_queue_lock_for_resume(&repo_root)?;
+
+    assert!(
+        !lock_dir.exists(),
+        "expected stale queue lock dir to be cleared during resume"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn clear_stale_queue_lock_for_resume_does_not_remove_live_lock() -> anyhow::Result<()> {
+    let temp = TempDir::new()?;
+    let repo_root = temp.path().to_path_buf();
+    std::fs::create_dir_all(repo_root.join(".ralph"))?;
+
+    let lock_dir = crate::lock::queue_lock_dir(&repo_root);
+    let _held = queue::acquire_queue_lock(&repo_root, "live holder", false)?;
+
+    super::clear_stale_queue_lock_for_resume(&repo_root)?;
+
+    assert!(lock_dir.exists(), "expected live queue lock dir to remain");
+    let owner = std::fs::read_to_string(lock_dir.join("owner"))?;
+    assert!(
+        owner.contains("live holder"),
+        "expected lock owner label to be unchanged"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn run_loop_auto_resume_clears_stale_queue_lock_before_task_execution() -> anyhow::Result<()> {
+    use std::sync::atomic::Ordering;
+
+    struct InterruptGuard {
+        previous: bool,
+    }
+
+    impl Drop for InterruptGuard {
+        fn drop(&mut self) {
+            if let Ok(ctrlc) = crate::runner::ctrlc_state() {
+                ctrlc.interrupted.store(self.previous, Ordering::SeqCst);
+            }
+        }
+    }
+
+    let temp = TempDir::new()?;
+    let repo_root = temp.path().to_path_buf();
+    std::fs::create_dir_all(repo_root.join(".ralph/cache"))?;
+
+    let resolved = resolved_with_repo_root(repo_root.clone());
+
+    // Valid resumable session: Doing task + session.json present.
+    queue::save_queue(
+        &resolved.queue_path,
+        &QueueFile {
+            version: 1,
+            tasks: vec![task_with_status(TaskStatus::Doing)],
+        },
+    )?;
+    queue::save_queue(&resolved.done_path, &QueueFile::default())?;
+
+    let session = super::create_session_for_task(
+        "RQ-0001",
+        &resolved,
+        &super::AgentOverrides::default(),
+        1,
+        None,
+    );
+    crate::session::save_session(&repo_root.join(".ralph/cache"), &session)?;
+
+    // Stale queue lock left behind by a dead process.
+    let lock_dir = crate::lock::queue_lock_dir(&repo_root);
+    std::fs::create_dir_all(&lock_dir)?;
+    let stale_pid = find_definitely_dead_pid();
+    std::fs::write(
+        lock_dir.join("owner"),
+        format!(
+            "pid: {stale_pid}\nstarted_at: 2026-02-06T00:56:29Z\ncommand: ralph run loop --max-tasks 0\nlabel: run one\n"
+        ),
+    )?;
+
+    // Prevent the loop from executing the task; we only care that the resume path
+    // cleared the stale lock before attempting `run_one`.
+    let ctrlc =
+        crate::runner::ctrlc_state().map_err(|e| anyhow::anyhow!("ctrlc init failed: {e}"))?;
+    let guard = InterruptGuard {
+        previous: ctrlc.interrupted.load(Ordering::SeqCst),
+    };
+    ctrlc.interrupted.store(true, Ordering::SeqCst);
+
+    let result = super::run_loop(
+        &resolved,
+        super::RunLoopOptions {
+            max_tasks: 0,
+            agent_overrides: super::AgentOverrides::default(),
+            force: false,
+            auto_resume: true,
+            starting_completed: 0,
+            non_interactive: true,
+            parallel_workers: None,
+        },
+    );
+    drop(guard);
+
+    assert!(result.is_err(), "expected run_loop to abort early");
+    assert!(
+        !lock_dir.exists(),
+        "expected stale queue lock to be cleared during resume"
+    );
+
+    Ok(())
+}
+
 #[test]
 fn resolve_run_agent_settings_task_agent_overrides_config() -> anyhow::Result<()> {
     let resolved = resolved_with_agent_defaults(

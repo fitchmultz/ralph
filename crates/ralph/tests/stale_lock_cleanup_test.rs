@@ -3,6 +3,7 @@
 //! Responsibilities:
 //! - Verify force acquisition clears stale lock metadata.
 //! - Ensure active locks are not removed even when forced.
+//! - Verify resume flow clears stale locks automatically (regression test for RQ-0643).
 //!
 //! Not covered here:
 //! - Shared task lock behavior (see `task_lock_coexistence_test.rs`).
@@ -69,6 +70,51 @@ fn acquire_dir_lock_does_not_clean_active_lock_even_if_forced() -> Result<()> {
     assert!(msg.to_lowercase().contains("lock already held"));
     assert!(msg.to_lowercase().contains("pid:"));
     assert!(!msg.to_lowercase().contains("stale pid"));
+
+    Ok(())
+}
+
+/// Regression test for RQ-0643: force=true clears stale queue lock.
+///
+/// This test verifies the underlying mechanism used by the resume flow:
+/// acquire_queue_lock with force=true clears stale locks (PIDs that are dead).
+/// The run_loop calls this during resume to clear any stale locks left by
+/// a crashed or killed ralph process.
+#[cfg(unix)]
+#[test]
+fn acquire_dir_lock_with_force_clears_stale_lock_for_resume() -> Result<()> {
+    let dir = TempDir::new().context("create temp dir")?;
+    let repo_root = dir.path().to_path_buf();
+    fs::create_dir_all(repo_root.join(".ralph")).context("create .ralph dir")?;
+
+    // Create a stale queue lock with a dead PID
+    let lock_dir = lock::queue_lock_dir(&repo_root);
+    fs::create_dir_all(&lock_dir)?;
+    let stale_pid = lock_support::spawn_exited_pid();
+    fs::write(
+        lock_dir.join("owner"),
+        format!(
+            "pid: {stale_pid}\nstarted_at: 2026-02-06T00:56:29Z\ncommand: ralph run loop --max-tasks 0\nlabel: run one\n"
+        ),
+    )?;
+
+    // Verify the lock exists and appears stale
+    assert!(lock_dir.exists(), "lock dir should exist");
+    let err = lock::acquire_dir_lock(&lock_dir, "test", false).unwrap_err();
+    assert!(
+        format!("{err:#}").contains("STALE PID"),
+        "expected stale PID error"
+    );
+
+    // Acquire with force=true should succeed and clear the stale lock
+    let lock = lock::acquire_dir_lock(&lock_dir, "run loop resume", true)?;
+    drop(lock);
+
+    // After dropping, the lock should be fully cleaned up.
+    assert!(
+        !lock_dir.exists(),
+        "expected lock dir to be removed on drop"
+    );
 
     Ok(())
 }

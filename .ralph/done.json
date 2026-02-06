@@ -1301,9 +1301,9 @@
       "relates_to": [],
       "custom_fields": {
         "time_to_ship": "medium (concurrency + tests)",
-        "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort.",
+        "scan_agent": "scan-innovation",
         "opportunity_type": "reliability",
-        "scan_agent": "scan-innovation"
+        "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort."
       }
     },
     {
@@ -1345,10 +1345,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "ux improvement",
         "scan_agent": "scan-innovation",
         "time_to_ship": "medium (metadata + reconciliation + tests)",
-        "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current."
+        "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current.",
+        "opportunity_type": "ux improvement"
       }
     },
     {
@@ -1395,8 +1395,8 @@
       "relates_to": [],
       "custom_fields": {
         "opportunity_type": "ux improvement",
-        "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics.",
         "scan_agent": "scan-innovation",
+        "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics.",
         "time_to_ship": "medium (format + fixes + tests)"
       }
     },
@@ -1441,10 +1441,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "time_to_ship": "small/medium (formatters + tests)",
+        "opportunity_type": "ux improvement",
         "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat).",
-        "opportunity_type": "ux improvement"
+        "scan_agent": "scan-innovation",
+        "time_to_ship": "small/medium (formatters + tests)"
       }
     },
     {
@@ -1932,8 +1932,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "time_to_ship": "medium (TUI wiring + tests)",
         "user_value": "Fewer context switches: jump from task → code in one keystroke.",
+        "time_to_ship": "medium (TUI wiring + tests)",
         "scan_agent": "scan-innovation",
         "opportunity_type": "ux improvement"
       }
@@ -1989,10 +1989,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "time_to_ship": "medium (render-only UI + tests)",
+        "opportunity_type": "ux improvement",
         "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error.",
-        "opportunity_type": "ux improvement"
+        "scan_agent": "scan-innovation",
+        "time_to_ship": "medium (render-only UI + tests)"
       }
     },
     {
@@ -2046,9 +2046,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "opportunity_type": "feature gap",
         "measurable_impact": "Track 20%+ improvement in task completion velocity after adoption",
+        "opportunity_type": "feature gap",
+        "scan_agent": "scan-innovation",
         "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types"
       }
     },
@@ -2165,10 +2165,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "reliability",
-        "scan_agent": "scan-innovation",
         "user_value": "Reduces regression risk; enables confident refactoring",
-        "measurable_impact": "80%+ integration test coverage for CLI commands"
+        "scan_agent": "scan-innovation",
+        "measurable_impact": "80%+ integration test coverage for CLI commands",
+        "opportunity_type": "reliability"
       }
     },
     {
@@ -2232,8 +2232,8 @@
       "relates_to": [],
       "custom_fields": {
         "opportunity_type": "feature gap",
-        "differentiation": "Unique capability among AI task runners",
         "scan_agent": "scan-innovation",
+        "differentiation": "Unique capability among AI task runners",
         "user_value": "Enables ecosystem growth; custom integrations without forks"
       }
     },
@@ -3412,6 +3412,68 @@
       "relates_to": [],
       "custom_fields": {
         "scan_agent": "scan-innovation"
+      }
+    },
+    {
+      "id": "RQ-0643",
+      "status": "done",
+      "title": "Fix resume flow when queue lock is stale (avoid 50-failure abort loop)",
+      "priority": "high",
+      "tags": [
+        "bug",
+        "resume",
+        "queue-lock",
+        "run-loop",
+        "recovery"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/mod.rs",
+        "crates/ralph/src/session/mod.rs",
+        "crates/ralph/src/lock.rs",
+        "crates/ralph/src/queue.rs",
+        "crates/ralph/src/cli/queue/unlock.rs",
+        "crates/ralph/src/cli/queue/mod.rs",
+        "crates/ralph/tests/stale_lock_cleanup_test.rs",
+        "crates/ralph/tests/lock_contention_integration_test.rs",
+        "docs/cli.md",
+        "cargo test -p ralph --test stale_lock_cleanup_test",
+        "cargo test -p ralph --test lock_contention_integration_test",
+        "make ci"
+      ],
+      "evidence": [
+        "User report: after \"Incomplete session detected\" and answering \"Resume this session? y\", the run fails with \"Queue lock already held ... (STALE PID)\" and suggests using --force or removing .ralph/lock manually.",
+        "User report: the run loop then repeats the same failure until \"aborting after 50 consecutive failures\", preventing session resume and requiring manual intervention.",
+        "crates/ralph/src/session/mod.rs: the resume prompt is printed via \"Incomplete session detected\" and \"Resume this session? [Y/n]\".",
+        "crates/ralph/src/lock.rs: stale locks are only auto-removed when acquiring with `force=true` (and PID is confirmed dead); otherwise lock acquisition returns an error that includes a `--force`/`rm -rf` suggestion.",
+        "crates/ralph/src/commands/run/mod.rs + crates/ralph/src/constants.rs: `RunLoop` continues after generic errors and aborts only after `MAX_CONSECUTIVE_FAILURES` (currently 50), so a deterministic lock error can spin quickly into the 50-failure abort path.",
+        "crates/ralph/tests/stale_lock_cleanup_test.rs + crates/ralph/src/cli/queue/unlock.rs + docs/cli.md: the repo already has a tested recovery mechanism (`--force` clears stale locks; `ralph queue unlock` removes the lock dir) that the resume flow can leverage."
+      ],
+      "plan": [
+        "Add a regression integration test that simulates: a valid resumable session (.ralph/cache/session.json for a Doing task) plus a stale queue lock dir (.ralph/lock with a dead PID), then asserts `ralph run loop` resumes without requiring manual `rm -rf .ralph/lock` and does not hit the 50-consecutive-failures abort path.",
+        "Define the intended behavior for resume with a stale lock: after the user confirms resume, automatically clear the stale lock (equivalent to `force=true` for stale-only) before starting `run_one`, or prompt once to clear via `ralph queue unlock`.",
+        "Make lock acquisition failures non-retriable in the run loop: treat \"Queue lock already held\" as a systemic abort (single actionable error) unless it is stale and can be safely cleared; do not allow it to drive the tight 50-failure retry loop.",
+        "Extend tests to cover failure modes: live-PID lock must not be cleared; stale-PID lock can be cleared; unreadable/missing owner metadata yields a single actionable error (no repeated retries).",
+        "Update `docs/cli.md` to document the resume + lock interaction and prefer the built-in recovery command (`ralph queue unlock`) over raw `rm -rf` in user-facing guidance where possible.",
+        "Run `make ci` and ensure it passes."
+      ],
+      "notes": [
+        "Current lock/recovery primitives already exist (`--force` stale-lock cleanup in crates/ralph/src/lock.rs; explicit unlock in crates/ralph/src/cli/queue/unlock.rs); the missing piece is wiring them into the resume path and preventing lock errors from entering the generic 50-failure loop.",
+        "Resume flow now pre-clears stale queue lock (force cleanup only for dead PID).",
+        "Run loop treats queue lock contention as non-retriable to avoid 50-failure abort spin.",
+        "Lock error messaging now prefers  over manual rm -rf and docs describe resume+lock interaction.",
+        "Added regression tests for stale-lock cleanup + resume wiring + immediate abort on live lock."
+      ],
+      "request": "Resuming doesnt work. See log.\n[Reasoning] Now I need to update the ContextBuilder render signature to take `show_token_counts: bool` instead of `state: &AppState`:\n[Reasoning] Now I need to update the usage inside the render method from `state.show_token_counts` to just `show_token_counts`:\n[Reasoning] Now let me run the tests again to check if there are any more issues:\n[1]    55732 terminated  ralph run loop --max-tasks 0\n\n~/Projects/AI/rp-tui main !8 ?1 ❯ ralph run loop --max-tasks 0                                                                                       ✘ TERM 1h 59m 58s 06:13:48 PM\n\n╔══════════════════════════════════════════════════════════════╗\n║  Incomplete session detected                                 ║\n╠══════════════════════════════════════════════════════════════╣\n║  Task:        RQ-0012                                      \n║  Started:     2026-02-06T00:57:04.069218000Z               \n║  Iterations:  0/1\n║  Phase:       1                                            \n╠══════════════════════════════════════════════════════════════╣\n║  Phase Settings:                                             ║\n║    Phase 1:   Codex/gpt-5.3-codex, effort=High         \n║    Phase 2:   Kimi/kimi-code/kimi-for-coding           \n║    Phase 3:   Codex/gpt-5.3-codex, effort=Medium       \n╚══════════════════════════════════════════════════════════════╝\n\nResume this session? [Y/n]: y\n[2026-02-06T01:29:32Z INFO  ralph::commands::run::logging] RunLoop (todo=6, max_tasks=0): start\n[2026-02-06T01:29:32Z ERROR ralph::commands::run] RunLoop: task failed: Queue lock already held at: /Users/mitchfultz/Projects/AI/rp-tui/.ralph/lock (STALE PID)\n    \n    Lock Holder:\n      PID: 55732\n      Label: run one\n      Started At: 2026-02-06T00:56:29.036348000Z\n      Command: ralph run loop --max-tasks 0\n    \n    Suggested Action:\n      The process that held this lock is no longer running.\n      Use --force to automatically clear it, or remove the directory manually:\n      rm -rf /Users/mitchfultz/Projects/AI/rp-tui/.ralph/lock\n[2026-02-06T01:29:32Z ERROR ralph::commands::run] RunLoop: task failed: Queue lock already held at: /Users/mitchfultz/Projects/AI/rp-tui/.ralph/lock (STALE PID)\n[2026-02-06T01:29:32Z ERROR ralph::commands::run] RunLoop: aborting after 50 consecutive failures\n[2026-02-06T01:29:32Z ERROR ralph::commands::run::logging] RunLoop (todo=6, max_tasks=0): error: Run loop aborted after 50 consecutive task failures. This usually indicates a systemic issue (e.g., repo dirty, runner misconfiguration, or interrupt flag stuck). Check logs above for root cause.\nError: Run loop aborted after 50 consecutive task failures. This usually indicates a systemic issue (e.g., repo dirty, runner misconfiguration, or interrupt flag stuck). Check logs above for root cause.\n",
+      "created_at": "2026-02-06T01:31:38Z",
+      "updated_at": "2026-02-06T14:35:18.480292000Z",
+      "completed_at": "2026-02-06T14:35:18.480292000Z",
+      "started_at": "2026-02-06T13:45:06.098713000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "reported_at": "2026-02-06",
+        "user_visible_blocker": "true"
       }
     }
   ]
