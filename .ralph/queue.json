@@ -2,6 +2,49 @@
   "version": 1,
   "tasks": [
     {
+      "id": "RQ-0643",
+      "status": "todo",
+      "title": "Fix resume flow when queue lock is stale (avoid 50-failure abort loop)",
+      "priority": "high",
+      "tags": [
+        "bug",
+        "resume",
+        "queue-lock",
+        "run-loop",
+        "recovery"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/",
+        "crates/ralph/src/queue/",
+        "crates/ralph/tests/",
+        "docs/cli.md",
+        "make ci"
+      ],
+      "evidence": [
+        "User report: after \"Incomplete session detected\" and answering \"Resume this session? y\", the run fails with \"Queue lock already held ... (STALE PID)\" and suggests using --force or removing .ralph/lock manually.",
+        "User report: the run loop then repeats the same failure until \"aborting after 50 consecutive failures\", preventing session resume and requiring manual intervention."
+      ],
+      "plan": [
+        "Reproduce with an integration test that simulates a stale lock directory (PID no longer running) and asserts `ralph run loop` can resume without user needing manual `rm -rf .ralph/lock`.",
+        "Adjust the run/resume flow to treat a stale lock as a recoverable condition: either auto-clear it (safe because PID is dead) after resume confirmation, or present a dedicated prompt to clear it before continuing.",
+        "Ensure deterministic lock acquisition failures do not trigger the generic 50-consecutive-failures retry loop; fail fast with a single actionable error if the lock is not safely clearable (e.g., live PID).",
+        "Add unit tests around lock handling to cover: stale PID is clearable; live PID is not; corrupted lock metadata yields an actionable error without repeated retries.",
+        "Update CLI help/docs (`docs/cli.md`) to document resume behavior and the recommended non-destructive recovery command (`ralph queue unlock` and/or `--force`) if needed.",
+        "Run `make ci` and ensure it passes."
+      ],
+      "notes": [],
+      "request": "Resuming doesnt work. See log.\n[Reasoning] Now I need to update the ContextBuilder render signature to take `show_token_counts: bool` instead of `state: &AppState`:\n[Reasoning] Now I need to update the usage inside the render method from `state.show_token_counts` to just `show_token_counts`:\n[Reasoning] Now let me run the tests again to check if there are any more issues:\n[1]    55732 terminated  ralph run loop --max-tasks 0\n\n~/Projects/AI/rp-tui main !8 ?1 ❯ ralph run loop --max-tasks 0                                                                                       ✘ TERM 1h 59m 58s 06:13:48 PM\n\n╔══════════════════════════════════════════════════════════════╗\n║  Incomplete session detected                                 ║\n╠══════════════════════════════════════════════════════════════╣\n║  Task:        RQ-0012                                      \n║  Started:     2026-02-06T00:57:04.069218000Z               \n║  Iterations:  0/1\n║  Phase:       1                                            \n╠══════════════════════════════════════════════════════════════╣\n║  Phase Settings:                                             ║\n║    Phase 1:   Codex/gpt-5.3-codex, effort=High         \n║    Phase 2:   Kimi/kimi-code/kimi-for-coding           \n║    Phase 3:   Codex/gpt-5.3-codex, effort=Medium       \n╚══════════════════════════════════════════════════════════════╝\n\nResume this session? [Y/n]: y\n[2026-02-06T01:29:32Z INFO  ralph::commands::run::logging] RunLoop (todo=6, max_tasks=0): start\n[2026-02-06T01:29:32Z ERROR ralph::commands::run] RunLoop: task failed: Queue lock already held at: /Users/mitchfultz/Projects/AI/rp-tui/.ralph/lock (STALE PID)\n    \n    Lock Holder:\n      PID: 55732\n      Label: run one\n      Started At: 2026-02-06T00:56:29.036348000Z\n      Command: ralph run loop --max-tasks 0\n    \n    Suggested Action:\n      The process that held this lock is no longer running.\n      Use --force to automatically clear it, or remove the directory manually:\n      rm -rf /Users/mitchfultz/Projects/AI/rp-tui/.ralph/lock\n[2026-02-06T01:29:32Z ERROR ralph::commands::run] RunLoop: task failed: Queue lock already held at: /Users/mitchfultz/Projects/AI/rp-tui/.ralph/lock (STALE PID)\n[2026-02-06T01:29:32Z ERROR ralph::commands::run] RunLoop: aborting after 50 consecutive failures\n[2026-02-06T01:29:32Z ERROR ralph::commands::run::logging] RunLoop (todo=6, max_tasks=0): error: Run loop aborted after 50 consecutive task failures. This usually indicates a systemic issue (e.g., repo dirty, runner misconfiguration, or interrupt flag stuck). Check logs above for root cause.\nError: Run loop aborted after 50 consecutive task failures. This usually indicates a systemic issue (e.g., repo dirty, runner misconfiguration, or interrupt flag stuck). Check logs above for root cause.\n",
+      "created_at": "2026-02-06T01:31:38Z",
+      "updated_at": "2026-02-06T01:31:38Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "user_visible_blocker": "true",
+        "reported_at": "2026-02-06"
+      }
+    },
+    {
       "id": "RQ-0635",
       "status": "todo",
       "title": "Use real RFC3339 parsing for execution history weighting (fix inaccurate age_days)",
@@ -74,8 +117,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "stale_evidence": "Updated rg results for now_utc_rfc3339().unwrap_or_default(): productivity.rs:55,207,340; execution_history.rs:121",
-        "scan_agent": "scan-maintenance"
+        "scan_agent": "scan-maintenance",
+        "stale_evidence": "Updated rg results for now_utc_rfc3339().unwrap_or_default(): productivity.rs:55,207,340; execution_history.rs:121"
       }
     },
     {
