@@ -20,3 +20,4 @@ target/
 debug/
 .ralph/cache/stop_requested
 .ralph/logs/
+.ralph/cache/execution_history.json
