@@ -195,17 +195,25 @@ pub(crate) fn run_prompt(
         ))
     })?;
     let output = match runner {
-        Runner::Codex => execution::run_codex(
-            work_dir,
-            bins.codex,
-            runner_cli,
-            model,
-            reasoning_effort,
-            prompt,
-            timeout,
-            output_handler.clone(),
-            output_stream,
-        )?,
+        Runner::Codex => {
+            let executor = execution::PluginExecutor::new();
+            executor.run(
+                Runner::Codex,
+                work_dir,
+                bins.codex,
+                model,
+                reasoning_effort,
+                runner_cli,
+                prompt,
+                timeout,
+                None, // permission_mode
+                output_handler.clone(),
+                output_stream,
+                phase_type,
+                session_id.clone(),
+                plugins,
+            )?
+        }
         Runner::Opencode => execution::run_opencode(
             work_dir,
             bins.opencode,
@@ -334,11 +342,6 @@ pub(crate) fn resume_session(
         );
     }
 
-    let reasoning_effort = if runner == Runner::Codex {
-        reasoning_effort
-    } else {
-        None
-    };
     let bin = match runner {
         Runner::Codex => bins.codex,
         Runner::Opencode => bins.opencode,
@@ -375,18 +378,25 @@ pub(crate) fn resume_session(
     }
 
     let output = match runner {
-        Runner::Codex => execution::run_codex_resume(
-            work_dir,
-            bins.codex,
-            runner_cli,
-            model,
-            reasoning_effort,
-            session_id,
-            message,
-            timeout,
-            output_handler,
-            output_stream,
-        ),
+        Runner::Codex => {
+            let executor = execution::PluginExecutor::new();
+            executor.resume(
+                Runner::Codex,
+                work_dir,
+                bins.codex,
+                model,
+                reasoning_effort,
+                runner_cli,
+                session_id,
+                message,
+                timeout,
+                None, // permission_mode
+                output_handler,
+                output_stream,
+                phase_type,
+                plugins,
+            )
+        }
         Runner::Opencode => execution::run_opencode_resume(
             work_dir,
             bins.opencode,

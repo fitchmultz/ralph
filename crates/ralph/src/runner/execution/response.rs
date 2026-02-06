@@ -10,7 +10,7 @@ use serde_json::Value as JsonValue;
 
 use crate::contracts::Runner;
 
-use super::builtin_plugins::KimiResponseParser;
+use super::builtin_plugins::{CodexResponseParser, KimiResponseParser};
 use super::json::parse_json_line;
 use super::plugin_trait::ResponseParser;
 
@@ -78,33 +78,6 @@ impl ResponseParserRegistry {
 // =============================================================================
 // Runner-Specific Response Parsers
 // =============================================================================
-
-struct CodexResponseParser;
-
-impl ResponseParser for CodexResponseParser {
-    fn parse(&self, json: &JsonValue, _buffer: &mut String) -> Option<String> {
-        if json.get("type").and_then(|t| t.as_str()) != Some("item.completed") {
-            return None;
-        }
-
-        let item = json.get("item")?;
-        if item.get("type").and_then(|t| t.as_str()) != Some("agent_message") {
-            return None;
-        }
-
-        let text = item.get("text").and_then(|t| t.as_str())?;
-        let trimmed = text.trim();
-        if trimmed.is_empty() {
-            None
-        } else {
-            Some(trimmed.to_string())
-        }
-    }
-
-    fn runner_id(&self) -> &str {
-        "codex"
-    }
-}
 
 struct ClaudeResponseParser;
 

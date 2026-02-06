@@ -222,8 +222,7 @@ impl RunnerPlugin for CodexPlugin {
     }
 }
 
-#[allow(dead_code)]
-struct CodexResponseParser;
+pub struct CodexResponseParser;
 
 #[allow(dead_code)]
 impl CodexResponseParser {

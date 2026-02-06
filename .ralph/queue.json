@@ -2,55 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0658",
-      "status": "todo",
-      "title": "Isolate codex runner into its own plugin for easier runner-specific customization",
-      "priority": "medium",
-      "tags": [
-        "refactor",
-        "runner",
-        "codex",
-        "plugin",
-        "architecture"
-      ],
-      "scope": [
-        "crates/ralph/src/runner/execution/runners.rs",
-        "crates/ralph/src/runner/execution/cli_spec.rs",
-        "crates/ralph/src/runner/execution/response.rs",
-        "crates/ralph/src/plugins/",
-        "make ci"
-      ],
-      "evidence": [
-        "User request: Isolate all runners into plugins for easier runner-specific customization.",
-        "crates/ralph/src/runner/execution/runners.rs:47-117: Codex has dedicated run_codex() and run_codex_resume() functions with exec/resume subcommands.",
-        "crates/ralph/src/runner/execution/cli_spec.rs:27-47: Codex has unique CLI option mapping (apply_codex_global_options) with sandbox bypass and workspace-write modes.",
-        "crates/ralph/src/runner/execution/response.rs:142-154: Codex has unique response parsing (extract_codex_agent_message) for item.completed event type.",
-        "crates/ralph/src/runner/execution/runners.rs:62-69: Codex uses legacy_json_format and reasoning_effort options.",
-        "AGENTS.md:16-20: Code changes need tests covering success and failure modes."
-      ],
-      "plan": [
-        "Wait for RQ-0657 to complete (foundational plugin trait framework).",
-        "Create CodexPlugin struct implementing the RunnerPlugin trait.",
-        "Implement command building: extract codex-specific logic from runners.rs:run_codex and run_codex_resume, preserving exec/resume subcommands and legacy_json_format.",
-        "Implement CLI option mapping: extract codex-specific options from cli_spec.rs:apply_codex_global_options (sandbox modes, bypass approvals).",
-        "Implement response parsing: extract codex-specific parsing from response.rs:extract_codex_agent_message for item.completed event type.",
-        "Register CodexPlugin as a built-in plugin with appropriate default model.",
-        "Refactor main runner execution to delegate to codex plugin when Runner::Codex is selected.",
-        "Add comprehensive tests for the codex plugin.",
-        "Verify by running `make ci` and confirming all tests pass."
-      ],
-      "notes": [],
-      "request": "create tasks to have all runners isolated and integrated into the plugin system approach. We currently support codex, claude, pi, kimi, opencode, and cursor-agent.",
-      "created_at": "2026-02-06T16:21:11Z",
-      "updated_at": "2026-02-06T16:21:11Z",
-      "depends_on": [
-        "RQ-0657"
-      ],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0659",
       "status": "todo",
       "title": "Isolate claude runner into its own plugin for easier runner-specific customization",

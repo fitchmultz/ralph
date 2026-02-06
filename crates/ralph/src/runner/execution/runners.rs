@@ -16,8 +16,8 @@ use std::path::Path;
 use std::time::Duration;
 
 use super::super::{
-    ClaudePermissionMode, Model, OutputHandler, OutputStream, ReasoningEffort, RunnerError,
-    RunnerOutput, runner_execution_error, runner_execution_error_with_source,
+    ClaudePermissionMode, Model, OutputHandler, OutputStream, RunnerError, RunnerOutput,
+    runner_execution_error, runner_execution_error_with_source,
 };
 use super::cli_options::ResolvedRunnerCliOptions;
 use super::cli_spec;
@@ -42,78 +42,6 @@ fn apply_analytics_env(
     builder
         .env(ENV_RUNNER_USED, runner.id())
         .env(ENV_MODEL_USED, model.as_str())
-}
-
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn run_codex(
-    work_dir: &Path,
-    bin: &str,
-    runner_cli: ResolvedRunnerCliOptions,
-    model: Model,
-    reasoning_effort: Option<ReasoningEffort>,
-    prompt: &str,
-    timeout: Option<Duration>,
-    output_handler: Option<OutputHandler>,
-    output_stream: OutputStream,
-) -> Result<RunnerOutput, RunnerError> {
-    let builder = RunnerCommandBuilder::new(bin, work_dir);
-    let builder = apply_analytics_env(builder, &Runner::Codex, &model);
-    let builder = cli_spec::apply_codex_global_options(builder, runner_cli);
-    let (cmd, payload, _guards) = builder
-        .arg("exec")
-        .legacy_json_format()
-        .model(&model)
-        .reasoning_effort(reasoning_effort)
-        .arg("-")
-        .stdin_payload(Some(prompt.as_bytes().to_vec()))
-        .build();
-
-    run_with_streaming_json(
-        cmd,
-        payload.as_deref(),
-        Runner::Codex,
-        bin,
-        timeout,
-        output_handler,
-        output_stream,
-    )
-}
-
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn run_codex_resume(
-    work_dir: &Path,
-    bin: &str,
-    runner_cli: ResolvedRunnerCliOptions,
-    model: Model,
-    reasoning_effort: Option<ReasoningEffort>,
-    thread_id: &str,
-    message: &str,
-    timeout: Option<Duration>,
-    output_handler: Option<OutputHandler>,
-    output_stream: OutputStream,
-) -> Result<RunnerOutput, RunnerError> {
-    let builder = RunnerCommandBuilder::new(bin, work_dir);
-    let builder = apply_analytics_env(builder, &Runner::Codex, &model);
-    let builder = cli_spec::apply_codex_global_options(builder, runner_cli);
-    let (cmd, payload, _guards) = builder
-        .arg("exec")
-        .arg("resume")
-        .arg(thread_id)
-        .legacy_json_format()
-        .model(&model)
-        .reasoning_effort(reasoning_effort)
-        .arg(message)
-        .build();
-
-    run_with_streaming_json(
-        cmd,
-        payload.as_deref(),
-        Runner::Codex,
-        bin,
-        timeout,
-        output_handler,
-        output_stream,
-    )
 }
 
 #[allow(clippy::too_many_arguments)]
