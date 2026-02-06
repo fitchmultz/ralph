@@ -53,7 +53,7 @@ mod tests;
 
 // Legacy exports (maintained for backward compatibility during migration)
 pub(super) use response::extract_final_assistant_response;
-pub(super) use runners::{run_cursor, run_cursor_resume, run_pi, run_pi_resume};
+pub(super) use runners::{run_cursor, run_cursor_resume};
 
 // New plugin trait system exports
 // Note: These are exported for use by runner.rs and tests
@@ -61,7 +61,7 @@ pub(super) use runners::{run_cursor, run_cursor_resume, run_pi, run_pi_resume};
 #[allow(unused_imports)]
 pub(crate) use builtin_plugins::BuiltInRunnerPlugin;
 #[allow(unused_imports)]
-pub(crate) use plugin_executor::PluginExecutor;
+pub(crate) use plugin_executor::{PluginExecutor, run_builtin_prompt, run_builtin_resume};
 #[allow(unused_imports)]
 pub(crate) use plugin_trait::{
     PluginCommandParts, ResumeContext, RunContext, RunnerMetadata, RunnerPlugin,

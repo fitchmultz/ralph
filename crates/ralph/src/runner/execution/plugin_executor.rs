@@ -329,6 +329,89 @@ impl PluginExecutor {
     }
 }
 
+/// Run a built-in plugin prompt (simplified interface for runner.rs).
+#[allow(clippy::too_many_arguments)]
+pub fn run_builtin_prompt(
+    plugin: BuiltInRunnerPlugin,
+    work_dir: &Path,
+    bin: &str,
+    runner_cli: ResolvedRunnerCliOptions,
+    model: Model,
+    prompt: &str,
+    timeout: Option<Duration>,
+    output_handler: Option<OutputHandler>,
+    output_stream: OutputStream,
+) -> Result<RunnerOutput, RunnerError> {
+    let executor = PluginExecutor::new();
+    let runner = match plugin {
+        BuiltInRunnerPlugin::Pi => Runner::Pi,
+        _ => {
+            return Err(RunnerError::Other(anyhow::anyhow!(
+                "run_builtin_prompt only supports Pi; use executor.run() for other runners"
+            )));
+        }
+    };
+
+    executor.run(
+        runner,
+        work_dir,
+        bin,
+        model,
+        None, // reasoning_effort
+        runner_cli,
+        prompt,
+        timeout,
+        None, // permission_mode
+        output_handler,
+        output_stream,
+        crate::commands::run::PhaseType::Planning,
+        None, // session_id
+        None, // plugins
+    )
+}
+
+/// Resume a built-in plugin session (simplified interface for runner.rs).
+#[allow(clippy::too_many_arguments)]
+pub fn run_builtin_resume(
+    plugin: BuiltInRunnerPlugin,
+    work_dir: &Path,
+    bin: &str,
+    runner_cli: ResolvedRunnerCliOptions,
+    model: Model,
+    session_id: &str,
+    message: &str,
+    timeout: Option<Duration>,
+    output_handler: Option<OutputHandler>,
+    output_stream: OutputStream,
+) -> Result<RunnerOutput, RunnerError> {
+    let executor = PluginExecutor::new();
+    let runner = match plugin {
+        BuiltInRunnerPlugin::Pi => Runner::Pi,
+        _ => {
+            return Err(RunnerError::Other(anyhow::anyhow!(
+                "run_builtin_resume only supports Pi; use executor.resume() for other runners"
+            )));
+        }
+    };
+
+    executor.resume(
+        runner,
+        work_dir,
+        bin,
+        model,
+        None, // reasoning_effort
+        runner_cli,
+        session_id,
+        message,
+        timeout,
+        None, // permission_mode
+        output_handler,
+        output_stream,
+        crate::commands::run::PhaseType::Planning,
+        None, // plugins
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

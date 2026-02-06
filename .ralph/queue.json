@@ -2,54 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0662",
-      "status": "todo",
-      "title": "Isolate pi runner into its own plugin for easier runner-specific customization",
-      "priority": "medium",
-      "tags": [
-        "refactor",
-        "runner",
-        "pi",
-        "plugin",
-        "architecture"
-      ],
-      "scope": [
-        "crates/ralph/src/runner/execution/runners.rs",
-        "crates/ralph/src/runner/execution/cli_spec.rs",
-        "crates/ralph/src/plugins/",
-        "make ci"
-      ],
-      "evidence": [
-        "User request: Isolate all runners into plugins for easier runner-specific customization.",
-        "crates/ralph/src/runner/execution/runners.rs:364-419: Pi has dedicated run_pi() and run_pi_resume() functions with complex session path resolution.",
-        "crates/ralph/src/runner/execution/cli_spec.rs:123-138: Pi has unique CLI option mapping (apply_pi_options) using --print for yolo mode instead of --approval-mode.",
-        "crates/ralph/src/runner/execution/runners.rs:518-612: Pi has complex session resolution logic (resolve_pi_session_path, pi_agent_root, pi_session_dir_name).",
-        "crates/ralph/src/runner/execution/runners.rs:375-376: Pi uses --mode json and session file paths.",
-        "crates/ralph/src/runner/execution/runners.rs:596-602: Pi uses PI_CODING_AGENT_DIR environment variable for session lookup."
-      ],
-      "plan": [
-        "Wait for RQ-0657 to complete (foundational plugin trait framework).",
-        "Create PiPlugin struct implementing the RunnerPlugin trait.",
-        "Implement command building: extract pi-specific logic from runners.rs:build_pi_command, preserving --mode json, --session with file paths.",
-        "Implement session resolution: extract pi-specific session path resolution from runners.rs:resolve_pi_session_path, pi_agent_root, pi_session_dir_name.",
-        "Implement CLI option mapping: extract pi-specific options from cli_spec.rs:apply_pi_options (--print for yolo mode, --sandbox).",
-        "Register PiPlugin as a built-in plugin with appropriate default model.",
-        "Refactor main runner execution to delegate to pi plugin when Runner::Pi is selected.",
-        "Add comprehensive tests for the pi plugin, including session path resolution.",
-        "Verify by running `make ci` and confirming all tests pass."
-      ],
-      "notes": [],
-      "request": "create tasks to have all runners isolated and integrated into the plugin system approach. We currently support codex, claude, pi, kimi, opencode, and cursor-agent.",
-      "created_at": "2026-02-06T16:21:11Z",
-      "updated_at": "2026-02-06T16:21:11Z",
-      "depends_on": [
-        "RQ-0657"
-      ],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0663",
       "status": "todo",
       "title": "Isolate cursor runner into its own plugin for easier runner-specific customization",

@@ -302,7 +302,8 @@ pub(crate) fn run_prompt(
                 plugins,
             )?
         }
-        Runner::Pi => execution::run_pi(
+        Runner::Pi => execution::run_builtin_prompt(
+            execution::BuiltInRunnerPlugin::Pi,
             work_dir,
             bins.pi,
             runner_cli,
@@ -512,7 +513,8 @@ pub(crate) fn resume_session(
                 plugins,
             )
         }
-        Runner::Pi => execution::run_pi_resume(
+        Runner::Pi => execution::run_builtin_resume(
+            execution::BuiltInRunnerPlugin::Pi,
             work_dir,
             bins.pi,
             runner_cli,

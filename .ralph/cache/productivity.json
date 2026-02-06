@@ -1,7 +1,7 @@
 {
   "version": 1,
   "first_task_completed_at": "2026-01-30T12:31:17.161199000Z",
-  "last_updated_at": "2026-02-06T21:05:32.261765000Z",
+  "last_updated_at": "2026-02-06T21:35:15.051332000Z",
   "daily": {
     "2026-01-30": {
       "date": "2026-01-30",
@@ -702,7 +702,7 @@
     },
     "2026-02-06": {
       "date": "2026-02-06",
-      "completed_count": 25,
+      "completed_count": 26,
       "tasks": [
         {
           "id": "RQ-0633",
@@ -828,6 +828,11 @@
           "id": "RQ-0661",
           "title": "Isolate gemini runner into its own plugin for easier runner-specific customization",
           "completed_at": "2026-02-06T21:05:32.261765000Z"
+        },
+        {
+          "id": "RQ-0662",
+          "title": "Isolate pi runner into its own plugin for easier runner-specific customization",
+          "completed_at": "2026-02-06T21:35:15.051329000Z"
         }
       ]
     }
@@ -837,7 +842,7 @@
     "longest_streak": 8,
     "last_completed_date": "2026-02-06"
   },
-  "total_completed": 156,
+  "total_completed": 157,
   "milestones": [
     {
       "threshold": 10,
