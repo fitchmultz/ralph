@@ -126,3 +126,65 @@ fn extract_final_assistant_response_pi_message_end() {
         Some("Key findings cited in evidence: Alpha".to_string())
     );
 }
+
+#[test]
+fn extract_kimi_assistant_response_with_thinking() {
+    // Input: kimi JSON with both think and text content
+    // Expected: Only text content extracted (thinking excluded for final response)
+    let stdout = concat!(
+        r#"{"role":"assistant","content":[{"type":"think","think":"Deep reasoning about the problem"},{"type":"text","text":"Final answer"}]}"#,
+        "\n"
+    );
+    assert_eq!(
+        extract_final_assistant_response(stdout),
+        Some("Final answer".to_string())
+    );
+}
+
+#[test]
+fn extract_kimi_assistant_response_with_tool_calls() {
+    // Input: kimi JSON with text content and tool_calls array
+    // Expected: Only text content extracted (tool calls don't affect final response)
+    let stdout = concat!(
+        r#"{"role":"assistant","content":[{"type":"text","text":"Using tool"}],"tool_calls":[{"id":"tool_abc123","type":"function","function":{"name":"read_file"}}]}"#,
+        "\n"
+    );
+    // Tool calls shouldn't break text extraction
+    assert_eq!(
+        extract_final_assistant_response(stdout),
+        Some("Using tool".to_string())
+    );
+}
+
+#[test]
+fn extract_kimi_assistant_response_thinking_only() {
+    // Input: kimi JSON with only think content, no text
+    // Expected: None (no text to extract)
+    let stdout = concat!(
+        r#"{"role":"assistant","content":[{"type":"think","think":"Only reasoning here"}]}"#,
+        "\n"
+    );
+    assert_eq!(extract_final_assistant_response(stdout), None);
+}
+
+#[test]
+fn extract_kimi_assistant_response_empty_content() {
+    // Input: kimi JSON with empty content array
+    // Expected: None
+    let stdout = concat!(r#"{"role":"assistant","content":[]}"#, "\n");
+    assert_eq!(extract_final_assistant_response(stdout), None);
+}
+
+#[test]
+fn extract_kimi_assistant_response_mixed_types() {
+    // Input: kimi JSON with text, think, and unknown types
+    // Expected: Only text content extracted, others ignored
+    let stdout = concat!(
+        r#"{"role":"assistant","content":[{"type":"think","think":"Reasoning..."},{"type":"text","text":"First part"},{"type":"unknown","data":"ignored"},{"type":"text","text":"Second part"},{"type":"tool_result","result":"also ignored"}]}"#,
+        "\n"
+    );
+    assert_eq!(
+        extract_final_assistant_response(stdout),
+        Some("First part\nSecond part".to_string())
+    );
+}

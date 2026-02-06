@@ -209,6 +209,34 @@ pub(super) fn spawn_json_reader<R: Read + Send + 'static>(
                                 }
                             }
                         }
+                        // Track kimi tool calls: assistant with tool_calls array
+                        if let Some(role) = json.get("role").and_then(|r| r.as_str())
+                            && role == "assistant"
+                            && let Some(tool_calls) =
+                                json.get("tool_calls").and_then(|c| c.as_array())
+                        {
+                            for tool_call in tool_calls {
+                                if let (Some(tool_id), Some(function)) = (
+                                    tool_call.get("id").and_then(|v| v.as_str()),
+                                    tool_call.get("function"),
+                                ) && let Some(tool_name) =
+                                    function.get("name").and_then(|v| v.as_str())
+                                {
+                                    tool_name_by_id
+                                        .insert(tool_id.to_string(), tool_name.to_string());
+                                }
+                            }
+                        }
+                        // Track kimi tool results: tool with tool_call_id
+                        if let Some(role) = json.get("role").and_then(|r| r.as_str())
+                            && role == "tool"
+                            && let Some(tool_call_id) =
+                                json.get("tool_call_id").and_then(|v| v.as_str())
+                            && let Some(tool_name) = tool_name_by_id.remove(tool_call_id)
+                            && let Some(obj) = json.as_object_mut()
+                        {
+                            obj.insert("tool_name".to_string(), JsonValue::String(tool_name));
+                        }
                         if let Some(id) = extract_session_id_from_json(&json)
                             && let Ok(mut guard) = session_id_buf.lock()
                         {
@@ -534,6 +562,29 @@ pub(super) fn extract_display_lines(json: &JsonValue) -> Vec<String> {
                 }
             }
         }
+        // Display kimi tool calls
+        if let Some(tool_calls) = json.get("tool_calls").and_then(|c| c.as_array()) {
+            for tool_call in tool_calls {
+                if let Some(function) = tool_call.get("function")
+                    && let Some(name) = function.get("name").and_then(|n| n.as_str())
+                {
+                    let details = function
+                        .get("arguments")
+                        .and_then(|a| a.as_str())
+                        .and_then(|args_str| serde_json::from_str::<JsonValue>(args_str).ok())
+                        .and_then(|args_json| format_tool_details(&args_json));
+                    lines.push(outpututil::format_tool_call(name, details.as_deref()));
+                }
+            }
+        }
+    }
+
+    // Handle kimi tool results: role="tool" with tool_name added during tracking
+    if let Some(role) = json.get("role").and_then(|r| r.as_str())
+        && role == "tool"
+        && let Some(tool_name) = json.get("tool_name").and_then(|t| t.as_str())
+    {
+        lines.push(outpututil::format_tool_call(tool_name, Some("(completed)")));
     }
 
     lines

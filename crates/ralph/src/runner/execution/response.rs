@@ -8,6 +8,14 @@ use serde_json::Value as JsonValue;
 
 use super::json::parse_json_line;
 
+/// Structured content extracted from Kimi runner responses.
+#[allow(dead_code)]
+pub(crate) struct KimiContent {
+    pub text: Option<String>,
+    /// Thinking/reasoning content (available for future use)
+    pub thinking: Option<String>,
+}
+
 pub(crate) fn extract_final_assistant_response(stdout: &str) -> Option<String> {
     let mut final_message: Option<String> = None;
     let mut streaming_buffer = String::new();
@@ -78,7 +86,8 @@ pub(crate) fn extract_final_assistant_response(stdout: &str) -> Option<String> {
     final_message
 }
 
-fn extract_kimi_assistant_text(json: &JsonValue) -> Option<String> {
+/// Extracts both text and thinking content from Kimi responses.
+pub(crate) fn extract_kimi_content(json: &JsonValue) -> Option<KimiContent> {
     // Kimi format has role="assistant" at top level with content array
     if json.get("role").and_then(|r| r.as_str()) != Some("assistant") {
         return None;
@@ -87,25 +96,47 @@ fn extract_kimi_assistant_text(json: &JsonValue) -> Option<String> {
     let content = json.get("content")?;
     let items = content.as_array()?;
 
-    let mut parts = Vec::new();
+    let mut text_parts = Vec::new();
+    let mut thinking_parts = Vec::new();
+
     for item in items {
-        // Only extract text type content (not think/reasoning)
-        if item.get("type").and_then(|t| t.as_str()) != Some("text") {
-            continue;
-        }
-        if let Some(text) = item.get("text").and_then(|t| t.as_str()) {
-            let trimmed = text.trim();
-            if !trimmed.is_empty() {
-                parts.push(trimmed.to_string());
+        match item.get("type").and_then(|t| t.as_str()) {
+            Some("text") => {
+                if let Some(text) = item.get("text").and_then(|t| t.as_str()) {
+                    let trimmed = text.trim();
+                    if !trimmed.is_empty() {
+                        text_parts.push(trimmed.to_string());
+                    }
+                }
             }
+            Some("think") => {
+                if let Some(think) = item.get("think").and_then(|t| t.as_str()) {
+                    let trimmed = think.trim();
+                    if !trimmed.is_empty() {
+                        thinking_parts.push(trimmed.to_string());
+                    }
+                }
+            }
+            _ => {}
         }
     }
 
-    if parts.is_empty() {
-        None
-    } else {
-        Some(parts.join("\n"))
-    }
+    Some(KimiContent {
+        text: if text_parts.is_empty() {
+            None
+        } else {
+            Some(text_parts.join("\n"))
+        },
+        thinking: if thinking_parts.is_empty() {
+            None
+        } else {
+            Some(thinking_parts.join("\n"))
+        },
+    })
+}
+
+fn extract_kimi_assistant_text(json: &JsonValue) -> Option<String> {
+    extract_kimi_content(json).and_then(|content| content.text)
 }
 
 fn extract_codex_agent_message(json: &JsonValue) -> Option<String> {
