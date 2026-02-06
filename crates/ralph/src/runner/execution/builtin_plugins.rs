@@ -103,7 +103,7 @@ impl RunnerPlugin for BuiltInRunnerPlugin {
                 id: "claude".to_string(),
                 name: "Anthropic Claude Code".to_string(),
                 supports_resume: true,
-                default_model: None,
+                default_model: Some("sonnet".to_string()),
             },
             Self::Kimi => RunnerMetadata {
                 id: "kimi".to_string(),

@@ -245,17 +245,25 @@ pub(crate) fn run_prompt(
             output_stream,
             phase_type,
         )?,
-        Runner::Claude => execution::run_claude(
-            work_dir,
-            bins.claude,
-            runner_cli,
-            model,
-            prompt,
-            timeout,
-            runner_cli.effective_claude_permission_mode(permission_mode),
-            output_handler,
-            output_stream,
-        )?,
+        Runner::Claude => {
+            let executor = execution::PluginExecutor::new();
+            executor.run(
+                Runner::Claude,
+                work_dir,
+                bins.claude,
+                model,
+                reasoning_effort,
+                runner_cli,
+                prompt,
+                timeout,
+                runner_cli.effective_claude_permission_mode(permission_mode),
+                output_handler.clone(),
+                output_stream,
+                phase_type,
+                session_id.clone(),
+                plugins,
+            )?
+        }
         Runner::Kimi => {
             // Use new plugin-based execution
             let executor = execution::PluginExecutor::new();
@@ -431,18 +439,25 @@ pub(crate) fn resume_session(
             output_stream,
             phase_type,
         ),
-        Runner::Claude => execution::run_claude_resume(
-            work_dir,
-            bins.claude,
-            runner_cli,
-            model,
-            session_id,
-            message,
-            timeout,
-            runner_cli.effective_claude_permission_mode(permission_mode),
-            output_handler,
-            output_stream,
-        ),
+        Runner::Claude => {
+            let executor = execution::PluginExecutor::new();
+            executor.resume(
+                Runner::Claude,
+                work_dir,
+                bins.claude,
+                model,
+                reasoning_effort,
+                runner_cli,
+                session_id,
+                message,
+                timeout,
+                runner_cli.effective_claude_permission_mode(permission_mode),
+                output_handler,
+                output_stream,
+                phase_type,
+                plugins,
+            )
+        }
         Runner::Kimi => {
             // Use new plugin-based execution
             let executor = execution::PluginExecutor::new();

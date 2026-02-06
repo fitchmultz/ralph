@@ -16,8 +16,8 @@ use std::path::Path;
 use std::time::Duration;
 
 use super::super::{
-    ClaudePermissionMode, Model, OutputHandler, OutputStream, RunnerError, RunnerOutput,
-    runner_execution_error, runner_execution_error_with_source,
+    Model, OutputHandler, OutputStream, RunnerError, RunnerOutput, runner_execution_error,
+    runner_execution_error_with_source,
 };
 use super::cli_options::ResolvedRunnerCliOptions;
 use super::cli_spec;
@@ -175,79 +175,6 @@ pub(crate) fn run_gemini_resume(
         cmd,
         payload.as_deref(),
         Runner::Gemini,
-        bin,
-        timeout,
-        output_handler,
-        output_stream,
-    )
-}
-
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn run_claude(
-    work_dir: &Path,
-    bin: &str,
-    runner_cli: ResolvedRunnerCliOptions,
-    model: Model,
-    prompt: &str,
-    timeout: Option<Duration>,
-    permission_mode: Option<ClaudePermissionMode>,
-    output_handler: Option<OutputHandler>,
-    output_stream: OutputStream,
-) -> Result<RunnerOutput, RunnerError> {
-    let builder = RunnerCommandBuilder::new(bin, work_dir);
-    let builder = apply_analytics_env(builder, &Runner::Claude, &model);
-    let builder = cli_spec::apply_claude_options(builder, runner_cli);
-    let (cmd, payload, _guards) = builder
-        .arg("--verbose")
-        .arg("-p")
-        .model(&model)
-        .permission_mode(permission_mode)
-        .output_format("stream-json")
-        .stdin_payload(Some(prompt.as_bytes().to_vec()))
-        .build();
-
-    run_with_streaming_json(
-        cmd,
-        payload.as_deref(),
-        Runner::Claude,
-        bin,
-        timeout,
-        output_handler,
-        output_stream,
-    )
-}
-
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn run_claude_resume(
-    work_dir: &Path,
-    bin: &str,
-    runner_cli: ResolvedRunnerCliOptions,
-    model: Model,
-    session_id: &str,
-    message: &str,
-    timeout: Option<Duration>,
-    permission_mode: Option<ClaudePermissionMode>,
-    output_handler: Option<OutputHandler>,
-    output_stream: OutputStream,
-) -> Result<RunnerOutput, RunnerError> {
-    let builder = RunnerCommandBuilder::new(bin, work_dir);
-    let builder = apply_analytics_env(builder, &Runner::Claude, &model);
-    let builder = cli_spec::apply_claude_options(builder, runner_cli);
-    let (cmd, payload, _guards) = builder
-        .arg("--resume")
-        .arg(session_id)
-        .arg("--verbose")
-        .model(&model)
-        .permission_mode(permission_mode)
-        .output_format("stream-json")
-        .arg("-p")
-        .arg(message)
-        .build();
-
-    run_with_streaming_json(
-        cmd,
-        payload.as_deref(),
-        Runner::Claude,
         bin,
         timeout,
         output_handler,

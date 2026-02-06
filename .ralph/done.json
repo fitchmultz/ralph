@@ -1300,10 +1300,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "opportunity_type": "reliability",
         "time_to_ship": "medium (concurrency + tests)",
-        "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort."
+        "scan_agent": "scan-innovation",
+        "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort.",
+        "opportunity_type": "reliability"
       }
     },
     {
@@ -1345,10 +1345,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current.",
         "scan_agent": "scan-innovation",
-        "time_to_ship": "medium (metadata + reconciliation + tests)",
         "opportunity_type": "ux improvement",
-        "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current."
+        "time_to_ship": "medium (metadata + reconciliation + tests)"
       }
     },
     {
@@ -1394,10 +1394,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics.",
-        "time_to_ship": "medium (format + fixes + tests)",
         "opportunity_type": "ux improvement",
-        "scan_agent": "scan-innovation"
+        "time_to_ship": "medium (format + fixes + tests)",
+        "scan_agent": "scan-innovation",
+        "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics."
       }
     },
     {
@@ -1442,8 +1442,8 @@
       "relates_to": [],
       "custom_fields": {
         "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat).",
-        "time_to_ship": "small/medium (formatters + tests)",
         "opportunity_type": "ux improvement",
+        "time_to_ship": "small/medium (formatters + tests)",
         "scan_agent": "scan-innovation"
       }
     },
@@ -1933,9 +1933,9 @@
       "relates_to": [],
       "custom_fields": {
         "time_to_ship": "medium (TUI wiring + tests)",
-        "opportunity_type": "ux improvement",
         "scan_agent": "scan-innovation",
-        "user_value": "Fewer context switches: jump from task → code in one keystroke."
+        "user_value": "Fewer context switches: jump from task → code in one keystroke.",
+        "opportunity_type": "ux improvement"
       }
     },
     {
@@ -1989,10 +1989,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
         "opportunity_type": "ux improvement",
         "time_to_ship": "medium (render-only UI + tests)",
-        "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error."
+        "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error.",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -2046,10 +2046,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "measurable_impact": "Track 20%+ improvement in task completion velocity after adoption",
-        "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types",
         "opportunity_type": "feature gap",
-        "scan_agent": "scan-innovation"
+        "measurable_impact": "Track 20%+ improvement in task completion velocity after adoption",
+        "scan_agent": "scan-innovation",
+        "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types"
       }
     },
     {
@@ -2106,10 +2106,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "UX improvement",
         "scan_agent": "scan-innovation",
+        "user_value": "Reduces queue maintenance time by 80% for large projects",
         "time_to_ship": "incremental - add one batch operation at a time",
-        "user_value": "Reduces queue maintenance time by 80% for large projects"
+        "opportunity_type": "UX improvement"
       }
     },
     {
@@ -2165,10 +2165,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "reliability",
         "user_value": "Reduces regression risk; enables confident refactoring",
         "measurable_impact": "80%+ integration test coverage for CLI commands",
-        "scan_agent": "scan-innovation"
+        "scan_agent": "scan-innovation",
+        "opportunity_type": "reliability"
       }
     },
     {
@@ -2231,10 +2231,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "feature gap",
         "differentiation": "Unique capability among AI task runners",
+        "scan_agent": "scan-innovation",
         "user_value": "Enables ecosystem growth; custom integrations without forks",
-        "scan_agent": "scan-innovation"
+        "opportunity_type": "feature gap"
       }
     },
     {
@@ -3527,10 +3527,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-maintenance",
         "file_line_count": "444",
+        "runner_used": "kimi",
         "model_used": "kimi-code/kimi-for-coding",
-        "runner_used": "kimi"
+        "scan_agent": "scan-maintenance"
       }
     },
     {
@@ -3577,11 +3577,11 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "kimi",
-        "model_used": "kimi-code/kimi-for-coding",
-        "scan_agent": "scan-maintenance",
+        "fallback_function": "now_utc_rfc3339_or_fallback at timeutil.rs:67-69",
         "occurrence_count": "4",
-        "fallback_function": "now_utc_rfc3339_or_fallback at timeutil.rs:67-69"
+        "runner_used": "kimi",
+        "scan_agent": "scan-maintenance",
+        "model_used": "kimi-code/kimi-for-coding"
       }
     },
     {
@@ -3634,9 +3634,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-maintenance",
         "runner_used": "kimi",
-        "model_used": "kimi-code/kimi-for-coding"
+        "model_used": "kimi-code/kimi-for-coding",
+        "scan_agent": "scan-maintenance"
       }
     },
     {
@@ -3801,14 +3801,14 @@
         "RQ-0657"
       ],
       "custom_fields": {
-        "model_used": "kimi-code/kimi-for-coding",
-        "plugin_location": "crates/ralph/src/runner/execution/builtin_plugins.rs:530-631",
         "runner_used": "kimi",
-        "trait_location": "crates/ralph/src/runner/execution/plugin_trait.rs",
-        "completed_via": "RQ-0657 (foundational plugin framework)",
-        "status_note": "COMPLETED - KimiPlugin fully implemented and legacy code removed",
         "executor_location": "crates/ralph/src/runner/execution/plugin_executor.rs",
-        "legacy_code_removed": "true"
+        "legacy_code_removed": "true",
+        "model_used": "kimi-code/kimi-for-coding",
+        "completed_via": "RQ-0657 (foundational plugin framework)",
+        "plugin_location": "crates/ralph/src/runner/execution/builtin_plugins.rs:530-631",
+        "trait_location": "crates/ralph/src/runner/execution/plugin_trait.rs",
+        "status_note": "COMPLETED - KimiPlugin fully implemented and legacy code removed"
       }
     },
     {
@@ -3923,8 +3923,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "kimi",
-        "model_used": "kimi-code/kimi-for-coding"
+        "model_used": "kimi-code/kimi-for-coding",
+        "runner_used": "kimi"
       }
     },
     {
@@ -3984,8 +3984,74 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "kimi",
-        "model_used": "kimi-code/kimi-for-coding"
+        "model_used": "kimi-code/kimi-for-coding",
+        "runner_used": "kimi"
+      }
+    },
+    {
+      "id": "RQ-0659",
+      "status": "done",
+      "title": "Isolate claude runner into its own plugin for easier runner-specific customization",
+      "priority": "medium",
+      "tags": [
+        "refactor",
+        "runner",
+        "claude",
+        "plugin",
+        "architecture"
+      ],
+      "scope": [
+        "crates/ralph/src/runner/execution/builtin_plugins.rs",
+        "crates/ralph/src/runner/execution/plugin_trait.rs",
+        "crates/ralph/src/runner/execution/runners.rs",
+        "crates/ralph/src/runner/execution/cli_spec.rs",
+        "crates/ralph/src/runner/execution/response.rs",
+        "crates/ralph/src/contracts/runner.rs",
+        "make ci"
+      ],
+      "evidence": [
+        "User request: Isolate all runners into plugins for easier runner-specific customization.",
+        "DEPENDENCY RQ-0657 COMPLETED: Plugin trait framework is implemented in crates/ralph/src/runner/execution/plugin_trait.rs with RunnerPlugin trait defining metadata(), build_run_command(), build_resume_command(), parse_response_line().",
+        "crates/ralph/src/runner/execution/builtin_plugins.rs:430-523: ClaudePlugin struct already implements RunnerPlugin trait with complete command building and response parsing.",
+        "crates/ralph/src/runner/execution/builtin_plugins.rs:481-523: ClaudeResponseParser handles 'assistant' event type with message.content array extraction.",
+        "crates/ralph/src/runner/execution/cli_spec.rs:65-73: apply_claude_options() maps verbosity levels (--verbose flag).",
+        "crates/ralph/src/runner/execution/runners.rs:186-256: run_claude() and run_claude_resume() delegate to ClaudePlugin via BuiltInRunnerPlugin::Claude.",
+        "crates/ralph/src/runner/execution/response.rs:82-116: ResponseParserRegistry registers ClaudeResponseParser for 'claude' runner ID.",
+        "crates/ralph/src/contracts/runner.rs:27-28: Claude is the default Runner variant.",
+        "crates/ralph/src/runner/execution/builtin_plugins.rs:102-107: Claude metadata shows supports_resume=true but default_model=None (could be set to 'sonnet')."
+      ],
+      "plan": [
+        "Review current ClaudePlugin implementation in builtin_plugins.rs for completeness.",
+        "Consider setting default_model to 'sonnet' in ClaudePlugin metadata (currently None).",
+        "Verify command building matches claude CLI expectations: --verbose, -p flag, --resume, session_id handling.",
+        "Verify CLI option mapping in cli_spec.rs:apply_claude_options handles all supported options.",
+        "Verify response parsing handles all Claude JSON output formats correctly.",
+        "Add any missing tests for edge cases in claude plugin behavior.",
+        "Verify integration with BuiltInRunnerPlugin enum and Runner::Claude contract.",
+        "Run `make ci` to confirm all tests pass."
+      ],
+      "notes": [
+        "REFRESHED 2026-02-06: RQ-0657 (plugin trait framework) is COMPLETED. ClaudePlugin is already implemented.",
+        "The main work appears to be complete - ClaudePlugin exists and implements RunnerPlugin.",
+        "This task may now be a review/verification task rather than implementation.",
+        "Consider if any claude-specific customization hooks are still needed that aren't provided by current plugin trait.",
+        "Claude runner fully migrated to ClaudePlugin implementing RunnerPlugin trait",
+        "Removed 71 lines of legacy run_claude/run_claude_resume functions from runners.rs",
+        "Set default_model to 'sonnet' for better UX as default runner",
+        "All 2181+ tests pass, CI gate verified",
+        "Follows same plugin pattern as Kimi and Codex - ready for future runner-specific customizations"
+      ],
+      "request": "create tasks to have all runners isolated and integrated into the plugin system approach. We currently support codex, claude, pi, kimi, opencode, and cursor-agent.",
+      "created_at": "2026-02-06T16:21:11Z",
+      "updated_at": "2026-02-06T20:22:54.838688000Z",
+      "completed_at": "2026-02-06T20:22:54.838688000Z",
+      "started_at": "2026-02-06T20:03:04.833279000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "model_used": "kimi-code/kimi-for-coding",
+        "runner_used": "kimi"
       }
     }
   ]
