@@ -3,70 +3,69 @@
 Ralph is a Rust CLI for running AI agent loops against a structured JSON task queue.
 This file is a fast path for contributors/agents; for deeper detail start at `docs/index.md` and `CONTRIBUTING.md`.
 
-## TL;DR
+## Quick Start
 
-- Run `make ci` before claiming completion, committing, or merging.
-- `make ci` is the source of truth for the gate; it currently runs:
-  `check-env-safety → check-backup-artifacts → deps → format → type-check → lint → test → build → generate → install`
-- Keep secrets out of git/logs; `.env` is for local use only and MUST remain untracked (CI enforces this).
+```bash
+# Before committing or merging, always run:
+make ci
+```
 
-## Non-Negotiables
+The CI gate runs: `check-env-safety → check-backup-artifacts → deps → format → type-check → lint → test → build → generate → install`
 
-- CI gate: `make ci` MUST pass before claiming completion, committing, or merging.
-- Source docs: every new/changed source file MUST start with module docs that state:
-  - what the file is responsible for
-  - what it explicitly does NOT handle
-  - any invariants/assumptions callers must respect
-  - (Rust: prefer `//!` module docs at the top of the file.)
-- Tests: all new/changed behavior must be covered (success + failure modes). Prefer tests near the code.
-- Feature parity: when changing a user-visible workflow, maintain parity between CLI and TUI (or document/justify the divergence explicitly).
-- CLI help: user-facing commands/flags MUST have `--help` text with examples (and keep `docs/cli.md` in sync).
-- Secrets: never commit or print secrets; redact runner output before copying into `.ralph/queue.json` notes.
+## Project Structure
 
-## Repository Map
+```
+crates/
+  ralph/              # Primary Rust CLI crate
+    src/              # CLI commands, runner integration, queue management, TUI
+    assets/prompts/   # Embedded prompt templates (worker/task builder/scan)
+    tests/            # Integration tests
+docs/                 # CLI + workflow + configuration docs
+schemas/              # Generated JSON schemas (committed)
+scripts/              # Maintenance + release helper scripts
+.ralph/               # Repo-local runtime state
+  queue.json          # Active tasks (source of truth)
+  done.json           # Archived tasks
+  config.json         # Project config (overrides global)
+  prompts/*.md        # Optional prompt overrides
+```
 
-- `crates/ralph/`: primary Rust CLI crate
-  - `crates/ralph/src/`: CLI commands, runner integration, queue management, TUI
-  - `crates/ralph/assets/prompts/`: embedded prompt templates (worker/task builder/scan)
-- `docs/`: CLI + workflow + configuration docs (`docs/index.md` is the entry point)
-- `schemas/`: generated JSON schemas (committed)
-- `scripts/`: maintenance + release helper scripts
-- `.ralph/`: repo-local runtime state (partially committed; queue.json is tracked)
-  - `.ralph/queue.json`: active tasks (source of truth)
-  - `.ralph/done.json`: archived tasks
-  - `.ralph/config.json`: project config (overrides global)
-  - `.ralph/prompts/*.md`: optional prompt overrides
+## Build, Test, and Development
 
-## Build, Test, and CI
+### Essential Commands
 
-The Makefile is the contract; keep these targets working:
+| Command | Purpose |
+|---------|---------|
+| `make ci` | Local CI gate — **must pass before committing** |
+| `make install` | Install `ralph` to `~/.local/bin/ralph` (or writable fallback) |
+| `make test` | Run workspace unit + doc tests in isolated temp dirs |
+| `make lint` | Run Clippy with `-D warnings` (warnings are errors) |
+| `make format` | Run `cargo fmt --all` |
+| `make type-check` | Run `cargo check --workspace --all-targets` |
+| `make generate` | Regenerate JSON schemas into `schemas/` |
+| `make update` | Update Cargo dependencies (`cargo update`) |
+| `make clean` | Remove build artifacts, logs, and most cache entries |
 
-- `make ci`: local CI gate (see the `ci:` target in `Makefile` for exact ordering). Do not remove `install`.
-- `make install`: install `ralph` to `~/.local/bin/ralph` (or a writable fallback) and sanity-check `ralph --help`.
-- `make test`: runs workspace unit + doc tests in isolated temp dirs (under `target/tmp/ralph-ci-tmp/`).
-- `make lint`: `cargo clippy --workspace --all-targets -- -D warnings`
-- `make format`: `cargo fmt --all`
-- `make type-check`: `cargo check --workspace --all-targets`
-- `make generate`: regenerates JSON schemas into `schemas/`
-- `make update`: updates Cargo dependencies (`cargo update`)
-- `make clean`: removes build artifacts, logs, and most `.ralph/cache` entries
+### Development Iteration
 
-Useful iteration commands (not a substitute for `make ci`):
+```bash
+# Quick test cycle (not a substitute for `make ci`)
+cargo test -p ralph
+cargo run -p ralph -- <command>
+cargo run -p ralph -- queue validate
+```
 
-- `cargo test -p ralph`
-- `cargo run -p ralph -- <command>`
-- `cargo run -p ralph -- queue validate`
+## Coding Standards
 
-## Rust Conventions (Project Defaults)
+### Rust Conventions
 
-- Formatting/linting: `cargo fmt` + Clippy with `-D warnings` (CI treats warnings as errors).
-- Visibility: keep APIs small; default to private, prefer `pub(crate)` over `pub`.
-- Errors: prefer descriptive error types (`thiserror`) and `Result<T, E>` over panics.
-- Cohesion: keep modules/files focused; split large files rather than growing grab-bags.
+- **Formatting**: `cargo fmt` + Clippy with `-D warnings` (CI treats warnings as errors)
+- **Visibility**: Keep APIs small; default to private, prefer `pub(crate)` over `pub`
+- **Cohesion**: Keep modules/files focused; split large files rather than growing grab-bags
 
-## Error Handling
+### Error Handling
 
-Ralph uses a two-tier error handling strategy: `anyhow` for general propagation, `thiserror` for domain-specific matchable errors.
+Ralph uses a two-tier strategy: `anyhow` for general propagation, `thiserror` for domain-specific errors.
 
 | Scenario | Pattern | Example |
 |----------|---------|---------|
@@ -78,48 +77,41 @@ Ralph uses a two-tier error handling strategy: `anyhow` for general propagation,
 
 See `docs/error-handling.md` for full guidelines.
 
-## Testing
+### Module Documentation
 
-- Unit tests: colocate with implementation via `#[cfg(test)]`.
-- Integration tests: use `crates/ralph/tests/` when cross-module behavior is the subject.
-- Temp dirs: CI tests run in `target/tmp/ralph-ci-tmp/` (set `RALPH_CI_KEEP_TMP=1` to keep).
-- **Init tests**: when calling `ralph init` in integration tests, always use `--non-interactive` (e.g., `ralph init --force --non-interactive`). Without this flag, TTY detection may trigger the interactive wizard in test environments, breaking the CI gate.
+Every new/changed source file MUST start with module docs (`//!`) stating:
 
-## Queue, Prompts, and Workflow Contracts
+- What the file is responsible for
+- What it explicitly does NOT handle
+- Any invariants/assumptions callers must respect
 
-- Queue is the source of truth: `.ralph/queue.json` (active) and `.ralph/done.json` (archive).
-- Task ordering: queue file order is execution order (top runs first). Draft tasks are skipped unless `--include-draft`.
-- Prompt composition: embedded defaults in `crates/ralph/assets/prompts/`, overridden by `.ralph/prompts/*.md`.
-- Planning cache: Phase 1 plans are written to `.ralph/cache/plans/<TASK_ID>.md` (do not print inline).
-- Supervision-aware completion: `ralph task done` writes `.ralph/cache/completions/<TASK_ID>.json` for the supervisor flow.
+## Testing Guidelines
 
-See `docs/workflow.md` and `docs/queue-and-tasks.md` for the full contract and schema details.
+- **Unit tests**: Colocate with implementation via `#[cfg(test)]`
+- **Integration tests**: Use `crates/ralph/tests/` when cross-module behavior is the subject
+- **Temp dirs**: CI tests run in `target/tmp/ralph-ci-tmp/` (set `RALPH_CI_KEEP_TMP=1` to keep)
+- **Init tests**: When calling `ralph init` in tests, always use `--non-interactive`:
+  ```rust
+  ralph init --force --non-interactive
+  ```
+  Without this flag, TTY detection may trigger the interactive wizard in test environments.
 
-## Runner Session Handling
+## Git Hygiene
 
-Ralph manages runner sessions explicitly for reliable crash recovery and CI gate retry loops:
+- **Commit messages**: `RQ-####: <short summary>` (task id + summary)
+- **Do not commit** if `make ci` is failing
+- **This repo is local-CI-first**; avoid adding remote CI (e.g., GitHub Actions) as a substitute for `make ci`
+- **Keep secrets out of git/logs**: `.env` is for local use only and MUST remain untracked
 
-**Session ID Format**: `ralph-{task_id}-p{phase}-{timestamp}-{pid}`  
-**Example**: `ralph-RQ-0001-p2-1704153600-12345`
+## Pull Request Guidelines
 
-**Key Behaviors**:
-- Each phase (1, 2, 3) generates its own unique session ID at phase start
-- Session IDs are passed to runners via `--session` flag (not `--continue`)
-- The same session ID is reused for all continue/resume operations within a phase
-- This provides deterministic session management vs. runner-specific `last_session_id` tracking
-
-**Implementation Location**: `crates/ralph/src/commands/run/phases/mod.rs` (`generate_phase_session_id`)
-
-**Affected Runners**:
-- **Kimi**: Uses explicit `--session` flag; no longer relies on `--continue` or JSON extraction
-
-**Why This Approach?**
-- Deterministic: Same ID = same session, no guessing
-- Reliable: No dependency on parsing JSON output or reading runner state files
-- Debuggable: Human-readable IDs for tracing session lifecycle
-- Isolated: Each phase is independent, preventing context leakage
-
-See `docs/workflow.md` for more details on session handling.
+- Include "what changed" + "how to verify" sections (expected: `make ci`)
+- Call out breaking behavior explicitly and update docs/help accordingly
+- When working from an issue/PR, prefer `gh` for context:
+  ```bash
+  gh issue view <number>
+  gh pr view <number>
+  ```
 
 ## Configuration
 
@@ -131,42 +123,73 @@ Config precedence (highest to lowest):
 4. Schema defaults: `schemas/config.schema.json`
 
 See `docs/configuration.md` for key fields (runner/model/phases/RepoPrompt toggles/CI gate settings).
-Runner/model specifics live in `README.md` (supported runners and model constraints).
+Runner/model specifics live in `README.md`.
 
-## Git Hygiene
+## Workflow Contracts
 
-- Commit message: `RQ-####: <short summary>` (task id + summary).
-- Do not commit if `make ci` is failing.
-- This repo is local-CI-first; avoid adding remote CI (e.g., GitHub Actions) as a substitute for `make ci`.
+### Queue and Prompts
 
-## PR / Review Expectations
+- **Queue is the source of truth**: `.ralph/queue.json` (active) and `.ralph/done.json` (archive)
+- **Task ordering**: Queue file order is execution order (top runs first). Draft tasks are skipped unless `--include-draft`
+- **Prompt composition**: Embedded defaults in `crates/ralph/assets/prompts/`, overridden by `.ralph/prompts/*.md`
+- **Planning cache**: Phase 1 plans are written to `.ralph/cache/plans/<TASK_ID>.md`
+- **Supervision-aware completion**: `ralph task done` writes `.ralph/cache/completions/<TASK_ID>.json`
 
-- Include a short "what changed" + "how to verify" section (expected: `make ci`).
-- Call out any breaking behavior explicitly and update docs/help accordingly.
-- When working from an issue/PR, prefer `gh` for context (`gh issue view ...`, `gh pr view ...`).
+See `docs/workflow.md` and `docs/queue-and-tasks.md` for full contract and schema details.
+
+### Runner Session Handling
+
+Ralph manages runner sessions explicitly for reliable crash recovery:
+
+**Session ID Format**: `ralph-{task_id}-p{phase}-{timestamp}-{pid}`  
+**Example**: `ralph-RQ-0001-p2-1704153600-12345`
+
+**Key Behaviors**:
+- Each phase (1, 2, 3) generates its own unique session ID at phase start
+- Session IDs are passed to runners via `--session` flag (not `--continue`)
+- The same session ID is reused for all continue/resume operations within a phase
+
+**Implementation**: `crates/ralph/src/commands/run/phases/mod.rs` (`generate_phase_session_id`)
+
+See `docs/workflow.md` for more details.
 
 ## Migrations
 
 When making breaking changes to config keys or file formats, use the migration system:
 
-- Migration registry: `crates/ralph/src/migration/registry.rs` - add new migrations here
-- Migration types: `ConfigKeyRename`, `FileRename`, `ReadmeUpdate`
-- History tracking: `.ralph/cache/migrations.json` (auto-generated)
-- CLI command: `ralph migrate` (check/list/apply)
+- **Migration registry**: `crates/ralph/src/migration/registry.rs`
+- **Migration types**: `ConfigKeyRename`, `FileRename`, `ReadmeUpdate`
+- **History tracking**: `.ralph/cache/migrations.json` (auto-generated)
+- **CLI command**: `ralph migrate` (check/list/apply)
 
 See `crates/ralph/src/migration/mod.rs` for invariants/assumptions (idempotency, JSONC comment preservation, backups).
 
 ## Documentation Maintenance
 
-- Schema changes: update code, run `make generate`, and keep `schemas/*.schema.json` + `docs/configuration.md` aligned.
-- CLI changes: update help text/examples and keep `docs/cli.md` aligned.
-- Queue/task field changes: update `docs/queue-and-tasks.md`.
-- Migration changes: update this section and the migration module docs.
+When making changes, keep docs in sync:
+
+| Change Type | Files to Update |
+|-------------|-----------------|
+| Schema changes | `schemas/*.schema.json`, `docs/configuration.md` |
+| CLI changes | Help text/examples, `docs/cli.md` |
+| Queue/task fields | `docs/queue-and-tasks.md` |
+| Migrations | This file + migration module docs |
+
+## Non-Negotiables
+
+- **CI gate**: `make ci` MUST pass before claiming completion, committing, or merging
+- **Source docs**: Every new/changed source file MUST have module docs (see [Coding Standards](#coding-standards))
+- **Test coverage**: All new/changed behavior must be covered (success + failure modes)
+- **Feature parity**: When changing user-visible workflows, maintain parity between CLI and TUI (or document divergence)
+- **CLI help**: User-facing commands/flags MUST have `--help` text with examples (keep `docs/cli.md` in sync)
+- **Secrets**: Never commit or print secrets; redact runner output before copying into `.ralph/queue.json` notes
 
 ## Troubleshooting
 
-- CI failing: run `make ci`; the first failing step is printed (common: formatting, Clippy warnings, tests).
-- `.env tracked` error: run `git rm --cached .env` and ensure `.env` is in `.gitignore`.
-- `Backup artifacts` error: remove any `*.bak` files under `crates/ralph/src/`.
-- Queue lock: investigate `.ralph/lock`; use `--force` only when you understand why the lock is stale.
-- Runner issues: verify the runner binary is on `PATH` (e.g., `codex --help`) and check runner/model settings in config.
+| Issue | Solution |
+|-------|----------|
+| CI failing | Run `make ci`; first failing step is printed (common: formatting, Clippy warnings, tests) |
+| `.env tracked` error | Run `git rm --cached .env` and ensure `.env` is in `.gitignore` |
+| `Backup artifacts` error | Remove any `*.bak` files under `crates/ralph/src/` |
+| Queue lock | Investigate `.ralph/lock`; use `--force` only when you understand why the lock is stale |
+| Runner issues | Verify runner binary is on `PATH` (e.g., `codex --help`) and check runner/model settings in config |
