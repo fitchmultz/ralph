@@ -1442,6 +1442,58 @@ ralph queue export --format md --status done --created-after 2026-01-27
 ```
 
 
+### `ralph queue issue publish`
+
+Publish (create or update) a single Ralph task as a GitHub Issue using the `gh` CLI. The created/updated issue URL is persisted in the task's `custom_fields` for future reference and re-sync.
+
+**Note**: This is a CLI-only command; there is no TUI workflow for issue publish.
+
+Prerequisites:
+* GitHub CLI (`gh`) must be installed and authenticated (`gh auth login`)
+
+Flags:
+
+* `--dry-run`: Print the rendered title/body and the `gh` command that would be executed without making any changes.
+* `--label <LABEL>`: Labels to apply to the issue (repeatable).
+* `--assignee <LOGIN>`: Assignees to apply to the issue (repeatable). Supports `@me` for self-assignment.
+* `--repo <OWNER/REPO>`: Target repository (optional; uses current repo by default).
+
+Behavior:
+
+* If `custom_fields.github_issue_url` is missing: Creates a new GitHub issue via `gh issue create`, then stores the returned URL in `custom_fields.github_issue_url` and the issue number in `custom_fields.github_issue_number`.
+* If `custom_fields.github_issue_url` exists: Updates the existing issue via `gh issue edit`, syncing the title and body. Labels and assignees are added (not removed).
+* The task's `updated_at` timestamp is always updated when a publish operation succeeds.
+
+Examples:
+
+```bash
+# Preview the GitHub issue markdown for a task (dry-run)
+ralph queue export --format gh --id-pattern RQ-0655
+
+# Publish a task to GitHub Issues (creates new issue)
+ralph queue issue publish RQ-0655
+
+# Re-run to sync changes after editing the task
+ralph queue issue publish RQ-0655
+
+# Add labels and assignees
+ralph queue issue publish RQ-0655 --label bug --label help-wanted --assignee @me
+
+# Target a different repository
+ralph queue issue publish RQ-0655 --repo owner/repo --label feature
+
+# Dry run to preview what would happen
+ralph queue issue publish RQ-0655 --dry-run
+```
+
+Persisted custom fields:
+
+* `github_issue_url`: The canonical GitHub issue URL (e.g., `https://github.com/owner/repo/issues/123`)
+* `github_issue_number`: The issue number as a string (e.g., `"123"`)
+
+These fields are compatible with the existing `custom_fields` schema and survive queue round-trips.
+
+
 ### `ralph queue import`
 
 Import tasks from CSV, TSV, or JSON into the active queue. This complements `ralph queue export` and enables bulk backlog seeding, cross-repo task migration, and automation without hand-editing JSON.

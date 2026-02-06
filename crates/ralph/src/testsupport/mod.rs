@@ -13,4 +13,5 @@
 //! - Helpers are used only in unit test contexts.
 
 pub(crate) mod git;
+pub(crate) mod path;
 pub(crate) mod runner;

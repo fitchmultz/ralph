@@ -393,6 +393,87 @@ fn export_markdown_table(tasks: &[&Task]) -> Result<String> {
     Ok(output)
 }
 
+/// Render a single task as a GitHub issue body (without the H2 title header).
+///
+/// This is used for publishing tasks to GitHub Issues. The title is omitted
+/// because GitHub issues have their own title field.
+pub(crate) fn render_task_as_github_issue_body(task: &Task) -> String {
+    let mut out = String::new();
+
+    out.push_str(&format!(
+        "**Status:** `{}` | **Priority:** `{}`\n",
+        task.status.as_str(),
+        task.priority.as_str()
+    ));
+
+    if !task.tags.is_empty() {
+        out.push('\n');
+        out.push_str(&format!("**Tags:** `{}`\n", task.tags.join("`, `")));
+    }
+
+    // Plan
+    if !task.plan.is_empty() {
+        out.push('\n');
+        out.push_str("### Plan\n\n");
+        for item in &task.plan {
+            out.push_str("- ");
+            out.push_str(item);
+            out.push('\n');
+        }
+    }
+
+    // Evidence
+    if !task.evidence.is_empty() {
+        out.push('\n');
+        out.push_str("### Evidence\n\n");
+        for item in &task.evidence {
+            out.push_str("- ");
+            out.push_str(item);
+            out.push('\n');
+        }
+    }
+
+    // Scope
+    if !task.scope.is_empty() {
+        out.push('\n');
+        out.push_str("### Scope\n\n");
+        for item in &task.scope {
+            out.push_str("- `");
+            out.push_str(item);
+            out.push_str("`\n");
+        }
+    }
+
+    // Notes
+    if !task.notes.is_empty() {
+        out.push('\n');
+        out.push_str("### Notes\n\n");
+        for item in &task.notes {
+            out.push_str("- ");
+            out.push_str(item);
+            out.push('\n');
+        }
+    }
+
+    if !task.depends_on.is_empty() {
+        out.push('\n');
+        out.push_str(&format!("**Depends on:** {}\n", task.depends_on.join(", ")));
+    }
+
+    if let Some(ref request) = task.request {
+        out.push('\n');
+        out.push_str("### Original Request\n\n");
+        out.push_str(request);
+        out.push('\n');
+    }
+
+    // Marker for future automation/debugging
+    out.push('\n');
+    out.push_str(&format!("<!-- ralph_task_id: {} -->\n", task.id));
+
+    out
+}
+
 /// Export tasks to GitHub issue format.
 fn export_github_issue(tasks: &[&Task]) -> Result<String> {
     // Sort tasks by ID for deterministic output
@@ -409,78 +490,18 @@ fn export_github_issue(tasks: &[&Task]) -> Result<String> {
             output.push('\n');
         }
 
-        // Title as H2
+        // Title as H2 (for export, we include the title header)
         output.push_str(&format!("## {}: {}\n\n", task.id, task.title));
 
-        // Metadata line
-        output.push_str(&format!(
-            "**Status:** `{}` | **Priority:** `{}`\n",
-            task.status.as_str(),
-            task.priority.as_str()
-        ));
-
-        if !task.tags.is_empty() {
-            output.push('\n');
-            output.push_str(&format!("**Tags:** `{}`\n", task.tags.join("`, `")));
-        }
-
-        // Plan section
-        if !task.plan.is_empty() {
-            output.push('\n');
-            output.push_str("### Plan\n\n");
-            for item in &task.plan {
-                output.push_str("- ");
-                output.push_str(item);
-                output.push('\n');
-            }
-        }
-
-        // Evidence section
-        if !task.evidence.is_empty() {
-            output.push('\n');
-            output.push_str("### Evidence\n\n");
-            for item in &task.evidence {
-                output.push_str("- ");
-                output.push_str(item);
-                output.push('\n');
-            }
-        }
-
-        // Scope section
-        if !task.scope.is_empty() {
-            output.push('\n');
-            output.push_str("### Scope\n\n");
-            for item in &task.scope {
-                output.push_str("- `");
-                output.push_str(item);
-                output.push_str("`\n");
-            }
-        }
-
-        // Notes section (if any)
-        if !task.notes.is_empty() {
-            output.push('\n');
-            output.push_str("### Notes\n\n");
-            for item in &task.notes {
-                output.push_str("- ");
-                output.push_str(item);
-                output.push('\n');
-            }
-        }
-
-        // Dependencies
-        if !task.depends_on.is_empty() {
-            output.push('\n');
-            output.push_str(&format!("**Depends on:** {}\n", task.depends_on.join(", ")));
-        }
-
-        // Request (if present)
-        if let Some(ref request) = task.request {
-            output.push('\n');
-            output.push_str("### Original Request\n\n");
-            output.push_str(request);
-            output.push('\n');
-        }
+        // Use the shared body renderer
+        let body = render_task_as_github_issue_body(task);
+        // Remove the marker line since it's not needed in export format
+        let trimmed_body = body
+            .trim_end()
+            .trim_end_matches(&format!("<!-- ralph_task_id: {} -->", task.id))
+            .trim_end();
+        output.push_str(trimmed_body);
+        output.push('\n');
     }
 
     Ok(output)

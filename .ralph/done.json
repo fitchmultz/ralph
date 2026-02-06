@@ -1301,9 +1301,9 @@
       "relates_to": [],
       "custom_fields": {
         "time_to_ship": "medium (concurrency + tests)",
-        "scan_agent": "scan-innovation",
+        "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort.",
         "opportunity_type": "reliability",
-        "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort."
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -1345,10 +1345,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "time_to_ship": "medium (metadata + reconciliation + tests)",
-        "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current.",
         "opportunity_type": "ux improvement",
-        "scan_agent": "scan-innovation"
+        "scan_agent": "scan-innovation",
+        "time_to_ship": "medium (metadata + reconciliation + tests)",
+        "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current."
       }
     },
     {
@@ -1394,10 +1394,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "time_to_ship": "medium (format + fixes + tests)",
         "opportunity_type": "ux improvement",
-        "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics."
+        "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics.",
+        "scan_agent": "scan-innovation",
+        "time_to_ship": "medium (format + fixes + tests)"
       }
     },
     {
@@ -1932,9 +1932,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "user_value": "Fewer context switches: jump from task → code in one keystroke.",
         "time_to_ship": "medium (TUI wiring + tests)",
+        "user_value": "Fewer context switches: jump from task → code in one keystroke.",
+        "scan_agent": "scan-innovation",
         "opportunity_type": "ux improvement"
       }
     },
@@ -1991,8 +1991,8 @@
       "custom_fields": {
         "scan_agent": "scan-innovation",
         "time_to_ship": "medium (render-only UI + tests)",
-        "opportunity_type": "ux improvement",
-        "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error."
+        "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error.",
+        "opportunity_type": "ux improvement"
       }
     },
     {
@@ -2046,10 +2046,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "feature gap",
-        "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types",
         "scan_agent": "scan-innovation",
-        "measurable_impact": "Track 20%+ improvement in task completion velocity after adoption"
+        "opportunity_type": "feature gap",
+        "measurable_impact": "Track 20%+ improvement in task completion velocity after adoption",
+        "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types"
       }
     },
     {
@@ -2165,10 +2165,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Reduces regression risk; enables confident refactoring",
+        "opportunity_type": "reliability",
         "scan_agent": "scan-innovation",
-        "measurable_impact": "80%+ integration test coverage for CLI commands",
-        "opportunity_type": "reliability"
+        "user_value": "Reduces regression risk; enables confident refactoring",
+        "measurable_impact": "80%+ integration test coverage for CLI commands"
       }
     },
     {
@@ -2231,8 +2231,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "differentiation": "Unique capability among AI task runners",
         "opportunity_type": "feature gap",
+        "differentiation": "Unique capability among AI task runners",
         "scan_agent": "scan-innovation",
         "user_value": "Enables ecosystem growth; custom integrations without forks"
       }
@@ -3337,6 +3337,76 @@
       "updated_at": "2026-02-06T12:22:24.655667000Z",
       "completed_at": "2026-02-06T12:22:24.655667000Z",
       "started_at": "2026-02-06T11:56:04.731767000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-innovation"
+      }
+    },
+    {
+      "id": "RQ-0655",
+      "status": "done",
+      "title": "Publish tasks to GitHub Issues via `gh` (store issue URL in custom_fields)",
+      "priority": "medium",
+      "tags": [
+        "innovation",
+        "github",
+        "integration",
+        "automation",
+        "queue",
+        "cli",
+        "rust"
+      ],
+      "scope": [
+        "crates/ralph/src/git/pr.rs",
+        "crates/ralph/src/cli/queue/",
+        "crates/ralph/src/cli/queue/export.rs",
+        "crates/ralph/src/cli/queue/mod.rs",
+        "crates/ralph/src/cli/queue/shared.rs",
+        "crates/ralph/src/cli/queue/tests.rs",
+        "crates/ralph/src/contracts/task.rs",
+        "crates/ralph/src/queue/",
+        "crates/ralph/src/queue/operations/edit.rs",
+        "crates/ralph/src/queue.rs",
+        "crates/ralph/src/commands/run/parallel/state.rs",
+        "docs/cli.md",
+        "ralph queue export --format gh --id-pattern RQ-0655",
+        "gh issue create",
+        "gh issue edit",
+        "make ci"
+      ],
+      "evidence": [
+        "Command: `ralph queue export --format gh` is implemented (via `export_github_issue()` in `crates/ralph/src/cli/queue/export.rs`) and emits GitHub-issue-friendly Markdown; there is no built-in publish/sync to GitHub Issues yet.",
+        "Search: there is no `gh issue ...` integration in the codebase today (only `gh pr ...` usage in `crates/ralph/src/git/pr.rs`).",
+        "Pattern: the repo already has a robust `gh` preflight + testability approach in `crates/ralph/src/git/pr.rs` and a fake-`gh`-on-PATH test pattern in `crates/ralph/src/commands/run/parallel/state.rs`.",
+        "Data model: `Task.custom_fields` is a `HashMap<String, String>` with scalar coercion on deserialize (`crates/ralph/src/contracts/task.rs`), so storing `github_issue_url`/`github_issue_number` as strings is compatible with the current schema."
+      ],
+      "plan": [
+        "Add a new queue subcommand (recommended: `ralph queue issue publish <TASK_ID>`) under `crates/ralph/src/cli/queue/` and wire it into `crates/ralph/src/cli/queue/mod.rs` with `--help` examples.",
+        "Implement a small GitHub Issues helper (new module recommended: `crates/ralph/src/git/issue.rs`) that runs `gh issue create` and (when an existing issue is recorded) `gh issue edit`; reuse the `gh` availability/auth preflight from `crates/ralph/src/git/pr.rs`.",
+        "Render issue title/body from the task (body should reuse the existing GitHub renderer from `crates/ralph/src/cli/queue/export.rs`, e.g., by factoring `export_github_issue()` into a reusable helper for a single task).",
+        "Persist the created/updated issue metadata back into the task’s `custom_fields` (at minimum `github_issue_url`; optionally `github_issue_number`) and update the task `updated_at` timestamp in `.ralph/queue.json`.",
+        "Support `--dry-run` (print rendered title/body and the `gh` command that would be executed) and passthrough flags like `--label`/`--assignee`; if `github_issue_url` is already present, re-running publish should update the issue title/body instead of creating a new issue.",
+        "Add tests for: success path (issue created and queue updated), failure when `gh` is missing, failure when `gh` is present but unauthenticated, and update path when `github_issue_url` already exists (use injected runner or a fake `gh` on PATH).",
+        "Update `docs/cli.md` with a workflow: `ralph queue export --format gh --id-pattern RQ-0655` (optional preview), `ralph queue issue publish RQ-0655`, and re-run publish to sync updates.",
+        "Verify by running `make ci` and confirming it passes."
+      ],
+      "notes": [
+        "Opportunity type: integration + automation.",
+        "Why it matters: Publishing turns Ralph queues into shareable, reviewable work items without duplicating effort across systems.",
+        "Acceptance criteria: Issue creation/update works with real `gh`; mapping is persisted; tests cover success + failure (gh missing/auth).",
+        "Implementation note: `queue export --format gh` is already implemented and tested; this task is specifically about automating publish/sync via `gh issue` and persisting the mapping into `custom_fields`.",
+        "Added ralph queue issue publish to create/update GitHub Issues via gh and persist issue URL/number in task custom_fields.",
+        "Added deterministic fake-gh tests covering create/update plus gh missing/auth failure modes; PATH mutations are guarded.",
+        "Improved check_gh_available() error text so it is accurate outside parallel mode.",
+        "Docs updated in docs/cli.md; make ci passes."
+      ],
+      "request": "innovation scan finding",
+      "created_at": "2026-02-06T01:53:55Z",
+      "updated_at": "2026-02-06T13:38:24.679131000Z",
+      "completed_at": "2026-02-06T13:38:24.679131000Z",
+      "started_at": "2026-02-06T12:29:14.446260000Z",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],

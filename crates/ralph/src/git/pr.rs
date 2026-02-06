@@ -313,13 +313,14 @@ where
 {
     // First, check if gh is on PATH by running --version
     let version_output = run_gh(&["--version"]).with_context(|| {
-        "GitHub CLI (`gh`) not found on PATH. Install it from https://cli.github.com/ and re-run, or disable parallel auto_pr/auto_merge.".to_string()
+        "GitHub CLI (`gh`) not found on PATH. Install it from https://cli.github.com/ and re-run."
+            .to_string()
     })?;
 
     if !version_output.status.success() {
         let stderr = String::from_utf8_lossy(&version_output.stderr);
         bail!(
-            "`gh --version` failed (gh is not usable). Details: {}. Install/repair `gh` from https://cli.github.com/ or disable parallel auto_pr/auto_merge.",
+            "`gh --version` failed (gh is not usable). Details: {}. Install/repair `gh` from https://cli.github.com/ and re-run.",
             stderr.trim()
         );
     }
@@ -338,7 +339,7 @@ where
             stdout.trim()
         };
         bail!(
-            "GitHub CLI (`gh`) is not authenticated. Run `gh auth login` and re-run, or disable parallel auto_pr/auto_merge. Details: {}",
+            "GitHub CLI (`gh`) is not authenticated. Run `gh auth login` and re-run. Details: {}",
             details
         );
     }

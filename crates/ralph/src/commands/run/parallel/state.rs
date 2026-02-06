@@ -748,11 +748,8 @@ mod tests {
     }
 
     // Tests for reconcile_pr_records with stubbed gh binary
+    use crate::testsupport::path::with_prepend_path;
     use std::io::Write;
-    use std::sync::Mutex;
-
-    // Guard to ensure PATH mutations don't run concurrently
-    static PATH_GUARD: Mutex<()> = Mutex::new(());
 
     fn create_fake_gh(tmp_dir: &TempDir, pr_responses: &[(u32, &str)]) -> PathBuf {
         let bin_dir = tmp_dir.path().join("bin");
@@ -801,7 +798,6 @@ exit 1
 
     #[test]
     fn reconcile_pr_records_updates_open_closed_merged() -> Result<()> {
-        let _guard = PATH_GUARD.lock().unwrap();
         let temp = TempDir::new()?;
 
         // PR 1 stays OPEN
@@ -823,61 +819,53 @@ exit 1
         ];
         let bin_dir = create_fake_gh(&temp, &responses);
 
-        // Prepend fake gh to PATH
-        let original_path = std::env::var("PATH").unwrap_or_default();
-        let new_path = format!("{}:{}", bin_dir.display(), original_path);
-        unsafe {
-            std::env::set_var("PATH", &new_path);
-        }
+        let result = with_prepend_path(&bin_dir, || {
+            let mut state_file = ParallelStateFile::new(
+                "2026-02-01T00:00:00Z".to_string(),
+                "main".to_string(),
+                ParallelMergeMethod::Squash,
+                ParallelMergeWhen::AsCreated,
+            );
 
-        let mut state_file = ParallelStateFile::new(
-            "2026-02-01T00:00:00Z".to_string(),
-            "main".to_string(),
-            ParallelMergeMethod::Squash,
-            ParallelMergeWhen::AsCreated,
-        );
+            // Add 3 PR records, all initially Open and unmerged
+            state_file.upsert_pr(ParallelPrRecord {
+                task_id: "RQ-0001".to_string(),
+                pr_number: 1,
+                pr_url: "https://example.com/pr/1".to_string(),
+                head: Some("ralph/RQ-0001".to_string()),
+                base: Some("main".to_string()),
+                workspace_path: None,
+                merged: false,
+                lifecycle: ParallelPrLifecycle::Open,
+                merge_blocker: None,
+            });
+            state_file.upsert_pr(ParallelPrRecord {
+                task_id: "RQ-0002".to_string(),
+                pr_number: 2,
+                pr_url: "https://example.com/pr/2".to_string(),
+                head: Some("ralph/RQ-0002".to_string()),
+                base: Some("main".to_string()),
+                workspace_path: None,
+                merged: false,
+                lifecycle: ParallelPrLifecycle::Open,
+                merge_blocker: None,
+            });
+            state_file.upsert_pr(ParallelPrRecord {
+                task_id: "RQ-0003".to_string(),
+                pr_number: 3,
+                pr_url: "https://example.com/pr/3".to_string(),
+                head: Some("ralph/RQ-0003".to_string()),
+                base: Some("main".to_string()),
+                workspace_path: None,
+                merged: false,
+                lifecycle: ParallelPrLifecycle::Open,
+                merge_blocker: None,
+            });
 
-        // Add 3 PR records, all initially Open and unmerged
-        state_file.upsert_pr(ParallelPrRecord {
-            task_id: "RQ-0001".to_string(),
-            pr_number: 1,
-            pr_url: "https://example.com/pr/1".to_string(),
-            head: Some("ralph/RQ-0001".to_string()),
-            base: Some("main".to_string()),
-            workspace_path: None,
-            merged: false,
-            lifecycle: ParallelPrLifecycle::Open,
-            merge_blocker: None,
-        });
-        state_file.upsert_pr(ParallelPrRecord {
-            task_id: "RQ-0002".to_string(),
-            pr_number: 2,
-            pr_url: "https://example.com/pr/2".to_string(),
-            head: Some("ralph/RQ-0002".to_string()),
-            base: Some("main".to_string()),
-            workspace_path: None,
-            merged: false,
-            lifecycle: ParallelPrLifecycle::Open,
-            merge_blocker: None,
-        });
-        state_file.upsert_pr(ParallelPrRecord {
-            task_id: "RQ-0003".to_string(),
-            pr_number: 3,
-            pr_url: "https://example.com/pr/3".to_string(),
-            head: Some("ralph/RQ-0003".to_string()),
-            base: Some("main".to_string()),
-            workspace_path: None,
-            merged: false,
-            lifecycle: ParallelPrLifecycle::Open,
-            merge_blocker: None,
+            reconcile_pr_records(temp.path(), &mut state_file).map(|s| (s, state_file))
         });
 
-        let summary = reconcile_pr_records(temp.path(), &mut state_file)?;
-
-        // Restore PATH
-        unsafe {
-            std::env::set_var("PATH", original_path);
-        }
+        let (summary, state_file) = result?;
 
         // Assert summary
         assert!(summary.has_changes());
@@ -919,7 +907,6 @@ exit 1
 
     #[test]
     fn reconcile_pr_records_handles_gh_errors_gracefully() -> Result<()> {
-        let _guard = PATH_GUARD.lock().unwrap();
         let temp = TempDir::new()?;
 
         // Fake gh that fails for PR 2
@@ -932,48 +919,40 @@ exit 1
         ];
         let bin_dir = create_fake_gh(&temp, &responses);
 
-        let original_path = std::env::var("PATH").unwrap_or_default();
-        let new_path = format!("{}:{}", bin_dir.display(), original_path);
-        unsafe {
-            std::env::set_var("PATH", &new_path);
-        }
+        let result = with_prepend_path(&bin_dir, || {
+            let mut state_file = ParallelStateFile::new(
+                "2026-02-01T00:00:00Z".to_string(),
+                "main".to_string(),
+                ParallelMergeMethod::Squash,
+                ParallelMergeWhen::AsCreated,
+            );
 
-        let mut state_file = ParallelStateFile::new(
-            "2026-02-01T00:00:00Z".to_string(),
-            "main".to_string(),
-            ParallelMergeMethod::Squash,
-            ParallelMergeWhen::AsCreated,
-        );
+            state_file.upsert_pr(ParallelPrRecord {
+                task_id: "RQ-0001".to_string(),
+                pr_number: 1,
+                pr_url: "https://example.com/pr/1".to_string(),
+                head: Some("ralph/RQ-0001".to_string()),
+                base: Some("main".to_string()),
+                workspace_path: None,
+                merged: false,
+                lifecycle: ParallelPrLifecycle::Open,
+                merge_blocker: None,
+            });
+            state_file.upsert_pr(ParallelPrRecord {
+                task_id: "RQ-0002".to_string(),
+                pr_number: 2,
+                pr_url: "https://example.com/pr/2".to_string(),
+                head: Some("ralph/RQ-0002".to_string()),
+                base: Some("main".to_string()),
+                workspace_path: None,
+                merged: false,
+                lifecycle: ParallelPrLifecycle::Open,
+                merge_blocker: None,
+            });
 
-        state_file.upsert_pr(ParallelPrRecord {
-            task_id: "RQ-0001".to_string(),
-            pr_number: 1,
-            pr_url: "https://example.com/pr/1".to_string(),
-            head: Some("ralph/RQ-0001".to_string()),
-            base: Some("main".to_string()),
-            workspace_path: None,
-            merged: false,
-            lifecycle: ParallelPrLifecycle::Open,
-            merge_blocker: None,
+            reconcile_pr_records(temp.path(), &mut state_file).map(|s| (s, state_file))
         });
-        state_file.upsert_pr(ParallelPrRecord {
-            task_id: "RQ-0002".to_string(),
-            pr_number: 2,
-            pr_url: "https://example.com/pr/2".to_string(),
-            head: Some("ralph/RQ-0002".to_string()),
-            base: Some("main".to_string()),
-            workspace_path: None,
-            merged: false,
-            lifecycle: ParallelPrLifecycle::Open,
-            merge_blocker: None,
-        });
-
-        let summary = reconcile_pr_records(temp.path(), &mut state_file)?;
-
-        // Restore PATH
-        unsafe {
-            std::env::set_var("PATH", original_path);
-        }
+        let (summary, state_file) = result?;
 
         // Should not fail, but should report error for PR 2
         assert_eq!(summary.error_count, 1);

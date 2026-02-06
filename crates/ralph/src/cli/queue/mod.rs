@@ -20,6 +20,7 @@ mod export;
 mod graph;
 mod history;
 mod import;
+mod issue;
 mod list;
 mod next;
 mod next_id;
@@ -47,6 +48,7 @@ pub use export::QueueExportArgs;
 pub use graph::QueueGraphArgs;
 pub use history::QueueHistoryArgs;
 pub use import::QueueImportArgs;
+pub use issue::QueueIssueArgs;
 pub use list::QueueListArgs;
 pub use next::QueueNextArgs;
 pub use next_id::QueueNextIdArgs;
@@ -87,6 +89,7 @@ pub fn handle_queue(cmd: QueueCommand, force: bool) -> Result<()> {
         QueueCommand::Stop => stop::handle(&resolved),
         QueueCommand::Explain(args) => explain::handle(&resolved, args),
         QueueCommand::Tree(args) => tree::handle(&resolved, args),
+        QueueCommand::Issue(args) => issue::handle(&resolved, force, args),
     }
 }
 
@@ -211,6 +214,12 @@ pub enum QueueCommand {
         after_long_help = "Examples:\n  ralph queue tree\n  ralph queue tree --include-done\n  ralph queue tree --root RQ-0001\n  ralph queue tree --max-depth 25"
     )]
     Tree(QueueTreeArgs),
+
+    /// Publish tasks to GitHub Issues.
+    #[command(
+        after_long_help = "Examples:\n  ralph queue issue publish RQ-0655\n  ralph queue issue publish RQ-0655 --dry-run\n  ralph queue issue publish RQ-0655 --label bug --assignee @me\n  ralph queue issue publish RQ-0655 --repo owner/repo"
+    )]
+    Issue(QueueIssueArgs),
 }
 
 #[cfg(test)]

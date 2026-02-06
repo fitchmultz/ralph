@@ -22,6 +22,7 @@ pub mod branch;
 pub mod clean;
 pub mod commit;
 pub mod error;
+pub mod issue;
 pub mod lfs;
 pub mod pr;
 pub mod status;
@@ -37,6 +38,7 @@ pub use commit::{
     push_upstream_with_rebase, restore_tracked_paths_to_head, revert_uncommitted, upstream_ref,
 };
 pub use error::GitError;
+pub(crate) use issue::{create_issue, edit_issue, parse_issue_number};
 pub use lfs::{check_lfs_health, filter_modified_lfs_files, has_lfs, list_lfs_files};
 pub(crate) use pr::{
     MergeState, PrInfo, PrLifecycle, check_gh_available, create_pr, merge_pr, pr_lifecycle_status,
