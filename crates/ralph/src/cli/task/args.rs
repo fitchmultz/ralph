@@ -673,6 +673,7 @@ pub enum TaskEditFieldArg {
     UpdatedAt,
     CompletedAt,
     StartedAt,
+    ScheduledStart,
 }
 
 impl TaskEditFieldArg {
@@ -696,6 +697,7 @@ impl TaskEditFieldArg {
             TaskEditFieldArg::UpdatedAt => "updated_at",
             TaskEditFieldArg::CompletedAt => "completed_at",
             TaskEditFieldArg::StartedAt => "started_at",
+            TaskEditFieldArg::ScheduledStart => "scheduled_start",
         }
     }
 }
@@ -721,6 +723,7 @@ impl From<TaskEditFieldArg> for TaskEditKey {
             TaskEditFieldArg::UpdatedAt => TaskEditKey::UpdatedAt,
             TaskEditFieldArg::CompletedAt => TaskEditKey::CompletedAt,
             TaskEditFieldArg::StartedAt => TaskEditKey::StartedAt,
+            TaskEditFieldArg::ScheduledStart => TaskEditKey::ScheduledStart,
         }
     }
 }

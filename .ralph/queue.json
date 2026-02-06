@@ -2,44 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0639",
-      "status": "todo",
-      "title": "Deduplicate TaskEditKey field formatting to prevent TUI/CLI drift",
-      "priority": "medium",
-      "tags": [
-        "maintenance",
-        "dry",
-        "tui",
-        "queue"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/task_edit.rs",
-        "crates/ralph/src/queue/operations/edit.rs",
-        "make ci"
-      ],
-      "evidence": [
-        "crates/ralph/src/tui/task_edit.rs:141-160: TaskEditKey -> value mapping for editing.",
-        "crates/ralph/src/queue/operations/edit.rs:630-658: TaskEditKey -> value mapping for preview formatting.",
-        "DRY risk: overlapping keys (Request/Duplicates/*At fields) are implemented twice and can drift."
-      ],
-      "plan": [
-        "Introduce a shared helper for TaskEditKey field extraction/formatting (in queue module or on Task) and use it from both the TUI editor and the preview code.",
-        "Update both call sites to use the shared helper.",
-        "Add tests covering a representative Task to ensure both paths render the same values for shared keys.",
-        "Verify by running `make ci` and confirming it passes."
-      ],
-      "notes": [],
-      "request": "maintenance scan finding",
-      "created_at": "2026-02-05T20:49:31Z",
-      "updated_at": "2026-02-05T20:49:31Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0640",
       "status": "todo",
       "title": "Split oversized TUI app module (3347 LOC) into cohesive submodules",

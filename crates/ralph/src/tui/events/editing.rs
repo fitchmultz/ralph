@@ -103,7 +103,7 @@ pub(super) fn handle_editing_task_key(
         match handle_textarea_edit_key(key, value) {
             TextEditKeyResult::Commit(value) => {
                 // For list fields, get the lines as a comma-separated string
-                let edit_value = if app.is_list_field(entry.key) {
+                let edit_value = if entry.key.is_list_field() {
                     value.lines().join(", ")
                 } else {
                     value.value()
@@ -196,7 +196,7 @@ pub(super) fn handle_editing_task_key(
                     | crate::tui::TaskEditKind::Map
                     | crate::tui::TaskEditKind::OptionalText => {
                         let current = app.task_value_for_edit(entry.key);
-                        let is_list = app.is_list_field(entry.key);
+                        let is_list = entry.key.is_list_field();
                         app.mode = AppMode::EditingTask {
                             selected,
                             editing_value: Some(MultiLineInput::new(current, is_list)),
@@ -221,7 +221,7 @@ pub(super) fn handle_editing_task_key(
                     | crate::tui::TaskEditKind::Map
                     | crate::tui::TaskEditKind::OptionalText => {
                         let current = app.task_value_for_edit(entry.key);
-                        let is_list = app.is_list_field(entry.key);
+                        let is_list = entry.key.is_list_field();
                         app.mode = AppMode::EditingTask {
                             selected,
                             editing_value: Some(MultiLineInput::new(current, is_list)),
@@ -252,7 +252,7 @@ pub(super) fn handle_editing_task_key(
                     | crate::tui::TaskEditKind::OptionalText => {
                         if let Some(ch) = text_char(&key) {
                             let current = app.task_value_for_edit(entry.key);
-                            let is_list = app.is_list_field(entry.key);
+                            let is_list = entry.key.is_list_field();
                             let mut input = MultiLineInput::new(current, is_list);
                             // Simulate typing the character
                             input.textarea_mut().insert_char(ch);

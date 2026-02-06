@@ -138,42 +138,8 @@ impl App {
         let Some(task) = self.selected_task() else {
             return String::new();
         };
-        match key {
-            TaskEditKey::Title => task.title.clone(),
-            // List fields: use newline for multi-line editing
-            TaskEditKey::Tags => task.tags.join("\n"),
-            TaskEditKey::Scope => task.scope.join("\n"),
-            TaskEditKey::Evidence => task.evidence.join("\n"),
-            TaskEditKey::Plan => task.plan.join("\n"),
-            TaskEditKey::Notes => task.notes.join("\n"),
-            TaskEditKey::Request => task.request.clone().unwrap_or_default(),
-            TaskEditKey::DependsOn => task.depends_on.join("\n"),
-            TaskEditKey::Blocks => task.blocks.join("\n"),
-            TaskEditKey::RelatesTo => task.relates_to.join("\n"),
-            TaskEditKey::Duplicates => task.duplicates.clone().unwrap_or_default(),
-            TaskEditKey::CustomFields => format_custom_fields(&task.custom_fields, ""),
-            TaskEditKey::CreatedAt => task.created_at.clone().unwrap_or_default(),
-            TaskEditKey::UpdatedAt => task.updated_at.clone().unwrap_or_default(),
-            TaskEditKey::CompletedAt => task.completed_at.clone().unwrap_or_default(),
-            TaskEditKey::StartedAt => task.started_at.clone().unwrap_or_default(),
-            TaskEditKey::ScheduledStart => task.scheduled_start.clone().unwrap_or_default(),
-            TaskEditKey::Status | TaskEditKey::Priority => String::new(),
-        }
-    }
-
-    /// Check if a task edit key represents a list field.
-    pub(crate) fn is_list_field(&self, key: TaskEditKey) -> bool {
-        matches!(
-            key,
-            TaskEditKey::Tags
-                | TaskEditKey::Scope
-                | TaskEditKey::Evidence
-                | TaskEditKey::Plan
-                | TaskEditKey::Notes
-                | TaskEditKey::DependsOn
-                | TaskEditKey::Blocks
-                | TaskEditKey::RelatesTo
-        )
+        // Use the shared helper with newline separator for multi-line editing
+        key.format_value(task, "\n")
     }
 
     pub(crate) fn apply_task_edit(

@@ -67,6 +67,56 @@ impl TaskEditKey {
             TaskEditKey::ScheduledStart => "scheduled_start",
         }
     }
+
+    /// Returns whether this field is a list type (Vec<String>).
+    pub fn is_list_field(self) -> bool {
+        matches!(
+            self,
+            TaskEditKey::Tags
+                | TaskEditKey::Scope
+                | TaskEditKey::Evidence
+                | TaskEditKey::Plan
+                | TaskEditKey::Notes
+                | TaskEditKey::DependsOn
+                | TaskEditKey::Blocks
+                | TaskEditKey::RelatesTo
+        )
+    }
+
+    /// Format this field's value from a task with the given list separator.
+    ///
+    /// For list fields, elements are joined with the provided separator.
+    /// For optional fields, returns empty string when None.
+    pub fn format_value(self, task: &Task, list_sep: &str) -> String {
+        match self {
+            TaskEditKey::Title => task.title.clone(),
+            TaskEditKey::Status => task.status.to_string(),
+            TaskEditKey::Priority => task.priority.to_string(),
+            TaskEditKey::Tags => task.tags.join(list_sep),
+            TaskEditKey::Scope => task.scope.join(list_sep),
+            TaskEditKey::Evidence => task.evidence.join(list_sep),
+            TaskEditKey::Plan => task.plan.join(list_sep),
+            TaskEditKey::Notes => task.notes.join(list_sep),
+            TaskEditKey::Request => task.request.clone().unwrap_or_default(),
+            TaskEditKey::DependsOn => task.depends_on.join(list_sep),
+            TaskEditKey::Blocks => task.blocks.join(list_sep),
+            TaskEditKey::RelatesTo => task.relates_to.join(list_sep),
+            TaskEditKey::Duplicates => task.duplicates.clone().unwrap_or_default(),
+            TaskEditKey::CustomFields => {
+                let pairs: Vec<String> = task
+                    .custom_fields
+                    .iter()
+                    .map(|(k, v)| format!("{}={}", k, v))
+                    .collect();
+                pairs.join(list_sep)
+            }
+            TaskEditKey::CreatedAt => task.created_at.clone().unwrap_or_default(),
+            TaskEditKey::UpdatedAt => task.updated_at.clone().unwrap_or_default(),
+            TaskEditKey::CompletedAt => task.completed_at.clone().unwrap_or_default(),
+            TaskEditKey::StartedAt => task.started_at.clone().unwrap_or_default(),
+            TaskEditKey::ScheduledStart => task.scheduled_start.clone().unwrap_or_default(),
+        }
+    }
 }
 
 impl std::str::FromStr for TaskEditKey {
@@ -628,34 +678,13 @@ fn normalize_rfc3339_input_for_preview(label: &str, value: &str) -> Result<Optio
 }
 
 fn format_field_value(task: &Task, key: TaskEditKey) -> String {
-    match key {
-        TaskEditKey::Title => task.title.clone(),
-        TaskEditKey::Status => task.status.to_string(),
-        TaskEditKey::Priority => task.priority.to_string(),
-        TaskEditKey::Tags => task.tags.join(", "),
-        TaskEditKey::Scope => task.scope.join(", "),
-        TaskEditKey::Evidence => task.evidence.join("; "),
-        TaskEditKey::Plan => task.plan.join("; "),
-        TaskEditKey::Notes => task.notes.join("; "),
-        TaskEditKey::Request => task.request.clone().unwrap_or_default(),
-        TaskEditKey::DependsOn => task.depends_on.join(", "),
-        TaskEditKey::Blocks => task.blocks.join(", "),
-        TaskEditKey::RelatesTo => task.relates_to.join(", "),
-        TaskEditKey::Duplicates => task.duplicates.clone().unwrap_or_default(),
-        TaskEditKey::CustomFields => {
-            let pairs: Vec<String> = task
-                .custom_fields
-                .iter()
-                .map(|(k, v)| format!("{}={}", k, v))
-                .collect();
-            pairs.join(", ")
-        }
-        TaskEditKey::CreatedAt => task.created_at.clone().unwrap_or_default(),
-        TaskEditKey::UpdatedAt => task.updated_at.clone().unwrap_or_default(),
-        TaskEditKey::CompletedAt => task.completed_at.clone().unwrap_or_default(),
-        TaskEditKey::StartedAt => task.started_at.clone().unwrap_or_default(),
-        TaskEditKey::ScheduledStart => task.scheduled_start.clone().unwrap_or_default(),
-    }
+    // Use semicolon separator for Evidence, Plan, Notes (longer text items)
+    // Use comma separator for other list fields
+    let sep = match key {
+        TaskEditKey::Evidence | TaskEditKey::Plan | TaskEditKey::Notes => "; ",
+        _ => ", ",
+    };
+    key.format_value(task, sep)
 }
 
 #[cfg(test)]
@@ -917,5 +946,60 @@ mod tests {
             "new_value should contain owner=ralph: {}",
             preview.new_value
         );
+    }
+
+    #[test]
+    fn task_edit_key_format_value_with_newline_separator() {
+        let task = test_task();
+
+        assert_eq!(TaskEditKey::Tags.format_value(&task, "\n"), "rust\ncli");
+        assert_eq!(TaskEditKey::Scope.format_value(&task, "\n"), "crates/ralph");
+        assert_eq!(TaskEditKey::Title.format_value(&task, "\n"), "Test task");
+    }
+
+    #[test]
+    fn task_edit_key_format_value_with_comma_separator() {
+        let task = test_task();
+
+        assert_eq!(TaskEditKey::Tags.format_value(&task, ", "), "rust, cli");
+        assert_eq!(TaskEditKey::DependsOn.format_value(&task, ", "), "");
+    }
+
+    #[test]
+    fn task_edit_key_is_list_field_identifies_lists_correctly() {
+        assert!(TaskEditKey::Tags.is_list_field());
+        assert!(TaskEditKey::Scope.is_list_field());
+        assert!(TaskEditKey::Evidence.is_list_field());
+        assert!(TaskEditKey::Plan.is_list_field());
+        assert!(TaskEditKey::Notes.is_list_field());
+        assert!(TaskEditKey::DependsOn.is_list_field());
+        assert!(TaskEditKey::Blocks.is_list_field());
+        assert!(TaskEditKey::RelatesTo.is_list_field());
+
+        assert!(!TaskEditKey::Title.is_list_field());
+        assert!(!TaskEditKey::Status.is_list_field());
+        assert!(!TaskEditKey::Priority.is_list_field());
+        assert!(!TaskEditKey::Request.is_list_field());
+        assert!(!TaskEditKey::Duplicates.is_list_field());
+        assert!(!TaskEditKey::ScheduledStart.is_list_field());
+    }
+
+    #[test]
+    fn format_field_value_uses_contextual_separators() {
+        let mut task = test_task();
+        task.evidence = vec!["item1".to_string(), "item2".to_string()];
+        task.plan = vec!["step1".to_string(), "step2".to_string()];
+
+        // Evidence uses "; " separator
+        assert_eq!(
+            format_field_value(&task, TaskEditKey::Evidence),
+            "item1; item2"
+        );
+
+        // Plan uses "; " separator
+        assert_eq!(format_field_value(&task, TaskEditKey::Plan), "step1; step2");
+
+        // Tags uses ", " separator
+        assert_eq!(format_field_value(&task, TaskEditKey::Tags), "rust, cli");
     }
 }

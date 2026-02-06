@@ -319,7 +319,7 @@ impl TaskEditorOverlayComponent {
                     } else {
                         // Commit the edit
                         let entry = &app.task_edit_entries()[self.selected.min(max_index)];
-                        let edit_value = if app.is_list_field(entry.key) {
+                        let edit_value = if entry.key.is_list_field() {
                             textarea.lines().join(", ")
                         } else {
                             textarea.value().to_string()
