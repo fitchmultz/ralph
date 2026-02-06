@@ -219,6 +219,71 @@ ralph webhook test --event task_created --print-json --pretty false
 ralph webhook test --url https://example.com/webhook
 ```
 
+## `ralph config`
+
+Inspect and manage Ralph configuration. This command displays the resolved configuration (after merging global and project configs), prints file paths, and outputs the JSON schema.
+
+### Subcommands
+
+* `show`: Display the resolved configuration (YAML by default, JSON with `--format json`).
+* `paths`: Print paths to queue, done archive, and config files.
+* `schema`: Print the JSON schema for configuration validation.
+
+### `ralph config show`
+
+Display the resolved Ralph configuration after merging global and project configs.
+
+#### Output Formats
+
+* `--format yaml` (default): Human-readable YAML output.
+* `--format json`: Machine-readable JSON output for scripting.
+* `--format text`: Alias for `yaml` (backward compatibility).
+
+The default YAML format is suitable for human inspection. Use `--format json` when piping to tools like `jq` for automated processing.
+
+#### Scripting Examples
+
+```bash
+# Machine-readable config for scripting
+ralph config show --format json | jq '.agent.runner'
+ralph config show --format json | jq '.agent.model'
+
+# Check if CI gate is enabled
+ralph config show --format json | jq '.agent.ci_gate_enabled'
+
+# Get queue file path
+ralph config show --format json | jq '.queue.file'
+
+# Human-readable config
+ralph config show
+
+# Explicit YAML output
+ralph config show --format yaml
+```
+
+### `ralph config paths`
+
+Print paths to Ralph-related files (queue, done archive, global config, project config).
+
+```bash
+ralph config paths
+```
+
+Output includes:
+* `repo_root`: Root of the current repository
+* `queue`: Path to `.ralph/queue.json`
+* `done`: Path to `.ralph/done.json`
+* `global_config`: Path to global config (if available)
+* `project_config`: Path to project config (if available)
+
+### `ralph config schema`
+
+Print the JSON schema for the Ralph configuration file. This schema can be used for validation in editors that support JSON Schema.
+
+```bash
+ralph config schema
+```
+
 ## `ralph init`
 
 Bootstrap Ralph files in the current repository with an optional interactive onboarding wizard.

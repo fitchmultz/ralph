@@ -165,3 +165,19 @@ fn scan_help_mentions_repo_prompt_flag() {
 
     assert_contains(&combined, "--repo-prompt");
 }
+
+#[test]
+fn config_show_help_mentions_format_and_examples() {
+    let (status, stdout, stderr) = run(&["config", "show", "--help"]);
+    assert!(
+        status.success(),
+        "expected `ralph config show --help` to succeed\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    let combined = format!("{stdout}\n{stderr}");
+
+    assert_contains(&combined, "--format");
+    assert_contains(&combined, "json");
+    assert_contains(&combined, "yaml");
+    assert_contains(&combined, "ralph config show --format json");
+}

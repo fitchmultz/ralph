@@ -2,52 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0653",
-      "status": "todo",
-      "title": "Add `ralph config show --format json` for scripting and tooling",
-      "priority": "medium",
-      "tags": [
-        "innovation",
-        "config",
-        "ux",
-        "automation",
-        "cli"
-      ],
-      "scope": [
-        "crates/ralph/src/cli/config.rs",
-        "crates/ralph/src/config.rs",
-        "crates/ralph/tests/help_output_contract_test.rs",
-        "docs/cli.md",
-        "ralph config show --help"
-      ],
-      "evidence": [
-        "Command: `ralph config show --help` states it prints resolved config as YAML and has no `--format` flag.",
-        "Other commands (`ralph doctor`, `ralph queue stats`, `ralph productivity`) support `--format json`, suggesting a consistent scripting surface is expected.",
-        "Config precedence is non-trivial (CLI > project > global > defaults); JSON output makes it easy to consume in scripts and editors."
-      ],
-      "plan": [
-        "Add `--format <yaml|json>` to `ralph config show` (default: yaml for readability).",
-        "Ensure JSON output is the resolved config as a JSON object (not a YAML string) and is stable for parsing.",
-        "Add tests that run `ralph config show --format json` in a temp repo and assert the output parses as JSON and contains expected top-level keys (e.g., `version`, `agent`, `queue`).",
-        "Update `docs/cli.md` and help examples to include `--format json`.",
-        "Verify by running `make ci` and confirming it passes."
-      ],
-      "notes": [
-        "Opportunity type: UX improvement + integration.",
-        "Why it matters: JSON unlocks editor tooling, scripts, and CI checks without relying on YAML parsing.",
-        "Acceptance criteria: JSON output parses cleanly; defaults and precedence are represented correctly; docs/examples are updated."
-      ],
-      "request": "innovation scan finding",
-      "created_at": "2026-02-06T01:53:55Z",
-      "updated_at": "2026-02-06T01:53:55Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-innovation"
-      }
-    },
-    {
       "id": "RQ-0654",
       "status": "todo",
       "title": "Expand `ralph queue list --sort-by` to support timestamps and scheduling fields",
@@ -180,8 +134,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_visible_blocker": "true",
-        "reported_at": "2026-02-06"
+        "reported_at": "2026-02-06",
+        "user_visible_blocker": "true"
       }
     },
     {
