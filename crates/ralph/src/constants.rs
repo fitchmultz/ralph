@@ -149,6 +149,12 @@ pub mod paths {
 
     /// Environment variable to force completion signal mode (used by parallel workers).
     pub const ENV_FORCE_COMPLETION_SIGNAL: &str = "RALPH_FORCE_COMPLETION_SIGNAL";
+
+    /// Environment variable for the runner actually used (set by Ralph when spawning runners).
+    pub const ENV_RUNNER_USED: &str = "RALPH_RUNNER_USED";
+
+    /// Environment variable for the model actually used (set by Ralph when spawning runners).
+    pub const ENV_MODEL_USED: &str = "RALPH_MODEL_USED";
 }
 
 /// Version constants for schemas and templates.
@@ -247,4 +253,13 @@ pub mod agents_md {
         "Documentation Maintenance",
         "Troubleshooting",
     ];
+}
+
+/// Custom field keys for analytics/observability data.
+pub mod custom_fields {
+    /// Key for the runner actually used (observational, not intent).
+    pub const RUNNER_USED: &str = "runner_used";
+
+    /// Key for the model actually used (observational, not intent).
+    pub const MODEL_USED: &str = "model_used";
 }

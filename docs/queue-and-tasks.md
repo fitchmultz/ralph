@@ -39,6 +39,10 @@ Common optional fields:
 - `duplicates` (string or null): Task ID that this task duplicates.
 - `custom_fields` (map of strings, defaults to empty).
   - **Note**: The queue loader accepts string/number/boolean values and coerces them to strings (in memory, and on subsequent saves). When manually editing `.ralph/queue.json`, values should still be quoted strings for consistency.
+  - **Reserved analytics keys**: Ralph automatically writes the following keys to completed tasks:
+    - `runner_used`: The runner actually used for execution (e.g., `codex`, `claude`, `opencode`).
+    - `model_used`: The model actually used for execution (e.g., `gpt-5.3-codex`, `sonnet`).
+    - These fields are observational (what actually ran) and should not be confused with `agent.runner`/`agent.model` which express intent/override.
 
 Per-task agent overrides:
 - `agent.runner`: `codex`, `opencode`, `gemini`, `claude`, or `cursor`.

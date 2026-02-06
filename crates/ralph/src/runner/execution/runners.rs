@@ -24,6 +24,7 @@ use super::cli_spec;
 use super::command::RunnerCommandBuilder;
 use super::process::run_with_streaming_json;
 use crate::commands::run::PhaseType;
+use crate::constants::paths::{ENV_MODEL_USED, ENV_RUNNER_USED};
 use crate::contracts::Runner;
 
 type RunnerCommandParts = (
@@ -31,6 +32,17 @@ type RunnerCommandParts = (
     Option<Vec<u8>>,
     Vec<Box<dyn std::any::Any + Send + Sync>>,
 );
+
+/// Apply analytics environment variables to track which runner/model was actually used.
+fn apply_analytics_env(
+    builder: RunnerCommandBuilder,
+    runner: &Runner,
+    model: &Model,
+) -> RunnerCommandBuilder {
+    builder
+        .env(ENV_RUNNER_USED, runner.id())
+        .env(ENV_MODEL_USED, model.as_str())
+}
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn run_codex(
@@ -45,6 +57,7 @@ pub(crate) fn run_codex(
     output_stream: OutputStream,
 ) -> Result<RunnerOutput, RunnerError> {
     let builder = RunnerCommandBuilder::new(bin, work_dir);
+    let builder = apply_analytics_env(builder, &Runner::Codex, &model);
     let builder = cli_spec::apply_codex_global_options(builder, runner_cli);
     let (cmd, payload, _guards) = builder
         .arg("exec")
@@ -80,6 +93,7 @@ pub(crate) fn run_codex_resume(
     output_stream: OutputStream,
 ) -> Result<RunnerOutput, RunnerError> {
     let builder = RunnerCommandBuilder::new(bin, work_dir);
+    let builder = apply_analytics_env(builder, &Runner::Codex, &model);
     let builder = cli_spec::apply_codex_global_options(builder, runner_cli);
     let (cmd, payload, _guards) = builder
         .arg("exec")
@@ -113,20 +127,19 @@ pub(crate) fn run_opencode(
     output_handler: Option<OutputHandler>,
     output_stream: OutputStream,
 ) -> Result<RunnerOutput, RunnerError> {
-    let (cmd, payload, _guards) = RunnerCommandBuilder::new(bin, work_dir)
-        .arg("run")
-        .model(model)
-        .opencode_format()
-        .with_temp_prompt_file(prompt)
-        .map_err(|err| {
-            runner_execution_error_with_source(
-                &Runner::Opencode,
-                bin,
-                "create temp prompt file",
-                err,
-            )
-        })?
-        .build();
+    let (cmd, payload, _guards) = apply_analytics_env(
+        RunnerCommandBuilder::new(bin, work_dir),
+        &Runner::Opencode,
+        model,
+    )
+    .arg("run")
+    .model(model)
+    .opencode_format()
+    .with_temp_prompt_file(prompt)
+    .map_err(|err| {
+        runner_execution_error_with_source(&Runner::Opencode, bin, "create temp prompt file", err)
+    })?
+    .build();
 
     run_with_streaming_json(
         cmd,
@@ -151,15 +164,19 @@ pub(crate) fn run_opencode_resume(
     output_handler: Option<OutputHandler>,
     output_stream: OutputStream,
 ) -> Result<RunnerOutput, RunnerError> {
-    let (cmd, payload, _guards) = RunnerCommandBuilder::new(bin, work_dir)
-        .arg("run")
-        .arg("-s")
-        .arg(session_id)
-        .model(model)
-        .opencode_format()
-        .arg("--")
-        .arg(message)
-        .build();
+    let (cmd, payload, _guards) = apply_analytics_env(
+        RunnerCommandBuilder::new(bin, work_dir),
+        &Runner::Opencode,
+        model,
+    )
+    .arg("run")
+    .arg("-s")
+    .arg(session_id)
+    .model(model)
+    .opencode_format()
+    .arg("--")
+    .arg(message)
+    .build();
 
     run_with_streaming_json(
         cmd,
@@ -184,6 +201,7 @@ pub(crate) fn run_gemini(
     output_stream: OutputStream,
 ) -> Result<RunnerOutput, RunnerError> {
     let builder = RunnerCommandBuilder::new(bin, work_dir);
+    let builder = apply_analytics_env(builder, &Runner::Gemini, &model);
     let builder = cli_spec::apply_gemini_options(builder, runner_cli);
     let (cmd, payload, _guards) = builder
         .model(&model)
@@ -215,6 +233,7 @@ pub(crate) fn run_gemini_resume(
     output_stream: OutputStream,
 ) -> Result<RunnerOutput, RunnerError> {
     let builder = RunnerCommandBuilder::new(bin, work_dir);
+    let builder = apply_analytics_env(builder, &Runner::Gemini, &model);
     let builder = cli_spec::apply_gemini_options(builder, runner_cli);
     let (cmd, payload, _guards) = builder
         .arg("--resume")
@@ -248,6 +267,7 @@ pub(crate) fn run_claude(
     output_stream: OutputStream,
 ) -> Result<RunnerOutput, RunnerError> {
     let builder = RunnerCommandBuilder::new(bin, work_dir);
+    let builder = apply_analytics_env(builder, &Runner::Claude, &model);
     let builder = cli_spec::apply_claude_options(builder, runner_cli);
     let (cmd, payload, _guards) = builder
         .arg("--verbose")
@@ -283,6 +303,7 @@ pub(crate) fn run_claude_resume(
     output_stream: OutputStream,
 ) -> Result<RunnerOutput, RunnerError> {
     let builder = RunnerCommandBuilder::new(bin, work_dir);
+    let builder = apply_analytics_env(builder, &Runner::Claude, &model);
     let builder = cli_spec::apply_claude_options(builder, runner_cli);
     let (cmd, payload, _guards) = builder
         .arg("--resume")
@@ -410,6 +431,7 @@ pub(crate) fn run_cursor(
     phase_type: PhaseType,
 ) -> Result<RunnerOutput, RunnerError> {
     let builder = RunnerCommandBuilder::new(bin, work_dir).model(&model);
+    let builder = apply_analytics_env(builder, &Runner::Cursor, &model);
     let builder = cli_spec::apply_cursor_options(builder, runner_cli, phase_type);
 
     let (cmd, payload, _guards) = builder
@@ -447,6 +469,7 @@ pub(crate) fn run_cursor_resume(
         .arg("--resume")
         .arg(session_id)
         .model(&model);
+    let builder = apply_analytics_env(builder, &Runner::Cursor, &model);
     let builder = cli_spec::apply_cursor_options(builder, runner_cli, phase_type);
 
     let (cmd, payload, _guards) = builder
@@ -476,6 +499,7 @@ fn build_kimi_command(
     session_id: Option<&str>,
 ) -> RunnerCommandParts {
     let builder = RunnerCommandBuilder::new(bin, work_dir);
+    let builder = apply_analytics_env(builder, &Runner::Kimi, &model);
     let builder = cli_spec::apply_kimi_options(builder, runner_cli);
     let builder = if let Some(session_id) = session_id {
         builder.arg("--session").arg(session_id)
@@ -500,6 +524,7 @@ fn build_pi_command(
     session_path: Option<&Path>,
 ) -> Result<RunnerCommandParts, RunnerError> {
     let builder = RunnerCommandBuilder::new(bin, work_dir);
+    let builder = apply_analytics_env(builder, &Runner::Pi, &model);
     let builder = cli_spec::apply_pi_options(builder, runner_cli);
     let builder = if let Some(path) = session_path {
         builder

@@ -617,6 +617,8 @@ fn ensure_completion_signal_in_workspace(
             "[ralph] Auto-finalized after merge: completion signal missing for {}.",
             task_id
         )],
+        runner_used: None,
+        model_used: None,
     };
     completions::write_completion_signal(base_sync_root, &fallback)?;
     log::warn!(
@@ -1162,6 +1164,8 @@ mod tests {
             task_id: "RQ-0001".to_string(),
             status: TaskStatus::Done,
             notes: vec!["Completed".to_string()],
+            runner_used: None,
+            model_used: None,
         };
         completions::write_completion_signal(workspace_dir.path(), &signal)?;
 

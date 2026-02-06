@@ -19,12 +19,14 @@ use anyhow::{Result, bail};
 use crate::cli::task::args::{TaskDoneArgs, TaskReadyArgs, TaskRejectArgs, TaskStatusArgs};
 use crate::completions;
 use crate::config;
-use crate::constants::paths::ENV_FORCE_COMPLETION_SIGNAL;
+use crate::constants::custom_fields::{MODEL_USED, RUNNER_USED};
+use crate::constants::paths::{ENV_FORCE_COMPLETION_SIGNAL, ENV_MODEL_USED, ENV_RUNNER_USED};
 use crate::contracts::TaskStatus;
 use crate::lock;
 use crate::queue;
 use crate::timeutil;
 use crate::webhook;
+use std::collections::HashMap;
 
 /// Handle the `ready` command (promote draft to todo).
 pub fn handle_ready(args: &TaskReadyArgs, force: bool, resolved: &config::Resolved) -> Result<()> {
@@ -102,6 +104,7 @@ pub fn handle_status(
                     &resolved.id_prefix,
                     resolved.id_width,
                     max_depth,
+                    None,
                 ) {
                     Ok(()) => {
                         results.push((task_id.clone(), true, None));
@@ -265,10 +268,15 @@ fn complete_task_or_signal(
     // - A user manually running commands while a supervisor is active (should complete directly)
     // - Parallel workers that must always emit completion signals regardless of process group
     if force_signal || lock::is_current_process_supervised(&lock_dir)? {
+        let runner_used = read_env_trimmed(ENV_RUNNER_USED).map(|v| v.to_ascii_lowercase());
+        let model_used = read_env_trimmed(ENV_MODEL_USED);
+
         let signal = completions::CompletionSignal {
             task_id: task_id.to_string(),
             status,
             notes: notes.to_vec(),
+            runner_used,
+            model_used,
         };
         let path = completions::write_completion_signal(&resolved.repo_root, &signal)?;
         let label = if force_signal { "force" } else { "supervision" };
@@ -286,6 +294,10 @@ fn complete_task_or_signal(
     let _queue_lock = queue::acquire_queue_lock(&resolved.repo_root, "task", force)?;
     let now = timeutil::now_utc_rfc3339()?;
     let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
+
+    // Build custom fields patch from environment variables
+    let custom_fields_patch = build_custom_fields_patch_from_env();
+
     queue::complete_task(
         &resolved.queue_path,
         &resolved.done_path,
@@ -296,6 +308,7 @@ fn complete_task_or_signal(
         &resolved.id_prefix,
         resolved.id_width,
         max_depth,
+        custom_fields_patch.as_ref(),
     )?;
     log::info!(
         "Task {} completed (status: {}) and moved to done archive.",
@@ -315,4 +328,26 @@ fn force_completion_signal_from_env() -> bool {
         return false;
     }
     !matches!(normalized.as_str(), "0" | "false" | "no" | "off")
+}
+
+/// Read an environment variable and return Some(trimmed value) if non-empty.
+fn read_env_trimmed(key: &str) -> Option<String> {
+    std::env::var(key)
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+}
+
+/// Build custom fields patch from environment variables for observational analytics.
+fn build_custom_fields_patch_from_env() -> Option<HashMap<String, String>> {
+    let mut patch = HashMap::new();
+
+    if let Some(runner) = read_env_trimmed(ENV_RUNNER_USED) {
+        patch.insert(RUNNER_USED.to_string(), runner.to_ascii_lowercase());
+    }
+    if let Some(model) = read_env_trimmed(ENV_MODEL_USED) {
+        patch.insert(MODEL_USED.to_string(), model.to_string());
+    }
+
+    if patch.is_empty() { None } else { Some(patch) }
 }

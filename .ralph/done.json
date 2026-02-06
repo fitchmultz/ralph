@@ -1300,9 +1300,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "scan_agent": "scan-innovation",
         "opportunity_type": "reliability",
         "time_to_ship": "medium (concurrency + tests)",
-        "scan_agent": "scan-innovation",
         "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort."
       }
     },
@@ -1345,10 +1345,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "ux improvement",
-        "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current.",
         "scan_agent": "scan-innovation",
-        "time_to_ship": "medium (metadata + reconciliation + tests)"
+        "time_to_ship": "medium (metadata + reconciliation + tests)",
+        "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current.",
+        "opportunity_type": "ux improvement"
       }
     },
     {
@@ -1394,9 +1394,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics.",
         "opportunity_type": "ux improvement",
         "scan_agent": "scan-innovation",
-        "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics.",
         "time_to_ship": "medium (format + fixes + tests)"
       }
     },
@@ -1441,10 +1441,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat).",
+        "opportunity_type": "ux improvement",
         "time_to_ship": "small/medium (formatters + tests)",
-        "opportunity_type": "ux improvement"
+        "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat).",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -1932,10 +1932,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "time_to_ship": "medium (TUI wiring + tests)",
         "opportunity_type": "ux improvement",
-        "user_value": "Fewer context switches: jump from task → code in one keystroke."
+        "time_to_ship": "medium (TUI wiring + tests)",
+        "user_value": "Fewer context switches: jump from task → code in one keystroke.",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -1989,10 +1989,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "time_to_ship": "medium (render-only UI + tests)",
-        "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error.",
         "scan_agent": "scan-innovation",
-        "opportunity_type": "ux improvement"
+        "time_to_ship": "medium (render-only UI + tests)",
+        "opportunity_type": "ux improvement",
+        "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error."
       }
     },
     {
@@ -2047,9 +2047,9 @@
       "relates_to": [],
       "custom_fields": {
         "measurable_impact": "Track 20%+ improvement in task completion velocity after adoption",
-        "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types",
         "opportunity_type": "feature gap",
-        "scan_agent": "scan-innovation"
+        "scan_agent": "scan-innovation",
+        "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types"
       }
     },
     {
@@ -2106,10 +2106,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "user_value": "Reduces queue maintenance time by 80% for large projects",
         "time_to_ship": "incremental - add one batch operation at a time",
-        "opportunity_type": "UX improvement"
+        "user_value": "Reduces queue maintenance time by 80% for large projects",
+        "opportunity_type": "UX improvement",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -2165,10 +2165,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "measurable_impact": "80%+ integration test coverage for CLI commands",
         "user_value": "Reduces regression risk; enables confident refactoring",
-        "scan_agent": "scan-innovation",
         "opportunity_type": "reliability",
-        "measurable_impact": "80%+ integration test coverage for CLI commands"
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -2232,9 +2232,9 @@
       "relates_to": [],
       "custom_fields": {
         "scan_agent": "scan-innovation",
-        "opportunity_type": "feature gap",
         "differentiation": "Unique capability among AI task runners",
-        "user_value": "Enables ecosystem growth; custom integrations without forks"
+        "user_value": "Enables ecosystem growth; custom integrations without forks",
+        "opportunity_type": "feature gap"
       }
     },
     {
@@ -2936,6 +2936,75 @@
       "depends_on": [
         "RQ-0647"
       ],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-innovation"
+      }
+    },
+    {
+      "id": "RQ-0649",
+      "status": "done",
+      "title": "Persist runner/model actually used on completion to improve analytics (by_runner stats)",
+      "priority": "medium",
+      "tags": [
+        "innovation",
+        "analytics",
+        "productivity",
+        "runner",
+        "observability"
+      ],
+      "scope": [
+        "crates/ralph/src/reports.rs",
+        "crates/ralph/src/cli/queue/stats.rs",
+        "crates/ralph/src/contracts/task.rs",
+        "crates/ralph/src/completions.rs",
+        "crates/ralph/src/cli/task/status.rs",
+        "crates/ralph/src/commands/run/phases/phase3.rs",
+        "crates/ralph/src/commands/run/parallel/merge_runner.rs",
+        "crates/ralph/src/commands/run/parallel/worker.rs",
+        "crates/ralph/src/commands/run/tests.rs",
+        "crates/ralph/src/queue/operations/status.rs",
+        "crates/ralph/src/queue/operations/archive.rs",
+        "crates/ralph/src/constants.rs",
+        "crates/ralph/src/runner.rs",
+        "crates/ralph/src/runner/execution/",
+        ".ralph/done.json",
+        "docs/queue-and-tasks.md",
+        "docs/cli.md",
+        "ralph queue stats --format json"
+      ],
+      "evidence": [
+        "File: `crates/ralph/src/reports.rs` computes `velocity.by_runner` and `slow_groups.by_runner` only when `task.agent.runner` is present (`if let Some(agent) = &task.agent && let Some(runner) = &agent.runner { ... }`), and it does not consult `custom_fields`, so most tasks are skipped for by-runner analytics.",
+        "Repo evidence: `.ralph/done.json` currently has 55 tasks, 0 tasks with an `agent` field, and no `custom_fields` keys related to runner/model (e.g., no `runner_used`/`model_used`), so `by_runner` breakdowns are empty/underreported today.",
+        "Supervised completion: `crates/ralph/src/completions.rs::CompletionSignal` carries only `task_id/status/notes`; `crates/ralph/src/cli/task/status.rs` writes the signal, and `crates/ralph/src/commands/run/phases/phase3.rs::apply_phase3_completion_signal` applies it via `queue::complete_task(...)`, which archives the task without stamping any runner/model metadata.",
+        "Parallel completion: `crates/ralph/src/commands/run/parallel/merge_runner.rs` also calls `apply_phase3_completion_signal` in a base-sync workspace, so runner/model metadata must survive across workspace boundaries (signal payload or other portable artifact)."
+      ],
+      "plan": [
+        "Define the persistence contract: keep `task.agent` as a per-task override (selection intent), and store observational analytics fields in `custom_fields` (e.g., `runner_used`, `model_used`, optionally `reasoning_effort_used` and `phase_count_used`).",
+        "Make runner/model available to the agent process that runs `ralph task done`: add env vars (e.g., `RALPH_RUNNER_USED`, `RALPH_MODEL_USED`) and set them when launching runner subprocesses (`crates/ralph/src/runner/execution/`) and parallel workers (`crates/ralph/src/commands/run/parallel/worker.rs`).",
+        "Extend `CompletionSignal` (`crates/ralph/src/completions.rs`) with optional `runner_used`/`model_used` (and any other chosen analytics fields); update `crates/ralph/src/cli/task/status.rs` to include these fields (read from env) when writing completion signals.",
+        "Persist analytics fields on archive: update the Phase 3 application path (`crates/ralph/src/commands/run/phases/phase3.rs::apply_phase3_completion_signal`) and the parallel merge path to stamp `custom_fields.runner_used`/`custom_fields.model_used` into the task before it is moved into `.ralph/done.json` (likely by extending `queue::complete_task` in `crates/ralph/src/queue/operations/status.rs` to accept a custom_fields patch).",
+        "Update `crates/ralph/src/reports.rs` to compute `by_runner` (and slow groups) from `custom_fields.runner_used` when present, falling back to `task.agent.runner` for backward compatibility; normalize keys (lowercase) for stable grouping.",
+        "Tests + docs: adjust existing Phase 3 completion signal tests (`crates/ralph/src/commands/run/tests.rs`) to assert custom_fields are persisted; add report/stat tests for `by_runner` using `runner_used`; update `docs/queue-and-tasks.md` and `docs/cli.md` to document the new `custom_fields` keys and when they are written. Validate with `make ci`."
+      ],
+      "notes": [
+        "Opportunity type: reliability + cost/observability (analytics).",
+        "Why it matters: Without recording what actually ran, productivity and performance reports cannot answer basic questions like \"which runner is fastest/most reliable?\"",
+        "Current state: `reports.rs` by-runner breakdowns are effectively empty because `.ralph/done.json` tasks have no `agent.runner` today; fixing this requires separate observational fields, not reusing `task.agent`.",
+        "Implementation note: `queue archive` (`crates/ralph/src/queue/operations/archive.rs`) moves terminal tasks without runner/model context, and the parallel merge runner applies completion signals in a separate base-sync workspace; carry metadata via completion signals (or other portable artifacts) and stamp it at completion/archive time.",
+        "Acceptance criteria: Archived tasks persist `custom_fields.runner_used`/`custom_fields.model_used`; `ralph queue stats --format json` includes a non-empty `velocity.by_runner` when done tasks contain those fields; docs describe the recorded fields and clarify they are analytics-only.",
+        "Persist runner/model actually used via env -> completion signal -> task.custom_fields",
+        "Reports now group by runner_used (fallback agent.runner) for velocity/slow groups",
+        "Phase 3 applies analytics patch and keeps signal if patching fails",
+        "Added unit tests for runner_used grouping; make ci passes"
+      ],
+      "request": "innovation scan finding",
+      "created_at": "2026-02-06T01:53:55Z",
+      "updated_at": "2026-02-06T08:03:19.865686000Z",
+      "completed_at": "2026-02-06T08:03:19.865686000Z",
+      "started_at": "2026-02-06T07:13:30.546513000Z",
+      "depends_on": [],
       "blocks": [],
       "relates_to": [],
       "custom_fields": {

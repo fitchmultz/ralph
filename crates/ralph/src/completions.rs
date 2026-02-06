@@ -11,6 +11,10 @@ pub struct CompletionSignal {
     pub task_id: String,
     pub status: TaskStatus,
     pub notes: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub runner_used: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model_used: Option<String>,
 }
 
 pub fn completion_signal_dir(repo_root: &Path) -> PathBuf {
@@ -107,6 +111,8 @@ mod tests {
             task_id: "RQ-0001".to_string(),
             status: TaskStatus::Done,
             notes: vec!["Reviewed".to_string()],
+            runner_used: None,
+            model_used: None,
         };
 
         let path = write_completion_signal(repo_root, &signal)?;
@@ -139,6 +145,8 @@ mod tests {
             task_id: "RQ-0001".to_string(),
             status: TaskStatus::Todo,
             notes: vec![],
+            runner_used: None,
+            model_used: None,
         };
 
         let err = write_completion_signal(repo_root, &signal).unwrap_err();

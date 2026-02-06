@@ -1107,7 +1107,10 @@ ralph queue sort --order ascending
 
 Queue reports default to human-readable text but can emit JSON for scripting.
 
-Summarize completion rates, durations, tag breakdowns, and execution-history-based ETA estimates.
+Summarize completion rates, durations, tag breakdowns, velocity by tag/runner, slow groups, and execution-history-based ETA estimates.
+
+**Runner Analytics**:
+The `velocity.by_runner` and `slow_groups.by_runner` sections use the `runner_used` custom field when available (written automatically by Ralph at task completion), falling back to `agent.runner` for backward compatibility. This ensures accurate analytics even for tasks that don't have an explicit `agent` override set.
 
 The execution history ETA section displays:
 * **runner/model/phases**: The key used to look up historical data.

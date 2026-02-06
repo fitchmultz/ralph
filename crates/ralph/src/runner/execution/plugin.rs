@@ -21,6 +21,7 @@
 use std::path::Path;
 use std::time::Duration;
 
+use crate::constants::paths::{ENV_MODEL_USED, ENV_RUNNER_USED};
 use crate::contracts::Model;
 use crate::runner::{OutputHandler, OutputStream, RunnerError, RunnerOutput};
 
@@ -48,7 +49,9 @@ pub(crate) fn run_plugin_runner(
     let mut builder = RunnerCommandBuilder::new(bin, work_dir)
         .env("RALPH_PLUGIN_ID", plugin_id)
         .env("RALPH_PLUGIN_CONFIG_JSON", &cfg)
-        .env("RALPH_RUNNER_CLI_JSON", &runner_cli_json);
+        .env("RALPH_RUNNER_CLI_JSON", &runner_cli_json)
+        .env(ENV_RUNNER_USED, plugin_id)
+        .env(ENV_MODEL_USED, model.as_str());
 
     builder = builder.arg("run").arg("--model").arg(model.as_str());
     builder = builder.arg("--output-format").arg("stream-json");
@@ -93,6 +96,8 @@ pub(crate) fn run_plugin_runner_resume(
         .env("RALPH_PLUGIN_ID", plugin_id)
         .env("RALPH_PLUGIN_CONFIG_JSON", &cfg)
         .env("RALPH_RUNNER_CLI_JSON", &runner_cli_json)
+        .env(ENV_RUNNER_USED, plugin_id)
+        .env(ENV_MODEL_USED, model.as_str())
         .arg("resume")
         .arg("--session")
         .arg(session_id)

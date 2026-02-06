@@ -120,6 +120,7 @@ pub fn handle(args: &TaskBatchArgs, force: bool, resolved: &config::Resolved) ->
                             &resolved.id_prefix,
                             resolved.id_width,
                             max_depth,
+                            None,
                         ) {
                             Ok(()) => {
                                 results.push((task_id.clone(), true, None));

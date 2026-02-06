@@ -23,10 +23,27 @@ use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 use time::{Duration, OffsetDateTime};
 
+use crate::constants::custom_fields::RUNNER_USED;
 use crate::contracts::{QueueFile, Task, TaskStatus};
 use crate::eta_calculator::{EtaCalculator, format_eta};
 use crate::runner::resolve_agent_settings;
 use crate::timeutil;
+
+/// Extract the runner group key for a task, preferring observational data over intent.
+/// Falls back to task.agent.runner if custom_fields.runner_used is not present.
+fn task_runner_group_key(task: &Task) -> Option<String> {
+    task.custom_fields
+        .get(RUNNER_USED)
+        .map(|v| v.trim())
+        .filter(|v| !v.is_empty())
+        .map(|v| v.to_ascii_lowercase())
+        .or_else(|| {
+            task.agent
+                .as_ref()
+                .and_then(|a| a.runner.as_ref())
+                .map(|r| r.id().to_ascii_lowercase())
+        })
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ReportFormat {
@@ -419,16 +436,13 @@ fn calc_velocity_breakdowns(tasks: &[&Task]) -> VelocityBreakdowns {
                 }
             }
 
-            // By runner
-            if let Some(agent) = &task.agent
-                && let Some(runner) = &agent.runner
-            {
-                let runner_str = format!("{:?}", runner).to_lowercase();
+            // By runner (prefer observational custom_fields.runner_used over task.agent.runner)
+            if let Some(runner_key) = task_runner_group_key(task) {
                 if completed_dt >= seven_days_ago {
-                    *runner_counts_7.entry(runner_str.clone()).or_insert(0) += 1;
+                    *runner_counts_7.entry(runner_key.clone()).or_insert(0) += 1;
                 }
                 if completed_dt >= thirty_days_ago {
-                    *runner_counts_30.entry(runner_str).or_insert(0) += 1;
+                    *runner_counts_30.entry(runner_key).or_insert(0) += 1;
                 }
             }
         }
@@ -482,13 +496,10 @@ fn calc_slow_groups(tasks: &[&Task]) -> SlowGroups {
                     .push(work_time);
             }
 
-            // By runner
-            if let Some(agent) = &task.agent
-                && let Some(runner) = &agent.runner
-            {
-                let runner_str = format!("{:?}", runner).to_lowercase();
+            // By runner (prefer observational custom_fields.runner_used over task.agent.runner)
+            if let Some(runner_key) = task_runner_group_key(task) {
                 by_runner_work_times
-                    .entry(runner_str)
+                    .entry(runner_key)
                     .or_default()
                     .push(work_time);
             }
@@ -1095,6 +1106,89 @@ mod tests {
             custom_fields: std::collections::HashMap::new(),
             parent_id: None,
         }
+    }
+
+    #[test]
+    fn test_task_runner_group_key_prefers_custom_fields_runner_used() {
+        let mut task = task_with_status("RQ-0001", TaskStatus::Done);
+        task.custom_fields
+            .insert(RUNNER_USED.to_string(), "CoDeX ".to_string());
+        task.agent = Some(crate::contracts::TaskAgent {
+            runner: Some(crate::contracts::Runner::Claude),
+            model: None,
+            model_effort: crate::contracts::ModelEffort::Default,
+            iterations: None,
+            followup_reasoning_effort: None,
+            runner_cli: None,
+        });
+
+        assert_eq!(task_runner_group_key(&task), Some("codex".to_string()));
+    }
+
+    #[test]
+    fn test_task_runner_group_key_falls_back_to_agent_runner() {
+        let mut task = task_with_status("RQ-0001", TaskStatus::Done);
+        task.agent = Some(crate::contracts::TaskAgent {
+            runner: Some(crate::contracts::Runner::Claude),
+            model: None,
+            model_effort: crate::contracts::ModelEffort::Default,
+            iterations: None,
+            followup_reasoning_effort: None,
+            runner_cli: None,
+        });
+
+        assert_eq!(task_runner_group_key(&task), Some("claude".to_string()));
+    }
+
+    #[test]
+    fn test_calc_velocity_breakdowns_groups_by_custom_fields_runner_used() {
+        let now = time::OffsetDateTime::now_utc();
+        let completed_at = crate::timeutil::format_rfc3339(now).unwrap();
+
+        let mut t1 = task_with_status("RQ-0001", TaskStatus::Done);
+        t1.completed_at = Some(completed_at.clone());
+        t1.custom_fields
+            .insert(RUNNER_USED.to_string(), "codex".to_string());
+
+        let mut t2 = task_with_status("RQ-0002", TaskStatus::Rejected);
+        t2.completed_at = Some(completed_at.clone());
+        t2.custom_fields
+            .insert(RUNNER_USED.to_string(), "codex".to_string());
+
+        let mut t3 = task_with_status("RQ-0003", TaskStatus::Done);
+        t3.completed_at = Some(completed_at);
+        t3.custom_fields
+            .insert(RUNNER_USED.to_string(), "claude".to_string());
+
+        let refs: Vec<&Task> = vec![&t1, &t2, &t3];
+        let breakdowns = calc_velocity_breakdowns(&refs);
+
+        assert_eq!(breakdowns.by_runner.len(), 2);
+        assert_eq!(breakdowns.by_runner[0].key, "codex");
+        assert_eq!(breakdowns.by_runner[0].last_7_days, 2);
+        assert_eq!(breakdowns.by_runner[0].last_30_days, 2);
+        assert_eq!(breakdowns.by_runner[1].key, "claude");
+        assert_eq!(breakdowns.by_runner[1].last_7_days, 1);
+        assert_eq!(breakdowns.by_runner[1].last_30_days, 1);
+    }
+
+    #[test]
+    fn test_calc_slow_groups_groups_by_custom_fields_runner_used() {
+        let end = time::OffsetDateTime::now_utc();
+        let start = end - Duration::hours(1);
+
+        let mut task = task_with_status("RQ-0001", TaskStatus::Done);
+        task.started_at = Some(crate::timeutil::format_rfc3339(start).unwrap());
+        task.completed_at = Some(crate::timeutil::format_rfc3339(end).unwrap());
+        task.custom_fields
+            .insert(RUNNER_USED.to_string(), "codex".to_string());
+
+        let refs: Vec<&Task> = vec![&task];
+        let slow = calc_slow_groups(&refs);
+
+        assert_eq!(slow.by_runner.len(), 1);
+        assert_eq!(slow.by_runner[0].key, "codex");
+        assert_eq!(slow.by_runner[0].median_seconds, 3600);
     }
 
     #[test]

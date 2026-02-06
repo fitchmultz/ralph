@@ -672,6 +672,8 @@ fn apply_phase3_completion_signal_moves_task_and_clears_signal() -> anyhow::Resu
         task_id: "RQ-0001".to_string(),
         status: TaskStatus::Done,
         notes: vec!["Reviewed".to_string()],
+        runner_used: None,
+        model_used: None,
     };
     completions::write_completion_signal(&resolved.repo_root, &signal)?;
 
@@ -716,6 +718,8 @@ fn apply_phase3_completion_signal_already_archived_clears_signal() -> anyhow::Re
         task_id: "RQ-0001".to_string(),
         status: TaskStatus::Done,
         notes: vec!["Reviewed".to_string()],
+        runner_used: None,
+        model_used: None,
     };
     completions::write_completion_signal(&resolved.repo_root, &signal)?;
 
@@ -762,6 +766,8 @@ fn apply_phase3_completion_signal_keeps_signal_on_failure() -> anyhow::Result<()
         task_id: "RQ-0001".to_string(),
         status: TaskStatus::Done,
         notes: vec!["Reviewed".to_string()],
+        runner_used: None,
+        model_used: None,
     };
     completions::write_completion_signal(&resolved.repo_root, &signal)?;
 

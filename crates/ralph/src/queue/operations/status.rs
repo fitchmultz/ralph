@@ -76,8 +76,8 @@ fn append_redacted_notes(task: &mut Task, notes: &[String]) {
 ///
 /// Validates that the task exists in the active queue, is in a valid
 /// starting state (todo or doing), updates its status and timestamps,
-/// appends any provided notes, and atomically moves it from queue.json
-/// to the end of done.json.
+/// appends any provided notes, applies optional custom_fields patch,
+/// and atomically moves it from queue.json to the end of done.json.
 ///
 /// # Arguments
 /// * `queue_path` - Path to the active queue file
@@ -88,6 +88,8 @@ fn append_redacted_notes(task: &mut Task, notes: &[String]) {
 /// * `notes` - Optional notes to append to the task
 /// * `id_prefix` - Expected task ID prefix (e.g., "RQ")
 /// * `id_width` - Expected numeric width for task IDs (e.g., 4)
+/// * `max_dependency_depth` - Maximum dependency depth for validation
+/// * `custom_fields_patch` - Optional custom fields to apply to the task (observational data)
 #[allow(clippy::too_many_arguments)]
 pub fn complete_task(
     queue_path: &Path,
@@ -99,6 +101,7 @@ pub fn complete_task(
     id_prefix: &str,
     id_width: usize,
     max_dependency_depth: u8,
+    custom_fields_patch: Option<&std::collections::HashMap<String, String>>,
 ) -> Result<()> {
     match status {
         TaskStatus::Done | TaskStatus::Rejected => {}
@@ -156,6 +159,11 @@ pub fn complete_task(
 
     apply_status_fields(&mut completed_task, status, now_rfc3339)?;
     append_redacted_notes(&mut completed_task, notes);
+
+    // Apply custom fields patch for observational analytics
+    if let Some(patch) = custom_fields_patch {
+        apply_custom_fields_patch(&mut completed_task, patch);
+    }
 
     let mut done = load_queue_or_default(done_path)?;
 
@@ -231,4 +239,17 @@ pub fn promote_draft_to_todo(
     }
 
     set_status(queue, needle, TaskStatus::Todo, now_rfc3339, note)
+}
+
+/// Apply custom fields patch to a task, overwriting existing values.
+/// Skips empty keys or values.
+fn apply_custom_fields_patch(task: &mut Task, patch: &std::collections::HashMap<String, String>) {
+    for (k, v) in patch {
+        let key: &str = k.trim();
+        let val: &str = v.trim();
+        if key.is_empty() || val.is_empty() {
+            continue;
+        }
+        task.custom_fields.insert(key.to_string(), val.to_string());
+    }
 }

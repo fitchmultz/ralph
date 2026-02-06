@@ -5,9 +5,11 @@ use super::{PhaseInvocation, PhaseType, PostRunMode, phase_session_id_for_runner
 use crate::commands::run::{logging, supervision};
 use crate::completions;
 use crate::config;
+use crate::constants::custom_fields::{MODEL_USED, RUNNER_USED};
 use crate::contracts::{GitRevertMode, TaskStatus};
 use crate::{git, promptflow, prompts, queue, runner, runutil, timeutil};
 use anyhow::{Result, anyhow, bail};
+use std::collections::HashMap;
 use std::time::Instant;
 
 pub fn execute_phase3_review(ctx: &PhaseInvocation<'_>) -> Result<()> {
@@ -366,6 +368,13 @@ pub fn apply_phase3_completion_signal(
                 task_id
             );
         }
+
+        // Apply any missing custom_fields from the signal to the already-archived task.
+        // If patching fails, keep the signal so we can retry later rather than losing analytics data.
+        if let Some(custom_fields_patch) = build_custom_fields_patch_from_signal(&signal) {
+            patch_done_task_custom_fields(resolved, task_id, &custom_fields_patch)?;
+        }
+
         remove_completion_signal(resolved, task_id)?;
         log::info!(
             "Completion signal for {} already applied (status {:?}); removing signal.",
@@ -377,6 +386,10 @@ pub fn apply_phase3_completion_signal(
 
     let now = timeutil::now_utc_rfc3339()?;
     let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
+
+    // Build custom fields patch from completion signal for observational analytics
+    let custom_fields_patch = build_custom_fields_patch_from_signal(&signal);
+
     queue::complete_task(
         &resolved.queue_path,
         &resolved.done_path,
@@ -387,6 +400,7 @@ pub fn apply_phase3_completion_signal(
         &resolved.id_prefix,
         resolved.id_width,
         max_depth,
+        custom_fields_patch.as_ref(),
     )?;
     remove_completion_signal(resolved, task_id)?;
     log::info!(
@@ -395,6 +409,70 @@ pub fn apply_phase3_completion_signal(
         status
     );
     Ok(Some(status))
+}
+
+/// Patch custom fields into an already-archived task in done.json.
+fn patch_done_task_custom_fields(
+    resolved: &config::Resolved,
+    task_id: &str,
+    patch: &HashMap<String, String>,
+) -> Result<()> {
+    let mut done = queue::load_queue_or_default(&resolved.done_path)?;
+
+    let Some(task) = done
+        .tasks
+        .iter_mut()
+        .find(|t| t.id.trim() == task_id.trim())
+    else {
+        bail!(
+            "Task {} not found in done archive for custom_fields patch.",
+            task_id
+        );
+    };
+
+    let mut modified = false;
+    for (k, v) in patch {
+        let key = k.trim();
+        let val = v.trim();
+        if key.is_empty() || val.is_empty() {
+            continue;
+        }
+        // Only insert if not already present (observation wins if already set)
+        task.custom_fields
+            .entry(key.to_string())
+            .or_insert_with(|| {
+                modified = true;
+                val.to_string()
+            });
+    }
+    if modified {
+        queue::save_queue(&resolved.done_path, &done)?;
+        log::info!("Patched custom fields for {} in done.json", task_id);
+    }
+
+    Ok(())
+}
+
+/// Build custom fields patch from completion signal.
+fn build_custom_fields_patch_from_signal(
+    signal: &completions::CompletionSignal,
+) -> Option<HashMap<String, String>> {
+    let mut patch = HashMap::new();
+
+    if let Some(ref runner) = signal.runner_used {
+        let trimmed = runner.trim();
+        if !trimmed.is_empty() {
+            patch.insert(RUNNER_USED.to_string(), trimmed.to_ascii_lowercase());
+        }
+    }
+    if let Some(ref model) = signal.model_used {
+        let trimmed = model.trim();
+        if !trimmed.is_empty() {
+            patch.insert(MODEL_USED.to_string(), trimmed.to_string());
+        }
+    }
+
+    if patch.is_empty() { None } else { Some(patch) }
 }
 
 fn remove_completion_signal(resolved: &config::Resolved, task_id: &str) -> Result<()> {

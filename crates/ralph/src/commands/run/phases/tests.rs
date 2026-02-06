@@ -577,6 +577,8 @@ echo '{"sessionID":"sess-123"}'
         task_id: "RQ-0001".to_string(),
         status: TaskStatus::Done,
         notes: vec!["note".to_string()],
+        runner_used: None,
+        model_used: None,
     };
     completions::write_completion_signal(temp.path(), &signal)?;
 
