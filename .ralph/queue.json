@@ -2,6 +2,348 @@
   "version": 1,
   "tasks": [
     {
+      "id": "RQ-0657",
+      "status": "todo",
+      "title": "Create foundational runner plugin trait and execution framework",
+      "priority": "high",
+      "tags": [
+        "refactor",
+        "runner",
+        "plugin",
+        "architecture",
+        "foundation"
+      ],
+      "scope": [
+        "crates/ralph/src/plugins/",
+        "crates/ralph/src/runner/execution/",
+        "crates/ralph/src/contracts/runner.rs",
+        "make ci"
+      ],
+      "evidence": [
+        "User request: Create foundational plugin system to enable isolating all runners into plugins for easier runner-specific customization.",
+        "crates/ralph/src/plugins/manifest.rs:33-44: Current RunnerPlugin manifest only has bin, supports_resume, default_model - lacks execution/response-parsing traits.",
+        "crates/ralph/src/plugins/registry.rs:54-75: Registry can resolve runner binary but delegates execution to hardcoded run_* functions.",
+        "crates/ralph/src/runner/execution/runners.rs:47-491: All runner execution is hardcoded (run_codex, run_claude, run_kimi, etc.) instead of plugin-driven.",
+        "crates/ralph/src/runner/execution/cli_spec.rs:27-138: CLI option mapping is hardcoded per runner (apply_codex_options, apply_claude_options, etc.).",
+        "crates/ralph/src/runner/execution/response.rs:19-87: Response parsing is hardcoded per runner with runner-specific extract functions.",
+        "crates/ralph/src/contracts/runner.rs:21-32: Runner enum has Plugin(String) variant but no standardized trait for plugin execution."
+      ],
+      "plan": [
+        "Design RunnerPlugin trait with methods for: command building, CLI option mapping, response parsing, and metadata (default model, supports resume).",
+        "Create PluginExecutor that delegates to RunnerPlugin implementations instead of hardcoded run_* functions.",
+        "Design response parsing trait (ResponseParser) with runner-specific implementations for extracting assistant text from JSON streams.",
+        "Create built-in plugin implementations for existing runners (codex, claude, kimi, etc.) that implement RunnerPlugin trait.",
+        "Refactor runner execution dispatch to use plugin registry: look up RunnerPlugin by runner ID, delegate command building and execution.",
+        "Update PluginManifest to support optional response format hints for external plugins.",
+        "Add tests for the plugin trait system and built-in implementations.",
+        "Verify by running `make ci` and confirming all tests pass."
+      ],
+      "notes": [],
+      "request": "create tasks to have all runners isolated and integrated into the plugin system approach. If we need a task to make the plug-in system more foundational and integrated first that is fine, make sure this task is first if so.",
+      "created_at": "2026-02-06T16:21:11Z",
+      "updated_at": "2026-02-06T16:21:11Z",
+      "depends_on": [],
+      "blocks": [
+        "RQ-0656",
+        "RQ-0658",
+        "RQ-0659",
+        "RQ-0660",
+        "RQ-0661",
+        "RQ-0662",
+        "RQ-0663"
+      ],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0658",
+      "status": "todo",
+      "title": "Isolate codex runner into its own plugin for easier runner-specific customization",
+      "priority": "medium",
+      "tags": [
+        "refactor",
+        "runner",
+        "codex",
+        "plugin",
+        "architecture"
+      ],
+      "scope": [
+        "crates/ralph/src/runner/execution/runners.rs",
+        "crates/ralph/src/runner/execution/cli_spec.rs",
+        "crates/ralph/src/runner/execution/response.rs",
+        "crates/ralph/src/plugins/",
+        "make ci"
+      ],
+      "evidence": [
+        "User request: Isolate all runners into plugins for easier runner-specific customization.",
+        "crates/ralph/src/runner/execution/runners.rs:47-117: Codex has dedicated run_codex() and run_codex_resume() functions with exec/resume subcommands.",
+        "crates/ralph/src/runner/execution/cli_spec.rs:27-47: Codex has unique CLI option mapping (apply_codex_global_options) with sandbox bypass and workspace-write modes.",
+        "crates/ralph/src/runner/execution/response.rs:142-154: Codex has unique response parsing (extract_codex_agent_message) for item.completed event type.",
+        "crates/ralph/src/runner/execution/runners.rs:62-69: Codex uses legacy_json_format and reasoning_effort options.",
+        "AGENTS.md:16-20: Code changes need tests covering success and failure modes."
+      ],
+      "plan": [
+        "Wait for RQ-0657 to complete (foundational plugin trait framework).",
+        "Create CodexPlugin struct implementing the RunnerPlugin trait.",
+        "Implement command building: extract codex-specific logic from runners.rs:run_codex and run_codex_resume, preserving exec/resume subcommands and legacy_json_format.",
+        "Implement CLI option mapping: extract codex-specific options from cli_spec.rs:apply_codex_global_options (sandbox modes, bypass approvals).",
+        "Implement response parsing: extract codex-specific parsing from response.rs:extract_codex_agent_message for item.completed event type.",
+        "Register CodexPlugin as a built-in plugin with appropriate default model.",
+        "Refactor main runner execution to delegate to codex plugin when Runner::Codex is selected.",
+        "Add comprehensive tests for the codex plugin.",
+        "Verify by running `make ci` and confirming all tests pass."
+      ],
+      "notes": [],
+      "request": "create tasks to have all runners isolated and integrated into the plugin system approach. We currently support codex, claude, pi, kimi, opencode, and cursor-agent.",
+      "created_at": "2026-02-06T16:21:11Z",
+      "updated_at": "2026-02-06T16:21:11Z",
+      "depends_on": [
+        "RQ-0657"
+      ],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0659",
+      "status": "todo",
+      "title": "Isolate claude runner into its own plugin for easier runner-specific customization",
+      "priority": "medium",
+      "tags": [
+        "refactor",
+        "runner",
+        "claude",
+        "plugin",
+        "architecture"
+      ],
+      "scope": [
+        "crates/ralph/src/runner/execution/runners.rs",
+        "crates/ralph/src/runner/execution/cli_spec.rs",
+        "crates/ralph/src/runner/execution/response.rs",
+        "crates/ralph/src/plugins/",
+        "make ci"
+      ],
+      "evidence": [
+        "User request: Isolate all runners into plugins for easier runner-specific customization.",
+        "crates/ralph/src/runner/execution/runners.rs:257-328: Claude has dedicated run_claude() and run_claude_resume() functions with --verbose and -p flags.",
+        "crates/ralph/src/runner/execution/cli_spec.rs:65-73: Claude has unique CLI option mapping (apply_claude_options) for verbosity levels.",
+        "crates/ralph/src/runner/execution/response.rs:156-176: Claude has unique response parsing (extract_claude_assistant_text) for assistant event type with message.content array.",
+        "crates/ralph/src/runner/execution/runners.rs:272-278: Claude uses permission_mode and output_format options.",
+        "crates/ralph/src/contracts/runner.rs:27: Claude is the default runner."
+      ],
+      "plan": [
+        "Wait for RQ-0657 to complete (foundational plugin trait framework).",
+        "Create ClaudePlugin struct implementing the RunnerPlugin trait.",
+        "Implement command building: extract claude-specific logic from runners.rs:run_claude and run_claude_resume, preserving --verbose, -p, --resume flags.",
+        "Implement CLI option mapping: extract claude-specific options from cli_spec.rs:apply_claude_options (verbosity levels).",
+        "Implement response parsing: extract claude-specific parsing from response.rs:extract_claude_assistant_text for assistant event type.",
+        "Register ClaudePlugin as a built-in plugin with default model 'sonnet'.",
+        "Refactor main runner execution to delegate to claude plugin when Runner::Claude is selected.",
+        "Add comprehensive tests for the claude plugin.",
+        "Verify by running `make ci` and confirming all tests pass."
+      ],
+      "notes": [],
+      "request": "create tasks to have all runners isolated and integrated into the plugin system approach. We currently support codex, claude, pi, kimi, opencode, and cursor-agent.",
+      "created_at": "2026-02-06T16:21:11Z",
+      "updated_at": "2026-02-06T16:21:11Z",
+      "depends_on": [
+        "RQ-0657"
+      ],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0660",
+      "status": "todo",
+      "title": "Isolate opencode runner into its own plugin for easier runner-specific customization",
+      "priority": "medium",
+      "tags": [
+        "refactor",
+        "runner",
+        "opencode",
+        "plugin",
+        "architecture"
+      ],
+      "scope": [
+        "crates/ralph/src/runner/execution/runners.rs",
+        "crates/ralph/src/runner/execution/response.rs",
+        "crates/ralph/src/plugins/",
+        "make ci"
+      ],
+      "evidence": [
+        "User request: Isolate all runners into plugins for easier runner-specific customization.",
+        "crates/ralph/src/runner/execution/runners.rs:119-190: OpenCode has dedicated run_opencode() and run_opencode_resume() functions with temp prompt file handling.",
+        "crates/ralph/src/runner/execution/response.rs:186-190: OpenCode has unique response parsing (extract_opencode_text) for text event type with part.text field.",
+        "crates/ralph/src/runner/execution/runners.rs:136-142: OpenCode uses with_temp_prompt_file for prompt handling and opencode_format output.",
+        "crates/ralph/src/runner/execution/runners.rs:173-179: OpenCode resume uses -s flag for session ID."
+      ],
+      "plan": [
+        "Wait for RQ-0657 to complete (foundational plugin trait framework).",
+        "Create OpenCodePlugin struct implementing the RunnerPlugin trait.",
+        "Implement command building: extract opencode-specific logic from runners.rs:run_opencode and run_opencode_resume, preserving temp prompt file handling and -s session flag.",
+        "Implement response parsing: extract opencode-specific parsing from response.rs:extract_opencode_text for text event type.",
+        "Register OpenCodePlugin as a built-in plugin with appropriate default model.",
+        "Refactor main runner execution to delegate to opencode plugin when Runner::Opencode is selected.",
+        "Add comprehensive tests for the opencode plugin, including temp file handling.",
+        "Verify by running `make ci` and confirming all tests pass."
+      ],
+      "notes": [],
+      "request": "create tasks to have all runners isolated and integrated into the plugin system approach. We currently support codex, claude, pi, kimi, opencode, and cursor-agent.",
+      "created_at": "2026-02-06T16:21:11Z",
+      "updated_at": "2026-02-06T16:21:11Z",
+      "depends_on": [
+        "RQ-0657"
+      ],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0661",
+      "status": "todo",
+      "title": "Isolate gemini runner into its own plugin for easier runner-specific customization",
+      "priority": "medium",
+      "tags": [
+        "refactor",
+        "runner",
+        "gemini",
+        "plugin",
+        "architecture"
+      ],
+      "scope": [
+        "crates/ralph/src/runner/execution/runners.rs",
+        "crates/ralph/src/runner/execution/cli_spec.rs",
+        "crates/ralph/src/runner/execution/response.rs",
+        "crates/ralph/src/plugins/",
+        "make ci"
+      ],
+      "evidence": [
+        "User request: Isolate all runners into plugins for easier runner-specific customization.",
+        "crates/ralph/src/runner/execution/runners.rs:192-255: Gemini has dedicated run_gemini() and run_gemini_resume() functions with --resume flag.",
+        "crates/ralph/src/runner/execution/cli_spec.rs:49-63: Gemini has unique CLI option mapping (apply_gemini_options) for approval-mode and sandbox.",
+        "crates/ralph/src/runner/execution/response.rs:178-184: Gemini has unique response parsing (extract_gemini_assistant_text) for message event type with role=assistant.",
+        "crates/ralph/src/runner/execution/runners.rs:207-210: Gemini uses output_format stream-json via stdin_payload."
+      ],
+      "plan": [
+        "Wait for RQ-0657 to complete (foundational plugin trait framework).",
+        "Create GeminiPlugin struct implementing the RunnerPlugin trait.",
+        "Implement command building: extract gemini-specific logic from runners.rs:run_gemini and run_gemini_resume, preserving --resume and output_format handling.",
+        "Implement CLI option mapping: extract gemini-specific options from cli_spec.rs:apply_gemini_options (approval-mode, sandbox).",
+        "Implement response parsing: extract gemini-specific parsing from response.rs:extract_gemini_assistant_text for message event type.",
+        "Register GeminiPlugin as a built-in plugin with appropriate default model.",
+        "Refactor main runner execution to delegate to gemini plugin when Runner::Gemini is selected.",
+        "Add comprehensive tests for the gemini plugin.",
+        "Verify by running `make ci` and confirming all tests pass."
+      ],
+      "notes": [],
+      "request": "create tasks to have all runners isolated and integrated into the plugin system approach. We currently support codex, claude, pi, kimi, opencode, and cursor-agent.",
+      "created_at": "2026-02-06T16:21:11Z",
+      "updated_at": "2026-02-06T16:21:11Z",
+      "depends_on": [
+        "RQ-0657"
+      ],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0662",
+      "status": "todo",
+      "title": "Isolate pi runner into its own plugin for easier runner-specific customization",
+      "priority": "medium",
+      "tags": [
+        "refactor",
+        "runner",
+        "pi",
+        "plugin",
+        "architecture"
+      ],
+      "scope": [
+        "crates/ralph/src/runner/execution/runners.rs",
+        "crates/ralph/src/runner/execution/cli_spec.rs",
+        "crates/ralph/src/plugins/",
+        "make ci"
+      ],
+      "evidence": [
+        "User request: Isolate all runners into plugins for easier runner-specific customization.",
+        "crates/ralph/src/runner/execution/runners.rs:364-419: Pi has dedicated run_pi() and run_pi_resume() functions with complex session path resolution.",
+        "crates/ralph/src/runner/execution/cli_spec.rs:123-138: Pi has unique CLI option mapping (apply_pi_options) using --print for yolo mode instead of --approval-mode.",
+        "crates/ralph/src/runner/execution/runners.rs:518-612: Pi has complex session resolution logic (resolve_pi_session_path, pi_agent_root, pi_session_dir_name).",
+        "crates/ralph/src/runner/execution/runners.rs:375-376: Pi uses --mode json and session file paths.",
+        "crates/ralph/src/runner/execution/runners.rs:596-602: Pi uses PI_CODING_AGENT_DIR environment variable for session lookup."
+      ],
+      "plan": [
+        "Wait for RQ-0657 to complete (foundational plugin trait framework).",
+        "Create PiPlugin struct implementing the RunnerPlugin trait.",
+        "Implement command building: extract pi-specific logic from runners.rs:build_pi_command, preserving --mode json, --session with file paths.",
+        "Implement session resolution: extract pi-specific session path resolution from runners.rs:resolve_pi_session_path, pi_agent_root, pi_session_dir_name.",
+        "Implement CLI option mapping: extract pi-specific options from cli_spec.rs:apply_pi_options (--print for yolo mode, --sandbox).",
+        "Register PiPlugin as a built-in plugin with appropriate default model.",
+        "Refactor main runner execution to delegate to pi plugin when Runner::Pi is selected.",
+        "Add comprehensive tests for the pi plugin, including session path resolution.",
+        "Verify by running `make ci` and confirming all tests pass."
+      ],
+      "notes": [],
+      "request": "create tasks to have all runners isolated and integrated into the plugin system approach. We currently support codex, claude, pi, kimi, opencode, and cursor-agent.",
+      "created_at": "2026-02-06T16:21:11Z",
+      "updated_at": "2026-02-06T16:21:11Z",
+      "depends_on": [
+        "RQ-0657"
+      ],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
+      "id": "RQ-0663",
+      "status": "todo",
+      "title": "Isolate cursor runner into its own plugin for easier runner-specific customization",
+      "priority": "medium",
+      "tags": [
+        "refactor",
+        "runner",
+        "cursor",
+        "plugin",
+        "architecture"
+      ],
+      "scope": [
+        "crates/ralph/src/runner/execution/runners.rs",
+        "crates/ralph/src/runner/execution/cli_spec.rs",
+        "crates/ralph/src/plugins/",
+        "make ci"
+      ],
+      "evidence": [
+        "User request: Isolate all runners into plugins for easier runner-specific customization.",
+        "crates/ralph/src/runner/execution/runners.rs:421-491: Cursor has dedicated run_cursor() and run_cursor_resume() functions with phase-aware sandbox defaults.",
+        "crates/ralph/src/runner/execution/cli_spec.rs:75-109: Cursor has unique CLI option mapping (apply_cursor_options) with phase-aware sandbox and plan modes.",
+        "crates/ralph/src/runner/execution/runners.rs:430-442: Cursor uses --print flag and positional prompt argument.",
+        "crates/ralph/src/runner/execution/cli_spec.rs:82-108: Cursor has phase-aware defaults: sandbox enabled in planning, disabled otherwise; plan enabled in planning.",
+        "crates/ralph/src/commands/run/phases/mod.rs: Cursor PhaseType is passed to cursor execution functions."
+      ],
+      "plan": [
+        "Wait for RQ-0657 to complete (foundational plugin trait framework).",
+        "Create CursorPlugin struct implementing the RunnerPlugin trait, with PhaseType awareness.",
+        "Implement command building: extract cursor-specific logic from runners.rs:run_cursor and run_cursor_resume, preserving --print, --resume, --force flags.",
+        "Implement CLI option mapping: extract cursor-specific options from cli_spec.rs:apply_cursor_options with phase-aware sandbox and plan modes.",
+        "Ensure Plugin trait supports phase-aware option building or pass PhaseType through execution context.",
+        "Register CursorPlugin as a built-in plugin with appropriate default model.",
+        "Refactor main runner execution to delegate to cursor plugin when Runner::Cursor is selected.",
+        "Add comprehensive tests for the cursor plugin, including phase-aware option behavior.",
+        "Verify by running `make ci` and confirming all tests pass."
+      ],
+      "notes": [],
+      "request": "create tasks to have all runners isolated and integrated into the plugin system approach. We currently support codex, claude, pi, kimi, opencode, and cursor-agent.",
+      "created_at": "2026-02-06T16:21:11Z",
+      "updated_at": "2026-02-06T16:21:11Z",
+      "depends_on": [
+        "RQ-0657"
+      ],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
       "id": "RQ-0656",
       "status": "todo",
       "title": "Isolate kimi runner into its own plugin for easier runner-specific customization",
@@ -32,22 +374,23 @@
         "AGENTS.md:72-78: Error handling uses thiserror for domain-specific matchable errors - relevant for runner plugin error types."
       ],
       "plan": [
-        "Analyze existing plugin architecture in crates/ralph/src/plugins/ to understand the runner plugin contract (manifest, registry, discovery, execution protocol).",
-        "Design the kimi plugin structure: create crates/ralph/src/plugins/runners/kimi/ directory with modular files for CLI options, command building, response parsing, and plugin manifest.",
-        "Create KimiPlugin manifest and config structure that can be registered with the plugin registry.",
-        "Extract kimi-specific CLI option mapping from cli_spec.rs:apply_kimi_options into the plugin (kimi uses --yolo instead of --approval-mode yolo).",
-        "Extract kimi-specific command building from runners.rs:build_kimi_command into the plugin, preserving the --session flag handling.",
-        "Extract kimi-specific response parsing from response.rs:extract_kimi_content and extract_kimi_assistant_text into the plugin for role=assistant format handling.",
-        "Refactor main runner execution to delegate to kimi plugin when Runner::Kimi is selected, while keeping shared logic (process spawning, streaming JSON parsing) in runner/execution/.",
-        "Update runner/model.rs default_model_for_runner to work with plugin-based runners or document how plugins specify default models.",
-        "Add comprehensive tests for the kimi plugin: command building, response parsing, and integration with the plugin registry.",
+        "Wait for RQ-0657 to complete (foundational plugin trait framework).",
+        "Create KimiPlugin struct implementing the RunnerPlugin trait from RQ-0657.",
+        "Implement command building: extract kimi-specific logic from runners.rs:build_kimi_command, preserving --session flag handling.",
+        "Implement CLI option mapping: extract kimi-specific options from cli_spec.rs:apply_kimi_options (kimi uses --yolo instead of --approval-mode yolo).",
+        "Implement response parsing: extract kimi-specific parsing from response.rs:extract_kimi_content for role=assistant format with content arrays.",
+        "Register KimiPlugin as a built-in plugin with default model 'kimi-for-coding'.",
+        "Refactor main runner execution to delegate to kimi plugin when Runner::Kimi is selected.",
+        "Add comprehensive tests for the kimi plugin: command building, response parsing, and integration.",
         "Verify by running `make ci` and confirming all tests pass, including new kimi plugin tests."
       ],
       "notes": [],
       "request": "Isolate the code required for the kimi runner into it's own 'plugin'. Each runner has unique properties and output responses and isolating them will allow me to modify runner specific settings much easier going forward and tailor to each runner. You may keep reusing shared logic in situations where it truly DOES NOT need to be unique to the kimi runner.",
       "created_at": "2026-02-06T16:15:51Z",
       "updated_at": "2026-02-06T16:15:51Z",
-      "depends_on": [],
+      "depends_on": [
+        "RQ-0657"
+      ],
       "blocks": [],
       "relates_to": [],
       "custom_fields": {}
