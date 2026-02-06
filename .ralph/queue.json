@@ -2,44 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0634",
-      "status": "todo",
-      "title": "Fix productivity streak/velocity date math (remove 30-day-month approximation)",
-      "priority": "medium",
-      "tags": [
-        "maintenance",
-        "correctness",
-        "productivity",
-        "time"
-      ],
-      "scope": [
-        "crates/ralph/src/productivity.rs",
-        "make test",
-        "make ci"
-      ],
-      "evidence": [
-        "crates/ralph/src/productivity.rs:294-326: get_previous_date uses approximate month lengths and hardcoded defaults; explicitly notes it doesn't account for leap years.",
-        "crates/ralph/src/productivity.rs:392-418: get_date_offset converts to days using `year*365 + month*30 + day` (incorrect calendar math).",
-        "User impact: streak and velocity calculations can be wrong around month/year boundaries."
-      ],
-      "plan": [
-        "Replace `get_previous_date` and `get_date_offset` with `time` crate date arithmetic (parse YYYY-MM-DD -> `time::Date`, add/subtract days).",
-        "Remove hardcoded fallback year/month/day defaults; handle invalid dates explicitly (error or safe no-op with warning).",
-        "Add unit tests for boundaries: 2024-03-01 previous day == 2024-02-29; 2026-03-01 previous day == 2026-02-28; offsets across year boundary.",
-        "Verify by running `make ci` and confirming it passes."
-      ],
-      "notes": [],
-      "request": "maintenance scan finding",
-      "created_at": "2026-02-05T20:49:31Z",
-      "updated_at": "2026-02-05T20:49:31Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0635",
       "status": "todo",
       "title": "Use real RFC3339 parsing for execution history weighting (fix inaccurate age_days)",
@@ -107,11 +69,12 @@
       "notes": [],
       "request": "maintenance scan finding",
       "created_at": "2026-02-05T20:49:31Z",
-      "updated_at": "2026-02-05T20:49:31Z",
+      "updated_at": "2026-02-06T00:42:34.331395000Z",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "stale_evidence": "Updated rg results for now_utc_rfc3339().unwrap_or_default(): productivity.rs:55,207,340; execution_history.rs:121",
         "scan_agent": "scan-maintenance"
       }
     },

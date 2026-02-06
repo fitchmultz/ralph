@@ -28,6 +28,8 @@ use crate::constants::paths::STATS_FILENAME;
 use crate::constants::versions::STATS_SCHEMA_VERSION;
 use crate::contracts::Task;
 use crate::timeutil;
+use time::macros::format_description;
+use time::{Date, Duration, OffsetDateTime};
 
 /// Root productivity data structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -263,14 +265,19 @@ fn update_stats_with_completion_ref(
 
 /// Update streak based on completion date
 fn update_streak(stats: &mut ProductivityStats, today: &str) -> bool {
-    let yesterday = get_previous_date(today);
+    // Defensive: avoid poisoning persisted stats with an invalid key.
+    if parse_date_key(today).is_none() {
+        return false;
+    }
+
+    let yesterday = previous_date_key(today);
 
     match &stats.streak.last_completed_date {
         Some(last_date) if last_date.as_str() == today => {
             // Already completed today, streak unchanged
             false
         }
-        Some(last_date) if last_date.as_str() == yesterday.as_str() => {
+        Some(last_date) if yesterday.as_deref() == Some(last_date.as_str()) => {
             // Completed yesterday, increment streak
             stats.streak.current_streak += 1;
             stats.streak.last_completed_date = Some(today.to_string());
@@ -291,38 +298,37 @@ fn update_streak(stats: &mut ProductivityStats, today: &str) -> bool {
     }
 }
 
-/// Get the previous date string (YYYY-MM-DD)
-fn get_previous_date(date: &str) -> String {
-    // Parse the date
-    let parts: Vec<&str> = date.split('-').collect();
-    if parts.len() != 3 {
-        return date.to_string();
+/// Parse a date key (YYYY-MM-DD) into a `time::Date`.
+fn parse_date_key(date_key: &str) -> Option<Date> {
+    let trimmed = date_key.trim();
+    if trimmed.is_empty() {
+        return None;
     }
+    Date::parse(trimmed, &format_description!("[year]-[month]-[day]")).ok()
+}
 
-    let year: i32 = parts[0].parse().unwrap_or(2026);
-    let month: u32 = parts[1].parse().unwrap_or(1);
-    let day: u32 = parts[2].parse().unwrap_or(1);
+/// Format a `time::Date` as a date key (YYYY-MM-DD).
+fn format_date_key(date: Date) -> String {
+    format!(
+        "{:04}-{:02}-{:02}",
+        date.year(),
+        u8::from(date.month()),
+        date.day()
+    )
+}
 
-    // Simple date math (doesn't handle all edge cases but sufficient for streaks)
-    let mut prev_day = day.saturating_sub(1);
-    let mut prev_month = month;
-    let mut prev_year = year;
+/// Return `date_key` offset by `delta_days`.
+///
+/// `delta_days = -1` means previous day.
+fn date_key_add_days(date_key: &str, delta_days: i64) -> Option<String> {
+    let date = parse_date_key(date_key)?;
+    let date = date.checked_add(Duration::days(delta_days))?;
+    Some(format_date_key(date))
+}
 
-    if prev_day == 0 {
-        prev_month = month.saturating_sub(1);
-        if prev_month == 0 {
-            prev_month = 12;
-            prev_year = year.saturating_sub(1);
-        }
-        // Set to last day of previous month (approximate)
-        prev_day = match prev_month {
-            2 => 28, // Simplified, doesn't account for leap years
-            4 | 6 | 9 | 11 => 30,
-            _ => 31,
-        };
-    }
-
-    format!("{:04}-{:02}-{:02}", prev_year, prev_month, prev_day)
+/// Return the previous day's date key.
+fn previous_date_key(date_key: &str) -> Option<String> {
+    date_key_add_days(date_key, -1)
 }
 
 /// Check if a milestone was achieved and record it
@@ -360,17 +366,36 @@ pub fn mark_milestone_celebrated(cache_dir: &Path, threshold: u64) -> Result<()>
     Ok(())
 }
 
-/// Calculate velocity metrics for the given number of days
+/// Calculate velocity metrics for the given number of days.
 pub fn calculate_velocity(stats: &ProductivityStats, days: u32) -> VelocityMetrics {
+    let today = format_date_key(OffsetDateTime::now_utc().date());
+    calculate_velocity_for_today(stats, days, &today)
+}
+
+fn calculate_velocity_for_today(
+    stats: &ProductivityStats,
+    days: u32,
+    today: &str,
+) -> VelocityMetrics {
     let days = days.max(1);
-    let now = timeutil::now_utc_rfc3339().unwrap_or_default();
-    let today = now.split('T').next().unwrap_or(&now);
+
+    // Defensive: if callers pass an invalid key, treat it as "no data".
+    if parse_date_key(today).is_none() {
+        return VelocityMetrics {
+            days,
+            total_completed: 0,
+            average_per_day: 0.0,
+            best_day: None,
+        };
+    }
 
     let mut total = 0u32;
     let mut best_day: Option<(String, u32)> = None;
 
     for i in 0..days {
-        let date = get_date_offset(today, i as i32);
+        let Some(date) = date_key_add_days(today, -(i as i64)) else {
+            continue;
+        };
         if let Some(day_stats) = stats.daily.get(&date) {
             total += day_stats.completed_count;
             if best_day.is_none() || day_stats.completed_count > best_day.as_ref().unwrap().1 {
@@ -387,35 +412,6 @@ pub fn calculate_velocity(stats: &ProductivityStats, days: u32) -> VelocityMetri
         average_per_day,
         best_day,
     }
-}
-
-/// Get date offset by days (negative goes back)
-fn get_date_offset(date: &str, offset: i32) -> String {
-    let parts: Vec<&str> = date.split('-').collect();
-    if parts.len() != 3 {
-        return date.to_string();
-    }
-
-    let year: i32 = parts[0].parse().unwrap_or(2026);
-    let month: u32 = parts[1].parse().unwrap_or(1);
-    let day: u32 = parts[2].parse().unwrap_or(1);
-
-    // Convert to days since epoch (simplified)
-    let _days_in_month = match month {
-        2 => 28,
-        4 | 6 | 9 | 11 => 30,
-        _ => 31,
-    };
-
-    let total_days = year * 365 + month as i32 * 30 + day as i32;
-    let new_total = total_days - offset;
-
-    let new_year = (new_total / 365).max(1970);
-    let remainder = new_total % 365;
-    let new_month = ((remainder / 30).max(1) as u32).min(12);
-    let new_day = ((remainder % 30).max(1) as u32).min(31);
-
-    format!("{:04}-{:02}-{:02}", new_year, new_month, new_day)
 }
 
 /// Get the next milestone threshold
@@ -673,23 +669,9 @@ mod tests {
 
     #[test]
     fn test_velocity_calculation() {
-        // Use today's date and yesterday to ensure they fall within the 7-day window
-        let today = timeutil::now_utc_rfc3339()
-            .unwrap_or_default()
-            .split('T')
-            .next()
-            .unwrap_or("2026-02-04")
-            .to_string();
-        let yesterday = {
-            let parts: Vec<&str> = today.split('-').collect();
-            let day: u32 = parts[2].parse().unwrap_or(4);
-            format!(
-                "{}-{}-{:02}",
-                parts[0],
-                parts[1],
-                day.saturating_sub(1).max(1)
-            )
-        };
+        // Use fixed dates that cross a year boundary to test real calendar math
+        let today: String = "2026-01-01".to_string();
+        let yesterday: String = "2025-12-31".to_string();
 
         let stats = ProductivityStats {
             version: 1,
@@ -720,7 +702,7 @@ mod tests {
             milestones: vec![],
         };
 
-        let velocity = calculate_velocity(&stats, 7);
+        let velocity = calculate_velocity_for_today(&stats, 7, &today);
         assert_eq!(velocity.total_completed, 8);
         assert!(velocity.average_per_day > 0.0);
     }
@@ -740,5 +722,157 @@ mod tests {
         assert_eq!(format_duration(90), "1m");
         assert_eq!(format_duration(3600), "1h 0m");
         assert_eq!(format_duration(90061), "1d 1h");
+    }
+
+    // Tests for date key helpers with proper calendar math
+
+    #[test]
+    fn test_previous_date_key_leap_year() {
+        // 2024 is a leap year: March 1 -> Feb 29
+        assert_eq!(
+            previous_date_key("2024-03-01"),
+            Some("2024-02-29".to_string())
+        );
+    }
+
+    #[test]
+    fn test_previous_date_key_non_leap_year() {
+        // 2026 is not a leap year: March 1 -> Feb 28
+        assert_eq!(
+            previous_date_key("2026-03-01"),
+            Some("2026-02-28".to_string())
+        );
+    }
+
+    #[test]
+    fn test_previous_date_key_year_boundary() {
+        // Jan 1 -> Dec 31 of previous year
+        assert_eq!(
+            previous_date_key("2026-01-01"),
+            Some("2025-12-31".to_string())
+        );
+    }
+
+    #[test]
+    fn test_previous_date_key_month_boundary_30_day() {
+        // May 1 -> April 30 (April has 30 days)
+        assert_eq!(
+            previous_date_key("2026-05-01"),
+            Some("2026-04-30".to_string())
+        );
+    }
+
+    #[test]
+    fn test_previous_date_key_normal_day() {
+        // Normal day decrement
+        assert_eq!(
+            previous_date_key("2026-02-15"),
+            Some("2026-02-14".to_string())
+        );
+    }
+
+    #[test]
+    fn test_parse_date_key_invalid() {
+        assert_eq!(parse_date_key(""), None);
+        assert_eq!(parse_date_key("  "), None);
+        assert_eq!(parse_date_key("not-a-date"), None);
+        assert_eq!(parse_date_key("2026-02-30"), None); // Feb 30 doesn't exist
+    }
+
+    #[test]
+    fn test_date_key_offset_backwards() {
+        // Go back 7 days from Jan 5 = Dec 29
+        assert_eq!(
+            date_key_add_days("2026-01-05", -7),
+            Some("2025-12-29".to_string())
+        );
+    }
+
+    #[test]
+    fn test_date_key_add_days_forward() {
+        // Go forward 5 days
+        assert_eq!(
+            date_key_add_days("2026-01-01", 5),
+            Some("2026-01-06".to_string())
+        );
+    }
+
+    #[test]
+    fn test_streak_year_boundary() {
+        // Test that streak correctly increments across year boundaries
+        let mut stats = ProductivityStats {
+            version: 1,
+            first_task_completed_at: None,
+            last_updated_at: "2026-01-01T00:00:00Z".to_string(),
+            daily: BTreeMap::new(),
+            streak: StreakInfo {
+                current_streak: 3,
+                longest_streak: 5,
+                last_completed_date: Some("2025-12-31".to_string()),
+            },
+            total_completed: 10,
+            milestones: vec![],
+        };
+
+        // Complete a task on Jan 1, 2026 - should continue the streak
+        let updated = update_streak(&mut stats, "2026-01-01");
+        assert!(updated);
+        assert_eq!(stats.streak.current_streak, 4);
+        assert_eq!(
+            stats.streak.last_completed_date,
+            Some("2026-01-01".to_string())
+        );
+    }
+
+    #[test]
+    fn test_streak_breaks_when_gap() {
+        // Test that streak breaks when there's a gap
+        let mut stats = ProductivityStats {
+            version: 1,
+            first_task_completed_at: None,
+            last_updated_at: "2026-01-05T00:00:00Z".to_string(),
+            daily: BTreeMap::new(),
+            streak: StreakInfo {
+                current_streak: 3,
+                longest_streak: 5,
+                last_completed_date: Some("2026-01-01".to_string()), // Last completed 3 days ago
+            },
+            total_completed: 10,
+            milestones: vec![],
+        };
+
+        // Complete a task on Jan 5, 2026 - should break and restart streak
+        let updated = update_streak(&mut stats, "2026-01-05");
+        assert!(updated);
+        assert_eq!(stats.streak.current_streak, 1); // Reset to 1
+        assert_eq!(
+            stats.streak.last_completed_date,
+            Some("2026-01-05".to_string())
+        );
+    }
+
+    #[test]
+    fn test_update_streak_invalid_today_is_noop() {
+        let mut stats = ProductivityStats {
+            version: 1,
+            first_task_completed_at: None,
+            last_updated_at: "2026-01-01T00:00:00Z".to_string(),
+            daily: BTreeMap::new(),
+            streak: StreakInfo {
+                current_streak: 3,
+                longest_streak: 5,
+                last_completed_date: Some("2026-01-01".to_string()),
+            },
+            total_completed: 10,
+            milestones: vec![],
+        };
+
+        let before_current = stats.streak.current_streak;
+        let before_longest = stats.streak.longest_streak;
+        let before_last = stats.streak.last_completed_date.clone();
+        assert!(!update_streak(&mut stats, "not-a-date"));
+        assert_eq!(stats.streak.current_streak, before_current);
+        assert_eq!(stats.streak.longest_streak, before_longest);
+        assert_eq!(stats.streak.last_completed_date, before_last);
     }
 }

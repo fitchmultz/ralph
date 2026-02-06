@@ -1300,10 +1300,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
+        "opportunity_type": "reliability",
         "time_to_ship": "medium (concurrency + tests)",
-        "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort.",
-        "opportunity_type": "reliability"
+        "scan_agent": "scan-innovation",
+        "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort."
       }
     },
     {
@@ -1345,10 +1345,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "ux improvement",
-        "scan_agent": "scan-innovation",
+        "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current.",
         "time_to_ship": "medium (metadata + reconciliation + tests)",
-        "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current."
+        "scan_agent": "scan-innovation",
+        "opportunity_type": "ux improvement"
       }
     },
     {
@@ -1394,10 +1394,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics.",
-        "time_to_ship": "medium (format + fixes + tests)",
+        "scan_agent": "scan-innovation",
         "opportunity_type": "ux improvement",
-        "scan_agent": "scan-innovation"
+        "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics.",
+        "time_to_ship": "medium (format + fixes + tests)"
       }
     },
     {
@@ -1442,9 +1442,9 @@
       "relates_to": [],
       "custom_fields": {
         "time_to_ship": "small/medium (formatters + tests)",
-        "opportunity_type": "ux improvement",
         "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat).",
-        "scan_agent": "scan-innovation"
+        "scan_agent": "scan-innovation",
+        "opportunity_type": "ux improvement"
       }
     },
     {
@@ -1932,10 +1932,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Fewer context switches: jump from task → code in one keystroke.",
         "time_to_ship": "medium (TUI wiring + tests)",
         "scan_agent": "scan-innovation",
-        "opportunity_type": "ux improvement"
+        "opportunity_type": "ux improvement",
+        "user_value": "Fewer context switches: jump from task → code in one keystroke."
       }
     },
     {
@@ -2046,10 +2046,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "measurable_impact": "Track 20%+ improvement in task completion velocity after adoption",
         "opportunity_type": "feature gap",
-        "scan_agent": "scan-innovation",
         "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types",
-        "measurable_impact": "Track 20%+ improvement in task completion velocity after adoption"
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -2107,9 +2107,9 @@
       "relates_to": [],
       "custom_fields": {
         "time_to_ship": "incremental - add one batch operation at a time",
+        "scan_agent": "scan-innovation",
         "user_value": "Reduces queue maintenance time by 80% for large projects",
-        "opportunity_type": "UX improvement",
-        "scan_agent": "scan-innovation"
+        "opportunity_type": "UX improvement"
       }
     },
     {
@@ -2166,9 +2166,9 @@
       "relates_to": [],
       "custom_fields": {
         "opportunity_type": "reliability",
+        "scan_agent": "scan-innovation",
         "measurable_impact": "80%+ integration test coverage for CLI commands",
-        "user_value": "Reduces regression risk; enables confident refactoring",
-        "scan_agent": "scan-innovation"
+        "user_value": "Reduces regression risk; enables confident refactoring"
       }
     },
     {
@@ -2231,10 +2231,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "differentiation": "Unique capability among AI task runners",
         "user_value": "Enables ecosystem growth; custom integrations without forks",
         "opportunity_type": "feature gap",
-        "scan_agent": "scan-innovation",
-        "differentiation": "Unique capability among AI task runners"
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -2532,6 +2532,58 @@
       "depends_on": [],
       "blocks": [],
       "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0634",
+      "status": "done",
+      "title": "Fix productivity streak/velocity date math (remove 30-day-month approximation)",
+      "priority": "medium",
+      "tags": [
+        "maintenance",
+        "correctness",
+        "productivity",
+        "time"
+      ],
+      "scope": [
+        "crates/ralph/src/productivity.rs",
+        "cargo test -p ralph productivity",
+        "make test",
+        "make ci"
+      ],
+      "evidence": [
+        "crates/ralph/src/productivity.rs:295-326: get_previous_date uses approximate month lengths (Feb=28) and hardcoded parse fallbacks (`unwrap_or(2026)`, `unwrap_or(1)`); explicitly notes it doesn't account for leap years.",
+        "crates/ralph/src/productivity.rs:393-419: get_date_offset converts to days using `year*365 + month*30 + day` and reconstructs `year/month/day` using `/365` and `/30` (incorrect calendar math).",
+        "crates/ralph/src/productivity.rs:674-692: test_velocity_calculation computes \"yesterday\" by decrementing the day-of-month only, so it doesn't exercise month/year boundary behavior.",
+        "User impact: streak and velocity calculations can be wrong around month/year boundaries."
+      ],
+      "plan": [
+        "Replace `get_previous_date` and `get_date_offset` with `time` crate date arithmetic (parse YYYY-MM-DD into `time::Date` or parse `YYYY-MM-DDT00:00:00Z` into `time::OffsetDateTime`, then add/subtract `time::Duration::days`).",
+        "Remove hardcoded fallback year/month/day defaults; make invalid date handling explicit (e.g., return `Option<String>`/`Result<String>` and have callers treat invalid inputs as no streak advance / no velocity contribution).",
+        "Add unit tests for boundaries: 2024-03-01 previous day == 2024-02-29; 2026-03-01 previous day == 2026-02-28; 2026-01-01 previous day == 2025-12-31; offsets across month/year boundaries.",
+        "Update `test_velocity_calculation` to use fixed dates (not \"today\" and naive day decrement) so it reliably covers boundary behavior.",
+        "Verify by running `make ci` and confirming it passes."
+      ],
+      "notes": [
+        "As of 2026-02-06, the module still uses ad-hoc calendar logic for streak/velocity; the existing tests don't cover leap years or month/year rollovers.",
+        "Replaced streak/velocity date math with time::Date checked day arithmetic (no 30-day-month approximation).",
+        "Removed hardcoded parse fallbacks; invalid date keys now act as safe no-ops for streak/velocity.",
+        "Added regression tests for leap day + month/year boundaries and deterministic velocity window.",
+        "Kept calculate_velocity public signature stable; test-only helper uses fixed today key."
+      ],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-05T20:49:31Z",
+      "updated_at": "2026-02-06T00:42:49.707622000Z",
+      "completed_at": "2026-02-06T00:42:49.707622000Z",
+      "started_at": "2026-02-06T00:13:51.785731000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [
+        "RQ-0635",
+        "RQ-0636"
+      ],
       "custom_fields": {
         "scan_agent": "scan-maintenance"
       }
