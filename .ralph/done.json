@@ -1300,10 +1300,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "time_to_ship": "medium (concurrency + tests)",
-        "scan_agent": "scan-innovation",
         "opportunity_type": "reliability",
-        "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort."
+        "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort.",
+        "scan_agent": "scan-innovation",
+        "time_to_ship": "medium (concurrency + tests)"
       }
     },
     {
@@ -1345,9 +1345,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current.",
         "scan_agent": "scan-innovation",
         "opportunity_type": "ux improvement",
+        "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current.",
         "time_to_ship": "medium (metadata + reconciliation + tests)"
       }
     },
@@ -1394,10 +1394,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "time_to_ship": "medium (format + fixes + tests)",
         "opportunity_type": "ux improvement",
         "scan_agent": "scan-innovation",
-        "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics."
+        "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics.",
+        "time_to_ship": "medium (format + fixes + tests)"
       }
     },
     {
@@ -1441,10 +1441,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "time_to_ship": "small/medium (formatters + tests)",
         "opportunity_type": "ux improvement",
-        "scan_agent": "scan-innovation",
-        "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat)."
+        "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat).",
+        "time_to_ship": "small/medium (formatters + tests)",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -1932,10 +1932,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "time_to_ship": "medium (TUI wiring + tests)",
         "opportunity_type": "ux improvement",
-        "user_value": "Fewer context switches: jump from task → code in one keystroke."
+        "time_to_ship": "medium (TUI wiring + tests)",
+        "user_value": "Fewer context switches: jump from task → code in one keystroke.",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -1989,10 +1989,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error.",
         "opportunity_type": "ux improvement",
-        "time_to_ship": "medium (render-only UI + tests)"
+        "time_to_ship": "medium (render-only UI + tests)",
+        "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error.",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -2106,10 +2106,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "time_to_ship": "incremental - add one batch operation at a time",
-        "scan_agent": "scan-innovation",
+        "user_value": "Reduces queue maintenance time by 80% for large projects",
         "opportunity_type": "UX improvement",
-        "user_value": "Reduces queue maintenance time by 80% for large projects"
+        "scan_agent": "scan-innovation",
+        "time_to_ship": "incremental - add one batch operation at a time"
       }
     },
     {
@@ -2166,9 +2166,9 @@
       "relates_to": [],
       "custom_fields": {
         "opportunity_type": "reliability",
+        "scan_agent": "scan-innovation",
         "user_value": "Reduces regression risk; enables confident refactoring",
-        "measurable_impact": "80%+ integration test coverage for CLI commands",
-        "scan_agent": "scan-innovation"
+        "measurable_impact": "80%+ integration test coverage for CLI commands"
       }
     },
     {
@@ -2231,9 +2231,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "feature gap",
         "differentiation": "Unique capability among AI task runners",
         "user_value": "Enables ecosystem growth; custom integrations without forks",
+        "opportunity_type": "feature gap",
         "scan_agent": "scan-innovation"
       }
     },
@@ -3527,9 +3527,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "runner_used": "kimi",
         "file_line_count": "444",
         "model_used": "kimi-code/kimi-for-coding",
-        "runner_used": "kimi",
         "scan_agent": "scan-maintenance"
       }
     },
@@ -3577,11 +3577,11 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "occurrence_count": "4",
-        "runner_used": "kimi",
-        "fallback_function": "now_utc_rfc3339_or_fallback at timeutil.rs:67-69",
         "scan_agent": "scan-maintenance",
-        "model_used": "kimi-code/kimi-for-coding"
+        "model_used": "kimi-code/kimi-for-coding",
+        "fallback_function": "now_utc_rfc3339_or_fallback at timeutil.rs:67-69",
+        "runner_used": "kimi",
+        "occurrence_count": "4"
       }
     },
     {
@@ -3717,8 +3717,8 @@
       ],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "kimi",
-        "model_used": "kimi-code/kimi-for-coding"
+        "model_used": "kimi-code/kimi-for-coding",
+        "runner_used": "kimi"
       }
     },
     {
@@ -3801,14 +3801,14 @@
         "RQ-0657"
       ],
       "custom_fields": {
+        "status_note": "COMPLETED - KimiPlugin fully implemented and legacy code removed",
         "runner_used": "kimi",
+        "completed_via": "RQ-0657 (foundational plugin framework)",
         "executor_location": "crates/ralph/src/runner/execution/plugin_executor.rs",
         "legacy_code_removed": "true",
-        "trait_location": "crates/ralph/src/runner/execution/plugin_trait.rs",
+        "plugin_location": "crates/ralph/src/runner/execution/builtin_plugins.rs:530-631",
         "model_used": "kimi-code/kimi-for-coding",
-        "completed_via": "RQ-0657 (foundational plugin framework)",
-        "status_note": "COMPLETED - KimiPlugin fully implemented and legacy code removed",
-        "plugin_location": "crates/ralph/src/runner/execution/builtin_plugins.rs:530-631"
+        "trait_location": "crates/ralph/src/runner/execution/plugin_trait.rs"
       }
     },
     {
@@ -4118,11 +4118,72 @@
         "RQ-0663"
       ],
       "custom_fields": {
-        "runner_used": "kimi",
-        "plugin_status": "already_implemented",
-        "legacy_code_to_remove": "runners.rs:48-118, response.rs:139-164",
+        "model_used": "kimi-code/kimi-for-coding",
         "cleanup_required": "true",
-        "model_used": "kimi-code/kimi-for-coding"
+        "legacy_code_to_remove": "runners.rs:48-118, response.rs:139-164",
+        "runner_used": "kimi",
+        "plugin_status": "already_implemented"
+      }
+    },
+    {
+      "id": "RQ-0661",
+      "status": "done",
+      "title": "Isolate gemini runner into its own plugin for easier runner-specific customization",
+      "priority": "medium",
+      "tags": [
+        "refactor",
+        "runner",
+        "gemini",
+        "plugin",
+        "architecture"
+      ],
+      "scope": [
+        "crates/ralph/src/runner/execution/builtin_plugins.rs",
+        "crates/ralph/src/runner/execution/plugin_trait.rs",
+        "crates/ralph/src/runner/execution/plugin_executor.rs",
+        "crates/ralph/src/runner/execution/cli_spec.rs",
+        "make ci"
+      ],
+      "evidence": [
+        "DEPENDENCY RQ-0657 COMPLETED: Plugin trait framework is implemented in crates/ralph/src/runner/execution/plugin_trait.rs with RunnerPlugin trait defining metadata(), build_run_command(), build_resume_command(), parse_response_line().",
+        "crates/ralph/src/runner/execution/builtin_plugins.rs:354-427: GeminiPlugin struct fully implements RunnerPlugin trait with build_run_command, build_resume_command, and parse_response_line.",
+        "crates/ralph/src/runner/execution/builtin_plugins.rs:400-427: GeminiResponseParser implements ResponseParser trait for type=message event with role=assistant.",
+        "crates/ralph/src/runner/execution/builtin_plugins.rs:372: Gemini uses output_format stream-json via stdin_payload.",
+        "crates/ralph/src/runner/execution/builtin_plugins.rs:386-391: Gemini resume uses --resume flag with session_id.",
+        "crates/ralph/src/runner/execution/cli_spec.rs:49-63: apply_gemini_options handles approval-mode and sandbox for Gemini.",
+        "crates/ralph/src/runner/execution/runners.rs:48-110: Legacy run_gemini() and run_gemini_resume() functions exist (potential cleanup)."
+      ],
+      "plan": [
+        "Verify GeminiPlugin implementation in builtin_plugins.rs:354-427 is complete and correct.",
+        "Consider removing legacy run_gemini() and run_gemini_resume() functions from runners.rs if fully migrated to plugin.",
+        "Run make ci to confirm all tests pass."
+      ],
+      "notes": [
+        "MAJOR STATUS CHANGE: RQ-0657 (foundational plugin trait framework) is COMPLETE. The plugin system is operational.",
+        "GeminiPlugin ALREADY EXISTS in builtin_plugins.rs:354-427 with full RunnerPlugin trait implementation.",
+        "Task scope changed from create plugin to cleanup legacy code and verify implementation.",
+        "The legacy functions in runners.rs:48-110 are now technical debt to be removed.",
+        "Gemini runner fully migrated to plugin system",
+        "Removed legacy run_gemini() and run_gemini_resume() functions (64 lines)",
+        "Verified PluginExecutor integration for both run() and resume() paths",
+        "All 2190+ tests pass, CI gate clean",
+        "GeminiPlugin implementation verified at builtin_plugins.rs:354-427"
+      ],
+      "request": "create tasks to have all runners isolated and integrated into the plugin system approach. We currently support codex, claude, pi, kimi, opencode, and cursor-agent.",
+      "created_at": "2026-02-06T16:21:11Z",
+      "updated_at": "2026-02-06T21:00:31.631718000Z",
+      "completed_at": "2026-02-06T21:00:31.631718000Z",
+      "started_at": "2026-02-06T20:47:45.425262000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "model_used": "kimi-code/kimi-for-coding",
+        "status_note": "COMPLETED - GeminiPlugin fully implemented via RQ-0657 foundational framework",
+        "legacy_code_location": "crates/ralph/src/runner/execution/runners.rs:48-110",
+        "response_parser_location": "crates/ralph/src/runner/execution/builtin_plugins.rs:400-427",
+        "plugin_location": "crates/ralph/src/runner/execution/builtin_plugins.rs:354-427",
+        "runner_used": "kimi"
       }
     }
   ]

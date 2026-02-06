@@ -233,16 +233,25 @@ pub(crate) fn run_prompt(
                 plugins,
             )?
         }
-        Runner::Gemini => execution::run_gemini(
-            work_dir,
-            bins.gemini,
-            runner_cli,
-            model,
-            prompt,
-            timeout,
-            output_handler.clone(),
-            output_stream,
-        )?,
+        Runner::Gemini => {
+            let executor = execution::PluginExecutor::new();
+            executor.run(
+                Runner::Gemini,
+                work_dir,
+                bins.gemini,
+                model,
+                None, // reasoning_effort
+                runner_cli,
+                prompt,
+                timeout,
+                None, // permission_mode
+                output_handler.clone(),
+                output_stream,
+                phase_type,
+                session_id.clone(),
+                plugins,
+            )?
+        }
         Runner::Cursor => execution::run_cursor(
             work_dir,
             bins.cursor,
@@ -433,17 +442,25 @@ pub(crate) fn resume_session(
                 plugins,
             )
         }
-        Runner::Gemini => execution::run_gemini_resume(
-            work_dir,
-            bins.gemini,
-            runner_cli,
-            model,
-            session_id,
-            message,
-            timeout,
-            output_handler,
-            output_stream,
-        ),
+        Runner::Gemini => {
+            let executor = execution::PluginExecutor::new();
+            executor.resume(
+                Runner::Gemini,
+                work_dir,
+                bins.gemini,
+                model,
+                None, // reasoning_effort
+                runner_cli,
+                session_id,
+                message,
+                timeout,
+                None, // permission_mode
+                output_handler,
+                output_stream,
+                phase_type,
+                plugins,
+            )
+        }
         Runner::Cursor => execution::run_cursor_resume(
             work_dir,
             bins.cursor,

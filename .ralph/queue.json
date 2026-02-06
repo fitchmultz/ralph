@@ -2,54 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0661",
-      "status": "todo",
-      "title": "Isolate gemini runner into its own plugin for easier runner-specific customization",
-      "priority": "medium",
-      "tags": [
-        "refactor",
-        "runner",
-        "gemini",
-        "plugin",
-        "architecture"
-      ],
-      "scope": [
-        "crates/ralph/src/runner/execution/runners.rs",
-        "crates/ralph/src/runner/execution/cli_spec.rs",
-        "crates/ralph/src/runner/execution/response.rs",
-        "crates/ralph/src/plugins/",
-        "make ci"
-      ],
-      "evidence": [
-        "User request: Isolate all runners into plugins for easier runner-specific customization.",
-        "crates/ralph/src/runner/execution/runners.rs:192-255: Gemini has dedicated run_gemini() and run_gemini_resume() functions with --resume flag.",
-        "crates/ralph/src/runner/execution/cli_spec.rs:49-63: Gemini has unique CLI option mapping (apply_gemini_options) for approval-mode and sandbox.",
-        "crates/ralph/src/runner/execution/response.rs:178-184: Gemini has unique response parsing (extract_gemini_assistant_text) for message event type with role=assistant.",
-        "crates/ralph/src/runner/execution/runners.rs:207-210: Gemini uses output_format stream-json via stdin_payload."
-      ],
-      "plan": [
-        "Wait for RQ-0657 to complete (foundational plugin trait framework).",
-        "Create GeminiPlugin struct implementing the RunnerPlugin trait.",
-        "Implement command building: extract gemini-specific logic from runners.rs:run_gemini and run_gemini_resume, preserving --resume and output_format handling.",
-        "Implement CLI option mapping: extract gemini-specific options from cli_spec.rs:apply_gemini_options (approval-mode, sandbox).",
-        "Implement response parsing: extract gemini-specific parsing from response.rs:extract_gemini_assistant_text for message event type.",
-        "Register GeminiPlugin as a built-in plugin with appropriate default model.",
-        "Refactor main runner execution to delegate to gemini plugin when Runner::Gemini is selected.",
-        "Add comprehensive tests for the gemini plugin.",
-        "Verify by running `make ci` and confirming all tests pass."
-      ],
-      "notes": [],
-      "request": "create tasks to have all runners isolated and integrated into the plugin system approach. We currently support codex, claude, pi, kimi, opencode, and cursor-agent.",
-      "created_at": "2026-02-06T16:21:11Z",
-      "updated_at": "2026-02-06T16:21:11Z",
-      "depends_on": [
-        "RQ-0657"
-      ],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0662",
       "status": "todo",
       "title": "Isolate pi runner into its own plugin for easier runner-specific customization",
