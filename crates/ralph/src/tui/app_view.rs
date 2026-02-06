@@ -48,4 +48,53 @@ pub trait ViewOperations {
     fn update_board_columns(&mut self);
 }
 
-// Implementation for App is in app.rs to avoid circular dependencies
+use crate::tui::app::App;
+use crate::tui::events::ViewMode;
+
+// Implementation for App
+impl ViewOperations for App {
+    fn switch_to_list_view(&mut self) {
+        if self.view_mode == ViewMode::List {
+            return;
+        }
+        self.view_mode = ViewMode::List;
+        self.sync_board_selection_to_list();
+        self.set_status_message("Switched to list view (l)");
+    }
+
+    fn switch_to_board_view(&mut self) {
+        if self.view_mode == ViewMode::Board {
+            return;
+        }
+        self.view_mode = ViewMode::Board;
+        self.board_nav
+            .update_columns(&self.filtered_indices, &self.queue);
+        self.sync_list_selection_to_board();
+        self.set_status_message("Switched to board view (b)");
+    }
+
+    fn sync_board_selection_to_list(&mut self) {
+        if let Some(queue_index) = self.board_nav.selected_task_index()
+            && let Some(filtered_pos) = self
+                .filtered_indices
+                .iter()
+                .position(|&idx| idx == queue_index)
+        {
+            self.selected = filtered_pos;
+            self.clamp_selection_and_scroll();
+        }
+    }
+
+    fn sync_list_selection_to_board(&mut self) {
+        if let Some(queue_index) = self.filtered_indices.get(self.selected).copied() {
+            self.board_nav.select_task(queue_index, &self.queue);
+        }
+    }
+
+    fn update_board_columns(&mut self) {
+        if self.view_mode == ViewMode::Board {
+            self.board_nav
+                .update_columns(&self.filtered_indices, &self.queue);
+        }
+    }
+}

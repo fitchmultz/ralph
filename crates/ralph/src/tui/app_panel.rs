@@ -71,4 +71,61 @@ pub trait PanelOperations {
     fn list_area(&self) -> Option<Rect>;
 }
 
-// Implementation for App is in app.rs to avoid circular dependencies
+use crate::tui::app::App;
+
+// Implementation for App
+impl PanelOperations for App {
+    fn focus_next_panel(&mut self) {
+        use crate::tui::app_panel::{DETAILS_PANEL_FOCUS, LIST_PANEL_FOCUS};
+
+        // Determine current focus from focus manager, falling back to legacy field
+        let current_focused = self.focus_manager.focused().or({
+            // Fallback to legacy focused_panel for backward compatibility during migration
+            match self.focused_panel {
+                FocusedPanel::List => Some(LIST_PANEL_FOCUS),
+                FocusedPanel::Details => Some(DETAILS_PANEL_FOCUS),
+            }
+        });
+
+        let next = match current_focused {
+            Some(id) if id == LIST_PANEL_FOCUS => DETAILS_PANEL_FOCUS,
+            _ => LIST_PANEL_FOCUS,
+        };
+        self.focus_manager.focus(next);
+        // Keep focused_panel in sync for backward compatibility during migration
+        self.focused_panel = if next == DETAILS_PANEL_FOCUS {
+            FocusedPanel::Details
+        } else {
+            FocusedPanel::List
+        };
+    }
+
+    fn focus_previous_panel(&mut self) {
+        // Same as next for 2 panels
+        self.focus_next_panel();
+    }
+
+    fn focus_list_panel(&mut self) {
+        use crate::tui::app_panel::LIST_PANEL_FOCUS;
+        self.focus_manager.focus(LIST_PANEL_FOCUS);
+        self.focused_panel = FocusedPanel::List;
+    }
+
+    fn details_focused(&self) -> bool {
+        use crate::tui::app_panel::DETAILS_PANEL_FOCUS;
+        self.focus_manager.is_focused(DETAILS_PANEL_FOCUS)
+            || self.focused_panel == FocusedPanel::Details
+    }
+
+    fn set_list_area(&mut self, area: Rect) {
+        self.list_area = Some(area);
+    }
+
+    fn clear_list_area(&mut self) {
+        self.list_area = None;
+    }
+
+    fn list_area(&self) -> Option<Rect> {
+        self.list_area
+    }
+}

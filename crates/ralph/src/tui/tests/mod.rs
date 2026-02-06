@@ -17,6 +17,7 @@ use crate::timeutil;
 use anyhow::Result;
 
 // Re-export test modules
+mod app_multi_select;
 mod app_state;
 mod filters;
 mod navigation;

@@ -2,43 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0640",
-      "status": "todo",
-      "title": "Split oversized TUI app module (3347 LOC) into cohesive submodules",
-      "priority": "low",
-      "tags": [
-        "maintenance",
-        "refactor",
-        "tui"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/app.rs",
-        "crates/ralph/src/tui/",
-        "make ci"
-      ],
-      "evidence": [
-        "Command: wc -l crates/ralph/src/tui/app.rs -> 3347 lines.",
-        "AGENTS.md guideline: files >1000 LOC should be split; >800 LOC requires explicit justification."
-      ],
-      "plan": [
-        "Identify cohesive responsibilities inside app.rs (state, actions, event handling, IO, rendering adapters).",
-        "Extract into new internal modules under crates/ralph/src/tui/ (e.g., app_state.rs, app_actions.rs, app_events.rs), keeping public surface minimal.",
-        "Keep behavior stable by wiring through existing entrypoints and updating imports.",
-        "Add/adjust tests for extracted modules where behavior is tricky or under-tested.",
-        "Verify by running `make ci` and confirming it passes."
-      ],
-      "notes": [],
-      "request": "maintenance scan finding",
-      "created_at": "2026-02-05T20:49:31Z",
-      "updated_at": "2026-02-05T20:49:31Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0641",
       "status": "todo",
       "title": "Split oversized parallel run module (3241 LOC) into cohesive submodules",
