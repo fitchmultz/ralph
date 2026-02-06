@@ -52,6 +52,7 @@ pub fn execute_single_phase(ctx: &PhaseInvocation<'_>) -> Result<()> {
             "Execution",
             PhaseType::SinglePhase,
             phase_session_id,
+            ctx.execution_timings,
         )?;
 
         if ctx.is_final_iteration {
@@ -66,7 +67,22 @@ pub fn execute_single_phase(ctx: &PhaseInvocation<'_>) -> Result<()> {
                 output_stream: ctx.output_stream,
                 ci_failure_retry_count: 0,
             };
-            let mut on_resume = |_resume_output: &runner::RunnerOutput| Ok(());
+            let runner = ctx.settings.runner.clone();
+            let model = ctx.settings.model.clone();
+            let timings = ctx.execution_timings;
+            let mut on_resume =
+                move |_resume_output: &runner::RunnerOutput, elapsed: std::time::Duration| {
+                    // Record resume duration for single phase
+                    if let Some(timings) = timings {
+                        timings.borrow_mut().record_runner_duration(
+                            PhaseType::SinglePhase,
+                            &runner,
+                            &model,
+                            elapsed,
+                        );
+                    }
+                    Ok(())
+                };
             match ctx.post_run_mode {
                 PostRunMode::Normal => crate::commands::run::post_run_supervise(
                     ctx.resolved,
@@ -112,7 +128,20 @@ pub fn execute_single_phase(ctx: &PhaseInvocation<'_>) -> Result<()> {
                 output_stream: ctx.output_stream,
                 ci_failure_retry_count: 0,
             };
-            run_ci_gate_with_continue(ctx, continue_session, |_output| Ok(()))?;
+            let timings = ctx.execution_timings;
+            let runner = ctx.settings.runner.clone();
+            let model = ctx.settings.model.clone();
+            run_ci_gate_with_continue(ctx, continue_session, |_output, elapsed| {
+                if let Some(timings) = timings {
+                    timings.borrow_mut().record_runner_duration(
+                        PhaseType::SinglePhase,
+                        &runner,
+                        &model,
+                        elapsed,
+                    );
+                }
+                Ok(())
+            })?;
         }
         Ok(())
     })

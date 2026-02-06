@@ -66,7 +66,10 @@ pub(crate) struct ContinueSession {
 /// Context for resuming a runner session during a post-run CI gate failure.
 pub(crate) struct CiContinueContext<'a> {
     pub continue_session: &'a mut ContinueSession,
-    pub on_resume: &'a mut dyn FnMut(&crate::runner::RunnerOutput) -> Result<()>,
+    /// Callback invoked after each resume, receiving both the output and the elapsed duration.
+    /// The duration represents the wall-clock time spent in that specific resume session.
+    pub on_resume:
+        &'a mut dyn FnMut(&crate::runner::RunnerOutput, std::time::Duration) -> Result<()>,
 }
 
 /// Policy for pushing git commits after a run completes.
@@ -79,11 +82,16 @@ pub(crate) enum PushPolicy {
 }
 
 /// Resume a continue session with a message.
+///
+/// Returns the runner output along with the wall-clock duration of the session.
+/// The duration is measured from the start of the function to when the runner
+/// output is received.
 pub(crate) fn resume_continue_session(
     resolved: &crate::config::Resolved,
     session: &mut ContinueSession,
     message: &str,
-) -> Result<crate::runner::RunnerOutput> {
+) -> Result<(crate::runner::RunnerOutput, std::time::Duration)> {
+    let start = std::time::Instant::now();
     let session_id = session
         .session_id
         .as_deref()
@@ -107,10 +115,11 @@ pub(crate) fn resume_continue_session(
         session.phase_type,
         None,
     )?;
+    let elapsed = start.elapsed();
     if let Some(new_id) = output.session_id.as_ref() {
         session.session_id = Some(new_id.clone());
     }
-    Ok(output)
+    Ok((output, elapsed))
 }
 
 /// Main post-run supervision entry point.
@@ -191,7 +200,7 @@ pub(crate) fn post_run_supervise(
                     git_revert_mode,
                     revert_prompt.as_ref(),
                     continue_session,
-                    |output| on_resume(output),
+                    |output, elapsed| on_resume(output, elapsed),
                 ) {
                     let outcome = runutil::apply_git_revert_mode(
                         &resolved.repo_root,
@@ -415,7 +424,7 @@ pub(crate) fn post_run_supervise_parallel_worker(
                     git_revert_mode,
                     revert_prompt.as_ref(),
                     continue_session,
-                    |output| on_resume(output),
+                    |output, elapsed| on_resume(output, elapsed),
                 ) {
                     let outcome = runutil::apply_git_revert_mode(
                         &resolved.repo_root,
@@ -1026,10 +1035,11 @@ echo '{{"sessionID":"sess-123"}}'
             ci_failure_retry_count: CI_GATE_AUTO_RETRY_LIMIT,
         };
 
-        let mut on_resume = |_output: &crate::runner::RunnerOutput| -> Result<()> {
-            std::fs::write(&ci_pass, "ok")?;
-            Ok(())
-        };
+        let mut on_resume =
+            |_output: &crate::runner::RunnerOutput, _elapsed: std::time::Duration| -> Result<()> {
+                std::fs::write(&ci_pass, "ok")?;
+                Ok(())
+            };
 
         post_run_supervise(
             &resolved,

@@ -59,6 +59,7 @@ pub fn execute_phase2_implementation(
                 "Implementation",
                 PhaseType::Implementation,
                 phase_session_id,
+                ctx.execution_timings,
             )?;
 
             cache_phase2_final_response(&ctx.resolved.repo_root, ctx.task_id, &output.stdout)?;
@@ -75,7 +76,18 @@ pub fn execute_phase2_implementation(
                 ci_failure_retry_count: 0,
             };
 
-            run_ci_gate_with_continue(ctx, continue_session, |output| {
+            let timings = ctx.execution_timings;
+            let runner = ctx.settings.runner.clone();
+            let model = ctx.settings.model.clone();
+            run_ci_gate_with_continue(ctx, continue_session, |output, elapsed| {
+                if let Some(timings) = timings {
+                    timings.borrow_mut().record_runner_duration(
+                        PhaseType::Implementation,
+                        &runner,
+                        &model,
+                        elapsed,
+                    );
+                }
                 cache_phase2_final_response(&ctx.resolved.repo_root, ctx.task_id, &output.stdout)
             })?;
 
@@ -126,6 +138,7 @@ pub fn execute_phase2_implementation(
             "Implementation",
             PhaseType::Implementation,
             phase_session_id,
+            ctx.execution_timings,
         )?;
 
         if ctx.is_final_iteration {
@@ -140,7 +153,21 @@ pub fn execute_phase2_implementation(
                 output_stream: ctx.output_stream,
                 ci_failure_retry_count: 0,
             };
-            let mut on_resume = |resume_output: &runner::RunnerOutput| -> Result<()> {
+            let runner = ctx.settings.runner.clone();
+            let model = ctx.settings.model.clone();
+            let timings = ctx.execution_timings;
+            let mut on_resume = move |resume_output: &runner::RunnerOutput,
+                                      elapsed: std::time::Duration|
+                  -> Result<()> {
+                // Record resume duration for Phase 2
+                if let Some(timings) = timings {
+                    timings.borrow_mut().record_runner_duration(
+                        PhaseType::Implementation,
+                        &runner,
+                        &model,
+                        elapsed,
+                    );
+                }
                 cache_phase2_final_response(
                     &ctx.resolved.repo_root,
                     ctx.task_id,
@@ -192,7 +219,20 @@ pub fn execute_phase2_implementation(
                 output_stream: ctx.output_stream,
                 ci_failure_retry_count: 0,
             };
-            run_ci_gate_with_continue(ctx, continue_session, |_output| Ok(()))?;
+            let timings = ctx.execution_timings;
+            let runner = ctx.settings.runner.clone();
+            let model = ctx.settings.model.clone();
+            run_ci_gate_with_continue(ctx, continue_session, |_output, elapsed| {
+                if let Some(timings) = timings {
+                    timings.borrow_mut().record_runner_duration(
+                        PhaseType::Implementation,
+                        &runner,
+                        &model,
+                        elapsed,
+                    );
+                }
+                Ok(())
+            })?;
         }
         Ok(())
     })

@@ -287,6 +287,7 @@ echo '{{"sessionID":"sess-123"}}'
         notify_sound: None,
         lfs_check: false,
         no_progress: false,
+        execution_timings: None,
     };
 
     let plan_text = execute_phase1_planning(&invocation, 2)?;
@@ -372,6 +373,7 @@ echo '{{"sessionID":"sess-123"}}'
         notify_sound: None,
         lfs_check: false,
         no_progress: false,
+        execution_timings: None,
     };
 
     let plan_text = execute_phase1_planning(&invocation, 2)?;
@@ -455,6 +457,7 @@ echo '{{"sessionID":"sess-123"}}'
         notify_sound: None,
         lfs_check: false,
         no_progress: false,
+        execution_timings: None,
     };
 
     let err = execute_phase1_planning(&invocation, 2).expect_err("expected baseline violation");
@@ -601,6 +604,7 @@ echo '{"sessionID":"sess-123"}'
         notify_sound: None,
         lfs_check: false,
         no_progress: false,
+        execution_timings: None,
     };
 
     execute_phase3_review(&invocation)?;
@@ -667,6 +671,7 @@ echo '{"sessionID":"sess-123"}'
         notify_sound: None,
         lfs_check: false,
         no_progress: false,
+        execution_timings: None,
     };
 
     execute_phase3_review(&invocation)?;
@@ -753,6 +758,7 @@ echo '{{"sessionID":"sess-123"}}'
         notify_sound: None,
         lfs_check: false,
         no_progress: false,
+        execution_timings: None,
     };
 
     let continue_session = ContinueSession {
@@ -767,7 +773,7 @@ echo '{{"sessionID":"sess-123"}}'
         ci_failure_retry_count: 0,
     };
 
-    let err = run_ci_gate_with_continue(&invocation, continue_session, |_output| Ok(()))
+    let err = run_ci_gate_with_continue(&invocation, continue_session, |_output, _elapsed| Ok(()))
         .expect_err("expected CI gate to fail and eventually fall back to Ask-mode handling");
 
     let count_path = temp.path().join("resume-count.txt");

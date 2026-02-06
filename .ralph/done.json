@@ -1300,10 +1300,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "time_to_ship": "medium (concurrency + tests)",
         "opportunity_type": "reliability",
-        "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort."
+        "time_to_ship": "medium (concurrency + tests)",
+        "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort.",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -1346,8 +1346,8 @@
       "relates_to": [],
       "custom_fields": {
         "scan_agent": "scan-innovation",
-        "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current.",
         "opportunity_type": "ux improvement",
+        "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current.",
         "time_to_ship": "medium (metadata + reconciliation + tests)"
       }
     },
@@ -1441,10 +1441,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat).",
         "scan_agent": "scan-innovation",
         "time_to_ship": "small/medium (formatters + tests)",
-        "opportunity_type": "ux improvement"
+        "opportunity_type": "ux improvement",
+        "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat)."
       }
     },
     {
@@ -1932,9 +1932,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "time_to_ship": "medium (TUI wiring + tests)",
-        "user_value": "Fewer context switches: jump from task → code in one keystroke.",
         "scan_agent": "scan-innovation",
+        "user_value": "Fewer context switches: jump from task → code in one keystroke.",
+        "time_to_ship": "medium (TUI wiring + tests)",
         "opportunity_type": "ux improvement"
       }
     },
@@ -1989,10 +1989,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error.",
-        "time_to_ship": "medium (render-only UI + tests)",
         "scan_agent": "scan-innovation",
-        "opportunity_type": "ux improvement"
+        "opportunity_type": "ux improvement",
+        "time_to_ship": "medium (render-only UI + tests)",
+        "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error."
       }
     },
     {
@@ -2046,10 +2046,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types",
         "measurable_impact": "Track 20%+ improvement in task completion velocity after adoption",
-        "opportunity_type": "feature gap",
-        "scan_agent": "scan-innovation"
+        "scan_agent": "scan-innovation",
+        "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types",
+        "opportunity_type": "feature gap"
       }
     },
     {
@@ -2106,10 +2106,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "time_to_ship": "incremental - add one batch operation at a time",
         "opportunity_type": "UX improvement",
-        "user_value": "Reduces queue maintenance time by 80% for large projects",
-        "scan_agent": "scan-innovation"
+        "time_to_ship": "incremental - add one batch operation at a time",
+        "scan_agent": "scan-innovation",
+        "user_value": "Reduces queue maintenance time by 80% for large projects"
       }
     },
     {
@@ -2165,10 +2165,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "measurable_impact": "80%+ integration test coverage for CLI commands",
+        "user_value": "Reduces regression risk; enables confident refactoring",
         "opportunity_type": "reliability",
         "scan_agent": "scan-innovation",
-        "user_value": "Reduces regression risk; enables confident refactoring"
+        "measurable_impact": "80%+ integration test coverage for CLI commands"
       }
     },
     {
@@ -2231,10 +2231,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "differentiation": "Unique capability among AI task runners",
-        "opportunity_type": "feature gap",
         "scan_agent": "scan-innovation",
-        "user_value": "Enables ecosystem growth; custom integrations without forks"
+        "user_value": "Enables ecosystem growth; custom integrations without forks",
+        "opportunity_type": "feature gap",
+        "differentiation": "Unique capability among AI task runners"
       }
     },
     {
@@ -2789,6 +2789,81 @@
       "updated_at": "2026-02-06T04:25:03.219871000Z",
       "completed_at": "2026-02-06T04:25:03.219871000Z",
       "started_at": "2026-02-06T03:38:23.232373000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-innovation"
+      }
+    },
+    {
+      "id": "RQ-0647",
+      "status": "done",
+      "title": "Record execution_history for CLI runs (not just TUI) to unlock ETA",
+      "priority": "high",
+      "tags": [
+        "innovation",
+        "ux",
+        "eta",
+        "observability",
+        "run",
+        "cli"
+      ],
+      "scope": [
+        "crates/ralph/src/execution_history.rs",
+        "crates/ralph/src/eta_calculator.rs",
+        "crates/ralph/src/progress.rs",
+        "crates/ralph/src/commands/run/mod.rs",
+        "crates/ralph/src/commands/run/phases/",
+        "crates/ralph/src/commands/run/phases/mod.rs",
+        "crates/ralph/src/commands/run/phases/shared.rs",
+        "crates/ralph/src/commands/run/phases/phase1.rs",
+        "crates/ralph/src/commands/run/phases/phase2.rs",
+        "crates/ralph/src/commands/run/phases/phase3.rs",
+        "crates/ralph/src/commands/run/phases/single.rs",
+        "crates/ralph/src/commands/run/phases/tests.rs",
+        "crates/ralph/src/commands/run/supervision/",
+        "crates/ralph/src/commands/run/supervision/mod.rs",
+        "crates/ralph/src/tui/app.rs",
+        "crates/ralph/tests/",
+        "ralph run one",
+        "ralph run loop",
+        ".ralph/cache/"
+      ],
+      "evidence": [
+        "File: `crates/ralph/src/execution_history.rs` defines `record_execution(...)`, writing to `cache_dir.join(\"execution_history.json\")` (i.e., `.ralph/cache/execution_history.json`).",
+        "Repo evidence: `rg -n \"record_execution\\(\" crates/ralph/src` shows call sites in `crates/ralph/src/execution_history.rs` (unit tests) and `crates/ralph/src/tui/app.rs:446`; `rg -n \"record_execution\\(\" crates/ralph/src/commands/run` returns no matches, so CLI `ralph run one` / `ralph run loop` does not record execution history today.",
+        "Repo evidence: CLI post-run supervision is invoked from phase executors: `crates/ralph/src/commands/run/phases/phase2.rs` and `crates/ralph/src/commands/run/phases/single.rs` call `post_run_supervise(...)` on the final iteration, and `crates/ralph/src/commands/run/phases/phase3.rs` calls `post_run_supervise(...)` from `finalize_phase3_if_done(...)` when a task is `Done`.",
+        "Repo evidence: `crates/ralph/src/commands/run/phases/shared.rs:execute_runner_pass(...)` is the shared runner execution helper for phases 1/2/single, but phase 3 uses `runutil::run_prompt_with_handling(...)` directly; timing instrumentation must cover both paths to get complete per-phase durations.",
+        "Repo state: `.ralph/cache/` exists, but `.ralph/cache/execution_history.json` is absent in this repo, so CLI-first workflows cannot accumulate ETA history without adding recording outside the TUI."
+      ],
+      "plan": [
+        "Define CLI timing semantics: record wall-clock durations per phase (Planning/Implementation/Review or SinglePhase) and total duration; decide whether CI gate time is included (recommendation: exclude CI gate and only time runner execution + resume attempts for that phase).",
+        "Introduce a small timing accumulator type (e.g., `RunExecutionTimings`) that can collect `HashMap<ExecutionPhase, Duration>` plus `total_duration`, and thread it through the CLI run path (recommended insertion points: `crates/ralph/src/commands/run/phases/shared.rs` + call sites in `phase2.rs`, `single.rs`, and `phase3.rs`).",
+        "Instrument runner execution in phases: wrap `execute_runner_pass(...)` with `Instant::now()` timing for phase 1/2/single, and similarly time phase 3's `runutil::run_prompt_with_handling(...)` path so review time is captured.",
+        "Cover resume loops: when CI gate continue resumes a session (`supervision::resume_continue_session(...)`), attribute the resumed runner wall-clock time to the same phase bucket so long fix loops are reflected accurately.",
+        "Persist history only on real completion: in `crates/ralph/src/commands/run/supervision/mod.rs:post_run_supervise`, after the task is confirmed `Done`, call `crate::execution_history::record_execution(...)` with the accumulated timings and `.ralph/cache` dir; skip recording in `PostRunMode::ParallelWorker`.",
+        "Resolve runner/model metadata explicitly: CLI supports per-phase settings (phase matrix), but execution history is keyed by a single `(runner, model, phase_count)` today; decide and implement a deterministic rule (recommended: require runner/model to be consistent across phases or else skip recording with a warning).",
+        "Keep parity: refactor `crates/ralph/src/tui/app.rs` to reuse the same shared persistence helper so TUI and CLI write identical entry shapes and pruning behavior.",
+        "Add tests near the behavior: unit tests for the shared persistence helper (writes on Done; no-write on non-Done; no-write on parallel worker mode) and a focused integration test that constructs timings and validates `.ralph/cache/execution_history.json` is created/appended with stable keys.",
+        "Verify by running `make ci` and confirming it passes."
+      ],
+      "notes": [
+        "Opportunity type: UX improvement + reliability.",
+        "Why it matters: Predictable iteration speed depends on accumulating real historical run durations across all entrypoints.",
+        "Observation (current): execution history is written only from the TUI path (`crates/ralph/src/tui/app.rs`), even though CLI run finalization routes through `post_run_supervise(...)` in the phases module; `.ralph/cache/execution_history.json` is still absent in this repo.",
+        "Observation (current): `crates/ralph/src/execution_history.rs` and `crates/ralph/src/eta_calculator.rs` already have unit tests, so the missing piece is wiring + timing in the CLI run path (not the persistence/ETA math).",
+        "Acceptance criteria: After CLI runs, `.ralph/cache/execution_history.json` exists and ETA calculations have data; tests cover creation + append behavior and no-write on non-Done outcomes.",
+        "CLI runs now append .ralph/cache/execution_history.json when (and only when) the task is archived Done",
+        "Removed unsafe raw-pointer timing plumbing; now uses RefCell timing sink passed through phases",
+        "Recorded runner wall-clock time for initial passes and CI resume continues across phases (including Phase 3)",
+        "Added focused unit tests for CLI execution-history recording (record/skip/append/mixed runner-model)"
+      ],
+      "request": "innovation scan finding",
+      "created_at": "2026-02-06T01:53:55Z",
+      "updated_at": "2026-02-06T05:39:15.331714000Z",
+      "completed_at": "2026-02-06T05:39:15.331714000Z",
+      "started_at": "2026-02-06T04:31:23.756429000Z",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],

@@ -3,10 +3,15 @@
 //! This module isolates multi-phase runner workflows (planning, implementation,
 //! code review) from higher-level orchestration in `crate::commands::run`.
 
+use std::cell::RefCell;
+
 use crate::commands::run::supervision::PushPolicy;
 use crate::config;
 use crate::contracts::{GitRevertMode, ProjectType, Runner};
 use crate::{promptflow, runner, runutil};
+
+// Re-export execution timing types for use by phase implementations
+pub(crate) use crate::commands::run::execution_timings::RunExecutionTimings;
 
 mod phase1;
 mod phase2;
@@ -54,7 +59,6 @@ pub enum PostRunMode {
 /// This struct intentionally groups parameters to keep function signatures small and
 /// avoid clippy `too_many_arguments`, while preserving exact behaviors from
 /// `crate::commands::run`.
-#[derive(Clone)]
 pub struct PhaseInvocation<'a> {
     pub resolved: &'a config::Resolved,
     pub settings: &'a runner::AgentSettings,
@@ -83,6 +87,8 @@ pub struct PhaseInvocation<'a> {
     pub lfs_check: bool,
     /// Disable progress indicators and celebrations (--no-progress).
     pub no_progress: bool,
+    /// Optional execution timings accumulator for recording phase durations.
+    pub execution_timings: Option<&'a RefCell<RunExecutionTimings>>,
 }
 
 /// Generate a unique session ID for runner session resumption.

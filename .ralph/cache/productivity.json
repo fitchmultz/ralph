@@ -1,7 +1,7 @@
 {
   "version": 1,
   "first_task_completed_at": "2026-01-30T12:31:17.161199000Z",
-  "last_updated_at": "2026-02-06T04:26:29.179330000Z",
+  "last_updated_at": "2026-02-06T05:40:36.390869000Z",
   "daily": {
     "2026-01-30": {
       "date": "2026-01-30",
@@ -702,7 +702,7 @@
     },
     "2026-02-06": {
       "date": "2026-02-06",
-      "completed_count": 5,
+      "completed_count": 6,
       "tasks": [
         {
           "id": "RQ-0633",
@@ -728,6 +728,11 @@
           "id": "RQ-0646",
           "title": "Add `ralph queue import` (CSV/TSV/JSON) to complement export",
           "completed_at": "2026-02-06T04:26:29.179329000Z"
+        },
+        {
+          "id": "RQ-0647",
+          "title": "Record execution_history for CLI runs (not just TUI) to unlock ETA",
+          "completed_at": "2026-02-06T05:40:36.390869000Z"
         }
       ]
     }
@@ -737,7 +742,7 @@
     "longest_streak": 8,
     "last_completed_date": "2026-02-06"
   },
-  "total_completed": 136,
+  "total_completed": 137,
   "milestones": [
     {
       "threshold": 10,

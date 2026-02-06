@@ -2,55 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0647",
-      "status": "todo",
-      "title": "Record execution_history for CLI runs (not just TUI) to unlock ETA",
-      "priority": "high",
-      "tags": [
-        "innovation",
-        "ux",
-        "eta",
-        "observability",
-        "run"
-      ],
-      "scope": [
-        "crates/ralph/src/execution_history.rs",
-        "crates/ralph/src/eta_calculator.rs",
-        "crates/ralph/src/commands/run/",
-        "crates/ralph/src/tui/app.rs",
-        "crates/ralph/tests/",
-        "ralph run one",
-        ".ralph/cache/execution_history.json"
-      ],
-      "evidence": [
-        "File: `crates/ralph/src/execution_history.rs` defines `record_execution(...)` and persists to `.ralph/cache/execution_history.json` for ETA estimation.",
-        "Repo evidence: `rg -n \"record_execution\\(\" crates/ralph/src` shows only `crates/ralph/src/tui/app.rs` calls `record_execution`, so CLI `ralph run one/loop/resume` does not currently record execution history.",
-        "UX impact: ETA estimates and history-based guidance cannot improve for CLI-first workflows (including parallel mode) if history is only recorded in TUI."
-      ],
-      "plan": [
-        "Identify a single canonical place in the supervisor (shared by TUI + CLI) where per-phase start/end times are known and task outcome is determined.",
-        "Refactor execution timing capture so both CLI and TUI paths call the same helper to append an entry to `.ralph/cache/execution_history.json` (include runner/model and configured phase_count).",
-        "Define policy: record only successful task completions vs also record failed attempts (start with success-only; add failed-attempt recording behind a flag if needed).",
-        "Add tests that run a minimal supervised task in a temp repo and assert `.ralph/cache/execution_history.json` is created/updated with the expected fields.",
-        "Update docs (`docs/cli.md` and/or `docs/workflow.md`) to mention where ETA data comes from and that CLI runs contribute to it.",
-        "Verify by running `make ci` and confirming it passes."
-      ],
-      "notes": [
-        "Opportunity type: UX improvement + reliability.",
-        "Why it matters: Predictable iteration speed depends on accumulating real historical run durations across all entrypoints.",
-        "Acceptance criteria: After CLI runs, `.ralph/cache/execution_history.json` exists and ETA calculations have data; tests cover creation + append behavior."
-      ],
-      "request": "innovation scan finding",
-      "created_at": "2026-02-06T01:53:55Z",
-      "updated_at": "2026-02-06T01:53:55Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-innovation"
-      }
-    },
-    {
       "id": "RQ-0648",
       "status": "todo",
       "title": "Expose ETA estimates in CLI (queue list/next/stats) using execution_history",

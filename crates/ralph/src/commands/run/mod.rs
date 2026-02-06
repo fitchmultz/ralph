@@ -34,8 +34,11 @@ use crate::signal;
 
 use crate::{git, prompts, queue, runner, runutil};
 use anyhow::{Context, Result, bail};
+use std::cell::RefCell;
 
 mod context;
+mod execution_history_cli;
+mod execution_timings;
 mod iteration;
 mod logging;
 pub mod parallel;
@@ -45,6 +48,7 @@ mod selection;
 mod supervision;
 
 pub(crate) use context::{mark_task_doing, task_context_for_prompt};
+pub(crate) use execution_timings::RunExecutionTimings;
 pub(crate) use iteration::{apply_followup_reasoning_effort, resolve_iteration_settings};
 pub(crate) use run_session::{create_session_for_task, validate_resumed_task};
 pub(crate) use selection::select_run_one_task_index;
@@ -799,6 +803,14 @@ fn run_one_impl(
 
     log::info!("Task {task_id}: start");
 
+    // Create execution timings accumulator for CLI runs (not parallel worker mode)
+    let execution_timings: Option<RefCell<RunExecutionTimings>> =
+        if post_run_mode == phases::PostRunMode::ParallelWorker {
+            None
+        } else {
+            Some(RefCell::new(RunExecutionTimings::default()))
+        };
+
     let exec_result: Result<()> = (|| {
         // --- Prompt Construction ---
         let template = prompts::load_worker_prompt(&resolved.repo_root)?;
@@ -883,6 +895,7 @@ fn run_one_impl(
                         notify_sound: agent_overrides.notify_sound,
                         lfs_check: agent_overrides.lfs_check.unwrap_or(false),
                         no_progress: agent_overrides.no_progress.unwrap_or(false),
+                        execution_timings: execution_timings.as_ref(),
                     };
                     let plan_text = phases::execute_phase1_planning(&phase1_invocation, 2)?;
 
@@ -911,6 +924,7 @@ fn run_one_impl(
                         notify_sound: agent_overrides.notify_sound,
                         lfs_check: agent_overrides.lfs_check.unwrap_or(false),
                         no_progress: agent_overrides.no_progress.unwrap_or(false),
+                        execution_timings: execution_timings.as_ref(),
                     };
                     phases::execute_phase2_implementation(&phase2_invocation, 2, &plan_text)?;
                 }
@@ -940,6 +954,7 @@ fn run_one_impl(
                         notify_sound: agent_overrides.notify_sound,
                         lfs_check: agent_overrides.lfs_check.unwrap_or(false),
                         no_progress: agent_overrides.no_progress.unwrap_or(false),
+                        execution_timings: execution_timings.as_ref(),
                     };
                     let plan_text = phases::execute_phase1_planning(&phase1_invocation, 3)?;
 
@@ -968,6 +983,7 @@ fn run_one_impl(
                         notify_sound: agent_overrides.notify_sound,
                         lfs_check: agent_overrides.lfs_check.unwrap_or(false),
                         no_progress: agent_overrides.no_progress.unwrap_or(false),
+                        execution_timings: execution_timings.as_ref(),
                     };
                     phases::execute_phase2_implementation(&phase2_invocation, 3, &plan_text)?;
 
@@ -996,6 +1012,7 @@ fn run_one_impl(
                         notify_sound: agent_overrides.notify_sound,
                         lfs_check: agent_overrides.lfs_check.unwrap_or(false),
                         no_progress: agent_overrides.no_progress.unwrap_or(false),
+                        execution_timings: execution_timings.as_ref(),
                     };
                     phases::execute_phase3_review(&phase3_invocation)?;
                 }
@@ -1025,6 +1042,7 @@ fn run_one_impl(
                         notify_sound: agent_overrides.notify_sound,
                         lfs_check: agent_overrides.lfs_check.unwrap_or(false),
                         no_progress: agent_overrides.no_progress.unwrap_or(false),
+                        execution_timings: execution_timings.as_ref(),
                     };
                     phases::execute_single_phase(&single_invocation)?;
                 }
@@ -1044,6 +1062,33 @@ fn run_one_impl(
     match exec_result {
         Ok(()) => {
             log::info!("Task {task_id}: end");
+
+            // Persist execution history after successful completion
+            if post_run_mode != phases::PostRunMode::ParallelWorker
+                && let Some(timings) = execution_timings
+            {
+                match execution_history_cli::try_record_execution_history_for_cli_run(
+                    &resolved.repo_root,
+                    &resolved.done_path,
+                    &task_id,
+                    phases,
+                    timings.into_inner(),
+                ) {
+                    Ok(true) => {
+                        log::debug!("Recorded execution history for {} (CLI mode)", task_id)
+                    }
+                    Ok(false) => log::debug!(
+                        "Skipping execution history for {}: task not Done or timing payload unavailable.",
+                        task_id
+                    ),
+                    Err(err) => log::warn!(
+                        "Failed to record execution history for {}: {}",
+                        task_id,
+                        err
+                    ),
+                }
+            }
+
             Ok(RunOutcome::Ran { task_id })
         }
         Err(err) => {

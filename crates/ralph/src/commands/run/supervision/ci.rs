@@ -84,7 +84,7 @@ pub(crate) fn run_ci_gate_with_continue_session<F>(
     mut on_resume: F,
 ) -> Result<()>
 where
-    F: FnMut(&crate::runner::RunnerOutput) -> Result<()>,
+    F: FnMut(&crate::runner::RunnerOutput, std::time::Duration) -> Result<()>,
 {
     loop {
         match run_ci_gate(resolved) {
@@ -102,9 +102,9 @@ where
                     );
 
                     let message = strict_ci_gate_compliance_message(resolved);
-                    let output =
+                    let (output, elapsed) =
                         super::resume_continue_session(resolved, continue_session, &message)?;
-                    on_resume(&output)?;
+                    on_resume(&output, elapsed)?;
                     continue;
                 }
 
@@ -117,9 +117,9 @@ where
 
                 match outcome {
                     runutil::RevertOutcome::Continue { message } => {
-                        let output =
+                        let (output, elapsed) =
                             super::resume_continue_session(resolved, continue_session, &message)?;
-                        on_resume(&output)?;
+                        on_resume(&output, elapsed)?;
                         continue;
                     }
                     _ => {

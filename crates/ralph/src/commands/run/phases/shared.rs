@@ -1,10 +1,13 @@
 //! Shared helpers for run phase execution.
 
-use super::{PhaseInvocation, PhaseType};
+use super::{PhaseInvocation, PhaseType, RunExecutionTimings};
 use crate::commands::run::supervision;
 use crate::config;
 use crate::{runner, runutil};
 use anyhow::Result;
+
+use std::cell::RefCell;
+use std::time::Instant;
 
 pub(super) fn run_ci_gate_with_continue<F>(
     ctx: &PhaseInvocation<'_>,
@@ -12,17 +15,20 @@ pub(super) fn run_ci_gate_with_continue<F>(
     mut on_resume: F,
 ) -> Result<()>
 where
-    F: FnMut(&runner::RunnerOutput) -> Result<()>,
+    F: FnMut(&runner::RunnerOutput, std::time::Duration) -> Result<()>,
 {
     supervision::run_ci_gate_with_continue_session(
         ctx.resolved,
         ctx.git_revert_mode,
         ctx.revert_prompt.as_ref(),
         &mut continue_session,
-        |output| on_resume(output),
+        |output, elapsed| on_resume(output, elapsed),
     )
 }
 
+/// Execute a runner pass with optional timing instrumentation.
+///
+/// If `execution_timings` is provided, the elapsed runner time will be recorded.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn execute_runner_pass(
     resolved: &config::Resolved,
@@ -37,10 +43,12 @@ pub(super) fn execute_runner_pass(
     log_label: &str,
     phase_type: PhaseType,
     session_id: Option<String>,
+    execution_timings: Option<&RefCell<RunExecutionTimings>>,
 ) -> Result<runner::RunnerOutput> {
     let permission_mode = resolved.config.agent.claude_permission_mode;
+    let start = Instant::now();
 
-    runutil::run_prompt_with_handling(
+    let output = runutil::run_prompt_with_handling(
         runutil::RunnerInvocation {
             repo_root: &resolved.repo_root,
             runner_kind: settings.runner.clone(),
@@ -76,5 +84,16 @@ pub(super) fn execute_runner_pass(
                 )
             },
         },
-    )
+    )?;
+
+    if let Some(timings) = execution_timings {
+        timings.borrow_mut().record_runner_duration(
+            phase_type,
+            &settings.runner,
+            &settings.model,
+            start.elapsed(),
+        );
+    }
+
+    Ok(output)
 }

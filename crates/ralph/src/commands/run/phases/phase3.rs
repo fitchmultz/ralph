@@ -8,6 +8,7 @@ use crate::config;
 use crate::contracts::{GitRevertMode, TaskStatus};
 use crate::{git, promptflow, prompts, queue, runner, runutil, timeutil};
 use anyhow::{Result, anyhow, bail};
+use std::time::Instant;
 
 pub fn execute_phase3_review(ctx: &PhaseInvocation<'_>) -> Result<()> {
     let label = logging::phase_label(3, 3, "Review", ctx.task_id);
@@ -68,6 +69,7 @@ pub fn execute_phase3_review(ctx: &PhaseInvocation<'_>) -> Result<()> {
 
         let phase_session_id =
             phase_session_id_for_runner(ctx.settings.runner.clone(), ctx.task_id, 3);
+        let start = Instant::now();
         let output = runutil::run_prompt_with_handling(
             runutil::RunnerInvocation {
                 repo_root: &ctx.resolved.repo_root,
@@ -105,6 +107,14 @@ pub fn execute_phase3_review(ctx: &PhaseInvocation<'_>) -> Result<()> {
                 },
             },
         )?;
+        if let Some(timings) = ctx.execution_timings {
+            timings.borrow_mut().record_runner_duration(
+                PhaseType::Review,
+                &ctx.settings.runner,
+                &ctx.settings.model,
+                start.elapsed(),
+            );
+        }
 
         if !ctx.is_final_iteration {
             let continue_session = supervision::ContinueSession {
@@ -118,7 +128,20 @@ pub fn execute_phase3_review(ctx: &PhaseInvocation<'_>) -> Result<()> {
                 output_stream: ctx.output_stream,
                 ci_failure_retry_count: 0,
             };
-            run_ci_gate_with_continue(ctx, continue_session, |_output| Ok(()))?;
+            let timings = ctx.execution_timings;
+            let runner = ctx.settings.runner.clone();
+            let model = ctx.settings.model.clone();
+            run_ci_gate_with_continue(ctx, continue_session, |_output, elapsed| {
+                if let Some(timings) = timings {
+                    timings.borrow_mut().record_runner_duration(
+                        PhaseType::Review,
+                        &runner,
+                        &model,
+                        elapsed,
+                    );
+                }
+                Ok(())
+            })?;
             if completions::take_completion_signal(&ctx.resolved.repo_root, ctx.task_id)?.is_some()
             {
                 log::warn!(
@@ -142,7 +165,10 @@ pub fn execute_phase3_review(ctx: &PhaseInvocation<'_>) -> Result<()> {
         };
 
         if ctx.post_run_mode == PostRunMode::ParallelWorker {
-            let mut on_resume = |_resume_output: &runner::RunnerOutput| Ok(());
+            let _runner = ctx.settings.runner.clone();
+            let _model = ctx.settings.model.clone();
+            let mut on_resume =
+                |_resume_output: &runner::RunnerOutput, _elapsed: std::time::Duration| Ok(());
             crate::commands::run::post_run_supervise_parallel_worker(
                 ctx.resolved,
                 ctx.task_id,
@@ -160,7 +186,22 @@ pub fn execute_phase3_review(ctx: &PhaseInvocation<'_>) -> Result<()> {
         }
 
         let mut finalized = false;
-        let mut on_resume = |_resume_output: &runner::RunnerOutput| Ok(());
+        let runner = ctx.settings.runner.clone();
+        let model = ctx.settings.model.clone();
+        let timings = ctx.execution_timings;
+        let mut on_resume = move |_resume_output: &runner::RunnerOutput,
+                                  elapsed: std::time::Duration| {
+            // Record resume duration for Phase 3
+            if let Some(timings) = timings {
+                timings.borrow_mut().record_runner_duration(
+                    PhaseType::Review,
+                    &runner,
+                    &model,
+                    elapsed,
+                );
+            }
+            Ok(())
+        };
 
         loop {
             let applied_status = apply_phase3_completion_signal(ctx.resolved, ctx.task_id)?;
@@ -197,11 +238,20 @@ pub fn execute_phase3_review(ctx: &PhaseInvocation<'_>) -> Result<()> {
                     )?;
                     match outcome {
                         runutil::RevertOutcome::Continue { message } => {
-                            let _output = supervision::resume_continue_session(
+                            let (_output, elapsed) = supervision::resume_continue_session(
                                 ctx.resolved,
                                 &mut continue_session,
                                 &message,
                             )?;
+                            // Record resume duration for Phase 3
+                            if let Some(timings) = ctx.execution_timings {
+                                timings.borrow_mut().record_runner_duration(
+                                    PhaseType::Review,
+                                    &continue_session.runner,
+                                    &continue_session.model,
+                                    elapsed,
+                                );
+                            }
                             continue;
                         }
                         _ => {

@@ -411,14 +411,35 @@ impl App {
     }
 
     /// Record execution history for the completed task.
-    fn record_execution_history(&self) {
-        let Some(ref task_id) = self.running_task_id else {
-            return;
-        };
-
+    ///
+    /// Only records if the task is actually Done in the done archive.
+    fn record_execution_history_for_task(&self, task_id: &str, done_path: &std::path::Path) {
         let Some(cache_dir) = self.cache_dir() else {
             return;
         };
+
+        // Only record if the task is actually Done in done.json.
+        let task_in_done = match crate::queue::load_queue_or_default(done_path) {
+            Ok(done) => done
+                .tasks
+                .iter()
+                .any(|t| t.id == task_id && t.status == crate::contracts::TaskStatus::Done),
+            Err(err) => {
+                log::warn!(
+                    "Skipping execution history for {}: read done.json failed: {}",
+                    task_id,
+                    err
+                );
+                return;
+            }
+        };
+        if !task_in_done {
+            log::debug!(
+                "Skipping execution history for {}: task not in done with Done status",
+                task_id
+            );
+            return;
+        }
 
         // Get runner and model from config
         let runner = self
@@ -443,7 +464,7 @@ impl App {
         let total_duration = self.total_execution_time();
 
         // Record execution (ignore errors - this is best-effort)
-        let _ = crate::execution_history::record_execution(
+        let result = crate::execution_history::record_execution(
             task_id,
             &runner,
             &model,
@@ -452,6 +473,15 @@ impl App {
             total_duration,
             &cache_dir,
         );
+
+        match result {
+            Ok(()) => log::debug!("Recorded execution history for {} in TUI mode", task_id),
+            Err(err) => log::warn!(
+                "Failed to record execution history for {}: {}",
+                task_id,
+                err
+            ),
+        }
     }
 
     /// Get elapsed time for a specific phase.
@@ -2649,6 +2679,8 @@ where
                     }
                     RunnerEvent::Finished => {
                         app_ref.runner_active = false;
+                        // Capture the task ID before clearing it (needed for execution history)
+                        let finished_task_id = app_ref.running_task_id.clone();
                         app_ref.running_task_id = None;
                         // Mark execution as complete for phase tracking
                         if app_ref.running_kind == Some(RunningKind::Task) {
@@ -2664,8 +2696,10 @@ where
                                 app_ref.on_task_builder_finished(queue_path, done_path);
                             }
                             Some(RunningKind::Task) | None => {
-                                // Record execution history for completed task
-                                app_ref.record_execution_history();
+                                // Record execution history for completed task (only if Done)
+                                if let Some(ref task_id) = finished_task_id {
+                                    app_ref.record_execution_history_for_task(task_id, done_path);
+                                }
 
                                 app_ref.reload_queues_from_disk(queue_path, done_path);
 
