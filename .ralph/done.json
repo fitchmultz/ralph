@@ -1300,10 +1300,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "reliability",
         "scan_agent": "scan-innovation",
+        "time_to_ship": "medium (concurrency + tests)",
         "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort.",
-        "time_to_ship": "medium (concurrency + tests)"
+        "opportunity_type": "reliability"
       }
     },
     {
@@ -1345,10 +1345,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current.",
         "opportunity_type": "ux improvement",
+        "scan_agent": "scan-innovation",
         "time_to_ship": "medium (metadata + reconciliation + tests)",
-        "scan_agent": "scan-innovation"
+        "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current."
       }
     },
     {
@@ -1394,10 +1394,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "time_to_ship": "medium (format + fixes + tests)",
-        "scan_agent": "scan-innovation",
         "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics.",
-        "opportunity_type": "ux improvement"
+        "time_to_ship": "medium (format + fixes + tests)",
+        "opportunity_type": "ux improvement",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -1441,10 +1441,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "time_to_ship": "small/medium (formatters + tests)",
         "opportunity_type": "ux improvement",
-        "scan_agent": "scan-innovation",
         "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat).",
-        "time_to_ship": "small/medium (formatters + tests)"
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -1934,8 +1934,8 @@
       "custom_fields": {
         "user_value": "Fewer context switches: jump from task → code in one keystroke.",
         "time_to_ship": "medium (TUI wiring + tests)",
-        "opportunity_type": "ux improvement",
-        "scan_agent": "scan-innovation"
+        "scan_agent": "scan-innovation",
+        "opportunity_type": "ux improvement"
       }
     },
     {
@@ -1989,9 +1989,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error.",
         "time_to_ship": "medium (render-only UI + tests)",
         "opportunity_type": "ux improvement",
+        "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error.",
         "scan_agent": "scan-innovation"
       }
     },
@@ -2046,10 +2046,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types",
-        "measurable_impact": "Track 20%+ improvement in task completion velocity after adoption",
+        "opportunity_type": "feature gap",
         "scan_agent": "scan-innovation",
-        "opportunity_type": "feature gap"
+        "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types",
+        "measurable_impact": "Track 20%+ improvement in task completion velocity after adoption"
       }
     },
     {
@@ -2106,10 +2106,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "UX improvement",
-        "scan_agent": "scan-innovation",
+        "time_to_ship": "incremental - add one batch operation at a time",
         "user_value": "Reduces queue maintenance time by 80% for large projects",
-        "time_to_ship": "incremental - add one batch operation at a time"
+        "opportunity_type": "UX improvement",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -2165,10 +2165,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "opportunity_type": "reliability",
         "measurable_impact": "80%+ integration test coverage for CLI commands",
-        "scan_agent": "scan-innovation",
         "user_value": "Reduces regression risk; enables confident refactoring",
-        "opportunity_type": "reliability"
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -2231,10 +2231,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "user_value": "Enables ecosystem growth; custom integrations without forks",
         "opportunity_type": "feature gap",
-        "differentiation": "Unique capability among AI task runners",
         "scan_agent": "scan-innovation",
-        "user_value": "Enables ecosystem growth; custom integrations without forks"
+        "differentiation": "Unique capability among AI task runners"
       }
     },
     {
@@ -2484,6 +2484,57 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0633",
+      "status": "done",
+      "title": "Make LFS health checks fail loud (stop swallowing git/lfs errors)",
+      "priority": "high",
+      "tags": [
+        "maintenance",
+        "correctness",
+        "git",
+        "lfs"
+      ],
+      "scope": [
+        "crates/ralph/src/git/lfs.rs",
+        "crates/ralph/src/commands/run/supervision/git_ops.rs",
+        "make test",
+        "make ci"
+      ],
+      "evidence": [
+        "crates/ralph/src/git/lfs.rs:539-542: rustdoc for `check_lfs_health` says it returns `Err(anyhow::Error)` if validation fails.",
+        "crates/ralph/src/git/lfs.rs:565-572: `check_lfs_health` discards errors via `.ok()` / `unwrap_or_default()` (e.g. `check_lfs_status(repo_root).ok()`, `list_lfs_files(repo_root).unwrap_or_default()`).",
+        "crates/ralph/src/git/lfs.rs:168-186: `LfsHealthReport::is_healthy` ignores missing `filter_status` / `status_summary` (`Option` fields), so suppressed errors can still yield a \"healthy\" report.",
+        "crates/ralph/src/commands/run/supervision/git_ops.rs:85-101: `warn_if_modified_lfs` logs and returns `Ok(())` when `has_lfs`/`check_lfs_health` return `Err` (even when `strict` is true)."
+      ],
+      "plan": [
+        "Define failure semantics for `check_lfs_health`: treat unexpected `git lfs status` / `git lfs ls-files` failures as `Err`, but keep the existing \"LFS not installed / not initialized\" stderr carve-outs as `Ok` defaults.",
+        "In `crates/ralph/src/git/lfs.rs`, replace `.ok()` / `unwrap_or_default()` with explicit error handling: propagate errors with `?` (or capture them into the report if we choose to keep `Ok(report)` in all cases).",
+        "In `crates/ralph/src/commands/run/supervision/git_ops.rs`, make `warn_if_modified_lfs(..., strict=true)` fail loud: propagate `has_lfs` / `check_lfs_health` errors instead of logging and returning `Ok(())`.",
+        "Add unit tests for the new contract: create a temp dir with a `.gitattributes` containing `filter=lfs` but no `.git/`, and assert (a) `check_lfs_health` returns `Err` and (b) `warn_if_modified_lfs(..., strict=true)` returns `Err` (and `strict=false` returns `Ok(())`).",
+        "Update rustdoc for `check_lfs_health` (and examples) to reflect the final error/return behavior.",
+        "Verify with `make test` and `make ci`."
+      ],
+      "notes": [
+        "Repo state as of 2026-02-05: `check_lfs_health` suppresses `git lfs` command failures, and the supervision callsite (`warn_if_modified_lfs`) also suppresses `Err` paths by logging and continuing.",
+        "Propagate unexpected git/LFS failures from check_lfs_health (no more .ok()/unwrap_or_default swallowing)",
+        "warn_if_modified_lfs(strict=true) now fails loud on detection/health/status/list errors; strict=false preserves warn-and-continue",
+        "validate_lfs_filters now treats fatal git config failures as errors while missing keys remain a misconfig signal",
+        "Added regression tests for strict/non-strict error propagation using a repo with corrupted .git/config",
+        "Stabilized with_scope logging unit tests to ignore unrelated parallel-test logs"
+      ],
+      "request": "maintenance scan finding",
+      "created_at": "2026-02-05T20:49:31Z",
+      "updated_at": "2026-02-06T00:08:16.205752000Z",
+      "completed_at": "2026-02-06T00:08:16.205752000Z",
+      "started_at": "2026-02-05T23:28:27.196415000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-maintenance"
+      }
     }
   ]
 }

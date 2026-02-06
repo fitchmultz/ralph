@@ -94,12 +94,15 @@ mod tests {
         let (_, logs) = take_logs();
         if state == LoggerState::TestLogger {
             let expected = vec!["ScopeA: start", "ScopeA: end"];
-            if logs != expected {
-                assert!(
-                    logs.is_empty(),
-                    "unexpected logs: {logs:?} (expected {expected:?})"
-                );
-            }
+            let relevant = logs
+                .iter()
+                .filter(|line| line.starts_with("ScopeA:"))
+                .cloned()
+                .collect::<Vec<_>>();
+            assert_eq!(
+                relevant, expected,
+                "unexpected logs: {logs:?} (expected {expected:?})"
+            );
         }
         Ok(())
     }
@@ -115,9 +118,15 @@ mod tests {
         if state == LoggerState::TestLogger {
             let expected_full = vec!["ScopeB: start", "ScopeB: error: boom"];
             let expected_partial = vec!["ScopeB: error: boom"];
-            if logs != expected_full && logs != expected_partial {
-                assert!(logs.is_empty(), "unexpected logs: {logs:?}");
-            }
+            let relevant = logs
+                .iter()
+                .filter(|line| line.starts_with("ScopeB:"))
+                .cloned()
+                .collect::<Vec<_>>();
+            assert!(
+                relevant == expected_full || relevant == expected_partial,
+                "unexpected logs: {logs:?}"
+            );
         }
     }
 

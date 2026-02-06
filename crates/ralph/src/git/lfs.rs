@@ -165,20 +165,26 @@ pub struct LfsHealthReport {
 
 impl LfsHealthReport {
     /// Returns true if LFS is fully healthy.
+    ///
+    /// When `lfs_initialized` is true, missing required sub-results
+    /// (`filter_status` or `status_summary`) are treated as unhealthy
+    /// since they indicate the health check could not complete.
     pub fn is_healthy(&self) -> bool {
         if !self.lfs_initialized {
             return true; // No LFS is also "healthy" (nothing to check)
         }
 
-        if let Some(ref filter) = self.filter_status
-            && !filter.is_healthy()
-        {
+        let Some(ref filter) = self.filter_status else {
+            return false;
+        };
+        if !filter.is_healthy() {
             return false;
         }
 
-        if let Some(ref status) = self.status_summary
-            && !status.is_clean()
-        {
+        let Some(ref status) = self.status_summary else {
+            return false;
+        };
+        if !status.is_clean() {
             return false;
         }
 
@@ -285,6 +291,30 @@ pub fn list_lfs_files(repo_root: &Path) -> Result<Vec<String>> {
 /// }
 /// ```
 pub fn validate_lfs_filters(repo_root: &Path) -> Result<LfsFilterStatus, GitError> {
+    fn parse_config_get_output(
+        args: &str,
+        output: &std::process::Output,
+    ) -> Result<(bool, Option<String>), GitError> {
+        if output.status.success() {
+            let value = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            return Ok((true, Some(value)));
+        }
+
+        // `git config --get` returns exit code 1 with empty stderr when the key is missing.
+        // That is a normal "misconfigured" state for our purposes (not a hard failure).
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stderr = stderr.trim();
+        if !stderr.is_empty() {
+            return Err(GitError::CommandFailed {
+                args: args.to_string(),
+                code: output.status.code(),
+                stderr: stderr.to_string(),
+            });
+        }
+
+        Ok((false, None))
+    }
+
     let smudge_output = git_base_command(repo_root)
         .args(["config", "--get", "filter.lfs.smudge"])
         .output()
@@ -305,28 +335,10 @@ pub fn validate_lfs_filters(repo_root: &Path) -> Result<LfsFilterStatus, GitErro
             )
         })?;
 
-    let smudge_installed = smudge_output.status.success();
-    let clean_installed = clean_output.status.success();
-
-    let smudge_value = if smudge_installed {
-        Some(
-            String::from_utf8_lossy(&smudge_output.stdout)
-                .trim()
-                .to_string(),
-        )
-    } else {
-        None
-    };
-
-    let clean_value = if clean_installed {
-        Some(
-            String::from_utf8_lossy(&clean_output.stdout)
-                .trim()
-                .to_string(),
-        )
-    } else {
-        None
-    };
+    let (smudge_installed, smudge_value) =
+        parse_config_get_output("config --get filter.lfs.smudge", &smudge_output)?;
+    let (clean_installed, clean_value) =
+        parse_config_get_output("config --get filter.lfs.clean", &clean_output)?;
 
     Ok(LfsFilterStatus {
         smudge_installed,
@@ -537,8 +549,12 @@ pub fn validate_lfs_pointers(repo_root: &Path, files: &[String]) -> Result<Vec<L
 /// * `repo_root` - Path to the repository root
 ///
 /// # Returns
-/// * `Ok(LfsHealthReport)` - Complete health report
-/// * `Err(anyhow::Error)` - If validation fails
+/// * `Ok(LfsHealthReport)` - Complete health report with `lfs_initialized=false`
+///   when LFS is not detected, or full results when LFS is initialized
+/// * `Err(anyhow::Error)` - If an unexpected git/LFS command fails while LFS
+///   is detected. Known non-fatal conditions ("not a git lfs repository",
+///   "git: lfs is not a git command") are handled internally and returned
+///   as empty/default Ok results.
 ///
 /// # Example
 /// ```
@@ -562,13 +578,17 @@ pub fn check_lfs_health(repo_root: &Path) -> Result<LfsHealthReport> {
         });
     }
 
-    let filter_status = validate_lfs_filters(repo_root).ok();
-    let status_summary = check_lfs_status(repo_root).ok();
+    // Run all sub-checks and propagate unexpected failures.
+    // The underlying functions (check_lfs_status, list_lfs_files) already
+    // treat certain stderr patterns ("not a git lfs repository", etc.) as
+    // non-fatal and return Ok defaults in those cases.
+    let filter_status = Some(validate_lfs_filters(repo_root)?);
+    let status_summary = Some(check_lfs_status(repo_root)?);
 
     // Validate pointers for tracked LFS files
-    let lfs_files = list_lfs_files(repo_root).unwrap_or_default();
+    let lfs_files = list_lfs_files(repo_root)?;
     let pointer_issues = if !lfs_files.is_empty() {
-        validate_lfs_pointers(repo_root, &lfs_files).unwrap_or_default()
+        validate_lfs_pointers(repo_root, &lfs_files)?
     } else {
         Vec::new()
     };
@@ -714,6 +734,33 @@ mod lfs_validation_tests {
     }
 
     #[test]
+    fn lfs_health_report_is_not_healthy_when_filter_status_missing() {
+        let report = LfsHealthReport {
+            lfs_initialized: true,
+            filter_status: None,
+            status_summary: Some(LfsStatusSummary::default()),
+            pointer_issues: vec![],
+        };
+        assert!(!report.is_healthy());
+    }
+
+    #[test]
+    fn lfs_health_report_is_not_healthy_when_status_summary_missing() {
+        let report = LfsHealthReport {
+            lfs_initialized: true,
+            filter_status: Some(LfsFilterStatus {
+                smudge_installed: true,
+                clean_installed: true,
+                smudge_value: Some("git-lfs smudge %f".to_string()),
+                clean_value: Some("git-lfs clean %f".to_string()),
+            }),
+            status_summary: None,
+            pointer_issues: vec![],
+        };
+        assert!(!report.is_healthy());
+    }
+
+    #[test]
     fn lfs_health_report_is_not_healthy_with_filter_issues() {
         let report = LfsHealthReport {
             lfs_initialized: true,
@@ -837,5 +884,29 @@ mod lfs_validation_tests {
             path: "binary.bin".to_string(),
         };
         assert_eq!(issue.path(), "binary.bin");
+    }
+
+    #[test]
+    fn check_lfs_health_errors_when_lfs_detected_but_git_config_fails() {
+        let temp = TempDir::new().expect("tempdir");
+        // Create a valid git repo
+        git_test::init_repo(temp.path()).expect("init repo");
+        // Create .gitattributes with LFS filter
+        std::fs::write(temp.path().join(".gitattributes"), "*.bin filter=lfs\n")
+            .expect("write gitattributes");
+        // Create a fake .git/lfs directory to trigger LFS detection
+        std::fs::create_dir_all(temp.path().join(".git/lfs")).expect("create lfs dir");
+
+        // Break git by corrupting .git/config. This should cause git config and git lfs
+        // commands to fail unexpectedly.
+        std::fs::write(temp.path().join(".git/config"), "not a valid config")
+            .expect("write invalid config");
+
+        let err = check_lfs_health(temp.path()).unwrap_err();
+        let msg = format!("{err:#}");
+        assert!(
+            msg.to_lowercase().contains("git") || msg.to_lowercase().contains("config"),
+            "unexpected error: {msg}"
+        );
     }
 }

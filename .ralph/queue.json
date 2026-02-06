@@ -2,45 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0633",
-      "status": "todo",
-      "title": "Make LFS health checks fail loud (stop swallowing git/lfs errors)",
-      "priority": "high",
-      "tags": [
-        "maintenance",
-        "correctness",
-        "git",
-        "lfs"
-      ],
-      "scope": [
-        "crates/ralph/src/git/lfs.rs",
-        "make test",
-        "make ci"
-      ],
-      "evidence": [
-        "crates/ralph/src/git/lfs.rs:540-542: rustdoc says `Err(anyhow::Error) - If validation fails`.",
-        "crates/ralph/src/git/lfs.rs:565-572: `check_lfs_health` uses `.ok()` and `unwrap_or_default()` to discard validation errors (`list_lfs_files(...).unwrap_or_default()`, `validate_lfs_pointers(...).unwrap_or_default()`).",
-        "Failure mode: missing/broken `git lfs` commands or pointer validation errors can be reported as healthy with empty issues."
-      ],
-      "plan": [
-        "Decide contract: either propagate failures as `Err` (align with docs) or store errors in the report; default to returning `Err` for failed validations.",
-        "Replace `.ok()` / `unwrap_or_default()` with `?` or explicit error capture so failures surface to callers.",
-        "Add tests for failure modes (e.g., call `check_lfs_health` on a non-git directory or a repo missing LFS and assert it returns `Err` or reports explicit issues).",
-        "Update rustdoc comments/examples to match the final behavior.",
-        "Verify by running `make ci` and confirming it passes."
-      ],
-      "notes": [],
-      "request": "maintenance scan finding",
-      "created_at": "2026-02-05T20:49:31Z",
-      "updated_at": "2026-02-05T20:49:31Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0634",
       "status": "todo",
       "title": "Fix productivity streak/velocity date math (remove 30-day-month approximation)",

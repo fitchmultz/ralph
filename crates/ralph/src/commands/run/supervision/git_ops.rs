@@ -79,13 +79,20 @@ pub(crate) fn push_if_ahead(repo_root: &Path, push_policy: PushPolicy) -> Result
 
 /// Validates LFS configuration and warns about potential issues.
 ///
-/// When `strict` is true, returns an error if LFS filters are misconfigured
-/// or if there are files that should be LFS but aren't tracked properly.
+/// When `strict` is true, returns an error if LFS filters are misconfigured,
+/// if there are files that should be LFS but aren't tracked properly, or if
+/// any git/LFS command fails unexpectedly.
+///
+/// When `strict` is false, logs warnings for any issues or command failures
+/// and returns `Ok(())`.
 pub(crate) fn warn_if_modified_lfs(repo_root: &Path, strict: bool) -> Result<()> {
     match git::has_lfs(repo_root) {
         Ok(true) => {}
         Ok(false) => return Ok(()),
         Err(err) => {
+            if strict {
+                return Err(anyhow!("Git LFS detection failed: {:#}", err));
+            }
             log::warn!("Git LFS detection failed: {:#}", err);
             return Ok(());
         }
@@ -95,6 +102,9 @@ pub(crate) fn warn_if_modified_lfs(repo_root: &Path, strict: bool) -> Result<()>
     let health_report = match git::check_lfs_health(repo_root) {
         Ok(report) => report,
         Err(err) => {
+            if strict {
+                return Err(anyhow!("Git LFS health check failed: {:#}", err));
+            }
             log::warn!("Git LFS health check failed: {:#}", err);
             return Ok(());
         }
@@ -151,6 +161,12 @@ pub(crate) fn warn_if_modified_lfs(repo_root: &Path, strict: bool) -> Result<()>
     let status_paths = match git::status_paths(repo_root) {
         Ok(paths) => paths,
         Err(err) => {
+            if strict {
+                return Err(anyhow!(
+                    "Unable to read git status for LFS check: {:#}",
+                    err
+                ));
+            }
             log::warn!("Unable to read git status for LFS warning: {:#}", err);
             return Ok(());
         }
@@ -163,6 +179,9 @@ pub(crate) fn warn_if_modified_lfs(repo_root: &Path, strict: bool) -> Result<()>
     let lfs_files = match git::list_lfs_files(repo_root) {
         Ok(files) => files,
         Err(err) => {
+            if strict {
+                return Err(anyhow!("Unable to list LFS files: {:#}", err));
+            }
             log::warn!("Unable to list LFS files: {:#}", err);
             return Ok(());
         }
@@ -269,6 +288,49 @@ mod tests {
         )?;
         assert!(upstream.starts_with("origin/"));
 
+        Ok(())
+    }
+
+    #[test]
+    fn warn_if_modified_lfs_strict_errors_when_lfs_detected_but_git_config_fails() {
+        let temp = TempDir::new().expect("tempdir");
+        // Create a valid git repo
+        git_test::init_repo(temp.path()).expect("init repo");
+        // Create .gitattributes with LFS filter
+        std::fs::write(temp.path().join(".gitattributes"), "*.bin filter=lfs\n")
+            .expect("write gitattributes");
+        // Create a fake .git/lfs directory to trigger LFS detection
+        std::fs::create_dir_all(temp.path().join(".git/lfs")).expect("create lfs dir");
+
+        // Break git by corrupting .git/config
+        std::fs::write(temp.path().join(".git/config"), "not a valid config")
+            .expect("write invalid config");
+
+        let err = warn_if_modified_lfs(temp.path(), true).unwrap_err();
+        let msg = format!("{err:#}");
+        // Should fail because git config commands fail with invalid config
+        assert!(
+            msg.to_lowercase().contains("git") || msg.to_lowercase().contains("lfs"),
+            "unexpected error: {msg}"
+        );
+    }
+
+    #[test]
+    fn warn_if_modified_lfs_non_strict_warns_and_continues_on_errors() -> Result<()> {
+        let temp = TempDir::new()?;
+        // Create a valid git repo
+        git_test::init_repo(temp.path())?;
+        // Create .gitattributes with LFS filter
+        std::fs::write(temp.path().join(".gitattributes"), "*.bin filter=lfs\n")?;
+        // Create a fake .git/lfs directory to trigger LFS detection
+        std::fs::create_dir_all(temp.path().join(".git/lfs"))?;
+
+        // Break git by corrupting .git/config
+        std::fs::write(temp.path().join(".git/config"), "not a valid config")?;
+
+        // Should return Ok(()) in non-strict mode even though git commands will fail
+        // because `strict=false` is warn-and-continue.
+        warn_if_modified_lfs(temp.path(), false)?;
         Ok(())
     }
 }
