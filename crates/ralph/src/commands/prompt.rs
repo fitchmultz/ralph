@@ -756,6 +756,7 @@ mod tests {
         Task {
             id: id.to_string(),
             title: format!("Task {id}"),
+            description: None,
             status,
             priority: TaskPriority::Medium,
             tags: vec!["test".to_string()],

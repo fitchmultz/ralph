@@ -58,6 +58,7 @@ pub fn make_long_details_queue() -> QueueFile {
         tasks: vec![Task {
             id: "RQ-0001".to_string(),
             title: "Long Task".to_string(),
+            description: None,
             status: TaskStatus::Todo,
             priority: TaskPriority::Medium,
             tags: vec!["test".to_string()],
@@ -90,6 +91,7 @@ pub fn make_long_tags_queue() -> QueueFile {
         tasks: vec![Task {
             id: "RQ-0002".to_string(),
             title: "Tagged Task".to_string(),
+            description: None,
             status: TaskStatus::Todo,
             priority: TaskPriority::Low,
             tags,
@@ -119,6 +121,7 @@ pub fn make_task_list_queue() -> QueueFile {
     let make_task = |id: &str, title: &str, status: TaskStatus| Task {
         id: id.to_string(),
         title: title.to_string(),
+        description: None,
         status,
         priority: TaskPriority::Medium,
         tags: vec![],

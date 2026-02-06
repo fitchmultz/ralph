@@ -264,6 +264,13 @@
             "type": "string"
           }
         },
+        "description": {
+          "description": "Detailed description of the task's context, goal, purpose, and desired outcome.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "duplicates": {
           "description": "Task ID that this task duplicates (if any). Singular reference, not a list.",
           "type": [

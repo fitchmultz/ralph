@@ -241,6 +241,7 @@ mod tests {
             id: id.to_string(),
             status: TaskStatus::Todo,
             title: "Test task".to_string(),
+            description: None,
             priority: Default::default(),
             tags: vec!["test".to_string()],
             scope: vec!["crates/ralph".to_string()],

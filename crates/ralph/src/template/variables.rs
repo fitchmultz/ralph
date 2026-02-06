@@ -512,6 +512,7 @@ mod tests {
         let mut task = crate::contracts::Task {
             id: "test".to_string(),
             title: "Add tests for {{target}}".to_string(),
+            description: None,
             status: crate::contracts::TaskStatus::Todo,
             priority: crate::contracts::TaskPriority::High,
             tags: vec!["test".to_string(), "{{module}}".to_string()],
@@ -577,6 +578,7 @@ mod tests {
         let task = crate::contracts::Task {
             id: "test".to_string(),
             title: "Fix {{target}} and {{unknown_var}}".to_string(),
+            description: None,
             status: crate::contracts::TaskStatus::Todo,
             priority: crate::contracts::TaskPriority::High,
             tags: vec!["{{another_unknown}}".to_string()],
@@ -613,6 +615,7 @@ mod tests {
         let task = crate::contracts::Task {
             id: "test".to_string(),
             title: "Fix on {{branch}}".to_string(),
+            description: None,
             status: crate::contracts::TaskStatus::Todo,
             priority: crate::contracts::TaskPriority::High,
             tags: vec![],
@@ -644,6 +647,7 @@ mod tests {
         let task = crate::contracts::Task {
             id: "test".to_string(),
             title: "Fix {{target}}".to_string(),
+            description: None,
             status: crate::contracts::TaskStatus::Todo,
             priority: crate::contracts::TaskPriority::High,
             tags: vec![],

@@ -64,6 +64,7 @@ pub fn write_queue(
             id: task_id,
             status: TaskStatus::Todo,
             title,
+            description: None,
             priority: answers.first_task_priority,
             tags: vec!["onboarding".to_string()],
             scope: vec![],

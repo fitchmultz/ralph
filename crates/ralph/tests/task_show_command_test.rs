@@ -31,6 +31,7 @@ fn make_task(id: &str, status: TaskStatus, title: &str) -> Task {
         id: id.to_string(),
         status,
         title: title.to_string(),
+        description: None,
         priority: ralph::contracts::TaskPriority::Medium,
         tags: vec!["test".to_string()],
         scope: vec!["crates/ralph".to_string()],

@@ -45,6 +45,7 @@ fn write_queue(path: &Path) -> Result<()> {
         id: "RQ-0001".to_string(),
         status: TaskStatus::Todo,
         title: "Test task".to_string(),
+        description: None,
         priority: Default::default(),
         tags: vec!["cli".to_string()],
         scope: vec!["crates/ralph".to_string()],
@@ -286,6 +287,7 @@ fn queue_list_scheduled_filter_excludes_unscheduled() -> Result<()> {
         Task {
             id: "RQ-0001".to_string(),
             title: "Scheduled task".to_string(),
+            description: None,
             status: TaskStatus::Todo,
             scheduled_start: Some("2026-06-15T10:00:00Z".to_string()),
             priority: Default::default(),
@@ -310,6 +312,7 @@ fn queue_list_scheduled_filter_excludes_unscheduled() -> Result<()> {
         Task {
             id: "RQ-0002".to_string(),
             title: "Unscheduled task".to_string(),
+            description: None,
             status: TaskStatus::Todo,
             scheduled_start: None,
             priority: Default::default(),
@@ -355,6 +358,7 @@ fn queue_list_include_done_outputs_done_tasks() -> Result<()> {
     let active_task = Task {
         id: "RQ-0001".to_string(),
         title: "Active task".to_string(),
+        description: None,
         status: TaskStatus::Todo,
         priority: Default::default(),
         tags: vec![],
@@ -386,6 +390,7 @@ fn queue_list_include_done_outputs_done_tasks() -> Result<()> {
     let done_task = Task {
         id: "RQ-0000".to_string(),
         title: "Done task".to_string(),
+        description: None,
         status: TaskStatus::Done,
         priority: Default::default(),
         tags: vec![],
@@ -585,6 +590,7 @@ fn queue_import_dry_run_does_not_write() -> Result<()> {
     let initial_task = Task {
         id: "RQ-0001".to_string(),
         title: "Existing task".to_string(),
+        description: None,
         status: TaskStatus::Todo,
         created_at: Some("2026-01-01T00:00:00Z".to_string()),
         updated_at: Some("2026-01-01T00:00:00Z".to_string()),
@@ -627,6 +633,7 @@ fn queue_import_dry_run_invalid_timestamp_fails() -> Result<()> {
     let initial_task = Task {
         id: "RQ-0001".to_string(),
         title: "Existing task".to_string(),
+        description: None,
         status: TaskStatus::Todo,
         created_at: Some("2026-01-01T00:00:00Z".to_string()),
         updated_at: Some("2026-01-01T00:00:00Z".to_string()),
@@ -673,6 +680,7 @@ fn queue_import_writes_and_repositions() -> Result<()> {
     let doing_task = Task {
         id: "RQ-0001".to_string(),
         title: "Doing task".to_string(),
+        description: None,
         status: TaskStatus::Doing,
         created_at: Some("2026-01-01T00:00:00Z".to_string()),
         updated_at: Some("2026-01-01T00:00:00Z".to_string()),
@@ -723,6 +731,7 @@ fn queue_import_duplicate_fail() -> Result<()> {
     let existing_task = Task {
         id: "RQ-0001".to_string(),
         title: "Existing".to_string(),
+        description: None,
         status: TaskStatus::Todo,
         created_at: Some("2026-01-01T00:00:00Z".to_string()),
         updated_at: Some("2026-01-01T00:00:00Z".to_string()),
@@ -764,6 +773,7 @@ fn queue_import_duplicate_skip() -> Result<()> {
     let existing_task = Task {
         id: "RQ-0001".to_string(),
         title: "Existing".to_string(),
+        description: None,
         status: TaskStatus::Todo,
         created_at: Some("2026-01-01T00:00:00Z".to_string()),
         updated_at: Some("2026-01-01T00:00:00Z".to_string()),
@@ -804,6 +814,7 @@ fn queue_import_duplicate_rename() -> Result<()> {
     let existing_task = Task {
         id: "RQ-0001".to_string(),
         title: "Existing".to_string(),
+        description: None,
         status: TaskStatus::Todo,
         created_at: Some("2026-01-01T00:00:00Z".to_string()),
         updated_at: Some("2026-01-01T00:00:00Z".to_string()),

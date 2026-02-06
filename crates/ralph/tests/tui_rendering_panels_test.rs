@@ -280,6 +280,7 @@ fn test_render_with_multiple_tasks_in_list() {
         .map(|i| Task {
             id: format!("RQ-{:04}", i),
             title: format!("Task Number {}", i),
+            description: None,
             status: if i % 2 == 0 {
                 TaskStatus::Todo
             } else {

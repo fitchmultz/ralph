@@ -83,6 +83,7 @@ For scan-created tasks, include:
 - status: "todo"
 - priority: one of "critical" | "high" | "medium" | "low"
 - title (string; short, outcome-sized)
+- description (string; detailed context, goal, purpose, desired outcome)
 - tags: array of strings (include "innovation")
 - scope: array of strings (paths and/or commands)
 - evidence: array of strings (use strict formats above)

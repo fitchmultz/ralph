@@ -172,6 +172,7 @@ mod tests {
         Task {
             id: id.to_string(),
             title: format!("Task {}", id),
+            description: None,
             status,
             ..Default::default()
         }

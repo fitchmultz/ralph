@@ -410,6 +410,7 @@ fn generate_single_task(
     Ok(Task {
         id,
         title: parsed.title.clone(),
+        description: None,
         status,
         priority,
         tags,
@@ -510,6 +511,7 @@ fn generate_multi_tasks(
         tasks.push(Task {
             id,
             title,
+            description: None,
             status,
             priority,
             tags,

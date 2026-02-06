@@ -58,6 +58,7 @@ mod tests {
             id: "RQ-0001".to_string(),
             status: TaskStatus::Todo,
             title: "Test title".to_string(),
+            description: None,
             priority: Default::default(),
             tags: vec!["tag1".to_string(), "tag2".to_string()],
             scope: vec!["scope1".to_string()],

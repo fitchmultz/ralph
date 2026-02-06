@@ -238,6 +238,7 @@ mod tests {
             id: id.to_string(),
             status,
             title: "Test task".to_string(),
+            description: None,
             priority: Default::default(),
             tags,
             scope: vec!["crates/ralph".to_string()],

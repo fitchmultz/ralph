@@ -36,6 +36,7 @@ Optional hint scope (may be empty):
   - `status` (always `todo` for new tasks)
   - `priority` (one of: `critical`, `high`, `medium`, `low`; defaults to `medium` if omitted)
   - `title` (short, outcome-sized)
+  - `description` (detailed context, goal, purpose, desired outcome; non-empty for new tasks)
   - `tags` (array)
   - `scope` (array; paths and/or commands)
   - `evidence` (array; cite user request and/or repo facts)

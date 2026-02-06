@@ -92,6 +92,7 @@ mod tests {
         Task {
             id: "test".to_string(),
             title: "Test Task".to_string(),
+            description: None,
             status: crate::contracts::TaskStatus::Todo,
             priority: TaskPriority::High,
             tags: vec!["bug".to_string(), "fix".to_string()],
@@ -191,6 +192,7 @@ mod tests {
         let template = Task {
             id: "empty".to_string(),
             title: "Empty".to_string(),
+            description: None,
             status: crate::contracts::TaskStatus::Todo,
             priority: TaskPriority::Medium,
             tags: vec![],
@@ -257,6 +259,7 @@ mod tests {
         let template = Task {
             id: "empty".to_string(),
             title: "Empty".to_string(),
+            description: None,
             status: crate::contracts::TaskStatus::Todo,
             priority: TaskPriority::Medium, // Default priority - should not appear
             tags: vec![],

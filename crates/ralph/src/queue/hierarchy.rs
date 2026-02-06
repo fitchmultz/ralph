@@ -361,6 +361,7 @@ mod tests {
         Task {
             id: id.to_string(),
             title: format!("Task {}", id),
+            description: None,
             status: TaskStatus::Todo,
             parent_id: parent_id.map(|s| s.to_string()),
             created_at: Some("2026-01-01T00:00:00Z".to_string()),

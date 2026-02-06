@@ -225,6 +225,7 @@ fn run_loop_aborts_immediately_on_queue_lock_error() -> Result<()> {
             id: "RQ-0001".to_string(),
             status: ralph::contracts::TaskStatus::Todo,
             title: "Test task".to_string(),
+            description: None,
             priority: ralph::contracts::TaskPriority::Medium,
             tags: vec![],
             scope: vec!["src/main.rs".to_string()],

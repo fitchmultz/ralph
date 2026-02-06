@@ -362,6 +362,7 @@ mod tests {
             id: id.to_string(),
             status,
             title: "Test".to_string(),
+            description: None,
             priority: TaskPriority::Medium,
             tags: vec![],
             scope: vec![],

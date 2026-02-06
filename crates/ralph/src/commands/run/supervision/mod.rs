@@ -611,6 +611,7 @@ mod tests {
             id: "RQ-0001".to_string(),
             status,
             title: "Test task".to_string(),
+            description: None,
             priority: TaskPriority::Medium,
             tags: vec!["tests".to_string()],
             scope: vec!["crates/ralph".to_string()],

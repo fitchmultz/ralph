@@ -668,6 +668,7 @@ mod tests {
         Task {
             id: "RQ-0001".to_string(),
             title: "Test task".to_string(),
+            description: None,
             status: TaskStatus::Todo,
             priority: TaskPriority::Medium,
             tags: vec!["rust".to_string(), "cli".to_string()],

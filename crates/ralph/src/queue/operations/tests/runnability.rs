@@ -28,6 +28,7 @@ fn make_task_with_deps(
         id: id.to_string(),
         status,
         title: format!("Task {}", id),
+        description: None,
         priority: Default::default(),
         tags: vec![],
         scope: vec![],

@@ -1122,6 +1122,7 @@ impl App {
         let task = Task {
             id: next_id.clone(),
             title: trimmed.to_string(),
+            description: None,
             status: TaskStatus::Todo,
             priority: TaskPriority::Medium,
             tags: vec![],
@@ -3192,6 +3193,7 @@ mod tests {
         Task {
             id: id.to_string(),
             title: format!("Task {}", id),
+            description: None,
             status,
             priority: TaskPriority::Medium,
             tags: vec![],

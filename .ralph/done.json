@@ -1300,10 +1300,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "opportunity_type": "reliability",
         "scan_agent": "scan-innovation",
-        "time_to_ship": "medium (concurrency + tests)",
         "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort.",
-        "opportunity_type": "reliability"
+        "time_to_ship": "medium (concurrency + tests)"
       }
     },
     {
@@ -1345,9 +1345,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "time_to_ship": "medium (metadata + reconciliation + tests)",
         "opportunity_type": "ux improvement",
         "scan_agent": "scan-innovation",
-        "time_to_ship": "medium (metadata + reconciliation + tests)",
         "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current."
       }
     },
@@ -1394,10 +1394,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
+        "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics.",
         "opportunity_type": "ux improvement",
-        "time_to_ship": "medium (format + fixes + tests)",
-        "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics."
+        "scan_agent": "scan-innovation",
+        "time_to_ship": "medium (format + fixes + tests)"
       }
     },
     {
@@ -1443,8 +1443,8 @@
       "custom_fields": {
         "opportunity_type": "ux improvement",
         "time_to_ship": "small/medium (formatters + tests)",
-        "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat).",
-        "scan_agent": "scan-innovation"
+        "scan_agent": "scan-innovation",
+        "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat)."
       }
     },
     {
@@ -1932,10 +1932,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "time_to_ship": "medium (TUI wiring + tests)",
-        "opportunity_type": "ux improvement",
         "user_value": "Fewer context switches: jump from task → code in one keystroke.",
-        "scan_agent": "scan-innovation"
+        "opportunity_type": "ux improvement",
+        "scan_agent": "scan-innovation",
+        "time_to_ship": "medium (TUI wiring + tests)"
       }
     },
     {
@@ -1989,10 +1989,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "scan_agent": "scan-innovation",
         "opportunity_type": "ux improvement",
-        "time_to_ship": "medium (render-only UI + tests)",
         "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error.",
-        "scan_agent": "scan-innovation"
+        "time_to_ship": "medium (render-only UI + tests)"
       }
     },
     {
@@ -2047,9 +2047,9 @@
       "relates_to": [],
       "custom_fields": {
         "opportunity_type": "feature gap",
+        "measurable_impact": "Track 20%+ improvement in task completion velocity after adoption",
         "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types",
-        "scan_agent": "scan-innovation",
-        "measurable_impact": "Track 20%+ improvement in task completion velocity after adoption"
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -2106,9 +2106,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "time_to_ship": "incremental - add one batch operation at a time",
         "opportunity_type": "UX improvement",
         "scan_agent": "scan-innovation",
+        "time_to_ship": "incremental - add one batch operation at a time",
         "user_value": "Reduces queue maintenance time by 80% for large projects"
       }
     },
@@ -2165,10 +2165,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "reliability",
         "scan_agent": "scan-innovation",
         "measurable_impact": "80%+ integration test coverage for CLI commands",
-        "user_value": "Reduces regression risk; enables confident refactoring"
+        "user_value": "Reduces regression risk; enables confident refactoring",
+        "opportunity_type": "reliability"
       }
     },
     {
@@ -2231,10 +2231,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "opportunity_type": "feature gap",
         "differentiation": "Unique capability among AI task runners",
-        "user_value": "Enables ecosystem growth; custom integrations without forks"
+        "user_value": "Enables ecosystem growth; custom integrations without forks",
+        "scan_agent": "scan-innovation",
+        "opportunity_type": "feature gap"
       }
     },
     {
@@ -3527,10 +3527,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "kimi",
         "scan_agent": "scan-maintenance",
+        "model_used": "kimi-code/kimi-for-coding",
         "file_line_count": "444",
-        "model_used": "kimi-code/kimi-for-coding"
+        "runner_used": "kimi"
       }
     },
     {
@@ -3577,11 +3577,11 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "fallback_function": "now_utc_rfc3339_or_fallback at timeutil.rs:67-69",
         "runner_used": "kimi",
-        "scan_agent": "scan-maintenance",
         "model_used": "kimi-code/kimi-for-coding",
         "occurrence_count": "4",
-        "fallback_function": "now_utc_rfc3339_or_fallback at timeutil.rs:67-69"
+        "scan_agent": "scan-maintenance"
       }
     },
     {
@@ -3802,14 +3802,77 @@
       ],
       "custom_fields": {
         "model_used": "kimi-code/kimi-for-coding",
-        "status_note": "COMPLETED - KimiPlugin fully implemented and legacy code removed",
-        "plugin_location": "crates/ralph/src/runner/execution/builtin_plugins.rs:530-631",
         "executor_location": "crates/ralph/src/runner/execution/plugin_executor.rs",
-        "trait_location": "crates/ralph/src/runner/execution/plugin_trait.rs",
+        "status_note": "COMPLETED - KimiPlugin fully implemented and legacy code removed",
         "legacy_code_removed": "true",
-        "completed_via": "RQ-0657 (foundational plugin framework)",
-        "runner_used": "kimi"
+        "runner_used": "kimi",
+        "plugin_location": "crates/ralph/src/runner/execution/builtin_plugins.rs:530-631",
+        "trait_location": "crates/ralph/src/runner/execution/plugin_trait.rs",
+        "completed_via": "RQ-0657 (foundational plugin framework)"
       }
+    },
+    {
+      "id": "RQ-0665",
+      "status": "done",
+      "title": "Add description field to task schema for enhanced context",
+      "priority": "medium",
+      "tags": [
+        "schema",
+        "task",
+        "enhancement",
+        "prompts",
+        "validation"
+      ],
+      "scope": [
+        "crates/ralph/src/contracts/task.rs",
+        "schemas/queue.schema.json",
+        "crates/ralph/src/queue/validation.rs",
+        "crates/ralph/assets/prompts/task_builder.md",
+        "crates/ralph/assets/prompts/scan_maintenance_v1.md",
+        "crates/ralph/assets/prompts/scan_maintenance_v2.md",
+        "crates/ralph/assets/prompts/scan_innovation_v1.md",
+        "crates/ralph/assets/prompts/scan_innovation_v2.md",
+        "make ci"
+      ],
+      "evidence": [
+        "User request: Add a new description field directly below the title field to allow task builder, task scanner, or manual users to add more detail to context, goal, purpose, desired outcome, etc.",
+        "crates/ralph/src/contracts/task.rs:26-112: Task struct defines the core task schema with title field at line 34; description field needs to be added after title (between lines 34-36).",
+        "schemas/queue.schema.json:203-371: Task JSON schema definition; title property at lines 364-366; needs new description field added after title property.",
+        "crates/ralph/src/queue/validation.rs:169-244: validate_task_required_fields() function; title validation at lines 176-182; description should be optional (no required validation).",
+        "crates/ralph/assets/prompts/task_builder.md:34-46: Task builder prompt specifies required keys section; must add description as required for task builder output.",
+        "crates/ralph/assets/prompts/scan_maintenance_v1.md:78-92: TASK SHAPE section lists required keys for scan-created tasks; must include description field.",
+        "crates/ralph/assets/prompts/scan_maintenance_v2.md:99-115: TASK SHAPE section lists required keys for scan-created tasks; must include description field.",
+        "crates/ralph/assets/prompts/scan_innovation_v1.md:79-93: TASK SHAPE section lists required keys for scan-created tasks; must include description field.",
+        "crates/ralph/assets/prompts/scan_innovation_v2.md:106-122: TASK SHAPE section lists required keys for scan-created tasks; must include description field.",
+        "AGENTS.md: Field is optional for task and queue validation to avoid breaking existing queues, but not optional for task builder or scanner."
+      ],
+      "plan": [
+        "Add optional description field to Task struct in crates/ralph/src/contracts/task.rs, placed directly after title field (after line 34).",
+        "Update schemas/queue.schema.json to include description field in Task definition (after title property at line 366) with appropriate type (string) and description.",
+        "Update crates/ralph/src/queue/validation.rs to allow description as optional field (no validation errors if missing) to maintain backward compatibility with existing queues.",
+        "Update crates/ralph/assets/prompts/task_builder.md: Add description to required keys section (lines 34-46), document it as mandatory for task builder output, place directly after title in field ordering.",
+        "Update crates/ralph/assets/prompts/scan_maintenance_v1.md: Add description to required keys in TASK SHAPE section (lines 78-92).",
+        "Update crates/ralph/assets/prompts/scan_maintenance_v2.md: Add description to required keys in TASK SHAPE section (lines 99-115).",
+        "Update crates/ralph/assets/prompts/scan_innovation_v1.md: Add description to required keys in TASK SHAPE section (lines 79-93).",
+        "Update crates/ralph/assets/prompts/scan_innovation_v2.md: Add description to required keys in TASK SHAPE section (lines 106-122).",
+        "Ensure description field placement is consistent: directly after title in all schema definitions, struct fields, prompts, and examples.",
+        "Run make ci to verify all changes pass formatting, linting, type checking, and tests.",
+        "Run ralph queue validate to ensure existing queue files still validate with the new optional field."
+      ],
+      "notes": [
+        "Description field requirements: Optional for validation (backward compatibility), mandatory for task builder/scanner (quality/consistency).",
+        "Field placement: Must be directly below title field in all schema representations.",
+        "Purpose: Allow detailed context, goal, purpose, desired outcome for tasks beyond the short title."
+      ],
+      "request": "Enhance the task schema to add a new optional description field that is directly below the title. This allows the task builder, task scanner, or manual user created tasks to add more detail to the context, goal, purpose, desired outcome, etc to the task. Update all prompts that interact with the tasks and ensure consistency. Make this field optional for task and queue validation (so existing queues and task dont break validation) but not optional for the task builder, nor the scanner or anything that creates tasks.",
+      "created_at": "2026-02-06T18:09:17Z",
+      "updated_at": "2026-02-06T18:56:14.470921000Z",
+      "completed_at": "2026-02-06T18:56:14.470921000Z",
+      "started_at": "2026-02-06T18:33:04.015847000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
     }
   ]
 }

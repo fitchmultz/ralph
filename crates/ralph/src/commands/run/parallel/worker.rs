@@ -509,6 +509,7 @@ mod tests {
         queue_file.tasks.push(Task {
             id: "RQ-0001".to_string(),
             title: "Test task".to_string(),
+            description: None,
             status: TaskStatus::Todo,
             priority: crate::contracts::TaskPriority::Medium,
             tags: vec![],

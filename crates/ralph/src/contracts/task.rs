@@ -33,6 +33,10 @@ pub struct Task {
 
     pub title: String,
 
+    /// Detailed description of the task's context, goal, purpose, and desired outcome.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+
     #[serde(default)]
     pub priority: TaskPriority,
 

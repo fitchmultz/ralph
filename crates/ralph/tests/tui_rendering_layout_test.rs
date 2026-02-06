@@ -40,6 +40,7 @@ fn test_render_scrolling_hides_top_tasks() {
         .map(|i| Task {
             id: format!("RQ-{:04}", i),
             title: format!("Task Number {}", i),
+            description: None,
             status: TaskStatus::Todo,
             priority: TaskPriority::Medium,
             tags: vec![],
@@ -85,6 +86,7 @@ fn test_render_scrolling_shows_bottom_tasks() {
         .map(|i| Task {
             id: format!("RQ-{:04}", i),
             title: format!("Task Number {}", i),
+            description: None,
             status: TaskStatus::Todo,
             priority: TaskPriority::Medium,
             tags: vec![],

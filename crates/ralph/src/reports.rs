@@ -1086,6 +1086,7 @@ mod tests {
             id: id.to_string(),
             status,
             title: "Test task".to_string(),
+            description: None,
             priority: crate::contracts::TaskPriority::Medium,
             tags: vec![],
             scope: vec![],

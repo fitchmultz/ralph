@@ -327,6 +327,7 @@ mod tests {
                 Task {
                     id: "RQ-0001".to_string(),
                     title: "Test Task".to_string(),
+                    description: None,
                     status: TaskStatus::Todo,
                     priority: TaskPriority::Medium,
                     tags: vec![],
@@ -351,6 +352,7 @@ mod tests {
                 Task {
                     id: "RQ-0002".to_string(),
                     title: "Another Task".to_string(),
+                    description: None,
                     status: TaskStatus::Doing,
                     priority: TaskPriority::High,
                     tags: vec![],

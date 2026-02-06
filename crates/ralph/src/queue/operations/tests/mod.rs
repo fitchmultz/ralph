@@ -17,6 +17,7 @@ pub(crate) fn task_with(id: &str, status: TaskStatus, tags: Vec<String>) -> Task
         id: id.to_string(),
         status,
         title: "Test task".to_string(),
+        description: None,
         priority: Default::default(),
         tags,
         scope: vec!["crates/ralph".to_string()],

@@ -71,6 +71,7 @@ pub fn make_test_task(id: &str, title: &str, status: TaskStatus) -> Task {
     Task {
         id: id.to_string(),
         title: title.to_string(),
+        description: None,
         status,
         priority: TaskPriority::Medium,
         tags: vec!["test".to_string()],

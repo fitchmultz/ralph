@@ -628,6 +628,7 @@ fn create_placeholder_task(id: String, now: &str) -> Task {
     Task {
         id,
         title: "__import_id_reservation__".to_string(),
+        description: None,
         status: TaskStatus::Todo,
         priority: TaskPriority::Medium,
         created_at: Some(now.to_string()),
@@ -797,6 +798,7 @@ mod tests {
         let mut task = Task {
             id: "  RQ-0001  ".to_string(),
             title: "  Test  ".to_string(),
+            description: None,
             tags: vec!["  a  ".to_string(), "".to_string(), "  b  ".to_string()],
             ..Default::default()
         };
@@ -811,6 +813,7 @@ mod tests {
         let mut task = Task {
             id: "RQ-0001".to_string(),
             title: "Test".to_string(),
+            description: None,
             status: TaskStatus::Todo,
             ..Default::default()
         };
@@ -826,6 +829,7 @@ mod tests {
         let mut task = Task {
             id: "RQ-0001".to_string(),
             title: "Test".to_string(),
+            description: None,
             status: TaskStatus::Done,
             ..Default::default()
         };
@@ -836,6 +840,7 @@ mod tests {
         let mut task2 = Task {
             id: "RQ-0002".to_string(),
             title: "Test".to_string(),
+            description: None,
             status: TaskStatus::Rejected,
             ..Default::default()
         };
@@ -867,6 +872,7 @@ mod tests {
             tasks: vec![Task {
                 id: "RQ-0001".to_string(),
                 title: "Existing".to_string(),
+                description: None,
                 status: TaskStatus::Todo,
                 created_at: Some("2026-01-01T00:00:00Z".to_string()),
                 updated_at: Some("2026-01-01T00:00:00Z".to_string()),
@@ -877,6 +883,7 @@ mod tests {
         let imported = vec![Task {
             id: "RQ-0001".to_string(),
             title: "Duplicate".to_string(),
+            description: None,
             status: TaskStatus::Todo,
             created_at: Some("2026-01-02T00:00:00Z".to_string()),
             updated_at: Some("2026-01-02T00:00:00Z".to_string()),

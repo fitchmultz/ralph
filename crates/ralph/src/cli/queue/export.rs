@@ -521,6 +521,7 @@ mod tests {
         Task {
             id: id.to_string(),
             title: title.to_string(),
+            description: None,
             status,
             priority: crate::contracts::TaskPriority::Medium,
             tags: vec!["test".to_string()],

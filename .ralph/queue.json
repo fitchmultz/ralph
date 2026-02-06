@@ -2,61 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0665",
-      "status": "todo",
-      "title": "Add description field to task schema for enhanced context",
-      "priority": "medium",
-      "tags": [
-        "schema",
-        "task",
-        "enhancement",
-        "prompts",
-        "validation"
-      ],
-      "scope": [
-        "crates/ralph/src/contracts/task.rs",
-        "schemas/queue.schema.json",
-        "crates/ralph/src/queue/validation.rs",
-        "crates/ralph/assets/prompts/task_builder.md",
-        "crates/ralph/assets/prompts/scan_maintenance_v1.md",
-        "crates/ralph/assets/prompts/scan_maintenance_v2.md",
-        "crates/ralph/assets/prompts/scan_innovation_v1.md",
-        "crates/ralph/assets/prompts/scan_innovation_v2.md",
-        "make ci"
-      ],
-      "evidence": [
-        "User request: Add a new description field directly below the title field to allow task builder, task scanner, or manual users to add more detail to context, goal, purpose, desired outcome, etc.",
-        "crates/ralph/src/contracts/task.rs:26-34: Task struct defines the core task schema with title at line 34; description field needs to be added after title.",
-        "schemas/queue.schema.json:22-150: Task JSON schema definitions; needs new description field added to Task definition.",
-        "crates/ralph/src/queue/validation.rs: Contains validate_task_required_fields() and other validation logic; needs to make description optional for validation but required for task builder/scanner.",
-        "crates/ralph/assets/prompts/task_builder.md:34-46: Task builder prompt specifies required and optional keys; must require description for task builder output.",
-        "crates/ralph/assets/prompts/scan_*.md: Scanner prompts generate tasks and must require description field in output.",
-        "AGENTS.md: Field is optional for task and queue validation to avoid breaking existing queues, but not optional for task builder or scanner."
-      ],
-      "plan": [
-        "Add optional description field to Task struct in crates/ralph/src/contracts/task.rs, placed directly after title field (line 34).",
-        "Update schemas/queue.schema.json to include description field in Task definition with appropriate type (string) and description.",
-        "Update crates/ralph/src/queue/validation.rs to allow description as optional field (no validation errors if missing) to maintain backward compatibility with existing queues.",
-        "Update crates/ralph/assets/prompts/task_builder.md: Add description to required keys section, document it as mandatory for task builder output, place directly after title in field ordering.",
-        "Update all scanner prompts (scan_maintenance_v1.md, scan_maintenance_v2.md, scan_innovation_v1.md, scan_innovation_v2.md) to require description field in generated tasks.",
-        "Ensure description field placement is consistent: directly after title in all schema definitions, struct fields, prompts, and examples.",
-        "Run make ci to verify all changes pass formatting, linting, type checking, and tests.",
-        "Run ralph queue validate to ensure existing queue files still validate with the new optional field."
-      ],
-      "notes": [
-        "Description field requirements: Optional for validation (backward compatibility), mandatory for task builder/scanner (quality/consistency).",
-        "Field placement: Must be directly below title field in all schema representations.",
-        "Purpose: Allow detailed context, goal, purpose, desired outcome for tasks beyond the short title."
-      ],
-      "request": "Enhance the task schema to add a new optional description field that is directly below the title. This allows the task builder, task scanner, or manual user created tasks to add more detail to the context, goal, purpose, desired outcome, etc to the task. Update all prompts that interact with the tasks and ensure consistency. Make this field optional for task and queue validation (so existing queues and task dont break validation) but not optional for the task builder, nor the scanner or anything that creates tasks.",
-      "created_at": "2026-02-06T18:09:17Z",
-      "updated_at": "2026-02-06T18:09:17Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0664",
       "status": "todo",
       "title": "Add execution_history.json to RALPH_RUN_CLEAN_ALLOWED_PATHS to fix run loop aborts",
