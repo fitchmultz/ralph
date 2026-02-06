@@ -546,6 +546,50 @@ pub struct TaskSplitArgs {
     pub dry_run: bool,
 }
 
+/// Output format for task hierarchy commands (children, parent).
+#[derive(clap::ValueEnum, Clone, Copy, Debug, Eq, PartialEq)]
+#[clap(rename_all = "snake_case")]
+pub enum TaskRelationFormat {
+    Compact,
+    Long,
+    Json,
+}
+
+#[derive(Args)]
+#[command(
+    about = "List child tasks (parent_id == TASK_ID)",
+    after_long_help = "Examples:\n ralph task children RQ-0001\n ralph task children RQ-0001 --recursive\n ralph task children RQ-0001 --include-done\n ralph task children RQ-0001 --format json"
+)]
+pub struct TaskChildrenArgs {
+    #[arg(value_name = "TASK_ID")]
+    pub task_id: String,
+
+    #[arg(long)]
+    pub include_done: bool,
+
+    #[arg(long)]
+    pub recursive: bool,
+
+    #[arg(long, value_enum, default_value_t = TaskRelationFormat::Compact)]
+    pub format: TaskRelationFormat,
+}
+
+#[derive(Args)]
+#[command(
+    about = "Show a task's parent (parent_id)",
+    after_long_help = "Examples:\n ralph task parent RQ-0002\n ralph task parent RQ-0002 --include-done\n ralph task parent RQ-0002 --format json"
+)]
+pub struct TaskParentArgs {
+    #[arg(value_name = "TASK_ID")]
+    pub task_id: String,
+
+    #[arg(long)]
+    pub include_done: bool,
+
+    #[arg(long, value_enum, default_value_t = TaskRelationFormat::Compact)]
+    pub format: TaskRelationFormat,
+}
+
 #[derive(Args)]
 pub struct TaskEditArgs {
     /// Task field to update.
@@ -943,4 +987,16 @@ pub enum TaskCommand {
         after_long_help = "Examples:\n ralph task start RQ-0001\n ralph task start --reset RQ-0001"
     )]
     Start(TaskStartArgs),
+
+    /// List child tasks for a given task (based on parent_id).
+    #[command(
+        after_long_help = "Examples:\n ralph task children RQ-0001\n ralph task children RQ-0001 --recursive\n ralph task children RQ-0001 --include-done\n ralph task children RQ-0001 --format json"
+    )]
+    Children(TaskChildrenArgs),
+
+    /// Show the parent task for a given task (based on parent_id).
+    #[command(
+        after_long_help = "Examples:\n ralph task parent RQ-0002\n ralph task parent RQ-0002 --include-done\n ralph task parent RQ-0002 --format json"
+    )]
+    Parent(TaskParentArgs),
 }

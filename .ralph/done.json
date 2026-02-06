@@ -1300,9 +1300,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
         "opportunity_type": "reliability",
         "time_to_ship": "medium (concurrency + tests)",
+        "scan_agent": "scan-innovation",
         "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort."
       }
     },
@@ -1345,10 +1345,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
+        "opportunity_type": "ux improvement",
         "time_to_ship": "medium (metadata + reconciliation + tests)",
         "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current.",
-        "opportunity_type": "ux improvement"
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -1396,8 +1396,8 @@
       "custom_fields": {
         "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics.",
         "opportunity_type": "ux improvement",
-        "scan_agent": "scan-innovation",
-        "time_to_ship": "medium (format + fixes + tests)"
+        "time_to_ship": "medium (format + fixes + tests)",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -1441,10 +1441,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "ux improvement",
-        "time_to_ship": "small/medium (formatters + tests)",
         "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat).",
-        "scan_agent": "scan-innovation"
+        "scan_agent": "scan-innovation",
+        "time_to_ship": "small/medium (formatters + tests)",
+        "opportunity_type": "ux improvement"
       }
     },
     {
@@ -1932,8 +1932,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "ux improvement",
         "time_to_ship": "medium (TUI wiring + tests)",
+        "opportunity_type": "ux improvement",
         "user_value": "Fewer context switches: jump from task → code in one keystroke.",
         "scan_agent": "scan-innovation"
       }
@@ -1989,10 +1989,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "time_to_ship": "medium (render-only UI + tests)",
         "opportunity_type": "ux improvement",
-        "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error."
+        "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error.",
+        "time_to_ship": "medium (render-only UI + tests)",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -2046,10 +2046,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "measurable_impact": "Track 20%+ improvement in task completion velocity after adoption",
         "opportunity_type": "feature gap",
+        "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types",
         "scan_agent": "scan-innovation",
-        "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types"
+        "measurable_impact": "Track 20%+ improvement in task completion velocity after adoption"
       }
     },
     {
@@ -2106,9 +2106,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "time_to_ship": "incremental - add one batch operation at a time",
-        "user_value": "Reduces queue maintenance time by 80% for large projects",
         "opportunity_type": "UX improvement",
+        "user_value": "Reduces queue maintenance time by 80% for large projects",
+        "time_to_ship": "incremental - add one batch operation at a time",
         "scan_agent": "scan-innovation"
       }
     },
@@ -2166,9 +2166,9 @@
       "relates_to": [],
       "custom_fields": {
         "measurable_impact": "80%+ integration test coverage for CLI commands",
-        "user_value": "Reduces regression risk; enables confident refactoring",
+        "scan_agent": "scan-innovation",
         "opportunity_type": "reliability",
-        "scan_agent": "scan-innovation"
+        "user_value": "Reduces regression risk; enables confident refactoring"
       }
     },
     {
@@ -2231,10 +2231,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "differentiation": "Unique capability among AI task runners",
         "user_value": "Enables ecosystem growth; custom integrations without forks",
-        "opportunity_type": "feature gap"
+        "opportunity_type": "feature gap",
+        "differentiation": "Unique capability among AI task runners",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -3004,6 +3004,83 @@
       "updated_at": "2026-02-06T08:03:19.865686000Z",
       "completed_at": "2026-02-06T08:03:19.865686000Z",
       "started_at": "2026-02-06T07:13:30.546513000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-innovation"
+      }
+    },
+    {
+      "id": "RQ-0650",
+      "status": "done",
+      "title": "Add parent/child task navigation (queue tree + task children) using parent_id",
+      "priority": "medium",
+      "tags": [
+        "innovation",
+        "ux",
+        "queue",
+        "hierarchy",
+        "workflow",
+        "cli",
+        "tui",
+        "rust"
+      ],
+      "scope": [
+        "schemas/queue.schema.json",
+        "crates/ralph/src/contracts/task.rs",
+        "crates/ralph/src/queue/operations/mutation.rs",
+        "crates/ralph/src/queue/operations/query.rs",
+        "crates/ralph/src/queue/validation.rs",
+        "crates/ralph/src/cli/task/args.rs",
+        "crates/ralph/src/cli/task/mod.rs",
+        "crates/ralph/src/cli/task/split.rs",
+        "crates/ralph/src/cli/queue/mod.rs",
+        "crates/ralph/src/cli/queue/graph.rs",
+        "crates/ralph/src/cli/queue/import.rs",
+        "crates/ralph/src/cli/queue/export.rs",
+        "crates/ralph/src/tui/",
+        "crates/ralph/src/tui/render/header.rs",
+        "docs/queue-and-tasks.md",
+        "docs/cli.md",
+        "ralph queue graph --help",
+        "ralph queue export --help",
+        "ralph task split --help"
+      ],
+      "evidence": [
+        "Contract: `schemas/queue.schema.json` and `crates/ralph/src/contracts/task.rs` define optional `parent_id` on tasks.",
+        "Behavior: `crates/ralph/src/queue/operations/mutation.rs` sets `child.parent_id = Some(<source task id>)` when splitting a task into children; `crates/ralph/src/cli/task/split.rs` also prints the parent linkage in `--dry-run` output.",
+        "I/O: `crates/ralph/src/cli/queue/import.rs` supports importing `parent_id`; `crates/ralph/src/cli/queue/export.rs` currently does not export `parent_id` (no `parent_id` column/field in the exporters yet).",
+        "Validation/UI: `crates/ralph/src/queue/validation.rs` validates RFC3339 timestamps and `depends_on` DAGs, but does not validate `parent_id` referential integrity or detect `parent_id` cycles; there are also no CLI/TUI navigation commands based on `parent_id` today (only `ralph queue graph` for `depends_on`)."
+      ],
+      "plan": [
+        "Add a queue-level hierarchy helper (new module under `crates/ralph/src/queue/`) to index tasks by `parent_id` across active + done, preserving deterministic ordering (queue file order) and safely handling missing references and cycles (bounded depth / visited set).",
+        "Extend `crates/ralph/src/queue/validation.rs` with non-blocking warnings for `parent_id` issues: missing parent reference and cycle detection (do not fail validation yet; report warnings similar to dependency warnings).",
+        "Add `ralph task children <TASK_ID> [--include-done] [--recursive] [--format compact|long|json]` implemented under `crates/ralph/src/cli/task/` to list child tasks where `parent_id == TASK_ID` (use the hierarchy helper; keep stable ordering).",
+        "Add `ralph task parent <TASK_ID> [--include-done] [--format compact|long|json]` to show the direct parent (if any) and sibling count (children of the same parent).",
+        "Add `ralph queue tree [--root <TASK_ID>] [--include-done] [--max-depth <N>]` under `crates/ralph/src/cli/queue/` to render an ASCII hierarchy tree based on `parent_id` (explicitly distinct from `ralph queue graph`, which visualizes `depends_on`).",
+        "Optional but recommended for I/O parity: extend `crates/ralph/src/cli/queue/export.rs` to include `parent_id` in CSV/TSV/JSON exports.",
+        "Add minimal TUI parity: show `parent_id` and child count in the task header/details, and explicitly document any remaining gaps between CLI and TUI.",
+        "Add tests covering: no children, multiple levels, missing parent reference, `parent_id` cycles, stable ordering, and JSON output stability for the new commands.",
+        "Update docs (`docs/queue-and-tasks.md`, `docs/cli.md`) with examples and a clear explanation of hierarchy (`parent_id`) vs dependency graphs (`depends_on`).",
+        "Verify by running `make ci` and confirming it passes."
+      ],
+      "notes": [
+        "Opportunity type: workflow coverage + UX improvement.",
+        "Why it matters: Parent/child structure enables epics and decomposition workflows without overloading dependency graphs.",
+        "Current state: `parent_id` is part of the task contract and is written by `task split`; docs mention it in `docs/cli.md`, but it is not currently validated or used for navigation (and `queue export` does not export it yet), so missing references/cycles must be handled defensively.",
+        "Acceptance criteria: Users can navigate split tasks deterministically (CLI + minimal TUI parity); tree rendering handles edge cases safely; docs reflect the new commands and clearly differentiate hierarchy vs dependencies.",
+        "Added parent/child navigation via parent_id: ralph queue tree, ralph task children, ralph task parent (compact/long/json; recursive children).",
+        "Hierarchy traversal is deterministic and cycle-safe; queue tree renders cycle-only graphs and children --format json --recursive no longer risks infinite recursion.",
+        "Queue validation emits non-blocking warnings for parent_id issues (missing parent, self-parent, cycles).",
+        "Export parity: CSV/TSV exports include parent_id; docs updated; TUI task details show parent_id + child count.",
+        "Tests updated/added for hierarchy + validation; make ci passes."
+      ],
+      "request": "innovation scan finding",
+      "created_at": "2026-02-06T01:53:55Z",
+      "updated_at": "2026-02-06T09:15:22.624941000Z",
+      "completed_at": "2026-02-06T09:15:22.624941000Z",
+      "started_at": "2026-02-06T08:08:43.361116000Z",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],

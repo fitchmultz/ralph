@@ -16,8 +16,10 @@
 mod args;
 mod batch;
 mod build;
+mod children;
 mod clone;
 mod edit;
+mod parent;
 mod refactor;
 mod relations;
 mod schedule;
@@ -34,11 +36,12 @@ use crate::config;
 // Re-export all argument types for backward compatibility
 pub use args::{
     BatchEditArgs, BatchFieldArgs, BatchMode, BatchOperation, BatchStatusArgs, TaskArgs,
-    TaskBatchArgs, TaskBlocksArgs, TaskBuildArgs, TaskBuildRefactorArgs, TaskCloneArgs,
-    TaskCommand, TaskDoneArgs, TaskEditArgs, TaskEditFieldArg, TaskFieldArgs,
-    TaskMarkDuplicateArgs, TaskReadyArgs, TaskRejectArgs, TaskRelateArgs, TaskScheduleArgs,
-    TaskShowArgs, TaskSplitArgs, TaskStartArgs, TaskStatusArg, TaskStatusArgs, TaskTemplateArgs,
-    TaskTemplateBuildArgs, TaskTemplateCommand, TaskTemplateShowArgs, TaskUpdateArgs,
+    TaskBatchArgs, TaskBlocksArgs, TaskBuildArgs, TaskBuildRefactorArgs, TaskChildrenArgs,
+    TaskCloneArgs, TaskCommand, TaskDoneArgs, TaskEditArgs, TaskEditFieldArg, TaskFieldArgs,
+    TaskMarkDuplicateArgs, TaskParentArgs, TaskReadyArgs, TaskRejectArgs, TaskRelateArgs,
+    TaskRelationFormat, TaskScheduleArgs, TaskShowArgs, TaskSplitArgs, TaskStartArgs,
+    TaskStatusArg, TaskStatusArgs, TaskTemplateArgs, TaskTemplateBuildArgs, TaskTemplateCommand,
+    TaskTemplateShowArgs, TaskUpdateArgs,
 };
 
 /// Main entry point for task commands.
@@ -69,6 +72,8 @@ pub fn handle_task(args: TaskArgs, force: bool) -> Result<()> {
         }
         Some(TaskCommand::Split(args)) => split::handle(&args, force, &resolved),
         Some(TaskCommand::Start(args)) => start::handle(&args, force, &resolved),
+        Some(TaskCommand::Children(args)) => children::handle(&args, &resolved),
+        Some(TaskCommand::Parent(args)) => parent::handle(&args, &resolved),
         None => {
             // Default command: build from request
             build::handle(&args.build, force, &resolved)

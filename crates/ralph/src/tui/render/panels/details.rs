@@ -402,62 +402,141 @@ pub fn draw_task_details(f: &mut Frame<'_>, app: &mut App, area: Rect) {
         return;
     }
 
-    if let Some(task) = app.selected_task() {
+    // Extract task data first to avoid borrow issues
+    let task_data = app.selected_task().map(|task| {
+        let parent_id = task.parent_id.clone();
+        let task_id = task.id.clone();
+        let has_parent = parent_id
+            .as_ref()
+            .map(|p| !p.trim().is_empty())
+            .unwrap_or(false);
+
+        // Compute child count while we have task.id
+        let child_count = app
+            .queue
+            .tasks
+            .iter()
+            .filter(|t| {
+                t.parent_id
+                    .as_deref()
+                    .map(|p| p.trim() == task_id)
+                    .unwrap_or(false)
+            })
+            .count();
+
+        (
+            task_id,
+            task.status,
+            task.priority,
+            task.title.clone(),
+            task.tags.clone(),
+            task.scope.clone(),
+            task.evidence.clone(),
+            task.plan.clone(),
+            task.notes.clone(),
+            task.depends_on.clone(),
+            task.custom_fields.clone(),
+            task.created_at.clone(),
+            task.updated_at.clone(),
+            parent_id,
+            has_parent,
+            child_count,
+        )
+    });
+
+    if let Some((
+        task_id,
+        task_status,
+        task_priority,
+        task_title,
+        task_tags,
+        task_scope,
+        task_evidence,
+        task_plan,
+        task_notes,
+        task_depends_on,
+        task_custom_fields,
+        task_created_at,
+        task_updated_at,
+        parent_id,
+        has_parent,
+        child_count,
+    )) = task_data
+    {
         let mut lines = vec![
             Line::from(vec![
                 Span::styled("ID: ", Style::default().fg(Color::DarkGray)),
                 Span::styled(
-                    task.id.clone(),
+                    task_id.clone(),
                     Style::default().add_modifier(Modifier::BOLD),
                 ),
             ]),
             Line::from(vec![
                 Span::styled("Status: ", Style::default().fg(Color::DarkGray)),
                 Span::styled(
-                    task.status.as_str(),
-                    Style::default().fg(status_color(task.status)),
+                    task_status.as_str(),
+                    Style::default().fg(status_color(task_status)),
                 ),
             ]),
             Line::from(vec![
                 Span::styled("Priority: ", Style::default().fg(Color::DarkGray)),
                 Span::styled(
-                    task.priority.as_str(),
-                    Style::default().fg(priority_color(task.priority)),
+                    task_priority.as_str(),
+                    Style::default().fg(priority_color(task_priority)),
                 ),
             ]),
+        ];
+
+        // Add parent_id if present
+        if has_parent && let Some(ref pid) = parent_id {
+            lines.push(Line::from(vec![
+                Span::styled("Parent: ", Style::default().fg(Color::DarkGray)),
+                Span::styled(pid.clone(), Style::default().fg(Color::Yellow)),
+            ]));
+        }
+
+        // Add child count
+        if child_count > 0 {
+            lines.push(Line::from(vec![
+                Span::styled("Children: ", Style::default().fg(Color::DarkGray)),
+                Span::styled(child_count.to_string(), Style::default().fg(Color::Yellow)),
+            ]));
+        }
+
+        lines.extend([
             Line::from(""),
             Line::from(vec![
                 Span::styled("Title", Style::default().add_modifier(Modifier::UNDERLINED)),
                 Span::styled(":", Style::default()),
             ]),
-        ];
+        ]);
 
-        for line in wrap_text(&task.title, app.detail_width as usize) {
+        for line in wrap_text(&task_title, app.detail_width as usize) {
             lines.push(Line::from(Span::styled(
                 line,
                 Style::default().add_modifier(Modifier::BOLD),
             )));
         }
 
-        if !task.tags.is_empty() {
+        if !task_tags.is_empty() {
             lines.push(Line::from(""));
             lines.push(Line::from(vec![
                 Span::styled("Tags", Style::default().add_modifier(Modifier::UNDERLINED)),
                 Span::styled(": ", Style::default()),
-                Span::styled(task.tags.join(", "), Style::default().fg(Color::Cyan)),
+                Span::styled(task_tags.join(", "), Style::default().fg(Color::Cyan)),
             ]));
         }
 
-        if !task.scope.is_empty() {
+        if !task_scope.is_empty() {
             lines.push(Line::from(""));
             lines.push(Line::from(vec![
                 Span::styled("Scope", Style::default().add_modifier(Modifier::UNDERLINED)),
                 Span::styled(": ", Style::default()),
-                Span::styled(task.scope.join(", "), Style::default().fg(Color::Green)),
+                Span::styled(task_scope.join(", "), Style::default().fg(Color::Green)),
             ]));
         }
 
-        if !task.evidence.is_empty() {
+        if !task_evidence.is_empty() {
             lines.push(Line::from(""));
             lines.push(Line::from(vec![
                 Span::styled(
@@ -467,8 +546,7 @@ pub fn draw_task_details(f: &mut Frame<'_>, app: &mut App, area: Rect) {
                 Span::styled(":", Style::default()),
             ]));
             // Convert evidence to Markdown list and render
-            let evidence_md = task
-                .evidence
+            let evidence_md = task_evidence
                 .iter()
                 .map(|e| format!("- {e}"))
                 .collect::<Vec<_>>()
@@ -477,15 +555,14 @@ pub fn draw_task_details(f: &mut Frame<'_>, app: &mut App, area: Rect) {
             lines.extend(MarkdownRenderer::render(&evidence_md, cfg));
         }
 
-        if !task.plan.is_empty() {
+        if !task_plan.is_empty() {
             lines.push(Line::from(""));
             lines.push(Line::from(vec![
                 Span::styled("Plan", Style::default().add_modifier(Modifier::UNDERLINED)),
                 Span::styled(":", Style::default()),
             ]));
             // Convert plan to Markdown numbered list and render
-            let plan_md = task
-                .plan
+            let plan_md = task_plan
                 .iter()
                 .enumerate()
                 .map(|(i, p)| format!("{}. {p}", i + 1))
@@ -495,15 +572,14 @@ pub fn draw_task_details(f: &mut Frame<'_>, app: &mut App, area: Rect) {
             lines.extend(MarkdownRenderer::render(&plan_md, cfg));
         }
 
-        if !task.notes.is_empty() {
+        if !task_notes.is_empty() {
             lines.push(Line::from(""));
             lines.push(Line::from(vec![
                 Span::styled("Notes", Style::default().add_modifier(Modifier::UNDERLINED)),
                 Span::styled(":", Style::default()),
             ]));
             // Convert notes to Markdown list and render
-            let notes_md = task
-                .notes
+            let notes_md = task_notes
                 .iter()
                 .map(|n| format!("- {n}"))
                 .collect::<Vec<_>>()
@@ -512,7 +588,7 @@ pub fn draw_task_details(f: &mut Frame<'_>, app: &mut App, area: Rect) {
             lines.extend(MarkdownRenderer::render(&notes_md, cfg));
         }
 
-        if !task.depends_on.is_empty() {
+        if !task_depends_on.is_empty() {
             lines.push(Line::from(""));
             lines.push(Line::from(vec![
                 Span::styled(
@@ -521,13 +597,13 @@ pub fn draw_task_details(f: &mut Frame<'_>, app: &mut App, area: Rect) {
                 ),
                 Span::styled(": ", Style::default()),
                 Span::styled(
-                    task.depends_on.join(", "),
+                    task_depends_on.join(", "),
                     Style::default().fg(Color::Magenta),
                 ),
             ]));
         }
 
-        if !task.custom_fields.is_empty() {
+        if !task_custom_fields.is_empty() {
             lines.push(Line::from(""));
             lines.push(Line::from(vec![
                 Span::styled(
@@ -540,7 +616,7 @@ pub fn draw_task_details(f: &mut Frame<'_>, app: &mut App, area: Rect) {
             // format_custom_fields from outpututil) because we need per-line wrapping
             // for TUI display. The format_custom_fields helper returns a single
             // concatenated string which doesn't work for our text layout.
-            let mut sorted_fields: Vec<_> = task.custom_fields.iter().collect();
+            let mut sorted_fields: Vec<_> = task_custom_fields.iter().collect();
             sorted_fields.sort_by_key(|&(k, _)| k);
             for (key, value) in sorted_fields {
                 for line in wrap_text(
@@ -563,7 +639,7 @@ pub fn draw_task_details(f: &mut Frame<'_>, app: &mut App, area: Rect) {
             ),
             Span::styled(": ", Style::default()),
             Span::styled(
-                task.created_at.clone().unwrap_or_else(|| "N/A".to_string()),
+                task_created_at.clone().unwrap_or_else(|| "N/A".to_string()),
                 Style::default().fg(Color::DarkGray),
             ),
         ]));
@@ -574,11 +650,11 @@ pub fn draw_task_details(f: &mut Frame<'_>, app: &mut App, area: Rect) {
             ),
             Span::styled(": ", Style::default()),
             Span::styled(
-                task.updated_at.clone().unwrap_or_else(|| "N/A".to_string()),
+                task_updated_at.clone().unwrap_or_else(|| "N/A".to_string()),
                 Style::default().fg(Color::DarkGray),
             ),
         ]));
-        let selected_id = task.id.clone();
+        let selected_id = task_id;
         render_details_panel(
             f,
             app,

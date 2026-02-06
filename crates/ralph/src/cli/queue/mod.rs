@@ -32,6 +32,7 @@ mod show;
 mod sort;
 mod stats;
 mod stop;
+mod tree;
 mod unlock;
 mod validate;
 
@@ -60,6 +61,7 @@ pub use show::QueueShowArgs;
 pub(crate) use show::show_task;
 pub use sort::QueueSortArgs;
 pub use stats::QueueStatsArgs;
+pub use tree::QueueTreeArgs;
 
 pub fn handle_queue(cmd: QueueCommand, force: bool) -> Result<()> {
     let resolved = config::resolve_from_cwd()?;
@@ -84,6 +86,7 @@ pub fn handle_queue(cmd: QueueCommand, force: bool) -> Result<()> {
         QueueCommand::Import(args) => import::handle(&resolved, force, args),
         QueueCommand::Stop => stop::handle(&resolved),
         QueueCommand::Explain(args) => explain::handle(&resolved, args),
+        QueueCommand::Tree(args) => tree::handle(&resolved, args),
     }
 }
 
@@ -202,6 +205,12 @@ pub enum QueueCommand {
         after_long_help = "Examples:\n  ralph queue explain\n  ralph queue explain --format json\n  ralph queue explain --include-draft\n  ralph queue explain --format json --include-draft"
     )]
     Explain(QueueExplainArgs),
+
+    /// Render a parent/child hierarchy tree (based on parent_id).
+    #[command(
+        after_long_help = "Examples:\n  ralph queue tree\n  ralph queue tree --include-done\n  ralph queue tree --root RQ-0001\n  ralph queue tree --max-depth 25"
+    )]
+    Tree(QueueTreeArgs),
 }
 
 #[cfg(test)]

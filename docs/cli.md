@@ -1206,6 +1206,32 @@ ralph queue graph --include-done
 ralph queue graph --format json
 ```
 
+### `ralph queue tree`
+
+Render a parent/child hierarchy tree based on `parent_id`. This is distinct from `ralph queue graph`, which visualizes `depends_on` relationships.
+
+Flags:
+
+* `--root <TASK_ID>`: Start tree from specific task (default: show all root tasks).
+* `--include-done`: Include completed tasks in output.
+* `--max-depth <N>`: Maximum depth to render (default: 20).
+
+Examples:
+
+```bash
+# Show full hierarchy tree
+ralph queue tree
+
+# Show tree starting from specific root
+ralph queue tree --root RQ-0001
+
+# Include done tasks
+ralph queue tree --include-done
+
+# Limit depth
+ralph queue tree --max-depth 5
+```
+
 ### `ralph queue export`
 
 Export task data to various formats for external analysis, reporting, and sharing.
@@ -1234,6 +1260,7 @@ CSV/TSV output includes all task fields with arrays flattened to delimited strin
 * `tags`, `scope`, `depends_on`: comma-separated
 * `evidence`, `plan`, `notes`: semicolon-separated
 * `custom_fields`: key=value pairs, comma-separated
+* `parent_id`: parent task ID (empty string if none)
 
 Markdown (`md`) output produces a GitHub-flavored Markdown table with columns:
 ID, Status, Priority, Title, Tags, Scope, Created. Tasks are sorted by ID for
@@ -1509,6 +1536,56 @@ ralph task start --reset RQ-0001
 - If task is already in `doing` status, only `started_at` is updated (unless `--reset` is used)
 - The `started_at` field can also be manually edited via `ralph task edit started_at <TIMESTAMP> <TASK_ID>`
 
+### ralph task children
+
+List child tasks where `parent_id` matches the given task ID. This is useful for navigating task hierarchies created by `ralph task split` or manual `parent_id` assignment.
+
+**Arguments:**
+- `TASK_ID` - Parent task ID
+
+**Flags:**
+- `--include-done` - Include completed tasks from done archive.
+- `--recursive` - Show entire subtree (tree view).
+- `--format <compact|long|json>` - Output format (default: `compact`).
+
+**Examples:**
+```bash
+# List direct children
+ralph task children RQ-0001
+
+# List children recursively
+ralph task children RQ-0001 --recursive
+
+# Include done archive
+ralph task children RQ-0001 --include-done
+
+# JSON output for scripting
+ralph task children RQ-0001 --format json
+```
+
+### ralph task parent
+
+Show the parent task for a given task (based on `parent_id`). Also displays sibling count.
+
+**Arguments:**
+- `TASK_ID` - Child task ID
+
+**Flags:**
+- `--include-done` - Search done archive if parent not found in active queue.
+- `--format <compact|long|json>` - Output format (default: `compact`).
+
+**Examples:**
+```bash
+# Show parent and siblings
+ralph task parent RQ-0002
+
+# Search done archive if needed
+ralph task parent RQ-0002 --include-done
+
+# JSON output
+ralph task parent RQ-0002 --format json
+```
+
 ## `ralph watch`
 
 Watch files for changes and auto-detect tasks from TODO/FIXME/HACK/XXX comments. This command monitors source files and automatically creates tasks when it finds actionable comments.
@@ -1638,6 +1715,8 @@ Common subcommands:
 - `ralph task clone <TASK_ID>`: clone an existing task to create a new task from it. Alias: `duplicate`.
 - `ralph task split <TASK_ID>`: split a task into multiple child tasks for better granularity.
 - `ralph task start <TASK_ID>`: start work on a task (sets `started_at` and moves to doing).
+- `ralph task children <TASK_ID>`: list child tasks for a given task.
+- `ralph task parent <TASK_ID>`: show the parent task for a given task.
 
 Field formats (for `ralph task edit`):
 - Lists (`tags`, `scope`, `evidence`, `plan`, `notes`, `depends_on`): comma/newline-separated.

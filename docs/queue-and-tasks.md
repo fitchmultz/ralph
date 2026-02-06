@@ -119,6 +119,92 @@ Relationships are distinct from dependencies:
 - `relates_to`: Loose coupling (no execution constraint, just semantic association)
 - `duplicates`: Marks redundancy (no execution constraint, informational only)
 
+## Hierarchy (parent_id)
+
+Tasks can form a parent/child hierarchy using the `parent_id` field. This is useful for:
+- Decomposing large tasks (epics) into subtasks
+- Tracking task splits and their origins
+- Organizing work hierarchically without affecting execution order
+
+### How it Works
+
+- `parent_id`: Optional field containing the ID of the parent task
+- A task can have at most one parent
+- A parent can have multiple children
+- Cycles are not allowed (A -> B -> A)
+- Unlike `depends_on`, parent/child relationships do not affect execution order
+
+### Example
+
+```json
+{
+  "id": "RQ-0001",
+  "title": "Implement feature X",
+  "status": "doing"
+},
+{
+  "id": "RQ-0002",
+  "title": "Implement feature X - Part 1",
+  "status": "todo",
+  "parent_id": "RQ-0001"
+},
+{
+  "id": "RQ-0003",
+  "title": "Implement feature X - Part 2",
+  "status": "todo",
+  "parent_id": "RQ-0001"
+}
+```
+
+### CLI Navigation Commands
+
+Ralph provides commands to navigate the hierarchy:
+
+```bash
+# List child tasks
+ralph task children RQ-0001
+
+# List children recursively (tree view)
+ralph task children RQ-0001 --recursive
+
+# Include done archive in search
+ralph task children RQ-0001 --include-done
+
+# Show parent task
+ralph task parent RQ-0002
+
+# Render full hierarchy tree
+ralph queue tree
+
+# Render tree starting from specific root
+ralph queue tree --root RQ-0001
+
+# Include done tasks in tree
+ralph queue tree --include-done
+```
+
+### Hierarchy vs Dependencies
+
+It's important to understand the difference:
+
+| Feature | `parent_id` | `depends_on` |
+|---------|-------------|--------------|
+| Purpose | Structural organization | Execution ordering |
+| Affects task order | No | Yes |
+| Visualized with | `ralph queue tree` | `ralph queue graph` |
+| Validation | Warnings for cycles/missing parents | Hard errors for cycles/missing deps |
+
+### Parent ID Validation
+
+Ralph validates `parent_id` references and reports issues as warnings:
+
+**Warnings (non-blocking):**
+- **Missing parent**: Task references a parent that doesn't exist
+- **Self-parent**: Task references itself as its own parent
+- **Circular parent chain**: A cycle exists in the parent hierarchy (A -> B -> A)
+
+These warnings do not prevent queue operations but should be reviewed and fixed.
+
 ### Warnings (non-blocking)
 These issues are reported but do not prevent queue operations:
 

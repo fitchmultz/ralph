@@ -791,3 +791,159 @@ fn validate_allows_valid_relationships() {
         warnings
     );
 }
+
+// Tests for parent_id validation (RQ-0650)
+
+fn task_with_parent(id: &str, parent_id: Option<&str>) -> Task {
+    Task {
+        id: id.to_string(),
+        status: TaskStatus::Todo,
+        title: format!("Task {}", id),
+        priority: Default::default(),
+        tags: vec![],
+        scope: vec![],
+        evidence: vec![],
+        plan: vec![],
+        notes: vec![],
+        request: None,
+        agent: None,
+        created_at: Some("2026-01-18T00:00:00Z".to_string()),
+        updated_at: Some("2026-01-18T00:00:00Z".to_string()),
+        completed_at: None,
+        started_at: None,
+        scheduled_start: None,
+        depends_on: vec![],
+        blocks: vec![],
+        relates_to: vec![],
+        duplicates: None,
+        custom_fields: HashMap::new(),
+        parent_id: parent_id.map(|s| s.to_string()),
+    }
+}
+
+#[test]
+fn validate_warns_on_missing_parent() {
+    let active = QueueFile {
+        version: 1,
+        tasks: vec![
+            task_with_parent("RQ-0001", None),
+            task_with_parent("RQ-0002", Some("RQ-9999")), // Missing parent
+        ],
+    };
+
+    let result = validate_queue_set(&active, None, "RQ", 4, 10);
+    assert!(result.is_ok(), "Should not error on missing parent");
+    let warnings = result.unwrap();
+    assert!(
+        warnings
+            .iter()
+            .any(|w| w.task_id == "RQ-0002" && w.message.contains("does not exist")),
+        "Should warn about missing parent: {:?}",
+        warnings
+    );
+}
+
+#[test]
+fn validate_warns_on_self_parent() {
+    let active = QueueFile {
+        version: 1,
+        tasks: vec![task_with_parent("RQ-0001", Some("RQ-0001"))],
+    };
+
+    let result = validate_queue_set(&active, None, "RQ", 4, 10);
+    assert!(result.is_ok(), "Should not error on self-parent");
+    let warnings = result.unwrap();
+    assert!(
+        warnings
+            .iter()
+            .any(|w| w.task_id == "RQ-0001" && w.message.contains("itself")),
+        "Should warn about self-parent: {:?}",
+        warnings
+    );
+}
+
+#[test]
+fn validate_warns_on_parent_cycle() {
+    let active = QueueFile {
+        version: 1,
+        tasks: vec![
+            task_with_parent("RQ-0001", Some("RQ-0002")),
+            task_with_parent("RQ-0002", Some("RQ-0001")),
+        ],
+    };
+
+    let result = validate_queue_set(&active, None, "RQ", 4, 10);
+    assert!(result.is_ok(), "Should not error on parent cycle");
+    let warnings = result.unwrap();
+    assert!(
+        warnings.iter().any(|w| w.message.contains("Circular")),
+        "Should warn about circular parent: {:?}",
+        warnings
+    );
+}
+
+#[test]
+fn validate_ignores_whitespace_parent_id() {
+    let mut task = task_with_parent("RQ-0001", None);
+    task.parent_id = Some("   ".to_string()); // Whitespace only
+
+    let active = QueueFile {
+        version: 1,
+        tasks: vec![task],
+    };
+
+    let result = validate_queue_set(&active, None, "RQ", 4, 10);
+    assert!(result.is_ok(), "Should not error on whitespace parent_id");
+    let warnings = result.unwrap();
+    assert!(
+        warnings.is_empty(),
+        "Should not warn about whitespace parent_id: {:?}",
+        warnings
+    );
+}
+
+#[test]
+fn validate_accepts_valid_parent() {
+    let active = QueueFile {
+        version: 1,
+        tasks: vec![
+            task_with_parent("RQ-0001", None),
+            task_with_parent("RQ-0002", Some("RQ-0001")),
+        ],
+    };
+
+    let result = validate_queue_set(&active, None, "RQ", 4, 10);
+    assert!(result.is_ok(), "Should not error on valid parent");
+    let warnings = result.unwrap();
+    assert!(
+        !warnings.iter().any(|w| w.message.contains("parent")),
+        "Should not warn about valid parent: {:?}",
+        warnings
+    );
+}
+
+#[test]
+fn validate_finds_parent_in_done() {
+    let active = QueueFile {
+        version: 1,
+        tasks: vec![task_with_parent("RQ-0002", Some("RQ-0001"))],
+    };
+    let mut done_task = task_with_parent("RQ-0001", None);
+    done_task.status = TaskStatus::Done;
+    done_task.completed_at = Some("2026-01-18T00:00:00Z".to_string());
+    let done = QueueFile {
+        version: 1,
+        tasks: vec![done_task],
+    };
+
+    let result = validate_queue_set(&active, Some(&done), "RQ", 4, 10);
+    assert!(result.is_ok(), "Should not error when parent is in done");
+    let warnings = result.unwrap();
+    assert!(
+        !warnings
+            .iter()
+            .any(|w| w.message.contains("does not exist")),
+        "Should not warn when parent exists in done: {:?}",
+        warnings
+    );
+}

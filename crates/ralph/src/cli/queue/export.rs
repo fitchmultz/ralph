@@ -279,6 +279,7 @@ fn export_csv(tasks: &[&Task], delimiter: char) -> Result<String> {
         "completed_at",
         "depends_on",
         "custom_fields",
+        "parent_id",
     ];
     output.push_str(&headers.join(&delimiter.to_string()));
     output.push('\n');
@@ -313,6 +314,7 @@ fn export_csv(tasks: &[&Task], delimiter: char) -> Result<String> {
             escape_csv_field(task.completed_at.as_deref().unwrap_or(""), delimiter),
             escape_csv_field(&depends_on, delimiter),
             escape_csv_field(&custom_fields, delimiter),
+            escape_csv_field(task.parent_id.as_deref().unwrap_or(""), delimiter),
         ];
         let row = format!("{}\n", fields.join(&delimiter.to_string()));
 
@@ -529,6 +531,7 @@ mod tests {
         let csv = export_csv(&tasks, ',').unwrap();
 
         assert!(csv.contains("id,title,status,priority"));
+        assert!(csv.contains("parent_id")); // new field
         assert!(csv.contains("RQ-0002"));
         assert!(csv.contains("Test Task"));
         assert!(csv.contains("todo"));

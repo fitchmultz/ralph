@@ -477,6 +477,9 @@ fn validate_dependencies(
     // Validate new relationship fields (blocks, relates_to, duplicates)
     validate_relationships(&all_tasks_iter, &all_task_ids, &all_tasks, &mut result)?;
 
+    // Validate parent_id relationships (warnings only for now)
+    validate_parent_ids(&all_tasks_iter, &all_task_ids, &mut result)?;
+
     Ok(result)
 }
 
@@ -711,6 +714,72 @@ fn validate_relationships(
                 "Circular blocking detected involving task {}. Task blocking relationships must form a DAG (no cycles). Review the blocks fields to break the cycle.",
                 node
             );
+        }
+    }
+
+    Ok(())
+}
+
+/// Validate parent_id relationships.
+/// Checks for missing parents, self-parenting, and cycles (warnings only).
+fn validate_parent_ids(
+    tasks: &[&Task],
+    all_task_ids: &HashSet<&str>,
+    result: &mut DependencyValidationResult,
+) -> Result<()> {
+    use crate::queue::hierarchy::detect_parent_cycles;
+
+    for task in tasks {
+        let task_id = task.id.trim();
+        if task_id.is_empty() {
+            continue;
+        }
+
+        if let Some(parent_id) = task.parent_id.as_deref() {
+            let parent_id_trimmed = parent_id.trim();
+
+            // Skip empty/whitespace parent_id (treated as unset)
+            if parent_id_trimmed.is_empty() {
+                continue;
+            }
+
+            // Check for self-parenting (warning)
+            if parent_id_trimmed == task_id {
+                result.warnings.push(ValidationWarning {
+                    task_id: task_id.to_string(),
+                    message: format!(
+                        "Task {} references itself as its own parent. Remove the parent_id or set it to a valid parent task.",
+                        task_id
+                    ),
+                });
+                continue;
+            }
+
+            // Check for missing parent (warning, not error - orphaned task)
+            if !all_task_ids.contains(parent_id_trimmed) {
+                result.warnings.push(ValidationWarning {
+                    task_id: task_id.to_string(),
+                    message: format!(
+                        "Task {} references parent {} which does not exist in the queue or done archive.",
+                        task_id, parent_id_trimmed
+                    ),
+                });
+            }
+        }
+    }
+
+    // Detect and report cycles (warning, not error)
+    let cycles = detect_parent_cycles(tasks);
+    for cycle in cycles {
+        let cycle_str = cycle.join(" -> ");
+        for task_id in &cycle {
+            result.warnings.push(ValidationWarning {
+                task_id: task_id.clone(),
+                message: format!(
+                    "Circular parent chain detected involving task {}. Cycle: {}. Break the cycle by changing one of the parent_id references.",
+                    task_id, cycle_str
+                ),
+            });
         }
     }
 

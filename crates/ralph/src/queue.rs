@@ -21,6 +21,7 @@ use anyhow::{Context, Result};
 use std::path::Path;
 
 pub mod graph;
+pub mod hierarchy;
 pub mod operations;
 pub mod prune;
 pub mod repair;
