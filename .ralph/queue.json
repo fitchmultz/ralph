@@ -2,53 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0652",
-      "status": "todo",
-      "title": "Enrich webhook payloads and add loop/phase events for better integrations",
-      "priority": "medium",
-      "tags": [
-        "innovation",
-        "webhook",
-        "integration",
-        "observability",
-        "automation"
-      ],
-      "scope": [
-        "crates/ralph/src/webhook.rs",
-        "crates/ralph/src/cli/webhook.rs",
-        "docs/configuration.md",
-        "docs/workflow.md",
-        "crates/ralph/tests/"
-      ],
-      "evidence": [
-        "File: `crates/ralph/src/webhook.rs` payload currently includes event/timestamp/task_id/task_title/status fields only; it omits runner/model/phases/durations and repo context.",
-        "Docs: `docs/configuration.md` documents webhook event types limited to task-level events (`task_created`, `task_started`, `task_completed`, `task_failed`, `task_status_changed`).",
-        "CLI: `ralph webhook test --help` only supports sending task events today."
-      ],
-      "plan": [
-        "Extend `WebhookPayload` with backward-compatible optional fields: `runner`, `model`, `phase_count`, `duration_ms`, `repo`, `branch`, `commit`, and `ci_gate_status` (only when known).",
-        "Add new event types for higher-level observability: `loop_started`, `loop_stopped`, and optionally `phase_started`/`phase_completed` (gate behind `events` subscriptions; default remains current behavior).",
-        "Update `ralph webhook test` to allow testing the new event types and printing the exact JSON payload that will be sent.",
-        "Add unit tests for payload JSON shape + signature header stability; add an integration test that stubs an HTTP endpoint (local) to assert delivery receives the expected fields.",
-        "Update `docs/configuration.md` and `docs/cli.md` with new event names and example payloads.",
-        "Verify by running `make ci` and confirming it passes."
-      ],
-      "notes": [
-        "Opportunity type: integration.",
-        "Why it matters: Richer, more granular webhooks enable automation (Slack/Discord, dashboards, CI hooks) without parsing logs or scraping state.",
-        "Acceptance criteria: Payload remains backward compatible; new events are opt-in; tests cover serialization/signature and delivery."
-      ],
-      "request": "innovation scan finding",
-      "created_at": "2026-02-06T01:53:55Z",
-      "updated_at": "2026-02-06T01:53:55Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-innovation"
-      }
-    },
-    {
       "id": "RQ-0653",
       "status": "todo",
       "title": "Add `ralph config show --format json` for scripting and tooling",
@@ -304,8 +257,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-maintenance",
-        "stale_evidence": "Updated rg results for now_utc_rfc3339().unwrap_or_default(): productivity.rs:55,207,340; execution_history.rs:121"
+        "stale_evidence": "Updated rg results for now_utc_rfc3339().unwrap_or_default(): productivity.rs:55,207,340; execution_history.rs:121",
+        "scan_agent": "scan-maintenance"
       }
     },
     {

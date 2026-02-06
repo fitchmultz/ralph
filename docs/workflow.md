@@ -103,6 +103,45 @@ Session state is persisted to `.ralph/cache/session.json` for crash recovery. It
 
 Note: Per-phase settings are informational only. Crash recovery recomputes settings from CLI flags, config, and task overrides to ensure consistency.
 
+## Webhook Events
+
+Ralph can emit webhook events for external integrations (Slack, Discord, CI systems, dashboards). Webhooks are configured via `agent.webhook` in config.
+
+### Event Types
+
+**Task Events** (enabled by default):
+- `task_created`: Task added to queue
+- `task_started`: Task execution begins
+- `task_completed`: Task finished successfully
+- `task_failed`: Task failed or was rejected
+- `task_status_changed`: Generic status transition
+
+**Loop Events** (opt-in):
+- `loop_started`: Run loop begins (includes repo/branch/commit context)
+- `loop_stopped`: Run loop ends (includes duration and summary)
+
+**Phase Events** (opt-in):
+- `phase_started`: Phase execution begins (includes runner/model/phase context)
+- `phase_completed`: Phase execution ends (includes duration and CI gate outcome)
+
+### Opt-in Behavior
+
+New event types (`loop_*`, `phase_*`) are **opt-in** and not enabled by default. To receive these events, explicitly configure them:
+
+```json
+{
+  "agent": {
+    "webhook": {
+      "enabled": true,
+      "url": "https://example.com/webhook",
+      "events": ["loop_started", "phase_started", "phase_completed", "loop_stopped"]
+    }
+  }
+}
+```
+
+Use `["*"]` to subscribe to all events including new ones.
+
 ### Runner Session Handling (Kimi)
 
 Ralph uses explicit session management for runners that support it (notably **Kimi**):

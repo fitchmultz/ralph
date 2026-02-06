@@ -172,6 +172,53 @@ ralph version
 ralph version --verbose
 ```
 
+## `ralph webhook`
+
+Test webhook configuration and inspect webhook payloads.
+
+### Subcommands
+
+* `ralph webhook test`: Send a test webhook event.
+
+### `ralph webhook test`
+
+Send a test webhook event to verify your configuration.
+
+#### Flags
+
+* `--event <EVENT>`: Event type to send (default: `task_created`).
+  - Task events: `task_created`, `task_started`, `task_completed`, `task_failed`, `task_status_changed`
+  - Loop events: `loop_started`, `loop_stopped`
+  - Phase events: `phase_started`, `phase_completed`
+* `--url <URL>`: Override webhook URL (uses config if not specified).
+* `--task-id <ID>`: Task ID to use in test payload (default: `TEST-0001`).
+* `--task-title <TITLE>`: Task title to use in test payload.
+* `--print-json`: Print the JSON payload without sending (useful for debugging).
+* `--pretty`: Pretty-print JSON (default: `true`, only used with `--print-json`).
+
+#### Examples
+
+```bash
+# Test with default event (task_created) and configured URL
+ralph webhook test
+
+# Test a specific task event
+ralph webhook test --event task_completed
+
+# Test new event types (phase/loop events are opt-in)
+ralph webhook test --event phase_started
+ralph webhook test --event loop_started
+
+# Print JSON payload without sending
+ralph webhook test --event phase_completed --print-json
+
+# Compact JSON output
+ralph webhook test --event task_created --print-json --pretty false
+
+# Test with custom URL
+ralph webhook test --url https://example.com/webhook
+```
+
 ## `ralph init`
 
 Bootstrap Ralph files in the current repository with an optional interactive onboarding wizard.

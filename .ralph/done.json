@@ -1300,10 +1300,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "reliability",
-        "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort.",
+        "time_to_ship": "medium (concurrency + tests)",
         "scan_agent": "scan-innovation",
-        "time_to_ship": "medium (concurrency + tests)"
+        "opportunity_type": "reliability",
+        "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort."
       }
     },
     {
@@ -1345,10 +1345,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current.",
         "scan_agent": "scan-innovation",
         "opportunity_type": "ux improvement",
-        "time_to_ship": "medium (metadata + reconciliation + tests)",
-        "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current."
+        "time_to_ship": "medium (metadata + reconciliation + tests)"
       }
     },
     {
@@ -1395,9 +1395,9 @@
       "relates_to": [],
       "custom_fields": {
         "scan_agent": "scan-innovation",
-        "opportunity_type": "ux improvement",
         "time_to_ship": "medium (format + fixes + tests)",
-        "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics."
+        "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics.",
+        "opportunity_type": "ux improvement"
       }
     },
     {
@@ -1442,9 +1442,9 @@
       "relates_to": [],
       "custom_fields": {
         "time_to_ship": "small/medium (formatters + tests)",
+        "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat).",
         "opportunity_type": "ux improvement",
-        "scan_agent": "scan-innovation",
-        "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat)."
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -1932,10 +1932,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "ux improvement",
-        "scan_agent": "scan-innovation",
         "time_to_ship": "medium (TUI wiring + tests)",
-        "user_value": "Fewer context switches: jump from task → code in one keystroke."
+        "opportunity_type": "ux improvement",
+        "user_value": "Fewer context switches: jump from task → code in one keystroke.",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -1989,9 +1989,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error.",
         "time_to_ship": "medium (render-only UI + tests)",
         "opportunity_type": "ux improvement",
+        "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error.",
         "scan_agent": "scan-innovation"
       }
     },
@@ -2048,8 +2048,8 @@
       "custom_fields": {
         "measurable_impact": "Track 20%+ improvement in task completion velocity after adoption",
         "scan_agent": "scan-innovation",
-        "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types",
-        "opportunity_type": "feature gap"
+        "opportunity_type": "feature gap",
+        "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types"
       }
     },
     {
@@ -2106,10 +2106,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "user_value": "Reduces queue maintenance time by 80% for large projects",
         "time_to_ship": "incremental - add one batch operation at a time",
-        "opportunity_type": "UX improvement"
+        "opportunity_type": "UX improvement",
+        "scan_agent": "scan-innovation",
+        "user_value": "Reduces queue maintenance time by 80% for large projects"
       }
     },
     {
@@ -2165,8 +2165,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "reliability",
         "scan_agent": "scan-innovation",
+        "opportunity_type": "reliability",
         "measurable_impact": "80%+ integration test coverage for CLI commands",
         "user_value": "Reduces regression risk; enables confident refactoring"
       }
@@ -2231,10 +2231,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "differentiation": "Unique capability among AI task runners",
-        "user_value": "Enables ecosystem growth; custom integrations without forks",
         "scan_agent": "scan-innovation",
-        "opportunity_type": "feature gap"
+        "opportunity_type": "feature gap",
+        "user_value": "Enables ecosystem growth; custom integrations without forks",
+        "differentiation": "Unique capability among AI task runners"
       }
     },
     {
@@ -3145,6 +3145,79 @@
       "updated_at": "2026-02-06T09:55:28.323613000Z",
       "completed_at": "2026-02-06T09:55:28.323613000Z",
       "started_at": "2026-02-06T09:20:58.506639000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-innovation"
+      }
+    },
+    {
+      "id": "RQ-0652",
+      "status": "done",
+      "title": "Enrich webhook payloads and add loop/phase events for better integrations",
+      "priority": "medium",
+      "tags": [
+        "innovation",
+        "webhook",
+        "integration",
+        "observability",
+        "automation",
+        "docs"
+      ],
+      "scope": [
+        "crates/ralph/src/webhook.rs",
+        "crates/ralph/src/cli/webhook.rs",
+        "crates/ralph/src/contracts/config.rs",
+        "schemas/config.schema.json",
+        "crates/ralph/src/commands/run/context.rs",
+        "crates/ralph/src/commands/run/mod.rs",
+        "crates/ralph/src/commands/run/parallel/mod.rs",
+        "crates/ralph/src/commands/run/phases/mod.rs",
+        "crates/ralph/src/commands/run/phases/shared.rs",
+        "crates/ralph/src/commands/run/supervision/ci.rs",
+        "crates/ralph/src/cli/task/status.rs",
+        "docs/configuration.md",
+        "docs/cli.md",
+        "docs/workflow.md",
+        "crates/ralph/tests/webhook_integration_test.rs",
+        "ralph webhook test --help"
+      ],
+      "evidence": [
+        "File: `crates/ralph/src/webhook.rs` defines `WebhookPayload` with `event`, `timestamp`, `task_id`, `task_title`, plus optional `previous_status`, `current_status`, and `note`; it does not include runner/model/phase/duration or git/CI metadata.",
+        "Docs: `docs/configuration.md` lists supported webhook events as task-only: `task_created`, `task_started`, `task_completed`, `task_failed`, `task_status_changed`.",
+        "Config: `WebhookConfig.events` filtering treats `events: null` as allow-all (unit test asserts `is_event_enabled(\\\"any_event\\\")` is true), so adding new event types would be delivered by default unless filtering semantics change.",
+        "Tests: `crates/ralph/tests/webhook_integration_test.rs` already stubs a local HTTP listener and validates non-blocking send, signing header presence/shape, backpressure policy behavior, and event filtering.",
+        "CLI: `crates/ralph/src/cli/webhook.rs` only supports the 5 task_* events and does not print the exact JSON body it posts (only URL/event/task id).",
+        "Docs gap: `docs/cli.md` currently contains no webhook command documentation."
+      ],
+      "plan": [
+        "Decide payload shape for non-task events (loop/phase) since `WebhookPayload` is currently task-centric (required `task_id`/`task_title`). Prefer: keep existing task keys for task_* events, and add optional structured context for loop/phase metadata without forcing fake task IDs.",
+        "Extend webhook payload with backward-compatible optional metadata fields (only when known): `runner`, `model`, `phase`, `phase_count`, `duration_ms`, `repo_root`, `branch`, `commit`, and `ci_gate` (e.g., `skipped|passed|failed`). Wire sources from run/phase context (`crates/ralph/src/commands/run/phases/*`) and git helpers (`crates/ralph/src/git/*`) as needed.",
+        "Add new event types: `loop_started`, `loop_stopped`, and `phase_started`/`phase_completed`. Ensure they are opt-in for existing configs by adjusting default event filtering (today `events: null` allows any event string); preserve `events: [\\\"*\\\"]` meaning subscribe to all events including new ones.",
+        "Emit loop and phase events from execution paths: loop driver(s) (`crates/ralph/src/commands/run/mod.rs`, `crates/ralph/src/commands/run/parallel/mod.rs`) and phase runners (`crates/ralph/src/commands/run/phases/mod.rs`). Include phase durations and CI gate outcome where available (`crates/ralph/src/commands/run/phases/shared.rs`, `crates/ralph/src/commands/run/supervision/ci.rs`).",
+        "Update `ralph webhook test` to support the new event types and add a flag to print the exact JSON payload that will be sent (useful for integration debugging).",
+        "Update tests: extend `crates/ralph/tests/webhook_integration_test.rs` to parse the received JSON body and assert new optional fields and new event types behave as specified (including opt-in semantics and signature header stability). Add unit tests in `crates/ralph/src/webhook.rs` for payload serialization and event filtering defaults.",
+        "Update documentation: `docs/configuration.md` supported event list and payload examples; add a webhook section to `docs/cli.md` documenting `ralph webhook test` (including new flags/events).",
+        "Verify by running `make ci` and confirming it passes."
+      ],
+      "notes": [
+        "Opportunity type: integration.",
+        "Why it matters: Richer, more granular webhooks enable automation (Slack/Discord, dashboards, CI hooks) without parsing logs or scraping state.",
+        "Current state: webhook delivery/signature/backpressure/event-filtering already have both unit and integration coverage (see `crates/ralph/tests/webhook_integration_test.rs`).",
+        "Design note: making new event types truly opt-in likely requires changing default `events` filtering behavior (today `events: null` is effectively allow-all).",
+        "Acceptance criteria: Payload remains backward compatible for existing task_* events; new events are opt-in; tests cover serialization/signature, delivery, and opt-in semantics.",
+        "Added loop_started/loop_stopped and phase_started/phase_completed webhook events with enriched, backward-compatible payload context.",
+        "Changed webhook event filtering defaults so new loop_/phase_ events are opt-in; ['*'] still subscribes to all.",
+        "Enhanced ralph webhook test: supports new events and can print exact JSON via --print-json with --pretty true|false.",
+        "Expanded unit+integration coverage (JSON body assertions, opt-in semantics) and split webhook unit tests into a submodule to keep source files under size heuristics.",
+        "Verified via make ci (format, clippy, tests, build, schema generation)."
+      ],
+      "request": "innovation scan finding",
+      "created_at": "2026-02-06T01:53:55Z",
+      "updated_at": "2026-02-06T11:05:10.469469000Z",
+      "completed_at": "2026-02-06T11:05:10.469469000Z",
+      "started_at": "2026-02-06T10:04:13.473980000Z",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],

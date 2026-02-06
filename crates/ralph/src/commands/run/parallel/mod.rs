@@ -210,6 +210,20 @@ pub(crate) fn run_loop_parallel(
 
     let base_branch = state_file.base_branch.clone();
 
+    // Emit loop_started webhook after preflights pass
+    let loop_start_time = std::time::Instant::now();
+    let loop_webhook_ctx = crate::webhook::WebhookContext {
+        repo_root: Some(resolved.repo_root.display().to_string()),
+        branch: Some(current_branch.clone()),
+        commit: crate::session::get_git_head_commit(&resolved.repo_root),
+        ..Default::default()
+    };
+    crate::webhook::notify_loop_started(
+        &resolved.config.agent.webhook,
+        &started_at,
+        loop_webhook_ctx.clone(),
+    );
+
     let merge_stop = Arc::new(AtomicBool::new(false));
 
     let (pr_tx, pr_rx) = mpsc::channel::<MergeWorkItem>();
@@ -676,6 +690,24 @@ pub(crate) fn run_loop_parallel(
         // 4. Terminate in-flight workers
         // 5. Clear and persist state
 
+        // Emit loop_stopped webhook on error/interrupt path
+        let loop_stopped_at = crate::timeutil::now_utc_rfc3339_or_fallback();
+        let loop_duration_ms = loop_start_time.elapsed().as_millis() as u64;
+        let loop_note = if interrupted {
+            Some("Parallel run interrupted by Ctrl+C".to_string())
+        } else {
+            loop_result.as_ref().err().map(|e| e.to_string())
+        };
+        crate::webhook::notify_loop_stopped(
+            &resolved.config.agent.webhook,
+            &loop_stopped_at,
+            crate::webhook::WebhookContext {
+                duration_ms: Some(loop_duration_ms),
+                ..loop_webhook_ctx
+            },
+            loop_note.as_deref(),
+        );
+
         if interrupted {
             return Err(runutil::RunAbort::new(
                 runutil::RunAbortReason::Interrupted,
@@ -794,6 +826,23 @@ pub(crate) fn run_loop_parallel(
             &notify_config,
         );
     }
+
+    // Emit loop_stopped webhook on success path
+    let loop_stopped_at = crate::timeutil::now_utc_rfc3339_or_fallback();
+    let loop_duration_ms = loop_start_time.elapsed().as_millis() as u64;
+    let loop_note = Some(format!(
+        "Parallel run completed: {}/{} succeeded, {} failed",
+        tasks_succeeded, tasks_attempted, tasks_failed
+    ));
+    crate::webhook::notify_loop_stopped(
+        &resolved.config.agent.webhook,
+        &loop_stopped_at,
+        crate::webhook::WebhookContext {
+            duration_ms: Some(loop_duration_ms),
+            ..loop_webhook_ctx
+        },
+        loop_note.as_deref(),
+    );
 
     Ok(())
 }

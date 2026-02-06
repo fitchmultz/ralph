@@ -812,8 +812,11 @@ pub struct WebhookConfig {
     /// When set, webhooks include an X-Ralph-Signature header.
     pub secret: Option<String>,
 
-    /// Events to subscribe to (default: all).
-    /// Supported: task_created, task_started, task_completed, task_failed, task_status_changed
+    /// Events to subscribe to (default: legacy task events only).
+    /// Supported: task_created, task_started, task_completed, task_failed, task_status_changed,
+    ///            loop_started, loop_stopped, phase_started, phase_completed
+    /// Note: loop_* and phase_* events are opt-in and require explicit configuration.
+    /// Use ["*"] to subscribe to all events.
     pub events: Option<Vec<String>>,
 
     /// Request timeout in seconds (default: 30, max: 300).
@@ -870,13 +873,28 @@ impl WebhookConfig {
         }
     }
 
+    /// Legacy default events that are enabled when `events` is not specified.
+    /// New events (loop_*, phase_*) are opt-in and require explicit configuration.
+    const DEFAULT_EVENTS_V1: [&'static str; 5] = [
+        "task_created",
+        "task_started",
+        "task_completed",
+        "task_failed",
+        "task_status_changed",
+    ];
+
     /// Check if a specific event type is enabled.
+    ///
+    /// Event filtering behavior:
+    /// - If webhooks are disabled, no events are sent.
+    /// - If `events` is `None`: only legacy task events are enabled (backward compatible).
+    /// - If `events` is `Some([...])`: only those events are enabled; use `["*"]` to enable all.
     pub fn is_event_enabled(&self, event: &str) -> bool {
         if !self.enabled.unwrap_or(false) {
             return false;
         }
         match &self.events {
-            None => true, // All events enabled by default
+            None => Self::DEFAULT_EVENTS_V1.contains(&event),
             Some(events) => events.iter().any(|e| e == event || e == "*"),
         }
     }

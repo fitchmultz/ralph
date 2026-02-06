@@ -350,9 +350,11 @@ Supported fields:
 - `url`: webhook endpoint URL (required when enabled).
 - `secret`: secret key for HMAC-SHA256 signature generation (optional).
   When set, webhooks include an `X-Ralph-Signature` header for verification.
-- `events`: list of events to subscribe to (default: all events).
-  - Supported: `task_created`, `task_started`, `task_completed`, `task_failed`, `task_status_changed`
-  - Use `["*"]` to subscribe to all events
+- `events`: list of events to subscribe to (default: legacy task events only).
+  - **Task events**: `task_created`, `task_started`, `task_completed`, `task_failed`, `task_status_changed`
+  - **Loop events**: `loop_started`, `loop_stopped` (opt-in)
+  - **Phase events**: `phase_started`, `phase_completed` (opt-in)
+  - Use `["*"]` to subscribe to all events including new ones
 - `timeout_secs`: request timeout in seconds (default: `30`, max: `300`).
 - `retry_count`: number of retry attempts for failed deliveries (default: `3`, max: `10`).
 - `retry_backoff_ms`: retry backoff base in milliseconds (default: `1000`, max: `30000`).
@@ -361,6 +363,28 @@ Supported fields:
   - `drop_oldest`: Drop new webhooks when queue is full (preserves existing queue contents).
   - `drop_new`: Drop the new webhook if the queue is full.
   - `block_with_timeout`: Briefly block the caller (100ms), then drop if queue is still full.
+
+### Event Filtering
+
+**Breaking change**: As of this version, new event types (`loop_*`, `phase_*`) are **opt-in** and not enabled by default.
+
+- If `events` is not specified (or `null`): only legacy task events are delivered
+- If `events` is `["*"]`: all events are delivered (legacy + new)
+- If `events` is an explicit list: only those events are delivered
+
+Example configuration for CI/dashboard integrations:
+
+```json
+{
+  "agent": {
+    "webhook": {
+      "enabled": true,
+      "url": "https://example.com/webhook",
+      "events": ["loop_started", "phase_started", "phase_completed", "loop_stopped"]
+    }
+  }
+}
+```
 
 ### Delivery Semantics
 
@@ -409,6 +433,41 @@ Webhooks are sent as HTTP POST requests with JSON payloads:
 }
 ```
 
+**Task events** (`task_*`) always include `task_id` and `task_title`. **Loop events** (`loop_*`) omit these fields since they are not task-specific.
+
+#### Enriched Payloads (Phase Events)
+
+Phase and loop events include additional context metadata:
+
+```json
+{
+  "event": "phase_completed",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "task_id": "RQ-0001",
+  "task_title": "Add webhook support",
+  "runner": "claude",
+  "model": "sonnet",
+  "phase": 2,
+  "phase_count": 3,
+  "duration_ms": 12500,
+  "repo_root": "/home/user/project",
+  "branch": "main",
+  "commit": "abc123def456",
+  "ci_gate": "passed"
+}
+```
+
+Optional context fields (only present when applicable):
+- `runner`: The runner used (e.g., `claude`, `codex`, `kimi`)
+- `model`: The model used for this phase
+- `phase`: Phase number (1, 2, or 3)
+- `phase_count`: Total configured phases
+- `duration_ms`: Phase execution duration in milliseconds
+- `repo_root`: Repository root path
+- `branch`: Current git branch
+- `commit`: Current git commit hash
+- `ci_gate`: CI gate outcome (`skipped`, `passed`, or `failed`)
+
 ### Webhook Security
 
 When a `secret` is configured, webhooks include an `X-Ralph-Signature` header:
@@ -449,6 +508,14 @@ ralph webhook test
 
 # Test with specific event type
 ralph webhook test --event task_completed
+
+# Test with new event types (opt-in)
+ralph webhook test --event phase_started
+ralph webhook test --event loop_started
+
+# Print the JSON payload without sending (useful for debugging)
+ralph webhook test --event phase_completed --print-json
+ralph webhook test --event task_created --print-json --pretty
 
 # Test with custom URL
 ralph webhook test --url https://example.com/webhook

@@ -209,6 +209,21 @@ pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()>
     // Clear any stale stop signal from previous runs to ensure clean state
     signal::clear_stop_signal_at_loop_start(&cache_dir);
 
+    // Emit loop_started webhook before entering the run loop
+    let loop_start_time = std::time::Instant::now();
+    let loop_started_at = crate::timeutil::now_utc_rfc3339_or_fallback();
+    let loop_webhook_ctx = crate::webhook::WebhookContext {
+        repo_root: Some(resolved.repo_root.display().to_string()),
+        branch: crate::git::current_branch(&resolved.repo_root).ok(),
+        commit: crate::session::get_git_head_commit(&resolved.repo_root),
+        ..Default::default()
+    };
+    crate::webhook::notify_loop_started(
+        &resolved.config.agent.webhook,
+        &loop_started_at,
+        loop_webhook_ctx.clone(),
+    );
+
     let result = logging::with_scope(&label, || {
         loop {
             if opts.max_tasks != 0 && completed >= opts.max_tasks {
@@ -331,6 +346,26 @@ pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()>
             &notify_config,
         );
     }
+
+    // Emit loop_stopped webhook after loop completes
+    let loop_stopped_at = crate::timeutil::now_utc_rfc3339_or_fallback();
+    let loop_duration_ms = loop_start_time.elapsed().as_millis() as u64;
+    let loop_note = match &result {
+        Ok(()) => Some(format!(
+            "Completed: {}/{} succeeded",
+            tasks_succeeded, tasks_attempted
+        )),
+        Err(e) => Some(format!("Error: {}", e)),
+    };
+    crate::webhook::notify_loop_stopped(
+        &resolved.config.agent.webhook,
+        &loop_stopped_at,
+        crate::webhook::WebhookContext {
+            duration_ms: Some(loop_duration_ms),
+            ..loop_webhook_ctx
+        },
+        loop_note.as_deref(),
+    );
 
     // Clear session on successful completion
     if result.is_ok()
@@ -868,6 +903,43 @@ fn run_one_impl(
                 prompts::PHASE3_COMPLETION_GUIDANCE_NONFINAL
             };
 
+            // Helper to build webhook context for a phase
+            let webhook_ctx_for_phase =
+                |phase: u8, settings: &runner::AgentSettings| -> crate::webhook::WebhookContext {
+                    crate::webhook::WebhookContext {
+                        runner: Some(format!("{:?}", settings.runner).to_lowercase()),
+                        model: Some(settings.model.as_str().to_string()),
+                        phase: Some(phase),
+                        phase_count: Some(phases),
+                        repo_root: Some(resolved.repo_root.display().to_string()),
+                        branch: crate::git::current_branch(&resolved.repo_root).ok(),
+                        commit: crate::session::get_git_head_commit(&resolved.repo_root),
+                        ..Default::default()
+                    }
+                };
+
+            let ci_gate_enabled = resolved.config.agent.ci_gate_enabled.unwrap_or(true);
+            let ci_gate_status_for_result = |result: &Result<(), anyhow::Error>| -> Option<String> {
+                if !ci_gate_enabled {
+                    return Some("skipped".to_string());
+                }
+
+                match result {
+                    Ok(()) => Some("passed".to_string()),
+                    Err(err) => {
+                        // Only report "failed" when we are confident the CI gate ran and failed.
+                        // Other errors (runner issues, user interrupts, etc.) may prevent CI from
+                        // running at all, so we omit `ci_gate` in those cases.
+                        let msg = format!("{err:#}");
+                        if msg.contains("CI failed:") {
+                            Some("failed".to_string())
+                        } else {
+                            None
+                        }
+                    }
+                }
+            };
+
             match phases {
                 2 => {
                     // Phase 1: Planning - use phase1 settings
@@ -897,7 +969,32 @@ fn run_one_impl(
                         no_progress: agent_overrides.no_progress.unwrap_or(false),
                         execution_timings: execution_timings.as_ref(),
                     };
+
+                    // Phase 1 webhook events
+                    let phase1_started_at = crate::timeutil::now_utc_rfc3339_or_fallback();
+                    let phase1_start = std::time::Instant::now();
+                    let phase1_ctx =
+                        webhook_ctx_for_phase(1, &phase_matrix.phase1.to_agent_settings());
+                    crate::webhook::notify_phase_started(
+                        &task_id,
+                        &task.title,
+                        &resolved.config.agent.webhook,
+                        &phase1_started_at,
+                        phase1_ctx.clone(),
+                    );
+
                     let plan_text = phases::execute_phase1_planning(&phase1_invocation, 2)?;
+
+                    let phase1_completed_at = crate::timeutil::now_utc_rfc3339_or_fallback();
+                    let mut phase1_ctx_done = phase1_ctx;
+                    phase1_ctx_done.duration_ms = Some(phase1_start.elapsed().as_millis() as u64);
+                    crate::webhook::notify_phase_completed(
+                        &task_id,
+                        &task.title,
+                        &resolved.config.agent.webhook,
+                        &phase1_completed_at,
+                        phase1_ctx_done,
+                    );
 
                     // Phase 2: Implementation - use phase2 settings (with follow-up effort applied)
                     let phase2_invocation = phases::PhaseInvocation {
@@ -926,7 +1023,35 @@ fn run_one_impl(
                         no_progress: agent_overrides.no_progress.unwrap_or(false),
                         execution_timings: execution_timings.as_ref(),
                     };
-                    phases::execute_phase2_implementation(&phase2_invocation, 2, &plan_text)?;
+
+                    // Phase 2 webhook events
+                    let phase2_started_at = crate::timeutil::now_utc_rfc3339_or_fallback();
+                    let phase2_start = std::time::Instant::now();
+                    let phase2_ctx = webhook_ctx_for_phase(2, &phase2_settings);
+                    crate::webhook::notify_phase_started(
+                        &task_id,
+                        &task.title,
+                        &resolved.config.agent.webhook,
+                        &phase2_started_at,
+                        phase2_ctx.clone(),
+                    );
+
+                    let phase2_result =
+                        phases::execute_phase2_implementation(&phase2_invocation, 2, &plan_text);
+
+                    let phase2_completed_at = crate::timeutil::now_utc_rfc3339_or_fallback();
+                    let mut phase2_ctx_done = phase2_ctx;
+                    phase2_ctx_done.duration_ms = Some(phase2_start.elapsed().as_millis() as u64);
+                    phase2_ctx_done.ci_gate = ci_gate_status_for_result(&phase2_result);
+                    crate::webhook::notify_phase_completed(
+                        &task_id,
+                        &task.title,
+                        &resolved.config.agent.webhook,
+                        &phase2_completed_at,
+                        phase2_ctx_done,
+                    );
+
+                    phase2_result?;
                 }
                 3 => {
                     // Phase 1: Planning - use phase1 settings
@@ -956,7 +1081,32 @@ fn run_one_impl(
                         no_progress: agent_overrides.no_progress.unwrap_or(false),
                         execution_timings: execution_timings.as_ref(),
                     };
+
+                    // Phase 1 webhook events
+                    let phase1_started_at = crate::timeutil::now_utc_rfc3339_or_fallback();
+                    let phase1_start = std::time::Instant::now();
+                    let phase1_ctx =
+                        webhook_ctx_for_phase(1, &phase_matrix.phase1.to_agent_settings());
+                    crate::webhook::notify_phase_started(
+                        &task_id,
+                        &task.title,
+                        &resolved.config.agent.webhook,
+                        &phase1_started_at,
+                        phase1_ctx.clone(),
+                    );
+
                     let plan_text = phases::execute_phase1_planning(&phase1_invocation, 3)?;
+
+                    let phase1_completed_at = crate::timeutil::now_utc_rfc3339_or_fallback();
+                    let mut phase1_ctx_done = phase1_ctx;
+                    phase1_ctx_done.duration_ms = Some(phase1_start.elapsed().as_millis() as u64);
+                    crate::webhook::notify_phase_completed(
+                        &task_id,
+                        &task.title,
+                        &resolved.config.agent.webhook,
+                        &phase1_completed_at,
+                        phase1_ctx_done,
+                    );
 
                     // Phase 2: Implementation - use phase2 settings (with follow-up effort applied)
                     let phase2_invocation = phases::PhaseInvocation {
@@ -985,7 +1135,35 @@ fn run_one_impl(
                         no_progress: agent_overrides.no_progress.unwrap_or(false),
                         execution_timings: execution_timings.as_ref(),
                     };
-                    phases::execute_phase2_implementation(&phase2_invocation, 3, &plan_text)?;
+
+                    // Phase 2 webhook events
+                    let phase2_started_at = crate::timeutil::now_utc_rfc3339_or_fallback();
+                    let phase2_start = std::time::Instant::now();
+                    let phase2_ctx = webhook_ctx_for_phase(2, &phase2_settings);
+                    crate::webhook::notify_phase_started(
+                        &task_id,
+                        &task.title,
+                        &resolved.config.agent.webhook,
+                        &phase2_started_at,
+                        phase2_ctx.clone(),
+                    );
+
+                    let phase2_result =
+                        phases::execute_phase2_implementation(&phase2_invocation, 3, &plan_text);
+
+                    let phase2_completed_at = crate::timeutil::now_utc_rfc3339_or_fallback();
+                    let mut phase2_ctx_done = phase2_ctx;
+                    phase2_ctx_done.duration_ms = Some(phase2_start.elapsed().as_millis() as u64);
+                    phase2_ctx_done.ci_gate = ci_gate_status_for_result(&phase2_result);
+                    crate::webhook::notify_phase_completed(
+                        &task_id,
+                        &task.title,
+                        &resolved.config.agent.webhook,
+                        &phase2_completed_at,
+                        phase2_ctx_done,
+                    );
+
+                    phase2_result?;
 
                     // Phase 3: Review - use phase3 settings
                     let phase3_invocation = phases::PhaseInvocation {
@@ -1014,7 +1192,35 @@ fn run_one_impl(
                         no_progress: agent_overrides.no_progress.unwrap_or(false),
                         execution_timings: execution_timings.as_ref(),
                     };
-                    phases::execute_phase3_review(&phase3_invocation)?;
+
+                    // Phase 3 webhook events
+                    let phase3_started_at = crate::timeutil::now_utc_rfc3339_or_fallback();
+                    let phase3_start = std::time::Instant::now();
+                    let phase3_ctx =
+                        webhook_ctx_for_phase(3, &phase_matrix.phase3.to_agent_settings());
+                    crate::webhook::notify_phase_started(
+                        &task_id,
+                        &task.title,
+                        &resolved.config.agent.webhook,
+                        &phase3_started_at,
+                        phase3_ctx.clone(),
+                    );
+
+                    let phase3_result = phases::execute_phase3_review(&phase3_invocation);
+
+                    let phase3_completed_at = crate::timeutil::now_utc_rfc3339_or_fallback();
+                    let mut phase3_ctx_done = phase3_ctx;
+                    phase3_ctx_done.duration_ms = Some(phase3_start.elapsed().as_millis() as u64);
+                    phase3_ctx_done.ci_gate = ci_gate_status_for_result(&phase3_result);
+                    crate::webhook::notify_phase_completed(
+                        &task_id,
+                        &task.title,
+                        &resolved.config.agent.webhook,
+                        &phase3_completed_at,
+                        phase3_ctx_done,
+                    );
+
+                    phase3_result?;
                 }
                 1 => {
                     // Single-phase: use Phase 2 settings (with follow-up effort applied)
@@ -1044,7 +1250,34 @@ fn run_one_impl(
                         no_progress: agent_overrides.no_progress.unwrap_or(false),
                         execution_timings: execution_timings.as_ref(),
                     };
-                    phases::execute_single_phase(&single_invocation)?;
+
+                    // Single-phase (treated as phase 2) webhook events
+                    let phase_started_at = crate::timeutil::now_utc_rfc3339_or_fallback();
+                    let phase_start = std::time::Instant::now();
+                    let phase_ctx = webhook_ctx_for_phase(2, &phase2_settings);
+                    crate::webhook::notify_phase_started(
+                        &task_id,
+                        &task.title,
+                        &resolved.config.agent.webhook,
+                        &phase_started_at,
+                        phase_ctx.clone(),
+                    );
+
+                    let phase_result = phases::execute_single_phase(&single_invocation);
+
+                    let phase_completed_at = crate::timeutil::now_utc_rfc3339_or_fallback();
+                    let mut phase_ctx_done = phase_ctx;
+                    phase_ctx_done.duration_ms = Some(phase_start.elapsed().as_millis() as u64);
+                    phase_ctx_done.ci_gate = ci_gate_status_for_result(&phase_result);
+                    crate::webhook::notify_phase_completed(
+                        &task_id,
+                        &task.title,
+                        &resolved.config.agent.webhook,
+                        &phase_completed_at,
+                        phase_ctx_done,
+                    );
+
+                    phase_result?;
                 }
                 _ => {
                     bail!(

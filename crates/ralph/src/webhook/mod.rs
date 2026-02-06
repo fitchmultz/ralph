@@ -38,6 +38,14 @@ pub enum WebhookEventType {
     TaskFailed,
     /// Generic status change (used when specific type not applicable).
     TaskStatusChanged,
+    /// Run loop started.
+    LoopStarted,
+    /// Run loop stopped (success, failure, or signal).
+    LoopStopped,
+    /// Phase started for a task.
+    PhaseStarted,
+    /// Phase completed for a task.
+    PhaseCompleted,
 }
 
 impl WebhookEventType {
@@ -48,8 +56,67 @@ impl WebhookEventType {
             WebhookEventType::TaskCompleted => "task_completed",
             WebhookEventType::TaskFailed => "task_failed",
             WebhookEventType::TaskStatusChanged => "task_status_changed",
+            WebhookEventType::LoopStarted => "loop_started",
+            WebhookEventType::LoopStopped => "loop_stopped",
+            WebhookEventType::PhaseStarted => "phase_started",
+            WebhookEventType::PhaseCompleted => "phase_completed",
         }
     }
+}
+
+impl std::str::FromStr for WebhookEventType {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "task_created" => Self::TaskCreated,
+            "task_started" => Self::TaskStarted,
+            "task_completed" => Self::TaskCompleted,
+            "task_failed" => Self::TaskFailed,
+            "task_status_changed" => Self::TaskStatusChanged,
+            "loop_started" => Self::LoopStarted,
+            "loop_stopped" => Self::LoopStopped,
+            "phase_started" => Self::PhaseStarted,
+            "phase_completed" => Self::PhaseCompleted,
+            other => anyhow::bail!(
+                "Unknown event type: {}. Supported: task_created, task_started, task_completed, task_failed, task_status_changed, loop_started, loop_stopped, phase_started, phase_completed",
+                other
+            ),
+        })
+    }
+}
+
+/// Optional context metadata for webhook payloads.
+/// These fields are only serialized when set (Some).
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct WebhookContext {
+    /// Runner used for this phase/execution (e.g., "claude", "codex").
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub runner: Option<String>,
+    /// Model used for this phase/execution.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
+    /// Current phase number (1, 2, or 3).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phase: Option<u8>,
+    /// Total number of phases configured.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phase_count: Option<u8>,
+    /// Duration in milliseconds (for completed operations).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub duration_ms: Option<u64>,
+    /// Repository root path.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub repo_root: Option<String>,
+    /// Current git branch.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub branch: Option<String>,
+    /// Current git commit hash.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub commit: Option<String>,
+    /// CI gate outcome: "skipped", "passed", or "failed".
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ci_gate: Option<String>,
 }
 
 /// Webhook event payload structure.
@@ -60,9 +127,13 @@ pub struct WebhookPayload {
     /// Timestamp of the event (RFC3339).
     pub timestamp: String,
     /// Task ID (e.g., "RQ-0001").
-    pub task_id: String,
+    /// Optional: may be None for loop-level events.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub task_id: Option<String>,
     /// Task title.
-    pub task_title: String,
+    /// Optional: may be None for loop-level events.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub task_title: Option<String>,
     /// Previous status (if applicable).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub previous_status: Option<String>,
@@ -72,6 +143,9 @@ pub struct WebhookPayload {
     /// Additional context or notes.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
+    /// Optional context metadata (runner, model, phase, git info, etc.)
+    #[serde(flatten)]
+    pub context: WebhookContext,
 }
 
 /// Resolved webhook configuration with defaults applied.
@@ -191,27 +265,14 @@ fn deliver_webhook(msg: &WebhookMessage) -> anyhow::Result<()> {
     Err(last_error.unwrap_or_else(|| anyhow::anyhow!("All webhook attempts failed")))
 }
 
-/// Send a webhook notification (non-blocking, enqueues for delivery).
+/// Send a webhook payload directly (non-blocking, enqueues for delivery).
 ///
-/// This function returns immediately after enqueueing the webhook.
-/// Delivery happens asynchronously in a background worker thread.
-#[allow(clippy::too_many_arguments)]
-pub fn send_webhook(
-    event_type: WebhookEventType,
-    task_id: &str,
-    task_title: &str,
-    previous_status: Option<&str>,
-    current_status: Option<&str>,
-    note: Option<&str>,
-    config: &WebhookConfig,
-    timestamp_rfc3339: &str,
-) {
+/// This is the low-level function that checks event filtering and enqueues.
+/// Prefer using the `notify_*` convenience functions for common events.
+pub fn send_webhook_payload(payload: WebhookPayload, config: &WebhookConfig) {
     // Check if webhooks are enabled for this event type
-    if !config.is_event_enabled(event_type.as_str()) {
-        log::debug!(
-            "Webhook for event {} is disabled; skipping",
-            event_type.as_str()
-        );
+    if !config.is_event_enabled(&payload.event) {
+        log::debug!("Webhook for event {} is disabled; skipping", payload.event);
         return;
     }
 
@@ -228,17 +289,6 @@ pub fn send_webhook(
             log::debug!("Webhook URL not configured; skipping");
             return;
         }
-    };
-
-    // Build payload
-    let payload = WebhookPayload {
-        event: event_type.as_str().to_string(),
-        timestamp: timestamp_rfc3339.to_string(),
-        task_id: task_id.to_string(),
-        task_title: task_title.to_string(),
-        previous_status: previous_status.map(|s| s.to_string()),
-        current_status: current_status.map(|s| s.to_string()),
-        note: note.map(|n| n.to_string()),
     };
 
     // Initialize worker on first use
@@ -265,6 +315,34 @@ pub fn send_webhook(
             log::error!("Webhook worker not initialized; cannot send webhook");
         }
     }
+}
+
+/// Send a webhook notification (non-blocking, enqueues for delivery).
+///
+/// This function returns immediately after enqueueing the webhook.
+/// Delivery happens asynchronously in a background worker thread.
+#[allow(clippy::too_many_arguments)]
+pub fn send_webhook(
+    event_type: WebhookEventType,
+    task_id: &str,
+    task_title: &str,
+    previous_status: Option<&str>,
+    current_status: Option<&str>,
+    note: Option<&str>,
+    config: &WebhookConfig,
+    timestamp_rfc3339: &str,
+) {
+    let payload = WebhookPayload {
+        event: event_type.as_str().to_string(),
+        timestamp: timestamp_rfc3339.to_string(),
+        task_id: Some(task_id.to_string()),
+        task_title: Some(task_title.to_string()),
+        previous_status: previous_status.map(|s| s.to_string()),
+        current_status: current_status.map(|s| s.to_string()),
+        note: note.map(|n| n.to_string()),
+        context: WebhookContext::default(),
+    };
+    send_webhook_payload(payload, config);
 }
 
 /// Apply the configured backpressure policy for a webhook message.
@@ -379,6 +457,27 @@ pub fn notify_task_created(
     );
 }
 
+/// Convenience function to send task creation webhook with context.
+pub fn notify_task_created_with_context(
+    task_id: &str,
+    task_title: &str,
+    config: &WebhookConfig,
+    timestamp_rfc3339: &str,
+    context: WebhookContext,
+) {
+    let payload = WebhookPayload {
+        event: WebhookEventType::TaskCreated.as_str().to_string(),
+        timestamp: timestamp_rfc3339.to_string(),
+        task_id: Some(task_id.to_string()),
+        task_title: Some(task_title.to_string()),
+        previous_status: None,
+        current_status: None,
+        note: None,
+        context,
+    };
+    send_webhook_payload(payload, config);
+}
+
 /// Convenience function to send task started webhook.
 pub fn notify_task_started(
     task_id: &str,
@@ -396,6 +495,27 @@ pub fn notify_task_started(
         config,
         timestamp_rfc3339,
     );
+}
+
+/// Convenience function to send task started webhook with context.
+pub fn notify_task_started_with_context(
+    task_id: &str,
+    task_title: &str,
+    config: &WebhookConfig,
+    timestamp_rfc3339: &str,
+    context: WebhookContext,
+) {
+    let payload = WebhookPayload {
+        event: WebhookEventType::TaskStarted.as_str().to_string(),
+        timestamp: timestamp_rfc3339.to_string(),
+        task_id: Some(task_id.to_string()),
+        task_title: Some(task_title.to_string()),
+        previous_status: Some("todo".to_string()),
+        current_status: Some("doing".to_string()),
+        note: None,
+        context,
+    };
+    send_webhook_payload(payload, config);
 }
 
 /// Convenience function to send task completed webhook.
@@ -417,6 +537,27 @@ pub fn notify_task_completed(
     );
 }
 
+/// Convenience function to send task completed webhook with context.
+pub fn notify_task_completed_with_context(
+    task_id: &str,
+    task_title: &str,
+    config: &WebhookConfig,
+    timestamp_rfc3339: &str,
+    context: WebhookContext,
+) {
+    let payload = WebhookPayload {
+        event: WebhookEventType::TaskCompleted.as_str().to_string(),
+        timestamp: timestamp_rfc3339.to_string(),
+        task_id: Some(task_id.to_string()),
+        task_title: Some(task_title.to_string()),
+        previous_status: Some("doing".to_string()),
+        current_status: Some("done".to_string()),
+        note: None,
+        context,
+    };
+    send_webhook_payload(payload, config);
+}
+
 /// Convenience function to send task failed/rejected webhook.
 pub fn notify_task_failed(
     task_id: &str,
@@ -435,6 +576,28 @@ pub fn notify_task_failed(
         config,
         timestamp_rfc3339,
     );
+}
+
+/// Convenience function to send task failed webhook with context.
+pub fn notify_task_failed_with_context(
+    task_id: &str,
+    task_title: &str,
+    note: Option<&str>,
+    config: &WebhookConfig,
+    timestamp_rfc3339: &str,
+    context: WebhookContext,
+) {
+    let payload = WebhookPayload {
+        event: WebhookEventType::TaskFailed.as_str().to_string(),
+        timestamp: timestamp_rfc3339.to_string(),
+        task_id: Some(task_id.to_string()),
+        task_title: Some(task_title.to_string()),
+        previous_status: Some("doing".to_string()),
+        current_status: Some("rejected".to_string()),
+        note: note.map(|n| n.to_string()),
+        context,
+    };
+    send_webhook_payload(payload, config);
 }
 
 /// Convenience function to send generic status change webhook.
@@ -458,196 +621,88 @@ pub fn notify_status_changed(
     );
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn webhook_event_type_as_str() {
-        assert_eq!(WebhookEventType::TaskCreated.as_str(), "task_created");
-        assert_eq!(WebhookEventType::TaskStarted.as_str(), "task_started");
-        assert_eq!(WebhookEventType::TaskCompleted.as_str(), "task_completed");
-        assert_eq!(WebhookEventType::TaskFailed.as_str(), "task_failed");
-        assert_eq!(
-            WebhookEventType::TaskStatusChanged.as_str(),
-            "task_status_changed"
-        );
-    }
-
-    #[test]
-    fn resolved_config_defaults() {
-        let config = WebhookConfig::default();
-        let resolved = ResolvedWebhookConfig::from_config(&config);
-
-        assert!(!resolved.enabled);
-        assert_eq!(resolved.timeout, Duration::from_secs(30));
-        assert_eq!(resolved.retry_count, 3);
-        assert_eq!(resolved.retry_backoff, Duration::from_millis(1000));
-    }
-
-    #[test]
-    fn is_event_enabled_all_by_default() {
-        let config = WebhookConfig {
-            enabled: Some(true),
-            ..Default::default()
-        };
-
-        assert!(config.is_event_enabled("task_created"));
-        assert!(config.is_event_enabled("task_completed"));
-        assert!(config.is_event_enabled("any_event"));
-    }
-
-    #[test]
-    fn is_event_enabled_with_specific_events() {
-        let config = WebhookConfig {
-            enabled: Some(true),
-            events: Some(vec![
-                "task_created".to_string(),
-                "task_completed".to_string(),
-            ]),
-            ..Default::default()
-        };
-
-        assert!(config.is_event_enabled("task_created"));
-        assert!(config.is_event_enabled("task_completed"));
-        assert!(!config.is_event_enabled("task_started"));
-    }
-
-    #[test]
-    fn is_event_enabled_disabled_globally() {
-        let config = WebhookConfig {
-            enabled: Some(false),
-            events: Some(vec!["*".to_string()]),
-            ..Default::default()
-        };
-
-        assert!(!config.is_event_enabled("task_created"));
-    }
-
-    #[test]
-    fn generate_signature_format() {
-        let body = r#"{"event":"test","task_id":"RQ-0001"}"#;
-        let secret = "my-secret-key";
-        let sig = generate_signature(body, secret);
-
-        assert!(sig.starts_with("sha256="));
-        assert_eq!(sig.len(), 7 + 64); // "sha256=" + 64 hex chars
-    }
-
-    #[test]
-    fn payload_serialization() {
-        let payload = WebhookPayload {
-            event: "task_created".to_string(),
-            timestamp: "2024-01-15T10:30:00Z".to_string(),
-            task_id: "RQ-0001".to_string(),
-            task_title: "Test task".to_string(),
-            previous_status: None,
-            current_status: Some("todo".to_string()),
-            note: None,
-        };
-
-        let json = serde_json::to_string(&payload).unwrap();
-        assert!(json.contains("\"event\":\"task_created\""));
-        assert!(json.contains("\"task_id\":\"RQ-0001\""));
-        assert!(!json.contains("previous_status")); // skipped when None
-    }
-
-    #[test]
-    fn webhook_queue_policy_default() {
-        let policy: WebhookQueuePolicy = Default::default();
-        assert_eq!(policy, WebhookQueuePolicy::DropOldest);
-    }
-
-    #[test]
-    fn webhook_queue_policy_deserialization() {
-        // Test drop_oldest
-        let config_json = r#"{"queue_policy": "drop_oldest"}"#;
-        let config: WebhookConfig = serde_json::from_str(config_json).unwrap();
-        assert_eq!(config.queue_policy, Some(WebhookQueuePolicy::DropOldest));
-
-        // Test drop_new
-        let config_json = r#"{"queue_policy": "drop_new"}"#;
-        let config: WebhookConfig = serde_json::from_str(config_json).unwrap();
-        assert_eq!(config.queue_policy, Some(WebhookQueuePolicy::DropNew));
-
-        // Test block_with_timeout
-        let config_json = r#"{"queue_policy": "block_with_timeout"}"#;
-        let config: WebhookConfig = serde_json::from_str(config_json).unwrap();
-        assert_eq!(
-            config.queue_policy,
-            Some(WebhookQueuePolicy::BlockWithTimeout)
-        );
-    }
-
-    #[test]
-    fn webhook_config_queue_defaults() {
-        let config = WebhookConfig::default();
-        assert_eq!(config.queue_capacity, None);
-        assert_eq!(config.queue_policy, None);
-    }
-
-    #[test]
-    fn webhook_config_queue_capacity_parsing() {
-        let config_json = r#"{"queue_capacity": 500}"#;
-        let config: WebhookConfig = serde_json::from_str(config_json).unwrap();
-        assert_eq!(config.queue_capacity, Some(500));
-    }
-
-    #[test]
-    fn webhook_config_merge_includes_queue_fields() {
-        let mut base = WebhookConfig {
-            queue_capacity: Some(100),
-            queue_policy: Some(WebhookQueuePolicy::DropOldest),
-            ..Default::default()
-        };
-
-        let other = WebhookConfig {
-            queue_capacity: Some(200),
-            queue_policy: Some(WebhookQueuePolicy::DropNew),
-            ..Default::default()
-        };
-
-        base.merge_from(other);
-
-        assert_eq!(base.queue_capacity, Some(200));
-        assert_eq!(base.queue_policy, Some(WebhookQueuePolicy::DropNew));
-    }
-
-    #[test]
-    fn webhook_queue_capacity_bounds_check() {
-        // Test that capacity is properly bounded (clamped to 1-10000 range)
-        // Zero would create a rendezvous channel where all sends fail
-        let low_config = WebhookConfig {
-            queue_capacity: Some(0),
-            ..Default::default()
-        };
-        let capacity = low_config
-            .queue_capacity
-            .map(|c| c.clamp(1, 10000))
-            .unwrap_or(100);
-        assert_eq!(capacity, 1, "Capacity should be clamped to minimum of 1");
-
-        let high_config = WebhookConfig {
-            queue_capacity: Some(50000),
-            ..Default::default()
-        };
-        let capacity = high_config
-            .queue_capacity
-            .map(|c| c.clamp(1, 10000))
-            .unwrap_or(100);
-        assert_eq!(
-            capacity, 10000,
-            "Capacity should be clamped to maximum of 10000"
-        );
-
-        let normal_config = WebhookConfig {
-            queue_capacity: Some(500),
-            ..Default::default()
-        };
-        let capacity = normal_config
-            .queue_capacity
-            .map(|c| c.clamp(1, 10000))
-            .unwrap_or(100);
-        assert_eq!(capacity, 500, "Normal capacity should be preserved");
-    }
+/// Convenience function to send loop started webhook.
+/// This is a loop-level event with no task association.
+pub fn notify_loop_started(
+    config: &WebhookConfig,
+    timestamp_rfc3339: &str,
+    context: WebhookContext,
+) {
+    let payload = WebhookPayload {
+        event: WebhookEventType::LoopStarted.as_str().to_string(),
+        timestamp: timestamp_rfc3339.to_string(),
+        task_id: None,
+        task_title: None,
+        previous_status: None,
+        current_status: None,
+        note: None,
+        context,
+    };
+    send_webhook_payload(payload, config);
 }
+
+/// Convenience function to send loop stopped webhook.
+/// This is a loop-level event with no task association.
+pub fn notify_loop_stopped(
+    config: &WebhookConfig,
+    timestamp_rfc3339: &str,
+    context: WebhookContext,
+    note: Option<&str>,
+) {
+    let payload = WebhookPayload {
+        event: WebhookEventType::LoopStopped.as_str().to_string(),
+        timestamp: timestamp_rfc3339.to_string(),
+        task_id: None,
+        task_title: None,
+        previous_status: None,
+        current_status: None,
+        note: note.map(|n| n.to_string()),
+        context,
+    };
+    send_webhook_payload(payload, config);
+}
+
+/// Convenience function to send phase started webhook.
+pub fn notify_phase_started(
+    task_id: &str,
+    task_title: &str,
+    config: &WebhookConfig,
+    timestamp_rfc3339: &str,
+    context: WebhookContext,
+) {
+    let payload = WebhookPayload {
+        event: WebhookEventType::PhaseStarted.as_str().to_string(),
+        timestamp: timestamp_rfc3339.to_string(),
+        task_id: Some(task_id.to_string()),
+        task_title: Some(task_title.to_string()),
+        previous_status: None,
+        current_status: None,
+        note: None,
+        context,
+    };
+    send_webhook_payload(payload, config);
+}
+
+/// Convenience function to send phase completed webhook.
+pub fn notify_phase_completed(
+    task_id: &str,
+    task_title: &str,
+    config: &WebhookConfig,
+    timestamp_rfc3339: &str,
+    context: WebhookContext,
+) {
+    let payload = WebhookPayload {
+        event: WebhookEventType::PhaseCompleted.as_str().to_string(),
+        timestamp: timestamp_rfc3339.to_string(),
+        task_id: Some(task_id.to_string()),
+        task_title: Some(task_title.to_string()),
+        previous_status: None,
+        current_status: None,
+        note: None,
+        context,
+    };
+    send_webhook_payload(payload, config);
+}
+
+#[cfg(test)]
+mod tests;

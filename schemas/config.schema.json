@@ -1323,7 +1323,7 @@
           ]
         },
         "events": {
-          "description": "Events to subscribe to (default: all). Supported: task_created, task_started, task_completed, task_failed, task_status_changed",
+          "description": "Events to subscribe to (default: legacy task events only). Supported: task_created, task_started, task_completed, task_failed, task_status_changed, loop_started, loop_stopped, phase_started, phase_completed Note: loop_* and phase_* events are opt-in and require explicit configuration. Use [\"*\"] to subscribe to all events.",
           "default": null,
           "type": [
             "array",
