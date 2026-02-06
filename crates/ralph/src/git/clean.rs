@@ -27,6 +27,7 @@ pub const RALPH_RUN_CLEAN_ALLOWED_PATHS: &[&str] = &[
     ".ralph/done.json",
     ".ralph/config.json",
     ".ralph/cache/productivity.json",
+    ".ralph/cache/execution_history.json",
 ];
 
 /// Require a clean repository, ignoring allowed paths.
@@ -271,5 +272,14 @@ mod clean_repo_tests {
             "expected clean-repo enforcement to fail"
         );
         Ok(())
+    }
+
+    #[test]
+    fn execution_history_json_is_in_allowed_paths() {
+        // Verify that execution_history.json is included in RALPH_RUN_CLEAN_ALLOWED_PATHS
+        assert!(
+            RALPH_RUN_CLEAN_ALLOWED_PATHS.contains(&".ralph/cache/execution_history.json"),
+            "execution_history.json should be in RALPH_RUN_CLEAN_ALLOWED_PATHS"
+        );
     }
 }

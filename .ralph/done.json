@@ -1300,10 +1300,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "reliability",
-        "scan_agent": "scan-innovation",
+        "time_to_ship": "medium (concurrency + tests)",
         "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort.",
-        "time_to_ship": "medium (concurrency + tests)"
+        "scan_agent": "scan-innovation",
+        "opportunity_type": "reliability"
       }
     },
     {
@@ -1345,8 +1345,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "time_to_ship": "medium (metadata + reconciliation + tests)",
         "opportunity_type": "ux improvement",
+        "time_to_ship": "medium (metadata + reconciliation + tests)",
         "scan_agent": "scan-innovation",
         "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current."
       }
@@ -1394,8 +1394,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics.",
         "opportunity_type": "ux improvement",
+        "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics.",
         "scan_agent": "scan-innovation",
         "time_to_ship": "medium (format + fixes + tests)"
       }
@@ -1441,10 +1441,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "ux improvement",
         "time_to_ship": "small/medium (formatters + tests)",
         "scan_agent": "scan-innovation",
-        "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat)."
+        "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat).",
+        "opportunity_type": "ux improvement"
       }
     },
     {
@@ -1932,10 +1932,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "time_to_ship": "medium (TUI wiring + tests)",
         "user_value": "Fewer context switches: jump from task → code in one keystroke.",
-        "opportunity_type": "ux improvement",
         "scan_agent": "scan-innovation",
-        "time_to_ship": "medium (TUI wiring + tests)"
+        "opportunity_type": "ux improvement"
       }
     },
     {
@@ -1990,9 +1990,9 @@
       "relates_to": [],
       "custom_fields": {
         "scan_agent": "scan-innovation",
-        "opportunity_type": "ux improvement",
+        "time_to_ship": "medium (render-only UI + tests)",
         "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error.",
-        "time_to_ship": "medium (render-only UI + tests)"
+        "opportunity_type": "ux improvement"
       }
     },
     {
@@ -2046,10 +2046,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "scan_agent": "scan-innovation",
         "opportunity_type": "feature gap",
-        "measurable_impact": "Track 20%+ improvement in task completion velocity after adoption",
         "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types",
-        "scan_agent": "scan-innovation"
+        "measurable_impact": "Track 20%+ improvement in task completion velocity after adoption"
       }
     },
     {
@@ -2106,8 +2106,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "UX improvement",
         "scan_agent": "scan-innovation",
+        "opportunity_type": "UX improvement",
         "time_to_ship": "incremental - add one batch operation at a time",
         "user_value": "Reduces queue maintenance time by 80% for large projects"
       }
@@ -2231,10 +2231,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "differentiation": "Unique capability among AI task runners",
-        "user_value": "Enables ecosystem growth; custom integrations without forks",
+        "opportunity_type": "feature gap",
         "scan_agent": "scan-innovation",
-        "opportunity_type": "feature gap"
+        "user_value": "Enables ecosystem growth; custom integrations without forks",
+        "differentiation": "Unique capability among AI task runners"
       }
     },
     {
@@ -3528,9 +3528,9 @@
       "relates_to": [],
       "custom_fields": {
         "scan_agent": "scan-maintenance",
-        "model_used": "kimi-code/kimi-for-coding",
+        "runner_used": "kimi",
         "file_line_count": "444",
-        "runner_used": "kimi"
+        "model_used": "kimi-code/kimi-for-coding"
       }
     },
     {
@@ -3578,10 +3578,10 @@
       "relates_to": [],
       "custom_fields": {
         "fallback_function": "now_utc_rfc3339_or_fallback at timeutil.rs:67-69",
-        "runner_used": "kimi",
         "model_used": "kimi-code/kimi-for-coding",
         "occurrence_count": "4",
-        "scan_agent": "scan-maintenance"
+        "scan_agent": "scan-maintenance",
+        "runner_used": "kimi"
       }
     },
     {
@@ -3634,9 +3634,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "kimi",
+        "scan_agent": "scan-maintenance",
         "model_used": "kimi-code/kimi-for-coding",
-        "scan_agent": "scan-maintenance"
+        "runner_used": "kimi"
       }
     },
     {
@@ -3717,8 +3717,8 @@
       ],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "kimi",
-        "model_used": "kimi-code/kimi-for-coding"
+        "model_used": "kimi-code/kimi-for-coding",
+        "runner_used": "kimi"
       }
     },
     {
@@ -3801,14 +3801,14 @@
         "RQ-0657"
       ],
       "custom_fields": {
-        "model_used": "kimi-code/kimi-for-coding",
+        "completed_via": "RQ-0657 (foundational plugin framework)",
         "executor_location": "crates/ralph/src/runner/execution/plugin_executor.rs",
+        "model_used": "kimi-code/kimi-for-coding",
         "status_note": "COMPLETED - KimiPlugin fully implemented and legacy code removed",
-        "legacy_code_removed": "true",
+        "trait_location": "crates/ralph/src/runner/execution/plugin_trait.rs",
         "runner_used": "kimi",
         "plugin_location": "crates/ralph/src/runner/execution/builtin_plugins.rs:530-631",
-        "trait_location": "crates/ralph/src/runner/execution/plugin_trait.rs",
-        "completed_via": "RQ-0657 (foundational plugin framework)"
+        "legacy_code_removed": "true"
       }
     },
     {
@@ -3873,6 +3873,59 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {}
+    },
+    {
+      "id": "RQ-0664",
+      "status": "done",
+      "title": "Add execution_history.json to RALPH_RUN_CLEAN_ALLOWED_PATHS to fix run loop aborts",
+      "priority": "high",
+      "tags": [
+        "bug",
+        "fix",
+        "runner",
+        "git",
+        "execution_history"
+      ],
+      "scope": [
+        "crates/ralph/src/git/clean.rs",
+        "crates/ralph/src/execution_history.rs",
+        "crates/ralph/src/commands/run/mod.rs",
+        ".gitignore"
+      ],
+      "evidence": [
+        "User report: Run loop aborted after 50 consecutive task failures with error suggesting repo dirty issue",
+        "crates/ralph/src/git/clean.rs:25-30: RALPH_RUN_CLEAN_ALLOWED_PATHS constant currently allows: .ralph/queue.json, .ralph/done.json, .ralph/config.json, .ralph/cache/productivity.json",
+        "Execution history is written to .ralph/cache/execution_history.json during runs (crates/ralph/src/execution_history.rs:83)",
+        ".gitignore line 23: Already contains '.ralph/cache/execution_history.json'",
+        "When execution_history.json is created/modified, repo becomes 'dirty' causing run failures",
+        "Run loop checks repo cleanliness at start using RALPH_RUN_CLEAN_ALLOWED_PATHS (crates/ralph/src/commands/run/mod.rs:773-781)",
+        "RALPH_RUN_CLEAN_ALLOWED_PATHS is used in: git/mod.rs, commands/run/mod.rs, commands/run/phases/phase3.rs, commands/run/supervision/git_ops.rs, commands/run/parallel/mod.rs"
+      ],
+      "plan": [
+        "Add '.ralph/cache/execution_history.json' to RALPH_RUN_CLEAN_ALLOWED_PATHS constant in crates/ralph/src/git/clean.rs:25-30",
+        "Verify .gitignore already contains .ralph/cache/execution_history.json (line 23)",
+        "Add test to crates/ralph/src/git/clean.rs tests section to verify execution_history.json is allowed in repo_dirty_only_allowed_paths check",
+        "Run `make ci` to verify fix and ensure all tests pass"
+      ],
+      "notes": [
+        "Task updated 2026-02-06: Verified current repository state - execution_history.json is in .gitignore but missing from RALPH_RUN_CLEAN_ALLOWED_PATHS",
+        "Added .ralph/cache/execution_history.json to RALPH_RUN_CLEAN_ALLOWED_PATHS in crates/ralph/src/git/clean.rs",
+        "Added regression test execution_history_json_is_in_allowed_paths",
+        "Verified .gitignore already contains the path (line 23)",
+        "All CI checks pass: format, type-check, lint, tests"
+      ],
+      "request": "If the file .ralph/cache/execution_history.json is not in the project specific .gitignore file it is breaking loop runs. Error: Run loop aborted after 50 consecutive task failures. This usually indicates a systemic issue (e.g., repo dirty, runner misconfiguration, or interrupt flag stuck). Check logs above for root cause.",
+      "created_at": "2026-02-06T17:07:23Z",
+      "updated_at": "2026-02-06T19:19:41.980111000Z",
+      "completed_at": "2026-02-06T19:19:41.980111000Z",
+      "started_at": "2026-02-06T18:57:56.254249000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "model_used": "kimi-code/kimi-for-coding",
+        "runner_used": "kimi"
+      }
     }
   ]
 }
