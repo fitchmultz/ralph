@@ -10,7 +10,7 @@ use serde_json::Value as JsonValue;
 
 use crate::contracts::Runner;
 
-use super::builtin_plugins::{CodexResponseParser, KimiResponseParser};
+use super::builtin_plugins::{CodexResponseParser, KimiResponseParser, OpencodeResponseParser};
 use super::json::parse_json_line;
 use super::plugin_trait::ResponseParser;
 
@@ -133,33 +133,6 @@ impl ResponseParser for GeminiResponseParser {
 
     fn runner_id(&self) -> &str {
         "gemini"
-    }
-}
-
-struct OpencodeResponseParser;
-
-impl ResponseParser for OpencodeResponseParser {
-    fn parse(&self, json: &JsonValue, buffer: &mut String) -> Option<String> {
-        if json.get("type").and_then(|t| t.as_str()) != Some("text") {
-            return None;
-        }
-
-        let text = json
-            .get("part")
-            .and_then(|p| p.get("text"))
-            .and_then(|t| t.as_str())?;
-
-        if text.is_empty() {
-            return None;
-        }
-
-        // Opencode streams text incrementally
-        buffer.push_str(text);
-        Some(buffer.clone())
-    }
-
-    fn runner_id(&self) -> &str {
-        "opencode"
     }
 }
 

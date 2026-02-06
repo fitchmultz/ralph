@@ -214,16 +214,25 @@ pub(crate) fn run_prompt(
                 plugins,
             )?
         }
-        Runner::Opencode => execution::run_opencode(
-            work_dir,
-            bins.opencode,
-            runner_cli,
-            &model,
-            prompt,
-            timeout,
-            output_handler.clone(),
-            output_stream,
-        )?,
+        Runner::Opencode => {
+            let executor = execution::PluginExecutor::new();
+            executor.run(
+                Runner::Opencode,
+                work_dir,
+                bins.opencode,
+                model,
+                None, // reasoning_effort
+                runner_cli,
+                prompt,
+                timeout,
+                None, // permission_mode
+                output_handler.clone(),
+                output_stream,
+                phase_type,
+                session_id.clone(),
+                plugins,
+            )?
+        }
         Runner::Gemini => execution::run_gemini(
             work_dir,
             bins.gemini,
@@ -405,17 +414,25 @@ pub(crate) fn resume_session(
                 plugins,
             )
         }
-        Runner::Opencode => execution::run_opencode_resume(
-            work_dir,
-            bins.opencode,
-            runner_cli,
-            &model,
-            session_id,
-            message,
-            timeout,
-            output_handler,
-            output_stream,
-        ),
+        Runner::Opencode => {
+            let executor = execution::PluginExecutor::new();
+            executor.resume(
+                Runner::Opencode,
+                work_dir,
+                bins.opencode,
+                model,
+                None, // reasoning_effort
+                runner_cli,
+                session_id,
+                message,
+                timeout,
+                None, // permission_mode
+                output_handler,
+                output_stream,
+                phase_type,
+                plugins,
+            )
+        }
         Runner::Gemini => execution::run_gemini_resume(
             work_dir,
             bins.gemini,

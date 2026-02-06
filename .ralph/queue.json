@@ -2,52 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0660",
-      "status": "todo",
-      "title": "Isolate opencode runner into its own plugin for easier runner-specific customization",
-      "priority": "medium",
-      "tags": [
-        "refactor",
-        "runner",
-        "opencode",
-        "plugin",
-        "architecture"
-      ],
-      "scope": [
-        "crates/ralph/src/runner/execution/runners.rs",
-        "crates/ralph/src/runner/execution/response.rs",
-        "crates/ralph/src/plugins/",
-        "make ci"
-      ],
-      "evidence": [
-        "User request: Isolate all runners into plugins for easier runner-specific customization.",
-        "crates/ralph/src/runner/execution/runners.rs:119-190: OpenCode has dedicated run_opencode() and run_opencode_resume() functions with temp prompt file handling.",
-        "crates/ralph/src/runner/execution/response.rs:186-190: OpenCode has unique response parsing (extract_opencode_text) for text event type with part.text field.",
-        "crates/ralph/src/runner/execution/runners.rs:136-142: OpenCode uses with_temp_prompt_file for prompt handling and opencode_format output.",
-        "crates/ralph/src/runner/execution/runners.rs:173-179: OpenCode resume uses -s flag for session ID."
-      ],
-      "plan": [
-        "Wait for RQ-0657 to complete (foundational plugin trait framework).",
-        "Create OpenCodePlugin struct implementing the RunnerPlugin trait.",
-        "Implement command building: extract opencode-specific logic from runners.rs:run_opencode and run_opencode_resume, preserving temp prompt file handling and -s session flag.",
-        "Implement response parsing: extract opencode-specific parsing from response.rs:extract_opencode_text for text event type.",
-        "Register OpenCodePlugin as a built-in plugin with appropriate default model.",
-        "Refactor main runner execution to delegate to opencode plugin when Runner::Opencode is selected.",
-        "Add comprehensive tests for the opencode plugin, including temp file handling.",
-        "Verify by running `make ci` and confirming all tests pass."
-      ],
-      "notes": [],
-      "request": "create tasks to have all runners isolated and integrated into the plugin system approach. We currently support codex, claude, pi, kimi, opencode, and cursor-agent.",
-      "created_at": "2026-02-06T16:21:11Z",
-      "updated_at": "2026-02-06T16:21:11Z",
-      "depends_on": [
-        "RQ-0657"
-      ],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {}
-    },
-    {
       "id": "RQ-0661",
       "status": "todo",
       "title": "Isolate gemini runner into its own plugin for easier runner-specific customization",

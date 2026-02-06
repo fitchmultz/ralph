@@ -317,8 +317,8 @@ impl RunnerPlugin for OpencodePlugin {
     }
 }
 
-#[allow(dead_code)]
-struct OpencodeResponseParser;
+/// Response parser for Opencode's JSON format.
+pub struct OpencodeResponseParser;
 
 #[allow(dead_code)]
 impl OpencodeResponseParser {
