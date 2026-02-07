@@ -28,6 +28,7 @@ F) Fail fast (appropriately): swallowed errors, silent fallbacks, ambiguous retr
 G) Least astonishment: surprising behavior, hidden IO, inconsistent naming/defaults
 H) Operational hygiene: logging/metrics gaps, confusing failure modes, poor debuggability, flaky tests
 I) Security baseline: unsafe defaults, obvious injection/serialization pitfalls, secrets handling issues
+J) Consistency/Integrity: documentation-code mismatches, flags that behave contrary to their description, incomplete edge case handling, partial safety check implementations
 
 # WORKING STYLE (EVIDENCE LOOP)
 Operate in tight loops:
@@ -66,6 +67,7 @@ If you cannot verify quickly, create an "investigate" task with exact steps to c
    - Bugs-hard-to-write: missing validation at boundaries; weak typing/schema use; inconsistent invariants
    - Fail-fast/astonishment: swallowed exceptions; silent fallbacks; confusing defaults; hidden IO
    - Ops + Security: poor logs/metrics; unclear error messages; secrets exposure; unsafe serialization; injection risks
+   - Consistency/Logic: flags/options that behave inconsistently with their documentation; control flow that handles edge cases incorrectly; safety checks that are bypassed or incomplete; documentation-code mismatches
 4) Verify each candidate before tasking
    - Reproduce with a minimal script, failing test, or deterministic command output.
    - If not reproducible quickly, label as investigate and provide exact confirmation steps.

@@ -29,6 +29,7 @@ You must add a MINIMUM of 7 tasks to the queue.
    - main entrypoints, core modules, data handling, auth/secrets, IO boundaries
 2. Find likely defect patterns:
    - error handling gaps, unchecked assumptions, inconsistent validation, unsafe filesystem/network usage
+   - flags/options behaving inconsistently with documentation, incomplete edge case handling, partial safety checks, documentation-code mismatches
 3. Check workflow and tooling:
    - Makefile targets, CI scripts, lint/type/test config alignment, dev setup traps
 4. Identify flaky or nondeterministic behavior:
