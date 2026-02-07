@@ -95,6 +95,58 @@ When using `--notify-when-unblocked` with webhooks configured, Ralph emits a `qu
 
 This event is opt-in; add `"queue_unblocked"` to your webhook events list to receive it.
 
+## Continuous Mode (Sequential Loop)
+
+When the queue is empty, the sequential run loop normally exits. Use `--wait-when-empty` (alias `--continuous`) to keep the loop running and wait for new tasks instead.
+
+Behavior:
+- If the queue is empty at startup, the loop does not exit; it waits for work
+- If the loop runs out of candidates later, it waits instead of exiting
+- Uses filesystem notifications (`notify` crate) to watch `.ralph/queue.json` and `.ralph/done.json`
+- Falls back to polling if notifications fail
+- Configurable poll interval (`--empty-poll-ms`, default: 30000ms = 30s, min: 50ms)
+- No timeout in continuous mode (runs until stopped)
+- Respects stop signals (`ralph queue stop`) and Ctrl+C
+
+Combined with `--wait-when-blocked`, the loop provides "always-on" operation that handles both blocked tasks and empty queues.
+
+Use this for "set and forget" operation that integrates with system services (systemd, launchd).
+
+Examples:
+```bash
+# Continuous mode: wait indefinitely for new tasks
+ralph run loop --continuous
+
+# Poll more frequently (5s) for faster response
+ralph run loop --continuous --empty-poll-ms 5000
+
+# Always-on mode: handle both blocked and empty states
+ralph run loop --continuous --wait-when-blocked
+```
+
+### Daemon Mode
+
+For background operation, use `ralph daemon start|stop|status` (Unix-only):
+
+```bash
+# Start daemon
+ralph daemon start
+
+# Check status
+ralph daemon status
+
+# Stop daemon
+ralph daemon stop
+```
+
+The daemon is a thin wrapper around `ralph run loop --continuous --wait-when-blocked` that:
+- Detaches from the terminal
+- Logs to `.ralph/logs/daemon.log`
+- Manages PID/state files in `.ralph/cache/`
+- Responds to `ralph daemon stop` and `ralph queue stop`
+
+See `docs/cli.md` for systemd and launchd service templates.
+
 ## Security and Redaction
 
 ### Safeguard Dumps

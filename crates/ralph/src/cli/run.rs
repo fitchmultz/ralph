@@ -50,6 +50,8 @@ pub fn handle_run(cmd: RunCommand, force: bool, no_progress: bool) -> Result<()>
                     wait_poll_ms: 1000,
                     wait_timeout_seconds: 0,
                     notify_when_unblocked: false,
+                    wait_when_empty: false,
+                    empty_poll_ms: 30_000,
                 },
             )
         }
@@ -169,6 +171,8 @@ pub fn handle_run(cmd: RunCommand, force: bool, no_progress: bool) -> Result<()>
                         wait_poll_ms: args.wait_poll_ms,
                         wait_timeout_seconds: args.wait_timeout_seconds,
                         notify_when_unblocked: args.notify_when_unblocked,
+                        wait_when_empty: args.wait_when_empty,
+                        empty_poll_ms: args.empty_poll_ms,
                     },
                 )
             }
@@ -451,6 +455,21 @@ pub struct RunLoopArgs {
     /// Notify when queue becomes unblocked (desktop + webhook).
     #[arg(long)]
     pub notify_when_unblocked: bool,
+
+    /// Wait when queue is empty instead of exiting (continuous mode).
+    /// Alias: --continuous
+    #[arg(
+        long,
+        alias = "continuous",
+        conflicts_with = "parallel",
+        conflicts_with = "interactive"
+    )]
+    pub wait_when_empty: bool,
+
+    /// Poll interval in milliseconds while waiting for new tasks when queue is empty
+    /// (default: 30000, min: 50). Only used with --wait-when-empty.
+    #[arg(long, default_value_t = 30_000, value_name = "MS")]
+    pub empty_poll_ms: u64,
 
     #[command(flatten)]
     pub agent: crate::agent::RunAgentArgs,

@@ -2,56 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0672",
-      "status": "todo",
-      "title": "Implement continuous execution mode with background daemon capability",
-      "description": "No way to run Ralph as a persistent background service. Watch mode is foreground-only, and run loop stops when queue empties. Add continuous execution that monitors queue and auto-executes tasks.\n\nGoals:\n1. Add `ralph run --continuous` that loops indefinitely, sleeping when queue empty\n2. Add `ralph daemon` command to run as background service (Unix socket/Windows service)\n3. Support graceful shutdown with signal handling\n4. Add queue-watching trigger (re-check when queue.json changes)\n5. Support configurable idle sleep interval (default 30s)\n\nEvidence:\n- Current: `ralph run loop` stops when no tasks; `ralph watch` is foreground only\n- Gap: No background service capability\n- User pain: Must keep terminal open or use external tools (screen, systemd)",
-      "priority": "medium",
-      "tags": [
-        "innovation",
-        "automation",
-        "daemon",
-        "background-service"
-      ],
-      "scope": [
-        "crates/ralph/src/commands/run/mod.rs",
-        "crates/ralph/src/commands/daemon.rs",
-        "crates/ralph/src/signal.rs",
-        "crates/ralph/src/main.rs"
-      ],
-      "evidence": [
-        "Current capability: `ralph run loop` exists but exits when queue empty",
-        "Gap observed: No continuous mode - users must manually restart or use external process managers",
-        "Watch mode: `ralph watch` only watches files, not queue, and is foreground-only",
-        "Signal handling: signal.rs exists but only for graceful stop, not daemon lifecycle"
-      ],
-      "plan": [
-        "Add --continuous flag to run command with configurable --idle-interval-secs (default 30)",
-        "Implement file watcher on queue.json to trigger immediate re-check when queue changes",
-        "Add `ralph daemon start/stop/status` commands with PID file management",
-        "Implement Unix socket for daemon communication (status, pause, resume)",
-        "Add daemon logs to .ralph/logs/daemon.log with rotation",
-        "Add systemd service file template in docs/ or scripts/",
-        "Add TUI 'Connect to daemon' mode for monitoring background execution",
-        "Update docs with daemon setup instructions",
-        "Add tests for daemon lifecycle including graceful shutdown",
-        "Verify by running `ralph daemon start`, adding a task, and confirming it auto-executes"
-      ],
-      "notes": [],
-      "request": "innovation scan finding",
-      "created_at": "2026-02-07T00:41:40Z",
-      "updated_at": "2026-02-07T00:41:40Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "opportunity_type": "automation",
-        "estimated_effort": "high",
-        "scan_agent": "scan-innovation",
-        "user_value": "Enables 'set and forget' operation, integrates with system services, reduces manual monitoring"
-      }
-    },
-    {
       "id": "RQ-0673",
       "status": "todo",
       "title": "Add ETA accuracy tracking and prediction improvement",
@@ -96,9 +46,9 @@
       "relates_to": [],
       "custom_fields": {
         "estimated_effort": "medium",
-        "opportunity_type": "analytics",
+        "user_value": "Improves planning accuracy, builds trust in ETAs, enables better time management",
         "scan_agent": "scan-innovation",
-        "user_value": "Improves planning accuracy, builds trust in ETAs, enables better time management"
+        "opportunity_type": "analytics"
       }
     },
     {
@@ -145,10 +95,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "ai-features",
-        "estimated_effort": "medium",
         "scan_agent": "scan-innovation",
-        "user_value": "Prevents oversized tasks, improves success rate, reduces manual judgment"
+        "opportunity_type": "ai-features",
+        "user_value": "Prevents oversized tasks, improves success rate, reduces manual judgment",
+        "estimated_effort": "medium"
       }
     },
     {
@@ -198,9 +148,9 @@
       "relates_to": [],
       "custom_fields": {
         "opportunity_type": "integration",
+        "estimated_effort": "high",
         "scan_agent": "scan-innovation",
-        "user_value": "Enables external integrations, CI triggers, GitHub/Slack commands, third-party automation",
-        "estimated_effort": "high"
+        "user_value": "Enables external integrations, CI triggers, GitHub/Slack commands, third-party automation"
       }
     },
     {
@@ -248,8 +198,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Prevents forgotten work, automates queue hygiene, reduces manual status management",
         "estimated_effort": "medium",
+        "user_value": "Prevents forgotten work, automates queue hygiene, reduces manual status management",
         "opportunity_type": "automation",
         "scan_agent": "scan-innovation"
       }
@@ -299,10 +249,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "ecosystem",
-        "user_value": "Enables plugin ecosystem growth, simplifies installation, improves discoverability",
+        "scan_agent": "scan-innovation",
         "estimated_effort": "high",
-        "scan_agent": "scan-innovation"
+        "opportunity_type": "ecosystem",
+        "user_value": "Enables plugin ecosystem growth, simplifies installation, improves discoverability"
       }
     },
     {
@@ -351,10 +301,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
+        "estimated_effort": "medium",
         "user_value": "Eliminates manual status sync, keeps GitHub and Ralph in sync, enables hybrid workflows",
         "opportunity_type": "integration",
-        "estimated_effort": "medium"
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -402,10 +352,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "opportunity_type": "reliability",
         "user_value": "Prevents failures due to resource exhaustion, enables proactive maintenance, improves reliability",
-        "estimated_effort": "medium"
+        "scan_agent": "scan-innovation",
+        "estimated_effort": "medium",
+        "opportunity_type": "reliability"
       }
     },
     {
@@ -455,9 +405,9 @@
       "relates_to": [],
       "custom_fields": {
         "opportunity_type": "ux-improvement",
+        "estimated_effort": "medium",
         "scan_agent": "scan-innovation",
-        "user_value": "Reduces fear of mistakes, enables experimentation, improves data safety",
-        "estimated_effort": "medium"
+        "user_value": "Reduces fear of mistakes, enables experimentation, improves data safety"
       }
     }
   ]

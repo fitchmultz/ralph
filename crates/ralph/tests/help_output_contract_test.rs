@@ -181,3 +181,18 @@ fn config_show_help_mentions_format_and_examples() {
     assert_contains(&combined, "yaml");
     assert_contains(&combined, "ralph config show --format json");
 }
+
+#[test]
+fn daemon_help_mentions_subcommands() {
+    let (status, stdout, stderr) = run(&["daemon", "--help"]);
+    assert!(
+        status.success(),
+        "expected `ralph daemon --help` to succeed\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    let combined = format!("{stdout}\n{stderr}");
+
+    assert_contains(&combined, "start");
+    assert_contains(&combined, "stop");
+    assert_contains(&combined, "status");
+}

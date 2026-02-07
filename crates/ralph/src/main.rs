@@ -123,6 +123,7 @@ fn run() -> Result<()> {
             let resolved = ralph::config::resolve_from_cwd()?;
             ralph::commands::plugin::run(&args, &resolved)
         }
+        cli::Command::Daemon(args) => cli::daemon::handle_daemon(args.command),
     }
 }
 
@@ -238,6 +239,8 @@ mod tests {
                 wait_poll_ms: 1000,
                 wait_timeout_seconds: 0,
                 notify_when_unblocked: false,
+                wait_when_empty: false,
+                empty_poll_ms: 30_000,
                 agent: ralph::agent::RunAgentArgs::default(),
             }),
         });

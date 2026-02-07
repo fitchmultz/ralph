@@ -8,6 +8,7 @@
 //! - This module does not define clap argument parsing; see `crate::cli` for that.
 
 pub mod context;
+pub mod daemon;
 pub mod doctor;
 pub mod init;
 pub mod plugin;

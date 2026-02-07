@@ -174,6 +174,138 @@ ralph version
 ralph version --verbose
 ```
 
+## `ralph daemon`
+
+Manage Ralph as a background daemon (continuous execution mode). The daemon runs `ralph run loop --continuous --wait-when-blocked` in the background, automatically executing tasks as they appear in the queue.
+
+**Note:** Daemon mode is Unix-only (Linux, macOS). On Windows, use `ralph run loop --continuous` in a terminal or configure a Windows service.
+
+### Subcommands
+
+* `ralph daemon start`: Start the daemon in the background.
+* `ralph daemon stop`: Stop the daemon gracefully.
+* `ralph daemon status`: Show daemon status (running, stopped, or stale).
+
+### `ralph daemon start`
+
+Start Ralph as a background daemon. The daemon detaches from the terminal and logs to `.ralph/logs/daemon.log`.
+
+#### Flags
+
+* `--empty-poll-ms <MS>`: Poll interval in milliseconds while waiting for new tasks when queue is empty (default: 30000, min: 50).
+* `--wait-poll-ms <MS>`: Poll interval in milliseconds while waiting for blocked tasks (default: 1000, min: 50).
+* `--notify-when-unblocked`: Notify when queue becomes unblocked (desktop + webhook).
+
+#### Behavior
+
+- Acquires a dedicated daemon lock at `.ralph/cache/daemon.lock`
+- Writes daemon state to `.ralph/cache/daemon.json`
+- Redirects stdout/stderr to `.ralph/logs/daemon.log`
+- Runs until stopped via `ralph daemon stop` or `ralph queue stop`
+- Uses continuous mode: waits for new tasks when queue is empty
+- Uses wait-when-blocked: waits for dependencies/schedules to resolve
+
+#### Examples
+
+```bash
+# Start the daemon with default settings
+ralph daemon start
+
+# Start with faster polling for empty queue
+ralph daemon start --empty-poll-ms 5000
+
+# Start with notifications when unblocked
+ralph daemon start --notify-when-unblocked
+```
+
+#### Service Templates
+
+**systemd (Linux):**
+
+Create `~/.config/systemd/user/ralph.service`:
+
+```ini
+[Unit]
+Description=Ralph Daemon
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/path/to/your/repo
+ExecStart=/home/username/.local/bin/ralph daemon serve
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target
+```
+
+Enable and start:
+
+```bash
+systemctl --user daemon-reload
+systemctl --user enable ralph
+systemctl --user start ralph
+```
+
+**launchd (macOS):**
+
+Create `~/Library/LaunchAgents/com.ralph.daemon.plist`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.ralph.daemon</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/username/.local/bin/ralph</string>
+        <string>daemon</string>
+        <string>serve</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/path/to/your/repo</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/path/to/your/repo/.ralph/logs/daemon.log</string>
+    <key>StandardErrorPath</key>
+    <string>/path/to/your/repo/.ralph/logs/daemon.log</string>
+</dict>
+</plist>
+```
+
+Load and start:
+
+```bash
+launchctl load ~/Library/LaunchAgents/com.ralph.daemon.plist
+launchctl start com.ralph.daemon
+```
+
+### `ralph daemon stop`
+
+Stop the daemon gracefully by sending a stop signal. Waits up to 10 seconds for the daemon to exit.
+
+#### Examples
+
+```bash
+ralph daemon stop
+```
+
+### `ralph daemon status`
+
+Show the current daemon status: running (with PID and start time), stopped, or stale (state file exists but process is dead).
+
+#### Examples
+
+```bash
+ralph daemon status
+```
+
 ## `ralph webhook`
 
 Test webhook configuration and inspect webhook payloads.
@@ -880,6 +1012,46 @@ ralph run loop --wait-when-blocked --wait-poll-ms 250
 
 # Notify when unblocked (desktop notification + webhook)
 ralph run loop --wait-when-blocked --notify-when-unblocked
+```
+
+### Continuous mode (CLI-only)
+
+When the queue becomes empty, the run loop normally exits. Use `--wait-when-empty` (alias `--continuous`) to keep the loop running and wait for new tasks instead.
+
+Behavior:
+- When the queue is empty at startup, the loop waits instead of exiting
+- When the queue becomes empty during execution, the loop waits instead of exiting
+- The loop wakes immediately when `.ralph/queue.json` or `.ralph/done.json` changes (using filesystem notifications with poll fallback)
+- Poll interval is controlled by `--empty-poll-ms` (default: 30000ms = 30s, min: 50ms)
+- No timeout in continuous mode (runs until stopped)
+- Respects stop signals (`ralph queue stop`) and Ctrl+C
+
+Combined with `--wait-when-blocked`, the loop will wait for both blocked tasks (dependencies/schedules) and empty queue states.
+
+Flags:
+
+* `--wait-when-empty`: Wait when queue is empty instead of exiting (default: false). Alias: `--continuous`.
+* `--empty-poll-ms <MS>`: Poll interval in milliseconds while waiting for new tasks (default: 30000, min: 50).
+
+Constraints:
+- Conflicts with `--parallel` (parallel mode does not support continuous mode)
+- Conflicts with `--interactive` (TUI mode)
+- Only applies to sequential run loop mode
+
+Examples:
+
+```bash
+# Continuous mode: wait indefinitely for new tasks
+ralph run loop --continuous
+
+# Same as above using long form
+ralph run loop --wait-when-empty
+
+# Poll more frequently (5s) for faster response
+ralph run loop --continuous --empty-poll-ms 5000
+
+# Combined with wait-when-blocked for always-on operation
+ralph run loop --continuous --wait-when-blocked
 ```
 
 ### Parallel loop (CLI-only)

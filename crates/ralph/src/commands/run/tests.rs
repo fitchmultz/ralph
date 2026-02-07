@@ -449,6 +449,8 @@ fn run_loop_auto_resume_clears_stale_queue_lock_before_task_execution() -> anyho
             wait_poll_ms: 1000,
             wait_timeout_seconds: 0,
             notify_when_unblocked: false,
+            wait_when_empty: false,
+            empty_poll_ms: 30_000,
         },
     );
     drop(guard);

@@ -18,6 +18,7 @@ pub mod color;
 pub mod completions;
 pub mod config;
 pub mod context;
+pub mod daemon;
 pub mod doctor;
 pub mod init;
 pub mod interactive;
@@ -109,6 +110,11 @@ pub enum Command {
         after_long_help = "Examples:\n  ralph context init\n  ralph context init --project-type rust\n  ralph context update --section troubleshooting\n  ralph context validate\n  ralph context update --dry-run"
     )]
     Context(context::ContextArgs),
+    /// Manage Ralph daemon (background service).
+    #[command(
+        after_long_help = "Examples:\n  ralph daemon start\n  ralph daemon start --empty-poll-ms 5000\n  ralph daemon stop\n  ralph daemon status"
+    )]
+    Daemon(daemon::DaemonArgs),
     /// Convert PRD (Product Requirements Document) markdown to tasks.
     #[command(
         after_long_help = "Examples:\n  ralph prd create docs/prd/new-feature.md\n  ralph prd create docs/prd/new-feature.md --multi\n  ralph prd create docs/prd/new-feature.md --dry-run\n  ralph prd create docs/prd/new-feature.md --priority high --tag feature\n  ralph prd create docs/prd/new-feature.md --draft"

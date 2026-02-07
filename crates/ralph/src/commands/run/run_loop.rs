@@ -47,6 +47,10 @@ pub struct RunLoopOptions {
     pub wait_timeout_seconds: u64,
     /// Notify when queue becomes unblocked.
     pub notify_when_unblocked: bool,
+    /// Wait when queue is empty instead of exiting (continuous mode).
+    pub wait_when_empty: bool,
+    /// Poll interval in milliseconds while waiting on an empty queue (default: 30000).
+    pub empty_poll_ms: u64,
 }
 
 pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()> {
@@ -149,7 +153,10 @@ pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()>
         } else {
             log::info!("No todo tasks found.");
         }
-        return Ok(());
+        if !opts.wait_when_empty {
+            return Ok(());
+        }
+        // In continuous mode, continue into the loop to wait for work
     }
 
     let label = format!(
@@ -209,16 +216,55 @@ pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()>
                 resume_task_id.as_deref(),
             ) {
                 Ok(RunOutcome::NoCandidates) => {
-                    log::info!("RunLoop: end (no more todo tasks remaining)");
-                    return Ok(());
-                }
-                Ok(RunOutcome::Blocked { summary }) => {
-                    if opts.wait_when_blocked {
-                        // Wait for a runnable task to become available
-                        match wait_for_runnable_task(
+                    if opts.wait_when_empty {
+                        // Enter wait loop for new tasks
+                        match wait_for_work(
                             resolved,
                             include_draft,
+                            WaitMode::EmptyAllowed,
                             opts.wait_poll_ms,
+                            opts.empty_poll_ms,
+                            0, // No timeout for empty wait
+                            opts.notify_when_unblocked,
+                            &loop_webhook_ctx,
+                        )? {
+                            WaitExit::RunnableAvailable { .. } => {
+                                log::info!("RunLoop: new runnable tasks detected; continuing");
+                                continue;
+                            }
+                            WaitExit::NoCandidates => {
+                                // Should not happen in EmptyAllowed mode, but handle gracefully
+                                continue;
+                            }
+                            WaitExit::TimedOut => {
+                                log::info!("RunLoop: end (wait timeout reached)");
+                                return Ok(());
+                            }
+                            WaitExit::StopRequested => {
+                                log::info!("RunLoop: end (stop signal received)");
+                                return Ok(());
+                            }
+                        }
+                    } else {
+                        log::info!("RunLoop: end (no more todo tasks remaining)");
+                        return Ok(());
+                    }
+                }
+                Ok(RunOutcome::Blocked { summary }) => {
+                    if opts.wait_when_blocked || opts.wait_when_empty {
+                        // Determine wait mode based on flags
+                        let mode = if opts.wait_when_empty {
+                            WaitMode::EmptyAllowed
+                        } else {
+                            WaitMode::BlockedOnly
+                        };
+                        // Wait for a runnable task to become available
+                        match wait_for_work(
+                            resolved,
+                            include_draft,
+                            mode,
+                            opts.wait_poll_ms,
+                            opts.empty_poll_ms,
                             opts.wait_timeout_seconds,
                             opts.notify_when_unblocked,
                             &loop_webhook_ctx,
@@ -264,7 +310,11 @@ pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()>
                     tasks_attempted += 1;
                     tasks_succeeded += 1;
                     consecutive_failures = 0; // Reset on success
-                    log::info!("RunLoop: task-complete ({completed}/{initial_todo_count})");
+                    if initial_todo_count == 0 {
+                        log::info!("RunLoop: task-complete (completed={completed})");
+                    } else {
+                        log::info!("RunLoop: task-complete ({completed}/{initial_todo_count})");
+                    }
                 }
                 Err(err) => {
                     if let Some(reason) = runutil::abort_reason(&err) {
@@ -394,13 +444,22 @@ pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()>
     result
 }
 
+/// Wait mode for the wait loop.
+#[derive(Debug)]
+enum WaitMode {
+    /// Blocked-only mode: exit if queue becomes empty while waiting.
+    BlockedOnly,
+    /// Empty-allowed mode: keep waiting even if queue is empty.
+    EmptyAllowed,
+}
+
 /// Exit reason from the wait loop.
 enum WaitExit {
     /// A runnable task became available.
     RunnableAvailable {
         summary: crate::queue::operations::QueueRunnabilitySummary,
     },
-    /// Queue became empty while waiting.
+    /// Queue became empty while waiting (only in BlockedOnly mode).
     NoCandidates,
     /// Wait timeout reached.
     TimedOut,
@@ -408,18 +467,56 @@ enum WaitExit {
     StopRequested,
 }
 
-/// Wait for a runnable task to become available by polling queue/done files.
+/// Internal file watcher for queue changes.
+struct QueueFileWatcher {
+    _watcher: notify::RecommendedWatcher,
+    rx: std::sync::mpsc::Receiver<notify::Result<notify::Event>>,
+}
+
+impl QueueFileWatcher {
+    fn new(resolved: &config::Resolved) -> anyhow::Result<Self> {
+        use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
+        use std::sync::mpsc::channel;
+
+        let (tx, rx) = channel();
+        let mut watcher = RecommendedWatcher::new(
+            move |res| {
+                let _ = tx.send(res);
+            },
+            Config::default(),
+        )?;
+
+        // Watch the `.ralph` directory so queue/done changes are seen
+        let ralph_dir = resolved.repo_root.join(".ralph");
+        if ralph_dir.exists() {
+            watcher.watch(&ralph_dir, RecursiveMode::NonRecursive)?;
+        }
+
+        Ok(Self {
+            _watcher: watcher,
+            rx,
+        })
+    }
+
+    fn recv_timeout(&self, dur: std::time::Duration) -> Result<(), ()> {
+        match self.rx.recv_timeout(dur) {
+            Ok(_) => Ok(()),
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => Err(()),
+            Err(_) => Err(()),
+        }
+    }
+}
+
+/// Wait for runnable tasks with notify-based wake and poll fallback.
 ///
-/// Polls the queue and done files until:
-/// - A runnable task appears (returns RunnableAvailable)
-/// - The queue becomes empty (returns NoCandidates)
-/// - Timeout is reached (returns TimedOut)
-/// - Stop signal is detected (returns StopRequested)
-/// - Ctrl+C is pressed (returns an error)
-fn wait_for_runnable_task(
+/// Supports both blocked-wait and empty-wait modes.
+#[allow(clippy::too_many_arguments)]
+fn wait_for_work(
     resolved: &config::Resolved,
     include_draft: bool,
-    poll_ms: u64,
+    mode: WaitMode,
+    blocked_poll_ms: u64,
+    empty_poll_ms: u64,
     timeout_seconds: u64,
     notify_when_unblocked: bool,
     loop_webhook_ctx: &crate::webhook::WebhookContext,
@@ -428,16 +525,30 @@ fn wait_for_runnable_task(
 
     let cache_dir = resolved.repo_root.join(".ralph/cache");
 
-    // Clamp poll interval to sane minimum to avoid busy loops
-    let poll_ms = poll_ms.max(50);
+    // Clamp poll intervals
+    let blocked_poll_ms = blocked_poll_ms.max(50);
+    let empty_poll_ms = empty_poll_ms.max(50);
 
     let start = Instant::now();
+    let tick = Duration::from_millis(250);
 
     // Initialize Ctrl+C handler check
     let ctrlc = crate::runner::ctrlc_state().ok();
 
+    // Best-effort file watcher
+    let watcher = QueueFileWatcher::new(resolved).ok();
+    if watcher.is_none() {
+        log::debug!("File watcher setup failed, using poll-only mode");
+    }
+
+    let poll_ms = match mode {
+        WaitMode::BlockedOnly => blocked_poll_ms,
+        WaitMode::EmptyAllowed => empty_poll_ms,
+    };
+
     log::info!(
-        "Waiting for runnable tasks (poll={}ms, timeout={}s)...",
+        "Waiting for runnable tasks (mode={:?}, poll={}ms, timeout={}s)...",
+        mode,
         poll_ms,
         if timeout_seconds == 0 {
             "none".to_string()
@@ -445,6 +556,9 @@ fn wait_for_runnable_task(
             timeout_seconds.to_string()
         }
     );
+
+    let mut last_eval = Instant::now();
+    let mut pending_event = true; // Force initial eval
 
     loop {
         // Check for timeout
@@ -475,58 +589,78 @@ fn wait_for_runnable_task(
             .into());
         }
 
-        // Load queue and done files
-        let queue_file = match queue::load_queue(&resolved.queue_path) {
-            Ok(q) => q,
-            Err(e) => {
-                log::warn!("Failed to load queue while waiting: {}; will retry", e);
-                std::thread::sleep(Duration::from_millis(poll_ms));
-                continue;
-            }
-        };
-
-        let done = queue::load_queue_or_default(&resolved.done_path)?;
-        let done_ref = if done.tasks.is_empty() && !resolved.done_path.exists() {
-            None
+        // Wait for tick or file event
+        if let Some(ref w) = watcher {
+            let _ = w.recv_timeout(tick);
+            pending_event = true;
         } else {
-            Some(&done)
-        };
-
-        // Generate runnability report
-        let options = queue::RunnableSelectionOptions::new(include_draft, true);
-        let report = match crate::queue::operations::queue_runnability_report(
-            &queue_file,
-            done_ref,
-            options,
-        ) {
-            Ok(r) => r,
-            Err(e) => {
-                log::warn!(
-                    "Failed to generate runnability report while waiting: {}; will retry",
-                    e
-                );
-                std::thread::sleep(Duration::from_millis(poll_ms));
-                continue;
-            }
-        };
-
-        // Check exit conditions
-        if report.summary.candidates_total == 0 {
-            return Ok(WaitExit::NoCandidates);
+            std::thread::sleep(tick);
         }
 
-        if report.summary.runnable_candidates > 0 {
-            // Queue became unblocked!
-            if notify_when_unblocked {
-                notify_queue_unblocked(&report.summary, resolved, loop_webhook_ctx);
-            }
-            return Ok(WaitExit::RunnableAvailable {
-                summary: report.summary,
-            });
-        }
+        // Decide whether to re-evaluate queue
+        let poll_dur = Duration::from_millis(poll_ms);
+        if pending_event || last_eval.elapsed() >= poll_dur {
+            pending_event = false;
+            last_eval = Instant::now();
 
-        // Still blocked - sleep and retry
-        std::thread::sleep(Duration::from_millis(poll_ms));
+            // Load queue and done files
+            let queue_file = match queue::load_queue(&resolved.queue_path) {
+                Ok(q) => q,
+                Err(e) => {
+                    log::warn!("Failed to load queue while waiting: {}; will retry", e);
+                    continue;
+                }
+            };
+
+            let done = queue::load_queue_or_default(&resolved.done_path)?;
+            let done_ref = if done.tasks.is_empty() && !resolved.done_path.exists() {
+                None
+            } else {
+                Some(&done)
+            };
+
+            // Generate runnability report
+            let options = queue::RunnableSelectionOptions::new(include_draft, true);
+            let report = match crate::queue::operations::queue_runnability_report(
+                &queue_file,
+                done_ref,
+                options,
+            ) {
+                Ok(r) => r,
+                Err(e) => {
+                    log::warn!(
+                        "Failed to generate runnability report while waiting: {}; will retry",
+                        e
+                    );
+                    continue;
+                }
+            };
+
+            // Check exit conditions
+            if report.summary.candidates_total == 0 {
+                match mode {
+                    WaitMode::BlockedOnly => {
+                        return Ok(WaitExit::NoCandidates);
+                    }
+                    WaitMode::EmptyAllowed => {
+                        // Keep waiting for new tasks
+                        continue;
+                    }
+                }
+            }
+
+            if report.summary.runnable_candidates > 0 {
+                // Queue became unblocked!
+                if notify_when_unblocked {
+                    notify_queue_unblocked(&report.summary, resolved, loop_webhook_ctx);
+                }
+                return Ok(WaitExit::RunnableAvailable {
+                    summary: report.summary,
+                });
+            }
+
+            // Still blocked - continue waiting
+        }
     }
 }
 
