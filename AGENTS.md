@@ -1,7 +1,10 @@
 # Repository Guidelines (Ralph)
 
 Ralph is a Rust CLI for running AI agent loops against a structured JSON task queue.
-This file is a fast path for contributors/agents; for deeper detail start at `docs/index.md` and `CONTRIBUTING.md`.
+
+This file provides fast-path guidance for contributors and agents. For deeper architectural detail, start with `docs/index.md` and `CONTRIBUTING.md`.
+
+---
 
 ## Quick Start
 
@@ -11,6 +14,8 @@ make ci
 ```
 
 The CI gate runs: `check-env-safety → check-backup-artifacts → deps → format → type-check → lint → test → build → generate → install`
+
+---
 
 ## Project Structure
 
@@ -30,7 +35,9 @@ scripts/              # Maintenance + release helper scripts
   prompts/*.md        # Optional prompt overrides
 ```
 
-## Build, Test, and Development
+---
+
+## Development Workflow
 
 ### Essential Commands
 
@@ -54,6 +61,8 @@ cargo test -p ralph
 cargo run -p ralph -- <command>
 cargo run -p ralph -- queue validate
 ```
+
+---
 
 ## Coding Standards
 
@@ -85,16 +94,22 @@ Every new/changed source file MUST start with module docs (`//!`) stating:
 - What it explicitly does NOT handle
 - Any invariants/assumptions callers must respect
 
+---
+
 ## Testing Guidelines
 
 - **Unit tests**: Colocate with implementation via `#[cfg(test)]`
 - **Integration tests**: Use `crates/ralph/tests/` when cross-module behavior is the subject
 - **Temp dirs**: CI tests run in `target/tmp/ralph-ci-tmp/` (set `RALPH_CI_KEEP_TMP=1` to keep)
 - **Init tests**: When calling `ralph init` in tests, always use `--non-interactive`:
+
   ```rust
   ralph init --force --non-interactive
   ```
+
   Without this flag, TTY detection may trigger the interactive wizard in test environments.
+
+---
 
 ## Git Hygiene
 
@@ -103,15 +118,20 @@ Every new/changed source file MUST start with module docs (`//!`) stating:
 - **This repo is local-CI-first**; avoid adding remote CI (e.g., GitHub Actions) as a substitute for `make ci`
 - **Keep secrets out of git/logs**: `.env` is for local use only and MUST remain untracked
 
+---
+
 ## Pull Request Guidelines
 
 - Include "what changed" + "how to verify" sections (expected: `make ci`)
 - Call out breaking behavior explicitly and update docs/help accordingly
 - When working from an issue/PR, prefer `gh` for context:
+
   ```bash
   gh issue view <number>
   gh pr view <number>
   ```
+
+---
 
 ## Configuration
 
@@ -124,6 +144,8 @@ Config precedence (highest to lowest):
 
 See `docs/configuration.md` for key fields (runner/model/phases/RepoPrompt toggles/CI gate settings).
 Runner/model specifics live in `README.md`.
+
+---
 
 ## Workflow Contracts
 
@@ -153,6 +175,8 @@ Ralph manages runner sessions explicitly for reliable crash recovery:
 
 See `docs/workflow.md` for more details.
 
+---
+
 ## Migrations
 
 When making breaking changes to config keys or file formats, use the migration system:
@@ -163,6 +187,8 @@ When making breaking changes to config keys or file formats, use the migration s
 - **CLI command**: `ralph migrate` (check/list/apply)
 
 See `crates/ralph/src/migration/mod.rs` for invariants/assumptions (idempotency, JSONC comment preservation, backups).
+
+---
 
 ## Documentation Maintenance
 
@@ -175,6 +201,8 @@ When making changes, keep docs in sync:
 | Queue/task fields | `docs/queue-and-tasks.md` |
 | Migrations | This file + migration module docs |
 
+---
+
 ## Non-Negotiables
 
 - **CI gate**: `make ci` MUST pass before claiming completion, committing, or merging
@@ -183,6 +211,8 @@ When making changes, keep docs in sync:
 - **Feature parity**: When changing user-visible workflows, maintain parity between CLI and TUI (or document divergence)
 - **CLI help**: User-facing commands/flags MUST have `--help` text with examples (keep `docs/cli.md` in sync)
 - **Secrets**: Never commit or print secrets; redact runner output before copying into `.ralph/queue.json` notes
+
+---
 
 ## Troubleshooting
 
