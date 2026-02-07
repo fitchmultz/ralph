@@ -8,7 +8,7 @@ use crate::completions;
 use crate::contracts::{
     AgentConfig, ClaudePermissionMode, Config, GitRevertMode, Model, ModelEffort,
     NotificationConfig, PhaseOverrideConfig, PhaseOverrides, QueueConfig, QueueFile,
-    ReasoningEffort, Runner, Task, TaskAgent, TaskStatus,
+    ReasoningEffort, Runner, RunnerRetryConfig, Task, TaskAgent, TaskStatus,
 };
 use crate::queue;
 use crate::runner;
@@ -103,6 +103,7 @@ fn resolved_with_agent_defaults(
                 ..NotificationConfig::default()
             },
             webhook: crate::contracts::WebhookConfig::default(),
+            runner_retry: RunnerRetryConfig::default(),
             session_timeout_hours: None,
             scan_prompt_version: None,
         },
@@ -193,6 +194,7 @@ fn resolved_with_repo_root(repo_root: PathBuf) -> crate::config::Resolved {
                 ..NotificationConfig::default()
             },
             webhook: crate::contracts::WebhookConfig::default(),
+            runner_retry: RunnerRetryConfig::default(),
             session_timeout_hours: None,
             scan_prompt_version: None,
         },
@@ -1275,6 +1277,7 @@ fn resolved_with_notification_config(
                 timeout_ms: Some(8000),
             },
             webhook: crate::contracts::WebhookConfig::default(),
+            runner_retry: RunnerRetryConfig::default(),
             session_timeout_hours: None,
             scan_prompt_version: None,
         },
@@ -1748,6 +1751,7 @@ fn test_config_agent(
         git_commit_push_enabled: Some(true),
         notification: NotificationConfig::default(),
         webhook: crate::contracts::WebhookConfig::default(),
+        runner_retry: RunnerRetryConfig::default(),
         session_timeout_hours: None,
         scan_prompt_version: None,
     }

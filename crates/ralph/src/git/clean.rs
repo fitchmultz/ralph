@@ -26,8 +26,7 @@ pub const RALPH_RUN_CLEAN_ALLOWED_PATHS: &[&str] = &[
     ".ralph/queue.json",
     ".ralph/done.json",
     ".ralph/config.json",
-    ".ralph/cache/productivity.json",
-    ".ralph/cache/execution_history.json",
+    ".ralph/cache/",
 ];
 
 /// Require a clean repository, ignoring allowed paths.
@@ -275,11 +274,23 @@ mod clean_repo_tests {
     }
 
     #[test]
-    fn execution_history_json_is_in_allowed_paths() {
-        // Verify that execution_history.json is included in RALPH_RUN_CLEAN_ALLOWED_PATHS
+    fn execution_history_json_is_in_allowed_paths() -> anyhow::Result<()> {
+        // Verify that execution_history.json is covered by RALPH_RUN_CLEAN_ALLOWED_PATHS
+        // via the .ralph/cache/ directory prefix
+        let temp = TempDir::new()?;
+        git_test::init_repo(temp.path())?;
+        std::fs::create_dir_all(temp.path().join(".ralph/cache"))?;
+        std::fs::write(
+            temp.path().join(".ralph/cache/execution_history.json"),
+            "{}",
+        )?;
+
+        let dirty_allowed =
+            repo_dirty_only_allowed_paths(temp.path(), RALPH_RUN_CLEAN_ALLOWED_PATHS)?;
         assert!(
-            RALPH_RUN_CLEAN_ALLOWED_PATHS.contains(&".ralph/cache/execution_history.json"),
-            "execution_history.json should be in RALPH_RUN_CLEAN_ALLOWED_PATHS"
+            dirty_allowed,
+            "execution_history.json should be covered by RALPH_RUN_CLEAN_ALLOWED_PATHS"
         );
+        Ok(())
     }
 }

@@ -88,16 +88,22 @@ pub(in crate::tui) fn handle_runner_event(
     queue_path: &Path,
     done_path: &Path,
 ) -> Option<String> {
+    const OP_PREFIX: &str = "RALPH_OPERATION:";
+
     match event {
         RunnerEvent::Output(text) => {
-            let lines: Vec<String> = text.lines().map(|line| line.to_string()).collect();
-            // Process each line for phase detection
-            if app.running_kind == Some(RunningKind::Task) {
-                for line in &lines {
+            let mut out_lines = Vec::new();
+            for line in text.lines() {
+                if let Some(rest) = line.strip_prefix(OP_PREFIX) {
+                    app.set_operation(rest.trim());
+                    continue;
+                }
+                if app.running_kind == Some(RunningKind::Task) {
                     app.process_log_line_for_phase(line);
                 }
+                out_lines.push(line.to_string());
             }
-            app.append_log_lines(lines);
+            app.append_log_lines(out_lines);
             None
         }
         RunnerEvent::Finished => {

@@ -3,7 +3,7 @@
 use ralph::config;
 use ralph::contracts::{
     AgentConfig, Config, GitRevertMode, Model, NotificationConfig, ProjectType, QueueConfig,
-    ReasoningEffort, Runner, WebhookConfig,
+    ReasoningEffort, Runner, RunnerRetryConfig, WebhookConfig,
 };
 use serial_test::serial;
 use std::env;
@@ -608,6 +608,7 @@ fn test_agent_config_merge_from_partial() {
         fail_on_prerun_update_error: None,
         notification: NotificationConfig::default(),
         webhook: WebhookConfig::default(),
+        runner_retry: RunnerRetryConfig::default(),
         session_timeout_hours: None,
         scan_prompt_version: None,
     };
@@ -640,6 +641,7 @@ fn test_agent_config_merge_from_partial() {
         fail_on_prerun_update_error: None,
         notification: NotificationConfig::default(),
         webhook: WebhookConfig::default(),
+        runner_retry: RunnerRetryConfig::default(),
         session_timeout_hours: Some(48),
         scan_prompt_version: None,
     };

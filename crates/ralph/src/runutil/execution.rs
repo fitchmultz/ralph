@@ -24,6 +24,7 @@ use crate::commands::run::PhaseType;
 use crate::constants::buffers::TIMEOUT_STDOUT_CAPTURE_MAX_BYTES;
 use crate::constants::buffers::{OUTPUT_TAIL_LINE_MAX_CHARS, OUTPUT_TAIL_LINES};
 use crate::contracts::{ClaudePermissionMode, GitRevertMode, Model, ReasoningEffort, Runner};
+use crate::runner::{RetryableReason, RunnerFailureClass};
 use crate::{fsutil, outpututil, runner};
 
 use super::abort::{RunAbort, RunAbortReason};
@@ -31,6 +32,7 @@ use super::revert::{
     RevertOutcome, RevertPromptHandler, RevertSource, apply_git_revert_mode,
     format_revert_failure_message,
 };
+use super::{SeededRng, compute_backoff, format_duration};
 
 pub(crate) struct RunnerInvocation<'a> {
     pub repo_root: &'a Path,
@@ -58,6 +60,8 @@ pub(crate) struct RunnerInvocation<'a> {
     /// Optional session ID for runners that support session resumption (e.g., Kimi).
     /// When provided, the runner will use this ID for the session.
     pub session_id: Option<String>,
+    /// Retry policy for transient failures.
+    pub retry_policy: super::RunnerRetryPolicy,
 }
 
 pub(crate) struct RunnerErrorMessages<'a, FNonZero, FOther>
@@ -222,6 +226,38 @@ fn wrap_output_handler_with_capture(
     (capture, Some(handler))
 }
 
+/// Emit an operation marker for TUI display.
+fn emit_operation(handler: &Option<runner::OutputHandler>, msg: &str) {
+    if let Some(h) = handler.as_ref() {
+        (h)(&format!("RALPH_OPERATION: {}\n", msg));
+    }
+}
+
+/// Check if we should attempt retry based on repo state.
+/// Returns true if repo is clean enough to retry, or if we can auto-revert.
+fn should_retry_with_repo_state(
+    repo_root: &Path,
+    revert_on_error: bool,
+    git_revert_mode: GitRevertMode,
+) -> Result<bool> {
+    // Check if repo is dirty only in allowed paths
+    let dirty_only_allowed = crate::git::clean::repo_dirty_only_allowed_paths(
+        repo_root,
+        crate::git::clean::RALPH_RUN_CLEAN_ALLOWED_PATHS,
+    )?;
+
+    if dirty_only_allowed {
+        return Ok(true);
+    }
+
+    // If we can auto-revert without prompting, retry is allowed
+    if revert_on_error && git_revert_mode == GitRevertMode::Enabled {
+        return Ok(true);
+    }
+
+    Ok(false)
+}
+
 pub(crate) fn run_prompt_with_handling_backend<FNonZero, FOther>(
     invocation: RunnerInvocation<'_>,
     messages: RunnerErrorMessages<'_, FNonZero, FOther>,
@@ -248,6 +284,7 @@ where
         revert_prompt,
         phase_type,
         session_id,
+        retry_policy,
     } = invocation;
     let RunnerErrorMessages {
         log_label,
@@ -266,6 +303,16 @@ where
     } else {
         (None, output_handler)
     };
+
+    // Retry state
+    let mut attempt: u32 = 1;
+    let max_attempts = retry_policy.max_attempts;
+    let mut rng = SeededRng::new();
+
+    emit_operation(
+        &effective_output_handler,
+        &format!("Running runner attempt {}/ {}", attempt, max_attempts),
+    );
 
     let mut result = backend.run_prompt(
         runner_kind.clone(),
@@ -288,6 +335,7 @@ where
         match result {
             Ok(output) => return Ok(output),
             Err(runner::RunnerError::Interrupted) => {
+                // Never retry interruptions
                 let message = if revert_on_error {
                     let outcome = apply_git_revert_mode(
                         repo_root,
@@ -304,264 +352,369 @@ where
                     message,
                 )));
             }
-            Err(runner::RunnerError::Timeout) => {
-                let mut safeguard_msg = String::new();
-                let message = if revert_on_error {
-                    if let Some(capture) = timeout_stdout_capture.as_ref() {
-                        let captured = match capture.lock() {
-                            Ok(buf) => buf.clone(),
-                            Err(poisoned) => {
-                                log::warn!(
-                                    "timeout_stdout_capture mutex poisoned; recovering captured output for diagnostics"
-                                );
-                                poisoned.into_inner().clone()
+            Err(ref err) => {
+                // Classify the error for retry decision
+                let classification = err.classify(&runner_kind);
+
+                // Check if we should retry
+                if attempt < max_attempts
+                    && matches!(classification, RunnerFailureClass::Retryable(_))
+                {
+                    // Check repo state for safe retry
+                    let should_retry =
+                        should_retry_with_repo_state(repo_root, revert_on_error, git_revert_mode)?;
+
+                    if should_retry {
+                        // Auto-revert if enabled and repo is dirty
+                        if revert_on_error
+                            && git_revert_mode == GitRevertMode::Enabled
+                            && let Err(e) = crate::git::revert_uncommitted(repo_root)
+                        {
+                            log::warn!("Failed to auto-revert before retry: {}", e);
+                        }
+
+                        // Compute backoff
+                        let delay = compute_backoff(retry_policy, attempt, &mut rng);
+                        let reason_str = match classification {
+                            RunnerFailureClass::Retryable(RetryableReason::RateLimited) => {
+                                "rate limit"
                             }
+                            RunnerFailureClass::Retryable(
+                                RetryableReason::TemporaryUnavailable,
+                            ) => "temporarily unavailable",
+                            RunnerFailureClass::Retryable(RetryableReason::TransientIo) => {
+                                "transient error"
+                            }
+                            _ => "transient error",
                         };
-                        if !captured.trim().is_empty() {
-                            match fsutil::safeguard_text_dump_redacted("runner_error", &captured) {
-                                Ok(path) => {
-                                    safeguard_msg =
-                                        format!("\n(redacted output saved to {})", path.display());
-                                }
-                                Err(err) => {
-                                    log::warn!("failed to save safeguard dump: {}", err);
-                                }
-                            }
-                        }
-                    }
 
-                    let outcome = apply_git_revert_mode(
-                        repo_root,
-                        git_revert_mode,
-                        log_label,
-                        revert_prompt.as_ref(),
-                    )?;
-                    if matches!(
-                        outcome,
-                        RevertOutcome::Reverted {
-                            source: RevertSource::User,
-                        }
-                    ) {
-                        let message = format_revert_failure_message(timeout_msg, outcome);
-                        return Err(anyhow::Error::new(RunAbort::new(
-                            RunAbortReason::UserRevert,
-                            format!("{}{}", message, safeguard_msg),
-                        )));
-                    }
-                    format_revert_failure_message(timeout_msg, outcome)
-                } else {
-                    timeout_msg.to_string()
-                };
+                        emit_operation(
+                            &effective_output_handler,
+                            &format!(
+                                "Runner retry {}/{} in {} ({})",
+                                attempt + 1,
+                                max_attempts,
+                                format_duration(delay),
+                                reason_str
+                            ),
+                        );
 
-                bail!("{}{}", message, safeguard_msg);
-            }
-            Err(runner::RunnerError::NonZeroExit {
-                code,
-                stdout,
-                stderr,
-                session_id,
-            }) => {
-                log_stderr_tail(log_label, &stderr.to_string());
-                // Compute base_msg immediately since non_zero_msg is FnOnce and we may loop
-                let base_msg = non_zero_msg(code);
-                let mut safeguard_msg = String::new();
-                if revert_on_error {
-                    if !stdout.0.is_empty() {
-                        match fsutil::safeguard_text_dump_redacted(
-                            "runner_error_stdout",
-                            &stdout.to_string(),
-                        ) {
-                            Ok(path) => {
-                                safeguard_msg =
-                                    format!("\n(redacted stdout saved to {})", path.display());
-                            }
-                            Err(err) => {
-                                log::warn!("failed to save stdout safeguard dump: {}", err);
+                        // Check for Ctrl-C during backoff
+                        std::thread::sleep(delay);
+                        if let Ok(ctrlc) = runner::ctrlc_state() {
+                            use std::sync::atomic::Ordering;
+                            if ctrlc.interrupted.load(Ordering::SeqCst) {
+                                return Err(anyhow::Error::new(RunAbort::new(
+                                    RunAbortReason::Interrupted,
+                                    interrupted_msg.to_string(),
+                                )));
                             }
                         }
-                    }
-                    if !stderr.0.is_empty() {
-                        match fsutil::safeguard_text_dump_redacted(
-                            "runner_error_stderr",
-                            &stderr.to_string(),
-                        ) {
-                            Ok(path) => {
-                                safeguard_msg.push_str(&format!(
-                                    "\n(redacted stderr saved to {})",
-                                    path.display()
-                                ));
-                            }
-                            Err(err) => {
-                                log::warn!("failed to save stderr safeguard dump: {}", err);
-                            }
-                        }
-                    }
-                    let outcome = apply_git_revert_mode(
-                        repo_root,
-                        git_revert_mode,
-                        log_label,
-                        revert_prompt.as_ref(),
-                    )?;
-                    match outcome {
-                        RevertOutcome::Continue { message } => {
-                            let Some(session_id) = session_id.as_deref() else {
-                                bail!("Catastrophic: no session id captured; cannot Continue.");
-                            };
-                            if let Some(capture) = timeout_stdout_capture.as_ref()
-                                && let Ok(mut buf) = capture.lock()
-                            {
-                                buf.clear();
-                            }
-                            result = backend.resume_session(
-                                runner_kind.clone(),
-                                repo_root,
-                                bins,
-                                model.clone(),
-                                reasoning_effort,
-                                runner_cli,
-                                session_id,
-                                &message,
-                                permission_mode,
-                                timeout,
-                                effective_output_handler.clone(),
-                                output_stream,
-                                phase_type,
-                                None,
-                            );
-                            continue;
-                        }
-                        RevertOutcome::Reverted {
-                            source: RevertSource::User,
-                        } => {
-                            let message = format_revert_failure_message(&base_msg, outcome);
-                            return Err(anyhow::Error::new(RunAbort::new(
-                                RunAbortReason::UserRevert,
-                                format!("{}{}", message, safeguard_msg),
-                            )));
-                        }
-                        _ => {
-                            let message = format_revert_failure_message(&base_msg, outcome);
-                            bail!("{}{}", message, safeguard_msg);
-                        }
+
+                        attempt += 1;
+                        emit_operation(
+                            &effective_output_handler,
+                            &format!("Running runner attempt {}/ {}", attempt, max_attempts),
+                        );
+
+                        // Retry the runner invocation
+                        result = backend.run_prompt(
+                            runner_kind.clone(),
+                            repo_root,
+                            bins,
+                            model.clone(),
+                            reasoning_effort,
+                            runner_cli,
+                            prompt,
+                            timeout,
+                            permission_mode,
+                            effective_output_handler.clone(),
+                            output_stream,
+                            phase_type,
+                            session_id.clone(),
+                            None,
+                        );
+                        continue;
                     }
                 }
-                bail!("{}{}", base_msg, safeguard_msg);
-            }
-            Err(runner::RunnerError::TerminatedBySignal {
-                stdout,
-                stderr,
-                session_id,
-            }) => {
-                log_stderr_tail(log_label, &stderr.to_string());
-                let mut safeguard_msg = String::new();
-                if revert_on_error {
-                    if !stdout.0.is_empty() {
-                        match fsutil::safeguard_text_dump_redacted(
-                            "runner_error_stdout",
-                            &stdout.to_string(),
-                        ) {
-                            Ok(path) => {
-                                safeguard_msg =
-                                    format!("\n(redacted stdout saved to {})", path.display());
+
+                // Fall through to existing error handling
+                match result {
+                    Ok(_) => unreachable!(),
+                    Err(runner::RunnerError::Timeout) => {
+                        let mut safeguard_msg = String::new();
+                        let message = if revert_on_error {
+                            if let Some(capture) = timeout_stdout_capture.as_ref() {
+                                let captured = match capture.lock() {
+                                    Ok(buf) => buf.clone(),
+                                    Err(poisoned) => {
+                                        log::warn!(
+                                            "timeout_stdout_capture mutex poisoned; recovering captured output for diagnostics"
+                                        );
+                                        poisoned.into_inner().clone()
+                                    }
+                                };
+                                if !captured.trim().is_empty() {
+                                    match fsutil::safeguard_text_dump_redacted(
+                                        "runner_error",
+                                        &captured,
+                                    ) {
+                                        Ok(path) => {
+                                            safeguard_msg = format!(
+                                                "\n(redacted output saved to {})",
+                                                path.display()
+                                            );
+                                        }
+                                        Err(err) => {
+                                            log::warn!("failed to save safeguard dump: {}", err);
+                                        }
+                                    }
+                                }
                             }
-                            Err(err) => {
-                                log::warn!("failed to save stdout safeguard dump: {}", err);
-                            }
-                        }
-                    }
-                    if !stderr.0.is_empty() {
-                        match fsutil::safeguard_text_dump_redacted(
-                            "runner_error_stderr",
-                            &stderr.to_string(),
-                        ) {
-                            Ok(path) => {
-                                safeguard_msg.push_str(&format!(
-                                    "\n(redacted stderr saved to {})",
-                                    path.display()
-                                ));
-                            }
-                            Err(err) => {
-                                log::warn!("failed to save stderr safeguard dump: {}", err);
-                            }
-                        }
-                    }
-                    let outcome = apply_git_revert_mode(
-                        repo_root,
-                        git_revert_mode,
-                        log_label,
-                        revert_prompt.as_ref(),
-                    )?;
-                    match outcome {
-                        RevertOutcome::Continue { message } => {
-                            let Some(session_id) = session_id.as_deref() else {
-                                bail!("Catastrophic: no session id captured; cannot Continue.");
-                            };
-                            if let Some(capture) = timeout_stdout_capture.as_ref()
-                                && let Ok(mut buf) = capture.lock()
-                            {
-                                buf.clear();
-                            }
-                            result = backend.resume_session(
-                                runner_kind.clone(),
+
+                            let outcome = apply_git_revert_mode(
                                 repo_root,
-                                bins,
-                                model.clone(),
-                                reasoning_effort,
-                                runner_cli,
-                                session_id,
-                                &message,
-                                permission_mode,
-                                timeout,
-                                effective_output_handler.clone(),
-                                output_stream,
-                                phase_type,
-                                None,
-                            );
-                            continue;
+                                git_revert_mode,
+                                log_label,
+                                revert_prompt.as_ref(),
+                            )?;
+                            if matches!(
+                                outcome,
+                                RevertOutcome::Reverted {
+                                    source: RevertSource::User,
+                                }
+                            ) {
+                                let message = format_revert_failure_message(timeout_msg, outcome);
+                                return Err(anyhow::Error::new(RunAbort::new(
+                                    RunAbortReason::UserRevert,
+                                    format!("{}{}", message, safeguard_msg),
+                                )));
+                            }
+                            format_revert_failure_message(timeout_msg, outcome)
+                        } else {
+                            timeout_msg.to_string()
+                        };
+
+                        bail!("{}{}", message, safeguard_msg);
+                    }
+                    Err(runner::RunnerError::NonZeroExit {
+                        code,
+                        stdout,
+                        stderr,
+                        session_id,
+                    }) => {
+                        log_stderr_tail(log_label, &stderr.to_string());
+                        let base_msg = non_zero_msg(code);
+                        let mut safeguard_msg = String::new();
+                        if revert_on_error {
+                            if !stdout.0.is_empty() {
+                                match fsutil::safeguard_text_dump_redacted(
+                                    "runner_error_stdout",
+                                    &stdout.to_string(),
+                                ) {
+                                    Ok(path) => {
+                                        safeguard_msg = format!(
+                                            "\n(redacted stdout saved to {})",
+                                            path.display()
+                                        );
+                                    }
+                                    Err(err) => {
+                                        log::warn!("failed to save stdout safeguard dump: {}", err);
+                                    }
+                                }
+                            }
+                            if !stderr.0.is_empty() {
+                                match fsutil::safeguard_text_dump_redacted(
+                                    "runner_error_stderr",
+                                    &stderr.to_string(),
+                                ) {
+                                    Ok(path) => {
+                                        safeguard_msg.push_str(&format!(
+                                            "\n(redacted stderr saved to {})",
+                                            path.display()
+                                        ));
+                                    }
+                                    Err(err) => {
+                                        log::warn!("failed to save stderr safeguard dump: {}", err);
+                                    }
+                                }
+                            }
+                            let outcome = apply_git_revert_mode(
+                                repo_root,
+                                git_revert_mode,
+                                log_label,
+                                revert_prompt.as_ref(),
+                            )?;
+                            match outcome {
+                                RevertOutcome::Continue { message } => {
+                                    let Some(session_id) = session_id.as_deref() else {
+                                        bail!(
+                                            "Catastrophic: no session id captured; cannot Continue."
+                                        );
+                                    };
+                                    if let Some(capture) = timeout_stdout_capture.as_ref()
+                                        && let Ok(mut buf) = capture.lock()
+                                    {
+                                        buf.clear();
+                                    }
+                                    result = backend.resume_session(
+                                        runner_kind.clone(),
+                                        repo_root,
+                                        bins,
+                                        model.clone(),
+                                        reasoning_effort,
+                                        runner_cli,
+                                        session_id,
+                                        &message,
+                                        permission_mode,
+                                        timeout,
+                                        effective_output_handler.clone(),
+                                        output_stream,
+                                        phase_type,
+                                        None,
+                                    );
+                                    continue;
+                                }
+                                RevertOutcome::Reverted {
+                                    source: RevertSource::User,
+                                } => {
+                                    let message = format_revert_failure_message(&base_msg, outcome);
+                                    return Err(anyhow::Error::new(RunAbort::new(
+                                        RunAbortReason::UserRevert,
+                                        format!("{}{}", message, safeguard_msg),
+                                    )));
+                                }
+                                _ => {
+                                    let message = format_revert_failure_message(&base_msg, outcome);
+                                    bail!("{}{}", message, safeguard_msg);
+                                }
+                            }
                         }
-                        RevertOutcome::Reverted {
-                            source: RevertSource::User,
-                        } => {
-                            let message = format_revert_failure_message(terminated_msg, outcome);
-                            return Err(anyhow::Error::new(RunAbort::new(
-                                RunAbortReason::UserRevert,
-                                format!("{}{}", message, safeguard_msg),
-                            )));
+                        bail!("{}{}", base_msg, safeguard_msg);
+                    }
+                    Err(runner::RunnerError::TerminatedBySignal {
+                        stdout,
+                        stderr,
+                        session_id,
+                    }) => {
+                        log_stderr_tail(log_label, &stderr.to_string());
+                        let mut safeguard_msg = String::new();
+                        if revert_on_error {
+                            if !stdout.0.is_empty() {
+                                match fsutil::safeguard_text_dump_redacted(
+                                    "runner_error_stdout",
+                                    &stdout.to_string(),
+                                ) {
+                                    Ok(path) => {
+                                        safeguard_msg = format!(
+                                            "\n(redacted stdout saved to {})",
+                                            path.display()
+                                        );
+                                    }
+                                    Err(err) => {
+                                        log::warn!("failed to save stdout safeguard dump: {}", err);
+                                    }
+                                }
+                            }
+                            if !stderr.0.is_empty() {
+                                match fsutil::safeguard_text_dump_redacted(
+                                    "runner_error_stderr",
+                                    &stderr.to_string(),
+                                ) {
+                                    Ok(path) => {
+                                        safeguard_msg.push_str(&format!(
+                                            "\n(redacted stderr saved to {})",
+                                            path.display()
+                                        ));
+                                    }
+                                    Err(err) => {
+                                        log::warn!("failed to save stderr safeguard dump: {}", err);
+                                    }
+                                }
+                            }
+                            let outcome = apply_git_revert_mode(
+                                repo_root,
+                                git_revert_mode,
+                                log_label,
+                                revert_prompt.as_ref(),
+                            )?;
+                            match outcome {
+                                RevertOutcome::Continue { message } => {
+                                    let Some(session_id) = session_id.as_deref() else {
+                                        bail!(
+                                            "Catastrophic: no session id captured; cannot Continue."
+                                        );
+                                    };
+                                    if let Some(capture) = timeout_stdout_capture.as_ref()
+                                        && let Ok(mut buf) = capture.lock()
+                                    {
+                                        buf.clear();
+                                    }
+                                    result = backend.resume_session(
+                                        runner_kind.clone(),
+                                        repo_root,
+                                        bins,
+                                        model.clone(),
+                                        reasoning_effort,
+                                        runner_cli,
+                                        session_id,
+                                        &message,
+                                        permission_mode,
+                                        timeout,
+                                        effective_output_handler.clone(),
+                                        output_stream,
+                                        phase_type,
+                                        None,
+                                    );
+                                    continue;
+                                }
+                                RevertOutcome::Reverted {
+                                    source: RevertSource::User,
+                                } => {
+                                    let message =
+                                        format_revert_failure_message(terminated_msg, outcome);
+                                    return Err(anyhow::Error::new(RunAbort::new(
+                                        RunAbortReason::UserRevert,
+                                        format!("{}{}", message, safeguard_msg),
+                                    )));
+                                }
+                                _ => {
+                                    let message =
+                                        format_revert_failure_message(terminated_msg, outcome);
+                                    bail!("{}{}", message, safeguard_msg);
+                                }
+                            }
                         }
-                        _ => {
-                            let message = format_revert_failure_message(terminated_msg, outcome);
-                            bail!("{}{}", message, safeguard_msg);
-                        }
+                        bail!("{}{}", terminated_msg, safeguard_msg);
+                    }
+                    Err(err) => {
+                        let base_msg = other_msg(err);
+                        let message = if revert_on_error {
+                            let outcome = apply_git_revert_mode(
+                                repo_root,
+                                git_revert_mode,
+                                log_label,
+                                revert_prompt.as_ref(),
+                            )?;
+                            if matches!(
+                                outcome,
+                                RevertOutcome::Reverted {
+                                    source: RevertSource::User,
+                                }
+                            ) {
+                                let message = format_revert_failure_message(&base_msg, outcome);
+                                return Err(anyhow::Error::new(RunAbort::new(
+                                    RunAbortReason::UserRevert,
+                                    message,
+                                )));
+                            }
+                            format_revert_failure_message(&base_msg, outcome)
+                        } else {
+                            base_msg
+                        };
+                        bail!("{message}");
                     }
                 }
-                bail!("{}{}", terminated_msg, safeguard_msg);
-            }
-            Err(err) => {
-                let base_msg = other_msg(err);
-                let message = if revert_on_error {
-                    let outcome = apply_git_revert_mode(
-                        repo_root,
-                        git_revert_mode,
-                        log_label,
-                        revert_prompt.as_ref(),
-                    )?;
-                    if matches!(
-                        outcome,
-                        RevertOutcome::Reverted {
-                            source: RevertSource::User,
-                        }
-                    ) {
-                        let message = format_revert_failure_message(&base_msg, outcome);
-                        return Err(anyhow::Error::new(RunAbort::new(
-                            RunAbortReason::UserRevert,
-                            message,
-                        )));
-                    }
-                    format_revert_failure_message(&base_msg, outcome)
-                } else {
-                    base_msg
-                };
-                bail!("{message}");
             }
         }
     }

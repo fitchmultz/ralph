@@ -26,8 +26,8 @@ pub use config::{
     AgentConfig, AutoArchiveBehavior, Config, ConflictPolicy, GitRevertMode, NotificationConfig,
     ParallelConfig, ParallelMergeMethod, ParallelMergeWhen, PhaseOverrideConfig, PhaseOverrides,
     PluginConfig, PluginProcessorConfig, PluginRunnerConfig, PluginsConfig, ProjectType,
-    QueueAgingThresholds, QueueConfig, ScanPromptVersion, TuiConfig, WebhookConfig,
-    WebhookQueuePolicy,
+    QueueAgingThresholds, QueueConfig, RunnerRetryConfig, ScanPromptVersion, TuiConfig,
+    WebhookConfig, WebhookQueuePolicy,
 };
 
 // Re-exports from model module (model types)

@@ -273,6 +273,9 @@ fn update_task_impl(
     let runner_settings = resolve_task_update_settings(resolved, settings)?;
     let bins = runner::resolve_binaries(&resolved.config.agent);
 
+    let retry_policy = runutil::RunnerRetryPolicy::from_config(&resolved.config.agent.runner_retry)
+        .unwrap_or_default();
+
     let _output = runutil::run_prompt_with_handling(
         runutil::RunnerInvocation {
             repo_root: &resolved.repo_root,
@@ -295,6 +298,7 @@ fn update_task_impl(
             revert_prompt: None,
             phase_type: PhaseType::SinglePhase,
             session_id: None,
+            retry_policy,
         },
         runutil::RunnerErrorMessages {
             log_label: "task updater",

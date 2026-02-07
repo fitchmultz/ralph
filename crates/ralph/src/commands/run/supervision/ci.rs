@@ -163,7 +163,9 @@ pub(crate) fn ci_gate_command_label(resolved: &crate::config::Resolved) -> Strin
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::contracts::{AgentConfig, Config, NotificationConfig, QueueConfig, Runner};
+    use crate::contracts::{
+        AgentConfig, Config, NotificationConfig, QueueConfig, Runner, RunnerRetryConfig,
+    };
     use std::path::PathBuf;
     use tempfile::TempDir;
 
@@ -206,6 +208,7 @@ mod tests {
                     ..NotificationConfig::default()
                 },
                 webhook: crate::contracts::WebhookConfig::default(),
+                runner_retry: RunnerRetryConfig::default(),
                 session_timeout_hours: None,
                 scan_prompt_version: None,
             },

@@ -67,7 +67,9 @@ pub(crate) fn build_notification_config(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::contracts::{AgentConfig, Config, NotificationConfig, QueueConfig, Runner};
+    use crate::contracts::{
+        AgentConfig, Config, NotificationConfig, QueueConfig, Runner, RunnerRetryConfig,
+    };
     use std::path::PathBuf;
     use tempfile::TempDir;
 
@@ -106,6 +108,7 @@ mod tests {
                 phases: Some(2),
                 notification,
                 webhook: crate::contracts::WebhookConfig::default(),
+                runner_retry: RunnerRetryConfig::default(),
                 session_timeout_hours: None,
                 scan_prompt_version: None,
             },

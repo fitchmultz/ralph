@@ -8,11 +8,12 @@
 //! - Prompt template rendering, queue/task persistence, or runner selection logic.
 //!
 //! Invariants/assumptions:
-//! - Submodules remain cohesive (execution vs revert vs abort vs shell).
+//! - Submodules remain cohesive (execution vs revert vs abort vs shell vs retry).
 //! - Re-exports preserve the existing public and `pub(crate)` API surface.
 
 mod abort;
 mod execution;
+mod retry;
 mod revert;
 mod shell;
 
@@ -34,6 +35,8 @@ pub use shell::shell_command;
 pub(crate) use abort::{RunAbort, RunAbortReason, abort_reason};
 
 pub(crate) use execution::{RunnerErrorMessages, RunnerInvocation, run_prompt_with_handling};
+
+pub(crate) use retry::{RunnerRetryPolicy, SeededRng, compute_backoff, format_duration};
 
 #[cfg(test)]
 pub(crate) use execution::{RunnerBackend, run_prompt_with_handling_backend};

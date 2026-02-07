@@ -136,6 +136,9 @@ fn build_task_impl(
     let bins = runner::resolve_binaries(&resolved.config.agent);
     // Two-pass mode disabled for task (only generates task, should not implement)
 
+    let retry_policy = runutil::RunnerRetryPolicy::from_config(&resolved.config.agent.runner_retry)
+        .unwrap_or_default();
+
     let _output = runutil::run_prompt_with_handling(
         runutil::RunnerInvocation {
             repo_root: &resolved.repo_root,
@@ -158,6 +161,7 @@ fn build_task_impl(
             revert_prompt: None,
             phase_type: PhaseType::SinglePhase,
             session_id: None,
+            retry_policy,
         },
         runutil::RunnerErrorMessages {
             log_label: "task builder",

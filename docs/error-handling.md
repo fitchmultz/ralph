@@ -68,7 +68,7 @@ pub enum GitError {
 
 ## Current Error Types
 
-### RunnerError (`crates/ralph/src/runner.rs`)
+### RunnerError (`crates/ralph/src/runner/error.rs`)
 
 Runner-specific failures with redaction support for sensitive output.
 
@@ -76,6 +76,7 @@ Runner-specific failures with redaction support for sensitive output.
 - Uses `RedactedString` for stdout/stderr to prevent secret leakage
 - `NonZeroExit` and `TerminatedBySignal` include optional `session_id` for resumption
 - Implements `thiserror::Error` for structured matching
+- **Failure classification**: Errors are classified as `Retryable`, `RequiresUserInput`, or `NonRetryable` for automatic retry decisions (see `RunnerError::classify()`)
 
 **Variants:**
 - `BinaryMissing` - Runner binary not found on PATH

@@ -83,6 +83,13 @@
             }
           }
         },
+        "runner_retry": {
+          "base_backoff_ms": null,
+          "jitter_ratio": null,
+          "max_attempts": null,
+          "max_backoff_ms": null,
+          "multiplier": null
+        },
         "scan_prompt_version": "v2",
         "session_timeout_hours": 24,
         "update_task_before_run": false,
@@ -455,6 +462,21 @@
             },
             {
               "type": "null"
+            }
+          ]
+        },
+        "runner_retry": {
+          "description": "Runner invocation retry/backoff configuration.",
+          "default": {
+            "base_backoff_ms": null,
+            "jitter_ratio": null,
+            "max_attempts": null,
+            "max_backoff_ms": null,
+            "multiplier": null
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/RunnerRetryConfig"
             }
           ]
         },
@@ -1310,6 +1332,68 @@
         "enabled",
         "disabled"
       ]
+    },
+    "RunnerRetryConfig": {
+      "description": "Runner retry/backoff configuration for transient failure handling.\n\nControls automatic retry behavior when runner invocations fail with transient errors (rate limits, temporary unavailability, network issues). Distinct from webhook retry settings (`agent.webhook.retry_*`).",
+      "type": "object",
+      "properties": {
+        "base_backoff_ms": {
+          "description": "Base backoff in milliseconds. Default: 1000.",
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "maximum": 600000.0,
+          "minimum": 0.0
+        },
+        "jitter_ratio": {
+          "description": "Jitter ratio in [0,1]. Default: 0.2 (20% variance).",
+          "default": null,
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double",
+          "maximum": 1.0,
+          "minimum": 0.0
+        },
+        "max_attempts": {
+          "description": "Total attempts (including initial). Default: 3.",
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "maximum": 20.0,
+          "minimum": 1.0
+        },
+        "max_backoff_ms": {
+          "description": "Max backoff cap in milliseconds. Default: 30000.",
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "maximum": 600000.0,
+          "minimum": 0.0
+        },
+        "multiplier": {
+          "description": "Exponential multiplier. Default: 2.0.",
+          "default": null,
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double",
+          "maximum": 10.0,
+          "minimum": 1.0
+        }
+      },
+      "additionalProperties": false
     },
     "RunnerSandboxMode": {
       "type": "string",

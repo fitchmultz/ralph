@@ -18,7 +18,9 @@ mod model;
 mod settings;
 
 pub use error::RunnerError;
-pub(crate) use error::{runner_execution_error, runner_execution_error_with_source};
+pub(crate) use error::{
+    RetryableReason, RunnerFailureClass, runner_execution_error, runner_execution_error_with_source,
+};
 
 pub(crate) use execution::{ResolvedRunnerCliOptions, ctrlc_state};
 

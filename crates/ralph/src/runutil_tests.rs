@@ -447,6 +447,7 @@ fn run_prompt_interrupt_returns_abort_reason() {
         revert_prompt: Some(Arc::new(|_context| Ok(RevertDecision::Keep))),
         phase_type: PhaseType::Implementation,
         session_id: None,
+        retry_policy: crate::runutil::RunnerRetryPolicy::default(),
     };
 
     let messages = RunnerErrorMessages {
@@ -497,6 +498,7 @@ fn run_prompt_user_revert_returns_abort_reason() {
         revert_prompt: Some(Arc::new(|_context| Ok(RevertDecision::Revert))),
         phase_type: PhaseType::Implementation,
         session_id: None,
+        retry_policy: crate::runutil::RunnerRetryPolicy::default(),
     };
 
     let messages = RunnerErrorMessages {
@@ -550,6 +552,7 @@ fn timeout_applies_git_revert_mode_and_saves_safeguard_dump_when_stdout_is_avail
         revert_prompt: None,
         phase_type: PhaseType::Implementation,
         session_id: None,
+        retry_policy: crate::runutil::RunnerRetryPolicy::default(),
     };
 
     let messages = RunnerErrorMessages {
@@ -676,6 +679,7 @@ fn run_prompt_passes_output_stream_to_backend() {
         revert_prompt: None,
         phase_type: PhaseType::Implementation,
         session_id: None,
+        retry_policy: crate::runutil::RunnerRetryPolicy::default(),
     };
 
     let messages = RunnerErrorMessages {

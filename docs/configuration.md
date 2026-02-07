@@ -72,6 +72,7 @@ Supported fields:
   **Safety warning:** When enabled, Ralph will automatically push changes to the remote repository. This action is irreversible. The TUI will prompt for confirmation when enabling this setting.
   **Parallel workers:** This setting is inherited by parallel workers. When disabled, parallel PR automation (`auto_pr`, `auto_merge`, `draft_on_failure`) is skipped because PRs require pushed commits.
 - `session_timeout_hours`: session timeout in hours for crash recovery (default: `24`). Sessions older than this threshold are considered stale and require explicit user confirmation to resume. Set to a higher value if you want to allow resuming sessions after longer periods.
+- `runner_retry`: runner invocation retry/backoff configuration for transient failure handling. See [`agent.runner_retry`](#agentrunner_retry) below.
 - `ci_gate_command`: command to run for the CI gate (default: `make ci`).
 - `ci_gate_enabled`: enable or disable the CI gate (default: `true`).
   **Safety warning:** Disabling the CI gate skips validation before commit/push, which may allow broken code to be pushed.
@@ -173,6 +174,43 @@ To configure a longer session timeout for crash recovery (e.g., 72 hours for wee
   }
 }
 ```
+
+### `agent.runner_retry`
+
+Runner invocation retry/backoff configuration for transient failure handling. Controls automatic retry behavior when runner invocations fail with transient errors (rate limits, temporary unavailability, network issues). Distinct from webhook retry settings (`agent.webhook.retry_*`).
+
+**Fields:**
+- `max_attempts`: Total attempts including initial (default: `3`, range: `1-20`).
+- `base_backoff_ms`: Base backoff in milliseconds (default: `1000`, range: `0-600000`).
+- `multiplier`: Exponential multiplier (default: `2.0`, range: `1.0-10.0`).
+- `max_backoff_ms`: Maximum backoff cap in milliseconds (default: `30000`, range: `0-600000`).
+- `jitter_ratio`: Jitter ratio in `[0,1]` for variance (default: `0.2`, range: `0.0-1.0`).
+
+**Retry classification:**
+- **Retryable**: Rate limits (HTTP 429), temporary unavailability (HTTP 503), transient I/O errors (connection reset, timeout), and timeouts.
+- **Requires user input**: Authentication failures (HTTP 401), missing binaries.
+- **Non-retryable**: Invalid invocations, fatal exits, interruptions (Ctrl+C).
+
+**Example:**
+
+```json
+{
+  "agent": {
+    "runner_retry": {
+      "max_attempts": 5,
+      "base_backoff_ms": 2000,
+      "multiplier": 2.0,
+      "max_backoff_ms": 60000,
+      "jitter_ratio": 0.2
+    }
+  }
+}
+```
+
+Notes:
+- Retries only occur when the repository is clean (or dirty only in Ralph-allowed paths like `.ralph/`), or when `git_revert_mode` is `enabled` for auto-revert.
+- The TUI displays retry attempt counts and backoff delays via `RALPH_OPERATION:` markers in runner output.
+- To disable retry entirely, set `max_attempts: 1`.
 
 ### `agent.phase_overrides`
 

@@ -144,6 +144,7 @@ fn safeguard_dump_created_for_stderr_on_nonzero_exit() {
         revert_prompt: None,
         phase_type: crate::commands::run::PhaseType::Implementation,
         session_id: None,
+        retry_policy: super::RunnerRetryPolicy::default(),
     };
 
     let messages = RunnerErrorMessages {
@@ -247,6 +248,7 @@ fn safeguard_dump_created_for_stderr_on_terminated_by_signal() {
         revert_prompt: None,
         phase_type: crate::commands::run::PhaseType::Implementation,
         session_id: None,
+        retry_policy: super::RunnerRetryPolicy::default(),
     };
 
     let messages = RunnerErrorMessages {
@@ -385,6 +387,7 @@ fn no_safeguard_dump_for_empty_stderr() {
         revert_prompt: None,
         phase_type: crate::commands::run::PhaseType::Implementation,
         session_id: None,
+        retry_policy: super::RunnerRetryPolicy::default(),
     };
 
     let messages = RunnerErrorMessages {
@@ -517,6 +520,7 @@ fn timeout_stdout_capture_survives_mutex_poison() {
         revert_prompt: None,
         phase_type: crate::commands::run::PhaseType::Implementation,
         session_id: None,
+        retry_policy: super::RunnerRetryPolicy::default(),
     };
 
     let messages = RunnerErrorMessages {

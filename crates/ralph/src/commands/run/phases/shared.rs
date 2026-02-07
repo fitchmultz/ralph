@@ -55,6 +55,10 @@ pub(super) fn execute_runner_pass(
     let permission_mode = resolved.config.agent.claude_permission_mode;
     let start = Instant::now();
 
+    // Resolve retry policy from config
+    let retry_policy = runutil::RunnerRetryPolicy::from_config(&resolved.config.agent.runner_retry)
+        .unwrap_or_default();
+
     // Apply pre_prompt hooks if plugins are available
     let final_prompt = if let Some(registry) = plugins {
         let exec = ProcessorExecutor::new(&resolved.repo_root, registry);
@@ -82,6 +86,7 @@ pub(super) fn execute_runner_pass(
             revert_prompt,
             phase_type,
             session_id,
+            retry_policy,
         },
         runutil::RunnerErrorMessages {
             log_label,

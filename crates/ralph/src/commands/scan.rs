@@ -99,7 +99,7 @@ pub fn run_scan(resolved: &config::Resolved, opts: ScanOptions) -> Result<()> {
     git::require_clean_repo_ignoring_paths(
         &resolved.repo_root,
         opts.force,
-        &[".ralph/queue.json", ".ralph/done.json"],
+        git::RALPH_RUN_CLEAN_ALLOWED_PATHS,
     )?;
 
     let _queue_lock = match opts.lock_mode {
@@ -173,6 +173,9 @@ pub fn run_scan(resolved: &config::Resolved, opts: ScanOptions) -> Result<()> {
     let bins = runner::resolve_binaries(&resolved.config.agent);
     // Two-pass mode disabled for scan (only generates findings, should not implement)
 
+    let retry_policy = runutil::RunnerRetryPolicy::from_config(&resolved.config.agent.runner_retry)
+        .unwrap_or_default();
+
     let output = runutil::run_prompt_with_handling(
         runutil::RunnerInvocation {
             repo_root: &resolved.repo_root,
@@ -195,6 +198,7 @@ pub fn run_scan(resolved: &config::Resolved, opts: ScanOptions) -> Result<()> {
             revert_prompt: opts.revert_prompt.clone(),
             phase_type: PhaseType::SinglePhase,
             session_id: None,
+            retry_policy,
         },
         runutil::RunnerErrorMessages {
             log_label: "scan runner",

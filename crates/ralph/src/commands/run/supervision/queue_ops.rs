@@ -169,8 +169,8 @@ pub(crate) fn ensure_task_done_clean_or_bail(
 mod tests {
     use super::*;
     use crate::contracts::{
-        AgentConfig, Config, NotificationConfig, QueueConfig, QueueFile, Runner, Task,
-        TaskPriority, TaskStatus,
+        AgentConfig, Config, NotificationConfig, QueueConfig, QueueFile, Runner, RunnerRetryConfig,
+        Task, TaskPriority, TaskStatus,
     };
     use crate::queue;
     use std::path::Path;
@@ -249,6 +249,7 @@ mod tests {
                     ..NotificationConfig::default()
                 },
                 webhook: crate::contracts::WebhookConfig::default(),
+                runner_retry: RunnerRetryConfig::default(),
                 session_timeout_hours: None,
                 scan_prompt_version: None,
             },

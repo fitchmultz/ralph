@@ -2,56 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0671",
-      "status": "todo",
-      "title": "Add intelligent retry with exponential backoff for transient failures",
-      "description": "Runner failures are currently terminal with no automatic retry. Network issues, rate limits, or temporary runner unavailability require manual intervention. Add smart retry classification and exponential backoff.\n\nGoals:\n1. Classify failures as retryable vs permanent vs requires-user-input\n2. Add exponential backoff for retryable failures (network, rate limit, temporary unavailability)\n3. Add config: max_retries (default 3), retry_backoff_base_ms (default 1000)\n4. Distinguish runner-specific errors (e.g., 429 rate limit vs 401 auth failure)\n5. Add retry count to task metadata and show in TUI\n\nEvidence:\n- Current: RunnerError enum has variants but no retry classification\n- Gap: All failures immediately surface to user\n- User pain: Transient network issues require manual restart",
-      "priority": "high",
-      "tags": [
-        "innovation",
-        "reliability",
-        "resilience",
-        "runner"
-      ],
-      "scope": [
-        "crates/ralph/src/runner/error.rs",
-        "crates/ralph/src/runner/execution/mod.rs",
-        "crates/ralph/src/commands/run/mod.rs",
-        "crates/ralph/src/contracts/config.rs"
-      ],
-      "evidence": [
-        "Current capability: RunnerError captures failure details but execution flow immediately surfaces to user",
-        "Gap observed: No retry classification - NonZeroExit, Timeout, Interrupted all treated as terminal",
-        "Error types: RunnerError::Timeout, RunnerError::Interrupted are clearly retryable",
-        "Config gap: No retry-related settings in agent config section"
-      ],
-      "plan": [
-        "Add FailureClassification enum: Retryable { max_attempts, backoff }, NonRetryable, RequiresUserInput",
-        "Implement classify_error() for each runner type based on exit codes and error patterns",
-        "Add retry_attempts counter to task metadata (custom_fields or new field)",
-        "Add retry config to agent: max_retries (3), retry_backoff_base_ms (1000), retry_backoff_multiplier (2.0)",
-        "Implement retry loop in run execution with exponential backoff sleep",
-        "Add retry indicator in TUI execution view ('Retry 2/3 in 4s...')",
-        "Add webhook event for task_retry with attempt count",
-        "Update docs/error-handling.md with retry behavior documentation",
-        "Add tests for retry logic including backoff calculation and max retry exhaustion",
-        "Verify by simulating network failure and confirming automatic retry with backoff"
-      ],
-      "notes": [],
-      "request": "innovation scan finding",
-      "created_at": "2026-02-07T00:41:40Z",
-      "updated_at": "2026-02-07T00:41:40Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "user_value": "Reduces manual intervention for transient failures, improves success rate, handles network hiccups",
-        "scan_agent": "scan-innovation",
-        "estimated_effort": "medium",
-        "opportunity_type": "reliability"
-      }
-    },
-    {
       "id": "RQ-0672",
       "status": "todo",
       "title": "Implement continuous execution mode with background daemon capability",
@@ -96,9 +46,9 @@
       "relates_to": [],
       "custom_fields": {
         "opportunity_type": "automation",
+        "estimated_effort": "high",
         "scan_agent": "scan-innovation",
-        "user_value": "Enables 'set and forget' operation, integrates with system services, reduces manual monitoring",
-        "estimated_effort": "high"
+        "user_value": "Enables 'set and forget' operation, integrates with system services, reduces manual monitoring"
       }
     },
     {
@@ -145,10 +95,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "analytics",
-        "user_value": "Improves planning accuracy, builds trust in ETAs, enables better time management",
         "estimated_effort": "medium",
-        "scan_agent": "scan-innovation"
+        "opportunity_type": "analytics",
+        "scan_agent": "scan-innovation",
+        "user_value": "Improves planning accuracy, builds trust in ETAs, enables better time management"
       }
     },
     {
@@ -195,10 +145,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Prevents oversized tasks, improves success rate, reduces manual judgment",
         "opportunity_type": "ai-features",
         "estimated_effort": "medium",
-        "scan_agent": "scan-innovation"
+        "scan_agent": "scan-innovation",
+        "user_value": "Prevents oversized tasks, improves success rate, reduces manual judgment"
       }
     },
     {
@@ -247,10 +197,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "estimated_effort": "high",
         "opportunity_type": "integration",
-        "user_value": "Enables external integrations, CI triggers, GitHub/Slack commands, third-party automation"
+        "scan_agent": "scan-innovation",
+        "user_value": "Enables external integrations, CI triggers, GitHub/Slack commands, third-party automation",
+        "estimated_effort": "high"
       }
     },
     {
@@ -298,10 +248,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "automation",
-        "scan_agent": "scan-innovation",
+        "user_value": "Prevents forgotten work, automates queue hygiene, reduces manual status management",
         "estimated_effort": "medium",
-        "user_value": "Prevents forgotten work, automates queue hygiene, reduces manual status management"
+        "opportunity_type": "automation",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -349,10 +299,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "estimated_effort": "high",
-        "scan_agent": "scan-innovation",
+        "opportunity_type": "ecosystem",
         "user_value": "Enables plugin ecosystem growth, simplifies installation, improves discoverability",
-        "opportunity_type": "ecosystem"
+        "estimated_effort": "high",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -401,10 +351,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "estimated_effort": "medium",
-        "opportunity_type": "integration",
         "scan_agent": "scan-innovation",
-        "user_value": "Eliminates manual status sync, keeps GitHub and Ralph in sync, enables hybrid workflows"
+        "user_value": "Eliminates manual status sync, keeps GitHub and Ralph in sync, enables hybrid workflows",
+        "opportunity_type": "integration",
+        "estimated_effort": "medium"
       }
     },
     {
@@ -452,10 +402,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "estimated_effort": "medium",
-        "opportunity_type": "reliability",
         "scan_agent": "scan-innovation",
-        "user_value": "Prevents failures due to resource exhaustion, enables proactive maintenance, improves reliability"
+        "opportunity_type": "reliability",
+        "user_value": "Prevents failures due to resource exhaustion, enables proactive maintenance, improves reliability",
+        "estimated_effort": "medium"
       }
     },
     {
@@ -504,10 +454,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "estimated_effort": "medium",
-        "scan_agent": "scan-innovation",
         "opportunity_type": "ux-improvement",
-        "user_value": "Reduces fear of mistakes, enables experimentation, improves data safety"
+        "scan_agent": "scan-innovation",
+        "user_value": "Reduces fear of mistakes, enables experimentation, improves data safety",
+        "estimated_effort": "medium"
       }
     }
   ]

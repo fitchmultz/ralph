@@ -90,6 +90,7 @@ mod tests {
     use super::*;
     use crate::contracts::{
         AgentConfig, ClaudePermissionMode, Config, GitRevertMode, NotificationConfig, QueueConfig,
+        RunnerRetryConfig,
     };
     use tempfile::TempDir;
 
@@ -126,6 +127,7 @@ mod tests {
                 git_commit_push_enabled: Some(true),
                 notification: NotificationConfig::default(),
                 webhook: crate::contracts::WebhookConfig::default(),
+                runner_retry: RunnerRetryConfig::default(),
                 session_timeout_hours: None,
                 scan_prompt_version: None,
             },

@@ -615,8 +615,8 @@ mod tests {
     use crate::completions;
     use crate::constants::limits::CI_GATE_AUTO_RETRY_LIMIT;
     use crate::contracts::{
-        AgentConfig, Config, NotificationConfig, QueueConfig, QueueFile, Runner, Task,
-        TaskPriority, TaskStatus,
+        AgentConfig, Config, NotificationConfig, QueueConfig, QueueFile, Runner, RunnerRetryConfig,
+        Task, TaskPriority, TaskStatus,
     };
     use crate::queue;
     use crate::testsupport::git as git_test;
@@ -698,6 +698,7 @@ mod tests {
                     ..NotificationConfig::default()
                 },
                 webhook: crate::contracts::WebhookConfig::default(),
+                runner_retry: RunnerRetryConfig::default(),
                 session_timeout_hours: None,
                 scan_prompt_version: None,
             },
