@@ -81,6 +81,7 @@ pub(crate) fn select_run_one_task_index_excluding(
 mod tests {
     use super::{select_run_one_task_index, select_run_one_task_index_excluding};
     use crate::contracts::{QueueFile, Task, TaskStatus};
+    use crate::queue::operations::QueueQueryError;
     use std::collections::HashSet;
 
     fn task_with_status(status: TaskStatus) -> Task {
@@ -184,7 +185,13 @@ mod tests {
         let queue_file = queue_with_tasks(vec![base_task()]);
         let err = select_run_one_task_index(&queue_file, None, Some("RQ-9999"), false)
             .expect_err("missing target should error");
-        assert!(err.to_string().contains("not found"));
+        assert!(
+            matches!(
+                err.downcast_ref::<QueueQueryError>(),
+                Some(QueueQueryError::TargetTaskNotFound { .. })
+            ),
+            "expected TargetTaskNotFound error"
+        );
     }
 
     #[test]
@@ -192,7 +199,16 @@ mod tests {
         let queue_file = queue_with_tasks(vec![task_with_status(TaskStatus::Done)]);
         let err = select_run_one_task_index(&queue_file, None, Some("RQ-0001"), false)
             .expect_err("done target should error");
-        assert!(err.to_string().contains("not runnable"));
+        assert!(
+            matches!(
+                err.downcast_ref::<QueueQueryError>(),
+                Some(QueueQueryError::TargetTaskNotRunnable {
+                    status: TaskStatus::Done,
+                    ..
+                })
+            ),
+            "expected TargetTaskNotRunnable with Done status"
+        );
     }
 
     #[test]
@@ -200,7 +216,16 @@ mod tests {
         let queue_file = queue_with_tasks(vec![task_with_status(TaskStatus::Rejected)]);
         let err = select_run_one_task_index(&queue_file, None, Some("RQ-0001"), false)
             .expect_err("rejected target should error");
-        assert!(err.to_string().contains("not runnable"));
+        assert!(
+            matches!(
+                err.downcast_ref::<QueueQueryError>(),
+                Some(QueueQueryError::TargetTaskNotRunnable {
+                    status: TaskStatus::Rejected,
+                    ..
+                })
+            ),
+            "expected TargetTaskNotRunnable with Rejected status"
+        );
     }
 
     #[test]
@@ -210,7 +235,13 @@ mod tests {
         let queue_file = queue_with_tasks(vec![task]);
         let err = select_run_one_task_index(&queue_file, None, Some("RQ-0001"), false)
             .expect_err("blocked target should error");
-        assert!(err.to_string().contains("blocked by unmet dependencies"));
+        assert!(
+            matches!(
+                err.downcast_ref::<QueueQueryError>(),
+                Some(QueueQueryError::TargetTaskBlockedByUnmetDependencies { .. })
+            ),
+            "expected TargetTaskBlockedByUnmetDependencies error"
+        );
     }
 
     #[test]
@@ -226,7 +257,13 @@ mod tests {
         let queue_file = queue_with_tasks(vec![task_with_status(TaskStatus::Draft)]);
         let err = select_run_one_task_index(&queue_file, None, Some("RQ-0001"), false)
             .expect_err("draft target should error");
-        assert!(err.to_string().contains("draft"));
+        assert!(
+            matches!(
+                err.downcast_ref::<QueueQueryError>(),
+                Some(QueueQueryError::TargetTaskDraftExcluded { .. })
+            ),
+            "expected TargetTaskDraftExcluded error"
+        );
     }
 
     #[test]

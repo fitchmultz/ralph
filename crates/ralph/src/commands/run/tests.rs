@@ -308,9 +308,27 @@ fn run_one_with_id_locked_skips_reacquiring_queue_lock() -> anyhow::Result<()> {
         None,
     )
     .expect_err("expected runnable status error");
-    let message = err.to_string();
-    assert!(message.contains("is not runnable"));
-    assert!(!message.contains("Queue lock already held"));
+
+    let query_err = err
+        .downcast_ref::<crate::queue::operations::QueueQueryError>()
+        .expect("expected QueueQueryError");
+
+    assert!(
+        matches!(
+            query_err,
+            crate::queue::operations::QueueQueryError::TargetTaskNotRunnable {
+                status: TaskStatus::Done,
+                ..
+            }
+        ),
+        "expected TargetTaskNotRunnable with Done status"
+    );
+
+    assert!(
+        !super::queue_lock::is_queue_lock_already_held_error(&err),
+        "expected not to fail due to queue-lock contention"
+    );
+
     Ok(())
 }
 

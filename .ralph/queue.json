@@ -2,45 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0717",
-      "status": "todo",
-      "title": "Stabilize make ci: fix flaky run_one_with_id_locked runnable-status assertion",
-      "description": "Principles violated: H (Operational hygiene), F (Fail fast), J (Consistency/Integrity).\n\nmake ci currently fails intermittently due to a brittle string-assertion in a core unit test. This blocks local CI and undermines trust in the test suite.\n\nEvidence:\n- Command: `make ci` failed at `test` with:\n  - failure: `commands::run::tests::run_one_with_id_locked_skips_reacquiring_queue_lock`\n  - panic: assertion failed: `message.contains(\"is not runnable\")`\n  - location: `crates/ralph/src/commands/run/tests.rs:312`\n- Re-run of the single test passed immediately afterward:\n  - Command: `cargo test -p ralph commands::run::tests::run_one_with_id_locked_skips_reacquiring_queue_lock -- --nocapture`\n- Test code: `crates/ralph/src/commands/run/tests.rs:260-315` asserts on substrings of `anyhow::Error::to_string()`, which can vary based on error context chaining or message changes.\n\nWhy it matters:\n- CI gate becomes unreliable; developers lose time chasing nondeterministic failures.\n- The test is validating user-facing error text, but in a way that is too fragile for `anyhow` context strings.\n\nMinimal proposed fix:\n- Stop asserting on a vague substring of `err.to_string()`; instead assert on a structured error (preferred) or on a stable, single-source error message constant.\n- If the error must remain string-based, ensure the production error path always includes a stable sentinel token (e.g., `NOT_RUNNABLE`) and assert on that token.\n- Add a regression test that runs the affected path multiple times in a loop to catch nondeterminism and prints the observed message on failure for debugging.\n\nAcceptance criteria:\n- `make ci` passes, and running it twice in a row passes.\n- `cargo test -p ralph` passes without intermittent failures.\n- The test asserts on a stable invariant (typed error or stable code/constant), not a brittle `anyhow` display string.",
-      "priority": "critical",
-      "tags": [
-        "maintenance",
-        "ci",
-        "flaky",
-        "tests"
-      ],
-      "scope": [
-        "make ci",
-        "crates/ralph/src/commands/run/tests.rs",
-        "crates/ralph/src/commands/run/run_one/mod.rs"
-      ],
-      "evidence": [
-        "make ci output: failure commands::run::tests::run_one_with_id_locked_skips_reacquiring_queue_lock at crates/ralph/src/commands/run/tests.rs:312 (assertion failed: message.contains(\"is not runnable\"))",
-        "Command: cargo test -p ralph commands::run::tests::run_one_with_id_locked_skips_reacquiring_queue_lock -- --nocapture (passes immediately after make ci failure)",
-        "File: crates/ralph/src/commands/run/tests.rs:260-315"
-      ],
-      "plan": [
-        "Inspect the error path in `crates/ralph/src/commands/run/run_one/mod.rs` and identify the intended invariant for 'not runnable' tasks.",
-        "Replace string-substring assertions in `crates/ralph/src/commands/run/tests.rs` with a stable check (typed error, error enum, or stable constant/token).",
-        "Add/adjust a regression test that prints the observed error message on failure and runs multiple iterations to catch flake.",
-        "Verify by running `make ci` twice consecutively."
-      ],
-      "notes": [],
-      "request": "maintenance scan finding",
-      "created_at": "2026-02-07T17:35:59Z",
-      "updated_at": "2026-02-07T17:35:59Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0718",
       "status": "todo",
       "title": "Remove or register unused queue.json->queue.jsonc migration code to avoid misleading behavior",
@@ -1761,10 +1722,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "estimated_effort": "medium",
+        "user_value": "Improves planning accuracy, builds trust in ETAs, enables better time management",
         "scan_agent": "scan-innovation",
         "opportunity_type": "analytics",
-        "user_value": "Improves planning accuracy, builds trust in ETAs, enables better time management"
+        "estimated_effort": "medium"
       }
     },
     {
@@ -1812,9 +1773,9 @@
       "relates_to": [],
       "custom_fields": {
         "estimated_effort": "medium",
-        "scan_agent": "scan-innovation",
         "user_value": "Prevents oversized tasks, improves success rate, reduces manual judgment",
-        "opportunity_type": "ai-features"
+        "opportunity_type": "ai-features",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -1864,9 +1825,9 @@
       "relates_to": [],
       "custom_fields": {
         "estimated_effort": "high",
+        "opportunity_type": "integration",
         "scan_agent": "scan-innovation",
-        "user_value": "Enables external integrations, CI triggers, GitHub/Slack commands, third-party automation",
-        "opportunity_type": "integration"
+        "user_value": "Enables external integrations, CI triggers, GitHub/Slack commands, third-party automation"
       }
     },
     {
@@ -1914,9 +1875,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "estimated_effort": "medium",
         "user_value": "Prevents forgotten work, automates queue hygiene, reduces manual status management",
         "scan_agent": "scan-innovation",
+        "estimated_effort": "medium",
         "opportunity_type": "automation"
       }
     },
@@ -1965,9 +1926,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Enables plugin ecosystem growth, simplifies installation, improves discoverability",
-        "scan_agent": "scan-innovation",
         "opportunity_type": "ecosystem",
+        "scan_agent": "scan-innovation",
+        "user_value": "Enables plugin ecosystem growth, simplifies installation, improves discoverability",
         "estimated_effort": "high"
       }
     },
@@ -2017,10 +1978,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "estimated_effort": "medium",
-        "opportunity_type": "integration",
         "scan_agent": "scan-innovation",
-        "user_value": "Eliminates manual status sync, keeps GitHub and Ralph in sync, enables hybrid workflows"
+        "user_value": "Eliminates manual status sync, keeps GitHub and Ralph in sync, enables hybrid workflows",
+        "estimated_effort": "medium",
+        "opportunity_type": "integration"
       }
     },
     {
@@ -2068,8 +2029,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Prevents failures due to resource exhaustion, enables proactive maintenance, improves reliability",
         "opportunity_type": "reliability",
+        "user_value": "Prevents failures due to resource exhaustion, enables proactive maintenance, improves reliability",
         "estimated_effort": "medium",
         "scan_agent": "scan-innovation"
       }
@@ -2120,10 +2081,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "user_value": "Reduces fear of mistakes, enables experimentation, improves data safety",
         "estimated_effort": "medium",
         "scan_agent": "scan-innovation",
-        "opportunity_type": "ux-improvement",
-        "user_value": "Reduces fear of mistakes, enables experimentation, improves data safety"
+        "opportunity_type": "ux-improvement"
       }
     }
   ]

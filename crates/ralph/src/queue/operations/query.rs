@@ -3,6 +3,7 @@
 //! Responsibilities:
 //! - Locate tasks in active/done queues and determine runnable indices.
 //! - Enforce runnable status and dependency rules for selection.
+//! - Emit typed `QueueQueryError` for stable test assertions.
 //!
 //! Does not handle:
 //! - Persisting queue data or mutating task fields.
@@ -11,10 +12,12 @@
 //! Assumptions/invariants:
 //! - Queues are already loaded and represent the source of truth.
 //! - Task IDs are matched after trimming and are case-sensitive.
+//! - Query errors wrap typed `QueueQueryError` variants for downcasting in tests.
 
+use super::QueueQueryError;
 use crate::contracts::{QueueFile, Task, TaskStatus};
 use crate::timeutil;
-use anyhow::{Result, anyhow, bail};
+use anyhow::Result;
 
 pub fn find_task<'a>(queue: &'a QueueFile, task_id: &str) -> Option<&'a Task> {
     let needle = task_id.trim();
@@ -158,71 +161,76 @@ pub fn select_runnable_task_index_with_target(
 ) -> Result<usize> {
     let needle = target_task_id.trim();
     if needle.is_empty() {
-        bail!(
-            "Queue query failed (operation={}): missing target_task_id. Example: --target RQ-0001.",
-            operation
-        );
+        return Err(QueueQueryError::MissingTargetTaskId {
+            operation: operation.to_string(),
+        }
+        .into());
     }
     let idx = active
         .tasks
         .iter()
         .position(|task| task.id.trim() == needle)
-        .ok_or_else(|| {
-            anyhow!(
-                "Queue query failed (operation={}): target task not found: {}. Ensure it exists in .ralph/queue.json.",
-                operation,
-                needle
-            )
+        .ok_or_else(|| QueueQueryError::TargetTaskNotFound {
+            operation: operation.to_string(),
+            task_id: needle.to_string(),
         })?;
     let task = &active.tasks[idx];
     match task.status {
         TaskStatus::Done | TaskStatus::Rejected => {
-            bail!(
-                "Queue query failed (operation={}): target task {} is not runnable (status: {}). Choose a todo/doing task.",
-                operation,
-                needle,
-                task.status
-            );
+            return Err(QueueQueryError::TargetTaskNotRunnable {
+                operation: operation.to_string(),
+                task_id: needle.to_string(),
+                status: task.status,
+            }
+            .into());
         }
         TaskStatus::Draft => {
             if !options.include_draft {
-                bail!(
-                    "Queue query failed (operation={}): target task {} is in draft status. Use --include-draft to run draft tasks.",
-                    operation,
-                    needle
-                );
+                return Err(QueueQueryError::TargetTaskDraftExcluded {
+                    operation: operation.to_string(),
+                    task_id: needle.to_string(),
+                }
+                .into());
             }
             if !are_dependencies_met(task, active, done) {
-                bail!(
-                    "Queue query failed (operation={}): target task {} is blocked by unmet dependencies. Resolve dependencies before running.",
-                    operation,
-                    needle
-                );
+                return Err(QueueQueryError::TargetTaskBlockedByUnmetDependencies {
+                    operation: operation.to_string(),
+                    task_id: needle.to_string(),
+                }
+                .into());
             }
             if is_task_scheduled_for_future(task) {
-                bail!(
-                    "Queue query failed (operation={}): target task {} is scheduled for the future ({}). Wait until the scheduled time.",
-                    operation,
-                    needle,
-                    task.scheduled_start.as_deref().unwrap_or("unknown")
-                );
+                return Err(QueueQueryError::TargetTaskScheduledForFuture {
+                    operation: operation.to_string(),
+                    task_id: needle.to_string(),
+                    scheduled_start: task
+                        .scheduled_start
+                        .as_deref()
+                        .unwrap_or("unknown")
+                        .to_string(),
+                }
+                .into());
             }
         }
         TaskStatus::Todo => {
             if !are_dependencies_met(task, active, done) {
-                bail!(
-                    "Queue query failed (operation={}): target task {} is blocked by unmet dependencies. Resolve dependencies before running.",
-                    operation,
-                    needle
-                );
+                return Err(QueueQueryError::TargetTaskBlockedByUnmetDependencies {
+                    operation: operation.to_string(),
+                    task_id: needle.to_string(),
+                }
+                .into());
             }
             if is_task_scheduled_for_future(task) {
-                bail!(
-                    "Queue query failed (operation={}): target task {} is scheduled for the future ({}). Wait until the scheduled time.",
-                    operation,
-                    needle,
-                    task.scheduled_start.as_deref().unwrap_or("unknown")
-                );
+                return Err(QueueQueryError::TargetTaskScheduledForFuture {
+                    operation: operation.to_string(),
+                    task_id: needle.to_string(),
+                    scheduled_start: task
+                        .scheduled_start
+                        .as_deref()
+                        .unwrap_or("unknown")
+                        .to_string(),
+                }
+                .into());
             }
         }
         TaskStatus::Doing => {}
