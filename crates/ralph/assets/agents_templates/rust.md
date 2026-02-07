@@ -23,7 +23,7 @@
 
 The Makefile is the contract; keep these targets working:
 
-- `make ci`: local CI gate (see the `ci:` target in your `Makefile` for exact ordering; must include generate → format → type-check → lint → build → test → install). Do not remove `install`.
+- `make ci`: local CI gate (see the `ci:` target in your `Makefile` for exact ordering). Do not remove `install`.
 - `make install`: install binary to `~/.local/bin/` (or a writable fallback).
 - `make test`: runs workspace tests + doc tests and builds a release binary in an isolated temp dir.
 - `make lint`: `cargo clippy --workspace --all-targets -- -D warnings`

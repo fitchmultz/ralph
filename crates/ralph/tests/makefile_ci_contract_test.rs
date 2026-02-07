@@ -126,6 +126,46 @@ members = []
     Ok(())
 }
 
+/// Extract the ordered list of $(MAKE) targets from the `ci:` recipe in a Makefile.
+fn extract_make_ci_steps(makefile: &str) -> Result<Vec<String>> {
+    let mut in_ci = false;
+    let mut steps = Vec::new();
+
+    for line in makefile.lines() {
+        // Enter `ci:` target
+        if !in_ci {
+            if line.trim_end() == "ci:" {
+                in_ci = true;
+            }
+            continue;
+        }
+
+        // If another top-level target begins, stop
+        let is_top_level = !line.starts_with('\t') && !line.starts_with(' ');
+        if is_top_level {
+            let t = line.trim();
+            if !t.is_empty() && !t.starts_with('#') && t.ends_with(':') {
+                break;
+            }
+        }
+
+        if let Some(idx) = line.find("$(MAKE) ") {
+            let rest = &line[idx + "$(MAKE) ".len()..];
+            let target = rest
+                .split_whitespace()
+                .next()
+                .context("parse $(MAKE) <target> in ci recipe")?;
+            steps.push(target.to_string());
+        }
+    }
+
+    anyhow::ensure!(
+        !steps.is_empty(),
+        "failed to extract any ci steps from Makefile"
+    );
+    Ok(steps)
+}
+
 #[test]
 fn test_makefile_ci_includes_type_check_in_order() -> Result<()> {
     let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -140,19 +180,76 @@ fn test_makefile_ci_includes_type_check_in_order() -> Result<()> {
         "Makefile should define a type-check target"
     );
 
-    let format_idx = makefile
-        .find("$(MAKE) format")
-        .context("find format step in ci target")?;
-    let type_check_idx = makefile
-        .find("$(MAKE) type-check")
-        .context("find type-check step in ci target")?;
-    let lint_idx = makefile
-        .find("$(MAKE) lint")
-        .context("find lint step in ci target")?;
+    let steps = extract_make_ci_steps(&makefile).context("extract Makefile ci steps")?;
+
+    // Find indices of format, type-check, lint
+    let format_pos = steps.iter().position(|s| s == "format");
+    let type_check_pos = steps.iter().position(|s| s == "type-check");
+    let lint_pos = steps.iter().position(|s| s == "lint");
+
+    assert!(format_pos.is_some(), "format step should be in ci target");
+    assert!(
+        type_check_pos.is_some(),
+        "type-check step should be in ci target"
+    );
+    assert!(lint_pos.is_some(), "lint step should be in ci target");
+
+    let format_idx = format_pos.unwrap();
+    let type_check_idx = type_check_pos.unwrap();
+    let lint_idx = lint_pos.unwrap();
 
     assert!(
         format_idx < type_check_idx && type_check_idx < lint_idx,
         "type-check should run after format and before lint in ci target"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn test_contributing_ci_step_list_matches_makefile_ci_recipe() -> Result<()> {
+    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let repo_root = manifest_dir
+        .parent()
+        .and_then(|p| p.parent())
+        .context("resolve repo root")?;
+
+    let makefile = std::fs::read_to_string(repo_root.join("Makefile")).context("read Makefile")?;
+    let contributing = std::fs::read_to_string(repo_root.join("CONTRIBUTING.md"))
+        .context("read CONTRIBUTING.md")?;
+
+    let make_steps = extract_make_ci_steps(&makefile).context("extract Makefile ci steps")?;
+    let pipeline = make_steps.join(" → ");
+
+    assert!(
+        contributing.contains(&pipeline),
+        "CONTRIBUTING.md CI pipeline drifted from Makefile `ci` recipe.\n\
+         Expected to find: {}\n",
+        pipeline
+    );
+
+    Ok(())
+}
+
+#[test]
+fn test_gemini_ci_step_list_matches_makefile_ci_recipe() -> Result<()> {
+    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let repo_root = manifest_dir
+        .parent()
+        .and_then(|p| p.parent())
+        .context("resolve repo root")?;
+
+    let makefile = std::fs::read_to_string(repo_root.join("Makefile")).context("read Makefile")?;
+    let gemini = std::fs::read_to_string(repo_root.join("GEMINI.md")).context("read GEMINI.md")?;
+
+    let make_steps = extract_make_ci_steps(&makefile).context("extract Makefile ci steps")?;
+    let pipeline = make_steps.join(" → ");
+
+    assert!(
+        gemini.contains(&pipeline),
+        "GEMINI.md CI pipeline drifted from Makefile `ci` recipe.\n\
+         Expected to find: {}\n",
+        pipeline
     );
 
     Ok(())

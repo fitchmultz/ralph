@@ -7,7 +7,7 @@ This file is a fast path for contributors/agents; for deeper detail start at `do
 
 - Run `make ci` before claiming completion, committing, or merging.
 - `make ci` is the source of truth for the gate; it currently runs:
-  `check-env-safety → check-backup-artifacts → generate → format → type-check → lint → build → test → install`
+  `check-env-safety → check-backup-artifacts → deps → format → type-check → lint → test → build → generate → install`
 - Keep secrets out of git/logs; `.env` is for local use only and MUST remain untracked (CI enforces this).
 
 ## Non-Negotiables
