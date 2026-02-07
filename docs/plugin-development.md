@@ -215,7 +215,7 @@ The prompt is passed via stdin. The runner MUST output newline-delimited JSON:
 ```json
 {"type": "text", "content": "Hello"}
 {"type": "tool_call", "name": "write", "arguments": {"path": "file.txt", "content": "data"}}
-{"type": "finish", "session_id": "ralph-RQ-0001-p2-1234567890-12345"}
+{"type": "finish", "session_id": "RQ-0001-p2-1704153600"}
 ```
 
 ### Resume Command

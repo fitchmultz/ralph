@@ -163,8 +163,10 @@ See `docs/workflow.md` and `docs/queue-and-tasks.md` for full contract and schem
 
 Ralph manages runner sessions explicitly for reliable crash recovery:
 
-**Session ID Format**: `ralph-{task_id}-p{phase}-{timestamp}-{pid}`  
-**Example**: `ralph-RQ-0001-p2-1704153600-12345`
+**Session ID Format**: `{task_id}-p{phase}-{timestamp}`  
+**Example**: `RQ-0001-p2-1704153600`
+
+Note: `timestamp` is Unix epoch seconds. No `ralph-` prefix; no pid suffix.
 
 **Key Behaviors**:
 - Each phase (1, 2, 3) generates its own unique session ID at phase start
