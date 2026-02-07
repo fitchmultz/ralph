@@ -17,6 +17,7 @@
 use crate::constants::ui::NARROW_LAYOUT_WIDTH;
 
 use super::app_panel::{DETAILS_PANEL_FOCUS, LIST_PANEL_FOCUS};
+use super::app_resize::ResizeOperations;
 use super::events::types::{ConfirmDiscardAction, ViewMode};
 use super::foundation::{FocusRegistry, FocusScope, FocusTraversal, RenderCtx};
 use super::{App, AppMode};

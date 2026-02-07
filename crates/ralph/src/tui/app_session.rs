@@ -18,8 +18,9 @@
 
 use crate::config::ConfigLayer;
 use crate::contracts::QueueFile;
-use crate::{config as crate_config, queue};
-use anyhow::Result;
+use crate::tui::App;
+use crate::{config as crate_config, lock, queue};
+use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 
 /// State for TUI session management.
@@ -295,6 +296,98 @@ impl SessionManager {
             Err(errors) => SaveResult::Failed(errors),
         }
     }
+}
+
+/// Auto-save dirty data from an App instance.
+///
+/// This is a convenience wrapper that extracts data from App and calls
+/// the core auto_save_if_dirty function.
+pub(in crate::tui) fn auto_save_app_if_dirty(
+    app: &mut App,
+    queue_path: &Path,
+    done_path: &Path,
+    project_config_path: Option<&Path>,
+) {
+    use crate::tui::app_session::auto_save_if_dirty;
+
+    // Extract the session state fields we need
+    let mut session = SessionState {
+        dirty: app.dirty,
+        dirty_done: app.dirty_done,
+        dirty_config: app.dirty_config,
+        save_error: app.save_error.clone(),
+        queue_mtime: app.queue_mtime,
+        done_mtime: app.done_mtime,
+    };
+
+    let result = auto_save_if_dirty(
+        &app.queue,
+        &app.done,
+        &app.project_config,
+        &mut session,
+        queue_path,
+        done_path,
+        project_config_path,
+    );
+
+    // Update app state from session
+    app.dirty = session.dirty;
+    app.dirty_done = session.dirty_done;
+    app.dirty_config = session.dirty_config;
+    app.save_error = session.save_error;
+    app.queue_mtime = session.queue_mtime;
+    app.done_mtime = session.done_mtime;
+
+    // Set status message on error
+    if let Err(errors) = result {
+        let message = errors.join(" | ");
+        app.set_status_message(message);
+    }
+}
+
+/// Acquire the queue lock and load the queue for TUI usage.
+///
+/// This function initializes a TUI session by acquiring the queue lock
+/// and loading both the active queue and the done archive.
+pub fn prepare_tui_session(
+    resolved: &crate::config::Resolved,
+    force_lock: bool,
+) -> Result<(App, lock::DirLock)> {
+    let lock = queue::acquire_queue_lock(&resolved.repo_root, "tui", force_lock)?;
+    let (queue, done) = queue::load_and_validate_queues(resolved, true)?;
+    let mut app = App::new(queue);
+    app.done = done.unwrap_or_default();
+    app.id_prefix = resolved.id_prefix.clone();
+    app.id_width = resolved.id_width;
+    app.queue_path = Some(resolved.queue_path.clone());
+    app.done_path = Some(resolved.done_path.clone());
+
+    let mut project_config = ConfigLayer::default();
+    let mut project_config_path = None;
+    if let Some(path) = resolved.project_config_path.as_ref() {
+        project_config_path = Some(path.clone());
+        if path.exists() {
+            project_config = crate_config::load_layer(path)
+                .with_context(|| format!("load project config {}", path.display()))?;
+        }
+    }
+    app.project_config = project_config;
+    app.project_config_path = project_config_path;
+
+    // Initialize aging thresholds from config
+    app.aging_thresholds =
+        crate::reports::AgingThresholds::from_queue_config(&resolved.config.queue)
+            .unwrap_or_default();
+
+    // Initialize cached mtimes for external change detection
+    app.queue_mtime = std::fs::metadata(&resolved.queue_path)
+        .ok()
+        .and_then(|m| m.modified().ok());
+    app.done_mtime = std::fs::metadata(&resolved.done_path)
+        .ok()
+        .and_then(|m| m.modified().ok());
+
+    Ok((app, lock))
 }
 
 #[cfg(test)]

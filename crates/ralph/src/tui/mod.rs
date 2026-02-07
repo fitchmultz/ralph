@@ -29,6 +29,8 @@ mod app_palette;
 mod app_palette_ops;
 mod app_panel;
 mod app_reload;
+mod app_resize;
+mod app_runtime;
 mod app_scroll;
 mod app_session;
 mod app_tasks;
@@ -53,7 +55,7 @@ mod textarea_input;
 mod tests;
 
 pub use crate::progress::ExecutionPhase;
-pub use app::{App, prepare_tui_session, run_tui};
+pub use app::App;
 pub use app_details::{DetailsContext, DetailsContextMode, DetailsState};
 pub use app_execution::{
     ExecutionState, RunningKind, calculate_completion_percentage, count_completed_phases,
@@ -75,7 +77,10 @@ pub use app_parallel_state::{
     ParallelStateOverlaySnapshot, ParallelStateOverlayState, ParallelStateTab, TabCounts,
 };
 pub use app_reload::ReloadOperations;
+pub(crate) use app_runtime::RunnerEvent;
+pub use app_runtime::run_tui;
 pub use app_scroll::ScrollOperations;
+pub use app_session::prepare_tui_session;
 pub use app_session::{SessionManager, SessionState};
 pub use app_tasks::{
     AppTasks, AutoArchiveAction, MoveResult, TaskMovementOperations, TaskOperations,

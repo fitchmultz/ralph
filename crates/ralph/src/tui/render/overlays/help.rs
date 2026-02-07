@@ -14,6 +14,7 @@
 //! - App state tracks help scroll position via `set_help_visible_lines`.
 
 use crate::tui::App;
+use crate::tui::app_resize::ResizeOperations;
 use crate::tui::app_scroll::ScrollOperations;
 use crate::tui::components::animation::{AnimationPolicy, FadeIn};
 use crate::tui::components::big_text_header::{

@@ -1,24 +1,23 @@
-//! TUI application state, event handling, and queue display.
+//! TUI application state definition and core methods.
 //!
 //! Responsibilities:
-//! - Manage TUI state, rendering, and input handling.
-//! - Load queue data for interactive inspection and updates.
-//! - Coordinate TUI session setup and teardown.
+//! - Define the App struct with all TUI state fields.
+//! - Provide App::new constructor and basic state accessors.
+//! - Export core types and re-exports from submodules.
 //!
 //! Not handled here:
-//! - CLI argument parsing or command dispatch.
-//! - Queue persistence details (see `crate::queue`).
-//! - Lock ownership metadata (see `crate::lock`).
+//! - Runtime event loop (see `app_runtime` module).
+//! - Terminal session setup (see `app_session` module).
+//! - Resize and frame handling (see `app_resize` module).
 //! - Filter state management (see `app_filters` module).
 //! - Execution phase tracking (see `app_execution` module).
 //! - Log management (see `app_logs` module).
-//! - Help overlay state (see `app_help` module).
-//! - Loop mode state (see `app_loop` module).
-//! - ID-to-index caching (see `app_id_index` module).
+//! - Task mutation operations (see `app_tasks` module).
+//! - Navigation operations (see `app_navigation` module).
 //!
 //! Invariants/assumptions:
-//! - Callers acquire the queue lock before mutating state.
-//! - TUI runs in a terminal with raw mode support.
+//! - The App struct is the single source of truth for TUI state.
+//! - Most methods are defined in submodules via `impl App` blocks.
 
 use crate::config::ConfigLayer;
 use crate::constants::buffers::MAX_ANSI_BUFFER_SIZE;
@@ -26,26 +25,14 @@ use crate::constants::timeouts::SPINNER_UPDATE_INTERVAL_MS;
 use crate::contracts::{QueueFile, Task, TaskPriority, TaskStatus};
 use crate::progress::{ExecutionPhase, SpinnerState};
 use crate::queue::TaskEditKey;
-use crate::{config as crate_config, lock, queue, runutil, timeutil};
+use crate::{lock, queue};
 use anyhow::{Context, Result, anyhow, bail};
-use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyEventKind},
-    execute,
-    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
-};
-use ratatui::{Terminal, backend::CrosstermBackend, layout::Rect};
+use ratatui::layout::Rect;
 use std::collections::{HashMap, HashSet};
-use std::path::{Path, PathBuf};
-use std::sync::{Arc, mpsc};
-use std::thread;
-use std::time::Duration;
+use std::path::PathBuf;
 
 use super::TextInput;
-use super::events::{
-    AppMode, PaletteEntry, TaskBuilderState, TaskBuilderStep, TuiAction, ViewMode,
-    handle_key_event, handle_mouse_event,
-};
-use super::render::draw_ui;
+use super::events::{AppMode, PaletteEntry, TaskBuilderState, TaskBuilderStep, ViewMode};
 use super::terminal::{BorderStyle, ColorSupport, TerminalCapabilities};
 use super::{DetailsContext, DetailsState};
 use crate::tui::app_execution::RunningKind;
@@ -57,11 +44,10 @@ use crate::tui::app_logs::LogOperations;
 use crate::tui::app_navigation::BoardNavigationState;
 #[cfg(test)]
 use crate::tui::app_options::FilterCacheStats;
-use crate::tui::app_options::TuiOptions;
 use crate::tui::app_palette::scan_label;
 
-use crate::tui::app_panel::{FocusedPanel, PanelOperations};
-use crate::tui::app_reload::ReloadOperations;
+use crate::tui::app_panel::FocusedPanel;
+use crate::tui::app_resize::ResizeOperations;
 use crate::tui::app_scroll::ScrollOperations;
 
 use crate::tui::app_view::ViewOperations;
@@ -202,7 +188,7 @@ pub struct App {
     pub(crate) done_mtime: Option<std::time::SystemTime>,
     /// Flag set when terminal was resized, cleared after redraw.
     /// Used to trigger layout recalculation and prevent visual glitches.
-    resized: bool,
+    pub(crate) resized: bool,
     /// Current view mode (list or kanban board).
     pub view_mode: ViewMode,
     /// Board-specific navigation state (only meaningful when view_mode == Board).
@@ -219,10 +205,10 @@ pub struct App {
     pub(crate) focus_manager: crate::tui::foundation::FocusManager,
     /// UI frame counter for animation timing.
     /// Incremented once per draw cycle for deterministic animations.
-    ui_frame: u64,
+    pub(crate) ui_frame: u64,
     /// Frame number when the help overlay was first shown (for animation).
     /// None when help is not visible or animation has reset.
-    help_overlay_start_frame: Option<u64>,
+    pub(crate) help_overlay_start_frame: Option<u64>,
     /// Parallel state overlay state (lazy-initialized on first use).
     pub(crate) parallel_state_overlay:
         Option<crate::tui::app_parallel_state::ParallelStateOverlayState>,
@@ -417,7 +403,11 @@ impl App {
     /// Record execution history for the completed task.
     ///
     /// Only records if the task is actually Done in the done archive.
-    fn record_execution_history_for_task(&self, task_id: &str, done_path: &std::path::Path) {
+    pub(crate) fn record_execution_history_for_task(
+        &self,
+        task_id: &str,
+        done_path: &std::path::Path,
+    ) {
         let Some(cache_dir) = self.cache_dir() else {
             return;
         };
@@ -593,101 +583,6 @@ impl App {
     pub fn reset_spinner(&mut self) {
         self.spinner.reset();
         self.spinner_last_update = std::time::Instant::now();
-    }
-
-    /// Handle terminal resize events.
-    ///
-    /// Responsibilities:
-    /// - Clear cached list_area to force recalculation on next render.
-    /// - Clamp scroll positions to ensure they remain valid after terminal resize.
-    ///
-    /// Not handled here:
-    /// - Layout computation (handled fresh each frame in render loop).
-    /// - Widget positioning (ratatui handles this via `f.area()`).
-    pub fn handle_resize(&mut self, width: u16, height: u16) {
-        // Set flag to trigger immediate redraw and layout recalculation
-        self.resized = true;
-
-        // Clear cached list_area to force recalculation
-        self.clear_list_area();
-
-        // Clamp selection and scroll to valid range for the filtered list
-        self.clamp_selection_and_scroll();
-
-        // Note: ScrollViewState handles its own bounds checking internally
-
-        // Clamp help scroll to valid range
-        let help_max = self.max_help_scroll(self.help_total_lines);
-        if self.help_scroll > help_max {
-            self.help_scroll = help_max;
-        }
-
-        // Update detail width for text wrapping calculations
-        self.detail_width = width.saturating_sub(4);
-
-        // Clamp log scroll to ensure it stays within bounds after resize
-        let log_count = self.logs.len();
-        if self.log_scroll > log_count {
-            self.log_scroll = log_count;
-        }
-
-        // Reset ANSI buffer visible lines to trigger recalculation
-        if height > 0 {
-            self.log_visible_lines = height.saturating_sub(4) as usize;
-        }
-    }
-
-    /// Check if the terminal was resized since the last redraw.
-    ///
-    /// Returns true if a resize occurred and clears the flag.
-    pub(crate) fn take_resized(&mut self) -> bool {
-        let was_resized = self.resized;
-        self.resized = false;
-        was_resized
-    }
-
-    /// Set the resized flag to trigger layout recalculation.
-    #[allow(dead_code)]
-    pub(crate) fn set_resized(&mut self, _width: u16, _height: u16) {
-        self.resized = true;
-    }
-
-    // UI Frame counter methods for animation timing
-
-    /// Get the current UI frame number.
-    pub(crate) fn ui_frame(&self) -> u64 {
-        self.ui_frame
-    }
-
-    /// Increment the UI frame counter.
-    /// Should be called once per draw cycle.
-    pub(crate) fn bump_ui_frame(&mut self) {
-        self.ui_frame = self.ui_frame.wrapping_add(1);
-    }
-
-    /// Reset the UI frame counter to zero.
-    #[allow(dead_code)]
-    pub(crate) fn reset_ui_frame(&mut self) {
-        self.ui_frame = 0;
-    }
-
-    // Help overlay animation methods
-
-    /// Get or initialize the help overlay start frame.
-    /// Returns the stored start frame if set, otherwise stores and returns `now_frame`.
-    pub(crate) fn help_overlay_start_frame(&mut self, now_frame: u64) -> u64 {
-        *self.help_overlay_start_frame.get_or_insert(now_frame)
-    }
-
-    /// Get the help overlay start frame without initializing it.
-    #[allow(dead_code)]
-    pub(crate) fn get_help_overlay_start_frame(&self) -> Option<u64> {
-        self.help_overlay_start_frame
-    }
-
-    /// Clear the help overlay start frame (called when leaving help mode).
-    pub(crate) fn clear_help_overlay_start_frame(&mut self) {
-        self.help_overlay_start_frame = None;
     }
 
     pub(crate) fn unsafe_to_discard(&self) -> bool {
@@ -1624,648 +1519,4 @@ impl App {
             self.scroll = self.selected.saturating_sub(list_height.saturating_sub(1));
         }
     }
-}
-
-pub(crate) fn auto_save_if_dirty(
-    app: &mut App,
-    queue_path: &Path,
-    done_path: &Path,
-    project_config_path: Option<&Path>,
-) {
-    let mut errors: Vec<String> = Vec::new();
-
-    if app.dirty {
-        match queue::save_queue(queue_path, &app.queue) {
-            Ok(()) => {
-                app.dirty = false;
-            }
-            Err(e) => {
-                errors.push(format!("ERROR saving queue: {}", e));
-            }
-        }
-    }
-
-    if app.dirty_done {
-        match queue::save_queue(done_path, &app.done) {
-            Ok(()) => {
-                app.dirty_done = false;
-            }
-            Err(e) => {
-                errors.push(format!("ERROR saving done: {}", e));
-            }
-        }
-    }
-
-    if app.dirty_config {
-        match project_config_path {
-            Some(path) => match crate_config::save_layer(path, &app.project_config) {
-                Ok(()) => {
-                    app.dirty_config = false;
-                }
-                Err(e) => {
-                    errors.push(format!("ERROR saving config: {}", e));
-                }
-            },
-            None => {
-                errors.push("ERROR saving config: missing project config_path".to_string());
-            }
-        }
-    }
-
-    if errors.is_empty() {
-        app.save_error = None;
-        // Update cached mtimes to avoid triggering external change detection
-        // for our own saves
-        app.update_cached_mtimes(queue_path, done_path);
-        return;
-    }
-
-    let message = errors.join(" | ");
-    let should_log = app.save_error.as_deref() != Some(message.as_str());
-    app.save_error = Some(message.clone());
-    if should_log {
-        app.set_status_message(message);
-    }
-}
-
-/// Event sent from the runner thread to the TUI.
-#[derive(Debug)]
-pub(crate) enum RunnerEvent {
-    /// Output chunk received
-    Output(String),
-    /// Task finished (success)
-    Finished,
-    /// Task failed with error
-    Error(String),
-    /// Revert prompt requested by the runner.
-    RevertPrompt {
-        label: String,
-        preface: Option<String>,
-        allow_proceed: bool,
-        reply: mpsc::Sender<runutil::RevertDecision>,
-    },
-}
-
-/// Run the TUI application with an active queue lock.
-pub fn run_tui<F, E, S, SE>(
-    resolved: &crate::config::Resolved,
-    force_lock: bool,
-    options: TuiOptions,
-    runner_factory: F,
-    scan_factory: S,
-) -> Result<Option<String>>
-where
-    F: Fn(String, crate::runner::OutputHandler, runutil::RevertPromptHandler) -> E
-        + Send
-        + Sync
-        + 'static,
-    E: FnOnce() -> Result<()> + Send + 'static,
-    S: Fn(String, crate::runner::OutputHandler, runutil::RevertPromptHandler) -> SE
-        + Send
-        + Sync
-        + 'static,
-    SE: FnOnce() -> Result<()> + Send + 'static,
-{
-    let (mut app, _queue_lock) = prepare_tui_session(resolved, force_lock)?;
-    let queue_path = &resolved.queue_path;
-    let done_path = &resolved.done_path;
-
-    // Apply boot options.
-    app.loop_max_tasks = options.loop_max_tasks;
-    app.loop_include_draft = options.loop_include_draft;
-
-    // Show flowchart on start if requested.
-    if options.show_flowchart {
-        app.mode = AppMode::FlowchartOverlay {
-            previous_mode: Box::new(AppMode::Normal),
-        };
-    }
-
-    // Detect terminal capabilities.
-    let capabilities = TerminalCapabilities::detect();
-    let color_support = options.color.resolve(capabilities.colors);
-    let enable_mouse = !options.no_mouse && capabilities.has_mouse();
-    let border_style = BorderStyle::for_capabilities(capabilities, options.ascii_borders);
-
-    // Store capabilities in app for render-time decisions.
-    app.terminal_capabilities = Some(capabilities);
-    app.color_support = Some(color_support);
-    app.border_style = border_style;
-
-    // Setup terminal.
-    enable_raw_mode().context("enable raw mode")?;
-    let mut stdout = std::io::stdout();
-    if enable_mouse {
-        execute!(stdout, EnterAlternateScreen, EnableMouseCapture)
-            .context("enter alternate screen with mouse")?;
-    } else {
-        execute!(stdout, EnterAlternateScreen).context("enter alternate screen")?;
-    }
-    let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend).context("create terminal")?;
-
-    // Create channels for runner events.
-    let (tx, rx) = mpsc::channel::<RunnerEvent>();
-
-    let build_handlers = |tx: &mpsc::Sender<RunnerEvent>| {
-        let tx_clone_for_handler = tx.clone();
-        let handler: crate::runner::OutputHandler = Arc::new(Box::new(move |text: &str| {
-            let _ = tx_clone_for_handler.send(RunnerEvent::Output(text.to_string()));
-        }));
-
-        let revert_prompt = crate::tui::revert_prompt::make_tui_revert_prompt_handler(tx.clone());
-
-        (handler, revert_prompt)
-    };
-
-    // Helper to spawn task runner work.
-    let spawn_task = |task_id: String, tx: mpsc::Sender<RunnerEvent>| {
-        let tx_clone = tx.clone();
-        let (handler, revert_prompt) = build_handlers(&tx);
-
-        let runner_fn = runner_factory(task_id.clone(), handler, revert_prompt);
-        thread::spawn(move || match runner_fn() {
-            Ok(()) => {
-                let _ = tx_clone.send(RunnerEvent::Finished);
-            }
-            Err(e) => {
-                let _ = tx_clone.send(RunnerEvent::Error(e.to_string()));
-            }
-        });
-    };
-
-    // Helper to spawn scan runner work.
-    let spawn_scan = |focus: String, tx: mpsc::Sender<RunnerEvent>| {
-        let tx_clone = tx.clone();
-        let (handler, revert_prompt) = build_handlers(&tx);
-
-        let runner_fn = scan_factory(focus.clone(), handler, revert_prompt);
-        thread::spawn(move || match runner_fn() {
-            Ok(()) => {
-                let _ = tx_clone.send(RunnerEvent::Finished);
-            }
-            Err(e) => {
-                let _ = tx_clone.send(RunnerEvent::Error(e.to_string()));
-            }
-        });
-    };
-
-    // Helper to spawn task builder work.
-    let spawn_task_builder = |opts: crate::commands::task::TaskBuildOptions,
-                              repoprompt_mode: Option<crate::agent::RepoPromptMode>,
-                              tx: mpsc::Sender<RunnerEvent>| {
-        let tx_clone = tx.clone();
-        thread::spawn(move || {
-            let result = || -> Result<()> {
-                let resolved = crate_config::resolve_from_cwd()?;
-                // Determine repoprompt_tool_injection based on mode
-                let repoprompt_tool_injection = match repoprompt_mode {
-                    Some(crate::agent::RepoPromptMode::Tools) => true,
-                    Some(crate::agent::RepoPromptMode::Plan) => true,
-                    Some(crate::agent::RepoPromptMode::Off) => false,
-                    None => crate::agent::resolve_repoprompt_flags(None, &resolved).tool_injection,
-                };
-                let opts_with_injection = crate::commands::task::TaskBuildOptions {
-                    repoprompt_tool_injection,
-                    ..opts
-                };
-                crate::commands::task::build_task_without_lock(&resolved, opts_with_injection)?;
-                Ok(())
-            }();
-
-            match result {
-                Ok(()) => {
-                    let _ = tx_clone.send(RunnerEvent::Output(
-                        "Task builder completed successfully".to_string(),
-                    ));
-                    let _ = tx_clone.send(RunnerEvent::Finished);
-                }
-                Err(e) => {
-                    let _ = tx_clone.send(RunnerEvent::Error(e.to_string()));
-                }
-            }
-        });
-    };
-
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        use std::cell::RefCell;
-        let app = RefCell::new(app);
-
-        // Auto-start loop if requested.
-        let mut initial_start: Option<String> = None;
-        if options.start_loop {
-            let mut app_ref = app.borrow_mut();
-            app_ref.loop_active = true;
-            app_ref.loop_ran = 0;
-            if !app_ref.runner_active {
-                if let Some(id) = app_ref.next_loop_task_id() {
-                    app_ref.start_task_execution(id.clone(), true, false);
-                    initial_start = Some(id);
-                } else {
-                    app_ref.loop_active = false;
-                    app_ref.set_status_message("No runnable tasks");
-                }
-            }
-        }
-        if let Some(id) = initial_start {
-            spawn_task(id, tx.clone());
-        }
-
-        let handle_action = |action: TuiAction, app_ref: &mut App| -> Result<bool> {
-            match action {
-                TuiAction::Quit => Ok(true),
-                TuiAction::Continue => Ok(false),
-                TuiAction::ReloadQueue => {
-                    app_ref.reload_queues_from_disk(queue_path, done_path);
-                    Ok(false)
-                }
-                TuiAction::RunTask(task_id) => {
-                    let tx_clone = tx.clone();
-                    spawn_task(task_id, tx_clone);
-                    Ok(false)
-                }
-                TuiAction::RunScan(focus) => {
-                    app_ref.start_scan_execution(focus.clone(), true, false);
-                    let tx_clone = tx.clone();
-                    spawn_scan(focus, tx_clone);
-                    Ok(false)
-                }
-                TuiAction::BuildTask(request) => {
-                    if app_ref.runner_active {
-                        app_ref.set_status_message("Runner already active");
-                    } else {
-                        app_ref.start_task_builder_execution(request.clone());
-                        let tx_clone = tx.clone();
-                        let opts = crate::commands::task::TaskBuildOptions {
-                            request,
-                            hint_tags: String::new(),
-                            hint_scope: String::new(),
-                            runner_override: None,
-                            model_override: None,
-                            reasoning_effort_override: None,
-                            runner_cli_overrides: crate::contracts::RunnerCliOptionsPatch::default(
-                            ),
-                            force: false,
-                            repoprompt_tool_injection: false,
-                            template_hint: None,
-                            template_target: None,
-                            strict_templates: false,
-                        };
-                        spawn_task_builder(opts, None, tx_clone);
-                    }
-                    Ok(false)
-                }
-                TuiAction::BuildTaskWithOptions(options) => {
-                    if app_ref.runner_active {
-                        app_ref.set_status_message("Runner already active");
-                    } else {
-                        app_ref.start_task_builder_execution(options.request.clone());
-                        let tx_clone = tx.clone();
-                        let opts = crate::commands::task::TaskBuildOptions {
-                            request: options.request,
-                            hint_tags: options.hint_tags,
-                            hint_scope: options.hint_scope,
-                            runner_override: options.runner_override,
-                            model_override: options.model_override,
-                            reasoning_effort_override: options.reasoning_effort_override,
-                            runner_cli_overrides: crate::contracts::RunnerCliOptionsPatch::default(
-                            ),
-                            force: false,
-                            repoprompt_tool_injection: false,
-                            template_hint: None,
-                            template_target: None,
-                            strict_templates: false,
-                        };
-                        spawn_task_builder(opts, options.repoprompt_mode, tx_clone);
-                    }
-                    Ok(false)
-                }
-                TuiAction::OpenScopeInEditor(scope) => {
-                    let Some(queue_path) = app_ref.queue_path.as_ref() else {
-                        app_ref.set_status_message("Cannot open editor: queue path not set");
-                        return Ok(false);
-                    };
-                    let repo_root =
-                        crate::tui::external_tools::repo_root_from_queue_path(queue_path);
-                    let paths = crate::tui::external_tools::resolve_scope_paths(
-                        repo_root.as_deref(),
-                        &scope,
-                    );
-
-                    match crate::tui::external_tools::open_paths_in_editor(&paths) {
-                        Ok(()) => app_ref.set_status_message(format!(
-                            "Opened {} scope path(s) in editor",
-                            paths.len()
-                        )),
-                        Err(e) => {
-                            app_ref.set_status_message(format!("Open in editor failed: {}", e))
-                        }
-                    }
-
-                    Ok(false)
-                }
-                TuiAction::CopyToClipboard(text) => {
-                    match crate::tui::external_tools::copy_text_to_clipboard(&text) {
-                        Ok(()) => {
-                            app_ref.set_status_message("Copied file:line reference(s) to clipboard")
-                        }
-                        Err(e) => app_ref.set_status_message(format!("Copy failed: {}", e)),
-                    }
-                    Ok(false)
-                }
-                TuiAction::OpenUrlInBrowser(url) => {
-                    match crate::tui::external_tools::open_url_in_browser(&url) {
-                        Ok(()) => app_ref.set_status_message(format!("Opening URL: {}", url)),
-                        Err(e) => app_ref.set_status_message(format!("Open URL failed: {}", e)),
-                    }
-                    Ok(false)
-                }
-            }
-        };
-
-        // Main event loop.
-        loop {
-            // Check for external changes before drawing
-            {
-                let mut app_ref = app.borrow_mut();
-                let _ = app_ref.check_external_changes_and_reload(queue_path, done_path);
-            }
-
-            terminal
-                .draw(|f| {
-                    let mut app_ref = app.borrow_mut();
-                    app_ref.detail_width = f.area().width.saturating_sub(4);
-                    draw_ui(f, &mut app_ref)
-                })
-                .context("draw UI")?;
-
-            // Process runner events.
-            let mut next_to_start: Option<String> = None;
-
-            while let Ok(event) = rx.try_recv() {
-                let mut app_ref = app.borrow_mut();
-                match event {
-                    RunnerEvent::Output(text) => {
-                        let lines: Vec<String> =
-                            text.lines().map(|line| line.to_string()).collect();
-                        // Process each line for phase detection
-                        if app_ref.running_kind == Some(RunningKind::Task) {
-                            for line in &lines {
-                                app_ref.process_log_line_for_phase(line);
-                            }
-                        }
-                        app_ref.append_log_lines(lines);
-                    }
-                    RunnerEvent::Finished => {
-                        app_ref.runner_active = false;
-                        // Capture the task ID before clearing it (needed for execution history)
-                        let finished_task_id = app_ref.running_task_id.clone();
-                        app_ref.running_task_id = None;
-                        // Mark execution as complete for phase tracking
-                        if app_ref.running_kind == Some(RunningKind::Task) {
-                            app_ref.transition_to_phase(ExecutionPhase::Complete);
-                        }
-                        let running_kind = app_ref.running_kind.take();
-
-                        match running_kind {
-                            Some(RunningKind::Scan { .. }) => {
-                                app_ref.on_scan_finished(queue_path, done_path);
-                            }
-                            Some(RunningKind::TaskBuilder) => {
-                                app_ref.on_task_builder_finished(queue_path, done_path);
-                            }
-                            Some(RunningKind::Task) | None => {
-                                // Record execution history for completed task (only if Done)
-                                if let Some(ref task_id) = finished_task_id {
-                                    app_ref.record_execution_history_for_task(task_id, done_path);
-                                }
-
-                                app_ref.reload_queues_from_disk(queue_path, done_path);
-
-                                if app_ref.mode == AppMode::ConfirmQuit {
-                                    app_ref.mode = AppMode::Normal;
-                                }
-
-                                if app_ref.loop_active {
-                                    if app_ref.loop_arm_after_current {
-                                        app_ref.loop_arm_after_current = false;
-                                    } else {
-                                        app_ref.loop_ran = app_ref.loop_ran.saturating_add(1);
-                                    }
-
-                                    if let Some(max) = app_ref.loop_max_tasks
-                                        && app_ref.loop_ran >= max
-                                    {
-                                        let loop_ran = app_ref.loop_ran;
-                                        app_ref.loop_active = false;
-                                        app_ref.set_status_message(format!(
-                                            "Loop finished (ran {}/{})",
-                                            loop_ran, max
-                                        ));
-                                    }
-
-                                    if app_ref.loop_active {
-                                        if let Some(next_id) = app_ref.next_loop_task_id() {
-                                            let focus_logs =
-                                                matches!(app_ref.mode, AppMode::Executing { .. });
-                                            app_ref.start_task_execution(
-                                                next_id.clone(),
-                                                focus_logs,
-                                                true,
-                                            );
-                                            next_to_start = Some(next_id);
-                                        } else {
-                                            let loop_ran = app_ref.loop_ran;
-                                            app_ref.loop_active = false;
-                                            app_ref.set_status_message(format!(
-                                                "Loop complete (ran {})",
-                                                loop_ran
-                                            ));
-                                        }
-                                    }
-                                } else if matches!(
-                                    app_ref.mode,
-                                    AppMode::Executing { .. } | AppMode::ConfirmQuit
-                                ) {
-                                    app_ref.mode = AppMode::Normal;
-                                }
-                            }
-                        }
-                    }
-                    RunnerEvent::Error(msg) => {
-                        app_ref.runner_active = false;
-                        app_ref.running_task_id = None;
-                        let running_kind = app_ref.running_kind.take();
-
-                        app_ref.loop_active = false;
-                        app_ref.loop_arm_after_current = false;
-
-                        match running_kind {
-                            Some(RunningKind::Scan { .. }) => {
-                                app_ref.on_scan_error(&msg);
-                            }
-                            Some(RunningKind::TaskBuilder) => {
-                                app_ref.on_task_builder_error(&msg);
-                            }
-                            Some(RunningKind::Task) | None => {
-                                app_ref.set_runner_error(&msg);
-                                if matches!(
-                                    app_ref.mode,
-                                    AppMode::Executing { .. } | AppMode::ConfirmQuit
-                                ) {
-                                    app_ref.mode = AppMode::Normal;
-                                }
-                            }
-                        }
-                    }
-                    RunnerEvent::RevertPrompt {
-                        label,
-                        preface,
-                        allow_proceed,
-                        reply,
-                    } => {
-                        let previous_mode = app_ref.mode.clone();
-                        app_ref.mode = AppMode::ConfirmRevert {
-                            label,
-                            preface,
-                            allow_proceed,
-                            selected: 0,
-                            input: TextInput::new(""),
-                            reply_sender: reply,
-                            previous_mode: Box::new(previous_mode),
-                        };
-                    }
-                }
-            }
-
-            if let Some(id) = next_to_start {
-                spawn_task(id, tx.clone());
-            }
-
-            // Update spinner animation for progress indication.
-            {
-                let mut app_ref = app.borrow_mut();
-                if app_ref.runner_active {
-                    app_ref.tick_spinner();
-                }
-            }
-
-            // Auto-save if dirty.
-            if app.borrow().dirty || app.borrow().dirty_done || app.borrow().dirty_config {
-                let mut app_ref = app.borrow_mut();
-                let config_path = app_ref.project_config_path.clone();
-                auto_save_if_dirty(&mut app_ref, queue_path, done_path, config_path.as_deref());
-            }
-
-            // Handle input events with reduced timeout for more responsive resize.
-            if event::poll(Duration::from_millis(50)).context("poll event")? {
-                let event = event::read().context("read event")?;
-                let mut should_quit = false;
-                let mut should_redraw = false;
-                match event {
-                    Event::Key(key) => {
-                        if key.kind == KeyEventKind::Release {
-                            continue;
-                        }
-
-                        let mut app_ref = app.borrow_mut();
-                        let now = timeutil::now_utc_rfc3339()?;
-                        let action = handle_key_event(&mut app_ref, key, &now)?;
-                        should_quit = handle_action(action, &mut app_ref)?;
-                    }
-                    Event::Mouse(mouse) => {
-                        let mut app_ref = app.borrow_mut();
-                        let action = handle_mouse_event(&mut app_ref, mouse)?;
-                        should_quit = handle_action(action, &mut app_ref)?;
-                    }
-                    Event::Resize(width, height) => {
-                        let mut app_ref = app.borrow_mut();
-                        app_ref.handle_resize(width, height);
-                        // Trigger immediate redraw to prevent visual glitches
-                        should_redraw = true;
-                    }
-                    Event::Paste(_) => {
-                        // Explicitly ignore paste events for now.
-                        // Future enhancement: support paste in text input modes.
-                    }
-                    Event::FocusGained | Event::FocusLost => {
-                        // Explicitly ignore focus events.
-                    }
-                }
-                if should_quit {
-                    break;
-                }
-                // Force immediate redraw on resize to prevent visual artifacts
-                if should_redraw {
-                    terminal
-                        .draw(|f| {
-                            let mut app_ref = app.borrow_mut();
-                            // Update detail width from current frame area
-                            app_ref.detail_width = f.area().width.saturating_sub(4);
-                            draw_ui(f, &mut app_ref)
-                        })
-                        .context("draw UI on resize")?;
-                }
-            }
-        }
-
-        Ok::<_, anyhow::Error>(None)
-    }));
-
-    // Cleanup terminal.
-    let _ = disable_raw_mode();
-    let backend = terminal.backend_mut();
-    let _ = execute!(backend, LeaveAlternateScreen);
-    if enable_mouse {
-        let _ = execute!(backend, DisableMouseCapture);
-    }
-    let _ = terminal.show_cursor();
-
-    match result {
-        Ok(Ok(id)) => Ok(id),
-        Ok(Err(e)) => Err(e),
-        Err(_) => bail!("TUI panicked"),
-    }
-}
-
-/// Acquire the queue lock and load the queue for TUI usage.
-pub fn prepare_tui_session(
-    resolved: &crate::config::Resolved,
-    force_lock: bool,
-) -> Result<(App, lock::DirLock)> {
-    let lock = queue::acquire_queue_lock(&resolved.repo_root, "tui", force_lock)?;
-    let (queue, done) = queue::load_and_validate_queues(resolved, true)?;
-    let mut app = App::new(queue);
-    app.done = done.unwrap_or_default();
-    app.id_prefix = resolved.id_prefix.clone();
-    app.id_width = resolved.id_width;
-    app.queue_path = Some(resolved.queue_path.clone());
-    app.done_path = Some(resolved.done_path.clone());
-
-    let mut project_config = ConfigLayer::default();
-    let mut project_config_path = None;
-    if let Some(path) = resolved.project_config_path.as_ref() {
-        project_config_path = Some(path.clone());
-        if path.exists() {
-            project_config = crate_config::load_layer(path)
-                .with_context(|| format!("load project config {}", path.display()))?;
-        }
-    }
-    app.project_config = project_config;
-    app.project_config_path = project_config_path;
-
-    // Initialize aging thresholds from config
-    app.aging_thresholds =
-        crate::reports::AgingThresholds::from_queue_config(&resolved.config.queue)
-            .unwrap_or_default();
-
-    // Initialize cached mtimes for external change detection
-    app.queue_mtime = std::fs::metadata(&resolved.queue_path)
-        .ok()
-        .and_then(|m| m.modified().ok());
-    app.done_mtime = std::fs::metadata(&resolved.done_path)
-        .ok()
-        .and_then(|m| m.modified().ok());
-
-    Ok((app, lock))
 }

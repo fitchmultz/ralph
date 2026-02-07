@@ -15,6 +15,7 @@ use super::super::events::AppMode;
 use super::{QueueFile, Result, canonical_rfc3339, make_test_task};
 use crate::contracts::TaskStatus;
 use crate::queue::TaskEditKey;
+use crate::tui::app_session::auto_save_app_if_dirty;
 use tempfile::TempDir;
 
 #[test]
@@ -301,7 +302,7 @@ fn auto_save_clears_dirty_on_success() -> Result<()> {
     app.dirty_config = true;
     app.project_config_path = Some(config_path.clone());
 
-    auto_save_if_dirty(&mut app, &queue_path, &done_path, Some(&config_path));
+    auto_save_app_if_dirty(&mut app, &queue_path, &done_path, Some(&config_path));
 
     assert!(!app.dirty);
     assert!(!app.dirty_done);

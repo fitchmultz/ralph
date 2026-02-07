@@ -16,7 +16,7 @@ use anyhow::anyhow;
 use std::sync::{Arc, mpsc};
 
 use crate::runutil;
-use crate::tui::app::RunnerEvent;
+use crate::tui::RunnerEvent;
 
 /// Creates a TUI revert prompt handler that sends a `RunnerEvent::RevertPrompt` to the UI
 /// and waits for a decision via a reply channel.

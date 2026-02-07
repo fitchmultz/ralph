@@ -21,6 +21,7 @@ use super::input::{TextInputEdit, apply_text_input_key};
 use super::{App, TextInput};
 use crate::tui::app_navigation::NavigationOperations;
 use crate::tui::app_panel::PanelOperations;
+use crate::tui::app_resize::ResizeOperations;
 use crate::tui::app_scroll::ScrollOperations;
 
 pub mod confirm;

@@ -2,46 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0688",
-      "status": "todo",
-      "title": "Split oversized TUI app module to reduce defect risk",
-      "description": "Principles violated: Localize change (D), KISS (A), Cohesion/SRP (D).\n\n`crates/ralph/src/tui/app.rs` is 2,278 lines, which increases navigation cost, makes reviews harder, and raises the risk of unrelated edits colliding.\n\nWhy it matters (failure modes):\n- Small UI changes require touching a large file with many responsibilities (event handling, runner integration, rendering coordination, terminal setup).\n- Harder to add focused tests or reason about invariants; regressions are easier to introduce.\n\nMinimal proposed fix:\n- Split `tui/app.rs` into cohesive submodules (e.g., terminal setup, event loop, runner integration, app state mutations, rendering coordination), keeping the public API stable.\n- Add module docs (`//!`) for each new file explaining responsibilities and invariants.\n- Keep refactor behavior-preserving; rely on existing test suite as a safety net and add targeted unit tests for any newly isolated logic.\n\nAcceptance criteria:\n- `crates/ralph/src/tui/app.rs` reduced substantially (goal: <800 LOC) with new submodules under `crates/ralph/src/tui/`.\n- No behavior changes (existing tests pass).\n- `make ci` passes.",
-      "priority": "medium",
-      "tags": [
-        "maintenance",
-        "tui",
-        "refactor",
-        "module-boundaries"
-      ],
-      "scope": [
-        "crates/ralph/src/tui/app.rs",
-        "crates/ralph/src/tui/",
-        "cargo test -p ralph",
-        "make ci"
-      ],
-      "evidence": [
-        "Command: `wc -l crates/ralph/src/tui/app.rs` => 2278",
-        "Command output: `wc -l crates/ralph/src/tui/app.rs crates/ralph/src/commands/run/mod.rs crates/ralph/src/config.rs` (shows app.rs as the largest production module)"
-      ],
-      "plan": [
-        "Identify natural seams in tui/app.rs (terminal setup, event loop, runner orchestration, state updates, rendering) and map to new modules",
-        "Extract code into new files under crates/ralph/src/tui/ (keep App type and public entrypoints stable)",
-        "Add module docs for each new module and keep responsibilities narrow",
-        "Update imports and ensure no circular dependencies are introduced",
-        "Verify by running `make ci` and confirming it passes"
-      ],
-      "notes": [],
-      "request": "maintenance scan finding",
-      "created_at": "2026-02-07T03:39:33Z",
-      "updated_at": "2026-02-07T03:39:33Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0689",
       "status": "todo",
       "title": "Split oversized run command module to improve maintainability",
@@ -201,10 +161,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
+        "opportunity_type": "automation",
         "user_value": "Removes manual dependency tracking, enables automatic workflow progression, reduces delays",
-        "estimated_effort": "medium",
-        "opportunity_type": "automation"
+        "scan_agent": "scan-innovation",
+        "estimated_effort": "medium"
       }
     },
     {
@@ -250,10 +210,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "opportunity_type": "ux-improvement",
+        "estimated_effort": "medium",
         "user_value": "Reduces CLI verbosity, enables workflow presets, improves discoverability of settings",
-        "estimated_effort": "medium"
+        "opportunity_type": "ux-improvement",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -300,9 +260,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Reduces manual intervention for transient failures, improves success rate, handles network hiccups",
-        "estimated_effort": "medium",
         "scan_agent": "scan-innovation",
+        "estimated_effort": "medium",
+        "user_value": "Reduces manual intervention for transient failures, improves success rate, handles network hiccups",
         "opportunity_type": "reliability"
       }
     },
@@ -351,8 +311,8 @@
       "relates_to": [],
       "custom_fields": {
         "opportunity_type": "automation",
-        "estimated_effort": "high",
         "scan_agent": "scan-innovation",
+        "estimated_effort": "high",
         "user_value": "Enables 'set and forget' operation, integrates with system services, reduces manual monitoring"
       }
     },
@@ -402,8 +362,8 @@
       "custom_fields": {
         "opportunity_type": "analytics",
         "scan_agent": "scan-innovation",
-        "user_value": "Improves planning accuracy, builds trust in ETAs, enables better time management",
-        "estimated_effort": "medium"
+        "estimated_effort": "medium",
+        "user_value": "Improves planning accuracy, builds trust in ETAs, enables better time management"
       }
     },
     {
@@ -450,10 +410,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
+        "user_value": "Prevents oversized tasks, improves success rate, reduces manual judgment",
         "estimated_effort": "medium",
-        "opportunity_type": "ai-features",
-        "user_value": "Prevents oversized tasks, improves success rate, reduces manual judgment"
+        "scan_agent": "scan-innovation",
+        "opportunity_type": "ai-features"
       }
     },
     {
@@ -502,8 +462,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
         "estimated_effort": "high",
+        "scan_agent": "scan-innovation",
         "opportunity_type": "integration",
         "user_value": "Enables external integrations, CI triggers, GitHub/Slack commands, third-party automation"
       }
@@ -554,9 +514,9 @@
       "relates_to": [],
       "custom_fields": {
         "opportunity_type": "automation",
+        "user_value": "Prevents forgotten work, automates queue hygiene, reduces manual status management",
         "estimated_effort": "medium",
-        "scan_agent": "scan-innovation",
-        "user_value": "Prevents forgotten work, automates queue hygiene, reduces manual status management"
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -604,10 +564,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "ecosystem",
-        "scan_agent": "scan-innovation",
         "user_value": "Enables plugin ecosystem growth, simplifies installation, improves discoverability",
-        "estimated_effort": "high"
+        "estimated_effort": "high",
+        "scan_agent": "scan-innovation",
+        "opportunity_type": "ecosystem"
       }
     },
     {
@@ -656,10 +616,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "estimated_effort": "medium",
-        "user_value": "Eliminates manual status sync, keeps GitHub and Ralph in sync, enables hybrid workflows",
         "scan_agent": "scan-innovation",
-        "opportunity_type": "integration"
+        "user_value": "Eliminates manual status sync, keeps GitHub and Ralph in sync, enables hybrid workflows",
+        "opportunity_type": "integration",
+        "estimated_effort": "medium"
       }
     },
     {
@@ -707,10 +667,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "estimated_effort": "medium",
         "scan_agent": "scan-innovation",
-        "opportunity_type": "reliability",
-        "user_value": "Prevents failures due to resource exhaustion, enables proactive maintenance, improves reliability"
+        "estimated_effort": "medium",
+        "user_value": "Prevents failures due to resource exhaustion, enables proactive maintenance, improves reliability",
+        "opportunity_type": "reliability"
       }
     },
     {
@@ -759,10 +719,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "scan_agent": "scan-innovation",
         "opportunity_type": "ux-improvement",
-        "user_value": "Reduces fear of mistakes, enables experimentation, improves data safety",
         "estimated_effort": "medium",
-        "scan_agent": "scan-innovation"
+        "user_value": "Reduces fear of mistakes, enables experimentation, improves data safety"
       }
     }
   ]
