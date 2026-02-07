@@ -175,54 +175,65 @@ pub fn run_one_impl(
                 } else {
                     log::info!("No todo tasks found.");
                 }
-            } else {
-                // Candidates exist but none are runnable - use runnability report for accurate messaging
-                let options = RunnableSelectionOptions::new(include_draft, true);
-                match crate::queue::operations::queue_runnability_report(
-                    &queue_file,
-                    done_ref,
-                    options,
-                ) {
-                    Ok(report) => {
-                        if report.summary.blocked_by_schedule > 0
-                            && report.summary.blocked_by_dependencies > 0
-                        {
-                            log::info!(
-                                "All runnable tasks are blocked by unmet dependencies and future schedule ({} deps, {} scheduled).",
-                                report.summary.blocked_by_dependencies,
-                                report.summary.blocked_by_schedule
-                            );
-                        } else if report.summary.blocked_by_schedule > 0 {
-                            log::info!(
-                                "All runnable tasks are blocked by future schedule ({} scheduled).",
-                                report.summary.blocked_by_schedule
-                            );
-                        } else if report.summary.blocked_by_dependencies > 0 {
-                            log::info!(
-                                "All runnable tasks are blocked by unmet dependencies ({} blocked).",
-                                report.summary.blocked_by_dependencies
-                            );
-                        } else if report.summary.blocked_by_status_or_flags > 0 {
-                            log::info!(
-                                "All tasks are blocked by status or flags ({} blocked).",
-                                report.summary.blocked_by_status_or_flags
-                            );
-                        } else {
-                            log::info!("All runnable tasks are blocked.");
-                        }
-                        log::info!("Run 'ralph queue explain' for details.");
-                    }
-                    Err(e) => {
-                        // If analysis fails, avoid claiming a specific blocker.
+                return Ok(RunOutcome::NoCandidates);
+            }
+
+            // Candidates exist but none are runnable - use runnability report for accurate messaging
+            let options = RunnableSelectionOptions::new(include_draft, true);
+            let summary = match crate::queue::operations::queue_runnability_report(
+                &queue_file,
+                done_ref,
+                options,
+            ) {
+                Ok(report) => {
+                    if report.summary.blocked_by_schedule > 0
+                        && report.summary.blocked_by_dependencies > 0
+                    {
                         log::info!(
-                            "No runnable tasks found (failed to analyze blockers: {}).",
-                            e
+                            "All runnable tasks are blocked by unmet dependencies and future schedule ({} deps, {} scheduled).",
+                            report.summary.blocked_by_dependencies,
+                            report.summary.blocked_by_schedule
                         );
-                        log::info!("Run 'ralph queue explain' for details.");
+                    } else if report.summary.blocked_by_schedule > 0 {
+                        log::info!(
+                            "All runnable tasks are blocked by future schedule ({} scheduled).",
+                            report.summary.blocked_by_schedule
+                        );
+                    } else if report.summary.blocked_by_dependencies > 0 {
+                        log::info!(
+                            "All runnable tasks are blocked by unmet dependencies ({} blocked).",
+                            report.summary.blocked_by_dependencies
+                        );
+                    } else if report.summary.blocked_by_status_or_flags > 0 {
+                        log::info!(
+                            "All tasks are blocked by status or flags ({} blocked).",
+                            report.summary.blocked_by_status_or_flags
+                        );
+                    } else {
+                        log::info!("All runnable tasks are blocked.");
+                    }
+                    log::info!("Run 'ralph queue explain' for details.");
+                    report.summary.clone()
+                }
+                Err(e) => {
+                    // If analysis fails, avoid claiming a specific blocker.
+                    log::info!(
+                        "No runnable tasks found (failed to analyze blockers: {}).",
+                        e
+                    );
+                    log::info!("Run 'ralph queue explain' for details.");
+                    // Fallback summary if report generation failed
+                    crate::queue::operations::QueueRunnabilitySummary {
+                        total_active: queue_file.tasks.len(),
+                        candidates_total: candidates.len(),
+                        runnable_candidates: 0,
+                        blocked_by_dependencies: candidates.len(),
+                        blocked_by_schedule: 0,
+                        blocked_by_status_or_flags: 0,
                     }
                 }
-            }
-            return Ok(RunOutcome::NoTodo);
+            };
+            return Ok(RunOutcome::Blocked { summary });
         }
     };
 

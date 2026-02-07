@@ -39,6 +39,14 @@ pub struct RunLoopOptions {
     pub non_interactive: bool,
     /// Number of parallel workers to use when parallel mode is enabled.
     pub parallel_workers: Option<u8>,
+    /// Wait when blocked by dependencies/schedule instead of exiting.
+    pub wait_when_blocked: bool,
+    /// Poll interval in milliseconds while waiting (default: 1000).
+    pub wait_poll_ms: u64,
+    /// Timeout in seconds for waiting (0 = no timeout).
+    pub wait_timeout_seconds: u64,
+    /// Notify when queue becomes unblocked.
+    pub notify_when_unblocked: bool,
 }
 
 pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()> {
@@ -200,9 +208,56 @@ pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()>
                 opts.force,
                 resume_task_id.as_deref(),
             ) {
-                Ok(RunOutcome::NoTodo) => {
+                Ok(RunOutcome::NoCandidates) => {
                     log::info!("RunLoop: end (no more todo tasks remaining)");
                     return Ok(());
+                }
+                Ok(RunOutcome::Blocked { summary }) => {
+                    if opts.wait_when_blocked {
+                        // Wait for a runnable task to become available
+                        match wait_for_runnable_task(
+                            resolved,
+                            include_draft,
+                            opts.wait_poll_ms,
+                            opts.wait_timeout_seconds,
+                            opts.notify_when_unblocked,
+                            &loop_webhook_ctx,
+                        )? {
+                            WaitExit::RunnableAvailable {
+                                summary: new_summary,
+                            } => {
+                                log::info!(
+                                    "RunLoop: unblocked (ready={}, deps={}, sched={}); continuing",
+                                    new_summary.runnable_candidates,
+                                    new_summary.blocked_by_dependencies,
+                                    new_summary.blocked_by_schedule
+                                );
+                                continue;
+                            }
+                            WaitExit::NoCandidates => {
+                                log::info!("RunLoop: end (queue became empty while waiting)");
+                                return Ok(());
+                            }
+                            WaitExit::TimedOut => {
+                                log::info!("RunLoop: end (wait timeout reached)");
+                                return Ok(());
+                            }
+                            WaitExit::StopRequested => {
+                                log::info!("RunLoop: end (stop signal received)");
+                                return Ok(());
+                            }
+                        }
+                    } else {
+                        // Not in wait mode - exit with helpful message
+                        log::info!(
+                            "RunLoop: end (blocked: ready={} deps={} sched={}). \
+                             Use --wait-when-blocked to wait for dependencies/schedules.",
+                            summary.runnable_candidates,
+                            summary.blocked_by_dependencies,
+                            summary.blocked_by_schedule
+                        );
+                        return Ok(());
+                    }
                 }
                 Ok(RunOutcome::Ran { task_id: _ }) => {
                     completed += 1;
@@ -337,4 +392,211 @@ pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()>
     }
 
     result
+}
+
+/// Exit reason from the wait loop.
+enum WaitExit {
+    /// A runnable task became available.
+    RunnableAvailable {
+        summary: crate::queue::operations::QueueRunnabilitySummary,
+    },
+    /// Queue became empty while waiting.
+    NoCandidates,
+    /// Wait timeout reached.
+    TimedOut,
+    /// Stop signal was received.
+    StopRequested,
+}
+
+/// Wait for a runnable task to become available by polling queue/done files.
+///
+/// Polls the queue and done files until:
+/// - A runnable task appears (returns RunnableAvailable)
+/// - The queue becomes empty (returns NoCandidates)
+/// - Timeout is reached (returns TimedOut)
+/// - Stop signal is detected (returns StopRequested)
+/// - Ctrl+C is pressed (returns an error)
+fn wait_for_runnable_task(
+    resolved: &config::Resolved,
+    include_draft: bool,
+    poll_ms: u64,
+    timeout_seconds: u64,
+    notify_when_unblocked: bool,
+    loop_webhook_ctx: &crate::webhook::WebhookContext,
+) -> Result<WaitExit> {
+    use std::time::{Duration, Instant};
+
+    let cache_dir = resolved.repo_root.join(".ralph/cache");
+
+    // Clamp poll interval to sane minimum to avoid busy loops
+    let poll_ms = poll_ms.max(50);
+
+    let start = Instant::now();
+
+    // Initialize Ctrl+C handler check
+    let ctrlc = crate::runner::ctrlc_state().ok();
+
+    log::info!(
+        "Waiting for runnable tasks (poll={}ms, timeout={}s)...",
+        poll_ms,
+        if timeout_seconds == 0 {
+            "none".to_string()
+        } else {
+            timeout_seconds.to_string()
+        }
+    );
+
+    loop {
+        // Check for timeout
+        if timeout_seconds != 0 {
+            let elapsed = start.elapsed().as_secs();
+            if elapsed >= timeout_seconds {
+                return Ok(WaitExit::TimedOut);
+            }
+        }
+
+        // Check for stop signal
+        if signal::stop_signal_exists(&cache_dir) {
+            if let Err(e) = signal::clear_stop_signal(&cache_dir) {
+                log::warn!("Failed to clear stop signal: {}", e);
+            }
+            return Ok(WaitExit::StopRequested);
+        }
+
+        // Check for Ctrl+C
+        if ctrlc
+            .as_ref()
+            .is_some_and(|c| c.interrupted.load(std::sync::atomic::Ordering::SeqCst))
+        {
+            return Err(runutil::RunAbort::new(
+                runutil::RunAbortReason::Interrupted,
+                "Ctrl+C pressed while waiting for runnable tasks",
+            )
+            .into());
+        }
+
+        // Load queue and done files
+        let queue_file = match queue::load_queue(&resolved.queue_path) {
+            Ok(q) => q,
+            Err(e) => {
+                log::warn!("Failed to load queue while waiting: {}; will retry", e);
+                std::thread::sleep(Duration::from_millis(poll_ms));
+                continue;
+            }
+        };
+
+        let done = queue::load_queue_or_default(&resolved.done_path)?;
+        let done_ref = if done.tasks.is_empty() && !resolved.done_path.exists() {
+            None
+        } else {
+            Some(&done)
+        };
+
+        // Generate runnability report
+        let options = queue::RunnableSelectionOptions::new(include_draft, true);
+        let report = match crate::queue::operations::queue_runnability_report(
+            &queue_file,
+            done_ref,
+            options,
+        ) {
+            Ok(r) => r,
+            Err(e) => {
+                log::warn!(
+                    "Failed to generate runnability report while waiting: {}; will retry",
+                    e
+                );
+                std::thread::sleep(Duration::from_millis(poll_ms));
+                continue;
+            }
+        };
+
+        // Check exit conditions
+        if report.summary.candidates_total == 0 {
+            return Ok(WaitExit::NoCandidates);
+        }
+
+        if report.summary.runnable_candidates > 0 {
+            // Queue became unblocked!
+            if notify_when_unblocked {
+                notify_queue_unblocked(&report.summary, resolved, loop_webhook_ctx);
+            }
+            return Ok(WaitExit::RunnableAvailable {
+                summary: report.summary,
+            });
+        }
+
+        // Still blocked - sleep and retry
+        std::thread::sleep(Duration::from_millis(poll_ms));
+    }
+}
+
+/// Send notifications when queue becomes unblocked.
+fn notify_queue_unblocked(
+    summary: &crate::queue::operations::QueueRunnabilitySummary,
+    resolved: &config::Resolved,
+    loop_webhook_ctx: &crate::webhook::WebhookContext,
+) {
+    // Build summary note
+    let note = format!(
+        "ready={} blocked_deps={} blocked_schedule={}",
+        summary.runnable_candidates, summary.blocked_by_dependencies, summary.blocked_by_schedule
+    );
+
+    // Desktop notification
+    let notify_config = crate::notification::NotificationConfig {
+        enabled: true,
+        notify_on_complete: false,
+        notify_on_fail: false,
+        notify_on_loop_complete: false,
+        suppress_when_active: resolved
+            .config
+            .agent
+            .notification
+            .suppress_when_active
+            .unwrap_or(true),
+        sound_enabled: resolved
+            .config
+            .agent
+            .notification
+            .sound_enabled
+            .unwrap_or(false),
+        sound_path: resolved.config.agent.notification.sound_path.clone(),
+        timeout_ms: resolved
+            .config
+            .agent
+            .notification
+            .timeout_ms
+            .unwrap_or(8000),
+    };
+
+    #[cfg(feature = "notifications")]
+    {
+        use notify_rust::{Notification, Timeout};
+        if let Err(e) = Notification::new()
+            .summary("Ralph: tasks runnable")
+            .body(&note)
+            .timeout(Timeout::Milliseconds(notify_config.timeout_ms))
+            .show()
+        {
+            log::debug!("Failed to show unblocked notification: {}", e);
+        }
+
+        if notify_config.sound_enabled {
+            let _ = crate::notification::play_completion_sound(notify_config.sound_path.as_deref());
+        }
+    }
+
+    // Webhook notification
+    let timestamp = crate::timeutil::now_utc_rfc3339_or_fallback();
+    let payload = crate::webhook::WebhookPayload {
+        event: "queue_unblocked".to_string(),
+        timestamp,
+        task_id: None,
+        task_title: None,
+        previous_status: Some("blocked".to_string()),
+        current_status: Some("runnable".to_string()),
+        note: Some(note),
+        context: loop_webhook_ctx.clone(),
+    };
+    crate::webhook::send_webhook_payload(payload, &resolved.config.agent.webhook);
 }

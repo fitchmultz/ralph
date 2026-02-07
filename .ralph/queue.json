@@ -2,55 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0669",
-      "status": "todo",
-      "title": "Implement dependency-based auto-execution for unblocked tasks",
-      "description": "Tasks with depends_on don't automatically start when dependencies complete. Users must manually check and run tasks even when all prerequisites are satisfied. This creates friction and delays.\n\nGoals:\n1. Add `ralph run --auto-deps` mode that monitors done.json for dependency satisfaction\n2. Automatically promote blocked tasks to todo when dependencies complete\n3. Optionally auto-start tasks when dependencies done (with --start-when-ready)\n4. Add TUI indicator showing 'N tasks unblocked and ready'\n5. Support dependency chain visualization\n\nEvidence:\n- Current: depends_on field exists but is only validated, not monitored\n- Gap: No automation for dependency lifecycle\n- User pain: Manual tracking of when prerequisites complete",
-      "priority": "high",
-      "tags": [
-        "innovation",
-        "automation",
-        "dependencies",
-        "workflow"
-      ],
-      "scope": [
-        "crates/ralph/src/queue/dependencies.rs",
-        "crates/ralph/src/commands/run/mod.rs",
-        "crates/ralph/src/tui/app.rs",
-        "docs/workflow.md"
-      ],
-      "evidence": [
-        "Current capability: Dependency validation exists - checks for cycles and missing deps (queue/dependencies.rs)",
-        "Gap observed: No automation - tasks with satisfied deps still require manual status change",
-        "Queue explain: `ralph queue explain` shows why tasks aren't runnable but doesn't auto-resolve",
-        "Field exists: Task schema has depends_on array but no auto-promotion logic"
-      ],
-      "plan": [
-        "Add DependencyMonitor to watch done.json for completed dependencies",
-        "Add `ralph run --auto-deps [--start-when-ready]` CLI option",
-        "Implement auto-promote logic: when dependency task completes, check dependents and promote to todo",
-        "Add 'ready to run' section in TUI showing unblocked tasks\n",
-        "Add notification when tasks become unblocked (desktop + webhook)",
-        "Add dependency satisfaction indicator in task list (checkmark when all deps done)",
-        "Update docs/workflow.md with dependency auto-execution patterns",
-        "Add tests for complex dependency chains and edge cases (circular protection, missing deps)",
-        "Verify by creating task A, task B depending on A, completing A, and confirming B auto-promotes to todo"
-      ],
-      "notes": [],
-      "request": "innovation scan finding",
-      "created_at": "2026-02-07T00:41:40Z",
-      "updated_at": "2026-02-07T00:41:40Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "user_value": "Removes manual dependency tracking, enables automatic workflow progression, reduces delays",
-        "opportunity_type": "automation",
-        "estimated_effort": "medium",
-        "scan_agent": "scan-innovation"
-      }
-    },
-    {
       "id": "RQ-0670",
       "status": "todo",
       "title": "Add configuration profiles for quick workflow switching",
@@ -93,9 +44,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "ux-improvement",
-        "user_value": "Reduces CLI verbosity, enables workflow presets, improves discoverability of settings",
         "estimated_effort": "medium",
+        "user_value": "Reduces CLI verbosity, enables workflow presets, improves discoverability of settings",
+        "opportunity_type": "ux-improvement",
         "scan_agent": "scan-innovation"
       }
     },
@@ -145,8 +96,8 @@
       "custom_fields": {
         "estimated_effort": "medium",
         "opportunity_type": "reliability",
-        "user_value": "Reduces manual intervention for transient failures, improves success rate, handles network hiccups",
-        "scan_agent": "scan-innovation"
+        "scan_agent": "scan-innovation",
+        "user_value": "Reduces manual intervention for transient failures, improves success rate, handles network hiccups"
       }
     },
     {
@@ -194,9 +145,9 @@
       "relates_to": [],
       "custom_fields": {
         "opportunity_type": "automation",
-        "estimated_effort": "high",
+        "user_value": "Enables 'set and forget' operation, integrates with system services, reduces manual monitoring",
         "scan_agent": "scan-innovation",
-        "user_value": "Enables 'set and forget' operation, integrates with system services, reduces manual monitoring"
+        "estimated_effort": "high"
       }
     },
     {
@@ -244,9 +195,9 @@
       "relates_to": [],
       "custom_fields": {
         "opportunity_type": "analytics",
-        "user_value": "Improves planning accuracy, builds trust in ETAs, enables better time management",
+        "scan_agent": "scan-innovation",
         "estimated_effort": "medium",
-        "scan_agent": "scan-innovation"
+        "user_value": "Improves planning accuracy, builds trust in ETAs, enables better time management"
       }
     },
     {
@@ -294,9 +245,9 @@
       "relates_to": [],
       "custom_fields": {
         "opportunity_type": "ai-features",
+        "user_value": "Prevents oversized tasks, improves success rate, reduces manual judgment",
         "scan_agent": "scan-innovation",
-        "estimated_effort": "medium",
-        "user_value": "Prevents oversized tasks, improves success rate, reduces manual judgment"
+        "estimated_effort": "medium"
       }
     },
     {
@@ -396,10 +347,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "estimated_effort": "medium",
-        "opportunity_type": "automation",
         "scan_agent": "scan-innovation",
-        "user_value": "Prevents forgotten work, automates queue hygiene, reduces manual status management"
+        "opportunity_type": "automation",
+        "user_value": "Prevents forgotten work, automates queue hygiene, reduces manual status management",
+        "estimated_effort": "medium"
       }
     },
     {
@@ -448,8 +399,8 @@
       "relates_to": [],
       "custom_fields": {
         "estimated_effort": "high",
-        "opportunity_type": "ecosystem",
         "scan_agent": "scan-innovation",
+        "opportunity_type": "ecosystem",
         "user_value": "Enables plugin ecosystem growth, simplifies installation, improves discoverability"
       }
     },
@@ -499,10 +450,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "user_value": "Eliminates manual status sync, keeps GitHub and Ralph in sync, enables hybrid workflows",
-        "scan_agent": "scan-innovation",
         "opportunity_type": "integration",
-        "estimated_effort": "medium"
+        "scan_agent": "scan-innovation",
+        "estimated_effort": "medium",
+        "user_value": "Eliminates manual status sync, keeps GitHub and Ralph in sync, enables hybrid workflows"
       }
     },
     {
@@ -550,10 +501,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "estimated_effort": "medium",
-        "scan_agent": "scan-innovation",
         "user_value": "Prevents failures due to resource exhaustion, enables proactive maintenance, improves reliability",
-        "opportunity_type": "reliability"
+        "scan_agent": "scan-innovation",
+        "opportunity_type": "reliability",
+        "estimated_effort": "medium"
       }
     },
     {
@@ -602,10 +553,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "ux-improvement",
+        "estimated_effort": "medium",
         "scan_agent": "scan-innovation",
-        "user_value": "Reduces fear of mistakes, enables experimentation, improves data safety",
-        "estimated_effort": "medium"
+        "opportunity_type": "ux-improvement",
+        "user_value": "Reduces fear of mistakes, enables experimentation, improves data safety"
       }
     }
   ]

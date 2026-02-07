@@ -39,6 +39,10 @@ pub fn handle_run(cmd: RunCommand, force: bool, no_progress: bool) -> Result<()>
                     starting_completed: 0,
                     non_interactive: args.non_interactive,
                     parallel_workers: None,
+                    wait_when_blocked: false,
+                    wait_poll_ms: 1000,
+                    wait_timeout_seconds: 0,
+                    notify_when_unblocked: false,
                 },
             )
         }
@@ -152,6 +156,10 @@ pub fn handle_run(cmd: RunCommand, force: bool, no_progress: bool) -> Result<()>
                         starting_completed: 0,
                         non_interactive: args.non_interactive,
                         parallel_workers: args.parallel,
+                        wait_when_blocked: args.wait_when_blocked,
+                        wait_poll_ms: args.wait_poll_ms,
+                        wait_timeout_seconds: args.wait_timeout_seconds,
+                        notify_when_unblocked: args.notify_when_unblocked,
                     },
                 )
             }
@@ -305,6 +313,10 @@ Examples:\n\
  ralph run loop --lfs-check --max-tasks 1\n\
  ralph run loop --dry-run\n\
  ralph run loop -i\n\
+ ralph run loop --wait-when-blocked\n\
+ ralph run loop --wait-when-blocked --wait-timeout-seconds 600\n\
+ ralph run loop --wait-when-blocked --wait-poll-ms 250\n\
+ ralph run loop --wait-when-blocked --notify-when-unblocked\n\
  ralph tui"
     )]
     Loop(RunLoopArgs),
@@ -408,6 +420,23 @@ pub struct RunLoopArgs {
         conflicts_with = "interactive"
     )]
     pub parallel: Option<u8>,
+
+    /// Wait when blocked by dependencies/schedule instead of exiting.
+    /// The loop will poll until a runnable task appears or timeout is reached.
+    #[arg(long, conflicts_with = "parallel")]
+    pub wait_when_blocked: bool,
+
+    /// Poll interval in milliseconds while waiting for unblocked tasks (default: 1000, min: 50).
+    #[arg(long, default_value_t = 1000, value_name = "MS")]
+    pub wait_poll_ms: u64,
+
+    /// Timeout in seconds for waiting (0 = no timeout).
+    #[arg(long, default_value_t = 0, value_name = "SECONDS")]
+    pub wait_timeout_seconds: u64,
+
+    /// Notify when queue becomes unblocked (desktop + webhook).
+    #[arg(long)]
+    pub notify_when_unblocked: bool,
 
     #[command(flatten)]
     pub agent: crate::agent::RunAgentArgs,

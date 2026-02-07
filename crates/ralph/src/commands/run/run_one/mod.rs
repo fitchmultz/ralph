@@ -33,8 +33,15 @@ pub enum QueueLockMode {
 /// Outcome of a single task run.
 #[derive(Debug)]
 pub enum RunOutcome {
-    NoTodo,
-    Ran { task_id: String },
+    /// No Todo (and no Draft if include_draft is false).
+    NoCandidates,
+    /// Candidates exist, but none are currently runnable (deps/schedule/status flags).
+    Blocked {
+        summary: crate::queue::operations::QueueRunnabilitySummary,
+    },
+    Ran {
+        task_id: String,
+    },
 }
 
 /// Run a specific task by ID.

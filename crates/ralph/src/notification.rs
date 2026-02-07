@@ -408,7 +408,7 @@ fn show_notification_loop(
 }
 
 /// Play completion sound using platform-specific mechanisms.
-fn play_completion_sound(custom_path: Option<&str>) -> anyhow::Result<()> {
+pub fn play_completion_sound(custom_path: Option<&str>) -> anyhow::Result<()> {
     #[cfg(target_os = "macos")]
     {
         play_macos_sound(custom_path)

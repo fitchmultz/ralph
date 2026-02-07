@@ -46,6 +46,8 @@ pub enum WebhookEventType {
     PhaseStarted,
     /// Phase completed for a task.
     PhaseCompleted,
+    /// Queue became unblocked (runnable tasks available after being blocked).
+    QueueUnblocked,
 }
 
 impl WebhookEventType {
@@ -60,6 +62,7 @@ impl WebhookEventType {
             WebhookEventType::LoopStopped => "loop_stopped",
             WebhookEventType::PhaseStarted => "phase_started",
             WebhookEventType::PhaseCompleted => "phase_completed",
+            WebhookEventType::QueueUnblocked => "queue_unblocked",
         }
     }
 }
@@ -78,8 +81,9 @@ impl std::str::FromStr for WebhookEventType {
             "loop_stopped" => Self::LoopStopped,
             "phase_started" => Self::PhaseStarted,
             "phase_completed" => Self::PhaseCompleted,
+            "queue_unblocked" => Self::QueueUnblocked,
             other => anyhow::bail!(
-                "Unknown event type: {}. Supported: task_created, task_started, task_completed, task_failed, task_status_changed, loop_started, loop_stopped, phase_started, phase_completed",
+                "Unknown event type: {}. Supported: task_created, task_started, task_completed, task_failed, task_status_changed, loop_started, loop_stopped, phase_started, phase_completed, queue_unblocked",
                 other
             ),
         })
@@ -699,6 +703,27 @@ pub fn notify_phase_completed(
         previous_status: None,
         current_status: None,
         note: None,
+        context,
+    };
+    send_webhook_payload(payload, config);
+}
+
+/// Convenience function to send queue unblocked webhook.
+/// This is a loop-level event with no task association.
+pub fn notify_queue_unblocked(
+    config: &WebhookConfig,
+    timestamp_rfc3339: &str,
+    context: WebhookContext,
+    note: Option<&str>,
+) {
+    let payload = WebhookPayload {
+        event: WebhookEventType::QueueUnblocked.as_str().to_string(),
+        timestamp: timestamp_rfc3339.to_string(),
+        task_id: None,
+        task_title: None,
+        previous_status: Some("blocked".to_string()),
+        current_status: Some("runnable".to_string()),
+        note: note.map(|n| n.to_string()),
         context,
     };
     send_webhook_payload(payload, config);

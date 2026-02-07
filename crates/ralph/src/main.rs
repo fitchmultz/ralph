@@ -234,6 +234,10 @@ mod tests {
                 non_interactive: false,
                 dry_run: false,
                 parallel: None,
+                wait_when_blocked: false,
+                wait_poll_ms: 1000,
+                wait_timeout_seconds: 0,
+                notify_when_unblocked: false,
                 agent: ralph::agent::RunAgentArgs::default(),
             }),
         });

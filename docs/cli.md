@@ -815,6 +815,46 @@ ralph run one --dry-run --id RQ-0001
 ralph run loop --dry-run
 ```
 
+### Wait when blocked (CLI-only)
+
+When all remaining tasks are blocked by unmet dependencies or future schedules, the run loop normally exits with a summary of the blockers. Use `--wait-when-blocked` to keep the loop running and poll for changes instead.
+
+Behavior:
+- When blocked, the loop polls `.ralph/queue.json` and `.ralph/done.json` for changes
+- When a runnable task appears (dependencies complete or schedule passes), the loop continues
+- Poll interval is controlled by `--wait-poll-ms` (default: 1000ms, min: 50ms)
+- Optional timeout via `--wait-timeout-seconds` (0 = no timeout)
+- Optional notification when unblocked via `--notify-when-unblocked` (desktop + webhook)
+- Respects stop signals (`ralph queue stop`) and Ctrl+C
+
+Flags:
+
+* `--wait-when-blocked`: Wait when blocked instead of exiting (default: false).
+* `--wait-poll-ms <MS>`: Poll interval in milliseconds while waiting (default: 1000, min: 50).
+* `--wait-timeout-seconds <SECONDS>`: Timeout for waiting, 0 = no timeout (default: 0).
+* `--notify-when-unblocked`: Notify when queue becomes unblocked (default: false).
+
+Constraints:
+- Conflicts with `--parallel` (parallel mode does not support wait mode)
+- Conflicts with `--interactive` (TUI mode)
+- Only applies to sequential run loop mode
+
+Examples:
+
+```bash
+# Wait indefinitely for dependencies/schedules to resolve
+ralph run loop --wait-when-blocked
+
+# Wait with a 10-minute timeout
+ralph run loop --wait-when-blocked --wait-timeout-seconds 600
+
+# Poll more frequently (250ms) for faster response
+ralph run loop --wait-when-blocked --wait-poll-ms 250
+
+# Notify when unblocked (desktop notification + webhook)
+ralph run loop --wait-when-blocked --notify-when-unblocked
+```
+
 ### Parallel loop (CLI-only)
 
 `--parallel [N]` runs multiple tasks concurrently in separate isolated git workspace clones. The default is `2`
@@ -822,7 +862,7 @@ when `--parallel` is provided without a value. This mode is CLI-only and conflic
 interactive/TUI workflows.
 
 Notes:
-- `--parallel` conflicts with `--interactive` and ignores `--resume`.
+- `--parallel` conflicts with `--interactive`, `--wait-when-blocked`, and ignores `--resume`.
 - Each task runs in its own isolated git workspace clone and branch; PRs are created/merged automatically when enabled.
 - Queue and done files are coordinator-only in parallel mode; worker branches do not modify `.ralph/queue.json` or `.ralph/done.json`.
 - Workers commit per-task completion signals in `.ralph/cache/completions/<TASK_ID>.json`.

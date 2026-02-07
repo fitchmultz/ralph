@@ -307,7 +307,7 @@ fn run_one_with_id_locked_skips_reacquiring_queue_lock() -> anyhow::Result<()> {
     )
     .expect_err("expected runnable status error");
     let message = err.to_string();
-    assert!(message.contains("not runnable"));
+    assert!(message.contains("is not runnable"));
     assert!(!message.contains("Queue lock already held"));
     Ok(())
 }
@@ -443,6 +443,10 @@ fn run_loop_auto_resume_clears_stale_queue_lock_before_task_execution() -> anyho
             starting_completed: 0,
             non_interactive: true,
             parallel_workers: None,
+            wait_when_blocked: false,
+            wait_poll_ms: 1000,
+            wait_timeout_seconds: 0,
+            notify_when_unblocked: false,
         },
     );
     drop(guard);

@@ -279,6 +279,10 @@ fn run_loop_aborts_immediately_on_queue_lock_error() -> Result<()> {
             starting_completed: 0,
             non_interactive: true,
             parallel_workers: None,
+            wait_when_blocked: false,
+            wait_poll_ms: 1000,
+            wait_timeout_seconds: 0,
+            notify_when_unblocked: false,
         },
     );
     let elapsed = start.elapsed();

@@ -60,6 +60,39 @@ High-level behavior:
 `parallel.workspace_root` and is no longer accepted. Run `ralph migrate` to update existing
 configs if you have custom `worktree_root` settings.
 
+## Wait When Blocked (Sequential Loop)
+
+When all remaining tasks are blocked by unmet dependencies (`depends_on`) or future schedules (`scheduled_start`), the sequential run loop normally exits with a summary of the blockers. Use `--wait-when-blocked` to keep the loop running and poll for changes instead.
+
+Behavior:
+- The loop polls `.ralph/queue.json` and `.ralph/done.json` for changes
+- When a runnable task appears (dependencies complete or schedule passes), the loop continues
+- Configurable poll interval (`--wait-poll-ms`, default: 1000ms, min: 50ms)
+- Optional timeout (`--wait-timeout-seconds`, 0 = no timeout)
+- Optional notification when unblocked (`--notify-when-unblocked`, desktop + webhook)
+- Respects stop signals (`ralph queue stop`) and Ctrl+C
+
+Use this for "fire and forget" execution through dependent task chains without manual babysitting.
+
+Examples:
+```bash
+# Wait indefinitely for dependencies/schedules to resolve
+ralph run loop --wait-when-blocked
+
+# Wait with a 10-minute timeout and notify when unblocked
+ralph run loop --wait-when-blocked --wait-timeout-seconds 600 --notify-when-unblocked
+```
+
+### Queue Unblocked Webhook Event
+
+When using `--notify-when-unblocked` with webhooks configured, Ralph emits a `queue_unblocked` event:
+
+- `previous_status`: `"blocked"`
+- `current_status`: `"runnable"`
+- `note`: Summary counts like `ready=2 blocked_deps=3 blocked_schedule=1`
+
+This event is opt-in; add `"queue_unblocked"` to your webhook events list to receive it.
+
 ## Security and Redaction
 
 ### Safeguard Dumps
