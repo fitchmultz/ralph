@@ -126,7 +126,9 @@ members = []
     Ok(())
 }
 
-/// Extract the ordered list of $(MAKE) targets from the `ci:` recipe in a Makefile.
+/// Extract the ordered list of targets from the `ci:` recipe in a Makefile.
+/// Handles both modern format (dependencies on the same line) and legacy format
+/// (separate $(MAKE) invocations within the target body).
 fn extract_make_ci_steps(makefile: &str) -> Result<Vec<String>> {
     let mut in_ci = false;
     let mut steps = Vec::new();
@@ -134,8 +136,16 @@ fn extract_make_ci_steps(makefile: &str) -> Result<Vec<String>> {
     for line in makefile.lines() {
         // Enter `ci:` target
         if !in_ci {
-            if line.trim_end() == "ci:" {
+            if let Some(colon_idx) = line.find("ci:") {
                 in_ci = true;
+                // Modern format: extract dependencies from the same line after "ci:"
+                let deps_part = &line[colon_idx + 3..];
+                let deps: Vec<String> = deps_part
+                    .split_whitespace()
+                    .map(|s| s.to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect();
+                steps.extend(deps);
             }
             continue;
         }
@@ -149,6 +159,7 @@ fn extract_make_ci_steps(makefile: &str) -> Result<Vec<String>> {
             }
         }
 
+        // Legacy format: look for $(MAKE) <target> invocations
         if let Some(idx) = line.find("$(MAKE) ") {
             let rest = &line[idx + "$(MAKE) ".len()..];
             let target = rest
