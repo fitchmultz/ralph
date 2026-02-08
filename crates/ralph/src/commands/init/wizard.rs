@@ -74,7 +74,7 @@ pub fn run_wizard() -> Result<WizardAnswers> {
     let runner_idx = Select::new()
         .with_prompt("Select your AI runner")
         .items(
-            &runners
+            runners
                 .iter()
                 .map(|(name, desc)| format!("{} - {}", name, desc))
                 .collect::<Vec<_>>(),

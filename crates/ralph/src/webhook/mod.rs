@@ -404,19 +404,27 @@ fn send_request(
     signature: Option<&str>,
     timeout: Duration,
 ) -> anyhow::Result<()> {
-    let mut request = ureq::post(url)
-        .set("Content-Type", "application/json")
-        .set("User-Agent", concat!("ralph/", env!("CARGO_PKG_VERSION")));
+    // In ureq 3.x, we use an Agent with timeout configuration
+    let agent = ureq::Agent::new_with_config(
+        ureq::Agent::config_builder()
+            .timeout_global(Some(timeout))
+            .build(),
+    );
+
+    let mut request = agent
+        .post(url)
+        .header("Content-Type", "application/json")
+        .header("User-Agent", concat!("ralph/", env!("CARGO_PKG_VERSION")));
 
     if let Some(sig) = signature {
-        request = request.set("X-Ralph-Signature", sig);
+        request = request.header("X-Ralph-Signature", sig);
     }
 
-    let response = request.timeout(timeout).send_string(body)?;
+    let response = request.send(body)?;
 
     let status = response.status();
 
-    if (200..300).contains(&status) {
+    if status.is_success() {
         Ok(())
     } else {
         Err(anyhow::anyhow!(

@@ -413,7 +413,7 @@ struct ContentView: View {
             .frame(minHeight: 420)
         }
         .padding(16)
-        .onChange(of: model.advancedSelectedCommandID) { _ in
+        .onChange(of: model.advancedSelectedCommandID) { _, _ in
             model.resetAdvancedInputs()
         }
     }
