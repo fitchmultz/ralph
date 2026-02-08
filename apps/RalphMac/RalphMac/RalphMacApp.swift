@@ -27,7 +27,7 @@ struct RalphMacApp: App {
 
     var body: some Scene {
         WindowGroup {
-            WindowView(windowState: WindowState(workspaceIDs: [manager.createWorkspace().id]))
+            WindowViewContainer()
                 .background(
                     VisualEffectView(material: .windowBackground, blendingMode: .behindWindow)
                         .ignoresSafeArea()
@@ -192,6 +192,32 @@ struct RalphMacApp: App {
                 )
             }
             .keyboardShortcut("n", modifiers: [.command, .option])
+        }
+    }
+}
+
+// MARK: - Window View Container
+
+/// Container view that handles workspace initialization to avoid state mutation during view init.
+struct WindowViewContainer: View {
+    @StateObject private var manager = WorkspaceManager.shared
+    @State private var windowState: WindowState?
+
+    var body: some View {
+        Group {
+            if let state = windowState {
+                WindowView(windowState: state)
+            } else {
+                ProgressView("Initializing...")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .task {
+            // Defer workspace creation to avoid mutating state during view initialization
+            if windowState == nil {
+                let workspace = manager.createWorkspace()
+                windowState = WindowState(workspaceIDs: [workspace.id])
+            }
         }
     }
 }

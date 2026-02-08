@@ -39,14 +39,16 @@ struct WindowView: View {
             }
         }
         .onChange(of: windowState.workspaceIDs) { _, _ in
-            persistState()
+            validateAndPersistState()
         }
         .onChange(of: windowState.selectedTabIndex) { _, _ in
             persistState()
         }
         .onReceive(manager.$workspaces) { _ in
-            // Clean up any closed workspaces from this window
-            cleanupClosedWorkspaces()
+            // Defer cleanup to avoid state mutation during view update
+            Task { @MainActor in
+                cleanupClosedWorkspaces()
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .newWorkspaceTabRequested)) { _ in
             addNewTab()
@@ -143,9 +145,22 @@ struct WindowView: View {
         manager.saveWindowState(windowState)
     }
 
+    /// Validates selection bounds and persists state atomically.
+    private func validateAndPersistState() {
+        var updatedState = windowState
+        updatedState.validateSelection()
+        windowState = updatedState
+        manager.saveWindowState(windowState)
+    }
+
     private func cleanupClosedWorkspaces() {
         let validIDs = Set(manager.workspaces.map(\.id))
         let originalCount = windowState.workspaceIDs.count
+        
+        // Only modify if there are actually closed workspaces
+        let invalidIDs = windowState.workspaceIDs.filter { !validIDs.contains($0) }
+        guard !invalidIDs.isEmpty else { return }
+        
         windowState.workspaceIDs.removeAll { !validIDs.contains($0) }
 
         // If we removed workspaces, ensure selection is valid
