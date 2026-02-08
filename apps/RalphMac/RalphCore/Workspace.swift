@@ -278,6 +278,134 @@ public final class Workspace: ObservableObject, Identifiable, Codable, @unchecke
         tasks.first { $0.status == .todo }
     }
 
+    // MARK: - Task Updates
+
+    /// Update a task by applying changes via the CLI and reloading the task list.
+    /// This compares the original task with the updated task and generates appropriate CLI commands.
+    public func updateTask(from original: RalphTask, to updated: RalphTask) async throws {
+        guard let client else {
+            throw WorkspaceError.cliClientUnavailable
+        }
+
+        // Build list of field changes needed
+        var editCommands: [(field: String, value: String)] = []
+
+        // Title
+        if original.title != updated.title {
+            editCommands.append(("title", updated.title))
+        }
+
+        // Description (empty string becomes nil)
+        let originalDesc = original.description ?? ""
+        let updatedDesc = updated.description ?? ""
+        if originalDesc != updatedDesc {
+            editCommands.append(("description", updatedDesc))
+        }
+
+        // Status
+        if original.status != updated.status {
+            editCommands.append(("status", updated.status.rawValue))
+        }
+
+        // Priority
+        if original.priority != updated.priority {
+            editCommands.append(("priority", updated.priority.rawValue))
+        }
+
+        // Tags (comma-separated)
+        if original.tags != updated.tags {
+            let value = updated.tags.joined(separator: ", ")
+            editCommands.append(("tags", value))
+        }
+
+        // Scope
+        let originalScope = original.scope ?? []
+        let updatedScope = updated.scope ?? []
+        if originalScope != updatedScope {
+            let value = updatedScope.joined(separator: "\n")
+            editCommands.append(("scope", value))
+        }
+
+        // Evidence
+        let originalEvidence = original.evidence ?? []
+        let updatedEvidence = updated.evidence ?? []
+        if originalEvidence != updatedEvidence {
+            let value = updatedEvidence.joined(separator: "\n")
+            editCommands.append(("evidence", value))
+        }
+
+        // Plan
+        let originalPlan = original.plan ?? []
+        let updatedPlan = updated.plan ?? []
+        if originalPlan != updatedPlan {
+            let value = updatedPlan.joined(separator: "\n")
+            editCommands.append(("plan", value))
+        }
+
+        // Notes
+        let originalNotes = original.notes ?? []
+        let updatedNotes = updated.notes ?? []
+        if originalNotes != updatedNotes {
+            let value = updatedNotes.joined(separator: "\n")
+            editCommands.append(("notes", value))
+        }
+
+        // Relationships
+        let originalDepends = original.dependsOn ?? []
+        let updatedDepends = updated.dependsOn ?? []
+        if originalDepends != updatedDepends {
+            let value = updatedDepends.joined(separator: ", ")
+            editCommands.append(("depends_on", value))
+        }
+
+        let originalBlocks = original.blocks ?? []
+        let updatedBlocks = updated.blocks ?? []
+        if originalBlocks != updatedBlocks {
+            let value = updatedBlocks.joined(separator: ", ")
+            editCommands.append(("blocks", value))
+        }
+
+        let originalRelates = original.relatesTo ?? []
+        let updatedRelates = updated.relatesTo ?? []
+        if originalRelates != updatedRelates {
+            let value = updatedRelates.joined(separator: ", ")
+            editCommands.append(("relates_to", value))
+        }
+
+        // Execute each edit command
+        for (field, value) in editCommands {
+            let collected = try await client.runAndCollect(
+                arguments: ["--no-color", "task", "edit", field, value, updated.id],
+                currentDirectoryURL: workingDirectoryURL
+            )
+
+            guard collected.status.code == 0 else {
+                throw WorkspaceError.cliError(
+                    "Failed to edit \(field): \(collected.stderr.isEmpty ? "Exit \(collected.status.code)" : collected.stderr)"
+                )
+            }
+        }
+
+        // Reload tasks to get updated state
+        await loadTasks()
+    }
+
+    // MARK: - Errors
+
+    public enum WorkspaceError: Error, LocalizedError {
+        case cliClientUnavailable
+        case cliError(String)
+
+        public var errorDescription: String? {
+            switch self {
+            case .cliClientUnavailable:
+                return "CLI client is not available."
+            case .cliError(let message):
+                return message
+            }
+        }
+    }
+
     public func run(arguments: [String]) {
         guard let client else {
             errorMessage = "CLI client not available."

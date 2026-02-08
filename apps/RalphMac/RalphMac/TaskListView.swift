@@ -23,6 +23,7 @@ import RalphCore
 struct TaskListView: View {
     @ObservedObject var workspace: Workspace
     @State private var selectedTaskID: String?
+    @State private var selectedTaskForEditing: RalphTask?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -220,11 +221,25 @@ struct TaskListView: View {
                         .tag(task.id)
                         .listRowSeparator(.visible)
                         .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            selectedTaskForEditing = task
+                        }
                 }
                 .listStyle(.plain)
                 #if swift(>=5.9)
                 .alternatingRowBackgrounds(.automatic)
                 #endif
+                .sheet(item: $selectedTaskForEditing) { task in
+                    TaskDetailView(
+                        workspace: workspace,
+                        task: task,
+                        isPresented: Binding(
+                            get: { selectedTaskForEditing != nil },
+                            set: { if !$0 { selectedTaskForEditing = nil } }
+                        )
+                    )
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
