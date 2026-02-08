@@ -26,6 +26,7 @@ import RalphCore
 enum SidebarSection: String, CaseIterable, Identifiable {
     case queue = "Queue"
     case quickActions = "Quick Actions"
+    case runControl = "Run Control"
     case advancedRunner = "Advanced Runner"
 
     var id: String { rawValue }
@@ -34,6 +35,7 @@ enum SidebarSection: String, CaseIterable, Identifiable {
         switch self {
         case .queue: return "list.bullet.rectangle"
         case .quickActions: return "bolt.fill"
+        case .runControl: return "play.circle.fill"
         case .advancedRunner: return "terminal.fill"
         }
     }
@@ -42,7 +44,8 @@ enum SidebarSection: String, CaseIterable, Identifiable {
         switch self {
         case .queue: return "1"
         case .quickActions: return "2"
-        case .advancedRunner: return "3"
+        case .runControl: return "3"
+        case .advancedRunner: return "4"
         }
     }
 }

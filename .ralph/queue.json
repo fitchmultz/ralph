@@ -2,53 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0726",
-      "status": "todo",
-      "title": "Create run control panel for task execution with live output",
-      "description": "Build a dedicated run control panel that shows the currently running task (if any), execution progress, and live console output. Include buttons to start/stop execution, run the next task, or run a continuous loop. Show runner status, phase information, and estimated completion time. This provides a cockpit for managing the AI agent execution.",
-      "priority": "medium",
-      "tags": [
-        "innovation",
-        "macos",
-        "ui",
-        "execution",
-        "runner"
-      ],
-      "scope": [
-        "apps/RalphMac/RalphMac/",
-        "apps/RalphMac/RalphCore/RalphCLIClient.swift"
-      ],
-      "evidence": [
-        "Current app has basic 'Run' button but no execution control panel",
-        "No live progress indication during task execution",
-        "Console output exists but is plain text without syntax highlighting",
-        "No way to see which task is running or execution phase"
-      ],
-      "plan": [
-        "Create RunControlView with execution status dashboard",
-        "Show current task card with title, ID, status",
-        "Add progress indicator showing current phase (1/3, 2/3, 3/3)",
-        "Implement live console with ANSI color code parsing",
-        "Add 'Run Next' button for executing ralph run one",
-        "Add 'Start Loop' / 'Stop Loop' toggle for continuous execution",
-        "Show runner configuration (model, phases) for current run",
-        "Add elapsed time timer and estimated completion",
-        "Implement 'Stop After Current' graceful stop button",
-        "Add execution history log with success/failure indicators",
-        "Verify by running a task and confirming live updates appear"
-      ],
-      "notes": [],
-      "request": "innovation scan finding",
-      "created_at": "2026-02-08T02:39:17Z",
-      "updated_at": "2026-02-08T02:39:17Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-innovation"
-      }
-    },
-    {
       "id": "RQ-0727",
       "status": "todo",
       "title": "Build analytics dashboard with productivity metrics and charts",

@@ -68,6 +68,8 @@ struct WorkspaceView: View {
             queueContent()
         case .quickActions:
             quickActionsContent()
+        case .runControl:
+            runControlContent()
         case .advancedRunner:
             advancedRunnerContent()
         }
@@ -147,6 +149,9 @@ struct WorkspaceView: View {
         case .quickActions:
             quickActionsDetailView()
 
+        case .runControl:
+            runControlDetailView()
+
         case .advancedRunner:
             advancedRunnerDetailView()
         }
@@ -167,6 +172,24 @@ struct WorkspaceView: View {
         }
         .contentBackground(cornerRadius: 12)
         .navigationTitle("Quick Actions")
+    }
+
+    // MARK: - Run Control Content Column
+
+    @ViewBuilder
+    private func runControlContent() -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            workingDirectoryHeader()
+                .padding(16)
+
+            Divider()
+
+            // Live console output
+            RunControlConsoleView(workspace: workspace)
+                .padding(16)
+        }
+        .contentBackground(cornerRadius: 12)
+        .navigationTitle("Run Control")
     }
 
     // MARK: - Quick Actions Detail Column
@@ -270,6 +293,391 @@ struct WorkspaceView: View {
         }
         .background(.clear)
         .navigationTitle("Quick Actions")
+    }
+
+    // MARK: - Run Control Detail Column
+
+    @ViewBuilder
+    private func runControlDetailView() -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                // Current Task Card
+                if workspace.isRunning, let taskID = workspace.currentTaskID,
+                   let task = workspace.tasks.first(where: { $0.id == taskID }) {
+                    currentTaskCard(task: task)
+                } else if !workspace.isRunning && !workspace.executionHistory.isEmpty {
+                    lastRunSummary()
+                } else {
+                    noExecutionView()
+                }
+
+                // Phase Progress
+                if workspace.isRunning {
+                    phaseProgressSection()
+                }
+
+                // Runner Configuration
+                runnerConfigSection()
+
+                // Execution Controls
+                executionControlsSection()
+
+                // Execution History
+                if !workspace.executionHistory.isEmpty {
+                    executionHistorySection()
+                }
+            }
+            .padding(20)
+        }
+        .background(.clear)
+        .navigationTitle("Execution Control")
+    }
+
+    @ViewBuilder
+    private func currentTaskCard(task: RalphTask) -> some View {
+        glassGroupBox("Current Task") {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text(task.id)
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(.secondary)
+
+                    Spacer()
+
+                    priorityBadge(priority: task.priority)
+                }
+
+                Text(task.title)
+                    .font(.headline)
+                    .lineLimit(2)
+
+                if let description = task.description, !description.isEmpty {
+                    Text(description)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(3)
+                }
+
+                HStack {
+                    statusBadge(status: task.status)
+
+                    if !task.tags.isEmpty {
+                        tagChips(tags: Array(task.tags.prefix(3)))
+                    }
+
+                    Spacer()
+
+                    // Elapsed time
+                    if let startTime = workspace.executionStartTime {
+                        ElapsedTimeView(startTime: startTime)
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func phaseProgressSection() -> some View {
+        glassGroupBox("Phase Progress") {
+            VStack(alignment: .leading, spacing: 16) {
+                // Progress bar
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        // Background
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(.quaternary.opacity(0.3))
+                            .frame(height: 12)
+
+                        // Progress fill
+                        if let phase = workspace.currentPhase {
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(phase.color)
+                                .frame(width: geo.size.width * phase.progressFraction, height: 12)
+                                .animation(.easeInOut(duration: 0.3), value: phase)
+                        }
+
+                        // Phase markers
+                        HStack(spacing: 0) {
+                            ForEach(Workspace.ExecutionPhase.allCases, id: \.self) { phase in
+                                Rectangle()
+                                    .fill(.separator.opacity(0.5))
+                                    .frame(width: 1, height: 12)
+                                    .frame(maxWidth: .infinity, alignment: .trailing)
+                            }
+                        }
+                    }
+                }
+                .frame(height: 12)
+
+                // Phase indicators
+                HStack(spacing: 0) {
+                    ForEach(Workspace.ExecutionPhase.allCases, id: \.self) { phase in
+                        HStack(spacing: 4) {
+                            Image(systemName: phase.icon)
+                                .font(.caption)
+                            Text(phase.displayName)
+                                .font(.caption)
+                        }
+                        .foregroundStyle(phase == workspace.currentPhase ? phase.color : .secondary)
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func runnerConfigSection() -> some View {
+        glassGroupBox("Runner Configuration") {
+            VStack(alignment: .leading, spacing: 8) {
+                configRow(icon: "cpu", label: "Model", value: workspace.currentRunnerConfig?.model ?? "Default")
+                configRow(icon: "number", label: "Max Iterations", value: workspace.currentRunnerConfig?.maxIterations.map(String.init) ?? "Auto")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func executionControlsSection() -> some View {
+        glassGroupBox("Controls") {
+            VStack(spacing: 12) {
+                // Primary action row
+                HStack(spacing: 12) {
+                    if workspace.isRunning {
+                        Button(action: { workspace.cancel() }) {
+                            Label("Stop", systemImage: "stop.circle.fill")
+                                .foregroundStyle(.red)
+                        }
+                        .buttonStyle(GlassButtonStyle())
+
+                        if workspace.isLoopMode {
+                            Button(action: { workspace.stopLoop() }) {
+                                Label("Stop After Current", systemImage: "pause.circle")
+                                    .foregroundStyle(.orange)
+                            }
+                            .buttonStyle(GlassButtonStyle())
+                        }
+                    } else {
+                        Button(action: { workspace.runNextTask() }) {
+                            Label("Run Next Task", systemImage: "play.circle.fill")
+                        }
+                        .buttonStyle(GlassButtonStyle())
+
+                        Button(action: { workspace.startLoop() }) {
+                            Label("Start Loop", systemImage: "repeat.circle")
+                        }
+                        .buttonStyle(GlassButtonStyle())
+                        .disabled(workspace.nextTask() == nil)
+                    }
+
+                    Spacer()
+                }
+
+                // Loop mode indicator
+                if workspace.isLoopMode {
+                    HStack {
+                        Image(systemName: "repeat.circle.fill")
+                            .foregroundStyle(.blue)
+                        Text("Loop Mode Active")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        if workspace.stopAfterCurrent {
+                            Text("(Stopping after current)")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
+
+                        Spacer()
+                    }
+                }
+
+                // Exit status
+                if let status = workspace.lastExitStatus, !workspace.isRunning {
+                    HStack {
+                        Image(systemName: status.code == 0 ? "checkmark.circle.fill" : "xmark.circle.fill")
+                            .foregroundStyle(status.code == 0 ? .green : .red)
+                        Text("Exit: \(status.code)")
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundStyle(status.code == 0 ? .green : .red)
+                        Spacer()
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func executionHistorySection() -> some View {
+        glassGroupBox("Recent History") {
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(workspace.executionHistory.prefix(5)) { record in
+                    HStack {
+                        Image(systemName: recordIcon(record))
+                            .foregroundStyle(recordColor(record))
+
+                        if let taskID = record.taskID {
+                            Text(taskID)
+                                .font(.system(.caption, design: .monospaced))
+                        } else {
+                            Text("Unknown task")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Spacer()
+
+                        if let duration = record.duration {
+                            Text(formatDuration(duration))
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func noExecutionView() -> some View {
+        VStack(spacing: 16) {
+            Image(systemName: "play.circle")
+                .font(.system(size: 48))
+                .foregroundStyle(.secondary)
+
+            Text("No Active Execution")
+                .font(.headline)
+
+            Text("Run a task to see execution progress and live output.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 300)
+        }
+        .frame(maxWidth: .infinity, minHeight: 200)
+    }
+
+    @ViewBuilder
+    private func lastRunSummary() -> some View {
+        if let lastRun = workspace.executionHistory.first {
+            glassGroupBox("Last Run") {
+                HStack {
+                    Image(systemName: recordIcon(lastRun))
+                        .foregroundStyle(recordColor(lastRun))
+
+                    if let taskID = lastRun.taskID {
+                        Text(taskID)
+                            .font(.system(.body, design: .monospaced))
+                    }
+
+                    Spacer()
+
+                    if let duration = lastRun.duration {
+                        Text(formatDuration(duration))
+                            .font(.system(.body, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Helper Views
+
+    @ViewBuilder
+    private func priorityBadge(priority: RalphTaskPriority) -> some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(priorityColor(priority))
+                .frame(width: 8, height: 8)
+            Text(priority.displayName)
+                .font(.caption)
+        }
+    }
+
+    @ViewBuilder
+    private func statusBadge(status: RalphTaskStatus) -> some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(statusColor(status))
+                .frame(width: 8, height: 8)
+            Text(status.displayName)
+                .font(.caption)
+        }
+    }
+
+    @ViewBuilder
+    private func tagChips(tags: [String]) -> some View {
+        HStack(spacing: 4) {
+            ForEach(tags, id: \.self) { tag in
+                Text(tag)
+                    .font(.caption2)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(.quaternary.opacity(0.3))
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func configRow(icon: String, label: String, value: String) -> some View {
+        HStack {
+            Image(systemName: icon)
+                .foregroundStyle(.secondary)
+                .frame(width: 20)
+            Text(label)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Text(value)
+                .font(.system(.body, design: .monospaced))
+        }
+    }
+
+    // MARK: - Helper Functions
+
+    private func recordIcon(_ record: Workspace.ExecutionRecord) -> String {
+        if record.wasCancelled {
+            return "xmark.octagon.fill"
+        }
+        return record.success ? "checkmark.circle.fill" : "xmark.circle.fill"
+    }
+
+    private func recordColor(_ record: Workspace.ExecutionRecord) -> Color {
+        if record.wasCancelled {
+            return .orange
+        }
+        return record.success ? .green : .red
+    }
+
+    private func formatDuration(_ duration: TimeInterval) -> String {
+        if duration < 60 {
+            return String(format: "%.0fs", duration)
+        } else {
+            let minutes = Int(duration) / 60
+            let seconds = Int(duration) % 60
+            return String(format: "%d:%02d", minutes, seconds)
+        }
+    }
+
+    private func priorityColor(_ priority: RalphTaskPriority) -> Color {
+        switch priority {
+        case .critical: return .red
+        case .high: return .orange
+        case .medium: return .yellow
+        case .low: return .green
+        }
+    }
+
+    private func statusColor(_ status: RalphTaskStatus) -> Color {
+        switch status {
+        case .draft: return .gray
+        case .todo: return .blue
+        case .doing: return .orange
+        case .done: return .green
+        case .rejected: return .red
+        }
     }
 
     // MARK: - Advanced Runner Content Column

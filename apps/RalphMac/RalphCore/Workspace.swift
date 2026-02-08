@@ -19,7 +19,7 @@
 
 public import Foundation
 public import Combine
-import SwiftUI
+public import SwiftUI
 
 public final class Workspace: ObservableObject, Identifiable, Codable, @unchecked Sendable {
     public let id: UUID
@@ -64,12 +64,175 @@ public final class Workspace: ObservableObject, Identifiable, Codable, @unchecke
     @Published public var graphDataLoading: Bool = false
     @Published public var graphDataErrorMessage: String?
 
+    // MARK: - Execution State (for Run Control Panel)
+
+    /// The ID of the currently running task (if known)
+    @Published public var currentTaskID: String?
+
+    /// Current phase of execution (1=Plan, 2=Implement, 3=Review)
+    @Published public var currentPhase: ExecutionPhase?
+
+    /// When the current execution started (for elapsed time calculation)
+    @Published public var executionStartTime: Date?
+
+    /// Whether loop mode is active (continuously run tasks)
+    @Published public var isLoopMode: Bool = false
+
+    /// Flag to stop after current task completes (graceful stop)
+    @Published public var stopAfterCurrent: Bool = false
+
+    /// History of recent execution runs
+    @Published public var executionHistory: [ExecutionRecord] = []
+
+    /// Current runner configuration (parsed from output or config)
+    @Published public var currentRunnerConfig: RunnerConfig?
+
+    /// Parsed ANSI-colored output segments for rich console display
+    @Published public var attributedOutput: [ANSISegment] = []
+
     public enum TaskSortOption: String, CaseIterable {
         case priority = "Priority"
         case created = "Created"
         case updated = "Updated"
         case status = "Status"
         case title = "Title"
+    }
+
+    // MARK: - Execution Types
+
+    public enum ExecutionPhase: Int, CaseIterable {
+        case plan = 1
+        case implement = 2
+        case review = 3
+
+        public var displayName: String {
+            switch self {
+            case .plan: return "Plan"
+            case .implement: return "Implement"
+            case .review: return "Review"
+            }
+        }
+
+        public var icon: String {
+            switch self {
+            case .plan: return "doc.text.magnifyingglass"
+            case .implement: return "hammer.fill"
+            case .review: return "checkmark.shield.fill"
+            }
+        }
+
+        public var progressFraction: Double {
+            switch self {
+            case .plan: return 0.17      // 1/6
+            case .implement: return 0.5  // 3/6
+            case .review: return 0.83    // 5/6
+            }
+        }
+
+        public var color: SwiftUI.Color {
+            switch self {
+            case .plan: return .blue
+            case .implement: return .orange
+            case .review: return .green
+            }
+        }
+    }
+
+    public struct ExecutionRecord: Identifiable, Codable {
+        public let id: UUID
+        public let taskID: String?
+        public let startTime: Date
+        public let endTime: Date?
+        public let exitCode: Int?
+        public let wasCancelled: Bool
+
+        public init(id: UUID = UUID(), taskID: String?, startTime: Date, endTime: Date?, exitCode: Int?, wasCancelled: Bool) {
+            self.id = id
+            self.taskID = taskID
+            self.startTime = startTime
+            self.endTime = endTime
+            self.exitCode = exitCode
+            self.wasCancelled = wasCancelled
+        }
+
+        public var duration: TimeInterval? {
+            guard let endTime = endTime else { return nil }
+            return endTime.timeIntervalSince(startTime)
+        }
+
+        public var success: Bool {
+            exitCode == 0 && !wasCancelled
+        }
+    }
+
+    public struct RunnerConfig {
+        public let model: String?
+        public let phases: [String]?
+        public let maxIterations: Int?
+
+        public init(model: String? = nil, phases: [String]? = nil, maxIterations: Int? = nil) {
+            self.model = model
+            self.phases = phases
+            self.maxIterations = maxIterations
+        }
+    }
+
+    /// Represents a segment of ANSI-parsed console output
+    public struct ANSISegment: Identifiable {
+        public let id = UUID()
+        public let text: String
+        public let color: ANSIColor
+        public let isBold: Bool
+        public let isItalic: Bool
+
+        public init(text: String, color: ANSIColor = .default, isBold: Bool = false, isItalic: Bool = false) {
+            self.text = text
+            self.color = color
+            self.isBold = isBold
+            self.isItalic = isItalic
+        }
+    }
+
+    public enum ANSIColor {
+        case `default`
+        case black
+        case red
+        case green
+        case yellow
+        case blue
+        case magenta
+        case cyan
+        case white
+        case brightBlack
+        case brightRed
+        case brightGreen
+        case brightYellow
+        case brightBlue
+        case brightMagenta
+        case brightCyan
+        case brightWhite
+
+        public var swiftUIColor: SwiftUI.Color {
+            switch self {
+            case .default: return .primary
+            case .black: return .black
+            case .red: return .red
+            case .green: return .green
+            case .yellow: return .yellow
+            case .blue: return .blue
+            case .magenta: return .purple
+            case .cyan: return .cyan
+            case .white: return .white
+            case .brightBlack: return .gray
+            case .brightRed: return .red.opacity(0.8)
+            case .brightGreen: return .green.opacity(0.8)
+            case .brightYellow: return .yellow.opacity(0.8)
+            case .brightBlue: return .blue.opacity(0.8)
+            case .brightMagenta: return .purple.opacity(0.8)
+            case .brightCyan: return .cyan.opacity(0.8)
+            case .brightWhite: return .white.opacity(0.9)
+            }
+        }
     }
 
     private var client: RalphCLIClient?
@@ -670,9 +833,11 @@ public final class Workspace: ObservableObject, Identifiable, Codable, @unchecke
         guard !isRunning else { return }
 
         output = ""
+        attributedOutput = []
         lastExitStatus = nil
         errorMessage = nil
         isRunning = true
+        executionStartTime = Date()
 
         do {
             let run = try client.start(
@@ -684,24 +849,170 @@ public final class Workspace: ObservableObject, Identifiable, Codable, @unchecke
             Task { @MainActor in
                 for await event in run.events {
                     let prefix: String = (event.stream == .stdout) ? "" : "[stderr] "
-                    output.append(prefix)
-                    output.append(event.text)
+                    let text = prefix + event.text
+                    output.append(text)
+
+                    // Parse phase information from output
+                    detectPhase(from: text)
+
+                    // Parse ANSI codes for rich display
+                    parseANSICodes(from: text)
                 }
 
                 let status = await run.waitUntilExit()
                 lastExitStatus = status
                 isRunning = false
+
+                // Record execution history
+                if let startTime = executionStartTime {
+                    let record = ExecutionRecord(
+                        id: UUID(),
+                        taskID: currentTaskID,
+                        startTime: startTime,
+                        endTime: Date(),
+                        exitCode: Int(status.code),
+                        wasCancelled: false
+                    )
+                    addToHistory(record)
+                }
+
+                // Handle loop mode - run next task if enabled and not stopping
+                if isLoopMode && !stopAfterCurrent && status.code == 0 {
+                    // Small delay before next task
+                    try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+                    if isLoopMode && !stopAfterCurrent {
+                        runNextTask()
+                        return  // Don't reset state, we're continuing
+                    }
+                }
+
+                resetExecutionState()
                 currentRun = nil
             }
         } catch {
             errorMessage = "Failed to start ralph: \(error)"
             isRunning = false
+            resetExecutionState()
             currentRun = nil
         }
     }
 
     public func cancel() {
         currentRun?.cancel()
+
+        // Record cancelled execution
+        if let startTime = executionStartTime {
+            let record = ExecutionRecord(
+                id: UUID(),
+                taskID: currentTaskID,
+                startTime: startTime,
+                endTime: Date(),
+                exitCode: nil,
+                wasCancelled: true
+            )
+            addToHistory(record)
+        }
+
+        isLoopMode = false
+        stopAfterCurrent = false
+        resetExecutionState()
+    }
+
+    // MARK: - Execution Control
+
+    /// Run the next task in the queue (ralph run one)
+    public func runNextTask() {
+        // Reset execution state
+        resetExecutionState()
+
+        // Get the next task before starting
+        if let next = nextTask() {
+            currentTaskID = next.id
+        }
+
+        executionStartTime = Date()
+        run(arguments: ["--no-color", "run", "one"])
+    }
+
+    /// Start loop mode (continuously run tasks)
+    public func startLoop() {
+        isLoopMode = true
+        stopAfterCurrent = false
+        runNextTask()
+    }
+
+    /// Stop loop mode (finish current task then stop)
+    public func stopLoop() {
+        isLoopMode = false
+        stopAfterCurrent = true
+    }
+
+    /// Reset execution state after completion or cancellation
+    private func resetExecutionState() {
+        currentPhase = nil
+        executionStartTime = nil
+        currentTaskID = nil
+        attributedOutput = []
+    }
+
+    /// Add execution record to history (keeps last 50)
+    private func addToHistory(_ record: ExecutionRecord) {
+        executionHistory.insert(record, at: 0)
+        if executionHistory.count > 50 {
+            executionHistory = Array(executionHistory.prefix(50))
+        }
+    }
+
+    /// Parse phase information from CLI output
+    public func detectPhase(from output: String) {
+        // Look for phase indicators in output
+        if output.contains("PHASE 1") || output.contains("Phase 1") || 
+           output.contains("PLANNING") || output.contains("Planning") ||
+           output.contains("# Phase 1") || output.contains("## Phase 1") {
+            currentPhase = .plan
+        } else if output.contains("PHASE 2") || output.contains("Phase 2") || 
+                  output.contains("IMPLEMENTING") || output.contains("Implementing") ||
+                  output.contains("IMPLEMENTATION") || output.contains("# Phase 2") || 
+                  output.contains("## Phase 2") {
+            currentPhase = .implement
+        } else if output.contains("PHASE 3") || output.contains("Phase 3") || 
+                  output.contains("REVIEWING") || output.contains("Reviewing") ||
+                  output.contains("REVIEW") || output.contains("# Phase 3") || 
+                  output.contains("## Phase 3") {
+            currentPhase = .review
+        }
+    }
+
+    /// Parse ANSI codes from raw output and update attributedOutput
+    public func parseANSICodes(from rawOutput: String) {
+        // This is a simplified parser - can be enhanced
+        // Parse common ANSI escape sequences and convert to ANSISegments
+        var segments: [ANSISegment] = []
+
+        // For now, create a single segment with default styling
+        // Full ANSI parsing can be implemented as an enhancement
+        segments.append(ANSISegment(
+            text: rawOutput,
+            color: .default,
+            isBold: false,
+            isItalic: false
+        ))
+
+        // Merge with existing segments if needed, or replace
+        if attributedOutput.isEmpty {
+            attributedOutput = segments
+        } else {
+            // Append text to the last segment
+            let lastIndex = attributedOutput.count - 1
+            let lastSegment = attributedOutput[lastIndex]
+            let mergedText = lastSegment.text + rawOutput
+            attributedOutput[lastIndex] = ANSISegment(
+                text: mergedText,
+                color: lastSegment.color,
+                isBold: lastSegment.isBold,
+                isItalic: lastSegment.isItalic
+            )
+        }
     }
 
     // MARK: - CLI Spec Loading
