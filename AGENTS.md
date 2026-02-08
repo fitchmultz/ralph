@@ -20,9 +20,11 @@ The CI gate runs: `check-env-safety → check-backup-artifacts → deps → form
 ## Project Structure
 
 ```
+apps/
+  RalphMac/           # macOS SwiftUI app (thin client that shells out to the bundled ralph CLI)
 crates/
   ralph/              # Primary Rust CLI crate
-    src/              # CLI commands, runner integration, queue management, TUI
+    src/              # CLI commands, runner integration, queue management
     assets/prompts/   # Embedded prompt templates (worker/task builder/scan)
     tests/            # Integration tests
 docs/                 # CLI + workflow + configuration docs
@@ -44,6 +46,7 @@ scripts/              # Maintenance + release helper scripts
 | Command | Purpose |
 |---------|---------|
 | `make ci` | Local CI gate — **must pass before committing** |
+| `make macos-ci` | macOS-only ship gate (Rust CI + Xcode build + Xcode tests) |
 | `make install` | Install `ralph` to `~/.local/bin/ralph` (or writable fallback) |
 | `make test` | Run workspace unit + doc tests in isolated temp dirs |
 | `make lint` | Run Clippy with `-D warnings` (warnings are errors) |
@@ -210,7 +213,7 @@ When making changes, keep docs in sync:
 - **CI gate**: `make ci` MUST pass before claiming completion, committing, or merging
 - **Source docs**: Every new/changed source file MUST have module docs (see [Coding Standards](#coding-standards))
 - **Test coverage**: All new/changed behavior must be covered (success + failure modes)
-- **Feature parity**: When changing user-visible workflows, maintain parity between CLI and TUI (or document divergence)
+- **Feature parity**: When changing user-visible workflows, maintain parity between the CLI and the macOS app (or document divergence)
 - **CLI help**: User-facing commands/flags MUST have `--help` text with examples (keep `docs/cli.md` in sync)
 - **Secrets**: Never commit or print secrets; redact runner output before copying into `.ralph/queue.json` notes
 

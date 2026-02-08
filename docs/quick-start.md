@@ -58,15 +58,14 @@ ralph init --non-interactive
 
 After initialization, you have several options:
 
-### Launch the Interactive UI
+### macOS: Open the App (SwiftUI)
 
 ```bash
-ralph tui
+ralph app open
 ```
 
-The TUI provides a visual interface for:
+The macOS app provides an interactive UI for:
 - Viewing and managing tasks
-- Running tasks with a single keystroke
 - Editing task fields
 - Creating new tasks
 
@@ -134,9 +133,9 @@ ralph task "Add user authentication feature"
 ralph task "Refactor database layer" --request "Move all database access code into a dedicated module"
 ```
 
-### From the TUI
+### From the App (macOS)
 
-Press `n` in the TUI to create a new task interactively.
+Open the app with `ralph app open` and create tasks from the UI.
 
 ## Configuration
 
@@ -161,12 +160,17 @@ See `docs/configuration.md` for all options.
 ### Daily Development
 
 ```bash
-# Start the TUI
-ralph tui
+# macOS (optional): open the app UI
+ralph app open
 
-# Press Enter to run the next task
-# Press 'l' to toggle loop mode
-# Press 'a' to archive completed tasks
+# Run the next task
+ralph run one
+
+# Or run until all tasks are complete
+ralph run loop
+
+# Archive completed tasks
+ralph queue archive
 ```
 
 ### Adding Tasks from Code Review
@@ -174,10 +178,6 @@ ralph tui
 ```bash
 # Quick task creation
 ralph task "Fix memory leak in parser"
-
-# Or use the TUI for more detail
-ralph tui
-# Press 'n' to add a task
 ```
 
 ### Running Specific Tasks
@@ -185,8 +185,6 @@ ralph tui
 ```bash
 # Run a specific task by ID
 ralph run one --task-id RQ-0005
-
-# Or find it in the TUI and press Enter
 ```
 
 ## Next Steps

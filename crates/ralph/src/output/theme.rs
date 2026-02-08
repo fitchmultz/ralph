@@ -1,53 +1,13 @@
-//! Centralized color theme for Ralph CLI and TUI.
+//! Centralized color theme for Ralph CLI.
 //!
-//! Provides semantic color mappings that work across both CLI (colored crate)
-//! and TUI (ratatui) surfaces. Respects NO_COLOR and --color settings.
+//! Provides semantic color mappings for CLI output (colored crate). Respects NO_COLOR and
+//! `--color` settings via `colored::control`.
 //!
 //! Color Philosophy:
 //! - Use colors semantically (success, error, warning) not decoratively.
 //! - Runner output gets distinct colors for different message types.
 //! - Maintain readability on both light and dark terminal backgrounds.
 //! - Avoid "preschool art class" syndrome - colors should guide, not distract.
-
-use ratatui::style::Color;
-
-/// Semantic color palette for the application.
-///
-/// These constants define the semantic meaning of colors used throughout Ralph.
-/// The actual color values are chosen to work well on both light and dark
-/// terminal backgrounds while maintaining sufficient contrast.
-#[allow(dead_code)]
-pub struct Theme;
-
-impl Theme {
-    // Core semantic colors
-    /// Success messages, completed tasks, positive indicators
-    pub const SUCCESS: Color = Color::Green;
-    /// Error messages, failed tasks, critical issues
-    pub const ERROR: Color = Color::Red;
-    /// Warning messages, in-progress tasks, caution indicators
-    pub const WARNING: Color = Color::Yellow;
-    /// Informational messages, pending tasks
-    pub const INFO: Color = Color::Blue;
-    /// Emphasis, highlights, important labels
-    pub const EMPHASIS: Color = Color::Cyan;
-    /// Secondary text, muted content, draft status
-    pub const MUTED: Color = Color::DarkGray;
-
-    // Runner output colors
-    /// Agent reasoning/thinking blocks - subtle blue that works on both backgrounds
-    pub const REASONING: Color = Color::LightBlue;
-    /// Tool calls - bright cyan for visibility
-    pub const TOOL_CALL: Color = Color::LightCyan;
-    /// Successful tool results
-    pub const TOOL_RESULT_SUCCESS: Color = Color::Green;
-    /// Failed tool results
-    pub const TOOL_RESULT_ERROR: Color = Color::Red;
-    /// Command execution - bright magenta for distinction
-    pub const COMMAND: Color = Color::LightMagenta;
-    /// Supervisor/system messages - bright magenta for visibility
-    pub const SUPERVISOR: Color = Color::LightMagenta;
-}
 
 /// CLI color helpers using the colored crate.
 ///
@@ -258,92 +218,10 @@ pub mod cli {
     }
 }
 
-/// TUI color helpers for ratatui.
-///
-/// These functions provide ratatui Color values for TUI rendering.
-#[allow(dead_code)]
-pub mod tui {
-    use super::Theme;
-    use ratatui::style::Color;
-
-    /// Get the color for success states
-    pub fn success() -> Color {
-        Theme::SUCCESS
-    }
-
-    /// Get the color for error states
-    pub fn error() -> Color {
-        Theme::ERROR
-    }
-
-    /// Get the color for warning states
-    pub fn warning() -> Color {
-        Theme::WARNING
-    }
-
-    /// Get the color for info states
-    pub fn info() -> Color {
-        Theme::INFO
-    }
-
-    /// Get the color for emphasis
-    pub fn emphasis() -> Color {
-        Theme::EMPHASIS
-    }
-
-    /// Get the muted color
-    pub fn muted() -> Color {
-        Theme::MUTED
-    }
-
-    /// Get the color for reasoning blocks
-    pub fn reasoning() -> Color {
-        Theme::REASONING
-    }
-
-    /// Get the color for tool calls
-    pub fn tool_call() -> Color {
-        Theme::TOOL_CALL
-    }
-
-    /// Get the color for successful tool results
-    pub fn tool_result_success() -> Color {
-        Theme::TOOL_RESULT_SUCCESS
-    }
-
-    /// Get the color for failed tool results
-    pub fn tool_result_error() -> Color {
-        Theme::TOOL_RESULT_ERROR
-    }
-
-    /// Get the color for command execution
-    pub fn command() -> Color {
-        Theme::COMMAND
-    }
-
-    /// Get the color for supervisor messages
-    pub fn supervisor() -> Color {
-        Theme::SUPERVISOR
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use colored::Colorize;
-
-    #[test]
-    fn theme_colors_are_defined() {
-        // Just verify the colors are accessible
-        let _ = Theme::SUCCESS;
-        let _ = Theme::ERROR;
-        let _ = Theme::WARNING;
-        let _ = Theme::INFO;
-        let _ = Theme::REASONING;
-        let _ = Theme::TOOL_CALL;
-        let _ = Theme::COMMAND;
-        let _ = Theme::SUPERVISOR;
-    }
 
     #[test]
     fn cli_format_reasoning_includes_prefix() {
@@ -453,17 +331,5 @@ mod tests {
         let formatted = cli::format_permission_denied("bash");
         assert!(formatted.contains("Permission denied"));
         assert!(formatted.contains("bash"));
-    }
-
-    #[test]
-    fn tui_color_helpers_return_colors() {
-        assert_eq!(tui::success(), Color::Green);
-        assert_eq!(tui::error(), Color::Red);
-        assert_eq!(tui::warning(), Color::Yellow);
-        assert_eq!(tui::info(), Color::Blue);
-        assert_eq!(tui::reasoning(), Color::LightBlue);
-        assert_eq!(tui::tool_call(), Color::LightCyan);
-        assert_eq!(tui::command(), Color::LightMagenta);
-        assert_eq!(tui::supervisor(), Color::LightMagenta);
     }
 }

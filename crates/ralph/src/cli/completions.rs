@@ -58,9 +58,9 @@ impl From<Shell> for ClapShell {
 /// the output to the appropriate location for their shell.
 pub fn handle_completions(args: CompletionsArgs) -> Result<()> {
     let mut cmd = crate::cli::Cli::command();
-    let name = cmd.get_name().to_string();
     let shell: ClapShell = args.shell.into();
-    generate(shell, &mut cmd, name, &mut std::io::stdout());
+    let bin_name = cmd.get_name().to_string();
+    generate(shell, &mut cmd, bin_name, &mut std::io::stdout());
     Ok(())
 }
 
@@ -119,13 +119,10 @@ mod tests {
 
     #[test]
     fn handle_completions_generates_non_empty_output() {
-        // Capture stdout by redirecting to a buffer
         let mut output = Vec::new();
-        {
-            let mut cmd = crate::cli::Cli::command();
-            let name = cmd.get_name().to_string();
-            generate(ClapShell::Bash, &mut cmd, name, &mut output);
-        }
+        let mut cmd = crate::cli::Cli::command();
+        let bin_name = cmd.get_name().to_string();
+        generate(ClapShell::Bash, &mut cmd, bin_name, &mut output);
 
         assert!(!output.is_empty(), "completion script should not be empty");
         let output_str = String::from_utf8(output).expect("valid UTF-8");

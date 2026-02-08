@@ -273,7 +273,7 @@ extract_subcommands() {
       continue
     fi
 
-    # Rich TUI format section header (╭─ Commands ───╮)
+    # Rich box-drawing format section header (╭─ Commands ───╮)
     if [[ "$line" =~ ^╭.*[Cc]ommands?.*─*╮ ]]; then
       in_commands_section=1
       continue
@@ -287,7 +287,7 @@ extract_subcommands() {
         in_commands_section=0
         continue
       elif [[ "$line" =~ ^╭.* ]]; then
-        # Any new rich TUI box section ends the commands section
+        # Any new rich box section ends the commands section
         in_commands_section=0
         continue
       fi
@@ -296,7 +296,7 @@ extract_subcommands() {
     if [[ $in_commands_section -eq 1 ]]; then
       local cmd=""
 
-      # Pattern 1: Rich TUI format like "│ login    Description... │"
+      # Pattern 1: Box-drawing format like "│ login    Description... │"
       # Skip header/footer lines
       if [[ "$line" =~ ^[[:space:]]*╭ ]] || [[ "$line" =~ ^[[:space:]]*╰ ]]; then
         continue

@@ -10,7 +10,7 @@
 //!
 //! Assumptions/invariants:
 //! - Callers pass raw user input that may need trimming.
-//! - Errors are surfaced directly to CLI/TUI callers.
+//! - Errors are surfaced directly to CLI/GUI callers.
 
 use anyhow::{Context, Result, bail};
 use std::collections::HashMap;

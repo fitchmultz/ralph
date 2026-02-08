@@ -9,7 +9,7 @@
 //! - Validation of full queue schemas.
 //!
 //! Assumptions/invariants:
-//! - Helper errors are surfaced directly to CLI/TUI consumers.
+//! - Helper errors are surfaced directly to CLI/GUI consumers.
 
 use crate::queue::operations::validate::{
     ensure_task_id, parse_custom_fields_with_context, parse_rfc3339_utc, validate_custom_field_key,

@@ -107,9 +107,9 @@ ralph queue next-id --count 7
 
 ### Execution
 
-- Launch interactive TUI:
-  - `ralph tui`
-  - `ralph tui --read-only`
+- Open the macOS app (macOS-only):
+  - `ralph app open`
+  - `ralph app open --path /Applications/Ralph.app`
 - Run one task:
   - `ralph run one`
   - `ralph run one --phases 3` (full workflow)
@@ -314,7 +314,6 @@ ralph run one --debug
 - `--quick`: Shorthand for `--phases 1` (single-pass execution)
 - `--include-draft`: Include draft tasks (`status: draft`) when selecting what to run
 - `--update-task`: Automatically run `ralph task update` before execution
-- `--visualize`: Show workflow flowchart immediately (TUI mode)
 
 ### Runner Configuration
 - `--runner <codex|opencode|gemini|claude|cursor>`: Override runner

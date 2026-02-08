@@ -2,9 +2,10 @@ RUST_WORKSPACE := .
 PREFIX ?= $(HOME)/.local
 BIN_DIR ?= $(PREFIX)/bin
 BIN_NAME ?= ralph
+CARGO_HTTP_MULTIPLEXING ?= false
 
 .PHONY: install update lint format type-check clean clean-temp test generate build ci deps \
-	check-env-safety check-backup-artifacts
+	check-env-safety check-backup-artifacts macos-build macos-test macos-ci
 
 # Optional but cheap: fail fast if lockfile or network access is busted
 deps:
@@ -23,7 +24,7 @@ install: build
 	"$$bin_dir/$(BIN_NAME)" --help >/dev/null
 
 update:
-	@cargo update
+	@CARGO_HTTP_MULTIPLEXING=$(CARGO_HTTP_MULTIPLEXING) cargo update
 
 format:
 	@echo "→ Formatting code..."
@@ -141,3 +142,47 @@ ci:
 	@echo "═══════════════════════════════════════════════════"
 	@echo "  ✓ CI completed successfully"
 	@echo "═══════════════════════════════════════════════════"
+
+macos-build:
+	@os="$$(uname -s)"; \
+	if [ "$$os" != "Darwin" ]; then \
+		echo "macos-build: macOS-only (uname: $$os)"; \
+		exit 1; \
+	fi; \
+	echo "→ macOS build (Rust release + Xcode build)..."; \
+	$(MAKE) build; \
+	xcodebuild \
+		-project apps/RalphMac/RalphMac.xcodeproj \
+		-scheme RalphMac \
+		-configuration Release \
+		-destination 'platform=macOS' \
+		-derivedDataPath target/tmp/xcode-deriveddata \
+		CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+		build
+
+macos-test:
+	@os="$$(uname -s)"; \
+	if [ "$$os" != "Darwin" ]; then \
+		echo "macos-test: macOS-only (uname: $$os)"; \
+		exit 1; \
+	fi; \
+	echo "→ macOS tests (Xcode)..."; \
+	xcodebuild \
+		-project apps/RalphMac/RalphMac.xcodeproj \
+		-scheme RalphMac \
+		-configuration Debug \
+		-destination 'platform=macOS' \
+		-derivedDataPath target/tmp/xcode-deriveddata \
+		CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+		test
+
+macos-ci:
+	@os="$$(uname -s)"; \
+	if [ "$$os" != "Darwin" ]; then \
+		echo "macos-ci: macOS-only (uname: $$os)"; \
+		exit 1; \
+	fi; \
+	echo "→ macOS ship gate (Rust CI + macOS app build+test)..."; \
+	$(MAKE) ci; \
+	$(MAKE) macos-build; \
+	$(MAKE) macos-test

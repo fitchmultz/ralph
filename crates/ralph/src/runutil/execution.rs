@@ -226,7 +226,7 @@ fn wrap_output_handler_with_capture(
     (capture, Some(handler))
 }
 
-/// Emit an operation marker for TUI display.
+/// Emit an operation marker for UI clients/log viewers.
 fn emit_operation(handler: &Option<runner::OutputHandler>, msg: &str) {
     if let Some(h) = handler.as_ref() {
         (h)(&format!("RALPH_OPERATION: {}\n", msg));
@@ -241,10 +241,18 @@ fn should_retry_with_repo_state(
     git_revert_mode: GitRevertMode,
 ) -> Result<bool> {
     // Check if repo is dirty only in allowed paths
-    let dirty_only_allowed = crate::git::clean::repo_dirty_only_allowed_paths(
+    let dirty_only_allowed = match crate::git::clean::repo_dirty_only_allowed_paths(
         repo_root,
         crate::git::clean::RALPH_RUN_CLEAN_ALLOWED_PATHS,
-    )?;
+    ) {
+        Ok(value) => value,
+        Err(err) => {
+            // Retry is a best-effort UX improvement. If we cannot reliably determine repo
+            // state (e.g. not a git repo), skip retry instead of overriding the runner error.
+            log::warn!("Failed to check repo state for retry; skipping retry: {err}");
+            return Ok(false);
+        }
+    };
 
     if dirty_only_allowed {
         return Ok(true);

@@ -1,4 +1,4 @@
-//! Task edit helpers shared by CLI and TUI.
+//! Task edit helpers shared by CLI and GUI clients.
 //!
 //! Responsibilities:
 //! - Apply edits to a single task and update related timestamps.

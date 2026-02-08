@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- macOS SwiftUI app (`apps/RalphMac/`) that drives Ralph by executing the bundled `ralph` CLI.
+- `ralph app open` (macOS-only) to launch the installed app (bundle id: `com.mitchfultz.ralph`).
+- Hidden GUI/tooling contract: `ralph __cli-spec --format json` (emitted from clap's command model).
+
+### Removed
+
+- Rust terminal UI (`ralph tui`) and interactive `-i/--interactive` entrypoints.
+- TUI-only dependencies (`ratatui`, `crossterm`, and related crates).
+
 ## [0.1.0] - 2026-01-27
 
 ### Added

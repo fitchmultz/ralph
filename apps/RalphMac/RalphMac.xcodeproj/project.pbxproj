@@ -1,0 +1,511 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		48E9CABEFF6345C7A6ABA4F9 /* RalphMacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4BA912C259042DDA03E653F /* RalphMacApp.swift */; };
+		344322D49BEB4BD7B7BF2649 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C61FAEBCF5934677AA7715E5 /* ContentView.swift */; };
+		51F423D7B6694FD1BBF01DDA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B6D1EEC569C94444A00C7A84 /* Assets.xcassets */; };
+		179B8788CE02428A89379BFC /* RalphCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 16591EC6C1744AC5AF4189A4 /* RalphCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		D1594D0AB21045BA9764BCE8 /* RalphCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 16591EC6C1744AC5AF4189A4 /* RalphCore.framework */; };
+		EE9BBA22346A4F6089F70335 /* RalphCLIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31B301E8A7CC431E930E7539 /* RalphCLIClient.swift */; };
+		0F5CF3F1723144EA83490033 /* RalphCLIExecutableLocator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EE8951D88274919856E798A /* RalphCLIExecutableLocator.swift */; };
+		EF9F001157144DB59DB782FF /* RalphModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3014AC133794F7F8AF0E753 /* RalphModels.swift */; };
+		3A50AB4D19664FC7A750A366 /* RalphCLIClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7496516A44544D58A079C2B6 /* RalphCLIClientTests.swift */; };
+		4531CFF0D6FF4741BB54C467 /* RalphModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34FD8AC4252040E88FB002F9 /* RalphModelsTests.swift */; };
+		DA8C4A1F9FDD44F5BCDE5CB9 /* RalphE2ESmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65F63B68A6B84D5195D20137 /* RalphE2ESmokeTests.swift */; };
+		70B7D56D286A4C04AAA8F09B /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5CF4286D31194E8ABD65BF48 /* XCTest.framework */; };
+		12EEF5CB63D2451A8D8BDFCE /* RalphCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 16591EC6C1744AC5AF4189A4 /* RalphCore.framework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		6CED8CCC14D740F9B798C3E1 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 138EF11C500E42C3A51D87DA /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5C9AA60D62CB4EBFBF02ACA1;
+			remoteInfo = RalphCore;
+		};
+		4CEE1CF6B16E4FFB856939B5 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 138EF11C500E42C3A51D87DA /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5C9AA60D62CB4EBFBF02ACA1;
+			remoteInfo = RalphCore;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		8EBDEB3EA80A4DEABC0FC877 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				179B8788CE02428A89379BFC /* RalphCore.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		E4BA912C259042DDA03E653F /* RalphMacApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphMacApp.swift; sourceTree = "<group>"; };
+		C61FAEBCF5934677AA7715E5 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		D54AE04AF32A434C9B785F2F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B6D1EEC569C94444A00C7A84 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		31B301E8A7CC431E930E7539 /* RalphCLIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphCLIClient.swift; sourceTree = "<group>"; };
+		5EE8951D88274919856E798A /* RalphCLIExecutableLocator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphCLIExecutableLocator.swift; sourceTree = "<group>"; };
+		F3014AC133794F7F8AF0E753 /* RalphModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphModels.swift; sourceTree = "<group>"; };
+		7496516A44544D58A079C2B6 /* RalphCLIClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphCLIClientTests.swift; sourceTree = "<group>"; };
+		34FD8AC4252040E88FB002F9 /* RalphModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphModelsTests.swift; sourceTree = "<group>"; };
+		65F63B68A6B84D5195D20137 /* RalphE2ESmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphE2ESmokeTests.swift; sourceTree = "<group>"; };
+		B371E519DA1D4EB09E67EF01 /* RalphMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RalphMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		16591EC6C1744AC5AF4189A4 /* RalphCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = RalphCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		3ABCA66572BF4FE381DD0476 /* RalphCoreTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RalphCoreTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		5CF4286D31194E8ABD65BF48 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = System/Library/Frameworks/XCTest.framework; sourceTree = SDKROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		0BA70083EF404A3A97703616 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D1594D0AB21045BA9764BCE8 /* RalphCore.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA0EAF6CA14742A9B622F7AE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		2C7AD610594F438088529A64 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				70B7D56D286A4C04AAA8F09B /* XCTest.framework in Frameworks */,
+				12EEF5CB63D2451A8D8BDFCE /* RalphCore.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		BD58D63541DE49C5B26FA533 = {
+			isa = PBXGroup;
+			children = (
+				BD789869732744B880AE31D4 /* RalphMac */,
+				37CDBC33081942368A3B78AC /* RalphCore */,
+				7A3A0175AD6F45B3B27E6283 /* RalphCoreTests */,
+				2E41E8A437924074BBD351E1 /* Frameworks */,
+				B332EF4AA9D545C698B8C719 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		BD789869732744B880AE31D4 /* RalphMac */ = {
+			isa = PBXGroup;
+			children = (
+				E4BA912C259042DDA03E653F /* RalphMacApp.swift */,
+				C61FAEBCF5934677AA7715E5 /* ContentView.swift */,
+				D54AE04AF32A434C9B785F2F /* Info.plist */,
+				B6D1EEC569C94444A00C7A84 /* Assets.xcassets */,
+			);
+			path = RalphMac;
+			sourceTree = "<group>";
+		};
+		37CDBC33081942368A3B78AC /* RalphCore */ = {
+			isa = PBXGroup;
+			children = (
+				31B301E8A7CC431E930E7539 /* RalphCLIClient.swift */,
+				5EE8951D88274919856E798A /* RalphCLIExecutableLocator.swift */,
+				F3014AC133794F7F8AF0E753 /* RalphModels.swift */,
+			);
+			path = RalphCore;
+			sourceTree = "<group>";
+		};
+		7A3A0175AD6F45B3B27E6283 /* RalphCoreTests */ = {
+			isa = PBXGroup;
+			children = (
+				7496516A44544D58A079C2B6 /* RalphCLIClientTests.swift */,
+				34FD8AC4252040E88FB002F9 /* RalphModelsTests.swift */,
+				65F63B68A6B84D5195D20137 /* RalphE2ESmokeTests.swift */,
+			);
+			path = RalphCoreTests;
+			sourceTree = "<group>";
+		};
+		2E41E8A437924074BBD351E1 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				5CF4286D31194E8ABD65BF48 /* XCTest.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		B332EF4AA9D545C698B8C719 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				B371E519DA1D4EB09E67EF01 /* RalphMac.app */,
+				16591EC6C1744AC5AF4189A4 /* RalphCore.framework */,
+				3ABCA66572BF4FE381DD0476 /* RalphCoreTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		E19EB015790F40D39E28D0AC /* RalphMac */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 845DDA1F27474E578909C688 /* Build configuration list for PBXNativeTarget "RalphMac" */;
+			buildPhases = (
+				B97C0E5F296C4FF09CDD0457 /* Sources */,
+				6684C2A63A9C4B44B5154781 /* Resources */,
+				0BA70083EF404A3A97703616 /* Frameworks */,
+				8EBDEB3EA80A4DEABC0FC877 /* Embed Frameworks */,
+				32D95DBB511E4ABDA6EFD0C2 /* Build and Bundle ralph */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				43B48ADB303044EA9D3131AE /* PBXTargetDependency */,
+			);
+			name = RalphMac;
+			productName = RalphMac;
+			productReference = B371E519DA1D4EB09E67EF01 /* RalphMac.app */;
+			productType = "com.apple.product-type.application";
+		};
+		5C9AA60D62CB4EBFBF02ACA1 /* RalphCore */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0EC72EEB3CC34A26BFA5DA5F /* Build configuration list for PBXNativeTarget "RalphCore" */;
+			buildPhases = (
+				5160DFD9B63E4D5387E9DA40 /* Sources */,
+				AA0EAF6CA14742A9B622F7AE /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = RalphCore;
+			productName = RalphCore;
+			productReference = 16591EC6C1744AC5AF4189A4 /* RalphCore.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		4818E090529D4C259376427E /* RalphCoreTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E875A2468A45481EB4CA9C6C /* Build configuration list for PBXNativeTarget "RalphCoreTests" */;
+			buildPhases = (
+				A214139BF6414CC7840DEBA4 /* Sources */,
+				2C7AD610594F438088529A64 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				1122AC7ED364425A881396F5 /* PBXTargetDependency */,
+			);
+			name = RalphCoreTests;
+			productName = RalphCoreTests;
+			productReference = 3ABCA66572BF4FE381DD0476 /* RalphCoreTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		138EF11C500E42C3A51D87DA /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 9999;
+				LastUpgradeCheck = 9999;
+				TargetAttributes = {
+					E19EB015790F40D39E28D0AC = {
+						CreatedOnToolsVersion = 26.2;
+					};
+					5C9AA60D62CB4EBFBF02ACA1 = {
+						CreatedOnToolsVersion = 26.2;
+					};
+					4818E090529D4C259376427E = {
+						CreatedOnToolsVersion = 26.2;
+					};
+				};
+			};
+			buildConfigurationList = A883C2477988484FB6FF7CE8 /* Build configuration list for PBXProject "RalphMac" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = BD58D63541DE49C5B26FA533;
+			productRefGroup = B332EF4AA9D545C698B8C719 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E19EB015790F40D39E28D0AC /* RalphMac */,
+				5C9AA60D62CB4EBFBF02ACA1 /* RalphCore */,
+				4818E090529D4C259376427E /* RalphCoreTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		6684C2A63A9C4B44B5154781 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				51F423D7B6694FD1BBF01DDA /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		32D95DBB511E4ABDA6EFD0C2 /* Build and Bundle ralph */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Build and Bundle ralph";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+					shellScript = "set -euo pipefail\n\n# Bundle the Rust `ralph` CLI alongside the app executable so the GUI can invoke\n# a stable, in-bundle `ralph` without relying on PATH.\n#\n# This script *prefers* an already-built binary (fast, avoids rebuilding Ralph\n# during Xcode test runs). If missing, it attempts a Cargo build.\n\nROOT_DIR=\"${SRCROOT}/../..\"\nCONFIG=\"${CONFIGURATION}\"\ncd \"${ROOT_DIR}\"\n\nif [ \"${CONFIG}\" = \"Release\" ]; then\n  BIN_PATH=\"${ROOT_DIR}/target/release/ralph\"\n  BUILD_ARGS=\"build -p ralph --release\"\nelse\n  BIN_PATH=\"${ROOT_DIR}/target/debug/ralph\"\n  BUILD_ARGS=\"build -p ralph\"\nfi\n\nif [ ! -x \"${BIN_PATH}\" ]; then\n  echo \"ralph binary not found at ${BIN_PATH}; building via cargo...\" >&2\n  cargo ${BUILD_ARGS}\nfi\n\nif [ ! -x \"${BIN_PATH}\" ]; then\n  echo \"ralph binary still missing after build: ${BIN_PATH}\" >&2\n  exit 1\nfi\n\nDEST_DIR=\"${BUILT_PRODUCTS_DIR}/${EXECUTABLE_FOLDER_PATH}\"\nmkdir -p \"${DEST_DIR}\"\ncp -f \"${BIN_PATH}\" \"${DEST_DIR}/ralph\"\nchmod +x \"${DEST_DIR}/ralph\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		B97C0E5F296C4FF09CDD0457 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				48E9CABEFF6345C7A6ABA4F9 /* RalphMacApp.swift in Sources */,
+				344322D49BEB4BD7B7BF2649 /* ContentView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5160DFD9B63E4D5387E9DA40 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EE9BBA22346A4F6089F70335 /* RalphCLIClient.swift in Sources */,
+				0F5CF3F1723144EA83490033 /* RalphCLIExecutableLocator.swift in Sources */,
+				EF9F001157144DB59DB782FF /* RalphModels.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A214139BF6414CC7840DEBA4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3A50AB4D19664FC7A750A366 /* RalphCLIClientTests.swift in Sources */,
+				4531CFF0D6FF4741BB54C467 /* RalphModelsTests.swift in Sources */,
+				DA8C4A1F9FDD44F5BCDE5CB9 /* RalphE2ESmokeTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		43B48ADB303044EA9D3131AE /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5C9AA60D62CB4EBFBF02ACA1 /* RalphCore */;
+			targetProxy = 6CED8CCC14D740F9B798C3E1 /* PBXContainerItemProxy */;
+		};
+		1122AC7ED364425A881396F5 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5C9AA60D62CB4EBFBF02ACA1 /* RalphCore */;
+			targetProxy = 4CEE1CF6B16E4FFB856939B5 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		EF34D3AE55844BFBB05334F3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGNING_REQUIRED = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		48E5CD39346F46D2BEE761EE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGNING_REQUIRED = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		CFDD27DC0C014C6C9DF2D6A2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGNING_REQUIRED = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = NO;
+				INFOPLIST_FILE = RalphMac/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mitchfultz.ralph;
+				PRODUCT_NAME = RalphMac;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		9F479C73F5074F3AB3359247 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGNING_REQUIRED = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = NO;
+				INFOPLIST_FILE = RalphMac/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mitchfultz.ralph;
+				PRODUCT_NAME = RalphMac;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		FAF03663E4D5405984087A13 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGNING_REQUIRED = NO;
+				DEFINES_MODULE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mitchfultz.ralph.core;
+				PRODUCT_NAME = RalphCore;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		80A365D7DD024948A0806963 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGNING_REQUIRED = NO;
+				DEFINES_MODULE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mitchfultz.ralph.core;
+				PRODUCT_NAME = RalphCore;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		4C9BEF10EB2A41DF8CB316A6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "";
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGNING_REQUIRED = NO;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mitchfultz.ralph.coretests;
+				PRODUCT_NAME = RalphCoreTests;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		EB912F7622194A36AF87AB62 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "";
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGNING_REQUIRED = NO;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mitchfultz.ralph.coretests;
+				PRODUCT_NAME = RalphCoreTests;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A883C2477988484FB6FF7CE8 /* Build configuration list for PBXProject "RalphMac" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EF34D3AE55844BFBB05334F3 /* Debug */,
+				48E5CD39346F46D2BEE761EE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		845DDA1F27474E578909C688 /* Build configuration list for PBXNativeTarget "RalphMac" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CFDD27DC0C014C6C9DF2D6A2 /* Debug */,
+				9F479C73F5074F3AB3359247 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		0EC72EEB3CC34A26BFA5DA5F /* Build configuration list for PBXNativeTarget "RalphCore" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FAF03663E4D5405984087A13 /* Debug */,
+				80A365D7DD024948A0806963 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		E875A2468A45481EB4CA9C6C /* Build configuration list for PBXNativeTarget "RalphCoreTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4C9BEF10EB2A41DF8CB316A6 /* Debug */,
+				EB912F7622194A36AF87AB62 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 138EF11C500E42C3A51D87DA /* Project object */;
+}

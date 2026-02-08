@@ -296,18 +296,17 @@ ralph queue graph --task RQ-0001 --reverse
 ralph queue graph --critical
 ```
 
-### TUI Dependency Overlay
+### macOS App
 
-In the TUI, press `v` to open the dependency graph overlay for the selected task:
+On macOS, you can explore dependencies interactively in the Ralph app:
 
-- Shows upstream dependencies (what this task depends on) by default
-- Press `t` or `Tab` to toggle to downstream view (what this task blocks)
-- Press `c` to toggle critical path highlighting
-- Press `d`, `v`, `Esc`, or `q` to close the overlay
+```bash
+ralph app open
+```
 
 ### Critical Path
 
-The critical path is the longest dependency chain in the graph. Tasks on the critical path are highlighted with `*` in tree/list output and in red in the TUI overlay. Completing critical path tasks unblocks the most downstream work.
+The critical path is the longest dependency chain in the graph. Tasks on the critical path are highlighted with `*` in tree/list output. Completing critical path tasks unblocks the most downstream work.
 - `ralph task` inserts new tasks near the top of the queue:
   - Default: insert at position 0 (top).
   - If the first task is already `doing`, insert at position 1 (immediately below the in-progress task).

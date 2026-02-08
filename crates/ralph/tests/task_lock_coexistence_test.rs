@@ -199,8 +199,9 @@ fn concurrent_task_locks_release_independently() {
     std::fs::create_dir_all(&ralph_dir).expect("create .ralph dir");
     let lock_dir = lock::queue_lock_dir(repo_root);
 
-    // First, acquire a "supervising" lock
-    let supervisor_lock = lock::acquire_dir_lock(&lock_dir, "tui", false).expect("supervisor lock");
+    // First, acquire a supervising lock.
+    let supervisor_lock =
+        lock::acquire_dir_lock(&lock_dir, "run loop", false).expect("supervisor lock");
     assert!(lock_dir.exists());
 
     // Acquire multiple task locks

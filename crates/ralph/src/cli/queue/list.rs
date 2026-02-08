@@ -10,7 +10,7 @@
 //! - Task creation, modification, or deletion (see other queue subcommands).
 //! - Content-based search (see `search.rs`).
 //! - Complex reporting or aggregation (see `reports` module).
-//! - Real-time progress tracking (see TUI app).
+//! - Real-time progress tracking (handled by external UI clients).
 //!
 //! Invariants/assumptions:
 //! - Queue files are loaded and validated before filtering.

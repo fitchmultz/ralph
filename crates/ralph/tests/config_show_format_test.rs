@@ -25,7 +25,6 @@ const EXPECTED_TOP_LEVEL_KEYS: &[&str] = &[
     "queue",
     "agent",
     "parallel",
-    "tui",
     "plugins",
 ];
 

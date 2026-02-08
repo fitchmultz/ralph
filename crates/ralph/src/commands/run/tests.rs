@@ -209,11 +209,6 @@ fn resolved_with_repo_root(repo_root: PathBuf) -> crate::config::Resolved {
             auto_archive_terminal_after_days: None,
             aging_thresholds: None,
         },
-        tui: crate::contracts::TuiConfig {
-            auto_archive_terminal: None,
-            celebrations_enabled: Some(false),
-            stats_enabled: Some(false),
-        },
         ..Config::default()
     };
 
@@ -311,7 +306,7 @@ fn run_one_with_id_locked_skips_reacquiring_queue_lock() -> anyhow::Result<()> {
 
     let query_err = err
         .downcast_ref::<crate::queue::operations::QueueQueryError>()
-        .expect("expected QueueQueryError");
+        .unwrap_or_else(|| panic!("expected QueueQueryError, got: {err:#}"));
 
     assert!(
         matches!(

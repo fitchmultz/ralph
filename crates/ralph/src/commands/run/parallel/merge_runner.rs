@@ -508,18 +508,13 @@ fn apply_completion_and_collect_bytes(
         task_title_from_queue_done_paths(&workspace_queue_path, &workspace_done_path, task_id)?
             .unwrap_or_else(|| "Parallel completion".to_string());
 
-    let stats_enabled = resolved.config.tui.stats_enabled.unwrap_or(true);
-    if stats_enabled {
-        let cache_dir = workspace_resolved.repo_root.join(".ralph").join("cache");
-        if let Err(err) =
-            productivity::record_task_completion_by_id(task_id, &task_title, &cache_dir)
-        {
-            log::debug!(
-                "Failed to record productivity for {} in base-sync workspace: {}",
-                task_id,
-                err
-            );
-        }
+    let cache_dir = workspace_resolved.repo_root.join(".ralph").join("cache");
+    if let Err(err) = productivity::record_task_completion_by_id(task_id, &task_title, &cache_dir) {
+        log::debug!(
+            "Failed to record productivity for {} in base-sync workspace: {}",
+            task_id,
+            err
+        );
     }
 
     let status = git::status_porcelain(&base_sync_path)?;

@@ -60,7 +60,7 @@ ralph --no-sanity-checks run loop
 * `ralph context <subcommand>`: manage project context (AGENTS.md) for AI agents.
 * `ralph queue <subcommand>`: inspect, search, validate, and maintain `.ralph/queue.json` + `.ralph/done.json`.
 * `ralph run <subcommand>`: run tasks via a runner (codex/opencode/gemini/claude/cursor/kimi/pi).
-* `ralph tui`: launch the interactive UI (queue + execution + loop).
+* `ralph app <subcommand>`: macOS app integration (open the SwiftUI app).
 * `ralph prompt <subcommand>`: render compiled prompts for inspection.
 * `ralph task`: create a task from a request.
 * `ralph prd <subcommand>`: convert PRD (Product Requirements Document) markdown to tasks.
@@ -133,7 +133,7 @@ Once installed, completions work automatically:
 ```bash
 # Type 'ralph ' then press Tab to see subcommands
 ralph <TAB>
-# queue   run   task   scan   tui   ...
+# queue   run   task   scan   app   ...
 
 # Type 'ralph queue ' then press Tab to see queue subcommands
 ralph queue <TAB>
@@ -700,164 +700,27 @@ fi
 ralph doctor --format json | jq '.checks[] | select(.severity == "Error")'
 ```
 
-## `ralph tui`
+## `ralph app`
 
-Launch the interactive TUI. This is the primary user-facing entry point.
+Open the Ralph macOS app (SwiftUI) for interactive queue work.
 
-Behavior:
+Note: This command is macOS-only. On other platforms, use the CLI (`ralph queue ...`, `ralph run ...`).
 
-* Execution is enabled by default (press Enter to run selected task).
-* Use `--read-only` to disable execution.
-* Loop mode is available inside the TUI (press `l` to toggle).
-* Archive done/rejected tasks inside the TUI (press `a`, then confirm).
-* Use `:` to open the command palette for discoverability.
-* The footer shows status messages and errors as actions run.
+### Subcommands
 
-Keybindings (task list unless noted otherwise):
-
-* Help overlay: `?` or `h` opens help, `Esc` (or `?`/`h`) closes.
-* Navigation
-  * `Up`/`Down` or `j`/`k`: move selection
-  * `Enter`: run selected task
-* Actions
-  * `l`: toggle loop mode
-  * `a`: archive done/rejected tasks (confirmation)
-  * `d`: delete selected task (confirmation)
-  * `e`: edit task fields
-  * `n`: create a new task
-  * `c`: edit project config
-  * `g`: scan repository
-  * `r`: reload queue from disk
-  * `q` (or `Esc` from the task list): quit (prompts if a task is running)
-* Filters & Search
-  * `/`: search tasks
-  * `t`: filter by tags
-  * `f`: cycle status filter
-  * `x`: clear filters
-* Quick Changes
-  * `s`: cycle task status
-  * `p`: cycle priority
-* Command Palette
-  * `:`: open palette (type to filter, `Enter` to run, `Esc` to cancel)
-* Execution View
-  * `Esc`: return to task list
-  * `Up`/`Down` or `j`/`k`: scroll logs
-  * `PgUp`/`PgDn`: page logs
-  * `a`: toggle auto-scroll
-  * `l`: stop loop mode
-  * `p`: toggle progress panel visibility
-  * `f`: toggle flowchart overlay
-
-### TUI Execution View Flowchart Overlay
-
-When running a task in the TUI, press `f` to open the workflow flowchart overlay. This provides a visual representation of the current position in the 3-phase workflow:
-
-* **Phase visualization**: Shows the workflow topology with connected phase nodes
-  * `>` (yellow): Currently active phase
-  * `+` (green): Completed phase
-  * `o` (gray): Pending phase
-* **Phase descriptions**: Brief explanation of what each phase does
-* **Phase timing**: Elapsed time per phase (if started)
-
-The flowchart adapts to the configured workflow:
-* **1-phase**: Shows "Single Phase" (Execute task)
-* **2-phase**: Shows Planning → Implementation
-* **3-phase** (default): Shows Planning → Implementation → Review
-
-Press `f`, `Esc`, `h`, or `?` to close the flowchart overlay.
-
-Use `--visualize` flag with `ralph run one -i` or `ralph run loop -i` to show the flowchart immediately on TUI start:
-
-```bash
-ralph run one -i --visualize
-ralph run loop -i --visualize
-```
-
-### TUI Execution View Progress Panel
-
-When running a task in the TUI, the execution view displays a progress panel showing:
-
-* **Phase indicators**: Visual indicators for each phase (Planning → Implementation → Review)
-  * `▶` (yellow): Currently active phase
-  * `✓` (green): Completed phase
-  * `○` (gray): Pending phase
-* **Phase timing**: Elapsed time per phase in MM:SS format
-* **Total execution time**: Overall duration since task start
-
-The progress panel automatically appears when a task starts and adapts to the configured workflow:
-* **1-phase**: Shows "Single Phase" indicator
-* **2-phase**: Shows Planning → Implementation
-* **3-phase** (default): Shows Planning → Implementation → Review
-
-Press `p` in the execution view to toggle the progress panel visibility. This is useful when you need more screen space for log output.
-
-Phase transitions are detected automatically from runner output (e.g., "# IMPLEMENTATION MODE" header).
+* `open`: Open the app for the current repository.
 
 Examples:
 
 ```bash
-ralph tui
-ralph tui --read-only
-ralph tui --runner codex --model gpt-5.3-codex --effort high
+ralph app open
 ```
-
-### Terminal Compatibility
-
-The TUI automatically detects terminal capabilities and adjusts rendering accordingly:
-
-* **Color support**: Auto-detected from `TERM`, `COLORTERM`, and `TERM_PROGRAM` environment variables. Supports truecolor, 256-color, 16-color, and monochrome modes.
-* **Mouse support**: Enabled by default on terminals that support it. Use `--no-mouse` to disable mouse capture for terminals with broken mouse support.
-* **Unicode support**: Uses Unicode box-drawing characters by default. Use `--ascii-borders` for ASCII-only terminals.
-
-Terminal compatibility flags:
-
-* `--no-mouse`: Disable mouse capture (useful for terminals with broken mouse support or when running over SSH).
-* `--color <auto|always|never>`: Control color output. `auto` detects terminal capabilities (default), `always` forces colors, `never` disables colors. Also respects the `NO_COLOR` environment variable.
-* `--ascii-borders`: Use ASCII characters (`+`, `-`, `|`) for borders instead of Unicode box-drawing characters.
-
-Examples:
-
-```bash
-# Disable mouse capture
-ralph tui --no-mouse
-
-# Force colors even in pipes or non-TTY environments
-ralph tui --color always
-
-# Disable colors entirely
-ralph tui --color never
-
-# Use ASCII borders for older terminals
-ralph tui --ascii-borders
-
-# Combine options for maximum compatibility
-ralph tui --no-mouse --color never --ascii-borders
-```
-
-### Tested Terminals
-
-The TUI has been tested on the following terminal applications:
-
-| Terminal | Color | Mouse | Unicode | Notes |
-|----------|-------|-------|---------|-------|
-| iTerm2 (macOS) | Full | Yes | Yes | Primary development target |
-| Terminal.app (macOS) | Full | Yes | Yes | Default macOS terminal |
-| Windows Terminal | Full | Yes | Yes | Modern Windows terminal |
-| GNOME Terminal | Full | Yes | Yes | Common Linux terminal |
-| Konsole | Full | Yes | Yes | KDE terminal |
-| Alacritty | Full | Yes | Yes | GPU-accelerated terminal |
-| WezTerm | Full | Yes | Yes | Modern terminal emulator |
-| tmux | Full | Yes | Yes | Terminal multiplexer |
-| screen | 16-color | Basic | Yes | Legacy multiplexer |
-| VS Code terminal | Full | Yes | Yes | Embedded terminal |
-
-If you encounter issues with a specific terminal, try the compatibility flags above.
 
 ## `ralph run`
 
 ### Subcommands
 
-* `one`: run exactly one task (optionally by ID or via interactive TUI).
+* `one`: run exactly one task (optionally by ID).
 * `loop`: run tasks until none remain (or `--max-tasks` reached).
 
 Run iterations are controlled by config and task settings:
@@ -873,15 +736,6 @@ Use `--phases <1|2|3>` (or `agent.phases` in config) to control execution shape:
 - `3`: plan -> implement+CI -> review+complete.
 
 Use `--quick` as a shorthand for `--phases 1` to skip the planning phase and run single-pass execution immediately.
-
-### Interactive flags
-
-* `ralph run one -i` launches the same TUI as `ralph tui`.
-* `ralph run loop -i` launches the same TUI and auto-starts loop mode.
-
-### Workflow visualization
-
-* `--visualize`: Show the workflow flowchart overlay immediately on TUI start (interactive mode only). Useful for understanding the current position in the 3-phase workflow before execution begins.
 
 ### Draft tasks
 
@@ -955,7 +809,6 @@ Flags:
 * `--dry-run`: Enable dry-run mode (selection-only introspection).
 
 Constraints:
-- Conflicts with `--interactive` (TUI mode)
 - Conflicts with `--parallel-worker` and `--parallel`
 
 Examples:
@@ -995,7 +848,6 @@ Flags:
 
 Constraints:
 - Conflicts with `--parallel` (parallel mode does not support wait mode)
-- Conflicts with `--interactive` (TUI mode)
 - Only applies to sequential run loop mode
 
 Examples:
@@ -1035,7 +887,6 @@ Flags:
 
 Constraints:
 - Conflicts with `--parallel` (parallel mode does not support continuous mode)
-- Conflicts with `--interactive` (TUI mode)
 - Only applies to sequential run loop mode
 
 Examples:
@@ -1057,11 +908,10 @@ ralph run loop --continuous --wait-when-blocked
 ### Parallel loop (CLI-only)
 
 `--parallel [N]` runs multiple tasks concurrently in separate isolated git workspace clones. The default is `2`
-when `--parallel` is provided without a value. This mode is CLI-only and conflicts with
-interactive/TUI workflows.
+when `--parallel` is provided without a value. This mode is CLI-only.
 
 Notes:
-- `--parallel` conflicts with `--interactive`, `--wait-when-blocked`, and ignores `--resume`.
+- `--parallel` conflicts with `--wait-when-blocked` and ignores `--resume`.
 - Each task runs in its own isolated git workspace clone and branch; PRs are created/merged automatically when enabled.
 - Queue and done files are coordinator-only in parallel mode; worker branches do not modify `.ralph/queue.json` or `.ralph/done.json`.
 - Workers commit per-task completion signals in `.ralph/cache/completions/<TASK_ID>.json`.
@@ -1152,11 +1002,6 @@ ralph run one --phases 3 \
               --runner-phase3 codex --model-phase3 gpt-5.2-codex --effort-phase3 high
 ```
 
-**TUI Limitation**: The TUI task builder (press `N` in the TUI) only supports global
-runner/model/effort overrides, not per-phase overrides. To use phase-specific overrides,
-either configure them in `.ralph/config.json` under `agent.phase_overrides`, or use the
-CLI `ralph run` commands with the phase-specific flags above.
-
 Examples:
 
 ```bash
@@ -1169,8 +1014,6 @@ ralph run one --phases 2
 ralph run one --phases 1
 ralph run one --quick
 ralph run one --include-draft
-ralph run one -i
-ralph run one -i --visualize
 ralph run one --update-task
 ralph run loop --max-tasks 0
 ralph run loop --profile quick --max-tasks 5
@@ -1183,8 +1026,6 @@ ralph run loop --repo-prompt tools --max-tasks 1
 ralph run loop --repo-prompt off --max-tasks 1
 ralph run loop --parallel --max-tasks 4
 ralph run loop --parallel 4 --max-tasks 8
-ralph run loop -i --max-tasks 3
-ralph run loop -i --visualize --max-tasks 1
 ralph run loop --max-tasks 1 --debug
 ralph run one --git-commit-push-off
 ralph run one --approval-mode yolo --sandbox disabled
@@ -1477,7 +1318,7 @@ Move terminal tasks (done/rejected) from `.ralph/queue.json` to `.ralph/done.jso
 ralph queue archive
 ```
 
-**Note:** This command archives immediately. To enable automatic archiving based on task age, configure `queue.auto_archive_terminal_after_days` in your config. When set, the sweep runs during TUI startup/reload and after CLI task edits:
+**Note:** This command archives immediately. To enable automatic archiving based on task age, configure `queue.auto_archive_terminal_after_days` in your config. When set, the sweep runs during macOS app startup/reload and after CLI task edits:
 
 - `null` (default): No automatic sweep
 - `0`: Archive all terminal tasks immediately when sweep runs
@@ -1775,7 +1616,7 @@ ralph queue export --format md --status done --created-after 2026-01-27
 
 Publish (create or update) a single Ralph task as a GitHub Issue using the `gh` CLI. The created/updated issue URL is persisted in the task's `custom_fields` for future reference and re-sync.
 
-**Note**: This is a CLI-only command; there is no TUI workflow for issue publish.
+**Note**: This is a CLI-only command; there is no macOS app workflow for issue publish.
 
 Prerequisites:
 * GitHub CLI (`gh`) must be installed and authenticated (`gh auth login`)
@@ -1827,7 +1668,7 @@ These fields are compatible with the existing `custom_fields` schema and survive
 
 Import tasks from CSV, TSV, or JSON into the active queue. This complements `ralph queue export` and enables bulk backlog seeding, cross-repo task migration, and automation without hand-editing JSON.
 
-**Note**: This is a CLI-only command; there is no TUI workflow for import.
+**Note**: This is a CLI-only command; there is no macOS app workflow for import.
 
 Flags:
 
@@ -2245,8 +2086,6 @@ ralph task batch field priority high --tag-filter urgent
 ralph task batch edit tags "reviewed" --tag-filter rust
 ralph task batch --dry-run status done --tag-filter ready
 ```
-
-**TUI Parity**: The TUI also supports building tasks with agent overrides. Press `N` in the TUI, enter a description, then configure optional overrides (runner, model, effort, tags, scope, repo-prompt mode) before building. See `docs/tui-task-management.md` for details.
 
 ### ralph task show
 
@@ -3187,7 +3026,7 @@ Watch-created tasks follow this lifecycle:
 1. **Detection**: File change triggers comment scanning
 2. **Deduplication**: Fingerprint check prevents duplicate tasks
 3. **Creation**: Task added to queue with `watch` tag and metadata
-4. **Execution**: Task worked on normally via `ralph run` or TUI
+4. **Execution**: Task worked on normally via `ralph run` or the macOS app
 5. **Reconciliation** (with `--close-removed`): If comment is deleted, task auto-completes
 
 ### Notes
@@ -3200,7 +3039,7 @@ Watch-created tasks follow this lifecycle:
 
 ## Runner and Model Overrides
 
-These flags are supported on `task`, `scan`, `run one`, `run loop`, and `tui`:
+These flags are supported on `task`, `scan`, `run one`, and `run loop`:
 
 * `--runner <codex|opencode|gemini|claude|cursor|kimi|pi>`
 * `--model <model-id>`
@@ -3223,7 +3062,6 @@ Claude permission precedence:
 Examples:
 
 ```bash
-ralph tui --runner claude --model opus
 ralph run one --runner codex --model gpt-5.3-codex --effort high
 ```
 
@@ -3232,8 +3070,8 @@ ralph run one --runner codex --model gpt-5.3-codex --effort high
 The `run one` and `run loop` commands also support:
 
 * `--include-draft`: Include draft tasks (`status: draft`) when selecting what to run.
-* `--non-interactive`: Skip interactive prompts for sanity checks and session recovery (conflicts with `--interactive`). Useful for CI environments where TTY is not available.
-* `--parallel [N]` (run loop only): Run tasks concurrently in isolated git workspace clones. Defaults to `2` when provided without a value. Conflicts with `--interactive` and is CLI-only (not supported in the TUI). Parallel workers do not modify `.ralph/queue.json` or `.ralph/done.json`; they commit completion signals in `.ralph/cache/completions/<TASK_ID>.json`, and the coordinator applies them after merge (errors if missing). Parallel workers force RepoPrompt mode to `off` to keep edits inside workspace clones. Parallel workers honor `--git-commit-push-on/off` and `agent.git_commit_push_enabled`; when commit/push is disabled, parallel PR automation is skipped.
+* `--non-interactive`: Skip interactive prompts for sanity checks and session recovery. Useful for CI environments where TTY is not available.
+* `--parallel [N]` (run loop only): Run tasks concurrently in isolated git workspace clones. Defaults to `2` when provided without a value. Parallel workers do not modify `.ralph/queue.json` or `.ralph/done.json`; they commit completion signals in `.ralph/cache/completions/<TASK_ID>.json`, and the coordinator applies them after merge (errors if missing). Parallel workers force RepoPrompt mode to `off` to keep edits inside workspace clones. Parallel workers honor `--git-commit-push-on/off` and `agent.git_commit_push_enabled`; when commit/push is disabled, parallel PR automation is skipped.
 * `--update-task`: Automatically run `ralph task update <TASK_ID>` once per task immediately before the supervisor marks the task as `doing` and starts execution. This updates task fields (scope, evidence, plan, notes, tags, depends_on) based on current repository state, priming agents with better task information. Runs only once per task, before the first iteration (not before subsequent iterations if `iterations > 1`). Can also be enabled via config: `agent.update_task_before_run: true`.
 * `--no-update-task`: Disable automatic pre-run task update for this invocation (overrides config).
 * `--notify`: Enable desktop notification on task completion (overrides config).
@@ -3438,7 +3276,7 @@ For the full, authoritative list of flags and examples, run:
 
 ```bash
 ralph --help
-ralph tui --help
+ralph app --help
 ralph queue --help
 ralph run --help
 ralph plugin --help

@@ -118,7 +118,7 @@ When `git_commit_push_enabled` is true and a task completes successfully:
 }
 ```
 
-**Safety Warning**: When enabled, Ralph automatically pushes changes to the remote repository. This action is irreversible. The TUI prompts for confirmation when enabling this setting.
+**Safety Warning**: When enabled, Ralph automatically pushes changes to the remote repository. This action is irreversible. Ralph prompts for confirmation when enabling this setting.
 
 ### Push Policies
 
@@ -317,7 +317,7 @@ The Phase 2 handoff checklist (`.ralph/prompts/phase2_handoff_checklist.md`) typ
 - **CI Gate**: `make ci` passes with no warnings
 - **Documentation**: Module docs updated for changed files
 - **Tests**: New behavior covered (success + failure modes)
-- **Feature Parity**: CLI and TUI behavior consistent
+- **Feature Parity**: CLI and macOS app behavior consistent (when applicable)
 - **Help Text**: User-facing commands have `--help` examples
 - **Secrets**: No credentials committed or logged
 

@@ -6,7 +6,7 @@
 //!
 //! Does not handle:
 //! - Integration with on-disk queue persistence or CLI parsing.
-//! - End-to-end TUI edit flows.
+//! - End-to-end GUI edit flows.
 //!
 //! Assumptions/invariants:
 //! - Helper builders in this module construct valid baseline tasks.

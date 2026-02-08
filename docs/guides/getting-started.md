@@ -162,30 +162,13 @@ ralph init --force
 
 After initialization, you have several ways to work with tasks.
 
-### Launch the TUI (Recommended)
+### macOS: Open the App (SwiftUI)
 
-The Terminal User Interface is the most convenient way to work with Ralph:
+On macOS, you can use the Ralph app for interactive queue work:
 
 ```bash
-ralph tui
+ralph app open
 ```
-
-![TUI Screenshot](../assets/images/2026-02-07-tui-screenshot.png)
-
-**TUI Keybindings:**
-
-| Key | Action |
-|-----|--------|
-| `↑/↓` or `j/k` | Navigate tasks |
-| `Enter` | Run selected task |
-| `n` | Create new task |
-| `e` | Edit task |
-| `d` | Delete task |
-| `l` | Toggle loop mode |
-| `a` | Archive completed tasks |
-| `/` | Search tasks |
-| `?` or `h` | Help |
-| `q` | Quit |
 
 ### Run Your First Task
 
@@ -226,11 +209,9 @@ ralph task "Refactor database layer" \
   --priority high
 ```
 
-**From the TUI:**
+**From the App (macOS):**
 
-1. Press `n` to create a new task
-2. Enter the title and optional details
-3. The task is added to the queue
+Open the app with `ralph app open` and create tasks from the UI.
 
 ### Example Task Session
 
@@ -547,15 +528,8 @@ Define custom profiles:
 # 1. Start your day - check the queue
 ralph queue list
 
-# 2. Launch the TUI for interactive work
-ralph tui
-
-# Inside the TUI:
-# - Press Enter to run the next task
-# - Press 'l' to toggle loop mode (runs continuously)
-# - Press 'a' to archive completed tasks
-# - Press 'n' to add new tasks as they come up
-# - Press 'q' to quit when done
+# 2. macOS (optional): open the app UI
+ralph app open
 
 # 3. Add tasks from code review or planning
 ralph task "Fix race condition in worker pool"
@@ -568,44 +542,11 @@ ralph run one --task-id RQ-0005
 ralph queue archive
 ```
 
-### TUI Basics
-
-The TUI is your primary interface for day-to-day Ralph usage.
-
-**Task List View:**
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│ Ralph - 3 tasks (1 todo, 1 doing, 1 done)                   │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│ ▶ RQ-0001  todo     medium  Add user authentication         │
-│   RQ-0002  doing    high    Fix memory leak in parser       │
-│   RQ-0003  done     low     Update README                   │
-│                                                             │
-├─────────────────────────────────────────────────────────────┤
-│ [Enter] Run  [n] New  [e] Edit  [d] Delete  [l] Loop  [?] Help│
-└─────────────────────────────────────────────────────────────┘
-```
-
-**Common TUI Operations:**
-
-1. **Run a task**: Select with arrow keys, press `Enter`
-2. **Create task**: Press `n`, enter title and details
-3. **Edit task**: Select task, press `e`
-4. **Delete task**: Select task, press `d`, confirm
-5. **Toggle loop mode**: Press `l` (runs tasks continuously)
-6. **Archive done tasks**: Press `a`, confirm
-7. **Search**: Press `/`, type search term
-8. **Filter by tag**: Press `t`, select tag
-9. **Change status**: Select task, press `s`
-10. **Change priority**: Select task, press `p`
-
 ### CLI Quick Reference
 
 | Command | Description |
 |---------|-------------|
-| `ralph tui` | Launch interactive UI |
+| `ralph app open` | Open the macOS app UI |
 | `ralph run one` | Run next task |
 | `ralph run one --task-id RQ-0001` | Run specific task |
 | `ralph run loop` | Run tasks continuously |
@@ -706,7 +647,7 @@ Now that you're up and running, here's where to go next:
 - **[Configuration](../configuration.md)** - All configuration options
 - **[Queue and Tasks](../queue-and-tasks.md)** - Task management details
 - **[Workflow](../workflow.md)** - Deep dive into the 3-phase workflow
-- **[TUI Task Management](../tui-task-management.md)** - Advanced TUI features
+- **[App (macOS)](../features/app.md)** - macOS SwiftUI app guide
 
 ### Advanced Features
 
@@ -757,7 +698,7 @@ ralph prd convert requirements.md
 
 1. **Start small**: Begin with 1-phase tasks to get familiar
 2. **Review plans**: Always check Phase 1 plans before implementation
-3. **Use the TUI**: It's the most efficient daily interface
+3. **Use the app (macOS)**: Keep the queue visible while you work
 4. **Archive regularly**: Keep your queue clean with `ralph queue archive`
 5. **Run doctor**: Check `ralph doctor` if something seems off
 6. **Version control**: Keep your `.ralph/` directory in git
@@ -786,18 +727,13 @@ ralph prd convert requirements.md
 ├────────────────────────────────────────────────────────────────┤
 │ INSTALL    cargo install ralph                                 │
 │ INIT       ralph init                                          │
-│ TUI        ralph tui                                           │
+│ APP (macOS) ralph app open                                     │
 │ RUN        ralph run one        # next task                    │
 │            ralph run loop       # continuous                   │
 │ TASK       ralph task "title"                                  │
 │ LIST       ralph queue list                                    │
 │ ARCHIVE    ralph queue archive                                 │
 │ DOCTOR     ralph doctor                                        │
-├────────────────────────────────────────────────────────────────┤
-│ TUI KEYS                                                       │
-│   Enter  Run task    n  New task    e  Edit    d  Delete       │
-│   l      Loop mode   a  Archive     /  Search  ?  Help         │
-│   q      Quit                                                  │
 ├────────────────────────────────────────────────────────────────┤
 │ PHASES     --phases 1 (quick)  --phases 2 (plan+impl)          │
 │            --phases 3 (full)   --quick (1-phase shorthand)     │

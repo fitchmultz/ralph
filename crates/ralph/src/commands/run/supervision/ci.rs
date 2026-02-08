@@ -223,11 +223,6 @@ mod tests {
                 auto_archive_terminal_after_days: None,
                 aging_thresholds: None,
             },
-            tui: crate::contracts::TuiConfig {
-                auto_archive_terminal: None,
-                celebrations_enabled: Some(false),
-                stats_enabled: Some(false),
-            },
             ..Config::default()
         };
 

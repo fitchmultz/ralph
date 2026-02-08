@@ -66,7 +66,7 @@ Tools for managing and monitoring your development workflow:
 
 | Document | Description |
 |----------|-------------|
-| **[TUI](./tui.md)** | Terminal User Interface for interactive task management |
+| **[App (macOS)](./app.md)** | macOS SwiftUI app for interactive task management |
 | **[Scan](./scan.md)** | AI-powered repository scanning for task discovery |
 | **[Daemon and Watch](./daemon-and-watch.md)** | Background execution and automatic task detection |
 
@@ -126,7 +126,7 @@ Ralph uses JSON schemas for validation:
 
 **Get started quickly**
 - [Quick Start Guide](../quick-start.md)
-- [TUI](./tui.md) — Interactive interface
+- [App (macOS)](./app.md) — Interactive interface
 
 **Configure my runner**
 - [Runners](./runners.md) — Runner-specific setup

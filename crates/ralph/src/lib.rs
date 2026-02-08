@@ -1,5 +1,3 @@
-#![deny(unsafe_op_in_unsafe_fn)]
-
 //! Ralph library surface.
 //!
 //! Responsibilities:
@@ -13,6 +11,8 @@
 //! Invariants/assumptions:
 //! - Modules remain internal-first; public exports are intentional.
 
+#![deny(unsafe_op_in_unsafe_fn)]
+
 // --- Core --------------------------------------------------------------------
 
 pub mod agent;
@@ -25,14 +25,12 @@ pub(crate) mod reports;
 // --- Commands ----------------------------------------------------------------
 
 pub mod cli;
+#[path = "cli/spec.rs"]
+pub mod cli_spec;
 pub mod commands;
 pub mod migration;
 pub mod plugins;
 pub mod sanity;
-
-// --- UI ----------------------------------------------------------------------
-
-pub mod tui;
 
 // --- Utils -------------------------------------------------------------------
 

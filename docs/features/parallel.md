@@ -2,7 +2,7 @@
 
 Parallel execution runs multiple tasks concurrently in isolated git workspace clones, with automatic PR creation and merge handling.
 
-> **CLI Only**: Parallel execution is available only via CLI (`ralph run loop --parallel [N]`). The TUI does not support parallel runs.
+> **CLI Only**: Parallel execution is available only via CLI (`ralph run loop --parallel [N]`).
 
 ---
 
@@ -575,14 +575,6 @@ The merge runner uses the `merge_conflicts` prompt template:
 ---
 
 ## Limitations
-
-### TUI Not Supported
-
-**INTENDED BEHAVIOR**: Parallel execution should be accessible from both CLI and TUI for feature parity.
-
-**CURRENTLY IMPLEMENTED BEHAVIOR**: Parallel execution is CLI-only. The TUI does not support parallel runs and will use sequential mode regardless of configuration.
-
-**Rationale**: Parallel mode requires complex process management and state coordination that is challenging to integrate with the TUI's interactive architecture.
 
 ### No Session Resume
 

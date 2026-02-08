@@ -347,7 +347,6 @@ ralph run one --profile codex-review --phases 3
 | `ralph run loop` | ✅ Yes | Full support |
 | `ralph scan` | ✅ Yes | Full support |
 | `ralph task` | ✅ Yes | Full support |
-| `ralph tui` | ❌ No | Use config editor instead |
 
 ---
 

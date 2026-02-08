@@ -14,6 +14,7 @@
 //! - Subcommands validate their own inputs and config dependencies.
 //! - CLI parsing happens after argument normalization in `main`.
 
+pub mod app;
 pub mod color;
 pub mod completions;
 pub mod config;
@@ -21,7 +22,6 @@ pub mod context;
 pub mod daemon;
 pub mod doctor;
 pub mod init;
-pub mod interactive;
 pub mod migrate;
 pub mod plugin;
 pub mod prd;
@@ -31,13 +31,12 @@ pub mod queue;
 pub mod run;
 pub mod scan;
 pub mod task;
-pub mod tui;
 pub mod version;
 pub mod watch;
 pub mod webhook;
 
 use anyhow::Result;
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand, ValueEnum};
 
 use crate::contracts::QueueFile;
 
@@ -46,9 +45,46 @@ pub use color::ColorArg;
 #[derive(Parser)]
 #[command(name = "ralph")]
 #[command(about = "Ralph")]
-#[command(
-    after_long_help = "Runner selection:\n  - CLI flags override project config, which overrides global config, which overrides built-in defaults.\n  - Default runner/model come from config files: project config (.ralph/config.json) > global config (~/.config/ralph/config.json) > built-in.\n  - `task` and `scan` accept --runner/--model/--effort as one-off overrides.\n  - `run one` and `run loop` accept --runner/--model/--effort as one-off overrides; otherwise they use task.agent overrides when present; otherwise config agent defaults.\n\nConfig example (.ralph/config.json):\n  {\n    \"version\": 1,\n    \"agent\": {\n      \"runner\": \"opencode\",\n      \"model\": \"gpt-5.2\",\n      \"opencode_bin\": \"opencode\",\n      \"gemini_bin\": \"gemini\",\n      \"claude_bin\": \"claude\"\n    }\n  }\n\nNotes:\n  - Allowed runners: codex, opencode, gemini, claude, cursor, kimi, pi\n  - Allowed models: gpt-5.3-codex, gpt-5.3, gpt-5.2-codex, gpt-5.2, zai-coding-plan/glm-4.7, gemini-3-pro-preview, gemini-3-flash-preview, sonnet, opus, kimi-for-coding (codex supports only gpt-5.3-codex + gpt-5.3 + gpt-5.2-codex + gpt-5.2; opencode/gemini/claude/cursor/kimi/pi accept arbitrary model ids))\n  - Use -i/--interactive with `run one` or `run loop` to launch the TUI for task execution\n  - Use `ralph tui` for the full interactive UI; pass `--read-only` to disable execution\n\nExamples:\n  ralph queue list\n  ralph queue show RQ-0008\n  ralph queue next --with-title\n  ralph scan --runner opencode --model gpt-5.2 --focus \"CI gaps\"\n  ralph task --runner codex --model gpt-5.3-codex --effort high \"Fix the flaky test\"\n  ralph scan --runner gemini --model gemini-3-flash-preview --focus \"risk audit\"\n  ralph scan --runner claude --model sonnet --focus \"risk audit\"\n  ralph task --runner claude --model opus \"Add tests for X\"\n  ralph scan --runner cursor --model claude-opus-4-5-20251101 --focus \"risk audit\"\n  ralph task --runner cursor --model claude-opus-4-5-20251101 \"Add tests for X\"\n  ralph scan --runner kimi --focus \"risk audit\"\n  ralph task --runner kimi --model kimi-for-coding \"Add tests for X\"\n  ralph run one\n  ralph run one -i\n  ralph run loop --max-tasks 1\n  ralph run loop -i\n  ralph tui"
-)]
+#[command(after_long_help = r#"Runner selection:
+  - CLI flags override project config, which overrides global config, which overrides built-in defaults.
+  - Default runner/model come from config files: project config (.ralph/config.json) > global config (~/.config/ralph/config.json) > built-in.
+  - `task` and `scan` accept --runner/--model/--effort as one-off overrides.
+  - `run one` and `run loop` accept --runner/--model/--effort as one-off overrides; otherwise they use task.agent overrides when present; otherwise config agent defaults.
+
+Config example (.ralph/config.json):
+  {
+    "version": 1,
+    "agent": {
+      "runner": "opencode",
+      "model": "gpt-5.2",
+      "opencode_bin": "opencode",
+      "gemini_bin": "gemini",
+      "claude_bin": "claude"
+    }
+  }
+
+Notes:
+  - Allowed runners: codex, opencode, gemini, claude, cursor, kimi, pi
+  - Allowed models: gpt-5.3-codex, gpt-5.3, gpt-5.2-codex, gpt-5.2, zai-coding-plan/glm-4.7, gemini-3-pro-preview, gemini-3-flash-preview, sonnet, opus, kimi-for-coding (codex supports only gpt-5.3-codex + gpt-5.3 + gpt-5.2-codex + gpt-5.2; opencode/gemini/claude/cursor/kimi/pi accept arbitrary model ids))
+  - On macOS: use `ralph app open` to launch the GUI (requires an installed Ralph.app)
+
+Examples:
+  ralph app open
+  ralph queue list
+  ralph queue show RQ-0008
+  ralph queue next --with-title
+  ralph scan --runner opencode --model gpt-5.2 --focus "CI gaps"
+  ralph task --runner codex --model gpt-5.3-codex --effort high "Fix the flaky test"
+  ralph scan --runner gemini --model gemini-3-flash-preview --focus "risk audit"
+  ralph scan --runner claude --model sonnet --focus "risk audit"
+  ralph task --runner claude --model opus "Add tests for X"
+  ralph scan --runner cursor --model claude-opus-4-5-20251101 --focus "risk audit"
+  ralph task --runner cursor --model claude-opus-4-5-20251101 "Add tests for X"
+  ralph scan --runner kimi --focus "risk audit"
+  ralph task --runner kimi --model kimi-for-coding "Add tests for X"
+  ralph run one
+  ralph run loop --max-tasks 1
+  ralph run loop"#)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Command,
@@ -70,11 +106,6 @@ pub struct Cli {
     #[arg(long, global = true)]
     pub no_color: bool,
 
-    /// Disable progress indicators and spinners.
-    /// Useful for CI/scripting environments or when piping output.
-    #[arg(long, global = true)]
-    pub no_progress: bool,
-
     /// Automatically approve all migrations and fixes without prompting.
     /// Useful for CI/scripting environments.
     #[arg(long, global = true, conflicts_with = "no_sanity_checks")]
@@ -89,12 +120,12 @@ pub struct Cli {
 pub enum Command {
     Queue(queue::QueueArgs),
     Config(config::ConfigArgs),
-    Run(run::RunArgs),
+    Run(Box<run::RunArgs>),
     Task(Box<task::TaskArgs>),
     Scan(scan::ScanArgs),
     Init(init::InitArgs),
-    /// Launch the interactive TUI (queue management + execution + loop).
-    Tui(tui::TuiArgs),
+    /// macOS app integration commands.
+    App(app::AppArgs),
     /// Render and print the final compiled prompts used by Ralph (for debugging/auditing).
     #[command(
         after_long_help = "Examples:\n  ralph prompt worker --phase 1 --repo-prompt plan\n  ralph prompt worker --phase 2 --task-id RQ-0001 --plan-file .ralph/cache/plans/RQ-0001.md\n  ralph prompt scan --focus \"CI gaps\" --repo-prompt off\n  ralph prompt task-builder --request \"Add tests\" --tags rust,tests --scope crates/ralph --repo-prompt tools\n"
@@ -155,6 +186,39 @@ pub enum Command {
         after_long_help = "Examples:\n  ralph plugin init my.plugin\n  ralph plugin init my.plugin --scope global\n  ralph plugin list\n  ralph plugin validate\n  ralph plugin install ./my-plugin --scope project\n  ralph plugin uninstall my.plugin --scope project"
     )]
     Plugin(plugin::PluginArgs),
+
+    /// Internal: Emit a machine-readable CLI specification (JSON) for tooling and GUI clients.
+    #[command(name = "cli-spec", hide = true, alias = "__cli-spec")]
+    CliSpec(CliSpecArgs),
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct CliSpecArgs {
+    /// Output format.
+    #[arg(long, value_enum, default_value_t = CliSpecFormatArg::Json)]
+    pub format: CliSpecFormatArg,
+}
+
+#[derive(ValueEnum, Debug, Copy, Clone, PartialEq, Eq)]
+pub enum CliSpecFormatArg {
+    Json,
+}
+
+pub fn handle_cli_spec(args: CliSpecArgs) -> Result<()> {
+    match args.format {
+        CliSpecFormatArg::Json => {
+            let json = crate::commands::cli_spec::emit_cli_spec_json_pretty()?;
+            use std::io::{self, Write};
+            let mut stdout = io::stdout().lock();
+            if let Err(err) = writeln!(stdout, "{json}") {
+                if err.kind() == io::ErrorKind::BrokenPipe {
+                    return Ok(());
+                }
+                return Err(err.into());
+            }
+            Ok(())
+        }
+    }
 }
 
 pub(crate) fn load_and_validate_queues(
@@ -174,7 +238,7 @@ pub(crate) fn resolve_list_limit(limit: u32, all: bool) -> Option<usize> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Cli, Command, run, tui};
+    use super::{Cli, Command, run};
     use crate::cli::{queue, task};
     use clap::Parser;
 
@@ -216,7 +280,7 @@ mod tests {
         let cli = Cli::try_parse_from(["ralph", "run", "one", "--git-revert-mode", "disabled"])
             .expect("parse");
         match cli.command {
-            Command::Run(run::RunArgs { command }) => match command {
+            Command::Run(args) => match args.command {
                 run::RunCommand::One(args) => {
                     assert_eq!(args.agent.git_revert_mode.as_deref(), Some("disabled"));
                 }
@@ -231,7 +295,7 @@ mod tests {
         let cli =
             Cli::try_parse_from(["ralph", "run", "one", "--git-commit-push-off"]).expect("parse");
         match cli.command {
-            Command::Run(run::RunArgs { command }) => match command {
+            Command::Run(args) => match args.command {
                 run::RunCommand::One(args) => {
                     assert!(args.agent.git_commit_push_off);
                     assert!(!args.agent.git_commit_push_on);
@@ -246,7 +310,7 @@ mod tests {
     fn cli_parses_run_include_draft() {
         let cli = Cli::try_parse_from(["ralph", "run", "one", "--include-draft"]).expect("parse");
         match cli.command {
-            Command::Run(run::RunArgs { command }) => match command {
+            Command::Run(args) => match args.command {
                 run::RunCommand::One(args) => {
                     assert!(args.agent.include_draft);
                 }
@@ -260,7 +324,7 @@ mod tests {
     fn cli_parses_run_one_debug() {
         let cli = Cli::try_parse_from(["ralph", "run", "one", "--debug"]).expect("parse");
         match cli.command {
-            Command::Run(run::RunArgs { command }) => match command {
+            Command::Run(args) => match args.command {
                 run::RunCommand::One(args) => {
                     assert!(args.debug);
                 }
@@ -274,7 +338,7 @@ mod tests {
     fn cli_parses_run_loop_debug() {
         let cli = Cli::try_parse_from(["ralph", "run", "loop", "--debug"]).expect("parse");
         match cli.command {
-            Command::Run(run::RunArgs { command }) => match command {
+            Command::Run(args) => match args.command {
                 run::RunCommand::Loop(args) => {
                     assert!(args.debug);
                 }
@@ -288,7 +352,7 @@ mod tests {
     fn cli_parses_run_one_id() {
         let cli = Cli::try_parse_from(["ralph", "run", "one", "--id", "RQ-0001"]).expect("parse");
         match cli.command {
-            Command::Run(run::RunArgs { command }) => match command {
+            Command::Run(args) => match args.command {
                 run::RunCommand::One(args) => {
                     assert_eq!(args.id.as_deref(), Some("RQ-0001"));
                 }
@@ -327,25 +391,25 @@ mod tests {
     }
 
     #[test]
-    fn cli_rejects_run_one_id_with_interactive() {
-        let err = Cli::try_parse_from(["ralph", "run", "one", "--id", "RQ-0001", "-i"])
+    fn cli_rejects_removed_run_one_interactive_flag_short() {
+        let err = Cli::try_parse_from(["ralph", "run", "one", "-i"])
             .err()
             .expect("parse failure");
-        let msg = err.to_string();
+        let msg = err.to_string().to_lowercase();
         assert!(
-            msg.contains("cannot be used with") || msg.contains("conflicts"),
+            msg.contains("unexpected") || msg.contains("unrecognized") || msg.contains("unknown"),
             "unexpected error: {msg}"
         );
     }
 
     #[test]
-    fn cli_rejects_run_one_id_with_interactive_long() {
-        let err = Cli::try_parse_from(["ralph", "run", "one", "--id", "RQ-0001", "--interactive"])
+    fn cli_rejects_removed_run_one_interactive_flag_long() {
+        let err = Cli::try_parse_from(["ralph", "run", "one", "--interactive"])
             .err()
             .expect("parse failure");
-        let msg = err.to_string();
+        let msg = err.to_string().to_lowercase();
         assert!(
-            msg.contains("cannot be used with") || msg.contains("conflicts"),
+            msg.contains("unexpected") || msg.contains("unrecognized") || msg.contains("unknown"),
             "unexpected error: {msg}"
         );
     }
@@ -419,162 +483,39 @@ mod tests {
     }
 
     #[test]
-    fn cli_parses_run_one_interactive() {
-        let cli = Cli::try_parse_from(["ralph", "run", "one", "-i"]).expect("parse");
-        match cli.command {
-            Command::Run(run::RunArgs { command }) => match command {
-                run::RunCommand::One(args) => assert!(args.interactive),
-                _ => panic!("expected run one command"),
-            },
-            _ => panic!("expected run command"),
-        }
+    fn cli_rejects_removed_run_loop_interactive_flag_short() {
+        let err = Cli::try_parse_from(["ralph", "run", "loop", "-i"])
+            .err()
+            .expect("parse failure");
+        let msg = err.to_string().to_lowercase();
+        assert!(
+            msg.contains("unexpected") || msg.contains("unrecognized") || msg.contains("unknown"),
+            "unexpected error: {msg}"
+        );
     }
 
     #[test]
-    fn cli_parses_run_one_interactive_long() {
-        let cli = Cli::try_parse_from(["ralph", "run", "one", "--interactive"]).expect("parse");
-        match cli.command {
-            Command::Run(run::RunArgs { command }) => match command {
-                run::RunCommand::One(args) => assert!(args.interactive),
-                _ => panic!("expected run one command"),
-            },
-            _ => panic!("expected run command"),
-        }
+    fn cli_rejects_removed_run_loop_interactive_flag_long() {
+        let err = Cli::try_parse_from(["ralph", "run", "loop", "--interactive"])
+            .err()
+            .expect("parse failure");
+        let msg = err.to_string().to_lowercase();
+        assert!(
+            msg.contains("unexpected") || msg.contains("unrecognized") || msg.contains("unknown"),
+            "unexpected error: {msg}"
+        );
     }
 
     #[test]
-    fn cli_parses_run_loop_interactive() {
-        let cli = Cli::try_parse_from(["ralph", "run", "loop", "-i"]).expect("parse");
-        match cli.command {
-            Command::Run(run::RunArgs { command }) => match command {
-                run::RunCommand::Loop(args) => assert!(args.interactive),
-                _ => panic!("expected run loop command"),
-            },
-            _ => panic!("expected run command"),
-        }
-    }
-
-    #[test]
-    fn cli_parses_run_loop_interactive_long() {
-        let cli = Cli::try_parse_from(["ralph", "run", "loop", "--interactive"]).expect("parse");
-        match cli.command {
-            Command::Run(run::RunArgs { command }) => match command {
-                run::RunCommand::Loop(args) => assert!(args.interactive),
-                _ => panic!("expected run loop command"),
-            },
-            _ => panic!("expected run command"),
-        }
-    }
-
-    #[test]
-    fn cli_parses_tui_command() {
-        let cli = Cli::try_parse_from(["ralph", "tui"]).expect("parse");
-        match cli.command {
-            Command::Tui(tui::TuiArgs { .. }) => {}
-            _ => panic!("expected tui command"),
-        }
-    }
-
-    #[test]
-    fn cli_parses_tui_read_only() {
-        let cli = Cli::try_parse_from(["ralph", "tui", "--read-only"]).expect("parse");
-        match cli.command {
-            Command::Tui(tui::TuiArgs { read_only, .. }) => {
-                assert!(read_only);
-            }
-            _ => panic!("expected tui command"),
-        }
-    }
-
-    #[test]
-    fn cli_parses_run_loop_interactive_with_max_tasks() {
-        let cli =
-            Cli::try_parse_from(["ralph", "run", "loop", "-i", "--max-tasks", "3"]).expect("parse");
-        match cli.command {
-            Command::Run(run::RunArgs { command }) => match command {
-                run::RunCommand::Loop(args) => {
-                    assert!(args.interactive);
-                    assert_eq!(args.max_tasks, 3);
-                }
-                _ => panic!("expected run loop command"),
-            },
-            _ => panic!("expected run command"),
-        }
-    }
-
-    #[test]
-    fn cli_parses_run_one_interactive_with_runner_override() {
-        let cli = Cli::try_parse_from([
-            "ralph", "run", "one", "-i", "--runner", "opencode", "--model", "gpt-5.2",
-        ])
-        .expect("parse");
-        match cli.command {
-            Command::Run(run::RunArgs { command }) => match command {
-                run::RunCommand::One(args) => {
-                    assert!(args.interactive);
-                    assert_eq!(args.agent.runner.as_deref(), Some("opencode"));
-                    assert_eq!(args.agent.model.as_deref(), Some("gpt-5.2"));
-                }
-                _ => panic!("expected run one command"),
-            },
-            _ => panic!("expected run command"),
-        }
-    }
-
-    #[test]
-    fn cli_parses_tui_with_agent_overrides() {
-        let cli = Cli::try_parse_from(["ralph", "tui", "--runner", "claude", "--model", "opus"])
-            .expect("parse");
-        match cli.command {
-            Command::Tui(tui::TuiArgs {
-                read_only, agent, ..
-            }) => {
-                assert!(!read_only);
-                assert_eq!(agent.runner.as_deref(), Some("claude"));
-                assert_eq!(agent.model.as_deref(), Some("opus"));
-            }
-            _ => panic!("expected tui command"),
-        }
-    }
-
-    #[test]
-    fn cli_parses_tui_read_only_with_agent_overrides() {
-        let cli = Cli::try_parse_from([
-            "ralph",
-            "tui",
-            "--read-only",
-            "--runner",
-            "opencode",
-            "--model",
-            "gpt-5.2",
-        ])
-        .expect("parse");
-        match cli.command {
-            Command::Tui(tui::TuiArgs {
-                read_only, agent, ..
-            }) => {
-                assert!(read_only);
-                assert_eq!(agent.runner.as_deref(), Some("opencode"));
-                assert_eq!(agent.model.as_deref(), Some("gpt-5.2"));
-            }
-            _ => panic!("expected tui command"),
-        }
-    }
-
-    #[test]
-    fn cli_parses_run_one_interactive_with_include_draft() {
-        let cli =
-            Cli::try_parse_from(["ralph", "run", "one", "-i", "--include-draft"]).expect("parse");
-        match cli.command {
-            Command::Run(run::RunArgs { command }) => match command {
-                run::RunCommand::One(args) => {
-                    assert!(args.interactive);
-                    assert!(args.agent.include_draft);
-                }
-                _ => panic!("expected run one command"),
-            },
-            _ => panic!("expected run command"),
-        }
+    fn cli_rejects_removed_tui_command() {
+        let err = Cli::try_parse_from(["ralph", "tui"])
+            .err()
+            .expect("parse failure");
+        let msg = err.to_string().to_lowercase();
+        assert!(
+            msg.contains("unexpected") || msg.contains("unrecognized") || msg.contains("unknown"),
+            "unexpected error: {msg}"
+        );
     }
 
     #[test]
@@ -587,43 +528,5 @@ mod tests {
             msg.contains("unexpected") || msg.contains("unrecognized") || msg.contains("unknown"),
             "unexpected error: {msg}"
         );
-    }
-
-    #[test]
-    fn cli_parses_tui_with_repo_prompt_plan() {
-        let cli = Cli::try_parse_from(["ralph", "tui", "--repo-prompt", "plan"]).expect("parse");
-        match cli.command {
-            Command::Tui(tui::TuiArgs { agent, .. }) => {
-                assert_eq!(agent.repo_prompt, Some(crate::agent::RepoPromptMode::Plan));
-            }
-            _ => panic!("expected tui command"),
-        }
-    }
-
-    #[test]
-    fn cli_parses_tui_with_repo_prompt_off() {
-        let cli = Cli::try_parse_from(["ralph", "tui", "--repo-prompt", "off"]).expect("parse");
-        match cli.command {
-            Command::Tui(tui::TuiArgs { agent, .. }) => {
-                assert_eq!(agent.repo_prompt, Some(crate::agent::RepoPromptMode::Off));
-            }
-            _ => panic!("expected tui command"),
-        }
-    }
-
-    #[test]
-    fn cli_parses_run_one_interactive_with_phases() {
-        let cli =
-            Cli::try_parse_from(["ralph", "run", "one", "-i", "--phases", "2"]).expect("parse");
-        match cli.command {
-            Command::Run(run::RunArgs { command }) => match command {
-                run::RunCommand::One(args) => {
-                    assert!(args.interactive);
-                    assert_eq!(args.agent.phases, Some(2));
-                }
-                _ => panic!("expected run one command"),
-            },
-            _ => panic!("expected run command"),
-        }
     }
 }

@@ -2,7 +2,7 @@
 //!
 //! Responsibilities:
 //! - Define clap structures for run commands and flags.
-//! - Route run subcommands to task execution and TUI entry points.
+//! - Route run subcommands to supervisor execution entry points.
 //!
 //! Not handled here:
 //! - Queue persistence and task status transitions (see `crate::queue`).
@@ -16,10 +16,9 @@
 use anyhow::Result;
 use clap::{Args, Subcommand};
 
-use crate::cli::interactive;
-use crate::{agent, commands::run as run_cmd, config, debuglog, tui};
+use crate::{agent, commands::run as run_cmd, config, debuglog};
 
-pub fn handle_run(cmd: RunCommand, force: bool, no_progress: bool) -> Result<()> {
+pub fn handle_run(cmd: RunCommand, force: bool) -> Result<()> {
     // Extract profile from the command to resolve config with the selected profile
     let profile = match &cmd {
         RunCommand::Resume(args) => args.agent.profile.as_deref(),
@@ -62,34 +61,7 @@ pub fn handle_run(cmd: RunCommand, force: bool, no_progress: bool) -> Result<()>
             // Profile already applied during config resolution; just resolve remaining overrides
             let overrides = agent::resolve_run_agent_overrides(&args.agent)?;
 
-            if args.interactive {
-                let factories = interactive::build_interactive_factories(
-                    &resolved,
-                    &overrides,
-                    args.agent.repo_prompt,
-                    force,
-                )?;
-
-                // Interactive one: open the TUI (no auto-loop).
-                let options = tui::TuiOptions {
-                    start_loop: false,
-                    loop_max_tasks: None,
-                    loop_include_draft: args.agent.include_draft,
-                    show_flowchart: args.visualize,
-                    no_mouse: false,
-                    color: crate::tui::terminal::ColorOption::Auto,
-                    ascii_borders: false,
-                    no_progress,
-                };
-                let _ = tui::run_tui(
-                    &resolved,
-                    force,
-                    options,
-                    factories.runner_factory,
-                    factories.scan_factory,
-                )?;
-                Ok(())
-            } else if args.dry_run {
+            if args.dry_run {
                 if args.parallel_worker {
                     return Err(anyhow::anyhow!(
                         "--dry-run cannot be used with --parallel-worker"
@@ -120,41 +92,7 @@ pub fn handle_run(cmd: RunCommand, force: bool, no_progress: bool) -> Result<()>
             // Profile already applied during config resolution; just resolve remaining overrides
             let overrides = agent::resolve_run_agent_overrides(&args.agent)?;
 
-            if args.interactive {
-                let factories = interactive::build_interactive_factories(
-                    &resolved,
-                    &overrides,
-                    args.agent.repo_prompt,
-                    force,
-                )?;
-
-                // Interactive loop: auto-start the loop in the TUI to match semantics.
-                let max = if args.max_tasks == 0 {
-                    None
-                } else {
-                    Some(args.max_tasks)
-                };
-
-                let options = tui::TuiOptions {
-                    start_loop: true,
-                    loop_max_tasks: max,
-                    loop_include_draft: args.agent.include_draft,
-                    show_flowchart: args.visualize,
-                    no_mouse: false,
-                    color: crate::tui::terminal::ColorOption::Auto,
-                    ascii_borders: false,
-                    no_progress,
-                };
-
-                let _ = tui::run_tui(
-                    &resolved,
-                    force,
-                    options,
-                    factories.runner_factory,
-                    factories.scan_factory,
-                )?;
-                Ok(())
-            } else if args.dry_run {
+            if args.dry_run {
                 run_cmd::dry_run_loop(&resolved, &overrides)
             } else {
                 run_cmd::run_loop(
@@ -190,20 +128,19 @@ pub fn handle_run(cmd: RunCommand, force: bool, no_progress: bool) -> Result<()>
   3) otherwise: resolved config defaults (`agent.runner`, `agent.model`, `agent.reasoning_effort`).\n\
  \n\
  Notes:\n\
-  - Allowed runners: codex, opencode, gemini, claude, cursor, kimi, pi\n\
-  - Allowed models: gpt-5.3-codex, gpt-5.3, gpt-5.2-codex, gpt-5.2, zai-coding-plan/glm-4.7, gemini-3-pro-preview, gemini-3-flash-preview, sonnet, opus, kimi-for-coding (codex supports only gpt-5.3-codex + gpt-5.3 + gpt-5.2-codex + gpt-5.2; opencode/gemini/claude/cursor/kimi/pi accept arbitrary model ids)\n\
-  - `--effort` is codex-only and is ignored for other runners.\n\
-  - `--git-revert-mode` controls whether Ralph reverts uncommitted changes on errors (ask, enabled, disabled).\n\
-  - `--git-commit-push-on` / `--git-commit-push-off` control automatic git commit/push after successful runs.\n\
-     - `--parallel` runs loop tasks concurrently in workspaces (clone-based) (CLI-only; conflicts with `--interactive`).\n\
-     - Parallel workers do not modify `.ralph/queue.json` or `.ralph/done.json`; they commit completion signals in `.ralph/cache/completions/<TASK_ID>.json`.\n\
-     - After merge, the coordinator applies completion signals to update queue/done (errors if missing).\n\
-  - `--update-task` runs `ralph task update <TASK_ID>` once per task immediately before task is marked `doing`.\n\
-  - Clean-repo checks allow changes to `.ralph/config.json` (plus `.ralph/queue.json` and `.ralph/done.json`); use `--force` to bypass entirely.\n\
-  - TUI entrypoints: `ralph tui`, `ralph run one -i`, `ralph run loop -i`.\n\
- \n\
+	  - Allowed runners: codex, opencode, gemini, claude, cursor, kimi, pi\n\
+	  - Allowed models: gpt-5.3-codex, gpt-5.3, gpt-5.2-codex, gpt-5.2, zai-coding-plan/glm-4.7, gemini-3-pro-preview, gemini-3-flash-preview, sonnet, opus, kimi-for-coding (codex supports only gpt-5.3-codex + gpt-5.3 + gpt-5.2-codex + gpt-5.2; opencode/gemini/claude/cursor/kimi/pi accept arbitrary model ids)\n\
+	  - `--effort` is codex-only and is ignored for other runners.\n\
+	  - `--git-revert-mode` controls whether Ralph reverts uncommitted changes on errors (ask, enabled, disabled).\n\
+	  - `--git-commit-push-on` / `--git-commit-push-off` control automatic git commit/push after successful runs.\n\
+	     - `--parallel` runs loop tasks concurrently in workspaces (clone-based).\n\
+	     - Parallel workers do not modify `.ralph/queue.json` or `.ralph/done.json`; they commit completion signals in `.ralph/cache/completions/<TASK_ID>.json`.\n\
+	     - After merge, the coordinator applies completion signals to update queue/done (errors if missing).\n\
+	  - `--update-task` runs `ralph task update <TASK_ID>` once per task immediately before task is marked `doing`.\n\
+	  - Clean-repo checks allow changes to `.ralph/config.json` (plus `.ralph/queue.json` and `.ralph/done.json`); use `--force` to bypass entirely.\n\
+	 \n\
 Phase-specific overrides:\n\
-  Use --runner-phaseN, --model-phaseN, --effort-phaseN to override settings for a specific phase.\n\
+	  Use --runner-phaseN, --model-phaseN, --effort-phaseN to override settings for a specific phase.\n\
   Phase-specific flags take precedence over global flags for that phase.\n\
   Single-pass (--phases 1) uses Phase 2 overrides.\n\
  \n\
@@ -244,14 +181,10 @@ Examples:\n\
  ralph run loop --git-commit-push-on --max-tasks 1\n\
  ralph run loop --lfs-check --max-tasks 1\n\
  ralph run loop --parallel --max-tasks 4\n\
- ralph run loop --parallel 4 --max-tasks 8\n\
- ralph run resume\n\
- ralph run resume --force\n\
- ralph run loop --resume --max-tasks 5\n\
- ralph tui\n\
- ralph tui --read-only\n\
- ralph run one -i\n\
- ralph run loop -i"
+	 ralph run loop --parallel 4 --max-tasks 8\n\
+	 ralph run resume\n\
+	 ralph run resume --force\n\
+	 ralph run loop --resume --max-tasks 5"
 )]
 pub struct RunArgs {
     #[command(subcommand)]
@@ -279,7 +212,6 @@ pub enum RunCommand {
 Examples:\n\
  ralph run one\n\
  ralph run one --id RQ-0001\n\
- ralph run one -i\n\
  ralph run one --debug\n\
  ralph run one --profile quick (kimi, 1-phase)\n\
  ralph run one --profile thorough (claude/opus, 3-phase)\n\
@@ -303,8 +235,7 @@ Examples:\n\
  ralph run one --non-interactive\n\
  ralph run one --dry-run\n\
  ralph run one --dry-run --include-draft\n\
- ralph run one --dry-run --id RQ-0001\n\
- ralph tui"
+ ralph run one --dry-run --id RQ-0001"
     )]
     One(RunOneArgs),
     #[command(
@@ -328,14 +259,12 @@ Examples:\n\
  ralph run loop --update-task --max-tasks 1\n\
  ralph run loop --repo-prompt tools --max-tasks 1\n\
  ralph run loop --repo-prompt off --max-tasks 1\n\
- ralph run loop --lfs-check --max-tasks 1\n\
- ralph run loop --dry-run\n\
- ralph run loop -i\n\
- ralph run loop --wait-when-blocked\n\
- ralph run loop --wait-when-blocked --wait-timeout-seconds 600\n\
- ralph run loop --wait-when-blocked --wait-poll-ms 250\n\
- ralph run loop --wait-when-blocked --notify-when-unblocked\n\
- ralph tui"
+	 ralph run loop --lfs-check --max-tasks 1\n\
+	 ralph run loop --dry-run\n\
+	 ralph run loop --wait-when-blocked\n\
+	 ralph run loop --wait-when-blocked --wait-timeout-seconds 600\n\
+	 ralph run loop --wait-when-blocked --wait-poll-ms 250\n\
+	 ralph run loop --wait-when-blocked --notify-when-unblocked"
     )]
     Loop(RunLoopArgs),
 }
@@ -360,33 +289,21 @@ pub struct ResumeArgs {
 
 #[derive(Args)]
 pub struct RunOneArgs {
-    /// Launch interactive TUI mode for task selection and management.
-    #[arg(short = 'i', long)]
-    pub interactive: bool,
-
     /// Capture raw supervisor + runner output to .ralph/logs/debug.log.
     #[arg(long)]
     pub debug: bool,
 
-    /// Run a specific task by ID (non-interactive only).
-    #[arg(long, value_name = "TASK_ID", conflicts_with = "interactive")]
+    /// Run a specific task by ID.
+    #[arg(long, value_name = "TASK_ID")]
     pub id: Option<String>,
 
-    /// Show workflow flowchart visualization on start (interactive only).
-    #[arg(long, default_value_t = false)]
-    pub visualize: bool,
-
     /// Skip interactive prompts (for CI/non-interactive environments).
-    #[arg(long, conflicts_with = "interactive")]
+    #[arg(long)]
     pub non_interactive: bool,
 
     /// Select a task and print why it would (or would not) run.
     /// Does not invoke any runner and does not write queue/done.
-    #[arg(
-        long,
-        conflicts_with = "interactive",
-        conflicts_with = "parallel_worker"
-    )]
+    #[arg(long, conflicts_with = "parallel_worker")]
     pub dry_run: bool,
 
     /// Internal: run as a parallel worker (skips queue lock, allows upstream creation).
@@ -403,17 +320,9 @@ pub struct RunLoopArgs {
     #[arg(long, default_value_t = 0)]
     pub max_tasks: u32,
 
-    /// Launch interactive TUI mode for task selection and management.
-    #[arg(short = 'i', long)]
-    pub interactive: bool,
-
     /// Capture raw supervisor + runner output to .ralph/logs/debug.log.
     #[arg(long)]
     pub debug: bool,
-
-    /// Show workflow flowchart visualization on start (interactive only).
-    #[arg(long, default_value_t = false)]
-    pub visualize: bool,
 
     /// Automatically resume an interrupted session without prompting.
     #[arg(long)]
@@ -425,7 +334,7 @@ pub struct RunLoopArgs {
 
     /// Select a task and print why it would (or would not) run.
     /// Does not invoke any runner and does not write queue/done.
-    #[arg(long, conflicts_with = "interactive", conflicts_with = "parallel")]
+    #[arg(long, conflicts_with = "parallel")]
     pub dry_run: bool,
 
     /// Run tasks in parallel using N workers (default when flag present: 2).
@@ -435,7 +344,6 @@ pub struct RunLoopArgs {
         num_args = 0..=1,
         default_missing_value = "2",
         value_name = "N",
-        conflicts_with = "interactive"
     )]
     pub parallel: Option<u8>,
 
@@ -458,12 +366,7 @@ pub struct RunLoopArgs {
 
     /// Wait when queue is empty instead of exiting (continuous mode).
     /// Alias: --continuous
-    #[arg(
-        long,
-        alias = "continuous",
-        conflicts_with = "parallel",
-        conflicts_with = "interactive"
-    )]
+    #[arg(long, alias = "continuous", conflicts_with = "parallel")]
     pub wait_when_empty: bool,
 
     /// Poll interval in milliseconds while waiting for new tasks when queue is empty
@@ -533,22 +436,11 @@ mod tests {
             crate::cli::Command::Run(run_args) => match run_args.command {
                 RunCommand::One(one_args) => {
                     assert!(one_args.non_interactive);
-                    assert!(!one_args.interactive);
                 }
                 _ => panic!("expected RunCommand::One"),
             },
             _ => panic!("expected Command::Run"),
         }
-    }
-
-    #[test]
-    fn run_one_interactive_and_non_interactive_conflicts() {
-        let args = vec!["ralph", "run", "one", "--interactive", "--non-interactive"];
-        let result = Cli::try_parse_from(args);
-        assert!(
-            result.is_err(),
-            "--interactive and --non-interactive should conflict"
-        );
     }
 
     #[test]
@@ -582,7 +474,6 @@ mod tests {
             crate::cli::Command::Run(run_args) => match run_args.command {
                 RunCommand::One(one_args) => {
                     assert!(one_args.dry_run);
-                    assert!(!one_args.interactive);
                 }
                 _ => panic!("expected RunCommand::One"),
             },
@@ -604,16 +495,6 @@ mod tests {
             },
             _ => panic!("expected Command::Run"),
         }
-    }
-
-    #[test]
-    fn run_one_dry_run_conflicts_with_interactive() {
-        let args = vec!["ralph", "run", "one", "--dry-run", "--interactive"];
-        let result = Cli::try_parse_from(args);
-        assert!(
-            result.is_err(),
-            "--dry-run and --interactive should conflict"
-        );
     }
 
     #[test]

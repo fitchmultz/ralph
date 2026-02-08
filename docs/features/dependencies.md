@@ -297,49 +297,15 @@ In tree view, critical path tasks are marked with `*`:
 
 Completing critical path tasks unblocks the most downstream work. Prioritize these tasks to maximize throughput.
 
-## TUI Visualization
+## macOS App Visualization
 
-The TUI provides an interactive dependency overlay:
+On macOS, you can explore dependency relationships interactively in the Ralph app:
 
-### Opening the Overlay
-
-1. Select a task in the task list
-2. Press `v` to open the dependency graph overlay
-
-### Navigation
-
-| Key | Action |
-|-----|--------|
-| `t` or `Tab` | Toggle between dependencies (upstream) and dependents (downstream) |
-| `c` | Toggle critical path highlighting |
-| `d`, `v`, `Esc`, `q` | Close overlay |
-
-### Display
-
-The overlay shows:
-- Current task with status indicator
-- Up to 10 related tasks (dependency chain)
-- Critical path markers (`*`)
-- Truncation indicator for long chains
-
+```bash
+ralph app open
 ```
-┌─────────────────────────────────────────────────────────────┐
-│     Dependency Graph: Depends On (Upstream)                 │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  Current: RQ-0005 *                                         │
-│  Status: [🔄] Implement integration tests                   │
-│                                                             │
-│  Tasks this depends on:                                     │
-│    RQ-0004 [🔄] Implement service layer                     │
-│      RQ-0002 [✅] Design database schema                    │
-│        RQ-0001 [✅] Define requirements                     │
-│                                                             │
-│  * = on critical path (length: 4)                           │
-│                                                             │
-│        Press t/Tab to toggle view, c for critical path      │
-└─────────────────────────────────────────────────────────────┘
-```
+
+For cross-platform and scripting use, prefer `ralph queue graph` (ASCII/DOT/JSON).
 
 ## Queue Explain
 

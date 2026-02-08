@@ -1,7 +1,7 @@
 //! Run command entrypoints and module wiring.
 //!
 //! Responsibilities:
-//! - Define the public `commands::run` API used by CLI/TUI.
+//! - Define the public `commands::run` API used by CLI and UI clients.
 //! - Re-export stable types used across the crate (e.g., `PhaseType`).
 //!
 //! Not handled here:
@@ -54,7 +54,7 @@ pub(crate) use phases::PhaseType;
 
 pub use crate::agent::AgentOverrides;
 
-// Re-export parallel state types for TUI overlay
+// Re-export parallel state types for UI clients.
 pub use parallel::state::{
     ParallelFinishedWithoutPrRecord, ParallelNoPrReason, ParallelPrLifecycle, ParallelPrRecord,
     ParallelStateFile, load_state, state_file_path,

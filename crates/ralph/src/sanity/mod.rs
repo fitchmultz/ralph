@@ -10,7 +10,7 @@
 //!
 //! Not handled here:
 //! - Deep validation (git, runners, queue structure) - that's `ralph doctor`.
-//! - Interactive TUI flows.
+//! - GUI app flows.
 //! - Network connectivity checks.
 //!
 //! Invariants/assumptions:
@@ -870,9 +870,12 @@ mod tests {
     fn get_known_config_keys_includes_top_level() {
         let keys = get_known_config_keys();
         assert!(keys.contains("version"));
+        assert!(keys.contains("project_type"));
         assert!(keys.contains("agent"));
         assert!(keys.contains("queue"));
-        assert!(keys.contains("tui"));
+        assert!(keys.contains("parallel"));
+        assert!(keys.contains("plugins"));
+        assert!(keys.contains("profiles"));
     }
 
     #[test]

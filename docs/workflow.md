@@ -40,8 +40,7 @@ Phases can be set via `--phases` or `agent.phases` in config.
 
 ## Parallel Run Loop (CLI Only)
 
-Parallel execution is available only via the CLI (`ralph run loop --parallel [N]`). The TUI does
-not support parallel runs.
+Parallel execution is available only via the CLI (`ralph run loop --parallel [N]`).
 
 High-level behavior:
 - Each task runs in its own isolated git workspace clone under

@@ -27,7 +27,7 @@ pub mod buffers {
     /// Maximum buffer size for stream processing (10MB).
     pub const MAX_BUFFER_SIZE: usize = 10 * 1024 * 1024;
 
-    /// Maximum log lines to retain in TUI.
+    /// Maximum log lines to retain for interactive log viewers.
     pub const MAX_LOG_LINES: usize = 10_000;
 
     /// Maximum tool value length before truncation.

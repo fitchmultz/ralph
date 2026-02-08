@@ -9,7 +9,7 @@
 //! Does NOT handle:
 //! - Webhook endpoint management or registration.
 //! - Persistent delivery history or logging.
-//! - TUI mode detection (callers should suppress if desired).
+//! - UI mode detection (callers should suppress if desired).
 //! - Response processing beyond HTTP status check.
 //!
 //! Invariants:

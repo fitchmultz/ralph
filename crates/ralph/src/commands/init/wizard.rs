@@ -332,7 +332,7 @@ pub fn print_completion_message(answers: Option<&WizardAnswers>, _queue_path: &P
     );
     println!();
     println!("{}", colored::Colorize::bold("Next steps:"));
-    println!("  1. Run 'ralph tui' to launch the interactive UI");
+    println!("  1. Run 'ralph app open' to open the macOS app (optional)");
     println!("  2. Run 'ralph run one' to execute your first task");
     println!("  3. Edit .ralph/config.json to customize settings");
 

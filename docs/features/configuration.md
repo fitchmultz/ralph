@@ -16,9 +16,8 @@ Ralph uses a flexible, layered JSON configuration system that allows you to cust
 8. [Queue Configuration](#queue-configuration)
 9. [Plugin Configuration](#plugin-configuration)
 10. [Profile Configuration](#profile-configuration)
-11. [TUI Configuration](#tui-configuration)
-12. [Environment Variables](#environment-variables)
-13. [Validation](#validation)
+11. [Environment Variables](#environment-variables)
+12. [Validation](#validation)
 
 ---
 
@@ -189,7 +188,6 @@ The configuration root contains these main sections:
 | `queue` | `QueueConfig` | Queue file locations and ID formatting |
 | `plugins` | `PluginsConfig` | Plugin enable/disable and settings |
 | `profiles` | `object` | Named configuration profiles |
-| `tui` | `TuiConfig` | Terminal UI-specific settings |
 
 ### Example Structure
 
@@ -201,8 +199,7 @@ The configuration root contains these main sections:
   "parallel": { /* ... */ },
   "queue": { /* ... */ },
   "plugins": { /* ... */ },
-  "profiles": { /* ... */ },
-  "tui": { /* ... */ }
+  "profiles": { /* ... */ }
 }
 ```
 
@@ -485,7 +482,7 @@ Desktop notification configuration for task events.
 | `notify_on_complete` | `boolean` | `true` | Notify on task completion |
 | `notify_on_fail` | `boolean` | `true` | Notify on task failure |
 | `notify_on_loop_complete` | `boolean` | `true` | Notify when loop mode completes |
-| `suppress_when_active` | `boolean` | `true` | Suppress when TUI is active |
+| `suppress_when_active` | `boolean` | `true` | Suppress when the macOS app is active |
 | `sound_enabled` | `boolean` | `false` | Play sound with notifications |
 | `sound_path` | `string` | `null` | Custom sound file path |
 | `timeout_ms` | `number` | `8000` | Notification timeout (1000-60000) |
@@ -542,7 +539,7 @@ HTTP webhook configuration for external integrations.
 
 ## Parallel Configuration
 
-The `parallel` section controls parallel task execution for `ralph run loop`. **Note**: Parallel mode is CLI-only; the TUI does not support parallel runs.
+The `parallel` section controls parallel task execution for `ralph run loop`. **Note**: Parallel mode is CLI-only.
 
 ### Core Fields
 
@@ -823,37 +820,6 @@ User-defined profiles with the same name as built-ins override the built-in.
 
 ---
 
-## TUI Configuration
-
-The `tui` section configures Terminal UI-specific behavior.
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `auto_archive_terminal` | `"never" \| "prompt" \| "always"` | `null` | Auto-archive behavior for terminal tasks |
-| `celebrations_enabled` | `boolean` | `true` | Enable celebration animations |
-| `stats_enabled` | `boolean` | `true` | Enable productivity stats tracking |
-
-### Auto-Archive Behavior
-
-- `never`: Never auto-archive (default behavior)
-- `prompt`: Ask before archiving
-- `always`: Archive immediately without prompt
-
-### Example
-
-```json
-{
-  "version": 1,
-  "tui": {
-    "auto_archive_terminal": "prompt",
-    "celebrations_enabled": true,
-    "stats_enabled": true
-  }
-}
-```
-
----
-
 ## Environment Variables
 
 Environment variables can be used within configuration files for dynamic values and secrets.
@@ -1072,13 +1038,6 @@ Here's a comprehensive example demonstrating all configuration sections:
       "model": "opus",
       "phases": 3
     }
-  },
-  
-  // TUI settings
-  "tui": {
-    "auto_archive_terminal": "prompt",
-    "celebrations_enabled": true,
-    "stats_enabled": true
   }
 }
 ```

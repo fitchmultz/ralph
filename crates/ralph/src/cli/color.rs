@@ -5,7 +5,7 @@
 //! - Provide color initialization and global state management.
 //!
 //! Not handled here:
-//! - TUI-specific color handling (see tui/terminal.rs).
+//! - App-specific color handling (handled outside the CLI).
 //! - Direct color output (see outpututil.rs and output/theme.rs).
 //!
 //! Invariants/Assumptions:

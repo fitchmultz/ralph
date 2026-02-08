@@ -7,7 +7,7 @@
 //!
 //! Not handled here:
 //! - CLI argument parsing (see `cli::context`).
-//! - Interactive prompts (delegated to TUI modules if needed).
+//! - Interactive prompts (see `wizard` module).
 //!
 //! Invariants/assumptions:
 //! - Templates are embedded at compile time.

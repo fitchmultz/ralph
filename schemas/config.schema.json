@@ -189,19 +189,6 @@
         }
       ]
     },
-    "tui": {
-      "description": "TUI-specific configuration.",
-      "default": {
-        "auto_archive_terminal": null,
-        "celebrations_enabled": null,
-        "stats_enabled": null
-      },
-      "allOf": [
-        {
-          "$ref": "#/definitions/TuiConfig"
-        }
-      ]
-    },
     "version": {
       "description": "Schema version for config.",
       "default": 1,
@@ -532,32 +519,6 @@
       },
       "additionalProperties": false
     },
-    "AutoArchiveBehavior": {
-      "description": "Behavior for auto-archiving terminal tasks (Done/Rejected) when set via TUI.",
-      "oneOf": [
-        {
-          "description": "Never auto-archive (current behavior).",
-          "type": "string",
-          "enum": [
-            "never"
-          ]
-        },
-        {
-          "description": "Ask before archiving.",
-          "type": "string",
-          "enum": [
-            "prompt"
-          ]
-        },
-        {
-          "description": "Archive immediately without prompt.",
-          "type": "string",
-          "enum": [
-            "always"
-          ]
-        }
-      ]
-    },
     "ClaudePermissionMode": {
       "type": "string",
       "enum": [
@@ -676,7 +637,7 @@
           ]
         },
         "suppress_when_active": {
-          "description": "Suppress notifications when TUI is active (default: true).",
+          "description": "Suppress notifications when a foreground UI client is active (default: true).",
           "default": null,
           "type": [
             "boolean",
@@ -1063,7 +1024,7 @@
           ]
         },
         "auto_archive_terminal_after_days": {
-          "description": "Auto-archive terminal tasks (done/rejected) from queue to done after this many days.\n\nSemantics: - None: disabled (default) - Some(0): archive immediately when the sweep runs - Some(N): archive when completed_at is at least N days old\n\nThe sweep runs during TUI startup/reload and after CLI task edit operations. Tasks with missing or invalid completed_at timestamps are not moved when N > 0.",
+          "description": "Auto-archive terminal tasks (done/rejected) from queue to done after this many days.\n\nSemantics: - None: disabled (default) - Some(0): archive immediately when the sweep runs - Some(N): archive when completed_at is at least N days old\n\nThe sweep runs after selected queue mutation operations (e.g., task edits and run supervision). Tasks with missing or invalid completed_at timestamps are not moved when N > 0.",
           "default": null,
           "type": [
             "integer",
@@ -1429,41 +1390,6 @@
           ]
         }
       ]
-    },
-    "TuiConfig": {
-      "description": "TUI-specific configuration.",
-      "type": "object",
-      "properties": {
-        "auto_archive_terminal": {
-          "description": "Auto-archive behavior for terminal tasks (Done/Rejected) when set via TUI.",
-          "default": null,
-          "anyOf": [
-            {
-              "$ref": "#/definitions/AutoArchiveBehavior"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "celebrations_enabled": {
-          "description": "Enable celebration animations on task completion (default: true).",
-          "default": null,
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "stats_enabled": {
-          "description": "Enable productivity stats tracking (default: true).",
-          "default": null,
-          "type": [
-            "boolean",
-            "null"
-          ]
-        }
-      },
-      "additionalProperties": false
     },
     "UnsupportedOptionPolicy": {
       "type": "string",

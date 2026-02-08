@@ -239,7 +239,7 @@ pub fn queue_lock_dir(repo_root: &Path) -> PathBuf {
 }
 
 fn is_supervising_label(label: &str) -> bool {
-    matches!(label, "run one" | "run loop" | "tui")
+    matches!(label, "run one" | "run loop")
 }
 
 /// Check if the queue lock is currently held by a supervising process

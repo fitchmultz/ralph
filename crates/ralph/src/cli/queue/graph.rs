@@ -8,7 +8,7 @@
 //! Not handled here:
 //! - Graph algorithm computation (handled by queue::graph)
 //! - File I/O (handled by queue module)
-//! - TUI rendering
+//! - GUI rendering
 //!
 //! Invariants/assumptions:
 //! - Queue files are valid and already validated by the loader

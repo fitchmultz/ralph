@@ -51,7 +51,7 @@ impl EtaConfidence {
         }
     }
 
-    /// Returns a color name for the confidence level (for TUI styling).
+    /// Returns a color name for the confidence level (for UI styling).
     pub fn color_name(&self) -> &'static str {
         match self {
             EtaConfidence::High => "green",

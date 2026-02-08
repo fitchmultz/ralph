@@ -576,36 +576,29 @@ fn trigger_celebration(
     task_title: &str,
     no_progress: bool,
 ) {
-    // Check if stats tracking is enabled (default: true)
-    let stats_enabled = resolved.config.tui.stats_enabled.unwrap_or(true);
-
-    if stats_enabled {
-        // Record the completion in productivity stats
-        let cache_dir = resolved.repo_root.join(".ralph").join("cache");
-        match productivity::record_task_completion_by_id(task_id, task_title, &cache_dir) {
-            Ok(result) => {
-                // Check if celebrations are enabled and we're in a terminal
-                if celebrations::should_celebrate(Some(&resolved.config), no_progress) {
-                    let celebration =
-                        celebrations::celebrate_task_completion(task_id, task_title, &result);
-                    println!("{}", celebration);
-                }
-
-                // Mark milestone as celebrated if one was achieved
-                if let Some(threshold) = result.milestone_achieved
-                    && let Err(err) = productivity::mark_milestone_celebrated(&cache_dir, threshold)
-                {
-                    log::debug!("Failed to mark milestone as celebrated: {}", err);
-                }
+    let cache_dir = resolved.repo_root.join(".ralph").join("cache");
+    match productivity::record_task_completion_by_id(task_id, task_title, &cache_dir) {
+        Ok(result) => {
+            if celebrations::should_celebrate(no_progress) {
+                let celebration =
+                    celebrations::celebrate_task_completion(task_id, task_title, &result);
+                println!("{}", celebration);
             }
-            Err(err) => {
-                log::debug!("Failed to record productivity stats: {}", err);
+
+            // Mark milestone as celebrated if one was achieved
+            if let Some(threshold) = result.milestone_achieved
+                && let Err(err) = productivity::mark_milestone_celebrated(&cache_dir, threshold)
+            {
+                log::debug!("Failed to mark milestone as celebrated: {}", err);
             }
         }
-    } else if celebrations::should_celebrate(Some(&resolved.config), no_progress) {
-        // Stats disabled but celebrations still enabled - show simple celebration
-        let celebration = celebrations::celebrate_standard(task_id, task_title);
-        println!("{}", celebration);
+        Err(err) => {
+            log::debug!("Failed to record productivity stats: {}", err);
+            if celebrations::should_celebrate(no_progress) {
+                let celebration = celebrations::celebrate_standard(task_id, task_title);
+                println!("{}", celebration);
+            }
+        }
     }
 }
 
@@ -712,11 +705,6 @@ mod tests {
                 max_dependency_depth: Some(10),
                 auto_archive_terminal_after_days: None,
                 aging_thresholds: None,
-            },
-            tui: crate::contracts::TuiConfig {
-                auto_archive_terminal: None,
-                celebrations_enabled: Some(false),
-                stats_enabled: Some(false),
             },
             ..Config::default()
         };

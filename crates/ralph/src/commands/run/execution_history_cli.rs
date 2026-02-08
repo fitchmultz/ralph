@@ -6,7 +6,7 @@
 //!
 //! Not handled here:
 //! - Measuring or accumulating timings (see `execution_timings` and phase instrumentation).
-//! - Recording history for TUI runs (handled by `crate::tui::app`).
+//! - Recording history for non-CLI clients (handled by their entrypoints).
 //! - Parallel worker mode behavior (callers must skip).
 //!
 //! Invariants/assumptions callers must respect:

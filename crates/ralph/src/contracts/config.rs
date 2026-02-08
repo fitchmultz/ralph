@@ -59,9 +59,6 @@ pub struct Config {
     /// Parallel run-loop configuration.
     pub parallel: ParallelConfig,
 
-    /// TUI-specific configuration.
-    pub tui: TuiConfig,
-
     /// Plugin configuration (enable/disable + per-plugin settings).
     pub plugins: PluginsConfig,
 
@@ -135,7 +132,7 @@ pub struct QueueConfig {
     /// - Some(0): archive immediately when the sweep runs
     /// - Some(N): archive when completed_at is at least N days old
     ///
-    /// The sweep runs during TUI startup/reload and after CLI task edit operations.
+    /// The sweep runs after selected queue mutation operations (e.g., task edits and run supervision).
     /// Tasks with missing or invalid completed_at timestamps are not moved when N > 0.
     #[schemars(range(min = 0, max = 3650))]
     pub auto_archive_terminal_after_days: Option<u32>,
@@ -625,32 +622,6 @@ impl std::str::FromStr for GitRevertMode {
     }
 }
 
-/// Behavior for auto-archiving terminal tasks (Done/Rejected) when set via TUI.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum AutoArchiveBehavior {
-    /// Never auto-archive (current behavior).
-    #[default]
-    Never,
-    /// Ask before archiving.
-    Prompt,
-    /// Archive immediately without prompt.
-    Always,
-}
-
-impl std::str::FromStr for AutoArchiveBehavior {
-    type Err = &'static str;
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match value.trim().to_lowercase().as_str() {
-            "never" => Ok(AutoArchiveBehavior::Never),
-            "prompt" => Ok(AutoArchiveBehavior::Prompt),
-            "always" => Ok(AutoArchiveBehavior::Always),
-            _ => Err("auto_archive_behavior must be 'never', 'prompt', or 'always'"),
-        }
-    }
-}
-
 /// Scan prompt version to use for scan operations.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -660,32 +631,6 @@ pub enum ScanPromptVersion {
     /// Version 2: Rubric-based scan prompts with quality-focused STOP CONDITION (default).
     #[default]
     V2,
-}
-
-/// TUI-specific configuration.
-#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
-#[serde(default, deny_unknown_fields)]
-pub struct TuiConfig {
-    /// Auto-archive behavior for terminal tasks (Done/Rejected) when set via TUI.
-    pub auto_archive_terminal: Option<AutoArchiveBehavior>,
-    /// Enable celebration animations on task completion (default: true).
-    pub celebrations_enabled: Option<bool>,
-    /// Enable productivity stats tracking (default: true).
-    pub stats_enabled: Option<bool>,
-}
-
-impl TuiConfig {
-    pub fn merge_from(&mut self, other: Self) {
-        if other.auto_archive_terminal.is_some() {
-            self.auto_archive_terminal = other.auto_archive_terminal;
-        }
-        if other.celebrations_enabled.is_some() {
-            self.celebrations_enabled = other.celebrations_enabled;
-        }
-        if other.stats_enabled.is_some() {
-            self.stats_enabled = other.stats_enabled;
-        }
-    }
 }
 
 /// Plugin configuration container.
@@ -795,7 +740,7 @@ pub struct NotificationConfig {
     /// Enable desktop notifications when loop mode completes (default: true).
     pub notify_on_loop_complete: Option<bool>,
 
-    /// Suppress notifications when TUI is active (default: true).
+    /// Suppress notifications when a foreground UI client is active (default: true).
     pub suppress_when_active: Option<bool>,
 
     /// Enable sound alerts with notifications (default: false).
@@ -1122,7 +1067,6 @@ impl Default for Config {
                 delete_branch_on_merge: Some(true),
                 merge_runner: None,
             },
-            tui: TuiConfig::default(),
             plugins: PluginsConfig::default(),
             profiles: None,
         }

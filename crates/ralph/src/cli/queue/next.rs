@@ -8,7 +8,7 @@
 //! Does not handle:
 //! - Task execution (see `crate::commands::run`).
 //! - Queue mutations.
-//! - Real-time progress tracking (see TUI app).
+//! - Real-time progress tracking (handled by external UI clients).
 //!
 //! Invariants/assumptions:
 //! - When no runnable task exists, prints next available ID (for script compatibility).

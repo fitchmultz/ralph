@@ -2,11 +2,11 @@
 //!
 //! Responsibilities:
 //! - Categorize tasks by age into buckets (fresh, warning, stale, rotten, unknown).
-//! - Provide shared aging logic for CLI reports and TUI indicators.
+//! - Provide shared aging logic for CLI reports and UI indicators.
 //!
 //! Not handled here:
 //! - Output formatting (see shared.rs).
-//! - TUI color mapping (TUI maps buckets to colors).
+//! - UI color/styling mapping (callers decide how to render buckets).
 //!
 //! Invariants/assumptions:
 //! - Thresholds must satisfy: warning_days < stale_days < rotten_days.

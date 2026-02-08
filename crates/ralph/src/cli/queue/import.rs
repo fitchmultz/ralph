@@ -8,7 +8,7 @@
 //!
 //! Not handled here:
 //! - Export functionality (see `crate::cli::queue::export`).
-//! - TUI workflows (CLI-only command).
+//! - GUI-specific import workflows (this is a CLI command).
 //! - Complex schema migration between versions.
 //!
 //! Invariants/assumptions:

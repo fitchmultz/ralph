@@ -128,30 +128,3 @@ fn run_loop_wait_when_empty_conflicts_with_parallel() {
         stderr
     );
 }
-
-/// Test that --wait-when-empty conflicts with --interactive.
-#[test]
-fn run_loop_wait_when_empty_conflicts_with_interactive() {
-    let ralph = test_support::ralph_bin();
-
-    let output = Command::new(&ralph)
-        .arg("run")
-        .arg("loop")
-        .arg("--wait-when-empty")
-        .arg("--interactive")
-        .output()
-        .expect("Failed to run ralph");
-
-    let stderr = String::from_utf8_lossy(&output.stderr);
-
-    // Should fail due to conflict
-    assert!(
-        !output.status.success(),
-        "--wait-when-empty should conflict with --interactive"
-    );
-    assert!(
-        stderr.contains("cannot be used with") || stderr.contains("conflict"),
-        "Error should mention conflict: {}",
-        stderr
-    );
-}

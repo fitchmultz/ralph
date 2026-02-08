@@ -9,7 +9,7 @@
 //! Does NOT handle:
 //! - Notification scheduling or queuing (callers trigger explicitly).
 //! - Persistent notification history or logging.
-//! - TUI mode detection (callers should suppress if desired).
+//! - UI mode detection (callers should suppress if desired).
 //! - Do Not Disturb detection (handled at call site if needed).
 //!
 //! Invariants:
@@ -30,7 +30,7 @@ pub struct NotificationConfig {
     pub notify_on_fail: bool,
     /// Enable desktop notifications when loop mode completes.
     pub notify_on_loop_complete: bool,
-    /// Suppress notifications when TUI is active.
+    /// Suppress notifications when a foreground UI client is active.
     pub suppress_when_active: bool,
     /// Enable sound alerts with notifications.
     pub sound_enabled: bool,
@@ -56,12 +56,12 @@ impl NotificationConfig {
         }
     }
 
-    /// Check if notifications should be suppressed based on TUI state.
-    pub fn should_suppress(&self, tui_active: bool) -> bool {
+    /// Check if notifications should be suppressed based on UI state.
+    pub fn should_suppress(&self, ui_active: bool) -> bool {
         if !self.enabled {
             return true;
         }
-        if tui_active && self.suppress_when_active {
+        if ui_active && self.suppress_when_active {
             return true;
         }
         false
@@ -91,13 +91,13 @@ pub enum NotificationType {
 /// * `task_id` - The task identifier (for task-specific notifications)
 /// * `task_title` - The task title (for task-specific notifications)
 /// * `config` - Notification configuration
-/// * `tui_active` - Whether the TUI is currently active (for suppression)
+/// * `ui_active` - Whether a foreground UI client is currently active (for suppression)
 pub fn send_notification(
     notification_type: NotificationType,
     task_id: &str,
     task_title: &str,
     config: &NotificationConfig,
-    tui_active: bool,
+    ui_active: bool,
 ) {
     // Check if this notification type is enabled
     let type_enabled = match notification_type {
@@ -114,8 +114,8 @@ pub fn send_notification(
         return;
     }
 
-    if config.should_suppress(tui_active) {
-        log::debug!("Notifications suppressed (TUI active or globally disabled)");
+    if config.should_suppress(ui_active) {
+        log::debug!("Notifications suppressed (UI active or globally disabled)");
         return;
     }
 
@@ -146,20 +146,20 @@ pub fn notify_task_complete(task_id: &str, task_title: &str, config: &Notificati
     );
 }
 
-/// Send task completion notification with TUI awareness.
+/// Send task completion notification with UI awareness.
 /// Silently logs errors but never fails the calling operation.
 pub fn notify_task_complete_with_context(
     task_id: &str,
     task_title: &str,
     config: &NotificationConfig,
-    tui_active: bool,
+    ui_active: bool,
 ) {
     send_notification(
         NotificationType::TaskComplete,
         task_id,
         task_title,
         config,
-        tui_active,
+        ui_active,
     );
 }
 

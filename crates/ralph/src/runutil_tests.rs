@@ -6,7 +6,7 @@
 //!
 //! Not handled here:
 //! - Integration with real runner binaries or network calls.
-//! - CLI/TUI rendering behavior beyond prompt IO surfaces.
+//! - UI rendering behavior beyond prompt IO surfaces.
 //!
 //! Invariants/assumptions:
 //! - Tests run against isolated temp git repos.

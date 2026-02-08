@@ -2,7 +2,7 @@
 //!
 //! Responsibilities:
 //! - Apply `GitRevertMode` policies (Enabled/Disabled/Ask).
-//! - Provide prompt context/types for interactive UIs (CLI + TUI).
+//! - Provide prompt context/types for interactive clients (CLI prompts, GUI wrappers).
 //! - Parse prompt responses in a deterministic, testable way.
 //!
 //! Not handled here:

@@ -1,4 +1,4 @@
-//! Output formatting helpers for Ralph CLI and TUI surfaces.
+//! Output formatting helpers for Ralph CLI and GUI surfaces.
 //!
 //! Responsibilities:
 //! - Format task IDs, titles, and fields for display.

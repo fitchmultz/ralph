@@ -2,7 +2,7 @@
 //!
 //! Responsibilities:
 //! - Provide the `queue::graph` module public API via focused submodules.
-//! - Re-export the minimal set of types/functions consumed by CLI/TUI and other crate code.
+//! - Re-export the minimal set of types/functions consumed by CLI/GUI clients and other crate code.
 //!
 //! Not handled here:
 //! - Graph construction (see `build`).

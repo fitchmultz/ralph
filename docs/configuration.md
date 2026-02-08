@@ -69,7 +69,7 @@ Supported fields:
 - `repoprompt_tool_injection`: inject RepoPrompt tooling reminders into prompts.
 - `git_revert_mode`: `ask`, `enabled`, or `disabled`.
 - `git_commit_push_enabled`: enable or disable automatic git commit/push after successful runs (default: `true`).
-  **Safety warning:** When enabled, Ralph will automatically push changes to the remote repository. This action is irreversible. The TUI will prompt for confirmation when enabling this setting.
+  **Safety warning:** When enabled, Ralph will automatically push changes to the remote repository. This action is irreversible. Ralph will prompt for confirmation when enabling this setting.
   **Parallel workers:** This setting is inherited by parallel workers. When disabled, parallel PR automation (`auto_pr`, `auto_merge`, `draft_on_failure`) is skipped because PRs require pushed commits.
 - `session_timeout_hours`: session timeout in hours for crash recovery (default: `24`). Sessions older than this threshold are considered stale and require explicit user confirmation to resume. Set to a higher value if you want to allow resuming sessions after longer periods.
 - `runner_retry`: runner invocation retry/backoff configuration for transient failure handling. See [`agent.runner_retry`](#agentrunner_retry) below.
@@ -209,7 +209,7 @@ Runner invocation retry/backoff configuration for transient failure handling. Co
 
 Notes:
 - Retries only occur when the repository is clean (or dirty only in Ralph-allowed paths like `.ralph/`), or when `git_revert_mode` is `enabled` for auto-revert.
-- The TUI displays retry attempt counts and backoff delays via `RALPH_OPERATION:` markers in runner output.
+- Retry attempt counts and backoff delays are emitted via `RALPH_OPERATION:` markers in runner output.
 - To disable retry entirely, set `max_attempts: 1`.
 
 ### `agent.phase_overrides`
@@ -257,8 +257,7 @@ Each phase config can specify:
 
 ## Parallel Configuration
 
-`parallel` controls the CLI-only parallel execution mode for `ralph run loop`. The TUI does not
-support parallel runs.
+`parallel` controls the CLI-only parallel execution mode for `ralph run loop`.
 
 Key fields:
 - `workers`: number of concurrent workers (must be `>= 2`). Default: `null` (disabled unless CLI
@@ -341,7 +340,7 @@ rejected during parallel preflight. Prefer repo-relative paths like `.ralph/queu
 The `auto_archive_terminal_after_days` setting provides a queue-level sweep that archives terminal tasks (done/rejected) automatically:
 
 - **Not set / `null`** (default): Disabled; no automatic sweep occurs.
-- **`0`**: Archive immediately when the sweep runs (during TUI startup/reload and after CLI task edit).
+- **`0`**: Archive immediately when the sweep runs (during macOS app startup/reload and after CLI task edit).
 - **`N > 0`**: Archive only when `completed_at` is at least `N` days old.
 
 **Safety behavior:** When `N > 0`, tasks with missing, blank, or invalid `completed_at` timestamps are **not moved**. This ensures only tasks with valid completion timestamps are archived automatically.
@@ -370,12 +369,11 @@ Immediate archive (archive all terminal tasks on sweep):
 }
 ```
 
-**Note:** This is distinct from `tui.auto_archive_terminal`, which controls per-status-change behavior in the TUI (see TUI Task Management documentation). The queue-level sweep runs:
-- When the TUI starts or reloads queue files
+The queue-level sweep runs:
+- When the macOS app starts or reloads queue files
 - After `ralph task edit` operations (CLI)
 
 For immediate manual archiving, use `ralph queue archive`.
-```
 
 ### Aging Thresholds
 
@@ -416,14 +414,14 @@ Example configuration:
 3. Global config (`~/.config/ralph/config.json`)
 4. Schema defaults (`schemas/config.schema.json`)
 
-## TUI Safety Warnings
+## App Safety Warnings (macOS)
 
-When using the TUI config editor (`e` key in the task list), certain high-risk settings display inline warnings:
+When editing configuration in the macOS app, certain high-risk settings display inline warnings:
 
-- **Danger level** (⚠): Settings like `git_commit_push_enabled` that can cause irreversible actions. The TUI will prompt for confirmation before enabling these.
+- **Danger level** (⚠): Settings like `git_commit_push_enabled` that can cause irreversible actions. The app prompts for confirmation before enabling these.
 - **Warning level** (ℹ): Settings like `approval_mode` and `claude_permission_mode` that reduce safety checks. These show descriptive text but don't require confirmation.
 
-The confirmation dialog for Danger-level settings explains the risk and requires an explicit `y` keypress to proceed. Pressing `n` or `Esc` cancels the change.
+The confirmation dialog for Danger-level settings explains the risk and requires an explicit confirmation to proceed.
 
 ## Notification Configuration
 
@@ -434,7 +432,7 @@ Supported fields:
 - `notify_on_complete`: enable notifications on task completion (default: `true`).
 - `notify_on_fail`: enable notifications on task failure (default: `true`).
 - `notify_on_loop_complete`: enable notifications when loop mode finishes (default: `true`).
-- `suppress_when_active`: suppress notifications when TUI is active (default: `true`).
+- `suppress_when_active`: suppress notifications when the macOS app is active (default: `true`).
 - `sound_enabled`: play sound with notification (default: `false`).
 - `sound_path`: custom sound file path (optional, platform-specific).
 - `timeout_ms`: notification display duration in milliseconds (default: `8000`, range: `1000-60000`).

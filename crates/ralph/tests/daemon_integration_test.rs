@@ -45,9 +45,7 @@ mod unix_tests {
     fn temp_dir_outside_repo() -> tempfile::TempDir {
         use std::path::PathBuf;
 
-        let mut candidates: Vec<PathBuf> = Vec::new();
-        candidates.push(std::env::temp_dir());
-        candidates.push(PathBuf::from("/tmp"));
+        let candidates: [PathBuf; 2] = [std::env::temp_dir(), PathBuf::from("/tmp")];
 
         for candidate in candidates {
             if candidate.as_os_str().is_empty() {

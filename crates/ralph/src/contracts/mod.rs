@@ -14,6 +14,7 @@
 
 #![allow(clippy::struct_excessive_bools)]
 
+mod cli_spec;
 mod config;
 mod model;
 mod queue;
@@ -23,12 +24,14 @@ mod task;
 
 // Re-exports from config module (core config types)
 pub use config::{
-    AgentConfig, AutoArchiveBehavior, Config, ConflictPolicy, GitRevertMode, NotificationConfig,
-    ParallelConfig, ParallelMergeMethod, ParallelMergeWhen, PhaseOverrideConfig, PhaseOverrides,
-    PluginConfig, PluginProcessorConfig, PluginRunnerConfig, PluginsConfig, ProjectType,
-    QueueAgingThresholds, QueueConfig, RunnerRetryConfig, ScanPromptVersion, TuiConfig,
-    WebhookConfig, WebhookQueuePolicy,
+    AgentConfig, Config, ConflictPolicy, GitRevertMode, NotificationConfig, ParallelConfig,
+    ParallelMergeMethod, ParallelMergeWhen, PhaseOverrideConfig, PhaseOverrides, PluginConfig,
+    PluginProcessorConfig, PluginRunnerConfig, PluginsConfig, ProjectType, QueueAgingThresholds,
+    QueueConfig, RunnerRetryConfig, ScanPromptVersion, WebhookConfig, WebhookQueuePolicy,
 };
+
+// Re-exports from cli_spec module (versioned; suitable for tooling consumption)
+pub use cli_spec::{ArgSpec, CLI_SPEC_VERSION, CliSpec, CommandSpec};
 
 // Re-exports from model module (model types)
 pub use model::{Model, ModelEffort, ReasoningEffort};

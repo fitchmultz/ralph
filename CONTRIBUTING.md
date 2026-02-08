@@ -162,7 +162,7 @@ Commit the updated snapshot files under `crates/ralph/tests/snapshots/`.
 
 ### Feature Parity
 
-When changing user-visible workflows, maintain parity between CLI and TUI, or document/justify the divergence explicitly.
+When changing user-visible workflows, maintain parity between the CLI and the macOS app, or document/justify the divergence explicitly.
 
 ### CLI Help Documentation
 
@@ -217,8 +217,9 @@ This repository is local-CI-first. We avoid adding remote CI (e.g., GitHub Actio
 
 Key locations to know:
 
+- `apps/RalphMac/`: macOS SwiftUI app (thin client that shells out to the bundled `ralph` CLI)
 - `crates/ralph/`: Primary Rust CLI crate
-  - `src/`: CLI commands, runner integration, queue management, TUI
+  - `src/`: CLI commands, runner integration, queue management
   - `assets/prompts/`: Embedded prompt templates
 - `docs/`: CLI + workflow + configuration docs (`docs/index.md` is the entry point)
 - `schemas/`: Generated JSON schemas (committed)

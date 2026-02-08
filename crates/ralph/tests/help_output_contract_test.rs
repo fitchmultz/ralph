@@ -82,9 +82,10 @@ fn run_help_mentions_precedence_and_overrides_exist() {
     assert_contains(&combined, "CLI overrides");
     assert_contains(&combined, "task");
     assert_contains(&combined, "config");
-    assert_contains(&combined, "ralph tui");
-    assert_contains(&combined, "ralph run one -i");
-    assert_contains(&combined, "ralph run loop -i");
+    assert_contains(&combined, "Examples:");
+    assert_contains(&combined, "ralph run one");
+    assert_contains(&combined, "ralph run loop");
+    assert_contains(&combined, "ralph run resume");
 }
 
 #[test]

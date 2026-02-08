@@ -1,6 +1,7 @@
 # Ralph Documentation
 
 > **Ralph** is a Rust CLI for running AI agent loops against a structured JSON task queue.
+> On macOS, Ralph also includes a SwiftUI app for interactive queue work (`ralph app open`).
 
 ![Documentation Overview](assets/images/2026-02-07-docs-overview.png)
 
@@ -13,7 +14,7 @@ Choose your path:
 | User Type | Start Here | Goal |
 |-----------|------------|------|
 | **New User** | [Quick Start Guide](#start-here) | Get Ralph installed and running your first task |
-| **Daily User** | [Core Concepts](#core-concepts) → [TUI Guide](#workflow-tools) | Efficient daily task management |
+| **Daily User** | [Core Concepts](#core-concepts) → [App Guide](#workflow-tools) | Efficient daily task management |
 | **Power User** | [Parallel Execution](#execution-features) → [Webhooks](#integration-features) | Scale and integrate Ralph |
 | **Contributor** | [Contributing Guide](#contributing) → [Error Handling](#development-reference) | Extend and improve Ralph |
 
@@ -38,8 +39,11 @@ cargo install ralph
 # 2. Initialize your project
 ralph init
 
-# 3. Launch the interactive TUI
-ralph tui
+# 3. Run the next task
+ralph run one
+
+# macOS (optional): open the app UI
+ralph app open
 ```
 
 ---
@@ -128,7 +132,7 @@ Detailed guides for Ralph's capabilities, organized by category:
 
 | Feature | Document | Description |
 |---------|----------|-------------|
-| TUI | [features/tui.md](features/tui.md) | Terminal User Interface |
+| App (macOS) | [features/app.md](features/app.md) | macOS SwiftUI app |
 | Scan | [features/scan.md](features/scan.md) | AI-powered repository scanning |
 | Daemon & Watch | [features/daemon-and-watch.md](features/daemon-and-watch.md) | Background execution and file watching |
 
@@ -175,8 +179,8 @@ Step-by-step tutorials for common workflows:
 
 | Guide | Description |
 |-------|-------------|
-| [Daily Development](quick-start.md#daily-development) | TUI workflow for everyday use |
-| [Creating Tasks](quick-start.md#creating-tasks) | From CLI and TUI |
+| [Daily Development](quick-start.md#daily-development) | CLI + macOS app workflow for everyday use |
+| [Creating Tasks](quick-start.md#creating-tasks) | From CLI and macOS app |
 | [Queue Management](queue-and-tasks.md) | Managing the task queue |
 
 ### Advanced Workflows
@@ -192,7 +196,7 @@ Step-by-step tutorials for common workflows:
 
 | I want to... | See |
 |--------------|-----|
-| Get started quickly | [Quick Start](quick-start.md), [TUI](features/tui.md) |
+| Get started quickly | [Quick Start](quick-start.md), [App](features/app.md) |
 | Configure my runner | [Runners](features/runners.md), [Configuration](configuration.md) |
 | Set up parallel execution | [Parallel](features/parallel.md) |
 | Integrate with Slack/Discord | [Webhooks](features/webhooks.md) |
@@ -218,7 +222,7 @@ Complete reference documentation:
 | [ralph run](cli.md#ralph-run) | Run tasks |
 | [ralph queue](cli.md#ralph-queue) | Queue management |
 | [ralph task](cli.md#ralph-task) | Task creation and management |
-| [ralph tui](cli.md#ralph-tui) | Interactive TUI |
+| [ralph app](cli.md#ralph-app) | macOS app integration |
 | [ralph scan](cli.md#ralph-scan) | Repository scanning |
 | [ralph config](cli.md#ralph-config) | Configuration inspection |
 | [ralph doctor](cli.md#ralph-doctor) | Environment verification |
@@ -284,7 +288,7 @@ make ci
 
 | Location | Purpose |
 |----------|---------|
-| `crates/ralph/src/` | CLI commands, runner integration, queue management, TUI |
+| `crates/ralph/src/` | CLI commands, runner integration, queue management |
 | `crates/ralph/assets/prompts/` | Embedded prompt templates |
 | `crates/ralph/tests/` | Integration tests |
 | `docs/` | Documentation |

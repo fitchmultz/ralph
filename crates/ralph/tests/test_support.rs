@@ -109,7 +109,7 @@ pub fn make_test_queue() -> QueueFile {
 
 /// Rendering-focused task fixture.
 ///
-/// This matches historical fixtures embedded in `tui_rendering_test.rs`:
+/// This matches historical fixtures used by older rendering/snapshot tests:
 /// - `plan` has two steps (to exercise multi-step rendering)
 /// - `completed_at` is intentionally `None` even for Done/Rejected tasks (rendering tests
 ///   explicitly control timestamp sections when needed)

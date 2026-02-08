@@ -19,14 +19,15 @@ This file is a fast path for contributors/agents; for deeper detail start at `do
   - any invariants/assumptions callers must respect
   - (Rust: prefer `//!` module docs at the top of the file.)
 - Tests: all new/changed behavior must be covered (success + failure modes). Prefer tests near the code.
-- Feature parity: when changing a user-visible workflow, maintain parity between CLI and TUI (or document/justify the divergence explicitly).
+- Feature parity: when changing a user-visible workflow, maintain parity between the CLI and the macOS app (or document/justify the divergence explicitly).
 - CLI help: user-facing commands/flags MUST have `--help` text with examples (and keep `docs/cli.md` in sync).
 - Secrets: never commit or print secrets; redact runner output before copying into `.ralph/queue.json` notes.
 
 ## Repository Map
 
+- `apps/RalphMac/`: macOS SwiftUI app (thin client that shells out to the bundled `ralph` CLI)
 - `crates/ralph/`: primary Rust CLI crate
-  - `crates/ralph/src/`: CLI commands, runner integration, queue management, TUI
+  - `crates/ralph/src/`: CLI commands, runner integration, queue management
   - `crates/ralph/assets/prompts/`: embedded prompt templates (worker/task builder/scan)
 - `docs/`: CLI + workflow + configuration docs (`docs/index.md` is the entry point)
 - `schemas/`: generated JSON schemas (committed)

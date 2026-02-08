@@ -5,7 +5,7 @@
 //! - Cover both success paths and key failure modes (e.g., cycle detection).
 //!
 //! Not handled here:
-//! - Integration-level CLI/TUI rendering behavior (covered elsewhere).
+//! - Integration-level UI rendering behavior (covered elsewhere).
 //!
 //! Invariants/assumptions:
 //! - Task timestamps are present (to satisfy `Task` invariants in this crate's contracts).

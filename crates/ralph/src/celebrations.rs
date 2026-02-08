@@ -1,9 +1,9 @@
 //! Celebration animations and feedback for task completions.
 //!
 //! Responsibilities:
-//! - Render celebration animations for TUI and CLI
+//! - Render celebration animations for CLI
 //! - Check terminal capabilities (is_terminal, color support)
-//! - Respect config settings (celebrations_enabled, --no-progress)
+//! - Respect `--no-progress` (celebrations are suppressed when progress is disabled)
 //!
 //! Not handled here:
 //! - Stats persistence (see `crate::productivity`)
@@ -14,29 +14,21 @@
 //! - ASCII art is used for terminal compatibility
 //! - Celebrations respect terminal capabilities and user preferences
 
-use crate::contracts::Config;
 use crate::productivity::CompletionResult;
 use std::io::IsTerminal;
 
 /// Check if celebrations should be shown
-pub fn should_celebrate(config: Option<&Config>, no_progress: bool) -> bool {
-    // Don't celebrate if progress is disabled
+pub fn should_celebrate(no_progress: bool) -> bool {
+    should_celebrate_impl(no_progress, std::io::stdout().is_terminal())
+}
+
+fn should_celebrate_impl(no_progress: bool, is_terminal: bool) -> bool {
     if no_progress {
         return false;
     }
-
-    // Don't celebrate if not in a terminal
-    if !std::io::stdout().is_terminal() {
+    if !is_terminal {
         return false;
     }
-
-    // Check config setting (default to true)
-    if let Some(config) = config
-        && let Some(enabled) = config.tui.celebrations_enabled
-    {
-        return enabled;
-    }
-
     true
 }
 
@@ -198,24 +190,20 @@ pub mod art {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::contracts::Config;
 
     #[test]
     fn test_should_celebrate_respects_no_progress() {
-        let config = Config::default();
-        assert!(!should_celebrate(Some(&config), true));
+        assert!(!should_celebrate_impl(true, true));
     }
 
     #[test]
-    fn test_should_celebrate_respects_config() {
-        let mut config = Config::default();
-        config.tui.celebrations_enabled = Some(false);
-        // Still returns false because we're not in a terminal in tests
-        // but we can at least verify the config path is checked
-        let result = should_celebrate(Some(&config), false);
-        // In test environment (not a terminal), this will be false
-        // In a real terminal with config disabled, this would also be false
-        assert!(!result);
+    fn test_should_celebrate_requires_terminal() {
+        assert!(!should_celebrate_impl(false, false));
+    }
+
+    #[test]
+    fn test_should_celebrate_true_when_tty_and_progress_enabled() {
+        assert!(should_celebrate_impl(false, true));
     }
 
     #[test]

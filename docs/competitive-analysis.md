@@ -103,7 +103,7 @@ ralph.sh
 ## mitchfultz/ralph (This Repository) Analysis
 
 ### Overview
-A comprehensive Rust CLI with persistent state management, rich TUI, and multi-runner support. Implements a three-phase workflow with CI gates and schema validation.
+A comprehensive Rust CLI with persistent state management, macOS app integration (SwiftUI), and multi-runner support. Implements a three-phase workflow with CI gates and schema validation.
 
 ### Architecture
 
@@ -111,7 +111,6 @@ A comprehensive Rust CLI with persistent state management, rich TUI, and multi-r
 crates/ralph/
 ├── src/
 │   ├── cli/           # CLI commands
-│   ├── tui/           # Interactive terminal UI
 │   ├── runner/        # Runner integrations
 │   ├── queue/         # Queue operations
 │   └── commands/      # Command implementations
@@ -161,7 +160,7 @@ crates/ralph/
 | Feature | Implementation |
 |---------|---------------|
 | Multi-runner support | Codex, OpenCode, Gemini, Claude, Cursor |
-| TUI | Interactive ratatui-based interface with command palette |
+| App (macOS) | SwiftUI app for interactive queue management (`ralph app open`) |
 | Queue management | Full CRUD, filtering, sorting, archiving |
 | Schema validation | JSON schemas for config and queue |
 | Config layers | CLI → Project → Global → Schema defaults |
@@ -173,7 +172,7 @@ crates/ralph/
 
 ### Strengths
 
-1. **Rich TUI**: Interactive task management with filters, search, command palette
+1. **Interactive UI (macOS)**: Interactive task management with filtering and search
 2. **Multi-runner**: Supports 5 different AI runners with unified interface
 3. **Persistent state**: Structured queue with validation and archiving
 4. **Three-phase workflow**: Planning → Implementation → Review with CI gates
@@ -265,8 +264,7 @@ crates/ralph/
 ### What mitchfultz/ralph Does Better
 
 1. **Interactive Task Management**
-   - Rich TUI with real-time filtering and search
-   - Command palette for discoverability
+   - macOS app (SwiftUI) for real-time filtering and search
    - Visual task status and priority
 
 2. **Multi-Runner Flexibility**
@@ -325,11 +323,11 @@ crates/ralph/
 
 5. **Task Templates**
    - Pre-defined task patterns (bug fix, feature, refactor)
-   - Template selection in TUI (`N` → choose template)
+   - Template selection in the macOS app
    - Auto-populate tags, scope hints, plan structure
 
 6. **Progress Visualization**
-   - Show iteration progress in TUI execution view
+   - Show iteration progress in the macOS app execution view
    - Visual indicator of phase completion
    - Time tracking per phase
 
@@ -373,14 +371,14 @@ crates/ralph/
     - Comparison with other tools
 
 14. **Video/GIF Demos**
-    - TUI walkthrough recordings
+    - App walkthrough recordings
     - Show before/after for key features
     - Embed in README
 
 15. **Interactive Tutorial**
     - Built-in tutorial mode (`ralph tutorial`)
     - Step-by-step guided first task
-    - Teaches TUI keybindings interactively
+    - Teaches app navigation and keyboard shortcuts interactively
 
 ---
 
@@ -388,7 +386,7 @@ crates/ralph/
 
 **snarktank/ralph** excels at simplicity and the "fresh context" philosophy. It's ideal for users who want minimal overhead and prefer stateless iteration. The bash implementation makes it highly hackable.
 
-**mitchfultz/ralph** excels at structured workflow management and multi-runner flexibility. The TUI and persistent queue provide visibility and control that bash scripts cannot match. The three-phase workflow with CI gates ensures higher quality outputs.
+**mitchfultz/ralph** excels at structured workflow management and multi-runner flexibility. The macOS app and persistent queue provide visibility and control that bash scripts cannot match. The three-phase workflow with CI gates ensures higher quality outputs.
 
 ### Recommendation
 

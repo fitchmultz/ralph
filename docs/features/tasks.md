@@ -215,7 +215,7 @@ assert!(TaskPriority::Medium > TaskPriority::Low);
 
 ### Priority Cycling
 
-In CLI/TUI, empty value for priority cycles through levels:
+When editing priority in an interactive UI, an empty value cycles through levels:
 ```
 low → medium → high → critical → low
 ```
@@ -230,7 +230,7 @@ low → medium → high → critical → low
 **CURRENTLY IMPLEMENTED BEHAVIOR:**
 - Priority is stored and displayed but does not affect automatic execution order
 - Tasks execute in file order (top to bottom)
-- Priority can be used for manual filtering and TUI sorting
+- Priority can be used for manual filtering and UI sorting
 
 ---
 
@@ -452,7 +452,7 @@ The `agent` field allows overriding global configuration for individual tasks.
 | Refactor Scan | `ralph task refactor` | Auto-generate from large files |
 | Import | `ralph queue import` | Bulk import from CSV/JSON |
 | Clone | `ralph task clone RQ-0001` | Duplicate existing task |
-| TUI | Interactive | Visual task creation |
+| App (macOS) | `ralph app open` | Visual task creation and triage |
 
 ### Direct CLI Creation
 

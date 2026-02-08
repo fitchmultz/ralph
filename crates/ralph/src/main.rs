@@ -47,9 +47,6 @@ fn run() -> Result<()> {
     cli::color::init_color(cli.color, cli.no_color);
 
     let mut builder = env_logger::Builder::from_default_env();
-    if suppress_terminal_logs(&cli.command) {
-        builder.target(env_logger::Target::Pipe(Box::new(std::io::sink())));
-    }
     if cli.verbose {
         builder.filter_level(log::LevelFilter::Debug);
     } else if std::env::var("RUST_LOG").is_err() {
@@ -99,15 +96,13 @@ fn run() -> Result<()> {
     match cli.command {
         cli::Command::Queue(args) => cli::queue::handle_queue(args.command, cli.force),
         cli::Command::Config(args) => cli::config::handle_config(args.command),
-        cli::Command::Run(args) => cli::run::handle_run(args.command, cli.force, cli.no_progress),
+        cli::Command::Run(args) => cli::run::handle_run(args.command, cli.force),
         cli::Command::Task(args) => cli::task::handle_task(*args, cli.force),
         cli::Command::Scan(args) => cli::scan::handle_scan(args, cli.force),
         cli::Command::Init(args) => cli::init::handle_init(args, cli.force),
+        cli::Command::App(args) => cli::app::handle_app(args.command),
         cli::Command::Prompt(args) => cli::prompt::handle_prompt(args),
         cli::Command::Doctor(args) => cli::doctor::handle_doctor(args),
-        cli::Command::Tui(args) => {
-            cli::tui::handle_tui(args, cli.color, cli.force, cli.no_progress)
-        }
         cli::Command::Context(args) => cli::context::handle_context(args),
         cli::Command::Prd(args) => cli::prd::handle_prd(args, cli.force),
         cli::Command::Completions(args) => cli::completions::handle_completions(args),
@@ -124,6 +119,7 @@ fn run() -> Result<()> {
             ralph::commands::plugin::run(&args, &resolved)
         }
         cli::Command::Daemon(args) => cli::daemon::handle_daemon(args.command),
+        cli::Command::CliSpec(args) => cli::handle_cli_spec(args),
     }
 }
 
@@ -178,91 +174,9 @@ where
     normalized
 }
 
-fn suppress_terminal_logs(command: &cli::Command) -> bool {
-    match command {
-        cli::Command::Tui(_) => true,
-        cli::Command::Run(args) => match &args.command {
-            cli::run::RunCommand::One(run_args) => run_args.interactive,
-            cli::run::RunCommand::Loop(run_args) => run_args.interactive,
-            cli::run::RunCommand::Resume(_) => false,
-        },
-        cli::Command::Doctor(_) => false,
-        _ => false,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn suppress_terminal_logs_for_tui() {
-        let cmd = cli::Command::Tui(cli::tui::TuiArgs {
-            read_only: false,
-            no_mouse: false,
-            ascii_borders: false,
-            agent: ralph::agent::RunAgentArgs::default(),
-        });
-        assert!(suppress_terminal_logs(&cmd));
-    }
-
-    #[test]
-    fn suppress_terminal_logs_for_interactive_run_one() {
-        let cmd = cli::Command::Run(cli::run::RunArgs {
-            command: cli::run::RunCommand::One(cli::run::RunOneArgs {
-                interactive: true,
-                debug: false,
-                id: None,
-                visualize: false,
-                non_interactive: false,
-                dry_run: false,
-                parallel_worker: false,
-                agent: ralph::agent::RunAgentArgs::default(),
-            }),
-        });
-        assert!(suppress_terminal_logs(&cmd));
-    }
-
-    #[test]
-    fn suppress_terminal_logs_for_interactive_run_loop() {
-        let cmd = cli::Command::Run(cli::run::RunArgs {
-            command: cli::run::RunCommand::Loop(cli::run::RunLoopArgs {
-                max_tasks: 0,
-                interactive: true,
-                debug: false,
-                visualize: false,
-                resume: false,
-                non_interactive: false,
-                dry_run: false,
-                parallel: None,
-                wait_when_blocked: false,
-                wait_poll_ms: 1000,
-                wait_timeout_seconds: 0,
-                notify_when_unblocked: false,
-                wait_when_empty: false,
-                empty_poll_ms: 30_000,
-                agent: ralph::agent::RunAgentArgs::default(),
-            }),
-        });
-        assert!(suppress_terminal_logs(&cmd));
-    }
-
-    #[test]
-    fn no_log_suppression_for_non_interactive_commands() {
-        let cmd = cli::Command::Run(cli::run::RunArgs {
-            command: cli::run::RunCommand::One(cli::run::RunOneArgs {
-                interactive: false,
-                debug: false,
-                id: Some("RQ-0001".to_string()),
-                visualize: false,
-                non_interactive: false,
-                dry_run: false,
-                parallel_worker: false,
-                agent: ralph::agent::RunAgentArgs::default(),
-            }),
-        });
-        assert!(!suppress_terminal_logs(&cmd));
-    }
 
     #[test]
     fn normalize_repo_prompt_args_rewrites_short_flag() {

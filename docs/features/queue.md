@@ -466,7 +466,7 @@ ralph queue repair --force
 ### Shared Lock Mode
 
 Task operations (running actual tasks) use a shared lock mode that allows:
-- The supervisor (`run one`, `run loop`, `tui`) holds the main lock
+- The supervisor (`run one`, `run loop`) holds the main lock
 - Individual task executions create sidecar owner files
 - Multiple tasks can run concurrently under the same supervisor
 

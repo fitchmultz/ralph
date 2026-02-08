@@ -17,7 +17,7 @@ The notification system delivers desktop alerts for key task lifecycle events:
 
 Notifications are designed to be:
 - **Non-intrusive**: Failures are logged but never interrupt execution
-- **TUI-aware**: Automatically suppressed when the TUI is active (configurable)
+- **UI-aware**: Automatically suppressed when the macOS app is active (configurable)
 - **Cross-platform**: Native notifications on macOS, Linux, and Windows
 - **Optional sound**: Audible alerts can accompany visual notifications
 
@@ -35,7 +35,7 @@ Notifications are configured via the `agent.notification` section in your config
 | `notify_on_complete` | boolean | `true` | Enable notifications when tasks complete successfully |
 | `notify_on_fail` | boolean | `true` | Enable notifications when tasks fail |
 | `notify_on_loop_complete` | boolean | `true` | Enable notifications when loop mode finishes |
-| `suppress_when_active` | boolean | `true` | Suppress notifications when TUI is active |
+| `suppress_when_active` | boolean | `true` | Suppress notifications when the macOS app is active |
 | `sound_enabled` | boolean | `false` | Play sound with notifications |
 | `sound_path` | string | `null` | Custom sound file path (platform-specific) |
 | `timeout_ms` | number | `8000` | Notification display duration (1000-60000 ms) |
@@ -382,7 +382,7 @@ Understanding the exact timing of notifications helps you configure them appropr
 **When it does NOT fire:**
 - If `notify_on_complete` is `false`
 - If `enabled` is `false` (legacy switch)
-- If TUI is active and `suppress_when_active` is `true`
+- If the macOS app is active and `suppress_when_active` is `true`
 - If the `--no-notify` CLI flag is used
 - If the notification feature is not compiled in
 
@@ -421,11 +421,9 @@ Understanding the exact timing of notifications helps you configure them appropr
 - "1 new task detected from code comments" (single)
 - "N new tasks detected from code comments" (multiple)
 
-### TUI Suppression Behavior
+### UI Suppression Behavior (macOS app)
 
-**INTENDED BEHAVIOR:** When `suppress_when_active` is `true` and the TUI is running, all desktop notifications should be suppressed since the user is already actively engaged with the interface.
-
-**CURRENTLY IMPLEMENTED BEHAVIOR:** The `should_suppress()` function checks both the `enabled` flag and the `suppress_when_active` + TUI state combination. When the TUI is active and suppression is enabled, notifications are skipped with a debug log message.
+When `suppress_when_active` is `true`, desktop notifications are suppressed while the macOS app is active.
 
 ---
 
@@ -579,13 +577,11 @@ ralph run loop --notify --notify-fail
 
 4. **Verify sound_enabled is true** in config or via `--notify-sound`
 
-### TUI Suppression Not Working
+### UI Suppression Not Working (macOS app)
 
-**INTENDED BEHAVIOR:** When running via TUI (`ralph tui`), notifications should be suppressed if `suppress_when_active` is `true`.
-
-**CURRENTLY IMPLEMENTED BEHAVIOR:** The TUI sets an internal flag that's checked before triggering notifications. If you see notifications while using TUI:
+If you see notifications while the macOS app is active:
 - Check that `suppress_when_active` is not explicitly set to `false`
-- Some direct CLI operations within TUI may still trigger notifications
+- Check debug logs for notification/suppression details
 
 ### Build Without Notifications
 
@@ -603,5 +599,5 @@ This disables the `notifications` feature flag, making all notification function
 
 - [Configuration](../configuration.md) - Complete configuration reference
 - [Webhooks](./webhooks.md) - HTTP webhook notifications
-- [TUI](../tui.md) - Interactive terminal UI (notification suppression)
+- [App (macOS)](./app.md) - App entry point and workflow
 - [Queue and Tasks](../queue-and-tasks.md) - Task lifecycle and events

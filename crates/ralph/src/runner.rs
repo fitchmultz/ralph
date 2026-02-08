@@ -50,7 +50,7 @@ use std::process::ExitStatus;
 use std::sync::Arc;
 use std::time::Duration;
 
-/// Callback type for streaming runner output to consumers (e.g., TUI).
+/// Callback type for streaming runner output to consumers (e.g., the macOS app).
 /// Called with each chunk of output as it's received from the runner process.
 pub type OutputHandler = Arc<Box<dyn Fn(&str) + Send + Sync>>;
 

@@ -7,7 +7,7 @@
 //! Not handled here:
 //! - Bulk publish (single task only).
 //! - GitHub Projects automation.
-//! - TUI integration (CLI-only).
+//! - GUI-specific issue editing flows (this is a CLI command).
 //!
 //! Invariants/assumptions:
 //! - `gh` CLI must be installed and authenticated.

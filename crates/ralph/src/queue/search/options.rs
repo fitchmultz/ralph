@@ -1,7 +1,7 @@
 //! Search options for task filtering and searching.
 //!
 //! Responsibilities:
-//! - Define `SearchOptions` struct that unifies parameters for CLI and TUI
+//! - Define `SearchOptions` struct that unifies parameters for CLI and GUI clients
 //!
 //! Not handled here:
 //! - Actual search/filter implementation (see sibling modules)
@@ -13,7 +13,7 @@
 
 /// Options controlling search and filtering behavior.
 ///
-/// This struct unifies the parameters used by both CLI and TUI for
+/// This struct unifies the parameters used by both CLI and GUI clients for
 /// consistent search semantics across surfaces.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct SearchOptions {

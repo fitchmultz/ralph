@@ -9,15 +9,26 @@
 //! - Code generation or asset embedding.
 //!
 //! Invariants/assumptions:
-//! - vergen crate is available and configured in Cargo.toml.
+//! - vergen-gitcl crate is available and configured in Cargo.toml.
 //! - Git info may be unavailable (e.g., building from tarball); vergen handles this gracefully.
 
-use vergen::EmitBuilder;
+use vergen_gitcl::{BuildBuilder, Emitter, GitclBuilder};
 
 fn main() {
-    EmitBuilder::builder()
-        .build_timestamp()
-        .git_sha(true) // short hash
+    let build = BuildBuilder::default()
+        .build_timestamp(true)
+        .build()
+        .expect("Failed to build vergen build instructions");
+    let git = GitclBuilder::default()
+        .sha(true) // short hash
+        .build()
+        .expect("Failed to build vergen git instructions");
+
+    Emitter::default()
+        .add_instructions(&build)
+        .expect("Failed to add build instructions")
+        .add_instructions(&git)
+        .expect("Failed to add git instructions")
         .emit()
         .expect("Failed to emit build info");
 }
