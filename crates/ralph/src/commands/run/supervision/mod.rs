@@ -619,7 +619,7 @@ mod tests {
     use std::path::PathBuf;
     use std::sync::Arc;
     use std::sync::Mutex;
-    
+
     use tempfile::TempDir;
 
     fn write_queue(repo_root: &Path, status: TaskStatus) -> Result<()> {

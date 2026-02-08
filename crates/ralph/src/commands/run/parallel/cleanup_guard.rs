@@ -475,7 +475,7 @@ mod tests {
     #[test]
     fn guard_cleanup_runs_on_drop() -> Result<()> {
         let temp = TempDir::new()?;
-        
+
         let mut guard = create_test_guard(&temp);
 
         let child: Child = Command::new("sleep").arg("10").spawn()?;
