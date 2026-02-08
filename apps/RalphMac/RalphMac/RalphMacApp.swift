@@ -41,6 +41,7 @@ struct RalphMacApp: App {
         .commands {
             workspaceCommands
             navigationCommands
+            taskCommands
         }
     }
 
@@ -151,6 +152,21 @@ struct RalphMacApp: App {
 
 // MARK: - Notification Names
 
+    private var taskCommands: some Commands {
+        CommandMenu("Task") {
+            Button("New Task...") {
+                NotificationCenter.default.post(
+                    name: .showTaskCreation,
+                    object: nil
+                )
+            }
+            .keyboardShortcut("n", modifiers: .command)
+        }
+    }
+}
+
+// MARK: - Notification Names
+
 extension Notification.Name {
     static let newWorkspaceTabRequested = Notification.Name("newWorkspaceTabRequested")
     static let newWindowRequested = Notification.Name("newWindowRequested")
@@ -159,4 +175,5 @@ extension Notification.Name {
     static let selectNextTabRequested = Notification.Name("selectNextTabRequested")
     static let selectPreviousTabRequested = Notification.Name("selectPreviousTabRequested")
     static let duplicateActiveTabRequested = Notification.Name("duplicateActiveTabRequested")
+    static let showTaskCreation = Notification.Name("showTaskCreation")
 }

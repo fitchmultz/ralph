@@ -25,6 +25,7 @@ import RalphCore
 struct TaskListView: View {
     @ObservedObject var workspace: Workspace
     @Binding var selectedTaskID: String?
+    @State private var showingTaskCreation = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -49,6 +50,19 @@ struct TaskListView: View {
         .background(.clear)
         .task {
             await workspace.loadTasks()
+        }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button(action: { showingTaskCreation = true }) {
+                    Label("New Task", systemImage: "plus")
+                }
+            }
+        }
+        .sheet(isPresented: $showingTaskCreation) {
+            TaskCreationView(workspace: workspace)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .showTaskCreation)) { _ in
+            showingTaskCreation = true
         }
     }
 

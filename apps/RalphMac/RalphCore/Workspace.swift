@@ -390,6 +390,66 @@ public final class Workspace: ObservableObject, Identifiable, Codable, @unchecke
         await loadTasks()
     }
 
+    // MARK: - Task Creation
+
+    /// Create a new task using the CLI task build command with optional template.
+    /// This runs `ralph task build` or `ralph task template build` depending on parameters.
+    public func createTask(
+        title: String,
+        description: String? = nil,
+        priority: RalphTaskPriority,
+        tags: [String] = [],
+        scope: [String]? = nil,
+        template: String? = nil,
+        target: String? = nil
+    ) async throws {
+        guard let client else {
+            throw WorkspaceError.cliClientUnavailable
+        }
+
+        // Build the request string from title and description
+        var request = title
+        if let description = description, !description.isEmpty {
+            request += "\n\n\(description)"
+        }
+
+        // Build arguments based on whether we're using a template
+        var arguments: [String] = ["--no-color"]
+
+        if let template = template {
+            // Use template build command: ralph task template build <template> [target] <request>
+            arguments.append(contentsOf: ["task", "template", "build", template])
+
+            // Add target if provided (for templates with variables)
+            if let target = target, !target.isEmpty {
+                arguments.append(target)
+            }
+
+            // Add request as positional argument
+            arguments.append(request)
+        } else {
+            // Use regular task build command: ralph task build <request>
+            arguments.append(contentsOf: ["task", "build"])
+
+            // Add request
+            arguments.append(request)
+        }
+
+        let collected = try await client.runAndCollect(
+            arguments: arguments,
+            currentDirectoryURL: workingDirectoryURL
+        )
+
+        guard collected.status.code == 0 else {
+            throw WorkspaceError.cliError(
+                collected.stderr.isEmpty ? "Failed to create task (exit \(collected.status.code))" : collected.stderr
+            )
+        }
+
+        // Reload tasks to get the newly created task
+        await loadTasks()
+    }
+
     // MARK: - Errors
 
     public enum WorkspaceError: Error, LocalizedError {
