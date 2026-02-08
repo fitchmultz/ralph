@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		48E9CABEFF6345C7A6ABA4F9 /* RalphMacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4BA912C259042DDA03E653F /* RalphMacApp.swift */; };
 		344322D49BEB4BD7B7BF2649 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C61FAEBCF5934677AA7715E5 /* ContentView.swift */; };
+		558F4EFD40ED4813905A6B0A /* VisualEffectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6127F94DFD1B404CB5CC190B /* VisualEffectView.swift */; };
 		51F423D7B6694FD1BBF01DDA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B6D1EEC569C94444A00C7A84 /* Assets.xcassets */; };
 		179B8788CE02428A89379BFC /* RalphCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 16591EC6C1744AC5AF4189A4 /* RalphCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		D1594D0AB21045BA9764BCE8 /* RalphCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 16591EC6C1744AC5AF4189A4 /* RalphCore.framework */; };
@@ -56,6 +57,7 @@
 /* Begin PBXFileReference section */
 		E4BA912C259042DDA03E653F /* RalphMacApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphMacApp.swift; sourceTree = "<group>"; };
 		C61FAEBCF5934677AA7715E5 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		6127F94DFD1B404CB5CC190B /* VisualEffectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualEffectView.swift; sourceTree = "<group>"; };
 		D54AE04AF32A434C9B785F2F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B6D1EEC569C94444A00C7A84 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		31B301E8A7CC431E930E7539 /* RalphCLIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphCLIClient.swift; sourceTree = "<group>"; };
@@ -114,6 +116,7 @@
 			children = (
 				E4BA912C259042DDA03E653F /* RalphMacApp.swift */,
 				C61FAEBCF5934677AA7715E5 /* ContentView.swift */,
+				6127F94DFD1B404CB5CC190B /* VisualEffectView.swift */,
 				D54AE04AF32A434C9B785F2F /* Info.plist */,
 				B6D1EEC569C94444A00C7A84 /* Assets.xcassets */,
 			);
@@ -294,6 +297,7 @@
 			files = (
 				48E9CABEFF6345C7A6ABA4F9 /* RalphMacApp.swift in Sources */,
 				344322D49BEB4BD7B7BF2649 /* ContentView.swift in Sources */,
+				558F4EFD40ED4813905A6B0A /* VisualEffectView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

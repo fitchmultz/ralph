@@ -2,48 +2,70 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0718",
+      "id": "RQ-0730",
       "status": "todo",
-      "title": "Implement native glass morphism UI with NSVisualEffectView materials",
-      "description": "Transform the Ralph macOS app from a basic SwiftUI interface to a modern, visually stunning application using native glass morphism effects. Replace the flat white backgrounds with translucent material backgrounds (sidebar, content areas, panels), add vibrancy effects behind text for improved readability, and implement native macOS window styling with transparent titlebars. This is the foundation for all other UI improvements and will establish the visual identity of the app.",
-      "priority": "critical",
+      "title": "Implement multi-tab and multi-window workspace support with project isolation",
+      "description": "Add comprehensive multi-tab and multi-window support to the Ralph Mac app, enabling users to work on multiple projects simultaneously with complete isolation between workspaces. Users can open multiple tabs within a single window (default behavior) and drag tabs out to create independent windows. Each workspace maintains its own working directory, queue state, recent directories, and CLI client instance - projects never comingle. Implement native macOS tab bar (NSTabViewController integration) with Safari-style tab appearance, drag-to-reorder, and tear-off support. Include keyboard shortcuts (Cmd+T new tab, Cmd+W close tab/window, Cmd+Shift+] tab navigation), window restoration on app relaunch, and visual indicators showing active project paths in tab titles. This transforms Ralph from a single-project tool into a true multi-project workspace manager.",
+      "priority": "high",
       "tags": [
-        "innovation",
         "macos",
         "ui",
-        "swiftui",
-        "design-system"
+        "ux",
+        "multi-window",
+        "multi-project",
+        "workspace",
+        "tabs",
+        "core-feature"
       ],
       "scope": [
-        "apps/RalphMac/RalphMac/ContentView.swift",
         "apps/RalphMac/RalphMac/RalphMacApp.swift",
-        "apps/RalphMac/RalphCore/"
+        "apps/RalphMac/RalphMac/ContentView.swift",
+        "apps/RalphMac/RalphMac/WorkspaceView.swift",
+        "apps/RalphMac/RalphMac/WorkspaceTabView.swift",
+        "apps/RalphMac/RalphMac/WindowController.swift",
+        "apps/RalphMac/RalphCore/RalphAppModel.swift",
+        "apps/RalphMac/RalphCore/WorkspaceManager.swift",
+        "apps/RalphMac/RalphCore/RalphModels.swift"
       ],
       "evidence": [
-        "Current app uses basic SwiftUI with no material effects (ContentView.swift:322-334)",
-        "Window has no custom styling - uses default WindowGroup (RalphMacApp.swift:20-23)",
-        "Console view uses simple overlay stroke (ContentView.swift:642-645)",
-        "macOS design guidelines recommend materials for depth and hierarchy"
+        "Current app uses single WindowGroup with no multi-window support (RalphMacApp.swift:20-23)",
+        "RalphAppModel is @StateObject singleton with single workingDirectoryURL (ContentView.swift:323)",
+        "No tab infrastructure exists - UI uses simple TabView for Quick/Advanced switching only (ContentView.swift:326-332)",
+        "Working directory is global state stored in UserDefaults with single key (ContentView.swift:29-30)",
+        "Recent directories are stored as single array - not per-workspace (ContentView.swift:64-84)",
+        "CLI client is created once in init - needs per-workspace instances (ContentView.swift:86-90)",
+        "App supports --directory flag at CLI level but Mac app doesn't expose multi-project capability",
+        "User request: 'Add capability to have multiple tabs and windows with different workspaces/projects open'",
+        "User requirement: 'Ensure projects remain isolated from one another as to not comingle'"
       ],
       "plan": [
-        "Add NSVisualEffectView material backgrounds to main window and panels",
-        "Implement translucent sidebar with .sidebar material",
-        "Add .contentBackground material to main content areas",
-        "Style console output with .underPageBackground for depth",
-        "Add window toolbar with unified appearance and transparent titlebar",
-        "Implement accent color system that respects system appearance",
-        "Add hover effects and subtle animations for interactive elements",
-        "Verify by building app and confirming glass effects render correctly in both light/dark mode"
+        "Create Workspace model representing an isolated project context with id, name, workingDirectoryURL, recentDirectories, and CLI client",
+        "Refactor RalphAppModel to manage multiple Workspace instances with activeWorkspace selection",
+        "Implement WorkspaceManager as ObservableObject for cross-window workspace state coordination",
+        "Create WorkspaceTabView using AppKit NSTabViewController bridging for native tab behavior",
+        "Implement tab tear-off support using NSWindow dragging and window creation APIs",
+        "Add tab bar with project path display, close buttons, and drag-to-reorder support",
+        "Create keyboard shortcuts: Cmd+T (new tab), Cmd+W (close tab/window), Cmd+Shift+[/] (prev/next tab)",
+        "Implement window state restoration using NSWindowRestoration to reopen tabs on relaunch",
+        "Update WindowGroup configuration to support multiple windows with tab persistence",
+        "Add visual project isolation indicators (different accent colors or path labels in tabs)",
+        "Implement tab context menu with options: Duplicate, Move to New Window, Close Other Tabs, Close All",
+        "Add tab count indicator and overflow handling for many open projects",
+        "Create window management menu with window list and bring-all-to-front option",
+        "Implement drag-and-drop of folder onto tab bar to open as new workspace",
+        "Add confirmation dialogs when closing tabs with unsaved/running operations",
+        "Verify by opening 3+ different project directories in separate tabs, dragging one out to new window, confirming queue commands run in correct directories"
       ],
       "notes": [],
-      "request": "innovation scan finding",
-      "created_at": "2026-02-08T02:39:17Z",
-      "updated_at": "2026-02-08T02:39:17Z",
+      "request": "Add a capaility to have multiple tabs and windows to the Mac App with different workspaces/projects open in each project so the user can easily work on multiple projects at once. Tabs are the default but the user can drag a tab out of the current window to create a second independent window if desired. Ensure the projects remain isolated from one another as to not comingle! This is just a suggesstion. You can take liberty with this idea to MAXIMIZE USER EXPERIENCE.",
+      "created_at": "2026-02-08T03:01:21Z",
+      "updated_at": "2026-02-08T03:01:21Z",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation"
+        "source": "user-request",
+        "feature_area": "macos-app-workspace-management"
       }
     },
     {

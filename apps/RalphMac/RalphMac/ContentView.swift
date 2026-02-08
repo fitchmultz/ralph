@@ -325,72 +325,106 @@ struct ContentView: View {
     var body: some View {
         TabView {
             quickActionsTab()
-                .tabItem { Text("Quick") }
+                .tabItem {
+                    Label("Quick", systemImage: "bolt.fill")
+                }
 
             advancedRunnerTab()
-                .tabItem { Text("Advanced") }
+                .tabItem {
+                    Label("Advanced", systemImage: "terminal.fill")
+                }
         }
         .frame(minWidth: 920, minHeight: 640)
+        .background(.clear)  // Allow window background to show through
     }
 
     @ViewBuilder
     private func quickActionsTab() -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 16) {
             workingDirectoryHeader()
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
 
-            HStack(spacing: 8) {
-                Button("Version") { model.runVersion() }
-                Button("Init") { model.runInit() }
-                Button("Queue List (JSON)") { model.runQueueListJSON() }
+            HStack(spacing: 12) {
+                actionButton("Version", icon: "info.circle.fill", action: { model.runVersion() })
+                actionButton("Init", icon: "folder.badge.plus", action: { model.runInit() })
+                actionButton("Queue List", icon: "list.bullet.rectangle", action: { model.runQueueListJSON() })
 
                 Spacer()
 
                 if model.isRunning {
-                    Button("Stop") { model.cancel() }
+                    Button(action: { model.cancel() }) {
+                        Label("Stop", systemImage: "stop.circle.fill")
+                            .foregroundStyle(.red)
+                    }
+                    .buttonStyle(.borderless)
                 }
 
                 exitStatusBadge()
             }
+            .padding(.horizontal, 16)
 
             consoleView()
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
         }
-        .padding(16)
+        .contentBackground(cornerRadius: 12)
+    }
+
+    /// Styled action button with glass morphism hover effect
+    private func actionButton(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: icon)
+        }
+        .buttonStyle(GlassButtonStyle())
     }
 
     @ViewBuilder
     private func advancedRunnerTab() -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            workingDirectoryHeader()
+        VStack(alignment: .leading, spacing: 0) {
+            // Header section with toolbar style
+            VStack(alignment: .leading, spacing: 12) {
+                workingDirectoryHeader()
 
-            HStack(spacing: 12) {
-                Toggle("No Color", isOn: $model.advancedIncludeNoColor)
-                    .toggleStyle(.switch)
+                HStack(spacing: 16) {
+                    Toggle("No Color", isOn: $model.advancedIncludeNoColor)
+                        .toggleStyle(.switch)
 
-                Toggle("Show Hidden Commands", isOn: $model.advancedShowHiddenCommands)
-                    .toggleStyle(.switch)
+                    Toggle("Show Hidden", isOn: $model.advancedShowHiddenCommands)
+                        .toggleStyle(.switch)
 
-                Toggle("Show Hidden Args", isOn: $model.advancedShowHiddenArgs)
-                    .toggleStyle(.switch)
+                    Toggle("Hidden Args", isOn: $model.advancedShowHiddenArgs)
+                        .toggleStyle(.switch)
 
-                Spacer()
+                    Spacer()
 
-                if model.cliSpecIsLoading {
-                    ProgressView()
-                        .scaleEffect(0.75)
-                }
-
-                Button("Reload CLI Spec") {
-                    Task { @MainActor in
-                        await model.loadCLISpec()
+                    if model.cliSpecIsLoading {
+                        ProgressView()
+                            .scaleEffect(0.75)
+                            .controlSize(.small)
                     }
+
+                    Button(action: {
+                        Task { @MainActor in
+                            await model.loadCLISpec()
+                        }
+                    }) {
+                        Label("Reload", systemImage: "arrow.clockwise")
+                    }
+                    .buttonStyle(GlassButtonStyle())
+                }
+
+                if let err = model.cliSpecErrorMessage {
+                    Text(err)
+                        .foregroundStyle(.red)
+                        .font(.system(.caption))
+                        .padding(.vertical, 4)
                 }
             }
+            .padding(16)
+            .background(.clear)
 
-            if let err = model.cliSpecErrorMessage {
-                Text(err)
-                    .foregroundStyle(.red)
-                    .font(.system(.caption))
-            }
+            Divider()
 
             let commands = filteredAdvancedCommands()
             NavigationSplitView {
@@ -407,12 +441,13 @@ struct ContentView: View {
                     }
                 }
                 .searchable(text: $model.advancedSearchText)
+                .sidebarBackground()
             } detail: {
                 advancedDetailView()
+                    .contentBackground()
             }
             .frame(minHeight: 420)
         }
-        .padding(16)
         .onChange(of: model.advancedSelectedCommandID) { _, _ in
             model.resetAdvancedInputs()
         }
@@ -446,30 +481,28 @@ struct ContentView: View {
                 let (positional, options) = splitArgs(args)
 
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 16) {
                         if !positional.isEmpty {
-                            GroupBox("Positionals") {
+                            glassGroupBox("Positionals") {
                                 VStack(alignment: .leading, spacing: 10) {
                                     ForEach(positional, id: \.id) { arg in
                                         advancedArgRow(arg: arg)
                                     }
                                 }
-                                .padding(.top, 6)
                             }
                         }
 
                         if !options.isEmpty {
-                            GroupBox("Options") {
+                            glassGroupBox("Options") {
                                 VStack(alignment: .leading, spacing: 10) {
                                     ForEach(options, id: \.id) { arg in
                                         advancedArgRow(arg: arg)
                                     }
                                 }
-                                .padding(.top, 6)
                             }
                         }
 
-                        GroupBox("Command") {
+                        glassGroupBox("Command") {
                             VStack(alignment: .leading, spacing: 8) {
                                 let argv = model.buildAdvancedArguments()
                                 Text(shellPreview(argv: argv))
@@ -486,9 +519,14 @@ struct ContentView: View {
                                         }
                                     }
                                     .disabled(model.isRunning)
+                                    .buttonStyle(GlassButtonStyle())
 
                                     if model.isRunning {
-                                        Button("Stop") { model.cancel() }
+                                        Button(action: { model.cancel() }) {
+                                            Label("Stop", systemImage: "stop.circle.fill")
+                                                .foregroundStyle(.red)
+                                        }
+                                        .buttonStyle(.borderless)
                                     }
 
                                     Spacer()
@@ -496,11 +534,11 @@ struct ContentView: View {
                                     exitStatusBadge()
                                 }
                             }
-                            .padding(.top, 6)
                         }
 
                         consoleView()
                     }
+                    .padding(.horizontal, 4)
                 }
             }
         } else {
@@ -626,23 +664,50 @@ struct ContentView: View {
 
     @ViewBuilder
     private func consoleView() -> some View {
-        if let error = model.errorMessage {
-            Text(error)
-                .foregroundStyle(.red)
-                .font(.system(.caption))
-        }
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Console Output")
+                    .font(.system(.caption, weight: .semibold))
+                    .foregroundStyle(.secondary)
 
-        ScrollView {
-            Text(model.output.isEmpty ? "(no output yet)" : model.output)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .font(.system(.body, design: .monospaced))
-                .textSelection(.enabled)
+                Spacer()
+
+                if let error = model.errorMessage {
+                    Text(error)
+                        .foregroundStyle(.red)
+                        .font(.system(.caption))
+                }
+            }
+
+            ScrollView {
+                Text(model.output.isEmpty ? "(no output yet)" : model.output)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .font(.system(.body, design: .monospaced))
+                    .textSelection(.enabled)
+                    .padding(12)
+            }
+            .frame(minHeight: 240)
+            .underPageBackground(cornerRadius: 10, isEmphasized: false)
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .strokeBorder(.separator.opacity(0.3), lineWidth: 0.5)
+            )
         }
-        .frame(minHeight: 240)
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .strokeBorder(Color.secondary.opacity(0.2))
-        )
+    }
+
+    /// A glass-styled GroupBox for consistent appearance
+    private func glassGroupBox<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.system(.caption, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 12)
+
+            content()
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .underPageBackground(cornerRadius: 10, isEmphasized: false)
+        }
     }
 
     private func splitArgs(_ args: [RalphCLIArgSpec]) -> ([RalphCLIArgSpec], [RalphCLIArgSpec]) {

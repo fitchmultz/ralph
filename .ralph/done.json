@@ -1300,10 +1300,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
+        "opportunity_type": "reliability",
         "time_to_ship": "medium (concurrency + tests)",
-        "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort.",
-        "opportunity_type": "reliability"
+        "scan_agent": "scan-innovation",
+        "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort."
       }
     },
     {
@@ -1345,9 +1345,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
         "opportunity_type": "ux improvement",
         "time_to_ship": "medium (metadata + reconciliation + tests)",
+        "scan_agent": "scan-innovation",
         "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current."
       }
     },
@@ -1395,9 +1395,9 @@
       "relates_to": [],
       "custom_fields": {
         "opportunity_type": "ux improvement",
+        "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics.",
         "scan_agent": "scan-innovation",
-        "time_to_ship": "medium (format + fixes + tests)",
-        "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics."
+        "time_to_ship": "medium (format + fixes + tests)"
       }
     },
     {
@@ -1441,10 +1441,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "scan_agent": "scan-innovation",
         "time_to_ship": "small/medium (formatters + tests)",
-        "opportunity_type": "ux improvement",
         "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat).",
-        "scan_agent": "scan-innovation"
+        "opportunity_type": "ux improvement"
       }
     },
     {
@@ -1932,9 +1932,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
         "opportunity_type": "ux improvement",
         "user_value": "Fewer context switches: jump from task → code in one keystroke.",
+        "scan_agent": "scan-innovation",
         "time_to_ship": "medium (TUI wiring + tests)"
       }
     },
@@ -1990,9 +1990,9 @@
       "relates_to": [],
       "custom_fields": {
         "scan_agent": "scan-innovation",
+        "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error.",
         "opportunity_type": "ux improvement",
-        "time_to_ship": "medium (render-only UI + tests)",
-        "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error."
+        "time_to_ship": "medium (render-only UI + tests)"
       }
     },
     {
@@ -2046,10 +2046,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "scan_agent": "scan-innovation",
         "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types",
-        "measurable_impact": "Track 20%+ improvement in task completion velocity after adoption",
         "opportunity_type": "feature gap",
-        "scan_agent": "scan-innovation"
+        "measurable_impact": "Track 20%+ improvement in task completion velocity after adoption"
       }
     },
     {
@@ -2107,9 +2107,9 @@
       "relates_to": [],
       "custom_fields": {
         "scan_agent": "scan-innovation",
-        "user_value": "Reduces queue maintenance time by 80% for large projects",
+        "opportunity_type": "UX improvement",
         "time_to_ship": "incremental - add one batch operation at a time",
-        "opportunity_type": "UX improvement"
+        "user_value": "Reduces queue maintenance time by 80% for large projects"
       }
     },
     {
@@ -2165,10 +2165,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "measurable_impact": "80%+ integration test coverage for CLI commands",
         "user_value": "Reduces regression risk; enables confident refactoring",
         "opportunity_type": "reliability",
-        "scan_agent": "scan-innovation",
-        "measurable_impact": "80%+ integration test coverage for CLI commands"
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -2231,10 +2231,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "differentiation": "Unique capability among AI task runners",
         "user_value": "Enables ecosystem growth; custom integrations without forks",
-        "opportunity_type": "feature gap"
+        "differentiation": "Unique capability among AI task runners",
+        "opportunity_type": "feature gap",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -3472,8 +3472,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "reported_at": "2026-02-06",
-        "user_visible_blocker": "true"
+        "user_visible_blocker": "true",
+        "reported_at": "2026-02-06"
       }
     },
     {
@@ -3528,8 +3528,8 @@
       "relates_to": [],
       "custom_fields": {
         "model_used": "kimi-code/kimi-for-coding",
-        "file_line_count": "444",
         "runner_used": "kimi",
+        "file_line_count": "444",
         "scan_agent": "scan-maintenance"
       }
     },
@@ -3577,11 +3577,11 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "fallback_function": "now_utc_rfc3339_or_fallback at timeutil.rs:67-69",
-        "scan_agent": "scan-maintenance",
         "occurrence_count": "4",
         "model_used": "kimi-code/kimi-for-coding",
-        "runner_used": "kimi"
+        "fallback_function": "now_utc_rfc3339_or_fallback at timeutil.rs:67-69",
+        "runner_used": "kimi",
+        "scan_agent": "scan-maintenance"
       }
     },
     {
@@ -3717,8 +3717,8 @@
       ],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "kimi",
-        "model_used": "kimi-code/kimi-for-coding"
+        "model_used": "kimi-code/kimi-for-coding",
+        "runner_used": "kimi"
       }
     },
     {
@@ -3801,14 +3801,14 @@
         "RQ-0657"
       ],
       "custom_fields": {
-        "plugin_location": "crates/ralph/src/runner/execution/builtin_plugins.rs:530-631",
-        "legacy_code_removed": "true",
-        "executor_location": "crates/ralph/src/runner/execution/plugin_executor.rs",
-        "status_note": "COMPLETED - KimiPlugin fully implemented and legacy code removed",
         "model_used": "kimi-code/kimi-for-coding",
-        "trait_location": "crates/ralph/src/runner/execution/plugin_trait.rs",
+        "completed_via": "RQ-0657 (foundational plugin framework)",
         "runner_used": "kimi",
-        "completed_via": "RQ-0657 (foundational plugin framework)"
+        "status_note": "COMPLETED - KimiPlugin fully implemented and legacy code removed",
+        "executor_location": "crates/ralph/src/runner/execution/plugin_executor.rs",
+        "plugin_location": "crates/ralph/src/runner/execution/builtin_plugins.rs:530-631",
+        "trait_location": "crates/ralph/src/runner/execution/plugin_trait.rs",
+        "legacy_code_removed": "true"
       }
     },
     {
@@ -4050,8 +4050,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "kimi",
-        "model_used": "kimi-code/kimi-for-coding"
+        "model_used": "kimi-code/kimi-for-coding",
+        "runner_used": "kimi"
       }
     },
     {
@@ -4118,11 +4118,11 @@
         "RQ-0663"
       ],
       "custom_fields": {
-        "plugin_status": "already_implemented",
-        "legacy_code_to_remove": "runners.rs:48-118, response.rs:139-164",
         "model_used": "kimi-code/kimi-for-coding",
-        "cleanup_required": "true",
-        "runner_used": "kimi"
+        "legacy_code_to_remove": "runners.rs:48-118, response.rs:139-164",
+        "runner_used": "kimi",
+        "plugin_status": "already_implemented",
+        "cleanup_required": "true"
       }
     },
     {
@@ -4178,12 +4178,12 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "legacy_code_location": "crates/ralph/src/runner/execution/runners.rs:48-110",
-        "status_note": "COMPLETED - GeminiPlugin fully implemented via RQ-0657 foundational framework",
         "plugin_location": "crates/ralph/src/runner/execution/builtin_plugins.rs:354-427",
+        "legacy_code_location": "crates/ralph/src/runner/execution/runners.rs:48-110",
         "model_used": "kimi-code/kimi-for-coding",
-        "response_parser_location": "crates/ralph/src/runner/execution/builtin_plugins.rs:400-427",
-        "runner_used": "kimi"
+        "runner_used": "kimi",
+        "status_note": "COMPLETED - GeminiPlugin fully implemented via RQ-0657 foundational framework",
+        "response_parser_location": "crates/ralph/src/runner/execution/builtin_plugins.rs:400-427"
       }
     },
     {
@@ -4243,11 +4243,11 @@
         "RQ-0657"
       ],
       "custom_fields": {
+        "model_used": "kimi-code/kimi-for-coding",
         "rq_0657_status": "completed",
         "runner_used": "kimi",
-        "cleanup_type": "legacy_code_removal",
-        "model_used": "kimi-code/kimi-for-coding",
-        "plugin_status": "implemented_needs_cleanup"
+        "plugin_status": "implemented_needs_cleanup",
+        "cleanup_type": "legacy_code_removal"
       }
     },
     {
@@ -4310,15 +4310,15 @@
         "RQ-0657"
       ],
       "custom_fields": {
-        "legacy_code_location": "crates/ralph/src/runner/execution/runners.rs:39-108",
         "cleanup_status": "already_completed_via_rq_0657",
-        "model_used": "kimi-code/kimi-for-coding",
-        "task_type": "cleanup",
-        "original_title": "Isolate cursor runner into its own plugin for easier runner-specific customization",
-        "verification_only": "true",
-        "rq_0657_status": "completed",
+        "cursor_plugin_location": "crates/ralph/src/runner/execution/builtin_plugins.rs:805-885",
+        "legacy_code_location": "crates/ralph/src/runner/execution/runners.rs:39-108",
         "runner_used": "kimi",
-        "cursor_plugin_location": "crates/ralph/src/runner/execution/builtin_plugins.rs:805-885"
+        "verification_only": "true",
+        "model_used": "kimi-code/kimi-for-coding",
+        "original_title": "Isolate cursor runner into its own plugin for easier runner-specific customization",
+        "task_type": "cleanup",
+        "rq_0657_status": "completed"
       }
     },
     {
@@ -4368,11 +4368,11 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "kimi",
-        "execution_file_lines": "572",
-        "scan_agent": "scan-maintenance",
         "tests_file_lines": "412",
-        "model_used": "kimi-code/kimi-for-coding"
+        "runner_used": "kimi",
+        "scan_agent": "scan-maintenance",
+        "model_used": "kimi-code/kimi-for-coding",
+        "execution_file_lines": "572"
       }
     },
     {
@@ -4424,8 +4424,8 @@
       "relates_to": [],
       "custom_fields": {
         "scan_agent": "scan-maintenance",
-        "model_used": "kimi-code/kimi-for-coding",
-        "runner_used": "kimi"
+        "runner_used": "kimi",
+        "model_used": "kimi-code/kimi-for-coding"
       }
     },
     {
@@ -4484,11 +4484,11 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "current_loc": "3383",
         "model_used": "kimi-code/kimi-for-coding",
-        "runner_used": "kimi",
         "scan_agent": "scan-maintenance",
-        "target_loc": "800"
+        "target_loc": "800",
+        "current_loc": "3383",
+        "runner_used": "kimi"
       }
     },
     {
@@ -4550,14 +4550,14 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "kimi-code/kimi-for-coding",
-        "scan_agent": "scan-maintenance",
-        "runner_used": "kimi",
+        "existing_submodules": "7",
+        "previous_loc": "3241",
         "current_loc": "3290",
         "test_lines": "1000",
+        "model_used": "kimi-code/kimi-for-coding",
         "code_lines": "2200",
-        "previous_loc": "3241",
-        "existing_submodules": "7"
+        "runner_used": "kimi",
+        "scan_agent": "scan-maintenance"
       }
     },
     {
@@ -4602,9 +4602,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "runner_used": "kimi",
         "scan_agent": "scan-maintenance",
-        "model_used": "kimi-code/kimi-for-coding",
-        "runner_used": "kimi"
+        "model_used": "kimi-code/kimi-for-coding"
       }
     },
     {
@@ -4665,13 +4665,13 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "estimated_effort": "medium",
         "user_value": "Eliminates manual step, prevents queue bloat, reduces cognitive load",
+        "estimated_effort": "medium",
         "refresh_note": "As of 2026-02-07, auto-archive already exists in TUI and `ralph run` supervision; remaining work is queue-level age-based sweep and docs/config alignment.",
-        "runner_used": "kimi",
+        "model_used": "kimi-code/kimi-for-coding",
         "opportunity_type": "automation",
-        "model_used": "kimi-code/kimi-for-coding"
+        "runner_used": "kimi",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -4738,11 +4738,11 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "model_used": "kimi-code/kimi-for-coding",
+        "runner_used": "kimi",
+        "user_value": "Unlocks full plugin extensibility - custom validators, prompt modifiers, post-processing",
         "estimated_effort": "medium",
         "scan_agent": "scan-innovation",
-        "user_value": "Unlocks full plugin extensibility - custom validators, prompt modifiers, post-processing",
-        "runner_used": "kimi",
-        "model_used": "kimi-code/kimi-for-coding",
         "opportunity_type": "feature-gap"
       }
     },
@@ -4813,11 +4813,11 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "analytics",
-        "user_value": "Prevents forgotten tasks, improves queue hygiene, surfaces work needing attention",
         "scan_agent": "scan-innovation",
+        "opportunity_type": "analytics",
         "estimated_effort": "low",
         "model_used": "kimi-code/kimi-for-coding",
+        "user_value": "Prevents forgotten tasks, improves queue hygiene, surfaces work needing attention",
         "runner_used": "kimi"
       }
     },
@@ -4875,8 +4875,8 @@
       "relates_to": [],
       "custom_fields": {
         "runner_used": "kimi",
-        "scan_agent": "scan-maintenance",
-        "model_used": "kimi-code/kimi-for-coding"
+        "model_used": "kimi-code/kimi-for-coding",
+        "scan_agent": "scan-maintenance"
       }
     },
     {
@@ -4936,9 +4936,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "runner_used": "kimi",
         "scan_agent": "scan-maintenance",
-        "model_used": "kimi-code/kimi-for-coding",
-        "runner_used": "kimi"
+        "model_used": "kimi-code/kimi-for-coding"
       }
     },
     {
@@ -5044,9 +5044,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-maintenance",
         "model_used": "kimi-code/kimi-for-coding",
-        "runner_used": "kimi"
+        "runner_used": "kimi",
+        "scan_agent": "scan-maintenance"
       }
     },
     {
@@ -5098,9 +5098,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-maintenance",
         "model_used": "kimi-code/kimi-for-coding",
-        "runner_used": "kimi"
+        "runner_used": "kimi",
+        "scan_agent": "scan-maintenance"
       }
     },
     {
@@ -5216,8 +5216,8 @@
       "relates_to": [],
       "custom_fields": {
         "model_used": "kimi-code/kimi-for-coding",
-        "runner_used": "kimi",
-        "scan_agent": "scan-maintenance"
+        "scan_agent": "scan-maintenance",
+        "runner_used": "kimi"
       }
     },
     {
@@ -5280,9 +5280,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-maintenance",
         "model_used": "kimi-code/kimi-for-coding",
-        "runner_used": "kimi"
+        "runner_used": "kimi",
+        "scan_agent": "scan-maintenance"
       }
     },
     {
@@ -5344,12 +5344,12 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "supervision_wc_lines": "1446",
+        "mod_rs_wc_lines": "1734",
+        "model_used": "kimi-code/kimi-for-coding",
         "runner_used": "kimi",
         "run_tests_wc_lines": "2617",
-        "model_used": "kimi-code/kimi-for-coding",
-        "mod_rs_wc_lines": "1734",
-        "scan_agent": "scan-maintenance"
+        "scan_agent": "scan-maintenance",
+        "supervision_wc_lines": "1446"
       }
     },
     {
@@ -5399,9 +5399,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-maintenance",
         "runner_used": "kimi",
-        "model_used": "kimi-code/kimi-for-coding"
+        "model_used": "kimi-code/kimi-for-coding",
+        "scan_agent": "scan-maintenance"
       }
     },
     {
@@ -5452,9 +5452,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-maintenance",
+        "runner_used": "kimi",
         "model_used": "kimi-code/kimi-for-coding",
-        "runner_used": "kimi"
+        "scan_agent": "scan-maintenance"
       }
     },
     {
@@ -5524,12 +5524,12 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "user_value": "Removes manual dependency tracking, enables automatic workflow progression, reduces delays",
         "opportunity_type": "automation",
+        "estimated_effort": "medium",
+        "user_value": "Removes manual dependency tracking, enables automatic workflow progression, reduces delays",
         "model_used": "kimi-code/kimi-for-coding",
         "runner_used": "kimi",
-        "estimated_effort": "medium"
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -5603,12 +5603,12 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "kimi",
-        "scan_agent": "scan-innovation",
-        "model_used": "kimi-code/kimi-for-coding",
-        "opportunity_type": "ux-improvement",
         "estimated_effort": "medium",
-        "user_value": "Reduces CLI verbosity, enables workflow presets, improves discoverability of settings"
+        "runner_used": "kimi",
+        "model_used": "kimi-code/kimi-for-coding",
+        "scan_agent": "scan-innovation",
+        "user_value": "Reduces CLI verbosity, enables workflow presets, improves discoverability of settings",
+        "opportunity_type": "ux-improvement"
       }
     },
     {
@@ -5676,10 +5676,10 @@
       "relates_to": [],
       "custom_fields": {
         "scan_agent": "scan-innovation",
-        "estimated_effort": "medium",
-        "model_used": "kimi-code/kimi-for-coding",
         "user_value": "Reduces manual intervention for transient failures, improves success rate, handles network hiccups",
+        "estimated_effort": "medium",
         "opportunity_type": "reliability",
+        "model_used": "kimi-code/kimi-for-coding",
         "runner_used": "kimi"
       }
     },
@@ -5742,12 +5742,12 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "estimated_effort": "high",
-        "model_used": "kimi-code/kimi-for-coding",
         "runner_used": "kimi",
+        "opportunity_type": "automation",
         "scan_agent": "scan-innovation",
         "user_value": "Enables 'set and forget' operation, integrates with system services, reduces manual monitoring",
-        "opportunity_type": "automation"
+        "estimated_effort": "high",
+        "model_used": "kimi-code/kimi-for-coding"
       }
     },
     {
@@ -5805,6 +5805,68 @@
       "relates_to": [],
       "custom_fields": {
         "scan_agent": "scan-maintenance"
+      }
+    },
+    {
+      "id": "RQ-0718",
+      "status": "done",
+      "title": "Implement native glass morphism UI with NSVisualEffectView materials",
+      "description": "Transform the Ralph macOS app from a basic SwiftUI interface to a modern, visually stunning application using native glass morphism effects. Replace the flat white backgrounds with translucent material backgrounds (sidebar, content areas, panels), add vibrancy effects behind text for improved readability, and implement native macOS window styling with transparent titlebars. This is the foundation for all other UI improvements and will establish the visual identity of the app.",
+      "priority": "critical",
+      "tags": [
+        "innovation",
+        "macos",
+        "ui",
+        "swiftui",
+        "design-system"
+      ],
+      "scope": [
+        "apps/RalphMac/RalphMac/ContentView.swift",
+        "apps/RalphMac/RalphMac/RalphMacApp.swift",
+        "apps/RalphMac/RalphMac/VisualEffectView.swift",
+        "apps/RalphMac/RalphCore/"
+      ],
+      "evidence": [
+        "Current app uses basic SwiftUI with no material effects (ContentView.swift:322-334 shows TabView without materials)",
+        "Window has no custom styling - uses default WindowGroup (RalphMacApp.swift:20-23)",
+        "Console view uses simple overlay stroke (ContentView.swift:642-645)",
+        "RalphCore models provide task data but no UI styling (RalphModels.swift, RalphCLIClient.swift)",
+        "ContentView has 700 lines with ViewBuilder pattern suitable for glass modifiers",
+        "AppKit is already imported (public import AppKit) enabling NSVisualEffectView"
+      ],
+      "plan": [
+        "Create VisualEffectView.swift NSViewRepresentable wrapper for NSVisualEffectView",
+        "Add NSVisualEffectView material backgrounds to main window and panels",
+        "Implement translucent sidebar with .sidebar material",
+        "Add .contentBackground material to main content areas",
+        "Style console output with .underPageBackground for depth",
+        "Add window toolbar with unified appearance and transparent titlebar",
+        "Implement accent color system that respects system appearance",
+        "Add hover effects and subtle animations for interactive elements",
+        "Verify by building app and confirming glass effects render correctly in both light/dark mode"
+      ],
+      "notes": [
+        "Verified 2026-02-08: All scope paths exist, evidence line numbers accurate, ContentView is 700 lines using MVVM pattern",
+        "Created VisualEffectView.swift with NSVisualEffectView wrapper and glass morphism modifiers",
+        "Updated RalphMacApp.swift with transparent titlebar, unified toolbar, and window background material",
+        "Updated ContentView.swift with glass morphism UI: contentBackground, sidebarBackground, underPageBackground, GlassButtonStyle, glassGroupBox",
+        "Added VisualEffectView.swift to Xcode project with proper file references and build phases",
+        "Build verified successful with xcodebuild"
+      ],
+      "request": "innovation scan finding",
+      "created_at": "2026-02-08T02:39:17Z",
+      "updated_at": "2026-02-08T03:08:58.633375000Z",
+      "completed_at": "2026-02-08T03:08:58.633375000Z",
+      "started_at": "2026-02-08T02:59:25.547815000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "runner_used": "kimi",
+        "model_used": "kimi-code/kimi-for-coding",
+        "contentview_lines": "700",
+        "scan_agent": "scan-innovation",
+        "ralphmacapp_lines": "25"
       }
     }
   ]
