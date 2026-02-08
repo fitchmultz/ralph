@@ -1,4 +1,564 @@
 {
   "version": 1,
-  "tasks": []
+  "tasks": [
+    {
+      "id": "RQ-0718",
+      "status": "todo",
+      "title": "Implement native glass morphism UI with NSVisualEffectView materials",
+      "description": "Transform the Ralph macOS app from a basic SwiftUI interface to a modern, visually stunning application using native glass morphism effects. Replace the flat white backgrounds with translucent material backgrounds (sidebar, content areas, panels), add vibrancy effects behind text for improved readability, and implement native macOS window styling with transparent titlebars. This is the foundation for all other UI improvements and will establish the visual identity of the app.",
+      "priority": "critical",
+      "tags": [
+        "innovation",
+        "macos",
+        "ui",
+        "swiftui",
+        "design-system"
+      ],
+      "scope": [
+        "apps/RalphMac/RalphMac/ContentView.swift",
+        "apps/RalphMac/RalphMac/RalphMacApp.swift",
+        "apps/RalphMac/RalphCore/"
+      ],
+      "evidence": [
+        "Current app uses basic SwiftUI with no material effects (ContentView.swift:322-334)",
+        "Window has no custom styling - uses default WindowGroup (RalphMacApp.swift:20-23)",
+        "Console view uses simple overlay stroke (ContentView.swift:642-645)",
+        "macOS design guidelines recommend materials for depth and hierarchy"
+      ],
+      "plan": [
+        "Add NSVisualEffectView material backgrounds to main window and panels",
+        "Implement translucent sidebar with .sidebar material",
+        "Add .contentBackground material to main content areas",
+        "Style console output with .underPageBackground for depth",
+        "Add window toolbar with unified appearance and transparent titlebar",
+        "Implement accent color system that respects system appearance",
+        "Add hover effects and subtle animations for interactive elements",
+        "Verify by building app and confirming glass effects render correctly in both light/dark mode"
+      ],
+      "notes": [],
+      "request": "innovation scan finding",
+      "created_at": "2026-02-08T02:39:17Z",
+      "updated_at": "2026-02-08T02:39:17Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-innovation"
+      }
+    },
+    {
+      "id": "RQ-0719",
+      "status": "todo",
+      "title": "Create rich task queue browser with List/Table view replacing JSON output",
+      "description": "Replace the primitive 'Queue List (JSON)' button and raw JSON output with a rich, native task browser. Implement a sortable, filterable task list showing task titles, status badges, priority indicators, and tags. Users should be able to see the full queue at a glance, understand task priorities, and click into individual tasks for details. This transforms the app from a CLI wrapper into a proper task management interface.",
+      "priority": "critical",
+      "tags": [
+        "innovation",
+        "macos",
+        "ui",
+        "task-management",
+        "core-feature"
+      ],
+      "scope": [
+        "apps/RalphMac/RalphMac/ContentView.swift",
+        "apps/RalphMac/RalphCore/RalphModels.swift",
+        "apps/RalphMac/RalphCore/RalphCLIClient.swift"
+      ],
+      "evidence": [
+        "Current app only shows raw JSON from 'ralph queue list --format json' (ContentView.swift:175-176)",
+        "No visual task list exists - users must parse JSON or use CLI",
+        "Task model exists but only CLI spec is decoded (RalphModels.swift)",
+        "Queue schema has rich fields (status, priority, tags) not exposed in UI"
+      ],
+      "plan": [
+        "Create Task models for decoding ralph queue list JSON output",
+        "Implement task list view with SwiftUI Table or List",
+        "Add status badges with color coding (todo=blue, doing=orange, done=green, rejected=red)",
+        "Add priority indicators (critical=red dot, high=orange, medium=yellow, low=gray)",
+        "Display tags as colored pills/chips",
+        "Add sort controls for priority, created date, status",
+        "Add filter bar for status, priority, tags",
+        "Implement search across title, description, tags",
+        "Add 'What's Next' section highlighting the next todo task",
+        "Verify by running app and confirming task list matches 'ralph queue list' output"
+      ],
+      "notes": [],
+      "request": "innovation scan finding",
+      "created_at": "2026-02-08T02:39:17Z",
+      "updated_at": "2026-02-08T02:39:17Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-innovation"
+      }
+    },
+    {
+      "id": "RQ-0720",
+      "status": "todo",
+      "title": "Build task detail view with full editing capabilities",
+      "description": "Create a comprehensive task detail view that allows users to view and edit all task fields including title, description, status, priority, tags, scope, evidence, plan, notes, and custom fields. Implement inline editing with proper form controls (pickers for status/priority, tag editor, text editors for multi-line content). This enables complete task lifecycle management without leaving the app.",
+      "priority": "high",
+      "tags": [
+        "innovation",
+        "macos",
+        "ui",
+        "task-management",
+        "editing"
+      ],
+      "scope": [
+        "apps/RalphMac/RalphMac/",
+        "apps/RalphMac/RalphCore/RalphModels.swift"
+      ],
+      "evidence": [
+        "No task detail view exists - users must use 'ralph task show <id>' in CLI",
+        "No editing capability exists - users must use 'ralph task edit' commands",
+        "Task schema has 20+ fields that could be editable",
+        "ContentView only has generic CLI command builder, no task-specific UI"
+      ],
+      "plan": [
+        "Create TaskDetailView SwiftUI view",
+        "Design form layout with sections for Basic Info, Scope/Evidence, Plan, Notes, Relationships",
+        "Implement status picker with visual indicators (dropdown or segmented control)",
+        "Implement priority picker with color coding",
+        "Create tag editor with add/remove capability",
+        "Add multi-line text editors for description, plan, evidence, notes",
+        "Implement scope file picker with drag-and-drop support",
+        "Add custom fields editor (key-value pairs)",
+        "Create 'Save' button that invokes appropriate ralph task edit commands",
+        "Add validation and error handling for edits",
+        "Verify by editing a task and confirming changes via 'ralph task show'"
+      ],
+      "notes": [],
+      "request": "innovation scan finding",
+      "created_at": "2026-02-08T02:39:17Z",
+      "updated_at": "2026-02-08T02:39:17Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-innovation"
+      }
+    },
+    {
+      "id": "RQ-0721",
+      "status": "todo",
+      "title": "Implement sidebar navigation with three-column layout",
+      "description": "Replace the current two-tab interface (Quick/Advanced) with a modern three-column sidebar navigation pattern. Left sidebar shows navigation sections (Queue, Task Details, Run, History, Settings). Middle column shows content list (task list, run history). Right column shows detail/inspector view. This matches modern macOS apps like Mail, Notes, and Xcode, providing familiar and efficient navigation.",
+      "priority": "high",
+      "tags": [
+        "innovation",
+        "macos",
+        "ui",
+        "navigation",
+        "ux"
+      ],
+      "scope": [
+        "apps/RalphMac/RalphMac/ContentView.swift",
+        "apps/RalphMac/RalphMac/RalphMacApp.swift"
+      ],
+      "evidence": [
+        "Current UI uses TabView with only Quick and Advanced tabs (ContentView.swift:326-332)",
+        "Navigation is limited - no way to browse different views simultaneously",
+        "Modern macOS apps use NavigationSplitView for multi-column layouts",
+        "Current min width 920px doesn't accommodate complex navigation"
+      ],
+      "plan": [
+        "Replace TabView with NavigationSplitView three-column layout",
+        "Create sidebar with sections: Queue, Active Task, Run Control, Analytics, Settings",
+        "Implement middle column as content area (task list, command output, etc.)",
+        "Implement right column as inspector/detail view",
+        "Add sidebar toggle button for collapsible sidebar",
+        "Style sidebar with system sidebar background material",
+        "Add keyboard shortcuts for navigation (Cmd+1, Cmd+2, etc.)",
+        "Implement selection state management between columns",
+        "Verify by running app and confirming smooth navigation between sections"
+      ],
+      "notes": [],
+      "request": "innovation scan finding",
+      "created_at": "2026-02-08T02:39:17Z",
+      "updated_at": "2026-02-08T02:39:17Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-innovation"
+      }
+    },
+    {
+      "id": "RQ-0722",
+      "status": "todo",
+      "title": "Add task creation dialog with template support",
+      "description": "Implement a task creation interface with a modal dialog or sheet. Include fields for title, description, priority selection, tag input, and scope selection. Add template support allowing users to pick from predefined templates (bug, feature, refactor, test) that pre-fill task fields. Include a 'Quick Create' mode for rapid task entry and an 'Advanced Create' mode with full field access.",
+      "priority": "high",
+      "tags": [
+        "innovation",
+        "macos",
+        "ui",
+        "task-creation",
+        "workflow"
+      ],
+      "scope": [
+        "apps/RalphMac/RalphMac/",
+        "apps/RalphMac/RalphCore/"
+      ],
+      "evidence": [
+        "No task creation UI exists - users must use CLI 'ralph task \"...\"'",
+        "Templates exist in CLI ('ralph task template list') but not exposed in UI",
+        "Task creation is a core workflow that should be easily accessible",
+        "Advanced tab can run task commands but has no guided workflow"
+      ],
+      "plan": [
+        "Create TaskCreationView as a modal sheet",
+        "Add toolbar button 'New Task' with plus icon",
+        "Implement title field with validation",
+        "Add description text editor",
+        "Create priority picker with visual indicators",
+        "Add tag input with autocomplete from existing tags",
+        "Create template picker gallery with preview cards",
+        "Add scope file picker with drag-and-drop",
+        "Implement 'Create' button that runs 'ralph task build' command",
+        "Add 'Quick Create' shortcut (Cmd+N) that creates with defaults",
+        "Show success feedback and auto-select new task in list",
+        "Verify by creating a task and confirming it appears in queue"
+      ],
+      "notes": [],
+      "request": "innovation scan finding",
+      "created_at": "2026-02-08T02:39:17Z",
+      "updated_at": "2026-02-08T02:39:17Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-innovation"
+      }
+    },
+    {
+      "id": "RQ-0723",
+      "status": "todo",
+      "title": "Build visual task status workflow with drag-and-drop Kanban",
+      "description": "Create a Kanban-style board view showing tasks organized by status columns (Draft, Todo, Doing, Done). Allow users to drag tasks between columns to change status. Provide an alternative list view for users who prefer compact displays. Include visual indicators for blocked tasks, tasks with dependencies, and overdue items. This gives users a visual project management experience.",
+      "priority": "high",
+      "tags": [
+        "innovation",
+        "macos",
+        "ui",
+        "kanban",
+        "workflow",
+        "visual"
+      ],
+      "scope": [
+        "apps/RalphMac/RalphMac/",
+        "apps/RalphMac/RalphCore/"
+      ],
+      "evidence": [
+        "No visual status management exists - users must use 'ralph task status' CLI commands",
+        "Task lifecycle (draft→todo→doing→done) is core to Ralph workflow",
+        "Kanban boards are the standard UX pattern for task status management",
+        "Queue file stores status but UI provides no visualization"
+      ],
+      "plan": [
+        "Create KanbanBoardView with horizontal scrolling columns",
+        "Implement columns for each status: Draft, Todo, Doing, Done, Rejected",
+        "Create task cards showing title, priority badge, tags",
+        "Implement drag-and-drop using SwiftUI dropDestination API",
+        "Add column headers with task count badges",
+        "Implement status change via drag (triggers 'ralph task status' command)",
+        "Add visual indicators for blocked tasks (dependency warnings)",
+        "Include 'Start Work' button that sets status to Doing + sets started_at",
+        "Add toggle between Kanban view and List view",
+        "Verify by dragging a task to different columns and checking status updates"
+      ],
+      "notes": [],
+      "request": "innovation scan finding",
+      "created_at": "2026-02-08T02:39:17Z",
+      "updated_at": "2026-02-08T02:39:17Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-innovation"
+      }
+    },
+    {
+      "id": "RQ-0724",
+      "status": "todo",
+      "title": "Implement task dependency visualization with graph view",
+      "description": "Create a visual dependency graph showing task relationships (depends_on, blocks, relates_to). Use a force-directed graph or hierarchical tree layout to display how tasks connect. Include visual indicators for circular dependencies, critical path highlighting, and blocking relationships. This helps users understand task sequencing and identify blockers at a glance.",
+      "priority": "high",
+      "tags": [
+        "innovation",
+        "macos",
+        "ui",
+        "visualization",
+        "dependencies"
+      ],
+      "scope": [
+        "apps/RalphMac/RalphMac/",
+        "apps/RalphMac/RalphCore/"
+      ],
+      "evidence": [
+        "CLI has 'ralph queue graph' command but no visual output in UI",
+        "Dependencies are critical to Ralph workflow but invisible in current app",
+        "Users cannot see why tasks are blocked without running CLI commands",
+        "Graph visualization is a high-value feature for project management"
+      ],
+      "plan": [
+        "Create DependencyGraphView using SwiftUI Canvas or SpriteKit",
+        "Implement node representation for tasks with status colors",
+        "Draw edges for depends_on (arrow), blocks (red), relates_to (dashed)",
+        "Add force-directed layout algorithm for node positioning",
+        "Implement zoom and pan gestures for large graphs",
+        "Highlight critical path (longest dependency chain)",
+        "Add warning indicators for circular dependencies",
+        "Implement node selection to show task details",
+        "Add 'ralph queue graph --format dot' integration for export",
+        "Include alternative tree view for hierarchical visualization",
+        "Verify by creating tasks with dependencies and confirming graph renders correctly"
+      ],
+      "notes": [],
+      "request": "innovation scan finding",
+      "created_at": "2026-02-08T02:39:17Z",
+      "updated_at": "2026-02-08T02:39:17Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-innovation"
+      }
+    },
+    {
+      "id": "RQ-0725",
+      "status": "todo",
+      "title": "Add real-time queue file watching with automatic UI updates",
+      "description": "Implement filesystem watching for .ralph/queue.json and .ralph/done.json so the UI updates automatically when tasks are modified externally (via CLI or another process). Use FSEvents API to detect changes and refresh the task list without manual reload. Add subtle animation for new tasks, status changes, and removals to provide visual feedback.",
+      "priority": "medium",
+      "tags": [
+        "innovation",
+        "macos",
+        "real-time",
+        "sync",
+        "ux"
+      ],
+      "scope": [
+        "apps/RalphMac/RalphCore/RalphCLIClient.swift",
+        "apps/RalphMac/RalphMac/ContentView.swift"
+      ],
+      "evidence": [
+        "Current app requires manual 'Reload CLI Spec' button press for updates",
+        "No file watching exists - UI can become stale if queue changes externally",
+        "CLI commands modify queue.json but app doesn't know about changes",
+        "Real-time sync is expected behavior for modern macOS apps"
+      ],
+      "plan": [
+        "Add FSEvents-based file watcher for queue.json and done.json",
+        "Implement debouncing to avoid excessive reloads (500ms delay)",
+        "Add auto-refresh of task list when file changes detected",
+        "Implement subtle animations for new tasks (slide in)",
+        "Add status change animations (color transition)",
+        "Show 'Queue updated' toast notification on external changes",
+        "Handle file conflicts gracefully (merge vs overwrite)",
+        "Add manual refresh button as fallback",
+        "Verify by running 'ralph task' in terminal and confirming UI updates automatically"
+      ],
+      "notes": [],
+      "request": "innovation scan finding",
+      "created_at": "2026-02-08T02:39:17Z",
+      "updated_at": "2026-02-08T02:39:17Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-innovation"
+      }
+    },
+    {
+      "id": "RQ-0726",
+      "status": "todo",
+      "title": "Create run control panel for task execution with live output",
+      "description": "Build a dedicated run control panel that shows the currently running task (if any), execution progress, and live console output. Include buttons to start/stop execution, run the next task, or run a continuous loop. Show runner status, phase information, and estimated completion time. This provides a cockpit for managing the AI agent execution.",
+      "priority": "medium",
+      "tags": [
+        "innovation",
+        "macos",
+        "ui",
+        "execution",
+        "runner"
+      ],
+      "scope": [
+        "apps/RalphMac/RalphMac/",
+        "apps/RalphMac/RalphCore/RalphCLIClient.swift"
+      ],
+      "evidence": [
+        "Current app has basic 'Run' button but no execution control panel",
+        "No live progress indication during task execution",
+        "Console output exists but is plain text without syntax highlighting",
+        "No way to see which task is running or execution phase"
+      ],
+      "plan": [
+        "Create RunControlView with execution status dashboard",
+        "Show current task card with title, ID, status",
+        "Add progress indicator showing current phase (1/3, 2/3, 3/3)",
+        "Implement live console with ANSI color code parsing",
+        "Add 'Run Next' button for executing ralph run one",
+        "Add 'Start Loop' / 'Stop Loop' toggle for continuous execution",
+        "Show runner configuration (model, phases) for current run",
+        "Add elapsed time timer and estimated completion",
+        "Implement 'Stop After Current' graceful stop button",
+        "Add execution history log with success/failure indicators",
+        "Verify by running a task and confirming live updates appear"
+      ],
+      "notes": [],
+      "request": "innovation scan finding",
+      "created_at": "2026-02-08T02:39:17Z",
+      "updated_at": "2026-02-08T02:39:17Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-innovation"
+      }
+    },
+    {
+      "id": "RQ-0727",
+      "status": "todo",
+      "title": "Build analytics dashboard with productivity metrics and charts",
+      "description": "Create an analytics dashboard showing productivity metrics including task completion rate, velocity (tasks per day), current streak, tag breakdown, and task aging. Use SwiftUI Charts for visualizations. Include burndown chart, completion history timeline, and priority distribution pie chart. This gives users insights into their work patterns.",
+      "priority": "medium",
+      "tags": [
+        "innovation",
+        "macos",
+        "ui",
+        "analytics",
+        "charts"
+      ],
+      "scope": [
+        "apps/RalphMac/RalphMac/",
+        "apps/RalphMac/RalphCore/"
+      ],
+      "evidence": [
+        "CLI has 'ralph productivity' and 'ralph queue stats' commands",
+        "CLI has 'ralph queue burndown' and 'ralph queue history'",
+        "No visual analytics exist in macOS app",
+        "Charts.framework is available in macOS 13+ for rich visualizations"
+      ],
+      "plan": [
+        "Create AnalyticsDashboardView with Chart components",
+        "Implement burndown chart showing remaining tasks over time",
+        "Add velocity chart (tasks completed per day/week)",
+        "Create streak indicator with current and longest streak",
+        "Add tag breakdown pie/donut chart",
+        "Implement priority distribution bar chart",
+        "Add task aging heatmap (warning/stale/rotten buckets)",
+        "Show completion rate percentage with trend indicator",
+        "Add time range picker (7d, 30d, 90d, all time)",
+        "Integrate 'ralph productivity summary' command for data",
+        "Verify by comparing chart data to CLI output"
+      ],
+      "notes": [],
+      "request": "innovation scan finding",
+      "created_at": "2026-02-08T02:39:17Z",
+      "updated_at": "2026-02-08T02:39:17Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-innovation"
+      }
+    },
+    {
+      "id": "RQ-0728",
+      "status": "todo",
+      "title": "Add menu bar extra for quick task access and status",
+      "description": "Implement a menu bar extra (status bar item) that provides quick access to Ralph without opening the full app. Show current task status, next task title, and quick actions (run next, add quick task, open full app). This enables lightweight interaction for users who want to monitor and control Ralph from anywhere.",
+      "priority": "medium",
+      "tags": [
+        "innovation",
+        "macos",
+        "menu-bar",
+        "quick-access",
+        "ux"
+      ],
+      "scope": [
+        "apps/RalphMac/RalphMac/",
+        "apps/RalphMac/RalphMac/RalphMacApp.swift"
+      ],
+      "evidence": [
+        "No menu bar integration exists - app must be open to see status",
+        "Menu bar extras are standard for background/utility apps on macOS",
+        "Users may want quick status without full app window",
+        "Menu bar provides always-available access"
+      ],
+      "plan": [
+        "Create MenuBarExtra using App protocol or NSStatusBar",
+        "Add Ralph icon to menu bar with status indicator",
+        "Show current/next task title in menu",
+        "Add 'Run Next Task' menu item with keyboard shortcut",
+        "Add 'Quick Add Task' menu item that opens input dialog",
+        "Show task counts by status (Todo: 5, Doing: 1, Done: 12)",
+        "Add 'Open Full App' menu item",
+        "Implement preferences toggle to enable/disable menu bar extra",
+        "Show notifications for task completion via menu bar",
+        "Add recent tasks submenu for quick access",
+        "Verify by clicking menu bar icon and testing all menu items"
+      ],
+      "notes": [],
+      "request": "innovation scan finding",
+      "created_at": "2026-02-08T02:39:17Z",
+      "updated_at": "2026-02-08T02:39:17Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-innovation"
+      }
+    },
+    {
+      "id": "RQ-0729",
+      "status": "todo",
+      "title": "Implement global keyboard shortcuts and command palette",
+      "description": "Add comprehensive keyboard shortcuts for power users including Cmd+N (new task), Cmd+R (run next), Cmd+K (command palette), Cmd+1/2/3 (switch views). Implement a command palette (Cmd+Shift+P or Cmd+K) that provides quick access to all app actions with fuzzy search. This enables efficient keyboard-driven workflows.",
+      "priority": "medium",
+      "tags": [
+        "innovation",
+        "macos",
+        "keyboard",
+        "shortcuts",
+        "productivity"
+      ],
+      "scope": [
+        "apps/RalphMac/RalphMac/",
+        "apps/RalphMac/RalphMac/RalphMacApp.swift"
+      ],
+      "evidence": [
+        "No keyboard shortcuts exist beyond system defaults",
+        "Power users expect keyboard-driven workflows",
+        "Command palettes are standard in modern dev tools (VS Code, Raycast)",
+        "Shortcuts significantly improve productivity for frequent actions"
+      ],
+      "plan": [
+        "Define keyboard shortcut scheme (Cmd+N new, Cmd+R run, Cmd+F find, Cmd+K palette)",
+        "Implement keyboard shortcut handlers in window",
+        "Create CommandPaletteView with fuzzy search",
+        "Register all app actions in palette with descriptions",
+        "Add shortcut indicators in menu items and tooltips",
+        "Implement view switching shortcuts (Cmd+1 Queue, Cmd+2 Run, Cmd+3 Analytics)",
+        "Add escape key handling to dismiss modals/palette",
+        "Implement space key to preview selected task",
+        "Add shortcuts for status changes (Cmd+Shift+S for status menu)",
+        "Document all shortcuts in Help menu",
+        "Verify by testing each shortcut and confirming action fires"
+      ],
+      "notes": [],
+      "request": "innovation scan finding",
+      "created_at": "2026-02-08T02:39:17Z",
+      "updated_at": "2026-02-08T02:39:17Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-innovation"
+      }
+    }
+  ]
 }
