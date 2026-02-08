@@ -167,13 +167,24 @@ struct RunControlConsoleView: View {
     private func copyOutput() {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(workspace.output, forType: .string)
-        AccessibilityNotification.announce("Console output copied to clipboard")
+        announceForAccessibility("Console output copied to clipboard")
     }
 
     private func clearOutput() {
         workspace.output = ""
         workspace.attributedOutput = []
-        AccessibilityNotification.announce("Console cleared")
+        announceForAccessibility("Console cleared")
+    }
+
+    private func announceForAccessibility(_ message: String) {
+        NSAccessibility.post(
+            element: NSApp as Any,
+            notification: .announcementRequested,
+            userInfo: [
+                .announcement: message,
+                .priority: NSAccessibilityPriorityLevel.high.rawValue
+            ]
+        )
     }
 }
 

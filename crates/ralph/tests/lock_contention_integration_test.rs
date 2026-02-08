@@ -13,14 +13,16 @@
 //! - Subprocess-based lock holder signals readiness before contention check.
 //! - Lock directory path is stable under the temp repo.
 
+mod test_support;
+
 use anyhow::{Context, Result};
 use ralph::{lock, queue};
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader, Read, Write};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::mpsc;
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tempfile::TempDir;
 
 fn current_exe() -> PathBuf {
@@ -45,7 +47,17 @@ fn lock_holder_process() -> Result<()> {
     println!("LOCK_HELD");
     let _ = std::io::stdout().flush();
 
-    thread::sleep(Duration::from_secs(30));
+    // Parent closes stdin when it's done asserting contention behavior.
+    let mut stdin = std::io::stdin();
+    let mut buf = [0u8; 1];
+    loop {
+        match stdin.read(&mut buf) {
+            Ok(0) => break,
+            Ok(_) => continue,
+            Err(err) if err.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(_) => break,
+        }
+    }
     Ok(())
 }
 
@@ -61,11 +73,13 @@ fn lock_contention_blocks_second_process() -> Result<()> {
         .arg("--nocapture")
         .env("RALPH_TEST_LOCK_HOLD", "1")
         .env("RALPH_TEST_REPO_ROOT", &repo_root)
+        .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit())
         .spawn()
         .context("spawn lock holder process")?;
 
+    let child_stdin = child.stdin.take().context("capture lock holder stdin")?;
     let stdout = child.stdout.take().context("capture lock holder stdout")?;
     let (tx, rx) = mpsc::channel();
 
@@ -86,21 +100,15 @@ fn lock_contention_blocks_second_process() -> Result<()> {
         }
     });
 
-    let mut got_signal = false;
-    let start = Instant::now();
-    while start.elapsed() < Duration::from_secs(10) {
-        match rx.recv_timeout(Duration::from_millis(200)) {
-            Ok(line) => {
+    let got_signal =
+        test_support::wait_until(Duration::from_secs(10), Duration::from_millis(25), || {
+            while let Ok(line) = rx.try_recv() {
                 if line.contains("LOCK_HELD") {
-                    got_signal = true;
-                    break;
+                    return true;
                 }
             }
-            Err(mpsc::RecvTimeoutError::Timeout) => continue,
-            Err(_) => break,
-        }
-    }
-
+            false
+        });
     anyhow::ensure!(got_signal, "lock holder did not signal readiness");
 
     let err = queue::acquire_queue_lock(&repo_root, "contender", false).unwrap_err();
@@ -112,7 +120,7 @@ fn lock_contention_blocks_second_process() -> Result<()> {
         "expected lock path in error: {msg}"
     );
 
-    let _ = child.kill();
+    drop(child_stdin);
     let _ = child.wait();
 
     let _ = std::fs::remove_dir_all(&lock_dir);
@@ -138,11 +146,13 @@ fn parallel_supervisor_prevents_second_supervisor() -> Result<()> {
         .env("RALPH_TEST_LOCK_HOLD", "1")
         .env("RALPH_TEST_REPO_ROOT", &repo_root)
         .env("RALPH_TEST_LOCK_LABEL", "run loop")
+        .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit())
         .spawn()
         .context("spawn lock holder process")?;
 
+    let child_stdin = child.stdin.take().context("capture lock holder stdin")?;
     let stdout = child.stdout.take().context("capture lock holder stdout")?;
     let (tx, rx) = mpsc::channel();
 
@@ -163,22 +173,15 @@ fn parallel_supervisor_prevents_second_supervisor() -> Result<()> {
         }
     });
 
-    // Wait for the lock holder to signal readiness
-    let mut got_signal = false;
-    let start = Instant::now();
-    while start.elapsed() < Duration::from_secs(10) {
-        match rx.recv_timeout(Duration::from_millis(200)) {
-            Ok(line) => {
+    let got_signal =
+        test_support::wait_until(Duration::from_secs(10), Duration::from_millis(25), || {
+            while let Ok(line) = rx.try_recv() {
                 if line.contains("LOCK_HELD") {
-                    got_signal = true;
-                    break;
+                    return true;
                 }
             }
-            Err(mpsc::RecvTimeoutError::Timeout) => continue,
-            Err(_) => break,
-        }
-    }
-
+            false
+        });
     anyhow::ensure!(got_signal, "lock holder did not signal readiness");
 
     // Attempt to acquire the queue lock - should fail with contention
@@ -198,7 +201,7 @@ fn parallel_supervisor_prevents_second_supervisor() -> Result<()> {
         "expected 'run loop' or 'already held' in error: {msg}"
     );
 
-    let _ = child.kill();
+    drop(child_stdin);
     let _ = child.wait();
 
     let _ = std::fs::remove_dir_all(&lock_dir);

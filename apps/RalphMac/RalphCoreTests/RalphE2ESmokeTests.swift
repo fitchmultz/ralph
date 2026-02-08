@@ -12,7 +12,10 @@
  - Comprehensive CLI correctness. This is intentionally a smoke test.
 
  Invariants/assumptions callers must respect:
- - A Rust toolchain is available if the `ralph` binary needs to be built for the test.
+ - A deterministic `ralph` binary must be available via either:
+   - `RALPH_BIN_PATH`, or
+   - the bundled app binary at `RalphMac.app/Contents/MacOS/ralph`.
+ - A Rust toolchain is available if `RALPH_E2E_ALLOW_CARGO_BUILD=1` enables fallback cargo builds.
  - Tests must not rely on network access.
  */
 
@@ -22,6 +25,10 @@ public import XCTest
 @testable import RalphCore
 
 final class RalphE2ESmokeTests: XCTestCase {
+    private static let allowCargoBuildEnvKey = "RALPH_E2E_ALLOW_CARGO_BUILD"
+    private static let binaryPathEnvKey = "RALPH_BIN_PATH"
+    private static let commandTimeoutSeconds: TimeInterval = 30
+
     func test_e2e_smoke_version_init_and_queueList_json() async throws {
         let ralphURL = try Self.resolveRalphBinaryURL()
         let client = try RalphCLIClient(executableURL: ralphURL)
@@ -67,6 +74,69 @@ final class RalphE2ESmokeTests: XCTestCase {
         XCTAssertTrue(json is [Any], "expected JSON array, got: \(type(of: json))")
     }
 
+    func test_resolveRalphBinaryURL_envOverride_success() throws {
+        let tempDir = try Self.makeTempDir(prefix: "ralph-resolver-env-")
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let binaryURL = tempDir.appendingPathComponent("ralph", isDirectory: false)
+        try Self.writeExecutableScript(at: binaryURL)
+
+        let resolved = try Self.resolveRalphBinaryURL(
+            environment: [Self.binaryPathEnvKey: binaryURL.path],
+            repoRoot: tempDir,
+            bundledBinaryURL: nil,
+            cargoBuilder: { _ in XCTFail("cargoBuilder should not run when RALPH_BIN_PATH is set") }
+        )
+
+        XCTAssertEqual(resolved.path, binaryURL.path)
+    }
+
+    func test_resolveRalphBinaryURL_missingEnv_fallbackDisabled_failsFast() throws {
+        let tempDir = try Self.makeTempDir(prefix: "ralph-resolver-no-fallback-")
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        XCTAssertThrowsError(
+            try Self.resolveRalphBinaryURL(
+                environment: [:],
+                repoRoot: tempDir,
+                bundledBinaryURL: nil,
+                cargoBuilder: { _ in XCTFail("cargoBuilder should not run when fallback is disabled") }
+            )
+        ) { error in
+            let message = String(describing: error)
+            XCTAssertTrue(message.contains(Self.binaryPathEnvKey))
+            XCTAssertTrue(message.contains(Self.allowCargoBuildEnvKey))
+        }
+    }
+
+    func test_resolveRalphBinaryURL_fallbackEnabled_buildsDeterministically_withoutRealCargoBuild() throws {
+        let tempDir = try Self.makeTempDir(prefix: "ralph-resolver-fallback-")
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let candidate = tempDir
+            .appendingPathComponent("target", isDirectory: true)
+            .appendingPathComponent("debug", isDirectory: true)
+            .appendingPathComponent("ralph", isDirectory: false)
+        var didInvokeCargoBuilder = false
+
+        let resolved = try Self.resolveRalphBinaryURL(
+            environment: [Self.allowCargoBuildEnvKey: "1"],
+            repoRoot: tempDir,
+            bundledBinaryURL: nil,
+            cargoBuilder: { _ in
+                didInvokeCargoBuilder = true
+                try FileManager.default.createDirectory(
+                    at: candidate.deletingLastPathComponent(),
+                    withIntermediateDirectories: true
+                )
+                try Self.writeExecutableScript(at: candidate)
+            }
+        )
+
+        XCTAssertTrue(didInvokeCargoBuilder)
+        XCTAssertEqual(resolved.path, candidate.path)
+    }
+
     private struct Collected {
         let status: RalphCLIExitStatus
         let stdout: String
@@ -80,20 +150,11 @@ final class RalphE2ESmokeTests: XCTestCase {
     ) async -> Collected {
         do {
             let run = try client.start(arguments: arguments, currentDirectoryURL: currentDirectoryURL)
-
-            var stdout = ""
-            var stderr = ""
-            for await event in run.events {
-                switch event.stream {
-                case .stdout:
-                    stdout.append(event.text)
-                case .stderr:
-                    stderr.append(event.text)
-                }
-            }
-
-            let status = await run.waitUntilExit()
-            return Collected(status: status, stdout: stdout, stderr: stderr)
+            return await runAndCollectWithTimeout(
+                run: run,
+                arguments: arguments,
+                timeoutSeconds: commandTimeoutSeconds
+            )
         } catch {
             return Collected(
                 status: RalphCLIExitStatus(code: -1, reason: .exit),
@@ -103,13 +164,100 @@ final class RalphE2ESmokeTests: XCTestCase {
         }
     }
 
+    private static func runAndCollectWithTimeout(
+        run: RalphCLIRun,
+        arguments: [String],
+        timeoutSeconds: TimeInterval
+    ) async -> Collected {
+        await withTaskGroup(of: Collected?.self) { group in
+            group.addTask {
+                var stdout = ""
+                var stderr = ""
+                for await event in run.events {
+                    switch event.stream {
+                    case .stdout:
+                        stdout.append(event.text)
+                    case .stderr:
+                        stderr.append(event.text)
+                    }
+                }
+                let status = await run.waitUntilExit()
+                return Collected(status: status, stdout: stdout, stderr: stderr)
+            }
+
+            group.addTask {
+                do {
+                    try await Task.sleep(nanoseconds: timeoutNanoseconds(from: timeoutSeconds))
+                } catch {
+                    return nil
+                }
+                run.cancel()
+                let command = arguments.joined(separator: " ")
+                return Collected(
+                    status: RalphCLIExitStatus(code: -1, reason: .exit),
+                    stdout: "",
+                    stderr: "Timed out after \(Int(timeoutSeconds))s: \(command)"
+                )
+            }
+
+            while let next = await group.next() {
+                guard let result = next else { continue }
+                group.cancelAll()
+                return result
+            }
+
+            return Collected(
+                status: RalphCLIExitStatus(code: -1, reason: .exit),
+                stdout: "",
+                stderr: "Internal test error: timeout race produced no result."
+            )
+        }
+    }
+
+    private static func timeoutNanoseconds(from seconds: TimeInterval) -> UInt64 {
+        let clampedSeconds = max(seconds, 0)
+        let nanos = clampedSeconds * 1_000_000_000
+        if nanos >= Double(UInt64.max) {
+            return UInt64.max
+        }
+        return UInt64(nanos)
+    }
+
     private static func resolveRalphBinaryURL() throws -> URL {
-        if let override = ProcessInfo.processInfo.environment["RALPH_BIN_PATH"], !override.isEmpty {
-            return URL(fileURLWithPath: override)
+        try resolveRalphBinaryURL(environment: ProcessInfo.processInfo.environment)
+    }
+
+    private static func resolveRalphBinaryURL(
+        environment: [String: String],
+        repoRoot: URL? = nil,
+        bundledBinaryURL: URL? = bundledRalphBinaryURL(),
+        cargoBuilder: ((URL) throws -> Void)? = nil
+    ) throws -> URL {
+        if let override = environment[binaryPathEnvKey]?.trimmingCharacters(in: .whitespacesAndNewlines), !override.isEmpty {
+            let overrideURL = URL(fileURLWithPath: override)
+            guard FileManager.default.isExecutableFile(atPath: overrideURL.path) else {
+                throw resolverError(
+                    "Environment variable \(binaryPathEnvKey) points to a non-executable path: \(overrideURL.path). " +
+                        "Set \(binaryPathEnvKey) to an executable `ralph` binary."
+                )
+            }
+            return overrideURL
         }
 
-        let repoRoot = try findRepoRoot(startingAt: URL(fileURLWithPath: #filePath))
-        let candidate = repoRoot.appendingPathComponent("target", isDirectory: true)
+        if let bundledBinaryURL, FileManager.default.isExecutableFile(atPath: bundledBinaryURL.path) {
+            return bundledBinaryURL
+        }
+
+        guard environment[allowCargoBuildEnvKey] == "1" else {
+            throw resolverError(
+                "Missing \(binaryPathEnvKey). Set \(binaryPathEnvKey) to an executable `ralph` binary for deterministic tests, " +
+                    "or ensure the bundled Ralph binary is present at \(bundledRalphBinaryPathDescription()). " +
+                    "If you explicitly want fallback runtime cargo build, set \(allowCargoBuildEnvKey)=1."
+            )
+        }
+
+        let root = try repoRoot ?? findRepoRoot(startingAt: URL(fileURLWithPath: #filePath))
+        let candidate = root.appendingPathComponent("target", isDirectory: true)
             .appendingPathComponent("debug", isDirectory: true)
             .appendingPathComponent("ralph", isDirectory: false)
 
@@ -117,18 +265,42 @@ final class RalphE2ESmokeTests: XCTestCase {
             return candidate
         }
 
-        // Build if missing.
-        try runBlocking(
-            executableURL: URL(fileURLWithPath: "/usr/bin/env"),
-            arguments: ["cargo", "build", "-p", "ralph"],
-            currentDirectoryURL: repoRoot
-        )
+        if let cargoBuilder {
+            try cargoBuilder(root)
+        } else {
+            try runBlocking(
+                executableURL: URL(fileURLWithPath: "/usr/bin/env"),
+                arguments: ["cargo", "build", "-p", "ralph"],
+                currentDirectoryURL: root
+            )
+        }
 
         guard FileManager.default.isExecutableFile(atPath: candidate.path) else {
-            throw RalphCLIClientError.executableNotFound(candidate)
+            throw resolverError(
+                "Fallback cargo build did not produce an executable at \(candidate.path). " +
+                    "Set \(binaryPathEnvKey) explicitly to a valid binary path."
+            )
         }
 
         return candidate
+    }
+
+    private static func resolverError(_ message: String) -> NSError {
+        NSError(domain: "RalphE2E", code: 2, userInfo: [NSLocalizedDescriptionKey: message])
+    }
+
+    private static func bundledRalphBinaryURL() -> URL? {
+        let bundleURL = Bundle(for: RalphE2ESmokeTests.self).bundleURL
+        let productsDir = bundleURL.deletingLastPathComponent()
+        return productsDir
+            .appendingPathComponent("RalphMac.app", isDirectory: true)
+            .appendingPathComponent("Contents", isDirectory: true)
+            .appendingPathComponent("MacOS", isDirectory: true)
+            .appendingPathComponent("ralph", isDirectory: false)
+    }
+
+    private static func bundledRalphBinaryPathDescription() -> String {
+        bundledRalphBinaryURL()?.path ?? "<derived-data>/Build/Products/Debug/RalphMac.app/Contents/MacOS/ralph"
     }
 
     private static func findRepoRoot(startingAt url: URL) throws -> URL {
@@ -179,5 +351,13 @@ final class RalphE2ESmokeTests: XCTestCase {
         let dir = base.appendingPathComponent("\(prefix)\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
+    }
+
+    private static func writeExecutableScript(at url: URL) throws {
+        try "#!/bin/sh\nexit 0\n".write(to: url, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: NSNumber(value: Int16(0o755))],
+            ofItemAtPath: url.path
+        )
     }
 }

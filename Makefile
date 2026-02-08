@@ -3,9 +3,10 @@ PREFIX ?= $(HOME)/.local
 BIN_DIR ?= $(PREFIX)/bin
 BIN_NAME ?= ralph
 CARGO_HTTP_MULTIPLEXING ?= false
+XCODE_DERIVED_DATA_ROOT ?= target/tmp/xcode-deriveddata
 
-.PHONY: install update lint format type-check clean clean-temp test generate build ci deps \
-	check-env-safety check-backup-artifacts macos-build macos-test macos-ci
+.PHONY: install update lint lint-fix format type-check clean clean-temp test generate build ci deps \
+	check-env-safety check-backup-artifacts macos-preflight macos-build macos-test macos-ci
 
 # Optional but cheap: fail fast if lockfile or network access is busted
 deps:
@@ -37,9 +38,14 @@ type-check:
 	@echo "  ✓ Type-checking complete"
 
 lint:
-	@echo "→ Clippy autofix (phase 1/2)..."
-	@cargo clippy --fix --allow-dirty --workspace --all-targets --all-features --locked -- -D warnings
+	@echo "→ Linting (clippy, non-mutating)..."
+	@cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 	@echo "  ✓ Linting complete"
+
+lint-fix:
+	@echo "→ Clippy autofix (optional)..."
+	@cargo clippy --fix --allow-dirty --workspace --all-targets --all-features --locked -- -D warnings
+	@echo "  ✓ Lint autofix complete"
 
 test:
 	@echo "→ Running tests..."
@@ -125,46 +131,56 @@ check-backup-artifacts:
 
 # Speed-first local CI that always builds release + installs
 ci: check-env-safety check-backup-artifacts deps format type-check lint test build generate install
-	@echo "→ Local CI (mutates code, always builds+installs release)..."
+	@echo "→ Local CI (formats code, always builds+installs release)..."
 	@echo ""
 	@echo "  ✓ CI completed"
 
-macos-build: build
+macos-preflight:
 	@os="$$(uname -s)"; \
 	if [ "$$os" != "Darwin" ]; then \
-		echo "macos-build: macOS-only (uname: $$os)"; \
+		echo "macos-preflight: macOS-only (uname: $$os)"; \
 		exit 1; \
 	fi; \
+	if ! command -v xcodebuild >/dev/null 2>&1; then \
+		echo "macos-preflight: xcodebuild not found on PATH"; \
+		exit 1; \
+	fi
+
+macos-build:
+	@$(MAKE) --no-print-directory macos-preflight
+	@$(MAKE) --no-print-directory build
+	@derived_data_path="$(XCODE_DERIVED_DATA_ROOT)/build"; \
 	echo "→ macOS build (Xcode build)..."; \
+	rm -rf "$$derived_data_path" 2>/dev/null || true; \
 	xcodebuild \
 		-project apps/RalphMac/RalphMac.xcodeproj \
 		-scheme RalphMac \
 		-configuration Release \
 		-destination 'platform=macOS' \
-		-derivedDataPath target/tmp/xcode-deriveddata \
+		-derivedDataPath "$$derived_data_path" \
 		CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
 		build
 
-macos-test: 
-	@os="$$(uname -s)"; \
-	if [ "$$os" != "Darwin" ]; then \
-		echo "macos-test: macOS-only (uname: $$os)"; \
-		exit 1; \
-	fi; \
+macos-test:
+	@$(MAKE) --no-print-directory macos-preflight
+	@derived_data_path="$(XCODE_DERIVED_DATA_ROOT)/test"; \
+	ralph_bin_path="$$derived_data_path/Build/Products/Debug/RalphMac.app/Contents/MacOS/ralph"; \
 	echo "→ macOS tests (Xcode)..."; \
+	rm -rf "$$derived_data_path" 2>/dev/null || true; \
+	RALPH_BIN_PATH="$$ralph_bin_path" \
 	xcodebuild \
 		-project apps/RalphMac/RalphMac.xcodeproj \
 		-scheme RalphMac \
 		-configuration Debug \
 		-destination 'platform=macOS' \
-		-derivedDataPath target/tmp/xcode-deriveddata \
+		-derivedDataPath "$$derived_data_path" \
 		CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
 		test
 
-macos-ci: ci macos-build macos-test
-	@os="$$(uname -s)"; \
-	if [ "$$os" != "Darwin" ]; then \
-		echo "macos-ci: macOS-only (uname: $$os)"; \
-		exit 1; \
-	fi; \
+macos-ci:
+	@$(MAKE) --no-print-directory macos-preflight
 	echo "→ macOS ship gate (Rust CI + macOS app build+test)..."; \
+	$(MAKE) --no-print-directory ci; \
+	$(MAKE) --no-print-directory macos-build; \
+	$(MAKE) --no-print-directory macos-test; \
+	echo "  ✓ macOS CI completed"

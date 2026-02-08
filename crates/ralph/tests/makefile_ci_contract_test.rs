@@ -177,6 +177,43 @@ fn extract_make_ci_steps(makefile: &str) -> Result<Vec<String>> {
     Ok(steps)
 }
 
+/// Extract one target block (`target: ...` plus recipe lines) from a Makefile.
+fn extract_target_block(makefile: &str, target: &str) -> Result<String> {
+    let header = format!("{target}:");
+    let mut block_lines = Vec::new();
+    let mut in_target = false;
+
+    for line in makefile.lines() {
+        if !in_target {
+            if line.starts_with(&header) {
+                in_target = true;
+                block_lines.push(line.to_string());
+            }
+            continue;
+        }
+
+        let is_top_level = !line.starts_with('\t') && !line.starts_with(' ');
+        if is_top_level {
+            let trimmed = line.trim();
+            if let Some(colon_idx) = trimmed.find(':') {
+                // Skip variable assignments like `FOO := bar`.
+                let is_assignment = trimmed.as_bytes().get(colon_idx + 1) == Some(&b'=');
+                if !is_assignment && !trimmed.starts_with('#') && !trimmed.starts_with(".PHONY") {
+                    break;
+                }
+            }
+        }
+
+        block_lines.push(line.to_string());
+    }
+
+    anyhow::ensure!(
+        !block_lines.is_empty(),
+        "failed to extract target block for `{target}`"
+    );
+    Ok(block_lines.join("\n"))
+}
+
 #[test]
 fn test_makefile_ci_includes_type_check_in_order() -> Result<()> {
     let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -261,6 +298,80 @@ fn test_gemini_ci_step_list_matches_makefile_ci_recipe() -> Result<()> {
         "GEMINI.md CI pipeline drifted from Makefile `ci` recipe.\n\
          Expected to find: {}\n",
         pipeline
+    );
+
+    Ok(())
+}
+
+#[test]
+fn test_lint_is_non_mutating_and_lint_fix_is_opt_in() -> Result<()> {
+    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let repo_root = manifest_dir
+        .parent()
+        .and_then(|p| p.parent())
+        .context("resolve repo root")?;
+    let makefile = std::fs::read_to_string(repo_root.join("Makefile")).context("read Makefile")?;
+
+    let lint_block = extract_target_block(&makefile, "lint").context("extract lint block")?;
+    assert!(
+        lint_block.contains("cargo clippy"),
+        "lint target should run cargo clippy"
+    );
+    assert!(
+        !lint_block.contains("--fix"),
+        "lint target must be non-mutating"
+    );
+
+    let lint_fix_block =
+        extract_target_block(&makefile, "lint-fix").context("extract lint-fix block")?;
+    assert!(
+        lint_fix_block.contains("cargo clippy"),
+        "lint-fix target should run cargo clippy"
+    );
+    assert!(
+        lint_fix_block.contains("--fix"),
+        "lint-fix target should include --fix"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn test_macos_targets_gate_with_preflight_and_isolate_derived_data() -> Result<()> {
+    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let repo_root = manifest_dir
+        .parent()
+        .and_then(|p| p.parent())
+        .context("resolve repo root")?;
+    let makefile = std::fs::read_to_string(repo_root.join("Makefile")).context("read Makefile")?;
+
+    assert!(
+        makefile.contains("macos-preflight:"),
+        "Makefile should define macos-preflight target"
+    );
+    assert!(
+        makefile.contains("macos-build:\n\t@$(MAKE) --no-print-directory macos-preflight"),
+        "macos-build should run macos-preflight first"
+    );
+    assert!(
+        makefile.contains("macos-test:\n\t@$(MAKE) --no-print-directory macos-preflight"),
+        "macos-test should run macos-preflight first"
+    );
+    assert!(
+        makefile.contains("macos-ci:\n\t@$(MAKE) --no-print-directory macos-preflight"),
+        "macos-ci should run macos-preflight first"
+    );
+    assert!(
+        makefile.contains("derived_data_path=\"$(XCODE_DERIVED_DATA_ROOT)/build\""),
+        "macos-build should use an isolated build DerivedData path"
+    );
+    assert!(
+        makefile.contains("derived_data_path=\"$(XCODE_DERIVED_DATA_ROOT)/test\""),
+        "macos-test should use an isolated test DerivedData path"
+    );
+    assert!(
+        makefile.contains("rm -rf \"$$derived_data_path\""),
+        "macOS targets should clear DerivedData before running xcodebuild"
     );
 
     Ok(())

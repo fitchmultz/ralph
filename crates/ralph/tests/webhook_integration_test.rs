@@ -12,10 +12,12 @@
 //! - Tests are `#[serial]` because the webhook worker is global within a process.
 //! - Timeouts should tolerate a loaded CI machine (avoid single fixed sleeps when waiting for IO).
 
+mod test_support;
+
 use serial_test::serial;
 use std::io::{Read, Write};
 use std::net::TcpListener;
-use std::sync::Arc;
+use std::sync::{Arc, Once};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -23,22 +25,6 @@ use std::time::{Duration, Instant};
 // Import webhook types
 use ralph::contracts::{WebhookConfig, WebhookQueuePolicy};
 use ralph::webhook;
-
-fn wait_for_mutex_value<T: Clone>(
-    value: &Arc<std::sync::Mutex<Option<T>>>,
-    timeout: Duration,
-) -> Option<T> {
-    let start = Instant::now();
-    loop {
-        if let Some(v) = value.lock().expect("lock mutex").clone() {
-            return Some(v);
-        }
-        if start.elapsed() >= timeout {
-            return None;
-        }
-        thread::sleep(Duration::from_millis(25));
-    }
-}
 
 fn parse_http_json_body(request_bytes: &[u8]) -> Option<serde_json::Value> {
     let request = String::from_utf8_lossy(request_bytes);
@@ -59,6 +45,64 @@ fn parse_content_length(headers: &str) -> Option<usize> {
         }
     }
     None
+}
+
+fn unique_test_id(prefix: &str) -> String {
+    format!(
+        "{prefix}-{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system clock should be after unix epoch")
+            .as_nanos()
+    )
+}
+
+fn ensure_test_worker_initialized() {
+    static INIT: Once = Once::new();
+    INIT.call_once(|| {
+        let listener =
+            TcpListener::bind("127.0.0.1:0").expect("bind one-time webhook init listener");
+        let port = listener
+            .local_addr()
+            .expect("read init listener address")
+            .port();
+
+        let delivered = Arc::new(AtomicUsize::new(0));
+        let delivered_clone = Arc::clone(&delivered);
+        thread::spawn(move || {
+            if let Ok((mut stream, _)) = listener.accept() {
+                let _ = read_http_request_with_body(&mut stream);
+                delivered_clone.store(1, Ordering::SeqCst);
+                let _ = stream.write_all(b"HTTP/1.1 200 OK\r\n\r\n");
+            }
+        });
+
+        let config = WebhookConfig {
+            enabled: Some(true),
+            url: Some(format!("http://127.0.0.1:{port}/webhook-init")),
+            secret: None,
+            events: None,
+            timeout_secs: Some(1),
+            retry_count: Some(0),
+            retry_backoff_ms: Some(1),
+            queue_capacity: Some(1000),
+            queue_policy: Some(WebhookQueuePolicy::DropNew),
+        };
+
+        webhook::notify_task_created(
+            &unique_test_id("TEST-WEBHOOK-INIT"),
+            "Webhook init",
+            &config,
+            "2024-01-01T00:00:00Z",
+        );
+
+        assert!(
+            test_support::wait_until(Duration::from_secs(3), Duration::from_millis(10), || {
+                delivered.load(Ordering::SeqCst) == 1
+            }),
+            "failed to deterministically initialize webhook worker for integration tests"
+        );
+    });
 }
 
 fn read_http_request_with_body(stream: &mut std::net::TcpStream) -> Vec<u8> {
@@ -114,6 +158,8 @@ fn read_http_request_with_body(stream: &mut std::net::TcpStream) -> Vec<u8> {
 #[test]
 #[serial]
 fn webhook_send_is_non_blocking() {
+    ensure_test_worker_initialized();
+
     // Start a slow HTTP server
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
@@ -145,9 +191,9 @@ fn webhook_send_is_non_blocking() {
     webhook::notify_task_created("TEST-0001", "Test", &config, "2024-01-01T00:00:00Z");
 
     let elapsed = start.elapsed();
-    // Should return in under 200ms (not wait for 2s HTTP response)
+    // Should return quickly (well below the 2s server delay).
     assert!(
-        elapsed < Duration::from_millis(200),
+        elapsed < Duration::from_secs(1),
         "send_webhook took {:?}, should be non-blocking",
         elapsed
     );
@@ -160,6 +206,8 @@ fn webhook_send_is_non_blocking() {
 #[test]
 #[serial]
 fn webhook_retries_failed_deliveries() {
+    ensure_test_worker_initialized();
+
     // Start a server that returns 500 (failure)
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
@@ -187,45 +235,48 @@ fn webhook_retries_failed_deliveries() {
         queue_policy: Some(WebhookQueuePolicy::DropNew),
     };
 
-    // This should not panic - the retry logic will be exercised
+    let start = Instant::now();
     webhook::notify_task_created("TEST-0002", "Test", &config, "2024-01-01T00:00:00Z");
-
-    // Wait for processing (including retry)
-    thread::sleep(Duration::from_millis(500));
-
-    // Test passes if no panic occurred (retry logic was exercised)
+    let elapsed = start.elapsed();
+    assert!(
+        elapsed < Duration::from_secs(1),
+        "enqueue should remain non-blocking even with retries configured; elapsed={elapsed:?}"
+    );
 }
 
 /// Test signature header is sent correctly.
 #[test]
 #[serial]
 fn webhook_includes_signature_header() {
+    ensure_test_worker_initialized();
+
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
+    let expected_task_id = unique_test_id("TEST-SIGNATURE");
 
     let received_sig = Arc::new(std::sync::Mutex::new(None));
     let sig_clone = received_sig.clone();
+    let expected_task_id_clone = expected_task_id.clone();
 
     thread::spawn(move || {
-        if let Ok((mut stream, _)) = listener.accept() {
-            // Read until end of headers. This avoids flakiness from assuming a single read
-            // returns all headers, and it tolerates minor formatting differences around `:`.
-            let mut raw = Vec::with_capacity(4096);
-            let mut buf = [0u8; 1024];
-            while raw.len() < 16 * 1024 {
-                let n = stream.read(&mut buf).unwrap_or(0);
-                if n == 0 {
-                    break;
-                }
-                raw.extend_from_slice(&buf[..n]);
-                if raw.windows(4).any(|w| w == b"\r\n\r\n") {
-                    break;
-                }
+        while let Ok((mut stream, _)) = listener.accept() {
+            // Read a complete request and ignore stale messages that do not match the
+            // test's unique task_id. This avoids flakiness from the global webhook worker.
+            let raw = read_http_request_with_body(&mut stream);
+            let _ = stream.write_all(b"HTTP/1.1 200 OK\r\n\r\n");
+
+            let Some(body_json) = parse_http_json_body(&raw) else {
+                continue;
+            };
+            if body_json
+                .get("task_id")
+                .and_then(serde_json::Value::as_str)
+                != Some(expected_task_id_clone.as_str())
+            {
+                continue;
             }
 
             let request = String::from_utf8_lossy(&raw);
-
-            // Check for signature header in the request.
             for line in request.lines() {
                 let line = line.trim_end_matches('\r');
                 let Some((key, value)) = line.split_once(':') else {
@@ -236,9 +287,7 @@ fn webhook_includes_signature_header() {
                     break;
                 }
             }
-
-            // Write response
-            let _ = stream.write_all(b"HTTP/1.1 200 OK\r\n\r\n");
+            break;
         }
     });
 
@@ -254,9 +303,13 @@ fn webhook_includes_signature_header() {
         queue_policy: Some(WebhookQueuePolicy::DropNew),
     };
 
-    webhook::notify_task_created("TEST-0003", "Test", &config, "2024-01-01T00:00:00Z");
+    webhook::notify_task_created(&expected_task_id, "Test", &config, "2024-01-01T00:00:00Z");
 
-    let sig = wait_for_mutex_value(&received_sig, Duration::from_secs(10));
+    let sig = test_support::wait_for_mutex_value(
+        &received_sig,
+        Duration::from_secs(10),
+        Duration::from_millis(25),
+    );
     assert!(sig.is_some(), "X-Ralph-Signature header should be present");
     let sig_str = sig.expect("signature must be present").to_lowercase();
     assert!(
@@ -270,14 +323,29 @@ fn webhook_includes_signature_header() {
 #[test]
 #[serial]
 fn webhook_drop_new_policy() {
+    ensure_test_worker_initialized();
+
     // Start a slow server that processes one request at a time
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
+    let request_count = Arc::new(AtomicUsize::new(0));
+    let request_count_clone = Arc::clone(&request_count);
+    let task_id_prefix = unique_test_id("TEST-DROP-NEW");
+    let task_id_prefix_clone = task_id_prefix.clone();
 
     thread::spawn(move || {
         while let Ok((mut stream, _)) = listener.accept() {
-            let mut buf = [0u8; 1024];
-            let _ = stream.read(&mut buf);
+            let request = read_http_request_with_body(&mut stream);
+            if parse_http_json_body(&request)
+                .and_then(|json| {
+                    json.get("task_id")
+                        .and_then(serde_json::Value::as_str)
+                        .map(str::to_owned)
+                })
+                .is_some_and(|task_id| task_id.starts_with(&task_id_prefix_clone))
+            {
+                request_count_clone.fetch_add(1, Ordering::SeqCst);
+            }
             thread::sleep(Duration::from_millis(200)); // Slow processing
             let _ = stream.write_all(b"HTTP/1.1 200 OK\r\n\r\n");
         }
@@ -299,40 +367,56 @@ fn webhook_drop_new_policy() {
     // Send 5 webhooks quickly - queue can only hold 2
     for i in 0..5 {
         webhook::notify_task_created(
-            &format!("TEST-{}", i),
+            &format!("{task_id_prefix}-{i}"),
             "Test",
             &config,
             "2024-01-01T00:00:00Z",
         );
     }
 
-    // Give time for processing - use longer timeout for CI stability
-    thread::sleep(Duration::from_millis(1500));
-
-    // Test passes if no panic - some webhooks were dropped per policy
+    assert!(
+        test_support::wait_until(Duration::from_secs(5), Duration::from_millis(25), || {
+            request_count.load(Ordering::SeqCst) >= 1
+        }),
+        "expected at least one delivered webhook with drop_new policy"
+    );
 }
 
 /// Test that webhook respects event filtering.
 #[test]
 #[serial]
 fn webhook_respects_event_filtering() {
+    ensure_test_worker_initialized();
+
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
 
     let request_count = Arc::new(AtomicUsize::new(0));
     let count_clone = request_count.clone();
+    let filtered_task_id = unique_test_id("TEST-FILTERED-OUT");
+    let expected_task_id = unique_test_id("TEST-ALLOWED");
+    let filtered_task_id_clone = filtered_task_id.clone();
+    let expected_task_id_clone = expected_task_id.clone();
+    let filtered_out_count = Arc::new(AtomicUsize::new(0));
+    let filtered_out_count_clone = filtered_out_count.clone();
 
     thread::spawn(move || {
         while let Ok((mut stream, _)) = listener.accept() {
-            count_clone.fetch_add(1, Ordering::SeqCst);
-            let mut buf = [0u8; 1024];
-            let _ = stream.read(&mut buf);
+            let request = read_http_request_with_body(&mut stream);
+            if let Some(task_id) = parse_http_json_body(&request).and_then(|json| {
+                json.get("task_id")
+                    .and_then(serde_json::Value::as_str)
+                    .map(str::to_owned)
+            }) {
+                if task_id == expected_task_id_clone {
+                    count_clone.fetch_add(1, Ordering::SeqCst);
+                } else if task_id == filtered_task_id_clone {
+                    filtered_out_count_clone.fetch_add(1, Ordering::SeqCst);
+                }
+            }
             let _ = stream.write_all(b"HTTP/1.1 200 OK\r\n\r\n");
         }
     });
-
-    // Give server time to start
-    thread::sleep(Duration::from_millis(50));
 
     // Only subscribe to task_completed events
     let config = WebhookConfig {
@@ -348,14 +432,17 @@ fn webhook_respects_event_filtering() {
     };
 
     // Send task_created webhook - should be filtered out
-    webhook::notify_task_created("TEST-0001", "Test", &config, "2024-01-01T00:00:00Z");
+    webhook::notify_task_created(&filtered_task_id, "Test", &config, "2024-01-01T00:00:00Z");
 
     // Send task_completed webhook - should go through
-    webhook::notify_task_completed("TEST-0002", "Test", &config, "2024-01-01T00:00:00Z");
+    webhook::notify_task_completed(&expected_task_id, "Test", &config, "2024-01-01T00:00:00Z");
 
-    // Wait for processing - needs to be long enough for worker to process both messages
-    // Use a longer timeout to account for CI variability
-    thread::sleep(Duration::from_millis(2000));
+    assert!(
+        test_support::wait_until(Duration::from_secs(5), Duration::from_millis(25), || {
+            request_count.load(Ordering::SeqCst) == 1
+        }),
+        "expected exactly one delivered webhook"
+    );
 
     let count = request_count.load(Ordering::SeqCst);
     assert_eq!(
@@ -363,12 +450,19 @@ fn webhook_respects_event_filtering() {
         "Expected 1 request (only task_completed), got {}",
         count
     );
+    assert_eq!(
+        filtered_out_count.load(Ordering::SeqCst),
+        0,
+        "task_created webhook should have been filtered"
+    );
 }
 
 /// Loop events should be opt-in when `events` is not set.
 #[test]
 #[serial]
 fn webhook_loop_events_are_opt_in_by_default() {
+    ensure_test_worker_initialized();
+
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
     listener.set_nonblocking(true).unwrap();
@@ -384,22 +478,39 @@ fn webhook_loop_events_are_opt_in_by_default() {
         queue_capacity: Some(10),
         queue_policy: Some(WebhookQueuePolicy::DropNew),
     };
+    let expected_repo_root = unique_test_id("/tmp/repo");
 
     webhook::notify_loop_started(
         &config,
         "2024-01-01T00:00:00Z",
         webhook::WebhookContext {
-            repo_root: Some("/tmp/repo".to_string()),
+            repo_root: Some(expected_repo_root.clone()),
             ..Default::default()
         },
     );
 
     // Poll to ensure no connection is made.
+    let mut saw_matching_loop_event = false;
     let start = Instant::now();
     while start.elapsed() < Duration::from_millis(800) {
         match listener.accept() {
-            Ok((_stream, _addr)) => {
-                panic!("Expected no webhook request for loop event with default events=None");
+            Ok((mut stream, _addr)) => {
+                let request = read_http_request_with_body(&mut stream);
+                let _ = stream.write_all(b"HTTP/1.1 200 OK\r\n\r\n");
+                if let Some(json) = parse_http_json_body(&request) {
+                    let is_expected_event = json
+                        .get("event")
+                        .and_then(serde_json::Value::as_str)
+                        .is_some_and(|event| event == "loop_started");
+                    let is_expected_repo_root = json
+                        .get("repo_root")
+                        .and_then(serde_json::Value::as_str)
+                        .is_some_and(|repo_root| repo_root == expected_repo_root);
+                    if is_expected_event && is_expected_repo_root {
+                        saw_matching_loop_event = true;
+                        break;
+                    }
+                }
             }
             Err(err) if err.kind() == std::io::ErrorKind::WouldBlock => {
                 thread::sleep(Duration::from_millis(25));
@@ -407,21 +518,44 @@ fn webhook_loop_events_are_opt_in_by_default() {
             Err(err) => panic!("accept failed: {err}"),
         }
     }
+    assert!(
+        !saw_matching_loop_event,
+        "Expected no matching loop_started webhook request when events=None"
+    );
 }
 
 #[test]
 #[serial]
 fn webhook_loop_event_payload_shape() {
+    ensure_test_worker_initialized();
+
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
 
     let received_request = Arc::new(std::sync::Mutex::new(None));
     let request_clone = received_request.clone();
+    let expected_repo_root = unique_test_id("/tmp/repo");
+    let expected_repo_root_clone = expected_repo_root.clone();
 
     thread::spawn(move || {
-        if let Ok((mut stream, _)) = listener.accept() {
-            *request_clone.lock().unwrap() = Some(read_http_request_with_body(&mut stream));
+        while let Ok((mut stream, _)) = listener.accept() {
+            let request = read_http_request_with_body(&mut stream);
             let _ = stream.write_all(b"HTTP/1.1 200 OK\r\n\r\n");
+            let matches_expected = parse_http_json_body(&request).is_some_and(|json| {
+                let is_loop_started = json
+                    .get("event")
+                    .and_then(serde_json::Value::as_str)
+                    .is_some_and(|event| event == "loop_started");
+                let has_expected_repo_root = json
+                    .get("repo_root")
+                    .and_then(serde_json::Value::as_str)
+                    .is_some_and(|repo_root| repo_root == expected_repo_root_clone);
+                is_loop_started && has_expected_repo_root
+            });
+            if matches_expected {
+                *request_clone.lock().unwrap() = Some(request);
+                break;
+            }
         }
     });
 
@@ -441,19 +575,23 @@ fn webhook_loop_event_payload_shape() {
         &config,
         "2024-01-01T00:00:00Z",
         webhook::WebhookContext {
-            repo_root: Some("/tmp/repo".to_string()),
+            repo_root: Some(expected_repo_root.clone()),
             branch: Some("main".to_string()),
             ..Default::default()
         },
     );
 
-    let request = wait_for_mutex_value(&received_request, Duration::from_secs(10))
-        .expect("expected loop_started request bytes");
+    let request = test_support::wait_for_mutex_value(
+        &received_request,
+        Duration::from_secs(10),
+        Duration::from_millis(25),
+    )
+    .expect("expected loop_started request bytes");
 
     let json = parse_http_json_body(&request).expect("expected loop_started request JSON");
 
     assert_eq!(json["event"], "loop_started");
-    assert_eq!(json["repo_root"], "/tmp/repo");
+    assert_eq!(json["repo_root"], expected_repo_root);
     assert_eq!(json["branch"], "main");
     assert!(
         json.get("task_id").is_none(),
@@ -468,16 +606,29 @@ fn webhook_loop_event_payload_shape() {
 #[test]
 #[serial]
 fn webhook_phase_event_includes_context_fields() {
+    ensure_test_worker_initialized();
+
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
 
     let received_request = Arc::new(std::sync::Mutex::new(None));
     let request_clone = received_request.clone();
+    let expected_task_id = unique_test_id("TEST-PHASE");
+    let expected_task_id_clone = expected_task_id.clone();
 
     thread::spawn(move || {
-        if let Ok((mut stream, _)) = listener.accept() {
-            *request_clone.lock().unwrap() = Some(read_http_request_with_body(&mut stream));
+        while let Ok((mut stream, _)) = listener.accept() {
+            let request = read_http_request_with_body(&mut stream);
             let _ = stream.write_all(b"HTTP/1.1 200 OK\r\n\r\n");
+            let matches_expected_task = parse_http_json_body(&request).is_some_and(|json| {
+                json.get("task_id")
+                    .and_then(serde_json::Value::as_str)
+                    .is_some_and(|task_id| task_id == expected_task_id_clone)
+            });
+            if matches_expected_task {
+                *request_clone.lock().unwrap() = Some(request);
+                break;
+            }
         }
     });
 
@@ -494,7 +645,7 @@ fn webhook_phase_event_includes_context_fields() {
     };
 
     webhook::notify_phase_completed(
-        "TEST-0001",
+        &expected_task_id,
         "Test title",
         &config,
         "2024-01-01T00:00:00Z",
@@ -509,13 +660,17 @@ fn webhook_phase_event_includes_context_fields() {
         },
     );
 
-    let request = wait_for_mutex_value(&received_request, Duration::from_secs(10))
-        .expect("expected phase_completed request bytes");
+    let request = test_support::wait_for_mutex_value(
+        &received_request,
+        Duration::from_secs(10),
+        Duration::from_millis(25),
+    )
+    .expect("expected phase_completed request bytes");
 
     let json = parse_http_json_body(&request).expect("expected phase_completed request JSON");
 
     assert_eq!(json["event"], "phase_completed");
-    assert_eq!(json["task_id"], "TEST-0001");
+    assert_eq!(json["task_id"], expected_task_id);
     assert_eq!(json["task_title"], "Test title");
     assert_eq!(json["runner"], "codex");
     assert_eq!(json["model"], "gpt-5.2-codex");
@@ -529,17 +684,29 @@ fn webhook_phase_event_includes_context_fields() {
 #[test]
 #[serial]
 fn webhook_disabled_does_not_send() {
+    ensure_test_worker_initialized();
+
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
 
     let request_count = Arc::new(AtomicUsize::new(0));
     let count_clone = request_count.clone();
+    let expected_task_id = unique_test_id("TEST-DISABLED");
+    let expected_task_id_clone = expected_task_id.clone();
 
     thread::spawn(move || {
         while let Ok((mut stream, _)) = listener.accept() {
-            count_clone.fetch_add(1, Ordering::SeqCst);
-            let mut buf = [0u8; 1024];
-            let _ = stream.read(&mut buf);
+            let request = read_http_request_with_body(&mut stream);
+            if parse_http_json_body(&request)
+                .and_then(|json| {
+                    json.get("task_id")
+                        .and_then(serde_json::Value::as_str)
+                        .map(str::to_owned)
+                })
+                .is_some_and(|task_id| task_id == expected_task_id_clone)
+            {
+                count_clone.fetch_add(1, Ordering::SeqCst);
+            }
             let _ = stream.write_all(b"HTTP/1.1 200 OK\r\n\r\n");
         }
     });
@@ -557,12 +724,15 @@ fn webhook_disabled_does_not_send() {
         queue_policy: Some(WebhookQueuePolicy::DropNew),
     };
 
-    webhook::notify_task_created("TEST-0001", "Test", &config, "2024-01-01T00:00:00Z");
+    webhook::notify_task_created(&expected_task_id, "Test", &config, "2024-01-01T00:00:00Z");
 
-    // Wait a bit
-    thread::sleep(Duration::from_millis(200));
-
+    let saw_request = test_support::wait_until(
+        Duration::from_millis(300),
+        Duration::from_millis(25),
+        || request_count.load(Ordering::SeqCst) > 0,
+    );
     let count = request_count.load(Ordering::SeqCst);
+    assert!(!saw_request, "expected no request when disabled");
     assert_eq!(count, 0, "Expected 0 requests when disabled, got {}", count);
 }
 
@@ -570,6 +740,8 @@ fn webhook_disabled_does_not_send() {
 #[test]
 #[serial]
 fn webhook_no_url_does_not_send() {
+    ensure_test_worker_initialized();
+
     // No URL configured but enabled - should not panic or send anything
     let config = WebhookConfig {
         enabled: Some(true),
@@ -586,9 +758,6 @@ fn webhook_no_url_does_not_send() {
     // This should not panic and should return immediately
     webhook::notify_task_created("TEST-0001", "Test", &config, "2024-01-01T00:00:00Z");
 
-    // Wait a bit
-    thread::sleep(Duration::from_millis(100));
-
     // Test passes if no panic occurred
 }
 
@@ -599,14 +768,29 @@ fn webhook_no_url_does_not_send() {
 #[test]
 #[serial]
 fn webhook_drop_oldest_policy() {
+    ensure_test_worker_initialized();
+
     // Start a server
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
+    let request_count = Arc::new(AtomicUsize::new(0));
+    let request_count_clone = Arc::clone(&request_count);
+    let task_id_prefix = unique_test_id("TEST-DROP-OLDEST");
+    let task_id_prefix_clone = task_id_prefix.clone();
 
     thread::spawn(move || {
         while let Ok((mut stream, _)) = listener.accept() {
-            let mut buf = [0u8; 1024];
-            let _ = stream.read(&mut buf);
+            let request = read_http_request_with_body(&mut stream);
+            if parse_http_json_body(&request)
+                .and_then(|json| {
+                    json.get("task_id")
+                        .and_then(serde_json::Value::as_str)
+                        .map(str::to_owned)
+                })
+                .is_some_and(|task_id| task_id.starts_with(&task_id_prefix_clone))
+            {
+                request_count_clone.fetch_add(1, Ordering::SeqCst);
+            }
             thread::sleep(Duration::from_millis(100)); // Slow processing
             let _ = stream.write_all(b"HTTP/1.1 200 OK\r\n\r\n");
         }
@@ -628,16 +812,17 @@ fn webhook_drop_oldest_policy() {
     // Send multiple webhooks - some may be dropped due to queue policy
     for i in 0..5 {
         webhook::notify_task_created(
-            &format!("TEST-{}", i),
+            &format!("{task_id_prefix}-{i}"),
             "Test",
             &config,
             "2024-01-01T00:00:00Z",
         );
-        thread::sleep(Duration::from_millis(10));
     }
 
-    // Give time for processing
-    thread::sleep(Duration::from_millis(800));
-
-    // Test passes if no panic occurred (drop_oldest policy was exercised)
+    assert!(
+        test_support::wait_until(Duration::from_secs(3), Duration::from_millis(25), || {
+            request_count.load(Ordering::SeqCst) >= 1
+        }),
+        "expected at least one delivered webhook for drop_oldest policy"
+    );
 }

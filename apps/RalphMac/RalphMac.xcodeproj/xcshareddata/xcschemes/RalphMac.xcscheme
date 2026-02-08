@@ -62,6 +62,13 @@
             ReferencedContainer = "container:RalphMac.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
+      <EnvironmentVariables>
+         <EnvironmentVariable
+            key = "RALPH_BIN_PATH"
+            value = "$(BUILT_PRODUCTS_DIR)/RalphMac.app/Contents/MacOS/ralph"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+      </EnvironmentVariables>
    </TestAction>
    <LaunchAction
       buildConfiguration = "Debug"

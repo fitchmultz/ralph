@@ -19,6 +19,7 @@ use std::env;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
 use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant};
 use tempfile::TempDir;
 
 pub fn path_has_repo_markers(path: &Path) -> bool {
@@ -187,21 +188,95 @@ pub fn git_init(dir: &Path) -> Result<()> {
         .context("run git init")?;
     anyhow::ensure!(status.success(), "git init failed");
 
+    let status = Command::new("git")
+        .current_dir(dir)
+        .args(["config", "user.name", "Ralph Test"])
+        .status()
+        .context("set local git user.name")?;
+    anyhow::ensure!(status.success(), "git config user.name failed");
+
+    let status = Command::new("git")
+        .current_dir(dir)
+        .args(["config", "user.email", "ralph-tests@example.invalid"])
+        .status()
+        .context("set local git user.email")?;
+    anyhow::ensure!(status.success(), "git config user.email failed");
+
     let gitignore_path = dir.join(".gitignore");
     std::fs::write(
         &gitignore_path,
         ".ralph/lock\n.ralph/cache/\n.ralph/logs/\n",
     )?;
-    Command::new("git")
+
+    let status = Command::new("git")
         .current_dir(dir)
         .args(["add", ".gitignore"])
-        .status()?;
-    Command::new("git")
+        .status()
+        .context("git add .gitignore")?;
+    anyhow::ensure!(status.success(), "git add .gitignore failed");
+
+    let status = Command::new("git")
         .current_dir(dir)
         .args(["commit", "--quiet", "-m", "add gitignore"])
-        .status()?;
+        .status()
+        .context("git commit .gitignore")?;
+    anyhow::ensure!(status.success(), "git commit .gitignore failed");
 
     Ok(())
+}
+
+/// Poll a condition until it succeeds or the timeout expires.
+pub fn wait_until(
+    timeout: Duration,
+    poll_interval: Duration,
+    mut condition: impl FnMut() -> bool,
+) -> bool {
+    if condition() {
+        return true;
+    }
+
+    let poll_interval = poll_interval.max(Duration::from_millis(1));
+    let deadline = Instant::now() + timeout;
+    while Instant::now() < deadline {
+        std::thread::sleep(poll_interval);
+        if condition() {
+            return true;
+        }
+    }
+
+    condition()
+}
+
+/// Poll a shared `Mutex<Option<T>>` until populated or timeout.
+pub fn wait_for_mutex_value<T: Clone>(
+    value: &std::sync::Arc<std::sync::Mutex<Option<T>>>,
+    timeout: Duration,
+    poll_interval: Duration,
+) -> Option<T> {
+    let mut result = None;
+    let found = wait_until(timeout, poll_interval, || {
+        let current = value.lock().expect("lock mutex").clone();
+        if current.is_some() {
+            result = current;
+            true
+        } else {
+            false
+        }
+    });
+    if found { result } else { None }
+}
+
+/// Return a PID that is deterministically expected to be non-running on this host.
+pub fn deterministic_non_running_pid() -> u32 {
+    const MAX_SAFE_PID: u32 = i32::MAX as u32;
+    for offset in 0..=1024 {
+        let candidate = MAX_SAFE_PID - offset;
+        if ralph::lock::pid_is_running(candidate) == Some(false) {
+            return candidate;
+        }
+    }
+
+    panic!("failed to find a deterministic non-running PID candidate");
 }
 
 /// Update `.ralph/config.json` to set `agent.runner`, `agent.model`, and `agent.phases`.

@@ -21,7 +21,7 @@ use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 #[cfg(unix)]
 use std::os::unix::process::CommandExt;
@@ -119,18 +119,16 @@ pub fn start(resolved: &Resolved, args: DaemonStartArgs) -> Result<()> {
         let child = command.spawn().context("Failed to spawn daemon process")?;
         let pid = child.id();
 
-        // Wait a moment for the daemon to start and validate
-        std::thread::sleep(Duration::from_millis(500));
-
-        // Check if the daemon started successfully
-        match get_daemon_state(&cache_dir)? {
-            Some(state) if state.pid == pid => {
-                println!("Daemon started successfully (PID: {})", pid);
-                Ok(())
-            }
-            _ => {
-                bail!("Daemon failed to start. Check .ralph/logs/daemon.log for details.");
-            }
+        if wait_for_daemon_state_pid(
+            &cache_dir,
+            pid,
+            Duration::from_secs(2),
+            Duration::from_millis(100),
+        )? {
+            println!("Daemon started successfully (PID: {})", pid);
+            Ok(())
+        } else {
+            bail!("Daemon failed to start. Check .ralph/logs/daemon.log for details.");
         }
     }
 
@@ -294,7 +292,82 @@ fn write_daemon_state(cache_dir: &Path, state: &DaemonState) -> Result<()> {
     Ok(())
 }
 
+/// Poll daemon state until it matches `pid` or a timeout elapses.
+fn wait_for_daemon_state_pid(
+    cache_dir: &Path,
+    pid: u32,
+    timeout: Duration,
+    poll_interval: Duration,
+) -> Result<bool> {
+    let poll_interval = poll_interval.max(Duration::from_millis(1));
+    let deadline = Instant::now() + timeout;
+    loop {
+        if let Some(state) = get_daemon_state(cache_dir)?
+            && state.pid == pid
+        {
+            return Ok(true);
+        }
+        if Instant::now() >= deadline {
+            return Ok(false);
+        }
+        std::thread::sleep(poll_interval);
+    }
+}
+
 /// Check if a PID is running.
 fn is_pid_running(pid: u32) -> bool {
     lock::pid_is_running(pid).unwrap_or(false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    #[test]
+    fn wait_for_daemon_state_pid_returns_true_when_state_appears() {
+        let temp = TempDir::new().expect("create temp dir");
+        let cache_dir = temp.path().join(".ralph/cache");
+        fs::create_dir_all(&cache_dir).expect("create cache dir");
+        let expected_pid = 424_242_u32;
+
+        let writer_cache_dir = cache_dir.clone();
+        let writer = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(60));
+            let state = DaemonState {
+                version: 1,
+                pid: expected_pid,
+                started_at: "2026-01-01T00:00:00Z".to_string(),
+                repo_root: "/tmp/repo".to_string(),
+                command: "ralph daemon serve".to_string(),
+            };
+            write_daemon_state(&writer_cache_dir, &state).expect("write daemon state");
+        });
+
+        let ready = wait_for_daemon_state_pid(
+            &cache_dir,
+            expected_pid,
+            Duration::from_secs(1),
+            Duration::from_millis(10),
+        )
+        .expect("poll daemon state");
+        writer.join().expect("join writer thread");
+        assert!(ready, "expected daemon state to appear before timeout");
+    }
+
+    #[test]
+    fn wait_for_daemon_state_pid_returns_false_on_timeout() {
+        let temp = TempDir::new().expect("create temp dir");
+        let cache_dir = temp.path().join(".ralph/cache");
+        fs::create_dir_all(&cache_dir).expect("create cache dir");
+
+        let ready = wait_for_daemon_state_pid(
+            &cache_dir,
+            123_456_u32,
+            Duration::from_millis(100),
+            Duration::from_millis(10),
+        )
+        .expect("poll daemon state");
+        assert!(!ready, "expected timeout when daemon state is absent");
+    }
 }

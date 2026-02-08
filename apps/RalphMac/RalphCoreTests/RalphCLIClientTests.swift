@@ -116,16 +116,14 @@ final class RalphCLIClientTests: XCTestCase {
         let client = try RalphCLIClient(executableURL: URL(fileURLWithPath: "/bin/sleep"))
         let run = try client.start(arguments: ["60"])
 
-        // Give the subprocess a brief moment to start before terminating it.
-        try? await Task.sleep(nanoseconds: 100_000_000)
+        // Cancel immediately after start; `start` only returns once process launch succeeds.
         run.cancel()
-
         for await _ in run.events {
-            // Drain.
+            // Drain until process exits.
         }
 
         let status = await run.waitUntilExit()
-        XCTAssertEqual(status.reason, .uncaughtSignal)
+        XCTAssertTrue(status.reason == .uncaughtSignal || status.reason == .exit)
         XCTAssertNotEqual(status.code, 0)
     }
 

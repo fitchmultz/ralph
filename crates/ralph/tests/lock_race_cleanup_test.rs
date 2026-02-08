@@ -15,6 +15,8 @@
 //! - Temp directories are isolated per test.
 //! - Tests run on local filesystem with reasonable timing assumptions.
 
+mod test_support;
+
 use ralph::lock;
 use std::fs;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -71,13 +73,13 @@ fn test_concurrent_lock_cleanup_no_orphans() {
                     match lock::acquire_dir_lock(&lock_dir, &label, false) {
                         Ok(_lock) => {
                             // Hold the lock briefly to increase contention
-                            thread::sleep(Duration::from_millis(1));
+                            thread::yield_now();
                             success_count.fetch_add(1, Ordering::SeqCst);
                             // Lock drops here, triggering cleanup
                         }
                         Err(_) => {
                             // Expected contention failure - try again
-                            thread::sleep(Duration::from_millis(5));
+                            thread::yield_now();
                         }
                     }
                 }
@@ -90,8 +92,16 @@ fn test_concurrent_lock_cleanup_no_orphans() {
         handle.join().expect("thread should not panic");
     }
 
-    // Give a moment for any pending cleanup to complete
-    thread::sleep(Duration::from_millis(100));
+    // Wait for cleanup to complete under load.
+    assert!(
+        test_support::wait_until(Duration::from_secs(2), Duration::from_millis(10), || {
+            !lock_dir.exists()
+                || fs::read_dir(&lock_dir)
+                    .map(|mut entries| entries.next().is_none())
+                    .unwrap_or(true)
+        }),
+        "lock directory cleanup timed out"
+    );
 
     // Verify no orphaned lock directories remain
     if lock_dir.exists() {
@@ -213,11 +223,12 @@ fn test_shared_task_lock_cleanup() {
     // Now drop supervisor lock
     drop(supervisor_lock);
 
-    // Give time for cleanup
-    thread::sleep(Duration::from_millis(50));
-
-    // Directory should be cleaned up
-    assert!(!lock_dir.exists());
+    assert!(
+        test_support::wait_until(Duration::from_secs(2), Duration::from_millis(10), || {
+            !lock_dir.exists()
+        }),
+        "lock directory should be cleaned up after dropping supervisor lock"
+    );
 }
 
 /// Test that multiple rapid acquire/release cycles don't accumulate
@@ -235,13 +246,17 @@ fn test_rapid_acquire_release_no_leak() {
         // Acquire and immediately release
         let lock = lock::acquire_dir_lock(&lock_dir, &format!("cycle_{}", i), false).unwrap();
         drop(lock);
-
-        // Small delay to allow cleanup
-        thread::sleep(Duration::from_millis(2));
     }
 
-    // Give time for final cleanup
-    thread::sleep(Duration::from_millis(100));
+    assert!(
+        test_support::wait_until(Duration::from_secs(3), Duration::from_millis(10), || {
+            !base_lock_dir.exists()
+                || fs::read_dir(&base_lock_dir)
+                    .map(|entries| entries.filter_map(|e| e.ok()).all(|e| !e.path().is_dir()))
+                    .unwrap_or(true)
+        }),
+        "lock directories were not cleaned up after rapid acquire/release cycles"
+    );
 
     // Count remaining directories
     if base_lock_dir.exists() {
@@ -331,11 +346,12 @@ fn test_multiple_task_sidecars_cleanup() {
 
     // Drop supervisor
     drop(supervisor_lock);
-
-    thread::sleep(Duration::from_millis(50));
-
-    // Everything should be cleaned up
-    assert!(!lock_dir.exists(), "Lock directory should be removed");
+    assert!(
+        test_support::wait_until(Duration::from_secs(2), Duration::from_millis(10), || {
+            !lock_dir.exists()
+        }),
+        "Lock directory should be removed"
+    );
 }
 
 /// Test that task sidecar cleanup works correctly when there are other
@@ -381,17 +397,13 @@ fn test_task_cleanup_with_other_files() {
 
     // Clean up supervisor
     drop(supervisor_lock);
-    thread::sleep(Duration::from_millis(50));
-
-    // Directory should be cleaned up (or at least the owners gone)
+    assert!(
+        test_support::wait_until(Duration::from_secs(2), Duration::from_millis(10), || {
+            !lock_dir.exists() || get_task_owner_files(&lock_dir).is_empty()
+        }),
+        "Task owner files should be cleaned up even if directory remains"
+    );
     if lock_dir.exists() {
-        // If cleanup failed due to extra file, that's acceptable but not ideal
-        // The important thing is task sidecar is gone
-        assert!(
-            get_task_owner_files(&lock_dir).is_empty(),
-            "Task owner files should be cleaned up even if directory remains"
-        );
-        // Clean up manually
         let _ = fs::remove_dir_all(&lock_dir);
     }
 }

@@ -13,7 +13,6 @@
  */
 
 import SwiftUI
-import Accessibility
 
 struct StringArrayEditor: View {
     @Binding var items: [String]
@@ -88,13 +87,24 @@ struct StringArrayEditor: View {
         items.append(trimmed)
         newItemText = ""
         isInputFocused = true
-        AccessibilityNotification.announce("Item \(trimmed) added")
+        announceForAccessibility("Item \(trimmed) added")
     }
     
     private func removeItem(at index: Int) {
         guard index >= 0 && index < items.count else { return }
         items.remove(at: index)
-        AccessibilityNotification.announce("Item removed")
+        announceForAccessibility("Item removed")
+    }
+
+    private func announceForAccessibility(_ message: String) {
+        NSAccessibility.post(
+            element: NSApp as Any,
+            notification: .announcementRequested,
+            userInfo: [
+                .announcement: message,
+                .priority: NSAccessibilityPriorityLevel.high.rawValue
+            ]
+        )
     }
 }
 
