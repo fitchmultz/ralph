@@ -3,35 +3,119 @@
 
  Responsibilities:
  - Define the macOS SwiftUI app entry point.
- - Present the primary window containing a thin GUI wrapper around the `ralph` CLI.
- - Configure native macOS window styling with glass morphism effects including
-   transparent titlebar and unified toolbar appearance.
+ - Configure multi-window support with native macOS tab bar integration.
+ - Handle window restoration on app relaunch.
+ - Provide menu commands for window/tab management.
 
  Does not handle:
- - Any CLI execution logic (see RalphCore module).
- - Persistence of user settings beyond the lifetime of the process.
+ - Individual workspace content or CLI operations (see Workspace and WindowView).
 
  Invariants/assumptions callers must respect:
  - The app bundle includes an executable named `ralph` placed alongside the app binary.
- - VisualEffectView is available in the same module for glass morphism backgrounds.
+ - Window restoration state is stored in UserDefaults.
  */
 
 public import SwiftUI
+import RalphCore
 
 @main
 struct RalphMacApp: App {
+    @StateObject private var manager = WorkspaceManager.shared
+    @Environment(\.scenePhase) private var scenePhase
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            WindowView(windowState: WindowState(workspaceIDs: [manager.createWorkspace().id]))
                 .background(
-                    // Base glass morphism background for the entire window
                     VisualEffectView(material: .windowBackground, blendingMode: .behindWindow)
                         .ignoresSafeArea()
                 )
         }
-        .windowStyle(.hiddenTitleBar)  // Transparent titlebar for glass effect
-        .windowToolbarStyle(.unified(showsTitle: false))  // Modern toolbar
-        .defaultSize(width: 1200, height: 800)  // Slightly larger default
+        .windowStyle(.hiddenTitleBar)
+        .windowToolbarStyle(.unified(showsTitle: false))
+        .defaultSize(width: 1200, height: 800)
         .defaultPosition(.center)
+        
+        .commands {
+            workspaceCommands
+        }
     }
+
+    private var workspaceCommands: some Commands {
+        CommandMenu("Workspace") {
+            Button("New Tab") {
+                NotificationCenter.default.post(
+                    name: .newWorkspaceTabRequested,
+                    object: nil
+                )
+            }
+            .keyboardShortcut("t", modifiers: .command)
+
+            Button("New Window") {
+                NotificationCenter.default.post(
+                    name: .newWindowRequested,
+                    object: nil
+                )
+            }
+            .keyboardShortcut("n", modifiers: [.command, .shift])
+
+            Divider()
+
+            Button("Close Tab") {
+                NotificationCenter.default.post(
+                    name: .closeActiveTabRequested,
+                    object: nil
+                )
+            }
+            .keyboardShortcut("w", modifiers: .command)
+
+            Button("Close Window") {
+                NotificationCenter.default.post(
+                    name: .closeActiveWindowRequested,
+                    object: nil
+                )
+            }
+            .keyboardShortcut("w", modifiers: [.command, .shift])
+
+            Divider()
+
+            Button("Next Tab") {
+                NotificationCenter.default.post(
+                    name: .selectNextTabRequested,
+                    object: nil
+                )
+            }
+            .keyboardShortcut("]", modifiers: [.command, .shift])
+
+            Button("Previous Tab") {
+                NotificationCenter.default.post(
+                    name: .selectPreviousTabRequested,
+                    object: nil
+                )
+            }
+            .keyboardShortcut("[", modifiers: [.command, .shift])
+
+            Divider()
+
+            Button("Duplicate Tab") {
+                NotificationCenter.default.post(
+                    name: .duplicateActiveTabRequested,
+                    object: nil
+                )
+            }
+            .keyboardShortcut("d", modifiers: .command)
+        }
+    }
+}
+
+// MARK: - Notification Names
+
+extension Notification.Name {
+    static let newWorkspaceTabRequested = Notification.Name("newWorkspaceTabRequested")
+    static let newWindowRequested = Notification.Name("newWindowRequested")
+    static let closeActiveTabRequested = Notification.Name("closeActiveTabRequested")
+    static let closeActiveWindowRequested = Notification.Name("closeActiveWindowRequested")
+    static let selectNextTabRequested = Notification.Name("selectNextTabRequested")
+    static let selectPreviousTabRequested = Notification.Name("selectPreviousTabRequested")
+    static let duplicateActiveTabRequested = Notification.Name("duplicateActiveTabRequested")
 }
