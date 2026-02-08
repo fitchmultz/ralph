@@ -46,6 +46,27 @@ public final class Workspace: ObservableObject, Identifiable, Codable, @unchecke
     @Published public var advancedSingleValues: [String: String] = [:]
     @Published public var advancedMultiValues: [String: String] = [:]
 
+    // Task browser state
+    @Published public var tasks: [RalphTask] = []
+    @Published public var tasksLoading: Bool = false
+    @Published public var tasksErrorMessage: String?
+
+    // Task filtering/sorting state
+    @Published public var taskFilterText: String = ""
+    @Published public var taskStatusFilter: RalphTaskStatus?
+    @Published public var taskPriorityFilter: RalphTaskPriority?
+    @Published public var taskTagFilter: String?
+    @Published public var taskSortBy: TaskSortOption = .priority
+    @Published public var taskSortAscending: Bool = false
+
+    public enum TaskSortOption: String, CaseIterable {
+        case priority = "Priority"
+        case created = "Created"
+        case updated = "Updated"
+        case status = "Status"
+        case title = "Title"
+    }
+
     private var client: RalphCLIClient?
     private var currentRun: RalphCLIRun?
     private var cancellables = Set<AnyCancellable>()
@@ -164,6 +185,97 @@ public final class Workspace: ObservableObject, Identifiable, Codable, @unchecke
 
     public func runQueueListJSON() {
         run(arguments: ["--no-color", "queue", "list", "--format", "json"])
+    }
+
+    public func loadTasks() async {
+        guard let client else {
+            tasksErrorMessage = "CLI client not available."
+            return
+        }
+
+        tasksLoading = true
+        tasksErrorMessage = nil
+
+        do {
+            let collected = try await client.runAndCollect(
+                arguments: ["--no-color", "queue", "list", "--format", "json"],
+                currentDirectoryURL: workingDirectoryURL
+            )
+
+            guard collected.status.code == 0 else {
+                tasksErrorMessage = collected.stderr.isEmpty
+                    ? "Failed to load tasks (exit \(collected.status.code))."
+                    : collected.stderr
+                tasksLoading = false
+                return
+            }
+
+            let data = Data(collected.stdout.utf8)
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            let document = try decoder.decode(RalphTaskQueueDocument.self, from: data)
+            tasks = document.tasks
+        } catch {
+            tasksErrorMessage = "Failed to load tasks: \(error.localizedDescription)"
+        }
+
+        tasksLoading = false
+    }
+
+    /// Returns filtered and sorted tasks based on current filter/sort state
+    public func filteredAndSortedTasks() -> [RalphTask] {
+        var result = tasks
+
+        // Apply text filter (search in title, description, tags)
+        let filterText = taskFilterText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !filterText.isEmpty {
+            result = result.filter { task in
+                let matchesTitle = task.title.localizedCaseInsensitiveContains(filterText)
+                let matchesDescription = task.description?.localizedCaseInsensitiveContains(filterText) ?? false
+                let matchesTags = task.tags.contains { $0.localizedCaseInsensitiveContains(filterText) }
+                return matchesTitle || matchesDescription || matchesTags
+            }
+        }
+
+        // Apply status filter
+        if let statusFilter = taskStatusFilter {
+            result = result.filter { $0.status == statusFilter }
+        }
+
+        // Apply priority filter
+        if let priorityFilter = taskPriorityFilter {
+            result = result.filter { $0.priority == priorityFilter }
+        }
+
+        // Apply tag filter
+        if let tagFilter = taskTagFilter, !tagFilter.isEmpty {
+            result = result.filter { $0.tags.contains(tagFilter) }
+        }
+
+        // Apply sorting
+        result.sort { a, b in
+            let comparison: Bool
+            switch taskSortBy {
+            case .priority:
+                comparison = a.priority.sortOrder < b.priority.sortOrder
+            case .created:
+                comparison = (a.createdAt ?? .distantPast) < (b.createdAt ?? .distantPast)
+            case .updated:
+                comparison = (a.updatedAt ?? .distantPast) < (b.updatedAt ?? .distantPast)
+            case .status:
+                comparison = a.status.rawValue < b.status.rawValue
+            case .title:
+                comparison = a.title.localizedCompare(b.title) == .orderedAscending
+            }
+            return taskSortAscending ? comparison : !comparison
+        }
+
+        return result
+    }
+
+    /// Returns the next task that should be worked on (first todo)
+    public func nextTask() -> RalphTask? {
+        tasks.first { $0.status == .todo }
     }
 
     public func run(arguments: [String]) {

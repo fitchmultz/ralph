@@ -11,6 +11,7 @@
 		558F4EFD40ED4813905A6B0A /* VisualEffectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6127F94DFD1B404CB5CC190B /* VisualEffectView.swift */; };
 		7D1B5B4C1E6F708D01234567 /* WorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B65E12FC434490D9A617CEB /* WorkspaceView.swift */; };
 		8E2C6C5D2F70819234567890 /* WindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E21132B9951449F09254F84C /* WindowView.swift */; };
+		9A3B7C4E5D6E7F8A901B2C3D /* TaskListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718G9H0I1J2 /* TaskListView.swift */; };
 		51F423D7B6694FD1BBF01DDA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B6D1EEC569C94444A00C7A84 /* Assets.xcassets */; };
 		179B8788CE02428A89379BFC /* RalphCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 16591EC6C1744AC5AF4189A4 /* RalphCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		D1594D0AB21045BA9764BCE8 /* RalphCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 16591EC6C1744AC5AF4189A4 /* RalphCore.framework */; };
@@ -66,6 +67,7 @@
 		4501A6DA17EA418787F9BC9C /* WindowState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowState.swift; sourceTree = "<group>"; };
 		3B65E12FC434490D9A617CEB /* WorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceView.swift; sourceTree = "<group>"; };
 		E21132B9951449F09254F84C /* WindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowView.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718G9H0I1J2 /* TaskListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TaskListView.swift; path = RalphMac/TaskListView.swift; sourceTree = "<group>"; };
 		D54AE04AF32A434C9B785F2F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B6D1EEC569C94444A00C7A84 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		31B301E8A7CC431E930E7539 /* RalphCLIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphCLIClient.swift; sourceTree = "<group>"; };
@@ -311,6 +313,7 @@
 				558F4EFD40ED4813905A6B0A /* VisualEffectView.swift in Sources */,
 				7D1B5B4C1E6F708D01234567 /* WorkspaceView.swift in Sources */,
 				8E2C6C5D2F70819234567890 /* WindowView.swift in Sources */,
+				9A3B7C4E5D6E7F8A901B2C3D /* TaskListView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -23,6 +23,11 @@ struct WorkspaceView: View {
 
     var body: some View {
         TabView {
+            TaskListView(workspace: workspace)
+                .tabItem {
+                    Label("Tasks", systemImage: "list.bullet.rectangle")
+                }
+
             quickActionsTab()
                 .tabItem {
                     Label("Quick", systemImage: "bolt.fill")
@@ -49,7 +54,6 @@ struct WorkspaceView: View {
             HStack(spacing: 12) {
                 actionButton("Version", icon: "info.circle.fill", action: { workspace.runVersion() })
                 actionButton("Init", icon: "folder.badge.plus", action: { workspace.runInit() })
-                actionButton("Queue List", icon: "list.bullet.rectangle", action: { workspace.runQueueListJSON() })
 
                 Spacer()
 

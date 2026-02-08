@@ -396,3 +396,132 @@ public extension RalphCLIArgSpec {
         return (numArgsMax ?? 0) > 1
     }
 }
+
+// MARK: - Task Models
+
+/// Represents the status of a task in the queue.
+public enum RalphTaskStatus: String, Codable, Sendable, Equatable, CaseIterable {
+    case draft = "draft"
+    case todo = "todo"
+    case doing = "doing"
+    case done = "done"
+    case rejected = "rejected"
+
+    public var displayName: String {
+        switch self {
+        case .draft: return "Draft"
+        case .todo: return "Todo"
+        case .doing: return "Doing"
+        case .done: return "Done"
+        case .rejected: return "Rejected"
+        }
+    }
+}
+
+/// Represents the priority level of a task.
+public enum RalphTaskPriority: String, Codable, Sendable, Equatable, CaseIterable {
+    case critical = "critical"
+    case high = "high"
+    case medium = "medium"
+    case low = "low"
+
+    public var displayName: String {
+        switch self {
+        case .critical: return "Critical"
+        case .high: return "High"
+        case .medium: return "Medium"
+        case .low: return "Low"
+        }
+    }
+
+    /// For sorting - higher number = higher priority
+    public var sortOrder: Int {
+        switch self {
+        case .critical: return 4
+        case .high: return 3
+        case .medium: return 2
+        case .low: return 1
+        }
+    }
+}
+
+/// Represents a single task in the Ralph queue.
+public struct RalphTask: Codable, Sendable, Equatable, Identifiable {
+    public let id: String
+    public var status: RalphTaskStatus
+    public var title: String
+    public var description: String?
+    public var priority: RalphTaskPriority
+    public var tags: [String]
+    public var scope: [String]?
+    public var evidence: [String]?
+    public var plan: [String]?
+    public var notes: [String]?
+    public var request: String?
+    public var createdAt: Date?
+    public var updatedAt: Date?
+    public var startedAt: Date?
+    public var completedAt: Date?
+    public var dependsOn: [String]?
+    public var blocks: [String]?
+    public var relatesTo: [String]?
+    public var customFields: [String: String]?
+
+    private enum CodingKeys: String, CodingKey {
+        case id, status, title, description, priority, tags, scope, evidence, plan, notes
+        case request, dependsOn = "depends_on", blocks, relatesTo = "relates_to"
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+        case startedAt = "started_at"
+        case completedAt = "completed_at"
+        case customFields = "custom_fields"
+    }
+
+    public init(
+        id: String,
+        status: RalphTaskStatus,
+        title: String,
+        description: String? = nil,
+        priority: RalphTaskPriority,
+        tags: [String] = [],
+        scope: [String]? = nil,
+        evidence: [String]? = nil,
+        plan: [String]? = nil,
+        notes: [String]? = nil,
+        request: String? = nil,
+        createdAt: Date? = nil,
+        updatedAt: Date? = nil,
+        startedAt: Date? = nil,
+        completedAt: Date? = nil,
+        dependsOn: [String]? = nil,
+        blocks: [String]? = nil,
+        relatesTo: [String]? = nil,
+        customFields: [String: String]? = nil
+    ) {
+        self.id = id
+        self.status = status
+        self.title = title
+        self.description = description
+        self.priority = priority
+        self.tags = tags
+        self.scope = scope
+        self.evidence = evidence
+        self.plan = plan
+        self.notes = notes
+        self.request = request
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.startedAt = startedAt
+        self.completedAt = completedAt
+        self.dependsOn = dependsOn
+        self.blocks = blocks
+        self.relatesTo = relatesTo
+        self.customFields = customFields
+    }
+}
+
+/// Represents the top-level queue document from `ralph queue list --format json`.
+public struct RalphTaskQueueDocument: Codable, Sendable, Equatable {
+    public let version: Int
+    public let tasks: [RalphTask]
+}
