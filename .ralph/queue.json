@@ -2,49 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0746",
-      "status": "todo",
-      "title": "Fix window state not restored on app relaunch",
-      "description": "The macOS app does not restore window state (workspace directories, selected tabs, navigation state) when the app is quit and relaunched. WindowState persistence exists but is not being applied on app startup. This degrades user experience as users must manually reopen their workspaces each time.",
-      "priority": "medium",
-      "tags": [
-        "maintenance",
-        "macos",
-        "state-restoration",
-        "ux"
-      ],
-      "scope": [
-        "apps/RalphMac/RalphMac/RalphMacApp.swift",
-        "apps/RalphMac/RalphMac/WindowView.swift",
-        "apps/RalphMac/RalphCore/WindowState.swift",
-        "apps/RalphMac/RalphCore/WorkspaceManager.swift"
-      ],
-      "evidence": [
-        "WindowState.swift exists for persistence but WindowViewContainer always creates fresh state",
-        "RalphMacApp.swift lines 199-223: WindowViewContainer creates new workspace on every launch",
-        "No NSWindowRestoration or SwiftUI window restoration implemented"
-      ],
-      "plan": [
-        "Implement window restoration using NSWindowRestoration protocol",
-        "Modify WindowViewContainer to load saved WindowState from UserDefaults on launch",
-        "Save window state (size, position, workspace directories) on app termination",
-        "Add restoration for NavigationViewModel state (selected section, view mode)",
-        "Ensure state is saved when workspaces are added/removed/renamed",
-        "Write unit tests for state save/load round-trip",
-        "Verify by: open app, open multiple workspaces, quit, relaunch - state should restore"
-      ],
-      "notes": [],
-      "request": "maintenance scan finding",
-      "created_at": "2026-02-08T19:37:03Z",
-      "updated_at": "2026-02-08T19:37:03Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0745",
       "status": "todo",
       "title": "Add keyboard navigation support in task lists and Kanban board",

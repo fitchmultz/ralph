@@ -30,7 +30,8 @@ struct WindowView: View {
         TabView(selection: $windowState.selectedTabIndex) {
             ForEach(Array(windowState.workspaceIDs.enumerated()), id: \.element) { index, workspaceID in
                 if let workspace = manager.workspaces.first(where: { $0.id == workspaceID }) {
-                    WorkspaceView(workspace: workspace)
+                    // Create NavigationViewModel with workspace-specific persistence
+                    WorkspaceView(workspace: workspace, navigation: NavigationViewModel(workspaceID: workspace.id))
                         .tabItem {
                             Label(workspace.name, systemImage: "folder")
                         }
@@ -81,6 +82,10 @@ struct WindowView: View {
                 windowState.selectedTabIndex = windowState.workspaceIDs.count - 1
                 persistState()
             }
+        }
+        // Handle app background/termination - force save all state
+        .onReceive(NotificationCenter.default.publisher(for: .saveAllWindowStatesRequested)) { _ in
+            persistState()
         }
     }
 

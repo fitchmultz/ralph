@@ -22,15 +22,18 @@ public struct WindowState: Codable, Equatable, Identifiable {
     public let id: UUID
     public var workspaceIDs: [UUID]
     public var selectedTabIndex: Int
+    public let version: Int  // Added for migration support
 
     public init(
         id: UUID = UUID(),
         workspaceIDs: [UUID],
-        selectedTabIndex: Int = 0
+        selectedTabIndex: Int = 0,
+        version: Int = 1
     ) {
         self.id = id
         self.workspaceIDs = workspaceIDs
         self.selectedTabIndex = selectedTabIndex
+        self.version = version
     }
 
     /// Validates that the selected index is within bounds

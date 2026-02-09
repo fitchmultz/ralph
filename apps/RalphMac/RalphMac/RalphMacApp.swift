@@ -43,9 +43,6 @@ struct RalphMacApp: App {
         .windowToolbarStyle(.unified(showsTitle: false))
         .defaultSize(width: 1400, height: 900)
         .defaultPosition(.center)
-        .onOpenURL { url in
-            handleOpenURL(url)
-        }
         .commands {
             workspaceCommands
             navigationCommands
@@ -57,12 +54,12 @@ struct RalphMacApp: App {
     /// Handle incoming URL from CLI or external source
     private func handleOpenURL(_ url: URL) {
         guard url.scheme == "ralph" else {
-            RalphLogger.shared.warning("Received URL with unexpected scheme: \(url.scheme ?? "nil")", category: .general)
+            RalphLogger.shared.info("Received URL with unexpected scheme: \(url.scheme ?? "nil")", category: .lifecycle)
             return
         }
 
         guard url.host == "open" else {
-            RalphLogger.shared.warning("Received ralph:// URL with unexpected host: \(url.host ?? "nil")", category: .general)
+            RalphLogger.shared.info("Received ralph:// URL with unexpected host: \(url.host ?? "nil")", category: .lifecycle)
             return
         }
 
@@ -72,7 +69,7 @@ struct RalphMacApp: App {
               let workspaceItem = queryItems.first(where: { $0.name == "workspace" }),
               let encodedPath = workspaceItem.value,
               let path = encodedPath.removingPercentEncoding else {
-            RalphLogger.shared.warning("Received ralph://open URL without valid workspace parameter", category: .general)
+            RalphLogger.shared.info("Received ralph://open URL without valid workspace parameter", category: .lifecycle)
             return
         }
 
@@ -83,7 +80,7 @@ struct RalphMacApp: App {
         let exists = FileManager.default.fileExists(atPath: path, isDirectory: &isDir)
 
         guard exists && isDir.boolValue else {
-            RalphLogger.shared.error("Workspace path does not exist or is not a directory: \(path)", category: .general)
+            RalphLogger.shared.error("Workspace path does not exist or is not a directory: \(path)", category: .workspace)
             return
         }
 
@@ -96,7 +93,7 @@ struct RalphMacApp: App {
                 name: .activateWorkspace,
                 object: existingWorkspace.id
             )
-            RalphLogger.shared.info("Activated existing workspace: \(path)", category: .general)
+            RalphLogger.shared.info("Activated existing workspace: \(path)", category: .workspace)
         } else {
             // Create new workspace with the specified directory
             let workspace = manager.createWorkspace(workingDirectory: workspaceURL)
@@ -104,7 +101,7 @@ struct RalphMacApp: App {
                 name: .workspaceOpenedFromURL,
                 object: workspace.id
             )
-            RalphLogger.shared.info("Created new workspace from URL: \(path)", category: .general)
+            RalphLogger.shared.info("Created new workspace from URL: \(path)", category: .workspace)
         }
     }
 
@@ -351,6 +348,8 @@ struct RalphMacApp: App {
 // MARK: - Window View Container
 
 /// Container view that handles workspace initialization to avoid state mutation during view init.
+/// On app launch, attempts to restore saved window state via WorkspaceManager.restoreWindows().
+/// Falls back to creating a fresh workspace with default state if no saved state exists.
 struct WindowViewContainer: View {
     @StateObject private var manager = WorkspaceManager.shared
     @State private var windowState: WindowState?
@@ -367,8 +366,16 @@ struct WindowViewContainer: View {
         .task {
             // Defer workspace creation to avoid mutating state during view initialization
             if windowState == nil {
-                let workspace = manager.createWorkspace()
-                windowState = WindowState(workspaceIDs: [workspace.id])
+                let restoredStates = manager.restoreWindows()
+                // For now, use the first restored window state
+                // Multi-window support can be added later
+                if let firstState = restoredStates.first {
+                    windowState = firstState
+                } else {
+                    // No saved state - create fresh workspace
+                    let workspace = manager.createWorkspace()
+                    windowState = WindowState(workspaceIDs: [workspace.id])
+                }
             }
         }
     }
@@ -389,4 +396,5 @@ extension Notification.Name {
     // New notifications for URL handling
     static let activateWorkspace = Notification.Name("activateWorkspace")
     static let workspaceOpenedFromURL = Notification.Name("workspaceOpenedFromURL")
+    static let saveAllWindowStatesRequested = Notification.Name("saveAllWindowStatesRequested")
 }

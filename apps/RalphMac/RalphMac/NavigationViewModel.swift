@@ -22,8 +22,19 @@ import SwiftUI
 import Combine
 import RalphCore
 
+private let navigationStateKey = "com.mitchfultz.ralph.navigationState"
+private let navigationStateVersion = 1
+
+/// Represents the persisted navigation state for a workspace
+struct NavigationState: Codable {
+    let version: Int
+    let selectedSection: SidebarSection
+    let taskViewMode: TaskViewMode
+    let selectedTaskID: String?
+}
+
 /// Represents the main sidebar navigation sections
-enum SidebarSection: String, CaseIterable, Identifiable {
+enum SidebarSection: String, CaseIterable, Identifiable, Codable {
     case queue = "Queue"
     case quickActions = "Quick Actions"
     case runControl = "Run Control"
@@ -54,7 +65,7 @@ enum SidebarSection: String, CaseIterable, Identifiable {
 }
 
 /// Represents the task view mode for the Queue section
-enum TaskViewMode: String, CaseIterable, Identifiable {
+enum TaskViewMode: String, CaseIterable, Identifiable, Codable {
     case list = "List"
     case kanban = "Kanban"
     case graph = "Graph"
@@ -74,18 +85,29 @@ enum TaskViewMode: String, CaseIterable, Identifiable {
 final class NavigationViewModel: ObservableObject {
     // MARK: - Published Properties
 
-    @Published var selectedSection: SidebarSection = .queue
-    @Published var selectedTaskID: String?
+    @Published var selectedSection: SidebarSection = .queue {
+        didSet { saveNavigationState() }
+    }
+    @Published var selectedTaskID: String? = nil {
+        didSet { saveNavigationState() }
+    }
     @Published var sidebarVisibility: NavigationSplitViewVisibility = .automatic
-    @Published var taskViewMode: TaskViewMode = .list
+    @Published var taskViewMode: TaskViewMode = .list {
+        didSet { saveNavigationState() }
+    }
 
     // MARK: - Private Properties
 
     private var cancellables = Set<AnyCancellable>()
+    private let workspaceID: UUID?
 
     // MARK: - Initialization
 
-    init() {
+    /// Creates a new NavigationViewModel, optionally loading persisted state for a specific workspace
+    /// - Parameter workspaceID: The ID of the workspace to load/save state for, or nil for generic state
+    init(workspaceID: UUID? = nil) {
+        self.workspaceID = workspaceID
+        loadNavigationState()
         setupNotificationHandlers()
     }
 
@@ -126,6 +148,44 @@ final class NavigationViewModel: ObservableObject {
     /// Switch to a specific view mode
     func setTaskViewMode(_ mode: TaskViewMode) {
         taskViewMode = mode
+    }
+
+    // MARK: - Persistence
+
+    private var stateKey: String {
+        if let workspaceID = workspaceID {
+            return "\(navigationStateKey).\(workspaceID.uuidString)"
+        }
+        return navigationStateKey
+    }
+
+    private func saveNavigationState() {
+        // Debounce saves to avoid excessive writes during rapid changes
+        Task { @MainActor in
+            let state = NavigationState(
+                version: navigationStateVersion,
+                selectedSection: selectedSection,
+                taskViewMode: taskViewMode,
+                selectedTaskID: selectedTaskID
+            )
+
+            if let data = try? JSONEncoder().encode(state) {
+                UserDefaults.standard.set(data, forKey: stateKey)
+            }
+        }
+    }
+
+    private func loadNavigationState() {
+        guard let data = UserDefaults.standard.data(forKey: stateKey),
+              let state = try? JSONDecoder().decode(NavigationState.self, from: data),
+              state.version == navigationStateVersion else {
+            // Use defaults if no saved state or version mismatch
+            return
+        }
+
+        selectedSection = state.selectedSection
+        taskViewMode = state.taskViewMode
+        selectedTaskID = state.selectedTaskID
     }
 
     // MARK: - Private Methods

@@ -24,7 +24,14 @@ import RalphCore
 
 struct WorkspaceView: View {
     @StateObject var workspace: Workspace
-    @StateObject private var navigation = NavigationViewModel()
+    @StateObject var navigation: NavigationViewModel
+
+    init(workspace: Workspace, navigation: NavigationViewModel? = nil) {
+        self._workspace = StateObject(wrappedValue: workspace)
+        // Use provided navigation view model or create one specific to this workspace
+        let navVM = navigation ?? NavigationViewModel(workspaceID: workspace.id)
+        self._navigation = StateObject(wrappedValue: navVM)
+    }
 
     var body: some View {
         NavigationSplitView(columnVisibility: $navigation.sidebarVisibility) {

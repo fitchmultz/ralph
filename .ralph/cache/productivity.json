@@ -1,11 +1,11 @@
 {
   "version": 1,
   "first_task_completed_at": "2026-02-09T10:19:54.878378000Z",
-  "last_updated_at": "2026-02-09T10:45:22.310005000Z",
+  "last_updated_at": "2026-02-09T12:11:24.501989000Z",
   "daily": {
     "2026-02-09": {
       "date": "2026-02-09",
-      "completed_count": 2,
+      "completed_count": 3,
       "tasks": [
         {
           "id": "RQ-0736",
@@ -16,6 +16,11 @@
           "id": "RQ-0731",
           "title": "Implement workspace directory passing from CLI to macOS app",
           "completed_at": "2026-02-09T10:45:22.310002000Z"
+        },
+        {
+          "id": "RQ-0746",
+          "title": "Fix window state not restored on app relaunch",
+          "completed_at": "2026-02-09T12:11:24.501986000Z"
         }
       ]
     }
@@ -25,6 +30,6 @@
     "longest_streak": 1,
     "last_completed_date": "2026-02-09"
   },
-  "total_completed": 2,
+  "total_completed": 3,
   "milestones": []
 }
