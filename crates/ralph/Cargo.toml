@@ -12,8 +12,8 @@ categories = ["command-line-utilities", "development-tools"]
 build = "build.rs"
 
 [dependencies]
-anyhow = "1.0.100"
-clap = { version = "4.5.54", features = ["derive"] }
+anyhow = "1.0.101"
+clap = { version = "4.5.57", features = ["derive"] }
 clap_complete = "4.5"
 csv = "1.3"
 colored = "3"
@@ -61,8 +61,8 @@ default = ["notifications"]
 notifications = ["notify-rust"]
 
 [dev-dependencies]
-serial_test = "3.0"
-insta = "1.40"
+serial_test = "3.3.1"
+insta = "1.46.3"
 
 [build-dependencies]
 vergen-gitcl = { version = "9.1", features = ["build"] }
