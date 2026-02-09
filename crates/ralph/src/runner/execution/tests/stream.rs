@@ -583,6 +583,24 @@ fn extract_display_lines_kimi_tool_result_with_content() {
 }
 
 #[test]
+fn extract_display_lines_kimi_tool_result_content_truncated() {
+    // Test that long tool output gets truncated to 200 chars
+    let long_content = "a".repeat(500);
+    let payload = json!({
+        "role": "tool",
+        "content": [{"type": "text", "text": &long_content}],
+        "tool_call_id": "call_1",
+        "tool_name": "read_file"
+    });
+    let result = extract_display_lines(&payload);
+    assert_eq!(result.len(), 1);
+    // Should contain truncated indicator
+    assert!(result[0].contains("... (truncated)"));
+    // Should not contain the full content
+    assert!(!result[0].contains(&"a".repeat(250)));
+}
+
+#[test]
 fn extract_display_lines_kimi_tool_result_without_tool_name() {
     let payload = json!({
         "role": "tool",

@@ -598,7 +598,14 @@ pub(super) fn extract_display_lines(json: &JsonValue) -> Vec<String> {
                 if let Some(text) = part.get("text").and_then(|t| t.as_str())
                     && !text.is_empty()
                 {
-                    lines.push(outpututil::format_tool_call(tool_name, Some(text)));
+                    // Truncate long tool outputs to keep display readable
+                    const MAX_TOOL_OUTPUT_LEN: usize = 200;
+                    let display_text = if text.len() > MAX_TOOL_OUTPUT_LEN {
+                        format!("{}... (truncated)", &text[..MAX_TOOL_OUTPUT_LEN])
+                    } else {
+                        text.to_string()
+                    };
+                    lines.push(outpututil::format_tool_call(tool_name, Some(&display_text)));
                     found_content = true;
                 }
             }
