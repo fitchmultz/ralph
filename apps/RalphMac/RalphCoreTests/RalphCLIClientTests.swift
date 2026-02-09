@@ -129,6 +129,91 @@ final class RalphCLIClientTests: XCTestCase {
         XCTAssertNotEqual(status.code, 0)
     }
 
+    // MARK: - Version Parsing Integration
+
+    func test_runAndCollect_versionOutput_parsableByVersionValidator() async throws {
+        // Simulate a CLI that outputs a version string
+        let tempDir = try Self.makeTempDir(prefix: "ralph-cli-version-")
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let scriptURL = tempDir.appendingPathComponent("mock-ralph", isDirectory: false)
+        let scriptContent = """
+            #!/bin/sh
+            echo "ralph 0.1.0"
+            """
+        try scriptContent.write(to: scriptURL, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: NSNumber(value: Int16(0o755))],
+            ofItemAtPath: scriptURL.path
+        )
+
+        let client = try RalphCLIClient(executableURL: scriptURL)
+        let collected = try await client.runAndCollect(arguments: ["--version"])
+
+        XCTAssertEqual(collected.status.code, 0)
+
+        // Verify the output can be parsed by VersionValidator
+        let versionString = collected.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        let validator = VersionValidator()
+        let result = validator.validate(versionString)
+
+        XCTAssertTrue(result.isCompatible, "Version '\(versionString)' should be compatible")
+        XCTAssertEqual(result.rawVersion, "ralph 0.1.0")
+    }
+
+    func test_runAndCollect_versionOutput_withVPrefix_parsable() async throws {
+        // Simulate a CLI that outputs version with v prefix
+        let tempDir = try Self.makeTempDir(prefix: "ralph-cli-version-")
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let scriptURL = tempDir.appendingPathComponent("mock-ralph", isDirectory: false)
+        let scriptContent = """
+            #!/bin/sh
+            echo "v0.1.5"
+            """
+        try scriptContent.write(to: scriptURL, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: NSNumber(value: Int16(0o755))],
+            ofItemAtPath: scriptURL.path
+        )
+
+        let client = try RalphCLIClient(executableURL: scriptURL)
+        let collected = try await client.runAndCollect(arguments: [])
+
+        let versionString = collected.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        let validator = VersionValidator()
+        let result = validator.validate(versionString)
+
+        XCTAssertTrue(result.isCompatible, "Version '\(versionString)' should be compatible")
+    }
+
+    func test_runAndCollect_incompatibleVersion_detected() async throws {
+        // Simulate a CLI with an incompatible (too new) version
+        let tempDir = try Self.makeTempDir(prefix: "ralph-cli-version-")
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let scriptURL = tempDir.appendingPathComponent("mock-ralph", isDirectory: false)
+        let scriptContent = """
+            #!/bin/sh
+            echo "1.5.0"
+            """
+        try scriptContent.write(to: scriptURL, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: NSNumber(value: Int16(0o755))],
+            ofItemAtPath: scriptURL.path
+        )
+
+        let client = try RalphCLIClient(executableURL: scriptURL)
+        let collected = try await client.runAndCollect(arguments: [])
+
+        let versionString = collected.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        let validator = VersionValidator()
+        let result = validator.validate(versionString)
+
+        XCTAssertFalse(result.isCompatible, "Version '\(versionString)' should be incompatible (too new)")
+        XCTAssertNotNil(result.errorMessage)
+    }
+
     private static func makeTempDir(prefix: String) throws -> URL {
         let base = FileManager.default.temporaryDirectory
         let dir = base.appendingPathComponent("\(prefix)\(UUID().uuidString)", isDirectory: true)

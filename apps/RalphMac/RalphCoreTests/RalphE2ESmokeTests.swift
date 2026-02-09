@@ -74,6 +74,41 @@ final class RalphE2ESmokeTests: XCTestCase {
         XCTAssertTrue(json is [Any], "expected JSON array, got: \(type(of: json))")
     }
 
+    func test_e2e_versionCompatibilityCheck() async throws {
+        let ralphURL = try Self.resolveRalphBinaryURL()
+        let client = try RalphCLIClient(executableURL: ralphURL)
+
+        // Get actual CLI version - try `--version` first, fall back to `version` subcommand
+        var versionOutput = await Self.runAndCollect(
+            client: client,
+            arguments: ["--no-color", "--version"],
+            currentDirectoryURL: nil
+        )
+        if versionOutput.status.code != 0 {
+            versionOutput = await Self.runAndCollect(
+                client: client,
+                arguments: ["--no-color", "version"],
+                currentDirectoryURL: nil
+            )
+        }
+
+        XCTAssertEqual(versionOutput.status.code, 0, "Version command failed")
+
+        let versionString = versionOutput.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        XCTAssertFalse(versionString.isEmpty, "Version string is empty")
+
+        // Validate version string is parseable using default supported range
+        let validator = VersionValidator()
+        let result = validator.validate(versionString)
+
+        // The bundled CLI should be compatible with the app's supported range
+        // If this fails, the VersionCompatibility constants need updating
+        XCTAssertTrue(
+            result.isCompatible,
+            "Bundled CLI version '\(versionString)' is not compatible with supported range \(VersionCompatibility.minimumCLIVersion)-\(VersionCompatibility.maximumCLIVersion). \(result.errorMessage ?? "")"
+        )
+    }
+
     func test_resolveRalphBinaryURL_envOverride_success() throws {
         let tempDir = try Self.makeTempDir(prefix: "ralph-resolver-env-")
         defer { try? FileManager.default.removeItem(at: tempDir) }

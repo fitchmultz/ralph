@@ -192,6 +192,15 @@ struct RalphMacApp: App {
                 )
             }
             .keyboardShortcut("n", modifiers: [.command, .option])
+            
+            Divider()
+            
+            Button("Check for CLI Updates") {
+                NotificationCenter.default.post(
+                    name: .checkForCLIUpdates,
+                    object: nil
+                )
+            }
         }
     }
 }
@@ -233,4 +242,5 @@ extension Notification.Name {
     static let selectPreviousTabRequested = Notification.Name("selectPreviousTabRequested")
     static let duplicateActiveTabRequested = Notification.Name("duplicateActiveTabRequested")
     static let showTaskCreation = Notification.Name("showTaskCreation")
+    static let checkForCLIUpdates = Notification.Name("checkForCLIUpdates")
 }

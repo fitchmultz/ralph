@@ -2,50 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0733",
-      "status": "todo",
-      "title": "Add CLI version compatibility check on app launch",
-      "description": "The macOS app does not verify the bundled ralph CLI version on launch. If the CLI is incompatible (wrong version, corrupted, or missing), the app will fail unpredictably during operations instead of showing a clear error at startup. Version checking should happen early with actionable guidance.",
-      "priority": "critical",
-      "tags": [
-        "maintenance",
-        "macos",
-        "version-check",
-        "compatibility",
-        "reliability"
-      ],
-      "scope": [
-        "apps/RalphMac/RalphMac/RalphMacApp.swift",
-        "apps/RalphMac/RalphCore/RalphCLIClient.swift",
-        "apps/RalphMac/RalphCore/WorkspaceManager.swift"
-      ],
-      "evidence": [
-        "RalphMacApp.swift lines 215-221: Creates workspace without CLI validation",
-        "No version parsing or compatibility matrix implemented",
-        "E2E test only checks version exists, not compatibility"
-      ],
-      "plan": [
-        "Define supported CLI version range (e.g., 0.1.0 - 0.2.0)",
-        "Add version check in WorkspaceManager initialization",
-        "Parse 'ralph --version' output and compare against supported range",
-        "Show blocking alert if CLI is incompatible with download/reinstall options",
-        "Add 'Check for Updates' menu item for manual version check",
-        "Cache version check result to avoid repeated calls",
-        "Write tests for version parsing and compatibility logic",
-        "Verify by: launch app with incompatible CLI version, verify warning appears"
-      ],
-      "notes": [],
-      "request": "maintenance scan finding",
-      "created_at": "2026-02-08T19:37:03Z",
-      "updated_at": "2026-02-08T19:37:03Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0732",
       "status": "todo",
       "title": "Implement ANSI escape code parsing for colored console output",

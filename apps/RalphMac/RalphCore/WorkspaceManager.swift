@@ -6,20 +6,24 @@
  - Provide shared CLI client to all workspaces.
  - Handle window/tab restoration on app relaunch.
  - Coordinate workspace creation, duplication, and closure.
+ - Perform CLI version compatibility check on initialization.
 
  Does not handle:
  - Per-workspace UI rendering (see WorkspaceView).
  - Direct UserDefaults access for workspace state (handled by Workspace).
+ - Detailed version parsing logic (see VersionValidator).
 
  Invariants/assumptions callers must respect:
  - Single instance per app (ObservableObject singleton).
  - Window restoration state is stored under a dedicated UserDefaults key.
  - CLI client initialization failures are surfaced via errorMessage.
+ - Version check results are cached for 5 minutes to avoid repeated subprocess calls.
  */
 
 public import Foundation
 public import Combine
 import SwiftUI
+import os.log
 
 @MainActor
 public final class WorkspaceManager: ObservableObject {
@@ -27,16 +31,24 @@ public final class WorkspaceManager: ObservableObject {
 
     @Published public private(set) var workspaces: [Workspace] = []
     @Published public var errorMessage: String?
+    @Published public private(set) var versionCheckResult: VersionValidator.VersionCheckResult?
 
     public private(set) var client: RalphCLIClient?
 
     private let restorationKey = "com.mitchfultz.ralph.windowRestorationState"
+    private let versionCheckCacheKey = "com.mitchfultz.ralph.versionCheckCache"
 
     private init() {
         do {
             client = try RalphCLIClient.bundled()
         } catch {
             errorMessage = "Failed to locate bundled ralph executable: \(error)"
+            return
+        }
+
+        // Perform version compatibility check asynchronously
+        Task { @MainActor in
+            await performVersionCheck()
         }
 
         // Migrate from legacy single-workspace state if needed
@@ -170,5 +182,141 @@ public final class WorkspaceManager: ObservableObject {
         for key in defaults.dictionaryRepresentation().keys where key.hasPrefix(prefix) {
             defaults.removeObject(forKey: key)
         }
+    }
+
+    // MARK: - Version Compatibility
+
+    /// Cached version check result structure
+    private struct CachedVersionResult: Codable {
+        let timestamp: Date
+        let isCompatible: Bool
+        let versionString: String
+    }
+
+    /// Performs async version check of the CLI.
+    /// Caches successful results to avoid repeated subprocess calls.
+    /// Tries `--version` first, falls back to `version` subcommand for compatibility.
+    @MainActor
+    private func performVersionCheck() async {
+        // Check cache first
+        if let cached = checkCachedVersionResult(), cached.isCompatible {
+            os_log("Using cached CLI version check result", log: .default, type: .debug)
+            self.versionCheckResult = cached
+            return
+        }
+
+        let result = await executeVersionCheck()
+        if let result = result {
+            self.versionCheckResult = result
+            
+            if result.isCompatible {
+                cacheVersionResult(result)
+                os_log("CLI version compatible: %{public}@", log: .default, type: .debug, result.rawVersion)
+            } else {
+                var message = result.errorMessage ?? "Unknown version error"
+                if let guidance = result.guidanceMessage {
+                    message += "\n\n" + guidance
+                }
+                errorMessage = message
+                os_log("CLI version incompatible: %{public}@", log: .default, type: .error, message)
+            }
+        }
+    }
+    
+    /// Executes the CLI version check subprocess and validates the result.
+    /// - Returns: The validation result, or nil if the check failed to execute
+    @MainActor
+    private func executeVersionCheck() async -> VersionValidator.VersionCheckResult? {
+        guard let client = self.client else {
+            errorMessage = "Cannot check CLI version: client not initialized"
+            return nil
+        }
+
+        do {
+            // Try `--version` first, fall back to `version` subcommand
+            var output = try await client.runAndCollect(arguments: ["--version"])
+            if output.status.code != 0 {
+                output = try await client.runAndCollect(arguments: ["version"])
+            }
+
+            guard output.status.code == 0 else {
+                let message = "CLI version check failed with exit code \(output.status.code)"
+                errorMessage = message
+                os_log("%{public}@", log: .default, type: .error, message)
+                return nil
+            }
+
+            let versionString = output.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+            let validator = VersionValidator()
+            return validator.validate(versionString)
+
+        } catch {
+            let message = "Failed to check CLI version: \(error.localizedDescription)"
+            errorMessage = message
+            os_log("%{public}@", log: .default, type: .error, message)
+            return nil
+        }
+    }
+
+    /// Check if we have a recent cached version result
+    private func checkCachedVersionResult() -> VersionValidator.VersionCheckResult? {
+        guard let data = UserDefaults.standard.data(forKey: versionCheckCacheKey),
+              let cached = try? JSONDecoder().decode(CachedVersionResult.self, from: data) else {
+            return nil
+        }
+
+        // Check if cache is still valid
+        let age = Date().timeIntervalSince(cached.timestamp)
+        guard age < VersionCompatibility.cacheDuration else {
+            UserDefaults.standard.removeObject(forKey: versionCheckCacheKey)
+            return nil
+        }
+
+        // Return a compatible result (we only cache successful checks)
+        if cached.isCompatible {
+            return VersionValidator.VersionCheckResult(status: .compatible, rawVersion: cached.versionString)
+        }
+
+        return nil
+    }
+
+    /// Cache a successful version check result
+    private func cacheVersionResult(_ result: VersionValidator.VersionCheckResult) {
+        guard result.isCompatible else { return }
+
+        let cached = CachedVersionResult(
+            timestamp: Date(),
+            isCompatible: true,
+            versionString: result.rawVersion
+        )
+
+        if let data = try? JSONEncoder().encode(cached) {
+            UserDefaults.standard.set(data, forKey: versionCheckCacheKey)
+        }
+    }
+
+    /// Public method to manually trigger a version check (for "Check for Updates" menu)
+    @MainActor
+    public func checkForCLIUpdates() async -> VersionValidator.VersionCheckResult? {
+        // Clear cache to force fresh check
+        UserDefaults.standard.removeObject(forKey: versionCheckCacheKey)
+
+        guard let result = await executeVersionCheck() else {
+            return nil
+        }
+
+        self.versionCheckResult = result
+
+        if result.isCompatible {
+            cacheVersionResult(result)
+        } else {
+            var message = result.errorMessage ?? "Unknown version error"
+            if let guidance = result.guidanceMessage {
+                message += "\n\n" + guidance
+            }
+            errorMessage = message
+        }
+
+        return result
     }
 }
