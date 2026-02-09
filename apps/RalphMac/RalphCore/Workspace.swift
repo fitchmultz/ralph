@@ -448,7 +448,7 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
         run(arguments: ["--no-color", "queue", "list", "--format", "json"])
     }
 
-    public func loadTasks() async {
+    public func loadTasks(retryConfiguration: RetryConfiguration = .default) async {
         guard let client else {
             tasksErrorMessage = "CLI client not available."
             return
@@ -458,9 +458,24 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
         tasksErrorMessage = nil
 
         do {
-            let collected = try await client.runAndCollect(
-                arguments: ["--no-color", "queue", "list", "--format", "json"],
-                currentDirectoryURL: workingDirectoryURL
+            let helper = RetryHelper(configuration: retryConfiguration)
+            let collected = try await helper.execute(
+                operation: { [self] in
+                    let result = try await client.runAndCollect(
+                        arguments: ["--no-color", "queue", "list", "--format", "json"],
+                        currentDirectoryURL: workingDirectoryURL
+                    )
+                    // Check for retryable process failures
+                    if result.status.code != 0 && result.isRetryableFailure {
+                        throw result.toError()
+                    }
+                    return result
+                },
+                onProgress: { [weak self] attempt, maxAttempts, delay in
+                    Task { @MainActor [weak self] in
+                        self?.tasksErrorMessage = "Retrying load tasks (attempt \(attempt)/\(maxAttempts))..."
+                    }
+                }
             )
 
             guard collected.status.code == 0 else {
@@ -476,6 +491,7 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
             decoder.dateDecodingStrategy = .iso8601
             let document = try decoder.decode(RalphTaskQueueDocument.self, from: data)
             tasks = document.tasks
+            tasksErrorMessage = nil
         } catch {
             tasksErrorMessage = "Failed to load tasks: \(error.localizedDescription)"
         }
@@ -566,7 +582,7 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
     // MARK: - Graph Data Loading
 
     /// Load graph data from CLI for dependency visualization
-    public func loadGraphData() async {
+    public func loadGraphData(retryConfiguration: RetryConfiguration = .default) async {
         guard let client else {
             graphDataErrorMessage = "CLI client not available."
             return
@@ -576,9 +592,23 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
         graphDataErrorMessage = nil
 
         do {
-            let collected = try await client.runAndCollect(
-                arguments: ["--no-color", "queue", "graph", "--format", "json"],
-                currentDirectoryURL: workingDirectoryURL
+            let helper = RetryHelper(configuration: retryConfiguration)
+            let collected = try await helper.execute(
+                operation: { [self] in
+                    let result = try await client.runAndCollect(
+                        arguments: ["--no-color", "queue", "graph", "--format", "json"],
+                        currentDirectoryURL: workingDirectoryURL
+                    )
+                    if result.status.code != 0 && result.isRetryableFailure {
+                        throw result.toError()
+                    }
+                    return result
+                },
+                onProgress: { [weak self] attempt, maxAttempts, _ in
+                    Task { @MainActor [weak self] in
+                        self?.graphDataErrorMessage = "Retrying load graph (attempt \(attempt)/\(maxAttempts))..."
+                    }
+                }
             )
 
             guard collected.status.code == 0 else {
@@ -695,12 +725,27 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
             throw WorkspaceError.cliClientUnavailable
         }
 
+        let helper = RetryHelper(configuration: .default)
+        
         // Build arguments for status change
         let arguments = ["--no-color", "task", "edit", "status", newStatus.rawValue, taskID]
 
-        let collected = try await client.runAndCollect(
-            arguments: arguments,
-            currentDirectoryURL: workingDirectoryURL
+        let collected = try await helper.execute(
+            operation: { [self] in
+                let result = try await client.runAndCollect(
+                    arguments: arguments,
+                    currentDirectoryURL: workingDirectoryURL
+                )
+                if result.status.code != 0 && result.isRetryableFailure {
+                    throw result.toError()
+                }
+                return result
+            },
+            onProgress: { [weak self] attempt, maxAttempts, _ in
+                Task { @MainActor [weak self] in
+                    self?.errorMessage = "Retrying status update (attempt \(attempt)/\(maxAttempts))..."
+                }
+            }
         )
 
         guard collected.status.code == 0 else {
@@ -713,9 +758,13 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
         if newStatus == .doing {
             let dateFormatter = ISO8601DateFormatter()
             let startedAt = dateFormatter.string(from: Date())
-            _ = try? await client.runAndCollect(
-                arguments: ["--no-color", "task", "edit", "started_at", startedAt, taskID],
-                currentDirectoryURL: workingDirectoryURL
+            _ = try? await helper.execute(
+                operation: { [self] in
+                    try await client.runAndCollect(
+                        arguments: ["--no-color", "task", "edit", "started_at", startedAt, taskID],
+                        currentDirectoryURL: workingDirectoryURL
+                    )
+                }
             )
         }
 
@@ -817,11 +866,26 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
             editCommands.append(("relates_to", value))
         }
 
-        // Execute each edit command
+        // Execute each edit command with retry
+        let helper = RetryHelper(configuration: .default)
+        
         for (field, value) in editCommands {
-            let collected = try await client.runAndCollect(
-                arguments: ["--no-color", "task", "edit", field, value, updated.id],
-                currentDirectoryURL: workingDirectoryURL
+            let collected = try await helper.execute(
+                operation: { [self] in
+                    let result = try await client.runAndCollect(
+                        arguments: ["--no-color", "task", "edit", field, value, updated.id],
+                        currentDirectoryURL: workingDirectoryURL
+                    )
+                    if result.status.code != 0 && result.isRetryableFailure {
+                        throw result.toError()
+                    }
+                    return result
+                },
+                onProgress: { [weak self] attempt, maxAttempts, _ in
+                    Task { @MainActor [weak self] in
+                        self?.errorMessage = "Retrying edit \(field) (attempt \(attempt)/\(maxAttempts))..."
+                    }
+                }
             )
 
             guard collected.status.code == 0 else {
@@ -880,9 +944,24 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
             arguments.append(request)
         }
 
-        let collected = try await client.runAndCollect(
-            arguments: arguments,
-            currentDirectoryURL: workingDirectoryURL
+        let helper = RetryHelper(configuration: .default)
+        
+        let collected = try await helper.execute(
+            operation: { [self, arguments] in
+                let result = try await client.runAndCollect(
+                    arguments: arguments,
+                    currentDirectoryURL: workingDirectoryURL
+                )
+                if result.status.code != 0 && result.isRetryableFailure {
+                    throw result.toError()
+                }
+                return result
+            },
+            onProgress: { [weak self] attempt, maxAttempts, _ in
+                Task { @MainActor [weak self] in
+                    self?.errorMessage = "Retrying create task (attempt \(attempt)/\(maxAttempts))..."
+                }
+            }
         )
 
         guard collected.status.code == 0 else {
@@ -1364,7 +1443,7 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
 
     // MARK: - CLI Spec Loading
 
-    public func loadCLISpec() async {
+    public func loadCLISpec(retryConfiguration: RetryConfiguration = .minimal) async {
         guard let client else {
             cliSpecErrorMessage = "CLI client not available."
             return
@@ -1374,9 +1453,18 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
         cliSpecErrorMessage = nil
 
         do {
-            let collected = try await client.runAndCollect(
-                arguments: ["--no-color", "__cli-spec", "--format", "json"],
-                currentDirectoryURL: workingDirectoryURL
+            let helper = RetryHelper(configuration: retryConfiguration)
+            let collected = try await helper.execute(
+                operation: { [self] in
+                    let result = try await client.runAndCollect(
+                        arguments: ["--no-color", "__cli-spec", "--format", "json"],
+                        currentDirectoryURL: workingDirectoryURL
+                    )
+                    if result.status.code != 0 && result.isRetryableFailure {
+                        throw result.toError()
+                    }
+                    return result
+                }
             )
 
             guard collected.status.code == 0 else {
@@ -1525,10 +1613,19 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
     }
 
     private func loadProductivitySummary(client: RalphCLIClient) async -> ProductivitySummaryReport? {
+        let helper = RetryHelper(configuration: .minimal)
         do {
-            let collected = try await client.runAndCollect(
-                arguments: ["--no-color", "productivity", "summary", "--format", "json"],
-                currentDirectoryURL: workingDirectoryURL
+            let collected = try await helper.execute(
+                operation: { [self] in
+                    let result = try await client.runAndCollect(
+                        arguments: ["--no-color", "productivity", "summary", "--format", "json"],
+                        currentDirectoryURL: workingDirectoryURL
+                    )
+                    if result.status.code != 0 && result.isRetryableFailure {
+                        throw result.toError()
+                    }
+                    return result
+                }
             )
             guard collected.status.code == 0 else { return nil }
             let data = Data(collected.stdout.utf8)
@@ -1540,10 +1637,19 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
     }
 
     private func loadVelocity(client: RalphCLIClient, days: Int) async -> ProductivityVelocityReport? {
+        let helper = RetryHelper(configuration: .minimal)
         do {
-            let collected = try await client.runAndCollect(
-                arguments: ["--no-color", "productivity", "velocity", "--format", "json", "--days", String(days)],
-                currentDirectoryURL: workingDirectoryURL
+            let collected = try await helper.execute(
+                operation: { [self] in
+                    let result = try await client.runAndCollect(
+                        arguments: ["--no-color", "productivity", "velocity", "--format", "json", "--days", String(days)],
+                        currentDirectoryURL: workingDirectoryURL
+                    )
+                    if result.status.code != 0 && result.isRetryableFailure {
+                        throw result.toError()
+                    }
+                    return result
+                }
             )
             guard collected.status.code == 0 else { return nil }
             let data = Data(collected.stdout.utf8)
@@ -1555,10 +1661,19 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
     }
 
     private func loadBurndown(client: RalphCLIClient, days: Int) async -> BurndownReport? {
+        let helper = RetryHelper(configuration: .minimal)
         do {
-            let collected = try await client.runAndCollect(
-                arguments: ["--no-color", "queue", "burndown", "--format", "json", "--days", String(days)],
-                currentDirectoryURL: workingDirectoryURL
+            let collected = try await helper.execute(
+                operation: { [self] in
+                    let result = try await client.runAndCollect(
+                        arguments: ["--no-color", "queue", "burndown", "--format", "json", "--days", String(days)],
+                        currentDirectoryURL: workingDirectoryURL
+                    )
+                    if result.status.code != 0 && result.isRetryableFailure {
+                        throw result.toError()
+                    }
+                    return result
+                }
             )
             guard collected.status.code == 0 else { return nil }
             let data = Data(collected.stdout.utf8)
@@ -1570,10 +1685,19 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
     }
 
     private func loadQueueStats(client: RalphCLIClient) async -> QueueStatsReport? {
+        let helper = RetryHelper(configuration: .minimal)
         do {
-            let collected = try await client.runAndCollect(
-                arguments: ["--no-color", "queue", "stats", "--format", "json"],
-                currentDirectoryURL: workingDirectoryURL
+            let collected = try await helper.execute(
+                operation: { [self] in
+                    let result = try await client.runAndCollect(
+                        arguments: ["--no-color", "queue", "stats", "--format", "json"],
+                        currentDirectoryURL: workingDirectoryURL
+                    )
+                    if result.status.code != 0 && result.isRetryableFailure {
+                        throw result.toError()
+                    }
+                    return result
+                }
             )
             guard collected.status.code == 0 else { return nil }
             let data = Data(collected.stdout.utf8)
@@ -1585,10 +1709,19 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
     }
 
     private func loadHistory(client: RalphCLIClient, days: Int) async -> HistoryReport? {
+        let helper = RetryHelper(configuration: .minimal)
         do {
-            let collected = try await client.runAndCollect(
-                arguments: ["--no-color", "queue", "history", "--format", "json", "--days", String(days)],
-                currentDirectoryURL: workingDirectoryURL
+            let collected = try await helper.execute(
+                operation: { [self] in
+                    let result = try await client.runAndCollect(
+                        arguments: ["--no-color", "queue", "history", "--format", "json", "--days", String(days)],
+                        currentDirectoryURL: workingDirectoryURL
+                    )
+                    if result.status.code != 0 && result.isRetryableFailure {
+                        throw result.toError()
+                    }
+                    return result
+                }
             )
             guard collected.status.code == 0 else { return nil }
             let data = Data(collected.stdout.utf8)

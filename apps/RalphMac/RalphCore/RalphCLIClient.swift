@@ -388,3 +388,78 @@ public struct RalphCLIClient: Sendable {
         return CollectedOutput(status: status, stdout: stdout, stderr: stderr)
     }
 }
+
+// MARK: - Retry Support
+
+public extension RalphCLIClient {
+    /// Run and collect with automatic retry for transient failures
+    ///
+    /// - Parameters:
+    ///   - arguments: Command-line arguments
+    ///   - currentDirectoryURL: Working directory for the subprocess
+    ///   - environment: Additional environment variables
+    ///   - maxOutputSize: Optional maximum output size
+    ///   - retryConfiguration: Retry behavior configuration
+    ///   - onRetry: Optional callback invoked on retry attempts
+    /// - Returns: Collected output from the CLI
+    func runAndCollectWithRetry(
+        arguments: [String],
+        currentDirectoryURL: URL? = nil,
+        environment: [String: String] = [:],
+        maxOutputSize: Int? = nil,
+        retryConfiguration: RetryConfiguration = .default,
+        onRetry: RetryProgressHandler? = nil
+    ) async throws -> CollectedOutput {
+        let helper = RetryHelper(configuration: retryConfiguration)
+        
+        return try await helper.execute(
+            operation: { [self] in
+                try await self.runAndCollect(
+                    arguments: arguments,
+                    currentDirectoryURL: currentDirectoryURL,
+                    environment: environment,
+                    maxOutputSize: maxOutputSize
+                )
+            },
+            shouldRetry: { error in
+                // Also check stderr for retryable patterns in process errors
+                if let processError = error as? RalphCLIClientError {
+                    // Client errors (executable not found, etc.) are not retryable
+                    return false
+                }
+                return RetryHelper.defaultShouldRetry(error)
+            },
+            onProgress: onRetry
+        )
+    }
+}
+
+/// Extension to check if a CollectedOutput indicates a retryable failure
+public extension RalphCLIClient.CollectedOutput {
+    /// Check if this output represents a retryable failure
+    var isRetryableFailure: Bool {
+        guard status.code != 0 else { return false }
+        
+        // Check stderr for retryable patterns
+        let lowercasedStderr = stderr.lowercased()
+        let retryablePatterns = [
+            "resource temporarily unavailable",
+            "operation would block",
+            "device or resource busy",
+            "file is locked",
+            "io timeout",
+            "eagain",
+            "ewouldblock",
+            "ebusy",
+            "locked",
+            "try again"
+        ]
+        
+        return retryablePatterns.contains { lowercasedStderr.contains($0) }
+    }
+    
+    /// Convert to an error if this is a failure
+    func toError() -> any Error {
+        return RetryableError.processError(exitCode: status.code, stderr: stderr)
+    }
+}

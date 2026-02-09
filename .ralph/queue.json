@@ -2,48 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0738",
-      "status": "todo",
-      "title": "Add retry logic with exponential backoff for transient CLI failures",
-      "description": "CLI operations that fail due to transient issues (file locking, temporary IO errors) are not retried, causing operations to fail unnecessarily. The app should implement automatic retry with exponential backoff for recoverable errors, improving reliability without user intervention.",
-      "priority": "high",
-      "tags": [
-        "maintenance",
-        "macos",
-        "reliability",
-        "retry-logic",
-        "error-handling"
-      ],
-      "scope": [
-        "apps/RalphMac/RalphCore/RalphCLIClient.swift",
-        "apps/RalphMac/RalphCore/Workspace.swift"
-      ],
-      "evidence": [
-        "RalphCLIClient.swift lines 340-364: runAndCollect fails immediately on any error",
-        "Workspace.swift updateTaskStatus (lines 622-653): No retry for transient failures",
-        "Queue file locking conflicts cause immediate failures without retry"
-      ],
-      "plan": [
-        "Define retryable error types (file locked, IO timeout, temporary unavailable)",
-        "Implement retry helper with exponential backoff (100ms, 200ms, 400ms, 800ms, 1600ms)",
-        "Add max retry count (default 3) with user-visible progress",
-        "Apply retry to critical operations: loadTasks, updateTaskStatus, createTask",
-        "Add jitter to prevent thundering herd in multi-instance scenarios",
-        "Write tests simulating transient failures",
-        "Verify by: simulate file lock during operation, verify automatic retry succeeds"
-      ],
-      "notes": [],
-      "request": "maintenance scan finding",
-      "created_at": "2026-02-08T19:37:03Z",
-      "updated_at": "2026-02-08T19:37:03Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0736",
       "status": "todo",
       "title": "Replace print statements with structured logging and add crash reporting",
@@ -134,8 +92,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "ipc_mechanism": "custom URL scheme",
-        "url_format": "ralph://open?workspace=<encoded_path>"
+        "url_format": "ralph://open?workspace=<encoded_path>",
+        "ipc_mechanism": "custom URL scheme"
       }
     },
     {

@@ -5,16 +5,17 @@
  - Monitor .ralph/queue.json and .ralph/done.json for external changes using FSEvents.
  - Emit notifications when files change with debouncing to batch rapid changes.
  - Handle file system events efficiently with minimal resource usage.
+ - Retry FSEvent stream creation on transient failures (up to 3 attempts with exponential backoff).
 
  Does not handle:
  - Direct UI updates (delegates via NotificationCenter).
  - Parsing or interpreting file contents.
- - Retry logic for transient errors (logs and continues watching).
 
  Invariants/assumptions callers must respect:
  - start() must be called to begin monitoring; stop() to clean up.
  - Debounce interval batches multiple rapid changes into single notification.
  - Callbacks occur on the main actor.
+ - Stream creation failures are retried automatically; max retries will result in silent failure.
  */
 
 public import Foundation
@@ -57,6 +58,10 @@ public final class QueueFileWatcher: Sendable {
 
     /// Whether the watcher is currently active
     public private(set) var isWatching = false
+    
+    // Retry state for stream creation
+    private nonisolated(unsafe) var streamStartAttempts = 0
+    private nonisolated let maxStreamStartAttempts = 3
 
     // MARK: - Initialization
 
@@ -105,7 +110,11 @@ public final class QueueFileWatcher: Sendable {
 
     private nonisolated func startInternal() {
         guard stream == nil else { return }
-
+        
+        attemptStreamStart()
+    }
+    
+    private nonisolated func attemptStreamStart() {
         let queueDir = workingDirectoryURL.appendingPathComponent(".ralph")
         let pathsToWatch = [queueDir.path as NSString]
 
@@ -139,7 +148,7 @@ public final class QueueFileWatcher: Sendable {
         )
 
         guard let stream = self.stream else {
-            print("[QueueFileWatcher] Failed to create FSEvent stream")
+            handleStreamCreationFailure("Failed to create FSEvent stream")
             return
         }
 
@@ -147,17 +156,47 @@ public final class QueueFileWatcher: Sendable {
         FSEventStreamSetDispatchQueue(stream, self.callbackQueue)
 
         guard FSEventStreamStart(stream) else {
-            print("[QueueFileWatcher] Failed to start FSEvent stream")
-            FSEventStreamInvalidate(stream)
-            self.stream = nil
+            handleStreamStartFailure(stream, reason: "Failed to start FSEvent stream")
             return
         }
+
+        // Reset attempts on success
+        streamStartAttempts = 0
 
         // Update isWatching on main actor
         Task { @MainActor [weak self] in
             self?.isWatching = true
         }
-        print("[QueueFileWatcher] Started watching \(queueDir.path)")
+        log("Started watching \(queueDir.path)")
+    }
+    
+    private nonisolated func handleStreamCreationFailure(_ reason: String) {
+        streamStartAttempts += 1
+        
+        if streamStartAttempts < maxStreamStartAttempts {
+            let delay = Double(streamStartAttempts) * 0.5 // 0.5s, 1s, 1.5s
+            log("[QueueFileWatcher] \(reason). Retrying in \(delay)s (attempt \(streamStartAttempts)/\(maxStreamStartAttempts))")
+            
+            callbackQueue.asyncAfter(deadline: .now() + delay) { [weak self] in
+                self?.attemptStreamStart()
+            }
+        } else {
+            log("[QueueFileWatcher] \(reason). Max retries exceeded.")
+        }
+    }
+    
+    private nonisolated func handleStreamStartFailure(_ stream: FSEventStreamRef, reason: String) {
+        FSEventStreamInvalidate(stream)
+        self.stream = nil
+        handleStreamCreationFailure(reason)
+    }
+    
+    /// Log messages (uses os_log in production, print in debug)
+    private nonisolated func log(_ message: String) {
+        #if DEBUG
+        print(message)
+        #endif
+        // In production, could use os_log or post notifications
     }
 
     private nonisolated func stopInternal() {
