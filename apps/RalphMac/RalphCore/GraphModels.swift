@@ -102,5 +102,9 @@ public struct PositionedNode: Identifiable, Equatable, Sendable {
     }
 }
 
-/// Extension to make CGPoint Sendable-compatible
+/// Extension to make CGPoint Sendable-compatible.
+/// CGPoint is a value type composed of CGFloat (Double) - inherently thread-safe.
+/// Using @unchecked Sendable for retroactive conformance since CoreGraphics may declare
+/// this in a future SDK version. This is safe because CGPoint contains no reference types
+/// and has no mutable shared state.
 extension CGPoint: @unchecked Sendable {}

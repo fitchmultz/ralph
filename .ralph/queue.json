@@ -2,51 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0734",
-      "status": "todo",
-      "title": "Fix @unchecked Sendable data race risks in core classes",
-      "description": "Workspace, RalphCLIRun, and QueueFileWatcher use @unchecked Sendable to suppress Swift concurrency warnings. This is unsafe as these classes have mutable shared state that could cause data races. Proper concurrency isolation with @MainActor or actors should be implemented.",
-      "priority": "critical",
-      "tags": [
-        "maintenance",
-        "macos",
-        "concurrency",
-        "data-race",
-        "swift-6"
-      ],
-      "scope": [
-        "apps/RalphMac/RalphCore/Workspace.swift",
-        "apps/RalphMac/RalphCore/RalphCLIClient.swift",
-        "apps/RalphMac/RalphCore/QueueFileWatcher.swift"
-      ],
-      "evidence": [
-        "Workspace.swift line 24: 'public final class Workspace: @unchecked Sendable'",
-        "RalphCLIClient.swift line 67: 'public final class RalphCLIRun: @unchecked Sendable'",
-        "QueueFileWatcher.swift line 23: 'public final class QueueFileWatcher: @unchecked Sendable'",
-        "These suppress concurrency safety without proper isolation"
-      ],
-      "plan": [
-        "Enable strict concurrency checking in Xcode build settings",
-        "Refactor Workspace to use @MainActor for all @Published properties",
-        "Convert RalphCLIRun to use actor isolation for mutable state",
-        "Apply @MainActor to QueueFileWatcher callback handlers",
-        "Replace NSLock usage with actor or Sendable constructs where appropriate",
-        "Run Thread Sanitizer to verify no data races remain",
-        "Fix all compiler warnings for concurrency",
-        "Verify by: build with SWIFT_STRICT_CONCURRENCY=complete, no warnings"
-      ],
-      "notes": [],
-      "request": "maintenance scan finding",
-      "created_at": "2026-02-08T19:37:03Z",
-      "updated_at": "2026-02-08T19:37:03Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0733",
       "status": "todo",
       "title": "Add CLI version compatibility check on app launch",
@@ -391,8 +346,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "url_format": "ralph://open?workspace=<encoded_path>",
-        "ipc_mechanism": "custom URL scheme"
+        "ipc_mechanism": "custom URL scheme",
+        "url_format": "ralph://open?workspace=<encoded_path>"
       }
     },
     {

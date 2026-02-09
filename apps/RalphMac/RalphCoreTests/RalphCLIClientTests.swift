@@ -25,7 +25,7 @@ final class RalphCLIClientTests: XCTestCase {
 
         var stdout = Data()
         var stderr = Data()
-        for await event in run.events {
+        for await event in await run.events {
             switch event.stream {
             case .stdout:
                 stdout.append(event.data)
@@ -45,7 +45,7 @@ final class RalphCLIClientTests: XCTestCase {
         let client = try RalphCLIClient(executableURL: URL(fileURLWithPath: "/bin/sh"))
         let run = try client.start(arguments: ["-c", "exit 42"])
 
-        for await _ in run.events {
+        for await _ in await run.events {
             // Drain.
         }
 
@@ -71,7 +71,7 @@ final class RalphCLIClientTests: XCTestCase {
 
         var stdout = ""
         var stderr = ""
-        for await event in run.events {
+        for await event in await run.events {
             switch event.stream {
             case .stdout:
                 stdout.append(event.text)
@@ -99,7 +99,7 @@ final class RalphCLIClientTests: XCTestCase {
         )
 
         var stdout = ""
-        for await event in run.events {
+        for await event in await run.events {
             if event.stream == .stdout {
                 stdout.append(event.text)
             }
@@ -119,8 +119,8 @@ final class RalphCLIClientTests: XCTestCase {
         // Small delay to ensure process has actually started before cancel
         try await Task.sleep(nanoseconds: 100_000_000) // 100ms
 
-        run.cancel()
-        for await _ in run.events {
+        await run.cancel()
+        for await _ in await run.events {
             // Drain until process exits.
         }
 

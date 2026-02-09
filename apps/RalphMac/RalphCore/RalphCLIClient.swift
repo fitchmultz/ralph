@@ -64,7 +64,9 @@ public enum RalphCLIClientError: Error, Equatable {
     case executableNotExecutable(URL)
 }
 
-public final class RalphCLIRun: @unchecked Sendable {
+/// Actor-isolated type for managing a CLI run.
+/// All mutable state is protected by actor isolation, eliminating data race risks.
+public actor RalphCLIRun {
     public let events: AsyncStream<RalphCLIEvent>
 
     private let ioQueue: DispatchQueue
@@ -74,14 +76,12 @@ public final class RalphCLIRun: @unchecked Sendable {
 
     private var eventsContinuation: AsyncStream<RalphCLIEvent>.Continuation?
 
-    private let lock = NSLock()
+    // Actor-isolated mutable state (protected by actor isolation)
     private var didRequestCancel = false
     private var didFinishEvents = false
-
     private var didTerminateProcess = false
     private var stdoutClosed = false
     private var stderrClosed = false
-
     private var exitStatus: RalphCLIExitStatus?
     private var exitWaiters: [CheckedContinuation<RalphCLIExitStatus, Never>] = []
 
@@ -103,77 +103,80 @@ public final class RalphCLIRun: @unchecked Sendable {
         self.events = stream
         self.eventsContinuation = continuation
         self.eventsContinuation?.onTermination = { @Sendable [weak self] _ in
-            self?.cancel()
+            Task { [weak self] in
+                await self?.cancel()
+            }
         }
 
-        attachIOHandlers()
+        // Set up IO handlers synchronously since init cannot await
+        // The handlers use Task to bridge to actor-isolated methods
+        setupIOHandlers()
     }
 
     deinit {
-        // Best-effort cleanup. We avoid blocking deinit and rely on process termination handler.
-        cancel()
-    }
-
-    public func cancel() {
-        ioQueue.async { [weak self] in
-            guard let self else { return }
-            if self.didRequestCancel {
-                return
-            }
-            self.didRequestCancel = true
-
-            guard self.process.isRunning else {
-                return
-            }
-
-            self.process.terminate()
-
-            #if canImport(Darwin)
-            let pid = self.process.processIdentifier
-            self.ioQueue.asyncAfter(deadline: .now() + 2.0) { [weak self] in
-                guard let self else { return }
-                guard self.process.isRunning else { return }
-                _ = kill(pid, SIGKILL)
-            }
-            #endif
+        // Best-effort cleanup. We cannot await in deinit, so we dispatch to the queue.
+        // The cancel() method is actor-isolated, so we use Task to bridge.
+        Task { [weak self] in
+            await self?.cancel()
         }
     }
 
+    public func cancel() {
+        guard !didRequestCancel else { return }
+        didRequestCancel = true
+
+        guard process.isRunning else { return }
+
+        process.terminate()
+
+        #if canImport(Darwin)
+        let pid = process.processIdentifier
+        ioQueue.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+            guard let self else { return }
+            Task {
+                let isRunning = await self.process.isRunning
+                guard isRunning else { return }
+                _ = kill(pid, SIGKILL)
+            }
+        }
+        #endif
+    }
+
     public func waitUntilExit() async -> RalphCLIExitStatus {
-        if let existing = lock.withLock({ exitStatus }) {
+        if let existing = exitStatus {
             return existing
         }
 
         return await withCheckedContinuation { cont in
-            lock.withLock {
-                if let existing = exitStatus {
-                    cont.resume(returning: existing)
-                    return
-                }
-                exitWaiters.append(cont)
+            if let existing = exitStatus {
+                cont.resume(returning: existing)
+                return
             }
+            exitWaiters.append(cont)
         }
     }
 
-    private func attachIOHandlers() {
+    /// Sets up IO handlers synchronously. Must be nonisolated since it's called from init.
+    /// The handlers dispatch to actor-isolated methods via Task.
+    private nonisolated func setupIOHandlers() {
         stdoutHandle.readabilityHandler = { [weak self] handle in
             guard let self else { return }
-            self.ioQueue.async {
-                self.handleReadable(stream: .stdout, handle: handle)
+            Task {
+                await self.handleReadable(stream: .stdout, handle: handle)
             }
         }
 
         stderrHandle.readabilityHandler = { [weak self] handle in
             guard let self else { return }
-            self.ioQueue.async {
-                self.handleReadable(stream: .stderr, handle: handle)
+            Task {
+                await self.handleReadable(stream: .stderr, handle: handle)
             }
         }
 
         process.terminationHandler = { [weak self] process in
             guard let self else { return }
-            self.ioQueue.async {
-                self.handleTermination(process: process)
+            Task {
+                await self.handleTermination(process: process)
             }
         }
     }
@@ -230,14 +233,12 @@ public final class RalphCLIRun: @unchecked Sendable {
         stdoutClosed = true
         stderrClosed = true
 
-        lock.withLock {
-            if exitStatus == nil {
-                exitStatus = status
-                let waiters = exitWaiters
-                exitWaiters.removeAll(keepingCapacity: false)
-                for w in waiters {
-                    w.resume(returning: status)
-                }
+        if exitStatus == nil {
+            exitStatus = status
+            let waiters = exitWaiters
+            exitWaiters.removeAll(keepingCapacity: false)
+            for w in waiters {
+                w.resume(returning: status)
             }
         }
 
@@ -361,13 +362,5 @@ public struct RalphCLIClient: Sendable {
 
         let status = await run.waitUntilExit()
         return CollectedOutput(status: status, stdout: stdout, stderr: stderr)
-    }
-}
-
-private extension NSLock {
-    func withLock<T>(_ body: () -> T) -> T {
-        lock()
-        defer { unlock() }
-        return body()
     }
 }

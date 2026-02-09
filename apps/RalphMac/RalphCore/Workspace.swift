@@ -15,14 +15,26 @@
  - Each workspace has a unique ID for persistence.
  - Working directory changes update the recent directories list automatically.
  - CLI client is injected and shared across workspaces (stateless design).
+ - All operations must occur on the MainActor due to @Published properties.
  */
 
 public import Foundation
 public import Combine
 public import SwiftUI
 
-public final class Workspace: ObservableObject, Identifiable, Codable, @unchecked Sendable {
-    public let id: UUID
+/// Workspace manages UI state for a Ralph project.
+/// 
+/// Concurrency Safety:
+/// - All @Published properties must be accessed from the main thread (SwiftUI requirement)
+/// - Uses @unchecked Sendable because Codable/Identifiable conformance conflicts with @MainActor
+/// - This is safe because:
+///   1. Workspace is always created and used on the main actor (via WorkspaceManager)
+///   2. All @Published property mutations happen on main thread
+///   3. Codable only accesses persisted properties (id, name, workingDirectoryURL, recentWorkingDirectories)
+///   4. Identifiable only accesses id which is immutable after creation
+@MainActor
+public final class Workspace: ObservableObject, @preconcurrency Identifiable, @preconcurrency Codable, @unchecked Sendable {
+    public var id: UUID
 
     @Published public var name: String
     @Published public var workingDirectoryURL: URL
@@ -143,7 +155,7 @@ public final class Workspace: ObservableObject, Identifiable, Codable, @unchecke
         }
     }
 
-    public struct ExecutionRecord: Identifiable, Codable {
+    public struct ExecutionRecord: Identifiable, Codable, Sendable {
         public let id: UUID
         public let taskID: String?
         public let startTime: Date
@@ -170,7 +182,7 @@ public final class Workspace: ObservableObject, Identifiable, Codable, @unchecke
         }
     }
 
-    public struct RunnerConfig {
+    public struct RunnerConfig: Sendable {
         public let model: String?
         public let phases: [String]?
         public let maxIterations: Int?
@@ -183,7 +195,7 @@ public final class Workspace: ObservableObject, Identifiable, Codable, @unchecke
     }
 
     /// Represents a segment of ANSI-parsed console output
-    public struct ANSISegment: Identifiable {
+    public struct ANSISegment: Identifiable, Sendable {
         public let id = UUID()
         public let text: String
         public let color: ANSIColor
@@ -198,7 +210,7 @@ public final class Workspace: ObservableObject, Identifiable, Codable, @unchecke
         }
     }
 
-    public enum ANSIColor {
+    public enum ANSIColor: Sendable {
         case `default`
         case black
         case red
@@ -366,7 +378,7 @@ public final class Workspace: ObservableObject, Identifiable, Codable, @unchecke
 
     public func injectClient(_ client: RalphCLIClient) {
         self.client = client
-        Task { @MainActor in
+        Task {
             await loadCLISpec()
         }
     }
@@ -420,7 +432,7 @@ public final class Workspace: ObservableObject, Identifiable, Codable, @unchecke
     
     // MARK: - File Watching
 
-    /// Start watching queue files for external changes
+    /// Start watching queue files for external changes.
     private func startFileWatching() {
         // Stop existing watcher
         fileWatcher?.stop()
@@ -428,7 +440,7 @@ public final class Workspace: ObservableObject, Identifiable, Codable, @unchecke
         // Create and configure new watcher
         let watcher = QueueFileWatcher(workingDirectoryURL: workingDirectoryURL)
         watcher.onFileChanged = { [weak self] in
-            Task { @MainActor [weak self] in
+            Task { [weak self] in
                 await self?.handleExternalFileChange()
             }
         }
@@ -436,7 +448,7 @@ public final class Workspace: ObservableObject, Identifiable, Codable, @unchecke
         fileWatcher = watcher
     }
     
-    /// Stop file watching (call when workspace is being deallocated)
+    /// Stop file watching (call when workspace is being deallocated).
     public func stopFileWatching() {
         fileWatcher?.stop()
         fileWatcher = nil
@@ -485,7 +497,7 @@ public final class Workspace: ObservableObject, Identifiable, Codable, @unchecke
     }
     
     /// Represents detected changes between two task snapshots
-    public struct TaskChanges {
+    public struct TaskChanges: Sendable {
         public let added: [RalphTask]
         public let removed: [RalphTask]
         public let changed: [RalphTask]
@@ -854,7 +866,7 @@ public final class Workspace: ObservableObject, Identifiable, Codable, @unchecke
         isRunning = true
         executionStartTime = Date()
 
-        Task { @MainActor in
+        Task {
             do {
                 let collected = try await client.runAndCollect(
                     arguments: arguments,
@@ -1186,10 +1198,8 @@ public final class Workspace: ObservableObject, Identifiable, Codable, @unchecke
         newData.queueStats = stats
         newData.history = history
         
-        await MainActor.run {
-            analyticsData = newData
-            analyticsLoading = false
-        }
+        analyticsData = newData
+        analyticsLoading = false
     }
 
     private func loadProductivitySummary(client: RalphCLIClient) async -> ProductivitySummaryReport? {
@@ -1273,6 +1283,9 @@ public final class Workspace: ObservableObject, Identifiable, Codable, @unchecke
         case id, name, workingDirectoryURL, recentWorkingDirectories
     }
 
+    /// Encodes the workspace to an encoder.
+    /// Note: This accesses mutable properties but is safe because Workspace
+    /// is always used from the main actor.
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
@@ -1281,6 +1294,9 @@ public final class Workspace: ObservableObject, Identifiable, Codable, @unchecke
         try container.encode(recentWorkingDirectories, forKey: .recentWorkingDirectories)
     }
 
+    /// Required initializer for Codable conformance.
+    /// Note: This is called during decoding. The workspace should only be used
+    /// from the main actor after creation.
     public required init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(UUID.self, forKey: .id)

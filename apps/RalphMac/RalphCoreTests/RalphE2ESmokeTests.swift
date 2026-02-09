@@ -165,7 +165,7 @@ final class RalphE2ESmokeTests: XCTestCase {
             let mainTask = group.addTask {
                 var stdout = ""
                 var stderr = ""
-                for await event in run.events {
+                for await event in await run.events {
                     switch event.stream {
                     case .stdout:
                         stdout.append(event.text)
@@ -183,7 +183,7 @@ final class RalphE2ESmokeTests: XCTestCase {
                 } catch {
                     return nil
                 }
-                run.cancel()
+                await run.cancel()
                 // Wait a brief moment for cancellation to propagate
                 try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
                 let command = arguments.joined(separator: " ")

@@ -14,13 +14,14 @@
  Invariants/assumptions callers must respect:
  - start() must be called to begin monitoring; stop() to clean up.
  - Debounce interval batches multiple rapid changes into single notification.
- - Callbacks occur on a private serial queue (not main thread).
+ - Callbacks occur on the main actor.
  */
 
 public import Foundation
 import CoreServices
 
-public final class QueueFileWatcher: @unchecked Sendable {
+@MainActor
+public final class QueueFileWatcher: Sendable {
     // MARK: - Types
 
     public struct ChangeEvent: Sendable {
@@ -36,16 +37,23 @@ public final class QueueFileWatcher: @unchecked Sendable {
 
     // MARK: - Properties
 
-    private var stream: FSEventStreamRef?
-    private let workingDirectoryURL: URL
-    private let debounceInterval: TimeInterval = 0.5  // 500ms debounce
-    private var pendingChanges: Set<String> = []
+    // FSEvents state is accessed from callback queue and main actor
+    private nonisolated(unsafe) var stream: FSEventStreamRef?
+    // Mutable working directory - accessed only from callbackQueue.sync blocks
+    // Marked as nonisolated(unsafe) because access is serialized via callbackQueue
+    private nonisolated(unsafe) var workingDirectoryURL: URL
+    private nonisolated let debounceInterval: TimeInterval = 0.5  // 500ms debounce
+
+    // Shared state protected by lock (accessed from callback queue and main actor via debounce)
     private let lock = NSLock()
-    private var debounceWorkItem: DispatchWorkItem?
-    private let callbackQueue = DispatchQueue(label: "com.mitchfultz.ralph.filewatcher")
+    private nonisolated(unsafe) var pendingChanges: Set<String> = []
+    private nonisolated(unsafe) var debounceWorkItem: DispatchWorkItem?
+
+    // Dispatch queue for FSEvents callbacks (must be nonisolated for C callback compatibility)
+    private nonisolated let callbackQueue: DispatchQueue
 
     /// Callback invoked on MainActor when file changes are detected (after debounce)
-    public var onFileChanged: (@Sendable () -> Void)?
+    public var onFileChanged: (@MainActor () -> Void)?
 
     /// Whether the watcher is currently active
     public private(set) var isWatching = false
@@ -54,104 +62,129 @@ public final class QueueFileWatcher: @unchecked Sendable {
 
     public init(workingDirectoryURL: URL) {
         self.workingDirectoryURL = workingDirectoryURL
+        self.callbackQueue = DispatchQueue(label: "com.mitchfultz.ralph.filewatcher.\(workingDirectoryURL.lastPathComponent)")
     }
 
     deinit {
-        stop()
+        // Use nonisolated helper to avoid @MainActor isolation in deinit
+        stopInternal()
     }
 
     // MARK: - Public Methods
 
     /// Start watching the queue files for changes
     public func start() {
-        callbackQueue.sync {
-            guard !self.isWatching else { return }
-
-            let queueDir = self.workingDirectoryURL.appendingPathComponent(".ralph")
-            let pathsToWatch = [queueDir.path as NSString]
-
-            // Create context with self reference
-            var context = FSEventStreamContext(
-                version: 0,
-                info: Unmanaged.passUnretained(self).toOpaque(),
-                retain: nil,
-                release: nil,
-                copyDescription: nil
-            )
-
-            // Create the event stream
-            self.stream = FSEventStreamCreate(
-                kCFAllocatorDefault,
-                { (_, clientCallBackInfo, numEvents, eventPaths, eventFlags, _) in
-                    guard let info = clientCallBackInfo else { return }
-                    let watcher = Unmanaged<QueueFileWatcher>.fromOpaque(info).takeUnretainedValue()
-                    watcher.handleFSEvents(
-                        numEvents: numEvents,
-                        eventPaths: eventPaths,
-                        eventFlags: eventFlags
-                    )
-                },
-                &context,
-                pathsToWatch as CFArray,
-                FSEventStreamEventId(kFSEventStreamEventIdSinceNow),
-                0.1,  // Latency in seconds
-                FSEventStreamCreateFlags(
-                    kFSEventStreamCreateFlagFileEvents | kFSEventStreamCreateFlagUseCFTypes)
-            )
-
-            guard let stream = self.stream else {
-                print("[QueueFileWatcher] Failed to create FSEvent stream")
-                return
-            }
-
-            // Use dispatch queue instead of run loop (modern approach)
-            FSEventStreamSetDispatchQueue(stream, self.callbackQueue)
-
-            guard FSEventStreamStart(stream) else {
-                print("[QueueFileWatcher] Failed to start FSEvent stream")
-                FSEventStreamInvalidate(stream)
-                self.stream = nil
-                return
-            }
-
-            self.isWatching = true
-            print("[QueueFileWatcher] Started watching \(queueDir.path)")
+        callbackQueue.sync { [weak self] in
+            guard let self else { return }
+            self.startInternal()
         }
     }
 
     /// Stop watching and clean up resources
     public func stop() {
-        callbackQueue.sync {
-            guard let stream = self.stream else { return }
-
-            FSEventStreamStop(stream)
-            FSEventStreamInvalidate(stream)
-            // Don't release since we're using dispatch queue
-
-            self.stream = nil
-            self.isWatching = false
-
-            // Clean up debounce work item
-            self.debounceWorkItem?.cancel()
-            self.debounceWorkItem = nil
-
-            self.lock.lock()
-            self.pendingChanges.removeAll()
-            self.lock.unlock()
+        callbackQueue.sync { [weak self] in
+            guard let self else { return }
+            self.stopInternal()
         }
     }
 
     /// Update the working directory and restart watching if active
     public func updateWorkingDirectory(_ url: URL) {
-        callbackQueue.sync {
-            _ = self.isWatching
-            self.stop()
+        callbackQueue.sync { [weak self] in
+            guard let self else { return }
+            let wasWatching = self.stream != nil
+            self.stopInternal()
+            self.workingDirectoryURL = url
+            if wasWatching {
+                self.startInternal()
+            }
+        }
+    }
+
+    // MARK: - Internal Methods (called from callbackQueue.sync blocks)
+
+    private nonisolated func startInternal() {
+        guard stream == nil else { return }
+
+        let queueDir = workingDirectoryURL.appendingPathComponent(".ralph")
+        let pathsToWatch = [queueDir.path as NSString]
+
+        // Create context with self reference
+        var context = FSEventStreamContext(
+            version: 0,
+            info: Unmanaged.passUnretained(self).toOpaque(),
+            retain: nil,
+            release: nil,
+            copyDescription: nil
+        )
+
+        // Create the event stream
+        self.stream = FSEventStreamCreate(
+            kCFAllocatorDefault,
+            { (_, clientCallBackInfo, numEvents, eventPaths, eventFlags, _) in
+                guard let info = clientCallBackInfo else { return }
+                let watcher = Unmanaged<QueueFileWatcher>.fromOpaque(info).takeUnretainedValue()
+                watcher.handleFSEvents(
+                    numEvents: numEvents,
+                    eventPaths: eventPaths,
+                    eventFlags: eventFlags
+                )
+            },
+            &context,
+            pathsToWatch as CFArray,
+            FSEventStreamEventId(kFSEventStreamEventIdSinceNow),
+            0.1,  // Latency in seconds
+            FSEventStreamCreateFlags(
+                kFSEventStreamCreateFlagFileEvents | kFSEventStreamCreateFlagUseCFTypes)
+        )
+
+        guard let stream = self.stream else {
+            print("[QueueFileWatcher] Failed to create FSEvent stream")
+            return
+        }
+
+        // Use dispatch queue instead of run loop (modern approach)
+        FSEventStreamSetDispatchQueue(stream, self.callbackQueue)
+
+        guard FSEventStreamStart(stream) else {
+            print("[QueueFileWatcher] Failed to start FSEvent stream")
+            FSEventStreamInvalidate(stream)
+            self.stream = nil
+            return
+        }
+
+        // Update isWatching on main actor
+        Task { @MainActor [weak self] in
+            self?.isWatching = true
+        }
+        print("[QueueFileWatcher] Started watching \(queueDir.path)")
+    }
+
+    private nonisolated func stopInternal() {
+        guard let stream = self.stream else { return }
+
+        FSEventStreamStop(stream)
+        FSEventStreamInvalidate(stream)
+        // Don't release since we're using dispatch queue
+
+        self.stream = nil
+
+        // Update isWatching on main actor
+        Task { @MainActor [weak self] in
+            self?.isWatching = false
+        }
+
+        // Clean up debounce work item
+        lock.withLock {
+            self.debounceWorkItem?.cancel()
+            self.debounceWorkItem = nil
+            self.pendingChanges.removeAll()
         }
     }
 
     // MARK: - Private Methods
 
-    private func handleFSEvents(
+    private nonisolated func handleFSEvents(
         numEvents: Int, eventPaths: UnsafeMutableRawPointer,
         eventFlags: UnsafePointer<FSEventStreamEventFlags>
     ) {
@@ -180,9 +213,9 @@ public final class QueueFileWatcher: @unchecked Sendable {
 
             if isModified || isCreated || isRenamed || isRemoved {
                 hasRelevantChange = true
-                self.lock.lock()
-                pendingChanges.insert(path)
-                self.lock.unlock()
+                lock.withLock {
+                    pendingChanges.insert(path)
+                }
             }
         }
 
@@ -191,27 +224,41 @@ public final class QueueFileWatcher: @unchecked Sendable {
         }
     }
 
-    private func scheduleDebouncedNotification() {
+    private nonisolated func scheduleDebouncedNotification() {
         // Cancel existing work item
-        debounceWorkItem?.cancel()
+        lock.withLock {
+            debounceWorkItem?.cancel()
+        }
 
         // Create new work item
         let workItem = DispatchWorkItem { [weak self] in
-            guard let self = self else { return }
+            guard let self else { return }
 
-            self.lock.lock()
-            self.pendingChanges.removeAll()
-            self.lock.unlock()
+            self.lock.withLock {
+                self.pendingChanges.removeAll()
+            }
 
             // Notify on main actor
-            DispatchQueue.main.async {
-                self.onFileChanged?()
+            Task { @MainActor [weak self] in
+                self?.onFileChanged?()
             }
         }
 
-        debounceWorkItem = workItem
+        lock.withLock {
+            debounceWorkItem = workItem
+        }
 
         // Schedule after debounce interval
         callbackQueue.asyncAfter(deadline: .now() + debounceInterval, execute: workItem)
+    }
+}
+
+// MARK: - NSLock Helper
+
+private extension NSLock {
+    func withLock<T>(_ body: () -> T) -> T {
+        lock()
+        defer { unlock() }
+        return body()
     }
 }
