@@ -2,7 +2,7 @@
 
 Ralph is a Rust CLI for running AI agent loops against a structured JSON task queue.
 
-This file provides fast-path guidance for contributors and agents. For deeper architectural detail, start with `docs/index.md` and `CONTRIBUTING.md`.
+For deeper architectural detail, see `docs/index.md` and `CONTRIBUTING.md`.
 
 ---
 
@@ -39,14 +39,11 @@ scripts/              # Maintenance + release helper scripts
 
 ---
 
-## Development Workflow
-
-### Essential Commands
+## Development Commands
 
 | Command | Purpose |
 |---------|---------|
-| `make ci` | Local CI gate — **must pass before committing** |
-| `make macos-ci` | macOS-only ship gate (Rust CI + Xcode build + Xcode tests) |
+| `make ci` | **Local CI gate — must pass before committing** |
 | `make install` | Install `ralph` to `~/.local/bin/ralph` (or writable fallback) |
 | `make test` | Run workspace unit + doc tests in isolated temp dirs |
 | `make lint` | Run Clippy with `-D warnings` (warnings are errors) |
@@ -56,7 +53,26 @@ scripts/              # Maintenance + release helper scripts
 | `make update` | Update Cargo dependencies (`cargo update`) |
 | `make clean` | Remove build artifacts, logs, and most cache entries |
 
-### Development Iteration
+### Running Tests
+
+```bash
+# All tests (CI)
+make test
+
+# Single crate tests
+cargo test -p ralph
+
+# Run a specific test
+cargo test -p ralph -- test_name_pattern
+
+# Run tests matching a pattern
+cargo test -p ralph queue::operations::edit
+
+# Keep temp directories for debugging
+RALPH_CI_KEEP_TMP=1 make test
+```
+
+### Quick Development Cycle
 
 ```bash
 # Quick test cycle (not a substitute for `make ci`)
@@ -87,8 +103,6 @@ Ralph uses a two-tier strategy: `anyhow` for general propagation, `thiserror` fo
 | Matchable domain errors | `thiserror` | `RunnerError`, `GitError` |
 | CLI value parsers | `anyhow::Result` | `parse_phase()` |
 
-See `docs/error-handling.md` for full guidelines.
-
 ### Module Documentation
 
 Every new/changed source file MUST start with module docs (`//!`) stating:
@@ -96,6 +110,44 @@ Every new/changed source file MUST start with module docs (`//!`) stating:
 - What the file is responsible for
 - What it explicitly does NOT handle
 - Any invariants/assumptions callers must respect
+
+Example:
+```rust
+//! Ralph CLI entrypoint and command routing.
+//!
+//! Responsibilities:
+//! - Load environment defaults, parse CLI args, and dispatch to command handlers.
+//! - Initialize logging/redaction and apply CLI-level behavior toggles.
+//!
+//! Not handled here:
+//! - CLI flag definitions (see `crate::cli`).
+//! - Queue persistence, prompt rendering, or runner execution.
+//!
+//! Invariants/assumptions:
+//! - CLI arguments are normalized before Clap parsing.
+//! - Command handlers enforce their own safety checks and validation.
+```
+
+### File Boundaries
+
+- **Target**: Keep individual source files under ~500 LOC
+- **Soft limit**: Files exceeding ~800 LOC require explicit justification
+- **Hard limit**: Files exceeding ~1,000 LOC are presumed mis-scoped and MUST be split
+- Prefer internal module splits over public API expansion
+
+### Naming Conventions
+
+- Functions: `snake_case`
+- Types: `PascalCase`
+- Constants: `SCREAMING_SNAKE_CASE`
+- Modules: `snake_case`
+- CLI commands: `kebab-case` (e.g., `run one`, `queue list`)
+
+### Dead Code Management
+
+- Prefer explicit, minimal usage patterns over `#[allow(dead_code)]` when preserving public APIs
+- Remove truly dead code rather than suppressing warnings
+- Three occurrences of the same pattern = must abstract into shared helper
 
 ---
 
@@ -110,8 +162,6 @@ Every new/changed source file MUST start with module docs (`//!`) stating:
   ralph init --force --non-interactive
   ```
 
-  Without this flag, TTY detection may trigger the interactive wizard in test environments.
-
 ---
 
 ## Git Hygiene
@@ -120,19 +170,6 @@ Every new/changed source file MUST start with module docs (`//!`) stating:
 - **Do not commit** if `make ci` is failing
 - **This repo is local-CI-first**; avoid adding remote CI (e.g., GitHub Actions) as a substitute for `make ci`
 - **Keep secrets out of git/logs**: `.env` is for local use only and MUST remain untracked
-
----
-
-## Pull Request Guidelines
-
-- Include "what changed" + "how to verify" sections (expected: `make ci`)
-- Call out breaking behavior explicitly and update docs/help accordingly
-- When working from an issue/PR, prefer `gh` for context:
-
-  ```bash
-  gh issue view <number>
-  gh pr view <number>
-  ```
 
 ---
 
@@ -146,7 +183,6 @@ Config precedence (highest to lowest):
 4. Schema defaults: `schemas/config.schema.json`
 
 See `docs/configuration.md` for key fields (runner/model/phases/RepoPrompt toggles/CI gate settings).
-Runner/model specifics live in `README.md`.
 
 ---
 
@@ -159,8 +195,6 @@ Runner/model specifics live in `README.md`.
 - **Prompt composition**: Embedded defaults in `crates/ralph/assets/prompts/`, overridden by `.ralph/prompts/*.md`
 - **Planning cache**: Phase 1 plans are written to `.ralph/cache/plans/<TASK_ID>.md`
 - **Supervision-aware completion**: `ralph task done` writes `.ralph/cache/completions/<TASK_ID>.json`
-
-See `docs/workflow.md` and `docs/queue-and-tasks.md` for full contract and schema details.
 
 ### Runner Session Handling
 
@@ -178,8 +212,6 @@ Note: `timestamp` is Unix epoch seconds. No `ralph-` prefix; no pid suffix.
 
 **Implementation**: `crates/ralph/src/commands/run/phases/mod.rs` (`generate_phase_session_id`)
 
-See `docs/workflow.md` for more details.
-
 ---
 
 ## Migrations
@@ -190,8 +222,6 @@ When making breaking changes to config keys or file formats, use the migration s
 - **Migration types**: `ConfigKeyRename`, `FileRename`, `ReadmeUpdate`
 - **History tracking**: `.ralph/cache/migrations.json` (auto-generated)
 - **CLI command**: `ralph migrate` (check/list/apply)
-
-See `crates/ralph/src/migration/mod.rs` for invariants/assumptions (idempotency, JSONC comment preservation, backups).
 
 ---
 
@@ -213,6 +243,7 @@ When making changes, keep docs in sync:
 - **CI gate**: `make ci` MUST pass before claiming completion, committing, or merging
 - **Source docs**: Every new/changed source file MUST have module docs (see [Coding Standards](#coding-standards))
 - **Test coverage**: All new/changed behavior must be covered (success + failure modes)
+- **File size**: Individual source files SHOULD remain under ~500 LOC; files over ~1,000 LOC MUST be split
 - **Feature parity**: When changing user-visible workflows, maintain parity between the CLI and the macOS app (or document divergence)
 - **CLI help**: User-facing commands/flags MUST have `--help` text with examples (keep `docs/cli.md` in sync)
 - **Secrets**: Never commit or print secrets; redact runner output before copying into `.ralph/queue.json` notes

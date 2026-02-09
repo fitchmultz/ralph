@@ -2,6 +2,58 @@
   "version": 1,
   "tasks": [
     {
+      "id": "RQ-0800",
+      "status": "todo",
+      "title": "Fix ralph queue next-id to work with duplicate IDs",
+      "description": "The \"ralph queue next-id\" command currently fails when the queue has duplicate task IDs because it calls load_and_validate_queues() which enforces ID uniqueness. This is problematic because users need this command precisely when they have duplicate IDs and want to find the next available ID to fix the collision. The command should be resilient and work even when the queue is in an invalid state with duplicates. Additionally, ensure documentation clearly states that task IDs must be unique across both queue.json AND done.json.",
+      "priority": "high",
+      "tags": [
+        "bug",
+        "cli",
+        "queue",
+        "validation",
+        "user-experience"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/queue/next_id.rs",
+        "crates/ralph/src/queue.rs",
+        "docs/queue-and-tasks.md",
+        ".ralph/README.md"
+      ],
+      "evidence": [
+        "User report: \"I had a duplicate task ID so I tried to run this command to see what the next ID was to switch the duplicate and it gave me an error\"",
+        "next_id.rs line 44: calls load_and_validate_queues(resolved, true) which validates queue and will error on duplicates",
+        "docs/queue-and-tasks.md section on Duplicate Task ID Errors shows the intended workflow: use next-id to fix collisions",
+        ".ralph/README.md lines 15-23: Documents the duplicate ID error and the fix workflow using next-id"
+      ],
+      "plan": [
+        "Modify next_id.rs to handle duplicate ID errors gracefully:",
+        "  - Instead of failing on validation errors, extract existing IDs from both queue.json and done.json",
+        "  - Find the maximum ID number even when duplicates exist",
+        "  - Return the next sequential ID based on max found",
+        "  - Optionally warn about duplicates found while still returning the next ID",
+        "Update docs/queue-and-tasks.md Task ID Validation section:",
+        "  - Explicitly state that task IDs must be unique across BOTH queue.json AND done.json",
+        "  - Clarify that completed task IDs in done.json are included in uniqueness checks",
+        "  - Ensure the \"Fixing ID Collisions\" section is clear and accurate",
+        "Update .ralph/README.md Duplicate Task ID Error section if needed for consistency",
+        "Add tests for next-id with duplicate IDs scenario:",
+        "  - Test that next-id returns correct next ID even when duplicates exist",
+        "  - Test that next-id considers done.json IDs even when queue has errors",
+        "Run make ci to verify all tests pass"
+      ],
+      "notes": [],
+      "request": "The \"ralph queue next-id\" command is flawed. I had a duplicate task ID so I tried to run this command to see what the next ID was to switch the duplicate and it gave me an error. This command should work properly even if the queue is invalid with duplicate IDs so the user can find the proper next ID to update the errant ID. We should also ensure the docs are clear that duplicate IDs are NOT allowed and that completed task IDs in the done.json file are included in the checks for duplicate IDs. Task IDs must be unique across both queue.json and done.json.",
+      "created_at": "2026-02-09T14:41:29Z",
+      "updated_at": "2026-02-09T14:41:29Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "source": "user-request"
+      }
+    },
+    {
       "id": "RQ-0799",
       "status": "todo",
       "title": "Fix kimi runner stream-json output parsing to capture all outputs",
