@@ -2,6 +2,44 @@
   "version": 1,
   "tasks": [
     {
+      "id": "RQ-0806",
+      "status": "todo",
+      "title": "Add CRITICAL date awareness notice to AGENTS.md",
+      "description": "Add a prominent CRITICAL notice at the very top of the AGENTS.md file emphasizing that the current date is February 2026 (not 2024). The notice must instruct AI agents to always check the current system date, use 2026 as the reference timeframe for all decisions, and explicitly use web search tools to find current/up-to-date information rather than relying on outdated 2024 documentation or knowledge cutoff data. The goal is to prevent agents from using obsolete versions, practices, or benchmarks.",
+      "priority": "critical",
+      "tags": [
+        "documentation",
+        "agents",
+        "date-awareness",
+        "critical"
+      ],
+      "scope": [
+        "AGENTS.md",
+        "ralph queue validate"
+      ],
+      "evidence": [
+        "User request: There is loads of practices, docs, etc that reference outdated information",
+        "Current date is February 9th, 2026",
+        "AI agents need explicit instruction to check current date and use web search for up-to-date information",
+        "Agents have access to web search tools but may not use them by default"
+      ],
+      "plan": [
+        "Read the current AGENTS.md file to understand its structure",
+        "Insert a CRITICAL notice at the very top (before any other content) emphasizing date awareness",
+        "Include explicit instruction to check system date and use 2026 as reference timeframe",
+        "Include instruction to use web search tools for finding current information",
+        "Run ralph queue validate to confirm task is properly formatted"
+      ],
+      "notes": [],
+      "request": "There is loads of practices, docs, etc that reference outdated information. Today's date is February 9th, 2026. You need to add a note to the top of agents of the agents file that is critical, that it checks the current date and it uses the current fucking time frame for everything. Because I just now realize that the AI agents executing the tasks are stuck in the fucking stone ages and don't realize that it's 2026 and they need to get with the times. These agents have tools. They have tools to search the internet to find up-to-date information. They should be looking for up-to-date information as of 2026. ONLY using versions, practices, etc that are current",
+      "created_at": "2026-02-09T23:22:17Z",
+      "updated_at": "2026-02-09T23:22:17Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {}
+    },
+    {
       "id": "RQ-0728",
       "status": "todo",
       "title": "Add menu bar extra for quick task access and status",
