@@ -1,16 +1,21 @@
 {
   "version": 1,
   "first_task_completed_at": "2026-02-09T10:19:54.878378000Z",
-  "last_updated_at": "2026-02-09T10:19:54.878378000Z",
+  "last_updated_at": "2026-02-09T10:45:22.310005000Z",
   "daily": {
     "2026-02-09": {
       "date": "2026-02-09",
-      "completed_count": 1,
+      "completed_count": 2,
       "tasks": [
         {
           "id": "RQ-0736",
           "title": "Replace print statements with structured logging and add crash reporting",
           "completed_at": "2026-02-09T10:19:54.878378000Z"
+        },
+        {
+          "id": "RQ-0731",
+          "title": "Implement workspace directory passing from CLI to macOS app",
+          "completed_at": "2026-02-09T10:45:22.310002000Z"
         }
       ]
     }
@@ -20,6 +25,6 @@
     "longest_streak": 1,
     "last_completed_date": "2026-02-09"
   },
-  "total_completed": 1,
+  "total_completed": 2,
   "milestones": []
 }

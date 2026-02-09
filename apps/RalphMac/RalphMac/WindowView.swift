@@ -65,6 +65,23 @@ struct WindowView: View {
         .onReceive(NotificationCenter.default.publisher(for: .selectPreviousTabRequested)) { _ in
             selectPreviousTab()
         }
+        // Handle URL scheme activation for existing workspaces
+        .onReceive(NotificationCenter.default.publisher(for: .activateWorkspace)) { notification in
+            if let workspaceID = notification.object as? UUID,
+               let index = windowState.workspaceIDs.firstIndex(of: workspaceID) {
+                windowState.selectedTabIndex = index
+                persistState()
+            }
+        }
+        // Handle URL scheme creation of new workspaces
+        .onReceive(NotificationCenter.default.publisher(for: .workspaceOpenedFromURL)) { notification in
+            if let workspaceID = notification.object as? UUID,
+               !windowState.workspaceIDs.contains(workspaceID) {
+                windowState.workspaceIDs.append(workspaceID)
+                windowState.selectedTabIndex = windowState.workspaceIDs.count - 1
+                persistState()
+            }
+        }
     }
 
     // MARK: - Tab Management

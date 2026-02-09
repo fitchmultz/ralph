@@ -43,12 +43,68 @@ struct RalphMacApp: App {
         .windowToolbarStyle(.unified(showsTitle: false))
         .defaultSize(width: 1400, height: 900)
         .defaultPosition(.center)
-
+        .onOpenURL { url in
+            handleOpenURL(url)
+        }
         .commands {
             workspaceCommands
             navigationCommands
             taskCommands
             helpCommands
+        }
+    }
+
+    /// Handle incoming URL from CLI or external source
+    private func handleOpenURL(_ url: URL) {
+        guard url.scheme == "ralph" else {
+            RalphLogger.shared.warning("Received URL with unexpected scheme: \(url.scheme ?? "nil")", category: .general)
+            return
+        }
+
+        guard url.host == "open" else {
+            RalphLogger.shared.warning("Received ralph:// URL with unexpected host: \(url.host ?? "nil")", category: .general)
+            return
+        }
+
+        // Extract workspace path from query parameters
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: true),
+              let queryItems = components.queryItems,
+              let workspaceItem = queryItems.first(where: { $0.name == "workspace" }),
+              let encodedPath = workspaceItem.value,
+              let path = encodedPath.removingPercentEncoding else {
+            RalphLogger.shared.warning("Received ralph://open URL without valid workspace parameter", category: .general)
+            return
+        }
+
+        let workspaceURL = URL(fileURLWithPath: path, isDirectory: true)
+
+        // Validate the path exists and is a directory
+        var isDir: ObjCBool = false
+        let exists = FileManager.default.fileExists(atPath: path, isDirectory: &isDir)
+
+        guard exists && isDir.boolValue else {
+            RalphLogger.shared.error("Workspace path does not exist or is not a directory: \(path)", category: .general)
+            return
+        }
+
+        // Check if we already have a workspace for this directory
+        if let existingWorkspace = manager.workspaces.first(where: {
+            $0.workingDirectoryURL.path == workspaceURL.path
+        }) {
+            // Activate existing workspace - post notification for WindowView to handle
+            NotificationCenter.default.post(
+                name: .activateWorkspace,
+                object: existingWorkspace.id
+            )
+            RalphLogger.shared.info("Activated existing workspace: \(path)", category: .general)
+        } else {
+            // Create new workspace with the specified directory
+            let workspace = manager.createWorkspace(workingDirectory: workspaceURL)
+            NotificationCenter.default.post(
+                name: .workspaceOpenedFromURL,
+                object: workspace.id
+            )
+            RalphLogger.shared.info("Created new workspace from URL: \(path)", category: .general)
         }
     }
 
@@ -330,4 +386,7 @@ extension Notification.Name {
     static let duplicateActiveTabRequested = Notification.Name("duplicateActiveTabRequested")
     static let showTaskCreation = Notification.Name("showTaskCreation")
     static let checkForCLIUpdates = Notification.Name("checkForCLIUpdates")
+    // New notifications for URL handling
+    static let activateWorkspace = Notification.Name("activateWorkspace")
+    static let workspaceOpenedFromURL = Notification.Name("workspaceOpenedFromURL")
 }

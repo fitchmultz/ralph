@@ -52,4 +52,9 @@ pub struct AppOpenArgs {
     /// Uses: `open <path>`.
     #[arg(long, value_name = "PATH", conflicts_with = "bundle_id")]
     pub path: Option<PathBuf>,
+
+    /// Workspace directory to open (defaults to current working directory).
+    /// Used internally when launching from CLI to pass context to the macOS app.
+    #[arg(long, value_name = "DIR", hide = true)]
+    pub workspace: Option<PathBuf>,
 }

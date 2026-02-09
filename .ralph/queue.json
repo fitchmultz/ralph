@@ -2,57 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0731",
-      "status": "todo",
-      "title": "Implement workspace directory passing from CLI to macOS app",
-      "description": "When running 'ralph app open', the CLI should pass the current working directory to the macOS app, and the app should set its workspace to that directory. This requires implementing a custom URL scheme for IPC between the CLI and the SwiftUI app.",
-      "priority": "high",
-      "tags": [
-        "cli",
-        "macos",
-        "app",
-        "workspace",
-        "ipc",
-        "url-scheme"
-      ],
-      "scope": [
-        "crates/ralph/src/commands/app.rs",
-        "crates/ralph/src/cli/app.rs",
-        "apps/RalphMac/RalphMac/RalphMacApp.swift",
-        "apps/RalphMac/RalphCore/WorkspaceManager.swift",
-        "apps/RalphMac/RalphMac/Info.plist"
-      ],
-      "evidence": [
-        "User request: 'If the user runs 'ralph app open' the macos app should open and set the workspace to the directory the command was run in'",
-        "Current 'ralph app open' only launches the app without passing workspace context",
-        "WorkspaceManager.createWorkspace(workingDirectory:) already supports custom directories",
-        "No URL scheme handling exists in the macOS app yet"
-      ],
-      "plan": [
-        "Register custom URL scheme 'ralph://' in macOS app Info.plist",
-        "Add onOpenURL handler in RalphMacApp.swift to handle incoming URL events",
-        "Implement URL parsing in macOS app to extract workspace path from 'ralph://open?workspace=/path'",
-        "Modify workspace creation logic to use the passed directory when opening via URL",
-        "Update CLI AppOpenArgs to capture current working directory",
-        "Modify CLI app open command to launch app then send URL with workspace path",
-        "Handle case where app is already running - URL should be delivered to existing instance",
-        "Add error handling for invalid/unreadable workspace paths",
-        "Write tests for CLI URL generation logic",
-        "Verify by running 'ralph app open' from different directories and confirming workspace is set correctly"
-      ],
-      "notes": [],
-      "request": "If the user runs 'ralph app open' the macos app should open and set the workspace to the directory the command was run in.",
-      "created_at": "2026-02-08T19:33:47Z",
-      "updated_at": "2026-02-08T19:33:47Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "ipc_mechanism": "custom URL scheme",
-        "url_format": "ralph://open?workspace=<encoded_path>"
-      }
-    },
-    {
       "id": "RQ-0746",
       "status": "todo",
       "title": "Fix window state not restored on app relaunch",
