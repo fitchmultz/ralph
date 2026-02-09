@@ -32,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Configuration: Layered JSON config (global + project) with schema validation.
 - RepoPrompt integration: Optional planning and tooling injection for RepoPrompt-enabled environments.
 - Git integration: Automatic commit/push on task completion with configurable behavior.
-- CI gate: Built-in `make ci` validation pipeline (format, lint, type-check, test, build, install).
+- CI gate: Built-in `make macos-ci` validation pipeline (format, lint, type-check, test, build, install).
 - Queue validation: Schema validation for queue and config files.
 - Task scanning: Automatic task generation from codebase analysis.
 - Lock management: File-based locking with stale lock detection and force options.

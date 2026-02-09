@@ -10,7 +10,7 @@ For deeper architectural detail, see `docs/index.md` and `CONTRIBUTING.md`.
 
 ```bash
 # Before committing or merging, always run:
-make ci
+make macos-ci
 ```
 
 The CI gate runs: `check-env-safety → check-backup-artifacts → deps → format → type-check → lint → test → build → generate → install`
@@ -43,7 +43,7 @@ scripts/              # Maintenance + release helper scripts
 
 | Command | Purpose |
 |---------|---------|
-| `make ci` | **Local CI gate — must pass before committing** |
+| `make macos-ci` | **Local CI gate — must pass before committing** |
 | `make install` | Install `ralph` to `~/.local/bin/ralph` (or writable fallback) |
 | `make test` | Run workspace unit + doc tests in isolated temp dirs |
 | `make lint` | Run Clippy with `-D warnings` (warnings are errors) |
@@ -75,7 +75,7 @@ RALPH_CI_KEEP_TMP=1 make test
 ### Quick Development Cycle
 
 ```bash
-# Quick test cycle (not a substitute for `make ci`)
+# Quick test cycle (not a substitute for `make macos-ci`)
 cargo test -p ralph
 cargo run -p ralph -- <command>
 cargo run -p ralph -- queue validate
@@ -112,6 +112,7 @@ Every new/changed source file MUST start with module docs (`//!`) stating:
 - Any invariants/assumptions callers must respect
 
 Example:
+
 ```rust
 //! Ralph CLI entrypoint and command routing.
 //!
@@ -167,8 +168,8 @@ Example:
 ## Git Hygiene
 
 - **Commit messages**: `RQ-####: <short summary>` (task id + summary)
-- **Do not commit** if `make ci` is failing
-- **This repo is local-CI-first**; avoid adding remote CI (e.g., GitHub Actions) as a substitute for `make ci`
+- **Do not commit** if `make macos-ci` is failing
+- **This repo is local-CI-first**; avoid adding remote CI (e.g., GitHub Actions) as a substitute for `make macos-ci`
 - **Keep secrets out of git/logs**: `.env` is for local use only and MUST remain untracked
 
 ---
@@ -240,7 +241,7 @@ When making changes, keep docs in sync:
 
 ## Non-Negotiables
 
-- **CI gate**: `make ci` MUST pass before claiming completion, committing, or merging
+- **CI gate**: `make macos-ci` MUST pass before claiming completion, committing, or merging
 - **Source docs**: Every new/changed source file MUST have module docs (see [Coding Standards](#coding-standards))
 - **Test coverage**: All new/changed behavior must be covered (success + failure modes)
 - **File size**: Individual source files SHOULD remain under ~500 LOC; files over ~1,000 LOC MUST be split
@@ -254,7 +255,7 @@ When making changes, keep docs in sync:
 
 | Issue | Solution |
 |-------|----------|
-| CI failing | Run `make ci`; first failing step is printed (common: formatting, Clippy warnings, tests) |
+| CI failing | Run `make macos-ci`; first failing step is printed (common: formatting, Clippy warnings, tests) |
 | `.env tracked` error | Run `git rm --cached .env` and ensure `.env` is in `.gitignore` |
 | `Backup artifacts` error | Remove any `*.bak` files under `crates/ralph/src/` |
 | Queue lock | Investigate `.ralph/lock`; use `--force` only when you understand why the lock is stale |
