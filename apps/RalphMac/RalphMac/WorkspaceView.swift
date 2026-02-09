@@ -49,6 +49,21 @@ struct WorkspaceView: View {
         }
         .frame(minWidth: 1200, minHeight: 640)
         .background(.clear)
+        // MARK: - Error Recovery Sheet
+        .sheet(isPresented: $workspace.showErrorRecovery) {
+            if let error = workspace.lastRecoveryError {
+                ErrorRecoverySheet(
+                    error: error,
+                    workspace: workspace,
+                    onRetry: {
+                        handleRetry(for: error.operation)
+                    },
+                    onDismiss: {
+                        workspace.clearErrorRecovery()
+                    }
+                )
+            }
+        }
         // MARK: - Keyboard Navigation Notification Handlers
         .onReceive(NotificationCenter.default.publisher(for: .startWorkOnSelectedTask)) { _ in
             handleStartWork()
@@ -57,6 +72,34 @@ struct WorkspaceView: View {
             if let taskID = notification.object as? String {
                 navigation.selectedTaskID = taskID
             }
+        }
+    }
+
+    // MARK: - Error Recovery Retry Handler
+
+    private func handleRetry(for operation: String) {
+        workspace.clearErrorRecovery()
+
+        switch operation {
+        case "loadTasks":
+            Task { await workspace.loadTasks() }
+        case "loadGraphData":
+            Task { await workspace.loadGraphData() }
+        case "loadCLISpec":
+            Task { await workspace.loadCLISpec() }
+        case "run", "runVersion", "runInit":
+            // For general run operations, we need to re-trigger based on context
+            // In quick actions context, re-run the last command if available
+            if workspace.isRunning {
+                workspace.cancel()
+            }
+            // Re-run based on navigation context
+            if navigation.selectedSection == .quickActions {
+                workspace.runVersion()
+            }
+        default:
+            // For unknown operations, try to reload tasks as a general refresh
+            Task { await workspace.loadTasks() }
         }
     }
     
@@ -316,11 +359,28 @@ struct WorkspaceView: View {
                     }
                 }
 
+                // Error display - shown inline for quick actions, detailed recovery via sheet
                 if let error = workspace.errorMessage {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Error")
-                            .font(.headline)
-                            .foregroundStyle(.red)
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.red)
+                                .accessibilityLabel("Error")
+                            Text("Error")
+                                .font(.headline)
+                                .foregroundStyle(.red)
+
+                            Spacer()
+
+                            // Show recovery button if we have a recovery error
+                            if workspace.lastRecoveryError != nil {
+                                Button("Show Recovery Options") {
+                                    workspace.showErrorRecovery = true
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.small)
+                            }
+                        }
 
                         Text(error)
                             .foregroundStyle(.red)

@@ -60,8 +60,8 @@ struct TaskCreationView: View {
 
     // MARK: UI State
     @State private var isCreating = false
-    @State private var errorMessage: String?
-    @State private var showingError = false
+    @State private var recoveryError: RecoveryError?
+    @State private var showingRecoverySheet = false
 
     // MARK: Available Templates
     private let templates: [TemplateInfo] = [
@@ -105,10 +105,21 @@ struct TaskCreationView: View {
             }
         }
         .frame(minWidth: 500, minHeight: showingTemplatePicker ? 400 : 600)
-        .alert("Error", isPresented: $showingError) {
-            Button("OK") {}
-        } message: {
-            Text(errorMessage ?? "Unknown error")
+        .sheet(isPresented: $showingRecoverySheet) {
+            if let error = recoveryError {
+                ErrorRecoverySheet(
+                    error: error,
+                    workspace: workspace,
+                    onRetry: {
+                        showingRecoverySheet = false
+                        createTask()
+                    },
+                    onDismiss: {
+                        showingRecoverySheet = false
+                        recoveryError = nil
+                    }
+                )
+            }
         }
     }
 
@@ -375,8 +386,13 @@ struct TaskCreationView: View {
             } catch {
                 await MainActor.run {
                     isCreating = false
-                    errorMessage = error.localizedDescription
-                    showingError = true
+                    let classifiedError = RecoveryError.classify(
+                        error: error,
+                        operation: "createTask",
+                        workspaceURL: workspace.workingDirectoryURL
+                    )
+                    recoveryError = classifiedError
+                    showingRecoverySheet = true
                 }
             }
         }

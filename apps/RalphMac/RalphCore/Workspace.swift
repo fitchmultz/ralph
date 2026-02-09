@@ -81,6 +81,11 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
     @Published public var analyticsLoading: Bool = false
     @Published public var analyticsErrorMessage: String?
 
+    // MARK: - Error Recovery State
+    @Published public var lastRecoveryError: RecoveryError?
+    @Published public var showErrorRecovery: Bool = false
+    @Published public var retryState: RetryState?
+
     // MARK: - Execution State (for Run Control Panel)
 
     /// The ID of the currently running task (if known)
@@ -493,7 +498,14 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
             tasks = document.tasks
             tasksErrorMessage = nil
         } catch {
-            tasksErrorMessage = "Failed to load tasks: \(error.localizedDescription)"
+            let recoveryError = RecoveryError.classify(
+                error: error,
+                operation: "loadTasks",
+                workspaceURL: workingDirectoryURL
+            )
+            tasksErrorMessage = recoveryError.message
+            lastRecoveryError = recoveryError
+            showErrorRecovery = true
         }
 
         tasksLoading = false
@@ -681,7 +693,14 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
             let document = try decoder.decode(RalphGraphDocument.self, from: data)
             graphData = document
         } catch {
-            graphDataErrorMessage = "Failed to load graph data: \(error.localizedDescription)"
+            let recoveryError = RecoveryError.classify(
+                error: error,
+                operation: "loadGraphData",
+                workspaceURL: workingDirectoryURL
+            )
+            graphDataErrorMessage = recoveryError.message
+            lastRecoveryError = recoveryError
+            showErrorRecovery = true
         }
 
         graphDataLoading = false
@@ -1130,7 +1149,14 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
 
                 resetExecutionState()
             } catch {
-                errorMessage = "Failed to run ralph: \(error)"
+                let recoveryError = RecoveryError.classify(
+                    error: error,
+                    operation: "run",
+                    workspaceURL: workingDirectoryURL
+                )
+                errorMessage = recoveryError.message
+                lastRecoveryError = recoveryError
+                showErrorRecovery = true
                 isRunning = false
                 resetExecutionState()
             }
@@ -1555,7 +1581,14 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
             cliSpec = decoded
         } catch {
             cliSpec = nil
-            cliSpecErrorMessage = "Failed to load CLI spec: \(error)"
+            let recoveryError = RecoveryError.classify(
+                error: error,
+                operation: "loadCLISpec",
+                workspaceURL: workingDirectoryURL
+            )
+            cliSpecErrorMessage = recoveryError.message
+            lastRecoveryError = recoveryError
+            showErrorRecovery = true
         }
 
         cliSpecIsLoading = false
@@ -1847,4 +1880,33 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
 extension Notification.Name {
     /// Posted when queue files are changed externally (via CLI or another process)
     public static let queueFilesExternallyChanged = Notification.Name("queueFilesExternallyChanged")
+}
+
+// MARK: - Error Recovery Support
+
+extension Workspace {
+    /// Report an error with recovery context
+    @MainActor
+    public func reportError(_ error: any Error, operation: String) {
+        let recoveryError = RecoveryError.classify(
+            error: error,
+            operation: operation,
+            workspaceURL: workingDirectoryURL
+        )
+        lastRecoveryError = recoveryError
+        showErrorRecovery = true
+
+        RalphLogger.shared.error(
+            "Operation '\(operation)' failed: \(recoveryError.message)",
+            category: .workspace
+        )
+    }
+
+    /// Clear error recovery state
+    @MainActor
+    public func clearErrorRecovery() {
+        lastRecoveryError = nil
+        showErrorRecovery = false
+        retryState = nil
+    }
 }

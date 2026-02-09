@@ -395,7 +395,346 @@ struct TaskConflictResolverView: View {
     }
 }
 
-// Preview
+// MARK: - Error Recovery Views
+
+/// SwiftUI color extension for ErrorCategory
+extension ErrorCategory {
+    var swiftUIColor: Color {
+        switch self {
+        case .cliUnavailable: return .orange
+        case .permissionDenied: return .red
+        case .parseError: return .yellow
+        case .networkError: return .blue
+        case .queueCorrupted: return .red
+        case .resourceBusy: return .orange
+        case .versionMismatch: return .purple
+        case .unknown: return .gray
+        }
+    }
+}
+
+/**
+ ErrorRecoveryView
+
+ Responsibilities:
+ - Display rich error information with category-specific styling
+ - Provide contextual recovery actions based on error category
+ - Support retry, diagnose, copy error details, and dismiss actions
+ - Show guidance messages based on error type
+
+ Does not handle:
+ - Direct error recovery execution (delegates to callbacks)
+ - Error classification (receives pre-classified RecoveryError)
+ - Queue validation directly (delegates to workspace)
+
+ Invariants/assumptions callers must respect:
+ - error is a properly classified RecoveryError
+ - All action callbacks are provided
+ - View is displayed within a valid SwiftUI view hierarchy
+ - Workspace is available for diagnostic operations
+ */
+struct ErrorRecoveryView: View {
+    let error: RecoveryError
+    let workspace: Workspace?
+    let onRetry: () -> Void
+    let onDismiss: () -> Void
+
+    @State private var showingDiagnoseSheet = false
+    @State private var diagnoseOutput: String = ""
+    @State private var isDiagnosing = false
+    @State private var showingLogsSheet = false
+    @State private var logsContent: String = ""
+    @State private var isLoadingLogs = false
+
+    var body: some View {
+        VStack(spacing: 20) {
+            // Error icon and category
+            VStack(spacing: 12) {
+                Image(systemName: error.category.icon)
+                    .font(.system(size: 48))
+                    .foregroundStyle(error.category.swiftUIColor)
+                    .accessibilityLabel("Error: \(error.category.displayName)")
+
+                Text(error.category.displayName)
+                    .font(.headline)
+                    .foregroundStyle(error.category.swiftUIColor)
+
+                Text(error.message)
+                    .font(.body)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.primary)
+            }
+
+            // Guidance message if available
+            if let guidance = error.category.guidanceMessage {
+                Text(guidance)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            }
+
+            // Recovery actions
+            VStack(spacing: 8) {
+                ForEach(error.category.suggestedActions, id: \.self) { action in
+                    recoveryButton(for: action)
+                }
+            }
+            .padding(.top, 8)
+        }
+        .padding(24)
+        .frame(maxWidth: 400)
+        .background(.ultraThinMaterial)
+        .cornerRadius(12)
+        .sheet(isPresented: $showingDiagnoseSheet) {
+            DiagnoseResultView(output: diagnoseOutput, isLoading: isDiagnosing)
+        }
+        .sheet(isPresented: $showingLogsSheet) {
+            LogsView(logs: logsContent, isLoading: isLoadingLogs)
+        }
+    }
+
+    @ViewBuilder
+    private func recoveryButton(for action: RecoveryAction) -> some View {
+        switch action {
+        case .retry:
+            Button(action: onRetry) {
+                Label("Retry", systemImage: "arrow.clockwise")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .accessibilityLabel("Retry the operation")
+
+        case .diagnose:
+            Button(action: performDiagnosis) {
+                Label("Diagnose", systemImage: "stethoscope")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .disabled(isDiagnosing)
+            .accessibilityLabel("Run diagnostic commands")
+
+        case .copyErrorDetails:
+            Button(action: copyErrorDetails) {
+                Label("Copy Error Details", systemImage: "doc.on.doc")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .accessibilityLabel("Copy error details to clipboard")
+
+        case .openLogs:
+            Button(action: openLogs) {
+                Label("View Logs", systemImage: "doc.text.magnifyingglass")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .accessibilityLabel("Open Ralph logs")
+
+        case .dismiss:
+            Button(action: onDismiss) {
+                Label("Dismiss", systemImage: "xmark")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderless)
+            .accessibilityLabel("Dismiss error")
+
+        case .checkPermissions:
+            Button(action: checkPermissions) {
+                Label("Check Permissions", systemImage: "folder.badge.gearshape")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .accessibilityLabel("Open workspace to check permissions")
+
+        case .reinstallCLI:
+            Button(action: openReinstallationHelp) {
+                Label("Reinstallation Help", systemImage: "arrow.down.circle")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .accessibilityLabel("Open reinstallation help")
+
+        case .validateQueue:
+            Button(action: performDiagnosis) {
+                Label("Validate Queue", systemImage: "checkmark.shield")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .disabled(isDiagnosing)
+            .accessibilityLabel("Validate queue file")
+        }
+    }
+
+    private func copyErrorDetails() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(error.fullErrorDetails, forType: .string)
+    }
+
+    private func performDiagnosis() {
+        isDiagnosing = true
+        showingDiagnoseSheet = true
+
+        Task {
+            diagnoseOutput = await runQueueValidation()
+            isDiagnosing = false
+        }
+    }
+
+    private func openLogs() {
+        showingLogsSheet = true
+        isLoadingLogs = true
+
+        if RalphLogger.shared.canExportLogs {
+            RalphLogger.shared.exportLogs(hours: 24) { logs in
+                DispatchQueue.main.async {
+                    logsContent = logs ?? "No logs available"
+                    isLoadingLogs = false
+                }
+            }
+        } else {
+            logsContent = "Log export requires macOS 12.0+"
+            isLoadingLogs = false
+        }
+    }
+
+    private func checkPermissions() {
+        if let url = error.workspaceURL ?? workspace?.workingDirectoryURL {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    private func openReinstallationHelp() {
+        if let url = URL(string: "https://github.com/mitchfultz/ralph#installation") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    private func runQueueValidation() async -> String {
+        guard let workspace = workspace else {
+            return "Error: No workspace available for validation"
+        }
+
+        do {
+            let client = try RalphCLIClient.bundled()
+            let result = try await client.runAndCollect(
+                arguments: ["--no-color", "queue", "validate"],
+                currentDirectoryURL: workspace.workingDirectoryURL
+            )
+
+            if result.status.code == 0 {
+                return "✅ Queue validation passed\n\n\(result.stdout)"
+            } else {
+                return "❌ Queue validation failed\n\nExit code: \(result.status.code)\n\(result.stderr)"
+            }
+        } catch {
+            return "❌ Failed to run validation: \(error.localizedDescription)"
+        }
+    }
+}
+
+// MARK: - Supporting Views
+
+struct DiagnoseResultView: View {
+    let output: String
+    let isLoading: Bool
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            VStack {
+                if isLoading {
+                    ProgressView("Running diagnostics...")
+                        .padding()
+                } else {
+                    ScrollView {
+                        Text(output)
+                            .font(.system(.body, design: .monospaced))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding()
+                            .textSelection(.enabled)
+                    }
+                }
+            }
+            .navigationTitle("Diagnostic Results")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close") { dismiss() }
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Copy") {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(output, forType: .string)
+                    }
+                    .disabled(isLoading)
+                }
+            }
+        }
+        .frame(minWidth: 500, minHeight: 300)
+    }
+}
+
+struct LogsView: View {
+    let logs: String
+    let isLoading: Bool
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            VStack {
+                if isLoading {
+                    ProgressView("Loading logs...")
+                        .padding()
+                } else {
+                    ScrollView {
+                        Text(logs)
+                            .font(.system(.body, design: .monospaced))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding()
+                            .textSelection(.enabled)
+                    }
+                }
+            }
+            .navigationTitle("Ralph Logs")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close") { dismiss() }
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Copy") {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(logs, forType: .string)
+                    }
+                    .disabled(isLoading)
+                }
+            }
+        }
+        .frame(minWidth: 600, minHeight: 400)
+    }
+}
+
+// MARK: - Error Recovery Sheet
+
+struct ErrorRecoverySheet: View {
+    let error: RecoveryError
+    let workspace: Workspace?
+    let onRetry: () -> Void
+    let onDismiss: () -> Void
+
+    var body: some View {
+        VStack {
+            ErrorRecoveryView(
+                error: error,
+                workspace: workspace,
+                onRetry: onRetry,
+                onDismiss: onDismiss
+            )
+        }
+        .padding()
+        .frame(minWidth: 450, minHeight: 400)
+    }
+}
+
+// MARK: - Preview
 #Preview {
     TaskConflictResolverView(
         localTask: RalphTask(
@@ -418,5 +757,20 @@ struct TaskConflictResolverView: View {
         ),
         onMerge: { _ in },
         onCancel: { }
+    )
+}
+
+#Preview("Error Recovery") {
+    ErrorRecoveryView(
+        error: RecoveryError(
+            category: .cliUnavailable,
+            message: "Failed to load tasks",
+            underlyingError: "Executable not found at expected path",
+            operation: "loadTasks",
+            suggestions: ["Check installation", "Verify permissions"]
+        ),
+        workspace: nil,
+        onRetry: {},
+        onDismiss: {}
     )
 }

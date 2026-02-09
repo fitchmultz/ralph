@@ -235,11 +235,28 @@ struct TaskListView: View {
             if workspace.tasksLoading {
                 ProgressView("Loading tasks...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let recoveryError = workspace.lastRecoveryError,
+                      workspace.showErrorRecovery {
+                ErrorRecoveryView(
+                    error: recoveryError,
+                    workspace: workspace,
+                    onRetry: {
+                        Task { @MainActor in
+                            workspace.clearErrorRecovery()
+                            await workspace.loadTasks()
+                        }
+                    },
+                    onDismiss: {
+                        workspace.clearErrorRecovery()
+                    }
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let error = workspace.tasksErrorMessage {
                 VStack(spacing: 12) {
                     Image(systemName: "exclamationmark.triangle")
                         .font(.largeTitle)
                         .foregroundStyle(.red)
+                        .accessibilityLabel("Error")
                     Text("Failed to load tasks")
                         .font(.headline)
                     Text(error)

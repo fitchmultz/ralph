@@ -2,50 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0742",
-      "status": "todo",
-      "title": "Add error recovery UI for failed CLI operations",
-      "description": "When CLI operations fail (network issues, corrupted queue, permission errors), the app shows a simple error message but offers no recovery options. Users cannot retry, view detailed error logs, or get guidance on fixing the issue. This leaves users stuck when errors occur.",
-      "priority": "medium",
-      "tags": [
-        "maintenance",
-        "macos",
-        "error-handling",
-        "ux",
-        "reliability"
-      ],
-      "scope": [
-        "apps/RalphMac/RalphMac/WorkspaceView.swift",
-        "apps/RalphMac/RalphMac/TaskListView.swift",
-        "apps/RalphMac/RalphCore/Workspace.swift"
-      ],
-      "evidence": [
-        "WorkspaceView.swift lines 284-290: Simple error display with no recovery actions",
-        "TaskListView.swift lines 225-232: Error shown but no retry mechanism",
-        "All error handling shows static text without actionable recovery steps"
-      ],
-      "plan": [
-        "Create reusable ErrorRecoveryView with retry, diagnose, and dismiss actions",
-        "Add detailed error logging with 'Copy Error Details' button",
-        "Implement retry with exponential backoff for transient failures",
-        "Add 'Diagnose' button that runs ralph queue validate and shows results",
-        "Show contextual help based on error type (permission, parse, network)",
-        "Add 'Open in Terminal' button to debug CLI issues manually",
-        "Write tests for error recovery flows",
-        "Verify by: induce CLI error (bad permissions), verify recovery UI appears with retry option"
-      ],
-      "notes": [],
-      "request": "maintenance scan finding",
-      "created_at": "2026-02-08T19:37:03Z",
-      "updated_at": "2026-02-08T19:37:03Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0741",
       "status": "todo",
       "title": "Add offline mode detection and graceful degradation",
