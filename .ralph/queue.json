@@ -2,52 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0804",
-      "status": "todo",
-      "title": "Fix all deprecated String(cString:) usages in Swift code",
-      "description": "The macOS app build emits deprecation warnings for `String(cString:)` which is deprecated in favor of `String(decoding:array,as:)`. Currently these warnings are allowed to pass through CI without failing. The replacement API requires explicit handling of null-terminated C strings by truncating the null termination before decoding.",
-      "priority": "high",
-      "tags": [
-        "deprecation",
-        "swift",
-        "api-migration",
-        "warnings",
-        "macos-ci"
-      ],
-      "scope": [
-        "apps/RalphMac/RalphCore/CrashReporter.swift"
-      ],
-      "evidence": [
-        "Warning: 'init(cString:)' is deprecated: Use String(decoding: array, as: UTF8.self) instead, after truncating the null termination",
-        "Found at CrashReporter.swift:195 in deviceModel() function",
-        "macos-ci passes despite deprecation warnings, violating CI contract"
-      ],
-      "plan": [
-        "Search for all occurrences of String(cString:) in apps/RalphMac directory",
-        "Replace with String(decoding: array, as: UTF8.self) pattern",
-        "Ensure proper null-termination truncation: dropLast() or prefix(upTo:) on the CChar array",
-        "Verify the replacement produces equivalent output to original code",
-        "Run unit tests for affected modules",
-        "Run make macos-ci to verify all deprecation warnings are resolved",
-        "Commit with message explaining API migration"
-      ],
-      "notes": [
-        "The deprecated API is less safe as it doesn't require explicit null-termination handling",
-        "New API forces safer C string handling by requiring array truncation before decoding"
-      ],
-      "request": "There are countless warnings like this that i see in the macos-ci. These are DISALLOWED. We should be seeing macos-ci fail when shit like this pops up. FIX THEM ALL AND MAKE SURE THE CI GATE FAILS WHEN THESE POP UP.",
-      "created_at": "2026-02-09T23:00:00Z",
-      "updated_at": "2026-02-09T23:00:00Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "affected_files": "CrashReporter.swift",
-        "source": "user-request",
-        "warning_type": "deprecated_api"
-      }
-    },
-    {
       "id": "RQ-0801",
       "status": "todo",
       "title": "Fix session resume to handle dirty repo check before retry loop",
@@ -99,8 +53,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "failure_count": "50",
         "affected_task": "RQ-0446",
+        "failure_count": "50",
         "source": "user-request"
       }
     },
