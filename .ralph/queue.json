@@ -2,48 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0732",
-      "status": "todo",
-      "title": "Implement ANSI escape code parsing for colored console output",
-      "description": "Workspace.parseANSICodes() is completely stubbed - it just returns the raw text without parsing any ANSI escape sequences. The console shows raw escape codes (e.g., '[32m') instead of colored text, making output hard to read. A proper ANSI parser needs to be implemented.",
-      "priority": "critical",
-      "tags": [
-        "maintenance",
-        "macos",
-        "ansi",
-        "console",
-        "ui"
-      ],
-      "scope": [
-        "apps/RalphMac/RalphCore/Workspace.swift"
-      ],
-      "evidence": [
-        "Workspace.swift lines 1000-1029: parseANSICodes() creates single unstyled segment",
-        "Line 1005-1012: Comment says 'For now, create a single segment with default styling'",
-        "Console output shows raw ANSI codes like '[32m' instead of green text"
-      ],
-      "plan": [
-        "Implement ANSI escape sequence parser supporting SGR codes (colors, bold, italic)",
-        "Support 8 standard colors, bright variants, and 256-color codes",
-        "Handle reset codes (0m) properly",
-        "Support cursor movement codes for progress bars (or strip them)",
-        "Update ANSISegment struct to support all parsed attributes",
-        "Write unit tests for various ANSI sequences",
-        "Test with actual ralph CLI output containing colors",
-        "Verify by: run 'ralph run one', verify console shows colored output not raw codes"
-      ],
-      "notes": [],
-      "request": "maintenance scan finding",
-      "created_at": "2026-02-08T19:37:03Z",
-      "updated_at": "2026-02-08T19:37:03Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0740",
       "status": "todo",
       "title": "Fix O(N²) task comparison performance issue in change detection",

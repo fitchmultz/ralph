@@ -210,7 +210,7 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
         }
     }
 
-    public enum ANSIColor: Sendable {
+    public enum ANSIColor: Sendable, Hashable {
         case `default`
         case black
         case red
@@ -228,6 +228,9 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
         case brightMagenta
         case brightCyan
         case brightWhite
+        // Extended colors
+        case indexed(UInt8)              // 256-color palette (0-255)
+        case rgb(UInt8, UInt8, UInt8)    // True color (24-bit)
 
         public var swiftUIColor: SwiftUI.Color {
             switch self {
@@ -248,6 +251,43 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
             case .brightMagenta: return .purple.opacity(0.8)
             case .brightCyan: return .cyan.opacity(0.8)
             case .brightWhite: return .white.opacity(0.9)
+            case .indexed(let index):
+                return Self.colorFrom256(index)
+            case .rgb(let r, let g, let b):
+                return Color(red: Double(r)/255, green: Double(g)/255, blue: Double(b)/255)
+            }
+        }
+
+        /// Convert 256-color index to SwiftUI Color
+        private static func colorFrom256(_ index: UInt8) -> Color {
+            // 0-15: Standard colors (same as 16-color palette)
+            // 16-231: 6x6x6 RGB cube
+            // 232-255: Grayscale ramp
+
+            if index < 16 {
+                // Map to standard colors
+                let colors: [ANSIColor] = [
+                    .black, .red, .green, .yellow, .blue, .magenta, .cyan, .white,
+                    .brightBlack, .brightRed, .brightGreen, .brightYellow,
+                    .brightBlue, .brightMagenta, .brightCyan, .brightWhite
+                ]
+                return colors[Int(index)].swiftUIColor
+            } else if index < 232 {
+                // RGB cube: 16 + 36*r + 6*g + b where r,g,b in 0-5
+                let i = Int(index) - 16
+                let r = i / 36
+                let g = (i % 36) / 6
+                let b = i % 6
+                // Map 0-5 to 0-255
+                let rf = Double(r == 0 ? 0 : r * 40 + 55) / 255
+                let gf = Double(g == 0 ? 0 : g * 40 + 55) / 255
+                let bf = Double(b == 0 ? 0 : b * 40 + 55) / 255
+                return Color(red: rf, green: gf, blue: bf)
+            } else {
+                // Grayscale: 232-255 maps to 8-238 (step 10)
+                let gray = 8 + (Int(index) - 232) * 10
+                let gf = Double(gray) / 255
+                return Color(red: gf, green: gf, blue: gf)
             }
         }
     }
@@ -1008,36 +1048,272 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
         }
     }
 
+    // MARK: - ANSI Parsing
+
+    /// Tracks current ANSI styling state during parsing
+    private struct ANSIStyleState {
+        var foregroundColor: ANSIColor = .default
+        var backgroundColor: ANSIColor = .default
+        var isBold: Bool = false
+        var isItalic: Bool = false
+        var isDim: Bool = false
+        var isUnderline: Bool = false
+
+        mutating func reset() {
+            foregroundColor = .default
+            backgroundColor = .default
+            isBold = false
+            isItalic = false
+            isDim = false
+            isUnderline = false
+        }
+
+        mutating func applySGR(_ code: Int) {
+            switch code {
+            case 0: // Reset
+                reset()
+            case 1: // Bold
+                isBold = true
+            case 2: // Dim/Faint
+                isDim = true
+            case 3: // Italic
+                isItalic = true
+            case 4: // Underline
+                isUnderline = true
+            case 22: // Normal intensity (not bold, not dim)
+                isBold = false
+                isDim = false
+            case 23: // Not italic
+                isItalic = false
+            case 24: // Not underlined
+                isUnderline = false
+            case 30...37: // Foreground colors (standard)
+                foregroundColor = colorFromCode(code)
+            case 38: // Extended foreground color (handled separately)
+                break
+            case 39: // Default foreground
+                foregroundColor = .default
+            case 40...47: // Background colors
+                backgroundColor = colorFromCode(code - 10)  // Map to foreground equivalent
+            case 48: // Extended background color
+                break
+            case 49: // Default background
+                backgroundColor = .default
+            case 90...97: // Bright foreground colors
+                foregroundColor = colorFromCode(code)
+            case 100...107: // Bright background colors
+                backgroundColor = colorFromCode(code - 10)
+            default:
+                break
+            }
+        }
+
+        private func colorFromCode(_ code: Int) -> ANSIColor {
+            switch code {
+            case 30, 40: return .black
+            case 31, 41: return .red
+            case 32, 42: return .green
+            case 33, 43: return .yellow
+            case 34, 44: return .blue
+            case 35, 45: return .magenta
+            case 36, 46: return .cyan
+            case 37, 47: return .white
+            case 90, 100: return .brightBlack
+            case 91, 101: return .brightRed
+            case 92, 102: return .brightGreen
+            case 93, 103: return .brightYellow
+            case 94, 104: return .brightBlue
+            case 95, 105: return .brightMagenta
+            case 96, 106: return .brightCyan
+            case 97, 107: return .brightWhite
+            default: return .default
+            }
+        }
+    }
+
     /// Parse ANSI codes from raw output and update attributedOutput
+    ///
+    /// Supports SGR codes for colors (16-color, 256-color, true color),
+    /// text attributes (bold, italic), and strips cursor movement codes.
     public func parseANSICodes(from rawOutput: String) {
-        // This is a simplified parser - can be enhanced
-        // Parse common ANSI escape sequences and convert to ANSISegments
         var segments: [ANSISegment] = []
+        var currentState = ANSIStyleState()
+        var currentText = ""
+        var index = rawOutput.startIndex
 
-        // For now, create a single segment with default styling
-        // Full ANSI parsing can be implemented as an enhancement
-        segments.append(ANSISegment(
-            text: rawOutput,
-            color: .default,
-            isBold: false,
-            isItalic: false
-        ))
+        while index < rawOutput.endIndex {
+            // Look for escape character
+            if rawOutput[index] == "\u{001B}",
+               index < rawOutput.index(before: rawOutput.endIndex),
+               rawOutput[rawOutput.index(after: index)] == "[" {
+                // Found potential CSI sequence
+                let afterBracket = rawOutput.index(index, offsetBy: 2)
 
-        // Merge with existing segments if needed, or replace
+                // Parse the command string
+                var commandEnd = afterBracket
+                var commandChars = ""
+
+                while commandEnd < rawOutput.endIndex {
+                    let char = rawOutput[commandEnd]
+                    // SGR command ends with 'm'
+                    // Cursor commands end with A-Z, a-z (except [)
+                    if (char >= "A" && char <= "Z") || (char >= "a" && char <= "z" && char != "[") {
+                        // Check if it's an SGR sequence (ends with 'm')
+                        if char == "m" {
+                            // Process SGR sequence
+                            if !currentText.isEmpty {
+                                segments.append(ANSISegment(
+                                    text: currentText,
+                                    color: currentState.foregroundColor,
+                                    isBold: currentState.isBold,
+                                    isItalic: currentState.isItalic
+                                ))
+                                currentText = ""
+                            }
+
+                            // Parse SGR parameters
+                            if commandChars.isEmpty {
+                                // Empty sequence is reset
+                                currentState.reset()
+                            } else {
+                                var params = commandChars.split(separator: ";").compactMap { Int($0) }
+                                if params.isEmpty {
+                                    params = [0]  // Reset if no valid params
+                                }
+
+                                var i = 0
+                                while i < params.count {
+                                    let code = params[i]
+
+                                    if code == 38 && i + 1 < params.count {
+                                        // Extended foreground color
+                                        let subCode = params[i + 1]
+                                        if subCode == 5 && i + 2 < params.count {
+                                            // 256-color
+                                            currentState.foregroundColor = .indexed(UInt8(params[i + 2]))
+                                            i += 3
+                                        } else if subCode == 2 && i + 4 < params.count {
+                                            // True color RGB
+                                            currentState.foregroundColor = .rgb(
+                                                UInt8(max(0, min(255, params[i + 2]))),
+                                                UInt8(max(0, min(255, params[i + 3]))),
+                                                UInt8(max(0, min(255, params[i + 4])))
+                                            )
+                                            i += 5
+                                        } else {
+                                            i += 1
+                                        }
+                                    } else if code == 48 && i + 1 < params.count {
+                                        // Extended background color - parse but don't apply yet
+                                        let subCode = params[i + 1]
+                                        if subCode == 5 && i + 2 < params.count {
+                                            currentState.backgroundColor = .indexed(UInt8(params[i + 2]))
+                                            i += 3
+                                        } else if subCode == 2 && i + 4 < params.count {
+                                            currentState.backgroundColor = .rgb(
+                                                UInt8(max(0, min(255, params[i + 2]))),
+                                                UInt8(max(0, min(255, params[i + 3]))),
+                                                UInt8(max(0, min(255, params[i + 4])))
+                                            )
+                                            i += 5
+                                        } else {
+                                            i += 1
+                                        }
+                                    } else {
+                                        currentState.applySGR(code)
+                                        i += 1
+                                    }
+                                }
+                            }
+                        }
+                        // Non-SGR CSI sequence (cursor movement, etc.) - just skip it
+
+                        // Move past this sequence
+                        index = rawOutput.index(after: commandEnd)
+                        break
+                    } else if char == "[" {
+                        // Nested CSI - shouldn't happen, treat as end
+                        index = afterBracket
+                        break
+                    } else {
+                        commandChars.append(char)
+                        commandEnd = rawOutput.index(after: commandEnd)
+                    }
+                }
+
+                // If we didn't find a terminator, treat escape as literal
+                if commandEnd >= rawOutput.endIndex {
+                    currentText.append(rawOutput[index])
+                    index = rawOutput.index(after: index)
+                }
+            } else {
+                currentText.append(rawOutput[index])
+                index = rawOutput.index(after: index)
+            }
+        }
+
+        // Don't forget the final segment
+        if !currentText.isEmpty {
+            segments.append(ANSISegment(
+                text: currentText,
+                color: currentState.foregroundColor,
+                isBold: currentState.isBold,
+                isItalic: currentState.isItalic
+            ))
+        }
+
+        // Merge with existing segments or replace
         if attributedOutput.isEmpty {
             attributedOutput = segments
         } else {
-            // Append text to the last segment
-            let lastIndex = attributedOutput.count - 1
-            let lastSegment = attributedOutput[lastIndex]
-            let mergedText = lastSegment.text + rawOutput
-            attributedOutput[lastIndex] = ANSISegment(
-                text: mergedText,
-                color: lastSegment.color,
-                isBold: lastSegment.isBold,
-                isItalic: lastSegment.isItalic
-            )
+            // Append new segments, merging with last if styles match
+            for segment in segments {
+                if let last = attributedOutput.last,
+                   last.color == segment.color,
+                   last.isBold == segment.isBold,
+                   last.isItalic == segment.isItalic {
+                    // Merge with previous segment
+                    let mergedText = last.text + segment.text
+                    attributedOutput[attributedOutput.count - 1] = ANSISegment(
+                        text: mergedText,
+                        color: segment.color,
+                        isBold: segment.isBold,
+                        isItalic: segment.isItalic
+                    )
+                } else {
+                    attributedOutput.append(segment)
+                }
+            }
         }
+
+        // Optimization: Merge adjacent segments with identical styling
+        attributedOutput = mergeAdjacentSegments(attributedOutput)
+    }
+
+    /// Merge adjacent segments with identical styling to reduce segment count
+    private func mergeAdjacentSegments(_ segments: [ANSISegment]) -> [ANSISegment] {
+        guard segments.count > 1 else { return segments }
+
+        var merged: [ANSISegment] = []
+
+        for segment in segments {
+            if let last = merged.last,
+               last.color == segment.color,
+               last.isBold == segment.isBold,
+               last.isItalic == segment.isItalic {
+                // Merge with last
+                merged[merged.count - 1] = ANSISegment(
+                    text: last.text + segment.text,
+                    color: segment.color,
+                    isBold: segment.isBold,
+                    isItalic: segment.isItalic
+                )
+            } else {
+                merged.append(segment)
+            }
+        }
+
+        return merged
     }
 
     // MARK: - CLI Spec Loading
