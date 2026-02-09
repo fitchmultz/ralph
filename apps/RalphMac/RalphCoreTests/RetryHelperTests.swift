@@ -138,7 +138,7 @@ final class RetryHelperTests: XCTestCase {
                 return "success"
             },
             onProgress: { attempt, maxAttempts, _ in
-                Task { await tracker.record(attempt: attempt, maxAttempts: maxAttempts) }
+                await tracker.record(attempt: attempt, maxAttempts: maxAttempts)
             }
         )
         
@@ -276,7 +276,7 @@ final class RetryHelperTests: XCTestCase {
                 throw RetryableError.resourceBusy
             },
             onProgress: { _, _, delay in
-                Task { await tracker.record(delay) }
+                await tracker.record(delay)
             }
         )
         
@@ -308,7 +308,7 @@ final class RetryHelperTests: XCTestCase {
                 throw RetryableError.resourceBusy
             },
             onProgress: { _, _, delay in
-                Task { await tracker.record(delay) }
+                await tracker.record(delay)
             }
         )
         

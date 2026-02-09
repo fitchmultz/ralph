@@ -465,14 +465,14 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
                         arguments: ["--no-color", "queue", "list", "--format", "json"],
                         currentDirectoryURL: workingDirectoryURL
                     )
-                    // Check for retryable process failures
-                    if result.status.code != 0 && result.isRetryableFailure {
+                    // Check for process failures
+                    if result.status.code != 0 {
                         throw result.toError()
                     }
                     return result
                 },
                 onProgress: { [weak self] attempt, maxAttempts, delay in
-                    Task { @MainActor [weak self] in
+                    await MainActor.run { [weak self] in
                         self?.tasksErrorMessage = "Retrying load tasks (attempt \(attempt)/\(maxAttempts))..."
                     }
                 }
@@ -599,13 +599,13 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
                         arguments: ["--no-color", "queue", "graph", "--format", "json"],
                         currentDirectoryURL: workingDirectoryURL
                     )
-                    if result.status.code != 0 && result.isRetryableFailure {
+                    if result.status.code != 0 {
                         throw result.toError()
                     }
                     return result
                 },
                 onProgress: { [weak self] attempt, maxAttempts, _ in
-                    Task { @MainActor [weak self] in
+                    await MainActor.run { [weak self] in
                         self?.graphDataErrorMessage = "Retrying load graph (attempt \(attempt)/\(maxAttempts))..."
                     }
                 }
@@ -736,13 +736,13 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
                     arguments: arguments,
                     currentDirectoryURL: workingDirectoryURL
                 )
-                if result.status.code != 0 && result.isRetryableFailure {
+                if result.status.code != 0 {
                     throw result.toError()
                 }
                 return result
             },
             onProgress: { [weak self] attempt, maxAttempts, _ in
-                Task { @MainActor [weak self] in
+                await MainActor.run { [weak self] in
                     self?.errorMessage = "Retrying status update (attempt \(attempt)/\(maxAttempts))..."
                 }
             }
@@ -876,13 +876,13 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
                         arguments: ["--no-color", "task", "edit", field, value, updated.id],
                         currentDirectoryURL: workingDirectoryURL
                     )
-                    if result.status.code != 0 && result.isRetryableFailure {
+                    if result.status.code != 0 {
                         throw result.toError()
                     }
                     return result
                 },
                 onProgress: { [weak self] attempt, maxAttempts, _ in
-                    Task { @MainActor [weak self] in
+                    await MainActor.run { [weak self] in
                         self?.errorMessage = "Retrying edit \(field) (attempt \(attempt)/\(maxAttempts))..."
                     }
                 }
@@ -952,13 +952,13 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
                     arguments: arguments,
                     currentDirectoryURL: workingDirectoryURL
                 )
-                if result.status.code != 0 && result.isRetryableFailure {
+                if result.status.code != 0 {
                     throw result.toError()
                 }
                 return result
             },
             onProgress: { [weak self] attempt, maxAttempts, _ in
-                Task { @MainActor [weak self] in
+                await MainActor.run { [weak self] in
                     self?.errorMessage = "Retrying create task (attempt \(attempt)/\(maxAttempts))..."
                 }
             }
@@ -1460,7 +1460,7 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
                         arguments: ["--no-color", "__cli-spec", "--format", "json"],
                         currentDirectoryURL: workingDirectoryURL
                     )
-                    if result.status.code != 0 && result.isRetryableFailure {
+                    if result.status.code != 0 {
                         throw result.toError()
                     }
                     return result
@@ -1621,7 +1621,7 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
                         arguments: ["--no-color", "productivity", "summary", "--format", "json"],
                         currentDirectoryURL: workingDirectoryURL
                     )
-                    if result.status.code != 0 && result.isRetryableFailure {
+                    if result.status.code != 0 {
                         throw result.toError()
                     }
                     return result
@@ -1645,7 +1645,7 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
                         arguments: ["--no-color", "productivity", "velocity", "--format", "json", "--days", String(days)],
                         currentDirectoryURL: workingDirectoryURL
                     )
-                    if result.status.code != 0 && result.isRetryableFailure {
+                    if result.status.code != 0 {
                         throw result.toError()
                     }
                     return result
@@ -1669,7 +1669,7 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
                         arguments: ["--no-color", "queue", "burndown", "--format", "json", "--days", String(days)],
                         currentDirectoryURL: workingDirectoryURL
                     )
-                    if result.status.code != 0 && result.isRetryableFailure {
+                    if result.status.code != 0 {
                         throw result.toError()
                     }
                     return result
@@ -1693,7 +1693,7 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
                         arguments: ["--no-color", "queue", "stats", "--format", "json"],
                         currentDirectoryURL: workingDirectoryURL
                     )
-                    if result.status.code != 0 && result.isRetryableFailure {
+                    if result.status.code != 0 {
                         throw result.toError()
                     }
                     return result
@@ -1717,7 +1717,7 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
                         arguments: ["--no-color", "queue", "history", "--format", "json", "--days", String(days)],
                         currentDirectoryURL: workingDirectoryURL
                     )
-                    if result.status.code != 0 && result.isRetryableFailure {
+                    if result.status.code != 0 {
                         throw result.toError()
                     }
                     return result

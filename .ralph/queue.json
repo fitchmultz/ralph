@@ -2,46 +2,99 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0802",
+      "id": "RQ-0804",
       "status": "todo",
-      "title": "Fix race condition in RetryHelperTests.test_delayCalculation_withBackoff",
-      "description": "The test test_delayCalculation_withBackoff fails with 'Index out of range' when accessing delays[0]. The root cause is a race condition: the onProgress callback uses `Task { await tracker.record(delay) }` which spawns detached async tasks. When the execute() method finishes (after all retries), the test immediately reads `await tracker.delays`, but the detached tasks may not have completed recording the delays yet, resulting in an empty array. The fix is to remove the Task wrapper and directly call `await tracker.record(delay)` in the onProgress callback.",
-      "priority": "critical",
+      "title": "Fix all deprecated String(cString:) usages in Swift code",
+      "description": "The macOS app build emits deprecation warnings for `String(cString:)` which is deprecated in favor of `String(decoding:array,as:)`. Currently these warnings are allowed to pass through CI without failing. The replacement API requires explicit handling of null-terminated C strings by truncating the null termination before decoding.",
+      "priority": "high",
       "tags": [
-        "bug",
+        "deprecation",
         "swift",
-        "test",
-        "race-condition",
+        "api-migration",
+        "warnings",
         "macos-ci"
       ],
       "scope": [
-        "apps/RalphMac/RalphCoreTests/RetryHelperTests.swift"
+        "apps/RalphMac/RalphCore/CrashReporter.swift"
       ],
       "evidence": [
-        "Test failure: '💣 Swift runtime failure: Index out of range' at RetryHelperTests.swift:287",
-        "Line 287 crashes on `XCTAssertEqual(delays[0], 0.1, accuracy: 0.01)` because delays array is empty",
-        "onProgress callback uses `Task { await tracker.record(delay) }` which spawns detached async tasks",
-        "Detached tasks may not complete before `let delays = await tracker.delays` is executed",
-        "Same pattern exists in test_delayCalculation_respectsMaxDelay and test_progressCallbackCalledOnRetry"
+        "Warning: 'init(cString:)' is deprecated: Use String(decoding: array, as: UTF8.self) instead, after truncating the null termination",
+        "Found at CrashReporter.swift:195 in deviceModel() function",
+        "macos-ci passes despite deprecation warnings, violating CI contract"
       ],
       "plan": [
-        "Fix test_delayCalculation_withBackoff: Change `Task { await tracker.record(delay) }` to `await tracker.record(delay)`",
-        "Fix test_delayCalculation_respectsMaxDelay: Change `Task { await tracker.record(delay) }` to `await tracker.record(delay)`",
-        "Fix test_progressCallbackCalledOnRetry: Change `Task { await tracker.record(attempt: attempt, maxAttempts: maxAttempts) }` to `await tracker.record(attempt: attempt, maxAttempts: maxAttempts)`",
-        "Verify all three tests pass consistently",
-        "Run make macos-ci to verify CI passes"
+        "Search for all occurrences of String(cString:) in apps/RalphMac directory",
+        "Replace with String(decoding: array, as: UTF8.self) pattern",
+        "Ensure proper null-termination truncation: dropLast() or prefix(upTo:) on the CChar array",
+        "Verify the replacement produces equivalent output to original code",
+        "Run unit tests for affected modules",
+        "Run make macos-ci to verify all deprecation warnings are resolved",
+        "Commit with message explaining API migration"
       ],
-      "notes": [],
-      "request": "There is something in the make macos-ci gate that is either broken or misocnfigured. This looks like a failure and issue. If it isnt then it still shouldnt be holding up CI for 15 fucking seconds. FIX THE ROOT FUCKING CAUSE.",
-      "created_at": "2026-02-09T22:28:00Z",
-      "updated_at": "2026-02-09T22:28:00Z",
+      "notes": [
+        "The deprecated API is less safe as it doesn't require explicit null-termination handling",
+        "New API forces safer C string handling by requiring array truncation before decoding"
+      ],
+      "request": "There are countless warnings like this that i see in the macos-ci. These are DISALLOWED. We should be seeing macos-ci fail when shit like this pops up. FIX THEM ALL AND MAKE SURE THE CI GATE FAILS WHEN THESE POP UP.",
+      "created_at": "2026-02-09T23:00:00Z",
+      "updated_at": "2026-02-09T23:00:00Z",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "failure_type": "Index out of range",
+        "affected_files": "CrashReporter.swift",
         "source": "user-request",
-        "affected_test": "test_delayCalculation_withBackoff"
+        "warning_type": "deprecated_api"
+      }
+    },
+    {
+      "id": "RQ-0803",
+      "status": "todo",
+      "title": "Enable Xcode warnings-as-errors in CI gate to prevent deprecation warnings",
+      "description": "The macos-ci gate runs xcodebuild for both build and test phases, but currently allows warnings to pass without failing. This violates the repo's CI contract which states 'NO ERRORS OR WARNINGS ARE ACCEPTABLE' and 'warnings are errors' in AGENTS.md. Xcode warnings (including deprecation warnings) should cause the CI gate to fail, forcing fixes before commit.",
+      "priority": "critical",
+      "tags": [
+        "ci",
+        "xcode",
+        "warnings",
+        "quality-gate",
+        "makefile"
+      ],
+      "scope": [
+        "Makefile"
+      ],
+      "evidence": [
+        "AGENTS.md states: 'NO ERRORS OR WARNINGS ARE ACCEPTABLE'",
+        "AGENTS.md states: 'Clippy with -D warnings (warnings are errors)'",
+        "Makefile line 44: cargo clippy uses -D warnings flag (Rust side)",
+        "Makefile lines 152-164: xcodebuild for macos-build has no -warnings-as-errors flag",
+        "Makefile lines 166-189: xcodebuild for macos-test has no -warnings-as-errors flag",
+        "macos-ci passes despite emitting deprecation warnings like 'init(cString:)'",
+        "This creates a double-standard: Rust warnings fail CI, Swift warnings pass CI"
+      ],
+      "plan": [
+        "Add -warnings-as-errors=YES flag to xcodebuild in macos-build target",
+        "Add -warnings-as-errors=YES flag to xcodebuild in macos-test target",
+        "Verify the flag is correctly formatted for xcodebuild (Xcode 15+ syntax)",
+        "Run make macos-ci to confirm it now fails on the existing deprecation warning",
+        "Update AGENTS.md to document Xcode warnings-as-errors behavior if needed",
+        "Commit with message: 'Enable Xcode warnings-as-errors in CI gate'"
+      ],
+      "notes": [
+        "xcodebuild -warnings-as-errors=YES treats all compiler warnings as build failures",
+        "This aligns Swift/Xcode behavior with Rust Clippy -D warnings behavior",
+        "After this change, the CI gate will correctly fail on deprecation warnings until they are fixed"
+      ],
+      "request": "There are countless warnings like this that i see in the macos-ci. These are DISALLOWED. We should be seeing macos-ci fail when shit like this pops up. FIX THEM ALL AND MAKE SURE THE CI GATE FAILS WHEN THESE POP UP.",
+      "created_at": "2026-02-09T23:00:00Z",
+      "updated_at": "2026-02-09T23:00:00Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "source": "user-request",
+        "affected_targets": "macos-build, macos-test",
+        "flag": "-warnings-as-errors=YES"
       }
     },
     {
@@ -97,8 +150,8 @@
       "relates_to": [],
       "custom_fields": {
         "source": "user-request",
-        "affected_task": "RQ-0446",
-        "failure_count": "50"
+        "failure_count": "50",
+        "affected_task": "RQ-0446"
       }
     },
     {

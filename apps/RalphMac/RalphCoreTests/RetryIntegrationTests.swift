@@ -139,7 +139,7 @@ final class RetryIntegrationTests: XCTestCase {
             arguments: ["queue", "list"],
             retryConfiguration: RetryConfiguration(maxRetries: 3, baseDelay: 0.01, jitterRange: 0...0),
             onRetry: { attempt, maxAttempts, delay in
-                Task { await tracker.increment() }
+                await tracker.increment()
                 XCTAssertGreaterThanOrEqual(attempt, 1)
                 XCTAssertLessThanOrEqual(attempt, maxAttempts)
                 XCTAssertGreaterThan(delay, 0)

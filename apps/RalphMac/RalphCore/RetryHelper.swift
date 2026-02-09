@@ -84,7 +84,7 @@ public enum RetryResult<T: Sendable>: Sendable {
 }
 
 /// Progress callback for retry attempts
-public typealias RetryProgressHandler = @Sendable (_ attempt: Int, _ maxAttempts: Int, _ delay: TimeInterval) -> Void
+public typealias RetryProgressHandler = @Sendable (_ attempt: Int, _ maxAttempts: Int, _ delay: TimeInterval) async -> Void
 
 /// Helper for executing operations with retry logic
 /// 
@@ -134,7 +134,7 @@ public final class RetryHelper: Sendable {
                 let delay = calculateDelay(attempt: attempt)
                 
                 // Report progress
-                onProgress?(attempt, configuration.maxRetries, delay)
+                await onProgress?(attempt, configuration.maxRetries, delay)
                 
                 // Wait before retrying
                 try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
@@ -176,24 +176,19 @@ public final class RetryHelper: Sendable {
     
     /// Default implementation to determine if an error is retryable
     public static func defaultShouldRetry(_ error: any Error) -> Bool {
-        // Check for specific error types by checking the type directly
-        // Note: We can't use 'as?' cast with existential in Swift 6 in this context
-        // Instead, we check the error's localized description and NSError properties
-        
-        // First check if it's a RetryableError by checking NSError domain/code
-        let nsError = error as NSError
-        if nsError.domain == "RetryableError" {
-            // Check the error's user info for the case type
-            let description = error.localizedDescription.lowercased()
-            if description.contains("file locked") || 
-               description.contains("resource busy") ||
-               description.contains("io timeout") ||
-               description.contains("resource temporarily unavailable") {
+        // First check if it's our specific RetryableError type
+        if let retryable = error as? RetryableError {
+            switch retryable {
+            case .fileLocked, .resourceBusy, .ioTimeout, .resourceTemporarilyUnavailable:
                 return true
+            case .processError(let exitCode, let stderr):
+                return isRetryableProcessError(exitCode: exitCode, stderr: stderr)
+            case .underlying(let underlying):
+                return isRetryableUnderlyingError(underlying)
             }
         }
         
-        // Check for process error patterns in description
+        // Check for process error patterns in description (for errors from other sources)
         let description = error.localizedDescription.lowercased()
         let retryablePatterns = [
             "file locked",

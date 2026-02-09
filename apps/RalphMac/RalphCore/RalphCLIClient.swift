@@ -418,12 +418,16 @@ public extension RalphCLIClient {
         
         return try await helper.execute(
             operation: { [self] in
-                try await self.runAndCollect(
+                let result = try await self.runAndCollect(
                     arguments: arguments,
                     currentDirectoryURL: currentDirectoryURL,
                     environment: environment,
                     maxOutputSize: maxOutputSize
                 )
+                if result.status.code != 0 {
+                    throw result.toError()
+                }
+                return result
             },
             shouldRetry: { error in
                 // Also check stderr for retryable patterns in process errors
@@ -450,6 +454,7 @@ public extension RalphCLIClient.CollectedOutput {
             "resource temporarily unavailable",
             "operation would block",
             "device or resource busy",
+            "resource busy",
             "file is locked",
             "io timeout",
             "eagain",
