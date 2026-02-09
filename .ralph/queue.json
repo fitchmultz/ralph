@@ -2,77 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0801",
-      "status": "todo",
-      "title": "Fix opencode runner stream-json output parsing to capture all outputs",
-      "description": "Investigate and fix the opencode runner's JSON output parsing to ensure all outputs are captured and displayed correctly. Currently, Ralph's parser is missing some outputs when using the opencode runner compared to running opencode directly. The opencode CLI uses `--format json` to output newline-delimited JSON events including: message.part.updated (with parts containing type='text', type='reasoning', type='tool', type='step-start', type='step-finish'), message.updated (assistant info), session.error, and session.status events. Text parts include time.end to indicate completion, reasoning parts require --thinking flag to display, and tool parts have state.status values of 'completed', 'running', 'pending', or 'error'. The parser needs to handle all these event types properly including text extraction, reasoning content, tool state transitions, and step boundaries. The goal is for the output seen when using opencode through Ralph to match identically to what users see when running opencode directly.",
-      "priority": "high",
-      "tags": [
-        "bug",
-        "opencode",
-        "runner",
-        "output",
-        "json",
-        "parsing"
-      ],
-      "scope": [
-        "crates/ralph/src/runner/execution/stream.rs",
-        "crates/ralph/src/runner/execution/json.rs",
-        "crates/ralph/src/runner/execution/tests/stream.rs",
-        "~/Projects/opencode/packages/opencode/src/cli/cmd/run.ts",
-        "~/Projects/opencode/packages/opencode/src/session/message-v2.ts",
-        "~/Projects/opencode/packages/opencode/src/session/message.ts"
-      ],
-      "evidence": [
-        "User reports missing outputs when using opencode runner compared to direct opencode CLI usage",
-        "Opencode CLI uses --format json for newline-delimited JSON event output",
-        "Event types: message.part.updated, message.updated, session.error, session.status, permission.asked",
-        "Part types: text (with time.end), reasoning (requires --thinking), tool (with state.status), step-start, step-finish",
-        "Tool states: pending, running, completed, error - with varying structures per state",
-        "Current extract_display_lines may not handle opencode's JSON structure with type field discrimination",
-        "stream.rs needs to handle event-based JSON format vs kimi's message-based format"
-      ],
-      "plan": [
-        "Analyze opencode source code to understand complete JSON output format:",
-        "  - Examine packages/opencode/src/cli/cmd/run.ts for JSON output implementation (lines 409-415 emit function)",
-        "  - Examine packages/opencode/src/session/message-v2.ts for Part types: TextPart, ReasoningPart, ToolPart, StepStartPart, StepFinishPart",
-        "  - Document event structure: {type, timestamp, sessionID, ...data} with type='text'|'reasoning'|'tool_use'|'step_start'|'step_finish'|'error'",
-        "Compare opencode output format with Ralph's current parser:",
-        "  - Review extract_display_lines function for gaps in handling opencode-specific fields",
-        "  - Current code may not handle event-based streaming with message.part.updated events",
-        "  - Check handling of tool parts with state.status='completed'|'running'|'pending'|'error'",
-        "Run opencode CLI directly with --format json to capture sample outputs for comparison",
-        "Identify specific outputs that are being dropped or mis-parsed",
-        "Update extract_display_lines in stream.rs to handle all opencode output types:",
-        "  - Add handling for message.part.updated events with part.type='text' (check for time.end)",
-        "  - Add handling for reasoning content (part.type='reasoning') when thinking mode enabled",
-        "  - Handle tool parts with state.status transitions (completed with output, running with title, error with error)",
-        "  - Handle step-start and step-finish boundary events",
-        "  - Handle session.error events with proper error extraction",
-        "Add or update unit tests in crates/ralph/src/runner/execution/tests/stream.rs to cover opencode output scenarios",
-        "Run tests and verify opencode output parsing works correctly:",
-        "  - Test with simple text responses",
-        "  - Test with thinking/reasoning content",
-        "  - Test with tool calls in various states (pending, running, completed, error)",
-        "  - Test step boundary events",
-        "  - Compare Ralph output with direct opencode CLI output to ensure parity"
-      ],
-      "notes": [],
-      "request": "See Task ID RQ-0799. You are creating an identical task but for the opencode runner. I have cloned the opencode source code into ~/Projects/opencode and it should be examined to refine and optimize our opencode parser.",
-      "created_at": "2026-02-09T14:59:11Z",
-      "updated_at": "2026-02-09T14:59:11Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [
-        "RQ-0799"
-      ],
-      "custom_fields": {
-        "opencode_cli_path": "~/Projects/opencode",
-        "reference_task": "RQ-0799",
-        "source": "user-request"
-      }
-    },
-    {
       "id": "RQ-0800",
       "status": "todo",
       "title": "Fix ralph queue next-id to work with duplicate IDs",
@@ -116,7 +45,8 @@
       "notes": [],
       "request": "The \"ralph queue next-id\" command is flawed. I had a duplicate task ID so I tried to run this command to see what the next ID was to switch the duplicate and it gave me an error. This command should work properly even if the queue is invalid with duplicate IDs so the user can find the proper next ID to update the errant ID. We should also ensure the docs are clear that duplicate IDs are NOT allowed and that completed task IDs in the done.json file are included in the checks for duplicate IDs. Task IDs must be unique across both queue.json and done.json.",
       "created_at": "2026-02-09T14:41:29Z",
-      "updated_at": "2026-02-09T14:41:29Z",
+      "updated_at": "2026-02-09T15:50:49.000284000Z",
+      "started_at": "2026-02-09T15:50:49.000284000Z",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],

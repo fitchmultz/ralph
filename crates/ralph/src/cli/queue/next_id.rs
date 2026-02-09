@@ -3,23 +3,29 @@
 //! Responsibilities:
 //! - Generate one or more sequential task IDs based on current queue state.
 //! - Validate count bounds (1..=MAX_COUNT) to prevent abuse.
+//! - Work correctly even when duplicate task IDs exist (graceful degradation).
 //!
 //! Not handled here:
 //! - Queue modification (this is a read-only operation).
 //! - ID reservation (IDs are generated but not claimed; callers must create tasks promptly).
+//! - Full queue validation (duplicates are warned but don't block ID generation).
 //!
 //! Invariants/assumptions:
 //! - Count must be between 1 and MAX_COUNT (100) inclusive.
 //! - Generated IDs are sequential and unique within the current queue state.
 //! - Output format: one ID per line for easy shell scripting.
+//! - Duplicate IDs in queue.json or done.json are warned but don't prevent operation.
 
-use anyhow::{Result, bail};
+use std::collections::HashSet;
+
+use anyhow::{bail, Result};
 use clap::Args;
 
-use crate::cli::load_and_validate_queues;
 use crate::config::Resolved;
 use crate::constants::limits::MAX_COUNT;
+use crate::contracts::TaskStatus;
 use crate::queue;
+use crate::queue::validation;
 
 #[derive(Args)]
 pub struct QueueNextIdArgs {
@@ -41,20 +47,61 @@ pub(crate) fn handle(resolved: &Resolved, args: QueueNextIdArgs) -> Result<()> {
         );
     }
 
-    let (queue_file, done_file) = load_and_validate_queues(resolved, true)?;
-    let done_ref = done_file
-        .as_ref()
-        .filter(|d| !d.tasks.is_empty() || resolved.done_path.exists());
+    // Load queues without validation to handle duplicate IDs gracefully
+    let queue_file = queue::load_queue_or_default(&resolved.queue_path)?;
+    let done_file = queue::load_queue_or_default(&resolved.done_path)?;
 
-    // Get the first ID using next_id_across
-    let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
-    let first_id = queue::next_id_across(
-        &queue_file,
-        done_ref,
-        &resolved.id_prefix,
-        resolved.id_width,
-        max_depth,
-    )?;
+    // Collect all IDs and detect duplicates
+    let expected_prefix = queue::normalize_prefix(&resolved.id_prefix);
+    let mut seen_ids = HashSet::new();
+    let mut duplicates = Vec::new();
+    let mut max_value: u32 = 0;
+
+    // Process active queue
+    for (idx, task) in queue_file.tasks.iter().enumerate() {
+        match validation::validate_task_id(idx, &task.id, &expected_prefix, resolved.id_width) {
+            Ok(value) => {
+                if task.status != TaskStatus::Rejected && value > max_value {
+                    max_value = value;
+                }
+                if !seen_ids.insert(task.id.clone()) {
+                    duplicates.push(task.id.clone());
+                }
+            }
+            Err(e) => {
+                log::warn!("Invalid task ID in queue: {}", e);
+            }
+        }
+    }
+
+    // Process done queue
+    for (idx, task) in done_file.tasks.iter().enumerate() {
+        match validation::validate_task_id(idx, &task.id, &expected_prefix, resolved.id_width) {
+            Ok(value) => {
+                if task.status != TaskStatus::Rejected && value > max_value {
+                    max_value = value;
+                }
+                if !seen_ids.insert(task.id.clone()) {
+                    duplicates.push(task.id.clone());
+                }
+            }
+            Err(e) => {
+                log::warn!("Invalid task ID in done: {}", e);
+            }
+        }
+    }
+
+    // Log duplicate warnings
+    if !duplicates.is_empty() {
+        log::warn!("Duplicate task IDs detected: {:?}", duplicates);
+        eprintln!(
+            "Warning: Found duplicate task IDs: {}",
+            duplicates.join(", ")
+        );
+    }
+
+    let next_value = max_value.saturating_add(1);
+    let first_id = queue::format_id(&expected_prefix, next_value, resolved.id_width);
 
     // Parse the numeric portion from the first ID
     let prefix_len = resolved.id_prefix.len() + 1; // +1 for the hyphen
