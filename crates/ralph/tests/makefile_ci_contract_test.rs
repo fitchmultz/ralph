@@ -358,8 +358,8 @@ fn test_macos_targets_gate_with_preflight_and_isolate_derived_data() -> Result<(
         "macos-test should run macos-preflight first"
     );
     assert!(
-        makefile.contains("macos-ci:\n\t@$(MAKE) --no-print-directory macos-preflight"),
-        "macos-ci should run macos-preflight first"
+        makefile.contains("macos-ci: macos-preflight"),
+        "macos-ci should depend on macos-preflight"
     );
     assert!(
         makefile.contains("derived_data_path=\"$(XCODE_DERIVED_DATA_ROOT)/build\""),

@@ -192,10 +192,6 @@ macos-test:
 macos-test-ui:
 	@$(MAKE) --no-print-directory macos-test RALPH_UI_TESTS=1
 
-macos-ci:
-	@$(MAKE) --no-print-directory macos-preflight
-	echo "→ macOS ship gate (Rust CI + macOS app build+test)..."; \
-	$(MAKE) --no-print-directory ci; \
-	$(MAKE) --no-print-directory macos-build; \
-	$(MAKE) --no-print-directory macos-test RALPH_UI_TESTS=0; \
-	echo "  ✓ macOS CI completed"
+macos-ci: macos-preflight ci macos-build macos-test
+	@echo "→ macOS ship gate (Rust CI + macOS app build+test)..."
+	@echo "  ✓ macOS CI completed"

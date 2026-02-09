@@ -2,46 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0805",
-      "status": "todo",
-      "title": "Fix `macos-ci` target ignoring failures from build and test steps",
-      "description": "The `macos-ci` target in the `Makefile` improperly chains sub-targets using `; \\` within a single shell block without `set -e`. This allows subsequent commands (including the final success echo) to execute even if `macos-build` or `macos-test` fails with a non-zero exit code. In the reported logs, `xcodebuild` failed with `Error 65`, yet the CI gate reported `✓ macOS CI completed` and the task was marked as done. This target must be refactored to either use proper `make` dependencies or ensure that any failure immediately halts execution and returns an error.",
-      "priority": "critical",
-      "tags": [
-        "bug",
-        "ci",
-        "makefile",
-        "macos-ci",
-        "reliability"
-      ],
-      "scope": [
-        "Makefile"
-      ],
-      "evidence": [
-        "User logs show 'make[1]: *** [macos-test] Error 65' followed by '✓ macOS CI completed'",
-        "Makefile lines 196-200 chain commands with ';' in a single shell block without 'set -e'"
-      ],
-      "plan": [
-        "Verify the issue by introducing a deliberate failure in `macos-test` and running `make macos-ci` locally",
-        "Refactor `macos-ci` in `Makefile` to use proper `make` dependencies: `macos-ci: macos-preflight ci macos-build macos-test` (note: macos-test needs to handle RALPH_UI_TESTS=0 correctly)",
-        "Ensure that `macos-test` and other sub-targets correctly return non-zero exit codes on failure",
-        "Verify that the final success message is only printed if all steps succeed",
-        "Perform a sweep of other targets in the `Makefile` to identify and fix similar failure-ignoring patterns",
-        "Run `make macos-ci` to verify the fix"
-      ],
-      "notes": [],
-      "request": "Investigate and figure out why something like in the logs below is not causing the CI gate to be triggered and a response sent to the damn runner. The configured CI gate for this project is set in .ralph/config.json and is 'make macos-ci' So why the fuck does the loop complete as if nothing happened and nothing went wrong when it's very clear the fucking CI gate is failing. I don't think this is happening with other configured CI gate commands like 'make ci'",
-      "created_at": "2026-02-09T17:39:18Z",
-      "updated_at": "2026-02-09T17:39:18Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "source": "user-request",
-        "priority_reason": "CI gate reporting false positives allows broken code to be merged"
-      }
-    },
-    {
       "id": "RQ-0803",
       "status": "todo",
       "title": "Enable Xcode warnings-as-errors in CI gate to prevent deprecation warnings",
@@ -86,9 +46,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "flag": "-warnings-as-errors=YES",
         "affected_targets": "macos-build, macos-test",
-        "source": "user-request"
+        "source": "user-request",
+        "flag": "-warnings-as-errors=YES"
       }
     },
     {
@@ -132,9 +92,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "source": "user-request",
+        "warning_type": "deprecated_api",
         "affected_files": "CrashReporter.swift",
-        "warning_type": "deprecated_api"
+        "source": "user-request"
       }
     },
     {
@@ -189,9 +149,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "source": "user-request",
         "failure_count": "50",
-        "affected_task": "RQ-0446",
-        "source": "user-request"
+        "affected_task": "RQ-0446"
       }
     },
     {
