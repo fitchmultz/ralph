@@ -163,8 +163,9 @@ macos-build:
 
 macos-test:
 	@$(MAKE) --no-print-directory macos-preflight
+	@$(MAKE) --no-print-directory build
 	@derived_data_path="$(XCODE_DERIVED_DATA_ROOT)/test"; \
-	ralph_bin_path="$$derived_data_path/Build/Products/Debug/RalphMac.app/Contents/MacOS/ralph"; \
+	ralph_bin_path="$$(pwd)/target/release/ralph"; \
 	echo "→ macOS tests (Xcode)..."; \
 	rm -rf "$$derived_data_path" 2>/dev/null || true; \
 	RALPH_BIN_PATH="$$ralph_bin_path" \

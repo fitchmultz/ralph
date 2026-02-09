@@ -101,7 +101,7 @@ fn lock_contention_blocks_second_process() -> Result<()> {
     });
 
     let got_signal =
-        test_support::wait_until(Duration::from_secs(10), Duration::from_millis(25), || {
+        test_support::wait_until(Duration::from_secs(10), Duration::from_millis(50), || {
             while let Ok(line) = rx.try_recv() {
                 if line.contains("LOCK_HELD") {
                     return true;
@@ -174,7 +174,7 @@ fn parallel_supervisor_prevents_second_supervisor() -> Result<()> {
     });
 
     let got_signal =
-        test_support::wait_until(Duration::from_secs(10), Duration::from_millis(25), || {
+        test_support::wait_until(Duration::from_secs(10), Duration::from_millis(50), || {
             while let Ok(line) = rx.try_recv() {
                 if line.contains("LOCK_HELD") {
                     return true;

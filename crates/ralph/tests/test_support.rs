@@ -226,6 +226,10 @@ pub fn git_init(dir: &Path) -> Result<()> {
 }
 
 /// Poll a condition until it succeeds or the timeout expires.
+///
+/// Uses adaptive polling: starts with the specified interval and exponentially
+/// backs off up to 100ms. This keeps fast tests fast while reducing CPU
+/// contention during longer waits.
 pub fn wait_until(
     timeout: Duration,
     poll_interval: Duration,
@@ -235,12 +239,17 @@ pub fn wait_until(
         return true;
     }
 
-    let poll_interval = poll_interval.max(Duration::from_millis(1));
+    // Adaptive polling: start fast, then back off
+    let mut interval = poll_interval.max(Duration::from_millis(1));
     let deadline = Instant::now() + timeout;
     while Instant::now() < deadline {
-        std::thread::sleep(poll_interval);
+        std::thread::sleep(interval);
         if condition() {
             return true;
+        }
+        // Exponential backoff up to 100ms
+        if interval < Duration::from_millis(100) {
+            interval = interval.saturating_mul(2).min(Duration::from_millis(100));
         }
     }
 

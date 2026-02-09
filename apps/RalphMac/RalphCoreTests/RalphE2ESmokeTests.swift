@@ -109,32 +109,23 @@ final class RalphE2ESmokeTests: XCTestCase {
         }
     }
 
-    func test_resolveRalphBinaryURL_fallbackEnabled_buildsDeterministically_withoutRealCargoBuild() throws {
+    func test_resolveRalphBinaryURL_fallbackEnabled_failsFastWithoutCargoBuild() throws {
         let tempDir = try Self.makeTempDir(prefix: "ralph-resolver-fallback-")
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
-        let candidate = tempDir
-            .appendingPathComponent("target", isDirectory: true)
-            .appendingPathComponent("debug", isDirectory: true)
-            .appendingPathComponent("ralph", isDirectory: false)
-        var didInvokeCargoBuilder = false
-
-        let resolved = try Self.resolveRalphBinaryURL(
-            environment: [Self.allowCargoBuildEnvKey: "1"],
-            repoRoot: tempDir,
-            bundledBinaryURL: nil,
-            cargoBuilder: { _ in
-                didInvokeCargoBuilder = true
-                try FileManager.default.createDirectory(
-                    at: candidate.deletingLastPathComponent(),
-                    withIntermediateDirectories: true
-                )
-                try Self.writeExecutableScript(at: candidate)
-            }
-        )
-
-        XCTAssertTrue(didInvokeCargoBuilder)
-        XCTAssertEqual(resolved.path, candidate.path)
+        // With the env var set but no binary present, it should still fail fast
+        // (no opportunistic cargo builds during tests)
+        XCTAssertThrowsError(
+            try Self.resolveRalphBinaryURL(
+                environment: [Self.allowCargoBuildEnvKey: "1"],
+                repoRoot: tempDir,
+                bundledBinaryURL: nil
+            )
+        ) { error in
+            let message = String(describing: error)
+            XCTAssertTrue(message.contains(Self.binaryPathEnvKey))
+            XCTAssertTrue(message.contains("make build") || message.contains("RALPH_BIN_PATH"))
+        }
     }
 
     private struct Collected {
@@ -170,7 +161,8 @@ final class RalphE2ESmokeTests: XCTestCase {
         timeoutSeconds: TimeInterval
     ) async -> Collected {
         await withTaskGroup(of: Collected?.self) { group in
-            group.addTask {
+            // Track which task produced the result for proper cleanup
+            let mainTask = group.addTask {
                 var stdout = ""
                 var stderr = ""
                 for await event in run.events {
@@ -192,6 +184,8 @@ final class RalphE2ESmokeTests: XCTestCase {
                     return nil
                 }
                 run.cancel()
+                // Wait a brief moment for cancellation to propagate
+                try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
                 let command = arguments.joined(separator: " ")
                 return Collected(
                     status: RalphCLIExitStatus(code: -1, reason: .exit),
@@ -200,13 +194,16 @@ final class RalphE2ESmokeTests: XCTestCase {
                 )
             }
 
+            var result: Collected? = nil
             while let next = await group.next() {
-                guard let result = next else { continue }
-                group.cancelAll()
-                return result
+                if let collected = next {
+                    result = collected
+                    group.cancelAll()
+                    break
+                }
             }
-
-            return Collected(
+            
+            return result ?? Collected(
                 status: RalphCLIExitStatus(code: -1, reason: .exit),
                 stdout: "",
                 stderr: "Internal test error: timeout race produced no result."
@@ -261,28 +258,11 @@ final class RalphE2ESmokeTests: XCTestCase {
             .appendingPathComponent("debug", isDirectory: true)
             .appendingPathComponent("ralph", isDirectory: false)
 
-        if FileManager.default.isExecutableFile(atPath: candidate.path) {
-            return candidate
-        }
-
-        if let cargoBuilder {
-            try cargoBuilder(root)
-        } else {
-            try runBlocking(
-                executableURL: URL(fileURLWithPath: "/usr/bin/env"),
-                arguments: ["cargo", "build", "-p", "ralph"],
-                currentDirectoryURL: root
-            )
-        }
-
-        guard FileManager.default.isExecutableFile(atPath: candidate.path) else {
-            throw resolverError(
-                "Fallback cargo build did not produce an executable at \(candidate.path). " +
-                    "Set \(binaryPathEnvKey) explicitly to a valid binary path."
-            )
-        }
-
-        return candidate
+        // FAIL FAST - never build during tests
+        throw resolverError(
+            "Missing ralph binary at \(candidate.path). " +
+            "Run 'make build' before tests, or set \(binaryPathEnvKey) to a valid binary."
+        )
     }
 
     private static func resolverError(_ message: String) -> NSError {

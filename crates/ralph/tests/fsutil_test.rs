@@ -224,9 +224,9 @@ fn test_write_atomic_idempotent() {
 
     // Write the same content multiple times
     fsutil::write_atomic(&file_path, contents).unwrap();
-    thread::sleep(Duration::from_millis(10)); // Ensure different timestamp
+    thread::sleep(Duration::from_millis(50)); // Ensure different timestamp
     fsutil::write_atomic(&file_path, contents).unwrap();
-    thread::sleep(Duration::from_millis(10));
+    thread::sleep(Duration::from_millis(50));
     fsutil::write_atomic(&file_path, contents).unwrap();
 
     let read_contents = fs::read(&file_path).unwrap();

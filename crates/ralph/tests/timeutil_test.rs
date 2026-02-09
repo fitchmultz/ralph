@@ -139,7 +139,7 @@ fn test_fallback_constant_format() {
 #[test]
 fn test_now_utc_rfc3339_idempotent() {
     let timestamp1 = timeutil::now_utc_rfc3339().unwrap();
-    thread::sleep(Duration::from_millis(10));
+    thread::sleep(Duration::from_millis(50));
     let timestamp2 = timeutil::now_utc_rfc3339().unwrap();
 
     // Same format, different times

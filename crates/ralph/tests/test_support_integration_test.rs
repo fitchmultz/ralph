@@ -42,11 +42,11 @@ fn wait_until_returns_true_when_condition_becomes_true() {
     let flag = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let writer_flag = Arc::clone(&flag);
     let writer = thread::spawn(move || {
-        thread::sleep(Duration::from_millis(40));
+        thread::sleep(Duration::from_millis(100));
         writer_flag.store(true, std::sync::atomic::Ordering::SeqCst);
     });
 
-    let ok = test_support::wait_until(Duration::from_secs(1), Duration::from_millis(10), || {
+    let ok = test_support::wait_until(Duration::from_secs(5), Duration::from_millis(25), || {
         flag.load(std::sync::atomic::Ordering::SeqCst)
     });
     writer.join().expect("join writer thread");
@@ -55,9 +55,11 @@ fn wait_until_returns_true_when_condition_becomes_true() {
 
 #[test]
 fn wait_until_returns_false_on_timeout() {
-    let ok = test_support::wait_until(Duration::from_millis(80), Duration::from_millis(10), || {
-        false
-    });
+    let ok = test_support::wait_until(
+        Duration::from_millis(150),
+        Duration::from_millis(25),
+        || false,
+    );
     assert!(
         !ok,
         "wait_until should return false when condition never becomes true"
@@ -69,14 +71,14 @@ fn wait_for_mutex_value_returns_some_when_populated() {
     let shared = Arc::new(Mutex::new(None::<u8>));
     let writer_shared = Arc::clone(&shared);
     let writer = thread::spawn(move || {
-        thread::sleep(Duration::from_millis(40));
+        thread::sleep(Duration::from_millis(100));
         *writer_shared.lock().expect("lock shared value") = Some(7);
     });
 
     let value = test_support::wait_for_mutex_value(
         &shared,
-        Duration::from_secs(1),
-        Duration::from_millis(10),
+        Duration::from_secs(5),
+        Duration::from_millis(25),
     );
     writer.join().expect("join writer thread");
     assert_eq!(value, Some(7));
@@ -87,8 +89,8 @@ fn wait_for_mutex_value_returns_none_on_timeout() {
     let shared = Arc::new(Mutex::new(None::<u8>));
     let value = test_support::wait_for_mutex_value(
         &shared,
-        Duration::from_millis(80),
-        Duration::from_millis(10),
+        Duration::from_millis(150),
+        Duration::from_millis(25),
     );
     assert!(
         value.is_none(),

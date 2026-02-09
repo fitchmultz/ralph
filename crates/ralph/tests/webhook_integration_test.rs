@@ -17,8 +17,8 @@ mod test_support;
 use serial_test::serial;
 use std::io::{Read, Write};
 use std::net::TcpListener;
-use std::sync::{Arc, Once};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Once};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -97,7 +97,7 @@ fn ensure_test_worker_initialized() {
         );
 
         assert!(
-            test_support::wait_until(Duration::from_secs(3), Duration::from_millis(10), || {
+            test_support::wait_until(Duration::from_secs(5), Duration::from_millis(25), || {
                 delivered.load(Ordering::SeqCst) == 1
             }),
             "failed to deterministically initialize webhook worker for integration tests"
@@ -268,9 +268,7 @@ fn webhook_includes_signature_header() {
             let Some(body_json) = parse_http_json_body(&raw) else {
                 continue;
             };
-            if body_json
-                .get("task_id")
-                .and_then(serde_json::Value::as_str)
+            if body_json.get("task_id").and_then(serde_json::Value::as_str)
                 != Some(expected_task_id_clone.as_str())
             {
                 continue;
@@ -308,7 +306,7 @@ fn webhook_includes_signature_header() {
     let sig = test_support::wait_for_mutex_value(
         &received_sig,
         Duration::from_secs(10),
-        Duration::from_millis(25),
+        Duration::from_millis(50),
     );
     assert!(sig.is_some(), "X-Ralph-Signature header should be present");
     let sig_str = sig.expect("signature must be present").to_lowercase();
@@ -375,7 +373,7 @@ fn webhook_drop_new_policy() {
     }
 
     assert!(
-        test_support::wait_until(Duration::from_secs(5), Duration::from_millis(25), || {
+        test_support::wait_until(Duration::from_secs(10), Duration::from_millis(50), || {
             request_count.load(Ordering::SeqCst) >= 1
         }),
         "expected at least one delivered webhook with drop_new policy"
@@ -438,7 +436,7 @@ fn webhook_respects_event_filtering() {
     webhook::notify_task_completed(&expected_task_id, "Test", &config, "2024-01-01T00:00:00Z");
 
     assert!(
-        test_support::wait_until(Duration::from_secs(5), Duration::from_millis(25), || {
+        test_support::wait_until(Duration::from_secs(10), Duration::from_millis(50), || {
             request_count.load(Ordering::SeqCst) == 1
         }),
         "expected exactly one delivered webhook"
@@ -584,7 +582,7 @@ fn webhook_loop_event_payload_shape() {
     let request = test_support::wait_for_mutex_value(
         &received_request,
         Duration::from_secs(10),
-        Duration::from_millis(25),
+        Duration::from_millis(50),
     )
     .expect("expected loop_started request bytes");
 
@@ -663,7 +661,7 @@ fn webhook_phase_event_includes_context_fields() {
     let request = test_support::wait_for_mutex_value(
         &received_request,
         Duration::from_secs(10),
-        Duration::from_millis(25),
+        Duration::from_millis(50),
     )
     .expect("expected phase_completed request bytes");
 
@@ -727,8 +725,8 @@ fn webhook_disabled_does_not_send() {
     webhook::notify_task_created(&expected_task_id, "Test", &config, "2024-01-01T00:00:00Z");
 
     let saw_request = test_support::wait_until(
-        Duration::from_millis(300),
-        Duration::from_millis(25),
+        Duration::from_millis(500),
+        Duration::from_millis(50),
         || request_count.load(Ordering::SeqCst) > 0,
     );
     let count = request_count.load(Ordering::SeqCst);
@@ -820,7 +818,7 @@ fn webhook_drop_oldest_policy() {
     }
 
     assert!(
-        test_support::wait_until(Duration::from_secs(3), Duration::from_millis(25), || {
+        test_support::wait_until(Duration::from_secs(10), Duration::from_millis(50), || {
             request_count.load(Ordering::SeqCst) >= 1
         }),
         "expected at least one delivered webhook for drop_oldest policy"

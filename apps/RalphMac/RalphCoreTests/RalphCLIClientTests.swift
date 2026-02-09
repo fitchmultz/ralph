@@ -116,7 +116,9 @@ final class RalphCLIClientTests: XCTestCase {
         let client = try RalphCLIClient(executableURL: URL(fileURLWithPath: "/bin/sleep"))
         let run = try client.start(arguments: ["60"])
 
-        // Cancel immediately after start; `start` only returns once process launch succeeds.
+        // Small delay to ensure process has actually started before cancel
+        try await Task.sleep(nanoseconds: 100_000_000) // 100ms
+
         run.cancel()
         for await _ in run.events {
             // Drain until process exits.

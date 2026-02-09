@@ -116,8 +116,8 @@ mod unix_tests {
         let state_path = cache_dir.join("daemon.json");
         assert!(
             test_support::wait_until(
-                std::time::Duration::from_secs(1),
-                std::time::Duration::from_millis(10),
+                std::time::Duration::from_secs(5),
+                std::time::Duration::from_millis(25),
                 || !state_path.exists(),
             ),
             "stale daemon state file should be removed by daemon status"

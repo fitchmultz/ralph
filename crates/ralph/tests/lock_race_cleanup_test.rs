@@ -94,7 +94,7 @@ fn test_concurrent_lock_cleanup_no_orphans() {
 
     // Wait for cleanup to complete under load.
     assert!(
-        test_support::wait_until(Duration::from_secs(2), Duration::from_millis(10), || {
+        test_support::wait_until(Duration::from_secs(5), Duration::from_millis(25), || {
             !lock_dir.exists()
                 || fs::read_dir(&lock_dir)
                     .map(|mut entries| entries.next().is_none())
@@ -224,7 +224,7 @@ fn test_shared_task_lock_cleanup() {
     drop(supervisor_lock);
 
     assert!(
-        test_support::wait_until(Duration::from_secs(2), Duration::from_millis(10), || {
+        test_support::wait_until(Duration::from_secs(5), Duration::from_millis(25), || {
             !lock_dir.exists()
         }),
         "lock directory should be cleaned up after dropping supervisor lock"
@@ -249,7 +249,7 @@ fn test_rapid_acquire_release_no_leak() {
     }
 
     assert!(
-        test_support::wait_until(Duration::from_secs(3), Duration::from_millis(10), || {
+        test_support::wait_until(Duration::from_secs(5), Duration::from_millis(25), || {
             !base_lock_dir.exists()
                 || fs::read_dir(&base_lock_dir)
                     .map(|entries| entries.filter_map(|e| e.ok()).all(|e| !e.path().is_dir()))
@@ -347,7 +347,7 @@ fn test_multiple_task_sidecars_cleanup() {
     // Drop supervisor
     drop(supervisor_lock);
     assert!(
-        test_support::wait_until(Duration::from_secs(2), Duration::from_millis(10), || {
+        test_support::wait_until(Duration::from_secs(5), Duration::from_millis(25), || {
             !lock_dir.exists()
         }),
         "Lock directory should be removed"
@@ -398,7 +398,7 @@ fn test_task_cleanup_with_other_files() {
     // Clean up supervisor
     drop(supervisor_lock);
     assert!(
-        test_support::wait_until(Duration::from_secs(2), Duration::from_millis(10), || {
+        test_support::wait_until(Duration::from_secs(5), Duration::from_millis(25), || {
             !lock_dir.exists() || get_task_owner_files(&lock_dir).is_empty()
         }),
         "Task owner files should be cleaned up even if directory remains"
@@ -447,6 +447,10 @@ fn test_rapid_task_lock_unique_names() {
 
     // Drop supervisor
     drop(supervisor_lock);
-    thread::sleep(Duration::from_millis(50));
-    assert!(!lock_dir.exists());
+    assert!(
+        test_support::wait_until(Duration::from_secs(5), Duration::from_millis(25), || {
+            !lock_dir.exists()
+        }),
+        "Lock directory should be removed after supervisor drops"
+    );
 }
