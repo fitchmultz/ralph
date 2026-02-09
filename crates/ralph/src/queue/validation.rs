@@ -288,7 +288,7 @@ fn ensure_list_valid(label: &str, index: usize, id: &str, values: &[String]) -> 
     Ok(())
 }
 
-pub(super) fn validate_task_id(
+pub(crate) fn validate_task_id(
     index: usize,
     raw_id: &str,
     expected_prefix: &str,

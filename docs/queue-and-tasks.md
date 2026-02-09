@@ -231,7 +231,9 @@ Validation warnings are logged during queue operations. Review them with `ralph 
 
 ## Task ID Validation
 
-Ralph enforces unique task IDs across both `.ralph/queue.json` and `.ralph/done.json`. Duplicate IDs will cause validation errors.
+Ralph enforces unique task IDs across **both** `.ralph/queue.json` **AND** `.ralph/done.json`. Duplicate IDs will cause validation errors and block most queue operations.
+
+> **Important:** Completed task IDs in `done.json` remain "claimed" and are included in uniqueness checks. Even though tasks are archived, their IDs cannot be reused for new tasks to prevent collisions with historical references.
 
 ### Duplicate Task ID Errors
 

@@ -21,37 +21,98 @@
         ".ralph/README.md"
       ],
       "evidence": [
-        "User report: \"I had a duplicate task ID so I tried to run this command to see what the next ID was to switch the duplicate and it gave me an error\"",
-        "next_id.rs line 44: calls load_and_validate_queues(resolved, true) which validates queue and will error on duplicates",
-        "docs/queue-and-tasks.md section on Duplicate Task ID Errors shows the intended workflow: use next-id to fix collisions",
-        ".ralph/README.md lines 15-23: Documents the duplicate ID error and the fix workflow using next-id"
+        "next_id.rs lines 50-52: Uses load_queue_or_default() instead of load_and_validate_queues() for graceful duplicate handling",
+        "next_id.rs lines 54-101: Implements duplicate detection with warning output while still returning valid next ID",
+        "next_id.rs lines 94-101: Logs duplicate warnings to stderr but continues operation",
+        "docs/queue-and-tasks.md lines 232-272: Task ID Validation section documents that IDs must be unique across both queue.json AND done.json",
+        ".ralph/README.md lines 15-23: Documents duplicate ID error workflow using next-id command",
+        "queue.rs lines 345-380: next_id_across() function validates and finds max ID across both queues"
       ],
       "plan": [
-        "Modify next_id.rs to handle duplicate ID errors gracefully:",
-        "  - Instead of failing on validation errors, extract existing IDs from both queue.json and done.json",
-        "  - Find the maximum ID number even when duplicates exist",
-        "  - Return the next sequential ID based on max found",
-        "  - Optionally warn about duplicates found while still returning the next ID",
-        "Update docs/queue-and-tasks.md Task ID Validation section:",
+        "Verify next_id.rs duplicate handling implementation:",
+        "  - Confirm load_queue_or_default() is used (not load_and_validate_queues)",
+        "  - Verify duplicates are detected and warned but don't block ID generation",
+        "  - Confirm max_value is correctly calculated even with duplicates present",
+        "Add tests for next-id with duplicate IDs scenario:",
+        "  - Test that next-id returns correct next ID even when duplicates exist in queue.json",
+        "  - Test that next-id considers done.json IDs even when queue has errors",
+        "  - Test that appropriate warnings are printed to stderr",
+        "Verify docs/queue-and-tasks.md Task ID Validation section is accurate:",
         "  - Explicitly state that task IDs must be unique across BOTH queue.json AND done.json",
         "  - Clarify that completed task IDs in done.json are included in uniqueness checks",
-        "  - Ensure the \"Fixing ID Collisions\" section is clear and accurate",
-        "Update .ralph/README.md Duplicate Task ID Error section if needed for consistency",
-        "Add tests for next-id with duplicate IDs scenario:",
-        "  - Test that next-id returns correct next ID even when duplicates exist",
-        "  - Test that next-id considers done.json IDs even when queue has errors",
-        "Run make ci to verify all tests pass"
+        "  - Ensure the 'Fixing ID Collisions' section is clear and accurate",
+        "Verify .ralph/README.md Duplicate Task ID Error section for consistency",
+        "Run make macos-ci to verify all tests pass"
       ],
-      "notes": [],
+      "notes": [
+        "Code implementation already handles duplicates gracefully - uses load_queue_or_default() and detects duplicates without failing",
+        "Module docs in next_id.rs updated to reflect graceful degradation behavior",
+        "Tests for duplicate scenarios may still need to be added per the plan"
+      ],
       "request": "The \"ralph queue next-id\" command is flawed. I had a duplicate task ID so I tried to run this command to see what the next ID was to switch the duplicate and it gave me an error. This command should work properly even if the queue is invalid with duplicate IDs so the user can find the proper next ID to update the errant ID. We should also ensure the docs are clear that duplicate IDs are NOT allowed and that completed task IDs in the done.json file are included in the checks for duplicate IDs. Task IDs must be unique across both queue.json and done.json.",
       "created_at": "2026-02-09T14:41:29Z",
-      "updated_at": "2026-02-09T15:50:49.000284000Z",
+      "updated_at": "2026-02-09T16:27:12.941762000Z",
       "started_at": "2026-02-09T15:50:49.000284000Z",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
         "source": "user-request"
+      }
+    },
+    {
+      "id": "RQ-0801",
+      "status": "todo",
+      "title": "Fix session resume to handle dirty repo check before retry loop",
+      "description": "When resuming an incomplete session via `ralph run loop`, the system gets stuck in an infinite retry loop if the repo is dirty. The run loop detects the incomplete session, prompts the user to resume, but then immediately fails with 'repo is dirty' error. Instead of stopping gracefully or prompting to clean the repo, it retries the same task 50 times (the consecutive failure limit) with the same error each time before finally aborting.\n\nThe session resume logic should:\n1. Check repo cleanliness BEFORE attempting to resume a session, OR\n2. Treat 'repo is dirty' as a non-retryable error that immediately stops the loop with a clear message, OR\n3. Re-prompt the user to clean the repo after the first failure\n\nCurrently, the loop wastes 50 retry attempts on an error that cannot self-resolve, providing poor UX and delaying the actual fix (cleaning the repo).",
+      "priority": "high",
+      "tags": [
+        "bug",
+        "run-loop",
+        "session-resume",
+        "repo-dirty",
+        "retry-logic",
+        "ux"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/run_loop.rs",
+        "crates/ralph/src/commands/run/run_one/orchestration.rs",
+        "crates/ralph/src/commands/run/phases/mod.rs",
+        "crates/ralph/src/git.rs"
+      ],
+      "evidence": [
+        "Log shows incomplete session detected for RQ-0446 (Phase 1, 0/1 iterations)",
+        "User chose to resume the session",
+        "Run loop immediately fails with 'repo is dirty; commit/stash your changes before running Ralph'",
+        "Error repeats 50 times with identical dirty repo status (same 5 tracked files + 1 untracked file)",
+        "Each retry selects RQ-0446 and resolves same phase settings (Phase 1/2/3 with Kimi/kimi-code)",
+        "Loop aborts only after hitting 50 consecutive failure limit",
+        "Log message: 'RunLoop: aborting after 50 consecutive failures'",
+        "Log message: 'Run loop aborted after 50 consecutive task failures. This usually indicates a systemic issue (e.g., repo dirty, runner misconfiguration, or interrupt flag stuck).'",
+        "User is frustrated because session resume offers no value if it just fails repeatedly without guidance"
+      ],
+      "plan": [
+        "Analyze run_loop.rs retry logic to understand how consecutive failures are handled",
+        "Identify where the 'repo is dirty' error is generated (likely in git.rs or early in run_one)",
+        "Determine best fix approach: pre-flight check vs non-retryable error classification",
+        "Implement fix: Add repo cleanliness check before session resume, OR classify dirty repo as fatal/non-retryable",
+        "Add user-friendly message when session resume is blocked by dirty repo",
+        "Write tests for session resume with dirty repo scenario",
+        "Verify fix by simulating: 1) Start task 2) Interrupt 3) Dirty repo 4) Resume attempt 5) Should fail gracefully with clear message, not 50 retries"
+      ],
+      "notes": [
+        "Consider adding 'Use --force to bypass' suggestion in the error message",
+        "May need to distinguish between recoverable errors (network, timeouts) vs non-recoverable (dirty repo, config errors)",
+        "Session ID format: {task_id}-p{phase}-{timestamp} (e.g., RQ-0446-p1-1704153600)"
+      ],
+      "request": "What is the point of being able to resume a failed session if it doesnt work? See logs below: [logs showing 50 consecutive 'repo is dirty' failures when attempting to resume session for RQ-0446]",
+      "created_at": "2026-02-09T16:33:59Z",
+      "updated_at": "2026-02-09T16:33:59Z",
+      "depends_on": [],
+      "custom_fields": {
+        "source": "user-request",
+        "affected_task": "RQ-0446",
+        "failure_count": "50"
       }
     },
     {
