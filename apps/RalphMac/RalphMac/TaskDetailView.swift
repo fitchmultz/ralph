@@ -286,6 +286,7 @@ struct TaskDetailView: View {
     @ViewBuilder
     private func relationshipsSection() -> some View {
         let allTaskIDs = workspace.tasks.map { $0.id }.filter { $0 != task.id }
+        let existingEdges = buildExistingEdges()
 
         glassGroupBox("Relationships") {
             VStack(alignment: .leading, spacing: 16) {
@@ -298,7 +299,9 @@ struct TaskDetailView: View {
                             set: { draftTask.dependsOn = $0.isEmpty ? nil : $0 }
                         ),
                         allTaskIDs: allTaskIDs,
-                        currentTaskID: task.id
+                        currentTaskID: task.id,
+                        edgeType: .dependency,
+                        existingEdges: existingEdges
                     )
                 }
 
@@ -311,7 +314,9 @@ struct TaskDetailView: View {
                             set: { draftTask.blocks = $0.isEmpty ? nil : $0 }
                         ),
                         allTaskIDs: allTaskIDs,
-                        currentTaskID: task.id
+                        currentTaskID: task.id,
+                        edgeType: .blocks,
+                        existingEdges: existingEdges
                     )
                 }
 
@@ -324,7 +329,9 @@ struct TaskDetailView: View {
                             set: { draftTask.relatesTo = $0.isEmpty ? nil : $0 }
                         ),
                         allTaskIDs: allTaskIDs,
-                        currentTaskID: task.id
+                        currentTaskID: task.id,
+                        edgeType: .relatesTo,
+                        existingEdges: existingEdges
                     )
                 }
 
@@ -487,6 +494,31 @@ struct TaskDetailView: View {
         // Used to check if we're currently editing a field that was just added
         // This helps with conditional display of optional array fields
         false
+    }
+    
+    /// Builds the complete set of edges from all tasks in the workspace
+    /// Used for cycle detection in TaskRelationshipPicker
+    private func buildExistingEdges() -> [GraphEdge] {
+        var edges: [GraphEdge] = []
+        
+        for task in workspace.tasks {
+            // Depends on relationships (current task depends on others)
+            for depId in task.dependsOn ?? [] {
+                edges.append(GraphEdge(from: task.id, to: depId, type: .dependency))
+            }
+            
+            // Blocks relationships (current task blocks others)
+            for blockedId in task.blocks ?? [] {
+                edges.append(GraphEdge(from: task.id, to: blockedId, type: .blocks))
+            }
+            
+            // Relates to relationships (bidirectional)
+            for relatedId in task.relatesTo ?? [] where task.id < relatedId {
+                edges.append(GraphEdge(from: task.id, to: relatedId, type: .relatesTo))
+            }
+        }
+        
+        return edges
     }
 }
 

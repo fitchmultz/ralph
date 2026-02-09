@@ -34,6 +34,9 @@ struct DependencyGraphView: View {
     @State private var isDraggingCanvas = false
     @State private var lastDragLocation: CGPoint?
     @State private var simulationRunning = false
+    @State private var cycleResult: CycleDetectionResult = .noCycles
+    @State private var edgesInCycles: Set<GraphEdge.ID> = []
+    @State private var pulsePhase: TimeInterval = 0
     
     // MARK: - Constants
     private let nodeWidth: CGFloat = 140
@@ -76,6 +79,12 @@ struct DependencyGraphView: View {
         } message: {
             Text(workspace.graphDataErrorMessage ?? "")
         }
+        .onReceive(Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()) { _ in
+            // Update pulse phase for cycle edge animation
+            if !edgesInCycles.isEmpty {
+                pulsePhase = Date().timeIntervalSince1970
+            }
+        }
     }
     
     @ViewBuilder
@@ -115,6 +124,12 @@ struct DependencyGraphView: View {
                 handleCanvasTap(at: location, in: geometry)
             }
             
+            // Cycle Warning Banner
+            if cycleResult.hasCycle {
+                cycleWarningBanner()
+                    .position(x: geometry.size.width / 2, y: 40)
+            }
+            
             // Overlay Controls
             VStack {
                 HStack {
@@ -135,6 +150,32 @@ struct DependencyGraphView: View {
                 Text("Task Relationships")
                     .font(.headline)
                     .padding(.horizontal)
+                
+                // Accessible cycle warning
+                if cycleResult.hasCycle {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("Warning: Circular Dependencies Detected", systemImage: "exclamationmark.triangle.fill")
+                            .font(.subheadline.bold())
+                            .foregroundStyle(.red)
+                        
+                        ForEach(Array(cycleResult.cycles.prefix(3).enumerated()), id: \.offset) { _, cycle in
+                            if cycle.count == 1 {
+                                Text("Self-loop: \(cycle[0])")
+                                    .font(.caption)
+                                    .monospaced()
+                            } else {
+                                Text(cycle.joined(separator: " → ") + " → " + cycle[0])
+                                    .font(.caption)
+                                    .monospaced()
+                            }
+                        }
+                    }
+                    .padding()
+                    .background(Color.red.opacity(0.1))
+                    .cornerRadius(8)
+                    .padding(.horizontal)
+                    .accessibilityLabel("Warning: Circular dependencies detected in the graph")
+                }
                 
                 if nodes.isEmpty {
                     Text("No tasks to display")
@@ -266,6 +307,10 @@ struct DependencyGraphView: View {
             }
         }
         
+        // Detect cycles after edge creation
+        cycleResult = GraphAlgorithms.detectCycles(edges: edges)
+        edgesInCycles = GraphAlgorithms.edgesInCycles(edges: edges)
+        
         // Start force-directed simulation
         startSimulation()
     }
@@ -383,25 +428,45 @@ struct DependencyGraphView: View {
         path.move(to: fromPoint)
         path.addLine(to: toPoint)
         
+        // Check if this edge is part of a cycle
+        let isInCycle = edgesInCycles.contains(edge.id)
+        
         var strokeStyle = StrokeStyle(lineWidth: 2 * scale)
         let color: Color
         
         switch edge.type {
         case .dependency:
-            color = fromNode.task.isCritical && toNode.task.isCritical ? .red : .gray
+            if isInCycle {
+                color = .red
+                strokeStyle = StrokeStyle(lineWidth: 3 * scale)
+            } else {
+                color = fromNode.task.isCritical && toNode.task.isCritical ? .red : .gray
+            }
         case .blocks:
-            color = .orange
-            strokeStyle = StrokeStyle(lineWidth: 2 * scale, dash: [5, 5])
+            if isInCycle {
+                color = .red
+                strokeStyle = StrokeStyle(lineWidth: 3 * scale, dash: [5, 5])
+            } else {
+                color = .orange
+                strokeStyle = StrokeStyle(lineWidth: 2 * scale, dash: [5, 5])
+            }
         case .relatesTo:
             color = .blue.opacity(0.5)
             strokeStyle = StrokeStyle(lineWidth: 1 * scale, dash: [3, 3])
         }
         
-        context.stroke(path, with: .color(color), style: strokeStyle)
+        // Apply pulsing animation for cycle edges
+        if isInCycle {
+            let pulseOpacity = 0.5 + 0.5 * sin(pulsePhase * 4)
+            context.stroke(path, with: .color(color.opacity(pulseOpacity)), style: strokeStyle)
+        } else {
+            context.stroke(path, with: .color(color), style: strokeStyle)
+        }
         
         // Draw arrow head for dependencies
         if edge.type == .dependency {
-            drawArrowHead(from: fromPoint, to: toPoint, in: &context, color: color)
+            let arrowColor = isInCycle ? Color.red.opacity(0.5 + 0.5 * sin(pulsePhase * 4)) : color
+            drawArrowHead(from: fromPoint, to: toPoint, in: &context, color: arrowColor)
         }
     }
     
@@ -548,6 +613,12 @@ struct DependencyGraphView: View {
                 .font(.caption)
                 .foregroundStyle(.red)
                 .accessibilityLabel("Critical path indicator")
+            if cycleResult.hasCycle {
+                Label("Cycle Edge", systemImage: "exclamationmark.circle")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .accessibilityLabel("Cycle edge indicator")
+            }
         }
         .padding(8)
         .background(.ultraThinMaterial)
@@ -555,6 +626,50 @@ struct DependencyGraphView: View {
     }
     
     // MARK: - Helpers
+    
+    // MARK: - Cycle Warning
+    
+    @ViewBuilder
+    private func cycleWarningBanner() -> some View {
+        VStack(spacing: 4) {
+            HStack {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.white)
+                Text("Circular Dependencies Detected")
+                    .font(.subheadline.bold())
+                    .foregroundStyle(.white)
+            }
+            
+            // Show each detected cycle (limit to first 3 to avoid overwhelming UI)
+            ForEach(Array(cycleResult.cycles.prefix(3).enumerated()), id: \.offset) { _, cycle in
+                if cycle.count == 1 {
+                    // Self-loop
+                    Text("\(cycle[0]) → \(cycle[0])")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.9))
+                        .monospaced()
+                } else {
+                    // Multi-node cycle
+                    Text(cycle.joined(separator: " → ") + " → " + cycle[0])
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.9))
+                        .monospaced()
+                }
+            }
+            
+            if cycleResult.cycles.count > 3 {
+                Text("... and \(cycleResult.cycles.count - 3) more")
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.7))
+            }
+        }
+        .padding()
+        .background(Color.red.opacity(0.9))
+        .cornerRadius(8)
+        .shadow(radius: 4)
+        .accessibilityLabel("Warning: Circular dependencies detected")
+        .accessibilityHint("The dependency graph contains cycles that should be resolved")
+    }
     
     private func statusColor(_ status: RalphTaskStatus?) -> Color {
         guard let status = status else { return .gray }

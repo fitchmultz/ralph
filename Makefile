@@ -4,9 +4,11 @@ BIN_DIR ?= $(PREFIX)/bin
 BIN_NAME ?= ralph
 CARGO_HTTP_MULTIPLEXING ?= false
 XCODE_DERIVED_DATA_ROOT ?= target/tmp/xcode-deriveddata
+# UI tests: Set to 1 to include UI tests (headed, mouse-interactive), 0 to skip (default for CI)
+RALPH_UI_TESTS ?= 0
 
 .PHONY: install update lint lint-fix format type-check clean clean-temp test generate build ci deps \
-	check-env-safety check-backup-artifacts macos-preflight macos-build macos-test macos-ci
+	check-env-safety check-backup-artifacts macos-preflight macos-build macos-test macos-ci macos-test-ui
 
 # Optional but cheap: fail fast if lockfile or network access is busted
 deps:
@@ -166,7 +168,14 @@ macos-test:
 	@$(MAKE) --no-print-directory build
 	@derived_data_path="$(XCODE_DERIVED_DATA_ROOT)/test"; \
 	ralph_bin_path="$$(pwd)/target/release/ralph"; \
-	echo "→ macOS tests (Xcode)..."; \
+	include_ui_tests="$(RALPH_UI_TESTS)"; \
+	if [ "$$include_ui_tests" = "1" ]; then \
+		echo "→ macOS tests (Xcode, including UI tests - will take over mouse/keyboard)..."; \
+		skipped_tests=""; \
+	else \
+		echo "→ macOS tests (Xcode, skipping UI tests - use RALPH_UI_TESTS=1 to include)..."; \
+		skipped_tests="-skip-testing RalphMacUITests"; \
+	fi; \
 	rm -rf "$$derived_data_path" 2>/dev/null || true; \
 	RALPH_BIN_PATH="$$ralph_bin_path" \
 	xcodebuild \
@@ -176,12 +185,17 @@ macos-test:
 		-destination 'platform=macOS' \
 		-derivedDataPath "$$derived_data_path" \
 		CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+		$$skipped_tests \
 		test
+
+# Run macOS UI tests (interactive - will take over mouse/keyboard)
+macos-test-ui:
+	@$(MAKE) --no-print-directory macos-test RALPH_UI_TESTS=1
 
 macos-ci:
 	@$(MAKE) --no-print-directory macos-preflight
 	echo "→ macOS ship gate (Rust CI + macOS app build+test)..."; \
 	$(MAKE) --no-print-directory ci; \
 	$(MAKE) --no-print-directory macos-build; \
-	$(MAKE) --no-print-directory macos-test; \
+	$(MAKE) --no-print-directory macos-test RALPH_UI_TESTS=0; \
 	echo "  ✓ macOS CI completed"

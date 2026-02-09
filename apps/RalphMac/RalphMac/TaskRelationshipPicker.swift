@@ -4,11 +4,15 @@
  Responsibilities:
  - Display and edit task relationship arrays (dependsOn, blocks, relatesTo).
  - Provide a picker to select from available tasks.
- - Prevent self-referencing and duplicates.
+ - Prevent self-referencing, duplicates, and circular dependencies.
 
  Does not handle:
- - Circular dependency detection.
- - Relationship validation beyond basic checks.
+ - Direct persistence (handled by parent view).
+ - Complex multi-hop cycle validation (uses simplified cycle detection).
+
+ Invariants/assumptions callers must respect:
+ - existingEdges should represent the current state of all task relationships.
+ - edgeType determines the direction and semantics of the relationship.
  */
 
 import SwiftUI
@@ -20,11 +24,42 @@ struct TaskRelationshipPicker: View {
     let allTaskIDs: [String]
     let currentTaskID: String
     
-    @State private var selectedTaskID: String = ""
+    // NEW: Edge type and existing edges for cycle detection
+    let edgeType: GraphEdge.EdgeType
+    let existingEdges: [GraphEdge]
     
-    // Filter out current task and already-selected tasks
+    @State private var selectedTaskID: String = ""
+    @State private var cycleWarning: String? = nil
+    
+    // Filter out current task, already-selected tasks, AND tasks that would create cycles
     private var availableTaskIDs: [String] {
-        allTaskIDs.filter { $0 != currentTaskID && !relatedTaskIDs.contains($0) }
+        allTaskIDs.filter { candidateID in
+            // Filter out self
+            guard candidateID != currentTaskID else { return false }
+            
+            // Filter out already selected
+            guard !relatedTaskIDs.contains(candidateID) else { return false }
+            
+            // NEW: Check if adding this relationship would create a cycle
+            let testEdge: GraphEdge
+            switch edgeType {
+            case .dependency:
+                // depends_on: current task depends on selected task
+                testEdge = GraphEdge(from: currentTaskID, to: candidateID, type: .dependency)
+            case .blocks:
+                // blocks: current task blocks selected task
+                testEdge = GraphEdge(from: currentTaskID, to: candidateID, type: .blocks)
+            case .relatesTo:
+                // relates_to: can be bidirectional but doesn't participate in cycles
+                return true
+            }
+            
+            return !GraphAlgorithms.wouldCreateCycle(
+                existingEdges: existingEdges,
+                newEdge: testEdge,
+                allTaskIDs: allTaskIDs + [currentTaskID]
+            )
+        }
     }
     
     var body: some View {
@@ -55,6 +90,18 @@ struct TaskRelationshipPicker: View {
                 .accessibilityLabel("\(relatedTaskIDs.count) \(label) relationships: \(relatedTaskIDs.joined(separator: ", "))")
             }
             
+            // Cycle warning for currently selected task
+            if let warning = cycleWarning {
+                HStack {
+                    Image(systemName: "exclamationmark.triangle")
+                        .foregroundStyle(.orange)
+                    Text(warning)
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+                .padding(.vertical, 4)
+            }
+            
             // Add relationship picker
             if !availableTaskIDs.isEmpty {
                 HStack {
@@ -69,6 +116,12 @@ struct TaskRelationshipPicker: View {
                     .pickerStyle(.menu)
                     .frame(maxWidth: 200)
                     .accessibilityLabel("Select a task to add as \(label)")
+                    .onChange(of: selectedTaskID) { _, newValue in
+                        // Clear warning when selection changes
+                        if !newValue.isEmpty {
+                            cycleWarning = nil
+                        }
+                    }
                     
                     Button(action: addRelationship) {
                         Image(systemName: "plus.circle.fill")
@@ -79,6 +132,16 @@ struct TaskRelationshipPicker: View {
                     .accessibilityLabel("Add selected task as \(label)")
                     .accessibilityHint("Adds the selected task to the \(label) relationship")
                 }
+            } else if relatedTaskIDs.count < allTaskIDs.count {
+                // Some tasks are unavailable because they would create cycles
+                HStack {
+                    Image(systemName: "info.circle")
+                        .foregroundStyle(.secondary)
+                    Text("Remaining tasks would create circular dependencies")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 4)
             }
         }
     }
@@ -131,7 +194,12 @@ struct RelationshipChip: View {
         label: "Depends On",
         relatedTaskIDs: .constant(["RQ-0001", "RQ-0002"]),
         allTaskIDs: ["RQ-0001", "RQ-0002", "RQ-0003", "RQ-0004"],
-        currentTaskID: "RQ-0005"
+        currentTaskID: "RQ-0005",
+        edgeType: .dependency,
+        existingEdges: [
+            GraphEdge(from: "RQ-0005", to: "RQ-0001", type: .dependency),
+            GraphEdge(from: "RQ-0005", to: "RQ-0002", type: .dependency)
+        ]
     )
     .padding()
 }

@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		0F5CF3F1723144EA83490033 /* RalphCLIExecutableLocator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EE8951D88274919856E798A /* RalphCLIExecutableLocator.swift */; };
 		11223344556677889900AABB /* GraphModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABBCCDDEEFF001122334455 /* GraphModels.swift */; };
+		CD2233445566778899AABBCC /* GraphAlgorithms.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD112233445566778899AABB /* GraphAlgorithms.swift */; };
 		12EEF5CB63D2451A8D8BDFCE /* RalphCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 16591EC6C1744AC5AF4189A4 /* RalphCore.framework */; };
 		179B8788CE02428A89379BFC /* RalphCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 16591EC6C1744AC5AF4189A4 /* RalphCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		223344556677889900AABBCCDDEEFF11 /* TaskRelationshipPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11223344556677889900AABBCCDDEEFF /* TaskRelationshipPicker.swift */; };
@@ -27,6 +28,7 @@
 		6CAF4A3B0D5E6F78C9012345 /* WindowState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4501A6DA17EA418787F9BC9C /* WindowState.swift */; };
 		70B7D56D286A4C04AAA8F09B /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5CF4286D31194E8ABD65BF48 /* XCTest.framework */; };
 		77EFDF19FDCC6111A2D9D960 /* CrashReporterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E21C3A89A6C7227DBEC1280A /* CrashReporterTests.swift */; };
+		CD445566778899AABBCCDDEE /* GraphAlgorithmsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD33445566778899AABBCCDD /* GraphAlgorithmsTests.swift */; };
 		7D1B5B4C1E6F708D01234567 /* WorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B65E12FC434490D9A617CEB /* WorkspaceView.swift */; };
 		7F16054571FBB51EBC4A9448 /* RalphLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97091AD832CBB8B3EFBD90CF /* RalphLogger.swift */; };
 		81B3129D1A9B4ACBB70F0BDD4D0F049B /* KanbanBoardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7044ECE073A4355A364CD631452E561 /* KanbanBoardView.swift */; };
@@ -128,6 +130,7 @@
 		A24E80C16889B4FDE88205DC /* CrashReporter.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CrashReporter.swift; sourceTree = "<group>"; };
 		AA11BB22CC33DD44EE55FF6677889900 /* TaskDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TaskDetailView.swift; path = RalphMac/TaskDetailView.swift; sourceTree = "<group>"; };
 		AABBCCDDEEFF001122334455 /* GraphModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GraphModels.swift; sourceTree = "<group>"; };
+		CD112233445566778899AABB /* GraphAlgorithms.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GraphAlgorithms.swift; sourceTree = "<group>"; };
 		AC5B1F258352B5B5DC9FFF77 /* RunControlConsoleView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RunControlConsoleView.swift; path = RunControlConsoleView.swift; sourceTree = "<group>"; };
 		AF00ECB3884C6A991E9ED664 /* RetryHelper.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RetryHelper.swift; sourceTree = "<group>"; };
 		B1234567890ABCDEF1234567 /* QueueFileWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueFileWatcher.swift; sourceTree = "<group>"; };
@@ -155,6 +158,7 @@
 		DCBA4321FEDC8765EF1021FE /* WorkspacePerformanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspacePerformanceTests.swift; sourceTree = "<group>"; };
 		E21132B9951449F09254F84C /* WindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowView.swift; sourceTree = "<group>"; };
 		E21C3A89A6C7227DBEC1280A /* CrashReporterTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CrashReporterTests.swift; sourceTree = "<group>"; };
+		CD33445566778899AABBCCDD /* GraphAlgorithmsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GraphAlgorithmsTests.swift; sourceTree = "<group>"; };
 		E4BA912C259042DDA03E653F /* RalphMacApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphMacApp.swift; sourceTree = "<group>"; };
 		EE55FF6677889900AA11BB22CC33DD44 /* TagEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TagEditorView.swift; path = RalphMac/TagEditorView.swift; sourceTree = "<group>"; };
 		F3014AC133794F7F8AF0E753 /* RalphModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphModels.swift; sourceTree = "<group>"; };
@@ -214,6 +218,7 @@
 				5EE8951D88274919856E798A /* RalphCLIExecutableLocator.swift */,
 				F3014AC133794F7F8AF0E753 /* RalphModels.swift */,
 				AABBCCDDEEFF001122334455 /* GraphModels.swift */,
+				CD112233445566778899AABB /* GraphAlgorithms.swift */,
 				BBAA99887766554433221100 /* AnalyticsModels.swift */,
 				0B651F8A746C4387B1F9D42A /* Workspace.swift */,
 				C52C942A1CA040208A1757FF /* WorkspaceManager.swift */,
@@ -240,6 +245,7 @@
 				BF349B26CB0886708565C0A7 /* RetryIntegrationTests.swift */,
 				B86FB79CF874558CF63AAAB3 /* RalphLoggerTests.swift */,
 				E21C3A89A6C7227DBEC1280A /* CrashReporterTests.swift */,
+				CD33445566778899AABBCCDD /* GraphAlgorithmsTests.swift */,
 			);
 			path = RalphCoreTests;
 			sourceTree = "<group>";
@@ -464,6 +470,7 @@
 				0F5CF3F1723144EA83490033 /* RalphCLIExecutableLocator.swift in Sources */,
 				EF9F001157144DB59DB782FF /* RalphModels.swift in Sources */,
 				11223344556677889900AABB /* GraphModels.swift in Sources */,
+				CD2233445566778899AABBCC /* GraphAlgorithms.swift in Sources */,
 				99887766554433221100AABB /* AnalyticsModels.swift in Sources */,
 				4A8D2E1F8B3C4D56A7E8F901 /* Workspace.swift in Sources */,
 				5B9E3F2A9C4D5E67B8F90123 /* WorkspaceManager.swift in Sources */,
@@ -491,6 +498,7 @@
 				AC12ADCEB6FBE27F325003B5 /* RetryIntegrationTests.swift in Sources */,
 				F6A75F8963921FE53D465FF3 /* RalphLoggerTests.swift in Sources */,
 				77EFDF19FDCC6111A2D9D960 /* CrashReporterTests.swift in Sources */,
+				CD445566778899AABBCCDDEE /* GraphAlgorithmsTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
