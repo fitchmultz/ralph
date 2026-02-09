@@ -20,6 +20,7 @@
 
 public import Foundation
 import CoreServices
+import OSLog
 
 @MainActor
 public final class QueueFileWatcher: Sendable {
@@ -167,7 +168,7 @@ public final class QueueFileWatcher: Sendable {
         Task { @MainActor [weak self] in
             self?.isWatching = true
         }
-        log("Started watching \(queueDir.path)")
+        RalphLogger.shared.info("Started watching \(queueDir.path)", category: .fileWatching)
     }
     
     private nonisolated func handleStreamCreationFailure(_ reason: String) {
@@ -175,13 +176,13 @@ public final class QueueFileWatcher: Sendable {
         
         if streamStartAttempts < maxStreamStartAttempts {
             let delay = Double(streamStartAttempts) * 0.5 // 0.5s, 1s, 1.5s
-            log("[QueueFileWatcher] \(reason). Retrying in \(delay)s (attempt \(streamStartAttempts)/\(maxStreamStartAttempts))")
+            RalphLogger.shared.info("FSEvent stream creation failed: \(reason). Retrying in \(delay)s (attempt \(streamStartAttempts)/\(maxStreamStartAttempts))", category: .fileWatching)
             
             callbackQueue.asyncAfter(deadline: .now() + delay) { [weak self] in
                 self?.attemptStreamStart()
             }
         } else {
-            log("[QueueFileWatcher] \(reason). Max retries exceeded.")
+            RalphLogger.shared.error("FSEvent stream creation failed: \(reason). Max retries exceeded.", category: .fileWatching)
         }
     }
     
@@ -191,13 +192,6 @@ public final class QueueFileWatcher: Sendable {
         handleStreamCreationFailure(reason)
     }
     
-    /// Log messages (uses os_log in production, print in debug)
-    private nonisolated func log(_ message: String) {
-        #if DEBUG
-        print(message)
-        #endif
-        // In production, could use os_log or post notifications
-    }
 
     private nonisolated func stopInternal() {
         guard let stream = self.stream else { return }

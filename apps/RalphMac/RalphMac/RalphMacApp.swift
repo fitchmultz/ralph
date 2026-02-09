@@ -19,11 +19,17 @@
 
 public import SwiftUI
 import RalphCore
+import OSLog
 
 @main
 struct RalphMacApp: App {
     @StateObject private var manager = WorkspaceManager.shared
     @Environment(\.scenePhase) private var scenePhase
+    
+    init() {
+        // Initialize crash reporter early in app lifecycle to catch launch crashes
+        CrashReporter.shared.install()
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -42,6 +48,7 @@ struct RalphMacApp: App {
             workspaceCommands
             navigationCommands
             taskCommands
+            helpCommands
         }
     }
 
@@ -202,6 +209,86 @@ struct RalphMacApp: App {
                 )
             }
         }
+    }
+
+    private var helpCommands: some Commands {
+        CommandGroup(replacing: .help) {
+            Button("Export Logs...") {
+                exportLogs()
+            }
+            .keyboardShortcut("l", modifiers: [.command, .shift])
+            
+            Button("View Crash Reports...") {
+                showCrashReports()
+            }
+            .keyboardShortcut("r", modifiers: [.command, .shift])
+            
+            Divider()
+            
+            Link("Ralph Documentation", destination: URL(string: "https://github.com/mitchfultz/ralph")!)
+        }
+    }
+
+    private func exportLogs() {
+        guard RalphLogger.shared.canExportLogs else {
+            showAlert(title: "Not Available", message: "Log export requires macOS 12 or later.")
+            return
+        }
+        
+        RalphLogger.shared.exportLogs(hours: 24) { logContent in
+            guard let logContent = logContent else {
+                showAlert(title: "Export Failed", message: "Could not retrieve logs.")
+                return
+            }
+            
+            // Show save panel on main thread
+            DispatchQueue.main.async {
+                let savePanel = NSSavePanel()
+                savePanel.nameFieldStringValue = "ralph-logs-\(Date().formatted(.iso8601.dateSeparator(.dash).timeSeparator(.omitted))).txt"
+                savePanel.allowedContentTypes = [.plainText]
+                
+                savePanel.begin { result in
+                    if result == .OK, let url = savePanel.url {
+                        try? logContent.write(to: url, atomically: true, encoding: .utf8)
+                    }
+                }
+            }
+        }
+    }
+
+    private func showCrashReports() {
+        let reports = CrashReporter.shared.getAllReports()
+        if reports.isEmpty {
+            showAlert(title: "No Crash Reports", message: "No crash reports found.")
+            return
+        }
+        
+        let content = CrashReporter.shared.exportAllReports()
+        
+        // Show save panel on main thread
+        DispatchQueue.main.async {
+            let savePanel = NSSavePanel()
+            savePanel.nameFieldStringValue = "ralph-crash-reports-\(Date().formatted(.iso8601.dateSeparator(.dash))).txt"
+            savePanel.allowedContentTypes = [.plainText]
+            
+            savePanel.begin { result in
+                if result == .OK, let url = savePanel.url {
+                    do {
+                        try content.write(to: url, atomically: true, encoding: .utf8)
+                    } catch {
+                        showAlert(title: "Export Failed", message: "Could not save crash reports: \(error.localizedDescription)")
+                    }
+                }
+            }
+        }
+    }
+
+    private func showAlert(title: String, message: String) {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = message
+        alert.alertStyle = .informational
+        alert.runModal()
     }
 }
 

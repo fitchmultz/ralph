@@ -2,50 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0736",
-      "status": "todo",
-      "title": "Replace print statements with structured logging and add crash reporting",
-      "description": "The macOS app uses print() for debug output which is lost in production and not visible to users. There is no structured logging system or crash reporting mechanism, making it impossible to diagnose issues in the field. This should be replaced with os.log and a crash reporter.",
-      "priority": "high",
-      "tags": [
-        "maintenance",
-        "macos",
-        "logging",
-        "crash-reporting",
-        "observability"
-      ],
-      "scope": [
-        "apps/RalphMac/RalphCore/QueueFileWatcher.swift",
-        "apps/RalphMac/RalphCore/Workspace.swift",
-        "apps/RalphMac/RalphMac/"
-      ],
-      "evidence": [
-        "QueueFileWatcher.swift lines 103, 111, 118: Uses print() for logging",
-        "No os.log or Logger usage found in the codebase",
-        "No crash reporting framework or custom crash handler implemented"
-      ],
-      "plan": [
-        "Replace all print() statements with os.Logger appropriate categories",
-        "Create RalphLogger helper with subsystem 'com.mitchfultz.ralph'",
-        "Implement log levels: debug, info, error, fault",
-        "Add crash reporter (PLCrashReporter or Sentry) for release builds",
-        "Add 'Export Logs' feature in Help menu for user support",
-        "Ensure logs don't contain sensitive data (redact paths if needed)",
-        "Write tests verifying logs are created at appropriate levels",
-        "Verify by: run app, check Console.app for structured Ralph logs"
-      ],
-      "notes": [],
-      "request": "maintenance scan finding",
-      "created_at": "2026-02-08T19:37:03Z",
-      "updated_at": "2026-02-08T19:37:03Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0731",
       "status": "todo",
       "title": "Implement workspace directory passing from CLI to macOS app",
@@ -92,8 +48,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "url_format": "ralph://open?workspace=<encoded_path>",
-        "ipc_mechanism": "custom URL scheme"
+        "ipc_mechanism": "custom URL scheme",
+        "url_format": "ralph://open?workspace=<encoded_path>"
       }
     },
     {

@@ -19,6 +19,7 @@
  */
 
 public import Foundation
+import OSLog
 
 #if canImport(Darwin)
 import Darwin
@@ -203,6 +204,7 @@ public actor RalphCLIRun {
 
     private func handleTermination(process: Process) {
         didTerminateProcess = true
+        RalphLogger.shared.debug("CLI process terminated with status: \(process.terminationStatus)", category: .cli)
 
         let reason: RalphCLIExitStatus.TerminationReason
         switch process.terminationReason {
@@ -317,6 +319,8 @@ public struct RalphCLIClient: Sendable {
         )
 
         try process.run()
+        let commandString = arguments.joined(separator: " ")
+        RalphLogger.shared.debug("Started CLI process: \(commandString)", category: .cli)
         return run
     }
 

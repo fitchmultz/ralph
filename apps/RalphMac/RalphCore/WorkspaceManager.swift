@@ -23,7 +23,7 @@
 public import Foundation
 public import Combine
 import SwiftUI
-import os.log
+import OSLog
 
 @MainActor
 public final class WorkspaceManager: ObservableObject {
@@ -200,7 +200,7 @@ public final class WorkspaceManager: ObservableObject {
     private func performVersionCheck() async {
         // Check cache first
         if let cached = checkCachedVersionResult(), cached.isCompatible {
-            os_log("Using cached CLI version check result", log: .default, type: .debug)
+            RalphLogger.shared.debug("Using cached CLI version check result", category: .cli)
             self.versionCheckResult = cached
             return
         }
@@ -211,14 +211,14 @@ public final class WorkspaceManager: ObservableObject {
             
             if result.isCompatible {
                 cacheVersionResult(result)
-                os_log("CLI version compatible: %{public}@", log: .default, type: .debug, result.rawVersion)
+                RalphLogger.shared.info("CLI version compatible: \(result.rawVersion)", category: .cli)
             } else {
                 var message = result.errorMessage ?? "Unknown version error"
                 if let guidance = result.guidanceMessage {
                     message += "\n\n" + guidance
                 }
                 errorMessage = message
-                os_log("CLI version incompatible: %{public}@", log: .default, type: .error, message)
+                RalphLogger.shared.error("CLI version incompatible: \(message)", category: .cli)
             }
         }
     }
@@ -242,7 +242,7 @@ public final class WorkspaceManager: ObservableObject {
             guard output.status.code == 0 else {
                 let message = "CLI version check failed with exit code \(output.status.code)"
                 errorMessage = message
-                os_log("%{public}@", log: .default, type: .error, message)
+                RalphLogger.shared.error("CLI version check failed: \(message)", category: .cli)
                 return nil
             }
 
@@ -253,7 +253,7 @@ public final class WorkspaceManager: ObservableObject {
         } catch {
             let message = "Failed to check CLI version: \(error.localizedDescription)"
             errorMessage = message
-            os_log("%{public}@", log: .default, type: .error, message)
+            RalphLogger.shared.error("Failed to check CLI version: \(message)", category: .cli)
             return nil
         }
     }
