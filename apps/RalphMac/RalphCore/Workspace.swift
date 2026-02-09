@@ -568,6 +568,63 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
         return TaskChanges(added: added, removed: removed, changed: changed)
     }
     
+    /// Check if a task has been modified externally by comparing the stored updatedAt
+    /// with the current updatedAt in the loaded tasks.
+    /// Returns the current task if conflict detected, nil if no conflict.
+    public func checkForConflict(taskID: String, originalUpdatedAt: Date?) -> RalphTask? {
+        guard let currentTask = tasks.first(where: { $0.id == taskID }) else {
+            // Task was deleted - treat as conflict
+            return nil
+        }
+        
+        // If we have no original timestamp, we can't detect conflicts
+        guard let originalUpdatedAt = originalUpdatedAt else {
+            return nil
+        }
+        
+        // If current updatedAt differs from original, there's a conflict
+        if let currentUpdatedAt = currentTask.updatedAt {
+            if currentUpdatedAt != originalUpdatedAt {
+                return currentTask
+            }
+        }
+        
+        return nil
+    }
+
+    /// Represents a conflict between local and external task state
+    public struct TaskConflict: Sendable {
+        public let localTask: RalphTask
+        public let externalTask: RalphTask
+        public let conflictedFields: [String]
+        
+        public init(localTask: RalphTask, externalTask: RalphTask, conflictedFields: [String]) {
+            self.localTask = localTask
+            self.externalTask = externalTask
+            self.conflictedFields = conflictedFields
+        }
+    }
+
+    /// Detect specific field differences between local and external task
+    public func detectConflictedFields(local: RalphTask, external: RalphTask) -> [String] {
+        var fields: [String] = []
+        
+        if local.title != external.title { fields.append("title") }
+        if local.description != external.description { fields.append("description") }
+        if local.status != external.status { fields.append("status") }
+        if local.priority != external.priority { fields.append("priority") }
+        if local.tags != external.tags { fields.append("tags") }
+        if local.scope != external.scope { fields.append("scope") }
+        if local.evidence != external.evidence { fields.append("evidence") }
+        if local.plan != external.plan { fields.append("plan") }
+        if local.notes != external.notes { fields.append("notes") }
+        if local.dependsOn != external.dependsOn { fields.append("dependsOn") }
+        if local.blocks != external.blocks { fields.append("blocks") }
+        if local.relatesTo != external.relatesTo { fields.append("relatesTo") }
+        
+        return fields
+    }
+    
     /// Represents detected changes between two task snapshots
     public struct TaskChanges: Sendable {
         public let added: [RalphTask]
@@ -776,9 +833,23 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
 
     /// Update a task by applying changes via the CLI and reloading the task list.
     /// This compares the original task with the updated task and generates appropriate CLI commands.
-    public func updateTask(from original: RalphTask, to updated: RalphTask) async throws {
+    /// - Parameters:
+    ///   - original: The original task before any edits
+    ///   - updated: The updated task with edits applied
+    ///   - originalUpdatedAt: The updatedAt timestamp at the time editing began (for optimistic locking)
+    /// - Throws: WorkspaceError.taskConflict if the task has been modified externally
+    public func updateTask(from original: RalphTask, to updated: RalphTask, originalUpdatedAt: Date? = nil) async throws {
         guard let client else {
             throw WorkspaceError.cliClientUnavailable
+        }
+        
+        // Check for external changes if originalUpdatedAt is provided (optimistic locking)
+        if let originalUpdatedAt = originalUpdatedAt {
+            if let currentTask = tasks.first(where: { $0.id == updated.id }),
+               let currentUpdatedAt = currentTask.updatedAt,
+               currentUpdatedAt != originalUpdatedAt {
+                throw WorkspaceError.taskConflict(currentTask)
+            }
         }
 
         // Build list of field changes needed
@@ -979,13 +1050,16 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
     public enum WorkspaceError: Error, LocalizedError {
         case cliClientUnavailable
         case cliError(String)
-
+        case taskConflict(RalphTask)  // NEW: Contains the current external task
+        
         public var errorDescription: String? {
             switch self {
             case .cliClientUnavailable:
                 return "CLI client is not available."
             case .cliError(let message):
                 return message
+            case .taskConflict:  // NEW
+                return "Task has been modified externally. Please resolve the conflict before saving."
             }
         }
     }

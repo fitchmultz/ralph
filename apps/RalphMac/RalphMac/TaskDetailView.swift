@@ -33,15 +33,62 @@ struct TaskDetailView: View {
     @State private var saveError: String?
     @State private var showingUnsavedChangesAlert = false
     @State private var saveSuccess = false
+    
+    // State for conflict detection (optimistic locking)
+    @State private var originalUpdatedAt: Date?
+    @State private var hasConflict = false
+    @State private var conflictedExternalTask: RalphTask?
+    @State private var showingConflictAlert = false
+    @State private var showingConflictResolver = false
 
     init(workspace: Workspace, task: RalphTask, onTaskUpdated: ((RalphTask) -> Void)? = nil) {
         self.workspace = workspace
         self.task = task
         self.onTaskUpdated = onTaskUpdated
         self._draftTask = State(initialValue: task)
+        self._originalUpdatedAt = State(initialValue: task.updatedAt)
     }
 
     var body: some View {
+        contentView
+            .withTaskDetailToolbar(
+                hasConflict: hasConflict,
+                isSaving: isSaving,
+                saveSuccess: saveSuccess,
+                hasChanges: hasChanges(),
+                onSave: { saveChanges() }
+            )
+            .withTaskDetailAlerts(
+                showingUnsavedChangesAlert: $showingUnsavedChangesAlert,
+                showingConflictAlert: $showingConflictAlert,
+                showingConflictResolver: $showingConflictResolver,
+                saveError: $saveError,
+                task: task,
+                draftTask: draftTask,
+                conflictedExternalTask: conflictedExternalTask,
+                onDiscard: { draftTask = task },
+                onForceSave: { saveChanges(force: true) },
+                onDiscardExternal: { discardLocalChanges() },
+                onMerge: { mergedTask in
+                    self.draftTask = mergedTask
+                    self.hasConflict = false
+                    self.showingConflictResolver = false
+                }
+            )
+            .onChange(of: task.id) { _, _ in
+                // Task changed, reset draft and conflict state
+                draftTask = task
+                originalUpdatedAt = task.updatedAt
+                hasConflict = false
+                conflictedExternalTask = nil
+                saveSuccess = false
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .queueFilesExternallyChanged)) { _ in
+                checkForExternalChanges()
+            }
+    }
+    
+    private var contentView: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 basicInfoSection()
@@ -56,60 +103,6 @@ struct TaskDetailView: View {
         .background(.clear)
         .navigationTitle(draftTask.title)
         .navigationSubtitle(task.id)
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                HStack(spacing: 8) {
-                    if isSaving {
-                        ProgressView()
-                            .scaleEffect(0.8)
-                            .controlSize(.small)
-                    } else if saveSuccess {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
-                            .transition(.opacity)
-                    }
-
-                    Button("Save") {
-                        saveChanges()
-                    }
-                    .disabled(!hasChanges() || isSaving)
-                    .keyboardShortcut("s", modifiers: .command)
-                    .accessibilityLabel("Save changes")
-                    .accessibilityHint("Save all changes to this task")
-                }
-            }
-
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Reset") {
-                    if hasChanges() {
-                        showingUnsavedChangesAlert = true
-                    }
-                }
-                .disabled(!hasChanges())
-                .accessibilityLabel("Reset changes")
-                .accessibilityHint("Discard all changes and revert to saved version")
-            }
-        }
-        .alert("Discard Changes?", isPresented: $showingUnsavedChangesAlert) {
-            Button("Discard", role: .destructive) {
-                draftTask = task
-            }
-            Button("Keep Editing", role: .cancel) {}
-        } message: {
-            Text("You have unsaved changes. Are you sure you want to discard them and reset to the saved version?")
-        }
-        .alert("Save Error", isPresented: .constant(saveError != nil)) {
-            Button("OK") {
-                saveError = nil
-            }
-        } message: {
-            Text(saveError ?? "")
-        }
-        .onChange(of: task.id) { _, _ in
-            // Task changed, reset draft
-            draftTask = task
-            saveSuccess = false
-        }
     }
 
     // MARK: - Sections
@@ -421,22 +414,48 @@ struct TaskDetailView: View {
         draftTask != task
     }
 
-    private func saveChanges() {
+    private func saveChanges(force: Bool = false) {
+        // Check for conflict before saving (unless force)
+        if !force && hasConflict {
+            showingConflictAlert = true
+            return
+        }
+        
         isSaving = true
         saveError = nil
         saveSuccess = false
 
         Task {
             do {
-                try await workspace.updateTask(from: task, to: draftTask)
+                // Pass originalUpdatedAt for optimistic locking check
+                try await workspace.updateTask(
+                    from: task,
+                    to: draftTask,
+                    originalUpdatedAt: force ? nil : originalUpdatedAt
+                )
                 await MainActor.run {
                     isSaving = false
                     saveSuccess = true
+                    hasConflict = false
                     onTaskUpdated?(draftTask)
-
+                    
+                    // Update original timestamp after successful save
+                    originalUpdatedAt = draftTask.updatedAt
+                    
                     // Clear success indicator after 2 seconds
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                         saveSuccess = false
+                    }
+                }
+            } catch let error as Workspace.WorkspaceError {
+                await MainActor.run {
+                    isSaving = false
+                    if case .taskConflict(let currentTask) = error {
+                        hasConflict = true
+                        conflictedExternalTask = currentTask
+                        showingConflictAlert = true
+                    } else {
+                        saveError = error.localizedDescription
                     }
                 }
             } catch {
@@ -445,6 +464,39 @@ struct TaskDetailView: View {
                     saveError = error.localizedDescription
                 }
             }
+        }
+    }
+    
+    // MARK: - Conflict Detection
+    
+    private func checkForExternalChanges() {
+        // If no local changes, silently update the draft to match external changes
+        guard hasChanges() else {
+            if let currentTask = workspace.tasks.first(where: { $0.id == task.id }) {
+                draftTask = currentTask
+                originalUpdatedAt = currentTask.updatedAt
+                hasConflict = false
+            }
+            return
+        }
+        
+        // Check for conflict using optimistic locking
+        if let externalTask = workspace.checkForConflict(
+            taskID: task.id,
+            originalUpdatedAt: originalUpdatedAt
+        ) {
+            hasConflict = true
+            conflictedExternalTask = externalTask
+            showingConflictAlert = true
+        }
+    }
+    
+    private func discardLocalChanges() {
+        if let externalTask = conflictedExternalTask {
+            draftTask = externalTask
+            originalUpdatedAt = externalTask.updatedAt
+            hasConflict = false
+            conflictedExternalTask = nil
         }
     }
 
@@ -519,6 +571,150 @@ struct TaskDetailView: View {
         }
         
         return edges
+    }
+}
+
+// MARK: - View Modifiers
+
+private struct TaskDetailToolbarModifier: ViewModifier {
+    let hasConflict: Bool
+    let isSaving: Bool
+    let saveSuccess: Bool
+    let hasChanges: Bool
+    let onSave: () -> Void
+    
+    func body(content: Content) -> some View {
+        content
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    HStack(spacing: 8) {
+                        if hasConflict {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.orange)
+                                .help("Task modified externally - save may overwrite changes")
+                                .accessibilityLabel("External modification warning")
+                        }
+                        
+                        if isSaving {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                                .controlSize(.small)
+                        } else if saveSuccess {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                                .transition(.opacity)
+                        }
+
+                        Button("Save", action: onSave)
+                            .disabled(!hasChanges || isSaving)
+                            .keyboardShortcut("s", modifiers: .command)
+                            .accessibilityLabel("Save changes")
+                            .accessibilityHint("Save all changes to this task")
+                    }
+                }
+
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Reset") {
+                        // Will be handled by alert
+                    }
+                    .disabled(!hasChanges)
+                    .accessibilityLabel("Reset changes")
+                    .accessibilityHint("Discard all changes and revert to saved version")
+                }
+            }
+    }
+}
+
+private struct TaskDetailAlertsModifier: ViewModifier {
+    @Binding var showingUnsavedChangesAlert: Bool
+    @Binding var showingConflictAlert: Bool
+    @Binding var showingConflictResolver: Bool
+    @Binding var saveError: String?
+    let task: RalphTask
+    let draftTask: RalphTask
+    let conflictedExternalTask: RalphTask?
+    let onDiscard: () -> Void
+    let onForceSave: () -> Void
+    let onDiscardExternal: () -> Void
+    let onMerge: (RalphTask) -> Void
+    
+    func body(content: Content) -> some View {
+        content
+            .alert("Discard Changes?", isPresented: $showingUnsavedChangesAlert) {
+                Button("Discard", role: .destructive, action: onDiscard)
+                Button("Keep Editing", role: .cancel) {}
+            } message: {
+                Text("You have unsaved changes. Are you sure you want to discard them and reset to the saved version?")
+            }
+            .alert("Save Error", isPresented: .constant(saveError != nil)) {
+                Button("OK") { saveError = nil }
+            } message: {
+                Text(saveError ?? "")
+            }
+            .alert("External Changes Detected", isPresented: $showingConflictAlert) {
+                Button("Overwrite External Changes", role: .destructive, action: onForceSave)
+                Button("Discard My Changes", action: onDiscardExternal)
+                Button("Resolve Conflicts...") { showingConflictResolver = true }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This task has been modified externally (via CLI or another window). Your changes conflict with the external changes.\n\nWhat would you like to do?")
+            }
+            .sheet(isPresented: $showingConflictResolver) {
+                if let externalTask = conflictedExternalTask {
+                    TaskConflictResolverView(
+                        localTask: draftTask,
+                        externalTask: externalTask,
+                        onMerge: onMerge,
+                        onCancel: { showingConflictResolver = false }
+                    )
+                }
+            }
+    }
+}
+
+extension View {
+    func withTaskDetailToolbar(
+        hasConflict: Bool,
+        isSaving: Bool,
+        saveSuccess: Bool,
+        hasChanges: Bool,
+        onSave: @escaping () -> Void
+    ) -> some View {
+        modifier(TaskDetailToolbarModifier(
+            hasConflict: hasConflict,
+            isSaving: isSaving,
+            saveSuccess: saveSuccess,
+            hasChanges: hasChanges,
+            onSave: onSave
+        ))
+    }
+    
+    func withTaskDetailAlerts(
+        showingUnsavedChangesAlert: Binding<Bool>,
+        showingConflictAlert: Binding<Bool>,
+        showingConflictResolver: Binding<Bool>,
+        saveError: Binding<String?>,
+        task: RalphTask,
+        draftTask: RalphTask,
+        conflictedExternalTask: RalphTask?,
+        onDiscard: @escaping () -> Void,
+        onForceSave: @escaping () -> Void,
+        onDiscardExternal: @escaping () -> Void,
+        onMerge: @escaping (RalphTask) -> Void
+    ) -> some View {
+        modifier(TaskDetailAlertsModifier(
+            showingUnsavedChangesAlert: showingUnsavedChangesAlert,
+            showingConflictAlert: showingConflictAlert,
+            showingConflictResolver: showingConflictResolver,
+            saveError: saveError,
+            task: task,
+            draftTask: draftTask,
+            conflictedExternalTask: conflictedExternalTask,
+            onDiscard: onDiscard,
+            onForceSave: onForceSave,
+            onDiscardExternal: onDiscardExternal,
+            onMerge: onMerge
+        ))
     }
 }
 

@@ -2,47 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0743",
-      "status": "todo",
-      "title": "Add conflict detection for external task changes during editing",
-      "description": "TaskDetailView does not detect when a task has been modified externally (via CLI or another app instance) while the user is editing it. This can lead to data loss when the user saves, overwriting the external changes. The app should warn users about conflicts and offer merge options.",
-      "priority": "medium",
-      "tags": [
-        "maintenance",
-        "macos",
-        "data-integrity",
-        "conflict-resolution"
-      ],
-      "scope": [
-        "apps/RalphMac/RalphMac/TaskDetailView.swift",
-        "apps/RalphMac/RalphCore/Workspace.swift"
-      ],
-      "evidence": [
-        "TaskDetailView.swift lines 31-42: Draft task created from initial task, no update tracking",
-        "File watching triggers reload but doesn't check if user is currently editing",
-        "No mechanism to compare task version at save time vs. edit start time"
-      ],
-      "plan": [
-        "Store original task checksum/version when editing begins",
-        "On file change notification, compare current task with draft",
-        "Show conflict alert if task changed externally with options: overwrite, discard changes, or merge",
-        "Implement merge view showing diff between local and external changes",
-        "Add 'modified externally' indicator in UI when conflict detected",
-        "Write tests for conflict detection scenarios",
-        "Verify by: open task in app, modify via CLI, attempt save in app - conflict should appear"
-      ],
-      "notes": [],
-      "request": "maintenance scan finding",
-      "created_at": "2026-02-08T19:37:03Z",
-      "updated_at": "2026-02-08T19:37:03Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-maintenance"
-      }
-    },
-    {
       "id": "RQ-0742",
       "status": "todo",
       "title": "Add error recovery UI for failed CLI operations",

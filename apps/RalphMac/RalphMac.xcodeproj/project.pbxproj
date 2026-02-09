@@ -50,6 +50,7 @@
 		AD262F5CE6FC50AECE385373 /* RunControlConsoleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC5B1F258352B5B5DC9FFF77 /* RunControlConsoleView.swift */; };
 		B21C5D6A955D6896460637B7 /* RetryHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF00ECB3884C6A991E9ED664 /* RetryHelper.swift */; };
 		BB22CC33DD44EE55FF6677889900AA11 /* TaskDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF6677889900 /* TaskDetailView.swift */; };
+		CC112233445566778899AABB /* TaskConflictResolverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD112233445566778899AABB /* TaskConflictResolverView.swift */; };
 		CC99AA88BB77DD66EE55FF44 /* ConsoleOutputBuffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1122AABBCCDDEEFF99887766 /* ConsoleOutputBuffer.swift */; };
 		D1594D0AB21045BA9764BCE8 /* RalphCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 16591EC6C1744AC5AF4189A4 /* RalphCore.framework */; };
 		D21470E978C03EA41E8C185E /* NavigationViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1144436E84A467CACB42516A /* NavigationViewModel.swift */; };
@@ -129,6 +130,7 @@
 		A1B2C3D4E5F60718G9H0I1J2 /* TaskListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TaskListView.swift; path = RalphMac/TaskListView.swift; sourceTree = "<group>"; };
 		A24E80C16889B4FDE88205DC /* CrashReporter.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CrashReporter.swift; sourceTree = "<group>"; };
 		AA11BB22CC33DD44EE55FF6677889900 /* TaskDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TaskDetailView.swift; path = RalphMac/TaskDetailView.swift; sourceTree = "<group>"; };
+		DD112233445566778899AABB /* TaskConflictResolverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TaskConflictResolverView.swift; path = RalphMac/TaskConflictResolverView.swift; sourceTree = "<group>"; };
 		AABBCCDDEEFF001122334455 /* GraphModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GraphModels.swift; sourceTree = "<group>"; };
 		CD112233445566778899AABB /* GraphAlgorithms.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GraphAlgorithms.swift; sourceTree = "<group>"; };
 		AC5B1F258352B5B5DC9FFF77 /* RunControlConsoleView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RunControlConsoleView.swift; path = RunControlConsoleView.swift; sourceTree = "<group>"; };
@@ -511,6 +513,7 @@
 				7D1B5B4C1E6F708D01234567 /* WorkspaceView.swift in Sources */,
 				8E2C6C5D2F70819234567890 /* WindowView.swift in Sources */,
 				BB22CC33DD44EE55FF6677889900AA11 /* TaskDetailView.swift in Sources */,
+				CC112233445566778899AABB /* TaskConflictResolverView.swift in Sources */,
 				DD44EE55FF6677889900AA11BB22CC33 /* StringArrayEditor.swift in Sources */,
 				FF6677889900AA11BB22CC33DD44EE55 /* TagEditorView.swift in Sources */,
 				223344556677889900AABBCCDDEEFF11 /* TaskRelationshipPicker.swift in Sources */,
