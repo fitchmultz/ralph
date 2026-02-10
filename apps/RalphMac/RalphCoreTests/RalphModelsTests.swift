@@ -336,4 +336,71 @@ final class RalphModelsTests: XCTestCase {
         XCTAssertEqual(decoded.agent?.phases, 2)
         XCTAssertEqual(decoded.agent?.phaseOverrides?.phase2?.runner, "kimi")
     }
+
+    func test_normalizedTaskAgent_clears_invalid_values_and_blanks() {
+        let normalized = RalphTaskAgent.normalizedOverride(
+            RalphTaskAgent(
+                runner: " codex ",
+                model: " ",
+                modelEffort: "default",
+                phases: 9,
+                iterations: 0,
+                phaseOverrides: RalphTaskPhaseOverrides(
+                    phase1: RalphTaskPhaseOverride(runner: " ", model: nil, reasoningEffort: nil),
+                    phase2: RalphTaskPhaseOverride(runner: "kimi", model: " kimi-code/kimi-for-coding ", reasoningEffort: " ")
+                )
+            )
+        )
+
+        XCTAssertNotNil(normalized)
+        XCTAssertEqual(normalized?.runner, "codex")
+        XCTAssertNil(normalized?.model)
+        XCTAssertNil(normalized?.modelEffort)
+        XCTAssertNil(normalized?.phases)
+        XCTAssertNil(normalized?.iterations)
+        XCTAssertNil(normalized?.phaseOverrides?.phase1)
+        XCTAssertEqual(normalized?.phaseOverrides?.phase2?.runner, "kimi")
+        XCTAssertEqual(normalized?.phaseOverrides?.phase2?.model, "kimi-code/kimi-for-coding")
+    }
+
+    func test_executionPreset_codexDeep_values() throws {
+        let agent = try XCTUnwrap(RalphTaskExecutionPreset.codexDeep.agentOverride)
+        XCTAssertEqual(agent.runner, "codex")
+        XCTAssertEqual(agent.model, "gpt-5.3-codex")
+        XCTAssertEqual(agent.modelEffort, "high")
+        XCTAssertEqual(agent.phases, 3)
+        XCTAssertEqual(agent.iterations, 1)
+    }
+
+    func test_executionPreset_kimiFast_values() throws {
+        let agent = try XCTUnwrap(RalphTaskExecutionPreset.kimiFast.agentOverride)
+        XCTAssertEqual(agent.runner, "kimi")
+        XCTAssertEqual(agent.model, "kimi-code/kimi-for-coding")
+        XCTAssertEqual(agent.phases, 3)
+        XCTAssertEqual(agent.iterations, 1)
+        XCTAssertNil(agent.modelEffort)
+    }
+
+    func test_executionPreset_matchingPreset_matchesAppliedPreset() {
+        let preset = RalphTaskExecutionPreset.hybridCodexKimi
+        XCTAssertEqual(
+            RalphTaskExecutionPreset.matchingPreset(for: preset.agentOverride),
+            .hybridCodexKimi
+        )
+    }
+
+    func test_executionPreset_matchingPreset_returnsInherit_forNilAgent() {
+        XCTAssertEqual(RalphTaskExecutionPreset.matchingPreset(for: nil), .inheritFromConfig)
+    }
+
+    func test_executionPreset_matchingPreset_returnsNil_forCustomAgent() {
+        let custom = RalphTaskAgent(
+            runner: "codex",
+            model: "gpt-5.3-codex",
+            modelEffort: "xhigh",
+            phases: 2,
+            iterations: 4
+        )
+        XCTAssertNil(RalphTaskExecutionPreset.matchingPreset(for: custom))
+    }
 }

@@ -45,6 +45,7 @@
 		AA6666666666666666666666 /* TaskAgingCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB6666666666666666666666 /* TaskAgingCard.swift */; };
 		AA7777777777777777777777 /* VelocityChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB7777777777777777777777 /* VelocityChartView.swift */; };
 		AA8888888888888888888888 /* VelocityDetailsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB8888888888888888888888 /* VelocityDetailsCard.swift */; };
+		AA99BB88CC77DD66EE55FF4400112233 /* TaskDetailViewSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE11DD22CC33BB44AA55FF6677889900 /* TaskDetailViewSupport.swift */; };
 		ABCD1234EFAB5678CD9012EF /* WorkspacePerformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCBA4321FEDC8765EF1021FE /* WorkspacePerformanceTests.swift */; };
 		AC12ADCEB6FBE27F325003B5 /* RetryIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF349B26CB0886708565C0A7 /* RetryIntegrationTests.swift */; };
 		AD262F5CE6FC50AECE385373 /* RunControlConsoleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC5B1F258352B5B5DC9FFF77 /* RunControlConsoleView.swift */; };
@@ -171,6 +172,7 @@
 		E21132B9951449F09254F84C /* WindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowView.swift; sourceTree = "<group>"; };
 		E21C3A89A6C7227DBEC1280A /* CrashReporterTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CrashReporterTests.swift; sourceTree = "<group>"; };
 		E4BA912C259042DDA03E653F /* RalphMacApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphMacApp.swift; sourceTree = "<group>"; };
+		EE11DD22CC33BB44AA55FF6677889900 /* TaskDetailViewSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TaskDetailViewSupport.swift; path = RalphMac/TaskDetailViewSupport.swift; sourceTree = "<group>"; };
 		EE55FF6677889900AA11BB22CC33DD44 /* TagEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TagEditorView.swift; path = RalphMac/TagEditorView.swift; sourceTree = "<group>"; };
 		F3014AC133794F7F8AF0E753 /* RalphModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphModels.swift; sourceTree = "<group>"; };
 		F7044ECE073A4355A364CD631452E561 /* KanbanBoardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = KanbanBoardView.swift; path = RalphMac/KanbanBoardView.swift; sourceTree = "<group>"; };
@@ -537,6 +539,7 @@
 				7D1B5B4C1E6F708D01234567 /* WorkspaceView.swift in Sources */,
 				8E2C6C5D2F70819234567890 /* WindowView.swift in Sources */,
 				BB22CC33DD44EE55FF6677889900AA11 /* TaskDetailView.swift in Sources */,
+				AA99BB88CC77DD66EE55FF4400112233 /* TaskDetailViewSupport.swift in Sources */,
 				CC112233445566778899AABB /* TaskConflictResolverView.swift in Sources */,
 				DD44EE55FF6677889900AA11BB22CC33 /* StringArrayEditor.swift in Sources */,
 				FF6677889900AA11BB22CC33DD44EE55 /* TagEditorView.swift in Sources */,

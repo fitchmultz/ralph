@@ -551,6 +551,153 @@ public struct RalphTaskAgent: Codable, Sendable, Equatable {
     }
 }
 
+public extension RalphTaskAgent {
+    static func normalizedOverride(_ agent: RalphTaskAgent?) -> RalphTaskAgent? {
+        guard var normalized = agent else { return nil }
+
+        normalized.runner = normalizeOptionalString(normalized.runner)
+        normalized.model = normalizeOptionalString(normalized.model)
+        normalized.modelEffort = normalizeOptionalString(normalized.modelEffort)
+        if normalized.modelEffort?.lowercased() == "default" {
+            normalized.modelEffort = nil
+        }
+        normalized.followupReasoningEffort = normalizeOptionalString(normalized.followupReasoningEffort)
+
+        if let phases = normalized.phases, !(1...3).contains(phases) {
+            normalized.phases = nil
+        }
+        if let iterations = normalized.iterations, iterations < 1 {
+            normalized.iterations = nil
+        }
+
+        if var phaseOverrides = normalized.phaseOverrides {
+            phaseOverrides.phase1 = normalizePhaseOverride(phaseOverrides.phase1)
+            phaseOverrides.phase2 = normalizePhaseOverride(phaseOverrides.phase2)
+            phaseOverrides.phase3 = normalizePhaseOverride(phaseOverrides.phase3)
+            normalized.phaseOverrides = phaseOverrides.isEmpty ? nil : phaseOverrides
+        }
+
+        return normalized.isEmpty ? nil : normalized
+    }
+}
+
+public enum RalphTaskExecutionPreset: String, CaseIterable, Sendable, Identifiable {
+    case codexDeep
+    case codexBalanced
+    case kimiFast
+    case hybridCodexKimi
+    case inheritFromConfig
+
+    public var id: String { rawValue }
+
+    public var displayName: String {
+        switch self {
+        case .codexDeep:
+            return "Codex Deep"
+        case .codexBalanced:
+            return "Codex Balanced"
+        case .kimiFast:
+            return "Kimi Fast"
+        case .hybridCodexKimi:
+            return "Hybrid Codex+Kimi"
+        case .inheritFromConfig:
+            return "Inherit Config"
+        }
+    }
+
+    public var description: String {
+        switch self {
+        case .codexDeep:
+            return "High-reasoning Codex with full 3-phase flow."
+        case .codexBalanced:
+            return "Codex with medium effort and a 2-phase flow."
+        case .kimiFast:
+            return "Kimi coding model with 3 phases and 1 iteration."
+        case .hybridCodexKimi:
+            return "Codex planning, Kimi implementation and review."
+        case .inheritFromConfig:
+            return "Remove task overrides and use .ralph/config.json."
+        }
+    }
+
+    public var agentOverride: RalphTaskAgent? {
+        switch self {
+        case .codexDeep:
+            return RalphTaskAgent(
+                runner: "codex",
+                model: "gpt-5.3-codex",
+                modelEffort: "high",
+                phases: 3,
+                iterations: 1
+            )
+        case .codexBalanced:
+            return RalphTaskAgent(
+                runner: "codex",
+                model: "gpt-5.3-codex",
+                modelEffort: "medium",
+                phases: 2,
+                iterations: 1
+            )
+        case .kimiFast:
+            return RalphTaskAgent(
+                runner: "kimi",
+                model: "kimi-code/kimi-for-coding",
+                phases: 3,
+                iterations: 1
+            )
+        case .hybridCodexKimi:
+            return RalphTaskAgent(
+                phases: 3,
+                iterations: 1,
+                phaseOverrides: RalphTaskPhaseOverrides(
+                    phase1: RalphTaskPhaseOverride(
+                        runner: "codex",
+                        model: "gpt-5.3-codex",
+                        reasoningEffort: "high"
+                    ),
+                    phase2: RalphTaskPhaseOverride(
+                        runner: "kimi",
+                        model: "kimi-code/kimi-for-coding"
+                    ),
+                    phase3: RalphTaskPhaseOverride(
+                        runner: "kimi",
+                        model: "kimi-code/kimi-for-coding"
+                    )
+                )
+            )
+        case .inheritFromConfig:
+            return nil
+        }
+    }
+
+    public static func matchingPreset(for agent: RalphTaskAgent?) -> RalphTaskExecutionPreset? {
+        let normalizedAgent = RalphTaskAgent.normalizedOverride(agent)
+        for preset in Self.allCases where preset != .inheritFromConfig {
+            if RalphTaskAgent.normalizedOverride(preset.agentOverride) == normalizedAgent {
+                return preset
+            }
+        }
+        if normalizedAgent == nil {
+            return .inheritFromConfig
+        }
+        return nil
+    }
+}
+
+private func normalizeOptionalString(_ value: String?) -> String? {
+    guard let value else { return nil }
+    let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+    return trimmed.isEmpty ? nil : trimmed
+}
+
+private func normalizePhaseOverride(_ overrideValue: RalphTaskPhaseOverride?) -> RalphTaskPhaseOverride? {
+    guard var normalized = overrideValue else { return nil }
+    normalized.runner = normalizeOptionalString(normalized.runner)
+    normalized.model = normalizeOptionalString(normalized.model)
+    normalized.reasoningEffort = normalizeOptionalString(normalized.reasoningEffort)
+    return normalized.isEmpty ? nil : normalized
+}
+
 public struct RalphTask: Codable, Sendable, Equatable, Identifiable {
     public let id: String
     public var status: RalphTaskStatus

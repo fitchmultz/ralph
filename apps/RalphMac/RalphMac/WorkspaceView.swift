@@ -35,6 +35,10 @@ struct WorkspaceView: View {
         )
     }
 
+    private func navTitle(_ context: String) -> String {
+        "\(workspace.projectDisplayName) · \(context)"
+    }
+
     var body: some View {
         NavigationSplitView(columnVisibility: $navigation.sidebarVisibility) {
             // MARK: Column 1: Sidebar
@@ -203,7 +207,7 @@ struct WorkspaceView: View {
                 .background(.ultraThinMaterial)
             }
         }
-        .navigationTitle("Ralph")
+        .navigationTitle(navTitle(navigation.selectedSection.rawValue))
     }
 
     // MARK: - Content Column
@@ -324,7 +328,7 @@ struct WorkspaceView: View {
                 .padding(16)
         }
         .contentBackground(cornerRadius: 12)
-        .navigationTitle("Quick Actions")
+        .navigationTitle(navTitle("Quick Actions"))
     }
 
     // MARK: - Run Control Content Column
@@ -342,7 +346,7 @@ struct WorkspaceView: View {
                 .padding(16)
         }
         .contentBackground(cornerRadius: 12)
-        .navigationTitle("Run Control")
+        .navigationTitle(navTitle("Run Control"))
     }
 
     // MARK: - Quick Actions Detail Column
@@ -462,7 +466,7 @@ struct WorkspaceView: View {
             .padding(20)
         }
         .background(.clear)
-        .navigationTitle("Quick Actions")
+        .navigationTitle(navTitle("Quick Actions"))
     }
 
     // MARK: - Run Control Detail Column
@@ -500,7 +504,7 @@ struct WorkspaceView: View {
             .padding(20)
         }
         .background(.clear)
-        .navigationTitle("Execution Control")
+        .navigationTitle(navTitle("Run Control"))
     }
 
     @ViewBuilder
@@ -932,7 +936,7 @@ struct WorkspaceView: View {
             }
             .listStyle(.plain)
             .searchable(text: $workspace.advancedSearchText, placement: .toolbar)
-            .navigationTitle("Commands")
+            .navigationTitle(navTitle("Advanced Runner"))
         }
         .onChange(of: workspace.advancedSelectedCommandID) { _, _ in
             workspace.resetAdvancedInputs()
@@ -1022,7 +1026,7 @@ struct WorkspaceView: View {
                 .padding(20)
             }
             .background(.clear)
-            .navigationTitle(cmd.name)
+            .navigationTitle(navTitle(cmd.name))
         } else {
             emptyDetailView(
                 icon: "terminal.fill",
@@ -1080,7 +1084,7 @@ struct WorkspaceView: View {
             .padding(20)
         }
         .background(.clear)
-        .navigationTitle("Analytics Details")
+        .navigationTitle(navTitle("Analytics"))
     }
 
     private func filteredAdvancedCommands() -> [RalphCLICommandSpec] {

@@ -39,6 +39,8 @@ public final class WorkspaceManager: ObservableObject {
 
     private let restorationKey = "com.mitchfultz.ralph.windowRestorationState"
     private let versionCheckCacheKey = "com.mitchfultz.ralph.versionCheckCache"
+    private var unclaimedWindowStates: [WindowState] = []
+    private var restorationPoolInitialized = false
 
     private init() {
         if !configureInitialClient() {
@@ -199,6 +201,10 @@ public final class WorkspaceManager: ObservableObject {
         if let data = try? JSONEncoder().encode(allStates) {
             UserDefaults.standard.set(data, forKey: restorationKey)
         }
+
+        if restorationPoolInitialized {
+            unclaimedWindowStates.removeAll { $0.id == state.id }
+        }
     }
 
     public func loadAllWindowStates() -> [WindowState] {
@@ -212,10 +218,32 @@ public final class WorkspaceManager: ObservableObject {
     public func removeWindowState(_ windowID: UUID) {
         var allStates = loadAllWindowStates()
         allStates.removeAll { $0.id == windowID }
+        unclaimedWindowStates.removeAll { $0.id == windowID }
 
         if let data = try? JSONEncoder().encode(allStates) {
             UserDefaults.standard.set(data, forKey: restorationKey)
         }
+    }
+
+    /// Claim a unique window state for a scene.
+    ///
+    /// If `preferredID` exists in restored state, that state is returned and removed from the
+    /// unclaimed pool. Otherwise the next unclaimed restored state is returned. If none remain,
+    /// a new default window state is created.
+    public func claimWindowState(preferredID: UUID?) -> WindowState {
+        ensureRestorationPool()
+
+        if let preferredID,
+           let preferredIndex = unclaimedWindowStates.firstIndex(where: { $0.id == preferredID }) {
+            return unclaimedWindowStates.remove(at: preferredIndex)
+        }
+
+        if !unclaimedWindowStates.isEmpty {
+            return unclaimedWindowStates.removeFirst()
+        }
+
+        let workspace = createWorkspace()
+        return WindowState(workspaceIDs: [workspace.id])
     }
 
     public func restoreWindows() -> [WindowState] {
@@ -259,6 +287,19 @@ public final class WorkspaceManager: ObservableObject {
         }
 
         return restoredStates
+    }
+
+    private func ensureRestorationPool() {
+        guard !restorationPoolInitialized else { return }
+        unclaimedWindowStates = restoreWindows()
+        restorationPoolInitialized = true
+    }
+
+    /// Reset in-memory window-state claim tracking.
+    /// Used by tests to isolate singleton state between test cases.
+    func resetWindowStateClaimPool() {
+        unclaimedWindowStates.removeAll()
+        restorationPoolInitialized = false
     }
 
     // MARK: - Legacy Migration

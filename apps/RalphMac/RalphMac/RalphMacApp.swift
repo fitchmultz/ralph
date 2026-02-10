@@ -434,12 +434,14 @@ struct RalphMacApp: App {
 // MARK: - Window View Container
 
 /// Container view that handles workspace initialization to avoid state mutation during view init.
-/// On app launch, attempts to restore saved window state via WorkspaceManager.restoreWindows().
-/// Falls back to creating a fresh workspace with default state if no saved state exists.
+/// Claims a unique saved window state per scene (if available) and persists that mapping via
+/// scene storage to prevent multiple tabs/windows from sharing the same workspace state.
 @MainActor
 struct WindowViewContainer: View {
     private let manager = WorkspaceManager.shared
     @State private var windowState: WindowState?
+    @State private var didResolveSceneWindowState = false
+    @SceneStorage("windowStateID") private var persistedWindowStateID: String = ""
 
     var body: some View {
         Group {
@@ -462,21 +464,17 @@ struct WindowViewContainer: View {
     }
 
     private func initializeWindowStateIfNeeded() {
-        guard windowState == nil else { return }
+        guard !didResolveSceneWindowState else { return }
 
-        let restoredStates = manager.restoreWindows()
-        // For now, use the first restored window state.
-        // Multi-window support can be added later.
-        if let firstState = restoredStates.first {
-            windowState = firstState
-        } else {
-            // No saved state - create fresh workspace.
-            let workspace = manager.createWorkspace()
-            windowState = WindowState(workspaceIDs: [workspace.id])
-        }
+        let preferredID = UUID(uuidString: persistedWindowStateID) ?? windowState?.id
+        let claimedState = manager.claimWindowState(preferredID: preferredID)
+        windowState = claimedState
+        persistedWindowStateID = claimedState.id.uuidString
+        manager.saveWindowState(claimedState)
+        didResolveSceneWindowState = true
 
         // Perform health check after workspace is set up.
-        if let firstWorkspaceID = windowState?.workspaceIDs.first,
+        if let firstWorkspaceID = claimedState.workspaceIDs.first,
            let workspace = manager.workspaces.first(where: { $0.id == firstWorkspaceID }) {
             Task { @MainActor in
                 _ = await workspace.checkHealth()

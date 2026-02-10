@@ -30,6 +30,7 @@ struct TaskDetailView: View {
 
     // State for mutable copy of task being edited
     @State private var draftTask: RalphTask
+    @State private var baselineTask: RalphTask
     @State private var isSaving = false
     @State private var saveError: String?
     @State private var showingUnsavedChangesAlert = false
@@ -47,42 +48,56 @@ struct TaskDetailView: View {
         self.task = task
         self.onTaskUpdated = onTaskUpdated
         self._draftTask = State(initialValue: task)
+        self._baselineTask = State(initialValue: task)
         self._originalUpdatedAt = State(initialValue: task.updatedAt)
     }
 
     var body: some View {
         contentView
-            .withTaskDetailToolbar(
-                hasConflict: hasConflict,
-                isSaving: isSaving,
-                saveSuccess: saveSuccess,
-                hasChanges: hasChanges(),
-                onSave: { saveChanges() }
-            )
             .withTaskDetailAlerts(
                 showingUnsavedChangesAlert: $showingUnsavedChangesAlert,
                 showingConflictAlert: $showingConflictAlert,
                 showingConflictResolver: $showingConflictResolver,
                 saveError: $saveError,
-                task: task,
                 draftTask: draftTask,
                 conflictedExternalTask: conflictedExternalTask,
-                onDiscard: { draftTask = task },
+                onDiscard: { draftTask = baselineTask },
                 onForceSave: { saveChanges(force: true) },
                 onDiscardExternal: { discardLocalChanges() },
                 onMerge: { mergedTask in
                     self.draftTask = mergedTask
+                    self.baselineTask = mergedTask
+                    self.originalUpdatedAt = mergedTask.updatedAt
                     self.hasConflict = false
+                    self.conflictedExternalTask = nil
                     self.showingConflictResolver = false
                 }
+            )
+            .withTaskDetailActionBar(
+                hasConflict: hasConflict,
+                isSaving: isSaving,
+                saveSuccess: saveSuccess,
+                hasChanges: hasChanges(),
+                onReset: { showingUnsavedChangesAlert = true },
+                onSave: { saveChanges() }
             )
             .onChange(of: task.id) { _, _ in
                 // Task changed, reset draft and conflict state
                 draftTask = task
+                baselineTask = task
                 originalUpdatedAt = task.updatedAt
                 hasConflict = false
                 conflictedExternalTask = nil
                 saveSuccess = false
+            }
+            .onChange(of: task.updatedAt) { _, _ in
+                // Keep baseline in sync when parent task refreshes and no local edits are pending.
+                guard !hasChanges() else { return }
+                draftTask = task
+                baselineTask = task
+                originalUpdatedAt = task.updatedAt
+                hasConflict = false
+                conflictedExternalTask = nil
             }
             .onReceive(NotificationCenter.default.publisher(for: .queueFilesExternallyChanged)) { _ in
                 checkForExternalChanges()
@@ -212,6 +227,31 @@ struct TaskDetailView: View {
     private func executionOverridesSection() -> some View {
         glassGroupBox("Execution Overrides") {
             VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Quick Presets")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    ViewThatFits(in: .horizontal) {
+                        FlowLayout(spacing: 8) {
+                            presetButtons
+                        }
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                presetButtons
+                            }
+                        }
+                    }
+                    if activeExecutionPreset == nil, draftTask.agent != nil {
+                        Label("Custom override active", systemImage: "slider.horizontal.3")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Label(overrideSummaryCaption, systemImage: draftTask.agent == nil ? "arrow.down.circle" : "slider.horizontal.3")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
                 HStack(spacing: 16) {
                     Picker("Runner", selection: taskRunnerBinding) {
                         Text("Inherit").tag("inherit")
@@ -273,15 +313,54 @@ struct TaskDetailView: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
 
+                if let inheritedConfigCaption {
+                    Text(inheritedConfigCaption)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+
                 Divider()
 
-                Text("Per-Phase Overrides")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                HStack {
+                    Text("Per-Phase Overrides")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text("Using \(resolvedPhaseCount) phase\(resolvedPhaseCount == 1 ? "" : "s")")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
 
-                phaseOverrideEditor(title: "Phase 1 (Planning)", phase: 1)
-                phaseOverrideEditor(title: "Phase 2 (Implementation)", phase: 2)
-                phaseOverrideEditor(title: "Phase 3 (Review)", phase: 3)
+                ForEach(1...resolvedPhaseCount, id: \.self) { phase in
+                    phaseOverrideEditor(
+                        title: phaseTitle(phase),
+                        phase: phase
+                    )
+                }
+
+                if hasIgnoredPhaseOverrides {
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.yellow)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Some phase overrides are currently ignored.")
+                                .font(.caption)
+                                .foregroundStyle(.primary)
+                            Text("Overrides for phases above your selected phase count are not used until you increase phases again.")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button("Trim Ignored") {
+                            trimIgnoredPhaseOverrides()
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
+                    .padding(8)
+                    .background(Color(NSColor.windowBackgroundColor).opacity(0.35))
+                    .cornerRadius(8)
+                }
 
                 HStack {
                     Spacer()
@@ -487,8 +566,12 @@ struct TaskDetailView: View {
     }
 
     @ViewBuilder
-    private func phaseOverrideEditor(title: String, phase: Int) -> some View {
+    private func phaseOverrideEditor(
+        title: String,
+        phase: Int
+    ) -> some View {
         let effortDisabled = phaseEffortDisabled(phase: phase)
+        let hasOverride = phaseOverride(for: phase) != nil
 
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -501,7 +584,7 @@ struct TaskDetailView: View {
                 }
                 .buttonStyle(.borderless)
                 .controlSize(.small)
-                .disabled(phaseOverride(for: phase) == nil)
+                .disabled(!hasOverride)
             }
 
             HStack(spacing: 12) {
@@ -537,6 +620,120 @@ struct TaskDetailView: View {
         .padding(8)
         .background(Color(NSColor.windowBackgroundColor).opacity(0.35))
         .cornerRadius(8)
+    }
+
+    private var activeExecutionPreset: RalphTaskExecutionPreset? {
+        RalphTaskExecutionPreset.matchingPreset(for: draftTask.agent)
+    }
+
+    @ViewBuilder
+    private func presetButton(for preset: RalphTaskExecutionPreset) -> some View {
+        let isActive = activeExecutionPreset == preset
+        Button {
+            applyExecutionPreset(preset)
+        } label: {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(preset.displayName)
+                    .font(.caption.weight(.semibold))
+                Text(preset.description)
+                    .font(.caption2)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .foregroundStyle(isActive ? Color.white : Color.primary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .frame(minWidth: 160, idealWidth: 180, maxWidth: 220, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(isActive ? Color.accentColor : Color(NSColor.windowBackgroundColor).opacity(0.35))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(isActive ? Color.accentColor : Color.secondary.opacity(0.25), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func applyExecutionPreset(_ preset: RalphTaskExecutionPreset) {
+        draftTask.agent = RalphTaskAgent.normalizedOverride(preset.agentOverride)
+    }
+
+    @ViewBuilder
+    private var presetButtons: some View {
+        ForEach(RalphTaskExecutionPreset.allCases) { preset in
+            presetButton(for: preset)
+        }
+    }
+
+    private var overrideSummaryCaption: String {
+        guard let agent = RalphTaskAgent.normalizedOverride(draftTask.agent) else {
+            return "No task override. Runner/model/phases/iterations inherit from config."
+        }
+
+        var parts: [String] = []
+        if let runner = agent.runner { parts.append("runner \(runner)") }
+        if let model = agent.model { parts.append("model \(model)") }
+        if let effort = agent.modelEffort { parts.append("effort \(effort)") }
+        if let phases = agent.phases { parts.append("phases \(phases)") }
+        if let iterations = agent.iterations { parts.append("iterations \(iterations)") }
+        if let overrides = agent.phaseOverrides, !overrides.isEmpty {
+            let count = [overrides.phase1, overrides.phase2, overrides.phase3].compactMap { $0 }.count
+            parts.append("\(count) phase override\(count == 1 ? "" : "s")")
+        }
+        return parts.isEmpty ? "Task override active" : "Task override: \(parts.joined(separator: ", "))"
+    }
+
+    private var inheritedConfigCaption: String? {
+        guard let runnerConfig = workspace.currentRunnerConfig else { return nil }
+        let inheritedModel = runnerConfig.model ?? "default"
+        let inheritedIterations = runnerConfig.maxIterations.map(String.init) ?? "default"
+        let inheritedPhases = runnerConfig.phases.map(String.init) ?? "default"
+        return "Current inherited config: model \(inheritedModel), phases \(inheritedPhases), iterations \(inheritedIterations)."
+    }
+
+    private var resolvedPhaseCount: Int {
+        let taskPhases = draftTask.agent?.phases
+        let inheritedPhases = workspace.currentRunnerConfig?.phases
+        return min(max(taskPhases ?? inheritedPhases ?? 3, 1), 3)
+    }
+
+    private func phaseTitle(_ phase: Int) -> String {
+        switch phase {
+        case 1:
+            return "Phase 1 (Planning)"
+        case 2:
+            return "Phase 2 (Implementation)"
+        case 3:
+            return "Phase 3 (Review)"
+        default:
+            return "Phase \(phase)"
+        }
+    }
+
+    private var hasIgnoredPhaseOverrides: Bool {
+        let overrides = draftTask.agent?.phaseOverrides
+        if resolvedPhaseCount < 3, overrides?.phase3 != nil {
+            return true
+        }
+        if resolvedPhaseCount < 2, overrides?.phase2 != nil {
+            return true
+        }
+        return false
+    }
+
+    private func trimIgnoredPhaseOverrides() {
+        mutateTaskAgent { agent in
+            guard var overrides = agent.phaseOverrides else { return }
+            if resolvedPhaseCount < 2 {
+                overrides.phase2 = nil
+            }
+            if resolvedPhaseCount < 3 {
+                overrides.phase3 = nil
+            }
+            agent.phaseOverrides = overrides.isEmpty ? nil : overrides
+        }
     }
 
     private var taskRunnerBinding: Binding<String> {
@@ -672,20 +869,7 @@ struct TaskDetailView: View {
     private func mutateTaskAgent(_ mutate: (inout RalphTaskAgent) -> Void) {
         var agent = draftTask.agent ?? RalphTaskAgent()
         mutate(&agent)
-        if let effort = agent.modelEffort?.trimmingCharacters(in: .whitespacesAndNewlines),
-           effort.lowercased() == "default" {
-            agent.modelEffort = nil
-        }
-        if let phases = agent.phases, !(1...3).contains(phases) {
-            agent.phases = nil
-        }
-        if let iterations = agent.iterations, iterations < 1 {
-            agent.iterations = nil
-        }
-        if let overrides = agent.phaseOverrides, overrides.isEmpty {
-            agent.phaseOverrides = nil
-        }
-        draftTask.agent = agent.isEmpty ? nil : agent
+        draftTask.agent = RalphTaskAgent.normalizedOverride(agent)
     }
 
     // MARK: - Helper Methods
@@ -706,7 +890,7 @@ struct TaskDetailView: View {
     }
 
     private func hasChanges() -> Bool {
-        draftTask != task
+        draftTask != baselineTask
     }
 
     private func saveChanges(force: Bool = false) {
@@ -724,17 +908,21 @@ struct TaskDetailView: View {
             do {
                 // Pass originalUpdatedAt for optimistic locking check
                 try await workspace.updateTask(
-                    from: task,
+                    from: baselineTask,
                     to: draftTask,
                     originalUpdatedAt: force ? nil : originalUpdatedAt
                 )
+                let persistedTask = workspace.tasks.first(where: { $0.id == draftTask.id }) ?? draftTask
                 isSaving = false
                 saveSuccess = true
                 hasConflict = false
-                onTaskUpdated?(draftTask)
+                conflictedExternalTask = nil
                 
-                // Update original timestamp after successful save
-                originalUpdatedAt = draftTask.updatedAt
+                // Update baseline after successful save so future optimistic-lock checks are accurate.
+                draftTask = persistedTask
+                baselineTask = persistedTask
+                originalUpdatedAt = persistedTask.updatedAt
+                onTaskUpdated?(persistedTask)
                 
                 // Clear success indicator after 2 seconds
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
@@ -759,12 +947,16 @@ struct TaskDetailView: View {
     // MARK: - Conflict Detection
     
     private func checkForExternalChanges() {
+        guard !isSaving else { return }
+
         // If no local changes, silently update the draft to match external changes
         guard hasChanges() else {
             if let currentTask = workspace.tasks.first(where: { $0.id == task.id }) {
                 draftTask = currentTask
+                baselineTask = currentTask
                 originalUpdatedAt = currentTask.updatedAt
                 hasConflict = false
+                conflictedExternalTask = nil
             }
             return
         }
@@ -783,228 +975,13 @@ struct TaskDetailView: View {
     private func discardLocalChanges() {
         if let externalTask = conflictedExternalTask {
             draftTask = externalTask
+            baselineTask = externalTask
             originalUpdatedAt = externalTask.updatedAt
             hasConflict = false
             conflictedExternalTask = nil
         }
     }
 
-    private func statusColor(_ status: RalphTaskStatus) -> Color {
-        switch status {
-        case .draft:
-            return .gray
-        case .todo:
-            return .blue
-        case .doing:
-            return .orange
-        case .done:
-            return .green
-        case .rejected:
-            return .red
-        }
-    }
-
-    private func priorityColor(_ priority: RalphTaskPriority) -> Color {
-        switch priority {
-        case .critical:
-            return .red
-        case .high:
-            return .orange
-        case .medium:
-            return .yellow
-        case .low:
-            return .gray
-        }
-    }
-
-    private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
-    }
-
-    private func formatDateForAccessibility(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .long
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
-    }
-
-    private func isEditingNewArrayField(_ field: String) -> Bool {
-        // Used to check if we're currently editing a field that was just added
-        // This helps with conditional display of optional array fields
-        false
-    }
-    
-    /// Builds the complete set of edges from all tasks in the workspace
-    /// Used for cycle detection in TaskRelationshipPicker
-    private func buildExistingEdges() -> [GraphEdge] {
-        var edges: [GraphEdge] = []
-        
-        for task in workspace.tasks {
-            // Depends on relationships (current task depends on others)
-            for depId in task.dependsOn ?? [] {
-                edges.append(GraphEdge(from: task.id, to: depId, type: .dependency))
-            }
-            
-            // Blocks relationships (current task blocks others)
-            for blockedId in task.blocks ?? [] {
-                edges.append(GraphEdge(from: task.id, to: blockedId, type: .blocks))
-            }
-            
-            // Relates to relationships (bidirectional)
-            for relatedId in task.relatesTo ?? [] where task.id < relatedId {
-                edges.append(GraphEdge(from: task.id, to: relatedId, type: .relatesTo))
-            }
-        }
-        
-        return edges
-    }
-}
-
-// MARK: - View Modifiers
-
-private struct TaskDetailToolbarModifier: ViewModifier {
-    let hasConflict: Bool
-    let isSaving: Bool
-    let saveSuccess: Bool
-    let hasChanges: Bool
-    let onSave: () -> Void
-    
-    func body(content: Content) -> some View {
-        content
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    HStack(spacing: 8) {
-                        if hasConflict {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundStyle(.orange)
-                                .help("Task modified externally - save may overwrite changes")
-                                .accessibilityLabel("External modification warning")
-                        }
-                        
-                        if isSaving {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                                .controlSize(.small)
-                        } else if saveSuccess {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                                .transition(.opacity)
-                        }
-
-                        Button("Save", action: onSave)
-                            .disabled(!hasChanges || isSaving)
-                            .keyboardShortcut("s", modifiers: .command)
-                            .accessibilityLabel("Save changes")
-                            .accessibilityHint("Save all changes to this task")
-                    }
-                }
-
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Reset") {
-                        // Will be handled by alert
-                    }
-                    .disabled(!hasChanges)
-                    .accessibilityLabel("Reset changes")
-                    .accessibilityHint("Discard all changes and revert to saved version")
-                }
-            }
-    }
-}
-
-private struct TaskDetailAlertsModifier: ViewModifier {
-    @Binding var showingUnsavedChangesAlert: Bool
-    @Binding var showingConflictAlert: Bool
-    @Binding var showingConflictResolver: Bool
-    @Binding var saveError: String?
-    let task: RalphTask
-    let draftTask: RalphTask
-    let conflictedExternalTask: RalphTask?
-    let onDiscard: () -> Void
-    let onForceSave: () -> Void
-    let onDiscardExternal: () -> Void
-    let onMerge: (RalphTask) -> Void
-    
-    func body(content: Content) -> some View {
-        content
-            .alert("Discard Changes?", isPresented: $showingUnsavedChangesAlert) {
-                Button("Discard", role: .destructive, action: onDiscard)
-                Button("Keep Editing", role: .cancel) {}
-            } message: {
-                Text("You have unsaved changes. Are you sure you want to discard them and reset to the saved version?")
-            }
-            .alert("Save Error", isPresented: .constant(saveError != nil)) {
-                Button("OK") { saveError = nil }
-            } message: {
-                Text(saveError ?? "")
-            }
-            .alert("External Changes Detected", isPresented: $showingConflictAlert) {
-                Button("Overwrite External Changes", role: .destructive, action: onForceSave)
-                Button("Discard My Changes", action: onDiscardExternal)
-                Button("Resolve Conflicts...") { showingConflictResolver = true }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("This task has been modified externally (via CLI or another window). Your changes conflict with the external changes.\n\nWhat would you like to do?")
-            }
-            .sheet(isPresented: $showingConflictResolver) {
-                if let externalTask = conflictedExternalTask {
-                    TaskConflictResolverView(
-                        localTask: draftTask,
-                        externalTask: externalTask,
-                        onMerge: onMerge,
-                        onCancel: { showingConflictResolver = false }
-                    )
-                }
-            }
-    }
-}
-
-extension View {
-    func withTaskDetailToolbar(
-        hasConflict: Bool,
-        isSaving: Bool,
-        saveSuccess: Bool,
-        hasChanges: Bool,
-        onSave: @escaping () -> Void
-    ) -> some View {
-        modifier(TaskDetailToolbarModifier(
-            hasConflict: hasConflict,
-            isSaving: isSaving,
-            saveSuccess: saveSuccess,
-            hasChanges: hasChanges,
-            onSave: onSave
-        ))
-    }
-    
-    func withTaskDetailAlerts(
-        showingUnsavedChangesAlert: Binding<Bool>,
-        showingConflictAlert: Binding<Bool>,
-        showingConflictResolver: Binding<Bool>,
-        saveError: Binding<String?>,
-        task: RalphTask,
-        draftTask: RalphTask,
-        conflictedExternalTask: RalphTask?,
-        onDiscard: @escaping () -> Void,
-        onForceSave: @escaping () -> Void,
-        onDiscardExternal: @escaping () -> Void,
-        onMerge: @escaping (RalphTask) -> Void
-    ) -> some View {
-        modifier(TaskDetailAlertsModifier(
-            showingUnsavedChangesAlert: showingUnsavedChangesAlert,
-            showingConflictAlert: showingConflictAlert,
-            showingConflictResolver: showingConflictResolver,
-            saveError: saveError,
-            task: task,
-            draftTask: draftTask,
-            conflictedExternalTask: conflictedExternalTask,
-            onDiscard: onDiscard,
-            onForceSave: onForceSave,
-            onDiscardExternal: onDiscardExternal,
-            onMerge: onMerge
-        ))
-    }
 }
 
 // Preview

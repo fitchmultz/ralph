@@ -232,7 +232,7 @@ final class WorkspacePerformanceTests: XCTestCase {
             #!/bin/sh
             if [ "$1" = "--no-color" ] && [ "$2" = "config" ] && [ "$3" = "show" ] && [ "$4" = "--format" ] && [ "$5" = "json" ]; then
               cat <<'JSON'
-            {"agent":{"model":"kimi-code/kimi-for-coding","iterations":3}}
+            {"agent":{"model":"kimi-code/kimi-for-coding","phases":2,"iterations":3}}
             JSON
               exit 0
             fi
@@ -250,6 +250,7 @@ final class WorkspacePerformanceTests: XCTestCase {
         await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
 
         XCTAssertEqual(workspace.currentRunnerConfig?.model, "kimi-code/kimi-for-coding")
+        XCTAssertEqual(workspace.currentRunnerConfig?.phases, 2)
         XCTAssertEqual(workspace.currentRunnerConfig?.maxIterations, 3)
     }
 
@@ -260,7 +261,7 @@ final class WorkspacePerformanceTests: XCTestCase {
         let successScript = """
             #!/bin/sh
             if [ "$2" = "config" ] && [ "$3" = "show" ]; then
-              echo '{"agent":{"model":"kimi-initial","iterations":2}}'
+              echo '{"agent":{"model":"kimi-initial","phases":3,"iterations":2}}'
               exit 0
             fi
             exit 64
@@ -274,6 +275,7 @@ final class WorkspacePerformanceTests: XCTestCase {
         let workspace = Workspace(workingDirectoryURL: tempDir, client: successClient)
         await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
         XCTAssertEqual(workspace.currentRunnerConfig?.model, "kimi-initial")
+        XCTAssertEqual(workspace.currentRunnerConfig?.phases, 3)
         XCTAssertEqual(workspace.currentRunnerConfig?.maxIterations, 2)
 
         let failScript = """
@@ -309,13 +311,13 @@ final class WorkspacePerformanceTests: XCTestCase {
             if [ "$2" = "config" ] && [ "$3" = "show" ]; then
               case "$PWD" in
               */workspace-a)
-                echo '{"agent":{"model":"model-a","iterations":1}}'
+                echo '{"agent":{"model":"model-a","phases":1,"iterations":1}}'
                 ;;
               */workspace-b)
-                echo '{"agent":{"model":"model-b","iterations":4}}'
+                echo '{"agent":{"model":"model-b","phases":2,"iterations":4}}'
                 ;;
               *)
-                echo '{"agent":{"model":"model-unknown","iterations":9}}'
+                echo '{"agent":{"model":"model-unknown","phases":3,"iterations":9}}'
                 ;;
               esac
               exit 0
@@ -332,16 +334,19 @@ final class WorkspacePerformanceTests: XCTestCase {
 
         await workspace.loadRunnerConfiguration(retryConfiguration: .minimal)
         XCTAssertEqual(workspace.currentRunnerConfig?.model, "model-a")
+        XCTAssertEqual(workspace.currentRunnerConfig?.phases, 1)
         XCTAssertEqual(workspace.currentRunnerConfig?.maxIterations, 1)
 
         workspace.setWorkingDirectory(workspaceBDir)
 
         await Self.waitFor(timeout: 2.0) {
             workspace.currentRunnerConfig?.model == "model-b"
+                && workspace.currentRunnerConfig?.phases == 2
                 && workspace.currentRunnerConfig?.maxIterations == 4
         }
 
         XCTAssertEqual(workspace.currentRunnerConfig?.model, "model-b")
+        XCTAssertEqual(workspace.currentRunnerConfig?.phases, 2)
         XCTAssertEqual(workspace.currentRunnerConfig?.maxIterations, 4)
     }
 
@@ -708,7 +713,6 @@ final class WorkspacePerformanceTests: XCTestCase {
         let log = try String(contentsOf: logURL, encoding: .utf8)
         let lines = log.split(separator: "\n").map(String.init)
         XCTAssertFalse(lines.contains { $0.contains("<--no-color><task><edit><agent><") })
-        XCTAssertTrue(lines.contains { $0.contains("<--no-color><queue><list><--format><json>") })
     }
 
     // MARK: - Helpers

@@ -69,8 +69,27 @@
       ],
       "notes": [],
       "request": "Merge the task updater functionality enabled via the config key 'update_task_before_run' into the Phase 1 plan phase. It does not make sense to have this run separately. The config parameter can go away as this is enabled by default.",
+      "agent": {
+        "phases": 3,
+        "iterations": 1,
+        "phase_overrides": {
+          "phase1": {
+            "runner": "codex",
+            "model": "gpt-5.3-codex",
+            "reasoning_effort": "high"
+          },
+          "phase2": {
+            "runner": "kimi",
+            "model": "kimi-code/kimi-for-coding"
+          },
+          "phase3": {
+            "runner": "kimi",
+            "model": "kimi-code/kimi-for-coding"
+          }
+        }
+      },
       "created_at": "2026-02-10T15:30:01Z",
-      "updated_at": "2026-02-10T15:30:01Z",
+      "updated_at": "2026-02-10T17:50:56.896163000Z",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],
@@ -131,8 +150,27 @@
       ],
       "notes": [],
       "request": "Audit all existing files that utilize .json format. Add support for .jsonc (JSON comments) format. .json files take precedence over .jsonc files (e.g. config.json takes precedence over config.jsonc if both are present) but both are supported.",
+      "agent": {
+        "phases": 3,
+        "iterations": 1,
+        "phase_overrides": {
+          "phase1": {
+            "runner": "codex",
+            "model": "gpt-5.3-codex",
+            "reasoning_effort": "high"
+          },
+          "phase2": {
+            "runner": "kimi",
+            "model": "kimi-code/kimi-for-coding"
+          },
+          "phase3": {
+            "runner": "kimi",
+            "model": "kimi-code/kimi-for-coding"
+          }
+        }
+      },
       "created_at": "2026-02-10T15:00:50Z",
-      "updated_at": "2026-02-10T15:00:50Z",
+      "updated_at": "2026-02-10T17:48:34.961420000Z",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],

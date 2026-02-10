@@ -219,10 +219,10 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
 
     public struct RunnerConfig: Sendable {
         public let model: String?
-        public let phases: [String]?
+        public let phases: Int?
         public let maxIterations: Int?
 
-        public init(model: String? = nil, phases: [String]? = nil, maxIterations: Int? = nil) {
+        public init(model: String? = nil, phases: Int? = nil, maxIterations: Int? = nil) {
             self.model = model
             self.phases = phases
             self.maxIterations = maxIterations
@@ -235,6 +235,7 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
 
         struct AgentConfig: Decodable, Sendable {
             let model: String?
+            let phases: Int?
             let iterations: Int?
         }
     }
@@ -467,6 +468,25 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
         FileManager.default.fileExists(atPath: queueFileURL.path)
     }
 
+    /// Preferred project name for UI labels/tabs.
+    ///
+    /// Uses the working directory leaf name when available so titles follow the
+    /// actual project path even if a stale persisted workspace name exists.
+    public var projectDisplayName: String {
+        let pathName = workingDirectoryURL.standardizedFileURL.lastPathComponent
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if !pathName.isEmpty, pathName != "/" {
+            return pathName
+        }
+
+        let storedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !storedName.isEmpty {
+            return storedName
+        }
+
+        return "workspace"
+    }
+
     private var queueFileURL: URL {
         workingDirectoryURL.appendingPathComponent(".ralph/queue.json", isDirectory: false)
     }
@@ -539,6 +559,7 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
             let decoded = try JSONDecoder().decode(ResolvedRunnerConfigDocument.self, from: data)
             currentRunnerConfig = RunnerConfig(
                 model: decoded.agent?.model,
+                phases: decoded.agent?.phases,
                 maxIterations: decoded.agent?.iterations
             )
         } catch {
@@ -1072,8 +1093,8 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
             editCommands.append(("relates_to", value))
         }
 
-        let originalAgent = Self.normalizedTaskAgent(original.agent)
-        let updatedAgent = Self.normalizedTaskAgent(updated.agent)
+        let originalAgent = RalphTaskAgent.normalizedOverride(original.agent)
+        let updatedAgent = RalphTaskAgent.normalizedOverride(updated.agent)
         if originalAgent != updatedAgent {
             let value = try Self.encodeTaskAgentFieldValue(updatedAgent)
             editCommands.append(("agent", value))
@@ -1118,50 +1139,6 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
         encoder.outputFormatting = [.sortedKeys]
         let data = try encoder.encode(agent)
         return String(decoding: data, as: UTF8.self)
-    }
-
-    private static func normalizeOptionalString(_ value: String?) -> String? {
-        guard let value else { return nil }
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed
-    }
-
-    private static func normalizedPhaseOverride(
-        _ overrideValue: RalphTaskPhaseOverride?
-    ) -> RalphTaskPhaseOverride? {
-        guard var overrideValue else { return nil }
-        overrideValue.runner = normalizeOptionalString(overrideValue.runner)
-        overrideValue.model = normalizeOptionalString(overrideValue.model)
-        overrideValue.reasoningEffort = normalizeOptionalString(overrideValue.reasoningEffort)
-        return overrideValue.isEmpty ? nil : overrideValue
-    }
-
-    private static func normalizedTaskAgent(_ agent: RalphTaskAgent?) -> RalphTaskAgent? {
-        guard var agent else { return nil }
-
-        agent.runner = normalizeOptionalString(agent.runner)
-        agent.model = normalizeOptionalString(agent.model)
-        agent.modelEffort = normalizeOptionalString(agent.modelEffort)
-        if agent.modelEffort?.lowercased() == "default" {
-            agent.modelEffort = nil
-        }
-        agent.followupReasoningEffort = normalizeOptionalString(agent.followupReasoningEffort)
-
-        if let phases = agent.phases, !(1...3).contains(phases) {
-            agent.phases = nil
-        }
-        if let iterations = agent.iterations, iterations < 1 {
-            agent.iterations = nil
-        }
-
-        if var phaseOverrides = agent.phaseOverrides {
-            phaseOverrides.phase1 = normalizedPhaseOverride(phaseOverrides.phase1)
-            phaseOverrides.phase2 = normalizedPhaseOverride(phaseOverrides.phase2)
-            phaseOverrides.phase3 = normalizedPhaseOverride(phaseOverrides.phase3)
-            agent.phaseOverrides = phaseOverrides.isEmpty ? nil : phaseOverrides
-        }
-
-        return agent.isEmpty ? nil : agent
     }
 
     // MARK: - Task Creation

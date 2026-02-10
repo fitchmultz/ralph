@@ -25,6 +25,7 @@ final class WindowStateTests: XCTestCase {
     override func setUp() {
         super.setUp()
         manager = WorkspaceManager.shared
+        manager.resetWindowStateClaimPool()
         for workspace in manager.workspaces {
             manager.closeWorkspace(workspace)
         }
@@ -37,6 +38,7 @@ final class WindowStateTests: XCTestCase {
         for workspace in manager.workspaces {
             manager.closeWorkspace(workspace)
         }
+        manager.resetWindowStateClaimPool()
         UserDefaults.standard.removeObject(forKey: testRestorationKey)
         cleanupNavigationState()
         super.tearDown()
@@ -184,6 +186,18 @@ final class WindowStateTests: XCTestCase {
         XCTAssertEqual(UserDefaults.standard.string(forKey: key), temp.path)
     }
 
+    func test_workspaceProjectDisplayName_prefersWorkingDirectoryLeafName() throws {
+        let temp = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ralph-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: temp, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: temp) }
+
+        let workspace = Workspace(workingDirectoryURL: temp)
+        workspace.name = "RalphMac"
+
+        XCTAssertEqual(workspace.projectDisplayName, temp.lastPathComponent)
+    }
+
     func test_restoreWindows_withValidSavedState_restoresCorrectly() {
         // Create and save a window state
         let ws1 = manager.createWorkspace()
@@ -196,6 +210,113 @@ final class WindowStateTests: XCTestCase {
         XCTAssertEqual(restored.count, 1)
         XCTAssertEqual(restored.first?.id, state.id)
         XCTAssertEqual(restored.first?.workspaceIDs.count, 2)
+    }
+
+    func test_claimWindowState_returnsDistinctStates_forMultipleClaims() {
+        let dir1 = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let dir2 = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir1, withIntermediateDirectories: true)
+        try? FileManager.default.createDirectory(at: dir2, withIntermediateDirectories: true)
+        defer {
+            try? FileManager.default.removeItem(at: dir1)
+            try? FileManager.default.removeItem(at: dir2)
+        }
+        try? FileManager.default.createDirectory(at: dir1.appendingPathComponent(".ralph"), withIntermediateDirectories: true)
+        try? FileManager.default.createDirectory(at: dir2.appendingPathComponent(".ralph"), withIntermediateDirectories: true)
+        try? #"{"version":1,"tasks":[]}"#.write(
+            to: dir1.appendingPathComponent(".ralph/queue.json"),
+            atomically: true,
+            encoding: .utf8
+        )
+        try? #"{"version":1,"tasks":[]}"#.write(
+            to: dir2.appendingPathComponent(".ralph/queue.json"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        let ws1 = manager.createWorkspace(workingDirectory: dir1)
+        let ws2 = manager.createWorkspace(workingDirectory: dir2)
+        let state1 = WindowState(workspaceIDs: [ws1.id], selectedTabIndex: 0)
+        let state2 = WindowState(workspaceIDs: [ws2.id], selectedTabIndex: 0)
+        manager.saveWindowState(state1)
+        manager.saveWindowState(state2)
+
+        let firstClaim = manager.claimWindowState(preferredID: nil)
+        let secondClaim = manager.claimWindowState(preferredID: nil)
+
+        XCTAssertNotEqual(firstClaim.id, secondClaim.id)
+        XCTAssertTrue([state1.id, state2.id].contains(firstClaim.id))
+        XCTAssertTrue([state1.id, state2.id].contains(secondClaim.id))
+    }
+
+    func test_claimWindowState_prefersProvidedID_whenAvailable() {
+        let dir1 = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let dir2 = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir1, withIntermediateDirectories: true)
+        try? FileManager.default.createDirectory(at: dir2, withIntermediateDirectories: true)
+        defer {
+            try? FileManager.default.removeItem(at: dir1)
+            try? FileManager.default.removeItem(at: dir2)
+        }
+        try? FileManager.default.createDirectory(at: dir1.appendingPathComponent(".ralph"), withIntermediateDirectories: true)
+        try? FileManager.default.createDirectory(at: dir2.appendingPathComponent(".ralph"), withIntermediateDirectories: true)
+        try? #"{"version":1,"tasks":[]}"#.write(
+            to: dir1.appendingPathComponent(".ralph/queue.json"),
+            atomically: true,
+            encoding: .utf8
+        )
+        try? #"{"version":1,"tasks":[]}"#.write(
+            to: dir2.appendingPathComponent(".ralph/queue.json"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        let ws1 = manager.createWorkspace(workingDirectory: dir1)
+        let ws2 = manager.createWorkspace(workingDirectory: dir2)
+        let state1 = WindowState(workspaceIDs: [ws1.id], selectedTabIndex: 0)
+        let state2 = WindowState(workspaceIDs: [ws2.id], selectedTabIndex: 0)
+        manager.saveWindowState(state1)
+        manager.saveWindowState(state2)
+
+        let claimed = manager.claimWindowState(preferredID: state2.id)
+
+        XCTAssertEqual(claimed.id, state2.id)
+    }
+
+    func test_claimWindowState_withSamePreferredIDTwice_returnsUniqueStates() {
+        let dir1 = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let dir2 = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir1, withIntermediateDirectories: true)
+        try? FileManager.default.createDirectory(at: dir2, withIntermediateDirectories: true)
+        defer {
+            try? FileManager.default.removeItem(at: dir1)
+            try? FileManager.default.removeItem(at: dir2)
+        }
+        try? FileManager.default.createDirectory(at: dir1.appendingPathComponent(".ralph"), withIntermediateDirectories: true)
+        try? FileManager.default.createDirectory(at: dir2.appendingPathComponent(".ralph"), withIntermediateDirectories: true)
+        try? #"{"version":1,"tasks":[]}"#.write(
+            to: dir1.appendingPathComponent(".ralph/queue.json"),
+            atomically: true,
+            encoding: .utf8
+        )
+        try? #"{"version":1,"tasks":[]}"#.write(
+            to: dir2.appendingPathComponent(".ralph/queue.json"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        let ws1 = manager.createWorkspace(workingDirectory: dir1)
+        let ws2 = manager.createWorkspace(workingDirectory: dir2)
+        let state1 = WindowState(workspaceIDs: [ws1.id], selectedTabIndex: 0)
+        let state2 = WindowState(workspaceIDs: [ws2.id], selectedTabIndex: 0)
+        manager.saveWindowState(state1)
+        manager.saveWindowState(state2)
+
+        let firstClaim = manager.claimWindowState(preferredID: state1.id)
+        let secondClaim = manager.claimWindowState(preferredID: state1.id)
+
+        XCTAssertEqual(firstClaim.id, state1.id)
+        XCTAssertNotEqual(secondClaim.id, state1.id)
     }
 
     // MARK: - Codable Tests

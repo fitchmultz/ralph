@@ -33,7 +33,7 @@ struct WindowView: View {
                 if let workspace = manager.workspaces.first(where: { $0.id == workspaceID }) {
                     WorkspaceView(workspace: workspace)
                         .tabItem {
-                            Label(workspace.name, systemImage: "folder")
+                            Label(workspace.projectDisplayName, systemImage: "folder")
                         }
                         .tag(index)
                 }
