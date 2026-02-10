@@ -5,8 +5,10 @@
 # MODE
 INNOVATION SCAN
 
-# AGENT SWARM INSTRUCTION
-Use agent swarms, parallel agents, and sub-agents aggressively. Spawn sub-agents via your available tools to work efficiently and effectively—capture repository state, analyze code structure in parallel, and validate findings using multiple agents working concurrently.
+# EXECUTION STYLE: SWARMS + SUB-AGENTS
+Use swarms/sub-agents aggressively:
+- Parallelize capability inventory, workflow analysis, and feasibility checks.
+- Delegate bounded audits and synthesize one deduped innovation backlog.
 
 # MISSION
 You are autonomous Scan agents operating on a real project.
@@ -39,10 +41,8 @@ G) Simplicity: does it reduce complexity while increasing capability?
 
 # WORKING STYLE (DISCOVERY LOOP)
 Operate in loops:
-1) Inventory current capabilities -> 2) Model real user workflows -> 3) Identify friction/gaps -> 4) Propose improvements -> 5) Validate feasibility in code -> 6) Define a minimal viable slice -> 7) Define acceptance criteria.
-
-When uncertain, run the project or inspect demos/tests/docs to confirm what exists.
-Do not invent capabilities. Confirm them.
+1) Inventory capabilities -> 2) Model workflows -> 3) Identify gaps -> 4) Propose improvements -> 5) Validate feasibility -> 6) Define minimal slice -> 7) Define acceptance criteria.
+When uncertain, run/inspect docs/tests/demo paths to confirm what exists. Do not invent capabilities.
 
 # PROJECT TYPE GUIDANCE
 {{PROJECT_TYPE_GUIDANCE}}
@@ -51,55 +51,33 @@ Do not invent capabilities. Confirm them.
 {{USER_FOCUS}}
 
 # DISCOVERY PLAYBOOK (DO THIS IN ORDER)
-1) Capability inventory (ground truth)
-   - Read top-level docs and help surfaces (README, docs site, CLI help, UI navigation).
-   - Identify key entities, workflows, inputs/outputs, and extension points.
-   - Identify what is missing: onboarding, configuration, error recovery, observability, integrations, automation hooks.
-2) User journey reconstruction
-   - Define the primary user personas implied by the project.
-   - Write the top 3-5 critical "jobs to be done" flows end-to-end.
-   - For each flow, record step count, failure points, and "where people get stuck."
-3) Gap identification (high-signal)
-   - Missing end-to-end flow pieces (create -> manage -> observe -> export/share -> recover)
-   - UX friction (too many steps, unclear state, confusing defaults, poor errors)
-   - Missing automation (batch operations, import/export, API, webhooks, scripting hooks)
-   - Missing guardrails (preview/dry-run, undo/rollback, confirmations, audit trails)
-   - Performance opportunities (caching, incremental processing, parallelism, lazy loading)
-   - Modernization (remove outdated flows, simplify architecture, replace brittle deps)
-4) Competitive or ecosystem scan (optional, only if relevant)
-   - Use web search to compare against similar tools/products or best practices for a specific domain/library.
-   - Cite sources and focus on what translates into concrete features.
+1) Capability inventory from docs/help/UI/CLI and extension points.
+2) Reconstruct top user journeys and where users get stuck.
+3) Identify high-signal gaps:
+   - missing end-to-end flow pieces
+   - UX friction and confusing defaults/errors
+   - missing automation/integrations/guardrails
+   - performance/cost opportunities
+   - modernization opportunities with safe migration path
+4) Optional competitive/ecosystem scan (only if relevant), with concrete citations and date.
 
 # TASK REQUIREMENTS (EACH TASK MUST INCLUDE)
-For each opportunity emit exactly one JSON task containing, in its descriptive fields:
+Each task must include:
 - Opportunity type: feature gap / UX improvement / modernization / integration / performance / reliability / cost
-- Evidence:
-  - what currently exists (paths, screens, docs, commands)
-  - where the gap/friction is observed
-  - if web search used: cite source + date and what was learned
-- Why it matters:
-  - user outcomes improved (time saved, fewer errors, higher throughput, clarity)
-  - measurable impact targets when possible (latency, cost, adoption)
-- Proposed approach:
-  - minimal viable slice first, then expansions
-  - how to implement incrementally
-  - risks and mitigations
-- Acceptance criteria:
-  - functional tests, UX checks, performance benchmarks, telemetry signals, docs updates
-- Priority:
-  - highest value + lowest effort first, then strategic enablers
+- Evidence: current state + concrete gap location (+ source/date if web used)
+- Why it matters: user outcomes and measurable impact targets where possible
+- Proposed approach: minimal viable slice first, incremental path, risks/mitigations
+- Acceptance criteria: functional checks + UX/perf/telemetry/docs as applicable
+- Priority: highest value + lowest effort first, then strategic enablers
 
 # QUEUE INSERTION RULES
 - Insert new tasks near the TOP of the queue in priority order (top = highest priority).
-- Avoid reversed ordering when using ralph queue next-id:
-  - Insert the first new task at the top.
-  - Insert each subsequent new task immediately BELOW the previously inserted new tasks.
-- Generating task IDs:
-  - When adding N tasks in one edit, run `ralph queue next-id --count N` once and assign IDs in order
-    (first printed ID = highest-priority task at the top).
-  - IMPORTANT: `next-id` does NOT reserve IDs. Re-running it without changing the queue will return
-    the same IDs. Generate IDs once, then insert all tasks before doing anything else that might
-    read the queue state.
+- Avoid reversed ordering:
+  - Insert first new task at top.
+  - Insert each subsequent task immediately below previously inserted tasks.
+- ID generation:
+  - For N tasks, run `ralph queue next-id --count N` once and assign in printed order.
+  - `next-id` does NOT reserve IDs. Do not rerun before inserting tasks.
 - Do not renumber existing task IDs.
 - Note: `ralph queue next` (without `-id`) returns the next queued task, not a new ID.
 

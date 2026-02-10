@@ -1,10 +1,12 @@
 <!-- Purpose: Phase 1 planning prompt wrapper. -->
 # PLANNING MODE - PHASE 1 OF {{TOTAL_PHASES}}
-
-## AGENT SWARM INSTRUCTION
-Use agent swarms, parallel agents, and sub-agents aggressively. Spawn sub-agents via your available tools to work efficiently and effectively—capture state, make plans, execute work in parallel, and validate results using multiple agents working concurrently.
-
 CURRENT TASK: {{TASK_ID}}. Do NOT switch tasks.
+
+## PHASE EXECUTION STYLE
+Use swarms and sub-agents aggressively for planning:
+- Parallelize context gathering across files/areas.
+- Use sub-agents to challenge assumptions and close plan gaps.
+- Reconcile findings into one coherent plan.
 
 {{ITERATION_CONTEXT}}
 
@@ -12,47 +14,31 @@ CURRENT TASK: {{TASK_ID}}. Do NOT switch tasks.
 
 {{REPOPROMPT_BLOCK}}
 
+## OBJECTIVE
+Produce a standalone implementation plan for Phase 2.
+
 ## OUTPUT REQUIREMENT: PLAN ONLY
-You are in Phase 1 (Planning). You must NOT implement the changes.
-Your goal is to understand the task, gather context, and produce a detailed plan.
+Plan only. Do not implement.
 
-## STRICT PROHIBITIONS (PHASE 1 ONLY)
-**DO NOT DO ANY OF THE FOLLOWING:**
-- DO NOT create or modify any files, EXCEPT the plan cache file below (Ralph handles queue bookkeeping)
-- DO NOT run tests, the configured CI gate command (`{{config.agent.ci_gate_command}}`) when enabled, or any validation commands
-- DO NOT execute `git add`, `git commit`, or `git push`
-- DO NOT write, edit, or change any source code, configuration, or documentation files
-- DO NOT make any implementation changes whatsoever
+## PHASE 1 HARD CONSTRAINTS
+- Allowed file writes: `{{PLAN_PATH}}` only.
+- Forbidden: source/config/docs edits, tests, validation commands, `{{config.agent.ci_gate_command}}`, `git add`, `git commit`, `git push`.
+- If you accidentally start implementing, stop immediately and revert all non-plan edits.
+- NO FILE EDITS ARE ALLOWED IN PHASE 1, EXCEPT writing `{{PLAN_PATH}}`.
 
-**NO FILE EDITS ARE ALLOWED IN PHASE 1, EXCEPT writing the plan cache file to {{PLAN_PATH}}.**
+## PLAN QUALITY CONTRACT
+Write the full plan to `{{PLAN_PATH}}`. Do not print the full plan in the reply.
 
-**IF YOU START IMPLEMENTING:**
-- STOP immediately
-- Revert any file changes you made EXCEPT plan creation
+Phase 2 has no additional context. The plan must be self-sufficient and include:
+1. Task goal
+2. Why it matters
+3. Current-state analysis (key files/symbols/constraints)
+4. Ordered implementation steps
+5. Concrete code snippets for risky/non-obvious changes
+6. Verification steps (commands + expected outcomes)
+7. Risks, edge cases, and mitigations
+8. Explicit instruction that Phase 2 may adapt if repo reality differs
+9. No references to hidden context (avoid phrases like "as discussed"); Phase 2 only sees this plan
+10. Backwards compatibility expectations (default: not required unless explicitly requested)
 
-## PLAN OUTPUT REQUIREMENT
-You MUST write the final plan directly to this file:
-
-{{PLAN_PATH}}
-
-**Do NOT print the plan in your reply.** The plan must be written to the file path provided.
-Use the available tooling to write the plan file directly.
-
-The Execution Agent (Phase 2) who reads this plan has **NO KNOWLEDGE** of the user's original request, this conversation, or the task history.
-- **Your plan is their ONLY Reality.**
-- You must explicitly define the **Task Goal** inside the plan.
-- You must explain the **"Why"** inside the plan.
-- Do NOT reference "as discussed" or "per the prompt." The executioner in Phase 2 does not know what those are.
-
-**CORE DOCTRINE:**
-1. **Standalone Intel:** The Directive must be self-contained. If the executioner reads it without any other context, they must understand the full scope of the mission.
-2. **Maximum Fabrication:** Provide explicit **actual** code snippets for the Executioner to implement. You should NOT provide ENTIRE files but SHOULD provide code snippets to guide the implementation.
-3. **Strategic Intent over Rigid Compliance:** Your specific instructions are authoritative *unless* they conflict with reality. If a file is missing from your context, the agent is authorized to adapt your strategy/code to fix it. Explicitly mention this.
-
-You acknowledge that your plan may not be 100% comprehensive:
-- **Your Job:** Write the highest-quality, First Principles directive possible based on the files you read and context you were provided.
-- **The Executioner's Job:** Implement your plan, but also *hunt down* related files you overlooked and update them to match your directive.
-- **Backwards compatibility:** Backwards compatibility is NOT a priority unless explicitly requested in the user's request. Plan to replace old/improper functionality instead.
-
-Treat any `context_builder` response as planning input only. Do NOT start implementing code after you receive it.
-Do NOT switch tasks: plan ONLY for the current task and ignore any other IDs mentioned in tool output.
+Treat any `context_builder` response as planning input only. Do not implement.

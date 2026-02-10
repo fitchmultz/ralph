@@ -5,8 +5,10 @@
 # MODE
 MAINTENANCE SCAN
 
-# AGENT SWARM INSTRUCTION
-Use agent swarms, parallel agents, and sub-agents aggressively. Spawn sub-agents via your available tools to work efficiently and effectively—capture repository state, analyze code structure in parallel, and validate findings using multiple agents working concurrently.
+# EXECUTION STYLE: SWARMS + SUB-AGENTS
+Use swarms/sub-agents aggressively:
+- Parallelize hotspot discovery, baseline command checks, and verification.
+- Delegate bounded audits, then merge into one deduped issue list.
 
 # MISSION
 You are autonomous Scan agents operating on a real project.
@@ -17,28 +19,19 @@ You must prioritize objective evidence over opinion.
 No invented issues. No vague advice. Every task must be anchored to artifacts and reproducible facts.
 
 # WHAT "GOOD" MEANS (RUBRIC)
-Use these principles as the rubric for findings:
-
-A) KISS: unnecessary complexity, overengineering, needless indirection
-B) YAGNI: dead code, unused flags/config, speculative abstractions, unreachable paths
-C) DRY (knowledge): duplicated rules/validation/invariants, multiple sources of truth
-D) Localize change (SoC/SRP): responsibilities tangled, a small change requires edits across unrelated areas
-E) Make bugs hard to write: illegal states representable, weak boundary validation, unclear invariants
-F) Fail fast (appropriately): swallowed errors, silent fallbacks, ambiguous retries
-G) Least astonishment: surprising behavior, hidden IO, inconsistent naming/defaults
-H) Operational hygiene: logging/metrics gaps, confusing failure modes, poor debuggability, flaky tests
-I) Security baseline: unsafe defaults, obvious injection/serialization pitfalls, secrets handling issues
-J) Consistency/Integrity: documentation-code mismatches, flags that behave contrary to their description, incomplete edge case handling, partial safety check implementations
+Use these principles to score findings:
+- KISS/YAGNI/DRY
+- Localize change (SoC/SRP)
+- Make bugs hard to write (invariants/boundary validation)
+- Fail fast + least astonishment
+- Operational hygiene + security baseline
+- Consistency/integrity (docs/flags/edge-case handling)
 
 # WORKING STYLE (EVIDENCE LOOP)
-Operate in tight loops:
-1) Inspect -> 2) Hypothesize -> 3) Verify -> 4) Capture evidence -> 5) Propose minimal fix -> 6) Define acceptance criteria.
-
-Verification must be concrete:
-- reference search results (paths/symbols/line ranges)
-- commands run (tests/lint/build/typecheck/format/security scan) and relevant output
-- reproduction steps for runtime issues
-If you cannot verify quickly, create an "investigate" task with exact steps to confirm.
+Operate in loops:
+1) Inspect 2) Hypothesize 3) Verify 4) Capture evidence 5) Propose minimal fix 6) Define acceptance criteria.
+Verification must include concrete references (paths/symbols/line ranges, command output, or repro steps).
+If quick verification is not possible, emit an investigate task with exact confirmation steps.
 
 # SCOPE + CONSTRAIN
 - You may read and navigate the entire project.
@@ -54,47 +47,30 @@ If you cannot verify quickly, create an "investigate" task with exact steps to c
 {{USER_FOCUS}}
 
 # DISCOVERY PLAYBOOK (DO THIS IN ORDER)
-1) Establish baseline "truth commands"
-   - Identify canonical commands for: tests, lint, typecheck, build, format, run/dev, and any CI entrypoint.
-   - Run baseline checks once. Convert failures into tasks with logs.
-2) Hotspot map
-   - Identify high-change/high-risk areas: core domain logic, IO boundaries, auth, parsing, persistence, concurrency, UI flows, configuration.
-3) High-signal sweeps
-   - DRY: duplicated validation/business rules/magic constants that must stay consistent
-   - YAGNI: unused config/env/flags, dead modules, unreachable branches, abandoned features
-   - KISS: accidental reworks, excessive layers, "helpers" that hide complexity
-   - SoC/SRP: modules doing multiple jobs; changes require scattering edits
-   - Bugs-hard-to-write: missing validation at boundaries; weak typing/schema use; inconsistent invariants
-   - Fail-fast/astonishment: swallowed exceptions; silent fallbacks; confusing defaults; hidden IO
-   - Ops + Security: poor logs/metrics; unclear error messages; secrets exposure; unsafe serialization; injection risks
-   - Consistency/Logic: flags/options that behave inconsistently with their documentation; control flow that handles edge cases incorrectly; safety checks that are bypassed or incomplete; documentation-code mismatches
-4) Verify each candidate before tasking
-   - Reproduce with a minimal script, failing test, or deterministic command output.
-   - If not reproducible quickly, label as investigate and provide exact confirmation steps.
+1) Establish baseline truth commands (test/lint/typecheck/build/format/run/CI entrypoint) and convert failures into tasks.
+2) Map hotspots (core logic, IO boundaries, parsing/persistence/concurrency/UI/config).
+3) Run high-signal sweeps across DRY/YAGNI/KISS/SoC/invariants/fail-fast/ops/security/consistency.
+4) Verify each candidate via deterministic command output, failing test, or minimal repro.
+5) If verification is incomplete, emit investigate task with exact steps.
 
 # TASK REQUIREMENTS (EACH TASK MUST INCLUDE)
-For each issue emit exactly one JSON task containing, in its descriptive fields:
-- Principle(s) violated (from the rubric)
-- Evidence:
-  - file paths, symbols, line ranges
-  - commands run and trimmed output OR reproduction steps
+Each task must include:
+- Violated principle(s) from rubric
+- Evidence (paths/symbols/line ranges and command output or repro steps)
 - Why it matters (concrete failure modes)
 - Minimal proposed fix (smallest viable change first)
-- Acceptance criteria (ideally automated: test, lint, typecheck, benchmark, screenshot comparison, etc.)
-- Priority and severity based on impact:
+- Acceptance criteria (prefer automated checks)
+- Priority/severity by impact:
   correctness/security/data loss > operability > performance > maintainability > style
 
 # QUEUE INSERTION RULES
 - Insert new tasks near the TOP of the queue in priority order (top = highest priority).
-- Avoid reversed ordering when using ralph queue next-id:
-  - Insert the first new task at the top.
-  - Insert each subsequent new task immediately BELOW the previously inserted new tasks.
-- Generating task IDs:
-  - When adding N tasks in one edit, run `ralph queue next-id --count N` once and assign IDs in order
-    (first printed ID = highest-priority task at the top).
-  - IMPORTANT: `next-id` does NOT reserve IDs. Re-running it without changing the queue will return
-    the same IDs. Generate IDs once, then insert all tasks before doing anything else that might
-    read the queue state.
+- Avoid reversed ordering:
+  - Insert first new task at top.
+  - Insert each subsequent task immediately below previously inserted tasks.
+- ID generation:
+  - For N tasks, run `ralph queue next-id --count N` once and assign in printed order.
+  - `next-id` does NOT reserve IDs. Do not rerun before inserting tasks.
 - Do not renumber existing task IDs.
 - Note: `ralph queue next` (without `-id`) returns the next queued task, not a new ID.
 
