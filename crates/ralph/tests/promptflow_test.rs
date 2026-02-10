@@ -17,11 +17,20 @@ fn build_phase1_prompt_contains_required_elements() {
     let repo_root = TempDir::new().unwrap();
     let template = prompts::load_worker_phase1_prompt(repo_root.path()).unwrap();
 
-    let prompt =
-        promptflow::build_phase1_prompt(&template, base, "", task_id, 2, &policy, &config).unwrap();
+    let prompt = promptflow::build_phase1_prompt(
+        &template,
+        base,
+        "",
+        promptflow::PHASE1_TASK_REFRESH_REQUIRED_INSTRUCTION,
+        task_id,
+        2,
+        &policy,
+        &config,
+    )
+    .unwrap();
 
     assert!(prompt.contains("PLANNING MODE - PHASE 1 OF 2"));
-    assert!(prompt.contains("NO FILE EDITS ARE ALLOWED IN PHASE 1"));
+    assert!(prompt.contains("TASK REFRESH STEP"));
     assert!(prompt.contains(prompts::REPOPROMPT_REQUIRED_INSTRUCTION));
     assert!(prompt.contains(prompts::REPOPROMPT_CONTEXT_BUILDER_PLANNING_INSTRUCTION));
     assert!(prompt.contains("PLAN ONLY"));
@@ -42,8 +51,17 @@ fn build_phase1_prompt_omits_rp_if_disabled() {
     let repo_root = TempDir::new().unwrap();
     let template = prompts::load_worker_phase1_prompt(repo_root.path()).unwrap();
 
-    let prompt =
-        promptflow::build_phase1_prompt(&template, base, "", task_id, 2, &policy, &config).unwrap();
+    let prompt = promptflow::build_phase1_prompt(
+        &template,
+        base,
+        "",
+        promptflow::PHASE1_TASK_REFRESH_REQUIRED_INSTRUCTION,
+        task_id,
+        2,
+        &policy,
+        &config,
+    )
+    .unwrap();
 
     assert!(!prompt.contains(prompts::REPOPROMPT_REQUIRED_INSTRUCTION));
     assert!(!prompt.contains(prompts::REPOPROMPT_CONTEXT_BUILDER_PLANNING_INSTRUCTION));

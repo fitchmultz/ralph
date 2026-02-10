@@ -37,6 +37,7 @@ pub(crate) fn render_worker_phase1_prompt(
     template: &str,
     base_worker_prompt: &str,
     iteration_context: &str,
+    task_refresh_instruction: &str,
     task_id: &str,
     total_phases: u8,
     plan_path: &str,
@@ -56,6 +57,10 @@ pub(crate) fn render_worker_phase1_prompt(
     let safe_base_worker_prompt = escape_placeholder_like_text(base_worker_prompt);
     let rendered = expanded
         .replace("{{ITERATION_CONTEXT}}", iteration_context.trim())
+        .replace(
+            "{{TASK_REFRESH_INSTRUCTION}}",
+            task_refresh_instruction.trim(),
+        )
         .replace("{{TASK_ID}}", id)
         .replace("{{TOTAL_PHASES}}", &total_phases.to_string())
         .replace("{{PLAN_PATH}}", plan_path)
@@ -64,6 +69,10 @@ pub(crate) fn render_worker_phase1_prompt(
 
     let rendered_for_validation = expanded
         .replace("{{ITERATION_CONTEXT}}", safe_iteration_context.trim())
+        .replace(
+            "{{TASK_REFRESH_INSTRUCTION}}",
+            task_refresh_instruction.trim(),
+        )
         .replace("{{TASK_ID}}", id)
         .replace("{{TOTAL_PHASES}}", &total_phases.to_string())
         .replace("{{PLAN_PATH}}", plan_path)

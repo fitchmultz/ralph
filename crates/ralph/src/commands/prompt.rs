@@ -508,6 +508,7 @@ pub fn build_worker_prompt(
                 &phase1_template,
                 &base_prompt,
                 iteration_context,
+                promptflow::PHASE1_TASK_REFRESH_REQUIRED_INSTRUCTION,
                 &task_id,
                 total_phases,
                 &policy,

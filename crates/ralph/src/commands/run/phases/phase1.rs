@@ -1,107 +1,21 @@
-//! Phase 1 (planning) execution and task-refresh helpers.
+//! Phase 1 (planning) execution.
 //!
 //! Responsibilities:
 //! - Execute Phase 1 planning runner pass and enforce plan-only output constraints.
-//! - Refresh task metadata once before Phase 1 begins using task updater logic.
 //!
 //! Not handled here:
 //! - Phase 2/3 execution behavior.
 //! - Queue/task selection and task status transitions.
 //!
 //! Invariants/assumptions:
-//! - Phase 1 task refresh is skipped in parallel-worker mode to avoid queue writes.
-//! - Phase 1 task refresh never converts non-abort updater failures into hard failures.
+//! - Phase 1 may only mutate queue bookkeeping and the plan cache file.
 
 use super::shared::execute_runner_pass;
 use super::{PhaseInvocation, PhaseType, phase_session_id_for_runner};
 use crate::commands::run::{logging, supervision};
-use crate::commands::task as task_cmd;
-use crate::contracts::{RunnerCliOptionsPatch, Task};
 use crate::git::GitError;
-use crate::{config, git, promptflow, prompts, queue, runutil};
-use anyhow::{Context, Result, bail};
-
-/// Refresh task fields from current repository state before Phase 1 planning.
-///
-/// Returns the refreshed task when queue writes are allowed and task reload succeeds.
-/// Returns `Ok(None)` when refresh is intentionally skipped (parallel worker mode).
-pub fn refresh_task_before_phase1(
-    resolved: &config::Resolved,
-    task_id: &str,
-    settings: &crate::runner::AgentSettings,
-    policy: &promptflow::PromptPolicy,
-    post_run_mode: super::PostRunMode,
-    force: bool,
-) -> Result<Option<Task>> {
-    if matches!(post_run_mode, super::PostRunMode::ParallelWorker) {
-        log::info!(
-            "Task {task_id}: parallel worker mode skips Phase 1 task refresh to avoid queue writes"
-        );
-        return Ok(None);
-    }
-
-    let runner_cli_overrides = RunnerCliOptionsPatch {
-        output_format: Some(settings.runner_cli.output_format),
-        verbosity: Some(settings.runner_cli.verbosity),
-        approval_mode: Some(settings.runner_cli.approval_mode),
-        sandbox: Some(settings.runner_cli.sandbox),
-        plan_mode: Some(settings.runner_cli.plan_mode),
-        unsupported_option_policy: Some(settings.runner_cli.unsupported_option_policy),
-    };
-    let update_settings = task_cmd::TaskUpdateSettings {
-        fields: "scope,evidence,plan,notes,tags,depends_on".to_string(),
-        runner_override: Some(settings.runner.clone()),
-        model_override: Some(settings.model.clone()),
-        reasoning_effort_override: settings.reasoning_effort,
-        runner_cli_overrides,
-        force,
-        repoprompt_tool_injection: policy.repoprompt_tool_injection,
-        dry_run: false,
-    };
-
-    log::info!("Task {task_id}: refreshing task metadata before Phase 1 planning");
-    match task_cmd::update_task_without_lock(resolved, task_id, &update_settings) {
-        Ok(()) => {
-            log::info!("Task {task_id}: Phase 1 task refresh completed");
-        }
-        Err(err) => {
-            if runutil::abort_reason(&err).is_some() {
-                return Err(err);
-            }
-            log::warn!(
-                "Task {task_id}: Phase 1 task refresh failed (continuing with current task data): {:#}",
-                err
-            );
-            log::debug!("Phase 1 task refresh error details: {:?}", err);
-        }
-    }
-
-    let done = queue::load_queue_or_default(&resolved.done_path)?;
-    let done_ref = if done.tasks.is_empty() && !resolved.done_path.exists() {
-        None
-    } else {
-        Some(&done)
-    };
-    let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
-    let (updated_queue_file, validation_warnings) = queue::load_queue_with_repair_and_validate(
-        &resolved.queue_path,
-        done_ref,
-        &resolved.id_prefix,
-        resolved.id_width,
-        max_depth,
-    )
-    .context("validate repaired queue after Phase 1 task refresh")?;
-    queue::log_warnings(&validation_warnings);
-
-    let task_id_trimmed = task_id.trim();
-    let task = updated_queue_file
-        .tasks
-        .into_iter()
-        .find(|candidate| candidate.id.trim() == task_id_trimmed)
-        .context("reload selected task after Phase 1 task refresh")?;
-
-    Ok(Some(task))
-}
+use crate::{git, promptflow, prompts, runutil};
+use anyhow::{Result, bail};
 
 pub fn execute_phase1_planning(ctx: &PhaseInvocation<'_>, total_phases: u8) -> Result<String> {
     let label = logging::phase_label(1, total_phases, "Planning", ctx.task_id);
@@ -117,11 +31,18 @@ pub fn execute_phase1_planning(ctx: &PhaseInvocation<'_>, total_phases: u8) -> R
         } else {
             Vec::new()
         };
+        let task_refresh_instruction =
+            if matches!(ctx.post_run_mode, super::PostRunMode::ParallelWorker) {
+                promptflow::PHASE1_TASK_REFRESH_DISABLED_INSTRUCTION
+            } else {
+                promptflow::PHASE1_TASK_REFRESH_REQUIRED_INSTRUCTION
+            };
         let p1_template = prompts::load_worker_phase1_prompt(&ctx.resolved.repo_root)?;
         let p1_prompt = promptflow::build_phase1_prompt(
             &p1_template,
             ctx.base_prompt,
             ctx.iteration_context,
+            task_refresh_instruction,
             ctx.task_id,
             total_phases,
             ctx.policy,

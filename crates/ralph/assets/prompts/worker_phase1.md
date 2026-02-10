@@ -14,21 +14,26 @@ CURRENT TASK: {{TASK_ID}}. Do NOT switch tasks.
 
 ## OUTPUT REQUIREMENT: PLAN ONLY
 You are in Phase 1 (Planning). You must NOT implement the changes.
-Your goal is to understand the task, gather context, and produce a detailed plan.
+Your goal is to understand the task, refresh task metadata, and produce a detailed plan.
+
+{{TASK_REFRESH_INSTRUCTION}}
 
 ## STRICT PROHIBITIONS (PHASE 1 ONLY)
 **DO NOT DO ANY OF THE FOLLOWING:**
-- DO NOT create or modify any files, EXCEPT the plan cache file below (Ralph handles queue bookkeeping)
+- DO NOT create or modify any files outside the allowed Phase 1 files
 - DO NOT run tests, the configured CI gate command (`{{config.agent.ci_gate_command}}`) when enabled, or any validation commands
 - DO NOT execute `git add`, `git commit`, or `git push`
 - DO NOT write, edit, or change any source code, configuration, or documentation files
 - DO NOT make any implementation changes whatsoever
 
-**NO FILE EDITS ARE ALLOWED IN PHASE 1, EXCEPT writing the plan cache file to {{PLAN_PATH}}.**
+**PHASE 1 FILE EDITS ARE STRICTLY LIMITED TO:**
+- `.ralph/queue.json` only when the Task Refresh Step requires it
+- The plan cache file at `{{PLAN_PATH}}`
+- No other file edits are allowed
 
 **IF YOU START IMPLEMENTING:**
 - STOP immediately
-- Revert any file changes you made EXCEPT plan creation
+- Revert any file changes you made except allowed Phase 1 queue/plan updates
 
 ## PLAN OUTPUT REQUIREMENT
 You MUST write the final plan directly to this file:

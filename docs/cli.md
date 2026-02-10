@@ -3065,7 +3065,7 @@ The `run one` and `run loop` commands also support:
 * `--include-draft`: Include draft tasks (`status: draft`) when selecting what to run.
 * `--non-interactive`: Skip interactive prompts for sanity checks and session recovery. Useful for CI environments where TTY is not available.
 * `--parallel [N]` (run loop only): Run tasks concurrently in isolated git workspace clones. Defaults to `2` when provided without a value. Parallel workers do not modify `.ralph/queue.json` or `.ralph/done.json`; they commit completion signals in `.ralph/cache/completions/<TASK_ID>.json`, and the coordinator applies them after merge (errors if missing). Parallel workers force RepoPrompt mode to `off` to keep edits inside workspace clones. Parallel workers honor `--git-commit-push-on/off` and `agent.git_commit_push_enabled`; when commit/push is disabled, parallel PR automation is skipped.
-* Multi-phase runs (`--phases 2` or `--phases 3`) automatically refresh task fields (`scope,evidence,plan,notes,tags,depends_on`) once before Phase 1 planning.
+* Multi-phase runs (`--phases 2` or `--phases 3`) automatically refresh task fields (`scope,evidence,plan,notes,tags,depends_on`) at the start of Phase 1 and then generate the plan in that same Phase 1 session.
 * `--notify`: Enable desktop notification on task completion (overrides config).
 * `--no-notify`: Disable desktop notification on task completion (overrides config).
 * `--notify-fail`: Enable desktop notification on task failure (overrides config).

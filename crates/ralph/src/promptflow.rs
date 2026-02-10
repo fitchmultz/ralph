@@ -19,6 +19,19 @@ pub struct PromptPolicy {
     pub repoprompt_tool_injection: bool,
 }
 
+pub const PHASE1_TASK_REFRESH_REQUIRED_INSTRUCTION: &str = r#"## TASK REFRESH STEP (REQUIRED BEFORE PLANNING)
+Before producing the final plan, update only the current task in `.ralph/queue.json`:
+- Refresh only: `scope`, `evidence`, `plan`, `notes`, `tags`, `depends_on`
+- Set `updated_at` to current UTC RFC3339 time
+- Preserve task identity/status fields (`id`, `title`, `status`, `priority`, `created_at`, `request`, `agent`)
+- Do not add or remove tasks
+
+After updating the task, re-read the updated task data and then produce the final plan."#;
+
+pub const PHASE1_TASK_REFRESH_DISABLED_INSTRUCTION: &str = r#"## TASK REFRESH STEP
+Parallel worker mode is active for this run. Do NOT edit `.ralph/queue.json`.
+Use current task metadata as-is and continue with planning only."#;
+
 /// Path to the cached plan for a given task ID.
 pub fn plan_cache_path(repo_root: &Path, task_id: &str) -> PathBuf {
     repo_root
@@ -90,10 +103,12 @@ pub fn read_plan_cache(repo_root: &Path, task_id: &str) -> Result<String> {
 }
 
 /// Build the prompt for Phase 1 (Planning).
+#[allow(clippy::too_many_arguments)]
 pub fn build_phase1_prompt(
     template: &str,
     base_worker_prompt: &str,
     iteration_context: &str,
+    task_refresh_instruction: &str,
     task_id: &str,
     total_phases: u8,
     policy: &PromptPolicy,
@@ -104,6 +119,7 @@ pub fn build_phase1_prompt(
         template,
         base_worker_prompt,
         iteration_context,
+        task_refresh_instruction,
         task_id,
         total_phases,
         &plan_path,

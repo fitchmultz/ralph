@@ -227,7 +227,7 @@ pub fn run_one_impl(
         }
     };
 
-    let mut task = queue_file.tasks[task_idx].clone();
+    let task = queue_file.tasks[task_idx].clone();
     let task_id = task.id.trim().to_string();
     let phases = resolve_task_phase_count(agent_overrides, &task, &resolved.config.agent)?;
 
@@ -290,21 +290,6 @@ pub fn run_one_impl(
         force,
         git::RALPH_RUN_CLEAN_ALLOWED_PATHS,
     )?;
-
-    // Refresh task metadata once for plan-oriented workflows (Phase 1 ownership).
-    if phases >= 2 {
-        let phase1_settings = phase_matrix.phase1.to_agent_settings();
-        if let Some(updated_task) = phases::refresh_task_before_phase1(
-            resolved,
-            &task_id,
-            &phase1_settings,
-            &policy,
-            post_run_mode,
-            force,
-        )? {
-            task = updated_task;
-        }
-    }
 
     // Load plugin registry for processor hook invocation
     let plugin_registry =
