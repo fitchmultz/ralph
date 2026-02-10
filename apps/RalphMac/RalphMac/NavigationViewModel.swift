@@ -232,6 +232,15 @@ final class NavigationViewModel: ObservableObject {
                 self?.setTaskViewMode(.graph)
             }
             .store(in: &cancellables)
+        
+        // Handle set task view mode (for command palette)
+        NotificationCenter.default.publisher(for: .setTaskViewMode)
+            .compactMap { $0.object as? TaskViewMode }
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] mode in
+                self?.setTaskViewMode(mode)
+            }
+            .store(in: &cancellables)
     }
 }
 
@@ -242,6 +251,7 @@ extension Notification.Name {
     static let toggleSidebar = Notification.Name("toggleSidebar")
     static let workspaceTasksUpdated = Notification.Name("workspaceTasksUpdated")
     static let toggleTaskViewMode = Notification.Name("toggleTaskViewMode")
+    static let setTaskViewMode = Notification.Name("setTaskViewMode")
     static let showGraphView = Notification.Name("showGraphView")
     static let queueFilesExternallyChanged = Notification.Name("queueFilesExternallyChanged")
     static let showTaskDetail = Notification.Name("showTaskDetail")

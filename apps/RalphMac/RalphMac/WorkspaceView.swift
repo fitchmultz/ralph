@@ -25,6 +25,7 @@ import RalphCore
 struct WorkspaceView: View {
     @StateObject var workspace: Workspace
     @StateObject var navigation: NavigationViewModel
+    @State private var showingCommandPalette: Bool = false
 
     init(workspace: Workspace, navigation: NavigationViewModel? = nil) {
         self._workspace = StateObject(wrappedValue: workspace)
@@ -101,6 +102,17 @@ struct WorkspaceView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .quickAddTaskFromMenuBar)) { _ in
             navigation.selectedSection = .queue
+        }
+        // MARK: - Command Palette
+        .sheet(isPresented: $showingCommandPalette) {
+            CommandPaletteView()
+                .frame(minWidth: 640, minHeight: 300)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .showCommandPalette)) { _ in
+            showingCommandPalette = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .hideCommandPalette)) { _ in
+            showingCommandPalette = false
         }
     }
 

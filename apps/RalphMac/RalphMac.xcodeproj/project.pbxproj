@@ -69,6 +69,9 @@
 		FF6677889900AA11BB22CC33DD44EE55 /* TagEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE55FF6677889900AA11BB22CC33DD44 /* TagEditorView.swift */; };
 		UITESTSBB0012345678901234 /* RalphMacUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = UITESTSFF1123456789012345 /* RalphMacUITests.swift */; };
 		UITESTSBB2234567890123456 /* RalphMacUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = UITESTSFF3345678901234567 /* RalphMacUITestsLaunchTests.swift */; };
+		CPVIEW1234567890ABCDEF00 /* CommandPaletteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CPVIEWREF1234567890ABCDEF00 /* CommandPaletteView.swift */; };
+		CPVM1234567890ABCDEF01 /* CommandPaletteViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CPVMREF1234567890ABCDEF01 /* CommandPaletteViewModel.swift */; };
+		CPCMD1234567890ABCDEF02 /* CommandPaletteCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = CPCMDREF1234567890ABCDEF02 /* CommandPaletteCommand.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -174,6 +177,9 @@
 		UITESTSFF0012345678901234 /* RalphMacUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RalphMacUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		UITESTSFF1123456789012345 /* RalphMacUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphMacUITests.swift; sourceTree = "<group>"; };
 		UITESTSFF3345678901234567 /* RalphMacUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphMacUITestsLaunchTests.swift; sourceTree = "<group>"; };
+		CPVIEWREF1234567890ABCDEF00 /* CommandPaletteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandPaletteView.swift; sourceTree = "<group>"; };
+		CPVMREF1234567890ABCDEF01 /* CommandPaletteViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandPaletteViewModel.swift; sourceTree = "<group>"; };
+		CPCMDREF1234567890ABCDEF02 /* CommandPaletteCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CommandPaletteCommand.swift; path = Models/CommandPaletteCommand.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -304,6 +310,9 @@
 				BB8888888888888888888888 /* VelocityDetailsCard.swift */,
 				777A75CD59CE21353DC20516 /* MenuBarContentView.swift */,
 				0CA719BF19DA9A8273DC7910 /* MenuBarIconView.swift */,
+				CPVIEWREF1234567890ABCDEF00 /* CommandPaletteView.swift */,
+				CPVMREF1234567890ABCDEF01 /* CommandPaletteViewModel.swift */,
+				CPCMDREF1234567890ABCDEF02 /* CommandPaletteCommand.swift */,
 			);
 			path = RalphMac;
 			sourceTree = "<group>";
@@ -546,6 +555,9 @@
 				AA8888888888888888888888 /* VelocityDetailsCard.swift in Sources */,
 				5FE4D9D3BBE74EBC66FFAAFA /* MenuBarContentView.swift in Sources */,
 				CEA0C56C54C067B285A7B1AD /* MenuBarIconView.swift in Sources */,
+				CPVIEW1234567890ABCDEF00 /* CommandPaletteView.swift in Sources */,
+				CPVM1234567890ABCDEF01 /* CommandPaletteViewModel.swift in Sources */,
+				CPCMD1234567890ABCDEF02 /* CommandPaletteCommand.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

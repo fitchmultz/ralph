@@ -52,6 +52,7 @@ struct RalphMacApp: App {
             workspaceCommands
             navigationCommands
             taskCommands
+            commandPaletteCommands
             helpCommands
         }
         
@@ -292,6 +293,20 @@ struct RalphMacApp: App {
         }
     }
 
+    private var commandPaletteCommands: some Commands {
+        CommandMenu("Tools") {
+            Button("Command Palette...") {
+                NotificationCenter.default.post(name: .showCommandPalette, object: nil)
+            }
+            .keyboardShortcut("p", modifiers: [.command, .shift])
+            
+            Button("Quick Command...") {
+                NotificationCenter.default.post(name: .showCommandPalette, object: nil)
+            }
+            .keyboardShortcut("k", modifiers: .command)
+        }
+    }
+
     private var helpCommands: some Commands {
         CommandGroup(replacing: .help) {
             Button("Export Logs...") {
@@ -440,4 +455,5 @@ extension Notification.Name {
     static let activateWorkspace = Notification.Name("activateWorkspace")
     static let workspaceOpenedFromURL = Notification.Name("workspaceOpenedFromURL")
     static let saveAllWindowStatesRequested = Notification.Name("saveAllWindowStatesRequested")
+    static let showCommandPalette = Notification.Name("showCommandPalette")
 }
