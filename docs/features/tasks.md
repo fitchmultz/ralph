@@ -48,7 +48,7 @@ Tasks serve as the fundamental interface between you and AI agents:
 .ralph/
 ├── queue.json   # Active tasks (source of truth for execution)
 ├── done.json    # Completed/rejected tasks (archive)
-└── cache/       # Plans, completions, backups
+└── cache/       # Plans, completions, queue backups (auto-pruned to latest 50)
 ```
 
 **Minimum queue structure:**

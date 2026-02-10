@@ -15,10 +15,11 @@
 //! - Callers hold locks when mutating queue state on disk.
 
 use crate::config::Resolved;
+use crate::constants::limits::MAX_QUEUE_BACKUP_FILES;
 use crate::contracts::{QueueFile, TaskStatus};
 use crate::{fsutil, lock};
 use anyhow::{Context, Result};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub mod graph;
 pub mod hierarchy;
@@ -41,6 +42,8 @@ pub use size_check::{
     size_threshold_or_default,
 };
 pub use validation::{ValidationWarning, log_warnings, validate_queue, validate_queue_set};
+
+const QUEUE_BACKUP_PREFIX: &str = "queue.json.backup.";
 
 // Pruning types live in `queue::prune` (re-exported from this module).
 
@@ -292,13 +295,78 @@ fn repair_unescaped_quotes(raw: &str) -> String {
 pub fn backup_queue(path: &Path, backup_dir: &Path) -> Result<std::path::PathBuf> {
     std::fs::create_dir_all(backup_dir)?;
     let timestamp = crate::timeutil::now_utc_rfc3339_or_fallback().replace([':', '.'], "-");
-    let backup_name = format!("queue.json.backup.{}", timestamp);
+    let backup_name = format!("{QUEUE_BACKUP_PREFIX}{timestamp}");
     let backup_path = backup_dir.join(backup_name);
 
     std::fs::copy(path, &backup_path)
         .with_context(|| format!("backup queue to {}", backup_path.display()))?;
 
+    match cleanup_queue_backups(backup_dir, MAX_QUEUE_BACKUP_FILES) {
+        Ok(removed) if removed > 0 => {
+            log::debug!(
+                "pruned {} stale queue backup(s); retaining latest {}",
+                removed,
+                MAX_QUEUE_BACKUP_FILES
+            );
+        }
+        Ok(_) => {}
+        Err(err) => {
+            log::warn!(
+                "failed to prune queue backups in {}: {:#}",
+                backup_dir.display(),
+                err
+            );
+        }
+    }
+
     Ok(backup_path)
+}
+
+fn cleanup_queue_backups(backup_dir: &Path, max_backups: usize) -> Result<usize> {
+    if max_backups == 0 || !backup_dir.exists() {
+        return Ok(0);
+    }
+
+    let mut backup_paths: Vec<PathBuf> = Vec::new();
+    for entry in std::fs::read_dir(backup_dir)
+        .with_context(|| format!("read backup directory {}", backup_dir.display()))?
+    {
+        let entry = entry
+            .with_context(|| format!("read backup directory entry in {}", backup_dir.display()))?;
+
+        let file_type = entry
+            .file_type()
+            .with_context(|| format!("read file type {}", entry.path().display()))?;
+        if !file_type.is_file() {
+            continue;
+        }
+
+        let file_name = entry.file_name();
+        let file_name = file_name.to_string_lossy();
+        if file_name.starts_with(QUEUE_BACKUP_PREFIX) {
+            backup_paths.push(entry.path());
+        }
+    }
+
+    if backup_paths.len() <= max_backups {
+        return Ok(0);
+    }
+
+    backup_paths.sort_unstable_by_key(|path| {
+        path.file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_default()
+    });
+
+    let mut removed = 0usize;
+    let to_remove = backup_paths.len().saturating_sub(max_backups);
+    for backup_path in backup_paths.into_iter().take(to_remove) {
+        std::fs::remove_file(&backup_path)
+            .with_context(|| format!("remove queue backup {}", backup_path.display()))?;
+        removed += 1;
+    }
+
+    Ok(removed)
 }
 
 /// Load the active queue and optionally the done queue, validating both.
@@ -804,6 +872,71 @@ mod tests {
             serde_json::from_str(&std::fs::read_to_string(&backup_path)?)?;
         assert_eq!(backup_queue.tasks.len(), 1);
         assert_eq!(backup_queue.tasks[0].id, "RQ-0001");
+
+        Ok(())
+    }
+
+    #[test]
+    fn cleanup_queue_backups_removes_oldest_files() -> Result<()> {
+        let temp = TempDir::new()?;
+        let backup_dir = temp.path().join("backups");
+        std::fs::create_dir_all(&backup_dir)?;
+
+        for suffix in ["0001", "0002", "0003"] {
+            let backup_path = backup_dir.join(format!("{QUEUE_BACKUP_PREFIX}{suffix}"));
+            std::fs::write(backup_path, "{}")?;
+        }
+
+        let removed = cleanup_queue_backups(&backup_dir, 2)?;
+        assert_eq!(removed, 1);
+        assert!(
+            !backup_dir
+                .join(format!("{QUEUE_BACKUP_PREFIX}0001"))
+                .exists()
+        );
+        assert!(
+            backup_dir
+                .join(format!("{QUEUE_BACKUP_PREFIX}0002"))
+                .exists()
+        );
+        assert!(
+            backup_dir
+                .join(format!("{QUEUE_BACKUP_PREFIX}0003"))
+                .exists()
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn backup_queue_prunes_backups_to_retention_limit() -> Result<()> {
+        let temp = TempDir::new()?;
+        let queue_path = temp.path().join("queue.json");
+        let backup_dir = temp.path().join("backups");
+        std::fs::create_dir_all(&backup_dir)?;
+
+        save_queue(
+            &queue_path,
+            &QueueFile {
+                version: 1,
+                tasks: vec![task("RQ-0001")],
+            },
+        )?;
+
+        for idx in 0..(MAX_QUEUE_BACKUP_FILES + 2) {
+            let backup_path = backup_dir.join(format!("{QUEUE_BACKUP_PREFIX}0000-{idx:04}"));
+            std::fs::write(backup_path, "{}")?;
+        }
+
+        let _backup_path = backup_queue(&queue_path, &backup_dir)?;
+
+        let backup_count = std::fs::read_dir(&backup_dir)?
+            .flatten()
+            .map(|entry| entry.file_name().to_string_lossy().to_string())
+            .filter(|name| name.starts_with(QUEUE_BACKUP_PREFIX))
+            .count();
+
+        assert_eq!(backup_count, MAX_QUEUE_BACKUP_FILES);
 
         Ok(())
     }

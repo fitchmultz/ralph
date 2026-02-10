@@ -23,9 +23,17 @@ import Foundation
 /// A size-limited rolling buffer for console output to prevent memory exhaustion.
 @MainActor
 public final class ConsoleOutputBuffer: Sendable {
+    /// Hard upper bound for retained console text to avoid catastrophic memory usage.
+    public static let hardMaxCharacters: Int = 2_000_000
+
     /// Maximum number of characters to retain in buffer (default: 100KB)
     public var maxCharacters: Int {
         didSet {
+            let clamped = Self.clampMaxCharacters(maxCharacters)
+            if clamped != maxCharacters {
+                maxCharacters = clamped
+                return
+            }
             if maxCharacters != oldValue {
                 enforceLimit()
             }
@@ -64,7 +72,7 @@ public final class ConsoleOutputBuffer: Sendable {
         maxCharacters: Int = defaultMaxCharacters,
         truncationIndicator: String = defaultTruncationIndicator
     ) {
-        self.maxCharacters = maxCharacters
+        self.maxCharacters = Self.clampMaxCharacters(maxCharacters)
         self.truncationIndicator = truncationIndicator
     }
 
@@ -130,6 +138,10 @@ public final class ConsoleOutputBuffer: Sendable {
             // Indicator itself exceeds limit, just truncate hard from beginning
             content = String(content.suffix(maxCharacters))
         }
+    }
+
+    private static func clampMaxCharacters(_ value: Int) -> Int {
+        max(1, min(value, hardMaxCharacters))
     }
 }
 

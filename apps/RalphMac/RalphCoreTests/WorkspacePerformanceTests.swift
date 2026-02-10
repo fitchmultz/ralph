@@ -136,6 +136,15 @@ final class WorkspacePerformanceTests: XCTestCase {
         XCTAssertLessThanOrEqual(buffer.content.count, 70) // 50 + indicator
     }
 
+    func test_outputBuffer_clampsToHardLimit() {
+        let tooLarge = ConsoleOutputBuffer.hardMaxCharacters + 500_000
+        let buffer = ConsoleOutputBuffer(maxCharacters: tooLarge)
+        XCTAssertEqual(buffer.maxCharacters, ConsoleOutputBuffer.hardMaxCharacters)
+
+        buffer.maxCharacters = tooLarge
+        XCTAssertEqual(buffer.maxCharacters, ConsoleOutputBuffer.hardMaxCharacters)
+    }
+
     // MARK: - ANSI Segment Limit Tests
 
     func test_ansiSegmentLimit_enforced() {
@@ -196,6 +205,14 @@ final class WorkspacePerformanceTests: XCTestCase {
 
         XCTAssertEqual(workspace.attributedOutput.count, 1)
         XCTAssertEqual(workspace.attributedOutput.first?.text, "Simple text without ANSI codes")
+    }
+
+    func test_parseANSICodes_replaceMode_rebuildsWithoutDuplicateGrowth() {
+        workspace.parseANSICodes(from: "line 1\n", appendToExisting: false)
+        workspace.parseANSICodes(from: "line 1\nline 2\n", appendToExisting: false)
+
+        XCTAssertEqual(workspace.attributedOutput.count, 1)
+        XCTAssertEqual(workspace.attributedOutput.first?.text, "line 1\nline 2\n")
     }
 
     // MARK: - MainActor Isolation Regression Tests

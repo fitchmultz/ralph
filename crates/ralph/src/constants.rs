@@ -71,6 +71,9 @@ pub mod limits {
 
     /// Maximum LFS pointer file size (bytes).
     pub const MAX_POINTER_SIZE: u64 = 1024;
+
+    /// Maximum number of queue backup files to retain in `.ralph/cache`.
+    pub const MAX_QUEUE_BACKUP_FILES: usize = 50;
 }
 
 /// Timeout and interval durations.

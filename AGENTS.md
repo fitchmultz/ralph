@@ -210,6 +210,7 @@ See `docs/configuration.md` for key fields (runner/model/phases/RepoPrompt toggl
 
 - **Queue is the source of truth**: `.ralph/queue.json` (active) and `.ralph/done.json` (archive)
 - **Task ordering**: Queue file order is execution order (top runs first). Draft tasks are skipped unless `--include-draft`
+- **Queue backups are bounded**: `.ralph/cache/queue.json.backup*` files must be auto-pruned with explicit retention limits (no unbounded cache growth)
 - **Prompt composition**: Embedded defaults in `crates/ralph/assets/prompts/`, overridden by `.ralph/prompts/*.md`
 - **Planning cache**: Phase 1 plans are written to `.ralph/cache/plans/<TASK_ID>.md`
 - **Supervision-aware completion**: `ralph task done` writes `.ralph/cache/completions/<TASK_ID>.json`

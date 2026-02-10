@@ -1308,8 +1308,9 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
                     // Parse phase information incrementally
                     detectPhase(from: output)
 
-                    // Parse ANSI codes for rich display (with segment limiting)
-                    parseANSICodes(from: output)
+                    // Re-parse the bounded console buffer on each event.
+                    // Replace existing segments instead of appending to avoid duplicated growth.
+                    parseANSICodes(from: output, appendToExisting: false)
                     enforceANSISegmentLimit()
                 }
 
@@ -1592,7 +1593,11 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
     ///
     /// Supports SGR codes for colors (16-color, 256-color, true color),
     /// text attributes (bold, italic), and strips cursor movement codes.
-    public func parseANSICodes(from rawOutput: String) {
+    public func parseANSICodes(from rawOutput: String, appendToExisting: Bool = true) {
+        if !appendToExisting {
+            attributedOutput = []
+        }
+
         var segments: [ANSISegment] = []
         var currentState = ANSIStyleState()
         var currentText = ""
