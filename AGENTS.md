@@ -1,3 +1,20 @@
+# CRITICAL: DATE AWARENESS - CURRENT DATE IS FEBRUARY 2026 (NOT 2024)
+
+> ⚠️ **TIMEFRAME CRITICAL**: The current date is **February 2026**. All documentation referencing "2024" is OUTDATED.
+
+## Date Verification Protocol
+- **ALWAYS** check the current system date at the start of each session
+- Use 2026 as the reference timeframe for ALL decisions, searches, and recommendations
+- **NEVER** use 2024 data as a benchmark or current reference
+
+## Up-to-Date Information Requirement
+- You have access to web search tools - **USE THEM** to find current information as of 2026
+- When researching libraries, frameworks, APIs, or best practices, search for "2026" or "latest" versions
+- Do not assume 2024 documentation is still current; verify with web search
+- Default to the most recent stable versions available in 2026
+
+---
+
 # Repository Guidelines (Ralph)
 
 Ralph is a Rust CLI for running AI agent loops against a structured JSON task queue.
