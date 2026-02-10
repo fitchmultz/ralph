@@ -1,6 +1,11 @@
 <!-- Purpose: Phase 3 code review prompt wrapper. -->
 # CODE REVIEW MODE - PHASE 3 OF {{TOTAL_PHASES}}
 CURRENT TASK: {{TASK_ID}}. Do NOT switch tasks.
+Task status is already set to `doing` by Ralph. Do NOT change it (use `ralph task done` when finished).
+
+## PLAN SOURCE OF TRUTH
+Phase 1 plan path: `.ralph/cache/plans/{{TASK_ID}}.md`
+Use this file as the implementation baseline during Phase 3 review.
 
 {{PHASE3_COMPLETION_GUIDANCE}}
 
@@ -31,6 +36,7 @@ Confirm the task is actually complete:
 - Compare pending changes against the plan.
 - Identify and resolve bugs, regressions, missing tests, and overengineering.
 - Close all risks/suspicious leads before completion (or prove false positive).
+Do NOT complete the task if any unresolved lead remains.
 
 {{CODE_REVIEW_BODY}}
 

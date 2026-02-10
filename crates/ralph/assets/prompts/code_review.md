@@ -10,6 +10,11 @@ Task ID: {{TASK_ID}}
 Expected plan: `.ralph/cache/plans/{{TASK_ID}}.md`
 If Phase 2 missed required work, finish it.
 
+## PENDING GIT CHANGES (FROM PHASE 2)
+- Review all pending diffs (`git diff` or equivalent).
+- Ensure consistency across all applicable files and no loose ends.
+- If overengineered, simplify while preserving outcome.
+
 ## REVIEW CHECKLIST
 1. Inspect pending diff and verify it satisfies the approved plan and user intent.
 2. Identify bugs, regressions, missing tests, incomplete behavior, and overengineering.
