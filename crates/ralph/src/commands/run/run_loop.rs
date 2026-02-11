@@ -344,6 +344,15 @@ pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()>
                         return Err(err);
                     }
 
+                    // Queue validation errors are non-retriable - return immediately
+                    // to prevent the 50-failure abort loop on deterministic validation errors.
+                    // Queue validation errors (invalid relationships, duplicate IDs, etc.)
+                    // cannot self-resolve; user intervention is required.
+                    if runutil::is_queue_validation_error(&err) {
+                        log::error!("RunLoop: aborting due to queue validation error");
+                        return Err(err);
+                    }
+
                     completed += 1;
                     tasks_attempted += 1;
                     tasks_failed += 1;

@@ -32,7 +32,9 @@ pub use shell::shell_command;
 
 // --- Crate-private API (unchanged call-site paths) ---------------------------
 
-pub(crate) use abort::{RunAbort, RunAbortReason, abort_reason, is_dirty_repo_error};
+pub(crate) use abort::{
+    RunAbort, RunAbortReason, abort_reason, is_dirty_repo_error, is_queue_validation_error,
+};
 
 pub(crate) use execution::{RunnerErrorMessages, RunnerInvocation, run_prompt_with_handling};
 

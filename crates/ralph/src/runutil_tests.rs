@@ -701,3 +701,145 @@ fn run_prompt_passes_output_stream_to_backend() {
         Some(runner::OutputStream::HandlerOnly)
     );
 }
+
+// --- Queue validation error detection tests ---------------------------------
+
+#[test]
+fn is_queue_validation_error_detects_relationship_errors() {
+    let err = anyhow::anyhow!(
+        "Invalid relates_to relationship: task RQ-0016 relates to non-existent task RQ-0029"
+    );
+    assert!(
+        crate::runutil::is_queue_validation_error(&err),
+        "should detect relates_to relationship error"
+    );
+
+    let err = anyhow::anyhow!(
+        "Invalid blocks relationship: task RQ-0010 blocks non-existent task RQ-0099"
+    );
+    assert!(
+        crate::runutil::is_queue_validation_error(&err),
+        "should detect blocks relationship error"
+    );
+
+    let err = anyhow::anyhow!(
+        "Invalid duplicates relationship: task RQ-0005 duplicates non-existent task RQ-0001"
+    );
+    assert!(
+        crate::runutil::is_queue_validation_error(&err),
+        "should detect duplicates relationship error"
+    );
+}
+
+#[test]
+fn is_queue_validation_error_detects_duplicate_id_errors() {
+    let err =
+        anyhow::anyhow!("Duplicate task ID detected: RQ-0001. Ensure each task has a unique ID.");
+    assert!(
+        crate::runutil::is_queue_validation_error(&err),
+        "should detect duplicate task ID error"
+    );
+}
+
+#[test]
+fn is_queue_validation_error_detects_self_reference_errors() {
+    let err = anyhow::anyhow!("Self-reference in relates_to: task RQ-0001 relates to itself");
+    assert!(
+        crate::runutil::is_queue_validation_error(&err),
+        "should detect self-reference in relates_to"
+    );
+
+    let err = anyhow::anyhow!("Self-blocking detected: task RQ-0001 blocks itself");
+    assert!(
+        crate::runutil::is_queue_validation_error(&err),
+        "should detect self-blocking error"
+    );
+
+    let err = anyhow::anyhow!("Self-duplication detected: task RQ-0001 duplicates itself");
+    assert!(
+        crate::runutil::is_queue_validation_error(&err),
+        "should detect self-duplication error"
+    );
+}
+
+#[test]
+fn is_queue_validation_error_detects_circular_blocking() {
+    let err = anyhow::anyhow!("Circular blocking detected involving task RQ-0005");
+    assert!(
+        crate::runutil::is_queue_validation_error(&err),
+        "should detect circular blocking error"
+    );
+}
+
+#[test]
+fn is_queue_validation_error_detects_missing_field_errors() {
+    let err = anyhow::anyhow!("Missing task ID: task at index 0 is missing an 'id' field");
+    assert!(
+        crate::runutil::is_queue_validation_error(&err),
+        "should detect missing task ID error"
+    );
+
+    let err = anyhow::anyhow!("Missing task title: task RQ-0001 is missing a 'title' field");
+    assert!(
+        crate::runutil::is_queue_validation_error(&err),
+        "should detect missing task title error"
+    );
+}
+
+#[test]
+fn is_queue_validation_error_detects_invalid_prefix_errors() {
+    let err = anyhow::anyhow!("Invalid id_width: width must be greater than 0");
+    assert!(
+        crate::runutil::is_queue_validation_error(&err),
+        "should detect invalid id_width error"
+    );
+
+    let err = anyhow::anyhow!("Empty id_prefix: prefix is required");
+    assert!(
+        crate::runutil::is_queue_validation_error(&err),
+        "should detect empty id_prefix error"
+    );
+
+    let err = anyhow::anyhow!("Unsupported queue.json version: 2. Ralph requires version 1");
+    assert!(
+        crate::runutil::is_queue_validation_error(&err),
+        "should detect unsupported version error"
+    );
+}
+
+#[test]
+fn is_queue_validation_error_rejects_non_validation_errors() {
+    // Regular runtime errors should not be detected as validation errors
+    let err = anyhow::anyhow!("Runner exited with non-zero status");
+    assert!(
+        !crate::runutil::is_queue_validation_error(&err),
+        "should NOT detect runner error as validation error"
+    );
+
+    let err = anyhow::anyhow!("Network timeout occurred");
+    assert!(
+        !crate::runutil::is_queue_validation_error(&err),
+        "should NOT detect network error as validation error"
+    );
+
+    let err = anyhow::anyhow!("Failed to acquire queue lock");
+    assert!(
+        !crate::runutil::is_queue_validation_error(&err),
+        "should NOT detect lock error as validation error"
+    );
+}
+
+#[test]
+fn is_queue_validation_error_detects_through_context_layers() {
+    // Validation errors wrapped in context should still be detected
+    let err = anyhow::anyhow!(
+        "Invalid relates_to relationship: task RQ-0016 relates to non-existent task RQ-0029"
+    )
+    .context("loading phase 3 snapshot")
+    .context("running task");
+
+    assert!(
+        crate::runutil::is_queue_validation_error(&err),
+        "should detect validation error through context layers"
+    );
+}

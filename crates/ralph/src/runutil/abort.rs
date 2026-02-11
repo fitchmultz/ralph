@@ -61,3 +61,24 @@ pub(crate) fn is_dirty_repo_error(err: &anyhow::Error) -> bool {
             .is_some_and(|e| matches!(e, crate::git::GitError::DirtyRepo { .. }))
     })
 }
+
+/// Check if an error is a queue validation error.
+///
+/// Queue validation errors cannot self-heal through retries because they
+/// indicate structural problems in the queue file that require user intervention.
+/// This is used to detect non-retryable errors to prevent the 50-failure abort loop.
+pub(crate) fn is_queue_validation_error(err: &anyhow::Error) -> bool {
+    err.chain().any(|cause| {
+        let msg = cause.to_string();
+        // Match common queue validation error patterns from validation.rs
+        msg.contains("relationship")
+            || msg.contains("Duplicate task ID")
+            || msg.contains("Circular blocking")
+            || msg.starts_with("Self-")
+            || msg.starts_with("Invalid ")
+            || msg.starts_with("Missing ")
+            || msg.starts_with("Unsupported queue.json")
+            || msg.starts_with("Empty id_prefix")
+            || msg.starts_with("Invalid id_width")
+    })
+}

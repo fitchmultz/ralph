@@ -32,7 +32,7 @@ fn load_queue_schema() -> Value {
 #[test]
 fn schema_alignment_config_agent_phases_matches_runtime_validation() {
     let schema = load_config_schema();
-    let phases = &schema["definitions"]["AgentConfig"]["properties"]["phases"];
+    let phases = &schema["$defs"]["AgentConfig"]["properties"]["phases"];
 
     let min = phases["minimum"].as_f64().expect("phases.minimum missing");
     let max = phases["maximum"].as_f64().expect("phases.maximum missing");
@@ -50,7 +50,7 @@ fn schema_alignment_config_agent_phases_matches_runtime_validation() {
 #[test]
 fn schema_alignment_queue_task_required_fields_match_runtime_validation() {
     let schema = load_queue_schema();
-    let required = schema["definitions"]["Task"]["required"]
+    let required = schema["$defs"]["Task"]["required"]
         .as_array()
         .expect("Task.required should be an array");
 
@@ -71,8 +71,8 @@ fn schema_alignment_queue_task_required_fields_match_runtime_validation() {
 #[test]
 fn schema_alignment_queue_task_timestamps_require_strings() {
     let schema = load_queue_schema();
-    let created_at = &schema["definitions"]["Task"]["properties"]["created_at"]["type"];
-    let updated_at = &schema["definitions"]["Task"]["properties"]["updated_at"]["type"];
+    let created_at = &schema["$defs"]["Task"]["properties"]["created_at"]["type"];
+    let updated_at = &schema["$defs"]["Task"]["properties"]["updated_at"]["type"];
 
     assert_eq!(created_at, "string", "created_at must be a string");
     assert_eq!(updated_at, "string", "updated_at must be a string");
