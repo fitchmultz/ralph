@@ -29,8 +29,9 @@ Only open `.ralph/queue.json` or `.ralph/done.json` when you must edit them.
 
 ### IMPORTANT EXCEPTION (RALPH BOOKKEEPING)
 When running under `ralph run ...` supervision, the repo may appear “dirty” *only* because Ralph updated:
-- `.ralph/queue.json` (e.g., setting the current task to `doing`)
-- `.ralph/done.json` (e.g., archiving/completing tasks)
+- `.ralph/queue.json` or `.ralph/queue.jsonc` (e.g., setting the current task to `doing`)
+- `.ralph/done.json` or `.ralph/done.jsonc` (e.g., archiving/completing tasks)
+- `.ralph/config.json` or `.ralph/config.jsonc`
 - `.ralph/cache/*`
 - `.ralph/lock/*`
 

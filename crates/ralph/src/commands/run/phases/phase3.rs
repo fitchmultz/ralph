@@ -503,7 +503,11 @@ pub fn ensure_phase3_completion(
             git::require_clean_repo_ignoring_paths(
                 &resolved.repo_root,
                 false,
-                &[".ralph/config.json", ".ralph/cache/productivity.json"],
+                &[
+                    ".ralph/config.json",
+                    ".ralph/config.jsonc",
+                    ".ralph/cache/productivity.json",
+                ],
             )?;
         }
     } else {

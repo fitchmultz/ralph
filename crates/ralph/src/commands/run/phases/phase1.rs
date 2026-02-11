@@ -82,13 +82,15 @@ pub fn execute_phase1_planning(ctx: &PhaseInvocation<'_>, total_phases: u8) -> R
         };
 
         // ENFORCEMENT: Phase 1 must not implement.
-        // It may only edit `.ralph/queue.json` / `.ralph/done.json` (status bookkeeping)
-        // plus the plan cache file for the current task.
+        // It may only edit queue bookkeeping files (`.ralph/queue.{json,jsonc}`,
+        // `.ralph/done.{json,jsonc}`) plus the plan cache file for the current task.
         let plan_cache_rel = format!(".ralph/cache/plans/{}.md", ctx.task_id);
         let plan_cache_dir = ".ralph/cache/plans/";
         let allowed_paths = [
             ".ralph/queue.json",
+            ".ralph/queue.jsonc",
             ".ralph/done.json",
+            ".ralph/done.jsonc",
             plan_cache_rel.as_str(),
             plan_cache_dir,
         ];

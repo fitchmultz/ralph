@@ -1025,8 +1025,9 @@ ralph run one --approval-mode yolo --sandbox disabled
 ralph run one --approval-mode auto-edits --runner claude
 ```
 
-Clean-repo checks for `run one` and `run loop` allow changes to `.ralph/config.json`
-(alongside `.ralph/queue.json` and `.ralph/done.json`). Use `--force` to bypass the
+Clean-repo checks for `run one` and `run loop` allow changes to
+`.ralph/config.{json,jsonc}` (alongside `.ralph/queue.{json,jsonc}` and
+`.ralph/done.{json,jsonc}`). Use `--force` to bypass the
 clean-repo check entirely if needed.
 
 ## `ralph scan`
@@ -1044,8 +1045,8 @@ Key flags:
 * `--repo-prompt <tools|plan|off>` (alias: `-rp`): `tools` = tooling reminders only, `plan` = planning requirement + tooling reminders, `off` = disable both.
 * Runner CLI overrides: `--approval-mode <default|auto-edits|yolo|safe>`, `--sandbox <default|enabled|disabled>`, `--verbosity <quiet|normal|verbose>`, `--plan-mode <default|enabled|disabled>`, `--output-format <stream-json|json|text>`, `--unsupported-option-policy <ignore|warn|error>`.
 
-Clean-repo checks for `scan` allow changes to `.ralph/queue.json` and `.ralph/done.json`
-only (unlike `run`, changes to `.ralph/config.json` are *not* allowed). Use `--force` to
+Clean-repo checks for `scan` allow changes to `.ralph/queue.{json,jsonc}`,
+`.ralph/done.{json,jsonc}`, and `.ralph/config.{json,jsonc}`. Use `--force` to
 bypass the clean-repo check (and stale queue locks) entirely if needed.
 
 Examples:

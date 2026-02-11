@@ -24,8 +24,11 @@ use std::path::Path;
 /// during normal operation.
 pub const RALPH_RUN_CLEAN_ALLOWED_PATHS: &[&str] = &[
     ".ralph/queue.json",
+    ".ralph/queue.jsonc",
     ".ralph/done.json",
+    ".ralph/done.jsonc",
     ".ralph/config.json",
+    ".ralph/config.jsonc",
     ".ralph/cache/",
 ];
 
@@ -197,6 +200,24 @@ mod clean_repo_tests {
     use tempfile::TempDir;
 
     #[test]
+    fn run_clean_allowed_paths_include_json_and_jsonc_variants() {
+        for required in [
+            ".ralph/queue.json",
+            ".ralph/queue.jsonc",
+            ".ralph/done.json",
+            ".ralph/done.jsonc",
+            ".ralph/config.json",
+            ".ralph/config.jsonc",
+            ".ralph/cache/",
+        ] {
+            assert!(
+                RALPH_RUN_CLEAN_ALLOWED_PATHS.contains(&required),
+                "missing required allowlisted path: {required}"
+            );
+        }
+    }
+
+    #[test]
     fn repo_dirty_only_allowed_paths_detects_config_only_changes() -> anyhow::Result<()> {
         let temp = TempDir::new()?;
         git_test::init_repo(temp.path())?;
@@ -211,6 +232,28 @@ mod clean_repo_tests {
         let dirty_allowed =
             repo_dirty_only_allowed_paths(temp.path(), RALPH_RUN_CLEAN_ALLOWED_PATHS)?;
         assert!(dirty_allowed, "expected config-only changes to be allowed");
+        require_clean_repo_ignoring_paths(temp.path(), false, RALPH_RUN_CLEAN_ALLOWED_PATHS)?;
+        Ok(())
+    }
+
+    #[test]
+    fn repo_dirty_only_allowed_paths_detects_config_jsonc_only_changes() -> anyhow::Result<()> {
+        let temp = TempDir::new()?;
+        git_test::init_repo(temp.path())?;
+        std::fs::create_dir_all(temp.path().join(".ralph"))?;
+        let config_path = temp.path().join(".ralph/config.jsonc");
+        std::fs::write(&config_path, "{ \"version\": 1 }")?;
+        git_test::git_run(temp.path(), &["add", "-f", ".ralph/config.jsonc"])?;
+        git_test::git_run(temp.path(), &["commit", "-m", "init config jsonc"])?;
+
+        std::fs::write(&config_path, "{ \"version\": 2 }")?;
+
+        let dirty_allowed =
+            repo_dirty_only_allowed_paths(temp.path(), RALPH_RUN_CLEAN_ALLOWED_PATHS)?;
+        assert!(
+            dirty_allowed,
+            "expected config.jsonc-only changes to be allowed"
+        );
         require_clean_repo_ignoring_paths(temp.path(), false, RALPH_RUN_CLEAN_ALLOWED_PATHS)?;
         Ok(())
     }

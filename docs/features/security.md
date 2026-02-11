@@ -313,17 +313,20 @@ require_clean_repo_ignoring_paths(
     force,  // Bypass check if true
     &[
         ".ralph/queue.json",
+        ".ralph/queue.jsonc",
         ".ralph/done.json",
+        ".ralph/done.jsonc",
         ".ralph/config.json",
+        ".ralph/config.jsonc",
         ".ralph/cache/",
     ],
 )?;
 ```
 
 Allowed dirty paths (Ralph's own files):
-- `.ralph/queue.json` - Active task queue
-- `.ralph/done.json` - Completed task archive
-- `.ralph/config.json` - Project configuration
+- `.ralph/queue.json` / `.ralph/queue.jsonc` - Active task queue
+- `.ralph/done.json` / `.ralph/done.jsonc` - Completed task archive
+- `.ralph/config.json` / `.ralph/config.jsonc` - Project configuration
 - `.ralph/cache/` - Cache directory
 
 ### Revert Modes

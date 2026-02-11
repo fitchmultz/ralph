@@ -136,7 +136,7 @@ pub fn handle_run(cmd: RunCommand, force: bool) -> Result<()> {
 	     - `--parallel` runs loop tasks concurrently in workspaces (clone-based).\n\
 	     - Parallel workers do not modify `.ralph/queue.json` or `.ralph/done.json`; they commit completion signals in `.ralph/cache/completions/<TASK_ID>.json`.\n\
 	     - After merge, the coordinator applies completion signals to update queue/done (errors if missing).\n\
-	  - Clean-repo checks allow changes to `.ralph/config.json` (plus `.ralph/queue.json` and `.ralph/done.json`); use `--force` to bypass entirely.\n\
+	  - Clean-repo checks allow changes to `.ralph/config.{json,jsonc}` (plus `.ralph/queue.{json,jsonc}` and `.ralph/done.{json,jsonc}`); use `--force` to bypass entirely.\n\
 	 \n\
 Phase-specific overrides:\n\
 	  Use --runner-phaseN, --model-phaseN, --effort-phaseN to override settings for a specific phase.\n\

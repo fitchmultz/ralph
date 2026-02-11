@@ -224,7 +224,7 @@ ralph task reject <TASK_ID> [--note "rejection reason"]
 **Enforcement**:
 - Phase 3 loops until the task is archived to `done.json`
 - If task is not done/rejected, user is prompted based on `git_revert_mode`
-- With `git_commit_push_enabled=true`, rejected tasks only allow dirty files in `.ralph/queue.json` and `.ralph/done.json`
+- With `git_commit_push_enabled=true`, rejected tasks allow dirty files in `.ralph/queue.{json,jsonc}`, `.ralph/done.{json,jsonc}`, `.ralph/config.{json,jsonc}`, and `.ralph/cache/`
 
 ### Code Review Context
 
