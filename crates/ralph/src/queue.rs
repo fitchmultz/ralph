@@ -19,7 +19,20 @@ use crate::constants::limits::MAX_QUEUE_BACKUP_FILES;
 use crate::contracts::{QueueFile, TaskStatus};
 use crate::{fsutil, lock};
 use anyhow::{Context, Result};
+use regex::Regex;
 use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
+
+static SINGLE_QUOTED_STRING_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(^|[^a-zA-Z0-9])'([^']*?)'([^a-zA-Z0-9]|$)").unwrap());
+
+static UNQUOTED_KEY_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:").unwrap());
+
+static TRAILING_COMMA_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r",(\s*[}\]])").unwrap());
+
+static TRAILING_COMMA_NEWLINE_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r",(\s*)\n(\s*[}\]])").unwrap());
 
 pub mod graph;
 pub mod hierarchy;
@@ -146,16 +159,13 @@ pub fn attempt_json_repair(raw: &str) -> Option<String> {
     // We match single quotes that appear to be string delimiters
     // Match '...' where the content doesn't contain ' and is not preceded/followed by alphanumeric
     // Use ^ or non-alphanumeric before, and non-alphanumeric or $ after
-    if let Ok(single_quote_re) = regex::Regex::new(r"(^|[^a-zA-Z0-9])'([^']*?)'([^a-zA-Z0-9]|$)")
-        && single_quote_re.is_match(&repaired)
-    {
+    if SINGLE_QUOTED_STRING_RE.is_match(&repaired) {
         log::debug!("JSON repair: converting single-quoted strings to double-quoted");
-        repaired = single_quote_re
+        repaired = SINGLE_QUOTED_STRING_RE
             .replace_all(&repaired, |caps: &regex::Captures| {
                 let prefix = &caps[1];
                 let content = &caps[2];
                 let suffix = &caps[3];
-                // Escape any double quotes inside the content
                 let escaped = content.replace('"', "\\\"");
                 format!("{}\"{}\"{}", prefix, escaped, suffix)
             })
@@ -165,11 +175,9 @@ pub fn attempt_json_repair(raw: &str) -> Option<String> {
     // Repair 2: Add missing quotes around unquoted object keys
     // Pattern: {[ or , followed by whitespace, then identifier followed by colon
     // Matches: {key: or ,key: or { key: or , key:
-    if let Ok(unquoted_key_re) = regex::Regex::new(r"([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:")
-        && unquoted_key_re.is_match(&repaired)
-    {
+    if UNQUOTED_KEY_RE.is_match(&repaired) {
         log::debug!("JSON repair: adding quotes around unquoted object keys");
-        repaired = unquoted_key_re
+        repaired = UNQUOTED_KEY_RE
             .replace_all(&repaired, "$1\"$2\":")
             .to_string();
     }
@@ -185,21 +193,17 @@ pub fn attempt_json_repair(raw: &str) -> Option<String> {
 
     // Repair 5: Remove trailing commas before ] or }
     // Pattern: ,\s*] or ,\s*}
-    if let Ok(trailing_comma_re) = regex::Regex::new(r",(\s*[}\]])")
-        && trailing_comma_re.is_match(&repaired)
-    {
+    if TRAILING_COMMA_RE.is_match(&repaired) {
         log::debug!("JSON repair: removing trailing commas");
-        repaired = trailing_comma_re.replace_all(&repaired, "$1").to_string();
+        repaired = TRAILING_COMMA_RE.replace_all(&repaired, "$1").to_string();
     }
 
     // Repair 6: Remove trailing commas at end of arrays/objects (more aggressive)
     // This handles cases where there might be newlines between comma and bracket
     // Pattern: ,(\s*)\n(\s*[}\]])
-    if let Ok(trailing_comma_nl_re) = regex::Regex::new(r",(\s*)\n(\s*[}\]])")
-        && trailing_comma_nl_re.is_match(&repaired)
-    {
+    if TRAILING_COMMA_NEWLINE_RE.is_match(&repaired) {
         log::debug!("JSON repair: removing trailing commas before newlines");
-        repaired = trailing_comma_nl_re
+        repaired = TRAILING_COMMA_NEWLINE_RE
             .replace_all(&repaired, "$1\n$2")
             .to_string();
     }
@@ -1060,5 +1064,39 @@ mod tests {
         assert!(warnings.is_empty());
 
         Ok(())
+    }
+
+    // Tests for cached regex performance (RQ-0810)
+
+    #[test]
+    fn attempt_json_repair_preserves_single_quote_then_unquoted_key_order() {
+        let input = r#"{'version': 1, 'tasks': [{'id': 'RQ-0001', 'title': 'Test', 'status': 'todo', 'tags': [], 'scope': [], 'evidence': [], 'plan': [], 'created_at': '2026-01-01T00:00:00Z', 'updated_at': '2026-01-01T00:00:00Z'}]}"#;
+        let repaired = attempt_json_repair(input).expect("should repair");
+        assert!(repaired.contains(r#""tasks""#));
+        assert!(repaired.contains(r#""id": "RQ-0001""#));
+        let _: QueueFile = serde_json::from_str(&repaired).expect("repaired should parse as JSON");
+    }
+
+    #[test]
+    fn attempt_json_repair_handles_multiple_ordered_errors() {
+        let input = r#"{'version': 1, tasks: [{id: 'RQ-0001', title: 'A', status: 'todo', tags: ['bug',], scope: [], evidence: [], plan: [], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z'}]}"#;
+        let repaired = attempt_json_repair(input).expect("should repair");
+        let _parsed: QueueFile =
+            serde_json::from_str(&repaired).expect("repaired should parse as JSON");
+        assert!(repaired.contains(r#""version""#));
+        assert!(repaired.contains(r#""tasks""#));
+        assert!(repaired.contains(r#""title""#));
+        assert!(repaired.contains(r#""tags": ["bug"]"#));
+    }
+
+    #[test]
+    #[ignore = "perf-smoke: run manually when tuning hot-path: cargo test -p ralph queue::tests::attempt_json_repair_perf_smoke -- --ignored"]
+    fn attempt_json_repair_perf_smoke() {
+        let input = r#"{'version': 1, tasks: [{'id': 'RQ-0001', 'title': 'A', 'status': 'todo', 'scope': ['x',], 'evidence': ['a',], 'plan': ['x',], 'created_at': '2026-01-01T00:00:00Z', 'updated_at': '2026-01-01T00:00:00Z'}]}"#;
+        let start = std::time::Instant::now();
+        for _ in 0..20_000 {
+            let _ = attempt_json_repair(input);
+        }
+        let _elapsed = start.elapsed();
     }
 }
