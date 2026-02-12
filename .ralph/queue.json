@@ -1,4 +1,495 @@
 {
   "version": 1,
-  "tasks": []
+  "tasks": [
+    {
+      "id": "RQ-0809",
+      "status": "todo",
+      "priority": "critical",
+      "title": "Treat indeterminate PID liveness as lock-owned to prevent concurrent supervisors",
+      "description": "Opportunity type: reliability.\n\nWhy it matters:\n- PID liveness checks are used to gate queue/daemon ownership; treating indeterminate checks as \"not running\" can allow competing supervisors to proceed, risking conflicting writes and hard-to-debug run-loop behavior.\n\nProposed approach (minimal slice first):\n- Introduce an explicit liveness state (running, not_running, indeterminate) and update lock/daemon call sites to treat indeterminate as conservatively owned.\n- Keep current behavior only where explicitly safe and tested.\n\nExpansion:\n- Add operator-facing diagnostics when liveness is indeterminate so users can resolve stale/permission issues without unsafe unlocks.\n\nRisks and mitigations:\n- Risk: conservative behavior can leave locks in place longer.\n- Mitigation: improve error messaging and retain explicit --force override paths.",
+      "tags": [
+        "innovation",
+        "reliability",
+        "locking",
+        "safety"
+      ],
+      "scope": [
+        "crates/ralph/src/lock.rs",
+        "crates/ralph/src/commands/daemon/mod.rs",
+        "crates/ralph/src/commands/run/parallel/mod.rs",
+        "cargo test -p ralph lock",
+        "cargo test -p ralph daemon"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/lock.rs :: is_supervised (non-unix branch) :: uses pid_is_running(owner.pid).unwrap_or(false) for supervision decisions.",
+        "path: crates/ralph/src/lock.rs :: pid_is_running :: returns None for permission/unsupported cases, not only definitive states.",
+        "path: crates/ralph/src/commands/daemon/mod.rs :: is_pid_running :: maps pid_is_running(None) to false via unwrap_or(false).",
+        "path: crates/ralph/src/commands/run/parallel/mod.rs :: prune_stale_tasks_in_flight :: already retains tasks when pid_is_running is indeterminate, indicating desired conservative behavior elsewhere."
+      ],
+      "plan": [
+        "Introduce a shared PID liveness enum/helper and migrate lock + daemon call sites away from unwrap_or(false).",
+        "Align supervision/staleness checks to treat indeterminate as protected state unless --force is explicitly used.",
+        "Add regression tests covering indeterminate PID status in lock acquisition, supervision checks, and daemon status reporting.",
+        "Update CLI error/help text to explain indeterminate PID handling and safe recovery options.",
+        "Verify by running `cargo test -p ralph lock` and `cargo test -p ralph daemon` and confirming indeterminate PID paths are conservative and explicit."
+      ],
+      "request": "scan: none",
+      "custom_fields": {
+        "scan_agent": "scan-innovation"
+      },
+      "created_at": "2026-02-12T20:13:33Z",
+      "updated_at": "2026-02-12T20:13:33Z"
+    },
+    {
+      "id": "RQ-0810",
+      "status": "todo",
+      "priority": "high",
+      "title": "Cache queue JSON-repair regexes to reduce hot-path CPU in parallel selection",
+      "description": "Opportunity type: performance and cost.\n\nWhy it matters:\n- Queue selection in parallel mode repeatedly triggers JSON repair/validation paths; recompiling regex patterns each invocation burns CPU and increases lock-hold time.\n\nProposed approach (minimal slice first):\n- Hoist repair regexes in queue repair logic to static lazy-initialized values and keep behavior identical.\n\nExpansion:\n- Add a lightweight benchmark harness for queue-load hot paths to prevent regressions.\n\nRisks and mitigations:\n- Risk: subtle behavior changes in replacement order.\n- Mitigation: retain existing repair tests and add targeted ordering regression tests.",
+      "tags": [
+        "innovation",
+        "performance",
+        "queue",
+        "cost"
+      ],
+      "scope": [
+        "crates/ralph/src/queue.rs",
+        "crates/ralph/src/commands/run/parallel/worker.rs",
+        "cargo test -p ralph queue::tests",
+        "cargo test -p ralph commands::run::parallel::worker"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/queue.rs :: attempt_json_repair :: compiles multiple Regex::new patterns inside the function on each call.",
+        "path: crates/ralph/src/commands/run/parallel/worker.rs :: select_next_task_locked :: calls load_queue_with_repair_and_validate for each selection pass.",
+        "workflow: ralph run loop --parallel 4 :: repeated selection attempts amplify queue-repair CPU overhead in worker hot paths.",
+        "external: https://docs.rs/regex/latest/regex/ :: accessed 2026-02-12 :: regex docs recommend compiling once (e.g., lazy static) instead of recompiling in loops for performance."
+      ],
+      "plan": [
+        "Move repair regex definitions to static lazy values and preserve existing replacement order semantics.",
+        "Refactor attempt_json_repair to reuse compiled patterns without changing external behavior.",
+        "Add regression tests for complex multi-error repair inputs to confirm equivalent outputs.",
+        "Optionally add a micro-benchmark or timing assertion in non-CI tooling for queue load path visibility.",
+        "Verify by running `cargo test -p ralph queue::tests` and `cargo test -p ralph commands::run::parallel::worker` and confirming identical repair behavior with reduced repeated regex compilation."
+      ],
+      "request": "scan: none",
+      "custom_fields": {
+        "scan_agent": "scan-innovation"
+      },
+      "created_at": "2026-02-12T20:13:33Z",
+      "updated_at": "2026-02-12T20:13:33Z"
+    },
+    {
+      "id": "RQ-0811",
+      "status": "todo",
+      "priority": "high",
+      "title": "Rework `ralph task --help` into workflow-oriented command groups",
+      "description": "Opportunity type: UX improvement.\n\nWhy it matters:\n- `ralph task` is a primary entry point, but current help output presents a long flat command list that increases onboarding friction and misfires on adjacent commands (`field` vs `edit`, `status` vs `done`).\n\nProposed approach (minimal slice first):\n- Reorganize task subcommands into explicit groups (create/build, lifecycle, edit, relationships, batch/template) with concise one-line intent labels.\n\nExpansion:\n- Add short \"common journeys\" section (create task, start task, complete task, split task) and keep docs aligned.\n\nRisks and mitigations:\n- Risk: help contract tests may fail due to wording drift.\n- Mitigation: update contract tests and docs in the same change.",
+      "tags": [
+        "innovation",
+        "ux",
+        "cli",
+        "onboarding"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/task/args.rs",
+        "crates/ralph/src/cli/task/mod.rs",
+        "docs/cli.md",
+        "cargo run -p ralph -- task --help"
+      ],
+      "evidence": [
+        "workflow: cargo run -q -p ralph -- task --help :: renders a long flat command list (20+ subcommands) with no workflow grouping.",
+        "path: crates/ralph/src/cli/task/args.rs :: TaskCommand enum :: mixes creation, lifecycle, field edits, relations, and batching in one linear command surface.",
+        "workflow: cargo run -q -p ralph -- task --help :: nearby commands with similar names increase cognitive load for first-time users."
+      ],
+      "plan": [
+        "Define explicit task command groups and assign each subcommand to one group with concise descriptions.",
+        "Update clap help text and after_long_help examples to reflect common user journeys.",
+        "Add or update help-output contract tests to lock in grouped layout and key examples.",
+        "Refresh CLI docs to mirror the grouped command model.",
+        "Verify by running `cargo run -p ralph -- task --help` and confirming grouped sections plus updated examples, then run `cargo test -p ralph` for help contract coverage."
+      ],
+      "request": "scan: none",
+      "custom_fields": {
+        "scan_agent": "scan-innovation"
+      },
+      "created_at": "2026-02-12T20:13:33Z",
+      "updated_at": "2026-02-12T20:13:33Z"
+    },
+    {
+      "id": "RQ-0812",
+      "status": "todo",
+      "priority": "high",
+      "title": "Add `ralph daemon logs` for integrated tail/follow and recent-error views",
+      "description": "Opportunity type: UX improvement and reliability.\n\nWhy it matters:\n- Daemon users currently have to leave Ralph and manually tail log files, which slows recovery when queue execution stalls or webhook notifications fail.\n\nProposed approach (minimal slice first):\n- Add `ralph daemon logs` subcommand with `--tail`, `--follow`, and `--since` options against `.ralph/logs/daemon.log`.\n\nExpansion:\n- Add structured filtering (`--level`, `--contains`) and a `--json` mode for automation.\n\nRisks and mitigations:\n- Risk: platform/path differences for log locations.\n- Mitigation: resolve paths from existing config/runtime conventions and add cross-platform tests.",
+      "tags": [
+        "innovation",
+        "ux",
+        "daemon",
+        "observability"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/daemon.rs",
+        "crates/ralph/src/commands/daemon/mod.rs",
+        "docs/cli.md",
+        "docs/workflow.md",
+        "docs/guides/advanced.md",
+        "cargo run -p ralph -- daemon --help"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/cli/daemon.rs :: DaemonCommand :: exposes only Start/Stop/Status (plus hidden Serve), no log inspection command.",
+        "workflow: cargo run -q -p ralph -- daemon --help :: no built-in way to stream daemon logs.",
+        "workflow: docs/guides/advanced.md :: recommends manual `tail -f .ralph/logs/daemon.log` for log access.",
+        "path: docs/workflow.md :: Daemon Mode :: documents daemon.log output but no CLI affordance to inspect it."
+      ],
+      "plan": [
+        "Add a `logs` daemon subcommand with options for tail count, follow mode, and time window filtering.",
+        "Implement robust log-path resolution and file-not-found guidance for uninitialized workspaces.",
+        "Add CLI tests for help output and command behavior in empty/log-populated scenarios.",
+        "Update docs/examples to prefer `ralph daemon logs` over manual shell tail where appropriate.",
+        "Verify by running `cargo run -p ralph -- daemon logs --help` and `cargo test -p ralph daemon`, then manually confirm follow mode against `.ralph/logs/daemon.log`."
+      ],
+      "request": "scan: none",
+      "custom_fields": {
+        "scan_agent": "scan-innovation"
+      },
+      "created_at": "2026-02-12T20:13:33Z",
+      "updated_at": "2026-02-12T20:13:33Z"
+    },
+    {
+      "id": "RQ-0813",
+      "status": "todo",
+      "priority": "high",
+      "title": "Add bulk GitHub issue sync for queue publishing workflows",
+      "description": "Opportunity type: integration and workflow coverage.\n\nWhy it matters:\n- Publishing tasks to GitHub currently requires one command per task, creating high toil for backlog seeding and recurring synchronization.\n\nProposed approach (minimal slice first):\n- Extend `ralph queue issue` with bulk mode (`publish-many` or flags on `publish`) supporting filters (`--status`, `--tag`, `--id-pattern`) and dry-run preview.\n\nExpansion:\n- Add incremental sync mode that updates only changed tasks and reports summary counts.\n\nRisks and mitigations:\n- Risk: accidental mass issue edits.\n- Mitigation: default dry-run summaries, explicit confirmation in interactive mode, and idempotency checks via stored issue URL/number.",
+      "tags": [
+        "innovation",
+        "integration",
+        "github",
+        "workflow"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/queue/issue.rs",
+        "crates/ralph/src/git/issue.rs",
+        "docs/cli.md",
+        "cargo run -p ralph -- queue issue --help"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/cli/queue/issue.rs :: module docs :: explicitly states bulk publish is not handled (single task only).",
+        "path: crates/ralph/src/cli/queue/issue.rs :: QueueIssueCommand :: only `Publish` subcommand exists.",
+        "workflow: ralph queue issue publish <TASK_ID> :: backlog sync requires repeated manual invocation per task."
+      ],
+      "plan": [
+        "Design bulk publish/sync command shape with filter inputs and safe defaults (dry-run first).",
+        "Implement batch iteration under queue lock with robust per-task error handling and summary output.",
+        "Persist GitHub metadata idempotently in task custom_fields and skip unchanged tasks when possible.",
+        "Add integration tests using dry-run and mocked gh interactions for create/update paths.",
+        "Verify by running `cargo run -p ralph -- queue issue publish --help` and bulk dry-run commands, then `cargo test -p ralph queue::issue`."
+      ],
+      "request": "scan: none",
+      "custom_fields": {
+        "scan_agent": "scan-innovation"
+      },
+      "created_at": "2026-02-12T20:13:33Z",
+      "updated_at": "2026-02-12T20:13:33Z"
+    },
+    {
+      "id": "RQ-0814",
+      "status": "todo",
+      "priority": "high",
+      "title": "Add webhook delivery diagnostics and replay controls",
+      "description": "Opportunity type: reliability and integration.\n\nWhy it matters:\n- Ralph supports asynchronous webhooks with retry/backpressure, but operators lack first-class tooling to inspect queue depth, failure counts, and replay failed events. This blocks confident production integrations.\n\nProposed approach (minimal slice first):\n- Add `ralph webhook status` with delivery queue metrics and recent failures, plus `ralph webhook replay` for controlled retries from persisted failure records.\n\nExpansion:\n- Add JSON export for observability pipelines and per-event latency histograms.\n\nRisks and mitigations:\n- Risk: replaying malformed payloads repeatedly.\n- Mitigation: bounded replay attempts, explicit event/id targeting, and safe dry-run preview.",
+      "tags": [
+        "innovation",
+        "reliability",
+        "webhook",
+        "integration"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/webhook.rs",
+        "crates/ralph/src/webhook.rs",
+        "docs/configuration.md",
+        "docs/cli.md",
+        "cargo run -p ralph -- webhook --help"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/cli/webhook.rs :: module responsibilities :: only `webhook test` is implemented; persistent webhook state is not handled.",
+        "workflow: cargo run -q -p ralph -- webhook --help :: command surface has only `test` subcommand.",
+        "config: docs/configuration.md :: agent.webhook includes retry_count/retry_backoff_ms/queue_capacity/queue_policy but no built-in CLI diagnostics workflow."
+      ],
+      "plan": [
+        "Define webhook diagnostics data model (queue depth, dropped count, retry/failure stats, recent failed events).",
+        "Add CLI subcommands for status and replay with dry-run and event/task filters.",
+        "Persist enough failure metadata for deterministic replay without exposing secrets.",
+        "Add tests for status output formats and replay safety limits.",
+        "Verify by running `cargo run -p ralph -- webhook status --format json` and `cargo test -p ralph webhook`, confirming inspectable metrics and bounded replay behavior."
+      ],
+      "request": "scan: none",
+      "custom_fields": {
+        "scan_agent": "scan-innovation"
+      },
+      "created_at": "2026-02-12T20:13:33Z",
+      "updated_at": "2026-02-12T20:13:33Z"
+    },
+    {
+      "id": "RQ-0815",
+      "status": "todo",
+      "priority": "high",
+      "title": "Parse queue changes directly in RalphMac watcher path to reduce CLI churn",
+      "description": "Opportunity type: performance and UX improvement.\n\nWhy it matters:\n- The macOS app already watches `.ralph` files, but each change still triggers CLI subprocesses (`queue list`, `config show`) for reloads. Rapid edits produce avoidable process overhead, slower UI updates, and extra contention.\n\nProposed approach (minimal slice first):\n- On queue/done file change, parse local JSON first in-app and update task state directly; keep CLI fallback on parse errors or schema mismatch.\n\nExpansion:\n- Add incremental diff application for large queues to minimize full-array replacements and UI recompute.\n\nRisks and mitigations:\n- Risk: app parser drift from CLI schema behavior.\n- Mitigation: share schema-derived models/tests and fallback to CLI on decode failure.",
+      "tags": [
+        "innovation",
+        "performance",
+        "macos",
+        "ux"
+      ],
+      "scope": [
+        "apps/RalphMac/RalphCore/QueueFileWatcher.swift",
+        "apps/RalphMac/RalphCore/Workspace.swift",
+        "apps/RalphMac/RalphCore/RalphModels.swift",
+        "make macos-test"
+      ],
+      "evidence": [
+        "path: apps/RalphMac/RalphCore/QueueFileWatcher.swift :: Responsibilities :: watcher already detects queue/done/config file changes but does not parse contents.",
+        "path: apps/RalphMac/RalphCore/Workspace.swift :: handleExternalFileChange :: always calls loadTasks and loadRunnerConfiguration on any watched-file change.",
+        "path: apps/RalphMac/RalphCore/Workspace.swift :: loadTasks :: invokes CLI `queue list --format json` even for local file-watcher events.",
+        "workflow: editing .ralph/queue.json in short bursts :: repeated CLI spawns create lag and unnecessary process overhead in the app."
+      ],
+      "plan": [
+        "Implement direct queue/done JSON decode path for file-watcher-triggered refreshes.",
+        "Retain CLI fallback path for decode failures and config-resolution-dependent fields.",
+        "Add unit tests covering valid decode, malformed JSON fallback, and conflict detection behavior.",
+        "Instrument refresh latency before/after to ensure measurable improvement.",
+        "Verify by running `make macos-test` and manually editing `.ralph/queue.json`, confirming low-latency UI refresh without repeated CLI invocation on valid changes."
+      ],
+      "request": "scan: none",
+      "custom_fields": {
+        "scan_agent": "scan-innovation"
+      },
+      "created_at": "2026-02-12T20:13:33Z",
+      "updated_at": "2026-02-12T20:13:33Z"
+    },
+    {
+      "id": "RQ-0816",
+      "status": "todo",
+      "priority": "medium",
+      "title": "Add aggregated analytics CLI endpoint to cut RalphMac process fan-out",
+      "description": "Opportunity type: performance and cost.\n\nWhy it matters:\n- The analytics screen launches multiple CLI processes in parallel for summary/velocity/burndown/stats/history, which increases latency and battery usage and multiplies failure points.\n\nProposed approach (minimal slice first):\n- Add a single aggregated analytics command (for example `ralph queue dashboard --format json --days N`) that returns all currently-needed dashboard payloads in one invocation.\n\nExpansion:\n- Add cached snapshots and optional per-section toggles for lightweight polling.\n\nRisks and mitigations:\n- Risk: larger payload may fail whole response when one section errors.\n- Mitigation: section-level error envelopes in the aggregated response.",
+      "tags": [
+        "innovation",
+        "performance",
+        "analytics",
+        "macos"
+      ],
+      "scope": [
+        "apps/RalphMac/RalphCore/Workspace.swift",
+        "crates/ralph/src/cli/queue/",
+        "crates/ralph/src/reports/",
+        "docs/cli.md"
+      ],
+      "evidence": [
+        "path: apps/RalphMac/RalphCore/Workspace.swift :: loadAnalytics :: starts five async CLI tasks for dashboard data.",
+        "path: apps/RalphMac/RalphCore/Workspace.swift :: loadProductivitySummary/loadVelocity/loadBurndown/loadQueueStats/loadHistory :: each method runs a separate `runAndCollect` process.",
+        "workflow: opening analytics dashboard :: multiple process startups increase latency, CPU, and error surface compared with single-response fetch."
+      ],
+      "plan": [
+        "Design aggregated dashboard response schema covering current analytics sections with per-section status fields.",
+        "Implement a new CLI command that computes and emits the combined JSON payload in one process.",
+        "Switch RalphMac analytics loader to the aggregated endpoint with fallback to per-command calls behind feature flag.",
+        "Add CLI + app tests validating payload compatibility and graceful partial failures.",
+        "Verify by running `cargo run -p ralph -- queue dashboard --format json --days 30` and `make macos-test`, confirming the app reduces subprocess count while preserving analytics content."
+      ],
+      "request": "scan: none",
+      "custom_fields": {
+        "scan_agent": "scan-innovation"
+      },
+      "created_at": "2026-02-12T20:13:33Z",
+      "updated_at": "2026-02-12T20:13:33Z"
+    },
+    {
+      "id": "RQ-0817",
+      "status": "todo",
+      "priority": "high",
+      "title": "Introduce queue snapshot caching for parallel scheduler selection",
+      "description": "Opportunity type: performance and reliability.\n\nWhy it matters:\n- Parallel scheduling repeatedly reloads and revalidates queue+done files while holding coordination locks. This inflates scheduling overhead and reduces throughput as worker count grows.\n\nProposed approach (minimal slice first):\n- Add an in-process queue snapshot cache keyed by file metadata/hash in the orchestration loop, invalidated only when queue/done change.\n\nExpansion:\n- Add adaptive polling intervals based on cache staleness and blocker types.\n\nRisks and mitigations:\n- Risk: stale snapshot selecting outdated tasks.\n- Mitigation: strict invalidation on mtime/hash changes and lock-bound refresh before committing selection.",
+      "tags": [
+        "innovation",
+        "performance",
+        "parallel",
+        "scheduler"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/parallel/worker.rs",
+        "crates/ralph/src/commands/run/parallel/orchestration.rs",
+        "crates/ralph/src/queue.rs",
+        "cargo test -p ralph parallel"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/commands/run/parallel/worker.rs :: select_next_task_locked :: reloads done and queue with repair+validation every selection attempt.",
+        "path: crates/ralph/src/commands/run/parallel/orchestration.rs :: orchestration loop :: repeatedly calls select_next_task_locked while scheduling workers.",
+        "workflow: ralph run loop --parallel N with blockers/dependencies :: repeated parse+validate cycles consume scheduler time with little file change between iterations."
+      ],
+      "plan": [
+        "Add an internal snapshot cache object for queue/done content plus validation warnings keyed by file fingerprint.",
+        "Wire scheduler selection to reuse cached snapshot when fingerprints are unchanged.",
+        "Refresh snapshot atomically when fingerprints change before task selection decisions.",
+        "Add regression tests for cache hit/miss behavior and stale-invalidation correctness.",
+        "Verify by running `cargo test -p ralph parallel` and confirming correct task selection with fewer queue reloads under repeated scheduling cycles."
+      ],
+      "request": "scan: none",
+      "custom_fields": {
+        "scan_agent": "scan-innovation"
+      },
+      "created_at": "2026-02-12T20:13:33Z",
+      "updated_at": "2026-02-12T20:13:33Z"
+    },
+    {
+      "id": "RQ-0818",
+      "status": "todo",
+      "priority": "medium",
+      "title": "Adopt `cargo nextest` in local CI gate to reduce test cycle time",
+      "description": "Opportunity type: performance and developer throughput.\n\nWhy it matters:\n- Current `make test` performs separate full `cargo test` invocations for all-target and doc tests, increasing repeated work and slowing the mandatory local CI loop.\n\nProposed approach (minimal slice first):\n- Add `cargo-nextest` integration behind `make test` (or `make test-fast`) with equivalent coverage guarantees and clear fallback.\n\nExpansion:\n- Standardize test reporting artifacts for faster flaky-test triage and shard-friendly future scaling.\n\nRisks and mitigations:\n- Risk: coverage mismatches between legacy and nextest runs.\n- Mitigation: parallel trial period comparing pass/fail parity and retaining doc-test coverage explicitly.",
+      "tags": [
+        "innovation",
+        "performance",
+        "ci",
+        "developer-experience"
+      ],
+      "scope": [
+        "Makefile",
+        "crates/ralph/tests/makefile_ci_contract_test.rs",
+        "docs/cli.md",
+        "make test",
+        "make macos-ci"
+      ],
+      "evidence": [
+        "path: Makefile :: test target :: runs `cargo test --workspace --all-targets --locked` and then a second `cargo test --workspace --doc --locked` pass.",
+        "workflow: make test :: duplicate cargo test invocations increase local CI runtime.",
+        "workflow: rg -n \"nextest\" Makefile crates docs :: no existing nextest integration found.",
+        "external: https://nexte.st/ :: accessed 2026-02-12 :: cargo-nextest is purpose-built for faster Rust test execution and richer failure output."
+      ],
+      "plan": [
+        "Prototype nextest invocation for workspace tests and document expected coverage parity with current flow.",
+        "Update Makefile targets to use nextest in CI path with explicit doc-test handling.",
+        "Add/adjust contract tests guarding CI recipe expectations after target changes.",
+        "Record migration notes and fallback instructions in docs for contributors.",
+        "Verify by running `make test` and `make macos-ci`, confirming equivalent pass/fail outcomes and reduced test wall-clock time."
+      ],
+      "request": "scan: none",
+      "custom_fields": {
+        "scan_agent": "scan-innovation"
+      },
+      "created_at": "2026-02-12T20:13:33Z",
+      "updated_at": "2026-02-12T20:13:33Z"
+    },
+    {
+      "id": "RQ-0819",
+      "status": "todo",
+      "priority": "medium",
+      "title": "Harden Makefile CI contract tests to enforce full required gate sequence",
+      "description": "Opportunity type: reliability and modernization.\n\nWhy it matters:\n- CI contract tests check selected ordering and doc sync, but can still miss accidental removal of critical steps from the `ci` recipe if docs are updated to match drift.\n\nProposed approach (minimal slice first):\n- Add explicit invariant tests requiring exact presence/order of the mandatory `ci` dependency chain (`check-env-safety` through `install`).\n\nExpansion:\n- Add assertions for `macos-ci` composition and expected non-interactive defaults where appropriate.\n\nRisks and mitigations:\n- Risk: over-constraining intentional future CI redesigns.\n- Mitigation: keep expected sequence centralized in one test constant and update intentionally with rationale.",
+      "tags": [
+        "innovation",
+        "reliability",
+        "ci",
+        "tests"
+      ],
+      "scope": [
+        "crates/ralph/tests/makefile_ci_contract_test.rs",
+        "Makefile",
+        "cargo test -p ralph makefile_ci_contract_test"
+      ],
+      "evidence": [
+        "path: crates/ralph/tests/makefile_ci_contract_test.rs :: existing tests focus on subset ordering and docs parity, not strict full required-step invariants.",
+        "path: Makefile :: ci target :: defines a long mandatory sequence (check-env-safety through install) that must remain intact.",
+        "workflow: make ci :: local CI gate is mandatory; missing one dependency step can silently weaken quality protections."
+      ],
+      "plan": [
+        "Define canonical required ci-step sequence in the contract test module.",
+        "Add tests that fail on missing, duplicated, or reordered mandatory steps.",
+        "Optionally mirror strict checks for macos-ci composition where applicable.",
+        "Keep CONTRIBUTING/GEMINI references aligned to the canonical sequence.",
+        "Verify by running `cargo test -p ralph makefile_ci_contract_test` and confirming failures on intentional sequence perturbations."
+      ],
+      "request": "scan: none",
+      "custom_fields": {
+        "scan_agent": "scan-innovation"
+      },
+      "created_at": "2026-02-12T20:13:33Z",
+      "updated_at": "2026-02-12T20:13:33Z"
+    },
+    {
+      "id": "RQ-0820",
+      "status": "todo",
+      "priority": "high",
+      "title": "Add shared worktree pool for parallel execution to cut clone overhead",
+      "description": "Opportunity type: performance and cost.\n\nWhy it matters:\n- Parallel execution currently relies on per-task workspace clone provisioning and reset logic, which increases disk churn and setup latency at higher worker counts.\n\nProposed approach (minimal slice first):\n- Introduce optional worktree-backed workspace provisioning for parallel runs while keeping existing clone strategy as fallback.\n\nExpansion:\n- Add adaptive workspace reuse and cleanup policies based on run volume and branch lifecycle.\n\nRisks and mitigations:\n- Risk: worktree lifecycle edge cases can leak branches/directories.\n- Mitigation: explicit cleanup guards, idempotent removal, and integration tests covering interruption/failure cases.",
+      "tags": [
+        "innovation",
+        "performance",
+        "parallel",
+        "git"
+      ],
+      "scope": [
+        "crates/ralph/src/git/workspace.rs",
+        "crates/ralph/src/commands/run/parallel/",
+        "docs/features/parallel.md",
+        "cargo test -p ralph parallel"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/git/workspace.rs :: setup_task_workspace/ensure_workspace_exists :: performs clone/setup/reset workflow per workspace path.",
+        "workflow: ralph run loop --parallel 4 :: workspace provisioning cost grows with worker count and task churn.",
+        "external: https://git-scm.com/docs/git-worktree :: accessed 2026-02-12 :: git worktree is designed to manage multiple working trees from one repository object store."
+      ],
+      "plan": [
+        "Design workspace strategy toggle (clone vs worktree) with safe default and migration path.",
+        "Implement worktree create/reuse/remove helpers with robust cleanup and branch naming guarantees.",
+        "Integrate strategy selection into parallel orchestration and failure cleanup guards.",
+        "Add integration tests for normal completion, interruption, and stale-worktree recovery.",
+        "Verify by running `cargo test -p ralph parallel` and confirming parallel runs complete with reduced workspace provisioning overhead under worktree mode."
+      ],
+      "request": "scan: none",
+      "custom_fields": {
+        "scan_agent": "scan-innovation"
+      },
+      "created_at": "2026-02-12T20:13:33Z",
+      "updated_at": "2026-02-12T20:13:33Z"
+    },
+    {
+      "id": "RQ-0821",
+      "status": "todo",
+      "priority": "medium",
+      "title": "Split oversized `queue.rs` into focused modules to accelerate safe feature work",
+      "description": "Opportunity type: modernization and reliability.\n\nWhy it matters:\n- `queue.rs` centralizes loading, repair, validation, locking helpers, and large test sections in a 1000+ LOC file, increasing change risk and slowing targeted improvements in queue hot paths.\n\nProposed approach (minimal slice first):\n- Extract cohesive modules (`queue/io`, `queue/repair`, `queue/validation_entry`, `queue/locking_helpers`) while preserving public behavior and existing tests.\n\nExpansion:\n- Establish clear ownership boundaries and module-level performance tests for queue read/repair/validate paths.\n\nRisks and mitigations:\n- Risk: refactor churn introduces subtle regressions.\n- Mitigation: move code with minimal semantic changes first, then optimize behind existing regression coverage.",
+      "tags": [
+        "innovation",
+        "modernization",
+        "architecture",
+        "queue"
+      ],
+      "scope": [
+        "crates/ralph/src/queue.rs",
+        "crates/ralph/src/queue/",
+        "cargo test -p ralph queue::",
+        "make test"
+      ],
+      "evidence": [
+        "workflow: find crates/ralph/src -name '*.rs' -print0 | xargs -0 wc -l | sort -nr | head :: reports crates/ralph/src/queue.rs at 1064 LOC.",
+        "path: crates/ralph/src/queue.rs :: module body :: combines queue I/O, JSON repair logic, validation entry points, and extensive inline tests in one file.",
+        "workflow: queue-related enhancements now touch a large mixed-responsibility file, increasing merge conflict and regression risk."
+      ],
+      "plan": [
+        "Define target module boundaries and move code mechanically without behavior changes.",
+        "Rewire call sites to new module paths while preserving existing public APIs where needed.",
+        "Run and expand queue-focused tests after each extraction step to catch regressions early.",
+        "Document module responsibilities/invariants at top-of-file for each extracted module.",
+        "Verify by running `cargo test -p ralph queue::` and `make test`, confirming behavior parity after decomposition."
+      ],
+      "request": "scan: none",
+      "custom_fields": {
+        "scan_agent": "scan-innovation"
+      },
+      "created_at": "2026-02-12T20:13:33Z",
+      "updated_at": "2026-02-12T20:13:33Z"
+    }
+  ]
 }
