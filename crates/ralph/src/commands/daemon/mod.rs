@@ -4,6 +4,7 @@
 //! - Start/stop/status a background Ralph daemon process.
 //! - Manage daemon state and lock files.
 //! - Run the continuous execution loop in daemon mode.
+//! - Handle indeterminate PID liveness conservatively to prevent concurrent supervisors.
 //!
 //! Not handled here:
 //! - Windows service management (Unix-only implementation).
@@ -13,10 +14,12 @@
 //! - Daemon uses a dedicated lock at `.ralph/cache/daemon.lock`.
 //! - Daemon state is stored at `.ralph/cache/daemon.json`.
 //! - The serve command is internal and should not be called directly by users.
+//! - Indeterminate PID liveness is treated conservatively as running to prevent
+//!   unsafe state cleanup that could allow concurrent supervisors.
 
 use crate::cli::daemon::{DaemonServeArgs, DaemonStartArgs};
 use crate::config::Resolved;
-use crate::lock::{self, acquire_dir_lock};
+use crate::lock::{self, PidLiveness, acquire_dir_lock};
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -55,14 +58,26 @@ pub fn start(resolved: &Resolved, args: DaemonStartArgs) -> Result<()> {
 
         // Check if daemon is already running
         if let Some(state) = get_daemon_state(&cache_dir)? {
-            if is_pid_running(state.pid) {
-                bail!(
-                    "Daemon is already running (PID: {}). Use `ralph daemon stop` to stop it.",
-                    state.pid
-                );
-            } else {
-                log::warn!("Removing stale daemon state file");
-                let _ = fs::remove_file(cache_dir.join(DAEMON_STATE_FILE));
+            match daemon_pid_liveness(state.pid) {
+                PidLiveness::Running => {
+                    bail!(
+                        "Daemon is already running (PID: {}). Use `ralph daemon stop` to stop it.",
+                        state.pid
+                    );
+                }
+                PidLiveness::Indeterminate => {
+                    bail!(
+                        "Daemon PID {} liveness is indeterminate. \
+                         Preserving state/lock to prevent concurrent supervisors. \
+                         {}",
+                        state.pid,
+                        manual_daemon_cleanup_instructions(&cache_dir)
+                    );
+                }
+                PidLiveness::NotRunning => {
+                    log::warn!("Removing stale daemon state file");
+                    let _ = fs::remove_file(cache_dir.join(DAEMON_STATE_FILE));
+                }
             }
         }
 
@@ -154,11 +169,22 @@ pub fn stop(resolved: &Resolved) -> Result<()> {
         }
     };
 
-    if !is_pid_running(state.pid) {
-        println!("Daemon is not running (removing stale state file)");
-        let _ = fs::remove_file(cache_dir.join(DAEMON_STATE_FILE));
-        let _ = fs::remove_dir_all(cache_dir.join(DAEMON_LOCK_DIR));
-        return Ok(());
+    match daemon_pid_liveness(state.pid) {
+        PidLiveness::NotRunning => {
+            println!("Daemon is not running (removing stale state file)");
+            let _ = fs::remove_file(cache_dir.join(DAEMON_STATE_FILE));
+            let _ = fs::remove_dir_all(cache_dir.join(DAEMON_LOCK_DIR));
+            return Ok(());
+        }
+        PidLiveness::Indeterminate => {
+            bail!(
+                "Daemon PID {} liveness is indeterminate; preserving state/lock to avoid concurrent supervisors. \
+                 {}",
+                state.pid,
+                manual_daemon_cleanup_instructions(&cache_dir)
+            );
+        }
+        PidLiveness::Running => {}
     }
 
     // Create stop signal
@@ -169,7 +195,7 @@ pub fn stop(resolved: &Resolved) -> Result<()> {
     println!("Waiting for daemon to stop...");
     for _ in 0..100 {
         std::thread::sleep(Duration::from_millis(100));
-        if !is_pid_running(state.pid) {
+        if matches!(daemon_pid_liveness(state.pid), PidLiveness::NotRunning) {
             println!("Daemon stopped successfully");
             let _ = fs::remove_file(cache_dir.join(DAEMON_STATE_FILE));
             return Ok(());
@@ -190,18 +216,32 @@ pub fn status(resolved: &Resolved) -> Result<()> {
 
     match get_daemon_state(&cache_dir)? {
         Some(state) => {
-            if is_pid_running(state.pid) {
-                println!("Daemon is running");
-                println!("  PID: {}", state.pid);
-                println!("  Started: {}", state.started_at);
-                println!("  Command: {}", state.command);
-            } else {
-                println!("Daemon is not running (stale state file detected)");
-                println!("  Last PID: {}", state.pid);
-                println!("  Last started: {}", state.started_at);
-                // Clean up stale state
-                let _ = fs::remove_file(cache_dir.join(DAEMON_STATE_FILE));
-                let _ = fs::remove_dir_all(cache_dir.join(DAEMON_LOCK_DIR));
+            match daemon_pid_liveness(state.pid) {
+                PidLiveness::Running => {
+                    println!("Daemon is running");
+                    println!("  PID: {}", state.pid);
+                    println!("  Started: {}", state.started_at);
+                    println!("  Command: {}", state.command);
+                }
+                PidLiveness::NotRunning => {
+                    println!("Daemon is not running (stale state file detected)");
+                    println!("  Last PID: {}", state.pid);
+                    println!("  Last started: {}", state.started_at);
+                    // Clean up stale state
+                    let _ = fs::remove_file(cache_dir.join(DAEMON_STATE_FILE));
+                    let _ = fs::remove_dir_all(cache_dir.join(DAEMON_LOCK_DIR));
+                }
+                PidLiveness::Indeterminate => {
+                    println!(
+                        "Daemon PID liveness is indeterminate; preserving state/lock \
+                         to avoid concurrent supervisors."
+                    );
+                    println!("  PID: {}", state.pid);
+                    println!("  Started: {}", state.started_at);
+                    println!("  Command: {}", state.command);
+                    println!();
+                    println!("{}", manual_daemon_cleanup_instructions(&cache_dir));
+                }
             }
         }
         None => {
@@ -314,9 +354,24 @@ fn wait_for_daemon_state_pid(
     }
 }
 
-/// Check if a PID is running.
-fn is_pid_running(pid: u32) -> bool {
-    lock::pid_is_running(pid).unwrap_or(false)
+/// Check PID liveness for daemon processes.
+///
+/// Returns tri-state liveness result to distinguish between definitive
+/// running/not-running states and indeterminate cases.
+fn daemon_pid_liveness(pid: u32) -> PidLiveness {
+    lock::pid_liveness(pid)
+}
+
+/// Render manual cleanup instructions for stale/indeterminate daemon state.
+///
+/// This intentionally avoids suggesting `--force` because daemon subcommands
+/// do not provide a force flag.
+fn manual_daemon_cleanup_instructions(cache_dir: &Path) -> String {
+    format!(
+        "If you are certain the daemon is stopped, manually remove:\n  rm {}\n  rm -rf {}",
+        cache_dir.join(DAEMON_STATE_FILE).display(),
+        cache_dir.join(DAEMON_LOCK_DIR).display()
+    )
 }
 
 #[cfg(test)]
@@ -369,5 +424,33 @@ mod tests {
         )
         .expect("poll daemon state");
         assert!(!ready, "expected timeout when daemon state is absent");
+    }
+
+    #[test]
+    fn manual_cleanup_instructions_include_state_and_lock_paths() {
+        let temp = TempDir::new().expect("create temp dir");
+        let cache_dir = temp.path().join(".ralph/cache");
+        let instructions = manual_daemon_cleanup_instructions(&cache_dir);
+
+        assert!(instructions.contains(&format!(
+            "rm {}",
+            cache_dir.join(DAEMON_STATE_FILE).display()
+        )));
+        assert!(instructions.contains(&format!(
+            "rm -rf {}",
+            cache_dir.join(DAEMON_LOCK_DIR).display()
+        )));
+    }
+
+    #[test]
+    fn manual_cleanup_instructions_do_not_reference_force_flag() {
+        let temp = TempDir::new().expect("create temp dir");
+        let cache_dir = temp.path().join(".ralph/cache");
+        let instructions = manual_daemon_cleanup_instructions(&cache_dir);
+
+        assert!(
+            !instructions.contains("--force"),
+            "daemon cleanup instructions must not mention nonexistent --force flag"
+        );
     }
 }

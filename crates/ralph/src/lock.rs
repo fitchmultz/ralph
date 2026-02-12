@@ -5,6 +5,7 @@
 //! - Record lock ownership metadata (PID, timestamp, command, label).
 //! - Detect supervising processes and stale lock holders.
 //! - Support shared task locks when a supervising process owns the lock.
+//! - Provide tri-state PID liveness checks (Running, NotRunning, Indeterminate).
 //!
 //! Not handled here:
 //! - Atomic writes or temp file cleanup (see `crate::fsutil`).
@@ -18,6 +19,8 @@
 //! - Labels are informational and should be trimmed before evaluation.
 //! - Task lock sidecar files use unique names (owner_task_<pid>_<counter>) to prevent
 //!   collisions when multiple task locks are acquired from the same process.
+//! - Indeterminate PID liveness is treated conservatively as lock-owned to prevent
+//!   concurrent supervisors and unsafe state cleanup.
 
 use crate::constants::limits::MAX_RETRIES;
 use crate::constants::timeouts::DELAYS_MS;
@@ -37,6 +40,54 @@ pub(crate) const TASK_OWNER_PREFIX: &str = "owner_task_";
 /// Per-process counter for generating unique task owner file names.
 /// This ensures multiple task locks from the same process don't collide.
 static TASK_OWNER_COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+/// Tri-state PID liveness result.
+///
+/// Used to distinguish between definitive running/not-running states and
+/// indeterminate cases where we cannot determine the process status (e.g.,
+/// permission errors, unsupported platforms).
+///
+/// Safety principle: Indeterminate liveness is treated conservatively as
+/// lock-owned to prevent concurrent supervisors and unsafe state cleanup.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PidLiveness {
+    /// Process is definitely running.
+    Running,
+    /// Process is definitely not running (dead/zombie).
+    NotRunning,
+    /// Process status cannot be determined (permission error, unsupported platform).
+    Indeterminate,
+}
+
+impl PidLiveness {
+    /// Returns true if the process is definitely not running.
+    ///
+    /// Use this for stale detection: only treat a lock as stale when we have
+    /// definitive evidence the owner is dead.
+    pub fn is_definitely_not_running(self) -> bool {
+        matches!(self, Self::NotRunning)
+    }
+
+    /// Returns true if the process is running or status is indeterminate.
+    ///
+    /// Use this for lock ownership checks: preserve locks when we cannot
+    /// definitively prove the owner is dead.
+    pub fn is_running_or_indeterminate(self) -> bool {
+        matches!(self, Self::Running | Self::Indeterminate)
+    }
+}
+
+/// Check PID liveness with tri-state result.
+///
+/// Wraps `pid_is_running` to provide a more expressive result type
+/// that distinguishes between running, not-running, and indeterminate states.
+pub fn pid_liveness(pid: u32) -> PidLiveness {
+    match pid_is_running(pid) {
+        Some(true) => PidLiveness::Running,
+        Some(false) => PidLiveness::NotRunning,
+        None => PidLiveness::Indeterminate,
+    }
+}
 
 #[derive(Debug)]
 pub struct DirLock {
@@ -323,10 +374,9 @@ pub fn is_current_process_supervised(lock_dir: &Path) -> Result<bool> {
 
     #[cfg(not(unix))]
     {
-        // On non-Unix systems, just check if the supervisor is still running
-        // and assume we're supervised if it is (conservative approach)
         let current_pid = std::process::id();
-        Ok(current_pid != owner.pid && pid_is_running(owner.pid).unwrap_or(false))
+        let liveness = pid_liveness(owner.pid);
+        Ok(current_pid != owner.pid && liveness.is_running_or_indeterminate())
     }
 }
 
@@ -358,7 +408,7 @@ pub fn acquire_dir_lock(lock_dir: &Path, label: &str, force: bool) -> Result<Dir
 
             let is_stale = owner
                 .as_ref()
-                .is_some_and(|o| pid_is_running(o.pid) == Some(false));
+                .is_some_and(|o| pid_liveness(o.pid).is_definitely_not_running());
 
             if force && is_stale {
                 let _ = fs::remove_dir_all(lock_dir);
@@ -640,5 +690,40 @@ mod tests {
         assert!(!is_task_owner_file("owner_task"));
         assert!(!is_task_owner_file(""));
         assert!(!is_task_owner_file("task_owner_1234"));
+    }
+
+    /// Test that PidLiveness helper methods work correctly.
+    #[test]
+    fn test_pid_liveness_helpers() {
+        assert!(PidLiveness::NotRunning.is_definitely_not_running());
+        assert!(!PidLiveness::Running.is_definitely_not_running());
+        assert!(!PidLiveness::Indeterminate.is_definitely_not_running());
+
+        assert!(PidLiveness::Running.is_running_or_indeterminate());
+        assert!(PidLiveness::Indeterminate.is_running_or_indeterminate());
+        assert!(!PidLiveness::NotRunning.is_running_or_indeterminate());
+    }
+
+    /// Test that pid_liveness wraps pid_is_running correctly.
+    #[test]
+    fn test_pid_liveness_wrapper() {
+        let current_pid = std::process::id();
+        assert_eq!(pid_liveness(current_pid), PidLiveness::Running);
+
+        // High PID is unlikely to exist; should be NotRunning or Indeterminate
+        let result = pid_liveness(0xFFFFFFFE);
+        assert!(matches!(
+            result,
+            PidLiveness::NotRunning | PidLiveness::Indeterminate
+        ));
+    }
+
+    /// Test that indeterminate liveness is treated conservatively as lock-owned.
+    #[test]
+    fn test_stale_lock_detection_is_conservative() {
+        // Only NotRunning should be treated as stale
+        assert!(!PidLiveness::Running.is_definitely_not_running());
+        assert!(!PidLiveness::Indeterminate.is_definitely_not_running());
+        assert!(PidLiveness::NotRunning.is_definitely_not_running());
     }
 }

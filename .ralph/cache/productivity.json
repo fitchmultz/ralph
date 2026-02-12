@@ -1,7 +1,7 @@
 {
   "version": 1,
   "first_task_completed_at": "2026-02-09T15:14:01.285629000Z",
-  "last_updated_at": "2026-02-12T21:28:10.689484000Z",
+  "last_updated_at": "2026-02-12T22:04:32.736645000Z",
   "daily": {
     "2026-02-09": {
       "date": "2026-02-09",
@@ -77,7 +77,7 @@
     },
     "2026-02-12": {
       "date": "2026-02-12",
-      "completed_count": 2,
+      "completed_count": 3,
       "tasks": [
         {
           "id": "RQ-0818",
@@ -88,6 +88,11 @@
           "id": "RQ-0819",
           "title": "Harden Makefile CI contract tests to enforce full required gate sequence",
           "completed_at": "2026-02-12T21:28:10.689482000Z"
+        },
+        {
+          "id": "RQ-0809",
+          "title": "Treat indeterminate PID liveness as lock-owned to prevent concurrent supervisors",
+          "completed_at": "2026-02-12T22:04:32.736643000Z"
         }
       ]
     }
@@ -97,7 +102,7 @@
     "longest_streak": 2,
     "last_completed_date": "2026-02-12"
   },
-  "total_completed": 14,
+  "total_completed": 15,
   "milestones": [
     {
       "threshold": 10,

@@ -2,49 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0809",
-      "status": "todo",
-      "title": "Treat indeterminate PID liveness as lock-owned to prevent concurrent supervisors",
-      "description": "Opportunity type: reliability.\n\nWhy it matters:\n- PID liveness checks are used to gate queue/daemon ownership; treating indeterminate checks as \"not running\" can allow competing supervisors to proceed, risking conflicting writes and hard-to-debug run-loop behavior.\n\nProposed approach (minimal slice first):\n- Introduce an explicit liveness state (running, not_running, indeterminate) and update lock/daemon call sites to treat indeterminate as conservatively owned.\n- Keep current behavior only where explicitly safe and tested.\n\nExpansion:\n- Add operator-facing diagnostics when liveness is indeterminate so users can resolve stale/permission issues without unsafe unlocks.\n\nRisks and mitigations:\n- Risk: conservative behavior can leave locks in place longer.\n- Mitigation: improve error messaging and retain explicit --force override paths.",
-      "priority": "critical",
-      "tags": [
-        "innovation",
-        "reliability",
-        "locking",
-        "safety"
-      ],
-      "scope": [
-        "crates/ralph/src/lock.rs",
-        "crates/ralph/src/commands/daemon/mod.rs",
-        "crates/ralph/src/commands/run/parallel/mod.rs",
-        "cargo test -p ralph lock",
-        "cargo test -p ralph daemon"
-      ],
-      "evidence": [
-        "path: crates/ralph/src/lock.rs :: is_supervised (non-unix branch) :: uses pid_is_running(owner.pid).unwrap_or(false) for supervision decisions.",
-        "path: crates/ralph/src/lock.rs :: pid_is_running :: returns None for permission/unsupported cases, not only definitive states.",
-        "path: crates/ralph/src/commands/daemon/mod.rs :: is_pid_running :: maps pid_is_running(None) to false via unwrap_or(false).",
-        "path: crates/ralph/src/commands/run/parallel/mod.rs :: prune_stale_tasks_in_flight :: already retains tasks when pid_is_running is indeterminate, indicating desired conservative behavior elsewhere."
-      ],
-      "plan": [
-        "Introduce a shared PID liveness enum/helper and migrate lock + daemon call sites away from unwrap_or(false).",
-        "Align supervision/staleness checks to treat indeterminate as protected state unless --force is explicitly used.",
-        "Add regression tests covering indeterminate PID status in lock acquisition, supervision checks, and daemon status reporting.",
-        "Update CLI error/help text to explain indeterminate PID handling and safe recovery options.",
-        "Verify by running `cargo test -p ralph lock` and `cargo test -p ralph daemon` and confirming indeterminate PID paths are conservative and explicit."
-      ],
-      "notes": [],
-      "request": "scan: none",
-      "created_at": "2026-02-12T20:13:33Z",
-      "updated_at": "2026-02-12T20:13:33Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-innovation"
-      }
-    },
-    {
       "id": "RQ-0810",
       "status": "todo",
       "title": "Cache queue JSON-repair regexes to reduce hot-path CPU in parallel selection",

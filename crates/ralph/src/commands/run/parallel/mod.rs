@@ -281,11 +281,11 @@ fn prune_stale_tasks_in_flight(state_file: &mut state::ParallelStateFile) -> Vec
         }
 
         if let Some(pid) = record.pid {
-            if crate::lock::pid_is_running(pid) == Some(false) {
+            // Only prune when definitively dead; retain when running or indeterminate.
+            if crate::lock::pid_liveness(pid).is_definitely_not_running() {
                 dropped.push(record.task_id.clone());
                 return false;
             }
-            // Retain when running or indeterminate (pid_is_running == None).
             return true;
         }
 

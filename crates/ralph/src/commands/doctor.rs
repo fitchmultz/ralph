@@ -23,7 +23,7 @@
 use crate::config;
 use crate::contracts::Runner;
 use crate::git;
-use crate::lock::{is_task_owner_file, pid_is_running, queue_lock_dir};
+use crate::lock::{is_task_owner_file, pid_liveness, queue_lock_dir};
 use crate::outpututil;
 use crate::prompts;
 use crate::queue;
@@ -1110,7 +1110,7 @@ fn check_lock_directory_health(repo_root: &Path) -> Result<(usize, usize)> {
                         .find(|line| line.starts_with("pid:"))
                         .and_then(|line| line.split(':').nth(1))
                         .and_then(|pid_str| pid_str.trim().parse::<u32>().ok())
-                        .and_then(pid_is_running)
+                        .map(|pid| pid_liveness(pid).is_running_or_indeterminate())
                         .unwrap_or(true) // Assume running if we can't determine status
                 }
                 Err(_) => false,
@@ -1173,7 +1173,7 @@ fn remove_orphaned_locks(repo_root: &Path) -> Result<usize> {
                     .find(|line| line.starts_with("pid:"))
                     .and_then(|line| line.split(':').nth(1))
                     .and_then(|pid_str| pid_str.trim().parse::<u32>().ok())
-                    .and_then(pid_is_running)
+                    .map(|pid| pid_liveness(pid).is_running_or_indeterminate())
                     .unwrap_or(true),
                 Err(_) => false,
             }
