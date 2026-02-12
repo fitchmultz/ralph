@@ -1,8 +1,123 @@
 //! Integration tests for Makefile CI contract.
+//!
+//! Responsibilities:
+//! - Verify the Makefile `ci` and `macos-ci` targets define the exact required
+//!   dependency sequence (no missing, reordered, or duplicated steps).
+//! - Ensure documentation (CONTRIBUTING.md, GEMINI.md) stays synchronized with
+//!   the canonical CI pipeline definition.
+//! - Validate clean target preserves user data while removing temp artifacts.
+//!
+//! Not handled here:
+//! - Execution of CI targets (see Makefile and actual CI runs).
+//! - Linting/formatting/type-checking correctness (see respective tooling).
+//!
+//! Invariants/assumptions:
+//! - The `ci` target in the Makefile must exactly match `REQUIRED_CI_STEPS`.
+//! - The `macos-ci` target must exactly match `REQUIRED_MACOS_CI_DEPS`.
+//! - Docs parity is anchored to the canonical constant, not dynamically parsed
+//!   Makefile output, to prevent lockstep drift.
 
 use anyhow::{Context, Result};
 use std::process::Command;
 use tempfile::TempDir;
+
+/// Canonical required CI gate steps in exact order (single source of truth).
+const REQUIRED_CI_STEPS: &[&str] = &[
+    "check-env-safety",
+    "check-backup-artifacts",
+    "deps",
+    "format",
+    "type-check",
+    "lint",
+    "test",
+    "build",
+    "generate",
+    "install",
+];
+
+/// Canonical required macos-ci dependencies in exact order (single source of truth).
+const REQUIRED_MACOS_CI_DEPS: &[&str] = &["macos-preflight", "ci", "macos-build", "macos-test"];
+
+/// Generate the human-readable CI pipeline text from canonical constant.
+fn required_ci_pipeline_text() -> String {
+    REQUIRED_CI_STEPS.join(" → ")
+}
+
+/// Parse a top-level Makefile target declaration (`target: deps...`).
+fn parse_target_declaration(line: &str) -> Option<(&str, &str)> {
+    let trimmed = line.trim();
+    if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with(".PHONY") {
+        return None;
+    }
+
+    if line.starts_with(' ') || line.starts_with('\t') {
+        return None;
+    }
+
+    let colon_idx = trimmed.find(':')?;
+    // Skip variable assignments like `FOO := bar`.
+    if trimmed.as_bytes().get(colon_idx + 1) == Some(&b'=') {
+        return None;
+    }
+
+    let target = trimmed[..colon_idx].trim();
+    let deps = trimmed[colon_idx + 1..].trim();
+
+    if target.is_empty() {
+        return None;
+    }
+
+    Some((target, deps))
+}
+
+/// Parse dependency tokens from a Makefile dependency fragment.
+fn parse_dependency_tokens(fragment: &str) -> Vec<String> {
+    fragment
+        .split('#')
+        .next()
+        .unwrap_or("")
+        .split_whitespace()
+        .filter_map(|token| {
+            let cleaned = token.trim_end_matches('\\').trim();
+            if cleaned.is_empty() {
+                None
+            } else {
+                Some(cleaned.to_string())
+            }
+        })
+        .collect()
+}
+
+/// Collect target dependencies from a target header and any backslash-continued lines.
+fn collect_target_dependencies(
+    lines: &[&str],
+    header_index: usize,
+    header_dependencies: &str,
+) -> (Vec<String>, usize) {
+    let mut dependencies = parse_dependency_tokens(header_dependencies);
+    let mut index = header_index;
+
+    while lines[index].trim_end().ends_with('\\') {
+        index += 1;
+        if index >= lines.len() {
+            break;
+        }
+        dependencies.extend(parse_dependency_tokens(lines[index]));
+    }
+
+    (dependencies, index)
+}
+
+/// Extract `<target>` from a `$(MAKE)` command invocation in a recipe line.
+fn parse_make_invocation_target(line: &str) -> Option<String> {
+    let make_index = line.find("$(MAKE)")?;
+    let invocation = &line[make_index + "$(MAKE)".len()..];
+
+    invocation
+        .split_whitespace()
+        .find(|token| !token.starts_with('-') && !token.contains('='))
+        .map(|token| token.trim_end_matches('\\').to_string())
+}
 
 fn resolve_make_command() -> Result<String> {
     fn is_gnu_make_at_least_4(cmd: &str) -> bool {
@@ -172,44 +287,39 @@ members = []
 /// Handles both modern format (dependencies on the same line) and legacy format
 /// (separate $(MAKE) invocations within the target body).
 fn extract_make_ci_steps(makefile: &str) -> Result<Vec<String>> {
-    let mut in_ci = false;
-    let mut steps = Vec::new();
+    let lines: Vec<&str> = makefile.lines().collect();
+    let mut ci_header: Option<(usize, &str)> = None;
 
-    for line in makefile.lines() {
-        // Enter `ci:` target
-        if !in_ci {
-            if let Some(colon_idx) = line.find("ci:") {
-                in_ci = true;
-                // Modern format: extract dependencies from the same line after "ci:"
-                let deps_part = &line[colon_idx + 3..];
-                let deps: Vec<String> = deps_part
-                    .split_whitespace()
-                    .map(|s| s.to_string())
-                    .filter(|s| !s.is_empty())
-                    .collect();
-                steps.extend(deps);
-            }
-            continue;
+    for (index, line) in lines.iter().enumerate() {
+        if let Some((target, deps)) = parse_target_declaration(line)
+            && target == "ci"
+        {
+            ci_header = Some((index, deps));
+            break;
+        }
+    }
+
+    let (header_index, header_dependencies) = ci_header.context("failed to find `ci` target")?;
+    let (mut steps, mut current_index) =
+        collect_target_dependencies(&lines, header_index, header_dependencies);
+
+    current_index += 1;
+    while current_index < lines.len() {
+        let line = lines[current_index];
+
+        // If another top-level target begins, stop scanning the ci recipe.
+        if let Some((target, _)) = parse_target_declaration(line)
+            && target != "ci"
+        {
+            break;
         }
 
-        // If another top-level target begins, stop
-        let is_top_level = !line.starts_with('\t') && !line.starts_with(' ');
-        if is_top_level {
-            let t = line.trim();
-            if !t.is_empty() && !t.starts_with('#') && t.ends_with(':') {
-                break;
-            }
+        // Legacy format: look for $(MAKE) <target> invocations.
+        if let Some(target) = parse_make_invocation_target(line) {
+            steps.push(target);
         }
 
-        // Legacy format: look for $(MAKE) <target> invocations
-        if let Some(idx) = line.find("$(MAKE) ") {
-            let rest = &line[idx + "$(MAKE) ".len()..];
-            let target = rest
-                .split_whitespace()
-                .next()
-                .context("parse $(MAKE) <target> in ci recipe")?;
-            steps.push(target.to_string());
-        }
+        current_index += 1;
     }
 
     anyhow::ensure!(
@@ -256,64 +366,208 @@ fn extract_target_block(makefile: &str, target: &str) -> Result<String> {
     Ok(block_lines.join("\n"))
 }
 
+/// Extract dependency list from a target header line (e.g., "ci: dep1 dep2").
+fn extract_target_dependencies(makefile: &str, target: &str) -> Result<Vec<String>> {
+    let lines: Vec<&str> = makefile.lines().collect();
+    for (index, line) in lines.iter().enumerate() {
+        if let Some((line_target, deps)) = parse_target_declaration(line)
+            && line_target == target
+        {
+            let (dependencies, _) = collect_target_dependencies(&lines, index, deps);
+            return Ok(dependencies);
+        }
+    }
+    anyhow::bail!("failed to find `{target}` target in Makefile")
+}
+
 #[test]
-fn test_makefile_ci_includes_type_check_in_order() -> Result<()> {
-    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let repo_root = manifest_dir
-        .parent()
-        .and_then(|p| p.parent())
-        .context("resolve repo root")?;
-    let makefile = std::fs::read_to_string(repo_root.join("Makefile")).context("read Makefile")?;
+fn test_extract_make_ci_steps_prefers_ci_target_over_macos_ci() -> Result<()> {
+    let makefile = r#"
+macos-ci: macos-preflight ci macos-build macos-test
 
-    assert!(
-        makefile.contains("type-check:"),
-        "Makefile should define a type-check target"
-    );
+ci: check-env-safety check-backup-artifacts deps format type-check lint test build generate install
+	@echo "done"
+"#;
 
-    let steps = extract_make_ci_steps(&makefile).context("extract Makefile ci steps")?;
-
-    // Find indices of format, type-check, lint
-    let format_pos = steps.iter().position(|s| s == "format");
-    let type_check_pos = steps.iter().position(|s| s == "type-check");
-    let lint_pos = steps.iter().position(|s| s == "lint");
-
-    assert!(format_pos.is_some(), "format step should be in ci target");
-    assert!(
-        type_check_pos.is_some(),
-        "type-check step should be in ci target"
-    );
-    assert!(lint_pos.is_some(), "lint step should be in ci target");
-
-    let format_idx = format_pos.unwrap();
-    let type_check_idx = type_check_pos.unwrap();
-    let lint_idx = lint_pos.unwrap();
-
-    assert!(
-        format_idx < type_check_idx && type_check_idx < lint_idx,
-        "type-check should run after format and before lint in ci target"
+    let actual = extract_make_ci_steps(makefile)?;
+    let expected: Vec<String> = REQUIRED_CI_STEPS
+        .iter()
+        .map(|step| (*step).to_string())
+        .collect();
+    assert_eq!(
+        actual, expected,
+        "extractor should parse only the `ci` target"
     );
 
     Ok(())
 }
 
 #[test]
-fn test_contributing_ci_step_list_matches_makefile_ci_recipe() -> Result<()> {
+fn test_extract_make_ci_steps_supports_multiline_header_dependencies() -> Result<()> {
+    let makefile = r#"
+ci: check-env-safety \
+	check-backup-artifacts \
+	deps format \
+	type-check lint test build generate install
+	@echo "done"
+"#;
+
+    let actual = extract_make_ci_steps(makefile)?;
+    let expected: Vec<String> = REQUIRED_CI_STEPS
+        .iter()
+        .map(|step| (*step).to_string())
+        .collect();
+    assert_eq!(
+        actual, expected,
+        "extractor should parse multiline ci dependencies"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn test_extract_make_ci_steps_skips_make_flags_in_legacy_recipe() -> Result<()> {
+    let makefile = r#"
+ci:
+	@$(MAKE) --no-print-directory check-env-safety
+	@$(MAKE) --no-print-directory check-backup-artifacts
+	@$(MAKE) --no-print-directory deps
+	@$(MAKE) --no-print-directory format
+	@$(MAKE) --no-print-directory type-check
+	@$(MAKE) --no-print-directory lint
+	@$(MAKE) --no-print-directory test
+	@$(MAKE) --no-print-directory build
+	@$(MAKE) --no-print-directory generate
+	@$(MAKE) --no-print-directory install
+"#;
+
+    let actual = extract_make_ci_steps(makefile)?;
+    let expected: Vec<String> = REQUIRED_CI_STEPS
+        .iter()
+        .map(|step| (*step).to_string())
+        .collect();
+    assert_eq!(
+        actual, expected,
+        "legacy extractor should parse make target names"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn test_extract_target_dependencies_supports_multiline_header() -> Result<()> {
+    let makefile = r#"
+macos-ci: macos-preflight \
+	ci \
+	macos-build \
+	macos-test
+"#;
+
+    let actual = extract_target_dependencies(makefile, "macos-ci")?;
+    let expected: Vec<String> = REQUIRED_MACOS_CI_DEPS
+        .iter()
+        .map(|step| (*step).to_string())
+        .collect();
+    assert_eq!(
+        actual, expected,
+        "target deps extractor should parse multiline headers"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn test_makefile_ci_matches_required_sequence_exactly() -> Result<()> {
+    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let repo_root = manifest_dir
+        .parent()
+        .and_then(|p| p.parent())
+        .context("resolve repo root")?;
+    let makefile = std::fs::read_to_string(repo_root.join("Makefile")).context("read Makefile")?;
+
+    let actual = extract_make_ci_steps(&makefile).context("extract Makefile ci steps")?;
+    let expected: Vec<String> = REQUIRED_CI_STEPS.iter().map(|s| s.to_string()).collect();
+
+    assert_eq!(
+        actual, expected,
+        "Makefile `ci` must exactly match required CI gate sequence.\n\
+         Expected: {:?}\n\
+         Actual:   {:?}",
+        expected, actual
+    );
+
+    Ok(())
+}
+
+#[test]
+fn test_makefile_ci_contains_each_required_step_once() -> Result<()> {
+    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let repo_root = manifest_dir
+        .parent()
+        .and_then(|p| p.parent())
+        .context("resolve repo root")?;
+    let makefile = std::fs::read_to_string(repo_root.join("Makefile")).context("read Makefile")?;
+
+    let actual = extract_make_ci_steps(&makefile).context("extract Makefile ci steps")?;
+
+    for required in REQUIRED_CI_STEPS {
+        let count = actual
+            .iter()
+            .filter(|step| step.as_str() == *required)
+            .count();
+        assert_eq!(
+            count, 1,
+            "required ci step `{}` must appear exactly once (found {} times)",
+            required, count
+        );
+    }
+
+    Ok(())
+}
+
+#[test]
+fn test_macos_ci_matches_required_dependency_sequence() -> Result<()> {
+    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let repo_root = manifest_dir
+        .parent()
+        .and_then(|p| p.parent())
+        .context("resolve repo root")?;
+    let makefile = std::fs::read_to_string(repo_root.join("Makefile")).context("read Makefile")?;
+
+    let actual =
+        extract_target_dependencies(&makefile, "macos-ci").context("extract macos-ci deps")?;
+    let expected: Vec<String> = REQUIRED_MACOS_CI_DEPS
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+
+    assert_eq!(
+        actual, expected,
+        "`macos-ci` must exactly match required dependency sequence.\n\
+         Expected: {:?}\n\
+         Actual:   {:?}",
+        expected, actual
+    );
+
+    Ok(())
+}
+
+#[test]
+fn test_contributing_ci_step_list_matches_canonical_pipeline() -> Result<()> {
     let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let repo_root = manifest_dir
         .parent()
         .and_then(|p| p.parent())
         .context("resolve repo root")?;
 
-    let makefile = std::fs::read_to_string(repo_root.join("Makefile")).context("read Makefile")?;
     let contributing = std::fs::read_to_string(repo_root.join("CONTRIBUTING.md"))
         .context("read CONTRIBUTING.md")?;
 
-    let make_steps = extract_make_ci_steps(&makefile).context("extract Makefile ci steps")?;
-    let pipeline = make_steps.join(" → ");
+    let pipeline = required_ci_pipeline_text();
 
     assert!(
         contributing.contains(&pipeline),
-        "CONTRIBUTING.md CI pipeline drifted from Makefile `ci` recipe.\n\
+        "CONTRIBUTING.md CI pipeline must match canonical sequence.\n\
          Expected to find: {}\n",
         pipeline
     );
@@ -322,22 +576,20 @@ fn test_contributing_ci_step_list_matches_makefile_ci_recipe() -> Result<()> {
 }
 
 #[test]
-fn test_gemini_ci_step_list_matches_makefile_ci_recipe() -> Result<()> {
+fn test_gemini_ci_step_list_matches_canonical_pipeline() -> Result<()> {
     let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let repo_root = manifest_dir
         .parent()
         .and_then(|p| p.parent())
         .context("resolve repo root")?;
 
-    let makefile = std::fs::read_to_string(repo_root.join("Makefile")).context("read Makefile")?;
     let gemini = std::fs::read_to_string(repo_root.join("GEMINI.md")).context("read GEMINI.md")?;
 
-    let make_steps = extract_make_ci_steps(&makefile).context("extract Makefile ci steps")?;
-    let pipeline = make_steps.join(" → ");
+    let pipeline = required_ci_pipeline_text();
 
     assert!(
         gemini.contains(&pipeline),
-        "GEMINI.md CI pipeline drifted from Makefile `ci` recipe.\n\
+        "GEMINI.md CI pipeline must match canonical sequence.\n\
          Expected to find: {}\n",
         pipeline
     );

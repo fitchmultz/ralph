@@ -2,46 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0819",
-      "status": "todo",
-      "title": "Harden Makefile CI contract tests to enforce full required gate sequence",
-      "description": "Opportunity type: reliability and modernization.\n\nWhy it matters:\n- CI contract tests check selected ordering and doc sync, but can still miss accidental removal of critical steps from the `ci` recipe if docs are updated to match drift.\n\nProposed approach (minimal slice first):\n- Add explicit invariant tests requiring exact presence/order of the mandatory `ci` dependency chain (`check-env-safety` through `install`).\n\nExpansion:\n- Add assertions for `macos-ci` composition and expected non-interactive defaults where appropriate.\n\nRisks and mitigations:\n- Risk: over-constraining intentional future CI redesigns.\n- Mitigation: keep expected sequence centralized in one test constant and update intentionally with rationale.",
-      "priority": "medium",
-      "tags": [
-        "innovation",
-        "reliability",
-        "ci",
-        "tests"
-      ],
-      "scope": [
-        "crates/ralph/tests/makefile_ci_contract_test.rs",
-        "Makefile",
-        "cargo test -p ralph makefile_ci_contract_test"
-      ],
-      "evidence": [
-        "path: crates/ralph/tests/makefile_ci_contract_test.rs :: existing tests focus on subset ordering and docs parity, not strict full required-step invariants.",
-        "path: Makefile :: ci target :: defines a long mandatory sequence (check-env-safety through install) that must remain intact.",
-        "workflow: make ci :: local CI gate is mandatory; missing one dependency step can silently weaken quality protections."
-      ],
-      "plan": [
-        "Define canonical required ci-step sequence in the contract test module.",
-        "Add tests that fail on missing, duplicated, or reordered mandatory steps.",
-        "Optionally mirror strict checks for macos-ci composition where applicable.",
-        "Keep CONTRIBUTING/GEMINI references aligned to the canonical sequence.",
-        "Verify by running `cargo test -p ralph makefile_ci_contract_test` and confirming failures on intentional sequence perturbations."
-      ],
-      "notes": [],
-      "request": "scan: none",
-      "created_at": "2026-02-12T20:13:33Z",
-      "updated_at": "2026-02-12T20:13:33Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-innovation"
-      }
-    },
-    {
       "id": "RQ-0809",
       "status": "todo",
       "title": "Treat indeterminate PID liveness as lock-owned to prevent concurrent supervisors",
