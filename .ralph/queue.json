@@ -2,6 +2,45 @@
   "version": 1,
   "tasks": [
     {
+      "id": "RQ-0818",
+      "status": "todo",
+      "priority": "medium",
+      "title": "Adopt `cargo nextest` in local CI gate to reduce test cycle time",
+      "description": "Opportunity type: performance and developer throughput.\n\nWhy it matters:\n- Current `make test` performs separate full `cargo test` invocations for all-target and doc tests, increasing repeated work and slowing the mandatory local CI loop.\n\nProposed approach (minimal slice first):\n- Add `cargo-nextest` integration behind `make test` (or `make test-fast`) with equivalent coverage guarantees and clear fallback.\n\nExpansion:\n- Standardize test reporting artifacts for faster flaky-test triage and shard-friendly future scaling.\n\nRisks and mitigations:\n- Risk: coverage mismatches between legacy and nextest runs.\n- Mitigation: parallel trial period comparing pass/fail parity and retaining doc-test coverage explicitly.",
+      "tags": [
+        "innovation",
+        "performance",
+        "ci",
+        "developer-experience"
+      ],
+      "scope": [
+        "Makefile",
+        "crates/ralph/tests/makefile_ci_contract_test.rs",
+        "docs/cli.md",
+        "make test",
+        "make macos-ci"
+      ],
+      "evidence": [
+        "path: Makefile :: test target :: runs `cargo test --workspace --all-targets --locked` and then a second `cargo test --workspace --doc --locked` pass.",
+        "workflow: make test :: duplicate cargo test invocations increase local CI runtime.",
+        "workflow: rg -n \"nextest\" Makefile crates docs :: no existing nextest integration found.",
+        "external: https://nexte.st/ :: accessed 2026-02-12 :: cargo-nextest is purpose-built for faster Rust test execution and richer failure output."
+      ],
+      "plan": [
+        "Prototype nextest invocation for workspace tests and document expected coverage parity with current flow.",
+        "Update Makefile targets to use nextest in CI path with explicit doc-test handling.",
+        "Add/adjust contract tests guarding CI recipe expectations after target changes.",
+        "Record migration notes and fallback instructions in docs for contributors.",
+        "Verify by running `make test` and `make macos-ci`, confirming equivalent pass/fail outcomes and reduced test wall-clock time."
+      ],
+      "request": "scan: none",
+      "custom_fields": {
+        "scan_agent": "scan-innovation"
+      },
+      "created_at": "2026-02-12T20:13:33Z",
+      "updated_at": "2026-02-12T20:13:33Z"
+    },
+    {
       "id": "RQ-0809",
       "status": "todo",
       "priority": "critical",
@@ -334,45 +373,6 @@
         "Refresh snapshot atomically when fingerprints change before task selection decisions.",
         "Add regression tests for cache hit/miss behavior and stale-invalidation correctness.",
         "Verify by running `cargo test -p ralph parallel` and confirming correct task selection with fewer queue reloads under repeated scheduling cycles."
-      ],
-      "request": "scan: none",
-      "custom_fields": {
-        "scan_agent": "scan-innovation"
-      },
-      "created_at": "2026-02-12T20:13:33Z",
-      "updated_at": "2026-02-12T20:13:33Z"
-    },
-    {
-      "id": "RQ-0818",
-      "status": "todo",
-      "priority": "medium",
-      "title": "Adopt `cargo nextest` in local CI gate to reduce test cycle time",
-      "description": "Opportunity type: performance and developer throughput.\n\nWhy it matters:\n- Current `make test` performs separate full `cargo test` invocations for all-target and doc tests, increasing repeated work and slowing the mandatory local CI loop.\n\nProposed approach (minimal slice first):\n- Add `cargo-nextest` integration behind `make test` (or `make test-fast`) with equivalent coverage guarantees and clear fallback.\n\nExpansion:\n- Standardize test reporting artifacts for faster flaky-test triage and shard-friendly future scaling.\n\nRisks and mitigations:\n- Risk: coverage mismatches between legacy and nextest runs.\n- Mitigation: parallel trial period comparing pass/fail parity and retaining doc-test coverage explicitly.",
-      "tags": [
-        "innovation",
-        "performance",
-        "ci",
-        "developer-experience"
-      ],
-      "scope": [
-        "Makefile",
-        "crates/ralph/tests/makefile_ci_contract_test.rs",
-        "docs/cli.md",
-        "make test",
-        "make macos-ci"
-      ],
-      "evidence": [
-        "path: Makefile :: test target :: runs `cargo test --workspace --all-targets --locked` and then a second `cargo test --workspace --doc --locked` pass.",
-        "workflow: make test :: duplicate cargo test invocations increase local CI runtime.",
-        "workflow: rg -n \"nextest\" Makefile crates docs :: no existing nextest integration found.",
-        "external: https://nexte.st/ :: accessed 2026-02-12 :: cargo-nextest is purpose-built for faster Rust test execution and richer failure output."
-      ],
-      "plan": [
-        "Prototype nextest invocation for workspace tests and document expected coverage parity with current flow.",
-        "Update Makefile targets to use nextest in CI path with explicit doc-test handling.",
-        "Add/adjust contract tests guarding CI recipe expectations after target changes.",
-        "Record migration notes and fallback instructions in docs for contributors.",
-        "Verify by running `make test` and `make macos-ci`, confirming equivalent pass/fail outcomes and reduced test wall-clock time."
       ],
       "request": "scan: none",
       "custom_fields": {
