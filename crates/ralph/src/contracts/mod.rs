@@ -24,10 +24,11 @@ mod task;
 
 // Re-exports from config module (core config types)
 pub use config::{
-    AgentConfig, Config, ConflictPolicy, GitRevertMode, NotificationConfig, ParallelConfig,
-    ParallelMergeMethod, ParallelMergeWhen, PhaseOverrideConfig, PhaseOverrides, PluginConfig,
-    PluginProcessorConfig, PluginRunnerConfig, PluginsConfig, ProjectType, QueueAgingThresholds,
-    QueueConfig, RunnerRetryConfig, ScanPromptVersion, WebhookConfig, WebhookQueuePolicy,
+    AgentConfig, Config, ConflictPolicy, GitRevertMode, LoopConfig, NotificationConfig,
+    ParallelConfig, ParallelMergeMethod, ParallelMergeWhen, PhaseOverrideConfig, PhaseOverrides,
+    PluginConfig, PluginProcessorConfig, PluginRunnerConfig, PluginsConfig, ProjectType,
+    QueueAgingThresholds, QueueConfig, RunnerRetryConfig, ScanPromptVersion, WebhookConfig,
+    WebhookQueuePolicy,
 };
 
 // Re-exports from cli_spec module (versioned; suitable for tooling consumption)

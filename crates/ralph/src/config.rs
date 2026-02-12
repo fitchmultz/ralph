@@ -25,7 +25,7 @@
 
 use crate::constants::defaults::DEFAULT_ID_WIDTH;
 use crate::contracts::{
-    AgentConfig, Config, ParallelConfig, PluginsConfig, ProjectType, QueueConfig,
+    AgentConfig, Config, LoopConfig, ParallelConfig, PluginsConfig, ProjectType, QueueConfig,
 };
 use crate::fsutil;
 use crate::prompts_internal::util::validate_instruction_file_paths;
@@ -114,6 +114,8 @@ pub struct ConfigLayer {
     pub queue: QueueConfig,
     pub agent: AgentConfig,
     pub parallel: ParallelConfig,
+    #[serde(rename = "loop")]
+    pub loop_field: LoopConfig,
     pub plugins: PluginsConfig,
     /// Named profiles for quick workflow switching.
     pub profiles: Option<BTreeMap<String, AgentConfig>>,
@@ -263,6 +265,7 @@ pub fn apply_layer(mut base: Config, layer: ConfigLayer) -> Result<Config> {
     base.queue.merge_from(layer.queue);
     base.agent.merge_from(layer.agent);
     base.parallel.merge_from(layer.parallel);
+    base.loop_field.merge_from(layer.loop_field);
     base.plugins.merge_from(layer.plugins);
 
     // Merge profiles across layers

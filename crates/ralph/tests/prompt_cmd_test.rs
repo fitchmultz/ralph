@@ -7,7 +7,7 @@ use ralph::commands::prompt::{
     WorkerPromptOptions,
 };
 use ralph::contracts::{
-    AgentConfig, Config, ParallelConfig, PluginsConfig, ProjectType, QueueConfig,
+    AgentConfig, Config, LoopConfig, ParallelConfig, PluginsConfig, ProjectType, QueueConfig,
 };
 use std::path::PathBuf;
 use tempfile::TempDir;
@@ -42,6 +42,7 @@ fn make_resolved(temp: &TempDir) -> ralph::config::Resolved {
             ..Default::default()
         },
         parallel: ParallelConfig::default(),
+        loop_field: LoopConfig::default(),
         plugins: PluginsConfig::default(),
     };
 

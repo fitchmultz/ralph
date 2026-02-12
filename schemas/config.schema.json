@@ -105,6 +105,18 @@
         }
       }
     },
+    "loop": {
+      "description": "Run loop waiting configuration (daemon/continuous mode).",
+      "$ref": "#/$defs/LoopConfig",
+      "default": {
+        "empty_poll_ms": 30000,
+        "notify_when_unblocked": false,
+        "wait_poll_ms": 1000,
+        "wait_timeout_seconds": 0,
+        "wait_when_blocked": false,
+        "wait_when_empty": false
+      }
+    },
     "parallel": {
       "description": "Parallel run-loop configuration.",
       "$ref": "#/$defs/ParallelConfig",
@@ -496,6 +508,67 @@
         "enabled",
         "disabled"
       ]
+    },
+    "LoopConfig": {
+      "description": "Run loop waiting configuration for daemon/continuous mode.",
+      "type": "object",
+      "properties": {
+        "empty_poll_ms": {
+          "description": "Poll interval in milliseconds while waiting for new tasks when queue is empty.\nDefault: 30000 (30 seconds). Minimum: 50.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "default": null,
+          "minimum": 50
+        },
+        "notify_when_unblocked": {
+          "description": "Send notification when queue transitions from blocked to runnable.",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        },
+        "wait_poll_ms": {
+          "description": "Poll interval in milliseconds while waiting for blocked tasks to become runnable.\nDefault: 1000 (1 second). Minimum: 50.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "default": null,
+          "minimum": 50
+        },
+        "wait_timeout_seconds": {
+          "description": "Timeout in seconds for waiting (0 = no timeout).",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "default": null,
+          "minimum": 0
+        },
+        "wait_when_blocked": {
+          "description": "Wait when blocked by dependencies/schedule instead of exiting.",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        },
+        "wait_when_empty": {
+          "description": "Wait when queue is empty instead of exiting (continuous/daemon mode).",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "additionalProperties": false
     },
     "MergeRunnerConfig": {
       "type": "object",
