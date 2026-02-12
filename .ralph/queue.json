@@ -2,47 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0811",
-      "status": "todo",
-      "title": "Rework `ralph task --help` into workflow-oriented command groups",
-      "description": "Opportunity type: UX improvement.\n\nWhy it matters:\n- `ralph task` is a primary entry point, but current help output presents a long flat command list that increases onboarding friction and misfires on adjacent commands (`field` vs `edit`, `status` vs `done`).\n\nProposed approach (minimal slice first):\n- Reorganize task subcommands into explicit groups (create/build, lifecycle, edit, relationships, batch/template) with concise one-line intent labels.\n\nExpansion:\n- Add short \"common journeys\" section (create task, start task, complete task, split task) and keep docs aligned.\n\nRisks and mitigations:\n- Risk: help contract tests may fail due to wording drift.\n- Mitigation: update contract tests and docs in the same change.",
-      "priority": "high",
-      "tags": [
-        "innovation",
-        "ux",
-        "cli",
-        "onboarding"
-      ],
-      "scope": [
-        "crates/ralph/src/cli/task/args.rs",
-        "crates/ralph/src/cli/task/mod.rs",
-        "docs/cli.md",
-        "cargo run -p ralph -- task --help"
-      ],
-      "evidence": [
-        "workflow: cargo run -q -p ralph -- task --help :: renders a long flat command list (20+ subcommands) with no workflow grouping.",
-        "path: crates/ralph/src/cli/task/args.rs :: TaskCommand enum :: mixes creation, lifecycle, field edits, relations, and batching in one linear command surface.",
-        "workflow: cargo run -q -p ralph -- task --help :: nearby commands with similar names increase cognitive load for first-time users."
-      ],
-      "plan": [
-        "Define explicit task command groups and assign each subcommand to one group with concise descriptions.",
-        "Update clap help text and after_long_help examples to reflect common user journeys.",
-        "Add or update help-output contract tests to lock in grouped layout and key examples.",
-        "Refresh CLI docs to mirror the grouped command model.",
-        "Verify by running `cargo run -p ralph -- task --help` and confirming grouped sections plus updated examples, then run `cargo test -p ralph` for help contract coverage."
-      ],
-      "notes": [],
-      "request": "scan: none",
-      "created_at": "2026-02-12T20:13:33Z",
-      "updated_at": "2026-02-12T20:13:33Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-innovation"
-      }
-    },
-    {
       "id": "RQ-0812",
       "status": "todo",
       "title": "Add `ralph daemon logs` for integrated tail/follow and recent-error views",

@@ -34,6 +34,14 @@ fn assert_contains(haystack: &str, needle: &str) {
     );
 }
 
+fn assert_occurs_once(haystack: &str, needle: &str) {
+    let count = haystack.matches(needle).count();
+    assert_eq!(
+        count, 1,
+        "expected {needle:?} to appear exactly once, found {count}\n--- output ---\n{haystack}\n--- end ---"
+    );
+}
+
 #[test]
 fn root_help_mentions_runner_and_models_and_precedence() {
     let (status, stdout, stderr) = run(&["--help"]);
@@ -138,6 +146,52 @@ fn task_help_mentions_default_and_explicit_build() {
 
     assert_contains(&combined, "ralph task");
     assert_contains(&combined, "build");
+    assert_contains(&combined, "template");
+    assert_contains(&combined, "done --note \"Build checks pass\" RQ-0001");
+    assert_contains(&combined, "split --number 3 RQ-0001");
+}
+
+#[test]
+fn task_help_shows_group_headings() {
+    let (status, stdout, stderr) = run(&["task", "--help"]);
+    assert!(
+        status.success(),
+        "expected `ralph task --help` to succeed\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    let combined = format!("{stdout}\n{stderr}");
+
+    assert_occurs_once(
+        &combined,
+        "Create and build: task, build, refactor, build-refactor",
+    );
+    assert_occurs_once(
+        &combined,
+        "Lifecycle: show, ready, status, done, reject, start, schedule",
+    );
+    assert_occurs_once(&combined, "Edit: field, edit, update");
+    assert_occurs_once(
+        &combined,
+        "Relationships: clone, split, relate, blocks, mark-duplicate, children, parent",
+    );
+    assert_occurs_once(&combined, "Batch and templates: batch, template");
+}
+
+#[test]
+fn task_help_shows_common_journeys() {
+    let (status, stdout, stderr) = run(&["task", "--help"]);
+    assert!(
+        status.success(),
+        "expected `ralph task --help` to succeed\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    let combined = format!("{stdout}\n{stderr}");
+
+    assert_contains(&combined, "Common journeys:");
+    assert_contains(&combined, "Create a task:");
+    assert_contains(&combined, "Start work on a task:");
+    assert_contains(&combined, "Complete a task:");
+    assert_contains(&combined, "Split a task:");
 }
 
 #[test]

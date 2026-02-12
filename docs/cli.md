@@ -2034,52 +2034,65 @@ ralph watch --auto-queue --close-removed --patterns "*.rs"
 
 Create tasks and edit task fields from CLI.
 
-Common subcommands:
-- `ralph task <request>`: create a task from a freeform request.
-- `ralph task --template <name> [target] <request>`: create a task from a template with optional target.
-- `ralph task show <TASK_ID>`: show task details (queue + done). Alias: `details`.
-- `ralph task status <draft|todo|doing|done|rejected> <TASK_ID>...`: update status for one or more tasks.
-- `ralph task edit <FIELD> <VALUE> <TASK_ID>...`: edit any task field (default + custom) for one or more tasks.
-- `ralph task field <KEY> <VALUE> <TASK_ID>...`: set one custom field on one or more tasks.
-- `ralph task relate <TASK_ID> <RELATION> <OTHER_TASK_ID>`: add a relationship between tasks (blocks, relates_to, duplicates).
-- `ralph task blocks <TASK_ID> <BLOCKED_TASK_ID>...`: mark a task as blocking other tasks (shorthand for relate).
-- `ralph task mark-duplicate <TASK_ID> <ORIGINAL_TASK_ID>`: mark a task as duplicate of another (shorthand for relate).
-- `ralph task batch <operation>`: perform batch operations on multiple tasks efficiently.
-- `ralph task update [TASK_ID]`: refresh task fields based on current repo state (omit `TASK_ID` to update all tasks).
-- `ralph task template list`: list available templates.
-- `ralph task template show <name>`: show template details.
-- `ralph task template build <name> [target] <request>`: build a task from a template.
-- `ralph task clone <TASK_ID>`: clone an existing task to create a new task from it. Alias: `duplicate`.
-- `ralph task split <TASK_ID>`: split a task into multiple child tasks for better granularity.
-- `ralph task start <TASK_ID>`: start work on a task (sets `started_at` and moves to doing).
-- `ralph task children <TASK_ID>`: list child tasks for a given task.
-- `ralph task parent <TASK_ID>`: show the parent task for a given task.
+### Common journeys
 
-Field formats (for `ralph task edit`):
+- Create a task:
+  - `ralph task "Refactor queue parsing"`
+  - `ralph task build-refactor`
+- Start work on a task:
+  - `ralph task ready RQ-0001`
+  - `ralph task start RQ-0001`
+- Complete a task:
+  - `ralph task status done RQ-0001`
+  - `ralph task done --note "Build checks pass" RQ-0001`
+- Split a task:
+  - `ralph task split RQ-0001`
+  - `ralph task split --number 3 RQ-0001`
+
+Command intent sections:
+
+- **Create and build**:
+  - `ralph task` (create from freeform request)
+  - `ralph task build <request>`
+  - `ralph task refactor`
+  - `ralph task build-refactor`
+
+- **Batch and templates**:
+  - `ralph task template`
+  - `ralph task batch`
+- **Template workflow**:
+  - `ralph task template list`
+  - `ralph task template show <name>`
+  - `ralph task template build <name> [target] <request>`
+
+- **Lifecycle**:
+  - `ralph task show` / `ralph task details`
+  - `ralph task ready`
+  - `ralph task status`
+  - `ralph task done`
+  - `ralph task reject`
+  - `ralph task start`
+  - `ralph task schedule`
+
+- **Edit**:
+  - `ralph task field`
+  - `ralph task edit`
+  - `ralph task update`
+
+- **Relationships**:
+  - `ralph task clone` / `ralph task duplicate`
+  - `ralph task split`
+  - `ralph task relate`
+  - `ralph task blocks`
+  - `ralph task mark-duplicate`
+  - `ralph task children`
+  - `ralph task parent`
+
+Field formats (for task edits):
 - Lists (`tags`, `scope`, `evidence`, `plan`, `notes`, `depends_on`): comma/newline-separated.
 - `custom_fields`: `key=value` pairs, comma/newline-separated.
 - Optional text (`request`, `completed_at`): pass `""` to clear.
 - Required timestamps (`created_at`, `updated_at`) must be RFC3339 strings and should not be cleared.
-
-Examples:
-
-```bash
-ralph task "Add CLI task edit command"
-ralph task status doing RQ-0001
-ralph task status doing RQ-0001 RQ-0002 RQ-0003
-ralph task status done --tag-filter ready
-ralph task edit title "Update queue edit docs" RQ-0001
-ralph task edit tags "cli, rust" RQ-0001 RQ-0002
-ralph task field severity high RQ-0001 RQ-0002
-ralph task edit custom_fields "severity=high, owner=ralph" RQ-0001
-ralph task edit request "" RQ-0001
-
-# Batch operations
-ralph task batch status doing RQ-0001 RQ-0002 RQ-0003
-ralph task batch field priority high --tag-filter urgent
-ralph task batch edit tags "reviewed" --tag-filter rust
-ralph task batch --dry-run status done --tag-filter ready
-```
 
 ### ralph task show
 
