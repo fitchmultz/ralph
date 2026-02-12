@@ -4,6 +4,9 @@ BIN_DIR ?= $(PREFIX)/bin
 BIN_NAME ?= ralph
 CARGO_HTTP_MULTIPLEXING ?= false
 XCODE_DERIVED_DATA_ROOT ?= target/tmp/xcode-deriveddata
+# Pin destination arch to avoid xcodebuild's "first of multiple matching destinations" warning.
+# Override if you intentionally want a different destination.
+XCODE_DESTINATION ?= platform=macOS,arch=$(shell uname -m)
 # UI tests: Set to 1 to include UI tests (headed, mouse-interactive), 0 to skip (default for CI)
 RALPH_UI_TESTS ?= 0
 
@@ -158,7 +161,7 @@ macos-build:
 		-project apps/RalphMac/RalphMac.xcodeproj \
 		-scheme RalphMac \
 		-configuration Release \
-		-destination 'platform=macOS' \
+		-destination '$(XCODE_DESTINATION)' \
 		-derivedDataPath "$$derived_data_path" \
 		CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
 		SWIFT_TREAT_WARNINGS_AS_ERRORS=YES GCC_TREAT_WARNINGS_AS_ERRORS=YES \
@@ -183,7 +186,7 @@ macos-test:
 		-project apps/RalphMac/RalphMac.xcodeproj \
 		-scheme RalphMac \
 		-configuration Debug \
-		-destination 'platform=macOS' \
+		-destination '$(XCODE_DESTINATION)' \
 		-derivedDataPath "$$derived_data_path" \
 		CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
 		SWIFT_TREAT_WARNINGS_AS_ERRORS=YES GCC_TREAT_WARNINGS_AS_ERRORS=YES \

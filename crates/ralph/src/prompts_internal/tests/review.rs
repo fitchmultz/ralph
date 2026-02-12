@@ -53,6 +53,16 @@ fn load_iteration_checklist_falls_back_to_embedded_default_when_missing() -> Res
 }
 
 #[test]
+fn load_phase2_handoff_checklist_falls_back_to_embedded_default_when_missing() -> Result<()> {
+    let dir = TempDir::new()?;
+    let checklist = load_phase2_handoff_checklist(dir.path())?;
+    assert!(checklist.contains("PHASE 2 HANDOFF CHECKLIST"));
+    assert!(!checklist.contains("follow-ups Phase 3 must close"));
+    assert!(checklist.contains("BLOCKERS (should be empty)"));
+    Ok(())
+}
+
+#[test]
 fn load_completion_checklist_uses_override_when_present() -> Result<()> {
     let dir = TempDir::new()?;
     let overrides = dir.path().join(".ralph/prompts");
@@ -70,6 +80,17 @@ fn load_iteration_checklist_uses_override_when_present() -> Result<()> {
     fs::create_dir_all(&overrides)?;
     fs::write(overrides.join("iteration_checklist.md"), "override")?;
     let checklist = load_iteration_checklist(dir.path())?;
+    assert_eq!(checklist, "override");
+    Ok(())
+}
+
+#[test]
+fn load_phase2_handoff_checklist_uses_override_when_present() -> Result<()> {
+    let dir = TempDir::new()?;
+    let overrides = dir.path().join(".ralph/prompts");
+    fs::create_dir_all(&overrides)?;
+    fs::write(overrides.join("phase2_handoff_checklist.md"), "override")?;
+    let checklist = load_phase2_handoff_checklist(dir.path())?;
     assert_eq!(checklist, "override");
     Ok(())
 }

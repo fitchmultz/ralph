@@ -315,6 +315,7 @@ The Phase 2 → Phase 3 handoff includes a completion checklist that ensures imp
 The Phase 2 handoff checklist (`.ralph/prompts/phase2_handoff_checklist.md`) typically includes:
 
 - **CI Gate**: `make ci` passes with no warnings
+- **No deferrals**: Phase 2 closes follow-ups it discovers; only true blockers may remain, with explicit remediation steps
 - **Documentation**: Module docs updated for changed files
 - **Tests**: New behavior covered (success + failure modes)
 - **Feature Parity**: CLI and macOS app behavior consistent (when applicable)

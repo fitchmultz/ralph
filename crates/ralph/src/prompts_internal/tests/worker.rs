@@ -40,6 +40,16 @@ fn load_worker_phase2_prompt_falls_back_to_embedded_default_when_missing() -> Re
 }
 
 #[test]
+fn load_worker_phase2_handoff_prompt_falls_back_to_embedded_default_when_missing() -> Result<()> {
+    let dir = TempDir::new()?;
+    let prompt = load_worker_phase2_handoff_prompt(dir.path())?;
+    assert!(prompt.contains("# IMPLEMENTATION MODE - PHASE 2"));
+    assert!(!prompt.contains("so Phase 3 can close them"));
+    assert!(prompt.contains("BLOCKERS (should be empty)"));
+    Ok(())
+}
+
+#[test]
 fn load_worker_phase3_prompt_falls_back_to_embedded_default_when_missing() -> Result<()> {
     let dir = TempDir::new()?;
     let prompt = load_worker_phase3_prompt(dir.path())?;

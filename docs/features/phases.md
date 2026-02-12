@@ -135,6 +135,10 @@ Phase 2 is the **doing phase**. The AI agent implements the plan from Phase 1 (o
 5. Run CI gate
 6. Stop BEFORE task completion (supervision point)
 
+**No-Deferrals Policy (Phase 2)**:
+- Phase 2 is responsible for fully executing the Phase 1 plan and closing any newly discovered follow-ups, inconsistencies, or test gaps it finds along the way.
+- Only true blockers may remain at handoff (this should be rare). If blocked, Phase 2 must list explicit remediation steps (commands/files/expected outcome).
+
 ### CI Gate Integration
 
 Phase 2 includes mandatory CI validation (unless disabled):
@@ -181,7 +185,7 @@ This design provides a **supervision checkpoint** where you can:
 
 ### Phase 2 Final Response Cache
 
-The runner's final response is cached at `.ralph/cache/phase2_final_response/<TASK_ID>.md` for Phase 3 reference.
+The runner's final response is cached at `.ralph/cache/phase2_final/<TASK_ID>.md` for Phase 3 reference.
 
 ## Phase 3: Review + Completion
 
