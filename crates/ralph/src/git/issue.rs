@@ -13,13 +13,59 @@
 //! - Commands run with `GH_NO_UPDATE_NOTIFIER=1` to avoid noisy prompts.
 
 use anyhow::{Context, Result, bail};
+use serde::Serialize;
+use sha2::{Digest, Sha256};
 use std::path::Path;
 use std::process::Command;
 
-#[derive(Debug, Clone)]
+pub(crate) const GITHUB_ISSUE_SYNC_HASH_KEY: &str = "github_issue_sync_hash";
+
 pub(crate) struct IssueInfo {
     pub url: String,
     pub number: Option<u32>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize)]
+struct IssueSyncPayload<'a> {
+    title: &'a str,
+    body: &'a str,
+    labels: Vec<String>,
+    assignees: Vec<String>,
+    repo: Option<&'a str>,
+}
+
+pub(crate) fn normalize_issue_metadata_list(values: &[String]) -> Vec<String> {
+    let mut values = values
+        .iter()
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty())
+        .map(ToString::to_string)
+        .collect::<Vec<_>>();
+    values.sort_unstable();
+    values.dedup();
+    values
+}
+
+pub(crate) fn compute_issue_sync_hash(
+    title: &str,
+    body: &str,
+    labels: &[String],
+    assignees: &[String],
+    repo: Option<&str>,
+) -> Result<String> {
+    let payload = IssueSyncPayload {
+        title: title.trim(),
+        body: body.trim(),
+        labels: normalize_issue_metadata_list(labels),
+        assignees: normalize_issue_metadata_list(assignees),
+        repo: repo.map(str::trim).filter(|r| !r.is_empty()),
+    };
+
+    let encoded = serde_json::to_string(&payload)
+        .context("failed to serialize issue sync fingerprint payload")?;
+    let mut hasher = Sha256::new();
+    hasher.update(encoded.as_bytes());
+    Ok(hex::encode(hasher.finalize()))
 }
 
 fn extract_first_url(output: &str) -> Option<String> {

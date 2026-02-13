@@ -2,47 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0813",
-      "status": "todo",
-      "title": "Add bulk GitHub issue sync for queue publishing workflows",
-      "description": "Opportunity type: integration and workflow coverage.\n\nWhy it matters:\n- Publishing tasks to GitHub currently requires one command per task, creating high toil for backlog seeding and recurring synchronization.\n\nProposed approach (minimal slice first):\n- Extend `ralph queue issue` with bulk mode (`publish-many` or flags on `publish`) supporting filters (`--status`, `--tag`, `--id-pattern`) and dry-run preview.\n\nExpansion:\n- Add incremental sync mode that updates only changed tasks and reports summary counts.\n\nRisks and mitigations:\n- Risk: accidental mass issue edits.\n- Mitigation: default dry-run summaries, explicit confirmation in interactive mode, and idempotency checks via stored issue URL/number.",
-      "priority": "high",
-      "tags": [
-        "innovation",
-        "integration",
-        "github",
-        "workflow"
-      ],
-      "scope": [
-        "crates/ralph/src/cli/queue/issue.rs",
-        "crates/ralph/src/git/issue.rs",
-        "docs/cli.md",
-        "cargo run -p ralph -- queue issue --help"
-      ],
-      "evidence": [
-        "path: crates/ralph/src/cli/queue/issue.rs :: module docs :: explicitly states bulk publish is not handled (single task only).",
-        "path: crates/ralph/src/cli/queue/issue.rs :: QueueIssueCommand :: only `Publish` subcommand exists.",
-        "workflow: ralph queue issue publish <TASK_ID> :: backlog sync requires repeated manual invocation per task."
-      ],
-      "plan": [
-        "Design bulk publish/sync command shape with filter inputs and safe defaults (dry-run first).",
-        "Implement batch iteration under queue lock with robust per-task error handling and summary output.",
-        "Persist GitHub metadata idempotently in task custom_fields and skip unchanged tasks when possible.",
-        "Add integration tests using dry-run and mocked gh interactions for create/update paths.",
-        "Verify by running `cargo run -p ralph -- queue issue publish --help` and bulk dry-run commands, then `cargo test -p ralph queue::issue`."
-      ],
-      "notes": [],
-      "request": "scan: none",
-      "created_at": "2026-02-12T20:13:33Z",
-      "updated_at": "2026-02-12T20:13:33Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-innovation"
-      }
-    },
-    {
       "id": "RQ-0814",
       "status": "todo",
       "title": "Add webhook delivery diagnostics and replay controls",

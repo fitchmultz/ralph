@@ -1666,6 +1666,9 @@ ralph queue issue publish RQ-0655
 # Re-run to sync changes after editing the task
 ralph queue issue publish RQ-0655
 
+# Publish many tasks by status/tag/id pattern (dry-run and execute)
+ralph queue issue publish-many --status todo --tag bug --id-pattern '^RQ-08' --dry-run
+
 # Add labels and assignees
 ralph queue issue publish RQ-0655 --label bug --label help-wanted --assignee @me
 
@@ -1680,6 +1683,7 @@ Persisted custom fields:
 
 * `github_issue_url`: The canonical GitHub issue URL (e.g., `https://github.com/owner/repo/issues/123`)
 * `github_issue_number`: The issue number as a string (e.g., `"123"`)
+* `github_issue_sync_hash`: Normalized sync fingerprint used for incremental sync skip.
 
 These fields are compatible with the existing `custom_fields` schema and survive queue round-trips.
 

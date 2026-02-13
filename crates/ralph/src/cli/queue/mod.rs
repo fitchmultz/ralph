@@ -226,7 +226,7 @@ pub enum QueueCommand {
 
     /// Publish tasks to GitHub Issues.
     #[command(
-        after_long_help = "Examples:\n  ralph queue issue publish RQ-0655\n  ralph queue issue publish RQ-0655 --dry-run\n  ralph queue issue publish RQ-0655 --label bug --assignee @me\n  ralph queue issue publish RQ-0655 --repo owner/repo"
+        after_long_help = "Examples:\n  ralph queue issue publish RQ-0655\n  ralph queue issue publish RQ-0655 --dry-run\n  ralph queue issue publish RQ-0655 --label bug --assignee @me\n  ralph queue issue publish RQ-0655 --repo owner/repo\n  ralph queue issue publish-many --status todo --tag bug --dry-run\n  ralph queue issue publish-many --status todo --execute --force"
     )]
     Issue(QueueIssueArgs),
 }

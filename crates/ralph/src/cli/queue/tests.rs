@@ -945,6 +945,52 @@ fn base_issue_publish_args(task_id: &str) -> super::issue::QueueIssuePublishArgs
     }
 }
 
+fn issue_task(
+    id: &str,
+    title: &str,
+    status: TaskStatus,
+    tags: &[&str],
+    custom_fields: &[(&str, &str)],
+) -> Task {
+    let mut fields = HashMap::new();
+    for (key, value) in custom_fields {
+        fields.insert((*key).to_string(), (*value).to_string());
+    }
+
+    Task {
+        id: id.to_string(),
+        status,
+        title: title.to_string(),
+        description: None,
+        priority: Default::default(),
+        tags: tags.iter().map(|tag| tag.to_string()).collect(),
+        scope: vec!["crates/ralph".to_string()],
+        evidence: vec!["test".to_string()],
+        plan: vec!["verify".to_string()],
+        notes: vec![],
+        request: Some("test".to_string()),
+        agent: None,
+        created_at: Some("2026-01-18T00:00:00Z".to_string()),
+        updated_at: Some("2026-01-18T00:00:00Z".to_string()),
+        completed_at: None,
+        started_at: None,
+        scheduled_start: None,
+        depends_on: vec![],
+        blocks: vec![],
+        relates_to: vec![],
+        duplicates: None,
+        custom_fields: fields,
+        parent_id: None,
+    }
+}
+
+fn write_issue_queue_tasks(path: &Path, tasks: Vec<Task>) -> Result<()> {
+    let queue = QueueFile { version: 1, tasks };
+    let rendered = serde_json::to_string_pretty(&queue)?;
+    std::fs::write(path, rendered)?;
+    Ok(())
+}
+
 #[cfg(unix)]
 fn create_fake_gh_for_issue_publish(
     tmp_dir: &TempDir,
@@ -1065,6 +1111,123 @@ exit 1
     bin_dir
 }
 
+#[cfg(unix)]
+fn create_fake_gh_for_issue_publish_multi(
+    tmp_dir: &TempDir,
+    issue_url: &str,
+    auth_ok: bool,
+    fail_task_id: Option<&str>,
+) -> std::path::PathBuf {
+    use std::io::Write;
+
+    let bin_dir = tmp_dir.path().join("bin");
+    std::fs::create_dir_all(&bin_dir).unwrap();
+    let gh_path = bin_dir.join("gh");
+    let log_path = tmp_dir.path().join("gh.log");
+    let fail_task_id = fail_task_id.unwrap_or("");
+
+    let auth_status_block = if auth_ok {
+        "exit 0"
+    } else {
+        "echo \"You are not logged into any GitHub hosts\" >&2\nexit 1"
+    };
+
+    let script = format!(
+        r#"#!/bin/sh
+set -eu
+
+LOG="{log_path}"
+FAIL_TASK_ID="{fail_task_id}"
+
+if [ "${{1:-}}" = "--version" ]; then
+  echo "gh version 0.0.0-test"
+  exit 0
+fi
+
+if [ "${{1:-}}" = "auth" ] && [ "${{2:-}}" = "status" ]; then
+  {auth_status_block}
+fi
+
+if [ "${{1:-}}" = "issue" ] && [ "${{2:-}}" = "create" ]; then
+  printf '%s\n' "$*" >> "$LOG"
+
+  BODY_FILE=""
+  TITLE=""
+  i=1
+  while [ $i -le $# ]; do
+    eval arg=\${{${{i}}}}
+    if [ "$arg" = "--body-file" ]; then
+      i=$((i+1)); eval BODY_FILE=\${{${{i}}}}
+    elif [ "$arg" = "--title" ]; then
+      i=$((i+1)); eval TITLE=\${{${{i}}}}
+    fi
+    i=$((i+1))
+  done
+
+  if [ -z "$BODY_FILE" ] || [ ! -f "$BODY_FILE" ]; then
+    echo "missing body file" >&2
+    exit 2
+  fi
+  if [ -z "$TITLE" ]; then
+    echo "missing title" >&2
+    exit 3
+  fi
+
+  if [ -n "$FAIL_TASK_ID" ] && grep -q "ralph_task_id: $FAIL_TASK_ID" "$BODY_FILE"; then
+    echo "simulated failure for task $FAIL_TASK_ID" >&2
+    exit 7
+  fi
+
+  echo "{issue_url}"
+  exit 0
+fi
+
+if [ "${{1:-}}" = "issue" ] && [ "${{2:-}}" = "edit" ]; then
+  printf '%s\n' "$*" >> "$LOG"
+
+  BODY_FILE=""
+  i=1
+  while [ $i -le $# ]; do
+    eval arg=\${{${{i}}}}
+    if [ "$arg" = "--body-file" ]; then
+      i=$((i+1)); eval BODY_FILE=\${{${{i}}}}
+    fi
+    i=$((i+1))
+  done
+
+  if [ -z "$BODY_FILE" ] || [ ! -f "$BODY_FILE" ]; then
+    echo "missing body file" >&2
+    exit 2
+  fi
+
+  if [ -n "$FAIL_TASK_ID" ] && grep -q "ralph_task_id: $FAIL_TASK_ID" "$BODY_FILE"; then
+    echo "simulated failure for task $FAIL_TASK_ID" >&2
+    exit 7
+  fi
+  exit 0
+fi
+
+echo "unknown args: $*" >&2
+exit 1
+"#,
+        log_path = log_path.display(),
+        issue_url = issue_url,
+        fail_task_id = fail_task_id,
+        auth_status_block = auth_status_block
+    );
+
+    let mut file = std::fs::File::create(&gh_path).unwrap();
+    file.write_all(script.as_bytes()).unwrap();
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = file.metadata().unwrap().permissions();
+        perms.set_mode(0o755);
+        std::fs::set_permissions(&gh_path, perms).unwrap();
+    }
+
+    bin_dir
+}
+
 #[test]
 fn queue_issue_publish_help_examples_expanded() {
     let mut cmd = crate::cli::Cli::command();
@@ -1079,6 +1242,7 @@ fn queue_issue_publish_help_examples_expanded() {
         help.contains("ralph queue issue publish"),
         "missing issue publish example: {help}"
     );
+    assert!(help.contains("ralph queue issue publish-many"));
 }
 
 #[test]
@@ -1096,6 +1260,240 @@ fn queue_issue_publish_dry_run_succeeds() -> Result<()> {
     // Dry-run should succeed without gh
     let result = super::issue::handle_publish(&resolved, true, args);
     assert!(result.is_ok());
+
+    Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn queue_issue_publish_many_dry_run_filters() -> Result<()> {
+    let dir = TempDir::new()?;
+    let resolved = resolved_for_dir(&dir);
+    write_issue_queue_tasks(
+        &resolved.queue_path,
+        vec![
+            issue_task("RQ-0001", "Bug task one", TaskStatus::Todo, &["bug"], &[]),
+            issue_task("RQ-0002", "Bug task two", TaskStatus::Todo, &["bug"], &[]),
+            issue_task("RQ-0003", "Other task", TaskStatus::Doing, &["cli"], &[]),
+        ],
+    )?;
+
+    let args = super::issue::QueueIssuePublishManyArgs {
+        status: vec![super::shared::StatusArg::Todo],
+        tag: vec!["bug".to_string()],
+        id_pattern: Some("^RQ-0001$".to_string()),
+        dry_run: false,
+        execute: false,
+        label: vec![],
+        assignee: vec![],
+        repo: None,
+    };
+
+    let result = super::issue::handle_publish_many(&resolved, true, args);
+    assert!(result.is_ok());
+
+    let queue = crate::queue::load_queue(&resolved.queue_path)?;
+    assert_eq!(queue.tasks.len(), 3);
+    assert_eq!(queue.tasks[0].id, "RQ-0001");
+
+    Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn queue_issue_publish_many_exec_mixed_create_update() -> Result<()> {
+    use crate::testsupport::path::with_prepend_path;
+
+    let dir = TempDir::new()?;
+    let resolved = resolved_for_dir(&dir);
+    write_issue_queue_tasks(
+        &resolved.queue_path,
+        vec![
+            issue_task("RQ-0001", "Bug task one", TaskStatus::Todo, &["bug"], &[]),
+            issue_task(
+                "RQ-0002",
+                "Bug task two",
+                TaskStatus::Todo,
+                &["bug"],
+                &[
+                    ("github_issue_url", "https://github.com/org/repo/issues/777"),
+                    ("github_issue_number", "777"),
+                ],
+            ),
+        ],
+    )?;
+
+    let bin_dir = create_fake_gh_for_issue_publish_multi(
+        &dir,
+        "https://github.com/org/repo/issues/123",
+        true,
+        None,
+    );
+
+    let args = super::issue::QueueIssuePublishManyArgs {
+        status: vec![super::shared::StatusArg::Todo],
+        tag: vec!["bug".to_string()],
+        id_pattern: None,
+        dry_run: false,
+        execute: true,
+        label: vec!["triage".to_string()],
+        assignee: vec![],
+        repo: None,
+    };
+
+    with_prepend_path(&bin_dir, || {
+        super::issue::handle_publish_many(&resolved, true, args)
+    })?;
+
+    let queue = crate::queue::load_queue(&resolved.queue_path)?;
+    let first = queue
+        .tasks
+        .iter()
+        .find(|t| t.id == "RQ-0001")
+        .expect("first task");
+    let second = queue
+        .tasks
+        .iter()
+        .find(|t| t.id == "RQ-0002")
+        .expect("second task");
+
+    assert_eq!(
+        first
+            .custom_fields
+            .get("github_issue_url")
+            .map(String::as_str),
+        Some("https://github.com/org/repo/issues/123")
+    );
+    assert!(
+        first
+            .custom_fields
+            .contains_key(crate::git::GITHUB_ISSUE_SYNC_HASH_KEY)
+    );
+    assert_eq!(
+        second
+            .custom_fields
+            .get("github_issue_url")
+            .map(String::as_str),
+        Some("https://github.com/org/repo/issues/777")
+    );
+    assert!(
+        second
+            .custom_fields
+            .contains_key(crate::git::GITHUB_ISSUE_SYNC_HASH_KEY)
+    );
+
+    Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn queue_issue_publish_many_skips_if_unchanged() -> Result<()> {
+    let dir = TempDir::new()?;
+    let resolved = resolved_for_dir(&dir);
+    let task = issue_task("RQ-0001", "No-op task", TaskStatus::Todo, &["bug"], &[]);
+    let body = super::export::render_task_as_github_issue_body(&task);
+    let hash = crate::git::compute_issue_sync_hash(
+        &format!("{}: {}", task.id, task.title),
+        &body,
+        &[],
+        &[],
+        None,
+    )?;
+
+    write_issue_queue_tasks(
+        &resolved.queue_path,
+        vec![issue_task(
+            "RQ-0001",
+            "No-op task",
+            TaskStatus::Todo,
+            &["bug"],
+            &[
+                ("github_issue_url", "https://github.com/org/repo/issues/123"),
+                (crate::git::GITHUB_ISSUE_SYNC_HASH_KEY, &hash),
+            ],
+        )],
+    )?;
+
+    let args = super::issue::QueueIssuePublishManyArgs {
+        status: vec![super::shared::StatusArg::Todo],
+        tag: vec!["bug".to_string()],
+        id_pattern: None,
+        dry_run: false,
+        execute: false,
+        label: vec![],
+        assignee: vec![],
+        repo: None,
+    };
+
+    super::issue::handle_publish_many(&resolved, true, args)?;
+    Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn queue_issue_publish_many_partial_failures_do_not_abort() -> Result<()> {
+    use crate::testsupport::path::with_prepend_path;
+
+    let dir = TempDir::new()?;
+    let resolved = resolved_for_dir(&dir);
+    write_issue_queue_tasks(
+        &resolved.queue_path,
+        vec![
+            issue_task(
+                "RQ-0001",
+                "Task that fails",
+                TaskStatus::Todo,
+                &["bug"],
+                &[],
+            ),
+            issue_task(
+                "RQ-0002",
+                "Task that succeeds",
+                TaskStatus::Todo,
+                &["bug"],
+                &[
+                    ("github_issue_url", "https://github.com/org/repo/issues/777"),
+                    ("github_issue_number", "777"),
+                ],
+            ),
+        ],
+    )?;
+
+    let bin_dir = create_fake_gh_for_issue_publish_multi(
+        &dir,
+        "https://github.com/org/repo/issues/123",
+        true,
+        Some("RQ-0001"),
+    );
+
+    let args = super::issue::QueueIssuePublishManyArgs {
+        status: vec![super::shared::StatusArg::Todo],
+        tag: vec!["bug".to_string()],
+        id_pattern: None,
+        dry_run: false,
+        execute: true,
+        label: vec![],
+        assignee: vec![],
+        repo: None,
+    };
+    let err = with_prepend_path(&bin_dir, || {
+        super::issue::handle_publish_many(&resolved, true, args)
+    })
+    .expect_err("expected publish-many failure");
+    assert!(
+        err.to_string().contains("completed with 1 failed task(s)")
+            || err.to_string().contains("simulated failure"),
+        "unexpected error: {err}"
+    );
+
+    let queue = crate::queue::load_queue(&resolved.queue_path)?;
+    assert_eq!(queue.tasks.len(), 2);
+    assert_eq!(queue.tasks[1].id, "RQ-0002");
+    assert!(
+        queue.tasks[1]
+            .custom_fields
+            .contains_key(crate::git::GITHUB_ISSUE_SYNC_HASH_KEY)
+    );
 
     Ok(())
 }
