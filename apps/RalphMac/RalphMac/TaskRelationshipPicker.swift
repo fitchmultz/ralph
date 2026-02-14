@@ -182,7 +182,7 @@ struct RelationshipChip: View {
         .padding(.vertical, 4)
         .background(Color.secondary.opacity(0.15))
         .foregroundStyle(.primary)
-        .cornerRadius(6)
+        .clipShape(.rect(cornerRadius: 6))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Relationship to \(taskID)")
     }

@@ -21,6 +21,7 @@ import RalphCore
 
 @MainActor
 struct WindowView: View {
+    // Note: @State must be internal (not private) because WindowViewContainer initializes this view
     @State var windowState: WindowState
     @ObservedObject private var manager = WorkspaceManager.shared
 

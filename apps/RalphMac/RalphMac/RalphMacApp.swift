@@ -25,7 +25,7 @@ import OSLog
 @main
 struct RalphMacApp: App {
     private let manager = WorkspaceManager.shared
-    @ObservedObject private var menuBarManager = MenuBarManager.shared
+    @State private var menuBarManager = MenuBarManager.shared
     @Environment(\.scenePhase) private var scenePhase
     
     init() {
@@ -381,15 +381,14 @@ struct RalphMacApp: App {
             }
             
             // Show save panel on main thread
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 let savePanel = NSSavePanel()
                 savePanel.nameFieldStringValue = "ralph-logs-\(Date().formatted(.iso8601.dateSeparator(.dash).timeSeparator(.omitted))).txt"
                 savePanel.allowedContentTypes = [.plainText]
                 
-                savePanel.begin { result in
-                    if result == .OK, let url = savePanel.url {
-                        try? logContent.write(to: url, atomically: true, encoding: .utf8)
-                    }
+                let result = await savePanel.begin()
+                if result == .OK, let url = savePanel.url {
+                    try? logContent.write(to: url, atomically: true, encoding: .utf8)
                 }
             }
         }
@@ -405,18 +404,17 @@ struct RalphMacApp: App {
         let content = CrashReporter.shared.exportAllReports()
         
         // Show save panel on main thread
-        DispatchQueue.main.async {
+        Task { @MainActor in
             let savePanel = NSSavePanel()
             savePanel.nameFieldStringValue = "ralph-crash-reports-\(Date().formatted(.iso8601.dateSeparator(.dash))).txt"
             savePanel.allowedContentTypes = [.plainText]
             
-            savePanel.begin { result in
-                if result == .OK, let url = savePanel.url {
-                    do {
-                        try content.write(to: url, atomically: true, encoding: .utf8)
-                    } catch {
-                        showAlert(title: "Export Failed", message: "Could not save crash reports: \(error.localizedDescription)")
-                    }
+            let result = await savePanel.begin()
+            if result == .OK, let url = savePanel.url {
+                do {
+                    try content.write(to: url, atomically: true, encoding: .utf8)
+                } catch {
+                    showAlert(title: "Export Failed", message: "Could not save crash reports: \(error.localizedDescription)")
                 }
             }
         }

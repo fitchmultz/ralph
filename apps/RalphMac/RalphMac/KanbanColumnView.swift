@@ -43,7 +43,7 @@ struct KanbanColumnView: View {
         }
         .frame(width: 280)
         .background(Color(NSColor.controlBackgroundColor))
-        .cornerRadius(12)
+        .clipShape(.rect(cornerRadius: 12))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.gray.opacity(0.3), lineWidth: 1)
@@ -86,7 +86,7 @@ struct KanbanColumnView: View {
                 .padding(.vertical, 2)
                 .background(Color.gray.opacity(0.15))
                 .foregroundStyle(.secondary)
-                .cornerRadius(10)
+                .clipShape(.rect(cornerRadius: 10))
                 // MARK: - Accessibility
                 .accessibilityLabel("\(tasks.count) tasks")
         }
@@ -96,7 +96,7 @@ struct KanbanColumnView: View {
         .overlay(
             Rectangle()
                 .frame(height: 1)
-                .foregroundColor(.gray.opacity(0.3)),
+                .foregroundStyle(.gray.opacity(0.3)),
             alignment: .bottom
         )
     }
@@ -145,8 +145,8 @@ struct KanbanColumnView: View {
             Text(task.title)
                 .padding(8)
                 .background(Color.accentColor)
-                .foregroundColor(.white)
-                .cornerRadius(8)
+                .foregroundStyle(.white)
+                .clipShape(.rect(cornerRadius: 8))
                 // MARK: - Accessibility
                 .accessibilityLabel("Dragging: \(task.title)")
         }

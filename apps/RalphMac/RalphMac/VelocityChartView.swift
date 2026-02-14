@@ -35,7 +35,7 @@ struct VelocityChartView: View {
                         y: .value("Completed", item.count)
                     )
                     .foregroundStyle(item.count > 0 ? Color.green : Color.gray.opacity(0.3))
-                    .cornerRadius(4)
+                    .clipShape(.rect(cornerRadius: 4))
                 }
                 .chartXAxis {
                     AxisMarks { value in

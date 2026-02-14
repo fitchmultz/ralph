@@ -97,7 +97,7 @@ struct CommandPaletteView: View {
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
                     .background(.secondary.opacity(0.15))
-                    .cornerRadius(4)
+                    .clipShape(.rect(cornerRadius: 4))
             }
             .foregroundStyle(.secondary)
         }
@@ -105,7 +105,7 @@ struct CommandPaletteView: View {
     
     private var resultsList: some View {
         ScrollViewReader { proxy in
-            ScrollView(.vertical, showsIndicators: true) {
+            ScrollView(.vertical) {
                 if viewModel.filteredCommands.isEmpty {
                     emptyState
                 } else {
@@ -130,6 +130,7 @@ struct CommandPaletteView: View {
                     }
                 }
             }
+            .scrollIndicators(.automatic)
         }
     }
     
@@ -189,7 +190,7 @@ struct CommandPaletteView: View {
                             (isSelected ? Color.white : Color.secondary)
                                 .opacity(0.15)
                         )
-                        .cornerRadius(4)
+                        .clipShape(.rect(cornerRadius: 4))
                 }
             }
             .padding(.horizontal, 16)

@@ -94,7 +94,7 @@ struct AnalyticsDashboardView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Analytics Dashboard")
                     .font(.title2)
-                    .fontWeight(.semibold)
+                    .font(.body.weight(.semibold))
                 
                 Text("Track your productivity and task metrics")
                     .font(.subheadline)
@@ -251,7 +251,7 @@ struct MetricCard: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(value)
                     .font(.title2)
-                    .fontWeight(.bold)
+                    .bold()
                 Text(title)
                     .font(.caption)
                     .foregroundStyle(.secondary)

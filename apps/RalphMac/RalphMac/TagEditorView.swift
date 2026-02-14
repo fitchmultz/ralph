@@ -95,7 +95,7 @@ struct TagChip: View {
         .padding(.vertical, 4)
         .background(Color.accentColor.opacity(0.15))
         .foregroundStyle(.primary)
-        .cornerRadius(6)
+        .clipShape(.rect(cornerRadius: 6))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Tag: \(tag)")
         .accessibilityHint("Double click to remove")

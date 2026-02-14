@@ -265,7 +265,7 @@ struct TaskCreationView: View {
                 RoundedRectangle(cornerRadius: 10)
                     .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
             )
-            .cornerRadius(10)
+            .clipShape(.rect(cornerRadius: 10))
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(name) template")

@@ -152,7 +152,7 @@ struct KanbanCardView: View {
                         .padding(.vertical, 2)
                         .background(.secondary.opacity(0.12))
                         .foregroundStyle(.secondary)
-                        .cornerRadius(4)
+                        .clipShape(.rect(cornerRadius: 4))
                 }
             }
         }

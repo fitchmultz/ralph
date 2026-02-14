@@ -173,7 +173,7 @@ struct DependencyGraphView: View {
                     }
                     .padding()
                     .background(Color.red.opacity(0.1))
-                    .cornerRadius(8)
+                    .clipShape(.rect(cornerRadius: 8))
                     .padding(.horizontal)
                     .accessibilityLabel("Warning: Circular dependencies detected in the graph")
                 }
@@ -255,7 +255,7 @@ struct DependencyGraphView: View {
         }
         .padding()
         .background(Color(NSColor.controlBackgroundColor))
-        .cornerRadius(10)
+        .clipShape(.rect(cornerRadius: 10))
         .overlay(
             RoundedRectangle(cornerRadius: 10)
                 .stroke(selectedTaskID == node.id ? Color.accentColor : Color.clear, lineWidth: 2)

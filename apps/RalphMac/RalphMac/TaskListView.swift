@@ -121,7 +121,7 @@ struct TaskListView: View {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .stroke(Color.accentColor.opacity(0.3), lineWidth: 1)
         )
-        .cornerRadius(10)
+        .clipShape(.rect(cornerRadius: 10))
         .contentShape(Rectangle())
         .onTapGesture {
             selectedTaskID = task.id
@@ -155,7 +155,7 @@ struct TaskListView: View {
             }
             .padding(8)
             .background(.tertiary.opacity(0.1))
-            .cornerRadius(8)
+            .clipShape(.rect(cornerRadius: 8))
 
             // Filter and sort row
             HStack(spacing: 12) {
@@ -341,7 +341,7 @@ struct TaskListView: View {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .stroke(.separator.opacity(0.3), lineWidth: 0.5)
         )
-        .cornerRadius(10)
+        .clipShape(.rect(cornerRadius: 10))
     }
 
     // MARK: - Helper Views
@@ -354,7 +354,7 @@ struct TaskListView: View {
             .padding(.vertical, 2)
             .background(statusColor(status).opacity(0.2))
             .foregroundStyle(statusColor(status))
-            .cornerRadius(4)
+            .clipShape(.rect(cornerRadius: 4))
     }
 
     @ViewBuilder

@@ -258,11 +258,11 @@ struct StatusBadge: View {
     var body: some View {
         Text(status.displayName)
             .font(.caption2)
-            .fontWeight(.medium)
+            .font(.body.weight(.medium))
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .background(backgroundColor)
-            .foregroundColor(.white)
+            .foregroundStyle(.white)
             .clipShape(Capsule())
     }
     
@@ -315,7 +315,7 @@ struct CountBadge: View {
         HStack(spacing: 4) {
             Text("\(count)")
                 .font(.system(.body, design: .rounded))
-                .fontWeight(.semibold)
+                .font(.body.weight(.semibold))
                 .foregroundStyle(color)
             Text(label)
                 .font(.caption)

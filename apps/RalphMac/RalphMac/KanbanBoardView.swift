@@ -35,7 +35,7 @@ struct KanbanBoardView: View {
     @State private var focusedTaskID: String?
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: true) {
+        ScrollView(.horizontal) {
             HStack(spacing: 16) {
                 ForEach(RalphTaskStatus.allCases, id: \.self) { status in
                     let statusTasks = tasks(for: status)
@@ -116,6 +116,7 @@ struct KanbanBoardView: View {
                     .background(.ultraThinMaterial)
             }
         }
+        .scrollIndicators(.automatic)
         .alert("Update Error", isPresented: .constant(updateError != nil)) {
             Button("OK") { updateError = nil }
         } message: {

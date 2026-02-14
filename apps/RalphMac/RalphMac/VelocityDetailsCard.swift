@@ -53,7 +53,7 @@ struct DetailRow: View {
             Spacer()
             Text(value)
                 .font(.caption)
-                .fontWeight(.medium)
+                .font(.body.weight(.medium))
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(label): \(value)")

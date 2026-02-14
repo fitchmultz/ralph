@@ -81,7 +81,7 @@ struct AgingRow: View {
             
             Text("\(count)")
                 .font(.caption)
-                .fontWeight(.semibold)
+                .font(.body.weight(.semibold))
                 .frame(width: 30, alignment: .trailing)
         }
         .accessibilityElement(children: .combine)

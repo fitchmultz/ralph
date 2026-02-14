@@ -32,7 +32,7 @@ struct PriorityDistributionCard: View {
                         y: .value("Count", item.count)
                     )
                     .foregroundStyle(priorityColor(item.priority))
-                    .cornerRadius(4)
+                    .clipShape(.rect(cornerRadius: 4))
                 }
                 .chartYAxis {
                     AxisMarks(position: .leading)

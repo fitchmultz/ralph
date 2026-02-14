@@ -242,7 +242,7 @@ struct TaskConflictResolverView: View {
                     .frame(width: 8, height: 8)
                 Text(title)
                     .font(.subheadline)
-                    .fontWeight(.semibold)
+                    .font(.body.weight(.semibold))
                 Spacer()
             }
             
@@ -263,7 +263,7 @@ struct TaskConflictResolverView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(color.opacity(0.1))
-        .cornerRadius(8)
+        .clipShape(.rect(cornerRadius: 8))
     }
     
     @ViewBuilder
@@ -274,7 +274,7 @@ struct TaskConflictResolverView: View {
             HStack {
                 Text(label)
                     .font(.subheadline)
-                    .fontWeight(.medium)
+                    .font(.body.weight(.medium))
                 if hasConflict {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundStyle(.orange)
@@ -314,7 +314,7 @@ struct TaskConflictResolverView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(6)
                         .background(fieldSelections[field] == .external ? Color.orange.opacity(0.1) : Color.clear)
-                        .cornerRadius(4)
+                        .clipShape(.rect(cornerRadius: 4))
                         
                         VStack(alignment: .leading, spacing: 2) {
                             Text("My Changes:")
@@ -328,7 +328,7 @@ struct TaskConflictResolverView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(6)
                         .background(fieldSelections[field] == .local ? Color.blue.opacity(0.1) : Color.clear)
-                        .cornerRadius(4)
+                        .clipShape(.rect(cornerRadius: 4))
                     }
                 }
             } else {
@@ -555,7 +555,7 @@ struct ErrorRecoveryView: View {
         .padding(24)
         .frame(maxWidth: 400)
         .background(.ultraThinMaterial)
-        .cornerRadius(12)
+        .clipShape(.rect(cornerRadius: 12))
         .sheet(isPresented: $showingDiagnoseSheet) {
             DiagnoseResultView(output: diagnoseOutput, isLoading: isDiagnosing)
         }

@@ -152,7 +152,7 @@ struct TaskDetailView: View {
                     .frame(minHeight: 80, maxHeight: 120)
                     .padding(4)
                     .background(Color(NSColor.textBackgroundColor))
-                    .cornerRadius(6)
+                    .clipShape(.rect(cornerRadius: 6))
                     .accessibilityLabel("Task description")
                     .accessibilityHint("Enter a detailed description of the task")
                 }
@@ -235,11 +235,12 @@ struct TaskDetailView: View {
                         FlowLayout(spacing: 8) {
                             presetButtons
                         }
-                        ScrollView(.horizontal, showsIndicators: false) {
+                        ScrollView(.horizontal) {
                             HStack(spacing: 8) {
                                 presetButtons
                             }
                         }
+                        .scrollIndicators(.hidden)
                     }
                     if activeExecutionPreset == nil, draftTask.agent != nil {
                         Label("Custom override active", systemImage: "slider.horizontal.3")
@@ -359,7 +360,7 @@ struct TaskDetailView: View {
                     }
                     .padding(8)
                     .background(Color(NSColor.windowBackgroundColor).opacity(0.35))
-                    .cornerRadius(8)
+                    .clipShape(.rect(cornerRadius: 8))
                 }
 
                 HStack {
@@ -925,7 +926,7 @@ struct TaskDetailView: View {
                 onTaskUpdated?(persistedTask)
                 
                 // Clear success indicator after 2 seconds
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                withAnimation(.easeInOut.delay(2)) {
                     saveSuccess = false
                 }
             } catch let error as Workspace.WorkspaceError {
