@@ -6,6 +6,8 @@
    recent directories, console output, and execution state.
  - Manage per-workspace CLI operations (version, init, queue list, etc.).
  - Persist workspace-specific state to UserDefaults with namespace isolation.
+ - On file-watcher-triggered refreshes, parse queue.json directly when possible
+   and fall back to CLI on decode failure for low-latency UI updates.
 
  Does not handle:
  - Window management or tab bar UI (see WindowState).
@@ -658,7 +660,41 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
 
         tasksLoading = false
     }
-    
+
+    // MARK: - Direct Queue Parsing
+
+    /// Result of attempting direct file parse for file-watcher-triggered refreshes.
+    private enum DirectParseResult {
+        case success(tasks: [RalphTask])
+        case failure(any Error)
+    }
+
+    /// Attempt to parse queue.json directly without spawning CLI subprocess.
+    /// Used by file-watcher-triggered refreshes for low-latency UI updates.
+    ///
+    /// - Returns: Parsed tasks on success, error on failure.
+    ///
+    /// This method mirrors the CLI's JSON decoding logic:
+    /// - Uses iso8601 date decoding strategy
+    /// - Leverages RalphTaskQueueDocument's support for both legacy array and document formats
+    private func attemptDirectQueueParse() -> DirectParseResult {
+        let queueURL = workingDirectoryURL.appendingPathComponent(".ralph/queue.json")
+
+        guard FileManager.default.fileExists(atPath: queueURL.path) else {
+            return .failure(URLError(.fileDoesNotExist))
+        }
+
+        do {
+            let data = try Data(contentsOf: queueURL)
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            let document = try decoder.decode(RalphTaskQueueDocument.self, from: data)
+            return .success(tasks: document.tasks)
+        } catch {
+            return .failure(error)
+        }
+    }
+
     // MARK: - File Watching
 
     /// Start watching queue files for external changes.
@@ -687,15 +723,38 @@ public final class Workspace: ObservableObject, @preconcurrency Identifiable, @p
         fileWatcher = nil
     }
     
-    /// Handle external file changes by reloading tasks
+    /// Handle external file changes by reloading tasks.
+    /// Attempts direct file parse first for low-latency updates,
+    /// falls back to CLI on decode failure.
     private func handleExternalFileChange() async {
         // Store current tasks for comparison
         lastTasksSnapshot = tasks
-        
-        // Reload tasks
-        await loadTasks()
+
+        // Try direct parse first (fast path)
+        switch attemptDirectQueueParse() {
+        case .success(let parsedTasks):
+            tasks = parsedTasks
+            sanitizeRunControlSelection()
+            tasksErrorMessage = nil
+
+            RalphLogger.shared.debug(
+                "Direct queue parse succeeded: \(parsedTasks.count) tasks",
+                category: .fileWatching
+            )
+
+        case .failure(let error):
+            // Fall back to CLI on direct parse failure
+            RalphLogger.shared.info(
+                "Direct parse failed, falling back to CLI: \(error.localizedDescription)",
+                category: .fileWatching
+            )
+            await loadTasks()
+        }
+
+        // Config resolution is complex (flags > project > global > defaults),
+        // keep using CLI for config changes
         await loadRunnerConfiguration(retryConfiguration: .minimal)
-        
+
         // Post notification for UI to animate changes
         NotificationCenter.default.post(
             name: .queueFilesExternallyChanged,

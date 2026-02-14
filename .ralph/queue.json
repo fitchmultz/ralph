@@ -2,48 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0815",
-      "status": "todo",
-      "title": "Parse queue changes directly in RalphMac watcher path to reduce CLI churn",
-      "description": "Opportunity type: performance and UX improvement.\n\nWhy it matters:\n- The macOS app already watches `.ralph` files, but each change still triggers CLI subprocesses (`queue list`, `config show`) for reloads. Rapid edits produce avoidable process overhead, slower UI updates, and extra contention.\n\nProposed approach (minimal slice first):\n- On queue/done file change, parse local JSON first in-app and update task state directly; keep CLI fallback on parse errors or schema mismatch.\n\nExpansion:\n- Add incremental diff application for large queues to minimize full-array replacements and UI recompute.\n\nRisks and mitigations:\n- Risk: app parser drift from CLI schema behavior.\n- Mitigation: share schema-derived models/tests and fallback to CLI on decode failure.",
-      "priority": "high",
-      "tags": [
-        "innovation",
-        "performance",
-        "macos",
-        "ux"
-      ],
-      "scope": [
-        "apps/RalphMac/RalphCore/QueueFileWatcher.swift",
-        "apps/RalphMac/RalphCore/Workspace.swift",
-        "apps/RalphMac/RalphCore/RalphModels.swift",
-        "make macos-test"
-      ],
-      "evidence": [
-        "path: apps/RalphMac/RalphCore/QueueFileWatcher.swift :: Responsibilities :: watcher already detects queue/done/config file changes but does not parse contents.",
-        "path: apps/RalphMac/RalphCore/Workspace.swift :: handleExternalFileChange :: always calls loadTasks and loadRunnerConfiguration on any watched-file change.",
-        "path: apps/RalphMac/RalphCore/Workspace.swift :: loadTasks :: invokes CLI `queue list --format json` even for local file-watcher events.",
-        "workflow: editing .ralph/queue.json in short bursts :: repeated CLI spawns create lag and unnecessary process overhead in the app."
-      ],
-      "plan": [
-        "Implement direct queue/done JSON decode path for file-watcher-triggered refreshes.",
-        "Retain CLI fallback path for decode failures and config-resolution-dependent fields.",
-        "Add unit tests covering valid decode, malformed JSON fallback, and conflict detection behavior.",
-        "Instrument refresh latency before/after to ensure measurable improvement.",
-        "Verify by running `make macos-test` and manually editing `.ralph/queue.json`, confirming low-latency UI refresh without repeated CLI invocation on valid changes."
-      ],
-      "notes": [],
-      "request": "scan: none",
-      "created_at": "2026-02-12T20:13:33Z",
-      "updated_at": "2026-02-12T20:13:33Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-innovation"
-      }
-    },
-    {
       "id": "RQ-0816",
       "status": "todo",
       "title": "Add aggregated analytics CLI endpoint to cut RalphMac process fan-out",

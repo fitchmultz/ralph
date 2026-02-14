@@ -55,6 +55,7 @@
 		CC99AA88BB77DD66EE55FF44 /* ConsoleOutputBuffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1122AABBCCDDEEFF99887766 /* ConsoleOutputBuffer.swift */; };
 		CD2233445566778899AABBCC /* GraphAlgorithms.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD112233445566778899AABB /* GraphAlgorithms.swift */; };
 		CD445566778899AABBCCDDEE /* GraphAlgorithmsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD33445566778899AABBCCDD /* GraphAlgorithmsTests.swift */; };
+		QD7890123456ABCDEF012345 /* QueueDirectParseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = QF7890123456ABCDEF012345 /* QueueDirectParseTests.swift */; };
 		CEA0C56C54C067B285A7B1AD /* MenuBarIconView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CA719BF19DA9A8273DC7910 /* MenuBarIconView.swift */; };
 		D1594D0AB21045BA9764BCE8 /* RalphCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 16591EC6C1744AC5AF4189A4 /* RalphCore.framework */; };
 		D21470E978C03EA41E8C185E /* NavigationViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1144436E84A467CACB42516A /* NavigationViewModel.swift */; };
@@ -164,6 +165,7 @@
 		CCDDEEFF001122334455AABB /* DependencyGraphView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DependencyGraphView.swift; path = RalphMac/DependencyGraphView.swift; sourceTree = "<group>"; };
 		CD112233445566778899AABB /* GraphAlgorithms.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GraphAlgorithms.swift; sourceTree = "<group>"; };
 		CD33445566778899AABBCCDD /* GraphAlgorithmsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GraphAlgorithmsTests.swift; sourceTree = "<group>"; };
+		QF7890123456ABCDEF012345 /* QueueDirectParseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueDirectParseTests.swift; sourceTree = "<group>"; };
 		D09515AC14F94350B766E15468824B53 /* TaskCreationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TaskCreationView.swift; path = RalphMac/TaskCreationView.swift; sourceTree = "<group>"; };
 		D54AE04AF32A434C9B785F2F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		DC080C0014F94BAE85020345FFAAFAF2 /* KanbanCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = KanbanCardView.swift; path = RalphMac/KanbanCardView.swift; sourceTree = "<group>"; };
@@ -263,6 +265,7 @@
 				B86FB79CF874558CF63AAAB3 /* RalphLoggerTests.swift */,
 				E21C3A89A6C7227DBEC1280A /* CrashReporterTests.swift */,
 				CD33445566778899AABBCCDD /* GraphAlgorithmsTests.swift */,
+				QF7890123456ABCDEF012345 /* QueueDirectParseTests.swift */,
 			);
 			path = RalphCoreTests;
 			sourceTree = "<group>";
@@ -527,6 +530,7 @@
 				F6A75F8963921FE53D465FF3 /* RalphLoggerTests.swift in Sources */,
 				77EFDF19FDCC6111A2D9D960 /* CrashReporterTests.swift in Sources */,
 				CD445566778899AABBCCDDEE /* GraphAlgorithmsTests.swift in Sources */,
+		QD7890123456ABCDEF012345 /* QueueDirectParseTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
