@@ -214,7 +214,6 @@ public enum TimeRange: String, CaseIterable, Identifiable {
 /// Status of an individual dashboard section.
 public enum SectionStatus: String, Codable, Sendable, Equatable {
     case ok
-    case error
     case unavailable
 }
 

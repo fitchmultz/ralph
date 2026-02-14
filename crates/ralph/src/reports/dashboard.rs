@@ -29,8 +29,6 @@ use super::stats::StatsReport;
 pub enum SectionStatus {
     /// Section computed successfully.
     Ok,
-    /// Section failed with an error.
-    Error,
     /// Section data is not available (e.g., no productivity stats).
     Unavailable,
 }
@@ -55,15 +53,6 @@ impl<T> SectionResult<T> {
             status: SectionStatus::Ok,
             data: Some(data),
             error_message: None,
-        }
-    }
-
-    /// Create an error section result.
-    pub fn error(message: impl Into<String>) -> Self {
-        Self {
-            status: SectionStatus::Error,
-            data: None,
-            error_message: Some(message.into()),
         }
     }
 
@@ -262,14 +251,6 @@ mod tests {
     }
 
     #[test]
-    fn test_section_result_error() {
-        let result: SectionResult<String> = SectionResult::error("failed");
-        assert_eq!(result.status, SectionStatus::Error);
-        assert!(result.data.is_none());
-        assert_eq!(result.error_message, Some("failed".to_string()));
-    }
-
-    #[test]
     fn test_section_result_unavailable() {
         let result: SectionResult<String> = SectionResult::unavailable("not found");
         assert_eq!(result.status, SectionStatus::Unavailable);
@@ -284,14 +265,5 @@ mod tests {
         assert!(json.contains("\"status\":\"ok\""));
         assert!(json.contains("\"data\":42"));
         assert!(!json.contains("error_message"));
-    }
-
-    #[test]
-    fn test_section_result_error_serializes_correctly() {
-        let result: SectionResult<i32> = SectionResult::error("something went wrong");
-        let json = serde_json::to_string(&result).unwrap();
-        assert!(json.contains("\"status\":\"error\""));
-        assert!(json.contains("\"error_message\":\"something went wrong\""));
-        assert!(!json.contains("\"data\""));
     }
 }

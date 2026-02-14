@@ -1301,9 +1301,9 @@
       "relates_to": [],
       "custom_fields": {
         "scan_agent": "scan-innovation",
-        "time_to_ship": "medium (concurrency + tests)",
+        "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort.",
         "opportunity_type": "reliability",
-        "user_value": "Prevents webhook backoff from slowing CLI/TUI flows; keeps integrations best-effort."
+        "time_to_ship": "medium (concurrency + tests)"
       }
     },
     {
@@ -1345,9 +1345,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "opportunity_type": "ux improvement",
         "scan_agent": "scan-innovation",
         "time_to_ship": "medium (metadata + reconciliation + tests)",
-        "opportunity_type": "ux improvement",
         "user_value": "Turns TODOs into stable tasks with lifecycle; reduces duplicate noise and keeps backlog current."
       }
     },
@@ -1394,10 +1394,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
         "opportunity_type": "ux improvement",
-        "time_to_ship": "medium (format + fixes + tests)",
-        "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics."
+        "user_value": "Actionable diagnostics for scripts and CI; resolves confusing `--auto-fix` semantics.",
+        "scan_agent": "scan-innovation",
+        "time_to_ship": "medium (format + fixes + tests)"
       }
     },
     {
@@ -1441,10 +1441,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat).",
+        "time_to_ship": "small/medium (formatters + tests)",
         "opportunity_type": "ux improvement",
-        "time_to_ship": "small/medium (formatters + tests)"
+        "user_value": "Faster backlog sharing and review in Markdown-native tools (GitHub, PRs, chat).",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -1932,10 +1932,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "ux improvement",
+        "scan_agent": "scan-innovation",
         "user_value": "Fewer context switches: jump from task → code in one keystroke.",
         "time_to_ship": "medium (TUI wiring + tests)",
-        "scan_agent": "scan-innovation"
+        "opportunity_type": "ux improvement"
       }
     },
     {
@@ -1989,9 +1989,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "scan_agent": "scan-innovation",
         "time_to_ship": "medium (render-only UI + tests)",
         "user_value": "Makes parallel ops debuggable without leaving the TUI; reduces operator error.",
-        "scan_agent": "scan-innovation",
         "opportunity_type": "ux improvement"
       }
     },
@@ -2046,10 +2046,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "measurable_impact": "Track 20%+ improvement in task completion velocity after adoption",
-        "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types",
         "opportunity_type": "feature gap",
-        "scan_agent": "scan-innovation"
+        "scan_agent": "scan-innovation",
+        "measurable_impact": "Track 20%+ improvement in task completion velocity after adoption",
+        "user_value": "Enables data-driven workflow optimization; identifies slow runners/task types"
       }
     },
     {
@@ -2107,9 +2107,9 @@
       "relates_to": [],
       "custom_fields": {
         "time_to_ship": "incremental - add one batch operation at a time",
-        "opportunity_type": "UX improvement",
+        "scan_agent": "scan-innovation",
         "user_value": "Reduces queue maintenance time by 80% for large projects",
-        "scan_agent": "scan-innovation"
+        "opportunity_type": "UX improvement"
       }
     },
     {
@@ -2165,10 +2165,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "opportunity_type": "reliability",
         "measurable_impact": "80%+ integration test coverage for CLI commands",
-        "user_value": "Reduces regression risk; enables confident refactoring"
+        "opportunity_type": "reliability",
+        "user_value": "Reduces regression risk; enables confident refactoring",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -2231,9 +2231,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "feature gap",
         "scan_agent": "scan-innovation",
         "differentiation": "Unique capability among AI task runners",
+        "opportunity_type": "feature gap",
         "user_value": "Enables ecosystem growth; custom integrations without forks"
       }
     },
@@ -3472,8 +3472,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "reported_at": "2026-02-06",
-        "user_visible_blocker": "true"
+        "user_visible_blocker": "true",
+        "reported_at": "2026-02-06"
       }
     },
     {
@@ -3527,10 +3527,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "file_line_count": "444",
         "scan_agent": "scan-maintenance",
+        "model_used": "kimi-code/kimi-for-coding",
         "runner_used": "kimi",
-        "model_used": "kimi-code/kimi-for-coding"
+        "file_line_count": "444"
       }
     },
     {
@@ -3577,9 +3577,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "kimi-code/kimi-for-coding",
-        "occurrence_count": "4",
         "fallback_function": "now_utc_rfc3339_or_fallback at timeutil.rs:67-69",
+        "occurrence_count": "4",
+        "model_used": "kimi-code/kimi-for-coding",
         "runner_used": "kimi",
         "scan_agent": "scan-maintenance"
       }
@@ -3634,9 +3634,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "scan_agent": "scan-maintenance",
         "runner_used": "kimi",
-        "model_used": "kimi-code/kimi-for-coding",
-        "scan_agent": "scan-maintenance"
+        "model_used": "kimi-code/kimi-for-coding"
       }
     },
     {
@@ -3717,8 +3717,8 @@
       ],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "kimi-code/kimi-for-coding",
-        "runner_used": "kimi"
+        "runner_used": "kimi",
+        "model_used": "kimi-code/kimi-for-coding"
       }
     },
     {
@@ -3801,14 +3801,14 @@
         "RQ-0657"
       ],
       "custom_fields": {
-        "plugin_location": "crates/ralph/src/runner/execution/builtin_plugins.rs:530-631",
-        "runner_used": "kimi",
         "executor_location": "crates/ralph/src/runner/execution/plugin_executor.rs",
-        "completed_via": "RQ-0657 (foundational plugin framework)",
-        "trait_location": "crates/ralph/src/runner/execution/plugin_trait.rs",
-        "status_note": "COMPLETED - KimiPlugin fully implemented and legacy code removed",
         "model_used": "kimi-code/kimi-for-coding",
-        "legacy_code_removed": "true"
+        "status_note": "COMPLETED - KimiPlugin fully implemented and legacy code removed",
+        "plugin_location": "crates/ralph/src/runner/execution/builtin_plugins.rs:530-631",
+        "legacy_code_removed": "true",
+        "trait_location": "crates/ralph/src/runner/execution/plugin_trait.rs",
+        "completed_via": "RQ-0657 (foundational plugin framework)",
+        "runner_used": "kimi"
       }
     },
     {
@@ -3923,8 +3923,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "kimi-code/kimi-for-coding",
-        "runner_used": "kimi"
+        "runner_used": "kimi",
+        "model_used": "kimi-code/kimi-for-coding"
       }
     },
     {
@@ -3984,8 +3984,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "kimi",
-        "model_used": "kimi-code/kimi-for-coding"
+        "model_used": "kimi-code/kimi-for-coding",
+        "runner_used": "kimi"
       }
     },
     {
@@ -4050,8 +4050,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "kimi-code/kimi-for-coding",
-        "runner_used": "kimi"
+        "runner_used": "kimi",
+        "model_used": "kimi-code/kimi-for-coding"
       }
     },
     {
@@ -4118,11 +4118,11 @@
         "RQ-0663"
       ],
       "custom_fields": {
-        "legacy_code_to_remove": "runners.rs:48-118, response.rs:139-164",
-        "cleanup_required": "true",
-        "runner_used": "kimi",
         "plugin_status": "already_implemented",
-        "model_used": "kimi-code/kimi-for-coding"
+        "cleanup_required": "true",
+        "model_used": "kimi-code/kimi-for-coding",
+        "runner_used": "kimi",
+        "legacy_code_to_remove": "runners.rs:48-118, response.rs:139-164"
       }
     },
     {
@@ -4178,12 +4178,12 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "response_parser_location": "crates/ralph/src/runner/execution/builtin_plugins.rs:400-427",
         "legacy_code_location": "crates/ralph/src/runner/execution/runners.rs:48-110",
+        "response_parser_location": "crates/ralph/src/runner/execution/builtin_plugins.rs:400-427",
+        "status_note": "COMPLETED - GeminiPlugin fully implemented via RQ-0657 foundational framework",
         "runner_used": "kimi",
-        "plugin_location": "crates/ralph/src/runner/execution/builtin_plugins.rs:354-427",
         "model_used": "kimi-code/kimi-for-coding",
-        "status_note": "COMPLETED - GeminiPlugin fully implemented via RQ-0657 foundational framework"
+        "plugin_location": "crates/ralph/src/runner/execution/builtin_plugins.rs:354-427"
       }
     },
     {
@@ -4243,11 +4243,11 @@
         "RQ-0657"
       ],
       "custom_fields": {
-        "model_used": "kimi-code/kimi-for-coding",
         "plugin_status": "implemented_needs_cleanup",
+        "runner_used": "kimi",
         "cleanup_type": "legacy_code_removal",
         "rq_0657_status": "completed",
-        "runner_used": "kimi"
+        "model_used": "kimi-code/kimi-for-coding"
       }
     },
     {
@@ -4310,15 +4310,15 @@
         "RQ-0657"
       ],
       "custom_fields": {
-        "task_type": "cleanup",
-        "original_title": "Isolate cursor runner into its own plugin for easier runner-specific customization",
-        "legacy_code_location": "crates/ralph/src/runner/execution/runners.rs:39-108",
         "rq_0657_status": "completed",
-        "cleanup_status": "already_completed_via_rq_0657",
         "runner_used": "kimi",
+        "task_type": "cleanup",
         "cursor_plugin_location": "crates/ralph/src/runner/execution/builtin_plugins.rs:805-885",
+        "legacy_code_location": "crates/ralph/src/runner/execution/runners.rs:39-108",
+        "cleanup_status": "already_completed_via_rq_0657",
         "model_used": "kimi-code/kimi-for-coding",
-        "verification_only": "true"
+        "verification_only": "true",
+        "original_title": "Isolate cursor runner into its own plugin for easier runner-specific customization"
       }
     },
     {
@@ -4369,9 +4369,9 @@
       "relates_to": [],
       "custom_fields": {
         "runner_used": "kimi",
-        "execution_file_lines": "572",
-        "model_used": "kimi-code/kimi-for-coding",
         "scan_agent": "scan-maintenance",
+        "model_used": "kimi-code/kimi-for-coding",
+        "execution_file_lines": "572",
         "tests_file_lines": "412"
       }
     },
@@ -4423,9 +4423,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-maintenance",
+        "model_used": "kimi-code/kimi-for-coding",
         "runner_used": "kimi",
-        "model_used": "kimi-code/kimi-for-coding"
+        "scan_agent": "scan-maintenance"
       }
     },
     {
@@ -4485,10 +4485,10 @@
       "relates_to": [],
       "custom_fields": {
         "current_loc": "3383",
-        "model_used": "kimi-code/kimi-for-coding",
         "runner_used": "kimi",
         "scan_agent": "scan-maintenance",
-        "target_loc": "800"
+        "target_loc": "800",
+        "model_used": "kimi-code/kimi-for-coding"
       }
     },
     {
@@ -4550,14 +4550,14 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "kimi",
-        "model_used": "kimi-code/kimi-for-coding",
-        "existing_submodules": "7",
+        "code_lines": "2200",
         "current_loc": "3290",
+        "previous_loc": "3241",
+        "existing_submodules": "7",
         "scan_agent": "scan-maintenance",
         "test_lines": "1000",
-        "previous_loc": "3241",
-        "code_lines": "2200"
+        "model_used": "kimi-code/kimi-for-coding",
+        "runner_used": "kimi"
       }
     },
     {
@@ -4602,9 +4602,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-maintenance",
         "model_used": "kimi-code/kimi-for-coding",
-        "runner_used": "kimi"
+        "runner_used": "kimi",
+        "scan_agent": "scan-maintenance"
       }
     },
     {
@@ -4665,13 +4665,13 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "estimated_effort": "medium",
         "user_value": "Eliminates manual step, prevents queue bloat, reduces cognitive load",
-        "model_used": "kimi-code/kimi-for-coding",
-        "runner_used": "kimi",
         "refresh_note": "As of 2026-02-07, auto-archive already exists in TUI and `ralph run` supervision; remaining work is queue-level age-based sweep and docs/config alignment.",
-        "opportunity_type": "automation"
+        "opportunity_type": "automation",
+        "estimated_effort": "medium",
+        "runner_used": "kimi",
+        "scan_agent": "scan-innovation",
+        "model_used": "kimi-code/kimi-for-coding"
       }
     },
     {
@@ -4738,12 +4738,12 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "user_value": "Unlocks full plugin extensibility - custom validators, prompt modifiers, post-processing",
+        "estimated_effort": "medium",
         "model_used": "kimi-code/kimi-for-coding",
-        "opportunity_type": "feature-gap",
+        "scan_agent": "scan-innovation",
         "runner_used": "kimi",
-        "estimated_effort": "medium"
+        "opportunity_type": "feature-gap",
+        "user_value": "Unlocks full plugin extensibility - custom validators, prompt modifiers, post-processing"
       }
     },
     {
@@ -4813,12 +4813,12 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "estimated_effort": "low",
-        "model_used": "kimi-code/kimi-for-coding",
-        "runner_used": "kimi",
-        "scan_agent": "scan-innovation",
         "user_value": "Prevents forgotten tasks, improves queue hygiene, surfaces work needing attention",
-        "opportunity_type": "analytics"
+        "estimated_effort": "low",
+        "opportunity_type": "analytics",
+        "scan_agent": "scan-innovation",
+        "model_used": "kimi-code/kimi-for-coding",
+        "runner_used": "kimi"
       }
     },
     {
@@ -4875,8 +4875,8 @@
       "relates_to": [],
       "custom_fields": {
         "scan_agent": "scan-maintenance",
-        "runner_used": "kimi",
-        "model_used": "kimi-code/kimi-for-coding"
+        "model_used": "kimi-code/kimi-for-coding",
+        "runner_used": "kimi"
       }
     },
     {
@@ -4990,8 +4990,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "kimi",
         "scan_agent": "scan-maintenance",
+        "runner_used": "kimi",
         "model_used": "kimi-code/kimi-for-coding"
       }
     },
@@ -5099,8 +5099,8 @@
       "relates_to": [],
       "custom_fields": {
         "runner_used": "kimi",
-        "scan_agent": "scan-maintenance",
-        "model_used": "kimi-code/kimi-for-coding"
+        "model_used": "kimi-code/kimi-for-coding",
+        "scan_agent": "scan-maintenance"
       }
     },
     {
@@ -5153,8 +5153,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "kimi",
         "scan_agent": "scan-maintenance",
+        "runner_used": "kimi",
         "model_used": "kimi-code/kimi-for-coding"
       }
     },
@@ -5215,9 +5215,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "kimi",
+        "scan_agent": "scan-maintenance",
         "model_used": "kimi-code/kimi-for-coding",
-        "scan_agent": "scan-maintenance"
+        "runner_used": "kimi"
       }
     },
     {
@@ -5280,8 +5280,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-maintenance",
         "model_used": "kimi-code/kimi-for-coding",
+        "scan_agent": "scan-maintenance",
         "runner_used": "kimi"
       }
     },
@@ -5345,10 +5345,10 @@
       "relates_to": [],
       "custom_fields": {
         "scan_agent": "scan-maintenance",
-        "model_used": "kimi-code/kimi-for-coding",
         "supervision_wc_lines": "1446",
-        "runner_used": "kimi",
         "mod_rs_wc_lines": "1734",
+        "model_used": "kimi-code/kimi-for-coding",
+        "runner_used": "kimi",
         "run_tests_wc_lines": "2617"
       }
     },
@@ -5399,9 +5399,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "kimi",
+        "scan_agent": "scan-maintenance",
         "model_used": "kimi-code/kimi-for-coding",
-        "scan_agent": "scan-maintenance"
+        "runner_used": "kimi"
       }
     },
     {
@@ -5452,9 +5452,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "model_used": "kimi-code/kimi-for-coding",
         "runner_used": "kimi",
-        "scan_agent": "scan-maintenance",
-        "model_used": "kimi-code/kimi-for-coding"
+        "scan_agent": "scan-maintenance"
       }
     },
     {
@@ -5604,10 +5604,10 @@
       "relates_to": [],
       "custom_fields": {
         "user_value": "Reduces CLI verbosity, enables workflow presets, improves discoverability of settings",
-        "estimated_effort": "medium",
-        "model_used": "kimi-code/kimi-for-coding",
         "runner_used": "kimi",
+        "model_used": "kimi-code/kimi-for-coding",
         "opportunity_type": "ux-improvement",
+        "estimated_effort": "medium",
         "scan_agent": "scan-innovation"
       }
     },
@@ -5675,12 +5675,12 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "kimi-code/kimi-for-coding",
-        "scan_agent": "scan-innovation",
-        "opportunity_type": "reliability",
-        "runner_used": "kimi",
         "user_value": "Reduces manual intervention for transient failures, improves success rate, handles network hiccups",
-        "estimated_effort": "medium"
+        "runner_used": "kimi",
+        "opportunity_type": "reliability",
+        "estimated_effort": "medium",
+        "scan_agent": "scan-innovation",
+        "model_used": "kimi-code/kimi-for-coding"
       }
     },
     {
@@ -5742,11 +5742,11 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "opportunity_type": "automation",
         "user_value": "Enables 'set and forget' operation, integrates with system services, reduces manual monitoring",
         "model_used": "kimi-code/kimi-for-coding",
         "estimated_effort": "high",
         "runner_used": "kimi",
+        "opportunity_type": "automation",
         "scan_agent": "scan-innovation"
       }
     },
@@ -5862,10 +5862,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "kimi",
-        "scan_agent": "scan-innovation",
         "contentview_lines": "700",
         "model_used": "kimi-code/kimi-for-coding",
+        "runner_used": "kimi",
+        "scan_agent": "scan-innovation",
         "ralphmacapp_lines": "25"
       }
     },
@@ -5958,14 +5958,14 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "estimated_effort": "medium-large",
-        "runner_used": "kimi",
+        "source": "user-request",
+        "modified_files_count": "4",
         "model_used": "kimi-code/kimi-for-coding",
         "feature_area": "macos-app-workspace-management",
-        "modified_files_count": "4",
         "affected_targets": "RalphMac,RalphCore",
-        "source": "user-request",
-        "new_files_count": "6"
+        "estimated_effort": "medium-large",
+        "new_files_count": "6",
+        "runner_used": "kimi"
       }
     },
     {
@@ -6027,9 +6027,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
         "runner_used": "kimi",
-        "model_used": "kimi-code/kimi-for-coding"
+        "model_used": "kimi-code/kimi-for-coding",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -6094,11 +6094,11 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "estimated_files_to_modify": "3",
-        "estimated_files_to_create": "4",
-        "runner_used": "kimi",
         "scan_agent": "scan-innovation",
-        "model_used": "kimi-code/kimi-for-coding"
+        "model_used": "kimi-code/kimi-for-coding",
+        "estimated_files_to_create": "4",
+        "estimated_files_to_modify": "3",
+        "runner_used": "kimi"
       }
     },
     {
@@ -6167,9 +6167,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "contentview_exists": "false",
         "runner_used": "kimi",
         "scan_agent": "scan-innovation",
+        "contentview_exists": "false",
         "model_used": "kimi-code/kimi-for-coding",
         "primary_target": "WorkspaceView.swift"
       }
@@ -6236,11 +6236,11 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "has_custom_template_support": "true",
         "scan_agent": "scan-innovation",
         "template_count": "10",
-        "model_used": "kimi-code/kimi-for-coding",
         "runner_used": "kimi",
-        "has_custom_template_support": "true"
+        "model_used": "kimi-code/kimi-for-coding"
       }
     },
     {
@@ -6310,8 +6310,8 @@
       ],
       "custom_fields": {
         "runner_used": "kimi",
-        "scan_agent": "scan-innovation",
-        "model_used": "kimi-code/kimi-for-coding"
+        "model_used": "kimi-code/kimi-for-coding",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -6444,9 +6444,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "model_used": "kimi-code/kimi-for-coding",
         "runner_used": "kimi",
-        "scan_agent": "scan-innovation",
-        "model_used": "kimi-code/kimi-for-coding"
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -6519,8 +6519,8 @@
       "relates_to": [],
       "custom_fields": {
         "model_used": "kimi-code/kimi-for-coding",
-        "scan_agent": "scan-innovation",
-        "runner_used": "kimi"
+        "runner_used": "kimi",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -6591,9 +6591,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "scan_agent": "scan-innovation",
         "model_used": "kimi-code/kimi-for-coding",
-        "runner_used": "kimi",
-        "scan_agent": "scan-innovation"
+        "runner_used": "kimi"
       }
     },
     {
@@ -6664,11 +6664,11 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-maintenance",
         "critical_issues": "Canvas graph, drag-drop, color-only indicators",
+        "affected_views": "13",
+        "scan_agent": "scan-maintenance",
         "accessibility_modifiers_found": "0",
-        "total_swift_files": "37",
-        "affected_views": "13"
+        "total_swift_files": "37"
       }
     },
     {
@@ -6755,8 +6755,8 @@
         "RQ-0717"
       ],
       "custom_fields": {
-        "runner_used": "kimi",
-        "model_used": "kimi-code/kimi-for-coding"
+        "model_used": "kimi-code/kimi-for-coding",
+        "runner_used": "kimi"
       }
     },
     {
@@ -6819,11 +6819,11 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "strict_concurrency": "complete",
-        "model_used": "kimi-code/kimi-for-coding",
         "scan_agent": "scan-maintenance",
         "swift_version": "6.2",
-        "runner_used": "kimi"
+        "model_used": "kimi-code/kimi-for-coding",
+        "runner_used": "kimi",
+        "strict_concurrency": "complete"
       }
     },
     {
@@ -6888,10 +6888,10 @@
       "relates_to": [],
       "custom_fields": {
         "model_used": "kimi-code/kimi-for-coding",
-        "version_range_suggested": "0.1.0 - 0.2.0",
+        "scan_agent": "scan-maintenance",
         "runner_used": "kimi",
-        "cli_version": "0.1.0",
-        "scan_agent": "scan-maintenance"
+        "version_range_suggested": "0.1.0 - 0.2.0",
+        "cli_version": "0.1.0"
       }
     },
     {
@@ -6953,10 +6953,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "kimi-code/kimi-for-coding",
+        "runner_used": "kimi",
         "scan_agent": "scan-maintenance",
         "file_line_count": "1320",
-        "runner_used": "kimi"
+        "model_used": "kimi-code/kimi-for-coding"
       }
     },
     {
@@ -7012,11 +7012,11 @@
       "relates_to": [],
       "custom_fields": {
         "test_target": "RalphCoreTests",
-        "model_used": "kimi-code/kimi-for-coding",
         "runner_used": "kimi",
+        "model_used": "kimi-code/kimi-for-coding",
+        "isTaskBlocked_line": "646",
         "scan_agent": "scan-maintenance",
-        "detectTaskChanges_line": "517",
-        "isTaskBlocked_line": "646"
+        "detectTaskChanges_line": "517"
       }
     },
     {
@@ -7086,11 +7086,11 @@
       "relates_to": [],
       "custom_fields": {
         "critical_view_files": "TaskListView, KanbanBoardView, TaskDetailView, TaskCreationView, RunControlConsoleView, WorkspaceView",
-        "unit_test_count": "6",
-        "scan_agent": "scan-maintenance",
-        "runner_used": "kimi",
         "model_used": "kimi-code/kimi-for-coding",
-        "xcuitest_count": "0"
+        "runner_used": "kimi",
+        "unit_test_count": "6",
+        "xcuitest_count": "0",
+        "scan_agent": "scan-maintenance"
       }
     },
     {
@@ -7152,12 +7152,12 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "console_view_swift_lines": "198",
         "runner_used": "kimi",
-        "model_used": "kimi-code/kimi-for-coding",
         "scan_agent": "scan-maintenance",
-        "workspace_swift_lines": "1602",
         "cli_client_swift_lines": "366",
-        "console_view_swift_lines": "198"
+        "workspace_swift_lines": "1602",
+        "model_used": "kimi-code/kimi-for-coding"
       }
     },
     {
@@ -7218,11 +7218,11 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-maintenance",
-        "retryable_error_types": "POSIX EAGAIN, EWOULDBLOCK, EBUSY, ELOCKED equivalents",
-        "affected_operations_count": "11",
         "runner_used": "kimi",
-        "model_used": "kimi-code/kimi-for-coding"
+        "scan_agent": "scan-maintenance",
+        "affected_operations_count": "11",
+        "model_used": "kimi-code/kimi-for-coding",
+        "retryable_error_types": "POSIX EAGAIN, EWOULDBLOCK, EBUSY, ELOCKED equivalents"
       }
     },
     {
@@ -7283,11 +7283,11 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "kimi-code/kimi-for-coding",
-        "scan_agent": "scan-maintenance",
         "existing_os_log_calls": "5",
+        "print_statements": "1 (DEBUG-only)",
+        "model_used": "kimi-code/kimi-for-coding",
         "runner_used": "kimi",
-        "print_statements": "1 (DEBUG-only)"
+        "scan_agent": "scan-maintenance"
       }
     },
     {
@@ -7415,13 +7415,13 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "kimi",
-        "nav_viewmodel_lines": "187",
         "ralphmacapp_lines": "392",
+        "scan_agent": "scan-maintenance",
+        "runner_used": "kimi",
         "window_state_struct_lines": "44",
         "workspace_manager_lines": "322",
-        "model_used": "kimi-code/kimi-for-coding",
-        "scan_agent": "scan-maintenance"
+        "nav_viewmodel_lines": "187",
+        "model_used": "kimi-code/kimi-for-coding"
       }
     },
     {
@@ -7482,9 +7482,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "kimi",
         "scan_agent": "scan-maintenance",
-        "model_used": "kimi-code/kimi-for-coding"
+        "model_used": "kimi-code/kimi-for-coding",
+        "runner_used": "kimi"
       }
     },
     {
@@ -7546,11 +7546,11 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "kimi",
+        "scan_agent": "scan-maintenance",
         "affected_files": "5",
-        "model_used": "kimi-code/kimi-for-coding",
+        "runner_used": "kimi",
         "estimated_complexity": "medium",
-        "scan_agent": "scan-maintenance"
+        "model_used": "kimi-code/kimi-for-coding"
       }
     },
     {
@@ -7627,9 +7627,9 @@
       "relates_to": [],
       "custom_fields": {
         "model_used": "kimi-for-coding/k2p5",
-        "runner_used": "opencode",
         "analysis_complete": "true",
         "kimi_cli_path": "~/Projects/kimi-cli",
+        "runner_used": "opencode",
         "source": "user-request"
       }
     },
@@ -7746,11 +7746,11 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "source": "user-request",
-        "runner_used": "opencode",
-        "model_used": "google/gemini-3-flash-preview",
         "failure_type": "Index out of range",
         "affected_test": "test_delayCalculation_withBackoff",
+        "runner_used": "opencode",
+        "model_used": "google/gemini-3-flash-preview",
+        "source": "user-request",
         "root_cause": "Sync progress handler forcing detached tasks"
       }
     },
@@ -7800,10 +7800,10 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "opencode",
         "model_used": "kimi-for-coding/k2p5",
         "source": "user-request",
-        "priority_reason": "CI gate reporting false positives allows broken code to be merged"
+        "priority_reason": "CI gate reporting false positives allows broken code to be merged",
+        "runner_used": "opencode"
       }
     },
     {
@@ -7862,11 +7862,11 @@
       ],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "opencode",
-        "source": "user-request",
-        "flag": "-warnings-as-errors=YES",
+        "affected_targets": "macos-build, macos-test",
         "model_used": "kimi-for-coding/k2p5",
-        "affected_targets": "macos-build, macos-test"
+        "flag": "-warnings-as-errors=YES",
+        "runner_used": "opencode",
+        "source": "user-request"
       }
     },
     {
@@ -7918,11 +7918,11 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "opencode",
-        "warning_type": "deprecated_api",
-        "model_used": "kimi-for-coding/k2p5",
         "source": "user-request",
-        "affected_files": "CrashReporter.swift"
+        "warning_type": "deprecated_api",
+        "affected_files": "CrashReporter.swift",
+        "model_used": "kimi-for-coding/k2p5",
+        "runner_used": "opencode"
       }
     },
     {
@@ -7988,11 +7988,11 @@
       "relates_to": [],
       "custom_fields": {
         "affected_task": "RQ-0446",
-        "bug_verified": "true",
-        "source": "user-request",
         "model_used": "kimi-code/kimi-for-coding",
+        "bug_verified": "true",
         "failure_count": "50",
-        "runner_used": "kimi"
+        "runner_used": "kimi",
+        "source": "user-request"
       }
     },
     {
@@ -8058,13 +8058,13 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "kimi",
-        "has_file_watching": "true",
+        "task_detail_view_lines": "541",
+        "workspace_lines": "1776",
         "has_updated_at_field": "true",
+        "has_file_watching": "true",
         "model_used": "kimi-code/kimi-for-coding",
         "scan_agent": "scan-maintenance",
-        "workspace_lines": "1776",
-        "task_detail_view_lines": "541"
+        "runner_used": "kimi"
       }
     },
     {
@@ -8139,12 +8139,12 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "workspace_swift_lines": "1850",
-        "runner_used": "kimi",
-        "tasklistview_swift_lines": "610",
         "model_used": "kimi-code/kimi-for-coding",
+        "workspace_swift_lines": "1850",
+        "tasklistview_swift_lines": "610",
         "scan_agent": "scan-maintenance",
-        "workspaceview_swift_lines": "1212"
+        "workspaceview_swift_lines": "1212",
+        "runner_used": "kimi"
       }
     },
     {
@@ -8211,8 +8211,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "evidence_refreshed": "true",
         "existing_infrastructure": "ErrorRecoverySheet, RecoveryError, ErrorCategory, RetryHelper",
+        "evidence_refreshed": "true",
         "scan_agent": "scan-maintenance"
       }
     },
@@ -8264,11 +8264,11 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "date_context": "February 2026",
+        "runner_used": "kimi",
+        "model_used": "kimi-code/kimi-for-coding",
         "target_file": "AGENTS.md",
         "insert_position": "line_1_before_all_content",
-        "runner_used": "kimi",
-        "model_used": "kimi-code/kimi-for-coding"
+        "date_context": "February 2026"
       }
     },
     {
@@ -8332,9 +8332,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "kimi-code/kimi-for-coding",
         "runner_used": "kimi",
-        "scan_agent": "scan-innovation"
+        "scan_agent": "scan-innovation",
+        "model_used": "kimi-code/kimi-for-coding"
       }
     },
     {
@@ -8397,11 +8397,11 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
-        "priority_adjusted": "true",
-        "existing_shortcuts_count": "15+",
         "model_used": "kimi-code/kimi-for-coding",
-        "runner_used": "kimi"
+        "existing_shortcuts_count": "15+",
+        "priority_adjusted": "true",
+        "runner_used": "kimi",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -8579,8 +8579,8 @@
       "relates_to": [],
       "custom_fields": {
         "runner_used": "kimi",
-        "model_used": "kimi-code/kimi-for-coding",
-        "affected_areas": "config loading, queue loading, repo root detection"
+        "affected_areas": "config loading, queue loading, repo root detection",
+        "model_used": "kimi-code/kimi-for-coding"
       }
     },
     {
@@ -8640,9 +8640,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
+        "model_used": "gpt-5.3-codex-spark",
         "scan_agent": "scan-innovation",
-        "model_used": "gpt-5.3-codex-spark"
+        "runner_used": "codex"
       }
     },
     {
@@ -8763,8 +8763,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.3-codex-spark",
         "runner_used": "codex",
+        "model_used": "gpt-5.3-codex-spark",
         "scan_agent": "scan-innovation"
       }
     },
@@ -8817,9 +8817,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.3-codex-spark",
+        "scan_agent": "scan-innovation",
         "runner_used": "codex",
-        "scan_agent": "scan-innovation"
+        "model_used": "gpt-5.3-codex-spark"
       }
     },
     {
@@ -8868,8 +8868,8 @@
       "relates_to": [],
       "custom_fields": {
         "runner_used": "codex",
-        "scan_agent": "scan-innovation",
-        "model_used": "gpt-5.3-codex-spark"
+        "model_used": "gpt-5.3-codex-spark",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -8919,9 +8919,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
         "runner_used": "codex",
-        "model_used": "gpt-5.3-codex-spark"
+        "model_used": "gpt-5.3-codex-spark",
+        "scan_agent": "scan-innovation"
       }
     },
     {
@@ -9039,8 +9039,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-innovation",
         "runner_used": "codex",
+        "scan_agent": "scan-innovation",
         "model_used": "gpt-5.3-codex"
       }
     },
@@ -9098,9 +9098,69 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "claude",
         "scan_agent": "scan-innovation",
-        "model_used": "opus"
+        "model_used": "opus",
+        "runner_used": "claude"
+      }
+    },
+    {
+      "id": "RQ-0816",
+      "status": "done",
+      "title": "Add aggregated analytics CLI endpoint to cut RalphMac process fan-out",
+      "description": "Opportunity type: performance and cost.\n\nWhy it matters:\n- The analytics screen launches multiple CLI processes in parallel for summary/velocity/burndown/stats/history, which increases latency and battery usage and multiplies failure points.\n\nProposed approach (minimal slice first):\n- Add a single aggregated analytics command (for example `ralph queue dashboard --format json --days N`) that returns all currently-needed dashboard payloads in one invocation.\n\nExpansion:\n- Add cached snapshots and optional per-section toggles for lightweight polling.\n\nRisks and mitigations:\n- Risk: larger payload may fail whole response when one section errors.\n- Mitigation: section-level error envelopes in the aggregated response.",
+      "priority": "medium",
+      "tags": [
+        "innovation",
+        "performance",
+        "analytics",
+        "macos"
+      ],
+      "scope": [
+        "apps/RalphMac/RalphCore/Workspace.swift",
+        "apps/RalphMac/RalphCore/AnalyticsModels.swift",
+        "crates/ralph/src/cli/queue/mod.rs",
+        "crates/ralph/src/cli/queue/dashboard.rs",
+        "crates/ralph/src/reports/dashboard.rs",
+        "docs/cli.md"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/reports/dashboard.rs:1-270 :: DashboardReport struct and build_dashboard_report fn implemented with SectionResult wrappers and unit tests.",
+        "path: crates/ralph/src/cli/queue/dashboard.rs:1-59 :: QueueDashboardArgs and handle fn implemented for CLI.",
+        "path: crates/ralph/src/cli/queue/mod.rs:97 :: Dashboard subcommand registered in handle_queue router.",
+        "path: apps/RalphMac/RalphCore/AnalyticsModels.swift:212-262 :: DashboardReport, DashboardSections, SectionResult, SectionStatus Swift models.",
+        "path: apps/RalphMac/RalphCore/Workspace.swift:2004-2094 :: loadAnalytics uses aggregated endpoint first with fallback to legacy parallel loading.",
+        "path: docs/cli.md:1600-1630 :: Documentation for ralph queue dashboard command.",
+        "verification: make macos-ci passes cleanly including Rust clippy, tests, and macOS Xcode build+test.",
+        "verification: ralph queue dashboard --days 7 produces valid JSON with all 5 sections (productivity_summary, productivity_velocity, burndown, queue_stats, history)."
+      ],
+      "plan": [
+        "Implementation is complete. All CI gates pass.",
+        "Verify with: make macos-ci",
+        "Verify with: cargo run -p ralph -- queue dashboard --days 7 | jq '.sections | keys'",
+        "Mark task complete."
+      ],
+      "notes": [
+        "Feature complete: single CLI invocation returns all 5 analytics sections.",
+        "RalphMac updated to use aggregated endpoint with fallback to legacy parallel loading.",
+        "SectionStatus has Ok and Unavailable variants (Error variant not needed for current use cases).",
+        "Added aggregated analytics CLI endpoint {\n  \"window_days\": 30,\n  \"generated_at\": \"2026-02-14T20:26:12.683105000Z\",\n  \"sections\": {\n    \"productivity_summary\": {\n      \"status\": \"ok\",\n      \"data\": {\n        \"total_completed\": 20,\n        \"current_streak\": 3,\n        \"longest_streak\": 3,\n        \"last_completed_date\": \"2026-02-14\",\n        \"next_milestone\": 50,\n        \"milestones\": [\n          {\n            \"threshold\": 10,\n            \"achieved_at\": \"2026-02-10T01:09:35.326659000Z\",\n            \"celebrated\": true\n          }\n        ],\n        \"recent_completions\": [\n          {\n            \"id\": \"RQ-0815\",\n            \"title\": \"Parse queue changes directly in RalphMac watcher path to reduce CLI churn\",\n            \"completed_at\": \"2026-02-14T18:52:15.678067000Z\"\n          },\n          {\n            \"id\": \"RQ-0814\",\n            \"title\": \"Add webhook delivery diagnostics and replay controls\",\n            \"completed_at\": \"2026-02-13T15:37:06.906295000Z\"\n          },\n          {\n            \"id\": \"RQ-0812\",\n            \"title\": \"Add `ralph daemon logs` for integrated tail/follow and recent-error views\",\n            \"completed_at\": \"2026-02-12T23:00:05.196640000Z\"\n          },\n          {\n            \"id\": \"RQ-0811\",\n            \"title\": \"Rework `ralph task --help` into workflow-oriented command groups\",\n            \"completed_at\": \"2026-02-12T22:42:48.480781000Z\"\n          },\n          {\n            \"id\": \"RQ-0810\",\n            \"title\": \"Cache queue JSON-repair regexes to reduce hot-path CPU in parallel selection\",\n            \"completed_at\": \"2026-02-12T22:20:17.281373000Z\"\n          }\n        ]\n      }\n    },\n    \"productivity_velocity\": {\n      \"status\": \"ok\",\n      \"data\": {\n        \"window_days\": 30,\n        \"total_completed\": 20,\n        \"average_per_day\": 0.6666666666666666,\n        \"best_day\": [\n          \"2026-02-09\",\n          8\n        ]\n      }\n    },\n    \"burndown\": {\n      \"status\": \"ok\",\n      \"data\": {\n        \"window\": {\n          \"days\": 30,\n          \"start_date\": \"2026-01-16\",\n          \"end_date\": \"2026-02-14\"\n        },\n        \"daily_counts\": [\n          {\n            \"date\": \"2026-01-16\",\n            \"remaining\": 0\n          },\n          {\n            \"date\": \"2026-01-17\",\n            \"remaining\": 0\n          },\n          {\n            \"date\": \"2026-01-18\",\n            \"remaining\": 0\n          },\n          {\n            \"date\": \"2026-01-19\",\n            \"remaining\": 0\n          },\n          {\n            \"date\": \"2026-01-20\",\n            \"remaining\": 0\n          },\n          {\n            \"date\": \"2026-01-21\",\n            \"remaining\": 0\n          },\n          {\n            \"date\": \"2026-01-22\",\n            \"remaining\": 0\n          },\n          {\n            \"date\": \"2026-01-23\",\n            \"remaining\": 0\n          },\n          {\n            \"date\": \"2026-01-24\",\n            \"remaining\": 0\n          },\n          {\n            \"date\": \"2026-01-25\",\n            \"remaining\": 0\n          },\n          {\n            \"date\": \"2026-01-26\",\n            \"remaining\": 0\n          },\n          {\n            \"date\": \"2026-01-27\",\n            \"remaining\": 0\n          },\n          {\n            \"date\": \"2026-01-28\",\n            \"remaining\": 0\n          },\n          {\n            \"date\": \"2026-01-29\",\n            \"remaining\": 0\n          },\n          {\n            \"date\": \"2026-01-30\",\n            \"remaining\": 0\n          },\n          {\n            \"date\": \"2026-01-31\",\n            \"remaining\": 0\n          },\n          {\n            \"date\": \"2026-02-01\",\n            \"remaining\": 0\n          },\n          {\n            \"date\": \"2026-02-02\",\n            \"remaining\": 0\n          },\n          {\n            \"date\": \"2026-02-03\",\n            \"remaining\": 5\n          },\n          {\n            \"date\": \"2026-02-04\",\n            \"remaining\": 11\n          },\n          {\n            \"date\": \"2026-02-05\",\n            \"remaining\": 10\n          },\n          {\n            \"date\": \"2026-02-06\",\n            \"remaining\": 2\n          },\n          {\n            \"date\": \"2026-02-07\",\n            \"remaining\": 0\n          },\n          {\n            \"date\": \"2026-02-08\",\n            \"remaining\": 18\n          },\n          {\n            \"date\": \"2026-02-09\",\n            \"remaining\": 3\n          },\n          {\n            \"date\": \"2026-02-10\",\n            \"remaining\": 0\n          },\n          {\n            \"date\": \"2026-02-11\",\n            \"remaining\": 0\n          },\n          {\n            \"date\": \"2026-02-12\",\n            \"remaining\": 7\n          },\n          {\n            \"date\": \"2026-02-13\",\n            \"remaining\": 5\n          },\n          {\n            \"date\": \"2026-02-14\",\n            \"remaining\": 4\n          }\n        ],\n        \"max_count\": 18,\n        \"legend\": {\n          \"scale_per_block\": 1\n        }\n      }\n    },\n    \"queue_stats\": {\n      \"status\": \"ok\",\n      \"data\": {\n        \"summary\": {\n          \"total\": 153,\n          \"done\": 149,\n          \"rejected\": 0,\n          \"terminal\": 149,\n          \"active\": 4,\n          \"terminal_rate\": 97.38562091503267\n        },\n        \"durations\": {\n          \"count\": 146,\n          \"average_seconds\": 29418,\n          \"median_seconds\": 16419,\n          \"average_human\": \"8h 10m\",\n          \"median_human\": \"4h 33m\"\n        },\n        \"time_tracking\": {\n          \"lead_time\": {\n            \"count\": 146,\n            \"average_seconds\": 29418,\n            \"median_seconds\": 16419,\n            \"average_human\": \"8h 10m\",\n            \"median_human\": \"4h 33m\"\n          },\n          \"work_time\": {\n            \"count\": 103,\n            \"average_seconds\": 2327,\n            \"median_seconds\": 1970,\n            \"average_human\": \"38m\",\n            \"median_human\": \"32m\"\n          },\n          \"start_lag\": {\n            \"count\": 100,\n            \"average_seconds\": 30872,\n            \"median_seconds\": 16606,\n            \"average_human\": \"8h 34m\",\n            \"median_human\": \"4h 36m\"\n          }\n        },\n        \"velocity\": {\n          \"by_tag\": [\n            {\n              \"key\": \"maintenance\",\n              \"last_7_days\": 16,\n              \"last_30_days\": 59\n            },\n            {\n              \"key\": \"innovation\",\n              \"last_7_days\": 21,\n              \"last_30_days\": 49\n            },\n            {\n              \"key\": \"macos\",\n              \"last_7_days\": 31,\n              \"last_30_days\": 31\n            },\n            {\n              \"key\": \"reliability\",\n              \"last_7_days\": 11,\n              \"last_30_days\": 26\n            },\n            {\n              \"key\": \"ux\",\n              \"last_7_days\": 11,\n              \"last_30_days\": 25\n            },\n            {\n              \"key\": \"cli\",\n              \"last_7_days\": 4,\n              \"last_30_days\": 22\n            },\n            {\n              \"key\": \"parallel\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 22\n            },\n            {\n              \"key\": \"runner\",\n              \"last_7_days\": 2,\n              \"last_30_days\": 17\n            },\n            {\n              \"key\": \"tui\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 17\n            },\n            {\n              \"key\": \"queue\",\n              \"last_7_days\": 3,\n              \"last_30_days\": 16\n            },\n            {\n              \"key\": \"bug\",\n              \"last_7_days\": 5,\n              \"last_30_days\": 13\n            },\n            {\n              \"key\": \"refactor\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 13\n            },\n            {\n              \"key\": \"ui\",\n              \"last_7_days\": 11,\n              \"last_30_days\": 11\n            },\n            {\n              \"key\": \"docs\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 10\n            },\n            {\n              \"key\": \"architecture\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 10\n            },\n            {\n              \"key\": \"config\",\n              \"last_7_days\": 2,\n              \"last_30_days\": 9\n            },\n            {\n              \"key\": \"automation\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 8\n            },\n            {\n              \"key\": \"plugin\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 8\n            },\n            {\n              \"key\": \"ratatui\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 7\n            },\n            {\n              \"key\": \"ci\",\n              \"last_7_days\": 6,\n              \"last_30_days\": 7\n            },\n            {\n              \"key\": \"integration\",\n              \"last_7_days\": 2,\n              \"last_30_days\": 7\n            },\n            {\n              \"key\": \"error-handling\",\n              \"last_7_days\": 3,\n              \"last_30_days\": 6\n            },\n            {\n              \"key\": \"run-loop\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 6\n            },\n            {\n              \"key\": \"opentui\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 6\n            },\n            {\n              \"key\": \"performance\",\n              \"last_7_days\": 5,\n              \"last_30_days\": 6\n            },\n            {\n              \"key\": \"observability\",\n              \"last_7_days\": 3,\n              \"last_30_days\": 6\n            },\n            {\n              \"key\": \"validation\",\n              \"last_7_days\": 2,\n              \"last_30_days\": 6\n            },\n            {\n              \"key\": \"correctness\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 6\n            },\n            {\n              \"key\": \"productivity\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 6\n            },\n            {\n              \"key\": \"rust\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 5\n            },\n            {\n              \"key\": \"git\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 5\n            },\n            {\n              \"key\": \"workflow\",\n              \"last_7_days\": 3,\n              \"last_30_days\": 5\n            },\n            {\n              \"key\": \"time\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 4\n            },\n            {\n              \"key\": \"run\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 4\n            },\n            {\n              \"key\": \"analytics\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 4\n            },\n            {\n              \"key\": \"tests\",\n              \"last_7_days\": 3,\n              \"last_30_days\": 4\n            },\n            {\n              \"key\": \"webhook\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 3\n            },\n            {\n              \"key\": \"testing\",\n              \"last_7_days\": 2,\n              \"last_30_days\": 3\n            },\n            {\n              \"key\": \"swiftui\",\n              \"last_7_days\": 3,\n              \"last_30_days\": 3\n            },\n            {\n              \"key\": \"macos-ci\",\n              \"last_7_days\": 3,\n              \"last_30_days\": 3\n            },\n            {\n              \"key\": \"daemon\",\n              \"last_7_days\": 2,\n              \"last_30_days\": 3\n            },\n            {\n              \"key\": \"swift\",\n              \"last_7_days\": 3,\n              \"last_30_days\": 3\n            },\n            {\n              \"key\": \"cleanup\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 3\n            },\n            {\n              \"key\": \"eta\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 3\n            },\n            {\n              \"key\": \"plugins\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 3\n            },\n            {\n              \"key\": \"keyboard\",\n              \"last_7_days\": 2,\n              \"last_30_days\": 2\n            },\n            {\n              \"key\": \"supervision\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 2\n            },\n            {\n              \"key\": \"json\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 2\n            },\n            {\n              \"key\": \"codex\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 2\n            },\n            {\n              \"key\": \"makefile\",\n              \"last_7_days\": 2,\n              \"last_30_days\": 2\n            },\n            {\n              \"key\": \"session\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 2\n            },\n            {\n              \"key\": \"ux-improvement\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 2\n            },\n            {\n              \"key\": \"kimi\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 2\n            },\n            {\n              \"key\": \"workspace\",\n              \"last_7_days\": 2,\n              \"last_30_days\": 2\n            },\n            {\n              \"key\": \"configuration\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 2\n            },\n            {\n              \"key\": \"security\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 2\n            },\n            {\n              \"key\": \"prompts\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 2\n            },\n            {\n              \"key\": \"operability\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 2\n            },\n            {\n              \"key\": \"tooling\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 2\n            },\n            {\n              \"key\": \"recovery\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 2\n            },\n            {\n              \"key\": \"github\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 2\n            },\n            {\n              \"key\": \"accessibility\",\n              \"last_7_days\": 2,\n              \"last_30_days\": 2\n            },\n            {\n              \"key\": \"enhancement\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 2\n            },\n            {\n              \"key\": \"core-feature\",\n              \"last_7_days\": 2,\n              \"last_30_days\": 2\n            },\n            {\n              \"key\": \"doctor\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 2\n            },\n            {\n              \"key\": \"foundation\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 2\n            },\n            {\n              \"key\": \"task-management\",\n              \"last_7_days\": 2,\n              \"last_30_days\": 2\n            },\n            {\n              \"key\": \"task-update\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 2\n            },\n            {\n              \"key\": \"extensibility\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 2\n            },\n            {\n              \"key\": \"retry-logic\",\n              \"last_7_days\": 2,\n              \"last_30_days\": 2\n            },\n            {\n              \"key\": \"queue-management\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 2\n            },\n            {\n              \"key\": \"quality\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 2\n            },\n            {\n              \"key\": \"state\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 2\n            },\n            {\n              \"key\": \"warnings\",\n              \"last_7_days\": 2,\n              \"last_30_days\": 2\n            },\n            {\n              \"key\": \"schema\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 2\n            },\n            {\n              \"key\": \"dependencies\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 2\n            },\n            {\n              \"key\": \"logging\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"bug-fix\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"quality-gate\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"developer-experience\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"signal\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"serde\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"execution_history\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"resilience\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"gitignore\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"optimization\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"sorting\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"visibility\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"branch\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"kanban\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"version-check\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"slider\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"syntax-highlighting\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"animation\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"feature-gap\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"queue-lock\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"documentation\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"shortcuts\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"quick-access\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"path-resolution\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"task-creation\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"ipc\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"data-integrity\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"resume\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"cost\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"planning\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"task\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"graph\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"scaffolding\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"critical\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"opencode\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"gemini\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"tabs\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"debuggability\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"pi\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"hierarchy\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"input\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"persistence\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"focus\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"claude\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"env\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"debug\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"custom_fields\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"concurrency\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"timeout\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"console\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"crash-reporting\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"diagnostics\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"navigation\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"multi-window\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"error-messages\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"bug-prevention\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"user-experience\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"offline\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"refactoring\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"jsonc\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"dry\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"diff\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"polish\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"a11y\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"consistency\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"output\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"preflight\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"serde-json\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"editing\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"compatibility\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"agents\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"reproducibility\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"visual\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"conflict-resolution\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"repoprompt\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"sync\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"url-scheme\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"repo-dirty\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"command-palette\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"dry-run\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"test\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"contract\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"cursor\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"safety\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"memory\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"merge-conflict\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"tree-sitter\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"design-system\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"scroll\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"state-restoration\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"import\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"app\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"race-condition\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"xcode\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"onboarding\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"watch\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"module-boundaries\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"execution\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"api-migration\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"backoff\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"sessions\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"textarea\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"pr-automation\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"markdown\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"appkit-integration\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"select\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"background-service\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"runutil\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"path-handling\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"code-quality\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"multi-project\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"real-time\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"secrets\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"model\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"lfs\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"retry\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"voiceover\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"data-race\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"stream-json\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"menu-bar\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"init\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"test-fix\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"tech-debt\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"visualization\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"session-resume\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"swift-6\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"deprecation\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"phase1\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"locking\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"fix\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"merge\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"flakiness\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"big-text\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"charts\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"ansi\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"triage\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"plugin-system\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"date-awareness\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"parsing\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            },\n            {\n              \"key\": \"layout\",\n              \"last_7_days\": 0,\n              \"last_30_days\": 1\n            }\n          ],\n          \"by_runner\": [\n            {\n              \"key\": \"kimi\",\n              \"last_7_days\": 31,\n              \"last_30_days\": 66\n            },\n            {\n              \"key\": \"codex\",\n              \"last_7_days\": 8,\n              \"last_30_days\": 8\n            },\n            {\n              \"key\": \"opencode\",\n              \"last_7_days\": 5,\n              \"last_30_days\": 5\n            },\n            {\n              \"key\": \"claude\",\n              \"last_7_days\": 1,\n              \"last_30_days\": 1\n            }\n          ]\n        },\n        \"slow_groups\": {\n          \"by_tag\": [\n            {\n              \"key\": \"flakiness\",\n              \"count\": 1,\n              \"median_seconds\": 10168,\n              \"median_human\": \"2h 49m\"\n            },\n            {\n              \"key\": \"testing\",\n              \"count\": 2,\n              \"median_seconds\": 10168,\n              \"median_human\": \"2h 49m\"\n            },\n            {\n              \"key\": \"logging\",\n              \"count\": 1,\n              \"median_seconds\": 5732,\n              \"median_human\": \"1h 35m\"\n            },\n            {\n              \"key\": \"crash-reporting\",\n              \"count\": 1,\n              \"median_seconds\": 5732,\n              \"median_human\": \"1h 35m\"\n            },\n            {\n              \"key\": \"tooling\",\n              \"count\": 2,\n              \"median_seconds\": 5139,\n              \"median_human\": \"1h 25m\"\n            },\n            {\n              \"key\": \"repoprompt\",\n              \"count\": 1,\n              \"median_seconds\": 5139,\n              \"median_human\": \"1h 25m\"\n            },\n            {\n              \"key\": \"backoff\",\n              \"count\": 1,\n              \"median_seconds\": 4948,\n              \"median_human\": \"1h 22m\"\n            },\n            {\n              \"key\": \"resilience\",\n              \"count\": 1,\n              \"median_seconds\": 4948,\n              \"median_human\": \"1h 22m\"\n            },\n            {\n              \"key\": \"retry\",\n              \"count\": 1,\n              \"median_seconds\": 4948,\n              \"median_human\": \"1h 22m\"\n            },\n            {\n              \"key\": \"plugin-system\",\n              \"count\": 1,\n              \"median_seconds\": 4885,\n              \"median_human\": \"1h 21m\"\n            },\n            {\n              \"key\": \"extensibility\",\n              \"count\": 1,\n              \"median_seconds\": 4885,\n              \"median_human\": \"1h 21m\"\n            },\n            {\n              \"key\": \"bug-fix\",\n              \"count\": 1,\n              \"median_seconds\": 4885,\n              \"median_human\": \"1h 21m\"\n            },\n            {\n              \"key\": \"concurrency\",\n              \"count\": 1,\n              \"median_seconds\": 4729,\n              \"median_human\": \"1h 18m\"\n            },\n            {\n              \"key\": \"swift-6\",\n              \"count\": 1,\n              \"median_seconds\": 4729,\n              \"median_human\": \"1h 18m\"\n            },\n            {\n              \"key\": \"data-race\",\n              \"count\": 1,\n              \"median_seconds\": 4729,\n              \"median_human\": \"1h 18m\"\n            },\n            {\n              \"key\": \"planning\",\n              \"count\": 1,\n              \"median_seconds\": 4700,\n              \"median_human\": \"1h 18m\"\n            },\n            {\n              \"key\": \"module-boundaries\",\n              \"count\": 1,\n              \"median_seconds\": 4518,\n              \"median_human\": \"1h 15m\"\n            },\n            {\n              \"key\": \"github\",\n              \"count\": 2,\n              \"median_seconds\": 4150,\n              \"median_human\": \"1h 9m\"\n            },\n            {\n              \"key\": \"rust\",\n              \"count\": 5,\n              \"median_seconds\": 4150,\n              \"median_human\": \"1h 9m\"\n            },\n            {\n              \"key\": \"configuration\",\n              \"count\": 2,\n              \"median_seconds\": 4087,\n              \"median_human\": \"1h 8m\"\n            },\n            {\n              \"key\": \"ux-improvement\",\n              \"count\": 2,\n              \"median_seconds\": 4087,\n              \"median_human\": \"1h 8m\"\n            },\n            {\n              \"key\": \"eta\",\n              \"count\": 3,\n              \"median_seconds\": 4071,\n              \"median_human\": \"1h 7m\"\n            },\n            {\n              \"key\": \"hierarchy\",\n              \"count\": 1,\n              \"median_seconds\": 3999,\n              \"median_human\": \"1h 6m\"\n            },\n            {\n              \"key\": \"user-experience\",\n              \"count\": 1,\n              \"median_seconds\": 3995,\n              \"median_human\": \"1h 6m\"\n            },\n            {\n              \"key\": \"codex\",\n              \"count\": 2,\n              \"median_seconds\": 3849,\n              \"median_human\": \"1h 4m\"\n            },\n            {\n              \"key\": \"tests\",\n              \"count\": 4,\n              \"median_seconds\": 3849,\n              \"median_human\": \"1h 4m\"\n            },\n            {\n              \"key\": \"model\",\n              \"count\": 1,\n              \"median_seconds\": 3849,\n              \"median_human\": \"1h 4m\"\n            },\n            {\n              \"key\": \"retry-logic\",\n              \"count\": 2,\n              \"median_seconds\": 3693,\n              \"median_human\": \"1h 1m\"\n            },\n            {\n              \"key\": \"observability\",\n              \"count\": 6,\n              \"median_seconds\": 3656,\n              \"median_human\": \"1h\"\n            },\n            {\n              \"key\": \"webhook\",\n              \"count\": 2,\n              \"median_seconds\": 3656,\n              \"median_human\": \"1h\"\n            },\n            {\n              \"key\": \"serde\",\n              \"count\": 1,\n              \"median_seconds\": 3598,\n              \"median_human\": \"59m\"\n            },\n            {\n              \"key\": \"task-update\",\n              \"count\": 1,\n              \"median_seconds\": 3598,\n              \"median_human\": \"59m\"\n            },\n            {\n              \"key\": \"custom_fields\",\n              \"count\": 1,\n              \"median_seconds\": 3598,\n              \"median_human\": \"59m\"\n            },\n            {\n              \"key\": \"json\",\n              \"count\": 2,\n              \"median_seconds\": 3598,\n              \"median_human\": \"59m\"\n            },\n            {\n              \"key\": \"prompts\",\n              \"count\": 2,\n              \"median_seconds\": 3598,\n              \"median_human\": \"59m\"\n            },\n            {\n              \"key\": \"background-service\",\n              \"count\": 1,\n              \"median_seconds\": 3597,\n              \"median_human\": \"59m\"\n            },\n            {\n              \"key\": \"state-restoration\",\n              \"count\": 1,\n              \"median_seconds\": 3593,\n              \"median_human\": \"59m\"\n            },\n            {\n              \"key\": \"memory\",\n              \"count\": 1,\n              \"median_seconds\": 3387,\n              \"median_human\": \"56m\"\n            },\n            {\n              \"key\": \"reliability\",\n              \"count\": 12,\n              \"median_seconds\": 3055,\n              \"median_human\": \"50m\"\n            },\n            {\n              \"key\": \"a11y\",\n              \"count\": 1,\n              \"median_seconds\": 3020,\n              \"median_human\": \"50m\"\n            },\n            {\n              \"key\": \"accessibility\",\n              \"count\": 2,\n              \"median_seconds\": 3020,\n              \"median_human\": \"50m\"\n            },\n            {\n              \"key\": \"voiceover\",\n              \"count\": 1,\n              \"median_seconds\": 3020,\n              \"median_human\": \"50m\"\n            },\n            {\n              \"key\": \"resume\",\n              \"count\": 1,\n              \"median_seconds\": 3012,\n              \"median_human\": \"50m\"\n            },\n            {\n              \"key\": \"run-loop\",\n              \"count\": 3,\n              \"median_seconds\": 3012,\n              \"median_human\": \"50m\"\n            },\n            {\n              \"key\": \"queue-lock\",\n              \"count\": 1,\n              \"median_seconds\": 3012,\n              \"median_human\": \"50m\"\n            },\n            {\n              \"key\": \"recovery\",\n              \"count\": 1,\n              \"median_seconds\": 3012,\n              \"median_human\": \"50m\"\n            },\n            {\n              \"key\": \"offline\",\n              \"count\": 1,\n              \"median_seconds\": 2993,\n              \"median_human\": \"49m\"\n            },\n            {\n              \"key\": \"error-handling\",\n              \"count\": 6,\n              \"median_seconds\": 2993,\n              \"median_human\": \"49m\"\n            },\n            {\n              \"key\": \"productivity\",\n              \"count\": 4,\n              \"median_seconds\": 2989,\n              \"median_human\": \"49m\"\n            },\n            {\n              \"key\": \"foundation\",\n              \"count\": 1,\n              \"median_seconds\": 2955,\n              \"median_human\": \"49m\"\n            },\n            {\n              \"key\": \"tui\",\n              \"count\": 8,\n              \"median_seconds\": 2914,\n              \"median_human\": \"48m\"\n            },\n            {\n              \"key\": \"automation\",\n              \"count\": 8,\n              \"median_seconds\": 2914,\n              \"median_human\": \"48m\"\n            },\n            {\n              \"key\": \"dependencies\",\n              \"count\": 2,\n              \"median_seconds\": 2914,\n              \"median_human\": \"48m\"\n            },\n            {\n              \"key\": \"cli\",\n              \"count\": 18,\n              \"median_seconds\": 2914,\n              \"median_human\": \"48m\"\n            },\n            {\n              \"key\": \"queue-management\",\n              \"count\": 2,\n              \"median_seconds\": 2855,\n              \"median_human\": \"47m\"\n            },\n            {\n              \"key\": \"visibility\",\n              \"count\": 1,\n              \"median_seconds\": 2855,\n              \"median_human\": \"47m\"\n            },\n            {\n              \"key\": \"analytics\",\n              \"count\": 3,\n              \"median_seconds\": 2855,\n              \"median_human\": \"47m\"\n            },\n            {\n              \"key\": \"bug-prevention\",\n              \"count\": 1,\n              \"median_seconds\": 2844,\n              \"median_human\": \"47m\"\n            },\n            {\n              \"key\": \"validation\",\n              \"count\": 6,\n              \"median_seconds\": 2844,\n              \"median_human\": \"47m\"\n            },\n            {\n              \"key\": \"graph\",\n              \"count\": 1,\n              \"median_seconds\": 2844,\n              \"median_human\": \"47m\"\n            },\n            {\n              \"key\": \"run\",\n              \"count\": 4,\n              \"median_seconds\": 2838,\n              \"median_human\": \"47m\"\n            },\n            {\n              \"key\": \"debuggability\",\n              \"count\": 1,\n              \"median_seconds\": 2838,\n              \"median_human\": \"47m\"\n            },\n            {\n              \"key\": \"import\",\n              \"count\": 1,\n              \"median_seconds\": 2799,\n              \"median_human\": \"46m\"\n            },\n            {\n              \"key\": \"feature-gap\",\n              \"count\": 1,\n              \"median_seconds\": 2799,\n              \"median_human\": \"46m\"\n            },\n            {\n              \"key\": \"queue\",\n              \"count\": 13,\n              \"median_seconds\": 2799,\n              \"median_human\": \"46m\"\n            },\n            {\n              \"key\": \"kimi\",\n              \"count\": 2,\n              \"median_seconds\": 2627,\n              \"median_human\": \"43m\"\n            },\n            {\n              \"key\": \"cursor\",\n              \"count\": 1,\n              \"median_seconds\": 2626,\n              \"median_human\": \"43m\"\n            },\n            {\n              \"key\": \"cleanup\",\n              \"count\": 2,\n              \"median_seconds\": 2626,\n              \"median_human\": \"43m\"\n            },\n            {\n              \"key\": \"tech-debt\",\n              \"count\": 1,\n              \"median_seconds\": 2626,\n              \"median_human\": \"43m\"\n            },\n            {\n              \"key\": \"conflict-resolution\",\n              \"count\": 1,\n              \"median_seconds\": 2596,\n              \"median_human\": \"43m\"\n            },\n            {\n              \"key\": \"data-integrity\",\n              \"count\": 1,\n              \"median_seconds\": 2596,\n              \"median_human\": \"43m\"\n            },\n            {\n              \"key\": \"quality-gate\",\n              \"count\": 1,\n              \"median_seconds\": 2526,\n              \"median_human\": \"42m\"\n            },\n            {\n              \"key\": \"makefile\",\n              \"count\": 2,\n              \"median_seconds\": 2526,\n              \"median_human\": \"42m\"\n            },\n            {\n              \"key\": \"xcode\",\n              \"count\": 1,\n              \"median_seconds\": 2526,\n              \"median_human\": \"42m\"\n            },\n            {\n              \"key\": \"warnings\",\n              \"count\": 2,\n              \"median_seconds\": 2526,\n              \"median_human\": \"42m\"\n            },\n            {\n              \"key\": \"integration\",\n              \"count\": 5,\n              \"median_seconds\": 2510,\n              \"median_human\": \"41m\"\n            },\n            {\n              \"key\": \"lfs\",\n              \"count\": 1,\n              \"median_seconds\": 2389,\n              \"median_human\": \"39m\"\n            },\n            {\n              \"key\": \"git\",\n              \"count\": 2,\n              \"median_seconds\": 2389,\n              \"median_human\": \"39m\"\n            },\n            {\n              \"key\": \"config\",\n              \"count\": 6,\n              \"median_seconds\": 2204,\n              \"median_human\": \"36m\"\n            },\n            {\n              \"key\": \"code-quality\",\n              \"count\": 1,\n              \"median_seconds\": 2139,\n              \"median_human\": \"35m\"\n            },\n            {\n              \"key\": \"parallel\",\n              \"count\": 1,\n              \"median_seconds\": 2139,\n              \"median_human\": \"35m\"\n            },\n            {\n              \"key\": \"refactor\",\n              \"count\": 12,\n              \"median_seconds\": 2139,\n              \"median_human\": \"35m\"\n            },\n            {\n              \"key\": \"session\",\n              \"count\": 2,\n              \"median_seconds\": 2127,\n              \"median_human\": \"35m\"\n            },\n            {\n              \"key\": \"quality\",\n              \"count\": 1,\n              \"median_seconds\": 2127,\n              \"median_human\": \"35m\"\n            },\n            {\n              \"key\": \"maintenance\",\n              \"count\": 39,\n              \"median_seconds\": 2091,\n              \"median_human\": \"34m\"\n            },\n            {\n              \"key\": \"ux\",\n              \"count\": 17,\n              \"median_seconds\": 2069,\n              \"median_human\": \"34m\"\n            },\n            {\n              \"key\": \"scaffolding\",\n              \"count\": 1,\n              \"median_seconds\": 2069,\n              \"median_human\": \"34m\"\n            },\n            {\n              \"key\": \"innovation\",\n              \"count\": 38,\n              \"median_seconds\": 2037,\n              \"median_human\": \"33m\"\n            },\n            {\n              \"key\": \"charts\",\n              \"count\": 1,\n              \"median_seconds\": 2037,\n              \"median_human\": \"33m\"\n            },\n            {\n              \"key\": \"safety\",\n              \"count\": 1,\n              \"median_seconds\": 2007,\n              \"median_human\": \"33m\"\n            },\n            {\n              \"key\": \"daemon\",\n              \"count\": 3,\n              \"median_seconds\": 2007,\n              \"median_human\": \"33m\"\n            },\n            {\n              \"key\": \"locking\",\n              \"count\": 1,\n              \"median_seconds\": 2007,\n              \"median_human\": \"33m\"\n            },\n            {\n              \"key\": \"supervision\",\n              \"count\": 1,\n              \"median_seconds\": 2007,\n              \"median_human\": \"33m\"\n            },\n            {\n              \"key\": \"developer-experience\",\n              \"count\": 1,\n              \"median_seconds\": 1970,\n              \"median_human\": \"32m\"\n            },\n            {\n              \"key\": \"ci\",\n              \"count\": 7,\n              \"median_seconds\": 1970,\n              \"median_human\": \"32m\"\n            },\n            {\n              \"key\": \"performance\",\n              \"count\": 5,\n              \"median_seconds\": 1970,\n              \"median_human\": \"32m\"\n            },\n            {\n              \"key\": \"multi-window\",\n              \"count\": 1,\n              \"median_seconds\": 1881,\n              \"median_human\": \"31m\"\n            },\n            {\n              \"key\": \"core-feature\",\n              \"count\": 2,\n              \"median_seconds\": 1881,\n              \"median_human\": \"31m\"\n            },\n            {\n              \"key\": \"multi-project\",\n              \"count\": 1,\n              \"median_seconds\": 1881,\n              \"median_human\": \"31m\"\n            },\n            {\n              \"key\": \"workspace\",\n              \"count\": 2,\n              \"median_seconds\": 1881,\n              \"median_human\": \"31m\"\n            },\n            {\n              \"key\": \"tabs\",\n              \"count\": 1,\n              \"median_seconds\": 1881,\n              \"median_human\": \"31m\"\n            },\n            {\n              \"key\": \"swiftui\",\n              \"count\": 3,\n              \"median_seconds\": 1881,\n              \"median_human\": \"31m\"\n            },\n            {\n              \"key\": \"appkit-integration\",\n              \"count\": 1,\n              \"median_seconds\": 1881,\n              \"median_human\": \"31m\"\n            },\n            {\n              \"key\": \"plugins\",\n              \"count\": 3,\n              \"median_seconds\": 1747,\n              \"median_human\": \"29m\"\n            },\n            {\n              \"key\": \"serde-json\",\n              \"count\": 1,\n              \"median_seconds\": 1747,\n              \"median_human\": \"29m\"\n            },\n            {\n              \"key\": \"time\",\n              \"count\": 4,\n              \"median_seconds\": 1737,\n              \"median_human\": \"28m\"\n            },\n            {\n              \"key\": \"correctness\",\n              \"count\": 6,\n              \"median_seconds\": 1737,\n              \"median_human\": \"28m\"\n            },\n            {\n              \"key\": \"secrets\",\n              \"count\": 1,\n              \"median_seconds\": 1718,\n              \"median_human\": \"28m\"\n            },\n            {\n              \"key\": \"gitignore\",\n              \"count\": 1,\n              \"median_seconds\": 1718,\n              \"median_human\": \"28m\"\n            },\n            {\n              \"key\": \"security\",\n              \"count\": 1,\n              \"median_seconds\": 1718,\n              \"median_human\": \"28m\"\n            },\n            {\n              \"key\": \"doctor\",\n              \"count\": 1,\n              \"median_seconds\": 1718,\n              \"median_human\": \"28m\"\n            },\n            {\n              \"key\": \"debug\",\n              \"count\": 1,\n              \"median_seconds\": 1718,\n              \"median_human\": \"28m\"\n            },\n            {\n              \"key\": \"path-resolution\",\n              \"count\": 1,\n              \"median_seconds\": 1707,\n              \"median_human\": \"28m\"\n            },\n            {\n              \"key\": \"enhancement\",\n              \"count\": 2,\n              \"median_seconds\": 1707,\n              \"median_human\": \"28m\"\n            },\n            {\n              \"key\": \"jsonc\",\n              \"count\": 1,\n              \"median_seconds\": 1707,\n              \"median_human\": \"28m\"\n            },\n            {\n              \"key\": \"macos\",\n              \"count\": 31,\n              \"median_seconds\": 1703,\n              \"median_human\": \"28m\"\n            },\n            {\n              \"key\": \"ansi\",\n              \"count\": 1,\n              \"median_seconds\": 1703,\n              \"median_human\": \"28m\"\n            },\n            {\n              \"key\": \"console\",\n              \"count\": 1,\n              \"median_seconds\": 1703,\n              \"median_human\": \"28m\"\n            },\n            {\n              \"key\": \"menu-bar\",\n              \"count\": 1,\n              \"median_seconds\": 1694,\n              \"median_human\": \"28m\"\n            },\n            {\n              \"key\": \"quick-access\",\n              \"count\": 1,\n              \"median_seconds\": 1694,\n              \"median_human\": \"28m\"\n            },\n            {\n              \"key\": \"contract\",\n              \"count\": 1,\n              \"median_seconds\": 1684,\n              \"median_human\": \"28m\"\n            },\n            {\n              \"key\": \"bug\",\n              \"count\": 8,\n              \"median_seconds\": 1617,\n              \"median_human\": \"26m\"\n            },\n            {\n              \"key\": \"test\",\n              \"count\": 1,\n              \"median_seconds\": 1617,\n              \"median_human\": \"26m\"\n            },\n            {\n              \"key\": \"swift\",\n              \"count\": 3,\n              \"median_seconds\": 1617,\n              \"median_human\": \"26m\"\n            },\n            {\n              \"key\": \"race-condition\",\n              \"count\": 1,\n              \"median_seconds\": 1617,\n              \"median_human\": \"26m\"\n            },\n            {\n              \"key\": \"sorting\",\n              \"count\": 1,\n              \"median_seconds\": 1579,\n              \"median_human\": \"26m\"\n            },\n            {\n              \"key\": \"triage\",\n              \"count\": 1,\n              \"median_seconds\": 1579,\n              \"median_human\": \"26m\"\n            },\n            {\n              \"key\": \"compatibility\",\n              \"count\": 1,\n              \"median_seconds\": 1567,\n              \"median_human\": \"26m\"\n            },\n            {\n              \"key\": \"version-check\",\n              \"count\": 1,\n              \"median_seconds\": 1567,\n              \"median_human\": \"26m\"\n            },\n            {\n              \"key\": \"command-palette\",\n              \"count\": 1,\n              \"median_seconds\": 1487,\n              \"median_human\": \"24m\"\n            },\n            {\n              \"key\": \"keyboard\",\n              \"count\": 2,\n              \"median_seconds\": 1487,\n              \"median_human\": \"24m\"\n            },\n            {\n              \"key\": \"shortcuts\",\n              \"count\": 1,\n              \"median_seconds\": 1487,\n              \"median_human\": \"24m\"\n            },\n            {\n              \"key\": \"deprecation\",\n              \"count\": 1,\n              \"median_seconds\": 1481,\n              \"median_human\": \"24m\"\n            },\n            {\n              \"key\": \"api-migration\",\n              \"count\": 1,\n              \"median_seconds\": 1481,\n              \"median_human\": \"24m\"\n            },\n            {\n              \"key\": \"macos-ci\",\n              \"count\": 3,\n              \"median_seconds\": 1481,\n              \"median_human\": \"24m\"\n            },\n            {\n              \"key\": \"pi\",\n              \"count\": 1,\n              \"median_seconds\": 1453,\n              \"median_human\": \"24m\"\n            },\n            {\n              \"key\": \"runner\",\n              \"count\": 17,\n              \"median_seconds\": 1453,\n              \"median_human\": \"24m\"\n            },\n            {\n              \"key\": \"plugin\",\n              \"count\": 8,\n              \"median_seconds\": 1453,\n              \"median_human\": \"24m\"\n            },\n            {\n              \"key\": \"visualization\",\n              \"count\": 1,\n              \"median_seconds\": 1403,\n              \"median_human\": \"23m\"\n            },\n            {\n              \"key\": \"schema\",\n              \"count\": 1,\n              \"median_seconds\": 1390,\n              \"median_human\": \"23m\"\n            },\n            {\n              \"key\": \"task\",\n              \"count\": 1,\n              \"median_seconds\": 1390,\n              \"median_human\": \"23m\"\n            },\n            {\n              \"key\": \"error-messages\",\n              \"count\": 1,\n              \"median_seconds\": 1366,\n              \"median_human\": \"22m\"\n            },\n            {\n              \"key\": \"execution_history\",\n              \"count\": 1,\n              \"median_seconds\": 1305,\n              \"median_human\": \"21m\"\n            },\n            {\n              \"key\": \"fix\",\n              \"count\": 1,\n              \"median_seconds\": 1305,\n              \"median_human\": \"21m\"\n            },\n            {\n              \"key\": \"init\",\n              \"count\": 1,\n              \"median_seconds\": 1298,\n              \"median_human\": \"21m\"\n            },\n            {\n              \"key\": \"docs\",\n              \"count\": 7,\n              \"median_seconds\": 1298,\n              \"median_human\": \"21m\"\n            },\n            {\n              \"key\": \"ipc\",\n              \"count\": 1,\n              \"median_seconds\": 1222,\n              \"median_human\": \"20m\"\n            },\n            {\n              \"key\": \"url-scheme\",\n              \"count\": 1,\n              \"median_seconds\": 1222,\n              \"median_human\": \"20m\"\n            },\n            {\n              \"key\": \"app\",\n              \"count\": 1,\n              \"median_seconds\": 1222,\n              \"median_human\": \"20m\"\n            },\n            {\n              \"key\": \"architecture\",\n              \"count\": 7,\n              \"median_seconds\": 1190,\n              \"median_human\": \"19m\"\n            },\n            {\n              \"key\": \"claude\",\n              \"count\": 1,\n              \"median_seconds\": 1190,\n              \"median_human\": \"19m\"\n            },\n            {\n              \"key\": \"dry-run\",\n              \"count\": 1,\n              \"median_seconds\": 1097,\n              \"median_human\": \"18m\"\n            },\n            {\n              \"key\": \"visual\",\n              \"count\": 1,\n              \"median_seconds\": 1072,\n              \"median_human\": \"17m\"\n            },\n            {\n              \"key\": \"workflow\",\n              \"count\": 5,\n              \"median_seconds\": 1072,\n              \"median_human\": \"17m\"\n            },\n            {\n              \"key\": \"kanban\",\n              \"count\": 1,\n              \"median_seconds\": 1072,\n              \"median_human\": \"17m\"\n            },\n            {\n              \"key\": \"operability\",\n              \"count\": 2,\n              \"median_seconds\": 1028,\n              \"median_human\": \"17m\"\n            },\n            {\n              \"key\": \"env\",\n              \"count\": 1,\n              \"median_seconds\": 1028,\n              \"median_human\": \"17m\"\n            },\n            {\n              \"key\": \"sessions\",\n              \"count\": 1,\n              \"median_seconds\": 1020,\n              \"median_human\": \"17m\"\n            },\n            {\n              \"key\": \"ui\",\n              \"count\": 11,\n              \"median_seconds\": 1005,\n              \"median_human\": \"16m\"\n            },\n            {\n              \"key\": \"execution\",\n              \"count\": 1,\n              \"median_seconds\": 1005,\n              \"median_human\": \"16m\"\n            },\n            {\n              \"key\": \"output\",\n              \"count\": 1,\n              \"median_seconds\": 975,\n              \"median_human\": \"16m\"\n            },\n            {\n              \"key\": \"stream-json\",\n              \"count\": 1,\n              \"median_seconds\": 975,\n              \"median_human\": \"16m\"\n            },\n            {\n              \"key\": \"parsing\",\n              \"count\": 1,\n              \"median_seconds\": 975,\n              \"median_human\": \"16m\"\n            },\n            {\n              \"key\": \"optimization\",\n              \"count\": 1,\n              \"median_seconds\": 973,\n              \"median_human\": \"16m\"\n            },\n            {\n              \"key\": \"task-management\",\n              \"count\": 2,\n              \"median_seconds\": 939,\n              \"median_human\": \"15m\"\n            },\n            {\n              \"key\": \"task-creation\",\n              \"count\": 1,\n              \"median_seconds\": 900,\n              \"median_human\": \"15m\"\n            },\n            {\n              \"key\": \"real-time\",\n              \"count\": 1,\n              \"median_seconds\": 868,\n              \"median_human\": \"14m\"\n            },\n            {\n              \"key\": \"sync\",\n              \"count\": 1,\n              \"median_seconds\": 868,\n              \"median_human\": \"14m\"\n            },\n            {\n              \"key\": \"dry\",\n              \"count\": 1,\n              \"median_seconds\": 850,\n              \"median_human\": \"14m\"\n            },\n            {\n              \"key\": \"session-resume\",\n              \"count\": 1,\n              \"median_seconds\": 836,\n              \"median_human\": \"13m\"\n            },\n            {\n              \"key\": \"reproducibility\",\n              \"count\": 1,\n              \"median_seconds\": 836,\n              \"median_human\": \"13m\"\n            },\n            {\n              \"key\": \"repo-dirty\",\n              \"count\": 1,\n              \"median_seconds\": 836,\n              \"median_human\": \"13m\"\n            },\n            {\n              \"key\": \"opencode\",\n              \"count\": 1,\n              \"median_seconds\": 833,\n              \"median_human\": \"13m\"\n            },\n            {\n              \"key\": \"cost\",\n              \"count\": 1,\n              \"median_seconds\": 833,\n              \"median_human\": \"13m\"\n            },\n            {\n              \"key\": \"persistence\",\n              \"count\": 1,\n              \"median_seconds\": 823,\n              \"median_human\": \"13m\"\n            },\n            {\n              \"key\": \"navigation\",\n              \"count\": 1,\n              \"median_seconds\": 809,\n              \"median_human\": \"13m\"\n            },\n            {\n              \"key\": \"editing\",\n              \"count\": 1,\n              \"median_seconds\": 802,\n              \"median_human\": \"13m\"\n            },\n            {\n              \"key\": \"gemini\",\n              \"count\": 1,\n              \"median_seconds\": 766,\n              \"median_human\": \"12m\"\n            },\n            {\n              \"key\": \"timeout\",\n              \"count\": 1,\n              \"median_seconds\": 687,\n              \"median_human\": \"11m\"\n            },\n            {\n              \"key\": \"runutil\",\n              \"count\": 1,\n              \"median_seconds\": 687,\n              \"median_human\": \"11m\"\n            },\n            {\n              \"key\": \"date-awareness\",\n              \"count\": 1,\n              \"median_seconds\": 594,\n              \"median_human\": \"9m\"\n            },\n            {\n              \"key\": \"documentation\",\n              \"count\": 1,\n              \"median_seconds\": 594,\n              \"median_human\": \"9m\"\n            },\n            {\n              \"key\": \"agents\",\n              \"count\": 1,\n              \"median_seconds\": 594,\n              \"median_human\": \"9m\"\n            },\n            {\n              \"key\": \"critical\",\n              \"count\": 1,\n              \"median_seconds\": 594,\n              \"median_human\": \"9m\"\n            },\n            {\n              \"key\": \"design-system\",\n              \"count\": 1,\n              \"median_seconds\": 573,\n              \"median_human\": \"9m\"\n            }\n          ],\n          \"by_runner\": [\n            {\n              \"key\": \"claude\",\n              \"count\": 1,\n              \"median_seconds\": 4518,\n              \"median_human\": \"1h 15m\"\n            },\n            {\n              \"key\": \"codex\",\n              \"count\": 7,\n              \"median_seconds\": 1684,\n              \"median_human\": \"28m\"\n            },\n            {\n              \"key\": \"kimi\",\n              \"count\": 66,\n              \"median_seconds\": 1567,\n              \"median_human\": \"26m\"\n            },\n            {\n              \"key\": \"opencode\",\n              \"count\": 5,\n              \"median_seconds\": 1481,\n              \"median_human\": \"24m\"\n            }\n          ]\n        },\n        \"tag_breakdown\": [\n          {\n            \"tag\": \"maintenance\",\n            \"count\": 59,\n            \"percentage\": 38.56209150326798\n          },\n          {\n            \"tag\": \"innovation\",\n            \"count\": 53,\n            \"percentage\": 34.64052287581699\n          },\n          {\n            \"tag\": \"macos\",\n            \"count\": 32,\n            \"percentage\": 20.915032679738562\n          },\n          {\n            \"tag\": \"reliability\",\n            \"count\": 26,\n            \"percentage\": 16.99346405228758\n          },\n          {\n            \"tag\": \"ux\",\n            \"count\": 25,\n            \"percentage\": 16.33986928104575\n          },\n          {\n            \"tag\": \"parallel\",\n            \"count\": 24,\n            \"percentage\": 15.686274509803921\n          },\n          {\n            \"tag\": \"cli\",\n            \"count\": 22,\n            \"percentage\": 14.37908496732026\n          },\n          {\n            \"tag\": \"queue\",\n            \"count\": 17,\n            \"percentage\": 11.11111111111111\n          },\n          {\n            \"tag\": \"runner\",\n            \"count\": 17,\n            \"percentage\": 11.11111111111111\n          },\n          {\n            \"tag\": \"tui\",\n            \"count\": 17,\n            \"percentage\": 11.11111111111111\n          },\n          {\n            \"tag\": \"refactor\",\n            \"count\": 13,\n            \"percentage\": 8.49673202614379\n          },\n          {\n            \"tag\": \"bug\",\n            \"count\": 13,\n            \"percentage\": 8.49673202614379\n          },\n          {\n            \"tag\": \"architecture\",\n            \"count\": 11,\n            \"percentage\": 7.18954248366013\n          },\n          {\n            \"tag\": \"ui\",\n            \"count\": 11,\n            \"percentage\": 7.18954248366013\n          },\n          {\n            \"tag\": \"docs\",\n            \"count\": 10,\n            \"percentage\": 6.535947712418301\n          },\n          {\n            \"tag\": \"performance\",\n            \"count\": 9,\n            \"percentage\": 5.88235294117647\n          },\n          {\n            \"tag\": \"config\",\n            \"count\": 9,\n            \"percentage\": 5.88235294117647\n          },\n          {\n            \"tag\": \"plugin\",\n            \"count\": 8,\n            \"percentage\": 5.228758169934641\n          },\n          {\n            \"tag\": \"automation\",\n            \"count\": 8,\n            \"percentage\": 5.228758169934641\n          },\n          {\n            \"tag\": \"ratatui\",\n            \"count\": 7,\n            \"percentage\": 4.57516339869281\n          },\n          {\n            \"tag\": \"ci\",\n            \"count\": 7,\n            \"percentage\": 4.57516339869281\n          },\n          {\n            \"tag\": \"integration\",\n            \"count\": 7,\n            \"percentage\": 4.57516339869281\n          },\n          {\n            \"tag\": \"opentui\",\n            \"count\": 6,\n            \"percentage\": 3.9215686274509802\n          },\n          {\n            \"tag\": \"git\",\n            \"count\": 6,\n            \"percentage\": 3.9215686274509802\n          },\n          {\n            \"tag\": \"run-loop\",\n            \"count\": 6,\n            \"percentage\": 3.9215686274509802\n          },\n          {\n            \"tag\": \"error-handling\",\n            \"count\": 6,\n            \"percentage\": 3.9215686274509802\n          },\n          {\n            \"tag\": \"validation\",\n            \"count\": 6,\n            \"percentage\": 3.9215686274509802\n          },\n          {\n            \"tag\": \"correctness\",\n            \"count\": 6,\n            \"percentage\": 3.9215686274509802\n          },\n          {\n            \"tag\": \"productivity\",\n            \"count\": 6,\n            \"percentage\": 3.9215686274509802\n          },\n          {\n            \"tag\": \"observability\",\n            \"count\": 6,\n            \"percentage\": 3.9215686274509802\n          },\n          {\n            \"tag\": \"analytics\",\n            \"count\": 5,\n            \"percentage\": 3.2679738562091507\n          },\n          {\n            \"tag\": \"rust\",\n            \"count\": 5,\n            \"percentage\": 3.2679738562091507\n          },\n          {\n            \"tag\": \"workflow\",\n            \"count\": 5,\n            \"percentage\": 3.2679738562091507\n          },\n          {\n            \"tag\": \"time\",\n            \"count\": 4,\n            \"percentage\": 2.6143790849673203\n          },\n          {\n            \"tag\": \"tests\",\n            \"count\": 4,\n            \"percentage\": 2.6143790849673203\n          },\n          {\n            \"tag\": \"run\",\n            \"count\": 4,\n            \"percentage\": 2.6143790849673203\n          },\n          {\n            \"tag\": \"swiftui\",\n            \"count\": 3,\n            \"percentage\": 1.9607843137254901\n          },\n          {\n            \"tag\": \"webhook\",\n            \"count\": 3,\n            \"percentage\": 1.9607843137254901\n          },\n          {\n            \"tag\": \"cleanup\",\n            \"count\": 3,\n            \"percentage\": 1.9607843137254901\n          },\n          {\n            \"tag\": \"macos-ci\",\n            \"count\": 3,\n            \"percentage\": 1.9607843137254901\n          },\n          {\n            \"tag\": \"swift\",\n            \"count\": 3,\n            \"percentage\": 1.9607843137254901\n          },\n          {\n            \"tag\": \"daemon\",\n            \"count\": 3,\n            \"percentage\": 1.9607843137254901\n          },\n          {\n            \"tag\": \"testing\",\n            \"count\": 3,\n            \"percentage\": 1.9607843137254901\n          },\n          {\n            \"tag\": \"eta\",\n            \"count\": 3,\n            \"percentage\": 1.9607843137254901\n          },\n          {\n            \"tag\": \"plugins\",\n            \"count\": 3,\n            \"percentage\": 1.9607843137254901\n          },\n          {\n            \"tag\": \"queue-management\",\n            \"count\": 2,\n            \"percentage\": 1.3071895424836601\n          },\n          {\n            \"tag\": \"quality\",\n            \"count\": 2,\n            \"percentage\": 1.3071895424836601\n          },\n          {\n            \"tag\": \"extensibility\",\n            \"count\": 2,\n            \"percentage\": 1.3071895424836601\n          },\n          {\n            \"tag\": \"session\",\n            \"count\": 2,\n            \"percentage\": 1.3071895424836601\n          },\n          {\n            \"tag\": \"recovery\",\n            \"count\": 2,\n            \"percentage\": 1.3071895424836601\n          },\n          {\n            \"tag\": \"security\",\n            \"count\": 2,\n            \"percentage\": 1.3071895424836601\n          },\n          {\n            \"tag\": \"tooling\",\n            \"count\": 2,\n            \"percentage\": 1.3071895424836601\n          },\n          {\n            \"tag\": \"dependencies\",\n            \"count\": 2,\n            \"percentage\": 1.3071895424836601\n          },\n          {\n            \"tag\": \"accessibility\",\n            \"count\": 2,\n            \"percentage\": 1.3071895424836601\n          },\n          {\n            \"tag\": \"keyboard\",\n            \"count\": 2,\n            \"percentage\": 1.3071895424836601\n          },\n          {\n            \"tag\": \"supervision\",\n            \"count\": 2,\n            \"percentage\": 1.3071895424836601\n          },\n          {\n            \"tag\": \"retry-logic\",\n            \"count\": 2,\n            \"percentage\": 1.3071895424836601\n          },\n          {\n            \"tag\": \"warnings\",\n            \"count\": 2,\n            \"percentage\": 1.3071895424836601\n          },\n          {\n            \"tag\": \"schema\",\n            \"count\": 2,\n            \"percentage\": 1.3071895424836601\n          },\n          {\n            \"tag\": \"enhancement\",\n            \"count\": 2,\n            \"percentage\": 1.3071895424836601\n          },\n          {\n            \"tag\": \"doctor\",\n            \"count\": 2,\n            \"percentage\": 1.3071895424836601\n          },\n          {\n            \"tag\": \"task-update\",\n            \"count\": 2,\n            \"percentage\": 1.3071895424836601\n          },\n          {\n            \"tag\": \"github\",\n            \"count\": 2,\n            \"percentage\": 1.3071895424836601\n          },\n          {\n            \"tag\": \"ux-improvement\",\n            \"count\": 2,\n            \"percentage\": 1.3071895424836601\n          },\n          {\n            \"tag\": \"core-feature\",\n            \"count\": 2,\n            \"percentage\": 1.3071895424836601\n          },\n          {\n            \"tag\": \"kimi\",\n            \"count\": 2,\n            \"percentage\": 1.3071895424836601\n          },\n          {\n            \"tag\": \"prompts\",\n            \"count\": 2,\n            \"percentage\": 1.3071895424836601\n          },\n          {\n            \"tag\": \"foundation\",\n            \"count\": 2,\n            \"percentage\": 1.3071895424836601\n          },\n          {\n            \"tag\": \"workspace\",\n            \"count\": 2,\n            \"percentage\": 1.3071895424836601\n          },\n          {\n            \"tag\": \"json\",\n            \"count\": 2,\n            \"percentage\": 1.3071895424836601\n          },\n          {\n            \"tag\": \"codex\",\n            \"count\": 2,\n            \"percentage\": 1.3071895424836601\n          },\n          {\n            \"tag\": \"state\",\n            \"count\": 2,\n            \"percentage\": 1.3071895424836601\n          },\n          {\n            \"tag\": \"task-management\",\n            \"count\": 2,\n            \"percentage\": 1.3071895424836601\n          },\n          {\n            \"tag\": \"operability\",\n            \"count\": 2,\n            \"percentage\": 1.3071895424836601\n          },\n          {\n            \"tag\": \"makefile\",\n            \"count\": 2,\n            \"percentage\": 1.3071895424836601\n          },\n          {\n            \"tag\": \"configuration\",\n            \"count\": 2,\n            \"percentage\": 1.3071895424836601\n          },\n          {\n            \"tag\": \"cost\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"race-condition\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"bug-fix\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"onboarding\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"repoprompt\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"fix\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"safety\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"module-boundaries\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"planning\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"serde\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"refactoring\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"sorting\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"timeout\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"task\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"contract\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"custom_fields\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"flakiness\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"test\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"test-fix\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"feature-gap\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"ipc\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"gitignore\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"input\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"resume\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"editing\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"navigation\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"execution\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"slider\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"model\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"pi\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"compatibility\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"dry\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"xcode\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"quality-gate\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"merge\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"lfs\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"menu-bar\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"memory\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"error-messages\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"debuggability\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"big-text\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"layout\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"merge-conflict\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"a11y\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"import\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"visibility\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"triage\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"graph\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"sync\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"agents\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"sessions\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"visualization\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"url-scheme\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"runutil\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"documentation\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"logging\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"phase1\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"signal\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"app\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"select\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"resilience\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"quick-access\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"offline\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"command-palette\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"design-system\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"syntax-highlighting\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"optimization\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"critical\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"scroll\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"animation\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"hierarchy\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"state-restoration\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"multi-project\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"console\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"backoff\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"preflight\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"dry-run\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"session-resume\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"data-integrity\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"path-resolution\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"background-service\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"watch\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"locking\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"consistency\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"opencode\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"tabs\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"markdown\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"diff\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"debug\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"init\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"code-quality\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"claude\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"focus\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"plugin-system\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"multi-window\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"polish\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"voiceover\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"persistence\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"version-check\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"ansi\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"deprecation\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"visual\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"modernization\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"parsing\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"scheduler\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"env\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"charts\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"tree-sitter\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"stream-json\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"scaffolding\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"jsonc\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"diagnostics\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"conflict-resolution\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"serde-json\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"api-migration\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"reproducibility\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"branch\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"secrets\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"queue-lock\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"data-race\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"bug-prevention\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"kanban\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"user-experience\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"swift-6\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"repo-dirty\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"retry\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"gemini\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"textarea\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"execution_history\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"cursor\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"tech-debt\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"path-handling\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"pr-automation\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"task-creation\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"real-time\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"appkit-integration\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"concurrency\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"crash-reporting\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"output\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"shortcuts\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"developer-experience\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          },\n          {\n            \"tag\": \"date-awareness\",\n            \"count\": 1,\n            \"percentage\": 0.6535947712418301\n          }\n        ],\n        \"filters\": {\n          \"tags\": []\n        },\n        \"execution_history_eta\": null\n      }\n    },\n    \"history\": {\n      \"status\": \"ok\",\n      \"data\": {\n        \"window\": {\n          \"days\": 30,\n          \"start_date\": \"2026-01-16\",\n          \"end_date\": \"2026-02-14\"\n        },\n        \"days\": [\n          {\n            \"date\": \"2026-01-16\",\n            \"created\": [],\n            \"completed\": []\n          },\n          {\n            \"date\": \"2026-01-17\",\n            \"created\": [],\n            \"completed\": []\n          },\n          {\n            \"date\": \"2026-01-18\",\n            \"created\": [],\n            \"completed\": []\n          },\n          {\n            \"date\": \"2026-01-19\",\n            \"created\": [],\n            \"completed\": []\n          },\n          {\n            \"date\": \"2026-01-20\",\n            \"created\": [],\n            \"completed\": []\n          },\n          {\n            \"date\": \"2026-01-21\",\n            \"created\": [],\n            \"completed\": []\n          },\n          {\n            \"date\": \"2026-01-22\",\n            \"created\": [],\n            \"completed\": []\n          },\n          {\n            \"date\": \"2026-01-23\",\n            \"created\": [],\n            \"completed\": []\n          },\n          {\n            \"date\": \"2026-01-24\",\n            \"created\": [],\n            \"completed\": []\n          },\n          {\n            \"date\": \"2026-01-25\",\n            \"created\": [],\n            \"completed\": []\n          },\n          {\n            \"date\": \"2026-01-26\",\n            \"created\": [],\n            \"completed\": []\n          },\n          {\n            \"date\": \"2026-01-27\",\n            \"created\": [],\n            \"completed\": []\n          },\n          {\n            \"date\": \"2026-01-28\",\n            \"created\": [],\n            \"completed\": []\n          },\n          {\n            \"date\": \"2026-01-29\",\n            \"created\": [],\n            \"completed\": []\n          },\n          {\n            \"date\": \"2026-01-30\",\n            \"created\": [],\n            \"completed\": []\n          },\n          {\n            \"date\": \"2026-01-31\",\n            \"created\": [],\n            \"completed\": []\n          },\n          {\n            \"date\": \"2026-02-01\",\n            \"created\": [],\n            \"completed\": []\n          },\n          {\n            \"date\": \"2026-02-02\",\n            \"created\": [],\n            \"completed\": []\n          },\n          {\n            \"date\": \"2026-02-03\",\n            \"created\": [\n              \"RQ-0570\",\n              \"RQ-0572\",\n              \"RQ-0574\",\n              \"RQ-0576\",\n              \"RQ-0575\",\n              \"RQ-0571\",\n              \"RQ-0573\",\n              \"RQ-0577\",\n              \"RQ-0578\",\n              \"RQ-0579\",\n              \"RQ-0580\",\n              \"RQ-0581\",\n              \"RQ-0582\",\n              \"RQ-0583\",\n              \"RQ-0584\",\n              \"RQ-0585\",\n              \"RQ-0586\"\n            ],\n            \"completed\": [\n              \"RQ-0570\",\n              \"RQ-0572\",\n              \"RQ-0574\",\n              \"RQ-0576\",\n              \"RQ-0575\",\n              \"RQ-0571\",\n              \"RQ-0573\",\n              \"RQ-0577\",\n              \"RQ-0578\",\n              \"RQ-0579\",\n              \"RQ-0580\",\n              \"RQ-0581\"\n            ]\n          },\n          {\n            \"date\": \"2026-02-04\",\n            \"created\": [\n              \"RQ-0587\",\n              \"RQ-0588\",\n              \"RQ-0589\",\n              \"RQ-0590\",\n              \"RQ-0591\",\n              \"RQ-0592\",\n              \"RQ-0593\",\n              \"RQ-0594\",\n              \"RQ-0595\",\n              \"RQ-0596\",\n              \"RQ-0615\",\n              \"RQ-0616\",\n              \"RQ-0617\",\n              \"RQ-0618\",\n              \"RQ-0622\",\n              \"RQ-0628\",\n              \"RQ-0623\",\n              \"RQ-0624\",\n              \"RQ-0625\",\n              \"RQ-0626\",\n              \"RQ-0627\",\n              \"RQ-0620\",\n              \"RQ-0621\",\n              \"RQ-0598\",\n              \"RQ-0599\",\n              \"RQ-0601\",\n              \"RQ-0602\"\n            ],\n            \"completed\": [\n              \"RQ-0582\",\n              \"RQ-0583\",\n              \"RQ-0584\",\n              \"RQ-0585\",\n              \"RQ-0586\",\n              \"RQ-0587\",\n              \"RQ-0588\",\n              \"RQ-0589\",\n              \"RQ-0590\",\n              \"RQ-0591\",\n              \"RQ-0592\",\n              \"RQ-0593\",\n              \"RQ-0594\",\n              \"RQ-0595\",\n              \"RQ-0596\",\n              \"RQ-0615\",\n              \"RQ-0616\",\n              \"RQ-0617\",\n              \"RQ-0618\",\n              \"RQ-0622\",\n              \"RQ-0628\"\n            ]\n          },\n          {\n            \"date\": \"2026-02-05\",\n            \"created\": [\n              \"RQ-0629\",\n              \"RQ-0630\",\n              \"RQ-0632\",\n              \"RQ-0631\",\n              \"RQ-0633\",\n              \"RQ-0634\",\n              \"RQ-0635\",\n              \"RQ-0636\",\n              \"RQ-0637\",\n              \"RQ-0638\",\n              \"RQ-0639\",\n              \"RQ-0640\",\n              \"RQ-0641\",\n              \"RQ-0642\"\n            ],\n            \"completed\": [\n              \"RQ-0623\",\n              \"RQ-0624\",\n              \"RQ-0625\",\n              \"RQ-0626\",\n              \"RQ-0627\",\n              \"RQ-0620\",\n              \"RQ-0621\",\n              \"RQ-0598\",\n              \"RQ-0599\",\n              \"RQ-0601\",\n              \"RQ-0602\",\n              \"RQ-0629\",\n              \"RQ-0630\",\n              \"RQ-0632\",\n              \"RQ-0631\"\n            ]\n          },\n          {\n            \"date\": \"2026-02-06\",\n            \"created\": [\n              \"RQ-0644\",\n              \"RQ-0645\",\n              \"RQ-0646\",\n              \"RQ-0647\",\n              \"RQ-0648\",\n              \"RQ-0649\",\n              \"RQ-0650\",\n              \"RQ-0651\",\n              \"RQ-0652\",\n              \"RQ-0653\",\n              \"RQ-0654\",\n              \"RQ-0655\",\n              \"RQ-0643\",\n              \"RQ-0657\",\n              \"RQ-0656\",\n              \"RQ-0665\",\n              \"RQ-0664\",\n              \"RQ-0658\",\n              \"RQ-0659\",\n              \"RQ-0660\",\n              \"RQ-0661\",\n              \"RQ-0662\",\n              \"RQ-0663\"\n            ],\n            \"completed\": [\n              \"RQ-0633\",\n              \"RQ-0634\",\n              \"RQ-0644\",\n              \"RQ-0645\",\n              \"RQ-0646\",\n              \"RQ-0647\",\n              \"RQ-0648\",\n              \"RQ-0649\",\n              \"RQ-0650\",\n              \"RQ-0651\",\n              \"RQ-0652\",\n              \"RQ-0653\",\n              \"RQ-0654\",\n              \"RQ-0655\",\n              \"RQ-0643\",\n              \"RQ-0635\",\n              \"RQ-0636\",\n              \"RQ-0637\",\n              \"RQ-0657\",\n              \"RQ-0656\",\n              \"RQ-0665\",\n              \"RQ-0664\",\n              \"RQ-0658\",\n              \"RQ-0659\",\n              \"RQ-0660\",\n              \"RQ-0661\",\n              \"RQ-0662\",\n              \"RQ-0663\",\n              \"RQ-0638\",\n              \"RQ-0639\",\n              \"RQ-0640\"\n            ]\n          },\n          {\n            \"date\": \"2026-02-07\",\n            \"created\": [\n              \"RQ-0666\",\n              \"RQ-0667\",\n              \"RQ-0668\",\n              \"RQ-0681\",\n              \"RQ-0682\",\n              \"RQ-0683\",\n              \"RQ-0684\",\n              \"RQ-0685\",\n              \"RQ-0686\",\n              \"RQ-0687\",\n              \"RQ-0688\",\n              \"RQ-0689\",\n              \"RQ-0690\",\n              \"RQ-0691\",\n              \"RQ-0669\",\n              \"RQ-0670\",\n              \"RQ-0671\",\n              \"RQ-0672\",\n              \"RQ-0717\"\n            ],\n            \"completed\": [\n              \"RQ-0641\",\n              \"RQ-0642\",\n              \"RQ-0666\",\n              \"RQ-0667\",\n              \"RQ-0668\",\n              \"RQ-0681\",\n              \"RQ-0682\",\n              \"RQ-0683\",\n              \"RQ-0684\",\n              \"RQ-0685\",\n              \"RQ-0686\",\n              \"RQ-0687\",\n              \"RQ-0688\",\n              \"RQ-0689\",\n              \"RQ-0690\",\n              \"RQ-0691\",\n              \"RQ-0669\",\n              \"RQ-0670\",\n              \"RQ-0671\",\n              \"RQ-0672\",\n              \"RQ-0717\"\n            ]\n          },\n          {\n            \"date\": \"2026-02-08\",\n            \"created\": [\n              \"RQ-0718\",\n              \"RQ-0730\",\n              \"RQ-0719\",\n              \"RQ-0720\",\n              \"RQ-0721\",\n              \"RQ-0722\",\n              \"RQ-0723\",\n              \"RQ-0724\",\n              \"RQ-0725\",\n              \"RQ-0726\",\n              \"RQ-0727\",\n              \"RQ-0735\",\n              \"RQ-0747\",\n              \"RQ-0734\",\n              \"RQ-0733\",\n              \"RQ-0732\",\n              \"RQ-0740\",\n              \"RQ-0737\",\n              \"RQ-0739\",\n              \"RQ-0738\",\n              \"RQ-0736\",\n              \"RQ-0731\",\n              \"RQ-0746\",\n              \"RQ-0745\",\n              \"RQ-0744\",\n              \"RQ-0743\",\n              \"RQ-0742\",\n              \"RQ-0741\",\n              \"RQ-0728\",\n              \"RQ-0729\"\n            ],\n            \"completed\": [\n              \"RQ-0718\",\n              \"RQ-0730\",\n              \"RQ-0719\",\n              \"RQ-0720\",\n              \"RQ-0721\",\n              \"RQ-0722\",\n              \"RQ-0723\",\n              \"RQ-0724\",\n              \"RQ-0725\",\n              \"RQ-0726\",\n              \"RQ-0727\",\n              \"RQ-0735\"\n            ]\n          },\n          {\n            \"date\": \"2026-02-09\",\n            \"created\": [\n              \"RQ-0799\",\n              \"RQ-0800\",\n              \"RQ-0802\",\n              \"RQ-0805\",\n              \"RQ-0803\",\n              \"RQ-0804\",\n              \"RQ-0801\",\n              \"RQ-0806\"\n            ],\n            \"completed\": [\n              \"RQ-0747\",\n              \"RQ-0734\",\n              \"RQ-0733\",\n              \"RQ-0732\",\n              \"RQ-0740\",\n              \"RQ-0737\",\n              \"RQ-0739\",\n              \"RQ-0738\",\n              \"RQ-0736\",\n              \"RQ-0731\",\n              \"RQ-0746\",\n              \"RQ-0745\",\n              \"RQ-0744\",\n              \"RQ-0799\",\n              \"RQ-0800\",\n              \"RQ-0802\",\n              \"RQ-0805\",\n              \"RQ-0803\",\n              \"RQ-0804\",\n              \"RQ-0801\",\n              \"RQ-0743\",\n              \"RQ-0742\",\n              \"RQ-0741\"\n            ]\n          },\n          {\n            \"date\": \"2026-02-10\",\n            \"created\": [\n              \"RQ-0808\",\n              \"RQ-0807\"\n            ],\n            \"completed\": [\n              \"RQ-0806\",\n              \"RQ-0728\",\n              \"RQ-0729\",\n              \"RQ-0808\",\n              \"RQ-0807\"\n            ]\n          },\n          {\n            \"date\": \"2026-02-11\",\n            \"created\": [],\n            \"completed\": []\n          },\n          {\n            \"date\": \"2026-02-12\",\n            \"created\": [\n              \"RQ-0816\",\n              \"RQ-0817\",\n              \"RQ-0820\",\n              \"RQ-0821\",\n              \"RQ-0818\",\n              \"RQ-0819\",\n              \"RQ-0809\",\n              \"RQ-0810\",\n              \"RQ-0811\",\n              \"RQ-0812\",\n              \"RQ-0813\",\n              \"RQ-0814\",\n              \"RQ-0815\"\n            ],\n            \"completed\": [\n              \"RQ-0818\",\n              \"RQ-0819\",\n              \"RQ-0809\",\n              \"RQ-0810\",\n              \"RQ-0811\",\n              \"RQ-0812\"\n            ]\n          },\n          {\n            \"date\": \"2026-02-13\",\n            \"created\": [],\n            \"completed\": [\n              \"RQ-0813\",\n              \"RQ-0814\"\n            ]\n          },\n          {\n            \"date\": \"2026-02-14\",\n            \"created\": [],\n            \"completed\": [\n              \"RQ-0815\"\n            ]\n          }\n        ]\n      }\n    }\n  }\n}",
+        "Consolidates 5 CLI invocations into 1 (productivity summary/velocity, burndown, stats, history)",
+        "Per-section status wrappers (ok/unavailable) for graceful partial failure handling",
+        "Swift client uses aggregated endpoint with fallback to legacy parallel calls",
+        "All 183 macOS tests and Rust tests pass; CI gate verified"
+      ],
+      "request": "scan: none",
+      "created_at": "2026-02-12T20:13:33Z",
+      "updated_at": "2026-02-14T20:26:12.707989000Z",
+      "completed_at": "2026-02-14T20:26:12.707989000Z",
+      "started_at": "2026-02-14T18:52:23.006573000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "model_used": "kimi-code/kimi-for-coding",
+        "scan_agent": "scan-innovation",
+        "runner_used": "kimi"
       }
     }
   ]

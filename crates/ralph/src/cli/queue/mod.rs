@@ -231,7 +231,7 @@ pub enum QueueCommand {
     #[command(
         after_long_help = "Examples:\n  ralph queue dashboard\n  ralph queue dashboard --days 30\n  ralph queue dashboard --days 7\n\n\
 The dashboard command returns all analytics data in a single JSON payload for GUI clients.\n\
-Each section includes a 'status' field ('ok', 'error', or 'unavailable') for graceful partial failure handling."
+Each section includes a 'status' field ('ok' or 'unavailable') for graceful partial failure handling."
     )]
     Dashboard(QueueDashboardArgs),
 

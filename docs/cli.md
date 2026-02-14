@@ -1608,7 +1608,7 @@ This command combines data from:
 - `ralph queue stats` - completion rates, tag breakdown
 - `ralph queue history` - task creation/completion events by day
 
-Each section includes a `status` field (`ok`, `error`, or `unavailable`) for graceful partial failure handling.
+Each section includes a `status` field (`ok` or `unavailable`) for graceful partial failure handling.
 
 Flags:
 
