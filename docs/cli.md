@@ -69,6 +69,7 @@ ralph --no-sanity-checks run loop
 * `ralph completions <shell>`: generate shell completion scripts.
 * `ralph productivity <subcommand>`: view productivity analytics (streaks, velocity, milestones).
 * `ralph plugin <subcommand>`: manage plugins (list, validate, install, uninstall, init).
+* `ralph runner <subcommand>`: inspect runner capabilities and list available runners.
 * `ralph version`: display version information.
 * `ralph tutorial`: run interactive tutorial for onboarding.
 
@@ -3458,6 +3459,88 @@ Examples:
 
 ```bash
 ralph plugin uninstall acme.super_runner --scope project
+```
+
+## `ralph runner`
+
+Manage and inspect AI runners (codex, opencode, gemini, claude, cursor, kimi, pi).
+
+### Subcommands
+
+* `capabilities`: Show capabilities for a specific runner.
+* `list`: List all available runners.
+
+### `ralph runner capabilities <runner>`
+
+Display detailed capability information for a specific runner, including:
+- Supported models and default model
+- Feature support (reasoning effort, sandbox, plan mode, verbose)
+- Binary status (installed, version)
+- Session handling behavior
+
+#### Arguments
+
+* `<runner>`: Runner to inspect (codex, opencode, gemini, claude, cursor, kimi, pi).
+
+#### Flags
+
+* `--format <text|json>`: Output format (default: text).
+
+#### Examples
+
+```bash
+# Show Codex capabilities
+ralph runner capabilities codex
+
+# Show Claude capabilities in JSON format
+ralph runner capabilities claude --format json
+
+# Check if Gemini binary is installed
+ralph runner capabilities gemini
+
+# Get capabilities for all runners via JSON
+for r in codex claude gemini opencode cursor kimi pi; do
+  ralph runner capabilities "$r" --format json | jq '.binary.installed'
+done
+```
+
+#### Output Example
+
+```
+Runner: OpenAI Codex CLI (codex)
+
+Binary:
+  Status: installed
+  Version: 1.2.3
+
+Models:
+  Default: gpt-5.3-codex
+  Allowed: gpt-5.3-codex, gpt-5.3-codex-spark, gpt-5.3, gpt-5.2-codex, gpt-5.2
+
+Features:
+  Session resume: yes
+  Reasoning effort: yes
+  Plan mode: no
+  Verbose output: no
+  Sandbox: default, enabled, disabled (supported)
+```
+
+### `ralph runner list`
+
+List all available runners with brief descriptions.
+
+#### Flags
+
+* `--format <text|json>`: Output format (default: text).
+
+#### Examples
+
+```bash
+# List all runners
+ralph runner list
+
+# JSON output for scripting
+ralph runner list --format json | jq '.[].id'
 ```
 
 ## Help Output

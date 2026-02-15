@@ -17,6 +17,7 @@ pub mod plugin;
 pub mod prd;
 pub mod prompt;
 pub mod run;
+pub mod runner;
 pub mod scan;
 pub mod task;
 pub mod tutorial;

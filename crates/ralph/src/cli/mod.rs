@@ -29,6 +29,7 @@ pub mod productivity;
 pub mod prompt;
 pub mod queue;
 pub mod run;
+pub mod runner;
 pub mod scan;
 pub mod task;
 pub mod tutorial;
@@ -188,6 +189,12 @@ pub enum Command {
         after_long_help = "Examples:\n  ralph plugin init my.plugin\n  ralph plugin init my.plugin --scope global\n  ralph plugin list\n  ralph plugin validate\n  ralph plugin install ./my-plugin --scope project\n  ralph plugin uninstall my.plugin --scope project"
     )]
     Plugin(plugin::PluginArgs),
+
+    /// Runner management commands (capabilities, list).
+    #[command(
+        after_long_help = "Examples:\n  ralph runner capabilities codex\n  ralph runner capabilities claude --format json\n  ralph runner list\n  ralph runner list --format json"
+    )]
+    Runner(runner::RunnerArgs),
 
     /// Run interactive tutorial for Ralph onboarding.
     #[command(

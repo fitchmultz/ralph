@@ -22,10 +22,13 @@ pub(crate) use error::{
     RetryableReason, RunnerFailureClass, runner_execution_error, runner_execution_error_with_source,
 };
 
-pub(crate) use execution::{ResolvedRunnerCliOptions, ctrlc_state};
+pub(crate) use execution::{
+    BuiltInRunnerPlugin, ResolvedRunnerCliOptions, RunnerPlugin, ctrlc_state,
+};
 
 pub(crate) use model::{
-    parse_model, parse_reasoning_effort, resolve_model_for_runner, validate_model_for_runner,
+    default_model_for_runner, parse_model, parse_reasoning_effort, resolve_model_for_runner,
+    validate_model_for_runner,
 };
 
 pub(crate) use settings::{

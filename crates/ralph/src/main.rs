@@ -118,6 +118,14 @@ fn run() -> Result<()> {
             let resolved = ralph::config::resolve_from_cwd()?;
             ralph::commands::plugin::run(&args, &resolved)
         }
+        cli::Command::Runner(args) => match args.command {
+            cli::runner::RunnerCommand::Capabilities(cap_args) => {
+                cli::runner::handle_runner_capabilities(cap_args)
+            }
+            cli::runner::RunnerCommand::List(list_args) => {
+                cli::runner::handle_runner_list(list_args)
+            }
+        },
         cli::Command::Daemon(args) => cli::daemon::handle_daemon(args.command),
         cli::Command::Tutorial(args) => cli::tutorial::handle_tutorial(args),
         cli::Command::CliSpec(args) => cli::handle_cli_spec(args),
