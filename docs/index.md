@@ -342,6 +342,7 @@ Optional prompt overrides (defaults are embedded in the binary):
 | Queue lock issues | `ralph queue unlock` or `--force` |
 | `.env tracked` error | `git rm --cached .env` |
 | Runner not found | Check `ralph doctor`, verify PATH |
+| Coverage not generating | Install `cargo-llvm-cov` and `llvm-tools-preview` component |
 
 ### Diagnostics
 
@@ -354,6 +355,12 @@ ralph queue validate
 
 # Test webhook configuration
 ralph webhook test
+
+# Generate coverage report
+make coverage
+
+# Clean coverage artifacts
+make coverage-clean
 ```
 
 ---

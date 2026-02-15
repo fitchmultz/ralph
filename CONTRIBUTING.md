@@ -112,6 +112,49 @@ make test
 cargo test -p ralph
 ```
 
+### Code Coverage
+
+Ralph uses `cargo-llvm-cov` for code coverage analysis. Coverage is **optional** and not part of the default CI gate.
+
+#### Prerequisites
+
+```bash
+# Install cargo-llvm-cov
+cargo install cargo-llvm-cov
+
+# On macOS, you may also need the llvm-tools component
+rustup component add llvm-tools-preview
+```
+
+#### Running Coverage
+
+```bash
+# Generate coverage report
+make coverage
+
+# Clean coverage artifacts
+make coverage-clean
+```
+
+The coverage target generates:
+- **HTML Report**: `target/coverage/html/index.html` (opens automatically on macOS)
+- **JSON Data**: `target/coverage/coverage.json` (machine-readable coverage data)
+
+#### Interpreting Results
+
+The HTML report shows:
+- Line-by-line coverage highlighting
+- Per-file coverage percentages
+- Per-crate breakdown
+
+The terminal output shows:
+- Total coverage (lines, functions, regions)
+- Per-crate breakdown (sorted alphabetically)
+
+Coverage helps identify untested code paths but does not replace thoughtful test design.
+
+For troubleshooting coverage issues, see [Troubleshooting](docs/index.md#troubleshooting).
+
 ### Integration Testing (CLI)
 
 Ralph's CLI is a user-facing contract. For cross-module behaviors (argument parsing → filesystem IO → queue mutation → output),

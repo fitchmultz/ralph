@@ -12,4 +12,8 @@ target/
 .learnings
 debug/
 
+# Coverage artifacts (LLVM profiling data can appear anywhere)
+*.profraw
+*.profdata
+
 CLAUDE.md

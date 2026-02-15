@@ -25,13 +25,15 @@ MAKEFLAGS += --no-builtin-rules
 
 .PHONY: help install update lint lint-fix format type-check clean clean-temp test generate build ci deps \
 	check-env-safety check-backup-artifacts macos-preflight macos-build macos-test macos-ci macos-test-ui \
-	macos-test-window-shortcuts
+	macos-test-window-shortcuts coverage coverage-clean
 
 help:
 	@echo "Common targets:"
 	@echo "  make ci          # Rust-only local CI gate (formats code, builds+installs release)"
 	@echo "  make macos-ci     # Rust gate + macOS app build+test (requires Xcode)"
 	@echo "  make test         # Nextest workspace tests + cargo doc tests (auto-fallback if nextest missing)"
+	@echo "  make coverage     # Generate code coverage report (requires cargo-llvm-cov)"
+	@echo "  make coverage-clean  # Remove coverage artifacts"
 	@echo "  make macos-test-window-shortcuts # Run focused multi-window shortcut UI regressions"
 	@echo "  make lint         # Clippy with -D warnings"
 	@echo "  make generate     # Regenerate committed JSON schemas via release binary"
@@ -250,3 +252,49 @@ macos-ci: macos-preflight ci macos-build macos-test
 	@echo "→ macOS ship gate (Rust CI + macOS app build+test)..."
 	@echo "  ℹ UI automation is intentionally excluded from macos-ci (use make macos-test-ui or make macos-test-window-shortcuts when idle)."
 	@echo "  ✓ macOS CI completed"
+
+# Coverage output directory
+COVERAGE_DIR ?= target/coverage
+
+# Coverage: Generate HTML and summary reports (requires cargo-llvm-cov)
+# Generates: HTML report, text summary with per-crate breakdown, and JSON data
+coverage:
+	@echo "→ Running coverage analysis..."
+	@if ! cargo llvm-cov --version >/dev/null 2>&1; then \
+		echo "ERROR: cargo-llvm-cov not found."; \
+		echo ""; \
+		echo "Install with:"; \
+		echo "  cargo install cargo-llvm-cov"; \
+		echo ""; \
+		echo "On macOS, you may also need:"; \
+		echo "  rustup component add llvm-tools-preview"; \
+		exit 1; \
+	fi
+	@mkdir -p $(COVERAGE_DIR)
+	@echo "  → Running tests with coverage instrumentation..."
+	@cargo llvm-cov --workspace --all-targets --all-features --locked \
+		--html --output-dir $(COVERAGE_DIR)/html \
+		--json --output-path $(COVERAGE_DIR)/coverage.json
+	@echo ""
+	@echo "  ✓ Coverage report generated:"
+	@echo "    HTML:  $(COVERAGE_DIR)/html/index.html"
+	@echo "    JSON:  $(COVERAGE_DIR)/coverage.json"
+	@echo ""
+	@echo "  → Coverage summary:"
+	@echo ""
+	@echo "    Total Coverage:"
+	@jq -r '[.data[0].totals.lines.percent // 0, .data[0].totals.functions.percent // 0, .data[0].totals.regions.percent // 0] | "      Lines: \(.[0])%, Functions: \(.[1])%, Regions: \(.[2])%"' $(COVERAGE_DIR)/coverage.json 2>/dev/null || echo "      (install jq for formatted output)"
+	@echo ""
+	@echo "    Per-Crate Breakdown:"
+	@jq -r '.data[0].summaries // [] | sort_by(.crate_name) | .[] | "      \(.crate_name): Lines \(.summary.lines.percent // 0)%, Functions \(.summary.functions.percent // 0)%"' $(COVERAGE_DIR)/coverage.json 2>/dev/null || echo "      (see $(COVERAGE_DIR)/coverage.json for raw data)"
+	@echo ""
+	@echo "  → Opening HTML report..."
+	@open $(COVERAGE_DIR)/html/index.html 2>/dev/null || echo "    (open $(COVERAGE_DIR)/html/index.html manually)"
+
+# Coverage clean: Remove coverage artifacts
+coverage-clean:
+	@echo "→ Cleaning coverage artifacts..."
+	@rm -rf $(COVERAGE_DIR)
+	@find . -name '*.profraw' -type f -delete 2>/dev/null || true
+	@find . -name '*.profdata' -type f -delete 2>/dev/null || true
+	@echo "  ✓ Coverage artifacts removed"
