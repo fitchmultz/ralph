@@ -169,6 +169,12 @@ struct MenuBarContentView: View {
                 activateMainApp()
             }
             
+            Button("Settings...") {
+                activateMainApp()
+                NotificationCenter.default.post(name: .showRalphSettings, object: nil)
+            }
+            .keyboardShortcut(",", modifiers: .command)
+            
             Toggle("Show in Menu Bar", isOn: $menuBarManager.isMenuBarExtraVisible)
             
             Divider()

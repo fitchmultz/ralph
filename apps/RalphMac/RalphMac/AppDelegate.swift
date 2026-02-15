@@ -29,6 +29,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         for window in NSApplication.shared.windows {
             window.tabbingMode = .disallowed
         }
+        
+        // Settings window observer is auto-initialized via SettingsWindowObserver.shared
+        // defined in ASettingsInfra.swift
     }
     
     func applicationWillFinishLaunching(_ notification: Notification) {

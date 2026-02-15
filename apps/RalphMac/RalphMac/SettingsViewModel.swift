@@ -1,0 +1,227 @@
+/**
+ SettingsViewModel
+
+ Responsibilities:
+ - Load and cache current configuration from CLI.
+ - Provide @Published properties for Settings UI binding.
+ - Debounce and persist config changes via CLI.
+ - Handle per-workspace config (project .ralph/config.json).
+
+ Does not handle:
+ - Settings view layout (see SettingsView).
+ - Global config editing (only project config for now).
+
+ Invariants/assumptions callers must respect:
+ - Must be created on MainActor.
+ - Changes are debounced with 500ms delay before persisting.
+ */
+
+import SwiftUI
+import RalphCore
+
+@MainActor
+@Observable
+final class SettingsViewModel {
+    // MARK: - Runner Settings
+    var runner: String = "claude"
+    var model: String = "sonnet"
+    var phases: Int = 3
+    var iterations: Int = 1
+    var reasoningEffort: String = "medium"
+
+    // MARK: - Notification Settings
+    var notificationsEnabled: Bool = true
+    var notifyOnComplete: Bool = true
+    var notifyOnFail: Bool = true
+    var notifyOnLoopComplete: Bool = true
+    var soundEnabled: Bool = false
+    var suppressWhenActive: Bool = true
+
+    // MARK: - UI State
+    var isLoading: Bool = false
+    var errorMessage: String?
+    var hasUnsavedChanges: Bool = false
+
+    // MARK: - Private
+    private let workspace: Workspace
+    private var saveTask: Task<Void, Never>?
+    private var client: RalphCLIClient? { WorkspaceManager.shared.client }
+
+    // MARK: - Constants
+    let availableRunners = ConfigRunner.allCases
+    let availablePhases = ConfigPhases.allCases
+    let availableEfforts = ConfigReasoningEffort.allCases
+
+    // Common model options per runner
+    let commonModels: [String: [String]] = [
+        "claude": ["sonnet", "opus", "haiku"],
+        "codex": ["gpt-5.3-codex", "o4-mini", "o3"],
+        "opencode": ["default"],
+        "gemini": ["gemini-2.0-flash", "gemini-1.5-pro"],
+        "cursor": ["default"],
+        "kimi": ["kimi-code/kimi-for-coding"],
+        "pi": ["default"]
+    ]
+
+    // MARK: - Initialization
+
+    init(workspace: Workspace) {
+        self.workspace = workspace
+        Task {
+            await loadConfig()
+        }
+    }
+
+    // MARK: - Loading
+
+    func loadConfig() async {
+        isLoading = true
+        errorMessage = nil
+
+        guard let client else {
+            errorMessage = "CLI not available"
+            isLoading = false
+            return
+        }
+
+        // Load from ralph config show --format json
+        do {
+            let result = try await client.runAndCollect(
+                arguments: ["--no-color", "config", "show", "--format", "json"],
+                currentDirectoryURL: workspace.workingDirectoryURL
+            )
+
+            guard result.status.code == 0 else {
+                throw NSError(domain: "ConfigLoad", code: Int(result.status.code))
+            }
+
+            let config = try JSONDecoder().decode(RalphConfig.self, from: Data(result.stdout.utf8))
+
+            // Apply to properties
+            if let agent = config.agent {
+                self.runner = agent.runner ?? "claude"
+                self.model = agent.model ?? "sonnet"
+                self.phases = agent.phases ?? 3
+                self.iterations = agent.iterations ?? 1
+                self.reasoningEffort = agent.reasoningEffort ?? "medium"
+
+                if let notif = agent.notification {
+                    self.notificationsEnabled = notif.enabled ?? true
+                    self.notifyOnComplete = notif.notifyOnComplete ?? true
+                    self.notifyOnFail = notif.notifyOnFail ?? true
+                    self.notifyOnLoopComplete = notif.notifyOnLoopComplete ?? true
+                    self.soundEnabled = notif.soundEnabled ?? false
+                    self.suppressWhenActive = notif.suppressWhenActive ?? true
+                }
+            }
+
+            hasUnsavedChanges = false
+        } catch {
+            errorMessage = "Failed to load config: \(error.localizedDescription)"
+            RalphLogger.shared.error("Failed to load config: \(error)", category: .config)
+        }
+
+        isLoading = false
+    }
+
+    // MARK: - Saving
+
+    /// Schedule a debounced save of the current settings
+    func scheduleSave() {
+        hasUnsavedChanges = true
+
+        // Cancel existing save task
+        saveTask?.cancel()
+
+        // Schedule new save after 500ms debounce
+        saveTask = Task {
+            try? await Task.sleep(nanoseconds: 500_000_000) // 500ms
+
+            guard !Task.isCancelled else { return }
+            await saveConfig()
+        }
+    }
+
+    /// Immediately save all current settings
+    func saveConfig() async {
+        // Build agent config object to write
+        let agentConfig: [String: Any] = [
+            "runner": runner,
+            "model": model,
+            "phases": phases,
+            "iterations": iterations,
+            "reasoning_effort": reasoningEffort,
+            "notification": [
+                "enabled": notificationsEnabled,
+                "notify_on_complete": notifyOnComplete,
+                "notify_on_fail": notifyOnFail,
+                "notify_on_loop_complete": notifyOnLoopComplete,
+                "sound_enabled": soundEnabled,
+                "suppress_when_active": suppressWhenActive
+            ]
+        ]
+
+        let configURL = workspace.workingDirectoryURL.appendingPathComponent(".ralph/config.json")
+
+        do {
+            // Ensure .ralph directory exists
+            let ralphDir = configURL.deletingLastPathComponent()
+            if !FileManager.default.fileExists(atPath: ralphDir.path) {
+                try FileManager.default.createDirectory(at: ralphDir, withIntermediateDirectories: true)
+            }
+
+            // Read existing config to merge
+            var existingDict: [String: Any] = [:]
+            if FileManager.default.fileExists(atPath: configURL.path) {
+                if let data = try? Data(contentsOf: configURL),
+                   let existing = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    existingDict = existing
+                }
+            }
+
+            // Deep merge: preserve existing agent fields not managed by Settings UI
+            // (e.g., runner_cli, runner_retry, webhook, phase_overrides, etc.)
+            var existingAgent = existingDict["agent"] as? [String: Any] ?? [:]
+            for (key, value) in agentConfig {
+                existingAgent[key] = value
+            }
+            existingDict["agent"] = existingAgent
+
+            let jsonData = try JSONSerialization.data(
+                withJSONObject: existingDict,
+                options: [.sortedKeys, .prettyPrinted]
+            )
+            try jsonData.write(to: configURL, options: .atomic)
+
+            hasUnsavedChanges = false
+            errorMessage = nil
+
+            RalphLogger.shared.info("Saved config to \(configURL.path)", category: .config)
+        } catch {
+            errorMessage = "Failed to save config: \(error.localizedDescription)"
+            RalphLogger.shared.error("Failed to save config: \(error)", category: .config)
+        }
+    }
+
+    // MARK: - Helpers
+
+    var suggestedModels: [String] {
+        commonModels[runner] ?? ["default"]
+    }
+
+    func resetToDefaults() {
+        runner = "claude"
+        model = "sonnet"
+        phases = 3
+        iterations = 1
+        reasoningEffort = "medium"
+        notificationsEnabled = true
+        notifyOnComplete = true
+        notifyOnFail = true
+        notifyOnLoopComplete = true
+        soundEnabled = false
+        suppressWhenActive = true
+
+        scheduleSave()
+    }
+}

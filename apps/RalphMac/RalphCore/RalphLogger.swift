@@ -34,6 +34,7 @@ public final class RalphLogger: @unchecked Sendable {
         case ui = "UI"
         case lifecycle = "Lifecycle"
         case crashReporting = "CrashReporting"
+        case config = "Config"
         
         public var description: String {
             return rawValue

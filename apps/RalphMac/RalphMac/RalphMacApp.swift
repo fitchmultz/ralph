@@ -62,6 +62,7 @@ struct RalphMacApp: App {
             taskCommands
             CommandPaletteCommands()
             helpCommands
+            settingsCommands
         }
         
         MenuBarExtra(
@@ -70,6 +71,14 @@ struct RalphMacApp: App {
             label: { MenuBarIconView() }
         )
         .menuBarExtraStyle(.menu)
+        
+        // Settings window is created programmatically via SettingsWindowController
+    }
+    
+    private var settingsCommands: some Commands {
+        CommandGroup(replacing: .appSettings) {
+            OpenSettingsButton()
+        }
     }
 
     private var menuBarVisibilityBinding: Binding<Bool> {
@@ -474,6 +483,8 @@ struct WindowViewContainer: View {
         .task { @MainActor in
             initializeWindowStateIfNeeded()
             openAdditionalWindowForUITestingIfNeeded()
+            // Initialize settings system (extension in ASettingsInfra.swift)
+            SettingsService.initialize()
         }
     }
 
@@ -516,4 +527,38 @@ struct WindowViewContainer: View {
 @MainActor
 private enum UITestingWindowBootstrap {
     static var didOpenSecondaryWindow = false
+}
+
+// MARK: - Settings Service Protocol
+
+/// Protocol for settings-related functionality.
+/// Implementation is provided via extension in ASettingsInfra.swift
+@MainActor
+protocol SettingsServiceProtocol {
+    static func initialize()
+}
+
+/// Stub type that will be extended in ASettingsInfra.swift
+@MainActor
+enum SettingsService: SettingsServiceProtocol {
+    // Implementation provided in ASettingsInfra.swift via extension
+}
+
+// MARK: - Settings Button
+
+/// Notification to show the settings window.
+/// Posted by the settings button, observed by SettingsWindowController.
+extension Notification.Name {
+    static let showRalphSettings = Notification.Name("showRalphSettings")
+}
+
+/// Button that opens the settings window by posting a notification.
+@MainActor
+struct OpenSettingsButton: View {
+    var body: some View {
+        Button("Settings...") {
+            NotificationCenter.default.post(name: .showRalphSettings, object: nil)
+        }
+        .keyboardShortcut(",", modifiers: .command)
+    }
 }

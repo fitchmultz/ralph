@@ -34,6 +34,7 @@ public final class WorkspaceManager: ObservableObject {
     @Published public private(set) var workspaces: [Workspace] = []
     @Published public var errorMessage: String?
     @Published public private(set) var versionCheckResult: VersionValidator.VersionCheckResult?
+    @Published public var focusedWorkspace: Workspace?
 
     public private(set) var client: RalphCLIClient?
 

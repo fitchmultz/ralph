@@ -49,7 +49,11 @@ struct WindowView: View {
             validateAndPersistState()
         }
         .onChange(of: windowState.selectedTabIndex) { _, _ in
+            updateFocusedWorkspace()
             persistState()
+        }
+        .onAppear {
+            updateFocusedWorkspace()
         }
         .onReceive(manager.$workspaces) { _ in
             // Defer cleanup to avoid state mutation during view update.
@@ -198,6 +202,10 @@ struct WindowView: View {
         guard windowState.selectedTabIndex < windowState.workspaceIDs.count else { return nil }
         let workspaceID = windowState.workspaceIDs[windowState.selectedTabIndex]
         return manager.workspaces.first(where: { $0.id == workspaceID })
+    }
+    
+    private func updateFocusedWorkspace() {
+        manager.focusedWorkspace = activeWorkspace()
     }
 }
 
