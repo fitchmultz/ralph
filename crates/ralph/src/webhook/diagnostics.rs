@@ -125,38 +125,38 @@ fn failure_store_lock() -> &'static Mutex<()> {
 }
 
 pub fn set_queue_capacity(capacity: usize) {
-    metrics().queue_capacity.store(capacity, Ordering::Relaxed);
+    metrics().queue_capacity.store(capacity, Ordering::SeqCst);
 }
 
 pub fn note_queue_dequeue() {
     let depth = &metrics().queue_depth;
-    let _ = depth.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
+    let _ = depth.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |current| {
         Some(current.saturating_sub(1))
     });
 }
 
 pub fn note_enqueue_success() {
     let state = metrics();
-    state.enqueued_total.fetch_add(1, Ordering::Relaxed);
-    state.queue_depth.fetch_add(1, Ordering::Relaxed);
+    state.enqueued_total.fetch_add(1, Ordering::SeqCst);
+    state.queue_depth.fetch_add(1, Ordering::SeqCst);
 }
 
 pub fn note_dropped_message() {
-    metrics().dropped_total.fetch_add(1, Ordering::Relaxed);
+    metrics().dropped_total.fetch_add(1, Ordering::SeqCst);
 }
 
 pub fn note_retry_attempt() {
     metrics()
         .retry_attempts_total
-        .fetch_add(1, Ordering::Relaxed);
+        .fetch_add(1, Ordering::SeqCst);
 }
 
 pub fn note_delivery_success() {
-    metrics().delivered_total.fetch_add(1, Ordering::Relaxed);
+    metrics().delivered_total.fetch_add(1, Ordering::SeqCst);
 }
 
 pub fn note_delivery_failure(msg: &WebhookMessage, err: &anyhow::Error, attempts: u32) {
-    metrics().failed_total.fetch_add(1, Ordering::Relaxed);
+    metrics().failed_total.fetch_add(1, Ordering::SeqCst);
 
     if let Err(write_err) = persist_failed_delivery(msg, err, attempts) {
         log::warn!("Failed to persist webhook failure record: {write_err:#}");
@@ -186,20 +186,20 @@ pub fn diagnostics_snapshot(
         .queue_capacity
         .map(|value| value.clamp(1, 10000) as usize)
         .unwrap_or(100);
-    let queue_capacity = match state.queue_capacity.load(Ordering::Relaxed) {
+    let queue_capacity = match state.queue_capacity.load(Ordering::SeqCst) {
         0 => configured_capacity,
         value => value,
     };
 
     Ok(WebhookDiagnostics {
-        queue_depth: state.queue_depth.load(Ordering::Relaxed),
+        queue_depth: state.queue_depth.load(Ordering::SeqCst),
         queue_capacity,
         queue_policy: config.queue_policy.unwrap_or_default(),
-        enqueued_total: state.enqueued_total.load(Ordering::Relaxed),
-        delivered_total: state.delivered_total.load(Ordering::Relaxed),
-        failed_total: state.failed_total.load(Ordering::Relaxed),
-        dropped_total: state.dropped_total.load(Ordering::Relaxed),
-        retry_attempts_total: state.retry_attempts_total.load(Ordering::Relaxed),
+        enqueued_total: state.enqueued_total.load(Ordering::SeqCst),
+        delivered_total: state.delivered_total.load(Ordering::SeqCst),
+        failed_total: state.failed_total.load(Ordering::SeqCst),
+        dropped_total: state.dropped_total.load(Ordering::SeqCst),
+        retry_attempts_total: state.retry_attempts_total.load(Ordering::SeqCst),
         failure_store_path: path.display().to_string(),
         recent_failures,
     })
@@ -520,11 +520,11 @@ pub(crate) fn persist_failed_delivery_for_tests(
 #[cfg(test)]
 pub(crate) fn reset_webhook_metrics_for_tests() {
     let state = metrics();
-    state.queue_depth.store(0, Ordering::Relaxed);
-    state.queue_capacity.store(0, Ordering::Relaxed);
-    state.enqueued_total.store(0, Ordering::Relaxed);
-    state.delivered_total.store(0, Ordering::Relaxed);
-    state.failed_total.store(0, Ordering::Relaxed);
-    state.dropped_total.store(0, Ordering::Relaxed);
-    state.retry_attempts_total.store(0, Ordering::Relaxed);
+    state.queue_depth.store(0, Ordering::SeqCst);
+    state.queue_capacity.store(0, Ordering::SeqCst);
+    state.enqueued_total.store(0, Ordering::SeqCst);
+    state.delivered_total.store(0, Ordering::SeqCst);
+    state.failed_total.store(0, Ordering::SeqCst);
+    state.dropped_total.store(0, Ordering::SeqCst);
+    state.retry_attempts_total.store(0, Ordering::SeqCst);
 }

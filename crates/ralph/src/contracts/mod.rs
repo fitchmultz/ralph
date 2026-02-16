@@ -23,6 +23,7 @@ mod session;
 mod task;
 
 // Re-exports from config module (core config types)
+// All config types are now re-exported from config::mod.rs for backward compatibility
 pub use config::{
     AgentConfig, Config, ConflictPolicy, GitRevertMode, LoopConfig, NotificationConfig,
     ParallelConfig, ParallelMergeMethod, ParallelMergeWhen, PhaseOverrideConfig, PhaseOverrides,

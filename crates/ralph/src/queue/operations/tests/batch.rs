@@ -13,7 +13,7 @@
 //! - All batch operations require a valid RFC3339 UTC timestamp.
 
 use super::*;
-use crate::queue::TaskStatus;
+use crate::contracts::TaskStatus;
 use crate::queue::operations::batch::{
     BatchOperationResult, batch_apply_edit, batch_set_field, batch_set_status, collect_task_ids,
     deduplicate_task_ids, filter_tasks_by_tags, resolve_task_ids,

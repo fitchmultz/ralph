@@ -12,6 +12,7 @@
 //! - Tests may access private module helpers via `super::*`.
 
 use super::*;
+use serial_test::serial;
 
 fn sample_failure_record(
     id: &str,
@@ -425,6 +426,7 @@ fn webhook_queue_capacity_bounds_check() {
 }
 
 #[test]
+#[serial]
 fn diagnostics_snapshot_includes_metrics_and_recent_failures() {
     super::diagnostics::reset_webhook_metrics_for_tests();
     let repo_root = tempfile::tempdir().expect("tempdir");
@@ -463,6 +465,7 @@ fn diagnostics_snapshot_includes_metrics_and_recent_failures() {
 }
 
 #[test]
+#[serial]
 fn failure_store_retention_is_bounded_to_200_records() {
     super::diagnostics::reset_webhook_metrics_for_tests();
     let repo_root = tempfile::tempdir().expect("tempdir");

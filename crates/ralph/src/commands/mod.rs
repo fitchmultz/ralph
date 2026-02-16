@@ -12,6 +12,10 @@ pub mod cli_spec;
 pub mod context;
 pub mod daemon;
 pub mod doctor;
+
+// Re-export commonly used doctor types for convenience
+pub use doctor::types::{CheckResult, CheckSeverity, DoctorReport};
+pub use doctor::{print_doctor_report_text, run_doctor};
 pub mod init;
 pub mod plugin;
 pub mod prd;

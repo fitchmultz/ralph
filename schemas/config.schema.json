@@ -1,6 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Config",
+  "description": "Root configuration struct for Ralph.",
   "type": "object",
   "properties": {
     "agent": {
@@ -194,6 +195,7 @@
   "additionalProperties": false,
   "$defs": {
     "AgentConfig": {
+      "description": "Agent runner defaults (Claude, Codex, OpenCode, Gemini, or Cursor).",
       "type": "object",
       "properties": {
         "ci_gate_command": {
@@ -494,6 +496,7 @@
       ]
     },
     "ConflictPolicy": {
+      "description": "Policy for handling merge conflicts in parallel mode.",
       "type": "string",
       "enum": [
         "auto_resolve",
@@ -502,6 +505,7 @@
       ]
     },
     "GitRevertMode": {
+      "description": "Git revert mode for handling runner/supervision errors.",
       "type": "string",
       "enum": [
         "ask",
@@ -687,6 +691,7 @@
       "additionalProperties": false
     },
     "ParallelConfig": {
+      "description": "Parallel run-loop configuration.",
       "type": "object",
       "properties": {
         "auto_merge": {
@@ -811,6 +816,7 @@
       "additionalProperties": false
     },
     "ParallelMergeMethod": {
+      "description": "Merge method for PRs in parallel mode.",
       "type": "string",
       "enum": [
         "squash",
@@ -819,6 +825,7 @@
       ]
     },
     "ParallelMergeWhen": {
+      "description": "When to merge PRs in parallel mode.",
       "type": "string",
       "enum": [
         "as_created",
@@ -992,6 +999,7 @@
       "additionalProperties": false
     },
     "ProjectType": {
+      "description": "Project type classification.",
       "type": "string",
       "enum": [
         "code",
@@ -1039,6 +1047,7 @@
       "additionalProperties": false
     },
     "QueueConfig": {
+      "description": "Queue-related configuration.",
       "type": "object",
       "properties": {
         "aging_thresholds": {
