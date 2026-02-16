@@ -1,6 +1,7 @@
 //! Auto-resume session tests for run command.
 
 use super::task_with_id_and_status;
+use crate::commands::run::run_session::validate_resumed_task;
 use crate::contracts::{QueueFile, TaskStatus};
 use crate::session;
 
@@ -15,7 +16,7 @@ fn validate_resumed_task_succeeds_when_task_exists_and_doing() -> anyhow::Result
     };
 
     // Should succeed when task exists and is Doing
-    crate::commands::run::validate_resumed_task(&queue_file, "RQ-0001", &repo_root)?;
+    validate_resumed_task(&queue_file, "RQ-0001", &repo_root)?;
 
     Ok(())
 }
@@ -31,8 +32,7 @@ fn validate_resumed_task_fails_when_task_missing() -> anyhow::Result<()> {
     };
 
     // Should fail when task doesn't exist
-    let err = crate::commands::run::validate_resumed_task(&queue_file, "RQ-9999", &repo_root)
-        .unwrap_err();
+    let err = validate_resumed_task(&queue_file, "RQ-9999", &repo_root).unwrap_err();
     assert!(err.to_string().contains("no longer exists"));
 
     Ok(())
@@ -50,7 +50,7 @@ fn validate_resumed_task_succeeds_when_task_todo() -> anyhow::Result<()> {
 
     // Should succeed for Todo tasks - they are valid for resumption
     // (task was marked doing but failed before any work was done)
-    crate::commands::run::validate_resumed_task(&queue_file, "RQ-0001", &repo_root)?;
+    validate_resumed_task(&queue_file, "RQ-0001", &repo_root)?;
 
     Ok(())
 }
@@ -66,8 +66,7 @@ fn validate_resumed_task_fails_when_task_done() -> anyhow::Result<()> {
     };
 
     // Should fail for Done tasks (terminal state)
-    let err = crate::commands::run::validate_resumed_task(&queue_file, "RQ-0001", &repo_root)
-        .unwrap_err();
+    let err = validate_resumed_task(&queue_file, "RQ-0001", &repo_root).unwrap_err();
     assert!(err.to_string().contains("already done"));
 
     Ok(())
@@ -84,8 +83,7 @@ fn validate_resumed_task_fails_when_task_rejected() -> anyhow::Result<()> {
     };
 
     // Should fail for Rejected tasks (terminal state)
-    let err = crate::commands::run::validate_resumed_task(&queue_file, "RQ-0001", &repo_root)
-        .unwrap_err();
+    let err = validate_resumed_task(&queue_file, "RQ-0001", &repo_root).unwrap_err();
     assert!(err.to_string().contains("already rejected"));
 
     Ok(())
@@ -119,7 +117,7 @@ fn validate_resumed_task_clears_session_when_invalid() -> anyhow::Result<()> {
     };
 
     // Validation should fail and clear the session
-    let _ = crate::commands::run::validate_resumed_task(&queue_file, "RQ-9999", &repo_root);
+    let _ = validate_resumed_task(&queue_file, "RQ-9999", &repo_root);
 
     // Session should be cleared
     assert!(!session::session_exists(&cache_dir));
@@ -156,7 +154,7 @@ fn validate_resumed_task_clears_session_when_terminal() -> anyhow::Result<()> {
     };
 
     // Validation should fail and clear the session
-    let _ = crate::commands::run::validate_resumed_task(&queue_file, "RQ-0001", &repo_root);
+    let _ = validate_resumed_task(&queue_file, "RQ-0001", &repo_root);
 
     // Session should be cleared
     assert!(!session::session_exists(&cache_dir));

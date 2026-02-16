@@ -30,24 +30,12 @@ mod run_session;
 mod selection;
 mod supervision;
 
-// Re-export types that are used by other modules within commands::run.
-// These are used by the tests module and other internal modules.
-#[allow(unused_imports)]
-pub(crate) use context::{mark_task_doing, task_context_for_prompt};
-#[allow(unused_imports)]
-pub(crate) use execution_timings::RunExecutionTimings;
-#[allow(unused_imports)]
-pub(crate) use iteration::{apply_followup_reasoning_effort, resolve_iteration_settings};
-#[allow(unused_imports)]
-pub(crate) use run_session::{create_session_for_task, validate_resumed_task};
-#[allow(unused_imports)]
-pub(crate) use selection::select_run_one_task_index;
-#[allow(unused_imports)]
-pub(crate) use supervision::{PushPolicy, post_run_supervise, post_run_supervise_parallel_worker};
+// Re-export types that are used by other modules via crate::commands::run::* paths.
+// These are used by phase modules.
+pub(crate) use supervision::{post_run_supervise, post_run_supervise_parallel_worker};
 
 // Preserve existing `commands::run` unit tests which call phase 3 helpers directly.
-#[allow(unused_imports)]
-pub(crate) use phases::{apply_phase3_completion_signal, finalize_phase3_if_done};
+pub(crate) use phases::apply_phase3_completion_signal;
 
 // Re-export PhaseType for use by runner module.
 pub(crate) use phases::PhaseType;

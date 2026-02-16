@@ -1,6 +1,7 @@
 //! Queue lock handling tests for run command.
 
 use super::{find_definitely_dead_pid, resolved_with_repo_root, task_with_status};
+use crate::commands::run::run_session::create_session_for_task;
 use crate::contracts::{QueueFile, TaskStatus};
 use crate::queue;
 use crate::testsupport::INTERRUPT_TEST_MUTEX;
@@ -176,7 +177,7 @@ fn run_loop_auto_resume_clears_stale_queue_lock_before_task_execution() -> anyho
     )?;
     queue::save_queue(&resolved.done_path, &QueueFile::default())?;
 
-    let session = crate::commands::run::create_session_for_task(
+    let session = create_session_for_task(
         "RQ-0001",
         &resolved,
         &crate::commands::run::AgentOverrides::default(),

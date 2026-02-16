@@ -1,6 +1,8 @@
 //! Phase 3 completion signal tests for run command.
 
 use super::{resolved_with_repo_root, task_with_status};
+use crate::commands::run::phases::phase3::finalize_phase3_if_done;
+use crate::commands::run::supervision::PushPolicy;
 use crate::completions;
 use crate::contracts::{QueueFile, TaskStatus};
 use crate::queue;
@@ -155,13 +157,13 @@ fn finalize_phase3_if_done_runs_post_run_supervise_without_signal() -> anyhow::R
 
     std::fs::write(temp.path().join("work.txt"), "change")?;
 
-    let finalized = crate::commands::run::finalize_phase3_if_done(
+    let finalized = finalize_phase3_if_done(
         &resolved,
         "RQ-0001",
         None,
         crate::contracts::GitRevertMode::Disabled,
         true,
-        crate::commands::run::supervision::PushPolicy::RequireUpstream,
+        PushPolicy::RequireUpstream,
         None,
         None,
         None,

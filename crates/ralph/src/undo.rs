@@ -19,8 +19,7 @@ use crate::config::Resolved;
 use crate::constants::limits::MAX_UNDO_SNAPSHOTS;
 use crate::contracts::QueueFile;
 use crate::fsutil;
-#[allow(unused_imports)]
-use crate::queue::{load_queue, load_queue_or_default, save_queue};
+use crate::queue::{load_queue_or_default, save_queue};
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -350,6 +349,7 @@ pub fn prune_old_undo_snapshots(undo_dir: &Path, max_count: usize) -> Result<usi
 mod tests {
     use super::*;
     use crate::contracts::{Task, TaskStatus};
+    use crate::queue::load_queue;
     use std::collections::HashMap;
     use tempfile::TempDir;
 

@@ -40,8 +40,6 @@ pub mod eta_calculator;
 pub mod execution_history;
 pub mod fsutil;
 pub mod git;
-// DEPRECATED: gitutil is deprecated and will be removed. Use `git` instead.
-pub(crate) mod gitutil;
 pub mod jsonc;
 pub mod lock;
 pub mod notification;

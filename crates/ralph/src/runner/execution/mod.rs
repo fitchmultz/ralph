@@ -57,17 +57,9 @@ pub(super) use response::extract_final_assistant_response;
 
 // New plugin trait system exports
 // Note: These are exported for use by runner.rs and tests
-// Allow unused during Phase 2; these will be used in Phase 3 integration
-#[allow(unused_imports)]
 pub(crate) use builtin_plugins::BuiltInRunnerPlugin;
-#[allow(unused_imports)]
 pub(crate) use plugin_executor::{PluginExecutor, run_builtin_prompt, run_builtin_resume};
-#[allow(unused_imports)]
-pub(crate) use plugin_trait::{
-    PluginCommandParts, ResumeContext, RunContext, RunnerMetadata, RunnerPlugin,
-};
-#[allow(unused_imports)]
-pub(crate) use response::ResponseParserRegistry;
+pub(crate) use plugin_trait::RunnerPlugin;
 
 pub(crate) use cli_options::{ResolvedRunnerCliOptions, resolve_runner_cli_options};
 pub(crate) use plugin::{run_plugin_runner, run_plugin_runner_resume, serialize_plugin_env_json};

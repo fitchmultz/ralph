@@ -2,6 +2,10 @@
 
 use super::{LoggerState, base_task, resolved_with_agent_defaults, take_logs};
 use crate::agent::AgentOverrides;
+use crate::commands::run::context::task_context_for_prompt;
+use crate::commands::run::iteration::{
+    apply_followup_reasoning_effort, resolve_iteration_settings,
+};
 use crate::contracts::{
     Model, ModelEffort, ReasoningEffort, Runner, RunnerCliOptionsPatch, TaskAgent,
 };
@@ -278,7 +282,7 @@ fn resolve_iteration_settings_defaults_to_one() -> anyhow::Result<()> {
     let resolved = resolved_with_agent_defaults(None, None, None);
     let task = base_task();
 
-    let settings = crate::commands::run::resolve_iteration_settings(&task, &resolved.config.agent)?;
+    let settings = resolve_iteration_settings(&task, &resolved.config.agent)?;
     assert_eq!(settings.count, 1);
     assert_eq!(settings.followup_reasoning_effort, None);
     Ok(())
@@ -302,7 +306,7 @@ fn resolve_iteration_settings_prefers_task_over_config() -> anyhow::Result<()> {
         phase_overrides: None,
     });
 
-    let settings = crate::commands::run::resolve_iteration_settings(&task, &resolved.config.agent)?;
+    let settings = resolve_iteration_settings(&task, &resolved.config.agent)?;
     assert_eq!(settings.count, 2);
     assert_eq!(
         settings.followup_reasoning_effort,
@@ -319,11 +323,7 @@ fn apply_followup_reasoning_effort_overrides_codex_only() {
         reasoning_effort: Some(ReasoningEffort::Medium),
         runner_cli: runner::ResolvedRunnerCliOptions::default(),
     };
-    let updated = crate::commands::run::apply_followup_reasoning_effort(
-        &base,
-        Some(ReasoningEffort::High),
-        true,
-    );
+    let updated = apply_followup_reasoning_effort(&base, Some(ReasoningEffort::High), true);
     assert_eq!(updated.reasoning_effort, Some(ReasoningEffort::High));
 
     let base_non_codex = runner::AgentSettings {
@@ -332,11 +332,8 @@ fn apply_followup_reasoning_effort_overrides_codex_only() {
         reasoning_effort: None,
         runner_cli: runner::ResolvedRunnerCliOptions::default(),
     };
-    let updated_non_codex = crate::commands::run::apply_followup_reasoning_effort(
-        &base_non_codex,
-        Some(ReasoningEffort::High),
-        true,
-    );
+    let updated_non_codex =
+        apply_followup_reasoning_effort(&base_non_codex, Some(ReasoningEffort::High), true);
     assert_eq!(updated_non_codex.reasoning_effort, None);
 }
 
@@ -350,11 +347,7 @@ fn apply_followup_reasoning_effort_warns_for_non_codex() {
     };
 
     let (state, _) = take_logs();
-    let _ = crate::commands::run::apply_followup_reasoning_effort(
-        &base_non_codex,
-        Some(ReasoningEffort::High),
-        true,
-    );
+    let _ = apply_followup_reasoning_effort(&base_non_codex, Some(ReasoningEffort::High), true);
     let (_, logs) = take_logs();
 
     if state == LoggerState::TestLogger {
@@ -371,7 +364,7 @@ fn task_context_block_includes_id_and_title() -> anyhow::Result<()> {
     let mut t = base_task();
     t.id = "RQ-0001".to_string();
     t.title = "Hello world".to_string();
-    let rendered = crate::commands::run::task_context_for_prompt(&t)?;
+    let rendered = task_context_for_prompt(&t)?;
     assert!(rendered.contains("RQ-0001"));
     assert!(rendered.contains("Hello world"));
     assert!(rendered.contains("Raw task JSON"));

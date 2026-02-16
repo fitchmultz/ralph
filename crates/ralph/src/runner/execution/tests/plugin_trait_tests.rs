@@ -13,12 +13,10 @@ use std::path::Path;
 
 use crate::commands::run::PhaseType;
 use crate::contracts::{Model, Runner, RunnerApprovalMode, RunnerSandboxMode};
+use crate::runner::execution::plugin_trait::{ResumeContext, RunContext, RunnerMetadata};
 use crate::runner::{
     OutputStream, ResolvedRunnerCliOptions,
-    execution::{
-        BuiltInRunnerPlugin, PluginExecutor, ResumeContext, RunContext, RunnerMetadata,
-        RunnerPlugin,
-    },
+    execution::{BuiltInRunnerPlugin, PluginExecutor, RunnerPlugin},
 };
 
 // =============================================================================
