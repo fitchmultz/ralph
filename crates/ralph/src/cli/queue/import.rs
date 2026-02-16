@@ -14,6 +14,7 @@
 //! Invariants/assumptions:
 //! - Always acquire queue lock before modifying queue files.
 //! - Never write to disk on parse/validation failures.
+//! - Undo snapshots are only created AFTER all validation succeeds (no orphaned snapshots on error).
 //! - Always backfill required timestamps (created_at, updated_at, completed_at for terminal statuses).
 //! - List fields are trimmed and empty items are dropped.
 
@@ -104,11 +105,6 @@ impl ImportReport {
 pub(crate) fn handle(resolved: &Resolved, force: bool, args: QueueImportArgs) -> Result<()> {
     let _queue_lock = queue::acquire_queue_lock(&resolved.repo_root, "queue import", force)?;
 
-    // Create undo snapshot before mutation (only if not dry-run)
-    if !args.dry_run {
-        crate::undo::create_undo_snapshot(resolved, "queue import")?;
-    }
-
     let input = read_input(args.input.as_ref()).context("read import input")?;
 
     // Parse the input based on format
@@ -152,6 +148,13 @@ pub(crate) fn handle(resolved: &Resolved, force: bool, args: QueueImportArgs) ->
         resolved.config.queue.max_dependency_depth.unwrap_or(10),
     )?;
     queue::log_warnings(&warnings);
+
+    // Create undo snapshot before mutation (only if not dry-run and validation passed).
+    // This must happen AFTER all fallible operations (parsing, merging, validation) to avoid
+    // leaving orphaned snapshots when the import operation itself fails.
+    if !args.dry_run {
+        crate::undo::create_undo_snapshot(resolved, "queue import")?;
+    }
 
     if args.dry_run {
         log::info!("Dry run: no changes written. {}", report.summary());
