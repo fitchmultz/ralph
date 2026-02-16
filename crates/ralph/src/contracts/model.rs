@@ -85,7 +85,43 @@ impl schemars::JsonSchema for Model {
 
     fn json_schema(_: &mut schemars::SchemaGenerator) -> schemars::Schema {
         schemars::json_schema!({
-            "type": "string"
+            "oneOf": [
+                {
+                    "type": "string",
+                    "const": "gpt-5.3-codex",
+                    "description": "OpenAI GPT-5.3 Codex (default)"
+                },
+                {
+                    "type": "string",
+                    "const": "gpt-5.3-codex-spark",
+                    "description": "OpenAI GPT-5.3 Codex Spark (fast)"
+                },
+                {
+                    "type": "string",
+                    "const": "gpt-5.3",
+                    "description": "OpenAI GPT-5.3"
+                },
+                {
+                    "type": "string",
+                    "const": "gpt-5.2-codex",
+                    "description": "OpenAI GPT-5.2 Codex"
+                },
+                {
+                    "type": "string",
+                    "const": "gpt-5.2",
+                    "description": "OpenAI GPT-5.2"
+                },
+                {
+                    "type": "string",
+                    "const": "zai-coding-plan/glm-4.7",
+                    "description": "ZhipuAI GLM-4.7"
+                },
+                {
+                    "type": "string",
+                    "description": "Custom model identifier",
+                    "minLength": 1
+                }
+            ]
         })
     }
 }
@@ -212,6 +248,49 @@ mod tests {
         assert_eq!(
             ModelEffort::XHigh.as_reasoning_effort(),
             Some(ReasoningEffort::XHigh)
+        );
+    }
+
+    #[test]
+    fn model_json_schema_includes_known_models() {
+        use schemars::JsonSchema;
+
+        let schema = Model::json_schema(&mut schemars::SchemaGenerator::default());
+        let schema_json = serde_json::to_string(&schema).unwrap();
+
+        // Verify known models are in schema
+        assert!(
+            schema_json.contains("gpt-5.3-codex"),
+            "schema should list gpt-5.3-codex"
+        );
+        assert!(
+            schema_json.contains("gpt-5.3-codex-spark"),
+            "schema should list gpt-5.3-codex-spark"
+        );
+        assert!(
+            schema_json.contains("gpt-5.3"),
+            "schema should list gpt-5.3"
+        );
+        assert!(
+            schema_json.contains("gpt-5.2-codex"),
+            "schema should list gpt-5.2-codex"
+        );
+        assert!(
+            schema_json.contains("gpt-5.2"),
+            "schema should list gpt-5.2"
+        );
+        assert!(
+            schema_json.contains("zai-coding-plan/glm-4.7"),
+            "schema should list glm-4.7"
+        );
+
+        // Verify oneOf structure
+        assert!(schema_json.contains("oneOf"), "schema should use oneOf");
+
+        // Verify custom model fallback exists
+        assert!(
+            schema_json.contains("Custom model identifier"),
+            "schema should have custom fallback"
         );
     }
 }

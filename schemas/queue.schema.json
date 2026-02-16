@@ -22,7 +22,43 @@
   ],
   "$defs": {
     "Model": {
-      "type": "string"
+      "oneOf": [
+        {
+          "description": "OpenAI GPT-5.3 Codex (default)",
+          "type": "string",
+          "const": "gpt-5.3-codex"
+        },
+        {
+          "description": "OpenAI GPT-5.3 Codex Spark (fast)",
+          "type": "string",
+          "const": "gpt-5.3-codex-spark"
+        },
+        {
+          "description": "OpenAI GPT-5.3",
+          "type": "string",
+          "const": "gpt-5.3"
+        },
+        {
+          "description": "OpenAI GPT-5.2 Codex",
+          "type": "string",
+          "const": "gpt-5.2-codex"
+        },
+        {
+          "description": "OpenAI GPT-5.2",
+          "type": "string",
+          "const": "gpt-5.2"
+        },
+        {
+          "description": "ZhipuAI GLM-4.7",
+          "type": "string",
+          "const": "zai-coding-plan/glm-4.7"
+        },
+        {
+          "description": "Custom model identifier",
+          "type": "string",
+          "minLength": 1
+        }
+      ]
     },
     "PhaseOverrideConfig": {
       "description": "Per-phase configuration overrides for runner, model, and reasoning effort.\n\nAll fields are optional to support leaf-wise merging:\n- `Some(value)` overrides the parent config\n- `None` means \"inherit from parent\"",
