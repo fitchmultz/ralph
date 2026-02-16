@@ -45,6 +45,7 @@ use clap::{Args, Subcommand};
 use crate::config;
 
 pub use aging::QueueAgingArgs;
+pub use archive::QueueArchiveArgs;
 pub use burndown::QueueBurndownArgs;
 pub use dashboard::QueueDashboardArgs;
 pub use explain::QueueExplainArgs;
@@ -79,7 +80,7 @@ pub fn handle_queue(cmd: QueueCommand, force: bool) -> Result<()> {
         QueueCommand::Show(args) => show::handle(&resolved, args),
         QueueCommand::List(args) => list::handle(&resolved, args),
         QueueCommand::Search(args) => search::handle(&resolved, args),
-        QueueCommand::Archive => archive::handle(&resolved, force),
+        QueueCommand::Archive(args) => archive::handle(&resolved, force, args),
         QueueCommand::Repair(args) => repair::handle(&resolved, force, args),
         QueueCommand::Unlock(args) => unlock::handle(&resolved, args),
         QueueCommand::Sort(args) => sort::handle(&resolved, force, args),
@@ -149,8 +150,10 @@ pub enum QueueCommand {
     Search(QueueSearchArgs),
 
     /// Move completed tasks from queue.json to done.json.
-    #[command(after_long_help = "Example:\n ralph queue archive")]
-    Archive,
+    #[command(
+        after_long_help = "Examples:\n  ralph queue archive\n  ralph queue archive --dry-run"
+    )]
+    Archive(QueueArchiveArgs),
 
     /// Repair the queue and done files (fix missing fields, duplicates, timestamps).
     #[command(after_long_help = "Example:\n ralph queue repair\n ralph queue repair --dry-run")]

@@ -104,8 +104,10 @@ impl ImportReport {
 pub(crate) fn handle(resolved: &Resolved, force: bool, args: QueueImportArgs) -> Result<()> {
     let _queue_lock = queue::acquire_queue_lock(&resolved.repo_root, "queue import", force)?;
 
-    // Create undo snapshot BEFORE any mutations
-    crate::undo::create_undo_snapshot(resolved, "queue import")?;
+    // Create undo snapshot before mutation (only if not dry-run)
+    if !args.dry_run {
+        crate::undo::create_undo_snapshot(resolved, "queue import")?;
+    }
 
     let input = read_input(args.input.as_ref()).context("read import input")?;
 

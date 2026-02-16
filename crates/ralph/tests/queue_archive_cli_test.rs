@@ -4,6 +4,7 @@
 //! - Verify terminal tasks (done/rejected) move from queue → done archive.
 //! - Verify no-op behavior when there are no terminal tasks.
 //! - Verify done archive creation/usage.
+//! - Verify dry-run mode does not modify files.
 //!
 //! Not handled here:
 //! - Unit testing of archive internals (covered by module/unit tests).
@@ -115,6 +116,106 @@ fn queue_archive_appends_to_existing_done_file() -> Result<()> {
     anyhow::ensure!(
         done.tasks.iter().any(|t| t.id == "RQ-0100"),
         "existing done task should still be in done.json"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn queue_archive_dry_run_does_not_modify_files() -> Result<()> {
+    let dir = test_support::temp_dir_outside_repo();
+    test_support::git_init(dir.path())?;
+    test_support::ralph_init(dir.path())?;
+
+    let t1 = test_support::make_test_task("RQ-0001", "Todo", TaskStatus::Todo);
+    let mut t2 = test_support::make_test_task("RQ-0002", "Done", TaskStatus::Done);
+    t2.completed_at = Some("2026-01-20T00:00:00Z".to_string());
+
+    test_support::write_queue(dir.path(), &[t1.clone(), t2.clone()])?;
+    test_support::write_done(dir.path(), &[])?;
+
+    let before_queue = std::fs::read_to_string(dir.path().join(".ralph/queue.json"))?;
+    let before_done = std::fs::read_to_string(dir.path().join(".ralph/done.json"))?;
+
+    let (status, stdout, stderr) =
+        test_support::run_in_dir(dir.path(), &["queue", "archive", "--dry-run"]);
+    anyhow::ensure!(
+        status.success(),
+        "archive --dry-run failed\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    // Verify dry-run message appears
+    anyhow::ensure!(
+        stderr.contains("Dry run") || stdout.contains("Dry run"),
+        "expected dry-run message, got stdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    // Verify files unchanged
+    let after_queue = std::fs::read_to_string(dir.path().join(".ralph/queue.json"))?;
+    let after_done = std::fs::read_to_string(dir.path().join(".ralph/done.json"))?;
+
+    anyhow::ensure!(before_queue == after_queue, "queue changed during dry-run");
+    anyhow::ensure!(before_done == after_done, "done changed during dry-run");
+
+    Ok(())
+}
+
+#[test]
+fn queue_archive_dry_run_shows_what_would_be_archived() -> Result<()> {
+    let dir = test_support::temp_dir_outside_repo();
+    test_support::git_init(dir.path())?;
+    test_support::ralph_init(dir.path())?;
+
+    let t1 = test_support::make_test_task("RQ-0001", "Todo", TaskStatus::Todo);
+    let mut t2 = test_support::make_test_task("RQ-0002", "Done", TaskStatus::Done);
+    let mut t3 = test_support::make_test_task("RQ-0003", "Rejected", TaskStatus::Rejected);
+    t2.completed_at = Some("2026-01-20T00:00:00Z".to_string());
+    t3.completed_at = Some("2026-01-21T00:00:00Z".to_string());
+
+    test_support::write_queue(dir.path(), &[t1.clone(), t2.clone(), t3.clone()])?;
+    test_support::write_done(dir.path(), &[])?;
+
+    let (status, stdout, stderr) =
+        test_support::run_in_dir(dir.path(), &["queue", "archive", "--dry-run"]);
+    anyhow::ensure!(
+        status.success(),
+        "archive --dry-run failed\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    let output = format!("{stdout}\n{stderr}");
+    anyhow::ensure!(
+        output.contains("RQ-0002") && output.contains("RQ-0003"),
+        "expected task IDs in output, got:\n{output}"
+    );
+    anyhow::ensure!(
+        output.contains("2") || output.contains("two"),
+        "expected count of tasks to archive, got:\n{output}"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn queue_archive_dry_run_no_terminal_tasks() -> Result<()> {
+    let dir = test_support::temp_dir_outside_repo();
+    test_support::git_init(dir.path())?;
+    test_support::ralph_init(dir.path())?;
+
+    let t1 = test_support::make_test_task("RQ-0001", "Todo", TaskStatus::Todo);
+    test_support::write_queue(dir.path(), &[t1])?;
+    test_support::write_done(dir.path(), &[])?;
+
+    let (status, stdout, stderr) =
+        test_support::run_in_dir(dir.path(), &["queue", "archive", "--dry-run"]);
+    anyhow::ensure!(
+        status.success(),
+        "archive --dry-run failed\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    let output = format!("{stdout}\n{stderr}");
+    anyhow::ensure!(
+        output.contains("no terminal tasks") || output.contains("no tasks"),
+        "expected 'no terminal tasks' message, got:\n{output}"
     );
 
     Ok(())

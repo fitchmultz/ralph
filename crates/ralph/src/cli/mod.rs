@@ -282,7 +282,7 @@ mod tests {
         let cli = Cli::try_parse_from(["ralph", "queue", "archive"]).expect("parse");
         match cli.command {
             Command::Queue(queue::QueueArgs { command }) => match command {
-                queue::QueueCommand::Archive => {}
+                queue::QueueCommand::Archive(_) => {}
                 _ => panic!("expected queue archive command"),
             },
             _ => panic!("expected queue command"),

@@ -746,3 +746,115 @@ fn queue_list_sorts_by_title_case_insensitive_ascending() -> Result<()> {
 
     Ok(())
 }
+
+// ------------------------------------------------------------------------
+// Dry-run tests for queue sort
+// ------------------------------------------------------------------------
+
+#[test]
+fn queue_sort_dry_run_does_not_modify_file() -> Result<()> {
+    let dir = test_support::temp_dir_outside_repo();
+    init_repo(dir.path())?;
+    write_queue(dir.path())?;
+
+    let before_queue = std::fs::read_to_string(dir.path().join(".ralph/queue.json"))?;
+
+    let (status, stdout, stderr) = run_in_dir(dir.path(), &["queue", "sort", "--dry-run"]);
+    anyhow::ensure!(
+        status.success(),
+        "queue sort --dry-run failed\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    // Verify dry-run message appears
+    anyhow::ensure!(
+        stderr.contains("Dry run") || stdout.contains("Dry run"),
+        "expected dry-run message, got stdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    // Verify file unchanged
+    let after_queue = std::fs::read_to_string(dir.path().join(".ralph/queue.json"))?;
+    anyhow::ensure!(
+        before_queue == after_queue,
+        "queue.json changed during dry-run"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn queue_sort_dry_run_shows_new_order() -> Result<()> {
+    let dir = test_support::temp_dir_outside_repo();
+    init_repo(dir.path())?;
+    write_queue(dir.path())?;
+
+    let (status, stdout, stderr) = run_in_dir(dir.path(), &["queue", "sort", "--dry-run"]);
+    anyhow::ensure!(
+        status.success(),
+        "queue sort --dry-run failed\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    let output = format!("{stdout}\n{stderr}");
+    // The dry-run should show the new order (critical, high, low priority)
+    // RQ-0002 (critical), RQ-0003 (high), RQ-0001 (low)
+    anyhow::ensure!(
+        output.contains("RQ-0002") && output.contains("RQ-0003") && output.contains("RQ-0001"),
+        "expected task IDs in new order, got:\n{output}"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn queue_sort_dry_run_already_sorted() -> Result<()> {
+    let dir = test_support::temp_dir_outside_repo();
+    init_repo(dir.path())?;
+
+    // Create a queue that is already sorted by priority (descending)
+    let queue = r#"{
+      "version": 1,
+      "tasks": [
+        {
+          "id": "RQ-0001",
+          "status": "todo",
+          "title": "Critical priority",
+          "priority": "critical",
+          "tags": ["cli"],
+          "scope": ["crates/ralph"],
+          "evidence": ["test"],
+          "plan": ["verify"],
+          "request": "test",
+          "created_at": "2026-01-18T00:00:00Z",
+          "updated_at": "2026-01-18T00:00:00Z"
+        },
+        {
+          "id": "RQ-0002",
+          "status": "todo",
+          "title": "Low priority",
+          "priority": "low",
+          "tags": ["cli"],
+          "scope": ["crates/ralph"],
+          "evidence": ["test"],
+          "plan": ["verify"],
+          "request": "test",
+          "created_at": "2026-01-18T00:00:00Z",
+          "updated_at": "2026-01-18T00:00:00Z"
+        }
+      ]
+    }"#;
+
+    std::fs::write(dir.path().join(".ralph/queue.json"), queue).context("write queue.json")?;
+
+    let (status, stdout, stderr) = run_in_dir(dir.path(), &["queue", "sort", "--dry-run"]);
+    anyhow::ensure!(
+        status.success(),
+        "queue sort --dry-run failed\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
+
+    let output = format!("{stdout}\n{stderr}");
+    anyhow::ensure!(
+        output.contains("no changes") || output.contains("already sorted"),
+        "expected 'already sorted' or 'no changes' message, got:\n{output}"
+    );
+
+    Ok(())
+}

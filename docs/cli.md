@@ -1466,8 +1466,13 @@ ralph queue search "api" --format json
 
 Move terminal tasks (done/rejected) from `.ralph/queue.json` to `.ralph/done.json`.
 
+Flags:
+
+* `--dry-run`: show what would be archived without writing to disk.
+
 ```bash
 ralph queue archive
+ralph queue archive --dry-run
 ```
 
 **Note:** This command archives immediately. To enable automatic archiving based on task age, configure `queue.auto_archive_terminal_after_days` in your config. When set, the sweep runs during macOS app startup/reload and after CLI task edits:
@@ -1513,11 +1518,13 @@ Flags:
 
 * `--sort-by <priority>`: sort by field (default: `priority`). Only priority is supported for queue file reordering; use `ralph queue list --sort-by` for time-based triage.
 * `--order <ascending|descending>`: sort order (default: `descending`, highest priority first).
+* `--dry-run`: show what would change without writing to disk.
 
 ```bash
 ralph queue sort
 ralph queue sort --order descending
 ralph queue sort --order ascending
+ralph queue sort --dry-run
 ```
 
 Note: `ralph queue sort` intentionally supports only priority sorting to prevent accidental queue reordering. For time-based triage without modifying the queue file, use `ralph queue list --sort-by <field>`.
