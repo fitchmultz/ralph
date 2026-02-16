@@ -29,33 +29,49 @@ use crate::commands::run::{
     context::{mark_task_doing, task_context_for_prompt},
     execution_history_cli,
     execution_timings::RunExecutionTimings,
-    iteration::{apply_followup_reasoning_effort, resolve_iteration_settings},
+    iteration::{IterationSettings, apply_followup_reasoning_effort, resolve_iteration_settings},
     phases::{self, PostRunMode},
     run_session::create_session_for_task,
-    run_session::validate_resumed_task,
-    selection::select_run_one_task_index,
     supervision::PushPolicy,
 };
+use crate::plugins::registry::PluginRegistry;
 
-#[allow(clippy::too_many_arguments)]
-pub fn run_one_impl(
+/// Context prepared before task execution.
+pub(crate) struct RunOneContext {
+    pub queue_file: crate::contracts::QueueFile,
+    pub done: crate::contracts::QueueFile,
+    pub git_revert_mode: GitRevertMode,
+    pub git_commit_push_enabled: bool,
+    pub push_policy: PushPolicy,
+    pub post_run_mode: PostRunMode,
+    pub policy: promptflow::PromptPolicy,
+}
+
+/// Setup for task execution after selection.
+pub(crate) struct TaskExecutionSetup<'a> {
+    pub phases: u8,
+    pub iteration_settings: IterationSettings,
+    pub phase_matrix: runner::PhaseSettingsMatrix,
+    pub preexisting_dirty_allowed: bool,
+    pub plugin_registry: PluginRegistry,
+    pub bins: runner::RunnerBinaries<'a>,
+    pub execution_timings: Option<RefCell<RunExecutionTimings>>,
+}
+
+/// Prepare the context for run-one execution.
+///
+/// Handles Ctrl+C state, lock acquisition, queue loading/validation,
+/// and configuration resolution.
+fn prepare_run_one_context(
     resolved: &config::Resolved,
     agent_overrides: &AgentOverrides,
     force: bool,
     lock_mode: QueueLockMode,
-    target_task_id: Option<&str>,
-    resume_task_id: Option<&str>,
-    output_handler: Option<runner::OutputHandler>,
-    revert_prompt: Option<runutil::RevertPromptHandler>,
-) -> Result<RunOutcome> {
+) -> Result<RunOneContext> {
     // Handle Ctrl+C state initialization and pre-run interrupt detection.
-    // If the handler setup fails, surface it as an error so Ctrl+C issues are visible.
     let ctrlc = crate::runner::ctrlc_state()
         .map_err(|e| anyhow::anyhow!("Ctrl-C handler initialization failed: {}", e))?;
 
-    // Check for pre-run interrupt BEFORE resetting the flag.
-    // If an interrupt was already pending (e.g., from a previous run or user pressed Ctrl+C
-    // before we got here), we should abort without clearing the flag.
     if ctrlc.interrupted.load(std::sync::atomic::Ordering::SeqCst) {
         return Err(runutil::RunAbort::new(
             runutil::RunAbortReason::Interrupted,
@@ -64,8 +80,6 @@ pub fn run_one_impl(
         .into());
     }
 
-    // Now safe to reset the flag for this run.
-    // This prevents stale interrupts from previous runs affecting this one.
     ctrlc
         .interrupted
         .store(false, std::sync::atomic::Ordering::SeqCst);
@@ -76,17 +90,13 @@ pub fn run_one_impl(
         ),
         QueueLockMode::Held => None,
     };
+
     let queue_file = queue::load_queue(&resolved.queue_path)?;
     let done = queue::load_queue_or_default(&resolved.done_path)?;
-    let done_ref = if done.tasks.is_empty() && !resolved.done_path.exists() {
-        None
-    } else {
-        Some(&done)
-    };
     let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
     let warnings = queue::validate_queue_set(
         &queue_file,
-        done_ref,
+        Some(&done),
         &resolved.id_prefix,
         resolved.id_width,
         max_depth,
@@ -121,123 +131,38 @@ pub fn run_one_impl(
         repoprompt_tool_injection: repoprompt_flags.tool_injection,
     };
 
-    // --- Task Selection ---
-    // Prefer resuming a `doing` task (crash recovery), otherwise take first runnable `todo`.
-    let include_draft = agent_overrides.include_draft.unwrap_or(false);
+    Ok(RunOneContext {
+        queue_file,
+        done,
+        git_revert_mode,
+        git_commit_push_enabled,
+        push_policy,
+        post_run_mode,
+        policy,
+    })
+}
 
-    // Determine effective target: explicit target > resume_task_id > normal selection
-    let effective_target = if target_task_id.is_some() {
-        target_task_id
-    } else if let Some(resume_id) = resume_task_id {
-        // Validate the resumed task before using it
-        match validate_resumed_task(&queue_file, resume_id, &resolved.repo_root) {
-            Ok(()) => Some(resume_id),
-            Err(e) => {
-                log::info!("Session resume failed: {e}");
-                None
-            }
-        }
-    } else {
-        None
-    };
+/// Setup task execution after a task has been selected.
+///
+/// Resolves phase count, iteration settings, phase matrix,
+/// validates repo state, loads plugins, marks task doing, and creates session.
+fn setup_task_execution<'a>(
+    resolved: &'a config::Resolved,
+    agent_overrides: &AgentOverrides,
+    task: &Task,
+    post_run_mode: PostRunMode,
+    force: bool,
+) -> Result<TaskExecutionSetup<'a>> {
+    let phases = resolve_task_phase_count(agent_overrides, task, &resolved.config.agent)?;
 
-    let task_idx = match select_run_one_task_index(
-        &queue_file,
-        done_ref,
-        effective_target,
-        include_draft,
-    )? {
-        Some(idx) => idx,
-        None => {
-            // Count candidates (same logic as has_runnable, but more detailed)
-            let candidates: Vec<_> = queue_file
-                .tasks
-                .iter()
-                .filter(|t| {
-                    t.status == TaskStatus::Todo || (include_draft && t.status == TaskStatus::Draft)
-                })
-                .collect();
-
-            if candidates.is_empty() {
-                // No candidates at all
-                if include_draft {
-                    log::info!("No todo or draft tasks found.");
-                } else {
-                    log::info!("No todo tasks found.");
-                }
-                return Ok(RunOutcome::NoCandidates);
-            }
-
-            // Candidates exist but none are runnable - use runnability report for accurate messaging
-            let options = RunnableSelectionOptions::new(include_draft, true);
-            let summary = match crate::queue::operations::queue_runnability_report(
-                &queue_file,
-                done_ref,
-                options,
-            ) {
-                Ok(report) => {
-                    if report.summary.blocked_by_schedule > 0
-                        && report.summary.blocked_by_dependencies > 0
-                    {
-                        log::info!(
-                            "All runnable tasks are blocked by unmet dependencies and future schedule ({} deps, {} scheduled).",
-                            report.summary.blocked_by_dependencies,
-                            report.summary.blocked_by_schedule
-                        );
-                    } else if report.summary.blocked_by_schedule > 0 {
-                        log::info!(
-                            "All runnable tasks are blocked by future schedule ({} scheduled).",
-                            report.summary.blocked_by_schedule
-                        );
-                    } else if report.summary.blocked_by_dependencies > 0 {
-                        log::info!(
-                            "All runnable tasks are blocked by unmet dependencies ({} blocked).",
-                            report.summary.blocked_by_dependencies
-                        );
-                    } else if report.summary.blocked_by_status_or_flags > 0 {
-                        log::info!(
-                            "All tasks are blocked by status or flags ({} blocked).",
-                            report.summary.blocked_by_status_or_flags
-                        );
-                    } else {
-                        log::info!("All runnable tasks are blocked.");
-                    }
-                    log::info!("Run 'ralph queue explain' for details.");
-                    report.summary.clone()
-                }
-                Err(e) => {
-                    // If analysis fails, avoid claiming a specific blocker.
-                    log::info!(
-                        "No runnable tasks found (failed to analyze blockers: {}).",
-                        e
-                    );
-                    log::info!("Run 'ralph queue explain' for details.");
-                    // Fallback summary if report generation failed
-                    crate::queue::operations::QueueRunnabilitySummary {
-                        total_active: queue_file.tasks.len(),
-                        candidates_total: candidates.len(),
-                        runnable_candidates: 0,
-                        blocked_by_dependencies: candidates.len(),
-                        blocked_by_schedule: 0,
-                        blocked_by_status_or_flags: 0,
-                    }
-                }
-            };
-            return Ok(RunOutcome::Blocked { summary });
-        }
-    };
-
-    let task = queue_file.tasks[task_idx].clone();
-    let task_id = task.id.trim().to_string();
-    let phases = resolve_task_phase_count(agent_overrides, &task, &resolved.config.agent)?;
-
-    let iteration_settings = resolve_iteration_settings(&task, &resolved.config.agent)?;
+    let iteration_settings = resolve_iteration_settings(task, &resolved.config.agent)?;
     log::info!(
-        "RunOne: selected {task_id} (phases={phases}, iterations={})",
+        "RunOne: selected {} (phases={}, iterations={})",
+        task.id.trim(),
+        phases,
         iteration_settings.count
     );
 
-    // Resolve per-phase settings matrix for the execution.
     let (phase_matrix, phase_warnings) = runner::resolve_phase_settings_matrix(
         agent_overrides,
         &resolved.config.agent,
@@ -245,21 +170,26 @@ pub fn run_one_impl(
         phases,
     )?;
 
-    // Log resolution warnings if any phase overrides won't be used.
     if phase_warnings.unused_phase1 {
-        log::warn!("Task {task_id}: Phase 1 overrides specified but will not be used (phases < 2)");
+        log::warn!(
+            "Task {}: Phase 1 overrides specified but will not be used (phases < 2)",
+            task.id.trim()
+        );
     }
     if phase_warnings.unused_phase2 {
         log::warn!(
-            "Task {task_id}: Phase 2 overrides specified but will not be used (phases < 2 or single-phase mode)"
+            "Task {}: Phase 2 overrides specified but will not be used (phases < 2 or single-phase mode)",
+            task.id.trim()
         );
     }
     if phase_warnings.unused_phase3 {
-        log::warn!("Task {task_id}: Phase 3 overrides specified but will not be used (phases < 3)");
+        log::warn!(
+            "Task {}: Phase 3 overrides specified but will not be used (phases < 3)",
+            task.id.trim()
+        );
     }
 
-    // Log resolved per-phase matrix for visibility.
-    log::info!("Task {task_id}: Resolved phase settings:");
+    log::info!("Task {}: Resolved phase settings:", task.id.trim());
     if phases >= 2 {
         log::info!(
             "  Phase 1 (Planning): runner={:?}, model={}",
@@ -280,7 +210,6 @@ pub fn run_one_impl(
         );
     }
 
-    // Require clean repo before the first iteration starts.
     let preexisting_dirty_allowed = git::repo_dirty_only_allowed_paths(
         &resolved.repo_root,
         git::RALPH_RUN_CLEAN_ALLOWED_PATHS,
@@ -291,35 +220,30 @@ pub fn run_one_impl(
         git::RALPH_RUN_CLEAN_ALLOWED_PATHS,
     )?;
 
-    // Load plugin registry for processor hook invocation
-    let plugin_registry =
-        crate::plugins::registry::PluginRegistry::load(&resolved.repo_root, &resolved.config)
-            .context("load plugin registry")?;
+    let plugin_registry = PluginRegistry::load(&resolved.repo_root, &resolved.config)
+        .context("load plugin registry")?;
 
-    // Invoke validate_task hooks before marking task as doing
-    // This allows processors to reject tasks before any work begins
     if !plugin_registry.discovered().is_empty() {
         let exec = crate::plugins::processor_executor::ProcessorExecutor::new(
             &resolved.repo_root,
             &plugin_registry,
         );
-        exec.validate_task(&task)
+        exec.validate_task(task)
             .context("processor validate_task hook failed")?;
     }
 
-    // Mark the task as doing before running the agent (skip in parallel worker mode).
     if matches!(post_run_mode, PostRunMode::ParallelWorker) {
         log::info!(
-            "Task {task_id}: parallel worker mode skips mark_task_doing to avoid queue writes"
+            "Task {}: parallel worker mode skips mark_task_doing to avoid queue writes",
+            task.id.trim()
         );
     } else {
-        mark_task_doing(resolved, &task_id)?;
+        mark_task_doing(resolved, &task.id)?;
     }
 
-    // Save session state for crash recovery (before task execution)
     let cache_dir = resolved.repo_root.join(".ralph/cache");
     let session = create_session_for_task(
-        &task_id,
+        &task.id,
         resolved,
         agent_overrides,
         iteration_settings.count,
@@ -331,9 +255,8 @@ pub fn run_one_impl(
 
     let bins = runner::resolve_binaries(&resolved.config.agent);
 
-    log::info!("Task {task_id}: start");
+    log::info!("Task {}: start", task.id.trim());
 
-    // Create execution timings accumulator for CLI runs (not parallel worker mode)
     let execution_timings: Option<RefCell<RunExecutionTimings>> =
         if post_run_mode == PostRunMode::ParallelWorker {
             None
@@ -341,470 +264,540 @@ pub fn run_one_impl(
             Some(RefCell::new(RunExecutionTimings::default()))
         };
 
-    let exec_result: Result<()> = (|| {
-        // --- Prompt Construction ---
-        let template = prompts::load_worker_prompt(&resolved.repo_root)?;
-        let project_type = resolved.config.project_type.unwrap_or(ProjectType::Code);
-        let mut base_prompt =
-            prompts::render_worker_prompt(&template, &task_id, project_type, &resolved.config)?;
-        base_prompt = prompts::wrap_with_instruction_files(
-            &resolved.repo_root,
-            &base_prompt,
-            &resolved.config,
-        )?;
+    Ok(TaskExecutionSetup {
+        phases,
+        iteration_settings,
+        phase_matrix,
+        preexisting_dirty_allowed,
+        plugin_registry,
+        bins,
+        execution_timings,
+    })
+}
 
-        // Inject an authoritative task context block to prevent the agent from selecting
-        // a different task (e.g., "first todo" or "lowest ID") after Ralph marks the
-        // selected task as `doing`.
-        let task_context = task_context_for_prompt(&task)?;
-        base_prompt = format!("{task_context}\n\n---\n\n{base_prompt}");
+/// Build the base prompt for task execution.
+fn build_base_prompt(resolved: &config::Resolved, task: &Task, task_id: &str) -> Result<String> {
+    let template = prompts::load_worker_prompt(&resolved.repo_root)?;
+    let project_type = resolved.config.project_type.unwrap_or(ProjectType::Code);
+    let mut base_prompt =
+        prompts::render_worker_prompt(&template, task_id, project_type, &resolved.config)?;
+    base_prompt =
+        prompts::wrap_with_instruction_files(&resolved.repo_root, &base_prompt, &resolved.config)?;
 
-        let output_stream = if output_handler.is_some() {
-            runner::OutputStream::HandlerOnly
-        } else {
-            runner::OutputStream::Terminal
-        };
+    let task_context = task_context_for_prompt(task)?;
+    base_prompt = format!("{task_context}\n\n---\n\n{base_prompt}");
 
-        for iteration_index in 1..=iteration_settings.count {
-            let is_followup = iteration_index > 1;
-            let is_final_iteration = iteration_index == iteration_settings.count;
+    Ok(base_prompt)
+}
 
-            log::info!(
-                "Task {task_id}: iteration {iteration_index}/{}",
-                iteration_settings.count
-            );
+/// Execute phase 1 (planning) with webhook notifications.
+/// Returns the plan text on success.
+#[allow(clippy::too_many_arguments)]
+fn execute_phase1_with_webhooks(
+    phase_count: u8,
+    task_id: &str,
+    task_title: &str,
+    webhook_config: &crate::contracts::WebhookConfig,
+    _ci_gate_enabled: bool,
+    settings: &runner::AgentSettings,
+    resolved: &config::Resolved,
+    invocation: &phases::PhaseInvocation<'_>,
+) -> Result<String> {
+    let started_at = crate::timeutil::now_utc_rfc3339_or_fallback();
+    let start = std::time::Instant::now();
 
-            // Apply follow-up reasoning effort to Phase 2 settings (implementation phase).
-            // Phase 1 and Phase 3 use their original settings.
-            let phase2_settings = apply_followup_reasoning_effort(
-                &phase_matrix.phase2.to_agent_settings(),
-                iteration_settings.followup_reasoning_effort,
-                is_followup,
-            );
+    let ctx = crate::webhook::WebhookContext {
+        runner: Some(format!("{:?}", settings.runner).to_lowercase()),
+        model: Some(settings.model.as_str().to_string()),
+        phase: Some(1),
+        phase_count: Some(phase_count),
+        repo_root: Some(resolved.repo_root.display().to_string()),
+        branch: crate::git::current_branch(&resolved.repo_root).ok(),
+        commit: crate::session::get_git_head_commit(&resolved.repo_root),
+        ..Default::default()
+    };
 
-            let iteration_context = if is_followup {
-                prompts::ITERATION_CONTEXT_REFINEMENT
-            } else {
-                ""
-            };
-            let iteration_completion_block = if is_final_iteration {
-                ""
-            } else {
-                prompts::ITERATION_COMPLETION_BLOCK
-            };
-            let phase3_completion_guidance = if is_final_iteration {
-                prompts::PHASE3_COMPLETION_GUIDANCE_FINAL
-            } else {
-                prompts::PHASE3_COMPLETION_GUIDANCE_NONFINAL
-            };
+    crate::webhook::notify_phase_started(
+        task_id,
+        task_title,
+        webhook_config,
+        &started_at,
+        ctx.clone(),
+    );
 
-            // Helper to build webhook context for a phase
-            let webhook_ctx_for_phase =
-                |phase: u8, settings: &runner::AgentSettings| -> crate::webhook::WebhookContext {
-                    crate::webhook::WebhookContext {
-                        runner: Some(format!("{:?}", settings.runner).to_lowercase()),
-                        model: Some(settings.model.as_str().to_string()),
-                        phase: Some(phase),
-                        phase_count: Some(phases),
-                        repo_root: Some(resolved.repo_root.display().to_string()),
-                        branch: crate::git::current_branch(&resolved.repo_root).ok(),
-                        commit: crate::session::get_git_head_commit(&resolved.repo_root),
-                        ..Default::default()
-                    }
-                };
+    let result = phases::execute_phase1_planning(invocation, phase_count);
 
-            let ci_gate_enabled = resolved.config.agent.ci_gate_enabled.unwrap_or(true);
-            let ci_gate_status_for_result = |result: &Result<(), anyhow::Error>| -> Option<String> {
-                if !ci_gate_enabled {
-                    return Some("skipped".to_string());
-                }
+    let completed_at = crate::timeutil::now_utc_rfc3339_or_fallback();
+    let mut ctx_done = ctx;
+    ctx_done.duration_ms = Some(start.elapsed().as_millis() as u64);
+    ctx_done.ci_gate = Some("skipped".to_string()); // Planning phase doesn't have CI gate
 
-                match result {
-                    Ok(()) => Some("passed".to_string()),
-                    Err(err) => {
-                        // Only report "failed" when we are confident the CI gate ran and failed.
-                        // Other errors (runner issues, user interrupts, etc.) may prevent CI from
-                        // running at all, so we omit `ci_gate` in those cases.
-                        let msg = format!("{err:#}");
-                        if msg.contains("CI failed:") {
-                            Some("failed".to_string())
-                        } else {
-                            None
-                        }
-                    }
-                }
-            };
+    crate::webhook::notify_phase_completed(
+        task_id,
+        task_title,
+        webhook_config,
+        &completed_at,
+        ctx_done,
+    );
 
-            match phases {
-                2 => {
-                    // Phase 1: Planning - use phase1 settings
-                    let phase1_invocation = phases::PhaseInvocation {
-                        resolved,
-                        settings: &phase_matrix.phase1.to_agent_settings(),
-                        bins,
-                        task_id: &task_id,
-                        base_prompt: &base_prompt,
-                        policy: &policy,
-                        output_handler: output_handler.clone(),
-                        output_stream,
-                        project_type,
-                        git_revert_mode,
-                        git_commit_push_enabled,
-                        push_policy,
-                        revert_prompt: revert_prompt.clone(),
-                        iteration_context,
-                        iteration_completion_block,
-                        phase3_completion_guidance,
-                        is_final_iteration,
-                        allow_dirty_repo: is_followup || preexisting_dirty_allowed,
-                        post_run_mode,
-                        notify_on_complete: agent_overrides.notify_on_complete,
-                        notify_sound: agent_overrides.notify_sound,
-                        lfs_check: agent_overrides.lfs_check.unwrap_or(false),
-                        no_progress: agent_overrides.no_progress.unwrap_or(false),
-                        execution_timings: execution_timings.as_ref(),
-                        plugins: Some(&plugin_registry),
-                    };
+    result
+}
 
-                    // Phase 1 webhook events
-                    let phase1_started_at = crate::timeutil::now_utc_rfc3339_or_fallback();
-                    let phase1_start = std::time::Instant::now();
-                    let phase1_ctx =
-                        webhook_ctx_for_phase(1, &phase_matrix.phase1.to_agent_settings());
-                    crate::webhook::notify_phase_started(
-                        &task_id,
-                        &task.title,
-                        &resolved.config.agent.webhook,
-                        &phase1_started_at,
-                        phase1_ctx.clone(),
-                    );
+/// Execute implementation phase (phase 2, 3, or single) with webhook notifications.
+#[allow(clippy::too_many_arguments)]
+fn execute_impl_phase_with_webhooks<F>(
+    phase_num: u8,
+    phase_count: u8,
+    task_id: &str,
+    task_title: &str,
+    webhook_config: &crate::contracts::WebhookConfig,
+    ci_gate_enabled: bool,
+    settings: &runner::AgentSettings,
+    resolved: &config::Resolved,
+    invocation: &phases::PhaseInvocation<'_>,
+    phase_executor: F,
+) -> Result<()>
+where
+    F: FnOnce(&phases::PhaseInvocation<'_>) -> Result<()>,
+{
+    let started_at = crate::timeutil::now_utc_rfc3339_or_fallback();
+    let start = std::time::Instant::now();
 
-                    let plan_text = phases::execute_phase1_planning(&phase1_invocation, 2)?;
+    let ctx = crate::webhook::WebhookContext {
+        runner: Some(format!("{:?}", settings.runner).to_lowercase()),
+        model: Some(settings.model.as_str().to_string()),
+        phase: Some(phase_num),
+        phase_count: Some(phase_count),
+        repo_root: Some(resolved.repo_root.display().to_string()),
+        branch: crate::git::current_branch(&resolved.repo_root).ok(),
+        commit: crate::session::get_git_head_commit(&resolved.repo_root),
+        ..Default::default()
+    };
 
-                    let phase1_completed_at = crate::timeutil::now_utc_rfc3339_or_fallback();
-                    let mut phase1_ctx_done = phase1_ctx;
-                    phase1_ctx_done.duration_ms = Some(phase1_start.elapsed().as_millis() as u64);
-                    crate::webhook::notify_phase_completed(
-                        &task_id,
-                        &task.title,
-                        &resolved.config.agent.webhook,
-                        &phase1_completed_at,
-                        phase1_ctx_done,
-                    );
+    crate::webhook::notify_phase_started(
+        task_id,
+        task_title,
+        webhook_config,
+        &started_at,
+        ctx.clone(),
+    );
 
-                    // Phase 2: Implementation - use phase2 settings (with follow-up effort applied)
-                    let phase2_invocation = phases::PhaseInvocation {
-                        resolved,
-                        settings: &phase2_settings,
-                        bins,
-                        task_id: &task_id,
-                        base_prompt: &base_prompt,
-                        policy: &policy,
-                        output_handler: output_handler.clone(),
-                        output_stream,
-                        project_type,
-                        git_revert_mode,
-                        git_commit_push_enabled,
-                        push_policy,
-                        revert_prompt: revert_prompt.clone(),
-                        iteration_context,
-                        iteration_completion_block,
-                        phase3_completion_guidance,
-                        is_final_iteration,
-                        allow_dirty_repo: is_followup || preexisting_dirty_allowed,
-                        post_run_mode,
-                        notify_on_complete: agent_overrides.notify_on_complete,
-                        notify_sound: agent_overrides.notify_sound,
-                        lfs_check: agent_overrides.lfs_check.unwrap_or(false),
-                        no_progress: agent_overrides.no_progress.unwrap_or(false),
-                        execution_timings: execution_timings.as_ref(),
-                        plugins: Some(&plugin_registry),
-                    };
+    let result = phase_executor(invocation);
 
-                    // Phase 2 webhook events
-                    let phase2_started_at = crate::timeutil::now_utc_rfc3339_or_fallback();
-                    let phase2_start = std::time::Instant::now();
-                    let phase2_ctx = webhook_ctx_for_phase(2, &phase2_settings);
-                    crate::webhook::notify_phase_started(
-                        &task_id,
-                        &task.title,
-                        &resolved.config.agent.webhook,
-                        &phase2_started_at,
-                        phase2_ctx.clone(),
-                    );
+    let completed_at = crate::timeutil::now_utc_rfc3339_or_fallback();
+    let mut ctx_done = ctx;
+    ctx_done.duration_ms = Some(start.elapsed().as_millis() as u64);
 
-                    let phase2_result =
-                        phases::execute_phase2_implementation(&phase2_invocation, 2, &plan_text);
-
-                    let phase2_completed_at = crate::timeutil::now_utc_rfc3339_or_fallback();
-                    let mut phase2_ctx_done = phase2_ctx;
-                    phase2_ctx_done.duration_ms = Some(phase2_start.elapsed().as_millis() as u64);
-                    phase2_ctx_done.ci_gate = ci_gate_status_for_result(&phase2_result);
-                    crate::webhook::notify_phase_completed(
-                        &task_id,
-                        &task.title,
-                        &resolved.config.agent.webhook,
-                        &phase2_completed_at,
-                        phase2_ctx_done,
-                    );
-
-                    phase2_result?;
-                }
-                3 => {
-                    // Phase 1: Planning - use phase1 settings
-                    let phase1_invocation = phases::PhaseInvocation {
-                        resolved,
-                        settings: &phase_matrix.phase1.to_agent_settings(),
-                        bins,
-                        task_id: &task_id,
-                        base_prompt: &base_prompt,
-                        policy: &policy,
-                        output_handler: output_handler.clone(),
-                        output_stream,
-                        project_type,
-                        git_revert_mode,
-                        git_commit_push_enabled,
-                        push_policy,
-                        revert_prompt: revert_prompt.clone(),
-                        iteration_context,
-                        iteration_completion_block,
-                        phase3_completion_guidance,
-                        is_final_iteration,
-                        allow_dirty_repo: is_followup || preexisting_dirty_allowed,
-                        post_run_mode,
-                        notify_on_complete: agent_overrides.notify_on_complete,
-                        notify_sound: agent_overrides.notify_sound,
-                        lfs_check: agent_overrides.lfs_check.unwrap_or(false),
-                        no_progress: agent_overrides.no_progress.unwrap_or(false),
-                        execution_timings: execution_timings.as_ref(),
-                        plugins: Some(&plugin_registry),
-                    };
-
-                    // Phase 1 webhook events
-                    let phase1_started_at = crate::timeutil::now_utc_rfc3339_or_fallback();
-                    let phase1_start = std::time::Instant::now();
-                    let phase1_ctx =
-                        webhook_ctx_for_phase(1, &phase_matrix.phase1.to_agent_settings());
-                    crate::webhook::notify_phase_started(
-                        &task_id,
-                        &task.title,
-                        &resolved.config.agent.webhook,
-                        &phase1_started_at,
-                        phase1_ctx.clone(),
-                    );
-
-                    let plan_text = phases::execute_phase1_planning(&phase1_invocation, 3)?;
-
-                    let phase1_completed_at = crate::timeutil::now_utc_rfc3339_or_fallback();
-                    let mut phase1_ctx_done = phase1_ctx;
-                    phase1_ctx_done.duration_ms = Some(phase1_start.elapsed().as_millis() as u64);
-                    crate::webhook::notify_phase_completed(
-                        &task_id,
-                        &task.title,
-                        &resolved.config.agent.webhook,
-                        &phase1_completed_at,
-                        phase1_ctx_done,
-                    );
-
-                    // Phase 2: Implementation - use phase2 settings (with follow-up effort applied)
-                    let phase2_invocation = phases::PhaseInvocation {
-                        resolved,
-                        settings: &phase2_settings,
-                        bins,
-                        task_id: &task_id,
-                        base_prompt: &base_prompt,
-                        policy: &policy,
-                        output_handler: output_handler.clone(),
-                        output_stream,
-                        project_type,
-                        git_revert_mode,
-                        git_commit_push_enabled,
-                        push_policy,
-                        revert_prompt: revert_prompt.clone(),
-                        iteration_context,
-                        iteration_completion_block,
-                        phase3_completion_guidance,
-                        is_final_iteration,
-                        allow_dirty_repo: is_followup || preexisting_dirty_allowed,
-                        post_run_mode,
-                        notify_on_complete: agent_overrides.notify_on_complete,
-                        notify_sound: agent_overrides.notify_sound,
-                        lfs_check: agent_overrides.lfs_check.unwrap_or(false),
-                        no_progress: agent_overrides.no_progress.unwrap_or(false),
-                        execution_timings: execution_timings.as_ref(),
-                        plugins: Some(&plugin_registry),
-                    };
-
-                    // Phase 2 webhook events
-                    let phase2_started_at = crate::timeutil::now_utc_rfc3339_or_fallback();
-                    let phase2_start = std::time::Instant::now();
-                    let phase2_ctx = webhook_ctx_for_phase(2, &phase2_settings);
-                    crate::webhook::notify_phase_started(
-                        &task_id,
-                        &task.title,
-                        &resolved.config.agent.webhook,
-                        &phase2_started_at,
-                        phase2_ctx.clone(),
-                    );
-
-                    let phase2_result =
-                        phases::execute_phase2_implementation(&phase2_invocation, 3, &plan_text);
-
-                    let phase2_completed_at = crate::timeutil::now_utc_rfc3339_or_fallback();
-                    let mut phase2_ctx_done = phase2_ctx;
-                    phase2_ctx_done.duration_ms = Some(phase2_start.elapsed().as_millis() as u64);
-                    phase2_ctx_done.ci_gate = ci_gate_status_for_result(&phase2_result);
-                    crate::webhook::notify_phase_completed(
-                        &task_id,
-                        &task.title,
-                        &resolved.config.agent.webhook,
-                        &phase2_completed_at,
-                        phase2_ctx_done,
-                    );
-
-                    phase2_result?;
-
-                    // Phase 3: Review - use phase3 settings
-                    let phase3_invocation = phases::PhaseInvocation {
-                        resolved,
-                        settings: &phase_matrix.phase3.to_agent_settings(),
-                        bins,
-                        task_id: &task_id,
-                        base_prompt: &base_prompt,
-                        policy: &policy,
-                        output_handler: output_handler.clone(),
-                        output_stream,
-                        project_type,
-                        git_revert_mode,
-                        git_commit_push_enabled,
-                        push_policy,
-                        revert_prompt: revert_prompt.clone(),
-                        iteration_context,
-                        iteration_completion_block,
-                        phase3_completion_guidance,
-                        is_final_iteration,
-                        allow_dirty_repo: is_followup || preexisting_dirty_allowed,
-                        post_run_mode,
-                        notify_on_complete: agent_overrides.notify_on_complete,
-                        notify_sound: agent_overrides.notify_sound,
-                        lfs_check: agent_overrides.lfs_check.unwrap_or(false),
-                        no_progress: agent_overrides.no_progress.unwrap_or(false),
-                        execution_timings: execution_timings.as_ref(),
-                        plugins: Some(&plugin_registry),
-                    };
-
-                    // Phase 3 webhook events
-                    let phase3_started_at = crate::timeutil::now_utc_rfc3339_or_fallback();
-                    let phase3_start = std::time::Instant::now();
-                    let phase3_ctx =
-                        webhook_ctx_for_phase(3, &phase_matrix.phase3.to_agent_settings());
-                    crate::webhook::notify_phase_started(
-                        &task_id,
-                        &task.title,
-                        &resolved.config.agent.webhook,
-                        &phase3_started_at,
-                        phase3_ctx.clone(),
-                    );
-
-                    let phase3_result = phases::execute_phase3_review(&phase3_invocation);
-
-                    let phase3_completed_at = crate::timeutil::now_utc_rfc3339_or_fallback();
-                    let mut phase3_ctx_done = phase3_ctx;
-                    phase3_ctx_done.duration_ms = Some(phase3_start.elapsed().as_millis() as u64);
-                    phase3_ctx_done.ci_gate = ci_gate_status_for_result(&phase3_result);
-                    crate::webhook::notify_phase_completed(
-                        &task_id,
-                        &task.title,
-                        &resolved.config.agent.webhook,
-                        &phase3_completed_at,
-                        phase3_ctx_done,
-                    );
-
-                    phase3_result?;
-                }
-                1 => {
-                    // Single-phase: use Phase 2 settings (with follow-up effort applied)
-                    let single_invocation = phases::PhaseInvocation {
-                        resolved,
-                        settings: &phase2_settings,
-                        bins,
-                        task_id: &task_id,
-                        base_prompt: &base_prompt,
-                        policy: &policy,
-                        output_handler: output_handler.clone(),
-                        output_stream,
-                        project_type,
-                        git_revert_mode,
-                        git_commit_push_enabled,
-                        push_policy,
-                        revert_prompt: revert_prompt.clone(),
-                        iteration_context,
-                        iteration_completion_block,
-                        phase3_completion_guidance,
-                        is_final_iteration,
-                        allow_dirty_repo: is_followup || preexisting_dirty_allowed,
-                        post_run_mode,
-                        notify_on_complete: agent_overrides.notify_on_complete,
-                        notify_sound: agent_overrides.notify_sound,
-                        lfs_check: agent_overrides.lfs_check.unwrap_or(false),
-                        no_progress: agent_overrides.no_progress.unwrap_or(false),
-                        execution_timings: execution_timings.as_ref(),
-                        plugins: Some(&plugin_registry),
-                    };
-
-                    // Single-phase (treated as phase 2) webhook events
-                    let phase_started_at = crate::timeutil::now_utc_rfc3339_or_fallback();
-                    let phase_start = std::time::Instant::now();
-                    let phase_ctx = webhook_ctx_for_phase(2, &phase2_settings);
-                    crate::webhook::notify_phase_started(
-                        &task_id,
-                        &task.title,
-                        &resolved.config.agent.webhook,
-                        &phase_started_at,
-                        phase_ctx.clone(),
-                    );
-
-                    let phase_result = phases::execute_single_phase(&single_invocation);
-
-                    let phase_completed_at = crate::timeutil::now_utc_rfc3339_or_fallback();
-                    let mut phase_ctx_done = phase_ctx;
-                    phase_ctx_done.duration_ms = Some(phase_start.elapsed().as_millis() as u64);
-                    phase_ctx_done.ci_gate = ci_gate_status_for_result(&phase_result);
-                    crate::webhook::notify_phase_completed(
-                        &task_id,
-                        &task.title,
-                        &resolved.config.agent.webhook,
-                        &phase_completed_at,
-                        phase_ctx_done,
-                    );
-
-                    phase_result?;
-                }
-                _ => {
-                    bail!(
-                        "Invalid phases value: {} (expected 1, 2, or 3). \
-                         This indicates a configuration error or internal inconsistency.",
-                        phases
-                    );
+    if ci_gate_enabled {
+        ctx_done.ci_gate = match &result {
+            Ok(()) => Some("passed".to_string()),
+            Err(err) => {
+                let msg = format!("{err:#}");
+                if msg.contains("CI failed:") {
+                    Some("failed".to_string())
+                } else {
+                    None
                 }
             }
+        };
+    } else {
+        ctx_done.ci_gate = Some("skipped".to_string());
+    }
+
+    crate::webhook::notify_phase_completed(
+        task_id,
+        task_title,
+        webhook_config,
+        &completed_at,
+        ctx_done,
+    );
+
+    result
+}
+
+/// Build a PhaseInvocation with common fields populated.
+#[allow(clippy::too_many_arguments)]
+fn build_phase_invocation<'a>(
+    resolved: &'a config::Resolved,
+    settings: &'a runner::AgentSettings,
+    bins: runner::RunnerBinaries<'a>,
+    task_id: &'a str,
+    base_prompt: &'a str,
+    policy: &'a promptflow::PromptPolicy,
+    output_handler: Option<runner::OutputHandler>,
+    output_stream: runner::OutputStream,
+    project_type: ProjectType,
+    git_revert_mode: GitRevertMode,
+    git_commit_push_enabled: bool,
+    push_policy: PushPolicy,
+    revert_prompt: Option<runutil::RevertPromptHandler>,
+    iteration_context: &'a str,
+    iteration_completion_block: &'a str,
+    phase3_completion_guidance: &'a str,
+    is_final_iteration: bool,
+    allow_dirty_repo: bool,
+    post_run_mode: PostRunMode,
+    agent_overrides: &AgentOverrides,
+    execution_timings: Option<&'a RefCell<RunExecutionTimings>>,
+    plugins: &'a PluginRegistry,
+) -> phases::PhaseInvocation<'a> {
+    phases::PhaseInvocation {
+        resolved,
+        settings,
+        bins,
+        task_id,
+        base_prompt,
+        policy,
+        output_handler,
+        output_stream,
+        project_type,
+        git_revert_mode,
+        git_commit_push_enabled,
+        push_policy,
+        revert_prompt,
+        iteration_context,
+        iteration_completion_block,
+        phase3_completion_guidance,
+        is_final_iteration,
+        allow_dirty_repo,
+        post_run_mode,
+        notify_on_complete: agent_overrides.notify_on_complete,
+        notify_sound: agent_overrides.notify_sound,
+        lfs_check: agent_overrides.lfs_check.unwrap_or(false),
+        no_progress: agent_overrides.no_progress.unwrap_or(false),
+        execution_timings,
+        plugins: Some(plugins),
+    }
+}
+
+/// Execute iteration phases based on phase count.
+#[allow(clippy::too_many_arguments)]
+fn execute_iteration_phases(
+    resolved: &config::Resolved,
+    agent_overrides: &AgentOverrides,
+    task: &Task,
+    task_id: &str,
+    phases: u8,
+    iteration_settings: &IterationSettings,
+    phase_matrix: &runner::PhaseSettingsMatrix,
+    base_prompt: &str,
+    policy: &promptflow::PromptPolicy,
+    output_handler: Option<runner::OutputHandler>,
+    output_stream: runner::OutputStream,
+    project_type: ProjectType,
+    git_revert_mode: GitRevertMode,
+    git_commit_push_enabled: bool,
+    push_policy: PushPolicy,
+    revert_prompt: Option<runutil::RevertPromptHandler>,
+    preexisting_dirty_allowed: bool,
+    post_run_mode: PostRunMode,
+    bins: runner::RunnerBinaries<'_>,
+    execution_timings: Option<&RefCell<RunExecutionTimings>>,
+    plugins: &PluginRegistry,
+) -> Result<()> {
+    let ci_gate_enabled = resolved.config.agent.ci_gate_enabled.unwrap_or(true);
+    let webhook_config = &resolved.config.agent.webhook;
+
+    for iteration_index in 1..=iteration_settings.count {
+        let is_followup = iteration_index > 1;
+        let is_final_iteration = iteration_index == iteration_settings.count;
+
+        log::info!(
+            "Task {task_id}: iteration {iteration_index}/{}",
+            iteration_settings.count
+        );
+
+        let phase2_settings = apply_followup_reasoning_effort(
+            &phase_matrix.phase2.to_agent_settings(),
+            iteration_settings.followup_reasoning_effort,
+            is_followup,
+        );
+
+        let iteration_context = if is_followup {
+            prompts::ITERATION_CONTEXT_REFINEMENT
+        } else {
+            ""
+        };
+        let iteration_completion_block = if is_final_iteration {
+            ""
+        } else {
+            prompts::ITERATION_COMPLETION_BLOCK
+        };
+        let phase3_completion_guidance = if is_final_iteration {
+            prompts::PHASE3_COMPLETION_GUIDANCE_FINAL
+        } else {
+            prompts::PHASE3_COMPLETION_GUIDANCE_NONFINAL
+        };
+
+        let allow_dirty = is_followup || preexisting_dirty_allowed;
+
+        match phases {
+            2 => {
+                let phase1_settings = phase_matrix.phase1.to_agent_settings();
+                let phase1_invocation = build_phase_invocation(
+                    resolved,
+                    &phase1_settings,
+                    bins,
+                    task_id,
+                    base_prompt,
+                    policy,
+                    output_handler.clone(),
+                    output_stream,
+                    project_type,
+                    git_revert_mode,
+                    git_commit_push_enabled,
+                    push_policy,
+                    revert_prompt.clone(),
+                    iteration_context,
+                    iteration_completion_block,
+                    phase3_completion_guidance,
+                    is_final_iteration,
+                    allow_dirty,
+                    post_run_mode,
+                    agent_overrides,
+                    execution_timings,
+                    plugins,
+                );
+
+                let plan_text = execute_phase1_with_webhooks(
+                    phases,
+                    task_id,
+                    &task.title,
+                    webhook_config,
+                    ci_gate_enabled,
+                    &phase1_settings,
+                    resolved,
+                    &phase1_invocation,
+                )?;
+
+                let phase2_invocation = build_phase_invocation(
+                    resolved,
+                    &phase2_settings,
+                    bins,
+                    task_id,
+                    base_prompt,
+                    policy,
+                    output_handler.clone(),
+                    output_stream,
+                    project_type,
+                    git_revert_mode,
+                    git_commit_push_enabled,
+                    push_policy,
+                    revert_prompt.clone(),
+                    iteration_context,
+                    iteration_completion_block,
+                    phase3_completion_guidance,
+                    is_final_iteration,
+                    allow_dirty,
+                    post_run_mode,
+                    agent_overrides,
+                    execution_timings,
+                    plugins,
+                );
+
+                execute_impl_phase_with_webhooks(
+                    2,
+                    phases,
+                    task_id,
+                    &task.title,
+                    webhook_config,
+                    ci_gate_enabled,
+                    &phase2_settings,
+                    resolved,
+                    &phase2_invocation,
+                    |inv| phases::execute_phase2_implementation(inv, phases, &plan_text),
+                )?;
+            }
+            3 => {
+                let phase1_settings = phase_matrix.phase1.to_agent_settings();
+                let phase1_invocation = build_phase_invocation(
+                    resolved,
+                    &phase1_settings,
+                    bins,
+                    task_id,
+                    base_prompt,
+                    policy,
+                    output_handler.clone(),
+                    output_stream,
+                    project_type,
+                    git_revert_mode,
+                    git_commit_push_enabled,
+                    push_policy,
+                    revert_prompt.clone(),
+                    iteration_context,
+                    iteration_completion_block,
+                    phase3_completion_guidance,
+                    is_final_iteration,
+                    allow_dirty,
+                    post_run_mode,
+                    agent_overrides,
+                    execution_timings,
+                    plugins,
+                );
+
+                let plan_text = execute_phase1_with_webhooks(
+                    phases,
+                    task_id,
+                    &task.title,
+                    webhook_config,
+                    ci_gate_enabled,
+                    &phase1_settings,
+                    resolved,
+                    &phase1_invocation,
+                )?;
+
+                let phase2_invocation = build_phase_invocation(
+                    resolved,
+                    &phase2_settings,
+                    bins,
+                    task_id,
+                    base_prompt,
+                    policy,
+                    output_handler.clone(),
+                    output_stream,
+                    project_type,
+                    git_revert_mode,
+                    git_commit_push_enabled,
+                    push_policy,
+                    revert_prompt.clone(),
+                    iteration_context,
+                    iteration_completion_block,
+                    phase3_completion_guidance,
+                    is_final_iteration,
+                    allow_dirty,
+                    post_run_mode,
+                    agent_overrides,
+                    execution_timings,
+                    plugins,
+                );
+
+                execute_impl_phase_with_webhooks(
+                    2,
+                    phases,
+                    task_id,
+                    &task.title,
+                    webhook_config,
+                    ci_gate_enabled,
+                    &phase2_settings,
+                    resolved,
+                    &phase2_invocation,
+                    |inv| phases::execute_phase2_implementation(inv, phases, &plan_text),
+                )?;
+
+                let phase3_settings = phase_matrix.phase3.to_agent_settings();
+                let phase3_invocation = build_phase_invocation(
+                    resolved,
+                    &phase3_settings,
+                    bins,
+                    task_id,
+                    base_prompt,
+                    policy,
+                    output_handler.clone(),
+                    output_stream,
+                    project_type,
+                    git_revert_mode,
+                    git_commit_push_enabled,
+                    push_policy,
+                    revert_prompt.clone(),
+                    iteration_context,
+                    iteration_completion_block,
+                    phase3_completion_guidance,
+                    is_final_iteration,
+                    allow_dirty,
+                    post_run_mode,
+                    agent_overrides,
+                    execution_timings,
+                    plugins,
+                );
+
+                execute_impl_phase_with_webhooks(
+                    3,
+                    phases,
+                    task_id,
+                    &task.title,
+                    webhook_config,
+                    ci_gate_enabled,
+                    &phase3_settings,
+                    resolved,
+                    &phase3_invocation,
+                    phases::execute_phase3_review,
+                )?;
+            }
+            1 => {
+                let single_invocation = build_phase_invocation(
+                    resolved,
+                    &phase2_settings,
+                    bins,
+                    task_id,
+                    base_prompt,
+                    policy,
+                    output_handler.clone(),
+                    output_stream,
+                    project_type,
+                    git_revert_mode,
+                    git_commit_push_enabled,
+                    push_policy,
+                    revert_prompt.clone(),
+                    iteration_context,
+                    iteration_completion_block,
+                    phase3_completion_guidance,
+                    is_final_iteration,
+                    allow_dirty,
+                    post_run_mode,
+                    agent_overrides,
+                    execution_timings,
+                    plugins,
+                );
+
+                execute_impl_phase_with_webhooks(
+                    2,
+                    phases,
+                    task_id,
+                    &task.title,
+                    webhook_config,
+                    ci_gate_enabled,
+                    &phase2_settings,
+                    resolved,
+                    &single_invocation,
+                    phases::execute_single_phase,
+                )?;
+            }
+            _ => {
+                bail!(
+                    "Invalid phases value: {} (expected 1, 2, or 3). \
+                     This indicates a configuration error or internal inconsistency.",
+                    phases
+                );
+            }
         }
+    }
 
-        Ok(())
-    })();
+    Ok(())
+}
 
+/// Handle run completion (success or failure).
+#[allow(clippy::too_many_arguments)]
+fn handle_run_completion(
+    exec_result: Result<()>,
+    resolved: &config::Resolved,
+    task: &Task,
+    task_id: &str,
+    phases: u8,
+    post_run_mode: PostRunMode,
+    execution_timings: Option<RefCell<RunExecutionTimings>>,
+    agent_overrides: &AgentOverrides,
+) -> Result<RunOutcome> {
     match exec_result {
         Ok(()) => {
             log::info!("Task {task_id}: end");
 
-            // Persist execution history after successful completion
             if post_run_mode != PostRunMode::ParallelWorker
                 && let Some(timings) = execution_timings
             {
                 match execution_history_cli::try_record_execution_history_for_cli_run(
                     &resolved.repo_root,
                     &resolved.done_path,
-                    &task_id,
+                    task_id,
                     phases,
                     timings.into_inner(),
                 ) {
@@ -823,13 +816,13 @@ pub fn run_one_impl(
                 }
             }
 
-            Ok(RunOutcome::Ran { task_id })
+            Ok(RunOutcome::Ran {
+                task_id: task_id.to_string(),
+            })
         }
         Err(err) => {
-            // Keep task-level error concise; phase scopes will log detailed boundaries.
             log::error!("Task {task_id}: error");
 
-            // Send failure notification
             let notify_config = crate::notification::build_notification_config(
                 &resolved.config.agent.notification,
                 &crate::notification::NotificationOverrides {
@@ -840,7 +833,7 @@ pub fn run_one_impl(
             );
             let error_summary = format!("{:#}", err);
             crate::notification::notify_task_failed(
-                &task_id,
+                task_id,
                 &task.title,
                 &error_summary,
                 &notify_config,
@@ -849,6 +842,221 @@ pub fn run_one_impl(
             Err(err)
         }
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn run_one_impl(
+    resolved: &config::Resolved,
+    agent_overrides: &AgentOverrides,
+    force: bool,
+    lock_mode: QueueLockMode,
+    target_task_id: Option<&str>,
+    resume_task_id: Option<&str>,
+    output_handler: Option<runner::OutputHandler>,
+    revert_prompt: Option<runutil::RevertPromptHandler>,
+) -> Result<RunOutcome> {
+    // 1. Prepare context (lock, queue, config)
+    let ctx = prepare_run_one_context(resolved, agent_overrides, force, lock_mode)?;
+
+    // 2. Select task
+    let include_draft = agent_overrides.include_draft.unwrap_or(false);
+    let selection = select_task_for_run(
+        &ctx.queue_file,
+        Some(&ctx.done),
+        target_task_id,
+        resume_task_id,
+        &resolved.repo_root,
+        include_draft,
+    )?;
+
+    let task = match selection {
+        SelectTaskResult::NoCandidates => return Ok(RunOutcome::NoCandidates),
+        SelectTaskResult::Blocked { summary } => return Ok(RunOutcome::Blocked { summary }),
+        SelectTaskResult::Selected { task } => *task,
+    };
+    let task_id = task.id.trim().to_string();
+
+    // 3. Setup execution
+    let setup = setup_task_execution(resolved, agent_overrides, &task, ctx.post_run_mode, force)?;
+
+    // 4. Build prompt
+    let base_prompt = build_base_prompt(resolved, &task, &task_id)?;
+
+    // 5. Execute phases
+    let output_stream = if output_handler.is_some() {
+        runner::OutputStream::HandlerOnly
+    } else {
+        runner::OutputStream::Terminal
+    };
+
+    let exec_result = execute_iteration_phases(
+        resolved,
+        agent_overrides,
+        &task,
+        &task_id,
+        setup.phases,
+        &setup.iteration_settings,
+        &setup.phase_matrix,
+        &base_prompt,
+        &ctx.policy,
+        output_handler.clone(),
+        output_stream,
+        resolved.config.project_type.unwrap_or(ProjectType::Code),
+        ctx.git_revert_mode,
+        ctx.git_commit_push_enabled,
+        ctx.push_policy,
+        revert_prompt,
+        setup.preexisting_dirty_allowed,
+        ctx.post_run_mode,
+        setup.bins,
+        setup.execution_timings.as_ref(),
+        &setup.plugin_registry,
+    );
+
+    // 6. Handle completion
+    handle_run_completion(
+        exec_result,
+        resolved,
+        &task,
+        &task_id,
+        setup.phases,
+        ctx.post_run_mode,
+        setup.execution_timings,
+        agent_overrides,
+    )
+}
+
+/// Result of task selection.
+pub(crate) enum SelectTaskResult {
+    /// A task was selected for execution.
+    Selected {
+        /// The selected task (boxed to avoid large enum variant).
+        task: Box<Task>,
+    },
+    /// No candidates available (no todo/draft tasks in queue).
+    NoCandidates,
+    /// Tasks exist but all are blocked by dependencies or schedule.
+    Blocked {
+        /// Summary of why tasks are blocked.
+        summary: crate::queue::operations::QueueRunnabilitySummary,
+    },
+}
+
+/// Build a summary for blocked tasks when no runnable tasks are found.
+fn build_blocked_summary(
+    queue_file: &crate::contracts::QueueFile,
+    done_ref: Option<&crate::contracts::QueueFile>,
+    candidates: &[Task],
+    include_draft: bool,
+) -> crate::queue::operations::QueueRunnabilitySummary {
+    let options = RunnableSelectionOptions::new(include_draft, true);
+    match crate::queue::operations::queue_runnability_report(queue_file, done_ref, options) {
+        Ok(report) => {
+            if report.summary.blocked_by_schedule > 0 && report.summary.blocked_by_dependencies > 0
+            {
+                log::info!(
+                    "All runnable tasks are blocked by unmet dependencies and future schedule ({} deps, {} scheduled).",
+                    report.summary.blocked_by_dependencies,
+                    report.summary.blocked_by_schedule
+                );
+            } else if report.summary.blocked_by_schedule > 0 {
+                log::info!(
+                    "All runnable tasks are blocked by future schedule ({} scheduled).",
+                    report.summary.blocked_by_schedule
+                );
+            } else if report.summary.blocked_by_dependencies > 0 {
+                log::info!(
+                    "All runnable tasks are blocked by unmet dependencies ({} blocked).",
+                    report.summary.blocked_by_dependencies
+                );
+            } else if report.summary.blocked_by_status_or_flags > 0 {
+                log::info!(
+                    "All tasks are blocked by status or flags ({} blocked).",
+                    report.summary.blocked_by_status_or_flags
+                );
+            } else {
+                log::info!("All runnable tasks are blocked.");
+            }
+            log::info!("Run 'ralph queue explain' for details.");
+            report.summary.clone()
+        }
+        Err(e) => {
+            log::info!(
+                "No runnable tasks found (failed to analyze blockers: {}).",
+                e
+            );
+            log::info!("Run 'ralph queue explain' for details.");
+            crate::queue::operations::QueueRunnabilitySummary {
+                total_active: queue_file.tasks.len(),
+                candidates_total: candidates.len(),
+                runnable_candidates: 0,
+                blocked_by_dependencies: candidates.len(),
+                blocked_by_schedule: 0,
+                blocked_by_status_or_flags: 0,
+            }
+        }
+    }
+}
+
+/// Select a task for execution.
+fn select_task_for_run(
+    queue_file: &crate::contracts::QueueFile,
+    done_ref: Option<&crate::contracts::QueueFile>,
+    target_task_id: Option<&str>,
+    resume_task_id: Option<&str>,
+    repo_root: &std::path::Path,
+    include_draft: bool,
+) -> Result<SelectTaskResult> {
+    use crate::commands::run::run_session::validate_resumed_task;
+    use crate::commands::run::selection::select_run_one_task_index;
+
+    let effective_target = if target_task_id.is_some() {
+        target_task_id
+    } else if let Some(resume_id) = resume_task_id {
+        match validate_resumed_task(queue_file, resume_id, repo_root) {
+            Ok(()) => Some(resume_id),
+            Err(e) => {
+                log::info!("Session resume failed: {e}");
+                None
+            }
+        }
+    } else {
+        None
+    };
+
+    let task_idx =
+        match select_run_one_task_index(queue_file, done_ref, effective_target, include_draft)? {
+            Some(idx) => idx,
+            None => {
+                let candidates: Vec<_> = queue_file
+                    .tasks
+                    .iter()
+                    .filter(|t| {
+                        t.status == TaskStatus::Todo
+                            || (include_draft && t.status == TaskStatus::Draft)
+                    })
+                    .cloned()
+                    .collect();
+
+                if candidates.is_empty() {
+                    if include_draft {
+                        log::info!("No todo or draft tasks found.");
+                    } else {
+                        log::info!("No todo tasks found.");
+                    }
+                    return Ok(SelectTaskResult::NoCandidates);
+                }
+
+                let summary =
+                    build_blocked_summary(queue_file, done_ref, &candidates, include_draft);
+                return Ok(SelectTaskResult::Blocked { summary });
+            }
+        };
+
+    let task = queue_file.tasks[task_idx].clone();
+    Ok(SelectTaskResult::Selected {
+        task: Box::new(task),
+    })
 }
 
 fn resolve_task_phase_count(
