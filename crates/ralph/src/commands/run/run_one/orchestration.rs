@@ -830,46 +830,14 @@ pub fn run_one_impl(
             log::error!("Task {task_id}: error");
 
             // Send failure notification
-            let notify_on_complete = agent_overrides
-                .notify_on_complete
-                .or(resolved.config.agent.notification.notify_on_complete)
-                .unwrap_or(true);
-            let notify_on_fail = agent_overrides
-                .notify_on_fail
-                .or(resolved.config.agent.notification.notify_on_fail)
-                .unwrap_or(true);
-            let notify_on_loop_complete = resolved
-                .config
-                .agent
-                .notification
-                .notify_on_loop_complete
-                .unwrap_or(true);
-            // enabled acts as a global on/off switch - true if ANY notification type is enabled
-            let enabled = notify_on_complete || notify_on_fail || notify_on_loop_complete;
-
-            let notify_config = crate::notification::NotificationConfig {
-                enabled,
-                notify_on_complete,
-                notify_on_fail,
-                notify_on_loop_complete,
-                suppress_when_active: resolved
-                    .config
-                    .agent
-                    .notification
-                    .suppress_when_active
-                    .unwrap_or(true),
-                sound_enabled: agent_overrides
-                    .notify_sound
-                    .or(resolved.config.agent.notification.sound_enabled)
-                    .unwrap_or(false),
-                sound_path: resolved.config.agent.notification.sound_path.clone(),
-                timeout_ms: resolved
-                    .config
-                    .agent
-                    .notification
-                    .timeout_ms
-                    .unwrap_or(8000),
-            };
+            let notify_config = crate::notification::build_notification_config(
+                &resolved.config.agent.notification,
+                &crate::notification::NotificationOverrides {
+                    notify_on_complete: agent_overrides.notify_on_complete,
+                    notify_on_fail: agent_overrides.notify_on_fail,
+                    notify_sound: agent_overrides.notify_sound,
+                },
+            );
             let error_summary = format!("{:#}", err);
             crate::notification::notify_task_failed(
                 &task_id,
