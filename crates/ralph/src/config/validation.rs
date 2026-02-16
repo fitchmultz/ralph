@@ -74,6 +74,42 @@ pub fn validate_queue_overrides(queue: &QueueConfig) -> Result<()> {
     Ok(())
 }
 
+/// Validate that all configured binary paths are non-empty strings.
+///
+/// Checks each binary path field in AgentConfig - if specified, it must be
+/// non-empty after trimming whitespace.
+///
+/// # Arguments
+/// * `agent` - The agent config to validate
+/// * `label` - Context label for error messages (e.g., "agent", "profiles.dev")
+///
+/// # Binary fields validated
+/// - codex_bin, opencode_bin, gemini_bin, claude_bin, cursor_bin, kimi_bin, pi_bin
+pub fn validate_agent_binary_paths(agent: &AgentConfig, label: &str) -> Result<()> {
+    macro_rules! check_bin {
+        ($field:ident) => {
+            if let Some(bin) = &agent.$field
+                && bin.trim().is_empty()
+            {
+                bail!(
+                    "Empty {label}.{}: binary path is required if specified.",
+                    stringify!($field)
+                );
+            }
+        };
+    }
+
+    check_bin!(codex_bin);
+    check_bin!(opencode_bin);
+    check_bin!(gemini_bin);
+    check_bin!(claude_bin);
+    check_bin!(cursor_bin);
+    check_bin!(kimi_bin);
+    check_bin!(pi_bin);
+
+    Ok(())
+}
+
 /// Validate the full configuration.
 pub fn validate_config(cfg: &Config) -> Result<()> {
     if cfg.version != 1 {
@@ -155,41 +191,8 @@ pub fn validate_config(cfg: &Config) -> Result<()> {
         );
     }
 
-    if let Some(bin) = &cfg.agent.codex_bin
-        && bin.trim().is_empty()
-    {
-        bail!(
-            "Empty agent.codex_bin: binary path is required if specified. Set the path to the codex binary in your config."
-        );
-    }
-    if let Some(bin) = &cfg.agent.opencode_bin
-        && bin.trim().is_empty()
-    {
-        bail!(
-            "Empty agent.opencode_bin: binary path is required if specified. Set the path to the opencode binary in your config."
-        );
-    }
-    if let Some(bin) = &cfg.agent.gemini_bin
-        && bin.trim().is_empty()
-    {
-        bail!(
-            "Empty agent.gemini_bin: binary path is required if specified. Set the path to the gemini binary in your config."
-        );
-    }
-    if let Some(bin) = &cfg.agent.claude_bin
-        && bin.trim().is_empty()
-    {
-        bail!(
-            "Empty agent.claude_bin: binary path is required if specified. Set the path to the claude binary in your config."
-        );
-    }
-    if let Some(bin) = &cfg.agent.cursor_bin
-        && bin.trim().is_empty()
-    {
-        bail!(
-            "Empty agent.cursor_bin: binary path is required if specified. Set the path to the Cursor agent binary (`agent`) in your config."
-        );
-    }
+    // Validate all agent binary paths using shared helper
+    validate_agent_binary_paths(&cfg.agent, "agent")?;
 
     let ci_gate_enabled = cfg.agent.ci_gate_enabled.unwrap_or(true);
     if ci_gate_enabled
@@ -233,36 +236,8 @@ pub fn validate_agent_patch(agent: &AgentConfig, label: &str) -> Result<()> {
         );
     }
 
-    if let Some(bin) = &agent.codex_bin
-        && bin.trim().is_empty()
-    {
-        bail!("Empty {label}.codex_bin: binary path is required if specified.");
-    }
-    if let Some(bin) = &agent.opencode_bin
-        && bin.trim().is_empty()
-    {
-        bail!("Empty {label}.opencode_bin: binary path is required if specified.");
-    }
-    if let Some(bin) = &agent.gemini_bin
-        && bin.trim().is_empty()
-    {
-        bail!("Empty {label}.gemini_bin: binary path is required if specified.");
-    }
-    if let Some(bin) = &agent.claude_bin
-        && bin.trim().is_empty()
-    {
-        bail!("Empty {label}.claude_bin: binary path is required if specified.");
-    }
-    if let Some(bin) = &agent.cursor_bin
-        && bin.trim().is_empty()
-    {
-        bail!("Empty {label}.cursor_bin: binary path is required if specified.");
-    }
-    if let Some(bin) = &agent.kimi_bin
-        && bin.trim().is_empty()
-    {
-        bail!("Empty {label}.kimi_bin: binary path is required if specified.");
-    }
+    // Validate all agent binary paths using shared helper
+    validate_agent_binary_paths(agent, label)?;
 
     Ok(())
 }

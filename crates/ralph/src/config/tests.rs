@@ -139,6 +139,81 @@ fn validate_config_rejects_empty_cursor_bin() {
     assert!(err.to_string().contains("agent.cursor_bin"));
 }
 
+// Tests for kimi_bin and pi_bin validation (previously missing)
+
+#[test]
+fn validate_config_rejects_empty_kimi_bin() {
+    let mut cfg = Config::default();
+    cfg.agent.kimi_bin = Some("   ".to_string());
+
+    let err = validate_config(&cfg).expect_err("expected validation to fail");
+    assert!(err.to_string().contains("agent.kimi_bin"));
+}
+
+#[test]
+fn validate_config_rejects_empty_pi_bin() {
+    let mut cfg = Config::default();
+    cfg.agent.pi_bin = Some("   ".to_string());
+
+    let err = validate_config(&cfg).expect_err("expected validation to fail");
+    assert!(err.to_string().contains("agent.pi_bin"));
+}
+
+#[test]
+fn validate_config_accepts_valid_binary_paths() {
+    let mut cfg = Config::default();
+    cfg.agent.codex_bin = Some("/usr/local/bin/codex".to_string());
+    cfg.agent.kimi_bin = Some("kimi".to_string());
+    cfg.agent.pi_bin = Some("pi".to_string());
+
+    validate_config(&cfg).expect("validation should pass with valid paths");
+}
+
+// Tests for validate_agent_patch binary path validation
+
+#[test]
+fn validate_agent_patch_rejects_empty_kimi_bin() {
+    use super::validation::validate_agent_patch;
+    use crate::contracts::AgentConfig;
+
+    let agent = AgentConfig {
+        kimi_bin: Some("   ".to_string()),
+        ..Default::default()
+    };
+
+    let err = validate_agent_patch(&agent, "profiles.test").expect_err("should fail");
+    assert!(err.to_string().contains("profiles.test.kimi_bin"));
+}
+
+#[test]
+fn validate_agent_patch_rejects_empty_pi_bin() {
+    use super::validation::validate_agent_patch;
+    use crate::contracts::AgentConfig;
+
+    let agent = AgentConfig {
+        pi_bin: Some("".to_string()),
+        ..Default::default()
+    };
+
+    let err = validate_agent_patch(&agent, "profiles.dev").expect_err("should fail");
+    assert!(err.to_string().contains("profiles.dev.pi_bin"));
+}
+
+#[test]
+fn validate_agent_patch_accepts_valid_binary_paths() {
+    use super::validation::validate_agent_patch;
+    use crate::contracts::AgentConfig;
+
+    let agent = AgentConfig {
+        codex_bin: Some("/usr/local/bin/codex".to_string()),
+        kimi_bin: Some("kimi".to_string()),
+        pi_bin: Some("pi".to_string()),
+        ..Default::default()
+    };
+
+    validate_agent_patch(&agent, "profiles.valid").expect("validation should pass");
+}
+
 // Tests for instruction_files validation (validate_instruction_file_paths)
 
 #[test]

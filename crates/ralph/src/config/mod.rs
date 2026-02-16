@@ -40,9 +40,10 @@ pub use resolution::{
     resolve_from_cwd_with_profile, resolve_id_prefix, resolve_id_width, resolve_queue_path,
 };
 pub use validation::{
-    git_ref_invalid_reason, validate_agent_patch, validate_config, validate_parallel_branch_prefix,
-    validate_queue_done_file_override, validate_queue_file_override,
-    validate_queue_id_prefix_override, validate_queue_id_width_override, validate_queue_overrides,
+    git_ref_invalid_reason, validate_agent_binary_paths, validate_agent_patch, validate_config,
+    validate_parallel_branch_prefix, validate_queue_done_file_override,
+    validate_queue_file_override, validate_queue_id_prefix_override,
+    validate_queue_id_width_override, validate_queue_overrides,
 };
 
 /// Resolved configuration including computed paths.
