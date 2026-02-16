@@ -571,7 +571,13 @@ pub(super) fn extract_display_lines(json: &JsonValue) -> Vec<String> {
                     let details = function
                         .get("arguments")
                         .and_then(|a| a.as_str())
-                        .and_then(|args_str| serde_json::from_str::<JsonValue>(args_str).ok())
+                        .and_then(|args_str| {
+                            serde_json::from_str::<JsonValue>(args_str)
+                                .inspect_err(|e| {
+                                    log::trace!("Failed to parse tool arguments JSON: {}", e)
+                                })
+                                .ok()
+                        })
                         .and_then(|args_json| format_tool_details(&args_json));
                     lines.push(outpututil::format_tool_call(name, details.as_deref()));
                 }

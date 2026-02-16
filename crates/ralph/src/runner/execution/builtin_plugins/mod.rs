@@ -163,7 +163,9 @@ impl RunnerPlugin for BuiltInRunnerPlugin {
     }
 
     fn parse_response_line(&self, line: &str, buffer: &mut String) -> Option<String> {
-        let json = serde_json::from_str(line).ok()?;
+        let json = serde_json::from_str(line)
+            .inspect_err(|e| log::trace!("Runner response not valid JSON: {}", e))
+            .ok()?;
         match self {
             Self::Codex => CodexResponseParser.parse_json(&json),
             Self::Opencode => OpencodeResponseParser.parse_json(&json, buffer),

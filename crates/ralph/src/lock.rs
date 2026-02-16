@@ -562,7 +562,14 @@ fn parse_lock_owner(raw: &str) -> Option<LockOwner> {
         if let Some((key, value)) = trimmed.split_once(':') {
             let value = value.trim().to_string();
             match key.trim() {
-                "pid" => pid = value.parse::<u32>().ok(),
+                "pid" => {
+                    pid = value
+                        .parse::<u32>()
+                        .inspect_err(|e| {
+                            log::debug!("Lock file has invalid pid '{}': {}", value, e)
+                        })
+                        .ok()
+                }
                 "started_at" => started_at = Some(value),
                 "command" => command = Some(value),
                 "label" => label = Some(value),

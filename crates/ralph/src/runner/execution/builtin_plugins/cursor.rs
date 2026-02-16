@@ -68,7 +68,9 @@ impl RunnerPlugin for CursorPlugin {
     }
 
     fn parse_response_line(&self, line: &str, _buffer: &mut String) -> Option<String> {
-        let json = serde_json::from_str(line).ok()?;
+        let json = serde_json::from_str(line)
+            .inspect_err(|e| log::trace!("Cursor response not valid JSON: {}", e))
+            .ok()?;
         CursorResponseParser.parse_json(&json)
     }
 }

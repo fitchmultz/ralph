@@ -42,7 +42,9 @@ pub(crate) fn handle(resolved: &Resolved, args: QueueDashboardArgs) -> Result<()
 
     // Load productivity stats (optional - may not exist for new projects)
     let cache_dir = resolved.repo_root.join(".ralph/cache");
-    let productivity_stats = productivity::load_productivity_stats(&cache_dir).ok();
+    let productivity_stats = productivity::load_productivity_stats(&cache_dir)
+        .inspect_err(|e| log::debug!("Dashboard: productivity stats unavailable: {}", e))
+        .ok();
 
     let report = reports::build_dashboard_report(
         &queue_file,

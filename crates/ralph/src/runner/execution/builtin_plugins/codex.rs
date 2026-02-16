@@ -63,7 +63,9 @@ impl RunnerPlugin for CodexPlugin {
     }
 
     fn parse_response_line(&self, line: &str, _buffer: &mut String) -> Option<String> {
-        let json = serde_json::from_str(line).ok()?;
+        let json = serde_json::from_str(line)
+            .inspect_err(|e| log::trace!("Codex response not valid JSON: {}", e))
+            .ok()?;
         CodexResponseParser.parse_json(&json)
     }
 }

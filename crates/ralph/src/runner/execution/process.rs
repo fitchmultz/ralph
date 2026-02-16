@@ -156,6 +156,7 @@ pub(crate) fn ctrlc_state() -> Result<&'static Arc<CtrlCState>, CtrlCInitError> 
         let pgid = handler_state
             .active_pgid
             .lock()
+            .inspect_err(|e| log::debug!("Ctrl-C handler: failed to lock active_pgid: {}", e))
             .ok()
             .and_then(|guard| *guard);
         if let Some(pgid) = pgid {
@@ -268,7 +269,14 @@ pub(crate) fn wait_for_child(
             state = ProcessState::TimeoutInterrupt(now);
             #[cfg(unix)]
             {
-                let pgid = ctrlc.active_pgid.lock().ok().and_then(|guard| *guard);
+                let pgid = ctrlc
+                    .active_pgid
+                    .lock()
+                    .inspect_err(|e| {
+                        log::debug!("wait_for_child (timeout): failed to lock pgid: {}", e)
+                    })
+                    .ok()
+                    .and_then(|guard| *guard);
                 if let Some(pgid) = pgid {
                     unsafe {
                         libc::kill(-pgid, libc::SIGINT);
@@ -289,7 +297,14 @@ pub(crate) fn wait_for_child(
             state = ProcessState::CtrlCInterrupt(now);
             #[cfg(unix)]
             {
-                let pgid = ctrlc.active_pgid.lock().ok().and_then(|guard| *guard);
+                let pgid = ctrlc
+                    .active_pgid
+                    .lock()
+                    .inspect_err(|e| {
+                        log::debug!("wait_for_child (ctrl-c): failed to lock pgid: {}", e)
+                    })
+                    .ok()
+                    .and_then(|guard| *guard);
                 if let Some(pgid) = pgid {
                     unsafe {
                         libc::kill(-pgid, libc::SIGINT);
@@ -318,7 +333,14 @@ pub(crate) fn wait_for_child(
                 state = ProcessState::Killed;
                 #[cfg(unix)]
                 {
-                    let pgid = ctrlc.active_pgid.lock().ok().and_then(|guard| *guard);
+                    let pgid = ctrlc
+                        .active_pgid
+                        .lock()
+                        .inspect_err(|e| {
+                            log::debug!("wait_for_child (kill): failed to lock pgid: {}", e)
+                        })
+                        .ok()
+                        .and_then(|guard| *guard);
                     if let Some(pgid) = pgid {
                         unsafe {
                             libc::kill(-pgid, libc::SIGKILL);
@@ -571,6 +593,7 @@ fn run_with_streaming_json_inner(
 
     let session_id = session_id_buf
         .lock()
+        .inspect_err(|e| log::debug!("Failed to lock session_id_buf: {}", e))
         .ok()
         .and_then(|guard| guard.clone())
         .or_else(|| extract_session_id_from_text(&stdout));

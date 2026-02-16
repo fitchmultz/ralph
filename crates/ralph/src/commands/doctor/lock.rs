@@ -118,7 +118,19 @@ pub(crate) fn check_lock_directory_health(repo_root: &Path) -> anyhow::Result<(u
                         .lines()
                         .find(|line| line.starts_with("pid:"))
                         .and_then(|line| line.split(':').nth(1))
-                        .and_then(|pid_str| pid_str.trim().parse::<u32>().ok())
+                        .and_then(|pid_str| {
+                            pid_str
+                                .trim()
+                                .parse::<u32>()
+                                .inspect_err(|e| {
+                                    log::debug!(
+                                        "Invalid PID '{}' in owner file: {}",
+                                        pid_str.trim(),
+                                        e
+                                    )
+                                })
+                                .ok()
+                        })
                         .map(|pid| pid_liveness(pid).is_running_or_indeterminate())
                         .unwrap_or(true) // Assume running if we can't determine status
                 }
@@ -128,7 +140,8 @@ pub(crate) fn check_lock_directory_health(repo_root: &Path) -> anyhow::Result<(u
             // Check for task owner files (shared locks)
             // Use the shared helper from lock module to detect task sidecar files
             fs::read_dir(&path)?.any(|e| {
-                e.ok()
+                e.inspect_err(|err| log::trace!("Skipping directory entry: {}", err))
+                    .ok()
                     .map(|entry| {
                         entry
                             .file_name()
@@ -181,14 +194,27 @@ pub(crate) fn remove_orphaned_locks(repo_root: &Path) -> anyhow::Result<usize> {
                     .lines()
                     .find(|line| line.starts_with("pid:"))
                     .and_then(|line| line.split(':').nth(1))
-                    .and_then(|pid_str| pid_str.trim().parse::<u32>().ok())
+                    .and_then(|pid_str| {
+                        pid_str
+                            .trim()
+                            .parse::<u32>()
+                            .inspect_err(|e| {
+                                log::debug!(
+                                    "Invalid PID '{}' in owner file (cleanup): {}",
+                                    pid_str.trim(),
+                                    e
+                                )
+                            })
+                            .ok()
+                    })
                     .map(|pid| pid_liveness(pid).is_running_or_indeterminate())
                     .unwrap_or(true),
                 Err(_) => false,
             }
         } else {
             fs::read_dir(&path)?.any(|e| {
-                e.ok()
+                e.inspect_err(|err| log::trace!("Skipping directory entry (cleanup): {}", err))
+                    .ok()
                     .map(|entry| {
                         entry
                             .file_name()

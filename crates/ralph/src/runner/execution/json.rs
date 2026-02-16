@@ -17,7 +17,10 @@ pub(super) fn parse_json_line(line: &str) -> Option<JsonValue> {
     let json_start = trimmed.find('{')?;
     let potential_json = &trimmed[json_start..];
     let mut stream = serde_json::Deserializer::from_str(potential_json).into_iter::<JsonValue>();
-    stream.next().and_then(|res| res.ok())
+    stream.next().and_then(|res| {
+        res.inspect_err(|e| log::trace!("JSON stream parse error: {}", e))
+            .ok()
+    })
 }
 
 pub(super) fn extract_session_id_from_json(json: &JsonValue) -> Option<String> {
