@@ -52,6 +52,7 @@ pub struct QueueConfig {
     pub id_prefix: Option<String>,
 
     /// Zero pad width for the numeric suffix (default: 4 -> RQ-0001).
+    #[schemars(range(min = 1, max = 255))]
     pub id_width: Option<u8>,
 
     /// Warning threshold for queue file size in KB (default: 500).

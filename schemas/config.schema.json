@@ -1142,7 +1142,7 @@
           "format": "uint8",
           "default": null,
           "maximum": 255,
-          "minimum": 0
+          "minimum": 1
         },
         "max_dependency_depth": {
           "description": "Maximum allowed dependency chain depth before warning (default: 10).",

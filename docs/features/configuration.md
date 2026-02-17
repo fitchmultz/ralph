@@ -881,7 +881,7 @@ Ralph validates configuration on load and provides detailed error messages for i
 | `agent.session_timeout_hours` | Must be `≥ 1` |
 | `parallel.workers` | Must be `≥ 2` (if set) |
 | `parallel.merge_retries` | Must be `≥ 1` (if set) |
-| `queue.id_width` | Must be `≥ 0` |
+| `queue.id_width` | Must be `≥ 1` (minimum 1) |
 | `queue.*_threshold*` | Must be within documented ranges |
 | Binary paths | Must be non-empty if specified |
 | Branch prefix | Must form valid git ref with task ID |
