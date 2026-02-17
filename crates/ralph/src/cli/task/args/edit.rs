@@ -29,6 +29,10 @@ pub struct TaskFieldArgs {
     /// Filter tasks by tag for batch operation (alternative to explicit IDs).
     #[arg(long, value_name = "TAG")]
     pub tag_filter: Vec<String>,
+
+    /// Preview changes without modifying the queue.
+    #[arg(long)]
+    pub dry_run: bool,
 }
 
 #[derive(Args)]

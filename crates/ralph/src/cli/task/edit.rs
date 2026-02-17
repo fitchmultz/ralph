@@ -25,10 +25,39 @@ use crate::timeutil;
 
 /// Handle the `field` command (set custom fields).
 pub fn handle_field(args: &TaskFieldArgs, force: bool, resolved: &config::Resolved) -> Result<()> {
+    let queue_file = queue::load_queue(&resolved.queue_path)?;
+
+    // Resolve task IDs from explicit list or tag filter
+    let task_ids =
+        queue::operations::resolve_task_ids(&queue_file, &args.task_ids, &args.tag_filter)?;
+
+    if task_ids.is_empty() {
+        bail!("No tasks specified. Provide task IDs or use --tag-filter.");
+    }
+
+    if args.dry_run {
+        // Preview mode: show diff without saving
+        println!("Dry run - would update {} tasks:", task_ids.len());
+        for task_id in &task_ids {
+            let preview =
+                queue::operations::preview_set_field(&queue_file, task_id, &args.key, &args.value)?;
+            println!("  {}:", preview.task_id);
+            println!("    Field: {}", preview.key);
+            println!(
+                "    Old: {}",
+                preview.old_value.as_deref().unwrap_or("(not set)")
+            );
+            println!("    New: {}", preview.new_value);
+        }
+        println!("\nDry run complete. No changes made.");
+        return Ok(());
+    }
+
+    // Normal mode: acquire lock and apply
     let _queue_lock = queue::acquire_queue_lock(&resolved.repo_root, "task field", force)?;
 
     // Create undo snapshot before mutation
-    let task_ids_preview = args.task_ids.join(", ");
+    let task_ids_preview = task_ids.join(", ");
     crate::undo::create_undo_snapshot(
         resolved,
         &format!(
@@ -39,14 +68,6 @@ pub fn handle_field(args: &TaskFieldArgs, force: bool, resolved: &config::Resolv
 
     let mut queue_file = queue::load_queue(&resolved.queue_path)?;
     let now = timeutil::now_utc_rfc3339()?;
-
-    // Resolve task IDs from explicit list or tag filter
-    let task_ids =
-        queue::operations::resolve_task_ids(&queue_file, &args.task_ids, &args.tag_filter)?;
-
-    if task_ids.is_empty() {
-        bail!("No tasks specified. Provide task IDs or use --tag-filter.");
-    }
 
     let result = queue::operations::batch_set_field(
         &mut queue_file,

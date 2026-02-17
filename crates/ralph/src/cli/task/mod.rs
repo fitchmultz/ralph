@@ -722,6 +722,47 @@ mod tests {
     }
 
     #[test]
+    fn task_field_parses_dry_run_flag() {
+        let cli = Cli::try_parse_from([
+            "ralph",
+            "task",
+            "field",
+            "--dry-run",
+            "severity",
+            "high",
+            "RQ-0001",
+        ])
+        .expect("parse");
+        match cli.command {
+            crate::cli::Command::Task(args) => match args.command {
+                Some(crate::cli::task::TaskCommand::Field(args)) => {
+                    assert!(args.dry_run);
+                    assert_eq!(args.key, "severity");
+                    assert_eq!(args.value, "high");
+                    assert_eq!(args.task_ids, vec!["RQ-0001"]);
+                }
+                _ => panic!("expected task field command"),
+            },
+            _ => panic!("expected task command"),
+        }
+    }
+
+    #[test]
+    fn task_field_without_dry_run_defaults_to_false() {
+        let cli = Cli::try_parse_from(["ralph", "task", "field", "severity", "high", "RQ-0001"])
+            .expect("parse");
+        match cli.command {
+            crate::cli::Command::Task(args) => match args.command {
+                Some(crate::cli::task::TaskCommand::Field(args)) => {
+                    assert!(!args.dry_run);
+                }
+                _ => panic!("expected task field command"),
+            },
+            _ => panic!("expected task command"),
+        }
+    }
+
+    #[test]
     fn task_edit_parses_multiple_ids() {
         let cli = Cli::try_parse_from([
             "ralph", "task", "edit", "priority", "high", "RQ-0001", "RQ-0002",
