@@ -587,6 +587,60 @@ fn parse_lock_owner(raw: &str) -> Option<LockOwner> {
     })
 }
 
+/// Check if a process with the given PID exists using ToolHelp API.
+/// This works even for protected system processes where OpenProcess would fail.
+///
+/// Returns:
+/// - `Some(true)` if the process exists in the system process list
+/// - `Some(false)` if the process is not found in the process list
+/// - `None` if the ToolHelp API call failed (unexpected)
+#[cfg(windows)]
+fn pid_exists_via_toolhelp(pid: u32) -> Option<bool> {
+    use windows_sys::Win32::Foundation::{CloseHandle, INVALID_HANDLE_VALUE};
+    use windows_sys::Win32::System::Diagnostics::ToolHelp::{
+        CreateToolhelp32Snapshot, PROCESSENTRY32, Process32First, Process32Next, TH32CS_SNAPPROCESS,
+    };
+
+    unsafe {
+        let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+        if snapshot == INVALID_HANDLE_VALUE {
+            log::debug!(
+                "CreateToolhelp32Snapshot failed for PID existence check, error: {}",
+                windows_sys::Win32::Foundation::GetLastError()
+            );
+            return None;
+        }
+
+        let result = {
+            let mut entry: PROCESSENTRY32 = std::mem::zeroed();
+            entry.dwSize = std::mem::size_of::<PROCESSENTRY32>() as u32;
+
+            if Process32First(snapshot, &mut entry) == 0 {
+                log::debug!(
+                    "Process32First failed, error: {}",
+                    windows_sys::Win32::Foundation::GetLastError()
+                );
+                None
+            } else {
+                let mut found = false;
+                loop {
+                    if entry.th32ProcessID == pid {
+                        found = true;
+                        break;
+                    }
+                    if Process32Next(snapshot, &mut entry) == 0 {
+                        break;
+                    }
+                }
+                Some(found)
+            }
+        };
+
+        CloseHandle(snapshot);
+        result
+    }
+}
+
 /// Check if a process with the given PID is currently running.
 ///
 /// Returns:
@@ -609,7 +663,9 @@ pub fn pid_is_running(pid: u32) -> Option<bool> {
 
     #[cfg(windows)]
     {
-        use windows_sys::Win32::Foundation::{CloseHandle, ERROR_INVALID_PARAMETER};
+        use windows_sys::Win32::Foundation::{
+            CloseHandle, ERROR_ACCESS_DENIED, ERROR_INVALID_PARAMETER,
+        };
         use windows_sys::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_INFORMATION};
 
         unsafe {
@@ -624,8 +680,17 @@ pub fn pid_is_running(pid: u32) -> Option<bool> {
                 if err == ERROR_INVALID_PARAMETER {
                     // Invalid PID means process doesn't exist
                     Some(false)
+                } else if err == ERROR_ACCESS_DENIED {
+                    // Access denied - process might exist but we can't open it
+                    // Use ToolHelp API to check if process exists
+                    log::debug!(
+                        "OpenProcess({}) failed with ERROR_ACCESS_DENIED, falling back to ToolHelp enumeration",
+                        pid
+                    );
+                    pid_exists_via_toolhelp(pid)
                 } else {
                     // Other error - can't determine status
+                    log::debug!("OpenProcess({}) failed with unexpected error: {}", pid, err);
                     None
                 }
             }
@@ -742,5 +807,51 @@ mod tests {
         assert!(!PidLiveness::Running.is_definitely_not_running());
         assert!(!PidLiveness::Indeterminate.is_definitely_not_running());
         assert!(PidLiveness::NotRunning.is_definitely_not_running());
+    }
+
+    /// Windows-specific tests for PID liveness detection.
+    #[cfg(windows)]
+    mod windows_tests {
+        use super::*;
+
+        /// Test that pid_exists_via_toolhelp finds the current process.
+        #[test]
+        fn test_toolhelp_finds_current_process() {
+            let current_pid = std::process::id();
+            let result = pid_exists_via_toolhelp(current_pid);
+            assert_eq!(
+                result,
+                Some(true),
+                "ToolHelp should find current process PID {}",
+                current_pid
+            );
+        }
+
+        /// Test that pid_exists_via_toolhelp handles non-existent PIDs.
+        #[test]
+        fn test_toolhelp_nonexistent_pid() {
+            let result = pid_exists_via_toolhelp(0xFFFFFFFE);
+            assert_eq!(
+                result,
+                Some(false),
+                "ToolHelp should not find non-existent PID"
+            );
+        }
+
+        /// Test that pid_is_running handles ERROR_ACCESS_DENIED correctly.
+        /// PID 4 is typically the System process on Windows which exists
+        /// but OpenProcess fails with ERROR_ACCESS_DENIED.
+        #[test]
+        fn test_access_denied_fallback() {
+            // PID 4 is typically the System process on Windows
+            // It exists but OpenProcess fails with ERROR_ACCESS_DENIED
+            let result = pid_is_running(4);
+            // Should return Some(true) using ToolHelp fallback
+            assert_eq!(
+                result,
+                Some(true),
+                "System process (PID 4) should be detected as running via ToolHelp fallback"
+            );
+        }
     }
 }
