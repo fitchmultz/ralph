@@ -898,7 +898,7 @@ fn validate_warns_on_self_parent() {
 }
 
 #[test]
-fn validate_warns_on_parent_cycle() {
+fn validate_errors_on_parent_cycle() {
     let active = QueueFile {
         version: 1,
         tasks: vec![
@@ -908,12 +908,12 @@ fn validate_warns_on_parent_cycle() {
     };
 
     let result = validate_queue_set(&active, None, "RQ", 4, 10);
-    assert!(result.is_ok(), "Should not error on parent cycle");
-    let warnings = result.unwrap();
+    assert!(result.is_err(), "Should error on parent cycle");
+    let err = result.unwrap_err();
     assert!(
-        warnings.iter().any(|w| w.message.contains("Circular")),
-        "Should warn about circular parent: {:?}",
-        warnings
+        err.to_string().contains("Circular parent chain"),
+        "Error should mention circular parent chain: {}",
+        err
     );
 }
 

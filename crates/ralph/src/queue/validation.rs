@@ -488,7 +488,7 @@ fn validate_dependencies(
     // Validate new relationship fields (blocks, relates_to, duplicates)
     validate_relationships(&all_tasks_iter, &all_task_ids, &all_tasks, &mut result)?;
 
-    // Validate parent_id relationships (warnings only for now)
+    // Validate parent_id relationships (cycles are hard errors, other issues are warnings)
     validate_parent_ids(&all_tasks_iter, &all_task_ids, &mut result)?;
 
     Ok(result)
@@ -732,7 +732,7 @@ fn validate_relationships(
 }
 
 /// Validate parent_id relationships.
-/// Checks for missing parents, self-parenting, and cycles (warnings only).
+/// Checks for missing parents and self-parenting (warnings), and cycles (hard error).
 fn validate_parent_ids(
     tasks: &[&Task],
     all_task_ids: &HashSet<&str>,
@@ -779,19 +779,18 @@ fn validate_parent_ids(
         }
     }
 
-    // Detect and report cycles (warning, not error)
-    let cycles = detect_parent_cycles(tasks);
-    for cycle in cycles {
+    // Detect cycles (hard error, matching depends_on cycle behavior)
+    // Filter out self-cycles (length 1 cycles are A -> A, handled as warnings above)
+    let cycles: Vec<_> = detect_parent_cycles(tasks)
+        .into_iter()
+        .filter(|cycle| cycle.len() > 1)
+        .collect();
+    if let Some(cycle) = cycles.first() {
         let cycle_str = cycle.join(" -> ");
-        for task_id in &cycle {
-            result.warnings.push(ValidationWarning {
-                task_id: task_id.clone(),
-                message: format!(
-                    "Circular parent chain detected involving task {}. Cycle: {}. Break the cycle by changing one of the parent_id references.",
-                    task_id, cycle_str
-                ),
-            });
-        }
+        bail!(
+            "Circular parent chain detected: {}. Task parent_id relationships must form a DAG (no cycles). Break the cycle by changing one of the parent_id references.",
+            cycle_str
+        );
     }
 
     Ok(())
