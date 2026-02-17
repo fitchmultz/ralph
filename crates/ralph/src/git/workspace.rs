@@ -87,7 +87,12 @@ pub(crate) fn create_workspace_at(
 
     retarget_origin(&path, &fetch_url, &push_url)?;
     // Fetch is best-effort: local clone already has refs, and remote may not be reachable in tests.
-    let _ = fetch_origin(&path);
+    if let Err(e) = fetch_origin(&path) {
+        log::debug!(
+            "Best-effort git fetch failed (expected in tests/offline): {}",
+            e
+        );
+    }
     let base_ref = resolve_base_ref(&path, base_branch)?;
     checkout_branch_from_base(&path, &branch, &base_ref)?;
     hard_reset_and_clean(&path, &base_ref)?;
@@ -139,7 +144,12 @@ pub(crate) fn ensure_workspace_exists(
     retarget_origin(workspace_path, &fetch_url, &push_url)?;
 
     // Fetch origin --prune (best-effort)
-    let _ = fetch_origin(workspace_path);
+    if let Err(e) = fetch_origin(workspace_path) {
+        log::debug!(
+            "Best-effort git fetch failed (expected in tests/offline): {}",
+            e
+        );
+    }
 
     // Checkout branch from origin
     let remote_ref = format!("origin/{}", branch);

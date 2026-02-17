@@ -287,7 +287,9 @@ fn deliver_webhook(msg: &WebhookMessage) -> anyhow::Result<()> {
 /// This is the low-level function that checks event filtering and enqueues.
 /// Prefer using the `notify_*` convenience functions for common events.
 pub fn send_webhook_payload(payload: WebhookPayload, config: &WebhookConfig) {
-    let _ = send_webhook_payload_internal(payload, config, false);
+    if !send_webhook_payload_internal(payload, config, false) {
+        log::warn!("Webhook enqueue failed (queue full or worker disconnected)");
+    }
 }
 
 pub(crate) fn enqueue_webhook_payload_for_replay(
