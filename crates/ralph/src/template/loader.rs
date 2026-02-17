@@ -70,6 +70,18 @@ pub fn load_template(name: &str, project_root: &Path) -> Result<(Task, TemplateS
             .map_err(|e| TemplateError::ReadError(e.to_string()))?;
         let task: Task = serde_json::from_str(&content)
             .map_err(|e| TemplateError::InvalidJson(e.to_string()))?;
+
+        // Validate template variables (unknowns produce warnings via log, not errors)
+        let validation = validate_task_template(&task);
+        if validation.has_unknown_variables() {
+            let unknowns = validation.unknown_variable_names();
+            log::warn!(
+                "Template '{}' contains unknown variables: {}",
+                name,
+                unknowns.join(", ")
+            );
+        }
+
         return Ok((task, TemplateSource::Custom(custom_path)));
     }
 
@@ -546,5 +558,50 @@ mod tests {
                 .iter()
                 .any(|w| matches!(w, TemplateWarning::GitBranchDetectionFailed { .. }))
         );
+    }
+
+    #[test]
+    fn test_load_custom_template_with_unknown_variable_logs_warning() {
+        let temp_dir = create_test_project();
+        let templates_dir = temp_dir.path().join(".ralph/templates");
+        std::fs::create_dir_all(&templates_dir).unwrap();
+
+        let custom_template = r#"{
+            "id": "",
+            "title": "Fix {{typo_target}}",
+            "status": "todo",
+            "priority": "high"
+        }"#;
+
+        let mut file = std::fs::File::create(templates_dir.join("custom.json")).unwrap();
+        file.write_all(custom_template.as_bytes()).unwrap();
+
+        // Should succeed but log warning
+        let result = load_template("custom", temp_dir.path());
+        assert!(result.is_ok());
+
+        let (task, _) = result.unwrap();
+        assert_eq!(task.title, "Fix {{typo_target}}"); // Variable preserved as-is
+    }
+
+    #[test]
+    fn test_load_custom_template_with_known_variables_succeeds() {
+        let temp_dir = create_test_project();
+        let templates_dir = temp_dir.path().join(".ralph/templates");
+        std::fs::create_dir_all(&templates_dir).unwrap();
+
+        let custom_template = r#"{
+            "id": "",
+            "title": "Fix {{target}} in {{file}}",
+            "status": "todo",
+            "priority": "high"
+        }"#;
+
+        let mut file = std::fs::File::create(templates_dir.join("custom.json")).unwrap();
+        file.write_all(custom_template.as_bytes()).unwrap();
+
+        // Should succeed with no warnings
+        let result = load_template("custom", temp_dir.path());
+        assert!(result.is_ok());
     }
 }
