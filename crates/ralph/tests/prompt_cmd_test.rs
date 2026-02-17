@@ -305,3 +305,93 @@ fn worker_phase2_includes_iteration_context_for_followup() -> Result<()> {
     assert!(prompt.contains("ITERATION COMPLETION RULES"));
     Ok(())
 }
+
+#[test]
+fn worker_rejects_iterations_zero() -> Result<()> {
+    let temp = TempDir::new()?;
+    write_minimal_queue(&temp)?;
+    let resolved = make_resolved(&temp);
+
+    let result = prompt_cmd::build_worker_prompt(
+        &resolved,
+        WorkerPromptOptions {
+            task_id: Some("RQ-0001".to_string()),
+            mode: WorkerMode::Phase2,
+            repoprompt_plan_required: false,
+            repoprompt_tool_injection: false,
+            iterations: 0,
+            iteration_index: 1,
+            plan_file: None,
+            plan_text: Some("PLAN".to_string()),
+            explain: false,
+        },
+    );
+
+    assert!(result.is_err());
+    let msg = result.unwrap_err().to_string();
+    assert!(
+        msg.contains("--iterations must be >= 1"),
+        "unexpected error: {msg}"
+    );
+    Ok(())
+}
+
+#[test]
+fn worker_rejects_iteration_index_zero() -> Result<()> {
+    let temp = TempDir::new()?;
+    write_minimal_queue(&temp)?;
+    let resolved = make_resolved(&temp);
+
+    let result = prompt_cmd::build_worker_prompt(
+        &resolved,
+        WorkerPromptOptions {
+            task_id: Some("RQ-0001".to_string()),
+            mode: WorkerMode::Phase2,
+            repoprompt_plan_required: false,
+            repoprompt_tool_injection: false,
+            iterations: 3,
+            iteration_index: 0,
+            plan_file: None,
+            plan_text: Some("PLAN".to_string()),
+            explain: false,
+        },
+    );
+
+    assert!(result.is_err());
+    let msg = result.unwrap_err().to_string();
+    assert!(
+        msg.contains("--iteration-index must be >= 1"),
+        "unexpected error: {msg}"
+    );
+    Ok(())
+}
+
+#[test]
+fn worker_rejects_iteration_index_exceeds_iterations() -> Result<()> {
+    let temp = TempDir::new()?;
+    write_minimal_queue(&temp)?;
+    let resolved = make_resolved(&temp);
+
+    let result = prompt_cmd::build_worker_prompt(
+        &resolved,
+        WorkerPromptOptions {
+            task_id: Some("RQ-0001".to_string()),
+            mode: WorkerMode::Phase2,
+            repoprompt_plan_required: false,
+            repoprompt_tool_injection: false,
+            iterations: 3,
+            iteration_index: 5,
+            plan_file: None,
+            plan_text: Some("PLAN".to_string()),
+            explain: false,
+        },
+    );
+
+    assert!(result.is_err());
+    let msg = result.unwrap_err().to_string();
+    assert!(
+        msg.contains("--iteration-index (5) cannot exceed --iterations (3)"),
+        "unexpected error: {msg}"
+    );
+    Ok(())
+}
