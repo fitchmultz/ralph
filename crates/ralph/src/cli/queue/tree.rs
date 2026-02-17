@@ -54,13 +54,13 @@ pub fn handle(resolved: &Resolved, args: QueueTreeArgs) -> Result<()> {
         if !idx.contains(root_id) {
             if !args.include_done {
                 bail!(
-                    "Root task '{}' not found in active queue. Use --include-done to search done archive.",
-                    root_id
+                    "{}",
+                    crate::error_messages::root_task_not_found(root_id, false)
                 );
             }
             bail!(
-                "Root task '{}' not found in queue or done archive.",
-                root_id
+                "{}",
+                crate::error_messages::root_task_not_found(root_id, true)
             );
         }
         vec![root_id.clone()]

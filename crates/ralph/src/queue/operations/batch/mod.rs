@@ -95,7 +95,10 @@ pub(crate) fn validate_task_ids_exist(
             bail!("Empty task ID provided");
         }
         if !queue.tasks.iter().any(|t| t.id.trim() == needle) {
-            bail!("Task not found: {}", needle);
+            bail!(
+                "{}",
+                crate::error_messages::task_not_found_batch_failure(needle)
+            );
         }
     }
     Ok(())

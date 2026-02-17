@@ -36,6 +36,7 @@ pub mod undo;
 // --- Utils -------------------------------------------------------------------
 
 pub mod celebrations;
+pub mod error_messages;
 pub mod eta_calculator;
 pub mod execution_history;
 pub mod fsutil;

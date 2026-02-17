@@ -107,7 +107,7 @@ pub(crate) fn validate_resumed_task(
             if let Err(e) = session::clear_session(&cache_dir) {
                 log::debug!("Failed to clear invalid session: {}", e);
             }
-            anyhow::anyhow!("Task {} no longer exists in queue", task_id)
+            anyhow::anyhow!("{}", crate::error_messages::task_no_longer_exists(task_id))
         })?;
 
     // Only invalidate the session for terminal states (Done, Rejected).

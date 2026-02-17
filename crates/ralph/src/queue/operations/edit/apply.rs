@@ -45,22 +45,22 @@ pub fn apply_task_edit(
         .position(|t| t.id.trim() == needle)
         .ok_or_else(|| {
             anyhow!(
-                "Queue edit failed (task_id={}): task not found in .ralph/queue.json.",
-                needle
+                "{}",
+                crate::error_messages::task_not_found_for_edit(operation, needle)
             )
         })?;
 
     let previous = queue.tasks.get(index).cloned().ok_or_else(|| {
         anyhow!(
-            "Queue edit failed (task_id={}): task not found in .ralph/queue.json.",
-            needle
+            "{}",
+            crate::error_messages::task_not_found_for_edit(operation, needle)
         )
     })?;
 
     let task = queue.tasks.get_mut(index).ok_or_else(|| {
         anyhow!(
-            "Queue edit failed (task_id={}): task not found in .ralph/queue.json.",
-            needle
+            "{}",
+            crate::error_messages::task_not_found_for_edit(operation, needle)
         )
     })?;
 

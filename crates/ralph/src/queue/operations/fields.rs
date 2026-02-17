@@ -36,9 +36,8 @@ pub fn set_field(
         .find(|t| t.id.trim() == needle)
         .ok_or_else(|| {
             anyhow!(
-                "Queue {} failed (task_id={}): task not found in .ralph/queue.json.",
-                operation,
-                needle
+                "{}",
+                crate::error_messages::task_not_found_for_edit(operation, needle)
             )
         })?;
 

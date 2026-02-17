@@ -37,6 +37,7 @@ pub use status::*;
 mod tests;
 
 use crate::contracts::TaskStatus;
+use crate::error_messages::task_not_found_with_operation;
 
 #[derive(Debug, thiserror::Error)]
 pub enum QueueQueryError {
@@ -45,9 +46,7 @@ pub enum QueueQueryError {
     )]
     MissingTargetTaskId { operation: String },
 
-    #[error(
-        "Queue query failed (operation={operation}): target task not found: {task_id}. Ensure it exists in .ralph/queue.json."
-    )]
+    #[error("{}", task_not_found_with_operation(operation, task_id))]
     TargetTaskNotFound { operation: String, task_id: String },
 
     #[error(

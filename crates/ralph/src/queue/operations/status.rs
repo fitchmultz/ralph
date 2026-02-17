@@ -131,8 +131,8 @@ pub fn complete_task(
         .position(|t| t.id.trim() == needle)
         .ok_or_else(|| {
             anyhow!(
-                "task not found in active queue: {}. Ensure the task exists in .ralph/queue.json.",
-                needle
+                "{}",
+                crate::error_messages::task_not_found_for_edit("status", needle)
             )
         })?;
 
@@ -204,7 +204,7 @@ pub fn set_status(
         .tasks
         .iter_mut()
         .find(|t| t.id.trim() == needle)
-        .ok_or_else(|| anyhow!("task not found: {}", needle))?;
+        .ok_or_else(|| anyhow!("{}", crate::error_messages::task_not_found(needle)))?;
 
     apply_status_policy(task, status, now_rfc3339, note)?;
 
@@ -228,7 +228,7 @@ pub fn promote_draft_to_todo(
         .tasks
         .iter()
         .find(|t| t.id.trim() == needle)
-        .ok_or_else(|| anyhow!("task not found: {}", needle))?;
+        .ok_or_else(|| anyhow!("{}", crate::error_messages::task_not_found(needle)))?;
 
     if task.status != TaskStatus::Draft {
         bail!(

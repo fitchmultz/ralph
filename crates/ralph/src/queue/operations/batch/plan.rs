@@ -60,8 +60,10 @@ pub fn batch_plan_append(
                 collector.record_success(task_id.clone(), Vec::new());
             }
             None => {
-                collector
-                    .record_failure(task_id.clone(), format!("Task not found: {}", task_id))?;
+                collector.record_failure(
+                    task_id.clone(),
+                    crate::error_messages::task_not_found_batch_failure(task_id),
+                )?;
             }
         }
     }
@@ -113,8 +115,10 @@ pub fn batch_plan_prepend(
                 collector.record_success(task_id.clone(), Vec::new());
             }
             None => {
-                collector
-                    .record_failure(task_id.clone(), format!("Task not found: {}", task_id))?;
+                collector.record_failure(
+                    task_id.clone(),
+                    crate::error_messages::task_not_found_batch_failure(task_id),
+                )?;
             }
         }
     }

@@ -653,7 +653,12 @@ fn find_task<'a>(queue: &'a QueueFile, task_id: &str) -> Result<&'a Task> {
         .tasks
         .iter()
         .find(|task| task.id.trim() == task_id)
-        .ok_or_else(|| anyhow::anyhow!("Task '{task_id}' not found in queue"))
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "{}",
+                crate::error_messages::task_not_found_in_queue(task_id)
+            )
+        })
 }
 
 fn find_task_mut<'a>(queue: &'a mut QueueFile, task_id: &str) -> Result<&'a mut Task> {
@@ -662,5 +667,10 @@ fn find_task_mut<'a>(queue: &'a mut QueueFile, task_id: &str) -> Result<&'a mut 
         .tasks
         .iter_mut()
         .find(|task| task.id.trim() == task_id)
-        .ok_or_else(|| anyhow::anyhow!("Task '{task_id}' not found in queue"))
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "{}",
+                crate::error_messages::task_not_found_in_queue(task_id)
+            )
+        })
 }

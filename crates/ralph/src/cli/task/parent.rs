@@ -36,11 +36,14 @@ pub fn handle(args: &TaskParentArgs, resolved: &Resolved) -> Result<()> {
     let task_ref = idx.get(task_id).ok_or_else(|| {
         if !args.include_done {
             anyhow::anyhow!(
-                "Task '{}' not found in active queue. Use --include-done to search done archive.",
-                task_id
+                "{}",
+                crate::error_messages::task_not_found_with_include_done_hint(task_id)
             )
         } else {
-            anyhow::anyhow!("Task '{}' not found in queue or done archive.", task_id)
+            anyhow::anyhow!(
+                "{}",
+                crate::error_messages::task_not_found_in_queue_or_done(task_id)
+            )
         }
     })?;
 

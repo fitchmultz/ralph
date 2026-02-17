@@ -189,7 +189,7 @@ fn update_task_impl(
             .tasks
             .iter()
             .find(|t| t.id.trim() == task_id)
-            .ok_or_else(|| anyhow!("Task not found: {}", task_id))?;
+            .ok_or_else(|| anyhow!("{}", crate::error_messages::task_not_found(task_id)))?;
 
         let template = prompts::load_task_updater_prompt(&resolved.repo_root)?;
         let project_type = resolved.config.project_type.unwrap_or(ProjectType::Code);
@@ -233,7 +233,7 @@ fn update_task_impl(
 
     let task_id = task_id.trim();
     if !before.tasks.iter().any(|t| t.id.trim() == task_id) {
-        bail!("Task not found: {}", task_id);
+        bail!("{}", crate::error_messages::task_not_found(task_id));
     }
 
     let before_task = before

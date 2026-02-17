@@ -58,7 +58,10 @@ pub fn batch_clone_tasks(
             let exists_in_active = queue.tasks.iter().any(|t| t.id == *task_id);
             let exists_in_done = done.is_some_and(|d| d.tasks.iter().any(|t| t.id == *task_id));
             if !exists_in_active && !exists_in_done {
-                bail!("Source task not found: {}", task_id);
+                bail!(
+                    "{}",
+                    crate::error_messages::source_task_not_found(task_id, true)
+                );
             }
         }
     }
@@ -150,7 +153,10 @@ pub fn batch_split_tasks(
     if !continue_on_error {
         for task_id in &unique_ids {
             if !queue.tasks.iter().any(|t| t.id == *task_id) {
-                bail!("Source task not found in active queue: {}", task_id);
+                bail!(
+                    "{}",
+                    crate::error_messages::source_task_not_found(task_id, false)
+                );
             }
         }
     }

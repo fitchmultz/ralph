@@ -402,8 +402,8 @@ fn patch_done_task_custom_fields(
         .find(|t| t.id.trim() == task_id.trim())
     else {
         bail!(
-            "Task {} not found in done archive for custom_fields patch.",
-            task_id
+            "{}",
+            crate::error_messages::task_not_found_in_done_archive(task_id, "custom_fields patch")
         );
     };
 
@@ -484,7 +484,12 @@ pub fn ensure_phase3_completion(
     )?;
 
     let (status, _title, in_done) = supervision::find_task_status(&queue_file, &done_file, task_id)
-        .ok_or_else(|| anyhow!("task {task_id} not found in queue or done"))?;
+        .ok_or_else(|| {
+            anyhow!(
+                "{}",
+                crate::error_messages::task_not_found_in_queue_or_done(task_id)
+            )
+        })?;
 
     if !in_done || !(status == TaskStatus::Done || status == TaskStatus::Rejected) {
         bail!(

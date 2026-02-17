@@ -34,7 +34,12 @@ pub fn handle(args: &TaskStartArgs, force: bool, resolved: &config::Resolved) ->
         .tasks
         .iter_mut()
         .find(|t| t.id == task_id)
-        .ok_or_else(|| anyhow::anyhow!("Task {} not found in active queue.", task_id))?;
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "{}",
+                crate::error_messages::task_not_found_in_queue(&task_id)
+            )
+        })?;
 
     if matches!(task.status, TaskStatus::Done | TaskStatus::Rejected) {
         bail!(

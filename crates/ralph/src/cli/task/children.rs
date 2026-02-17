@@ -38,11 +38,14 @@ pub fn handle(args: &TaskChildrenArgs, resolved: &Resolved) -> Result<()> {
     if !idx.contains(task_id) {
         if !args.include_done {
             bail!(
-                "Task '{}' not found in active queue. Use --include-done to search done archive.",
-                task_id
+                "{}",
+                crate::error_messages::task_not_found_with_include_done_hint(task_id)
             );
         }
-        bail!("Task '{}' not found in queue or done archive.", task_id);
+        bail!(
+            "{}",
+            crate::error_messages::task_not_found_in_queue_or_done(task_id)
+        );
     }
 
     // Collect output

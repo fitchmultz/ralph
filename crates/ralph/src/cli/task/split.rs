@@ -102,7 +102,7 @@ pub fn handle(args: &TaskSplitArgs, force: bool, resolved: &config::Resolved) ->
         .tasks
         .iter()
         .position(|t| t.id == args.task_id)
-        .context("Source task not found in queue")?;
+        .with_context(|| crate::error_messages::source_task_not_found(&args.task_id, false))?;
     queue_file.tasks[source_index] = updated_source;
 
     // Log and print output before moving child_tasks

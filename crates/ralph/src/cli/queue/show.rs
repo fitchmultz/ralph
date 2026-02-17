@@ -44,7 +44,7 @@ pub(crate) fn show_task(resolved: &Resolved, task_id: &str, format: QueueShowFor
         .filter(|d| !d.tasks.is_empty() || resolved.done_path.exists());
 
     let task = queue::find_task_across(&queue_file, done_ref, task_id)
-        .ok_or_else(|| anyhow!("task not found: {}", task_id.trim()))?;
+        .ok_or_else(|| anyhow!("{}", crate::error_messages::task_not_found(task_id.trim())))?;
 
     match format {
         QueueShowFormat::Json => {

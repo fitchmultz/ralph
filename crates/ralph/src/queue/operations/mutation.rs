@@ -254,8 +254,8 @@ pub fn clone_task(
         })
         .ok_or_else(|| {
             anyhow!(
-                "Source task '{}' not found in queue or done archive",
-                opts.source_id
+                "{}",
+                crate::error_messages::source_task_not_found(opts.source_id, true)
             )
         })?;
 
@@ -375,8 +375,8 @@ pub fn split_task(
         .position(|t| t.id.trim() == opts.source_id.trim())
         .ok_or_else(|| {
             anyhow!(
-                "Source task '{}' not found in active queue (cannot split archived tasks)",
-                opts.source_id
+                "{}",
+                crate::error_messages::source_task_not_found(opts.source_id, false)
             )
         })?;
 

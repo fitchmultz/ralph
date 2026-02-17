@@ -64,7 +64,9 @@ pub fn handle_relate(
             .tasks
             .iter()
             .find(|t| t.id.trim() == args.task_id.trim())
-            .ok_or_else(|| anyhow::anyhow!("Task not found: {}", args.task_id))?;
+            .ok_or_else(|| {
+                anyhow::anyhow!("{}", crate::error_messages::task_not_found(&args.task_id))
+            })?;
 
         let existing: Vec<String> = match edit_key {
             TaskEditKey::Blocks => task.blocks.clone(),
@@ -141,7 +143,9 @@ pub fn handle_blocks(
         .tasks
         .iter()
         .find(|t| t.id.trim() == args.task_id.trim())
-        .ok_or_else(|| anyhow::anyhow!("Task not found: {}", args.task_id))?;
+        .ok_or_else(|| {
+            anyhow::anyhow!("{}", crate::error_messages::task_not_found(&args.task_id))
+        })?;
 
     let mut new_blocks = task.blocks.clone();
     for blocked_id in &args.blocked_task_ids {

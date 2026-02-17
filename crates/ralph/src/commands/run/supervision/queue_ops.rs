@@ -87,8 +87,12 @@ pub(crate) fn require_task_status(
     done_file: &QueueFile,
     task_id: &str,
 ) -> Result<(TaskStatus, String, bool)> {
-    find_task_status(queue_file, done_file, task_id)
-        .ok_or_else(|| anyhow!("task {task_id} not found in queue or done"))
+    find_task_status(queue_file, done_file, task_id).ok_or_else(|| {
+        anyhow!(
+            "{}",
+            crate::error_messages::task_not_found_in_queue_or_done(task_id)
+        )
+    })
 }
 
 /// Finds a task's status, title, and whether it's in the done file.

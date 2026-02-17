@@ -104,7 +104,7 @@ pub(crate) fn handle(resolved: &Resolved, args: QueueGraphArgs) -> Result<()> {
     if let Some(task_id) = args.task {
         let task_id = task_id.trim();
         let task = find_task_across(&queue_file, done_ref, task_id)
-            .ok_or_else(|| anyhow!("task not found: {}", task_id))?;
+            .ok_or_else(|| anyhow!("{}", crate::error_messages::task_not_found(task_id)))?;
 
         match args.format {
             GraphFormatArg::Tree => {
@@ -169,7 +169,7 @@ fn render_task_tree(
 ) -> Result<()> {
     let task = graph
         .get(task_id)
-        .ok_or_else(|| anyhow!("task not found: {}", task_id))?;
+        .ok_or_else(|| anyhow!("{}", crate::error_messages::task_not_found(task_id)))?;
 
     println!("Dependency tree for {}: {}", task_id, task.task.title);
 
@@ -634,7 +634,7 @@ fn render_task_list(
 ) -> Result<()> {
     let task = graph
         .get(task_id)
-        .ok_or_else(|| anyhow!("task not found: {}", task_id))?;
+        .ok_or_else(|| anyhow!("{}", crate::error_messages::task_not_found(task_id)))?;
 
     println!("{}: {}", task_id, task.task.title);
     println!("Status: {:?}", task.task.status);
