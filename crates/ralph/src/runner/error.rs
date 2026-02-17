@@ -49,10 +49,6 @@ pub(crate) enum UserInputReason {
     Auth,
     /// Required binary is missing.
     MissingBinary,
-    /// Setup required (configuration, installation, etc).
-    /// Preserved for future error classification extensions.
-    #[allow(dead_code)]
-    SetupRequired,
 }
 
 /// Reasons why a failure is considered non-retryable.

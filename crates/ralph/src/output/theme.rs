@@ -14,73 +14,8 @@
 /// These functions provide styled strings for CLI output.
 /// They automatically respect the NO_COLOR environment variable
 /// and any --color flag settings via colored::control.
-///
-/// Kept as public API for future CLI output extensions.
-#[allow(dead_code)]
 pub mod cli {
     use colored::{ColoredString, Colorize};
-
-    /// Style text as success (green)
-    pub fn success(text: &str) -> ColoredString {
-        text.green()
-    }
-
-    /// Style text as error (red)
-    pub fn error(text: &str) -> ColoredString {
-        text.red()
-    }
-
-    /// Style text as warning (yellow)
-    pub fn warning(text: &str) -> ColoredString {
-        text.yellow()
-    }
-
-    /// Style text as info (blue)
-    pub fn info(text: &str) -> ColoredString {
-        text.blue()
-    }
-
-    /// Style text as emphasis (cyan)
-    pub fn emphasis(text: &str) -> ColoredString {
-        text.cyan()
-    }
-
-    /// Style text as muted/dimmed
-    pub fn muted(text: &str) -> ColoredString {
-        text.dimmed()
-    }
-
-    // Runner-specific styling
-
-    /// Style reasoning/thinking block prefix and content
-    pub fn reasoning(text: &str) -> ColoredString {
-        text.bright_blue()
-    }
-
-    /// Style tool call prefix and name
-    pub fn tool_call(text: &str) -> ColoredString {
-        text.bright_cyan()
-    }
-
-    /// Style successful tool result
-    pub fn tool_result_success(text: &str) -> ColoredString {
-        text.green()
-    }
-
-    /// Style failed tool result
-    pub fn tool_result_error(text: &str) -> ColoredString {
-        text.red()
-    }
-
-    /// Style command execution
-    pub fn command(text: &str) -> ColoredString {
-        text.bright_magenta()
-    }
-
-    /// Style supervisor/system message
-    pub fn supervisor(text: &str) -> ColoredString {
-        text.bright_magenta()
-    }
 
     /// Format a reasoning line with colored prefix
     pub fn format_reasoning(content: &str) -> String {
