@@ -51,6 +51,10 @@ pub fn expand_tilde(path: &Path) -> PathBuf {
         .filter(|v| !v.is_empty());
 
     let Some(home) = home else {
+        log::debug!(
+            "HOME environment variable not set; skipping tilde expansion for path: {}",
+            raw
+        );
         return path.to_path_buf();
     };
 

@@ -100,7 +100,14 @@ pub fn start(resolved: &Resolved, args: DaemonStartArgs) -> Result<()> {
                 }
                 PidLiveness::NotRunning => {
                     log::warn!("Removing stale daemon state file");
-                    let _ = fs::remove_file(cache_dir.join(DAEMON_STATE_FILE));
+                    let state_path = cache_dir.join(DAEMON_STATE_FILE);
+                    if let Err(e) = fs::remove_file(&state_path) {
+                        log::debug!(
+                            "Failed to remove stale daemon state file {}: {}",
+                            state_path.display(),
+                            e
+                        );
+                    }
                 }
             }
         }
@@ -196,8 +203,22 @@ pub fn stop(resolved: &Resolved) -> Result<()> {
     match daemon_pid_liveness(state.pid) {
         PidLiveness::NotRunning => {
             println!("Daemon is not running (removing stale state file)");
-            let _ = fs::remove_file(cache_dir.join(DAEMON_STATE_FILE));
-            let _ = fs::remove_dir_all(cache_dir.join(DAEMON_LOCK_DIR));
+            let state_path = cache_dir.join(DAEMON_STATE_FILE);
+            if let Err(e) = fs::remove_file(&state_path) {
+                log::debug!(
+                    "Failed to remove stale daemon state file {}: {}",
+                    state_path.display(),
+                    e
+                );
+            }
+            let lock_path = cache_dir.join(DAEMON_LOCK_DIR);
+            if let Err(e) = fs::remove_dir_all(&lock_path) {
+                log::debug!(
+                    "Failed to remove stale daemon lock dir {}: {}",
+                    lock_path.display(),
+                    e
+                );
+            }
             return Ok(());
         }
         PidLiveness::Indeterminate => {
@@ -221,7 +242,14 @@ pub fn stop(resolved: &Resolved) -> Result<()> {
         std::thread::sleep(Duration::from_millis(100));
         if matches!(daemon_pid_liveness(state.pid), PidLiveness::NotRunning) {
             println!("Daemon stopped successfully");
-            let _ = fs::remove_file(cache_dir.join(DAEMON_STATE_FILE));
+            let state_path = cache_dir.join(DAEMON_STATE_FILE);
+            if let Err(e) = fs::remove_file(&state_path) {
+                log::debug!(
+                    "Failed to remove daemon state file after stop {}: {}",
+                    state_path.display(),
+                    e
+                );
+            }
             return Ok(());
         }
     }
@@ -252,8 +280,22 @@ pub fn status(resolved: &Resolved) -> Result<()> {
                     println!("  Last PID: {}", state.pid);
                     println!("  Last started: {}", state.started_at);
                     // Clean up stale state
-                    let _ = fs::remove_file(cache_dir.join(DAEMON_STATE_FILE));
-                    let _ = fs::remove_dir_all(cache_dir.join(DAEMON_LOCK_DIR));
+                    let state_path = cache_dir.join(DAEMON_STATE_FILE);
+                    if let Err(e) = fs::remove_file(&state_path) {
+                        log::debug!(
+                            "Failed to remove stale daemon state file {}: {}",
+                            state_path.display(),
+                            e
+                        );
+                    }
+                    let lock_path = cache_dir.join(DAEMON_LOCK_DIR);
+                    if let Err(e) = fs::remove_dir_all(&lock_path) {
+                        log::debug!(
+                            "Failed to remove stale daemon lock dir {}: {}",
+                            lock_path.display(),
+                            e
+                        );
+                    }
                 }
                 PidLiveness::Indeterminate => {
                     println!(
@@ -357,7 +399,14 @@ pub fn serve(resolved: &Resolved, args: DaemonServeArgs) -> Result<()> {
 
     // Clean up state on exit
     log::info!("Daemon shutting down");
-    let _ = fs::remove_file(cache_dir.join(DAEMON_STATE_FILE));
+    let state_path = cache_dir.join(DAEMON_STATE_FILE);
+    if let Err(e) = fs::remove_file(&state_path) {
+        log::debug!(
+            "Failed to remove daemon state file on shutdown {}: {}",
+            state_path.display(),
+            e
+        );
+    }
 
     result
 }

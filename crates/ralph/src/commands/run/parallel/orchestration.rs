@@ -284,7 +284,13 @@ pub(crate) fn run_loop_parallel(
 
     if settings.auto_merge && settings.merge_when == ParallelMergeWhen::AsCreated {
         for work_item in &existing_work_items {
-            let _ = pr_tx.send(work_item.clone());
+            if let Err(e) = pr_tx.send(work_item.clone()) {
+                log::debug!(
+                    "Failed to send existing work item for task {} to merge runner: {}",
+                    work_item.task_id,
+                    e
+                );
+            }
         }
     }
 
@@ -520,7 +526,15 @@ pub(crate) fn run_loop_parallel(
                                         .find(|r| r.task_id == task_id)
                                     {
                                         record.merge_blocker = Some(blocker_msg);
-                                        let _ = state::save_state(&state_path, guard.state_file());
+                                        if let Err(e) =
+                                            state::save_state(&state_path, guard.state_file())
+                                        {
+                                            log::debug!(
+                                                "Failed to save state after setting merge blocker for {}: {}",
+                                                task_id,
+                                                e
+                                            );
+                                        }
                                     }
                                 } else {
                                     let work_item = MergeWorkItem {
@@ -532,8 +546,13 @@ pub(crate) fn run_loop_parallel(
                                     if settings.auto_merge
                                         && settings.merge_when == ParallelMergeWhen::AsCreated
                                         && let Some(tx) = guard.pr_tx()
+                                        && let Err(e) = tx.send(work_item)
                                     {
-                                        let _ = tx.send(work_item);
+                                        log::debug!(
+                                            "Failed to send work item for task {} to merge runner: {}",
+                                            task_id,
+                                            e
+                                        );
                                     }
                                 }
                             }
