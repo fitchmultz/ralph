@@ -69,6 +69,8 @@ pub fn run_wizard() -> Result<WizardAnswers> {
             "Google's Gemini CLI - Good for large context windows",
         ),
         ("Cursor", "Cursor's agent mode - IDE-integrated workflow"),
+        ("Kimi", "Moonshot AI Kimi - Strong coding capabilities"),
+        ("Pi", "Inflection Pi - Conversational AI assistant"),
     ];
 
     let runner_idx = Select::new()
@@ -89,6 +91,8 @@ pub fn run_wizard() -> Result<WizardAnswers> {
         2 => Runner::Opencode,
         3 => Runner::Gemini,
         4 => Runner::Cursor,
+        5 => Runner::Kimi,
+        6 => Runner::Pi,
         _ => Runner::Claude, // default fallback
     };
 
@@ -221,7 +225,23 @@ fn select_model(runner: &Runner) -> Result<String> {
             ),
             ("custom", "Other model (specify)"),
         ],
-        _ => vec![
+        Runner::Opencode => vec![
+            ("zai-coding-plan/glm-4.7", "GLM-4.7 model (recommended)"),
+            ("custom", "Other model (specify)"),
+        ],
+        Runner::Kimi => vec![
+            ("kimi-for-coding", "Kimi coding model (recommended)"),
+            ("custom", "Other model (specify)"),
+        ],
+        Runner::Pi => vec![
+            ("gpt-5.3", "GPT-5.3 model (recommended)"),
+            ("custom", "Other model (specify)"),
+        ],
+        Runner::Cursor => vec![
+            ("auto", "Let Cursor choose automatically (recommended)"),
+            ("custom", "Other model (specify)"),
+        ],
+        Runner::Plugin(_) => vec![
             ("default", "Use runner default"),
             ("custom", "Specify custom model"),
         ],
