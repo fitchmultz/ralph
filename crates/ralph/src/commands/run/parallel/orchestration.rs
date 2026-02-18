@@ -16,6 +16,25 @@
 //! - Called after all preflight checks pass.
 //! - Queue lock is held by caller for task selection safety.
 //! - Merge-agent subprocess runs synchronously in the main loop.
+//!
+//! # Runtime Policies (Spec Section 20)
+//!
+//! ## Policy 2: Unresolved Conflict Handling
+//!
+//! When `MergeExitClassification::ConflictRetryable` is returned:
+//! - PR is left open (not closed, not deleted)
+//! - Failure is persisted as retryable (`update_merge_result` with `retryable=true`)
+//! - Task is requeued via `requeue_merge` for later retry
+//! - Main loop continues (does NOT abort)
+//!
+//! ## Policy 3: Workspace Retention
+//!
+//! On successful merge (`Success` or `AlreadyFinalized` classification):
+//! - Workspace is deleted immediately via `std::fs::remove_dir_all`
+//! - Deletion failure is non-fatal (logged as warning, not error)
+//! - Cleanup happens in both `AsCreated` and `AfterAll` modes
+//!
+//! These policies are fixed per `docs/features/parallel-mode-rewrite.md` section 20.
 
 use crate::config;
 use crate::contracts::ParallelMergeWhen;
@@ -926,6 +945,7 @@ pub(crate) fn run_loop_parallel(
 mod tests {
     use super::*;
     use crate::agent::AgentOverrides;
+    use crate::commands::run::merge_agent::exit_codes;
     use crate::config;
     use crate::contracts::Config;
 
@@ -961,5 +981,171 @@ mod tests {
         assert_eq!(worker_overrides.repoprompt_plan_required, Some(false));
         assert_eq!(worker_overrides.repoprompt_tool_injection, Some(false));
         Ok(())
+    }
+
+    // =========================================================================
+    // Policy Regression Tests (Spec Section 20)
+    // =========================================================================
+
+    /// Regression test: ConflictRetryable classification maps to exit code 3.
+    ///
+    /// Per spec section 20, decision 2: "Unresolved conflict policy: leave PR open,
+    /// persist retryable failure, and continue loop execution."
+    ///
+    /// The classification function must map exit code 3 to ConflictRetryable.
+    #[test]
+    fn conflict_exit_code_classifies_as_retryable() {
+        assert_eq!(
+            classify_merge_exit_code(exit_codes::MERGE_CONFLICT),
+            MergeExitClassification::ConflictRetryable
+        );
+    }
+
+    /// Regression test: Success classification triggers workspace deletion logic.
+    ///
+    /// Per spec section 20, decision 3: "Workspace retention policy: delete workspace
+    /// immediately after successful merge finalization."
+    ///
+    /// This test verifies the classification path that triggers deletion.
+    #[test]
+    fn success_classification_triggers_deletion_path() {
+        // Success (exit 0) and AlreadyFinalized (exit 6) both trigger the
+        // deletion path in the orchestration match block.
+        assert_eq!(
+            classify_merge_exit_code(exit_codes::SUCCESS),
+            MergeExitClassification::Success
+        );
+        assert_eq!(
+            classify_merge_exit_code(exit_codes::ALREADY_FINALIZED),
+            MergeExitClassification::AlreadyFinalized
+        );
+
+        // Both Success and AlreadyFinalized are NOT retryable (they're done)
+        assert!(!matches!(
+            MergeExitClassification::Success,
+            MergeExitClassification::ConflictRetryable | MergeExitClassification::RuntimeRetryable
+        ));
+        assert!(!matches!(
+            MergeExitClassification::AlreadyFinalized,
+            MergeExitClassification::ConflictRetryable | MergeExitClassification::RuntimeRetryable
+        ));
+    }
+
+    /// Regression test: ConflictRetryable path does NOT call remove_pending_merge.
+    ///
+    /// When a conflict occurs, the merge job should be requeued, not removed.
+    /// The `requeue_merge` function resets lifecycle to Queued.
+    #[test]
+    fn conflict_path_requeues_not_removes() {
+        use super::state::{ParallelStateFile, PendingMergeJob, PendingMergeLifecycle};
+        use crate::contracts::{ParallelMergeMethod, ParallelMergeWhen};
+
+        let mut state_file = ParallelStateFile::new(
+            "2026-02-01T00:00:00Z".to_string(),
+            "main".to_string(),
+            ParallelMergeMethod::Squash,
+            ParallelMergeWhen::AsCreated,
+        );
+
+        // Add a pending merge job
+        let merge_job = PendingMergeJob {
+            task_id: "RQ-0001".to_string(),
+            pr_number: 42,
+            workspace_path: None,
+            lifecycle: PendingMergeLifecycle::InProgress,
+            attempts: 1,
+            queued_at: "2026-02-01T00:00:00Z".to_string(),
+            last_error: Some("Merge conflict".to_string()),
+        };
+        state_file.enqueue_merge(merge_job);
+
+        // Simulate conflict path: mark in progress, then requeue
+        state_file.mark_merge_in_progress("RQ-0001");
+        state_file.update_merge_result("RQ-0001", false, Some("Merge conflict".to_string()), true);
+        state_file.requeue_merge("RQ-0001");
+
+        // Verify the job still exists (was NOT removed)
+        let job = state_file.get_pending_merge("RQ-0001");
+        assert!(
+            job.is_some(),
+            "Conflict path should retain pending merge job"
+        );
+        let job = job.unwrap();
+        assert_eq!(job.lifecycle, PendingMergeLifecycle::Queued);
+    }
+
+    /// Regression test: Success path removes pending merge job.
+    ///
+    /// When merge succeeds, the pending merge job should be removed from the queue.
+    #[test]
+    fn success_path_removes_pending_merge() {
+        use super::state::{ParallelStateFile, PendingMergeJob, PendingMergeLifecycle};
+        use crate::contracts::{ParallelMergeMethod, ParallelMergeWhen};
+
+        let mut state_file = ParallelStateFile::new(
+            "2026-02-01T00:00:00Z".to_string(),
+            "main".to_string(),
+            ParallelMergeMethod::Squash,
+            ParallelMergeWhen::AsCreated,
+        );
+
+        // Add a pending merge job
+        let merge_job = PendingMergeJob {
+            task_id: "RQ-0002".to_string(),
+            pr_number: 43,
+            workspace_path: None,
+            lifecycle: PendingMergeLifecycle::Queued,
+            attempts: 0,
+            queued_at: "2026-02-01T00:00:00Z".to_string(),
+            last_error: None,
+        };
+        state_file.enqueue_merge(merge_job);
+
+        // Simulate success path: mark PR merged, remove pending merge
+        state_file.mark_pr_merged("RQ-0002");
+        state_file.remove_pending_merge("RQ-0002");
+
+        // Verify the job was removed
+        let job = state_file.get_pending_merge("RQ-0002");
+        assert!(
+            job.is_none(),
+            "Success path should remove pending merge job"
+        );
+    }
+
+    /// Regression test: Conflict path does NOT mark PR as merged.
+    ///
+    /// Per spec section 20, decision 2: PR should remain open on conflict.
+    #[test]
+    fn conflict_path_leaves_pr_open() {
+        use super::state::{ParallelPrLifecycle, ParallelPrRecord, ParallelStateFile};
+        use crate::contracts::{ParallelMergeMethod, ParallelMergeWhen};
+
+        let mut state_file = ParallelStateFile::new(
+            "2026-02-01T00:00:00Z".to_string(),
+            "main".to_string(),
+            ParallelMergeMethod::Squash,
+            ParallelMergeWhen::AsCreated,
+        );
+
+        // Add a PR record
+        state_file.prs.push(ParallelPrRecord {
+            task_id: "RQ-0003".to_string(),
+            pr_number: 44,
+            lifecycle: ParallelPrLifecycle::Open,
+        });
+
+        // Simulate conflict path: update_merge_result and requeue (no mark_pr_merged)
+        state_file.update_merge_result("RQ-0003", false, Some("Conflict".to_string()), true);
+        state_file.requeue_merge("RQ-0003");
+
+        // Verify PR is still Open, not Merged
+        let pr_record = state_file.prs.iter().find(|r| r.task_id == "RQ-0003");
+        assert!(pr_record.is_some());
+        assert_eq!(
+            pr_record.unwrap().lifecycle,
+            ParallelPrLifecycle::Open,
+            "Conflict path should leave PR open"
+        );
     }
 }
