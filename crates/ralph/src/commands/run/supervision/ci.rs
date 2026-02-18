@@ -45,6 +45,7 @@ pub(crate) fn run_ci_gate(resolved: &crate::config::Resolved) -> Result<()> {
             .current_dir(&resolved.repo_root)
             .env_remove(crate::config::QUEUE_PATH_OVERRIDE_ENV)
             .env_remove(crate::config::DONE_PATH_OVERRIDE_ENV)
+            .env_remove(crate::config::REPO_ROOT_OVERRIDE_ENV)
             .stdin(Stdio::inherit())
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit())
@@ -273,7 +274,7 @@ mod tests {
 
     #[test]
     #[serial]
-    fn run_ci_gate_strips_queue_and_done_override_env() -> Result<()> {
+    fn run_ci_gate_strips_all_ralph_override_env() -> Result<()> {
         let prior_queue = std::env::var_os(crate::config::QUEUE_PATH_OVERRIDE_ENV);
         let prior_done = std::env::var_os(crate::config::DONE_PATH_OVERRIDE_ENV);
         let prior_repo = std::env::var_os(crate::config::REPO_ROOT_OVERRIDE_ENV);
@@ -292,10 +293,11 @@ mod tests {
         }
 
         let temp = TempDir::new()?;
+        // Verify all three Ralph environment overrides are stripped from child process
         let command = if cfg!(windows) {
-            "powershell -NoProfile -Command \"if ($env:RALPH_QUEUE_PATH_OVERRIDE -or $env:RALPH_DONE_PATH_OVERRIDE) { exit 42 }\""
+            "powershell -NoProfile -Command \"if ($env:RALPH_QUEUE_PATH_OVERRIDE -or $env:RALPH_DONE_PATH_OVERRIDE -or $env:RALPH_REPO_ROOT_OVERRIDE) { exit 42 }\""
         } else {
-            "sh -c 'test -z \"$RALPH_QUEUE_PATH_OVERRIDE\" && test -z \"$RALPH_DONE_PATH_OVERRIDE\"'"
+            "sh -c 'test -z \"$RALPH_QUEUE_PATH_OVERRIDE\" && test -z \"$RALPH_DONE_PATH_OVERRIDE\" && test -z \"$RALPH_REPO_ROOT_OVERRIDE\"'"
         };
         let resolved = resolved_with_ci_command(temp.path(), Some(command.to_string()), true);
         let result = run_ci_gate(&resolved);

@@ -101,6 +101,9 @@ test:
 	export TMPDIR="$$run_dir"; \
 	export TEMP="$$run_dir"; \
 	export TMP="$$run_dir"; \
+	unset RALPH_QUEUE_PATH_OVERRIDE; \
+	unset RALPH_DONE_PATH_OVERRIDE; \
+	unset RALPH_REPO_ROOT_OVERRIDE; \
 	unit_log="$$run_dir/unit-tests.log"; \
 	doc_log="$$run_dir/doc-tests.log"; \
 	if cargo nextest --version >/dev/null 2>&1; then \
