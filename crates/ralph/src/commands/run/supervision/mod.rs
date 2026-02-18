@@ -117,15 +117,17 @@ pub(crate) fn post_run_supervise(
                     log::warn!(
                         "CI gate continue requested but no session id; falling back to standard CI gate handling."
                     );
-                    if let Err(err) = run_ci_gate(resolved) {
+                    let result = run_ci_gate(resolved)?;
+                    if !result.success {
                         let outcome = runutil::apply_git_revert_mode(
                             &resolved.repo_root,
                             git_revert_mode,
                             "CI gate failure",
                             revert_prompt.as_ref(),
                         )?;
+                        let exit_code_display = result.exit_code.unwrap_or(-1);
                         anyhow::bail!(
-                            "{} Error: {:#}",
+                            "{} Error: CI failed with exit code {exit_code_display}",
                             runutil::format_revert_failure_message(
                                 &format!(
                                     "CI gate failed: '{}' did not pass after the task completed.",
@@ -133,7 +135,6 @@ pub(crate) fn post_run_supervise(
                                 ),
                                 outcome,
                             ),
-                            err
                         );
                     }
                 } else if let Err(err) = ci::run_ci_gate_with_continue_session(
@@ -162,24 +163,27 @@ pub(crate) fn post_run_supervise(
                         err
                     );
                 }
-            } else if let Err(err) = run_ci_gate(resolved) {
-                let outcome = runutil::apply_git_revert_mode(
-                    &resolved.repo_root,
-                    git_revert_mode,
-                    "CI gate failure",
-                    revert_prompt.as_ref(),
-                )?;
-                anyhow::bail!(
-                    "{} Error: {:#}",
-                    runutil::format_revert_failure_message(
-                        &format!(
-                            "CI gate failed: '{}' did not pass after the task completed.",
-                            ci_gate_command_label(resolved)
+            } else {
+                let result = run_ci_gate(resolved)?;
+                if !result.success {
+                    let outcome = runutil::apply_git_revert_mode(
+                        &resolved.repo_root,
+                        git_revert_mode,
+                        "CI gate failure",
+                        revert_prompt.as_ref(),
+                    )?;
+                    let exit_code_display = result.exit_code.unwrap_or(-1);
+                    anyhow::bail!(
+                        "{} Error: CI failed with exit code {exit_code_display}",
+                        runutil::format_revert_failure_message(
+                            &format!(
+                                "CI gate failed: '{}' did not pass after the task completed.",
+                                ci_gate_command_label(resolved)
+                            ),
+                            outcome,
                         ),
-                        outcome,
-                    ),
-                    err
-                );
+                    );
+                }
             }
 
             let (q, d) = maintain_and_validate_queues(

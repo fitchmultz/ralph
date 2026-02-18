@@ -2,6 +2,7 @@
 //!
 //! Responsibilities:
 //! - Execute the configured CI gate command (default: make ci).
+//! - Capture stdout/stderr for compliance messages.
 //! - Provide command label for error messages.
 //!
 //! Not handled here:
@@ -10,7 +11,7 @@
 //!
 //! Invariants/assumptions:
 //! - CI gate command is configured or defaults to "make ci".
-//! - Command execution inherits stdin/stdout/stderr.
+//! - Command output is captured (not inherited) to include in compliance messages.
 
 use super::logging;
 use crate::constants::limits::CI_GATE_AUTO_RETRY_LIMIT;
@@ -18,8 +19,60 @@ use crate::runutil;
 use anyhow::{Context, Result, bail};
 use std::process::Stdio;
 
+/// Result of running the CI gate command.
+#[derive(Debug)]
+pub(crate) struct CiGateResult {
+    pub success: bool,
+    pub exit_code: Option<i32>,
+    pub stdout: String,
+    pub stderr: String,
+}
+
+/// Truncate a string for logging, showing the end (most recent output).
+///
+/// Uses character-aware truncation to avoid splitting multi-byte UTF-8 sequences.
+fn truncate_for_log(s: &str, max_chars: usize) -> String {
+    let char_count = s.chars().count();
+    if char_count <= max_chars {
+        s.to_string()
+    } else {
+        // Skip characters from the start to show most recent output
+        let skip = char_count.saturating_sub(max_chars);
+        let truncated: String = s.chars().skip(skip).collect();
+        format!("...{truncated}")
+    }
+}
+
+/// Format CI output for inclusion in compliance message.
+///
+/// Takes last N lines (default 100) to show most relevant output.
+/// stderr is included first since errors typically appear there.
+fn format_ci_output_for_message(stdout: &str, stderr: &str, max_lines: usize) -> String {
+    let mut lines: Vec<&str> = Vec::new();
+
+    // Include stderr first (usually contains errors)
+    lines.extend(stderr.lines());
+    lines.extend(stdout.lines());
+
+    // Take last N lines to show most recent/relevant output
+    let start = lines.len().saturating_sub(max_lines);
+    let selected = &lines[start..];
+
+    if selected.is_empty() {
+        "No output captured.".to_string()
+    } else {
+        format!(
+            "Last {} lines of CI output:\n```\n{}\n```",
+            selected.len(),
+            selected.join("\n")
+        )
+    }
+}
+
 /// Executes the CI gate command if enabled.
-pub(crate) fn run_ci_gate(resolved: &crate::config::Resolved) -> Result<()> {
+///
+/// Returns a CiGateResult containing success status, exit code, and captured output.
+pub(crate) fn run_ci_gate(resolved: &crate::config::Resolved) -> Result<CiGateResult> {
     let enabled = resolved.config.agent.ci_gate_enabled.unwrap_or(true);
     let command = resolved
         .config
@@ -31,7 +84,12 @@ pub(crate) fn run_ci_gate(resolved: &crate::config::Resolved) -> Result<()> {
 
     if !enabled {
         log::info!("CI gate disabled; skipping configured command '{command}'.");
-        return Ok(());
+        return Ok(CiGateResult {
+            success: true,
+            exit_code: None,
+            stdout: String::new(),
+            stderr: String::new(),
+        });
     }
 
     if command.is_empty() {
@@ -41,15 +99,15 @@ pub(crate) fn run_ci_gate(resolved: &crate::config::Resolved) -> Result<()> {
     }
 
     logging::with_scope(&format!("CI gate ({command})"), || {
-        let status = runutil::shell_command(command)
+        let output = runutil::shell_command(command)
             .current_dir(&resolved.repo_root)
             .env_remove(crate::config::QUEUE_PATH_OVERRIDE_ENV)
             .env_remove(crate::config::DONE_PATH_OVERRIDE_ENV)
             .env_remove(crate::config::REPO_ROOT_OVERRIDE_ENV)
-            .stdin(Stdio::inherit())
-            .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit())
-            .status()
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .output()
             .with_context(|| {
                 format!(
                     "run CI gate command '{}' in {}",
@@ -58,24 +116,59 @@ pub(crate) fn run_ci_gate(resolved: &crate::config::Resolved) -> Result<()> {
                 )
             })?;
 
-        if status.success() {
-            return Ok(());
+        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        let success = output.status.success();
+        let exit_code = output.status.code();
+
+        // Log output on failure for debugging
+        if !success {
+            log::error!(
+                "CI gate ({command}) failed with exit code {:?}. stdout: {}",
+                exit_code,
+                truncate_for_log(&stdout, 2000)
+            );
+            log::error!(
+                "CI gate ({command}) stderr: {}",
+                truncate_for_log(&stderr, 2000)
+            );
         }
 
-        bail!(
-            "CI failed: '{}' exited with code {:?}. Run '{}' again to identify the issues and fix.",
-            command,
-            status.code(),
-            command
-        )
+        Ok(CiGateResult {
+            success,
+            exit_code,
+            stdout,
+            stderr,
+        })
     })
 }
 
-fn strict_ci_gate_compliance_message(resolved: &crate::config::Resolved) -> String {
+fn strict_ci_gate_compliance_message(
+    resolved: &crate::config::Resolved,
+    result: &CiGateResult,
+) -> String {
     let cmd = ci_gate_command_label(resolved);
+
+    // Include last N lines of output in the message
+    let output_snippet = format_ci_output_for_message(&result.stdout, &result.stderr, 100);
+
+    // Format exit code as a number, using -1 if unavailable (e.g., killed by signal)
+    let exit_code_display = result.exit_code.unwrap_or(-1);
+
     format!(
-        r#"CI gate ({}): error: CI failed: '{}' exited with an error code. Run '{}' again to identify the issues and fix. You MUST see the CI gate pass before this turn can end and proceed further. NO skipping tests, half-assed patches, or sloppy shortcuts. Flaky tests should be investigated and patched. Failures unrelated to your work are in scope and your responsibility. Implement fixes your mother would be proud of."#,
-        cmd, cmd, cmd
+        r#"CI gate ({cmd}): CI failed with exit code {exit_code_display}.
+
+{output_snippet}
+
+Run '{cmd}' again WITHOUT tail/head truncation to see the full output. Fix the errors above before continuing. You MUST see the CI gate pass before this turn can end.
+
+COMMON PATTERNS:
+- "ruff failed: TOML parse error" -> Check pyproject.toml for invalid values at the mentioned line
+- "unknown variant X, expected one of Y" -> X is invalid, use one of Y instead
+- "format-check failed" -> Run the formatter to see what needs changing
+- "lint-check failed" -> Run the linter directly to see errors
+
+NO skipping tests, half-assed patches, or sloppy shortcuts."#
     )
 }
 
@@ -92,60 +185,54 @@ where
     F: FnMut(&crate::runner::RunnerOutput, std::time::Duration) -> Result<()>,
 {
     loop {
-        match run_ci_gate(resolved) {
-            Ok(()) => break,
-            Err(err) => {
-                if continue_session.ci_failure_retry_count < CI_GATE_AUTO_RETRY_LIMIT {
-                    continue_session.ci_failure_retry_count =
-                        continue_session.ci_failure_retry_count.saturating_add(1);
-                    let attempt = continue_session.ci_failure_retry_count;
+        let result = run_ci_gate(resolved)?;
 
-                    log::warn!(
-                        "CI gate failed; auto-sending strict compliance Continue message to agent (attempt {}/{})",
-                        attempt,
-                        CI_GATE_AUTO_RETRY_LIMIT
-                    );
+        if result.success {
+            break;
+        }
 
-                    let message = strict_ci_gate_compliance_message(resolved);
-                    let (output, elapsed) = super::resume_continue_session(
-                        resolved,
-                        continue_session,
-                        &message,
-                        plugins,
-                    )?;
-                    on_resume(&output, elapsed)?;
-                    continue;
-                }
+        if continue_session.ci_failure_retry_count < CI_GATE_AUTO_RETRY_LIMIT {
+            continue_session.ci_failure_retry_count =
+                continue_session.ci_failure_retry_count.saturating_add(1);
+            let attempt = continue_session.ci_failure_retry_count;
 
-                let outcome = runutil::apply_git_revert_mode(
-                    &resolved.repo_root,
-                    git_revert_mode,
-                    "CI failure",
-                    revert_prompt,
-                )?;
+            log::warn!(
+                "CI gate failed; auto-sending strict compliance Continue message to agent (attempt {}/{})",
+                attempt,
+                CI_GATE_AUTO_RETRY_LIMIT
+            );
 
-                match outcome {
-                    runutil::RevertOutcome::Continue { message } => {
-                        let (output, elapsed) = super::resume_continue_session(
-                            resolved,
-                            continue_session,
-                            &message,
-                            plugins,
-                        )?;
-                        on_resume(&output, elapsed)?;
-                        continue;
-                    }
-                    _ => {
-                        bail!(
-                            "{} Error: {:#}",
-                            runutil::format_revert_failure_message(
-                                "CI gate failed after changes. Fix issues reported by CI and rerun.",
-                                outcome,
-                            ),
-                            err
-                        );
-                    }
-                }
+            // Include the CI output in the compliance message
+            let message = strict_ci_gate_compliance_message(resolved, &result);
+            let (output, elapsed) =
+                super::resume_continue_session(resolved, continue_session, &message, plugins)?;
+            on_resume(&output, elapsed)?;
+            continue;
+        }
+
+        let outcome = runutil::apply_git_revert_mode(
+            &resolved.repo_root,
+            git_revert_mode,
+            "CI failure",
+            revert_prompt,
+        )?;
+
+        match outcome {
+            runutil::RevertOutcome::Continue { message } => {
+                let (output, elapsed) =
+                    super::resume_continue_session(resolved, continue_session, &message, plugins)?;
+                on_resume(&output, elapsed)?;
+                continue;
+            }
+            _ => {
+                let exit_code_display = result.exit_code.unwrap_or(-1);
+                bail!(
+                    "{} Error: CI failed with exit code {exit_code_display}",
+                    runutil::format_revert_failure_message(
+                        "CI gate failed after changes. Fix issues reported by CI and rerun.",
+                        outcome,
+                    ),
+                );
             }
         }
     }
@@ -259,8 +346,9 @@ mod tests {
     fn run_ci_gate_skips_when_disabled() -> Result<()> {
         let temp = TempDir::new()?;
         let resolved = resolved_with_ci_command(temp.path(), Some("make ci".to_string()), false);
-        // Should succeed without running anything
-        run_ci_gate(&resolved)?;
+        // Should succeed without running anything, returning success
+        let result = run_ci_gate(&resolved)?;
+        assert!(result.success);
         Ok(())
     }
 
@@ -318,6 +406,134 @@ mod tests {
             }
         }
 
-        result
+        // Verify the result is successful (env vars were stripped)
+        let ci_result = result?;
+        assert!(ci_result.success);
+        Ok(())
+    }
+
+    #[test]
+    fn run_ci_gate_captures_output() -> Result<()> {
+        let temp = TempDir::new()?;
+        let command = if cfg!(windows) {
+            "powershell -NoProfile -Command \"Write-Output 'stdout text'; Write-Error 'stderr text'; exit 1\""
+        } else {
+            "sh -c 'echo stdout text; echo stderr text >&2; exit 1'"
+        };
+        let resolved = resolved_with_ci_command(temp.path(), Some(command.to_string()), true);
+        let result = run_ci_gate(&resolved)?;
+
+        assert!(!result.success);
+        assert_eq!(result.exit_code, Some(1));
+        assert!(result.stdout.contains("stdout text"));
+        assert!(result.stderr.contains("stderr text"));
+        Ok(())
+    }
+
+    #[test]
+    fn format_ci_output_includes_stderr_first() {
+        let stdout = "line1\nline2\nline3";
+        let stderr = "error1\nerror2";
+        let result = format_ci_output_for_message(stdout, stderr, 10);
+
+        // stderr should appear in output
+        assert!(result.contains("error1"));
+        assert!(result.contains("error2"));
+    }
+
+    #[test]
+    fn format_ci_output_truncates_to_max_lines() {
+        let stdout = (1..=200)
+            .map(|i| format!("line{i}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let stderr = "";
+        let result = format_ci_output_for_message(&stdout, stderr, 50);
+
+        // Should include "Last 50 lines"
+        assert!(result.contains("Last 50 lines"));
+        // Should include line 151 (line 200 - 50 + 1)
+        assert!(result.contains("line151"));
+        // Should NOT include line 150
+        assert!(!result.contains("line150"));
+    }
+
+    #[test]
+    fn format_ci_output_handles_empty() {
+        let result = format_ci_output_for_message("", "", 100);
+        assert!(result.contains("No output captured"));
+    }
+
+    #[test]
+    fn compliance_message_includes_exit_code_and_output() {
+        let temp = TempDir::new().unwrap();
+        let resolved = resolved_with_ci_command(temp.path(), None, true);
+        let result = CiGateResult {
+            success: false,
+            exit_code: Some(2),
+            stdout: "test output".to_string(),
+            stderr: "error: ruff failed".to_string(),
+        };
+
+        let msg = strict_ci_gate_compliance_message(&resolved, &result);
+        // Should show numeric exit code, not Debug format like "Some(2)"
+        assert!(
+            msg.contains("exit code 2"),
+            "Expected 'exit code 2', got: {msg}"
+        );
+        assert!(msg.contains("ruff failed"));
+    }
+
+    #[test]
+    fn compliance_message_includes_troubleshooting_patterns() {
+        let temp = TempDir::new().unwrap();
+        let resolved = resolved_with_ci_command(temp.path(), None, true);
+        let result = CiGateResult {
+            success: false,
+            exit_code: Some(2),
+            stdout: String::new(),
+            stderr: String::new(),
+        };
+
+        let msg = strict_ci_gate_compliance_message(&resolved, &result);
+        assert!(msg.contains("TOML parse error"));
+        assert!(msg.contains("unknown variant"));
+        assert!(msg.contains("format-check failed"));
+        assert!(msg.contains("lint-check failed"));
+    }
+
+    #[test]
+    fn truncate_for_log_shows_end_of_string() {
+        let long = "a".repeat(3000);
+        let truncated = truncate_for_log(&long, 100);
+        assert!(truncated.starts_with("..."));
+        // Should have exactly 103 characters: "..." + 100 'a's
+        assert_eq!(truncated.len(), 103);
+    }
+
+    #[test]
+    fn truncate_for_log_returns_full_if_short() {
+        let short = "hello world";
+        let truncated = truncate_for_log(short, 100);
+        assert_eq!(truncated, short);
+    }
+
+    #[test]
+    fn truncate_for_log_handles_multibyte_utf8() {
+        // Test with multi-byte UTF-8 characters (emoji = 4 bytes each)
+        let long = "😀".repeat(100); // 100 emoji = 400 bytes
+        let truncated = truncate_for_log(&long, 10); // Keep last 10 chars
+
+        // Should not panic and should produce valid UTF-8
+        assert!(truncated.starts_with("..."));
+        // After "...", should have exactly 10 emoji characters
+        let emoji_part = &truncated[3..]; // Skip "..."
+        assert_eq!(emoji_part.chars().count(), 10);
+    }
+
+    #[test]
+    fn truncate_for_log_handles_empty_string() {
+        let truncated = truncate_for_log("", 100);
+        assert_eq!(truncated, "");
     }
 }
