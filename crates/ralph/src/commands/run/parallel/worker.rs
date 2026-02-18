@@ -144,7 +144,7 @@ pub(crate) fn spawn_worker(
 
 /// Build the command and arguments for a worker subprocess.
 fn build_worker_command(
-    _resolved: &config::Resolved,
+    resolved: &config::Resolved,
     workspace_path: &Path,
     task_id: &str,
     overrides: &AgentOverrides,
@@ -155,6 +155,8 @@ fn build_worker_command(
     cmd.current_dir(workspace_path);
     cmd.env("PWD", workspace_path);
     cmd.env(crate::config::REPO_ROOT_OVERRIDE_ENV, workspace_path);
+
+    // Keep these removes - they prevent CI gate from leaking parent's env overrides
     cmd.env_remove(crate::config::QUEUE_PATH_OVERRIDE_ENV);
     cmd.env_remove(crate::config::DONE_PATH_OVERRIDE_ENV);
     cmd.stdin(Stdio::null());
@@ -170,6 +172,13 @@ fn build_worker_command(
     args.push("--parallel-worker".to_string());
     args.push("--non-interactive".to_string());
     args.push("--no-progress".to_string());
+
+    // Pass coordinator's queue/done paths via CLI flags (not env vars)
+    // This allows workers to read task context without env var leakage to child processes
+    args.push("--coordinator-queue-path".to_string());
+    args.push(resolved.queue_path.to_string_lossy().to_string());
+    args.push("--coordinator-done-path".to_string());
+    args.push(resolved.done_path.to_string_lossy().to_string());
 
     args.extend(build_override_args(overrides));
 
@@ -279,6 +288,27 @@ mod tests {
 
         let id_pos = args.iter().position(|arg| arg == "--id").expect("--id");
         assert_eq!(args.get(id_pos + 1), Some(&"RQ-1234".to_string()));
+
+        // Verify coordinator paths are passed via CLI flags
+        let queue_path_pos = args
+            .iter()
+            .position(|arg| arg == "--coordinator-queue-path")
+            .expect("--coordinator-queue-path should be in args");
+        assert_eq!(
+            args.get(queue_path_pos + 1),
+            Some(&resolved.queue_path.to_string_lossy().to_string()),
+            "coordinator queue path should follow --coordinator-queue-path flag"
+        );
+
+        let done_path_pos = args
+            .iter()
+            .position(|arg| arg == "--coordinator-done-path")
+            .expect("--coordinator-done-path should be in args");
+        assert_eq!(
+            args.get(done_path_pos + 1),
+            Some(&resolved.done_path.to_string_lossy().to_string()),
+            "coordinator done path should follow --coordinator-done-path flag"
+        );
 
         Ok(())
     }

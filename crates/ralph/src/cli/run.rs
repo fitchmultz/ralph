@@ -13,6 +13,8 @@
 //! - Configuration is resolved from the current working directory.
 //! - Queue mutations occur inside downstream command handlers.
 
+use std::path::PathBuf;
+
 use anyhow::Result;
 use clap::{Args, Subcommand};
 
@@ -75,7 +77,29 @@ pub fn handle_run(cmd: RunCommand, force: bool) -> Result<()> {
                     let task_id = args.id.as_deref().ok_or_else(|| {
                         anyhow::anyhow!("--parallel-worker requires --id <TASK_ID>")
                     })?;
-                    run_cmd::run_one_parallel_worker(&resolved, &overrides, force, task_id)?;
+
+                    // Override queue/done paths if coordinator paths are provided
+                    let worker_resolved = if let (Some(queue_path), Some(done_path)) =
+                        (&args.coordinator_queue_path, &args.coordinator_done_path)
+                    {
+                        let mut r = resolved.clone();
+                        r.queue_path = queue_path.clone();
+                        r.done_path = done_path.clone();
+                        log::debug!(
+                            "parallel worker using coordinator paths: queue={}, done={}",
+                            r.queue_path.display(),
+                            r.done_path.display()
+                        );
+                        r
+                    } else {
+                        // Fall back to normal resolution (backwards compatibility)
+                        log::warn!(
+                            "parallel worker invoked without coordinator paths; using workspace-relative paths"
+                        );
+                        resolved.clone()
+                    };
+
+                    run_cmd::run_one_parallel_worker(&worker_resolved, &overrides, force, task_id)?;
                     return Ok(());
                 }
 
@@ -355,6 +379,14 @@ pub struct RunOneArgs {
     #[arg(long, hide = true)]
     pub parallel_worker: bool,
 
+    /// Internal: path to coordinator's queue.json for parallel workers.
+    #[arg(long, hide = true, value_name = "PATH")]
+    pub coordinator_queue_path: Option<PathBuf>,
+
+    /// Internal: path to coordinator's done.json for parallel workers.
+    #[arg(long, hide = true, value_name = "PATH")]
+    pub coordinator_done_path: Option<PathBuf>,
+
     #[command(flatten)]
     pub agent: crate::agent::RunAgentArgs,
 }
@@ -449,6 +481,8 @@ pub struct MergeAgentArgs {
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use clap::{CommandFactory, Parser};
     use serial_test::serial;
 
@@ -773,5 +807,40 @@ mod tests {
             help.contains("ralph run merge-agent --task RQ-"),
             "missing example: {help}"
         );
+    }
+
+    #[test]
+    fn run_one_parallel_worker_with_coordinator_paths_parses() {
+        let args = vec![
+            "ralph",
+            "run",
+            "one",
+            "--parallel-worker",
+            "--id",
+            "RQ-0001",
+            "--coordinator-queue-path",
+            "/path/to/queue.json",
+            "--coordinator-done-path",
+            "/path/to/done.json",
+        ];
+        let cli = Cli::parse_from(args);
+        match cli.command {
+            crate::cli::Command::Run(run_args) => match run_args.command {
+                RunCommand::One(one_args) => {
+                    assert!(one_args.parallel_worker);
+                    assert_eq!(one_args.id, Some("RQ-0001".to_string()));
+                    assert_eq!(
+                        one_args.coordinator_queue_path,
+                        Some(PathBuf::from("/path/to/queue.json"))
+                    );
+                    assert_eq!(
+                        one_args.coordinator_done_path,
+                        Some(PathBuf::from("/path/to/done.json"))
+                    );
+                }
+                _ => panic!("expected RunCommand::One"),
+            },
+            _ => panic!("expected Command::Run"),
+        }
     }
 }
