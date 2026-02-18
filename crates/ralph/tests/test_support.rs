@@ -615,3 +615,212 @@ pub fn with_insta_settings<T>(f: impl FnOnce() -> T) -> T {
     settings.set_prepend_module_to_snapshot(false);
     settings.bind(f)
 }
+
+// =============================================================================
+// Parallel Mode Test Helpers
+// =============================================================================
+
+/// Configure parallel mode settings for tests.
+///
+/// Disables auto_pr and auto_merge by default to avoid requiring gh CLI.
+pub fn configure_parallel_disabled(dir: &Path) -> Result<()> {
+    let config_path = dir.join(".ralph/config.json");
+    let mut config: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&config_path).context("read config")?)
+            .context("parse config")?;
+
+    if config.get("parallel").is_none() {
+        config["parallel"] = serde_json::json!({});
+    }
+    config["parallel"]["auto_pr"] = serde_json::json!(false);
+    config["parallel"]["auto_merge"] = serde_json::json!(false);
+
+    std::fs::write(
+        &config_path,
+        serde_json::to_string_pretty(&config).context("serialize config")?,
+    )
+    .context("write config")?;
+    Ok(())
+}
+
+/// Configure parallel mode with auto_pr and auto_merge enabled.
+///
+/// Note: The gh binary path should be prepended to PATH by the caller.
+pub fn configure_parallel_with_pr_automation(dir: &Path, _gh_bin_path: &Path) -> Result<()> {
+    let config_path = dir.join(".ralph/config.json");
+    let mut config: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&config_path).context("read config")?)
+            .context("parse config")?;
+
+    if config.get("parallel").is_none() {
+        config["parallel"] = serde_json::json!({});
+    }
+    config["parallel"]["auto_pr"] = serde_json::json!(true);
+    config["parallel"]["auto_merge"] = serde_json::json!(true);
+    config["parallel"]["merge_when"] = serde_json::json!("as_created");
+
+    std::fs::write(
+        &config_path,
+        serde_json::to_string_pretty(&config).context("serialize config")?,
+    )
+    .context("write config")?;
+    Ok(())
+}
+
+/// Create a fake gh CLI script that simulates PR operations.
+///
+/// The script handles:
+/// - `gh pr create` - returns a fake PR URL
+/// - `gh pr view` - returns PR status JSON
+/// - `gh pr merge` - simulates merge success
+pub fn create_fake_gh_for_parallel(dir: &Path, pr_number_start: u32) -> Result<(PathBuf, PathBuf)> {
+    let bin_dir = dir.join("bin");
+    std::fs::create_dir_all(&bin_dir)?;
+
+    // Track PR creation counter
+    let counter_file = bin_dir.join("pr-counter.txt");
+    std::fs::write(&counter_file, pr_number_start.to_string())?;
+
+    // Track invocations for test assertions
+    let invocations_file = bin_dir.join("gh-invocations.txt");
+
+    let counter_str = counter_file.to_string_lossy().to_string();
+    let invocations_str = invocations_file.to_string_lossy().to_string();
+
+    let script = format!(
+        r#"#!/bin/bash
+# Fake gh CLI for parallel mode tests
+
+INVOCATIONS_FILE="{invocations}"
+echo "$@" >> "$INVOCATIONS_FILE"
+
+if [[ "$1" == "auth" ]] && [[ "$2" == "status" ]]; then
+    echo "Logged in to github.com as test-user"
+    exit 0
+fi
+
+if [[ "$1" == "pr" ]] && [[ "$2" == "create" ]]; then
+    # Read and increment counter
+    PR_NUM=$(cat "{counter}")
+    echo "https://github.com/test/test/pull/$PR_NUM"
+    echo $((PR_NUM + 1)) > "{counter}"
+    exit 0
+fi
+
+if [[ "$1" == "pr" ]] && [[ "$2" == "view" ]]; then
+    PR_NUM="$3"
+    # Return a merged PR by default
+    echo '{{"number":'$PR_NUM',"state":"MERGED","merged":true,"mergeStateStatus":"CLEAN","url":"https://github.com/test/test/pull/'$PR_NUM'","headRefName":"test-branch","baseRefName":"main","isDraft":false}}'
+    exit 0
+fi
+
+if [[ "$1" == "pr" ]] && [[ "$2" == "merge" ]]; then
+    exit 0
+fi
+
+if [[ "$1" == "api" ]]; then
+    # Handle repos/owner/repo/pulls/number endpoint
+    if [[ "$*" == *"/pulls/"* ]]; then
+        PR_NUM=$(echo "$*" | grep -o 'pulls/[0-9]*' | cut -d'/' -f2)
+        echo '{{"number":'$PR_NUM',"state":"MERGED","merged":true}}'
+        exit 0
+    fi
+fi
+
+echo "Unknown gh command: $@" >&2
+exit 0
+"#,
+        invocations = invocations_str,
+        counter = counter_str
+    );
+
+    let gh_path = create_executable_script(&bin_dir, "gh", &script)?;
+    Ok((gh_path, invocations_file))
+}
+
+/// Create a fake merge-agent script that records invocations and exits with specified code.
+pub fn create_fake_merge_agent(dir: &Path, exit_code: i32) -> Result<PathBuf> {
+    let bin_dir = dir.join("bin");
+    std::fs::create_dir_all(&bin_dir)?;
+
+    let marker_file = bin_dir.join("merge-agent-invocations.txt");
+    let marker_str = marker_file.to_string_lossy().to_string();
+
+    let script = format!(
+        r#"#!/bin/bash
+# Fake merge-agent for parallel mode tests
+echo "$@" >> {marker}
+echo '{{"task_id":"test","pr_number":1,"merged":true,"message":"fake merge"}}'
+exit {code}
+"#,
+        marker = marker_str,
+        code = exit_code
+    );
+
+    create_executable_script(&bin_dir, "merge-agent-recorder", &script)
+}
+
+/// Create a fake runner that exits immediately with success.
+pub fn create_noop_runner(dir: &Path, runner_name: &str) -> Result<PathBuf> {
+    let bin_dir = dir.join("bin");
+    std::fs::create_dir_all(&bin_dir)?;
+
+    let script = r#"#!/bin/bash
+# No-op runner for tests - exit immediately
+exit 0
+"#;
+
+    create_executable_script(&bin_dir, runner_name, script)
+}
+
+/// Read parallel state file from a repo as raw JSON value.
+pub fn read_parallel_state(dir: &Path) -> Result<Option<serde_json::Value>> {
+    let state_path = dir.join(".ralph/cache/parallel/state.json");
+    if !state_path.exists() {
+        return Ok(None);
+    }
+    let raw = std::fs::read_to_string(&state_path).context("read parallel state")?;
+    let state: serde_json::Value = serde_json::from_str(&raw).context("parse parallel state")?;
+    Ok(Some(state))
+}
+
+/// Run a closure with a prepended path segment.
+///
+/// The PATH is restored after the closure completes, even if it panics.
+/// This is safe because we use env_lock to prevent concurrent access.
+///
+/// # Safety
+/// This function uses unsafe to call `std::env::set_var`. The caller must ensure
+/// that `env_lock()` is held to prevent concurrent modifications.
+pub fn with_prepend_path<F, T>(prepend: &Path, f: F) -> T
+where
+    F: FnOnce() -> T,
+{
+    let original = std::env::var("PATH").unwrap_or_default();
+    let new_path = if cfg!(windows) {
+        format!("{};{}", prepend.display(), original)
+    } else {
+        format!("{}:{}", prepend.display(), original)
+    };
+
+    // SAFETY: The caller should hold env_lock() to prevent concurrent modifications.
+    // The restoration happens via Drop guard even on panic.
+    struct PathGuard(String);
+    impl Drop for PathGuard {
+        fn drop(&mut self) {
+            // SAFETY: No concurrent access because env_lock is held by caller.
+            #[allow(unused_unsafe)]
+            unsafe {
+                std::env::set_var("PATH", &self.0);
+            }
+        }
+    }
+    let _guard = PathGuard(original.clone());
+
+    // SAFETY: No concurrent access because env_lock is held by caller.
+    #[allow(unused_unsafe)]
+    unsafe {
+        std::env::set_var("PATH", &new_path);
+    }
+    f()
+}
