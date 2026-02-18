@@ -42,7 +42,7 @@ use crate::queue;
 use crate::{git, promptflow, runutil, signal, timeutil};
 use anyhow::{Context, Result, bail};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
 use std::thread;
 use std::time::Duration;
@@ -70,6 +70,37 @@ fn workspace_path_for_cleanup(
             .get(task_id)
             .map(|workspace| workspace.path.clone())
     })
+}
+
+fn refresh_local_base_branch_after_merge(
+    repo_root: &Path,
+    base_branch: &str,
+    task_id: &str,
+    pr_number: u32,
+) -> Result<()> {
+    git::fast_forward_branch_to_origin(repo_root, base_branch).with_context(|| {
+        format!(
+            "refresh local base branch {} after successful merge for task {} PR {}",
+            base_branch, task_id, pr_number
+        )
+    })?;
+    log::info!(
+        "Refreshed local {} to origin/{} after merge of task {} PR {}",
+        base_branch,
+        base_branch,
+        task_id,
+        pr_number
+    );
+    Ok(())
+}
+
+fn should_break_parallel_loop(
+    no_more_tasks: bool,
+    next_available: bool,
+    stop_requested: bool,
+    has_pending_merges: bool,
+) -> bool {
+    (no_more_tasks || !next_available || stop_requested) && !has_pending_merges
 }
 
 /// Main entry point for parallel run loop.
@@ -435,6 +466,12 @@ pub(crate) fn run_loop_parallel(
 
                                 // Update PR lifecycle
                                 guard.state_file_mut().mark_pr_merged(&task_id);
+                                refresh_local_base_branch_after_merge(
+                                    &resolved.repo_root,
+                                    &base_branch,
+                                    &task_id,
+                                    pr_number,
+                                )?;
 
                                 // Delete workspace immediately per spec.
                                 // On resumed runs, pending merge jobs may not carry workspace_path,
@@ -713,8 +750,18 @@ pub(crate) fn run_loop_parallel(
                 let next_available =
                     select_next_task_locked(resolved, include_draft, &excluded, &_queue_lock)?
                         .is_some();
-                // Exit if: max tasks reached, no more tasks available, or stop requested
-                if no_more_tasks || !next_available || stop_requested {
+                // Keep the loop alive when AsCreated auto-merge still has queued jobs.
+                // Merge dispatch happens at the top of the loop, so we must not break
+                // immediately after enqueueing a merge from a just-finished worker.
+                let has_pending_merges = settings.auto_merge
+                    && settings.merge_when == ParallelMergeWhen::AsCreated
+                    && guard.state_file().has_queued_merges();
+                if should_break_parallel_loop(
+                    no_more_tasks,
+                    next_available,
+                    stop_requested,
+                    has_pending_merges,
+                ) {
                     break;
                 }
             }
@@ -812,6 +859,12 @@ pub(crate) fn run_loop_parallel(
                                 );
 
                                 guard.state_file_mut().mark_pr_merged(&task_id);
+                                refresh_local_base_branch_after_merge(
+                                    &resolved.repo_root,
+                                    &base_branch,
+                                    &task_id,
+                                    pr_number,
+                                )?;
 
                                 if let Some(ws_path) = workspace_path_for_cleanup(
                                     &task_id,
@@ -1205,5 +1258,15 @@ mod tests {
         let resolved = workspace_path_for_cleanup("RQ-0002", None, &completed_workspaces);
 
         assert_eq!(resolved, Some(PathBuf::from("/tmp/fallback-rq2")));
+    }
+
+    #[test]
+    fn loop_does_not_break_when_pending_merges_exist() {
+        assert!(!should_break_parallel_loop(false, false, false, true));
+    }
+
+    #[test]
+    fn loop_breaks_without_pending_merges_when_no_tasks_available() {
+        assert!(should_break_parallel_loop(false, false, false, false));
     }
 }

@@ -144,7 +144,7 @@ pub(crate) fn spawn_worker(
 
 /// Build the command and arguments for a worker subprocess.
 fn build_worker_command(
-    resolved: &config::Resolved,
+    _resolved: &config::Resolved,
     workspace_path: &Path,
     task_id: &str,
     overrides: &AgentOverrides,
@@ -155,8 +155,8 @@ fn build_worker_command(
     cmd.current_dir(workspace_path);
     cmd.env("PWD", workspace_path);
     cmd.env(crate::config::REPO_ROOT_OVERRIDE_ENV, workspace_path);
-    cmd.env(crate::config::QUEUE_PATH_OVERRIDE_ENV, &resolved.queue_path);
-    cmd.env(crate::config::DONE_PATH_OVERRIDE_ENV, &resolved.done_path);
+    cmd.env_remove(crate::config::QUEUE_PATH_OVERRIDE_ENV);
+    cmd.env_remove(crate::config::DONE_PATH_OVERRIDE_ENV);
     cmd.stdin(Stdio::null());
 
     let mut args: Vec<String> = Vec::new();
@@ -223,11 +223,19 @@ mod tests {
             }
             if key == std::ffi::OsStr::new(crate::config::QUEUE_PATH_OVERRIDE_ENV) {
                 queue_override_seen = true;
-                assert_eq!(value, Some(resolved.queue_path.as_os_str()));
+                assert!(
+                    value.is_none(),
+                    "{} should be absent, not set",
+                    crate::config::QUEUE_PATH_OVERRIDE_ENV
+                );
             }
             if key == std::ffi::OsStr::new(crate::config::DONE_PATH_OVERRIDE_ENV) {
                 done_override_seen = true;
-                assert_eq!(value, Some(resolved.done_path.as_os_str()));
+                assert!(
+                    value.is_none(),
+                    "{} should be absent, not set",
+                    crate::config::DONE_PATH_OVERRIDE_ENV
+                );
             }
         }
         assert!(pwd_seen, "PWD env should be set for workspace execution");
@@ -238,12 +246,12 @@ mod tests {
         );
         assert!(
             queue_override_seen,
-            "{} env should be set for worker queue reads",
+            "{} must be explicitly removed on worker process",
             crate::config::QUEUE_PATH_OVERRIDE_ENV
         );
         assert!(
             done_override_seen,
-            "{} env should be set for worker done reads",
+            "{} must be explicitly removed on worker process",
             crate::config::DONE_PATH_OVERRIDE_ENV
         );
 

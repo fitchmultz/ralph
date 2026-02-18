@@ -29,7 +29,7 @@ pub mod status;
 pub mod workspace;
 
 // Re-export commonly used items for convenience within the crate.
-pub(crate) use branch::current_branch;
+pub(crate) use branch::{current_branch, fast_forward_branch_to_origin};
 pub use clean::{
     RALPH_RUN_CLEAN_ALLOWED_PATHS, repo_dirty_only_allowed_paths, require_clean_repo_ignoring_paths,
 };

@@ -27,6 +27,7 @@ pub fn handle_run(cmd: RunCommand, force: bool) -> Result<()> {
         RunCommand::MergeAgent(_) => None,
     };
     let resolved = config::resolve_from_cwd_with_profile(profile)?;
+    clear_run_scoped_path_overrides();
     match cmd {
         RunCommand::Resume(args) => {
             if args.debug {
@@ -120,6 +121,24 @@ pub fn handle_run(cmd: RunCommand, force: bool) -> Result<()> {
             // merge-agent uses explicit repo-root context from CWD
             let exit_code = run_cmd::handle_merge_agent(&args.task, args.pr)?;
             std::process::exit(exit_code);
+        }
+    }
+}
+
+fn clear_run_scoped_path_overrides() {
+    for key in [
+        config::QUEUE_PATH_OVERRIDE_ENV,
+        config::DONE_PATH_OVERRIDE_ENV,
+    ] {
+        if std::env::var_os(key).is_some() {
+            log::debug!(
+                "clearing {} after run config resolution to avoid leaking path overrides to child processes",
+                key
+            );
+            // SAFETY: This runs on the single-threaded CLI path before any worker/agent subprocess
+            // is spawned by this process. Clearing inherited overrides here prevents nested commands
+            // (e.g., CI/test subprocesses) from mutating queue/done in the wrong repository.
+            unsafe { std::env::remove_var(key) };
         }
     }
 }
@@ -431,8 +450,61 @@ pub struct MergeAgentArgs {
 #[cfg(test)]
 mod tests {
     use clap::{CommandFactory, Parser};
+    use serial_test::serial;
 
+    use crate::cli::run::clear_run_scoped_path_overrides;
     use crate::cli::{Cli, run::RunCommand};
+    use crate::config::{DONE_PATH_OVERRIDE_ENV, QUEUE_PATH_OVERRIDE_ENV, REPO_ROOT_OVERRIDE_ENV};
+
+    #[test]
+    #[serial]
+    fn clear_run_scoped_path_overrides_removes_only_queue_and_done() {
+        let prior_queue = std::env::var_os(QUEUE_PATH_OVERRIDE_ENV);
+        let prior_done = std::env::var_os(DONE_PATH_OVERRIDE_ENV);
+        let prior_repo = std::env::var_os(REPO_ROOT_OVERRIDE_ENV);
+
+        // SAFETY: test is serial and restores all touched env vars before exit.
+        unsafe {
+            std::env::set_var(QUEUE_PATH_OVERRIDE_ENV, "/tmp/queue.json");
+            std::env::set_var(DONE_PATH_OVERRIDE_ENV, "/tmp/done.json");
+            std::env::set_var(REPO_ROOT_OVERRIDE_ENV, "/tmp/repo-root");
+        }
+
+        clear_run_scoped_path_overrides();
+
+        assert!(
+            std::env::var_os(QUEUE_PATH_OVERRIDE_ENV).is_none(),
+            "{} should be cleared",
+            QUEUE_PATH_OVERRIDE_ENV
+        );
+        assert!(
+            std::env::var_os(DONE_PATH_OVERRIDE_ENV).is_none(),
+            "{} should be cleared",
+            DONE_PATH_OVERRIDE_ENV
+        );
+        assert_eq!(
+            std::env::var_os(REPO_ROOT_OVERRIDE_ENV),
+            Some(std::ffi::OsString::from("/tmp/repo-root")),
+            "{} should be preserved",
+            REPO_ROOT_OVERRIDE_ENV
+        );
+
+        // SAFETY: restoring original process env for this serial test.
+        unsafe {
+            match prior_queue {
+                Some(v) => std::env::set_var(QUEUE_PATH_OVERRIDE_ENV, v),
+                None => std::env::remove_var(QUEUE_PATH_OVERRIDE_ENV),
+            }
+            match prior_done {
+                Some(v) => std::env::set_var(DONE_PATH_OVERRIDE_ENV, v),
+                None => std::env::remove_var(DONE_PATH_OVERRIDE_ENV),
+            }
+            match prior_repo {
+                Some(v) => std::env::set_var(REPO_ROOT_OVERRIDE_ENV, v),
+                None => std::env::remove_var(REPO_ROOT_OVERRIDE_ENV),
+            }
+        }
+    }
 
     #[test]
     fn run_one_help_includes_phase_semantics() {
