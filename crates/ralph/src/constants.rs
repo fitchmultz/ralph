@@ -164,13 +164,12 @@ pub mod paths {
     /// Environment variable for raw dump mode.
     pub const ENV_RAW_DUMP: &str = "RALPH_RAW_DUMP";
 
-    /// Environment variable to force completion signal mode (used by parallel workers).
-    pub const ENV_FORCE_COMPLETION_SIGNAL: &str = "RALPH_FORCE_COMPLETION_SIGNAL";
-
     /// Environment variable for the runner actually used (set by Ralph when spawning runners).
+    /// Used for analytics tracking in task custom fields.
     pub const ENV_RUNNER_USED: &str = "RALPH_RUNNER_USED";
 
     /// Environment variable for the model actually used (set by Ralph when spawning runners).
+    /// Used for analytics tracking in task custom fields.
     pub const ENV_MODEL_USED: &str = "RALPH_MODEL_USED";
 }
 

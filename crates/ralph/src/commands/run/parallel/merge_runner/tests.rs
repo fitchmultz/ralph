@@ -1,12 +1,13 @@
 //! Tests for merge runner functionality.
 //!
 //! Responsibilities:
-//! - Unit tests for validation, completion handling, and merge operations.
+//! - Unit tests for validation and merge operations.
 //! - Integration tests for conflict detection and resolution.
 //!
 //! Not handled here:
 //! - Actual AI runner invocation (mocked).
 //! - GitHub API interactions (tested separately in git module).
+//! - Completion signal handling (deprecated - now handled by merge-agent subprocess).
 
 use super::*;
 use crate::commands::run::parallel::merge_runner::conflict::{
@@ -398,170 +399,6 @@ fn validate_queue_done_duplicate_ids_rejected() {
         "Error chain should mention duplicate ID: {}",
         full_error
     );
-}
-
-#[test]
-fn apply_completion_and_collect_bytes_updates_queue_and_clears_signal() -> Result<()> {
-    let (_remote_dir, author_dir, workspace_dir) = setup_merge_test();
-
-    // Ensure we are on main branch locally
-    git_test::git_run(author_dir.path(), &["checkout", "-B", "main"])?;
-
-    // Create queue/done files in the author repo
-    let ralph_dir = author_dir.path().join(".ralph");
-    fs::create_dir_all(&ralph_dir)?;
-    let queue_path = ralph_dir.join("queue.json");
-    let done_path = ralph_dir.join("done.json");
-
-    let queue = QueueFile {
-        version: 1,
-        tasks: vec![build_test_task("RQ-0001", TaskStatus::Todo)],
-    };
-    let done = QueueFile {
-        version: 1,
-        tasks: vec![],
-    };
-    save_queue_file(&queue_path, &queue);
-    save_queue_file(&done_path, &done);
-
-    git_test::commit_all(author_dir.path(), "add queue files")?;
-    git_test::push_branch(author_dir.path(), "main")?;
-
-    // Create completion signal in the workspace (not tracked by git).
-    let signal = crate::completions::CompletionSignal {
-        task_id: "RQ-0001".to_string(),
-        status: TaskStatus::Done,
-        notes: vec!["Completed".to_string()],
-        runner_used: None,
-        model_used: None,
-    };
-    crate::completions::write_completion_signal(workspace_dir.path(), &signal)?;
-
-    let resolved = build_test_resolved(author_dir.path(), queue_path, done_path);
-
-    let sync = apply_completion_and_collect_bytes(
-        &resolved,
-        workspace_dir.path(),
-        Some(workspace_dir.path()),
-        "main",
-        "RQ-0001",
-    )?;
-
-    let updated_queue: QueueFile = serde_json::from_slice(&sync.queue_bytes)?;
-    assert!(
-        updated_queue.tasks.is_empty(),
-        "queue should be empty after completion"
-    );
-    let done_bytes = sync.done_bytes.expect("done bytes should be present");
-    let updated_done: QueueFile = serde_json::from_slice(&done_bytes)?;
-    assert!(
-        updated_done.tasks.iter().any(|t| t.id == "RQ-0001"),
-        "done should include completed task"
-    );
-
-    // Verify .base-sync directory is cleaned up after return
-    let base_sync_path = workspace_dir.path().join(".base-sync");
-    assert!(
-        !base_sync_path.exists(),
-        ".base-sync should be cleaned up after apply_completion_and_collect_bytes returns"
-    );
-
-    // Verify the completion signal was not persisted on the base branch (origin/main).
-    git_test::git_run(author_dir.path(), &["fetch", "origin", "main"])?;
-    git_test::git_run(author_dir.path(), &["checkout", "main"])?;
-    git_test::git_run(author_dir.path(), &["reset", "--hard", "origin/main"])?;
-    let signal_path = crate::completions::completion_signal_path(author_dir.path(), "RQ-0001")?;
-    assert!(
-        !signal_path.exists(),
-        "completion signal should not exist on base branch after apply"
-    );
-
-    Ok(())
-}
-
-#[test]
-fn apply_completion_and_collect_bytes_autofinalizes_when_signal_missing() -> Result<()> {
-    let (_remote_dir, author_dir, workspace_dir) = setup_merge_test();
-
-    // Ensure we are on main branch locally
-    git_test::git_run(author_dir.path(), &["checkout", "-B", "main"])?;
-
-    // Create queue/done files in the author repo
-    let ralph_dir = author_dir.path().join(".ralph");
-    fs::create_dir_all(&ralph_dir)?;
-    let queue_path = ralph_dir.join("queue.json");
-    let done_path = ralph_dir.join("done.json");
-
-    let queue = QueueFile {
-        version: 1,
-        tasks: vec![build_test_task("RQ-0001", TaskStatus::Todo)],
-    };
-    let done = QueueFile {
-        version: 1,
-        tasks: vec![],
-    };
-    save_queue_file(&queue_path, &queue);
-    save_queue_file(&done_path, &done);
-    git_test::commit_all(author_dir.path(), "add queue files")?;
-    git_test::push_branch(author_dir.path(), "main")?;
-
-    // NOTE: Intentionally NOT creating any completion signal
-    // This tests the auto-finalize behavior when signal is missing from both base and workspace.
-
-    let resolved = build_test_resolved(author_dir.path(), queue_path.clone(), done_path.clone());
-
-    let result = apply_completion_and_collect_bytes(
-        &resolved,
-        workspace_dir.path(),
-        Some(workspace_dir.path()),
-        "main",
-        "RQ-0001",
-    )?;
-
-    let updated_queue: QueueFile = serde_json::from_slice(&result.queue_bytes)?;
-    assert!(
-        updated_queue.tasks.is_empty(),
-        "queue should be empty after auto-finalize"
-    );
-    let done_bytes = result.done_bytes.expect("done bytes should be present");
-    let updated_done: QueueFile = serde_json::from_slice(&done_bytes)?;
-    let done_task = updated_done
-        .tasks
-        .iter()
-        .find(|t| t.id == "RQ-0001")
-        .expect("done should include completed task");
-    assert!(
-        done_task
-            .notes
-            .iter()
-            .any(|note| note.contains("Auto-finalized")),
-        "done task should include auto-finalize note"
-    );
-
-    // Verify .base-sync directory is cleaned up even when the call errors
-    let base_sync_path = workspace_dir.path().join(".base-sync");
-    assert!(
-        !base_sync_path.exists(),
-        ".base-sync should be cleaned up even when apply_completion_and_collect_bytes errors"
-    );
-
-    // Verify base branch queue/done were updated by the auto-finalize flow.
-    git_test::git_run(author_dir.path(), &["fetch", "origin", "main"])?;
-    git_test::git_run(author_dir.path(), &["checkout", "main"])?;
-    git_test::git_run(author_dir.path(), &["reset", "--hard", "origin/main"])?;
-    let original_queue: QueueFile = serde_json::from_slice(&fs::read(&queue_path)?)?;
-    assert!(
-        !original_queue.tasks.iter().any(|t| t.id == "RQ-0001"),
-        "original queue should not contain the task after auto-finalize"
-    );
-
-    let original_done: QueueFile = serde_json::from_slice(&fs::read(&done_path)?)?;
-    assert!(
-        original_done.tasks.iter().any(|t| t.id == "RQ-0001"),
-        "original done should contain the task after auto-finalize"
-    );
-
-    Ok(())
 }
 
 // Test for merge blocker on head mismatch (RQ-0592)

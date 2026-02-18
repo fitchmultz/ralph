@@ -196,10 +196,6 @@ members = []
     std::fs::create_dir_all(ralph_dir.join("cache/plans"))?;
     std::fs::write(ralph_dir.join("cache/test_plan.md"), "test").context("write test plan")?;
 
-    std::fs::create_dir_all(ralph_dir.join("cache/completions"))?;
-    std::fs::write(ralph_dir.join("cache/completions/test.json"), "{}")
-        .context("write completion signal")?;
-
     std::fs::create_dir_all(ralph_dir.join("lock"))?;
     std::fs::write(ralph_dir.join("lock/owner"), "test").context("write lock file")?;
 
@@ -228,7 +224,7 @@ members = []
         .with_context(|| format!("run {make_cmd} clean"))?;
     assert!(status.success(), "{make_cmd} clean should succeed");
 
-    // Verify temp directories removed (except completion signals)
+    // Verify temp directories removed
     assert!(
         !ralph_dir.join("cache/plans").exists(),
         "cache plans directory should be removed"
@@ -236,14 +232,6 @@ members = []
     assert!(
         !ralph_dir.join("cache/test_plan.md").exists(),
         "cache test_plan.md should be removed"
-    );
-    assert!(
-        ralph_dir.join("cache/completions").exists(),
-        "completion signals directory should be preserved"
-    );
-    assert!(
-        ralph_dir.join("cache/completions/test.json").exists(),
-        "completion signal should be preserved"
     );
     assert!(
         !ralph_dir.join("lock").exists(),

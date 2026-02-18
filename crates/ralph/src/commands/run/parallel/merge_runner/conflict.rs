@@ -6,16 +6,15 @@
 //!
 //! Not handled here:
 //! - High-level merge orchestration (see `mod.rs`).
-//! - Completion signal handling (see `completion.rs`).
 //! - Git command execution (see `git_ops.rs`).
 
-use crate::commands::run::parallel::merge_runner::completion::run_merge_runner_prompt;
 use crate::commands::run::parallel::merge_runner::git_ops::{git_run, git_status, push_branch};
 use crate::commands::run::parallel::path_map::map_resolved_path_into_workspace;
-use crate::contracts::{MergeRunnerConfig, QueueFile};
+use crate::contracts::{MergeRunnerConfig, QueueFile, Runner};
 use crate::{git, promptflow, prompts, queue};
 use anyhow::{Context, Result, bail};
 use std::path::Path;
+use std::process::Command;
 
 /// Resolve merge conflicts in a workspace using AI runner.
 pub(crate) fn resolve_conflicts(
@@ -55,7 +54,7 @@ pub(crate) fn resolve_conflicts(
     let prompt = promptflow::build_merge_conflict_prompt(&template, &conflicts, &resolved.config)?;
     let prompt = prompts::wrap_with_instruction_files(&workspace_path, &prompt, &resolved.config)?;
 
-    run_merge_runner_prompt(resolved, merge_runner, &workspace_path, &prompt)?;
+    run_merge_runner_prompt_for_conflicts(resolved, merge_runner, &workspace_path, &prompt)?;
 
     let remaining = conflict_files(&workspace_path)?;
     if !remaining.is_empty() {
@@ -173,4 +172,98 @@ pub(crate) fn prepare_and_merge(
     let merge_target = format!("origin/{}", base_branch);
     let outcome = git::error::git_merge_allow_conflicts(workspace_path, &merge_target)?;
     Ok(outcome)
+}
+
+/// Run the merge runner prompt for conflict resolution.
+///
+/// This invokes the configured AI runner with the conflict resolution prompt.
+/// Unlike the deleted completion.rs version, this does NOT handle completion signals
+/// since the merge-agent architecture handles task finalization directly.
+fn run_merge_runner_prompt_for_conflicts(
+    resolved: &crate::config::Resolved,
+    merge_runner: &MergeRunnerConfig,
+    workspace_path: &Path,
+    prompt: &str,
+) -> Result<()> {
+    let runner_type = merge_runner
+        .runner
+        .clone()
+        .unwrap_or_else(|| resolved.config.agent.runner.clone().unwrap_or_default());
+    let model = merge_runner
+        .model
+        .clone()
+        .or(resolved.config.agent.model.clone());
+
+    // Create a temporary prompt file
+    let prompt_file = tempfile::Builder::new()
+        .prefix("ralph_merge_conflict_")
+        .suffix(".md")
+        .tempfile_in(workspace_path)
+        .context("create temp prompt file for merge conflict")?;
+    std::fs::write(&prompt_file, prompt).context("write merge conflict prompt file")?;
+
+    // Get the binary path for the runner
+    let binary = match runner_type {
+        Runner::Codex => resolved
+            .config
+            .agent
+            .codex_bin
+            .as_deref()
+            .unwrap_or("codex"),
+        Runner::Opencode => resolved
+            .config
+            .agent
+            .opencode_bin
+            .as_deref()
+            .unwrap_or("opencode"),
+        Runner::Gemini => resolved
+            .config
+            .agent
+            .gemini_bin
+            .as_deref()
+            .unwrap_or("gemini"),
+        Runner::Claude => resolved
+            .config
+            .agent
+            .claude_bin
+            .as_deref()
+            .unwrap_or("claude"),
+        Runner::Cursor => resolved
+            .config
+            .agent
+            .cursor_bin
+            .as_deref()
+            .unwrap_or("agent"),
+        Runner::Kimi => resolved.config.agent.kimi_bin.as_deref().unwrap_or("kimi"),
+        Runner::Pi => resolved.config.agent.pi_bin.as_deref().unwrap_or("pi"),
+        Runner::Plugin(name) => {
+            bail!(
+                "Plugin runner '{}' not supported for merge conflict resolution",
+                name
+            );
+        }
+    };
+
+    // Build a simple command to run the runner with the prompt
+    let model_str = model.as_ref().map(|m| m.as_str()).unwrap_or("auto");
+    let prompt_path = prompt_file.path().display().to_string();
+
+    let mut cmd = Command::new(binary);
+    cmd.current_dir(workspace_path);
+    cmd.arg("run");
+    cmd.arg("--model").arg(model_str);
+    cmd.arg("--output-format").arg("stream-json");
+    cmd.arg("--full-auto");
+    cmd.arg(&prompt_path);
+
+    // Execute the runner
+    let status = cmd.status().context("execute merge conflict runner")?;
+    if !status.success() {
+        bail!(
+            "Merge conflict runner failed with exit code {:?}",
+            status.code()
+        );
+    }
+
+    Ok(())
 }

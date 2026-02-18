@@ -4,7 +4,6 @@
 //! - `infrastructure`: Shared test infrastructure and helpers (in this file)
 //! - `queue_lock`: Queue lock handling tests
 //! - `agent_settings`: Agent settings resolution tests
-//! - `phase3_completion`: Phase 3 completion signal tests
 //! - `auto_resume`: Auto-resume session tests
 //! - `notifications`: Notification configuration tests
 //! - `stop_signal`: Stop signal tests
@@ -503,7 +502,6 @@ mod agent_settings;
 mod auto_resume;
 mod dirty_repo;
 mod notifications;
-mod phase3_completion;
 mod phase_settings_matrix;
 mod phase_settings_wiring;
 mod queue_lock;

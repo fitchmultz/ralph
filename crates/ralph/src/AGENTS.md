@@ -311,7 +311,6 @@ Runner/model specifics live in `README.md`.
 - **Task ordering**: Queue file order is execution order (top runs first). Draft tasks are skipped unless `--include-draft`
 - **Prompt composition**: Embedded defaults in `crates/ralph/assets/prompts/`, overridden by `.ralph/prompts/*.md`
 - **Planning cache**: Phase 1 plans are written to `.ralph/cache/plans/<TASK_ID>.md`
-- **Supervision-aware completion**: `ralph task done` writes `.ralph/cache/completions/<TASK_ID>.json`
 
 See `docs/workflow.md` and `docs/queue-and-tasks.md` for full contract and schema details.
 

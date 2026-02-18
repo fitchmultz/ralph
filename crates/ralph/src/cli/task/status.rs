@@ -12,17 +12,14 @@
 //! Invariants/assumptions:
 //! - Terminal statuses (done, rejected) archive tasks to done.json.
 //! - Non-terminal statuses update in-place in queue.json.
-//! - Uses completion signal pattern when running under supervision or when forced via env.
+//! - Tasks are always completed directly via queue::complete_task.
 
 use anyhow::{Result, bail};
 
 use crate::cli::task::args::{TaskDoneArgs, TaskReadyArgs, TaskRejectArgs, TaskStatusArgs};
-use crate::completions;
 use crate::config;
 use crate::constants::custom_fields::{MODEL_USED, RUNNER_USED};
-use crate::constants::paths::{ENV_FORCE_COMPLETION_SIGNAL, ENV_MODEL_USED, ENV_RUNNER_USED};
 use crate::contracts::TaskStatus;
-use crate::lock;
 use crate::queue;
 use crate::timeutil;
 use crate::webhook;
@@ -222,14 +219,7 @@ pub fn handle_done(args: &TaskDoneArgs, force: bool, resolved: &config::Resolved
         .map(|t| t.title.clone())
         .unwrap_or_default();
 
-    complete_task_or_signal(
-        resolved,
-        &args.task_id,
-        TaskStatus::Done,
-        &args.note,
-        force,
-        "task done",
-    )?;
+    complete_task_directly(resolved, &args.task_id, TaskStatus::Done, &args.note, force)?;
 
     // Trigger webhook after successful completion
     let now = timeutil::now_utc_rfc3339()?;
@@ -259,13 +249,12 @@ pub fn handle_reject(
         .unwrap_or_default();
 
     let note_str = args.note.first().map(|s| s.as_str()).unwrap_or("");
-    complete_task_or_signal(
+    complete_task_directly(
         resolved,
         &args.task_id,
         TaskStatus::Rejected,
         &args.note,
         force,
-        "task reject",
     )?;
 
     // Trigger webhook after successful rejection
@@ -281,44 +270,14 @@ pub fn handle_reject(
     Ok(())
 }
 
-/// Complete a task or write a completion signal if under supervision.
-fn complete_task_or_signal(
+/// Complete a task directly in queue/done.
+fn complete_task_directly(
     resolved: &config::Resolved,
     task_id: &str,
     status: TaskStatus,
     notes: &[String],
     force: bool,
-    _lock_label: &str,
 ) -> Result<()> {
-    let lock_dir = lock::queue_lock_dir(&resolved.repo_root);
-    let force_signal = force_completion_signal_from_env();
-    // Only use completion signal mode if the current process is actually being supervised
-    // (i.e., running as a descendant of the supervisor process), or if forced via env.
-    // This distinguishes between:
-    // - An agent running inside a supervised session (should use completion signals)
-    // - A user manually running commands while a supervisor is active (should complete directly)
-    // - Parallel workers that must always emit completion signals regardless of process group
-    if force_signal || lock::is_current_process_supervised(&lock_dir)? {
-        let runner_used = read_env_trimmed(ENV_RUNNER_USED).map(|v| v.to_ascii_lowercase());
-        let model_used = read_env_trimmed(ENV_MODEL_USED);
-
-        let signal = completions::CompletionSignal {
-            task_id: task_id.to_string(),
-            status,
-            notes: notes.to_vec(),
-            runner_used,
-            model_used,
-        };
-        let path = completions::write_completion_signal(&resolved.repo_root, &signal)?;
-        let label = if force_signal { "force" } else { "supervision" };
-        log::info!(
-            "Completion signal mode ({}) - wrote completion signal at {}",
-            label,
-            path.display()
-        );
-        return Ok(());
-    }
-
     // Use "task" label to enable shared lock mode, allowing this command to work
     // concurrently with a supervising process (like `ralph run loop`).
     // This matches the behavior of `ralph task build`.
@@ -353,18 +312,6 @@ fn complete_task_or_signal(
     Ok(())
 }
 
-fn force_completion_signal_from_env() -> bool {
-    let value = match std::env::var(ENV_FORCE_COMPLETION_SIGNAL) {
-        Ok(value) => value,
-        Err(_) => return false,
-    };
-    let normalized = value.trim().to_ascii_lowercase();
-    if normalized.is_empty() {
-        return false;
-    }
-    !matches!(normalized.as_str(), "0" | "false" | "no" | "off")
-}
-
 /// Read an environment variable and return Some(trimmed value) if non-empty.
 fn read_env_trimmed(key: &str) -> Option<String> {
     std::env::var(key)
@@ -375,12 +322,17 @@ fn read_env_trimmed(key: &str) -> Option<String> {
 
 /// Build custom fields patch from environment variables for observational analytics.
 fn build_custom_fields_patch_from_env() -> Option<HashMap<String, String>> {
+    // These environment variables are set by the runner or external tools
+    // and provide observational analytics about what was actually used.
+    let runner_key = "RALPH_RUNNER_USED";
+    let model_key = "RALPH_MODEL_USED";
+
     let mut patch = HashMap::new();
 
-    if let Some(runner) = read_env_trimmed(ENV_RUNNER_USED) {
+    if let Some(runner) = read_env_trimmed(runner_key) {
         patch.insert(RUNNER_USED.to_string(), runner.to_ascii_lowercase());
     }
-    if let Some(model) = read_env_trimmed(ENV_MODEL_USED) {
+    if let Some(model) = read_env_trimmed(model_key) {
         patch.insert(MODEL_USED.to_string(), model.to_string());
     }
 

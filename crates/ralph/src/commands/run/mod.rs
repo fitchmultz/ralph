@@ -35,9 +35,6 @@ mod supervision;
 // These are used by phase modules.
 pub(crate) use supervision::{post_run_supervise, post_run_supervise_parallel_worker};
 
-// Preserve existing `commands::run` unit tests which call phase 3 helpers directly.
-pub(crate) use phases::apply_phase3_completion_signal;
-
 // Re-export PhaseType for use by runner module.
 pub(crate) use phases::PhaseType;
 

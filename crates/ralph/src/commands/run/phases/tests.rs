@@ -8,7 +8,6 @@ use super::{
     generate_phase_session_id, phase_session_id_for_runner,
 };
 use crate::commands::run::supervision::ContinueSession;
-use crate::completions;
 use crate::constants::defaults::PHASE2_FINAL_RESPONSE_FALLBACK;
 use crate::contracts::{
     ClaudePermissionMode, Config, GitRevertMode, Model, QueueConfig, QueueFile, ReasoningEffort,
@@ -753,15 +752,6 @@ echo '{"sessionID":"sess-123"}'
         repoprompt_tool_injection: false,
     };
 
-    let signal = completions::CompletionSignal {
-        task_id: "RQ-0001".to_string(),
-        status: TaskStatus::Done,
-        notes: vec!["note".to_string()],
-        runner_used: None,
-        model_used: None,
-    };
-    completions::write_completion_signal(temp.path(), &signal)?;
-
     let invocation = PhaseInvocation {
         resolved: &resolved,
         settings: &settings,
@@ -790,10 +780,8 @@ echo '{"sessionID":"sess-123"}'
         plugins: None,
     };
 
+    // Non-final iterations should complete without requiring task finalization
     execute_phase3_review(&invocation)?;
-
-    let signal_after = completions::read_completion_signal(temp.path(), "RQ-0001")?;
-    assert!(signal_after.is_none());
     Ok(())
 }
 

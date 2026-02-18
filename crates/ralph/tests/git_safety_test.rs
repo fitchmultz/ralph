@@ -6,7 +6,7 @@ use std::process::Command;
 use tempfile::TempDir;
 
 #[test]
-fn revert_uncommitted_preserves_untracked_env_files_and_completions() -> Result<()> {
+fn revert_uncommitted_preserves_untracked_env_files() -> Result<()> {
     let dir = TempDir::new()?;
     let root = dir.path();
 
@@ -32,14 +32,10 @@ fn revert_uncommitted_preserves_untracked_env_files_and_completions() -> Result<
     let env_file = root.join(".env");
     let env_local = root.join(".env.local");
     let garbage = root.join("garbage.txt");
-    let completion_dir = root.join(".ralph/cache/completions");
-    let completion_signal = completion_dir.join("RQ-0001.json");
 
     fs::write(&env_file, "SECRET=123")?;
     fs::write(&env_local, "SECRET=456")?;
     fs::write(&garbage, "trash")?;
-    fs::create_dir_all(&completion_dir)?;
-    fs::write(&completion_signal, "{}")?;
 
     // 4. Run revert_uncommitted
     ralph::git::revert_uncommitted(root)?;
@@ -47,14 +43,6 @@ fn revert_uncommitted_preserves_untracked_env_files_and_completions() -> Result<
     // 5. Verify assertions
     assert!(env_file.exists(), ".env should be preserved");
     assert!(env_local.exists(), ".env.local should be preserved");
-    assert!(
-        completion_dir.exists(),
-        ".ralph/cache/completions should be preserved"
-    );
-    assert!(
-        completion_signal.exists(),
-        "completion signal should be preserved"
-    );
     assert!(!garbage.exists(), "garbage.txt should be removed");
 
     Ok(())

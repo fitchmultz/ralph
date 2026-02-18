@@ -8,22 +8,22 @@
 //! - Consume PR work items and attempt merges based on configured policy.
 //! - Validate PR head branch names match the expected naming convention.
 //! - Resolve merge conflicts using an AI runner when enabled.
-//! - Apply completion signals on the base branch after merge.
 //! - Emit merge results for downstream cleanup.
 //!
 //! Not handled here:
 //! - Worker orchestration or task selection (see `parallel/mod.rs`).
 //! - PR creation (see `git/pr.rs`).
 //! - Blocker persistence (handled by supervisor in `parallel/mod.rs`).
+//! - Task finalization (handled by merge-agent subprocess).
 //!
 //! Invariants/assumptions:
 //! - PRs originate from branches named with the configured prefix.
 //! - Workspaces remain available until merge completion or failure.
 //! - Each work item carries a trusted task_id (from queue/state, not derived from PR head).
+//! - Task finalization is handled by merge-agent, not this module.
 
 #![allow(dead_code)]
 
-mod completion;
 mod conflict;
 mod git_ops;
 mod validation;
@@ -31,7 +31,6 @@ mod validation;
 #[cfg(test)]
 mod tests;
 
-use crate::commands::run::parallel::merge_runner::completion::apply_completion_and_collect_bytes;
 use crate::commands::run::parallel::merge_runner::conflict::resolve_conflicts;
 use crate::commands::run::parallel::merge_runner::validation::validate_pr_head;
 use crate::config;
@@ -99,7 +98,7 @@ impl Drop for BaseSyncWorkspaceCleanupGuard {
 pub(crate) struct MergeWorkItem {
     pub task_id: String,
     pub pr: git::PrInfo,
-    /// Optional path to the worker workspace for completion signal lookup.
+    /// Optional path to the worker workspace for validation and merge operations.
     pub workspace_path: Option<PathBuf>,
 }
 
@@ -227,20 +226,16 @@ fn handle_work_item(
     )?;
 
     if merged {
-        let sync = apply_completion_and_collect_bytes(
-            resolved,
-            workspace_root,
-            work_item.workspace_path.as_deref(),
-            &work_item.pr.base,
-            &work_item.task_id,
-        )?;
+        // Note: Task finalization is now handled by the merge-agent subprocess.
+        // This deprecated merge-runner module no longer performs queue/done sync.
+        // The merge-agent is responsible for calling queue::complete_task directly.
         Ok(Some(MergeResult {
             task_id: work_item.task_id,
             merged: true,
             merge_blocker: None,
-            queue_bytes: Some(sync.queue_bytes),
-            done_bytes: sync.done_bytes,
-            productivity_bytes: sync.productivity_bytes,
+            queue_bytes: None,
+            done_bytes: None,
+            productivity_bytes: None,
         }))
     } else {
         Ok(None)

@@ -3,7 +3,6 @@
 //! Responsibilities:
 //! - Post-run supervision for parallel workers without mutating queue/done.
 //! - Restore shared bookkeeping files (queue, done, productivity).
-//! - Ensure completion signals are present and staged.
 //!
 //! Not handled here:
 //! - Standard post-run supervision (see mod.rs).
@@ -11,14 +10,12 @@
 //!
 //! Invariants/assumptions:
 //! - Called after parallel worker task execution completes.
-//! - Completion signals are required for parallel workers.
 
-use crate::completions;
 use crate::contracts::GitRevertMode;
 use crate::git;
 use crate::queue;
 use crate::runutil;
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 
 use super::CiContinueContext;
 use super::PushPolicy;
@@ -27,8 +24,9 @@ use super::git_ops::{finalize_git_state, warn_if_modified_lfs};
 
 /// Post-run supervision for parallel workers.
 ///
-/// Ensures completion signals are present, restores shared bookkeeping files,
-/// and commits/pushes only the worker's task changes without mutating queue/done.
+/// Restores shared bookkeeping files and commits/pushes only the worker's
+/// task changes without mutating queue/done. Task finalization is handled
+/// by the merge-agent subprocess in the coordinator process.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn post_run_supervise_parallel_worker(
     resolved: &crate::config::Resolved,
@@ -133,8 +131,6 @@ pub(crate) fn post_run_supervise_parallel_worker(
         }
 
         restore_parallel_worker_bookkeeping(resolved)?;
-        ensure_completion_signal(resolved, task_id)?;
-        stage_completion_signal(resolved, task_id)?;
 
         let status = git::status_porcelain(&resolved.repo_root)?;
         if status.trim().is_empty() {
@@ -157,32 +153,6 @@ pub(crate) fn post_run_supervise_parallel_worker(
 
         Ok(())
     })
-}
-
-fn ensure_completion_signal(resolved: &crate::config::Resolved, task_id: &str) -> Result<()> {
-    if completions::read_completion_signal(&resolved.repo_root, task_id)?.is_some() {
-        return Ok(());
-    }
-
-    let signal_path = completions::completion_signal_path(&resolved.repo_root, task_id)?;
-    bail!(
-        "Completion signal for {} is missing at {}.\n\nRemediation options:\n  1. Re-run Phase 3 for the task to generate a completion signal (e.g., ralph run one --phases 3 --id {})\n  2. Manually finalize the task: ralph task done {} (or ralph task rejected {})\n\nNote: Parallel workers require an explicit completion signal; Ralph will not infer Done.",
-        task_id,
-        signal_path.display(),
-        task_id,
-        task_id,
-        task_id
-    )
-}
-
-fn stage_completion_signal(resolved: &crate::config::Resolved, task_id: &str) -> Result<()> {
-    let signal_path = completions::completion_signal_path(&resolved.repo_root, task_id)?;
-    if !signal_path.exists() {
-        return Ok(());
-    }
-    git::add_paths_force(&resolved.repo_root, &[signal_path])
-        .context("force-add completion signal")?;
-    Ok(())
 }
 
 fn task_title_from_queue_or_done(

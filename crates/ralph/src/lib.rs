@@ -63,7 +63,6 @@ pub mod timeutil;
 // --- Internal ----------------------------------------------------------------
 
 // Not used by the binary/tests directly; keep crate-private.
-pub(crate) mod completions;
 pub(crate) mod debuglog;
 
 // Internal prompt composition helpers.

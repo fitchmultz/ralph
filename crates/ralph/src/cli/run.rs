@@ -140,8 +140,7 @@ pub fn handle_run(cmd: RunCommand, force: bool) -> Result<()> {
 	  - `--git-revert-mode` controls whether Ralph reverts uncommitted changes on errors (ask, enabled, disabled).\n\
 	  - `--git-commit-push-on` / `--git-commit-push-off` control automatic git commit/push after successful runs.\n\
 	     - `--parallel` runs loop tasks concurrently in workspaces (clone-based).\n\
-	     - Parallel workers do not modify `.ralph/queue.json` or `.ralph/done.json`; they commit completion signals in `.ralph/cache/completions/<TASK_ID>.json`.\n\
-	     - After merge, the coordinator applies completion signals to update queue/done (errors if missing).\n\
+	     - Parallel workers do not modify `.ralph/queue.json` or `.ralph/done.json`; the merge-agent subprocess handles task finalization.\n\
 	  - Clean-repo checks allow changes to `.ralph/config.{json,jsonc}` (plus `.ralph/queue.{json,jsonc}` and `.ralph/done.{json,jsonc}`); use `--force` to bypass entirely.\n\
 	 \n\
 Phase-specific overrides:\n\
