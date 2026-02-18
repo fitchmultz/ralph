@@ -42,8 +42,7 @@ pub use crate::agent::AgentOverrides;
 
 // Re-export parallel state types for UI clients.
 pub use parallel::state::{
-    ParallelFinishedWithoutPrRecord, ParallelNoPrReason, ParallelPrLifecycle, ParallelPrRecord,
-    ParallelStateFile, load_state, state_file_path,
+    ParallelPrLifecycle, ParallelPrRecord, ParallelStateFile, load_state, state_file_path,
 };
 
 // Re-export run loop types

@@ -22,6 +22,7 @@ use std::process::Command;
 #[derive(Debug, Clone)]
 pub(crate) struct PrInfo {
     pub number: u32,
+    #[allow(dead_code)]
     pub url: String,
     pub head: String,
     pub base: String,

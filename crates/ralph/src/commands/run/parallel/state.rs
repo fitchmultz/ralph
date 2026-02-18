@@ -2,7 +2,7 @@
 //!
 //! Responsibilities:
 //! - Define the parallel state file format and helpers.
-//! - Persist and reload state for in-flight tasks, PRs, pending merges, and finished-without-PR blockers.
+//! - Persist and reload state for in-flight tasks, PRs, and pending merges.
 //!
 //! Not handled here:
 //! - Worker orchestration or process management (see `parallel/mod.rs`).
@@ -12,6 +12,7 @@
 //! - State file lives at `.ralph/cache/parallel/state.json`.
 //! - Callers update and persist state after each significant transition.
 //! - Deserialization is tolerant of missing/unknown fields; callers normalize and persist the canonical shape.
+//! - Schema version migrations are applied on load to ensure compatibility.
 
 use crate::contracts::{ParallelMergeMethod, ParallelMergeWhen};
 use crate::fsutil;
@@ -19,7 +20,17 @@ use crate::git::WorkspaceSpec;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-use time::OffsetDateTime;
+
+// =============================================================================
+// Schema Version and Migration
+// =============================================================================
+
+/// Current parallel state schema version.
+///
+/// Version history:
+/// - v1: Legacy schema with finished_without_pr and full PR metadata
+/// - v2: Minimal restart-safe schema (current)
+pub const PARALLEL_STATE_SCHEMA_VERSION: u32 = 2;
 
 // =============================================================================
 // Pending Merge Job (new architecture - merge-agent subprocess)
@@ -64,6 +75,9 @@ pub struct PendingMergeJob {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ParallelStateFile {
+    /// Schema version for migration compatibility.
+    #[serde(default = "default_schema_version")]
+    pub schema_version: u32,
     #[serde(default)]
     pub started_at: String,
     #[serde(default)]
@@ -72,16 +86,20 @@ pub struct ParallelStateFile {
     pub merge_method: ParallelMergeMethod,
     #[serde(default)]
     pub merge_when: ParallelMergeWhen,
+    /// Active workers (one per task ID).
     #[serde(default)]
     pub tasks_in_flight: Vec<ParallelTaskRecord>,
+    /// PR records (simplified to minimal fields).
     #[serde(default)]
     pub prs: Vec<ParallelPrRecord>,
-    #[serde(default)]
-    pub finished_without_pr: Vec<ParallelFinishedWithoutPrRecord>,
     /// Merge jobs queued or in-progress (new architecture using merge-agent subprocess).
     #[serde(default)]
     pub pending_merges: Vec<PendingMergeJob>,
 }
+
+fn default_schema_version() -> u32 {
+    1
+} // v1 = legacy
 
 impl ParallelStateFile {
     pub fn new(
@@ -91,13 +109,13 @@ impl ParallelStateFile {
         merge_when: ParallelMergeWhen,
     ) -> Self {
         Self {
+            schema_version: PARALLEL_STATE_SCHEMA_VERSION,
             started_at,
             base_branch,
             merge_method,
             merge_when,
             tasks_in_flight: Vec::new(),
             prs: Vec::new(),
-            finished_without_pr: Vec::new(),
             pending_merges: Vec::new(),
         }
     }
@@ -119,7 +137,6 @@ impl ParallelStateFile {
     }
 
     pub fn upsert_pr(&mut self, record: ParallelPrRecord) {
-        self.remove_finished_without_pr(&record.task_id);
         if let Some(existing) = self
             .prs
             .iter_mut()
@@ -133,50 +150,12 @@ impl ParallelStateFile {
 
     pub fn mark_pr_merged(&mut self, task_id: &str) {
         if let Some(existing) = self.prs.iter_mut().find(|item| item.task_id == task_id) {
-            existing.merged = true;
             existing.lifecycle = ParallelPrLifecycle::Merged;
         }
     }
 
     pub fn has_pr_record(&self, task_id: &str) -> bool {
         self.prs.iter().any(|item| item.task_id == task_id)
-    }
-
-    pub fn upsert_finished_without_pr(&mut self, record: ParallelFinishedWithoutPrRecord) {
-        if let Some(existing) = self
-            .finished_without_pr
-            .iter_mut()
-            .find(|item| item.task_id == record.task_id)
-        {
-            *existing = record;
-        } else {
-            self.finished_without_pr.push(record);
-        }
-    }
-
-    pub fn remove_finished_without_pr(&mut self, task_id: &str) -> bool {
-        let before = self.finished_without_pr.len();
-        self.finished_without_pr
-            .retain(|item| item.task_id != task_id);
-        before != self.finished_without_pr.len()
-    }
-
-    /// Remove finished-without-PR records that are no longer blocking under the current policy.
-    pub(crate) fn prune_finished_without_pr(
-        &mut self,
-        now: OffsetDateTime,
-        auto_pr_enabled: bool,
-        draft_on_failure: bool,
-    ) -> Vec<String> {
-        let mut dropped = Vec::new();
-        self.finished_without_pr.retain(|record| {
-            let keep = record.is_blocking(now, auto_pr_enabled, draft_on_failure);
-            if !keep {
-                dropped.push(record.task_id.clone());
-            }
-            keep
-        });
-        dropped
     }
 
     // =========================================================================
@@ -343,187 +322,66 @@ pub enum ParallelPrLifecycle {
     Merged,
 }
 
-/// Reason a parallel task finished without a PR record.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-#[derive(Default)]
-pub enum ParallelNoPrReason {
-    #[default]
-    Unknown,
-    AutoPrDisabled,
-    PrCreateFailed,
-    DraftPrDisabled,
-    DraftPrSkippedNoChanges,
-}
-
-impl ParallelNoPrReason {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            ParallelNoPrReason::Unknown => "unknown",
-            ParallelNoPrReason::AutoPrDisabled => "auto_pr_disabled",
-            ParallelNoPrReason::PrCreateFailed => "pr_create_failed",
-            ParallelNoPrReason::DraftPrDisabled => "draft_pr_disabled",
-            ParallelNoPrReason::DraftPrSkippedNoChanges => "draft_pr_skipped_no_changes",
-        }
-    }
-}
-
+/// Minimal PR record for restart-safe state.
+///
+/// Only tracks what's needed for:
+/// - Capacity tracking on resume (is there an open PR for this task?)
+/// - Merge-agent invocation (pr_number)
+/// - PR lifecycle sync on startup
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ParallelPrRecord {
+    /// Task ID associated with this PR.
     pub task_id: String,
+    /// PR number for merge-agent and GitHub queries.
     pub pr_number: u32,
-    pub pr_url: String,
-    #[serde(default)]
-    pub head: Option<String>,
-    #[serde(default)]
-    pub base: Option<String>,
-    #[serde(default, alias = "worktree_path")]
-    pub workspace_path: Option<String>,
-    pub merged: bool,
+    /// PR lifecycle state (synced from GitHub on startup).
     #[serde(default)]
     pub lifecycle: ParallelPrLifecycle,
-    /// Human-readable reason this PR is blocked from auto-merge.
-    /// Set when the PR head doesn't match the expected branch naming convention.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub merge_blocker: Option<String>,
 }
 
 impl ParallelPrRecord {
     pub(crate) fn new(
         task_id: &str,
         pr: &crate::git::PrInfo,
-        workspace_path: Option<&Path>,
+        _workspace_path: Option<&Path>,
     ) -> Self {
         Self {
             task_id: task_id.to_string(),
             pr_number: pr.number,
-            pr_url: pr.url.clone(),
-            head: Some(pr.head.clone()),
-            base: Some(pr.base.clone()),
-            workspace_path: workspace_path.map(|p| p.to_string_lossy().to_string()),
-            merged: false,
             lifecycle: ParallelPrLifecycle::Open,
-            merge_blocker: None,
         }
     }
 
-    /// Returns true if the PR is open (not merged/closed) and not yet merged.
+    /// Returns true if the PR is open (not merged/closed).
     /// These represent work already in flight from a prior run that should
     /// count toward max_tasks limits on resume.
     pub fn is_open_unmerged(&self) -> bool {
-        matches!(self.lifecycle, ParallelPrLifecycle::Open) && !self.merged
+        matches!(self.lifecycle, ParallelPrLifecycle::Open)
     }
-
-    /// Create a PrInfo from this record.
-    /// Note: Kept for backward compatibility with merge-runner tests.
-    #[allow(dead_code)]
-    pub(crate) fn pr_info(&self, fallback_head: &str, fallback_base: &str) -> crate::git::PrInfo {
-        let head = self
-            .head
-            .as_ref()
-            .map(|value| value.trim())
-            .filter(|value| !value.is_empty())
-            .unwrap_or(fallback_head)
-            .to_string();
-        let base = self
-            .base
-            .as_ref()
-            .map(|value| value.trim())
-            .filter(|value| !value.is_empty())
-            .unwrap_or(fallback_base)
-            .to_string();
-        crate::git::PrInfo {
-            number: self.pr_number,
-            url: self.pr_url.clone(),
-            head,
-            base,
-        }
-    }
-
-    pub fn workspace_path(&self) -> Option<PathBuf> {
-        self.workspace_path.as_ref().map(PathBuf::from)
-    }
-}
-
-/// Record for a task that finished without a PR record.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ParallelFinishedWithoutPrRecord {
-    pub task_id: String,
-    #[serde(alias = "worktree_path")]
-    pub workspace_path: String,
-    pub branch: String,
-    pub success: bool,
-    pub finished_at: String,
-    #[serde(default)]
-    pub reason: ParallelNoPrReason,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub message: Option<String>,
-}
-
-impl ParallelFinishedWithoutPrRecord {
-    pub(crate) fn new(
-        task_id: &str,
-        workspace: &WorkspaceSpec,
-        success: bool,
-        finished_at: String,
-        reason: ParallelNoPrReason,
-        message: Option<String>,
-    ) -> Self {
-        Self {
-            task_id: task_id.to_string(),
-            workspace_path: workspace.path.to_string_lossy().to_string(),
-            branch: workspace.branch.clone(),
-            success,
-            finished_at,
-            reason,
-            message,
-        }
-    }
-
-    /// Returns true if this record should currently block task selection.
-    ///
-    /// Policy:
-    /// - Never block if the recorded workspace no longer exists (stale recovery state).
-    /// - AutoPrDisabled blocks only while auto_pr is still disabled.
-    /// - DraftPrDisabled blocks only while we still cannot create draft PRs on failure.
-    /// - PrCreateFailed / Unknown / DraftPrSkippedNoChanges block only within a TTL window.
-    pub(crate) fn is_blocking(
-        &self,
-        now: OffsetDateTime,
-        auto_pr_enabled: bool,
-        draft_on_failure: bool,
-    ) -> bool {
-        if !std::path::Path::new(self.workspace_path.trim()).exists() {
-            return false;
-        }
-
-        match &self.reason {
-            ParallelNoPrReason::AutoPrDisabled => !auto_pr_enabled,
-            ParallelNoPrReason::DraftPrDisabled => !(auto_pr_enabled && draft_on_failure),
-            ParallelNoPrReason::PrCreateFailed
-            | ParallelNoPrReason::Unknown
-            | ParallelNoPrReason::DraftPrSkippedNoChanges => {
-                let Some(finished_at) = crate::timeutil::parse_rfc3339_opt(&self.finished_at)
-                else {
-                    // Bad timestamp must not become a permanent blocker.
-                    return false;
-                };
-                now - finished_at < finished_without_pr_blocker_ttl()
-            }
-        }
-    }
-}
-
-fn finished_without_pr_blocker_ttl() -> time::Duration {
-    let secs: i64 = crate::constants::timeouts::PARALLEL_FINISHED_WITHOUT_PR_BLOCKER_TTL
-        .as_secs()
-        .try_into()
-        .unwrap_or(i64::MAX);
-    time::Duration::seconds(secs)
 }
 
 pub fn state_file_path(repo_root: &Path) -> PathBuf {
     repo_root.join(".ralph/cache/parallel/state.json")
+}
+
+/// Migrate legacy state to current schema version.
+///
+/// v1 -> v2:
+/// - Clear finished_without_pr on load (will be recomputed dynamically if needed)
+/// - Simplify PR records (excess fields are ignored by serde defaults)
+fn migrate_state(mut state: ParallelStateFile) -> ParallelStateFile {
+    if state.schema_version < 2 {
+        log::info!(
+            "Migrating parallel state from schema v{} to v{}",
+            state.schema_version,
+            PARALLEL_STATE_SCHEMA_VERSION
+        );
+        // v1 -> v2: Clear finished_without_pr on load (no longer persisted)
+        // The field is no longer part of the schema, so no action needed here
+        // since deserialization won't populate it.
+        state.schema_version = PARALLEL_STATE_SCHEMA_VERSION;
+    }
+    state
 }
 
 pub fn load_state(path: &Path) -> Result<Option<ParallelStateFile>> {
@@ -533,6 +391,10 @@ pub fn load_state(path: &Path) -> Result<Option<ParallelStateFile>> {
     let raw = std::fs::read_to_string(path)
         .with_context(|| format!("read parallel state {}", path.display()))?;
     let state = crate::jsonc::parse_jsonc::<ParallelStateFile>(&raw, "parallel state")?;
+
+    // Apply migrations
+    let state = migrate_state(state);
+
     Ok(Some(state))
 }
 
@@ -566,9 +428,9 @@ impl ReconcileSummary {
 
 /// Reconcile persisted PR records against current GitHub state.
 ///
-/// For each PR record where `merged == false` and `lifecycle == Open`,
+/// For each PR record where `lifecycle == Open`,
 /// queries GitHub to determine if the PR is still open. Updates the
-/// record's lifecycle and merged flag based on the current state.
+/// record's lifecycle based on the current state.
 ///
 /// Errors during individual PR lookups are logged as warnings and do not
 /// abort the reconciliation process.
@@ -581,8 +443,8 @@ pub(crate) fn reconcile_pr_records(
     let mut summary = ReconcileSummary::default();
 
     for record in state_file.prs.iter_mut() {
-        // Skip already merged records
-        if record.merged || !matches!(record.lifecycle, ParallelPrLifecycle::Open) {
+        // Skip already closed/merged records
+        if !matches!(record.lifecycle, ParallelPrLifecycle::Open) {
             match record.lifecycle {
                 ParallelPrLifecycle::Open => summary.open_count += 1,
                 ParallelPrLifecycle::Closed => summary.closed_count += 1,
@@ -605,7 +467,6 @@ pub(crate) fn reconcile_pr_records(
                     }
                     git::PrLifecycle::Merged => {
                         record.lifecycle = ParallelPrLifecycle::Merged;
-                        record.merged = true;
                         summary.merged_count += 1;
                         summary.affected_task_ids.push(record.task_id.clone());
                     }
@@ -644,6 +505,148 @@ mod tests {
     use crate::contracts::{ParallelMergeMethod, ParallelMergeWhen};
     use tempfile::TempDir;
 
+    // =========================================================================
+    // Schema Version and Migration Tests
+    // =========================================================================
+
+    #[test]
+    fn state_migration_v1_to_v2() -> Result<()> {
+        let temp = TempDir::new()?;
+        let path = temp.path().join("state.json");
+
+        // v1 state with finished_without_pr entries (which are now ignored)
+        let v1_state = r#"{
+            "schema_version": 1,
+            "started_at": "2026-02-01T00:00:00Z",
+            "base_branch": "main",
+            "merge_method": "squash",
+            "merge_when": "as_created",
+            "tasks_in_flight": [],
+            "prs": [],
+            "finished_without_pr": [
+                {"task_id": "RQ-0001", "workspace_path": "/tmp/ws", "branch": "b", "success": true, "finished_at": "2026-02-01T00:00:00Z"}
+            ],
+            "pending_merges": []
+        }"#;
+
+        std::fs::write(&path, v1_state)?;
+
+        let state = load_state(&path)?.expect("state");
+        assert_eq!(state.schema_version, PARALLEL_STATE_SCHEMA_VERSION);
+        Ok(())
+    }
+
+    #[test]
+    fn state_deserialization_accepts_legacy_pr_fields() -> Result<()> {
+        // Ensure we can load old state files with extra PR fields
+        let raw = r#"{
+            "schema_version": 1,
+            "started_at": "2026-02-01T00:00:00Z",
+            "base_branch": "main",
+            "merge_method": "squash",
+            "merge_when": "as_created",
+            "tasks_in_flight": [],
+            "prs": [{
+                "task_id": "RQ-0001",
+                "pr_number": 5,
+                "pr_url": "https://example.com/pr/5",
+                "head": "ralph/RQ-0001",
+                "base": "main",
+                "workspace_path": "/tmp/ws",
+                "merged": false,
+                "lifecycle": "open",
+                "merge_blocker": "some blocker"
+            }],
+            "pending_merges": []
+        }"#;
+
+        let state: ParallelStateFile = serde_json::from_str(raw)?;
+        assert_eq!(state.prs.len(), 1);
+        assert_eq!(state.prs[0].task_id, "RQ-0001");
+        assert_eq!(state.prs[0].pr_number, 5);
+        // Excess fields are silently ignored via serde defaults
+        Ok(())
+    }
+
+    #[test]
+    fn one_active_worker_per_task_invariant() {
+        let mut state = ParallelStateFile::new(
+            "2026-02-01T00:00:00Z".into(),
+            "main".into(),
+            ParallelMergeMethod::Squash,
+            ParallelMergeWhen::AsCreated,
+        );
+
+        state.upsert_task(ParallelTaskRecord {
+            task_id: "RQ-0001".into(),
+            workspace_path: "/tmp/ws1".into(),
+            branch: "ralph/RQ-0001".into(),
+            pid: Some(123),
+            started_at: "2026-02-01T00:00:00Z".into(),
+        });
+
+        // Upsert same task_id should replace, not duplicate
+        state.upsert_task(ParallelTaskRecord {
+            task_id: "RQ-0001".into(),
+            workspace_path: "/tmp/ws2".into(),
+            branch: "ralph/RQ-0001".into(),
+            pid: Some(456),
+            started_at: "2026-02-01T00:01:00Z".into(),
+        });
+
+        assert_eq!(state.tasks_in_flight.len(), 1);
+        assert_eq!(state.tasks_in_flight[0].pid, Some(456));
+    }
+
+    #[test]
+    fn one_pending_merge_per_task_invariant() {
+        let mut state = ParallelStateFile::new(
+            "2026-02-01T00:00:00Z".into(),
+            "main".into(),
+            ParallelMergeMethod::Squash,
+            ParallelMergeWhen::AsCreated,
+        );
+
+        state.enqueue_merge(PendingMergeJob {
+            task_id: "RQ-0001".into(),
+            pr_number: 1,
+            workspace_path: None,
+            lifecycle: PendingMergeLifecycle::Queued,
+            attempts: 0,
+            queued_at: "2026-02-01T00:00:00Z".into(),
+            last_error: None,
+        });
+
+        state.enqueue_merge(PendingMergeJob {
+            task_id: "RQ-0001".into(),
+            pr_number: 2, // Updated PR
+            workspace_path: Some(PathBuf::from("/tmp/ws")),
+            lifecycle: PendingMergeLifecycle::Queued,
+            attempts: 1,
+            queued_at: "2026-02-01T01:00:00Z".into(),
+            last_error: None,
+        });
+
+        assert_eq!(state.pending_merges.len(), 1);
+        assert_eq!(state.pending_merges[0].pr_number, 2);
+    }
+
+    #[test]
+    fn new_state_has_current_schema_version() {
+        let state = ParallelStateFile::new(
+            "2026-02-01T00:00:00Z".into(),
+            "main".into(),
+            ParallelMergeMethod::Squash,
+            ParallelMergeWhen::AsCreated,
+        );
+
+        assert_eq!(state.schema_version, PARALLEL_STATE_SCHEMA_VERSION);
+    }
+
+    // =========================================================================
+    // Basic State Round-Trip Tests
+    // =========================================================================
+
     #[test]
     fn state_round_trips() -> Result<()> {
         let temp = TempDir::new()?;
@@ -654,32 +657,17 @@ mod tests {
             ParallelMergeMethod::Squash,
             ParallelMergeWhen::AsCreated,
         );
-        state.upsert_finished_without_pr(ParallelFinishedWithoutPrRecord {
-            task_id: "RQ-0009".to_string(),
-            workspace_path: "/tmp/workspace/RQ-0009".to_string(),
-            branch: "ralph/RQ-0009".to_string(),
-            success: true,
-            finished_at: "2026-02-01T01:00:00Z".to_string(),
-            reason: ParallelNoPrReason::AutoPrDisabled,
-            message: Some("auto_pr disabled".to_string()),
-        });
         state.upsert_pr(ParallelPrRecord {
             task_id: "RQ-0001".to_string(),
             pr_number: 5,
-            pr_url: "https://example.com/pr/5".to_string(),
-            head: Some("ralph/RQ-0001".to_string()),
-            base: Some("main".to_string()),
-            workspace_path: Some("/tmp/workspace".to_string()),
-            merged: false,
             lifecycle: ParallelPrLifecycle::Open,
-            merge_blocker: None,
         });
 
         save_state(&path, &state)?;
         let loaded = load_state(&path)?.expect("state");
         assert_eq!(loaded.base_branch, "main");
         assert_eq!(loaded.prs.len(), 1);
-        assert_eq!(loaded.finished_without_pr.len(), 1);
+        assert_eq!(loaded.schema_version, PARALLEL_STATE_SCHEMA_VERSION);
         Ok(())
     }
 
@@ -696,23 +684,6 @@ mod tests {
         let state: ParallelStateFile = serde_json::from_str(raw)?;
         assert_eq!(state.tasks_in_flight.len(), 1);
         assert_eq!(state.tasks_in_flight[0].workspace_path, "/tmp/wt");
-        assert!(state.finished_without_pr.is_empty());
-        Ok(())
-    }
-
-    #[test]
-    fn state_deserialization_accepts_legacy_worktree_path_in_prs() -> Result<()> {
-        let raw = r#"{
-            "started_at":"2026-02-01T00:00:00Z",
-            "base_branch":"main",
-            "merge_method":"squash",
-            "merge_when":"as_created",
-            "tasks_in_flight":[],
-            "prs":[{"task_id":"RQ-0001","pr_number":5,"pr_url":"https://example.com/pr/5","worktree_path":"/tmp/wt","merged":false}]
-        }"#;
-        let state: ParallelStateFile = serde_json::from_str(raw)?;
-        assert_eq!(state.prs.len(), 1);
-        assert_eq!(state.prs[0].workspace_path.as_deref(), Some("/tmp/wt"));
         Ok(())
     }
 
@@ -731,7 +702,6 @@ mod tests {
         let state: ParallelStateFile = serde_json::from_str(raw)?;
         assert_eq!(state.tasks_in_flight.len(), 1);
         assert_eq!(state.prs.len(), 1);
-        assert_eq!(state.finished_without_pr.len(), 1);
         Ok(())
     }
 
@@ -746,39 +716,7 @@ mod tests {
         let state: ParallelStateFile = serde_json::from_str(raw)?;
         assert!(state.base_branch.is_empty());
         assert!(state.started_at.is_empty());
-        assert!(state.finished_without_pr.is_empty());
         Ok(())
-    }
-
-    #[test]
-    fn finished_without_pr_reason_defaults_to_unknown() {
-        let raw = r#"{
-            "task_id":"RQ-0010",
-            "workspace_path":"/tmp/ws/RQ-0010",
-            "branch":"ralph/RQ-0010",
-            "success":true,
-            "finished_at":"2026-02-01T02:00:00Z"
-        }"#;
-        let record: ParallelFinishedWithoutPrRecord = serde_json::from_str(raw).unwrap();
-        assert!(matches!(record.reason, ParallelNoPrReason::Unknown));
-    }
-
-    #[test]
-    fn pr_record_uses_fallbacks_when_missing() {
-        let record = ParallelPrRecord {
-            task_id: "RQ-0002".to_string(),
-            pr_number: 9,
-            pr_url: "https://example.com/pr/9".to_string(),
-            head: None,
-            base: None,
-            workspace_path: None,
-            merged: false,
-            lifecycle: ParallelPrLifecycle::Open,
-            merge_blocker: None,
-        };
-        let info = record.pr_info("ralph/RQ-0002", "main");
-        assert_eq!(info.head, "ralph/RQ-0002");
-        assert_eq!(info.base, "main");
     }
 
     #[test]
@@ -786,16 +724,10 @@ mod tests {
         // Verify backward compatibility: old state files without lifecycle default to Open
         let raw = r#"{
             "task_id":"RQ-0001",
-            "pr_number":5,
-            "pr_url":"https://example.com/pr/5",
-            "head":"ralph/RQ-0001",
-            "base":"main",
-            "workspace_path":"/tmp/ws",
-            "merged":false
+            "pr_number":5
         }"#;
         let record: ParallelPrRecord = serde_json::from_str(raw).unwrap();
         assert!(matches!(record.lifecycle, ParallelPrLifecycle::Open));
-        assert!(!record.merged);
     }
 
     #[test]
@@ -803,117 +735,11 @@ mod tests {
         let record = ParallelPrRecord {
             task_id: "RQ-0003".to_string(),
             pr_number: 10,
-            pr_url: "https://example.com/pr/10".to_string(),
-            head: Some("ralph/RQ-0003".to_string()),
-            base: Some("main".to_string()),
-            workspace_path: None,
-            merged: true,
             lifecycle: ParallelPrLifecycle::Merged,
-            merge_blocker: None,
         };
         let json = serde_json::to_string(&record).unwrap();
         let parsed: ParallelPrRecord = serde_json::from_str(&json).unwrap();
         assert!(matches!(parsed.lifecycle, ParallelPrLifecycle::Merged));
-        assert!(parsed.merged);
-    }
-
-    #[test]
-    fn prune_finished_without_pr_drops_non_blocking_and_expired() -> Result<()> {
-        use crate::timeutil;
-
-        let temp = TempDir::new()?;
-        let ws_keep = temp.path().join("ws_keep");
-        let ws_drop = temp.path().join("ws_drop");
-        std::fs::create_dir_all(&ws_keep)?;
-        std::fs::create_dir_all(&ws_drop)?;
-
-        let now = timeutil::parse_rfc3339("2026-02-03T00:00:00Z")?;
-
-        let mut state = ParallelStateFile::new(
-            "2026-02-03T00:00:00Z".to_string(),
-            "main".to_string(),
-            ParallelMergeMethod::Squash,
-            ParallelMergeWhen::AsCreated,
-        );
-
-        // Should become non-blocking when auto_pr is enabled (rehydration).
-        state.upsert_finished_without_pr(ParallelFinishedWithoutPrRecord {
-            task_id: "RQ-AUTO".to_string(),
-            workspace_path: ws_drop.to_string_lossy().to_string(),
-            branch: "ralph/RQ-AUTO".to_string(),
-            success: true,
-            finished_at: "2026-02-02T00:00:00Z".to_string(),
-            reason: ParallelNoPrReason::AutoPrDisabled,
-            message: None,
-        });
-
-        // Should remain blocking (PrCreateFailed within TTL window).
-        state.upsert_finished_without_pr(ParallelFinishedWithoutPrRecord {
-            task_id: "RQ-KEEP".to_string(),
-            workspace_path: ws_keep.to_string_lossy().to_string(),
-            branch: "ralph/RQ-KEEP".to_string(),
-            success: true,
-            finished_at: "2026-02-02T23:30:00Z".to_string(),
-            reason: ParallelNoPrReason::PrCreateFailed,
-            message: Some("rate limited".to_string()),
-        });
-
-        // Should be expired (very old).
-        state.upsert_finished_without_pr(ParallelFinishedWithoutPrRecord {
-            task_id: "RQ-OLD".to_string(),
-            workspace_path: ws_drop.to_string_lossy().to_string(),
-            branch: "ralph/RQ-OLD".to_string(),
-            success: true,
-            finished_at: "2020-01-01T00:00:00Z".to_string(),
-            reason: ParallelNoPrReason::PrCreateFailed,
-            message: None,
-        });
-
-        let dropped = state.prune_finished_without_pr(now, true, true);
-
-        assert!(dropped.contains(&"RQ-AUTO".to_string()));
-        assert!(dropped.contains(&"RQ-OLD".to_string()));
-        assert!(!dropped.contains(&"RQ-KEEP".to_string()));
-
-        assert!(
-            state
-                .finished_without_pr
-                .iter()
-                .any(|r| r.task_id == "RQ-KEEP")
-        );
-        assert!(
-            !state
-                .finished_without_pr
-                .iter()
-                .any(|r| r.task_id == "RQ-AUTO")
-        );
-        assert!(
-            !state
-                .finished_without_pr
-                .iter()
-                .any(|r| r.task_id == "RQ-OLD")
-        );
-
-        Ok(())
-    }
-
-    #[test]
-    fn finished_without_pr_never_blocks_when_workspace_missing() -> Result<()> {
-        use crate::timeutil;
-
-        let now = timeutil::parse_rfc3339("2026-02-03T00:00:00Z")?;
-        let record = ParallelFinishedWithoutPrRecord {
-            task_id: "RQ-MISSING".to_string(),
-            workspace_path: "/nonexistent/path".to_string(),
-            branch: "ralph/RQ-MISSING".to_string(),
-            success: true,
-            finished_at: "2026-02-02T23:30:00Z".to_string(),
-            reason: ParallelNoPrReason::AutoPrDisabled,
-            message: None,
-        };
-
-        assert!(!record.is_blocking(now, false, false));
-        Ok(())
     }
 
     // Tests for reconcile_pr_records with stubbed gh binary
@@ -996,39 +822,21 @@ exit 1
                 ParallelMergeWhen::AsCreated,
             );
 
-            // Add 3 PR records, all initially Open and unmerged
+            // Add 3 PR records, all initially Open
             state_file.upsert_pr(ParallelPrRecord {
                 task_id: "RQ-0001".to_string(),
                 pr_number: 1,
-                pr_url: "https://example.com/pr/1".to_string(),
-                head: Some("ralph/RQ-0001".to_string()),
-                base: Some("main".to_string()),
-                workspace_path: None,
-                merged: false,
                 lifecycle: ParallelPrLifecycle::Open,
-                merge_blocker: None,
             });
             state_file.upsert_pr(ParallelPrRecord {
                 task_id: "RQ-0002".to_string(),
                 pr_number: 2,
-                pr_url: "https://example.com/pr/2".to_string(),
-                head: Some("ralph/RQ-0002".to_string()),
-                base: Some("main".to_string()),
-                workspace_path: None,
-                merged: false,
                 lifecycle: ParallelPrLifecycle::Open,
-                merge_blocker: None,
             });
             state_file.upsert_pr(ParallelPrRecord {
                 task_id: "RQ-0003".to_string(),
                 pr_number: 3,
-                pr_url: "https://example.com/pr/3".to_string(),
-                head: Some("ralph/RQ-0003".to_string()),
-                base: Some("main".to_string()),
-                workspace_path: None,
-                merged: false,
                 lifecycle: ParallelPrLifecycle::Open,
-                merge_blocker: None,
             });
 
             reconcile_pr_records(temp.path(), &mut state_file).map(|s| (s, state_file))
@@ -1063,13 +871,8 @@ exit 1
             .unwrap();
 
         assert!(matches!(pr1.lifecycle, ParallelPrLifecycle::Open));
-        assert!(!pr1.merged);
-
         assert!(matches!(pr2.lifecycle, ParallelPrLifecycle::Closed));
-        assert!(!pr2.merged);
-
         assert!(matches!(pr3.lifecycle, ParallelPrLifecycle::Merged));
-        assert!(pr3.merged);
 
         Ok(())
     }
@@ -1099,24 +902,12 @@ exit 1
             state_file.upsert_pr(ParallelPrRecord {
                 task_id: "RQ-0001".to_string(),
                 pr_number: 1,
-                pr_url: "https://example.com/pr/1".to_string(),
-                head: Some("ralph/RQ-0001".to_string()),
-                base: Some("main".to_string()),
-                workspace_path: None,
-                merged: false,
                 lifecycle: ParallelPrLifecycle::Open,
-                merge_blocker: None,
             });
             state_file.upsert_pr(ParallelPrRecord {
                 task_id: "RQ-0002".to_string(),
                 pr_number: 2,
-                pr_url: "https://example.com/pr/2".to_string(),
-                head: Some("ralph/RQ-0002".to_string()),
-                base: Some("main".to_string()),
-                workspace_path: None,
-                merged: false,
                 lifecycle: ParallelPrLifecycle::Open,
-                merge_blocker: None,
             });
 
             reconcile_pr_records(temp.path(), &mut state_file).map(|s| (s, state_file))
@@ -1134,7 +925,6 @@ exit 1
             .find(|p| p.task_id == "RQ-0002")
             .unwrap();
         assert!(matches!(pr2.lifecycle, ParallelPrLifecycle::Open));
-        assert!(!pr2.merged);
 
         Ok(())
     }
@@ -1196,41 +986,6 @@ exit 1
 
         assert_eq!(state.pending_merges.len(), 1);
         assert!(state.next_queued_merge().is_some());
-    }
-
-    #[test]
-    fn state_file_enqueue_replaces_existing() {
-        let mut state = ParallelStateFile::new(
-            "2026-02-17T00:00:00Z".into(),
-            "main".into(),
-            ParallelMergeMethod::Squash,
-            ParallelMergeWhen::AsCreated,
-        );
-
-        state.enqueue_merge(PendingMergeJob {
-            task_id: "RQ-0001".into(),
-            pr_number: 1,
-            workspace_path: None,
-            lifecycle: PendingMergeLifecycle::Queued,
-            attempts: 0,
-            queued_at: "2026-02-17T00:00:00Z".into(),
-            last_error: None,
-        });
-
-        state.enqueue_merge(PendingMergeJob {
-            task_id: "RQ-0001".into(),
-            pr_number: 2, // Updated PR number
-            workspace_path: Some(PathBuf::from("/tmp/ws")),
-            lifecycle: PendingMergeLifecycle::Queued,
-            attempts: 1,
-            queued_at: "2026-02-17T01:00:00Z".into(),
-            last_error: Some("previous error".into()),
-        });
-
-        assert_eq!(state.pending_merges.len(), 1);
-        let job = state.next_queued_merge().unwrap();
-        assert_eq!(job.pr_number, 2);
-        assert_eq!(job.attempts, 1);
     }
 
     #[test]

@@ -23,7 +23,6 @@ use crate::queue;
 use crate::{git, promptflow, runutil, signal, timeutil};
 use anyhow::{Context, Result, bail};
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 use std::thread;
 use std::time::Duration;
@@ -201,26 +200,19 @@ pub(crate) fn run_loop_parallel(
     // This handles resumed runs where PRs were created but not yet merged.
     if settings.auto_merge && settings.merge_when == ParallelMergeWhen::AsCreated {
         // Collect records to reconcile first to avoid borrow issues
-        let records_to_enqueue: Vec<(String, u32, Option<PathBuf>)> = state_file
+        let records_to_enqueue: Vec<(String, u32)> = state_file
             .prs
             .iter()
             .filter(|record| record.is_open_unmerged())
-            .filter(|record| record.merge_blocker.is_none())
             .filter(|record| state_file.get_pending_merge(&record.task_id).is_none())
-            .map(|record| {
-                (
-                    record.task_id.clone(),
-                    record.pr_number,
-                    record.workspace_path.as_ref().map(PathBuf::from),
-                )
-            })
+            .map(|record| (record.task_id.clone(), record.pr_number))
             .collect();
 
-        for (task_id, pr_number, workspace_path) in records_to_enqueue {
+        for (task_id, pr_number) in records_to_enqueue {
             let merge_job = PendingMergeJob {
                 task_id: task_id.clone(),
                 pr_number,
-                workspace_path,
+                workspace_path: None,
                 lifecycle: PendingMergeLifecycle::Queued,
                 attempts: 0,
                 queued_at: timeutil::now_utc_rfc3339_or_fallback(),
@@ -246,9 +238,7 @@ pub(crate) fn run_loop_parallel(
         .iter()
         .filter(|record| record.is_open_unmerged())
     {
-        let path = record
-            .workspace_path()
-            .unwrap_or_else(|| settings.workspace_root.join(&record.task_id));
+        let path = settings.workspace_root.join(&record.task_id);
         if path.exists() {
             completed_workspaces.insert(
                 record.task_id.clone(),
@@ -306,28 +296,13 @@ pub(crate) fn run_loop_parallel(
             }
 
             // Periodically prune stale records to free capacity on resumed work.
-            let now = time::OffsetDateTime::now_utc();
-
             let pruned_in_flight = prune_stale_tasks_in_flight(guard.state_file_mut());
-            let pruned_finished_without_pr = guard.state_file_mut().prune_finished_without_pr(
-                now,
-                settings.auto_pr,
-                settings.draft_on_failure,
-            );
 
-            if !pruned_in_flight.is_empty() || !pruned_finished_without_pr.is_empty() {
-                if !pruned_in_flight.is_empty() {
-                    log::warn!(
-                        "Dropping stale in-flight tasks during loop: {}",
-                        pruned_in_flight.join(", ")
-                    );
-                }
-                if !pruned_finished_without_pr.is_empty() {
-                    log::info!(
-                        "Dropping non-blocking finished-without-PR records during loop: {}",
-                        pruned_finished_without_pr.join(", ")
-                    );
-                }
+            if !pruned_in_flight.is_empty() {
+                log::warn!(
+                    "Dropping stale in-flight tasks during loop: {}",
+                    pruned_in_flight.join(", ")
+                );
                 state::save_state(&state_path, guard.state_file())?;
             }
 
@@ -337,14 +312,7 @@ pub(crate) fn run_loop_parallel(
                 && can_start_more_tasks(tasks_started, opts.max_tasks)
                 && !stop_requested
             {
-                let now = time::OffsetDateTime::now_utc();
-                let excluded = collect_excluded_ids(
-                    guard.state_file(),
-                    guard.in_flight(),
-                    now,
-                    settings.auto_pr,
-                    settings.draft_on_failure,
-                );
+                let excluded = collect_excluded_ids(guard.state_file(), guard.in_flight());
                 let (task_id, task_title) = match select_next_task_locked(
                     resolved,
                     include_draft,
@@ -564,8 +532,6 @@ pub(crate) fn run_loop_parallel(
 
             for (task_id, task_title, workspace, status) in finished {
                 tasks_attempted += 1;
-                let mut no_pr_reason: Option<state::ParallelNoPrReason> = None;
-                let mut no_pr_message: Option<String> = None;
                 if status.success() {
                     tasks_succeeded += 1;
                     // Handle success
@@ -601,36 +567,14 @@ pub(crate) fn run_loop_parallel(
                                 let expected_head =
                                     format!("{}{}", settings.branch_prefix, task_id);
                                 if pr.head.trim() != expected_head {
-                                    let blocker_msg = format!(
-                                        "PR head '{}' does not match expected '{}'. \
-                                         Branch prefix may have changed.",
-                                        pr.head, expected_head
-                                    );
                                     log::warn!(
-                                        "PR {} for task {} has mismatched head: {}. \
-                                         Setting merge blocker and skipping auto-merge.",
+                                        "PR {} for task {} has mismatched head '{}', expected '{}'. \
+                                         Skipping auto-merge; user can merge manually.",
                                         pr.number,
                                         task_id,
-                                        blocker_msg
+                                        pr.head.trim(),
+                                        expected_head
                                     );
-                                    // Update the PR record with the blocker
-                                    if let Some(record) = guard
-                                        .state_file_mut()
-                                        .prs
-                                        .iter_mut()
-                                        .find(|r| r.task_id == task_id)
-                                    {
-                                        record.merge_blocker = Some(blocker_msg);
-                                        if let Err(e) =
-                                            state::save_state(&state_path, guard.state_file())
-                                        {
-                                            log::debug!(
-                                                "Failed to save state after setting merge blocker for {}: {}",
-                                                task_id,
-                                                e
-                                            );
-                                        }
-                                    }
                                 } else {
                                     // Track for AfterAll mode
                                     let work_item = MergeWorkItem {
@@ -664,13 +608,9 @@ pub(crate) fn run_loop_parallel(
                                 }
                             }
                             Err(e) => {
-                                no_pr_reason = Some(state::ParallelNoPrReason::PrCreateFailed);
-                                no_pr_message = Some(e.to_string());
                                 log::warn!("Failed to create PR for {}: {}", task_id, e);
                             }
                         }
-                    } else {
-                        no_pr_reason = Some(state::ParallelNoPrReason::AutoPrDisabled);
                     }
                 } else {
                     tasks_failed += 1;
@@ -710,40 +650,16 @@ pub(crate) fn run_loop_parallel(
                                 );
                             }
                             Ok(None) => {
-                                no_pr_reason =
-                                    Some(state::ParallelNoPrReason::DraftPrSkippedNoChanges);
-                                no_pr_message = Some(
-                                    "worker failed with no changes; skipping draft PR".to_string(),
+                                log::info!(
+                                    "Worker for {} failed with no changes; skipping draft PR",
+                                    task_id
                                 );
                             }
                             Err(e) => {
-                                no_pr_reason = Some(state::ParallelNoPrReason::PrCreateFailed);
-                                no_pr_message = Some(e.to_string());
                                 log::warn!("Failed to create draft PR for {}: {}", task_id, e);
                             }
                         }
-                    } else if !settings.auto_pr {
-                        no_pr_reason = Some(state::ParallelNoPrReason::AutoPrDisabled);
-                    } else {
-                        no_pr_reason = Some(state::ParallelNoPrReason::DraftPrDisabled);
                     }
-                }
-
-                if guard.state_file().has_pr_record(&task_id) {
-                    if guard.state_file_mut().remove_finished_without_pr(&task_id) {
-                        state::save_state(&state_path, guard.state_file())?;
-                    }
-                } else {
-                    let reason = no_pr_reason.unwrap_or(state::ParallelNoPrReason::Unknown);
-                    super::record_finished_without_pr(
-                        &state_path,
-                        guard.state_file_mut(),
-                        &task_id,
-                        &workspace,
-                        status.success(),
-                        reason,
-                        no_pr_message,
-                    )?;
                 }
 
                 // Move workspace to completed_workspaces for potential merge cleanup
@@ -755,14 +671,7 @@ pub(crate) fn run_loop_parallel(
 
             if guard.in_flight().is_empty() {
                 let no_more_tasks = opts.max_tasks != 0 && tasks_started >= opts.max_tasks;
-                let now = time::OffsetDateTime::now_utc();
-                let excluded = collect_excluded_ids(
-                    guard.state_file(),
-                    guard.in_flight(),
-                    now,
-                    settings.auto_pr,
-                    settings.draft_on_failure,
-                );
+                let excluded = collect_excluded_ids(guard.state_file(), guard.in_flight());
                 let next_available =
                     select_next_task_locked(resolved, include_draft, &excluded, &_queue_lock)?
                         .is_some();
