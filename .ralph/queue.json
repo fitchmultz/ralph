@@ -2,61 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0953",
-      "status": "todo",
-      "title": "Improve CI gate logging with full command output",
-      "description": "The CI gate logs show 'CI gate (make ci): start' and 'error: CI failed' but don't include the actual command output. The full output appears elsewhere in the agent's log but not in the CI gate's own logging. This makes it harder to debug CI gate failures. Include the truncated command output in the CI gate log entry.",
-      "priority": "medium",
-      "tags": [
-        "scan",
-        "ci",
-        "logging",
-        "debugging",
-        "ralph"
-      ],
-      "scope": [
-        "crates/ralph/src/commands/run/logging.rs",
-        "crates/ralph/src/commands/run/supervision/ci.rs"
-      ],
-      "evidence": [
-        "log: [2026-02-18T22:11:01Z INFO] CI gate (make ci): start",
-        "log: [2026-02-18T22:11:01Z ERROR] CI gate (make ci): error: CI failed",
-        "analysis: No command output in CI gate log entries",
-        "code: run_ci_gate() returns Ok(CiGateResult) even on CI failure - doesn't trigger with_scope error path",
-        "code: log::error! calls at lines 453-461 log output but separate from scope logging"
-      ],
-      "plan": [
-        "Create new with_scope_output helper in logging.rs for scopes that capture output",
-        "Modify run_ci_gate to return Result<CiGateResult, CiGateError> where error includes truncated output",
-        "Include detected error pattern type in log message",
-        "Add unit tests for the new logging behavior",
-        "Run cargo test -p ralph --lib -- supervision::ci to verify"
-      ],
-      "notes": [
-        "Root cause: run_ci_gate returns Ok(CiGateResult{success: false}) instead of Err, so with_scope logs 'end' not 'error'",
-        "Current output logging at lines 453-461 is good but disconnected from scope boundary",
-        "Solution: Make CI failure return Err with rich output context so with_scope can log it properly",
-        "Added CiFailure error type with Display impl including exit code, error pattern, truncated stdout/stderr",
-        "run_ci_gate now returns Err(CiFailure) on CI failure for proper with_scope logging",
-        "Updated call sites in mod.rs and parallel_worker.rs to use if let Err pattern",
-        "Added 5 new tests for CiFailure display behavior",
-        "All 1963 tests pass, CI gate passes"
-      ],
-      "request": "scan finding",
-      "created_at": "2026-02-18T22:30:00Z",
-      "updated_at": "2026-02-19T02:01:19.324609000Z",
-      "completed_at": "2026-02-19T02:01:19.324609000Z",
-      "started_at": "2026-02-19T01:37:29.154837000Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "runner_used": "claude",
-        "model_used": "sonnet",
-        "scan_agent": "scan-general"
-      }
-    },
-    {
       "id": "RQ-0955",
       "status": "todo",
       "title": "Add webhook queue overflow handling to parallel workers",
@@ -115,8 +60,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-general",
         "model_used": "sonnet",
+        "scan_agent": "scan-general",
         "runner_used": "claude"
       }
     },
