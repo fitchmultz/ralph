@@ -77,6 +77,8 @@ Every source file MUST start with `//!` docs covering:
 - After merge-agent success, update state (`prs`, `pending_merges`) before local branch refresh attempts.
 - Local base-branch refresh is best-effort and must not abort the run when `.ralph` bookkeeping files are dirty.
 - Startup should prune pending merge jobs whose PR lifecycle is no longer open.
+- Retry limits (`merge_retries`) must be enforced for every retryable merge outcome (conflict, runtime failure, and merge-agent spawn failure) in both `as_created` and `after_all` flows.
+- `gh pr merge` must run with explicit `--repo` from an isolated cwd to avoid mutating the coordinator working tree.
 
 ### File Size Limits
 - Target: <500 LOC

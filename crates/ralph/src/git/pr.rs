@@ -60,6 +60,12 @@ struct PrViewJson {
     merged_at: Option<String>,
 }
 
+#[derive(Deserialize)]
+struct RepoViewNameWithOwnerJson {
+    #[serde(rename = "nameWithOwner")]
+    name_with_owner: String,
+}
+
 /// PR lifecycle states as returned by GitHub.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum PrLifecycle {
@@ -137,29 +143,29 @@ pub(crate) fn merge_pr(
     method: ParallelMergeMethod,
     delete_branch: bool,
 ) -> Result<()> {
-    let mut cmd = Command::new("gh");
-    cmd.current_dir(repo_root);
-    cmd.arg("pr").arg("merge").arg(pr_number.to_string());
+    let repo_name_with_owner = gh_repo_name_with_owner(repo_root)?;
 
-    match method {
-        ParallelMergeMethod::Squash => {
-            cmd.arg("--squash");
-        }
-        ParallelMergeMethod::Merge => {
-            cmd.arg("--merge");
-        }
-        ParallelMergeMethod::Rebase => {
-            cmd.arg("--rebase");
-        }
-    }
+    let mut cmd = Command::new("gh");
+    // Use an isolated cwd plus explicit --repo to prevent gh from mutating the
+    // coordinator working tree during merge operations.
+    cmd.current_dir(std::env::temp_dir());
+    cmd.arg("pr")
+        .arg("merge")
+        .arg(pr_number.to_string())
+        .arg("--repo")
+        .arg(&repo_name_with_owner)
+        .arg(merge_method_flag(method));
 
     if delete_branch {
         cmd.arg("--delete-branch");
     }
 
-    let output = cmd
-        .output()
-        .with_context(|| format!("run gh pr merge in {}", repo_root.display()))?;
+    let output = cmd.output().with_context(|| {
+        format!(
+            "run gh pr merge --repo {} in isolated cwd",
+            repo_name_with_owner
+        )
+    })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -167,6 +173,42 @@ pub(crate) fn merge_pr(
     }
 
     Ok(())
+}
+
+fn merge_method_flag(method: ParallelMergeMethod) -> &'static str {
+    match method {
+        ParallelMergeMethod::Squash => "--squash",
+        ParallelMergeMethod::Merge => "--merge",
+        ParallelMergeMethod::Rebase => "--rebase",
+    }
+}
+
+fn gh_repo_name_with_owner(repo_root: &Path) -> Result<String> {
+    let output = Command::new("gh")
+        .current_dir(repo_root)
+        .arg("repo")
+        .arg("view")
+        .arg("--json")
+        .arg("nameWithOwner")
+        .output()
+        .with_context(|| format!("run gh repo view in {}", repo_root.display()))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        bail!("gh repo view failed: {}", stderr.trim());
+    }
+
+    parse_name_with_owner_from_repo_view_json(&output.stdout)
+}
+
+fn parse_name_with_owner_from_repo_view_json(payload: &[u8]) -> Result<String> {
+    let repo: RepoViewNameWithOwnerJson =
+        serde_json::from_slice(payload).context("parse gh repo view json")?;
+    let trimmed = repo.name_with_owner.trim();
+    if trimmed.is_empty() {
+        bail!("gh repo view returned empty nameWithOwner");
+    }
+    Ok(trimmed.to_string())
 }
 
 pub(crate) fn pr_merge_status(repo_root: &Path, pr_number: u32) -> Result<PrMergeStatus> {
@@ -350,8 +392,13 @@ where
 
 #[cfg(test)]
 mod tests {
+    use crate::contracts::ParallelMergeMethod;
+
     use super::{MergeState, PrLifecycle, check_gh_available_with, extract_pr_url};
-    use super::{PrViewJson, pr_lifecycle_status_from_view, pr_merge_status_from_view};
+    use super::{
+        PrViewJson, merge_method_flag, parse_name_with_owner_from_repo_view_json,
+        pr_lifecycle_status_from_view, pr_merge_status_from_view,
+    };
 
     #[test]
     fn extract_pr_url_picks_first_url_line() {
@@ -643,5 +690,30 @@ mod tests {
 
         let result = check_gh_available_with(run_gh);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn parse_name_with_owner_from_repo_view_json_accepts_valid_payload() {
+        let payload = br#"{ "nameWithOwner": "org/repo" }"#;
+        let result = parse_name_with_owner_from_repo_view_json(payload).expect("repo");
+        assert_eq!(result, "org/repo");
+    }
+
+    #[test]
+    fn parse_name_with_owner_from_repo_view_json_rejects_empty_value() {
+        let payload = br#"{ "nameWithOwner": "   " }"#;
+        let err = parse_name_with_owner_from_repo_view_json(payload).unwrap_err();
+        assert!(
+            err.to_string().contains("empty nameWithOwner"),
+            "unexpected error: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn merge_method_flag_maps_all_variants() {
+        assert_eq!(merge_method_flag(ParallelMergeMethod::Squash), "--squash");
+        assert_eq!(merge_method_flag(ParallelMergeMethod::Merge), "--merge");
+        assert_eq!(merge_method_flag(ParallelMergeMethod::Rebase), "--rebase");
     }
 }

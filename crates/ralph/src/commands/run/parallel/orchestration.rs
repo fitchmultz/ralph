@@ -123,6 +123,27 @@ fn should_break_parallel_loop(
     (no_more_tasks || !next_available || stop_requested) && !has_pending_merges
 }
 
+fn apply_pending_merge_retry_policy(
+    state_file: &mut state::ParallelStateFile,
+    task_id: &str,
+    max_retries: u8,
+    exhausted_log_prefix: &str,
+) {
+    if let Some(job) = state_file.get_pending_merge_mut(task_id) {
+        if job.attempts >= max_retries {
+            log::error!(
+                "{}Merge-agent exhausted retries for task {} after {} attempts",
+                exhausted_log_prefix,
+                task_id,
+                job.attempts
+            );
+            job.lifecycle = PendingMergeLifecycle::TerminalFailed;
+        } else {
+            job.lifecycle = PendingMergeLifecycle::Queued;
+        }
+    }
+}
+
 /// Check if CI failure marker exists in workspace.
 /// Returns true if the worker failed due to CI gate, false otherwise.
 fn has_ci_failure_marker(workspace_path: &Path) -> bool {
@@ -584,8 +605,12 @@ pub(crate) fn run_loop_parallel(
                                     true, // retryable
                                 );
 
-                                // Reset to Queued so it can be retried later
-                                guard.state_file_mut().requeue_merge(&task_id);
+                                apply_pending_merge_retry_policy(
+                                    guard.state_file_mut(),
+                                    &task_id,
+                                    settings.merge_retries,
+                                    "",
+                                );
 
                                 state::save_state(&state_path, guard.state_file())?;
                             }
@@ -605,23 +630,12 @@ pub(crate) fn run_loop_parallel(
                                     true, // retryable
                                 );
 
-                                // Check retry limit
-                                let max_retries = settings.merge_retries;
-                                if let Some(job) =
-                                    guard.state_file_mut().get_pending_merge_mut(&task_id)
-                                {
-                                    if job.attempts >= max_retries {
-                                        log::error!(
-                                            "Merge-agent exhausted retries for task {} after {} attempts",
-                                            task_id,
-                                            job.attempts
-                                        );
-                                        job.lifecycle = PendingMergeLifecycle::TerminalFailed;
-                                    } else {
-                                        // Reset to Queued so it can be retried
-                                        job.lifecycle = PendingMergeLifecycle::Queued;
-                                    }
-                                }
+                                apply_pending_merge_retry_policy(
+                                    guard.state_file_mut(),
+                                    &task_id,
+                                    settings.merge_retries,
+                                    "",
+                                );
 
                                 state::save_state(&state_path, guard.state_file())?;
                             }
@@ -658,7 +672,12 @@ pub(crate) fn run_loop_parallel(
                             Some(e.to_string()),
                             true, // retryable - subprocess spawn failure
                         );
-                        guard.state_file_mut().requeue_merge(&task_id);
+                        apply_pending_merge_retry_policy(
+                            guard.state_file_mut(),
+                            &task_id,
+                            settings.merge_retries,
+                            "",
+                        );
                         state::save_state(&state_path, guard.state_file())?;
                     }
                 }
@@ -991,7 +1010,12 @@ pub(crate) fn run_loop_parallel(
                                     Some(format!("Merge conflict: {}", outcome.stderr_output)),
                                     true,
                                 );
-                                guard.state_file_mut().requeue_merge(&task_id);
+                                apply_pending_merge_retry_policy(
+                                    guard.state_file_mut(),
+                                    &task_id,
+                                    settings.merge_retries,
+                                    "AfterAll: ",
+                                );
                                 state::save_state(&state_path, guard.state_file())?;
                                 // Continue to next merge job
                             }
@@ -1009,21 +1033,12 @@ pub(crate) fn run_loop_parallel(
                                     true,
                                 );
 
-                                let max_retries = settings.merge_retries;
-                                if let Some(job) =
-                                    guard.state_file_mut().get_pending_merge_mut(&task_id)
-                                {
-                                    if job.attempts >= max_retries {
-                                        log::error!(
-                                            "AfterAll: Merge-agent exhausted retries for task {} after {} attempts",
-                                            task_id,
-                                            job.attempts
-                                        );
-                                        job.lifecycle = PendingMergeLifecycle::TerminalFailed;
-                                    } else {
-                                        job.lifecycle = PendingMergeLifecycle::Queued;
-                                    }
-                                }
+                                apply_pending_merge_retry_policy(
+                                    guard.state_file_mut(),
+                                    &task_id,
+                                    settings.merge_retries,
+                                    "AfterAll: ",
+                                );
                                 state::save_state(&state_path, guard.state_file())?;
                             }
                             MergeExitClassification::TerminalFailure => {
@@ -1055,7 +1070,12 @@ pub(crate) fn run_loop_parallel(
                             Some(e.to_string()),
                             true,
                         );
-                        guard.state_file_mut().requeue_merge(&task_id);
+                        apply_pending_merge_retry_policy(
+                            guard.state_file_mut(),
+                            &task_id,
+                            settings.merge_retries,
+                            "AfterAll: ",
+                        );
                         state::save_state(&state_path, guard.state_file())?;
                     }
                 }
@@ -1363,6 +1383,70 @@ mod tests {
     #[test]
     fn loop_breaks_without_pending_merges_when_no_tasks_available() {
         assert!(should_break_parallel_loop(false, false, false, false));
+    }
+
+    #[test]
+    fn retry_policy_requeues_when_attempts_below_limit() {
+        use super::state::{ParallelStateFile, PendingMergeJob, PendingMergeLifecycle};
+        use crate::contracts::{ParallelMergeMethod, ParallelMergeWhen};
+
+        let mut state_file = ParallelStateFile::new(
+            "2026-02-01T00:00:00Z".to_string(),
+            "main".to_string(),
+            ParallelMergeMethod::Squash,
+            ParallelMergeWhen::AsCreated,
+        );
+
+        state_file.enqueue_merge(PendingMergeJob {
+            task_id: "RQ-0001".to_string(),
+            pr_number: 1,
+            workspace_path: None,
+            lifecycle: PendingMergeLifecycle::InProgress,
+            attempts: 0,
+            queued_at: "2026-02-01T00:00:00Z".to_string(),
+            last_error: None,
+        });
+
+        state_file.update_merge_result("RQ-0001", false, Some("conflict".to_string()), true);
+        apply_pending_merge_retry_policy(&mut state_file, "RQ-0001", 5, "");
+
+        let job = state_file
+            .get_pending_merge("RQ-0001")
+            .expect("pending merge should exist");
+        assert_eq!(job.attempts, 1);
+        assert_eq!(job.lifecycle, PendingMergeLifecycle::Queued);
+    }
+
+    #[test]
+    fn retry_policy_marks_terminal_failed_at_limit() {
+        use super::state::{ParallelStateFile, PendingMergeJob, PendingMergeLifecycle};
+        use crate::contracts::{ParallelMergeMethod, ParallelMergeWhen};
+
+        let mut state_file = ParallelStateFile::new(
+            "2026-02-01T00:00:00Z".to_string(),
+            "main".to_string(),
+            ParallelMergeMethod::Squash,
+            ParallelMergeWhen::AsCreated,
+        );
+
+        state_file.enqueue_merge(PendingMergeJob {
+            task_id: "RQ-0002".to_string(),
+            pr_number: 2,
+            workspace_path: None,
+            lifecycle: PendingMergeLifecycle::InProgress,
+            attempts: 4,
+            queued_at: "2026-02-01T00:00:00Z".to_string(),
+            last_error: None,
+        });
+
+        state_file.update_merge_result("RQ-0002", false, Some("conflict".to_string()), true);
+        apply_pending_merge_retry_policy(&mut state_file, "RQ-0002", 5, "");
+
+        let job = state_file
+            .get_pending_merge("RQ-0002")
+            .expect("pending merge should exist");
+        assert_eq!(job.attempts, 5);
+        assert_eq!(job.lifecycle, PendingMergeLifecycle::TerminalFailed);
     }
 
     #[test]
