@@ -51,6 +51,29 @@ const RUFF_PYPROJECT_GUIDANCE: &str = "Check pyproject.toml for invalid ruff con
 const FORMAT_CHECK_GUIDANCE: &str = "Run the formatter directly to see what needs changing.";
 const LINT_CHECK_GUIDANCE: &str = "Run the linter directly to see the specific errors.";
 
+/// Find the first byte index of `needle` in `haystack` using ASCII case-insensitive matching.
+///
+/// Returns an index into the original `haystack` so callers can safely slice without
+/// mixing indices from transformed strings (e.g., from `to_lowercase()`).
+fn find_ascii_case_insensitive(haystack: &str, needle: &str) -> Option<usize> {
+    if needle.is_empty() {
+        return Some(0);
+    }
+    if haystack.len() < needle.len() {
+        return None;
+    }
+
+    for (idx, _) in haystack.char_indices() {
+        if let Some(candidate) = haystack.get(idx..idx + needle.len())
+            && candidate.eq_ignore_ascii_case(needle)
+        {
+            return Some(idx);
+        }
+    }
+
+    None
+}
+
 /// Extract line number from error output.
 ///
 /// Looks for patterns like:
@@ -99,9 +122,7 @@ fn extract_line_number(output: &str) -> Option<u32> {
 ///
 /// Pattern: "unknown variant `VALUE`"
 fn extract_invalid_value(output: &str) -> Option<String> {
-    let lower = output.to_lowercase();
-
-    if let Some(pos) = lower.find("unknown variant") {
+    if let Some(pos) = find_ascii_case_insensitive(output, "unknown variant") {
         let after = &output[pos..];
         // Look for backtick-delimited value
         if let Some(start) = after.find('`') {
@@ -119,10 +140,9 @@ fn extract_invalid_value(output: &str) -> Option<String> {
 ///
 /// Pattern: "expected one of A, B, C"
 fn extract_valid_values(output: &str) -> Option<String> {
-    let lower = output.to_lowercase();
-
-    if let Some(pos) = lower.find("expected one of") {
-        let after = &output[pos + 15..]; // "expected one of" length
+    const PREFIX: &str = "expected one of";
+    if let Some(pos) = find_ascii_case_insensitive(output, PREFIX) {
+        let after = &output[pos + PREFIX.len()..];
         // Take everything up to common terminators (but NOT comma, since values are comma-separated)
         let end_pos = after
             .find('\n')
@@ -1240,12 +1260,39 @@ mod tests {
     }
 
     #[test]
+    fn extract_invalid_value_handles_unicode_prefix() {
+        let output = "İstanbul: unknown variant `py314`, expected one of py37, py313";
+        assert_eq!(extract_invalid_value(output), Some("py314".to_string()));
+    }
+
+    #[test]
     fn extract_valid_values_finds_expected_list() {
         let output = "expected one of py37, py38, py313";
         assert_eq!(
             extract_valid_values(output),
             Some("py37, py38, py313".to_string())
         );
+    }
+
+    #[test]
+    fn extract_valid_values_handles_unicode_prefix() {
+        let output = "İstanbul: expected one of py37, py313.";
+        assert_eq!(
+            extract_valid_values(output),
+            Some("py37, py313".to_string())
+        );
+    }
+
+    #[test]
+    fn infer_file_path_extracts_explicit_toml_file() {
+        let output = "ruff failed parsing pyproject.toml, unknown variant `py314`";
+        assert_eq!(infer_file_path(output), Some("pyproject.toml".to_string()));
+    }
+
+    #[test]
+    fn infer_file_path_infers_pyproject_from_ruff_parse_context() {
+        let output = "ruff failed: parse error at line 5";
+        assert_eq!(infer_file_path(output), Some("pyproject.toml".to_string()));
     }
 
     #[test]
@@ -1421,6 +1468,204 @@ mod tests {
         assert_eq!(
             get_error_pattern_key(&result),
             Some("TOML parse error".to_string())
+        );
+    }
+
+    // ========================================================================
+    // Table-Driven Pattern Detection Tests
+    // ========================================================================
+
+    #[test]
+    fn detect_ci_error_pattern_cases() {
+        struct Case {
+            stdout: &'static str,
+            stderr: &'static str,
+            want: Option<&'static str>,
+            want_line: Option<u32>,
+            want_invalid: Option<&'static str>,
+        }
+
+        let cases = [
+            Case {
+                stdout: "",
+                stderr: "ruff failed: TOML parse error at line 44, column 18",
+                want: Some("TOML parse error"),
+                want_line: Some(44),
+                want_invalid: None,
+            },
+            Case {
+                stdout: "",
+                stderr: "unknown variant `py314`, expected one of py37, py313",
+                want: Some("Unknown variant error"),
+                want_line: None,
+                want_invalid: Some("py314"),
+            },
+            Case {
+                stdout: "",
+                stderr: "TOML parse error at line 10: unknown variant `foo`",
+                want: Some("TOML parse error"),
+                want_line: Some(10),
+                want_invalid: Some("foo"),
+            },
+            Case {
+                stdout: "TOML parse error",
+                stderr: "",
+                want: Some("TOML parse error"),
+                want_line: None,
+                want_invalid: None,
+            },
+            Case {
+                stdout: "",
+                stderr: "ruff: error checking configuration",
+                want: Some("Ruff error"),
+                want_line: None,
+                want_invalid: None,
+            },
+            Case {
+                stdout: "",
+                stderr: "format-check failed: 3 files need formatting",
+                want: Some("Format check failure"),
+                want_line: None,
+                want_invalid: None,
+            },
+            Case {
+                stdout: "",
+                stderr: "lint check failed with 5 errors",
+                want: Some("Lint check failure"),
+                want_line: None,
+                want_invalid: None,
+            },
+            Case {
+                stdout: "all good",
+                stderr: "",
+                want: None,
+                want_line: None,
+                want_invalid: None,
+            },
+            Case {
+                stdout: "build succeeded",
+                stderr: "test passed",
+                want: None,
+                want_line: None,
+                want_invalid: None,
+            },
+            Case {
+                stdout: "",
+                stderr: "error: something went wrong",
+                want: None,
+                want_line: None,
+                want_invalid: None,
+            },
+            Case {
+                stdout: "",
+                stderr: "pyproject.toml:100:5: error",
+                want: None,
+                want_line: None,
+                want_invalid: None,
+            },
+        ];
+
+        for case in cases {
+            let got = detect_ci_error_pattern(case.stdout, case.stderr);
+            assert_eq!(
+                got.as_ref().map(|p| p.pattern_type),
+                case.want,
+                "stderr={} stdout={}",
+                case.stderr,
+                case.stdout
+            );
+            if let Some(pattern) = got {
+                assert_eq!(
+                    pattern.line_number, case.want_line,
+                    "line_number mismatch for stderr={} stdout={}",
+                    case.stderr, case.stdout
+                );
+                assert_eq!(
+                    pattern.invalid_value.as_deref(),
+                    case.want_invalid,
+                    "invalid_value mismatch for stderr={} stdout={}",
+                    case.stderr,
+                    case.stdout
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn detect_toml_takes_precedence_over_unknown_variant() {
+        let output = "TOML parse error at line 44: unknown variant `py314`";
+        let pattern = detect_ci_error_pattern("", output).unwrap();
+        assert_eq!(pattern.pattern_type, "TOML parse error");
+        assert_eq!(pattern.line_number, Some(44));
+    }
+
+    #[test]
+    fn detect_toml_takes_precedence_over_ruff() {
+        let output = "ruff failed: TOML parse error at line 50";
+        let pattern = detect_ci_error_pattern("", output).unwrap();
+        assert_eq!(pattern.pattern_type, "TOML parse error");
+        assert_eq!(pattern.line_number, Some(50));
+    }
+
+    #[test]
+    fn detect_unknown_variant_takes_precedence_over_ruff() {
+        let output = "ruff: unknown variant `bad`";
+        let pattern = detect_ci_error_pattern("", output).unwrap();
+        assert_eq!(pattern.pattern_type, "Unknown variant error");
+    }
+
+    #[test]
+    fn detect_format_takes_precedence_over_lint_when_both_present() {
+        let pattern = detect_ci_error_pattern(
+            "format-check failed: 1 file needs formatting",
+            "lint check failed with 2 errors",
+        )
+        .unwrap();
+        assert_eq!(pattern.pattern_type, "Format check failure");
+    }
+
+    #[test]
+    fn extract_valid_values_handles_period_terminator() {
+        let output = "expected one of foo, bar, baz.";
+        assert_eq!(
+            extract_valid_values(output),
+            Some("foo, bar, baz".to_string())
+        );
+    }
+
+    #[test]
+    fn extract_valid_values_handles_newline_terminator() {
+        let output = "expected one of a, b\nc";
+        assert_eq!(extract_valid_values(output), Some("a, b".to_string()));
+    }
+
+    #[test]
+    fn extract_line_number_handles_comma_suffix() {
+        let output = "at line 42, column 10";
+        assert_eq!(extract_line_number(output), Some(42));
+    }
+
+    #[test]
+    fn detect_format_case_insensitive() {
+        let output = "FORMAT-CHECK FAILED";
+        let pattern = detect_format_check_error(output).unwrap();
+        assert_eq!(pattern.pattern_type, "Format check failure");
+    }
+
+    #[test]
+    fn detect_lint_case_insensitive() {
+        let output = "LINT CHECK FAILED";
+        let pattern = detect_lint_check_error(output).unwrap();
+        assert_eq!(pattern.pattern_type, "Lint check failure");
+    }
+
+    #[test]
+    fn detect_ruff_yields_to_toml_parse() {
+        let output = "ruff failed: TOML parse error";
+        let pattern = detect_ruff_error(output);
+        assert!(
+            pattern.is_none(),
+            "ruff detector should yield to TOML parse"
         );
     }
 }
