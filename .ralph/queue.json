@@ -41,43 +41,6 @@
       }
     },
     {
-      "id": "RQ-0939",
-      "status": "todo",
-      "title": "Add tests for context command",
-      "description": "The ralph context command (init, update, validate subcommands) has NO tests. This command manages RepoPrompt context files for the agent. Files: crates/ralph/src/cli/context.rs, crates/ralph/src/commands/context/. Without tests, context management bugs could break RepoPrompt integration.",
-      "priority": "medium",
-      "tags": [
-        "scan",
-        "testing",
-        "cli",
-        "context",
-        "repoprompt"
-      ],
-      "scope": [
-        "crates/ralph/src/cli/context.rs",
-        "crates/ralph/src/commands/context/"
-      ],
-      "evidence": [
-        "path: crates/ralph/src/cli/context.rs :: context CLI commands",
-        "analysis: No tests for context commands found"
-      ],
-      "plan": [
-        "Add test: context_init_creates_context_files",
-        "Add test: context_validate_checks_context",
-        "Run `cargo test -p ralph` to verify"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-02-17T19:51:00Z",
-      "updated_at": "2026-02-17T19:51:00Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-general"
-      }
-    },
-    {
       "id": "RQ-0940",
       "status": "todo",
       "title": "Add tests for watch command submodules",
@@ -507,8 +470,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-general",
-        "stale_makefile_context": "RQ-0942 centralized env reset in Makefile; test target now uses $(RALPH_ENV_RESET) and evidence line ranges should be refreshed before implementing this task."
+        "stale_makefile_context": "RQ-0942 centralized env reset in Makefile; test target now uses $(RALPH_ENV_RESET) and evidence line ranges should be refreshed before implementing this task.",
+        "scan_agent": "scan-general"
       }
     },
     {

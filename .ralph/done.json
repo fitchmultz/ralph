@@ -188,8 +188,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.3-codex",
-        "runner_used": "codex"
+        "runner_used": "codex",
+        "model_used": "gpt-5.3-codex"
       }
     },
     {
@@ -255,8 +255,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.3-codex",
-        "runner_used": "codex"
+        "runner_used": "codex",
+        "model_used": "gpt-5.3-codex"
       }
     },
     {
@@ -321,9 +321,9 @@
         "RQ-0953"
       ],
       "custom_fields": {
-        "scan_agent": "scan-general",
         "runner_used": "codex",
-        "model_used": "gpt-5.3-codex"
+        "model_used": "gpt-5.3-codex",
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -378,8 +378,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.3-codex",
         "runner_used": "codex",
+        "model_used": "gpt-5.3-codex",
         "scan_agent": "scan-general"
       }
     },
@@ -438,9 +438,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
+        "model_used": "gpt-5.3-codex",
         "scan_agent": "scan-general",
-        "model_used": "gpt-5.3-codex"
+        "runner_used": "codex"
       }
     },
     {
@@ -500,9 +500,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "scan_agent": "scan-general",
         "runner_used": "codex",
-        "model_used": "gpt-5.3-codex",
-        "scan_agent": "scan-general"
+        "model_used": "gpt-5.3-codex"
       }
     },
     {
@@ -615,9 +615,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.3-codex",
+        "scan_agent": "scan-general",
         "runner_used": "codex",
-        "scan_agent": "scan-general"
+        "model_used": "gpt-5.3-codex"
       }
     },
     {
@@ -676,8 +676,8 @@
       "relates_to": [],
       "custom_fields": {
         "scan_agent": "scan-general",
-        "model_used": "gpt-5.3-codex",
-        "runner_used": "codex"
+        "runner_used": "codex",
+        "model_used": "gpt-5.3-codex"
       }
     },
     {
@@ -735,9 +735,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "model_used": "kimi-for-coding/k2p5",
         "runner_used": "opencode",
-        "scan_agent": "scan-general",
-        "model_used": "kimi-for-coding/k2p5"
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -804,9 +804,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "model_used": "kimi-for-coding/k2p5",
         "scan_agent": "scan-general",
-        "runner_used": "opencode",
-        "model_used": "kimi-for-coding/k2p5"
+        "runner_used": "opencode"
       }
     },
     {
@@ -919,8 +919,8 @@
       "relates_to": [],
       "custom_fields": {
         "runner_used": "opencode",
-        "model_used": "kimi-for-coding/k2p5",
-        "scan_agent": "scan-general"
+        "scan_agent": "scan-general",
+        "model_used": "kimi-for-coding/k2p5"
       }
     },
     {
@@ -990,9 +990,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "runner_used": "opencode",
         "model_used": "kimi-for-coding/k2p5",
-        "scan_agent": "scan-general",
-        "runner_used": "opencode"
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -1039,9 +1039,53 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "model_used": "kimi-for-coding/k2p5",
         "scan_agent": "scan-general",
-        "runner_used": "opencode",
-        "model_used": "kimi-for-coding/k2p5"
+        "runner_used": "opencode"
+      }
+    },
+    {
+      "id": "RQ-0939",
+      "status": "done",
+      "title": "Add tests for context command",
+      "description": "The ralph context command (init, update, validate subcommands) has NO tests. This command manages RepoPrompt context files for the agent. Files: crates/ralph/src/cli/context.rs, crates/ralph/src/commands/context/. Without tests, context management bugs could break RepoPrompt integration.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "testing",
+        "cli",
+        "context",
+        "repoprompt"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/context.rs",
+        "crates/ralph/src/commands/context/"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/cli/context.rs :: context CLI commands",
+        "analysis: No tests for context commands found"
+      ],
+      "plan": [
+        "Add test: context_init_creates_context_files",
+        "Add test: context_validate_checks_context",
+        "Run `cargo test -p ralph` to verify"
+      ],
+      "notes": [
+        "Added context_init_creates_context_files test (verifies AGENTS.md creation with required sections)",
+        "Added context_validate_checks_context test (verifies validation passes for valid context file)",
+        "All 22 tests pass, make agent-ci passes"
+      ],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:51:00Z",
+      "updated_at": "2026-02-19T21:03:57.678405000Z",
+      "completed_at": "2026-02-19T21:03:57.678405000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "runner_used": "kimi",
+        "scan_agent": "scan-general",
+        "model_used": "kimi-code/kimi-for-coding"
       }
     }
   ]
