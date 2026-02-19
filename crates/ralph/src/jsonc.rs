@@ -118,4 +118,42 @@ mod tests {
         assert!(json.contains("\"version\": 1"));
         assert!(json.contains("\"name\": \"test\""));
     }
+
+    #[test]
+    fn parse_jsonc_handles_mixed_comments_and_trailing_commas() {
+        use serde::Deserialize;
+
+        #[derive(Debug, Deserialize, PartialEq)]
+        struct Task {
+            id: String,
+            title: String,
+        }
+
+        #[derive(Debug, Deserialize, PartialEq)]
+        struct QueueFile {
+            version: u32,
+            tasks: Vec<Task>,
+        }
+
+        let jsonc = r#"{
+            // Single line comment
+            "version": 1,
+            /* Multi-line
+               comment */
+            "tasks": [{
+                "id": "RQ-0001",
+                "title": "Test", // inline comment
+            },]
+        }"#;
+
+        let result: Result<QueueFile> = parse_jsonc(jsonc, "test queue");
+        assert!(
+            result.is_ok(),
+            "Should parse JSONC with mixed comments and trailing commas: {:?}",
+            result.err()
+        );
+        let queue = result.unwrap();
+        assert_eq!(queue.tasks.len(), 1);
+        assert_eq!(queue.tasks[0].id, "RQ-0001");
+    }
 }

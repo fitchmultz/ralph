@@ -2,32 +2,28 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0938",
+      "id": "RQ-0940",
       "status": "todo",
-      "title": "Add edge case tests for invalid/corrupted queue files",
-      "description": "Queue file error handling has NO tests for corruption scenarios. Untested scenarios: Malformed JSON in queue.json, Partial write recovery, Invalid task field types, Missing required fields, Duplicate task IDs. These edge cases could cause data loss.",
-      "priority": "high",
+      "title": "Add tests for watch command submodules",
+      "description": "The watch command has 8 submodules (comments, debounce, event_loop, paths, processor, state, tasks, types) but test coverage is sparse. The command monitors files for TODO/FIXME comments and auto-creates tasks. Without tests, file watching bugs could miss important comments.",
+      "priority": "medium",
       "tags": [
         "scan",
         "testing",
-        "error-handling",
-        "queue",
-        "edge-cases"
+        "cli",
+        "watch"
       ],
       "scope": [
-        "crates/ralph/src/queue/",
-        "crates/ralph/src/jsonc.rs"
+        "crates/ralph/src/commands/watch/"
       ],
       "evidence": [
-        "path: crates/ralph/src/queue/file.rs :: queue file operations",
-        "path: crates/ralph/src/jsonc.rs :: JSONC parsing",
-        "analysis: No tests for corrupted/malformed queue file recovery"
+        "path: crates/ralph/src/commands/watch/mod.rs :: 100+ lines",
+        "analysis: 8 submodules, sparse test coverage"
       ],
       "plan": [
-        "Add test: queue_load_malformed_json_errors",
-        "Add test: queue_detects_duplicate_task_ids",
-        "Add test: jsonc_parse_with_comments",
-        "Run `cargo test -p ralph` to verify"
+        "Add tests for comments.rs: build_comment_regex",
+        "Add tests for debounce.rs: debounce timing logic",
+        "Run `cargo test -p ralph --lib -- commands::watch` to verify"
       ],
       "notes": [],
       "request": "scan finding",
@@ -435,8 +431,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "stale_makefile_context": "RQ-0942 centralized env reset in Makefile; test target now uses $(RALPH_ENV_RESET) and evidence line ranges should be refreshed before implementing this task.",
-        "scan_agent": "scan-general"
+        "scan_agent": "scan-general",
+        "stale_makefile_context": "RQ-0942 centralized env reset in Makefile; test target now uses $(RALPH_ENV_RESET) and evidence line ranges should be refreshed before implementing this task."
       }
     },
     {
