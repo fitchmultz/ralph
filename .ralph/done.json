@@ -118,8 +118,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
-        "model_used": "gpt-5.3-codex"
+        "model_used": "gpt-5.3-codex",
+        "runner_used": "codex"
       }
     },
     {
@@ -255,8 +255,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
-        "model_used": "gpt-5.3-codex"
+        "model_used": "gpt-5.3-codex",
+        "runner_used": "codex"
       }
     },
     {
@@ -438,9 +438,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-general",
         "model_used": "gpt-5.3-codex",
-        "runner_used": "codex"
+        "runner_used": "codex",
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -500,8 +500,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-general",
         "runner_used": "codex",
+        "scan_agent": "scan-general",
         "model_used": "gpt-5.3-codex"
       }
     },
@@ -615,9 +615,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.3-codex",
         "runner_used": "codex",
-        "scan_agent": "scan-general"
+        "scan_agent": "scan-general",
+        "model_used": "gpt-5.3-codex"
       }
     },
     {
@@ -675,9 +675,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "scan_agent": "scan-general",
         "runner_used": "codex",
-        "model_used": "gpt-5.3-codex",
-        "scan_agent": "scan-general"
+        "model_used": "gpt-5.3-codex"
       }
     },
     {
@@ -735,9 +735,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-general",
+        "model_used": "kimi-for-coding/k2p5",
         "runner_used": "opencode",
-        "model_used": "kimi-for-coding/k2p5"
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -800,6 +800,59 @@
       "updated_at": "2026-02-19T17:38:57.581556000Z",
       "completed_at": "2026-02-19T17:38:57.581556000Z",
       "started_at": "2026-02-19T02:02:06.954636000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "runner_used": "opencode",
+        "model_used": "kimi-for-coding/k2p5",
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0935",
+      "status": "done",
+      "title": "Add tests for queue graph dependency cycle detection",
+      "description": "The queue graph module handles task dependencies but has NO tests for circular dependency detection. Files: graph/algorithms.rs, graph/build.rs, graph/traversal.rs, graph/types.rs. Circular dependencies would cause infinite loops or panics.",
+      "priority": "high",
+      "tags": [
+        "scan",
+        "testing",
+        "queue",
+        "graph",
+        "dependencies"
+      ],
+      "scope": [
+        "crates/ralph/src/queue/graph/",
+        "crates/ralph/src/queue/graph/tests.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/queue/graph/algorithms.rs :: topological_sort with cycle detection (lines 64-66)",
+        "path: crates/ralph/src/queue/graph/tests.rs :: existing cycle detection tests (lines 95-162)",
+        "analysis: Tests already exist for simple cycles, longer cycles, self-loops, multiple cycles, and DAGs"
+      ],
+      "plan": [
+        "Verify existing cycle detection tests are comprehensive",
+        "Run `cargo test -p ralph --lib -- queue::graph` to confirm all tests pass",
+        "If any tests fail, fix them; if coverage gaps exist, add missing tests"
+      ],
+      "notes": [
+        "Task scan was outdated - cycle detection tests already implemented:",
+        "- topological_sort_detects_cycle (A <-> B)",
+        "- topological_sort_detects_longer_cycle (A -> B -> C -> A)",
+        "- topological_sort_detects_self_loop (A -> A)",
+        "- topological_sort_detects_cycle_with_independent_nodes",
+        "- topological_sort_detects_multiple_cycles",
+        "- topological_sort_handles_complex_dag (no cycle case)",
+        "Tests already exist - comprehensive cycle detection coverage verified",
+        "All 13 graph tests pass",
+        "No code changes required"
+      ],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:51:00Z",
+      "updated_at": "2026-02-19T17:52:08.996875000Z",
+      "completed_at": "2026-02-19T17:52:08.996875000Z",
+      "started_at": "2026-02-19T17:40:07.625798000Z",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],

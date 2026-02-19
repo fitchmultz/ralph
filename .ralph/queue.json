@@ -2,44 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0935",
-      "status": "todo",
-      "title": "Add tests for queue graph dependency cycle detection",
-      "description": "The queue graph module handles task dependencies but has NO tests for circular dependency detection. Files: graph/algorithms.rs, graph/build.rs, graph/traversal.rs, graph/types.rs. Circular dependencies would cause infinite loops or panics.",
-      "priority": "high",
-      "tags": [
-        "scan",
-        "testing",
-        "queue",
-        "graph",
-        "dependencies"
-      ],
-      "scope": [
-        "crates/ralph/src/queue/graph/"
-      ],
-      "evidence": [
-        "path: crates/ralph/src/queue/graph/algorithms.rs :: graph algorithms",
-        "path: crates/ralph/src/queue/graph/build.rs :: graph building",
-        "analysis: No tests for circular dependency detection"
-      ],
-      "plan": [
-        "Add test: graph_detects_simple_cycle (A -> B -> A)",
-        "Add test: graph_detects_longer_cycle (A -> B -> C -> A)",
-        "Add test: graph_handles_no_cycle",
-        "Run `cargo test -p ralph --lib -- queue::graph` to verify"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-02-17T19:51:00Z",
-      "updated_at": "2026-02-17T19:51:00Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-general"
-      }
-    },
-    {
       "id": "RQ-0936",
       "status": "todo",
       "title": "Add tests for parallel run execution paths",
