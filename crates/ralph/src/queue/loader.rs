@@ -470,4 +470,97 @@ mod tests {
 
         Ok(())
     }
+
+    #[test]
+    fn load_queue_malformed_json_returns_error() -> Result<()> {
+        let temp = TempDir::new()?;
+        let queue_path = temp.path().join("queue.json");
+
+        // Write unrecoverably malformed JSON (not fixable by repair)
+        let malformed = r#"{"version": 1, "tasks": [{"id": "RQ-0001", "title": }]}"#;
+        std::fs::write(&queue_path, malformed)?;
+
+        // Should fail with descriptive error
+        let result = load_queue(&queue_path);
+        assert!(result.is_err(), "Should error on malformed JSON");
+        let err = result.unwrap_err();
+        let err_msg = err.to_string();
+        assert!(
+            err_msg.contains("parse") || err_msg.contains("JSON"),
+            "Error should mention parsing/JSON: {}",
+            err_msg
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn load_queue_with_repair_fails_on_unrepairable_json() -> Result<()> {
+        let temp = TempDir::new()?;
+        let queue_path = temp.path().join("queue.json");
+
+        // Write JSON that is too corrupted to repair (structurally invalid)
+        let unrepairable = r#"{this is not valid json at all"#;
+        std::fs::write(&queue_path, unrepairable)?;
+
+        // Should fail even with repair attempt
+        let result = load_queue_with_repair(&queue_path);
+        assert!(result.is_err(), "Should error on unrepairable JSON");
+        let err = result.unwrap_err();
+        let err_msg = format!("{:#}", err);
+        assert!(
+            err_msg.contains("parse") || err_msg.contains("JSON") || err_msg.contains("repair"),
+            "Error should mention parsing or repair failure: {}",
+            err_msg
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn load_queue_handles_empty_file() -> Result<()> {
+        let temp = TempDir::new()?;
+        let queue_path = temp.path().join("queue.json");
+
+        // Write empty file
+        std::fs::write(&queue_path, "")?;
+
+        // Should fail gracefully with meaningful error
+        let result = load_queue(&queue_path);
+        assert!(result.is_err(), "Should error on empty file");
+        let err_msg = format!("{:#}", result.unwrap_err());
+        assert!(
+            err_msg.contains("EOF") || err_msg.contains("parse") || err_msg.contains("empty"),
+            "Error should indicate empty or unparseable file: {}",
+            err_msg
+        );
+
+        Ok(())
+    }
+
+    /// Test: Truncated JSON file (simulating partial write or crash during write)
+    /// Scenario: File ends mid-object due to external corruption or power loss
+    /// Expected: load_queue should detect and report a parsing/EOF error
+    #[test]
+    fn load_queue_detects_truncated_file() -> Result<()> {
+        let temp = TempDir::new()?;
+        let queue_path = temp.path().join("queue.json");
+
+        // Simulate truncated write - valid JSON cut off mid-stream
+        let truncated = r#"{"version": 1, "tasks": [{"id": "RQ-0001", "title": "Test""#;
+        std::fs::write(&queue_path, truncated)?;
+
+        let result = load_queue(&queue_path);
+        assert!(result.is_err(), "Should error on truncated JSON");
+        let err_msg = format!("{:#}", result.unwrap_err());
+        assert!(
+            err_msg.contains("EOF")
+                || err_msg.contains("unexpected end")
+                || err_msg.contains("parse"),
+            "Error should indicate truncated file or EOF: {}",
+            err_msg
+        );
+
+        Ok(())
+    }
 }

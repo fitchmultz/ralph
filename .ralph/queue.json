@@ -2,45 +2,6 @@
   "version": 1,
   "tasks": [
     {
-      "id": "RQ-0938",
-      "status": "todo",
-      "title": "Add edge case tests for invalid/corrupted queue files",
-      "description": "Queue file error handling has NO tests for corruption scenarios. Untested scenarios: Malformed JSON in queue.json, Partial write recovery, Invalid task field types, Missing required fields, Duplicate task IDs. These edge cases could cause data loss.",
-      "priority": "high",
-      "tags": [
-        "scan",
-        "testing",
-        "error-handling",
-        "queue",
-        "edge-cases"
-      ],
-      "scope": [
-        "crates/ralph/src/queue/",
-        "crates/ralph/src/jsonc.rs"
-      ],
-      "evidence": [
-        "path: crates/ralph/src/queue/file.rs :: queue file operations",
-        "path: crates/ralph/src/jsonc.rs :: JSONC parsing",
-        "analysis: No tests for corrupted/malformed queue file recovery"
-      ],
-      "plan": [
-        "Add test: queue_load_malformed_json_errors",
-        "Add test: queue_detects_duplicate_task_ids",
-        "Add test: jsonc_parse_with_comments",
-        "Run `cargo test -p ralph` to verify"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-02-17T19:51:00Z",
-      "updated_at": "2026-02-17T19:51:00Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-general"
-      }
-    },
-    {
       "id": "RQ-0940",
       "status": "todo",
       "title": "Add tests for watch command submodules",
@@ -470,8 +431,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "stale_makefile_context": "RQ-0942 centralized env reset in Makefile; test target now uses $(RALPH_ENV_RESET) and evidence line ranges should be refreshed before implementing this task.",
-        "scan_agent": "scan-general"
+        "scan_agent": "scan-general",
+        "stale_makefile_context": "RQ-0942 centralized env reset in Makefile; test target now uses $(RALPH_ENV_RESET) and evidence line ranges should be refreshed before implementing this task."
       }
     },
     {
