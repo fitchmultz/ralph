@@ -79,6 +79,7 @@ Every source file MUST start with `//!` docs covering:
 - Startup should prune pending merge jobs whose PR lifecycle is no longer open.
 - Retry limits (`merge_retries`) must be enforced for every retryable merge outcome (conflict, runtime failure, and merge-agent spawn failure) in both `as_created` and `after_all` flows.
 - `gh pr merge` must run with explicit `--repo` from an isolated cwd to avoid mutating the coordinator working tree.
+- Parallel worker post-run git finalization should use rebase-aware push (`push_upstream_with_rebase`) so stale non-fast-forward task branches do not require manual intervention.
 
 ### File Size Limits
 - Target: <500 LOC
