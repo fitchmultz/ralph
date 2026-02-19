@@ -19,6 +19,7 @@ use crate::fsutil;
 use crate::git::WorkspaceSpec;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 // =============================================================================
@@ -277,6 +278,34 @@ impl ParallelStateFile {
         self.pending_merges
             .iter_mut()
             .find(|j| j.task_id == task_id)
+    }
+
+    /// Remove pending merge jobs for tasks whose PR is no longer open.
+    ///
+    /// Returns task IDs whose pending merge jobs were dropped.
+    pub fn prune_stale_pending_merges_for_non_open_prs(&mut self) -> Vec<String> {
+        let non_open_task_ids: HashSet<String> = self
+            .prs
+            .iter()
+            .filter(|record| !record.is_open_unmerged())
+            .map(|record| record.task_id.clone())
+            .collect();
+        if non_open_task_ids.is_empty() {
+            return Vec::new();
+        }
+
+        let mut removed = Vec::new();
+        self.pending_merges.retain(|job| {
+            if non_open_task_ids.contains(&job.task_id) {
+                removed.push(job.task_id.clone());
+                false
+            } else {
+                true
+            }
+        });
+        removed.sort();
+        removed.dedup();
+        removed
     }
 }
 
@@ -629,6 +658,76 @@ mod tests {
 
         assert_eq!(state.pending_merges.len(), 1);
         assert_eq!(state.pending_merges[0].pr_number, 2);
+    }
+
+    #[test]
+    fn prune_stale_pending_merges_for_non_open_prs_removes_closed_and_merged() {
+        let mut state = ParallelStateFile::new(
+            "2026-02-01T00:00:00Z".into(),
+            "main".into(),
+            ParallelMergeMethod::Squash,
+            ParallelMergeWhen::AsCreated,
+        );
+
+        state.prs.push(ParallelPrRecord {
+            task_id: "RQ-0001".into(),
+            pr_number: 11,
+            lifecycle: ParallelPrLifecycle::Merged,
+        });
+        state.prs.push(ParallelPrRecord {
+            task_id: "RQ-0002".into(),
+            pr_number: 12,
+            lifecycle: ParallelPrLifecycle::Closed,
+        });
+        state.prs.push(ParallelPrRecord {
+            task_id: "RQ-0003".into(),
+            pr_number: 13,
+            lifecycle: ParallelPrLifecycle::Open,
+        });
+
+        state.pending_merges.push(PendingMergeJob {
+            task_id: "RQ-0001".into(),
+            pr_number: 11,
+            workspace_path: None,
+            lifecycle: PendingMergeLifecycle::InProgress,
+            attempts: 0,
+            queued_at: "2026-02-01T00:00:00Z".into(),
+            last_error: None,
+        });
+        state.pending_merges.push(PendingMergeJob {
+            task_id: "RQ-0002".into(),
+            pr_number: 12,
+            workspace_path: None,
+            lifecycle: PendingMergeLifecycle::Queued,
+            attempts: 0,
+            queued_at: "2026-02-01T00:00:00Z".into(),
+            last_error: None,
+        });
+        state.pending_merges.push(PendingMergeJob {
+            task_id: "RQ-0003".into(),
+            pr_number: 13,
+            workspace_path: None,
+            lifecycle: PendingMergeLifecycle::Queued,
+            attempts: 0,
+            queued_at: "2026-02-01T00:00:00Z".into(),
+            last_error: None,
+        });
+        state.pending_merges.push(PendingMergeJob {
+            task_id: "RQ-9999".into(),
+            pr_number: 99,
+            workspace_path: None,
+            lifecycle: PendingMergeLifecycle::Queued,
+            attempts: 0,
+            queued_at: "2026-02-01T00:00:00Z".into(),
+            last_error: None,
+        });
+
+        let removed = state.prune_stale_pending_merges_for_non_open_prs();
+
+        assert_eq!(removed, vec!["RQ-0001".to_string(), "RQ-0002".to_string()]);
+        assert_eq!(state.pending_merges.len(), 2);
+        assert!(state.get_pending_merge("RQ-0003").is_some());
+        assert!(state.get_pending_merge("RQ-9999").is_some());
     }
 
     #[test]

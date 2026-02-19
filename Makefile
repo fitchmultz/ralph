@@ -83,22 +83,15 @@ lint-fix:
 
 test:
 	@echo "→ Running tests..."
-	@repo_root="$$(pwd -P)"; \
-	system_tmp="$${TMPDIR:-/tmp}"; \
+	@system_tmp="$${TMPDIR:-/tmp}"; \
 	system_tmp="$${system_tmp%/}"; \
-	legacy_tmp_base="$$system_tmp/ralph-ci-tmp"; \
-	if [ "$${RALPH_CI_KEEP_TMP:-0}" != "1" ]; then rm -rf "$$legacy_tmp_base" 2>/dev/null || true; fi; \
-	tmp_base="$$repo_root/target/tmp/ralph-ci-tmp"; \
-	if [ "$${RALPH_CI_KEEP_TMP:-0}" != "1" ]; then rm -rf "$$tmp_base" 2>/dev/null || true; fi; \
-	mkdir -p "$$tmp_base"; \
-	run_dir="$$(mktemp -d "$$tmp_base/ralph-ci.XXXXXX")"; \
+	run_dir="$$(mktemp -d "$$system_tmp/ralph-ci.XXXXXX")"; \
 	cleanup() { \
 		if [ "$${RALPH_CI_KEEP_TMP:-0}" = "1" ]; then \
 			echo "  ℹ Keeping CI temp dir: $$run_dir"; \
 			return 0; \
 		fi; \
 		rm -rf "$$run_dir" 2>/dev/null || true; \
-		rm -rf "$$tmp_base" 2>/dev/null || true; \
 	}; \
 	trap cleanup EXIT INT TERM; \
 	export TMPDIR="$$run_dir"; \

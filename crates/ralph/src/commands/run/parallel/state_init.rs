@@ -46,6 +46,7 @@ pub(crate) fn load_or_init_parallel_state(
 
         // Reconcile PR records against current GitHub state
         let summary = state::reconcile_pr_records(repo_root, &mut existing)?;
+        let mut state_changed = false;
         if summary.has_changes() {
             log::info!(
                 "Reconciled PR records: {} closed, {} merged, {} errors",
@@ -53,6 +54,19 @@ pub(crate) fn load_or_init_parallel_state(
                 summary.merged_count,
                 summary.error_count
             );
+            state_changed = true;
+        }
+
+        let dropped_pending_merges = existing.prune_stale_pending_merges_for_non_open_prs();
+        if !dropped_pending_merges.is_empty() {
+            log::warn!(
+                "Dropping stale pending merges for non-open PRs: {}",
+                dropped_pending_merges.join(", ")
+            );
+            state_changed = true;
+        }
+
+        if state_changed {
             state::save_state(state_path, &existing)?;
         }
 
@@ -453,6 +467,51 @@ mod tests {
         assert!(
             !workspace_path.exists(),
             "merged PR workspace should be cleaned up"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn load_or_init_drops_stale_pending_merges_for_merged_prs() -> Result<()> {
+        let temp = TempDir::new()?;
+        let repo_root = temp.path();
+        let state_path = state::state_file_path(repo_root);
+
+        let mut state = state::ParallelStateFile::new(
+            "2026-02-01T00:00:00Z".to_string(),
+            "main".to_string(),
+            ParallelMergeMethod::Squash,
+            ParallelMergeWhen::AsCreated,
+        );
+        state.prs.push(state::ParallelPrRecord {
+            task_id: "RQ-0001".to_string(),
+            pr_number: 1,
+            lifecycle: state::ParallelPrLifecycle::Merged,
+        });
+        state.pending_merges.push(state::PendingMergeJob {
+            task_id: "RQ-0001".to_string(),
+            pr_number: 1,
+            workspace_path: None,
+            lifecycle: state::PendingMergeLifecycle::InProgress,
+            attempts: 0,
+            queued_at: "2026-02-01T00:00:00Z".to_string(),
+            last_error: None,
+        });
+        state::save_state(&state_path, &state)?;
+
+        let started_at = "2026-02-03T00:00:00Z".to_string();
+        let mut settings = test_parallel_settings(repo_root);
+        let loaded = load_or_init_parallel_state(
+            repo_root,
+            &state_path,
+            "main",
+            &started_at,
+            &mut settings,
+        )?;
+
+        assert!(
+            loaded.pending_merges.is_empty(),
+            "stale pending merge should be pruned when PR is already merged"
         );
         Ok(())
     }

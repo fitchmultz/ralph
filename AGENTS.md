@@ -73,6 +73,11 @@ Every source file MUST start with `//!` docs covering:
 - Worker workspace setup mirrors repo-local `.ralph/` runtime files recursively, but MUST exclude coordinator-only and ephemeral paths: queue/done files and `.ralph/{cache,workspaces,logs,lock}/`.
 - Gitignored non-`.ralph` sync remains narrow by design (`.env*` only) to avoid copying heavy build/cache directories.
 
+### Parallel Merge Refresh Resilience
+- After merge-agent success, update state (`prs`, `pending_merges`) before local branch refresh attempts.
+- Local base-branch refresh is best-effort and must not abort the run when `.ralph` bookkeeping files are dirty.
+- Startup should prune pending merge jobs whose PR lifecycle is no longer open.
+
 ### File Size Limits
 - Target: <500 LOC
 - Soft limit: ~800 LOC (requires justification)
@@ -82,7 +87,7 @@ Every source file MUST start with `//!` docs covering:
 - Unit tests: `#[cfg(test)]` colocated
 - Integration: `crates/ralph/tests/`
 - Init tests: Always use `--non-interactive` flag
-- CI temp dirs: `target/tmp/ralph-ci-tmp/` (set `RALPH_CI_KEEP_TMP=1` to keep)
+- CI temp dirs: `${TMPDIR:-/tmp}/ralph-ci.*` (set `RALPH_CI_KEEP_TMP=1` to keep)
 
 ### Secrets
 Never commit or print secrets. `.env` is local-only and MUST remain untracked.

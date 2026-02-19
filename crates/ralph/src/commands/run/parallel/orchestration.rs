@@ -79,21 +79,39 @@ fn refresh_local_base_branch_after_merge(
     base_branch: &str,
     task_id: &str,
     pr_number: u32,
-) -> Result<()> {
-    git::fast_forward_branch_to_origin(repo_root, base_branch).with_context(|| {
-        format!(
-            "refresh local base branch {} after successful merge for task {} PR {}",
-            base_branch, task_id, pr_number
-        )
-    })?;
-    log::info!(
-        "Refreshed local {} to origin/{} after merge of task {} PR {}",
-        base_branch,
-        base_branch,
-        task_id,
-        pr_number
-    );
-    Ok(())
+) {
+    match git::fast_forward_branch_to_origin(repo_root, base_branch) {
+        Ok(()) => {
+            log::info!(
+                "Refreshed local {} to origin/{} after merge of task {} PR {}",
+                base_branch,
+                base_branch,
+                task_id,
+                pr_number
+            );
+        }
+        Err(err) => {
+            let dirty_only_allowlisted =
+                git::repo_dirty_only_allowed_paths(repo_root, git::RALPH_RUN_CLEAN_ALLOWED_PATHS)
+                    .unwrap_or(false);
+            if dirty_only_allowlisted {
+                log::warn!(
+                    "Skipping local base branch refresh after merge of task {} PR {} because repo has only allowlisted dirty paths: {}",
+                    task_id,
+                    pr_number,
+                    err
+                );
+            } else {
+                log::warn!(
+                    "Failed to refresh local base branch {} after merge of task {} PR {}: {}",
+                    base_branch,
+                    task_id,
+                    pr_number,
+                    err
+                );
+            }
+        }
+    }
 }
 
 fn should_break_parallel_loop(
@@ -507,23 +525,23 @@ pub(crate) fn run_loop_parallel(
                                     outcome.exit_code
                                 );
 
-                                // Update PR lifecycle
-                                guard.state_file_mut().mark_pr_merged(&task_id);
-                                refresh_local_base_branch_after_merge(
-                                    &resolved.repo_root,
-                                    &base_branch,
+                                let workspace_for_cleanup = workspace_path_for_cleanup(
                                     &task_id,
-                                    pr_number,
-                                )?;
+                                    merge_job.workspace_path.as_ref(),
+                                    &completed_workspaces,
+                                );
+
+                                // Update PR lifecycle and clear merge bookkeeping first so
+                                // follow-up local refresh cannot strand stale pending merges.
+                                guard.state_file_mut().mark_pr_merged(&task_id);
+                                guard.state_file_mut().remove_pending_merge(&task_id);
+                                completed_workspaces.remove(&task_id);
+                                state::save_state(&state_path, guard.state_file())?;
 
                                 // Delete workspace immediately per spec.
                                 // On resumed runs, pending merge jobs may not carry workspace_path,
                                 // so fall back to completed_workspaces tracking.
-                                if let Some(ws_path) = workspace_path_for_cleanup(
-                                    &task_id,
-                                    merge_job.workspace_path.as_ref(),
-                                    &completed_workspaces,
-                                ) {
+                                if let Some(ws_path) = workspace_for_cleanup {
                                     if let Err(e) = std::fs::remove_dir_all(&ws_path) {
                                         log::warn!(
                                             "Failed to delete workspace {} for {}: {}",
@@ -540,13 +558,14 @@ pub(crate) fn run_loop_parallel(
                                     }
                                 }
 
-                                // Remove pending merge job
-                                guard.state_file_mut().remove_pending_merge(&task_id);
-
-                                // Update completed_workspaces tracking
-                                completed_workspaces.remove(&task_id);
-
-                                state::save_state(&state_path, guard.state_file())?;
+                                // Best-effort: if local base branch refresh fails, continue.
+                                // The merge already succeeded remotely and local queue/done may be dirty.
+                                refresh_local_base_branch_after_merge(
+                                    &resolved.repo_root,
+                                    &base_branch,
+                                    &task_id,
+                                    pr_number,
+                                );
                             }
 
                             MergeExitClassification::ConflictRetryable => {
@@ -930,19 +949,19 @@ pub(crate) fn run_loop_parallel(
                                     outcome.exit_code
                                 );
 
-                                guard.state_file_mut().mark_pr_merged(&task_id);
-                                refresh_local_base_branch_after_merge(
-                                    &resolved.repo_root,
-                                    &base_branch,
-                                    &task_id,
-                                    pr_number,
-                                )?;
-
-                                if let Some(ws_path) = workspace_path_for_cleanup(
+                                let workspace_for_cleanup = workspace_path_for_cleanup(
                                     &task_id,
                                     merge_job.workspace_path.as_ref(),
                                     &completed_workspaces,
-                                ) && let Err(e) = std::fs::remove_dir_all(&ws_path)
+                                );
+
+                                guard.state_file_mut().mark_pr_merged(&task_id);
+                                guard.state_file_mut().remove_pending_merge(&task_id);
+                                completed_workspaces.remove(&task_id);
+                                state::save_state(&state_path, guard.state_file())?;
+
+                                if let Some(ws_path) = workspace_for_cleanup
+                                    && let Err(e) = std::fs::remove_dir_all(&ws_path)
                                 {
                                     log::warn!(
                                         "Failed to delete workspace {} for {}: {}",
@@ -952,9 +971,12 @@ pub(crate) fn run_loop_parallel(
                                     );
                                 }
 
-                                guard.state_file_mut().remove_pending_merge(&task_id);
-                                completed_workspaces.remove(&task_id);
-                                state::save_state(&state_path, guard.state_file())?;
+                                refresh_local_base_branch_after_merge(
+                                    &resolved.repo_root,
+                                    &base_branch,
+                                    &task_id,
+                                    pr_number,
+                                );
                             }
                             MergeExitClassification::ConflictRetryable => {
                                 log::warn!(

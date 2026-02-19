@@ -239,7 +239,7 @@ anyhow::ensure!(status.success(), "...\nstdout:\n{stdout}\nstderr:\n{stderr}");
 
 ### Test Isolation
 
-- Tests run in isolated temp directories (`target/tmp/ralph-ci-tmp/`)
+- Tests run in isolated temp directories (`${TMPDIR:-/tmp}/ralph-ci.*`)
 - Use `--non-interactive` flag when calling `ralph init` in tests
 - Set `RALPH_CI_KEEP_TMP=1` to preserve temp directories for debugging
 - Use `serial_test` for tests that modify global state
