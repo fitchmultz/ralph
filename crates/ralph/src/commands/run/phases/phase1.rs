@@ -8,7 +8,7 @@
 //! - Queue/task selection and task status transitions.
 //!
 //! Invariants/assumptions:
-//! - Phase 1 may only mutate queue bookkeeping and the plan cache file.
+//! - Phase 1 may only mutate files under `.ralph/`.
 
 use super::shared::execute_runner_pass;
 use super::{PhaseInvocation, PhaseType, phase_session_id_for_runner};
@@ -21,13 +21,27 @@ pub fn execute_phase1_planning(ctx: &PhaseInvocation<'_>, total_phases: u8) -> R
     let label = logging::phase_label(1, total_phases, "Planning", ctx.task_id);
 
     logging::with_scope(&label, || {
+        // ENFORCEMENT: Phase 1 must not implement.
+        // It may only edit files under `.ralph/`.
+        let allowed_paths = [".ralph/"];
         let baseline_paths = if ctx.allow_dirty_repo {
             git::status_paths(&ctx.resolved.repo_root)?
         } else {
             Vec::new()
         };
         let baseline_snapshots = if ctx.allow_dirty_repo {
-            git::snapshot_paths(&ctx.resolved.repo_root, &baseline_paths)?
+            let immutable_baseline_paths: Vec<String> = baseline_paths
+                .iter()
+                .filter(|path| {
+                    !git::clean::path_is_allowed_for_dirty_check(
+                        &ctx.resolved.repo_root,
+                        path,
+                        &allowed_paths,
+                    )
+                })
+                .cloned()
+                .collect();
+            git::snapshot_paths(&ctx.resolved.repo_root, &immutable_baseline_paths)?
         } else {
             Vec::new()
         };
@@ -83,19 +97,6 @@ pub fn execute_phase1_planning(ctx: &PhaseInvocation<'_>, total_phases: u8) -> R
             consecutive_same_error_count: 0,
         };
 
-        // ENFORCEMENT: Phase 1 must not implement.
-        // It may only edit queue bookkeeping files (`.ralph/queue.{json,jsonc}`,
-        // `.ralph/done.{json,jsonc}`) plus the plan cache file for the current task.
-        let plan_cache_rel = format!(".ralph/cache/plans/{}.md", ctx.task_id);
-        let plan_cache_dir = ".ralph/cache/plans/";
-        let allowed_paths = [
-            ".ralph/queue.json",
-            ".ralph/queue.jsonc",
-            ".ralph/done.json",
-            ".ralph/done.jsonc",
-            plan_cache_rel.as_str(),
-            plan_cache_dir,
-        ];
         loop {
             let mut allowed: Vec<String> = allowed_paths
                 .iter()
@@ -112,7 +113,7 @@ pub fn execute_phase1_planning(ctx: &PhaseInvocation<'_>, total_phases: u8) -> R
                     Ok(())
                 } else {
                     Err(GitError::DirtyRepo {
-                        details: "\n\nFollow-up Phase 1 violation: planning introduced dirty paths outside baseline and allowed queue/plan paths."
+                        details: "\n\nFollow-up Phase 1 violation: planning introduced dirty paths outside baseline and allowed .ralph paths."
                             .to_string(),
                     })
                 }
@@ -168,7 +169,7 @@ pub fn execute_phase1_planning(ctx: &PhaseInvocation<'_>, total_phases: u8) -> R
                             bail!(
                                 "{} Error: {:#}",
                                 runutil::format_revert_failure_message(
-                                    "Phase 1 violated plan-only contract: it modified files outside allowed queue bookkeeping, including baseline dirty paths.",
+                                    "Phase 1 violated plan-only contract: it modified files outside allowed .ralph paths, including baseline dirty paths.",
                                     outcome,
                                 ),
                                 err

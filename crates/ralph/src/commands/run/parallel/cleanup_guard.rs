@@ -17,7 +17,8 @@
 
 use crate::commands::run::parallel::state;
 use crate::commands::run::parallel::worker::{WorkerState, terminate_workers};
-use crate::git::{self, WorkspaceSpec};
+use crate::commands::run::parallel::workspace_cleanup::remove_workspace_best_effort;
+use crate::git::WorkspaceSpec;
 use anyhow::Result;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -136,15 +137,9 @@ impl ParallelCleanupGuard {
         terminate_workers(&mut self.in_flight);
 
         // Step 2: Remove all tracked workspaces
-        for (task_id, spec) in &self.workspaces {
-            if spec.path.exists()
-                && let Err(err) = git::remove_workspace(&self.workspace_root, spec, true)
-            {
-                log::warn!(
-                    "Failed to remove workspace for {} during cleanup: {:#}",
-                    task_id,
-                    err
-                );
+        for spec in self.workspaces.values() {
+            if spec.path.exists() {
+                remove_workspace_best_effort(&self.workspace_root, spec, "cleanup guard");
             }
         }
 

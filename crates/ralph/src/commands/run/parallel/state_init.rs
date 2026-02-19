@@ -23,6 +23,7 @@ use std::path::Path;
 use super::ParallelSettings;
 use super::prune_stale_tasks_in_flight;
 use super::state::{self, ParallelStateFile};
+use super::workspace_cleanup::remove_workspace_best_effort;
 
 /// Load existing state or create new, with pruning and validation.
 pub(crate) fn load_or_init_parallel_state(
@@ -178,15 +179,13 @@ pub(crate) fn cleanup_pr_workspaces(
             branch,
         };
 
-        if let Err(err) = git::remove_workspace(workspace_root, &spec, true) {
-            log::warn!(
-                "Failed to remove workspace for {} at {}: {:#}",
-                task_id,
-                path.display(),
-                err
-            );
-        } else {
-            removed.push(task_id.to_string());
+        // Check if workspace exists before attempting cleanup
+        if path.exists() {
+            remove_workspace_best_effort(workspace_root, &spec, "stale PR cleanup");
+            // Track as removed only if it no longer exists
+            if !path.exists() {
+                removed.push(task_id.to_string());
+            }
         }
     }
 

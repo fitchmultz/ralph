@@ -52,6 +52,7 @@ use super::merge_runner::MergeWorkItem;
 use super::state::{self, PendingMergeJob, PendingMergeLifecycle};
 use super::sync::{commit_failure_changes, ensure_branch_pushed, sync_ralph_state};
 use super::worker::{WorkerState, collect_excluded_ids, select_next_task_locked, spawn_worker};
+use super::workspace_cleanup::remove_workspace_best_effort;
 use super::{
     CI_FAILURE_MARKER_FALLBACK_FILE, CI_FAILURE_MARKER_FILE, MergeExitClassification,
     ParallelRunOptions, apply_git_commit_push_policy_to_parallel_settings, can_start_more_tasks,
@@ -795,23 +796,20 @@ pub(crate) fn run_loop_parallel(
                 // Clean up workspace for failed workers
                 // Failed tasks should not leave orphaned workspaces on disk
                 if !status.success() {
-                    if let Err(e) = std::fs::remove_dir_all(&workspace.path) {
-                        log::warn!(
-                            "Failed to delete workspace {} for failed task {}: {}",
-                            workspace.path.display(),
-                            task_id,
-                            e
-                        );
-                    } else {
-                        log::info!(
-                            "Deleted workspace for failed task {} at {}",
-                            task_id,
-                            workspace.path.display()
-                        );
-                    }
+                    remove_workspace_best_effort(
+                        &settings.workspace_root,
+                        &workspace,
+                        "worker failure",
+                    );
+
+                    // Remove from tracking and state - do NOT add to completed_workspaces
+                    guard.state_file_mut().remove_task(&task_id);
+                    state::save_state(&state_path, guard.state_file())?;
+                    guard.remove_worker(&task_id);
+                    continue;
                 }
 
-                // Move workspace to completed_workspaces for potential merge cleanup
+                // Move successful workspace to completed_workspaces for potential merge cleanup
                 completed_workspaces.insert(task_id.clone(), workspace.clone());
                 guard.state_file_mut().remove_task(&task_id);
                 state::save_state(&state_path, guard.state_file())?;

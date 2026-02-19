@@ -40,6 +40,7 @@ pub mod state;
 mod state_init;
 mod sync;
 mod worker;
+mod workspace_cleanup;
 
 // =============================================================================
 // Marker File Constants

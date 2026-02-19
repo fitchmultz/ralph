@@ -66,6 +66,9 @@ Every source file MUST start with `//!` docs covering:
 3. `~/.config/ralph/config.json`
 4. Schema defaults
 
+### Phase 1 Follow-up Guardrail
+- Follow-up Phase 1 baseline snapshots must exclude mutable `.ralph/**` paths; only baseline dirty paths outside `.ralph/` are immutable.
+
 ### File Size Limits
 - Target: <500 LOC
 - Soft limit: ~800 LOC (requires justification)

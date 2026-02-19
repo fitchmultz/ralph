@@ -65,7 +65,7 @@ pub fn require_clean_repo_ignoring_paths(
     let entries = parse_porcelain_z_entries(&status)?;
     for entry in entries {
         let path = entry.path.as_str();
-        if !path_is_allowed(repo_root, path, allowed_paths) {
+        if !path_is_allowed_for_dirty_check(repo_root, path, allowed_paths) {
             let display = format_porcelain_entry(&entry);
             if entry.xy == "??" {
                 untracked.push(display);
@@ -123,14 +123,18 @@ pub fn repo_dirty_only_allowed_paths(
 
     let has_disallowed = status_paths
         .iter()
-        .any(|path| !path_is_allowed(repo_root, path, allowed_paths));
+        .any(|path| !path_is_allowed_for_dirty_check(repo_root, path, allowed_paths));
     Ok(!has_disallowed)
 }
 
 /// Check if a path is allowed to be dirty.
 ///
 /// Handles normalization of paths and directory prefix matching.
-fn path_is_allowed(repo_root: &Path, path: &str, allowed_paths: &[&str]) -> bool {
+pub(crate) fn path_is_allowed_for_dirty_check(
+    repo_root: &Path,
+    path: &str,
+    allowed_paths: &[&str],
+) -> bool {
     let Some(normalized) = normalize_path_value(path) else {
         return false;
     };
