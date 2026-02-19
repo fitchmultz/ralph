@@ -42,12 +42,12 @@ fn task_with(id: &str, status: TaskStatus, tags: Vec<String>) -> Task {
 fn validate_rejects_duplicate_ids() {
     let queue = QueueFile {
         version: 1,
-        tasks: vec![task("RQ-0001"), task("RQ-0001")],
+        tasks: vec![task("RQ-0001"), task("RQ-0002"), task("RQ-0001")],
     };
     let err = validate_queue(&queue, "RQ", 4).unwrap_err();
     let msg = format!("{err:#}");
     assert!(
-        msg.to_lowercase().contains("duplicate"),
+        msg.to_lowercase().contains("duplicate") && msg.contains("RQ-0001"),
         "unexpected error: {msg}"
     );
 }
@@ -980,5 +980,114 @@ fn validate_finds_parent_in_done() {
             .any(|w| w.message.contains("does not exist")),
         "Should not warn when parent exists in done: {:?}",
         warnings
+    );
+}
+// Tests for invalid field types and missing required fields (RQ-0938)
+
+/// Test: Invalid field types in JSON produce proper deserialization errors
+/// Scenario: tags field is a string instead of an array
+/// Expected: Deserialization fails with message mentioning the field
+#[test]
+fn deserialize_rejects_invalid_field_types() {
+    use serde::Deserialize;
+
+    #[derive(Debug, Deserialize)]
+    #[allow(dead_code)]
+    struct TestTask {
+        id: String,
+        status: String,
+        title: String,
+        tags: Vec<String>,
+        scope: Vec<String>,
+        evidence: Vec<String>,
+        plan: Vec<String>,
+        created_at: String,
+        updated_at: String,
+    }
+
+    #[derive(Debug, Deserialize)]
+    #[allow(dead_code)]
+    struct TestQueueFile {
+        version: u32,
+        tasks: Vec<TestTask>,
+    }
+
+    // Test that invalid types in JSON produce proper deserialization errors
+    let json = r#"{
+        "version": 1,
+        "tasks": [{
+            "id": "RQ-0001",
+            "status": "todo",
+            "title": "Test",
+            "tags": "not-an-array",
+            "scope": ["file"],
+            "evidence": ["observed"],
+            "plan": ["do thing"],
+            "created_at": "2026-01-18T00:00:00Z",
+            "updated_at": "2026-01-18T00:00:00Z"
+        }]
+    }"#;
+
+    let result: Result<TestQueueFile, _> = serde_json::from_str(json);
+    assert!(result.is_err(), "Should fail when tags is not an array");
+    let err = result.unwrap_err();
+    assert!(
+        err.to_string().contains("tags") || err.to_string().contains("array"),
+        "Error should mention tags field: {}",
+        err
+    );
+}
+
+#[test]
+fn deserialize_rejects_missing_task_id() {
+    // id is a required field - deserialization should fail if missing
+    let json = r#"{
+        "version": 1,
+        "tasks": [{
+            "status": "todo",
+            "title": "Test",
+            "tags": [],
+            "scope": [],
+            "evidence": [],
+            "plan": [],
+            "created_at": "2026-01-18T00:00:00Z",
+            "updated_at": "2026-01-18T00:00:00Z"
+        }]
+    }"#;
+
+    let result: Result<QueueFile, _> = serde_json::from_str(json);
+    assert!(result.is_err(), "Should fail deserialization without id");
+    let err = result.unwrap_err();
+    assert!(
+        err.to_string().contains("missing field") && err.to_string().contains("id"),
+        "Error should mention missing id field: {}",
+        err
+    );
+}
+
+#[test]
+fn deserialize_rejects_missing_task_title() {
+    // title is a required field - deserialization should fail if missing
+    let json = r#"{
+        "version": 1,
+        "tasks": [{
+            "id": "RQ-0001",
+            "status": "todo",
+            "tags": [],
+            "scope": [],
+            "evidence": [],
+            "plan": [],
+            "created_at": "2026-01-18T00:00:00Z",
+            "updated_at": "2026-01-18T00:00:00Z"
+        }]
+    }"#;
+
+    let result: Result<QueueFile, _> = serde_json::from_str(json);
+    assert!(result.is_err(), "Should fail deserialization without title");
+    let err = result.unwrap_err();
+    assert!(
+        err.to_string().contains("missing field") && err.to_string().contains("title"),
+        "Error should mention missing title field: {}",
+        err
     );
 }
