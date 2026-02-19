@@ -982,6 +982,36 @@ mod tests {
     }
 
     #[test]
+    fn compliance_message_contains_required_enforcement_language() {
+        let temp = TempDir::new().unwrap();
+        let resolved = resolved_with_ci_command(temp.path(), None, true);
+        let result = CiGateResult {
+            success: false,
+            exit_code: Some(2),
+            stdout: "fmt-check passed".to_string(),
+            stderr: "ruff failed: TOML parse error".to_string(),
+        };
+
+        let msg = strict_ci_gate_compliance_message(&resolved, &result);
+        assert!(
+            msg.contains("CI gate (make ci): CI failed with exit code 2"),
+            "Expected CI gate prefix with exit code, got: {msg}"
+        );
+        assert!(
+            msg.contains("Fix the errors above before continuing."),
+            "Expected remediation instruction, got: {msg}"
+        );
+        assert!(
+            msg.contains("COMMON PATTERNS:"),
+            "Expected COMMON PATTERNS section, got: {msg}"
+        );
+        assert!(
+            msg.contains("ruff failed: TOML parse error"),
+            "Expected CI output context in message, got: {msg}"
+        );
+    }
+
+    #[test]
     fn truncate_for_log_shows_end_of_string() {
         let long = "a".repeat(3000);
         let truncated = truncate_for_log(&long, 100);
