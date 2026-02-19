@@ -3,6 +3,7 @@
 //! Responsibilities:
 //! - Post-run supervision for parallel workers without mutating queue/done.
 //! - Restore shared bookkeeping files (queue, done, productivity).
+//! - Write CI failure marker for coordinator to detect CI gate failures.
 //!
 //! Not handled here:
 //! - Standard post-run supervision (see mod.rs).
@@ -15,7 +16,9 @@ use crate::contracts::GitRevertMode;
 use crate::git;
 use crate::queue;
 use crate::runutil;
+use crate::timeutil;
 use anyhow::{Context, Result};
+use std::io::Write as _;
 
 use super::CiContinueContext;
 use super::PushPolicy;
@@ -73,6 +76,12 @@ pub(crate) fn post_run_supervise_parallel_worker(
                             revert_prompt.as_ref(),
                         )?;
                         let exit_code_display = result.exit_code.unwrap_or(-1);
+                        // Write CI failure marker so coordinator skips draft PR creation
+                        write_ci_failure_marker(
+                            &resolved.repo_root,
+                            task_id,
+                            &format!("CI gate failed with exit code {}", exit_code_display),
+                        );
                         anyhow::bail!(
                             "{} Error: CI failed with exit code {exit_code_display}",
                             runutil::format_revert_failure_message(
@@ -98,6 +107,12 @@ pub(crate) fn post_run_supervise_parallel_worker(
                         "CI gate failure",
                         revert_prompt.as_ref(),
                     )?;
+                    // Write CI failure marker so coordinator skips draft PR creation
+                    write_ci_failure_marker(
+                        &resolved.repo_root,
+                        task_id,
+                        &format!("CI gate failed with continue session: {:#}", err),
+                    );
                     anyhow::bail!(
                         "{} Error: {:#}",
                         runutil::format_revert_failure_message(
@@ -120,6 +135,12 @@ pub(crate) fn post_run_supervise_parallel_worker(
                         revert_prompt.as_ref(),
                     )?;
                     let exit_code_display = result.exit_code.unwrap_or(-1);
+                    // Write CI failure marker so coordinator skips draft PR creation
+                    write_ci_failure_marker(
+                        &resolved.repo_root,
+                        task_id,
+                        &format!("CI gate failed with exit code {}", exit_code_display),
+                    );
                     anyhow::bail!(
                         "{} Error: CI failed with exit code {exit_code_display}",
                         runutil::format_revert_failure_message(
@@ -188,4 +209,41 @@ fn restore_parallel_worker_bookkeeping(resolved: &crate::config::Resolved) -> Re
     git::restore_tracked_paths_to_head(&resolved.repo_root, &paths)
         .context("restore queue/done/productivity to HEAD")?;
     Ok(())
+}
+
+/// Write a marker file indicating CI gate failure.
+/// The coordinator checks for this before creating draft PRs.
+/// If the marker exists, the coordinator skips draft PR creation.
+fn write_ci_failure_marker(workspace_path: &std::path::Path, task_id: &str, error_message: &str) {
+    let marker_path = workspace_path.join(crate::commands::run::parallel::CI_FAILURE_MARKER_FILE);
+    if let Some(parent) = marker_path.parent()
+        && let Err(e) = std::fs::create_dir_all(parent)
+    {
+        log::warn!(
+            "Failed to create parent directory for CI failure marker: {}",
+            e
+        );
+        return;
+    }
+    let content = serde_json::json!({
+        "task_id": task_id,
+        "timestamp": timeutil::now_utc_rfc3339_or_fallback(),
+        "error": error_message
+    });
+    match std::fs::File::create(&marker_path) {
+        Ok(mut file) => {
+            if let Err(e) = file.write_all(content.to_string().as_bytes()) {
+                log::warn!("Failed to write CI failure marker: {}", e);
+            } else {
+                log::debug!(
+                    "Wrote CI failure marker for task {} at {}",
+                    task_id,
+                    marker_path.display()
+                );
+            }
+        }
+        Err(e) => {
+            log::warn!("Failed to create CI failure marker file: {}", e);
+        }
+    }
 }

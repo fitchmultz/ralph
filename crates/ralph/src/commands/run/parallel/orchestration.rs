@@ -53,9 +53,10 @@ use super::state::{self, PendingMergeJob, PendingMergeLifecycle};
 use super::sync::{commit_failure_changes, ensure_branch_pushed, sync_ralph_state};
 use super::worker::{WorkerState, collect_excluded_ids, select_next_task_locked, spawn_worker};
 use super::{
-    MergeExitClassification, ParallelRunOptions, apply_git_commit_push_policy_to_parallel_settings,
-    can_start_more_tasks, classify_merge_exit_code, effective_in_flight_count,
-    initial_tasks_started, load_or_init_parallel_state, overrides_for_parallel_workers,
+    CI_FAILURE_MARKER_FILE, MergeExitClassification, ParallelRunOptions,
+    apply_git_commit_push_policy_to_parallel_settings, can_start_more_tasks,
+    classify_merge_exit_code, effective_in_flight_count, initial_tasks_started,
+    load_or_init_parallel_state, overrides_for_parallel_workers,
     preflight_parallel_workspace_root_is_gitignored, prune_stale_tasks_in_flight,
     resolve_parallel_settings, spawn_merge_agent, spawn_worker_with_registered_workspace,
 };
@@ -101,6 +102,28 @@ fn should_break_parallel_loop(
     has_pending_merges: bool,
 ) -> bool {
     (no_more_tasks || !next_available || stop_requested) && !has_pending_merges
+}
+
+/// Check if CI failure marker exists in workspace.
+/// Returns true if the worker failed due to CI gate, false otherwise.
+fn has_ci_failure_marker(workspace_path: &Path) -> bool {
+    workspace_path.join(CI_FAILURE_MARKER_FILE).exists()
+}
+
+/// Get CI failure details from marker file (for logging).
+fn read_ci_failure_marker(workspace_path: &Path) -> Option<String> {
+    let marker_path = workspace_path.join(CI_FAILURE_MARKER_FILE);
+    std::fs::read_to_string(&marker_path).ok()
+}
+
+/// Remove CI failure marker file from workspace.
+fn remove_ci_failure_marker(workspace_path: &Path) {
+    let marker_path = workspace_path.join(CI_FAILURE_MARKER_FILE);
+    if marker_path.exists()
+        && let Err(e) = std::fs::remove_file(&marker_path)
+    {
+        log::debug!("Failed to remove CI failure marker: {}", e);
+    }
 }
 
 /// Main entry point for parallel run loop.
@@ -689,8 +712,21 @@ pub(crate) fn run_loop_parallel(
                     }
                 } else {
                     tasks_failed += 1;
-                    // Handle failure
-                    if settings.auto_pr && settings.draft_on_failure {
+
+                    // Check for CI failure marker before creating draft PR
+                    // CI gate failures should NOT create draft PRs
+                    if has_ci_failure_marker(&workspace.path) {
+                        let marker_details = read_ci_failure_marker(&workspace.path)
+                            .unwrap_or_else(|| "unknown CI failure".to_string());
+                        log::info!(
+                            "Worker for {} failed due to CI gate; skipping draft PR creation. Details: {}",
+                            task_id,
+                            marker_details
+                        );
+                        // Clean up the marker after handling
+                        remove_ci_failure_marker(&workspace.path);
+                    } else if settings.auto_pr && settings.draft_on_failure {
+                        // Handle non-CI failures with draft PR
                         match (|| -> Result<Option<git::PrInfo>> {
                             if !commit_failure_changes(&workspace.path, &task_id)? {
                                 return Ok(None);

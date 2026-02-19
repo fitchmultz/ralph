@@ -41,6 +41,15 @@ mod state_init;
 mod sync;
 mod worker;
 
+// =============================================================================
+// Marker File Constants
+// =============================================================================
+
+/// Marker file name for CI gate failure.
+/// Written to workspace when CI fails, checked by coordinator before draft PR creation.
+/// The coordinator skips draft PR creation when this marker exists.
+pub const CI_FAILURE_MARKER_FILE: &str = ".ralph/cache/ci-failure-marker";
+
 // Re-export public APIs from submodules
 pub(crate) use orchestration::run_loop_parallel;
 
