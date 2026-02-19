@@ -142,11 +142,40 @@ pub(crate) fn compute_backoff(
     retry_index: u32,
     rng: &mut impl JitterRng,
 ) -> Duration {
+    // Validate multiplier invariant at computation site
+    if policy.multiplier < 1.0 {
+        // Log warning and clamp to valid range
+        log::warn!(
+            "Invalid multiplier {} in retry policy, clamping to 1.0",
+            policy.multiplier
+        );
+    }
+    let multiplier = policy.multiplier.max(1.0);
+
     // retry_index starts at 1 for first retry delay
-    let exp_ms = (policy.base_backoff.as_millis() as f64)
-        * policy
-            .multiplier
-            .powi((retry_index.saturating_sub(1)) as i32);
+    let power_u32 = retry_index.saturating_sub(1);
+
+    // Check for potential overflow before multiplication
+    // Duration::MAX is about u64::MAX milliseconds
+    let max_ms = u64::MAX as f64;
+    let base_ms = policy.base_backoff.as_millis() as f64;
+
+    // Calculate exponential with overflow detection
+    // Check if power is too large to cast to i32 (i32::MAX = 2,147,483,647)
+    // or if power > 1000 (any multiplier^1000 where multiplier >= 1.0 will be huge)
+    let exp_ms = if power_u32 > i32::MAX as u32 || power_u32 > 1000 {
+        max_ms
+    } else {
+        let power = power_u32 as i32;
+        let multiplier_pow = multiplier.powi(power);
+        let product = base_ms * multiplier_pow;
+
+        if product.is_infinite() || product.is_nan() || product > max_ms {
+            max_ms
+        } else {
+            product
+        }
+    };
 
     let capped_ms = exp_ms.min(policy.max_backoff.as_millis() as f64).max(0.0);
 
@@ -157,7 +186,15 @@ pub(crate) fn compute_backoff(
     };
 
     let ms = (capped_ms * (1.0 + jitter)).max(0.0);
-    Duration::from_millis(ms.round() as u64)
+
+    // Final safety check before conversion
+    let ms_u64 = if ms > u64::MAX as f64 {
+        u64::MAX
+    } else {
+        ms.round() as u64
+    };
+
+    Duration::from_millis(ms_u64)
 }
 
 /// Format a duration in a human-readable way (e.g., "1.5s", "200ms").
@@ -341,5 +378,76 @@ mod tests {
         assert!((-0.2..=0.2).contains(&v2));
         // Should produce different values
         assert_ne!(v1, v2);
+    }
+
+    #[test]
+    fn backoff_handles_extremely_high_retry_index() {
+        let policy = RunnerRetryPolicy {
+            max_attempts: u32::MAX,
+            base_backoff: Duration::from_millis(1000),
+            multiplier: 2.0,
+            max_backoff: Duration::from_millis(30_000),
+            jitter_ratio: 0.0,
+        };
+        let mut rng = FixedRng::new(vec![0.0]);
+
+        // Should not panic with very high retry index
+        let d = compute_backoff(policy, u32::MAX, &mut rng);
+        // Should be capped at max_backoff
+        assert_eq!(d, Duration::from_millis(30_000));
+    }
+
+    #[test]
+    fn backoff_handles_large_multiplier() {
+        let policy = RunnerRetryPolicy {
+            max_attempts: 10,
+            base_backoff: Duration::from_millis(100),
+            multiplier: 1000.0, // Very large multiplier
+            max_backoff: Duration::from_secs(60),
+            jitter_ratio: 0.0,
+        };
+        let mut rng = FixedRng::new(vec![0.0]);
+
+        // Second retry would be 100 * 1000^1 = 100,000ms
+        let d = compute_backoff(policy, 2, &mut rng);
+        // Should be capped at max_backoff
+        assert_eq!(d, Duration::from_secs(60));
+    }
+
+    #[test]
+    fn backoff_handles_invalid_multiplier() {
+        let policy = RunnerRetryPolicy {
+            max_attempts: 3,
+            base_backoff: Duration::from_millis(1000),
+            multiplier: 0.5, // Invalid: < 1.0
+            max_backoff: Duration::from_millis(10_000),
+            jitter_ratio: 0.0,
+        };
+        let mut rng = FixedRng::new(vec![0.0]);
+
+        // Should treat multiplier as 1.0 (no exponential growth)
+        let d1 = compute_backoff(policy, 1, &mut rng);
+        assert_eq!(d1, Duration::from_millis(1000));
+
+        let d2 = compute_backoff(policy, 5, &mut rng);
+        // With multiplier clamped to 1.0, all retries should be ~1000ms
+        assert_eq!(d2, Duration::from_millis(1000));
+    }
+
+    #[test]
+    fn backoff_respects_duration_max() {
+        let policy = RunnerRetryPolicy {
+            max_attempts: 100,
+            base_backoff: Duration::from_millis(u64::MAX / 2),
+            multiplier: 2.0,
+            max_backoff: Duration::MAX, // Very large cap
+            jitter_ratio: 0.0,
+        };
+        let mut rng = FixedRng::new(vec![0.0]);
+
+        // Even with huge values, should not overflow
+        let d = compute_backoff(policy, 2, &mut rng);
+        // Should be capped at Duration::MAX via max_backoff
+        assert!(d <= Duration::MAX);
     }
 }

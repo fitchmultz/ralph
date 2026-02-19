@@ -225,43 +225,6 @@
       }
     },
     {
-      "id": "RQ-0924",
-      "status": "todo",
-      "title": "Add overflow protection to backoff computation",
-      "description": "The compute_backoff function in runutil/retry.rs has no overflow protection when base_backoff * multiplier^retry_index exceeds Duration::MAX. No validation that multiplier is >= 1.0.",
-      "priority": "medium",
-      "tags": [
-        "scan",
-        "runner",
-        "retry",
-        "bug",
-        "overflow"
-      ],
-      "scope": [
-        "crates/ralph/src/runutil/retry.rs"
-      ],
-      "evidence": [
-        "path: crates/ralph/src/runutil/retry.rs :: lines 140-150 :: compute_backoff function",
-        "analysis: No overflow protection, no validation multiplier >= 1.0"
-      ],
-      "plan": [
-        "Add overflow check: cap backoff at Duration::MAX",
-        "Add validation: ensure multiplier >= 1.0",
-        "Add tests for edge cases",
-        "Run `cargo test -p ralph --lib -- runutil::retry` to verify"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-02-17T19:44:50Z",
-      "updated_at": "2026-02-17T19:44:50Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-general"
-      }
-    },
-    {
       "id": "RQ-0925",
       "status": "todo",
       "title": "Add validation for status transition rules in set_status",

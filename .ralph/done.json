@@ -118,8 +118,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
-        "model_used": "gpt-5.3-codex"
+        "model_used": "gpt-5.3-codex",
+        "runner_used": "codex"
       }
     },
     {
@@ -255,8 +255,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
-        "model_used": "gpt-5.3-codex"
+        "model_used": "gpt-5.3-codex",
+        "runner_used": "codex"
       }
     },
     {
@@ -321,8 +321,8 @@
         "RQ-0953"
       ],
       "custom_fields": {
-        "runner_used": "codex",
         "scan_agent": "scan-general",
+        "runner_used": "codex",
         "model_used": "gpt-5.3-codex"
       }
     },
@@ -438,9 +438,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.3-codex",
         "runner_used": "codex",
-        "scan_agent": "scan-general"
+        "scan_agent": "scan-general",
+        "model_used": "gpt-5.3-codex"
       }
     },
     {
@@ -560,8 +560,8 @@
       "relates_to": [],
       "custom_fields": {
         "scan_agent": "scan-general",
-        "model_used": "sonnet",
-        "runner_used": "claude"
+        "runner_used": "claude",
+        "model_used": "sonnet"
       }
     },
     {
@@ -615,8 +615,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
         "model_used": "gpt-5.3-codex",
+        "runner_used": "codex",
         "scan_agent": "scan-general"
       }
     },
@@ -675,9 +675,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
+        "scan_agent": "scan-general",
         "model_used": "gpt-5.3-codex",
-        "scan_agent": "scan-general"
+        "runner_used": "codex"
       }
     },
     {
@@ -735,9 +735,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "runner_used": "opencode",
         "scan_agent": "scan-general",
-        "model_used": "kimi-for-coding/k2p5",
-        "runner_used": "opencode"
+        "model_used": "kimi-for-coding/k2p5"
       }
     },
     {
@@ -804,8 +804,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "opencode",
         "scan_agent": "scan-general",
+        "runner_used": "opencode",
         "model_used": "kimi-for-coding/k2p5"
       }
     },
@@ -857,9 +857,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-general",
+        "runner_used": "opencode",
         "model_used": "kimi-for-coding/k2p5",
-        "runner_used": "opencode"
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -918,9 +918,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-general",
         "runner_used": "opencode",
-        "model_used": "kimi-for-coding/k2p5"
+        "model_used": "kimi-for-coding/k2p5",
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -993,6 +993,55 @@
         "model_used": "kimi-for-coding/k2p5",
         "scan_agent": "scan-general",
         "runner_used": "opencode"
+      }
+    },
+    {
+      "id": "RQ-0924",
+      "status": "done",
+      "title": "Add overflow protection to backoff computation",
+      "description": "The compute_backoff function in runutil/retry.rs has no overflow protection when base_backoff * multiplier^retry_index exceeds Duration::MAX. No validation that multiplier is >= 1.0.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "runner",
+        "retry",
+        "bug",
+        "overflow"
+      ],
+      "scope": [
+        "crates/ralph/src/runutil/retry.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/runutil/retry.rs :: lines 140-198 :: compute_backoff function with overflow protection",
+        "path: crates/ralph/src/runutil/retry.rs :: lines 384-452 :: edge case tests exist",
+        "analysis: Implementation already complete with overflow protection and multiplier validation"
+      ],
+      "plan": [
+        "Verify existing overflow protection is correct",
+        "Verify existing multiplier validation (lines 146-153)",
+        "Verify existing edge case tests pass",
+        "Run `cargo test -p ralph --lib -- runutil::retry` to verify",
+        "Run `make agent-ci` to ensure no regressions"
+      ],
+      "notes": [
+        "Implementation already complete from prior iteration. Focus on verification and refinement.",
+        "Overflow protection implemented: power checks, infinite/NaN detection, u64 bounds validation",
+        "Multiplier validation: warns and clamps to 1.0 when < 1.0",
+        "4 edge case tests added and passing",
+        "All 15 retry tests pass"
+      ],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:44:50Z",
+      "updated_at": "2026-02-19T20:03:32.268619000Z",
+      "completed_at": "2026-02-19T20:03:32.268619000Z",
+      "started_at": "2026-02-19T19:49:26.638910000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general",
+        "runner_used": "opencode",
+        "model_used": "kimi-for-coding/k2p5"
       }
     }
   ]
