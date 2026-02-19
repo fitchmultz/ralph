@@ -25,3 +25,4 @@ CLAUDE.md
 .ralph/cache/undo
 .ralph/cache/webhooks
 .ralph/cache/session.json
+.ralph/cache/parallel
