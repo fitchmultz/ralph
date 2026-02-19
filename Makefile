@@ -26,12 +26,13 @@ MAKEFLAGS += --warn-undefined-variables
 MAKEFLAGS += --no-builtin-rules
 
 .PHONY: help install update lint lint-fix format type-check clean clean-temp test generate build ci deps \
-	check-env-safety check-backup-artifacts macos-preflight macos-build macos-test macos-ci macos-test-ui \
+	agent-ci check-env-safety check-backup-artifacts macos-preflight macos-build macos-test macos-ci macos-test-ui \
 	macos-test-window-shortcuts coverage coverage-clean
 
 help:
 	@echo "Common targets:"
 	@echo "  make ci          # Rust-only local CI gate (formats code, builds+installs release)"
+	@echo "  make agent-ci    # Agent gate: Rust/CLI always; macOS app gate only on apps/RalphMac changes"
 	@echo "  make macos-ci     # Rust gate + macOS app build+test (requires Xcode)"
 	@echo "  make test         # Nextest workspace tests + cargo doc tests (auto-fallback if nextest missing)"
 	@echo "  make coverage     # Generate code coverage report (requires cargo-llvm-cov)"
@@ -174,6 +175,36 @@ ci: check-env-safety check-backup-artifacts deps format type-check lint test bui
 	@echo "→ Local CI (formats code, always builds+installs release)..."
 	@echo ""
 	@echo "  ✓ CI completed"
+
+# Agent CI compromise: always run Rust/CLI gate; run macOS app gate only when app paths change.
+# Set RALPH_AGENT_CI_FORCE_MACOS=1 to force the macOS app gate.
+agent-ci:
+	@echo "→ Agent CI gate (Rust/CLI always; macOS app gate on app changes)..."
+	@force_macos="$${RALPH_AGENT_CI_FORCE_MACOS:-0}"; \
+	if [ "$$force_macos" = "1" ]; then \
+		echo "  → RALPH_AGENT_CI_FORCE_MACOS=1; running macOS gate"; \
+		$(MAKE) --no-print-directory macos-ci; \
+		exit 0; \
+	fi; \
+	if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then \
+		echo "  → Not in a git worktree; running macOS gate for safety"; \
+		$(MAKE) --no-print-directory macos-ci; \
+		exit 0; \
+	fi; \
+	changed_paths="$$( \
+		{ \
+			git diff --name-only --relative; \
+			git diff --cached --name-only --relative; \
+			git ls-files --others --exclude-standard; \
+		} | sed '/^$$/d' | sort -u \
+	)"; \
+	if printf '%s\n' "$$changed_paths" | grep -qE '^apps/RalphMac/'; then \
+		echo "  → app changes detected under apps/RalphMac/; running macOS gate"; \
+		$(MAKE) --no-print-directory macos-ci; \
+	else \
+		echo "  → no app changes detected; running Rust/CLI gate"; \
+		$(MAKE) --no-print-directory ci; \
+	fi
 
 macos-preflight:
 	@os="$$(uname -s)"; \

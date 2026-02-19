@@ -47,7 +47,7 @@ cargo run -p ralph -- queue list
 
 ### The CI Gate
 
-**All contributions MUST pass `make macos-ci` before being considered complete.** This is a hard requirement.
+**All contributions MUST pass `make agent-ci` before being considered complete.** This is a hard requirement.
 
 The CI gate runs the full validation pipeline:
 
@@ -58,10 +58,10 @@ check-env-safety → check-backup-artifacts → deps → format → type-check �
 Run it with:
 
 ```bash
-make macos-ci
+make agent-ci
 ```
 
-Do not commit or push changes if `make macos-ci` is failing. Fix all issues first.
+Do not commit or push changes if `make agent-ci` is failing. Fix all issues first.
 
 ## Contribution Guidelines
 
@@ -234,7 +234,7 @@ Examples:
 Include in your PR description:
 
 1. **What changed**: A brief summary of the changes
-2. **How to verify**: Steps to validate (expected: `make macos-ci`)
+2. **How to verify**: Steps to validate (expected: `make agent-ci`)
 3. **Breaking changes**: Call out any breaking behavior explicitly
 
 Example:
@@ -245,7 +245,7 @@ Added validation for task ID format in queue operations.
 
 ## Verification
 ```bash
-make macos-ci
+make agent-ci
 ```
 
 ## Breaking Changes
@@ -255,7 +255,7 @@ None.
 
 ### Local-CI-First Philosophy
 
-This repository is local-CI-first. We avoid adding remote CI (e.g., GitHub Actions) as a substitute for `make macos-ci`. The local CI gate is the source of truth.
+This repository is local-CI-first. We avoid adding remote CI (e.g., GitHub Actions) as a substitute for `make agent-ci`. The local CI gate is the source of truth.
 
 ## Repository Structure
 

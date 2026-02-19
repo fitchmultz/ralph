@@ -1,0 +1,1076 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "timestamp": "2026-02-09T15:14:04.491627000Z",
+      "task_id": "RQ-0799",
+      "runner": "opencode",
+      "model": "kimi-for-coding/k2p5",
+      "phase_count": 2,
+      "phase_durations": {
+        "planning": {
+          "secs": 135,
+          "nanos": 255574167
+        },
+        "implementation": {
+          "secs": 863,
+          "nanos": 39741833
+        }
+      },
+      "total_duration": {
+        "secs": 998,
+        "nanos": 295316000
+      }
+    },
+    {
+      "timestamp": "2026-02-09T17:35:40.874533000Z",
+      "task_id": "RQ-0802",
+      "runner": "opencode",
+      "model": "google/gemini-3-flash-preview",
+      "phase_count": 3,
+      "phase_durations": {
+        "planning": {
+          "secs": 78,
+          "nanos": 433791166
+        },
+        "implementation": {
+          "secs": 818,
+          "nanos": 982469334
+        },
+        "review": {
+          "secs": 625,
+          "nanos": 911142791
+        }
+      },
+      "total_duration": {
+        "secs": 1523,
+        "nanos": 327403291
+      }
+    },
+    {
+      "timestamp": "2026-02-09T18:03:00.977430000Z",
+      "task_id": "RQ-0805",
+      "runner": "opencode",
+      "model": "kimi-for-coding/k2p5",
+      "phase_count": 3,
+      "phase_durations": {
+        "implementation": {
+          "secs": 423,
+          "nanos": 761798375
+        },
+        "review": {
+          "secs": 392,
+          "nanos": 473598750
+        },
+        "planning": {
+          "secs": 56,
+          "nanos": 269257833
+        }
+      },
+      "total_duration": {
+        "secs": 872,
+        "nanos": 504654958
+      }
+    },
+    {
+      "timestamp": "2026-02-09T18:48:23.711572000Z",
+      "task_id": "RQ-0803",
+      "runner": "opencode",
+      "model": "kimi-for-coding/k2p5",
+      "phase_count": 3,
+      "phase_durations": {
+        "implementation": {
+          "secs": 1882,
+          "nanos": 711151458
+        },
+        "planning": {
+          "secs": 43,
+          "nanos": 123618458
+        },
+        "review": {
+          "secs": 386,
+          "nanos": 234823417
+        }
+      },
+      "total_duration": {
+        "secs": 2312,
+        "nanos": 69593333
+      }
+    },
+    {
+      "timestamp": "2026-02-09T19:19:56.487145000Z",
+      "task_id": "RQ-0804",
+      "runner": "opencode",
+      "model": "kimi-for-coding/k2p5",
+      "phase_count": 3,
+      "phase_durations": {
+        "implementation": {
+          "secs": 989,
+          "nanos": 693969749
+        },
+        "review": {
+          "secs": 256,
+          "nanos": 253654458
+        },
+        "planning": {
+          "secs": 52,
+          "nanos": 133940583
+        }
+      },
+      "total_duration": {
+        "secs": 1298,
+        "nanos": 81564790
+      }
+    },
+    {
+      "timestamp": "2026-02-09T20:05:49.502075000Z",
+      "task_id": "RQ-0801",
+      "runner": "kimi",
+      "model": "kimi-code/kimi-for-coding",
+      "phase_count": 3,
+      "phase_durations": {
+        "review": {
+          "secs": 767,
+          "nanos": 955728917
+        },
+        "implementation": {
+          "secs": 514,
+          "nanos": 531129042
+        },
+        "planning": {
+          "secs": 123,
+          "nanos": 144972542
+        }
+      },
+      "total_duration": {
+        "secs": 1405,
+        "nanos": 631830501
+      }
+    },
+    {
+      "timestamp": "2026-02-09T21:06:53.209831000Z",
+      "task_id": "RQ-0743",
+      "runner": "kimi",
+      "model": "kimi-code/kimi-for-coding",
+      "phase_count": 3,
+      "phase_durations": {
+        "planning": {
+          "secs": 129,
+          "nanos": 743531083
+        },
+        "review": {
+          "secs": 416,
+          "nanos": 805688291
+        },
+        "implementation": {
+          "secs": 1982,
+          "nanos": 154892625
+        }
+      },
+      "total_duration": {
+        "secs": 2528,
+        "nanos": 704111999
+      }
+    },
+    {
+      "timestamp": "2026-02-09T22:13:49.763806000Z",
+      "task_id": "RQ-0742",
+      "runner": "kimi",
+      "model": "kimi-code/kimi-for-coding",
+      "phase_count": 3,
+      "phase_durations": {
+        "planning": {
+          "secs": 275,
+          "nanos": 231441958
+        },
+        "review": {
+          "secs": 832,
+          "nanos": 902013541
+        },
+        "implementation": {
+          "secs": 1864,
+          "nanos": 283390875
+        }
+      },
+      "total_duration": {
+        "secs": 2972,
+        "nanos": 416846374
+      }
+    },
+    {
+      "timestamp": "2026-02-10T00:37:21.270920000Z",
+      "task_id": "RQ-0806",
+      "runner": "kimi",
+      "model": "kimi-code/kimi-for-coding",
+      "phase_count": 3,
+      "phase_durations": {
+        "implementation": {
+          "secs": 378,
+          "nanos": 704502084
+        },
+        "review": {
+          "secs": 24,
+          "nanos": 460065042
+        },
+        "planning": {
+          "secs": 89,
+          "nanos": 962014875
+        }
+      },
+      "total_duration": {
+        "secs": 493,
+        "nanos": 126582001
+      }
+    },
+    {
+      "timestamp": "2026-02-10T01:09:38.507599000Z",
+      "task_id": "RQ-0728",
+      "runner": "kimi",
+      "model": "kimi-code/kimi-for-coding",
+      "phase_count": 3,
+      "phase_durations": {
+        "implementation": {
+          "secs": 1024,
+          "nanos": 775303291
+        },
+        "planning": {
+          "secs": 139,
+          "nanos": 622687458
+        },
+        "review": {
+          "secs": 500,
+          "nanos": 92178708
+        }
+      },
+      "total_duration": {
+        "secs": 1664,
+        "nanos": 490169457
+      }
+    },
+    {
+      "timestamp": "2026-02-10T01:40:16.200123000Z",
+      "task_id": "RQ-0729",
+      "runner": "kimi",
+      "model": "kimi-code/kimi-for-coding",
+      "phase_count": 3,
+      "phase_durations": {
+        "planning": {
+          "secs": 157,
+          "nanos": 716201250
+        },
+        "implementation": {
+          "secs": 783,
+          "nanos": 139134042
+        },
+        "review": {
+          "secs": 480,
+          "nanos": 241919333
+        }
+      },
+      "total_duration": {
+        "secs": 1421,
+        "nanos": 97254625
+      }
+    },
+    {
+      "timestamp": "2026-02-12T22:42:51.702157000Z",
+      "task_id": "RQ-0811",
+      "runner": "codex",
+      "model": "gpt-5.3-codex-spark",
+      "phase_count": 3,
+      "phase_durations": {
+        "implementation": {
+          "secs": 471,
+          "nanos": 33908208
+        },
+        "review": {
+          "secs": 585,
+          "nanos": 833009417
+        },
+        "planning": {
+          "secs": 85,
+          "nanos": 228645250
+        }
+      },
+      "total_duration": {
+        "secs": 1142,
+        "nanos": 95562875
+      }
+    },
+    {
+      "timestamp": "2026-02-12T23:00:08.971895000Z",
+      "task_id": "RQ-0812",
+      "runner": "codex",
+      "model": "gpt-5.3-codex-spark",
+      "phase_count": 3,
+      "phase_durations": {
+        "review": {
+          "secs": 165,
+          "nanos": 742988291
+        },
+        "planning": {
+          "secs": 119,
+          "nanos": 789362667
+        },
+        "implementation": {
+          "secs": 552,
+          "nanos": 86007917
+        }
+      },
+      "total_duration": {
+        "secs": 837,
+        "nanos": 618358875
+      }
+    },
+    {
+      "timestamp": "2026-02-13T15:37:10.290900000Z",
+      "task_id": "RQ-0814",
+      "runner": "codex",
+      "model": "gpt-5.3-codex",
+      "phase_count": 3,
+      "phase_durations": {
+        "implementation": {
+          "secs": 1004,
+          "nanos": 774710916
+        },
+        "review": {
+          "secs": 933,
+          "nanos": 309604333
+        },
+        "planning": {
+          "secs": 474,
+          "nanos": 846721625
+        }
+      },
+      "total_duration": {
+        "secs": 2412,
+        "nanos": 931036874
+      }
+    },
+    {
+      "timestamp": "2026-02-14T18:52:18.869112000Z",
+      "task_id": "RQ-0815",
+      "runner": "claude",
+      "model": "opus",
+      "phase_count": 3,
+      "phase_durations": {
+        "planning": {
+          "secs": 967,
+          "nanos": 912343916
+        },
+        "review": {
+          "secs": 2145,
+          "nanos": 553067583
+        },
+        "implementation": {
+          "secs": 304,
+          "nanos": 345069125
+        }
+      },
+      "total_duration": {
+        "secs": 3417,
+        "nanos": 810480624
+      }
+    },
+    {
+      "timestamp": "2026-02-16T03:55:03.565842000Z",
+      "task_id": "RQ-0849",
+      "runner": "claude",
+      "model": "opus",
+      "phase_count": 3,
+      "phase_durations": {
+        "review": {
+          "secs": 671,
+          "nanos": 883316417
+        },
+        "planning": {
+          "secs": 350,
+          "nanos": 384641582
+        },
+        "implementation": {
+          "secs": 773,
+          "nanos": 701565542
+        }
+      },
+      "total_duration": {
+        "secs": 1795,
+        "nanos": 969523541
+      }
+    },
+    {
+      "timestamp": "2026-02-16T05:20:48.413140000Z",
+      "task_id": "RQ-0850",
+      "runner": "claude",
+      "model": "opus",
+      "phase_count": 3,
+      "phase_durations": {
+        "review": {
+          "secs": 1966,
+          "nanos": 26804833
+        },
+        "implementation": {
+          "secs": 2003,
+          "nanos": 479566166
+        },
+        "planning": {
+          "secs": 628,
+          "nanos": 225609583
+        }
+      },
+      "total_duration": {
+        "secs": 4597,
+        "nanos": 731980582
+      }
+    },
+    {
+      "timestamp": "2026-02-16T06:16:58.083497000Z",
+      "task_id": "RQ-0851",
+      "runner": "claude",
+      "model": "opus",
+      "phase_count": 3,
+      "phase_durations": {
+        "implementation": {
+          "secs": 1320,
+          "nanos": 292202583
+        },
+        "planning": {
+          "secs": 622,
+          "nanos": 16292584
+        },
+        "review": {
+          "secs": 890,
+          "nanos": 442667334
+        }
+      },
+      "total_duration": {
+        "secs": 2832,
+        "nanos": 751162501
+      }
+    },
+    {
+      "timestamp": "2026-02-16T12:40:37.044045000Z",
+      "task_id": "RQ-0854",
+      "runner": "claude",
+      "model": "opus",
+      "phase_count": 3,
+      "phase_durations": {
+        "implementation": {
+          "secs": 877,
+          "nanos": 744856416
+        },
+        "planning": {
+          "secs": 577,
+          "nanos": 842274375
+        },
+        "review": {
+          "secs": 918,
+          "nanos": 115374125
+        }
+      },
+      "total_duration": {
+        "secs": 2373,
+        "nanos": 702504916
+      }
+    },
+    {
+      "timestamp": "2026-02-16T13:50:01.065595000Z",
+      "task_id": "RQ-0855",
+      "runner": "claude",
+      "model": "opus",
+      "phase_count": 3,
+      "phase_durations": {
+        "implementation": {
+          "secs": 1470,
+          "nanos": 533979625
+        },
+        "planning": {
+          "secs": 605,
+          "nanos": 436144917
+        },
+        "review": {
+          "secs": 1547,
+          "nanos": 491909666
+        }
+      },
+      "total_duration": {
+        "secs": 3623,
+        "nanos": 462034208
+      }
+    },
+    {
+      "timestamp": "2026-02-16T15:03:50.685960000Z",
+      "task_id": "RQ-0856",
+      "runner": "claude",
+      "model": "opus",
+      "phase_count": 3,
+      "phase_durations": {
+        "planning": {
+          "secs": 715,
+          "nanos": 125713584
+        },
+        "implementation": {
+          "secs": 1785,
+          "nanos": 239042584
+        },
+        "review": {
+          "secs": 1097,
+          "nanos": 476355959
+        }
+      },
+      "total_duration": {
+        "secs": 3597,
+        "nanos": 841112127
+      }
+    },
+    {
+      "timestamp": "2026-02-16T16:09:37.942038000Z",
+      "task_id": "RQ-0857",
+      "runner": "claude",
+      "model": "opus",
+      "phase_count": 3,
+      "phase_durations": {
+        "implementation": {
+          "secs": 1137,
+          "nanos": 887899708
+        },
+        "review": {
+          "secs": 966,
+          "nanos": 529597000
+        },
+        "planning": {
+          "secs": 1093,
+          "nanos": 665061083
+        }
+      },
+      "total_duration": {
+        "secs": 3198,
+        "nanos": 82557791
+      }
+    },
+    {
+      "timestamp": "2026-02-16T17:39:58.329474000Z",
+      "task_id": "RQ-0858",
+      "runner": "opencode",
+      "model": "kimi-for-coding/k2p5",
+      "phase_count": 3,
+      "phase_durations": {
+        "implementation": {
+          "secs": 789,
+          "nanos": 753142250
+        },
+        "planning": {
+          "secs": 253,
+          "nanos": 307279917
+        },
+        "review": {
+          "secs": 449,
+          "nanos": 458610750
+        }
+      },
+      "total_duration": {
+        "secs": 1492,
+        "nanos": 519032917
+      }
+    },
+    {
+      "timestamp": "2026-02-17T22:02:57.973357000Z",
+      "task_id": "RQ-0942",
+      "runner": "claude",
+      "model": "sonnet",
+      "phase_count": 3,
+      "phase_durations": {
+        "planning": {
+          "secs": 320,
+          "nanos": 547897750
+        },
+        "implementation": {
+          "secs": 888,
+          "nanos": 666784958
+        },
+        "review": {
+          "secs": 502,
+          "nanos": 222570625
+        }
+      },
+      "total_duration": {
+        "secs": 1711,
+        "nanos": 437253333
+      }
+    },
+    {
+      "timestamp": "2026-02-17T22:36:13.618241000Z",
+      "task_id": "RQ-0943",
+      "runner": "claude",
+      "model": "sonnet",
+      "phase_count": 3,
+      "phase_durations": {
+        "implementation": {
+          "secs": 71,
+          "nanos": 476609167
+        },
+        "planning": {
+          "secs": 361,
+          "nanos": 858828459
+        },
+        "review": {
+          "secs": 1246,
+          "nanos": 809148875
+        }
+      },
+      "total_duration": {
+        "secs": 1680,
+        "nanos": 144586501
+      }
+    },
+    {
+      "timestamp": "2026-02-17T23:27:36.854532000Z",
+      "task_id": "RQ-0944",
+      "runner": "claude",
+      "model": "sonnet",
+      "phase_count": 3,
+      "phase_durations": {
+        "planning": {
+          "secs": 343,
+          "nanos": 703271666
+        },
+        "review": {
+          "secs": 598,
+          "nanos": 55258042
+        },
+        "implementation": {
+          "secs": 2068,
+          "nanos": 403790542
+        }
+      },
+      "total_duration": {
+        "secs": 3010,
+        "nanos": 162320250
+      }
+    },
+    {
+      "timestamp": "2026-02-18T01:47:07.136727000Z",
+      "task_id": "RQ-0945",
+      "runner": "claude",
+      "model": "sonnet",
+      "phase_count": 3,
+      "phase_durations": {
+        "implementation": {
+          "secs": 2886,
+          "nanos": 327127958
+        },
+        "review": {
+          "secs": 878,
+          "nanos": 14052750
+        },
+        "planning": {
+          "secs": 942,
+          "nanos": 915991916
+        }
+      },
+      "total_duration": {
+        "secs": 4707,
+        "nanos": 257172624
+      }
+    },
+    {
+      "timestamp": "2026-02-18T14:11:17.634478000Z",
+      "task_id": "RQ-0946",
+      "runner": "claude",
+      "model": "sonnet",
+      "phase_count": 3,
+      "phase_durations": {
+        "review": {
+          "secs": 356,
+          "nanos": 410930958
+        },
+        "planning": {
+          "secs": 196,
+          "nanos": 345332458
+        },
+        "implementation": {
+          "secs": 317,
+          "nanos": 300590959
+        }
+      },
+      "total_duration": {
+        "secs": 870,
+        "nanos": 56854375
+      }
+    },
+    {
+      "timestamp": "2026-02-18T14:39:15.690021000Z",
+      "task_id": "RQ-0947",
+      "runner": "claude",
+      "model": "sonnet",
+      "phase_count": 3,
+      "phase_durations": {
+        "planning": {
+          "secs": 412,
+          "nanos": 776994875
+        },
+        "implementation": {
+          "secs": 748,
+          "nanos": 284864542
+        },
+        "review": {
+          "secs": 426,
+          "nanos": 912072250
+        }
+      },
+      "total_duration": {
+        "secs": 1587,
+        "nanos": 973931667
+      }
+    },
+    {
+      "timestamp": "2026-02-18T15:32:21.119656000Z",
+      "task_id": "RQ-0948",
+      "runner": "claude",
+      "model": "sonnet",
+      "phase_count": 3,
+      "phase_durations": {
+        "implementation": {
+          "secs": 2314,
+          "nanos": 934509708
+        },
+        "planning": {
+          "secs": 328,
+          "nanos": 710823209
+        },
+        "review": {
+          "secs": 459,
+          "nanos": 988809125
+        }
+      },
+      "total_duration": {
+        "secs": 3103,
+        "nanos": 634142042
+      }
+    },
+    {
+      "timestamp": "2026-02-18T16:02:56.431980000Z",
+      "task_id": "RQ-0949",
+      "runner": "claude",
+      "model": "sonnet",
+      "phase_count": 3,
+      "phase_durations": {
+        "review": {
+          "secs": 578,
+          "nanos": 92502458
+        },
+        "planning": {
+          "secs": 271,
+          "nanos": 703206625
+        },
+        "implementation": {
+          "secs": 905,
+          "nanos": 440123459
+        }
+      },
+      "total_duration": {
+        "secs": 1755,
+        "nanos": 235832542
+      }
+    },
+    {
+      "timestamp": "2026-02-18T16:34:37.395685000Z",
+      "task_id": "RQ-0933",
+      "runner": "claude",
+      "model": "sonnet",
+      "phase_count": 3,
+      "phase_durations": {
+        "planning": {
+          "secs": 309,
+          "nanos": 695341291
+        },
+        "implementation": {
+          "secs": 681,
+          "nanos": 194203000
+        },
+        "review": {
+          "secs": 281,
+          "nanos": 956689125
+        }
+      },
+      "total_duration": {
+        "secs": 1272,
+        "nanos": 846233416
+      }
+    },
+    {
+      "timestamp": "2026-02-18T19:58:34.377994000Z",
+      "task_id": "RQ-0942",
+      "runner": "claude",
+      "model": "sonnet",
+      "phase_count": 3,
+      "phase_durations": {
+        "planning": {
+          "secs": 446,
+          "nanos": 942493625
+        },
+        "implementation": {
+          "secs": 567,
+          "nanos": 440264083
+        },
+        "review": {
+          "secs": 182,
+          "nanos": 731798250
+        }
+      },
+      "total_duration": {
+        "secs": 1197,
+        "nanos": 114555958
+      }
+    },
+    {
+      "timestamp": "2026-02-18T20:31:42.921078000Z",
+      "task_id": "RQ-0943",
+      "runner": "claude",
+      "model": "sonnet",
+      "phase_count": 3,
+      "phase_durations": {
+        "planning": {
+          "secs": 502,
+          "nanos": 912808709
+        },
+        "review": {
+          "secs": 157,
+          "nanos": 576807625
+        },
+        "implementation": {
+          "secs": 592,
+          "nanos": 123514541
+        }
+      },
+      "total_duration": {
+        "secs": 1252,
+        "nanos": 613130875
+      }
+    },
+    {
+      "timestamp": "2026-02-18T23:10:20.680439000Z",
+      "task_id": "RQ-0944",
+      "runner": "claude",
+      "model": "sonnet",
+      "phase_count": 3,
+      "phase_durations": {
+        "review": {
+          "secs": 605,
+          "nanos": 487967459
+        },
+        "implementation": {
+          "secs": 692,
+          "nanos": 485345292
+        },
+        "planning": {
+          "secs": 400,
+          "nanos": 431409666
+        }
+      },
+      "total_duration": {
+        "secs": 1698,
+        "nanos": 404722417
+      }
+    },
+    {
+      "timestamp": "2026-02-18T23:59:38.367521000Z",
+      "task_id": "RQ-0945",
+      "runner": "claude",
+      "model": "sonnet",
+      "phase_count": 3,
+      "phase_durations": {
+        "implementation": {
+          "secs": 669,
+          "nanos": 100989958
+        },
+        "review": {
+          "secs": 297,
+          "nanos": 728388958
+        },
+        "planning": {
+          "secs": 353,
+          "nanos": 508018375
+        }
+      },
+      "total_duration": {
+        "secs": 1320,
+        "nanos": 337397291
+      }
+    },
+    {
+      "timestamp": "2026-02-19T00:28:01.278099000Z",
+      "task_id": "RQ-0946",
+      "runner": "claude",
+      "model": "sonnet",
+      "phase_count": 3,
+      "phase_durations": {
+        "review": {
+          "secs": 418,
+          "nanos": 268861834
+        },
+        "planning": {
+          "secs": 502,
+          "nanos": 210144375
+        },
+        "implementation": {
+          "secs": 633,
+          "nanos": 851801584
+        }
+      },
+      "total_duration": {
+        "secs": 1554,
+        "nanos": 330807793
+      }
+    },
+    {
+      "timestamp": "2026-02-19T00:51:17.618627000Z",
+      "task_id": "RQ-0947",
+      "runner": "claude",
+      "model": "sonnet",
+      "phase_count": 3,
+      "phase_durations": {
+        "review": {
+          "secs": 108,
+          "nanos": 616537167
+        },
+        "planning": {
+          "secs": 330,
+          "nanos": 4826959
+        },
+        "implementation": {
+          "secs": 891,
+          "nanos": 491574125
+        }
+      },
+      "total_duration": {
+        "secs": 1330,
+        "nanos": 112938251
+      }
+    },
+    {
+      "timestamp": "2026-02-19T01:07:05.660929000Z",
+      "task_id": "RQ-0948",
+      "runner": "claude",
+      "model": "sonnet",
+      "phase_count": 3,
+      "phase_durations": {
+        "implementation": {
+          "secs": 279,
+          "nanos": 984888375
+        },
+        "review": {
+          "secs": 130,
+          "nanos": 647904000
+        },
+        "planning": {
+          "secs": 474,
+          "nanos": 633098375
+        }
+      },
+      "total_duration": {
+        "secs": 885,
+        "nanos": 265890750
+      }
+    },
+    {
+      "timestamp": "2026-02-19T01:25:00.177159000Z",
+      "task_id": "RQ-0949",
+      "runner": "claude",
+      "model": "sonnet",
+      "phase_count": 3,
+      "phase_durations": {
+        "implementation": {
+          "secs": 121,
+          "nanos": 792188458
+        },
+        "review": {
+          "secs": 116,
+          "nanos": 912243875
+        },
+        "planning": {
+          "secs": 701,
+          "nanos": 173879292
+        }
+      },
+      "total_duration": {
+        "secs": 939,
+        "nanos": 878311625
+      }
+    },
+    {
+      "timestamp": "2026-02-19T01:37:29.092544000Z",
+      "task_id": "RQ-0950",
+      "runner": "claude",
+      "model": "sonnet",
+      "phase_count": 3,
+      "phase_durations": {
+        "review": {
+          "secs": 123,
+          "nanos": 477873542
+        },
+        "implementation": {
+          "secs": 306,
+          "nanos": 863237708
+        },
+        "planning": {
+          "secs": 246,
+          "nanos": 150780000
+        }
+      },
+      "total_duration": {
+        "secs": 676,
+        "nanos": 491891250
+      }
+    },
+    {
+      "timestamp": "2026-02-19T02:02:06.909082000Z",
+      "task_id": "RQ-0953",
+      "runner": "claude",
+      "model": "sonnet",
+      "phase_count": 3,
+      "phase_durations": {
+        "planning": {
+          "secs": 220,
+          "nanos": 12712875
+        },
+        "review": {
+          "secs": 320,
+          "nanos": 974945292
+        },
+        "implementation": {
+          "secs": 869,
+          "nanos": 869661458
+        }
+      },
+      "total_duration": {
+        "secs": 1410,
+        "nanos": 857319625
+      }
+    },
+    {
+      "timestamp": "2026-02-19T02:31:48.365318000Z",
+      "task_id": "RQ-0955",
+      "runner": "claude",
+      "model": "sonnet",
+      "phase_count": 3,
+      "phase_durations": {
+        "implementation": {
+          "secs": 1063,
+          "nanos": 867323292
+        },
+        "planning": {
+          "secs": 309,
+          "nanos": 72286250
+        },
+        "review": {
+          "secs": 327,
+          "nanos": 54822125
+        }
+      },
+      "total_duration": {
+        "secs": 1699,
+        "nanos": 994431667
+      }
+    }
+  ]
+}

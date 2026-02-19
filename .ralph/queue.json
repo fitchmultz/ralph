@@ -1,0 +1,1367 @@
+{
+  "version": 1,
+  "tasks": [
+    {
+      "id": "RQ-0949",
+      "status": "todo",
+      "title": "Fix agent not investigating TOML parse errors in CI output",
+      "description": "The RQ-0124 agent saw the error 'TOML parse error at line 44, column 18: unknown variant py314' multiple times but never investigated the pyproject.toml file. The error clearly pointed to line 44 of pyproject.toml with the invalid value 'py314'. The agent should have read the file and fixed the target-version. This is an agent behavior improvement - when CI fails with a parse error pointing to a specific file and line, investigate that file.",
+      "priority": "high",
+      "tags": [
+        "scan",
+        "agent-behavior",
+        "error-investigation",
+        "ci"
+      ],
+      "scope": [
+        "~/.codex/AGENTS.md"
+      ],
+      "evidence": [
+        "log: TOML parse error at line 44, column 18: unknown variant `py314`",
+        "log: Agent ran `make ci 2>&1 | tail -30` multiple times but never investigated pyproject.toml",
+        "file: ~/Projects/.workspaces/cloop/parallel/RQ-0124/pyproject.toml:44 contains target-version = \"py314\"",
+        "code: crates/ralph/src/commands/run/supervision/ci.rs already has error pattern detection with guidance",
+        "code: compliance messages include DETECTED ERROR section with file, line, invalid value, valid options"
+      ],
+      "plan": [
+        "Add CI Error Investigation section to ~/.codex/AGENTS.md",
+        "Pattern: 'parse error at line N' -> READ the file at line N immediately",
+        "Pattern: 'unknown variant X, expected Y' -> replace X with valid option from Y",
+        "Pattern: Error mentions specific file -> investigate that file first",
+        "Rationale: Ralph's CI gate already extracts file/line/invalid-value but agents ignore it"
+      ],
+      "notes": [
+        "Scope changed from ~/.claude/AGENTS.md (doesn't exist) to ~/.codex/AGENTS.md (actual global config)",
+        "No code changes needed - Ralph already provides structured error detection in compliance messages",
+        "Added 'CI Error Investigation' section to global AGENTS.md (~/.codex/AGENTS.md)",
+        "Guidance covers parse error patterns and required investigation actions",
+        "Includes concrete py314 example from RQ-0124 incident",
+        "Project-local AGENTS.md not modified per 'do not repeat global guidance' rule"
+      ],
+      "request": "scan finding",
+      "created_at": "2026-02-18T22:30:00Z",
+      "updated_at": "2026-02-19T01:24:42.866227000Z",
+      "completed_at": "2026-02-19T01:24:42.866227000Z",
+      "started_at": "2026-02-19T01:07:05.714238000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "model_used": "sonnet",
+        "scan_agent": "scan-general",
+        "runner_used": "claude"
+      }
+    },
+    {
+      "id": "RQ-0950",
+      "status": "todo",
+      "title": "Add CI output passthrough to agent before compliance message",
+      "description": "When CI gate fails, the agent receives a compliance message but may not see the full CI output. In RQ-0124, the agent kept running `make ci` manually and truncating output with `tail -30`. The CI gate failure log showed the ruff parse error at the start of output (before tests). Agent should see the complete CI output including format-check, lint-check phases that run before tests.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "ci",
+        "agent-visibility",
+        "ralph"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/supervision/ci.rs",
+        "crates/ralph/src/commands/run/logging.rs"
+      ],
+      "evidence": [
+        "log: Agent ran `make ci 2>&1 | tail -30` which truncated early errors",
+        "log: ruff format --check runs BEFORE tests, error appeared at start of CI output",
+        "analysis: Agent needs to see full CI output when gate fails",
+        "code: format_ci_output_for_message() takes LAST N lines, truncating early errors",
+        "code: detect_ci_error_pattern() scans combined output but agent only sees truncated snippet"
+      ],
+      "plan": [
+        "Change format_ci_output_for_message to show BOTH start and end of output",
+        "First 50 lines (early errors like format/lint) + last 50 lines (test failures)",
+        "Include line count indicator when truncated (e.g., 'Lines 1-50 of 200')",
+        "Add unit tests for head+tail truncation behavior",
+        "Run cargo test -p ralph to verify"
+      ],
+      "notes": [
+        "Modified format_ci_output_for_message() to show both head (early errors) and tail (test failures) instead of just tail",
+        "Changed function signature from max_lines to max_head_lines + max_tail_lines (50, 50)",
+        "Added 2 new tests: format_ci_output_shows_head_and_tail and format_ci_output_shows_all_when_small",
+        "All 40 CI supervision tests pass, full CI gate passes"
+      ],
+      "request": "scan finding",
+      "created_at": "2026-02-18T22:30:00Z",
+      "updated_at": "2026-02-19T01:36:37.559575000Z",
+      "completed_at": "2026-02-19T01:36:37.559575000Z",
+      "started_at": "2026-02-19T01:25:00.228090000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "model_used": "sonnet",
+        "runner_used": "claude",
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0953",
+      "status": "todo",
+      "title": "Improve CI gate logging with full command output",
+      "description": "The CI gate logs show 'CI gate (make ci): start' and 'error: CI failed' but don't include the actual command output. The full output appears elsewhere in the agent's log but not in the CI gate's own logging. This makes it harder to debug CI gate failures. Include the truncated command output in the CI gate log entry.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "ci",
+        "logging",
+        "debugging",
+        "ralph"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/logging.rs",
+        "crates/ralph/src/commands/run/supervision/ci.rs"
+      ],
+      "evidence": [
+        "log: [2026-02-18T22:11:01Z INFO] CI gate (make ci): start",
+        "log: [2026-02-18T22:11:01Z ERROR] CI gate (make ci): error: CI failed",
+        "analysis: No command output in CI gate log entries",
+        "code: run_ci_gate() returns Ok(CiGateResult) even on CI failure - doesn't trigger with_scope error path",
+        "code: log::error! calls at lines 453-461 log output but separate from scope logging"
+      ],
+      "plan": [
+        "Create new with_scope_output helper in logging.rs for scopes that capture output",
+        "Modify run_ci_gate to return Result<CiGateResult, CiGateError> where error includes truncated output",
+        "Include detected error pattern type in log message",
+        "Add unit tests for the new logging behavior",
+        "Run cargo test -p ralph --lib -- supervision::ci to verify"
+      ],
+      "notes": [
+        "Root cause: run_ci_gate returns Ok(CiGateResult{success: false}) instead of Err, so with_scope logs 'end' not 'error'",
+        "Current output logging at lines 453-461 is good but disconnected from scope boundary",
+        "Solution: Make CI failure return Err with rich output context so with_scope can log it properly",
+        "Added CiFailure error type with Display impl including exit code, error pattern, truncated stdout/stderr",
+        "run_ci_gate now returns Err(CiFailure) on CI failure for proper with_scope logging",
+        "Updated call sites in mod.rs and parallel_worker.rs to use if let Err pattern",
+        "Added 5 new tests for CiFailure display behavior",
+        "All 1963 tests pass, CI gate passes"
+      ],
+      "request": "scan finding",
+      "created_at": "2026-02-18T22:30:00Z",
+      "updated_at": "2026-02-19T02:01:19.324609000Z",
+      "completed_at": "2026-02-19T02:01:19.324609000Z",
+      "started_at": "2026-02-19T01:37:29.154837000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "model_used": "sonnet",
+        "scan_agent": "scan-general",
+        "runner_used": "claude"
+      }
+    },
+    {
+      "id": "RQ-0955",
+      "status": "todo",
+      "title": "Add webhook queue overflow handling to parallel workers",
+      "description": "The log shows multiple 'Webhook enqueue failed (queue full or worker disconnected)' warnings. Webhooks are used for progress reporting but fail silently in parallel worker mode. This could lead to lost status updates. Either increase queue size for parallel mode or implement webhook retry/overflow handling.",
+      "priority": "low",
+      "tags": [
+        "scan",
+        "webhook",
+        "parallel-workers",
+        "ralph",
+        "backpressure",
+        "queue"
+      ],
+      "scope": [
+        "crates/ralph/src/webhook/mod.rs",
+        "crates/ralph/src/webhook/diagnostics.rs",
+        "crates/ralph/src/contracts/config/webhook.rs",
+        "crates/ralph/src/commands/run/parallel/orchestration.rs"
+      ],
+      "evidence": [
+        "log: [2026-02-18T20:27:53Z WARN] Webhook enqueue failed (queue full or worker disconnected)",
+        "log: Multiple occurrences throughout parallel run",
+        "code: webhook/mod.rs:205-214 :: Default queue capacity is 100, configurable 10-10000",
+        "code: webhook/mod.rs:388-449 :: Three backpressure policies exist (DropOldest, DropNew, BlockWithTimeout)",
+        "code: orchestration.rs:279-283 :: Loop-level webhooks sent without checking queue capacity",
+        "code: orchestration.rs:845-853, 1061-1069 :: notify_loop_stopped called on completion paths",
+        "analysis: With N parallel workers each sending 4+ webhooks (phase_started/completed x2), queue of 100 fills rapidly during slow webhook delivery (30s timeout x 3 retries = 90s worst case per webhook)"
+      ],
+      "plan": [
+        "Increase default queue capacity from 100 to 500 for better parallel mode handling",
+        "Scale queue capacity dynamically based on parallel worker count (workers * 50 minimum)",
+        "Add parallel_mode_queue_capacity config option under agent.webhook",
+        "Log dropped webhook events with task_id and event type for debugging",
+        "Consider non-blocking batch enqueue for parallel mode webhooks",
+        "Run `cargo test -p ralph --lib -- webhook` to verify existing tests pass",
+        "Run `make macos-ci` to verify no regressions"
+      ],
+      "notes": [
+        "Root cause: Single global webhook worker thread with bounded queue (default 100) cannot keep up with burst of webhooks from N parallel workers",
+        "Each parallel worker sends: loop_started, phase_started (P1), phase_completed (P1), phase_started (P2/3), phase_completed (P2/3), loop_stopped = ~6 webhooks per task",
+        "With 8 workers, that's 48 webhooks minimum per wave. During slow delivery (90s per webhook), queue fills rapidly",
+        "Current policies (DropOldest, DropNew, BlockWithTimeout) all result in dropped messages under load",
+        "Webhooks are best-effort per module docs, but losing all status updates is poor UX",
+        "Increased default webhook queue capacity from 100 to 500",
+        "Added parallel_queue_multiplier config option (range 1.0-10.0, default 2.0)",
+        "Added init_worker_for_parallel function for parallel-aware capacity scaling",
+        "Improved dropped message logging to include event type and task_id",
+        "Phase 3 review: implementation complete and correct, all tests pass"
+      ],
+      "request": "scan finding",
+      "created_at": "2026-02-18T22:30:00Z",
+      "updated_at": "2026-02-19T02:29:42.354351000Z",
+      "completed_at": "2026-02-19T02:29:42.354351000Z",
+      "started_at": "2026-02-19T02:02:06.954636000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "model_used": "sonnet",
+        "runner_used": "claude",
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0935",
+      "status": "todo",
+      "title": "Add tests for queue graph dependency cycle detection",
+      "description": "The queue graph module handles task dependencies but has NO tests for circular dependency detection. Files: graph/algorithms.rs, graph/build.rs, graph/traversal.rs, graph/types.rs. Circular dependencies would cause infinite loops or panics.",
+      "priority": "high",
+      "tags": [
+        "scan",
+        "testing",
+        "queue",
+        "graph",
+        "dependencies"
+      ],
+      "scope": [
+        "crates/ralph/src/queue/graph/"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/queue/graph/algorithms.rs :: graph algorithms",
+        "path: crates/ralph/src/queue/graph/build.rs :: graph building",
+        "analysis: No tests for circular dependency detection"
+      ],
+      "plan": [
+        "Add test: graph_detects_simple_cycle (A -> B -> A)",
+        "Add test: graph_detects_longer_cycle (A -> B -> C -> A)",
+        "Add test: graph_handles_no_cycle",
+        "Run `cargo test -p ralph --lib -- queue::graph` to verify"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:51:00Z",
+      "updated_at": "2026-02-17T19:51:00Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0936",
+      "status": "todo",
+      "title": "Add tests for parallel run execution paths",
+      "description": "The parallel execution module (commands/run/parallel/) handles running multiple tasks concurrently but has NO E2E tests. Files: path_map.rs, queue_sync.rs, state.rs, state_init.rs, sync.rs. The --parallel flag is documented but the execution path is untested at integration level.",
+      "priority": "high",
+      "tags": [
+        "scan",
+        "testing",
+        "run",
+        "parallel",
+        "concurrency"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/parallel/"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/commands/run/parallel/path_map.rs :: path mapping",
+        "path: crates/ralph/src/commands/run/parallel/queue_sync.rs :: queue synchronization",
+        "analysis: Parallel execution has no E2E integration tests"
+      ],
+      "plan": [
+        "Create crates/ralph/tests/run_parallel_test.rs",
+        "Add test: run_parallel_selects_multiple_tasks",
+        "Add test: run_parallel_handles_task_completion",
+        "Run `cargo test -p ralph --test run_parallel_test` to verify"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:51:00Z",
+      "updated_at": "2026-02-17T19:51:00Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0937",
+      "status": "todo",
+      "title": "Add tests for task template commands",
+      "description": "The ralph task template subcommands (list, show, build) have NO tests. Templates allow creating tasks from predefined structures. File: crates/ralph/src/cli/task/template.rs. Without tests, template bugs could create malformed tasks.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "testing",
+        "cli",
+        "task",
+        "template"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/task/template.rs",
+        "crates/ralph/src/template/"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/cli/task/template.rs :: template CLI commands",
+        "analysis: Template CLI commands untested"
+      ],
+      "plan": [
+        "Add test: task_template_list_shows_builtins",
+        "Add test: task_template_show_displays_template",
+        "Add test: task_template_build_creates_task",
+        "Run `cargo test -p ralph` to verify"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:51:00Z",
+      "updated_at": "2026-02-17T19:51:00Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0938",
+      "status": "todo",
+      "title": "Add edge case tests for invalid/corrupted queue files",
+      "description": "Queue file error handling has NO tests for corruption scenarios. Untested scenarios: Malformed JSON in queue.json, Partial write recovery, Invalid task field types, Missing required fields, Duplicate task IDs. These edge cases could cause data loss.",
+      "priority": "high",
+      "tags": [
+        "scan",
+        "testing",
+        "error-handling",
+        "queue",
+        "edge-cases"
+      ],
+      "scope": [
+        "crates/ralph/src/queue/",
+        "crates/ralph/src/jsonc.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/queue/file.rs :: queue file operations",
+        "path: crates/ralph/src/jsonc.rs :: JSONC parsing",
+        "analysis: No tests for corrupted/malformed queue file recovery"
+      ],
+      "plan": [
+        "Add test: queue_load_malformed_json_errors",
+        "Add test: queue_detects_duplicate_task_ids",
+        "Add test: jsonc_parse_with_comments",
+        "Run `cargo test -p ralph` to verify"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:51:00Z",
+      "updated_at": "2026-02-17T19:51:00Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0939",
+      "status": "todo",
+      "title": "Add tests for context command",
+      "description": "The ralph context command (init, update, validate subcommands) has NO tests. This command manages RepoPrompt context files for the agent. Files: crates/ralph/src/cli/context.rs, crates/ralph/src/commands/context/. Without tests, context management bugs could break RepoPrompt integration.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "testing",
+        "cli",
+        "context",
+        "repoprompt"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/context.rs",
+        "crates/ralph/src/commands/context/"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/cli/context.rs :: context CLI commands",
+        "analysis: No tests for context commands found"
+      ],
+      "plan": [
+        "Add test: context_init_creates_context_files",
+        "Add test: context_validate_checks_context",
+        "Run `cargo test -p ralph` to verify"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:51:00Z",
+      "updated_at": "2026-02-17T19:51:00Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0940",
+      "status": "todo",
+      "title": "Add tests for watch command submodules",
+      "description": "The watch command has 8 submodules (comments, debounce, event_loop, paths, processor, state, tasks, types) but test coverage is sparse. The command monitors files for TODO/FIXME comments and auto-creates tasks. Without tests, file watching bugs could miss important comments.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "testing",
+        "cli",
+        "watch"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/watch/"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/commands/watch/mod.rs :: 100+ lines",
+        "analysis: 8 submodules, sparse test coverage"
+      ],
+      "plan": [
+        "Add tests for comments.rs: build_comment_regex",
+        "Add tests for debounce.rs: debounce timing logic",
+        "Run `cargo test -p ralph --lib -- commands::watch` to verify"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:51:00Z",
+      "updated_at": "2026-02-17T19:51:00Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0941",
+      "status": "todo",
+      "title": "Add full task lifecycle integration test",
+      "description": "There is NO integration test that covers the complete task lifecycle from creation to completion. The lifecycle includes: task build, task ready, task start, ralph run, task done/reject. Tests exist for individual steps but not the full flow. Without E2E lifecycle tests, integration bugs could go undetected.",
+      "priority": "high",
+      "tags": [
+        "scan",
+        "testing",
+        "integration",
+        "task",
+        "lifecycle"
+      ],
+      "scope": [
+        "crates/ralph/tests/"
+      ],
+      "evidence": [
+        "path: crates/ralph/tests/task_cmd_test.rs :: task creation tests",
+        "path: crates/ralph/tests/task_done_completion_signal_test.rs :: completion tests",
+        "analysis: No test covers the full create -> start -> run -> done lifecycle"
+      ],
+      "plan": [
+        "Create crates/ralph/tests/task_lifecycle_test.rs",
+        "Add test: task_full_lifecycle_build_ready_start_done",
+        "Verify queue state at each step",
+        "Run `cargo test -p ralph --test task_lifecycle_test` to verify"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:51:00Z",
+      "updated_at": "2026-02-17T19:51:00Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0922",
+      "status": "todo",
+      "title": "Add SIGTERM signal handler to daemon serve",
+      "description": "The daemon serve function does not register any signal handlers for SIGTERM. The only shutdown mechanism is via the stop signal file. If the daemon receives SIGTERM (e.g., from system shutdown or kill without -9), it won't clean up gracefully - the state file and lock will remain. Files: crates/ralph/src/commands/daemon/serve.rs.",
+      "priority": "high",
+      "tags": [
+        "scan",
+        "daemon",
+        "signal-handling",
+        "bug",
+        "unix"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/daemon/serve.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/commands/daemon/serve.rs :: entire file :: no SIGTERM handler",
+        "analysis: On SIGTERM, daemon exits without cleanup, leaving state file and lock"
+      ],
+      "plan": [
+        "Add signal handler registration for SIGTERM in serve.rs",
+        "Use signal_hook or tokio::signal for cross-platform support",
+        "On SIGTERM, trigger graceful shutdown (clean state file, release lock)",
+        "Run `cargo test -p ralph` to verify"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:44:50Z",
+      "updated_at": "2026-02-17T19:44:50Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0923",
+      "status": "todo",
+      "title": "Add tests for runner error classification functions",
+      "description": "The runner/error.rs module has only 2 tests (redaction and context), but the classify() method and helper functions like looks_like_rate_limit(), looks_like_temporary_unavailable(), looks_like_auth_required() have NO unit tests. Retry logic depends entirely on correct classification.",
+      "priority": "high",
+      "tags": [
+        "scan",
+        "testing",
+        "runner",
+        "error-handling"
+      ],
+      "scope": [
+        "crates/ralph/src/runner/error.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/runner/error.rs :: lines 121-150 :: pattern matching functions untested",
+        "analysis: None of these pattern matching functions have test coverage"
+      ],
+      "plan": [
+        "Add test: looks_like_rate_limit_detects_429",
+        "Add test: looks_like_temporary_unavailable_detects_503",
+        "Add test: looks_like_auth_required_detects_401",
+        "Add test: classify_returns_retryable_for_rate_limit",
+        "Run `cargo test -p ralph --lib -- runner::error` to verify"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:44:50Z",
+      "updated_at": "2026-02-17T19:44:50Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0924",
+      "status": "todo",
+      "title": "Add overflow protection to backoff computation",
+      "description": "The compute_backoff function in runutil/retry.rs has no overflow protection when base_backoff * multiplier^retry_index exceeds Duration::MAX. No validation that multiplier is >= 1.0.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "runner",
+        "retry",
+        "bug",
+        "overflow"
+      ],
+      "scope": [
+        "crates/ralph/src/runutil/retry.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/runutil/retry.rs :: lines 140-150 :: compute_backoff function",
+        "analysis: No overflow protection, no validation multiplier >= 1.0"
+      ],
+      "plan": [
+        "Add overflow check: cap backoff at Duration::MAX",
+        "Add validation: ensure multiplier >= 1.0",
+        "Add tests for edge cases",
+        "Run `cargo test -p ralph --lib -- runutil::retry` to verify"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:44:50Z",
+      "updated_at": "2026-02-17T19:44:50Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0925",
+      "status": "todo",
+      "title": "Add validation for status transition rules in set_status",
+      "description": "The set_status function does NOT validate status transition rules. However, promote_draft_to_todo explicitly validates that the task is in Draft status before promoting. This creates an inconsistency where the promotion path has guards but the general path does not.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "queue",
+        "validation",
+        "bug"
+      ],
+      "scope": [
+        "crates/ralph/src/queue/operations/status.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/queue/operations/status.rs :: lines 214-242 :: promote_draft_to_todo validates task status",
+        "path: crates/ralph/src/queue/operations/status.rs :: set_status :: no validation for status transition rules"
+      ],
+      "plan": [
+        "Define allowed status transitions",
+        "Add validate_status_transition function",
+        "Block Doing -> Draft transition",
+        "Add tests for transition validation",
+        "Run `cargo test -p ralph` to verify"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:44:50Z",
+      "updated_at": "2026-02-17T19:44:50Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0926",
+      "status": "todo",
+      "title": "Add runtime validation for config queue thresholds",
+      "description": "Schema defines ranges for queue thresholds but these are NOT validated in validate_config() or validate_queue_overrides(). Missing validation for: size_warning_threshold_kb, task_count_warning_threshold, max_dependency_depth, auto_archive_terminal_after_days.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "config",
+        "validation"
+      ],
+      "scope": [
+        "crates/ralph/src/config/validation.rs",
+        "crates/ralph/src/contracts/config/queue.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/contracts/config/queue.rs :: schemars annotations define ranges",
+        "path: crates/ralph/src/config/validation.rs :: no runtime validation for these fields"
+      ],
+      "plan": [
+        "Add validate_queue_thresholds function",
+        "Validate each threshold within schema-defined ranges",
+        "Add tests for threshold validation",
+        "Run `cargo test -p ralph` to verify"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:44:50Z",
+      "updated_at": "2026-02-17T19:44:50Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0927",
+      "status": "todo",
+      "title": "Fix unused in_header variable in extract_content_from_exported",
+      "description": "The in_header variable in prompts_internal/management.rs is set to true and never changed, making the conditional meaningless. Dead code indicates incomplete implementation.",
+      "priority": "low",
+      "tags": [
+        "scan",
+        "bug",
+        "prompts",
+        "dead-code"
+      ],
+      "scope": [
+        "crates/ralph/src/prompts_internal/management.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/prompts_internal/management.rs :: line 348 :: let in_header = true; // never mutated"
+      ],
+      "plan": [
+        "Analyze intended behavior",
+        "Remove variable or implement proper header tracking",
+        "Add test for header extraction edge cases",
+        "Run `cargo test -p ralph` to verify"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:44:50Z",
+      "updated_at": "2026-02-17T19:44:50Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0928",
+      "status": "todo",
+      "title": "Fix inconsistent task_id validation across prompt render functions",
+      "description": "Task ID validation is inconsistent: render_worker_phase1_prompt validates empty task_id; render_worker_single_phase_prompt validates empty task_id; but render_worker_phase2_prompt, render_worker_phase2_handoff_prompt, render_worker_phase3_prompt do NOT validate task_id.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "prompts",
+        "validation",
+        "inconsistency"
+      ],
+      "scope": [
+        "crates/ralph/src/prompts_internal/worker_phases.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/prompts_internal/worker_phases.rs :: phase1/phase3/single validate, phase2 variants don't"
+      ],
+      "plan": [
+        "Add empty task_id validation to all phase2 render functions",
+        "Add tests for each render function with empty task_id",
+        "Run `cargo test -p ralph` to verify"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:44:50Z",
+      "updated_at": "2026-02-17T19:44:50Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0929",
+      "status": "todo",
+      "title": "Add Ctrl-C check during backoff sleep in retry logic",
+      "description": "The Ctrl-C check in runutil/execution.rs happens AFTER the sleep completes, not during it. If Ctrl-C is pressed during sleep, the code waits for the full backoff duration before checking.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "runner",
+        "ux",
+        "retry"
+      ],
+      "scope": [
+        "crates/ralph/src/runutil/execution.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/runutil/execution.rs :: lines 410-420 :: Ctrl-C check after sleep"
+      ],
+      "plan": [
+        "Replace thread::sleep with interruptible wait",
+        "Check Ctrl-C at shorter intervals during backoff",
+        "Add test for quick Ctrl-C response",
+        "Run `cargo test -p ralph` to verify"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:44:50Z",
+      "updated_at": "2026-02-17T19:44:50Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0930",
+      "status": "todo",
+      "title": "Add tests for JSON parsing edge cases in streaming",
+      "description": "The parse_json_line function silently discards malformed lines without error. The fallback parsing only looks for { which would miss JSON arrays starting with [.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "runner",
+        "json",
+        "testing"
+      ],
+      "scope": [
+        "crates/ralph/src/runner/execution/json.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/runner/execution/json.rs :: lines 5-24 :: no distinction between empty and malformed"
+      ],
+      "plan": [
+        "Add tests for empty, valid object, valid array, malformed cases",
+        "Consider logging when malformed JSON is discarded",
+        "Run `cargo test -p ralph` to verify"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:44:50Z",
+      "updated_at": "2026-02-17T19:44:50Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0931",
+      "status": "todo",
+      "title": "Fix deny_unknown_fields blocking migration of deprecated config keys",
+      "description": "ConfigLayer uses deny_unknown_fields which means if a user has a config with a deprecated field, the config will fail to parse BEFORE migrations can run. The migration system cannot help because parsing fails first.",
+      "priority": "high",
+      "tags": [
+        "scan",
+        "config",
+        "migration",
+        "breaking-change"
+      ],
+      "scope": [
+        "crates/ralph/src/config/layer.rs",
+        "crates/ralph/src/migration/"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/config/layer.rs :: line 30 :: deny_unknown_fields",
+        "analysis: Users must manually remove deprecated fields before upgrading"
+      ],
+      "plan": [
+        "Evaluate impact: list deprecated config keys",
+        "Option 1: Remove deny_unknown_fields",
+        "Option 2: Run migrations before full config parsing",
+        "Add test for deprecated key migration",
+        "Run `cargo test -p ralph` to verify"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:44:50Z",
+      "updated_at": "2026-02-17T19:44:50Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0907",
+      "status": "todo",
+      "title": "Fix Makefile test target race condition",
+      "description": "The `make test` target has a race condition where cleanup runs before the error handler can cat the log file. The `trap cleanup EXIT` causes cleanup to run before error branch's cat, removing the log file.",
+      "priority": "critical",
+      "tags": [
+        "scan",
+        "testing",
+        "ci",
+        "makefile",
+        "bug"
+      ],
+      "scope": [
+        "Makefile"
+      ],
+      "evidence": [
+        "path: Makefile :: lines 63-96 :: test target with trap cleanup EXIT",
+        "command: make macos-ci :: cat: .../unit-tests.log: No such file or directory"
+      ],
+      "plan": [
+        "Refactor to capture log content before cleanup",
+        "Option 1: Read log into variable before exit",
+        "Option 2: Use separate trap for ERR vs EXIT",
+        "Run `make macos-ci` to verify"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:42:41Z",
+      "updated_at": "2026-02-19T05:14:05.058598000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general",
+        "stale_makefile_context": "RQ-0942 centralized env reset in Makefile; test target now uses $(RALPH_ENV_RESET) and evidence line ranges should be refreshed before implementing this task."
+      }
+    },
+    {
+      "id": "RQ-0908",
+      "status": "todo",
+      "title": "Add integration tests for ralph task start command",
+      "description": "The `ralph task start` command has NO integration tests. This is a core user-facing command that transitions tasks from todo to doing status.",
+      "priority": "high",
+      "tags": [
+        "scan",
+        "testing",
+        "cli",
+        "task"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/task/start.rs",
+        "crates/ralph/tests/task_cmd_test.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/cli/task/start.rs :: pub fn handle() untested"
+      ],
+      "plan": [
+        "Add test: task_start_moves_todo_to_doing",
+        "Add test: task_start_already_doing_errors",
+        "Add test: task_start_blocked_task_errors",
+        "Run `cargo test -p ralph` to verify"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:42:41Z",
+      "updated_at": "2026-02-17T19:42:41Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0909",
+      "status": "todo",
+      "title": "Add negative tests for ralph task schedule command",
+      "description": "The `ralph task schedule` command has NO tests for error paths.",
+      "priority": "high",
+      "tags": [
+        "scan",
+        "testing",
+        "cli",
+        "task",
+        "error-handling"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/task/schedule.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/cli/task/schedule.rs :: multiple error paths untested"
+      ],
+      "plan": [
+        "Add tests for missing timestamp/clear, invalid formats",
+        "Run `cargo test -p ralph` to verify"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:42:41Z",
+      "updated_at": "2026-02-17T19:42:41Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0910",
+      "status": "todo",
+      "title": "Add tests for ralph task split command error paths",
+      "description": "The `ralph task split` command has NO tests for error handling.",
+      "priority": "high",
+      "tags": [
+        "scan",
+        "testing",
+        "cli",
+        "task",
+        "error-handling"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/task/split.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/cli/task/split.rs :: --number < 2 validation untested"
+      ],
+      "plan": [
+        "Add tests for number < 2, nonexistent task",
+        "Run `cargo test -p ralph` to verify"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:42:41Z",
+      "updated_at": "2026-02-17T19:42:41Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0911",
+      "status": "todo",
+      "title": "Add tests for ralph task children command error paths",
+      "description": "The `ralph task children` command has NO tests for error handling.",
+      "priority": "high",
+      "tags": [
+        "scan",
+        "testing",
+        "cli",
+        "task",
+        "error-handling"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/task/children.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/cli/task/children.rs :: no children and missing task_id errors untested"
+      ],
+      "plan": [
+        "Add tests for no children, missing task_id",
+        "Run `cargo test -p ralph` to verify"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:42:41Z",
+      "updated_at": "2026-02-17T19:42:41Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0912",
+      "status": "todo",
+      "title": "Add tests for ralph task relations command error paths",
+      "description": "The `ralph task relations` command has NO tests for error handling.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "testing",
+        "cli",
+        "task",
+        "error-handling"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/task/relations.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/cli/task/relations.rs :: invalid relation type error untested"
+      ],
+      "plan": [
+        "Add test for invalid relation type",
+        "Run `cargo test -p ralph` to verify"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:42:41Z",
+      "updated_at": "2026-02-17T19:42:41Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0913",
+      "status": "todo",
+      "title": "Add tests for ralph queue validate command",
+      "description": "The `ralph queue validate` command has NO integration tests despite being a critical queue health check.",
+      "priority": "high",
+      "tags": [
+        "scan",
+        "testing",
+        "cli",
+        "queue"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/queue/validate.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/cli/queue/validate.rs :: CLI wrapper has zero test coverage"
+      ],
+      "plan": [
+        "Create queue_validate_test.rs",
+        "Add tests for valid/invalid queue cases",
+        "Run `cargo test -p ralph` to verify"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:42:41Z",
+      "updated_at": "2026-02-17T19:42:41Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0914",
+      "status": "todo",
+      "title": "Add tests for ralph queue search command error paths",
+      "description": "The `ralph queue search` command has NO tests for error handling.",
+      "priority": "high",
+      "tags": [
+        "scan",
+        "testing",
+        "cli",
+        "queue",
+        "error-handling"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/queue/search.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/cli/queue/search.rs :: regex/fuzzy conflict and invalid regex untested"
+      ],
+      "plan": [
+        "Add tests for conflicting flags, invalid regex",
+        "Run `cargo test -p ralph` to verify"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:42:41Z",
+      "updated_at": "2026-02-17T19:42:41Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0915",
+      "status": "todo",
+      "title": "Add tests for ralph queue unlock command error paths",
+      "description": "The `ralph queue unlock` command has NO tests for error handling.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "testing",
+        "cli",
+        "queue",
+        "error-handling"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/queue/unlock.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/cli/queue/unlock.rs :: no lock file error untested"
+      ],
+      "plan": [
+        "Add test for missing lock file",
+        "Run `cargo test -p ralph` to verify"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:42:41Z",
+      "updated_at": "2026-02-17T19:42:41Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0916",
+      "status": "todo",
+      "title": "Add tests for ralph queue next-id command error paths",
+      "description": "The `ralph queue next-id` command has NO tests for error handling.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "testing",
+        "cli",
+        "queue",
+        "error-handling"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/queue/next_id.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/cli/queue/next_id.rs :: count validation errors untested"
+      ],
+      "plan": [
+        "Add tests for count < 1, empty queue with count",
+        "Run `cargo test -p ralph` to verify"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:42:41Z",
+      "updated_at": "2026-02-17T19:42:41Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0917",
+      "status": "todo",
+      "title": "Consolidate duplicate TaskBuilder patterns across test files",
+      "description": "The codebase has 4+ different task builder implementations duplicated across test files.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "testing",
+        "refactor",
+        "test-utilities"
+      ],
+      "scope": [
+        "crates/ralph/tests/test_support.rs",
+        "crates/ralph/src/queue/search/test_support.rs",
+        "crates/ralph/src/queue/validation/tests.rs"
+      ],
+      "evidence": [
+        "analysis: 4+ different task builder implementations exist"
+      ],
+      "plan": [
+        "Design unified TaskBuilder with fluent API",
+        "Migrate all test files to use new builder",
+        "Run `cargo test -p ralph` to verify"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:42:41Z",
+      "updated_at": "2026-02-17T19:42:41Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0918",
+      "status": "todo",
+      "title": "Add integration tests for ralph productivity command",
+      "description": "The `ralph productivity` command has NO integration tests.",
+      "priority": "high",
+      "tags": [
+        "scan",
+        "testing",
+        "cli",
+        "productivity"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/productivity.rs",
+        "crates/ralph/src/productivity/"
+      ],
+      "evidence": [
+        "analysis: No productivity_test.rs file exists"
+      ],
+      "plan": [
+        "Create productivity_test.rs",
+        "Add tests for show, reset, export",
+        "Run `cargo test -p ralph` to verify"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:42:41Z",
+      "updated_at": "2026-02-17T19:42:41Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0919",
+      "status": "todo",
+      "title": "Add tests for doctor submodules",
+      "description": "The doctor command has 6 submodules with minimal or no test coverage.",
+      "priority": "high",
+      "tags": [
+        "scan",
+        "testing",
+        "cli",
+        "doctor"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/doctor/"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/commands/doctor/*.rs :: no unit tests in submodules"
+      ],
+      "plan": [
+        "Add unit tests for each doctor submodule",
+        "Run `cargo test -p ralph` to verify"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:42:41Z",
+      "updated_at": "2026-02-17T19:42:41Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0920",
+      "status": "todo",
+      "title": "Add tests for ralph config command error paths",
+      "description": "The `ralph config` command has NO tests for error handling.",
+      "priority": "high",
+      "tags": [
+        "scan",
+        "testing",
+        "cli",
+        "config",
+        "error-handling"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/config.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/cli/config.rs :: empty profile name and unknown profile errors untested"
+      ],
+      "plan": [
+        "Add tests for empty profile name, unknown profile",
+        "Run `cargo test -p ralph` to verify"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:42:41Z",
+      "updated_at": "2026-02-17T19:42:41Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0921",
+      "status": "todo",
+      "title": "Replace thread::sleep with wait_until pattern in webhook tests",
+      "description": "Webhook integration tests use direct `thread::sleep` calls which are potentially flaky.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "testing",
+        "flaky",
+        "webhook",
+        "refactor"
+      ],
+      "scope": [
+        "crates/ralph/tests/webhook_integration_test.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/tests/webhook_integration_test.rs :: multiple sleep calls"
+      ],
+      "plan": [
+        "Replace sleep with wait_until() predicate-based polling",
+        "Run tests multiple times to verify no flakiness",
+        "Run `cargo test -p ralph` to verify"
+      ],
+      "notes": [],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:42:41Z",
+      "updated_at": "2026-02-17T19:42:41Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    }
+  ]
+}

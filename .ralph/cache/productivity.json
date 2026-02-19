@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "first_task_completed_at": "2026-02-18T19:58:33.123726000Z",
+  "last_updated_at": "2026-02-19T08:16:08.777662000Z",
+  "daily": {
+    "2026-02-18": {
+      "date": "2026-02-18",
+      "completed_count": 4,
+      "tasks": [
+        {
+          "id": "RQ-0942",
+          "title": "Fix CI gate wiping parent directory queue/done files in ralph loops",
+          "completed_at": "2026-02-18T19:58:33.123726000Z"
+        },
+        {
+          "id": "RQ-0943",
+          "title": "Fix parallel workers unable to access queue/done files",
+          "completed_at": "2026-02-18T20:31:41.745378000Z"
+        },
+        {
+          "id": "RQ-0944",
+          "title": "Fix CI gate vs manual make ci discrepancy in parallel workers",
+          "completed_at": "2026-02-18T23:10:19.456950000Z"
+        },
+        {
+          "id": "RQ-0945",
+          "title": "Add CI failure root cause detection for common error patterns",
+          "completed_at": "2026-02-18T23:59:37.240155000Z"
+        }
+      ]
+    },
+    "2026-02-19": {
+      "date": "2026-02-19",
+      "completed_count": 13,
+      "tasks": [
+        {
+          "id": "RQ-0946",
+          "title": "Prevent draft PR creation when task fails CI gate",
+          "completed_at": "2026-02-19T00:28:00.141288000Z"
+        },
+        {
+          "id": "RQ-0947",
+          "title": "Add escalation after N consecutive CI gate failures with same error",
+          "completed_at": "2026-02-19T00:51:16.468237000Z"
+        },
+        {
+          "id": "RQ-0948",
+          "title": "Clean up parallel workspace on task failure",
+          "completed_at": "2026-02-19T01:07:04.580141000Z"
+        },
+        {
+          "id": "RQ-0949",
+          "title": "Fix agent not investigating TOML parse errors in CI output",
+          "completed_at": "2026-02-19T01:25:00.155891000Z"
+        },
+        {
+          "id": "RQ-0950",
+          "title": "Add CI output passthrough to agent before compliance message",
+          "completed_at": "2026-02-19T01:37:28.180407000Z"
+        },
+        {
+          "id": "RQ-0953",
+          "title": "Improve CI gate logging with full command output",
+          "completed_at": "2026-02-19T02:02:05.898843000Z"
+        },
+        {
+          "id": "RQ-0955",
+          "title": "Add webhook queue overflow handling to parallel workers",
+          "completed_at": "2026-02-19T02:31:47.357059000Z"
+        },
+        {
+          "id": "RQ-0934",
+          "title": "Add tests for reports module (2,381 lines untested)",
+          "completed_at": "2026-02-19T03:24:44.629673000Z"
+        },
+        {
+          "id": "RQ-0956",
+          "title": "Skip follow-up phase-1 dirty check for multi-iteration 3-phase runs",
+          "completed_at": "2026-02-19T04:27:58.992955000Z"
+        },
+        {
+          "id": "RQ-0942",
+          "title": "Fix CI gate wiping parent directory queue/done files in ralph loops",
+          "completed_at": "2026-02-19T05:17:52.263518000Z"
+        },
+        {
+          "id": "RQ-0943",
+          "title": "Fix parallel workers unable to access queue/done files",
+          "completed_at": "2026-02-19T05:39:23.895898000Z"
+        },
+        {
+          "id": "RQ-0944",
+          "title": "Fix CI gate vs manual make ci discrepancy in parallel workers",
+          "completed_at": "2026-02-19T06:18:33.740296000Z"
+        },
+        {
+          "id": "RQ-0945",
+          "title": "Add CI failure root cause detection for common error patterns",
+          "completed_at": "2026-02-19T06:49:16.218078000Z"
+        }
+      ]
+    }
+  },
+  "streak": {
+    "current_streak": 2,
+    "longest_streak": 2,
+    "last_completed_date": "2026-02-19"
+  },
+  "total_completed": 19,
+  "milestones": [
+    {
+      "threshold": 10,
+      "achieved_at": "2026-02-19T02:02:05.898848000Z",
+      "celebrated": true
+    }
+  ]
+}

@@ -3,6 +3,8 @@
 //! Responsibilities:
 //! - Verify the Makefile `ci` and `macos-ci` targets define the exact required
 //!   dependency sequence (no missing, reordered, or duplicated steps).
+//! - Verify `agent-ci` routes to `ci` by default and escalates to `macos-ci`
+//!   only for app-path changes (or explicit force).
 //! - Ensure documentation (CONTRIBUTING.md, GEMINI.md) stays synchronized with
 //!   the canonical CI pipeline definition.
 //! - Validate clean target preserves user data while removing temp artifacts.
@@ -14,6 +16,7 @@
 //! Invariants/assumptions:
 //! - The `ci` target in the Makefile must exactly match `REQUIRED_CI_STEPS`.
 //! - The `macos-ci` target must exactly match `REQUIRED_MACOS_CI_DEPS`.
+//! - The `agent-ci` target must include deterministic path-based routing.
 //! - Docs parity is anchored to the canonical constant, not dynamically parsed
 //!   Makefile output, to prevent lockstep drift.
 
@@ -689,6 +692,38 @@ fn test_macos_targets_gate_with_preflight_and_isolate_derived_data() -> Result<(
     assert!(
         makefile.contains("rm -rf \"$$derived_data_path\""),
         "macOS targets should clear DerivedData before running xcodebuild"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn test_agent_ci_routes_between_ci_and_macos_ci() -> Result<()> {
+    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let repo_root = manifest_dir
+        .parent()
+        .and_then(|p| p.parent())
+        .context("resolve repo root")?;
+    let makefile = std::fs::read_to_string(repo_root.join("Makefile")).context("read Makefile")?;
+
+    let agent_ci_block =
+        extract_target_block(&makefile, "agent-ci").context("extract agent-ci block")?;
+
+    assert!(
+        agent_ci_block.contains("apps/RalphMac/"),
+        "agent-ci must route based on app path changes under apps/RalphMac/"
+    );
+    assert!(
+        agent_ci_block.contains("$(MAKE) --no-print-directory ci"),
+        "agent-ci must invoke the full Rust/CLI gate"
+    );
+    assert!(
+        agent_ci_block.contains("$(MAKE) --no-print-directory macos-ci"),
+        "agent-ci must escalate to macOS gate when app changes are detected"
+    );
+    assert!(
+        agent_ci_block.contains("RALPH_AGENT_CI_FORCE_MACOS"),
+        "agent-ci must support explicit macOS forcing via env var"
     );
 
     Ok(())

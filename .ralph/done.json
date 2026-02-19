@@ -1,0 +1,568 @@
+{
+  "version": 1,
+  "tasks": [
+    {
+      "id": "RQ-0934",
+      "status": "done",
+      "title": "Add tests for reports module (2,381 lines untested)",
+      "description": "The reports/ module contains 2,381 lines of code across 6 files with ZERO test coverage. This module powers queue stats, burndown, history, dashboard, and aging reports. Files: stats.rs (802 lines), aging.rs (765 lines), dashboard.rs (271 lines), burndown.rs (213 lines), history.rs (188 lines), shared.rs (142 lines). Without tests, report calculations could produce incorrect metrics.",
+      "priority": "high",
+      "tags": [
+        "testing",
+        "coverage",
+        "reports",
+        "unit-tests",
+        "analytics"
+      ],
+      "scope": [
+        "crates/ralph/src/reports/stats.rs",
+        "crates/ralph/src/reports/burndown.rs",
+        "crates/ralph/src/reports/history.rs",
+        "crates/ralph/src/reports/dashboard.rs",
+        "crates/ralph/src/reports/aging.rs",
+        "crates/ralph/src/reports/shared.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/reports/burndown.rs :: no #[test] module present",
+        "path: crates/ralph/src/reports/history.rs :: no #[test] module present",
+        "path: crates/ralph/src/reports/stats.rs :: tests exist for runner grouping + summary, but duration/filter/report assembly/printing branches remain uncovered",
+        "path: crates/ralph/src/reports/aging.rs :: 17 unit tests present for anchors, bucket boundaries, and threshold validation",
+        "path: crates/ralph/src/reports/shared.rs and dashboard.rs :: baseline utility/orchestration tests already present; task description claiming zero coverage is stale"
+      ],
+      "plan": [
+        "Add focused unit tests in burndown.rs for start_of_window normalization, daily remaining-count timeline, and legend scaling (None vs Some).",
+        "Add focused unit tests in history.rs for queue+done aggregation, per-day created/completed bucketing, and zero-event day retention across requested windows.",
+        "Expand stats.rs tests for filter_tasks_by_tags case-insensitive behavior, calc_duration_stats empty/even/odd handling, and build_stats_report time-tracking + tag filtering outputs.",
+        "Add dashboard.rs regression tests to assert burndown/history sections remain OK when productivity stats are unavailable and window metadata remains correct.",
+        "Run targeted report tests and then full local gate (make macos-ci), fixing any failures before completion."
+      ],
+      "notes": [
+        "Task metadata refreshed on 2026-02-19 after code scan showed existing report tests; remaining high-risk gaps are concentrated in burndown/history and untested stats branches.",
+        "Phase 2 should prioritize deterministic timestamp fixtures to avoid flaky time-window assertions.",
+        "Added deterministic unit tests across reports modules (burndown/history/stats/dashboard/aging/shared).",
+        "Fixed aging unknown-bucket totals so unknown-age tasks are counted correctly.",
+        "Fixed burndown legend singular/plural output and aligned snapshots.",
+        "Validated with cargo test -p ralph --lib -- reports and make macos-ci."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:51:00Z",
+      "updated_at": "2026-02-19T03:20:59.741895000Z",
+      "completed_at": "2026-02-19T03:20:59.741895000Z",
+      "started_at": "2026-02-19T02:40:10.971213000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "model_used": "gpt-5.3-codex",
+        "runner_used": "codex",
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0956",
+      "status": "done",
+      "title": "Skip follow-up phase-1 dirty check for multi-iteration 3-phase runs",
+      "description": "Adjust run-one phase execution so follow-up iterations in multi-phase runs do not invoke a post-planning dirty-repo clean check that is guaranteed to fail once iteration 1 has produced implementation changes. For configurations like iterations=2 and phases=3, phase 1 of iteration 2 should still enforce plan-only behavior for files touched during planning, but it should not re-assert an overall clean working tree after planning when the dirty state is expected from prior iteration work.",
+      "priority": "high",
+      "tags": [
+        "bug",
+        "run-one",
+        "phases",
+        "phase1",
+        "iterations",
+        "dirty-repo",
+        "regression-test"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/phases/mod.rs",
+        "crates/ralph/src/commands/run/phases/phase1.rs",
+        "crates/ralph/src/commands/run/run_one/phase_execution.rs",
+        "crates/ralph/src/commands/run/phases/tests.rs",
+        "crates/ralph/tests/git_repo_dirty_state_test.rs",
+        "cargo test -p ralph commands::run::phases::tests",
+        "cargo test -p ralph --test git_repo_dirty_state_test"
+      ],
+      "evidence": [
+        "user: If iterations=2 the dirty repo check after the planning phase, e.g. phase 1 with phases=3 configured, the dirty repo check should not be invoked as there is a guarantee that there will be a dirty repo based on the fact that changes were done in the first iteration.",
+        "path: crates/ralph/src/commands/run/run_one/phase_execution.rs:59-101 :: follow-up iterations are identified via is_followup and currently set allow_dirty = is_followup || setup.preexisting_dirty_allowed.",
+        "path: crates/ralph/src/commands/run/phases/mod.rs:61-93 :: PhaseInvocation currently carries allow_dirty_repo/is_final_iteration but no explicit follow-up iteration marker.",
+        "path: crates/ralph/src/commands/run/phases/phase1.rs:24-33 :: allow_dirty_repo captures baseline dirty paths + snapshots before planning enforcement.",
+        "path: crates/ralph/src/commands/run/phases/phase1.rs:107-116 :: execute_phase1_planning always invokes git::require_clean_repo_ignoring_paths before baseline snapshot enforcement.",
+        "path: crates/ralph/src/commands/run/phases/phase1.rs:113-115 :: git::ensure_paths_unchanged is the baseline guard that preserves plan-only behavior on pre-existing dirty paths.",
+        "path: crates/ralph/src/commands/run/phases/tests.rs:278-591 :: current phase1 tests cover allow_dirty_repo and baseline mutation checks, but do not model follow-up iteration semantics explicitly.",
+        "path: crates/ralph/tests/git_repo_dirty_state_test.rs:7-105 :: current integration coverage only checks run/scan preflight dirty repo behavior, not multi-iteration phase-1 follow-up checks."
+      ],
+      "plan": [
+        "Add an explicit follow-up iteration signal to phase invocation data (threaded from run_one phase execution) so phase-1 enforcement can branch on follow-up semantics without inferring from prompt text.",
+        "Update phase-1 planning enforcement to skip the follow-up global clean-repo assertion while still validating that post-plan dirty paths remain constrained to baseline + phase-1 allowlisted bookkeeping paths.",
+        "Preserve baseline snapshot invariants for allow_dirty_repo runs so follow-up planning cannot mutate pre-existing dirty implementation files from prior iterations.",
+        "Keep first-iteration behavior unchanged: continue using the existing clean-repo enforcement path when the iteration is not follow-up.",
+        "Extend `crates/ralph/src/commands/run/phases/tests.rs` with follow-up-specific regression coverage (success case with pre-existing dirty implementation changes and failure case when baseline dirty paths are mutated during planning).",
+        "Extend `crates/ralph/tests/git_repo_dirty_state_test.rs` with a multi-iteration (`iterations=2`, `phases=3`) scenario that verifies phase-1 iteration-2 does not fail with a dirty-repo error inherited from iteration-1 work.",
+        "Run the targeted tests from task scope and update assertions/messages if needed to match the new follow-up enforcement behavior."
+      ],
+      "notes": [
+        "Execution-phase implementation should prefer explicit iteration metadata over implicit string checks for follow-up detection when wiring phase-1 behavior.",
+        "If file/module layout has shifted, adapt paths and helper names while preserving the same behavioral contract: no follow-up global clean assertion, but strict plan-only enforcement for new/changed planning edits.",
+        "Do not introduce backward-compatibility branches; migrate all impacted call sites and tests in the same change.",
+        "Added follow-up iteration flag to phase invocation and threaded through run-one phase execution.",
+        "Phase 1 now skips follow-up global clean assertion while still enforcing allowed dirty paths + baseline snapshot immutability.",
+        "Added follow-up phase1 regression tests and validated with scoped commands for phases + dirty-state tests."
+      ],
+      "request": "If iterations=2 the dirty repo check after the planning phase, e.g. phase 1 with phases=3 configured, the dirty repo check should not be invoked as there is a guarantee that there will be a dirty repo based on the fact that changes were done in the first iteration.",
+      "created_at": "2026-02-19T03:25:51Z",
+      "updated_at": "2026-02-19T04:23:54.682816000Z",
+      "completed_at": "2026-02-19T04:23:54.682816000Z",
+      "started_at": "2026-02-19T03:26:32.618938000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "model_used": "gpt-5.3-codex",
+        "runner_used": "codex"
+      }
+    },
+    {
+      "id": "RQ-0942",
+      "status": "done",
+      "title": "Fix CI gate wiping parent directory queue/done files in ralph loops",
+      "description": "When ralph loops are run on this project with parallel workers, the workspace agents run CI gate commands as part of their execution. Something in the test/CI setup is causing the parent directory's .ralph/queue.json and .ralph/done.json files to be wiped out. Recent commits (5025f63, 30a64b6) added environment variable cleanup for RALPH_QUEUE_PATH_OVERRIDE and RALPH_DONE_PATH_OVERRIDE to prevent leakage into child processes, but the problem persists. The issue likely stems from: (1) Tests or CI gate commands not properly isolating their working directory, (2) Environment variables not being cleared in all code paths, (3) The make test target or cargo test invocation not properly isolating TMPDIR/TMP/TEMP from the actual repo, (4) Tests that write to relative .ralph/ paths instead of using isolated temp directories. This is a critical bug as it causes data loss for users running ralph loops.",
+      "priority": "critical",
+      "tags": [
+        "bug",
+        "ci",
+        "parallel",
+        "data-loss",
+        "tests",
+        "environment-isolation",
+        "makefile",
+        "regression"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/supervision/ci.rs",
+        "crates/ralph/src/commands/run/parallel/worker.rs",
+        "crates/ralph/src/cli/run.rs",
+        "crates/ralph/src/config/resolution.rs",
+        "Makefile",
+        "crates/ralph/tests/ci_gate_isolation_test.rs",
+        "crates/ralph/tests/test_support.rs",
+        "crates/ralph/src/commands/run/parallel/mod.rs"
+      ],
+      "evidence": [
+        "user: Running ralph loop from this repo can wipe parent .ralph/queue.json and .ralph/done.json during CI gate execution",
+        "path: crates/ralph/src/commands/run/supervision/ci.rs:474 :: run_ci_gate command removes QUEUE/DONE/REPO_ROOT overrides before output()",
+        "path: crates/ralph/src/commands/run/parallel/worker.rs:124,159 :: worker command removes QUEUE/DONE overrides and sets REPO_ROOT to workspace",
+        "path: crates/ralph/src/cli/run.rs:152 :: clear_run_scoped_path_overrides clears inherited run-scoped env before supervision",
+        "path: crates/ralph/src/config/resolution.rs:35-40 :: canonical override env constants are REPO_ROOT, QUEUE_PATH, DONE_PATH",
+        "path: Makefile:81-130 :: test target unsets RALPH_QUEUE_PATH_OVERRIDE/RALPH_DONE_PATH_OVERRIDE/RALPH_REPO_ROOT_OVERRIDE",
+        "path: Makefile:36-74,133-136,172-177 :: other cargo commands in ci chain do not consistently unset RALPH_* override envs",
+        "path: crates/ralph/tests/ci_gate_isolation_test.rs :: existing tests focus on absence/non-creation, not preservation of pre-existing parent queue/done content",
+        "path: crates/ralph/tests/test_support.rs :: has helpers for isolated queue/done IO but no combined queue+done snapshot helper"
+      ],
+      "plan": [
+        "Add a shared child-process env sanitizer for run supervision/parallel command spawns that removes REPO_ROOT/QUEUE_PATH/DONE_PATH override envs using constants from config::resolution.",
+        "Apply the shared sanitizer to every CI/worker-related Command spawn in the run pipeline (ci gate, parallel worker, and any adjacent supervisor/merge-agent spawn paths).",
+        "Harden Makefile CI isolation by centralizing RALPH_* override unsetting and prepending it to all cargo invocations in the ci dependency chain (deps/format/type-check/lint/test/build).",
+        "Expand regression coverage in ci_gate_isolation_test to pre-populate parent queue/done files and assert byte-for-byte preservation after CI gate execution in both success and failure flows.",
+        "Add or extend test_support helper(s) to snapshot and compare queue/done state without duplicating test logic.",
+        "Phase 2 verification: run make macos-ci and ensure new/updated tests prove parent queue/done files are unchanged when CI gate runs under leaked override env attempts."
+      ],
+      "notes": [
+        "Current repository state already removed REPO_ROOT/QUEUE_PATH/DONE_PATH overrides in run_ci_gate and removes QUEUE_PATH/DONE_PATH in parallel worker; this reduces but may not eliminate leakage through other CI chain commands.",
+        "The highest-risk remaining path is environment propagation in Makefile ci sub-targets that invoke cargo without explicit override reset.",
+        "Existing ci_gate isolation tests verify non-creation under parent paths, but not mutation/wipe protection for existing parent queue/done files.",
+        "Task intent is data-loss prevention: parent repository queue/done must remain unchanged regardless of CI gate command outcome or inherited env from supervisor context.",
+        "Execution agent should adapt snippets to reality if files differ, but must preserve the task goal and isolation invariant across all CI gate spawn paths.",
+        "Centralized run-scoped env sanitization now strips queue/done/repo-root overrides on CI gate and run subprocess paths.",
+        "Hardened Makefile CI chain by applying shared RALPH_ENV_RESET to deps/format/type-check/lint/lint-fix/test/build.",
+        "Regression coverage now verifies pre-existing parent .ralph/queue.json and .ralph/done.json are preserved on CI gate success and failure flows.",
+        "New tests use deterministic noop runner + coordinator queue/done paths to ensure CI gate path is actually executed.",
+        "Verification: cargo test --test ci_gate_isolation_test and make macos-ci passed; queue freshness update applied to RQ-0907."
+      ],
+      "request": "Review all tests and steps of the CI gate. When ralph loops are run on this project, originating from this repo, the workspace agents are still required to run their CI gate commands. Problem is, there is something broken in our tests that cause the parent directory, the one in which the command was invoked from, to have its .ralph/queue.json and .ralph/done.json files wiped out.",
+      "created_at": "2026-02-18T10:30:00Z",
+      "updated_at": "2026-02-19T05:14:13.398711000Z",
+      "completed_at": "2026-02-19T05:14:13.398711000Z",
+      "started_at": "2026-02-18T19:37:29.130109000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "model_used": "gpt-5.3-codex",
+        "runner_used": "codex"
+      }
+    },
+    {
+      "id": "RQ-0943",
+      "status": "done",
+      "title": "Fix parallel workers unable to access queue/done files",
+      "description": "When running `ralph run loop --parallel 2`, workers fail with 'read queue file ... No such file or directory (os error 2)'. The workers try to read queue.json from their workspace clone (e.g., /Users/.../.workspaces/repo/parallel/RQ-0224/.ralph/queue.json) but the file doesn't exist there. Root cause: 1) sync_ralph_state() intentionally does NOT sync queue/done to workspaces (to prevent merge conflicts), 2) worker.rs calls env_remove(QUEUE_PATH_OVERRIDE_ENV) and env_remove(DONE_PATH_OVERRIDE_ENV) to prevent CI gate leaks (RQ-0942 fix), 3) Workers resolve queue path relative to workspace root but have no access to parent's queue. Fix: Pass queue/done paths via CLI flags --coordinator-queue-path and --coordinator-done-path to workers, so workers can access the coordinator's queue/done files without env var leakage.",
+      "priority": "critical",
+      "tags": [
+        "parallel",
+        "bug",
+        "worker",
+        "queue",
+        "blocking",
+        "cli",
+        "regression"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/parallel/worker.rs",
+        "crates/ralph/src/cli/run.rs",
+        "crates/ralph/src/commands/run/run_one/context.rs",
+        "crates/ralph/src/config/resolution.rs",
+        "crates/ralph/src/runutil/shell.rs",
+        "crates/ralph/src/commands/run/parallel/mod.rs",
+        "crates/ralph/tests/ci_gate_isolation_test.rs"
+      ],
+      "evidence": [
+        "Repro: `ralph run loop --max-tasks 2 --parallel 2` fails workers with missing workspace `.ralph/queue.json`.",
+        "`sync_ralph_state()` intentionally excludes queue/done from workspace sync to avoid merge conflicts (`crates/ralph/src/commands/run/parallel/sync.rs`).",
+        "Worker subprocess removes `QUEUE_PATH_OVERRIDE_ENV` and `DONE_PATH_OVERRIDE_ENV` before spawn (`crates/ralph/src/commands/run/parallel/worker.rs:150-159`).",
+        "Worker command now carries coordinator file paths via CLI args `--coordinator-queue-path`/`--coordinator-done-path` when building `run one` invocation (`crates/ralph/src/commands/run/parallel/worker.rs:177-181`).",
+        "`handle_run` clears run-scoped env overrides, then applies hidden coordinator path args for parallel-worker run-one dispatch (`crates/ralph/src/cli/run.rs:32`, `crates/ralph/src/cli/run.rs:83-102`).",
+        "Task context load reads `resolved.queue_path` directly; wrong path causes immediate queue read failure (`crates/ralph/src/commands/run/run_one/context.rs:57-58`).",
+        "Config resolver falls back to repo-root relative `.ralph/queue.json`/`.ralph/done.json` when override absent, which is wrong inside worker clones lacking those files (`crates/ralph/src/config/resolution.rs:198-257`).",
+        "Env sanitization helper is used by other subprocess spawns (`crates/ralph/src/runutil/shell.rs:29-33`), so regression coverage should ensure coordinator-path handoff remains CLI-based rather than env-based."
+      ],
+      "plan": [
+        "Confirm `RunOneArgs` exposes hidden `PathBuf` options `--coordinator-queue-path` and `--coordinator-done-path` and keep them worker-focused (`parallel_worker` flow).",
+        "In `handle_run`, centralize coordinator-path override application onto a cloned `config::Resolved` before invoking `run_one_parallel_worker` so queue/done path selection is explicit and deterministic.",
+        "In `build_worker_command`, keep queue/done env removal for isolation and pass coordinator queue/done absolute paths via CLI flags on the worker `run one` command.",
+        "Strengthen worker command tests to assert both coordinator flags are present with expected values and that queue/done env vars are removed from child env.",
+        "Validate CLI parsing tests for `run one --parallel-worker` include coordinator path args and fail clearly if only partial override wiring is provided.",
+        "Run targeted Rust tests first (worker + run CLI parsing + env isolation), then full `cargo test -p ralph`.",
+        "If additional worker-like subprocesses are found to rely on queue/done during execution, mirror the same CLI handoff pattern in this iteration to close the bug class."
+      ],
+      "notes": [
+        "Root issue is path provenance mismatch: worker repo root points to workspace clone, while authoritative queue/done files live in coordinator repo root.",
+        "`env_remove` fix from RQ-0942 is still correct for CI isolation; this task must preserve that behavior and provide queue/done paths through explicit CLI args instead.",
+        "Parallel workers need read-only access to coordinator queue/done for context load and task metadata; completion writes remain owned by merge-agent/coordinator flow.",
+        "Preferred design: single-path override helper in `cli/run.rs` to avoid duplicated conditional path mutation logic.",
+        "Regression focus should include both command-argument formation and environment sanitization to prevent future leakage/reintroduction of env override dependency.",
+        "Phase 3 review confirmed coordinator queue/done path handoff is CLI-based via hidden --coordinator-queue-path/--coordinator-done-path flags.",
+        "Verified env isolation remains intact: queue/done override env vars are cleared in run dispatch and removed on worker subprocess spawn.",
+        "Regression validation passed: targeted worker/CLI parse/isolation tests and full cargo test -p ralph all green.",
+        "False-positive lead closed: manual parallel-worker invocation without coordinator flags can still fail, but coordinator launcher always supplies both flags."
+      ],
+      "request": "~/Projects/gmx-ai-trader main \u001d ralph run loop --max-tasks 2 --parallel 2                01:02:11 PM\n[2026-02-18T20:02:21Z WARN  ralph::webhook] Webhook enqueue failed (queue full or worker disconnected)\nError: read queue file /Users/mitchfultz/Projects/.workspaces/gmx-ai-trader/parallel/RQ-0224/.ralph/queue.json: No such file or directory (os error 2)\nError: read queue file /Users/mitchfultz/Projects/.workspaces/gmx-ai-trader/parallel/RQ-0225/.ralph/queue.json: No such file or directory (os error 2)\n[2026-02-18T20:02:22Z INFO  ralph::commands::run::parallel::orchestration] Worker for RQ-0224 failed with no changes; skipping draft PR\n[2026-02-18T20:02:23Z INFO  ralph::commands::run::parallel::orchestration] Worker for RQ-0225 failed with no changes; skipping draft PR\n[2026-02-18T20:02:25Z WARN  ralph::webhook] Webhook enqueue failed (queue full or worker disconnected)",
+      "created_at": "2026-02-18T20:02:30Z",
+      "updated_at": "2026-02-19T05:38:52.475833000Z",
+      "completed_at": "2026-02-19T05:38:52.475833000Z",
+      "started_at": "2026-02-18T20:09:45.100751000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "runner_used": "codex",
+        "model_used": "gpt-5.3-codex"
+      }
+    },
+    {
+      "id": "RQ-0944",
+      "status": "done",
+      "title": "Fix CI gate vs manual make ci discrepancy in parallel workers",
+      "description": "In the RQ-0124 parallel run, the agent ran `make ci` manually and saw it pass (907 tests), but the CI gate in the ralph supervision loop failed with `ruff failed: unknown variant py314`. The agent was trapped in a loop where manual CI passed but the gate failed. Root cause: The agent ran `make ci 2>&1 | tail -30` which truncated early errors (ruff format runs before tests), while the CI gate saw the full output. The compliance message didn't include CI output, so the agent never saw the actual error.",
+      "priority": "critical",
+      "tags": [
+        "scan",
+        "ci",
+        "parallel-workers",
+        "bug",
+        "ralph",
+        "output-capture",
+        "supervision",
+        "compliance-message"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/supervision/ci.rs",
+        "crates/ralph/tests/git_repo_ci_gate_revert_test.rs",
+        "crates/ralph/tests/git_repo_ci_gate_custom_test.rs",
+        "crates/ralph/tests/git_repo_ci_gate_compliance_message_test.rs"
+      ],
+      "evidence": [
+        "log: [2026-02-18T22:11:01Z ERROR ralph::commands::run::logging] CI gate (make ci): error: CI failed: 'make ci' exited with code Some(2)",
+        "log: ruff failed: TOML parse error at line 44: unknown variant `py314`",
+        "analysis: Agent ran make ci piped to tail and missed early formatter/lint failures",
+        "code: strict_ci_gate_compliance_message in crates/ralph/src/commands/run/supervision/ci.rs formats CI output snippets plus troubleshooting guidance",
+        "code: run_ci_gate_with_continue_session in crates/ralph/src/commands/run/supervision/ci.rs is the retry path that emits strict compliance instructions to the continue session",
+        "gap: Existing integration tests assert generic CI failure text but do not assert strict compliance guidance/output snippet presence end-to-end"
+      ],
+      "plan": [
+        "Confirm strict compliance message content remains explicit: command label, numeric exit code, CI output snippet, and actionable remediation guidance",
+        "Keep retry path behavior deterministic by verifying run_ci_gate_with_continue_session always routes strict compliance text through continue-session resume callback on CI failure",
+        "Expand unit coverage in crates/ralph/src/commands/run/supervision/ci.rs for message formatting contracts (including common-pattern guidance and output-snippet rendering/truncation)",
+        "Add an integration test under crates/ralph/tests that runs a failing CI gate and asserts emitted stderr includes strict compliance guidance with CI output context",
+        "Update existing CI gate integration assertions as needed so revert/custom-command scenarios continue validating behavior while aligning with stricter message contract",
+        "Run required verification in implementation phase (make macos-ci) and resolve any regressions before completion"
+      ],
+      "notes": [
+        "Primary failure mode: workers can claim manual CI success while supervised gate fails if the failure output is not visible in compliance feedback",
+        "Current ci.rs already captures stdout/stderr and formats troubleshooting text; remaining risk is missing end-to-end guardrail that proves the message actually reaches retry flow consumers",
+        "Task focus is supervision CI feedback fidelity for RQ-0944 only; related follow-on tasks remain out of scope",
+        "Prefer tightening existing helpers/tests over introducing parallel message paths or duplicate formatting logic",
+        "Phase 3 review found a false-pass path when resume args file was missing; test now requires Continue-session payload capture.",
+        "Hardened CI compliance integration tests to assert output snippet passthrough and custom command label in runner resume args.",
+        "Validated with cargo CI-gate test suite + full make macos-ci (passed)."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-02-18T22:30:00Z",
+      "updated_at": "2026-02-19T06:15:15.497797000Z",
+      "completed_at": "2026-02-19T06:15:15.497797000Z",
+      "started_at": "2026-02-18T22:40:58.374049000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [
+        "RQ-0945",
+        "RQ-0946",
+        "RQ-0947",
+        "RQ-0950",
+        "RQ-0953"
+      ],
+      "custom_fields": {
+        "model_used": "gpt-5.3-codex",
+        "scan_agent": "scan-general",
+        "runner_used": "codex"
+      }
+    },
+    {
+      "id": "RQ-0945",
+      "status": "done",
+      "title": "Add CI failure root cause detection for common error patterns",
+      "description": "The RQ-0124 agent failed to investigate the root cause of CI failures. The error `unknown variant py314, expected one of py37, py38, py39, py310, py311, py312, py313` was logged 5+ times but the agent never fixed the pyproject.toml. The agent kept running `make ci` and reporting success while the CI gate kept failing. Ralph should detect common error patterns and provide actionable guidance or auto-fix.",
+      "priority": "high",
+      "tags": [
+        "scan",
+        "ci",
+        "error-detection",
+        "agent-guidance",
+        "root-cause",
+        "ralph"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/supervision/ci.rs",
+        "crates/ralph/src/commands/run/supervision/tests.rs"
+      ],
+      "evidence": [
+        "code: crates/ralph/src/commands/run/supervision/ci.rs defines DetectedErrorPattern and detector pipeline (detect_toml_parse_error -> detect_unknown_variant_error -> detect_ruff_error -> format/lint checks) with explicit priority order.",
+        "code: strict_ci_gate_compliance_message() now injects DETECTED ERROR details and retains the mandatory enforcement directive + COMMON PATTERNS fallback.",
+        "code: run_ci_gate() and run_ci_gate_with_continue_session() both use detect_ci_error_pattern output, enabling pattern-aware logging and repeated-failure escalation context.",
+        "tests: ci.rs contains unit coverage for extraction helpers, individual detectors, combined stdout/stderr detection, and compliance-message rendering with detected pattern payloads.",
+        "risk: detector matching is string-based and best-effort; false positives/negatives are still possible without tighter negative-case coverage and table-driven regressions."
+      ],
+      "plan": [
+        "Audit current CI error-pattern implementation in ci.rs against RQ-0945 acceptance: root-cause surfacing for TOML parse + unknown variant and actionable guidance in compliance messaging.",
+        "Harden detector helpers where needed (pattern predicates, extraction helpers, and priority order) using the existing looks_like-style conventions from runner/error.rs.",
+        "Ensure strict_ci_gate_compliance_message and CI escalation paths consistently include detected details when available and graceful generic fallback when not.",
+        "Expand/normalize unit tests for positive and negative cases (including py314-style unknown variant in TOML parse output) and add regression assertions around message content.",
+        "Run targeted tests plus full CI gate in Phase 2 (make macos-ci) before claiming completion."
+      ],
+      "notes": [
+        "Do not auto-fix repository files from CI output; provide actionable root-cause guidance only.",
+        "Pattern detection remains best-effort and must degrade safely to generic guidance when extraction fails.",
+        "Maintain priority ordering: TOML parse > unknown variant > ruff-specific > format/lint > generic fallback.",
+        "Preserve strict directive language in compliance messages (Fix errors before continuing / no skipping shortcuts).",
+        "Implementation already contains baseline detectors and tests; Phase 2 should focus on gap-hardening and regression confidence, not broad redesign.",
+        "Phase 3 fixed non-ASCII slicing risk in CI extractors via safe case-insensitive index helper.",
+        "Added regression tests for Unicode-prefix parsing, infer_file_path coverage, and format-vs-lint precedence.",
+        "Confirmed strict compliance message and escalation paths still include detected-pattern guidance.",
+        "Validation passed: cargo test -p ralph commands::run::supervision::ci; cargo test -p ralph commands::run::supervision; make macos-ci."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-02-18T22:30:00Z",
+      "updated_at": "2026-02-19T06:46:08.943033000Z",
+      "completed_at": "2026-02-19T06:46:08.943033000Z",
+      "started_at": "2026-02-18T23:36:32.410812000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "runner_used": "codex",
+        "scan_agent": "scan-general",
+        "model_used": "gpt-5.3-codex"
+      }
+    },
+    {
+      "id": "RQ-0946",
+      "status": "done",
+      "title": "Prevent draft PR creation when task fails CI gate",
+      "description": "In the RQ-0124 parallel run, the task failed with 'CI gate failed after changes' error, but a draft PR was still created. This left the repository in an inconsistent state with uncommitted changes in the workspace and a draft PR that shouldn't exist. The task completion logic should not create PRs when the CI gate fails after exhausting retries.",
+      "priority": "high",
+      "tags": [
+        "scan",
+        "ci",
+        "pr-creation",
+        "bug",
+        "ralph",
+        "parallel",
+        "regression"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/supervision/parallel_worker.rs",
+        "crates/ralph/src/commands/run/parallel/orchestration.rs",
+        "crates/ralph/src/commands/run/parallel/mod.rs",
+        "crates/ralph/tests/parallel_e2e_test.rs"
+      ],
+      "evidence": [
+        "log: [2026-02-18T22:11:01Z ERROR] Task RQ-0124: error: CI gate failed after changes",
+        "log: [2026-02-18T22:11:07Z INFO] Draft PR 2 created for RQ-0124; skipping auto-merge",
+        "code: crates/ralph/src/commands/run/supervision/parallel_worker.rs:78,110,135 writes CI failure marker before CI bail",
+        "code: crates/ralph/src/commands/run/parallel/orchestration.rs:722 skips draft PR path when CI failure marker exists",
+        "gap: no dedicated regression test currently asserts CI-failure marker blocks draft PR creation in parallel E2E flow"
+      ],
+      "plan": [
+        "Keep CI failure marker path centralized in crates/ralph/src/commands/run/parallel/mod.rs and ensure worker/coordinator both use the shared constant",
+        "Add unit tests in crates/ralph/src/commands/run/supervision/parallel_worker.rs for write_ci_failure_marker() to verify marker file creation and JSON payload contains task_id/error",
+        "Add unit tests in crates/ralph/src/commands/run/parallel/orchestration.rs for has_ci_failure_marker/read_ci_failure_marker/remove_ci_failure_marker lifecycle",
+        "Add integration regression test in crates/ralph/tests/parallel_e2e_test.rs that simulates CI gate failure and asserts no draft PR creation (no gh pr create draft invocation)",
+        "Assert marker cleanup in failure path so stale marker files do not leak into later task handling",
+        "Run targeted parallel tests and then make macos-ci"
+      ],
+      "notes": [
+        "Current implementation already writes CI failure marker in parallel worker supervision and checks marker before draft PR creation in orchestration",
+        "Remaining risk is regression drift: marker helper lifecycle and CI-failure draft-skip behavior are not explicitly covered by focused tests",
+        "Execution should prioritize deterministic regression coverage and preserve existing non-CI draft_on_failure behavior",
+        "Added stale CI marker cleanup on workspace reuse before worker spawn.",
+        "Added unit tests for write_ci_failure_marker payload creation and overwrite semantics.",
+        "Added orchestration marker lifecycle tests for has/read/remove helpers.",
+        "Added e2e regression test proving CI gate failure does not invoke gh pr create.",
+        "Verification: cargo marker tests + parallel_ci_failure_skips_draft_pr_creation + make macos-ci passed."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-02-18T22:30:00Z",
+      "updated_at": "2026-02-19T07:25:19.056126000Z",
+      "completed_at": "2026-02-19T07:25:19.056126000Z",
+      "started_at": "2026-02-19T00:00:56.926551000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "model_used": "gpt-5.3-codex",
+        "runner_used": "codex",
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0947",
+      "status": "done",
+      "title": "Add escalation after N consecutive CI gate failures with same error",
+      "description": "The RQ-0124 agent had 5 consecutive CI gate failures with identical error messages. The compliance message sent to the agent was not helping it make progress. After 3+ failures with the same error pattern, Ralph should escalate differently - either by providing more specific guidance, marking the task as blocked, or stopping to wait for human intervention.",
+      "priority": "high",
+      "tags": [
+        "scan",
+        "ci",
+        "escalation",
+        "agent-loop",
+        "ralph",
+        "tests",
+        "regression"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/supervision/ci.rs",
+        "crates/ralph/src/commands/run/supervision/continue_session.rs",
+        "crates/ralph/src/constants.rs",
+        "crates/ralph/src/commands/run/supervision/tests.rs",
+        "crates/ralph/src/commands/run/phases/tests.rs",
+        "crates/ralph/tests/git_repo_ci_gate_compliance_message_test.rs"
+      ],
+      "evidence": [
+        "code: crates/ralph/src/constants.rs:55-59 defines CI_GATE_AUTO_RETRY_LIMIT=5 and CI_FAILURE_ESCALATION_THRESHOLD=3 in constants::limits",
+        "code: crates/ralph/src/commands/run/supervision/continue_session.rs:39-44 stores last_ci_error_pattern and consecutive_same_error_count on ContinueSession",
+        "code: crates/ralph/src/commands/run/supervision/ci.rs:602-617 compares current pattern vs prior pattern and updates consecutive_same_error_count",
+        "code: crates/ralph/src/commands/run/supervision/ci.rs:618-654 escalates when threshold is reached and bails with MANUAL INTERVENTION REQUIRED guidance",
+        "code: crates/ralph/src/commands/run/phases/tests.rs:867-975 covers auto-retry-to-limit fallback path but does not assert repeated-pattern escalation",
+        "scan: rg -n CI_FAILURE_ESCALATION_THRESHOLD across crates/ralph/src and crates/ralph/tests shows references in constants + ci.rs logic only (no dedicated escalation regression assertions)"
+      ],
+      "plan": [
+        "Audit run_ci_gate_with_continue_session state transitions and correct any branch inconsistencies: same pattern increments, pattern changes reset, CI pass clears tracking.",
+        "Keep threshold values centralized in constants::limits and align naming/docs if behavior intent is ambiguous.",
+        "Add focused tests in crates/ralph/src/commands/run/supervision/ci.rs for escalation control flow: trigger on threshold, reset on pattern change, and reset on successful CI pass.",
+        "Extend higher-level supervision/phase coverage so repeated identical CI failures stop with escalation messaging instead of silently consuming all generic retries.",
+        "Verify all ContinueSession constructors in runtime/tests still initialize CI pattern tracking fields consistently after test additions/refactors.",
+        "In Phase 2, run required local checks (including make macos-ci and project CI gate) before task completion."
+      ],
+      "notes": [
+        "Current tree already contains core escalation plumbing (threshold constant, ContinueSession tracking fields, and escalation branch in CI loop).",
+        "Primary remaining risk is regression coverage: existing tests validate pattern detection and generic retry behavior, but not the repeated-pattern escalation control path.",
+        "Execution should prefer strengthening behavioral tests over re-adding already present scaffolding.",
+        "Validate failure-handling side effects end-to-end so escalation does not produce duplicate or conflicting revert/error messaging when wrapped by post-run supervision.",
+        "Phase 3 review validated RQ-0947 escalation logic and regression coverage in supervision + integration tests",
+        "Refinement: git_repo_ci_gate_compliance_message_test now derives expected resume attempts from CI_FAILURE_ESCALATION_THRESHOLD",
+        "Validation: cargo targeted tests and make macos-ci passed"
+      ],
+      "request": "scan finding",
+      "created_at": "2026-02-18T22:30:00Z",
+      "updated_at": "2026-02-19T08:12:41.818328000Z",
+      "completed_at": "2026-02-19T08:12:41.818328000Z",
+      "started_at": "2026-02-19T00:28:01.334495000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "runner_used": "codex",
+        "model_used": "gpt-5.3-codex",
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0948",
+      "status": "done",
+      "title": "Clean up parallel workspace on task failure",
+      "description": "The RQ-0124 workspace at ~/Projects/.workspaces/cloop/parallel/RQ-0124 still exists after the task failed. Compare to RQ-0125 which succeeded and had its workspace deleted. The workspace contains uncommitted changes (WIP commit) and a draft PR branch. Failed tasks should clean up their workspaces or mark them for manual review.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "parallel-workers",
+        "cleanup",
+        "bug",
+        "ralph",
+        "tests",
+        "regression"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/parallel/orchestration.rs",
+        "crates/ralph/src/commands/run/parallel/cleanup_guard.rs",
+        "crates/ralph/src/commands/run/parallel/state_init.rs",
+        "crates/ralph/src/git/workspace.rs",
+        "crates/ralph/tests/parallel_e2e_test.rs",
+        "crates/ralph/tests/parallel_worker_cleanup_test.rs"
+      ],
+      "evidence": [
+        "analysis: orchestration failure path already calls std::fs::remove_dir_all for failed workers (crates/ralph/src/commands/run/parallel/orchestration.rs:795-812)",
+        "analysis: failed worker is still inserted into completed_workspaces after deletion, creating stale bookkeeping risk (crates/ralph/src/commands/run/parallel/orchestration.rs:814-815)",
+        "analysis: successful workers are cleaned after merge-agent success via workspace_path_for_cleanup path (crates/ralph/src/commands/run/parallel/orchestration.rs:498-546, 906-949)",
+        "analysis: cleanup guard uses git::remove_workspace(..., force=true) with warn-and-continue semantics, including drop-time cleanup (crates/ralph/src/commands/run/parallel/cleanup_guard.rs:125-175)",
+        "analysis: existing failed-worker cleanup unit test is path-level only and does not execute real run-loop failure/state persistence flow (crates/ralph/src/commands/run/parallel/orchestration.rs:1390)",
+        "analysis: no integration test currently asserts failed-run workspace deletion plus .ralph/cache/parallel/state.json tasks_in_flight cleanup (crates/ralph/tests/parallel_e2e_test.rs)"
+      ],
+      "plan": [
+        "Add a shared best-effort workspace-removal helper in parallel cleanup code that wraps git::remove_workspace(force=true) and standardizes warn-level logging for deletion failures",
+        "Update failed-worker handling in orchestration to use the shared helper and avoid retaining failed workspaces in completed_workspaces after immediate deletion",
+        "Preserve current success-path merge cleanup behavior, but make cleanup idempotent when workspace already vanished",
+        "Add a run-loop integration regression test that simulates a failing worker and asserts both workspace directory deletion and cleared tasks_in_flight state",
+        "Add or adjust focused unit tests for failure-path bookkeeping and helper error handling",
+        "Phase 2 verification target: run focused parallel test set including new regression test"
+      ],
+      "notes": [
+        "Current code already attempts immediate failed-workspace deletion in orchestration",
+        "Primary remaining risk is inconsistent state bookkeeping after deletion (completed_workspaces entry on failure)",
+        "Guard-level cleanup tests exist; integration coverage for failed run-loop cleanup is missing",
+        "Plan favors shared cleanup helper to reduce duplicated workspace deletion and logging logic"
+      ],
+      "request": "scan finding",
+      "created_at": "2026-02-18T22:30:00Z",
+      "updated_at": "2026-02-19T15:24:50.104584000Z",
+      "completed_at": "2026-02-19T15:24:50.104584000Z",
+      "started_at": "2026-02-19T00:51:17.687758000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general",
+        "model_used": "sonnet",
+        "runner_used": "claude"
+      }
+    }
+  ]
+}

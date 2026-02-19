@@ -30,7 +30,7 @@ Ralph is a Rust CLI for running AI agent loops against a structured JSON task qu
 
 ## User Preferences
 
-- **CI-first**: Always run `make macos-ci` before claiming completion or committing
+- **CI-first**: Run `make agent-ci` before claiming completion; reserve `make macos-ci` as the ship gate
 - **Minimal APIs**: Default to private; prefer `pub(crate)` over `pub`
 - **Small files**: Target <500 LOC; hard limit at 1,000 LOC (must split)
 - **Explicit over implicit**: Prefer explicit, minimal usage patterns

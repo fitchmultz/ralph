@@ -8,7 +8,6 @@
 target/
 .learnings
 .vscode/settings.json
-.ralph
 .learnings
 debug/
 
@@ -23,3 +22,4 @@ CLAUDE.md
 
 # Ralph parallel mode workspace directories
 .ralph/workspaces/
+.ralph/cache/undo

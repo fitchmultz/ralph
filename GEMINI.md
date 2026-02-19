@@ -5,14 +5,15 @@ This file is a fast path for contributors/agents; for deeper detail start at `do
 
 ## TL;DR
 
-- Run `make macos-ci` before claiming completion, committing, or merging.
-- `make macos-ci` is the source of truth for the gate; it currently runs:
+- Run `make agent-ci` before claiming completion, committing, or merging.
+- `make agent-ci` is the default contributor gate; it currently runs the Rust/CLI pipeline:
   `check-env-safety → check-backup-artifacts → deps → format → type-check → lint → test → build → generate → install`
+- `make macos-ci` remains the ship gate for full macOS app build+test.
 - Keep secrets out of git/logs; `.env` is for local use only and MUST remain untracked (CI enforces this).
 
 ## Non-Negotiables
 
-- CI gate: `make macos-ci` MUST pass before claiming completion, committing, or merging.
+- CI gate: `make agent-ci` MUST pass before claiming completion, committing, or merging.
 - Source docs: every new/changed source file MUST start with module docs that state:
   - what the file is responsible for
   - what it explicitly does NOT handle
@@ -42,7 +43,8 @@ This file is a fast path for contributors/agents; for deeper detail start at `do
 
 The Makefile is the contract; keep these targets working:
 
-- `make macos-ci`: local CI gate (see the `ci:` target in `Makefile` for exact ordering). Do not remove `install`.
+- `make agent-ci`: default local CI gate (Rust/CLI always; escalates to `make macos-ci` when `apps/RalphMac/` changes).
+- `make macos-ci`: full ship gate (Rust CI + macOS app build+test).
 - `make install`: install `ralph` to `~/.local/bin/ralph` (or a writable fallback) and sanity-check `ralph --help`.
 - `make test`: runs `cargo nextest run` for workspace tests (with fallback to `cargo test` if nextest missing), then `cargo test --doc` for doctests.
 - `make lint`: `cargo clippy --workspace --all-targets -- -D warnings`
@@ -52,7 +54,7 @@ The Makefile is the contract; keep these targets working:
 - `make update`: updates Cargo dependencies (`cargo update`)
 - `make clean`: removes build artifacts, logs, and most `.ralph/cache` entries
 
-Useful iteration commands (not a substitute for `make macos-ci`):
+Useful iteration commands (not a substitute for `make agent-ci`):
 
 - `cargo test -p ralph`
 - `cargo run -p ralph -- <command>`
@@ -97,12 +99,12 @@ Runner/model specifics live in `README.md` (supported runners and model constrai
 ## Git Hygiene
 
 - Commit message: `RQ-####: <short summary>` (task id + summary).
-- Do not commit if `make macos-ci` is failing.
-- This repo is local-CI-first; avoid adding remote CI (e.g., GitHub Actions) as a substitute for `make macos-ci`.
+- Do not commit if `make agent-ci` is failing.
+- This repo is local-CI-first; avoid adding remote CI (e.g., GitHub Actions) as a substitute for `make agent-ci`.
 
 ## PR / Review Expectations
 
-- Include a short "what changed" + "how to verify" section (expected: `make macos-ci`).
+- Include a short "what changed" + "how to verify" section (expected: `make agent-ci`).
 - Call out any breaking behavior explicitly and update docs/help accordingly.
 - When working from an issue/PR, prefer `gh` for context (`gh issue view ...`, `gh pr view ...`).
 
@@ -126,7 +128,7 @@ See `crates/ralph/src/migration/mod.rs` for invariants/assumptions (idempotency,
 
 ## Troubleshooting
 
-- CI failing: run `make macos-ci`; the first failing step is printed (common: formatting, Clippy warnings, tests).
+- CI failing: run `make agent-ci`; the first failing step is printed (common: formatting, Clippy warnings, tests).
 - `.env tracked` error: run `git rm --cached .env` and ensure `.env` is in `.gitignore`.
 - `Backup artifacts` error: remove any `*.bak` files under `crates/ralph/src/`.
 - Queue lock: investigate `.ralph/lock`; use `--force` only when you understand why the lock is stale.
