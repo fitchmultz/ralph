@@ -53,9 +53,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "runner_used": "codex",
         "scan_agent": "scan-general",
-        "model_used": "gpt-5.3-codex",
-        "runner_used": "codex"
+        "model_used": "gpt-5.3-codex"
       }
     },
     {
@@ -118,8 +118,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.3-codex",
-        "runner_used": "codex"
+        "runner_used": "codex",
+        "model_used": "gpt-5.3-codex"
       }
     },
     {
@@ -188,8 +188,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
-        "model_used": "gpt-5.3-codex"
+        "model_used": "gpt-5.3-codex",
+        "runner_used": "codex"
       }
     },
     {
@@ -255,8 +255,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.3-codex",
-        "runner_used": "codex"
+        "runner_used": "codex",
+        "model_used": "gpt-5.3-codex"
       }
     },
     {
@@ -321,8 +321,8 @@
         "RQ-0953"
       ],
       "custom_fields": {
-        "scan_agent": "scan-general",
         "model_used": "gpt-5.3-codex",
+        "scan_agent": "scan-general",
         "runner_used": "codex"
       }
     },
@@ -500,9 +500,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "scan_agent": "scan-general",
         "runner_used": "codex",
-        "model_used": "gpt-5.3-codex",
-        "scan_agent": "scan-general"
+        "model_used": "gpt-5.3-codex"
       }
     },
     {
@@ -615,9 +615,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-general",
+        "model_used": "gpt-5.3-codex",
         "runner_used": "codex",
-        "model_used": "gpt-5.3-codex"
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -675,9 +675,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "runner_used": "codex",
         "model_used": "gpt-5.3-codex",
-        "scan_agent": "scan-general",
-        "runner_used": "codex"
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -735,8 +735,77 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "kimi-for-coding/k2p5",
         "scan_agent": "scan-general",
+        "runner_used": "opencode",
+        "model_used": "kimi-for-coding/k2p5"
+      }
+    },
+    {
+      "id": "RQ-0955",
+      "status": "done",
+      "title": "Add webhook queue overflow handling to parallel workers",
+      "description": "The log shows multiple 'Webhook enqueue failed (queue full or worker disconnected)' warnings. Webhooks are used for progress reporting but fail silently in parallel worker mode. This could lead to lost status updates. Either increase queue size for parallel mode or implement webhook retry/overflow handling.",
+      "priority": "low",
+      "tags": [
+        "scan",
+        "webhook",
+        "parallel-workers",
+        "ralph",
+        "backpressure",
+        "queue"
+      ],
+      "scope": [
+        "crates/ralph/src/webhook/mod.rs",
+        "crates/ralph/src/webhook/diagnostics.rs",
+        "crates/ralph/src/contracts/config/webhook.rs",
+        "crates/ralph/src/commands/run/parallel/orchestration.rs"
+      ],
+      "evidence": [
+        "log: [2026-02-18T20:27:53Z WARN] Webhook enqueue failed (queue full or worker disconnected)",
+        "log: Multiple occurrences throughout parallel run",
+        "code: webhook/mod.rs:205-214 :: Default queue capacity is 100, configurable 10-10000",
+        "code: webhook/mod.rs:388-449 :: Three backpressure policies exist (DropOldest, DropNew, BlockWithTimeout)",
+        "code: orchestration.rs:279-283 :: Loop-level webhooks sent without checking queue capacity",
+        "code: orchestration.rs:845-853, 1061-1069 :: notify_loop_stopped called on completion paths",
+        "analysis: With N parallel workers each sending 4+ webhooks (phase_started/completed x2), queue of 100 fills rapidly during slow webhook delivery (30s timeout x 3 retries = 90s worst case per webhook)"
+      ],
+      "plan": [
+        "Increase default queue capacity from 100 to 500 for better parallel mode handling",
+        "Scale queue capacity dynamically based on parallel worker count (workers * 50 minimum)",
+        "Add parallel_mode_queue_capacity config option under agent.webhook",
+        "Log dropped webhook events with task_id and event type for debugging",
+        "Consider non-blocking batch enqueue for parallel mode webhooks",
+        "Run `cargo test -p ralph --lib -- webhook` to verify existing tests pass",
+        "Run `make macos-ci` to verify no regressions"
+      ],
+      "notes": [
+        "Root cause: Single global webhook worker thread with bounded queue (default 100) cannot keep up with burst of webhooks from N parallel workers",
+        "Each parallel worker sends: loop_started, phase_started (P1), phase_completed (P1), phase_started (P2/3), phase_completed (P2/3), loop_stopped = ~6 webhooks per task",
+        "With 8 workers, that's 48 webhooks minimum per wave. During slow delivery (90s per webhook), queue fills rapidly",
+        "Current policies (DropOldest, DropNew, BlockWithTimeout) all result in dropped messages under load",
+        "Webhooks are best-effort per module docs, but losing all status updates is poor UX",
+        "Increased default webhook queue capacity from 100 to 500",
+        "Added parallel_queue_multiplier config option (range 1.0-10.0, default 2.0)",
+        "Added init_worker_for_parallel function for parallel-aware capacity scaling",
+        "Improved dropped message logging to include event type and task_id",
+        "Phase 3 review: implementation complete and correct, all tests pass",
+        "Phase 3 review complete - implementation verified",
+        "Default queue capacity: 100 -> 500",
+        "parallel_queue_multiplier config added (1.0-10.0, default 2.0)",
+        "init_worker_for_parallel() scales capacity dynamically",
+        "All 2023 tests pass"
+      ],
+      "request": "scan finding",
+      "created_at": "2026-02-18T22:30:00Z",
+      "updated_at": "2026-02-19T17:38:57.581556000Z",
+      "completed_at": "2026-02-19T17:38:57.581556000Z",
+      "started_at": "2026-02-19T02:02:06.954636000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general",
+        "model_used": "kimi-for-coding/k2p5",
         "runner_used": "opencode"
       }
     }
