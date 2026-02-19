@@ -37,44 +37,6 @@
       }
     },
     {
-      "id": "RQ-0941",
-      "status": "todo",
-      "title": "Add full task lifecycle integration test",
-      "description": "There is NO integration test that covers the complete task lifecycle from creation to completion. The lifecycle includes: task build, task ready, task start, ralph run, task done/reject. Tests exist for individual steps but not the full flow. Without E2E lifecycle tests, integration bugs could go undetected.",
-      "priority": "high",
-      "tags": [
-        "scan",
-        "testing",
-        "integration",
-        "task",
-        "lifecycle"
-      ],
-      "scope": [
-        "crates/ralph/tests/"
-      ],
-      "evidence": [
-        "path: crates/ralph/tests/task_cmd_test.rs :: task creation tests",
-        "path: crates/ralph/tests/task_done_completion_signal_test.rs :: completion tests",
-        "analysis: No test covers the full create -> start -> run -> done lifecycle"
-      ],
-      "plan": [
-        "Create crates/ralph/tests/task_lifecycle_test.rs",
-        "Add test: task_full_lifecycle_build_ready_start_done",
-        "Verify queue state at each step",
-        "Run `cargo test -p ralph --test task_lifecycle_test` to verify"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-02-17T19:51:00Z",
-      "updated_at": "2026-02-17T19:51:00Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-general"
-      }
-    },
-    {
       "id": "RQ-0922",
       "status": "todo",
       "title": "Add SIGTERM signal handler to daemon serve",

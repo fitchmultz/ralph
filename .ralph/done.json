@@ -53,9 +53,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-general",
+        "runner_used": "codex",
         "model_used": "gpt-5.3-codex",
-        "runner_used": "codex"
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -118,8 +118,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.3-codex",
-        "runner_used": "codex"
+        "runner_used": "codex",
+        "model_used": "gpt-5.3-codex"
       }
     },
     {
@@ -188,8 +188,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.3-codex",
-        "runner_used": "codex"
+        "runner_used": "codex",
+        "model_used": "gpt-5.3-codex"
       }
     },
     {
@@ -321,9 +321,9 @@
         "RQ-0953"
       ],
       "custom_fields": {
-        "runner_used": "codex",
+        "model_used": "gpt-5.3-codex",
         "scan_agent": "scan-general",
-        "model_used": "gpt-5.3-codex"
+        "runner_used": "codex"
       }
     },
     {
@@ -378,9 +378,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.3-codex",
+        "runner_used": "codex",
         "scan_agent": "scan-general",
-        "runner_used": "codex"
+        "model_used": "gpt-5.3-codex"
       }
     },
     {
@@ -438,9 +438,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.3-codex",
         "scan_agent": "scan-general",
-        "runner_used": "codex"
+        "runner_used": "codex",
+        "model_used": "gpt-5.3-codex"
       }
     },
     {
@@ -559,9 +559,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "model_used": "sonnet",
         "scan_agent": "scan-general",
-        "runner_used": "claude",
-        "model_used": "sonnet"
+        "runner_used": "claude"
       }
     },
     {
@@ -615,9 +615,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.3-codex",
         "runner_used": "codex",
-        "scan_agent": "scan-general"
+        "scan_agent": "scan-general",
+        "model_used": "gpt-5.3-codex"
       }
     },
     {
@@ -676,8 +676,8 @@
       "relates_to": [],
       "custom_fields": {
         "runner_used": "codex",
-        "model_used": "gpt-5.3-codex",
-        "scan_agent": "scan-general"
+        "scan_agent": "scan-general",
+        "model_used": "gpt-5.3-codex"
       }
     },
     {
@@ -735,9 +735,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "kimi-for-coding/k2p5",
+        "runner_used": "opencode",
         "scan_agent": "scan-general",
-        "runner_used": "opencode"
+        "model_used": "kimi-for-coding/k2p5"
       }
     },
     {
@@ -805,8 +805,8 @@
       "relates_to": [],
       "custom_fields": {
         "runner_used": "opencode",
-        "model_used": "kimi-for-coding/k2p5",
-        "scan_agent": "scan-general"
+        "scan_agent": "scan-general",
+        "model_used": "kimi-for-coding/k2p5"
       }
     },
     {
@@ -858,8 +858,8 @@
       "relates_to": [],
       "custom_fields": {
         "scan_agent": "scan-general",
-        "runner_used": "opencode",
-        "model_used": "kimi-for-coding/k2p5"
+        "model_used": "kimi-for-coding/k2p5",
+        "runner_used": "opencode"
       }
     },
     {
@@ -918,9 +918,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "opencode",
+        "scan_agent": "scan-general",
         "model_used": "kimi-for-coding/k2p5",
-        "scan_agent": "scan-general"
+        "runner_used": "opencode"
       }
     },
     {
@@ -990,9 +990,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "scan_agent": "scan-general",
         "model_used": "kimi-for-coding/k2p5",
-        "runner_used": "opencode",
-        "scan_agent": "scan-general"
+        "runner_used": "opencode"
       }
     },
     {
@@ -1039,8 +1039,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "kimi-for-coding/k2p5",
         "runner_used": "opencode",
+        "model_used": "kimi-for-coding/k2p5",
         "scan_agent": "scan-general"
       }
     },
@@ -1083,8 +1083,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "kimi",
         "scan_agent": "scan-general",
+        "runner_used": "kimi",
         "model_used": "kimi-code/kimi-for-coding"
       }
     },
@@ -1132,6 +1132,53 @@
         "model_used": "kimi-code/kimi-for-coding",
         "runner_used": "kimi",
         "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0941",
+      "status": "done",
+      "title": "Add full task lifecycle integration test",
+      "description": "There is NO integration test that covers the complete task lifecycle from creation to completion. The lifecycle includes: task build, task ready, task start, ralph run, task done/reject. Tests exist for individual steps but not the full flow. Without E2E lifecycle tests, integration bugs could go undetected.",
+      "priority": "high",
+      "tags": [
+        "scan",
+        "testing",
+        "integration",
+        "task",
+        "lifecycle"
+      ],
+      "scope": [
+        "crates/ralph/tests/"
+      ],
+      "evidence": [
+        "path: crates/ralph/tests/task_cmd_test.rs :: task creation tests",
+        "path: crates/ralph/tests/task_done_completion_signal_test.rs :: completion tests",
+        "analysis: No test covers the full create -> start -> run -> done lifecycle"
+      ],
+      "plan": [
+        "Create crates/ralph/tests/task_lifecycle_test.rs",
+        "Add test: task_full_lifecycle_build_ready_start_done",
+        "Verify queue state at each step",
+        "Run `cargo test -p ralph --test task_lifecycle_test` to verify"
+      ],
+      "notes": [
+        "Created crates/ralph/tests/task_lifecycle_test.rs with 11 comprehensive integration tests",
+        "Tests cover: build→ready→start→run→done/reject full lifecycle",
+        "Includes runner execution tests with mock runners",
+        "Verifies queue/done state transitions at each step",
+        "All tests pass; CI gate passes; no regressions"
+      ],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:51:00Z",
+      "updated_at": "2026-02-19T23:30:10.409286000Z",
+      "completed_at": "2026-02-19T23:30:10.409286000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "model_used": "kimi-code/kimi-for-coding",
+        "scan_agent": "scan-general",
+        "runner_used": "kimi"
       }
     }
   ]
