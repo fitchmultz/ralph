@@ -268,4 +268,38 @@ mod tests {
         assert!(json.contains("\"data\":42"));
         assert!(!json.contains("error_message"));
     }
+
+    #[test]
+    fn test_dashboard_sections_burndown_history_are_ok_without_productivity_stats() {
+        let queue = empty_queue();
+        let report = build_dashboard_report(&queue, None, None, 7);
+
+        assert_eq!(
+            report.sections.productivity_summary.status,
+            SectionStatus::Unavailable
+        );
+        assert_eq!(
+            report.sections.productivity_velocity.status,
+            SectionStatus::Unavailable
+        );
+        assert_eq!(report.sections.burndown.status, SectionStatus::Ok);
+        assert_eq!(report.sections.history.status, SectionStatus::Ok);
+        assert_eq!(report.sections.queue_stats.status, SectionStatus::Ok);
+    }
+
+    #[test]
+    fn test_dashboard_includes_done_archive_in_queue_stats() {
+        let queue = empty_queue();
+        let done = QueueFile {
+            version: 1,
+            tasks: vec![task_with_status("RQ-0001", TaskStatus::Done)],
+        };
+
+        let report = build_dashboard_report(&queue, Some(&done), None, 7);
+
+        assert_eq!(report.sections.queue_stats.status, SectionStatus::Ok);
+        let stats_data = report.sections.queue_stats.data.as_ref().unwrap();
+        assert_eq!(stats_data.summary.total, 1);
+        assert_eq!(stats_data.summary.done, 1);
+    }
 }

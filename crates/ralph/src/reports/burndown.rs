@@ -65,8 +65,16 @@ pub(crate) fn build_burndown_report(
     done: Option<&QueueFile>,
     days: u32,
 ) -> BurndownReport {
+    build_burndown_report_at(queue, done, days, OffsetDateTime::now_utc())
+}
+
+fn build_burndown_report_at(
+    queue: &QueueFile,
+    done: Option<&QueueFile>,
+    days: u32,
+    now: OffsetDateTime,
+) -> BurndownReport {
     let days_to_show = days.max(1) as i64;
-    let now = OffsetDateTime::now_utc();
     let start_of_day = start_of_window(now, days_to_show);
     let end_of_day = start_of_day + Duration::days(days_to_show - 1);
 
@@ -201,13 +209,157 @@ pub(crate) fn print_burndown(
             }
 
             println!();
+            let scale_per_block = report
+                .legend
+                .as_ref()
+                .map(|legend| legend.scale_per_block)
+                .unwrap_or(1);
             println!(
                 "█ = ~{} task{}",
-                (report.max_count / 20).max(1),
-                if report.max_count / 20 == 1 { "" } else { "s" }
+                scale_per_block,
+                if scale_per_block == 1 { "" } else { "s" }
             );
         }
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::contracts::{QueueFile, Task, TaskPriority, TaskStatus};
+    use std::collections::HashMap;
+    use time::{Duration, OffsetDateTime};
+
+    fn test_task(id: &str, created_at: Option<String>, completed_at: Option<String>) -> Task {
+        Task {
+            id: id.to_string(),
+            title: format!("Task {id}"),
+            description: None,
+            status: if completed_at.is_some() {
+                TaskStatus::Done
+            } else {
+                TaskStatus::Todo
+            },
+            created_at: created_at.clone(),
+            completed_at,
+            updated_at: created_at,
+            priority: TaskPriority::Medium,
+            tags: vec![],
+            scope: vec![],
+            evidence: vec![],
+            plan: vec![],
+            notes: vec![],
+            request: None,
+            agent: None,
+            started_at: None,
+            scheduled_start: None,
+            estimated_minutes: None,
+            actual_minutes: None,
+            depends_on: vec![],
+            blocks: vec![],
+            relates_to: vec![],
+            duplicates: None,
+            custom_fields: HashMap::new(),
+            parent_id: None,
+        }
+    }
+
+    fn queue_with(tasks: Vec<Task>) -> QueueFile {
+        QueueFile { version: 1, tasks }
+    }
+
+    fn fixed_now() -> OffsetDateTime {
+        OffsetDateTime::from_unix_timestamp(1767441600).expect("valid test timestamp")
+    }
+
+    #[test]
+    fn test_start_of_window_normalizes_to_midnight() {
+        let now = OffsetDateTime::from_unix_timestamp(1700000000).unwrap();
+        let days_to_show = 3;
+        let start = start_of_window(now, days_to_show);
+
+        assert_eq!(start.hour(), 0);
+        assert_eq!(start.minute(), 0);
+        assert_eq!(start.second(), 0);
+        assert_eq!(start.nanosecond(), 0);
+
+        let expected_day = now.date() - time::Duration::days(days_to_show - 1);
+        assert_eq!(start.date(), expected_day);
+    }
+
+    #[test]
+    fn test_build_burndown_report_counts_open_tasks_by_day() {
+        let now = fixed_now();
+        let start = start_of_window(now, 3);
+        let three_days_ago = start - Duration::days(1);
+        let day_three_start = start + Duration::days(2);
+
+        let three_days_ago_str = crate::timeutil::format_rfc3339(three_days_ago).unwrap();
+        let day_three_start_str = crate::timeutil::format_rfc3339(day_three_start).unwrap();
+        let day_two_midday_str =
+            crate::timeutil::format_rfc3339(start + Duration::days(1) + Duration::hours(12))
+                .unwrap();
+        let day_two_evening_str =
+            crate::timeutil::format_rfc3339(start + Duration::days(1) + Duration::hours(18))
+                .unwrap();
+
+        let t1 = test_task("RQ-001", Some(three_days_ago_str.clone()), None);
+        let t2 = test_task(
+            "RQ-002",
+            Some(three_days_ago_str),
+            Some(day_three_start_str),
+        );
+        let t3 = test_task(
+            "RQ-003",
+            Some(day_two_midday_str),
+            Some(day_two_evening_str),
+        );
+
+        let queue = queue_with(vec![t1, t3]);
+        let done = queue_with(vec![t2]);
+
+        let report = build_burndown_report_at(&queue, Some(&done), 3, now);
+
+        assert_eq!(report.daily_counts.len(), 3);
+        assert_eq!(report.max_count, 2);
+        assert_eq!(
+            report
+                .daily_counts
+                .iter()
+                .map(|d| d.remaining)
+                .collect::<Vec<_>>(),
+            vec![2, 2, 1]
+        );
+    }
+
+    #[test]
+    fn test_build_burndown_report_legend_none_when_max_zero() {
+        let queue = queue_with(vec![]);
+        let done = queue_with(vec![]);
+
+        let report = build_burndown_report(&queue, Some(&done), 2);
+
+        assert_eq!(report.max_count, 0);
+        assert!(report.legend.is_none());
+        assert_eq!(report.daily_counts.len(), 2);
+    }
+
+    #[test]
+    fn test_build_burndown_report_legend_scales_for_large_counts() {
+        let now = fixed_now();
+        let timestamp_str = crate::timeutil::format_rfc3339(now - Duration::days(1)).unwrap();
+
+        let tasks: Vec<Task> = (0..45)
+            .map(|i| test_task(&format!("RQ-{:03}", i), Some(timestamp_str.clone()), None))
+            .collect();
+
+        let queue = queue_with(tasks);
+        let report = build_burndown_report_at(&queue, None, 3, now);
+
+        assert!(report.legend.is_some());
+        let legend = report.legend.unwrap();
+        assert_eq!(legend.scale_per_block, 2);
+    }
 }

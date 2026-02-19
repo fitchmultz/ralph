@@ -256,6 +256,7 @@ fn build_aging_report(
     // Compute aging for each task
     let mut bucketed: std::collections::HashMap<AgingBucket, Vec<(AgingBucket, &Task, Duration)>> =
         std::collections::HashMap::new();
+    let mut unknown_count = 0usize;
 
     for task in &filtered_tasks {
         let aging = compute_task_aging(task, thresholds, now);
@@ -264,8 +265,8 @@ fn build_aging_report(
                 .entry(aging.bucket)
                 .or_default()
                 .push((aging.bucket, task, age));
-        } else {
-            bucketed.entry(aging.bucket).or_default();
+        } else if aging.bucket == AgingBucket::Unknown {
+            unknown_count += 1;
         }
     }
 
@@ -337,11 +338,6 @@ fn build_aging_report(
         })
         .collect();
     rotten_tasks.sort_by(|a, b| b.age_seconds.cmp(&a.age_seconds));
-
-    let unknown_count = bucketed
-        .get(&AgingBucket::Unknown)
-        .map(|v| v.len())
-        .unwrap_or(0);
 
     let totals = AgingTotals {
         total: filtered_tasks.len(),
@@ -698,6 +694,91 @@ mod tests {
 
         assert_eq!(aging.bucket, AgingBucket::Unknown);
         assert!(aging.age.is_none());
+    }
+
+    #[test]
+    fn test_build_aging_report_filters_statuses_and_builds_expected_buckets() {
+        let now = fixed_now();
+        let thresholds = AgingThresholds::default();
+
+        let mut fresh = task_with_status("RQ-FRESH", TaskStatus::Todo);
+        fresh.created_at = Some(timeutil::format_rfc3339(now - Duration::days(1)).unwrap());
+
+        let mut warning = task_with_status("RQ-WARN", TaskStatus::Todo);
+        warning.created_at = Some(timeutil::format_rfc3339(now - Duration::days(8)).unwrap());
+
+        let mut stale = task_with_status("RQ-STALE", TaskStatus::Doing);
+        stale.started_at = Some(timeutil::format_rfc3339(now - Duration::days(20)).unwrap());
+
+        let unknown = task_with_status("RQ-UNKNOWN", TaskStatus::Todo);
+
+        let mut excluded_rotten = task_with_status("RQ-EXCLUDED", TaskStatus::Done);
+        excluded_rotten.completed_at =
+            Some(timeutil::format_rfc3339(now - Duration::days(40)).unwrap());
+
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![fresh, warning, stale, unknown, excluded_rotten],
+        };
+
+        let report = build_aging_report(
+            &queue,
+            &[TaskStatus::Todo, TaskStatus::Doing],
+            thresholds,
+            now,
+        );
+
+        assert_eq!(
+            report.filters.statuses,
+            vec!["todo".to_string(), "doing".to_string()]
+        );
+        assert_eq!(report.totals.total, 4);
+        assert_eq!(report.totals.fresh, 1);
+        assert_eq!(report.totals.warning, 1);
+        assert_eq!(report.totals.stale, 1);
+        assert_eq!(report.totals.rotten, 0);
+        assert_eq!(report.totals.unknown, 1);
+
+        let bucket_names: Vec<&str> = report.buckets.iter().map(|b| b.bucket.as_str()).collect();
+        assert_eq!(bucket_names, vec!["stale", "warning", "fresh", "unknown"]);
+
+        let fresh_bucket = report
+            .buckets
+            .iter()
+            .find(|bucket| bucket.bucket == "fresh")
+            .expect("fresh bucket exists");
+        assert_eq!(fresh_bucket.count, 1);
+        assert!(fresh_bucket.tasks.is_empty());
+    }
+
+    #[test]
+    fn test_build_aging_report_sorts_rotten_tasks_by_age_descending() {
+        let now = fixed_now();
+        let thresholds = AgingThresholds::default();
+
+        let mut older = task_with_status("RQ-OLDER", TaskStatus::Todo);
+        older.created_at = Some(timeutil::format_rfc3339(now - Duration::days(60)).unwrap());
+
+        let mut newer = task_with_status("RQ-NEWER", TaskStatus::Todo);
+        newer.created_at = Some(timeutil::format_rfc3339(now - Duration::days(40)).unwrap());
+
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![newer, older],
+        };
+
+        let report = build_aging_report(&queue, &[TaskStatus::Todo], thresholds, now);
+        let rotten_bucket = report
+            .buckets
+            .iter()
+            .find(|bucket| bucket.bucket == "rotten")
+            .expect("rotten bucket exists");
+
+        assert_eq!(rotten_bucket.count, 2);
+        assert_eq!(rotten_bucket.tasks.len(), 2);
+        assert_eq!(rotten_bucket.tasks[0].id, "RQ-OLDER");
+        assert_eq!(rotten_bucket.tasks[1].id, "RQ-NEWER");
+        assert!(rotten_bucket.tasks[0].age_seconds > rotten_bucket.tasks[1].age_seconds);
     }
 
     #[test]

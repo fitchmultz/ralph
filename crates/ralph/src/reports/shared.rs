@@ -73,6 +73,12 @@ pub(crate) fn avg_duration(durations: &[Duration]) -> Duration {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde::Serialize;
+
+    #[derive(Serialize)]
+    struct JsonSmokeReport {
+        value: &'static str,
+    }
 
     #[test]
     fn test_format_duration_zero() {
@@ -138,5 +144,12 @@ mod tests {
             .replace_second(0)
             .unwrap();
         assert_eq!(format_date_key(dt), "2026-01-19");
+    }
+
+    #[test]
+    fn test_print_json_smoke() {
+        let report = JsonSmokeReport { value: "ok" };
+        let result = print_json(&report);
+        assert!(result.is_ok());
     }
 }

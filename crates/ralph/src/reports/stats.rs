@@ -799,4 +799,112 @@ mod tests {
         assert_eq!(summary.active, 0);
         assert_eq!(summary.terminal_rate, 0.0);
     }
+
+    #[test]
+    fn test_filter_tasks_by_tags_is_case_insensitive() {
+        let mut t1 = task_with_status("RQ-001", TaskStatus::Done);
+        t1.tags = vec!["Important".to_string()];
+
+        let mut t2 = task_with_status("RQ-002", TaskStatus::Done);
+        t2.tags = vec!["urgent".to_string()];
+
+        let tasks: Vec<&Task> = vec![&t1, &t2];
+
+        let filtered = filter_tasks_by_tags(tasks.clone(), &["IMPORTANT".to_string()]);
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].id, "RQ-001");
+
+        let filtered2 = filter_tasks_by_tags(tasks, &["urgent".to_string()]);
+        assert_eq!(filtered2.len(), 1);
+        assert_eq!(filtered2[0].id, "RQ-002");
+    }
+
+    #[test]
+    fn test_filter_tasks_by_tags_empty_filter_returns_all() {
+        let t1 = task_with_status("RQ-001", TaskStatus::Done);
+        let t2 = task_with_status("RQ-002", TaskStatus::Done);
+        let tasks: Vec<&Task> = vec![&t1, &t2];
+
+        let filtered = filter_tasks_by_tags(tasks, &[]);
+        assert_eq!(filtered.len(), 2);
+    }
+
+    #[test]
+    fn test_calc_duration_stats_empty_returns_none() {
+        let durations: Vec<Duration> = vec![];
+        let stats = calc_duration_stats(&durations);
+        assert!(stats.is_none());
+    }
+
+    #[test]
+    fn test_calc_duration_stats_even_count_uses_upper_middle_median() {
+        let durations = vec![
+            Duration::hours(1),
+            Duration::hours(2),
+            Duration::hours(3),
+            Duration::hours(4),
+        ];
+
+        let stats = calc_duration_stats(&durations).expect("stats expected");
+        assert_eq!(stats.count, 4);
+        assert_eq!(stats.median_seconds, Duration::hours(3).whole_seconds());
+    }
+
+    #[test]
+    fn test_build_stats_report_respects_tag_filter_and_time_tracking() {
+        let now = time::OffsetDateTime::from_unix_timestamp(1700000000).unwrap();
+        let start = now - Duration::hours(2);
+        let created = now - Duration::hours(3);
+
+        let created_str = crate::timeutil::format_rfc3339(created).unwrap();
+        let started_str = crate::timeutil::format_rfc3339(start).unwrap();
+        let completed_str = crate::timeutil::format_rfc3339(now).unwrap();
+
+        let mut t1 = task_with_status("RQ-001", TaskStatus::Done);
+        t1.tags = vec!["A".to_string()];
+        t1.created_at = Some(created_str.clone());
+        t1.started_at = Some(started_str.clone());
+        t1.completed_at = Some(completed_str.clone());
+
+        let mut t2 = task_with_status("RQ-002", TaskStatus::Done);
+        t2.tags = vec!["B".to_string()];
+        t2.created_at = Some(created_str);
+        t2.started_at = Some(started_str);
+        t2.completed_at = Some(completed_str);
+
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![t1, t2],
+        };
+
+        let report = build_stats_report(&queue, None, &["A".to_string()]);
+
+        assert_eq!(report.summary.total, 1);
+        assert!(report.time_tracking.lead_time.is_some());
+        assert!(report.time_tracking.work_time.is_some());
+        assert!(report.time_tracking.start_lag.is_some());
+        assert_eq!(report.filters.tags, vec!["A".to_string()]);
+    }
+
+    #[test]
+    fn test_build_stats_report_merges_queue_and_done() {
+        let t1 = task_with_status("RQ-001", TaskStatus::Todo);
+        let t2 = task_with_status("RQ-002", TaskStatus::Done);
+        let t3 = task_with_status("RQ-003", TaskStatus::Done);
+
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![t1],
+        };
+        let done = QueueFile {
+            version: 1,
+            tasks: vec![t2, t3],
+        };
+
+        let report = build_stats_report(&queue, Some(&done), &[]);
+
+        assert_eq!(report.summary.total, 3);
+        assert_eq!(report.summary.done, 2);
+        assert_eq!(report.summary.terminal, 2);
+    }
 }

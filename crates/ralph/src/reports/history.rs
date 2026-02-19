@@ -67,9 +67,17 @@ pub(crate) fn build_history_report(
     done: Option<&QueueFile>,
     days: u32,
 ) -> HistoryReport {
+    build_history_report_at(queue, done, days, OffsetDateTime::now_utc())
+}
+
+fn build_history_report_at(
+    queue: &QueueFile,
+    done: Option<&QueueFile>,
+    days: u32,
+    now: OffsetDateTime,
+) -> HistoryReport {
     let all_tasks = collect_all_tasks(queue, done);
     let days_to_show = days.max(1) as i64;
-    let now = OffsetDateTime::now_utc();
     let start_of_day = start_of_window(now, days_to_show);
     let end_of_day = start_of_day + Duration::days(days_to_show - 1);
 
@@ -185,4 +193,226 @@ pub(crate) fn print_history(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::contracts::{QueueFile, Task, TaskPriority, TaskStatus};
+    use std::collections::HashMap;
+    use time::{Duration, OffsetDateTime};
+
+    fn test_task(
+        id: &str,
+        status: TaskStatus,
+        created_at: Option<String>,
+        completed_at: Option<String>,
+    ) -> Task {
+        Task {
+            id: id.to_string(),
+            title: format!("Task {id}"),
+            description: None,
+            status,
+            created_at: created_at.clone(),
+            completed_at,
+            updated_at: created_at,
+            priority: TaskPriority::Medium,
+            tags: vec![],
+            scope: vec![],
+            evidence: vec![],
+            plan: vec![],
+            notes: vec![],
+            request: None,
+            agent: None,
+            started_at: None,
+            scheduled_start: None,
+            estimated_minutes: None,
+            actual_minutes: None,
+            depends_on: vec![],
+            blocks: vec![],
+            relates_to: vec![],
+            duplicates: None,
+            custom_fields: HashMap::new(),
+            parent_id: None,
+        }
+    }
+
+    fn fixed_now() -> OffsetDateTime {
+        OffsetDateTime::from_unix_timestamp(1767441600).expect("valid test timestamp")
+    }
+
+    #[test]
+    fn test_start_of_window_normalizes_to_midnight() {
+        let now = OffsetDateTime::from_unix_timestamp(1700000000).unwrap();
+        let days_to_show = 3;
+        let start = start_of_window(now, days_to_show);
+
+        assert_eq!(start.hour(), 0);
+        assert_eq!(start.minute(), 0);
+        assert_eq!(start.second(), 0);
+        assert_eq!(start.nanosecond(), 0);
+
+        let expected_day = now.date() - time::Duration::days(days_to_show - 1);
+        assert_eq!(start.date(), expected_day);
+    }
+
+    #[test]
+    fn test_collect_all_tasks_includes_queue_and_done() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![Task {
+                id: "RQ-1".into(),
+                ..Default::default()
+            }],
+        };
+        let done = QueueFile {
+            version: 1,
+            tasks: vec![
+                Task {
+                    id: "RQ-2".into(),
+                    ..Default::default()
+                },
+                Task {
+                    id: "RQ-3".into(),
+                    ..Default::default()
+                },
+            ],
+        };
+
+        let all = collect_all_tasks(&queue, Some(&done));
+        assert_eq!(all.len(), 3);
+    }
+
+    #[test]
+    fn test_build_history_report_buckets_created_and_completed_by_day() {
+        let now = fixed_now();
+        let start = start_of_window(now, 3);
+        let day_one = start + Duration::hours(1);
+        let day_two = start + Duration::days(1) + Duration::hours(1);
+        let day_three = start + Duration::days(2) + Duration::hours(1);
+
+        let t1 = test_task(
+            "RQ-001",
+            TaskStatus::Done,
+            Some(crate::timeutil::format_rfc3339(day_one).unwrap()),
+            Some(crate::timeutil::format_rfc3339(day_two).unwrap()),
+        );
+        let t2 = test_task(
+            "RQ-002",
+            TaskStatus::Todo,
+            Some(crate::timeutil::format_rfc3339(day_three).unwrap()),
+            None,
+        );
+        let t3 = test_task(
+            "RQ-003",
+            TaskStatus::Done,
+            Some(crate::timeutil::format_rfc3339(day_two).unwrap()),
+            Some(crate::timeutil::format_rfc3339(day_three).unwrap()),
+        );
+
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![t1, t2],
+        };
+        let done = QueueFile {
+            version: 1,
+            tasks: vec![t3],
+        };
+
+        let report = build_history_report_at(&queue, Some(&done), 3, now);
+
+        let day_one_key = format_date_key(day_one);
+        let day_two_key = format_date_key(day_two);
+        let day_three_key = format_date_key(day_three);
+
+        let day_one_report = report
+            .days
+            .iter()
+            .find(|d| d.date == day_one_key)
+            .expect("day one present");
+        let day_two_report = report
+            .days
+            .iter()
+            .find(|d| d.date == day_two_key)
+            .expect("day two present");
+        let day_three_report = report
+            .days
+            .iter()
+            .find(|d| d.date == day_three_key)
+            .expect("day three present");
+
+        assert!(day_one_report.created.contains(&"RQ-001".to_string()));
+        assert!(day_two_report.created.contains(&"RQ-003".to_string()));
+        assert!(day_two_report.completed.contains(&"RQ-001".to_string()));
+        assert!(day_three_report.created.contains(&"RQ-002".to_string()));
+        assert!(day_three_report.completed.contains(&"RQ-003".to_string()));
+    }
+
+    #[test]
+    fn test_build_history_report_includes_empty_days_in_window() {
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![],
+        };
+
+        let report = build_history_report(&queue, None, 3);
+
+        assert_eq!(report.days.len(), 3);
+        for day in &report.days {
+            assert!(day.created.is_empty());
+            assert!(day.completed.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_build_history_report_excludes_events_before_window() {
+        let now = fixed_now();
+        let old_timestamp = now - Duration::days(30);
+        let old_str = crate::timeutil::format_rfc3339(old_timestamp).unwrap();
+
+        let task = test_task(
+            "RQ-OLD",
+            TaskStatus::Done,
+            Some(old_str.clone()),
+            Some(old_str),
+        );
+
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![task],
+        };
+
+        let report = build_history_report_at(&queue, None, 7, now);
+
+        for day in &report.days {
+            assert!(!day.created.contains(&"RQ-OLD".to_string()));
+            assert!(!day.completed.contains(&"RQ-OLD".to_string()));
+        }
+    }
+
+    #[test]
+    fn test_build_history_report_excludes_future_events_outside_window() {
+        let now = fixed_now();
+        let future_timestamp = now + Duration::days(3);
+        let future_str = crate::timeutil::format_rfc3339(future_timestamp).unwrap();
+
+        let task = test_task(
+            "RQ-FUTURE",
+            TaskStatus::Done,
+            Some(future_str.clone()),
+            Some(future_str),
+        );
+
+        let queue = QueueFile {
+            version: 1,
+            tasks: vec![task],
+        };
+
+        let report = build_history_report_at(&queue, None, 3, now);
+
+        for day in &report.days {
+            assert!(!day.created.contains(&"RQ-FUTURE".to_string()));
+            assert!(!day.completed.contains(&"RQ-FUTURE".to_string()));
+        }
+    }
 }
