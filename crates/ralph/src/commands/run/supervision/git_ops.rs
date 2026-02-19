@@ -50,9 +50,9 @@ pub(crate) fn push_if_ahead(repo_root: &Path, push_policy: PushPolicy) -> Result
             if !ahead {
                 return Ok(());
             }
-            if let Err(err) = git::push_upstream(repo_root) {
+            if let Err(err) = git::push_upstream_with_rebase(repo_root) {
                 bail!(
-                    "Git push failed: the repository has unpushed commits but the push operation failed. Push manually to sync with upstream. Error: {:#}",
+                    "Git push failed: the repository has unpushed commits and rebase-aware push failed. Push manually to sync with upstream. Error: {:#}",
                     err
                 );
             }
@@ -287,6 +287,50 @@ mod tests {
             &["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
         )?;
         assert!(upstream.starts_with("origin/"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn push_if_ahead_recovers_from_non_fast_forward() -> Result<()> {
+        let remote = TempDir::new()?;
+        git_test::init_bare_repo(remote.path())?;
+
+        let repo_a = TempDir::new()?;
+        git_test::init_repo(repo_a.path())?;
+        git_test::add_remote(repo_a.path(), "origin", remote.path())?;
+
+        std::fs::write(repo_a.path().join("base.txt"), "base\n")?;
+        git_test::commit_all(repo_a.path(), "init")?;
+        git_test::git_run(repo_a.path(), &["push", "-u", "origin", "HEAD"])?;
+
+        let repo_b = TempDir::new()?;
+        git_test::clone_repo(remote.path(), repo_b.path())?;
+        git_test::configure_user(repo_b.path())?;
+        std::fs::write(repo_b.path().join("remote.txt"), "remote\n")?;
+        git_test::commit_all(repo_b.path(), "remote update")?;
+        git_test::git_run(repo_b.path(), &["push"])?;
+
+        std::fs::write(repo_a.path().join("local.txt"), "local\n")?;
+        git_test::commit_all(repo_a.path(), "local update")?;
+
+        // Should succeed by rebasing local commit onto remote and retrying push.
+        push_if_ahead(repo_a.path(), PushPolicy::RequireUpstream)?;
+
+        let verify = TempDir::new()?;
+        git_test::clone_repo(remote.path(), verify.path())?;
+        let history =
+            git_test::git_output(verify.path(), &["log", "--oneline", "--max-count", "4"])?;
+        assert!(
+            history.contains("local update"),
+            "expected rebased local commit in remote history: {}",
+            history
+        );
+        assert!(
+            history.contains("remote update"),
+            "expected remote commit preserved in history: {}",
+            history
+        );
 
         Ok(())
     }
