@@ -23,3 +23,5 @@ CLAUDE.md
 # Ralph parallel mode workspace directories
 .ralph/workspaces/
 .ralph/cache/undo
+.ralph/cache/webhooks
+.ralph/cache/session.json
