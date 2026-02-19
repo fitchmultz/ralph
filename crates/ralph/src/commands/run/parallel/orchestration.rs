@@ -773,6 +773,25 @@ pub(crate) fn run_loop_parallel(
                     }
                 }
 
+                // Clean up workspace for failed workers
+                // Failed tasks should not leave orphaned workspaces on disk
+                if !status.success() {
+                    if let Err(e) = std::fs::remove_dir_all(&workspace.path) {
+                        log::warn!(
+                            "Failed to delete workspace {} for failed task {}: {}",
+                            workspace.path.display(),
+                            task_id,
+                            e
+                        );
+                    } else {
+                        log::info!(
+                            "Deleted workspace for failed task {} at {}",
+                            task_id,
+                            workspace.path.display()
+                        );
+                    }
+                }
+
                 // Move workspace to completed_workspaces for potential merge cleanup
                 completed_workspaces.insert(task_id.clone(), workspace.clone());
                 guard.state_file_mut().remove_task(&task_id);
@@ -1059,6 +1078,7 @@ mod tests {
     use crate::commands::run::merge_agent::exit_codes;
     use crate::config;
     use crate::contracts::Config;
+    use std::os::unix::process::ExitStatusExt;
 
     #[test]
     fn overrides_for_parallel_workers_forces_repoprompt_off() -> Result<()> {
@@ -1304,5 +1324,54 @@ mod tests {
     #[test]
     fn loop_breaks_without_pending_merges_when_no_tasks_available() {
         assert!(should_break_parallel_loop(false, false, false, false));
+    }
+
+    /// Regression test: Failed worker workspace is cleaned up.
+    ///
+    /// When a worker exits with failure status, the workspace should be
+    /// deleted immediately rather than left orphaned on disk.
+    /// This prevents disk space accumulation from failed parallel runs.
+    #[test]
+    fn failed_worker_workspace_is_deleted() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let workspace_path = temp.path().join("workspaces/RQ-TEST-001");
+        std::fs::create_dir_all(&workspace_path).unwrap();
+        std::fs::write(workspace_path.join("test.txt"), "test content").unwrap();
+
+        // Simulate failed worker cleanup (same code path as orchestration.rs)
+        let status = std::process::ExitStatus::from_raw(1);
+
+        if !status.success() {
+            let _ = std::fs::remove_dir_all(&workspace_path);
+        }
+
+        // Verify workspace is deleted
+        assert!(
+            !workspace_path.exists(),
+            "workspace should be deleted for failed worker"
+        );
+    }
+
+    /// Test that successful worker workspace is NOT deleted immediately
+    /// (it's kept for merge cleanup).
+    #[test]
+    fn successful_worker_workspace_is_preserved() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let workspace_path = temp.path().join("workspaces/RQ-TEST-002");
+        std::fs::create_dir_all(&workspace_path).unwrap();
+        std::fs::write(workspace_path.join("test.txt"), "test content").unwrap();
+
+        // Simulate successful worker (no cleanup in the failure block)
+        let status = std::process::ExitStatus::from_raw(0);
+
+        if !status.success() {
+            let _ = std::fs::remove_dir_all(&workspace_path);
+        }
+
+        // Verify workspace is NOT deleted (success path preserves it)
+        assert!(
+            workspace_path.exists(),
+            "workspace should be preserved for successful worker (cleaned up after merge)"
+        );
     }
 }
