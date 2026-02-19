@@ -53,9 +53,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "model_used": "gpt-5.3-codex",
         "runner_used": "codex",
-        "scan_agent": "scan-general",
-        "model_used": "gpt-5.3-codex"
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -118,8 +118,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.3-codex",
-        "runner_used": "codex"
+        "runner_used": "codex",
+        "model_used": "gpt-5.3-codex"
       }
     },
     {
@@ -188,8 +188,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.3-codex",
-        "runner_used": "codex"
+        "runner_used": "codex",
+        "model_used": "gpt-5.3-codex"
       }
     },
     {
@@ -378,9 +378,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.3-codex",
         "runner_used": "codex",
-        "scan_agent": "scan-general"
+        "scan_agent": "scan-general",
+        "model_used": "gpt-5.3-codex"
       }
     },
     {
@@ -500,9 +500,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "model_used": "gpt-5.3-codex",
         "runner_used": "codex",
-        "scan_agent": "scan-general",
-        "model_used": "gpt-5.3-codex"
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -559,9 +559,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "sonnet",
+        "scan_agent": "scan-general",
         "runner_used": "claude",
-        "scan_agent": "scan-general"
+        "model_used": "sonnet"
       }
     },
     {
@@ -675,8 +675,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-general",
         "runner_used": "codex",
+        "scan_agent": "scan-general",
         "model_used": "gpt-5.3-codex"
       }
     },
@@ -735,9 +735,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "kimi-for-coding/k2p5",
         "runner_used": "opencode",
-        "scan_agent": "scan-general"
+        "scan_agent": "scan-general",
+        "model_used": "kimi-for-coding/k2p5"
       }
     },
     {
@@ -804,9 +804,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "scan_agent": "scan-general",
         "runner_used": "opencode",
-        "model_used": "kimi-for-coding/k2p5",
-        "scan_agent": "scan-general"
+        "model_used": "kimi-for-coding/k2p5"
       }
     },
     {
@@ -857,9 +857,70 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-general",
+        "runner_used": "opencode",
         "model_used": "kimi-for-coding/k2p5",
-        "runner_used": "opencode"
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0936",
+      "status": "done",
+      "title": "Add tests for parallel run execution paths",
+      "description": "The parallel execution module (commands/run/parallel/) handles running multiple tasks concurrently but has NO E2E tests. Files: path_map.rs, queue_sync.rs, state.rs, state_init.rs, sync.rs. The --parallel flag is documented but the execution path is untested at integration level.",
+      "priority": "high",
+      "tags": [
+        "scan",
+        "testing",
+        "run",
+        "parallel",
+        "concurrency"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/parallel/",
+        "crates/ralph/tests/run_parallel_test.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/commands/run/parallel/path_map.rs :: path mapping with workspace operations",
+        "path: crates/ralph/src/commands/run/parallel/queue_sync.rs :: queue synchronization after merges (deprecated but needs E2E coverage)",
+        "path: crates/ralph/src/commands/run/parallel/state.rs :: parallel state persistence for crash recovery",
+        "path: crates/ralph/src/commands/run/parallel/state_init.rs :: state initialization with PR reconciliation",
+        "path: crates/ralph/src/commands/run/parallel/sync.rs :: ralph state sync to worker workspaces",
+        "path: crates/ralph/tests/parallel_e2e_test.rs :: existing E2E tests focus on high-level orchestration",
+        "analysis: Individual parallel module components have unit tests but lack integration test coverage for the full execution path"
+      ],
+      "plan": [
+        "Create crates/ralph/tests/run_parallel_test.rs with comprehensive E2E tests",
+        "Add test: parallel_path_map_workspace_sync - verify path mapping syncs queue/config correctly",
+        "Add test: parallel_state_initialization - verify state file creation and PR reconciliation",
+        "Add test: parallel_worker_workspace_state_sync - verify sync.rs copies state to workers",
+        "Add test: parallel_task_selection_multiple_workers - verify multiple tasks selected and started",
+        "Add test: parallel_handles_worker_completion - verify task completion updates state correctly",
+        "Run `cargo test -p ralph --test run_parallel_test` to verify",
+        "Run `make agent-ci` to ensure no regressions"
+      ],
+      "notes": [
+        "Use test_support.rs helpers: temp_dir_outside_repo(), git_init(), ralph_init(), make_test_task(), write_queue()",
+        "Follow pattern from parallel_e2e_test.rs for fake runner/gh setup",
+        "Each test should use env_lock() to prevent PATH race conditions",
+        "Tests should verify both success and failure paths",
+        "Ensure tests clean up temp directories properly",
+        "Created 7 E2E integration tests for parallel run execution paths",
+        "Tests cover: path_map workspace sync, state initialization, worker state sync, task selection, and worker completion",
+        "All tests pass: cargo test -p ralph --test run_parallel_test",
+        "CI gate passes with no regressions"
+      ],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:51:00Z",
+      "updated_at": "2026-02-19T18:21:31.601788000Z",
+      "completed_at": "2026-02-19T18:21:31.601788000Z",
+      "started_at": "2026-02-19T17:53:29.436990000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general",
+        "runner_used": "opencode",
+        "model_used": "kimi-for-coding/k2p5"
       }
     }
   ]
