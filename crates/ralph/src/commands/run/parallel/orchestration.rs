@@ -295,7 +295,8 @@ pub(crate) fn run_loop_parallel(
 
     // Preflight: parallel workspaces require a pushable origin remote.
     // Fail fast before state file creation / worker spawn.
-    let _ = git::origin_urls(&resolved.repo_root).context(
+    // We only need to verify origin exists, not use the returned URLs.
+    git::origin_urls(&resolved.repo_root).context(
         "Parallel preflight: origin remote check failed (parallel mode requires `origin`)",
     )?;
 
@@ -1505,8 +1506,10 @@ mod tests {
         // Simulate failed worker cleanup (same code path as orchestration.rs)
         let status = std::process::ExitStatus::from_raw(1);
 
-        if !status.success() {
-            let _ = std::fs::remove_dir_all(&workspace_path);
+        if !status.success()
+            && let Err(e) = std::fs::remove_dir_all(&workspace_path)
+        {
+            log::debug!("Failed to remove workspace in test: {}", e);
         }
 
         // Verify workspace is deleted
@@ -1528,8 +1531,10 @@ mod tests {
         // Simulate successful worker (no cleanup in the failure block)
         let status = std::process::ExitStatus::from_raw(0);
 
-        if !status.success() {
-            let _ = std::fs::remove_dir_all(&workspace_path);
+        if !status.success()
+            && let Err(e) = std::fs::remove_dir_all(&workspace_path)
+        {
+            log::debug!("Failed to remove workspace in test: {}", e);
         }
 
         // Verify workspace is NOT deleted (success path preserves it)

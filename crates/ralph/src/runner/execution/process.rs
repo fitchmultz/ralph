@@ -91,13 +91,17 @@ impl<'a> ProcessCleanupGuard<'a> {
         }
 
         // Join stdout reader if still pending
-        if let Some(handle) = self.stdout_handle.take() {
-            let _ = handle.join();
+        if let Some(handle) = self.stdout_handle.take()
+            && let Err(e) = handle.join()
+        {
+            log::debug!("Stdout reader thread panicked: {:?}", e);
         }
 
         // Join stderr reader if still pending
-        if let Some(handle) = self.stderr_handle.take() {
-            let _ = handle.join();
+        if let Some(handle) = self.stderr_handle.take()
+            && let Err(e) = handle.join()
+        {
+            log::debug!("Stderr reader thread panicked: {:?}", e);
         }
 
         self.completed = true;
@@ -163,6 +167,10 @@ pub(crate) fn ctrlc_state() -> Result<&'static Arc<CtrlCState>, CtrlCInitError> 
             .and_then(|guard| *guard);
         if let Some(pgid) = pgid {
             #[cfg(unix)]
+            // SAFETY: Sending SIGINT to a process group is a standard POSIX operation.
+            // The pgid is validated to be non-zero before this call. Negative pgid
+            // sends signal to entire process group. This is the same mechanism used
+            // by standard shells for job control.
             unsafe {
                 libc::kill(-pgid, libc::SIGINT);
             }
@@ -280,6 +288,8 @@ pub(crate) fn wait_for_child(
                     .ok()
                     .and_then(|guard| *guard);
                 if let Some(pgid) = pgid {
+                    // SAFETY: Sending SIGINT to process group is standard POSIX.
+                    // pgid is validated non-zero. Used for graceful runner shutdown.
                     unsafe {
                         libc::kill(-pgid, libc::SIGINT);
                     }
@@ -288,7 +298,9 @@ pub(crate) fn wait_for_child(
             #[cfg(not(unix))]
             {
                 // On non-unix, request kill but allow grace period before forcing
-                let _ = child.kill();
+                if let Err(e) = child.kill() {
+                    log::debug!("Failed to send kill request to child process: {}", e);
+                }
                 kill_requested = true;
             }
         }
@@ -308,6 +320,8 @@ pub(crate) fn wait_for_child(
                     .ok()
                     .and_then(|guard| *guard);
                 if let Some(pgid) = pgid {
+                    // SAFETY: Sending SIGINT to process group on Ctrl-C.
+                    // Same as timeout case - standard POSIX signal handling.
                     unsafe {
                         libc::kill(-pgid, libc::SIGINT);
                     }
@@ -316,7 +330,12 @@ pub(crate) fn wait_for_child(
             #[cfg(not(unix))]
             {
                 // On non-unix, request kill but allow grace period before forcing
-                let _ = child.kill();
+                if let Err(e) = child.kill() {
+                    log::debug!(
+                        "Failed to send kill request to child process on Ctrl-C: {}",
+                        e
+                    );
+                }
                 kill_requested = true;
             }
         }
@@ -344,6 +363,9 @@ pub(crate) fn wait_for_child(
                         .ok()
                         .and_then(|guard| *guard);
                     if let Some(pgid) = pgid {
+                        // SAFETY: Sending SIGKILL to forcefully terminate process group.
+                        // This is the last resort after SIGINT grace period expired.
+                        // Standard POSIX signal - process WILL be terminated.
                         unsafe {
                             libc::kill(-pgid, libc::SIGKILL);
                         }
@@ -354,7 +376,9 @@ pub(crate) fn wait_for_child(
                 // Process may already be gone, so we ignore errors.
                 #[cfg(not(unix))]
                 {
-                    let _ = child.kill();
+                    if let Err(e) = child.kill() {
+                        log::debug!("Failed to send final kill request to child process: {}", e);
+                    }
                     kill_requested = true;
                 }
 
@@ -474,8 +498,15 @@ fn run_with_streaming_json_inner(
     }
 
     #[cfg(unix)]
+    // SAFETY: pre_exec runs code between fork and exec in the child process.
+    // setpgid(0, 0) creates a new process group for the child, allowing signals
+    // to be sent to the entire group. This is async-signal-safe per POSIX.
+    // The closure only calls setpgid which is safe in this context.
     unsafe {
         cmd.pre_exec(|| {
+            // Setpgid failure is non-fatal - process will still run but may not
+            // respond to group signals properly. We ignore the error to ensure
+            // the child process still executes.
             let _ = libc::setpgid(0, 0);
             Ok(())
         });

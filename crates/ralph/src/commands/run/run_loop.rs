@@ -585,8 +585,9 @@ fn wait_for_work(
 
         // Wait for tick or file event
         if let Some(ref w) = watcher {
-            let _ = w.recv_timeout(tick);
-            pending_event = true;
+            if w.recv_timeout(tick).is_ok() {
+                pending_event = true;
+            }
         } else {
             std::thread::sleep(tick);
         }
@@ -709,8 +710,11 @@ fn notify_queue_unblocked(
             log::debug!("Failed to show unblocked notification: {}", e);
         }
 
-        if notify_config.sound_enabled {
-            let _ = crate::notification::play_completion_sound(notify_config.sound_path.as_deref());
+        if notify_config.sound_enabled
+            && let Err(e) =
+                crate::notification::play_completion_sound(notify_config.sound_path.as_deref())
+        {
+            log::debug!("Failed to play unblocked sound: {}", e);
         }
     }
 

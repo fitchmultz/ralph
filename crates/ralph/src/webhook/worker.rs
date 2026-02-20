@@ -37,8 +37,9 @@ pub(crate) fn init_worker(config: &WebhookConfig) {
         .map(|c| c.clamp(1, 10000))
         .unwrap_or(500) as usize;
 
-    // Use get_or_init to ensure thread-safe one-time initialization
-    let _ = CHANNEL.get_or_init(|| {
+    // Use get_or_init to ensure thread-safe one-time initialization.
+    // Intentionally ignore return value - we only need to trigger initialization.
+    CHANNEL.get_or_init(|| {
         let (sender, receiver) = bounded(capacity);
         diagnostics::set_queue_capacity(capacity);
 
@@ -86,8 +87,9 @@ pub fn init_worker_for_parallel(config: &WebhookConfig, worker_count: u8) {
         (base_capacity as f64 * (worker_count as f64 * multiplier as f64).max(1.0)) as usize;
     let capacity = scaled.clamp(1, 10000);
 
-    // Use get_or_init to ensure thread-safe one-time initialization
-    let _ = CHANNEL.get_or_init(|| {
+    // Use get_or_init to ensure thread-safe one-time initialization.
+    // Intentionally ignore return value - we only need to trigger initialization.
+    CHANNEL.get_or_init(|| {
         let (sender, receiver) = bounded(capacity);
         diagnostics::set_queue_capacity(capacity);
 
@@ -207,8 +209,16 @@ pub(crate) fn generate_signature(body: &str, secret: &str) -> String {
 
     type HmacSha256 = Hmac<Sha256>;
 
-    let mut mac =
-        HmacSha256::new_from_slice(secret.as_bytes()).expect("HMAC can take key of any size");
+    // HMAC accepts keys of any size per RFC 2104, so this should never fail.
+    // However, we handle the error gracefully rather than panicking.
+    let mut mac = match HmacSha256::new_from_slice(secret.as_bytes()) {
+        Ok(mac) => mac,
+        Err(e) => {
+            log::error!("Failed to create HMAC (this should never happen): {}", e);
+            // Return an invalid signature that will fail verification
+            return "sha256=invalid".to_string();
+        }
+    };
     mac.update(body.as_bytes());
     let result = mac.finalize();
     let code_bytes = result.into_bytes();

@@ -613,8 +613,12 @@ mod tests {
 
         // Clean up the child process
         let mut child = child;
-        let _ = child.kill();
-        let _ = child.wait();
+        if let Err(e) = child.kill() {
+            log::debug!("Failed to kill child process in test: {}", e);
+        }
+        if let Err(e) = child.wait() {
+            log::debug!("Failed to wait for child process in test: {}", e);
+        }
 
         assert!(dropped.is_empty());
         assert_eq!(state_file.tasks_in_flight.len(), 1);

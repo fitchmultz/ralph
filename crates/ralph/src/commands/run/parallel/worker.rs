@@ -117,7 +117,9 @@ pub(crate) fn terminate_workers(in_flight: &mut HashMap<String, WorkerState>) {
     }
 
     for worker in in_flight.values_mut() {
-        let _ = worker.child.wait();
+        if let Err(e) = worker.child.wait() {
+            log::debug!("Failed to wait for worker {}: {}", worker.task_id, e);
+        }
     }
 }
 
@@ -420,7 +422,13 @@ mod tests {
         );
 
         for worker in in_flight.values_mut() {
-            let _ = worker.child.wait();
+            if let Err(e) = worker.child.wait() {
+                log::debug!(
+                    "Failed to wait for worker {} in test: {}",
+                    worker.task_id,
+                    e
+                );
+            }
         }
 
         Ok(())

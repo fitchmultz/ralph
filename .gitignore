@@ -28,3 +28,5 @@ CLAUDE.md
 .ralph/cache/session.json
 .ralph/cache/parallel
 .ralph/cache/stop_requested
+.scratchpad.md
+.FIX_TRACKING.md
