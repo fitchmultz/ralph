@@ -192,16 +192,17 @@ fn task_title_from_queue_or_done(
 }
 
 fn restore_parallel_worker_bookkeeping(resolved: &crate::config::Resolved) -> Result<()> {
+    // In parallel worker mode, queue/done may be overridden to coordinator paths
+    // outside the workspace repo. Always restore the workspace-local bookkeeping
+    // files so they are excluded from worker commits and rebases.
+    let workspace_queue_path = resolved.repo_root.join(".ralph").join("queue.json");
+    let workspace_done_path = resolved.repo_root.join(".ralph").join("done.json");
     let productivity_path = resolved
         .repo_root
         .join(".ralph")
         .join("cache")
         .join("productivity.json");
-    let paths = vec![
-        resolved.queue_path.clone(),
-        resolved.done_path.clone(),
-        productivity_path,
-    ];
+    let paths = vec![workspace_queue_path, workspace_done_path, productivity_path];
     git::restore_tracked_paths_to_head(&resolved.repo_root, &paths)
         .context("restore queue/done/productivity to HEAD")?;
     Ok(())
@@ -271,6 +272,8 @@ fn write_marker_file(path: &std::path::Path, content: &serde_json::Value) -> boo
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::contracts::Config;
+    use crate::testsupport::git as git_test;
 
     #[test]
     fn write_ci_failure_marker_creates_expected_json_payload() {
@@ -324,5 +327,72 @@ mod tests {
         let payload: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert_eq!(payload["task_id"], "RQ-8888");
         assert_eq!(payload["error"], "ci fallback");
+    }
+
+    #[test]
+    fn restore_bookkeeping_uses_workspace_paths_when_coordinator_paths_are_overridden() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let repo_root = temp.path().join("workspace");
+        std::fs::create_dir_all(repo_root.join(".ralph/cache")).unwrap();
+        git_test::init_repo(&repo_root).unwrap();
+
+        let workspace_queue = repo_root.join(".ralph/queue.json");
+        let workspace_done = repo_root.join(".ralph/done.json");
+        let productivity = repo_root.join(".ralph/cache/productivity.json");
+        std::fs::write(&workspace_queue, "{\"version\":1,\"tasks\":[]}").unwrap();
+        std::fs::write(&workspace_done, "{\"version\":1,\"tasks\":[]}").unwrap();
+        std::fs::write(&productivity, "{\"stats\":[]}").unwrap();
+        git_test::commit_all(&repo_root, "init bookkeeping").unwrap();
+
+        let coordinator_root = temp.path().join("coordinator");
+        std::fs::create_dir_all(coordinator_root.join(".ralph")).unwrap();
+        let coordinator_queue = coordinator_root.join(".ralph/queue.json");
+        let coordinator_done = coordinator_root.join(".ralph/done.json");
+        std::fs::write(
+            &coordinator_queue,
+            "{\"version\":1,\"tasks\":[{\"id\":\"RQ-1\"}]}",
+        )
+        .unwrap();
+        std::fs::write(&coordinator_done, "{\"version\":1,\"tasks\":[]}").unwrap();
+
+        // Dirty workspace-local bookkeeping files.
+        std::fs::write(
+            &workspace_queue,
+            "{\"version\":1,\"tasks\":[{\"id\":\"W\"}]}",
+        )
+        .unwrap();
+        std::fs::write(
+            &workspace_done,
+            "{\"version\":1,\"tasks\":[{\"id\":\"W\"}]}",
+        )
+        .unwrap();
+        std::fs::write(&productivity, "{\"stats\":[\"dirty\"]}").unwrap();
+
+        let resolved = crate::config::Resolved {
+            config: Config::default(),
+            repo_root: repo_root.clone(),
+            queue_path: coordinator_queue,
+            done_path: coordinator_done,
+            id_prefix: "RQ".to_string(),
+            id_width: 4,
+            global_config_path: None,
+            project_config_path: None,
+        };
+
+        restore_parallel_worker_bookkeeping(&resolved).unwrap();
+
+        // Workspace files restored to committed content.
+        assert_eq!(
+            std::fs::read_to_string(&workspace_queue).unwrap(),
+            "{\"version\":1,\"tasks\":[]}"
+        );
+        assert_eq!(
+            std::fs::read_to_string(&workspace_done).unwrap(),
+            "{\"version\":1,\"tasks\":[]}"
+        );
+        assert_eq!(
+            std::fs::read_to_string(&productivity).unwrap(),
+            "{\"stats\":[]}"
+        );
     }
 }
