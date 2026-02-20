@@ -66,11 +66,6 @@ pub fn phase_init(prompter: &dyn TutorialPrompter, sandbox: &TutorialSandbox) ->
     let original_dir = std::env::current_dir().context("get current dir")?;
     std::env::set_current_dir(&sandbox.path).context("change to sandbox dir")?;
 
-    // Set override for repo root
-    unsafe {
-        std::env::set_var("RALPH_REPO_ROOT_OVERRIDE", &sandbox.path);
-    }
-
     let result = (|| -> Result<()> {
         let resolved = crate::config::resolve_from_cwd()?;
         crate::commands::init::run_init(
@@ -85,9 +80,6 @@ pub fn phase_init(prompter: &dyn TutorialPrompter, sandbox: &TutorialSandbox) ->
         Ok(())
     })();
 
-    unsafe {
-        std::env::remove_var("RALPH_REPO_ROOT_OVERRIDE");
-    }
     std::env::set_current_dir(&original_dir).context("restore original dir")?;
 
     result.context("ralph init failed")?;
@@ -216,9 +208,6 @@ pub fn phase_dry_run(
     // Change to sandbox and run dry-run
     let original_dir = std::env::current_dir().context("get current dir")?;
     std::env::set_current_dir(&sandbox.path).context("change to sandbox dir")?;
-    unsafe {
-        std::env::set_var("RALPH_REPO_ROOT_OVERRIDE", &sandbox.path);
-    }
 
     let result = (|| -> Result<()> {
         let resolved = crate::config::resolve_from_cwd()?;
@@ -226,9 +215,6 @@ pub fn phase_dry_run(
         crate::commands::run::dry_run_one(&resolved, &agent_overrides, Some(task_id))
     })();
 
-    unsafe {
-        std::env::remove_var("RALPH_REPO_ROOT_OVERRIDE");
-    }
     std::env::set_current_dir(&original_dir).context("restore original dir")?;
 
     result.context("dry-run failed")?;

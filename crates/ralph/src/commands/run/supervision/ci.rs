@@ -542,7 +542,6 @@ pub(crate) fn run_ci_gate(resolved: &crate::config::Resolved) -> Result<CiGateRe
     logging::with_scope(&format!("CI gate ({command})"), || {
         let mut cmd = runutil::shell_command(command);
         cmd.current_dir(&resolved.repo_root);
-        runutil::sanitize_run_scoped_overrides(&mut cmd);
         let output = cmd
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
@@ -808,7 +807,6 @@ mod tests {
     use crate::contracts::{
         AgentConfig, Config, NotificationConfig, QueueConfig, Runner, RunnerRetryConfig,
     };
-    use serial_test::serial;
     use std::path::PathBuf;
     use tempfile::TempDir;
 
@@ -909,58 +907,6 @@ mod tests {
         let resolved = resolved_with_ci_command(temp.path(), Some("".to_string()), true);
         let err = run_ci_gate(&resolved).unwrap_err();
         assert!(err.to_string().contains("empty"));
-    }
-
-    #[test]
-    #[serial]
-    fn run_ci_gate_strips_all_ralph_override_env() -> Result<()> {
-        let prior_queue = std::env::var_os(crate::config::QUEUE_PATH_OVERRIDE_ENV);
-        let prior_done = std::env::var_os(crate::config::DONE_PATH_OVERRIDE_ENV);
-        let prior_repo = std::env::var_os(crate::config::REPO_ROOT_OVERRIDE_ENV);
-
-        // SAFETY: this test is serial and restores process env before returning.
-        unsafe {
-            std::env::set_var(
-                crate::config::QUEUE_PATH_OVERRIDE_ENV,
-                "/tmp/source-queue.json",
-            );
-            std::env::set_var(
-                crate::config::DONE_PATH_OVERRIDE_ENV,
-                "/tmp/source-done.json",
-            );
-            std::env::set_var(crate::config::REPO_ROOT_OVERRIDE_ENV, "/tmp/workspace-root");
-        }
-
-        let temp = TempDir::new()?;
-        // Verify all three Ralph environment overrides are stripped from child process
-        let command = if cfg!(windows) {
-            "powershell -NoProfile -Command \"if ($env:RALPH_QUEUE_PATH_OVERRIDE -or $env:RALPH_DONE_PATH_OVERRIDE -or $env:RALPH_REPO_ROOT_OVERRIDE) { exit 42 }\""
-        } else {
-            "sh -c 'test -z \"$RALPH_QUEUE_PATH_OVERRIDE\" && test -z \"$RALPH_DONE_PATH_OVERRIDE\" && test -z \"$RALPH_REPO_ROOT_OVERRIDE\"'"
-        };
-        let resolved = resolved_with_ci_command(temp.path(), Some(command.to_string()), true);
-        let result = run_ci_gate(&resolved);
-
-        // SAFETY: restore env to pre-test values.
-        unsafe {
-            match prior_queue {
-                Some(v) => std::env::set_var(crate::config::QUEUE_PATH_OVERRIDE_ENV, v),
-                None => std::env::remove_var(crate::config::QUEUE_PATH_OVERRIDE_ENV),
-            }
-            match prior_done {
-                Some(v) => std::env::set_var(crate::config::DONE_PATH_OVERRIDE_ENV, v),
-                None => std::env::remove_var(crate::config::DONE_PATH_OVERRIDE_ENV),
-            }
-            match prior_repo {
-                Some(v) => std::env::set_var(crate::config::REPO_ROOT_OVERRIDE_ENV, v),
-                None => std::env::remove_var(crate::config::REPO_ROOT_OVERRIDE_ENV),
-            }
-        }
-
-        // Verify the result is successful (env vars were stripped)
-        let ci_result = result?;
-        assert!(ci_result.success);
-        Ok(())
     }
 
     #[test]

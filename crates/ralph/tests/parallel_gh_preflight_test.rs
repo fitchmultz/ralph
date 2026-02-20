@@ -72,9 +72,6 @@ fn parallel_run_fails_fast_when_gh_not_found() -> Result<()> {
     let output = Command::new(test_support::ralph_bin())
         .current_dir(dir.path())
         .env_remove("RUST_LOG")
-        .env_remove("RALPH_QUEUE_PATH_OVERRIDE")
-        .env_remove("RALPH_DONE_PATH_OVERRIDE")
-        .env("RALPH_REPO_ROOT_OVERRIDE", dir.path())
         .env(
             "PATH",
             format!(
@@ -156,9 +153,6 @@ exit 1
     let output = Command::new(test_support::ralph_bin())
         .current_dir(dir.path())
         .env_remove("RUST_LOG")
-        .env_remove("RALPH_QUEUE_PATH_OVERRIDE")
-        .env_remove("RALPH_DONE_PATH_OVERRIDE")
-        .env("RALPH_REPO_ROOT_OVERRIDE", dir.path())
         .env(
             "PATH",
             format!(
@@ -222,7 +216,6 @@ fn parallel_run_skips_gh_check_when_auto_pr_disabled() -> Result<()> {
     let output = Command::new(test_support::ralph_bin())
         .current_dir(dir.path())
         .env_remove("RUST_LOG")
-        .env("RALPH_REPO_ROOT_OVERRIDE", dir.path())
         .env(
             "PATH",
             format!(
@@ -291,7 +284,6 @@ exit 0
     let output = Command::new(test_support::ralph_bin())
         .current_dir(dir.path())
         .env_remove("RUST_LOG")
-        .env("RALPH_REPO_ROOT_OVERRIDE", dir.path())
         .env(
             "PATH",
             format!(

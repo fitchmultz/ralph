@@ -35,10 +35,9 @@ mod tests;
 // Re-export main types and functions for backward compatibility
 pub use layer::{ConfigLayer, apply_layer, load_layer, save_layer};
 pub use resolution::{
-    DONE_PATH_OVERRIDE_ENV, QUEUE_PATH_OVERRIDE_ENV, REPO_ROOT_OVERRIDE_ENV, find_repo_root,
-    global_config_path, prefer_json_then_jsonc, project_config_path, resolve_done_path,
-    resolve_from_cwd, resolve_from_cwd_for_doctor, resolve_from_cwd_with_profile,
-    resolve_id_prefix, resolve_id_width, resolve_queue_path,
+    find_repo_root, global_config_path, prefer_json_then_jsonc, project_config_path,
+    resolve_done_path, resolve_from_cwd, resolve_from_cwd_for_doctor,
+    resolve_from_cwd_with_profile, resolve_id_prefix, resolve_id_width, resolve_queue_path,
 };
 pub use validation::{
     git_ref_invalid_reason, validate_agent_binary_paths, validate_agent_patch, validate_config,
