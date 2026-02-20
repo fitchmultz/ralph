@@ -171,7 +171,9 @@ pub fn write_log_record(record: &log::Record<'_>) {
         if !line.ends_with('\n') {
             line.push('\n');
         }
-        let _ = log.write(&line);
+        if let Err(e) = log.write(&line) {
+            log::debug!("Failed to write to debug log: {}", e);
+        }
     });
 }
 
@@ -184,8 +186,13 @@ pub fn write_runner_chunk(stream: DebugStream, chunk: &str) {
             DebugStream::Stdout => "[RUNNER STDOUT]\n",
             DebugStream::Stderr => "[RUNNER STDERR]\n",
         };
-        let _ = log.write(header);
-        let _ = log.write(chunk);
+        if let Err(e) = log.write(header) {
+            log::debug!("Failed to write runner header to debug log: {}", e);
+            return;
+        }
+        if let Err(e) = log.write(chunk) {
+            log::debug!("Failed to write runner chunk to debug log: {}", e);
+        }
     });
 }
 

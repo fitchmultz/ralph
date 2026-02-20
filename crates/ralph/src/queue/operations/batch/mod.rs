@@ -363,7 +363,9 @@ mod tests {
     #[test]
     fn batch_result_collector_records_failure() {
         let mut collector = BatchResultCollector::new(1, true, "test");
-        let _ = collector.record_failure("RQ-0001".to_string(), "error msg".to_string());
+        collector
+            .record_failure("RQ-0001".to_string(), "error msg".to_string())
+            .expect("record_failure should succeed with continue_on_error=true");
         let result = collector.finish();
         assert_eq!(result.total, 1);
         assert_eq!(result.succeeded, 0);
@@ -399,7 +401,9 @@ mod tests {
     fn batch_result_collector_mixed_results() {
         let mut collector = BatchResultCollector::new(3, true, "test");
         collector.record_success("RQ-0001".to_string(), Vec::new());
-        let _ = collector.record_failure("RQ-0002".to_string(), "error".to_string());
+        collector
+            .record_failure("RQ-0002".to_string(), "error".to_string())
+            .expect("record_failure should succeed with continue_on_error=true");
         collector.record_success("RQ-0003".to_string(), vec!["RQ-0004".to_string()]);
         let result = collector.finish();
         assert_eq!(result.total, 3);
@@ -412,7 +416,9 @@ mod tests {
     #[test]
     fn batch_result_collector_error_message_content() {
         let mut collector = BatchResultCollector::new(1, true, "test");
-        let _ = collector.record_failure("RQ-0001".to_string(), "task not found".to_string());
+        collector
+            .record_failure("RQ-0001".to_string(), "task not found".to_string())
+            .expect("record_failure should succeed with continue_on_error=true");
         let result = collector.finish();
         assert_eq!(result.results[0].task_id, "RQ-0001");
         assert_eq!(result.results[0].error.as_ref().unwrap(), "task not found");

@@ -494,7 +494,9 @@ pub fn handle_merge_agent(task_id: &str, pr_number: u32) -> Result<i32> {
         Err(e) => {
             let err = MergeAgentError::Runtime(format!("Failed to resolve config: {}", e));
             emit_diagnostic(&format!("Config resolution error: {}", err.message()));
-            let _ = emit_error(task_id, pr_number, &err);
+            if let Err(e) = emit_error(task_id, pr_number, &err) {
+                log::debug!("Failed to emit error result: {}", e);
+            }
             return Ok(err.exit_code());
         }
     };
