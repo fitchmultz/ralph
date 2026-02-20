@@ -133,6 +133,62 @@ pub mod ui {
     pub const TASK_BUILDER_FIELD_COUNT: usize = 7;
 }
 
+/// Queue configuration constants.
+pub mod queue {
+    /// Default queue ID prefix.
+    pub const DEFAULT_ID_PREFIX: &str = "RQ";
+
+    /// Default queue file path (relative to repo root).
+    pub const DEFAULT_QUEUE_FILE: &str = ".ralph/queue.json";
+
+    /// Default done file path (relative to repo root).
+    pub const DEFAULT_DONE_FILE: &str = ".ralph/done.json";
+
+    /// Default config file path (relative to repo root).
+    pub const DEFAULT_CONFIG_FILE: &str = ".ralph/config.json";
+
+    /// Default maximum dependency depth.
+    pub const DEFAULT_MAX_DEPENDENCY_DEPTH: u8 = 10;
+
+    /// Aging threshold: warning days (low priority).
+    pub const AGING_WARNING_DAYS: u32 = 7;
+
+    /// Aging threshold: stale days (medium priority).
+    pub const AGING_STALE_DAYS: u32 = 14;
+
+    /// Aging threshold: rotten days (high priority).
+    pub const AGING_ROTTEN_DAYS: u32 = 30;
+}
+
+/// Git-related constants.
+pub mod git {
+    /// Default branch prefix for parallel execution.
+    pub const DEFAULT_BRANCH_PREFIX: &str = "ralph/";
+
+    /// Sample task ID for branch validation.
+    pub const SAMPLE_TASK_ID: &str = "RQ-0001";
+}
+
+/// Runner-related constants.
+pub mod runner {
+    /// Default CI gate command.
+    pub const DEFAULT_CI_GATE_COMMAND: &str = "make ci";
+
+    /// Supported phase values (1-3).
+    pub const MIN_PHASES: u8 = 1;
+    pub const MAX_PHASES: u8 = 3;
+
+    /// Minimum iterations value.
+    pub const MIN_ITERATIONS: u8 = 1;
+    pub const MIN_ITERATIONS_U32: u32 = 1;
+
+    /// Minimum workers for parallel execution.
+    pub const MIN_PARALLEL_WORKERS: u8 = 2;
+
+    /// Minimum merge retries.
+    pub const MIN_MERGE_RETRIES: u8 = 1;
+}
+
 /// File paths and directory names.
 pub mod paths {
     /// Session state filename.
@@ -285,4 +341,47 @@ pub mod custom_fields {
 
     /// Key for the model actually used (observational, not intent).
     pub const MODEL_USED: &str = "model_used";
+}
+
+/// Error message templates for consistent error formatting.
+pub mod error_messages {
+    /// Config update instruction suffix.
+    pub const CONFIG_UPDATE_INSTRUCTION: &str = "Update .ralph/config.json";
+
+    /// Template for invalid config value errors.
+    pub fn invalid_config_value(
+        field: &str,
+        value: impl std::fmt::Display,
+        reason: &str,
+    ) -> String {
+        format!("Invalid {field}: {value}. {reason}. Update .ralph/config.json.")
+    }
+}
+
+/// Status classification keywords for theme/styling.
+pub mod status_keywords {
+    /// Keywords indicating error status.
+    pub const ERROR: &[&str] = &[
+        "error", "fail", "failed", "denied", "timeout", "cancel", "canceled",
+    ];
+
+    /// Keywords indicating in-progress/warning status.
+    pub const IN_PROGRESS: &[&str] = &[
+        "running",
+        "started",
+        "pending",
+        "queued",
+        "in_progress",
+        "working",
+    ];
+
+    /// Keywords indicating success status.
+    pub const SUCCESS: &[&str] = &[
+        "completed",
+        "success",
+        "succeeded",
+        "ok",
+        "done",
+        "finished",
+    ];
 }

@@ -15,6 +15,7 @@
 /// They automatically respect the NO_COLOR environment variable
 /// and any --color flag settings via colored::control.
 pub mod cli {
+    use crate::constants::status_keywords;
     use colored::{ColoredString, Colorize};
 
     /// Format a reasoning line with colored prefix
@@ -85,38 +86,13 @@ pub mod cli {
         }
 
         let status_lower = status.to_ascii_lowercase();
-        if contains_any(
-            &status_lower,
-            &[
-                "error", "fail", "failed", "denied", "timeout", "cancel", "canceled",
-            ],
-        ) {
+        if contains_any(&status_lower, status_keywords::ERROR) {
             return StatusTone::Error;
         }
-        if contains_any(
-            &status_lower,
-            &[
-                "running",
-                "started",
-                "pending",
-                "queued",
-                "in_progress",
-                "working",
-            ],
-        ) {
+        if contains_any(&status_lower, status_keywords::IN_PROGRESS) {
             return StatusTone::Warning;
         }
-        if contains_any(
-            &status_lower,
-            &[
-                "completed",
-                "success",
-                "succeeded",
-                "ok",
-                "done",
-                "finished",
-            ],
-        ) {
+        if contains_any(&status_lower, status_keywords::SUCCESS) {
             return StatusTone::Success;
         }
 

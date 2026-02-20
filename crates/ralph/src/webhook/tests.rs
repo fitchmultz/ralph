@@ -12,7 +12,11 @@
 //! - Tests may access private module helpers via `super::*`.
 
 use super::*;
+use crate::contracts::WebhookConfig;
+use crate::webhook::types::{WebhookContext, WebhookMessage, WebhookPayload};
+use crate::webhook::worker::generate_signature;
 use serial_test::serial;
+use std::time::Duration;
 
 fn sample_failure_record(
     id: &str,
@@ -403,7 +407,7 @@ fn webhook_queue_capacity_bounds_check() {
     };
     let capacity = low_config
         .queue_capacity
-        .map(|c| c.clamp(1, 10000))
+        .map(|c| c.clamp(1u32, 10000))
         .unwrap_or(100);
     assert_eq!(capacity, 1, "Capacity should be clamped to minimum of 1");
 
@@ -413,7 +417,7 @@ fn webhook_queue_capacity_bounds_check() {
     };
     let capacity = high_config
         .queue_capacity
-        .map(|c| c.clamp(1, 10000))
+        .map(|c| c.clamp(1u32, 10000))
         .unwrap_or(100);
     assert_eq!(
         capacity, 10000,
@@ -426,7 +430,7 @@ fn webhook_queue_capacity_bounds_check() {
     };
     let capacity = normal_config
         .queue_capacity
-        .map(|c| c.clamp(1, 10000))
+        .map(|c| c.clamp(1u32, 10000))
         .unwrap_or(100);
     assert_eq!(capacity, 500, "Normal capacity should be preserved");
 }
