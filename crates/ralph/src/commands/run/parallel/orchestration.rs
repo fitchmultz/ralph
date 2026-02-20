@@ -41,7 +41,7 @@ use crate::contracts::ParallelMergeWhen;
 use crate::queue;
 use crate::{git, promptflow, runutil, signal, timeutil};
 use anyhow::{Context, Result, bail};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
 use std::thread;
@@ -405,6 +405,7 @@ pub(crate) fn run_loop_parallel(
     let mut tasks_succeeded: usize = 0;
     let mut tasks_failed: usize = 0;
     let mut interrupted = false;
+    let mut attempted_task_ids: HashSet<String> = HashSet::new();
 
     // Create cleanup guard to ensure resources are cleaned up on any exit path
     // Note: merge-agent subprocess architecture no longer needs merge_stop/pr_tx/merge_handle
@@ -453,7 +454,11 @@ pub(crate) fn run_loop_parallel(
                 && can_start_more_tasks(tasks_started, opts.max_tasks)
                 && !stop_requested
             {
-                let excluded = collect_excluded_ids(guard.state_file(), guard.in_flight());
+                let excluded = collect_excluded_ids(
+                    guard.state_file(),
+                    guard.in_flight(),
+                    &attempted_task_ids,
+                );
                 let (task_id, task_title) = match select_next_task_locked(
                     resolved,
                     include_draft,
@@ -512,6 +517,7 @@ pub(crate) fn run_loop_parallel(
                         child,
                     },
                 );
+                attempted_task_ids.insert(task_id);
 
                 tasks_started += 1;
             }
@@ -856,7 +862,11 @@ pub(crate) fn run_loop_parallel(
 
             if guard.in_flight().is_empty() {
                 let no_more_tasks = opts.max_tasks != 0 && tasks_started >= opts.max_tasks;
-                let excluded = collect_excluded_ids(guard.state_file(), guard.in_flight());
+                let excluded = collect_excluded_ids(
+                    guard.state_file(),
+                    guard.in_flight(),
+                    &attempted_task_ids,
+                );
                 let next_available =
                     select_next_task_locked(resolved, include_draft, &excluded, &_queue_lock)?
                         .is_some();

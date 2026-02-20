@@ -63,7 +63,7 @@ Out of scope:
 The rewrite must honor these existing system boundaries unless explicitly changed in this spec:
 - Parallel worker count and related settings still originate from CLI/config resolution used by `run_loop`.
 - Workers execute task phases using existing run-one flow with `--parallel-worker`.
-- Workspace isolation and repo-root override protections remain mandatory for worker execution.
+- Workspace isolation remains mandatory for worker execution (explicit worker CWD + coordinator path flags).
 - Queue and done files are canonical in the coordinator repo, not in worker clones.
 
 ## 8. Target Architecture

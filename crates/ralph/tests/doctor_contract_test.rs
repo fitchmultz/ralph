@@ -8,18 +8,13 @@ mod test_support;
 fn ralph_cmd() -> Command {
     let mut cmd = Command::new(test_support::ralph_bin());
     cmd.env_remove("RUST_LOG");
-    // Remove path overrides that may be inherited from parent environment
-    cmd.env_remove("RALPH_QUEUE_PATH_OVERRIDE");
-    cmd.env_remove("RALPH_DONE_PATH_OVERRIDE");
     cmd
 }
 
-/// Create a ralph command with repo root override set to the given directory.
-/// This ensures proper isolation when running in temp directories that may be
-/// nested within the actual repo tree.
+/// Create a ralph command scoped to the given directory.
 fn ralph_cmd_in_dir(dir: &std::path::Path) -> Command {
     let mut cmd = ralph_cmd();
-    cmd.env("RALPH_REPO_ROOT_OVERRIDE", dir);
+    cmd.current_dir(dir);
     cmd
 }
 

@@ -78,9 +78,6 @@ fn run_tutorial_non_interactive(keep_sandbox: bool) -> Result<()> {
     // Run init
     let original_dir = std::env::current_dir()?;
     std::env::set_current_dir(&sandbox.path)?;
-    unsafe {
-        std::env::set_var("RALPH_REPO_ROOT_OVERRIDE", &sandbox.path);
-    }
 
     let resolved = crate::config::resolve_from_cwd()?;
     crate::commands::init::run_init(
@@ -115,9 +112,6 @@ fn run_tutorial_non_interactive(keep_sandbox: bool) -> Result<()> {
     };
     crate::queue::save_queue(&sandbox.path.join(".ralph/queue.json"), &queue)?;
 
-    unsafe {
-        std::env::remove_var("RALPH_REPO_ROOT_OVERRIDE");
-    }
     std::env::set_current_dir(&original_dir)?;
 
     log::info!("Tutorial completed successfully");

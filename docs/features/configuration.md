@@ -856,8 +856,10 @@ Use `${VAR_NAME}` or `$VAR_NAME` syntax in string values:
 
 | Variable | Purpose |
 |----------|---------|
-| `RALPH_REPO_ROOT_OVERRIDE` | Override repository root detection |
 | `XDG_CONFIG_HOME` | Override global config directory |
+
+`RALPH_REPO_ROOT_OVERRIDE`, `RALPH_QUEUE_PATH_OVERRIDE`, and
+`RALPH_DONE_PATH_OVERRIDE` are not supported.
 
 ### Best Practices
 

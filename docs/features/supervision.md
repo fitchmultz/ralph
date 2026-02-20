@@ -240,8 +240,8 @@ The `git_commit_push_enabled` setting controls whether Ralph automatically commi
 ### Parallel Mode Implications
 
 When `git_commit_push_enabled` is disabled:
-- PR automation (`auto_pr`, `auto_merge`, `draft_on_failure`) is skipped
-- Parallel workers cannot create PRs without pushed commits
+- Parallel workers still run agent-owned integration (fetch/rebase/conflict-fix).
+- Final commit/push remains disabled; worker exits with dirty repo state for manual follow-up.
 
 ---
 
@@ -279,7 +279,7 @@ Phase 3 writes a completion signal to `.ralph/cache/completions/{TASK_ID}.json`:
 - Used for analytics and webhook events
 - Staged and committed with task changes
 
-**Note:** In parallel mode, task finalization is handled by the merge-agent subprocess. No completion-signal file is produced by parallel workers.
+**Note:** In parallel mode, workers finalize directly to the coordinator base branch (`origin/<target_branch>`) through the integration loop. No merge-agent subprocess is involved.
 
 ### Queue Maintenance
 
@@ -462,7 +462,7 @@ Parallel workers have a simplified supervision flow:
 2. **Restore Bookkeeping**: Reset queue/done/productivity files to HEAD
 3. **Finalize Git**: Commit and push changes (if enabled)
 
-Workers do not modify queue/done files directly—the coordinator handles task state management via the merge-agent subprocess. Task finalization happens atomically in the coordinator repo context when `ralph run merge-agent` is invoked.
+Workers update workspace-local queue/done files during integration conflict resolution and must preserve other workers' entries exactly. Those queue/done updates are pushed directly to the base branch by the worker integration loop; no merge-agent subprocess is required.
 
 ### CI Failure Recovery Flow
 
@@ -597,17 +597,17 @@ git commit -m "RQ-0001: Task title"
 git push
 ```
 
-### Merge-Agent Failure (Parallel Mode)
+### Integration Loop Blocked (Parallel Mode)
 
 **Symptom**: Parallel worker completes but task remains in queue.
 
 **Resolution**:
 ```bash
-# Manually run merge-agent for the task/PR
-ralph run merge-agent --task RQ-0001 --pr 42
+# Inspect worker status/details
+ralph run parallel status
 
-# Or manually finalize the task
-ralph task done RQ-0001
+# Retry blocked worker integration
+ralph run parallel retry --task RQ-0001
 ```
 
 ### Push Fails with No Upstream

@@ -40,9 +40,6 @@ mod unix_tests {
         let output = Command::new(&ralph)
             .args(args)
             .current_dir(current_dir)
-            .env("RALPH_REPO_ROOT_OVERRIDE", current_dir)
-            .env_remove("RALPH_QUEUE_PATH_OVERRIDE")
-            .env_remove("RALPH_DONE_PATH_OVERRIDE")
             .output()
             .expect("failed to run ralph daemon logs");
 
@@ -225,9 +222,6 @@ mod unix_tests {
             .arg("--follow")
             .arg("--tail")
             .arg("1")
-            .env("RALPH_REPO_ROOT_OVERRIDE", dir_path)
-            .env_remove("RALPH_QUEUE_PATH_OVERRIDE")
-            .env_remove("RALPH_DONE_PATH_OVERRIDE")
             .current_dir(dir_path)
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
@@ -309,9 +303,6 @@ mod unix_tests {
             .arg("init")
             .arg("--force")
             .arg("--non-interactive")
-            .env("RALPH_REPO_ROOT_OVERRIDE", dir_path)
-            .env_remove("RALPH_QUEUE_PATH_OVERRIDE")
-            .env_remove("RALPH_DONE_PATH_OVERRIDE")
             .current_dir(dir_path)
             .output()
             .expect("Failed to run ralph init");
@@ -337,9 +328,6 @@ mod unix_tests {
         let status = Command::new(&ralph)
             .arg("daemon")
             .arg("status")
-            .env("RALPH_REPO_ROOT_OVERRIDE", dir_path)
-            .env_remove("RALPH_QUEUE_PATH_OVERRIDE")
-            .env_remove("RALPH_DONE_PATH_OVERRIDE")
             .current_dir(dir_path)
             .output()
             .expect("Failed to run ralph daemon status");

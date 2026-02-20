@@ -9,8 +9,8 @@ XCODE_DERIVED_DATA_ROOT ?= target/tmp/xcode-deriveddata
 XCODE_DESTINATION ?= platform=macOS,arch=$(shell uname -m)
 # UI tests: Set to 1 to include UI tests (headed, mouse-interactive), 0 to skip (default for CI)
 RALPH_UI_TESTS ?= 0
-# Environment variable sanitization for cargo commands (prevents RALPH_*_OVERRIDE leakage)
-RALPH_ENV_RESET := unset RALPH_QUEUE_PATH_OVERRIDE RALPH_DONE_PATH_OVERRIDE RALPH_REPO_ROOT_OVERRIDE
+# Command prefix placeholder for consistency across targets.
+RALPH_ENV_RESET := :
 
 .DELETE_ON_ERROR:
 .ONESHELL:

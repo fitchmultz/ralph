@@ -11,7 +11,7 @@
 //!
 //! Invariants/assumptions:
 //! - `run_one_with_id_locked` is called only when the queue lock is already held by the caller.
-//! - Parallel-worker mode must not mutate queue/done files.
+//! - Parallel-worker mode resolves queue/done from worker workspace paths.
 
 use crate::agent::AgentOverrides;
 use crate::config;
@@ -68,6 +68,7 @@ pub fn run_one_with_id(
         None,
         output_handler,
         revert_prompt,
+        None,
     )
     .map(|_| ())
 }
@@ -78,6 +79,7 @@ pub fn run_one_parallel_worker(
     agent_overrides: &AgentOverrides,
     force: bool,
     task_id: &str,
+    target_branch: &str,
 ) -> Result<()> {
     orchestration::run_one_impl(
         resolved,
@@ -88,6 +90,7 @@ pub fn run_one_parallel_worker(
         None,
         None,
         None,
+        Some(target_branch),
     )
     .map(|_| ())
 }
@@ -110,6 +113,7 @@ pub fn run_one_with_id_locked(
         None,
         output_handler,
         revert_prompt,
+        None,
     )
     .map(|_| ())
 }
@@ -128,6 +132,7 @@ pub fn run_one(
         QueueLockMode::Acquire,
         None,
         resume_task_id,
+        None,
         None,
         None,
     )

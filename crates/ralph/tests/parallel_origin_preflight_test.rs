@@ -58,9 +58,6 @@ fn parallel_run_fails_fast_when_origin_remote_missing() -> Result<()> {
     let output = Command::new(test_support::ralph_bin())
         .current_dir(dir.path())
         .env_remove("RUST_LOG")
-        .env_remove("RALPH_QUEUE_PATH_OVERRIDE")
-        .env_remove("RALPH_DONE_PATH_OVERRIDE")
-        .env("RALPH_REPO_ROOT_OVERRIDE", dir.path())
         .args(["run", "loop", "--parallel", "2", "--force"])
         .output()?;
 
@@ -152,9 +149,6 @@ fn parallel_run_succeeds_when_origin_remote_exists() -> Result<()> {
     let output = Command::new(test_support::ralph_bin())
         .current_dir(dir.path())
         .env_remove("RUST_LOG")
-        .env_remove("RALPH_QUEUE_PATH_OVERRIDE")
-        .env_remove("RALPH_DONE_PATH_OVERRIDE")
-        .env("RALPH_REPO_ROOT_OVERRIDE", dir.path())
         .args([
             "run",
             "loop",

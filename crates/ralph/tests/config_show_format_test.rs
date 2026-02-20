@@ -11,7 +11,6 @@
 //!
 //! Invariants/assumptions:
 //! - Tests run in isolated temp directories to avoid user global config interference.
-//! - The `RALPH_REPO_ROOT_OVERRIDE` env var is set to control repo root detection.
 
 use serde_json::Value as JsonValue;
 use std::collections::BTreeSet;
@@ -57,7 +56,6 @@ fn config_show_default_outputs_yaml() {
     let output = std::process::Command::new(test_support::ralph_bin())
         .current_dir(&dir)
         .env_remove("RUST_LOG")
-        .env("RALPH_REPO_ROOT_OVERRIDE", dir.path())
         .env("XDG_CONFIG_HOME", &xdg_config_home)
         .args(["config", "show"])
         .output()
@@ -93,7 +91,6 @@ fn config_show_format_json_outputs_valid_json() {
     let output = std::process::Command::new(test_support::ralph_bin())
         .current_dir(&dir)
         .env_remove("RUST_LOG")
-        .env("RALPH_REPO_ROOT_OVERRIDE", dir.path())
         .env("XDG_CONFIG_HOME", &xdg_config_home)
         .args(["config", "show", "--format", "json"])
         .output()
@@ -127,7 +124,6 @@ fn config_show_format_yaml_outputs_valid_yaml() {
     let output = std::process::Command::new(test_support::ralph_bin())
         .current_dir(&dir)
         .env_remove("RUST_LOG")
-        .env("RALPH_REPO_ROOT_OVERRIDE", dir.path())
         .env("XDG_CONFIG_HOME", &xdg_config_home)
         .args(["config", "show", "--format", "yaml"])
         .output()
@@ -162,7 +158,6 @@ fn config_show_yaml_and_json_have_same_top_level_keys() {
     let yaml_output = std::process::Command::new(test_support::ralph_bin())
         .current_dir(&dir)
         .env_remove("RUST_LOG")
-        .env("RALPH_REPO_ROOT_OVERRIDE", dir.path())
         .env("XDG_CONFIG_HOME", &xdg_config_home)
         .args(["config", "show", "--format", "yaml"])
         .output()
@@ -180,7 +175,6 @@ fn config_show_yaml_and_json_have_same_top_level_keys() {
     let json_output = std::process::Command::new(test_support::ralph_bin())
         .current_dir(&dir)
         .env_remove("RUST_LOG")
-        .env("RALPH_REPO_ROOT_OVERRIDE", dir.path())
         .env("XDG_CONFIG_HOME", &xdg_config_home)
         .args(["config", "show", "--format", "json"])
         .output()
@@ -223,7 +217,6 @@ fn config_show_invalid_format_fails_with_error() {
     let output = std::process::Command::new(test_support::ralph_bin())
         .current_dir(&dir)
         .env_remove("RUST_LOG")
-        .env("RALPH_REPO_ROOT_OVERRIDE", dir.path())
         .env("XDG_CONFIG_HOME", &xdg_config_home)
         .args(["config", "show", "--format", "not-a-format"])
         .output()
@@ -261,7 +254,6 @@ fn config_show_text_alias_works_for_yaml() {
     let output = std::process::Command::new(test_support::ralph_bin())
         .current_dir(&dir)
         .env_remove("RUST_LOG")
-        .env("RALPH_REPO_ROOT_OVERRIDE", dir.path())
         .env("XDG_CONFIG_HOME", &xdg_config_home)
         .args(["config", "show", "--format", "text"])
         .output()

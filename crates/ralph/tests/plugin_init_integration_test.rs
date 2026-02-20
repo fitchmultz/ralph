@@ -34,7 +34,6 @@ fn ralph_init(dir: &Path) -> Result<()> {
     let output = Command::new(test_support::ralph_bin())
         .current_dir(dir)
         .env_remove("RUST_LOG")
-        .env("RALPH_REPO_ROOT_OVERRIDE", dir)
         .args(["init", "--force", "--non-interactive"])
         .output()?;
 
@@ -50,7 +49,6 @@ fn run_in_dir(dir: &Path, args: &[&str]) -> (std::process::ExitStatus, String, S
     let output = Command::new(test_support::ralph_bin())
         .current_dir(dir)
         .env_remove("RUST_LOG")
-        .env("RALPH_REPO_ROOT_OVERRIDE", dir)
         .args(args)
         .output()
         .expect("failed to execute ralph binary");
@@ -201,7 +199,6 @@ fn plugin_init_global_scope_requires_home() -> Result<()> {
         .current_dir(temp_dir.path())
         .env_remove("HOME")
         .env_remove("RUST_LOG")
-        .env("RALPH_REPO_ROOT_OVERRIDE", temp_dir.path())
         .args(["plugin", "init", "x.y", "--scope", "global"])
         .output()?;
 

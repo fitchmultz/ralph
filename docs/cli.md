@@ -1070,17 +1070,16 @@ when `--parallel` is provided without a value. This mode is CLI-only.
 
 Notes:
 - `--parallel` conflicts with `--wait-when-blocked` and ignores `--resume`.
-- Each task runs in its own isolated git workspace clone and branch; PRs are created/merged automatically when enabled.
-- Queue and done files are coordinator-only in parallel mode; worker branches do not modify `.ralph/queue.json` or `.ralph/done.json`.
-- The coordinator invokes `ralph run merge-agent --task <TASK_ID> --pr <PR_NUMBER>` for each eligible PR.
-- Merge-agent handles PR merge and task finalization atomically; no completion-signal files are used.
-- Queue/done updates happen only in coordinator repo context via merge-agent subprocess.
+- Each task runs in its own isolated git workspace clone and executes configured phases independently.
+- After phase execution, workers enter an integration loop (fetch, rebase, conflict resolution, CI gate, push).
+- Workers push directly to the target branch (no PRs created).
+- Queue and done files are updated by workers directly; conflict resolution happens via agent sessions.
 - Parallel workers force RepoPrompt mode to `off` (no tooling or planning requirement) to keep edits inside workspace clones.
-- Parallel workers honor `--git-commit-push-on/off` and `agent.git_commit_push_enabled` config. When commit/push is disabled, parallel PR automation (`auto_pr`, `auto_merge`, `draft_on_failure`) is skipped because PRs require pushed commits.
 - You can set a default worker count with `parallel.workers` in `.ralph/config.json`.
 - The default workspace location is `<repo-parent>/.workspaces/<repo-name>/parallel/<TASK_ID>` (configurable via `parallel.workspace_root`).
 - State is persisted to `.ralph/cache/parallel/state.json` for crash recovery and coordination.
-- On startup, Ralph prunes stale in-flight task records and reconciles PR records before checking the state file's base branch.
+- Use `ralph run parallel status` to check worker states and `ralph run parallel retry --task <ID>` to retry blocked workers.
+- On startup, Ralph prunes stale in-flight task records.
 
 Examples:
 
@@ -1090,6 +1089,12 @@ ralph run loop --parallel --max-tasks 4
 
 # Run with 4 workers
 ralph run loop --parallel 4 --max-tasks 8
+
+# Check parallel status
+ralph run parallel status
+
+# Retry a blocked worker
+ralph run parallel retry --task RQ-0001
 ```
 
 ### Normalized runner CLI options
@@ -1188,37 +1193,37 @@ Clean-repo checks for `run one` and `run loop` allow changes to
 `.ralph/done.{json,jsonc}`). Use `--force` to bypass the
 clean-repo check entirely if needed.
 
-### `ralph run merge-agent`
+### `ralph run parallel status`
 
-Run the merge-agent subprocess for a specific task/PR pair. This command is typically invoked by the parallel coordinator, but can also be run manually for debugging or recovery.
+Show the status of parallel workers. Displays active, completed, failed, and blocked workers with their lifecycle states.
 
 #### Arguments
 
-* `--task <TASK_ID>`: Required. The task ID to finalize.
-* `--pr <PR_NUMBER>`: Required. The PR number to merge.
-
-#### Exit Codes
-
-| Code | Meaning |
-|------|---------|
-| 0 | Merge + task finalization successful |
-| 1 | Runtime/unexpected failure |
-| 2 | Usage/validation failure (invalid task/PR format) |
-| >=3 | Domain-specific failures |
-
-#### Output
-
-- Stdout: JSON object with `{task_id, pr_number, merged, message}`
-- Stderr: User-facing diagnostics
+* `--json`: Output as JSON for scripting.
 
 #### Examples
 
 ```bash
-# Merge PR #42 for task RQ-0001
-ralph run merge-agent --task RQ-0001 --pr 42
+# Show human-readable status
+ralph run parallel status
 
-# Check exit code
-echo $?  # 0 = success, 1 = runtime error, 2 = validation error
+# Output JSON
+ralph run parallel status --json
+```
+
+### `ralph run parallel retry`
+
+Retry a blocked or failed parallel worker. This resets the worker lifecycle to `running` so it will be picked up on the next parallel run.
+
+#### Arguments
+
+* `--task <TASK_ID>`: Required. The task ID to retry.
+
+#### Examples
+
+```bash
+# Retry blocked worker RQ-0001
+ralph run parallel retry --task RQ-0001
 ```
 
 ## `ralph scan`
@@ -3416,7 +3421,7 @@ The `run one` and `run loop` commands also support:
 
 * `--include-draft`: Include draft tasks (`status: draft`) when selecting what to run.
 * `--non-interactive`: Skip interactive prompts for sanity checks and session recovery. Useful for CI environments where TTY is not available.
-* `--parallel [N]` (run loop only): Run tasks concurrently in isolated git workspace clones. Defaults to `2` when provided without a value. Parallel workers do not modify `.ralph/queue.json` or `.ralph/done.json`; they commit completion signals in `.ralph/cache/completions/<TASK_ID>.json`, and the coordinator applies them after merge (errors if missing). Parallel workers force RepoPrompt mode to `off` to keep edits inside workspace clones. Parallel workers honor `--git-commit-push-on/off` and `agent.git_commit_push_enabled`; when commit/push is disabled, parallel PR automation is skipped.
+* `--parallel [N]` (run loop only): Run tasks concurrently in isolated git workspace clones. Defaults to `2` when provided without a value. Workers update workspace-local queue/done files during agent-owned integration (`fetch/rebase/conflict-fix/commit/push`) and push directly to `origin/<target_branch>`. No PR/merge-agent lifecycle is used. Parallel workers force RepoPrompt mode to `off` to keep edits inside workspace clones and honor `--git-commit-push-on/off` and `agent.git_commit_push_enabled`.
 * Multi-phase runs (`--phases 2` or `--phases 3`) automatically refresh task fields (`scope,evidence,plan,notes,tags,depends_on`) at the start of Phase 1 and then generate the plan in that same Phase 1 session.
 * `--notify`: Enable desktop notification on task completion (overrides config).
 * `--no-notify`: Disable desktop notification on task completion (overrides config).
