@@ -73,6 +73,7 @@ Every source file MUST start with `//!` docs covering:
 - Worker workspace setup mirrors repo-local `.ralph/` runtime files recursively, but MUST exclude coordinator-only and ephemeral paths: queue/done files and `.ralph/{cache,workspaces,logs,lock}/`.
 - Gitignored non-`.ralph` sync remains narrow by design (`.env*` only) to avoid copying heavy build/cache directories.
 - Parallel worker post-run bookkeeping restore must always target workspace-local `.ralph/{queue.json,done.json,cache/productivity.json}` even when `Resolved.queue_path`/`done_path` are coordinator overrides.
+- Worker post-run supervision should fail fast if those bookkeeping paths remain dirty after restore (never proceed to commit/rebase with queue/done/productivity drift).
 
 ### Parallel Merge Refresh Resilience
 - After merge-agent success, update state (`prs`, `pending_merges`) before local branch refresh attempts.

@@ -25,6 +25,12 @@ use super::PushPolicy;
 use super::ci::{ci_gate_command_label, run_ci_gate, run_ci_gate_with_continue_session};
 use super::git_ops::{finalize_git_state, warn_if_modified_lfs};
 
+const PARALLEL_BOOKKEEPING_PATHS: [&str; 3] = [
+    ".ralph/queue.json",
+    ".ralph/done.json",
+    ".ralph/cache/productivity.json",
+];
+
 /// Post-run supervision for parallel workers.
 ///
 /// Restores shared bookkeeping files and commits/pushes only the worker's
@@ -153,7 +159,22 @@ pub(crate) fn post_run_supervise_parallel_worker(
 
         restore_parallel_worker_bookkeeping(resolved)?;
 
-        let status = git::status_porcelain(&resolved.repo_root)?;
+        let mut status = git::status_porcelain(&resolved.repo_root)?;
+        let mut bookkeeping_lines = collect_bookkeeping_status_lines(&status);
+        if !bookkeeping_lines.is_empty() {
+            // Defensive retry: if any parallel bookkeeping files still show up in status,
+            // restore once more and fail fast if they remain dirty.
+            restore_parallel_worker_bookkeeping(resolved)?;
+            status = git::status_porcelain(&resolved.repo_root)?;
+            bookkeeping_lines = collect_bookkeeping_status_lines(&status);
+            if !bookkeeping_lines.is_empty() {
+                anyhow::bail!(
+                    "parallel bookkeeping files remained dirty after restore: {}",
+                    bookkeeping_lines.join(", ")
+                );
+            }
+        }
+
         if status.trim().is_empty() {
             return Ok(());
         }
@@ -206,6 +227,18 @@ fn restore_parallel_worker_bookkeeping(resolved: &crate::config::Resolved) -> Re
     git::restore_tracked_paths_to_head(&resolved.repo_root, &paths)
         .context("restore queue/done/productivity to HEAD")?;
     Ok(())
+}
+
+fn collect_bookkeeping_status_lines(status: &str) -> Vec<String> {
+    status
+        .lines()
+        .filter(|line| {
+            PARALLEL_BOOKKEEPING_PATHS
+                .iter()
+                .any(|path| line.contains(path))
+        })
+        .map(std::string::ToString::to_string)
+        .collect()
 }
 
 /// Write a marker file indicating CI gate failure.
@@ -394,5 +427,32 @@ mod tests {
             std::fs::read_to_string(&productivity).unwrap(),
             "{\"stats\":[]}"
         );
+    }
+
+    #[test]
+    fn collect_bookkeeping_status_lines_matches_tracked_paths() {
+        let status = "\
+ M .ralph/queue.json
+M  src/lib.rs
+ R .ralph/done.json -> .ralph/done-old.json
+?? scratch.txt
+";
+
+        let matches = collect_bookkeeping_status_lines(status);
+        assert_eq!(matches.len(), 2);
+        assert!(matches[0].contains(".ralph/queue.json"));
+        assert!(matches[1].contains(".ralph/done.json"));
+    }
+
+    #[test]
+    fn collect_bookkeeping_status_lines_ignores_non_bookkeeping_changes() {
+        let status = "\
+M  src/lib.rs
+A  docs/notes.md
+?? temp.log
+";
+
+        let matches = collect_bookkeeping_status_lines(status);
+        assert!(matches.is_empty());
     }
 }
