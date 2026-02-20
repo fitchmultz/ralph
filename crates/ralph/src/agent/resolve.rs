@@ -20,6 +20,7 @@ use crate::contracts::{
     GitRevertMode, Model, PhaseOverrideConfig, PhaseOverrides, ReasoningEffort, Runner,
     RunnerCliOptionsPatch,
 };
+use crate::runner;
 use anyhow::Result;
 
 use super::args::{AgentArgs, RunAgentArgs};
@@ -27,6 +28,31 @@ use super::parse::{parse_git_revert_mode, parse_runner, parse_runner_cli_patch};
 use super::repoprompt::{
     RepopromptFlags, repoprompt_flags_from_mode, resolve_repoprompt_flags_from_agent_config,
 };
+
+/// Helper macro to resolve a boolean CLI flag with enable/disable variants.
+///
+/// Takes the enable flag expression and disable flag expression, returns
+/// `Some(true)` if enabled, `Some(false)` if disabled, or `None` if neither.
+macro_rules! resolve_bool_flag {
+    ($enable:expr, $disable:expr) => {
+        if $enable {
+            Some(true)
+        } else if $disable {
+            Some(false)
+        } else {
+            None
+        }
+    };
+}
+
+/// Helper macro to resolve a simple optional boolean flag.
+///
+/// Returns `Some(true)` if the flag is set, `None` otherwise.
+macro_rules! resolve_simple_flag {
+    ($flag:expr) => {
+        if $flag { Some(true) } else { None }
+    };
+}
 
 /// Agent overrides from CLI arguments.
 ///
@@ -100,115 +126,22 @@ pub fn resolve_run_agent_overrides(args: &RunAgentArgs) -> Result<AgentOverrides
         None => None,
     };
 
-    let git_commit_push_enabled = if args.git_commit_push_on {
-        Some(true)
-    } else if args.git_commit_push_off {
-        Some(false)
-    } else {
-        None
-    };
-
-    let include_draft = if args.include_draft { Some(true) } else { None };
+    let git_commit_push_enabled =
+        resolve_bool_flag!(args.git_commit_push_on, args.git_commit_push_off);
+    let include_draft = resolve_simple_flag!(args.include_draft);
 
     // Handle --quick flag: when set, override phases to 1 (single-pass execution)
     let phases = if args.quick { Some(1) } else { args.phases };
 
     // Handle notification flags
-    let notify_on_complete = if args.notify {
-        Some(true)
-    } else if args.no_notify {
-        Some(false)
-    } else {
-        None
-    };
+    let notify_on_complete = resolve_bool_flag!(args.notify, args.no_notify);
+    let notify_on_fail = resolve_bool_flag!(args.notify_fail, args.no_notify_fail);
+    let notify_sound = resolve_simple_flag!(args.notify_sound);
+    let lfs_check = resolve_simple_flag!(args.lfs_check);
+    let no_progress = resolve_simple_flag!(args.no_progress);
 
-    let notify_on_fail = if args.notify_fail {
-        Some(true)
-    } else if args.no_notify_fail {
-        Some(false)
-    } else {
-        None
-    };
-
-    let notify_sound = if args.notify_sound { Some(true) } else { None };
-    let lfs_check = if args.lfs_check { Some(true) } else { None };
-    let no_progress = if args.no_progress { Some(true) } else { None };
-
-    // Parse phase-specific overrides
-    let mut phase_overrides = PhaseOverrides::default();
-
-    // Phase 1
-    if args.runner_phase1.is_some() || args.model_phase1.is_some() || args.effort_phase1.is_some() {
-        phase_overrides.phase1 = Some(PhaseOverrideConfig {
-            runner: args
-                .runner_phase1
-                .as_deref()
-                .map(parse_runner)
-                .transpose()?,
-            model: args
-                .model_phase1
-                .as_deref()
-                .map(runner::parse_model)
-                .transpose()?,
-            reasoning_effort: args
-                .effort_phase1
-                .as_deref()
-                .map(runner::parse_reasoning_effort)
-                .transpose()?,
-        });
-    }
-
-    // Phase 2
-    if args.runner_phase2.is_some() || args.model_phase2.is_some() || args.effort_phase2.is_some() {
-        phase_overrides.phase2 = Some(PhaseOverrideConfig {
-            runner: args
-                .runner_phase2
-                .as_deref()
-                .map(parse_runner)
-                .transpose()?,
-            model: args
-                .model_phase2
-                .as_deref()
-                .map(runner::parse_model)
-                .transpose()?,
-            reasoning_effort: args
-                .effort_phase2
-                .as_deref()
-                .map(runner::parse_reasoning_effort)
-                .transpose()?,
-        });
-    }
-
-    // Phase 3
-    if args.runner_phase3.is_some() || args.model_phase3.is_some() || args.effort_phase3.is_some() {
-        phase_overrides.phase3 = Some(PhaseOverrideConfig {
-            runner: args
-                .runner_phase3
-                .as_deref()
-                .map(parse_runner)
-                .transpose()?,
-            model: args
-                .model_phase3
-                .as_deref()
-                .map(runner::parse_model)
-                .transpose()?,
-            reasoning_effort: args
-                .effort_phase3
-                .as_deref()
-                .map(runner::parse_reasoning_effort)
-                .transpose()?,
-        });
-    }
-
-    // Only set phase_overrides if any phase has overrides
-    let phase_overrides = if phase_overrides.phase1.is_some()
-        || phase_overrides.phase2.is_some()
-        || phase_overrides.phase3.is_some()
-    {
-        Some(phase_overrides)
-    } else {
-        None
-    };
+    // Parse phase-specific overrides using helper to avoid duplication
+    let phase_overrides = resolve_phase_overrides(args)?;
 
     Ok(AgentOverrides {
         profile,
@@ -280,6 +213,58 @@ pub fn resolve_agent_overrides(args: &AgentArgs) -> Result<AgentOverrides> {
         no_progress: None,
         phase_overrides: None,
     })
+}
+
+/// Helper to resolve phase overrides for a single phase.
+///
+/// Takes optional runner, model, and effort strings and returns a PhaseOverrideConfig
+/// if any are provided. This eliminates DRY violations in the main resolution function.
+fn resolve_single_phase_override(
+    runner: Option<&str>,
+    model: Option<&str>,
+    effort: Option<&str>,
+) -> Result<Option<PhaseOverrideConfig>> {
+    if runner.is_none() && model.is_none() && effort.is_none() {
+        return Ok(None);
+    }
+
+    Ok(Some(PhaseOverrideConfig {
+        runner: runner.map(parse_runner).transpose()?,
+        model: model.map(runner::parse_model).transpose()?,
+        reasoning_effort: effort.map(runner::parse_reasoning_effort).transpose()?,
+    }))
+}
+
+/// Resolve phase-specific overrides from CLI arguments.
+///
+/// This centralizes the phase override resolution to eliminate the DRY violation
+/// of having nearly identical code blocks for each phase.
+fn resolve_phase_overrides(args: &RunAgentArgs) -> Result<Option<PhaseOverrides>> {
+    let phase1 = resolve_single_phase_override(
+        args.runner_phase1.as_deref(),
+        args.model_phase1.as_deref(),
+        args.effort_phase1.as_deref(),
+    )?;
+    let phase2 = resolve_single_phase_override(
+        args.runner_phase2.as_deref(),
+        args.model_phase2.as_deref(),
+        args.effort_phase2.as_deref(),
+    )?;
+    let phase3 = resolve_single_phase_override(
+        args.runner_phase3.as_deref(),
+        args.model_phase3.as_deref(),
+        args.effort_phase3.as_deref(),
+    )?;
+
+    if phase1.is_none() && phase2.is_none() && phase3.is_none() {
+        Ok(None)
+    } else {
+        Ok(Some(PhaseOverrides {
+            phase1,
+            phase2,
+            phase3,
+        }))
+    }
 }
 
 /// Resolve RepoPrompt flags from overrides, falling back to config.
