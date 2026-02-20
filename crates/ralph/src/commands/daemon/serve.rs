@@ -8,7 +8,11 @@
 //! Not handled here:
 //! - CLI argument parsing (handled in `crate::cli::daemon`).
 //! - Daemon start/stop/status control (handled in parent `mod.rs`).
-//! - Signal handling (handled by `crate::signal`).
+//! - SIGINT/Ctrl+C handling (handled by runner process).
+//!
+//! Signal handling:
+//! - SIGTERM is registered here to trigger graceful shutdown via the stop
+//!   signal mechanism (see `crate::signal`).
 //!
 //! Invariants/assumptions:
 //! - This function is internal and should not be called directly by users.
@@ -22,6 +26,9 @@ use anyhow::{Context, Result};
 use std::fs;
 
 use super::{DAEMON_LOCK_DIR, DAEMON_STATE_FILE, DaemonState, write_daemon_state};
+
+#[cfg(unix)]
+use crate::signal;
 
 /// Internal: Run the daemon serve loop.
 /// This should not be called directly by users.
@@ -49,6 +56,32 @@ pub fn serve(resolved: &Resolved, args: DaemonServeArgs) -> Result<()> {
         args.empty_poll_ms,
         args.wait_poll_ms
     );
+
+    // Register SIGTERM handler for graceful shutdown
+    #[cfg(unix)]
+    {
+        use signal_hook::consts::SIGTERM;
+        use signal_hook::iterator::Signals;
+        use std::thread;
+
+        let cache_dir_for_handler = cache_dir.clone();
+        let mut signals = Signals::new([SIGTERM]).context("Failed to register SIGTERM handler")?;
+
+        thread::Builder::new()
+            .name("sigterm-handler".to_string())
+            .spawn(move || {
+                for sig in signals.forever() {
+                    if sig == SIGTERM {
+                        log::info!("SIGTERM received; requesting graceful shutdown");
+                        if let Err(e) = signal::create_stop_signal(&cache_dir_for_handler) {
+                            log::warn!("Failed to create stop signal on SIGTERM: {}", e);
+                        }
+                        break;
+                    }
+                }
+            })
+            .context("Failed to spawn SIGTERM handler thread")?;
+    }
 
     // Run the continuous execution loop
     let result = crate::commands::run::run_loop(

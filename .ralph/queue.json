@@ -37,43 +37,6 @@
       }
     },
     {
-      "id": "RQ-0922",
-      "status": "todo",
-      "title": "Add SIGTERM signal handler to daemon serve",
-      "description": "The daemon serve function does not register any signal handlers for SIGTERM. The only shutdown mechanism is via the stop signal file. If the daemon receives SIGTERM (e.g., from system shutdown or kill without -9), it won't clean up gracefully - the state file and lock will remain. Files: crates/ralph/src/commands/daemon/serve.rs.",
-      "priority": "high",
-      "tags": [
-        "scan",
-        "daemon",
-        "signal-handling",
-        "bug",
-        "unix"
-      ],
-      "scope": [
-        "crates/ralph/src/commands/daemon/serve.rs"
-      ],
-      "evidence": [
-        "path: crates/ralph/src/commands/daemon/serve.rs :: entire file :: no SIGTERM handler",
-        "analysis: On SIGTERM, daemon exits without cleanup, leaving state file and lock"
-      ],
-      "plan": [
-        "Add signal handler registration for SIGTERM in serve.rs",
-        "Use signal_hook or tokio::signal for cross-platform support",
-        "On SIGTERM, trigger graceful shutdown (clean state file, release lock)",
-        "Run `cargo test -p ralph` to verify"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-02-17T19:44:50Z",
-      "updated_at": "2026-02-17T19:44:50Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-general"
-      }
-    },
-    {
       "id": "RQ-0923",
       "status": "todo",
       "title": "Add tests for runner error classification functions",

@@ -53,9 +53,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
+        "scan_agent": "scan-general",
         "model_used": "gpt-5.3-codex",
-        "scan_agent": "scan-general"
+        "runner_used": "codex"
       }
     },
     {
@@ -118,8 +118,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
-        "model_used": "gpt-5.3-codex"
+        "model_used": "gpt-5.3-codex",
+        "runner_used": "codex"
       }
     },
     {
@@ -255,8 +255,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.3-codex",
-        "runner_used": "codex"
+        "runner_used": "codex",
+        "model_used": "gpt-5.3-codex"
       }
     },
     {
@@ -321,8 +321,8 @@
         "RQ-0953"
       ],
       "custom_fields": {
-        "model_used": "gpt-5.3-codex",
         "scan_agent": "scan-general",
+        "model_used": "gpt-5.3-codex",
         "runner_used": "codex"
       }
     },
@@ -378,9 +378,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "model_used": "gpt-5.3-codex",
         "runner_used": "codex",
-        "scan_agent": "scan-general",
-        "model_used": "gpt-5.3-codex"
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -439,8 +439,8 @@
       "relates_to": [],
       "custom_fields": {
         "scan_agent": "scan-general",
-        "runner_used": "codex",
-        "model_used": "gpt-5.3-codex"
+        "model_used": "gpt-5.3-codex",
+        "runner_used": "codex"
       }
     },
     {
@@ -500,9 +500,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "scan_agent": "scan-general",
         "model_used": "gpt-5.3-codex",
-        "runner_used": "codex",
-        "scan_agent": "scan-general"
+        "runner_used": "codex"
       }
     },
     {
@@ -560,8 +560,8 @@
       "relates_to": [],
       "custom_fields": {
         "model_used": "sonnet",
-        "scan_agent": "scan-general",
-        "runner_used": "claude"
+        "runner_used": "claude",
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -615,9 +615,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "model_used": "gpt-5.3-codex",
         "runner_used": "codex",
-        "scan_agent": "scan-general",
-        "model_used": "gpt-5.3-codex"
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -675,9 +675,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
         "scan_agent": "scan-general",
-        "model_used": "gpt-5.3-codex"
+        "model_used": "gpt-5.3-codex",
+        "runner_used": "codex"
       }
     },
     {
@@ -735,9 +735,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "model_used": "kimi-for-coding/k2p5",
         "runner_used": "opencode",
-        "scan_agent": "scan-general",
-        "model_used": "kimi-for-coding/k2p5"
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -804,9 +804,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "opencode",
+        "model_used": "kimi-for-coding/k2p5",
         "scan_agent": "scan-general",
-        "model_used": "kimi-for-coding/k2p5"
+        "runner_used": "opencode"
       }
     },
     {
@@ -857,8 +857,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-general",
         "model_used": "kimi-for-coding/k2p5",
+        "scan_agent": "scan-general",
         "runner_used": "opencode"
       }
     },
@@ -918,9 +918,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "runner_used": "opencode",
         "scan_agent": "scan-general",
-        "model_used": "kimi-for-coding/k2p5",
-        "runner_used": "opencode"
+        "model_used": "kimi-for-coding/k2p5"
       }
     },
     {
@@ -991,8 +991,8 @@
       "relates_to": [],
       "custom_fields": {
         "scan_agent": "scan-general",
-        "model_used": "kimi-for-coding/k2p5",
-        "runner_used": "opencode"
+        "runner_used": "opencode",
+        "model_used": "kimi-for-coding/k2p5"
       }
     },
     {
@@ -1129,8 +1129,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "kimi-code/kimi-for-coding",
         "runner_used": "kimi",
+        "model_used": "kimi-code/kimi-for-coding",
         "scan_agent": "scan-general"
       }
     },
@@ -1176,9 +1176,55 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "kimi-code/kimi-for-coding",
         "scan_agent": "scan-general",
+        "model_used": "kimi-code/kimi-for-coding",
         "runner_used": "kimi"
+      }
+    },
+    {
+      "id": "RQ-0922",
+      "status": "done",
+      "title": "Add SIGTERM signal handler to daemon serve",
+      "description": "The daemon serve function does not register any signal handlers for SIGTERM. The only shutdown mechanism is via the stop signal file. If the daemon receives SIGTERM (e.g., from system shutdown or kill without -9), it won't clean up gracefully - the state file and lock will remain. Files: crates/ralph/src/commands/daemon/serve.rs.",
+      "priority": "high",
+      "tags": [
+        "scan",
+        "daemon",
+        "signal-handling",
+        "bug",
+        "unix"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/daemon/serve.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/commands/daemon/serve.rs :: entire file :: no SIGTERM handler",
+        "analysis: On SIGTERM, daemon exits without cleanup, leaving state file and lock"
+      ],
+      "plan": [
+        "Add signal handler registration for SIGTERM in serve.rs",
+        "Use signal_hook or tokio::signal for cross-platform support",
+        "On SIGTERM, trigger graceful shutdown (clean state file, release lock)",
+        "Run `cargo test -p ralph` to verify"
+      ],
+      "notes": [
+        "Implemented SIGTERM signal handler in daemon serve",
+        "Uses signal-hook crate with dedicated handler thread",
+        "On SIGTERM, creates stop signal to trigger graceful shutdown",
+        "Cleanup (state file, lock) happens via existing serve() cleanup code",
+        "All 2046 tests pass; CI gate passes"
+      ],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:44:50Z",
+      "updated_at": "2026-02-20T00:14:34.361157000Z",
+      "completed_at": "2026-02-20T00:14:34.361157000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "runner_used": "kimi",
+        "scan_agent": "scan-general",
+        "model_used": "kimi-code/kimi-for-coding"
       }
     }
   ]
