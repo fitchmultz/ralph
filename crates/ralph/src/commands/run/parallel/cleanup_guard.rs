@@ -295,7 +295,9 @@ mod tests {
         );
 
         // Clean up the child process
-        let _ = Command::new("kill").arg(pid.to_string()).output();
+        if let Err(e) = Command::new("kill").arg(pid.to_string()).output() {
+            log::debug!("Failed to kill test process {}: {}", pid, e);
+        }
 
         Ok(())
     }

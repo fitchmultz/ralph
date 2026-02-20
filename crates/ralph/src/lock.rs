@@ -353,7 +353,13 @@ pub fn acquire_dir_lock(lock_dir: &Path, label: &str, force: bool) -> Result<Dir
                 .is_some_and(|o| pid_liveness(o.pid).is_definitely_not_running());
 
             if force && is_stale {
-                let _ = fs::remove_dir_all(lock_dir);
+                if let Err(e) = fs::remove_dir_all(lock_dir) {
+                    log::debug!(
+                        "Failed to remove stale lock directory {}: {}",
+                        lock_dir.display(),
+                        e
+                    );
+                }
                 // Retry once
                 return acquire_dir_lock(lock_dir, label, false);
             }
@@ -399,11 +405,23 @@ pub fn acquire_dir_lock(lock_dir: &Path, label: &str, force: bool) -> Result<Dir
     };
 
     if let Err(err) = write_lock_owner(&owner_path, &owner) {
-        let _ = fs::remove_file(&owner_path);
+        if let Err(e) = fs::remove_file(&owner_path) {
+            log::debug!(
+                "Failed to remove owner file {}: {}",
+                owner_path.display(),
+                e
+            );
+        }
 
         // Best-effort cleanup: if the lock directory is empty, remove it.
         // This prevents task lock attempts from leaving an empty `.ralph/lock` behind on errors.
-        let _ = fs::remove_dir(lock_dir);
+        if let Err(e) = fs::remove_dir(lock_dir) {
+            log::debug!(
+                "Failed to remove lock directory {}: {}",
+                lock_dir.display(),
+                e
+            );
+        }
 
         return Err(err);
     }
@@ -537,6 +555,10 @@ fn pid_exists_via_toolhelp(pid: u32) -> Option<bool> {
         CreateToolhelp32Snapshot, PROCESSENTRY32, Process32First, Process32Next, TH32CS_SNAPPROCESS,
     };
 
+    // SAFETY: Windows ToolHelp API calls with proper handle validation.
+    // CreateToolhelp32Snapshot returns INVALID_HANDLE_VALUE on error which we check.
+    // PROCESSENTRY32 is properly initialized with dwSize set before use.
+    // CloseHandle is called to prevent handle leaks.
     unsafe {
         let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
         if snapshot == INVALID_HANDLE_VALUE {
@@ -586,6 +608,10 @@ fn pid_exists_via_toolhelp(pid: u32) -> Option<bool> {
 pub fn pid_is_running(pid: u32) -> Option<bool> {
     #[cfg(unix)]
     {
+        // SAFETY: POSIX kill() with signal 0 is a standard process existence check.
+        // Signal 0 performs error checking without actually sending a signal.
+        // Returns 0 if process exists and caller has permission, -1 on error.
+        // ESRCH error specifically means process does not exist.
         let result = unsafe { libc::kill(pid as i32, 0) };
         if result == 0 {
             return Some(true);
@@ -604,6 +630,11 @@ pub fn pid_is_running(pid: u32) -> Option<bool> {
         };
         use windows_sys::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_INFORMATION};
 
+        // SAFETY: Windows OpenProcess API with PROCESS_QUERY_INFORMATION access.
+        // OpenProcess returns NULL (0) on failure which we check.
+        // CloseHandle is always called on success to prevent handle leaks.
+        // ERROR_INVALID_PARAMETER indicates non-existent PID.
+        // ERROR_ACCESS_DENIED falls back to ToolHelp enumeration.
         unsafe {
             let handle = OpenProcess(PROCESS_QUERY_INFORMATION, 0, pid);
             if handle != 0 {
@@ -635,6 +666,8 @@ pub fn pid_is_running(pid: u32) -> Option<bool> {
 
     #[cfg(not(any(unix, windows)))]
     {
+        // Suppress unused variable warning on unsupported platforms.
+        // PID liveness detection is not implemented for this platform.
         let _ = pid;
         None
     }

@@ -160,6 +160,9 @@ mod tests {
 
         // Temporarily override HOME
         let original_home = std::env::var_os("HOME");
+        // SAFETY: This is test code that temporarily modifies the process environment.
+        // We are in a single-threaded test context (enforced by test guard), so this
+        // won't cause data races. The original value is restored immediately after.
         unsafe {
             std::env::set_var("HOME", tmp.path().join("global").parent().unwrap());
         }
@@ -170,10 +173,13 @@ mod tests {
 
         // Reset HOME
         if let Some(h) = original_home {
+            // SAFETY: Restoring original HOME value in test context.
+            // Single-threaded test execution ensures no data races.
             unsafe {
                 std::env::set_var("HOME", h);
             }
         } else {
+            // SAFETY: Removing HOME in test context. Single-threaded execution.
             unsafe {
                 std::env::remove_var("HOME");
             }

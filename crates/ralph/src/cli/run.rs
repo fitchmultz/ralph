@@ -78,14 +78,14 @@ pub fn handle_run(cmd: RunCommand, force: bool) -> Result<()> {
                     })?;
 
                     let mut worker_resolved = resolved.clone();
-                    worker_resolved.queue_path = args
-                        .coordinator_queue_path
-                        .clone()
-                        .expect("--parallel-worker requires --coordinator-queue-path");
-                    worker_resolved.done_path = args
-                        .coordinator_done_path
-                        .clone()
-                        .expect("--parallel-worker requires --coordinator-done-path");
+                    worker_resolved.queue_path =
+                        args.coordinator_queue_path.clone().ok_or_else(|| {
+                            anyhow::anyhow!("--parallel-worker requires --coordinator-queue-path")
+                        })?;
+                    worker_resolved.done_path =
+                        args.coordinator_done_path.clone().ok_or_else(|| {
+                            anyhow::anyhow!("--parallel-worker requires --coordinator-done-path")
+                        })?;
                     log::debug!(
                         "parallel worker using coordinator paths: queue={}, done={}",
                         worker_resolved.queue_path.display(),
@@ -99,7 +99,7 @@ pub fn handle_run(cmd: RunCommand, force: bool) -> Result<()> {
                 if let Some(task_id) = args.id.as_deref() {
                     run_cmd::run_one_with_id(&resolved, &overrides, force, task_id, None, None)?;
                 } else {
-                    let _ = run_cmd::run_one(&resolved, &overrides, force, None)?;
+                    run_cmd::run_one(&resolved, &overrides, force, None)?;
                 }
                 Ok(())
             }

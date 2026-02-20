@@ -114,6 +114,9 @@ pub fn start(resolved: &Resolved, args: DaemonStartArgs) -> Result<()> {
             .stderr(log_file);
 
         // Detach from terminal on Unix
+        // SAFETY: pre_exec runs between fork and exec in the child process.
+        // setsid() creates a new session and detaches from controlling terminal.
+        // This is async-signal-safe per POSIX and safe to call here.
         unsafe {
             command.pre_exec(|| {
                 libc::setsid();
