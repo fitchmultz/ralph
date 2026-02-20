@@ -386,8 +386,9 @@ fn set_upstream_to(repo_root: &Path, upstream: &str) -> Result<(), GitError> {
 /// When the push is rejected because the remote has new commits, this will:
 /// - `git fetch origin --prune`
 /// - `git rebase <upstream>`
-/// - retry the push once
+/// - retry push with a bounded number of attempts
 pub fn push_upstream_with_rebase(repo_root: &Path) -> Result<(), GitError> {
+    const MAX_PUSH_ATTEMPTS: usize = 4;
     let branch = current_branch(repo_root).map_err(GitError::Other)?;
     let fallback_upstream = format!("origin/{}", branch);
     let ahead = match is_ahead_of_upstream(repo_root) {
@@ -409,36 +410,39 @@ pub fn push_upstream_with_rebase(repo_root: &Path) -> Result<(), GitError> {
         return Ok(());
     }
 
-    let push_result = match push_upstream(repo_root) {
-        Ok(()) => return Ok(()),
-        Err(GitError::NoUpstream) | Err(GitError::NoUpstreamConfigured) => {
-            push_upstream_allow_create(repo_root)
-        }
-        Err(err) => Err(err),
-    };
-
-    match push_result {
-        Ok(()) => Ok(()),
-        Err(err) if is_non_fast_forward_error(&err) => {
-            let upstream = match upstream_ref(repo_root) {
-                Ok(upstream) => upstream,
-                Err(_) => fallback_upstream,
-            };
-            rebase_onto(repo_root, &upstream)?;
-            if !is_ahead_of_ref(repo_root, &upstream)? {
-                if upstream_ref(repo_root).is_err() {
-                    set_upstream_to(repo_root, &upstream)?;
-                }
-                return Ok(());
-            }
-            if upstream_ref(repo_root).is_ok() {
-                push_upstream(repo_root)
-            } else {
+    let mut last_non_fast_forward: Option<GitError> = None;
+    for _attempt in 0..MAX_PUSH_ATTEMPTS {
+        let push_result = match push_upstream(repo_root) {
+            Ok(()) => return Ok(()),
+            Err(GitError::NoUpstream) | Err(GitError::NoUpstreamConfigured) => {
                 push_upstream_allow_create(repo_root)
             }
+            Err(err) => Err(err),
+        };
+
+        match push_result {
+            Ok(()) => return Ok(()),
+            Err(err) if is_non_fast_forward_error(&err) => {
+                let upstream = match upstream_ref(repo_root) {
+                    Ok(upstream) => upstream,
+                    Err(_) => fallback_upstream.clone(),
+                };
+                rebase_onto(repo_root, &upstream)?;
+                if !is_ahead_of_ref(repo_root, &upstream)? {
+                    if upstream_ref(repo_root).is_err() {
+                        set_upstream_to(repo_root, &upstream)?;
+                    }
+                    return Ok(());
+                }
+                last_non_fast_forward = Some(err);
+                continue;
+            }
+            Err(err) => return Err(err),
         }
-        Err(err) => Err(err),
     }
+
+    Err(last_non_fast_forward
+        .unwrap_or_else(|| GitError::PushFailed("rebase-aware push exhausted retries".to_string())))
 }
 
 #[cfg(test)]

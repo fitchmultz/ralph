@@ -25,10 +25,18 @@ use super::PushPolicy;
 use super::ci::{ci_gate_command_label, run_ci_gate, run_ci_gate_with_continue_session};
 use super::git_ops::{finalize_git_state, warn_if_modified_lfs};
 
-const PARALLEL_BOOKKEEPING_PATHS: [&str; 3] = [
+const PARALLEL_BOOKKEEPING_PATHS: [&str; 11] = [
     ".ralph/queue.json",
+    ".ralph/queue.jsonc",
     ".ralph/done.json",
+    ".ralph/done.jsonc",
     ".ralph/cache/productivity.json",
+    ".ralph/cache/plans/",
+    ".ralph/cache/phase2_final/",
+    ".ralph/cache/session.json",
+    ".ralph/cache/migrations.json",
+    ".ralph/cache/parallel/",
+    ".ralph/logs/",
 ];
 
 /// Post-run supervision for parallel workers.
@@ -217,15 +225,50 @@ fn restore_parallel_worker_bookkeeping(resolved: &crate::config::Resolved) -> Re
     // outside the workspace repo. Always restore the workspace-local bookkeeping
     // files so they are excluded from worker commits and rebases.
     let workspace_queue_path = resolved.repo_root.join(".ralph").join("queue.json");
+    let workspace_queue_jsonc_path = resolved.repo_root.join(".ralph").join("queue.jsonc");
     let workspace_done_path = resolved.repo_root.join(".ralph").join("done.json");
+    let workspace_done_jsonc_path = resolved.repo_root.join(".ralph").join("done.jsonc");
     let productivity_path = resolved
         .repo_root
         .join(".ralph")
         .join("cache")
         .join("productivity.json");
-    let paths = vec![workspace_queue_path, workspace_done_path, productivity_path];
+    let paths = vec![
+        workspace_queue_path,
+        workspace_queue_jsonc_path,
+        workspace_done_path,
+        workspace_done_jsonc_path,
+        productivity_path,
+    ];
     git::restore_tracked_paths_to_head(&resolved.repo_root, &paths)
         .context("restore queue/done/productivity to HEAD")?;
+    remove_parallel_worker_generated_artifacts(&resolved.repo_root)?;
+    Ok(())
+}
+
+fn remove_parallel_worker_generated_artifacts(repo_root: &std::path::Path) -> Result<()> {
+    let generated_paths = [
+        repo_root.join(".ralph/cache/plans"),
+        repo_root.join(".ralph/cache/phase2_final"),
+        repo_root.join(".ralph/cache/session.json"),
+        repo_root.join(".ralph/cache/migrations.json"),
+        repo_root.join(".ralph/cache/parallel"),
+        repo_root.join(".ralph/logs"),
+    ];
+
+    for path in generated_paths {
+        if !path.exists() {
+            continue;
+        }
+        if path.is_dir() {
+            std::fs::remove_dir_all(&path)
+                .with_context(|| format!("remove generated directory {}", path.display()))?;
+        } else {
+            std::fs::remove_file(&path)
+                .with_context(|| format!("remove generated file {}", path.display()))?;
+        }
+    }
+
     Ok(())
 }
 
@@ -454,5 +497,67 @@ A  docs/notes.md
 
         let matches = collect_bookkeeping_status_lines(status);
         assert!(matches.is_empty());
+    }
+
+    #[test]
+    fn collect_bookkeeping_status_lines_matches_generated_cache_paths() {
+        let status = "\
+?? .ralph/cache/plans/RQ-0001.md
+?? .ralph/cache/phase2_final/RQ-0001.md
+?? .ralph/logs/parallel-debug.log
+M  src/lib.rs
+";
+
+        let matches = collect_bookkeeping_status_lines(status);
+        assert_eq!(matches.len(), 3);
+        assert!(matches[0].contains(".ralph/cache/plans/RQ-0001.md"));
+        assert!(matches[1].contains(".ralph/cache/phase2_final/RQ-0001.md"));
+        assert!(matches[2].contains(".ralph/logs/parallel-debug.log"));
+    }
+
+    #[test]
+    fn restore_bookkeeping_removes_generated_worker_cache_artifacts() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let repo_root = temp.path().join("workspace");
+        std::fs::create_dir_all(repo_root.join(".ralph/cache")).unwrap();
+        git_test::init_repo(&repo_root).unwrap();
+
+        let workspace_queue = repo_root.join(".ralph/queue.json");
+        let workspace_done = repo_root.join(".ralph/done.json");
+        let productivity = repo_root.join(".ralph/cache/productivity.json");
+        std::fs::write(&workspace_queue, "{\"version\":1,\"tasks\":[]}").unwrap();
+        std::fs::write(&workspace_done, "{\"version\":1,\"tasks\":[]}").unwrap();
+        std::fs::write(&productivity, "{\"stats\":[]}").unwrap();
+        git_test::commit_all(&repo_root, "init bookkeeping").unwrap();
+
+        let generated_plan = repo_root.join(".ralph/cache/plans/RQ-0001.md");
+        let generated_phase2 = repo_root.join(".ralph/cache/phase2_final/RQ-0001.md");
+        let generated_session = repo_root.join(".ralph/cache/session.json");
+        let generated_logs = repo_root.join(".ralph/logs/parallel.log");
+        std::fs::create_dir_all(generated_plan.parent().unwrap()).unwrap();
+        std::fs::create_dir_all(generated_phase2.parent().unwrap()).unwrap();
+        std::fs::create_dir_all(generated_logs.parent().unwrap()).unwrap();
+        std::fs::write(&generated_plan, "plan").unwrap();
+        std::fs::write(&generated_phase2, "phase2").unwrap();
+        std::fs::write(&generated_session, "{\"task\":\"RQ-0001\"}").unwrap();
+        std::fs::write(&generated_logs, "debug").unwrap();
+
+        let resolved = crate::config::Resolved {
+            config: Config::default(),
+            repo_root: repo_root.clone(),
+            queue_path: workspace_queue.clone(),
+            done_path: workspace_done.clone(),
+            id_prefix: "RQ".to_string(),
+            id_width: 4,
+            global_config_path: None,
+            project_config_path: None,
+        };
+
+        restore_parallel_worker_bookkeeping(&resolved).unwrap();
+
+        assert!(!generated_plan.exists());
+        assert!(!generated_phase2.exists());
+        assert!(!generated_session.exists());
+        assert!(!generated_logs.exists());
     }
 }
