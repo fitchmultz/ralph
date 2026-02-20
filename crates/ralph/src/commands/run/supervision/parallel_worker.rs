@@ -14,6 +14,7 @@
 
 use crate::contracts::GitRevertMode;
 use crate::git;
+use crate::promptflow;
 use crate::queue;
 use crate::runutil;
 use crate::timeutil;
@@ -165,14 +166,14 @@ pub(crate) fn post_run_supervise_parallel_worker(
             }
         }
 
-        restore_parallel_worker_bookkeeping(resolved)?;
+        restore_parallel_worker_bookkeeping(resolved, task_id)?;
 
         let mut status = git::status_porcelain(&resolved.repo_root)?;
         let mut bookkeeping_lines = collect_bookkeeping_status_lines(&status);
         if !bookkeeping_lines.is_empty() {
             // Defensive retry: if any parallel bookkeeping files still show up in status,
             // restore once more and fail fast if they remain dirty.
-            restore_parallel_worker_bookkeeping(resolved)?;
+            restore_parallel_worker_bookkeeping(resolved, task_id)?;
             status = git::status_porcelain(&resolved.repo_root)?;
             bookkeeping_lines = collect_bookkeeping_status_lines(&status);
             if !bookkeeping_lines.is_empty() {
@@ -220,7 +221,10 @@ fn task_title_from_queue_or_done(
     Ok(None)
 }
 
-fn restore_parallel_worker_bookkeeping(resolved: &crate::config::Resolved) -> Result<()> {
+fn restore_parallel_worker_bookkeeping(
+    resolved: &crate::config::Resolved,
+    task_id: &str,
+) -> Result<()> {
     // In parallel worker mode, queue/done may be overridden to coordinator paths
     // outside the workspace repo. Always restore the workspace-local bookkeeping
     // files so they are excluded from worker commits and rebases.
@@ -242,13 +246,17 @@ fn restore_parallel_worker_bookkeeping(resolved: &crate::config::Resolved) -> Re
     ];
     git::restore_tracked_paths_to_head(&resolved.repo_root, &paths)
         .context("restore queue/done/productivity to HEAD")?;
-    remove_parallel_worker_generated_artifacts(&resolved.repo_root)?;
+    remove_parallel_worker_generated_artifacts(&resolved.repo_root, task_id)?;
     Ok(())
 }
 
-fn remove_parallel_worker_generated_artifacts(repo_root: &std::path::Path) -> Result<()> {
+fn remove_parallel_worker_generated_artifacts(
+    repo_root: &std::path::Path,
+    task_id: &str,
+) -> Result<()> {
+    cleanup_plan_cache(repo_root, task_id)?;
+
     let generated_paths = [
-        repo_root.join(".ralph/cache/plans"),
         repo_root.join(".ralph/cache/phase2_final"),
         repo_root.join(".ralph/cache/session.json"),
         repo_root.join(".ralph/cache/migrations.json"),
@@ -268,6 +276,30 @@ fn remove_parallel_worker_generated_artifacts(repo_root: &std::path::Path) -> Re
                 .with_context(|| format!("remove generated file {}", path.display()))?;
         }
     }
+
+    Ok(())
+}
+
+fn cleanup_plan_cache(repo_root: &std::path::Path, task_id: &str) -> Result<()> {
+    let trimmed = task_id.trim();
+    if trimmed.is_empty() {
+        return Ok(());
+    }
+    let plan_path = promptflow::plan_cache_path(repo_root, trimmed);
+
+    if plan_path.exists() {
+        if plan_path.is_dir() {
+            std::fs::remove_dir_all(&plan_path).with_context(|| {
+                format!("remove generated plan directory {}", plan_path.display())
+            })?;
+        } else {
+            std::fs::remove_file(&plan_path)
+                .with_context(|| format!("remove generated plan cache {}", plan_path.display()))?;
+        }
+    }
+
+    git::restore_tracked_paths_to_head(repo_root, &[plan_path])
+        .context("restore tracked plan cache to HEAD")?;
 
     Ok(())
 }
@@ -455,7 +487,7 @@ mod tests {
             project_config_path: None,
         };
 
-        restore_parallel_worker_bookkeeping(&resolved).unwrap();
+        restore_parallel_worker_bookkeeping(&resolved, "RQ-0001").unwrap();
 
         // Workspace files restored to committed content.
         assert_eq!(
@@ -553,11 +585,49 @@ M  src/lib.rs
             project_config_path: None,
         };
 
-        restore_parallel_worker_bookkeeping(&resolved).unwrap();
+        restore_parallel_worker_bookkeeping(&resolved, "RQ-0001").unwrap();
 
         assert!(!generated_plan.exists());
         assert!(!generated_phase2.exists());
         assert!(!generated_session.exists());
         assert!(!generated_logs.exists());
+    }
+
+    #[test]
+    fn restore_bookkeeping_restores_tracked_plan_cache() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let repo_root = temp.path().join("workspace");
+        std::fs::create_dir_all(repo_root.join(".ralph/cache")).unwrap();
+        git_test::init_repo(&repo_root).unwrap();
+
+        let workspace_queue = repo_root.join(".ralph/queue.json");
+        let workspace_done = repo_root.join(".ralph/done.json");
+        let productivity = repo_root.join(".ralph/cache/productivity.json");
+        std::fs::write(&workspace_queue, "{\"version\":1,\"tasks\":[]}").unwrap();
+        std::fs::write(&workspace_done, "{\"version\":1,\"tasks\":[]}").unwrap();
+        std::fs::write(&productivity, "{\"stats\":[]}").unwrap();
+        git_test::commit_all(&repo_root, "init bookkeeping").unwrap();
+
+        let plan_path = repo_root.join(".ralph/cache/plans/RQ-0001.md");
+        std::fs::create_dir_all(plan_path.parent().unwrap()).unwrap();
+        std::fs::write(&plan_path, "initial plan").unwrap();
+        git_test::commit_all(&repo_root, "track plan cache").unwrap();
+
+        std::fs::write(&plan_path, "generated plan").unwrap();
+
+        let resolved = crate::config::Resolved {
+            config: Config::default(),
+            repo_root: repo_root.clone(),
+            queue_path: workspace_queue.clone(),
+            done_path: workspace_done.clone(),
+            id_prefix: "RQ".to_string(),
+            id_width: 4,
+            global_config_path: None,
+            project_config_path: None,
+        };
+
+        restore_parallel_worker_bookkeeping(&resolved, "RQ-0001").unwrap();
+
+        assert_eq!(std::fs::read_to_string(&plan_path).unwrap(), "initial plan");
     }
 }
