@@ -17,6 +17,7 @@
 //! - Project config lives at `.ralph/config.json` relative to repo root.
 
 use crate::constants::defaults::DEFAULT_ID_WIDTH;
+use crate::constants::queue::{DEFAULT_DONE_FILE, DEFAULT_ID_PREFIX, DEFAULT_QUEUE_FILE};
 use crate::contracts::Config;
 use crate::fsutil;
 use crate::prompts_internal::util::validate_instruction_file_paths;
@@ -157,7 +158,7 @@ pub fn prefer_json_then_jsonc(json_path: PathBuf) -> PathBuf {
 /// Resolve the queue ID prefix from config.
 pub fn resolve_id_prefix(cfg: &Config) -> Result<String> {
     validate_queue_id_prefix_override(cfg.queue.id_prefix.as_deref())?;
-    let raw = cfg.queue.id_prefix.as_deref().unwrap_or("RQ");
+    let raw = cfg.queue.id_prefix.as_deref().unwrap_or(DEFAULT_ID_PREFIX);
     Ok(raw.trim().to_uppercase())
 }
 
@@ -176,10 +177,10 @@ pub fn resolve_queue_path(repo_root: &Path, cfg: &Config) -> Result<PathBuf> {
         .queue
         .file
         .clone()
-        .unwrap_or_else(|| PathBuf::from(".ralph/queue.json"));
+        .unwrap_or_else(|| PathBuf::from(DEFAULT_QUEUE_FILE));
 
     // Check if this is the default path (we'll apply .jsonc fallback to defaults)
-    let is_default = raw.as_os_str() == ".ralph/queue.json";
+    let is_default = raw.as_os_str() == DEFAULT_QUEUE_FILE;
 
     let value = fsutil::expand_tilde(&raw);
     let resolved = if value.is_absolute() {
@@ -206,10 +207,10 @@ pub fn resolve_done_path(repo_root: &Path, cfg: &Config) -> Result<PathBuf> {
         .queue
         .done_file
         .clone()
-        .unwrap_or_else(|| PathBuf::from(".ralph/done.json"));
+        .unwrap_or_else(|| PathBuf::from(DEFAULT_DONE_FILE));
 
     // Check if this is the default path (we'll apply .jsonc fallback to defaults)
-    let is_default = raw.as_os_str() == ".ralph/done.json";
+    let is_default = raw.as_os_str() == DEFAULT_DONE_FILE;
 
     let value = fsutil::expand_tilde(&raw);
     let resolved = if value.is_absolute() {
