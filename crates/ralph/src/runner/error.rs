@@ -284,4 +284,246 @@ mod tests {
         assert!(msg.contains("bin=gemini"));
         assert!(msg.contains("capture child stdout"));
     }
+
+    // Tests for looks_like_rate_limit
+    #[test]
+    fn looks_like_rate_limit_detects_429() {
+        assert!(looks_like_rate_limit("Error 429"));
+        assert!(looks_like_rate_limit("HTTP 429"));
+        assert!(!looks_like_rate_limit("Error 500"));
+    }
+
+    #[test]
+    fn looks_like_rate_limit_detects_variations() {
+        assert!(looks_like_rate_limit("rate limit exceeded"));
+        assert!(looks_like_rate_limit("Rate Limit Exceeded"));
+        assert!(looks_like_rate_limit("too many requests"));
+        assert!(looks_like_rate_limit("Too Many Requests"));
+        assert!(looks_like_rate_limit("quota exceeded"));
+        assert!(looks_like_rate_limit("API throttled"));
+    }
+
+    #[test]
+    fn looks_like_rate_limit_negative_cases() {
+        assert!(!looks_like_rate_limit("success"));
+        assert!(!looks_like_rate_limit("internal server error"));
+        assert!(!looks_like_rate_limit(""));
+    }
+
+    // Tests for looks_like_temporary_unavailable
+    #[test]
+    fn looks_like_temporary_unavailable_detects_503() {
+        assert!(looks_like_temporary_unavailable("Error 503"));
+        assert!(looks_like_temporary_unavailable("HTTP 503"));
+    }
+
+    #[test]
+    fn looks_like_temporary_unavailable_detects_gateway_errors() {
+        assert!(looks_like_temporary_unavailable("502 Bad Gateway"));
+        assert!(looks_like_temporary_unavailable("504 Gateway Timeout"));
+    }
+
+    #[test]
+    fn looks_like_temporary_unavailable_detects_variations() {
+        assert!(looks_like_temporary_unavailable("service unavailable"));
+        assert!(looks_like_temporary_unavailable("Service Unavailable"));
+        assert!(looks_like_temporary_unavailable("temporarily unavailable"));
+        assert!(looks_like_temporary_unavailable("gateway timeout"));
+    }
+
+    #[test]
+    fn looks_like_temporary_unavailable_negative_cases() {
+        assert!(!looks_like_temporary_unavailable("success"));
+        assert!(!looks_like_temporary_unavailable("Error 404"));
+        assert!(!looks_like_temporary_unavailable(""));
+    }
+
+    // Tests for looks_like_auth_required
+    #[test]
+    fn looks_like_auth_required_detects_401() {
+        let runner = Runner::Gemini;
+        assert!(looks_like_auth_required(&runner, "Error 401"));
+        assert!(looks_like_auth_required(&runner, "HTTP 401"));
+    }
+
+    #[test]
+    fn looks_like_auth_required_detects_variations() {
+        let runner = Runner::Gemini;
+        assert!(looks_like_auth_required(&runner, "unauthorized"));
+        assert!(looks_like_auth_required(&runner, "Unauthorized"));
+        assert!(looks_like_auth_required(&runner, "invalid api key"));
+        assert!(looks_like_auth_required(&runner, "not logged in"));
+        assert!(looks_like_auth_required(&runner, "authentication failed"));
+        assert!(looks_like_auth_required(&runner, "access denied"));
+    }
+
+    #[test]
+    fn looks_like_auth_required_negative_cases() {
+        let runner = Runner::Gemini;
+        assert!(!looks_like_auth_required(&runner, "success"));
+        assert!(!looks_like_auth_required(&runner, "Error 500"));
+        assert!(!looks_like_auth_required(&runner, ""));
+    }
+
+    // Tests for classify() method - NonZeroExit
+    #[test]
+    fn classify_returns_retryable_for_rate_limit() {
+        let err = RunnerError::NonZeroExit {
+            code: 1,
+            stdout: "rate limit exceeded".into(),
+            stderr: "".into(),
+            session_id: None,
+        };
+        let runner = Runner::Gemini;
+        match err.classify(&runner) {
+            RunnerFailureClass::Retryable(RetryableReason::RateLimited) => {}
+            other => panic!("Expected RateLimited, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn classify_returns_retryable_for_503() {
+        let err = RunnerError::NonZeroExit {
+            code: 1,
+            stdout: "".into(),
+            stderr: "HTTP 503 Service Unavailable".into(),
+            session_id: None,
+        };
+        let runner = Runner::Gemini;
+        match err.classify(&runner) {
+            RunnerFailureClass::Retryable(RetryableReason::TemporaryUnavailable) => {}
+            other => panic!("Expected TemporaryUnavailable, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn classify_returns_requires_user_input_for_auth() {
+        let err = RunnerError::NonZeroExit {
+            code: 1,
+            stdout: "401 Unauthorized".into(),
+            stderr: "".into(),
+            session_id: None,
+        };
+        let runner = Runner::Gemini;
+        match err.classify(&runner) {
+            RunnerFailureClass::RequiresUserInput(UserInputReason::Auth) => {}
+            other => panic!("Expected Auth, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn classify_returns_non_retryable_for_fatal_exit() {
+        let err = RunnerError::NonZeroExit {
+            code: 1,
+            stdout: "some random error".into(),
+            stderr: "no matching pattern".into(),
+            session_id: None,
+        };
+        let runner = Runner::Gemini;
+        match err.classify(&runner) {
+            RunnerFailureClass::NonRetryable(NonRetryableReason::FatalExit) => {}
+            other => panic!("Expected FatalExit, got {:?}", other),
+        }
+    }
+
+    // Tests for classify() method - Other Error Variants
+    #[test]
+    fn classify_binary_missing_requires_user_input() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "not found");
+        let err = RunnerError::BinaryMissing {
+            bin: "test".to_string(),
+            source: io_err,
+        };
+        let runner = Runner::Gemini;
+        match err.classify(&runner) {
+            RunnerFailureClass::RequiresUserInput(UserInputReason::MissingBinary) => {}
+            other => panic!("Expected MissingBinary, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn classify_timeout_is_retryable() {
+        let err = RunnerError::Timeout;
+        let runner = Runner::Gemini;
+        match err.classify(&runner) {
+            RunnerFailureClass::Retryable(RetryableReason::TemporaryUnavailable) => {}
+            other => panic!("Expected TemporaryUnavailable, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn classify_interrupted_is_non_retryable() {
+        let err = RunnerError::Interrupted;
+        let runner = Runner::Gemini;
+        match err.classify(&runner) {
+            RunnerFailureClass::NonRetryable(NonRetryableReason::FatalExit) => {}
+            other => panic!("Expected FatalExit, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn classify_io_transient_errors_are_retryable() {
+        use std::io::ErrorKind;
+
+        let transient_kinds = [
+            ErrorKind::TimedOut,
+            ErrorKind::ConnectionReset,
+            ErrorKind::ConnectionAborted,
+            ErrorKind::ConnectionRefused,
+            ErrorKind::NotConnected,
+            ErrorKind::UnexpectedEof,
+            ErrorKind::WouldBlock,
+        ];
+
+        for kind in &transient_kinds {
+            let io_err = std::io::Error::new(*kind, "transient error");
+            let err = RunnerError::Io(io_err);
+            let runner = Runner::Gemini;
+            match err.classify(&runner) {
+                RunnerFailureClass::Retryable(RetryableReason::TransientIo) => {}
+                other => panic!("Expected TransientIo for {:?}, got {:?}", kind, other),
+            }
+        }
+    }
+
+    #[test]
+    fn classify_io_other_errors_are_non_retryable() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "permission denied");
+        let err = RunnerError::Io(io_err);
+        let runner = Runner::Gemini;
+        match err.classify(&runner) {
+            RunnerFailureClass::NonRetryable(NonRetryableReason::FatalExit) => {}
+            other => panic!("Expected FatalExit, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn classify_other_error_with_rate_limit_pattern() {
+        let err = RunnerError::Other(anyhow!("429 rate limit exceeded"));
+        let runner = Runner::Gemini;
+        match err.classify(&runner) {
+            RunnerFailureClass::Retryable(RetryableReason::RateLimited) => {}
+            other => panic!("Expected RateLimited, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn classify_other_error_with_auth_pattern() {
+        let err = RunnerError::Other(anyhow!("401 invalid api key"));
+        let runner = Runner::Gemini;
+        match err.classify(&runner) {
+            RunnerFailureClass::RequiresUserInput(UserInputReason::Auth) => {}
+            other => panic!("Expected Auth, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn classify_other_error_without_pattern_is_non_retryable() {
+        let err = RunnerError::Other(anyhow!("some generic error"));
+        let runner = Runner::Gemini;
+        match err.classify(&runner) {
+            RunnerFailureClass::NonRetryable(NonRetryableReason::FatalExit) => {}
+            other => panic!("Expected FatalExit, got {:?}", other),
+        }
+    }
 }
