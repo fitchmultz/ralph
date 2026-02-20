@@ -303,13 +303,80 @@ fn is_non_fast_forward_error(err: &GitError) -> bool {
     };
     let lower = detail.to_lowercase();
     lower.contains("non-fast-forward")
+        || lower.contains("non fast-forward")
         || lower.contains("fetch first")
         || lower.contains("rejected")
+        || lower.contains("updates were rejected")
 }
 
 fn rebase_onto(repo_root: &Path, upstream: &str) -> Result<(), GitError> {
     git_run(repo_root, &["fetch", "origin", "--prune"])?;
     git_run(repo_root, &["rebase", upstream])?;
+    Ok(())
+}
+
+fn reference_exists(repo_root: &Path, reference: &str) -> Result<bool, GitError> {
+    let output = git_base_command(repo_root)
+        .args(["rev-parse", "--verify", "--quiet", reference])
+        .output()
+        .with_context(|| {
+            format!(
+                "run git rev-parse --verify --quiet {} in {}",
+                reference,
+                repo_root.display()
+            )
+        })?;
+    if output.status.success() {
+        return Ok(true);
+    }
+    if output.status.code() == Some(1) {
+        return Ok(false);
+    }
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    Err(GitError::CommandFailed {
+        args: format!("rev-parse --verify --quiet {}", reference),
+        code: output.status.code(),
+        stderr: stderr.trim().to_string(),
+    })
+}
+
+fn is_ahead_of_ref(repo_root: &Path, reference: &str) -> Result<bool, GitError> {
+    let range = format!("{reference}...HEAD");
+    let output = git_base_command(repo_root)
+        .arg("rev-list")
+        .arg("--left-right")
+        .arg("--count")
+        .arg(range)
+        .output()
+        .with_context(|| {
+            format!(
+                "run git rev-list --left-right --count in {}",
+                repo_root.display()
+            )
+        })?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        return Err(GitError::CommandFailed {
+            args: "rev-list --left-right --count".to_string(),
+            code: output.status.code(),
+            stderr: stderr.trim().to_string(),
+        });
+    }
+
+    let counts = String::from_utf8_lossy(&output.stdout);
+    let parts: Vec<&str> = counts.split_whitespace().collect();
+    if parts.len() != 2 {
+        return Err(GitError::UnexpectedRevListOutput(counts.trim().to_string()));
+    }
+
+    let ahead: u32 = parts[1].parse().context("parse ahead count")?;
+    Ok(ahead > 0)
+}
+
+fn set_upstream_to(repo_root: &Path, upstream: &str) -> Result<(), GitError> {
+    git_run(repo_root, &["branch", "--set-upstream-to", upstream])
+        .with_context(|| format!("set upstream to {} in {}", upstream, repo_root.display()))?;
     Ok(())
 }
 
@@ -321,13 +388,24 @@ fn rebase_onto(repo_root: &Path, upstream: &str) -> Result<(), GitError> {
 /// - `git rebase <upstream>`
 /// - retry the push once
 pub fn push_upstream_with_rebase(repo_root: &Path) -> Result<(), GitError> {
+    let branch = current_branch(repo_root).map_err(GitError::Other)?;
+    let fallback_upstream = format!("origin/{}", branch);
     let ahead = match is_ahead_of_upstream(repo_root) {
         Ok(ahead) => ahead,
-        Err(GitError::NoUpstream) | Err(GitError::NoUpstreamConfigured) => true,
+        Err(GitError::NoUpstream) | Err(GitError::NoUpstreamConfigured) => {
+            if reference_exists(repo_root, &fallback_upstream)? {
+                is_ahead_of_ref(repo_root, &fallback_upstream)?
+            } else {
+                true
+            }
+        }
         Err(err) => return Err(err),
     };
 
     if !ahead {
+        if upstream_ref(repo_root).is_err() && reference_exists(repo_root, &fallback_upstream)? {
+            set_upstream_to(repo_root, &fallback_upstream)?;
+        }
         return Ok(());
     }
 
@@ -344,12 +422,15 @@ pub fn push_upstream_with_rebase(repo_root: &Path) -> Result<(), GitError> {
         Err(err) if is_non_fast_forward_error(&err) => {
             let upstream = match upstream_ref(repo_root) {
                 Ok(upstream) => upstream,
-                Err(_) => {
-                    let branch = current_branch(repo_root).map_err(GitError::Other)?;
-                    format!("origin/{}", branch)
-                }
+                Err(_) => fallback_upstream,
             };
             rebase_onto(repo_root, &upstream)?;
+            if !is_ahead_of_ref(repo_root, &upstream)? {
+                if upstream_ref(repo_root).is_err() {
+                    set_upstream_to(repo_root, &upstream)?;
+                }
+                return Ok(());
+            }
             if upstream_ref(repo_root).is_ok() {
                 push_upstream(repo_root)
             } else {
@@ -397,6 +478,49 @@ mod tests {
         )?;
         let parts: Vec<&str> = counts.split_whitespace().collect();
         assert_eq!(parts, vec!["0", "0"]);
+
+        Ok(())
+    }
+
+    #[test]
+    fn push_upstream_with_rebase_sets_upstream_when_remote_branch_exists_and_local_is_behind()
+    -> anyhow::Result<()> {
+        let remote = TempDir::new()?;
+        git_test::init_bare_repo(remote.path())?;
+
+        let seed = TempDir::new()?;
+        git_test::init_repo(seed.path())?;
+        git_test::add_remote(seed.path(), "origin", remote.path())?;
+        std::fs::write(seed.path().join("base.txt"), "base\n")?;
+        git_test::commit_all(seed.path(), "init")?;
+        git_test::git_run(seed.path(), &["push", "-u", "origin", "HEAD"])?;
+        git_test::git_run(seed.path(), &["checkout", "-b", "ralph/RQ-0940"])?;
+        std::fs::write(seed.path().join("task.txt"), "remote-only\n")?;
+        git_test::commit_all(seed.path(), "remote task")?;
+        git_test::git_run(seed.path(), &["push", "-u", "origin", "ralph/RQ-0940"])?;
+
+        let local = TempDir::new()?;
+        git_test::clone_repo(remote.path(), local.path())?;
+        git_test::configure_user(local.path())?;
+        git_test::git_run(
+            local.path(),
+            &[
+                "checkout",
+                "--no-track",
+                "-b",
+                "ralph/RQ-0940",
+                "origin/main",
+            ],
+        )?;
+
+        // This used to fail with non-fast-forward when no upstream was set locally.
+        push_upstream_with_rebase(local.path())?;
+
+        let upstream = git_test::git_output(
+            local.path(),
+            &["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
+        )?;
+        assert_eq!(upstream, "origin/ralph/RQ-0940");
 
         Ok(())
     }

@@ -64,9 +64,9 @@ pub(crate) fn push_if_ahead(repo_root: &Path, push_policy: PushPolicy) -> Result
                 Ok(())
             }
             PushPolicy::AllowCreateUpstream => {
-                if let Err(err) = git::push_upstream_allow_create(repo_root) {
+                if let Err(err) = git::push_upstream_with_rebase(repo_root) {
                     bail!(
-                        "Git push failed: unable to create upstream for this branch. Push manually to sync with upstream. Error: {:#}",
+                        "Git push failed: unable to sync branch without upstream using rebase-aware push. Push manually to sync with upstream. Error: {:#}",
                         err
                     );
                 }
@@ -287,6 +287,49 @@ mod tests {
             &["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
         )?;
         assert!(upstream.starts_with("origin/"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn push_if_ahead_allow_create_handles_existing_remote_branch_without_local_upstream()
+    -> Result<()> {
+        let remote = TempDir::new()?;
+        git_test::init_bare_repo(remote.path())?;
+
+        let seed = TempDir::new()?;
+        git_test::init_repo(seed.path())?;
+        git_test::add_remote(seed.path(), "origin", remote.path())?;
+        std::fs::write(seed.path().join("base.txt"), "base\n")?;
+        git_test::commit_all(seed.path(), "init")?;
+        git_test::git_run(seed.path(), &["push", "-u", "origin", "HEAD"])?;
+        git_test::git_run(seed.path(), &["checkout", "-b", "ralph/RQ-0940"])?;
+        std::fs::write(seed.path().join("task.txt"), "remote-only\n")?;
+        git_test::commit_all(seed.path(), "remote task")?;
+        git_test::git_run(seed.path(), &["push", "-u", "origin", "ralph/RQ-0940"])?;
+
+        let local = TempDir::new()?;
+        git_test::clone_repo(remote.path(), local.path())?;
+        git_test::configure_user(local.path())?;
+        git_test::git_run(
+            local.path(),
+            &[
+                "checkout",
+                "--no-track",
+                "-b",
+                "ralph/RQ-0940",
+                "origin/main",
+            ],
+        )?;
+
+        // Should not fail with non-fast-forward; should attach upstream and continue.
+        push_if_ahead(local.path(), PushPolicy::AllowCreateUpstream)?;
+
+        let upstream = git_test::git_output(
+            local.path(),
+            &["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
+        )?;
+        assert_eq!(upstream, "origin/ralph/RQ-0940");
 
         Ok(())
     }
