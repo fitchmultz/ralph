@@ -47,6 +47,7 @@ crossbeam-channel = "0.5"
 # libc is only used on Unix platforms for process group control and PID liveness detection
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
+signal-hook = "0.3"
 
 # windows-sys is used on Windows platforms for PID liveness detection and sound playback
 [target.'cfg(windows)'.dependencies]
