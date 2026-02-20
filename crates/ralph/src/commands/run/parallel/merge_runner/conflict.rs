@@ -255,7 +255,6 @@ fn run_merge_runner_prompt_for_conflicts(
     cmd.arg("--output-format").arg("stream-json");
     cmd.arg("--full-auto");
     cmd.arg(&prompt_path);
-    crate::runutil::sanitize_run_scoped_overrides(&mut cmd);
 
     // Execute the runner
     let status = cmd.status().context("execute merge conflict runner")?;

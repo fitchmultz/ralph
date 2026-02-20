@@ -5,7 +5,6 @@
 //! - Test config validation.
 //! - Test path resolution.
 //! - Test instruction_files validation.
-//! - Test repo root override functionality.
 //! - Test queue validation consistency.
 //!
 //! Not handled here:
@@ -15,17 +14,13 @@ use super::super::contracts::{Config, GitRevertMode};
 use super::super::prompts_internal::util::validate_instruction_file_paths;
 use super::layer::{ConfigLayer, apply_layer, load_layer, save_layer};
 use super::resolution::{
-    DONE_PATH_OVERRIDE_ENV, QUEUE_PATH_OVERRIDE_ENV, REPO_ROOT_OVERRIDE_ENV, resolve_done_path,
-    resolve_from_cwd, resolve_id_prefix, resolve_id_width, resolve_queue_path,
+    resolve_done_path, resolve_id_prefix, resolve_id_width, resolve_queue_path,
 };
 use super::validation::{
     ERR_EMPTY_QUEUE_DONE_FILE, ERR_EMPTY_QUEUE_FILE, ERR_EMPTY_QUEUE_ID_PREFIX,
     ERR_INVALID_QUEUE_ID_WIDTH, validate_config,
 };
 use anyhow::Result;
-use serial_test::serial;
-use std::env;
-use std::fs;
 use std::path::PathBuf;
 
 #[test]
@@ -335,103 +330,6 @@ fn validate_instruction_file_paths_validates_all_files_and_fails_on_first_error(
     );
 }
 
-#[test]
-#[serial]
-fn resolve_from_cwd_uses_repo_root_override_when_set() -> Result<()> {
-    let temp = tempfile::TempDir::new()?;
-    let repo_root = temp.path().join("repo");
-    let workspace = repo_root.join("workspace");
-    let workspace_rel = PathBuf::from("repo/workspace");
-
-    fs::create_dir_all(workspace.join(".git"))?;
-    fs::create_dir_all(workspace.join(".ralph"))?;
-    fs::write(workspace.join(".ralph/queue.json"), "{}")?;
-
-    let original_dir = env::current_dir()?;
-    let prior_override = env::var_os(REPO_ROOT_OVERRIDE_ENV);
-
-    env::set_current_dir(temp.path())?;
-    unsafe { env::set_var(REPO_ROOT_OVERRIDE_ENV, &workspace_rel) };
-
-    let resolved = resolve_from_cwd()?;
-    // Canonicalize both paths to handle platform differences (e.g., macOS /private/var vs /var)
-    let resolved_canonical = resolved
-        .repo_root
-        .canonicalize()
-        .unwrap_or(resolved.repo_root.clone());
-    let workspace_canonical = workspace.canonicalize().unwrap_or(workspace);
-    assert_eq!(resolved_canonical, workspace_canonical);
-
-    match prior_override {
-        Some(value) => unsafe { env::set_var(REPO_ROOT_OVERRIDE_ENV, value) },
-        None => unsafe { env::remove_var(REPO_ROOT_OVERRIDE_ENV) },
-    };
-    env::set_current_dir(original_dir)?;
-
-    Ok(())
-}
-
-#[test]
-#[serial]
-fn resolve_from_cwd_rejects_missing_repo_root_override() {
-    let temp = tempfile::TempDir::new().expect("tempdir");
-    let missing = temp.path().join("missing");
-
-    let original_dir = env::current_dir().expect("cwd");
-    let prior_override = env::var_os(REPO_ROOT_OVERRIDE_ENV);
-
-    env::set_current_dir(temp.path()).expect("chdir");
-    unsafe { env::set_var(REPO_ROOT_OVERRIDE_ENV, &missing) };
-
-    let err = resolve_from_cwd().expect_err("missing override should fail");
-    assert!(
-        err.to_string().contains(REPO_ROOT_OVERRIDE_ENV),
-        "error should mention {}: {}",
-        REPO_ROOT_OVERRIDE_ENV,
-        err
-    );
-
-    match prior_override {
-        Some(value) => unsafe { env::set_var(REPO_ROOT_OVERRIDE_ENV, value) },
-        None => unsafe { env::remove_var(REPO_ROOT_OVERRIDE_ENV) },
-    };
-    env::set_current_dir(original_dir).expect("restore cwd");
-}
-
-#[test]
-#[serial]
-fn resolve_queue_path_uses_env_override_when_set() {
-    let cfg = Config::default();
-    let repo_root = PathBuf::from("/repo");
-    let prior_override = env::var_os(QUEUE_PATH_OVERRIDE_ENV);
-
-    unsafe { env::set_var(QUEUE_PATH_OVERRIDE_ENV, "shared/queue.json") };
-    let resolved = resolve_queue_path(&repo_root, &cfg).expect("queue path override");
-    assert_eq!(resolved, repo_root.join("shared/queue.json"));
-
-    match prior_override {
-        Some(value) => unsafe { env::set_var(QUEUE_PATH_OVERRIDE_ENV, value) },
-        None => unsafe { env::remove_var(QUEUE_PATH_OVERRIDE_ENV) },
-    };
-}
-
-#[test]
-#[serial]
-fn resolve_done_path_uses_env_override_when_set() {
-    let cfg = Config::default();
-    let repo_root = PathBuf::from("/repo");
-    let prior_override = env::var_os(DONE_PATH_OVERRIDE_ENV);
-
-    unsafe { env::set_var(DONE_PATH_OVERRIDE_ENV, "archive/done.json") };
-    let resolved = resolve_done_path(&repo_root, &cfg).expect("done path override");
-    assert_eq!(resolved, repo_root.join("archive/done.json"));
-
-    match prior_override {
-        Some(value) => unsafe { env::set_var(DONE_PATH_OVERRIDE_ENV, value) },
-        None => unsafe { env::remove_var(DONE_PATH_OVERRIDE_ENV) },
-    };
-}
-
 // Tests for queue validation consistency between validate_config and resolve_* helpers
 
 fn assert_same_error(actual: anyhow::Error, expected: &str) {
@@ -469,12 +367,7 @@ fn queue_id_width_error_is_consistent_between_validate_and_resolve() {
 }
 
 #[test]
-#[serial]
 fn queue_file_error_is_consistent_between_validate_and_resolve() {
-    // Clear any env override to test config-based error handling
-    let prior_override = env::var_os(QUEUE_PATH_OVERRIDE_ENV);
-    unsafe { env::remove_var(QUEUE_PATH_OVERRIDE_ENV) };
-
     let mut cfg = Config::default();
     cfg.queue.file = Some(PathBuf::from(""));
 
@@ -483,21 +376,10 @@ fn queue_file_error_is_consistent_between_validate_and_resolve() {
         resolve_queue_path(std::path::Path::new("/repo"), &cfg).unwrap_err(),
         ERR_EMPTY_QUEUE_FILE,
     );
-
-    // Restore prior override
-    match prior_override {
-        Some(value) => unsafe { env::set_var(QUEUE_PATH_OVERRIDE_ENV, value) },
-        None => unsafe { env::remove_var(QUEUE_PATH_OVERRIDE_ENV) },
-    };
 }
 
 #[test]
-#[serial]
 fn queue_done_file_error_is_consistent_between_validate_and_resolve() {
-    // Clear any env override to test config-based error handling
-    let prior_override = env::var_os(DONE_PATH_OVERRIDE_ENV);
-    unsafe { env::remove_var(DONE_PATH_OVERRIDE_ENV) };
-
     let mut cfg = Config::default();
     cfg.queue.done_file = Some(PathBuf::from(""));
 
@@ -509,12 +391,6 @@ fn queue_done_file_error_is_consistent_between_validate_and_resolve() {
         resolve_done_path(std::path::Path::new("/repo"), &cfg).unwrap_err(),
         ERR_EMPTY_QUEUE_DONE_FILE,
     );
-
-    // Restore prior override
-    match prior_override {
-        Some(value) => unsafe { env::set_var(DONE_PATH_OVERRIDE_ENV, value) },
-        None => unsafe { env::remove_var(DONE_PATH_OVERRIDE_ENV) },
-    };
 }
 
 // Tests for queue.aging_thresholds validation

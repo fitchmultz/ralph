@@ -14,6 +14,7 @@
 //! - Paths containing `..` components are rejected to prevent directory traversal.
 
 use anyhow::{Context, Result, bail};
+use std::fs;
 use std::path::{Component, Path, PathBuf};
 
 /// Map a resolved path from the original repo into the workspace clone.
@@ -38,15 +39,40 @@ pub(crate) fn map_resolved_path_into_workspace(
     resolved_path: &Path,
     label: &str,
 ) -> Result<PathBuf> {
-    // Get the repo-relative path
-    let relative = resolved_path.strip_prefix(repo_root).with_context(|| {
-        format!(
-            "{} path {} is not under repo root {}",
+    if contains_parent_dir(resolved_path) {
+        bail!(
+            "{} path contains '..' component: {}",
             label,
-            resolved_path.display(),
-            repo_root.display()
-        )
-    })?;
+            resolved_path.display()
+        );
+    }
+
+    // Fast path: lexical prefix match for normal absolute paths.
+    // Fallback canonicalizes when repo and target paths are equivalent but represented
+    // differently (for example macOS /var vs /private path aliases).
+    let relative = match resolved_path.strip_prefix(repo_root) {
+        Ok(relative) => relative.to_path_buf(),
+        Err(_) => {
+            let canonical_repo_root = canonicalize_allow_missing_tail(repo_root)
+                .with_context(|| format!("canonicalize repo root {}", repo_root.display()))?;
+            let canonical_resolved_path = canonicalize_allow_missing_tail(resolved_path)
+                .with_context(|| {
+                    format!("canonicalize {} path {}", label, resolved_path.display())
+                })?;
+
+            canonical_resolved_path
+                .strip_prefix(&canonical_repo_root)
+                .with_context(|| {
+                    format!(
+                        "{} path {} is not under repo root {}",
+                        label,
+                        resolved_path.display(),
+                        repo_root.display()
+                    )
+                })?
+                .to_path_buf()
+        }
+    };
 
     // Security: reject paths containing ".." components
     for component in relative.components() {
@@ -59,12 +85,42 @@ pub(crate) fn map_resolved_path_into_workspace(
         }
     }
 
-    Ok(workspace_repo_root.join(relative))
+    Ok(workspace_repo_root.join(&relative))
+}
+
+fn contains_parent_dir(path: &Path) -> bool {
+    path.components()
+        .any(|component| component == Component::ParentDir)
+}
+
+fn canonicalize_allow_missing_tail(path: &Path) -> Result<PathBuf> {
+    let mut missing_tail = Vec::new();
+    let mut cursor = path;
+
+    while !cursor.exists() {
+        let Some(name) = cursor.file_name() else {
+            break;
+        };
+        missing_tail.push(name.to_os_string());
+        let Some(parent) = cursor.parent() else {
+            break;
+        };
+        cursor = parent;
+    }
+
+    let mut canonical = fs::canonicalize(cursor)
+        .with_context(|| format!("canonicalize existing path {}", cursor.display()))?;
+    for component in missing_tail.iter().rev() {
+        canonical.push(component);
+    }
+    Ok(canonical)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(unix)]
+    use std::os::unix::fs::symlink;
 
     #[test]
     fn map_resolved_path_into_workspace_rejects_traversal() {
@@ -112,5 +168,45 @@ mod tests {
             result.unwrap(),
             PathBuf::from("/workspace/queue/active.json")
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn map_resolved_path_into_workspace_accepts_symlinked_repo_aliases() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let repo_root = temp.path().join("repo-real");
+        let repo_alias = temp.path().join("repo-alias");
+        let workspace_root = temp.path().join("workspace");
+
+        std::fs::create_dir_all(repo_root.join(".ralph"))?;
+        symlink(&repo_root, &repo_alias)?;
+        let resolved_path = repo_alias.join(".ralph/queue.json");
+        std::fs::write(&resolved_path, "{}")?;
+
+        let mapped =
+            map_resolved_path_into_workspace(&repo_root, &workspace_root, &resolved_path, "queue")?;
+        assert_eq!(mapped, workspace_root.join(".ralph/queue.json"));
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn map_resolved_path_into_workspace_handles_missing_tail_with_repo_alias() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let repo_root = temp.path().join("repo-real");
+        let repo_alias = temp.path().join("repo-alias");
+        let workspace_root = temp.path().join("workspace");
+
+        std::fs::create_dir_all(repo_root.join(".ralph"))?;
+        symlink(&repo_root, &repo_alias)?;
+        let resolved_path = repo_alias.join(".ralph/cache/missing-done.json");
+
+        let mapped =
+            map_resolved_path_into_workspace(&repo_root, &workspace_root, &resolved_path, "done")?;
+        assert_eq!(
+            mapped,
+            workspace_root.join(".ralph/cache/missing-done.json")
+        );
+        Ok(())
     }
 }

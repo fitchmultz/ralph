@@ -154,11 +154,6 @@ fn build_worker_command(
     let mut cmd = Command::new(exe);
     cmd.current_dir(workspace_path);
     cmd.env("PWD", workspace_path);
-    cmd.env(crate::config::REPO_ROOT_OVERRIDE_ENV, workspace_path);
-
-    // Keep these removes - they prevent CI gate from leaking parent's env overrides
-    cmd.env_remove(crate::config::QUEUE_PATH_OVERRIDE_ENV);
-    cmd.env_remove(crate::config::DONE_PATH_OVERRIDE_ENV);
     cmd.stdin(Stdio::null());
 
     let mut args: Vec<String> = Vec::new();
@@ -218,51 +213,13 @@ mod tests {
         assert_eq!(cmd.get_current_dir(), Some(workspace_path.as_path()));
 
         let mut pwd_seen = false;
-        let mut override_seen = false;
-        let mut queue_override_seen = false;
-        let mut done_override_seen = false;
         for (key, value) in cmd.get_envs() {
             if key == std::ffi::OsStr::new("PWD") {
                 pwd_seen = true;
                 assert_eq!(value, Some(workspace_path.as_os_str()));
             }
-            if key == std::ffi::OsStr::new(crate::config::REPO_ROOT_OVERRIDE_ENV) {
-                override_seen = true;
-                assert_eq!(value, Some(workspace_path.as_os_str()));
-            }
-            if key == std::ffi::OsStr::new(crate::config::QUEUE_PATH_OVERRIDE_ENV) {
-                queue_override_seen = true;
-                assert!(
-                    value.is_none(),
-                    "{} should be absent, not set",
-                    crate::config::QUEUE_PATH_OVERRIDE_ENV
-                );
-            }
-            if key == std::ffi::OsStr::new(crate::config::DONE_PATH_OVERRIDE_ENV) {
-                done_override_seen = true;
-                assert!(
-                    value.is_none(),
-                    "{} should be absent, not set",
-                    crate::config::DONE_PATH_OVERRIDE_ENV
-                );
-            }
         }
         assert!(pwd_seen, "PWD env should be set for workspace execution");
-        assert!(
-            override_seen,
-            "{} env should be set for workspace execution",
-            crate::config::REPO_ROOT_OVERRIDE_ENV
-        );
-        assert!(
-            queue_override_seen,
-            "{} must be explicitly removed on worker process",
-            crate::config::QUEUE_PATH_OVERRIDE_ENV
-        );
-        assert!(
-            done_override_seen,
-            "{} must be explicitly removed on worker process",
-            crate::config::DONE_PATH_OVERRIDE_ENV
-        );
 
         assert!(args.contains(&"--force".to_string()));
         assert!(args.contains(&"--no-progress".to_string()));

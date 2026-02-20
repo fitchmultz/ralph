@@ -29,7 +29,6 @@ pub fn handle_run(cmd: RunCommand, force: bool) -> Result<()> {
         RunCommand::MergeAgent(_) => None,
     };
     let resolved = config::resolve_from_cwd_with_profile(profile)?;
-    clear_run_scoped_path_overrides();
     match cmd {
         RunCommand::Resume(args) => {
             if args.debug {
@@ -78,26 +77,20 @@ pub fn handle_run(cmd: RunCommand, force: bool) -> Result<()> {
                         anyhow::anyhow!("--parallel-worker requires --id <TASK_ID>")
                     })?;
 
-                    // Override queue/done paths if coordinator paths are provided
-                    let worker_resolved = if let (Some(queue_path), Some(done_path)) =
-                        (&args.coordinator_queue_path, &args.coordinator_done_path)
-                    {
-                        let mut r = resolved.clone();
-                        r.queue_path = queue_path.clone();
-                        r.done_path = done_path.clone();
-                        log::debug!(
-                            "parallel worker using coordinator paths: queue={}, done={}",
-                            r.queue_path.display(),
-                            r.done_path.display()
-                        );
-                        r
-                    } else {
-                        // Fall back to normal resolution (backwards compatibility)
-                        log::warn!(
-                            "parallel worker invoked without coordinator paths; using workspace-relative paths"
-                        );
-                        resolved.clone()
-                    };
+                    let mut worker_resolved = resolved.clone();
+                    worker_resolved.queue_path = args
+                        .coordinator_queue_path
+                        .clone()
+                        .expect("--parallel-worker requires --coordinator-queue-path");
+                    worker_resolved.done_path = args
+                        .coordinator_done_path
+                        .clone()
+                        .expect("--parallel-worker requires --coordinator-done-path");
+                    log::debug!(
+                        "parallel worker using coordinator paths: queue={}, done={}",
+                        worker_resolved.queue_path.display(),
+                        worker_resolved.done_path.display()
+                    );
 
                     run_cmd::run_one_parallel_worker(&worker_resolved, &overrides, force, task_id)?;
                     return Ok(());
@@ -145,24 +138,6 @@ pub fn handle_run(cmd: RunCommand, force: bool) -> Result<()> {
             // merge-agent uses explicit repo-root context from CWD
             let exit_code = run_cmd::handle_merge_agent(&args.task, args.pr)?;
             std::process::exit(exit_code);
-        }
-    }
-}
-
-fn clear_run_scoped_path_overrides() {
-    for key in [
-        config::QUEUE_PATH_OVERRIDE_ENV,
-        config::DONE_PATH_OVERRIDE_ENV,
-    ] {
-        if std::env::var_os(key).is_some() {
-            log::debug!(
-                "clearing {} after run config resolution to avoid leaking path overrides to child processes",
-                key
-            );
-            // SAFETY: This runs on the single-threaded CLI path before any worker/agent subprocess
-            // is spawned by this process. Clearing inherited overrides here prevents nested commands
-            // (e.g., CI/test subprocesses) from mutating queue/done in the wrong repository.
-            unsafe { std::env::remove_var(key) };
         }
     }
 }
@@ -376,15 +351,29 @@ pub struct RunOneArgs {
     pub dry_run: bool,
 
     /// Internal: run as a parallel worker (skips queue lock, allows upstream creation).
-    #[arg(long, hide = true)]
+    #[arg(
+        long,
+        hide = true,
+        requires_all = ["id", "coordinator_queue_path", "coordinator_done_path"]
+    )]
     pub parallel_worker: bool,
 
     /// Internal: path to coordinator's queue.json for parallel workers.
-    #[arg(long, hide = true, value_name = "PATH")]
+    #[arg(
+        long,
+        hide = true,
+        value_name = "PATH",
+        requires_all = ["parallel_worker", "coordinator_done_path"]
+    )]
     pub coordinator_queue_path: Option<PathBuf>,
 
     /// Internal: path to coordinator's done.json for parallel workers.
-    #[arg(long, hide = true, value_name = "PATH")]
+    #[arg(
+        long,
+        hide = true,
+        value_name = "PATH",
+        requires_all = ["parallel_worker", "coordinator_queue_path"]
+    )]
     pub coordinator_done_path: Option<PathBuf>,
 
     #[command(flatten)]
@@ -484,61 +473,8 @@ mod tests {
     use std::path::PathBuf;
 
     use clap::{CommandFactory, Parser};
-    use serial_test::serial;
 
-    use crate::cli::run::clear_run_scoped_path_overrides;
     use crate::cli::{Cli, run::RunCommand};
-    use crate::config::{DONE_PATH_OVERRIDE_ENV, QUEUE_PATH_OVERRIDE_ENV, REPO_ROOT_OVERRIDE_ENV};
-
-    #[test]
-    #[serial]
-    fn clear_run_scoped_path_overrides_removes_only_queue_and_done() {
-        let prior_queue = std::env::var_os(QUEUE_PATH_OVERRIDE_ENV);
-        let prior_done = std::env::var_os(DONE_PATH_OVERRIDE_ENV);
-        let prior_repo = std::env::var_os(REPO_ROOT_OVERRIDE_ENV);
-
-        // SAFETY: test is serial and restores all touched env vars before exit.
-        unsafe {
-            std::env::set_var(QUEUE_PATH_OVERRIDE_ENV, "/tmp/queue.json");
-            std::env::set_var(DONE_PATH_OVERRIDE_ENV, "/tmp/done.json");
-            std::env::set_var(REPO_ROOT_OVERRIDE_ENV, "/tmp/repo-root");
-        }
-
-        clear_run_scoped_path_overrides();
-
-        assert!(
-            std::env::var_os(QUEUE_PATH_OVERRIDE_ENV).is_none(),
-            "{} should be cleared",
-            QUEUE_PATH_OVERRIDE_ENV
-        );
-        assert!(
-            std::env::var_os(DONE_PATH_OVERRIDE_ENV).is_none(),
-            "{} should be cleared",
-            DONE_PATH_OVERRIDE_ENV
-        );
-        assert_eq!(
-            std::env::var_os(REPO_ROOT_OVERRIDE_ENV),
-            Some(std::ffi::OsString::from("/tmp/repo-root")),
-            "{} should be preserved",
-            REPO_ROOT_OVERRIDE_ENV
-        );
-
-        // SAFETY: restoring original process env for this serial test.
-        unsafe {
-            match prior_queue {
-                Some(v) => std::env::set_var(QUEUE_PATH_OVERRIDE_ENV, v),
-                None => std::env::remove_var(QUEUE_PATH_OVERRIDE_ENV),
-            }
-            match prior_done {
-                Some(v) => std::env::set_var(DONE_PATH_OVERRIDE_ENV, v),
-                None => std::env::remove_var(DONE_PATH_OVERRIDE_ENV),
-            }
-            match prior_repo {
-                Some(v) => std::env::set_var(REPO_ROOT_OVERRIDE_ENV, v),
-                None => std::env::remove_var(REPO_ROOT_OVERRIDE_ENV),
-            }
-        }
-    }
 
     #[test]
     fn run_one_help_includes_phase_semantics() {
@@ -842,5 +778,41 @@ mod tests {
             },
             _ => panic!("expected Command::Run"),
         }
+    }
+
+    #[test]
+    fn run_one_parallel_worker_requires_coordinator_paths() {
+        let args = vec![
+            "ralph",
+            "run",
+            "one",
+            "--parallel-worker",
+            "--id",
+            "RQ-0001",
+        ];
+        let result = Cli::try_parse_from(args);
+        assert!(
+            result.is_err(),
+            "--parallel-worker should require coordinator queue/done paths"
+        );
+    }
+
+    #[test]
+    fn run_one_parallel_worker_requires_both_coordinator_paths() {
+        let args = vec![
+            "ralph",
+            "run",
+            "one",
+            "--parallel-worker",
+            "--id",
+            "RQ-0001",
+            "--coordinator-queue-path",
+            "/path/to/queue.json",
+        ];
+        let result = Cli::try_parse_from(args);
+        assert!(
+            result.is_err(),
+            "missing --coordinator-done-path should fail parsing"
+        );
     }
 }

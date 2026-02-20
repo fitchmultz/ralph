@@ -66,6 +66,10 @@ Every source file MUST start with `//!` docs covering:
 3. `~/.config/ralph/config.json`
 4. Schema defaults
 
+### Repo Target Resolution
+- Repo/file targeting is always derived from process CWD (`find_repo_root(current_dir)`).
+- `RALPH_REPO_ROOT_OVERRIDE`, `RALPH_QUEUE_PATH_OVERRIDE`, and `RALPH_DONE_PATH_OVERRIDE` are unsupported.
+
 ### Phase 1 Follow-up Guardrail
 - Follow-up Phase 1 baseline snapshots must exclude mutable `.ralph/**` paths; only baseline dirty paths outside `.ralph/` are immutable.
 
