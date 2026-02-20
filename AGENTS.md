@@ -74,6 +74,7 @@ Every source file MUST start with `//!` docs covering:
 - Gitignored non-`.ralph` sync remains narrow by design (`.env*` only) to avoid copying heavy build/cache directories.
 - Parallel worker post-run bookkeeping restore must always target workspace-local `.ralph/{queue.json,done.json,cache/productivity.json}` even when `Resolved.queue_path`/`done_path` are coordinator overrides.
 - Worker post-run supervision should fail fast if those bookkeeping paths remain dirty after restore (never proceed to commit/rebase with queue/done/productivity drift).
+- Worker post-run restore must purge generated runtime artifacts under `.ralph/cache/{plans,phase2_final,parallel}` plus `.ralph/{logs,cache/session.json,cache/migrations.json}` before deciding repo dirtiness.
 
 ### Parallel Merge Refresh Resilience
 - After merge-agent success, update state (`prs`, `pending_merges`) before local branch refresh attempts.
@@ -83,6 +84,7 @@ Every source file MUST start with `//!` docs covering:
 - `gh pr merge` must run with explicit `--repo` from an isolated cwd to avoid mutating the coordinator working tree.
 - Parallel worker post-run git finalization should use rebase-aware push (`push_upstream_with_rebase`) so stale non-fast-forward task branches do not require manual intervention.
 - Rebase-aware push must also handle branches with no local upstream but an existing remote branch (set tracking to `origin/<branch>` and avoid failing on pure "behind" states).
+- Rebase-aware push must retry fetch+rebase+push multiple times on non-fast-forward races (single retry is insufficient under concurrent branch updates).
 
 ### File Size Limits
 - Target: <500 LOC
