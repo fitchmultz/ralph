@@ -85,6 +85,7 @@ pub fn start(resolved: &Resolved, args: DaemonStartArgs) -> Result<()> {
         // Build the serve command
         let exe = std::env::current_exe().context("Failed to get current executable path")?;
         let mut command = std::process::Command::new(&exe);
+        command.current_dir(&resolved.repo_root);
         command
             .arg("daemon")
             .arg("serve")

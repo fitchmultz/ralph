@@ -5,21 +5,9 @@ use ralph::commands::tutorial::{
 };
 use serial_test::serial;
 
-/// Remove inherited path override env vars that interfere with test isolation.
-fn clear_path_overrides() {
-    // SAFETY: These env vars are only used for path resolution; removing them
-    // is safe as it restores default behavior. The #[serial] attribute ensures
-    // no concurrent access issues with other tests.
-    unsafe {
-        std::env::remove_var("RALPH_QUEUE_PATH_OVERRIDE");
-        std::env::remove_var("RALPH_DONE_PATH_OVERRIDE");
-    }
-}
-
 #[test]
 #[serial]
 fn tutorial_completes_with_scripted_prompter() {
-    clear_path_overrides();
     // Create scripted responses for all pause points
     let prompter = ScriptedTutorialPrompter::new(vec![
         ScriptedResponse::Pause, // welcome
@@ -42,7 +30,6 @@ fn tutorial_completes_with_scripted_prompter() {
 #[test]
 #[serial]
 fn tutorial_keeps_sandbox_when_requested() {
-    clear_path_overrides();
     let prompter = ScriptedTutorialPrompter::new(vec![
         ScriptedResponse::Pause,
         ScriptedResponse::Pause,
@@ -64,7 +51,6 @@ fn tutorial_keeps_sandbox_when_requested() {
 #[test]
 #[serial]
 fn tutorial_handles_user_quit_gracefully() {
-    clear_path_overrides();
     // This tests that if responses run out, we get an error (simulating quit)
     let prompter = ScriptedTutorialPrompter::new(vec![
         ScriptedResponse::Pause, // only one response, tutorial needs more

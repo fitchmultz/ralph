@@ -123,7 +123,6 @@ pub(crate) fn spawn_merge_agent(
         ])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    crate::runutil::sanitize_run_scoped_overrides(&mut cmd);
     let output = cmd.output().with_context(|| {
         format!(
             "Failed to spawn merge-agent for task {} PR {}",

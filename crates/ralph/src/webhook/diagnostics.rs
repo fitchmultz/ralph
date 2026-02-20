@@ -18,7 +18,6 @@
 use super::{
     WebhookMessage, WebhookPayload, enqueue_webhook_payload_for_replay, resolve_webhook_config,
 };
-use crate::config::REPO_ROOT_OVERRIDE_ENV;
 use crate::contracts::{WebhookConfig, WebhookQueuePolicy};
 use crate::fsutil;
 use crate::redaction;
@@ -376,7 +375,7 @@ fn update_replay_counts(path: &Path, replayed_ids: &[String]) -> Result<()> {
 }
 
 fn persist_failed_delivery(msg: &WebhookMessage, err: &anyhow::Error, attempts: u32) -> Result<()> {
-    let repo_root = match resolve_repo_root_from_runtime() {
+    let repo_root = match resolve_repo_root_from_runtime(msg) {
         Some(path) => path,
         None => {
             log::debug!("Unable to resolve repo root for webhook failure persistence");
@@ -455,22 +454,20 @@ fn write_failure_records_unlocked(path: &Path, records: &[WebhookFailureRecord])
         .with_context(|| format!("write webhook failure store {}", path.display()))
 }
 
-fn resolve_repo_root_from_runtime() -> Option<PathBuf> {
+fn resolve_repo_root_from_runtime(msg: &WebhookMessage) -> Option<PathBuf> {
+    if let Some(repo_root) = msg.payload.context.repo_root.as_deref() {
+        let repo_root = PathBuf::from(repo_root);
+        if repo_root.exists() {
+            return Some(crate::config::find_repo_root(&repo_root));
+        }
+        log::debug!(
+            "webhook payload repo_root does not exist; falling back to current directory: {}",
+            repo_root.display()
+        );
+    }
+
     let cwd = std::env::current_dir().ok()?;
-
-    let start_path = std::env::var_os(REPO_ROOT_OVERRIDE_ENV)
-        .map(PathBuf::from)
-        .map(|path| {
-            if path.is_relative() {
-                cwd.join(path)
-            } else {
-                path
-            }
-        })
-        .filter(|path| path.exists())
-        .unwrap_or(cwd);
-
-    Some(crate::config::find_repo_root(&start_path))
+    Some(crate::config::find_repo_root(&cwd))
 }
 
 fn next_failure_id() -> String {
