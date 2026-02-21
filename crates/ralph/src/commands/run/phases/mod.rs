@@ -49,7 +49,7 @@ pub enum PhaseType {
 pub enum PostRunMode {
     /// Standard post-run supervision (queue/done updates + git finalization).
     Normal,
-    /// Parallel worker supervision (no queue/done mutations; merge-agent handles finalization).
+    /// Parallel worker mode (agent-owned integration loop handles direct push to base branch).
     ParallelWorker,
 }
 

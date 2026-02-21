@@ -1,293 +1,219 @@
-# Parallel Direct-Push Rewrite Specification
+# Parallel Mode Direct-Push Rewrite Specification (Agent-Owned Git)
 
 Status: Draft  
-Last updated: February 20, 2026  
-Owners: Ralph maintainers
+Last Updated: February 20, 2026  
+Scope: `ralph run loop --parallel` only
+
+---
 
 ## 1. Purpose
 
-This document defines a full rewrite of Ralph parallel mode to remove PR-driven orchestration and move to direct pushes onto the user's current base branch.
+This document defines the target parallel architecture for Ralph with direct pushes to the current base branch.
 
-This specification is self-contained. It assumes no prior knowledge of Ralph, no prior architecture context, and no prior discussion history.
+This version replaces the previous ambiguous draft and is the authoritative source for implementation.
 
-## 2. Product Philosophy (Normative)
+If any earlier note/doc conflicts with this file, this file wins.
 
-The product direction for this rewrite is:
+---
 
-1. Maximize AI-agent autonomy during execution and integration.
-2. Minimize deterministic coordinator logic that attempts to "reason" about complex, changing code states.
-3. Keep deterministic logic only where strict correctness/safety boundaries are required.
+## 2. Clarified Design Decision (Authoritative)
 
-Practical interpretation:
+The agreed design is:
 
-1. The coordinator is a scheduler/tracker, not a merge decision engine.
-2. Agents resolve integration complexity through targeted prompts and contextual handoff data.
-3. Deterministic checks remain mandatory only for:
-   1. unresolved git conflicts,
-   2. queue/done semantic validity,
-   3. CI gate success,
-   4. push success/failure classification.
+1. Parallel workers push directly to the base branch (`origin/<current-branch>`).
+2. The **agent session(s)** perform git integration operations:
+   1. `git fetch`
+   2. `git rebase`
+   3. conflict resolution edits
+   4. `git add/commit` as needed
+   5. `git push`
+3. Ralph coordinator does orchestration and hard validation, but does not semantically integrate code.
+4. Phase sessions remain separate per configured phase runner/model (no requirement for one continuous session).
+5. Non-parallel behavior remains unchanged.
 
-## 2.1 Vision Lock (Non-Negotiable)
+---
 
-This rewrite is explicitly direct-push and agent-first.
+## 3. Scope and Non-Goals
 
-Required outcomes:
+### 3.1 In Scope
 
-1. Parallel integration path is direct push to the current base branch.
-2. PR creation/merge is removed from parallel mode runtime behavior.
-3. Coordinator remains non-semantic and minimal.
-4. Agent-led remediation is primary for conflicts and CI repair.
+1. Rewrite parallel mode from PR-based merge orchestration to direct push.
+2. Remove PR lifecycle state and merge-agent runtime dependency from parallel path.
+3. Move integration actions to agent-driven sessions with strict runtime gates.
+4. Keep coordinator minimal: schedule, monitor, persist state, retry blocked workspaces.
 
-Forbidden outcomes:
+### 3.2 Non-Goals
 
-1. Reintroducing PR automation in parallel mode.
-2. Reintroducing merge-agent orchestration semantics under a new name.
-3. Adding compatibility shims that keep old PR path alive behind flags.
-4. Moving queue/done finalization back into coordinator-only merge logic.
+1. No behavioral change to:
+   1. `ralph run loop` without `--parallel`
+   2. `ralph run one`
+2. No PR fallback mode in parallel.
+3. No compatibility shim keeping old PR merge flow alive.
+4. No remote CI redesign.
 
-## 3. System Context
+---
 
-Ralph is a Rust CLI that executes queued tasks from `.ralph/queue.json` using AI agents through configurable multi-phase runs.
+## 4. Why Rewrite
 
-Core concepts:
+Current PR/merge-agent parallel flow has too much deterministic coordinator logic and too many moving lifecycle parts.
 
-1. Tasks are selected from queue state.
-2. Work is performed via configured phases and iterations.
-3. Task completion mutates queue/done state.
-4. Git commit/push finalization happens after successful phase execution.
+Key pain points:
 
-## 4. Current Architecture (As-Is)
+1. Worker -> PR -> merge-agent -> state reconciliation is complex and fragile.
+2. Conflict handling can lose task intent context.
+3. PR lifecycle state bookkeeping creates restart and reconciliation overhead.
+4. Coordinator is doing too much semantic workflow management.
 
-Current parallel mode is PR-based and coordinator-heavy.
+---
 
-### 4.1 Current High-Level Flow
+## 5. Target Architecture
 
-1. Coordinator spawns isolated worker processes.
-2. Worker runs `run one --parallel-worker` in a workspace clone.
-3. Worker pushes a task branch.
-4. Worker creates PR.
-5. Coordinator tracks PR state and pending merge jobs.
-6. Coordinator invokes `run merge-agent` subprocess to merge/finalize.
+### 5.1 Process Model
 
-### 4.2 Current Boundaries
+1. Coordinator acquires queue lock, selects tasks, creates worker workspaces, spawns workers.
+2. Each worker executes configured phases in order.
+3. After final phase, worker runs agent-driven integration loop until:
+   1. success push, or
+   2. retry budget exhausted (blocked), or
+   3. terminal failure.
+4. Coordinator records worker outcomes and handles cleanup/retention.
 
-1. Workers avoid canonical queue/done mutation in coordinator context.
-2. Merge-agent finalizes canonical queue/done in coordinator repo.
-3. Coordinator reconciles PR lifecycle on restart.
+### 5.2 Ownership Matrix (Critical)
 
-### 4.3 Current Pain Points
+| Concern | Owner |
+|---|---|
+| Task scheduling | Ralph coordinator |
+| Worker lifecycle | Ralph coordinator |
+| Phase execution | Agent sessions (configured per phase) |
+| `fetch/rebase/conflict resolution/commit/push` | Agent integration session(s) |
+| Conflict semantic decisions | Agent integration session(s) |
+| Hard correctness checks | Ralph runtime |
+| State persistence | Ralph coordinator |
 
-1. Multiple lifecycle layers (worker, PR, merge-agent, pending-merges) increase fragility.
-2. Heavy persisted state reconciliation logic creates many failure paths.
-3. GitHub PR state dependence introduces external coupling and recoverability complexity.
-4. Conflict resolution context is split across sessions/processes.
-5. Coordinator contains substantial deterministic merge behavior better handled by agents.
+### 5.3 Explicit Constraint
 
-## 5. Goals
+In parallel mode, Ralph must not reintroduce semantic merge orchestration logic equivalent to old PR merge-agent behavior.
 
-1. Remove PR creation/merge from parallel execution path.
-2. Push all completed worker output directly to the current base branch.
-3. Let agents resolve rebase/conflict/CI fix loops with explicit handoff context.
-4. Reduce parallel state model to worker lifecycle only.
-5. Preserve strong correctness gates at deterministic boundaries.
+---
 
-## 6. Non-Goals
+## 6. Worker Lifecycle
 
-1. No attempt to preserve old PR workflow in parallel mode.
-2. No compatibility shim where both PR and direct-push run simultaneously.
-3. No redesign of task data model or phase semantics beyond what direct-push requires.
-4. No introduction of remote CI orchestration (local CI gates remain authoritative).
-5. No behavioral changes to non-parallel run execution (`ralph run loop` without `--parallel`, and `ralph run one`) except strictly necessary shared refactors with zero behavior change.
+### 6.1 Phase Sessions (Unchanged Model)
 
-## 6.1 Explicitly Forbidden Implementation Patterns
+Workers still honor configured phases/iterations and phase overrides.
 
-The implementing agent MUST NOT:
+Important:
 
-1. Add dual-path logic such as `if pr_mode { ... } else { ... }`.
-2. Keep deprecated merge modules as active fallback paths.
-3. Preserve obsolete PR/merge config keys as silent compatibility behavior.
-4. Treat this rewrite as incremental migration that leaves old merge lifecycle running.
-5. Add hidden safety behavior that functionally restores coordinator merge decisions.
+1. Phase sessions are separate, as configured.
+2. This spec does not require cross-phase session continuity.
+3. Continuity is achieved through artifacts (task context, phase outputs, handoff packets), not a single persistent chat session.
 
-## 7. Target Architecture (To-Be)
+### 6.2 Post-Phase Integration Loop (Agent-Owned Git)
 
-### 7.1 Core Model
+After final phase succeeds, worker enters integration loop.
 
-Parallel mode becomes "direct integration workers":
+Loop intent:
 
-1. Coordinator selects tasks and spawns workers.
-2. Each worker executes configured phases.
-3. After phase completion, each worker enters integration loop:
-   1. fetch base branch,
-   2. rebase,
-   3. resolve conflicts through agent session(s),
-   4. run CI/fix loop,
-   5. push to base branch.
-4. Coordinator records worker outcomes only.
+1. Reconcile workspace with latest base branch.
+2. Resolve conflicts via agent.
+3. Ensure CI passes after integration.
+4. Push to base branch.
 
-### 7.2 Session Model (Critical)
+Pseudo-flow:
 
-Each phase still runs as configured in project/global config.
+1. Start attempt `N`.
+2. Ask integration agent to run:
+   1. `git fetch origin <base>`
+   2. rebase onto `origin/<base>`
+3. If conflicts:
+   1. provide conflict handoff packet
+   2. require agent to resolve and continue rebase
+4. Run CI gate (if enabled).
+5. If CI fails:
+   1. provide CI failure handoff packet
+   2. require agent to fix and rerun CI
+6. Ask integration agent to push to `origin/<base>`.
+7. If non-fast-forward or transient failure:
+   1. retry with backoff
+8. On success: worker completes.
+9. On max retries: worker becomes `blocked_push` and workspace is retained.
 
-Important clarification:
+---
 
-1. "Worker owns lifecycle" means worker process owns lifecycle end-to-end.
-2. It does **not** mean one continuous agent session.
-3. Each phase agent remains its own session per configured phase runner/model.
-4. Conflict-resolution and CI-remediation steps may spawn additional sessions, using an explicit handoff packet.
+## 7. Agent Prompt Contracts
 
-### 7.3 Coordinator Role
+### 7.1 Integration Session Prompt Requirements
+
+Integration prompt must explicitly require the agent to perform git operations itself.
+
+Required instructions:
+
+1. You own fetch/rebase/conflict resolution/commit/push for this task.
+2. Do not stop until either push succeeds or a hard stop condition is reached.
+3. Preserve upstream functionality and task intent.
+
+### 7.2 Conflict Resolution Prompt Requirements
+
+When conflicts exist, prompt must include:
+
+1. conflicted file list,
+2. current task id/title/intent summary,
+3. queue/done semantics,
+4. explicit required commands to finish rebase.
+
+### 7.3 CI Remediation Prompt Requirements
+
+When CI fails, prompt must include:
+
+1. exact command,
+2. stdout/stderr,
+3. explicit instruction to fix then rerun.
+
+---
+
+## 8. Deterministic Runtime Gates (Non-Negotiable)
+
+Agent autonomy does not remove hard integrity checks.
+
+Before worker can report success, Ralph must verify:
+
+1. no unresolved conflicts (`diff-filter=U` empty),
+2. queue/done parse and semantic validation pass,
+3. CI passes (when enabled),
+4. push to `origin/<base>` succeeded.
+
+Prompt wording alone is not sufficient; runtime enforcement is required.
+
+---
+
+## 9. Coordinator Responsibilities (Minimal)
 
 Coordinator responsibilities:
 
-1. queue lock and task selection,
-2. worker spawn/monitoring,
-3. state persistence,
-4. status/retry command support,
-5. workspace cleanup policy.
+1. enforce parallel preflight checks,
+2. select non-duplicate tasks,
+3. spawn and monitor workers,
+4. persist simplified worker state,
+5. expose status and retry commands,
+6. cleanup completed/failed workspaces,
+7. retain blocked workspaces for retry.
 
-Coordinator explicitly does **not**:
+Coordinator non-responsibilities:
 
-1. create PRs,
-2. merge PRs,
-3. reconcile GitHub PR lifecycle,
-4. make semantic merge decisions.
+1. PR creation,
+2. PR merge management,
+3. GitHub PR lifecycle reconciliation,
+4. semantic conflict decision making.
 
-## 8. Canonical Data Ownership
+---
 
-In the new model, canonical queue/done updates are committed and pushed by workers directly to base branch.
-
-Therefore:
-
-1. queue/done conflicts become normal git conflicts in worker rebase flow.
-2. worker must resolve queue/done semantically, not textually.
-3. deterministic validation must reject invalid queue/done post-resolution.
-
-## 9. Worker Execution Contract
-
-### 9.1 Worker Precondition
-
-Worker starts from an isolated workspace clone rooted at the same commit/branch lineage as coordinator base branch.
-
-### 9.2 Phase Execution
-
-Worker executes configured phase count/iterations with existing phase override mechanics.
-
-### 9.3 Post-Phase Integration Loop
-
-After final configured phase success:
-
-1. commit task changes,
-2. enter bounded integration loop,
-3. produce terminal outcome:
-   1. `Completed`,
-   2. `BlockedPush`,
-   3. `Failed`.
-
-## 10. Integration Loop (Normative)
-
-### 10.1 Retry Parameters
-
-Default values:
-
-1. `max_attempts = 5`
-2. `backoff_ms = [500, 2000, 5000, 10000]`
-
-### 10.2 Loop Steps
-
-For each attempt:
-
-1. `git fetch origin <base_branch>`
-2. compute divergence vs `origin/<base_branch>`
-3. if behind:
-   1. `git rebase origin/<base_branch>`
-   2. if conflict:
-      1. generate handoff packet,
-      2. run agent conflict-remediation session(s),
-      3. require zero unresolved conflicts,
-      4. `git rebase --continue`
-4. run CI gate (if enabled)
-5. on CI failure:
-   1. generate CI-failure handoff,
-   2. run remediation agent session,
-   3. repeat CI until pass or policy stop
-6. `git push origin <base_branch>`
-7. if non-fast-forward push failure:
-   1. classify retryable,
-   2. next attempt
-8. if non-retryable failure:
-   1. fail immediately as `BlockedPush` or `Failed` per classification
-
-### 10.3 Terminal Conditions
-
-1. Push succeeds: `Completed`.
-2. Attempts exhausted: `BlockedPush` with workspace retained.
-3. unrecoverable runtime/config error: `Failed`.
-
-### 10.4 Mandatory Gate Before Worker Exit
-
-A worker is not allowed to report success unless all are true:
-
-1. no unresolved merge conflicts,
-2. queue/done validate semantically,
-3. CI gate passes when enabled,
-4. push to `origin/<base_branch>` succeeds.
-
-Prompt wording is not sufficient by itself. Runtime checks must enforce this.
-
-## 11. Agent Remediation Contract
-
-### 11.1 Required Handoff Packet
-
-Before any remediation session, worker must write a structured handoff packet containing:
-
-1. task id/title,
-2. base branch,
-3. phase outputs summary,
-4. original task intent snapshot,
-5. list of conflict files,
-6. current git status,
-7. queue/done semantic rules,
-8. CI command + last failing output (for CI remediation).
-
-Suggested location:
-
-1. `.ralph/cache/parallel/handoffs/<task-id>/<attempt>.json`
-
-### 11.2 Prompt Requirements
-
-Prompt must explicitly instruct:
-
-1. do not stop until all listed conflicts are resolved,
-2. preserve upstream/base-branch changes,
-3. preserve this task intent,
-4. for queue/done:
-   1. remove completed task from queue,
-   2. ensure completed task appears in done,
-   3. preserve other tasks from upstream.
-
-### 11.3 Mandatory Compliance Checks (Deterministic)
-
-Worker must enforce after remediation session:
-
-1. `git diff --name-only --diff-filter=U` is empty,
-2. queue/done parse and validate,
-3. CI gate passes (if enabled).
-
-If any check fails, worker must continue remediation loop or transition to terminal blocked/failed state per retry policy.
-
-## 12. State Model Rewrite
-
-### 12.1 State File
+## 10. State Model
 
 Path remains:
 
 1. `.ralph/cache/parallel/state.json`
 
-### 12.2 New Schema
-
-State tracks worker lifecycle only.
+Target schema:
 
 ```json
 {
@@ -299,7 +225,7 @@ State tracks worker lifecycle only.
       "task_id": "RQ-0001",
       "workspace_path": "/abs/path",
       "lifecycle": "running|integrating|completed|failed|blocked_push",
-      "started_at": "...",
+      "started_at": "2026-02-20T00:00:00Z",
       "completed_at": null,
       "push_attempts": 0,
       "last_error": null
@@ -308,42 +234,34 @@ State tracks worker lifecycle only.
 }
 ```
 
-### 12.3 Removed Concepts
+Removed from runtime state:
 
 1. PR records,
 2. pending merge queue,
-3. merge-agent lifecycle,
-4. PR reconciliation state.
+3. merge lifecycle state.
 
-### 12.4 Invariants
+---
 
-1. one active worker per task id,
-2. worker lifecycle monotonic toward terminal states,
-3. blocked workspaces always retained unless retention expiry cleanup applies.
+## 11. CLI Contract
 
-## 13. CLI Contract
+### 11.1 Existing Entry
 
-### 13.1 Existing Entry Point
+`ralph run loop --parallel N` remains the entrypoint.
 
-`ralph run loop --parallel N` remains parallel entry point.
+### 11.2 Removed Parallel Runtime Dependency
 
-### 13.2 Removed Command
+`ralph run merge-agent` is not part of normal parallel runtime in this design.
 
-`ralph run merge-agent` is removed.
-
-### 13.3 New Operational Commands
+### 11.3 Operational Commands
 
 1. `ralph run parallel status [--json]`
 2. `ralph run parallel retry --task <TASK_ID>`
 
-Behavior:
+---
 
-1. `status` shows active/completed/failed/blocked workers.
-2. `retry` resumes integration loop for blocked worker from retained workspace.
+## 12. Configuration Contract
 
-## 14. Configuration Contract
-
-### 14.1 Preserved
+### 12.1 Preserved
 
 1. `parallel.workers`
 2. `parallel.workspace_root`
@@ -352,14 +270,14 @@ Behavior:
 5. phase overrides
 6. CI gate settings
 
-### 14.2 Added
+### 12.2 Added
 
 1. `parallel.max_push_attempts`
 2. `parallel.push_backoff_ms`
 3. `parallel.workspace_retention_hours`
 4. `agent.runner_output_buffer_mb`
 
-### 14.3 Removed
+### 12.3 Removed
 
 1. `parallel.auto_pr`
 2. `parallel.auto_merge`
@@ -372,200 +290,75 @@ Behavior:
 9. `parallel.delete_branch_on_merge`
 10. `parallel.merge_runner`
 
-## 15. Migration Strategy
+---
 
-### 15.1 State Migration
+## 13. Migration
 
-1. migrate schema v2 -> v3 by dropping PR/merge fields,
-2. map in-flight entries to worker entries,
-3. set unresolved in-flight workers to `failed` or `blocked_push` via workspace inspection.
+### 13.1 State Migration
 
-### 15.2 Config Migration
+1. Migrate old parallel state to worker-only state.
+2. Drop PR/pending-merge fields.
+3. Convert unresolved in-flight records to `failed` or `blocked_push` based on workspace inspection.
 
-1. remove obsolete PR/merge keys,
-2. apply defaults for new push/retention settings,
-3. fail fast on invalid values.
+### 13.2 Config Migration
 
-## 16. Deterministic Safety Rails (Required)
+1. Remove obsolete PR/merge keys.
+2. Apply defaults for new push/retry/retention keys.
+3. Fail fast on invalid values.
 
-This rewrite is agent-first, but the following rails are non-negotiable:
+---
 
-1. unresolved conflict check before push,
-2. queue/done schema + semantic validation,
-3. CI gate enforcement (if enabled),
-4. bounded retry and explicit terminal state,
-5. crash-safe state persistence.
+## 14. Anti-Drift Rules
 
-These are not "business logic theology"; they are integrity gates.
-
-## 16.1 Minimal Deterministic Boundary (Design Rule)
-
-Deterministic code is allowed only for:
-
-1. orchestration lifecycle bookkeeping,
-2. hard validation and guard conditions,
-3. bounded retries and failure classification.
-
-Deterministic code is not allowed to make semantic integration choices that belong to agents.
-
-## 17. Failure and Recovery
-
-### 17.1 Retryable
-
-1. non-fast-forward push rejection,
-2. transient fetch/push network failures,
-3. conflict requiring additional remediation pass.
-
-### 17.2 Non-Retryable
-
-1. invalid configuration,
-2. irreparable queue/done validation failures after retry budget,
-3. persistent CI failure after retry policy exhaustion.
-
-### 17.3 Blocked Workspace Handling
-
-1. blocked workspace retained for inspection/retry,
-2. retention cleanup runs on:
-   1. parallel start,
-   2. parallel end,
-   3. `parallel status`.
-
-## 18. Security and Operational Considerations
-
-1. Never log secrets from CI output or environment.
-2. Sanitize control/NUL bytes in logs before persistence.
-3. Direct push requires write access to target base branch.
-4. Protected branch policies may force blocked outcomes; this is expected and surfaced clearly.
-
-## 19. Test Plan
-
-### 19.1 Unit Tests
-
-1. push loop success and retry paths,
-2. conflict-remediation compliance checks,
-3. queue/done conflict semantic merge validation,
-4. state migration v2->v3,
-5. status/retry command behavior,
-6. log sanitization,
-7. webhook outcome typing,
-8. runner buffer config loading.
-
-### 19.2 Integration Tests
-
-1. two workers no conflict,
-2. code conflict resolved then push,
-3. queue/done conflict resolved correctly,
-4. three-worker push race,
-5. CI fail -> agent fix -> CI pass -> push,
-6. blocked worker retry success,
-7. interrupted run recovery from persisted state.
-
-### 19.3 Verification Commands
-
-1. `make agent-ci`
-2. `make ci`
-
-## 20. Implementation Plan
-
-### Phase A: Reliability fixes already identified
-
-1. fix bookkeeping cleanup ordering,
-2. replace line-based bookkeeping parsing with porcelain `-z` parser,
-3. add debug log sanitization,
-4. replace webhook boolean outcome with typed enum,
-5. add runner output buffer config.
-
-### Phase B: Direct-push core
-
-1. rewrite worker post-run supervision to stop restoring queue/done from HEAD,
-2. implement worker integration loop,
-3. implement remediation handoff packet + prompts,
-4. implement deterministic compliance checks,
-5. integrate retry policy and blocked-state transitions.
-
-### Phase C: Coordinator simplification
-
-1. remove PR creation from parallel orchestration,
-2. remove merge-agent subprocess invocations,
-3. simplify state model and initialization,
-4. remove stale PR reconciliation logic.
-
-### Phase D: Deletions and CLI updates
-
-1. delete `run merge-agent` command,
-2. delete deprecated merge-runner module,
-3. remove PR-related config/schema/docs,
-4. add `parallel status` and `parallel retry` commands.
-
-### Phase E: Docs and release
-
-1. update `docs/cli.md`, `docs/configuration.md`, `docs/features/parallel.md`,
-2. add migration notes,
-3. run full local CI gates.
-
-## 20.1 Agent Execution Checklist (Must Be Satisfied)
-
-Before implementation is considered complete, the implementing agent must verify:
-
-1. no active parallel PR creation flow remains,
-2. no active parallel merge-agent invocation flow remains,
-3. obsolete PR/merge config keys are removed from contracts/schema/docs,
-4. state schema no longer tracks PR lifecycle and pending merge queues,
-5. integration tests cover direct-push conflict and queue/done merge scenarios,
-6. `make agent-ci` and `make ci` pass.
-
-If any checklist item fails, the rewrite is incomplete.
-
-## 21. Acceptance Criteria
-
-This rewrite is accepted when all are true:
-
-1. Parallel mode performs no PR creation/merge operations.
-2. Workers push directly to base branch with successful multi-worker runs.
-3. Queue/done remain valid and semantically correct under conflict scenarios.
-4. Coordinator restart and blocked-workspace retry are reliable.
-5. Deprecated PR/merge state and commands are removed.
-6. Local CI gates pass.
-7. Non-parallel loop and run-one behavior remain unchanged.
-
-## 21.1 Anti-Drift Acceptance Gate
-
-This rewrite is rejected if any remain true:
+Implementation is rejected if any of the following remain true:
 
 1. parallel worker success still triggers PR creation,
 2. coordinator still performs PR merge lifecycle management,
-3. merge-agent command remains required for normal parallel operation,
-4. persisted parallel state still models PR lifecycle as core runtime behavior.
+3. merge-agent is required for normal parallel operation,
+4. persisted parallel state still models PR lifecycle as core behavior.
 
-## 22. Explicit Design Decisions
+Any deviation from this spec requires explicit maintainer approval.
 
-1. Direct push to base branch is the canonical parallel integration strategy.
-2. Worker lifecycle spans phase sessions plus post-phase remediation loop.
-3. Phase sessions remain separate, per configured phase settings.
-4. Coordinator is intentionally minimized and non-semantic.
-5. Agent autonomy is primary, bounded by deterministic integrity checks.
+---
 
-## 22.1 Change Control and Deviation Protocol
+## 15. Verification and Acceptance
 
-Any implementation deviation from sections 2, 2.1, 6.1, 10, 16, 20.1, and 21.1 requires explicit maintainer approval before merge.
+### 15.1 Must-Pass Validation
 
-"Reasonable interpretation" is not sufficient for deviations. Approval must be explicit and documented.
+1. Unit tests for push-loop, conflict remediation, CI remediation, and state migration.
+2. Integration tests for multi-worker races and queue/done conflict merges.
+3. `make agent-ci` passes.
+4. `make ci` passes.
 
-## 23. Appendix: Current Module Touchpoints (Implementation Map)
+### 15.2 Acceptance Criteria
 
-Primary files impacted:
+Accepted only when all are true:
+
+1. Parallel mode uses direct push to base branch.
+2. Agent sessions perform integration git operations.
+3. Ralph enforces hard integrity gates before success.
+4. Coordinator is minimal and non-semantic.
+5. Non-parallel loop/run-one behavior is unchanged.
+
+---
+
+## 16. Implementation Map
+
+Primary touched modules:
 
 1. `crates/ralph/src/commands/run/parallel/orchestration.rs`
 2. `crates/ralph/src/commands/run/parallel/state.rs`
 3. `crates/ralph/src/commands/run/parallel/state_init.rs`
 4. `crates/ralph/src/commands/run/parallel/worker.rs`
 5. `crates/ralph/src/commands/run/supervision/parallel_worker.rs`
-6. `crates/ralph/src/commands/run/merge_agent.rs` (delete)
-7. `crates/ralph/src/commands/run/parallel/merge_runner/*` (delete)
-8. `crates/ralph/src/contracts/config/parallel.rs`
-9. `crates/ralph/src/cli/run.rs`
-10. `docs/cli.md`
-11. `docs/configuration.md`
-12. `docs/features/parallel.md`
+6. `crates/ralph/src/contracts/config/parallel.rs`
+7. `crates/ralph/src/cli/run.rs`
+8. `docs/cli.md`
+9. `docs/configuration.md`
+10. `docs/features/parallel.md`
 
-This map is informative; the normative behavior is defined by sections 1-22.
+Legacy removals:
+
+1. `crates/ralph/src/commands/run/merge_agent.rs`
+2. `crates/ralph/src/commands/run/parallel/merge_runner/*`
+

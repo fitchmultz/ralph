@@ -1,28 +1,32 @@
 //! Worker integration loop for direct-push parallel mode.
 //!
 //! Responsibilities:
-//! - Implement the bounded integration loop: fetch, rebase, resolve conflicts, CI, push.
-//! - Generate handoff packets for agent-led remediation.
-//! - Enforce deterministic compliance checks before push.
+//! - Drive a bounded integration loop through the phase continue-session.
+//! - Keep `fetch/rebase/conflict-fix/commit/push` execution agent-owned.
+//! - Enforce deterministic post-turn compliance gates before success.
+//! - Emit remediation handoff packets for blocked attempts.
 //!
 //! Not handled here:
-//! - Phase execution (see `run_one` module).
+//! - Phase execution itself (see `run_one` phase modules).
 //! - Worker spawning/orchestration (see `worker.rs` and `orchestration.rs`).
 //!
 //! Invariants/assumptions:
-//! - Called after phase execution completes successfully.
-//! - Worker has committed task changes to the workspace branch.
-//! - Target branch is the coordinator's base branch.
+//! - Called after the worker has completed its configured phases.
+//! - Called only in parallel-worker mode.
+//! - Single-mode (`ralph run one` without `--parallel-worker`) is unchanged.
+
 #![allow(dead_code)]
 
+use crate::commands::run::supervision::{ContinueSession, resume_continue_session};
 use crate::config::Resolved;
 use crate::contracts::TaskStatus;
-use crate::git::{self, WorkspaceSpec};
-use crate::queue::{self, operations::complete_task};
+use crate::git;
+use crate::queue;
 use crate::timeutil;
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::time::Duration;
 
 // =============================================================================
@@ -32,7 +36,7 @@ use std::time::Duration;
 /// Configuration for the integration loop.
 #[derive(Debug, Clone)]
 pub struct IntegrationConfig {
-    /// Maximum number of push attempts.
+    /// Maximum number of integration attempts.
     pub max_attempts: u32,
     /// Backoff intervals between retries (in milliseconds).
     pub backoff_ms: Vec<u64>,
@@ -60,13 +64,13 @@ impl IntegrationConfig {
         }
     }
 
-    /// Get backoff for a specific attempt (0-indexed).
+    /// Get backoff for a specific attempt index (0-indexed).
     pub fn backoff_for_attempt(&self, attempt: usize) -> Duration {
         let ms = self
             .backoff_ms
             .get(attempt)
             .copied()
-            .unwrap_or_else(|| self.backoff_ms.last().copied().unwrap_or(10000));
+            .unwrap_or_else(|| self.backoff_ms.last().copied().unwrap_or(10_000));
         Duration::from_millis(ms)
     }
 }
@@ -78,11 +82,11 @@ impl IntegrationConfig {
 /// Outcome of the integration loop.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IntegrationOutcome {
-    /// Push succeeded, task is complete.
+    /// Push succeeded and compliance gates passed.
     Success,
-    /// Push blocked after exhausting retries.
+    /// Integration could not complete within bounded retries.
     BlockedPush { reason: String },
-    /// Terminal failure (unrecoverable error).
+    /// Terminal integration failure (for example no resumable session).
     Failed { reason: String },
 }
 
@@ -90,7 +94,7 @@ pub enum IntegrationOutcome {
 // Handoff Packet
 // =============================================================================
 
-/// Structured handoff packet for agent remediation sessions.
+/// Structured handoff packet for blocked remediation attempts.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RemediationHandoff {
     /// Task identifier.
@@ -103,15 +107,15 @@ pub struct RemediationHandoff {
     pub attempt: u32,
     /// Maximum attempts allowed.
     pub max_attempts: u32,
-    /// List of files with conflicts (if any).
+    /// List of files with unresolved conflicts.
     pub conflict_files: Vec<String>,
     /// Current git status output.
     pub git_status: String,
-    /// Phase outputs summary (last phase response).
+    /// Phase outputs summary (last phase response summary).
     pub phase_summary: String,
     /// Original task intent snapshot.
     pub task_intent: String,
-    /// CI command and last output (for CI remediation).
+    /// CI context when validation failed on CI.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ci_context: Option<CiContext>,
     /// Timestamp when handoff was generated.
@@ -138,10 +142,10 @@ impl Default for QueueDoneRules {
     fn default() -> Self {
         Self {
             rules: vec![
-                "Remove completed task from queue.json".into(),
-                "Ensure completed task appears in done.json".into(),
-                "Preserve other tasks from upstream unchanged".into(),
-                "Preserve task metadata (timestamps, notes)".into(),
+                "Remove the completed task from queue.json".into(),
+                "Ensure the completed task is present in done.json".into(),
+                "Preserve entries from other workers exactly".into(),
+                "Preserve task metadata (timestamps/notes)".into(),
             ],
         }
     }
@@ -218,7 +222,6 @@ pub fn write_handoff_packet(
     let content = serde_json::to_string_pretty(handoff).context("serialize handoff packet")?;
     crate::fsutil::write_atomic(&path, content.as_bytes())
         .with_context(|| format!("write handoff packet to {}", path.display()))?;
-
     Ok(path)
 }
 
@@ -231,6 +234,7 @@ pub fn write_handoff_packet(
 pub struct ComplianceResult {
     pub has_unresolved_conflicts: bool,
     pub queue_done_valid: bool,
+    pub task_archived: bool,
     pub ci_passed: bool,
     pub conflict_files: Vec<String>,
     pub validation_error: Option<String>,
@@ -238,60 +242,50 @@ pub struct ComplianceResult {
 
 impl ComplianceResult {
     pub fn all_passed(&self) -> bool {
-        !self.has_unresolved_conflicts && self.queue_done_valid && self.ci_passed
+        !self.has_unresolved_conflicts
+            && self.queue_done_valid
+            && self.task_archived
+            && self.ci_passed
     }
 }
 
-/// Run all deterministic compliance checks.
+/// Run deterministic compliance checks after each agent integration turn.
 pub fn run_compliance_checks(
     repo_root: &Path,
     resolved: &Resolved,
-    _task_id: &str,
+    task_id: &str,
     ci_enabled: bool,
 ) -> Result<ComplianceResult> {
-    // Check 1: No unresolved merge conflicts
     let conflict_files = git::list_conflict_files(repo_root)?;
     let has_unresolved_conflicts = !conflict_files.is_empty();
 
+    let mut errors = Vec::new();
     if has_unresolved_conflicts {
-        return Ok(ComplianceResult {
-            has_unresolved_conflicts: true,
-            queue_done_valid: false,
-            ci_passed: false,
-            conflict_files,
-            validation_error: Some("Unresolved merge conflicts detected".into()),
-        });
+        errors.push("unresolved merge conflicts remain".to_string());
     }
 
-    // Check 2: Queue/done semantic validation
-    let (queue_done_valid, validation_error) =
-        match validate_queue_done_semantics(repo_root, resolved) {
-            Ok(()) => (true, None),
-            Err(e) => (false, Some(e.to_string())),
-        };
+    let queue_done_valid = match validate_queue_done_semantics(repo_root, resolved) {
+        Ok(()) => true,
+        Err(err) => {
+            errors.push(format!("queue/done semantic validation failed: {}", err));
+            false
+        }
+    };
 
-    if !queue_done_valid {
-        return Ok(ComplianceResult {
-            has_unresolved_conflicts: false,
-            queue_done_valid: false,
-            ci_passed: false,
-            conflict_files: Vec::new(),
-            validation_error,
-        });
-    }
+    let task_archived = match validate_task_archived(repo_root, task_id) {
+        Ok(()) => true,
+        Err(err) => {
+            errors.push(format!("task archival validation failed: {}", err));
+            false
+        }
+    };
 
-    // Check 3: CI gate (if enabled)
     let ci_passed = if ci_enabled {
         match run_ci_check(repo_root, resolved) {
             Ok(()) => true,
-            Err(e) => {
-                return Ok(ComplianceResult {
-                    has_unresolved_conflicts: false,
-                    queue_done_valid: true,
-                    ci_passed: false,
-                    conflict_files: Vec::new(),
-                    validation_error: Some(format!("CI gate failed: {}", e)),
-                });
+            Err(err) => {
+                errors.push(format!("CI gate failed: {}", err));
+                false
             }
         }
     } else {
@@ -299,44 +293,117 @@ pub fn run_compliance_checks(
     };
 
     Ok(ComplianceResult {
-        has_unresolved_conflicts: false,
-        queue_done_valid: true,
+        has_unresolved_conflicts,
+        queue_done_valid,
+        task_archived,
         ci_passed,
-        conflict_files: Vec::new(),
-        validation_error: None,
+        conflict_files,
+        validation_error: if errors.is_empty() {
+            None
+        } else {
+            Some(errors.join("; "))
+        },
     })
 }
 
-/// Validate queue/done files semantically.
+/// Validate queue/done files semantically in workspace-local bookkeeping files.
 fn validate_queue_done_semantics(repo_root: &Path, resolved: &Resolved) -> Result<()> {
-    // In worker context, we validate the workspace-local queue/done
-    let queue_path = repo_root.join(".ralph/queue.json");
-    let done_path = repo_root.join(".ralph/done.json");
+    let queue_path = select_bookkeeping_path(
+        repo_root,
+        &[".ralph/queue.json", ".ralph/queue.jsonc"],
+        ".ralph/queue.json",
+    );
+    let done_path = select_bookkeeping_path(
+        repo_root,
+        &[".ralph/done.json", ".ralph/done.jsonc"],
+        ".ralph/done.json",
+    );
 
-    if queue_path.exists() {
-        let queue = queue::load_queue(&queue_path).context("load queue for validation")?;
-        let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
-        let done = if done_path.exists() {
-            Some(queue::load_queue(&done_path).context("load done for validation")?)
-        } else {
-            None
-        };
+    let queue = queue::load_queue(&queue_path).context("load queue for validation")?;
+    let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
+    let done = if done_path.exists() {
+        Some(queue::load_queue(&done_path).context("load done for validation")?)
+    } else {
+        None
+    };
 
-        // Basic semantic validation
-        queue::validate_queue_set(
-            &queue,
-            done.as_ref(),
-            &resolved.id_prefix,
-            resolved.id_width,
-            max_depth,
-        )
-        .context("queue/done semantic validation")?;
+    queue::validate_queue_set(
+        &queue,
+        done.as_ref(),
+        &resolved.id_prefix,
+        resolved.id_width,
+        max_depth,
+    )
+    .context("queue/done semantic validation")?;
+
+    Ok(())
+}
+
+/// Validate that the specific task is removed from queue and present as done.
+fn validate_task_archived(repo_root: &Path, task_id: &str) -> Result<()> {
+    let task_id = task_id.trim();
+    if task_id.is_empty() {
+        bail!("task id is empty");
+    }
+
+    let queue_path = select_bookkeeping_path(
+        repo_root,
+        &[".ralph/queue.json", ".ralph/queue.jsonc"],
+        ".ralph/queue.json",
+    );
+    let done_path = select_bookkeeping_path(
+        repo_root,
+        &[".ralph/done.json", ".ralph/done.jsonc"],
+        ".ralph/done.json",
+    );
+
+    if !queue_path.exists() {
+        bail!("queue file missing at {}", queue_path.display());
+    }
+    if !done_path.exists() {
+        bail!("done file missing at {}", done_path.display());
+    }
+
+    let queue_file = queue::load_queue(&queue_path)
+        .with_context(|| format!("load queue file {}", queue_path.display()))?;
+    if queue_file
+        .tasks
+        .iter()
+        .any(|task| task.id.trim() == task_id)
+    {
+        bail!("task {} still present in {}", task_id, queue_path.display());
+    }
+
+    let done_file = queue::load_queue(&done_path)
+        .with_context(|| format!("load done file {}", done_path.display()))?;
+    let done_task = done_file
+        .tasks
+        .iter()
+        .find(|task| task.id.trim() == task_id)
+        .ok_or_else(|| anyhow::anyhow!("task {} missing from {}", task_id, done_path.display()))?;
+
+    if done_task.status != TaskStatus::Done {
+        bail!(
+            "task {} exists in done but status is {:?}, expected done",
+            task_id,
+            done_task.status
+        );
     }
 
     Ok(())
 }
 
-/// Run CI gate check.
+fn select_bookkeeping_path(repo_root: &Path, candidates: &[&str], fallback: &str) -> PathBuf {
+    for candidate in candidates {
+        let path = repo_root.join(candidate);
+        if path.exists() {
+            return path;
+        }
+    }
+    repo_root.join(fallback)
+}
+
+/// Run CI gate check as deterministic validation.
 fn run_ci_check(repo_root: &Path, resolved: &Resolved) -> Result<()> {
     let ci_command = resolved
         .config
@@ -345,9 +412,9 @@ fn run_ci_check(repo_root: &Path, resolved: &Resolved) -> Result<()> {
         .as_deref()
         .unwrap_or("make ci");
 
-    log::info!("Running CI gate: {}", ci_command);
+    log::info!("Running CI gate validation: {}", ci_command);
 
-    let output = std::process::Command::new("sh")
+    let output = Command::new("sh")
         .arg("-c")
         .arg(ci_command)
         .current_dir(repo_root)
@@ -356,10 +423,151 @@ fn run_ci_check(repo_root: &Path, resolved: &Resolved) -> Result<()> {
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        bail!("CI gate failed: {}", stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        bail!("{} | {}", stdout.trim(), stderr.trim());
     }
 
     Ok(())
+}
+
+/// Verify that local HEAD is integrated into `origin/<target_branch>`.
+fn head_is_synced_to_remote(repo_root: &Path, target_branch: &str) -> Result<bool> {
+    git::fetch_branch(repo_root, "origin", target_branch)
+        .with_context(|| format!("fetch origin/{} for sync check", target_branch))?;
+
+    let remote_ref = format!("origin/{}", target_branch);
+    let output = Command::new("git")
+        .args(["merge-base", "--is-ancestor", "HEAD", &remote_ref])
+        .current_dir(repo_root)
+        .output()
+        .with_context(|| format!("check if HEAD is ancestor of {}", remote_ref))?;
+
+    if output.status.success() {
+        return Ok(true);
+    }
+    if output.status.code() == Some(1) {
+        return Ok(false);
+    }
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    bail!(
+        "unable to verify push sync against {}: {}",
+        remote_ref,
+        stderr.trim()
+    );
+}
+
+// =============================================================================
+// Integration Prompting
+// =============================================================================
+
+#[allow(clippy::too_many_arguments)]
+fn build_agent_integration_prompt(
+    task_id: &str,
+    task_title: &str,
+    target_branch: &str,
+    attempt: u32,
+    max_attempts: u32,
+    phase_summary: &str,
+    status_snapshot: &str,
+    ci_enabled: bool,
+    ci_command: Option<&str>,
+    previous_failure: Option<&str>,
+) -> String {
+    let failure_block = previous_failure.map_or_else(String::new, |failure| {
+        format!("\n## Previous Attempt Failed\n{}\n", failure)
+    });
+
+    let ci_block = if ci_enabled {
+        format!(
+            "- Run CI gate and fix failures before pushing: `{}`",
+            ci_command.unwrap_or("make ci")
+        )
+    } else {
+        "- CI gate is disabled for this task".to_string()
+    };
+
+    format!(
+        r#"# Parallel Integration (Mandatory) - Attempt {attempt}/{max_attempts}
+You are finalizing task `{task_id}` (`{task_title}`) for direct push to `origin/{target_branch}`.
+
+## Hard Requirement
+You MUST execute integration git operations yourself in this turn. Do not stop early.
+You are NOT done until all required checks are satisfied.
+
+## Context
+- Phase summary: {phase_summary}
+- Current git status snapshot:
+```text
+{status_snapshot}
+```
+{failure_block}
+## Required Sequence
+1. `git fetch origin {target_branch}`
+2. Rebase on latest remote state: `git rebase origin/{target_branch}`
+3. If conflicts exist:
+   - Resolve every conflict marker while preserving both upstream and task intent.
+   - For queue/done files, preserve other workers' entries exactly.
+   - Ensure `{task_id}` is removed from queue and present as done in done.
+   - Continue rebase until complete (`git add ...`, `git rebase --continue`).
+4. Ensure bookkeeping is correct:
+   - `.ralph/queue.json` (or `.jsonc`) does NOT contain `{task_id}`
+   - `.ralph/done.json` (or `.jsonc`) DOES contain `{task_id}` with done status
+5. Stage and commit any remaining changes needed for integration.
+6. {ci_block}
+7. Push directly to base branch: `git push origin HEAD:{target_branch}`
+8. If push is rejected (non-fast-forward), repeat from step 1 in this same turn.
+
+## Completion Contract (Mandatory)
+Before ending your response:
+- No unresolved merge conflicts remain.
+- Push to `origin/{target_branch}` has succeeded.
+- Bookkeeping files are semantically correct for `{task_id}`.
+- CI has passed when enabled.
+
+If any check fails, keep working in this same turn until fixed.
+"#
+    )
+}
+
+fn compose_block_reason(
+    compliance: &ComplianceResult,
+    pushed: bool,
+    extra: Option<&str>,
+) -> String {
+    let mut reasons = Vec::new();
+
+    if compliance.has_unresolved_conflicts {
+        reasons.push(format!(
+            "unresolved conflicts: {}",
+            compliance.conflict_files.join(", ")
+        ));
+    }
+    if !compliance.queue_done_valid {
+        reasons.push("queue/done semantic validation failed".to_string());
+    }
+    if !compliance.task_archived {
+        reasons.push("task archival validation failed".to_string());
+    }
+    if !compliance.ci_passed {
+        reasons.push("CI validation failed".to_string());
+    }
+    if !pushed {
+        reasons.push("HEAD is not yet integrated into target branch".to_string());
+    }
+    if let Some(extra) = extra {
+        reasons.push(extra.to_string());
+    }
+
+    if let Some(validation_error) = &compliance.validation_error {
+        reasons.push(validation_error.clone());
+    }
+
+    if reasons.is_empty() {
+        "integration did not satisfy completion contract".to_string()
+    } else {
+        reasons.join("; ")
+    }
 }
 
 // =============================================================================
@@ -368,276 +576,123 @@ fn run_ci_check(repo_root: &Path, resolved: &Resolved) -> Result<()> {
 
 /// Run the integration loop for a completed worker.
 ///
-/// This function implements the bounded retry loop for direct push:
-/// 1. Fetch target branch
-/// 2. Rebase onto target
-/// 3. Resolve conflicts via agent if needed
-/// 4. Run CI gate
-/// 5. Push to target
+/// Integration actions are agent-owned via continue-session prompts.
+/// Ralph only validates completion and retries when contract checks fail.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn run_integration_loop(
     resolved: &Resolved,
-    workspace: &WorkspaceSpec,
     task_id: &str,
     task_title: &str,
     config: &IntegrationConfig,
     phase_summary: &str,
+    continue_session: &mut ContinueSession,
+    on_resume: &mut dyn FnMut(&crate::runner::RunnerOutput, Duration) -> Result<()>,
+    plugins: Option<&crate::plugins::registry::PluginRegistry>,
 ) -> Result<IntegrationOutcome> {
-    let repo_root = &workspace.path;
+    let repo_root = &resolved.repo_root;
+    let mut previous_failure: Option<String> = None;
 
-    for attempt in 0..config.max_attempts {
+    for attempt_index in 0..config.max_attempts {
+        let attempt = attempt_index + 1;
         log::info!(
-            "Integration attempt {}/{} for {}",
-            attempt + 1,
+            "Agent-owned integration attempt {}/{} for {}",
+            attempt,
             config.max_attempts,
             task_id
         );
 
-        // Step 1: Fetch target branch
-        if let Err(e) = git::fetch_branch(repo_root, "origin", &config.target_branch) {
-            log::warn!("Fetch failed on attempt {}: {}", attempt + 1, e);
-            if attempt + 1 == config.max_attempts {
-                return Ok(IntegrationOutcome::BlockedPush {
-                    reason: format!("Fetch failed after {} attempts: {}", config.max_attempts, e),
-                });
-            }
-            std::thread::sleep(config.backoff_for_attempt(attempt as usize));
-            continue;
-        }
+        let status_snapshot = git::status_porcelain(repo_root).unwrap_or_default();
+        let prompt = build_agent_integration_prompt(
+            task_id,
+            task_title,
+            &config.target_branch,
+            attempt,
+            config.max_attempts,
+            phase_summary,
+            &status_snapshot,
+            config.ci_enabled,
+            config.ci_command.as_deref(),
+            previous_failure.as_deref(),
+        );
 
-        // Step 2: Check if we're behind and need to rebase
-        let behind = match git::is_behind_upstream(repo_root, &config.target_branch) {
-            Ok(b) => b,
-            Err(e) => {
-                log::warn!("Failed to check divergence: {}", e);
-                if attempt + 1 == config.max_attempts {
-                    return Ok(IntegrationOutcome::BlockedPush {
-                        reason: format!("Divergence check failed: {}", e),
-                    });
-                }
-                std::thread::sleep(config.backoff_for_attempt(attempt as usize));
-                continue;
-            }
-        };
-
-        if behind {
-            // Step 3: Rebase onto target
-            if let Err(e) = git::rebase_onto(repo_root, &format!("origin/{}", config.target_branch))
-            {
-                log::warn!("Rebase failed on attempt {}: {}", attempt + 1, e);
-
-                // Check if it's a conflict
-                let conflict_files = git::list_conflict_files(repo_root).unwrap_or_default();
-                if !conflict_files.is_empty() {
-                    log::info!("Merge conflicts detected: {:?}", conflict_files);
-
-                    // Generate handoff and run remediation
-                    let handoff = RemediationHandoff::new(
-                        task_id,
-                        task_title,
-                        &config.target_branch,
-                        attempt + 1,
-                        config.max_attempts,
-                    )
-                    .with_conflicts(conflict_files.clone())
-                    .with_git_status(git::status_porcelain(repo_root).unwrap_or_default())
-                    .with_phase_summary(phase_summary.into())
-                    .with_task_intent(format!("Complete task {}: {}", task_id, task_title));
-
-                    if let Err(e) = write_handoff_packet(repo_root, task_id, attempt + 1, &handoff)
-                    {
-                        log::error!("Failed to write handoff packet: {}", e);
+        let (output, elapsed) =
+            match resume_continue_session(resolved, continue_session, &prompt, plugins) {
+                Ok(resume) => resume,
+                Err(err) => {
+                    let reason = format!("integration continuation failed: {:#}", err);
+                    if reason.contains("no session id captured") {
+                        return Ok(IntegrationOutcome::Failed { reason });
                     }
-
-                    // TODO: Spawn agent remediation session
-                    // For now, we fail and let the coordinator retry
-                    if attempt + 1 == config.max_attempts {
-                        return Ok(IntegrationOutcome::BlockedPush {
-                            reason: format!(
-                                "Unresolved conflicts after {} attempts",
-                                config.max_attempts
-                            ),
-                        });
+                    if attempt >= config.max_attempts {
+                        return Ok(IntegrationOutcome::BlockedPush { reason });
                     }
-
-                    // Abort the failed rebase and retry
-                    let _ = git::abort_rebase(repo_root);
-                    std::thread::sleep(config.backoff_for_attempt(attempt as usize));
+                    previous_failure = Some(reason);
+                    std::thread::sleep(config.backoff_for_attempt(attempt_index as usize));
                     continue;
                 }
+            };
 
-                // Non-conflict rebase failure
-                if attempt + 1 == config.max_attempts {
-                    return Ok(IntegrationOutcome::BlockedPush {
-                        reason: format!("Rebase failed: {}", e),
-                    });
-                }
-                std::thread::sleep(config.backoff_for_attempt(attempt as usize));
-                continue;
-            }
-        }
+        on_resume(&output, elapsed)?;
 
-        // Step 4: Run compliance checks
         let compliance = run_compliance_checks(repo_root, resolved, task_id, config.ci_enabled)?;
+        let (pushed, push_check_error) =
+            match head_is_synced_to_remote(repo_root, &config.target_branch) {
+                Ok(value) => (value, None),
+                Err(err) => (false, Some(format!("push sync validation failed: {}", err))),
+            };
 
-        if !compliance.all_passed() {
-            if compliance.has_unresolved_conflicts {
-                log::warn!("Unresolved conflicts after rebase");
-
-                if attempt + 1 == config.max_attempts {
-                    return Ok(IntegrationOutcome::BlockedPush {
-                        reason: "Unresolved conflicts remain after remediation".into(),
-                    });
-                }
-
-                // Generate handoff for conflict resolution
-                let handoff = RemediationHandoff::new(
-                    task_id,
-                    task_title,
-                    &config.target_branch,
-                    attempt + 1,
-                    config.max_attempts,
-                )
-                .with_conflicts(compliance.conflict_files)
-                .with_git_status(git::status_porcelain(repo_root).unwrap_or_default())
-                .with_phase_summary(phase_summary.into())
-                .with_task_intent(format!("Complete task {}: {}", task_id, task_title));
-
-                let _ = write_handoff_packet(repo_root, task_id, attempt + 1, &handoff);
-
-                std::thread::sleep(config.backoff_for_attempt(attempt as usize));
-                continue;
-            }
-
-            if !compliance.ci_passed {
-                let error = compliance
-                    .validation_error
-                    .unwrap_or_else(|| "CI gate failed".into());
-                log::warn!("CI compliance check failed: {}", error);
-
-                // Generate handoff for CI remediation
-                let handoff = RemediationHandoff::new(
-                    task_id,
-                    task_title,
-                    &config.target_branch,
-                    attempt + 1,
-                    config.max_attempts,
-                )
-                .with_git_status(git::status_porcelain(repo_root).unwrap_or_default())
-                .with_phase_summary(phase_summary.into())
-                .with_task_intent(format!("Complete task {}: {}", task_id, task_title))
-                .with_ci_context(
-                    config
-                        .ci_command
-                        .clone()
-                        .unwrap_or_else(|| "make ci".into()),
-                    error.clone(),
-                    1,
-                );
-
-                let _ = write_handoff_packet(repo_root, task_id, attempt + 1, &handoff);
-
-                if attempt + 1 == config.max_attempts {
-                    return Ok(IntegrationOutcome::BlockedPush {
-                        reason: format!(
-                            "CI gate failed after {} attempts: {}",
-                            config.max_attempts, error
-                        ),
-                    });
-                }
-
-                std::thread::sleep(config.backoff_for_attempt(attempt as usize));
-                continue;
-            }
-
-            // Other validation failure
-            return Ok(IntegrationOutcome::Failed {
-                reason: compliance
-                    .validation_error
-                    .unwrap_or_else(|| "Validation failed".into()),
-            });
+        if compliance.all_passed() && pushed {
+            log::info!(
+                "Integration succeeded for {} on attempt {}/{}",
+                task_id,
+                attempt,
+                config.max_attempts
+            );
+            return Ok(IntegrationOutcome::Success);
         }
 
-        // Step 5: Push to target
-        match git::push_current_branch(repo_root, "origin") {
-            Ok(()) => {
-                log::info!(
-                    "Successfully pushed {} to {}",
-                    task_id,
-                    config.target_branch
-                );
+        let reason = compose_block_reason(&compliance, pushed, push_check_error.as_deref());
+        let mut handoff = RemediationHandoff::new(
+            task_id,
+            task_title,
+            &config.target_branch,
+            attempt,
+            config.max_attempts,
+        )
+        .with_conflicts(compliance.conflict_files.clone())
+        .with_git_status(git::status_porcelain(repo_root).unwrap_or_default())
+        .with_phase_summary(phase_summary.to_string())
+        .with_task_intent(format!("Complete task {}: {}", task_id, task_title));
 
-                // Finalize task: move from queue to done
-                if let Err(e) = finalize_task_in_bookkeeping(resolved, task_id) {
-                    log::error!("Failed to finalize task in bookkeeping: {}", e);
-                    // Continue anyway - the push succeeded
-                }
-
-                return Ok(IntegrationOutcome::Success);
-            }
-            Err(e) => {
-                let error_str = e.to_string();
-
-                // Classify push failure
-                if is_non_fast_forward_error(&error_str) {
-                    log::warn!("Non-fast-forward push on attempt {}", attempt + 1);
-
-                    if attempt + 1 == config.max_attempts {
-                        return Ok(IntegrationOutcome::BlockedPush {
-                            reason: format!(
-                                "Non-fast-forward push after {} attempts",
-                                config.max_attempts
-                            ),
-                        });
-                    }
-
-                    std::thread::sleep(config.backoff_for_attempt(attempt as usize));
-                    continue;
-                }
-
-                // Non-retryable push failure
-                return Ok(IntegrationOutcome::Failed {
-                    reason: format!("Push failed: {}", e),
-                });
-            }
+        if !compliance.ci_passed {
+            handoff = handoff.with_ci_context(
+                config
+                    .ci_command
+                    .clone()
+                    .unwrap_or_else(|| "make ci".into()),
+                compliance
+                    .validation_error
+                    .clone()
+                    .unwrap_or_else(|| "CI gate validation failed".to_string()),
+                1,
+            );
         }
+
+        if let Err(err) = write_handoff_packet(repo_root, task_id, attempt, &handoff) {
+            log::warn!("Failed to persist remediation handoff packet: {}", err);
+        }
+
+        if attempt >= config.max_attempts {
+            return Ok(IntegrationOutcome::BlockedPush { reason });
+        }
+
+        previous_failure = Some(reason);
+        std::thread::sleep(config.backoff_for_attempt(attempt_index as usize));
     }
 
-    // Exhausted all attempts
     Ok(IntegrationOutcome::BlockedPush {
-        reason: format!("Integration failed after {} attempts", config.max_attempts),
+        reason: format!("integration exhausted {} attempts", config.max_attempts),
     })
-}
-
-/// Check if error is a non-fast-forward rejection.
-fn is_non_fast_forward_error(error: &str) -> bool {
-    let lower = error.to_lowercase();
-    lower.contains("non-fast-forward")
-        || lower.contains("fetch first")
-        || lower.contains("rejected")
-        || lower.contains("stale info")
-        || lower.contains("failed to push")
-}
-
-/// Finalize task by moving from queue to done.
-fn finalize_task_in_bookkeeping(resolved: &Resolved, task_id: &str) -> Result<()> {
-    let now = timeutil::now_utc_rfc3339().unwrap_or_else(|_| "2026-01-01T00:00:00Z".into());
-    let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
-
-    complete_task(
-        &resolved.queue_path,
-        &resolved.done_path,
-        task_id,
-        TaskStatus::Done,
-        &now,
-        &["[parallel] Completed via direct push".to_string()],
-        &resolved.id_prefix,
-        resolved.id_width,
-        max_depth,
-        None,
-    )
-    .context("finalize task in queue/done")?;
-
-    Ok(())
 }
 
 #[cfg(test)]
@@ -658,8 +713,8 @@ mod tests {
         assert_eq!(config.backoff_for_attempt(1), Duration::from_millis(2000));
         assert_eq!(config.backoff_for_attempt(2), Duration::from_millis(5000));
         assert_eq!(config.backoff_for_attempt(3), Duration::from_millis(10000));
-        assert_eq!(config.backoff_for_attempt(4), Duration::from_millis(10000)); // last value repeated
-        assert_eq!(config.backoff_for_attempt(10), Duration::from_millis(10000)); // last value repeated
+        assert_eq!(config.backoff_for_attempt(4), Duration::from_millis(10000));
+        assert_eq!(config.backoff_for_attempt(10), Duration::from_millis(10000));
     }
 
     #[test]
@@ -696,16 +751,24 @@ mod tests {
     }
 
     #[test]
-    fn is_non_fast_forward_error_detection() {
-        assert!(is_non_fast_forward_error(
-            "error: failed to push some refs. hint: Updates were rejected because the tip of your current branch is behind"
-        ));
-        assert!(is_non_fast_forward_error(
-            "non-fast-forward updates were rejected"
-        ));
-        assert!(is_non_fast_forward_error("fetch first"));
-        assert!(!is_non_fast_forward_error("permission denied"));
-        assert!(!is_non_fast_forward_error("repository not found"));
+    fn integration_prompt_contains_mandatory_contract() {
+        let prompt = build_agent_integration_prompt(
+            "RQ-0001",
+            "Implement feature",
+            "main",
+            1,
+            5,
+            "phase summary",
+            " M src/lib.rs",
+            true,
+            Some("make ci"),
+            Some("previous failure"),
+        );
+
+        assert!(prompt.contains("MUST execute integration git operations"));
+        assert!(prompt.contains("Completion Contract (Mandatory)"));
+        assert!(prompt.contains("git push origin HEAD:main"));
+        assert!(prompt.contains("previous failure"));
     }
 
     #[test]
@@ -713,28 +776,38 @@ mod tests {
         let passed = ComplianceResult {
             has_unresolved_conflicts: false,
             queue_done_valid: true,
+            task_archived: true,
             ci_passed: true,
             conflict_files: vec![],
             validation_error: None,
         };
         assert!(passed.all_passed());
 
-        let failed_ci = ComplianceResult {
+        let failed = ComplianceResult {
             has_unresolved_conflicts: false,
             queue_done_valid: true,
-            ci_passed: false,
+            task_archived: false,
+            ci_passed: true,
             conflict_files: vec![],
             validation_error: None,
         };
-        assert!(!failed_ci.all_passed());
+        assert!(!failed.all_passed());
+    }
 
-        let has_conflicts = ComplianceResult {
-            has_unresolved_conflicts: true,
-            queue_done_valid: true,
-            ci_passed: true,
-            conflict_files: vec!["src/lib.rs".into()],
-            validation_error: Some("conflicts".into()),
-        };
-        assert!(!has_conflicts.all_passed());
+    #[test]
+    fn select_bookkeeping_path_picks_existing_candidate() -> Result<()> {
+        let dir = tempfile::TempDir::new()?;
+        let ralph_dir = dir.path().join(".ralph");
+        std::fs::create_dir_all(&ralph_dir)?;
+        std::fs::write(ralph_dir.join("queue.jsonc"), "{}")?;
+
+        let selected = select_bookkeeping_path(
+            dir.path(),
+            &[".ralph/queue.json", ".ralph/queue.jsonc"],
+            ".ralph/queue.json",
+        );
+
+        assert_eq!(selected, ralph_dir.join("queue.jsonc"));
+        Ok(())
     }
 }

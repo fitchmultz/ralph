@@ -203,20 +203,42 @@ pub fn execute_phase2_implementation(
                     ctx.plugins,
                 )?,
                 PostRunMode::ParallelWorker => {
-                    crate::commands::run::post_run_supervise_parallel_worker(
+                    use crate::commands::run::parallel::{IntegrationConfig, run_integration_loop};
+
+                    let config = IntegrationConfig::from_resolved(ctx.resolved);
+                    let task_title = ctx.task_title.unwrap_or(ctx.task_id);
+                    let phase_summary = format!("Completed phase 2 for {}", ctx.task_id);
+
+                    match run_integration_loop(
                         ctx.resolved,
                         ctx.task_id,
-                        ctx.git_revert_mode,
-                        ctx.git_commit_push_enabled,
-                        ctx.push_policy,
-                        ctx.revert_prompt.clone(),
-                        Some(supervision::CiContinueContext {
-                            continue_session: &mut continue_session,
-                            on_resume: &mut on_resume,
-                        }),
-                        ctx.lfs_check,
+                        task_title,
+                        &config,
+                        &phase_summary,
+                        &mut continue_session,
+                        &mut on_resume,
                         ctx.plugins,
-                    )?
+                    ) {
+                        Ok(crate::commands::run::parallel::IntegrationOutcome::Success) => {
+                            log::info!("Integration loop succeeded for {}", ctx.task_id);
+                        }
+                        Ok(crate::commands::run::parallel::IntegrationOutcome::BlockedPush {
+                            reason,
+                        }) => {
+                            log::warn!("Integration loop blocked for {}: {}", ctx.task_id, reason);
+                            anyhow::bail!("Push blocked: {}", reason);
+                        }
+                        Ok(crate::commands::run::parallel::IntegrationOutcome::Failed {
+                            reason,
+                        }) => {
+                            log::error!("Integration loop failed for {}: {}", ctx.task_id, reason);
+                            anyhow::bail!("Integration failed: {}", reason);
+                        }
+                        Err(e) => {
+                            log::error!("Integration loop error for {}: {}", ctx.task_id, e);
+                            anyhow::bail!("Integration error: {}", e);
+                        }
+                    }
                 }
             }
         } else {
