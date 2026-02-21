@@ -93,19 +93,24 @@ test:
 		fi; \
 		rm -rf "$$run_dir" 2>/dev/null || true; \
 	}; \
-	trap cleanup EXIT INT TERM; \
+	trap cleanup INT TERM; \
 	export TMPDIR="$$run_dir"; \
 	export TEMP="$$run_dir"; \
 	export TMP="$$run_dir"; \
 	$(RALPH_ENV_RESET); \
 	unit_log="$$run_dir/unit-tests.log"; \
 	doc_log="$$run_dir/doc-tests.log"; \
+	unit_log_content=""; \
+	doc_log_content=""; \
+	exit_code=0; \
 	if cargo nextest --version >/dev/null 2>&1; then \
 		echo "  → Using cargo-nextest for non-doc tests"; \
 		if cargo nextest run --workspace --all-targets --locked -- --include-ignored >"$$unit_log" 2>&1; then \
 			grep -E "^(test result:|running|     Running|Summary|PASS|FAIL)" "$$unit_log" | tail -5 || true; \
 		else \
-			echo "  ✗ Workspace tests failed!"; echo ""; echo "=== Full test output ==="; cat "$$unit_log"; exit 1; \
+			unit_log_content="$$(cat "$$unit_log" 2>/dev/null || true)"; \
+			echo "  ✗ Workspace tests failed!"; echo ""; echo "=== Full test output ==="; echo "$$unit_log_content"; \
+			exit_code=1; \
 		fi; \
 	else \
 		echo "  ⚠ cargo-nextest not found; falling back to cargo test --workspace --all-targets"; \
@@ -113,15 +118,25 @@ test:
 		if cargo test --workspace --all-targets --locked -- --include-ignored >"$$unit_log" 2>&1; then \
 			grep -E "^(test result:|running|     Running)" "$$unit_log" || true; \
 		else \
-			echo "  ✗ Workspace tests failed!"; echo ""; echo "=== Full test output ==="; cat "$$unit_log"; exit 1; \
+			unit_log_content="$$(cat "$$unit_log" 2>/dev/null || true)"; \
+			echo "  ✗ Workspace tests failed!"; echo ""; echo "=== Full test output ==="; echo "$$unit_log_content"; \
+			exit_code=1; \
 		fi; \
 	fi; \
-	if cargo test --workspace --doc --locked -- --include-ignored >"$$doc_log" 2>&1; then \
-		grep -E "^(test result:|running|     Running)" "$$doc_log" || true; \
-	else \
-		echo "  ✗ Doc tests failed!"; echo ""; echo "=== Full test output ==="; cat "$$doc_log"; exit 1; \
+	if [ "$$exit_code" -eq 0 ]; then \
+		if cargo test --workspace --doc --locked -- --include-ignored >"$$doc_log" 2>&1; then \
+			grep -E "^(test result:|running|     Running)" "$$doc_log" || true; \
+		else \
+			doc_log_content="$$(cat "$$doc_log" 2>/dev/null || true)"; \
+			echo "  ✗ Doc tests failed!"; echo ""; echo "=== Full test output ==="; echo "$$doc_log_content"; \
+			exit_code=1; \
+		fi; \
 	fi; \
-	echo "  ✓ Tests passed"
+	if [ "$$exit_code" -eq 0 ]; then \
+		echo "  ✓ Tests passed"; \
+	fi; \
+	cleanup; \
+	exit "$$exit_code"
 
 # Required every time
 build:

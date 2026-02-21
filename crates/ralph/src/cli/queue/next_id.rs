@@ -199,7 +199,8 @@ mod tests {
         let args = QueueNextIdArgs { count: 0 };
         let result = handle(&resolved, args);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("at least 1"));
+        let err = result.unwrap_err().to_string();
+        assert_eq!(err, "Count must be at least 1");
     }
 
     #[test]
@@ -210,7 +211,19 @@ mod tests {
         let args = QueueNextIdArgs { count: 101 };
         let result = handle(&resolved, args);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("cannot exceed"));
+        let err = result.unwrap_err().to_string();
+        assert_eq!(err, "Count cannot exceed 100 (requested: 101)");
+    }
+
+    #[test]
+    fn test_min_count_boundary() {
+        let temp = TempDir::new().unwrap();
+        let resolved = setup_test_queue(&temp, vec![]);
+
+        // 1 should be allowed (minimum valid count)
+        let args = QueueNextIdArgs { count: 1 };
+        let result = handle(&resolved, args);
+        assert!(result.is_ok());
     }
 
     #[test]

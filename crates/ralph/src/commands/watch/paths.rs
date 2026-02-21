@@ -81,6 +81,7 @@ pub fn matches_pattern(name: &str, pattern: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::commands::watch::types::{CommentType, WatchOptions};
 
     #[test]
     fn matches_pattern_basic() {
@@ -149,5 +150,181 @@ mod tests {
         assert!(matches_pattern("anything", "*"));
         assert!(matches_pattern("a", "?"));
         assert!(!matches_pattern("ab", "?"));
+    }
+
+    // =====================================================================
+    // get_relevant_paths tests
+    // =====================================================================
+
+    #[test]
+    fn get_relevant_paths_filters_non_matching_files() {
+        use notify::EventKind;
+
+        let opts = WatchOptions {
+            patterns: vec!["*.rs".to_string()],
+            debounce_ms: 100,
+            auto_queue: false,
+            notify: false,
+            ignore_patterns: vec![],
+            comment_types: vec![CommentType::Todo],
+            paths: vec![PathBuf::from(".")],
+            force: false,
+            close_removed: false,
+        };
+
+        let event = Event {
+            kind: EventKind::Modify(notify::event::ModifyKind::Data(
+                notify::event::DataChange::Content,
+            )),
+            paths: vec![
+                PathBuf::from("/test/file.rs"),
+                PathBuf::from("/test/file.py"),
+            ],
+            attrs: Default::default(),
+        };
+
+        let result = get_relevant_paths(&event, &opts);
+
+        assert!(result.is_some());
+        let paths = result.unwrap();
+        assert_eq!(paths.len(), 1);
+        assert!(paths[0].ends_with("file.rs"));
+    }
+
+    #[test]
+    fn get_relevant_paths_returns_none_for_empty_match() {
+        use notify::EventKind;
+
+        let opts = WatchOptions {
+            patterns: vec!["*.rs".to_string()],
+            debounce_ms: 100,
+            auto_queue: false,
+            notify: false,
+            ignore_patterns: vec![],
+            comment_types: vec![CommentType::Todo],
+            paths: vec![PathBuf::from(".")],
+            force: false,
+            close_removed: false,
+        };
+
+        let event = Event {
+            kind: EventKind::Modify(notify::event::ModifyKind::Data(
+                notify::event::DataChange::Content,
+            )),
+            paths: vec![PathBuf::from("/test/file.py")],
+            attrs: Default::default(),
+        };
+
+        let result = get_relevant_paths(&event, &opts);
+
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn get_relevant_paths_applies_ignore_patterns() {
+        use notify::EventKind;
+
+        let opts = WatchOptions {
+            patterns: vec!["*.rs".to_string()],
+            debounce_ms: 100,
+            auto_queue: false,
+            notify: false,
+            ignore_patterns: vec!["*test*".to_string()],
+            comment_types: vec![CommentType::Todo],
+            paths: vec![PathBuf::from(".")],
+            force: false,
+            close_removed: false,
+        };
+
+        let event = Event {
+            kind: EventKind::Modify(notify::event::ModifyKind::Data(
+                notify::event::DataChange::Content,
+            )),
+            paths: vec![
+                PathBuf::from("/test/main.rs"),
+                PathBuf::from("/test/main_test.rs"),
+            ],
+            attrs: Default::default(),
+        };
+
+        let result = get_relevant_paths(&event, &opts);
+
+        assert!(result.is_some());
+        let paths = result.unwrap();
+        assert_eq!(paths.len(), 1);
+        assert!(paths[0].to_string_lossy().contains("main.rs"));
+        assert!(!paths[0].to_string_lossy().contains("test.rs"));
+    }
+
+    // =====================================================================
+    // should_process_file tests
+    // =====================================================================
+
+    #[test]
+    fn should_process_file_applies_patterns() {
+        let path = Path::new("/test/file.rs");
+
+        assert!(should_process_file(path, &["*.rs".to_string()], &[]));
+        assert!(!should_process_file(path, &["*.py".to_string()], &[]));
+        assert!(should_process_file(
+            path,
+            &["*.py".to_string(), "*.rs".to_string()],
+            &[]
+        ));
+    }
+
+    #[test]
+    fn should_process_file_applies_ignore_patterns() {
+        let path = Path::new("/test/file_test.rs");
+
+        // Without ignore pattern, should match
+        assert!(should_process_file(path, &["*.rs".to_string()], &[]));
+
+        // With ignore pattern, should not match
+        assert!(!should_process_file(
+            path,
+            &["*.rs".to_string()],
+            &["*test*".to_string()]
+        ));
+    }
+
+    #[test]
+    fn should_process_file_ignore_takes_precedence() {
+        let path = Path::new("/test/test.rs");
+
+        // Even if path matches include pattern, ignore should win
+        assert!(!should_process_file(
+            path,
+            &["*.rs".to_string()],
+            &["test*".to_string()]
+        ));
+    }
+
+    #[test]
+    fn should_process_file_skips_target_directory() {
+        let path = Path::new("/project/target/debug/main.rs");
+
+        assert!(!should_process_file(path, &["*.rs".to_string()], &[]));
+    }
+
+    #[test]
+    fn should_process_file_skips_node_modules() {
+        let path = Path::new("/project/node_modules/some-lib/index.js");
+
+        assert!(!should_process_file(path, &["*.js".to_string()], &[]));
+    }
+
+    #[test]
+    fn should_process_file_skips_git_directory() {
+        let path = Path::new("/project/.git/hooks/pre-commit");
+
+        assert!(!should_process_file(path, &["*".to_string()], &[]));
+    }
+
+    #[test]
+    fn should_process_file_skips_ralph_directory() {
+        let path = Path::new("/project/.ralph/queue.json");
+
+        assert!(!should_process_file(path, &["*.json".to_string()], &[]));
     }
 }

@@ -60,7 +60,12 @@ fn run_one_succeeds_when_repo_is_dirty_and_force_is_used() -> Result<()> {
     std::fs::write(dir.path().join("Makefile"), "ci:\n\t@echo 'CI passed'\n")
         .context("write Makefile")?;
 
-    let runner_path = test_support::create_fake_runner(dir.path(), "codex", "#!/bin/sh\nexit 0\n")?;
+    // Drain stdin before exiting so prompt writes don't race with process exit (EPIPE).
+    let runner_path = test_support::create_fake_runner(
+        dir.path(),
+        "codex",
+        "#!/bin/sh\ncat >/dev/null\nexit 0\n",
+    )?;
     test_support::configure_runner(dir.path(), "codex", "gpt-5.2-codex", Some(&runner_path))?;
 
     // Use --force to bypass the dirty repo check.

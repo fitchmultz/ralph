@@ -34,8 +34,8 @@ fn git_init(dir: &Path) -> Result<()> {
 fn write_valid_single_todo_queue(dir: &Path) -> Result<()> {
     let ralph_dir = dir.join(".ralph");
     std::fs::create_dir_all(&ralph_dir).context("create .ralph dir")?;
-    let queue_path = ralph_dir.join("queue.json");
-    let done_path = ralph_dir.join("done.json");
+    let queue_path = ralph_dir.join("queue.jsonc");
+    let done_path = ralph_dir.join("done.jsonc");
 
     let queue = r#"{ 
   "version": 1,
@@ -60,13 +60,13 @@ fn write_valid_single_todo_queue(dir: &Path) -> Result<()> {
   "tasks": []
 }"#;
 
-    std::fs::write(&queue_path, queue).context("write queue.json")?;
-    std::fs::write(&done_path, done).context("write done.json")?;
+    std::fs::write(&queue_path, queue).context("write queue.jsonc")?;
+    std::fs::write(&done_path, done).context("write done.jsonc")?;
     Ok(())
 }
 
 fn configure_runner(dir: &Path, runner: &str, model: &str, bin_path: Option<&Path>) -> Result<()> {
-    let config_path = dir.join(".ralph/config.json");
+    let config_path = dir.join(".ralph/config.jsonc");
     if !config_path.exists() {
         // Create basic config if missing
         let initial_config = r#"{ 
@@ -211,8 +211,8 @@ fn scan_fails_validation_and_safeguards_stdout() -> Result<()> {
 
     // 2. Create a runner that produces INVALID queue.json (corrupts it)
     // It should print valid LLM output but also mess up the file system.
-    let script =
-        "#!/bin/sh\necho 'VALUABLE_SCAN_OUTPUT'\necho 'corrupt' > .ralph/queue.json\nexit 0\n";
+    // The 'cat > /dev/null' drains stdin to prevent broken pipe errors.
+    let script = "#!/bin/sh\ncat > /dev/null\necho 'VALUABLE_SCAN_OUTPUT'\necho 'corrupt' > .ralph/queue.jsonc\nexit 0\n";
     let runner_path = create_fake_runner(dir.path(), "codex", script)?;
     configure_runner(dir.path(), "codex", "gpt-5.2-codex", Some(&runner_path))?;
 
