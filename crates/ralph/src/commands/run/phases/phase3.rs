@@ -136,6 +136,44 @@ pub fn execute_phase3_review(ctx: &PhaseInvocation<'_>) -> Result<(), anyhow::Er
             let _model = ctx.settings.model.clone();
             let mut on_resume =
                 |_resume_output: &runner::RunnerOutput, _elapsed: std::time::Duration| Ok(());
+
+            // Run integration loop for direct-push parallel mode
+            use crate::commands::run::parallel::{IntegrationConfig, run_integration_loop};
+            use crate::git::WorkspaceSpec;
+
+            let config = IntegrationConfig::from_resolved(ctx.resolved);
+            let workspace = WorkspaceSpec {
+                path: ctx.resolved.repo_root.clone(),
+                branch: format!("ralph/{}", ctx.task_id),
+            };
+            let task_title = ctx.task_title.unwrap_or(ctx.task_id);
+            let phase_summary = format!("Completed phases 1-3 for {}", ctx.task_id);
+
+            match run_integration_loop(
+                ctx.resolved,
+                &workspace,
+                ctx.task_id,
+                task_title,
+                &config,
+                &phase_summary,
+            ) {
+                Ok(crate::commands::run::parallel::IntegrationOutcome::Success) => {
+                    log::info!("Integration loop succeeded for {}", ctx.task_id);
+                }
+                Ok(crate::commands::run::parallel::IntegrationOutcome::BlockedPush { reason }) => {
+                    log::warn!("Integration loop blocked for {}: {}", ctx.task_id, reason);
+                    anyhow::bail!("Push blocked: {}", reason);
+                }
+                Ok(crate::commands::run::parallel::IntegrationOutcome::Failed { reason }) => {
+                    log::error!("Integration loop failed for {}: {}", ctx.task_id, reason);
+                    anyhow::bail!("Integration failed: {}", reason);
+                }
+                Err(e) => {
+                    log::error!("Integration loop error for {}: {}", ctx.task_id, e);
+                    anyhow::bail!("Integration error: {}", e);
+                }
+            }
+
             crate::commands::run::post_run_supervise_parallel_worker(
                 ctx.resolved,
                 ctx.task_id,
