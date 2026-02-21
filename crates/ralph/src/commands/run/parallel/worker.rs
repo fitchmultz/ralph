@@ -1,4 +1,4 @@
-//! Worker lifecycle management for parallel task execution (direct-push mode).
+//! Worker lifecycle management for parallel task execution.
 //!
 //! Responsibilities:
 //! - Select runnable tasks from the queue for parallel execution.
@@ -6,13 +6,14 @@
 //! - Track worker state and provide graceful termination.
 //!
 //! Not handled here:
+//! - PR creation or merge logic (see `super::merge_runner`).
 //! - State persistence (see `super::state`).
 //! - CLI argument construction (see `super::args`).
 //!
 //! Invariants/assumptions:
-//! - Workers run in isolated workspaces rooted at task-specific directories.
+//! - Workers run in isolated workspaces with dedicated branches.
 //! - Task selection respects queue order and exclusion sets.
-//! - Workers push directly to target branch (no PRs in direct-push mode).
+//! - Blocking state is computed dynamically from state file and queue.
 
 use crate::agent::AgentOverrides;
 use crate::commands::run::parallel::args::build_override_args;
@@ -26,10 +27,6 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
-use std::time::Duration;
-
-#[cfg(unix)]
-use std::os::unix::process::CommandExt;
 
 use super::state;
 
@@ -51,8 +48,27 @@ pub(crate) fn select_next_task_locked(
     excluded_ids: &HashSet<String>,
     _queue_lock: &DirLock,
 ) -> Result<Option<(String, String)>> {
-    let (queue_file, done_file) = queue::load_and_validate_queues(resolved, true)?;
-    let done_ref = done_file.as_ref();
+    let done_path_exists = resolved.done_path.exists();
+    let done = if done_path_exists {
+        queue::load_queue_with_repair(&resolved.done_path)?
+    } else {
+        crate::contracts::QueueFile::default()
+    };
+    let done_ref = if done.tasks.is_empty() && !done_path_exists {
+        None
+    } else {
+        Some(&done)
+    };
+
+    let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
+    let (queue_file, warnings) = queue::load_queue_with_repair_and_validate(
+        &resolved.queue_path,
+        done_ref,
+        &resolved.id_prefix,
+        resolved.id_width,
+        max_depth,
+    )?;
+    queue::log_warnings(&warnings);
 
     let idx =
         select_run_one_task_index_excluding(&queue_file, done_ref, include_draft, excluded_ids)?;
@@ -67,47 +83,37 @@ pub(crate) fn select_next_task_locked(
     )))
 }
 
-/// Collect IDs that should be excluded from task selection.
-/// In direct-push mode, we exclude:
-/// - Workers currently in-flight (being tracked by the guard)
-/// - Tasks already attempted during the current invocation
-/// - Persisted blocked_push workers until explicitly retried
+/// Collect IDs that should be excluded from task selection (in-flight, open PRs, pending merges).
 pub(crate) fn collect_excluded_ids(
     state_file: &state::ParallelStateFile,
     in_flight: &HashMap<String, WorkerState>,
-    attempted_in_run: &HashSet<String>,
 ) -> HashSet<String> {
     let mut excluded = HashSet::new();
-
-    // Exclude workers being tracked by the guard
     for key in in_flight.keys() {
         excluded.insert(key.trim().to_string());
     }
-
-    // Exclude tasks attempted during this invocation so stale queue state from
-    // concurrent worker pushes does not cause reselection in the same run.
-    for task_id in attempted_in_run {
-        excluded.insert(task_id.trim().to_string());
+    for record in &state_file.tasks_in_flight {
+        excluded.insert(record.task_id.trim().to_string());
     }
-
-    // Persisted blocked_push workers require explicit retry and must remain
-    // excluded across invocations.
-    // Completed tasks rely on queue/done archival semantics.
-    // Failed workers remain visible in state for status/retry but do not block
-    // queue-ordered scheduling by default.
-    for worker in &state_file.workers {
-        if worker.lifecycle == state::WorkerLifecycle::BlockedPush {
-            excluded.insert(worker.task_id.trim().to_string());
+    // Only exclude tasks with PRs that are still open
+    for record in &state_file.prs {
+        if record.is_open_unmerged() {
+            excluded.insert(record.task_id.trim().to_string());
         }
     }
-
+    // Exclude tasks with pending merges
+    for job in &state_file.pending_merges {
+        excluded.insert(job.task_id.trim().to_string());
+    }
     excluded
 }
 
 /// Terminate all in-flight workers gracefully.
 pub(crate) fn terminate_workers(in_flight: &mut HashMap<String, WorkerState>) {
     for worker in in_flight.values_mut() {
-        terminate_worker_process(worker);
+        if let Err(err) = worker.child.kill() {
+            log::warn!("Failed to terminate worker {}: {}", worker.task_id, err);
+        }
     }
 
     for worker in in_flight.values_mut() {
@@ -117,77 +123,16 @@ pub(crate) fn terminate_workers(in_flight: &mut HashMap<String, WorkerState>) {
     }
 }
 
-fn terminate_worker_process(worker: &mut WorkerState) {
-    #[cfg(unix)]
-    {
-        let pid = worker.child.id() as i32;
-
-        // First attempt a graceful interrupt so the worker can unwind and stop
-        // any active runner subprocesses cleanly.
-        // SAFETY: kill() is called with a known child PID created by this process.
-        let sigint_result = unsafe { libc::kill(pid, libc::SIGINT) };
-        if sigint_result != 0 {
-            let err = std::io::Error::last_os_error();
-            if err.raw_os_error() != Some(libc::ESRCH) {
-                log::debug!(
-                    "Failed to send SIGINT to worker {} (pid {}): {}",
-                    worker.task_id,
-                    pid,
-                    err
-                );
-            }
-        }
-
-        let grace = Duration::from_millis(1_500);
-        let deadline = std::time::Instant::now() + grace;
-        while std::time::Instant::now() < deadline {
-            match worker.child.try_wait() {
-                Ok(Some(_)) => return,
-                Ok(None) => std::thread::sleep(Duration::from_millis(50)),
-                Err(err) => {
-                    log::debug!(
-                        "Failed to poll worker {} during graceful shutdown: {}",
-                        worker.task_id,
-                        err
-                    );
-                    break;
-                }
-            }
-        }
-
-        // Escalate to hard kill if the worker ignored SIGINT.
-        if let Err(err) = worker.child.kill()
-            && err.kind() != std::io::ErrorKind::InvalidInput
-        {
-            log::warn!("Failed to terminate worker {}: {}", worker.task_id, err);
-        }
-    }
-
-    #[cfg(not(unix))]
-    {
-        if let Err(err) = worker.child.kill() {
-            log::warn!("Failed to terminate worker {}: {}", worker.task_id, err);
-        }
-    }
-}
-
 /// Spawn a worker process for the given task in the specified workspace.
 pub(crate) fn spawn_worker(
     resolved: &config::Resolved,
     workspace_path: &Path,
     task_id: &str,
-    target_branch: &str,
     overrides: &AgentOverrides,
     force: bool,
 ) -> Result<Child> {
-    let (mut cmd, args) = build_worker_command(
-        resolved,
-        workspace_path,
-        task_id,
-        target_branch,
-        overrides,
-        force,
-    )?;
+    let (mut cmd, args) =
+        build_worker_command(resolved, workspace_path, task_id, overrides, force)?;
     log::debug!(
         "Spawning parallel worker {} in {} with args: {:?}",
         task_id,
@@ -204,24 +149,11 @@ fn build_worker_command(
     resolved: &config::Resolved,
     workspace_path: &Path,
     task_id: &str,
-    target_branch: &str,
     overrides: &AgentOverrides,
     force: bool,
 ) -> Result<(Command, Vec<String>)> {
     let exe = std::env::current_exe().context("resolve current executable")?;
     let mut cmd = Command::new(exe);
-
-    #[cfg(unix)]
-    // SAFETY: pre_exec executes in the child process between fork and exec.
-    // Calling setpgid(0, 0) is async-signal-safe and isolates worker process
-    // signals from the coordinator process group.
-    unsafe {
-        cmd.pre_exec(|| {
-            let _ = libc::setpgid(0, 0);
-            Ok(())
-        });
-    }
-
     cmd.current_dir(workspace_path);
     cmd.env("PWD", workspace_path);
     cmd.stdin(Stdio::null());
@@ -238,29 +170,12 @@ fn build_worker_command(
     args.push("--non-interactive".to_string());
     args.push("--no-progress".to_string());
 
-    // Pass workspace-mapped queue/done paths via CLI flags (not env vars).
-    // This keeps queue/done mutations isolated to the worker workspace checkout,
-    // while preserving custom queue/done config paths.
-    let worker_queue_path = super::path_map::map_resolved_path_into_workspace(
-        &resolved.repo_root,
-        workspace_path,
-        &resolved.queue_path,
-        "queue",
-    )
-    .context("map queue path into worker workspace")?;
-    let worker_done_path = super::path_map::map_resolved_path_into_workspace(
-        &resolved.repo_root,
-        workspace_path,
-        &resolved.done_path,
-        "done",
-    )
-    .context("map done path into worker workspace")?;
+    // Pass coordinator's queue/done paths via CLI flags (not env vars)
+    // This allows workers to read task context without env var leakage to child processes
     args.push("--coordinator-queue-path".to_string());
-    args.push(worker_queue_path.to_string_lossy().to_string());
+    args.push(resolved.queue_path.to_string_lossy().to_string());
     args.push("--coordinator-done-path".to_string());
-    args.push(worker_done_path.to_string_lossy().to_string());
-    args.push("--parallel-target-branch".to_string());
-    args.push(target_branch.to_string());
+    args.push(resolved.done_path.to_string_lossy().to_string());
 
     args.extend(build_override_args(overrides));
 
@@ -270,6 +185,7 @@ fn build_worker_command(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::contracts::{ParallelMergeMethod, ParallelMergeWhen};
     use std::path::PathBuf;
     use tempfile::TempDir;
 
@@ -293,14 +209,8 @@ mod tests {
         };
 
         let overrides = AgentOverrides::default();
-        let (cmd, args) = build_worker_command(
-            &resolved,
-            &workspace_path,
-            "RQ-1234",
-            "main",
-            &overrides,
-            true,
-        )?;
+        let (cmd, args) =
+            build_worker_command(&resolved, &workspace_path, "RQ-1234", &overrides, true)?;
 
         assert_eq!(cmd.get_current_dir(), Some(workspace_path.as_path()));
 
@@ -338,17 +248,15 @@ mod tests {
         let id_pos = args.iter().position(|arg| arg == "--id").expect("--id");
         assert_eq!(args.get(id_pos + 1), Some(&"RQ-1234".to_string()));
 
-        // Verify workspace queue/done paths are passed via CLI flags
-        let expected_workspace_queue = workspace_path.join(".ralph").join("queue.json");
-        let expected_workspace_done = workspace_path.join(".ralph").join("done.json");
+        // Verify coordinator paths are passed via CLI flags
         let queue_path_pos = args
             .iter()
             .position(|arg| arg == "--coordinator-queue-path")
             .expect("--coordinator-queue-path should be in args");
         assert_eq!(
             args.get(queue_path_pos + 1),
-            Some(&expected_workspace_queue.to_string_lossy().to_string()),
-            "workspace queue path should follow --coordinator-queue-path flag"
+            Some(&resolved.queue_path.to_string_lossy().to_string()),
+            "coordinator queue path should follow --coordinator-queue-path flag"
         );
 
         let done_path_pos = args
@@ -357,79 +265,10 @@ mod tests {
             .expect("--coordinator-done-path should be in args");
         assert_eq!(
             args.get(done_path_pos + 1),
-            Some(&expected_workspace_done.to_string_lossy().to_string()),
-            "workspace done path should follow --coordinator-done-path flag"
+            Some(&resolved.done_path.to_string_lossy().to_string()),
+            "coordinator done path should follow --coordinator-done-path flag"
         );
 
-        let target_branch_pos = args
-            .iter()
-            .position(|arg| arg == "--parallel-target-branch")
-            .expect("--parallel-target-branch should be in args");
-        assert_eq!(
-            args.get(target_branch_pos + 1),
-            Some(&"main".to_string()),
-            "target branch should follow --parallel-target-branch flag"
-        );
-
-        Ok(())
-    }
-
-    #[test]
-    fn build_worker_command_maps_custom_queue_done_paths_into_workspace() -> Result<()> {
-        let temp = TempDir::new()?;
-        let repo_root = temp.path().join("repo");
-        let workspace_path = temp.path().join("workspace");
-        std::fs::create_dir_all(&repo_root)?;
-        std::fs::create_dir_all(&workspace_path)?;
-
-        let resolved = config::Resolved {
-            config: crate::contracts::Config::default(),
-            repo_root: repo_root.clone(),
-            queue_path: repo_root.join("queue/active.json"),
-            done_path: repo_root.join("archive/done.json"),
-            id_prefix: "RQ".to_string(),
-            id_width: 4,
-            global_config_path: None,
-            project_config_path: None,
-        };
-
-        let overrides = AgentOverrides::default();
-        let (_cmd, args) = build_worker_command(
-            &resolved,
-            &workspace_path,
-            "RQ-1234",
-            "main",
-            &overrides,
-            false,
-        )?;
-
-        let queue_path_pos = args
-            .iter()
-            .position(|arg| arg == "--coordinator-queue-path")
-            .expect("--coordinator-queue-path should be in args");
-        let done_path_pos = args
-            .iter()
-            .position(|arg| arg == "--coordinator-done-path")
-            .expect("--coordinator-done-path should be in args");
-
-        assert_eq!(
-            args.get(queue_path_pos + 1),
-            Some(
-                &workspace_path
-                    .join("queue/active.json")
-                    .to_string_lossy()
-                    .to_string()
-            )
-        );
-        assert_eq!(
-            args.get(done_path_pos + 1),
-            Some(
-                &workspace_path
-                    .join("archive/done.json")
-                    .to_string_lossy()
-                    .to_string()
-            )
-        );
         Ok(())
     }
 
@@ -456,14 +295,8 @@ mod tests {
             git_commit_push_enabled: Some(true),
             ..Default::default()
         };
-        let (_cmd, args) = build_worker_command(
-            &resolved,
-            &workspace_path,
-            "RQ-1234",
-            "main",
-            &overrides,
-            false,
-        )?;
+        let (_cmd, args) =
+            build_worker_command(&resolved, &workspace_path, "RQ-1234", &overrides, false)?;
 
         assert!(args.contains(&"--git-commit-push-on".to_string()));
         assert!(!args.contains(&"--git-commit-push-off".to_string()));
@@ -494,14 +327,8 @@ mod tests {
             git_commit_push_enabled: Some(false),
             ..Default::default()
         };
-        let (_cmd, args) = build_worker_command(
-            &resolved,
-            &workspace_path,
-            "RQ-1234",
-            "main",
-            &overrides,
-            false,
-        )?;
+        let (_cmd, args) =
+            build_worker_command(&resolved, &workspace_path, "RQ-1234", &overrides, false)?;
 
         assert!(args.contains(&"--git-commit-push-off".to_string()));
         assert!(!args.contains(&"--git-commit-push-on".to_string()));
@@ -510,107 +337,88 @@ mod tests {
     }
 
     #[test]
-    fn collect_excluded_ids_excludes_in_flight_attempted_and_blocked_workers() -> Result<()> {
-        let mut state_file =
-            state::ParallelStateFile::new("2026-02-20T00:00:00Z".to_string(), "main".to_string());
-
-        // Running worker (should be selectable for explicit retry flows)
-        let running_worker = state::WorkerRecord::new(
-            "RQ-0001",
-            PathBuf::from("/tmp/workspace/RQ-0001"),
-            "2026-02-20T00:00:00Z".to_string(),
+    fn collect_excluded_ids_includes_state_and_in_flight() -> Result<()> {
+        let mut state_file = state::ParallelStateFile::new(
+            "2026-02-01T00:00:00Z".to_string(),
+            "main".to_string(),
+            ParallelMergeMethod::Squash,
+            ParallelMergeWhen::AsCreated,
         );
-        state_file.upsert_worker(running_worker);
-
-        // Integrating worker (should be selectable; true active workers are tracked in-flight)
-        let mut integrating_worker = state::WorkerRecord::new(
-            "RQ-0002",
-            PathBuf::from("/tmp/workspace/RQ-0002"),
-            "2026-02-20T00:00:00Z".to_string(),
-        );
-        integrating_worker.start_integration();
-        state_file.upsert_worker(integrating_worker);
-
-        // Completed worker (retained for status/reporting; not excluded by default)
-        let mut completed_worker = state::WorkerRecord::new(
-            "RQ-0003",
-            PathBuf::from("/tmp/workspace/RQ-0003"),
-            "2026-02-20T00:00:00Z".to_string(),
-        );
-        completed_worker.mark_completed("2026-02-20T01:00:00Z".to_string());
-        state_file.upsert_worker(completed_worker);
-
-        // Failed worker (retained for status/retry; not excluded by default)
-        let mut failed_worker = state::WorkerRecord::new(
-            "RQ-0004",
-            PathBuf::from("/tmp/workspace/RQ-0004"),
-            "2026-02-20T00:00:00Z".to_string(),
-        );
-        failed_worker.mark_failed("2026-02-20T01:00:00Z".to_string(), "error");
-        state_file.upsert_worker(failed_worker);
-
-        // Blocked worker (must stay excluded until explicit retry)
-        let mut blocked_worker = state::WorkerRecord::new(
-            "RQ-0006",
-            PathBuf::from("/tmp/workspace/RQ-0006"),
-            "2026-02-20T00:00:00Z".to_string(),
-        );
-        blocked_worker.mark_blocked("2026-02-20T01:00:00Z".to_string(), "blocked");
-        state_file.upsert_worker(blocked_worker);
+        state_file.tasks_in_flight.push(state::ParallelTaskRecord {
+            task_id: "RQ-0002".to_string(),
+            workspace_path: "/tmp/workspace/RQ-0002".to_string(),
+            branch: "ralph/RQ-0002".to_string(),
+            pid: Some(123),
+            started_at: "2026-02-02T00:00:00Z".to_string(),
+        });
+        // Open PR should be excluded
+        state_file.prs.push(state::ParallelPrRecord {
+            task_id: "RQ-0003".to_string(),
+            pr_number: 7,
+            lifecycle: state::ParallelPrLifecycle::Open,
+        });
+        // Closed PR should NOT be excluded
+        state_file.prs.push(state::ParallelPrRecord {
+            task_id: "RQ-0005".to_string(),
+            pr_number: 8,
+            lifecycle: state::ParallelPrLifecycle::Closed,
+        });
+        // Merged PR should NOT be excluded
+        state_file.prs.push(state::ParallelPrRecord {
+            task_id: "RQ-0006".to_string(),
+            pr_number: 9,
+            lifecycle: state::ParallelPrLifecycle::Merged,
+        });
+        // Pending merge should be excluded
+        state_file.pending_merges.push(state::PendingMergeJob {
+            task_id: "RQ-0007".to_string(),
+            pr_number: 10,
+            workspace_path: None,
+            lifecycle: state::PendingMergeLifecycle::Queued,
+            attempts: 0,
+            queued_at: "2026-02-02T00:00:00Z".to_string(),
+            last_error: None,
+        });
 
         let mut in_flight = HashMap::new();
         let child = std::process::Command::new("true").spawn()?;
         in_flight.insert(
-            "RQ-0005".to_string(),
+            "RQ-0004".to_string(),
             WorkerState {
-                task_id: "RQ-0005".to_string(),
+                task_id: "RQ-0004".to_string(),
                 task_title: "title".to_string(),
                 workspace: WorkspaceSpec {
-                    path: PathBuf::from("/tmp/workspaces/RQ-0005"),
-                    branch: "main".to_string(),
+                    path: PathBuf::from("/tmp/workspaces/RQ-0004"),
+                    branch: "ralph/RQ-0004".to_string(),
                 },
                 child,
             },
         );
 
-        let mut attempted_in_run = HashSet::new();
-        attempted_in_run.insert("RQ-0007".to_string());
-
-        let excluded = collect_excluded_ids(&state_file, &in_flight, &attempted_in_run);
-
-        // In-flight worker should be excluded
+        let excluded = collect_excluded_ids(&state_file, &in_flight);
         assert!(
-            excluded.contains("RQ-0005"),
+            excluded.contains("RQ-0002"),
+            "in-flight task should be excluded"
+        );
+        assert!(
+            excluded.contains("RQ-0003"),
+            "open PR task should be excluded"
+        );
+        assert!(
+            excluded.contains("RQ-0004"),
             "in-flight worker should be excluded"
-        );
-
-        // Non-terminal state records should not be excluded.
-        assert!(
-            !excluded.contains("RQ-0001"),
-            "running worker should NOT be excluded"
-        );
-        assert!(
-            !excluded.contains("RQ-0002"),
-            "integrating worker should NOT be excluded"
-        );
-
-        // Completed/failed workers are retained for status/retry but should not
-        // block queue-ordered scheduling by default.
-        assert!(
-            !excluded.contains("RQ-0003"),
-            "completed worker should NOT be excluded"
-        );
-        assert!(
-            !excluded.contains("RQ-0004"),
-            "failed worker should NOT be excluded"
-        );
-        assert!(
-            excluded.contains("RQ-0006"),
-            "blocked worker should be excluded"
         );
         assert!(
             excluded.contains("RQ-0007"),
-            "attempted task should be excluded for this invocation"
+            "pending merge task should be excluded"
+        );
+        assert!(
+            !excluded.contains("RQ-0005"),
+            "closed PR task should NOT be excluded"
+        );
+        assert!(
+            !excluded.contains("RQ-0006"),
+            "merged PR task should NOT be excluded"
         );
 
         for worker in in_flight.values_mut() {
@@ -732,300 +540,6 @@ mod tests {
 
         // Should return None since no tasks are available
         assert!(result.is_none());
-
-        Ok(())
-    }
-
-    #[test]
-    fn select_next_task_locked_preserves_queue_order_over_task_id() -> Result<()> {
-        use crate::config;
-        use crate::contracts::{QueueFile, Task, TaskPriority, TaskStatus};
-        use tempfile::TempDir;
-
-        let temp = TempDir::new()?;
-        let repo_root = temp.path().to_path_buf();
-        let ralph_dir = repo_root.join(".ralph");
-        std::fs::create_dir_all(&ralph_dir)?;
-
-        let queue_path = ralph_dir.join("queue.json");
-        let mut queue_file = QueueFile::default();
-        queue_file.tasks.push(Task {
-            id: "RQ-0003".to_string(),
-            title: "Third ID, first in file".to_string(),
-            description: None,
-            status: TaskStatus::Todo,
-            priority: TaskPriority::Medium,
-            tags: vec![],
-            scope: vec![],
-            evidence: vec![],
-            plan: vec![],
-            notes: vec![],
-            request: None,
-            agent: None,
-            created_at: Some("2026-01-01T00:00:00Z".to_string()),
-            updated_at: Some("2026-01-01T00:00:00Z".to_string()),
-            completed_at: None,
-            started_at: None,
-            scheduled_start: None,
-            depends_on: vec![],
-            blocks: vec![],
-            relates_to: vec![],
-            duplicates: None,
-            custom_fields: std::collections::HashMap::new(),
-            estimated_minutes: None,
-            actual_minutes: None,
-            parent_id: None,
-        });
-        queue_file.tasks.push(Task {
-            id: "RQ-0001".to_string(),
-            title: "First ID, second in file".to_string(),
-            description: None,
-            status: TaskStatus::Todo,
-            priority: TaskPriority::Medium,
-            tags: vec![],
-            scope: vec![],
-            evidence: vec![],
-            plan: vec![],
-            notes: vec![],
-            request: None,
-            agent: None,
-            created_at: Some("2026-01-01T00:00:00Z".to_string()),
-            updated_at: Some("2026-01-01T00:00:00Z".to_string()),
-            completed_at: None,
-            started_at: None,
-            scheduled_start: None,
-            depends_on: vec![],
-            blocks: vec![],
-            relates_to: vec![],
-            duplicates: None,
-            custom_fields: std::collections::HashMap::new(),
-            estimated_minutes: None,
-            actual_minutes: None,
-            parent_id: None,
-        });
-        queue::save_queue(&queue_path, &queue_file)?;
-
-        let resolved = config::Resolved {
-            config: crate::contracts::Config::default(),
-            repo_root: repo_root.clone(),
-            queue_path: queue_path.clone(),
-            done_path: ralph_dir.join("done.json"),
-            id_prefix: "RQ".to_string(),
-            id_width: 4,
-            global_config_path: None,
-            project_config_path: None,
-        };
-
-        let queue_lock = queue::acquire_queue_lock(&repo_root, "test", false)?;
-        let excluded = HashSet::new();
-        let selected = select_next_task_locked(&resolved, false, &excluded, &queue_lock)?
-            .expect("a task should be selected");
-
-        assert_eq!(
-            selected.0, "RQ-0003",
-            "parallel selection must honor queue file order, not task ID sort order"
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn select_next_task_locked_uses_done_file_for_dependency_resolution() -> Result<()> {
-        use crate::config;
-        use crate::contracts::{QueueFile, Task, TaskStatus};
-        use tempfile::TempDir;
-
-        let temp = TempDir::new()?;
-        let repo_root = temp.path().to_path_buf();
-        let coordinator_dir = repo_root.join("coordinator");
-        std::fs::create_dir_all(&coordinator_dir)?;
-
-        let queue_path = coordinator_dir.join("queue.json");
-        let done_path = coordinator_dir.join("done.json");
-
-        let mut queue_file = QueueFile::default();
-        queue_file.tasks.push(Task {
-            id: "RQ-0002".to_string(),
-            title: "Blocked by dependency".to_string(),
-            description: None,
-            status: TaskStatus::Todo,
-            priority: crate::contracts::TaskPriority::Medium,
-            tags: vec![],
-            scope: vec![],
-            evidence: vec![],
-            plan: vec![],
-            notes: vec![],
-            request: None,
-            agent: None,
-            created_at: Some("2026-01-01T00:00:00Z".to_string()),
-            updated_at: Some("2026-01-01T00:00:00Z".to_string()),
-            completed_at: None,
-            started_at: None,
-            scheduled_start: None,
-            depends_on: vec!["RQ-0001".to_string()],
-            blocks: vec![],
-            relates_to: vec![],
-            duplicates: None,
-            custom_fields: std::collections::HashMap::new(),
-            estimated_minutes: None,
-            actual_minutes: None,
-            parent_id: None,
-        });
-        queue::save_queue(&queue_path, &queue_file)?;
-
-        let mut done_file = QueueFile::default();
-        done_file.tasks.push(Task {
-            id: "RQ-0001".to_string(),
-            title: "Completed dependency".to_string(),
-            description: None,
-            status: TaskStatus::Done,
-            priority: crate::contracts::TaskPriority::Medium,
-            tags: vec![],
-            scope: vec![],
-            evidence: vec![],
-            plan: vec![],
-            notes: vec![],
-            request: None,
-            agent: None,
-            created_at: Some("2026-01-01T00:00:00Z".to_string()),
-            updated_at: Some("2026-01-01T00:00:00Z".to_string()),
-            completed_at: Some("2026-01-02T00:00:00Z".to_string()),
-            started_at: None,
-            scheduled_start: None,
-            depends_on: vec![],
-            blocks: vec![],
-            relates_to: vec![],
-            duplicates: None,
-            custom_fields: std::collections::HashMap::new(),
-            estimated_minutes: None,
-            actual_minutes: None,
-            parent_id: None,
-        });
-        queue::save_queue(&done_path, &done_file)?;
-
-        let resolved = config::Resolved {
-            config: crate::contracts::Config::default(),
-            repo_root: repo_root.clone(),
-            queue_path,
-            done_path,
-            id_prefix: "RQ".to_string(),
-            id_width: 4,
-            global_config_path: None,
-            project_config_path: None,
-        };
-
-        let queue_lock = queue::acquire_queue_lock(&repo_root, "test", false)?;
-        let excluded = HashSet::new();
-        let result = select_next_task_locked(&resolved, false, &excluded, &queue_lock)?;
-
-        assert_eq!(
-            result,
-            Some(("RQ-0002".to_string(), "Blocked by dependency".to_string()))
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn select_next_task_locked_normalizes_non_utc_done_timestamps() -> Result<()> {
-        use crate::config;
-        use crate::contracts::{QueueFile, Task, TaskStatus};
-        use tempfile::TempDir;
-
-        let temp = TempDir::new()?;
-        let repo_root = temp.path().to_path_buf();
-        let ralph_dir = repo_root.join(".ralph");
-        std::fs::create_dir_all(&ralph_dir)?;
-
-        let queue_path = ralph_dir.join("queue.json");
-        let done_path = ralph_dir.join("done.json");
-
-        let mut queue_file = QueueFile::default();
-        queue_file.tasks.push(Task {
-            id: "RQ-0002".to_string(),
-            title: "Ready task".to_string(),
-            description: None,
-            status: TaskStatus::Todo,
-            priority: crate::contracts::TaskPriority::Medium,
-            tags: vec![],
-            scope: vec![],
-            evidence: vec![],
-            plan: vec![],
-            notes: vec![],
-            request: None,
-            agent: None,
-            created_at: Some("2026-01-01T00:00:00Z".to_string()),
-            updated_at: Some("2026-01-01T00:00:00Z".to_string()),
-            completed_at: None,
-            started_at: None,
-            scheduled_start: None,
-            depends_on: vec!["RQ-0001".to_string()],
-            blocks: vec![],
-            relates_to: vec![],
-            duplicates: None,
-            custom_fields: std::collections::HashMap::new(),
-            estimated_minutes: None,
-            actual_minutes: None,
-            parent_id: None,
-        });
-        queue::save_queue(&queue_path, &queue_file)?;
-
-        let mut done_file = QueueFile::default();
-        done_file.tasks.push(Task {
-            id: "RQ-0001".to_string(),
-            title: "Completed dependency".to_string(),
-            description: None,
-            status: TaskStatus::Done,
-            priority: crate::contracts::TaskPriority::Medium,
-            tags: vec![],
-            scope: vec![],
-            evidence: vec![],
-            plan: vec![],
-            notes: vec![],
-            request: None,
-            agent: None,
-            created_at: Some("2026-02-22T17:34:44-07:00".to_string()),
-            updated_at: Some("2026-02-22T17:34:44-07:00".to_string()),
-            completed_at: Some("2026-02-22T17:34:44-07:00".to_string()),
-            started_at: None,
-            scheduled_start: None,
-            depends_on: vec![],
-            blocks: vec![],
-            relates_to: vec![],
-            duplicates: None,
-            custom_fields: std::collections::HashMap::new(),
-            estimated_minutes: None,
-            actual_minutes: None,
-            parent_id: None,
-        });
-        queue::save_queue(&done_path, &done_file)?;
-
-        let resolved = config::Resolved {
-            config: crate::contracts::Config::default(),
-            repo_root: repo_root.clone(),
-            queue_path,
-            done_path: done_path.clone(),
-            id_prefix: "RQ".to_string(),
-            id_width: 4,
-            global_config_path: None,
-            project_config_path: None,
-        };
-
-        let queue_lock = queue::acquire_queue_lock(&repo_root, "test", false)?;
-        let excluded = HashSet::new();
-        let result = select_next_task_locked(&resolved, false, &excluded, &queue_lock)?;
-        assert_eq!(
-            result,
-            Some(("RQ-0002".to_string(), "Ready task".to_string()))
-        );
-
-        let repaired_done = queue::load_queue(&done_path)?;
-        let completed = repaired_done.tasks[0]
-            .completed_at
-            .as_deref()
-            .expect("completed_at should remain set");
-        let normalized = crate::timeutil::format_rfc3339(crate::timeutil::parse_rfc3339(
-            "2026-02-22T17:34:44-07:00",
-        )?)?;
-        assert_eq!(completed, normalized);
 
         Ok(())
     }

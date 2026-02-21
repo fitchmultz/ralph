@@ -8,7 +8,7 @@
 //! Not handled here:
 //! - Task selection or worker orchestration (see `commands::run::parallel`).
 //! - PR creation or merge operations (see `git::pr`).
-//! - Merge conflict resolution logic (see `commands::run::parallel::merge_runner`).
+//! - Integration conflict resolution policy (see `commands::run::parallel::integration`).
 //!
 //! Invariants/assumptions:
 //! - `git` is available and the repo root is valid.
@@ -25,6 +25,7 @@ use std::path::{Path, PathBuf};
 #[derive(Debug, Clone)]
 pub(crate) struct WorkspaceSpec {
     pub path: PathBuf,
+    #[allow(dead_code)]
     pub branch: String,
 }
 
@@ -57,14 +58,16 @@ pub(crate) fn create_workspace_at(
     workspace_root: &Path,
     task_id: &str,
     base_branch: &str,
-    branch_prefix: &str,
 ) -> Result<WorkspaceSpec> {
     let trimmed_id = task_id.trim();
     if trimmed_id.is_empty() {
         bail!("workspace task_id must be non-empty");
     }
 
-    let branch = format!("{}{}", branch_prefix, trimmed_id);
+    let branch = base_branch.trim().to_string();
+    if branch.is_empty() {
+        bail!("workspace base_branch must be non-empty");
+    }
     let path = workspace_root.join(trimmed_id);
 
     fs::create_dir_all(workspace_root).with_context(|| {
@@ -112,7 +115,7 @@ pub(crate) fn create_workspace_at(
 /// - Checkout/reset branch to remote: `checkout -B <branch> origin/<branch>`.
 /// - Hard reset + clean to ensure deterministic working tree.
 ///
-/// Note: Kept for backward compatibility with merge-runner module.
+/// Note: Kept for legacy callers that need a branch-specific workspace reset helper.
 #[allow(dead_code)]
 pub(crate) fn ensure_workspace_exists(
     repo_root: &Path,
@@ -440,8 +443,9 @@ mod tests {
             git_test::git_output(temp.path(), &["rev-parse", "--abbrev-ref", "HEAD"])?;
         let root = temp.path().join(".ralph/workspaces/parallel");
 
-        let spec = create_workspace_at(temp.path(), &root, "RQ-0001", &base_branch, "ralph/")?;
+        let spec = create_workspace_at(temp.path(), &root, "RQ-0001", &base_branch)?;
         assert!(spec.path.exists(), "workspace path should exist");
+        assert_eq!(spec.branch, base_branch);
 
         remove_workspace(&root, &spec, true)?;
         assert!(!spec.path.exists());
@@ -463,12 +467,13 @@ mod tests {
             git_test::git_output(temp.path(), &["rev-parse", "--abbrev-ref", "HEAD"])?;
         let root = temp.path().join(".ralph/workspaces/parallel");
 
-        let first = create_workspace_at(temp.path(), &root, "RQ-0001", &base_branch, "ralph/")?;
+        let first = create_workspace_at(temp.path(), &root, "RQ-0001", &base_branch)?;
         std::fs::write(first.path.join("dirty.txt"), "dirty")?;
 
-        let second = create_workspace_at(temp.path(), &root, "RQ-0001", &base_branch, "ralph/")?;
+        let second = create_workspace_at(temp.path(), &root, "RQ-0001", &base_branch)?;
         assert_eq!(first.path, second.path);
         assert!(!second.path.join("dirty.txt").exists());
+        assert_eq!(second.branch, base_branch);
 
         remove_workspace(&root, &second, true)?;
         Ok(())
@@ -484,14 +489,13 @@ mod tests {
             temp.path(),
             &["remote", "add", "origin", "https://example.com/repo.git"],
         )?;
-        git_test::git_run(temp.path(), &["branch", "ralph/RQ-0002"])?;
-
         let base_branch =
             git_test::git_output(temp.path(), &["rev-parse", "--abbrev-ref", "HEAD"])?;
         let root = temp.path().join(".ralph/workspaces/parallel");
 
-        let spec = create_workspace_at(temp.path(), &root, "RQ-0002", &base_branch, "ralph/")?;
+        let spec = create_workspace_at(temp.path(), &root, "RQ-0002", &base_branch)?;
         assert!(spec.path.exists());
+        assert_eq!(spec.branch, base_branch);
 
         remove_workspace(&root, &spec, true)?;
         Ok(())
@@ -508,7 +512,7 @@ mod tests {
             git_test::git_output(temp.path(), &["rev-parse", "--abbrev-ref", "HEAD"])?;
         let root = temp.path().join(".ralph/workspaces/parallel");
 
-        let err = create_workspace_at(temp.path(), &root, "RQ-0003", &base_branch, "ralph/")
+        let err = create_workspace_at(temp.path(), &root, "RQ-0003", &base_branch)
             .expect_err("missing origin should fail");
         assert!(err.to_string().contains("origin"));
         Ok(())
@@ -529,7 +533,7 @@ mod tests {
             git_test::git_output(temp.path(), &["rev-parse", "--abbrev-ref", "HEAD"])?;
         let root = temp.path().join(".ralph/workspaces/parallel");
 
-        let spec = create_workspace_at(temp.path(), &root, "RQ-0004", &base_branch, "ralph/")?;
+        let spec = create_workspace_at(temp.path(), &root, "RQ-0004", &base_branch)?;
         std::fs::write(spec.path.join("dirty.txt"), "dirty")?;
         let err = remove_workspace(&root, &spec, false).expect_err("dirty should fail");
         assert!(err.to_string().contains("dirty"));

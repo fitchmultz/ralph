@@ -255,12 +255,14 @@ fn completion_checklist_requires_closing_flagged_issues() {
     let config = Config::default();
     let repo_root = TempDir::new().unwrap();
     let template = prompts::load_completion_checklist(repo_root.path()).unwrap();
-    let rendered = prompts::render_completion_checklist(&template, "RQ-0003", &config).unwrap();
+    let rendered =
+        prompts::render_completion_checklist(&template, "RQ-0003", &config, false).unwrap();
 
     assert!(
         rendered
             .contains("Investigate and resolve any risks, bugs, or suspicious leads you flagged")
     );
+    assert!(rendered.contains("Run mode for this session: `normal`"));
 }
 
 #[test]

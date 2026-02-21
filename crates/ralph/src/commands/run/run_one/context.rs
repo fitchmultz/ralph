@@ -31,6 +31,7 @@ pub(crate) fn prepare_run_one_context(
     agent_overrides: &AgentOverrides,
     force: bool,
     lock_mode: QueueLockMode,
+    parallel_target_branch: Option<&str>,
 ) -> Result<RunOneContext> {
     // Handle Ctrl+C state initialization and pre-run interrupt detection.
     let ctrlc = crate::runner::ctrlc_state()
@@ -90,6 +91,21 @@ pub(crate) fn prepare_run_one_context(
         QueueLockMode::Acquire | QueueLockMode::Held => PostRunMode::Normal,
     };
 
+    let parallel_target_branch = match lock_mode {
+        QueueLockMode::AcquireAllowUpstream => {
+            let branch = parallel_target_branch
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "parallel worker requires explicit target branch (--parallel-target-branch)"
+                    )
+                })?;
+            Some(branch.to_string())
+        }
+        QueueLockMode::Acquire | QueueLockMode::Held => None,
+    };
+
     let policy = promptflow::PromptPolicy {
         repoprompt_plan_required: repoprompt_flags.plan_required,
         repoprompt_tool_injection: repoprompt_flags.tool_injection,
@@ -102,6 +118,7 @@ pub(crate) fn prepare_run_one_context(
         git_commit_push_enabled,
         push_policy,
         post_run_mode,
+        parallel_target_branch,
         policy,
     })
 }

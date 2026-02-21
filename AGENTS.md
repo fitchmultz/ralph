@@ -66,12 +66,6 @@ Every source file MUST start with `//!` docs covering:
 3. `~/.config/ralph/config.json`
 4. Schema defaults
 
-### Queue Load/Validate Auto-Repair
-- `queue::load_and_validate_queues` performs conservative maintenance before validation.
-- Parseable non-UTC RFC3339 timestamps are normalized to UTC; missing terminal `completed_at` is backfilled.
-- Malformed timestamps are never rewritten and still fail validation.
-- Maintenance writes back to queue/done during load+validate.
-
 ### Repo Target Resolution
 - Repo/file targeting is always derived from process CWD (`find_repo_root(current_dir)`).
 - `RALPH_REPO_ROOT_OVERRIDE`, `RALPH_QUEUE_PATH_OVERRIDE`, and `RALPH_DONE_PATH_OVERRIDE` are unsupported.
@@ -82,7 +76,7 @@ Every source file MUST start with `//!` docs covering:
 ### Parallel Workspace Runtime Sync
 - Worker workspace setup mirrors repo-local `.ralph/` runtime files recursively, but MUST exclude coordinator-only and ephemeral paths: queue/done files and `.ralph/{cache,workspaces,logs,lock}/`.
 - Gitignored non-`.ralph` sync remains narrow by design (`.env*` only) to avoid copying heavy build/cache directories.
-- Parallel worker post-run bookkeeping restore must always target workspace-local `.ralph/{queue.json,done.json,cache/productivity.json}`.
+- Parallel worker post-run bookkeeping restore must always target workspace-local `.ralph/{queue.json,done.json,cache/productivity.json}` even when `Resolved.queue_path`/`done_path` are coordinator overrides.
 - Worker post-run supervision should fail fast if those bookkeeping paths remain dirty after restore (never proceed to commit/rebase with queue/done/productivity drift).
 - Worker post-run restore must purge generated runtime artifacts under `.ralph/cache/{plans,phase2_final,parallel}` plus `.ralph/{logs,cache/session.json,cache/migrations.json}` before deciding repo dirtiness.
 
@@ -90,26 +84,9 @@ Every source file MUST start with `//!` docs covering:
 - Parallel worker subprocesses should be terminated gracefully first (`SIGINT`) to let worker-side cleanup run before hard kill escalation.
 - Worker subprocesses should run in isolated process groups (`setpgid`) to avoid signaling the coordinator group.
 
-### Continue Session Recovery
-- Continue paths should prefer same-session resume, but fall back to a fresh invocation when no session ID is available.
-- Pi resume should fall back to fresh invocation when session file lookup fails (`no session found`, missing session dir/file), since Pi may defer session-file persistence until after first assistant output.
-- Resume fallback should also cover known invalid-session resume failures for Gemini (`invalid session identifier`), Claude (`--resume requires a valid session ID` / invalid UUID), and Opencode (`ZodError` sessionID validation), not just Pi file lookup failures.
-
-### Runner Output Edge Cases
-- Opencode may emit fatal session validation errors on stderr while still exiting with code `0`; treat this as semantic failure rather than success.
-- Gemini `stream-json` assistant messages may arrive as delta chunks (`"delta": true`); final-response parsing must accumulate deltas rather than overwriting with the latest chunk.
-
-### Signal Recovery
-- Signal-terminated runner invocations should auto-attempt recovery up to `MAX_SIGNAL_RESUMES` (default `5`) before surfacing terminal failure handling.
-- Signal recovery should reuse session resume when possible and rerun fresh when no resumable session exists.
-
 ### CI Gate Cadence
 - In 3-phase workflows, final-iteration Phase 2 should skip CI gate rerun; CI is enforced in Phase 3/post-run supervision.
 - CI gate logging should emit explicit start/end timing for long-running commands.
-
-### Prompt Mode Signaling
-- Completion checklist rendering injects `RUN_MODE` (`normal` or `parallel-worker`).
-- Parallel-worker runs must follow `RUN_MODE=parallel-worker` checklist rules (no `ralph task done`; integration updates workspace queue/done and pushes base branch).
 
 ### Parallel Merge Refresh Resilience
 - After merge-agent success, update state (`prs`, `pending_merges`) before local branch refresh attempts.

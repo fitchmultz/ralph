@@ -124,7 +124,7 @@ Detailed guides for Ralph's capabilities, organized by category:
 | Feature | Document | Description |
 |---------|----------|-------------|
 | Runners | [features/runners.md](features/runners.md) | AI runner orchestration |
-| Parallel | [features/parallel.md](features/parallel.md) | Parallel task execution with PR automation |
+| Parallel | [features/parallel.md](features/parallel.md) | Parallel task execution with direct push integration |
 | Session Management | [features/session-management.md](features/session-management.md) | Crash recovery and resumption |
 | Supervision | [features/phases.md](features/phases.md) | Human-in-the-loop review |
 

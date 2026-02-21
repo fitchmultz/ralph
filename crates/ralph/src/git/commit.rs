@@ -309,12 +309,6 @@ fn is_non_fast_forward_error(err: &GitError) -> bool {
         || lower.contains("updates were rejected")
 }
 
-fn rebase_onto(repo_root: &Path, upstream: &str) -> Result<(), GitError> {
-    git_run(repo_root, &["fetch", "origin", "--prune"])?;
-    git_run(repo_root, &["rebase", upstream])?;
-    Ok(())
-}
-
 fn reference_exists(repo_root: &Path, reference: &str) -> Result<bool, GitError> {
     let output = git_base_command(repo_root)
         .args(["rev-parse", "--verify", "--quiet", reference])
@@ -378,6 +372,153 @@ fn set_upstream_to(repo_root: &Path, upstream: &str) -> Result<(), GitError> {
     git_run(repo_root, &["branch", "--set-upstream-to", upstream])
         .with_context(|| format!("set upstream to {} in {}", upstream, repo_root.display()))?;
     Ok(())
+}
+
+/// Fetch a specific branch from origin.
+pub fn fetch_branch(repo_root: &Path, remote: &str, branch: &str) -> Result<(), GitError> {
+    git_run(repo_root, &["fetch", remote, branch])
+        .with_context(|| format!("fetch {} {} in {}", remote, branch, repo_root.display()))?;
+    Ok(())
+}
+
+/// Check if the current branch is behind its upstream.
+///
+/// Returns true if the upstream has commits that are not in the current branch.
+pub fn is_behind_upstream(repo_root: &Path, branch: &str) -> Result<bool, GitError> {
+    // First fetch to ensure we have latest
+    fetch_branch(repo_root, "origin", branch)?;
+
+    let upstream = format!("origin/{}", branch);
+    let range = format!("HEAD...{}", upstream);
+
+    let output = git_base_command(repo_root)
+        .arg("rev-list")
+        .arg("--left-right")
+        .arg("--count")
+        .arg(&range)
+        .output()
+        .with_context(|| {
+            format!(
+                "run git rev-list --left-right --count {} in {}",
+                range,
+                repo_root.display()
+            )
+        })?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        return Err(GitError::CommandFailed {
+            args: format!("rev-list --left-right --count {}", range),
+            code: output.status.code(),
+            stderr: stderr.trim().to_string(),
+        });
+    }
+
+    let counts = String::from_utf8_lossy(&output.stdout);
+    let parts: Vec<&str> = counts.split_whitespace().collect();
+    if parts.len() != 2 {
+        return Err(GitError::UnexpectedRevListOutput(counts.trim().to_string()));
+    }
+
+    // Format is "<ahead>\t<behind>"
+    let behind: u32 = parts[0].parse().context("parse behind count")?;
+    Ok(behind > 0)
+}
+
+/// Rebase current branch onto a target reference.
+pub fn rebase_onto(repo_root: &Path, target: &str) -> Result<(), GitError> {
+    // Fetch first to ensure we have the latest
+    git_run(repo_root, &["fetch", "origin", "--prune"])
+        .with_context(|| format!("fetch before rebase in {}", repo_root.display()))?;
+    git_run(repo_root, &["rebase", target])
+        .with_context(|| format!("rebase onto {} in {}", target, repo_root.display()))?;
+    Ok(())
+}
+
+/// Abort an in-progress rebase.
+pub fn abort_rebase(repo_root: &Path) -> Result<(), GitError> {
+    git_run(repo_root, &["rebase", "--abort"])
+        .with_context(|| format!("abort rebase in {}", repo_root.display()))?;
+    Ok(())
+}
+
+/// List files with merge conflicts.
+///
+/// Returns a list of file paths that have unresolved merge conflicts.
+pub fn list_conflict_files(repo_root: &Path) -> Result<Vec<String>, GitError> {
+    let output = git_base_command(repo_root)
+        .args(["diff", "--name-only", "--diff-filter=U"])
+        .output()
+        .with_context(|| {
+            format!(
+                "run git diff --name-only --diff-filter=U in {}",
+                repo_root.display()
+            )
+        })?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        return Err(GitError::CommandFailed {
+            args: "diff --name-only --diff-filter=U".to_string(),
+            code: output.status.code(),
+            stderr: stderr.trim().to_string(),
+        });
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let files: Vec<String> = stdout
+        .lines()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    Ok(files)
+}
+
+/// Push the current branch to a remote.
+///
+/// This pushes HEAD to the current branch on the specified remote.
+pub fn push_current_branch(repo_root: &Path, remote: &str) -> Result<(), GitError> {
+    let output = git_base_command(repo_root)
+        .arg("push")
+        .arg(remote)
+        .arg("HEAD")
+        .output()
+        .with_context(|| format!("run git push {} HEAD in {}", remote, repo_root.display()))?;
+
+    if output.status.success() {
+        return Ok(());
+    }
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    Err(classify_push_error(&stderr))
+}
+
+/// Push HEAD to a specific branch on a remote.
+///
+/// This pushes HEAD to the specified branch on the remote, creating the branch if needed.
+/// Used in direct-push parallel mode to push directly to the base branch.
+pub fn push_head_to_branch(repo_root: &Path, remote: &str, branch: &str) -> Result<(), GitError> {
+    let output = git_base_command(repo_root)
+        .arg("push")
+        .arg(remote)
+        .arg(format!("HEAD:{}", branch))
+        .output()
+        .with_context(|| {
+            format!(
+                "run git push {} HEAD:{} in {}",
+                remote,
+                branch,
+                repo_root.display()
+            )
+        })?;
+
+    if output.status.success() {
+        return Ok(());
+    }
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    Err(classify_push_error(&stderr))
 }
 
 /// Push HEAD to upstream, rebasing on non-fast-forward rejections.

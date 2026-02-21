@@ -15,9 +15,32 @@
 //! - Validation errors are returned as `anyhow::Error` with descriptive messages.
 //! - Queue validation uses shared error messages for consistency.
 
+use crate::constants::runner::{
+    MAX_PHASES, MIN_ITERATIONS, MIN_MERGE_RETRIES, MIN_PARALLEL_WORKERS, MIN_PHASES,
+};
 use crate::contracts::{AgentConfig, Config, QueueAgingThresholds, QueueConfig};
 use anyhow::{Result, bail};
 use std::path::{Component, Path};
+
+/// Helper to format the aging threshold ordering error message.
+fn format_aging_threshold_error(
+    warning: Option<u32>,
+    stale: Option<u32>,
+    rotten: Option<u32>,
+) -> String {
+    format!(
+        "Invalid queue.aging_thresholds ordering: require warning_days < stale_days < rotten_days (got warning_days={}, stale_days={}, rotten_days={}). Update .ralph/config.json.",
+        warning
+            .map(|w| w.to_string())
+            .unwrap_or_else(|| "unset".to_string()),
+        stale
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| "unset".to_string()),
+        rotten
+            .map(|r| r.to_string())
+            .unwrap_or_else(|| "unset".to_string()),
+    )
+}
 
 // Canonical error messages for queue config validation (single source of truth)
 pub(crate) const ERR_EMPTY_QUEUE_ID_PREFIX: &str = "Empty queue.id_prefix: prefix is required if specified. Set a non-empty prefix (e.g., 'RQ') in .ralph/config.json or via --id-prefix.";
@@ -93,41 +116,20 @@ pub fn validate_queue_aging_thresholds(thresholds: &Option<QueueAgingThresholds>
     if let (Some(w), Some(s)) = (warning, stale)
         && w >= s
     {
-        bail!(
-            "Invalid queue.aging_thresholds ordering: require warning_days < stale_days < rotten_days (got warning_days={}, stale_days={}, rotten_days={}). Update .ralph/config.json.",
-            w,
-            s,
-            rotten
-                .map(|r| r.to_string())
-                .unwrap_or_else(|| "unset".to_string())
-        );
+        bail!(format_aging_threshold_error(Some(w), Some(s), rotten));
     }
 
     if let (Some(s), Some(r)) = (stale, rotten)
         && s >= r
     {
-        bail!(
-            "Invalid queue.aging_thresholds ordering: require warning_days < stale_days < rotten_days (got warning_days={}, stale_days={}, rotten_days={}). Update .ralph/config.json.",
-            warning
-                .map(|w| w.to_string())
-                .unwrap_or_else(|| "unset".to_string()),
-            s,
-            r
-        );
+        bail!(format_aging_threshold_error(warning, Some(s), Some(r)));
     }
 
     // Transitive check for warning < rotten (catches cases where middle value is unset)
     if let (Some(w), Some(r)) = (warning, rotten)
         && w >= r
     {
-        bail!(
-            "Invalid queue.aging_thresholds ordering: require warning_days < stale_days < rotten_days (got warning_days={}, stale_days={}, rotten_days={}). Update .ralph/config.json.",
-            w,
-            stale
-                .map(|s| s.to_string())
-                .unwrap_or_else(|| "unset".to_string()),
-            r
-        );
+        bail!(format_aging_threshold_error(Some(w), stale, Some(r)));
     }
 
     Ok(())
@@ -183,38 +185,44 @@ pub fn validate_config(cfg: &Config) -> Result<()> {
     validate_queue_aging_thresholds(&cfg.queue.aging_thresholds)?;
 
     if let Some(phases) = cfg.agent.phases
-        && !(1..=3).contains(&phases)
+        && !(MIN_PHASES..=MAX_PHASES).contains(&phases)
     {
         bail!(
-            "Invalid agent.phases: {}. Supported values are 1, 2, or 3. Update .ralph/config.json or CLI flags.",
-            phases
+            "Invalid agent.phases: {}. Supported values are {}, {}, or {}. Update .ralph/config.json or CLI flags.",
+            phases,
+            MIN_PHASES,
+            MIN_PHASES + 1,
+            MAX_PHASES
         );
     }
 
     if let Some(iterations) = cfg.agent.iterations
-        && iterations == 0
+        && iterations < MIN_ITERATIONS
     {
         bail!(
-            "Invalid agent.iterations: {}. Iterations must be greater than 0. Update .ralph/config.json.",
-            iterations
+            "Invalid agent.iterations: {}. Iterations must be at least {}. Update .ralph/config.json.",
+            iterations,
+            MIN_ITERATIONS
         );
     }
 
     if let Some(workers) = cfg.parallel.workers
-        && workers < 2
+        && workers < MIN_PARALLEL_WORKERS
     {
         bail!(
-            "Invalid parallel.workers: {}. Parallel workers must be >= 2. Update .ralph/config.json or CLI flags.",
-            workers
+            "Invalid parallel.workers: {}. Parallel workers must be >= {}. Update .ralph/config.json or CLI flags.",
+            workers,
+            MIN_PARALLEL_WORKERS
         );
     }
 
     if let Some(retries) = cfg.parallel.merge_retries
-        && retries == 0
+        && retries < MIN_MERGE_RETRIES
     {
         bail!(
-            "Invalid parallel.merge_retries: {}. merge_retries must be >= 1. Update .ralph/config.json.",
-            retries
+            "Invalid parallel.merge_retries: {}. merge_retries must be >= {}. Update .ralph/config.json.",
+            retries,
+            MIN_MERGE_RETRIES
         );
     }
 
@@ -277,15 +285,20 @@ pub fn validate_config(cfg: &Config) -> Result<()> {
 /// Validate an AgentConfig patch (used for base agent and profile agents).
 pub fn validate_agent_patch(agent: &AgentConfig, label: &str) -> Result<()> {
     if let Some(phases) = agent.phases
-        && !(1..=3).contains(&phases)
+        && !(MIN_PHASES..=MAX_PHASES).contains(&phases)
     {
-        bail!("Invalid {label}.phases: {phases}. Supported values are 1, 2, or 3.");
+        bail!(
+            "Invalid {label}.phases: {phases}. Supported values are {MIN_PHASES}, {}, or {MAX_PHASES}.",
+            MIN_PHASES + 1
+        );
     }
 
     if let Some(iterations) = agent.iterations
-        && iterations == 0
+        && iterations < MIN_ITERATIONS
     {
-        bail!("Invalid {label}.iterations: {iterations}. Iterations must be greater than 0.");
+        bail!(
+            "Invalid {label}.iterations: {iterations}. Iterations must be at least {MIN_ITERATIONS}."
+        );
     }
 
     if let Some(timeout) = agent.session_timeout_hours
@@ -304,9 +317,11 @@ pub fn validate_agent_patch(agent: &AgentConfig, label: &str) -> Result<()> {
 
 /// Validate parallel branch prefix by checking if it forms a valid git branch name.
 pub fn validate_parallel_branch_prefix(prefix: &str) -> Result<()> {
+    use crate::constants::git::SAMPLE_TASK_ID;
+
     // Validate the *constructed* branch name (prefix + typical task id),
     // since prefixes like "ralph/" are intended and only become valid with a suffix.
-    let sample_branch = format!("{}{}", prefix, "RQ-0001");
+    let sample_branch = format!("{}{}", prefix, SAMPLE_TASK_ID);
 
     if let Some(reason) = git_ref_invalid_reason(&sample_branch) {
         bail!(

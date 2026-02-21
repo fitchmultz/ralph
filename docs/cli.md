@@ -3421,7 +3421,7 @@ The `run one` and `run loop` commands also support:
 
 * `--include-draft`: Include draft tasks (`status: draft`) when selecting what to run.
 * `--non-interactive`: Skip interactive prompts for sanity checks and session recovery. Useful for CI environments where TTY is not available.
-* `--parallel [N]` (run loop only): Run tasks concurrently in isolated git workspace clones. Defaults to `2` when provided without a value. Workers update workspace-local queue/done files during agent-owned integration (`fetch/rebase/conflict-fix/commit/push`) and push directly to `origin/<target_branch>`. No PR/merge-agent lifecycle is used. Parallel workers force RepoPrompt mode to `off` to keep edits inside workspace clones and honor `--git-commit-push-on/off` and `agent.git_commit_push_enabled`.
+* `--parallel [N]` (run loop only): Run tasks concurrently in isolated git workspace clones. Defaults to `2` when provided without a value. Workers run against coordinator-authoritative queue/done paths, execute agent-owned integration (`fetch/rebase/conflict-fix/commit/push`), and push directly to `origin/<target_branch>`. No PR/merge-agent lifecycle is used. Parallel workers force RepoPrompt mode to `off` to keep edits inside workspace clones and honor `--git-commit-push-on/off` and `agent.git_commit_push_enabled`.
 * Multi-phase runs (`--phases 2` or `--phases 3`) automatically refresh task fields (`scope,evidence,plan,notes,tags,depends_on`) at the start of Phase 1 and then generate the plan in that same Phase 1 session.
 * `--notify`: Enable desktop notification on task completion (overrides config).
 * `--no-notify`: Disable desktop notification on task completion (overrides config).

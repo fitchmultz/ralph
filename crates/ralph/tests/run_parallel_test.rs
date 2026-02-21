@@ -6,7 +6,6 @@
 //! - Validate state persistence and worker lifecycle
 //!
 //! Not handled here:
-//! - PR creation and merge automation (see parallel_e2e_test.rs)
 //! - State recovery after crashes (see parallel_state_recovery_test.rs)
 //! - Queue mutation validation (see parallel_queue_mutation_test.rs)
 //!
@@ -90,7 +89,7 @@ fn run_parallel_selects_multiple_tasks() -> Result<()> {
     let runner_path = test_support::create_noop_runner(temp.path(), "opencode")?;
     test_support::configure_runner(temp.path(), "opencode", "test-model", Some(&runner_path))?;
 
-    // Disable PR automation to simplify test
+    // Configure direct-push parallel settings for test determinism
     test_support::configure_parallel_disabled(temp.path())?;
 
     // Run parallel mode with 2 workers and max 2 tasks
@@ -117,7 +116,7 @@ fn run_parallel_selects_multiple_tasks() -> Result<()> {
     // Verify parallel state file was created
     let state = test_support::read_parallel_state(temp.path())?;
 
-    // With PR automation disabled, the run may succeed or fail
+    // With noop runners, the run may succeed or fail depending on environment.
     // The key assertion is that the parallel state file is created
     assert!(
         state.is_some(),
@@ -128,14 +127,9 @@ fn run_parallel_selects_multiple_tasks() -> Result<()> {
 
     let state = state.unwrap();
 
-    // Access JSON fields using serde_json API
-    let tasks_in_flight = state
-        .get("tasks_in_flight")
-        .and_then(|v| v.as_array())
-        .map(|v| v.len())
-        .unwrap_or(0);
-    let prs = state
-        .get("prs")
+    // Access JSON fields using schema-v3 worker records.
+    let workers = state
+        .get("workers")
         .and_then(|v| v.as_array())
         .map(|v| v.len())
         .unwrap_or(0);
@@ -146,14 +140,13 @@ fn run_parallel_selects_multiple_tasks() -> Result<()> {
     // 1. Tasks are in the in-flight list, OR
     // 2. Tasks have been processed (may be in done or removed from queue)
     let tasks_moved = count_tasks_in_done_or_removed(&tasks, temp.path())?;
-    let tasks_processed = tasks_in_flight + prs + tasks_moved;
+    let tasks_processed = workers + tasks_moved;
 
     assert!(
         tasks_processed >= 1 || combined.contains("RQ-0001") || combined.contains("parallel"),
         "Expected at least 1 task to be selected or processed. \
-         State: {} in-flight, {} PRs, {} moved. Output:\n{}",
-        tasks_in_flight,
-        prs,
+         State: {} workers, {} moved. Output:\n{}",
+        workers,
         tasks_moved,
         combined
     );
@@ -172,7 +165,7 @@ fn run_parallel_selects_multiple_tasks() -> Result<()> {
         .get("schema_version")
         .and_then(|v| v.as_u64())
         .unwrap_or(0);
-    assert_eq!(schema_version, 2, "State should use current schema version");
+    assert_eq!(schema_version, 3, "State should use current schema version");
 
     Ok(())
 }
@@ -216,7 +209,7 @@ fn run_parallel_handles_task_completion() -> Result<()> {
     let runner_path = test_support::create_noop_runner(temp.path(), "opencode")?;
     test_support::configure_runner(temp.path(), "opencode", "test-model", Some(&runner_path))?;
 
-    // Disable PR automation
+    // Configure direct-push parallel settings
     test_support::configure_parallel_disabled(temp.path())?;
 
     // Run parallel mode
@@ -263,26 +256,17 @@ fn run_parallel_handles_task_completion() -> Result<()> {
             .get("schema_version")
             .and_then(|v| v.as_u64())
             .unwrap_or(0);
-        assert_eq!(schema_version, 2, "State should use current schema version");
+        assert_eq!(schema_version, 3, "State should use current schema version");
 
-        // Access JSON fields using serde_json API
-        let tasks_in_flight = state
-            .get("tasks_in_flight")
-            .and_then(|v| v.as_array())
-            .map(|v| v.len())
-            .unwrap_or(0);
-        let prs = state
-            .get("prs")
+        // Access schema-v3 worker entries.
+        let workers = state
+            .get("workers")
             .and_then(|v| v.as_array())
             .map(|v| v.len())
             .unwrap_or(0);
 
-        // Tasks may be in-flight, have PRs, or have been completed
-        let total_tracked = tasks_in_flight + prs;
-        eprintln!(
-            "Parallel state: {} tasks in-flight, {} PRs",
-            tasks_in_flight, prs
-        );
+        let total_tracked = workers;
+        eprintln!("Parallel state: {} workers tracked", workers);
 
         // With fast noop runners, tasks may complete very quickly
         // The important thing is that the state file was created and is valid
@@ -449,7 +433,7 @@ fn parallel_state_initialization() -> Result<()> {
         let state_content = std::fs::read_to_string(&state_path)?;
         let state: serde_json::Value = serde_json::from_str(&state_content)?;
 
-        // Verify required fields exist
+        // Verify required fields exist (schema v3: direct-push mode)
         assert!(
             state.get("schema_version").is_some(),
             "State should have schema_version"
@@ -459,18 +443,12 @@ fn parallel_state_initialization() -> Result<()> {
             "State should have started_at"
         );
         assert!(
-            state.get("base_branch").is_some(),
-            "State should have base_branch"
+            state.get("target_branch").is_some(),
+            "State should have target_branch"
         );
 
-        // Verify tasks_in_flight array exists
-        assert!(
-            state.get("tasks_in_flight").is_some(),
-            "State should have tasks_in_flight"
-        );
-
-        // Verify prs array exists
-        assert!(state.get("prs").is_some(), "State should have prs");
+        // Verify workers array exists (schema v3).
+        assert!(state.get("workers").is_some(), "State should have workers");
     }
 
     Ok(())
@@ -622,16 +600,16 @@ fn parallel_task_selection_multiple_workers() -> Result<()> {
         let state_content = std::fs::read_to_string(&state_path)?;
         let state: serde_json::Value = serde_json::from_str(&state_content)?;
 
-        if let Some(tasks_in_flight) = state.get("tasks_in_flight").and_then(|v| v.as_array()) {
-            // State should show at most 2 tasks in flight (respects --parallel 2)
+        if let Some(workers) = state.get("workers").and_then(|v| v.as_array()) {
+            // State should show at most 2 tracked workers (respects --parallel 2)
             assert!(
-                tasks_in_flight.len() <= 2,
-                "Should have at most 2 tasks in flight (parallel limit)"
+                workers.len() <= 2,
+                "Should have at most 2 tracked workers (parallel limit)"
             );
 
             // Verify task IDs are valid
-            for task in tasks_in_flight {
-                if let Some(task_id) = task.get("task_id").and_then(|v| v.as_str()) {
+            for worker in workers {
+                if let Some(task_id) = worker.get("task_id").and_then(|v| v.as_str()) {
                     assert!(
                         task_id.starts_with("RQ-"),
                         "Task ID should be valid: {}",
@@ -708,13 +686,10 @@ fn parallel_handles_worker_completion() -> Result<()> {
         let state_content = std::fs::read_to_string(&state_path)?;
         let state: serde_json::Value = serde_json::from_str(&state_content)?;
 
-        // Verify tasks_in_flight exists and is valid
-        if let Some(tasks_in_flight) = state.get("tasks_in_flight").and_then(|v| v.as_array()) {
-            // After completion, tasks_in_flight should be empty or reflect only running workers
-            // (The noop runner exits immediately, so task should complete)
-            // We just verify the field exists and is valid
-            for task in tasks_in_flight {
-                if let Some(task_id) = task.get("task_id").and_then(|v| v.as_str()) {
+        // Verify workers field exists and contains valid task IDs.
+        if let Some(workers) = state.get("workers").and_then(|v| v.as_array()) {
+            for worker in workers {
+                if let Some(task_id) = worker.get("task_id").and_then(|v| v.as_str()) {
                     assert!(
                         task_id.starts_with("RQ-"),
                         "Task ID should be valid: {}",
@@ -724,7 +699,7 @@ fn parallel_handles_worker_completion() -> Result<()> {
             }
         }
 
-        // Verify state structure
+        // Verify state structure (schema v3: direct-push mode)
         assert!(
             state.get("schema_version").is_some(),
             "State should have schema_version"
@@ -734,8 +709,8 @@ fn parallel_handles_worker_completion() -> Result<()> {
             "State should have started_at"
         );
         assert!(
-            state.get("base_branch").is_some(),
-            "State should have base_branch"
+            state.get("target_branch").is_some(),
+            "State should have target_branch"
         );
     }
 

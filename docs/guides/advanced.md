@@ -152,7 +152,7 @@ Parallel execution runs tasks in isolated git workspace clones:
 {
   "parallel": {
     "workers": 4,
-    "max_push_attempts": 50,
+    "max_push_attempts": 5,
     "push_backoff_ms": [500, 2000, 5000, 10000],
     "workspace_retention_hours": 24
   }

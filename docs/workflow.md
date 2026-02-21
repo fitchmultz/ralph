@@ -9,7 +9,7 @@ Purpose: Explain Ralph's high-level runtime layout, phases, and prompt override 
 - `.ralph/done.json`: archive of completed tasks.
 - `.ralph/config.json`: project-level configuration.
 - `.ralph/prompts/*.md`: optional prompt overrides (defaults are embedded in the Rust CLI under `crates/ralph/assets/prompts/`).
-- `.ralph/cache/parallel/state.json`: parallel run state (in-flight tasks and PRs).
+- `.ralph/cache/parallel/state.json`: parallel run state (in-flight workers and terminal outcomes).
 
 ## Prompt Overrides
 Ralph embeds default prompts in the Rust binary. To override prompts per repo, add:
@@ -23,7 +23,6 @@ Ralph embeds default prompts in the Rust binary. To override prompts per repo, a
 - `.ralph/prompts/phase2_handoff_checklist.md`
 - `.ralph/prompts/code_review.md`
 - `.ralph/prompts/task_builder.md`
-- `.ralph/prompts/merge_conflicts.md`
 - `.ralph/prompts/scan.md`
 
 Overrides must preserve required placeholders (for example `{{USER_REQUEST}}` in task builder prompts).
@@ -46,14 +45,14 @@ High-level behavior:
 - Each task runs in its own isolated git workspace clone under
   `<repo-parent>/.workspaces/<repo-name>/parallel/<TASK_ID>` by default
   (configurable via `parallel.workspace_root`).
-  Each workspace checks out a branch named `ralph/<TASK_ID>`.
-- The supervisor creates PRs on success (draft PRs on failure when enabled).
-- The merge runner merges PRs as they are created (or after all tasks), and can auto-resolve
-  conflicts using the `merge_conflicts` prompt and `parallel.merge_runner` overrides.
+  Each workspace checks out the coordinator target base branch (for example `main`).
+- Workers run configured phases, then execute an agent-owned integration loop:
+  `fetch/rebase/conflict-fix/commit/push`.
+- Workers push directly to `origin/<target_branch>`; no PR/merge-agent lifecycle is used.
 - State is persisted to `.ralph/cache/parallel/state.json` for crash recovery and coordination.
-- On startup, Ralph prunes stale in-flight task records and reconciles PR records before
-  evaluating the state file's base branch. If the base branch is missing or mismatched and there
-  are no in-flight tasks or open PRs, Ralph auto-heals the state file to the current branch.
+- On startup, Ralph prunes stale worker records before evaluating the state file's target branch.
+  If the target branch is missing or mismatched and there are no active workers, Ralph auto-heals
+  the state file to the current branch.
   Otherwise it fails with recovery guidance to avoid mixing active parallel runs across branches.
 
 **Breaking change (2026-02):** The default directory for parallel workspaces changed from

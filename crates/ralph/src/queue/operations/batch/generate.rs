@@ -104,7 +104,8 @@ pub fn batch_clone_tasks(
                     );
                 }
                 // In continue-on-error mode, record the failure
-                let _ = collector.record_failure(task_id.clone(), error_msg);
+                // Note: record_failure returns Ok(()) when continue_on_error=true
+                collector.record_failure(task_id.clone(), error_msg)?;
             }
         }
     }
@@ -201,7 +202,8 @@ pub fn batch_split_tasks(
                         bail!("{}", err_msg);
                     }
                     // In continue-on-error mode, record the failure
-                    let _ = collector.record_failure(task_id.clone(), err_msg);
+                    // Note: record_failure returns Ok(()) when continue_on_error=true
+                    collector.record_failure(task_id.clone(), err_msg)?;
                 }
             }
             Err(e) => {
@@ -217,7 +219,8 @@ pub fn batch_split_tasks(
                     );
                 }
                 // In continue-on-error mode, record the failure
-                let _ = collector.record_failure(task_id.clone(), error_msg);
+                // Note: record_failure returns Ok(()) when continue_on_error=true
+                collector.record_failure(task_id.clone(), error_msg)?;
             }
         }
     }

@@ -27,3 +27,4 @@ CLAUDE.md
 .ralph/cache/webhooks
 .ralph/cache/session.json
 .ralph/cache/parallel
+.ralph/cache/stop_requested

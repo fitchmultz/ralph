@@ -94,13 +94,13 @@ pub(crate) fn render_task_updater_prompt(
     )
 }
 
-/// Note: Kept for backward compatibility with merge-runner module.
+/// Internal compatibility helper for merge-conflict prompt rendering.
 #[allow(dead_code)]
 pub(crate) fn load_merge_conflict_prompt(repo_root: &Path) -> Result<String> {
     prompts_internal::merge_conflicts::load_merge_conflict_prompt(repo_root)
 }
 
-/// Note: Kept for backward compatibility with merge-runner module.
+/// Internal compatibility helper for merge-conflict prompt rendering.
 #[allow(dead_code)]
 pub(crate) fn render_merge_conflict_prompt(
     template: &str,
@@ -314,8 +314,14 @@ pub fn render_completion_checklist(
     template: &str,
     task_id: &str,
     config: &Config,
+    parallel_worker_mode: bool,
 ) -> Result<String> {
-    prompts_internal::review::render_completion_checklist(template, task_id, config)
+    prompts_internal::review::render_completion_checklist(
+        template,
+        task_id,
+        config,
+        parallel_worker_mode,
+    )
 }
 
 pub fn render_phase2_handoff_checklist(template: &str, config: &Config) -> Result<String> {

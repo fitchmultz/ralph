@@ -89,6 +89,9 @@ mod tests {
     fn with_scope_logs_start_and_end_on_success() -> Result<()> {
         let (state, _) = take_logs();
 
+        // Clear any residual logs before our test
+        let _ = take_logs();
+
         with_scope("ScopeA", || Ok(()))?;
 
         let (_, logs) = take_logs();
@@ -111,6 +114,9 @@ mod tests {
     fn with_scope_logs_error_on_failure() {
         let (state, _) = take_logs();
 
+        // Clear any residual logs before our test
+        let _ = take_logs();
+
         let err = with_scope::<()>("ScopeB", || Err(anyhow!("boom"))).unwrap_err();
         assert_eq!(err.to_string(), "boom");
 
@@ -125,7 +131,7 @@ mod tests {
                 .collect::<Vec<_>>();
             assert!(
                 relevant == expected_full || relevant == expected_partial,
-                "unexpected logs: {logs:?}"
+                "unexpected logs: {logs:?} (expected {expected_full:?} or {expected_partial:?})"
             );
         }
     }

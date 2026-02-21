@@ -18,7 +18,6 @@ use crate::constants::defaults::DEFAULT_ID_WIDTH;
 use crate::constants::limits::{
     DEFAULT_SIZE_WARNING_THRESHOLD_KB, DEFAULT_TASK_COUNT_WARNING_THRESHOLD,
 };
-use crate::constants::queue::{DEFAULT_DONE_FILE, DEFAULT_QUEUE_FILE};
 use crate::constants::timeouts::DEFAULT_SESSION_TIMEOUT_HOURS;
 use crate::contracts::model::{Model, ReasoningEffort};
 use crate::contracts::runner::{
@@ -109,8 +108,8 @@ impl Default for Config {
             version: 1,
             project_type: Some(ProjectType::Code),
             queue: QueueConfig {
-                file: Some(PathBuf::from(DEFAULT_QUEUE_FILE)),
-                done_file: Some(PathBuf::from(DEFAULT_DONE_FILE)),
+                file: Some(PathBuf::from(".ralph/queue.json")),
+                done_file: Some(PathBuf::from(".ralph/done.json")),
                 id_prefix: Some("RQ".to_string()),
                 id_width: Some(DEFAULT_ID_WIDTH as u8),
                 size_warning_threshold_kb: Some(DEFAULT_SIZE_WARNING_THRESHOLD_KB),
@@ -204,7 +203,7 @@ impl Default for Config {
             parallel: ParallelConfig {
                 workers: None,
                 workspace_root: None,
-                max_push_attempts: Some(50),
+                max_push_attempts: Some(5),
                 push_backoff_ms: Some(default_push_backoff_ms()),
                 workspace_retention_hours: Some(24),
             },

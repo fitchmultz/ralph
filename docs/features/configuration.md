@@ -552,7 +552,7 @@ The `parallel` section controls parallel task execution for `ralph run loop`. **
 |-------|------|---------|-------------|
 | `workers` | `number` | `null` | Concurrent workers (≥2, null = disabled unless `--parallel` is used) |
 | `workspace_root` | `string` | `<repo-parent>/.workspaces/<repo-name>/parallel` | Root for parallel worker workspaces |
-| `max_push_attempts` | `number` | `50` | Max integration attempts before worker becomes blocked |
+| `max_push_attempts` | `number` | `5` | Max integration attempts before worker becomes blocked |
 | `push_backoff_ms` | `number[]` | `[500, 2000, 5000, 10000]` | Backoff between integration retries |
 | `workspace_retention_hours` | `number` | `24` | Hours to retain completed/failed worker workspaces |
 
@@ -582,7 +582,7 @@ The following PR-era keys were removed from parallel mode and are invalid in cur
   "parallel": {
     "workers": 3,
     "workspace_root": ".workspaces/my-repo/parallel",
-    "max_push_attempts": 50,
+    "max_push_attempts": 5,
     "push_backoff_ms": [500, 2000, 5000, 10000],
     "workspace_retention_hours": 24
   }
@@ -980,7 +980,7 @@ Here's a comprehensive example demonstrating all configuration sections:
   "parallel": {
     "workers": 3,
     "workspace_root": ".workspaces/my-repo/parallel",
-    "max_push_attempts": 50,
+    "max_push_attempts": 5,
     "push_backoff_ms": [500, 2000, 5000, 10000],
     "workspace_retention_hours": 24
   },

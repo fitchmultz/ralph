@@ -498,7 +498,7 @@ pub fn build_worker_prompt(
 
     let load_completion_checklist = || -> Result<String> {
         let template = prompts::load_completion_checklist(&resolved.repo_root)?;
-        prompts::render_completion_checklist(&template, &task_id, &resolved.config)
+        prompts::render_completion_checklist(&template, &task_id, &resolved.config, false)
     };
 
     let prompt = match opts.mode {

@@ -94,3 +94,21 @@ fn load_phase2_handoff_checklist_uses_override_when_present() -> Result<()> {
     assert_eq!(checklist, "override");
     Ok(())
 }
+
+#[test]
+fn render_completion_checklist_sets_normal_run_mode() -> Result<()> {
+    let template = "task={{TASK_ID}} mode={{RUN_MODE}}";
+    let config = default_config();
+    let rendered = render_completion_checklist(template, "RQ-0001", &config, false)?;
+    assert_eq!(rendered, "task=RQ-0001 mode=normal");
+    Ok(())
+}
+
+#[test]
+fn render_completion_checklist_sets_parallel_worker_run_mode() -> Result<()> {
+    let template = "task={{TASK_ID}} mode={{RUN_MODE}}";
+    let config = default_config();
+    let rendered = render_completion_checklist(template, "RQ-0001", &config, true)?;
+    assert_eq!(rendered, "task=RQ-0001 mode=parallel-worker");
+    Ok(())
+}

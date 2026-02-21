@@ -464,32 +464,7 @@ fn test_validate_config_valid_defaults() {
     assert!(result.is_ok());
 }
 
-#[test]
-fn validate_config_rejects_parallel_branch_prefix_with_spaces() {
-    let mut cfg = Config::default();
-    cfg.parallel.branch_prefix = Some("bad prefix/".to_string());
-
-    let err = config::validate_config(&cfg).expect_err("expected validation to fail");
-    assert!(err.to_string().contains("parallel.branch_prefix"));
-}
-
-#[test]
-fn validate_config_rejects_parallel_branch_prefix_with_dotdot() {
-    let mut cfg = Config::default();
-    cfg.parallel.branch_prefix = Some("bad..prefix/".to_string());
-
-    let err = config::validate_config(&cfg).expect_err("expected validation to fail");
-    assert!(err.to_string().contains("parallel.branch_prefix"));
-}
-
-#[test]
-fn validate_config_rejects_parallel_branch_prefix_with_at_brace() {
-    let mut cfg = Config::default();
-    cfg.parallel.branch_prefix = Some("bad@{prefix}/".to_string());
-
-    let err = config::validate_config(&cfg).expect_err("expected validation to fail");
-    assert!(err.to_string().contains("parallel.branch_prefix"));
-}
+// Branch prefix tests removed in direct-push rewrite - branch_prefix config key no longer exists
 
 #[test]
 fn test_load_layer_valid_json() {

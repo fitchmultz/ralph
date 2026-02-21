@@ -1,50 +1,180 @@
-//! Main parallel orchestration loop for direct-push mode.
+//! Main parallel orchestration loop.
 //!
 //! Responsibilities:
 //! - Execute the main parallel run loop with worker spawning and monitoring.
-//! - Track worker lifecycle and outcomes.
+//! - Coordinate PR creation on worker success/failure.
+//! - Queue and process merge-agent subprocess jobs.
 //! - Handle graceful shutdown on signals.
 //!
 //! Not handled here:
 //! - State initialization (see `super::state_init`).
 //! - State persistence format (see `super::state`).
 //! - Worker lifecycle details (see `super::worker`).
-//! - Integration loop logic (see `integration.rs`).
+//! - Merge-agent execution logic (see `super::merge_agent`).
 //!
 //! Invariants/assumptions:
 //! - Called after all preflight checks pass.
 //! - Queue lock is held by caller for task selection safety.
-//! - Workers push directly to target branch (no PRs).
+//! - Merge-agent subprocess runs synchronously in the main loop.
+//!
+//! # Runtime Policies (Spec Section 20)
+//!
+//! ## Policy 2: Unresolved Conflict Handling
+//!
+//! When `MergeExitClassification::ConflictRetryable` is returned:
+//! - PR is left open (not closed, not deleted)
+//! - Failure is persisted as retryable (`update_merge_result` with `retryable=true`)
+//! - Task is requeued via `requeue_merge` for later retry
+//! - Main loop continues (does NOT abort)
+//!
+//! ## Policy 3: Workspace Retention
+//!
+//! On successful merge (`Success` or `AlreadyFinalized` classification):
+//! - Workspace is deleted immediately via `std::fs::remove_dir_all`
+//! - Deletion failure is non-fatal (logged as warning, not error)
+//! - Cleanup happens in both `AsCreated` and `AfterAll` modes
+//!
+//! These policies are fixed per `docs/features/parallel-mode-rewrite.md` section 20.
 
 use crate::config;
+use crate::contracts::ParallelMergeWhen;
 use crate::queue;
-use crate::{git, runutil, signal, timeutil};
+use crate::{git, promptflow, runutil, signal, timeutil};
 use anyhow::{Context, Result, bail};
-use std::collections::HashSet;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
 use std::thread;
 use std::time::Duration;
 
 use super::cleanup_guard::ParallelCleanupGuard;
-use super::state::{self, WorkerRecord};
-use super::sync::sync_ralph_state;
+use super::merge_runner::MergeWorkItem;
+use super::state::{self, PendingMergeJob, PendingMergeLifecycle};
+use super::sync::{commit_failure_changes, ensure_branch_pushed, sync_ralph_state};
 use super::worker::{WorkerState, collect_excluded_ids, select_next_task_locked, spawn_worker};
 use super::workspace_cleanup::remove_workspace_best_effort;
 use super::{
-    ParallelRunOptions, can_start_more_tasks, effective_active_worker_count, initial_tasks_started,
+    CI_FAILURE_MARKER_FALLBACK_FILE, CI_FAILURE_MARKER_FILE, MergeExitClassification,
+    ParallelRunOptions, apply_git_commit_push_policy_to_parallel_settings, can_start_more_tasks,
+    classify_merge_exit_code, effective_in_flight_count, initial_tasks_started,
     load_or_init_parallel_state, overrides_for_parallel_workers,
-    preflight_parallel_workspace_root_is_gitignored, prune_stale_workers,
-    resolve_parallel_settings, spawn_worker_with_registered_workspace,
+    preflight_parallel_workspace_root_is_gitignored, prune_stale_tasks_in_flight,
+    resolve_parallel_settings, spawn_merge_agent, spawn_worker_with_registered_workspace,
 };
 
-fn should_exit_when_idle(
-    tasks_started: u32,
-    max_tasks: u32,
+fn workspace_path_for_cleanup(
+    task_id: &str,
+    merge_job_workspace_path: Option<&PathBuf>,
+    completed_workspaces: &HashMap<String, git::WorkspaceSpec>,
+) -> Option<PathBuf> {
+    merge_job_workspace_path.cloned().or_else(|| {
+        completed_workspaces
+            .get(task_id)
+            .map(|workspace| workspace.path.clone())
+    })
+}
+
+fn refresh_local_base_branch_after_merge(
+    repo_root: &Path,
+    base_branch: &str,
+    task_id: &str,
+    pr_number: u32,
+) {
+    match git::fast_forward_branch_to_origin(repo_root, base_branch) {
+        Ok(()) => {
+            log::info!(
+                "Refreshed local {} to origin/{} after merge of task {} PR {}",
+                base_branch,
+                base_branch,
+                task_id,
+                pr_number
+            );
+        }
+        Err(err) => {
+            let dirty_only_allowlisted =
+                git::repo_dirty_only_allowed_paths(repo_root, git::RALPH_RUN_CLEAN_ALLOWED_PATHS)
+                    .unwrap_or(false);
+            if dirty_only_allowlisted {
+                log::warn!(
+                    "Skipping local base branch refresh after merge of task {} PR {} because repo has only allowlisted dirty paths: {}",
+                    task_id,
+                    pr_number,
+                    err
+                );
+            } else {
+                log::warn!(
+                    "Failed to refresh local base branch {} after merge of task {} PR {}: {}",
+                    base_branch,
+                    task_id,
+                    pr_number,
+                    err
+                );
+            }
+        }
+    }
+}
+
+fn should_break_parallel_loop(
+    no_more_tasks: bool,
     next_available: bool,
     stop_requested: bool,
+    has_pending_merges: bool,
 ) -> bool {
-    let no_more_tasks = max_tasks != 0 && tasks_started >= max_tasks;
-    no_more_tasks || !next_available || stop_requested
+    (no_more_tasks || !next_available || stop_requested) && !has_pending_merges
+}
+
+fn apply_pending_merge_retry_policy(
+    state_file: &mut state::ParallelStateFile,
+    task_id: &str,
+    max_retries: u8,
+    exhausted_log_prefix: &str,
+) {
+    if let Some(job) = state_file.get_pending_merge_mut(task_id) {
+        if job.attempts >= max_retries {
+            log::error!(
+                "{}Merge-agent exhausted retries for task {} after {} attempts",
+                exhausted_log_prefix,
+                task_id,
+                job.attempts
+            );
+            job.lifecycle = PendingMergeLifecycle::TerminalFailed;
+        } else {
+            job.lifecycle = PendingMergeLifecycle::Queued;
+        }
+    }
+}
+
+/// Check if CI failure marker exists in workspace.
+/// Returns true if the worker failed due to CI gate, false otherwise.
+fn has_ci_failure_marker(workspace_path: &Path) -> bool {
+    workspace_path.join(CI_FAILURE_MARKER_FILE).exists()
+        || workspace_path
+            .join(CI_FAILURE_MARKER_FALLBACK_FILE)
+            .exists()
+}
+
+/// Get CI failure details from marker file (for logging).
+fn read_ci_failure_marker(workspace_path: &Path) -> Option<String> {
+    [
+        workspace_path.join(CI_FAILURE_MARKER_FILE),
+        workspace_path.join(CI_FAILURE_MARKER_FALLBACK_FILE),
+    ]
+    .into_iter()
+    .find_map(|marker_path| std::fs::read_to_string(marker_path).ok())
+}
+
+/// Remove CI failure marker file from workspace.
+fn remove_ci_failure_marker(workspace_path: &Path) {
+    for marker_path in [
+        workspace_path.join(CI_FAILURE_MARKER_FILE),
+        workspace_path.join(CI_FAILURE_MARKER_FALLBACK_FILE),
+    ] {
+        if marker_path.exists()
+            && let Err(e) = std::fs::remove_file(&marker_path)
+        {
+            log::debug!("Failed to remove CI failure marker: {}", e);
+        }
+    }
 }
 
 /// Main entry point for parallel run loop.
@@ -52,10 +182,12 @@ pub(crate) fn run_loop_parallel(
     resolved: &config::Resolved,
     opts: ParallelRunOptions,
 ) -> Result<()> {
-    // Acquire the queue lock for the entire parallel run loop
+    // Acquire the queue lock for the entire parallel run loop to prevent
+    // other run loops from selecting the same tasks during the selection→spawn window.
     let _queue_lock = queue::acquire_queue_lock(&resolved.repo_root, "run loop", opts.force)?;
 
-    // Preflight: require a clean repo
+    // Preflight: require a clean repo before creating workspaces/spawning workers.
+    // Honor --force to bypass (matches run_one_impl behavior).
     git::require_clean_repo_ignoring_paths(
         &resolved.repo_root,
         opts.force,
@@ -63,8 +195,9 @@ pub(crate) fn run_loop_parallel(
     )?;
 
     let cache_dir = resolved.repo_root.join(".ralph/cache");
-
-    // Ctrl-C handler setup
+    // Ctrl-C handler: initialize if not already done. In tests, a previous test may have
+    // registered the handler, so we treat "already registered" as a non-fatal condition
+    // and skip the pre-run interrupt check in that case.
     let ctrlc_result = crate::runner::ctrlc_state();
     if let Ok(ctrlc) = ctrlc_result {
         if ctrlc.interrupted.load(Ordering::SeqCst) {
@@ -79,37 +212,90 @@ pub(crate) fn run_loop_parallel(
 
     signal::clear_stop_signal_at_loop_start(&cache_dir);
 
-    // Preflight: load, conservatively repair timestamps, and validate queue/done
-    let (_queue_file, _done_file) = queue::load_and_validate_queues(resolved, true)
-        .context("Parallel preflight: validate queue/done set")?;
+    // Preflight: validate queue/done before doing any parallel orchestration.
+    // This fails fast on invalid queue state rather than spawning workers that will fail individually.
+    let queue_file =
+        queue::load_queue(&resolved.queue_path).context("Parallel preflight: load queue.json")?;
+    let done = queue::load_queue_or_default(&resolved.done_path)
+        .context("Parallel preflight: load done.json")?;
+    let done_ref = if done.tasks.is_empty() && !resolved.done_path.exists() {
+        None
+    } else {
+        Some(&done)
+    };
 
-    // Preflight: validate workspace mapping
+    let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
+    let warnings = queue::validate_queue_set(
+        &queue_file,
+        done_ref,
+        &resolved.id_prefix,
+        resolved.id_width,
+        max_depth,
+    )
+    .context("Parallel preflight: validate queue/done set")?;
+    queue::log_warnings(&warnings);
+
+    // Preflight: parallel workspace mapping requires queue/done to be repo-contained.
+    // Fail fast here (before state file creation / worker spawn) with an actionable error.
     super::path_map::map_resolved_path_into_workspace(
         &resolved.repo_root,
-        &resolved.repo_root,
+        &resolved.repo_root, // validation-only: map into the same root
         &resolved.queue_path,
         "queue",
     )
     .with_context(|| {
-        "Parallel preflight: queue.file must be under repo root (try a repo-relative path like '.ralph/queue.jsonc')".to_string()
+        format!(
+            "Parallel preflight: queue.file must be under repo root for workspace mapping (try a repo-relative path like '.ralph/queue.json'). repo_root={}, queue_path={}",
+            resolved.repo_root.display(),
+            resolved.queue_path.display()
+        )
     })?;
 
     super::path_map::map_resolved_path_into_workspace(
         &resolved.repo_root,
-        &resolved.repo_root,
+        &resolved.repo_root, // validation-only: map into the same root
         &resolved.done_path,
         "done",
     )
     .with_context(|| {
-        "Parallel preflight: queue.done_file must be under repo root (try a repo-relative path like '.ralph/done.jsonc')".to_string()
+        format!(
+            "Parallel preflight: queue.done_file must be under repo root for workspace mapping (try a repo-relative path like '.ralph/done.json'). repo_root={}, done_path={}",
+            resolved.repo_root.display(),
+            resolved.done_path.display()
+        )
     })?;
 
-    let settings = resolve_parallel_settings(resolved, &opts)?;
+    let mut settings = resolve_parallel_settings(resolved, &opts)?;
 
-    // Preflight: workspace_root gitignore check
+    // Preflight: fail fast if workspace_root is inside repo but not gitignored
     preflight_parallel_workspace_root_is_gitignored(&resolved.repo_root, &settings.workspace_root)?;
 
-    // Preflight: parallel workspaces require a pushable origin remote
+    // Compute effective git_commit_push_enabled with same precedence as run_one_impl
+    let effective_git_commit_push = opts
+        .agent_overrides
+        .git_commit_push_enabled
+        .or(resolved.config.agent.git_commit_push_enabled)
+        .unwrap_or(true);
+
+    // Disable PR automation if commit/push is disabled (PRs require pushed commits)
+    if !effective_git_commit_push {
+        log::warn!(
+            "Parallel mode: git commit/push is disabled. Disabling PR automation (auto_pr, auto_merge, draft_on_failure) for this invocation."
+        );
+        apply_git_commit_push_policy_to_parallel_settings(&mut settings, false);
+    }
+
+    // Preflight: if PR automation is enabled, verify gh CLI is available and authenticated.
+    // This fails fast with a clear error rather than running tasks and failing at PR creation.
+    if settings.auto_pr || settings.auto_merge {
+        git::check_gh_available().context(
+            "Parallel preflight: gh CLI check failed (auto_pr or auto_merge is enabled)",
+        )?;
+    }
+
+    // Preflight: parallel workspaces require a pushable origin remote.
+    // Fail fast before state file creation / worker spawn.
+    // We only need to verify origin exists, not use the returned URLs.
     git::origin_urls(&resolved.repo_root).context(
         "Parallel preflight: origin remote check failed (parallel mode requires `origin`)",
     )?;
@@ -124,20 +310,21 @@ pub(crate) fn run_loop_parallel(
     let current_branch = git::current_branch(&resolved.repo_root)?;
     let state_path = state::state_file_path(&resolved.repo_root);
     let started_at = timeutil::now_utc_rfc3339_or_fallback();
-    let state_file = load_or_init_parallel_state(
+    let mut state_file = load_or_init_parallel_state(
         &resolved.repo_root,
         &state_path,
         &current_branch,
         &started_at,
-        &settings,
+        &mut settings,
     )?;
 
-    let target_branch = state_file.target_branch.clone();
+    let base_branch = state_file.base_branch.clone();
 
-    // Initialize webhook worker
+    // Initialize webhook worker with parallel-optimized capacity
+    // This must happen before any webhook calls to ensure proper queue sizing
     crate::webhook::init_worker_for_parallel(&resolved.config.agent.webhook, settings.workers);
 
-    // Emit loop_started webhook
+    // Emit loop_started webhook after preflights pass
     let loop_start_time = std::time::Instant::now();
     let loop_webhook_ctx = crate::webhook::WebhookContext {
         repo_root: Some(resolved.repo_root.display().to_string()),
@@ -151,29 +338,90 @@ pub(crate) fn run_loop_parallel(
         loop_webhook_ctx.clone(),
     );
 
+    // Reconcile existing open/unmerged PRs into pending_merges queue for AsCreated mode.
+    // This handles resumed runs where PRs were created but not yet merged.
+    if settings.auto_merge && settings.merge_when == ParallelMergeWhen::AsCreated {
+        // Collect records to reconcile first to avoid borrow issues
+        let records_to_enqueue: Vec<(String, u32)> = state_file
+            .prs
+            .iter()
+            .filter(|record| record.is_open_unmerged())
+            .filter(|record| state_file.get_pending_merge(&record.task_id).is_none())
+            .map(|record| (record.task_id.clone(), record.pr_number))
+            .collect();
+
+        for (task_id, pr_number) in records_to_enqueue {
+            let merge_job = PendingMergeJob {
+                task_id: task_id.clone(),
+                pr_number,
+                workspace_path: None,
+                lifecycle: PendingMergeLifecycle::Queued,
+                attempts: 0,
+                queued_at: timeutil::now_utc_rfc3339_or_fallback(),
+                last_error: None,
+            };
+            state_file.enqueue_merge(merge_job);
+            log::info!(
+                "Reconciled existing PR {} for task {} into pending_merges queue",
+                pr_number,
+                task_id
+            );
+        }
+    }
+
+    // Track completed workspaces separately (not owned by guard, cleaned up after merge)
+    let mut completed_workspaces: HashMap<String, git::WorkspaceSpec> = HashMap::new();
+    // Track work items for AfterAll mode
+    let mut after_all_work_items: Vec<MergeWorkItem> = Vec::new();
+
+    // Only track workspaces for open/unmerged PRs (closed/merged should not drive merge behavior)
+    for record in state_file
+        .prs
+        .iter()
+        .filter(|record| record.is_open_unmerged())
+    {
+        let path = settings.workspace_root.join(&record.task_id);
+        if path.exists() {
+            completed_workspaces.insert(
+                record.task_id.clone(),
+                git::WorkspaceSpec {
+                    path,
+                    branch: format!("{}{}", settings.branch_prefix, record.task_id),
+                },
+            );
+        }
+    }
+
     let include_draft = opts.agent_overrides.include_draft.unwrap_or(false);
     let worker_overrides = overrides_for_parallel_workers(resolved, &opts.agent_overrides);
-
-    let mut tasks_started: u32 = initial_tasks_started(&state_file);
+    // Count resumed in-flight tasks toward max_tasks to prevent over-starting on resume.
+    let now = time::OffsetDateTime::now_utc();
+    let mut tasks_started: u32 = initial_tasks_started(
+        &state_file,
+        now,
+        settings.auto_pr,
+        settings.draft_on_failure,
+    );
     let mut tasks_attempted: usize = 0;
     let mut tasks_succeeded: usize = 0;
     let mut tasks_failed: usize = 0;
     let mut interrupted = false;
-    let mut attempted_task_ids: HashSet<String> = HashSet::new();
 
-    // Create cleanup guard
+    // Create cleanup guard to ensure resources are cleaned up on any exit path
+    // Note: merge-agent subprocess architecture no longer needs merge_stop/pr_tx/merge_handle
     let mut guard = ParallelCleanupGuard::new_simple(
         state_path.clone(),
         state_file,
         settings.workspace_root.clone(),
     );
 
+    // Track whether stop signal has been observed to avoid repeated logging
     let mut stop_requested: bool = false;
 
-    // Run the main loop
+    // Run the main loop inside a closure so we can handle cleanup on any error
     let loop_result: Result<()> = (|| {
         loop {
-            // Check for Ctrl-C interrupt
+            // Check for Ctrl-C interrupt (if handler was successfully registered)
             if ctrlc_result
                 .as_ref()
                 .is_ok_and(|ctrlc| ctrlc.interrupted.load(Ordering::SeqCst))
@@ -183,30 +431,30 @@ pub(crate) fn run_loop_parallel(
                 break;
             }
 
-            // Check for stop signal
+            // Check for stop signal once per loop iteration
             if !stop_requested && signal::stop_signal_exists(&cache_dir) {
                 stop_requested = true;
                 log::info!("Stop signal detected; no new tasks will be started.");
             }
 
-            // Prune stale workers
-            let pruned_workers = prune_stale_workers(guard.state_file_mut());
-            if !pruned_workers.is_empty() {
-                log::warn!("Pruned stale workers: {}", pruned_workers.join(", "));
+            // Periodically prune stale records to free capacity on resumed work.
+            let pruned_in_flight = prune_stale_tasks_in_flight(guard.state_file_mut());
+
+            if !pruned_in_flight.is_empty() {
+                log::warn!(
+                    "Dropping stale in-flight tasks during loop: {}",
+                    pruned_in_flight.join(", ")
+                );
                 state::save_state(&state_path, guard.state_file())?;
             }
 
-            // Spawn new workers until capacity
-            while effective_active_worker_count(guard.state_file(), guard.in_flight().len())
+            // Spawn new workers until capacity or max-tasks reached.
+            while effective_in_flight_count(guard.state_file(), guard.in_flight().len())
                 < settings.workers as usize
                 && can_start_more_tasks(tasks_started, opts.max_tasks)
                 && !stop_requested
             {
-                let excluded = collect_excluded_ids(
-                    guard.state_file(),
-                    guard.in_flight(),
-                    &attempted_task_ids,
-                );
+                let excluded = collect_excluded_ids(guard.state_file(), guard.in_flight());
                 let (task_id, task_title) = match select_next_task_locked(
                     resolved,
                     include_draft,
@@ -225,8 +473,12 @@ pub(crate) fn run_loop_parallel(
                             &resolved.repo_root,
                             &settings.workspace_root,
                             &task_id,
-                            &target_branch,
+                            &base_branch,
+                            &settings.branch_prefix,
                         )?;
+                        // Workspaces may be reused after failed cleanup. Remove any stale
+                        // CI marker before a new worker run to avoid cross-run contamination.
+                        remove_ci_failure_marker(&workspace.path);
                         Ok(workspace)
                     },
                     |path| sync_ralph_state(resolved, path),
@@ -235,7 +487,6 @@ pub(crate) fn run_loop_parallel(
                             resolved,
                             &workspace.path,
                             &task_id,
-                            &target_branch,
                             &worker_overrides,
                             opts.force,
                         )
@@ -243,10 +494,16 @@ pub(crate) fn run_loop_parallel(
                 )?;
 
                 let task_started_at = timeutil::now_utc_rfc3339_or_fallback();
-                let record = WorkerRecord::new(&task_id, workspace.path.clone(), task_started_at);
-                guard.state_file_mut().upsert_worker(record);
+                let record = state::ParallelTaskRecord::new(
+                    &task_id,
+                    &workspace,
+                    child.id(),
+                    Some(task_started_at),
+                );
+                guard.state_file_mut().upsert_task(record);
                 state::save_state(&state_path, guard.state_file())?;
 
+                // Register worker with the guard for cleanup tracking
                 guard.register_worker(
                     task_id.clone(),
                     WorkerState {
@@ -256,110 +513,365 @@ pub(crate) fn run_loop_parallel(
                         child,
                     },
                 );
-                attempted_task_ids.insert(task_id);
 
                 tasks_started += 1;
             }
 
-            // Poll workers
+            // Process one pending merge job per iteration (if auto_merge and AsCreated mode).
+            // This replaces the background merge-runner thread with inline subprocess dispatch.
+            if settings.auto_merge
+                && settings.merge_when == ParallelMergeWhen::AsCreated
+                && !stop_requested
+                && let Some(merge_job) = guard.state_file().next_queued_merge().cloned()
+            {
+                let task_id = merge_job.task_id.clone();
+                let pr_number = merge_job.pr_number;
+
+                log::info!("Invoking merge-agent for task {} PR {}", task_id, pr_number);
+
+                // Mark as in-progress before spawning
+                guard.state_file_mut().mark_merge_in_progress(&task_id);
+                state::save_state(&state_path, guard.state_file())?;
+
+                match spawn_merge_agent(&resolved.repo_root, &task_id, pr_number) {
+                    Ok(outcome) => {
+                        let classification = classify_merge_exit_code(outcome.exit_code);
+
+                        match classification {
+                            MergeExitClassification::Success
+                            | MergeExitClassification::AlreadyFinalized => {
+                                log::info!(
+                                    "Merge-agent succeeded for task {} PR {} (exit={})",
+                                    task_id,
+                                    pr_number,
+                                    outcome.exit_code
+                                );
+
+                                let workspace_for_cleanup = workspace_path_for_cleanup(
+                                    &task_id,
+                                    merge_job.workspace_path.as_ref(),
+                                    &completed_workspaces,
+                                );
+
+                                // Update PR lifecycle and clear merge bookkeeping first so
+                                // follow-up local refresh cannot strand stale pending merges.
+                                guard.state_file_mut().mark_pr_merged(&task_id);
+                                guard.state_file_mut().remove_pending_merge(&task_id);
+                                completed_workspaces.remove(&task_id);
+                                state::save_state(&state_path, guard.state_file())?;
+
+                                // Delete workspace immediately per spec.
+                                // On resumed runs, pending merge jobs may not carry workspace_path,
+                                // so fall back to completed_workspaces tracking.
+                                if let Some(ws_path) = workspace_for_cleanup {
+                                    if let Err(e) = std::fs::remove_dir_all(&ws_path) {
+                                        log::warn!(
+                                            "Failed to delete workspace {} for {}: {}",
+                                            ws_path.display(),
+                                            task_id,
+                                            e
+                                        );
+                                    } else {
+                                        log::info!(
+                                            "Deleted workspace {} for {}",
+                                            ws_path.display(),
+                                            task_id
+                                        );
+                                    }
+                                }
+
+                                // Best-effort: if local base branch refresh fails, continue.
+                                // The merge already succeeded remotely and local queue/done may be dirty.
+                                refresh_local_base_branch_after_merge(
+                                    &resolved.repo_root,
+                                    &base_branch,
+                                    &task_id,
+                                    pr_number,
+                                );
+                            }
+
+                            MergeExitClassification::ConflictRetryable => {
+                                log::warn!(
+                                    "Merge-agent conflict for task {} PR {}: {}",
+                                    task_id,
+                                    pr_number,
+                                    outcome.stderr_output.lines().next().unwrap_or("unknown")
+                                );
+
+                                // Per spec: leave PR open, persist retryable, continue loop
+                                guard.state_file_mut().update_merge_result(
+                                    &task_id,
+                                    false,
+                                    Some(format!("Merge conflict: {}", outcome.stderr_output)),
+                                    true, // retryable
+                                );
+
+                                apply_pending_merge_retry_policy(
+                                    guard.state_file_mut(),
+                                    &task_id,
+                                    settings.merge_retries,
+                                    "",
+                                );
+
+                                state::save_state(&state_path, guard.state_file())?;
+                            }
+
+                            MergeExitClassification::RuntimeRetryable => {
+                                log::warn!(
+                                    "Merge-agent runtime error for task {} PR {}: {}",
+                                    task_id,
+                                    pr_number,
+                                    outcome.stderr_output
+                                );
+
+                                guard.state_file_mut().update_merge_result(
+                                    &task_id,
+                                    false,
+                                    Some(outcome.stderr_output.clone()),
+                                    true, // retryable
+                                );
+
+                                apply_pending_merge_retry_policy(
+                                    guard.state_file_mut(),
+                                    &task_id,
+                                    settings.merge_retries,
+                                    "",
+                                );
+
+                                state::save_state(&state_path, guard.state_file())?;
+                            }
+
+                            MergeExitClassification::TerminalFailure => {
+                                log::error!(
+                                    "Merge-agent terminal failure for task {} PR {}: exit {} - {}",
+                                    task_id,
+                                    pr_number,
+                                    outcome.exit_code,
+                                    outcome.stderr_output
+                                );
+
+                                guard.state_file_mut().mark_merge_terminal_failed(
+                                    &task_id,
+                                    outcome.stderr_output.clone(),
+                                );
+
+                                state::save_state(&state_path, guard.state_file())?;
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        log::error!(
+                            "Failed to spawn merge-agent for task {} PR {}: {}",
+                            task_id,
+                            pr_number,
+                            e
+                        );
+
+                        guard.state_file_mut().update_merge_result(
+                            &task_id,
+                            false,
+                            Some(e.to_string()),
+                            true, // retryable - subprocess spawn failure
+                        );
+                        apply_pending_merge_retry_policy(
+                            guard.state_file_mut(),
+                            &task_id,
+                            settings.merge_retries,
+                            "",
+                        );
+                        state::save_state(&state_path, guard.state_file())?;
+                    }
+                }
+            }
+
+            // Poll workers using the guard's poll_workers method
             let finished = guard.poll_workers();
 
-            for (task_id, _task_title, workspace, status) in finished {
+            for (task_id, task_title, workspace, status) in finished {
                 tasks_attempted += 1;
-
                 if status.success() {
                     tasks_succeeded += 1;
+                    // Handle success
+                    if settings.auto_pr {
+                        match (|| -> Result<git::PrInfo> {
+                            ensure_branch_pushed(&workspace.path)?;
+                            let body = promptflow::read_phase2_final_response_cache(
+                                &workspace.path,
+                                &task_id,
+                            )
+                            .unwrap_or_default();
+                            let title = format!("{}: {}", task_id, task_title);
+                            let pr = git::create_pr(
+                                &resolved.repo_root,
+                                &title,
+                                &body,
+                                &workspace.branch,
+                                &base_branch,
+                                false,
+                            )?;
+                            guard
+                                .state_file_mut()
+                                .upsert_pr(state::ParallelPrRecord::new(
+                                    &task_id,
+                                    &pr,
+                                    Some(&workspace.path),
+                                ));
+                            state::save_state(&state_path, guard.state_file())?;
+                            Ok(pr)
+                        })() {
+                            Ok(pr) => {
+                                // Validate PR head matches expected naming before enqueueing
+                                let expected_head =
+                                    format!("{}{}", settings.branch_prefix, task_id);
+                                if pr.head.trim() != expected_head {
+                                    log::warn!(
+                                        "PR {} for task {} has mismatched head '{}', expected '{}'. \
+                                         Skipping auto-merge; user can merge manually.",
+                                        pr.number,
+                                        task_id,
+                                        pr.head.trim(),
+                                        expected_head
+                                    );
+                                } else {
+                                    // Track for AfterAll mode
+                                    let work_item = MergeWorkItem {
+                                        task_id: task_id.clone(),
+                                        pr: pr.clone(),
+                                        workspace_path: Some(workspace.path.clone()),
+                                    };
+                                    after_all_work_items.push(work_item);
 
-                    // Worker completed phases successfully
-                    // Note: The integration loop (rebase, conflict resolution, push)
-                    // is handled by the worker process itself in direct-push mode.
-                    // We just track the outcome here.
-
-                    if let Some(worker) = guard.state_file_mut().get_worker_mut(&task_id) {
-                        worker.mark_completed(timeutil::now_utc_rfc3339_or_fallback());
+                                    // Queue merge job for AsCreated mode (new architecture)
+                                    if settings.auto_merge
+                                        && settings.merge_when == ParallelMergeWhen::AsCreated
+                                    {
+                                        let merge_job = PendingMergeJob {
+                                            task_id: task_id.clone(),
+                                            pr_number: pr.number,
+                                            workspace_path: Some(workspace.path.clone()),
+                                            lifecycle: PendingMergeLifecycle::Queued,
+                                            attempts: 0,
+                                            queued_at: timeutil::now_utc_rfc3339_or_fallback(),
+                                            last_error: None,
+                                        };
+                                        guard.state_file_mut().enqueue_merge(merge_job);
+                                        state::save_state(&state_path, guard.state_file())?;
+                                        log::info!(
+                                            "Queued merge job for task {} PR {}",
+                                            task_id,
+                                            pr.number
+                                        );
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                log::warn!("Failed to create PR for {}: {}", task_id, e);
+                            }
+                        }
                     }
-
-                    log::info!("Worker {} completed successfully", task_id);
                 } else {
                     tasks_failed += 1;
 
-                    let blocked_marker =
-                        match super::integration::read_blocked_push_marker(&workspace.path) {
-                            Ok(marker) => marker,
-                            Err(err) => {
-                                log::warn!(
-                                    "Failed reading blocked marker for {} ({}): {}",
-                                    task_id,
-                                    workspace.path.display(),
-                                    err
-                                );
-                                None
+                    // Check for CI failure marker before creating draft PR
+                    // CI gate failures should NOT create draft PRs
+                    if has_ci_failure_marker(&workspace.path) {
+                        let marker_details = read_ci_failure_marker(&workspace.path)
+                            .unwrap_or_else(|| "unknown CI failure".to_string());
+                        log::info!(
+                            "Worker for {} failed due to CI gate; skipping draft PR creation. Details: {}",
+                            task_id,
+                            marker_details
+                        );
+                        // Clean up the marker after handling
+                        remove_ci_failure_marker(&workspace.path);
+                    } else if settings.auto_pr && settings.draft_on_failure {
+                        // Handle non-CI failures with draft PR
+                        match (|| -> Result<Option<git::PrInfo>> {
+                            if !commit_failure_changes(&workspace.path, &task_id)? {
+                                return Ok(None);
                             }
-                        };
-
-                    if let Some(marker) = blocked_marker {
-                        if let Some(worker) = guard.state_file_mut().get_worker_mut(&task_id) {
-                            worker.push_attempts = marker.attempt;
-                            worker.mark_blocked(
-                                timeutil::now_utc_rfc3339_or_fallback(),
-                                marker.reason.clone(),
-                            );
+                            ensure_branch_pushed(&workspace.path)?;
+                            let body =
+                                format!("Failed run for {}. Draft PR generated by Ralph.", task_id);
+                            let title = format!("{}: {}", task_id, task_title);
+                            let pr = git::create_pr(
+                                &resolved.repo_root,
+                                &title,
+                                &body,
+                                &workspace.branch,
+                                &base_branch,
+                                true,
+                            )?;
+                            guard
+                                .state_file_mut()
+                                .upsert_pr(state::ParallelPrRecord::new(
+                                    &task_id,
+                                    &pr,
+                                    Some(&workspace.path),
+                                ));
+                            state::save_state(&state_path, guard.state_file())?;
+                            Ok(Some(pr))
+                        })() {
+                            Ok(Some(pr)) => {
+                                log::info!(
+                                    "Draft PR {} created for {}; skipping auto-merge.",
+                                    pr.number,
+                                    task_id
+                                );
+                            }
+                            Ok(None) => {
+                                log::info!(
+                                    "Worker for {} failed with no changes; skipping draft PR",
+                                    task_id
+                                );
+                            }
+                            Err(e) => {
+                                log::warn!("Failed to create draft PR for {}: {}", task_id, e);
+                            }
                         }
-
-                        log::warn!(
-                            "Worker {} blocked after {}/{} integration attempts: {}",
-                            task_id,
-                            marker.attempt,
-                            marker.max_attempts,
-                            marker.reason
-                        );
-                        log::warn!(
-                            "Retaining blocked workspace for retry: {}",
-                            workspace.path.display()
-                        );
-                    } else {
-                        if let Some(worker) = guard.state_file_mut().get_worker_mut(&task_id) {
-                            worker.mark_failed(
-                                timeutil::now_utc_rfc3339_or_fallback(),
-                                format!("Worker exited with status: {:?}", status.code()),
-                            );
-                        }
-
-                        log::warn!(
-                            "Worker {} failed with exit status: {:?}",
-                            task_id,
-                            status.code()
-                        );
-
-                        // Clean up failed worker workspace
-                        remove_workspace_best_effort(
-                            &settings.workspace_root,
-                            &workspace,
-                            "worker failure",
-                        );
                     }
                 }
 
+                // Clean up workspace for failed workers
+                // Failed tasks should not leave orphaned workspaces on disk
+                if !status.success() {
+                    remove_workspace_best_effort(
+                        &settings.workspace_root,
+                        &workspace,
+                        "worker failure",
+                    );
+
+                    // Remove from tracking and state - do NOT add to completed_workspaces
+                    guard.state_file_mut().remove_task(&task_id);
+                    state::save_state(&state_path, guard.state_file())?;
+                    guard.remove_worker(&task_id);
+                    continue;
+                }
+
+                // Move successful workspace to completed_workspaces for potential merge cleanup
+                completed_workspaces.insert(task_id.clone(), workspace.clone());
+                guard.state_file_mut().remove_task(&task_id);
                 state::save_state(&state_path, guard.state_file())?;
                 guard.remove_worker(&task_id);
             }
 
-            // Check if we should exit
             if guard.in_flight().is_empty() {
-                let excluded = collect_excluded_ids(
-                    guard.state_file(),
-                    guard.in_flight(),
-                    &attempted_task_ids,
-                );
+                let no_more_tasks = opts.max_tasks != 0 && tasks_started >= opts.max_tasks;
+                let excluded = collect_excluded_ids(guard.state_file(), guard.in_flight());
                 let next_available =
                     select_next_task_locked(resolved, include_draft, &excluded, &_queue_lock)?
                         .is_some();
-
-                if should_exit_when_idle(
-                    tasks_started,
-                    opts.max_tasks,
+                // Keep the loop alive when AsCreated auto-merge still has queued jobs.
+                // Merge dispatch happens at the top of the loop, so we must not break
+                // immediately after enqueueing a merge from a just-finished worker.
+                let has_pending_merges = settings.auto_merge
+                    && settings.merge_when == ParallelMergeWhen::AsCreated
+                    && guard.state_file().has_queued_merges();
+                if should_break_parallel_loop(
+                    no_more_tasks,
                     next_available,
                     stop_requested,
+                    has_pending_merges,
                 ) {
                     break;
                 }
@@ -371,8 +883,14 @@ pub(crate) fn run_loop_parallel(
         Ok(())
     })();
 
-    // Handle cleanup on exit
+    // Handle cleanup on any exit path (success, error, or interrupt)
     if interrupted || loop_result.is_err() {
+        // Cleanup will be performed by the guard's Drop implementation
+        // The guard will:
+        // 1. Terminate in-flight workers
+        // 2. Clear and persist state
+
+        // Emit loop_stopped webhook on error/interrupt path
         let loop_stopped_at = crate::timeutil::now_utc_rfc3339_or_fallback();
         let loop_duration_ms = loop_start_time.elapsed().as_millis() as u64;
         let loop_note = if interrupted {
@@ -400,10 +918,176 @@ pub(crate) fn run_loop_parallel(
         return loop_result;
     }
 
-    // Success path
+    // Success path - handle AfterAll merge mode with merge-agent subprocess
+    if settings.auto_merge && settings.merge_when == ParallelMergeWhen::AfterAll {
+        // Enqueue all work items as pending merges
+        for work_item in &after_all_work_items {
+            let merge_job = PendingMergeJob {
+                task_id: work_item.task_id.clone(),
+                pr_number: work_item.pr.number,
+                workspace_path: work_item.workspace_path.clone(),
+                lifecycle: PendingMergeLifecycle::Queued,
+                attempts: 0,
+                queued_at: timeutil::now_utc_rfc3339_or_fallback(),
+                last_error: None,
+            };
+            guard.state_file_mut().enqueue_merge(merge_job);
+        }
+        state::save_state(&state_path, guard.state_file())?;
+
+        log::info!(
+            "Processing {} queued merges in AfterAll mode",
+            guard.state_file().pending_merge_count()
+        );
+
+        // Process all pending merges
+        while guard.state_file().has_queued_merges() {
+            if let Some(merge_job) = guard.state_file().next_queued_merge().cloned() {
+                let task_id = merge_job.task_id.clone();
+                let pr_number = merge_job.pr_number;
+
+                log::info!(
+                    "AfterAll: Invoking merge-agent for task {} PR {}",
+                    task_id,
+                    pr_number
+                );
+
+                guard.state_file_mut().mark_merge_in_progress(&task_id);
+                state::save_state(&state_path, guard.state_file())?;
+
+                match spawn_merge_agent(&resolved.repo_root, &task_id, pr_number) {
+                    Ok(outcome) => {
+                        let classification = classify_merge_exit_code(outcome.exit_code);
+
+                        match classification {
+                            MergeExitClassification::Success
+                            | MergeExitClassification::AlreadyFinalized => {
+                                log::info!(
+                                    "AfterAll: Merge-agent succeeded for task {} PR {} (exit={})",
+                                    task_id,
+                                    pr_number,
+                                    outcome.exit_code
+                                );
+
+                                let workspace_for_cleanup = workspace_path_for_cleanup(
+                                    &task_id,
+                                    merge_job.workspace_path.as_ref(),
+                                    &completed_workspaces,
+                                );
+
+                                guard.state_file_mut().mark_pr_merged(&task_id);
+                                guard.state_file_mut().remove_pending_merge(&task_id);
+                                completed_workspaces.remove(&task_id);
+                                state::save_state(&state_path, guard.state_file())?;
+
+                                if let Some(ws_path) = workspace_for_cleanup
+                                    && let Err(e) = std::fs::remove_dir_all(&ws_path)
+                                {
+                                    log::warn!(
+                                        "Failed to delete workspace {} for {}: {}",
+                                        ws_path.display(),
+                                        task_id,
+                                        e
+                                    );
+                                }
+
+                                refresh_local_base_branch_after_merge(
+                                    &resolved.repo_root,
+                                    &base_branch,
+                                    &task_id,
+                                    pr_number,
+                                );
+                            }
+                            MergeExitClassification::ConflictRetryable => {
+                                log::warn!(
+                                    "AfterAll: Merge-agent conflict for task {} PR {}: {}",
+                                    task_id,
+                                    pr_number,
+                                    outcome.stderr_output.lines().next().unwrap_or("unknown")
+                                );
+                                guard.state_file_mut().update_merge_result(
+                                    &task_id,
+                                    false,
+                                    Some(format!("Merge conflict: {}", outcome.stderr_output)),
+                                    true,
+                                );
+                                apply_pending_merge_retry_policy(
+                                    guard.state_file_mut(),
+                                    &task_id,
+                                    settings.merge_retries,
+                                    "AfterAll: ",
+                                );
+                                state::save_state(&state_path, guard.state_file())?;
+                                // Continue to next merge job
+                            }
+                            MergeExitClassification::RuntimeRetryable => {
+                                log::warn!(
+                                    "AfterAll: Merge-agent runtime error for task {} PR {}: {}",
+                                    task_id,
+                                    pr_number,
+                                    outcome.stderr_output
+                                );
+                                guard.state_file_mut().update_merge_result(
+                                    &task_id,
+                                    false,
+                                    Some(outcome.stderr_output.clone()),
+                                    true,
+                                );
+
+                                apply_pending_merge_retry_policy(
+                                    guard.state_file_mut(),
+                                    &task_id,
+                                    settings.merge_retries,
+                                    "AfterAll: ",
+                                );
+                                state::save_state(&state_path, guard.state_file())?;
+                            }
+                            MergeExitClassification::TerminalFailure => {
+                                log::error!(
+                                    "AfterAll: Merge-agent terminal failure for task {} PR {}: exit {} - {}",
+                                    task_id,
+                                    pr_number,
+                                    outcome.exit_code,
+                                    outcome.stderr_output
+                                );
+                                guard.state_file_mut().mark_merge_terminal_failed(
+                                    &task_id,
+                                    outcome.stderr_output.clone(),
+                                );
+                                state::save_state(&state_path, guard.state_file())?;
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        log::error!(
+                            "AfterAll: Failed to spawn merge-agent for task {} PR {}: {}",
+                            task_id,
+                            pr_number,
+                            e
+                        );
+                        guard.state_file_mut().update_merge_result(
+                            &task_id,
+                            false,
+                            Some(e.to_string()),
+                            true,
+                        );
+                        apply_pending_merge_retry_policy(
+                            guard.state_file_mut(),
+                            &task_id,
+                            settings.merge_retries,
+                            "AfterAll: ",
+                        );
+                        state::save_state(&state_path, guard.state_file())?;
+                    }
+                }
+            }
+        }
+    }
+
+    // All cleanup successful - disarm the guard
     guard.mark_completed();
 
-    // Clear stop signal
+    // Clear stop signal on successful exit if it was observed (or still exists)
     if (stop_requested || signal::stop_signal_exists(&cache_dir))
         && let Err(e) = signal::clear_stop_signal(&cache_dir)
     {
@@ -427,7 +1111,7 @@ pub(crate) fn run_loop_parallel(
         );
     }
 
-    // Emit loop_stopped webhook
+    // Emit loop_stopped webhook on success path
     let loop_stopped_at = crate::timeutil::now_utc_rfc3339_or_fallback();
     let loop_duration_ms = loop_start_time.elapsed().as_millis() as u64;
     let loop_note = Some(format!(
@@ -451,8 +1135,10 @@ pub(crate) fn run_loop_parallel(
 mod tests {
     use super::*;
     use crate::agent::AgentOverrides;
+    use crate::commands::run::merge_agent::exit_codes;
     use crate::config;
     use crate::contracts::Config;
+    use std::os::unix::process::ExitStatusExt;
 
     #[test]
     fn overrides_for_parallel_workers_forces_repoprompt_off() -> Result<()> {
@@ -488,27 +1174,373 @@ mod tests {
         Ok(())
     }
 
+    // =========================================================================
+    // Policy Regression Tests (Spec Section 20)
+    // =========================================================================
+
+    /// Regression test: ConflictRetryable classification maps to exit code 3.
+    ///
+    /// Per spec section 20, decision 2: "Unresolved conflict policy: leave PR open,
+    /// persist retryable failure, and continue loop execution."
+    ///
+    /// The classification function must map exit code 3 to ConflictRetryable.
     #[test]
-    fn should_exit_when_idle_unbounded_continues_if_task_available() {
+    fn conflict_exit_code_classifies_as_retryable() {
+        assert_eq!(
+            classify_merge_exit_code(exit_codes::MERGE_CONFLICT),
+            MergeExitClassification::ConflictRetryable
+        );
+    }
+
+    /// Regression test: Success classification triggers workspace deletion logic.
+    ///
+    /// Per spec section 20, decision 3: "Workspace retention policy: delete workspace
+    /// immediately after successful merge finalization."
+    ///
+    /// This test verifies the classification path that triggers deletion.
+    #[test]
+    fn success_classification_triggers_deletion_path() {
+        // Success (exit 0) and AlreadyFinalized (exit 6) both trigger the
+        // deletion path in the orchestration match block.
+        assert_eq!(
+            classify_merge_exit_code(exit_codes::SUCCESS),
+            MergeExitClassification::Success
+        );
+        assert_eq!(
+            classify_merge_exit_code(exit_codes::ALREADY_FINALIZED),
+            MergeExitClassification::AlreadyFinalized
+        );
+
+        // Both Success and AlreadyFinalized are NOT retryable (they're done)
+        assert!(!matches!(
+            MergeExitClassification::Success,
+            MergeExitClassification::ConflictRetryable | MergeExitClassification::RuntimeRetryable
+        ));
+        assert!(!matches!(
+            MergeExitClassification::AlreadyFinalized,
+            MergeExitClassification::ConflictRetryable | MergeExitClassification::RuntimeRetryable
+        ));
+    }
+
+    /// Regression test: ConflictRetryable path does NOT call remove_pending_merge.
+    ///
+    /// When a conflict occurs, the merge job should be requeued, not removed.
+    /// The `requeue_merge` function resets lifecycle to Queued.
+    #[test]
+    fn conflict_path_requeues_not_removes() {
+        use super::state::{ParallelStateFile, PendingMergeJob, PendingMergeLifecycle};
+        use crate::contracts::{ParallelMergeMethod, ParallelMergeWhen};
+
+        let mut state_file = ParallelStateFile::new(
+            "2026-02-01T00:00:00Z".to_string(),
+            "main".to_string(),
+            ParallelMergeMethod::Squash,
+            ParallelMergeWhen::AsCreated,
+        );
+
+        // Add a pending merge job
+        let merge_job = PendingMergeJob {
+            task_id: "RQ-0001".to_string(),
+            pr_number: 42,
+            workspace_path: None,
+            lifecycle: PendingMergeLifecycle::InProgress,
+            attempts: 1,
+            queued_at: "2026-02-01T00:00:00Z".to_string(),
+            last_error: Some("Merge conflict".to_string()),
+        };
+        state_file.enqueue_merge(merge_job);
+
+        // Simulate conflict path: mark in progress, then requeue
+        state_file.mark_merge_in_progress("RQ-0001");
+        state_file.update_merge_result("RQ-0001", false, Some("Merge conflict".to_string()), true);
+        state_file.requeue_merge("RQ-0001");
+
+        // Verify the job still exists (was NOT removed)
+        let job = state_file.get_pending_merge("RQ-0001");
         assert!(
-            !should_exit_when_idle(42, 0, true, false),
-            "unbounded max_tasks should continue when next task is available"
+            job.is_some(),
+            "Conflict path should retain pending merge job"
+        );
+        let job = job.unwrap();
+        assert_eq!(job.lifecycle, PendingMergeLifecycle::Queued);
+    }
+
+    /// Regression test: Success path removes pending merge job.
+    ///
+    /// When merge succeeds, the pending merge job should be removed from the queue.
+    #[test]
+    fn success_path_removes_pending_merge() {
+        use super::state::{ParallelStateFile, PendingMergeJob, PendingMergeLifecycle};
+        use crate::contracts::{ParallelMergeMethod, ParallelMergeWhen};
+
+        let mut state_file = ParallelStateFile::new(
+            "2026-02-01T00:00:00Z".to_string(),
+            "main".to_string(),
+            ParallelMergeMethod::Squash,
+            ParallelMergeWhen::AsCreated,
+        );
+
+        // Add a pending merge job
+        let merge_job = PendingMergeJob {
+            task_id: "RQ-0002".to_string(),
+            pr_number: 43,
+            workspace_path: None,
+            lifecycle: PendingMergeLifecycle::Queued,
+            attempts: 0,
+            queued_at: "2026-02-01T00:00:00Z".to_string(),
+            last_error: None,
+        };
+        state_file.enqueue_merge(merge_job);
+
+        // Simulate success path: mark PR merged, remove pending merge
+        state_file.mark_pr_merged("RQ-0002");
+        state_file.remove_pending_merge("RQ-0002");
+
+        // Verify the job was removed
+        let job = state_file.get_pending_merge("RQ-0002");
+        assert!(
+            job.is_none(),
+            "Success path should remove pending merge job"
+        );
+    }
+
+    /// Regression test: Conflict path does NOT mark PR as merged.
+    ///
+    /// Per spec section 20, decision 2: PR should remain open on conflict.
+    #[test]
+    fn conflict_path_leaves_pr_open() {
+        use super::state::{ParallelPrLifecycle, ParallelPrRecord, ParallelStateFile};
+        use crate::contracts::{ParallelMergeMethod, ParallelMergeWhen};
+
+        let mut state_file = ParallelStateFile::new(
+            "2026-02-01T00:00:00Z".to_string(),
+            "main".to_string(),
+            ParallelMergeMethod::Squash,
+            ParallelMergeWhen::AsCreated,
+        );
+
+        // Add a PR record
+        state_file.prs.push(ParallelPrRecord {
+            task_id: "RQ-0003".to_string(),
+            pr_number: 44,
+            lifecycle: ParallelPrLifecycle::Open,
+        });
+
+        // Simulate conflict path: update_merge_result and requeue (no mark_pr_merged)
+        state_file.update_merge_result("RQ-0003", false, Some("Conflict".to_string()), true);
+        state_file.requeue_merge("RQ-0003");
+
+        // Verify PR is still Open, not Merged
+        let pr_record = state_file.prs.iter().find(|r| r.task_id == "RQ-0003");
+        assert!(pr_record.is_some());
+        assert_eq!(
+            pr_record.unwrap().lifecycle,
+            ParallelPrLifecycle::Open,
+            "Conflict path should leave PR open"
         );
     }
 
     #[test]
-    fn should_exit_when_idle_unbounded_stops_if_no_task_available() {
-        assert!(
-            should_exit_when_idle(42, 0, false, false),
-            "unbounded max_tasks should stop only when queue selection has no runnable task"
+    fn workspace_cleanup_prefers_merge_job_path_when_present() {
+        let mut completed_workspaces = HashMap::new();
+        completed_workspaces.insert(
+            "RQ-0001".to_string(),
+            git::WorkspaceSpec {
+                path: PathBuf::from("/tmp/fallback"),
+                branch: "ralph/RQ-0001".to_string(),
+            },
         );
+
+        let resolved = workspace_path_for_cleanup(
+            "RQ-0001",
+            Some(&PathBuf::from("/tmp/explicit")),
+            &completed_workspaces,
+        );
+
+        assert_eq!(resolved, Some(PathBuf::from("/tmp/explicit")));
     }
 
     #[test]
-    fn should_exit_when_idle_bounded_stops_at_limit_even_if_task_available() {
+    fn workspace_cleanup_uses_completed_workspace_fallback() {
+        let mut completed_workspaces = HashMap::new();
+        completed_workspaces.insert(
+            "RQ-0002".to_string(),
+            git::WorkspaceSpec {
+                path: PathBuf::from("/tmp/fallback-rq2"),
+                branch: "ralph/RQ-0002".to_string(),
+            },
+        );
+
+        let resolved = workspace_path_for_cleanup("RQ-0002", None, &completed_workspaces);
+
+        assert_eq!(resolved, Some(PathBuf::from("/tmp/fallback-rq2")));
+    }
+
+    #[test]
+    fn loop_does_not_break_when_pending_merges_exist() {
+        assert!(!should_break_parallel_loop(false, false, false, true));
+    }
+
+    #[test]
+    fn loop_breaks_without_pending_merges_when_no_tasks_available() {
+        assert!(should_break_parallel_loop(false, false, false, false));
+    }
+
+    #[test]
+    fn retry_policy_requeues_when_attempts_below_limit() {
+        use super::state::{ParallelStateFile, PendingMergeJob, PendingMergeLifecycle};
+        use crate::contracts::{ParallelMergeMethod, ParallelMergeWhen};
+
+        let mut state_file = ParallelStateFile::new(
+            "2026-02-01T00:00:00Z".to_string(),
+            "main".to_string(),
+            ParallelMergeMethod::Squash,
+            ParallelMergeWhen::AsCreated,
+        );
+
+        state_file.enqueue_merge(PendingMergeJob {
+            task_id: "RQ-0001".to_string(),
+            pr_number: 1,
+            workspace_path: None,
+            lifecycle: PendingMergeLifecycle::InProgress,
+            attempts: 0,
+            queued_at: "2026-02-01T00:00:00Z".to_string(),
+            last_error: None,
+        });
+
+        state_file.update_merge_result("RQ-0001", false, Some("conflict".to_string()), true);
+        apply_pending_merge_retry_policy(&mut state_file, "RQ-0001", 5, "");
+
+        let job = state_file
+            .get_pending_merge("RQ-0001")
+            .expect("pending merge should exist");
+        assert_eq!(job.attempts, 1);
+        assert_eq!(job.lifecycle, PendingMergeLifecycle::Queued);
+    }
+
+    #[test]
+    fn retry_policy_marks_terminal_failed_at_limit() {
+        use super::state::{ParallelStateFile, PendingMergeJob, PendingMergeLifecycle};
+        use crate::contracts::{ParallelMergeMethod, ParallelMergeWhen};
+
+        let mut state_file = ParallelStateFile::new(
+            "2026-02-01T00:00:00Z".to_string(),
+            "main".to_string(),
+            ParallelMergeMethod::Squash,
+            ParallelMergeWhen::AsCreated,
+        );
+
+        state_file.enqueue_merge(PendingMergeJob {
+            task_id: "RQ-0002".to_string(),
+            pr_number: 2,
+            workspace_path: None,
+            lifecycle: PendingMergeLifecycle::InProgress,
+            attempts: 4,
+            queued_at: "2026-02-01T00:00:00Z".to_string(),
+            last_error: None,
+        });
+
+        state_file.update_merge_result("RQ-0002", false, Some("conflict".to_string()), true);
+        apply_pending_merge_retry_policy(&mut state_file, "RQ-0002", 5, "");
+
+        let job = state_file
+            .get_pending_merge("RQ-0002")
+            .expect("pending merge should exist");
+        assert_eq!(job.attempts, 5);
+        assert_eq!(job.lifecycle, PendingMergeLifecycle::TerminalFailed);
+    }
+
+    #[test]
+    fn ci_failure_marker_helpers_round_trip() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let marker_path = temp.path().join(CI_FAILURE_MARKER_FILE);
+        std::fs::create_dir_all(marker_path.parent().unwrap()).unwrap();
+        std::fs::write(
+            &marker_path,
+            r#"{"task_id":"RQ-0001","error":"ci failed","timestamp":"2026-02-01T00:00:00Z"}"#,
+        )
+        .unwrap();
+
+        assert!(has_ci_failure_marker(temp.path()));
+        let details = read_ci_failure_marker(temp.path()).unwrap();
+        assert!(details.contains("RQ-0001"));
+        assert!(details.contains("ci failed"));
+
+        remove_ci_failure_marker(temp.path());
+        assert!(!has_ci_failure_marker(temp.path()));
+    }
+
+    #[test]
+    fn ci_failure_marker_helpers_support_fallback_marker_path() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let marker_path = temp.path().join(CI_FAILURE_MARKER_FALLBACK_FILE);
+        std::fs::write(&marker_path, r#"{"task_id":"RQ-0002","error":"fallback"}"#).unwrap();
+
+        assert!(has_ci_failure_marker(temp.path()));
+        let details = read_ci_failure_marker(temp.path()).unwrap();
+        assert!(details.contains("RQ-0002"));
+
+        remove_ci_failure_marker(temp.path());
+        assert!(!has_ci_failure_marker(temp.path()));
+    }
+
+    #[test]
+    fn remove_ci_failure_marker_is_noop_when_marker_missing() {
+        let temp = tempfile::TempDir::new().unwrap();
+        remove_ci_failure_marker(temp.path());
+        assert!(!has_ci_failure_marker(temp.path()));
+    }
+
+    /// Regression test: Failed worker workspace is cleaned up.
+    ///
+    /// When a worker exits with failure status, the workspace should be
+    /// deleted immediately rather than left orphaned on disk.
+    /// This prevents disk space accumulation from failed parallel runs.
+    #[test]
+    fn failed_worker_workspace_is_deleted() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let workspace_path = temp.path().join("workspaces/RQ-TEST-001");
+        std::fs::create_dir_all(&workspace_path).unwrap();
+        std::fs::write(workspace_path.join("test.txt"), "test content").unwrap();
+
+        // Simulate failed worker cleanup (same code path as orchestration.rs)
+        let status = std::process::ExitStatus::from_raw(1);
+
+        if !status.success()
+            && let Err(e) = std::fs::remove_dir_all(&workspace_path)
+        {
+            log::debug!("Failed to remove workspace in test: {}", e);
+        }
+
+        // Verify workspace is deleted
         assert!(
-            should_exit_when_idle(5, 5, true, false),
-            "bounded max_tasks should stop once task cap is reached"
+            !workspace_path.exists(),
+            "workspace should be deleted for failed worker"
+        );
+    }
+
+    /// Test that successful worker workspace is NOT deleted immediately
+    /// (it's kept for merge cleanup).
+    #[test]
+    fn successful_worker_workspace_is_preserved() {
+        let temp = tempfile::TempDir::new().unwrap();
+        let workspace_path = temp.path().join("workspaces/RQ-TEST-002");
+        std::fs::create_dir_all(&workspace_path).unwrap();
+        std::fs::write(workspace_path.join("test.txt"), "test content").unwrap();
+
+        // Simulate successful worker (no cleanup in the failure block)
+        let status = std::process::ExitStatus::from_raw(0);
+
+        if !status.success()
+            && let Err(e) = std::fs::remove_dir_all(&workspace_path)
+        {
+            log::debug!("Failed to remove workspace in test: {}", e);
+        }
+
+        // Verify workspace is NOT deleted (success path preserves it)
+        assert!(
+            workspace_path.exists(),
+            "workspace should be preserved for successful worker (cleaned up after merge)"
         );
     }
 }

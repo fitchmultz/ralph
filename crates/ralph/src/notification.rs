@@ -591,6 +591,9 @@ fn play_sound_winmm(path: &str) -> anyhow::Result<()> {
 
     let c_path = CString::new(path).map_err(|e| anyhow::anyhow!("Invalid path encoding: {}", e))?;
 
+    // SAFETY: PlaySoundA is a Windows API that accepts a valid null-terminated C string
+    // pointer (c_path.as_ptr()) and flags. The SND_FILENAME flag tells it to treat the
+    // pointer as a file path. The pointer is valid for the duration of the call.
     let result = unsafe {
         PlaySoundA(
             c_path.as_ptr(),
@@ -814,7 +817,9 @@ mod tests {
             let path = temp_file.path().to_str().unwrap();
             // Should not error on file existence check
             // Actual playback may fail in CI without audio subsystem
-            let _ = play_windows_sound(Some(path));
+            if let Err(e) = play_windows_sound(Some(path)) {
+                log::debug!("Sound playback failed in test (expected in CI): {}", e);
+            }
         }
 
         #[test]
@@ -829,7 +834,9 @@ mod tests {
             let path = temp_file.path().to_str().unwrap();
             // Should attempt PowerShell fallback for non-WAV files
             // Result depends on whether PowerShell is available
-            let _ = play_windows_sound(Some(path));
+            if let Err(e) = play_windows_sound(Some(path)) {
+                log::debug!("Sound playback failed in test (expected in CI): {}", e);
+            }
         }
     }
 }

@@ -41,7 +41,7 @@ Learn how Ralph executes tasks and manages the execution lifecycle:
 | Document | Description |
 |----------|-------------|
 | **[Runners](./runners.md)** | AI runner orchestration (Claude, Codex, Kimi, Gemini, etc.) |
-| **[Parallel](./parallel.md)** | Parallel task execution with PR automation |
+| **[Parallel](./parallel.md)** | Parallel task execution with direct push integration |
 | **[Session Management](./session-management.md)** | Crash recovery and session resumption |
 | **[Supervision](./supervision.md)** | CI gate enforcement, git operations, and human-in-the-loop oversight |
 

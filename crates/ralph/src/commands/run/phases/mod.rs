@@ -49,7 +49,7 @@ pub enum PhaseType {
 pub enum PostRunMode {
     /// Standard post-run supervision (queue/done updates + git finalization).
     Normal,
-    /// Parallel worker supervision (no queue/done mutations; merge-agent handles finalization).
+    /// Parallel worker mode (agent-owned integration loop handles direct push to base branch).
     ParallelWorker,
 }
 
@@ -63,6 +63,8 @@ pub struct PhaseInvocation<'a> {
     pub settings: &'a runner::AgentSettings,
     pub bins: runner::RunnerBinaries<'a>,
     pub task_id: &'a str,
+    /// Task title from queue (optional - used for integration loop handoff packets).
+    pub task_title: Option<&'a str>,
     pub base_prompt: &'a str,
     pub policy: &'a promptflow::PromptPolicy,
     pub output_handler: Option<runner::OutputHandler>,
@@ -79,6 +81,8 @@ pub struct PhaseInvocation<'a> {
     pub is_followup_iteration: bool,
     pub allow_dirty_repo: bool,
     pub post_run_mode: PostRunMode,
+    /// Coordinator-selected base branch for parallel worker integration.
+    pub parallel_target_branch: Option<&'a str>,
     /// Notification override from CLI (--notify/--no-notify).
     pub notify_on_complete: Option<bool>,
     /// Sound notification override from CLI (--notify-sound).

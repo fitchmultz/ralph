@@ -15,7 +15,7 @@ This file provides fast-path guidance for contributors and agents. For deeper ar
 - **Task Queue Management**: JSON-based queue with task lifecycle (todo → doing → done)
 - **Multi-Phase Execution**: Configurable 1/2/3-phase workflows
 - **Multi-Runner Support**: Codex, OpenCode, Gemini, Claude, Cursor, Kimi, Pi
-- **Parallel Execution**: Run multiple tasks concurrently with PR automation
+- **Parallel Execution**: Run multiple tasks concurrently with direct-push integration
 - **Session Management**: Crash recovery and resumption
 - **Plugin System**: Extensible architecture for custom processors
 - **Webhooks**: HTTP event notifications for task events

@@ -245,7 +245,7 @@ When the runner marks a task done/rejected in **sequential mode**, Ralph writes 
 - Contains: status, notes, runner_used, model_used
 - Used for: Analytics, webhook events, custom fields patching
 
-**Note:** In parallel mode, task finalization is handled by the merge-agent subprocess. No completion-signal file is produced by parallel workers.
+**Note:** In parallel mode, task finalization is handled by the worker integration loop (direct push to coordinator target branch). No merge-agent subprocess is involved.
 
 ## Single-Phase Mode
 

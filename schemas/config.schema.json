@@ -123,7 +123,7 @@
       "description": "Parallel run-loop configuration.",
       "$ref": "#/$defs/ParallelConfig",
       "default": {
-        "max_push_attempts": 50,
+        "max_push_attempts": 5,
         "push_backoff_ms": [
           500,
           2000,
@@ -174,8 +174,8 @@
           "warning_days": 7
         },
         "auto_archive_terminal_after_days": null,
-        "done_file": ".ralph/done.jsonc",
-        "file": ".ralph/queue.jsonc",
+        "done_file": ".ralph/done.json",
+        "file": ".ralph/queue.json",
         "id_prefix": "RQ",
         "id_width": 4,
         "max_dependency_depth": 10,

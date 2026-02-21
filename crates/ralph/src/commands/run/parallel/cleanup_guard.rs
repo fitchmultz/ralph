@@ -7,7 +7,7 @@
 //!
 //! Not handled here:
 //! - Actual worker execution logic (see `super::worker`).
-//! - Merge-agent execution (see `super::merge_agent`).
+//! - Integration loop execution (see `super::integration`).
 //! - State persistence format (see `super::state`).
 //!
 //! Invariants/assumptions:
@@ -20,7 +20,7 @@ use crate::commands::run::parallel::worker::{WorkerState, terminate_workers};
 use crate::commands::run::parallel::workspace_cleanup::remove_workspace_best_effort;
 use crate::git::WorkspaceSpec;
 use anyhow::Result;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 /// Guard that ensures cleanup of parallel run resources on any exit path.
@@ -45,7 +45,7 @@ pub(crate) struct ParallelCleanupGuard {
 }
 
 impl ParallelCleanupGuard {
-    /// Create a new simple cleanup guard (new architecture - no merge-runner thread).
+    /// Create a new cleanup guard for direct-push parallel orchestration.
     pub fn new_simple(
         state_path: PathBuf,
         state_file: state::ParallelStateFile,
@@ -136,15 +136,29 @@ impl ParallelCleanupGuard {
         // Step 1: Terminate in-flight workers
         terminate_workers(&mut self.in_flight);
 
-        // Step 2: Remove all tracked workspaces
-        for spec in self.workspaces.values() {
+        // Step 2: Remove tracked workspaces except blocked_push workspaces.
+        // Blocked workspaces are retained for explicit operator retry.
+        let blocked_task_ids: HashSet<String> = self
+            .state_file
+            .workers
+            .iter()
+            .filter(|worker| matches!(worker.lifecycle, state::WorkerLifecycle::BlockedPush))
+            .map(|worker| worker.task_id.trim().to_string())
+            .collect();
+        for (task_id, spec) in &self.workspaces {
+            if blocked_task_ids.contains(task_id.trim()) {
+                continue;
+            }
             if spec.path.exists() {
                 remove_workspace_best_effort(&self.workspace_root, spec, "cleanup guard");
             }
         }
 
-        // Step 3: Clear tasks_in_flight and persist state
-        self.state_file.tasks_in_flight.clear();
+        // Step 3: Drop non-terminal workers and persist state.
+        // Terminal workers are retained for status/retry visibility.
+        self.state_file
+            .workers
+            .retain(state::WorkerRecord::is_terminal);
         if let Err(err) = state::save_state(&self.state_path, &self.state_file) {
             log::warn!("Failed to save parallel state during cleanup: {:#}", err);
         }
@@ -173,7 +187,6 @@ impl Drop for ParallelCleanupGuard {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::contracts::{ParallelMergeMethod, ParallelMergeWhen};
     use crate::lock;
     use std::process::{Child, Command};
     use tempfile::TempDir;
@@ -183,12 +196,8 @@ mod tests {
         std::fs::create_dir_all(&workspace_root).unwrap();
 
         let state_path = temp.path().join("state.json");
-        let state_file = state::ParallelStateFile::new(
-            "2026-02-01T00:00:00Z".to_string(),
-            "main".to_string(),
-            ParallelMergeMethod::Squash,
-            ParallelMergeWhen::AsCreated,
-        );
+        let state_file =
+            state::ParallelStateFile::new("2026-02-20T00:00:00Z".to_string(), "main".to_string());
 
         ParallelCleanupGuard::new_simple(state_path, state_file, workspace_root)
     }
@@ -212,7 +221,7 @@ mod tests {
             task_title: "Test task".to_string(),
             workspace: WorkspaceSpec {
                 path: workspace_path.clone(),
-                branch: "ralph/RQ-0001".to_string(),
+                branch: "main".to_string(),
             },
             child,
         };
@@ -221,13 +230,11 @@ mod tests {
         guard.register_worker("RQ-0001".to_string(), worker);
         guard
             .state_file_mut()
-            .upsert_task(state::ParallelTaskRecord {
-                task_id: "RQ-0001".to_string(),
-                workspace_path: workspace_path.to_string_lossy().to_string(),
-                branch: "ralph/RQ-0001".to_string(),
-                pid: Some(pid),
-                started_at: "2026-02-02T00:00:00Z".to_string(),
-            });
+            .upsert_worker(state::WorkerRecord::new(
+                "RQ-0001",
+                workspace_path.clone(),
+                "2026-02-20T00:00:00Z".to_string(),
+            ));
 
         // Verify worker is running
         assert_eq!(
@@ -249,8 +256,8 @@ mod tests {
 
         // Verify state is cleared
         assert!(
-            guard.state_file.tasks_in_flight.is_empty(),
-            "tasks_in_flight should be empty after cleanup"
+            guard.state_file.workers.is_empty(),
+            "workers should be empty after cleanup"
         );
 
         Ok(())
@@ -274,7 +281,7 @@ mod tests {
             task_title: "Test task".to_string(),
             workspace: WorkspaceSpec {
                 path: workspace_path.clone(),
-                branch: "ralph/RQ-0001".to_string(),
+                branch: "main".to_string(),
             },
             child,
         };
@@ -295,7 +302,9 @@ mod tests {
         );
 
         // Clean up the child process
-        let _ = Command::new("kill").arg(pid.to_string()).output();
+        if let Err(e) = Command::new("kill").arg(pid.to_string()).output() {
+            log::debug!("Failed to kill test process {}: {}", pid, e);
+        }
 
         Ok(())
     }
@@ -318,7 +327,7 @@ mod tests {
             task_title: "Test task".to_string(),
             workspace: WorkspaceSpec {
                 path: workspace_path.clone(),
-                branch: "ralph/RQ-0001".to_string(),
+                branch: "main".to_string(),
             },
             child,
         };
@@ -359,7 +368,7 @@ mod tests {
             task_title: "Test task".to_string(),
             workspace: WorkspaceSpec {
                 path: workspace_path,
-                branch: "ralph/RQ-0001".to_string(),
+                branch: "main".to_string(),
             },
             child,
         };
@@ -387,6 +396,75 @@ mod tests {
             running
         );
 
+        Ok(())
+    }
+
+    #[test]
+    fn guard_cleanup_retains_terminal_workers_for_status_retry() -> Result<()> {
+        let temp = TempDir::new()?;
+        let mut guard = create_test_guard(&temp);
+
+        let running_workspace = temp.path().join("workspaces").join("RQ-0001");
+        let completed_workspace = temp.path().join("workspaces").join("RQ-0002");
+        std::fs::create_dir_all(&running_workspace)?;
+        std::fs::create_dir_all(&completed_workspace)?;
+
+        guard
+            .state_file_mut()
+            .upsert_worker(state::WorkerRecord::new(
+                "RQ-0001",
+                running_workspace,
+                "2026-02-20T00:00:00Z".to_string(),
+            ));
+
+        let mut completed = state::WorkerRecord::new(
+            "RQ-0002",
+            completed_workspace,
+            "2026-02-20T00:00:00Z".to_string(),
+        );
+        completed.mark_completed("2026-02-20T00:01:00Z".to_string());
+        guard.state_file_mut().upsert_worker(completed);
+
+        guard.cleanup()?;
+
+        assert_eq!(guard.state_file.workers.len(), 1);
+        assert_eq!(guard.state_file.workers[0].task_id, "RQ-0002");
+        assert!(guard.state_file.workers[0].is_terminal());
+        Ok(())
+    }
+
+    #[test]
+    fn guard_cleanup_retains_blocked_workspace_for_retry() -> Result<()> {
+        let temp = TempDir::new()?;
+        let mut guard = create_test_guard(&temp);
+
+        let blocked_workspace = temp.path().join("workspaces").join("RQ-0099");
+        std::fs::create_dir_all(&blocked_workspace)?;
+
+        guard.register_workspace(
+            "RQ-0099".to_string(),
+            WorkspaceSpec {
+                path: blocked_workspace.clone(),
+                branch: "main".to_string(),
+            },
+        );
+
+        let mut blocked = state::WorkerRecord::new(
+            "RQ-0099",
+            blocked_workspace.clone(),
+            "2026-02-20T00:00:00Z".to_string(),
+        );
+        blocked.mark_blocked("2026-02-20T00:05:00Z".to_string(), "blocked");
+        guard.state_file_mut().upsert_worker(blocked);
+
+        guard.cleanup()?;
+
+        assert!(blocked_workspace.exists());
+        assert_eq!(guard.state_file.workers.len(), 1);
+        assert!(matches!(
+            guard.state_file.workers[0].lifecycle,
+            state::WorkerLifecycle::BlockedPush
+        ));
         Ok(())
     }
 }

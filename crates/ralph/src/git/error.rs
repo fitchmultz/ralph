@@ -128,7 +128,7 @@ pub fn git_run(repo_root: &Path, args: &[&str]) -> Result<(), GitError> {
 }
 
 /// Outcome of a git merge operation.
-/// Note: Kept for backward compatibility with merge-runner module.
+/// Retained for merge-oriented callers in prompt/workflow helpers.
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub(crate) enum GitMergeOutcome {
@@ -143,7 +143,7 @@ pub(crate) enum GitMergeOutcome {
 /// This is specifically for merge operations where conflicts are expected and
 /// will be handled by the caller. Other non-zero exit codes are treated as errors.
 ///
-/// Note: Kept for backward compatibility with merge-runner module.
+/// Retained for merge-oriented callers in prompt/workflow helpers.
 ///
 /// # Returns
 /// - `Ok(GitMergeOutcome::Clean)` if merge succeeded (exit 0)

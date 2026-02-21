@@ -17,7 +17,7 @@
 use crate::agent::AgentOverrides;
 use crate::config;
 use crate::constants::limits::MAX_CONSECUTIVE_FAILURES;
-use crate::contracts::{ParallelMergeWhen, TaskStatus};
+use crate::contracts::TaskStatus;
 use crate::session::{self, SessionValidationResult};
 use crate::signal;
 use crate::{queue, runutil, webhook};
@@ -64,11 +64,6 @@ pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()>
         if opts.starting_completed != 0 {
             log::warn!("Parallel run ignores starting_completed; counters will start at zero.");
         }
-        let merge_when = resolved
-            .config
-            .parallel
-            .merge_when
-            .unwrap_or(ParallelMergeWhen::AsCreated);
         return super::parallel::run_loop_parallel(
             resolved,
             super::parallel::ParallelRunOptions {
@@ -76,7 +71,6 @@ pub fn run_loop(resolved: &config::Resolved, opts: RunLoopOptions) -> Result<()>
                 workers,
                 agent_overrides: opts.agent_overrides,
                 force: opts.force,
-                merge_when,
             },
         );
     }
@@ -585,8 +579,9 @@ fn wait_for_work(
 
         // Wait for tick or file event
         if let Some(ref w) = watcher {
-            let _ = w.recv_timeout(tick);
-            pending_event = true;
+            if w.recv_timeout(tick).is_ok() {
+                pending_event = true;
+            }
         } else {
             std::thread::sleep(tick);
         }
@@ -709,8 +704,11 @@ fn notify_queue_unblocked(
             log::debug!("Failed to show unblocked notification: {}", e);
         }
 
-        if notify_config.sound_enabled {
-            let _ = crate::notification::play_completion_sound(notify_config.sound_path.as_deref());
+        if notify_config.sound_enabled
+            && let Err(e) =
+                crate::notification::play_completion_sound(notify_config.sound_path.as_deref())
+        {
+            log::debug!("Failed to play unblocked sound: {}", e);
         }
     }
 

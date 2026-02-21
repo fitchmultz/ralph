@@ -34,6 +34,7 @@ pub(crate) fn render_completion_checklist(
     template: &str,
     task_id: &str,
     config: &Config,
+    parallel_worker_mode: bool,
 ) -> Result<String> {
     let template_meta = prompt_template(PromptTemplateId::CompletionChecklist);
     let id = task_id.trim();
@@ -42,7 +43,14 @@ pub(crate) fn render_completion_checklist(
     }
 
     let expanded = super::util::expand_variables(template, config)?;
-    let rendered = expanded.replace("{{TASK_ID}}", id);
+    let run_mode = if parallel_worker_mode {
+        "parallel-worker"
+    } else {
+        "normal"
+    };
+    let rendered = expanded
+        .replace("{{TASK_ID}}", id)
+        .replace("{{RUN_MODE}}", run_mode);
     ensure_no_unresolved_placeholders(&rendered, template_meta.label)?;
     Ok(rendered)
 }

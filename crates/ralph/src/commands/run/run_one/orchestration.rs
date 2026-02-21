@@ -44,6 +44,8 @@ pub(crate) struct RunOneContext {
     pub git_commit_push_enabled: bool,
     pub push_policy: crate::commands::run::supervision::PushPolicy,
     pub post_run_mode: PostRunMode,
+    /// Coordinator-selected base branch for parallel worker integration.
+    pub parallel_target_branch: Option<String>,
     pub policy: crate::promptflow::PromptPolicy,
 }
 
@@ -104,9 +106,16 @@ pub fn run_one_impl(
     resume_task_id: Option<&str>,
     output_handler: Option<OutputHandler>,
     revert_prompt: Option<RevertPromptHandler>,
+    parallel_target_branch: Option<&str>,
 ) -> Result<RunOutcome> {
     // 1. Prepare context (lock, queue, config)
-    let ctx = prepare_run_one_context(resolved, agent_overrides, force, lock_mode)?;
+    let ctx = prepare_run_one_context(
+        resolved,
+        agent_overrides,
+        force,
+        lock_mode,
+        parallel_target_branch,
+    )?;
 
     // 2. Select task
     let include_draft = agent_overrides.include_draft.unwrap_or(false);
@@ -158,6 +167,7 @@ pub fn run_one_impl(
         ctx.push_policy,
         revert_prompt,
         ctx.post_run_mode,
+        ctx.parallel_target_branch.as_deref(),
         &setup.plugin_registry,
     );
 

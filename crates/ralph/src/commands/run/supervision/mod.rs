@@ -32,6 +32,7 @@ mod notify;
 mod queue_ops;
 
 mod continue_session;
+#[cfg(test)]
 mod parallel_worker;
 
 #[cfg(test)]
@@ -49,6 +50,7 @@ use queue_ops::{
 
 // Re-export from submodules
 pub(crate) use continue_session::{CiContinueContext, ContinueSession, resume_continue_session};
+#[cfg(test)]
 pub(crate) use parallel_worker::post_run_supervise_parallel_worker;
 
 use super::logging;

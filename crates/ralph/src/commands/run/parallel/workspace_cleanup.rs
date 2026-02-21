@@ -65,13 +65,7 @@ mod tests {
             git_test::git_output(temp.path(), &["rev-parse", "--abbrev-ref", "HEAD"])?;
         let workspace_root = temp.path().join("workspaces");
 
-        let spec = git::create_workspace_at(
-            temp.path(),
-            &workspace_root,
-            "RQ-TEST",
-            &base_branch,
-            "ralph/",
-        )?;
+        let spec = git::create_workspace_at(temp.path(), &workspace_root, "RQ-TEST", &base_branch)?;
         assert!(spec.path.exists());
 
         remove_workspace_best_effort(&workspace_root, &spec, "test cleanup");
@@ -88,7 +82,7 @@ mod tests {
 
         let spec = git::WorkspaceSpec {
             path: workspace_root.join("RQ-NONEXISTENT"),
-            branch: "ralph/RQ-NONEXISTENT".to_string(),
+            branch: "main".to_string(),
         };
 
         // Should not panic or log errors for nonexistent workspace

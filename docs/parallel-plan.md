@@ -2,6 +2,8 @@
 
 ![Parallel Execution](assets/images/2026-02-07-parallel-execution.png)
 
+> Historical implementation plan (pre direct-push rewrite). This document describes a superseded PR/merge-runner design and is retained only as archival context. For current behavior, see `docs/features/parallel-direct-push-rewrite-spec.md` and `docs/features/parallel.md`.
+
 ## 1. MISSION BRIEF (The Context Injection)
 
 - **Target Objective:** Replace the parallel run-loop’s git worktree-based isolation with a simpler, more reliable “per-task workspace clone” model, while preserving the user-facing behavior of `ralph run loop --parallel N`. Parallel workers must be able to run simultaneously, run `make ci`, commit/push their branch, create PRs, and a merge runner must merge PRs and optionally AI-resolve conflicts.

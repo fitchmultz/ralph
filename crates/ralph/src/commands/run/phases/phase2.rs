@@ -66,35 +66,45 @@ pub fn execute_phase2_implementation(
 
             cache_phase2_final_response(&ctx.resolved.repo_root, ctx.task_id, &output.stdout)?;
 
-            let continue_session = supervision::ContinueSession {
-                runner: ctx.settings.runner.clone(),
-                model: ctx.settings.model.clone(),
-                reasoning_effort: ctx.settings.reasoning_effort,
-                runner_cli: ctx.settings.runner_cli,
-                phase_type: super::PhaseType::Implementation,
-                session_id: output.session_id.clone(),
-                output_handler: ctx.output_handler.clone(),
-                output_stream: ctx.output_stream,
-                ci_failure_retry_count: 0,
-                task_id: ctx.task_id.to_string(),
-                last_ci_error_pattern: None,
-                consecutive_same_error_count: 0,
-            };
+            if !ctx.is_final_iteration {
+                let continue_session = supervision::ContinueSession {
+                    runner: ctx.settings.runner.clone(),
+                    model: ctx.settings.model.clone(),
+                    reasoning_effort: ctx.settings.reasoning_effort,
+                    runner_cli: ctx.settings.runner_cli,
+                    phase_type: super::PhaseType::Implementation,
+                    session_id: output.session_id.clone(),
+                    output_handler: ctx.output_handler.clone(),
+                    output_stream: ctx.output_stream,
+                    ci_failure_retry_count: 0,
+                    task_id: ctx.task_id.to_string(),
+                    last_ci_error_pattern: None,
+                    consecutive_same_error_count: 0,
+                };
 
-            let timings = ctx.execution_timings;
-            let runner = ctx.settings.runner.clone();
-            let model = ctx.settings.model.clone();
-            run_ci_gate_with_continue(ctx, continue_session, |output, elapsed| {
-                if let Some(timings) = timings {
-                    timings.borrow_mut().record_runner_duration(
-                        PhaseType::Implementation,
-                        &runner,
-                        &model,
-                        elapsed,
-                    );
-                }
-                cache_phase2_final_response(&ctx.resolved.repo_root, ctx.task_id, &output.stdout)
-            })?;
+                let timings = ctx.execution_timings;
+                let runner = ctx.settings.runner.clone();
+                let model = ctx.settings.model.clone();
+                run_ci_gate_with_continue(ctx, continue_session, |output, elapsed| {
+                    if let Some(timings) = timings {
+                        timings.borrow_mut().record_runner_duration(
+                            PhaseType::Implementation,
+                            &runner,
+                            &model,
+                            elapsed,
+                        );
+                    }
+                    cache_phase2_final_response(
+                        &ctx.resolved.repo_root,
+                        ctx.task_id,
+                        &output.stdout,
+                    )
+                })?;
+            } else {
+                log::info!(
+                    "Skipping Phase 2 CI gate on final 3-phase iteration; Phase 3/post-run supervision enforces CI."
+                );
+            }
 
             return Ok(());
         }
@@ -105,6 +115,7 @@ pub fn execute_phase2_implementation(
                 &checklist_template,
                 ctx.task_id,
                 &ctx.resolved.config,
+                ctx.post_run_mode == PostRunMode::ParallelWorker,
             )?
         } else {
             let checklist_template = prompts::load_iteration_checklist(&ctx.resolved.repo_root)?;
@@ -203,20 +214,47 @@ pub fn execute_phase2_implementation(
                     ctx.plugins,
                 )?,
                 PostRunMode::ParallelWorker => {
-                    crate::commands::run::post_run_supervise_parallel_worker(
+                    use crate::commands::run::parallel::{IntegrationConfig, run_integration_loop};
+
+                    let target_branch = ctx.parallel_target_branch.ok_or_else(|| {
+                        anyhow::anyhow!(
+                            "parallel worker integration requires explicit target branch"
+                        )
+                    })?;
+                    let config = IntegrationConfig::from_resolved(ctx.resolved, target_branch);
+                    let task_title = ctx.task_title.unwrap_or(ctx.task_id);
+                    let phase_summary = format!("Completed phase 2 for {}", ctx.task_id);
+
+                    match run_integration_loop(
                         ctx.resolved,
                         ctx.task_id,
-                        ctx.git_revert_mode,
-                        ctx.git_commit_push_enabled,
-                        ctx.push_policy,
-                        ctx.revert_prompt.clone(),
-                        Some(supervision::CiContinueContext {
-                            continue_session: &mut continue_session,
-                            on_resume: &mut on_resume,
-                        }),
-                        ctx.lfs_check,
+                        task_title,
+                        &config,
+                        &phase_summary,
+                        &mut continue_session,
+                        &mut on_resume,
                         ctx.plugins,
-                    )?
+                    ) {
+                        Ok(crate::commands::run::parallel::IntegrationOutcome::Success) => {
+                            log::info!("Integration loop succeeded for {}", ctx.task_id);
+                        }
+                        Ok(crate::commands::run::parallel::IntegrationOutcome::BlockedPush {
+                            reason,
+                        }) => {
+                            log::warn!("Integration loop blocked for {}: {}", ctx.task_id, reason);
+                            anyhow::bail!("Push blocked: {}", reason);
+                        }
+                        Ok(crate::commands::run::parallel::IntegrationOutcome::Failed {
+                            reason,
+                        }) => {
+                            log::error!("Integration loop failed for {}: {}", ctx.task_id, reason);
+                            anyhow::bail!("Integration failed: {}", reason);
+                        }
+                        Err(e) => {
+                            log::error!("Integration loop error for {}: {}", ctx.task_id, e);
+                            anyhow::bail!("Integration error: {}", e);
+                        }
+                    }
                 }
             }
         } else {

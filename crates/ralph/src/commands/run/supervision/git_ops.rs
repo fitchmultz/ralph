@@ -60,7 +60,12 @@ pub(crate) fn push_if_ahead(repo_root: &Path, push_policy: PushPolicy) -> Result
         }
         Err(GitError::NoUpstream) | Err(GitError::NoUpstreamConfigured) => match push_policy {
             PushPolicy::RequireUpstream => {
-                log::warn!("skipping push (no upstream configured)");
+                let branch = git::current_branch(repo_root).unwrap_or_else(|_| "HEAD".to_string());
+                log::warn!(
+                    "skipping push for branch '{}' (no upstream configured). Set upstream with `git push -u origin {}` or run with upstream creation enabled.",
+                    branch,
+                    branch
+                );
                 Ok(())
             }
             PushPolicy::AllowCreateUpstream => {
