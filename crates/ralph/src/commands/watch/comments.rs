@@ -192,4 +192,144 @@ mod tests {
         let result = detect_comments(Path::new("/nonexistent/file.rs"), &regex);
         assert!(result.is_err());
     }
+
+    // =====================================================================
+    // Additional build_comment_regex tests
+    // =====================================================================
+
+    #[test]
+    fn build_comment_regex_empty_defaults_to_all() {
+        let regex = build_comment_regex(&[]).unwrap();
+
+        // Should match all comment types when empty slice provided
+        assert!(regex.is_match("// TODO: fix this"));
+        assert!(regex.is_match("// FIXME: broken"));
+        assert!(regex.is_match("// HACK: workaround"));
+        assert!(regex.is_match("// XXX: review"));
+    }
+
+    #[test]
+    fn build_comment_regex_multiple_specific_types() {
+        let regex = build_comment_regex(&[CommentType::Todo, CommentType::Fixme]).unwrap();
+
+        assert!(regex.is_match("// TODO: fix this"));
+        assert!(regex.is_match("// FIXME: broken"));
+        assert!(!regex.is_match("// HACK: workaround"));
+        assert!(!regex.is_match("// XXX: review"));
+    }
+
+    #[test]
+    fn build_comment_regex_case_insensitive() {
+        let regex = build_comment_regex(&[CommentType::Todo]).unwrap();
+
+        assert!(regex.is_match("// todo: lowercase"));
+        assert!(regex.is_match("// Todo: mixed case"));
+        assert!(regex.is_match("// TODO: uppercase"));
+        assert!(regex.is_match("// ToDo: weird case"));
+    }
+
+    #[test]
+    fn build_comment_regex_various_separators() {
+        let regex = build_comment_regex(&[CommentType::Todo]).unwrap();
+
+        assert!(regex.is_match("// TODO: colon separator"));
+        assert!(regex.is_match("// TODO; semicolon separator"));
+        assert!(regex.is_match("// TODO- dash separator"));
+        assert!(regex.is_match("// TODO  space separator"));
+        assert!(regex.is_match("// TODO no separator"));
+    }
+
+    #[test]
+    fn build_comment_regex_captures_content() {
+        let regex = build_comment_regex(&[CommentType::Todo]).unwrap();
+
+        let line = "// TODO: this is the important part";
+        let captures = regex.captures(line).unwrap();
+        let content = captures.get(1).map(|m| m.as_str()).unwrap_or("");
+
+        assert!(content.contains("this is the important part"));
+    }
+
+    // =====================================================================
+    // Additional detect_comments tests
+    // =====================================================================
+
+    #[test]
+    fn detect_comments_handles_multiline_file() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        writeln!(temp_file, "fn main() {{").unwrap();
+        writeln!(temp_file, "    // TODO: handle error").unwrap();
+        writeln!(temp_file, "    let x = 42;").unwrap();
+        writeln!(temp_file, "    // FIXME: magic number").unwrap();
+        writeln!(temp_file, "}}").unwrap();
+        temp_file.flush().unwrap();
+
+        let regex = build_comment_regex(&[CommentType::All]).unwrap();
+        let comments = detect_comments(temp_file.path(), &regex).unwrap();
+
+        assert_eq!(comments.len(), 2);
+
+        // Check line numbers are correct
+        let line_numbers: Vec<usize> = comments.iter().map(|c| c.line_number).collect();
+        assert!(line_numbers.contains(&2));
+        assert!(line_numbers.contains(&4));
+    }
+
+    #[test]
+    fn detect_comments_handles_empty_content_lines() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        writeln!(temp_file, "// TODO:").unwrap(); // Minimal content after marker
+        writeln!(temp_file, "// TODO: has content").unwrap();
+        temp_file.flush().unwrap();
+
+        let regex = build_comment_regex(&[CommentType::Todo]).unwrap();
+        let comments = detect_comments(temp_file.path(), &regex).unwrap();
+
+        // Both lines match - the capture logic uses the outer group (full match)
+        assert_eq!(comments.len(), 2);
+        // First comment captures "TODO:" (the full match)
+        assert!(comments[0].content.contains("TODO"));
+        // Second comment captures "TODO: has content"
+        assert!(comments[1].content.contains("has content"));
+    }
+
+    #[test]
+    fn determine_comment_type_prefers_first_match() {
+        // If line contains multiple markers, should prefer first one found
+        // (based on order in function: TODO, FIXME, HACK, XXX)
+        assert_eq!(
+            determine_comment_type("// TODO FIXME: both present"),
+            CommentType::Todo
+        );
+        assert_eq!(
+            determine_comment_type("// FIXME HACK: both present"),
+            CommentType::Fixme
+        );
+        assert_eq!(
+            determine_comment_type("// HACK XXX: both present"),
+            CommentType::Hack
+        );
+    }
+
+    #[test]
+    fn extract_context_truncates_long_content() {
+        let long_content = "a".repeat(200);
+        let ctx = extract_context(&long_content, 42, Path::new("/path/to/file.rs"));
+
+        // Context should be truncated to 100 chars
+        assert!(ctx.len() < 150); // file.rs:42 - + 100 chars
+    }
+
+    #[test]
+    fn detect_comments_handles_unicode() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        writeln!(temp_file, "// TODO: 处理错误处理").unwrap(); // Chinese
+        writeln!(temp_file, "// FIXME: 🐛 bug fix").unwrap(); // Emoji
+        temp_file.flush().unwrap();
+
+        let regex = build_comment_regex(&[CommentType::All]).unwrap();
+        let comments = detect_comments(temp_file.path(), &regex).unwrap();
+
+        assert_eq!(comments.len(), 2);
+    }
 }
