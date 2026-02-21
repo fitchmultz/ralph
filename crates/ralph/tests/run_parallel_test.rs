@@ -172,7 +172,7 @@ fn run_parallel_selects_multiple_tasks() -> Result<()> {
         .get("schema_version")
         .and_then(|v| v.as_u64())
         .unwrap_or(0);
-    assert_eq!(schema_version, 2, "State should use current schema version");
+    assert_eq!(schema_version, 3, "State should use current schema version");
 
     Ok(())
 }
@@ -263,7 +263,7 @@ fn run_parallel_handles_task_completion() -> Result<()> {
             .get("schema_version")
             .and_then(|v| v.as_u64())
             .unwrap_or(0);
-        assert_eq!(schema_version, 2, "State should use current schema version");
+        assert_eq!(schema_version, 3, "State should use current schema version");
 
         // Access JSON fields using serde_json API
         let tasks_in_flight = state
@@ -449,7 +449,7 @@ fn parallel_state_initialization() -> Result<()> {
         let state_content = std::fs::read_to_string(&state_path)?;
         let state: serde_json::Value = serde_json::from_str(&state_content)?;
 
-        // Verify required fields exist
+        // Verify required fields exist (schema v3: direct-push mode)
         assert!(
             state.get("schema_version").is_some(),
             "State should have schema_version"
@@ -459,18 +459,12 @@ fn parallel_state_initialization() -> Result<()> {
             "State should have started_at"
         );
         assert!(
-            state.get("base_branch").is_some(),
-            "State should have base_branch"
+            state.get("target_branch").is_some(),
+            "State should have target_branch"
         );
 
-        // Verify tasks_in_flight array exists
-        assert!(
-            state.get("tasks_in_flight").is_some(),
-            "State should have tasks_in_flight"
-        );
-
-        // Verify prs array exists
-        assert!(state.get("prs").is_some(), "State should have prs");
+        // Verify workers array exists (schema v3 uses workers instead of tasks_in_flight)
+        assert!(state.get("workers").is_some(), "State should have workers");
     }
 
     Ok(())
@@ -724,7 +718,7 @@ fn parallel_handles_worker_completion() -> Result<()> {
             }
         }
 
-        // Verify state structure
+        // Verify state structure (schema v3: direct-push mode)
         assert!(
             state.get("schema_version").is_some(),
             "State should have schema_version"
@@ -734,8 +728,8 @@ fn parallel_handles_worker_completion() -> Result<()> {
             "State should have started_at"
         );
         assert!(
-            state.get("base_branch").is_some(),
-            "State should have base_branch"
+            state.get("target_branch").is_some(),
+            "State should have target_branch"
         );
     }
 

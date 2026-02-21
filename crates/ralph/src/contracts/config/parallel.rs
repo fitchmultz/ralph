@@ -6,7 +6,6 @@
 //! Not handled here:
 //! - Parallel execution logic (see `crate::parallel` module).
 
-use crate::contracts::runner::MergeRunnerConfig;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -19,39 +18,19 @@ pub struct ParallelConfig {
     #[schemars(range(min = 2))]
     pub workers: Option<u8>,
 
-    /// When to merge PRs (as created or after all tasks complete).
-    pub merge_when: Option<ParallelMergeWhen>,
-
-    /// Merge method to use for PRs.
-    pub merge_method: Option<ParallelMergeMethod>,
-
-    /// Automatically create PRs for completed tasks.
-    pub auto_pr: Option<bool>,
-
-    /// Automatically merge PRs when eligible.
-    pub auto_merge: Option<bool>,
-
-    /// Create draft PRs when a worker fails.
-    pub draft_on_failure: Option<bool>,
-
-    /// Policy for handling merge conflicts.
-    pub conflict_policy: Option<ConflictPolicy>,
-
-    /// Number of merge retries before giving up.
-    #[schemars(range(min = 1))]
-    pub merge_retries: Option<u8>,
-
     /// Root directory for parallel workspaces (relative to repo root if not absolute).
     pub workspace_root: Option<PathBuf>,
 
-    /// Branch name prefix for parallel workers (e.g., "ralph/").
-    pub branch_prefix: Option<String>,
+    /// Maximum number of push attempts before giving up.
+    #[schemars(range(min = 1))]
+    pub max_push_attempts: Option<u8>,
 
-    /// Delete branches after merge.
-    pub delete_branch_on_merge: Option<bool>,
+    /// Backoff intervals in milliseconds for push retries.
+    pub push_backoff_ms: Option<Vec<u64>>,
 
-    /// Runner overrides for merge conflict resolution.
-    pub merge_runner: Option<MergeRunnerConfig>,
+    /// Hours to retain blocked workspaces before cleanup.
+    #[schemars(range(min = 1))]
+    pub workspace_retention_hours: Option<u32>,
 }
 
 impl ParallelConfig {
@@ -59,73 +38,60 @@ impl ParallelConfig {
         if other.workers.is_some() {
             self.workers = other.workers;
         }
-        if other.merge_when.is_some() {
-            self.merge_when = other.merge_when;
-        }
-        if other.merge_method.is_some() {
-            self.merge_method = other.merge_method;
-        }
-        if other.auto_pr.is_some() {
-            self.auto_pr = other.auto_pr;
-        }
-        if other.auto_merge.is_some() {
-            self.auto_merge = other.auto_merge;
-        }
-        if other.draft_on_failure.is_some() {
-            self.draft_on_failure = other.draft_on_failure;
-        }
-        if other.conflict_policy.is_some() {
-            self.conflict_policy = other.conflict_policy;
-        }
-        if other.merge_retries.is_some() {
-            self.merge_retries = other.merge_retries;
-        }
         if other.workspace_root.is_some() {
             self.workspace_root = other.workspace_root;
         }
-        if other.branch_prefix.is_some() {
-            self.branch_prefix = other.branch_prefix;
+        if other.max_push_attempts.is_some() {
+            self.max_push_attempts = other.max_push_attempts;
         }
-        if other.delete_branch_on_merge.is_some() {
-            self.delete_branch_on_merge = other.delete_branch_on_merge;
+        if other.push_backoff_ms.is_some() {
+            self.push_backoff_ms = other.push_backoff_ms;
         }
-        if let Some(other_merge_runner) = other.merge_runner {
-            match &mut self.merge_runner {
-                Some(existing) => existing.merge_from(other_merge_runner),
-                None => self.merge_runner = Some(other_merge_runner),
-            }
+        if other.workspace_retention_hours.is_some() {
+            self.workspace_retention_hours = other.workspace_retention_hours;
         }
     }
 }
 
-/// When to merge PRs in parallel mode.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-#[derive(Default)]
-pub enum ParallelMergeWhen {
-    #[default]
-    AsCreated,
-    AfterAll,
+/// Default push backoff intervals in milliseconds.
+pub fn default_push_backoff_ms() -> Vec<u64> {
+    vec![500, 2000, 5000, 10000]
 }
 
-/// Merge method for PRs in parallel mode.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-#[derive(Default)]
-pub enum ParallelMergeMethod {
-    #[default]
-    Squash,
-    Merge,
-    Rebase,
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-/// Policy for handling merge conflicts in parallel mode.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-#[derive(Default)]
-pub enum ConflictPolicy {
-    #[default]
-    AutoResolve,
-    RetryLater,
-    Reject,
+    #[test]
+    fn parallel_config_merge_prefers_other_when_some() {
+        let mut base = ParallelConfig {
+            workers: Some(2),
+            workspace_root: None,
+            max_push_attempts: Some(3),
+            push_backoff_ms: None,
+            workspace_retention_hours: Some(12),
+        };
+
+        let other = ParallelConfig {
+            workers: Some(4),
+            workspace_root: Some(PathBuf::from("/tmp/ws")),
+            max_push_attempts: None,
+            push_backoff_ms: Some(vec![1000, 2000]),
+            workspace_retention_hours: None,
+        };
+
+        base.merge_from(other);
+
+        assert_eq!(base.workers, Some(4));
+        assert_eq!(base.workspace_root, Some(PathBuf::from("/tmp/ws")));
+        assert_eq!(base.max_push_attempts, Some(3)); // unchanged
+        assert_eq!(base.push_backoff_ms, Some(vec![1000, 2000]));
+        assert_eq!(base.workspace_retention_hours, Some(12)); // unchanged
+    }
+
+    #[test]
+    fn default_push_backoff_ms_has_expected_values() {
+        let backoff = default_push_backoff_ms();
+        assert_eq!(backoff, vec![500, 2000, 5000, 10000]);
+    }
 }

@@ -44,12 +44,12 @@ mod retry;
 mod tests;
 mod webhook;
 
-// Re-exports from submodules (backward compatibility)
+// Re-exports from submodules
 pub use agent::AgentConfig;
 pub use enums::{GitRevertMode, ProjectType, ScanPromptVersion};
 pub use loop_::LoopConfig;
 pub use notification::NotificationConfig;
-pub use parallel::{ConflictPolicy, ParallelConfig, ParallelMergeMethod, ParallelMergeWhen};
+pub use parallel::{ParallelConfig, default_push_backoff_ms};
 pub use phase::{PhaseOverrideConfig, PhaseOverrides};
 pub use plugin::{PluginConfig, PluginProcessorConfig, PluginRunnerConfig, PluginsConfig};
 pub use queue::{QueueAgingThresholds, QueueConfig};
@@ -202,17 +202,10 @@ impl Default for Config {
             },
             parallel: ParallelConfig {
                 workers: None,
-                merge_when: Some(ParallelMergeWhen::AsCreated),
-                merge_method: Some(ParallelMergeMethod::Squash),
-                auto_pr: Some(true),
-                auto_merge: Some(true),
-                draft_on_failure: Some(true),
-                conflict_policy: Some(ConflictPolicy::AutoResolve),
-                merge_retries: Some(5),
                 workspace_root: None,
-                branch_prefix: Some("ralph/".to_string()),
-                delete_branch_on_merge: Some(true),
-                merge_runner: None,
+                max_push_attempts: Some(5),
+                push_backoff_ms: Some(default_push_backoff_ms()),
+                workspace_retention_hours: Some(24),
             },
             loop_field: LoopConfig {
                 wait_when_empty: Some(false),

@@ -46,6 +46,7 @@ pub(crate) fn sync_ralph_state(resolved: &config::Resolved, workspace_path: &Pat
 
 /// Commit any pending changes in the workspace after a failure.
 /// Returns true if changes were committed, false if there were no changes.
+#[allow(dead_code)]
 pub(crate) fn commit_failure_changes(workspace_path: &Path, task_id: &str) -> Result<bool> {
     let status = git::status_porcelain(workspace_path)?;
     if status.trim().is_empty() {
@@ -63,6 +64,7 @@ pub(crate) fn commit_failure_changes(workspace_path: &Path, task_id: &str) -> Re
 }
 
 /// Ensure the current branch in the workspace is pushed to upstream.
+#[allow(dead_code)]
 pub(crate) fn ensure_branch_pushed(workspace_path: &Path) -> Result<()> {
     git::push_upstream_with_rebase(workspace_path)
         .with_context(|| "push branch to upstream (auto-rebase on rejection)")

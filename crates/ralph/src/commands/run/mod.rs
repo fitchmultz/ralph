@@ -21,8 +21,9 @@ mod execution_history_cli;
 mod execution_timings;
 mod iteration;
 mod logging;
-mod merge_agent;
+// mod merge_agent; // Removed in direct-push rewrite (Phase D)
 pub mod parallel;
+mod parallel_ops;
 mod phases;
 mod queue_lock;
 mod run_loop;
@@ -42,7 +43,7 @@ pub use crate::agent::AgentOverrides;
 
 // Re-export parallel state types for UI clients.
 pub use parallel::state::{
-    ParallelPrLifecycle, ParallelPrRecord, ParallelStateFile, load_state, state_file_path,
+    ParallelStateFile, WorkerLifecycle, WorkerRecord, load_state, state_file_path,
 };
 
 // Re-export run loop types
@@ -56,8 +57,12 @@ pub use run_one::{
 // Re-export dry-run functions
 pub use dry_run::{dry_run_loop, dry_run_one};
 
-// Re-export merge-agent types and handler
-pub use merge_agent::{MergeAgentError, MergeAgentResult, handle_merge_agent};
+// Merge-agent removed in direct-push rewrite (Phase D)
+// The merge-agent command and types are no longer needed since workers
+// push directly to the target branch without creating PRs.
+
+// Re-export parallel operation commands
+pub use parallel_ops::{parallel_retry, parallel_status};
 
 #[cfg(test)]
 fn resolve_run_agent_settings(

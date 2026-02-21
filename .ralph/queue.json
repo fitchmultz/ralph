@@ -74,43 +74,6 @@
       }
     },
     {
-      "id": "RQ-0925",
-      "status": "todo",
-      "title": "Add validation for status transition rules in set_status",
-      "description": "The set_status function does NOT validate status transition rules. However, promote_draft_to_todo explicitly validates that the task is in Draft status before promoting. This creates an inconsistency where the promotion path has guards but the general path does not.",
-      "priority": "medium",
-      "tags": [
-        "scan",
-        "queue",
-        "validation",
-        "bug"
-      ],
-      "scope": [
-        "crates/ralph/src/queue/operations/status.rs"
-      ],
-      "evidence": [
-        "path: crates/ralph/src/queue/operations/status.rs :: lines 214-242 :: promote_draft_to_todo validates task status",
-        "path: crates/ralph/src/queue/operations/status.rs :: set_status :: no validation for status transition rules"
-      ],
-      "plan": [
-        "Define allowed status transitions",
-        "Add validate_status_transition function",
-        "Block Doing -> Draft transition",
-        "Add tests for transition validation",
-        "Run `cargo test -p ralph` to verify"
-      ],
-      "notes": [],
-      "request": "scan finding",
-      "created_at": "2026-02-17T19:44:50Z",
-      "updated_at": "2026-02-17T19:44:50Z",
-      "depends_on": [],
-      "blocks": [],
-      "relates_to": [],
-      "custom_fields": {
-        "scan_agent": "scan-general"
-      }
-    },
-    {
       "id": "RQ-0926",
       "status": "todo",
       "title": "Add runtime validation for config queue thresholds",
