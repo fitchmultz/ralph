@@ -53,6 +53,7 @@ pub fn default_push_backoff_ms() -> Vec<u64> {
 }
 
 // Re-export public APIs from submodules
+pub(crate) use integration::run_integration_loop;
 pub use integration::{IntegrationConfig, IntegrationOutcome, RemediationHandoff};
 pub(crate) use orchestration::run_loop_parallel;
 pub use state::{WorkerLifecycle, WorkerRecord};

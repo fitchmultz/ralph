@@ -63,6 +63,8 @@ pub struct PhaseInvocation<'a> {
     pub settings: &'a runner::AgentSettings,
     pub bins: runner::RunnerBinaries<'a>,
     pub task_id: &'a str,
+    /// Task title from queue (optional - used for integration loop handoff packets).
+    pub task_title: Option<&'a str>,
     pub base_prompt: &'a str,
     pub policy: &'a promptflow::PromptPolicy,
     pub output_handler: Option<runner::OutputHandler>,
