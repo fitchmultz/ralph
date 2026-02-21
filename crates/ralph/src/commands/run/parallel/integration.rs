@@ -487,7 +487,7 @@ fn build_agent_integration_prompt(
         "- CI gate is disabled for this task".to_string()
     };
 
-    format!(
+    sanitize_prompt_for_runner(&format!(
         r#"# Parallel Integration (Mandatory) - Attempt {attempt}/{max_attempts}
 You are finalizing task `{task_id}` (`{task_title}`) for direct push to `origin/{target_branch}`.
 
@@ -527,7 +527,22 @@ Before ending your response:
 
 If any check fails, keep working in this same turn until fixed.
 "#
-    )
+    ))
+}
+
+fn sanitize_prompt_for_runner(prompt: &str) -> String {
+    prompt
+        .chars()
+        .map(|c| {
+            if c == '\0' {
+                ' '
+            } else if c.is_control() && c != '\n' && c != '\r' && c != '\t' {
+                ' '
+            } else {
+                c
+            }
+        })
+        .collect()
 }
 
 fn compose_block_reason(
@@ -768,6 +783,27 @@ mod tests {
         assert!(prompt.contains("MUST execute integration git operations"));
         assert!(prompt.contains("Completion Contract (Mandatory)"));
         assert!(prompt.contains("git push origin HEAD:main"));
+        assert!(prompt.contains("previous failure"));
+    }
+
+    #[test]
+    fn integration_prompt_sanitizes_nul_bytes() {
+        let prompt = build_agent_integration_prompt(
+            "RQ-0001",
+            "NUL test",
+            "main",
+            1,
+            5,
+            "phase\0summary",
+            "status\0snapshot",
+            true,
+            Some("make ci"),
+            Some("previous\0failure"),
+        );
+
+        assert!(!prompt.contains('\0'));
+        assert!(prompt.contains("phase summary"));
+        assert!(prompt.contains("status snapshot"));
         assert!(prompt.contains("previous failure"));
     }
 
