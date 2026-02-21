@@ -534,9 +534,7 @@ fn sanitize_prompt_for_runner(prompt: &str) -> String {
     prompt
         .chars()
         .map(|c| {
-            if c == '\0' {
-                ' '
-            } else if c.is_control() && c != '\n' && c != '\r' && c != '\t' {
+            if c.is_control() && c != '\n' && c != '\r' && c != '\t' {
                 ' '
             } else {
                 c
