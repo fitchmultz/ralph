@@ -4,8 +4,8 @@ use super::phase2::cache_phase2_final_response;
 use super::phase3::ensure_phase3_completion;
 use super::shared::run_ci_gate_with_continue;
 use super::{
-    PhaseInvocation, PostRunMode, execute_phase1_planning, execute_phase3_review,
-    generate_phase_session_id, phase_session_id_for_runner,
+    PhaseInvocation, PostRunMode, execute_phase1_planning, execute_phase2_implementation,
+    execute_phase3_review, generate_phase_session_id, phase_session_id_for_runner,
 };
 use crate::commands::run::supervision::ContinueSession;
 use crate::constants::defaults::PHASE2_FINAL_RESPONSE_FALLBACK;
@@ -1489,6 +1489,85 @@ echo '{{"sessionID":"sess-123"}}'
     assert!(
         err.to_string().contains("Follow-up Phase 1 violation"),
         "expected follow-up violation message, got: {err}"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn phase2_final_three_phase_iteration_skips_duplicate_ci_gate() -> Result<()> {
+    let temp = TempDir::new()?;
+    git_init(temp.path())?;
+    std::fs::create_dir_all(temp.path().join(".ralph/cache/plans"))?;
+    std::fs::create_dir_all(temp.path().join(".ralph/cache/phase2_final"))?;
+
+    let script = r#"#!/bin/sh
+set -e
+echo '{"type":"text","part":{"text":"phase2 complete"}}'
+echo '{"sessionID":"sess-phase2"}'
+"#;
+    let runner_path = create_fake_runner(temp.path(), "opencode", script)?;
+
+    let ci_marker = temp.path().join("ci-gate-ran.txt");
+    let mut resolved = resolved_for_repo(temp.path().to_path_buf(), &runner_path);
+    resolved.config.agent.ci_gate_enabled = Some(true);
+    resolved.config.agent.ci_gate_command = Some(format!("echo ci > {}", ci_marker.display()));
+
+    let settings = runner::AgentSettings {
+        runner: Runner::Opencode,
+        model: Model::Custom("zai-coding-plan/glm-4.7".to_string()),
+        reasoning_effort: None,
+        runner_cli: runner::ResolvedRunnerCliOptions::default(),
+    };
+    let bins = runner::RunnerBinaries {
+        codex: "codex",
+        opencode: runner_path.to_str().expect("runner path"),
+        gemini: "gemini",
+        claude: "claude",
+        cursor: "agent",
+        kimi: "kimi",
+        pi: "pi",
+    };
+    let policy = promptflow::PromptPolicy {
+        repoprompt_plan_required: false,
+        repoprompt_tool_injection: false,
+    };
+
+    let invocation = PhaseInvocation {
+        resolved: &resolved,
+        settings: &settings,
+        bins,
+        task_id: "RQ-0001",
+        task_title: None,
+        base_prompt: "base prompt",
+        policy: &policy,
+        output_handler: None,
+        output_stream: runner::OutputStream::Terminal,
+        project_type: crate::contracts::ProjectType::Code,
+        git_revert_mode: GitRevertMode::Disabled,
+        git_commit_push_enabled: true,
+        push_policy: crate::commands::run::supervision::PushPolicy::RequireUpstream,
+        revert_prompt: None,
+        iteration_context: "",
+        iteration_completion_block: "",
+        phase3_completion_guidance: "",
+        is_final_iteration: true,
+        is_followup_iteration: false,
+        allow_dirty_repo: true,
+        post_run_mode: PostRunMode::Normal,
+        notify_on_complete: None,
+        notify_sound: None,
+        lfs_check: false,
+        no_progress: false,
+        execution_timings: None,
+        plugins: None,
+    };
+
+    execute_phase2_implementation(&invocation, 3, "plan text")?;
+
+    assert!(
+        !ci_marker.exists(),
+        "final three-phase phase2 should skip CI gate; phase3/post-run handles CI"
     );
 
     Ok(())

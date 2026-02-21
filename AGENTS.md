@@ -80,6 +80,14 @@ Every source file MUST start with `//!` docs covering:
 - Worker post-run supervision should fail fast if those bookkeeping paths remain dirty after restore (never proceed to commit/rebase with queue/done/productivity drift).
 - Worker post-run restore must purge generated runtime artifacts under `.ralph/cache/{plans,phase2_final,parallel}` plus `.ralph/{logs,cache/session.json,cache/migrations.json}` before deciding repo dirtiness.
 
+### Parallel Worker Shutdown
+- Parallel worker subprocesses should be terminated gracefully first (`SIGINT`) to let worker-side cleanup run before hard kill escalation.
+- Worker subprocesses should run in isolated process groups (`setpgid`) to avoid signaling the coordinator group.
+
+### CI Gate Cadence
+- In 3-phase workflows, final-iteration Phase 2 should skip CI gate rerun; CI is enforced in Phase 3/post-run supervision.
+- CI gate logging should emit explicit start/end timing for long-running commands.
+
 ### Parallel Merge Refresh Resilience
 - After merge-agent success, update state (`prs`, `pending_merges`) before local branch refresh attempts.
 - Local base-branch refresh is best-effort and must not abort the run when `.ralph` bookkeeping files are dirty.

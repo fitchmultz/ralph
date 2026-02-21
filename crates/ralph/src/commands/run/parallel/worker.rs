@@ -26,6 +26,10 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
+use std::time::Duration;
+
+#[cfg(unix)]
+use std::os::unix::process::CommandExt;
 
 use super::state;
 
@@ -111,14 +115,66 @@ pub(crate) fn collect_excluded_ids(
 /// Terminate all in-flight workers gracefully.
 pub(crate) fn terminate_workers(in_flight: &mut HashMap<String, WorkerState>) {
     for worker in in_flight.values_mut() {
-        if let Err(err) = worker.child.kill() {
-            log::warn!("Failed to terminate worker {}: {}", worker.task_id, err);
-        }
+        terminate_worker_process(worker);
     }
 
     for worker in in_flight.values_mut() {
         if let Err(e) = worker.child.wait() {
             log::debug!("Failed to wait for worker {}: {}", worker.task_id, e);
+        }
+    }
+}
+
+fn terminate_worker_process(worker: &mut WorkerState) {
+    #[cfg(unix)]
+    {
+        let pid = worker.child.id() as i32;
+
+        // First attempt a graceful interrupt so the worker can unwind and stop
+        // any active runner subprocesses cleanly.
+        // SAFETY: kill() is called with a known child PID created by this process.
+        let sigint_result = unsafe { libc::kill(pid, libc::SIGINT) };
+        if sigint_result != 0 {
+            let err = std::io::Error::last_os_error();
+            if err.raw_os_error() != Some(libc::ESRCH) {
+                log::debug!(
+                    "Failed to send SIGINT to worker {} (pid {}): {}",
+                    worker.task_id,
+                    pid,
+                    err
+                );
+            }
+        }
+
+        let grace = Duration::from_millis(1_500);
+        let deadline = std::time::Instant::now() + grace;
+        while std::time::Instant::now() < deadline {
+            match worker.child.try_wait() {
+                Ok(Some(_)) => return,
+                Ok(None) => std::thread::sleep(Duration::from_millis(50)),
+                Err(err) => {
+                    log::debug!(
+                        "Failed to poll worker {} during graceful shutdown: {}",
+                        worker.task_id,
+                        err
+                    );
+                    break;
+                }
+            }
+        }
+
+        // Escalate to hard kill if the worker ignored SIGINT.
+        if let Err(err) = worker.child.kill()
+            && err.kind() != std::io::ErrorKind::InvalidInput
+        {
+            log::warn!("Failed to terminate worker {}: {}", worker.task_id, err);
+        }
+    }
+
+    #[cfg(not(unix))]
+    {
+        if let Err(err) = worker.child.kill() {
+            log::warn!("Failed to terminate worker {}: {}", worker.task_id, err);
         }
     }
 }
@@ -154,6 +210,18 @@ fn build_worker_command(
 ) -> Result<(Command, Vec<String>)> {
     let exe = std::env::current_exe().context("resolve current executable")?;
     let mut cmd = Command::new(exe);
+
+    #[cfg(unix)]
+    // SAFETY: pre_exec executes in the child process between fork and exec.
+    // Calling setpgid(0, 0) is async-signal-safe and isolates worker process
+    // signals from the coordinator process group.
+    unsafe {
+        cmd.pre_exec(|| {
+            let _ = libc::setpgid(0, 0);
+            Ok(())
+        });
+    }
+
     cmd.current_dir(workspace_path);
     cmd.env("PWD", workspace_path);
     cmd.stdin(Stdio::null());

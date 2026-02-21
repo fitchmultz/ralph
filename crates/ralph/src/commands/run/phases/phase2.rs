@@ -66,35 +66,45 @@ pub fn execute_phase2_implementation(
 
             cache_phase2_final_response(&ctx.resolved.repo_root, ctx.task_id, &output.stdout)?;
 
-            let continue_session = supervision::ContinueSession {
-                runner: ctx.settings.runner.clone(),
-                model: ctx.settings.model.clone(),
-                reasoning_effort: ctx.settings.reasoning_effort,
-                runner_cli: ctx.settings.runner_cli,
-                phase_type: super::PhaseType::Implementation,
-                session_id: output.session_id.clone(),
-                output_handler: ctx.output_handler.clone(),
-                output_stream: ctx.output_stream,
-                ci_failure_retry_count: 0,
-                task_id: ctx.task_id.to_string(),
-                last_ci_error_pattern: None,
-                consecutive_same_error_count: 0,
-            };
+            if !ctx.is_final_iteration {
+                let continue_session = supervision::ContinueSession {
+                    runner: ctx.settings.runner.clone(),
+                    model: ctx.settings.model.clone(),
+                    reasoning_effort: ctx.settings.reasoning_effort,
+                    runner_cli: ctx.settings.runner_cli,
+                    phase_type: super::PhaseType::Implementation,
+                    session_id: output.session_id.clone(),
+                    output_handler: ctx.output_handler.clone(),
+                    output_stream: ctx.output_stream,
+                    ci_failure_retry_count: 0,
+                    task_id: ctx.task_id.to_string(),
+                    last_ci_error_pattern: None,
+                    consecutive_same_error_count: 0,
+                };
 
-            let timings = ctx.execution_timings;
-            let runner = ctx.settings.runner.clone();
-            let model = ctx.settings.model.clone();
-            run_ci_gate_with_continue(ctx, continue_session, |output, elapsed| {
-                if let Some(timings) = timings {
-                    timings.borrow_mut().record_runner_duration(
-                        PhaseType::Implementation,
-                        &runner,
-                        &model,
-                        elapsed,
-                    );
-                }
-                cache_phase2_final_response(&ctx.resolved.repo_root, ctx.task_id, &output.stdout)
-            })?;
+                let timings = ctx.execution_timings;
+                let runner = ctx.settings.runner.clone();
+                let model = ctx.settings.model.clone();
+                run_ci_gate_with_continue(ctx, continue_session, |output, elapsed| {
+                    if let Some(timings) = timings {
+                        timings.borrow_mut().record_runner_duration(
+                            PhaseType::Implementation,
+                            &runner,
+                            &model,
+                            elapsed,
+                        );
+                    }
+                    cache_phase2_final_response(
+                        &ctx.resolved.repo_root,
+                        ctx.task_id,
+                        &output.stdout,
+                    )
+                })?;
+            } else {
+                log::info!(
+                    "Skipping Phase 2 CI gate on final 3-phase iteration; Phase 3/post-run supervision enforces CI."
+                );
+            }
 
             return Ok(());
         }

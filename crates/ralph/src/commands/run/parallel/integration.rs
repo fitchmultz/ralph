@@ -412,7 +412,11 @@ fn run_ci_check(repo_root: &Path, resolved: &Resolved) -> Result<()> {
         .as_deref()
         .unwrap_or("make ci");
 
-    log::info!("Running CI gate validation: {}", ci_command);
+    log::info!(
+        "Running CI gate validation (may take several minutes): {}",
+        ci_command
+    );
+    let started = std::time::Instant::now();
 
     let output = Command::new("sh")
         .arg("-c")
@@ -421,9 +425,25 @@ fn run_ci_check(repo_root: &Path, resolved: &Resolved) -> Result<()> {
         .output()
         .context("spawn CI gate command")?;
 
+    log::info!(
+        "CI gate validation finished in {:.1}s with exit code {:?}",
+        started.elapsed().as_secs_f64(),
+        output.status.code()
+    );
+
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         let stdout = String::from_utf8_lossy(&output.stdout);
+        let combined = format!("{}\n{}", stdout, stderr).to_lowercase();
+        if combined.contains("waiting for file lock")
+            || combined.contains("file lock on build directory")
+        {
+            bail!(
+                "CI lock contention detected (stale build/test process likely holding a lock). {} | {}",
+                stdout.trim(),
+                stderr.trim()
+            );
+        }
         bail!("{} | {}", stdout.trim(), stderr.trim());
     }
 

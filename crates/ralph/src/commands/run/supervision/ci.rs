@@ -20,6 +20,7 @@ use crate::constants::limits::{CI_FAILURE_ESCALATION_THRESHOLD, CI_GATE_AUTO_RET
 use crate::runutil;
 use anyhow::{Context, Result, bail};
 use std::process::Stdio;
+use std::time::Instant;
 
 // ============================================================================
 // CI Error Pattern Detection
@@ -50,6 +51,7 @@ const UNKNOWN_VARIANT_GUIDANCE: &str =
 const RUFF_PYPROJECT_GUIDANCE: &str = "Check pyproject.toml for invalid ruff configuration. Common issues: invalid target-version, unknown lint rules.";
 const FORMAT_CHECK_GUIDANCE: &str = "Run the formatter directly to see what needs changing.";
 const LINT_CHECK_GUIDANCE: &str = "Run the linter directly to see the specific errors.";
+const LOCK_CONTENTION_GUIDANCE: &str = "A build or test process is waiting on a file lock. Identify and stop stale `cargo`/`rustc`/`make` processes, then retry.";
 
 /// Find the first byte index of `needle` in `haystack` using ASCII case-insensitive matching.
 ///
@@ -291,6 +293,26 @@ fn detect_lint_check_error(output: &str) -> Option<DetectedErrorPattern> {
     })
 }
 
+/// Detect lock contention stalls in build/test output.
+///
+/// Pattern examples:
+/// - "Blocking waiting for file lock on build directory"
+/// - "waiting for file lock"
+fn detect_lock_contention_error(output: &str) -> Option<DetectedErrorPattern> {
+    let lower = output.to_lowercase();
+    if lower.contains("waiting for file lock") || lower.contains("file lock on build directory") {
+        return Some(DetectedErrorPattern {
+            pattern_type: "Lock contention",
+            file_path: None,
+            line_number: None,
+            invalid_value: None,
+            valid_values: None,
+            guidance: LOCK_CONTENTION_GUIDANCE,
+        });
+    }
+    None
+}
+
 /// Main entry point to detect CI error patterns.
 ///
 /// Scans combined stdout/stderr for known error patterns and returns
@@ -302,6 +324,7 @@ fn detect_ci_error_pattern(stdout: &str, stderr: &str) -> Option<DetectedErrorPa
     detect_toml_parse_error(&combined)
         .or_else(|| detect_unknown_variant_error(&combined))
         .or_else(|| detect_ruff_error(&combined))
+        .or_else(|| detect_lock_contention_error(&combined))
         .or_else(|| detect_format_check_error(&combined))
         .or_else(|| detect_lint_check_error(&combined))
 }
@@ -540,6 +563,12 @@ pub(crate) fn run_ci_gate(resolved: &crate::config::Resolved) -> Result<CiGateRe
     }
 
     logging::with_scope(&format!("CI gate ({command})"), || {
+        log::info!(
+            "CI gate command started (may take several minutes): {}",
+            command
+        );
+        let started = Instant::now();
+
         let mut cmd = runutil::shell_command(command);
         cmd.current_dir(&resolved.repo_root);
         let output = cmd
@@ -559,6 +588,12 @@ pub(crate) fn run_ci_gate(resolved: &crate::config::Resolved) -> Result<CiGateRe
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
         let success = output.status.success();
         let exit_code = output.status.code();
+        let elapsed = started.elapsed();
+        log::info!(
+            "CI gate command finished in {:.1}s with exit code {:?}",
+            elapsed.as_secs_f64(),
+            exit_code
+        );
 
         if success {
             Ok(CiGateResult {
@@ -570,6 +605,15 @@ pub(crate) fn run_ci_gate(resolved: &crate::config::Resolved) -> Result<CiGateRe
         } else {
             // Detect error pattern for logging context
             let detected = detect_ci_error_pattern(&stdout, &stderr);
+            if detected
+                .as_ref()
+                .is_some_and(|pattern| pattern.pattern_type == "Lock contention")
+            {
+                log::warn!(
+                    "CI gate failure indicates lock contention. {}",
+                    LOCK_CONTENTION_GUIDANCE
+                );
+            }
             let error_pattern = detected.as_ref().map(|p| p.pattern_type);
 
             // Return CiFailure so with_scope logs it with ERROR level
@@ -1438,6 +1482,13 @@ mod tests {
     }
 
     #[test]
+    fn detect_lock_contention_error_returns_pattern() {
+        let output = "Blocking waiting for file lock on build directory";
+        let pattern = detect_lock_contention_error(output).unwrap();
+        assert_eq!(pattern.pattern_type, "Lock contention");
+    }
+
+    #[test]
     fn detect_ci_error_pattern_combines_stdout_stderr() {
         let stdout = "Some output";
         let stderr = "TOML parse error at line 10";
@@ -1449,6 +1500,22 @@ mod tests {
     fn detect_ci_error_pattern_returns_none_on_clean_output() {
         let output = "All tests passed!";
         assert!(detect_ci_error_pattern(output, "").is_none());
+    }
+
+    #[test]
+    fn compliance_message_includes_lock_contention_guidance() {
+        let temp = TempDir::new().unwrap();
+        let resolved = resolved_with_ci_command(temp.path(), None, true);
+        let result = CiGateResult {
+            success: false,
+            exit_code: Some(1),
+            stdout: String::new(),
+            stderr: "Blocking waiting for file lock on build directory".to_string(),
+        };
+
+        let msg = strict_ci_gate_compliance_message(&resolved, &result);
+        assert!(msg.contains("Lock contention"));
+        assert!(msg.contains("waiting on a file lock"));
     }
 
     #[test]
