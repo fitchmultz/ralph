@@ -29,13 +29,15 @@ pub mod status;
 pub mod workspace;
 
 // Re-export commonly used items for convenience within the crate.
-pub(crate) use branch::{current_branch, fast_forward_branch_to_origin};
+pub(crate) use branch::current_branch;
 pub use clean::{
     RALPH_RUN_CLEAN_ALLOWED_PATHS, repo_dirty_only_allowed_paths, require_clean_repo_ignoring_paths,
 };
 pub use commit::{
-    add_paths_force, commit_all, is_ahead_of_upstream, push_upstream, push_upstream_allow_create,
-    push_upstream_with_rebase, restore_tracked_paths_to_head, revert_uncommitted, upstream_ref,
+    abort_rebase, add_paths_force, commit_all, fetch_branch, is_ahead_of_upstream,
+    is_behind_upstream, list_conflict_files, push_current_branch, push_upstream,
+    push_upstream_allow_create, push_upstream_with_rebase, rebase_onto,
+    restore_tracked_paths_to_head, revert_uncommitted, upstream_ref,
 };
 pub use error::GitError;
 pub(crate) use issue::{
@@ -43,6 +45,8 @@ pub(crate) use issue::{
     normalize_issue_metadata_list, parse_issue_number,
 };
 pub use lfs::{check_lfs_health, filter_modified_lfs_files, has_lfs, list_lfs_files};
+// PR-related functions kept for potential non-parallel use, but unused in direct-push mode
+#[allow(unused_imports)]
 pub(crate) use pr::{
     MergeState, PrInfo, PrLifecycle, check_gh_available, create_pr, merge_pr, pr_lifecycle_status,
     pr_merge_status,
@@ -53,6 +57,5 @@ pub use status::{
 };
 // NEW: workspace-based isolation (clone workspaces).
 pub(crate) use workspace::{
-    WorkspaceSpec, create_workspace_at, ensure_workspace_exists, origin_urls, remove_workspace,
-    workspace_root,
+    WorkspaceSpec, create_workspace_at, origin_urls, remove_workspace, workspace_root,
 };

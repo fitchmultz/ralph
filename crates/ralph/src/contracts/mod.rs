@@ -25,11 +25,10 @@ mod task;
 // Re-exports from config module (core config types)
 // All config types are now re-exported from config::mod.rs for backward compatibility
 pub use config::{
-    AgentConfig, Config, ConflictPolicy, GitRevertMode, LoopConfig, NotificationConfig,
-    ParallelConfig, ParallelMergeMethod, ParallelMergeWhen, PhaseOverrideConfig, PhaseOverrides,
-    PluginConfig, PluginProcessorConfig, PluginRunnerConfig, PluginsConfig, ProjectType,
-    QueueAgingThresholds, QueueConfig, RunnerRetryConfig, ScanPromptVersion, WebhookConfig,
-    WebhookEventSubscription, WebhookQueuePolicy,
+    AgentConfig, Config, GitRevertMode, LoopConfig, NotificationConfig, ParallelConfig,
+    PhaseOverrideConfig, PhaseOverrides, PluginConfig, PluginProcessorConfig, PluginRunnerConfig,
+    PluginsConfig, ProjectType, QueueAgingThresholds, QueueConfig, RunnerRetryConfig,
+    ScanPromptVersion, WebhookConfig, WebhookEventSubscription, WebhookQueuePolicy,
 };
 
 // Re-exports from cli_spec module (versioned; suitable for tooling consumption)
@@ -43,8 +42,8 @@ pub use queue::QueueFile;
 
 // Re-exports from runner module (runner types)
 pub use runner::{
-    ClaudePermissionMode, MergeRunnerConfig, Runner, RunnerApprovalMode, RunnerCliConfigRoot,
-    RunnerCliOptionsPatch, RunnerOutputFormat, RunnerPlanMode, RunnerSandboxMode, RunnerVerbosity,
+    ClaudePermissionMode, Runner, RunnerApprovalMode, RunnerCliConfigRoot, RunnerCliOptionsPatch,
+    RunnerOutputFormat, RunnerPlanMode, RunnerSandboxMode, RunnerVerbosity,
     UnsupportedOptionPolicy,
 };
 

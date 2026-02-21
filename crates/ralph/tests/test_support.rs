@@ -652,7 +652,7 @@ pub fn with_insta_settings<T>(f: impl FnOnce() -> T) -> T {
 
 /// Configure parallel mode settings for tests.
 ///
-/// Disables auto_pr and auto_merge by default to avoid requiring gh CLI.
+/// Sets minimal parallel config for testing (no PR automation in direct-push mode).
 pub fn configure_parallel_disabled(dir: &Path) -> Result<()> {
     let config_path = dir.join(".ralph/config.json");
     let mut config: serde_json::Value =
@@ -662,8 +662,9 @@ pub fn configure_parallel_disabled(dir: &Path) -> Result<()> {
     if config.get("parallel").is_none() {
         config["parallel"] = serde_json::json!({});
     }
-    config["parallel"]["auto_pr"] = serde_json::json!(false);
-    config["parallel"]["auto_merge"] = serde_json::json!(false);
+    // In direct-push mode, PR automation keys no longer exist
+    // Just ensure parallel mode is configured with default settings
+    config["parallel"]["workers"] = serde_json::json!(2);
 
     std::fs::write(
         &config_path,
@@ -673,10 +674,10 @@ pub fn configure_parallel_disabled(dir: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Configure parallel mode with auto_pr and auto_merge enabled.
+/// Configure parallel mode for direct-push.
 ///
-/// Note: The gh binary path should be prepended to PATH by the caller.
-pub fn configure_parallel_with_pr_automation(dir: &Path, _gh_bin_path: &Path) -> Result<()> {
+/// In direct-push mode, PR automation is removed. Workers push directly to base branch.
+pub fn configure_parallel_for_direct_push(dir: &Path) -> Result<()> {
     let config_path = dir.join(".ralph/config.json");
     let mut config: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(&config_path).context("read config")?)
@@ -685,9 +686,9 @@ pub fn configure_parallel_with_pr_automation(dir: &Path, _gh_bin_path: &Path) ->
     if config.get("parallel").is_none() {
         config["parallel"] = serde_json::json!({});
     }
-    config["parallel"]["auto_pr"] = serde_json::json!(true);
-    config["parallel"]["auto_merge"] = serde_json::json!(true);
-    config["parallel"]["merge_when"] = serde_json::json!("as_created");
+    // Direct-push mode configuration
+    config["parallel"]["workers"] = serde_json::json!(2);
+    config["parallel"]["max_push_attempts"] = serde_json::json!(5);
 
     std::fs::write(
         &config_path,

@@ -98,23 +98,8 @@ fn validate_config_rejects_parallel_workers_lt_two() {
     assert!(err.to_string().contains("parallel.workers"));
 }
 
-#[test]
-fn validate_config_rejects_parallel_merge_retries_zero() {
-    let mut cfg = Config::default();
-    cfg.parallel.merge_retries = Some(0);
-
-    let err = validate_config(&cfg).expect_err("expected validation to fail");
-    assert!(err.to_string().contains("parallel.merge_retries"));
-}
-
-#[test]
-fn validate_config_rejects_parallel_branch_prefix_empty() {
-    let mut cfg = Config::default();
-    cfg.parallel.branch_prefix = Some("   ".to_string());
-
-    let err = validate_config(&cfg).expect_err("expected validation to fail");
-    assert!(err.to_string().contains("parallel.branch_prefix"));
-}
+// Tests for merge_retries and branch_prefix removed in direct-push rewrite
+// These config keys no longer exist
 
 #[test]
 fn validate_config_rejects_zero_session_timeout_hours() {
