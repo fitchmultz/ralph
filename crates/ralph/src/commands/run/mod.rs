@@ -34,7 +34,7 @@ mod supervision;
 
 // Re-export types that are used by other modules via crate::commands::run::* paths.
 // These are used by phase modules.
-pub(crate) use supervision::{post_run_supervise, post_run_supervise_parallel_worker};
+pub(crate) use supervision::post_run_supervise;
 
 // Re-export PhaseType for use by runner module.
 pub(crate) use phases::PhaseType;

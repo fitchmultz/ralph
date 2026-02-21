@@ -494,6 +494,33 @@ pub fn push_current_branch(repo_root: &Path, remote: &str) -> Result<(), GitErro
     Err(classify_push_error(&stderr))
 }
 
+/// Push HEAD to a specific branch on a remote.
+///
+/// This pushes HEAD to the specified branch on the remote, creating the branch if needed.
+/// Used in direct-push parallel mode to push directly to the base branch.
+pub fn push_head_to_branch(repo_root: &Path, remote: &str, branch: &str) -> Result<(), GitError> {
+    let output = git_base_command(repo_root)
+        .arg("push")
+        .arg(remote)
+        .arg(format!("HEAD:{}", branch))
+        .output()
+        .with_context(|| {
+            format!(
+                "run git push {} HEAD:{} in {}",
+                remote,
+                branch,
+                repo_root.display()
+            )
+        })?;
+
+    if output.status.success() {
+        return Ok(());
+    }
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    Err(classify_push_error(&stderr))
+}
+
 /// Push HEAD to upstream, rebasing on non-fast-forward rejections.
 ///
 /// If the branch has no upstream yet, this will create one via `git push -u origin HEAD`.

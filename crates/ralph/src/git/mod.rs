@@ -35,8 +35,8 @@ pub use clean::{
 };
 pub use commit::{
     abort_rebase, add_paths_force, commit_all, fetch_branch, is_ahead_of_upstream,
-    is_behind_upstream, list_conflict_files, push_current_branch, push_upstream,
-    push_upstream_allow_create, push_upstream_with_rebase, rebase_onto,
+    is_behind_upstream, list_conflict_files, push_current_branch, push_head_to_branch,
+    push_upstream, push_upstream_allow_create, push_upstream_with_rebase, rebase_onto,
     restore_tracked_paths_to_head, revert_uncommitted, upstream_ref,
 };
 pub use error::GitError;

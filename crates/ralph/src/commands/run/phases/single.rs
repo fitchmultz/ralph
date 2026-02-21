@@ -107,25 +107,38 @@ pub fn execute_single_phase(ctx: &PhaseInvocation<'_>) -> Result<()> {
                     ctx.plugins,
                 )?,
                 PostRunMode::ParallelWorker => {
-                    // Run integration loop for direct-push parallel mode
                     use crate::commands::run::parallel::{IntegrationConfig, run_integration_loop};
-                    use crate::git::WorkspaceSpec;
 
                     let config = IntegrationConfig::from_resolved(ctx.resolved);
-                    let workspace = WorkspaceSpec {
-                        path: ctx.resolved.repo_root.clone(),
-                        branch: format!("ralph/{}", ctx.task_id),
-                    };
                     let task_title = ctx.task_title.unwrap_or(ctx.task_id);
                     let phase_summary = format!("Completed single phase for {}", ctx.task_id);
+                    let integration_runner = ctx.settings.runner.clone();
+                    let integration_model = ctx.settings.model.clone();
+                    let integration_timings = ctx.execution_timings;
+                    let mut integration_on_resume =
+                        move |resume_output: &runner::RunnerOutput,
+                              elapsed: std::time::Duration| {
+                            if let Some(timings) = integration_timings {
+                                timings.borrow_mut().record_runner_duration(
+                                    PhaseType::SinglePhase,
+                                    &integration_runner,
+                                    &integration_model,
+                                    elapsed,
+                                );
+                            }
+                            let _ = resume_output;
+                            Ok(())
+                        };
 
                     match run_integration_loop(
                         ctx.resolved,
-                        &workspace,
                         ctx.task_id,
                         task_title,
                         &config,
                         &phase_summary,
+                        &mut continue_session,
+                        &mut integration_on_resume,
+                        ctx.plugins,
                     ) {
                         Ok(crate::commands::run::parallel::IntegrationOutcome::Success) => {
                             log::info!("Integration loop succeeded for {}", ctx.task_id);
@@ -147,21 +160,6 @@ pub fn execute_single_phase(ctx: &PhaseInvocation<'_>) -> Result<()> {
                             anyhow::bail!("Integration error: {}", e);
                         }
                     }
-
-                    crate::commands::run::post_run_supervise_parallel_worker(
-                        ctx.resolved,
-                        ctx.task_id,
-                        ctx.git_revert_mode,
-                        ctx.git_commit_push_enabled,
-                        ctx.push_policy,
-                        ctx.revert_prompt.clone(),
-                        Some(supervision::CiContinueContext {
-                            continue_session: &mut continue_session,
-                            on_resume: &mut on_resume,
-                        }),
-                        ctx.lfs_check,
-                        ctx.plugins,
-                    )?
                 }
             }
         } else {
