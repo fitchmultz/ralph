@@ -133,4 +133,22 @@ mod tests {
         assert!(last_processed.contains_key(&path1));
         assert!(last_processed.contains_key(&path2));
     }
+
+    #[test]
+    fn can_reprocess_exact_boundary() {
+        let mut last_processed: HashMap<PathBuf, Instant> = HashMap::new();
+        let path = PathBuf::from("/test/file.rs");
+        let debounce = Duration::from_millis(100);
+
+        // Insert a timestamp exactly at the debounce boundary
+        // (Instant::now() - debounce = exactly 100ms ago)
+        last_processed.insert(path.clone(), Instant::now() - debounce);
+
+        // Should be reprocessable when exactly debounce duration has elapsed
+        // This tests the boundary condition: duration_since >= debounce
+        assert!(
+            can_reprocess(&path, &last_processed, debounce),
+            "File should be reprocessable when exactly debounce duration has elapsed"
+        );
+    }
 }

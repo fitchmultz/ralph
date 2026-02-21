@@ -118,8 +118,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.3-codex",
-        "runner_used": "codex"
+        "runner_used": "codex",
+        "model_used": "gpt-5.3-codex"
       }
     },
     {
@@ -188,8 +188,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
-        "model_used": "gpt-5.3-codex"
+        "model_used": "gpt-5.3-codex",
+        "runner_used": "codex"
       }
     },
     {
@@ -321,9 +321,9 @@
         "RQ-0953"
       ],
       "custom_fields": {
+        "runner_used": "codex",
         "scan_agent": "scan-general",
-        "model_used": "gpt-5.3-codex",
-        "runner_used": "codex"
+        "model_used": "gpt-5.3-codex"
       }
     },
     {
@@ -378,9 +378,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "scan_agent": "scan-general",
         "model_used": "gpt-5.3-codex",
-        "runner_used": "codex",
-        "scan_agent": "scan-general"
+        "runner_used": "codex"
       }
     },
     {
@@ -438,9 +438,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-general",
+        "runner_used": "codex",
         "model_used": "gpt-5.3-codex",
-        "runner_used": "codex"
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -500,9 +500,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-general",
         "model_used": "gpt-5.3-codex",
-        "runner_used": "codex"
+        "runner_used": "codex",
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -559,9 +559,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "scan_agent": "scan-general",
         "model_used": "sonnet",
-        "runner_used": "claude",
-        "scan_agent": "scan-general"
+        "runner_used": "claude"
       }
     },
     {
@@ -615,9 +615,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.3-codex",
         "runner_used": "codex",
-        "scan_agent": "scan-general"
+        "scan_agent": "scan-general",
+        "model_used": "gpt-5.3-codex"
       }
     },
     {
@@ -675,9 +675,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-general",
         "model_used": "gpt-5.3-codex",
-        "runner_used": "codex"
+        "runner_used": "codex",
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -736,8 +736,8 @@
       "relates_to": [],
       "custom_fields": {
         "model_used": "kimi-for-coding/k2p5",
-        "runner_used": "opencode",
-        "scan_agent": "scan-general"
+        "scan_agent": "scan-general",
+        "runner_used": "opencode"
       }
     },
     {
@@ -804,8 +804,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "kimi-for-coding/k2p5",
         "scan_agent": "scan-general",
+        "model_used": "kimi-for-coding/k2p5",
         "runner_used": "opencode"
       }
     },
@@ -857,9 +857,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "runner_used": "opencode",
         "model_used": "kimi-for-coding/k2p5",
-        "scan_agent": "scan-general",
-        "runner_used": "opencode"
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -918,9 +918,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "opencode",
         "scan_agent": "scan-general",
-        "model_used": "kimi-for-coding/k2p5"
+        "model_used": "kimi-for-coding/k2p5",
+        "runner_used": "opencode"
       }
     },
     {
@@ -1039,9 +1039,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "opencode",
+        "scan_agent": "scan-general",
         "model_used": "kimi-for-coding/k2p5",
-        "scan_agent": "scan-general"
+        "runner_used": "opencode"
       }
     },
     {
@@ -1084,8 +1084,8 @@
       "relates_to": [],
       "custom_fields": {
         "scan_agent": "scan-general",
-        "runner_used": "kimi",
-        "model_used": "kimi-code/kimi-for-coding"
+        "model_used": "kimi-code/kimi-for-coding",
+        "runner_used": "kimi"
       }
     },
     {
@@ -1129,9 +1129,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "scan_agent": "scan-general",
         "runner_used": "kimi",
-        "model_used": "kimi-code/kimi-for-coding",
-        "scan_agent": "scan-general"
+        "model_used": "kimi-code/kimi-for-coding"
       }
     },
     {
@@ -1218,6 +1218,74 @@
       "created_at": "2026-02-17T19:44:50Z",
       "updated_at": "2026-02-20T00:14:34.361157000Z",
       "completed_at": "2026-02-20T00:14:34.361157000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general",
+        "model_used": "kimi-code/kimi-for-coding",
+        "runner_used": "kimi"
+      }
+    },
+    {
+      "id": "RQ-0940",
+      "status": "done",
+      "title": "Add tests for watch command submodules",
+      "description": "The watch command has 8 submodules (comments, debounce, event_loop, paths, processor, state, tasks, types) but test coverage is sparse. The command monitors files for TODO/FIXME comments and auto-creates tasks. Without tests, file watching bugs could miss important comments.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "testing",
+        "cli",
+        "watch",
+        "unit-tests"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/watch/comments.rs",
+        "crates/ralph/src/commands/watch/debounce.rs",
+        "crates/ralph/src/commands/watch/paths.rs",
+        "crates/ralph/src/commands/watch/processor.rs",
+        "crates/ralph/src/commands/watch/state.rs",
+        "crates/ralph/src/commands/watch/event_loop.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/commands/watch/state.rs :: 158 lines, HAS 8 tests - coverage is GOOD, tests exist for WatchState::new, add_file, take_pending",
+        "path: crates/ralph/src/commands/watch/paths.rs :: 330 lines, HAS 13 tests - coverage is GOOD, get_relevant_paths and should_process_file are tested",
+        "path: crates/ralph/src/commands/watch/comments.rs :: 335 lines, HAS 17 tests - coverage is GOOD, tests for empty comment_types, multiple types, case insensitivity exist",
+        "path: crates/ralph/src/commands/watch/processor.rs :: 389 lines, HAS 7 tests - coverage is GOOD, tests for empty pending, read errors, skip recently processed exist",
+        "path: crates/ralph/src/commands/watch/debounce.rs :: 136 lines, HAS 5 tests - missing boundary timing test for exact debounce duration edge case",
+        "path: crates/ralph/src/commands/watch/event_loop.rs :: 516 lines, HAS 7 tests - coverage is GOOD, tests for event processing, timeouts, mutex poison exist",
+        "path: crates/ralph/src/commands/watch/tasks.rs :: 955 lines, HAS 17+ tests - coverage is COMPREHENSIVE",
+        "path: crates/ralph/src/commands/watch/types.rs :: 51 lines, type definitions only - no tests needed",
+        "analysis: debounce.rs needs one additional boundary test: can_reprocess_exact_boundary",
+        "analysis: All other watch submodules have adequate test coverage"
+      ],
+      "plan": [
+        "Add test to debounce.rs: can_reprocess_exact_boundary - test that file can be reprocessed exactly when debounce duration has elapsed (boundary condition)",
+        "Run `cargo test -p ralph --lib -- commands::watch::debounce` to verify the new test passes",
+        "Run `cargo test -p ralph --lib -- commands::watch` to verify ALL watch tests still pass"
+      ],
+      "notes": [
+        "2026-02-21: Analyzed all 8 watch submodules for test coverage gaps",
+        "2026-02-21: state.rs has 8 tests - coverage is GOOD, NOT zero as originally thought",
+        "2026-02-21: paths.rs has 13 tests - coverage is GOOD, get_relevant_paths and should_process_file ARE tested",
+        "2026-02-21: comments.rs has 17 tests - coverage is GOOD, edge cases already covered",
+        "2026-02-21: processor.rs has 7 tests - coverage is GOOD, error handling already tested",
+        "2026-02-21: event_loop.rs has 7 tests - coverage is GOOD, event processing already tested",
+        "2026-02-21: tasks.rs has 17+ tests - coverage is COMPREHENSIVE",
+        "2026-02-21: types.rs contains only type definitions - no tests needed",
+        "2026-02-21: Only debounce.rs is missing one test: can_reprocess_exact_boundary for the exact debounce duration boundary",
+        "2026-02-21: Task scope reduced to adding single boundary test in debounce.rs",
+        "Verified all watch submodules have comprehensive test coverage",
+        "Added can_reprocess_exact_boundary test to debounce.rs",
+        "All 71 watch tests pass",
+        "CI gate passes"
+      ],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:51:00Z",
+      "updated_at": "2026-02-21T14:51:24.482818000Z",
+      "completed_at": "2026-02-21T14:51:24.482818000Z",
+      "started_at": "2026-02-21T14:05:20.631633000Z",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],
