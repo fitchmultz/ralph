@@ -15,9 +15,7 @@
 //! - Validation errors are returned as `anyhow::Error` with descriptive messages.
 //! - Queue validation uses shared error messages for consistency.
 
-use crate::constants::runner::{
-    MAX_PHASES, MIN_ITERATIONS, MIN_MERGE_RETRIES, MIN_PARALLEL_WORKERS, MIN_PHASES,
-};
+use crate::constants::runner::{MAX_PHASES, MIN_ITERATIONS, MIN_PARALLEL_WORKERS, MIN_PHASES};
 use crate::contracts::{AgentConfig, Config, QueueAgingThresholds, QueueConfig};
 use anyhow::{Result, bail};
 use std::path::{Component, Path};
@@ -214,25 +212,6 @@ pub fn validate_config(cfg: &Config) -> Result<()> {
             workers,
             MIN_PARALLEL_WORKERS
         );
-    }
-
-    if let Some(retries) = cfg.parallel.merge_retries
-        && retries < MIN_MERGE_RETRIES
-    {
-        bail!(
-            "Invalid parallel.merge_retries: {}. merge_retries must be >= {}. Update .ralph/config.json.",
-            retries,
-            MIN_MERGE_RETRIES
-        );
-    }
-
-    if let Some(prefix) = &cfg.parallel.branch_prefix {
-        if prefix.trim().is_empty() {
-            bail!(
-                "Invalid parallel.branch_prefix: prefix must be non-empty. Update .ralph/config.json."
-            );
-        }
-        validate_parallel_branch_prefix(prefix)?;
     }
 
     // Validate workspace_root does not contain '..' components for security/predictability

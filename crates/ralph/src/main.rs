@@ -81,7 +81,7 @@ fn run() -> Result<()> {
                 cli::run::RunCommand::One(one_args) => one_args.non_interactive,
                 cli::run::RunCommand::Loop(loop_args) => loop_args.non_interactive,
                 cli::run::RunCommand::Resume(resume_args) => resume_args.non_interactive,
-                cli::run::RunCommand::MergeAgent(_) => true, // Always non-interactive
+                cli::run::RunCommand::Parallel(_) => true, // Parallel ops are non-interactive
             },
             _ => false,
         };

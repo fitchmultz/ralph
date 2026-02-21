@@ -7,7 +7,7 @@
 //!
 //! Not handled here:
 //! - Actual worker execution logic (see `super::worker`).
-//! - Merge-agent execution (see `super::merge_agent`).
+//! - Integration loop execution (see `super::integration`).
 //! - State persistence format (see `super::state`).
 //!
 //! Invariants/assumptions:
@@ -143,8 +143,9 @@ impl ParallelCleanupGuard {
             }
         }
 
-        // Step 3: Clear tasks_in_flight and persist state
-        self.state_file.tasks_in_flight.clear();
+        // Step 3: Clear active workers and persist state
+        // Remove all workers from state file
+        self.state_file.workers.clear();
         if let Err(err) = state::save_state(&self.state_path, &self.state_file) {
             log::warn!("Failed to save parallel state during cleanup: {:#}", err);
         }
@@ -173,7 +174,6 @@ impl Drop for ParallelCleanupGuard {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::contracts::{ParallelMergeMethod, ParallelMergeWhen};
     use crate::lock;
     use std::process::{Child, Command};
     use tempfile::TempDir;
@@ -183,12 +183,8 @@ mod tests {
         std::fs::create_dir_all(&workspace_root).unwrap();
 
         let state_path = temp.path().join("state.json");
-        let state_file = state::ParallelStateFile::new(
-            "2026-02-01T00:00:00Z".to_string(),
-            "main".to_string(),
-            ParallelMergeMethod::Squash,
-            ParallelMergeWhen::AsCreated,
-        );
+        let state_file =
+            state::ParallelStateFile::new("2026-02-20T00:00:00Z".to_string(), "main".to_string());
 
         ParallelCleanupGuard::new_simple(state_path, state_file, workspace_root)
     }
@@ -221,13 +217,11 @@ mod tests {
         guard.register_worker("RQ-0001".to_string(), worker);
         guard
             .state_file_mut()
-            .upsert_task(state::ParallelTaskRecord {
-                task_id: "RQ-0001".to_string(),
-                workspace_path: workspace_path.to_string_lossy().to_string(),
-                branch: "ralph/RQ-0001".to_string(),
-                pid: Some(pid),
-                started_at: "2026-02-02T00:00:00Z".to_string(),
-            });
+            .upsert_worker(state::WorkerRecord::new(
+                "RQ-0001",
+                workspace_path.clone(),
+                "2026-02-20T00:00:00Z".to_string(),
+            ));
 
         // Verify worker is running
         assert_eq!(
@@ -249,8 +243,8 @@ mod tests {
 
         // Verify state is cleared
         assert!(
-            guard.state_file.tasks_in_flight.is_empty(),
-            "tasks_in_flight should be empty after cleanup"
+            guard.state_file.workers.is_empty(),
+            "workers should be empty after cleanup"
         );
 
         Ok(())

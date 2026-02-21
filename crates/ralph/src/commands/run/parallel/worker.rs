@@ -1,4 +1,4 @@
-//! Worker lifecycle management for parallel task execution.
+//! Worker lifecycle management for parallel task execution (direct-push mode).
 //!
 //! Responsibilities:
 //! - Select runnable tasks from the queue for parallel execution.
@@ -6,14 +6,13 @@
 //! - Track worker state and provide graceful termination.
 //!
 //! Not handled here:
-//! - PR creation or merge logic (see `super::merge_runner`).
 //! - State persistence (see `super::state`).
 //! - CLI argument construction (see `super::args`).
 //!
 //! Invariants/assumptions:
 //! - Workers run in isolated workspaces with dedicated branches.
 //! - Task selection respects queue order and exclusion sets.
-//! - Blocking state is computed dynamically from state file and queue.
+//! - Workers push directly to target branch (no PRs in direct-push mode).
 
 use crate::agent::AgentOverrides;
 use crate::commands::run::parallel::args::build_override_args;
@@ -83,28 +82,29 @@ pub(crate) fn select_next_task_locked(
     )))
 }
 
-/// Collect IDs that should be excluded from task selection (in-flight, open PRs, pending merges).
+/// Collect IDs that should be excluded from task selection.
+/// In direct-push mode, we exclude:
+/// - Workers currently in-flight (being tracked by the guard)
+/// - Workers in the state file that are not in terminal state
 pub(crate) fn collect_excluded_ids(
     state_file: &state::ParallelStateFile,
     in_flight: &HashMap<String, WorkerState>,
 ) -> HashSet<String> {
     let mut excluded = HashSet::new();
+
+    // Exclude workers being tracked by the guard
     for key in in_flight.keys() {
         excluded.insert(key.trim().to_string());
     }
-    for record in &state_file.tasks_in_flight {
-        excluded.insert(record.task_id.trim().to_string());
-    }
-    // Only exclude tasks with PRs that are still open
-    for record in &state_file.prs {
-        if record.is_open_unmerged() {
-            excluded.insert(record.task_id.trim().to_string());
+
+    // Exclude workers from state file that are not terminal
+    // (running or integrating - still active)
+    for worker in &state_file.workers {
+        if !worker.is_terminal() {
+            excluded.insert(worker.task_id.trim().to_string());
         }
     }
-    // Exclude tasks with pending merges
-    for job in &state_file.pending_merges {
-        excluded.insert(job.task_id.trim().to_string());
-    }
+
     excluded
 }
 
@@ -185,7 +185,6 @@ fn build_worker_command(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::contracts::{ParallelMergeMethod, ParallelMergeWhen};
     use std::path::PathBuf;
     use tempfile::TempDir;
 
@@ -337,88 +336,84 @@ mod tests {
     }
 
     #[test]
-    fn collect_excluded_ids_includes_state_and_in_flight() -> Result<()> {
-        let mut state_file = state::ParallelStateFile::new(
-            "2026-02-01T00:00:00Z".to_string(),
-            "main".to_string(),
-            ParallelMergeMethod::Squash,
-            ParallelMergeWhen::AsCreated,
+    fn collect_excluded_ids_includes_active_workers() -> Result<()> {
+        let mut state_file =
+            state::ParallelStateFile::new("2026-02-20T00:00:00Z".to_string(), "main".to_string());
+
+        // Running worker (should be excluded)
+        let running_worker = state::WorkerRecord::new(
+            "RQ-0001",
+            PathBuf::from("/tmp/workspace/RQ-0001"),
+            "2026-02-20T00:00:00Z".to_string(),
         );
-        state_file.tasks_in_flight.push(state::ParallelTaskRecord {
-            task_id: "RQ-0002".to_string(),
-            workspace_path: "/tmp/workspace/RQ-0002".to_string(),
-            branch: "ralph/RQ-0002".to_string(),
-            pid: Some(123),
-            started_at: "2026-02-02T00:00:00Z".to_string(),
-        });
-        // Open PR should be excluded
-        state_file.prs.push(state::ParallelPrRecord {
-            task_id: "RQ-0003".to_string(),
-            pr_number: 7,
-            lifecycle: state::ParallelPrLifecycle::Open,
-        });
-        // Closed PR should NOT be excluded
-        state_file.prs.push(state::ParallelPrRecord {
-            task_id: "RQ-0005".to_string(),
-            pr_number: 8,
-            lifecycle: state::ParallelPrLifecycle::Closed,
-        });
-        // Merged PR should NOT be excluded
-        state_file.prs.push(state::ParallelPrRecord {
-            task_id: "RQ-0006".to_string(),
-            pr_number: 9,
-            lifecycle: state::ParallelPrLifecycle::Merged,
-        });
-        // Pending merge should be excluded
-        state_file.pending_merges.push(state::PendingMergeJob {
-            task_id: "RQ-0007".to_string(),
-            pr_number: 10,
-            workspace_path: None,
-            lifecycle: state::PendingMergeLifecycle::Queued,
-            attempts: 0,
-            queued_at: "2026-02-02T00:00:00Z".to_string(),
-            last_error: None,
-        });
+        state_file.upsert_worker(running_worker);
+
+        // Integrating worker (should be excluded - not terminal)
+        let mut integrating_worker = state::WorkerRecord::new(
+            "RQ-0002",
+            PathBuf::from("/tmp/workspace/RQ-0002"),
+            "2026-02-20T00:00:00Z".to_string(),
+        );
+        integrating_worker.start_integration();
+        state_file.upsert_worker(integrating_worker);
+
+        // Completed worker (should NOT be excluded - terminal state)
+        let mut completed_worker = state::WorkerRecord::new(
+            "RQ-0003",
+            PathBuf::from("/tmp/workspace/RQ-0003"),
+            "2026-02-20T00:00:00Z".to_string(),
+        );
+        completed_worker.mark_completed("2026-02-20T01:00:00Z".to_string());
+        state_file.upsert_worker(completed_worker);
+
+        // Failed worker (should NOT be excluded - terminal state)
+        let mut failed_worker = state::WorkerRecord::new(
+            "RQ-0004",
+            PathBuf::from("/tmp/workspace/RQ-0004"),
+            "2026-02-20T00:00:00Z".to_string(),
+        );
+        failed_worker.mark_failed("2026-02-20T01:00:00Z".to_string(), "error");
+        state_file.upsert_worker(failed_worker);
 
         let mut in_flight = HashMap::new();
         let child = std::process::Command::new("true").spawn()?;
         in_flight.insert(
-            "RQ-0004".to_string(),
+            "RQ-0005".to_string(),
             WorkerState {
-                task_id: "RQ-0004".to_string(),
+                task_id: "RQ-0005".to_string(),
                 task_title: "title".to_string(),
                 workspace: WorkspaceSpec {
-                    path: PathBuf::from("/tmp/workspaces/RQ-0004"),
-                    branch: "ralph/RQ-0004".to_string(),
+                    path: PathBuf::from("/tmp/workspaces/RQ-0005"),
+                    branch: "ralph/RQ-0005".to_string(),
                 },
                 child,
             },
         );
 
         let excluded = collect_excluded_ids(&state_file, &in_flight);
+
+        // Active workers should be excluded
+        assert!(
+            excluded.contains("RQ-0001"),
+            "running worker should be excluded"
+        );
         assert!(
             excluded.contains("RQ-0002"),
-            "in-flight task should be excluded"
+            "integrating worker should be excluded"
         );
         assert!(
-            excluded.contains("RQ-0003"),
-            "open PR task should be excluded"
-        );
-        assert!(
-            excluded.contains("RQ-0004"),
+            excluded.contains("RQ-0005"),
             "in-flight worker should be excluded"
         );
+
+        // Terminal workers should NOT be excluded
         assert!(
-            excluded.contains("RQ-0007"),
-            "pending merge task should be excluded"
+            !excluded.contains("RQ-0003"),
+            "completed worker should NOT be excluded"
         );
         assert!(
-            !excluded.contains("RQ-0005"),
-            "closed PR task should NOT be excluded"
-        );
-        assert!(
-            !excluded.contains("RQ-0006"),
-            "merged PR task should NOT be excluded"
+            !excluded.contains("RQ-0004"),
+            "failed worker should NOT be excluded"
         );
 
         for worker in in_flight.values_mut() {

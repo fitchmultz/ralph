@@ -25,6 +25,7 @@ use std::path::{Path, PathBuf};
 #[derive(Debug, Clone)]
 pub(crate) struct WorkspaceSpec {
     pub path: PathBuf,
+    #[allow(dead_code)]
     pub branch: String,
 }
 

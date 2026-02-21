@@ -123,17 +123,15 @@
       "description": "Parallel run-loop configuration.",
       "$ref": "#/$defs/ParallelConfig",
       "default": {
-        "auto_merge": true,
-        "auto_pr": true,
-        "branch_prefix": "ralph/",
-        "conflict_policy": "auto_resolve",
-        "delete_branch_on_merge": true,
-        "draft_on_failure": true,
-        "merge_method": "squash",
-        "merge_retries": 5,
-        "merge_runner": null,
-        "merge_when": "as_created",
+        "max_push_attempts": 5,
+        "push_backoff_ms": [
+          500,
+          2000,
+          5000,
+          10000
+        ],
         "workers": null,
+        "workspace_retention_hours": 24,
         "workspace_root": null
       }
     },
@@ -497,15 +495,6 @@
         "bypass_permissions"
       ]
     },
-    "ConflictPolicy": {
-      "description": "Policy for handling merge conflicts in parallel mode.",
-      "type": "string",
-      "enum": [
-        "auto_resolve",
-        "retry_later",
-        "reject"
-      ]
-    },
     "GitRevertMode": {
       "description": "Git revert mode for handling runner/supervision errors.",
       "type": "string",
@@ -570,45 +559,6 @@
           "type": [
             "boolean",
             "null"
-          ],
-          "default": null
-        }
-      },
-      "additionalProperties": false
-    },
-    "MergeRunnerConfig": {
-      "type": "object",
-      "properties": {
-        "model": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Model"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
-        "reasoning_effort": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ReasoningEffort"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
-        "runner": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Runner"
-            },
-            {
-              "type": "null"
-            }
           ],
           "default": null
         }
@@ -732,72 +682,8 @@
       "description": "Parallel run-loop configuration.",
       "type": "object",
       "properties": {
-        "auto_merge": {
-          "description": "Automatically merge PRs when eligible.",
-          "type": [
-            "boolean",
-            "null"
-          ],
-          "default": null
-        },
-        "auto_pr": {
-          "description": "Automatically create PRs for completed tasks.",
-          "type": [
-            "boolean",
-            "null"
-          ],
-          "default": null
-        },
-        "branch_prefix": {
-          "description": "Branch name prefix for parallel workers (e.g., \"ralph/\").",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
-        },
-        "conflict_policy": {
-          "description": "Policy for handling merge conflicts.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ConflictPolicy"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
-        "delete_branch_on_merge": {
-          "description": "Delete branches after merge.",
-          "type": [
-            "boolean",
-            "null"
-          ],
-          "default": null
-        },
-        "draft_on_failure": {
-          "description": "Create draft PRs when a worker fails.",
-          "type": [
-            "boolean",
-            "null"
-          ],
-          "default": null
-        },
-        "merge_method": {
-          "description": "Merge method to use for PRs.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ParallelMergeMethod"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
-        "merge_retries": {
-          "description": "Number of merge retries before giving up.",
+        "max_push_attempts": {
+          "description": "Maximum number of push attempts before giving up.",
           "type": [
             "integer",
             "null"
@@ -807,29 +693,18 @@
           "maximum": 255,
           "minimum": 1
         },
-        "merge_runner": {
-          "description": "Runner overrides for merge conflict resolution.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/MergeRunnerConfig"
-            },
-            {
-              "type": "null"
-            }
+        "push_backoff_ms": {
+          "description": "Backoff intervals in milliseconds for push retries.",
+          "type": [
+            "array",
+            "null"
           ],
-          "default": null
-        },
-        "merge_when": {
-          "description": "When to merge PRs (as created or after all tasks complete).",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ParallelMergeWhen"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
+          "default": null,
+          "items": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0
+          }
         },
         "workers": {
           "description": "Number of workers to run concurrently when parallel mode is enabled.",
@@ -842,6 +717,16 @@
           "maximum": 255,
           "minimum": 2
         },
+        "workspace_retention_hours": {
+          "description": "Hours to retain blocked workspaces before cleanup.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "default": null,
+          "minimum": 1
+        },
         "workspace_root": {
           "description": "Root directory for parallel workspaces (relative to repo root if not absolute).",
           "type": [
@@ -852,23 +737,6 @@
         }
       },
       "additionalProperties": false
-    },
-    "ParallelMergeMethod": {
-      "description": "Merge method for PRs in parallel mode.",
-      "type": "string",
-      "enum": [
-        "squash",
-        "merge",
-        "rebase"
-      ]
-    },
-    "ParallelMergeWhen": {
-      "description": "When to merge PRs in parallel mode.",
-      "type": "string",
-      "enum": [
-        "as_created",
-        "after_all"
-      ]
     },
     "PhaseOverrideConfig": {
       "description": "Per-phase configuration overrides for runner, model, and reasoning effort.\n\nAll fields are optional to support leaf-wise merging:\n- `Some(value)` overrides the parent config\n- `None` means \"inherit from parent\"",

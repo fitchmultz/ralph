@@ -26,7 +26,7 @@ pub fn handle_run(cmd: RunCommand, force: bool) -> Result<()> {
         RunCommand::Resume(args) => args.agent.profile.as_deref(),
         RunCommand::One(args) => args.agent.profile.as_deref(),
         RunCommand::Loop(args) => args.agent.profile.as_deref(),
-        RunCommand::MergeAgent(_) => None,
+        RunCommand::Parallel(_) => None,
     };
     let resolved = config::resolve_from_cwd_with_profile(profile)?;
     match cmd {
@@ -134,11 +134,14 @@ pub fn handle_run(cmd: RunCommand, force: bool) -> Result<()> {
                 )
             }
         }
-        RunCommand::MergeAgent(args) => {
-            // merge-agent uses explicit repo-root context from CWD
-            let exit_code = run_cmd::handle_merge_agent(&args.task, args.pr)?;
-            std::process::exit(exit_code);
-        }
+        RunCommand::Parallel(args) => match args.command {
+            ParallelSubcommand::Status(status_args) => {
+                run_cmd::parallel_status(&resolved, status_args.json)
+            }
+            ParallelSubcommand::Retry(retry_args) => {
+                run_cmd::parallel_retry(&resolved, &retry_args.task, force)
+            }
+        },
     }
 }
 
@@ -158,7 +161,7 @@ pub fn handle_run(cmd: RunCommand, force: bool) -> Result<()> {
 	  - `--git-revert-mode` controls whether Ralph reverts uncommitted changes on errors (ask, enabled, disabled).\n\
 	  - `--git-commit-push-on` / `--git-commit-push-off` control automatic git commit/push after successful runs.\n\
 	     - `--parallel` runs loop tasks concurrently in workspaces (clone-based).\n\
-	     - Parallel workers do not modify `.ralph/queue.json` or `.ralph/done.json`; the merge-agent subprocess handles task finalization.\n\
+	     - Workers push directly to the target branch after phase execution.\n\
 	  - Clean-repo checks allow changes to `.ralph/config.{json,jsonc}` (plus `.ralph/queue.{json,jsonc}` and `.ralph/done.{json,jsonc}`); use `--force` to bypass entirely.\n\
 	 \n\
 Phase-specific overrides:\n\
@@ -286,32 +289,19 @@ Examples:\n\
 	 ralph run loop --wait-when-blocked --notify-when-unblocked"
     )]
     Loop(RunLoopArgs),
-    /// Merge a PR and finalize task state (subprocess entrypoint for parallel coordinator).
+    /// Manage parallel mode operations (status, retry blocked workers).
     #[command(
-        about = "Merge a PR and finalize task state in coordinator repo",
-        after_long_help = "This command is designed to be invoked by the parallel coordinator as a subprocess.
-It validates task/PR inputs, performs merge per configured policy, and finalizes
-canonical queue/done state in the coordinator repo context.
-
-Exit codes:
-  0 - Merge + task finalization successful
-  1 - Runtime/unexpected failure
-  2 - Usage/validation failure
-  >=3 - Domain-specific failures (merge conflict, PR not found, etc.)
-
-Output:
-  stdout - Machine-readable JSON result payload
-  stderr - User-facing diagnostics
-
-Examples:
-  ralph run merge-agent --task RQ-0942 --pr 42
-  ralph run merge-agent --task RQ-0001 --pr 7
-
-This command is intended for internal use by the parallel coordinator.
-For manual PR merging, use 'gh pr merge' directly."
+        about = "Manage parallel mode operations",
+        after_long_help = "Examples:\n\
+ ralph run parallel status\n\
+ ralph run parallel status --json\n\
+ ralph run parallel retry --task RQ-0001"
     )]
-    MergeAgent(MergeAgentArgs),
+    Parallel(ParallelArgs),
 }
+
+// MergeAgent command removed in direct-push rewrite (Phase D)
+// Workers now push directly to the target branch without creating PRs
 
 #[derive(Args)]
 pub struct ResumeArgs {
@@ -454,18 +444,47 @@ pub struct RunLoopArgs {
     pub agent: crate::agent::RunAgentArgs,
 }
 
-/// Arguments for the merge-agent subcommand.
+/// Arguments for `ralph run parallel` subcommand.
 #[derive(Args)]
-pub struct MergeAgentArgs {
-    /// Task ID to finalize after merge (required).
-    /// Example: RQ-0942
-    #[arg(long, value_name = "TASK_ID")]
-    pub task: String,
+pub struct ParallelArgs {
+    #[command(subcommand)]
+    pub command: ParallelSubcommand,
+}
 
-    /// GitHub PR number to merge (required).
-    /// Must be a positive integer referencing an open PR.
-    #[arg(long, value_name = "PR_NUMBER")]
-    pub pr: u32,
+/// Subcommands for `ralph run parallel`.
+#[derive(Subcommand)]
+pub enum ParallelSubcommand {
+    /// Show status of parallel workers (active, completed, failed, blocked).
+    #[command(
+        about = "Show status of parallel workers",
+        after_long_help = "Examples:\n\
+ ralph run parallel status\n\
+ ralph run parallel status --json"
+    )]
+    Status(ParallelStatusArgs),
+    /// Retry a blocked or failed parallel worker.
+    #[command(
+        about = "Retry a blocked or failed parallel worker",
+        after_long_help = "Examples:\n\
+ ralph run parallel retry --task RQ-0001"
+    )]
+    Retry(ParallelRetryArgs),
+}
+
+/// Arguments for `ralph run parallel status`.
+#[derive(Args)]
+pub struct ParallelStatusArgs {
+    /// Output as JSON.
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// Arguments for `ralph run parallel retry`.
+#[derive(Args)]
+pub struct ParallelRetryArgs {
+    /// Task ID of the blocked/failed worker to retry.
+    #[arg(long, value_name = "TASK_ID", required = true)]
+    pub task: String,
 }
 
 #[cfg(test)]
@@ -683,66 +702,6 @@ mod tests {
                 _ => panic!("expected Command::Run"),
             }
         }
-    }
-
-    #[test]
-    fn run_merge_agent_parses_required_args() {
-        let args = vec![
-            "ralph",
-            "run",
-            "merge-agent",
-            "--task",
-            "RQ-0942",
-            "--pr",
-            "42",
-        ];
-        let cli = Cli::parse_from(args);
-        match cli.command {
-            crate::cli::Command::Run(run_args) => match run_args.command {
-                RunCommand::MergeAgent(merge_args) => {
-                    assert_eq!(merge_args.task, "RQ-0942");
-                    assert_eq!(merge_args.pr, 42);
-                }
-                _ => panic!("expected RunCommand::MergeAgent"),
-            },
-            _ => panic!("expected Command::Run"),
-        }
-    }
-
-    #[test]
-    fn run_merge_agent_requires_task_arg() {
-        let args = vec!["ralph", "run", "merge-agent", "--pr", "42"];
-        let result = Cli::try_parse_from(args);
-        assert!(result.is_err(), "--task should be required");
-    }
-
-    #[test]
-    fn run_merge_agent_requires_pr_arg() {
-        let args = vec!["ralph", "run", "merge-agent", "--task", "RQ-0942"];
-        let result = Cli::try_parse_from(args);
-        assert!(result.is_err(), "--pr should be required");
-    }
-
-    #[test]
-    fn run_merge_agent_help_includes_exit_codes() {
-        let mut cmd = Cli::command();
-        let run = cmd.find_subcommand_mut("run").expect("run subcommand");
-        let merge_agent = run
-            .find_subcommand_mut("merge-agent")
-            .expect("merge-agent subcommand");
-        let help = merge_agent.render_long_help().to_string();
-
-        assert!(
-            help.contains("Exit codes"),
-            "missing exit codes in help: {help}"
-        );
-        assert!(help.contains("0 -"), "missing exit code 0: {help}");
-        assert!(help.contains("1 -"), "missing exit code 1: {help}");
-        assert!(help.contains("2 -"), "missing exit code 2: {help}");
-        assert!(
-            help.contains("ralph run merge-agent --task RQ-"),
-            "missing example: {help}"
-        );
     }
 
     #[test]

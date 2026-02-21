@@ -1,6 +1,6 @@
-# Ralph Parallel Execution
+# Ralph Parallel Execution (Direct-Push Mode)
 
-Parallel execution runs multiple tasks concurrently in isolated git workspace clones, with automatic PR creation and merge handling.
+Parallel execution runs multiple tasks concurrently in isolated git workspace clones, with workers pushing directly to the target branch.
 
 > **CLI Only**: Parallel execution is available only via CLI (`ralph run loop --parallel [N]`).
 
@@ -11,14 +11,13 @@ Parallel execution runs multiple tasks concurrently in isolated git workspace cl
 1. [Overview](#overview)
 2. [Architecture](#architecture)
 3. [Workspace Management](#workspace-management)
-4. [Branch Management](#branch-management)
-5. [PR Automation](#pr-automation)
-6. [Configuration](#configuration)
-7. [State Management](#state-management)
-8. [Merge-Agent Command](#merge-agent-command)
-9. [Limitations](#limitations)
-10. [Workflow](#workflow)
-11. [Monitoring](#monitoring)
+4. [Integration Loop](#integration-loop)
+5. [Configuration](#configuration)
+6. [State Management](#state-management)
+7. [Operations Commands](#operations-commands)
+8. [Limitations](#limitations)
+9. [Workflow](#workflow)
+10. [Monitoring](#monitoring)
 
 ---
 
@@ -29,10 +28,10 @@ Parallel execution runs multiple tasks concurrently in isolated git workspace cl
 Parallel execution enables Ralph to process multiple queue tasks simultaneously by:
 
 - Running each task in its own isolated git workspace clone
-- Creating Pull Requests automatically for completed work
-- Merging PRs as they become eligible (or after all tasks complete)
-- Auto-resolving merge conflicts using an AI runner
-- Tracking all state for crash recovery and coordination
+- Executing configured phases for each task independently
+- Running an integration loop (fetch, rebase, resolve conflicts, CI gate, push)
+- Pushing completed work directly to the target branch
+- Tracking worker state for crash recovery and coordination
 
 ### When to Use Parallel Execution
 
@@ -41,14 +40,14 @@ Parallel execution enables Ralph to process multiple queue tasks simultaneously 
 | Multiple independent tasks | ✅ Ideal for parallel execution |
 | Tasks with no dependencies | ✅ Parallel execution works well |
 | Tasks requiring rapid completion | ✅ Significantly faster than sequential |
-| Tasks requiring careful review | ⚠️ Consider `merge_when: after_all` |
+| Tasks requiring careful review | ⚠️ Use sequential mode or manual review |
 | Tasks with heavy resource usage | ⚠️ Adjust `workers` to avoid overload |
 | Tasks with complex interdependencies | ❌ Use sequential mode instead |
 
 ### Basic Usage
 
 ```bash
-# Run with default settings (uses config value or fails)
+# Run with default settings (2 workers)
 ralph run loop --parallel
 
 # Run with specific number of workers
@@ -56,6 +55,12 @@ ralph run loop --parallel 4
 
 # Run with max tasks limit
 ralph run loop --parallel 3 --max-tasks 10
+
+# Check parallel worker status
+ralph run parallel status
+
+# Retry a blocked worker
+ralph run parallel retry --task RQ-0001
 ```
 
 ---
@@ -69,744 +74,402 @@ ralph run loop --parallel 3 --max-tasks 10
 │                     Parallel Coordinator                         │
 │                    (Main ralph process)                          │
 ├─────────────────────────────────────────────────────────────────┤
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐ │
-│  │   Worker 1  │  │   Worker 2  │  │        Worker N         │ │
-│  │  (process)  │  │  (process)  │  │       (process)         │ │
-│  └──────┬──────┘  └──────┬──────┘  └───────────┬─────────────┘ │
-│         │                │                     │               │
-│         ▼                ▼                     ▼               │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐ │
-│  │ Workspace 1 │  │ Workspace 2 │  │      Workspace N        │ │
-│  │(git clone)  │  │(git clone)  │  │      (git clone)        │ │
-│  │branch:      │  │branch:      │  │      branch: ralph/RQ-NN│ │
-│  │ralph/RQ-0001│  │ralph/RQ-0002│  │                         │ │
-│  └─────────────┘  └─────────────┘  └─────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              │ On PR creation
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                     Merge-Agent Subprocess                       │
-│          (ralph run merge-agent --task X --pr N)                 │
-├─────────────────────────────────────────────────────────────────┤
-│  - Validates PR merge eligibility                                │
-│  - Executes merge per configured policy                          │
-│  - Finalizes task in canonical queue/done                        │
-│  - Emits structured JSON result to stdout                        │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐  │
+│  │   Worker 1  │  │   Worker 2  │  │        Worker N         │  │
+│  │  (process)  │  │  (process)  │  │       (process)         │  │
+│  └──────┬──────┘  └──────┬──────┘  └───────────┬─────────────┘  │
+│         │                │                     │                │
+│         ▼                ▼                     ▼                │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐  │
+│  │ Workspace 1 │  │ Workspace 2 │  │      Workspace N        │  │
+│  │(git clone)  │  │(git clone)  │  │      (git clone)        │  │
+│  │             │  │             │  │                         │  │
+│  └─────────────┘  └─────────────┘  └─────────────────────────┘  │
+│         │                │                     │                │
+│         └────────────────┴─────────────────────┘                │
+│                            │                                    │
+│                            ▼                                    │
+│                   ┌─────────────────┐                          │
+│                   │ Integration Loop│                          │
+│                   │  (per worker)   │                          │
+│                   │                 │                          │
+│                   │ 1. Fetch origin │                          │
+│                   │ 2. Rebase       │                          │
+│                   │ 3. Resolve      │                          │
+│                   │ 4. CI gate      │                          │
+│                   │ 5. Push         │                          │
+│                   └────────┬────────┘                          │
+│                            │                                    │
+│                            ▼                                    │
+│                      origin/main                                │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ### Key Components
 
-#### 1. Coordinator (`orchestration.rs`)
+1. **Coordinator**: Main ralph process that:
+   - Selects tasks from the queue
+   - Spawns worker processes
+   - Tracks worker lifecycle state
+   - Handles cleanup and recovery
 
-The main supervisor process that:
-- Holds the queue lock for the entire parallel run
-- Spawns workers up to the configured limit
-- Polls worker status every 500ms
-- Creates PRs on task completion/failure
-- Coordinates with the merge runner
+2. **Worker**: Per-task process that:
+   - Runs in an isolated workspace clone
+   - Executes configured phases for the task
+   - Runs the integration loop
+   - Pushes directly to the target branch
 
-#### 2. Workers (`worker.rs`)
-
-Independent subprocesses that:
-- Run `ralph run one --id <TASK_ID> --parallel-worker`
-- Execute in isolated workspace directories
-- Inherit config/prompts from the coordinator
-- Have RepoPrompt forcibly disabled
-
-#### 3. State File (`state.rs`)
-
-JSON file at `.ralph/cache/parallel/state.json` tracking:
-- `tasks_in_flight`: Currently running tasks
-- `prs`: Created PRs with lifecycle state
-- Base branch and merge settings
-
-#### 4. Cleanup Guard (`cleanup_guard.rs`)
-
-RAII guard ensuring:
-- Workers are terminated on interrupt/error
-- Workspaces are cleaned up appropriately
-- State file is persisted
-- Merge-agent subprocesses are drained before exit
+3. **Integration Loop**: Per-worker post-phase logic that:
+   - Fetches the target branch
+   - Rebases local changes
+   - Resolves conflicts via agent sessions
+   - Runs CI gates
+   - Pushes to origin
 
 ---
 
 ## Workspace Management
 
-### Directory Structure
+### Workspace Creation
 
-#### Default Location
+Each worker gets an isolated workspace:
 
-```
-<repo-parent>/.workspaces/<repo-name>/parallel/
-├── RQ-0001/          # Task workspace
-│   ├── .git/         # Git metadata
-│   ├── .ralph/       # Ralph state (config, prompts)
-│   └── ...           # Repository files
-├── RQ-0002/          # Another task workspace
-├── .base-sync/       # Ephemeral workspace for merge sync
-└── ...
-```
+1. **Clone**: Full git clone from coordinator repo
+2. **Branch**: Creates task-specific branch (e.g., `ralph/RQ-0001`)
+3. **Sync**: Copies configuration and prompts from coordinator
+4. **Isolation**: Worker cannot see other workers' changes
 
-#### Custom Location
-
-Configure via `parallel.workspace_root` in config:
-
-```json
-{
-  "parallel": {
-    "workspace_root": "/path/to/workspaces"
-  }
-}
-```
-
-### Workspace Creation Process
-
-1. **Clone**: Create git clone from origin
-2. **Checkout**: Create and checkout branch `ralph/<task_id>`
-3. **Sync**: Copy config and prompts from main repo
-4. **Execute**: Run worker process in workspace
-
-### Gitignore Requirements
-
-**CRITICAL**: If `workspace_root` is inside the repository, it MUST be gitignored.
+### Workspace Location
 
 ```bash
-# Add to .gitignore (shared)
-echo ".workspaces/" >> .gitignore
+# Default location (outside repo)
+~/.ralph/workspaces/<repo-name>/parallel/<task-id>/
 
-# Or add to .git/info/exclude (local-only)
-echo ".workspaces/" >> .git/info/exclude
+# Custom location (configured)
+<parallel.workspace_root>/<repo-name>/parallel/<task-id>/
 ```
 
-Ralph performs a preflight check and will fail fast with an actionable error if the workspace root is not gitignored.
+### Workspace Cleanup
 
-### What Gets Synced to Workspaces
+Workspaces are cleaned up based on retention policy:
 
-| Item | Synced? | Reason |
-|------|---------|--------|
-| `config.json` | ✅ Yes | Workers need configuration |
-| `prompts/*.md` | ✅ Yes | Custom prompt overrides |
-| `.env` files | ✅ Yes | Allowlisted gitignored files |
-| `queue.json` | ❌ No | Coordinator-only |
-| `done.json` | ❌ No | Coordinator-only |
-| Build artifacts | ❌ No | Excluded by policy |
-| Cache directories | ❌ No | Excluded by policy |
+- **Completed workers**: Cleaned after `workspace_retention_hours` (default: 24)
+- **Failed workers**: Retained for debugging unless retention expires
+- **Blocked workers**: Retained until explicitly retried or retention expires
 
 ---
 
-## Branch Management
+## Integration Loop
 
-### Branch Naming Convention
+After phase execution completes, each worker enters the integration loop to merge their changes to the target branch.
 
-Branches are named using the pattern: `{branch_prefix}{task_id}`
+### Loop Steps
 
-Default prefix: `ralph/`
+For each attempt (up to `max_push_attempts`):
 
-Examples:
-- Task `RQ-0001` → Branch `ralph/RQ-0001`
-- Task `RQ-0002` → Branch `ralph/RQ-0002`
+1. **Fetch**: `git fetch origin <target_branch>`
+2. **Check divergence**: Compare local branch to `origin/<target_branch>`
+3. **Rebase**: If behind, rebase onto `origin/<target_branch>`
+4. **Conflict resolution**: If conflicts occur:
+   - Generate handoff packet with context
+   - Spawn agent remediation session
+   - Require zero unresolved conflicts
+   - Continue rebase
+5. **CI gate**: Run CI check (if enabled)
+6. **CI remediation**: On failure:
+   - Generate CI-failure handoff
+   - Run remediation agent session
+   - Repeat CI until pass or policy stop
+7. **Push**: `git push origin <target_branch>`
+8. **Retry**: On non-fast-forward, retry with backoff
 
-### Configurable Branch Prefix
+### Terminal Outcomes
 
-```json
-{
-  "parallel": {
-    "branch_prefix": "feature/ralph-"
-  }
-}
-```
+| Outcome | Description | Action |
+|---------|-------------|--------|
+| `Completed` | Push succeeded | Worker exits successfully |
+| `BlockedPush` | Max attempts exhausted or non-retryable error | Worker exits, workspace retained for retry |
+| `Failed` | Unrecoverable error | Worker exits, workspace retained |
 
-With this config:
-- Task `RQ-0001` → Branch `feature/ralph-RQ-0001`
+### Retryable vs Non-Retryable
 
-### Branch Protection
+**Retryable**:
+- Non-fast-forward push rejection
+- Transient network failures
+- Conflicts resolved via agent
 
-Ralph validates PR head branches match the expected naming convention. If a mismatch is detected:
-
-1. A warning is logged with details
-2. The PR is skipped for auto-merge
-
-This prevents accidental merges when branch naming conventions change.
-
-### Conflict Handling
-
-When two parallel tasks modify the same files:
-
-1. First PR to become eligible merges cleanly
-2. Second PR enters "Dirty" merge state
-3. Merge runner attempts auto-resolution (if enabled)
-4. If auto-resolution fails, PR remains open for manual resolution
-
----
-
-## PR Automation
-
-### PR Creation (`auto_pr`)
-
-When enabled, Ralph automatically creates PRs for:
-
-**Successful Tasks:**
-- Title: `<TASK_ID>: <TASK_TITLE>`
-- Body: Phase 2 final response (implementation summary)
-- Branch: `ralph/<TASK_ID>` → Base: configured base branch
-- Draft: `false`
-
-**Failed Tasks** (with `draft_on_failure: true`):
-- Title: `<TASK_ID>: <TASK_TITLE>`
-- Body: "Failed run for <TASK_ID>. Draft PR generated by Ralph."
-- Branch: `ralph/<TASK_ID>` → Base: configured base branch
-- Draft: `true`
-
-### PR Merging (`auto_merge`)
-
-Two merge timing strategies:
-
-| Setting | Behavior | Use Case |
-|---------|----------|----------|
-| `as_created` | Merge PRs as soon as they become eligible | Continuous integration |
-| `after_all` | Wait for all tasks, then merge all PRs | Batch review workflow |
-
-### Merge Methods
-
-```json
-{
-  "parallel": {
-    "merge_method": "squash"  // Options: "squash", "merge", "rebase"
-  }
-}
-```
-
-### Draft on Failure (`draft_on_failure`)
-
-When enabled and a task fails:
-
-1. Changes are committed (if any)
-2. Branch is pushed
-3. Draft PR is created
-4. Auto-merge is skipped for this PR
-
-This allows developers to review and recover failed work.
-
-### Delete Branch on Merge
-
-```json
-{
-  "parallel": {
-    "delete_branch_on_merge": true
-  }
-}
-```
-
-When enabled, feature branches are deleted after successful merge.
+**Non-Retryable**:
+- Invalid configuration
+- Irreparable queue/done validation failures
+- Persistent CI failure after retry exhaustion
 
 ---
 
 ## Configuration
 
-### All Parallel Configuration Options
+### Parallel Settings
 
 ```json
 {
   "version": 1,
   "parallel": {
-    "workers": 3,
-    "merge_when": "as_created",
-    "merge_method": "squash",
-    "auto_pr": true,
-    "auto_merge": true,
-    "draft_on_failure": true,
-    "conflict_policy": "auto_resolve",
-    "merge_retries": 5,
-    "workspace_root": "/path/to/workspaces",
-    "branch_prefix": "ralph/",
-    "delete_branch_on_merge": true,
-    "merge_runner": {
-      "runner": "claude",
-      "model": "sonnet",
-      "reasoning_effort": "medium"
-    }
-  }
-}
-```
-
-### Configuration Reference
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `workers` | `integer` | `null` | Number of concurrent workers (≥2) |
-| `merge_when` | `string` | `"as_created"` | When to merge: `"as_created"` or `"after_all"` |
-| `merge_method` | `string` | `"squash"` | Merge method: `"squash"`, `"merge"`, or `"rebase"` |
-| `auto_pr` | `boolean` | `true` | Auto-create PRs for completed tasks |
-| `auto_merge` | `boolean` | `true` | Auto-merge eligible PRs |
-| `draft_on_failure` | `boolean` | `true` | Create draft PRs on task failure |
-| `conflict_policy` | `string` | `"auto_resolve"` | Conflict handling: `"auto_resolve"`, `"retry_later"`, `"reject"` |
-| `merge_retries` | `integer` | `5` | Max merge retry attempts |
-| `workspace_root` | `string` | `<repo-parent>/.workspaces/<repo-name>/parallel` | Root directory for workspaces |
-| `branch_prefix` | `string` | `"ralph/"` | Prefix for branch names |
-| `delete_branch_on_merge` | `boolean` | `true` | Delete branches after merge |
-| `merge_runner` | `object` | `null` | Runner config for conflict resolution |
-
-### Merge Runner Configuration
-
-The `merge_runner` config specifies which runner/model to use for auto-resolving merge conflicts:
-
-```json
-{
-  "parallel": {
-    "merge_runner": {
-      "runner": "claude",
-      "model": "sonnet",
-      "reasoning_effort": "medium"
-    }
-  }
-}
-```
-
-If not specified, inherits from `agent.*` settings.
-
-### CLI Overrides
-
-| Flag | Config Key | Description |
-|------|------------|-------------|
-| `--parallel [N]` | `workers` | Enable parallel mode with N workers |
-| `--max-tasks N` | - | Limit total tasks to process |
-| `--merge-when [as_created\|after_all]` | `merge_when` | Override merge timing |
-| `--git-commit-push-on/off` | `git_commit_push_enabled` | Control git operations |
-
-### Configuration Examples
-
-**Basic parallel setup (3 workers):**
-```json
-{
-  "parallel": {
-    "workers": 3
-  }
-}
-```
-
-**Review-before-merge workflow:**
-```json
-{
-  "parallel": {
     "workers": 4,
-    "merge_when": "after_all",
-    "auto_merge": false,
-    "auto_pr": true
+    "max_push_attempts": 5,
+    "push_backoff_ms": [500, 2000, 5000, 10000],
+    "workspace_retention_hours": 24
   }
 }
 ```
 
-**Custom branch naming:**
-```json
-{
-  "parallel": {
-    "workers": 2,
-    "branch_prefix": "agent/",
-    "workspace_root": "/tmp/ralph-workspaces"
-  }
-}
-```
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `workers` | 2 | Number of concurrent workers |
+| `max_push_attempts` | 5 | Max integration loop attempts per worker |
+| `push_backoff_ms` | `[500, 2000, 5000, 10000]` | Retry backoff intervals in milliseconds |
+| `workspace_retention_hours` | 24 | Hours to retain worker workspaces |
+
+### Removed Settings (PR-based)
+
+The following settings were removed in the direct-push rewrite:
+
+- `auto_pr` - No longer applicable (no PRs created)
+- `auto_merge` - No longer applicable
+- `merge_when` - No longer applicable
+- `merge_method` - No longer applicable
+- `merge_retries` - No longer applicable (use `max_push_attempts`)
+- `draft_on_failure` - No longer applicable
+- `conflict_policy` - No longer applicable (agent-led resolution)
+- `branch_prefix` - No longer configurable (always `ralph/`)
+- `delete_branch_on_merge` - No longer applicable
+- `merge_runner` - No longer applicable
 
 ---
 
 ## State Management
 
-### State File Location
+### State File
+
+Parallel run state is persisted at:
 
 ```
 .ralph/cache/parallel/state.json
 ```
 
-### State File Structure
+### Schema Version 3
 
 ```json
 {
-  "started_at": "2026-02-07T10:30:00Z",
-  "base_branch": "main",
-  "merge_method": "squash",
-  "merge_when": "as_created",
-  "tasks_in_flight": [
+  "schema_version": 3,
+  "started_at": "2026-02-20T00:00:00Z",
+  "target_branch": "main",
+  "workers": [
     {
       "task_id": "RQ-0001",
-      "workspace_path": "/path/to/workspaces/RQ-0001",
-      "branch": "ralph/RQ-0001",
-      "pid": 12345,
-      "started_at": "2026-02-07T10:30:00Z"
-    }
-  ],
-  "prs": [
-    {
-      "task_id": "RQ-0001",
-      "pr_number": 42,
-      "pr_url": "https://github.com/user/repo/pull/42",
-      "head": "ralph/RQ-0001",
-      "base": "main",
-      "workspace_path": "/path/to/workspaces/RQ-0001",
-      "lifecycle": "pending_merge"
+      "workspace_path": "/abs/path/to/workspace",
+      "lifecycle": "running|integrating|completed|failed|blocked_push",
+      "started_at": "2026-02-20T00:00:00Z",
+      "completed_at": null,
+      "push_attempts": 0,
+      "last_error": null
     }
   ]
 }
 ```
 
-### State File Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `started_at` | `string` | RFC3339 timestamp when parallel run started |
-| `base_branch` | `string` | Base branch for PRs |
-| `merge_method` | `string` | Merge method for this run |
-| `merge_when` | `string` | Merge timing for this run |
-| `tasks_in_flight` | `array` | Currently running tasks |
-| `prs` | `array` | Created PRs with lifecycle state |
-
-### PR Lifecycle States
+### Worker Lifecycle States
 
 | State | Description |
 |-------|-------------|
-| `pending_merge` | PR is open and awaiting merge |
-| `merged` | PR was successfully merged |
-| `closed` | PR was closed without merging |
+| `running` | Worker is executing phases |
+| `integrating` | Worker is in the integration loop |
+| `completed` | Push succeeded, task finalized |
+| `failed` | Unrecoverable error occurred |
+| `blocked_push` | Max attempts exhausted, needs retry |
 
-### Crash Recovery
+### Migration from v2
 
-On startup, Ralph performs state recovery:
+State files are automatically migrated from v2 (PR-based) to v3:
 
-1. **Prune stale tasks**: Remove tasks with missing workspaces or dead PIDs
-2. **Reconcile PRs**: Query GitHub to update PR lifecycle states
-3. **Clean workspaces**: Remove workspaces for merged/closed PRs
-4. **Validate base branch**: Ensure base branch consistency
-
-If the base branch doesn't match:
-- With no blocking work: Auto-heal to current branch
-- With blocking work: Fail with recovery guidance
+- PR records are dropped
+- Pending merge queue is dropped
+- In-flight workers are mapped to new schema
+- Workers in terminal PR states are marked as `failed`
 
 ---
 
-## Merge-Agent Command
+## Operations Commands
 
-### Purpose
-
-The merge-agent is an explicit subprocess command that:
-- Validates PR merge eligibility
-- Executes merge per configured policy
-- Finalizes task state in canonical queue/done
-- Returns structured JSON result to coordinator
-
-No completion-signal files are used. Task finalization happens directly in the coordinator repo context via the merge-agent subprocess.
-
-### Command
+### Status Command
 
 ```bash
-ralph run merge-agent --task <TASK_ID> --pr <PR_NUMBER>
+# Show human-readable status
+ralph run parallel status
+
+# Output JSON for scripting
+ralph run parallel status --json
 ```
 
-### Exit Codes
+Displays:
+- Total workers
+- Workers by lifecycle (Running, Integrating, Completed, Failed, Blocked)
+- Per-worker details (task ID, start time, attempts, errors)
 
-| Code | Meaning |
-|------|---------|
-| 0 | Merge + task finalization successful |
-| 1 | Runtime/unexpected failure |
-| 2 | Usage/validation failure |
-| >=3 | Domain-specific failures |
-
-### Output
-
-- **Stdout**: JSON object with `{task_id, pr_number, merged, message}`
-- **Stderr**: User-facing diagnostics
-
-### Examples
+### Retry Command
 
 ```bash
-# Merge PR #42 for task RQ-0001
-ralph run merge-agent --task RQ-0001 --pr 42
-
-# Check exit code
-echo $?  # 0 = success, 1 = runtime error, 2 = validation error
+# Retry a blocked or failed worker
+ralph run parallel retry --task RQ-0001
 ```
 
-### Conflict Resolution
-
-When `conflict_policy: auto_resolve` and a PR has merge conflicts:
-
-1. **Create workspace**: Clone/checkout the PR branch
-2. **Attempt merge**: Merge base branch into PR branch
-3. **Identify conflicts**: List files with merge conflicts
-4. **AI resolution**: Run merge runner with `merge_conflicts` prompt
-5. **Validate**: Check all conflicts resolved
-6. **Commit**: Commit resolution changes
-7. **Push**: Push resolved branch
-8. **Retry merge**: Attempt merge again
-
-### Conflict Policy Options
-
-| Policy | Behavior |
-|--------|----------|
-| `auto_resolve` | Use AI runner to resolve conflicts |
-| `retry_later` | Wait and retry merge later |
-| `reject` | Skip PR, mark as failed |
+This:
+1. Resets the worker lifecycle from `blocked_push` or `failed` to `running`
+2. Clears the last error
+3. Preserves push attempt count (for debugging)
+4. The worker will be picked up on the next `ralph run loop --parallel`
 
 ---
 
 ## Limitations
 
-### No Session Resume
+### Known Constraints
 
-**INTENDED BEHAVIOR**: In-flight tasks should be resumable after interruption.
+1. **No PR Review**: Direct-push mode bypasses GitHub PR review. Ensure you have branch protection policies configured if review is required.
 
-**CURRENTLY IMPLEMENTED BEHAVIOR**: Parallel mode does not support session resume for individual tasks. If a worker is interrupted, the task state is persisted and can be manually re-run.
+2. **Write Access Required**: Workers need push access to the target branch.
 
-**Workaround**: The state file tracks in-flight tasks, and stale tasks are pruned on restart. You can manually resume by re-running the task.
+3. **Conflict Resolution Time**: Complex conflicts may require multiple agent remediation sessions, extending total runtime.
 
-### RepoPrompt Forced Off
+4. **CI Gate Authority**: CI gates run in the worker workspace and must pass before push. Post-push CI is not monitored.
 
-**INTENDED BEHAVIOR**: RepoPrompt should be available in all modes.
+5. **Queue/Done Conflicts**: When multiple workers modify queue/done, conflicts are resolved via agent sessions with semantic validation.
 
-**CURRENTLY IMPLEMENTED BEHAVIOR**: RepoPrompt is forcibly disabled for parallel workers (`repoprompt_plan_required: false`, `repoprompt_tool_injection: false`) to prevent context leakage and keep edits within workspace clones.
+### Protected Branches
 
-**Rationale**: RepoPrompt instructions could cause workers to reference files outside their workspace or perform operations that break isolation.
+If your target branch has protected branch policies:
 
-### Git Commit/Push Required for PR Automation
-
-**INTENDED BEHAVIOR**: PR automation should work independently of git commit/push settings.
-
-**CURRENTLY IMPLEMENTED BEHAVIOR**: If `git_commit_push_enabled: false`, PR automation (`auto_pr`, `auto_merge`, `draft_on_failure`) is automatically disabled because PRs require pushed commits.
-
-### Dependency Handling
-
-Parallel execution respects task dependencies (`depends_on`), but:
-- Dependencies must be completed (moved to `done.json`) before dependent tasks are eligible
-- Parallel tasks with dependencies on each other will not run concurrently
-- Consider using `--wait-when-blocked` for dependency chains
+- Workers may be blocked from pushing
+- This results in `BlockedPush` status
+- Use `ralph run parallel retry` after resolving branch protection issues
 
 ---
 
 ## Workflow
 
-### Step-by-Step Parallel Execution Flow
+### Typical Workflow
 
-1. **Preflight Checks**
-   - Validate queue/done files
-   - Check workspace_root is gitignored (if inside repo)
-   - Verify `gh` CLI available (if PR automation enabled)
-   - Verify origin remote exists
-   - Require clean repo
+```bash
+# 1. Ensure queue has tasks
+ralph queue list
 
-2. **State Initialization**
-   - Load existing state or create new
-   - Prune stale tasks
-   - Reconcile PR records with GitHub
-   - Clean workspaces for merged/closed PRs
-   - Validate base branch
+# 2. Start parallel execution
+ralph run loop --parallel 4 --max-tasks 10
 
-3. **Worker Spawning Loop**
-   - While workers < limit and tasks available:
-     - Select next eligible task (respecting dependencies)
-     - Create git workspace
-     - Sync config/prompts to workspace
-     - Spawn worker process
-     - Record in state file
+# 3. Monitor status (in another terminal)
+ralph run parallel status
 
-4. **Worker Execution**
-   - Worker runs `ralph run one --parallel-worker`
-   - Changes committed to workspace branch
-   - Branch pushed to origin
-   - Exit status returned
+# 4. If workers are blocked, investigate and retry
+ralph run parallel retry --task RQ-0005
 
-5. **Post-Worker Processing**
-   - On success: Create PR (if auto_pr enabled)
-   - On failure: Create draft PR (if draft_on_failure enabled)
-   - Update state file
+# 5. Resume parallel execution
+ralph run loop --parallel 4
+```
 
-6. **Merge-Agent Processing**
-   - Coordinator invokes `ralph run merge-agent --task <TASK_ID> --pr <PR_NUMBER>`
-   - Merge-agent validates and executes merge
-   - Task finalization happens in coordinator repo context
-   - Workspace cleaned up after successful merge
+### Conflict Resolution Workflow
 
-7. **Cleanup**
-   - Terminate remaining workers
-   - Drain merge-agent subprocesses
-   - Clear state file tasks_in_flight
-   - Remove workspaces
+When workers encounter conflicts:
 
-### Interrupt Handling
-
-On Ctrl+C or error:
-
-1. Stop scheduling new workers
-2. Terminate all in-flight workers
-3. Drain merge-agent subprocesses (unless hard abort)
-4. Clean up workspaces (best effort)
-5. Save state file
-6. Exit with appropriate status
+1. **Automatic**: Agent remediation session is spawned with handoff context
+2. **Handoff Packet**: Written to `.ralph/cache/parallel/handoffs/<task-id>/<attempt>.json`
+3. **Resolution**: Agent resolves conflicts preserving both upstream and task intent
+4. **Validation**: Worker verifies zero unresolved conflicts before continuing
+5. **Retry**: If resolution fails after max attempts, worker transitions to `blocked_push`
 
 ---
 
 ## Monitoring
 
-### Checking Parallel State
+### Logs
+
+Worker logs are written to:
+
+```
+.ralph/logs/parallel/<task-id>.log
+```
+
+### Handoff Packets
+
+Remediation context is written to:
+
+```
+.ralph/cache/parallel/handoffs/<task-id>/<attempt>.json
+```
+
+Contains:
+- Task ID and title
+- Base branch
+- Conflict files list
+- Git status
+- Phase outputs summary
+- Queue/done semantic rules
+
+### State File Inspection
 
 ```bash
-# View state file
+# Pretty-print current state
 cat .ralph/cache/parallel/state.json | jq
 
-# Quick status check
-ralph run loop --parallel --dry-run 2>&1 | head -20
+# Watch for changes
+watch -n 1 'cat .ralph/cache/parallel/state.json | jq .workers'
 ```
 
-### State File Monitoring
-
-Key fields to monitor:
-
-| Field | Indication |
-|-------|------------|
-| `tasks_in_flight` | Currently running tasks |
-| `prs` (lifecycle: pending_merge) | PRs awaiting merge |
-| `prs` (lifecycle: merged) | Successfully merged PRs |
-| `prs` (lifecycle: closed) | Closed PRs |
-
-### Log Output
-
-Ralph logs parallel execution to console with progress indicators:
-
-```
-[INFO] Starting parallel run with 3 workers
-[INFO] Spawning worker for RQ-0001 (pid: 12345)
-[INFO] Spawning worker for RQ-0002 (pid: 12346)
-[INFO] Spawning worker for RQ-0003 (pid: 12347)
-[INFO] Worker RQ-0001 completed successfully
-[INFO] Created PR #42 for RQ-0001
-[INFO] Merged PR #42 for RQ-0001
-[INFO] Removed workspace for RQ-0001
-...
-```
-
-### Reading Worker Logs
-
-Worker output is not captured to separate log files. To debug a specific task:
+### Debugging Blocked Workers
 
 ```bash
-# Run the task manually in a workspace
-ralph run one --id RQ-0001
+# 1. Check worker status
+ralph run parallel status
 
-# Or check the workspace directly
-cd .workspaces/myrepo/parallel/RQ-0001
-git log --oneline
+# 2. Inspect handoff packet
+ls .ralph/cache/parallel/handoffs/<task-id>/
+
+# 3. Check worker logs
+tail -f .ralph/logs/parallel/<task-id>.log
+
+# 4. Inspect workspace
+cd <workspace-path>
 git status
+git log --oneline -10
+
+# 5. Retry after fixes
+ralph run parallel retry --task <task-id>
 ```
-
-### Health Checks
-
-```bash
-# Verify no stale state
-if [ -f .ralph/cache/parallel/state.json ]; then
-  echo "Parallel state exists - check if run is active"
-  jq '.tasks_in_flight | length' .ralph/cache/parallel/state.json
-fi
-
-# Check for workspaces
-ls -la .workspaces/*/parallel/ 2>/dev/null || echo "No workspaces"
-```
-
-### Common Issues
-
-| Issue | Cause | Solution |
-|-------|-------|----------|
-| "workspace_root not gitignored" | Workspace inside repo without ignore | Add to .gitignore |
-| "base branch mismatch" | Branch changed during parallel run | Checkout original branch or clear state |
-| "PR head mismatch" | Branch prefix changed | Rename branches or clear state blockers |
-| "gh CLI check failed" | GitHub CLI not installed/auth | Install `gh` and authenticate |
-| "origin remote check failed" | No origin configured | Configure origin remote |
 
 ---
 
-## Practical Examples
+## Troubleshooting
 
-### Example 1: Basic Parallel Run
+### Common Issues
 
-```bash
-# Start parallel run with 3 workers
-ralph run loop --parallel 3
+**"No parallel state found"**
+- Run `ralph run loop --parallel N` first to initialize state
 
-# Output:
-# [INFO] Starting parallel run with 3 workers on branch 'main'
-# [INFO] Spawning worker for RQ-0001
-# [INFO] Spawning worker for RQ-0002
-# [INFO] Spawning worker for RQ-0003
-# ...
-# [INFO] Parallel run completed: 10/10 succeeded, 0 failed
-```
+**"Task is currently running"**
+- Cannot retry an active worker. Wait for it to complete or fail.
 
-### Example 2: Review-Before-Merge Workflow
+**"Push rejected: protected branch"**
+- Your target branch has protection rules. Either:
+  - Disable protection for ralph pushes
+  - Use a feature branch workflow (not supported in direct-push mode)
 
-```bash
-# Config: merge_when = "after_all", auto_merge = false
-ralph run loop --parallel 4
+**"CI gate failed after max attempts"**
+- Worker exhausted CI retry budget. Investigate `.ralph/logs/parallel/<task-id>.log` and retry.
 
-# All tasks run in parallel
-# PRs created as tasks complete
-# Run ends with all PRs open for review
-# After review, run again or merge manually
-```
-
-### Example 3: Handling Failures
-
-```bash
-# With draft_on_failure enabled
-ralph run loop --parallel 2
-
-# Task RQ-0005 fails
-# [WARN] Worker RQ-0005 failed with exit code 1
-# [INFO] Created draft PR #47 for RQ-0005
-
-# Review draft PR, fix issues manually
-# Then mark task done or re-run
-```
-
-### Example 4: Custom Merge Runner
-
-```json
-{
-  "parallel": {
-    "workers": 3,
-    "conflict_policy": "auto_resolve",
-    "merge_runner": {
-      "runner": "codex",
-      "model": "gpt-5.3-codex",
-      "reasoning_effort": "high"
-    }
-  }
-}
-```
-
-```bash
-ralph run loop --parallel
-
-# When conflicts occur, Codex will attempt resolution
-# [INFO] PR #50 has merge conflicts, attempting auto-resolution
-# [INFO] Resolved conflicts in src/lib.rs, src/main.rs
-# [INFO] Merged PR #50
-```
-
-### Example 5: Monitoring and Recovery
-
-```bash
-# Check if parallel run is active
-jq '.tasks_in_flight | length' .ralph/cache/parallel/state.json
-
-# Check pending merges
-jq '.prs[] | select(.lifecycle == "pending_merge") | {task_id, pr_number}' .ralph/cache/parallel/state.json
-
-# Manually run merge-agent for a specific task/PR
-ralph run merge-agent --task RQ-0001 --pr 42
-```
+**Workspace disk space**
+- Workspaces accumulate over time. Run `ralph cleanup` or adjust `workspace_retention_hours`.
 
 ---
 
 ## See Also
 
 - [Configuration](../configuration.md) - Full configuration reference
-- [Workflow](../workflow.md) - General workflow documentation
-- [Queue and Tasks](../queue-and-tasks.md) - Task management
+- [CLI Reference](../cli.md) - Command-line options
+- [Direct-Push Rewrite Spec](parallel-direct-push-rewrite-spec.md) - Implementation specification

@@ -264,42 +264,25 @@ Each phase config can specify:
 Key fields:
 - `workers`: number of concurrent workers (must be `>= 2`). Default: `null` (disabled unless CLI
   `--parallel` is used).
-- `merge_when`: `as_created` (default) or `after_all` to merge PRs as they are created or only after
-  all tasks finish.
-- `merge_method`: `squash` (default), `merge`, or `rebase`.
-- `auto_pr`: automatically create PRs for completed tasks (default: `true`).
-- `auto_merge`: automatically merge PRs when eligible (default: `true`).
-- `draft_on_failure`: create draft PRs when a worker fails (default: `true`).
-- `conflict_policy`: `auto_resolve` (default), `retry_later`, or `reject`.
-- `merge_retries`: number of merge retries before giving up (default: `5`).
+- `max_push_attempts`: maximum integration loop attempts before giving up (default: `5`).
+- `push_backoff_ms`: array of retry backoff intervals in milliseconds (default: `[500, 2000, 5000, 10000]`).
+- `workspace_retention_hours`: hours to retain worker workspaces after completion (default: `24`).
 - `workspace_root`: root directory for parallel workspaces (default: `<repo-parent>/.workspaces/<repo-name>/parallel`).
 
   **Git hygiene warning:** If you set `parallel.workspace_root` to a path **inside** the repository (for example `.ralph/workspaces`), you MUST gitignore it (or add it to `.git/info/exclude`). Otherwise Ralph will create workspace clone directories that appear as untracked files and the repo will look "dirty" across runs. Parallel mode will fail fast if the workspace root is inside the repo and not ignored.
 
-- `branch_prefix`: prefix for worker branches (default: `ralph/`).
-
-  **Important:** The auto-merge feature expects PR head branch names to be exactly
-  `{branch_prefix}{task_id}`. If a PR's head branch doesn't match this pattern, the
-  merge runner will skip it and persist a `merge_blocker` warning in the parallel
-  state file (`.ralph/cache/parallel/state.json`). This prevents accidental merges
-  when branch naming conventions change or PRs are created externally.
-
-  Recovery: If you change `branch_prefix`, existing open PRs created under the old
-  prefix will be blocked with a persisted state warning until you either:
-  1. Rename the PR branches to match the new prefix, or
-  2. Manually clear the `merge_blocker` field from the state file.
-- `delete_branch_on_merge`: delete branches after merge (default: `true`).
-- `merge_runner`: runner overrides for merge conflict resolution (defaults to `agent` settings).
-
 Notes:
 - CLI flag `--parallel` overrides `parallel.workers` for a single run.
-- If `auto_pr` is `false`, PR creation and merge automation are skipped.
-- `auto_pr`, `auto_merge`, and `draft_on_failure` require `agent.git_commit_push_enabled` (or CLI `--git-commit-push-on`) to be enabled, since PRs require pushed commits. When commit/push is disabled, these settings are automatically disabled for the invocation.
-- When PR automation is disabled or PR creation fails, the coordinator records the task as finished without a PR in `.ralph/cache/parallel/state.json` and will not re-run it in parallel mode until the entry is cleared. If the task already completed successfully, mark it done manually since no PR exists for the coordinator to apply.
+- Workers push directly to the target branch; no PRs are created.
+- Use `ralph run parallel status` to check worker states.
+- Use `ralph run parallel retry --task <ID>` to retry blocked workers.
+- **Breaking change (2026-02):** Parallel mode has been rewritten for direct-push.
+  The following config keys have been removed: `auto_pr`, `auto_merge`, `merge_when`,
+  `merge_method`, `merge_retries`, `draft_on_failure`, `conflict_policy`, `branch_prefix`,
+  `delete_branch_on_merge`, `merge_runner`.
 - **Breaking change (2026-02):** The `parallel.worktree_root` config key has been renamed to
   `parallel.workspace_root`. Config files using the old key will fail to load. Run
-  `ralph migrate` to update existing configs. State files are not migrated and may need
-  to be deleted if incompatible.
+  `ralph migrate` to update existing configs.
 
 Example:
 
@@ -307,16 +290,9 @@ Example:
 {
   "parallel": {
     "workers": 3,
-    "merge_when": "as_created",
-    "merge_method": "squash",
-    "conflict_policy": "auto_resolve",
-    "merge_retries": 5,
-    "branch_prefix": "ralph/",
-    "merge_runner": {
-      "runner": "claude",
-      "model": "sonnet",
-      "reasoning_effort": "medium"
-    }
+    "max_push_attempts": 5,
+    "push_backoff_ms": [500, 2000, 5000, 10000],
+    "workspace_retention_hours": 24
   }
 }
 ```

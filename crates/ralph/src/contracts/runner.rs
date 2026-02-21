@@ -348,6 +348,7 @@ pub struct MergeRunnerConfig {
     pub reasoning_effort: Option<ReasoningEffort>,
 }
 
+#[allow(dead_code)]
 impl MergeRunnerConfig {
     pub fn merge_from(&mut self, other: Self) {
         if other.runner.is_some() {

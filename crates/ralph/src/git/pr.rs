@@ -13,18 +13,32 @@
 //! - `gh` is installed and authenticated.
 //! - Repo root points to a GitHub-backed repository.
 
-use crate::contracts::ParallelMergeMethod;
 use anyhow::{Context, Result, bail};
+
+/// Merge method for PRs.
+/// NOTE: This is a local copy since the config version was removed in the direct-push rewrite.
+/// This enum is kept for backward compatibility with existing PR operations.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[allow(dead_code)]
+pub(crate) enum MergeMethod {
+    #[default]
+    Squash,
+    Merge,
+    Rebase,
+}
 use serde::Deserialize;
 use std::path::Path;
 use std::process::Command;
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub(crate) struct PrInfo {
     pub number: u32,
     #[allow(dead_code)]
     pub url: String,
+    #[allow(dead_code)]
     pub head: String,
+    #[allow(dead_code)]
     pub base: String,
 }
 
@@ -42,6 +56,7 @@ pub(crate) struct PrMergeStatus {
 }
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct PrViewJson {
     #[serde(rename = "mergeStateStatus")]
     merge_state_status: String,
@@ -61,6 +76,7 @@ struct PrViewJson {
 }
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct RepoViewNameWithOwnerJson {
     #[serde(rename = "nameWithOwner")]
     name_with_owner: String,
@@ -82,6 +98,7 @@ pub(crate) struct PrLifecycleStatus {
     pub is_merged: bool,
 }
 
+#[allow(dead_code)]
 pub(crate) fn create_pr(
     repo_root: &Path,
     title: &str,
@@ -137,10 +154,11 @@ pub(crate) fn create_pr(
     pr_view(repo_root, &pr_url)
 }
 
+#[allow(dead_code)]
 pub(crate) fn merge_pr(
     repo_root: &Path,
     pr_number: u32,
-    method: ParallelMergeMethod,
+    method: MergeMethod,
     delete_branch: bool,
 ) -> Result<()> {
     let repo_name_with_owner = gh_repo_name_with_owner(repo_root)?;
@@ -175,14 +193,16 @@ pub(crate) fn merge_pr(
     Ok(())
 }
 
-fn merge_method_flag(method: ParallelMergeMethod) -> &'static str {
+#[allow(dead_code)]
+fn merge_method_flag(method: MergeMethod) -> &'static str {
     match method {
-        ParallelMergeMethod::Squash => "--squash",
-        ParallelMergeMethod::Merge => "--merge",
-        ParallelMergeMethod::Rebase => "--rebase",
+        MergeMethod::Squash => "--squash",
+        MergeMethod::Merge => "--merge",
+        MergeMethod::Rebase => "--rebase",
     }
 }
 
+#[allow(dead_code)]
 fn gh_repo_name_with_owner(repo_root: &Path) -> Result<String> {
     let output = Command::new("gh")
         .current_dir(repo_root)
@@ -201,6 +221,7 @@ fn gh_repo_name_with_owner(repo_root: &Path) -> Result<String> {
     parse_name_with_owner_from_repo_view_json(&output.stdout)
 }
 
+#[allow(dead_code)]
 fn parse_name_with_owner_from_repo_view_json(payload: &[u8]) -> Result<String> {
     let repo: RepoViewNameWithOwnerJson =
         serde_json::from_slice(payload).context("parse gh repo view json")?;
@@ -211,17 +232,20 @@ fn parse_name_with_owner_from_repo_view_json(payload: &[u8]) -> Result<String> {
     Ok(trimmed.to_string())
 }
 
+#[allow(dead_code)]
 pub(crate) fn pr_merge_status(repo_root: &Path, pr_number: u32) -> Result<PrMergeStatus> {
     let json = pr_view_json(repo_root, &pr_number.to_string())?;
     Ok(pr_merge_status_from_view(&json))
 }
 
 /// Query PR lifecycle status from GitHub.
+#[allow(dead_code)]
 pub(crate) fn pr_lifecycle_status(repo_root: &Path, pr_number: u32) -> Result<PrLifecycleStatus> {
     let json = pr_view_json(repo_root, &pr_number.to_string())?;
     Ok(pr_lifecycle_status_from_view(&json))
 }
 
+#[allow(dead_code)]
 fn pr_lifecycle_status_from_view(json: &PrViewJson) -> PrLifecycleStatus {
     let state = json.state.as_deref().unwrap_or("UNKNOWN");
     let merged_flag = json.is_merged.unwrap_or(false) || json.merged_at.as_ref().is_some();
@@ -247,6 +271,7 @@ fn pr_lifecycle_status_from_view(json: &PrViewJson) -> PrLifecycleStatus {
     }
 }
 
+#[allow(dead_code)]
 fn pr_view(repo_root: &Path, selector: &str) -> Result<PrInfo> {
     let json = pr_view_json(repo_root, selector)?;
     let number = json
@@ -270,6 +295,7 @@ fn pr_view(repo_root: &Path, selector: &str) -> Result<PrInfo> {
     })
 }
 
+#[allow(dead_code)]
 fn pr_view_json(repo_root: &Path, selector: &str) -> Result<PrViewJson> {
     let primary_fields = "mergeStateStatus,number,url,headRefName,baseRefName,isDraft,state,merged";
     match run_gh_pr_view(repo_root, selector, primary_fields) {
@@ -288,6 +314,7 @@ fn pr_view_json(repo_root: &Path, selector: &str) -> Result<PrViewJson> {
     }
 }
 
+#[allow(dead_code)]
 fn run_gh_pr_view(repo_root: &Path, selector: &str, fields: &str) -> Result<PrViewJson> {
     let output = Command::new("gh")
         .current_dir(repo_root)
@@ -309,6 +336,7 @@ fn run_gh_pr_view(repo_root: &Path, selector: &str, fields: &str) -> Result<PrVi
     Ok(json)
 }
 
+#[allow(dead_code)]
 fn pr_merge_status_from_view(json: &PrViewJson) -> PrMergeStatus {
     let merge_state = match json.merge_state_status.as_str() {
         "CLEAN" => MergeState::Clean,
@@ -321,6 +349,7 @@ fn pr_merge_status_from_view(json: &PrViewJson) -> PrMergeStatus {
     }
 }
 
+#[allow(dead_code)]
 fn extract_pr_url(output: &str) -> Option<String> {
     output
         .lines()
@@ -392,9 +421,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::contracts::ParallelMergeMethod;
-
-    use super::{MergeState, PrLifecycle, check_gh_available_with, extract_pr_url};
+    use super::{MergeMethod, MergeState, PrLifecycle, check_gh_available_with, extract_pr_url};
     use super::{
         PrViewJson, merge_method_flag, parse_name_with_owner_from_repo_view_json,
         pr_lifecycle_status_from_view, pr_merge_status_from_view,
@@ -712,8 +739,8 @@ mod tests {
 
     #[test]
     fn merge_method_flag_maps_all_variants() {
-        assert_eq!(merge_method_flag(ParallelMergeMethod::Squash), "--squash");
-        assert_eq!(merge_method_flag(ParallelMergeMethod::Merge), "--merge");
-        assert_eq!(merge_method_flag(ParallelMergeMethod::Rebase), "--rebase");
+        assert_eq!(merge_method_flag(MergeMethod::Squash), "--squash");
+        assert_eq!(merge_method_flag(MergeMethod::Merge), "--merge");
+        assert_eq!(merge_method_flag(MergeMethod::Rebase), "--rebase");
     }
 }

@@ -50,6 +50,7 @@ pub(crate) fn current_branch(repo_root: &Path) -> Result<String> {
     Ok(branch)
 }
 
+#[allow(dead_code)]
 pub(crate) fn fast_forward_branch_to_origin(repo_root: &Path, branch: &str) -> Result<()> {
     let branch = branch.trim();
     if branch.is_empty() {
