@@ -399,6 +399,7 @@ pub fn ensure_phase3_completion(
                     ".ralph/config.json",
                     ".ralph/config.jsonc",
                     ".ralph/cache/productivity.json",
+                    ".ralph/cache/productivity.jsonc",
                 ],
             )?;
         }

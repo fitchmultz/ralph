@@ -296,20 +296,20 @@ pub fn deterministic_non_running_pid() -> u32 {
     panic!("failed to find a deterministic non-running PID candidate");
 }
 
-/// Update `.ralph/config.json` to set `agent.runner`, `agent.model`, and `agent.phases`.
+/// Update `.ralph/config.jsonc` to set `agent.runner`, `agent.model`, and `agent.phases`.
 ///
 /// Assumptions:
-/// - `ralph init` has already been run (so `.ralph/config.json` exists).
+/// - `ralph init` has already been run (so `.ralph/config.jsonc` exists).
 pub fn configure_agent_runner_model_phases(
     dir: &Path,
     runner: &str,
     model: &str,
     phases: u8,
 ) -> Result<()> {
-    let config_path = dir.join(".ralph/config.json");
-    let config_str = std::fs::read_to_string(&config_path).context("read .ralph/config.json")?;
+    let config_path = dir.join(".ralph/config.jsonc");
+    let config_str = std::fs::read_to_string(&config_path).context("read .ralph/config.jsonc")?;
     let mut config: Value =
-        serde_json::from_str(&config_str).context("parse .ralph/config.json")?;
+        serde_json::from_str(&config_str).context("parse .ralph/config.jsonc")?;
 
     if config.get("agent").is_none() {
         config["agent"] = serde_json::json!({});
@@ -324,9 +324,9 @@ pub fn configure_agent_runner_model_phases(
 
     std::fs::write(
         &config_path,
-        serde_json::to_string_pretty(&config).context("serialize .ralph/config.json")?,
+        serde_json::to_string_pretty(&config).context("serialize .ralph/config.jsonc")?,
     )
-    .context("write .ralph/config.json")?;
+    .context("write .ralph/config.jsonc")?;
     Ok(())
 }
 
@@ -377,8 +377,8 @@ pub fn write_execution_history_v1_single_sample(
 pub fn write_valid_single_todo_queue(dir: &Path) -> Result<()> {
     let ralph_dir = dir.join(".ralph");
     std::fs::create_dir_all(&ralph_dir).context("create .ralph dir")?;
-    let queue_path = ralph_dir.join("queue.json");
-    let done_path = ralph_dir.join("done.json");
+    let queue_path = ralph_dir.join("queue.jsonc");
+    let done_path = ralph_dir.join("done.jsonc");
 
     let queue = r#"{
   "version": 1,
@@ -403,8 +403,8 @@ pub fn write_valid_single_todo_queue(dir: &Path) -> Result<()> {
   "tasks": []
 }"#;
 
-    std::fs::write(&queue_path, queue).context("write queue.json")?;
-    std::fs::write(&done_path, done).context("write done.json")?;
+    std::fs::write(&queue_path, queue).context("write queue.jsonc")?;
+    std::fs::write(&done_path, done).context("write done.jsonc")?;
     Ok(())
 }
 
@@ -414,7 +414,7 @@ pub fn configure_runner(
     model: &str,
     bin_path: Option<&Path>,
 ) -> Result<()> {
-    let config_path = dir.join(".ralph/config.json");
+    let config_path = dir.join(".ralph/config.jsonc");
     let mut config: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(&config_path).context("read config")?)
             .context("parse config")?;
@@ -450,7 +450,7 @@ pub fn configure_runner(
 }
 
 pub fn configure_ci_gate(dir: &Path, command: Option<&str>, enabled: Option<bool>) -> Result<()> {
-    let config_path = dir.join(".ralph/config.json");
+    let config_path = dir.join(".ralph/config.jsonc");
     let mut config: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(&config_path).context("read config")?)
             .context("parse config")?;
@@ -556,9 +556,9 @@ pub fn write_queue(dir: &Path, tasks: &[Task]) -> Result<()> {
     };
     let ralph_dir = dir.join(".ralph");
     std::fs::create_dir_all(&ralph_dir)?;
-    let queue_path = ralph_dir.join("queue.json");
+    let queue_path = ralph_dir.join("queue.jsonc");
     let json = serde_json::to_string_pretty(&queue)?;
-    std::fs::write(&queue_path, json).with_context(|| "write queue.json".to_string())?;
+    std::fs::write(&queue_path, json).with_context(|| "write queue.jsonc".to_string())?;
     Ok(())
 }
 
@@ -570,24 +570,24 @@ pub fn write_done(dir: &Path, tasks: &[Task]) -> Result<()> {
     };
     let ralph_dir = dir.join(".ralph");
     std::fs::create_dir_all(&ralph_dir)?;
-    let done_path = ralph_dir.join("done.json");
+    let done_path = ralph_dir.join("done.jsonc");
     let json = serde_json::to_string_pretty(&done)?;
-    std::fs::write(&done_path, json).with_context(|| "write done.json".to_string())?;
+    std::fs::write(&done_path, json).with_context(|| "write done.jsonc".to_string())?;
     Ok(())
 }
 
 /// Read the queue file from the given directory.
 pub fn read_queue(dir: &Path) -> Result<QueueFile> {
-    let queue_path = dir.join(".ralph/queue.json");
-    let raw = std::fs::read_to_string(&queue_path).context("read queue.json")?;
-    serde_json::from_str(&raw).context("parse queue.json")
+    let queue_path = dir.join(".ralph/queue.jsonc");
+    let raw = std::fs::read_to_string(&queue_path).context("read queue.jsonc")?;
+    serde_json::from_str(&raw).context("parse queue.jsonc")
 }
 
 /// Read the done file from the given directory.
 pub fn read_done(dir: &Path) -> Result<QueueFile> {
-    let done_path = dir.join(".ralph/done.json");
-    let raw = std::fs::read_to_string(&done_path).context("read done.json")?;
-    serde_json::from_str(&raw).context("parse done.json")
+    let done_path = dir.join(".ralph/done.jsonc");
+    let raw = std::fs::read_to_string(&done_path).context("read done.jsonc")?;
+    serde_json::from_str(&raw).context("parse done.jsonc")
 }
 
 /// Snapshot of queue and done file contents for comparison.
@@ -604,10 +604,10 @@ pub struct QueueDoneSnapshot {
 /// Useful for verifying CI gate isolation: parent queue/done should be
 /// unchanged after worker/CI gate execution.
 pub fn snapshot_queue_done(dir: &Path) -> Result<QueueDoneSnapshot> {
-    let queue_path = dir.join(".ralph/queue.json");
-    let done_path = dir.join(".ralph/done.json");
-    let queue_json = std::fs::read_to_string(&queue_path).context("read queue.json")?;
-    let done_json = std::fs::read_to_string(&done_path).context("read done.json")?;
+    let queue_path = dir.join(".ralph/queue.jsonc");
+    let done_path = dir.join(".ralph/done.jsonc");
+    let queue_json = std::fs::read_to_string(&queue_path).context("read queue.jsonc")?;
+    let done_json = std::fs::read_to_string(&done_path).context("read done.jsonc")?;
     Ok(QueueDoneSnapshot {
         queue_json,
         done_json,
@@ -654,7 +654,7 @@ pub fn with_insta_settings<T>(f: impl FnOnce() -> T) -> T {
 ///
 /// Sets minimal parallel config for testing (no PR automation in direct-push mode).
 pub fn configure_parallel_disabled(dir: &Path) -> Result<()> {
-    let config_path = dir.join(".ralph/config.json");
+    let config_path = dir.join(".ralph/config.jsonc");
     let mut config: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(&config_path).context("read config")?)
             .context("parse config")?;
@@ -678,7 +678,7 @@ pub fn configure_parallel_disabled(dir: &Path) -> Result<()> {
 ///
 /// In direct-push mode, PR automation is removed. Workers push directly to base branch.
 pub fn configure_parallel_for_direct_push(dir: &Path) -> Result<()> {
-    let config_path = dir.join(".ralph/config.json");
+    let config_path = dir.join(".ralph/config.jsonc");
     let mut config: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(&config_path).context("read config")?)
             .context("parse config")?;

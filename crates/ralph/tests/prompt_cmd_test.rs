@@ -14,16 +14,16 @@ use tempfile::TempDir;
 
 fn make_resolved(temp: &TempDir) -> ralph::config::Resolved {
     let repo_root = temp.path().to_path_buf();
-    let queue_path = repo_root.join(".ralph/queue.json");
-    let done_path = repo_root.join(".ralph/done.json");
+    let queue_path = repo_root.join(".ralph/queue.jsonc");
+    let done_path = repo_root.join(".ralph/done.jsonc");
 
     let cfg = Config {
         profiles: None,
         version: 1,
         project_type: Some(ProjectType::Code),
         queue: QueueConfig {
-            file: Some(PathBuf::from(".ralph/queue.json")),
-            done_file: Some(PathBuf::from(".ralph/done.json")),
+            file: Some(PathBuf::from(".ralph/queue.jsonc")),
+            done_file: Some(PathBuf::from(".ralph/done.jsonc")),
             id_prefix: Some("RQ".to_string()),
             id_width: Some(4),
             size_warning_threshold_kb: Some(500),
@@ -62,7 +62,7 @@ fn write_minimal_queue(temp: &TempDir) -> Result<()> {
     let ralph_dir = temp.path().join(".ralph");
     std::fs::create_dir_all(&ralph_dir)?;
     std::fs::write(
-        ralph_dir.join("queue.json"),
+        ralph_dir.join("queue.jsonc"),
         r#"{
   "version": 1,
   "tasks": [
@@ -142,11 +142,11 @@ fn worker_single_phase_includes_completion_workflow() -> Result<()> {
     );
 
     // Regression guard: in supervised runs, Ralph marks tasks as `doing` by modifying
-    // .ralph/queue.json, which makes the repo appear dirty. The worker prompt must
+    // .ralph/queue.jsonc, which makes the repo appear dirty. The worker prompt must
     // explicitly allow this bookkeeping-only dirtiness to avoid unnecessary stops.
     assert!(prompt.contains("IMPORTANT EXCEPTION (RALPH BOOKKEEPING)"));
-    assert!(prompt.contains(".ralph/queue.json"));
-    assert!(prompt.contains(".ralph/done.json"));
+    assert!(prompt.contains(".ralph/queue.jsonc"));
+    assert!(prompt.contains(".ralph/done.jsonc"));
     Ok(())
 }
 

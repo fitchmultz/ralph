@@ -71,8 +71,18 @@ fn run() -> Result<()> {
         log::debug!("startup temp cleanup: {:#}", err);
     }
 
-    // Run sanity checks before commands that need them
+    // Ensure README guidance stays current for agent-facing commands even when
+    // full sanity checks are skipped for this command.
     let should_run_sanity = sanity::should_run_sanity_checks(&cli.command);
+    let should_refresh_readme = sanity::should_refresh_readme_for_command(&cli.command);
+    if should_refresh_readme && (cli.no_sanity_checks || !should_run_sanity) {
+        let resolved = ralph::config::resolve_from_cwd_for_doctor()?;
+        if let Some(msg) = sanity::refresh_readme_if_needed(&resolved)? {
+            log::info!("{}", msg);
+        }
+    }
+
+    // Run full sanity checks before commands that need them
     if should_run_sanity && !cli.no_sanity_checks {
         let resolved = ralph::config::resolve_from_cwd_for_doctor()?;
         // Extract non_interactive flag from run commands

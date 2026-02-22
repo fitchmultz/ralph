@@ -1,7 +1,7 @@
 //! Migration history persistence for tracking applied migrations.
 //!
 //! Responsibilities:
-//! - Load and save migration history from `.ralph/cache/migrations.json`.
+//! - Load and save migration history from `.ralph/cache/migrations.jsonc`.
 //! - Provide default history for new projects.
 //!
 //! Not handled here:
@@ -9,7 +9,7 @@
 //! - Config file modifications (see `config_migrations.rs`).
 //!
 //! Invariants/assumptions:
-//! - History file is stored in `.ralph/cache/migrations.json`.
+//! - History file is stored in `.ralph/cache/migrations.jsonc`.
 //! - History format is versioned for future compatibility.
 
 use crate::constants::paths::MIGRATION_HISTORY_PATH;
@@ -164,7 +164,7 @@ mod tests {
 
         assert_eq!(
             path,
-            PathBuf::from("/tmp/test_repo/.ralph/cache/migrations.json")
+            PathBuf::from("/tmp/test_repo/.ralph/cache/migrations.jsonc")
         );
     }
 

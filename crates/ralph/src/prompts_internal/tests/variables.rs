@@ -122,6 +122,46 @@ fn expand_variables_expands_config_queue_id_prefix() -> Result<()> {
 }
 
 #[test]
+fn expand_variables_expands_config_queue_file() -> Result<()> {
+    let template = "Queue file: {{config.queue.file}}";
+    let mut config = default_config();
+    config.queue.file = Some(std::path::PathBuf::from(".ralph/custom_queue.jsonc"));
+    let result = expand_variables(template, &config)?;
+    assert!(result.contains("Queue file: .ralph/custom_queue.jsonc"));
+    Ok(())
+}
+
+#[test]
+fn expand_variables_uses_default_config_queue_file_when_unset() -> Result<()> {
+    let template = "Queue file: {{config.queue.file}}";
+    let config = default_config();
+    let result = expand_variables(template, &config)?;
+    assert!(result.contains("Queue file: .ralph/queue.jsonc"));
+    assert!(!result.contains("{{config.queue.file}}"));
+    Ok(())
+}
+
+#[test]
+fn expand_variables_expands_config_done_file() -> Result<()> {
+    let template = "Done file: {{config.queue.done_file}}";
+    let mut config = default_config();
+    config.queue.done_file = Some(std::path::PathBuf::from(".ralph/custom_done.jsonc"));
+    let result = expand_variables(template, &config)?;
+    assert!(result.contains("Done file: .ralph/custom_done.jsonc"));
+    Ok(())
+}
+
+#[test]
+fn expand_variables_uses_default_config_done_file_when_unset() -> Result<()> {
+    let template = "Done file: {{config.queue.done_file}}";
+    let config = default_config();
+    let result = expand_variables(template, &config)?;
+    assert!(result.contains("Done file: .ralph/done.jsonc"));
+    assert!(!result.contains("{{config.queue.done_file}}"));
+    Ok(())
+}
+
+#[test]
 fn expand_variables_expands_config_ci_gate_command() -> Result<()> {
     let template = "CI: {{config.agent.ci_gate_command}}";
     let mut config = default_config();

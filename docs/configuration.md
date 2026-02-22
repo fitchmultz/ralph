@@ -6,8 +6,8 @@ Purpose: Document Ralph's JSON configuration layout, defaults, and override prec
 
 ## Overview
 Ralph reads JSON configuration from two locations, with project config taking precedence over global:
-- Global: `~/.config/ralph/config.json`
-- Project: `.ralph/config.json`
+- Global: `~/.config/ralph/config.jsonc` (with `.json` fallback)
+- Project: `.ralph/config.jsonc` (with `.json` fallback)
 
 CLI flags override both for a single run. Defaults are defined by `schemas/config.schema.json`.
 
@@ -21,10 +21,10 @@ Ralph supports JSONC (JSON with Comments) for configuration and queue files. Thi
 - Trailing commas in objects and arrays
 
 ### File Extensions
-- `.json` - Standard JSON (default, backward compatible)
-- `.jsonc` - JSON with Comments support
+- `.jsonc` - JSON with Comments support (default for new projects)
+- `.json` - Standard JSON (legacy, backward compatible)
 
-Ralph can read both `.json` and `.jsonc` files regardless of extension. When both files exist, `.json` takes precedence over `.jsonc` (e.g., `config.json` is used instead of `config.jsonc` if both are present).
+Ralph can read both `.json` and `.jsonc` files regardless of extension. When both files exist, `.jsonc` takes precedence over `.json` (e.g., `config.jsonc` is used instead of `config.json` if both are present).
 
 When writing files, Ralph always outputs standard JSON format (comments are not preserved on rewrite).
 
@@ -301,8 +301,8 @@ Example:
 `queue` controls file locations, task ID formatting, and auto-archive behavior.
 
 Supported fields:
-- `file`: path to the queue file (default: `.ralph/queue.json`).
-- `done_file`: path to the done archive (default: `.ralph/done.json`).
+- `file`: path to the queue file (default: `.ralph/queue.jsonc`).
+- `done_file`: path to the done archive (default: `.ralph/done.jsonc`).
 - `id_prefix`: task ID prefix (default: `RQ`).
 - `id_width`: zero padding width (default: `4`, e.g. `RQ-0001`).
 - `auto_archive_terminal_after_days`: automatically archive terminal tasks (done/rejected) from queue to done after this many days (default: `null`/`None`, disabled).
@@ -310,8 +310,8 @@ Supported fields:
 **Parallel mode restriction:** When running `ralph run loop --parallel ...`, `queue.file` and
 `queue.done_file` must resolve to paths **under the repository root**. Parallel mode maps these
 paths into per-worker workspace clones; paths outside the repo root cannot be mapped safely and are
-rejected during parallel preflight. Prefer repo-relative paths like `.ralph/queue.json` and
-`.ralph/done.json`.
+rejected during parallel preflight. Prefer repo-relative paths like `.ralph/queue.jsonc` and
+`.ralph/done.jsonc`.
 
 ### Auto-Archive Configuration
 
@@ -329,8 +329,8 @@ Example configurations:
 {
   "version": 1,
   "queue": {
-    "file": ".ralph/queue.json",
-    "done_file": ".ralph/done.json",
+    "file": ".ralph/queue.jsonc",
+    "done_file": ".ralph/done.jsonc",
     "id_prefix": "RQ",
     "id_width": 4,
     "auto_archive_terminal_after_days": 7
@@ -388,8 +388,8 @@ Example configuration:
 
 ## Precedence
 1. CLI flags (single run)
-2. Project config (`.ralph/config.json`)
-3. Global config (`~/.config/ralph/config.json`)
+2. Project config (`.ralph/config.jsonc` or `.ralph/config.json`)
+3. Global config (`~/.config/ralph/config.jsonc` or `~/.config/ralph/config.json`)
 4. Schema defaults (`schemas/config.schema.json`)
 
 ## App Safety Warnings (macOS)

@@ -77,7 +77,7 @@ pub(crate) fn check_runner(report: &mut DoctorReport, resolved: &config::Resolve
                 &message,
                 false,
                 Some(&format!(
-                    "Install the runner binary, or configure a custom path in .ralph/config.json: {{ \"agent\": {{ \"{}\": \"/path/to/{}\" }} }}",
+                    "Install the runner binary, or configure a custom path in .ralph/config.jsonc: {{ \"agent\": {{ \"{}\": \"/path/to/{}\" }} }}",
                     config_key, bin_name
                 )),
             );
@@ -85,7 +85,7 @@ pub(crate) fn check_runner(report: &mut DoctorReport, resolved: &config::Resolve
             log::error!("");
             log::error!("To fix this issue:");
             log::error!("  1. Install the runner binary, or");
-            log::error!("  2. Configure a custom path in .ralph/config.json:");
+            log::error!("  2. Configure a custom path in .ralph/config.jsonc:");
             log::error!("     {{");
             log::error!("       \"agent\": {{");
             log::error!("         \"{}\": \"/path/to/{}\"", config_key, bin_name);
@@ -98,13 +98,15 @@ pub(crate) fn check_runner(report: &mut DoctorReport, resolved: &config::Resolve
                 "runner_binary",
                 &message,
                 false,
-                Some("Install the runner binary, or configure a custom path in .ralph/config.json"),
+                Some(
+                    "Install the runner binary, or configure a custom path in .ralph/config.jsonc",
+                ),
             );
             report.add(result);
             log::warn!("");
             log::warn!("To fix this issue:");
             log::warn!("  1. Install the runner binary, or");
-            log::warn!("  2. Configure a custom path in .ralph/config.json:");
+            log::warn!("  2. Configure a custom path in .ralph/config.jsonc:");
             log::warn!("     {{");
             log::warn!("       \"agent\": {{");
             log::warn!("         \"{}\": \"/path/to/{}\"", config_key, bin_name);
@@ -195,7 +197,7 @@ pub(crate) fn check_runner(report: &mut DoctorReport, resolved: &config::Resolve
                 "AGENTS.md exists at repo root but is not configured for injection. \
                  To enable, add 'AGENTS.md' to agent.instruction_files in your config.",
                 false,
-                Some("Add 'AGENTS.md' to agent.instruction_files in .ralph/config.json"),
+                Some("Add 'AGENTS.md' to agent.instruction_files in .ralph/config.jsonc"),
             ));
         }
     } else {

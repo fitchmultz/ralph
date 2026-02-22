@@ -7,6 +7,7 @@
 //! placeholders include braces (e.g., `{{TASK_ID}}`).
 
 use crate::constants::buffers::MAX_INSTRUCTION_BYTES;
+use crate::constants::queue::{DEFAULT_DONE_FILE, DEFAULT_QUEUE_FILE};
 use crate::contracts::{Config, ProjectType};
 use anyhow::{Context, Result, bail};
 use regex::Regex;
@@ -319,6 +320,20 @@ fn get_config_value(config: &Config, path: &str) -> Result<String> {
             .id_width
             .map(|w| w.to_string())
             .ok_or_else(|| anyhow::anyhow!("queue.id_width not set")),
+        ["queue", "file"] => Ok(config
+            .queue
+            .file
+            .as_deref()
+            .unwrap_or_else(|| Path::new(DEFAULT_QUEUE_FILE))
+            .to_string_lossy()
+            .to_string()),
+        ["queue", "done_file"] => Ok(config
+            .queue
+            .done_file
+            .as_deref()
+            .unwrap_or_else(|| Path::new(DEFAULT_DONE_FILE))
+            .to_string_lossy()
+            .to_string()),
         ["project_type"] => config
             .project_type
             .map(|p| format!("{:?}", p))

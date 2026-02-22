@@ -7,7 +7,7 @@
 //! - Validate queue state before and after runner execution.
 //! - Handle dry-run mode for previewing updates.
 //! - Detect and report changed fields after updates.
-//! - Handle tasks moved to done.json during updates.
+//! - Handle tasks moved to done.jsonc during updates.
 //!
 //! Not handled here:
 //! - Task building (see build.rs).
@@ -20,7 +20,7 @@
 //! - Runner execution produces valid task JSON output.
 //! - Backup is created before any mutations for recovery.
 //! - Lock acquisition is optional (controlled by acquire_lock parameter).
-//! - Tasks may be moved to done.json during updates (not an error).
+//! - Tasks may be moved to done.jsonc during updates (not an error).
 
 use super::{TaskUpdateSettings, compare_task_fields, resolve_task_update_settings};
 use crate::commands::run::PhaseType;
@@ -327,7 +327,7 @@ fn update_task_impl(
     let done_after = queue::load_queue_or_default(&resolved.done_path)
         .with_context(|| format!("read done {}", resolved.done_path.display()))?;
 
-    // Look up the task after update - it may have been moved to done.json or removed
+    // Look up the task after update - it may have been moved to done.jsonc or removed
     match after.tasks.iter().find(|t| t.id.trim() == task_id) {
         Some(after_task) => {
             let after_json = serde_json::to_string(after_task)?;
@@ -344,17 +344,17 @@ fn update_task_impl(
             }
         }
         None => {
-            // Task not in queue after update - check if it was moved to done.json
+            // Task not in queue after update - check if it was moved to done.jsonc
             match done_after.tasks.iter().find(|t| t.id.trim() == task_id) {
                 Some(done_task) => {
                     let after_json = serde_json::to_string(done_task)?;
 
                     if before_json == after_json {
-                        log::info!("Task {} moved to done.json. No changes detected.", task_id);
+                        log::info!("Task {} moved to done.jsonc. No changes detected.", task_id);
                     } else {
                         let changed_fields = compare_task_fields(&before_json, &after_json)?;
                         log::info!(
-                            "Task {} moved to done.json. Changed fields: {}",
+                            "Task {} moved to done.jsonc. Changed fields: {}",
                             task_id,
                             changed_fields.join(", ")
                         );
@@ -362,7 +362,7 @@ fn update_task_impl(
                 }
                 None => {
                     log::warn!(
-                        "Task {} was removed during update and not found in done.json.",
+                        "Task {} was removed during update and not found in done.jsonc.",
                         task_id
                     );
                 }
@@ -425,7 +425,7 @@ mod tests {
             config: Config::default(),
             repo_root,
             queue_path: ralph_dir.join("queue.json"),
-            done_path: ralph_dir.join("done.json"),
+            done_path: ralph_dir.join("done.jsonc"),
             id_prefix: "RQ".to_string(),
             id_width: 4,
             global_config_path: None,

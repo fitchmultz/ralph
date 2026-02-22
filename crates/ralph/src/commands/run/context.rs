@@ -32,7 +32,7 @@ pub(crate) fn task_context_for_prompt(task: &Task) -> Result<String> {
 
 You MUST work on this exact task and no other task.
 - Do NOT switch tasks based on queue order, "first todo", or "lowest ID".
-- Ignore `.ralph/done.json` except as historical reference if explicitly needed.
+- Ignore `.ralph/done.jsonc` except as historical reference if explicitly needed.
 - Do NOT change task status manually.
 
 Task ID: {id}

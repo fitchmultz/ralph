@@ -26,16 +26,19 @@ use super::PushPolicy;
 use super::ci::{ci_gate_command_label, run_ci_gate, run_ci_gate_with_continue_session};
 use super::git_ops::{finalize_git_state, warn_if_modified_lfs};
 
-const PARALLEL_BOOKKEEPING_PATHS: [&str; 11] = [
+const PARALLEL_BOOKKEEPING_PATHS: [&str; 14] = [
     ".ralph/queue.json",
     ".ralph/queue.jsonc",
     ".ralph/done.json",
     ".ralph/done.jsonc",
     ".ralph/cache/productivity.json",
+    ".ralph/cache/productivity.jsonc",
     ".ralph/cache/plans/",
     ".ralph/cache/phase2_final/",
     ".ralph/cache/session.json",
+    ".ralph/cache/session.jsonc",
     ".ralph/cache/migrations.json",
+    ".ralph/cache/migrations.jsonc",
     ".ralph/cache/parallel/",
     ".ralph/logs/",
 ];
@@ -236,12 +239,18 @@ fn restore_parallel_worker_bookkeeping(
         .join(".ralph")
         .join("cache")
         .join("productivity.json");
+    let productivity_jsonc_path = resolved
+        .repo_root
+        .join(".ralph")
+        .join("cache")
+        .join("productivity.jsonc");
     let paths = vec![
         workspace_queue_path,
         workspace_queue_jsonc_path,
         workspace_done_path,
         workspace_done_jsonc_path,
         productivity_path,
+        productivity_jsonc_path,
     ];
     git::restore_tracked_paths_to_head(&resolved.repo_root, &paths)
         .context("restore queue/done/productivity to HEAD")?;
@@ -258,7 +267,9 @@ fn remove_parallel_worker_generated_artifacts(
     let generated_paths = [
         repo_root.join(".ralph/cache/phase2_final"),
         repo_root.join(".ralph/cache/session.json"),
+        repo_root.join(".ralph/cache/session.jsonc"),
         repo_root.join(".ralph/cache/migrations.json"),
+        repo_root.join(".ralph/cache/migrations.jsonc"),
         repo_root.join(".ralph/cache/parallel"),
         repo_root.join(".ralph/logs"),
     ];

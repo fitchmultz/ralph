@@ -91,7 +91,7 @@ fn run_one_succeeds_when_ci_gate_disabled() -> Result<()> {
         "expected run one to succeed with CI gate disabled\nstdout:\n{stdout}\nstderr:\n{stderr}"
     );
 
-    let done_content = std::fs::read_to_string(dir.path().join(".ralph/done.json"))?;
+    let done_content = std::fs::read_to_string(dir.path().join(".ralph/done.jsonc"))?;
     anyhow::ensure!(
         done_content.contains("RQ-0001"),
         "task should be moved to done when CI gate is disabled"

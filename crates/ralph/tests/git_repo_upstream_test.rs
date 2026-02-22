@@ -47,7 +47,7 @@ fn run_one_succeeds_without_upstream_and_warns() -> Result<()> {
     );
 
     // Verify task was actually marked done and archived (supervisor logic)
-    let done_content = std::fs::read_to_string(dir.path().join(".ralph/done.json"))?;
+    let done_content = std::fs::read_to_string(dir.path().join(".ralph/done.jsonc"))?;
     anyhow::ensure!(
         done_content.contains("RQ-0001"),
         "task should be moved to done"

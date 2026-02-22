@@ -76,8 +76,8 @@ fn setup_test_queue() -> Result<(TempDir, config::Resolved)> {
 
     let config = Config {
         queue: ralph::contracts::QueueConfig {
-            file: Some(PathBuf::from(".ralph/queue.json")),
-            done_file: Some(PathBuf::from(".ralph/done.json")),
+            file: Some(PathBuf::from(".ralph/queue.jsonc")),
+            done_file: Some(PathBuf::from(".ralph/done.jsonc")),
             id_prefix: Some("RQ".to_string()),
             id_width: Some(4),
             size_warning_threshold_kb: Some(500),

@@ -31,8 +31,8 @@ fn write_empty_queue(dir: &Path) -> Result<()> {
   "tasks": []
 }"#;
 
-    std::fs::write(dir.join(".ralph/queue.json"), queue).context("write queue.json")?;
-    std::fs::write(dir.join(".ralph/done.json"), done).context("write done.json")?;
+    std::fs::write(dir.join(".ralph/queue.jsonc"), queue).context("write queue.json")?;
+    std::fs::write(dir.join(".ralph/done.jsonc"), done).context("write done.json")?;
     Ok(())
 }
 
@@ -92,8 +92,8 @@ fn stats_json_includes_summary_and_durations() -> Result<()> {
   "tasks": []
 }"#;
 
-    std::fs::write(dir.path().join(".ralph/queue.json"), queue).context("write queue.json")?;
-    std::fs::write(dir.path().join(".ralph/done.json"), done).context("write done.json")?;
+    std::fs::write(dir.path().join(".ralph/queue.jsonc"), queue).context("write queue.json")?;
+    std::fs::write(dir.path().join(".ralph/done.jsonc"), done).context("write done.json")?;
 
     let (status, stdout, stderr) = run_in_dir(dir.path(), &["queue", "stats", "--format", "json"]);
     anyhow::ensure!(
@@ -197,8 +197,8 @@ fn history_json_returns_window_and_days() -> Result<()> {
   "tasks": []
 }"#;
 
-    std::fs::write(dir.path().join(".ralph/queue.json"), queue).context("write queue.json")?;
-    std::fs::write(dir.path().join(".ralph/done.json"), done).context("write done.json")?;
+    std::fs::write(dir.path().join(".ralph/queue.jsonc"), queue).context("write queue.json")?;
+    std::fs::write(dir.path().join(".ralph/done.jsonc"), done).context("write done.json")?;
 
     let (status, stdout, stderr) = run_in_dir(
         dir.path(),
@@ -363,8 +363,8 @@ fn burndown_zero_count_day_renders_empty_bar() -> Result<()> {
   "tasks": []
 }"#;
 
-    std::fs::write(dir.path().join(".ralph/queue.json"), queue).context("write queue.json")?;
-    std::fs::write(dir.path().join(".ralph/done.json"), done).context("write done.json")?;
+    std::fs::write(dir.path().join(".ralph/queue.jsonc"), queue).context("write queue.json")?;
+    std::fs::write(dir.path().join(".ralph/done.jsonc"), done).context("write done.json")?;
 
     let (status, stdout, stderr) = run_in_dir(dir.path(), &["queue", "burndown", "--days", "2"]);
     anyhow::ensure!(
@@ -429,7 +429,7 @@ fn stats_json_includes_execution_history_eta_when_present() -> Result<()> {
     }
   ]
 }"#;
-    std::fs::write(dir.path().join(".ralph/queue.json"), queue)?;
+    std::fs::write(dir.path().join(".ralph/queue.jsonc"), queue)?;
 
     // Write execution history
     test_support::write_execution_history_v1_single_sample(
@@ -505,7 +505,7 @@ fn stats_json_execution_history_eta_null_when_no_history() -> Result<()> {
     }
   ]
 }"#;
-    std::fs::write(dir.path().join(".ralph/queue.json"), queue)?;
+    std::fs::write(dir.path().join(".ralph/queue.jsonc"), queue)?;
     // No execution history written
 
     let (status, stdout, stderr) = run_in_dir(dir.path(), &["queue", "stats", "--format", "json"]);
@@ -547,7 +547,7 @@ fn stats_text_includes_execution_history_eta_section() -> Result<()> {
     }
   ]
 }"#;
-    std::fs::write(dir.path().join(".ralph/queue.json"), queue)?;
+    std::fs::write(dir.path().join(".ralph/queue.jsonc"), queue)?;
     test_support::write_execution_history_v1_single_sample(
         dir.path(),
         "codex",
@@ -602,7 +602,7 @@ fn stats_text_shows_na_when_no_history() -> Result<()> {
     }
   ]
 }"#;
-    std::fs::write(dir.path().join(".ralph/queue.json"), queue)?;
+    std::fs::write(dir.path().join(".ralph/queue.jsonc"), queue)?;
     // No execution history
 
     let (status, stdout, stderr) = run_in_dir(dir.path(), &["queue", "stats"]);
@@ -657,8 +657,8 @@ fn stats_json_includes_time_tracking_work_time_and_start_lag() -> Result<()> {
   "tasks": []
 }"#;
 
-    std::fs::write(dir.path().join(".ralph/queue.json"), queue).context("write queue.json")?;
-    std::fs::write(dir.path().join(".ralph/done.json"), done).context("write done.json")?;
+    std::fs::write(dir.path().join(".ralph/queue.jsonc"), queue).context("write queue.json")?;
+    std::fs::write(dir.path().join(".ralph/done.jsonc"), done).context("write done.json")?;
 
     let (status, stdout, stderr) = run_in_dir(dir.path(), &["queue", "stats", "--format", "json"]);
     anyhow::ensure!(
@@ -753,8 +753,8 @@ fn stats_json_includes_velocity_breakdowns_by_tag_and_runner() -> Result<()> {
   "tasks": []
 }"#;
 
-    std::fs::write(dir.path().join(".ralph/queue.json"), queue).context("write queue.json")?;
-    std::fs::write(dir.path().join(".ralph/done.json"), done).context("write done.json")?;
+    std::fs::write(dir.path().join(".ralph/queue.jsonc"), queue).context("write queue.json")?;
+    std::fs::write(dir.path().join(".ralph/done.jsonc"), done).context("write done.json")?;
 
     let (status, stdout, stderr) = run_in_dir(dir.path(), &["queue", "stats", "--format", "json"]);
     anyhow::ensure!(
@@ -843,8 +843,8 @@ fn stats_json_includes_slow_groups_by_tag_and_runner() -> Result<()> {
   "tasks": []
 }"#;
 
-    std::fs::write(dir.path().join(".ralph/queue.json"), queue).context("write queue.json")?;
-    std::fs::write(dir.path().join(".ralph/done.json"), done).context("write done.json")?;
+    std::fs::write(dir.path().join(".ralph/queue.jsonc"), queue).context("write queue.json")?;
+    std::fs::write(dir.path().join(".ralph/done.jsonc"), done).context("write done.json")?;
 
     let (status, stdout, stderr) = run_in_dir(dir.path(), &["queue", "stats", "--format", "json"]);
     anyhow::ensure!(
@@ -943,8 +943,8 @@ fn stats_tag_filtering_filters_results() -> Result<()> {
   "tasks": []
 }"#;
 
-    std::fs::write(dir.path().join(".ralph/queue.json"), queue).context("write queue.json")?;
-    std::fs::write(dir.path().join(".ralph/done.json"), done).context("write done.json")?;
+    std::fs::write(dir.path().join(".ralph/queue.jsonc"), queue).context("write queue.json")?;
+    std::fs::write(dir.path().join(".ralph/done.jsonc"), done).context("write done.json")?;
 
     // Filter by tag-a
     let (status, stdout, stderr) = run_in_dir(
@@ -1041,8 +1041,8 @@ fn stats_text_shows_all_sections() -> Result<()> {
   "tasks": []
 }"#;
 
-    std::fs::write(dir.path().join(".ralph/queue.json"), queue).context("write queue.json")?;
-    std::fs::write(dir.path().join(".ralph/done.json"), done).context("write done.json")?;
+    std::fs::write(dir.path().join(".ralph/queue.jsonc"), queue).context("write queue.json")?;
+    std::fs::write(dir.path().join(".ralph/done.jsonc"), done).context("write done.json")?;
 
     let (status, stdout, stderr) = run_in_dir(dir.path(), &["queue", "stats"]);
     anyhow::ensure!(

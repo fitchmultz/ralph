@@ -2,7 +2,7 @@
 //!
 //! Responsibilities:
 //! - Provide human- and machine-readable views of productivity stats.
-//! - Read from `.ralph/cache/productivity.json` via `crate::productivity`.
+//! - Read from `.ralph/cache/productivity.jsonc` via `crate::productivity`.
 //!
 //! Not handled here:
 //! - Recording completions (handled where tasks are completed).
@@ -17,6 +17,12 @@ use clap::{Args, Subcommand, ValueEnum};
 
 use crate::config;
 use crate::productivity;
+
+fn load_done_queue_for_estimation(
+    resolved: &config::Resolved,
+) -> Result<crate::contracts::QueueFile> {
+    crate::queue::load_queue_or_default(&resolved.done_path)
+}
 
 #[derive(ValueEnum, Clone, Copy, Debug, Default)]
 #[clap(rename_all = "snake_case")]
@@ -136,9 +142,8 @@ pub fn handle(args: ProductivityArgs) -> Result<()> {
             }
         }
         ProductivityCommand::Estimation(cmd) => {
-            // Load completed tasks from done.json
-            let done_path = resolved.repo_root.join(".ralph/done.json");
-            let done_queue = crate::queue::load_queue_or_default(&done_path)?;
+            // Load completed tasks from the resolved done archive path.
+            let done_queue = load_done_queue_for_estimation(&resolved)?;
             let report = productivity::build_estimation_report(&done_queue.tasks);
             match cmd.format {
                 ProductivityFormat::Json => {
@@ -152,4 +157,64 @@ pub fn handle(args: ProductivityArgs) -> Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::contracts::{Config, QueueFile, Task, TaskStatus};
+    use std::path::PathBuf;
+
+    #[test]
+    fn estimation_loads_done_tasks_from_resolved_done_path() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let repo_root = temp.path().to_path_buf();
+
+        let default_done_path = repo_root.join(".ralph/done.json");
+        let custom_done_path = repo_root.join("archive/done.jsonc");
+        std::fs::create_dir_all(default_done_path.parent().expect("default parent"))?;
+        std::fs::create_dir_all(custom_done_path.parent().expect("custom parent"))?;
+
+        let default_done = QueueFile {
+            version: 1,
+            tasks: vec![Task {
+                id: "RQ-DEFAULT".to_string(),
+                status: TaskStatus::Done,
+                title: "default".to_string(),
+                estimated_minutes: Some(10),
+                actual_minutes: Some(10),
+                ..Task::default()
+            }],
+        };
+        crate::queue::save_queue(&default_done_path, &default_done)?;
+
+        let custom_done = QueueFile {
+            version: 1,
+            tasks: vec![Task {
+                id: "RQ-CUSTOM".to_string(),
+                status: TaskStatus::Done,
+                title: "custom".to_string(),
+                estimated_minutes: Some(20),
+                actual_minutes: Some(25),
+                ..Task::default()
+            }],
+        };
+        crate::queue::save_queue(&custom_done_path, &custom_done)?;
+
+        let resolved = config::Resolved {
+            config: Config::default(),
+            repo_root,
+            queue_path: PathBuf::from("unused-queue"),
+            done_path: custom_done_path,
+            id_prefix: "RQ".to_string(),
+            id_width: 4,
+            global_config_path: None,
+            project_config_path: None,
+        };
+
+        let loaded = load_done_queue_for_estimation(&resolved)?;
+        assert_eq!(loaded.tasks.len(), 1);
+        assert_eq!(loaded.tasks[0].id, "RQ-CUSTOM");
+        Ok(())
+    }
 }

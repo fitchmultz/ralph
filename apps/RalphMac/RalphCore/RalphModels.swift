@@ -616,7 +616,7 @@ public enum RalphTaskExecutionPreset: String, CaseIterable, Sendable, Identifiab
         case .hybridCodexKimi:
             return "Codex planning, Kimi implementation and review."
         case .inheritFromConfig:
-            return "Remove task overrides and use .ralph/config.json."
+            return "Remove task overrides and use .ralph/config.jsonc."
         }
     }
 

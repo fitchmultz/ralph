@@ -11,7 +11,7 @@ Use agent swarms, parallel agents, and sub-agents aggressively. Spawn sub-agents
 3. `.ralph/README.md`
 4. Task details via `ralph task show {{TASK_ID}}` (or `ralph task details {{TASK_ID}}`).
 
-Only open `.ralph/queue.json` or `.ralph/done.json` when you must edit them.
+Only open `{{config.queue.file}}` or `{{config.queue.done_file}}` when you must edit them.
 
 # INSTRUCTIONS
 {{PROJECT_TYPE_GUIDANCE}}
@@ -29,9 +29,9 @@ Only open `.ralph/queue.json` or `.ralph/done.json` when you must edit them.
 
 ### IMPORTANT EXCEPTION (RALPH BOOKKEEPING)
 When running under `ralph run ...` supervision, the repo may appear “dirty” *only* because Ralph updated:
-- `.ralph/queue.json` or `.ralph/queue.jsonc` (e.g., setting the current task to `doing`)
-- `.ralph/done.json` or `.ralph/done.jsonc` (e.g., archiving/completing tasks)
-- `.ralph/config.json` or `.ralph/config.jsonc`
+- `{{config.queue.file}}` (e.g., setting the current task to `doing`)
+- `{{config.queue.done_file}}` (e.g., archiving/completing tasks)
+- `.ralph/config.jsonc` (or legacy `.ralph/config.json` before migration)
 - `.ralph/cache/*`
 - `.ralph/lock/*`
 

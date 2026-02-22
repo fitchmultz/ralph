@@ -10,7 +10,7 @@
 //! - Coordinator orchestration (see `super::orchestration`).
 //!
 //! Invariants/assumptions:
-//! - Queue/done are not synchronized to workers (coordinator-only).
+//! - Worker queue/done paths are seeded from coordinator resolved paths.
 //! - Workspace paths are valid and writable.
 
 use crate::config;
@@ -22,8 +22,9 @@ use std::path::Path;
 /// Sync ralph state files from repo root to workspace.
 ///
 /// Syncs `.ralph/` runtime files plus gitignored allowlisted files.
-/// Queue/done and ephemeral `.ralph` runtime paths are intentionally NOT synchronized
-/// to prevent coordinator state leakage and merge conflicts in worker branches.
+/// Ephemeral `.ralph` runtime paths are intentionally NOT synchronized.
+/// Queue/done files are seeded explicitly using resolved queue/done paths so
+/// parallel workers work with `.jsonc` migrations and gitignored `.ralph` setups.
 ///
 /// # Errors
 /// Returns an error if:
@@ -37,6 +38,11 @@ pub(crate) fn sync_ralph_state(resolved: &config::Resolved, workspace_path: &Pat
     // Sync repo-local .ralph runtime tree (excluding coordinator-only and ephemeral paths)
     let source = resolved.repo_root.join(".ralph");
     sync_ralph_runtime_tree(resolved, &source, &target)?;
+
+    // Seed the worker bookkeeping files from the coordinator's resolved paths.
+    // This is required when queue/done live in .jsonc paths not yet committed,
+    // and when .ralph files are gitignored.
+    sync_worker_bookkeeping_files(resolved, workspace_path)?;
 
     // Sync selected non-.ralph ignored files (currently .env*)
     sync_gitignored(&resolved.repo_root, workspace_path)?;
@@ -158,6 +164,7 @@ fn should_skip_ralph_runtime_path(
         return true;
     }
 
+    // Resolved queue/done are synced explicitly in sync_worker_bookkeeping_files.
     if source_path == resolved.queue_path || source_path == resolved.done_path {
         return true;
     }
@@ -167,6 +174,30 @@ fn should_skip_ralph_runtime_path(
         .next()
         .and_then(|component| component.as_os_str().to_str())
         .is_some_and(|component| NEVER_COPY_RALPH_DIRS.contains(&component))
+}
+
+fn sync_worker_bookkeeping_files(resolved: &config::Resolved, workspace_path: &Path) -> Result<()> {
+    sync_worker_bookkeeping_file(resolved, workspace_path, &resolved.queue_path, "queue")?;
+    sync_worker_bookkeeping_file(resolved, workspace_path, &resolved.done_path, "done")?;
+    Ok(())
+}
+
+fn sync_worker_bookkeeping_file(
+    resolved: &config::Resolved,
+    workspace_path: &Path,
+    source_path: &Path,
+    label: &str,
+) -> Result<()> {
+    let target_path = super::path_map::map_resolved_path_into_workspace(
+        &resolved.repo_root,
+        workspace_path,
+        source_path,
+        label,
+    )
+    .with_context(|| format!("map {} bookkeeping path into workspace", label))?;
+
+    sync_file_if_exists(source_path, &target_path)
+        .with_context(|| format!("sync {} bookkeeping file to workspace", label))
 }
 
 /// Decide whether a gitignored entry should be synced to workspaces.
@@ -303,7 +334,7 @@ mod tests {
     }
 
     #[test]
-    fn sync_ralph_state_copies_config_and_prompts_without_queue_done() -> Result<()> {
+    fn sync_ralph_state_copies_config_prompts_and_resolved_queue_done() -> Result<()> {
         let temp = TempDir::new()?;
         let repo_root = temp.path().join("repo");
         let workspace_root = temp.path().join("workspace");
@@ -319,13 +350,13 @@ mod tests {
         let resolved = build_test_resolved(&repo_root, None, None);
         sync_ralph_state(&resolved, &workspace_root)?;
 
-        assert!(
-            !workspace_root.join(".ralph/queue.json").exists(),
-            "queue.json should not be synchronized to worker workspaces"
+        assert_eq!(
+            fs::read_to_string(workspace_root.join(".ralph/queue.json"))?,
+            "{queue}"
         );
-        assert!(
-            !workspace_root.join(".ralph/done.json").exists(),
-            "done.json should not be synchronized to worker workspaces"
+        assert_eq!(
+            fs::read_to_string(workspace_root.join(".ralph/done.json"))?,
+            "{done}"
         );
         assert_eq!(
             fs::read_to_string(workspace_root.join(".ralph/config.json"))?,
@@ -394,13 +425,13 @@ mod tests {
             fs::read_to_string(workspace_root.join(".ralph/templates/task.json"))?,
             "{\"template\":true}"
         );
-        assert!(
-            !workspace_root.join(".ralph/queue.json").exists(),
-            "queue.json should not be synchronized to worker workspaces"
+        assert_eq!(
+            fs::read_to_string(workspace_root.join(".ralph/queue.json"))?,
+            "{queue}"
         );
-        assert!(
-            !workspace_root.join(".ralph/done.json").exists(),
-            "done.json should not be synchronized to worker workspaces"
+        assert_eq!(
+            fs::read_to_string(workspace_root.join(".ralph/done.json"))?,
+            "{done}"
         );
         assert!(
             !workspace_root.join(".ralph/cache").exists(),
@@ -417,6 +448,63 @@ mod tests {
         assert!(
             !workspace_root.join(".ralph/lock").exists(),
             "lock/ should not be synchronized to worker workspaces"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn sync_ralph_state_copies_jsonc_config_with_agent_overrides() -> Result<()> {
+        let temp = TempDir::new()?;
+        let repo_root = temp.path().join("repo");
+        let workspace_root = temp.path().join("workspace");
+        fs::create_dir_all(&repo_root)?;
+        git_test::init_repo(&repo_root)?;
+        fs::create_dir_all(&workspace_root)?;
+
+        fs::create_dir_all(repo_root.join(".ralph"))?;
+        fs::write(repo_root.join(".ralph/queue.jsonc"), "{queue}")?;
+        fs::write(repo_root.join(".ralph/done.jsonc"), "{done}")?;
+        fs::write(
+            repo_root.join(".ralph/config.jsonc"),
+            r#"{
+  "version": 1,
+  "agent": {
+    "runner": "opencode",
+    "model": "gpt-5.2",
+    "phases": 3,
+    "phase_overrides": {
+      "phase1": { "runner": "codex", "model": "gpt-5.2-codex", "reasoning_effort": "high" },
+      "phase2": { "runner": "claude", "model": "opus" },
+      "phase3": { "runner": "gemini", "model": "gemini-3-pro-preview" }
+    }
+  }
+}"#,
+        )?;
+
+        let resolved = build_test_resolved(
+            &repo_root,
+            Some(repo_root.join(".ralph/queue.jsonc")),
+            Some(repo_root.join(".ralph/done.jsonc")),
+        );
+        sync_ralph_state(&resolved, &workspace_root)?;
+
+        let config_json = fs::read_to_string(workspace_root.join(".ralph/config.jsonc"))?;
+        let config: serde_json::Value = serde_json::from_str(&config_json)?;
+        assert_eq!(config["agent"]["runner"], "opencode");
+        assert_eq!(config["agent"]["model"], "gpt-5.2");
+        assert_eq!(config["agent"]["phases"], 3);
+        assert_eq!(
+            config["agent"]["phase_overrides"]["phase1"]["runner"],
+            "codex"
+        );
+        assert_eq!(
+            config["agent"]["phase_overrides"]["phase2"]["model"],
+            "opus"
+        );
+        assert_eq!(
+            config["agent"]["phase_overrides"]["phase3"]["runner"],
+            "gemini"
         );
 
         Ok(())
@@ -498,7 +586,7 @@ mod tests {
     }
 
     #[test]
-    fn sync_ralph_state_custom_queue_done_paths_are_not_synced() -> Result<()> {
+    fn sync_ralph_state_custom_queue_done_paths_are_synced() -> Result<()> {
         let temp = TempDir::new()?;
         let repo_root = temp.path().join("repo");
         let workspace_root = temp.path().join("workspace");
@@ -523,14 +611,14 @@ mod tests {
         let resolved = build_test_resolved(&repo_root, Some(queue_path), Some(done_path));
         sync_ralph_state(&resolved, &workspace_root)?;
 
-        // Verify custom paths are NOT synced
-        assert!(
-            !workspace_root.join("queue/active.json").exists(),
-            "custom queue path should not be synchronized"
+        // Verify custom paths are synced to workspace targets
+        assert_eq!(
+            fs::read_to_string(workspace_root.join("queue/active.json"))?,
+            "{custom_queue}"
         );
-        assert!(
-            !workspace_root.join("archive/done.json").exists(),
-            "custom done path should not be synchronized"
+        assert_eq!(
+            fs::read_to_string(workspace_root.join("archive/done.json"))?,
+            "{custom_done}"
         );
         // Verify config and prompts still sync
         assert_eq!(
@@ -545,7 +633,7 @@ mod tests {
     }
 
     #[test]
-    fn sync_ralph_state_custom_queue_done_paths_inside_ralph_are_not_synced() -> Result<()> {
+    fn sync_ralph_state_custom_queue_done_paths_inside_ralph_are_synced() -> Result<()> {
         let temp = TempDir::new()?;
         let repo_root = temp.path().join("repo");
         let workspace_root = temp.path().join("workspace");
@@ -568,14 +656,14 @@ mod tests {
         let resolved = build_test_resolved(&repo_root, Some(queue_path), Some(done_path));
         sync_ralph_state(&resolved, &workspace_root)?;
 
-        // Custom queue/done should be excluded even under .ralph
-        assert!(
-            !workspace_root.join(".ralph/data/queue.jsonc").exists(),
-            "custom .ralph queue path should not be synchronized"
+        // Custom queue/done should be seeded from resolved paths.
+        assert_eq!(
+            fs::read_to_string(workspace_root.join(".ralph/data/queue.jsonc"))?,
+            "{custom_queue}"
         );
-        assert!(
-            !workspace_root.join(".ralph/data/done.json").exists(),
-            "custom .ralph done path should not be synchronized"
+        assert_eq!(
+            fs::read_to_string(workspace_root.join(".ralph/data/done.json"))?,
+            "{custom_done}"
         );
         // Other runtime files should still sync
         assert_eq!(
@@ -610,10 +698,64 @@ mod tests {
         let resolved = build_test_resolved(&repo_root, Some(queue_path), Some(done_path));
         sync_ralph_state(&resolved, &workspace_root)?;
 
-        // Queue should NOT be synchronized
-        assert!(!workspace_root.join("queue/active.json").exists());
+        // Queue should be synchronized from resolved path.
+        assert_eq!(
+            fs::read_to_string(workspace_root.join("queue/active.json"))?,
+            "{queue}"
+        );
         // Done should NOT exist (wasn't created)
         assert!(!workspace_root.join("archive/done.json").exists());
+        Ok(())
+    }
+
+    #[test]
+    fn sync_ralph_state_seeds_jsonc_bookkeeping_for_migrated_uncommitted_config() -> Result<()> {
+        let temp = TempDir::new()?;
+        let repo_root = temp.path().join("repo");
+        let workspace_root = temp.path().join("workspace");
+        fs::create_dir_all(&repo_root)?;
+        git_test::init_repo(&repo_root)?;
+
+        fs::create_dir_all(repo_root.join(".ralph"))?;
+        // Simulate pre-migration tracked files present in branch/worktree.
+        fs::write(repo_root.join(".ralph/queue.json"), "{legacy_queue}")?;
+        fs::write(repo_root.join(".ralph/done.json"), "{legacy_done}")?;
+        // Simulate local migration already applied in coordinator but not committed.
+        fs::write(repo_root.join(".ralph/queue.jsonc"), "{migrated_queue}")?;
+        fs::write(repo_root.join(".ralph/done.jsonc"), "{migrated_done}")?;
+        fs::write(repo_root.join(".ralph/config.jsonc"), "{config}")?;
+
+        // Simulate worker checkout still containing legacy bookkeeping names.
+        fs::create_dir_all(workspace_root.join(".ralph"))?;
+        fs::write(
+            workspace_root.join(".ralph/queue.json"),
+            "{legacy_workspace_queue}",
+        )?;
+        fs::write(
+            workspace_root.join(".ralph/done.json"),
+            "{legacy_workspace_done}",
+        )?;
+
+        let resolved = build_test_resolved(
+            &repo_root,
+            Some(repo_root.join(".ralph/queue.jsonc")),
+            Some(repo_root.join(".ralph/done.jsonc")),
+        );
+        sync_ralph_state(&resolved, &workspace_root)?;
+
+        assert_eq!(
+            fs::read_to_string(workspace_root.join(".ralph/queue.jsonc"))?,
+            "{migrated_queue}"
+        );
+        assert_eq!(
+            fs::read_to_string(workspace_root.join(".ralph/done.jsonc"))?,
+            "{migrated_done}"
+        );
+        // Legacy filenames may still exist in a checkout, but migration prompts should
+        // not trigger because the resolved .jsonc bookkeeping files are now present.
+        assert!(workspace_root.join(".ralph/queue.json").exists());
+        assert!(workspace_root.join(".ralph/done.json").exists());
+
         Ok(())
     }
 

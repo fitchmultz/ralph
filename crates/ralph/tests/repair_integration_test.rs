@@ -98,8 +98,8 @@ fn repair_queue_fixes_missing_fields_and_duplicates() -> Result<()> {
   ]
 }"#;
 
-    std::fs::write(dir.path().join(".ralph/queue.json"), broken_queue)?;
-    std::fs::write(dir.path().join(".ralph/done.json"), broken_done)?;
+    std::fs::write(dir.path().join(".ralph/queue.jsonc"), broken_queue)?;
+    std::fs::write(dir.path().join(".ralph/done.jsonc"), broken_done)?;
 
     // Run repair
     let (status, stdout, stderr) = run_in_dir(dir.path(), &["queue", "repair"]);
@@ -118,8 +118,8 @@ fn repair_queue_fixes_missing_fields_and_duplicates() -> Result<()> {
     assert!(stderr.contains("Repaired queue written to disk"));
 
     // Verify file content
-    let queue_path = dir.path().join(".ralph/queue.json");
-    let done_path = dir.path().join(".ralph/done.json");
+    let queue_path = dir.path().join(".ralph/queue.jsonc");
+    let done_path = dir.path().join(".ralph/done.jsonc");
 
     let queue_str = std::fs::read_to_string(&queue_path)?;
     let done_str = std::fs::read_to_string(&done_path)?;
@@ -235,7 +235,7 @@ fn repair_remaps_dependencies_for_invalid_ids() -> Result<()> {
   ]
 }"#;
 
-    std::fs::write(dir.path().join(".ralph/queue.json"), broken_queue)?;
+    std::fs::write(dir.path().join(".ralph/queue.jsonc"), broken_queue)?;
 
     // Run repair
     let (status, stdout, stderr) = run_in_dir(dir.path(), &["queue", "repair"]);
@@ -244,7 +244,7 @@ fn repair_remaps_dependencies_for_invalid_ids() -> Result<()> {
         "ralph queue repair failed\nstdout:\n{stdout}\nstderr:\n{stderr}"
     );
 
-    let queue_str = std::fs::read_to_string(dir.path().join(".ralph/queue.json"))?;
+    let queue_str = std::fs::read_to_string(dir.path().join(".ralph/queue.jsonc"))?;
 
     // INVALID-1 should be remapped to RQ-0001 (since init likely created nothing or we overwrote it)
     // Actually init creates nothing in queue.json usually, just structure.

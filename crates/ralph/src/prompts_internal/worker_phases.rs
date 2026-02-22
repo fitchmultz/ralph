@@ -100,6 +100,10 @@ pub(crate) fn render_worker_phase2_prompt(
     config: &Config,
 ) -> Result<String> {
     let template_meta = prompt_template(PromptTemplateId::WorkerPhase2);
+    let id = task_id.trim();
+    if id.is_empty() {
+        bail!("Missing task id: worker phase2 prompt requires a non-empty task id.");
+    }
     let expanded = super::util::expand_variables(template, config)?;
     let repoprompt_block = repoprompt_block(repoprompt_tool_injection, false);
     let safe_plan_text = escape_placeholder_like_text(plan_text.trim());
@@ -116,7 +120,7 @@ pub(crate) fn render_worker_phase2_prompt(
             iteration_completion_block.trim(),
         )
         .replace("{{TOTAL_PHASES}}", &total_phases.to_string())
-        .replace("{{TASK_ID}}", task_id.trim())
+        .replace("{{TASK_ID}}", id)
         .replace("{{BASE_WORKER_PROMPT}}", base_worker_prompt)
         .replace("{{REPOPROMPT_BLOCK}}", repoprompt_block.trim());
 
@@ -129,7 +133,7 @@ pub(crate) fn render_worker_phase2_prompt(
             safe_iteration_completion_block.trim(),
         )
         .replace("{{TOTAL_PHASES}}", &total_phases.to_string())
-        .replace("{{TASK_ID}}", task_id.trim())
+        .replace("{{TASK_ID}}", id)
         .replace("{{BASE_WORKER_PROMPT}}", safe_base_worker_prompt.trim())
         .replace("{{REPOPROMPT_BLOCK}}", repoprompt_block.trim());
     ensure_no_unresolved_placeholders(&rendered_for_validation, template_meta.label)?;
@@ -153,6 +157,10 @@ pub(crate) fn render_worker_phase2_handoff_prompt(
     config: &Config,
 ) -> Result<String> {
     let template_meta = prompt_template(PromptTemplateId::WorkerPhase2Handoff);
+    let id = task_id.trim();
+    if id.is_empty() {
+        bail!("Missing task id: worker phase2 handoff prompt requires a non-empty task id.");
+    }
     let expanded = super::util::expand_variables(template, config)?;
     let repoprompt_block = repoprompt_block(repoprompt_tool_injection, false);
     let safe_plan_text = escape_placeholder_like_text(plan_text.trim());
@@ -169,7 +177,7 @@ pub(crate) fn render_worker_phase2_handoff_prompt(
             iteration_completion_block.trim(),
         )
         .replace("{{TOTAL_PHASES}}", &total_phases.to_string())
-        .replace("{{TASK_ID}}", task_id.trim())
+        .replace("{{TASK_ID}}", id)
         .replace("{{BASE_WORKER_PROMPT}}", base_worker_prompt)
         .replace("{{REPOPROMPT_BLOCK}}", repoprompt_block.trim());
 
@@ -182,7 +190,7 @@ pub(crate) fn render_worker_phase2_handoff_prompt(
             safe_iteration_completion_block.trim(),
         )
         .replace("{{TOTAL_PHASES}}", &total_phases.to_string())
-        .replace("{{TASK_ID}}", task_id.trim())
+        .replace("{{TASK_ID}}", id)
         .replace("{{BASE_WORKER_PROMPT}}", safe_base_worker_prompt.trim())
         .replace("{{REPOPROMPT_BLOCK}}", repoprompt_block.trim());
     ensure_no_unresolved_placeholders(&rendered_for_validation, template_meta.label)?;
@@ -208,6 +216,10 @@ pub(crate) fn render_worker_phase3_prompt(
     config: &Config,
 ) -> Result<String> {
     let template_meta = prompt_template(PromptTemplateId::WorkerPhase3);
+    let id = task_id.trim();
+    if id.is_empty() {
+        bail!("Missing task id: worker phase3 prompt requires a non-empty task id.");
+    }
     let expanded = super::util::expand_variables(template, config)?;
     let mut review_body = code_review_body.trim().to_string();
     if base_worker_prompt.contains("## PROJECT TYPE:") {
@@ -236,7 +248,7 @@ pub(crate) fn render_worker_phase3_prompt(
         .replace("{{PHASE2_FINAL_RESPONSE}}", phase2_final_response.trim())
         .replace("{{BASE_WORKER_PROMPT}}", base_worker_prompt)
         .replace("{{TOTAL_PHASES}}", &total_phases.to_string())
-        .replace("{{TASK_ID}}", task_id.trim())
+        .replace("{{TASK_ID}}", id)
         .replace("{{REPOPROMPT_BLOCK}}", repoprompt_block.trim());
 
     let rendered_for_validation = expanded
@@ -257,7 +269,7 @@ pub(crate) fn render_worker_phase3_prompt(
         )
         .replace("{{BASE_WORKER_PROMPT}}", safe_base_worker_prompt.trim())
         .replace("{{TOTAL_PHASES}}", &total_phases.to_string())
-        .replace("{{TASK_ID}}", task_id.trim())
+        .replace("{{TASK_ID}}", id)
         .replace("{{REPOPROMPT_BLOCK}}", repoprompt_block.trim());
 
     ensure_no_unresolved_placeholders(&rendered_for_validation, template_meta.label)?;

@@ -1,7 +1,7 @@
 //! File creation utilities for Ralph initialization.
 //!
 //! Responsibilities:
-//! - Create and write queue.json, done.json, and config.json files.
+//! - Create and write queue.jsonc, done.jsonc, and config.jsonc files.
 //! - Validate existing files when not forcing overwrite.
 //! - Integrate wizard answers for initial task and config values.
 //!
@@ -178,9 +178,9 @@ mod tests {
 
     fn resolved_for(dir: &TempDir) -> config::Resolved {
         let repo_root = dir.path().to_path_buf();
-        let queue_path = repo_root.join(".ralph/queue.json");
-        let done_path = repo_root.join(".ralph/done.json");
-        let project_config_path = Some(repo_root.join(".ralph/config.json"));
+        let queue_path = repo_root.join(".ralph/queue.jsonc");
+        let done_path = repo_root.join(".ralph/done.jsonc");
+        let project_config_path = Some(repo_root.join(".ralph/config.jsonc"));
         config::Resolved {
             config: Config::default(),
             repo_root,

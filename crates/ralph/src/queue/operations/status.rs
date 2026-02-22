@@ -77,7 +77,7 @@ fn append_redacted_notes(task: &mut Task, notes: &[String]) {
 /// Validates that the task exists in the active queue, is in a valid
 /// starting state (todo or doing), updates its status and timestamps,
 /// appends any provided notes, applies optional custom_fields patch,
-/// and atomically moves it from queue.json to the end of done.json.
+/// and atomically moves it from the active queue file to the end of the done archive file.
 ///
 /// # Arguments
 /// * `queue_path` - Path to the active queue file

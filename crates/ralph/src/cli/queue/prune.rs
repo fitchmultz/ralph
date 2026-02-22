@@ -11,7 +11,7 @@ use super::StatusArg;
 /// Arguments for `ralph queue prune`.
 #[derive(Args)]
 #[command(
-    after_long_help = "Prune removes old tasks from .ralph/done.json while preserving recent history.\n\nSafety:\n  --keep-last always protects the N most recently completed tasks (by completed_at).\n  If no filters are provided, all tasks are pruned except those protected by --keep-last.\n  Missing or invalid completed_at timestamps are treated as oldest for keep-last ordering\n  but do NOT match the age filter (safety-first).\n\nExamples:\n  ralph queue prune --dry-run --age 30 --status rejected\n  ralph queue prune --keep-last 100\n  ralph queue prune --age 90\n  ralph queue prune --age 30 --status done --keep-last 50"
+    after_long_help = "Prune removes old tasks from .ralph/done.jsonc while preserving recent history.\n\nSafety:\n  --keep-last always protects the N most recently completed tasks (by completed_at).\n  If no filters are provided, all tasks are pruned except those protected by --keep-last.\n  Missing or invalid completed_at timestamps are treated as oldest for keep-last ordering\n  but do NOT match the age filter (safety-first).\n\nExamples:\n  ralph queue prune --dry-run --age 30 --status rejected\n  ralph queue prune --keep-last 100\n  ralph queue prune --age 90\n  ralph queue prune --age 30 --status done --keep-last 50"
 )]
 pub struct QueuePruneArgs {
     /// Only prune tasks completed at least N days ago.

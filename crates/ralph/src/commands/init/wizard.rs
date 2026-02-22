@@ -338,9 +338,9 @@ fn print_summary(answers: &WizardAnswers) {
 
     println!();
     println!("Files to create:");
-    println!("  - .ralph/config.json");
-    println!("  - .ralph/queue.json");
-    println!("  - .ralph/done.json");
+    println!("  - .ralph/config.jsonc");
+    println!("  - .ralph/queue.jsonc");
+    println!("  - .ralph/done.jsonc");
     println!();
 }
 
@@ -355,7 +355,7 @@ pub fn print_completion_message(answers: Option<&WizardAnswers>, _queue_path: &P
     println!("{}", colored::Colorize::bold("Next steps:"));
     println!("  1. Run 'ralph app open' to open the macOS app (optional)");
     println!("  2. Run 'ralph run one' to execute your first task");
-    println!("  3. Edit .ralph/config.json to customize settings");
+    println!("  3. Edit .ralph/config.jsonc to customize settings");
 
     if let Some(answers) = answers
         && answers.create_first_task

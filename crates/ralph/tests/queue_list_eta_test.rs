@@ -46,7 +46,7 @@ fn write_queue_with_todo(dir: &Path) -> Result<()> {
     }
   ]
 }"#;
-    std::fs::write(dir.join(".ralph/queue.json"), queue)?;
+    std::fs::write(dir.join(".ralph/queue.jsonc"), queue)?;
     Ok(())
 }
 
@@ -81,7 +81,7 @@ fn write_queue_with_mixed_status(dir: &Path) -> Result<()> {
     }
   ]
 }"#;
-    std::fs::write(dir.join(".ralph/queue.json"), queue)?;
+    std::fs::write(dir.join(".ralph/queue.jsonc"), queue)?;
     Ok(())
 }
 

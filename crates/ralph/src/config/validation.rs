@@ -15,9 +15,7 @@
 //! - Validation errors are returned as `anyhow::Error` with descriptive messages.
 //! - Queue validation uses shared error messages for consistency.
 
-use crate::constants::runner::{
-    MAX_PHASES, MIN_ITERATIONS, MIN_MERGE_RETRIES, MIN_PARALLEL_WORKERS, MIN_PHASES,
-};
+use crate::constants::runner::{MAX_PHASES, MIN_ITERATIONS, MIN_PARALLEL_WORKERS, MIN_PHASES};
 use crate::contracts::{AgentConfig, Config, QueueAgingThresholds, QueueConfig};
 use anyhow::{Result, bail};
 use std::path::{Component, Path};
@@ -94,6 +92,54 @@ pub fn validate_queue_overrides(queue: &QueueConfig) -> Result<()> {
     validate_queue_id_width_override(queue.id_width)?;
     validate_queue_file_override(queue.file.as_deref())?;
     validate_queue_done_file_override(queue.done_file.as_deref())?;
+    validate_queue_thresholds(queue)?;
+    Ok(())
+}
+
+/// Validate queue threshold values are within schema-defined ranges.
+///
+/// Validates:
+/// - size_warning_threshold_kb: 100..=10000
+/// - task_count_warning_threshold: 50..=5000
+/// - max_dependency_depth: 1..=100
+/// - auto_archive_terminal_after_days: 0..=3650
+pub fn validate_queue_thresholds(queue: &QueueConfig) -> Result<()> {
+    if let Some(threshold) = queue.size_warning_threshold_kb
+        && !(100..=10000).contains(&threshold)
+    {
+        bail!(
+            "Invalid queue.size_warning_threshold_kb: {}. Value must be between 100 and 10000 (inclusive). Update .ralph/config.json.",
+            threshold
+        );
+    }
+
+    if let Some(threshold) = queue.task_count_warning_threshold
+        && !(50..=5000).contains(&threshold)
+    {
+        bail!(
+            "Invalid queue.task_count_warning_threshold: {}. Value must be between 50 and 5000 (inclusive). Update .ralph/config.json.",
+            threshold
+        );
+    }
+
+    if let Some(depth) = queue.max_dependency_depth
+        && !(1..=100).contains(&depth)
+    {
+        bail!(
+            "Invalid queue.max_dependency_depth: {}. Value must be between 1 and 100 (inclusive). Update .ralph/config.json.",
+            depth
+        );
+    }
+
+    if let Some(days) = queue.auto_archive_terminal_after_days
+        && days > 3650
+    {
+        bail!(
+            "Invalid queue.auto_archive_terminal_after_days: {}. Value must be between 0 and 3650 (inclusive). Update .ralph/config.json.",
+            days
+        );
+    }
+
     Ok(())
 }
 
@@ -216,25 +262,6 @@ pub fn validate_config(cfg: &Config) -> Result<()> {
         );
     }
 
-    if let Some(retries) = cfg.parallel.merge_retries
-        && retries < MIN_MERGE_RETRIES
-    {
-        bail!(
-            "Invalid parallel.merge_retries: {}. merge_retries must be >= {}. Update .ralph/config.json.",
-            retries,
-            MIN_MERGE_RETRIES
-        );
-    }
-
-    if let Some(prefix) = &cfg.parallel.branch_prefix {
-        if prefix.trim().is_empty() {
-            bail!(
-                "Invalid parallel.branch_prefix: prefix must be non-empty. Update .ralph/config.json."
-            );
-        }
-        validate_parallel_branch_prefix(prefix)?;
-    }
-
     // Validate workspace_root does not contain '..' components for security/predictability
     if let Some(root) = &cfg.parallel.workspace_root {
         if root.as_os_str().is_empty() {
@@ -315,23 +342,6 @@ pub fn validate_agent_patch(agent: &AgentConfig, label: &str) -> Result<()> {
     Ok(())
 }
 
-/// Validate parallel branch prefix by checking if it forms a valid git branch name.
-pub fn validate_parallel_branch_prefix(prefix: &str) -> Result<()> {
-    use crate::constants::git::SAMPLE_TASK_ID;
-
-    // Validate the *constructed* branch name (prefix + typical task id),
-    // since prefixes like "ralph/" are intended and only become valid with a suffix.
-    let sample_branch = format!("{}{}", prefix, SAMPLE_TASK_ID);
-
-    if let Some(reason) = git_ref_invalid_reason(&sample_branch) {
-        bail!(
-            "Invalid parallel.branch_prefix: {prefix:?}. When combined with a task id it must form a valid git branch name (e.g., {sample_branch:?}). {reason}. Update .ralph/config.json."
-        );
-    }
-
-    Ok(())
-}
-
 /// Check if a string is a valid git branch name.
 /// Returns None if valid, or Some(reason) if invalid.
 /// Based on git's check-ref-format rules:
@@ -403,4 +413,286 @@ pub fn git_ref_invalid_reason(branch: &str) -> Option<String> {
     }
 
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // =========================================================================
+    // validate_queue_thresholds tests
+    // =========================================================================
+
+    #[test]
+    fn test_validate_queue_thresholds_size_warning_ok() {
+        let queue = QueueConfig {
+            size_warning_threshold_kb: Some(500),
+            ..Default::default()
+        };
+        assert!(validate_queue_thresholds(&queue).is_ok());
+    }
+
+    #[test]
+    fn test_validate_queue_thresholds_size_warning_min_boundary() {
+        let queue = QueueConfig {
+            size_warning_threshold_kb: Some(100),
+            ..Default::default()
+        };
+        assert!(validate_queue_thresholds(&queue).is_ok());
+    }
+
+    #[test]
+    fn test_validate_queue_thresholds_size_warning_max_boundary() {
+        let queue = QueueConfig {
+            size_warning_threshold_kb: Some(10000),
+            ..Default::default()
+        };
+        assert!(validate_queue_thresholds(&queue).is_ok());
+    }
+
+    #[test]
+    fn test_validate_queue_thresholds_size_warning_too_low() {
+        let queue = QueueConfig {
+            size_warning_threshold_kb: Some(50),
+            ..Default::default()
+        };
+        let result = validate_queue_thresholds(&queue);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("size_warning_threshold_kb"));
+        assert!(err.contains("100"));
+        assert!(err.contains("10000"));
+    }
+
+    #[test]
+    fn test_validate_queue_thresholds_size_warning_too_high() {
+        let queue = QueueConfig {
+            size_warning_threshold_kb: Some(50000),
+            ..Default::default()
+        };
+        let result = validate_queue_thresholds(&queue);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("size_warning_threshold_kb"));
+    }
+
+    #[test]
+    fn test_validate_queue_thresholds_task_count_ok() {
+        let queue = QueueConfig {
+            task_count_warning_threshold: Some(500),
+            ..Default::default()
+        };
+        assert!(validate_queue_thresholds(&queue).is_ok());
+    }
+
+    #[test]
+    fn test_validate_queue_thresholds_task_count_min_boundary() {
+        let queue = QueueConfig {
+            task_count_warning_threshold: Some(50),
+            ..Default::default()
+        };
+        assert!(validate_queue_thresholds(&queue).is_ok());
+    }
+
+    #[test]
+    fn test_validate_queue_thresholds_task_count_max_boundary() {
+        let queue = QueueConfig {
+            task_count_warning_threshold: Some(5000),
+            ..Default::default()
+        };
+        assert!(validate_queue_thresholds(&queue).is_ok());
+    }
+
+    #[test]
+    fn test_validate_queue_thresholds_task_count_too_low() {
+        let queue = QueueConfig {
+            task_count_warning_threshold: Some(10),
+            ..Default::default()
+        };
+        let result = validate_queue_thresholds(&queue);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("task_count_warning_threshold"));
+        assert!(err.contains("50"));
+        assert!(err.contains("5000"));
+    }
+
+    #[test]
+    fn test_validate_queue_thresholds_task_count_too_high() {
+        let queue = QueueConfig {
+            task_count_warning_threshold: Some(10000),
+            ..Default::default()
+        };
+        let result = validate_queue_thresholds(&queue);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("task_count_warning_threshold"));
+    }
+
+    #[test]
+    fn test_validate_queue_thresholds_max_dependency_depth_ok() {
+        let queue = QueueConfig {
+            max_dependency_depth: Some(10),
+            ..Default::default()
+        };
+        assert!(validate_queue_thresholds(&queue).is_ok());
+    }
+
+    #[test]
+    fn test_validate_queue_thresholds_max_dependency_depth_min_boundary() {
+        let queue = QueueConfig {
+            max_dependency_depth: Some(1),
+            ..Default::default()
+        };
+        assert!(validate_queue_thresholds(&queue).is_ok());
+    }
+
+    #[test]
+    fn test_validate_queue_thresholds_max_dependency_depth_max_boundary() {
+        let queue = QueueConfig {
+            max_dependency_depth: Some(100),
+            ..Default::default()
+        };
+        assert!(validate_queue_thresholds(&queue).is_ok());
+    }
+
+    #[test]
+    fn test_validate_queue_thresholds_max_dependency_depth_too_low() {
+        let queue = QueueConfig {
+            max_dependency_depth: Some(0),
+            ..Default::default()
+        };
+        let result = validate_queue_thresholds(&queue);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("max_dependency_depth"));
+        assert!(err.contains("1"));
+        assert!(err.contains("100"));
+    }
+
+    #[test]
+    fn test_validate_queue_thresholds_max_dependency_depth_too_high() {
+        let queue = QueueConfig {
+            max_dependency_depth: Some(200),
+            ..Default::default()
+        };
+        let result = validate_queue_thresholds(&queue);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("max_dependency_depth"));
+    }
+
+    #[test]
+    fn test_validate_queue_thresholds_auto_archive_ok() {
+        let queue = QueueConfig {
+            auto_archive_terminal_after_days: Some(30),
+            ..Default::default()
+        };
+        assert!(validate_queue_thresholds(&queue).is_ok());
+    }
+
+    #[test]
+    fn test_validate_queue_thresholds_auto_archive_min_boundary() {
+        let queue = QueueConfig {
+            auto_archive_terminal_after_days: Some(0),
+            ..Default::default()
+        };
+        assert!(validate_queue_thresholds(&queue).is_ok());
+    }
+
+    #[test]
+    fn test_validate_queue_thresholds_auto_archive_max_boundary() {
+        let queue = QueueConfig {
+            auto_archive_terminal_after_days: Some(3650),
+            ..Default::default()
+        };
+        assert!(validate_queue_thresholds(&queue).is_ok());
+    }
+
+    #[test]
+    fn test_validate_queue_thresholds_auto_archive_too_high() {
+        let queue = QueueConfig {
+            auto_archive_terminal_after_days: Some(4000),
+            ..Default::default()
+        };
+        let result = validate_queue_thresholds(&queue);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("auto_archive_terminal_after_days"));
+        assert!(err.contains("3650"));
+    }
+
+    #[test]
+    fn test_validate_queue_thresholds_none_values_ok() {
+        let queue = QueueConfig {
+            size_warning_threshold_kb: None,
+            task_count_warning_threshold: None,
+            max_dependency_depth: None,
+            auto_archive_terminal_after_days: None,
+            ..Default::default()
+        };
+        assert!(validate_queue_thresholds(&queue).is_ok());
+    }
+
+    #[test]
+    fn test_validate_queue_thresholds_all_boundary_values() {
+        // Test exact boundary values
+        let queue = QueueConfig {
+            size_warning_threshold_kb: Some(100),         // min
+            task_count_warning_threshold: Some(5000),     // max
+            max_dependency_depth: Some(1),                // min
+            auto_archive_terminal_after_days: Some(3650), // max
+            ..Default::default()
+        };
+        assert!(validate_queue_thresholds(&queue).is_ok());
+    }
+
+    #[test]
+    fn test_validate_queue_thresholds_all_max_boundary_values() {
+        let queue = QueueConfig {
+            size_warning_threshold_kb: Some(10000),    // max
+            task_count_warning_threshold: Some(50),    // min
+            max_dependency_depth: Some(100),           // max
+            auto_archive_terminal_after_days: Some(0), // min
+            ..Default::default()
+        };
+        assert!(validate_queue_thresholds(&queue).is_ok());
+    }
+
+    // =========================================================================
+    // validate_queue_overrides tests
+    // =========================================================================
+
+    #[test]
+    fn test_validate_queue_overrides_calls_threshold_validation() {
+        // A queue config with invalid thresholds should fail in validate_queue_overrides
+        let queue = QueueConfig {
+            size_warning_threshold_kb: Some(50), // invalid - below min
+            ..Default::default()
+        };
+        let result = validate_queue_overrides(&queue);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("size_warning_threshold_kb"));
+    }
+
+    // =========================================================================
+    // validate_config integration tests
+    // =========================================================================
+
+    #[test]
+    fn test_validate_config_includes_threshold_validation() {
+        let cfg = Config {
+            version: 1,
+            queue: QueueConfig {
+                size_warning_threshold_kb: Some(50000), // invalid - above max
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let result = validate_config(&cfg);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("size_warning_threshold_kb"));
+    }
 }

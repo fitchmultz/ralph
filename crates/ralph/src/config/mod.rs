@@ -18,8 +18,8 @@
 //! Invariants/assumptions:
 //! - Config version must be 1; unsupported versions are rejected.
 //! - Paths are resolved relative to repo root unless absolute.
-//! - Global config lives at `~/.config/ralph/config.json` (or `$XDG_CONFIG_HOME/ralph/config.json`).
-//! - Project config lives at `.ralph/config.json` relative to repo root.
+//! - Global config resolves from `~/.config/ralph/config.jsonc` with `.json` fallback.
+//! - Project config resolves from `.ralph/config.jsonc` with `.json` fallback.
 //! - Config layers are applied in this order: defaults, then global, then project (later layers override earlier ones).
 //! - `save_layer` creates parent directories automatically if needed.
 
@@ -35,7 +35,7 @@ mod tests;
 // Re-export main types and functions for backward compatibility
 pub use layer::{ConfigLayer, apply_layer, load_layer, save_layer};
 pub use resolution::{
-    find_repo_root, global_config_path, prefer_json_then_jsonc, project_config_path,
+    find_repo_root, global_config_path, prefer_jsonc_then_json, project_config_path,
     resolve_done_path, resolve_from_cwd, resolve_from_cwd_for_doctor,
     resolve_from_cwd_with_profile, resolve_id_prefix, resolve_id_width, resolve_queue_path,
 };

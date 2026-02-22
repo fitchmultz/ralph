@@ -209,6 +209,49 @@ fn task_updater_prompt_mentions_scope_is_starting_point() {
     assert!(template.contains("Scope is a starting point, not a restriction."));
 }
 
+fn contains_legacy_json_path(template: &str, legacy_path: &str) -> bool {
+    let bytes = template.as_bytes();
+    for (start, _) in template.match_indices(legacy_path) {
+        let next_idx = start + legacy_path.len();
+        if bytes.get(next_idx).copied() == Some(b'c') {
+            continue;
+        }
+        return true;
+    }
+    false
+}
+
+#[test]
+fn queue_related_prompts_use_config_paths_and_avoid_legacy_json_literals() {
+    let queue_related_templates = [
+        PromptTemplateId::Worker,
+        PromptTemplateId::WorkerPhase1,
+        PromptTemplateId::TaskBuilder,
+        PromptTemplateId::TaskUpdater,
+        PromptTemplateId::ScanMaintenanceV1,
+        PromptTemplateId::ScanMaintenanceV2,
+        PromptTemplateId::ScanInnovationV1,
+        PromptTemplateId::ScanInnovationV2,
+        PromptTemplateId::ScanGeneralV2,
+        PromptTemplateId::MergeConflicts,
+        PromptTemplateId::CompletionChecklist,
+    ];
+
+    for template_id in queue_related_templates {
+        let template = prompt_template(template_id).embedded_default;
+        assert!(
+            !contains_legacy_json_path(template, ".ralph/queue.json"),
+            "template {:?} still references legacy .ralph/queue.json",
+            template_id
+        );
+        assert!(
+            !contains_legacy_json_path(template, ".ralph/done.json"),
+            "template {:?} still references legacy .ralph/done.json",
+            template_id
+        );
+    }
+}
+
 #[test]
 fn required_placeholders_fail_when_missing() {
     let template = "no placeholders here";

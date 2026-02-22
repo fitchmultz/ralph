@@ -129,7 +129,7 @@ fn doctor_fails_with_nonexistent_runner_binary() -> Result<()> {
     std::fs::write(dir.path().join("Makefile"), "ci:\n\tcargo test\n")?;
 
     // Configure a non-existent runner binary
-    let config_path = dir.path().join(".ralph/config.json");
+    let config_path = dir.path().join(".ralph/config.jsonc");
     let config_content = r#"{"version":1,"agent":{"runner":"opencode","opencode_bin":"this-binary-does-not-exist-xyz123"}}"#;
     std::fs::write(&config_path, config_content)?;
 
@@ -163,7 +163,7 @@ fn doctor_fails_with_nonexistent_gemini_binary() -> Result<()> {
     // Setup Makefile
     std::fs::write(dir.path().join("Makefile"), "ci:\n\tcargo test\n")?;
 
-    let config_path = dir.path().join(".ralph/config.json");
+    let config_path = dir.path().join(".ralph/config.jsonc");
     let config_content = r#"{"version":1,"agent":{"runner":"gemini","gemini_bin":"this-gemini-does-not-exist-xyz123"}}"#;
     std::fs::write(&config_path, config_content)?;
 
@@ -195,7 +195,7 @@ fn doctor_fails_with_nonexistent_claude_binary() -> Result<()> {
     // Setup Makefile
     std::fs::write(dir.path().join("Makefile"), "ci:\n\tcargo test\n")?;
 
-    let config_path = dir.path().join(".ralph/config.json");
+    let config_path = dir.path().join(".ralph/config.jsonc");
     let config_content = r#"{"version":1,"agent":{"runner":"claude","claude_bin":"this-claude-does-not-exist-xyz123"}}"#;
     std::fs::write(&config_path, config_content)?;
 
@@ -228,7 +228,7 @@ fn doctor_fails_with_invalid_done_archive() -> Result<()> {
     std::fs::write(dir.path().join("Makefile"), "ci:\n\tcargo test\n")?;
 
     // Corrupt done.json
-    let done_path = dir.path().join(".ralph/done.json");
+    let done_path = dir.path().join(".ralph/done.jsonc");
     std::fs::write(&done_path, "invalid json: { [")?;
 
     let output = ralph_cmd_in_dir(dir.path()).arg("doctor").output()?;
@@ -264,7 +264,7 @@ fn doctor_warns_when_instruction_files_missing() -> Result<()> {
     std::fs::write(dir.path().join("Makefile"), "ci:\n\tcargo test\n")?;
 
     // Configure instruction file injection with a missing path.
-    let config_path = dir.path().join(".ralph/config.json");
+    let config_path = dir.path().join(".ralph/config.jsonc");
     let config_content =
         r#"{"version":1,"agent":{"instruction_files":["missing-global-agents.md"]}}"#;
     std::fs::write(&config_path, config_content)?;
@@ -316,7 +316,7 @@ esac
     }
 
     // Configure the stub runner
-    let config_path = dir.path().join(".ralph/config.json");
+    let config_path = dir.path().join(".ralph/config.jsonc");
     let config_content = format!(
         r#"{{"version":1,"agent":{{"runner":"opencode","opencode_bin":"{}"}}}}"#,
         runner_path.display()
@@ -384,7 +384,7 @@ esac
     }
 
     // Configure the stub runner
-    let config_path = dir.path().join(".ralph/config.json");
+    let config_path = dir.path().join(".ralph/config.jsonc");
     let config_content = format!(
         r#"{{"version":1,"agent":{{"runner":"claude","claude_bin":"{}"}}}}"#,
         runner_path.display()
@@ -447,7 +447,7 @@ exit 1
     }
 
     // Configure the stub runner
-    let config_path = dir.path().join(".ralph/config.json");
+    let config_path = dir.path().join(".ralph/config.jsonc");
     let config_content = format!(
         r#"{{"version":1,"agent":{{"runner":"gemini","gemini_bin":"{}"}}}}"#,
         runner_path.display()
@@ -490,7 +490,7 @@ fn doctor_error_includes_config_key_hint() -> Result<()> {
     std::fs::write(dir.path().join("Makefile"), "ci:\n\tcargo test\n")?;
 
     // Configure a non-existent runner binary
-    let config_path = dir.path().join(".ralph/config.json");
+    let config_path = dir.path().join(".ralph/config.jsonc");
     let config_content =
         r#"{"version":1,"agent":{"runner":"codex","codex_bin":"/nonexistent/path/codex"}}"#;
     std::fs::write(&config_path, config_content)?;
@@ -508,7 +508,7 @@ fn doctor_error_includes_config_key_hint() -> Result<()> {
         "error should mention codex_bin config key"
     );
     assert!(
-        combined.contains(".ralph/config.json"),
+        combined.contains(".ralph/config.jsonc"),
         "error should mention config file location"
     );
     Ok(())
@@ -841,7 +841,7 @@ fn doctor_auto_fix_repairs_invalid_queue() -> Result<()> {
     }
   ]
 }"#;
-    std::fs::write(dir.path().join(".ralph/queue.json"), invalid_queue)?;
+    std::fs::write(dir.path().join(".ralph/queue.jsonc"), invalid_queue)?;
 
     // Run doctor without auto-fix - should report error
     let output = ralph_cmd_in_dir(dir.path()).arg("doctor").output()?;

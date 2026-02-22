@@ -45,7 +45,7 @@ fn write_queue_with_todo(dir: &Path) -> Result<()> {
     }
   ]
 }"#;
-    std::fs::write(dir.join(".ralph/queue.json"), queue)?;
+    std::fs::write(dir.join(".ralph/queue.jsonc"), queue)?;
     Ok(())
 }
 
@@ -148,7 +148,7 @@ fn queue_next_with_eta_no_runnable_task() -> Result<()> {
     init_repo(dir.path())?;
     // Empty queue - no runnable task
     let queue = r#"{"version": 1, "tasks": []}"#;
-    std::fs::write(dir.path().join(".ralph/queue.json"), queue)?;
+    std::fs::write(dir.path().join(".ralph/queue.jsonc"), queue)?;
 
     let (status, stdout, stderr) = run_in_dir(dir.path(), &["queue", "next", "--with-eta"]);
     assert!(

@@ -67,11 +67,11 @@ pub struct QueueExportArgs {
     #[arg(long)]
     pub created_before: Option<String>,
 
-    /// Include tasks from .ralph/done.json archive.
+    /// Include tasks from .ralph/done.jsonc archive.
     #[arg(long)]
     pub include_archive: bool,
 
-    /// Only export tasks from .ralph/done.json (ignores active queue).
+    /// Only export tasks from .ralph/done.jsonc (ignores active queue).
     #[arg(long)]
     pub only_archive: bool,
 

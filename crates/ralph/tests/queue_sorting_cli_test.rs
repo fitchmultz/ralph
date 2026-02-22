@@ -66,7 +66,7 @@ fn write_queue(dir: &Path) -> Result<()> {
   ]
 }"#;
 
-    std::fs::write(dir.join(".ralph/queue.json"), queue).context("write queue.json")?;
+    std::fs::write(dir.join(".ralph/queue.jsonc"), queue).context("write queue.json")?;
     Ok(())
 }
 
@@ -140,7 +140,7 @@ fn write_queue_for_sorting(dir: &Path) -> Result<()> {
   ]
 }"#;
 
-    std::fs::write(dir.join(".ralph/queue.json"), queue).context("write queue.json")?;
+    std::fs::write(dir.join(".ralph/queue.jsonc"), queue).context("write queue.json")?;
     Ok(())
 }
 
@@ -312,7 +312,7 @@ fn queue_sort_reorders_queue_by_priority_descending() -> Result<()> {
     );
 
     let queue_str =
-        std::fs::read_to_string(dir.path().join(".ralph/queue.json")).context("read queue")?;
+        std::fs::read_to_string(dir.path().join(".ralph/queue.jsonc")).context("read queue")?;
     let queue: Value = serde_json::from_str(&queue_str).context("parse queue json")?;
     let tasks = queue["tasks"]
         .as_array()
@@ -354,7 +354,7 @@ fn queue_sort_reorders_queue_by_priority_ascending() -> Result<()> {
     );
 
     let queue_str =
-        std::fs::read_to_string(dir.path().join(".ralph/queue.json")).context("read queue")?;
+        std::fs::read_to_string(dir.path().join(".ralph/queue.jsonc")).context("read queue")?;
     let queue: Value = serde_json::from_str(&queue_str).context("parse queue json")?;
     let tasks = queue["tasks"]
         .as_array()
@@ -387,7 +387,7 @@ fn queue_sort_defaults_to_descending_priority() -> Result<()> {
     );
 
     let queue_str =
-        std::fs::read_to_string(dir.path().join(".ralph/queue.json")).context("read queue")?;
+        std::fs::read_to_string(dir.path().join(".ralph/queue.jsonc")).context("read queue")?;
     let queue: Value = serde_json::from_str(&queue_str).context("parse queue json")?;
     let tasks = queue["tasks"]
         .as_array()
@@ -757,7 +757,7 @@ fn queue_sort_dry_run_does_not_modify_file() -> Result<()> {
     init_repo(dir.path())?;
     write_queue(dir.path())?;
 
-    let before_queue = std::fs::read_to_string(dir.path().join(".ralph/queue.json"))?;
+    let before_queue = std::fs::read_to_string(dir.path().join(".ralph/queue.jsonc"))?;
 
     let (status, stdout, stderr) = run_in_dir(dir.path(), &["queue", "sort", "--dry-run"]);
     anyhow::ensure!(
@@ -772,7 +772,7 @@ fn queue_sort_dry_run_does_not_modify_file() -> Result<()> {
     );
 
     // Verify file unchanged
-    let after_queue = std::fs::read_to_string(dir.path().join(".ralph/queue.json"))?;
+    let after_queue = std::fs::read_to_string(dir.path().join(".ralph/queue.jsonc"))?;
     anyhow::ensure!(
         before_queue == after_queue,
         "queue.json changed during dry-run"
@@ -842,7 +842,7 @@ fn queue_sort_dry_run_already_sorted() -> Result<()> {
       ]
     }"#;
 
-    std::fs::write(dir.path().join(".ralph/queue.json"), queue).context("write queue.json")?;
+    std::fs::write(dir.path().join(".ralph/queue.jsonc"), queue).context("write queue.json")?;
 
     let (status, stdout, stderr) = run_in_dir(dir.path(), &["queue", "sort", "--dry-run"]);
     anyhow::ensure!(

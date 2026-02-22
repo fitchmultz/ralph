@@ -9,7 +9,7 @@ You must add a MINIMUM of 7 tasks to the queue.
 1. ~/.codex/AGENTS.md
 2. AGENTS.md
 3. .ralph/README.md
-4. .ralph/queue.json
+4. {{config.queue.file}}
 
 # PROJECT TYPE GUIDANCE
 {{PROJECT_TYPE_GUIDANCE}}
@@ -18,7 +18,7 @@ You must add a MINIMUM of 7 tasks to the queue.
 {{USER_FOCUS}}
 
 # HARD CONSTRAINTS
-- You must modify .ralph/queue.json only.
+- You must modify {{config.queue.file}} only.
 - Do not implement fixes in this run. Only create tasks.
 - Do not edit existing tasks except:
   - inserting new tasks
@@ -56,7 +56,7 @@ Competitive gaps are allowed ONLY if you can cite concrete evidence. If you use 
 Keep external evidence minimal and directly tied to a proposed feature.
 
 # DEDUPE REQUIREMENT
-Before adding a new task, search .ralph/queue.json for likely duplicates by:
+Before adding a new task, search {{config.queue.file}} for likely duplicates by:
 - similar title keywords
 - overlapping scope paths
 - matching tags
@@ -112,7 +112,7 @@ Every plan must end with an explicit verification step, for example:
 - Validate the file is valid JSON before finishing (jq or a Python JSON parse).
 
 # OUTPUT
-After editing .ralph/queue.json, provide:
+After editing {{config.queue.file}}, provide:
 - Count of new tasks added
 - List of new task IDs + titles (top 10 is fine)
 - Whether any tasks were skipped due to dedupe

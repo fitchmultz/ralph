@@ -8,10 +8,10 @@ fn test_config_default() {
     let config = Config::default();
     assert_eq!(config.version, 1);
     assert_eq!(config.project_type, Some(ProjectType::Code));
-    assert_eq!(config.queue.file, Some(PathBuf::from(".ralph/queue.json")));
+    assert_eq!(config.queue.file, Some(PathBuf::from(".ralph/queue.jsonc")));
     assert_eq!(
         config.queue.done_file,
-        Some(PathBuf::from(".ralph/done.json"))
+        Some(PathBuf::from(".ralph/done.jsonc"))
     );
     assert_eq!(config.queue.id_prefix, Some("RQ".to_string()));
     assert_eq!(config.queue.id_width, Some(4));

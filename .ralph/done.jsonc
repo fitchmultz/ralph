@@ -97,8 +97,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-general",
         "model_used": "gpt-5.3-codex",
+        "scan_agent": "scan-general",
         "runner_used": "codex"
       }
     },
@@ -162,8 +162,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
-        "model_used": "gpt-5.3-codex"
+        "model_used": "gpt-5.3-codex",
+        "runner_used": "codex"
       }
     },
     {
@@ -299,8 +299,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
-        "model_used": "gpt-5.3-codex"
+        "model_used": "gpt-5.3-codex",
+        "runner_used": "codex"
       }
     },
     {
@@ -483,8 +483,8 @@
       "relates_to": [],
       "custom_fields": {
         "runner_used": "codex",
-        "model_used": "gpt-5.3-codex",
-        "scan_agent": "scan-general"
+        "scan_agent": "scan-general",
+        "model_used": "gpt-5.3-codex"
       }
     },
     {
@@ -544,8 +544,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.3-codex",
         "runner_used": "codex",
+        "model_used": "gpt-5.3-codex",
         "scan_agent": "scan-general"
       }
     },
@@ -603,9 +603,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "runner_used": "claude",
         "scan_agent": "scan-general",
-        "model_used": "sonnet",
-        "runner_used": "claude"
+        "model_used": "sonnet"
       }
     },
     {
@@ -659,9 +659,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "model_used": "gpt-5.3-codex",
         "runner_used": "codex",
-        "scan_agent": "scan-general",
-        "model_used": "gpt-5.3-codex"
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -719,9 +719,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "scan_agent": "scan-general",
         "model_used": "gpt-5.3-codex",
-        "runner_used": "codex",
-        "scan_agent": "scan-general"
+        "runner_used": "codex"
       }
     },
     {
@@ -779,9 +779,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "kimi-for-coding/k2p5",
+        "runner_used": "opencode",
         "scan_agent": "scan-general",
-        "runner_used": "opencode"
+        "model_used": "kimi-for-coding/k2p5"
       }
     },
     {
@@ -848,9 +848,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "runner_used": "opencode",
         "scan_agent": "scan-general",
-        "model_used": "kimi-for-coding/k2p5",
-        "runner_used": "opencode"
+        "model_used": "kimi-for-coding/k2p5"
       }
     },
     {
@@ -962,9 +962,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-general",
         "model_used": "kimi-for-coding/k2p5",
-        "runner_used": "opencode"
+        "runner_used": "opencode",
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -1034,9 +1034,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "model_used": "kimi-for-coding/k2p5",
         "scan_agent": "scan-general",
-        "runner_used": "opencode",
-        "model_used": "kimi-for-coding/k2p5"
+        "runner_used": "opencode"
       }
     },
     {
@@ -1083,9 +1083,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-general",
         "model_used": "kimi-for-coding/k2p5",
-        "runner_used": "opencode"
+        "runner_used": "opencode",
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -1173,9 +1173,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-general",
         "runner_used": "kimi",
-        "model_used": "kimi-code/kimi-for-coding"
+        "model_used": "kimi-code/kimi-for-coding",
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -1207,7 +1207,7 @@
       ],
       "notes": [
         "Created crates/ralph/tests/task_lifecycle_test.rs with 11 comprehensive integration tests",
-        "Tests cover: build→ready→start→run→done/reject full lifecycle",
+        "Tests cover: build\u2192ready\u2192start\u2192run\u2192done/reject full lifecycle",
         "Includes runner execution tests with mock runners",
         "Verifies queue/done state transitions at each step",
         "All tests pass; CI gate passes; no regressions"
@@ -1221,8 +1221,8 @@
       "relates_to": [],
       "custom_fields": {
         "scan_agent": "scan-general",
-        "model_used": "kimi-code/kimi-for-coding",
-        "runner_used": "kimi"
+        "runner_used": "kimi",
+        "model_used": "kimi-code/kimi-for-coding"
       }
     },
     {
@@ -1266,9 +1266,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-general",
         "model_used": "kimi-code/kimi-for-coding",
-        "runner_used": "kimi"
+        "runner_used": "kimi",
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -1334,9 +1334,230 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "model_used": "kimi-code/kimi-for-coding",
         "runner_used": "kimi",
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0916",
+      "status": "done",
+      "title": "Add tests for ralph queue next-id command error paths",
+      "description": "The `ralph queue next-id` command has tests for error handling but they may need enhancement or the task was created based on outdated scan data.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "testing",
+        "cli",
+        "queue",
+        "error-handling"
+      ],
+      "scope": [
+        "crates/ralph/src/cli/queue/next_id.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/cli/queue/next_id.rs :: lines 194-214 :: tests test_count_validation_zero and test_count_validation_max exist",
+        "path: crates/ralph/src/cli/queue/next_id.rs :: lines 38-48 :: error paths for count==0 and count>MAX_COUNT"
+      ],
+      "plan": [
+        "Verify existing error path tests pass: test_count_validation_zero, test_count_validation_max",
+        "Check if additional edge case tests are needed (e.g., exact boundary at MAX_COUNT=100)",
+        "Run `cargo test -p ralph next_id` to verify all tests pass"
+      ],
+      "notes": [
+        "2026-02-21: Found existing tests - test_count_validation_zero (line 194) and test_count_validation_max (line 205)",
+        "2026-02-21: Also found test_max_count_boundary (line 247) testing count=100 is allowed",
+        "Verified error path tests for ralph queue next-id command",
+        "Improved assertion precision with exact error message matching",
+        "Added test_min_count_boundary for minimum valid count (count=1)",
+        "All 19 next_id tests pass successfully"
+      ],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:42:41Z",
+      "updated_at": "2026-02-21T19:05:55.186873000Z",
+      "completed_at": "2026-02-21T19:05:55.186873000Z",
+      "started_at": "2026-02-21T18:57:31.116469000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "model_used": "kimi-code/kimi-for-coding",
         "scan_agent": "scan-general",
-        "model_used": "kimi-code/kimi-for-coding"
+        "runner_used": "kimi"
+      }
+    },
+    {
+      "id": "RQ-0923",
+      "status": "done",
+      "title": "Add tests for runner error classification functions",
+      "description": "The runner/error.rs module has only 2 tests (redaction and context), but the classify() method and helper functions like looks_like_rate_limit(), looks_like_temporary_unavailable(), looks_like_auth_required() have NO unit tests. Retry logic depends entirely on correct classification.",
+      "priority": "high",
+      "tags": [
+        "scan",
+        "testing",
+        "runner",
+        "error-handling"
+      ],
+      "scope": [
+        "crates/ralph/src/runner/error.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/runner/error.rs :: lines 121-150 :: pattern matching functions untested",
+        "analysis: None of these pattern matching functions have test coverage"
+      ],
+      "plan": [
+        "Add test: looks_like_rate_limit_detects_429",
+        "Add test: looks_like_temporary_unavailable_detects_503",
+        "Add test: looks_like_auth_required_detects_401",
+        "Add test: classify_returns_retryable_for_rate_limit",
+        "Run `cargo test -p ralph --lib -- runner::error` to verify"
+      ],
+      "notes": [
+        "Task already complete - comprehensive test coverage exists for all error classification functions.",
+        "24 tests cover looks_like_rate_limit (3), looks_like_temporary_unavailable (4), looks_like_auth_required (3), and classify() (14).",
+        "Verified with cargo test -p ralph --lib -- runner::error (all 24 tests pass).",
+        "No code changes required - scan evidence was outdated."
+      ],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:44:50Z",
+      "updated_at": "2026-02-21T19:19:25.110Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      },
+      "completed_at": "2026-02-21T19:19:25.110Z",
+      "started_at": "2026-02-21T19:19:25.110Z"
+    },
+    {
+      "id": "RQ-0926",
+      "status": "done",
+      "title": "Add runtime validation for config queue thresholds",
+      "description": "Schema defines ranges for queue thresholds but these are NOT validated in validate_config() or validate_queue_overrides(). Missing validation for: size_warning_threshold_kb, task_count_warning_threshold, max_dependency_depth, auto_archive_terminal_after_days.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "config",
+        "validation"
+      ],
+      "scope": [
+        "crates/ralph/src/config/validation.rs",
+        "crates/ralph/src/contracts/config/queue.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/contracts/config/queue.rs :: schemars annotations define ranges",
+        "path: crates/ralph/src/config/validation.rs :: no runtime validation for these fields"
+      ],
+      "plan": [
+        "Add validate_queue_thresholds function",
+        "Validate each threshold within schema-defined ranges",
+        "Add tests for threshold validation",
+        "Run `cargo test -p ralph` to verify"
+      ],
+      "notes": [
+        "Added validate_queue_thresholds() function validating all 4 threshold fields",
+        "Integrated into validate_queue_overrides() and validate_config()",
+        "Added 22 comprehensive tests covering boundary values and error cases",
+        "Removed redundant validation call during Phase 3 review",
+        "CI gate passes"
+      ],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:44:50Z",
+      "updated_at": "2026-02-22T04:30:08Z",
+      "completed_at": "2026-02-22T04:30:08Z",
+      "started_at": "2026-02-22T04:30:08Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0927",
+      "status": "done",
+      "title": "Fix unused in_header variable in extract_content_from_exported",
+      "description": "The in_header variable in prompts_internal/management.rs is set to true and never changed, making the conditional meaningless. Dead code indicates incomplete implementation.",
+      "priority": "low",
+      "tags": [
+        "scan",
+        "bug",
+        "prompts",
+        "dead-code"
+      ],
+      "scope": [
+        "crates/ralph/src/prompts_internal/management.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/prompts_internal/management.rs :: line 348 :: let in_header = true; // never mutated"
+      ],
+      "plan": [
+        "Analyze intended behavior",
+        "Remove variable or implement proper header tracking",
+        "Add test for header extraction edge cases",
+        "Run `cargo test -p ralph` to verify"
+      ],
+      "notes": [
+        "Removed unused in_header variable from extract_content_from_exported",
+        "Added 5 comprehensive unit tests for header extraction edge cases",
+        "Fixed boundary condition from < to <= for edge case handling",
+        "All 2,702 tests pass, CI gate passes"
+      ],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:44:50Z",
+      "updated_at": "2026-02-17T19:44:50Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      },
+      "completed_at": "2026-02-22T04:33:40.519468+00:00",
+      "started_at": "2026-02-22T04:33:40.519901+00:00"
+    },
+    {
+      "id": "RQ-0929",
+      "status": "done",
+      "title": "Add Ctrl-C check during backoff sleep in retry logic",
+      "description": "The Ctrl-C check in runutil/execution.rs happens AFTER the sleep completes, not during it. If Ctrl-C is pressed during sleep, the code waits for the full backoff duration before checking.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "runner",
+        "ux",
+        "retry"
+      ],
+      "scope": [
+        "crates/ralph/src/runutil/execution.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/runutil/execution.rs :: lines 410-420 :: Ctrl-C check after sleep"
+      ],
+      "plan": [
+        "Replace thread::sleep with interruptible wait",
+        "Check Ctrl-C at shorter intervals during backoff",
+        "Add test for quick Ctrl-C response",
+        "Run `cargo test -p ralph` to verify"
+      ],
+      "notes": [
+        "Replaced blocking thread::sleep(delay) with interruptible chunked sleep",
+        "Checks Ctrl-C flag every 100ms during backoff for quick interruption",
+        "Fallback to blocking sleep if ctrlc_state() fails",
+        "All tests pass, CI gate passes"
+      ],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:44:50Z",
+      "updated_at": "2026-02-22T04:59:17Z",
+      "completed_at": "2026-02-22T04:59:17Z",
+      "started_at": "2026-02-21T04:58:54Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general",
+        "model_used": "kimi-for-coding/k2p5",
+        "runner_used": "kimi"
       }
     }
   ]

@@ -27,7 +27,7 @@ Your goal is to understand the task, refresh task metadata, and produce a detail
 - DO NOT make any implementation changes whatsoever
 
 **PHASE 1 FILE EDITS ARE STRICTLY LIMITED TO:**
-- `.ralph/queue.json` only when the Task Refresh Step requires it
+- `{{config.queue.file}}` only when the Task Refresh Step requires it
 - The plan cache file at `{{PLAN_PATH}}`
 - No other file edits are allowed
 

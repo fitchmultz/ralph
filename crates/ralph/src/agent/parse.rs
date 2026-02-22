@@ -34,7 +34,7 @@ pub fn parse_runner(value: &str) -> Result<Runner> {
         "kimi" => Ok(Runner::Kimi),
         "pi" => Ok(Runner::Pi),
         _ => bail!(
-            "Invalid runner: --runner must be 'codex', 'opencode', 'gemini', 'claude', 'cursor', 'kimi', or 'pi' (got: {}). Set a supported runner in .ralph/config.json or via the --runner flag.",
+            "Invalid runner: --runner must be 'codex', 'opencode', 'gemini', 'claude', 'cursor', 'kimi', or 'pi' (got: {}). Set a supported runner in .ralph/config.jsonc or via the --runner flag.",
             value.trim()
         ),
     }

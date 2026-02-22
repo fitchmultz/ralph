@@ -94,11 +94,11 @@ fn task_clone_dry_run_does_not_mutate() -> Result<()> {
     let t1 = test_support::make_test_task("RQ-0001", "Source", TaskStatus::Todo);
     test_support::write_queue(dir.path(), &[t1])?;
 
-    let before = std::fs::read_to_string(dir.path().join(".ralph/queue.json"))?;
+    let before = std::fs::read_to_string(dir.path().join(".ralph/queue.jsonc"))?;
     let (status, _stdout, stderr) =
         test_support::run_in_dir(dir.path(), &["task", "clone", "RQ-0001", "--dry-run"]);
     anyhow::ensure!(status.success(), "dry-run clone failed\nstderr:\n{stderr}");
-    let after = std::fs::read_to_string(dir.path().join(".ralph/queue.json"))?;
+    let after = std::fs::read_to_string(dir.path().join(".ralph/queue.jsonc"))?;
     anyhow::ensure!(before == after, "queue mutated during --dry-run");
 
     Ok(())

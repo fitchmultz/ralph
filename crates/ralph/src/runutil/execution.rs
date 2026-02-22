@@ -506,16 +506,39 @@ where
                             ),
                         );
 
-                        // Check for Ctrl-C during backoff
-                        std::thread::sleep(delay);
+                        // Check for Ctrl-C during backoff - sleep in small increments to
+                        // allow quick interruption instead of blocking for the full delay
+                        const INTERRUPT_CHECK_INTERVAL: Duration = Duration::from_millis(100);
+                        let mut elapsed = Duration::ZERO;
+
                         if let Ok(ctrlc) = runner::ctrlc_state() {
                             use std::sync::atomic::Ordering;
+
+                            while elapsed < delay {
+                                // Check for interruption before sleeping
+                                if ctrlc.interrupted.load(Ordering::SeqCst) {
+                                    return Err(anyhow::Error::new(RunAbort::new(
+                                        RunAbortReason::Interrupted,
+                                        interrupted_msg.to_string(),
+                                    )));
+                                }
+
+                                // Sleep for the check interval or remaining time, whichever is smaller
+                                let sleep_duration = INTERRUPT_CHECK_INTERVAL.min(delay - elapsed);
+                                std::thread::sleep(sleep_duration);
+                                elapsed += sleep_duration;
+                            }
+
+                            // Final check after loop (in case interrupted during last sleep)
                             if ctrlc.interrupted.load(Ordering::SeqCst) {
                                 return Err(anyhow::Error::new(RunAbort::new(
                                     RunAbortReason::Interrupted,
                                     interrupted_msg.to_string(),
                                 )));
                             }
+                        } else {
+                            // Fallback: if ctrlc_state fails, just do the full sleep
+                            std::thread::sleep(delay);
                         }
 
                         attempt += 1;

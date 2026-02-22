@@ -91,7 +91,7 @@ pub fn handle_run(cmd: RunCommand, force: bool) -> Result<()> {
                             anyhow::anyhow!("--parallel-worker requires --coordinator-done-path")
                         })?;
                     log::debug!(
-                        "parallel worker using coordinator paths: queue={}, done={}, target_branch={}",
+                        "parallel worker using queue/done paths: queue={}, done={}, target_branch={}",
                         worker_resolved.queue_path.display(),
                         worker_resolved.done_path.display(),
                         target_branch
@@ -188,7 +188,7 @@ Phase-specific overrides:\n\
     5) Task global override (task.agent.runner/model/model_effort)\n\
     6) Config defaults (agent.*)\n\
  \n\
- To change defaults for this repo, edit .ralph/config.json:\n\
+ To change defaults for this repo, edit .ralph/config.jsonc:\n\
   version: 1\n\
   agent:\n\
   runner: claude\n\
@@ -237,12 +237,12 @@ pub enum RunCommand {
     )]
     Resume(ResumeArgs),
     #[command(
-        about = "Run exactly one task (the first todo in .ralph/queue.json)",
+        about = "Run exactly one task (the first todo in the configured queue file)",
         after_long_help = "Runner selection (precedence):\n\
  1) CLI overrides (--runner/--model/--effort)\n\
- 2) task.agent in .ralph/queue.json (if present)\n\
+ 2) task.agent in the configured queue file (if present)\n\
  3) selected profile (if --profile specified)\n\
- 4) config defaults (.ralph/config.json then ~/.config/ralph/config.json)\n\
+ 4) config defaults (.ralph/config.jsonc then ~/.config/ralph/config.jsonc, with .json fallback)\n\
 \n\
 Examples:\n\
  ralph run one\n\
@@ -364,7 +364,7 @@ pub struct RunOneArgs {
     )]
     pub parallel_worker: bool,
 
-    /// Internal: path to coordinator's queue.json for parallel workers.
+    /// Internal: queue file path for the parallel worker workspace checkout.
     #[arg(
         long,
         hide = true,
@@ -373,7 +373,7 @@ pub struct RunOneArgs {
     )]
     pub coordinator_queue_path: Option<PathBuf>,
 
-    /// Internal: path to coordinator's done.json for parallel workers.
+    /// Internal: done file path for the parallel worker workspace checkout.
     #[arg(
         long,
         hide = true,

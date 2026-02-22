@@ -13,8 +13,8 @@
 //! Invariants/assumptions:
 //! - Config layers are applied in order: defaults, global, project (later overrides earlier).
 //! - Paths are resolved relative to repo root unless absolute.
-//! - Global config lives at `~/.config/ralph/config.json` (or `$XDG_CONFIG_HOME`).
-//! - Project config lives at `.ralph/config.json` relative to repo root.
+//! - Global config resolves from `~/.config/ralph/config.jsonc` with `.json` fallback.
+//! - Project config resolves from `.ralph/config.jsonc` with `.json` fallback.
 
 use crate::constants::defaults::DEFAULT_ID_WIDTH;
 use crate::constants::queue::{DEFAULT_DONE_FILE, DEFAULT_ID_PREFIX, DEFAULT_QUEUE_FILE};
@@ -140,19 +140,24 @@ fn apply_profile_patch(cfg: &mut Config, name: &str) -> Result<()> {
     Ok(())
 }
 
-/// Resolve a JSON path with .jsonc fallback.
+/// Resolve a JSON path with .json fallback.
 ///
-/// Checks if the .json path exists; if not, checks for .jsonc variant.
+/// Checks if the .jsonc path exists; if not, checks for .json variant.
 /// Returns the original path if neither exists (to preserve error messages).
-pub fn prefer_json_then_jsonc(json_path: PathBuf) -> PathBuf {
-    if json_path.is_file() {
-        return json_path;
-    }
-    let jsonc_path = json_path.with_extension("jsonc");
+pub fn prefer_jsonc_then_json(base_path: PathBuf) -> PathBuf {
+    // Check .jsonc FIRST (new default)
+    let jsonc_path = base_path.with_extension("jsonc");
     if jsonc_path.is_file() {
         return jsonc_path;
     }
-    json_path
+    // Fall back to .json (legacy support)
+    // When base_path is .jsonc, also check the .json variant
+    let json_path = base_path.with_extension("json");
+    if json_path.is_file() {
+        return json_path;
+    }
+    // Return base_path if neither exists (for error messages)
+    base_path
 }
 
 /// Resolve the queue ID prefix from config.
@@ -190,8 +195,8 @@ pub fn resolve_queue_path(repo_root: &Path, cfg: &Config) -> Result<PathBuf> {
     };
 
     if is_default {
-        // For default path, check .json first, then fall back to .jsonc
-        Ok(prefer_json_then_jsonc(resolved))
+        // For default path, check .jsonc first, then fall back to .json
+        Ok(prefer_jsonc_then_json(resolved))
     } else {
         // For explicit user overrides, use the path as-is
         Ok(resolved)
@@ -220,8 +225,8 @@ pub fn resolve_done_path(repo_root: &Path, cfg: &Config) -> Result<PathBuf> {
     };
 
     if is_default {
-        // For default path, check .json first, then fall back to .jsonc
-        Ok(prefer_json_then_jsonc(resolved))
+        // For default path, check .jsonc first, then fall back to .json
+        Ok(prefer_jsonc_then_json(resolved))
     } else {
         // For explicit user overrides, use the path as-is
         Ok(resolved)
@@ -237,14 +242,13 @@ pub fn global_config_path() -> Option<PathBuf> {
         PathBuf::from(home).join(".config")
     };
     let ralph_dir = base.join("ralph");
-    let json_path = ralph_dir.join("config.json");
-    Some(prefer_json_then_jsonc(json_path))
+    Some(prefer_jsonc_then_json(ralph_dir.join("config.jsonc")))
 }
 
 /// Get the path to the project config file for a given repo root.
 pub fn project_config_path(repo_root: &Path) -> PathBuf {
     let ralph_dir = repo_root.join(".ralph");
-    prefer_json_then_jsonc(ralph_dir.join("config.json"))
+    prefer_jsonc_then_json(ralph_dir.join("config.jsonc"))
 }
 
 /// Find the repository root starting from a given path.

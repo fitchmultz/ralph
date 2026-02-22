@@ -60,11 +60,11 @@ pub struct QueueSearchArgs {
     #[arg(long)]
     pub scope: Vec<String>,
 
-    /// Include tasks from .ralph/done.json in search.
+    /// Include tasks from .ralph/done.jsonc in search.
     #[arg(long)]
     pub include_done: bool,
 
-    /// Only search tasks in .ralph/done.json (ignores active queue).
+    /// Only search tasks in .ralph/done.jsonc (ignores active queue).
     #[arg(long)]
     pub only_done: bool,
 

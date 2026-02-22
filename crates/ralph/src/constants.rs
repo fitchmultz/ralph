@@ -141,13 +141,13 @@ pub mod queue {
     pub const DEFAULT_ID_PREFIX: &str = "RQ";
 
     /// Default queue file path (relative to repo root).
-    pub const DEFAULT_QUEUE_FILE: &str = ".ralph/queue.json";
+    pub const DEFAULT_QUEUE_FILE: &str = ".ralph/queue.jsonc";
 
     /// Default done file path (relative to repo root).
-    pub const DEFAULT_DONE_FILE: &str = ".ralph/done.json";
+    pub const DEFAULT_DONE_FILE: &str = ".ralph/done.jsonc";
 
     /// Default config file path (relative to repo root).
-    pub const DEFAULT_CONFIG_FILE: &str = ".ralph/config.json";
+    pub const DEFAULT_CONFIG_FILE: &str = ".ralph/config.jsonc";
 
     /// Default maximum dependency depth.
     pub const DEFAULT_MAX_DEPENDENCY_DEPTH: u8 = 10;
@@ -194,16 +194,16 @@ pub mod runner {
 /// File paths and directory names.
 pub mod paths {
     /// Session state filename.
-    pub const SESSION_FILENAME: &str = "session.json";
+    pub const SESSION_FILENAME: &str = "session.jsonc";
 
     /// Stop signal filename.
     pub const STOP_SIGNAL_FILE: &str = "stop_requested";
 
     /// Migration history file path.
-    pub const MIGRATION_HISTORY_PATH: &str = ".ralph/cache/migrations.json";
+    pub const MIGRATION_HISTORY_PATH: &str = ".ralph/cache/migrations.jsonc";
 
     /// Productivity stats filename.
-    pub const STATS_FILENAME: &str = "productivity.json";
+    pub const STATS_FILENAME: &str = "productivity.jsonc";
 
     /// Ralph temp directory name.
     pub const RALPH_TEMP_DIR_NAME: &str = "ralph";
@@ -238,7 +238,7 @@ pub mod paths {
 /// Version constants for schemas and templates.
 pub mod versions {
     /// README template version.
-    pub const README_VERSION: u32 = 5;
+    pub const README_VERSION: u32 = 6;
 
     /// Session state schema version.
     pub const SESSION_STATE_VERSION: u32 = 1;
@@ -348,7 +348,7 @@ pub mod custom_fields {
 /// Error message templates for consistent error formatting.
 pub mod error_messages {
     /// Config update instruction suffix.
-    pub const CONFIG_UPDATE_INSTRUCTION: &str = "Update .ralph/config.json";
+    pub const CONFIG_UPDATE_INSTRUCTION: &str = "Update .ralph/config.jsonc";
 
     /// Template for invalid config value errors.
     pub fn invalid_config_value(
@@ -356,7 +356,7 @@ pub mod error_messages {
         value: impl std::fmt::Display,
         reason: &str,
     ) -> String {
-        format!("Invalid {field}: {value}. {reason}. Update .ralph/config.json.")
+        format!("Invalid {field}: {value}. {reason}. Update .ralph/config.jsonc.")
     }
 }
 

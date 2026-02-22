@@ -384,7 +384,7 @@ pub fn handle(args: &TaskBatchArgs, force: bool, resolved: &config::Resolved) ->
 
             if args.dry_run {
                 println!(
-                    "Dry run - would archive {} terminal tasks to done.json:",
+                    "Dry run - would archive {} terminal tasks to the configured done archive:",
                     task_ids.len()
                 );
                 for task_id in &task_ids {

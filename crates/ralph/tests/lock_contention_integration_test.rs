@@ -252,8 +252,8 @@ fn run_loop_aborts_immediately_on_queue_lock_error() -> Result<()> {
             parent_id: None,
         }],
     };
-    let queue_path = repo_root.join(".ralph/queue.json");
-    let done_path = repo_root.join(".ralph/done.json");
+    let queue_path = repo_root.join(".ralph/queue.jsonc");
+    let done_path = repo_root.join(".ralph/done.jsonc");
     ralph::queue::save_queue(&queue_path, &queue)?;
     ralph::queue::save_queue(&done_path, &ralph::contracts::QueueFile::default())?;
 
@@ -269,7 +269,7 @@ fn run_loop_aborts_immediately_on_queue_lock_error() -> Result<()> {
         id_prefix: "RQ".to_string(),
         id_width: 4,
         global_config_path: None,
-        project_config_path: Some(repo_root.join(".ralph/config.json")),
+        project_config_path: Some(repo_root.join(".ralph/config.jsonc")),
     };
 
     // Attempt to run the loop - should fail immediately with lock error
@@ -364,8 +364,8 @@ fn run_loop_aborts_immediately_on_queue_validation_error() -> Result<()> {
             parent_id: None,
         }],
     };
-    let queue_path = repo_root.join(".ralph/queue.json");
-    let done_path = repo_root.join(".ralph/done.json");
+    let queue_path = repo_root.join(".ralph/queue.jsonc");
+    let done_path = repo_root.join(".ralph/done.jsonc");
     ralph::queue::save_queue(&queue_path, &queue)?;
     ralph::queue::save_queue(&done_path, &ralph::contracts::QueueFile::default())?;
 
@@ -378,7 +378,7 @@ fn run_loop_aborts_immediately_on_queue_validation_error() -> Result<()> {
         id_prefix: "RQ".to_string(),
         id_width: 4,
         global_config_path: None,
-        project_config_path: Some(repo_root.join(".ralph/config.json")),
+        project_config_path: Some(repo_root.join(".ralph/config.jsonc")),
     };
 
     // Attempt to run the loop - should fail immediately with validation error

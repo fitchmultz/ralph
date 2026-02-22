@@ -33,11 +33,11 @@ Color output is automatically enabled when stdout is a TTY and disabled when pip
 
 Ralph runs automatic startup health checks on certain commands (`run one`, `run loop`, `queue validate`) to catch common configuration issues:
 
-1. **README Auto-Update**: If the embedded README template is newer than `.ralph/README.md`, it is automatically updated (no prompt - users should not edit this file manually).
+1. **README Auto-Update**: `.ralph/README.md` is kept in sync automatically for agent-facing commands (`run`, `task`, `scan`, `prompt`, `prd`, `tutorial`). If it is missing it is created; if outdated it is updated (no prompt - users should not edit this file manually).
 2. **Config Migrations**: Detects deprecated/renamed config keys and prompts for migration.
 3. **Unknown Config Keys**: Detects unknown config keys and prompts to remove, keep, or rename them.
 
-Use `--auto-fix` to automatically apply all fixes without prompting (useful for CI). Use `--no-sanity-checks` to skip all health checks entirely. For `run one`, use `--non-interactive` to skip prompts even in a TTY environment.
+Use `--auto-fix` to automatically apply all fixes without prompting (useful for CI). Use `--no-sanity-checks` to skip migration/unknown-key sanity checks. For `run one`, use `--non-interactive` to skip prompts even in a TTY environment.
 
 Examples:
 ```bash

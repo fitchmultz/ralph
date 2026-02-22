@@ -10,8 +10,8 @@
 //! - Task building or editing (see `build.rs`, `edit.rs`).
 //!
 //! Invariants/assumptions:
-//! - Terminal statuses (done, rejected) archive tasks to done.json.
-//! - Non-terminal statuses update in-place in queue.json.
+//! - Terminal statuses (done, rejected) archive tasks to the done archive file.
+//! - Non-terminal statuses update in-place in the active queue file.
 //! - Tasks are always completed directly via queue::complete_task.
 
 use anyhow::{Result, bail};
@@ -72,7 +72,7 @@ pub fn handle_status(
     match status {
         TaskStatus::Done | TaskStatus::Rejected => {
             // For terminal statuses, we need to handle each task individually
-            // because complete_task involves moving tasks to done.json
+            // because complete_task involves moving tasks to the done archive
             let _queue_lock = queue::acquire_queue_lock(&resolved.repo_root, "task status", force)?;
 
             // Create undo snapshot before mutation

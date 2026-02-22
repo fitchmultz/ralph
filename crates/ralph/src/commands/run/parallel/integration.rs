@@ -142,8 +142,8 @@ impl Default for QueueDoneRules {
     fn default() -> Self {
         Self {
             rules: vec![
-                "Remove the completed task from queue.json".into(),
-                "Ensure the completed task is present in done.json".into(),
+                "Remove the completed task from the queue file".into(),
+                "Ensure the completed task is present in the done archive file".into(),
                 "Preserve entries from other workers exactly".into(),
                 "Preserve task metadata (timestamps/notes)".into(),
             ],

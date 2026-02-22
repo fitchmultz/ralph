@@ -11,7 +11,7 @@
 //! - Snapshot testing of logs (prefer state assertions).
 //!
 //! Invariants/assumptions:
-//! - Prune operates only on `.ralph/done.json`.
+//! - Prune operates only on `.ralph/done.jsonc`.
 //! - `--keep-last` uses `completed_at` ordering (missing/invalid treated oldest).
 
 use anyhow::Result;
@@ -37,11 +37,11 @@ fn queue_prune_dry_run_does_not_modify_done_file() -> Result<()> {
 
     test_support::write_done(dir.path(), &[old, recent])?;
 
-    let before = std::fs::read_to_string(dir.path().join(".ralph/done.json"))?;
+    let before = std::fs::read_to_string(dir.path().join(".ralph/done.jsonc"))?;
     let (status, _stdout, stderr) =
         test_support::run_in_dir(dir.path(), &["queue", "prune", "--dry-run", "--age", "30"]);
     anyhow::ensure!(status.success(), "prune dry-run failed\nstderr:\n{stderr}");
-    let after = std::fs::read_to_string(dir.path().join(".ralph/done.json"))?;
+    let after = std::fs::read_to_string(dir.path().join(".ralph/done.jsonc"))?;
 
     anyhow::ensure!(before == after, "done.json mutated during --dry-run");
     Ok(())

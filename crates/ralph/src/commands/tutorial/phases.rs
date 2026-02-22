@@ -89,15 +89,15 @@ pub fn phase_init(prompter: &dyn TutorialPrompter, sandbox: &TutorialSandbox) ->
     prompter.info("Created files:");
     prompter.info(&format!(
         "  - {}",
-        sandbox.path.join(".ralph/config.json").display()
+        sandbox.path.join(".ralph/config.jsonc").display()
     ));
     prompter.info(&format!(
         "  - {}",
-        sandbox.path.join(".ralph/queue.json").display()
+        sandbox.path.join(".ralph/queue.jsonc").display()
     ));
     prompter.info(&format!(
         "  - {}",
-        sandbox.path.join(".ralph/done.json").display()
+        sandbox.path.join(".ralph/done.jsonc").display()
     ));
     prompter.info("");
 
@@ -119,7 +119,7 @@ pub fn phase_create_task(
     prompter.info("Tasks describe work for AI agents to complete.");
     prompter.info("");
 
-    // For tutorial, directly add a task to queue.json instead of invoking runner
+    // For tutorial, directly add a task to queue.jsonc instead of invoking runner
     let task_id = add_tutorial_task(sandbox)?;
 
     prompter.info(&format!("Created task: {}", task_id.bright_green()));
@@ -136,9 +136,9 @@ pub fn phase_create_task(
         .map(|_| task_id)
 }
 
-/// Add a tutorial task directly to queue.json.
+/// Add a tutorial task directly to queue.jsonc.
 fn add_tutorial_task(sandbox: &TutorialSandbox) -> Result<String> {
-    let queue_path = sandbox.path.join(".ralph/queue.json");
+    let queue_path = sandbox.path.join(".ralph/queue.jsonc");
 
     let task = crate::contracts::Task {
         id: "RQ-0001".to_string(),
@@ -238,7 +238,7 @@ pub fn phase_review(prompter: &dyn TutorialPrompter, sandbox: &TutorialSandbox) 
     prompter.info("");
 
     // Show queue
-    let queue_path = sandbox.path.join(".ralph/queue.json");
+    let queue_path = sandbox.path.join(".ralph/queue.jsonc");
     let queue = crate::queue::load_queue(&queue_path).context("load queue for review")?;
 
     for task in &queue.tasks {

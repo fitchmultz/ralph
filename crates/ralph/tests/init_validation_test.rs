@@ -8,9 +8,9 @@ use tempfile::TempDir;
 
 fn resolved_for(dir: &TempDir) -> Resolved {
     let repo_root = dir.path().to_path_buf();
-    let queue_path = repo_root.join(".ralph/queue.json");
-    let done_path = repo_root.join(".ralph/done.json");
-    let project_config_path = Some(repo_root.join(".ralph/config.json"));
+    let queue_path = repo_root.join(".ralph/queue.jsonc");
+    let done_path = repo_root.join(".ralph/done.jsonc");
+    let project_config_path = Some(repo_root.join(".ralph/config.jsonc"));
     Resolved {
         config: Config::default(),
         repo_root,

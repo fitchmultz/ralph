@@ -345,29 +345,26 @@ fn extract_content_from_exported(file_content: &str) -> Option<&str> {
     }
 
     // Find the end of the header (first blank line after header comments)
-    let in_header = true;
     let mut content_start = 0;
 
     for (idx, line) in file_content.lines().enumerate() {
-        if in_header {
-            if line.is_empty() {
-                // End of header, next line starts content
-                content_start = file_content
-                    .lines()
-                    .take(idx + 1)
-                    .map(|l| l.len() + 1)
-                    .sum::<usize>();
-                break;
-            }
-            // Still in header if it's a comment
-            if !line.starts_with("<!--") {
-                // Unexpected non-comment in header
-                return Some(file_content);
-            }
+        if line.is_empty() {
+            // End of header, next line starts content
+            content_start = file_content
+                .lines()
+                .take(idx + 1)
+                .map(|l| l.len() + 1)
+                .sum::<usize>();
+            break;
+        }
+        // Still in header if it's a comment
+        if !line.starts_with("<!--") {
+            // Unexpected non-comment in header
+            return Some(file_content);
         }
     }
 
-    if content_start > 0 && content_start < file_content.len() {
+    if content_start > 0 && content_start <= file_content.len() {
         Some(&file_content[content_start..])
     } else {
         Some(file_content)
@@ -719,5 +716,56 @@ mod tests {
         let templates = list_templates(temp.path());
         let worker = templates.iter().find(|t| t.name == "worker").unwrap();
         assert!(worker.has_override);
+    }
+
+    #[test]
+    fn extract_content_from_exported_no_header() {
+        let content = "Just some content\nwithout any header\n";
+        let result = extract_content_from_exported(content);
+        assert_eq!(result, Some(content));
+    }
+
+    #[test]
+    fn extract_content_from_exported_with_header() {
+        let content = "<!-- Exported from Ralph embedded defaults -->\n\
+                       <!-- Template: worker -->\n\
+                       <!-- Version: 0.5.0 -->\n\
+                       \n\
+                       Actual content here\n\
+                       More content\n";
+        let result = extract_content_from_exported(content).unwrap();
+        assert_eq!(result, "Actual content here\nMore content\n");
+    }
+
+    #[test]
+    fn extract_content_from_exported_malformed_header() {
+        // Non-comment line before blank line should return entire file
+        let content = "<!-- Exported from Ralph embedded defaults -->\n\
+                       Not a comment line\n\
+                       <!-- Template: worker -->\n\
+                       \n\
+                       Actual content\n";
+        let result = extract_content_from_exported(content);
+        assert_eq!(result, Some(content));
+    }
+
+    #[test]
+    fn extract_content_from_exported_empty_after_header() {
+        let content = "<!-- Exported from Ralph embedded defaults -->\n\
+                       <!-- Template: worker -->\n\
+                       \n";
+        let result = extract_content_from_exported(content).unwrap();
+        assert_eq!(result, "");
+    }
+
+    #[test]
+    fn extract_content_from_exported_no_blank_line() {
+        // No blank line after header comments
+        let content = "<!-- Exported from Ralph embedded defaults -->\n\
+                       <!-- Template: worker -->\n\
+                       Actual content without blank line\n";
+        let result = extract_content_from_exported(content);
+        // Should return entire file since no blank line marks end of header
+        assert_eq!(result, Some(content));
     }
 }

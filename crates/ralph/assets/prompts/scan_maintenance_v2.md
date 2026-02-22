@@ -48,7 +48,7 @@ If you cannot verify quickly, create an "investigate" task ONLY when:
 # SCOPE + CONSTRAIN
 - You may read and navigate the entire project.
 - You may run CLI commands and use platform tools (MCP, screenshots, web search) when it improves correctness.
-- You must only edit `.ralph/queue.json` in this scan run.
+- You must only edit `{{config.queue.file}}` in this scan run.
 - Prefer read-first commands. If a command may rewrite files, prefer dry-run/read-only alternatives or record it as a proposed verification step instead of running it.
 - Prefer the smallest viable fix first, but broad refactors are allowed when evidence shows clear net benefit and safety is addressed with a staged plan.
 - Public API changes are allowed when justified; include migration notes when user impact is non-trivial.
@@ -102,7 +102,7 @@ For each issue emit exactly one JSON task containing, in its descriptive fields:
   correctness/security/data loss > operability > performance > maintainability > style
 
 # DEDUPE REQUIREMENT
-Before adding each new task, search `.ralph/queue.json` for likely duplicates by:
+Before adding each new task, search `{{config.queue.file}}` for likely duplicates by:
 - similar title keywords
 - overlapping scope paths
 - matching tags/evidence/root cause
@@ -150,7 +150,7 @@ Do NOT set `agent` to a string. `agent` is an optional object used only for runn
 - Use only schema-supported keys; do not add unknown fields.
 - Array fields must contain only non-empty strings (`tags`, `scope`, `evidence`, `plan`, `notes`, `depends_on`, `blocks`, `relates_to`).
 - Relationship safety:
-  - If setting `depends_on`, `blocks`, `relates_to`, `duplicates`, or `parent_id`, every referenced task ID must already exist in `.ralph/queue.json` or `.ralph/done.json`.
+  - If setting `depends_on`, `blocks`, `relates_to`, `duplicates`, or `parent_id`, every referenced task ID must already exist in `{{config.queue.file}}` or `{{config.queue.done_file}}`.
   - Never self-reference.
   - `depends_on` and `blocks` must remain acyclic.
 - If you are not fully sure a relationship is valid, omit it and describe sequencing in `plan` instead.
@@ -183,7 +183,7 @@ Target 10+ meaningful tasks when justified by evidence, but never invent issues 
 If fewer than 10 verifiable findings exist, return fewer and state why.
 
 # OUTPUT
-After editing .ralph/queue.json, provide:
+After editing {{config.queue.file}}, provide:
 - Count of new tasks added
 - List of new task IDs + titles (top 10 is fine)
 - Whether any tasks were skipped due to dedupe

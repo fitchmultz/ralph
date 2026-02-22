@@ -62,8 +62,8 @@ Every source file MUST start with `//!` docs covering:
 
 ### Configuration Precedence
 1. CLI flags
-2. `.ralph/config.json`
-3. `~/.config/ralph/config.json`
+2. `.ralph/config.jsonc`
+3. `~/.config/ralph/config.jsonc`
 4. Schema defaults
 
 ### Repo Target Resolution
@@ -74,9 +74,10 @@ Every source file MUST start with `//!` docs covering:
 - Follow-up Phase 1 baseline snapshots must exclude mutable `.ralph/**` paths; only baseline dirty paths outside `.ralph/` are immutable.
 
 ### Parallel Workspace Runtime Sync
-- Worker workspace setup mirrors repo-local `.ralph/` runtime files recursively, but MUST exclude coordinator-only and ephemeral paths: queue/done files and `.ralph/{cache,workspaces,logs,lock}/`.
+- Worker workspace setup mirrors repo-local `.ralph/` runtime files recursively, excluding only ephemeral paths `.ralph/{cache,workspaces,logs,lock}/`.
+- Worker workspace setup MUST seed queue/done from coordinator-resolved paths (including `.jsonc` and custom paths) so migrated-uncommitted and gitignored `.ralph` repos work in parallel mode.
 - Gitignored non-`.ralph` sync remains narrow by design (`.env*` only) to avoid copying heavy build/cache directories.
-- Parallel worker post-run bookkeeping restore must always target workspace-local `.ralph/{queue.json,done.json,cache/productivity.json}` even when `Resolved.queue_path`/`done_path` are coordinator overrides.
+- Parallel worker post-run bookkeeping restore must always target workspace-local `.ralph/{queue.json,queue.jsonc,done.json,done.jsonc,cache/productivity.json}`.
 - Worker post-run supervision should fail fast if those bookkeeping paths remain dirty after restore (never proceed to commit/rebase with queue/done/productivity drift).
 - Worker post-run restore must purge generated runtime artifacts under `.ralph/cache/{plans,phase2_final,parallel}` plus `.ralph/{logs,cache/session.json,cache/migrations.json}` before deciding repo dirtiness.
 
@@ -87,6 +88,10 @@ Every source file MUST start with `//!` docs covering:
 ### CI Gate Cadence
 - In 3-phase workflows, final-iteration Phase 2 should skip CI gate rerun; CI is enforced in Phase 3/post-run supervision.
 - CI gate logging should emit explicit start/end timing for long-running commands.
+
+### Prompt Mode Signaling
+- Completion checklist rendering injects `RUN_MODE` (`normal` or `parallel-worker`).
+- Parallel-worker runs must follow `RUN_MODE=parallel-worker` checklist rules (no `ralph task done`; integration updates workspace queue/done and pushes base branch).
 
 ### Parallel Merge Refresh Resilience
 - After merge-agent success, update state (`prs`, `pending_merges`) before local branch refresh attempts.

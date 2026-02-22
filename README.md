@@ -10,8 +10,8 @@ Ralph is a tool for managing AI agent loops with a structured JSON task queue.
 
 The Ralph CLI is in `crates/ralph/`.
 
-- Queue (source of truth): `.ralph/queue.json`
-- Done archive: `.ralph/done.json`
+- Queue (source of truth): `.ralph/queue.jsonc` (JSON with Comments; `.json` also supported)
+- Done archive: `.ralph/done.jsonc` (JSON with Comments; `.json` also supported)
 - Prompt templates: built-in defaults; override in `.ralph/prompts/`
 - **Production Verification:** See `.ralph/README.md`.
 
@@ -147,7 +147,7 @@ Quick usage:
 
 Defaults and config:
 - `ralph run one` pulls runner/model from the task `agent` block if present, otherwise from config.
-- Configure defaults in `.ralph/config.json` (or `~/.config/ralph/config.json`):
+- Configure defaults in `.ralph/config.jsonc` (or `~/.config/ralph/config.jsonc`; `.json` also supported):
 
 ```json
 {
@@ -206,7 +206,7 @@ Use `ralph run one --phases 3` for full 3-phase execution (default). Use `--phas
 
 Ralph uses a two-layer JSON config:
 - Global: `~/.config/ralph/config.json`
-- Project: `.ralph/config.json` (overrides global)
+- Project: `.ralph/config.jsonc` (overrides global; `.json` also supported)
 
 ## Project Types
 

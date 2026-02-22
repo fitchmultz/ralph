@@ -4,7 +4,7 @@
 //! - Track daily task completions and calculate streaks
 //! - Record milestone achievements (10, 50, 100, etc.)
 //! - Calculate velocity metrics (tasks per day/week)
-//! - Persist stats to `.ralph/cache/productivity.json`
+//! - Persist stats to `.ralph/cache/productivity.jsonc`
 //!
 //! Not handled here:
 //! - Queue/task management (see `crate::queue`)

@@ -57,20 +57,20 @@ pub struct DependencyValidationResult {
 pub fn validate_queue(queue: &QueueFile, id_prefix: &str, id_width: usize) -> Result<()> {
     if queue.version != 1 {
         bail!(
-            "Unsupported queue.json version: {}. Ralph requires version 1. Update the 'version' field in .ralph/queue.json.",
+            "Unsupported queue.jsonc version: {}. Ralph requires version 1. Update the 'version' field in .ralph/queue.jsonc.",
             queue.version
         );
     }
     if id_width == 0 {
         bail!(
-            "Invalid id_width: width must be greater than 0. Set a valid width (e.g., 4) in .ralph/config.json or via --id-width."
+            "Invalid id_width: width must be greater than 0. Set a valid width (e.g., 4) in .ralph/config.jsonc or via --id-width."
         );
     }
 
     let expected_prefix = super::normalize_prefix(id_prefix);
     if expected_prefix.is_empty() {
         bail!(
-            "Empty id_prefix: prefix is required. Set a non-empty prefix (e.g., 'RQ') in .ralph/config.json or via --id-prefix."
+            "Empty id_prefix: prefix is required. Set a non-empty prefix (e.g., 'RQ') in .ralph/config.jsonc or via --id-prefix."
         );
     }
 
@@ -87,7 +87,7 @@ pub fn validate_queue(queue: &QueueFile, id_prefix: &str, id_width: usize) -> Re
         let key = task.id.trim().to_string();
         if !seen.insert(key.clone()) {
             bail!(
-                "Duplicate task ID detected: {}. Ensure each task in .ralph/queue.json has a unique ID.",
+                "Duplicate task ID detected: {}. Ensure each task in .ralph/queue.jsonc has a unique ID.",
                 key
             );
         }
@@ -150,7 +150,7 @@ pub fn validate_queue_set(
             let id = task.id.trim();
             if active_ids.contains(id) {
                 bail!(
-                    "Duplicate task ID detected across queue and done: {}. Ensure task IDs are unique across .ralph/queue.json and .ralph/done.json.",
+                    "Duplicate task ID detected across queue and done: {}. Ensure task IDs are unique across .ralph/queue.jsonc and .ralph/done.jsonc.",
                     id
                 );
             }
@@ -167,7 +167,7 @@ fn validate_done_terminal_status(done: &QueueFile) -> Result<()> {
     for task in &done.tasks {
         if !matches!(task.status, TaskStatus::Done | TaskStatus::Rejected) {
             bail!(
-                "Invalid done.json status: task {} has status '{:?}'. .ralph/done.json must contain only done/rejected tasks. Move the task back to .ralph/queue.json or update its status before archiving.",
+                "Invalid done.jsonc status: task {} has status '{:?}'. .ralph/done.jsonc must contain only done/rejected tasks. Move the task back to .ralph/queue.jsonc or update its status before archiving.",
                 task.id,
                 task.status
             );
@@ -318,7 +318,7 @@ pub(crate) fn validate_task_id(
     let prefix = prefix_raw.trim().to_uppercase();
     if prefix != expected_prefix {
         bail!(
-            "Mismatched task ID prefix: task at index {} has prefix '{}' but expected '{}'. Update the task ID to '{}' or change the prefix in .ralph/config.json.",
+            "Mismatched task ID prefix: task at index {} has prefix '{}' but expected '{}'. Update the task ID to '{}' or change the prefix in .ralph/config.jsonc.",
             index,
             prefix,
             expected_prefix,
@@ -401,7 +401,7 @@ fn validate_dependencies(
             // Check that dependency exists (hard error)
             if !all_task_ids.contains(dep_id) {
                 bail!(
-                    "Invalid dependency: task {} depends on non-existent task {}. Ensure the dependency task ID exists in .ralph/queue.json or .ralph/done.json.",
+                    "Invalid dependency: task {} depends on non-existent task {}. Ensure the dependency task ID exists in .ralph/queue.jsonc or .ralph/done.jsonc.",
                     task_id,
                     dep_id
                 );
@@ -642,7 +642,7 @@ fn validate_relationships(
             // Check that blocked task exists (hard error)
             if !all_task_ids.contains(blocked_id) {
                 bail!(
-                    "Invalid blocks relationship: task {} blocks non-existent task {}. Ensure the blocked task ID exists in .ralph/queue.json or .ralph/done.json.",
+                    "Invalid blocks relationship: task {} blocks non-existent task {}. Ensure the blocked task ID exists in .ralph/queue.jsonc or .ralph/done.jsonc.",
                     task_id,
                     blocked_id
                 );
@@ -670,7 +670,7 @@ fn validate_relationships(
             // Check that related task exists (hard error)
             if !all_task_ids.contains(related_id) {
                 bail!(
-                    "Invalid relates_to relationship: task {} relates to non-existent task {}. Ensure the related task ID exists in .ralph/queue.json or .ralph/done.json.",
+                    "Invalid relates_to relationship: task {} relates to non-existent task {}. Ensure the related task ID exists in .ralph/queue.jsonc or .ralph/done.jsonc.",
                     task_id,
                     related_id
                 );
@@ -692,7 +692,7 @@ fn validate_relationships(
             // Check that duplicated task exists (hard error)
             if !all_task_ids.contains(duplicates_id) {
                 bail!(
-                    "Invalid duplicates relationship: task {} duplicates non-existent task {}. Ensure the duplicated task ID exists in .ralph/queue.json or .ralph/done.json.",
+                    "Invalid duplicates relationship: task {} duplicates non-existent task {}. Ensure the duplicated task ID exists in .ralph/queue.jsonc or .ralph/done.jsonc.",
                     task_id,
                     duplicates_id
                 );

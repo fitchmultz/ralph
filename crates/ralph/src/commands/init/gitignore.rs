@@ -105,6 +105,62 @@ fn is_logs_ignore_entry(line: &str) -> bool {
     trimmed == ".ralph/logs/" || trimmed == ".ralph/logs"
 }
 
+/// Migrate .json ignore patterns to .jsonc in .gitignore.
+///
+/// This updates Ralph-managed ignore patterns from .json to .jsonc variants.
+/// Patterns like `.ralph/queue.json` become `.ralph/queue.jsonc`.
+///
+/// Returns true if any changes were made.
+pub fn migrate_json_to_jsonc_gitignore(repo_root: &std::path::Path) -> anyhow::Result<bool> {
+    let gitignore_path = repo_root.join(".gitignore");
+    if !gitignore_path.exists() {
+        return Ok(false);
+    }
+
+    let content = fs::read_to_string(&gitignore_path)
+        .with_context(|| format!("read {}", gitignore_path.display()))?;
+
+    // Define patterns to migrate: (old_pattern, new_pattern)
+    let patterns_to_migrate: &[(&str, &str)] = &[
+        (".ralph/queue.json", ".ralph/queue.jsonc"),
+        (".ralph/done.json", ".ralph/done.jsonc"),
+        (".ralph/config.json", ".ralph/config.jsonc"),
+        (".ralph/*.json", ".ralph/*.jsonc"),
+    ];
+
+    let mut updated = content.clone();
+    let mut made_changes = false;
+
+    for (old_pattern, new_pattern) in patterns_to_migrate {
+        // Check if old pattern exists and new pattern doesn't
+        let has_old = updated.lines().any(|line| {
+            let trimmed = line.trim();
+            trimmed == *old_pattern || trimmed == old_pattern.trim_end_matches('/')
+        });
+        let has_new = updated.lines().any(|line| {
+            let trimmed = line.trim();
+            trimmed == *new_pattern || trimmed == new_pattern.trim_end_matches('/')
+        });
+
+        if has_old && !has_new {
+            updated = updated.replace(old_pattern, new_pattern);
+            log::info!(
+                "Migrated .gitignore pattern: {} -> {}",
+                old_pattern,
+                new_pattern
+            );
+            made_changes = true;
+        }
+    }
+
+    if made_changes {
+        fs::write(&gitignore_path, updated)
+            .with_context(|| format!("write {}", gitignore_path.display()))?;
+    }
+
+    Ok(made_changes)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

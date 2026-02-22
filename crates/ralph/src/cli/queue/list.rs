@@ -61,11 +61,11 @@ pub struct QueueListArgs {
     #[arg(long)]
     pub filter_deps: Option<String>,
 
-    /// Include tasks from .ralph/done.json after active queue output.
+    /// Include tasks from .ralph/done.jsonc after active queue output.
     #[arg(long)]
     pub include_done: bool,
 
-    /// Only list tasks from .ralph/done.json (ignores active queue).
+    /// Only list tasks from .ralph/done.jsonc (ignores active queue).
     #[arg(long)]
     pub only_done: bool,
 

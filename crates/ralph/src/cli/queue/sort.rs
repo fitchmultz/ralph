@@ -1,7 +1,7 @@
 //! Queue sort subcommand.
 //!
 //! Responsibilities:
-//! - Reorder tasks in .ralph/queue.json by priority.
+//! - Reorder tasks in .ralph/queue.jsonc by priority.
 //! - Support dry-run mode to preview the new order.
 //!
 //! Not handled here:
@@ -24,7 +24,7 @@ use super::{QueueSortBy, QueueSortOrder};
 /// Arguments for `ralph queue sort`.
 #[derive(Args)]
 #[command(
-    after_long_help = "Examples:\n  ralph queue sort\n  ralph queue sort --order descending\n  ralph queue sort --order ascending\n  ralph queue sort --dry-run\n  ralph queue list --scheduled --sort-by scheduled_start --order ascending\n\nDry run:\n  Shows the new queue order without modifying files.\n\nNote:\n  - `ralph queue sort` reorders .ralph/queue.json and intentionally supports priority only.\n  - For triage/time-based sorting without mutating files, use `ralph queue list --sort-by ...`."
+    after_long_help = "Examples:\n  ralph queue sort\n  ralph queue sort --order descending\n  ralph queue sort --order ascending\n  ralph queue sort --dry-run\n  ralph queue list --scheduled --sort-by scheduled_start --order ascending\n\nDry run:\n  Shows the new queue order without modifying files.\n\nNote:\n  - `ralph queue sort` reorders .ralph/queue.jsonc and intentionally supports priority only.\n  - For triage/time-based sorting without mutating files, use `ralph queue list --sort-by ...`."
 )]
 pub struct QueueSortArgs {
     /// Sort by field (supported: priority only; reorders queue file).

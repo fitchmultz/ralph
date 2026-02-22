@@ -5,6 +5,7 @@
 //! Invariants/assumptions: embedded defaults mention next-id command; temp directories are writable.
 
 use super::*;
+use crate::prompts_internal::task_updater::render_task_updater_prompt;
 
 #[test]
 fn render_task_builder_prompt_replaces_placeholders() -> Result<()> {
@@ -57,6 +58,68 @@ fn default_task_builder_prompt_mentions_next_id_command() -> Result<()> {
         prompt.contains("does NOT reserve IDs") || prompt.contains("does not reserve IDs"),
         "prompt should warn that next-id does not reserve IDs"
     );
+    Ok(())
+}
+
+#[test]
+fn render_task_builder_prompt_expands_queue_file_variable() -> Result<()> {
+    let template = "Queue: {{config.queue.file}}\nRequest:\n{{USER_REQUEST}}\nTags:\n{{HINT_TAGS}}\nScope:\n{{HINT_SCOPE}}\n";
+    let mut config = default_config();
+    config.queue.file = Some(std::path::PathBuf::from(".ralph/custom_queue.jsonc"));
+    let rendered = render_task_builder_prompt(
+        template,
+        "do thing",
+        "code",
+        "repo",
+        ProjectType::Code,
+        &config,
+    )?;
+    assert!(rendered.contains("Queue: .ralph/custom_queue.jsonc"));
+    Ok(())
+}
+
+#[test]
+fn render_task_builder_prompt_uses_default_queue_file_when_unset() -> Result<()> {
+    let template = "Queue: {{config.queue.file}}\nRequest:\n{{USER_REQUEST}}\nTags:\n{{HINT_TAGS}}\nScope:\n{{HINT_SCOPE}}\n";
+    let config = default_config();
+    let rendered = render_task_builder_prompt(
+        template,
+        "do thing",
+        "code",
+        "repo",
+        ProjectType::Code,
+        &config,
+    )?;
+    assert!(rendered.contains("Queue: .ralph/queue.jsonc"));
+    assert!(!rendered.contains("{{config.queue.file}}"));
+    Ok(())
+}
+
+#[test]
+fn render_task_updater_prompt_expands_queue_and_done_file_variables() -> Result<()> {
+    let template =
+        "Queue: {{config.queue.file}}\nDone: {{config.queue.done_file}}\nTask: {{TASK_ID}}";
+    let mut config = default_config();
+    config.queue.file = Some(std::path::PathBuf::from(".ralph/custom_queue.jsonc"));
+    config.queue.done_file = Some(std::path::PathBuf::from(".ralph/custom_done.jsonc"));
+    let rendered = render_task_updater_prompt(template, "RQ-0001", ProjectType::Code, &config)?;
+    assert!(rendered.contains("Queue: .ralph/custom_queue.jsonc"));
+    assert!(rendered.contains("Done: .ralph/custom_done.jsonc"));
+    assert!(rendered.contains("Task: RQ-0001"));
+    Ok(())
+}
+
+#[test]
+fn render_task_updater_prompt_uses_default_queue_and_done_when_unset() -> Result<()> {
+    let template =
+        "Queue: {{config.queue.file}}\nDone: {{config.queue.done_file}}\nTask: {{TASK_ID}}";
+    let config = default_config();
+    let rendered = render_task_updater_prompt(template, "RQ-0001", ProjectType::Code, &config)?;
+    assert!(rendered.contains("Queue: .ralph/queue.jsonc"));
+    assert!(rendered.contains("Done: .ralph/done.jsonc"));
+    assert!(!rendered.contains("{{config.queue.file}}"));
+    assert!(!rendered.contains("{{config.queue.done_file}}"));
+    assert!(rendered.contains("Task: RQ-0001"));
     Ok(())
 }
 

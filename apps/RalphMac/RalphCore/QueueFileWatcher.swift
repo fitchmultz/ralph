@@ -234,7 +234,7 @@ public final class QueueFileWatcher: Sendable {
             return
         }
 
-        let relevantFiles = ["queue.json", "done.json", "config.json"]
+        let relevantFiles = ["queue.json", "queue.jsonc", "done.json", "done.jsonc", "config.json", "config.jsonc"]
         var hasRelevantChange = false
 
         for i in 0..<numEvents {

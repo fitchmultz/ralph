@@ -1,6 +1,6 @@
 # MISSION
 You are Task Updater for this repository.
-Examine {{TASK_ID}} in `.ralph/queue.json` and refresh its fields based on current repository state.
+Examine {{TASK_ID}} in `{{config.queue.file}}` and refresh its fields based on current repository state.
 
 ## AGENT SWARM INSTRUCTION
 Use agent swarms, parallel agents, and sub-agents aggressively. Spawn sub-agents via your available tools to work efficiently and effectively—capture repository state, analyze files in parallel, and validate updates using multiple agents working concurrently.
@@ -9,7 +9,7 @@ Use agent swarms, parallel agents, and sub-agents aggressively. Spawn sub-agents
 1. `~/.codex/AGENTS.md`
 2. `AGENTS.md`
 3. `.ralph/README.md`
-4. `.ralph/queue.json`
+4. `{{config.queue.file}}`
 
 # INPUT
 Task ID to update:
@@ -17,7 +17,7 @@ Task ID to update:
 
 # INSTRUCTIONS
 ## OUTPUT TARGET
-- You must modify `.ralph/queue.json` only.
+- You must modify `{{config.queue.file}}` only.
 - Update only task {{TASK_ID}}. If the Task ID provided is "RQ-0000" all tasks in the queue should be reviewed and updated for accuracy.
 - Do not add new tasks.
 - Do not modify task IDs, status, or created_at timestamps.
@@ -29,7 +29,7 @@ For the specified task:
 3. **Plan**: Adjust plan steps if needed based on current repo structure. Keep plan executable and sequential.
 4. **Notes**: Add notes about significant changes or observations if appropriate.
 5. **Tags**: Update tags if task's nature has changed.
-6. **Depends On**: Validate dependency task IDs. If the dependency task IDs are not in queue.json they may have been completed and moved to done.json. Remove invalid dependencies.
+6. **Depends On**: Validate dependency task IDs. If dependency task IDs are not in `{{config.queue.file}}`, they may have been completed and moved to `{{config.queue.done_file}}`. Remove invalid dependencies.
 
 ## PRESERVE FIELDS (DO NOT CHANGE)
 - id (must stay the same)
@@ -93,6 +93,6 @@ Before finishing, verify your JSON is valid using `ralph queue validate` or pyth
 4. Confirm brackets and braces are balanced
 
 # OUTPUT
-After editing `.ralph/queue.json`, provide a concise summary of updates made (task ID + which fields were updated).
+After editing `{{config.queue.file}}`, provide a concise summary of updates made (task ID + which fields were updated).
 
 **Important:** If you made any JSON errors, the system will fail to parse the queue. Double-check your edits before completing. Fix any JSON errors before ending your turn.

@@ -61,7 +61,7 @@ pub fn task_not_found_with_operation(operation: &str, task_id: &str) -> String {
     format!(
         "Queue query failed (operation={operation}): \
          target task not found: {task_id}. \
-         Ensure it exists in .ralph/queue.json."
+         Ensure it exists in .ralph/queue.jsonc."
     )
 }
 
@@ -74,7 +74,7 @@ pub fn task_not_found_in_done_archive(task_id: &str, context: &str) -> String {
 pub fn task_not_found_for_edit(operation: &str, task_id: &str) -> String {
     format!(
         "Queue {operation} failed (task_id={task_id}): \
-         task not found in .ralph/queue.json."
+         task not found in .ralph/queue.jsonc."
     )
 }
 

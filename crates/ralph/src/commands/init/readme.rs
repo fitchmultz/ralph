@@ -233,8 +233,8 @@ mod tests {
 
     #[test]
     fn extract_readme_version_finds_version_marker() {
-        let content = "<!-- RALPH_README_VERSION: 5 -->\n# Heading";
-        assert_eq!(extract_readme_version(content), Ok(5));
+        let content = "<!-- RALPH_README_VERSION: 6 -->\n# Heading";
+        assert_eq!(extract_readme_version(content), Ok(6));
 
         let content_v2 = "<!-- RALPH_README_VERSION: 2 -->\n# Ralph";
         assert_eq!(extract_readme_version(content_v2), Ok(2));
@@ -261,7 +261,7 @@ mod tests {
 
     #[test]
     fn extract_readme_version_returns_error_for_malformed_marker() {
-        let content = "<!-- RALPH_README_VERSION: 5 \n# Heading"; // Missing -->
+        let content = "<!-- RALPH_README_VERSION: 6 \n# Heading"; // Missing -->
         let result = extract_readme_version(content);
         assert!(matches!(result, Err(ReadmeVersionError::InvalidFormat)));
     }

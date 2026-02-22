@@ -318,7 +318,7 @@ fn parallel_path_map_workspace_sync() -> Result<()> {
     test_support::ralph_init(temp.path())?;
 
     // Create config and prompts AFTER ralph_init
-    let config_path = temp.path().join(".ralph/config.json");
+    let config_path = temp.path().join(".ralph/config.jsonc");
     std::fs::write(
         &config_path,
         r#"{"version":1,"agent":{"runner":"opencode","model":"test-model"}}"#,
@@ -356,7 +356,7 @@ fn parallel_path_map_workspace_sync() -> Result<()> {
         for entry in std::fs::read_dir(&workspaces_dir)? {
             let entry = entry?;
             let workspace_path = entry.path();
-            let workspace_config = workspace_path.join(".ralph/config.json");
+            let workspace_config = workspace_path.join(".ralph/config.jsonc");
             let workspace_prompt = workspace_path.join(".ralph/prompts/worker.md");
 
             if workspace_config.exists() {

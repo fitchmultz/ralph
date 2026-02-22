@@ -128,8 +128,8 @@ pub fn handle_init(args: InitArgs, force_lock: bool) -> Result<()> {
         }
     }
 
-    report_status("queue", report.queue_status, &resolved.queue_path);
-    report_status("done", report.done_status, &resolved.done_path);
+    report_status("queue", report.queue_status, &report.queue_path);
+    report_status("done", report.done_status, &report.done_path);
     if let Some((status, version_info)) = report.readme_status {
         let readme_path = resolved.repo_root.join(".ralph/README.md");
         match status {
@@ -168,11 +168,7 @@ pub fn handle_init(args: InitArgs, force_lock: bool) -> Result<()> {
             }
         }
     }
-    if let Some(path) = resolved.project_config_path.as_ref() {
-        report_status("config", report.config_status, path);
-    } else {
-        log::info!("config: unavailable");
-    }
+    report_status("config", report.config_status, &report.config_path);
     Ok(())
 }
 

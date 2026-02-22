@@ -13,7 +13,7 @@
 //!
 //! Invariants/assumptions:
 //! - Migrations are idempotent: running the same migration twice is a no-op.
-//! - Migration history is stored in `.ralph/cache/migrations.json`.
+//! - Migration history is stored in `.ralph/cache/migrations.jsonc`.
 //! - All migrations have a unique ID and are tracked in the registry.
 
 use crate::config::Resolved;
@@ -102,7 +102,7 @@ impl MigrationContext {
             project_config_path: resolved
                 .project_config_path
                 .clone()
-                .unwrap_or_else(|| resolved.repo_root.join(".ralph/config.json")),
+                .unwrap_or_else(|| resolved.repo_root.join(".ralph/config.jsonc")),
             global_config_path: resolved.global_config_path.clone(),
             resolved_config: resolved.config.clone(),
             migration_history,
@@ -150,7 +150,20 @@ fn is_migration_applicable(ctx: &MigrationContext, migration: &Migration) -> boo
         }
         MigrationType::ConfigKeyRemove { key } => config_migrations::config_has_key(ctx, key),
         MigrationType::FileRename { old_path, new_path } => {
-            ctx.file_exists(old_path) && !ctx.file_exists(new_path)
+            if matches!(
+                migration.id,
+                "file_cleanup_legacy_queue_json_after_jsonc_2026_02"
+                    | "file_cleanup_legacy_done_json_after_jsonc_2026_02"
+                    | "file_cleanup_legacy_config_json_after_jsonc_2026_02"
+            ) {
+                return ctx.file_exists(old_path) && ctx.file_exists(new_path);
+            }
+            match (*old_path, *new_path) {
+                (".ralph/queue.json", ".ralph/queue.jsonc")
+                | (".ralph/done.json", ".ralph/done.jsonc")
+                | (".ralph/config.json", ".ralph/config.jsonc") => ctx.file_exists(old_path),
+                _ => ctx.file_exists(old_path) && !ctx.file_exists(new_path),
+            }
         }
         MigrationType::ReadmeUpdate { from_version, .. } => {
             // README update is applicable if current version is less than target
@@ -197,10 +210,24 @@ pub fn apply_migration(ctx: &mut MigrationContext, migration: &Migration) -> Res
             config_migrations::apply_key_remove(ctx, key)
                 .with_context(|| format!("apply config key removal for {}", migration.id))?;
         }
-        MigrationType::FileRename { old_path, new_path } => {
-            file_migrations::apply_file_rename(ctx, old_path, new_path)
-                .with_context(|| format!("apply file rename for {}", migration.id))?;
-        }
+        MigrationType::FileRename { old_path, new_path } => match (*old_path, *new_path) {
+            (".ralph/queue.json", ".ralph/queue.jsonc") => {
+                file_migrations::migrate_queue_json_to_jsonc(ctx)
+                    .with_context(|| format!("apply file rename for {}", migration.id))?;
+            }
+            (".ralph/done.json", ".ralph/done.jsonc") => {
+                file_migrations::migrate_done_json_to_jsonc(ctx)
+                    .with_context(|| format!("apply file rename for {}", migration.id))?;
+            }
+            (".ralph/config.json", ".ralph/config.jsonc") => {
+                file_migrations::migrate_config_json_to_jsonc(ctx)
+                    .with_context(|| format!("apply file rename for {}", migration.id))?;
+            }
+            _ => {
+                file_migrations::apply_file_rename(ctx, old_path, new_path)
+                    .with_context(|| format!("apply file rename for {}", migration.id))?;
+            }
+        },
         MigrationType::ReadmeUpdate { .. } => {
             apply_readme_update(ctx)
                 .with_context(|| format!("apply README update for {}", migration.id))?;
@@ -355,5 +382,35 @@ mod tests {
 
         assert!(ctx.file_exists(".ralph/queue.json"));
         assert!(!ctx.file_exists(".ralph/done.json"));
+    }
+
+    #[test]
+    fn cleanup_migration_pending_when_legacy_json_remains_after_rename_migration() {
+        let dir = TempDir::new().unwrap();
+        let mut ctx = create_test_context(&dir);
+
+        std::fs::create_dir_all(dir.path().join(".ralph")).unwrap();
+        std::fs::write(dir.path().join(".ralph/queue.json"), "{}").unwrap();
+        std::fs::write(dir.path().join(".ralph/queue.jsonc"), "{}").unwrap();
+
+        // Simulate historical state where rename migration was already recorded.
+        ctx.migration_history
+            .applied_migrations
+            .push(history::AppliedMigration {
+                id: "file_rename_queue_json_to_jsonc_2026_02".to_string(),
+                applied_at: chrono::Utc::now(),
+                migration_type: "FileRename".to_string(),
+            });
+
+        let pending = match check_migrations(&ctx).expect("check migrations") {
+            MigrationCheckResult::Pending(pending) => pending,
+            MigrationCheckResult::Current => panic!("expected pending cleanup migration"),
+        };
+
+        let pending_ids: Vec<&str> = pending.iter().map(|m| m.id).collect();
+        assert!(
+            pending_ids.contains(&"file_cleanup_legacy_queue_json_after_jsonc_2026_02"),
+            "expected cleanup migration to be pending when legacy queue.json remains"
+        );
     }
 }

@@ -110,7 +110,7 @@ Stop when high-signal areas are exhausted. Do not create low-value style nit tas
 You MUST generate at least 10 new tasks with no upper limit.
 
 # OUTPUT
-After editing .ralph/queue.json, provide:
+After editing {{config.queue.file}}, provide:
 - Count of new tasks added
 - List of new task IDs + titles (top 10 is fine)
 - Whether any tasks were skipped due to dedupe

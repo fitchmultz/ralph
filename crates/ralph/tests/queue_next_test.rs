@@ -45,8 +45,8 @@ fn queue_next_reports_empty_queue_with_done_tasks() -> Result<()> {
   ]
 }"#;
 
-    std::fs::write(dir.path().join(".ralph/queue.json"), queue).context("write queue.json")?;
-    std::fs::write(dir.path().join(".ralph/done.json"), done).context("write done.json")?;
+    std::fs::write(dir.path().join(".ralph/queue.jsonc"), queue).context("write queue.json")?;
+    std::fs::write(dir.path().join(".ralph/done.jsonc"), done).context("write done.json")?;
 
     let (status, stdout, stderr) = run_in_dir(dir.path(), &["queue", "next"]);
     anyhow::ensure!(

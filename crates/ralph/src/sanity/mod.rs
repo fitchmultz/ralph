@@ -5,7 +5,7 @@
 //! - Auto-update README.md when embedded template is newer (no prompt).
 //! - Detect and prompt for config migrations (deprecated keys, unknown keys).
 //! - Support --auto-fix flag to auto-approve all migrations without prompting.
-//! - Support --no-sanity-checks flag to skip all health checks.
+//! - Support --no-sanity-checks flag to skip sanity health checks.
 //! - Support non-interactive mode to skip all prompts (for CI/piped runs).
 //!
 //! Not handled here:
@@ -20,6 +20,7 @@
 //! - Unknown config keys prompt for remove/keep/rename action.
 //! - Prompts require both stdin and stdout to be TTYs.
 //! - If non_interactive is true, all prompts are skipped (use --auto-fix to apply changes).
+//! - README sync may also be invoked directly by command routing for agent-facing commands.
 
 mod migrations;
 mod readme;
@@ -28,13 +29,37 @@ mod unknown_keys;
 use crate::config::Resolved;
 use crate::migration::MigrationContext;
 use crate::outpututil;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::io::{self, Write};
 
 // Re-export submodule functions for internal use
 pub(crate) use migrations::check_and_handle_migrations;
 pub(crate) use readme::check_and_update_readme;
 pub(crate) use unknown_keys::check_unknown_keys;
+
+/// Whether a command should refresh `.ralph/README.md` before execution.
+///
+/// This is intentionally broader than full sanity checks so agent-facing commands
+/// always get current project guidance even when migration checks are not run.
+pub fn should_refresh_readme_for_command(command: &crate::cli::Command) -> bool {
+    use crate::cli;
+    matches!(
+        command,
+        cli::Command::Run(_)
+            | cli::Command::Task(_)
+            | cli::Command::Scan(_)
+            | cli::Command::Prompt(_)
+            | cli::Command::Prd(_)
+            | cli::Command::Tutorial(_)
+    )
+}
+
+/// Refresh `.ralph/README.md` if missing/outdated.
+///
+/// Returns a user-facing status message when a change was applied.
+pub fn refresh_readme_if_needed(resolved: &Resolved) -> Result<Option<String>> {
+    check_and_update_readme(resolved)
+}
 
 /// Options for controlling sanity check behavior.
 #[derive(Debug, Clone, Default)]
@@ -102,12 +127,7 @@ pub fn run_sanity_checks(resolved: &Resolved, options: &SanityOptions) -> Result
             log::debug!("README is current");
         }
         Err(e) => {
-            log::warn!("Failed to check/update README: {}", e);
-            result.needs_attention.push(SanityIssue {
-                severity: IssueSeverity::Warning,
-                message: format!("README check failed: {}", e),
-                fix_available: false,
-            });
+            return Err(e).context("check/update .ralph/README.md");
         }
     }
 
@@ -244,6 +264,7 @@ pub fn report_sanity_results(result: &SanityResult, auto_fix: bool) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use clap::Parser;
 
     #[test]
     fn sanity_options_can_prompt_non_interactive_disables_prompts() {
@@ -268,5 +289,33 @@ mod tests {
             skip: false,
         };
         assert!(!opts.can_prompt());
+    }
+
+    #[test]
+    fn should_refresh_readme_for_agent_facing_commands() {
+        let cli = crate::cli::Cli::parse_from(["ralph", "task", "build", "x"]);
+        assert!(should_refresh_readme_for_command(&cli.command));
+
+        let cli = crate::cli::Cli::parse_from(["ralph", "scan", "--focus", "x"]);
+        assert!(should_refresh_readme_for_command(&cli.command));
+
+        let cli = crate::cli::Cli::parse_from(["ralph", "run", "one", "--id", "RQ-0001"]);
+        assert!(should_refresh_readme_for_command(&cli.command));
+
+        let cli =
+            crate::cli::Cli::parse_from(["ralph", "prompt", "task-builder", "--request", "x"]);
+        assert!(should_refresh_readme_for_command(&cli.command));
+    }
+
+    #[test]
+    fn should_not_refresh_readme_for_non_agent_commands() {
+        let cli = crate::cli::Cli::parse_from(["ralph", "queue", "list"]);
+        assert!(!should_refresh_readme_for_command(&cli.command));
+
+        let cli = crate::cli::Cli::parse_from(["ralph", "version"]);
+        assert!(!should_refresh_readme_for_command(&cli.command));
+
+        let cli = crate::cli::Cli::parse_from(["ralph", "completions", "bash"]);
+        assert!(!should_refresh_readme_for_command(&cli.command));
     }
 }

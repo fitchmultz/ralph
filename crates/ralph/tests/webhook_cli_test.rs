@@ -27,7 +27,7 @@ fn setup_repo() -> Result<tempfile::TempDir> {
 }
 
 fn write_webhook_config(dir: &std::path::Path) -> Result<()> {
-    let config_path = dir.join(".ralph/config.json");
+    let config_path = dir.join(".ralph/config.jsonc");
     let mut config: Value = serde_json::from_str(
         &std::fs::read_to_string(&config_path)
             .with_context(|| format!("read {}", config_path.display()))?,

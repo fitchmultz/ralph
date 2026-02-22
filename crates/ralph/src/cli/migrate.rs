@@ -14,6 +14,7 @@
 //! - `--apply` requires explicit user action (not automatic).
 //! - Exit code 1 from `--check` when migrations are pending for CI integration.
 
+use crate::commands::init::gitignore;
 use crate::config;
 use crate::migration::{self, MigrationCheckResult, MigrationContext};
 use anyhow::{Context, Result};
@@ -255,6 +256,22 @@ fn apply_migrations(force: bool) -> Result<()> {
         );
         for id in applied {
             println!("  {} {}", "✓".green(), id);
+        }
+    }
+
+    // Apply gitignore migration for JSON to JSONC patterns
+    match gitignore::migrate_json_to_jsonc_gitignore(&ctx.repo_root) {
+        Ok(true) => {
+            println!("{}", "✓ Updated .gitignore for JSONC patterns".green());
+        }
+        Ok(false) => {
+            log::debug!(".gitignore JSON to JSONC migration not needed or already up to date");
+        }
+        Err(e) => {
+            eprintln!(
+                "{}",
+                format!("⚠ Warning: Failed to update .gitignore for JSONC: {}", e).yellow()
+            );
         }
     }
 

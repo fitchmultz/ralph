@@ -1,7 +1,7 @@
 {
   "version": 1,
   "first_task_completed_at": "2026-02-18T19:58:33.123726000Z",
-  "last_updated_at": "2026-02-21T14:53:35.066229000Z",
+  "last_updated_at": "2026-02-22T08:45:16.054062000Z",
   "daily": {
     "2026-02-18": {
       "date": "2026-02-18",
@@ -122,22 +122,38 @@
     },
     "2026-02-21": {
       "date": "2026-02-21",
-      "completed_count": 1,
+      "completed_count": 2,
       "tasks": [
         {
           "id": "RQ-0940",
           "title": "Add tests for watch command submodules",
           "completed_at": "2026-02-21T14:53:35.066207000Z"
+        },
+        {
+          "id": "RQ-0916",
+          "title": "Add tests for ralph queue next-id command error paths",
+          "completed_at": "2026-02-21T19:06:47.038307000Z"
+        }
+      ]
+    },
+    "2026-02-22": {
+      "date": "2026-02-22",
+      "completed_count": 1,
+      "tasks": [
+        {
+          "id": "RQ-0957",
+          "title": "Migrate Ralph defaults from .json to .jsonc with automatic upgrade",
+          "completed_at": "2026-02-22T08:45:16.054061000Z"
         }
       ]
     }
   },
   "streak": {
-    "current_streak": 1,
+    "current_streak": 2,
     "longest_streak": 2,
-    "last_completed_date": "2026-02-21"
+    "last_completed_date": "2026-02-22"
   },
-  "total_completed": 28,
+  "total_completed": 30,
   "milestones": [
     {
       "threshold": 10,

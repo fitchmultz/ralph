@@ -10,7 +10,7 @@ fn run_in_dir(dir: &Path, args: &[&str]) -> (ExitStatus, String, String) {
     test_support::run_in_dir(dir, args)
 }
 fn configure_runner(dir: &Path, runner: &str, model: &str, bin_path: Option<&Path>) -> Result<()> {
-    let config_path = dir.join(".ralph/config.json");
+    let config_path = dir.join(".ralph/config.jsonc");
     if !config_path.exists() {
         let initial_config = r#"{ 
   "agent": {
@@ -82,8 +82,8 @@ fn create_fake_runner(dir: &Path, runner: &str, script: &str) -> Result<PathBuf>
 fn write_queue_with_two_tasks(dir: &Path) -> Result<()> {
     let ralph_dir = dir.join(".ralph");
     std::fs::create_dir_all(&ralph_dir).context("create .ralph dir")?;
-    let queue_path = ralph_dir.join("queue.json");
-    let done_path = ralph_dir.join("done.json");
+    let queue_path = ralph_dir.join("queue.jsonc");
+    let done_path = ralph_dir.join("done.jsonc");
 
     let queue = r#"{ 
   "version": 1,
@@ -122,16 +122,16 @@ fn write_queue_with_two_tasks(dir: &Path) -> Result<()> {
   "tasks": []
 }"#;
 
-    std::fs::write(&queue_path, queue).context("write queue.json")?;
-    std::fs::write(&done_path, done).context("write done.json")?;
+    std::fs::write(&queue_path, queue).context("write queue.jsonc")?;
+    std::fs::write(&done_path, done).context("write done.jsonc")?;
     Ok(())
 }
 
 fn write_empty_queue(dir: &Path) -> Result<()> {
     let ralph_dir = dir.join(".ralph");
     std::fs::create_dir_all(&ralph_dir).context("create .ralph dir")?;
-    let queue_path = ralph_dir.join("queue.json");
-    let done_path = ralph_dir.join("done.json");
+    let queue_path = ralph_dir.join("queue.jsonc");
+    let done_path = ralph_dir.join("done.jsonc");
 
     let queue = r#"{ 
   "version": 1,
@@ -143,8 +143,8 @@ fn write_empty_queue(dir: &Path) -> Result<()> {
   "tasks": []
 }"#;
 
-    std::fs::write(&queue_path, queue).context("write queue.json")?;
-    std::fs::write(&done_path, done).context("write done.json")?;
+    std::fs::write(&queue_path, queue).context("write queue.jsonc")?;
+    std::fs::write(&done_path, done).context("write done.jsonc")?;
     Ok(())
 }
 
@@ -208,8 +208,8 @@ fn task_update_without_id_fails_on_empty_queue() -> Result<()> {
 fn write_queue_with_one_task(dir: &Path) -> Result<()> {
     let ralph_dir = dir.join(".ralph");
     std::fs::create_dir_all(&ralph_dir).context("create .ralph dir")?;
-    let queue_path = ralph_dir.join("queue.json");
-    let done_path = ralph_dir.join("done.json");
+    let queue_path = ralph_dir.join("queue.jsonc");
+    let done_path = ralph_dir.join("done.jsonc");
 
     let queue = r#"{
   "version": 1,
@@ -235,8 +235,8 @@ fn write_queue_with_one_task(dir: &Path) -> Result<()> {
   "tasks": []
 }"#;
 
-    std::fs::write(&queue_path, queue).context("write queue.json")?;
-    std::fs::write(&done_path, done).context("write done.json")?;
+    std::fs::write(&queue_path, queue).context("write queue.jsonc")?;
+    std::fs::write(&done_path, done).context("write done.jsonc")?;
     Ok(())
 }
 
@@ -253,18 +253,18 @@ fn task_update_single_task_moved_to_done_during_update() -> Result<()> {
 
     write_queue_with_one_task(dir.path())?;
 
-    // Create a fake runner that moves the task to done.json during the update
+    // Create a fake runner that moves the task to done.jsonc during the update
     let script = r#"#!/bin/sh
 cat >/dev/null
-# Move task from queue.json to done.json
-mv .ralph/queue.json .ralph/queue.json.bak
-cat > .ralph/queue.json << 'QUEUEEOF'
+# Move task from queue.jsonc to done.jsonc
+mv .ralph/queue.jsonc .ralph/queue.jsonc.bak
+cat > .ralph/queue.jsonc << 'QUEUEEOF'
 {
   "version": 1,
   "tasks": []
 }
 QUEUEEOF
-cat > .ralph/done.json << 'DONEEOF'
+cat > .ralph/done.jsonc << 'DONEEOF'
 {
   "version": 1,
   "tasks": [
@@ -285,7 +285,7 @@ cat > .ralph/done.json << 'DONEEOF'
   ]
 }
 DONEEOF
-rm .ralph/queue.json.bak
+rm .ralph/queue.jsonc.bak
 exit 0
 "#;
     let runner_path = create_fake_runner(dir.path(), "codex", script)?;
@@ -299,8 +299,8 @@ exit 0
 
     // Verify the warning about task being moved is logged
     anyhow::ensure!(
-        stderr.contains("moved to done.json") || stdout.contains("moved to done.json"),
-        "expected 'moved to done.json' message, got stdout:\n{stdout}\nstderr:\n{stderr}"
+        stderr.contains("moved to done.jsonc") || stdout.contains("moved to done.jsonc"),
+        "expected 'moved to done.jsonc' message, got stdout:\n{stdout}\nstderr:\n{stderr}"
     );
 
     // Verify the changed fields are reported
@@ -328,8 +328,8 @@ fn task_update_single_task_removed_during_update() -> Result<()> {
     // Create a fake runner that removes the task entirely during the update
     let script = r#"#!/bin/sh
 cat >/dev/null
-# Remove task from queue.json (empty queue)
-cat > .ralph/queue.json << 'QUEUEEOF'
+# Remove task from queue.jsonc (empty queue)
+cat > .ralph/queue.jsonc << 'QUEUEEOF'
 {
   "version": 1,
   "tasks": []
@@ -368,18 +368,18 @@ fn task_update_single_task_moved_to_done_no_changes() -> Result<()> {
 
     write_queue_with_one_task(dir.path())?;
 
-    // Create a fake runner that moves the task to done.json without changes
+    // Create a fake runner that moves the task to done.jsonc without changes
     let script = r#"#!/bin/sh
 cat >/dev/null
-# Move task from queue.json to done.json without changes
-mv .ralph/queue.json .ralph/queue.json.bak
-cat > .ralph/queue.json << 'QUEUEEOF'
+# Move task from queue.jsonc to done.jsonc without changes
+mv .ralph/queue.jsonc .ralph/queue.jsonc.bak
+cat > .ralph/queue.jsonc << 'QUEUEEOF'
 {
   "version": 1,
   "tasks": []
 }
 QUEUEEOF
-cat > .ralph/done.json << 'DONEEOF'
+cat > .ralph/done.jsonc << 'DONEEOF'
 {
   "version": 1,
   "tasks": [
@@ -400,7 +400,7 @@ cat > .ralph/done.json << 'DONEEOF'
   ]
 }
 DONEEOF
-rm .ralph/queue.json.bak
+rm .ralph/queue.jsonc.bak
 exit 0
 "#;
     let runner_path = create_fake_runner(dir.path(), "codex", script)?;
@@ -415,8 +415,8 @@ exit 0
     // Verify the message about task being moved with changed fields
     // (status changed from todo->done and completed_at was added)
     anyhow::ensure!(
-        stderr.contains("moved to done.json") || stdout.contains("moved to done.json"),
-        "expected 'moved to done.json' message, got stdout:\n{stdout}\nstderr:\n{stderr}"
+        stderr.contains("moved to done.jsonc") || stdout.contains("moved to done.jsonc"),
+        "expected 'moved to done.jsonc' message, got stdout:\n{stdout}\nstderr:\n{stderr}"
     );
 
     anyhow::ensure!(

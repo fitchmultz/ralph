@@ -10,9 +10,9 @@
 //! - Migration history tracking (see `history.rs`).
 //!
 //! Invariants/assumptions:
-//! - File migrations create backups before moving.
+//! - Generic file rename helpers can keep backups before moving.
 //! - Config file references are updated after file moves.
-//! - Original files are kept as backups until migration is verified.
+//! - JSON-to-JSONC migrations remove legacy `.json` files after `.jsonc` is established.
 
 use crate::config;
 use anyhow::{Context, Result};
@@ -185,24 +185,65 @@ fn update_config_file_if_needed(config_path: &Path, old_path: &str, new_path: &s
 /// Migrate queue.json to queue.jsonc.
 /// This is a convenience function for the common case.
 pub fn migrate_queue_json_to_jsonc(ctx: &MigrationContext) -> Result<()> {
-    apply_file_rename(ctx, ".ralph/queue.json", ".ralph/queue.jsonc")
+    migrate_json_to_jsonc(ctx, ".ralph/queue.json", ".ralph/queue.jsonc")
         .context("migrate queue.json to queue.jsonc")
 }
 
 /// Migrate done.json to done.jsonc.
 pub fn migrate_done_json_to_jsonc(ctx: &MigrationContext) -> Result<()> {
-    apply_file_rename(ctx, ".ralph/done.json", ".ralph/done.jsonc")
+    migrate_json_to_jsonc(ctx, ".ralph/done.json", ".ralph/done.jsonc")
         .context("migrate done.json to done.jsonc")
 }
 
 /// Check if a migration from queue.json to queue.jsonc is applicable.
 pub fn is_queue_json_to_jsonc_applicable(ctx: &MigrationContext) -> bool {
-    ctx.file_exists(".ralph/queue.json") && !ctx.file_exists(".ralph/queue.jsonc")
+    ctx.file_exists(".ralph/queue.json")
 }
 
 /// Check if a migration from done.json to done.jsonc is applicable.
 pub fn is_done_json_to_jsonc_applicable(ctx: &MigrationContext) -> bool {
-    ctx.file_exists(".ralph/done.json") && !ctx.file_exists(".ralph/done.jsonc")
+    ctx.file_exists(".ralph/done.json")
+}
+
+/// Migrate config.json to config.jsonc.
+pub fn migrate_config_json_to_jsonc(ctx: &MigrationContext) -> Result<()> {
+    migrate_json_to_jsonc(ctx, ".ralph/config.json", ".ralph/config.jsonc")
+        .context("migrate config.json to config.jsonc")
+}
+
+/// Check if a migration from config.json to config.jsonc is applicable.
+pub fn is_config_json_to_jsonc_applicable(ctx: &MigrationContext) -> bool {
+    ctx.file_exists(".ralph/config.json")
+}
+
+fn migrate_json_to_jsonc(ctx: &MigrationContext, old_path: &str, new_path: &str) -> Result<()> {
+    let old_full_path = ctx.resolve_path(old_path);
+    let new_full_path = ctx.resolve_path(new_path);
+
+    if !old_full_path.exists() {
+        return Ok(());
+    }
+
+    if new_full_path.exists() {
+        // Queue/done/config references may still point at legacy .json paths even when
+        // .jsonc already exists. Normalize references before deleting legacy files.
+        update_config_file_references(ctx, old_path, new_path)
+            .context("update config references for established jsonc migration")?;
+        fs::remove_file(&old_full_path)
+            .with_context(|| format!("remove legacy file {}", old_full_path.display()))?;
+        log::info!(
+            "Removed legacy file {} because {} already exists",
+            old_full_path.display(),
+            new_full_path.display()
+        );
+        return Ok(());
+    }
+
+    let opts = FileMigrationOptions {
+        keep_backup: false,
+        update_config: true,
+    };
+    apply_file_rename_with_options(ctx, old_path, new_path, &opts)
 }
 
 /// Rollback a file migration by restoring from backup.
@@ -395,7 +436,36 @@ mod tests {
 
         // Both exist
         fs::write(dir.path().join(".ralph/queue.jsonc"), "{}").unwrap();
-        assert!(!is_queue_json_to_jsonc_applicable(&ctx));
+        assert!(is_queue_json_to_jsonc_applicable(&ctx));
+    }
+
+    #[test]
+    fn migrate_queue_json_to_jsonc_removes_legacy_file_when_jsonc_absent() {
+        let dir = TempDir::new().unwrap();
+        let ctx = create_test_context(&dir);
+
+        fs::create_dir_all(dir.path().join(".ralph")).unwrap();
+        fs::write(dir.path().join(".ralph/queue.json"), "{\"version\": 1}").unwrap();
+
+        migrate_queue_json_to_jsonc(&ctx).unwrap();
+
+        assert!(!dir.path().join(".ralph/queue.json").exists());
+        assert!(dir.path().join(".ralph/queue.jsonc").exists());
+    }
+
+    #[test]
+    fn migrate_queue_json_to_jsonc_removes_legacy_file_when_jsonc_already_exists() {
+        let dir = TempDir::new().unwrap();
+        let ctx = create_test_context(&dir);
+
+        fs::create_dir_all(dir.path().join(".ralph")).unwrap();
+        fs::write(dir.path().join(".ralph/queue.json"), "{\"legacy\": true}").unwrap();
+        fs::write(dir.path().join(".ralph/queue.jsonc"), "{\"version\": 1}").unwrap();
+
+        migrate_queue_json_to_jsonc(&ctx).unwrap();
+
+        assert!(!dir.path().join(".ralph/queue.json").exists());
+        assert!(dir.path().join(".ralph/queue.jsonc").exists());
     }
 
     #[test]

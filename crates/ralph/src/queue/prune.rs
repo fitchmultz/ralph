@@ -1,7 +1,7 @@
 //! Queue pruning submodule.
 //!
 //! This module contains the pruning entry points and internal helpers used to
-//! remove old tasks from the done archive (.ralph/done.json) according to
+//! remove old tasks from the done archive (.ralph/done.jsonc) according to
 //! configurable filters (age, status, keep-last) while preserving the original
 //! order of remaining tasks.
 //!

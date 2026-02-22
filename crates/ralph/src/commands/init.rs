@@ -69,6 +69,10 @@ pub struct InitReport {
     pub config_status: FileInitStatus,
     /// (status, version) tuple - version is Some if README was read/created
     pub readme_status: Option<(FileInitStatus, Option<u32>)>,
+    /// Paths that were actually used for file creation (may differ from resolved paths)
+    pub queue_path: std::path::PathBuf,
+    pub done_path: std::path::PathBuf,
+    pub config_path: std::path::PathBuf,
 }
 
 pub fn run_init(resolved: &config::Resolved, opts: InitOptions) -> Result<InitReport> {
@@ -84,24 +88,31 @@ pub fn run_init(resolved: &config::Resolved, opts: InitOptions) -> Result<InitRe
         None
     };
 
+    // For new projects, always use .jsonc extensions (don't fall back to .json)
+    let queue_path = resolved
+        .repo_root
+        .join(crate::constants::queue::DEFAULT_QUEUE_FILE);
+    let done_path = resolved
+        .repo_root
+        .join(crate::constants::queue::DEFAULT_DONE_FILE);
+    let config_path = resolved
+        .repo_root
+        .join(crate::constants::queue::DEFAULT_CONFIG_FILE);
+
     let queue_status = writers::write_queue(
-        &resolved.queue_path,
+        &queue_path,
         opts.force,
         &resolved.id_prefix,
         resolved.id_width,
         wizard_answers.as_ref(),
     )?;
     let done_status = writers::write_done(
-        &resolved.done_path,
+        &done_path,
         opts.force,
         &resolved.id_prefix,
         resolved.id_width,
     )?;
-    let config_path = resolved
-        .project_config_path
-        .as_ref()
-        .ok_or_else(|| anyhow::anyhow!("project config path unavailable"))?;
-    let config_status = writers::write_config(config_path, opts.force, wizard_answers.as_ref())?;
+    let config_status = writers::write_config(&config_path, opts.force, wizard_answers.as_ref())?;
 
     let mut readme_status = None;
     if crate::prompts::prompts_reference_readme(&resolved.repo_root)? {
@@ -132,6 +143,9 @@ pub fn run_init(resolved: &config::Resolved, opts: InitOptions) -> Result<InitRe
         done_status,
         config_status,
         readme_status,
+        queue_path,
+        done_path,
+        config_path,
     })
 }
 
@@ -172,9 +186,9 @@ mod tests {
 
     fn resolved_for(dir: &TempDir) -> config::Resolved {
         let repo_root = dir.path().to_path_buf();
-        let queue_path = repo_root.join(".ralph/queue.json");
-        let done_path = repo_root.join(".ralph/done.json");
-        let project_config_path = Some(repo_root.join(".ralph/config.json"));
+        let queue_path = repo_root.join(".ralph/queue.jsonc");
+        let done_path = repo_root.join(".ralph/done.jsonc");
+        let project_config_path = Some(repo_root.join(".ralph/config.jsonc"));
         config::Resolved {
             config: Config::default(),
             repo_root,
@@ -205,7 +219,7 @@ mod tests {
         assert_eq!(report.config_status, FileInitStatus::Created);
         assert!(matches!(
             report.readme_status,
-            Some((FileInitStatus::Created, Some(5)))
+            Some((FileInitStatus::Created, Some(6)))
         ));
         let queue = crate::queue::load_queue(&resolved.queue_path)?;
         assert_eq!(queue.version, 1);
@@ -312,7 +326,7 @@ mod tests {
         assert_eq!(report.config_status, FileInitStatus::Valid);
         assert!(matches!(
             report.readme_status,
-            Some((FileInitStatus::Created, Some(5)))
+            Some((FileInitStatus::Created, Some(6)))
         ));
         let raw = std::fs::read_to_string(&resolved.queue_path)?;
         assert!(raw.contains("Keep"));
@@ -346,18 +360,18 @@ mod tests {
         assert_eq!(report.config_status, FileInitStatus::Created);
         assert!(matches!(
             report.readme_status,
-            Some((FileInitStatus::Created, Some(5)))
+            Some((FileInitStatus::Created, Some(6)))
         ));
         let cfg_raw = std::fs::read_to_string(resolved.project_config_path.as_ref().unwrap())?;
         let cfg: Config = serde_json::from_str(&cfg_raw)?;
         assert_eq!(cfg.project_type, Some(ProjectType::Code));
         assert_eq!(
             cfg.queue.file,
-            Some(std::path::PathBuf::from(".ralph/queue.json"))
+            Some(std::path::PathBuf::from(".ralph/queue.jsonc"))
         );
         assert_eq!(
             cfg.queue.done_file,
-            Some(std::path::PathBuf::from(".ralph/done.json"))
+            Some(std::path::PathBuf::from(".ralph/done.jsonc"))
         );
         assert_eq!(cfg.queue.id_prefix, Some("RQ".to_string()));
         assert_eq!(cfg.queue.id_width, Some(4));
@@ -629,7 +643,7 @@ mod tests {
         // README should be updated
         assert!(matches!(
             report.readme_status,
-            Some((FileInitStatus::Updated, Some(5)))
+            Some((FileInitStatus::Updated, Some(6)))
         ));
 
         // Content should be new

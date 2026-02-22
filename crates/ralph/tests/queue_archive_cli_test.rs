@@ -12,7 +12,7 @@
 //!
 //! Invariants/assumptions:
 //! - `ralph init --force --non-interactive` creates a usable `.ralph/` structure.
-//! - Archive operates on `.ralph/queue.json` and `.ralph/done.json`.
+//! - Archive operates on `.ralph/queue.jsonc` and `.ralph/done.jsonc`.
 
 use anyhow::Result;
 use ralph::contracts::TaskStatus;
@@ -73,14 +73,14 @@ fn queue_archive_is_noop_when_no_terminal_tasks() -> Result<()> {
     test_support::write_queue(dir.path(), &[t1, t2])?;
     test_support::write_done(dir.path(), &[])?;
 
-    let before_queue = std::fs::read_to_string(dir.path().join(".ralph/queue.json"))?;
-    let before_done = std::fs::read_to_string(dir.path().join(".ralph/done.json"))?;
+    let before_queue = std::fs::read_to_string(dir.path().join(".ralph/queue.jsonc"))?;
+    let before_done = std::fs::read_to_string(dir.path().join(".ralph/done.jsonc"))?;
 
     let (status, _stdout, stderr) = test_support::run_in_dir(dir.path(), &["queue", "archive"]);
     anyhow::ensure!(status.success(), "archive failed\nstderr:\n{stderr}");
 
-    let after_queue = std::fs::read_to_string(dir.path().join(".ralph/queue.json"))?;
-    let after_done = std::fs::read_to_string(dir.path().join(".ralph/done.json"))?;
+    let after_queue = std::fs::read_to_string(dir.path().join(".ralph/queue.jsonc"))?;
+    let after_done = std::fs::read_to_string(dir.path().join(".ralph/done.jsonc"))?;
 
     anyhow::ensure!(before_queue == after_queue, "queue changed on noop archive");
     anyhow::ensure!(before_done == after_done, "done changed on noop archive");
@@ -111,11 +111,11 @@ fn queue_archive_appends_to_existing_done_file() -> Result<()> {
     let done = test_support::read_done(dir.path())?;
     anyhow::ensure!(
         done.tasks.iter().any(|t| t.id == "RQ-0001"),
-        "archived task should be in done.json"
+        "archived task should be in done.jsonc"
     );
     anyhow::ensure!(
         done.tasks.iter().any(|t| t.id == "RQ-0100"),
-        "existing done task should still be in done.json"
+        "existing done task should still be in done.jsonc"
     );
 
     Ok(())
@@ -134,8 +134,8 @@ fn queue_archive_dry_run_does_not_modify_files() -> Result<()> {
     test_support::write_queue(dir.path(), &[t1.clone(), t2.clone()])?;
     test_support::write_done(dir.path(), &[])?;
 
-    let before_queue = std::fs::read_to_string(dir.path().join(".ralph/queue.json"))?;
-    let before_done = std::fs::read_to_string(dir.path().join(".ralph/done.json"))?;
+    let before_queue = std::fs::read_to_string(dir.path().join(".ralph/queue.jsonc"))?;
+    let before_done = std::fs::read_to_string(dir.path().join(".ralph/done.jsonc"))?;
 
     let (status, stdout, stderr) =
         test_support::run_in_dir(dir.path(), &["queue", "archive", "--dry-run"]);
@@ -151,8 +151,8 @@ fn queue_archive_dry_run_does_not_modify_files() -> Result<()> {
     );
 
     // Verify files unchanged
-    let after_queue = std::fs::read_to_string(dir.path().join(".ralph/queue.json"))?;
-    let after_done = std::fs::read_to_string(dir.path().join(".ralph/done.json"))?;
+    let after_queue = std::fs::read_to_string(dir.path().join(".ralph/queue.jsonc"))?;
+    let after_done = std::fs::read_to_string(dir.path().join(".ralph/done.jsonc"))?;
 
     anyhow::ensure!(before_queue == after_queue, "queue changed during dry-run");
     anyhow::ensure!(before_done == after_done, "done changed during dry-run");

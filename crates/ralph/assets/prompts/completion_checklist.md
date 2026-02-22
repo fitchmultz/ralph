@@ -9,16 +9,16 @@ When implementation is complete, you MUST:
    - If `RUN_MODE=parallel-worker`: do NOT run `ralph task done`; update the coordinator-authoritative queue/done files during integration and ensure `{{TASK_ID}}` is removed from queue and present in done.
    - Use `ralph task reject --note "<note>" {{TASK_ID}}` when appropriate in non-parallel flows; only `done` and `rejected` are valid completion statuses.
    - Provide 1-5 summary notes using repeated `--note` flags (each note should be a short bullet) when using `ralph task done`/`reject`.
-   - **Queue freshness check (MANDATORY before marking done/rejected):** quickly scan other tasks in `.ralph/queue.json` (typically `todo` / `doing`) and identify any tasks whose **assumptions, plan, evidence, or notes** are now stale because of what you just changed (APIs, file paths, behavior, config, constraints, etc.).
+   - **Queue freshness check (MANDATORY before marking done/rejected):** quickly scan other tasks in `{{config.queue.file}}` (typically `todo` / `doing`) and identify any tasks whose **assumptions, plan, evidence, or notes** are now stale because of what you just changed (APIs, file paths, behavior, config, constraints, etc.).
      - If affected, update those tasks using `ralph task field <KEY> <VALUE> <TASK_ID>` to add clarifying notes so future agents aren't misled.
      - Prefer minimal, high-signal updates to eliminate confirmed stale data (e.g., `ralph task field stale_api "This API no longer exists; see <new path>" RQ-0XXX`).
 3. If the task is incomplete but you are stopping:
-   - Leave it in `.ralph/queue.json` as `doing` (or revert to `todo` if not continuing).
+   - Leave it in `{{config.queue.file}}` as `doing` (or revert to `todo` if not continuing).
    - Do NOT set `blocked`.
 4. Do NOT run `ralph queue archive` for single-task completion.
    - If `RUN_MODE=normal`: do NOT manually edit queue/done files.
    - If `RUN_MODE=parallel-worker`: queue/done updates are part of the integration contract; preserve other workers' entries exactly.
-5. Ensure `.ralph/queue.json` remains valid JSON and respects the queue contract.
+5. Ensure `{{config.queue.file}}` remains valid queue JSON/JSONC and respects the queue contract.
 6. CI Gate (Conditional):
    - BEFORE running the CI gate, check if you made ANY modifications during this phase using git status/diff.
    - If you made NO changes (only reviewed/validated): you MAY skip the CI gate even if enabled.

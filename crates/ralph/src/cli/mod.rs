@@ -52,11 +52,11 @@ pub use color::ColorArg;
 #[command(version)]
 #[command(after_long_help = r#"Runner selection:
   - CLI flags override project config, which overrides global config, which overrides built-in defaults.
-  - Default runner/model come from config files: project config (.ralph/config.json) > global config (~/.config/ralph/config.json) > built-in.
+  - Default runner/model come from config files: project config (.ralph/config.jsonc) > global config (~/.config/ralph/config.jsonc, with .json fallback) > built-in.
   - `task` and `scan` accept --runner/--model/--effort as one-off overrides.
   - `run one` and `run loop` accept --runner/--model/--effort as one-off overrides; otherwise they use task.agent overrides when present; otherwise config agent defaults.
 
-Config example (.ralph/config.json):
+Config example (.ralph/config.jsonc):
   {
     "version": 1,
     "agent": {
@@ -116,7 +116,7 @@ pub struct Cli {
     #[arg(long, global = true, conflicts_with = "no_sanity_checks")]
     pub auto_fix: bool,
 
-    /// Skip all startup sanity checks.
+    /// Skip startup sanity checks (migrations and unknown-key prompts).
     #[arg(long, global = true, conflicts_with = "auto_fix")]
     pub no_sanity_checks: bool,
 }

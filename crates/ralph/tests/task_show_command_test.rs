@@ -10,7 +10,7 @@
 //!
 //! Invariants/assumptions:
 //! - The Ralph binary is available via CARGO_BIN_EXE_ralph or adjacent to the test binary.
-//! - Repo root discovery works via a `.ralph/queue.json` file in the current directory.
+//! - Repo root discovery works via a `.ralph/queue.jsonc` file in the current directory.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -73,7 +73,7 @@ fn task_show_finds_task_in_queue() {
         make_task("RQ-0001", TaskStatus::Todo, "First task"),
         make_task("RQ-0002", TaskStatus::Doing, "Second task"),
     ]);
-    let queue_path = dir.path().join(".ralph/queue.json");
+    let queue_path = dir.path().join(".ralph/queue.jsonc");
     let json = serde_json::to_string_pretty(&queue).expect("serialize queue");
     std::fs::write(&queue_path, json).expect("write queue.json");
 
@@ -101,7 +101,7 @@ fn task_show_finds_task_in_done() {
         TaskStatus::Done,
         "Completed task",
     )]);
-    let done_path = dir.path().join(".ralph/done.json");
+    let done_path = dir.path().join(".ralph/done.jsonc");
     let json = serde_json::to_string_pretty(&done).expect("serialize done");
     std::fs::write(&done_path, json).expect("write done.json");
 
@@ -125,7 +125,7 @@ fn task_show_details_alias_works() {
     assert!(status.success(), "ralph init failed: {}", stderr);
 
     let queue = make_queue_file(vec![make_task("RQ-0001", TaskStatus::Todo, "Alias test")]);
-    let queue_path = dir.path().join(".ralph/queue.json");
+    let queue_path = dir.path().join(".ralph/queue.jsonc");
     let json = serde_json::to_string_pretty(&queue).expect("serialize queue");
     std::fs::write(&queue_path, json).expect("write queue.json");
 

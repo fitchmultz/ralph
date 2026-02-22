@@ -35,14 +35,14 @@ fn embedded_template_includes_queue_guidance() {
     let template_meta = prompt_template(PromptTemplateId::MergeConflicts);
     let embedded = template_meta.embedded_default;
 
-    // Check for queue.json and done.json references
+    // Check for configured queue/done path placeholders
     assert!(
-        embedded.contains("`.ralph/queue.json`"),
-        "Template should mention `.ralph/queue.json`"
+        embedded.contains("`{{config.queue.file}}`"),
+        "Template should mention configured queue file placeholder"
     );
     assert!(
-        embedded.contains("`.ralph/done.json`"),
-        "Template should mention `.ralph/done.json`"
+        embedded.contains("`{{config.queue.done_file}}`"),
+        "Template should mention configured done file placeholder"
     );
 
     // Check for ordering semantics mention
@@ -71,14 +71,14 @@ fn rendered_prompt_includes_queue_guidance_with_queue_conflicts() -> Result<()> 
     let template_meta = prompt_template(PromptTemplateId::MergeConflicts);
     let template = template_meta.embedded_default;
 
-    let files = vec![".ralph/queue.json".to_string(), "src/lib.rs".to_string()];
+    let files = vec![".ralph/queue.jsonc".to_string(), "src/lib.rs".to_string()];
     let config = default_config();
     let rendered = render_merge_conflict_prompt(template, &files, &config)?;
 
     // Check that conflict files are listed
     assert!(
-        rendered.contains("- .ralph/queue.json"),
-        "Rendered prompt should list queue.json"
+        rendered.contains("- .ralph/queue.jsonc"),
+        "Rendered prompt should list queue.jsonc"
     );
     assert!(
         rendered.contains("- src/lib.rs"),
@@ -87,7 +87,7 @@ fn rendered_prompt_includes_queue_guidance_with_queue_conflicts() -> Result<()> 
 
     // Check that queue guidance is included
     assert!(
-        rendered.contains("Special Guidance for `.ralph/queue.json`"),
+        rendered.contains("Special Guidance for `.ralph/queue.jsonc` / `.ralph/done.jsonc`"),
         "Rendered prompt should include queue guidance section"
     );
     assert!(
@@ -109,24 +109,24 @@ fn rendered_prompt_includes_queue_guidance_with_done_conflicts() -> Result<()> {
     let template_meta = prompt_template(PromptTemplateId::MergeConflicts);
     let template = template_meta.embedded_default;
 
-    let files = vec![".ralph/done.json".to_string(), "README.md".to_string()];
+    let files = vec![".ralph/done.jsonc".to_string(), "README.md".to_string()];
     let config = default_config();
     let rendered = render_merge_conflict_prompt(template, &files, &config)?;
 
     // Check that conflict files are listed
     assert!(
-        rendered.contains("- .ralph/done.json"),
-        "Rendered prompt should list done.json"
+        rendered.contains("- .ralph/done.jsonc"),
+        "Rendered prompt should list done.jsonc"
     );
     assert!(
         rendered.contains("- README.md"),
         "Rendered prompt should list README.md"
     );
 
-    // Check that done.json guidance is included
+    // Check that done-file guidance is included
     assert!(
         rendered.contains("terminal tasks (`done`/`rejected`)"),
-        "Rendered prompt should mention terminal tasks for done.json"
+        "Rendered prompt should mention terminal tasks for done archive"
     );
 
     // Check that placeholder was replaced

@@ -31,7 +31,7 @@ fn task_edit_lists_archived_task_ids_in_output() -> Result<()> {
             "auto_archive_terminal_after_days": 0
         }
     }"#;
-    std::fs::write(dir.path().join(".ralph/config.json"), config)?;
+    std::fs::write(dir.path().join(".ralph/config.jsonc"), config)?;
 
     // Create tasks: one todo (to edit), two terminal (to be archived)
     let todo_task = test_support::make_test_task("RQ-0001", "Todo task", TaskStatus::Todo);
@@ -108,7 +108,7 @@ fn task_edit_no_auto_archive_flag_prevents_archiving() -> Result<()> {
             "auto_archive_terminal_after_days": 0
         }
     }"#;
-    std::fs::write(dir.path().join(".ralph/config.json"), config)?;
+    std::fs::write(dir.path().join(".ralph/config.jsonc"), config)?;
 
     // Create tasks: one todo (to edit), two terminal (should NOT be archived)
     let todo_task = test_support::make_test_task("RQ-0001", "Todo task", TaskStatus::Todo);
@@ -181,7 +181,7 @@ fn task_edit_no_archive_message_when_no_terminal_tasks() -> Result<()> {
             "auto_archive_terminal_after_days": 0
         }
     }"#;
-    std::fs::write(dir.path().join(".ralph/config.json"), config)?;
+    std::fs::write(dir.path().join(".ralph/config.jsonc"), config)?;
 
     // Create only non-terminal tasks
     let todo_task = test_support::make_test_task("RQ-0001", "Todo task", TaskStatus::Todo);

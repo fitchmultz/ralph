@@ -1,12 +1,12 @@
-<!-- RALPH_README_VERSION: 5 -->
+<!-- RALPH_README_VERSION: 6 -->
 # Ralph runtime files
 
 This repo is using Ralph. The `.ralph/` directory holds repo-local state.
 
 ## Files
 
-- `.ralph/queue.json` — JSON task queue (source of truth for active work).
-- `.ralph/done.json` — JSON archive of completed tasks (same schema as queue); only `done`/`rejected` statuses are valid.
+- `.ralph/queue.jsonc` — JSONC task queue (source of truth for active work).
+- `.ralph/done.jsonc` — JSONC archive of completed tasks (same schema as queue); only `done`/`rejected` statuses are valid.
 - `.ralph/prompts/` — optional prompt overrides (defaults are embedded in the Ralph binary).
 - `.ralph/cache/` — runtime cache for plans, completions, and temporary state.
 
@@ -14,13 +14,13 @@ This repo is using Ralph. The `.ralph/` directory holds repo-local state.
 
 ### Duplicate Task ID Error
 
-If `ralph queue validate` reports a duplicate task ID (e.g., `RQ-XXXX exists in both queue.json and done.json`), this usually means a new task was added without incrementing the ID. **Do not delete tasks.** Instead:
+If `ralph queue validate` reports a duplicate task ID (e.g., `RQ-XXXX exists in both queue.jsonc and done.jsonc`), this usually means a new task was added without incrementing the ID. **Do not delete tasks.** Instead:
 
 1. Run `ralph queue next-id` to get the next available ID
-2. Edit `.ralph/queue.json` and change the colliding task ID to the next available one
+2. Edit `.ralph/queue.jsonc` and change the colliding task ID to the next available one
 3. Re-run `ralph queue validate` to confirm
 
-Task IDs must be unique across both `queue.json` (active tasks) and `done.json` (completed tasks).
+Task IDs must be unique across both `queue.jsonc` (active tasks) and `done.jsonc` (completed tasks).
 
 ### Generating Multiple Task IDs
 
@@ -35,7 +35,7 @@ ralph queue next-id --count 7
 
 1. Generate all IDs you need in one call using `--count N`
 2. Assign the printed IDs to your tasks in order (first ID = highest priority task)
-3. Insert all tasks into `.ralph/queue.json` before running any other queue commands
+3. Insert all tasks into `.ralph/queue.jsonc` before running any other queue commands
 
 ## Core Commands
 
@@ -149,6 +149,8 @@ Prompt templates support variable interpolation for environment variables and co
 - Supported paths:
   - `{{config.agent.runner}}` — current runner (e.g., `Claude`)
   - `{{config.agent.model}}` — current model (e.g., `gpt-5.3-codex`)
+  - `{{config.queue.file}}` — queue file path (e.g., `.ralph/queue.jsonc`)
+  - `{{config.queue.done_file}}` — done archive path (e.g., `.ralph/done.jsonc`)
   - `{{config.queue.id_prefix}}` — task ID prefix (e.g., `RQ`)
   - `{{config.queue.id_width}}` — task ID width (e.g., `4`)
   - `{{config.project_type}}` — project type (e.g., `Code`)
@@ -209,7 +211,7 @@ One-off usage:
 - `ralph run one --phases 2` (2-phase: plan then implement)
 - `ralph run one --quick` (single-pass execution, shorthand for `--phases 1`)
 
-Defaults via config (`.ralph/config.json` or `~/.config/ralph/config.json`):
+Defaults via config (`.ralph/config.jsonc` or `~/.config/ralph/config.jsonc`):
 
 ```json
 {

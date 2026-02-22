@@ -1,7 +1,7 @@
 //! Session persistence for crash recovery.
 //!
 //! Responsibilities:
-//! - Save, load, and clear session state to/from .ralph/cache/session.json.
+//! - Save, load, and clear session state to/from .ralph/cache/session.jsonc.
 //! - Validate session state against current queue state.
 //! - Provide session recovery detection and prompts.
 //!
@@ -527,7 +527,7 @@ mod tests {
     fn session_path_returns_correct_path() {
         let temp_dir = TempDir::new().unwrap();
         let path = session_path(temp_dir.path());
-        assert_eq!(path, temp_dir.path().join("session.json"));
+        assert_eq!(path, temp_dir.path().join("session.jsonc"));
     }
 
     #[test]
