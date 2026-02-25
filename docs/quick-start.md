@@ -1,239 +1,111 @@
 # Quick Start Guide
 
-![AI Runners Comparison](assets/images/2026-02-07-runners-comparison.png)
+Get Ralph running in a repository in a few minutes.
 
-Get up and running with Ralph in minutes.
-
-## Installation
-
-### From crates.io (recommended)
+## 1) Install
 
 ```bash
 cargo install ralph
 ```
 
-This installs the latest published version from crates.io.
-
-### From source
+Or from source:
 
 ```bash
-# Clone the repository
-git clone <repository-url>
+git clone https://github.com/mitchfultz/ralph
 cd ralph
-
-# Build and install
 make install
 ```
 
-This installs the `ralph` binary to `~/.local/bin/ralph` (or a writable fallback path).
-
-## Try the Interactive Tutorial
-
-New to Ralph? Run the interactive tutorial to get hands-on experience:
-
-```bash
-ralph tutorial
-```
-
-The tutorial creates a sandbox environment and guides you through the core workflow step by step.
-
-Use `ralph tutorial --keep-sandbox` to preserve the sandbox directory for further experimentation.
-
-## Initialize Your Project
-
-Navigate to your project directory and run:
+## 2) Initialize a Repository
 
 ```bash
 cd your-project
 ralph init
 ```
 
-This launches an interactive wizard that will:
-
-1. **Help you choose an AI runner**: Claude, Codex, OpenCode, Gemini, or Cursor
-2. **Select a model**: Pick the best model for your chosen runner
-3. **Explain the workflow modes**:
-   - **3-phase (Full)**: Plan → Implement + CI → Review + Complete [Recommended]
-   - **2-phase (Standard)**: Plan → Implement (faster, less review)
-   - **1-phase (Quick)**: Single-pass execution (simple fixes only)
-4. **Create your first task**: Optionally add your first task to get started
-
-### Non-Interactive Mode
-
-For CI/CD or scripts, skip the wizard:
+Non-interactive setup (CI/scripts):
 
 ```bash
 ralph init --non-interactive
 ```
 
-## Your First Task
-
-After initialization, you have several options:
-
-### macOS: Open the App (SwiftUI)
+## 3) Create Tasks
 
 ```bash
-ralph app open
+# Freeform task creation
+ralph task "Add regression tests for queue repair"
+
+# Or use task builder explicitly
+ralph task build "Audit webhook retry behavior"
 ```
 
-The macOS app provides an interactive UI for:
-- Viewing and managing tasks
-- Editing task fields
-- Creating new tasks
-
-### Run Your First Task
+## 4) Run Tasks
 
 ```bash
-# Run the next task in the queue
+# Run one runnable task
 ralph run one
 
-# Or run in loop mode until all tasks are complete
+# Run continuously until queue is drained
 ralph run loop
 ```
 
-### View the Queue
+Useful run variants:
 
 ```bash
-# List all tasks
+# Single-pass mode
+ralph run one --quick
+
+# Explicit 3-phase supervision mode
+ralph run one --phases 3
+
+# Dry-run selection only (no execution)
+ralph run one --dry-run
+```
+
+## 5) Inspect Queue State
+
+```bash
 ralph queue list
-
-# Show the next task
 ralph queue next --with-title
+ralph queue validate
 ```
 
-## Understanding the 3-Phase Workflow
-
-Ralph uses a structured workflow to ensure quality:
-
-- **Phase 1: Planning**: The agent analyzes the task and creates a detailed implementation plan
-- **Phase 2: Implementation**: The agent executes the plan and runs the CI gate
-- **Phase 3: Review**: Final review and completion steps
-
-Choose fewer phases for quick fixes, more phases for complex features.
-
-## Runner Comparison
-
-Ralph supports multiple AI runners. Choose based on your needs:
-
-| Runner | Best For | Model Options | Notes |
-|--------|----------|---------------|-------|
-| **Claude** | General purpose, reasoning | `sonnet` (default), `opus`, or arbitrary IDs | Full tool use support, excellent for complex tasks |
-| **Codex** | Code generation, OpenAI ecosystem | `gpt-5.3-codex`, `gpt-5.3-codex-spark`, `gpt-5.3`, `gpt-5.2-codex`, `gpt-5.2` | Reasoning effort control (`low` to `xhigh`) |
-| **OpenCode** | Flexible model selection | Arbitrary model IDs (e.g., `zai-coding-plan/glm-4.7`) | Good for custom model endpoints |
-| **Gemini** | Google ecosystem, cost efficiency | `gemini-3-pro-preview`, `gemini-3-flash-preview`, or arbitrary IDs | Fast, good for quick iterations |
-| **Cursor** | Cursor IDE users | Uses Cursor's `agent` binary | Integrates with Cursor workflow |
-
-## Phase Mode Comparison
-
-| Mode | Phases | Best For | Trade-off |
-|------|--------|----------|-----------|
-| **1-Phase** | Single pass | Quick fixes, simple refactors, typo corrections | Fastest, but no planning or review |
-| **2-Phase** | Plan → Implement | Medium complexity tasks where review is less critical | Faster than 3-phase, skips formal review |
-| **3-Phase** | Plan → Implement → Review | Complex features, architectural changes, production code | Slowest, but highest quality and safety |
-
-## Creating Tasks
-
-### From the CLI
-
-```bash
-ralph task "Add user authentication feature"
-```
-
-### With Details
-
-```bash
-ralph task "Refactor database layer" --request "Move all database access code into a dedicated module"
-```
-
-### From the App (macOS)
-
-Open the app with `ralph app open` and create tasks from the UI.
-
-## Configuration
-
-The wizard creates `.ralph/config.json` with your selections. You can customize:
-
-```json
-{
-  "version": 1,
-  "agent": {
-    "runner": "claude",
-    "model": "sonnet",
-    "phases": 3,
-    "iterations": 1
-  }
-}
-```
-
-See `docs/configuration.md` for all options.
-
-## Common Workflows
-
-### Daily Development
-
-```bash
-# macOS (optional): open the app UI
-ralph app open
-
-# Run the next task
-ralph run one
-
-# Or run until all tasks are complete
-ralph run loop
-
-# Archive completed tasks
-ralph queue archive
-```
-
-### Adding Tasks from Code Review
-
-```bash
-# Quick task creation
-ralph task "Fix memory leak in parser"
-```
-
-### Running Specific Tasks
-
-```bash
-# Run a specific task by ID
-ralph run one --task-id RQ-0005
-```
-
-## Next Steps
-
-- Read the full [CLI Reference](cli.md) for all commands
-- Learn about [Queue and Task Management](queue-and-tasks.md)
-- Configure [Runner Settings](configuration.md)
-- Set up [AGENTS.md](index.md) for your project
-
-## Troubleshooting
-
-### "ralph: command not found"
-
-Ensure `~/.local/bin` is in your PATH:
-
-```bash
-export PATH="$HOME/.local/bin:$PATH"
-```
-
-### Wizard doesn't appear
-
-If running in a non-TTY environment (like some CI systems), use:
-
-```bash
-ralph init --interactive  # Force wizard
-# or
-ralph init --non-interactive  # Skip wizard
-```
-
-### Check Your Setup
+## 6) Verify Environment
 
 ```bash
 ralph doctor
+ralph runner list
+ralph runner capabilities claude
 ```
 
-This verifies:
-- Git repository status
-- Queue file validity
-- Runner binary availability
-- Configuration correctness
+## 7) Optional Automation
+
+```bash
+# Background worker process
+ralph daemon start
+
+# Watch source files for TODO/FIXME/HACK/XXX and create tasks
+ralph watch --auto-queue
+```
+
+## 8) macOS App
+
+```bash
+ralph app open
+```
+
+## Where Files Live
+
+Default runtime files:
+
+- `.ralph/queue.jsonc`
+- `.ralph/done.jsonc`
+- `.ralph/config.jsonc`
+
+Each also supports a `.json` fallback.
+
+## Next Docs
+
+- [CLI Reference](cli.md)
+- [Configuration](configuration.md)
+- [Queue and Tasks](queue-and-tasks.md)

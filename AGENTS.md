@@ -4,7 +4,7 @@
 
 **Keep this file updated** as you learn project patterns. Follow: concise, index-style, no duplication.
 
-> ⚠️ **CRITICAL**: Current date is **February 2026**. Always verify information is up-to-date; never assume 2024 references are current.
+> ⚠️ **CRITICAL**: Current date is **March 2026**. Always verify information is up-to-date; never assume 2024 references are current.
 
 ---
 
@@ -22,6 +22,8 @@ Ralph is a Rust CLI for running AI agent loops against a structured JSON task qu
 | Contributing guide | `CONTRIBUTING.md` |
 | Configuration | `docs/configuration.md` |
 | CLI reference | `docs/cli.md` |
+| Public launch checklist | `docs/guides/public-readiness.md` |
+| Portfolio reviewer map | `PORTFOLIO.md` |
 | Core source | `crates/ralph/src/` |
 | Tests | `crates/ralph/tests/` |
 | macOS app | `apps/RalphMac/` |
@@ -66,6 +68,12 @@ Every source file MUST start with `//!` docs covering:
 3. `~/.config/ralph/config.jsonc`
 4. Schema defaults
 
+### Queue Load/Validate Auto-Repair
+- `queue::load_and_validate_queues` performs conservative maintenance before validation.
+- Parseable non-UTC RFC3339 timestamps are normalized to UTC; missing terminal `completed_at` is backfilled.
+- Malformed timestamps are never rewritten and still fail validation.
+- Maintenance writes back to queue/done during load+validate.
+
 ### Repo Target Resolution
 - Repo/file targeting is always derived from process CWD (`find_repo_root(current_dir)`).
 - `RALPH_REPO_ROOT_OVERRIDE`, `RALPH_QUEUE_PATH_OVERRIDE`, and `RALPH_DONE_PATH_OVERRIDE` are unsupported.
@@ -84,6 +92,19 @@ Every source file MUST start with `//!` docs covering:
 ### Parallel Worker Shutdown
 - Parallel worker subprocesses should be terminated gracefully first (`SIGINT`) to let worker-side cleanup run before hard kill escalation.
 - Worker subprocesses should run in isolated process groups (`setpgid`) to avoid signaling the coordinator group.
+
+### Continue Session Recovery
+- Continue paths should prefer same-session resume, but fall back to a fresh invocation when no session ID is available.
+- Pi resume should fall back to fresh invocation when session file lookup fails (`no session found`, missing session dir/file), since Pi may defer session-file persistence until after first assistant output.
+- Resume fallback should also cover known invalid-session resume failures for Gemini (`invalid session identifier`), Claude (`--resume requires a valid session ID` / invalid UUID), and Opencode (`ZodError` sessionID validation), not just Pi file lookup failures.
+
+### Runner Output Edge Cases
+- Opencode may emit fatal session validation errors on stderr while still exiting with code `0`; treat this as semantic failure rather than success.
+- Gemini `stream-json` assistant messages may arrive as delta chunks (`"delta": true`); final-response parsing must accumulate deltas rather than overwriting with the latest chunk.
+
+### Signal Recovery
+- Signal-terminated runner invocations should auto-attempt recovery up to `MAX_SIGNAL_RESUMES` (default `5`) before surfacing terminal failure handling.
+- Signal recovery should reuse session resume when possible and rerun fresh when no resumable session exists.
 
 ### CI Gate Cadence
 - In 3-phase workflows, final-iteration Phase 2 should skip CI gate rerun; CI is enforced in Phase 3/post-run supervision.

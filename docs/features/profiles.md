@@ -121,7 +121,7 @@ ralph scan --profile thorough "security audit"
 
 ## Custom Profiles
 
-Define your own profiles in `.ralph/config.json` under the `profiles` key.
+Define your own profiles in `.ralph/config.jsonc` under the `profiles` key.
 
 ### Profile Structure
 
@@ -291,8 +291,8 @@ When a profile is selected, the final configuration is computed in this order (h
 │  └──────┬───────────┘                                           │
 │         │                                                        │
 │  ┌──────▼───────────┐                                           │
-│  │   Base Config    │ ◄──── .ralph/config.json                  │
-│  │  (merged global) │         + ~/.config/ralph/config.json      │
+│  │   Base Config    │ ◄──── .ralph/config.jsonc                  │
+│  │  (merged global) │         + ~/.config/ralph/config.jsonc      │
 │  └──────┬───────────┘                                           │
 │         │                                                        │
 │  ┌──────▼───────────┐                                           │
@@ -401,7 +401,7 @@ Final Resolved Config
 
 ### Example Inheritance Walkthrough
 
-**Base config** (`.ralph/config.json`):
+**Base config** (`.ralph/config.jsonc`):
 ```json
 {
   "version": 1,
@@ -493,7 +493,7 @@ ralph config show --format json
 
 ### Example 1: Daily Workflow Profiles
 
-**Config** (`.ralph/config.json`):
+**Config** (`.ralph/config.jsonc`):
 ```json
 {
   "version": 1,
@@ -536,7 +536,7 @@ ralph scan --profile audit "security review"
 
 ### Example 2: Team Standardization
 
-**Global config** (`~/.config/ralph/config.json`):
+**Global config** (`~/.config/ralph/config.jsonc`):
 ```json
 {
   "version": 1,

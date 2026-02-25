@@ -35,15 +35,15 @@
       "request": "scan finding",
       "created_at": "2026-02-17T19:42:41Z",
       "updated_at": "2026-02-21T19:24:03.214051+00:00",
+      "completed_at": "2026-02-21T19:24:03.214051+00:00",
+      "started_at": "2026-02-21T19:23:00Z",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
         "scan_agent": "scan-general",
         "stale_makefile_context": "RQ-0942 centralized env reset in Makefile; test target now uses $(RALPH_ENV_RESET) and evidence line ranges should be refreshed before implementing this task."
-      },
-      "completed_at": "2026-02-21T19:24:03.214051+00:00",
-      "started_at": "2026-02-21T19:23:00Z"
+      }
     },
     {
       "id": "RQ-0934",
@@ -98,8 +98,8 @@
       "relates_to": [],
       "custom_fields": {
         "model_used": "gpt-5.3-codex",
-        "scan_agent": "scan-general",
-        "runner_used": "codex"
+        "runner_used": "codex",
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -162,8 +162,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.3-codex",
-        "runner_used": "codex"
+        "runner_used": "codex",
+        "model_used": "gpt-5.3-codex"
       }
     },
     {
@@ -232,8 +232,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.3-codex",
-        "runner_used": "codex"
+        "runner_used": "codex",
+        "model_used": "gpt-5.3-codex"
       }
     },
     {
@@ -365,9 +365,9 @@
         "RQ-0953"
       ],
       "custom_fields": {
+        "model_used": "gpt-5.3-codex",
         "runner_used": "codex",
-        "scan_agent": "scan-general",
-        "model_used": "gpt-5.3-codex"
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -422,9 +422,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "runner_used": "codex",
         "scan_agent": "scan-general",
-        "model_used": "gpt-5.3-codex",
-        "runner_used": "codex"
+        "model_used": "gpt-5.3-codex"
       }
     },
     {
@@ -482,8 +482,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
         "scan_agent": "scan-general",
+        "runner_used": "codex",
         "model_used": "gpt-5.3-codex"
       }
     },
@@ -544,9 +544,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "codex",
         "model_used": "gpt-5.3-codex",
-        "scan_agent": "scan-general"
+        "scan_agent": "scan-general",
+        "runner_used": "codex"
       }
     },
     {
@@ -603,9 +603,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "model_used": "sonnet",
         "runner_used": "claude",
-        "scan_agent": "scan-general",
-        "model_used": "sonnet"
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -659,9 +659,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "gpt-5.3-codex",
         "runner_used": "codex",
-        "scan_agent": "scan-general"
+        "scan_agent": "scan-general",
+        "model_used": "gpt-5.3-codex"
       }
     },
     {
@@ -719,9 +719,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-general",
+        "runner_used": "codex",
         "model_used": "gpt-5.3-codex",
-        "runner_used": "codex"
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -779,9 +779,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "model_used": "kimi-for-coding/k2p5",
         "runner_used": "opencode",
-        "scan_agent": "scan-general",
-        "model_used": "kimi-for-coding/k2p5"
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -848,9 +848,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "runner_used": "opencode",
         "scan_agent": "scan-general",
-        "model_used": "kimi-for-coding/k2p5"
+        "model_used": "kimi-for-coding/k2p5",
+        "runner_used": "opencode"
       }
     },
     {
@@ -902,8 +902,8 @@
       "relates_to": [],
       "custom_fields": {
         "runner_used": "opencode",
-        "model_used": "kimi-for-coding/k2p5",
-        "scan_agent": "scan-general"
+        "scan_agent": "scan-general",
+        "model_used": "kimi-for-coding/k2p5"
       }
     },
     {
@@ -962,8 +962,8 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "kimi-for-coding/k2p5",
         "runner_used": "opencode",
+        "model_used": "kimi-for-coding/k2p5",
         "scan_agent": "scan-general"
       }
     },
@@ -1034,9 +1034,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "runner_used": "opencode",
         "model_used": "kimi-for-coding/k2p5",
-        "scan_agent": "scan-general",
-        "runner_used": "opencode"
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -1083,9 +1083,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "scan_agent": "scan-general",
         "model_used": "kimi-for-coding/k2p5",
-        "runner_used": "opencode",
-        "scan_agent": "scan-general"
+        "runner_used": "opencode"
       }
     },
     {
@@ -1128,8 +1128,8 @@
       "relates_to": [],
       "custom_fields": {
         "scan_agent": "scan-general",
-        "model_used": "kimi-code/kimi-for-coding",
-        "runner_used": "kimi"
+        "runner_used": "kimi",
+        "model_used": "kimi-code/kimi-for-coding"
       }
     },
     {
@@ -1220,9 +1220,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "scan_agent": "scan-general",
         "runner_used": "kimi",
-        "model_used": "kimi-code/kimi-for-coding"
+        "model_used": "kimi-code/kimi-for-coding",
+        "scan_agent": "scan-general"
       }
     },
     {
@@ -1266,9 +1266,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
+        "scan_agent": "scan-general",
         "model_used": "kimi-code/kimi-for-coding",
-        "runner_used": "kimi",
-        "scan_agent": "scan-general"
+        "runner_used": "kimi"
       }
     },
     {
@@ -1381,9 +1381,9 @@
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
-        "model_used": "kimi-code/kimi-for-coding",
+        "runner_used": "kimi",
         "scan_agent": "scan-general",
-        "runner_used": "kimi"
+        "model_used": "kimi-code/kimi-for-coding"
       }
     },
     {
@@ -1421,14 +1421,14 @@
       "request": "scan finding",
       "created_at": "2026-02-17T19:44:50Z",
       "updated_at": "2026-02-21T19:19:25.110Z",
+      "completed_at": "2026-02-21T19:19:25.110Z",
+      "started_at": "2026-02-21T19:19:25.110Z",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
         "scan_agent": "scan-general"
-      },
-      "completed_at": "2026-02-21T19:19:25.110Z",
-      "started_at": "2026-02-21T19:19:25.110Z"
+      }
     },
     {
       "id": "RQ-0926",
@@ -1507,14 +1507,14 @@
       "request": "scan finding",
       "created_at": "2026-02-17T19:44:50Z",
       "updated_at": "2026-02-17T19:44:50Z",
+      "completed_at": "2026-02-22T04:33:40.519468+00:00",
+      "started_at": "2026-02-22T04:33:40.519901+00:00",
       "depends_on": [],
       "blocks": [],
       "relates_to": [],
       "custom_fields": {
         "scan_agent": "scan-general"
-      },
-      "completed_at": "2026-02-22T04:33:40.519468+00:00",
-      "started_at": "2026-02-22T04:33:40.519901+00:00"
+      }
     },
     {
       "id": "RQ-0929",
@@ -1558,6 +1558,238 @@
         "scan_agent": "scan-general",
         "model_used": "kimi-for-coding/k2p5",
         "runner_used": "kimi"
+      }
+    },
+    {
+      "id": "RQ-0928",
+      "status": "done",
+      "title": "Fix inconsistent task_id validation across prompt render functions",
+      "description": "Task ID validation is inconsistent: render_worker_phase1_prompt validates empty task_id; render_worker_single_phase_prompt validates empty task_id; but render_worker_phase2_prompt, render_worker_phase2_handoff_prompt, render_worker_phase3_prompt do NOT validate task_id.",
+      "priority": "medium",
+      "tags": [
+        "scan",
+        "prompts",
+        "validation",
+        "inconsistency"
+      ],
+      "scope": [
+        "crates/ralph/src/prompts_internal/worker_phases.rs"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/prompts_internal/worker_phases.rs :: phase1/phase3/single validate, phase2 variants don't"
+      ],
+      "plan": [
+        "Add empty task_id validation to all phase2 render functions",
+        "Add tests for each render function with empty task_id",
+        "Run cargo test -p ralph to verify"
+      ],
+      "notes": [
+        "Fixed inconsistent task_id validation in worker_phases.rs",
+        "Added validation to render_worker_phase2_prompt, render_worker_phase2_handoff_prompt, and render_worker_phase3_prompt",
+        "Added tests for all 5 render functions with empty task_id",
+        "All 21 tests pass"
+      ],
+      "request": "scan finding",
+      "created_at": "2026-02-17T19:44:50Z",
+      "updated_at": "2026-02-22T05:05:17Z",
+      "completed_at": "2026-02-22T05:05:17Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "scan_agent": "scan-general"
+      }
+    },
+    {
+      "id": "RQ-0957",
+      "status": "done",
+      "title": "Migrate Ralph defaults from .json to .jsonc with automatic upgrade",
+      "description": "Switch Ralph runtime/config defaults to .jsonc while preserving read support for legacy .json files. New projects initialized by Ralph must create .jsonc files by default. When both .json and .jsonc variants exist in a repo, Ralph must prefer the .jsonc variant. On the next Ralph run for legacy repos, migrate .ralph/*.json files to .jsonc safely and update references so future operations use .jsonc. Include project-level .gitignore handling so Ralph-managed ignore patterns move from .json to .jsonc entries during initialization and migration flows. Cover edge cases to prevent data loss or split-brain behavior during mixed-extension transitions.",
+      "priority": "high",
+      "tags": [
+        "feature",
+        "migration",
+        "jsonc",
+        "queue",
+        "config",
+        "init",
+        "gitignore"
+      ],
+      "scope": [
+        "crates/ralph/src/constants.rs",
+        "crates/ralph/src/config/resolution.rs",
+        "crates/ralph/src/commands/init/writers.rs",
+        "crates/ralph/src/commands/init/gitignore.rs",
+        "crates/ralph/src/commands/init/mod.rs",
+        "crates/ralph/src/commands/run/parallel/sync.rs",
+        "crates/ralph/src/migration/file_migrations.rs",
+        "crates/ralph/src/migration/registry.rs",
+        "crates/ralph/src/migration/mod.rs",
+        "crates/ralph/src/commands/doctor/project.rs",
+        "crates/ralph/src/queue/loader.rs",
+        "crates/ralph/src/queue/save.rs",
+        "crates/ralph/src/fsutil.rs",
+        "crates/ralph/tests/",
+        "apps/RalphMac/RalphCore/QueueFileWatcher.swift",
+        "apps/RalphMac/RalphCore/RalphModels.swift",
+        "README.md",
+        "docs/configuration.md",
+        "docs/features/migrations.md",
+        "schemas/config.schema.json",
+        "schemas/queue.schema.json",
+        "make agent-ci",
+        "ralph queue validate"
+      ],
+      "evidence": [
+        "path: crates/ralph/src/constants.rs :: DEFAULT_QUEUE_FILE='.ralph/queue.json', DEFAULT_DONE_FILE='.ralph/done.json', DEFAULT_CONFIG_FILE='.ralph/config.json' - all use .json extension",
+        "path: crates/ralph/src/constants.rs :: SESSION_FILENAME='session.json', MIGRATION_HISTORY_PATH='.ralph/cache/migrations.json', STATS_FILENAME='productivity.json' - additional .json files",
+        "path: crates/ralph/src/config/resolution.rs :: prefer_json_then_jsonc() checks .json first then .jsonc - needs to be reversed to prefer_jsonc_then_json()",
+        "path: crates/ralph/src/config/resolution.rs :: global_config_path() and project_config_path() use prefer_json_then_jsonc()",
+        "path: crates/ralph/src/commands/init/writers.rs :: write_queue(), write_done(), write_config() receive path from caller - path construction happens in init/mod.rs",
+        "path: crates/ralph/src/commands/init/mod.rs :: init command constructs paths using resolved.queue_path, resolved.done_path, resolved.project_config_path",
+        "path: crates/ralph/src/commands/init/gitignore.rs :: manages .ralph/workspaces/ and .ralph/logs/ entries - no .json/.jsonc patterns currently",
+        "path: crates/ralph/src/migration/file_migrations.rs :: migrate_queue_json_to_jsonc(), migrate_done_json_to_jsonc() helpers exist but NOT registered in registry",
+        "path: crates/ralph/src/migration/registry.rs :: MIGRATIONS array has 3 config key migrations, NO file rename migrations registered",
+        "path: crates/ralph/src/migration/mod.rs :: FileRename migration type exists and is handled in is_migration_applicable() and apply_migration()",
+        "path: crates/ralph/src/commands/run/parallel/sync.rs :: should_skip_ralph_runtime_path() already handles both .json and .jsonc for queue/done",
+        "path: apps/RalphMac/RalphCore/QueueFileWatcher.swift :: monitoredFiles includes queue.json, done.json, config.json - needs .jsonc support",
+        "path: docs/configuration.md :: examples use .json paths, describes .json precedence which will change",
+        "path: schemas/config.schema.json :: default paths use .json extension in examples"
+      ],
+      "plan": [
+        "STEP 1: Update constants.rs - Change DEFAULT_QUEUE_FILE, DEFAULT_DONE_FILE, DEFAULT_CONFIG_FILE from .json to .jsonc",
+        "STEP 2: Update constants.rs - Change SESSION_FILENAME, MIGRATION_HISTORY_PATH, STATS_FILENAME from .json to .jsonc",
+        "STEP 3: Update constants.rs - Change CONFIG_UPDATE_INSTRUCTION from .json to .jsonc",
+        "STEP 4: Update config/resolution.rs - Rename prefer_json_then_jsonc to prefer_jsonc_then_json and reverse logic to check .jsonc first",
+        "STEP 5: Update migration/registry.rs - Register 3 new FileRename migrations: queue.json->jsonc, done.json->jsonc, config.json->jsonc",
+        "STEP 6: Update migration/file_migrations.rs - Add migrate_config_json_to_jsonc() helper and is_config_json_to_jsonc_applicable()",
+        "STEP 7: Update init/gitignore.rs - Add logic to ignore .jsonc files and migrate existing .json ignore entries to .jsonc",
+        "STEP 8: Update apps/RalphMac/RalphCore/QueueFileWatcher.swift - Add .jsonc variants to monitoredFiles list",
+        "STEP 9: Update apps/RalphMac/RalphCore/RalphModels.swift - Add JSONC loading support with .jsonc preference",
+        "STEP 10: Update docs/configuration.md - Update examples and precedence documentation for .jsonc default",
+        "STEP 11: Update docs/features/migrations.md - Document the new file rename migrations",
+        "STEP 12: Update schemas/config.schema.json - Change default path examples from .json to .jsonc",
+        "STEP 13: Update README.md - Change any .json references to .jsonc where appropriate",
+        "STEP 14: Add tests for new migration behavior and .jsonc preference",
+        "STEP 15: Run make agent-ci to verify all changes work correctly"
+      ],
+      "notes": [
+        "IMPORTANT: The existing file_migrations.rs has helper functions for queue/done json->jsonc but they are NOT registered. Must register in registry.rs.",
+        "IMPORTANT: Migration must use keep_backup=true (default) to prevent data loss during transition.",
+        "IMPORTANT: Config references in config.json pointing to queue.json/done.json must be updated during migration.",
+        "IMPORTANT: When both .json and .jsonc exist, .jsonc takes precedence - this affects file resolution.",
+        "IMPORTANT: The parallel/sync.rs already handles .jsonc exclusion patterns correctly.",
+        "EDGE CASE: If migration fails partway, the backup .json files remain and can be used for recovery.",
+        "EDGE CASE: If user has custom queue.file path in config pointing to .json, it must be updated to .jsonc during migration.",
+        "EDGE CASE: Gitignore may have user-added .json patterns that we should offer to migrate (not just Ralph-managed ones).",
+        "Phase 3 review complete: Fixed 20+ user-facing string inconsistencies where .json should be .jsonc",
+        "Fixed wizard.rs showing wrong extensions in init summary",
+        "Fixed config/validation.rs error message examples",
+        "Fixed queue/validation.rs all error messages",
+        "Fixed parallel_worker.rs missing .jsonc cache file entries",
+        "Fixed module documentation in session, productivity, migration, writers, prune modules",
+        "Fixed docs/configuration.md example paths",
+        "Fixed CLI help text in queue commands"
+      ],
+      "request": "Let's switch from using .json files to using .jsonc. Any ralph files that currently use the .jsn extension should now default to using .jsonc. Maintain support for .json but make all new projects use .jsonc by default via init and if a repo has both .json and .jsonc files prefer the .jsonc version. If a project is currently using .json file extensions, on the next run of ralph migrate the files to use .jsonc instead. Make sure we also consider modifying the project .gitignore, not this specific project in particular, any project that is using ralph. If they have any ralph .json files in its .gitignore file we should change that to be .jsonc ignored instead since the migration to .jsonc must take place. consider all edge cases to ensure a smooth transition for all projects using ralph.",
+      "created_at": "2026-02-22T00:12:09Z",
+      "updated_at": "2026-02-22T08:41:21.371206000Z",
+      "completed_at": "2026-02-22T08:41:21.371206000Z",
+      "started_at": "2026-02-22T06:18:19.380932000Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "runner_used": "kimi",
+        "migration_mode": "json_to_jsonc",
+        "model_used": "kimi-code/kimi-for-coding",
+        "project_type": "code"
+      }
+    },
+    {
+      "id": "RQ-0959",
+      "status": "done",
+      "title": "Validate parallel scheduling follows queue order under retained worker state",
+      "description": "Confirm parallel execution selects tasks by queue file order (top-down), not task ID sort, even when retained terminal worker records exist.",
+      "priority": "high",
+      "tags": [
+        "parallel",
+        "scheduling",
+        "state",
+        "testing"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/parallel/orchestration.rs",
+        "crates/ralph/src/commands/run/parallel/worker.rs",
+        "crates/ralph/src/commands/run/selection.rs",
+        "crates/ralph/tests/run_parallel_test.rs"
+      ],
+      "evidence": [
+        "Selection path uses first-match queue iteration and queue lock semantics",
+        "Recent patch constrains exclusions to in-flight, attempted-in-run, and blocked-push workers"
+      ],
+      "plan": [
+        "Run controlled parallel loop and verify first two task IDs match queue order",
+        "Capture coordinator logs and worker state snapshot during run",
+        "If ordering drift appears, trace exclusion set and selection predicate",
+        "Patch and re-run `make agent-ci` and `make ci`"
+      ],
+      "notes": [],
+      "request": "parallel validation",
+      "created_at": "2026-02-22T14:22:48Z",
+      "updated_at": "2026-02-22T14:22:48Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "queue_seed": "parallel-reset-2026-02-22"
+      },
+      "completed_at": "2026-02-22T22:36:17.000000000Z"
+    },
+    {
+      "id": "RQ-0958",
+      "status": "done",
+      "title": "Validate parallel done.json safety in direct-push smoke runs",
+      "description": "Run a focused smoke test with `ralph run loop --max-tasks 2 --parallel 2` and confirm there is no `.ralph/done.json` drift or merge conflict after fetch/pull. Treat this as verification-first unless logs prove a defect.",
+      "priority": "high",
+      "tags": [
+        "parallel",
+        "direct-push",
+        "queue",
+        "done",
+        "git"
+      ],
+      "scope": [
+        "crates/ralph/src/commands/run/parallel/integration.rs",
+        "crates/ralph/src/commands/run/parallel/sync.rs",
+        "crates/ralph/src/commands/run/supervision/queue_ops.rs",
+        "crates/ralph/tests/parallel_direct_push_test.rs"
+      ],
+      "evidence": [
+        "Direct-push rewrite requires deterministic queue/done ownership semantics across coordinator and workers",
+        "Recent hardening landed for queue/done semantics and selection behavior; this task validates the new behavior end-to-end"
+      ],
+      "plan": [
+        "Run one serial loop and one parallel loop with logs captured",
+        "Verify no `.ralph/done.json` merge conflicts after fetch/pull",
+        "If conflict appears, capture exact conflict hunk and trace write path",
+        "Patch root cause and re-run `make agent-ci` and `make ci`"
+      ],
+      "notes": [
+        "Created 4 comprehensive integration tests for done.json safety validation",
+        "All parallel tests pass (4 new + 11 existing integration + 105 lib tests)",
+        "CI gate passes with no regressions"
+      ],
+      "request": "parallel validation",
+      "created_at": "2026-02-22T14:22:48Z",
+      "updated_at": "2026-02-22T22:44:08Z",
+      "completed_at": "2026-02-22T22:44:08Z",
+      "started_at": "2026-02-22T14:22:48Z",
+      "depends_on": [],
+      "blocks": [],
+      "relates_to": [],
+      "custom_fields": {
+        "queue_seed": "parallel-reset-2026-02-22"
       }
     }
   ]

@@ -64,8 +64,8 @@ Phase 1 is the **thinking phase**. The AI agent analyzes the task requirements a
 ### Plan-Only Enforcement
 
 Phase 1 is strictly **read-only** except for:
-- `.ralph/queue.json` - Task status updates
-- `.ralph/done.json` - Archive operations
+- `.ralph/queue.jsonc` - Task status updates
+- `.ralph/done.jsonc` - Archive operations
 - `.ralph/cache/plans/<TASK_ID>.md` - The plan cache itself
 
 **INTENDED BEHAVIOR**: If Phase 1 makes any changes outside these allowed paths, Ralph should detect this and prompt the user for action.
@@ -312,7 +312,7 @@ Two-phase mode includes planning and implementation without separate review:
 
 ### Setting Default Phases
 
-Configure the default number of phases in `.ralph/config.json`:
+Configure the default number of phases in `.ralph/config.jsonc`:
 
 ```json
 {
@@ -383,7 +383,7 @@ ralph run one --runner-phase3 claude --model-phase3 opus --effort-phase3 high
 
 ### Configuration
 
-Set per-phase overrides in `.ralph/config.json`:
+Set per-phase overrides in `.ralph/config.jsonc`:
 
 ```json
 {
@@ -617,7 +617,7 @@ ralph run one --runner codex \
 ### Example 6: Configuration-Based Workflow
 
 ```json
-// .ralph/config.json
+// .ralph/config.jsonc
 {
   "version": 1,
   "agent": {

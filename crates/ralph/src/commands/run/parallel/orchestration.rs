@@ -26,7 +26,7 @@ use std::thread;
 use std::time::Duration;
 
 use super::cleanup_guard::ParallelCleanupGuard;
-use super::state::{self, WorkerRecord};
+use super::state::{self, WorkerLifecycle, WorkerRecord};
 use super::sync::sync_ralph_state;
 use super::worker::{WorkerState, collect_excluded_ids, select_next_task_locked, spawn_worker};
 use super::workspace_cleanup::remove_workspace_best_effort;
@@ -45,6 +45,62 @@ fn should_exit_when_idle(
 ) -> bool {
     let no_more_tasks = max_tasks != 0 && tasks_started >= max_tasks;
     no_more_tasks || !next_available || stop_requested
+}
+
+fn summarize_block_reason(reason: &str) -> String {
+    let first_line = reason.lines().next().unwrap_or(reason).trim();
+    const MAX_REASON_LEN: usize = 180;
+    if first_line.len() <= MAX_REASON_LEN {
+        return first_line.to_string();
+    }
+    let mut truncated = first_line
+        .chars()
+        .take(MAX_REASON_LEN - 3)
+        .collect::<String>();
+    truncated.push_str("...");
+    truncated
+}
+
+fn announce_blocked_tasks_at_loop_start(
+    queue_file: &crate::contracts::QueueFile,
+    state_file: &state::ParallelStateFile,
+) {
+    let queued_ids: HashSet<&str> = queue_file
+        .tasks
+        .iter()
+        .map(|task| task.id.trim())
+        .filter(|task_id| !task_id.is_empty())
+        .collect();
+
+    let blocked_workers: Vec<&WorkerRecord> = state_file
+        .workers
+        .iter()
+        .filter(|worker| worker.lifecycle == WorkerLifecycle::BlockedPush)
+        .filter(|worker| queued_ids.contains(worker.task_id.trim()))
+        .collect();
+
+    if blocked_workers.is_empty() {
+        return;
+    }
+
+    log::warn!(
+        "Parallel loop start: {} queued task(s) are in blocked_push and will be skipped until retried.",
+        blocked_workers.len()
+    );
+    for worker in blocked_workers {
+        let reason = worker
+            .last_error
+            .as_deref()
+            .map(summarize_block_reason)
+            .unwrap_or_else(|| "No failure reason recorded".to_string());
+        log::warn!(
+            "Blocked task {} (attempts: {}) reason: {}",
+            worker.task_id,
+            worker.push_attempts,
+            reason
+        );
+    }
+    log::warn!("Use `ralph run parallel retry --task <TASK_ID>` to retry a blocked task.");
 }
 
 /// Main entry point for parallel run loop.
@@ -79,27 +135,9 @@ pub(crate) fn run_loop_parallel(
 
     signal::clear_stop_signal_at_loop_start(&cache_dir);
 
-    // Preflight: validate queue/done
-    let queue_file =
-        queue::load_queue(&resolved.queue_path).context("Parallel preflight: load queue file")?;
-    let done = queue::load_queue_or_default(&resolved.done_path)
-        .context("Parallel preflight: load done file")?;
-    let done_ref = if done.tasks.is_empty() && !resolved.done_path.exists() {
-        None
-    } else {
-        Some(&done)
-    };
-
-    let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
-    let warnings = queue::validate_queue_set(
-        &queue_file,
-        done_ref,
-        &resolved.id_prefix,
-        resolved.id_width,
-        max_depth,
-    )
-    .context("Parallel preflight: validate queue/done set")?;
-    queue::log_warnings(&warnings);
+    // Preflight: load, conservatively repair timestamps, and validate queue/done
+    let (queue_file, _done_file) = queue::load_and_validate_queues(resolved, true)
+        .context("Parallel preflight: validate queue/done set")?;
 
     // Preflight: validate workspace mapping
     super::path_map::map_resolved_path_into_workspace(
@@ -149,6 +187,7 @@ pub(crate) fn run_loop_parallel(
         &started_at,
         &settings,
     )?;
+    announce_blocked_tasks_at_loop_start(&queue_file, &state_file);
 
     let target_branch = state_file.target_branch.clone();
 

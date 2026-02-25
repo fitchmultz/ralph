@@ -264,7 +264,7 @@ Each phase config can specify:
 Key fields:
 - `workers`: number of concurrent workers (must be `>= 2`). Default: `null` (disabled unless CLI
   `--parallel` is used).
-- `max_push_attempts`: maximum integration loop attempts before giving up (default: `5`).
+- `max_push_attempts`: maximum integration loop attempts before giving up (default: `50`).
 - `push_backoff_ms`: array of retry backoff intervals in milliseconds (default: `[500, 2000, 5000, 10000]`).
 - `workspace_retention_hours`: hours to retain worker workspaces after completion (default: `24`).
 - `workspace_root`: root directory for parallel workspaces (default: `<repo-parent>/.workspaces/<repo-name>/parallel`).
@@ -290,7 +290,7 @@ Example:
 {
   "parallel": {
     "workers": 3,
-    "max_push_attempts": 5,
+    "max_push_attempts": 50,
     "push_backoff_ms": [500, 2000, 5000, 10000],
     "workspace_retention_hours": 24
   }

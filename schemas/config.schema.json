@@ -123,7 +123,7 @@
       "description": "Parallel run-loop configuration.",
       "$ref": "#/$defs/ParallelConfig",
       "default": {
-        "max_push_attempts": 5,
+        "max_push_attempts": 50,
         "push_backoff_ms": [
           500,
           2000,

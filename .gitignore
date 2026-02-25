@@ -8,8 +8,14 @@
 target/
 .learnings
 .vscode/settings.json
-.learnings
 debug/
+
+# Xcode / Swift local build artifacts
+apps/RalphMac/build/
+**/*.xcodeproj/xcuserdata/
+**/*.xcworkspace/xcuserdata/
+*.xcuserstate
+.DS_Store
 
 # Coverage artifacts (LLVM profiling data can appear anywhere)
 *.profraw
@@ -20,11 +26,8 @@ CLAUDE.md
 # Ralph debug logs (raw/unredacted; do not commit)
 .ralph/logs/
 
-# Ralph parallel mode workspace directories
+# Ralph runtime artifacts (cache is generated and should stay local)
 .ralph/workspaces/
-.ralph/cache/tasks
-.ralph/cache/undo
-.ralph/cache/webhooks
-.ralph/cache/session.json
-.ralph/cache/parallel
-.ralph/cache/stop_requested
+.ralph/cache/
+.scratchpad.md
+.FIX_TRACKING.md

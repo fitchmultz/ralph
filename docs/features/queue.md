@@ -22,8 +22,8 @@ Ralph uses two primary queue files:
 
 | File | Purpose | Location |
 |------|---------|----------|
-| **Active Queue** | Source of truth for active work | `.ralph/queue.json` |
-| **Done Archive** | Archive for completed/rejected tasks | `.ralph/done.json` |
+| **Active Queue** | Source of truth for active work | `.ralph/queue.jsonc` |
+| **Done Archive** | Archive for completed/rejected tasks | `.ralph/done.jsonc` |
 
 ### Key Principles
 
@@ -105,7 +105,7 @@ Tasks progress through a well-defined status lifecycle:
 | `todo` | `doing` | Auto-started by runner | Sets `started_at` timestamp |
 | `doing` | `done` | `ralph task done <id>` | Completes task, moves to done archive |
 | `doing` | `rejected` | `ralph task reject <id>` | Marks as rejected, moves to done archive |
-| `done`/`rejected` | - | `ralph queue archive` | Moves terminal tasks to `.ralph/done.json` |
+| `done`/`rejected` | - | `ralph queue archive` | Moves terminal tasks to `.ralph/done.jsonc` |
 
 ### Status Definitions
 
@@ -122,7 +122,7 @@ Tasks progress through a well-defined status lifecycle:
 Tasks with status `done` or `rejected` **must** have:
 - `completed_at` timestamp (RFC3339 UTC)
 
-These tasks are eligible for archiving to `.ralph/done.json`.
+These tasks are eligible for archiving to `.ralph/done.jsonc`.
 
 ---
 
@@ -153,7 +153,7 @@ ralph queue sort --order descending
 
 ### Task Insertion Position
 
-When new tasks are added via `ralph task add` or `ralph queue import`:
+When new tasks are added via `ralph task \"...\"` (or `ralph task build \"...\"`) or `ralph queue import`:
 
 - **Default**: Insert at position 0 (top of queue)
 - **If first task is `doing`**: Insert at position 1 (after in-progress task)
@@ -296,7 +296,7 @@ ralph queue archive --force
 The archive operation:
 1. Identifies tasks with `done` or `rejected` status
 2. Stamps missing `completed_at` timestamps
-3. Moves tasks to `.ralph/done.json`
+3. Moves tasks to `.ralph/done.jsonc`
 4. Validates the resulting queue state
 
 ### Prune
@@ -479,7 +479,7 @@ Task operations (running actual tasks) use a shared lock mode that allows:
 Auto-archive automatically moves terminal tasks to done.json after a configured age:
 
 ```json
-// .ralph/config.json
+// .ralph/config.jsonc
 {
   "queue": {
     "auto_archive_after_days": 7
@@ -569,7 +569,7 @@ Totals (15 tasks)
 Customize aging thresholds in config:
 
 ```json
-// .ralph/config.json
+// .ralph/config.jsonc
 {
   "queue": {
     "aging_thresholds": {
@@ -693,7 +693,7 @@ Aging is calculated from different timestamps based on status:
 
 ```bash
 # Add a new task
-ralph task add "Fix API validation"
+ralph task "Fix API validation"
 
 # Show next task
 ralph queue next

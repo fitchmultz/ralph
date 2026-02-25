@@ -11,7 +11,7 @@
 //!
 //! Invariants/assumptions:
 //! - `run_one_with_id_locked` is called only when the queue lock is already held by the caller.
-//! - Parallel-worker mode resolves queue/done from coordinator-provided paths.
+//! - Parallel-worker mode resolves queue/done from worker workspace paths.
 
 use crate::agent::AgentOverrides;
 use crate::config;

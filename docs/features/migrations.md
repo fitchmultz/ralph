@@ -60,7 +60,7 @@ MigrationType::ConfigKeyRename {
 **Behavior:**
 - Supports dot notation for nested keys (`agent.runner_cli`)
 - Scoped to parent object (only renames within the specified parent)
-- Updates both project config (`.ralph/config.json`) and global config (`~/.config/ralph/config.json`)
+- Updates both project config (`.ralph/config.jsonc`) and global config (`~/.config/ralph/config.jsonc`)
 - Preserves all JSONC comments and formatting
 
 **Example:**
@@ -408,7 +408,7 @@ If a migration causes issues, you can manually rollback:
 ```bash
 # Manually edit the config file to rename the key back
 # Or restore from version control
-git checkout .ralph/config.json
+git checkout .ralph/config.jsonc
 ```
 
 **For FileRename:**

@@ -298,7 +298,7 @@ ralph context validate --path docs/AGENTS.md
 
 To enable AGENTS.md injection, add it to your configuration:
 
-**`.ralph/config.json`**:
+**`.ralph/config.jsonc`**:
 ```json
 {
   "agent": {
@@ -307,7 +307,7 @@ To enable AGENTS.md injection, add it to your configuration:
 }
 ```
 
-**`~/.config/ralph/config.json`** (global):
+**`~/.config/ralph/config.jsonc`** (global):
 ```json
 {
   "agent": {
@@ -484,13 +484,13 @@ Templates use these placeholders that are replaced at generation time:
 Check that it's configured in your config file:
 
 ```bash
-ralph config get agent.instruction_files
+ralph config show --format json | jq '.agent.instruction_files'
 ```
 
 If empty, add it:
 
 ```bash
-# Edit .ralph/config.json
+# Edit .ralph/config.jsonc
 {
   "agent": {
     "instruction_files": ["AGENTS.md"]

@@ -26,7 +26,7 @@ Ralph uses a flexible, layered JSON configuration system that allows you to cust
 Ralph's configuration system uses a two-layer architecture:
 
 - **Global Config**: User-wide defaults stored in your home directory
-- **Project Config**: Repository-specific overrides stored in `.ralph/config.json`
+- **Project Config**: Repository-specific overrides stored in `.ralph/config.jsonc`
 
 Configuration is merged using **leaf-wise semantics**: when a value is present (`Some`), it overrides; when absent (`None`), it inherits from the parent layer. This allows fine-grained control over which settings to override.
 
@@ -48,7 +48,7 @@ Stored in your user configuration directory:
 
 | Platform | Path |
 |----------|------|
-| Linux/macOS | `~/.config/ralph/config.json` |
+| Linux/macOS | `~/.config/ralph/config.jsonc` |
 | With XDG | `$XDG_CONFIG_HOME/ralph/config.json` |
 
 Create this file manually. A minimal example:
@@ -71,7 +71,7 @@ You can also use `.jsonc` extension for JSON with Comments support.
 Stored within each repository:
 
 ```
-<repo-root>/.ralph/config.json
+<repo-root>/.ralph/config.jsonc
 ```
 
 Created automatically when you run `ralph init` in a repository.
@@ -106,8 +106,8 @@ Configuration values are resolved in the following order (highest to lowest):
 | 1 | **CLI Flags** | Command-line arguments (`--runner`, `--model`, etc.) |
 | 2 | **Task Overrides** | Per-task settings in `task.agent.*` |
 | 3 | **Profiles** | Selected profile configuration |
-| 4 | **Project Config** | `.ralph/config.json` |
-| 5 | **Global Config** | `~/.config/ralph/config.json` |
+| 4 | **Project Config** | `.ralph/config.jsonc` |
+| 5 | **Global Config** | `~/.config/ralph/config.jsonc` |
 | 6 | **Schema Defaults** | Built-in defaults from `schemas/config.schema.json` |
 
 ### Example Precedence
@@ -552,7 +552,7 @@ The `parallel` section controls parallel task execution for `ralph run loop`. **
 |-------|------|---------|-------------|
 | `workers` | `number` | `null` | Concurrent workers (≥2, null = disabled unless `--parallel` is used) |
 | `workspace_root` | `string` | `<repo-parent>/.workspaces/<repo-name>/parallel` | Root for parallel worker workspaces |
-| `max_push_attempts` | `number` | `5` | Max integration attempts before worker becomes blocked |
+| `max_push_attempts` | `number` | `50` | Max integration attempts before worker becomes blocked |
 | `push_backoff_ms` | `number[]` | `[500, 2000, 5000, 10000]` | Backoff between integration retries |
 | `workspace_retention_hours` | `number` | `24` | Hours to retain completed/failed worker workspaces |
 
@@ -582,7 +582,7 @@ The following PR-era keys were removed from parallel mode and are invalid in cur
   "parallel": {
     "workers": 3,
     "workspace_root": ".workspaces/my-repo/parallel",
-    "max_push_attempts": 5,
+    "max_push_attempts": 50,
     "push_backoff_ms": [500, 2000, 5000, 10000],
     "workspace_retention_hours": 24
   }
@@ -599,8 +599,8 @@ The `queue` section controls task queue file locations, ID formatting, and maint
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `file` | `string` | `".ralph/queue.json"` | Path to active queue file |
-| `done_file` | `string` | `".ralph/done.json"` | Path to done archive |
+| `file` | `string` | `".ralph/queue.jsonc"` | Path to active queue file |
+| `done_file` | `string` | `".ralph/done.jsonc"` | Path to done archive |
 
 Paths are relative to repo root. Absolute paths and `~` expansion are supported.
 
@@ -646,8 +646,8 @@ Semantics:
 {
   "version": 1,
   "queue": {
-    "file": ".ralph/queue.json",
-    "done_file": ".ralph/done.json",
+    "file": ".ralph/queue.jsonc",
+    "done_file": ".ralph/done.jsonc",
     "id_prefix": "RQ",
     "id_width": 4,
     "size_warning_threshold_kb": 500,
@@ -980,15 +980,15 @@ Here's a comprehensive example demonstrating all configuration sections:
   "parallel": {
     "workers": 3,
     "workspace_root": ".workspaces/my-repo/parallel",
-    "max_push_attempts": 5,
+    "max_push_attempts": 50,
     "push_backoff_ms": [500, 2000, 5000, 10000],
     "workspace_retention_hours": 24
   },
   
   // Queue configuration
   "queue": {
-    "file": ".ralph/queue.json",
-    "done_file": ".ralph/done.json",
+    "file": ".ralph/queue.jsonc",
+    "done_file": ".ralph/done.jsonc",
     "id_prefix": "RQ",
     "id_width": 4,
     "auto_archive_terminal_after_days": 7,

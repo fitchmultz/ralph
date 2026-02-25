@@ -21,7 +21,7 @@ The import/export system provides:
 
 ## Export
 
-Export tasks from the active queue (`.ralph/queue.json`) and optionally the done archive (`.ralph/done.json`).
+Export tasks from the active queue (`.ralph/queue.jsonc`) and optionally the done archive (`.ralph/done.jsonc`).
 
 ### Command
 

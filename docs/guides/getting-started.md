@@ -132,8 +132,8 @@ Select [1-3]: 3
 Would you like to create your first task? [y/N]: y
 Enter task title: Add user authentication feature
 
-✓ Created .ralph/config.json
-✓ Created .ralph/queue.json
+✓ Created .ralph/config.jsonc
+✓ Created .ralph/queue.jsonc
 ✓ Created first task: RQ-0001
 ✓ Ralph is ready to use!
 ```
@@ -415,8 +415,8 @@ Ralph uses a two-layer JSON configuration system:
 
 | Location | Purpose | Precedence |
 |----------|---------|------------|
-| `~/.config/ralph/config.json` | Global defaults | Lower |
-| `.ralph/config.json` | Project-specific settings | Higher |
+| `~/.config/ralph/config.jsonc` | Global defaults | Lower |
+| `.ralph/config.jsonc` | Project-specific settings | Higher |
 | CLI flags | One-time overrides | Highest |
 
 ### Essential Configuration
@@ -434,8 +434,8 @@ A minimal effective configuration:
     "git_commit_push_enabled": false
   },
   "queue": {
-    "file": ".ralph/queue.json",
-    "done_file": ".ralph/done.json"
+    "file": ".ralph/queue.jsonc",
+    "done_file": ".ralph/done.jsonc"
   }
 }
 ```
@@ -465,8 +465,8 @@ A minimal effective configuration:
 ```json
 {
   "queue": {
-    "file": ".ralph/queue.json",
-    "done_file": ".ralph/done.json",
+    "file": ".ralph/queue.jsonc",
+    "done_file": ".ralph/done.jsonc",
     "id_prefix": "RQ",
     "id_width": 4,
     "auto_archive_terminal_after_days": 7
@@ -536,7 +536,7 @@ ralph task "Fix race condition in worker pool"
 ralph task "Update API documentation"
 
 # 4. Run specific high-priority tasks
-ralph run one --task-id RQ-0005
+ralph run one --id RQ-0005
 
 # 5. End of day - archive completed work
 ralph queue archive
@@ -548,7 +548,7 @@ ralph queue archive
 |---------|-------------|
 | `ralph app open` | Open the macOS app UI |
 | `ralph run one` | Run next task |
-| `ralph run one --task-id RQ-0001` | Run specific task |
+| `ralph run one --id RQ-0001` | Run specific task |
 | `ralph run loop` | Run tasks continuously |
 | `ralph task "title"` | Create new task |
 | `ralph queue list` | List all tasks |
@@ -585,7 +585,7 @@ ralph task "Add JWT authentication middleware" \
 
 ```bash
 # Create tasks that depend on others
-ralph task "Implement login endpoint" --tag auth
+ralph task "Implement login endpoint" --tags auth
 # Returns: RQ-0001
 
 ralph task "Add password reset" \
@@ -691,7 +691,7 @@ ralph daemon stop
 Convert Product Requirements Documents into tasks:
 
 ```bash
-ralph prd convert requirements.md
+ralph prd create requirements.md
 ```
 
 ### Best Practices

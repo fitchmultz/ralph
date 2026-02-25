@@ -24,7 +24,7 @@ For copy-paste ready examples with Slack, Discord, and GitHub Actions, see **[We
 
 ## Configuration
 
-Webhooks are configured via the `agent.webhook` section in your config file (`.ralph/config.json` or `~/.config/ralph/config.json`).
+Webhooks are configured via the `agent.webhook` section in your config file (`.ralph/config.jsonc` or `~/.config/ralph/config.jsonc`).
 
 ### Configuration Options
 
@@ -95,7 +95,7 @@ These core task lifecycle events are always enabled when webhooks are on (unless
 
 | Event | Description | When Emitted |
 |-------|-------------|--------------|
-| `task_created` | Task added to queue | After `ralph task add` or scan creates a task |
+| `task_created` | Task added to queue | After `ralph task \"...\"` / `ralph task build \"...\"` or scan creates a task |
 | `task_started` | Task execution begins | When task status changes to `doing` |
 | `task_completed` | Task finished successfully | When task status changes to `done` |
 | `task_failed` | Task failed or rejected | When task status changes to `rejected` |

@@ -152,7 +152,7 @@ Parallel execution runs tasks in isolated git workspace clones:
 {
   "parallel": {
     "workers": 4,
-    "max_push_attempts": 5,
+    "max_push_attempts": 50,
     "push_backoff_ms": [500, 2000, 5000, 10000],
     "workspace_retention_hours": 24
   }
@@ -556,7 +556,7 @@ Use comments in config for documentation:
 
 ### Layered Configuration Strategy
 
-**Global config** (`~/.config/ralph/config.json`):
+**Global config** (`~/.config/ralph/config.jsonc`):
 ```json
 {
   "version": 1,
@@ -574,7 +574,7 @@ Use comments in config for documentation:
 }
 ```
 
-**Project config** (`.ralph/config.json`):
+**Project config** (`.ralph/config.jsonc`):
 ```json
 {
   "version": 1,
@@ -935,10 +935,10 @@ Configure stale task detection:
 ralph productivity velocity
 
 # View streaks
-ralph productivity streaks
+ralph productivity streak
 
-# Check milestone progress
-ralph productivity milestones
+# Check overall progress summary
+ralph productivity summary
 ```
 
 ### Dependency Chain Optimization
@@ -1108,7 +1108,7 @@ ralph queue graph --task RQ-0001
 ralph queue list --status doing
 
 # Check done.json for completed dependencies
-jq '.tasks[] | select(.id == "RQ-0000")' .ralph/done.json
+jq '.tasks[] | select(.id == "RQ-0000")' .ralph/done.jsonc
 ```
 
 ### Recovery Patterns
@@ -1192,10 +1192,10 @@ ralph run loop --wait-when-blocked --wait-timeout-seconds 3600
 
 | File | Default Location |
 |------|------------------|
-| Queue | `.ralph/queue.json` |
-| Done archive | `.ralph/done.json` |
-| Project config | `.ralph/config.json` |
-| Global config | `~/.config/ralph/config.json` |
+| Queue | `.ralph/queue.jsonc` |
+| Done archive | `.ralph/done.jsonc` |
+| Project config | `.ralph/config.jsonc` |
+| Global config | `~/.config/ralph/config.jsonc` |
 | Session state | `.ralph/cache/session.json` |
 | Parallel state | `.ralph/cache/parallel/state.json` |
 | Daemon logs | `.ralph/logs/daemon.log` |

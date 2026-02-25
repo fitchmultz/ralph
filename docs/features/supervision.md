@@ -462,7 +462,7 @@ Parallel workers have a simplified supervision flow:
 2. **Restore Bookkeeping**: Reset queue/done/productivity files to HEAD
 3. **Finalize Git**: Commit and push changes (if enabled)
 
-Workers update coordinator-authoritative queue/done paths during integration conflict resolution and must preserve other workers' entries exactly. Task finalization is part of the worker integration loop; no merge-agent subprocess is required.
+Workers update workspace-local queue/done files during integration conflict resolution and must preserve other workers' entries exactly. Those queue/done updates are pushed directly to the base branch by the worker integration loop; no merge-agent subprocess is required.
 
 ### CI Failure Recovery Flow
 

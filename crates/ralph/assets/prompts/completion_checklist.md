@@ -6,7 +6,7 @@ When implementation is complete, you MUST:
 1. Investigate and resolve any risks, bugs, or suspicious leads you flagged during this run before completion. If a lead is a false positive, document why in your final response; do not complete the task otherwise.
 2. Finalize task bookkeeping:
    - If `RUN_MODE=normal`: run `ralph task done --note "<note>" {{TASK_ID}}` to move the task from queue to done.
-   - If `RUN_MODE=parallel-worker`: do NOT run `ralph task done`; update the coordinator-authoritative queue/done files during integration and ensure `{{TASK_ID}}` is removed from queue and present in done.
+   - If `RUN_MODE=parallel-worker`: do NOT run `ralph task done`; during integration, update workspace queue/done files (which are pushed to the base branch) and ensure `{{TASK_ID}}` is removed from queue and present in done.
    - Use `ralph task reject --note "<note>" {{TASK_ID}}` when appropriate in non-parallel flows; only `done` and `rejected` are valid completion statuses.
    - Provide 1-5 summary notes using repeated `--note` flags (each note should be a short bullet) when using `ralph task done`/`reject`.
    - **Queue freshness check (MANDATORY before marking done/rejected):** quickly scan other tasks in `{{config.queue.file}}` (typically `todo` / `doing`) and identify any tasks whose **assumptions, plan, evidence, or notes** are now stale because of what you just changed (APIs, file paths, behavior, config, constraints, etc.).

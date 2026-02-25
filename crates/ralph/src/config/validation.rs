@@ -27,7 +27,7 @@ fn format_aging_threshold_error(
     rotten: Option<u32>,
 ) -> String {
     format!(
-        "Invalid queue.aging_thresholds ordering: require warning_days < stale_days < rotten_days (got warning_days={}, stale_days={}, rotten_days={}). Update .ralph/config.json.",
+        "Invalid queue.aging_thresholds ordering: require warning_days < stale_days < rotten_days (got warning_days={}, stale_days={}, rotten_days={}). Update .ralph/config.jsonc.",
         warning
             .map(|w| w.to_string())
             .unwrap_or_else(|| "unset".to_string()),
@@ -41,10 +41,10 @@ fn format_aging_threshold_error(
 }
 
 // Canonical error messages for queue config validation (single source of truth)
-pub(crate) const ERR_EMPTY_QUEUE_ID_PREFIX: &str = "Empty queue.id_prefix: prefix is required if specified. Set a non-empty prefix (e.g., 'RQ') in .ralph/config.json or via --id-prefix.";
-pub(crate) const ERR_INVALID_QUEUE_ID_WIDTH: &str = "Invalid queue.id_width: width must be greater than 0. Set a valid width (e.g., 4) in .ralph/config.json or via --id-width.";
-pub(crate) const ERR_EMPTY_QUEUE_FILE: &str = "Empty queue.file: path is required if specified. Specify a valid path (e.g., '.ralph/queue.json') in .ralph/config.json or via --queue-file.";
-pub(crate) const ERR_EMPTY_QUEUE_DONE_FILE: &str = "Empty queue.done_file: path is required if specified. Specify a valid path (e.g., '.ralph/done.json') in .ralph/config.json or via --done-file.";
+pub(crate) const ERR_EMPTY_QUEUE_ID_PREFIX: &str = "Empty queue.id_prefix: prefix is required if specified. Set a non-empty prefix (e.g., 'RQ') in .ralph/config.jsonc or via --id-prefix.";
+pub(crate) const ERR_INVALID_QUEUE_ID_WIDTH: &str = "Invalid queue.id_width: width must be greater than 0. Set a valid width (e.g., 4) in .ralph/config.jsonc or via --id-width.";
+pub(crate) const ERR_EMPTY_QUEUE_FILE: &str = "Empty queue.file: path is required if specified. Specify a valid path (e.g., '.ralph/queue.jsonc') in .ralph/config.jsonc or via --queue-file.";
+pub(crate) const ERR_EMPTY_QUEUE_DONE_FILE: &str = "Empty queue.done_file: path is required if specified. Specify a valid path (e.g., '.ralph/done.jsonc') in .ralph/config.jsonc or via --done-file.";
 
 /// Validate queue.id_prefix override (if specified, must be non-empty after trim).
 pub fn validate_queue_id_prefix_override(id_prefix: Option<&str>) -> Result<()> {
@@ -108,7 +108,7 @@ pub fn validate_queue_thresholds(queue: &QueueConfig) -> Result<()> {
         && !(100..=10000).contains(&threshold)
     {
         bail!(
-            "Invalid queue.size_warning_threshold_kb: {}. Value must be between 100 and 10000 (inclusive). Update .ralph/config.json.",
+            "Invalid queue.size_warning_threshold_kb: {}. Value must be between 100 and 10000 (inclusive). Update .ralph/config.jsonc.",
             threshold
         );
     }
@@ -117,7 +117,7 @@ pub fn validate_queue_thresholds(queue: &QueueConfig) -> Result<()> {
         && !(50..=5000).contains(&threshold)
     {
         bail!(
-            "Invalid queue.task_count_warning_threshold: {}. Value must be between 50 and 5000 (inclusive). Update .ralph/config.json.",
+            "Invalid queue.task_count_warning_threshold: {}. Value must be between 50 and 5000 (inclusive). Update .ralph/config.jsonc.",
             threshold
         );
     }
@@ -126,7 +126,7 @@ pub fn validate_queue_thresholds(queue: &QueueConfig) -> Result<()> {
         && !(1..=100).contains(&depth)
     {
         bail!(
-            "Invalid queue.max_dependency_depth: {}. Value must be between 1 and 100 (inclusive). Update .ralph/config.json.",
+            "Invalid queue.max_dependency_depth: {}. Value must be between 1 and 100 (inclusive). Update .ralph/config.jsonc.",
             depth
         );
     }
@@ -135,7 +135,7 @@ pub fn validate_queue_thresholds(queue: &QueueConfig) -> Result<()> {
         && days > 3650
     {
         bail!(
-            "Invalid queue.auto_archive_terminal_after_days: {}. Value must be between 0 and 3650 (inclusive). Update .ralph/config.json.",
+            "Invalid queue.auto_archive_terminal_after_days: {}. Value must be between 0 and 3650 (inclusive). Update .ralph/config.jsonc.",
             days
         );
     }
@@ -234,7 +234,7 @@ pub fn validate_config(cfg: &Config) -> Result<()> {
         && !(MIN_PHASES..=MAX_PHASES).contains(&phases)
     {
         bail!(
-            "Invalid agent.phases: {}. Supported values are {}, {}, or {}. Update .ralph/config.json or CLI flags.",
+            "Invalid agent.phases: {}. Supported values are {}, {}, or {}. Update .ralph/config.jsonc or CLI flags.",
             phases,
             MIN_PHASES,
             MIN_PHASES + 1,
@@ -246,7 +246,7 @@ pub fn validate_config(cfg: &Config) -> Result<()> {
         && iterations < MIN_ITERATIONS
     {
         bail!(
-            "Invalid agent.iterations: {}. Iterations must be at least {}. Update .ralph/config.json.",
+            "Invalid agent.iterations: {}. Iterations must be at least {}. Update .ralph/config.jsonc.",
             iterations,
             MIN_ITERATIONS
         );
@@ -256,7 +256,7 @@ pub fn validate_config(cfg: &Config) -> Result<()> {
         && workers < MIN_PARALLEL_WORKERS
     {
         bail!(
-            "Invalid parallel.workers: {}. Parallel workers must be >= {}. Update .ralph/config.json or CLI flags.",
+            "Invalid parallel.workers: {}. Parallel workers must be >= {}. Update .ralph/config.jsonc or CLI flags.",
             workers,
             MIN_PARALLEL_WORKERS
         );
@@ -281,7 +281,7 @@ pub fn validate_config(cfg: &Config) -> Result<()> {
         && timeout == 0
     {
         bail!(
-            "Invalid agent.session_timeout_hours: {}. Session timeout must be greater than 0. Update .ralph/config.json.",
+            "Invalid agent.session_timeout_hours: {}. Session timeout must be greater than 0. Update .ralph/config.jsonc.",
             timeout
         );
     }

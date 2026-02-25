@@ -211,8 +211,8 @@ fn scan_fails_validation_and_safeguards_stdout() -> Result<()> {
 
     // 2. Create a runner that produces INVALID queue.json (corrupts it)
     // It should print valid LLM output but also mess up the file system.
-    let script =
-        "#!/bin/sh\necho 'VALUABLE_SCAN_OUTPUT'\necho 'corrupt' > .ralph/queue.jsonc\nexit 0\n";
+    // The 'cat > /dev/null' drains stdin to prevent broken pipe errors.
+    let script = "#!/bin/sh\ncat > /dev/null\necho 'VALUABLE_SCAN_OUTPUT'\necho 'corrupt' > .ralph/queue.jsonc\nexit 0\n";
     let runner_path = create_fake_runner(dir.path(), "codex", script)?;
     configure_runner(dir.path(), "codex", "gpt-5.2-codex", Some(&runner_path))?;
 

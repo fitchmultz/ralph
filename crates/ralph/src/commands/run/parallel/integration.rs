@@ -49,16 +49,20 @@ pub struct IntegrationConfig {
 }
 
 impl IntegrationConfig {
-    pub fn from_resolved(resolved: &Resolved) -> Self {
+    pub fn from_resolved(resolved: &Resolved, target_branch: &str) -> Self {
         let parallel = &resolved.config.parallel;
+        let target_branch = target_branch.trim();
         Self {
-            max_attempts: parallel.max_push_attempts.unwrap_or(5) as u32,
+            max_attempts: parallel.max_push_attempts.unwrap_or(50) as u32,
             backoff_ms: parallel
                 .push_backoff_ms
                 .clone()
                 .unwrap_or_else(super::default_push_backoff_ms),
-            target_branch: git::current_branch(&resolved.repo_root)
-                .unwrap_or_else(|_| "main".into()),
+            target_branch: if target_branch.is_empty() {
+                "main".to_string()
+            } else {
+                target_branch.to_string()
+            },
             ci_command: resolved.config.agent.ci_gate_command.clone(),
             ci_enabled: resolved.config.agent.ci_gate_enabled.unwrap_or(true),
         }
@@ -88,6 +92,16 @@ pub enum IntegrationOutcome {
     BlockedPush { reason: String },
     /// Terminal integration failure (for example no resumable session).
     Failed { reason: String },
+}
+
+/// Persisted marker written by workers when integration ends in `blocked_push`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct BlockedPushMarker {
+    pub task_id: String,
+    pub reason: String,
+    pub attempt: u32,
+    pub max_attempts: u32,
+    pub generated_at: String,
 }
 
 // =============================================================================
@@ -205,6 +219,61 @@ impl RemediationHandoff {
     }
 }
 
+fn blocked_push_marker_path(workspace_path: &Path) -> PathBuf {
+    workspace_path.join(super::BLOCKED_PUSH_MARKER_FILE)
+}
+
+fn write_blocked_push_marker(
+    workspace_path: &Path,
+    task_id: &str,
+    reason: &str,
+    attempt: u32,
+    max_attempts: u32,
+) -> Result<()> {
+    let marker = BlockedPushMarker {
+        task_id: task_id.trim().to_string(),
+        reason: reason.to_string(),
+        attempt,
+        max_attempts,
+        generated_at: timeutil::now_utc_rfc3339_or_fallback(),
+    };
+    let marker_path = blocked_push_marker_path(workspace_path);
+    if let Some(parent) = marker_path.parent() {
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("create blocked marker directory {}", parent.display()))?;
+    }
+    let rendered = serde_json::to_string_pretty(&marker).context("serialize blocked marker")?;
+    crate::fsutil::write_atomic(&marker_path, rendered.as_bytes())
+        .with_context(|| format!("write blocked marker {}", marker_path.display()))?;
+    Ok(())
+}
+
+fn clear_blocked_push_marker(workspace_path: &Path) {
+    let marker_path = blocked_push_marker_path(workspace_path);
+    if !marker_path.exists() {
+        return;
+    }
+    if let Err(err) = std::fs::remove_file(&marker_path) {
+        log::warn!(
+            "Failed to clear blocked marker at {}: {}",
+            marker_path.display(),
+            err
+        );
+    }
+}
+
+pub(crate) fn read_blocked_push_marker(workspace_path: &Path) -> Result<Option<BlockedPushMarker>> {
+    let marker_path = blocked_push_marker_path(workspace_path);
+    if !marker_path.exists() {
+        return Ok(None);
+    }
+    let raw = std::fs::read_to_string(&marker_path)
+        .with_context(|| format!("read blocked marker {}", marker_path.display()))?;
+    let marker =
+        serde_json::from_str::<BlockedPushMarker>(&raw).context("parse blocked marker json")?;
+    Ok(Some(marker))
+}
+
 /// Write handoff packet to workspace cache directory.
 pub fn write_handoff_packet(
     workspace_path: &Path,
@@ -272,7 +341,7 @@ pub fn run_compliance_checks(
         }
     };
 
-    let task_archived = match validate_task_archived(repo_root, task_id) {
+    let task_archived = match validate_task_archived(resolved, task_id) {
         Ok(()) => true,
         Err(err) => {
             errors.push(format!("task archival validation failed: {}", err));
@@ -306,18 +375,10 @@ pub fn run_compliance_checks(
     })
 }
 
-/// Validate queue/done files semantically in workspace-local bookkeeping files.
-fn validate_queue_done_semantics(repo_root: &Path, resolved: &Resolved) -> Result<()> {
-    let queue_path = select_bookkeeping_path(
-        repo_root,
-        &[".ralph/queue.json", ".ralph/queue.jsonc"],
-        ".ralph/queue.json",
-    );
-    let done_path = select_bookkeeping_path(
-        repo_root,
-        &[".ralph/done.json", ".ralph/done.jsonc"],
-        ".ralph/done.json",
-    );
+/// Validate queue/done files semantically from the resolved queue/done paths.
+fn validate_queue_done_semantics(_repo_root: &Path, resolved: &Resolved) -> Result<()> {
+    let queue_path = resolved.queue_path.clone();
+    let done_path = resolved.done_path.clone();
 
     let queue = queue::load_queue(&queue_path).context("load queue for validation")?;
     let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
@@ -340,22 +401,14 @@ fn validate_queue_done_semantics(repo_root: &Path, resolved: &Resolved) -> Resul
 }
 
 /// Validate that the specific task is removed from queue and present as done.
-fn validate_task_archived(repo_root: &Path, task_id: &str) -> Result<()> {
+fn validate_task_archived(resolved: &Resolved, task_id: &str) -> Result<()> {
     let task_id = task_id.trim();
     if task_id.is_empty() {
         bail!("task id is empty");
     }
 
-    let queue_path = select_bookkeeping_path(
-        repo_root,
-        &[".ralph/queue.json", ".ralph/queue.jsonc"],
-        ".ralph/queue.json",
-    );
-    let done_path = select_bookkeeping_path(
-        repo_root,
-        &[".ralph/done.json", ".ralph/done.jsonc"],
-        ".ralph/done.json",
-    );
+    let queue_path = resolved.queue_path.clone();
+    let done_path = resolved.done_path.clone();
 
     if !queue_path.exists() {
         bail!("queue file missing at {}", queue_path.display());
@@ -393,16 +446,6 @@ fn validate_task_archived(repo_root: &Path, task_id: &str) -> Result<()> {
     Ok(())
 }
 
-fn select_bookkeeping_path(repo_root: &Path, candidates: &[&str], fallback: &str) -> PathBuf {
-    for candidate in candidates {
-        let path = repo_root.join(candidate);
-        if path.exists() {
-            return path;
-        }
-    }
-    repo_root.join(fallback)
-}
-
 /// Run CI gate check as deterministic validation.
 fn run_ci_check(repo_root: &Path, resolved: &Resolved) -> Result<()> {
     let ci_command = resolved
@@ -412,7 +455,11 @@ fn run_ci_check(repo_root: &Path, resolved: &Resolved) -> Result<()> {
         .as_deref()
         .unwrap_or("make ci");
 
-    log::info!("Running CI gate validation: {}", ci_command);
+    log::info!(
+        "Running CI gate validation (may take several minutes): {}",
+        ci_command
+    );
+    let started = std::time::Instant::now();
 
     let output = Command::new("sh")
         .arg("-c")
@@ -421,9 +468,25 @@ fn run_ci_check(repo_root: &Path, resolved: &Resolved) -> Result<()> {
         .output()
         .context("spawn CI gate command")?;
 
+    log::info!(
+        "CI gate validation finished in {:.1}s with exit code {:?}",
+        started.elapsed().as_secs_f64(),
+        output.status.code()
+    );
+
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         let stdout = String::from_utf8_lossy(&output.stdout);
+        let combined = format!("{}\n{}", stdout, stderr).to_lowercase();
+        if combined.contains("waiting for file lock")
+            || combined.contains("file lock on build directory")
+        {
+            bail!(
+                "CI lock contention detected (stale build/test process likely holding a lock). {} | {}",
+                stdout.trim(),
+                stderr.trim()
+            );
+        }
         bail!("{} | {}", stdout.trim(), stderr.trim());
     }
 
@@ -466,6 +529,8 @@ fn build_agent_integration_prompt(
     task_id: &str,
     task_title: &str,
     target_branch: &str,
+    queue_path: &Path,
+    done_path: &Path,
     attempt: u32,
     max_attempts: u32,
     phase_summary: &str,
@@ -474,6 +539,8 @@ fn build_agent_integration_prompt(
     ci_command: Option<&str>,
     previous_failure: Option<&str>,
 ) -> String {
+    let queue_path_display = queue_path.display();
+    let done_path_display = done_path.display();
     let failure_block = previous_failure.map_or_else(String::new, |failure| {
         format!("\n## Previous Attempt Failed\n{}\n", failure)
     });
@@ -511,8 +578,8 @@ You are NOT done until all required checks are satisfied.
    - Ensure `{task_id}` is removed from queue and present as done in done.
    - Continue rebase until complete (`git add ...`, `git rebase --continue`).
 4. Ensure bookkeeping is correct:
-   - `.ralph/queue.json` (or `.jsonc`) does NOT contain `{task_id}`
-   - `.ralph/done.json` (or `.jsonc`) DOES contain `{task_id}` with done status
+   - `{queue_path_display}` does NOT contain `{task_id}`
+   - `{done_path_display}` DOES contain `{task_id}` with done status
 5. Stage and commit any remaining changes needed for integration.
 6. {ci_block}
 7. Push directly to base branch: `git push origin HEAD:{target_branch}`
@@ -603,6 +670,7 @@ pub(crate) fn run_integration_loop(
     plugins: Option<&crate::plugins::registry::PluginRegistry>,
 ) -> Result<IntegrationOutcome> {
     let repo_root = &resolved.repo_root;
+    clear_blocked_push_marker(repo_root);
     let mut previous_failure: Option<String> = None;
 
     for attempt_index in 0..config.max_attempts {
@@ -619,6 +687,8 @@ pub(crate) fn run_integration_loop(
             task_id,
             task_title,
             &config.target_branch,
+            &resolved.queue_path,
+            &resolved.done_path,
             attempt,
             config.max_attempts,
             phase_summary,
@@ -633,10 +703,16 @@ pub(crate) fn run_integration_loop(
                 Ok(resume) => resume,
                 Err(err) => {
                     let reason = format!("integration continuation failed: {:#}", err);
-                    if reason.contains("no session id captured") {
-                        return Ok(IntegrationOutcome::Failed { reason });
-                    }
                     if attempt >= config.max_attempts {
+                        if let Err(marker_err) = write_blocked_push_marker(
+                            repo_root,
+                            task_id,
+                            &reason,
+                            attempt,
+                            config.max_attempts,
+                        ) {
+                            log::warn!("Failed to write blocked marker: {}", marker_err);
+                        }
                         return Ok(IntegrationOutcome::BlockedPush { reason });
                     }
                     previous_failure = Some(reason);
@@ -696,6 +772,11 @@ pub(crate) fn run_integration_loop(
         }
 
         if attempt >= config.max_attempts {
+            if let Err(marker_err) =
+                write_blocked_push_marker(repo_root, task_id, &reason, attempt, config.max_attempts)
+            {
+                log::warn!("Failed to write blocked marker: {}", marker_err);
+            }
             return Ok(IntegrationOutcome::BlockedPush { reason });
         }
 
@@ -703,14 +784,55 @@ pub(crate) fn run_integration_loop(
         std::thread::sleep(config.backoff_for_attempt(attempt_index as usize));
     }
 
-    Ok(IntegrationOutcome::BlockedPush {
-        reason: format!("integration exhausted {} attempts", config.max_attempts),
-    })
+    let reason = format!("integration exhausted {} attempts", config.max_attempts);
+    if let Err(marker_err) = write_blocked_push_marker(
+        repo_root,
+        task_id,
+        &reason,
+        config.max_attempts,
+        config.max_attempts,
+    ) {
+        log::warn!("Failed to write blocked marker: {}", marker_err);
+    }
+    Ok(IntegrationOutcome::BlockedPush { reason })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::contracts::{QueueFile, Task, TaskPriority, TaskStatus};
+    use std::collections::HashMap;
+    use tempfile::TempDir;
+
+    fn make_task(id: &str, status: TaskStatus) -> Task {
+        Task {
+            id: id.to_string(),
+            title: format!("Task {}", id),
+            description: None,
+            status,
+            priority: TaskPriority::Medium,
+            tags: vec![],
+            scope: vec![],
+            evidence: vec![],
+            plan: vec![],
+            notes: vec![],
+            request: None,
+            agent: None,
+            created_at: Some("2026-01-01T00:00:00Z".to_string()),
+            updated_at: Some("2026-01-01T00:00:00Z".to_string()),
+            completed_at: None,
+            started_at: None,
+            scheduled_start: None,
+            depends_on: vec![],
+            blocks: vec![],
+            relates_to: vec![],
+            duplicates: None,
+            custom_fields: HashMap::new(),
+            estimated_minutes: None,
+            actual_minutes: None,
+            parent_id: None,
+        }
+    }
 
     #[test]
     fn integration_config_default_backoff() {
@@ -769,6 +891,8 @@ mod tests {
             "RQ-0001",
             "Implement feature",
             "main",
+            Path::new("/tmp/queue.json"),
+            Path::new("/tmp/done.json"),
             1,
             5,
             "phase summary",
@@ -785,11 +909,35 @@ mod tests {
     }
 
     #[test]
+    fn integration_prompt_uses_explicit_target_branch_for_push() {
+        let prompt = build_agent_integration_prompt(
+            "RQ-0001",
+            "Implement feature",
+            "release/2026",
+            Path::new("/tmp/queue.json"),
+            Path::new("/tmp/done.json"),
+            1,
+            5,
+            "phase summary",
+            " M src/lib.rs",
+            true,
+            Some("make ci"),
+            None,
+        );
+
+        assert!(prompt.contains("git fetch origin release/2026"));
+        assert!(prompt.contains("git rebase origin/release/2026"));
+        assert!(prompt.contains("git push origin HEAD:release/2026"));
+    }
+
+    #[test]
     fn integration_prompt_sanitizes_nul_bytes() {
         let prompt = build_agent_integration_prompt(
             "RQ-0001",
             "NUL test",
             "main",
+            Path::new("/tmp/queue.json"),
+            Path::new("/tmp/done.json"),
             1,
             5,
             "phase\0summary",
@@ -829,19 +977,130 @@ mod tests {
     }
 
     #[test]
-    fn select_bookkeeping_path_picks_existing_candidate() -> Result<()> {
+    fn integration_config_uses_explicit_target_branch() -> Result<()> {
         let dir = tempfile::TempDir::new()?;
-        let ralph_dir = dir.path().join(".ralph");
-        std::fs::create_dir_all(&ralph_dir)?;
-        std::fs::write(ralph_dir.join("queue.jsonc"), "{}")?;
+        let resolved = crate::config::Resolved {
+            config: crate::contracts::Config::default(),
+            repo_root: dir.path().to_path_buf(),
+            queue_path: dir.path().join(".ralph/queue.json"),
+            done_path: dir.path().join(".ralph/done.json"),
+            id_prefix: "RQ".to_string(),
+            id_width: 4,
+            global_config_path: None,
+            project_config_path: None,
+        };
 
-        let selected = select_bookkeeping_path(
-            dir.path(),
-            &[".ralph/queue.json", ".ralph/queue.jsonc"],
-            ".ralph/queue.json",
+        let cfg = IntegrationConfig::from_resolved(&resolved, "release/2026");
+        assert_eq!(cfg.target_branch, "release/2026");
+        Ok(())
+    }
+
+    #[test]
+    fn task_archived_validation_uses_resolved_paths_not_workspace_local_files() -> Result<()> {
+        let dir = TempDir::new()?;
+        let coordinator = dir.path().join("coordinator");
+        let worker_workspace = dir.path().join("worker-ws");
+        std::fs::create_dir_all(&coordinator)?;
+        std::fs::create_dir_all(worker_workspace.join(".ralph"))?;
+
+        let coordinator_queue = coordinator.join("queue.json");
+        let coordinator_done = coordinator.join("done.json");
+        let workspace_queue = worker_workspace.join(".ralph/queue.json");
+        let workspace_done = worker_workspace.join(".ralph/done.json");
+
+        let mut coordinator_queue_file = QueueFile::default();
+        coordinator_queue_file
+            .tasks
+            .push(make_task("RQ-0001", TaskStatus::Todo));
+        queue::save_queue(&coordinator_queue, &coordinator_queue_file)?;
+        queue::save_queue(&coordinator_done, &QueueFile::default())?;
+
+        // Workspace-local files look archived, but should be ignored by validation.
+        queue::save_queue(&workspace_queue, &QueueFile::default())?;
+        let mut workspace_done_file = QueueFile::default();
+        workspace_done_file
+            .tasks
+            .push(make_task("RQ-0001", TaskStatus::Done));
+        queue::save_queue(&workspace_done, &workspace_done_file)?;
+
+        let resolved = crate::config::Resolved {
+            config: crate::contracts::Config::default(),
+            repo_root: worker_workspace,
+            queue_path: coordinator_queue.clone(),
+            done_path: coordinator_done,
+            id_prefix: "RQ".to_string(),
+            id_width: 4,
+            global_config_path: None,
+            project_config_path: None,
+        };
+
+        let err = validate_task_archived(&resolved, "RQ-0001")
+            .expect_err("validation should use resolved queue path");
+        let msg = err.to_string();
+        assert!(
+            msg.contains(coordinator_queue.to_string_lossy().as_ref()),
+            "error should reference resolved queue path, got: {msg}"
         );
+        Ok(())
+    }
 
-        assert_eq!(selected, ralph_dir.join("queue.jsonc"));
+    #[test]
+    fn queue_done_semantics_validation_uses_resolved_paths() -> Result<()> {
+        let dir = TempDir::new()?;
+        let coordinator = dir.path().join("coordinator");
+        let worker_workspace = dir.path().join("worker-ws");
+        std::fs::create_dir_all(&coordinator)?;
+        std::fs::create_dir_all(worker_workspace.join(".ralph"))?;
+
+        let coordinator_queue = coordinator.join("queue.json");
+        let coordinator_done = coordinator.join("done.json");
+        let workspace_queue = worker_workspace.join(".ralph/queue.json");
+        let workspace_done = worker_workspace.join(".ralph/done.json");
+
+        // Coordinator queue is semantically invalid for RQ id rules.
+        let mut invalid_queue = QueueFile::default();
+        invalid_queue
+            .tasks
+            .push(make_task("BAD-ID", TaskStatus::Todo));
+        queue::save_queue(&coordinator_queue, &invalid_queue)?;
+        queue::save_queue(&coordinator_done, &QueueFile::default())?;
+
+        // Workspace-local queue is valid, but should not be read.
+        let mut valid_queue = QueueFile::default();
+        valid_queue
+            .tasks
+            .push(make_task("RQ-0001", TaskStatus::Todo));
+        queue::save_queue(&workspace_queue, &valid_queue)?;
+        queue::save_queue(&workspace_done, &QueueFile::default())?;
+
+        let resolved = crate::config::Resolved {
+            config: crate::contracts::Config::default(),
+            repo_root: worker_workspace.clone(),
+            queue_path: coordinator_queue,
+            done_path: coordinator_done,
+            id_prefix: "RQ".to_string(),
+            id_width: 4,
+            global_config_path: None,
+            project_config_path: None,
+        };
+
+        validate_queue_done_semantics(&worker_workspace, &resolved)
+            .expect_err("validation should fail from resolved queue path");
+        Ok(())
+    }
+
+    #[test]
+    fn blocked_marker_roundtrip() -> Result<()> {
+        let temp = TempDir::new()?;
+        write_blocked_push_marker(temp.path(), "RQ-0001", "blocked reason", 5, 5)?;
+        let marker = read_blocked_push_marker(temp.path())?.expect("marker should exist");
+        assert_eq!(marker.task_id, "RQ-0001");
+        assert_eq!(marker.reason, "blocked reason");
+        assert_eq!(marker.attempt, 5);
+        assert_eq!(marker.max_attempts, 5);
+
+        clear_blocked_push_marker(temp.path());
+        assert!(read_blocked_push_marker(temp.path())?.is_none());
         Ok(())
     }
 }

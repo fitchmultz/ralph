@@ -25,6 +25,7 @@ pub fn execute_phase3_review(ctx: &PhaseInvocation<'_>) -> Result<(), anyhow::Er
                 &checklist_template,
                 ctx.task_id,
                 &ctx.resolved.config,
+                ctx.post_run_mode == PostRunMode::ParallelWorker,
             )?
         } else {
             let checklist_template = prompts::load_iteration_checklist(&ctx.resolved.repo_root)?;
@@ -132,30 +133,39 @@ pub fn execute_phase3_review(ctx: &PhaseInvocation<'_>) -> Result<(), anyhow::Er
         };
 
         if ctx.post_run_mode == PostRunMode::ParallelWorker {
-            let _runner = ctx.settings.runner.clone();
-            let _model = ctx.settings.model.clone();
-            let mut on_resume =
-                |_resume_output: &runner::RunnerOutput, _elapsed: std::time::Duration| Ok(());
-
-            // Run integration loop for direct-push parallel mode
             use crate::commands::run::parallel::{IntegrationConfig, run_integration_loop};
-            use crate::git::WorkspaceSpec;
 
-            let config = IntegrationConfig::from_resolved(ctx.resolved);
-            let workspace = WorkspaceSpec {
-                path: ctx.resolved.repo_root.clone(),
-                branch: format!("ralph/{}", ctx.task_id),
-            };
+            let target_branch = ctx.parallel_target_branch.ok_or_else(|| {
+                anyhow::anyhow!("parallel worker integration requires explicit target branch")
+            })?;
+            let config = IntegrationConfig::from_resolved(ctx.resolved, target_branch);
             let task_title = ctx.task_title.unwrap_or(ctx.task_id);
             let phase_summary = format!("Completed phases 1-3 for {}", ctx.task_id);
+            let integration_runner = ctx.settings.runner.clone();
+            let integration_model = ctx.settings.model.clone();
+            let integration_timings = ctx.execution_timings;
+            let mut integration_on_resume =
+                move |_resume_output: &runner::RunnerOutput, elapsed: std::time::Duration| {
+                    if let Some(timings) = integration_timings {
+                        timings.borrow_mut().record_runner_duration(
+                            PhaseType::Review,
+                            &integration_runner,
+                            &integration_model,
+                            elapsed,
+                        );
+                    }
+                    Ok(())
+                };
 
             match run_integration_loop(
                 ctx.resolved,
-                &workspace,
                 ctx.task_id,
                 task_title,
                 &config,
                 &phase_summary,
+                &mut continue_session,
+                &mut integration_on_resume,
+                ctx.plugins,
             ) {
                 Ok(crate::commands::run::parallel::IntegrationOutcome::Success) => {
                     log::info!("Integration loop succeeded for {}", ctx.task_id);
@@ -173,21 +183,6 @@ pub fn execute_phase3_review(ctx: &PhaseInvocation<'_>) -> Result<(), anyhow::Er
                     anyhow::bail!("Integration error: {}", e);
                 }
             }
-
-            crate::commands::run::post_run_supervise_parallel_worker(
-                ctx.resolved,
-                ctx.task_id,
-                ctx.git_revert_mode,
-                ctx.git_commit_push_enabled,
-                ctx.push_policy,
-                ctx.revert_prompt.clone(),
-                Some(supervision::CiContinueContext {
-                    continue_session: &mut continue_session,
-                    on_resume: &mut on_resume,
-                }),
-                ctx.lfs_check,
-                ctx.plugins,
-            )?;
             return Ok(());
         }
 

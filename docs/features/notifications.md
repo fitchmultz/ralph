@@ -25,7 +25,7 @@ Notifications are designed to be:
 
 ## Configuration
 
-Notifications are configured via the `agent.notification` section in your config file (`.ralph/config.json` or `~/.config/ralph/config.json`).
+Notifications are configured via the `agent.notification` section in your config file (`.ralph/config.jsonc` or `~/.config/ralph/config.jsonc`).
 
 ### Configuration Options
 
@@ -46,8 +46,8 @@ Settings are resolved in this order (highest to lowest):
 
 1. **CLI flags** (`--notify`, `--no-notify`, etc.)
 2. **Task-level overrides** (if supported in future versions)
-3. **Project config** (`.ralph/config.json`)
-4. **Global config** (`~/.config/ralph/config.json`)
+3. **Project config** (`.ralph/config.jsonc`)
+4. **Global config** (`~/.config/ralph/config.jsonc`)
 5. **Built-in defaults**
 
 ### Basic Configuration Example
@@ -494,7 +494,7 @@ Disable desktop notifications (no GUI available):
 
 Use different sounds for work vs personal projects:
 
-**Work project** (`.ralph/config.json`):
+**Work project** (`.ralph/config.jsonc`):
 ```json
 {
   "agent": {
@@ -506,7 +506,7 @@ Use different sounds for work vs personal projects:
 }
 ```
 
-**Personal project** (`.ralph/config.json`):
+**Personal project** (`.ralph/config.jsonc`):
 ```json
 {
   "agent": {
@@ -520,18 +520,7 @@ Use different sounds for work vs personal projects:
 
 ### Example 5: Quiet Hours Script
 
-Temporarily disable notifications during focus time:
-
-```bash
-#!/bin/bash
-# quiet-hours.sh - Disable Ralph notifications for 2 hours
-
-ralph config set agent.notification.enabled false
-sleep 7200
-ralph config set agent.notification.enabled true
-```
-
-Or use CLI overrides for specific runs:
+Use per-run CLI overrides during focus time:
 ```bash
 # Morning deep work session
 ralph run loop --no-notify --no-notify-fail
@@ -548,7 +537,7 @@ ralph run loop --notify --notify-fail
 
 1. **Check configuration:**
    ```bash
-   ralph config get agent.notification
+   ralph config show --format json | jq '.agent.notification'
    ```
 
 2. **Verify notification permissions:**

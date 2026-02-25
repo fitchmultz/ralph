@@ -221,8 +221,8 @@ crates/ralph/
 
 | Aspect | snarktank/ralph | mitchfultz/ralph |
 |--------|-----------------|------------------|
-| **Task storage** | `prd.json` | `.ralph/queue.json` |
-| **Archive** | `archive/YYYY-MM-DD-*/` | `.ralph/done.json` |
+| **Task storage** | `prd.json` | `.ralph/queue.jsonc` |
+| **Archive** | `archive/YYYY-MM-DD-*/` | `.ralph/done.jsonc` |
 | **Learnings** | `progress.txt` | Task `notes` field |
 | **Validation** | None | JSON Schema |
 | **Dependencies** | None | `depends_on` field |

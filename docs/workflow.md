@@ -5,9 +5,9 @@
 Purpose: Explain Ralph's high-level runtime layout, phases, and prompt override workflow without deep internals.
 
 ## Runtime Files
-- `.ralph/queue.json`: source of truth for active tasks.
-- `.ralph/done.json`: archive of completed tasks.
-- `.ralph/config.json`: project-level configuration.
+- `.ralph/queue.jsonc`: source of truth for active tasks.
+- `.ralph/done.jsonc`: archive of completed tasks.
+- `.ralph/config.jsonc`: project-level configuration.
 - `.ralph/prompts/*.md`: optional prompt overrides (defaults are embedded in the Rust CLI under `crates/ralph/assets/prompts/`).
 - `.ralph/cache/parallel/state.json`: parallel run state (in-flight workers and terminal outcomes).
 
@@ -65,7 +65,7 @@ configs if you have custom `worktree_root` settings.
 When all remaining tasks are blocked by unmet dependencies (`depends_on`) or future schedules (`scheduled_start`), the sequential run loop normally exits with a summary of the blockers. Use `--wait-when-blocked` to keep the loop running and poll for changes instead.
 
 Behavior:
-- The loop polls `.ralph/queue.json` and `.ralph/done.json` for changes
+- The loop polls `.ralph/queue.jsonc` and `.ralph/done.jsonc` for changes
 - When a runnable task appears (dependencies complete or schedule passes), the loop continues
 - Configurable poll interval (`--wait-poll-ms`, default: 1000ms, min: 50ms)
 - Optional timeout (`--wait-timeout-seconds`, 0 = no timeout)
@@ -100,7 +100,7 @@ When the queue is empty, the sequential run loop normally exits. Use `--wait-whe
 Behavior:
 - If the queue is empty at startup, the loop does not exit; it waits for work
 - If the loop runs out of candidates later, it waits instead of exiting
-- Uses filesystem notifications (`notify` crate) to watch `.ralph/queue.json` and `.ralph/done.json`
+- Uses filesystem notifications (`notify` crate) to watch `.ralph/queue.jsonc` and `.ralph/done.jsonc`
 - Falls back to polling if notifications fail
 - Configurable poll interval (`--empty-poll-ms`, default: 30000ms = 30s, min: 50ms)
 - No timeout in continuous mode (runs until stopped)

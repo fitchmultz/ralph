@@ -25,6 +25,27 @@ make install
 
 This installs the `ralph` binary to `~/.local/bin/ralph` (or a writable fallback).
 
+### Your First Contribution (Suggested Path)
+
+A low-risk first contribution loop:
+
+```bash
+# 1) Read orientation docs
+# (README + docs/index.md)
+
+# 2) Create a focused branch
+git checkout -b RQ-XXXX-first-contribution
+
+# 3) Make one small change + tests/docs
+
+# 4) Run local gate
+make agent-ci
+
+# 5) Open a PR with verification notes
+```
+
+For docs-only work, still run `make agent-ci` to ensure generated artifacts and formatting remain consistent.
+
 ## Development Workflow
 
 ### Local Development Cycle
@@ -257,6 +278,26 @@ None.
 
 This repository is local-CI-first. We avoid adding remote CI (e.g., GitHub Actions) as a substitute for `make agent-ci`. The local CI gate is the source of truth.
 
+### Public Release Readiness
+
+Before opening broad public visibility, run the dedicated checklist:
+
+- [Public Readiness Checklist](docs/guides/public-readiness.md)
+
+At minimum:
+
+```bash
+git status --short
+git log --oneline -n 40
+make agent-ci
+```
+
+If app changes are included in the release branch:
+
+```bash
+make macos-ci
+```
+
 ## Repository Structure
 
 Key locations to know:
@@ -268,9 +309,9 @@ Key locations to know:
 - `docs/`: CLI + workflow + configuration docs (`docs/index.md` is the entry point)
 - `schemas/`: Generated JSON schemas (committed)
 - `.ralph/`: Repo-local runtime state
-  - `queue.json`: Active tasks (source of truth)
-  - `done.json`: Archived tasks
-  - `config.json`: Project config (overrides global)
+  - `queue.jsonc` (`.json` fallback): Active tasks (source of truth)
+  - `done.jsonc` (`.json` fallback): Archived tasks
+  - `config.jsonc` (`.json` fallback): Project config (overrides global)
 
 ## Where to Get Help
 

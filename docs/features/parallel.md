@@ -214,7 +214,7 @@ For each attempt (up to `max_push_attempts`):
   "version": 1,
   "parallel": {
     "workers": 4,
-    "max_push_attempts": 5,
+    "max_push_attempts": 50,
     "push_backoff_ms": [500, 2000, 5000, 10000],
     "workspace_retention_hours": 24
   }
@@ -224,7 +224,7 @@ For each attempt (up to `max_push_attempts`):
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `workers` | 2 | Number of concurrent workers |
-| `max_push_attempts` | 5 | Max integration loop attempts per worker |
+| `max_push_attempts` | 50 | Max integration loop attempts per worker |
 | `push_backoff_ms` | `[500, 2000, 5000, 10000]` | Retry backoff intervals in milliseconds |
 | `workspace_retention_hours` | 24 | Hours to retain worker workspaces |
 

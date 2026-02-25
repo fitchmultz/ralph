@@ -246,7 +246,7 @@ Combined plan+implement for simple tasks:
 Converts user requests into queue tasks:
 - Analyzes user request
 - Generates proper task JSON
-- Inserts into `.ralph/queue.json`
+- Inserts into `.ralph/queue.jsonc`
 
 **Key Placeholders:**
 - `{{USER_REQUEST}}` - Original user input
@@ -384,18 +384,15 @@ This is a documentation repository. Prioritize:
 
 ### Configuration
 
-Set project type in `.ralph/config.json`:
+Set project type in `.ralph/config.jsonc`:
 
 ```json
 {
-  "project_type": "Code"
+  "project_type": "code"
 }
 ```
 
-Or via CLI:
-```bash
-ralph config set project_type Code
-```
+There is no dedicated `ralph config set` subcommand; edit the config file directly.
 
 ### Template Control
 
@@ -443,7 +440,7 @@ To generate the plan, you MUST use the `context_builder` tool...
 
 ### Configuration
 
-Enable RepoPrompt integration in `.ralph/config.json`:
+Enable RepoPrompt integration in `.ralph/config.jsonc`:
 
 ```json
 {

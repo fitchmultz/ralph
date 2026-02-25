@@ -51,27 +51,8 @@ pub(crate) fn select_next_task_locked(
     excluded_ids: &HashSet<String>,
     _queue_lock: &DirLock,
 ) -> Result<Option<(String, String)>> {
-    let done_path_exists = resolved.done_path.exists();
-    let done = if done_path_exists {
-        queue::load_queue_with_repair(&resolved.done_path)?
-    } else {
-        crate::contracts::QueueFile::default()
-    };
-    let done_ref = if done.tasks.is_empty() && !done_path_exists {
-        None
-    } else {
-        Some(&done)
-    };
-
-    let max_depth = resolved.config.queue.max_dependency_depth.unwrap_or(10);
-    let (queue_file, warnings) = queue::load_queue_with_repair_and_validate(
-        &resolved.queue_path,
-        done_ref,
-        &resolved.id_prefix,
-        resolved.id_width,
-        max_depth,
-    )?;
-    queue::log_warnings(&warnings);
+    let (queue_file, done_file) = queue::load_and_validate_queues(resolved, true)?;
+    let done_ref = done_file.as_ref();
 
     let idx =
         select_run_one_task_index_excluding(&queue_file, done_ref, include_draft, excluded_ids)?;
@@ -1241,6 +1222,112 @@ mod tests {
             result,
             Some(("RQ-0002".to_string(), "Blocked by dependency".to_string()))
         );
+        Ok(())
+    }
+
+    #[test]
+    fn select_next_task_locked_normalizes_non_utc_done_timestamps() -> Result<()> {
+        use crate::config;
+        use crate::contracts::{QueueFile, Task, TaskStatus};
+        use tempfile::TempDir;
+
+        let temp = TempDir::new()?;
+        let repo_root = temp.path().to_path_buf();
+        let ralph_dir = repo_root.join(".ralph");
+        std::fs::create_dir_all(&ralph_dir)?;
+
+        let queue_path = ralph_dir.join("queue.json");
+        let done_path = ralph_dir.join("done.json");
+
+        let mut queue_file = QueueFile::default();
+        queue_file.tasks.push(Task {
+            id: "RQ-0002".to_string(),
+            title: "Ready task".to_string(),
+            description: None,
+            status: TaskStatus::Todo,
+            priority: crate::contracts::TaskPriority::Medium,
+            tags: vec![],
+            scope: vec![],
+            evidence: vec![],
+            plan: vec![],
+            notes: vec![],
+            request: None,
+            agent: None,
+            created_at: Some("2026-01-01T00:00:00Z".to_string()),
+            updated_at: Some("2026-01-01T00:00:00Z".to_string()),
+            completed_at: None,
+            started_at: None,
+            scheduled_start: None,
+            depends_on: vec!["RQ-0001".to_string()],
+            blocks: vec![],
+            relates_to: vec![],
+            duplicates: None,
+            custom_fields: std::collections::HashMap::new(),
+            estimated_minutes: None,
+            actual_minutes: None,
+            parent_id: None,
+        });
+        queue::save_queue(&queue_path, &queue_file)?;
+
+        let mut done_file = QueueFile::default();
+        done_file.tasks.push(Task {
+            id: "RQ-0001".to_string(),
+            title: "Completed dependency".to_string(),
+            description: None,
+            status: TaskStatus::Done,
+            priority: crate::contracts::TaskPriority::Medium,
+            tags: vec![],
+            scope: vec![],
+            evidence: vec![],
+            plan: vec![],
+            notes: vec![],
+            request: None,
+            agent: None,
+            created_at: Some("2026-02-22T17:34:44-07:00".to_string()),
+            updated_at: Some("2026-02-22T17:34:44-07:00".to_string()),
+            completed_at: Some("2026-02-22T17:34:44-07:00".to_string()),
+            started_at: None,
+            scheduled_start: None,
+            depends_on: vec![],
+            blocks: vec![],
+            relates_to: vec![],
+            duplicates: None,
+            custom_fields: std::collections::HashMap::new(),
+            estimated_minutes: None,
+            actual_minutes: None,
+            parent_id: None,
+        });
+        queue::save_queue(&done_path, &done_file)?;
+
+        let resolved = config::Resolved {
+            config: crate::contracts::Config::default(),
+            repo_root: repo_root.clone(),
+            queue_path,
+            done_path: done_path.clone(),
+            id_prefix: "RQ".to_string(),
+            id_width: 4,
+            global_config_path: None,
+            project_config_path: None,
+        };
+
+        let queue_lock = queue::acquire_queue_lock(&repo_root, "test", false)?;
+        let excluded = HashSet::new();
+        let result = select_next_task_locked(&resolved, false, &excluded, &queue_lock)?;
+        assert_eq!(
+            result,
+            Some(("RQ-0002".to_string(), "Ready task".to_string()))
+        );
+
+        let repaired_done = queue::load_queue(&done_path)?;
+        let completed = repaired_done.tasks[0]
+            .completed_at
+            .as_deref()
+            .expect("completed_at should remain set");
+        let normalized = crate::timeutil::format_rfc3339(crate::timeutil::parse_rfc3339(
+            "2026-02-22T17:34:44-07:00",
+        )?)?;
+        assert_eq!(completed, normalized);
+
         Ok(())
     }
 

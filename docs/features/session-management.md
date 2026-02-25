@@ -169,7 +169,7 @@ RQ-0001-p3-1704160800
 
 ### 1. Session Detection
 
-When Ralph starts (`ralph run loop` or `ralph run task`), it checks for an existing session:
+When Ralph starts (`ralph run loop` or `ralph run one`), it checks for an existing session:
 
 ```rust
 match session::check_session(&cache_dir, &queue_file, session_timeout_hours)? {
@@ -205,8 +205,8 @@ For valid sessions, Ralph displays:
 ╠══════════════════════════════════════════════════════════════╣
 ║  Phase Settings:                                             ║
 ║    Phase 1:   Claude/sonnet                                  ║
-║    Phase 2:   Codex/o3-mini, effort=High                     ║
-║    Phase 3:   Claude/haiku                                   ║
+║    Phase 2:   Codex/gpt-5.2-codex, effort=High               ║
+║    Phase 3:   Claude/sonnet                                  ║
 ╚══════════════════════════════════════════════════════════════╝
 
 Resume this session? [Y/n]:
@@ -231,7 +231,7 @@ Sessions older than **24 hours** are considered stale by default and require exp
 
 ### Configuration
 
-Configure the timeout in `.ralph/config.json`:
+Configure the timeout in `.ralph/config.jsonc`:
 
 ```json
 {
@@ -287,8 +287,8 @@ Use the `--resume` flag to auto-resume without prompting:
 # Auto-resume interrupted session
 ralph run loop --resume
 
-# Resume specific task
-ralph run task RQ-0001 --resume
+# Resume and target a specific task
+ralph run one --id RQ-0001 --resume
 ```
 
 When `--resume` is specified:

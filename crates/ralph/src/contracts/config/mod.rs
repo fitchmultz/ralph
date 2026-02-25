@@ -204,7 +204,7 @@ impl Default for Config {
             parallel: ParallelConfig {
                 workers: None,
                 workspace_root: None,
-                max_push_attempts: Some(5),
+                max_push_attempts: Some(50),
                 push_backoff_ms: Some(default_push_backoff_ms()),
                 workspace_retention_hours: Some(24),
             },

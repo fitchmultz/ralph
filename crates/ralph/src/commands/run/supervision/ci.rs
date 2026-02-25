@@ -683,6 +683,30 @@ NO skipping tests, half-assed patches, or sloppy shortcuts."#
     )
 }
 
+fn ci_gate_result_from_failure(result: &CiFailure) -> CiGateResult {
+    CiGateResult {
+        success: false,
+        exit_code: result.exit_code,
+        stdout: result.stdout.clone(),
+        stderr: result.stderr.clone(),
+    }
+}
+
+fn send_continue_message<F>(
+    resolved: &crate::config::Resolved,
+    continue_session: &mut super::ContinueSession,
+    message: &str,
+    on_resume: &mut F,
+    plugins: Option<&crate::plugins::registry::PluginRegistry>,
+) -> Result<()>
+where
+    F: FnMut(&crate::runner::RunnerOutput, std::time::Duration) -> Result<()>,
+{
+    let (output, elapsed) =
+        super::resume_continue_session(resolved, continue_session, message, plugins)?;
+    on_resume(&output, elapsed)
+}
+
 /// Executes CI gate with auto-retry and Continue support via a runner session.
 pub(crate) fn run_ci_gate_with_continue_session<F>(
     resolved: &crate::config::Resolved,
@@ -734,12 +758,7 @@ where
                 current_pattern.as_deref().unwrap_or("unknown")
             );
 
-            let gate_result = CiGateResult {
-                success: false,
-                exit_code: result.exit_code,
-                stdout: result.stdout.clone(),
-                stderr: result.stderr.clone(),
-            };
+            let gate_result = ci_gate_result_from_failure(&result);
 
             let detected = detect_ci_error_pattern(&result.stdout, &result.stderr);
             let specific_guidance = detected
@@ -758,13 +777,13 @@ where
                 runutil::RevertOutcome::Continue { message } => {
                     let combined_message =
                         build_ci_failure_message_with_user_input(resolved, &gate_result, &message);
-                    let (output, elapsed) = super::resume_continue_session(
+                    send_continue_message(
                         resolved,
                         continue_session,
                         &combined_message,
+                        &mut on_resume,
                         plugins,
                     )?;
-                    on_resume(&output, elapsed)?;
 
                     // User intervention supplied new guidance; give the agent a fresh retry window.
                     continue_session.last_ci_error_pattern = None;
@@ -807,16 +826,15 @@ where
 
             // Include the CI output in the compliance message
             // Build CiGateResult from CiFailure for message formatting
-            let gate_result = CiGateResult {
-                success: false,
-                exit_code: result.exit_code,
-                stdout: result.stdout.clone(),
-                stderr: result.stderr.clone(),
-            };
+            let gate_result = ci_gate_result_from_failure(&result);
             let message = strict_ci_gate_compliance_message(resolved, &gate_result);
-            let (output, elapsed) =
-                super::resume_continue_session(resolved, continue_session, &message, plugins)?;
-            on_resume(&output, elapsed)?;
+            send_continue_message(
+                resolved,
+                continue_session,
+                &message,
+                &mut on_resume,
+                plugins,
+            )?;
             continue;
         }
 
@@ -830,21 +848,16 @@ where
         match outcome {
             runutil::RevertOutcome::Continue { message } => {
                 // Prepend strict CI compliance message to ensure agent sees CI output
-                let gate_result = CiGateResult {
-                    success: false,
-                    exit_code: result.exit_code,
-                    stdout: result.stdout.clone(),
-                    stderr: result.stderr.clone(),
-                };
+                let gate_result = ci_gate_result_from_failure(&result);
                 let combined_message =
                     build_ci_failure_message_with_user_input(resolved, &gate_result, &message);
-                let (output, elapsed) = super::resume_continue_session(
+                send_continue_message(
                     resolved,
                     continue_session,
                     &combined_message,
+                    &mut on_resume,
                     plugins,
                 )?;
-                on_resume(&output, elapsed)?;
                 continue;
             }
             _ => {
@@ -2048,6 +2061,13 @@ mod tests {
         };
 
         let resolved = resolved_with_ci_command(temp.path(), Some(command.to_string()), true);
+        let mut resolved = resolved;
+        resolved.config.agent.codex_bin = Some(
+            temp.path()
+                .join("missing-codex")
+                .to_string_lossy()
+                .to_string(),
+        );
         let mut session = continue_session_for_ci_tests();
         session.session_id = None;
         session.ci_failure_retry_count = 0;
@@ -2069,10 +2089,12 @@ mod tests {
             |_output, _elapsed| -> Result<()> { panic!("on_resume should not be called") },
             None,
         )
-        .expect_err("expected continue path to attempt resume and fail without session id");
+        .expect_err(
+            "expected continue path to attempt fresh invocation and fail on missing runner",
+        );
 
         let msg = err.to_string();
-        assert!(msg.contains("no session id captured"));
+        assert!(msg.contains("runner binary not found"));
         assert!(
             !msg.contains("MANUAL INTERVENTION REQUIRED"),
             "escalation continue path should attempt resume instead of immediate manual bailout"

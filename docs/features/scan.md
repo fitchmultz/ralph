@@ -362,7 +362,7 @@ Scan prompts are rendered from templates that define the agent's mission, evalua
 | V1 | `scan_maintenance_v1.md`, `scan_innovation_v1.md` | No |
 | V2 | `scan_general_v2.md`, `scan_maintenance_v2.md`, `scan_innovation_v2.md` | **Yes** |
 
-Configure in `.ralph/config.json`:
+Configure in `.ralph/config.jsonc`:
 ```json
 {
   "agent": {
@@ -425,7 +425,7 @@ Custom variables can be defined in config:
 
 After a successful scan, the agent:
 
-1. **Adds tasks to `.ralph/queue.json`**
+1. **Adds tasks to `.ralph/queue.jsonc`**
    - Tasks are inserted near the top in priority order
    - Higher priority tasks come first
    - Includes evidence, plan, scope, and tags
@@ -566,7 +566,7 @@ ralph scan --mode maintenance "add null checks"
 
 ### Safety Considerations
 
-- **Clean repo check**: Scan requires a clean repository (except for `.ralph/queue.json` and `.ralph/done.json`)
+- **Clean repo check**: Scan requires a clean repository (except for `.ralph/queue.jsonc` and `.ralph/done.jsonc`)
 - **Git revert on failure**: If scan fails, changes are automatically reverted
 - **Queue validation**: Queue is validated before and after scanning
 - **Force flag**: Use `--force` to bypass clean-repo check if needed
@@ -610,7 +610,7 @@ ralph scan --mode maintenance "performance issues"
 # Result: Agent explores and finds 8 performance bottlenecks
 
 # TASK BUILD: Create tasks for known work
-ralph task build refactor --threshold 1000
+ralph task build-refactor --threshold 1000
 # Result: Creates 5 tasks for files exceeding 1000 LOC
 
 # SCAN: Find security issues
@@ -618,7 +618,7 @@ ralph scan --mode maintenance "security vulnerabilities"
 # Result: Agent discovers 3 security issues
 
 # TASK BUILD: Refactor specific module
-ralph task build refactor --path crates/ralph/src/auth
+ralph task build-refactor --path crates/ralph/src/auth
 # Result: Creates tasks for large files in auth module
 ```
 

@@ -1,217 +1,159 @@
 # Ralph
 
-Purpose: Describe Ralph's CLI, defaults, and workflow entry points for contributors.
-
-Ralph is a tool for managing AI agent loops with a structured JSON task queue.
+Ralph is a Rust CLI for running AI agent loops against a structured JSON task queue.
 
 ![Ralph - AI Conductor](docs/assets/ralph-hero.png)
 
-## Status
+## Why This Project
 
-The Ralph CLI is in `crates/ralph/`.
+Ralph demonstrates practical AI-agent orchestration for real software work:
 
-- Queue (source of truth): `.ralph/queue.jsonc` (JSON with Comments; `.json` also supported)
-- Done archive: `.ralph/done.jsonc` (JSON with Comments; `.json` also supported)
-- Prompt templates: built-in defaults; override in `.ralph/prompts/`
-- **Production Verification:** See `.ralph/README.md`.
+- Structured task queue with explicit lifecycle, dependencies, and auditability
+- Multi-runner execution (`codex`, `opencode`, `gemini`, `claude`, `cursor`, `kimi`, `pi`)
+- Multi-phase supervision workflow (plan, implement, review)
+- Parallel execution model with workspace isolation and direct-push integration
+- Built-in safety rails (sanity checks, CI gating, retries, session recovery, undo snapshots)
 
-## Documentation
+## Core Capabilities
 
-**New to Ralph?** Start with the [Quick Start Guide](docs/quick-start.md) to get up and running in minutes.
+- Queue operations: validate, search, graph, tree, archive, repair, import/export
+- Task operations: create/build, edit, clone, split, relate, schedule, batch updates
+- Run supervision: `run one`, `run loop`, `run resume`, `run parallel status/retry`
+- Prompt tooling: inspect/export/sync embedded prompts
+- Integrations: plugins, webhooks, notifications, daemon/watch automation, macOS app bridge
+- Operational visibility: doctor diagnostics, runner capabilities, productivity analytics
 
-For complete reference, see `docs/index.md` for configuration, queue/task schema, CLI usage, workflow, and environment variables.
+## Architecture
 
-- For security policies and vulnerability reporting, see [SECURITY.md](./SECURITY.md).
-- For contribution guidelines, see [CONTRIBUTING.md](./CONTRIBUTING.md).
-- For community standards, see [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md).
+```mermaid
+flowchart LR
+  APP[macOS App\nSwiftUI] -->|shells out| CLI[ralph CLI\nRust]
+  CLI -->|reads/writes| QUEUE[.ralph/queue.jsonc]
+  CLI -->|reads/writes| DONE[.ralph/done.jsonc]
+  CLI -->|reads| CONFIG[.ralph/config.jsonc]
+  CLI -->|spawns| RUNNERS[Runner CLIs\nCodex / Claude / Gemini / OpenCode / Cursor / Kimi / Pi]
+```
 
-## Installation
+## Install
 
-### From crates.io (recommended)
+From crates.io:
 
 ```bash
 cargo install ralph
 ```
 
-### From source
+From source:
 
 ```bash
-# Clone the repository
 git clone https://github.com/mitchfultz/ralph
 cd ralph
-
-# Install locally
 make install
 ```
 
-## Shell Completions
-
-Ralph can generate shell completion scripts for bash, zsh, fish, PowerShell, and Elvish.
-
-### Quick Install
-
-**Bash:**
+## Quick Start
 
 ```bash
-ralph completions bash > ~/.local/share/bash-completion/completions/ralph
+# 1) Initialize a repository
+ralph init
+
+# 2) Add a task
+ralph task "Stabilize flaky queue integration test"
+
+# 3) Execute one task
+ralph run one
+
+# 4) Inspect queue state
+ralph queue list
 ```
 
-**Zsh:**
+### Reviewer Quickstart (No AI runner required)
+
+Use queue and graph commands to evaluate behavior without configuring external runner CLIs:
 
 ```bash
-ralph completions zsh > ~/.zfunc/_ralph
-# Add to ~/.zshrc if not already present:
-# fpath+=~/.zfunc
+ralph init
+ralph task "Create an initial queue item"
+ralph queue list
+ralph queue graph
+ralph queue validate
+ralph doctor
 ```
 
-**Fish:**
+macOS app (optional):
 
 ```bash
-ralph completions fish > ~/.config/fish/completions/ralph.fish
+ralph app open
 ```
 
-**PowerShell:**
+## Workflow Model
 
-```powershell
-ralph completions powershell > $PROFILE.CurrentUserAllHosts
-```
+Ralph supports three execution shapes:
 
-### Generate Without Installing
+- `--phases 1` (or `--quick`): single-pass execution
+- `--phases 2`: plan + implement
+- `--phases 3` (default): plan + implement + review
 
-To see the completion script without installing:
+Phase-specific runner/model overrides are supported with:
 
-```bash
-ralph completions <shell>
-```
+- `--runner-phase1/2/3`
+- `--model-phase1/2/3`
+- `--effort-phase1/2/3`
 
-Supported shells: `bash`, `zsh`, `fish`, `powershell`, `elvish`
+## Configuration
 
-## Platform Support
+Configuration precedence:
 
-Ralph is developed and tested on **Unix-like systems** (Linux, macOS). Windows support is limited:
+1. CLI flags
+2. Project config: `.ralph/config.jsonc` (`.json` fallback)
+3. Global config: `~/.config/ralph/config.jsonc` (`.json` fallback)
+4. Schema defaults
 
-- **Fully supported**: Linux, macOS
-- **Limited on Windows**:
-  - Process group control (Ctrl-C handling, timeout interrupts) is Unix-only
-  - PID liveness detection for stale lock detection is Unix-only
-  - Directory sync operations are no-ops on non-Unix platforms
-  - The Makefile requires a Unix environment (WSL recommended for Windows users)
-  - Lock error messages reference Unix commands (`rm -rf`)
+Minimal project config example:
 
-For Windows users, we recommend using WSL2 for full functionality.
-
-## Changelog
-
-See [CHANGELOG.md](./CHANGELOG.md) for version history and release notes.
-
-## Quick Start (Rust)
-
-- Install the `ralph` binary to `~/.local/bin`:
-  - `make install`
-- Run tests:
-  - `cargo test --workspace`
-- Validate queue:
-  - `cargo run -p ralph -- queue validate`
-- Inspect queue:
-  - `cargo run -p ralph -- queue list`
-- Add a task from a request:
-  - `cargo run -p ralph -- task "<request>"`
-- Seed the backlog with a scan:
-  - `cargo run -p ralph -- scan --focus "<focus>"`
-- Execute the next task (first `todo` task in queue order):
-  - `cargo run -p ralph -- run one`
-- Archive completed tasks:
-  - `cargo run -p ralph -- queue archive`
-
-## Prompt Overrides
-
-Ralph embeds default prompts in the Rust binary. To override them for a repo, add files here:
-
-- `.ralph/prompts/worker.md`
-- `.ralph/prompts/task_builder.md`
-- `.ralph/prompts/scan.md`
-
-If a file is missing, Ralph falls back to the embedded default. Any override must keep required
-placeholders (for example `{{USER_REQUEST}}` in the task builder prompt).
-
-## Runners (Codex + OpenCode + Gemini + Claude + Cursor + Kimi + Pi)
-
-Ralph supports Codex, OpenCode, Gemini, Claude, Cursor, Kimi, and Pi CLIs as runners.
-
-Quick usage:
-- Ensure runner binaries are installed and on `PATH`.
-- Use `--runner <kind>` on `task`, `scan`, or `run`:
-  - `cargo run -p ralph -- task --runner opencode --model gpt-5.2 "Add tests for X"`
-  - `cargo run -p ralph -- scan --runner opencode --model gpt-5.2 --focus "CI gaps"`
-  - `cargo run -p ralph -- run one --runner claude --model opus`
-
-Defaults and config:
-- `ralph run one` pulls runner/model from the task `agent` block if present, otherwise from config.
-- Configure defaults in `.ralph/config.jsonc` (or `~/.config/ralph/config.jsonc`; `.json` also supported):
-
-```json
+```jsonc
 {
   "version": 1,
   "agent": {
     "runner": "claude",
     "model": "sonnet",
-    "phases": 3,
-    "gemini_bin": "gemini"
-  }
-}
-```
-
-```json
-{
-  "version": 1,
-  "agent": {
-    "runner": "kimi",
-    "model": "kimi-for-coding",
     "phases": 3
   }
 }
 ```
 
-```json
-{
-  "version": 1,
-  "agent": {
-    "runner": "pi",
-    "model": "gpt-5.3",
-    "phases": 3
-  }
-}
+## Screenshots
+
+CLI workflow sample:
+
+![Ralph CLI sample output](docs/assets/images/2026-02-07-cli-commands.png)
+
+## Documentation
+
+Start here:
+
+- [Documentation Index](docs/index.md)
+- [Quick Start](docs/quick-start.md)
+- [CLI Reference](docs/cli.md)
+- [Configuration](docs/configuration.md)
+- [Portfolio / Reviewer Guide](PORTFOLIO.md)
+- [Public Readiness Checklist](docs/guides/public-readiness.md)
+
+Reference and policies:
+
+- [CONTRIBUTING.md](CONTRIBUTING.md)
+- [SECURITY.md](SECURITY.md)
+- [CHANGELOG.md](CHANGELOG.md)
+
+## Development
+
+```bash
+# fast local checks
+make agent-ci
+
+# full ship gate (includes macOS app checks)
+make macos-ci
 ```
 
-**Allowed models by runner:**
-- **Codex**: `gpt-5.3-codex`, `gpt-5.3`, `gpt-5.2-codex`, `gpt-5.2` (codex only supports these four)
-- **OpenCode**: arbitrary model IDs (e.g., `zai-coding-plan/glm-4.7`)
-- **Gemini**: `gemini-3-pro-preview`, `gemini-3-flash-preview`, or arbitrary IDs
-- **Claude**: `sonnet` (default), `opus`, or arbitrary model IDs
-- **Kimi**: `kimi-for-coding` (default, Kimi 2.5 coding model), or arbitrary model IDs
-- **Pi**: `gpt-5.3` (default), or arbitrary model IDs
+## License
 
-### RepoPrompt Integration
-Ralph can independently require RepoPrompt planning and tooling reminders. Configure `repoprompt_plan_required` to inject the Phase 1 planning instructions, and `repoprompt_tool_injection` to inject RepoPrompt tooling reminders in prompts. CLI `--repo-prompt <tools|plan|off>` (alias: `-rp`) controls both flags together. Breaking change: `--rp-on/--rp-off` were removed in favor of `--repo-prompt`.
-
-### Three-phase Workflow (Default)
-Ralph supports a 3-phase workflow by default:
-1. **Phase 1 (Planning)**: The agent generates a detailed plan and caches it in `.ralph/cache/plans/<TASK_ID>.md`.
-2. **Phase 2 (Implementation + CI)**: The agent implements the plan and must pass `make agent-ci` (which escalates to `make macos-ci` when `apps/RalphMac/` changes), then stops without completing the task.
-3. **Phase 3 (Code Review + Completion)**: The agent reviews the pending diff against hardcoded standards, refines as needed, re-runs `make agent-ci`, completes the task, and (when auto git commit/push is enabled) commits and pushes.
-
-Use `ralph run one --phases 3` for full 3-phase execution (default). Use `--phases 2` for plan+implement, or `--phases 1` for single-pass execution. You can also set `agent.phases` in config to control the default.
-
-## Configuration
-
-Ralph uses a two-layer JSON config:
-- Global: `~/.config/ralph/config.json`
-- Project: `.ralph/config.jsonc` (overrides global; `.json` also supported)
-
-## Project Types
-
- Ralph supports a configurable `project_type` (`code` or `docs`) to tune prompts and workflows. This is read from config and injects a project-type-specific guidance section into all prompts (worker, scan, and task builder).
-
- The guidance section appears at the end of each prompt if the `{{PROJECT_TYPE_GUIDANCE}}` placeholder is not present in a custom prompt override.
-
- See `.ralph/README.md` for Rust runtime-file details.
+MIT

@@ -25,7 +25,7 @@ The Task System is the core unit of work in Ralph. Tasks represent discrete piec
 
 ### What is a Task?
 
-A **Task** in Ralph is a JSON object representing a discrete unit of work. Tasks are stored in `.ralph/queue.json` (active work) or `.ralph/done.json` (completed work). Each task has:
+A **Task** in Ralph is a JSON object representing a discrete unit of work. Tasks are stored in `.ralph/queue.jsonc` (active work) or `.ralph/done.jsonc` (completed work). Each task has:
 
 - **Identity**: Unique ID, title, timestamps
 - **State**: Status, priority, tags
@@ -375,8 +375,8 @@ The `agent` field allows overriding global configuration for individual tasks.
 ### Configuration Precedence (Highest to Lowest)
 
 1. Per-task `agent` field in task
-2. Project config (`.ralph/config.json`)
-3. Global config (`~/.config/ralph/config.json`)
+2. Project config (`.ralph/config.jsonc`)
+3. Global config (`~/.config/ralph/config.jsonc`)
 4. Schema defaults
 
 ### Override Fields
@@ -955,7 +955,7 @@ ralph task edit status done RQ-0001  # Validates after edit
 | Clone task | `ralph task clone RQ-0001` |
 | Add dependency | `ralph task edit depends_on "RQ-0001,RQ-0002" RQ-0003` |
 | Relate tasks | `ralph task relate RQ-0001 RQ-0002` |
-| Mark duplicate | `ralph task duplicate RQ-0001 RQ-0002` |
+| Mark duplicate | `ralph task mark-duplicate RQ-0001 RQ-0002` |
 | List children | `ralph task children RQ-0001` |
 | Show parent | `ralph task parent RQ-0002` |
 | Validate queue | `ralph queue validate` |

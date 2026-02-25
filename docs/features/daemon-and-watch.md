@@ -297,7 +297,7 @@ launchctl unload ~/Library/LaunchAgents/com.ralph.daemon.plist
 
 Continuous mode keeps the daemon running indefinitely, waiting for new tasks when the queue is empty.
 
-**INTENDED BEHAVIOR**: Use filesystem notifications (`notify` crate) to watch `.ralph/queue.json` and `.ralph/done.json`, falling back to polling if notifications fail.
+**INTENDED BEHAVIOR**: Use filesystem notifications (`notify` crate) to watch `.ralph/queue.jsonc` and `.ralph/done.jsonc`, falling back to polling if notifications fail.
 
 **CURRENTLY IMPLEMENTED BEHAVIOR**: The run loop uses a poll-based approach when `--wait-when-empty` is enabled. The filesystem notification optimization may not be fully implemented in all code paths.
 
@@ -340,7 +340,7 @@ ralph run loop --wait-when-blocked
 
 1. Polls queue files at `--wait-poll-ms` interval
 2. Detects when blocked tasks become runnable:
-   - Dependencies completed (checked in `.ralph/done.json`)
+   - Dependencies completed (checked in `.ralph/done.jsonc`)
    - Schedule time reached
 3. Resumes execution automatically
 4. Optional timeout via `--wait-timeout-seconds`
