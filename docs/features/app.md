@@ -87,9 +87,25 @@ Practical implications:
 ## Automated UI Testing
 
 UI automation exists and is intentionally separated from the default macOS CI path because UI tests are headed and can take over mouse/keyboard.
-The Makefile now clears quarantine metadata and then re-signs UI test bundles ad-hoc before execution to avoid macOS Gatekeeper flagging `RalphMacUITests-Runner.app` as damaged.
+The Makefile clears quarantine metadata and re-signs UI test bundles ad-hoc to avoid macOS Gatekeeper flagging `RalphMacUITests-Runner.app` as damaged.
+Because macOS may require a one-time password/Touch ID approval when a rebuilt bundle first requests UI automation, the local workflow is split into build-once and retest-only targets.
 
-Run all UI tests:
+Build/sign UI bundles once for an interactive debugging session:
+
+```bash
+make macos-ui-build-for-testing
+```
+
+Re-run UI tests without rebuilding bundles:
+
+```bash
+make macos-ui-retest
+# Shared workstation: RALPH_XCODE_JOBS=4 make macos-ui-retest
+# Focus one test:
+RALPH_UI_ONLY_TESTING=RalphMacUITests/RalphMacUITests/test_createNewTask_viaQuickCreate make macos-ui-retest
+```
+
+Run all UI tests end-to-end in one command:
 
 ```bash
 make macos-test-ui
@@ -103,6 +119,7 @@ Run UI tests with full visual artifact capture (timeline screenshots + exported 
 make macos-test-ui-artifacts
 # writes timestamped artifacts under target/ui-artifacts/
 # includes .xcresult bundle, exported attachments, and summary.txt
+# internally uses build-once + retest-only flow to reduce repeated approval prompts
 ```
 
 After reviewing visuals, clean artifacts to avoid disk growth:

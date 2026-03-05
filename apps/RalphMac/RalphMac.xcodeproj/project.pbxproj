@@ -85,6 +85,7 @@
 		F840487D12000534308C7AE2 /* QuickActionsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DB332D2325D439859B8655F /* QuickActionsSection.swift */; };
 		FF6677889900AA11BB22CC33DD44EE55 /* TagEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE55FF6677889900AA11BB22CC33DD44 /* TagEditorView.swift */; };
 		QD7890123456ABCDEF012345 /* QueueDirectParseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = QF7890123456ABCDEF012345 /* QueueDirectParseTests.swift */; };
+		WTCTBUILD001234567890123 /* WorkspaceTaskCreationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = WTCTFILEREF0012345678901 /* WorkspaceTaskCreationTests.swift */; };
 		SETTINGSVIEW0012345678901 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = SETTINGSVIEWREF0012345678901 /* AppSettings.swift */; };
 		SETTINGSVIEWMODEL001234567 /* SettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = SETTINGSVIEWMODELREF001234567 /* SettingsViewModel.swift */; };
 		UITESTSBB0012345678901234 /* RalphMacUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = UITESTSFF1123456789012345 /* RalphMacUITests.swift */; };
@@ -210,6 +211,7 @@
 		F3014AC133794F7F8AF0E753 /* RalphModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RalphModels.swift; sourceTree = "<group>"; };
 		F7044ECE073A4355A364CD631452E561 /* KanbanBoardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = KanbanBoardView.swift; path = RalphMac/KanbanBoardView.swift; sourceTree = "<group>"; };
 		QF7890123456ABCDEF012345 /* QueueDirectParseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueDirectParseTests.swift; sourceTree = "<group>"; };
+		WTCTFILEREF0012345678901 /* WorkspaceTaskCreationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceTaskCreationTests.swift; sourceTree = "<group>"; };
 		SETTINGSVIEWMODELREF001234567 /* SettingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewModel.swift; sourceTree = "<group>"; };
 		SETTINGSVIEWREF0012345678901 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		UITESTSFF0012345678901234 /* RalphMacUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RalphMacUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -299,6 +301,7 @@
 				E21C3A89A6C7227DBEC1280A /* CrashReporterTests.swift */,
 				CD33445566778899AABBCCDD /* GraphAlgorithmsTests.swift */,
 				QF7890123456ABCDEF012345 /* QueueDirectParseTests.swift */,
+				WTCTFILEREF0012345678901 /* WorkspaceTaskCreationTests.swift */,
 			);
 			path = RalphCoreTests;
 			sourceTree = "<group>";
@@ -579,6 +582,7 @@
 				77EFDF19FDCC6111A2D9D960 /* CrashReporterTests.swift in Sources */,
 				CD445566778899AABBCCDDEE /* GraphAlgorithmsTests.swift in Sources */,
 				QD7890123456ABCDEF012345 /* QueueDirectParseTests.swift in Sources */,
+				WTCTBUILD001234567890123 /* WorkspaceTaskCreationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

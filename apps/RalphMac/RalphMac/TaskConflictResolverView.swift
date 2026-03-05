@@ -685,7 +685,7 @@ struct ErrorRecoveryView: View {
         }
 
         guard workspace.hasRalphQueueFile else {
-            return "⚠️ Queue validation skipped\n\nNo `.ralph/queue.json` found in \(workspace.workingDirectoryURL.path).\nRun `ralph init --non-interactive` in this directory first."
+            return "⚠️ Queue validation skipped\n\nNo `.ralph/queue.jsonc` found in \(workspace.workingDirectoryURL.path).\nRun `ralph init --non-interactive` in this directory first."
         }
 
         do {

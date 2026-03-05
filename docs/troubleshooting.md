@@ -60,8 +60,11 @@ Fixes:
 make macos-build
 make macos-test
 # for interactive UI runs only
-make macos-test-ui
+make macos-ui-build-for-testing
+make macos-ui-retest
 ```
+
+If macOS prompts for password/Touch ID before a UI run, that is the system approving Accessibility/Automation for a rebuilt test bundle. Reduce repeated prompts by building once and then iterating with `make macos-ui-retest` instead of rebuilding every run.
 
 If running on shared workstation, cap parallelism:
 
@@ -77,6 +80,12 @@ Use artifact mode:
 
 ```bash
 make macos-test-ui-artifacts
+```
+
+For targeted visual debugging without another rebuild:
+
+```bash
+RALPH_UI_ONLY_TESTING=RalphMacUITests/RalphMacUITests/test_createNewTask_viaQuickCreate make macos-ui-retest
 ```
 
 This writes timestamped evidence under `target/ui-artifacts/<timestamp>/`:

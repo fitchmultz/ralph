@@ -159,7 +159,14 @@ UI tests are **excluded by default** in CI because they take over the mouse and 
 # Run tests excluding UI tests (default)
 make macos-test
 
-# Run tests including UI tests (interactive - will take over mouse/keyboard)
+# Build/sign UI bundles once for a local debugging session
+make macos-ui-build-for-testing
+
+# Re-run UI tests without rebuilding/signing again
+make macos-ui-retest
+RALPH_UI_ONLY_TESTING=RalphMacUITests/RalphMacUITests/test_createNewTask_viaQuickCreate make macos-ui-retest
+
+# Run tests including UI tests end-to-end (interactive - will take over mouse/keyboard)
 make macos-test-ui
 
 # Or toggle via environment variable
@@ -167,7 +174,7 @@ RALPH_UI_TESTS=1 make macos-test   # Include UI tests (headed/interactive)
 RALPH_UI_TESTS=0 make macos-test   # Skip UI tests (default)
 ```
 
-**Warning:** UI tests (`RALPH_UI_TESTS=1`) will move your mouse cursor and send keyboard events. Do not use your computer while UI tests are running.
+**Warning:** UI tests (`RALPH_UI_TESTS=1` or `make macos-ui-retest`) will move your mouse cursor and send keyboard events. Do not use your computer while UI tests are running.
 
 ### E2E Test Behavior
 

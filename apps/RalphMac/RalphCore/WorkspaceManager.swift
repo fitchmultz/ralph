@@ -368,8 +368,7 @@ public final class WorkspaceManager: ObservableObject {
 
     private func workspaceIsRestorable(_ url: URL) -> Bool {
         guard workspaceDirectoryExists(url) else { return false }
-        let queueFile = url.appendingPathComponent(".ralph/queue.json", isDirectory: false)
-        return FileManager.default.fileExists(atPath: queueFile.path)
+        return Workspace.existingQueueFileURL(in: url) != nil
     }
 
     // MARK: - Version Compatibility

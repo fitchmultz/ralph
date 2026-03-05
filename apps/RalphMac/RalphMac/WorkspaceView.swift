@@ -196,6 +196,7 @@ struct WorkspaceView: View {
             .frame(width: 240)
             .help("Switch between List, Kanban, and Graph view (⌘⇧K)")
             .accessibilityLabel("Task view mode")
+            .accessibilityIdentifier("task-view-mode-picker")
         }
     }
 

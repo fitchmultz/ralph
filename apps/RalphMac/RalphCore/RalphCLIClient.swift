@@ -300,7 +300,7 @@ extension RecoveryError {
                 operation: operation,
                 suggestions: [
                     "Run `ralph init --non-interactive` in this workspace",
-                    "Switch to a directory that contains `.ralph/queue.json`",
+                    "Switch to a directory that contains `.ralph/queue.jsonc`",
                     "Use Queue > Refresh after initializing"
                 ],
                 workspaceURL: workspaceURL

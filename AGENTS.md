@@ -149,5 +149,7 @@ Never commit or print secrets. `.env` and `.env.*` are local-only and MUST remai
 
 ### macOS UI Visual Artifacts
 - `make macos-test-ui-artifacts` is the evidence workflow for headed UI runs (enables screenshot capture, exports attachments, writes summary).
+- Local iteration should use `make macos-ui-build-for-testing` once, then `make macos-ui-retest` to avoid repeated rebuild/sign prompts from macOS UI automation approval.
+- Use `RALPH_UI_ONLY_TESTING=<Target/Class/testMethod>` with `make macos-ui-retest` for focused debugging.
 - UI screenshot capture is opt-in only (`RALPH_UI_SCREENSHOTS=1` or `RALPH_UI_SCREENSHOT_MODE`); default `make macos-test-ui` stays lightweight.
 - Post-review cleanup is explicit: `make macos-ui-artifacts-clean`.

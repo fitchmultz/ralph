@@ -822,7 +822,7 @@ final class WorkspacePerformanceTests: XCTestCase {
     private static func writeEmptyQueueFile(in workspaceDir: URL) throws {
         let ralphDir = workspaceDir.appendingPathComponent(".ralph", isDirectory: true)
         try FileManager.default.createDirectory(at: ralphDir, withIntermediateDirectories: true)
-        let queueFile = ralphDir.appendingPathComponent("queue.json", isDirectory: false)
+        let queueFile = ralphDir.appendingPathComponent("queue.jsonc", isDirectory: false)
         try #"{"version":1,"tasks":[]}"#.write(to: queueFile, atomically: true, encoding: .utf8)
     }
 

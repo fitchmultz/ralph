@@ -13,7 +13,7 @@
 
  Invariants/assumptions:
  - Tests run with a fresh app instance (setUp/tearDown).
- - Accessibility labels are used for element identification.
+ - Stable accessibility identifiers are used for critical control identification.
  - Tests must be run on macOS 15.0+.
  - Visual capture is opt-in via `RALPH_UI_SCREENSHOTS=1` or `RALPH_UI_SCREENSHOT_MODE`.
  */
@@ -50,6 +50,18 @@ final class RalphMacUITests: XCTestCase {
         }
     }
 
+    private enum AccessibilityID {
+        static let newTaskToolbarButton = "new-task-toolbar-button"
+        static let taskListContainer = "task-list-container"
+        static let taskSearchField = "task-search-field"
+        static let taskViewModePicker = "task-view-mode-picker"
+    }
+
+    private enum LaunchEnvironment {
+        static let uiTestWorkspacePath = "RALPH_UI_TEST_WORKSPACE_PATH"
+        static let ralphBinPath = "RALPH_BIN_PATH"
+    }
+
     private let timelineIntervalNanos: UInt64 = 1_000_000_000
     private let timelineMaxFrames: Int = 180
 
@@ -58,6 +70,8 @@ final class RalphMacUITests: XCTestCase {
     private var screenshotSequence: Int = 0
     private var timelineCaptureTask: Task<Void, Never>?
     private var capturedFailureScreenshot: Bool = false
+    private var uiTestWorkspaceURL: URL?
+    private var ralphExecutableURL: URL?
 
     @MainActor
     override func setUp() async throws {
@@ -67,8 +81,15 @@ final class RalphMacUITests: XCTestCase {
         screenshotSequence = 0
         capturedFailureScreenshot = false
         app = XCUIApplication()
-        // Use a temp directory for workspace to avoid polluting real projects
+        ralphExecutableURL = try resolveRalphExecutableURL()
+        uiTestWorkspaceURL = try makeUITestWorkspace()
         app.launchArguments = ["--uitesting"]
+        if let uiTestWorkspaceURL {
+            app.launchEnvironment[LaunchEnvironment.uiTestWorkspacePath] = uiTestWorkspaceURL.path
+        }
+        if let ralphExecutableURL {
+            app.launchEnvironment[LaunchEnvironment.ralphBinPath] = ralphExecutableURL.path
+        }
         if name.contains("windowShortcuts") || name.contains("commandPaletteNewTab") {
             app.launchArguments.append("--uitesting-multiwindow")
         }
@@ -87,6 +108,11 @@ final class RalphMacUITests: XCTestCase {
         captureScreenshot(named: "teardown")
         app.terminate()
         app = nil
+        if let uiTestWorkspaceURL {
+            try? FileManager.default.removeItem(at: uiTestWorkspaceURL)
+            self.uiTestWorkspaceURL = nil
+        }
+        ralphExecutableURL = nil
         try await super.tearDown()
     }
 
@@ -109,9 +135,8 @@ final class RalphMacUITests: XCTestCase {
     @MainActor
     func test_createNewTask_viaQuickCreate() throws {
         // Tap New Task button
-        let newTaskButton = app.toolbars.buttons["New Task"]
-        XCTAssertTrue(newTaskButton.waitForExistence(timeout: 5))
-        newTaskButton.click()
+        XCTAssertTrue(newTaskToolbarButton.waitForExistence(timeout: 5))
+        newTaskToolbarButton.click()
         
         // Wait for Task Creation sheet
         let sheet = app.sheets.firstMatch
@@ -129,11 +154,14 @@ final class RalphMacUITests: XCTestCase {
         createButton.click()
         
         // Verify sheet dismisses
-        XCTAssertFalse(sheet.waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            waitUntil(timeout: 5) { !sheet.exists },
+            "Task creation sheet should dismiss after creating a task"
+        )
         
         // Verify task appears in list (by scrolling to find it)
-        let taskList = app.outlines.firstMatch
-        XCTAssertTrue(taskList.waitForExistence(timeout: 5))
+        let taskList = requireTaskList()
+        XCTAssertTrue(taskList.exists)
     }
 
     // MARK: - Test: Edit Task Title
@@ -143,11 +171,10 @@ final class RalphMacUITests: XCTestCase {
         try test_createNewTask_viaQuickCreate()
         
         // Wait for task list to load
-        let taskList = app.outlines.firstMatch
-        XCTAssertTrue(taskList.waitForExistence(timeout: 5))
+        let taskList = requireTaskList()
         
         // Select the first task row by clicking on a task cell
-        let firstTask = taskList.cells.firstMatch
+        let firstTask = taskRows(in: taskList).firstMatch
         XCTAssertTrue(firstTask.waitForExistence(timeout: 5))
         firstTask.click()
         
@@ -174,21 +201,19 @@ final class RalphMacUITests: XCTestCase {
     // MARK: - Test: Switch View Modes
     @MainActor
     func test_switchBetweenViewModes() throws {
-        // Find view mode picker
-        let viewModePicker = app.segmentedControls["Task view mode"]
-        XCTAssertTrue(viewModePicker.waitForExistence(timeout: 5))
+        XCTAssertTrue(waitUntil(timeout: 5) { taskViewModePicker().exists })
         
         // Switch to Kanban
-        viewModePicker.buttons["Kanban"].click()
+        selectTaskViewMode("Kanban")
         XCTAssertTrue(app.scrollViews["Kanban board"].waitForExistence(timeout: 5))
         
         // Switch to Graph
-        viewModePicker.buttons["Graph"].click()
+        selectTaskViewMode("Graph")
         XCTAssertTrue(app.scrollViews.firstMatch.waitForExistence(timeout: 5))
         
         // Switch back to List
-        viewModePicker.buttons["List"].click()
-        XCTAssertTrue(app.outlines.firstMatch.waitForExistence(timeout: 5))
+        selectTaskViewMode("List")
+        XCTAssertTrue(requireTaskList().exists)
     }
 
     // MARK: - Test: New Tab Creation
@@ -327,8 +352,8 @@ final class RalphMacUITests: XCTestCase {
     // MARK: - Test: Task Search and Filter
     @MainActor
     func test_taskSearchFunctionality() throws {
-        // Wait for task list
-        let searchField = app.searchFields.firstMatch
+        // Wait for task list controls
+        let searchField = taskSearchField
         XCTAssertTrue(searchField.waitForExistence(timeout: 5))
         
         // Type search query
@@ -352,11 +377,10 @@ final class RalphMacUITests: XCTestCase {
         try test_createNewTask_viaQuickCreate()
         
         // Wait for task list
-        let taskList = app.outlines.firstMatch
-        XCTAssertTrue(taskList.waitForExistence(timeout: 5))
+        let taskList = requireTaskList()
         
         // Click in the list to focus it
-        let firstTask = taskList.cells.firstMatch
+        let firstTask = taskRows(in: taskList).firstMatch
         XCTAssertTrue(firstTask.waitForExistence(timeout: 5))
         firstTask.click()
         
@@ -384,9 +408,8 @@ final class RalphMacUITests: XCTestCase {
         try test_createNewTask_viaQuickCreate()
         
         // Switch to Kanban view
-        let viewModePicker = app.segmentedControls["Task view mode"]
-        XCTAssertTrue(viewModePicker.waitForExistence(timeout: 5))
-        viewModePicker.buttons["Kanban"].click()
+        XCTAssertTrue(waitUntil(timeout: 5) { taskViewModePicker().exists })
+        selectTaskViewMode("Kanban")
         
         // Wait for Kanban board
         let kanbanBoard = app.scrollViews["Kanban board"]
@@ -417,9 +440,8 @@ final class RalphMacUITests: XCTestCase {
         try test_createNewTask_viaQuickCreate()
         
         // Select first task in list
-        let taskList = app.outlines.firstMatch
-        XCTAssertTrue(taskList.waitForExistence(timeout: 5))
-        let firstTask = taskList.cells.firstMatch
+        let taskList = requireTaskList()
+        let firstTask = taskRows(in: taskList).firstMatch
         XCTAssertTrue(firstTask.waitForExistence(timeout: 5))
         firstTask.click()
         
@@ -441,11 +463,10 @@ final class RalphMacUITests: XCTestCase {
         try test_createNewTask_viaQuickCreate()
         
         // Wait for task list to load
-        let taskList = app.outlines.firstMatch
-        XCTAssertTrue(taskList.waitForExistence(timeout: 5))
+        let taskList = requireTaskList()
         
         // Select the first task
-        let firstTask = taskList.cells.firstMatch
+        let firstTask = taskRows(in: taskList).firstMatch
         XCTAssertTrue(firstTask.waitForExistence(timeout: 5))
         firstTask.click()
         
@@ -475,9 +496,8 @@ final class RalphMacUITests: XCTestCase {
         try test_createNewTask_viaQuickCreate()
         
         // Select task
-        let taskList = app.outlines.firstMatch
-        XCTAssertTrue(taskList.waitForExistence(timeout: 5))
-        taskList.cells.firstMatch.click()
+        let taskList = requireTaskList()
+        taskRows(in: taskList).firstMatch.click()
         
         // Wait for detail view
         let titleField = app.textFields["Task title"]
@@ -493,6 +513,206 @@ final class RalphMacUITests: XCTestCase {
     }
 
     // MARK: - Helpers
+
+    private var newTaskToolbarButton: XCUIElement {
+        app.toolbars.descendants(matching: .button)
+            .matching(identifier: AccessibilityID.newTaskToolbarButton)
+            .element(boundBy: 0)
+    }
+
+    private var taskSearchField: XCUIElement {
+        app.textFields[AccessibilityID.taskSearchField]
+    }
+
+    @MainActor
+    private func taskViewModePicker() -> XCUIElement {
+        let radioGroup = app.radioGroups[AccessibilityID.taskViewModePicker]
+        if radioGroup.exists {
+            return radioGroup
+        }
+
+        let segmentedControl = app.segmentedControls[AccessibilityID.taskViewModePicker]
+        if segmentedControl.exists {
+            return segmentedControl
+        }
+
+        return radioGroup
+    }
+
+    @MainActor
+    private func requireTaskList(timeout: TimeInterval = 5, file: StaticString = #filePath, line: UInt = #line) -> XCUIElement {
+        let candidates = [
+            app.outlines[AccessibilityID.taskListContainer],
+            app.tables[AccessibilityID.taskListContainer],
+            app.collectionViews[AccessibilityID.taskListContainer],
+            app.scrollViews[AccessibilityID.taskListContainer],
+            app.otherElements[AccessibilityID.taskListContainer]
+        ]
+
+        XCTAssertTrue(
+            waitUntil(timeout: timeout) { candidates.contains(where: { $0.exists }) },
+            "Task list container should exist",
+            file: file,
+            line: line
+        )
+
+        return candidates.first(where: { $0.exists }) ?? candidates[0]
+    }
+
+    @MainActor
+    private func taskRows(in taskList: XCUIElement) -> XCUIElementQuery {
+        if taskList.cells.count > 0 {
+            return taskList.cells
+        }
+
+        return taskList.descendants(matching: .cell)
+    }
+
+    @MainActor
+    private func selectTaskViewMode(_ mode: String, file: StaticString = #filePath, line: UInt = #line) {
+        let picker = taskViewModePicker()
+        XCTAssertTrue(
+            waitUntil(timeout: 5) { picker.exists },
+            "Task view mode picker should exist",
+            file: file,
+            line: line
+        )
+
+        let radioButton = picker.radioButtons[mode]
+        if radioButton.exists || radioButton.waitForExistence(timeout: 2) {
+            radioButton.click()
+            return
+        }
+
+        let button = picker.buttons[mode]
+        XCTAssertTrue(
+            button.waitForExistence(timeout: 2),
+            "Expected task view mode option '\(mode)'",
+            file: file,
+            line: line
+        )
+        button.click()
+    }
+
+    private func makeUITestWorkspace() throws -> URL {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ralph-ui-tests", isDirectory: true)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+
+        try runRalph(arguments: ["init", "--non-interactive"], currentDirectoryURL: root)
+        try seedUITestQueue(at: root)
+
+        return root
+    }
+
+    private func seedUITestQueue(at workspaceURL: URL) throws {
+        let queueURL = workspaceURL
+            .appendingPathComponent(".ralph", isDirectory: true)
+            .appendingPathComponent("queue.jsonc", isDirectory: false)
+        let seededQueue = #"""
+        {
+          "version": 1,
+          "tasks": [
+            {
+              "id": "RQ-UI-001",
+              "status": "todo",
+              "title": "UI Fixture Alpha",
+              "priority": "high",
+              "tags": ["ui", "fixture"],
+              "created_at": "2026-03-05T00:00:00Z",
+              "updated_at": "2026-03-05T00:00:00Z"
+            },
+            {
+              "id": "RQ-UI-002",
+              "status": "todo",
+              "title": "UI Fixture Search Test",
+              "priority": "medium",
+              "tags": ["ui", "search"],
+              "created_at": "2026-03-05T00:05:00Z",
+              "updated_at": "2026-03-05T00:05:00Z"
+            }
+          ]
+        }
+        """#
+        try seededQueue.write(to: queueURL, atomically: true, encoding: .utf8)
+    }
+
+    private func runRalph(arguments: [String], currentDirectoryURL: URL) throws {
+        guard let executableURL = ralphExecutableURL else {
+            throw NSError(
+                domain: "RalphMacUITests",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Failed to resolve a ralph executable for UI tests"]
+            )
+        }
+
+        let process = Process()
+        process.executableURL = executableURL
+        process.currentDirectoryURL = currentDirectoryURL
+        process.arguments = ["--no-color"] + arguments
+
+        let stdoutPipe = Pipe()
+        let stderrPipe = Pipe()
+        process.standardOutput = stdoutPipe
+        process.standardError = stderrPipe
+
+        try process.run()
+        process.waitUntilExit()
+
+        guard process.terminationStatus == 0 else {
+            let stderr = String(data: stderrPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+            let stdout = String(data: stdoutPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+            throw NSError(
+                domain: "RalphMacUITests",
+                code: Int(process.terminationStatus),
+                userInfo: [
+                    NSLocalizedDescriptionKey: "ralph \(arguments.joined(separator: " ")) failed",
+                    "stdout": stdout,
+                    "stderr": stderr
+                ]
+            )
+        }
+    }
+
+    private func resolveRalphExecutableURL(environment: [String: String] = ProcessInfo.processInfo.environment) throws -> URL {
+        if let override = environment[LaunchEnvironment.ralphBinPath]?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !override.isEmpty {
+            let overrideURL = URL(fileURLWithPath: override, isDirectory: false)
+                .standardizedFileURL
+                .resolvingSymlinksInPath()
+            guard FileManager.default.isExecutableFile(atPath: overrideURL.path) else {
+                throw NSError(
+                    domain: "RalphMacUITests",
+                    code: 2,
+                    userInfo: [
+                        NSLocalizedDescriptionKey: "RALPH_BIN_PATH points to a non-executable path: \(overrideURL.path)"
+                    ]
+                )
+            }
+            return overrideURL
+        }
+
+        let bundledURL = Bundle.main.bundleURL
+            .deletingLastPathComponent()
+            .appendingPathComponent("RalphMac.app", isDirectory: true)
+            .appendingPathComponent("Contents", isDirectory: true)
+            .appendingPathComponent("MacOS", isDirectory: true)
+            .appendingPathComponent("ralph", isDirectory: false)
+            .standardizedFileURL
+            .resolvingSymlinksInPath()
+        if FileManager.default.isExecutableFile(atPath: bundledURL.path) {
+            return bundledURL
+        }
+
+        throw NSError(
+            domain: "RalphMacUITests",
+            code: 2,
+            userInfo: [
+                NSLocalizedDescriptionKey: "Failed to locate a bundled ralph executable for UI tests at \(bundledURL.path). Build the app bundle or set RALPH_BIN_PATH explicitly."
+            ]
+        )
+    }
 
     @MainActor
     private func captureScreenshot(named step: String) {

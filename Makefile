@@ -11,6 +11,8 @@ XCODE_DESTINATION ?= platform=macOS,arch=$(shell uname -m)
 RALPH_UI_TESTS ?= 0
 # UI screenshots: opt-in evidence capture for headed macOS UI tests.
 RALPH_UI_SCREENSHOTS ?= 0
+# UI screenshot mode: off|checkpoints|timeline (empty lets tests decide from RALPH_UI_SCREENSHOTS).
+RALPH_UI_SCREENSHOT_MODE ?=
 # Result bundle path override for UI evidence export workflows.
 XCODE_RESULT_BUNDLE_PATH ?=
 # Root directory for exported UI visual artifacts.
@@ -47,8 +49,8 @@ MAKEFLAGS += --no-builtin-rules
 .PHONY: help install update lint lint-fix format format-check type-check clean clean-temp test generate docs build ci ci-fast deps \
 	changelog changelog-preview changelog-check release release-dry-run release-artifacts pre-commit pre-public-check \
 	agent-ci check-env-safety check-backup-artifacts check-repo-safety macos-preflight macos-build macos-test macos-ci macos-test-ui \
-	macos-test-ui-artifacts macos-ui-artifacts-clean macos-test-window-shortcuts coverage coverage-clean FORCE
-
+	macos-ui-build-for-testing macos-ui-retest macos-test-ui-artifacts macos-ui-artifacts-clean \
+	macos-test-window-shortcuts coverage coverage-clean FORCE
 help:
 	@echo "Common targets:"
 	@echo "  make ci-fast     # Fast deterministic Rust/CLI gate for day-to-day development"
@@ -59,6 +61,8 @@ help:
 	@echo "  make coverage     # Generate code coverage report (requires cargo-llvm-cov)"
 	@echo "  make coverage-clean  # Remove coverage artifacts"
 	@echo "  make macos-test-window-shortcuts # Run focused multi-window shortcut UI regressions"
+	@echo "  make macos-ui-build-for-testing # Build/sign UI test bundles once for local iteration"
+	@echo "  make macos-ui-retest         # Re-run UI tests without rebuilding bundles"
 	@echo "  make macos-test-ui-artifacts # Run UI suite with screenshot artifacts + export summary"
 	@echo "  make macos-ui-artifacts-clean # Remove exported UI visual artifacts"
 	@echo "  make lint         # Clippy with -D warnings"
@@ -71,6 +75,7 @@ help:
 	@echo "  RALPH_CI_JOBS=4     # Caps cargo/nextest parallelism (0 = tool default)"
 	@echo "  RALPH_XCODE_JOBS=4  # Caps xcodebuild parallelism (0 = xcodebuild default)"
 	@echo "  RALPH_UI_SCREENSHOT_MODE=timeline # off|checkpoints|timeline (used by macos-test-ui-artifacts)"
+	@echo "  RALPH_UI_ONLY_TESTING=RalphMacUITests/RalphMacUITests/test_createNewTask_viaQuickCreate # Target macOS UI retests"
 	@echo "  RALPH_UI_ARTIFACTS_ROOT=target/ui-artifacts # Export root for visual artifacts"
 
 FORCE:
@@ -337,36 +342,11 @@ macos-test: macos-preflight $(RALPH_RELEASE_BUILD_STAMP)
 	result_bundle_path="$(XCODE_RESULT_BUNDLE_PATH)"; \
 	if [ "$$include_ui_tests" = "1" ]; then \
 		echo "→ macOS tests (Xcode, including UI tests - will take over mouse/keyboard)..."; \
-		rm -rf "$$derived_data_path" 2>/dev/null || true; \
-		result_bundle_args=(); \
-		if [ -n "$$result_bundle_path" ]; then \
-			mkdir -p "$$(dirname "$$result_bundle_path")"; \
-			result_bundle_args=(-resultBundlePath "$$result_bundle_path"); \
-		fi; \
-		RALPH_BIN_PATH="$$ralph_bin_path" xcodebuild \
-			-project apps/RalphMac/RalphMac.xcodeproj \
-			-scheme RalphMac \
-			-configuration Debug \
-			-destination '$(XCODE_DESTINATION)' \
-			-derivedDataPath "$$derived_data_path" \
-			$(XCODE_JOBS_FLAG) \
-			CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
-			SWIFT_TREAT_WARNINGS_AS_ERRORS=YES GCC_TREAT_WARNINGS_AS_ERRORS=YES \
-			build-for-testing; \
-		echo "→ Clearing quarantine metadata on UI test bundles..."; \
-		xattr -dr com.apple.quarantine "$$derived_data_path/Build/Products/Debug/RalphMac.app" "$$derived_data_path/Build/Products/Debug/RalphMacUITests-Runner.app" 2>/dev/null || true; \
-		echo "→ Re-signing UI test bundles (ad-hoc) to avoid Gatekeeper runner failures..."; \
-		codesign --force --deep --sign - "$$derived_data_path/Build/Products/Debug/RalphMac.app"; \
-		codesign --force --deep --sign - "$$derived_data_path/Build/Products/Debug/RalphMacUITests-Runner.app"; \
-		RALPH_UI_SCREENSHOTS="$(RALPH_UI_SCREENSHOTS)" RALPH_BIN_PATH="$$ralph_bin_path" xcodebuild \
-			-project apps/RalphMac/RalphMac.xcodeproj \
-			-scheme RalphMac \
-			-configuration Debug \
-			-destination '$(XCODE_DESTINATION)' \
-			-derivedDataPath "$$derived_data_path" \
-			$(XCODE_JOBS_FLAG) \
-			"$${result_bundle_args[@]}" \
-			test-without-building; \
+		$(MAKE) --no-print-directory macos-ui-build-for-testing; \
+		$(MAKE) --no-print-directory macos-ui-retest \
+			RALPH_UI_SCREENSHOTS="$(RALPH_UI_SCREENSHOTS)" \
+			RALPH_UI_SCREENSHOT_MODE="$(RALPH_UI_SCREENSHOT_MODE)" \
+			XCODE_RESULT_BUNDLE_PATH="$$result_bundle_path"; \
 	else \
 		echo "→ macOS tests (Xcode, skipping UI tests - use RALPH_UI_TESTS=1 to include)..."; \
 		skipped_tests="-skip-testing RalphMacUITests"; \
@@ -385,9 +365,72 @@ macos-test: macos-preflight $(RALPH_RELEASE_BUILD_STAMP)
 	fi; \
 	true
 
+# Build/sign macOS UI test bundles once for local iteration.
+# Use macos-ui-retest repeatedly afterward to avoid fresh bundle preparation.
+macos-ui-build-for-testing: macos-preflight $(RALPH_RELEASE_BUILD_STAMP)
+	@derived_data_path="$(XCODE_DERIVED_DATA_ROOT)/ui"; \
+	ralph_bin_path="$$(pwd)/target/release/ralph"; \
+	echo "→ macOS UI build-for-testing (one-time prompt may appear for a rebuilt bundle)..."; \
+	rm -rf "$$derived_data_path" 2>/dev/null || true; \
+	RALPH_BIN_PATH="$$ralph_bin_path" xcodebuild \
+		-project apps/RalphMac/RalphMac.xcodeproj \
+		-scheme RalphMac \
+		-configuration Debug \
+		-destination '$(XCODE_DESTINATION)' \
+		-derivedDataPath "$$derived_data_path" \
+		$(XCODE_JOBS_FLAG) \
+		CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+		SWIFT_TREAT_WARNINGS_AS_ERRORS=YES GCC_TREAT_WARNINGS_AS_ERRORS=YES \
+		build-for-testing; \
+	echo "→ Clearing quarantine metadata on UI test bundles..."; \
+	xattr -dr com.apple.quarantine "$$derived_data_path/Build/Products/Debug/RalphMac.app" "$$derived_data_path/Build/Products/Debug/RalphMacUITests-Runner.app" 2>/dev/null || true; \
+	echo "→ Re-signing UI test bundles (ad-hoc) to avoid Gatekeeper runner failures..."; \
+	codesign --force --deep --sign - "$$derived_data_path/Build/Products/Debug/RalphMac.app"; \
+	codesign --force --deep --sign - "$$derived_data_path/Build/Products/Debug/RalphMacUITests-Runner.app"; \
+	echo "  ✓ Prepared UI runner under $$derived_data_path"
+
+# Re-run macOS UI tests without rebuilding the app/runner bundles.
+# Optional: set RALPH_UI_ONLY_TESTING=<Target/Class/testMethod> to focus a single test.
+macos-ui-retest:
+	@derived_data_path="$(XCODE_DERIVED_DATA_ROOT)/ui"; \
+	ralph_bin_path="$$(pwd)/target/release/ralph"; \
+	result_bundle_path="$(XCODE_RESULT_BUNDLE_PATH)"; \
+	only_testing="$(RALPH_UI_ONLY_TESTING)"; \
+	app_bundle="$$derived_data_path/Build/Products/Debug/RalphMac.app"; \
+	runner_bundle="$$derived_data_path/Build/Products/Debug/RalphMacUITests-Runner.app"; \
+	if [ ! -d "$$app_bundle" ] || [ ! -d "$$runner_bundle" ]; then \
+		echo "ERROR: UI test bundles are not prepared. Run 'make macos-ui-build-for-testing' first." >&2; \
+		exit 2; \
+	fi; \
+	result_bundle_args=(); \
+	if [ -n "$$result_bundle_path" ]; then \
+		mkdir -p "$$(dirname "$$result_bundle_path")"; \
+		result_bundle_args=(-resultBundlePath "$$result_bundle_path"); \
+	fi; \
+	test_scope_args=(); \
+	if [ -n "$$only_testing" ]; then \
+		test_scope_args=(-only-testing:"$$only_testing"); \
+		echo "→ macOS UI retest (targeted: $$only_testing)..."; \
+	else \
+		echo "→ macOS UI retest (reusing prepared bundles; no rebuild)..."; \
+	fi; \
+	RALPH_UI_SCREENSHOTS="$(RALPH_UI_SCREENSHOTS)" \
+	RALPH_UI_SCREENSHOT_MODE="$(RALPH_UI_SCREENSHOT_MODE)" \
+	RALPH_BIN_PATH="$$ralph_bin_path" xcodebuild \
+		-project apps/RalphMac/RalphMac.xcodeproj \
+		-scheme RalphMac \
+		-configuration Debug \
+		-destination '$(XCODE_DESTINATION)' \
+		-derivedDataPath "$$derived_data_path" \
+		$(XCODE_JOBS_FLAG) \
+		"$${result_bundle_args[@]}" \
+		"$${test_scope_args[@]}" \
+		test-without-building
+
 # Run macOS UI tests (interactive - will take over mouse/keyboard)
 macos-test-ui:
-	@$(MAKE) --no-print-directory macos-test RALPH_UI_TESTS=1
+	@$(MAKE) --no-print-directory macos-ui-build-for-testing
+	@$(MAKE) --no-print-directory macos-ui-retest
 
 # Run macOS UI tests with visual artifact capture/export (interactive).
 # Stores timestamped artifacts under $(RALPH_UI_ARTIFACTS_ROOT)/<timestamp>/.
@@ -400,8 +443,8 @@ macos-test-ui-artifacts: macos-preflight $(RALPH_RELEASE_BUILD_STAMP)
 	mkdir -p "$$artifact_dir"; \
 	echo "→ macOS UI tests with screenshot artifact capture..."; \
 	set +e; \
-	$(MAKE) --no-print-directory macos-test \
-		RALPH_UI_TESTS=1 \
+	$(MAKE) --no-print-directory macos-ui-build-for-testing; \
+	$(MAKE) --no-print-directory macos-ui-retest \
 		RALPH_UI_SCREENSHOTS=1 \
 		RALPH_UI_SCREENSHOT_MODE=timeline \
 		XCODE_RESULT_BUNDLE_PATH="$$result_bundle_path"; \

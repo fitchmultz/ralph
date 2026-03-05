@@ -224,12 +224,12 @@ final class WindowStateTests: XCTestCase {
         try? FileManager.default.createDirectory(at: dir1.appendingPathComponent(".ralph"), withIntermediateDirectories: true)
         try? FileManager.default.createDirectory(at: dir2.appendingPathComponent(".ralph"), withIntermediateDirectories: true)
         try? #"{"version":1,"tasks":[]}"#.write(
-            to: dir1.appendingPathComponent(".ralph/queue.json"),
+            to: dir1.appendingPathComponent(".ralph/queue.jsonc"),
             atomically: true,
             encoding: .utf8
         )
         try? #"{"version":1,"tasks":[]}"#.write(
-            to: dir2.appendingPathComponent(".ralph/queue.json"),
+            to: dir2.appendingPathComponent(".ralph/queue.jsonc"),
             atomically: true,
             encoding: .utf8
         )
@@ -261,12 +261,12 @@ final class WindowStateTests: XCTestCase {
         try? FileManager.default.createDirectory(at: dir1.appendingPathComponent(".ralph"), withIntermediateDirectories: true)
         try? FileManager.default.createDirectory(at: dir2.appendingPathComponent(".ralph"), withIntermediateDirectories: true)
         try? #"{"version":1,"tasks":[]}"#.write(
-            to: dir1.appendingPathComponent(".ralph/queue.json"),
+            to: dir1.appendingPathComponent(".ralph/queue.jsonc"),
             atomically: true,
             encoding: .utf8
         )
         try? #"{"version":1,"tasks":[]}"#.write(
-            to: dir2.appendingPathComponent(".ralph/queue.json"),
+            to: dir2.appendingPathComponent(".ralph/queue.jsonc"),
             atomically: true,
             encoding: .utf8
         )
@@ -295,12 +295,12 @@ final class WindowStateTests: XCTestCase {
         try? FileManager.default.createDirectory(at: dir1.appendingPathComponent(".ralph"), withIntermediateDirectories: true)
         try? FileManager.default.createDirectory(at: dir2.appendingPathComponent(".ralph"), withIntermediateDirectories: true)
         try? #"{"version":1,"tasks":[]}"#.write(
-            to: dir1.appendingPathComponent(".ralph/queue.json"),
+            to: dir1.appendingPathComponent(".ralph/queue.jsonc"),
             atomically: true,
             encoding: .utf8
         )
         try? #"{"version":1,"tasks":[]}"#.write(
-            to: dir2.appendingPathComponent(".ralph/queue.json"),
+            to: dir2.appendingPathComponent(".ralph/queue.jsonc"),
             atomically: true,
             encoding: .utf8
         )

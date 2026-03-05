@@ -70,6 +70,7 @@ struct TaskListView: View {
                 Button(action: { showingTaskCreation = true }) {
                     Label("New Task", systemImage: "plus")
                 }
+                .accessibilityIdentifier("new-task-toolbar-button")
             }
             
             // Add bulk actions button when multi-select is active
@@ -166,6 +167,7 @@ struct TaskListView: View {
 
                 TextField("Search tasks...", text: $workspace.taskFilterText)
                     .textFieldStyle(.plain)
+                    .accessibilityIdentifier("task-search-field")
 
                 if !workspace.taskFilterText.isEmpty {
                     Button(action: { workspace.taskFilterText = "" }) {
@@ -323,6 +325,7 @@ struct TaskListView: View {
                         .contentShape(Rectangle())
                 }
                 .listStyle(.plain)
+                .accessibilityIdentifier("task-list-container")
                 #if swift(>=5.9)
                 .alternatingRowBackgrounds(.automatic)
                 #endif
