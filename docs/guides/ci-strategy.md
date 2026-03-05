@@ -69,6 +69,7 @@ Run only when needed (manual or scheduled in your own automation):
 
 ```bash
 make macos-test-ui
+make macos-test-ui-artifacts
 make macos-test-window-shortcuts
 make coverage
 ```
@@ -76,7 +77,14 @@ make coverage
 Why on-demand:
 
 - UI tests are headed and can take over keyboard/mouse.
+- Visual artifact capture is intentionally opt-in and can generate large files.
 - Coverage and UI suites are materially heavier than core gates.
+
+After reviewing visual evidence from `make macos-test-ui-artifacts`, clean up to control disk usage:
+
+```bash
+make macos-ui-artifacts-clean
+```
 
 ## Resource Controls
 

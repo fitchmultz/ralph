@@ -68,3 +68,25 @@ If running on shared workstation, cap parallelism:
 ```bash
 RALPH_CI_JOBS=4 RALPH_XCODE_JOBS=4 make macos-ci
 ```
+
+## Need Visual Evidence from UI Tests
+
+Symptom: UI run appears noisy/flaky but tests still pass, and you need inspectable visuals.
+
+Use artifact mode:
+
+```bash
+make macos-test-ui-artifacts
+```
+
+This writes timestamped evidence under `target/ui-artifacts/<timestamp>/`:
+
+- `RalphMacUITests.xcresult`
+- exported attachments (`attachments/`)
+- `summary.txt` with attachment counts and image paths
+
+After review, clean all exported visual artifacts:
+
+```bash
+make macos-ui-artifacts-clean
+```

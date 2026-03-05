@@ -146,3 +146,8 @@ Never commit or print secrets. `.env` and `.env.*` are local-only and MUST remai
 - Required fast safety gate in CI: `check-env-safety` target now delegates to `scripts/pre-public-check.sh --skip-ci --skip-links --skip-clean`.
 - Convenience alias: `make check-repo-safety`.
 - `scripts/pre-public-check.sh` enforces `.ralph` tracked-file allowlist (`README.md`, queue/done/config json/jsonc) and blocks tracked runtime dirs (`cache`, `logs`, `lock`, `workspaces`, `undo`, `webhooks`).
+
+### macOS UI Visual Artifacts
+- `make macos-test-ui-artifacts` is the evidence workflow for headed UI runs (enables screenshot capture, exports attachments, writes summary).
+- UI screenshot capture is opt-in only (`RALPH_UI_SCREENSHOTS=1` or `RALPH_UI_SCREENSHOT_MODE`); default `make macos-test-ui` stays lightweight.
+- Post-review cleanup is explicit: `make macos-ui-artifacts-clean`.

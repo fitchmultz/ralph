@@ -30,11 +30,17 @@ final class RalphMacUITestsLaunchTests: XCTestCase {
         let window = app.windows.firstMatch
         XCTAssertTrue(window.waitForExistence(timeout: 10))
 
-        // Capture screenshot for debugging
-        let attachment = XCTAttachment(screenshot: app.screenshot())
-        attachment.name = "Launch Screen"
-        attachment.lifetime = .keepAlways
-        add(attachment)
+        // Capture screenshot for debugging when visual capture mode is enabled.
+        let environment = ProcessInfo.processInfo.environment
+        let screenshotsEnabled = environment["RALPH_UI_SCREENSHOTS"] == "1"
+            || (environment["RALPH_UI_SCREENSHOT_MODE"]?.lowercased() != nil
+                && environment["RALPH_UI_SCREENSHOT_MODE"]?.lowercased() != "off")
+        if screenshotsEnabled {
+            let attachment = XCTAttachment(screenshot: app.screenshot())
+            attachment.name = "Launch-Screen"
+            attachment.lifetime = .keepAlways
+            add(attachment)
+        }
     }
 
     func testLaunchPerformance() throws {

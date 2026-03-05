@@ -15,18 +15,57 @@
  - Tests run with a fresh app instance (setUp/tearDown).
  - Accessibility labels are used for element identification.
  - Tests must be run on macOS 15.0+.
+ - Visual capture is opt-in via `RALPH_UI_SCREENSHOTS=1` or `RALPH_UI_SCREENSHOT_MODE`.
  */
 
 import XCTest
 
 @MainActor
 final class RalphMacUITests: XCTestCase {
+    private enum ScreenshotCaptureMode: Equatable {
+        case off
+        case checkpoints
+        case timeline
+
+        static func fromEnvironment(_ environment: [String: String]) -> Self {
+            if let rawMode = environment["RALPH_UI_SCREENSHOT_MODE"]?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+               !rawMode.isEmpty {
+                switch rawMode {
+                case "off", "0", "false", "no":
+                    return .off
+                case "timeline", "all", "full":
+                    return .timeline
+                case "checkpoints", "checkpoint", "1", "true", "yes":
+                    return .checkpoints
+                default:
+                    return .checkpoints
+                }
+            }
+
+            if environment["RALPH_UI_SCREENSHOTS"] == "1" {
+                return .checkpoints
+            }
+
+            return .off
+        }
+    }
+
+    private let timelineIntervalNanos: UInt64 = 1_000_000_000
+    private let timelineMaxFrames: Int = 180
+
     var app: XCUIApplication!
+    private var screenshotMode: ScreenshotCaptureMode = .off
+    private var screenshotSequence: Int = 0
+    private var timelineCaptureTask: Task<Void, Never>?
+    private var capturedFailureScreenshot: Bool = false
 
     @MainActor
     override func setUp() async throws {
         try await super.setUp()
         continueAfterFailure = false
+        screenshotMode = ScreenshotCaptureMode.fromEnvironment(ProcessInfo.processInfo.environment)
+        screenshotSequence = 0
+        capturedFailureScreenshot = false
         app = XCUIApplication()
         // Use a temp directory for workspace to avoid polluting real projects
         app.launchArguments = ["--uitesting"]
@@ -34,10 +73,18 @@ final class RalphMacUITests: XCTestCase {
             app.launchArguments.append("--uitesting-multiwindow")
         }
         app.launch()
+        captureScreenshot(named: "launch")
+        startTimelineCaptureIfNeeded()
     }
 
     @MainActor
     override func tearDown() async throws {
+        stopTimelineCapture()
+        if let testRun, !testRun.hasSucceeded, !capturedFailureScreenshot {
+            captureScreenshot(named: "failure-teardown")
+            capturedFailureScreenshot = true
+        }
+        captureScreenshot(named: "teardown")
         app.terminate()
         app = nil
         try await super.tearDown()
@@ -446,6 +493,57 @@ final class RalphMacUITests: XCTestCase {
     }
 
     // MARK: - Helpers
+
+    @MainActor
+    private func captureScreenshot(named step: String) {
+        guard screenshotMode != .off else { return }
+        guard app != nil else { return }
+
+        screenshotSequence += 1
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "\(sanitizedTestName())-\(String(format: "%03d", screenshotSequence))-\(sanitizedAttachmentToken(step))"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
+    @MainActor
+    private func startTimelineCaptureIfNeeded() {
+        guard screenshotMode == .timeline else { return }
+        stopTimelineCapture()
+
+        timelineCaptureTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            var frameIndex = 0
+            while !Task.isCancelled && frameIndex < self.timelineMaxFrames {
+                try? await Task.sleep(nanoseconds: self.timelineIntervalNanos)
+                guard !Task.isCancelled else { break }
+                self.captureScreenshot(named: "timeline-\(frameIndex)")
+                frameIndex += 1
+            }
+        }
+    }
+
+    @MainActor
+    private func stopTimelineCapture() {
+        timelineCaptureTask?.cancel()
+        timelineCaptureTask = nil
+    }
+
+    private func sanitizedTestName() -> String {
+        let cleaned = name
+            .replacingOccurrences(of: "^[-\\[]+", with: "", options: .regularExpression)
+            .replacingOccurrences(of: "[\\] ]+$", with: "", options: .regularExpression)
+            .replacingOccurrences(of: "[^A-Za-z0-9._-]+", with: "-", options: .regularExpression)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+        return cleaned.isEmpty ? "ui-test" : cleaned
+    }
+
+    private func sanitizedAttachmentToken(_ raw: String) -> String {
+        let cleaned = raw
+            .replacingOccurrences(of: "[^A-Za-z0-9._-]+", with: "-", options: .regularExpression)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+        return cleaned.isEmpty ? "checkpoint" : cleaned
+    }
 
     @MainActor
     private func ensureSecondWindow() {

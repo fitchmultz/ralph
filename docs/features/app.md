@@ -97,6 +97,20 @@ make macos-test-ui
 # macOS/Homebrew GNU Make users: gmake macos-test-ui
 ```
 
+Run UI tests with full visual artifact capture (timeline screenshots + exported attachments):
+
+```bash
+make macos-test-ui-artifacts
+# writes timestamped artifacts under target/ui-artifacts/
+# includes .xcresult bundle, exported attachments, and summary.txt
+```
+
+After reviewing visuals, clean artifacts to avoid disk growth:
+
+```bash
+make macos-ui-artifacts-clean
+```
+
 Run the focused window/tab shortcut regression suite:
 
 ```bash

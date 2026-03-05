@@ -9,6 +9,12 @@ XCODE_DERIVED_DATA_ROOT ?= target/tmp/xcode-deriveddata
 XCODE_DESTINATION ?= platform=macOS,arch=$(shell uname -m)
 # UI tests: Set to 1 to include UI tests (headed, mouse-interactive), 0 to skip (default for CI)
 RALPH_UI_TESTS ?= 0
+# UI screenshots: opt-in evidence capture for headed macOS UI tests.
+RALPH_UI_SCREENSHOTS ?= 0
+# Result bundle path override for UI evidence export workflows.
+XCODE_RESULT_BUNDLE_PATH ?=
+# Root directory for exported UI visual artifacts.
+RALPH_UI_ARTIFACTS_ROOT ?= target/ui-artifacts
 # Constrain local gate resource usage to keep machines responsive while multitasking.
 # Set to 0 to let cargo/nextest use tool defaults (max throughput).
 RALPH_CI_JOBS ?= 4
@@ -41,7 +47,7 @@ MAKEFLAGS += --no-builtin-rules
 .PHONY: help install update lint lint-fix format format-check type-check clean clean-temp test generate docs build ci ci-fast deps \
 	changelog changelog-preview changelog-check release release-dry-run release-artifacts pre-commit pre-public-check \
 	agent-ci check-env-safety check-backup-artifacts check-repo-safety macos-preflight macos-build macos-test macos-ci macos-test-ui \
-	macos-test-window-shortcuts coverage coverage-clean FORCE
+	macos-test-ui-artifacts macos-ui-artifacts-clean macos-test-window-shortcuts coverage coverage-clean FORCE
 
 help:
 	@echo "Common targets:"
@@ -53,6 +59,8 @@ help:
 	@echo "  make coverage     # Generate code coverage report (requires cargo-llvm-cov)"
 	@echo "  make coverage-clean  # Remove coverage artifacts"
 	@echo "  make macos-test-window-shortcuts # Run focused multi-window shortcut UI regressions"
+	@echo "  make macos-test-ui-artifacts # Run UI suite with screenshot artifacts + export summary"
+	@echo "  make macos-ui-artifacts-clean # Remove exported UI visual artifacts"
 	@echo "  make lint         # Clippy with -D warnings"
 	@echo "  make generate     # Regenerate committed JSON schemas via release binary"
 	@echo "  make install      # Install release binary to BIN_DIR"
@@ -62,6 +70,8 @@ help:
 	@echo "Resource knobs (optional):"
 	@echo "  RALPH_CI_JOBS=4     # Caps cargo/nextest parallelism (0 = tool default)"
 	@echo "  RALPH_XCODE_JOBS=4  # Caps xcodebuild parallelism (0 = xcodebuild default)"
+	@echo "  RALPH_UI_SCREENSHOT_MODE=timeline # off|checkpoints|timeline (used by macos-test-ui-artifacts)"
+	@echo "  RALPH_UI_ARTIFACTS_ROOT=target/ui-artifacts # Export root for visual artifacts"
 
 FORCE:
 
@@ -324,9 +334,15 @@ macos-test: macos-preflight $(RALPH_RELEASE_BUILD_STAMP)
 	@derived_data_path="$(XCODE_DERIVED_DATA_ROOT)/test"; \
 	ralph_bin_path="$$(pwd)/target/release/ralph"; \
 	include_ui_tests="$(RALPH_UI_TESTS)"; \
+	result_bundle_path="$(XCODE_RESULT_BUNDLE_PATH)"; \
 	if [ "$$include_ui_tests" = "1" ]; then \
 		echo "→ macOS tests (Xcode, including UI tests - will take over mouse/keyboard)..."; \
 		rm -rf "$$derived_data_path" 2>/dev/null || true; \
+		result_bundle_args=(); \
+		if [ -n "$$result_bundle_path" ]; then \
+			mkdir -p "$$(dirname "$$result_bundle_path")"; \
+			result_bundle_args=(-resultBundlePath "$$result_bundle_path"); \
+		fi; \
 		RALPH_BIN_PATH="$$ralph_bin_path" xcodebuild \
 			-project apps/RalphMac/RalphMac.xcodeproj \
 			-scheme RalphMac \
@@ -342,13 +358,14 @@ macos-test: macos-preflight $(RALPH_RELEASE_BUILD_STAMP)
 		echo "→ Re-signing UI test bundles (ad-hoc) to avoid Gatekeeper runner failures..."; \
 		codesign --force --deep --sign - "$$derived_data_path/Build/Products/Debug/RalphMac.app"; \
 		codesign --force --deep --sign - "$$derived_data_path/Build/Products/Debug/RalphMacUITests-Runner.app"; \
-		RALPH_BIN_PATH="$$ralph_bin_path" xcodebuild \
+		RALPH_UI_SCREENSHOTS="$(RALPH_UI_SCREENSHOTS)" RALPH_BIN_PATH="$$ralph_bin_path" xcodebuild \
 			-project apps/RalphMac/RalphMac.xcodeproj \
 			-scheme RalphMac \
 			-configuration Debug \
 			-destination '$(XCODE_DESTINATION)' \
 			-derivedDataPath "$$derived_data_path" \
 			$(XCODE_JOBS_FLAG) \
+			"$${result_bundle_args[@]}" \
 			test-without-building; \
 	else \
 		echo "→ macOS tests (Xcode, skipping UI tests - use RALPH_UI_TESTS=1 to include)..."; \
@@ -371,6 +388,57 @@ macos-test: macos-preflight $(RALPH_RELEASE_BUILD_STAMP)
 # Run macOS UI tests (interactive - will take over mouse/keyboard)
 macos-test-ui:
 	@$(MAKE) --no-print-directory macos-test RALPH_UI_TESTS=1
+
+# Run macOS UI tests with visual artifact capture/export (interactive).
+# Stores timestamped artifacts under $(RALPH_UI_ARTIFACTS_ROOT)/<timestamp>/.
+macos-test-ui-artifacts: macos-preflight $(RALPH_RELEASE_BUILD_STAMP)
+	@timestamp="$$(date +%Y%m%d-%H%M%S)"; \
+	artifact_dir="$(RALPH_UI_ARTIFACTS_ROOT)/$$timestamp"; \
+	result_bundle_path="$$artifact_dir/RalphMacUITests.xcresult"; \
+	attachments_dir="$$artifact_dir/attachments"; \
+	summary_path="$$artifact_dir/summary.txt"; \
+	mkdir -p "$$artifact_dir"; \
+	echo "→ macOS UI tests with screenshot artifact capture..."; \
+	set +e; \
+	$(MAKE) --no-print-directory macos-test \
+		RALPH_UI_TESTS=1 \
+		RALPH_UI_SCREENSHOTS=1 \
+		RALPH_UI_SCREENSHOT_MODE=timeline \
+		XCODE_RESULT_BUNDLE_PATH="$$result_bundle_path"; \
+	test_exit="$$?"; \
+	set -e; \
+	if [ -d "$$result_bundle_path" ]; then \
+		mkdir -p "$$attachments_dir"; \
+		echo "→ Exporting xcresult attachments..."; \
+		xcrun xcresulttool export attachments --path "$$result_bundle_path" --output-path "$$attachments_dir" > "$$artifact_dir/attachments-export.log" 2>&1 || true; \
+		attachment_count="$$(find "$$attachments_dir" -type f ! -name manifest.json | wc -l | tr -d ' ')"; \
+		image_count="$$(find "$$attachments_dir" -type f \( -name '*.png' -o -name '*.jpg' -o -name '*.jpeg' \) | wc -l | tr -d ' ')"; \
+		{ \
+			echo "Ralph macOS UI visual artifact summary"; \
+			echo "timestamp: $$timestamp"; \
+			echo "result_bundle: $$result_bundle_path"; \
+			echo "attachments_dir: $$attachments_dir"; \
+			echo "attachments_export_log: $$artifact_dir/attachments-export.log"; \
+			echo "attachment_files: $$attachment_count"; \
+			echo "image_files: $$image_count"; \
+			echo ""; \
+			echo "image attachment paths:"; \
+			find "$$attachments_dir" -type f \( -name '*.png' -o -name '*.jpg' -o -name '*.jpeg' \) | sed 's#^#- #' || true; \
+		} > "$$summary_path"; \
+		echo "  ✓ Result bundle: $$result_bundle_path"; \
+		echo "  ✓ Attachment export: $$attachments_dir"; \
+		echo "  ✓ Summary: $$summary_path"; \
+	else \
+		echo "  ⚠ No xcresult bundle found at $$result_bundle_path"; \
+	fi; \
+	echo "  ℹ Cleanup after review: make macos-ui-artifacts-clean"; \
+	exit "$$test_exit"
+
+# Remove exported UI visual artifacts after review.
+macos-ui-artifacts-clean:
+	@echo "→ Removing exported UI visual artifacts..."
+	@rm -rf "$(RALPH_UI_ARTIFACTS_ROOT)"
+	@echo "  ✓ UI visual artifacts removed"
 
 # Run targeted UI regressions for window/tab shortcut scoping.
 macos-test-window-shortcuts: macos-preflight $(RALPH_RELEASE_BUILD_STAMP)
