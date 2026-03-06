@@ -26,11 +26,11 @@ It provides:
 
 ```mermaid
 flowchart LR
-  APP[macOS App\nSwiftUI] -->|shells out| CLI[ralph CLI\nRust]
+  APP["macOS App<br>SwiftUI"] -->|shells out| CLI["ralph CLI<br>Rust"]
   CLI -->|reads/writes| QUEUE[.ralph/queue.jsonc]
   CLI -->|reads/writes| DONE[.ralph/done.jsonc]
   CLI -->|reads| CONFIG[.ralph/config.jsonc]
-  CLI -->|spawns| RUNNERS[Runner CLIs\nCodex / Claude / Gemini / OpenCode / Cursor / Kimi / Pi]
+  CLI -->|spawns| RUNNERS["Runner CLIs<br>Codex / Claude / Gemini / OpenCode / Cursor / Kimi / Pi"]
 ```
 
 ## Install
