@@ -17,13 +17,13 @@
 
 public import Foundation
 
-/// Constants for the supported CLI version range.
-/// These should be updated when the macOS app requires a different CLI version.
+/// Constants for the supported bundled CLI version.
+/// These values are synchronized from the repo-wide VERSION file.
 public enum VersionCompatibility {
-    /// Minimum supported CLI version (inclusive)
+    /// Minimum supported CLI version (inclusive).
     public static let minimumCLIVersion = "0.1.0"
-    /// Maximum supported CLI version (inclusive)
-    public static let maximumCLIVersion = "0.2.0"
+    /// Maximum supported CLI version (inclusive).
+    public static let maximumCLIVersion = "0.1.0"
     /// Cache duration for version check results (in seconds)
     public static let cacheDuration: TimeInterval = 300 // 5 minutes
 }

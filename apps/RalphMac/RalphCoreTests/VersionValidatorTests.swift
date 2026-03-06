@@ -69,28 +69,23 @@ final class VersionValidatorTests: XCTestCase {
     
     // MARK: - Version Validation
     
-    func test_validate_withinRange_compatible() {
+    func test_validate_currentVersion_compatible() {
         let validator = VersionValidator()
-        
-        let result1 = validator.validate("0.1.0")
-        XCTAssertTrue(result1.isCompatible)
-        if case .compatible = result1.status { /* pass */ } else { XCTFail("Expected compatible") }
-        
-        let result2 = validator.validate("0.1.5")
-        XCTAssertTrue(result2.isCompatible)
-        
-        let result3 = validator.validate("0.2.0")
-        XCTAssertTrue(result3.isCompatible)
+        let currentVersion = VersionCompatibility.minimumCLIVersion
+
+        let result = validator.validate(currentVersion)
+        XCTAssertTrue(result.isCompatible)
+        if case .compatible = result.status { /* pass */ } else { XCTFail("Expected compatible") }
     }
     
     func test_validate_tooOld() {
-        let validator = VersionValidator() // uses default 0.1.0 - 0.2.0 range
+        let validator = VersionValidator()
         
         let result = validator.validate("0.0.9")
         XCTAssertFalse(result.isCompatible)
         if case .tooOld(let found, let minimum) = result.status {
             XCTAssertEqual(found.description, "0.0.9")
-            XCTAssertEqual(minimum.description, "0.1.0")
+            XCTAssertEqual(minimum.description, VersionCompatibility.minimumCLIVersion)
         } else {
             XCTFail("Expected tooOld status")
         }
@@ -98,13 +93,19 @@ final class VersionValidatorTests: XCTestCase {
     }
     
     func test_validate_tooNew() {
-        let validator = VersionValidator() // uses default 0.1.0 - 0.2.0 range
-        
-        let result = validator.validate("0.3.0")
+        let validator = VersionValidator()
+        let currentVersion = VersionValidator.SemanticVersion(from: VersionCompatibility.maximumCLIVersion)!
+        let tooNewVersion = VersionValidator.SemanticVersion(
+            major: currentVersion.major,
+            minor: currentVersion.minor,
+            patch: currentVersion.patch + 1
+        )
+
+        let result = validator.validate(tooNewVersion.description)
         XCTAssertFalse(result.isCompatible)
         if case .tooNew(let found, let maximum) = result.status {
-            XCTAssertEqual(found.description, "0.3.0")
-            XCTAssertEqual(maximum.description, "0.2.0")
+            XCTAssertEqual(found.description, tooNewVersion.description)
+            XCTAssertEqual(maximum.description, VersionCompatibility.maximumCLIVersion)
         } else {
             XCTFail("Expected tooNew status")
         }
@@ -112,7 +113,7 @@ final class VersionValidatorTests: XCTestCase {
     }
     
     func test_validate_unparsable() {
-        let validator = VersionValidator() // uses default 0.1.0 - 0.2.0 range
+        let validator = VersionValidator()
         
         let result = validator.validate("not a version")
         XCTAssertFalse(result.isCompatible)
@@ -127,19 +128,25 @@ final class VersionValidatorTests: XCTestCase {
     // MARK: - Error Messages
     
     func test_errorMessage_containsVersionInfo() {
-        let validator = VersionValidator() // uses default 0.1.0 - 0.2.0 range
+        let validator = VersionValidator()
+        let currentVersion = VersionValidator.SemanticVersion(from: VersionCompatibility.maximumCLIVersion)!
+        let tooNewVersion = VersionValidator.SemanticVersion(
+            major: currentVersion.major,
+            minor: currentVersion.minor,
+            patch: currentVersion.patch + 1
+        )
         
         let tooOld = validator.validate("0.0.1")
         XCTAssertTrue(tooOld.errorMessage?.contains("0.0.1") ?? false)
-        XCTAssertTrue(tooOld.errorMessage?.contains("0.1.0") ?? false)
+        XCTAssertTrue(tooOld.errorMessage?.contains(VersionCompatibility.minimumCLIVersion) ?? false)
         
-        let tooNew = validator.validate("1.0.0")
-        XCTAssertTrue(tooNew.errorMessage?.contains("1.0.0") ?? false)
-        XCTAssertTrue(tooNew.errorMessage?.contains("0.2.0") ?? false)
+        let tooNew = validator.validate(tooNewVersion.description)
+        XCTAssertTrue(tooNew.errorMessage?.contains(tooNewVersion.description) ?? false)
+        XCTAssertTrue(tooNew.errorMessage?.contains(VersionCompatibility.maximumCLIVersion) ?? false)
     }
     
     func test_guidanceMessage_presentForErrors() {
-        let validator = VersionValidator() // uses default 0.1.0 - 0.2.0 range
+        let validator = VersionValidator()
         
         let result = validator.validate("0.0.1")
         XCTAssertNotNil(result.guidanceMessage)
@@ -147,9 +154,9 @@ final class VersionValidatorTests: XCTestCase {
     }
     
     func test_guidanceMessage_nilForCompatible() {
-        let validator = VersionValidator() // uses default 0.1.0 - 0.2.0 range
-        
-        let result = validator.validate("0.1.0")
+        let validator = VersionValidator()
+
+        let result = validator.validate(VersionCompatibility.minimumCLIVersion)
         XCTAssertNil(result.guidanceMessage)
         XCTAssertNil(result.errorMessage)
     }

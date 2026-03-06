@@ -24,7 +24,7 @@ NC='\033[0m' # No Color
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-CARGO_TOML="$REPO_ROOT/crates/ralph/Cargo.toml"
+source "$SCRIPT_DIR/versioning.sh"
 RELEASE_ARTIFACTS_DIR="$REPO_ROOT/target/release-artifacts"
 
 # Version (from argument or Cargo.toml)
@@ -63,11 +63,6 @@ sha256_file() {
         log_error "No SHA256 checksum tool found (expected shasum or sha256sum)"
         exit 1
     fi
-}
-
-# Get version from Cargo.toml
-get_version_from_cargo() {
-    grep '^version = ' "$CARGO_TOML" | head -1 | sed 's/version = "\(.*\)"/\1/'
 }
 
 # Detect current platform
@@ -260,7 +255,7 @@ Usage: scripts/build-release-artifacts.sh [OPTIONS] [VERSION]
 Build release artifacts for Ralph.
 
 Arguments:
-  VERSION    Version string (e.g., 0.2.0). If not provided, reads from Cargo.toml
+  VERSION    Version string (e.g., 0.2.0). If not provided, reads from VERSION
 
 Options:
   --current  Build only for the current platform (default)
@@ -318,12 +313,12 @@ main() {
 
     # Get version if not provided
     if [ -z "$VERSION" ]; then
-        VERSION=$(get_version_from_cargo)
-        log_info "Using version from Cargo.toml: $VERSION"
+        VERSION=$(read_canonical_version)
+        log_info "Using version from VERSION: $VERSION"
     fi
 
     # Validate version
-    if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    if ! validate_semver "$VERSION"; then
         log_error "Invalid version format: $VERSION"
         echo "  Version must be in semver format (e.g., 0.2.0)"
         exit 2

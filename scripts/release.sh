@@ -3,7 +3,7 @@
 # Purpose: Execute Ralph's local-only release workflow (no GitHub Actions).
 # Responsibilities:
 # - Validate release preconditions (branch, cleanliness, auth/tooling, tag availability).
-# - Update release metadata (Cargo version + CHANGELOG sections/links).
+# - Update release metadata (VERSION, Cargo version, app metadata, and CHANGELOG sections/links).
 # - Run local CI, package artifacts, generate checksums, and publish via GitHub CLI.
 # Scope:
 # - Operates on repository metadata and release artifacts only.
@@ -28,13 +28,19 @@ NC='\033[0m' # No Color
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+source "$SCRIPT_DIR/versioning.sh"
+
+VERSION_FILE="$REPO_ROOT/VERSION"
 CARGO_TOML="$REPO_ROOT/crates/ralph/Cargo.toml"
 CHANGELOG="$REPO_ROOT/CHANGELOG.md"
 RELEASE_NOTES_TEMPLATE="$REPO_ROOT/.github/release-notes-template.md"
 RELEASE_ARTIFACTS_DIR="$REPO_ROOT/target/release-artifacts"
 CRATE_PACKAGE_NAME="ralph-cli"
 ALLOWED_RELEASE_DIRTY_PATHS=(
+    "VERSION"
     "crates/ralph/Cargo.toml"
+    "apps/RalphMac/RalphMac.xcodeproj/project.pbxproj"
+    "apps/RalphMac/RalphCore/VersionValidator.swift"
     "CHANGELOG.md"
     "schemas/config.schema.json"
     "schemas/queue.schema.json"
@@ -79,7 +85,7 @@ usage() {
     echo ""
     echo "Release Process:"
     echo "  1. Pre-release validation (clean working dir, main branch, CI passes)"
-    echo "  2. Version bumping in Cargo.toml"
+    echo "  2. Version metadata sync (VERSION, Cargo.toml, Xcode, app compatibility)"
     echo "  3. CHANGELOG.md updates"
     echo "  4. crates.io packaging review + publish dry-run"
     echo "  5. crates.io publication for $CRATE_PACKAGE_NAME (unless skipped)"
@@ -210,15 +216,6 @@ run_cmd() {
     fi
 }
 
-# Validate semver format
-validate_version() {
-    local version="$1"
-    if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        log_error "VERSION must be in semver format (e.g., 0.2.0)"
-        exit 2
-    fi
-}
-
 is_allowed_release_dirty_path() {
     local path="$1"
     local allowed
@@ -338,6 +335,13 @@ check_prerequisites() {
     fi
     log_success "cargo found"
 
+    # Check python3 for version metadata synchronization and release notes rendering
+    if ! command -v python3 &> /dev/null; then
+        log_error "python3 is not installed"
+        exit 1
+    fi
+    log_success "python3 found"
+
     if [ "$SKIP_PUBLISH" != "1" ]; then
         if [ -n "${CARGO_REGISTRY_TOKEN:-}" ] || [ -f "$cargo_token_file" ]; then
             log_success "crates.io publish credentials found"
@@ -402,21 +406,23 @@ validate_repo_state() {
     log_success "Tag v$VERSION does not exist"
 }
 
-# Update version in Cargo.toml
-update_cargo_version() {
-    log_step "Updating version in Cargo.toml"
+# Update canonical and derived version metadata.
+sync_release_version_metadata() {
+    log_step "Syncing version metadata"
 
     local current_version
-    current_version=$(grep '^version = ' "$CARGO_TOML" | head -1 | sed 's/version = "\(.*\)"/\1/')
+    current_version=$(read_canonical_version)
     log_info "Current version: $current_version"
     log_info "New version: $VERSION"
 
     if [ "$DRY_RUN" = "1" ]; then
-        echo "    [DRY RUN] Would update $CARGO_TOML"
+        echo "    [DRY RUN] Would update $VERSION_FILE"
+        echo "    [DRY RUN] Would sync $CARGO_TOML"
+        echo "    [DRY RUN] Would sync apps/RalphMac/RalphMac.xcodeproj/project.pbxproj"
+        echo "    [DRY RUN] Would sync apps/RalphMac/RalphCore/VersionValidator.swift"
     else
-        sed -i.bak -E "s/^version = \"[0-9]+\.[0-9]+\.[0-9]+\"/version = \"$VERSION\"/" "$CARGO_TOML"
-        rm -f "$CARGO_TOML.bak"
-        log_success "Updated version in Cargo.toml"
+        sync_version_metadata "$VERSION"
+        log_success "Version metadata synchronized"
     fi
 }
 
@@ -759,14 +765,14 @@ create_git_tag() {
     log_step "Creating git commit and tag"
 
     if [ "$DRY_RUN" = "1" ]; then
-        echo "    [DRY RUN] Would stage: crates/ralph/Cargo.toml CHANGELOG.md schemas/config.schema.json schemas/queue.schema.json"
+        echo "    [DRY RUN] Would stage: VERSION crates/ralph/Cargo.toml apps/RalphMac/RalphMac.xcodeproj/project.pbxproj apps/RalphMac/RalphCore/VersionValidator.swift CHANGELOG.md schemas/config.schema.json schemas/queue.schema.json"
         echo "    [DRY RUN] Would commit: Release v$VERSION"
         echo "    [DRY RUN] Would tag: v$VERSION (annotated)"
     else
         cd "$REPO_ROOT"
 
         # Stage release metadata + generated schemas (if changed by CI/generate)
-        git add crates/ralph/Cargo.toml CHANGELOG.md schemas/config.schema.json schemas/queue.schema.json
+        git add VERSION crates/ralph/Cargo.toml apps/RalphMac/RalphMac.xcodeproj/project.pbxproj apps/RalphMac/RalphCore/VersionValidator.swift CHANGELOG.md schemas/config.schema.json schemas/queue.schema.json
 
         # Create commit
         git commit -m "Release v$VERSION"
@@ -849,7 +855,7 @@ rollback() {
     cd "$REPO_ROOT"
 
     # Reset release metadata changes
-    git checkout -- crates/ralph/Cargo.toml CHANGELOG.md schemas/config.schema.json schemas/queue.schema.json 2>/dev/null || true
+    git checkout -- VERSION crates/ralph/Cargo.toml apps/RalphMac/RalphMac.xcodeproj/project.pbxproj apps/RalphMac/RalphCore/VersionValidator.swift CHANGELOG.md schemas/config.schema.json schemas/queue.schema.json 2>/dev/null || true
 
     # Delete local tag if created
     if git rev-parse "v$VERSION" &> /dev/null; then
@@ -926,7 +932,10 @@ main() {
         exit 2
     fi
 
-    validate_version "$VERSION"
+    validate_semver "$VERSION" || {
+        log_error "VERSION must be in semver format (e.g., 0.2.0)"
+        exit 2
+    }
 
     if [ "$DRY_RUN" = "1" ]; then
         log_warn "DRY RUN MODE - No changes will be made"
@@ -941,7 +950,7 @@ main() {
     # Run release steps
     check_prerequisites
     validate_repo_state
-    update_cargo_version
+    sync_release_version_metadata
     generate_changelog_entries
     update_changelog
     run_ci

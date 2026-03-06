@@ -165,11 +165,12 @@ final class RalphCLIClientTests: XCTestCase {
         // Simulate a CLI that outputs version with v prefix
         let tempDir = try Self.makeTempDir(prefix: "ralph-cli-version-")
         defer { try? FileManager.default.removeItem(at: tempDir) }
+        let compatibleVersion = VersionCompatibility.maximumCLIVersion
 
         let scriptURL = tempDir.appendingPathComponent("mock-ralph", isDirectory: false)
         let scriptContent = """
             #!/bin/sh
-            echo "v0.1.5"
+            echo "v\(compatibleVersion)"
             """
         try scriptContent.write(to: scriptURL, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes(

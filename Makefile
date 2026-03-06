@@ -51,7 +51,7 @@ MAKEFLAGS += --warn-undefined-variables
 MAKEFLAGS += --no-builtin-rules
 
 .PHONY: help install macos-install-app update lint lint-fix format format-check type-check clean clean-temp test generate docs build ci ci-fast deps \
-	changelog changelog-preview changelog-check publish-check publish-crate release release-dry-run release-artifacts pre-commit pre-public-check \
+	changelog changelog-preview changelog-check version-check version-sync publish-check publish-crate release release-dry-run release-artifacts pre-commit pre-public-check \
 	agent-ci check-env-safety check-backup-artifacts check-repo-safety macos-preflight macos-build macos-test macos-ci macos-test-ui \
 	macos-ui-build-for-testing macos-ui-retest macos-test-ui-artifacts macos-ui-artifacts-clean \
 	macos-test-window-shortcuts coverage coverage-clean FORCE
@@ -74,6 +74,8 @@ help:
 	@echo "  make update       # Update Rust deps to latest stable; use macos-ci to verify the bundled Swift app toolchain"
 	@echo "  make install      # Install release CLI; on macOS also installs RalphMac.app"
 	@echo "  make macos-install-app # Copy latest Release RalphMac.app into Applications"
+	@echo "  make version-check # Verify VERSION, Cargo, and Xcode version metadata are synchronized"
+	@echo "  make version-sync VERSION=x.y.z # Sync repo version metadata from one canonical semver"
 	@echo "  make publish-check # Run cargo package review + crates.io dry-run for $(CARGO_PACKAGE_NAME)"
 	@echo "  make publish-crate # Publish the current $(CARGO_PACKAGE_NAME) manifest version to crates.io"
 	@echo "  make check-repo-safety # Fast required-files + env/runtime + secret checks"
@@ -99,6 +101,7 @@ $(RALPH_RELEASE_BUILD_STAMP): FORCE
 deps:
 	@echo "→ Fetching deps (locked)..."
 	@$(RALPH_ENV_RESET); cargo fetch --locked
+	@./scripts/versioning.sh check
 	@echo "  ✓ Deps fetched"
 
 install: $(RALPH_RELEASE_BUILD_STAMP)
@@ -228,6 +231,16 @@ changelog-preview:
 
 changelog-check:
 	@scripts/generate-changelog.sh --check
+
+version-check:
+	@./scripts/versioning.sh check
+
+version-sync:
+	@if [ -n "$(VERSION)" ]; then \
+		./scripts/versioning.sh sync --version "$(VERSION)"; \
+	else \
+		./scripts/versioning.sh sync; \
+	fi
 
 publish-check:
 	@echo "→ Validating crates.io package ($(CARGO_PACKAGE_NAME))..."

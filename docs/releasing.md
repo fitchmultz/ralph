@@ -181,12 +181,13 @@ The release script performs these steps:
    - Checks tag doesn't already exist
 
 2. **Version Updates**
-   - Updates version in `crates/ralph/Cargo.toml`
+   - Updates the canonical `VERSION` file
+   - Synchronizes derived version metadata in `crates/ralph/Cargo.toml`, the Xcode project, and app CLI compatibility checks
    - Updates `CHANGELOG.md` with new version section
 
 3. **CI Validation**
    - Runs `make ci` (or `RALPH_MAKE_CMD` override in script) to ensure everything passes
-   - Verifies post-CI tracked changes are limited to release-expected files (`Cargo.toml`, `CHANGELOG.md`, generated schemas)
+   - Verifies post-CI tracked changes are limited to release-expected files (`VERSION`, `Cargo.toml`, app version metadata, `CHANGELOG.md`, generated schemas)
 
 4. **crates.io Publication**
    - Reviews packaged files with `cargo package --list -p ralph-cli`
@@ -232,7 +233,7 @@ If you need more control, you can perform steps manually:
 
 ```bash
 VERSION=0.2.0
-sed -i.bak -E "s/^version = \"[0-9]+\.[0-9]+\.[0-9]+\"/version = \"$VERSION\"/" crates/ralph/Cargo.toml
+./scripts/versioning.sh sync --version "$VERSION"
 ```
 
 ### Step 2: Update Changelog
@@ -279,7 +280,7 @@ scripts/build-release-artifacts.sh --all $VERSION
 ### Step 6: Commit and Tag
 
 ```bash
-git add crates/ralph/Cargo.toml CHANGELOG.md schemas/config.schema.json schemas/queue.schema.json
+git add VERSION crates/ralph/Cargo.toml apps/RalphMac/RalphMac.xcodeproj/project.pbxproj apps/RalphMac/RalphCore/VersionValidator.swift CHANGELOG.md schemas/config.schema.json schemas/queue.schema.json
 git commit -m "Release v$VERSION"
 git tag -a "v$VERSION" -m "Release v$VERSION"
 git push origin main
@@ -380,8 +381,8 @@ git push origin ":refs/tags/v$VERSION"
 # Delete GitHub release
 gh release delete "v$VERSION" --yes
 
-# Revert changes to Cargo.toml and CHANGELOG.md
-git checkout -- crates/ralph/Cargo.toml CHANGELOG.md
+# Revert version metadata and changelog changes
+git checkout -- VERSION crates/ralph/Cargo.toml apps/RalphMac/RalphMac.xcodeproj/project.pbxproj apps/RalphMac/RalphCore/VersionValidator.swift CHANGELOG.md
 ```
 
 If crates.io publication already succeeded, do not attempt to republish the same version. Fix the later failure, then rerun with:
@@ -462,6 +463,7 @@ RALPH_RELEASE_SKIP_PUBLISH=1 scripts/release.sh 0.2.0
 Before running the release script:
 
 - [ ] All changes for this release are merged to `main`
+- [ ] `./scripts/versioning.sh check` passes
 - [ ] `make ci` passes locally
 - [ ] `cargo package --list -p ralph-cli` succeeds
 - [ ] `cargo publish --dry-run -p ralph-cli --locked` succeeds
@@ -490,6 +492,8 @@ Scripts are the canonical release entrypoints. Makefile targets below wrap those
 |--------|-------------|
 | `make release VERSION=0.2.0` | Run full release process (`scripts/release.sh`) |
 | `make release-dry-run VERSION=0.2.0` | Test release without side effects |
+| `make version-check` | Verify VERSION, Cargo, and app version metadata are synchronized |
+| `make version-sync VERSION=0.2.0` | Synchronize all derived version metadata from one canonical semver |
 | `make publish-check` | Review packaged files and run crates.io dry-run publication for `ralph-cli` |
 | `make publish-crate` | Publish `ralph-cli` to crates.io after running `make publish-check` |
 | `make release-artifacts` | Build release artifacts only |
@@ -507,4 +511,5 @@ Scripts are the canonical release entrypoints. Makefile targets below wrap those
 - `cliff.toml` - git-cliff configuration for RQ-#### pattern
 - `.github/release-notes-template.md` - Release notes template
 - `CHANGELOG.md` - Version history
+- `VERSION` - Canonical semantic version for the repo
 - `crates/ralph/Cargo.toml` - `ralph-cli` package manifest for the `ralph` executable

@@ -243,8 +243,9 @@ final class ErrorRecoveryTests: XCTestCase {
     }
 
     func testClassifyVersionMismatch() {
+        let minimumVersion = VersionCompatibility.minimumCLIVersion
         let error = NSError(domain: "VersionError", code: 1, userInfo: [
-            NSLocalizedDescriptionKey: "Ralph CLI version is too old (0.1.0). Minimum supported version is 0.2.0."
+            NSLocalizedDescriptionKey: "Ralph CLI version is too old (0.1.0). Minimum supported version is \(minimumVersion)."
         ])
 
         let recoveryError = RecoveryError.classify(error: error, operation: "checkVersion")
