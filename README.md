@@ -1,5 +1,9 @@
 # Ralph
 
+[![crates.io](https://img.shields.io/crates/v/ralph-agent-loop.svg)](https://crates.io/crates/ralph-agent-loop)
+[![docs.rs](https://img.shields.io/docsrs/ralph-agent-loop)](https://docs.rs/ralph-agent-loop)
+[![GitHub Release](https://img.shields.io/github/v/release/mitchfultz/ralph)](https://github.com/mitchfultz/ralph/releases)
+
 Ralph is a local-first AI coding workflow tool with a Rust CLI and a SwiftUI macOS app, both built around a structured task queue stored in your repository.
 
 Teams use Ralph when ad-hoc AI coding stops being enough and they need a repeatable way to turn requests into queued work, run that work through Codex/Claude/Gemini-style agents, and keep the result reviewable with local files, local CI, and explicit task history instead of hidden SaaS state.

@@ -82,6 +82,7 @@ fn release_script_help_exits_successfully() {
     assert_contains(&combined, "Environment Variables:");
     assert_contains(&combined, "Prerequisites:");
     assert_contains(&combined, "Release Process:");
+    assert_contains(&combined, "already on crates.io");
 }
 
 #[test]

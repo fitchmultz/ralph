@@ -8,6 +8,8 @@ Purpose: Document Ralph's complete local-only release workflow, including crates
 
 Ralph uses a local-only release process that publishes the crate to crates.io and then creates the GitHub release with `gh`. This keeps distribution aligned across Rust ecosystem install flows (`cargo install ralph-agent-loop`) and the project’s tarball releases while avoiding GitHub Actions.
 
+The release script is intentionally rerunnable after a partial release. If crates.io already has the requested version, `scripts/release.sh` skips the publish step and continues with the Git/GitHub release work instead of failing on an already-published crate.
+
 Release order matters:
 
 1. Publish `ralph-agent-loop` to crates.io.

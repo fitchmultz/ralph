@@ -93,6 +93,10 @@ usage() {
     echo "  7. Checksum generation (SHA256)"
     echo "  8. Git commit and annotated tag creation"
     echo "  9. GitHub release creation with asset upload via gh CLI"
+    echo ""
+    echo "Notes:"
+    echo "  - If $CRATE_PACKAGE_NAME v<version> is already on crates.io, the script skips"
+    echo "    crates.io publication and continues with the Git/GitHub release steps."
 }
 
 # Dry run mode
@@ -292,6 +296,11 @@ publish_crate() {
     fi
 
     cd "$REPO_ROOT"
+
+    if curl -fsS "https://crates.io/api/v1/crates/$CRATE_PACKAGE_NAME/$VERSION" >/dev/null 2>&1; then
+        log_warn "$CRATE_PACKAGE_NAME v$VERSION is already published on crates.io; skipping publication"
+        return 0
+    fi
 
     log_info "Reviewing packaged files for $CRATE_PACKAGE_NAME"
     cargo package --list -p "$CRATE_PACKAGE_NAME"

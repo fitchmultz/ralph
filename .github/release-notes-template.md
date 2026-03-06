@@ -2,13 +2,9 @@
 
 {{CHANGELOG_SECTION}}
 
-## Binaries
+## Release Assets
 
-| Platform | Architecture | Binary |
-|----------|-------------|--------|
-| Linux | x86_64 | `ralph-{{VERSION}}-linux-x64.tar.gz` |
-| macOS | x86_64 | `ralph-{{VERSION}}-macos-x64.tar.gz` |
-| macOS | arm64 | `ralph-{{VERSION}}-macos-arm64.tar.gz` |
+This release attaches the artifacts built locally for the release host. Download the tarball that matches your platform from the assets list below.
 
 ## Checksums
 
@@ -20,22 +16,11 @@
 
 ### Quick Install (macOS/Linux)
 
-Download and extract the appropriate binary for your platform:
+Download the appropriate release asset for your platform, then extract and install it:
 
 ```bash
-# macOS ARM64 (Apple Silicon)
-curl -LO https://github.com/mitchfultz/ralph/releases/download/v{{VERSION}}/ralph-{{VERSION}}-macos-arm64.tar.gz
-tar -xzf ralph-{{VERSION}}-macos-arm64.tar.gz
-mv ralph ~/.local/bin/
-
-# macOS x86_64 (Intel)
-curl -LO https://github.com/mitchfultz/ralph/releases/download/v{{VERSION}}/ralph-{{VERSION}}-macos-x64.tar.gz
-tar -xzf ralph-{{VERSION}}-macos-x64.tar.gz
-mv ralph ~/.local/bin/
-
-# Linux x86_64
-curl -LO https://github.com/mitchfultz/ralph/releases/download/v{{VERSION}}/ralph-{{VERSION}}-linux-x64.tar.gz
-tar -xzf ralph-{{VERSION}}-linux-x64.tar.gz
+curl -LO https://github.com/mitchfultz/ralph/releases/download/v{{VERSION}}/ralph-{{VERSION}}-<platform>.tar.gz
+tar -xzf ralph-{{VERSION}}-<platform>.tar.gz
 mv ralph ~/.local/bin/
 ```
 
