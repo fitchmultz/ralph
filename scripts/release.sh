@@ -103,6 +103,7 @@ usage() {
 DRY_RUN="${RELEASE_DRY_RUN:-0}"
 SKIP_PUBLISH="${RALPH_RELEASE_SKIP_PUBLISH:-0}"
 CRATE_PUBLISHED=0
+REPO_HTTP_URL=""
 
 # Version from argument
 VERSION="${1:-}"
@@ -187,23 +188,57 @@ sha256_file() {
     fi
 }
 
+get_repo_http_url() {
+    local remote_url
+    remote_url=$(git -C "$REPO_ROOT" remote get-url origin 2>/dev/null || true)
+    if [ -z "$remote_url" ]; then
+        log_error "Failed to resolve git remote 'origin' URL"
+        exit 1
+    fi
+
+    case "$remote_url" in
+        https://github.com/*.git)
+            printf '%s\n' "${remote_url%.git}"
+            ;;
+        https://github.com/*)
+            printf '%s\n' "$remote_url"
+            ;;
+        git@github.com:*.git)
+            remote_url="${remote_url#git@github.com:}"
+            remote_url="${remote_url%.git}"
+            printf 'https://github.com/%s\n' "$remote_url"
+            ;;
+        git@github.com:*)
+            remote_url="${remote_url#git@github.com:}"
+            printf 'https://github.com/%s\n' "$remote_url"
+            ;;
+        *)
+            log_error "Unsupported origin remote URL format: $remote_url"
+            exit 1
+            ;;
+    esac
+}
+
 render_release_notes_template() {
     local template_path="$1"
     local output_path="$2"
     local version="$3"
     local changelog_path="$4"
     local checksums_path="$5"
+    local repo_url="$6"
 
-    python3 - "$template_path" "$output_path" "$version" "$changelog_path" "$checksums_path" <<'PY'
+    python3 - "$template_path" "$output_path" "$version" "$changelog_path" "$checksums_path" "$repo_url" <<'PY'
 from pathlib import Path
 import sys
 
-template_path, output_path, version, changelog_path, checksums_path = sys.argv[1:6]
+template_path, output_path, version, changelog_path, checksums_path, repo_url = sys.argv[1:7]
 template = Path(template_path).read_text(encoding="utf-8")
 changelog = Path(changelog_path).read_text(encoding="utf-8").rstrip("\n")
 checksums = Path(checksums_path).read_text(encoding="utf-8").rstrip("\n")
 rendered = (
     template.replace("{{VERSION}}", version)
+    .replace("{{REPO_URL}}", repo_url)
+    .replace("{{REPO_CLONE_URL}}", f"{repo_url}.git")
     .replace("{{CHANGELOG_SECTION}}", changelog)
     .replace("{{CHECKSUMS}}", checksums)
 )
@@ -568,16 +603,16 @@ update_changelog() {
         if grep -q '^\[Unreleased\]:' "$temp_file"; then
             sed -i.bak \
                 -e "/^\[$VERSION\]: /d" \
-                -e "s|^\[Unreleased\]: .*|[Unreleased]: https://github.com/fitchmultz/ralph/compare/v$VERSION...HEAD|" \
+                -e "s|^\[Unreleased\]: .*|[Unreleased]: $REPO_HTTP_URL/compare/v$VERSION...HEAD|" \
                 -e "/^\[Unreleased\]: /a\\
-[$VERSION]: https://github.com/fitchmultz/ralph/compare/v$unreleased_base_version...v$VERSION" \
+[$VERSION]: $REPO_HTTP_URL/compare/v$unreleased_base_version...v$VERSION" \
                 "$temp_file"
             rm -f "$temp_file.bak"
         else
             {
                 echo ""
-                echo "[Unreleased]: https://github.com/fitchmultz/ralph/compare/v$VERSION...HEAD"
-                echo "[$VERSION]: https://github.com/fitchmultz/ralph/compare/v$unreleased_base_version...v$VERSION"
+                echo "[Unreleased]: $REPO_HTTP_URL/compare/v$VERSION...HEAD"
+                echo "[$VERSION]: $REPO_HTTP_URL/compare/v$unreleased_base_version...v$VERSION"
             } >> "$temp_file"
         fi
 
@@ -689,7 +724,8 @@ generate_release_notes() {
                 "$preview_file" \
                 "$VERSION" \
                 "$preview_changelog" \
-                "$preview_checksums"
+                "$preview_checksums" \
+                "$REPO_HTTP_URL"
 
             if ! grep -q "$VERSION" "$preview_file"; then
                 log_error "Dry-run validation failed: rendered release notes missing version marker"
@@ -754,7 +790,8 @@ EOF_RELEASE_NOTES
                 "$release_notes_file" \
                 "$VERSION" \
                 "$changelog_tmp" \
-                "$checksums_tmp"
+                "$checksums_tmp" \
+                "$REPO_HTTP_URL"
         elif [ -f "$RELEASE_NOTES_TEMPLATE" ]; then
             log_warn "python3 not found; using fallback release notes format"
             render_fallback_release_notes
@@ -801,7 +838,7 @@ create_git_tag() {
 
     if [ "$DRY_RUN" = "1" ]; then
         echo "    [DRY RUN] Would create GitHub release with:"
-        echo "    [DRY RUN]   gh release create v$VERSION --verify-tag --notes-file $release_notes_file"
+        echo "    [DRY RUN]   gh release create v$VERSION --title v$VERSION --verify-tag --notes-file $release_notes_file"
         if [ -d "$RELEASE_ARTIFACTS_DIR" ]; then
             for artifact in "$RELEASE_ARTIFACTS_DIR"/*.tar.gz; do
                 if [ -f "$artifact" ]; then
@@ -812,6 +849,7 @@ create_git_tag() {
     else
         # Create release
         if ! gh release create "v$VERSION" \
+            --title "v$VERSION" \
             --verify-tag \
             --notes-file "$release_notes_file"; then
             log_error "Failed to create GitHub release"
@@ -958,6 +996,7 @@ main() {
 
     # Run release steps
     check_prerequisites
+    REPO_HTTP_URL=$(get_repo_http_url)
     validate_repo_state
     sync_release_version_metadata
     generate_changelog_entries

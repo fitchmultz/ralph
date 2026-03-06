@@ -152,6 +152,7 @@ Never commit or print secrets. `.env` and `.env.*` are local-only and MUST remai
 - Required fast safety gate in CI: `check-env-safety` target now delegates to `scripts/pre-public-check.sh --skip-ci --skip-links --skip-clean`.
 - Convenience alias: `make check-repo-safety`.
 - `scripts/pre-public-check.sh` enforces `.ralph` tracked-file allowlist (`README.md`, queue/done/config json/jsonc) and blocks tracked runtime dirs (`cache`, `logs`, `lock`, `workspaces`, `undo`, `webhooks`).
+- `scripts/release.sh` should derive the GitHub repo URL from `git remote origin` and set an explicit GitHub release title (`v<version>`); avoid hardcoded owner-specific release links inside automation.
 
 ### macOS UI Visual Artifacts
 - `make macos-test-ui-artifacts` is the evidence workflow for headed UI runs (enables screenshot capture, exports attachments, writes summary).
