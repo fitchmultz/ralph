@@ -43,6 +43,11 @@ struct TemplateInfo: Identifiable, Equatable {
 // MARK: - View
 @MainActor
 struct TaskCreationView: View {
+    private enum AccessibilityID {
+        static let titleField = "task-creation-title-field"
+        static let submitButton = "task-creation-submit-button"
+    }
+
     @ObservedObject var workspace: Workspace
     @Environment(\.dismiss) private var dismiss
 
@@ -101,6 +106,7 @@ struct TaskCreationView: View {
                     ToolbarItem(placement: .primaryAction) {
                         Button("Create") { createTask() }
                             .disabled(!canCreate() || isCreating)
+                            .accessibilityIdentifier(AccessibilityID.submitButton)
                     }
                 }
             }
@@ -155,6 +161,7 @@ struct TaskCreationView: View {
                     .font(.title3)
                     .accessibilityLabel("Task title")
                     .accessibilityHint("Enter a title for the new task")
+                    .accessibilityIdentifier(AccessibilityID.titleField)
 
                 Picker("Priority", selection: $priority) {
                     ForEach(RalphTaskPriority.allCases, id: \.self) { p in
@@ -176,6 +183,7 @@ struct TaskCreationView: View {
                     .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || isCreating)
                     .accessibilityLabel("Create task")
                     .accessibilityHint("Creates the new task with the specified title and priority")
+                    .accessibilityIdentifier(AccessibilityID.submitButton)
             }
         }
         .formStyle(.grouped)
@@ -308,6 +316,7 @@ struct TaskCreationView: View {
             Section("Basic Information") {
                 TextField("Title", text: $title)
                     .accessibilityLabel("Task title")
+                    .accessibilityIdentifier(AccessibilityID.titleField)
 
                 Picker("Priority", selection: $priority) {
                     ForEach(RalphTaskPriority.allCases, id: \.self) { p in

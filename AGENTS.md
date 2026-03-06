@@ -153,3 +153,4 @@ Never commit or print secrets. `.env` and `.env.*` are local-only and MUST remai
 - Use `RALPH_UI_ONLY_TESTING=<Target/Class/testMethod>` with `make macos-ui-retest` for focused debugging.
 - UI screenshot capture is opt-in only (`RALPH_UI_SCREENSHOTS=1` or `RALPH_UI_SCREENSHOT_MODE`); default `make macos-test-ui` stays lightweight.
 - Post-review cleanup is explicit: `make macos-ui-artifacts-clean`.
+- UI-test window geometry is part of the contract: keep normal UI-test launches at one visible workspace window, multiwindow launches at two, and avoid widths below the split-view practical minimum (~950pt) or sidebars/detail panes become cropped/non-hittable.

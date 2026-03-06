@@ -151,6 +151,7 @@ private struct TaskDetailActionBarModifier: ViewModifier {
                         Label("Saved", systemImage: "checkmark.circle.fill")
                             .font(.caption)
                             .foregroundStyle(.green)
+                            .accessibilityIdentifier("task-detail-save-success")
                     } else if hasChanges {
                         Label("Unsaved changes", systemImage: "circle.fill")
                             .font(.caption)
@@ -181,6 +182,7 @@ private struct TaskDetailActionBarModifier: ViewModifier {
                         .keyboardShortcut("s", modifiers: .command)
                         .accessibilityLabel("Save changes")
                         .accessibilityHint("Save all changes to this task")
+                        .accessibilityIdentifier("task-detail-save-button")
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)

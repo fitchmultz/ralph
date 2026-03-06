@@ -472,11 +472,14 @@ struct WindowViewContainer: View {
     @Environment(\.openWindow) private var openWindow
 
     private static let uiTestingWorkspacePathEnvKey = "RALPH_UI_TEST_WORKSPACE_PATH"
+    private static let isUITestingLaunch = ProcessInfo.processInfo.arguments.contains("--uitesting")
+    private static let isUITestingMultiwindowLaunch = ProcessInfo.processInfo.arguments.contains("--uitesting-multiwindow")
 
     var body: some View {
         Group {
             if let state = windowState {
                 WindowView(windowState: state)
+                    .background(UITestingWindowAnchor(isEnabled: Self.isUITestingLaunch))
             } else {
                 ProgressView("Initializing...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -485,6 +488,7 @@ struct WindowViewContainer: View {
         .task { @MainActor in
             initializeWindowStateIfNeeded()
             openAdditionalWindowForUITestingIfNeeded()
+            closeUnexpectedWindowsForUITestingIfNeeded()
             // Initialize settings system (extension in ASettingsInfra.swift)
             SettingsService.initialize()
         }
@@ -549,11 +553,103 @@ struct WindowViewContainer: View {
         UITestingWindowBootstrap.didOpenSecondaryWindow = true
         openWindow(id: "main")
     }
+
+    private func closeUnexpectedWindowsForUITestingIfNeeded() {
+        guard Self.isUITestingLaunch else { return }
+
+        let expectedWindowCount = Self.isUITestingMultiwindowLaunch ? 2 : 1
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            let workspaceWindows = NSApp.windows
+                .filter { $0.identifier?.rawValue.contains("AppWindow") == true }
+                .sorted { $0.windowNumber < $1.windowNumber }
+
+            guard workspaceWindows.count > expectedWindowCount else { return }
+            for window in workspaceWindows.dropFirst(expectedWindowCount) {
+                window.close()
+            }
+        }
+    }
 }
 
 @MainActor
 private enum UITestingWindowBootstrap {
     static var didOpenSecondaryWindow = false
+}
+
+/// Ensures UI-test windows are visible and frontmost before XCTest begins clicking screen coordinates.
+private struct UITestingWindowAnchor: NSViewRepresentable {
+    let isEnabled: Bool
+
+    func makeNSView(context: Context) -> NSView {
+        NSView(frame: .zero)
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        guard isEnabled else { return }
+
+        DispatchQueue.main.async {
+            guard let window = nsView.window else { return }
+            configure(window: window)
+        }
+    }
+
+    private func configure(window: NSWindow) {
+        let screen = window.screen ?? NSScreen.main
+        let visibleFrame = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+        let workspaceWindows = NSApp.windows
+            .filter { $0.isVisible && $0.identifier?.rawValue.contains("AppWindow") == true }
+            .sorted { $0.windowNumber < $1.windowNumber }
+
+        let windowIndex = workspaceWindows.firstIndex(of: window) ?? 0
+        let isMultiwindowLaunch = ProcessInfo.processInfo.arguments.contains("--uitesting-multiwindow")
+        let expectedWindowCount = isMultiwindowLaunch ? 2 : 1
+        let windowCount = max(min(workspaceWindows.count, expectedWindowCount), 1)
+        let horizontalSpacing: CGFloat = 24
+        let verticalInset: CGFloat = 40
+
+        let width: CGFloat
+        let height = max(700, min(900, visibleFrame.height - (verticalInset * 2)))
+        let origin: NSPoint
+
+        if windowCount > 1 {
+            let preferredWidth = min(1200, max(1024, visibleFrame.width - 120))
+            let sideBySideWidth = (visibleFrame.width - (horizontalSpacing * 3)) / 2
+
+            if sideBySideWidth >= 1024 {
+                width = min(preferredWidth, sideBySideWidth)
+                let x = visibleFrame.minX + horizontalSpacing + CGFloat(min(windowIndex, 1)) * (width + horizontalSpacing)
+                let y = visibleFrame.maxY - verticalInset - height
+                origin = NSPoint(x: x, y: y)
+            } else {
+                // Keep the full NavigationSplitView visible even on smaller screens by cascading windows
+                // instead of squeezing them below the sidebar/detail minimum widths.
+                width = preferredWidth
+                let cascadeOffset = CGFloat(windowIndex) * 72
+                let x = min(
+                    visibleFrame.maxX - width - horizontalSpacing,
+                    visibleFrame.minX + horizontalSpacing + cascadeOffset
+                )
+                let y = max(
+                    visibleFrame.minY + verticalInset,
+                    visibleFrame.maxY - verticalInset - height - cascadeOffset
+                )
+                origin = NSPoint(x: x, y: y)
+            }
+        } else {
+            width = max(960, min(1400, visibleFrame.width - 80))
+            origin = NSPoint(
+                x: visibleFrame.midX - (width / 2),
+                y: visibleFrame.midY - (height / 2)
+            )
+        }
+
+        window.collectionBehavior.insert(.moveToActiveSpace)
+        window.tabbingMode = .disallowed
+        window.setFrame(NSRect(origin: origin, size: NSSize(width: width, height: height)), display: true)
+        window.orderFrontRegardless()
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+    }
 }
 
 // MARK: - Settings Service Protocol

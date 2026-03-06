@@ -22,6 +22,11 @@ import XCTest
 
 @MainActor
 final class RalphMacUITests: XCTestCase {
+    private struct UITaskSnapshot: Decodable {
+        let id: String
+        let status: String
+    }
+
     private enum ScreenshotCaptureMode: Equatable {
         case off
         case checkpoints
@@ -55,6 +60,11 @@ final class RalphMacUITests: XCTestCase {
         static let taskListContainer = "task-list-container"
         static let taskSearchField = "task-search-field"
         static let taskViewModePicker = "task-view-mode-picker"
+        static let taskCreationTitleField = "task-creation-title-field"
+        static let taskCreationSubmitButton = "task-creation-submit-button"
+        static let taskDetailTitleField = "task-detail-title-field"
+        static let taskDetailSaveButton = "task-detail-save-button"
+        static let taskDetailSaveSuccess = "task-detail-save-success"
     }
 
     private enum LaunchEnvironment {
@@ -94,6 +104,7 @@ final class RalphMacUITests: XCTestCase {
             app.launchArguments.append("--uitesting-multiwindow")
         }
         app.launch()
+        app.activate()
         captureScreenshot(named: "launch")
         startTimelineCaptureIfNeeded()
     }
@@ -143,14 +154,18 @@ final class RalphMacUITests: XCTestCase {
         XCTAssertTrue(sheet.waitForExistence(timeout: 5), "Task creation sheet should appear")
         
         // Enter task title
-        let titleField = sheet.textFields["Task title"]
-        XCTAssertTrue(titleField.exists)
+        let titleField = sheet.descendants(matching: .textField)
+            .matching(identifier: AccessibilityID.taskCreationTitleField)
+            .element(boundBy: 0)
+        XCTAssertTrue(titleField.waitForExistence(timeout: 5), "Task title field should exist in the creation sheet")
         titleField.click()
         titleField.typeText("UI Test Task - " + UUID().uuidString.prefix(8))
         
         // Tap Create button
-        let createButton = sheet.buttons["Create task"]
-        XCTAssertTrue(createButton.exists)
+        let createButton = sheet.descendants(matching: .button)
+            .matching(identifier: AccessibilityID.taskCreationSubmitButton)
+            .element(boundBy: 0)
+        XCTAssertTrue(createButton.waitForExistence(timeout: 5), "Create task button should exist in the creation sheet")
         createButton.click()
         
         // Verify sheet dismisses
@@ -179,7 +194,7 @@ final class RalphMacUITests: XCTestCase {
         firstTask.click()
         
         // Wait for detail view
-        let titleField = app.textFields["Task title"]
+        let titleField = taskDetailTitleField
         XCTAssertTrue(titleField.waitForExistence(timeout: 5))
         
         // Edit the title
@@ -189,13 +204,16 @@ final class RalphMacUITests: XCTestCase {
         titleField.typeText(newTitle)
         
         // Save changes
-        let saveButton = app.buttons["Save changes"]
-        XCTAssertTrue(saveButton.exists)
+        let saveButton = taskDetailSaveButton
+        XCTAssertTrue(saveButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(waitUntil(timeout: 5) { saveButton.isHittable }, "Save button should be hittable in the active workspace window")
         saveButton.click()
         
         // Verify success indicator appears
-        let successIcon = app.images["checkmark.circle.fill"]
-        XCTAssertTrue(successIcon.waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            waitUntil(timeout: 5) { !taskDetailSaveButton.isEnabled },
+            "Save button should disable again after persistence succeeds"
+        )
     }
 
     // MARK: - Test: Switch View Modes
@@ -205,11 +223,11 @@ final class RalphMacUITests: XCTestCase {
         
         // Switch to Kanban
         selectTaskViewMode("Kanban")
-        XCTAssertTrue(app.scrollViews["Kanban board"].waitForExistence(timeout: 5))
+        XCTAssertTrue(currentWorkspaceWindow().scrollViews["Kanban board"].waitForExistence(timeout: 5))
         
         // Switch to Graph
         selectTaskViewMode("Graph")
-        XCTAssertTrue(app.scrollViews.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(currentWorkspaceWindow().scrollViews.firstMatch.waitForExistence(timeout: 5))
         
         // Switch back to List
         selectTaskViewMode("List")
@@ -334,7 +352,7 @@ final class RalphMacUITests: XCTestCase {
     // MARK: - Test: Navigation Sections
     @MainActor
     func test_navigateThroughAllSidebarSections() throws {
-        let sidebar = app.outlines["Main navigation"]
+        let sidebar = currentWorkspaceWindow().outlines["Main navigation"]
         XCTAssertTrue(sidebar.waitForExistence(timeout: 5))
         
         // Navigate to each section
@@ -364,7 +382,7 @@ final class RalphMacUITests: XCTestCase {
         Thread.sleep(forTimeInterval: 1)
         
         // Clear search
-        let clearButton = app.buttons["Clear search"]
+        let clearButton = currentWorkspaceWindow().buttons["Clear search"]
         if clearButton.exists {
             clearButton.click()
         }
@@ -385,19 +403,19 @@ final class RalphMacUITests: XCTestCase {
         firstTask.click()
         
         // Test down arrow navigation
-        app.keyboards.keys["↓"].tap()
+        currentWorkspaceWindow().typeKey(XCUIKeyboardKey.downArrow, modifierFlags: [])
         Thread.sleep(forTimeInterval: 0.3)
         
         // Test up arrow navigation
-        app.keyboards.keys["↑"].tap()
+        currentWorkspaceWindow().typeKey(XCUIKeyboardKey.upArrow, modifierFlags: [])
         Thread.sleep(forTimeInterval: 0.3)
         
         // Test Enter to open detail
-        app.keyboards.keys["\r"].tap()
+        currentWorkspaceWindow().typeKey(XCUIKeyboardKey.return, modifierFlags: [])
         Thread.sleep(forTimeInterval: 0.5)
         
         // Verify detail view appears
-        let titleField = app.textFields["Task title"]
+        let titleField = taskDetailTitleField
         XCTAssertTrue(titleField.waitForExistence(timeout: 5))
     }
     
@@ -412,7 +430,7 @@ final class RalphMacUITests: XCTestCase {
         selectTaskViewMode("Kanban")
         
         // Wait for Kanban board
-        let kanbanBoard = app.scrollViews["Kanban board"]
+        let kanbanBoard = currentWorkspaceWindow().scrollViews["Kanban board"]
         XCTAssertTrue(kanbanBoard.waitForExistence(timeout: 5))
         
         // Click on a card to focus
@@ -421,15 +439,15 @@ final class RalphMacUITests: XCTestCase {
         firstCard.click()
         
         // Test right arrow to move to next column
-        app.keyboards.keys["→"].tap()
+        currentWorkspaceWindow().typeKey(XCUIKeyboardKey.rightArrow, modifierFlags: [])
         Thread.sleep(forTimeInterval: 0.3)
         
         // Test left arrow to move to previous column
-        app.keyboards.keys["←"].tap()
+        currentWorkspaceWindow().typeKey(XCUIKeyboardKey.leftArrow, modifierFlags: [])
         Thread.sleep(forTimeInterval: 0.3)
         
         // Test down arrow navigation within column
-        app.keyboards.keys["↓"].tap()
+        currentWorkspaceWindow().typeKey(XCUIKeyboardKey.downArrow, modifierFlags: [])
         Thread.sleep(forTimeInterval: 0.3)
     }
     
@@ -446,13 +464,13 @@ final class RalphMacUITests: XCTestCase {
         firstTask.click()
         
         // Use Cmd+Enter to start work
-        firstTask.typeKey(XCUIKeyboardKey.return, modifierFlags: .command)
-        Thread.sleep(forTimeInterval: 1)
+        currentWorkspaceWindow().typeKey(XCUIKeyboardKey.return, modifierFlags: .command)
         
-        // Verify: Task status should change to "Doing" - check for status badge in the task list
-        // The status badge should show "Doing" after the command executes
-        let doingBadge = app.staticTexts["Doing"]
-        XCTAssertTrue(doingBadge.waitForExistence(timeout: 5), "Task status should change to 'Doing' after Cmd+Enter")
+        // Verify the persisted queue state changed, not just a transient badge in the rendered list.
+        XCTAssertTrue(
+            waitUntil(timeout: 5) { (try? uiTestWorkspaceTasks().contains(where: { $0.status.lowercased() == "doing" })) == true },
+            "Task status should change to 'Doing' after Cmd+Enter"
+        )
     }
     
     // MARK: - Test: Conflict Detection UI Elements
@@ -471,7 +489,7 @@ final class RalphMacUITests: XCTestCase {
         firstTask.click()
         
         // Wait for detail view
-        let titleField = app.textFields["Task title"]
+        let titleField = taskDetailTitleField
         XCTAssertTrue(titleField.waitForExistence(timeout: 5))
         
         // Edit the title to create local changes
@@ -480,7 +498,7 @@ final class RalphMacUITests: XCTestCase {
         titleField.typeText("Modified Title - " + UUID().uuidString.prefix(8))
         
         // Verify Save button is enabled (we have changes)
-        let saveButton = app.buttons["Save changes"]
+        let saveButton = taskDetailSaveButton
         XCTAssertTrue(saveButton.isEnabled)
         
         // Note: Actually triggering external changes would require CLI automation
@@ -500,7 +518,7 @@ final class RalphMacUITests: XCTestCase {
         taskRows(in: taskList).firstMatch.click()
         
         // Wait for detail view
-        let titleField = app.textFields["Task title"]
+        let titleField = taskDetailTitleField
         XCTAssertTrue(titleField.waitForExistence(timeout: 5))
         
         // Make a change
@@ -515,23 +533,61 @@ final class RalphMacUITests: XCTestCase {
     // MARK: - Helpers
 
     private var newTaskToolbarButton: XCUIElement {
-        app.toolbars.descendants(matching: .button)
+        currentWorkspaceWindow().toolbars.descendants(matching: .button)
             .matching(identifier: AccessibilityID.newTaskToolbarButton)
             .element(boundBy: 0)
     }
 
     private var taskSearchField: XCUIElement {
-        app.textFields[AccessibilityID.taskSearchField]
+        currentWorkspaceWindow().descendants(matching: .textField)
+            .matching(identifier: AccessibilityID.taskSearchField)
+            .element(boundBy: 0)
+    }
+
+    private var taskDetailTitleField: XCUIElement {
+        currentWorkspaceWindow().descendants(matching: .textField)
+            .matching(identifier: AccessibilityID.taskDetailTitleField)
+            .element(boundBy: 0)
+    }
+
+    private var taskDetailSaveButton: XCUIElement {
+        currentWorkspaceWindow().descendants(matching: .button)
+            .matching(identifier: AccessibilityID.taskDetailSaveButton)
+            .element(boundBy: 0)
+    }
+
+    @MainActor
+    private func currentWorkspaceWindow(file: StaticString = #filePath, line: UInt = #line) -> XCUIElement {
+        app.activate()
+        XCTAssertTrue(
+            waitUntil(timeout: 8) {
+                !app.windows.allElementsBoundByIndex.isEmpty && app.windows.allElementsBoundByIndex.contains(where: \.exists)
+            },
+            "Expected at least one app window to appear",
+            file: file,
+            line: line
+        )
+
+        let workspaceCandidates = workspaceWindows()
+        let fallbackCandidates = app.windows.allElementsBoundByIndex.filter(\.exists)
+        let window = workspaceCandidates.first(where: \.isHittable)
+            ?? workspaceCandidates.first
+            ?? fallbackCandidates.first(where: \.isHittable)
+            ?? fallbackCandidates.first
+            ?? app.windows.firstMatch
+        XCTAssertTrue(window.waitForExistence(timeout: 5), "Expected a workspace window", file: file, line: line)
+        return window
     }
 
     @MainActor
     private func taskViewModePicker() -> XCUIElement {
-        let radioGroup = app.radioGroups[AccessibilityID.taskViewModePicker]
+        let window = currentWorkspaceWindow()
+        let radioGroup = window.radioGroups[AccessibilityID.taskViewModePicker]
         if radioGroup.exists {
             return radioGroup
         }
 
-        let segmentedControl = app.segmentedControls[AccessibilityID.taskViewModePicker]
+        let segmentedControl = window.segmentedControls[AccessibilityID.taskViewModePicker]
         if segmentedControl.exists {
             return segmentedControl
         }
@@ -541,12 +597,13 @@ final class RalphMacUITests: XCTestCase {
 
     @MainActor
     private func requireTaskList(timeout: TimeInterval = 5, file: StaticString = #filePath, line: UInt = #line) -> XCUIElement {
+        let window = currentWorkspaceWindow(file: file, line: line)
         let candidates = [
-            app.outlines[AccessibilityID.taskListContainer],
-            app.tables[AccessibilityID.taskListContainer],
-            app.collectionViews[AccessibilityID.taskListContainer],
-            app.scrollViews[AccessibilityID.taskListContainer],
-            app.otherElements[AccessibilityID.taskListContainer]
+            window.outlines[AccessibilityID.taskListContainer],
+            window.tables[AccessibilityID.taskListContainer],
+            window.collectionViews[AccessibilityID.taskListContainer],
+            window.scrollViews[AccessibilityID.taskListContainer],
+            window.otherElements[AccessibilityID.taskListContainer]
         ]
 
         XCTAssertTrue(
@@ -607,38 +664,43 @@ final class RalphMacUITests: XCTestCase {
     }
 
     private func seedUITestQueue(at workspaceURL: URL) throws {
-        let queueURL = workspaceURL
-            .appendingPathComponent(".ralph", isDirectory: true)
-            .appendingPathComponent("queue.jsonc", isDirectory: false)
-        let seededQueue = #"""
-        {
-          "version": 1,
-          "tasks": [
-            {
-              "id": "RQ-UI-001",
-              "status": "todo",
-              "title": "UI Fixture Alpha",
-              "priority": "high",
-              "tags": ["ui", "fixture"],
-              "created_at": "2026-03-05T00:00:00Z",
-              "updated_at": "2026-03-05T00:00:00Z"
-            },
-            {
-              "id": "RQ-UI-002",
-              "status": "todo",
-              "title": "UI Fixture Search Test",
-              "priority": "medium",
-              "tags": ["ui", "search"],
-              "created_at": "2026-03-05T00:05:00Z",
-              "updated_at": "2026-03-05T00:05:00Z"
-            }
-          ]
-        }
+        let importURL = workspaceURL.appendingPathComponent("ui-fixture-import.json", isDirectory: false)
+        let seededTasks = #"""
+        [
+          {
+            "id": "RQ-0001",
+            "status": "todo",
+            "title": "UI Fixture Alpha",
+            "priority": "high",
+            "tags": ["ui", "fixture"],
+            "created_at": "2026-03-05T00:00:00Z",
+            "updated_at": "2026-03-05T00:00:00Z"
+          },
+          {
+            "id": "RQ-0002",
+            "status": "todo",
+            "title": "UI Fixture Search Test",
+            "priority": "medium",
+            "tags": ["ui", "search"],
+            "created_at": "2026-03-05T00:05:00Z",
+            "updated_at": "2026-03-05T00:05:00Z"
+          }
+        ]
         """#
-        try seededQueue.write(to: queueURL, atomically: true, encoding: .utf8)
+        try seededTasks.write(to: importURL, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: importURL) }
+
+        try runRalph(
+            arguments: ["queue", "import", "--format", "json", "--input", importURL.path],
+            currentDirectoryURL: workspaceURL
+        )
     }
 
     private func runRalph(arguments: [String], currentDirectoryURL: URL) throws {
+        _ = try runRalphAndCollectOutput(arguments: arguments, currentDirectoryURL: currentDirectoryURL)
+    }
+
+    private func runRalphAndCollectOutput(arguments: [String], currentDirectoryURL: URL) throws -> String {
         guard let executableURL = ralphExecutableURL else {
             throw NSError(
                 domain: "RalphMacUITests",
@@ -660,9 +722,10 @@ final class RalphMacUITests: XCTestCase {
         try process.run()
         process.waitUntilExit()
 
+        let stdout = String(data: stdoutPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        let stderr = String(data: stderrPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+
         guard process.terminationStatus == 0 else {
-            let stderr = String(data: stderrPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-            let stdout = String(data: stdoutPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
             throw NSError(
                 domain: "RalphMacUITests",
                 code: Int(process.terminationStatus),
@@ -673,6 +736,20 @@ final class RalphMacUITests: XCTestCase {
                 ]
             )
         }
+
+        return stdout
+    }
+
+    private func uiTestWorkspaceTasks() throws -> [UITaskSnapshot] {
+        guard let uiTestWorkspaceURL else {
+            return []
+        }
+
+        let output = try runRalphAndCollectOutput(
+            arguments: ["queue", "list", "--format", "json"],
+            currentDirectoryURL: uiTestWorkspaceURL
+        )
+        return try JSONDecoder().decode([UITaskSnapshot].self, from: Data(output.utf8))
     }
 
     private func resolveRalphExecutableURL(environment: [String: String] = ProcessInfo.processInfo.environment) throws -> URL {

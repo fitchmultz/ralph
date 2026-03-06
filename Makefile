@@ -13,6 +13,8 @@ RALPH_UI_TESTS ?= 0
 RALPH_UI_SCREENSHOTS ?= 0
 # UI screenshot mode: off|checkpoints|timeline (empty lets tests decide from RALPH_UI_SCREENSHOTS).
 RALPH_UI_SCREENSHOT_MODE ?=
+# Optional focused UI test selector for retest loops.
+RALPH_UI_ONLY_TESTING ?=
 # Result bundle path override for UI evidence export workflows.
 XCODE_RESULT_BUNDLE_PATH ?=
 # Root directory for exported UI visual artifacts.

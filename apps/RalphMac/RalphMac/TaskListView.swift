@@ -103,6 +103,9 @@ struct TaskListView: View {
         .onReceive(NotificationCenter.default.publisher(for: .queueFilesExternallyChanged)) { notification in
             handleExternalChange(notification)
         }
+        .onChange(of: selectedTaskIDs) { _, newSelection in
+            syncPrimarySelection(with: newSelection)
+        }
     }
 
     // MARK: - What's Next Section
@@ -571,6 +574,27 @@ struct TaskListView: View {
             .transition(.move(edge: .top).combined(with: .opacity))
             .accessibilityLabel("Queue updated externally")
         }
+    }
+
+    private func syncPrimarySelection(with selection: Set<String>) {
+        if selection.isEmpty {
+            selectedTaskID = nil
+            focusedTaskID = nil
+            return
+        }
+
+        if let currentID = selectedTaskID, selection.contains(currentID) {
+            focusedTaskID = currentID
+            return
+        }
+
+        let nextPrimaryTaskID = workspace.filteredAndSortedTasks()
+            .map(\.id)
+            .first(where: selection.contains)
+            ?? selection.sorted().first
+
+        selectedTaskID = nextPrimaryTaskID
+        focusedTaskID = nextPrimaryTaskID
     }
 }
 

@@ -25,6 +25,10 @@ import RalphCore
 
 @MainActor
 struct TaskDetailView: View {
+    private enum AccessibilityID {
+        static let titleField = "task-detail-title-field"
+    }
+
     @ObservedObject var workspace: Workspace
     let task: RalphTask
     var onTaskUpdated: ((RalphTask) -> Void)? = nil
@@ -143,6 +147,7 @@ struct TaskDetailView: View {
                         .textFieldStyle(.roundedBorder)
                         .accessibilityLabel("Task title")
                         .accessibilityHint("Enter the task title")
+                        .accessibilityIdentifier(AccessibilityID.titleField)
                 }
 
                 // Description
