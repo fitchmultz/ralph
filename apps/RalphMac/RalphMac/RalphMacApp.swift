@@ -298,7 +298,7 @@ struct RalphMacApp: App {
             
             Divider()
 
-            if let docsURL = URL(string: "https://github.com/mitchfultz/ralph") {
+            if let docsURL = URL(string: "https://github.com/fitchmultz/ralph") {
                 Link("Ralph Documentation", destination: docsURL)
             }
         }

@@ -13,7 +13,7 @@ This installs the `ralph` executable.
 Or from source:
 
 ```bash
-git clone https://github.com/mitchfultz/ralph
+git clone https://github.com/fitchmultz/ralph
 cd ralph
 make install
 ```

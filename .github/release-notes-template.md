@@ -19,7 +19,7 @@ This release attaches the artifacts built locally for the release host. Download
 Download the appropriate release asset for your platform, then extract and install it:
 
 ```bash
-curl -LO https://github.com/mitchfultz/ralph/releases/download/v{{VERSION}}/ralph-{{VERSION}}-<platform>.tar.gz
+curl -LO https://github.com/fitchmultz/ralph/releases/download/v{{VERSION}}/ralph-{{VERSION}}-<platform>.tar.gz
 tar -xzf ralph-{{VERSION}}-<platform>.tar.gz
 mv ralph ~/.local/bin/
 ```
@@ -41,7 +41,7 @@ sha256sum -c ralph-{{VERSION}}-<platform>.tar.gz.sha256
 Alternatively, build from source:
 
 ```bash
-git clone https://github.com/mitchfultz/ralph.git
+git clone https://github.com/fitchmultz/ralph.git
 cd ralph
 git checkout v{{VERSION}}
 make install
@@ -49,4 +49,4 @@ make install
 
 ## Full Changelog
 
-See [CHANGELOG.md](https://github.com/mitchfultz/ralph/blob/v{{VERSION}}/CHANGELOG.md) for the complete list of changes.
+See [CHANGELOG.md](https://github.com/fitchmultz/ralph/blob/v{{VERSION}}/CHANGELOG.md) for the complete list of changes.

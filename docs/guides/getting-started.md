@@ -41,7 +41,7 @@ If you want the latest development version or to contribute:
 
 ```bash
 # Clone the repository
-git clone https://github.com/mitchfultz/ralph
+git clone https://github.com/fitchmultz/ralph
 cd ralph
 
 # Build and install

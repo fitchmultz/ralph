@@ -674,7 +674,7 @@ struct ErrorRecoveryView: View {
     }
 
     private func openReinstallationHelp() {
-        if let url = URL(string: "https://github.com/mitchfultz/ralph#installation") {
+        if let url = URL(string: "https://github.com/fitchmultz/ralph#installation") {
             NSWorkspace.shared.open(url)
         }
     }

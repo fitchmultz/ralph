@@ -568,16 +568,16 @@ update_changelog() {
         if grep -q '^\[Unreleased\]:' "$temp_file"; then
             sed -i.bak \
                 -e "/^\[$VERSION\]: /d" \
-                -e "s|^\[Unreleased\]: .*|[Unreleased]: https://github.com/mitchfultz/ralph/compare/v$VERSION...HEAD|" \
+                -e "s|^\[Unreleased\]: .*|[Unreleased]: https://github.com/fitchmultz/ralph/compare/v$VERSION...HEAD|" \
                 -e "/^\[Unreleased\]: /a\\
-[$VERSION]: https://github.com/mitchfultz/ralph/compare/v$unreleased_base_version...v$VERSION" \
+[$VERSION]: https://github.com/fitchmultz/ralph/compare/v$unreleased_base_version...v$VERSION" \
                 "$temp_file"
             rm -f "$temp_file.bak"
         else
             {
                 echo ""
-                echo "[Unreleased]: https://github.com/mitchfultz/ralph/compare/v$VERSION...HEAD"
-                echo "[$VERSION]: https://github.com/mitchfultz/ralph/compare/v$unreleased_base_version...v$VERSION"
+                echo "[Unreleased]: https://github.com/fitchmultz/ralph/compare/v$VERSION...HEAD"
+                echo "[$VERSION]: https://github.com/fitchmultz/ralph/compare/v$unreleased_base_version...v$VERSION"
             } >> "$temp_file"
         fi
 

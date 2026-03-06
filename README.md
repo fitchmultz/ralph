@@ -2,7 +2,7 @@
 
 [![crates.io](https://img.shields.io/crates/v/ralph-agent-loop.svg)](https://crates.io/crates/ralph-agent-loop)
 [![docs.rs](https://img.shields.io/docsrs/ralph-agent-loop)](https://docs.rs/ralph-agent-loop)
-[![GitHub Release](https://img.shields.io/github/v/release/mitchfultz/ralph)](https://github.com/mitchfultz/ralph/releases)
+[![GitHub Release](https://img.shields.io/github/v/release/fitchmultz/ralph)](https://github.com/fitchmultz/ralph/releases)
 
 Ralph is a local-first AI coding workflow tool with a Rust CLI and a SwiftUI macOS app, both built around a structured task queue stored in your repository.
 
@@ -52,7 +52,7 @@ From source:
 > GNU Make >= 4 is required for project targets. On macOS, install via `brew install make` and use `gmake` unless GNU Make is already your default `make`.
 
 ```bash
-git clone https://github.com/mitchfultz/ralph
+git clone https://github.com/fitchmultz/ralph
 cd ralph
 make install
 # macOS/Homebrew GNU Make users: gmake install
