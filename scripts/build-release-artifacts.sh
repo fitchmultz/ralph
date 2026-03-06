@@ -130,7 +130,7 @@ build_for_target() {
     cd "$REPO_ROOT"
 
     # Build release binary
-    if cargo build --release -p ralph-cli --target "$target" --locked --quiet; then
+    if cargo build --release -p ralph-agent-loop --target "$target" --locked --quiet; then
         log_success "Build successful for $target"
     else
         log_error "Build failed for $target"
@@ -166,7 +166,7 @@ build_current() {
     cd "$REPO_ROOT"
 
     # Build release binary
-    cargo build --release -p ralph-cli --locked --quiet
+    cargo build --release -p ralph-agent-loop --locked --quiet
 
     # Create tarball
     local binary_path="$REPO_ROOT/target/release/ralph"

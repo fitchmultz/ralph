@@ -123,9 +123,9 @@ The CI gate runs: `check-env-safety → check-backup-artifacts → deps → form
 
 ```bash
 # Quick test cycle (not a substitute for `make ci`)
-cargo test -p ralph-cli
-cargo run -p ralph-cli -- <command>
-cargo run -p ralph-cli -- queue validate
+cargo test -p ralph-agent-loop
+cargo run -p ralph-agent-loop -- <command>
+cargo run -p ralph-agent-loop -- queue validate
 ```
 
 ---
@@ -139,7 +139,7 @@ cargo run -p ralph-cli -- queue validate
 make build
 
 # Debug build
-cargo build -p ralph-cli
+cargo build -p ralph-agent-loop
 
 # Check only (fast)
 make type-check
@@ -152,13 +152,13 @@ make type-check
 make test
 
 # Quick unit tests only
-cargo test -p ralph-cli
+cargo test -p ralph-agent-loop
 
 # Include ignored tests
-cargo test -p ralph-cli -- --include-ignored
+cargo test -p ralph-agent-loop -- --include-ignored
 
 # Update snapshots after intentional changes
-INSTA_UPDATE=always cargo test -p ralph-cli
+INSTA_UPDATE=always cargo test -p ralph-agent-loop
 
 # Keep temp directories for debugging
 RALPH_CI_KEEP_TMP=1 make test

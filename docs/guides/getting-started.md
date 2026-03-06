@@ -30,7 +30,7 @@ Think of Ralph as your AI conductor—managing tasks, tracking progress, and ens
 The easiest way to install Ralph is via Cargo:
 
 ```bash
-cargo install ralph-cli
+cargo install ralph-agent-loop
 ```
 
 This installs the latest published version from crates.io and provides the `ralph` executable at `~/.cargo/bin/ralph`.
@@ -726,7 +726,7 @@ ralph prd create requirements.md
 ┌────────────────────────────────────────────────────────────────┐
 │ RALPH QUICK REFERENCE                                          │
 ├────────────────────────────────────────────────────────────────┤
-│ INSTALL    cargo install ralph-cli                             │
+│ INSTALL    cargo install ralph-agent-loop                      │
 │ INIT       ralph init                                          │
 │ APP (macOS) ralph app open                                     │
 │ RUN        ralph run one        # next task                    │

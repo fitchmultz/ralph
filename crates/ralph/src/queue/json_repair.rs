@@ -327,7 +327,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "perf-smoke: run manually when tuning hot-path: cargo test -p ralph-cli queue::json_repair::tests::attempt_json_repair_perf_smoke -- --ignored"]
+    #[ignore = "perf-smoke: run manually when tuning hot-path: cargo test -p ralph-agent-loop queue::json_repair::tests::attempt_json_repair_perf_smoke -- --ignored"]
     fn attempt_json_repair_perf_smoke() {
         let input = r#"{'version': 1, 'tasks': [{'id': 'RQ-0001', 'title': 'A', 'status': 'todo', 'scope': ['x',], 'evidence': ['a',], 'plan': ['x',], 'created_at': '2026-01-01T00:00:00Z', 'updated_at': '2026-01-01T00:00:00Z'}]}"#;
         let start = std::time::Instant::now();

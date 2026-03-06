@@ -1,5 +1,5 @@
 [package]
-name = "ralph-cli"
+name = "ralph-agent-loop"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.94"
@@ -7,7 +7,7 @@ license = "MIT"
 description = "A Rust CLI for managing AI agent loops with a structured JSON task queue"
 repository = "https://github.com/mitchfultz/ralph"
 homepage = "https://github.com/mitchfultz/ralph"
-documentation = "https://docs.rs/ralph-cli"
+documentation = "https://docs.rs/ralph-agent-loop"
 readme = "README.md"
 keywords = ["ai", "agent", "cli", "task-queue", "workflow"]
 categories = ["command-line-utilities", "development-tools"]

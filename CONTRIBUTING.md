@@ -56,16 +56,16 @@ During development, you can use these commands for rapid iteration:
 
 ```bash
 # Run tests for the ralph crate
-cargo test -p ralph-cli
+cargo test -p ralph-agent-loop
 
 # Run the CLI locally
-cargo run -p ralph-cli -- <command>
+cargo run -p ralph-agent-loop -- <command>
 
 # Validate the queue format
-cargo run -p ralph-cli -- queue validate
+cargo run -p ralph-agent-loop -- queue validate
 
 # List queue contents
-cargo run -p ralph-cli -- queue list
+cargo run -p ralph-agent-loop -- queue list
 
 # Generate rustdocs for API review
 make docs
@@ -170,7 +170,7 @@ Example:
 make test
 
 # Run tests for just the ralph crate
-cargo test -p ralph-cli
+cargo test -p ralph-agent-loop
 ```
 
 ### Code Coverage
@@ -253,7 +253,7 @@ date strings with `<DATE>` to prevent daily churn.
 To update snapshots after an intentional output change:
 
 ```bash
-INSTA_UPDATE=always cargo test -p ralph-cli
+INSTA_UPDATE=always cargo test -p ralph-agent-loop
 ```
 
 Commit the updated snapshot files under `crates/ralph/tests/snapshots/`.
@@ -275,7 +275,7 @@ User-facing commands and flags MUST have `--help` text with examples. Keep `docs
 Verify help text before committing:
 
 ```bash
-cargo run -p ralph-cli -- <command> --help
+cargo run -p ralph-agent-loop -- <command> --help
 ```
 
 ## Submitting Changes

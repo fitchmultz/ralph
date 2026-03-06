@@ -35,7 +35,7 @@ CARGO_TOML="$REPO_ROOT/crates/ralph/Cargo.toml"
 CHANGELOG="$REPO_ROOT/CHANGELOG.md"
 RELEASE_NOTES_TEMPLATE="$REPO_ROOT/.github/release-notes-template.md"
 RELEASE_ARTIFACTS_DIR="$REPO_ROOT/target/release-artifacts"
-CRATE_PACKAGE_NAME="ralph-cli"
+CRATE_PACKAGE_NAME="ralph-agent-loop"
 ALLOWED_RELEASE_DIRTY_PATHS=(
     "VERSION"
     "crates/ralph/Cargo.toml"
@@ -272,7 +272,7 @@ ensure_release_binary() {
     log_info "Release binary missing; building with locked dependencies"
     (
         cd "$REPO_ROOT"
-        cargo build --release -p ralph-cli --locked --quiet
+        cargo build --release -p ralph-agent-loop --locked --quiet
     )
 }
 

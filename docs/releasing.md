@@ -2,15 +2,15 @@
 
 ![Release Process](assets/images/2026-02-07-release-process.png)
 
-Purpose: Document Ralph's complete local-only release workflow, including crates.io publication of the `ralph-cli` package that installs the `ralph` executable.
+Purpose: Document Ralph's complete local-only release workflow, including crates.io publication of the `ralph-agent-loop` package that installs the `ralph` executable.
 
 ## Overview
 
-Ralph uses a local-only release process that publishes the crate to crates.io and then creates the GitHub release with `gh`. This keeps distribution aligned across Rust ecosystem install flows (`cargo install ralph-cli`) and the project’s tarball releases while avoiding GitHub Actions.
+Ralph uses a local-only release process that publishes the crate to crates.io and then creates the GitHub release with `gh`. This keeps distribution aligned across Rust ecosystem install flows (`cargo install ralph-agent-loop`) and the project’s tarball releases while avoiding GitHub Actions.
 
 Release order matters:
 
-1. Publish `ralph-cli` to crates.io.
+1. Publish `ralph-agent-loop` to crates.io.
 2. Build release artifacts and push git metadata.
 3. Create the GitHub release and upload assets.
 
@@ -190,9 +190,9 @@ The release script performs these steps:
    - Verifies post-CI tracked changes are limited to release-expected files (`VERSION`, `Cargo.toml`, app version metadata, `CHANGELOG.md`, generated schemas)
 
 4. **crates.io Publication**
-   - Reviews packaged files with `cargo package --list -p ralph-cli`
-   - Runs `cargo publish --dry-run -p ralph-cli --locked --allow-dirty`
-   - Publishes `ralph-cli` to crates.io, which installs the `ralph` executable
+   - Reviews packaged files with `cargo package --list -p ralph-agent-loop`
+   - Runs `cargo publish --dry-run -p ralph-agent-loop --locked --allow-dirty`
+   - Publishes `ralph-agent-loop` to crates.io, which installs the `ralph` executable
 
 5. **Build Artifacts**
    - Builds release binary for current platform
@@ -215,7 +215,7 @@ After the script completes:
 
 ```bash
 # Verify the published crate
-cargo install ralph-cli
+cargo install ralph-agent-loop
 ralph --help
 
 # View the release on GitHub
@@ -254,15 +254,15 @@ make ci
 ### Step 4: Review and Publish the Crate
 
 ```bash
-cargo package --list -p ralph-cli
-cargo publish --dry-run -p ralph-cli --locked
-cargo publish -p ralph-cli --locked
+cargo package --list -p ralph-agent-loop
+cargo publish --dry-run -p ralph-agent-loop --locked
+cargo publish -p ralph-agent-loop --locked
 ```
 
 Users install the published package with:
 
 ```bash
-cargo install ralph-cli
+cargo install ralph-agent-loop
 ```
 
 That command installs the `ralph` executable.
@@ -465,8 +465,8 @@ Before running the release script:
 - [ ] All changes for this release are merged to `main`
 - [ ] `./scripts/versioning.sh check` passes
 - [ ] `make ci` passes locally
-- [ ] `cargo package --list -p ralph-cli` succeeds
-- [ ] `cargo publish --dry-run -p ralph-cli --locked` succeeds
+- [ ] `cargo package --list -p ralph-agent-loop` succeeds
+- [ ] `cargo publish --dry-run -p ralph-agent-loop --locked` succeeds
 - [ ] `CHANGELOG.md` has content under `## [Unreleased]` (run `scripts/generate-changelog.sh` to generate)
 - [ ] Changelog entries are categorized correctly (Added/Changed/Fixed/etc.)
 - [ ] Version follows semver (e.g., `0.2.0`)
@@ -477,7 +477,7 @@ Before running the release script:
 
 After the release:
 
-- [ ] `cargo install ralph-cli` succeeds
+- [ ] `cargo install ralph-agent-loop` succeeds
 - [ ] `ralph --help` works from the installed crate
 - [ ] GitHub release page shows the new version
 - [ ] Release artifacts are attached
@@ -494,8 +494,8 @@ Scripts are the canonical release entrypoints. Makefile targets below wrap those
 | `make release-dry-run VERSION=0.2.0` | Test release without side effects |
 | `make version-check` | Verify VERSION, Cargo, and app version metadata are synchronized |
 | `make version-sync VERSION=0.2.0` | Synchronize all derived version metadata from one canonical semver |
-| `make publish-check` | Review packaged files and run crates.io dry-run publication for `ralph-cli` |
-| `make publish-crate` | Publish `ralph-cli` to crates.io after running `make publish-check` |
+| `make publish-check` | Review packaged files and run crates.io dry-run publication for `ralph-agent-loop` |
+| `make publish-crate` | Publish `ralph-agent-loop` to crates.io after running `make publish-check` |
 | `make release-artifacts` | Build release artifacts only |
 | `make release-artifacts VERSION=0.2.0` | Build artifacts with explicit version |
 | `make changelog` | Generate changelog entries from commits |
@@ -512,4 +512,4 @@ Scripts are the canonical release entrypoints. Makefile targets below wrap those
 - `.github/release-notes-template.md` - Release notes template
 - `CHANGELOG.md` - Version history
 - `VERSION` - Canonical semantic version for the repo
-- `crates/ralph/Cargo.toml` - `ralph-cli` package manifest for the `ralph` executable
+- `crates/ralph/Cargo.toml` - `ralph-agent-loop` package manifest for the `ralph` executable

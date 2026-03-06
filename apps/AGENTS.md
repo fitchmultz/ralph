@@ -181,7 +181,7 @@ RALPH_UI_TESTS=0 make macos-test   # Skip UI tests (default)
 E2E tests look for the `ralph` binary in this order:
 1. `RALPH_BIN_PATH` environment variable
 2. `target/debug/ralph` relative to repo root
-3. Auto-build with `cargo build -p ralph-cli` if not found
+3. Auto-build with `cargo build -p ralph-agent-loop` if not found
 
 Tests create temporary directories that are cleaned up after each test.
 

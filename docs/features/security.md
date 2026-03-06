@@ -758,7 +758,7 @@ Use `["*"]` to subscribe to all events.
 - [ ] Remove old safeguard dumps from `/tmp/ralph/`
 - [ ] Rotate webhook secrets
 - [ ] Review and update plugin trust decisions
-- [ ] Keep Ralph updated: `cargo install ralph-cli --force`
+- [ ] Keep Ralph updated: `cargo install ralph-agent-loop --force`
 
 ---
 

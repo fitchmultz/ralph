@@ -100,7 +100,7 @@ rm -rf .ralph/logs/
 Security updates are provided for the latest released version of Ralph. Users should keep their installation up to date:
 
 ```bash
-cargo install ralph-cli --force
+cargo install ralph-agent-loop --force
 ```
 
 ## Security Best Practices

@@ -2,7 +2,7 @@ RUST_WORKSPACE := .
 PREFIX ?= $(HOME)/.local
 BIN_DIR ?= $(PREFIX)/bin
 BIN_NAME ?= ralph
-CARGO_PACKAGE_NAME ?= ralph-cli
+CARGO_PACKAGE_NAME ?= ralph-agent-loop
 CARGO_HTTP_MULTIPLEXING ?= false
 XCODE_DERIVED_DATA_ROOT ?= target/tmp/xcode-deriveddata
 # Pin destination arch to avoid xcodebuild's "first of multiple matching destinations" warning.

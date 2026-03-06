@@ -89,7 +89,7 @@ final class RalphCLIClientTests: XCTestCase {
     }
 
     func test_currentDirectoryURL_used() async throws {
-        let tempDir = try Self.makeTempDir(prefix: "ralph-cli-client-cwd-")
+        let tempDir = try Self.makeTempDir(prefix: "ralph-agent-loop-client-cwd-")
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
         let client = try RalphCLIClient(executableURL: URL(fileURLWithPath: "/bin/sh"))
@@ -133,7 +133,7 @@ final class RalphCLIClientTests: XCTestCase {
 
     func test_runAndCollect_versionOutput_parsableByVersionValidator() async throws {
         // Simulate a CLI that outputs a version string
-        let tempDir = try Self.makeTempDir(prefix: "ralph-cli-version-")
+        let tempDir = try Self.makeTempDir(prefix: "ralph-agent-loop-version-")
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
         let scriptURL = tempDir.appendingPathComponent("mock-ralph", isDirectory: false)
@@ -163,7 +163,7 @@ final class RalphCLIClientTests: XCTestCase {
 
     func test_runAndCollect_versionOutput_withVPrefix_parsable() async throws {
         // Simulate a CLI that outputs version with v prefix
-        let tempDir = try Self.makeTempDir(prefix: "ralph-cli-version-")
+        let tempDir = try Self.makeTempDir(prefix: "ralph-agent-loop-version-")
         defer { try? FileManager.default.removeItem(at: tempDir) }
         let compatibleVersion = VersionCompatibility.maximumCLIVersion
 
@@ -190,7 +190,7 @@ final class RalphCLIClientTests: XCTestCase {
 
     func test_runAndCollect_incompatibleVersion_detected() async throws {
         // Simulate a CLI with an incompatible (too new) version
-        let tempDir = try Self.makeTempDir(prefix: "ralph-cli-version-")
+        let tempDir = try Self.makeTempDir(prefix: "ralph-agent-loop-version-")
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
         let scriptURL = tempDir.appendingPathComponent("mock-ralph", isDirectory: false)

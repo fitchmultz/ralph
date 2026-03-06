@@ -7,7 +7,7 @@ Repository: https://github.com/mitchfultz/ralph
 ## Install
 
 ```bash
-cargo install ralph-cli
+cargo install ralph-agent-loop
 ```
 
 This installs the `ralph` executable.
