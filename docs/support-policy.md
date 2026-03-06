@@ -17,6 +17,17 @@ Purpose: clarify supported platforms/tooling and what maintainers can realistica
   - `cargo-llvm-cov` (coverage)
   - Xcode (macOS app build/test)
 
+## Current Audited Baseline
+
+As of 2026-03-06:
+
+- Rust `1.94.0` (stable), pinned via `rust-toolchain.toml`
+- Xcode `26.3`
+- Swift language mode `6.2`
+- macOS deployment target `15.0`
+
+Best-practice checks live in `docs/guides/stack-audit-2026-03.md`.
+
 ## Support Windows
 
 - Current release line: actively supported
