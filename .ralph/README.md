@@ -3,6 +3,8 @@
 
 This repo is using Ralph. The `.ralph/` directory holds repo-local state.
 
+This repository keeps a deliberately small, sanitized sample queue archive so reviewers can understand the file format without wading through maintainer-specific history. In a normal project, these files are your own working state.
+
 ## Files
 
 - `.ralph/queue.jsonc` — JSONC task queue (source of truth for active work).

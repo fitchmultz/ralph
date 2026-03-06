@@ -16,9 +16,11 @@ Use this checklist before each public release window.
 
 ## 2) Documentation Quality
 
-- [ ] `README.md` explains what Ralph is, why it exists, and how to run it quickly.
+- [ ] `README.md` explains what Ralph is, why it matters for teams using AI coding agents, and how to run it quickly.
+- [ ] `README.md` includes one concrete end-to-end repo workflow from request → queued task → run → verification.
 - [ ] README links to: docs index, contributing, security, changelog, portfolio guide.
 - [ ] Architecture diagram in README still matches current runtime behavior.
+- [ ] `PORTFOLIO.md` gives a skeptical reviewer a fast path without requiring maintainer context.
 - [ ] `docs/cli.md` matches current `--help` outputs for changed commands.
 - [ ] `docs/features/app.md` reflects current macOS app capabilities and shortcuts.
 
@@ -65,17 +67,8 @@ make macos-ci
 
 - [ ] Recent commits are understandable and logically grouped.
 - [ ] Commit subjects follow project conventions (`RQ-####: summary`) when applicable.
-- [ ] Before public launch, optionally squash/fixup noisy WIP commits:
-
-```bash
-git log --oneline -n 40
-git rebase -i HEAD~20
-```
-
-- [ ] For the current pre-public `main` cleanup campaign, follow the exact hash-level plan in [`history-cleanup-execution-plan.md`](history-cleanup-execution-plan.md).
-
 - [ ] Ensure commit messages explain user-visible behavior changes (not only implementation details).
-- [ ] If repository is still private and solely controlled, rewrite/squash noisy history before launch; if already shared with collaborators, avoid destructive rewrites and prefer explicit cleanup commits.
+- [ ] If recent history is noisy, prefer a few explicit cleanup commits over leaving reviewer-facing confusion.
 
 ## 6) Release and Community Metadata
 
@@ -83,6 +76,7 @@ git rebase -i HEAD~20
 - [ ] `.github` templates exist and are current (issues + PR template).
 - [ ] `SECURITY.md` reporting instructions are accurate.
 - [ ] `CODE_OF_CONDUCT.md` and `CONTRIBUTING.md` are linked and up to date.
+- [ ] Screenshots and demo assets still look current, intentional, and match the shipped UI/CLI terminology.
 
 ## 7) Final Pre-Public Pass
 
@@ -102,7 +96,7 @@ scripts/pre-public-check.sh --skip-clean --skip-ci
 make check-repo-safety
 ```
 
-If all checks pass, perform final review of README + PORTFOLIO guide, then publish.
+If all checks pass, perform a final review of README, PORTFOLIO guide, screenshots/demo assets, and the tracked `.ralph/` sample state, then publish.
 
 Related references:
 - [CI and Test Strategy](ci-strategy.md)

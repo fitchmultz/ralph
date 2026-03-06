@@ -4,11 +4,14 @@ Ralph is a Rust CLI for running AI agent loops against a structured JSON task qu
 
 ## Start Here
 
+- [README](../README.md): product pitch, why it matters, and first end-to-end workflow
+- [Portfolio Guide](../PORTFOLIO.md): fast reviewer path
 - [Architecture Overview](architecture.md): components, data/control flow, trust boundaries
 - [Quick Start](quick-start.md): install, initialize, create first task, run it
 - [CLI Reference](cli.md): command map + high-value workflows
 - [Configuration](configuration.md): config schema, precedence, and defaults
 - [Queue and Tasks](queue-and-tasks.md): task model and queue semantics
+- [Reviewer Smoke Test](guides/reviewer-smoke-test.md): deterministic evaluation path
 
 ## Core Command Areas
 
@@ -22,35 +25,36 @@ Ralph is a Rust CLI for running AI agent loops against a structured JSON task qu
 - `ralph daemon` + `ralph watch`: background automation
 - `ralph webhook`: test/status/replay for event delivery
 
-## Documentation Status
+## Reviewer Path
 
-Use this section to decide what to trust first.
+Use these if you are evaluating whether Ralph feels public-ready:
 
-Stable references (source of truth):
+- [README](../README.md)
+- [Portfolio Guide](../PORTFOLIO.md)
+- [Reviewer Smoke Test](guides/reviewer-smoke-test.md)
+- [Architecture Overview](architecture.md)
+- [Public Readiness Checklist](guides/public-readiness.md)
+- [Security Model](security-model.md)
+
+## Reference Docs
 
 - [CLI Reference](cli.md)
 - [Configuration](configuration.md)
-- [Architecture Overview](architecture.md)
 - [CI and Test Strategy](guides/ci-strategy.md)
-- [Public Readiness Checklist](guides/public-readiness.md)
+- [Troubleshooting](troubleshooting.md)
+- [Support Policy](support-policy.md)
+- [Versioning Policy](versioning-policy.md)
 
-Operational runbooks/policies:
+## Maintainer Runbooks
 
 - [Release Runbook](guides/release-runbook.md)
 - [Current State Baseline](guides/current-state-baseline.md)
-- [Support Policy](support-policy.md)
-- [Versioning Policy](versioning-policy.md)
-- [Troubleshooting](troubleshooting.md)
-
-Historical or tactical artifacts:
-
 - [Public Release Hardening Investigation](guides/public-release-hardening-investigation.md)
 - [History Cleanup Execution Plan](guides/history-cleanup-execution-plan.md)
 
 ## Public Evidence Pack
 
 - [Release Readiness Report](guides/release-readiness-report.md)
-- [Public Takeover Backlog](guides/public-takeover-backlog.md)
 - [Reviewer Smoke Test](guides/reviewer-smoke-test.md)
 - [Role Evidence Index](role-evidence/index.md)
 - [Portfolio Guide](../PORTFOLIO.md)

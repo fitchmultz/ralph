@@ -2,6 +2,8 @@
 
 Ralph is a Rust CLI that runs AI-agent work loops against a structured task queue stored in your repository.
 
+Teams use Ralph when ad-hoc AI coding stops being enough and they need a repeatable way to turn requests into queued work, run that work through Codex/Claude/Gemini-style agents, and keep the result reviewable with local files, local CI, and explicit task history instead of hidden SaaS state.
+
 ![Ralph - AI Conductor](docs/assets/ralph-hero.png)
 
 ## What Ralph Is For
@@ -74,6 +76,33 @@ ralph run one
 ralph queue list
 ```
 
+## End-to-End Example
+
+Here is a concrete repo workflow for a team using Codex or Claude Code in a normal feature branch:
+
+```bash
+# install Ralph in your application repo
+cargo install ralph
+cd your-service
+ralph init
+
+# turn a real request into queued work
+ralph task "Add retry coverage for webhook delivery failures"
+
+# inspect the task Ralph just created
+ralph queue list
+ralph queue show RQ-0001
+
+# let your configured runner plan, implement, and review the task
+ralph run one --phases 3
+
+# verify the repo is still healthy and the task moved forward
+ralph queue list
+ralph doctor
+```
+
+What this gives the team: one tracked queue, one explicit task lifecycle, one local verification path, and the flexibility to swap runners without changing the repo workflow.
+
 ## Public Reviewer Smoke Test (5 minutes)
 
 No external runner setup required:
@@ -133,12 +162,12 @@ Start here:
 - [Documentation Index](docs/index.md)
 - [Architecture Overview](docs/architecture.md)
 - [Quick Start](docs/quick-start.md)
+- [Reviewer Smoke Test](docs/guides/reviewer-smoke-test.md)
 - [CLI Reference](docs/cli.md)
 - [Configuration](docs/configuration.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [CI and Test Strategy](docs/guides/ci-strategy.md)
 - [Public Readiness Checklist](docs/guides/public-readiness.md)
-- [Release Readiness Report](docs/guides/release-readiness-report.md)
 - [Portfolio / Reviewer Guide](PORTFOLIO.md)
 
 Policies:
@@ -150,7 +179,7 @@ Policies:
 
 ## Repository Runtime State
 
-This repository intentionally keeps a sanitized `.ralph/` state for dogfooding and reproducible examples.
+This repository intentionally keeps a small sanitized `.ralph/` state for reproducible examples.
 In most consumer repositories, `.ralph/` is project-local runtime state managed by `ralph init`.
 
 ## Development
