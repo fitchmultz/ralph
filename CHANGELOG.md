@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - macOS SwiftUI app (`apps/RalphMac/`) that drives Ralph by executing the bundled `ralph` CLI.
 - `ralph app open` (macOS-only) to launch the installed app (bundle id: `com.mitchfultz.ralph`).
 - Hidden GUI/tooling contract: `ralph __cli-spec --format json` (emitted from clap's command model).
+- `ralph task decompose` to recursively plan task trees from a freeform goal or an existing queue task, preview the hierarchy, and write durable child tasks back into the queue.
+- Dedicated decomposition prompt plumbing, queue-safe subtree materialization, optional sibling dependency inference, attach/replace child policies, and machine-readable preview/write output for automation.
+- Full macOS app parity for task decomposition, including dedicated UI flows, toolbar/menu entry points, preview/write behavior, and regression coverage.
 
 ### Removed
 
