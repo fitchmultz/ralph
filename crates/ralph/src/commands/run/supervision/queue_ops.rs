@@ -192,8 +192,11 @@ mod tests {
                 instruction_files: None,
                 repoprompt_plan_required: Some(false),
                 repoprompt_tool_injection: Some(false),
-                ci_gate_command: Some("make ci".to_string()),
-                ci_gate_enabled: Some(false),
+                ci_gate: Some(crate::contracts::CiGateConfig {
+                    enabled: Some(false),
+                    argv: None,
+                    shell: None,
+                }),
                 git_revert_mode: Some(crate::contracts::GitRevertMode::Disabled),
                 git_commit_push_enabled: Some(true),
                 phases: Some(2),

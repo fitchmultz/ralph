@@ -75,8 +75,7 @@ Supported fields:
   **Parallel workers:** This setting is inherited by parallel workers for phase execution behavior in each workspace.
 - `session_timeout_hours`: session timeout in hours for crash recovery (default: `24`). Sessions older than this threshold are considered stale and require explicit user confirmation to resume. Set to a higher value if you want to allow resuming sessions after longer periods.
 - `runner_retry`: runner invocation retry/backoff configuration for transient failure handling. See [`agent.runner_retry`](#agentrunner_retry) below.
-- `ci_gate_command`: command to run for the CI gate (default: `make ci`).
-- `ci_gate_enabled`: enable or disable the CI gate (default: `true`).
+- `ci_gate`: structured CI gate config. Use `argv` for direct execution or `shell` only in repos trusted via `.ralph/trust.jsonc`.
   **Safety warning:** Disabling the CI gate skips validation before commit/push, which may allow broken code to be pushed.
 - `claude_bin`, `codex_bin`, `opencode_bin`, `gemini_bin`, `cursor_bin`: override runner executable path/name (Cursor uses the `agent` binary).
 - `claude_permission_mode`: `accept_edits` or `bypass_permissions`.
@@ -152,8 +151,10 @@ Example:
         "claude": { "verbosity": "verbose" }
       }
     },
-    "ci_gate_command": "make ci",
-    "ci_gate_enabled": true
+    "ci_gate": {
+      "enabled": true,
+      "argv": ["make", "ci"]
+    }
   }
 }
 ```
@@ -163,7 +164,9 @@ To disable CI gating entirely (skip running any command), set:
 ```json
 {
   "agent": {
-    "ci_gate_enabled": false
+    "ci_gate": {
+      "enabled": false
+    }
   }
 }
 ```

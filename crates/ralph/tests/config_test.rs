@@ -2,8 +2,8 @@
 
 use ralph::config;
 use ralph::contracts::{
-    AgentConfig, Config, GitRevertMode, Model, NotificationConfig, ProjectType, QueueConfig,
-    ReasoningEffort, Runner, RunnerRetryConfig, WebhookConfig,
+    AgentConfig, CiGateConfig, Config, GitRevertMode, Model, NotificationConfig, ProjectType,
+    QueueConfig, ReasoningEffort, Runner, RunnerRetryConfig, WebhookConfig,
 };
 use serial_test::serial;
 use std::env;
@@ -636,8 +636,11 @@ fn test_agent_config_merge_from_partial() {
         instruction_files: None,
         repoprompt_plan_required: None,
         repoprompt_tool_injection: None,
-        ci_gate_command: Some("make ci".to_string()),
-        ci_gate_enabled: Some(true),
+        ci_gate: Some(CiGateConfig {
+            enabled: Some(true),
+            argv: Some(vec!["make".to_string(), "ci".to_string()]),
+            shell: None,
+        }),
         git_revert_mode: Some(GitRevertMode::Ask),
         git_commit_push_enabled: Some(true),
         notification: NotificationConfig::default(),
@@ -667,8 +670,11 @@ fn test_agent_config_merge_from_partial() {
         instruction_files: None,
         repoprompt_plan_required: None,
         repoprompt_tool_injection: None,
-        ci_gate_command: Some("custom ci".to_string()),
-        ci_gate_enabled: Some(false),
+        ci_gate: Some(CiGateConfig {
+            enabled: Some(false),
+            argv: Some(vec!["custom".to_string(), "ci".to_string()]),
+            shell: None,
+        }),
         git_revert_mode: Some(GitRevertMode::Disabled),
         git_commit_push_enabled: Some(false),
         notification: NotificationConfig::default(),
@@ -688,8 +694,14 @@ fn test_agent_config_merge_from_partial() {
     assert_eq!(base.codex_bin, Some("codex".to_string()));
     assert_eq!(base.opencode_bin, Some("opencode".to_string()));
     assert_eq!(base.phases, Some(3));
-    assert_eq!(base.ci_gate_command, Some("custom ci".to_string()));
-    assert_eq!(base.ci_gate_enabled, Some(false));
+    assert_eq!(
+        base.ci_gate,
+        Some(CiGateConfig {
+            enabled: Some(false),
+            argv: Some(vec!["custom".to_string(), "ci".to_string()]),
+            shell: None,
+        })
+    );
 }
 
 #[test]

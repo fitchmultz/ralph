@@ -162,12 +162,16 @@ fn expand_variables_uses_default_config_done_file_when_unset() -> Result<()> {
 }
 
 #[test]
-fn expand_variables_expands_config_ci_gate_command() -> Result<()> {
-    let template = "CI: {{config.agent.ci_gate_command}}";
+fn expand_variables_expands_config_ci_gate_display() -> Result<()> {
+    let template = "CI: {{config.agent.ci_gate_display}}";
     let mut config = default_config();
-    config.agent.ci_gate_command = Some("make ci".to_string());
+    config.agent.ci_gate = Some(crate::contracts::CiGateConfig {
+        enabled: Some(true),
+        argv: Some(vec!["cargo".to_string(), "test".to_string()]),
+        shell: None,
+    });
     let result = expand_variables(template, &config)?;
-    assert!(result.contains("CI: make ci"));
+    assert!(result.contains("CI: cargo test"));
     Ok(())
 }
 
@@ -175,7 +179,11 @@ fn expand_variables_expands_config_ci_gate_command() -> Result<()> {
 fn expand_variables_expands_config_ci_gate_enabled() -> Result<()> {
     let template = "Enabled: {{config.agent.ci_gate_enabled}}";
     let mut config = default_config();
-    config.agent.ci_gate_enabled = Some(false);
+    config.agent.ci_gate = Some(crate::contracts::CiGateConfig {
+        enabled: Some(false),
+        argv: None,
+        shell: None,
+    });
     let result = expand_variables(template, &config)?;
     assert!(result.contains("Enabled: false"));
     Ok(())

@@ -42,10 +42,10 @@ pub struct IntegrationConfig {
     pub backoff_ms: Vec<u64>,
     /// Target branch to push to.
     pub target_branch: String,
-    /// CI gate command (if enabled).
-    pub ci_command: Option<String>,
     /// Whether CI gate is enabled.
     pub ci_enabled: bool,
+    /// Rendered CI gate label for prompts and handoff context.
+    pub ci_label: String,
 }
 
 impl IntegrationConfig {
@@ -63,8 +63,13 @@ impl IntegrationConfig {
             } else {
                 target_branch.to_string()
             },
-            ci_command: resolved.config.agent.ci_gate_command.clone(),
-            ci_enabled: resolved.config.agent.ci_gate_enabled.unwrap_or(true),
+            ci_enabled: resolved
+                .config
+                .agent
+                .ci_gate
+                .as_ref()
+                .is_some_and(|ci_gate| ci_gate.is_enabled()),
+            ci_label: crate::commands::run::supervision::ci_gate_command_label(resolved),
         }
     }
 
@@ -448,12 +453,16 @@ fn validate_task_archived(resolved: &Resolved, task_id: &str) -> Result<()> {
 
 /// Run CI gate check as deterministic validation.
 fn run_ci_check(repo_root: &Path, resolved: &Resolved) -> Result<()> {
-    let ci_command = resolved
+    let ci_gate = resolved
         .config
         .agent
-        .ci_gate_command
-        .as_deref()
-        .unwrap_or("make ci");
+        .ci_gate
+        .as_ref()
+        .filter(|ci_gate| ci_gate.is_enabled())
+        .ok_or_else(|| {
+            anyhow::anyhow!("CI gate validation requested but agent.ci_gate is disabled.")
+        })?;
+    let ci_command = ci_gate.display_string();
 
     log::info!(
         "Running CI gate validation (may take several minutes): {}",
@@ -461,12 +470,8 @@ fn run_ci_check(repo_root: &Path, resolved: &Resolved) -> Result<()> {
     );
     let started = std::time::Instant::now();
 
-    let output = Command::new("sh")
-        .arg("-c")
-        .arg(ci_command)
-        .current_dir(repo_root)
-        .output()
-        .context("spawn CI gate command")?;
+    let output =
+        crate::runutil::execute_ci_gate(ci_gate, repo_root).context("spawn CI gate command")?;
 
     log::info!(
         "CI gate validation finished in {:.1}s with exit code {:?}",
@@ -536,7 +541,7 @@ fn build_agent_integration_prompt(
     phase_summary: &str,
     status_snapshot: &str,
     ci_enabled: bool,
-    ci_command: Option<&str>,
+    ci_label: &str,
     previous_failure: Option<&str>,
 ) -> String {
     let queue_path_display = queue_path.display();
@@ -548,7 +553,7 @@ fn build_agent_integration_prompt(
     let ci_block = if ci_enabled {
         format!(
             "- Run CI gate and fix failures before pushing: `{}`",
-            ci_command.unwrap_or("make ci")
+            ci_label
         )
     } else {
         "- CI gate is disabled for this task".to_string()
@@ -694,7 +699,7 @@ pub(crate) fn run_integration_loop(
             phase_summary,
             &status_snapshot,
             config.ci_enabled,
-            config.ci_command.as_deref(),
+            &config.ci_label,
             previous_failure.as_deref(),
         );
 
@@ -755,10 +760,7 @@ pub(crate) fn run_integration_loop(
 
         if !compliance.ci_passed {
             handoff = handoff.with_ci_context(
-                config
-                    .ci_command
-                    .clone()
-                    .unwrap_or_else(|| "make ci".into()),
+                config.ci_label.clone(),
                 compliance
                     .validation_error
                     .clone()
@@ -840,8 +842,8 @@ mod tests {
             max_attempts: 5,
             backoff_ms: vec![500, 2000, 5000, 10000],
             target_branch: "main".into(),
-            ci_command: Some("make ci".into()),
             ci_enabled: true,
+            ci_label: "make ci".into(),
         };
 
         assert_eq!(config.backoff_for_attempt(0), Duration::from_millis(500));
@@ -898,7 +900,7 @@ mod tests {
             "phase summary",
             " M src/lib.rs",
             true,
-            Some("make ci"),
+            "make ci",
             Some("previous failure"),
         );
 
@@ -921,7 +923,7 @@ mod tests {
             "phase summary",
             " M src/lib.rs",
             true,
-            Some("make ci"),
+            "make ci",
             None,
         );
 
@@ -943,7 +945,7 @@ mod tests {
             "phase\0summary",
             "status\0snapshot",
             true,
-            Some("make ci"),
+            "make ci",
             Some("previous\0failure"),
         );
 

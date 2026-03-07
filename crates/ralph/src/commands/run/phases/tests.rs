@@ -120,7 +120,11 @@ fn resolved_for_repo(repo_root: PathBuf, opencode_bin: &Path) -> crate::config::
     cfg.agent.repoprompt_plan_required = Some(false);
     cfg.agent.repoprompt_tool_injection = Some(false);
     cfg.agent.opencode_bin = Some(opencode_bin.display().to_string());
-    cfg.agent.ci_gate_enabled = Some(false);
+    cfg.agent.ci_gate = Some(crate::contracts::CiGateConfig {
+        enabled: Some(false),
+        argv: None,
+        shell: None,
+    });
     cfg.queue = QueueConfig {
         file: Some(PathBuf::from(".ralph/queue.json")),
         done_file: Some(PathBuf::from(".ralph/done.json")),
@@ -207,6 +211,15 @@ fn write_queue_and_done(repo_root: &Path, status: TaskStatus) -> Result<()> {
         .args(["add", ".ralph/queue.json", ".ralph/done.json"])
         .status()?;
     anyhow::ensure!(status.success(), "git add failed");
+    Ok(())
+}
+
+fn trust_repo(repo_root: &Path) -> Result<()> {
+    std::fs::create_dir_all(repo_root.join(".ralph"))?;
+    std::fs::write(
+        repo_root.join(".ralph/trust.jsonc"),
+        "{\n  \"allow_project_commands\": true\n}\n",
+    )?;
     Ok(())
 }
 
@@ -928,8 +941,15 @@ echo '{"sessionID":"sess-123"}'
 
     let mut resolved = resolved_for_repo(temp.path().to_path_buf(), &runner_path);
     let ci_marker = temp.path().join("ci-gate-ran.txt");
-    resolved.config.agent.ci_gate_enabled = Some(true);
-    resolved.config.agent.ci_gate_command = Some(format!("echo ok > {}", ci_marker.display()));
+    trust_repo(temp.path())?;
+    resolved.config.agent.ci_gate = Some(crate::contracts::CiGateConfig {
+        enabled: Some(true),
+        argv: None,
+        shell: Some(crate::contracts::ShellCommandConfig {
+            mode: Some(crate::contracts::ShellMode::Posix),
+            command: Some(format!("echo ok > {}", ci_marker.display())),
+        }),
+    });
 
     let settings = runner::AgentSettings {
         runner: Runner::Opencode,
@@ -1010,8 +1030,15 @@ echo '{{"sessionID":"sess-123"}}'
     let runner_path = create_fake_runner(temp.path(), "opencode", &script)?;
 
     let mut resolved = resolved_for_repo(temp.path().to_path_buf(), &runner_path);
-    resolved.config.agent.ci_gate_enabled = Some(true);
-    resolved.config.agent.ci_gate_command = Some("exit 1".to_string());
+    trust_repo(temp.path())?;
+    resolved.config.agent.ci_gate = Some(crate::contracts::CiGateConfig {
+        enabled: Some(true),
+        argv: None,
+        shell: Some(crate::contracts::ShellCommandConfig {
+            mode: Some(crate::contracts::ShellMode::Posix),
+            command: Some("exit 1".to_string()),
+        }),
+    });
 
     let settings = runner::AgentSettings {
         runner: Runner::Opencode,
@@ -1523,8 +1550,15 @@ echo '{"sessionID":"sess-phase2"}'
 
     let ci_marker = temp.path().join("ci-gate-ran.txt");
     let mut resolved = resolved_for_repo(temp.path().to_path_buf(), &runner_path);
-    resolved.config.agent.ci_gate_enabled = Some(true);
-    resolved.config.agent.ci_gate_command = Some(format!("echo ci > {}", ci_marker.display()));
+    trust_repo(temp.path())?;
+    resolved.config.agent.ci_gate = Some(crate::contracts::CiGateConfig {
+        enabled: Some(true),
+        argv: None,
+        shell: Some(crate::contracts::ShellCommandConfig {
+            mode: Some(crate::contracts::ShellMode::Posix),
+            command: Some(format!("echo ci > {}", ci_marker.display())),
+        }),
+    });
 
     let settings = runner::AgentSettings {
         runner: Runner::Opencode,

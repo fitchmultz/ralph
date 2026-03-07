@@ -461,17 +461,41 @@ pub fn configure_ci_gate(dir: &Path, command: Option<&str>, enabled: Option<bool
         .get_mut("agent")
         .and_then(|value| value.as_object_mut())
         .ok_or_else(|| anyhow::anyhow!("config missing agent section"))?;
+    let ci_gate = agent
+        .entry("ci_gate".to_string())
+        .or_insert_with(|| serde_json::json!({}));
+    let ci_gate = ci_gate
+        .as_object_mut()
+        .ok_or_else(|| anyhow::anyhow!("agent.ci_gate is not an object"))?;
     if let Some(command) = command {
-        agent.insert("ci_gate_command".to_string(), serde_json::json!(command));
+        ci_gate.insert(
+            "argv".to_string(),
+            serde_json::json!(command.split_whitespace().collect::<Vec<_>>()),
+        );
     }
     if let Some(enabled) = enabled {
-        agent.insert("ci_gate_enabled".to_string(), serde_json::json!(enabled));
+        ci_gate.insert("enabled".to_string(), serde_json::json!(enabled));
     }
     std::fs::write(
         &config_path,
         serde_json::to_string_pretty(&config).context("serialize config")?,
     )
     .context("write config")?;
+    Ok(())
+}
+
+pub fn trust_project_commands(dir: &Path) -> Result<()> {
+    let ralph_dir = dir.join(".ralph");
+    std::fs::create_dir_all(&ralph_dir).context("create .ralph dir")?;
+    std::fs::write(
+        ralph_dir.join("trust.jsonc"),
+        r#"{
+  "allow_project_commands": true,
+  "trusted_at": "2026-03-07T00:00:00Z"
+}
+"#,
+    )
+    .context("write trust config")?;
     Ok(())
 }
 

@@ -367,11 +367,11 @@ final class WorkspacePerformanceTests: XCTestCase {
         XCTAssertEqual(workspace.currentRunnerConfig?.maxIterations, 4)
     }
 
-    // MARK: - WorkspaceManager CLI Adoption Tests
+    // MARK: - WorkspaceManager CLI Override Rejection Tests
 
-    func test_workspaceManager_adoptCLIExecutable_updatesClientWithValidPath() async throws {
+    func test_workspaceManager_adoptCLIExecutable_rejectsValidPathOverride() async throws {
         let manager = WorkspaceManager.shared
-        let originalPath = manager.client?.executableURL.path
+        let baselinePath = manager.client?.executableURL.standardizedFileURL.resolvingSymlinksInPath().path
         let tempDir = try Self.makeTempDir(prefix: "ralph-workspace-manager-cli-")
         defer { try? FileManager.default.removeItem(at: tempDir) }
         let overrideURL = try Self.makeVersionAwareMockCLI(in: tempDir, name: "mock-ralph-version-ok")
@@ -379,19 +379,13 @@ final class WorkspacePerformanceTests: XCTestCase {
 
         manager.adoptCLIExecutable(path: overridePath)
 
-        await Self.waitFor(timeout: 2.0) {
-            manager.versionCheckResult?.isCompatible == true
-        }
-
-        XCTAssertEqual(
-            manager.client?.executableURL.standardizedFileURL.resolvingSymlinksInPath().path,
-            URL(fileURLWithPath: overridePath).standardizedFileURL.resolvingSymlinksInPath().path
-        )
-        XCTAssertNil(manager.errorMessage)
-        XCTAssertEqual(manager.versionCheckResult?.rawVersion, "ralph \(VersionCompatibility.minimumCLIVersion)")
-
-        if let originalPath {
-            manager.adoptCLIExecutable(path: originalPath)
+        if let baselinePath {
+            XCTAssertEqual(
+                manager.client?.executableURL.standardizedFileURL.resolvingSymlinksInPath().path,
+                baselinePath
+            )
+        } else {
+            XCTAssertNil(manager.client)
         }
     }
 

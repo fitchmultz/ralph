@@ -26,10 +26,12 @@ use std::env;
 use std::path::{Path, PathBuf};
 
 use super::Resolved;
-use super::layer::{apply_layer, load_layer};
+use super::layer::{ConfigLayer, apply_layer, load_layer};
+use super::trust::load_repo_trust;
 use super::validation::{
-    validate_config, validate_queue_done_file_override, validate_queue_file_override,
-    validate_queue_id_prefix_override, validate_queue_id_width_override,
+    validate_config, validate_project_execution_trust, validate_queue_done_file_override,
+    validate_queue_file_override, validate_queue_id_prefix_override,
+    validate_queue_id_width_override,
 };
 
 /// Resolve configuration from the current working directory.
@@ -60,8 +62,10 @@ fn resolve_from_cwd_internal(
 
     let global_path = global_config_path();
     let project_path = project_config_path(&repo_root);
+    let repo_trust = load_repo_trust(&repo_root)?;
 
     let mut cfg = Config::default();
+    let mut project_layer: Option<ConfigLayer> = None;
 
     if let Some(path) = global_path.as_ref() {
         log::debug!("checking global config at: {}", path.display());
@@ -79,15 +83,18 @@ fn resolve_from_cwd_internal(
         log::debug!("loading project config: {}", project_path.display());
         let layer = load_layer(&project_path)
             .with_context(|| format!("load project config {}", project_path.display()))?;
+        project_layer = Some(layer.clone());
         cfg = apply_layer(cfg, layer)
             .with_context(|| format!("apply project config {}", project_path.display()))?;
     }
 
+    validate_project_execution_trust(project_layer.as_ref(), &repo_trust)?;
     validate_config(&cfg)?;
 
     // Apply selected profile if specified
     if let Some(name) = profile {
         apply_profile_patch(&mut cfg, name)?;
+        validate_config(&cfg)?;
     }
 
     // Validate instruction_files early for fast feedback (before runtime prompt rendering)

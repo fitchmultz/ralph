@@ -149,8 +149,8 @@ make ci
 
 # Configurable via:
 # - CLI: (no direct flag, use config)
-# - Config: agent.ci_gate_command
-# - Config: agent.ci_gate_enabled (set to false to disable)
+# - Config: agent.ci_gate.argv / agent.ci_gate.shell
+# - Config: agent.ci_gate.enabled (set to false to disable)
 ```
 
 **CI Auto-Retry Behavior**:

@@ -21,7 +21,7 @@ Your goal is to understand the task, refresh task metadata, and produce a detail
 ## STRICT PROHIBITIONS (PHASE 1 ONLY)
 **DO NOT DO ANY OF THE FOLLOWING:**
 - DO NOT create or modify any files outside the allowed Phase 1 files
-- DO NOT run tests, the configured CI gate command (`{{config.agent.ci_gate_command}}`) when enabled, or any validation commands
+- DO NOT run tests, the configured CI gate command (`{{config.agent.ci_gate_display}}`) when enabled, or any validation commands
 - DO NOT execute `git add`, `git commit`, or `git push`
 - DO NOT write, edit, or change any source code, configuration, or documentation files
 - DO NOT make any implementation changes whatsoever

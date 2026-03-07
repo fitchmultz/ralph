@@ -390,16 +390,18 @@ Failure → Stop and report errors
 ```json
 {
   "agent": {
-    "ci_gate_enabled": true,
-    "ci_gate_command": "make ci"
+    "ci_gate": {
+      "enabled": true,
+      "argv": ["make", "ci"]
+    }
   }
 }
 ```
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `ci_gate_enabled` | `true` | Enable/disable CI gate |
-| `ci_gate_command` | `"make ci"` | Command to run for validation |
+| `ci_gate.enabled` | `true` | Enable/disable CI gate |
+| `ci_gate.argv` | `["make", "ci"]` | Direct argv command to run for validation |
 
 ### CI Gate Execution
 

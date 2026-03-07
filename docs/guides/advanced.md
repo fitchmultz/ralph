@@ -107,8 +107,10 @@ Ralph automatically retries CI failures up to 2 times. To customize this behavio
 ```json
 {
   "agent": {
-    "ci_gate_command": "make ci",
-    "ci_gate_enabled": true,
+    "ci_gate": {
+      "enabled": true,
+      "argv": ["make", "ci"]
+    },
     "git_revert_mode": "ask"
   }
 }
@@ -269,7 +271,7 @@ Define standardized profiles for team consistency:
       "model": "kimi-for-coding",
       "phases": 1,
       "git_revert_mode": "enabled",
-      "ci_gate_enabled": false
+      "ci_gate": { "enabled": false }
     }
   }
 }
@@ -286,7 +288,7 @@ Define standardized profiles for team consistency:
       "phases": 1,
       "git_revert_mode": "enabled",
       "git_commit_push_enabled": false,
-      "ci_gate_enabled": false
+      "ci_gate": { "enabled": false }
     },
     "local-dev": {
       "runner": "claude",
@@ -539,8 +541,10 @@ Use comments in config for documentation:
     "phases": 3, // 1 = single-pass, 2 = plan+implement, 3 = full workflow
     
     // CI gate settings
-    "ci_gate_enabled": true,
-    "ci_gate_command": "make ci",
+    "ci_gate": {
+      "enabled": true,
+      "argv": ["make", "ci"]
+    },
     
     // Safety settings
     "git_revert_mode": "ask",
@@ -579,7 +583,13 @@ Use comments in config for documentation:
 {
   "version": 1,
   "agent": {
-    "ci_gate_command": "cargo test && cargo clippy",
+    "ci_gate": {
+      "enabled": true,
+      "shell": {
+        "mode": "posix",
+        "command": "cargo test && cargo clippy"
+      }
+    },
     "phases": 2
   },
   "profiles": {
@@ -1185,7 +1195,7 @@ ralph run loop --wait-when-blocked --wait-timeout-seconds 3600
 | Phases | `agent.phases` | `--phases` |
 | Profile | N/A | `--profile` |
 | Parallel workers | `parallel.workers` | `--parallel` |
-| CI gate | `agent.ci_gate_enabled` | `--ci-gate-on/off` |
+| CI gate | `agent.ci_gate.enabled` | `--ci-gate-on/off` |
 | Git push | `agent.git_commit_push_enabled` | `--git-commit-push-on/off` |
 
 ### File Locations

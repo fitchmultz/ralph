@@ -8,8 +8,14 @@
       "description": "Agent runner defaults (Claude, Codex, OpenCode, Gemini, or Cursor).",
       "$ref": "#/$defs/AgentConfig",
       "default": {
-        "ci_gate_command": "make ci",
-        "ci_gate_enabled": true,
+        "ci_gate": {
+          "argv": [
+            "make",
+            "ci"
+          ],
+          "enabled": true,
+          "shell": null
+        },
         "claude_bin": "claude",
         "claude_permission_mode": "bypass_permissions",
         "codex_bin": "codex",
@@ -197,19 +203,15 @@
       "description": "Agent runner defaults (Claude, Codex, OpenCode, Gemini, or Cursor).",
       "type": "object",
       "properties": {
-        "ci_gate_command": {
-          "description": "CI gate command to run (default: \"make ci\").",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
-        },
-        "ci_gate_enabled": {
-          "description": "Enable or disable the CI gate entirely (default: true).",
-          "type": [
-            "boolean",
-            "null"
+        "ci_gate": {
+          "description": "Structured CI gate execution settings.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CiGateConfig"
+            },
+            {
+              "type": "null"
+            }
           ],
           "default": null
         },
@@ -484,6 +486,44 @@
             "timeout_secs": null,
             "url": null
           }
+        }
+      },
+      "additionalProperties": false
+    },
+    "CiGateConfig": {
+      "description": "Structured CI gate execution settings.",
+      "type": "object",
+      "properties": {
+        "argv": {
+          "description": "Direct argv execution. The first item is the program and remaining items are arguments.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "default": null,
+          "items": {
+            "type": "string"
+          }
+        },
+        "enabled": {
+          "description": "Enable or disable the CI gate entirely.",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        },
+        "shell": {
+          "description": "Explicit shell-mode execution. Intended only for trusted local configuration.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ShellCommandConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "additionalProperties": false
@@ -1318,6 +1358,41 @@
           "type": "string",
           "const": "v2"
         }
+      ]
+    },
+    "ShellCommandConfig": {
+      "description": "Trusted shell execution settings for the CI gate.",
+      "type": "object",
+      "properties": {
+        "command": {
+          "description": "Command string evaluated by the configured shell.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "mode": {
+          "description": "Shell mode used to interpret the command string.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ShellMode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "additionalProperties": false
+    },
+    "ShellMode": {
+      "description": "Platform shell mode for trusted CI gate execution.",
+      "type": "string",
+      "enum": [
+        "posix",
+        "windows_cmd"
       ]
     },
     "UnsupportedOptionPolicy": {

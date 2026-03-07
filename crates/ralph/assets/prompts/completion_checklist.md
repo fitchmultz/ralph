@@ -22,7 +22,7 @@ When implementation is complete, you MUST:
 6. CI Gate (Conditional):
    - BEFORE running the CI gate, check if you made ANY modifications during this phase using git status/diff.
    - If you made NO changes (only reviewed/validated): you MAY skip the CI gate even if enabled.
-   - If you made ANY modifications: you MUST run the CI gate if enabled (`{{config.agent.ci_gate_command}}`) and fix all failures before ending your turn.
+   - If you made ANY modifications: you MUST run the CI gate if enabled (`{{config.agent.ci_gate_display}}`) and fix all failures before ending your turn.
 7. Git hygiene:
    - If `RUN_MODE=normal`: do NOT commit or push until `ralph task done` succeeds.
    - If `RUN_MODE=parallel-worker`: complete integration bookkeeping validation before commit/push.

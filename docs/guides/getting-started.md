@@ -444,7 +444,10 @@ A minimal effective configuration:
     "runner": "codex",
     "model": "gpt-5.4",
     "phases": 3,
-    "ci_gate_enabled": true,
+    "ci_gate": {
+      "enabled": true,
+      "argv": ["make", "ci"]
+    },
     "git_commit_push_enabled": false
   },
   "queue": {
@@ -466,8 +469,10 @@ A minimal effective configuration:
     "phases": 3,                  // Default phase count (1, 2, or 3)
     "iterations": 1,              // Iterations per task
     "reasoning_effort": "medium", // Codex: low/medium/high/xhigh
-    "ci_gate_enabled": true,      // Run make ci before completion
-    "ci_gate_command": "make ci", // CI command to run
+    "ci_gate": {                  // Run make ci before completion
+      "enabled": true,
+      "argv": ["make", "ci"]
+    },
     "git_commit_push_enabled": false,  // Auto-commit/push on completion
     "git_revert_mode": "ask"      // ask/enabled/disabled
   }

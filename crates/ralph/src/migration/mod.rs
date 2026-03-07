@@ -60,6 +60,8 @@ pub enum MigrationType {
         /// Dot-separated path to the key to remove (e.g., "agent.legacy_flag").
         key: &'static str,
     },
+    /// Rewrite legacy CI gate string config to structured argv/shell config.
+    ConfigCiGateRewrite,
     /// Rename/move a file.
     FileRename {
         /// Path to the old file, relative to repo root.
@@ -149,6 +151,10 @@ fn is_migration_applicable(ctx: &MigrationContext, migration: &Migration) -> boo
             config_migrations::config_has_key(ctx, old_key)
         }
         MigrationType::ConfigKeyRemove { key } => config_migrations::config_has_key(ctx, key),
+        MigrationType::ConfigCiGateRewrite => {
+            config_migrations::config_has_key(ctx, "agent.ci_gate_command")
+                || config_migrations::config_has_key(ctx, "agent.ci_gate_enabled")
+        }
         MigrationType::FileRename { old_path, new_path } => {
             if matches!(
                 migration.id,
@@ -209,6 +215,10 @@ pub fn apply_migration(ctx: &mut MigrationContext, migration: &Migration) -> Res
         MigrationType::ConfigKeyRemove { key } => {
             config_migrations::apply_key_remove(ctx, key)
                 .with_context(|| format!("apply config key removal for {}", migration.id))?;
+        }
+        MigrationType::ConfigCiGateRewrite => {
+            config_migrations::apply_ci_gate_rewrite(ctx)
+                .with_context(|| format!("apply CI gate rewrite for {}", migration.id))?;
         }
         MigrationType::FileRename { old_path, new_path } => match (*old_path, *new_path) {
             (".ralph/queue.json", ".ralph/queue.jsonc") => {

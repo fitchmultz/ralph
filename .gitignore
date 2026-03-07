@@ -37,5 +37,7 @@ apps/RalphMac/build/
 .ralph/cache/
 .ralph/undo/
 .ralph/webhooks/
+.ralph/trust.json
+.ralph/trust.jsonc
 .scratchpad.md
 .FIX_TRACKING.md

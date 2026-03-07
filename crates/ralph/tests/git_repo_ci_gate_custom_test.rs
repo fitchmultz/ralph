@@ -21,6 +21,7 @@ fn run_one_fails_when_custom_ci_gate_command_fails() -> Result<()> {
     let script = "#!/bin/sh\necho 'CI failing'\nexit 2\n";
     test_support::create_executable_script(dir.path(), "ci-gate.sh", script)?;
     test_support::configure_ci_gate(dir.path(), Some("./ci-gate.sh"), Some(true))?;
+    test_support::trust_project_commands(dir.path())?;
 
     let dirty_file = dir.path().join("dirty-file.txt");
     let runner_script = format!(
@@ -71,6 +72,7 @@ fn run_one_succeeds_when_ci_gate_disabled() -> Result<()> {
     let script = "#!/bin/sh\necho 'CI failing'\nexit 2\n";
     test_support::create_executable_script(dir.path(), "ci-gate.sh", script)?;
     test_support::configure_ci_gate(dir.path(), Some("./ci-gate.sh"), Some(false))?;
+    test_support::trust_project_commands(dir.path())?;
 
     let dirty_file = dir.path().join("dirty-file.txt");
     let runner_script = format!(

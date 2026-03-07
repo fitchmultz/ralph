@@ -25,10 +25,11 @@ mod task;
 // Re-exports from config module (core config types)
 // All config types are now re-exported from config::mod.rs for backward compatibility
 pub use config::{
-    AgentConfig, Config, GitRevertMode, LoopConfig, NotificationConfig, ParallelConfig,
-    PhaseOverrideConfig, PhaseOverrides, PluginConfig, PluginProcessorConfig, PluginRunnerConfig,
-    PluginsConfig, ProjectType, QueueAgingThresholds, QueueConfig, RunnerRetryConfig,
-    ScanPromptVersion, WebhookConfig, WebhookEventSubscription, WebhookQueuePolicy,
+    AgentConfig, CiGateConfig, Config, GitRevertMode, LoopConfig, NotificationConfig,
+    ParallelConfig, PhaseOverrideConfig, PhaseOverrides, PluginConfig, PluginProcessorConfig,
+    PluginRunnerConfig, PluginsConfig, ProjectType, QueueAgingThresholds, QueueConfig,
+    RunnerRetryConfig, ScanPromptVersion, ShellCommandConfig, ShellMode, WebhookConfig,
+    WebhookEventSubscription, WebhookQueuePolicy,
 };
 
 // Re-exports from cli_spec module (versioned; suitable for tooling consumption)

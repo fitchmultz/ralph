@@ -8,6 +8,6 @@ When refining an already-implemented task, you MUST:
 5. CI Gate (Conditional):
    - Check if you made ANY modifications during this iteration using git status/diff.
    - If you made NO changes: you MAY skip the CI gate even if enabled.
-   - If you made ANY modifications: you MUST run the CI gate if enabled (`{{config.agent.ci_gate_command}}`) and fix failures until it is green.
+   - If you made ANY modifications: you MUST run the CI gate if enabled (`{{config.agent.ci_gate_display}}`) and fix failures until it is green.
 6. Summarize changes, remaining risks, and any follow-up work needed for the next run.
 7. Do NOT run `ralph task done`, and leave the working tree dirty for continued iteration.

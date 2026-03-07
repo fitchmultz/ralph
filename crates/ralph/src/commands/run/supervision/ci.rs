@@ -19,7 +19,6 @@ use super::logging;
 use crate::constants::limits::{CI_FAILURE_ESCALATION_THRESHOLD, CI_GATE_AUTO_RETRY_LIMIT};
 use crate::runutil;
 use anyhow::{Context, Result, bail};
-use std::process::Stdio;
 use std::time::Instant;
 
 // ============================================================================
@@ -60,10 +59,10 @@ const LOCK_CONTENTION_GUIDANCE: &str = "A build or test process is waiting on a 
 fn find_ascii_case_insensitive(haystack: &str, needle: &str) -> Option<usize> {
     if needle.is_empty() {
         return Some(0);
-    }
+    };
     if haystack.len() < needle.len() {
         return None;
-    }
+    };
 
     for (idx, _) in haystack.char_indices() {
         if let Some(candidate) = haystack.get(idx..idx + needle.len())
@@ -537,30 +536,23 @@ fn format_ci_output_for_message(
 ///
 /// Returns a CiGateResult containing success status, exit code, and captured output.
 pub(crate) fn run_ci_gate(resolved: &crate::config::Resolved) -> Result<CiGateResult> {
-    let enabled = resolved.config.agent.ci_gate_enabled.unwrap_or(true);
-    let command = resolved
+    let ci_gate = resolved
         .config
         .agent
-        .ci_gate_command
-        .as_deref()
-        .unwrap_or("make ci")
-        .trim();
-
-    if !enabled {
-        log::info!("CI gate disabled; skipping configured command '{command}'.");
+        .ci_gate
+        .as_ref()
+        .filter(|ci_gate| ci_gate.is_enabled());
+    let Some(ci_gate) = ci_gate else {
+        log::info!("CI gate disabled; skipping.");
         return Ok(CiGateResult {
             success: true,
             exit_code: None,
             stdout: String::new(),
             stderr: String::new(),
         });
-    }
+    };
 
-    if command.is_empty() {
-        bail!(
-            "CI gate command is empty but CI gate is enabled. Set agent.ci_gate_command or disable the gate with agent.ci_gate_enabled=false."
-        );
-    }
+    let command = ci_gate.display_string();
 
     logging::with_scope(&format!("CI gate ({command})"), || {
         log::info!(
@@ -569,20 +561,13 @@ pub(crate) fn run_ci_gate(resolved: &crate::config::Resolved) -> Result<CiGateRe
         );
         let started = Instant::now();
 
-        let mut cmd = runutil::shell_command(command);
-        cmd.current_dir(&resolved.repo_root);
-        let output = cmd
-            .stdin(Stdio::null())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .output()
-            .with_context(|| {
-                format!(
-                    "run CI gate command '{}' in {}",
-                    command,
-                    resolved.repo_root.display()
-                )
-            })?;
+        let output = runutil::execute_ci_gate(ci_gate, &resolved.repo_root).with_context(|| {
+            format!(
+                "run CI gate command '{}' in {}",
+                command,
+                resolved.repo_root.display()
+            )
+        })?;
 
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
@@ -879,22 +864,36 @@ pub(crate) fn ci_gate_command_label(resolved: &crate::config::Resolved) -> Strin
     resolved
         .config
         .agent
-        .ci_gate_command
-        .as_deref()
-        .unwrap_or("make ci")
-        .trim()
-        .to_string()
+        .ci_gate
+        .as_ref()
+        .map(|ci_gate| ci_gate.display_string())
+        .unwrap_or_else(|| "disabled".to_string())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::contracts::{
-        AgentConfig, Config, NotificationConfig, QueueConfig, Runner, RunnerRetryConfig,
+        AgentConfig, CiGateConfig, Config, NotificationConfig, QueueConfig, Runner,
+        RunnerRetryConfig, ShellCommandConfig, ShellMode,
     };
+    use std::fs;
     use std::path::PathBuf;
     use std::sync::Arc;
     use tempfile::TempDir;
+
+    fn write_repo_trust(repo_root: &std::path::Path) {
+        let ralph_dir = repo_root.join(".ralph");
+        fs::create_dir_all(&ralph_dir).unwrap();
+        fs::write(
+            ralph_dir.join("trust.jsonc"),
+            r#"{
+  "allow_project_commands": true,
+  "trusted_at": "2026-03-07T00:00:00Z"
+}"#,
+        )
+        .unwrap();
+    }
 
     fn resolved_with_ci_command(
         repo_root: &std::path::Path,
@@ -923,8 +922,26 @@ mod tests {
                 instruction_files: None,
                 repoprompt_plan_required: Some(false),
                 repoprompt_tool_injection: Some(false),
-                ci_gate_command: command,
-                ci_gate_enabled: Some(enabled),
+                ci_gate: Some(if let Some(command) = command {
+                    CiGateConfig {
+                        enabled: Some(enabled),
+                        argv: None,
+                        shell: Some(ShellCommandConfig {
+                            mode: Some(if cfg!(windows) {
+                                ShellMode::WindowsCmd
+                            } else {
+                                ShellMode::Posix
+                            }),
+                            command: Some(command),
+                        }),
+                    }
+                } else {
+                    CiGateConfig {
+                        enabled: Some(enabled),
+                        argv: Some(vec!["make".to_string(), "ci".to_string()]),
+                        shell: None,
+                    }
+                }),
                 git_revert_mode: Some(crate::contracts::GitRevertMode::Disabled),
                 git_commit_push_enabled: Some(true),
                 phases: Some(2),
@@ -974,7 +991,12 @@ mod tests {
     fn ci_gate_command_label_returns_custom() {
         let temp = TempDir::new().unwrap();
         let resolved = resolved_with_ci_command(temp.path(), Some("cargo test".to_string()), true);
-        assert_eq!(ci_gate_command_label(&resolved), "cargo test");
+        let expected = if cfg!(windows) {
+            "cmd /C cargo test"
+        } else {
+            "sh -c cargo test"
+        };
+        assert_eq!(ci_gate_command_label(&resolved), expected);
     }
 
     #[test]
@@ -990,9 +1012,10 @@ mod tests {
     #[test]
     fn run_ci_gate_errors_on_empty_command() {
         let temp = TempDir::new().unwrap();
+        write_repo_trust(temp.path());
         let resolved = resolved_with_ci_command(temp.path(), Some("".to_string()), true);
         let err = run_ci_gate(&resolved).unwrap_err();
-        assert!(err.to_string().contains("empty"));
+        assert!(format!("{err:#}").contains("CI gate shell command must be non-empty"));
     }
 
     #[test]
@@ -1001,8 +1024,9 @@ mod tests {
         let command = if cfg!(windows) {
             "powershell -NoProfile -Command \"Write-Output 'stdout text'; Write-Error 'stderr text'; exit 1\""
         } else {
-            "sh -c 'echo stdout text; echo stderr text >&2; exit 1'"
+            "echo stdout text; echo stderr text >&2; exit 1"
         };
+        write_repo_trust(temp.path());
         let resolved = resolved_with_ci_command(temp.path(), Some(command.to_string()), true);
         let err = run_ci_gate(&resolved).unwrap_err();
 
@@ -2021,9 +2045,10 @@ mod tests {
         let command = if cfg!(windows) {
             r#"powershell -NoProfile -Command "Write-Error 'ruff failed: TOML parse error at line 44'; exit 1""#
         } else {
-            r#"sh -c 'echo "ruff failed: TOML parse error at line 44" >&2; exit 1'"#
+            r#"echo "ruff failed: TOML parse error at line 44" >&2; exit 1"#
         };
 
+        write_repo_trust(temp.path());
         let resolved = resolved_with_ci_command(temp.path(), Some(command.to_string()), true);
         let mut session = continue_session_for_ci_tests();
         session.ci_failure_retry_count = 0;
@@ -2057,9 +2082,10 @@ mod tests {
         let command = if cfg!(windows) {
             r#"powershell -NoProfile -Command "Write-Error 'format-check failed'; exit 1""#
         } else {
-            r#"sh -c 'echo "format-check failed" >&2; exit 1'"#
+            r#"echo "format-check failed" >&2; exit 1"#
         };
 
+        write_repo_trust(temp.path());
         let resolved = resolved_with_ci_command(temp.path(), Some(command.to_string()), true);
         let mut resolved = resolved;
         resolved.config.agent.codex_bin = Some(
@@ -2108,9 +2134,10 @@ mod tests {
         let command = if cfg!(windows) {
             r#"powershell -NoProfile -Command "Write-Error 'format-check failed'; exit 1""#
         } else {
-            r#"sh -c 'echo "format-check failed" >&2; exit 1'"#
+            r#"echo "format-check failed" >&2; exit 1"#
         };
 
+        write_repo_trust(temp.path());
         let resolved = resolved_with_ci_command(temp.path(), Some(command.to_string()), true);
         let mut session = continue_session_for_ci_tests();
         session.ci_failure_retry_count = CI_GATE_AUTO_RETRY_LIMIT;
@@ -2141,9 +2168,10 @@ mod tests {
         let command = if cfg!(windows) {
             r#"powershell -NoProfile -Command "exit 0""#
         } else {
-            r#"sh -c 'exit 0'"#
+            "exit 0"
         };
 
+        write_repo_trust(temp.path());
         let resolved = resolved_with_ci_command(temp.path(), Some(command.to_string()), true);
         let mut session = continue_session_for_ci_tests();
         session.last_ci_error_pattern = Some("TOML parse error".to_string());

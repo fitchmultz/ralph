@@ -35,16 +35,18 @@ The CI gate is Ralph's primary quality enforcement mechanism. It runs after task
 {
   "version": 1,
   "agent": {
-    "ci_gate_enabled": true,
-    "ci_gate_command": "make ci"
+    "ci_gate": {
+      "enabled": true,
+      "argv": ["make", "ci"]
+    }
   }
 }
 ```
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `ci_gate_enabled` | `true` | Enable/disable the CI gate entirely |
-| `ci_gate_command` | `"make ci"` | Command to run for validation |
+| `ci_gate.enabled` | `true` | Enable/disable the CI gate entirely |
+| `ci_gate.argv` | `["make", "ci"]` | Direct argv command to run for validation |
 
 ### Command Execution
 
@@ -505,8 +507,10 @@ CI Failure Detected
   "agent": {
     "git_commit_push_enabled": false,
     "git_revert_mode": "ask",
-    "ci_gate_enabled": true,
-    "ci_gate_command": "make ci"
+    "ci_gate": {
+      "enabled": true,
+      "argv": ["make", "ci"]
+    }
   }
 }
 ```
@@ -521,8 +525,10 @@ CI Failure Detected
   "agent": {
     "git_commit_push_enabled": true,
     "git_revert_mode": "enabled",
-    "ci_gate_enabled": true,
-    "ci_gate_command": "make ci"
+    "ci_gate": {
+      "enabled": true,
+      "argv": ["make", "ci"]
+    }
   }
 }
 ```
@@ -537,7 +543,7 @@ CI Failure Detected
   "agent": {
     "git_commit_push_enabled": false,
     "git_revert_mode": "disabled",
-    "ci_gate_enabled": true
+    "ci_gate": { "enabled": true, "argv": ["make", "ci"] }
   }
 }
 ```

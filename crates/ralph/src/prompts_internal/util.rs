@@ -295,16 +295,11 @@ fn get_config_value(config: &Config, path: &str) -> Result<String> {
             .claude_permission_mode
             .map(|m| format!("{:?}", m))
             .ok_or_else(|| anyhow::anyhow!("agent.claude_permission_mode not set")),
-        ["agent", "ci_gate_command"] => config
-            .agent
-            .ci_gate_command
-            .clone()
-            .ok_or_else(|| anyhow::anyhow!("agent.ci_gate_command not set")),
-        ["agent", "ci_gate_enabled"] => config
-            .agent
-            .ci_gate_enabled
-            .map(|v| v.to_string())
-            .ok_or_else(|| anyhow::anyhow!("agent.ci_gate_enabled not set")),
+        ["agent", "ci_gate_enabled"] => Ok(config.agent.ci_gate_enabled().to_string()),
+        ["agent", "ci_gate_display"] | ["agent", "ci_gate", "display"] => {
+            Ok(config.agent.ci_gate_display_string())
+        }
+        ["agent", "ci_gate", "enabled"] => Ok(config.agent.ci_gate_enabled().to_string()),
         ["agent", "git_commit_push_enabled"] => config
             .agent
             .git_commit_push_enabled

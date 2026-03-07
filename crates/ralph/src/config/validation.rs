@@ -15,8 +15,12 @@
 //! - Validation errors are returned as `anyhow::Error` with descriptive messages.
 //! - Queue validation uses shared error messages for consistency.
 
+use crate::config::{ConfigLayer, RepoTrust};
 use crate::constants::runner::{MAX_PHASES, MIN_ITERATIONS, MIN_PARALLEL_WORKERS, MIN_PHASES};
-use crate::contracts::{AgentConfig, Config, QueueAgingThresholds, QueueConfig};
+use crate::contracts::{
+    AgentConfig, CiGateConfig, Config, QueueAgingThresholds, QueueConfig, ShellCommandConfig,
+    ShellMode,
+};
 use anyhow::{Result, bail};
 use std::path::{Component, Path};
 
@@ -45,6 +49,115 @@ pub(crate) const ERR_EMPTY_QUEUE_ID_PREFIX: &str = "Empty queue.id_prefix: prefi
 pub(crate) const ERR_INVALID_QUEUE_ID_WIDTH: &str = "Invalid queue.id_width: width must be greater than 0. Set a valid width (e.g., 4) in .ralph/config.jsonc or via --id-width.";
 pub(crate) const ERR_EMPTY_QUEUE_FILE: &str = "Empty queue.file: path is required if specified. Specify a valid path (e.g., '.ralph/queue.jsonc') in .ralph/config.jsonc or via --queue-file.";
 pub(crate) const ERR_EMPTY_QUEUE_DONE_FILE: &str = "Empty queue.done_file: path is required if specified. Specify a valid path (e.g., '.ralph/done.jsonc') in .ralph/config.jsonc or via --done-file.";
+pub(crate) const ERR_PROJECT_EXECUTION_TRUST: &str = "Project config defines execution-sensitive CI gate settings, but this repo is not trusted. Create .ralph/trust.jsonc with {\"allow_project_commands\": true, \"trusted_at\": \"<RFC3339>\"} or move agent.ci_gate to trusted global config.";
+pub(crate) const ERR_SHELL_MODE_SHAPE: &str =
+    "agent.ci_gate.shell requires both mode and command when enabled.";
+
+fn validate_ci_gate_config(ci_gate: Option<&CiGateConfig>, label: &str) -> Result<()> {
+    let Some(ci_gate) = ci_gate else {
+        return Ok(());
+    };
+
+    if !ci_gate.is_enabled() {
+        return Ok(());
+    }
+
+    let argv = ci_gate.argv.as_ref();
+    let shell = ci_gate.shell.as_ref();
+
+    match (argv, shell) {
+        (Some(_), Some(_)) => {
+            bail!("Invalid {label}.ci_gate: choose either argv or shell, not both.");
+        }
+        (None, None) => {
+            bail!(
+                "Invalid {label}.ci_gate: enabled CI gate requires either argv or shell settings."
+            );
+        }
+        (Some(argv), None) => validate_ci_gate_argv(argv, label)?,
+        (None, Some(shell)) => validate_ci_gate_shell(shell, label)?,
+    }
+
+    Ok(())
+}
+
+fn validate_ci_gate_argv(argv: &[String], label: &str) -> Result<()> {
+    if argv.is_empty() {
+        bail!("Invalid {label}.ci_gate.argv: at least one argv element is required.");
+    }
+    if argv.iter().any(|arg| arg.is_empty()) {
+        bail!("Invalid {label}.ci_gate.argv: argv entries must not be empty strings.");
+    }
+    if argv_launches_shell(argv) {
+        bail!(
+            "Invalid {label}.ci_gate.argv: shell launcher argv requires agent.ci_gate.shell instead of argv."
+        );
+    }
+    Ok(())
+}
+
+fn validate_ci_gate_shell(shell: &ShellCommandConfig, label: &str) -> Result<()> {
+    let Some(mode) = shell.mode else {
+        bail!("{ERR_SHELL_MODE_SHAPE}");
+    };
+    let Some(command) = shell.command.as_deref() else {
+        bail!("{ERR_SHELL_MODE_SHAPE}");
+    };
+    if command.trim().is_empty() {
+        bail!("Invalid {label}.ci_gate.shell.command: shell command must be non-empty.");
+    }
+    match mode {
+        ShellMode::Posix | ShellMode::WindowsCmd => Ok(()),
+    }
+}
+
+pub fn validate_project_execution_trust(
+    project_cfg: Option<&ConfigLayer>,
+    repo_trust: &RepoTrust,
+) -> Result<()> {
+    let project_needs_trust = project_cfg.is_some_and(layer_has_execution_settings);
+    if project_needs_trust && !repo_trust.is_trusted() {
+        bail!(ERR_PROJECT_EXECUTION_TRUST);
+    }
+    Ok(())
+}
+
+fn layer_has_execution_settings(layer: &ConfigLayer) -> bool {
+    if layer.agent.ci_gate.is_some() {
+        return true;
+    }
+    layer
+        .profiles
+        .as_ref()
+        .is_some_and(|profiles| profiles.values().any(|agent| agent.ci_gate.is_some()))
+}
+
+fn argv_launches_shell(argv: &[String]) -> bool {
+    let Some(program) = argv.first() else {
+        return false;
+    };
+    let Some(program_name) = std::path::Path::new(program)
+        .file_name()
+        .and_then(|name| name.to_str())
+    else {
+        return false;
+    };
+
+    let shell_program = matches!(
+        program_name,
+        "sh" | "bash" | "zsh" | "dash" | "fish" | "cmd" | "pwsh" | "powershell"
+    );
+    if !shell_program {
+        return false;
+    }
+
+    argv.iter().skip(1).any(|arg| {
+        arg == "-c"
+            || arg.eq_ignore_ascii_case("/c")
+            || arg.eq_ignore_ascii_case("-command")
+            || arg.eq_ignore_ascii_case("-c")
+    })
+}
 
 /// Validate queue.id_prefix override (if specified, must be non-empty after trim).
 pub fn validate_queue_id_prefix_override(id_prefix: Option<&str>) -> Result<()> {
@@ -289,15 +402,7 @@ pub fn validate_config(cfg: &Config) -> Result<()> {
     // Validate all agent binary paths using shared helper
     validate_agent_binary_paths(&cfg.agent, "agent")?;
 
-    let ci_gate_enabled = cfg.agent.ci_gate_enabled.unwrap_or(true);
-    if ci_gate_enabled
-        && let Some(command) = &cfg.agent.ci_gate_command
-        && command.trim().is_empty()
-    {
-        bail!(
-            "Empty agent.ci_gate_command: CI gate command must be non-empty when enabled. Set a command (e.g., 'make ci') or disable the gate with agent.ci_gate_enabled=false."
-        );
-    }
+    validate_ci_gate_config(cfg.agent.ci_gate.as_ref(), "agent")?;
 
     // Validate profile agent configs
     if let Some(profiles) = cfg.profiles.as_ref() {
@@ -338,6 +443,7 @@ pub fn validate_agent_patch(agent: &AgentConfig, label: &str) -> Result<()> {
 
     // Validate all agent binary paths using shared helper
     validate_agent_binary_paths(agent, label)?;
+    validate_ci_gate_config(agent.ci_gate.as_ref(), label)?;
 
     Ok(())
 }

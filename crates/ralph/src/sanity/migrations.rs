@@ -51,6 +51,9 @@ pub(crate) fn check_and_handle_migrations(
                     MigrationType::ConfigKeyRemove { key } => {
                         format!("Config uses removed key '{}', delete it", key)
                     }
+                    MigrationType::ConfigCiGateRewrite => {
+                        "Config uses removed CI gate string keys, rewrite to structured agent.ci_gate".to_string()
+                    }
                     MigrationType::FileRename { old_path, new_path } => {
                         format!("Rename file '{}' to '{}'", old_path, new_path)
                     }

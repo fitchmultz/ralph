@@ -179,58 +179,14 @@ public final class WorkspaceManager: ObservableObject {
         }
     }
 
-    /// Adopt a CLI executable path provided by URL/launcher context and refresh all workspaces.
-    ///
-    /// If the override is invalid and there is already a working client, this method logs and
-    /// preserves the existing client. If no client exists, the error is surfaced in `errorMessage`.
+    /// Reject CLI executable paths provided by URL/launcher context.
     public func adoptCLIExecutable(path: String) {
         let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-
-        let executableURL = URL(fileURLWithPath: trimmed, isDirectory: false)
-            .standardizedFileURL
-            .resolvingSymlinksInPath()
-
-        if let existing = client?.executableURL
-            .standardizedFileURL
-            .resolvingSymlinksInPath(),
-           existing.path == executableURL.path {
-            return
-        }
-
-        do {
-            let newClient = try RalphCLIClient(executableURL: executableURL)
-            client = newClient
-            errorMessage = nil
-
-            RalphLogger.shared.info(
-                "Adopted CLI executable from URL context: \(executableURL.path)",
-                category: .cli
-            )
-
-            for workspace in workspaces {
-                workspace.injectClient(newClient)
-                Task { @MainActor [weak workspace] in
-                    guard let workspace else { return }
-                    _ = await workspace.checkHealth()
-                    if workspace.hasRalphQueueFile {
-                        await workspace.loadTasks(retryConfiguration: .minimal)
-                    }
-                }
-            }
-
-            Task { @MainActor [weak self] in
-                await self?.performVersionCheck()
-            }
-        } catch {
-            RalphLogger.shared.error(
-                "Failed to adopt CLI executable '\(executableURL.path)': \(error)",
-                category: .cli
-            )
-            if client == nil {
-                errorMessage = "Failed to use CLI executable override: \(error)"
-            }
-        }
+        RalphLogger.shared.error(
+            "Rejected insecure URL-driven CLI override: \(trimmed)",
+            category: .cli
+        )
     }
 
     // MARK: - Workspace Lifecycle

@@ -101,6 +101,11 @@ pub static MIGRATIONS: &[Migration] = &[
         },
     },
     Migration {
+        id: "config_ci_gate_rewrite_2026_03",
+        description: "Rewrite legacy agent.ci_gate_command/ci_gate_enabled into structured agent.ci_gate config",
+        migration_type: MigrationType::ConfigCiGateRewrite,
+    },
+    Migration {
         id: "file_cleanup_legacy_config_json_after_jsonc_2026_02",
         description: "Remove legacy config.json when config.jsonc already exists",
         migration_type: MigrationType::FileRename {

@@ -30,6 +30,10 @@ ralph run one
 ralph run loop
 ```
 
+Security note:
+- `ralph app open` deep links now carry only workspace context.
+- The app ignores legacy `cli=` URL parameters and will not swap the CLI executable from URL input.
+
 ## Feature Tour
 
 The app centers around workspace navigation and fast task handling:

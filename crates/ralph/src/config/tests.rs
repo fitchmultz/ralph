@@ -12,13 +12,15 @@
 
 use super::super::contracts::{Config, GitRevertMode};
 use super::super::prompts_internal::util::validate_instruction_file_paths;
+use super::RepoTrust;
 use super::layer::{ConfigLayer, apply_layer, load_layer, save_layer};
 use super::resolution::{
     resolve_done_path, resolve_id_prefix, resolve_id_width, resolve_queue_path,
 };
 use super::validation::{
     ERR_EMPTY_QUEUE_DONE_FILE, ERR_EMPTY_QUEUE_FILE, ERR_EMPTY_QUEUE_ID_PREFIX,
-    ERR_INVALID_QUEUE_ID_WIDTH, validate_config,
+    ERR_INVALID_QUEUE_ID_WIDTH, ERR_PROJECT_EXECUTION_TRUST, validate_config,
+    validate_project_execution_trust,
 };
 use anyhow::Result;
 use std::path::PathBuf;
@@ -62,22 +64,78 @@ fn save_layer_writes_version_and_round_trips() -> Result<()> {
 }
 
 #[test]
-fn validate_config_rejects_empty_ci_gate_command_when_enabled() {
+fn validate_config_rejects_empty_ci_gate_argv_when_enabled() {
     let mut cfg = Config::default();
-    cfg.agent.ci_gate_command = Some("   ".to_string());
-    cfg.agent.ci_gate_enabled = Some(true);
+    cfg.agent.ci_gate = Some(crate::contracts::CiGateConfig {
+        enabled: Some(true),
+        argv: Some(vec!["".to_string()]),
+        shell: None,
+    });
 
     let err = validate_config(&cfg).expect_err("expected validation to fail");
-    assert!(err.to_string().contains("agent.ci_gate_command"));
+    assert!(err.to_string().contains("agent.ci_gate.argv"));
 }
 
 #[test]
-fn validate_config_allows_empty_ci_gate_command_when_disabled() {
+fn validate_config_allows_missing_ci_gate_shape_when_disabled() {
     let mut cfg = Config::default();
-    cfg.agent.ci_gate_command = Some(" ".to_string());
-    cfg.agent.ci_gate_enabled = Some(false);
+    cfg.agent.ci_gate = Some(crate::contracts::CiGateConfig {
+        enabled: Some(false),
+        argv: None,
+        shell: None,
+    });
 
     validate_config(&cfg).expect("validation should pass when disabled");
+}
+
+#[test]
+fn validate_config_rejects_shell_launcher_argv_without_shell_mode() {
+    let mut cfg = Config::default();
+    cfg.agent.ci_gate = Some(crate::contracts::CiGateConfig {
+        enabled: Some(true),
+        argv: Some(vec![
+            "sh".to_string(),
+            "-c".to_string(),
+            "make ci".to_string(),
+        ]),
+        shell: None,
+    });
+
+    let err = validate_config(&cfg).expect_err("expected validation to fail");
+    assert!(err.to_string().contains("requires agent.ci_gate.shell"));
+}
+
+#[test]
+fn validate_project_execution_trust_rejects_untrusted_project_ci_gate() {
+    let mut layer = ConfigLayer::default();
+    layer.agent.ci_gate = Some(crate::contracts::CiGateConfig {
+        enabled: Some(true),
+        argv: Some(vec!["cargo".to_string(), "test".to_string()]),
+        shell: None,
+    });
+
+    let err = validate_project_execution_trust(Some(&layer), &RepoTrust::default())
+        .expect_err("expected trust failure");
+    assert!(err.to_string().contains(ERR_PROJECT_EXECUTION_TRUST));
+}
+
+#[test]
+fn validate_project_execution_trust_allows_trusted_project_ci_gate() {
+    let mut layer = ConfigLayer::default();
+    layer.agent.ci_gate = Some(crate::contracts::CiGateConfig {
+        enabled: Some(true),
+        argv: Some(vec!["cargo".to_string(), "test".to_string()]),
+        shell: None,
+    });
+
+    validate_project_execution_trust(
+        Some(&layer),
+        &RepoTrust {
+            allow_project_commands: true,
+            trusted_at: None,
+        },
+    )
+    .expect("trusted project config should pass");
 }
 
 #[test]

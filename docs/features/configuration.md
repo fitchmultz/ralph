@@ -261,8 +261,8 @@ Override executable names/paths for each runner:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `ci_gate_enabled` | `boolean` | `true` | Enable CI gate validation |
-| `ci_gate_command` | `string` | `"make ci"` | Command to run for CI gate |
+| `ci_gate.enabled` | `boolean` | `true` | Enable CI gate validation |
+| `ci_gate.argv` | `string[]` | `["make", "ci"]` | Direct argv command to run for the CI gate |
 
 > ⚠️ **Safety Warning**: Disabling the CI gate skips validation before commit/push, potentially allowing broken code.
 
@@ -322,8 +322,10 @@ Paths can be:
     "claude_permission_mode": "bypass_permissions",
     "git_revert_mode": "ask",
     "git_commit_push_enabled": true,
-    "ci_gate_enabled": true,
-    "ci_gate_command": "make ci",
+    "ci_gate": {
+      "enabled": true,
+      "argv": ["make", "ci"]
+    },
     "repoprompt_plan_required": false,
     "instruction_files": ["AGENTS.md"],
     "session_timeout_hours": 24,
@@ -924,8 +926,10 @@ Here's a comprehensive example demonstrating all configuration sections:
     "git_commit_push_enabled": true,
     
     // CI gate
-    "ci_gate_enabled": true,
-    "ci_gate_command": "make ci",
+    "ci_gate": {
+      "enabled": true,
+      "argv": ["make", "ci"]
+    },
     
     // RepoPrompt integration
     "repoprompt_plan_required": false,

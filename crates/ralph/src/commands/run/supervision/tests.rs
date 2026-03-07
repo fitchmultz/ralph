@@ -86,8 +86,11 @@ fn resolved_for_repo(repo_root: &Path) -> crate::config::Resolved {
             instruction_files: None,
             repoprompt_plan_required: Some(false),
             repoprompt_tool_injection: Some(false),
-            ci_gate_command: Some("make ci".to_string()),
-            ci_gate_enabled: Some(false),
+            ci_gate: Some(crate::contracts::CiGateConfig {
+                enabled: Some(false),
+                argv: None,
+                shell: None,
+            }),
             git_revert_mode: Some(GitRevertMode::Disabled),
             git_commit_push_enabled: Some(true),
             phases: Some(2),
@@ -663,8 +666,18 @@ echo '{{"sessionID":"sess-123"}}'
     let ci_command = format!("test -f {}", ci_pass.display());
 
     let mut resolved = resolved_for_repo(temp.path());
-    resolved.config.agent.ci_gate_enabled = Some(true);
-    resolved.config.agent.ci_gate_command = Some(ci_command);
+    std::fs::write(
+        temp.path().join(".ralph/trust.jsonc"),
+        r#"{"allow_project_commands": true}"#,
+    )?;
+    resolved.config.agent.ci_gate = Some(crate::contracts::CiGateConfig {
+        enabled: Some(true),
+        argv: None,
+        shell: Some(crate::contracts::ShellCommandConfig {
+            mode: Some(crate::contracts::ShellMode::Posix),
+            command: Some(ci_command),
+        }),
+    });
     resolved.config.agent.opencode_bin = Some(runner_path.to_str().unwrap().to_string());
 
     let prompt_handler: runutil::RevertPromptHandler = Arc::new(|_context| {

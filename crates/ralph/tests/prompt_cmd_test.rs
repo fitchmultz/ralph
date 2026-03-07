@@ -7,7 +7,8 @@ use ralph::commands::prompt::{
     WorkerPromptOptions,
 };
 use ralph::contracts::{
-    AgentConfig, Config, LoopConfig, ParallelConfig, PluginsConfig, ProjectType, QueueConfig,
+    AgentConfig, CiGateConfig, Config, LoopConfig, ParallelConfig, PluginsConfig, ProjectType,
+    QueueConfig,
 };
 use std::path::PathBuf;
 use tempfile::TempDir;
@@ -36,8 +37,11 @@ fn make_resolved(temp: &TempDir) -> ralph::config::Resolved {
             phases: Some(3),
             repoprompt_plan_required: Some(false),
             repoprompt_tool_injection: Some(false),
-            ci_gate_command: Some("make ci".to_string()),
-            ci_gate_enabled: Some(true),
+            ci_gate: Some(CiGateConfig {
+                enabled: Some(true),
+                argv: Some(vec!["make".to_string(), "ci".to_string()]),
+                shell: None,
+            }),
             git_commit_push_enabled: Some(true),
             ..Default::default()
         },

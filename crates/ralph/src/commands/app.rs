@@ -4,7 +4,6 @@
 //! - Implement `ralph app open` by launching the installed SwiftUI app via the macOS `open`
 //!   command.
 //! - Pass workspace context via custom URL scheme `ralph://open?workspace=<path>`
-//! - Pass the active CLI executable path to the GUI so the app can run the same `ralph` binary.
 //! - Keep the invocation logic testable by separating "plan" from execution.
 //!
 //! Not handled here:
@@ -98,13 +97,9 @@ fn ensure_exists(path: &Path) -> Result<()> {
 }
 
 /// Plan the URL command to send workspace context.
-fn plan_url_command(workspace: &Path, cli_executable: Option<&Path>) -> Result<OpenCommandSpec> {
+fn plan_url_command(workspace: &Path) -> Result<OpenCommandSpec> {
     let encoded_path = percent_encode_path(workspace);
-    let mut url = format!("ralph://open?workspace={}", encoded_path);
-    if let Some(cli_executable) = cli_executable {
-        url.push_str("&cli=");
-        url.push_str(&percent_encode_path(cli_executable));
-    }
+    let url = format!("ralph://open?workspace={}", encoded_path);
 
     Ok(OpenCommandSpec {
         program: OsString::from("open"),
@@ -180,7 +175,7 @@ pub fn open(args: AppOpenArgs) -> Result<()> {
     let cli_executable = current_executable_for_gui();
 
     let spec = if let Some(workspace_path) = resolve_workspace_path(&args)? {
-        plan_url_command(&workspace_path, cli_executable.as_deref())?
+        plan_url_command(&workspace_path)?
     } else {
         plan_open_command(cfg!(target_os = "macos"), &args, cli_executable.as_deref())?
     };
@@ -303,7 +298,7 @@ mod tests {
     #[test]
     fn plan_url_command_encodes_workspace() -> anyhow::Result<()> {
         let workspace = PathBuf::from("/Users/test/my project");
-        let spec = plan_url_command(&workspace, None)?;
+        let spec = plan_url_command(&workspace)?;
 
         assert_eq!(spec.program, OsString::from("open"));
         assert_eq!(spec.args.len(), 1);
@@ -320,7 +315,7 @@ mod tests {
     #[test]
     fn plan_url_command_handles_special_chars() -> anyhow::Result<()> {
         let workspace = PathBuf::from("/path/with&special=chars");
-        let spec = plan_url_command(&workspace, None)?;
+        let spec = plan_url_command(&workspace)?;
 
         let url = spec.args[0].to_str().unwrap();
         assert!(url.contains("%26"), "& should be encoded as %26");
@@ -389,14 +384,13 @@ mod tests {
     }
 
     #[test]
-    fn plan_url_command_includes_cli_param_when_provided() -> anyhow::Result<()> {
+    fn plan_url_command_never_includes_cli_param() -> anyhow::Result<()> {
         let workspace = PathBuf::from("/Users/test/workspace");
-        let cli = PathBuf::from("/Users/test/bin/ralph cli");
-        let spec = plan_url_command(&workspace, Some(&cli))?;
+        let spec = plan_url_command(&workspace)?;
 
         let url = spec.args[0].to_string_lossy();
         assert!(url.starts_with("ralph://open?workspace="));
-        assert!(url.contains("&cli=/Users/test/bin/ralph%20cli"));
+        assert!(!url.contains("&cli="));
         Ok(())
     }
 

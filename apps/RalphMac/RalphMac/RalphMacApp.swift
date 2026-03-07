@@ -111,8 +111,11 @@ struct RalphMacApp: App {
             return
         }
 
-        if let cliPath = queryItems.first(where: { $0.name == "cli" })?.value?.removingPercentEncoding {
-            manager.adoptCLIExecutable(path: cliPath)
+        if queryItems.contains(where: { $0.name == "cli" }) {
+            RalphLogger.shared.error(
+                "Ignoring deprecated insecure cli= URL parameter",
+                category: .cli
+            )
         }
 
         let workspaceURL = URL(fileURLWithPath: path, isDirectory: true)

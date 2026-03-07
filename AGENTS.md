@@ -72,6 +72,11 @@ Every source file MUST start with `//!` docs covering:
 3. `~/.config/ralph/config.jsonc`
 4. Schema defaults
 
+### Repo Execution Trust
+- Repo-local executable settings (for example `agent.ci_gate.shell`) are gated by local `.ralph/trust.jsonc` / `.ralph/trust.json`, not shared config.
+- Trust file shape: `{"allow_project_commands": true, "trusted_at": "<RFC3339 optional>"}`.
+- Missing trust file means the repo is untrusted.
+
 ### Queue Load/Validate Auto-Repair
 - `queue::load_and_validate_queues` performs conservative maintenance before validation.
 - Parseable non-UTC RFC3339 timestamps are normalized to UTC; missing terminal `completed_at` is backfilled.
@@ -81,6 +86,11 @@ Every source file MUST start with `//!` docs covering:
 ### Repo Target Resolution
 - Repo/file targeting is always derived from process CWD (`find_repo_root(current_dir)`).
 - `RALPH_REPO_ROOT_OVERRIDE`, `RALPH_QUEUE_PATH_OVERRIDE`, and `RALPH_DONE_PATH_OVERRIDE` are unsupported.
+
+### Repo Execution Trust
+- Repo-local executable CI settings are trust-gated through local-only `.ralph/trust.jsonc` / `.ralph/trust.json`.
+- Missing trust file means repo config may not define `agent.ci_gate`; move CI settings to trusted global config or create the local trust file.
+- `.ralph/trust.json*` must remain untracked.
 
 ### Phase 1 Follow-up Guardrail
 - Follow-up Phase 1 baseline snapshots must exclude mutable `.ralph/**` paths; only baseline dirty paths outside `.ralph/` are immutable.

@@ -2,6 +2,7 @@
 //!
 //! Responsibilities:
 //! - Define AgentConfig struct and merge behavior for runner defaults.
+//! - Model CI gate execution using explicit argv or trusted shell settings.
 //!
 //! Not handled here:
 //! - Runner-specific configuration (see `crate::contracts::runner`).
@@ -16,6 +17,119 @@ use crate::contracts::runner::{ClaudePermissionMode, Runner, RunnerCliConfigRoot
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+
+/// Platform shell mode for trusted CI gate execution.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ShellMode {
+    Posix,
+    WindowsCmd,
+}
+
+impl ShellMode {
+    pub fn display_prefix(self) -> &'static str {
+        match self {
+            Self::Posix => "sh -c",
+            Self::WindowsCmd => "cmd /C",
+        }
+    }
+}
+
+/// Trusted shell execution settings for the CI gate.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema, PartialEq, Eq)]
+#[serde(default, deny_unknown_fields)]
+pub struct ShellCommandConfig {
+    /// Shell mode used to interpret the command string.
+    pub mode: Option<ShellMode>,
+
+    /// Command string evaluated by the configured shell.
+    pub command: Option<String>,
+}
+
+impl ShellCommandConfig {
+    pub fn merge_from(&mut self, other: Self) {
+        if other.mode.is_some() {
+            self.mode = other.mode;
+        }
+        if other.command.is_some() {
+            self.command = other.command;
+        }
+    }
+}
+
+/// Structured CI gate execution settings.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema, PartialEq, Eq)]
+#[serde(default, deny_unknown_fields)]
+pub struct CiGateConfig {
+    /// Enable or disable the CI gate entirely.
+    pub enabled: Option<bool>,
+
+    /// Direct argv execution. The first item is the program and remaining items are arguments.
+    pub argv: Option<Vec<String>>,
+
+    /// Explicit shell-mode execution. Intended only for trusted local configuration.
+    pub shell: Option<ShellCommandConfig>,
+}
+
+impl CiGateConfig {
+    pub fn is_enabled(&self) -> bool {
+        self.enabled.unwrap_or(true)
+    }
+
+    pub fn display_string(&self) -> String {
+        if !self.is_enabled() {
+            return "disabled".to_string();
+        }
+
+        if let Some(argv) = &self.argv {
+            return format_argv(argv);
+        }
+
+        if let Some(shell) = &self.shell {
+            let mode = shell
+                .mode
+                .map(ShellMode::display_prefix)
+                .unwrap_or("<shell>");
+            let command = shell.command.as_deref().unwrap_or("<unset>");
+            return format!("{mode} {command}");
+        }
+
+        "<unset>".to_string()
+    }
+
+    pub fn merge_from(&mut self, other: Self) {
+        if other.enabled.is_some() {
+            self.enabled = other.enabled;
+        }
+        if other.argv.is_some() {
+            self.argv = other.argv;
+        }
+        if let Some(other_shell) = other.shell {
+            match &mut self.shell {
+                Some(existing) => existing.merge_from(other_shell),
+                None => self.shell = Some(other_shell),
+            }
+        }
+    }
+}
+
+fn format_argv(argv: &[String]) -> String {
+    argv.iter()
+        .map(|part| {
+            if part.is_empty() {
+                "\"\"".to_string()
+            } else if part
+                .chars()
+                .any(|ch| ch.is_whitespace() || matches!(ch, '"' | '\'' | '\\'))
+            {
+                format!("{part:?}")
+            } else {
+                part.clone()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
 
 /// Agent runner defaults (Claude, Codex, OpenCode, Gemini, or Cursor).
 #[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
@@ -89,11 +203,8 @@ pub struct AgentConfig {
     /// Inject RepoPrompt tooling reminder block into prompts.
     pub repoprompt_tool_injection: Option<bool>,
 
-    /// CI gate command to run (default: "make ci").
-    pub ci_gate_command: Option<String>,
-
-    /// Enable or disable the CI gate entirely (default: true).
-    pub ci_gate_enabled: Option<bool>,
+    /// Structured CI gate execution settings.
+    pub ci_gate: Option<CiGateConfig>,
 
     /// Controls automatic git revert behavior when runner or supervision errors occur.
     pub git_revert_mode: Option<GitRevertMode>,
@@ -126,6 +237,20 @@ pub struct AgentConfig {
 }
 
 impl AgentConfig {
+    pub fn ci_gate_enabled(&self) -> bool {
+        self.ci_gate
+            .as_ref()
+            .map(CiGateConfig::is_enabled)
+            .unwrap_or(true)
+    }
+
+    pub fn ci_gate_display_string(&self) -> String {
+        self.ci_gate
+            .as_ref()
+            .map(CiGateConfig::display_string)
+            .unwrap_or_else(|| "make ci".to_string())
+    }
+
     pub fn merge_from(&mut self, other: Self) {
         if other.runner.is_some() {
             self.runner = other.runner;
@@ -175,7 +300,6 @@ impl AgentConfig {
                 None => self.runner_cli = Some(other_runner_cli),
             }
         }
-        // Merge phase_overrides
         if let Some(other_phase_overrides) = other.phase_overrides {
             match &mut self.phase_overrides {
                 Some(existing) => existing.merge_from(other_phase_overrides),
@@ -191,11 +315,11 @@ impl AgentConfig {
         if other.repoprompt_tool_injection.is_some() {
             self.repoprompt_tool_injection = other.repoprompt_tool_injection;
         }
-        if other.ci_gate_command.is_some() {
-            self.ci_gate_command = other.ci_gate_command;
-        }
-        if other.ci_gate_enabled.is_some() {
-            self.ci_gate_enabled = other.ci_gate_enabled;
+        if let Some(other_ci_gate) = other.ci_gate {
+            match &mut self.ci_gate {
+                Some(existing) => existing.merge_from(other_ci_gate),
+                None => self.ci_gate = Some(other_ci_gate),
+            }
         }
         if other.git_revert_mode.is_some() {
             self.git_revert_mode = other.git_revert_mode;

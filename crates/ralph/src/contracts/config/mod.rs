@@ -31,7 +31,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-// Submodules
 mod agent;
 mod enums;
 mod loop_;
@@ -45,8 +44,7 @@ mod retry;
 mod tests;
 mod webhook;
 
-// Re-exports from submodules
-pub use agent::AgentConfig;
+pub use agent::{AgentConfig, CiGateConfig, ShellCommandConfig, ShellMode};
 pub use enums::{GitRevertMode, ProjectType, ScanPromptVersion};
 pub use loop_::LoopConfig;
 pub use notification::NotificationConfig;
@@ -56,15 +54,6 @@ pub use plugin::{PluginConfig, PluginProcessorConfig, PluginRunnerConfig, Plugin
 pub use queue::{QueueAgingThresholds, QueueConfig};
 pub use retry::RunnerRetryConfig;
 pub use webhook::{WebhookConfig, WebhookEventSubscription, WebhookQueuePolicy};
-
-/* ----------------------------- Config (JSON) ----------------------------- */
-/*
-Config is layered:
-- Global config (defaults)
-- Project config (overrides)
-Merge is leaf-wise: project values override global values when the project value is Some(...).
-To make that merge unambiguous, leaf fields are Option<T>.
-*/
 
 /// Root configuration struct for Ralph.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -100,11 +89,10 @@ pub struct Config {
     pub profiles: Option<BTreeMap<String, AgentConfig>>,
 }
 
-/* ------------------------------ Defaults -------------------------------- */
-
 impl Default for Config {
     fn default() -> Self {
         use std::collections::BTreeMap;
+
         Self {
             version: 1,
             project_type: Some(ProjectType::Code),
@@ -182,8 +170,11 @@ impl Default for Config {
                 instruction_files: None,
                 repoprompt_plan_required: Some(false),
                 repoprompt_tool_injection: Some(false),
-                ci_gate_command: Some("make ci".to_string()),
-                ci_gate_enabled: Some(true),
+                ci_gate: Some(CiGateConfig {
+                    enabled: Some(true),
+                    argv: Some(vec!["make".to_string(), "ci".to_string()]),
+                    shell: None,
+                }),
                 git_revert_mode: Some(GitRevertMode::Ask),
                 git_commit_push_enabled: Some(true),
                 notification: NotificationConfig {

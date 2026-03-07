@@ -119,8 +119,11 @@ mod tests {
                 instruction_files: None,
                 repoprompt_plan_required: None,
                 repoprompt_tool_injection: None,
-                ci_gate_command: Some("make ci".to_string()),
-                ci_gate_enabled: Some(true),
+                ci_gate: Some(crate::contracts::CiGateConfig {
+                    enabled: Some(true),
+                    argv: Some(vec!["make".to_string(), "ci".to_string()]),
+                    shell: None,
+                }),
                 git_revert_mode: Some(GitRevertMode::Ask),
                 git_commit_push_enabled: Some(true),
                 notification: NotificationConfig::default(),

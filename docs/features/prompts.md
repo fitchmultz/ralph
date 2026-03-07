@@ -317,7 +317,7 @@ Review body injected in Phase 3:
 Access configuration values via `{{config.section.key}}`:
 
 ```markdown
-CI Gate Command: {{config.agent.ci_gate_command}}
+CI Gate Command: {{config.agent.ci_gate_display}}
 CI Gate Enabled: {{config.agent.ci_gate_enabled}}
 Git Commit/Push: {{config.agent.git_commit_push_enabled}}
 Runner: {{config.agent.runner}}
@@ -332,7 +332,7 @@ Available config paths:
 - `config.agent.iterations`
 - `config.agent.followup_reasoning_effort`
 - `config.agent.claude_permission_mode`
-- `config.agent.ci_gate_command`
+- `config.agent.ci_gate_display`
 - `config.agent.ci_gate_enabled`
 - `config.agent.git_commit_push_enabled`
 - `config.queue.id_prefix`

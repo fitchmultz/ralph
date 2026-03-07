@@ -12,6 +12,7 @@
 //! - Re-exports preserve the existing public and `pub(crate)` API surface.
 
 mod abort;
+mod ci_gate;
 mod execution;
 mod retry;
 mod revert;
@@ -28,13 +29,12 @@ pub use revert::{
     parse_revert_response, prompt_revert_choice_with_io,
 };
 
-pub use shell::shell_command;
-
 // --- Crate-private API (unchanged call-site paths) ---------------------------
 
 pub(crate) use abort::{
     RunAbort, RunAbortReason, abort_reason, is_dirty_repo_error, is_queue_validation_error,
 };
+pub(crate) use ci_gate::execute_ci_gate;
 
 pub(crate) use execution::{RunnerErrorMessages, RunnerInvocation, run_prompt_with_handling};
 

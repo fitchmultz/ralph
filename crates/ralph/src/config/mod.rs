@@ -27,6 +27,7 @@ use std::path::PathBuf;
 
 mod layer;
 mod resolution;
+mod trust;
 mod validation;
 
 #[cfg(test)]
@@ -39,10 +40,12 @@ pub use resolution::{
     resolve_done_path, resolve_from_cwd, resolve_from_cwd_for_doctor,
     resolve_from_cwd_with_profile, resolve_id_prefix, resolve_id_width, resolve_queue_path,
 };
+pub use trust::{RepoTrust, load_repo_trust, project_trust_path};
 pub use validation::{
     git_ref_invalid_reason, validate_agent_binary_paths, validate_agent_patch, validate_config,
-    validate_queue_done_file_override, validate_queue_file_override,
-    validate_queue_id_prefix_override, validate_queue_id_width_override, validate_queue_overrides,
+    validate_project_execution_trust, validate_queue_done_file_override,
+    validate_queue_file_override, validate_queue_id_prefix_override,
+    validate_queue_id_width_override, validate_queue_overrides,
 };
 
 /// Resolved configuration including computed paths.

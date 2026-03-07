@@ -53,7 +53,7 @@ pub(crate) fn execute_iteration_phases(
     parallel_target_branch: Option<&str>,
     plugins: &PluginRegistry,
 ) -> Result<()> {
-    let ci_gate_enabled = resolved.config.agent.ci_gate_enabled.unwrap_or(true);
+    let ci_gate_enabled = resolved.config.agent.ci_gate_enabled();
     let webhook_config = &resolved.config.agent.webhook;
 
     for iteration_index in 1..=setup.iteration_settings.count {

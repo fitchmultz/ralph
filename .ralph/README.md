@@ -227,8 +227,10 @@ Defaults via config (`.ralph/config.jsonc` or `~/.config/ralph/config.jsonc`):
     "repoprompt_tool_injection": false,
     "git_revert_mode": "ask",
     "git_commit_push_enabled": true,
-    "ci_gate_command": "make ci",
-    "ci_gate_enabled": true
+    "ci_gate": {
+      "enabled": true,
+      "argv": ["make", "ci"]
+    }
   }
 }
 ```
