@@ -661,7 +661,9 @@ build_release_artifacts() {
     else
         ensure_release_binary
 
-        # Create artifacts directory
+        # Start from a clean artifact directory so stale tarballs/checksums from
+        # earlier releases cannot be uploaded with the current release.
+        rm -rf "$RELEASE_ARTIFACTS_DIR"
         mkdir -p "$RELEASE_ARTIFACTS_DIR"
 
         # Determine platform name
@@ -840,7 +842,7 @@ create_git_tag() {
         echo "    [DRY RUN] Would create GitHub release with:"
         echo "    [DRY RUN]   gh release create v$VERSION --title v$VERSION --verify-tag --notes-file $release_notes_file"
         if [ -d "$RELEASE_ARTIFACTS_DIR" ]; then
-            for artifact in "$RELEASE_ARTIFACTS_DIR"/*.tar.gz; do
+            for artifact in "$RELEASE_ARTIFACTS_DIR"/ralph-"${VERSION}"-*.tar.gz; do
                 if [ -f "$artifact" ]; then
                     echo "    [DRY RUN]   gh release upload v$VERSION $artifact"
                 fi
@@ -860,7 +862,7 @@ create_git_tag() {
 
         # Upload artifacts
         if [ -d "$RELEASE_ARTIFACTS_DIR" ]; then
-            for artifact in "$RELEASE_ARTIFACTS_DIR"/*.tar.gz; do
+            for artifact in "$RELEASE_ARTIFACTS_DIR"/ralph-"${VERSION}"-*.tar.gz; do
                 if [ -f "$artifact" ]; then
                     local checksum_file="${artifact}.sha256"
                     if ! gh release upload "v$VERSION" "$artifact" "$checksum_file"; then
