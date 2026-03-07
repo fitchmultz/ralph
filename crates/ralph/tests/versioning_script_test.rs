@@ -84,3 +84,21 @@ fn versioning_script_check_succeeds_when_metadata_is_synced() {
         "expected success marker in stdout\nstdout:\n{stdout}\nstderr:\n{stderr}"
     );
 }
+
+#[test]
+fn versioning_script_sync_refreshes_lockfile() {
+    let script = std::fs::read_to_string(version_script()).expect("read versioning.sh");
+    assert!(
+        script.contains("cargo update -w --offline"),
+        "versioning.sh sync should refresh Cargo.lock for the workspace root package"
+    );
+}
+
+#[test]
+fn versioning_script_check_reports_lockfile_drift() {
+    let script = std::fs::read_to_string(version_script()).expect("read versioning.sh");
+    assert!(
+        script.contains("Cargo.lock version drifted"),
+        "versioning.sh check should fail explicitly when Cargo.lock is out of sync"
+    );
+}

@@ -98,5 +98,11 @@ make check-repo-safety
 
 If all checks pass, perform a final review of README, screenshots/demo assets, and the tracked `.ralph/` sample state, then publish.
 
+Release-specific reminders:
+
+- Run the public-readiness audit before the final release mutation so the working tree is still clean.
+- `Cargo.lock` is expected release metadata when `VERSION` changes; review it, do not discard it.
+- `target/release-artifacts/` is disposable build output owned by `scripts/release.sh`.
+
 Related references:
 - [CI and Test Strategy](ci-strategy.md)

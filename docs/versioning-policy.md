@@ -38,3 +38,11 @@ If macOS app changes are included:
 ```bash
 make macos-ci
 ```
+
+Release/versioning invariants:
+
+- `VERSION` is the canonical source of truth.
+- `scripts/versioning.sh sync --version <x.y.z>` is the only supported way to bump release metadata.
+- `Cargo.lock` is part of synchronized version metadata and must be committed with release bumps.
+- `scripts/release.sh` owns `target/release-artifacts/` and clears stale tarballs before packaging.
+- Prefer the pinned toolchain from [`rust-toolchain.toml`](../rust-toolchain.toml) when running release gates; if your shell resolves an older `rustc`, use the rustup toolchain bin dir explicitly.

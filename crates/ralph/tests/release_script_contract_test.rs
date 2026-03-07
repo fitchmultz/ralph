@@ -74,3 +74,44 @@ fn release_notes_template_uses_repo_placeholders() {
         "release-notes template should use clone URL placeholders"
     );
 }
+
+#[test]
+fn release_script_treats_cargo_lock_as_release_metadata() {
+    let script = read_repo_file("scripts/release.sh");
+    assert!(
+        script.contains("\"Cargo.lock\""),
+        "release.sh should treat Cargo.lock as release metadata"
+    );
+    assert!(
+        script.contains("git add VERSION Cargo.lock"),
+        "release.sh should stage Cargo.lock in the release commit"
+    );
+    assert!(
+        script.contains("git checkout -- VERSION Cargo.lock"),
+        "release.sh should roll back Cargo.lock on failed release cleanup"
+    );
+}
+
+#[test]
+fn release_script_cleans_release_artifacts_directory() {
+    let script = read_repo_file("scripts/release.sh");
+    let cleanup_count = script.matches("rm -rf \"$RELEASE_ARTIFACTS_DIR\"").count();
+    assert!(
+        cleanup_count >= 2,
+        "release.sh should clean target/release-artifacts before packaging and during cleanup"
+    );
+}
+
+#[test]
+fn release_script_allows_dirty_packaging_review_before_release_commit() {
+    let script = read_repo_file("scripts/release.sh");
+    assert!(
+        script.contains("cargo package --list -p \"$CRATE_PACKAGE_NAME\" --allow-dirty"),
+        "release.sh should review packaged files with --allow-dirty before the release commit exists"
+    );
+    assert!(
+        script
+            .contains("cargo publish --dry-run -p \"$CRATE_PACKAGE_NAME\" --locked --allow-dirty"),
+        "release.sh should dry-run crates.io publish with --allow-dirty before the release commit exists"
+    );
+}

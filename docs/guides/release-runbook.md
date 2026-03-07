@@ -5,8 +5,16 @@ Purpose: define a repeatable release flow with explicit verification and rollbac
 ## Preconditions
 
 - Working tree is clean
-- Version and changelog updates are staged
+- `CHANGELOG.md` has final release-worthy notes
 - Local toolchain is healthy
+- `rustc --version` matches [`rust-toolchain.toml`](../../rust-toolchain.toml); if not, prefix commands with the rustup toolchain bin dir
+
+Recommended toolchain prefix when macOS resolves a stale Homebrew Rust first:
+
+```bash
+TOOL="$HOME/.rustup/toolchains/1.94.0-aarch64-apple-darwin/bin"
+PATH="$TOOL:$PATH" RUSTC="$TOOL/rustc"
+```
 
 ## Release Steps
 
@@ -24,23 +32,47 @@ make pre-public-check
 make macos-ci
 ```
 
-3. Dry-run release workflow:
+3. Sync version metadata from `VERSION` and verify drift is gone:
+
+```bash
+./scripts/versioning.sh sync --version <version>
+./scripts/versioning.sh check
+git diff -- VERSION Cargo.lock crates/ralph/Cargo.toml \
+  apps/RalphMac/RalphMac.xcodeproj/project.pbxproj \
+  apps/RalphMac/RalphCore/VersionValidator.swift
+```
+
+4. Dry-run release workflow:
 
 ```bash
 RELEASE_DRY_RUN=1 scripts/release.sh <version>
 ```
 
-4. Build artifacts:
+5. Real release:
+
+```bash
+scripts/release.sh <version>
+```
+
+6. Optional local artifact inspection before upload-only debugging:
 
 ```bash
 make release-artifacts VERSION=<version>
 ```
 
-5. Final human review:
+7. Final human review:
 
 - README + docs links
 - release notes/changelog entries
 - publication checklist completion
+- GitHub release page and uploaded asset names/checksums
+
+## Known Gotchas
+
+- `Cargo.lock` is part of release metadata. If it changes during `versioning.sh sync`, that is expected and must be committed.
+- `make pre-public-check` expects a clean tree when run in full mode. Run it before the final release mutation, or use the script flags intentionally.
+- `scripts/release.sh` clears `target/release-artifacts/` before packaging so stale tarballs are not uploaded.
+- `cargo package --list` runs with `--allow-dirty` during release prep because the release commit is created after packaging review.
 
 ## Rollback Notes
 
