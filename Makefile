@@ -395,10 +395,14 @@ macos-build: macos-preflight $(RALPH_RELEASE_BUILD_STAMP)
 	@lock_dir="$(XCODE_BUILD_LOCK_DIR)"; \
 	mkdir -p "$$(dirname "$$lock_dir")"; \
 	acquired=0; \
+	wait_notified=0; \
 	cleanup() { if [ "$$acquired" = "1" ]; then rmdir "$$lock_dir" 2>/dev/null || true; fi; }; \
 	trap cleanup EXIT INT TERM; \
 	while ! mkdir "$$lock_dir" 2>/dev/null; do \
-		echo "→ Waiting for Xcode build lock: $$lock_dir"; \
+		if [ "$$wait_notified" = "0" ]; then \
+			echo "→ Waiting for Xcode build lock: $$lock_dir"; \
+			wait_notified=1; \
+		fi; \
 		sleep 1; \
 	done; \
 	acquired=1; \
@@ -436,10 +440,14 @@ macos-test: macos-preflight $(RALPH_RELEASE_BUILD_STAMP)
 	@lock_dir="$(XCODE_BUILD_LOCK_DIR)"; \
 	mkdir -p "$$(dirname "$$lock_dir")"; \
 	acquired=0; \
+	wait_notified=0; \
 	cleanup() { if [ "$$acquired" = "1" ]; then rmdir "$$lock_dir" 2>/dev/null || true; fi; }; \
 	trap cleanup EXIT INT TERM; \
 	while ! mkdir "$$lock_dir" 2>/dev/null; do \
-		echo "→ Waiting for Xcode build lock: $$lock_dir"; \
+		if [ "$$wait_notified" = "0" ]; then \
+			echo "→ Waiting for Xcode build lock: $$lock_dir"; \
+			wait_notified=1; \
+		fi; \
 		sleep 1; \
 	done; \
 	acquired=1; \
@@ -478,10 +486,14 @@ macos-ui-build-for-testing: macos-preflight $(RALPH_RELEASE_BUILD_STAMP)
 	@lock_dir="$(XCODE_BUILD_LOCK_DIR)"; \
 	mkdir -p "$$(dirname "$$lock_dir")"; \
 	acquired=0; \
+	wait_notified=0; \
 	cleanup() { if [ "$$acquired" = "1" ]; then rmdir "$$lock_dir" 2>/dev/null || true; fi; }; \
 	trap cleanup EXIT INT TERM; \
 	while ! mkdir "$$lock_dir" 2>/dev/null; do \
-		echo "→ Waiting for Xcode build lock: $$lock_dir"; \
+		if [ "$$wait_notified" = "0" ]; then \
+			echo "→ Waiting for Xcode build lock: $$lock_dir"; \
+			wait_notified=1; \
+		fi; \
 		sleep 1; \
 	done; \
 	acquired=1; \
@@ -512,10 +524,14 @@ macos-ui-retest:
 	@lock_dir="$(XCODE_BUILD_LOCK_DIR)"; \
 	mkdir -p "$$(dirname "$$lock_dir")"; \
 	acquired=0; \
+	wait_notified=0; \
 	cleanup() { if [ "$$acquired" = "1" ]; then rmdir "$$lock_dir" 2>/dev/null || true; fi; }; \
 	trap cleanup EXIT INT TERM; \
 	while ! mkdir "$$lock_dir" 2>/dev/null; do \
-		echo "→ Waiting for Xcode build lock: $$lock_dir"; \
+		if [ "$$wait_notified" = "0" ]; then \
+			echo "→ Waiting for Xcode build lock: $$lock_dir"; \
+			wait_notified=1; \
+		fi; \
 		sleep 1; \
 	done; \
 	acquired=1; \
@@ -658,10 +674,14 @@ macos-test-window-shortcuts: macos-preflight $(RALPH_RELEASE_BUILD_STAMP)
 	@lock_dir="$(XCODE_BUILD_LOCK_DIR)"; \
 	mkdir -p "$$(dirname "$$lock_dir")"; \
 	acquired=0; \
+	wait_notified=0; \
 	cleanup() { if [ "$$acquired" = "1" ]; then rmdir "$$lock_dir" 2>/dev/null || true; fi; }; \
 	trap cleanup EXIT INT TERM; \
 	while ! mkdir "$$lock_dir" 2>/dev/null; do \
-		echo "→ Waiting for Xcode build lock: $$lock_dir"; \
+		if [ "$$wait_notified" = "0" ]; then \
+			echo "→ Waiting for Xcode build lock: $$lock_dir"; \
+			wait_notified=1; \
+		fi; \
 		sleep 1; \
 	done; \
 	acquired=1; \

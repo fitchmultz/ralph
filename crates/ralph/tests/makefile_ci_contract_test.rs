@@ -785,6 +785,14 @@ fn test_macos_targets_gate_with_preflight_and_isolate_derived_data() -> Result<(
             block.contains("while ! mkdir \"$$lock_dir\""),
             "{target} should wait for exclusive Xcode build access"
         );
+        assert!(
+            block.contains("wait_notified=0"),
+            "{target} should initialize one-time lock wait logging state"
+        );
+        assert!(
+            block.contains("if [ \"$$wait_notified\" = \"0\" ]; then"),
+            "{target} should avoid repeating the lock wait message every poll cycle"
+        );
     }
 
     Ok(())
