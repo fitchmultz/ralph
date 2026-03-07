@@ -103,6 +103,8 @@ replace_once(
     rf'\1"{version}"',
 )
 PY
+
+    cargo update -w --offline >/dev/null
 }
 
 get_first_match() {
@@ -114,9 +116,25 @@ get_first_match() {
 check_version_metadata() {
     local version="$1"
     local build_number="$2"
-    local cargo_version marketing_version current_project_version minimum_cli maximum_cli
+    local cargo_version lockfile_version marketing_version current_project_version minimum_cli maximum_cli
 
     cargo_version=$(get_first_match '^version = "([0-9]+\.[0-9]+\.[0-9]+)"$' "$CARGO_TOML")
+    lockfile_version=$(python3 - "$version" "$REPO_ROOT/Cargo.lock" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+expected_version, lockfile_path = sys.argv[1:3]
+text = Path(lockfile_path).read_text(encoding="utf-8")
+match = re.search(
+    r'\[\[package\]\]\nname = "ralph-agent-loop"\nversion = "([0-9]+\.[0-9]+\.[0-9]+)"',
+    text,
+    re.MULTILINE,
+)
+if match:
+    print(match.group(1))
+PY
+)
     marketing_version=$(get_first_match 'MARKETING_VERSION = ([0-9]+\.[0-9]+\.[0-9]+);' "$XCODE_PROJECT")
     current_project_version=$(get_first_match 'CURRENT_PROJECT_VERSION = ([0-9]+);' "$XCODE_PROJECT")
     minimum_cli=$(get_first_match 'minimumCLIVersion = "([0-9]+\.[0-9]+\.[0-9]+)"' "$VERSION_VALIDATOR_SWIFT")
@@ -126,6 +144,10 @@ check_version_metadata() {
 
     if [ "$cargo_version" != "$version" ]; then
         log_error "Cargo.toml version drifted: expected $version, found ${cargo_version:-<missing>}"
+        failures=1
+    fi
+    if [ "$lockfile_version" != "$version" ]; then
+        log_error "Cargo.lock version drifted: expected $version, found ${lockfile_version:-<missing>}"
         failures=1
     fi
     if [ "$marketing_version" != "$version" ]; then
